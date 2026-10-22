@@ -1,75 +1,58 @@
-// The remote tier of a land (task land-wait): `fw land` pushes the merge commit to `ci/land-<task>-<sha7>`, the land lane of a CI
-// provider runs the Lean-selected remote tier, and this file waits for it, normalizes each provider's run to a lane run record
-// and lets fwcore decide (`console.landRemote`, Lean `Fw.Console.LandRemote.verdict`; golden land-remote.jsonl).
-// No decision is made here: git, process and gh calls, JSON reading and timing spans only. Both adapters are complete. GitHub comes
-// first; when it has no free job slot the legs it cannot take go to CircleCI (task land-lane-circleci: Lean `Fw.Ci.Overflow`, ops
-// `ci.overflow` and `ci.overflowCombine`; land-overflow.ts gathers the facts). Each provider's group is waited for on its own, with
-// `allow` set to that provider, and the group verdicts are combined by fwcore.
 import { spawn } from "node:child_process";
 import { paths, readJson, readStatus, type RunFacts } from "@fw/gh-budget";
 import type { FwCall, Gh } from "./run.ts";
 
 export type Provider = "github" | "circleci";
 export type RunState = "queued" | "running" | "pass" | "fail" | "cancelled" | "timeout" | "unavailable";
-/** One lane run of one provider, bound to the commit and suite list it ran (Lean `Run`). */
 export type LaneRun = { provider: Provider; sha: string; laneId: string; laneDigest: string; state: RunState };
 export type Want = { sha: string; laneId: string; laneDigest: string };
 export type RemoteVerdict = { kind: "accept" | "refuse" | "wait" | "try" | "local"; reason: string; ok: boolean; provider: Provider | null };
 
 export const LANE_ID = "land";
-/** The providers whose pass counts, in preference order, until circleci-pilot's routing rule feeds this list. */
 export const DEFAULT_ALLOW: Provider[] = ["github"];
-/** The step name the land lane prints after its suites: `lane: sha=<merge commit> digest=<lane digest>` (.github/workflows/land.yml). */
 export const BIND_STEP = /^lane: sha=([0-9a-f]{40}) digest=(\S+)$/;
 
 export type RemoteInput = { localOk: boolean; needed: boolean; allow: Provider[]; want: Want; waitsLeft: number; runs: LaneRun[] };
 
-/** fwcore `console.landRemote`. */
 export function remoteVerdict(call: FwCall, i: RemoteInput): RemoteVerdict {
   return call({ op: "console.landRemote", localOk: i.localOk, needed: i.needed, allow: i.allow, want: i.want, waitsLeft: i.waitsLeft, runs: i.runs }) as RemoteVerdict;
 }
 
-/** fwcore `console.landDigest`: the digest the lane prints for these remote check ids. */
 export function remoteDigest(call: FwCall, ids: string[]): string {
   return (call({ op: "console.landDigest", ids }) as { digest: string }).digest;
 }
 
-// ---- GitHub: `gh run view --json ...` of the land run, normalized ------------------------------------------------------
 export type GhStep = { name: string; conclusion?: string | null };
-export type GhJob = { name: string; conclusion?: string | null; steps?: GhStep[] };
+export type GhJob = { name: string; status?: string | null; conclusion?: string | null; steps?: GhStep[] };
 export type GhRunView = { workflowName?: string; headSha: string; conclusion: string | null; status?: string; createdAt?: string; startedAt?: string; updatedAt?: string; jobs?: GhJob[] };
 export const RUN_VIEW_FIELDS = "workflowName,headSha,conclusion,status,createdAt,startedAt,updatedAt,jobs";
 
-/** The sha and digest the lane bound itself to, from its `lane:` step name; null when no job reached that step. */
 export function laneBind(view: GhRunView): { sha: string; digest: string } | null {
   for (const j of view.jobs ?? []) for (const s of j.steps ?? []) {
     const m = BIND_STEP.exec(s.name);
-    if (m) return { sha: m[1]!, digest: m[2]! }; // BIND_STEP needs a 40-hex sha and a digest: the empty name of a lane that failed early binds nothing
+    if (m) return { sha: m[1]!, digest: m[2]! };
   }
   return null;
 }
 
-/** fwcore `console.landLaneState` (Lean `Fw.Console.LandRemote.laneState`): the state of a lane run from the run's own record first and the
- *  `fw ci wait` result second. Record: a completed failure or an unknown conclusion is `fail`; a status that is not `completed` is `running`
- *  whatever the waiter said (a crashed waiter exits 1); a completed success is decided by its per-job conclusions (`legResults`).
- *  Waiter (no record decides): 0 pass, 1 fail only when its output had a `-> fail` line (else a wait error, `unavailable`), 3 `running`
- *  only when the output says `timed out after`, 4 not run, else `unavailable`. */
-export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
-  return (call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), saidFail: SAID_FAIL.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "", jobs: legResults(view) }) as { state: RunState }).state;
+export function laneRead(call: FwCall, code: number, out = "", view: GhRunView | null = null, reads = 0): { state: RunState; reread: boolean } {
+  return call({ op: "console.landLaneState", exit: code, timedOut: /timed out after/.test(out), saidFail: SAID_FAIL.test(out), status: view?.status ?? "", conclusion: view?.conclusion ?? "", jobs: legRecords(view), reads }) as { state: RunState; reread: boolean };
 }
-/** The waiter prints `run <id> <workflow> <conclusion> -> fail (<reason>)` for a run it judged failed (packages/gh-budget wait.ts `verdictOf`). */
+export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunView | null = null): RunState {
+  return laneRead(call, code, out, view).state;
+}
 export const SAID_FAIL = /-> fail\b/;
 
-/** The per-job conclusions of a run record as bools (job concluded `success`), the guard left out; `null` when some job has no
- *  conclusion string (the poller's cached facts), which says nothing. Lean decides what they mean (`laneState`, `LandLegs.legsOk`). */
-export function legResults(view: GhRunView | null): boolean[] | null {
+export type JobRecord = { status: string; conclusion: string };
+export function legRecords(view: GhRunView | null): JobRecord[] | null {
   const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
-  return legs.every((j) => typeof j.conclusion === "string") ? legs.map((j) => j.conclusion === "success") : null;
+  return legs.every((j) => typeof j.status === "string") ? legs.map((j) => ({ status: j.status!, conclusion: j.conclusion ?? "" })) : null;
 }
 
-/** The facts a refusal names: the run id, each failed leg (job) and the check ids that leg runs (Lean `console.landLeg`, `LandLegs.pickFor`). */
 export function failureDetail(call: FwCall, id: string | undefined, view: GhRunView | null, checks: string[]): string {
-  const bad = (view?.jobs ?? []).filter((j) => j.name !== "guard" && typeof j.conclusion === "string" && j.conclusion !== "success" && j.conclusion !== "skipped");
+  const jobs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
+  const states = (call({ op: "console.landLegStates", jobs: jobs.map((j) => ({ status: j.status ?? "", conclusion: j.conclusion ?? "" })) }) as { legs: string[] }).legs;
+  const bad = jobs.filter((_, k) => states[k] === "fail");
   const legs = bad.map((j) => {
     const leg = /^land \((.+)\)$/.exec(j.name)?.[1];
     const ids = leg ? (call({ op: "console.landLeg", leg, ids: checks }) as { ids: string[] }).ids : [];
@@ -78,17 +61,12 @@ export function failureDetail(call: FwCall, id: string | undefined, view: GhRunV
   return `run ${id ?? "?"}${legs.length ? `, failed legs: ${legs.join("; ")}` : view ? ", no failed leg in the run record" : ", run record not read"}`;
 }
 
-/** Does the run pass the verdict over the land lane's parallel legs? Lean decides (`Fw.Console.LandLegs.legsVeto`, op `console.landLegsVeto`);
- *  this only hands it the conclusions of the jobs but the guard, or `null` when the record has none (a job without a
- *  conclusion: the poller's cached facts), which Lean says does not veto. A job list that is empty is also no veto. */
 export function legsPass(call: FwCall, view: GhRunView | null): boolean {
   const legs = (view?.jobs ?? []).filter((j) => j.name !== "guard");
   const results = legs.every((j) => typeof j.conclusion === "string") ? legs.map((j) => j.conclusion === "success") : null;
   return !(call({ op: "console.landLegsVeto", results }) as { veto: boolean }).veto;
 }
 
-/** Normalize one GitHub land run. A pass counts only for the sha and digest the lane printed; a lane that failed before it printed
- *  them is attributed to what was asked for (a failure refuses, the safe side), a pass without a binding binds to nothing. */
 export function normalizeGithub(state: RunState, view: GhRunView | null, ctx: { marker: string; want: Want }): LaneRun {
   const run = (sha: string, laneDigest: string): LaneRun => ({ provider: "github", sha, laneId: LANE_ID, laneDigest, state });
   if (!view) return state === "pass" ? run("", "") : run(ctx.want.sha, ctx.want.laneDigest);
@@ -99,51 +77,37 @@ export function normalizeGithub(state: RunState, view: GhRunView | null, ctx: { 
   return run("", "");
 }
 
-/** TS stand-in: a land that gave GitHub only some legs (`[legs:a,b]` in the marker) passes only if the run has a job for each of them.
- *  The matrix job of a leg is named `land (<leg>)`; the poller's cached record holds no such jobs, so it never covers. */
 export function legsCovered(view: GhRunView | null, legs: string[]): boolean {
   const names = (view?.jobs ?? []).map((j) => j.name);
   return legs.every((l) => names.includes(`${LANE_ID} (${l})`));
 }
 
 const ms = (t?: string): number | null => { const n = t ? Date.parse(t) : NaN; return Number.isFinite(n) ? n : null; };
-/** Queue and lane durations of a finished run from its timestamps (null when GitHub did not report them). */
 export function runTimes(view: GhRunView): { startMs: number; queueMs: number; laneMs: number } | null {
   const c = ms(view.createdAt), s = ms(view.startedAt), u = ms(view.updatedAt);
   return c !== null && s !== null && u !== null && s >= c && u >= s ? { startMs: c, queueMs: s - c, laneMs: u - s } : null;
 }
 
-// ---- adapters ------------------------------------------------------------------------------------------------------
-export type Handle = { provider: Provider; branch: string; marker: string; /** CircleCI: the pipeline the trigger started */ pipelineId?: string };
-/** The legs of the land lane (lean/land-legs.txt) and the split of them between the providers (fwcore `ci.overflow`). */
+export type Handle = { provider: Provider; branch: string; marker: string; pipelineId?: string; reads?: number };
 export type LegSplit = { all: string[]; gh: string[]; cc: string[] };
-/** `legs` is absent for a land that runs wholly on GitHub (the marker and the matrix are then what they always were). */
-export type StartCtx = { task: string; mergeSha: string; want: Want; legs?: LegSplit; /** the remote check ids of this land (names the checks of a failed leg) */ checks?: string[]; /** the legs of a CircleCI group that could not start, re-dispatched on a second GitHub run: its own branch, so the first run's tip check holds */ again?: boolean };
-export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null; /** why the land run record was not read (the waiter outcome stands) */ note?: string; /** a failed run's id, failed legs and their check ids (the refusal line) */ detail?: string };
+export type StartCtx = { task: string; mergeSha: string; want: Want; legs?: LegSplit; checks?: string[]; again?: boolean };
+export type Polled = { run: LaneRun; times?: { startMs: number; queueMs: number; laneMs: number } | null; note?: string; detail?: string };
 export interface Adapter {
   provider: Provider;
-  /** Push the merge commit and start the lane; throws when the provider cannot be reached. */
   start(c: StartCtx): Promise<Handle>;
-  /** One bounded wait (`sliceS` seconds); a run still going comes back `running`. */
   poll(h: Handle, c: StartCtx, sliceS: number, signal?: AbortSignal): Promise<Polled>;
 }
 
 export type GithubDeps = {
   git: (args: string[]) => string;
-  /** fwcore, for the lane state (`console.landLaneState`). */
   call: FwCall;
-  /** Personal-data scan of the lines the push adds to origin (scripts/scrub.mjs --range): the text of the hits, or null when clean. */
   scan?: (mergeSha: string) => string | null;
-  /** `pnpm -s fw ci wait ...`: exit code and output; ends early (code 3) when the signal aborts. */
   wait: (args: string[], signal?: AbortSignal) => Promise<{ code: number; out: string }>;
   gh: Gh;
-  /** The waiter's cached facts (gh-budget runs-status file and meta/<id>.jobs.json; they cost no budget) for the land run of this handle. */
   now?: () => number;
   cache?: (h: Handle, id?: string) => GhRunView | null;
 };
 
-/** The land run of a handle from the waiter's cached files: the newest completed row of the lane workflow on the lane branch and marker
- *  commit, with the steps of its cached jobs when the waiter wrote them. Null when the poller has no such row. */
 export function cachedLaneView(dir: string, h: Handle, id?: string): GhRunView | null {
   const rows = (readStatus(dir)?.rows ?? []).filter((r) => r.workflowName === LANE_ID && r.headBranch === h.branch && r.headSha === h.marker && r.status === "completed" && (!id || String(r.databaseId) === id));
   const r = rows.sort((a, b) => b.databaseId - a.databaseId)[0];
@@ -153,11 +117,8 @@ export function cachedLaneView(dir: string, h: Handle, id?: string): GhRunView |
   return { workflowName: r.workflowName, headSha: r.headSha, conclusion: r.conclusion, status: r.status, createdAt: r.createdAt, jobs };
 }
 
-/** The branch a merge commit is pushed to: unique per commit, so a re-land never needs a force push. */
 export const landBranch = (task: string, mergeSha: string, again = false): string => `ci/land-${task.replace(/[^A-Za-z0-9._-]/g, "_")}-${mergeSha.slice(0, 7)}${again ? "-again" : ""}`;
 
-/** The message of the marker commit. `[ci:land]` starts the GitHub land lane, so a land whose legs all run on CircleCI leaves it out
- *  (GitHub then starts nothing); a land that gives GitHub only some legs says which in `[legs:a,b]`, which the guard of land.yml reads. */
 export function markerMessage(c: StartCtx): string {
   const base = `land ${c.task} ${c.mergeSha.slice(0, 7)}`;
   const l = c.legs;
@@ -166,8 +127,6 @@ export function markerMessage(c: StartCtx): string {
   return l.gh.length === l.all.length ? `[ci:land] ${base}` : `[ci:land] ${base} [legs:${l.gh.join(",")}]`;
 }
 
-/** Pushes the marker commit and the lane branch once per (merge commit, marker message); the providers of one land share the result,
- *  so both see one branch and one marker sha. A failed push stays failed for both. */
 export type Pusher = (c: StartCtx) => Promise<{ branch: string; marker: string }>;
 export function makePusher(d: Pick<GithubDeps, "git" | "scan">): Pusher {
   const memo = new Map<string, Promise<{ branch: string; marker: string }>>();
@@ -204,40 +163,40 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
       const norm = { marker: h.marker, want: c.want };
       const partial = !!c.legs && c.legs.gh.length < c.legs.all.length;
       if (signal?.aborted) return { run: normalizeGithub(laneStateOf(d.call, 3, "timed out after abort"), null, norm), times: null };
-      // Whatever the waiter returned, read the run's own record unless it is plainly still going: the conclusion decides (Lean laneState).
       const going = w.code === 3 && /timed out after/.test(w.out);
       let view: GhRunView | null = null;
       let note: string | undefined;
       let id: string | undefined;
       if (!going) {
         id = /\brun (\d+)\b/.exec(w.out)?.[1];
-        // Cached facts first (no budget): a completed failed record, or a record whose jobs show the bind, is enough.
         const hit = d.cache?.(h, id) ?? null;
-        if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit) && (w.code === 0 || legResults(hit) !== null)))) view = hit; // a non-pass waiter on a record without job conclusions reads the full `gh run view`
+        if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit) && (w.code === 0 || legRecords(hit) !== null)))) view = hit;
         else {
           const o = { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) };
           try {
-            if (!id) { // exit 2/3/4 can come without a run id in the output: find the land run of the marker commit on the lane branch (never another workflow's)
+            if (!id) {
               const rows = JSON.parse(await d.gh(["run", "list", "--workflow", LANE_ID, "--branch", h.branch, "--commit", h.marker, "--json", "databaseId", "--limit", "1"], o)) as { databaseId: number }[];
               id = rows[0] ? String(rows[0].databaseId) : undefined;
             }
             if (id) {
               const v = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS], o)) as GhRunView;
-              view = v.workflowName === LANE_ID ? v : null; // only the land workflow's own run decides
+              view = v.workflowName === LANE_ID ? v : null;
             }
           } catch (e) {
-            view = hit; // budget or gh refused: the cached record (if any) stands; with none the waiter's outcome stands, logged
+            view = hit;
             note = `land run record not read (${e instanceof Error ? e.message : String(e)})`;
           }
         }
       }
-      let state = laneStateOf(d.call, w.code, w.out, view);
+      const read = laneRead(d.call, w.code, w.out, view, h.reads ?? 0);
+      let state = read.state;
+      if (read.reread) { h.reads = (h.reads ?? 0) + 1; note = `${note ? `${note}; ` : ""}run ${id ?? "?"} completed with a leg GitHub has not finalised (read ${h.reads})${state === "running" ? "; the record is read again after this slice" : "; the reads are used up, the run counts as unavailable"}`; }
       if (partial && state === "pass" && !legsCovered(view, c.legs!.gh)) { state = "fail"; note = `${note ? `${note}; ` : ""}the run has no job for every leg given to GitHub (${c.legs!.gh.join(",")})`; }
       let detail: string | undefined;
       if (state === "fail") {
         let dv = view;
-        if (id && legResults(view) === null) { // a cached record has no per-job conclusions: one view names the failed legs (a failure is rare)
-          try { const v = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS], { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) })) as GhRunView; if (v.workflowName === LANE_ID) dv = v; } catch { /* the detail is best effort */ }
+        if (id && legRecords(view) === null) {
+          try { const v = JSON.parse(await d.gh(["run", "view", id, "--json", RUN_VIEW_FIELDS], { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) })) as GhRunView; if (v.workflowName === LANE_ID) dv = v; } catch {}
         }
         detail = failureDetail(d.call, id, dv, c.checks ?? []);
       }
@@ -246,26 +205,17 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
   };
 }
 
-// ---- CircleCI: the land lane of .circleci/config.yml, one pipeline for the legs given to it --------------------------------
-/** What a land job wrote (`lane.json`, .circleci/job.sh `land_suites`) plus its workflow's conclusion, as scripts/circleci.mjs `fetchPipeline` returns it. */
 export type CircleLane = { job: string; conclusion: string; leg: string; sha: string; digest: string; engine: string; rc: number };
-export type CircleFetch = { /** `vcs.revision` of the pipeline: the commit CircleCI checked out */ sha: string; lanes: CircleLane[]; times?: { queueMs: number; laneMs: number } | null };
+export type CircleFetch = { sha: string; lanes: CircleLane[]; times?: { queueMs: number; laneMs: number } | null };
 export type CircleDeps = {
   call: FwCall;
-  /** the marker commit and branch, shared with the GitHub adapter of the same land */
   push: Pusher;
-  /** key check, then `POST /project/{slug}/pipeline/run` with lane=land and these legs; the pipeline id. Throws when CircleCI refuses. */
   trigger: (branch: string, legs: string[]) => Promise<string>;
-  /** `waitPipeline`: exit 0 pass, 1 fail, 3 still going after `timeoutS`, 4 not run or cancelled, 5 the pilot stop rule; polls at 120 s or slower */
   wait: (pipelineId: string, timeoutS: number, signal?: AbortSignal) => Promise<number>;
-  /** `fetchPipeline`: the lane records of the finished jobs */
   fetch: (pipelineId: string) => Promise<CircleFetch>;
   now?: () => number;
 };
 
-/** Normalize one CircleCI land pipeline, the way `normalizeGithub` does. A pass counts only when the pipeline ran the marker commit,
- *  every leg asked for has a lane record that passed (Lean `legsVeto` over those legs), and the records agree on one sha and one digest;
- *  Lean then compares that sha and digest with what was asked for. A failure is attributed to what was asked for (it refuses). */
 export function normalizeCircle(call: FwCall, state: RunState, f: CircleFetch | null, ctx: { marker: string; want: Want; legs: string[] }): LaneRun {
   const run = (sha: string, laneDigest: string, st: RunState = state): LaneRun => ({ provider: "circleci", sha, laneId: LANE_ID, laneDigest, state: st });
   const asked = (st: RunState = state) => run(ctx.want.sha, ctx.want.laneDigest, st);
@@ -295,7 +245,6 @@ export function circleciAdapter(d: CircleDeps): Adapter {
       const mk = (state: RunState): LaneRun => ({ provider: "circleci", sha: c.want.sha, laneId: LANE_ID, laneDigest: c.want.laneDigest, state });
       const code = await d.wait(id, sliceS, signal);
       const going = code === 3;
-      // exit 3 is `running` only when the slice ran out (Lean laneState reads the output text for that)
       const state = signal?.aborted ? laneStateOf(d.call, 3, "timed out after abort") : laneStateOf(d.call, code, going ? "timed out after" : code === 1 ? "-> fail (the pipeline failed)" : "");
       if (going || signal?.aborted || state === "unavailable" || state === "cancelled") return { run: mk(state) };
       let f: CircleFetch | null = null, note: string | undefined;
@@ -317,34 +266,27 @@ export function circleciAdapter(d: CircleDeps): Adapter {
   };
 }
 
-// ---- the wait ---------------------------------------------------------------------------------------------------------
 export type AwaitInput = {
   call: FwCall;
   adapters: Partial<Record<Provider, Adapter>>;
   allow: Provider[];
   ctx: StartCtx;
-  /** the local tier's verdict (true = passed); a failure ends the wait and the land is refused */
   local: Promise<boolean>;
   log: (line: string) => void;
-  /** record a timing span (steps `remote push`, `remote queue`, `remote lane`) */
   span: (step: string, startMs: number, durMs: number, exit: number | null) => void;
   now?: () => number;
-  /** the lane's whole budget in seconds (land.yml timeout-minutes 45 plus queue) */
   deadlineS?: number;
   sliceS?: number;
   waitsLeft?: number;
 };
-export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[]; /** providers whose lane could not be started (no run exists there) */ startFailed: Provider[]; /** per provider whose run failed: run id, failed legs, check ids */ details: string[] };
+export type AwaitOutcome = { verdict: RemoteVerdict; runs: LaneRun[]; startFailed: Provider[]; details: string[] };
 
-/** Sleep `ms` (nothing when <= 0); ends early when the signal aborts. A run that came back `running` sooner than its slice must not be polled at once. */
 const sleepOut = (ms: number, signal: AbortSignal): Promise<void> => ms <= 0 ? Promise.resolve() : new Promise((res) => {
   const t = setTimeout(done, ms);
   function done() { clearTimeout(t); signal.removeEventListener("abort", done); res(); }
   signal.addEventListener("abort", done, { once: true });
 });
 
-/** Ask fwcore what to do with the runs so far and do it: start the provider it names, wait for runs going, stop on accept, refuse or
- *  local. The final verdict uses the real local tier result. */
 export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
   const now = i.now ?? Date.now;
   const deadline = now() + (i.deadlineS ?? 50 * 60) * 1000;
@@ -366,7 +308,7 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
     if (v.kind === "accept" || v.kind === "refuse" || v.kind === "local" || ac.signal.aborted) break;
     if (v.kind === "try") {
       const p = v.provider!;
-      if (attempted.has(p)) { // the lane of this provider ran something else: no second push, the provider counts as unavailable
+      if (attempted.has(p)) {
         runs.set(`${p}:attempted`, mk(p, "unavailable"));
         i.log(`remote: ${p}: its lane run is not bound to ${i.ctx.want.sha.slice(0, 7)} and this digest; not pushing again`);
         continue;
@@ -388,7 +330,6 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
       }
       continue;
     }
-    // wait: poll the runs going, or (degraded) the unavailable ones once more
     const degraded = v.reason === "provider-degraded-waiting";
     if (degraded) waits--;
     const open = [...runs.values()].filter((r) => (degraded ? r.state === "unavailable" : r.state === "queued" || r.state === "running"));
@@ -419,18 +360,8 @@ export async function awaitRemote(i: AwaitInput): Promise<AwaitOutcome> {
   return { verdict: decide(ok), runs: [...runs.values()], startFailed, details: [...details.values()] };
 }
 
-/** The overflow of one land: the legs of the lane and how the providers share them. `plan` is fwcore `ci.overflow` over the facts of this moment
- *  (land-overflow.ts); it returns null when the facts could not be gathered, which is the all-GitHub land. */
 export type OverflowPlan = { legs: string[]; plan: () => Promise<{ gh: string[]; cc: string[]; reason: string; note?: string } | null> };
 
-/** Wait for the legs of each provider as a group of its own (`allow` is that provider alone, so a group never borrows the other
- *  provider's run) and combine the group verdicts with fwcore `ci.overflowCombine` (Lean `Overflow.pickKind`: a refusal first, then
- *  local, then the first group that is not an accept, else accept). The verdict returned is the one of the first group of that kind.
- *
- *  A CircleCI group whose start fails (no adapter, the key check, the push or the trigger throws: no pipeline exists) is replaced by a
- *  second GitHub run of its legs, started the moment the start failed and waited for as a group of its own, on the branch `-again`
- *  (Lean `Overflow.settle`, op `ci.overflowSettle`, theorem `failed_start_covered_once`). The failed group's verdict is dropped, so the
- *  local tier runs the remote checks only if GitHub cannot be reached either. A pipeline that started and later failed is not replaced. */
 export async function awaitGroups(i: Omit<AwaitInput, "allow" | "ctx"> & { ctx: StartCtx; split: LegSplit }): Promise<AwaitOutcome> {
   const ctx: StartCtx = { ...i.ctx, legs: i.split };
   let again: Promise<AwaitOutcome> | null = null;
@@ -441,7 +372,7 @@ export async function awaitGroups(i: Omit<AwaitInput, "allow" | "ctx"> & { ctx: 
     if (st.again.length === 0) return;
     i.log(`remote: CircleCI could not start; its legs ${st.again.join(",")} run on GitHub`);
     again = awaitRemote({ ...i, allow: ["github"], ctx: { ...i.ctx, legs: { all: i.split.all, gh: st.again, cc: [] }, again: true } });
-    again.catch(() => {}); // awaited below; a rejection before that is not an unhandled one
+    again.catch(() => {});
   };
   const adapters: AwaitInput["adapters"] = { ...i.adapters };
   adapters.circleci = {
@@ -452,17 +383,15 @@ export async function awaitGroups(i: Omit<AwaitInput, "allow" | "ctx"> & { ctx: 
   const groups = ([["github", i.split.gh], ["circleci", i.split.cc]] as [Provider, string[]][]).filter(([, l]) => l.length > 0);
   const outs = await Promise.all(groups.map(async ([provider]) => ({ provider, out: await awaitRemote({ ...i, adapters, allow: [provider], ctx }) })));
   const second = again ? await (again as Promise<AwaitOutcome>) : null;
-  // the failed CircleCI group has no run to judge: the re-dispatched GitHub group stands in for it
   const judged = [...outs.filter((o) => !(o.provider === "circleci" && second)).map((o) => o.out), ...(second ? [second] : [])];
   const kind = (i.call({ op: "ci.overflowCombine", kinds: judged.map((o) => o.verdict.kind) }) as { kind: string | null }).kind;
   const chosen = judged.find((o) => o.verdict.kind === kind) ?? judged[0]!;
   return { verdict: chosen.verdict, runs: [...outs.flatMap((o) => o.out.runs), ...(second ? second.runs : [])], startFailed: outs.flatMap((o) => o.out.startFailed), details: [...outs.flatMap((o) => o.out.details), ...(second ? second.details : [])] };
 }
 
-/** `pnpm -s fw ci wait` as a child process: no CPU while it waits; the signal kills it. */
 export function spawnWait(cwd: string): GithubDeps["wait"] {
   return (args, signal) => new Promise((res) => {
-    const p = spawn("pnpm", args, { cwd, stdio: ["ignore", "pipe", "pipe"], detached: true }); // own process group: pnpm and the node child die together
+    const p = spawn("pnpm", args, { cwd, stdio: ["ignore", "pipe", "pipe"], detached: true });
     let out = "";
     p.stdout.on("data", (x) => (out += x)); p.stderr.on("data", (x) => (out += x));
     const stop = () => { try { process.kill(-p.pid!, "SIGTERM"); } catch { p.kill("SIGTERM"); } };
@@ -472,15 +401,11 @@ export function spawnWait(cwd: string): GithubDeps["wait"] {
   });
 }
 
-// ---- the tiered land checks --------------------------------------------------------------------------------------------
-/** The fwcore build step of the local plan (Lean `LandTier.Step.build`). */
 export const BUILD_ARGV = ["sh", "scripts/fwcore-build.sh"];
 export type Local = (argv: string[][]) => Promise<{ bad: string | null; kind: string }>;
 export type TierPlan = {
   call: FwCall;
-  /** the checks the land selected, with ids */
   checks: { id: string; argv: string[] }[];
-  /** the remote ids the lane will select for the merge commit (it has no digests, so it may select more than `checks`) */
   laneIds: string[];
   task: string;
   mergeSha: string;
@@ -492,18 +417,13 @@ export type TierPlan = {
   waitsLeft?: number;
   sliceS?: number;
   deadlineS?: number;
-  /** a fwcore build already ran in the merge tree (phase 1) */
   built?: boolean;
-  /** GitHub first, CircleCI for the legs GitHub has no slot for (absent: every leg on the allowed providers, as before) */
   overflow?: OverflowPlan;
 };
 
-/** Run the Lean local tier here while the remote tier runs on the land lane; combine the two with `console.landRemote`.
- *  Returns the failure text (null: land may proceed) and its kind. Without a remote check nothing is pushed. */
 export async function runTiered(p: TierPlan): Promise<{ bad: string | null; kind: string }> {
   const split = p.call({ op: "console.landTier", ids: p.checks.map((c) => c.id), built: p.built ?? false }) as { local: string[]; remote: string[]; build: boolean };
   const argvOf = (ids: string[]) => p.checks.filter((c) => ids.includes(c.id)).map((c) => c.argv);
-  // Lean `LandTier.localPlan`: the fwcore build first when a local check runs the binary and no build ran yet (`core_user_has_build`)
   const localArgv = () => (split.build ? [BUILD_ARGV, ...argvOf(split.local)] : argvOf(split.local));
   const t0 = Date.now();
   const localP = (async () => {

@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { creditsSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { creditsSoFar, ledgerRows, storageCredits, storageNow, storageSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, landStops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -17,7 +17,7 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'rates', 'route', 'stop', 'storage', 'wait']);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'landStop', 'rates', 'route', 'stop', 'storage', 'storageCredits', 'storageNow', 'wait']);
   assert.ok(g.rows.length >= 140);
 });
 
@@ -40,6 +40,31 @@ test('storage: every golden row', () => {
   for (const r of rowsOf('storage')) assert.equal(storageMilli(r.request.bytes, r.request.days), r.response.milli, r.name);
 });
 
+test('storageNow and storageCredits: every golden row', () => {
+  assert.ok(rowsOf('storageNow').length >= 10);
+  for (const r of rowsOf('storageNow')) assert.equal(storageNow(g, r.request.rows, r.request.now), r.response.milli, r.name);
+  for (const r of rowsOf('storageCredits')) assert.equal(storageCredits(g, r.request.milli), r.response.credits, r.name);
+});
+
+test('storageSoFar: the ledger at retention within the 30-day window; a pipeline with no time counts; no golden in ctx loads it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fwwin-'));
+  const ledgerPath = join(dir, 'ledger.json');
+  const now = Date.parse('2026-10-22T00:00:00Z');
+  const day = 86400000;
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: {
+    old: { artifacts: 0, cache: 1000000000, workspace: 0, at: now - 30 * day - 1 },
+    edge: { artifacts: 0, cache: 1000000000, workspace: 0, at: now - 30 * day },
+    untimed: { artifacts: 1000000000, cache: 0, workspace: 0 },
+  } }));
+  assert.equal(storageSoFar({ ledgerPath, golden: g }, '', now), 500 + 1000);
+  assert.equal(storageSoFar({ ledgerPath }, '', now), 1500);
+  assert.equal(storageSoFar({ ledgerPath, golden: g }, 'untimed', now), 500);
+  assert.equal(storageSoFar({ ledgerPath, golden: g }, '', now + 1), 1000);
+  assert.equal(storageSoFar({ golden: g }, '', now), 0);
+  assert.deepEqual(ledgerRows({ pipelines: { a: { cache: 5, at: 7 }, b: { workspace: 3, at: 'x' } } }), [
+    { at: 7, cache: 5, workspace: 0, artifacts: 0 }, { at: null, cache: 0, workspace: 3, artifacts: 0 }]);
+});
+
 test('compare: every golden row', () => {
   for (const r of rowsOf('compare')) {
     const got = compare(g, toRun(r.request.github), toRun(r.request.circleci));
@@ -52,6 +77,15 @@ test('stop: every golden row', () => {
     const got = stops(g, r.request);
     assert.deepEqual(got, r.response.reasons, r.name);
     assert.equal(got.length > 0, r.response.stop, r.name);
+  }
+});
+
+test('landStop: every golden row; storage is never a reason', () => {
+  assert.ok(rowsOf('landStop').length >= 9);
+  for (const r of rowsOf('landStop')) {
+    const got = landStops(g, r.request);
+    assert.deepEqual(got, r.response.reasons, r.name);
+    assert.ok(!got.includes('storage'), r.name);
   }
 });
 
@@ -446,7 +480,7 @@ test('wait --branch skips pipelines a push created (webhook), which hold no work
   assert.equal(isPilotPipeline({ trigger: { type: 'api' } }), true);
 });
 
-test('storage: the ledger adds cache, workspace and artifact bytes over all pilot pipelines; over 1 GB-month is exit 5 from fetch and wait', async () => {
+test('storage: the ledger adds cache, workspace and artifact bytes over all pilot pipelines; over the 1 GB-month stop at retention is exit 5 from fetch and wait', async () => {
   const fx = loadFixture('premise-tests');
   const dir = mkdtempSync(join(tmpdir(), 'fwled-'));
   const ledgerPath = join(dir, 'ledger.json');
@@ -457,9 +491,11 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   assert.equal(b.cache, 9856615, 'pipeline 15: one job stored a 9.3 MiB archive, the other found the key (skipped)');
   assert.ok(b.workspace > 0, 'the engine jobs report the workspace they persisted');
   assert.equal(doc.storage.ledgerBytes, b.artifacts + b.cache + b.workspace);
-  assert.equal(doc.storage.milli, storageMilli(doc.storage.ledgerBytes, 30));
-  // an earlier pilot pipeline of 1.2 GB: the next fetch stops, and so does a wait before any job runs
+  assert.equal(doc.storage.milli, storageNow(g, ledgerRows(readLedger(ledgerPath)), ctx.now()));
+  assert.ok(doc.storage.milli <= storageMilli(doc.storage.ledgerBytes, 30));
   writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
+  assert.deepEqual((await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o1') })).storage.stops, []);
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 2400000000, workspace: 0 } } }));
   const doc2 = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o2') });
   assert.deepEqual(doc2.storage.stops, ['storage']);
   const calls = [];
@@ -467,10 +503,14 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   const w = await waitPipeline({ ...ctx, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
   assert.equal(w.code, 5);
   assert.ok(calls.includes(`POST /workflow/${wfIdOf(fx)}/cancel`));
+  calls.length = 0;
+  const wl = await waitPipeline({ ...ctx, storageStop: false, fetchFn: async (u, i) => { calls.push(`${i?.method ?? 'GET'} ${String(u).replace(API, '')}`); return base(u, i); } }, { slug: fx.slug, pipelineId: fx.pipelineId });
+  assert.equal(wl.code, 0);
+  assert.ok(!calls.some((c) => c.startsWith('POST ')));
   const logs = [];
   const root = dir;
   mkdirSync(join(root, '.local'), { recursive: true });
-  writeFileSync(join(root, '.local', 'circleci-ledger.json'), JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
+  writeFileSync(join(root, '.local', 'circleci-ledger.json'), JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 2400000000, workspace: 0 } } }));
   assert.equal(await main(['fetch', '--pipeline', fx.pipelineId, '--out', join(dir, 'o3')], { root, env: { FW_CIRCLECI_SLUG: fx.slug }, ctx: { fetchFn: fixtureFetch(fx.api), getToken: () => 't', sleep: async () => {} }, log: (l) => logs.push(l) }), 5);
 });
 
@@ -499,7 +539,6 @@ test('jobMap: savesCache per row, and savesCacheJob (Lean) is false for a job ou
   for (const r of g.jobMap) assert.equal(savesCacheJob(g, r.circleci), r.savesCache, r.circleci);
   assert.deepEqual(g.jobMap.filter((r) => r.savesCache).map((r) => r.circleci), ['engine-chromium', 'engine-playwright-webkit']);
   assert.equal(savesCacheJob(g, 'probe'), false);
-  // the other branch of Lean savesCacheJob: a land job (Lean landJobs, equal to the legs by Overflow.landJobs_eq_legs)
   assert.deepEqual(g.landJobs, landLegs().map((l) => `land-${l}`));
   for (const j of g.landJobs) assert.equal(savesCacheJob(g, j), true, j);
   assert.equal(savesCacheJob(g, 'land-nope'), false);
@@ -754,8 +793,7 @@ test('land lane: fetchPipeline puts the lane record of each land job into run.js
     'GET /workflow/w1/job': { items: [{ name: 'land-suites-a', job_number: 7, status: 'success' }] },
     'GET /project/s/job/7': { name: 'land-suites-a', status: 'success', started_at: '2026-10-21T10:00:00Z', stopped_at: '2026-10-21T10:10:00Z', queued_at: '2026-10-21T09:59:00Z', duration: 600000, executor: { resource_class: 'arm-medium-gen2' } },
     'GET /project/s/7/artifacts': { items: [{ path: 'tmp/fw/artifacts/lane.json', url: 'https://x.test/lane.json' }] },
-    // a land job has a save step (Lean savesCacheJob), so its steps are read; this one halted before it (the exact Lake key was restored)
-    'GET https://circleci.com/api/v1.1/project/s/7': { steps: [{ actions: [{ name: 'Checkout code', status: 'success' }] }] },
+      'GET https://circleci.com/api/v1.1/project/s/7': { steps: [{ actions: [{ name: 'Checkout code', status: 'success' }] }] },
   };
   const body = `{"leg":"suites-a","sha":"${sha}","digest":"dd","engine":"false","rc":0}\n`;
   const ctx = { golden: loadGolden(), getToken: () => 't', sleep: async () => {}, now: () => 0, log: () => {}, fetchFn: async (url) => {

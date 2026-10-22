@@ -1,7 +1,7 @@
 // Determinism experiment: the same census, scripted scroll and seek fixture, R times, each from a fresh page load
 // in one Simulator boot; then classify every count type. Only orchestration and formatting live here; the
 // comparison itself is reduce.mjs (the one pure module, slated for a Lean spec).
-import { loadFresh, pageInfo } from './page.mjs';
+import { loadFresh, pageInfo, scrollHold } from './page.mjs';
 import { loadStamp } from './load.mjs';
 import { navigateTab, reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
@@ -13,13 +13,25 @@ import { COUNT_TYPES, TOL, classify, symDiff, zones, layerKey } from './reduce.m
 /** Resolve `max` in a state list against the page's maxY. */
 export const resolveStates = (spec, maxY) => String(spec).split(',').map((s) => (s.trim() === 'max' ? maxY : Number(s))).filter((n) => Number.isFinite(n));
 
+/** The offsets pass 1 read, as a state list for the later passes: `max` is the page height of one load, and that height differs between loads. */
+export const pinStates = (pass) => pass.census.map((c) => c.requestedY).join(',');
+
+/**
+ * Scroll to the top and let the page see it before a reload: a reload restores the saved scroll position, and a page that
+ * loads deep mounts its scroll-mounted parts (the morph panel) and keeps them after the census scrolls back up.
+ */
+export const atTop = (c) => scrollHold(c, 0, { holdMs: 0 });
+
 /** One pass of everything on one fresh load each (census states, then scroll, then optionally seek). */
 export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindowMs, step, framesPerStep, seek, seekNs, log, mode = 'base' }) {
   // an earlier pass may have left the tab on the seek fixture: go back to the snapshot page first
   if (new URL(await ctx.c.evaluate('location.href')).pathname !== '/') ctx.setClient(await navigateTab(ctx.c, ctx.url));
   const load = { start: loadStamp() };
   let c = ctx.c;
+  await atTop(c);
   await loadFresh(c, { clock, settleMs });
+  const loadScrollY = await c.evaluate('Math.round(scrollY)');
+  log(`  scroll position after the load: ${loadScrollY}`);
   const info = await pageInfo(c);
   const ys = resolveStates(states, info.maxY);
   const census = [];
@@ -45,7 +57,7 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   }
   load.end = loadStamp();
   log(`  host load1 ${load.start.load1} -> ${load.end.load1}, cpu idle ${load.start.idle}% -> ${load.end.idle}%`);
-  return { info, census, scroll, seek: seekRes, load };
+  return { info, census, scroll, seek: seekRes, load, loadScrollY };
 }
 
 /**

@@ -3,28 +3,32 @@ import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { SLOT_SUBS, WAIT_TOOL, runLabel, waitStep } from "./slot-span.ts";
-import { begin } from "./timing.ts";
+import { begin, timingsFile } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
-  DEFAULT_PARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Sample, type Verdict,
-  type VmMark, admitBuild, agentsSeen, avail, cacheHit, cacheable, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, prune, release, renew, signal,
-  simAction, simBoot, simDue, simHeld, simIdleNext, simQueued, step, stopAct, verdict, vmNext, withLegacy,
+  DEFAULT_PARAMS, DEFAULT_WPARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type PassVerdict, type Row,
+  type Sample, type Verdict, type VmMark, type WParams, type Window, KINDS, admitBuild, agentsSeen, avail, beginPass, cacheHit, cacheable, capLease,
+  current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
+  simDue, simHeld, simIdleNext, simQueued, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
 
 export const SLOT_USAGE = [
   "usage: fw slot run --kind <k> [--cache] [--owner o] -- <command> [args...]   (waits for a slot, runs, releases; exit 75 when refused)",
-  "       fw slot acquire --kind <k> [--lease s] [--wait s] [--owner o] [--json]  (holds a slot across tool calls; prints the token)",
+  "       fw slot acquire --kind <k> [--lease s] [--wait s] [--next s] [--owner o] [--json]  (holds a slot across tool calls; prints the token)",
   "       fw slot renew --token t [--lease s] [--owner o] | fw slot release --token t [--owner o]",
-  "       fw slot status [--json] | fw slot sim [--apply] | fw slot held --kind <k>   (kinds: check test land sim other)",
+  "       fw slot pass start --token t [--for s] [--wait s] [--owner o] | fw slot pass stop --token t [--next s] [--owner o]",
+  "       fw slot status [--json] | fw slot sim [--apply] | fw slot held --kind <k>   (kinds: check test land sim other measure)",
   "       fw slot admit --kind build [--agents n]   (may the lead start one more builder; VERDICT line, exit 0 admit, 75 wait)",
 ].join("\n");
 
 export const EXIT_REFUSED = 75;
 export const EXIT_ERROR = 70;
 
-export type State = { ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simIdle?: number | null; simCheckedAt?: number };
+export type State = {
+  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
+};
 export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
 export type SimDevice = { udid: string; name: string };
@@ -37,6 +41,8 @@ export type Deps = {
   owner: string;
   env: Record<string, string | undefined>;
   params: Params;
+  wparams: WParams;
+  history: () => Row[];
   pollMs: number;
   probe: () => Sample;
   git: () => GitFacts;
@@ -207,6 +213,32 @@ export function legacyLive(dir: string): boolean {
   return pid === "" || !/^\d+$/.test(pid) || alive(Number(pid));
 }
 
+const HISTORY_BYTES = 4 << 20;
+
+export function spanRows(file: string | null): Row[] {
+  if (file === null) return [];
+  let fd: number;
+  try { fd = openSync(file, "r"); } catch { return []; }
+  try {
+    const size = fstatSync(fd).size;
+    const len = Math.min(size, HISTORY_BYTES);
+    const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, size - len);
+    const rows: Row[] = [];
+    for (const l of buf.toString("utf8").split("\n")) {
+      if (!l.includes('"slot run ')) continue;
+      try {
+        const j = JSON.parse(l) as { tool?: unknown; step?: unknown; durMs?: unknown; exit?: unknown; host?: unknown };
+        if (j.tool !== "fw" || typeof j.step !== "string" || typeof j.durMs !== "number" || typeof j.host !== "string") continue;
+        rows.push({ step: j.step, durMs: Math.max(0, Math.round(j.durMs)), exit: typeof j.exit === "number" ? j.exit : null, host: j.host });
+      } catch {}
+    }
+    return rows;
+  } finally {
+    closeSync(fd);
+  }
+}
+
 export function realDeps(cwd: string, env: Record<string, string | undefined> = process.env): Deps {
   const main = dirname(gitIn(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
   const top = gitIn(cwd, ["rev-parse", "--show-toplevel"]) || cwd;
@@ -221,6 +253,8 @@ export function realDeps(cwd: string, env: Record<string, string | undefined> = 
     owner: env.FW_SLOT_OWNER ?? basename(top),
     env,
     params: DEFAULT_PARAMS,
+    wparams: DEFAULT_WPARAMS,
+    history: () => spanRows(timingsFile(cwd)),
     pollMs: 2000,
     probe: () => probe(dir),
     git: () => gitFacts(cwd),
@@ -305,6 +339,7 @@ function tick(d: Deps, st: State, s: Sample): void {
   }
   st.holders = prune(s.time, st.holders);
   st.queue = prune(s.time, st.queue);
+  st.window = current(s.time, st.holders, st.window ?? null);
 }
 
 function event(d: Deps, ev: string, kind: Kind, extra: Record<string, number | string>): void {
@@ -324,7 +359,11 @@ export function describe(v: Verdict): string {
         : v.why === "drain" ? `${v.others} other holders finish before the Simulator starts`
         : v.why === "simFirst" ? "a Simulator ticket goes first"
         : v.why === "memLow" ? `memory is short (${v.availMB} MB available, or pressure, swap or compression high)`
-        : `needs ${v.needMB} MB, ${v.roomMB} MB available above the floor`;
+        : v.why === "memory" ? `needs ${v.needMB} MB, ${v.roomMB} MB available above the floor`
+        : v.why === "pass" ? "a measure pass is live"
+        : v.why === "gap" ? `needs ${v.needS} s (p90 of its runs + settle), ${v.leftS} s left before the next measure pass`
+        : v.why === "unknown" ? "a measure window is open and this kind has too few recorded runs to fit a gap"
+        : "another measure lease is held";
       return `${v.verdict === "timeout" ? "refused" : "waiting"}: ${why}`;
     }
   }
@@ -342,8 +381,14 @@ export function describeBuild(v: BuildVerdict): string {
 
 export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict };
 
-export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number | null): Promise<Grant> {
+export function predictor(d: Deps): (k: Kind) => number | null {
+  let rows: Row[] | null = null;
+  return (k) => predict(d.wparams, k, (rows ??= d.history()));
+}
+
+export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number | null, gapS = 0): Promise<Grant> {
   const token = randomUUID().slice(0, 12);
+  const pred = predictor(d);
   const t0 = nowS();
   withState(d, (st) => { st.queue.push({ owner: d.owner, token, kind, since: t0, till: t0 + d.params.leaseS, foot: 0, leaseS: d.params.leaseS }); });
   let last = "";
@@ -355,10 +400,13 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       if (me === undefined) { me = { owner: d.owner, token, kind, since: t0, till: 0, foot: 0, leaseS: d.params.leaseS }; st.queue.push(me); }
       me.till = s.time + d.params.leaseS;
       const hs = withLegacy(s.time, legacyLive(d.legacySimLock), st.holders);
-      const v = verdict(d.params, st.ctl.n, s, hs, st.queue, me, Math.max(0, s.time - t0));
+      const w = current(s.time, hs, st.window ?? null);
+      const v = wverdict(d.wparams, w, w === null ? null : pred(kind), d.params, st.ctl.n, s, hs, st.queue, me, Math.max(0, s.time - t0));
       if (v.verdict !== "wait") st.queue = st.queue.filter((e) => e.token !== token);
-      const held = grant(d.params, me, s.time, leaseS, v.verdict === "admit" ? v.footMB : 0);
+      const opened = v.verdict === "admit" && kind === "measure" ? openAt(d.wparams, d.owner, token, s.time, gapS) : null;
+      const held = grant(d.params, me, s.time, opened === null ? leaseS : capLease(opened, s.time, leaseS), v.verdict === "admit" ? v.footMB : 0);
       if (v.verdict === "admit") st.holders.push(held);
+      if (opened !== null) st.window = opened;
       return { token, owner: d.owner, kind, till: held.till, verdict: v };
     });
     const line = describe(g.verdict);
@@ -377,7 +425,12 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
 export function renewToken(d: Deps, token: string, leaseS: number | null): boolean {
   const now = nowS();
   return withState(d, (st) => {
-    const r = renew(d.params, now, d.owner, token, leaseS, st.holders);
+    const w = st.window ?? null;
+    const mine = w !== null && w.token === token && w.owner === d.owner;
+    const own = st.holders.find((h) => h.owner === d.owner && h.token === token);
+    const lease = mine && own !== undefined ? capLease(w, now, leaseS ?? own.leaseS) : leaseS;
+    if (mine && lease === 0) return false;
+    const r = renew(d.params, now, d.owner, token, lease, st.holders);
     if (r !== null) st.holders = r;
     return r !== null;
   });
@@ -389,11 +442,54 @@ export function releaseToken(d: Deps, token: string): boolean {
     if (gone.some((h) => h.kind === "sim")) st.simIdleSince = nowS();
     st.holders = release(d.owner, token, st.holders);
     st.queue = release(d.owner, token, st.queue);
+    if (st.window?.token === token && st.window.owner === d.owner) st.window = null;
     for (const h of gone) event(d, "release", h.kind, { holdMs: (nowS() - h.since) * 1000 });
     return gone.length > 0;
   });
   for (const l of simCheck(d, nowS(), true, false)) d.err(`${l}\n`);
   return ok;
+}
+
+export function describePass(v: PassVerdict): string {
+  switch (v.pass) {
+    case "start": return `pass live until ${new Date(v.till * 1000).toISOString()}`;
+    case "wait": return `pass waits: ${v.others} other holder(s) still live`;
+    case "gone": return "no live measure lease for this owner and token";
+  }
+}
+
+export async function passStartCli(d: Deps, token: string, forS: number, waitS: number): Promise<PassVerdict> {
+  const t0 = nowS();
+  let last = "";
+  for (;;) {
+    const s = d.probe();
+    const v = withState(d, (st): PassVerdict => {
+      tick(d, st, s);
+      const w = st.window ?? null;
+      if (w !== null && w.token === token && w.owner === d.owner) st.window = want(w, s.time);
+      const r = passStart(d.wparams, st.window ?? null, s.time, withLegacy(s.time, legacyLive(d.legacySimLock), st.holders), d.owner, token, forS);
+      if (r.pass === "start" && st.window) st.window = beginPass(st.window, r.till);
+      return r;
+    });
+    const line = describePass(v);
+    if (line !== last) { d.err(`slot pass: ${line}\n`); last = line; }
+    if (v.pass !== "wait" || s.time - t0 >= waitS) {
+      event(d, v.pass === "start" ? "pass-start" : "pass-refuse", "measure", { token, waitMs: (s.time - t0) * 1000 });
+      return v;
+    }
+    await sleep(d.pollMs);
+  }
+}
+
+export function passStopCli(d: Deps, token: string, gapS: number): boolean {
+  const now = nowS();
+  return withState(d, (st) => {
+    const w = current(now, st.holders, st.window ?? null);
+    if (w === null || w.token !== token || w.owner !== d.owner) return false;
+    st.window = stopPass(w, now, gapS);
+    event(d, "pass-stop", "measure", { token, gapS });
+    return true;
+  });
 }
 
 type Record_ = { key: CacheKey; exit: number; stdout: string; stderr: string; at: number };
@@ -512,15 +608,29 @@ export function simCheck(d: Deps, now: number, apply: boolean, force: boolean): 
   });
 }
 
+export function windowLine(now: number, w: Window | null): string {
+  if (w === null) return "measure window: none";
+  const phase = passLive(now, w) ? `pass live, ${w.passTill! - now}s left` : w.next > now ? `gap, next pass in ${w.next - now}s` : "gap closed, next pass due";
+  return `measure window: ${w.owner} ${w.token}, ${phase}, deadline in ${w.deadline - now}s`;
+}
+
 function status(d: Deps, json: boolean): string[] {
   const s = d.probe();
   const st = withState(d, (x) => { tick(d, x, s); return x; });
-  if (json) return [JSON.stringify({ sample: s, signal: signal(d.params, st.ctl.prev, s), ...st })];
-  const rows = (es: Entry[]) => es.map((e) => `  ${e.kind.padEnd(6)} ${e.owner} ${e.token} ${e.till - s.time}s left${e.foot ? `, ${e.foot} MB` : ""}`);
+  const hs = withLegacy(s.time, legacyLive(d.legacySimLock), st.holders);
+  const w = current(s.time, hs, st.window ?? null);
+  const pred = predictor(d);
+  const why = st.queue.map((e) => ({
+    token: e.token,
+    verdict: wverdict(d.wparams, w, w === null ? null : pred(e.kind), d.params, st.ctl.n, s, hs, st.queue, e, Math.max(0, s.time - e.since)),
+  }));
+  if (json) return [JSON.stringify({ sample: s, signal: signal(d.params, st.ctl.prev, s), ...st, why })];
+  const rows = (es: Entry[]) => es.map((e) => `  ${e.kind.padEnd(7)} ${e.owner} ${e.token} ${e.till - s.time}s left${e.foot ? `, ${e.foot} MB` : ""}`);
+  const queued = st.queue.map((e, i) => `  ${e.kind.padEnd(7)} ${e.owner} ${e.token} queued ${s.time - e.since}s, ${describe(why[i]!.verdict)}`);
   const m = s.mem;
   return [`slot: limit ${st.ctl.n}, load ${(s.loadCenti / 100).toFixed(2)}, available ${avail(s)} MB, pressure ${m.press}, `
     + `swap ${m.swapUsedMB}/${m.swapTotalMB} MB, swapping out ${m.swapOutMBPerMin} MB/min, compressing ${m.comprMBPerMin} MB/min`,
-    `holders (${st.holders.length}):`, ...rows(st.holders), `queue (${st.queue.length}):`, ...rows(st.queue)];
+    windowLine(s.time, w), `holders (${st.holders.length}):`, ...rows(st.holders), `queue (${st.queue.length}):`, ...queued];
 }
 
 function flag(args: string[], name: string): string | null {
@@ -540,7 +650,7 @@ function num(args: string[], name: string, unit = "whole seconds"): number | nul
 
 function kindArg(args: string[]): Kind {
   const k = kindOf(flag(args, "--kind") ?? "");
-  if (k === null) throw new SlotUsage(`--kind is one of check test land sim other\n${SLOT_USAGE}`);
+  if (k === null) throw new SlotUsage(`--kind is one of ${KINDS.join(" ")}\n${SLOT_USAGE}`);
   return k;
 }
 
@@ -556,7 +666,7 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
       return run(d, kindArg(args), cmdv, args.includes("--cache"));
     }
     case "acquire": {
-      const g = await acquire(d, kindArg(args), num(args, "--lease") ?? d.params.leaseS, num(args, "--wait"));
+      const g = await acquire(d, kindArg(args), num(args, "--lease") ?? d.params.leaseS, num(args, "--wait"), num(args, "--next") ?? 0);
       const ok = g.verdict.verdict === "admit";
       d.out(args.includes("--json") ? `${JSON.stringify({ ...g, boot: ok && simBoot(nowS(), g.owner, g.token, readState(d).holders) })}\n` : ok ? `${g.token}\n` : "");
       return ok ? 0 : EXIT_REFUSED;
@@ -573,6 +683,19 @@ export async function slotCli(argv: string[], deps: Deps): Promise<number> {
       if (t === null) throw new SlotUsage(SLOT_USAGE);
       if (!releaseToken(d, t)) d.err("slot: nothing held under this owner and token\n");
       return 0;
+    }
+    case "pass": {
+      const t = flag(args, "--token");
+      const act = args[1];
+      if (t === null || (act !== "start" && act !== "stop")) throw new SlotUsage(SLOT_USAGE);
+      if (act === "stop") {
+        const ok = passStopCli(d, t, num(args, "--next") ?? 0);
+        if (!ok) d.err("slot pass: no live measure lease for this owner and token\n");
+        return ok ? 0 : 1;
+      }
+      const v = await passStartCli(d, t, num(args, "--for") ?? d.wparams.passMaxS, num(args, "--wait") ?? 300);
+      d.out(`VERDICT ${v.pass} pass${v.pass === "start" ? ` ${v.till}` : ""}\n`);
+      return v.pass === "start" ? 0 : v.pass === "wait" ? EXIT_REFUSED : 1;
     }
     case "status":
       for (const l of status(d, args.includes("--json"))) d.out(`${l}\n`);

@@ -4159,6 +4159,106 @@
    "leanReason": "The wire shape (step.post has a non-empty description) is a Lean Wire field and golden; the lead truncating output is a process slip that only the non-zero exit makes visible.",
    "empiricalCheck": "The next user ask posted as a step shows its description under the title in the console; a refused fw call exits non-zero.",
    "hardening": "step-description"
+  },
+  {
+   "id": "inc-land-leg-unfinished",
+   "at": "2026-10-22T21:16+07:00",
+   "title": "A land was refused as a CI failure while GitHub had not yet finalised its jobs",
+   "symptom": "fw land gate-settle-scroll-timeline printed REFUSED: remote tier ... github:fail, failed legs playwright-webkit, chromium, suites-a, suites-b (run 39792901389). The run record read status completed, conclusion success; the four jobs read status in_progress, conclusion empty, and every step of them had concluded success.",
+   "cause": "CONFIRMED (apps/runner/src/land-remote.ts:65-67 legResults: a job counts when typeof conclusion is string, and an unfinished job has the empty string, so it maps to false = failed leg): the land judged legs from conclusions without checking that each job had completed.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39792901389",
+     "note": "run completed/success with 4 jobs in_progress and empty conclusion; all steps success"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land-remote.ts",
+     "note": "legResults lines 65-67"
+    },
+    {
+     "kind": "event",
+     "ref": "sys.ghDegraded",
+     "note": "21:2x +07:00 fw watch reported Actions degraded_performance: Incident with Actions Results, the cause of the lagging job status"
+    },
+    {
+     "kind": "ci",
+     "ref": "39795088412",
+     "note": "second refusal of the same land on retry: run completed/success, 4 jobs in_progress with empty conclusion"
+    }
+   ],
+   "repro": "Land a branch while GitHub lags in finalising job status after the run completes: the land reads conclusion empty and refuses.",
+   "fix": {
+    "task": "land-leg-pending"
+   },
+   "regression": "Lean laneState: a leg without status completed is pending, never failed; golden with this record.",
+   "mistakeClass": "c-proxy-verdict",
+   "leanVerdict": "provable",
+   "leanReason": "Leg classification is pure (record -> pending|ok|fail); that no fail comes from an uncompleted leg is a theorem over it.",
+   "empiricalCheck": "The next land whose run record lags reads pending and re-reads instead of refusing.",
+   "hardening": "land-leg-pending"
+  },
+  {
+   "id": "inc-tmp-trace-leak",
+   "at": "2026-10-22T22:35+07:00",
+   "title": "The disk filled up: Instruments kernel traces and test temp dirs leaked into the macOS user temp folder, which no GC rule covers",
+   "symptom": "Free disk fell from 29 GB to 1.3 GB in about an hour; cc-storage-count, slot-measure-exclusive and land-leg-pending builders stopped on ENOSPC. The user temp folder (DARWIN_USER_TEMP_DIR) held 161 GB: about 27 instruments*.ktrace files of 5-8 GB from xctrace recordings, and about 103000 fw* temp dirs from our tests and tools (fw-land 19506, fw-run 6323, fw-hooks 6088, oracle 5702, ghb 4569 among others).",
+   "cause": "CONFIRMED (process 89865 node packages/measure-webkit/src/xctrace/probe.mjs, parent pid 1, 41 min, branch worktree-wf_f4a6ed0e-0c6-1; lean/Fw/Ops/DiskGc.lean Roots holds repo, lake, scratch and devices only): the xctrace probe of mac-safari-measure records kernel traces into the temp folder, never deletes them and kept running after its agent; test suites create mkdtemp dirs they never remove; the disk GC has no class for the user temp folder.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "89865",
+     "note": "xctrace probe orphaned, exporting fw-xctrace-Xtxwvh/mac-attach-Animation-Hitches.trace"
+    },
+    {
+     "kind": "event",
+     "ref": "sys.diskLow",
+     "note": "disk 13 GB, then 8.3, 6.4, 2.6, 1.3 GB free; 119 GB free after removing the kernel traces"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/DiskGc.lean",
+     "note": "Roots: repo, lake, scratch, devices; no temp-folder class"
+    }
+   ],
+   "repro": "Run the local xctrace probe several times, or the runner test suites repeatedly: the temp folder grows without bound.",
+   "fix": {
+    "task": "disk-gc-tmp"
+   },
+   "regression": "A disk GC class for the user temp folder (our prefixes and instruments*.ktrace, owned, not open, older than a floor); the probe deletes its traces in finally and dies with its parent; tests remove their temp dirs.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "partly",
+   "leanReason": "Which temp items are ours and deletable is a pure Lean rule (prefix allowlist, owner, age, not open); that each test removes its temp dir is a lint, not a proof.",
+   "empiricalCheck": "After a day of runs the temp folder stays under a stated bound and sys.diskLow does not open.",
+   "hardening": "disk-gc-tmp"
+  },
+  {
+   "id": "inc-orphan-tool-call",
+   "at": "2026-10-22T22:50+07:00",
+   "title": "fw watch reported a 38-minute Bash hang for an agent that was working: one tool call in its transcript has no result record",
+   "symptom": "agent.toolHang and agent.toolSlow opened for the census-load-variance builder (Bash running for 38 min) while its transcript showed a new tool call every few seconds.",
+   "cause": "CONFIRMED (workflow wf_105a3643-a4a transcript: Bash tool_use at 15:04:44Z, written twice by streaming, has no tool_result; the next assistant message is at 15:10:21Z; apps/runner/src/watch-fold.ts:90-100 keeps an id open until its tool_result and finishInfo picks the newest open id as inflight). Why the result record is missing is INFERRED: the disk was nearly full in that window (inc-tmp-trace-leak) and the agent ran lake-gc right after.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/watch-fold.ts",
+     "note": "open set cleared only by tool_result; finishInfo inflight = newest open id"
+    },
+    {
+     "kind": "event",
+     "ref": "agent.toolHang",
+     "note": "Bash running for 38 min while the agent made fresh calls"
+    }
+   ],
+   "repro": "Fold a transcript in which one tool_use has no tool_result and a later assistant message follows: inflight stays on the orphan call and toolHang opens after 30 min.",
+   "fix": {
+    "task": "watch-orphan-call"
+   },
+   "regression": "Lean rule: a call is in flight only while its assistant message is the newest; golden vectors include a transcript with a missing tool_result.",
+   "leanVerdict": "provable",
+   "leanReason": "The inflight choice is a pure function of the folded lines: a later assistant message clears every older open call, so a missing result record cannot pin inflight.",
+   "hardening": "watch-orphan-call"
   }
  ]
 }

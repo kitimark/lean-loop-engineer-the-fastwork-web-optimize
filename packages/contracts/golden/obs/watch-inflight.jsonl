@@ -1,0 +1,12 @@
+{"events":[],"expect":null,"name":"no records"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"}],"expect":{"since":10,"tool":"Bash"},"name":"one call open"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"},{"id":"c1","k":"result"}],"expect":null,"name":"call closed by its result"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"},{"calls":[{"at":20,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m2"},{"id":"c2","k":"result"}],"expect":null,"name":"missing result: the next assistant message clears it"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"},{"calls":[{"at":20,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m2"}],"expect":{"since":20,"tool":"Read"},"name":"missing result: the next message's own call is the one in flight"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"},{"calls":[],"k":"assistant","msg":"m2"}],"expect":null,"name":"missing result: a closing text message clears it"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"},{"at":12,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m1"}],"expect":{"since":12,"tool":"Read"},"name":"parallel calls of one message stay open together"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"},{"at":12,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m1"},{"id":"c2","k":"result"}],"expect":{"since":10,"tool":"Bash"},"name":"parallel calls: one result leaves the other open"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"},{"calls":[{"at":11,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m1"}],"expect":{"since":11,"tool":"Read"},"name":"streamed copies of one message share its id and add up"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"},{"at":12,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m1"},{"id":"c1","k":"result"},{"id":"c2","k":"result"}],"expect":null,"name":"results out of order"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"}],"k":"assistant","msg":"m1"},{"id":"zz","k":"result"}],"expect":{"since":10,"tool":"Bash"},"name":"an unknown result changes nothing"}
+{"events":[{"calls":[{"at":10,"id":"c1","tool":"Bash"},{"at":10,"id":"c2","tool":"Read"}],"k":"assistant","msg":"m1"}],"expect":{"since":10,"tool":"Read"},"name":"tie in time: the later call"}

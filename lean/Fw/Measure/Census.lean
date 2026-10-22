@@ -83,6 +83,25 @@ theorem both_maps_once (l : Layer) (f i : String) (hf : l.fw = some f) (hl : l.l
 def undeclared (ls : List Layer) : List Box :=
   ls.filterMap fun l => if l.ident = .free then some ⟨l.name, l.bounds⟩ else none
 
+/-- Box-name prefixes the pass-to-pass check skips. Timer-run animations (INFERRED): accent word, typing line, scroll cue.
+Listed after a refusal, mechanism not found: `section.commission.`, `div.fee-visual`, `div.body.svelte-ty4hd7`. Root layer
+`#document`: its height is the page height of one load. -/
+def runnerStems : List String :=
+  ["#document", "span.accent-module_frame_", "svg.accent-module_svg_", "div.typing-module_visual_", "div.typing-module_beat_", "span.typing-module_avatar_",
+   "span.frame.", "svg.accent-svg.", "button.scroll-cue.", "section.commission.", "div.fee-visual", "div.body.svelte-ty4hd7"]
+
+def varying (name : String) : Bool := runnerStems.any fun s => name.startsWith s
+
+theorem varying_of_stem (s t : String) (h : s ∈ runnerStems) : varying (s ++ t) = true := by
+  simp only [varying, List.any_eq_true]
+  exact ⟨s, h, by simp⟩
+
+def Layer.gone (l : Layer) : Bool := l.reasons == ["(gone)"]
+
+def Layer.keeps (l : Layer) : Bool := l.ident == .free && !l.gone && !varying l.name
+
+def stable (ls : List Layer) : List Box := (ls.filter Layer.keeps).map fun l => ⟨l.name, l.bounds⟩
+
 def firstDiff (a b : List Box) : Option Box := (a ++ b).find? fun x => a.count x != b.count x
 
 theorem firstDiff_none_iff (a b : List Box) : firstDiff a b = none ↔ a.isPerm b = true := by
@@ -111,6 +130,40 @@ theorem firstDiff_self (a : List Box) : firstDiff a a = none := by
 
 theorem undeclared_perm (a b : List Layer) (h : a.Perm b) : (undeclared a).Perm (undeclared b) :=
   h.filterMap _
+
+theorem stable_perm (a b : List Layer) (h : a.Perm b) : (stable a).Perm (stable b) :=
+  (h.filter _).map _
+
+theorem stable_cons_gone (l : Layer) (ls : List Layer) (h : l.gone = true) : stable (l :: ls) = stable ls := by
+  simp [stable, Layer.keeps, h]
+
+theorem stable_cons_varying (l : Layer) (ls : List Layer) (h : varying l.name = true) : stable (l :: ls) = stable ls := by
+  simp [stable, Layer.keeps, h]
+
+theorem stable_cons_declared (l : Layer) (ls : List Layer) (h : l.ident ≠ .free) : stable (l :: ls) = stable ls := by
+  simp [stable, Layer.keeps, h]
+
+theorem stable_cons_kept (l : Layer) (ls : List Layer) (h : l.keeps = true) :
+    stable (l :: ls) = ⟨l.name, l.bounds⟩ :: stable ls := by
+  simp [stable, h]
+
+theorem stable_replicate_varying (l : Layer) (n : Nat) (ls : List Layer) (h : varying l.name = true) :
+    stable (List.replicate n l ++ ls) = stable ls := by
+  induction n with
+  | zero => rfl
+  | succ n ih => rw [List.replicate_succ, List.cons_append, stable_cons_varying _ _ h, ih]
+
+theorem stable_replicate_gone (l : Layer) (n : Nat) (ls : List Layer) (h : l.gone = true) :
+    stable (List.replicate n l ++ ls) = stable ls := by
+  induction n with
+  | zero => rfl
+  | succ n ih => rw [List.replicate_succ, List.cons_append, stable_cons_gone _ _ h, ih]
+
+theorem stable_mem_free (ls : List Layer) (b : Box) (h : b ∈ stable ls) :
+    varying b.name = false ∧ ∃ l ∈ ls, l.ident = .free ∧ l.gone = false ∧ b = ⟨l.name, l.bounds⟩ := by
+  simp only [stable, List.mem_map, List.mem_filter, Layer.keeps, Bool.and_eq_true, Bool.not_eq_true'] at h
+  obtain ⟨l, ⟨hl, ⟨hi, hg⟩, hv⟩, rfl⟩ := h
+  exact ⟨hv, l, hl, by simpa using hi, hg, rfl⟩
 
 inductive Side where
   | a | b
@@ -170,11 +223,12 @@ def gridRefusals (side : Side) (w : Want) (dpr : Nat) (s : Sample) : List Refusa
 def armRefusals (side : Side) (w : Want) (arm : Arm) : List Refusal :=
   arm.samples.flatMap fun s => compositeRefusals side w s ++ gridRefusals side w arm.dpr s
 
+def undeclaredAt (sa sb : Sample) : Option Refusal :=
+  (firstDiff (stable sa.layers) (stable sb.layers)).map fun x =>
+    .undeclared sa.y x ((stable sa.layers).count x) ((stable sb.layers).count x)
+
 def undeclaredRefusals (a b : Arm) : List Refusal :=
-  (a.samples.zip b.samples).filterMap fun (sa, sb) =>
-    let ua := undeclared sa.layers
-    let ub := undeclared sb.layers
-    (firstDiff ua ub).map fun x => .undeclared sa.y x (ua.count x) (ub.count x)
+  (a.samples.zip b.samples).filterMap fun (sa, sb) => undeclaredAt sa sb
 
 def refusals (wa wb : Want) (a b : Arm) : List Refusal :=
   if a.dpr ≠ b.dpr then [.viewport a.dpr b.dpr]
@@ -192,30 +246,53 @@ theorem refusals_samples (wa wb : Want) (a b : Arm) (h : a.dpr = b.dpr) (hs : a.
   simp [refusals, h, hs]
 
 theorem undeclaredRefusals_eq_nil_iff (a b : Arm) :
-    undeclaredRefusals a b = [] ↔ ∀ p ∈ a.samples.zip b.samples, (undeclared p.1.layers).isPerm (undeclared p.2.layers) = true := by
-  simp only [undeclaredRefusals, List.filterMap_eq_nil_iff]
+    undeclaredRefusals a b = [] ↔ ∀ p ∈ a.samples.zip b.samples, (stable p.1.layers).isPerm (stable p.2.layers) = true := by
+  simp only [undeclaredRefusals, undeclaredAt, List.filterMap_eq_nil_iff]
   constructor
   · intro h p hp
     have := h p hp
     rw [← firstDiff_none_iff]
-    cases hd : firstDiff (undeclared p.1.layers) (undeclared p.2.layers) <;> simp_all
+    cases hd : firstDiff (stable p.1.layers) (stable p.2.layers) <;> simp_all
   · intro h p hp
     have := (firstDiff_none_iff _ _).2 (h p hp)
     simp [this]
 
 theorem undeclaredRefusals_names_box (a b : Arm) (r : Refusal) (h : r ∈ undeclaredRefusals a b) :
-    ∃ y x na nb, r = .undeclared y x na nb ∧ na ≠ nb ∧ (0 < na ∨ 0 < nb) := by
-  simp only [undeclaredRefusals, List.mem_filterMap] at h
+    ∃ y x na nb, r = .undeclared y x na nb ∧ na ≠ nb ∧ (0 < na ∨ 0 < nb) ∧ varying x.name = false := by
+  simp only [undeclaredRefusals, undeclaredAt, List.mem_filterMap] at h
   obtain ⟨⟨sa, sb⟩, _, hr⟩ := h
-  cases hd : firstDiff (undeclared sa.layers) (undeclared sb.layers) with
+  cases hd : firstDiff (stable sa.layers) (stable sb.layers) with
   | none => simp [hd] at hr
   | some x =>
     simp only [hd, Option.map_some, Option.some.injEq] at hr
     obtain ⟨hne, hm⟩ := firstDiff_some _ _ _ hd
-    refine ⟨sa.y, x, _, _, hr.symm, hne, ?_⟩
-    rcases hm with hm | hm
-    · exact Or.inl (List.count_pos_iff.2 hm)
-    · exact Or.inr (List.count_pos_iff.2 hm)
+    refine ⟨sa.y, x, _, _, hr.symm, hne, ?_, ?_⟩
+    · rcases hm with hm | hm
+      · exact Or.inl (List.count_pos_iff.2 hm)
+      · exact Or.inr (List.count_pos_iff.2 hm)
+    · rcases hm with hm | hm
+      · exact (stable_mem_free _ _ hm).1
+      · exact (stable_mem_free _ _ hm).1
+
+theorem undeclaredAt_cons_gone (l : Layer) (sa sb : Sample) (h : l.gone = true) :
+    undeclaredAt { sa with layers := l :: sa.layers } sb = undeclaredAt sa sb := by
+  simp [undeclaredAt, stable_cons_gone _ _ h]
+
+theorem undeclaredAt_cons_varying (l : Layer) (sa sb : Sample) (h : varying l.name = true) :
+    undeclaredAt { sa with layers := l :: sa.layers } sb = undeclaredAt sa sb := by
+  simp [undeclaredAt, stable_cons_varying _ _ h]
+
+theorem undeclaredAt_cons_kept (l : Layer) (sa sb : Sample) (h : l.keeps = true)
+    (hp : (stable sa.layers).isPerm (stable sb.layers) = true) :
+    undeclaredAt { sa with layers := l :: sa.layers } sb ≠ none := by
+  intro hn
+  have h0 : firstDiff (stable (l :: sa.layers)) (stable sb.layers) = none := by
+    simpa [undeclaredAt] using hn
+  rw [firstDiff_none_iff, stable_cons_kept _ _ h] at h0
+  have h1 := (List.isPerm_iff.1 h0).length_eq
+  have h2 := (List.isPerm_iff.1 hp).length_eq
+  simp only [List.length_cons] at h1
+  omega
 
 theorem compositeRefusals_eq_nil_iff (side : Side) (w : Want) (s : Sample) :
     compositeRefusals side w s = [] ↔
@@ -301,7 +378,7 @@ theorem refusals_self (wa wb : Want) (a : Arm) (h : armRefusals .a wa a = [] ∧
 theorem refusals_ok_iff (wa wb : Want) (a b : Arm) :
     refusals wa wb a b = [] ↔
       a.dpr = b.dpr ∧ a.samples.map (·.y) = b.samples.map (·.y) ∧
-      (∀ p ∈ a.samples.zip b.samples, (undeclared p.1.layers).isPerm (undeclared p.2.layers) = true) ∧
+      (∀ p ∈ a.samples.zip b.samples, (stable p.1.layers).isPerm (stable p.2.layers) = true) ∧
       (∀ s ∈ a.samples, compositeRefusals .a wa s = [] ∧ gridRefusals .a wa a.dpr s = []) ∧
       (∀ s ∈ b.samples, compositeRefusals .b wb s = [] ∧ gridRefusals .b wb b.dpr s = []) := by
   rw [refusals_eq_nil_iff, undeclaredRefusals_eq_nil_iff, armRefusals_eq_nil_iff, armRefusals_eq_nil_iff]
@@ -413,6 +490,20 @@ private def nav : Layer := L "nav" (some "nav") (some "nav_bar") ⟨0, 0, 390000
 private def side : Layer := L "aside.x" (some "nav_extra") none ⟨0, 0, 10000000, 10000000⟩
 private def extra : Layer := L "span.glow" none none ⟨5000000, 5000000, 20000000, 20000000⟩
 
+private def Lr (name : String) (reasons : List String) (b : Rect := big) : Layer := ⟨name, none, none, b, none, reasons, some 4096⟩
+
+private def frameA : Layer := Lr "span.accent-module_frame_0z18R8" ["transformWithCompositedDescendants"] ⟨0, 0, 60000000, 49000000⟩
+private def frameB : Layer := Lr "span.accent-module_frame_0z18R8" ["transformWithCompositedDescendants"] ⟨0, 0, 101000000, 47000000⟩
+private def idleSvg : Layer := Lr "svg.accent-module_svg_HwEYD1.accent-module_idleFrame_f6M8wO" ["animation", "stacking"] ⟨0, 0, 42000000, 47000000⟩
+private def typingVisual : Layer := Lr "div.typing-module_visual_YdYZxz" ["transformWithCompositedDescendants"] ⟨0, 0, 438000000, 225000000⟩
+private def origCue : Layer := Lr "button.scroll-cue.svelte-1p2vpne" ["filterWithCompositedDescendants"] ⟨0, -9000000, 77000000, 54000000⟩
+private def origFrame : Layer := Lr "span.frame.svelte-1fn2go6" ["(gone)"] ⟨0, 0, 60000000, 49000000⟩
+private def goneNode : Layer := Lr "?" ["(gone)"] ⟨0, 0, 1000000, 32000000⟩
+private def goneNamed : Layer := Lr "div.start-selling-morph-col" ["(gone)"] ⟨0, 0, 136000000, 52000000⟩
+private def nearStem : Layer := Lr "span.accent-module_frame" ["transformWithCompositedDescendants"] ⟨0, 0, 60000000, 49000000⟩
+private def nearStem2 : Layer := Lr "div.typing-module_visualX_1" ["transformWithCompositedDescendants"] ⟨0, 0, 60000000, 49000000⟩
+private def goneDeclared : Layer := ⟨"nav", some "nav", some "nav_bar", ⟨0, 0, 390000000, 64000000⟩, some (0, 0), ["(gone)"], none⟩
+
 private def smp (y : Int) (ls : List Layer) (rendered : List String := ["hero_copy", "nav_bar"]) : Sample := ⟨y, rendered, ls⟩
 private def arm (ss : List Sample) (dpr : Nat := 3000) : Arm := ⟨dpr, ss⟩
 
@@ -444,6 +535,15 @@ private def checks : List (String × Want × Want × Arm × Arm) :=
    ("snapFractionalOnGrid", wA, wB, arm base, arm [smp 0 [root, hero, navAt 333333 0], smp 1500 [root, hero, nav]]),
    ("snapFractionalOnGridDpr2", wA, wB, arm base (dpr := 2000), arm [smp 0 [root, hero, navAt 500000 0], smp 1500 [root, hero, nav]] (dpr := 2000)),
    ("snapOnlyDeclared", wA, wB, arm [smp 0 [root, hero, navAt 500000 0], smp 1500 [root, hero, nav]], arm base),
+   ("loadVarianceBase", wA, wB, arm [smp 0 [root, hero, nav, frameA, idleSvg, idleSvg, typingVisual], smp 1500 [root, hero, nav, origCue, goneNode]],
+     arm [smp 0 [root, hero, nav, goneNode, goneNamed], smp 1500 [root, hero, nav, frameB, { idleSvg with bounds := ⟨0, -1000000, 43000000, 47000000⟩ }, origFrame]]),
+   ("rootHeightDiffers", wA, wB, arm [smp 0 [Lr "#document" ["root"] ⟨0, 0, 390000000, 6006000000⟩, hero, nav]], arm [smp 0 [Lr "#document" ["root"] ⟨0, 0, 390000000, 6042000000⟩, hero, nav]]),
+   ("varyingCountNotTolerated", wA, wB, arm [smp 0 [root, hero, nav]], arm [smp 0 ([root, hero, nav] ++ List.replicate 9 frameA ++ List.replicate 9 goneNode)]),
+   ("goneAndVaryingBeside", wA, wB, arm [smp 0 [root, hero, nav, extra, frameA]], arm [smp 0 [root, hero, nav, goneNode, extra, frameB]]),
+   ("unlistedBesideVarying", wA, wB, arm [smp 0 [root, hero, nav, frameA]], arm [smp 0 [root, hero, nav, extra, goneNode]]),
+   ("nearStemRefused", wA, wB, arm base, arm [smp 0 [root, hero, nav, nearStem], smp 1500 [root, hero, nav]]),
+   ("nearStemRefused2", wA, wB, arm base, arm [smp 0 [root, hero, nav], smp 1500 [root, hero, nav, nearStem2]]),
+   ("goneDeclaredNotUndeclared", wA, wB, arm base, arm [smp 0 [root, hero, goneDeclared], smp 1500 [root, hero, nav]]),
    ("order", wA, wB, arm [smp 0 [root, nav], smp 1500 [root, hero, nav]],
      arm [smp 0 [root, hero, navAt 500000 0, extra], smp 1500 [root, hero, nav]])]
 
@@ -454,6 +554,12 @@ private def identCases : List (Option String × Option String) :=
   [(some "hero", some "hero_copy"), (some "nav", none), (none, none), (some "", some ""), (some "", some "nav_bar"),
    (none, some "nav_bar"), (some "nav", some "")]
 
+private def varyingCases : List String :=
+  ["span.accent-module_frame_0z18R8", "svg.accent-module_svg_HwEYD1.accent-module_idleFrame_f6M8wO", "div.typing-module_visual_YdYZxz",
+   "div.typing-module_beat_xRahAp.typing-module_scrollingOut_2jKdD5", "span.typing-module_avatar_lESUvo.typing-module_isLarge_uZcCpC", "span.frame.svelte-1fn2go6", "svg.accent-svg.is-idle-frame",
+   "button.scroll-cue.svelte-1p2vpne", "section.commission.compact", "div.fee-visual-beat.scrolling-out", "div.body.svelte-ty4hd7", "#document", "span.accent-module_frame", "div.typing-module_visualX_1", "div.nav-module_bar_4ex1vU",
+   "div.morph-module_track_CO8LmY", "?", "", "span.frame", "svg.accent-svg"]
+
 private def gridCases : List (Nat × Int) :=
   [(3000, 0), (3000, 333333), (3000, 500000), (3000, 333000), (2000, 500000), (2000, 250000), (1000, 7), (1000, 1000000), (3000, -333333),
    (3000, 1000000)]
@@ -461,6 +567,7 @@ private def gridCases : List (Nat × Int) :=
 private def goldenLines (_ : Unit) : List String :=
   (identCases.map fun (f, l) =>
     (Json.mkObj [("kind", "ident"), ("fw", toJson f), ("layer", toJson l), ("ident", identJ (identOf f l))]).compress) ++
+  (varyingCases.map fun (n : String) => (Json.mkObj [("kind", "varying"), ("name", n), ("varying", varying n)]).compress) ++
   (gridCases.map fun (d, o) =>
     (Json.mkObj [("kind", "grid"), ("dpr", d), ("o", toJson o), ("ok", gridOk d o)]).compress) ++
   [(Json.mkObj [("kind", "rows"), ("layers", Json.arr (sampleRows.map lj).toArray),

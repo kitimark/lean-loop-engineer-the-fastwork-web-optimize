@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { identOf, gridOk, rows, refusals, describeRefusal, checkPair, declaredTable, censusVerdict } from '../src/census-check.mjs';
+import { identOf, gridOk, rows, refusals, describeRefusal, checkPair, declaredTable, censusVerdict, varying, stable } from '../src/census-check.mjs';
 import { reportRuns, runsOf } from '../src/census-check-cli.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -11,7 +11,7 @@ const lines = readFileSync(join(here, '../../contracts/golden/measure/census.jso
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('every golden kind has lines', () => {
-  for (const k of ['ident', 'grid', 'rows', 'check']) assert.ok(of(k).length > 0, k);
+  for (const k of ['ident', 'grid', 'varying', 'rows', 'check']) assert.ok(of(k).length > 0, k);
 });
 
 test('identity of a node from its attributes', () => {
@@ -20,6 +20,16 @@ test('identity of a node from its attributes', () => {
 
 test('device-pixel grid of an origin', () => {
   for (const g of of('grid')) assert.equal(gridOk(g.dpr, g.o), g.ok, `dpr ${g.dpr} o ${g.o}`);
+});
+
+test('free-running box names, by identity', () => {
+  for (const g of of('varying')) assert.equal(varying(g.name), g.varying, g.name);
+});
+
+test('stable boxes leave out torn-down layers and free-running boxes, however many', () => {
+  const l = (name, reasons = ['willChange']) => ({ name, fw: null, layer: null, bounds: [0, 0, 1, 1], reasons });
+  const layers = [l('div#a'), l('span.accent-module_frame_x'), l('span.accent-module_frame_x'), l('?', ['(gone)']), l('div#b', ['(gone)', 'x'])];
+  assert.deepEqual(stable(layers).map((b) => b.name), ['div#a', 'div#b']);
 });
 
 test('declared rows of a census', () => {
@@ -59,6 +69,16 @@ test('composite and snap wants refuse a missing layer and an off-grid origin by 
   assert.deepEqual(checkPair(gone, ok, { composite: 'all' }).refusals.map((r) => [r.code, r.side, r.box]), [['notComposited', 'a', 'nav_bar']]);
   const off = [sample(0, [rec('div#a'), rec('nav', { fw: 'nav', layer: 'nav_bar', origin: [500000, 0] })], ['nav_bar'])];
   assert.deepEqual(checkPair(ok, off, { snap: 'nav_bar' }).refusals.map((r) => [r.code, r.side, r.box, r.axis]), [['offGrid', 'b', 'nav_bar', 'x']]);
+});
+
+test('two loads that differ in free-running layers only are accepted; one unlisted layer is named', () => {
+  const anim = (w) => rec('span.accent-module_frame_0z18R8', { boundsU: [0, 0, w * 1e6, 47e6] });
+  const gone = { ...rec('?'), reasons: ['(gone)'] };
+  const a = [sample(0, [rec('div#a'), anim(60), anim(60), gone])];
+  const b = [sample(0, [rec('div#a'), anim(101)])];
+  assert.equal(checkPair(a, b).state, 'accepted');
+  const c = [sample(0, [rec('div#a'), rec('span.accent-module_frame'), anim(101)])];
+  assert.deepEqual(checkPair(a, c).refusals.map((r) => [r.code, r.box]), [['undeclared', 'span.accent-module_frame']]);
 });
 
 test('a sample a collector could not read is unavailable, neither accepted nor refused', () => {

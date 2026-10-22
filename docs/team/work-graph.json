@@ -13564,8 +13564,14 @@
     "docs/team/handoffs/mac-safari-measure.md",
     "packages/measure-webkit/src/sim-local*.mjs",
     "packages/measure-webkit/test/sim-local*.test.mjs",
-    "packages/measure-webkit/src/xctrace/**"
-   ]
+    "packages/measure-webkit/src/xctrace/**",
+    "apps/runner/src/land.ts",
+    "lean/scripts/check.sh",
+    "packages/measure-webkit/src/xctrace/guard.mjs",
+    "packages/measure-webkit/src/xctrace/attempt.mjs",
+    "packages/measure-webkit/test/safari-local-guard.test.mjs"
+   ],
+   "evidence": "d432964"
   },
   {
    "devices": [
@@ -14674,8 +14680,22 @@
     "packages/measure-webkit/test/pathpix*.test.mjs",
     ".github/workflows/path-pix.yml",
     "research/notes/2026/10-2x-path-pix.md",
-    "docs/team/handoffs/path-pix-lanes.md"
-   ]
+    "docs/team/handoffs/path-pix-lanes.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Ci/Steps.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/ci/intent.jsonl",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "packages/contracts/golden/ci/steps.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "scripts/ci-paths.test.mjs"
+   ],
+   "evidence": "ef3cd6d"
   },
   {
    "devices": [
@@ -16200,9 +16220,13 @@
     "lean/Fw/Measure/Census.lean",
     "packages/contracts/golden/measure/census.jsonl",
     "research/notes/2026/10-2x-census-load-variance.md",
-    "docs/team/handoffs/census-load-variance.md"
+    "docs/team/handoffs/census-load-variance.md",
+    "packages/measure-webkit/src/census-check.mjs",
+    "packages/measure-webkit/test/census-check.test.mjs",
+    "packages/measure-webkit/src/cli.mjs"
    ],
-   "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI."
+   "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI.",
+   "evidence": "ec36cb8"
   },
   {
    "devices": [
@@ -16222,7 +16246,8 @@
     "research/notes/2026/10-2x-gate-settle-scroll-timeline.md",
     "docs/team/handoffs/gate-settle-scroll-timeline.md"
    ],
-   "title": "(S) Settle probe counts scroll-driven animations as running forever (page.mjs:342 keeps any finite non-finished animation; a ScrollTimeline/ViewTimeline animation never finishes), so every arm with hero.exit:threaded ends UNSETTLED (run 39769627588: 155 unsettled samples, 0 fail readings, merge red). Rule: an animation on a non-document timeline is settled when its timeline's scroll offset is stable; its effect is already in the stable signature. Read the spec and Chromium/WebKit source for scroll-timeline playState/currentTime at a fixed offset (cite file:line@sha), state the rule in Lean Settle (running counts document-timeline animations only; theorem: a scroll-timeline animation at a fixed offset leaves the signature constant), golden vectors, page.mjs change, then rerun the full gate for fw=hero.exit:threaded on both engines and report whether the merge verdict turns pass."
+   "title": "(S) Settle probe counts scroll-driven animations as running forever (page.mjs:342 keeps any finite non-finished animation; a ScrollTimeline/ViewTimeline animation never finishes), so every arm with hero.exit:threaded ends UNSETTLED (run 39769627588: 155 unsettled samples, 0 fail readings, merge red). Rule: an animation on a non-document timeline is settled when its timeline's scroll offset is stable; its effect is already in the stable signature. Read the spec and Chromium/WebKit source for scroll-timeline playState/currentTime at a fixed offset (cite file:line@sha), state the rule in Lean Settle (running counts document-timeline animations only; theorem: a scroll-timeline animation at a fixed offset leaves the signature constant), golden vectors, page.mjs change, then rerun the full gate for fw=hero.exit:threaded on both engines and report whether the merge verdict turns pass.",
+   "evidence": "868970a"
   },
   {
    "devices": [
@@ -16309,9 +16334,11 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-measure-exclusive.md",
     "lean/Fw/Sup/MeasureWindow.lean",
-    "lean/Fw.lean"
+    "lean/Fw.lean",
+    "apps/runner/src/slot-span.ts"
    ],
-   "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land."
+   "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land.",
+   "evidence": "f2bda12"
   },
   {
    "devices": [
@@ -16333,6 +16360,480 @@
     "docs/team/handoffs/touch-first-scroll-probe.md"
    ],
    "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-leg-pending",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/land-remote*.jsonl",
+    "packages/contracts/golden/console/console.landLaneState*.jsonl",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "docs/team/handoffs/land-leg-pending.md"
+   ],
+   "title": "Incident inc-land-leg-unfinished (2026-10-22): the gate-settle-scroll-timeline land was refused 'github:fail' on run 39792901389 whose record said status completed / conclusion success while four jobs still read status in_progress with conclusion '' (all their steps had succeeded; GitHub had not finalised the jobs). legResults (land-remote.ts:65) treats '' as a string, so an unfinished job counts as a failed leg. Lean first (LandRemote laneState / LandLegs): a leg whose job status is not completed is pending, never failed; a completed run with a pending leg is re-read (bounded) before any verdict; theorem: no fail verdict from a leg without a completed status; goldens including this record; TS follows.",
+   "evidence": "5fd2c06"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "safari-macos-ci",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "mac-safari-measure"
+   ],
+   "writes": [
+    ".github/workflows/safari-macos.yml",
+    "packages/measure-webkit/src/safari-ci*.mjs",
+    "packages/measure-webkit/test/safari-ci*.test.mjs",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Steps.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Pool/Caps.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/2026/10-2x-safari-macos-ci.md",
+    "results/safari-macos-ci/**",
+    "docs/team/handoffs/safari-macos-ci.md"
+   ],
+   "title": "User 2026-10-22: 'Do you try to measure safari macos ci'. Not yet: CI WebKit lanes are the iOS Simulator and Playwright WebKit; real Safari never ran on CI. The free macos-26 runner ships Safari 26.6 + SafariDriver (research/notes/2026/10-17-gha-public-runners.md). Reuse mac-safari-measure's safaridriver engine (safari-local.mjs) in a workflow_dispatch lane on macos-26: check whether safaridriver --enable needs sudo there; A/A on 2 runs first (variance), then original vs rewrite vs the GPU flags (hero.exit:threaded, morph.panel:const-bounds, platform:fade-threaded) at the hero exit and end of page, >= 3 jobs each; compare with the local Mac numbers in ci-device-accuracy terms. VM, no real GPU: cadence ranks arms, it does not judge GPU gains."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cc-storage-count",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Provider.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/PoolTier.lean",
+    "packages/contracts/golden/ci/overflow.jsonl",
+    "packages/contracts/golden/ci/provider*.jsonl",
+    "packages/contracts/golden/ci/pool-tier*.jsonl",
+    "scripts/circleci.mjs",
+    "scripts/circleci*.test.mjs",
+    "apps/runner/src/land-overflow.ts",
+    "apps/runner/test/land-overflow*.test.ts",
+    "docs/team/handoffs/cc-storage-count.md",
+    "lean/Fw/Ci/PoolTierWire.lean",
+    "lean/scripts/ProviderGolden.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "lean/scripts/PoolGolden.lean",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/tools/land.md",
+    "docs/team/tools/circleci.md"
+   ],
+   "title": "User 2026-10-22: 'github actions was degraded. why our system is not fallback to circle ci?' Research research/notes/2026/10-2x-cc-fallback-why.md: the second gate-settle land (21:21) overflowed all 5 legs but CircleCI was refused on storage: ledger 1297 vs stop 1000, while the real figure is about 650 and the Free allowance 2000. Lean rule changes: (1) storage counts caches and workspaces at CircleCI Free retention 15 days, artifacts at 30, only saves of the last 30 days (window like credits); (2) rename the stop storageStopMilli (half the allowance, documented) and add storageAllowMilli := 2000, no behaviour change; (3) charge the overflow's own Lake cache save (~153) before deciding; theorems: today's ledger row set yields < stop; storage_stop_keeps_github still holds; goldens; scripts/circleci.mjs storageSoFar follows. Follow-up (not this task): re-route a leg that stays pending to CircleCI while Actions is degraded (after land-leg-pending). USER 2026-10-22 ('we can store more than 2 GB, they just charge credits?'): yes, overage is 420 credits per GB-month from the free 30k pool (price CONFIRMED, pool INFERRED). So (4) the storage gate becomes a credit gate: storage past the 2 GB-month allowance is charged at 420 credits per GB-month into the same monthly budget as run credits; the overflow is refused only when run credits + storage overage + the reserve exceed the pool (theorem: no refusal on storage alone while the budget fits); (5) a Lake cache save policy on CircleCI that bounds storage (save on cache-key change only, or a shorter retention), stated in Lean with its expected GB-month per day.",
+   "evidence": "65c3ed7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "disk-gc-tmp",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/Fw/Ops/Wire.lean",
+    "packages/contracts/golden/ops/disk-gc*.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/test/disk-gc*.test.ts",
+    "apps/runner/test/run*.test.ts",
+    "scripts/lint-tmpdirs.mjs",
+    "scripts/lint-tmpdirs.test.mjs",
+    "docs/team/tools/disk-gc.md",
+    "docs/team/tools/disk-cleanup.md",
+    "docs/team/handoffs/disk-gc-tmp.md"
+   ],
+   "title": "User 2026-10-22: 'delete it and investigate why it doesn't automatically gc?' then the disk filled (incident inc-tmp-trace-leak: 161 GB in the macOS user temp folder, ~140 GB of instruments*.ktrace from the xctrace probe plus ~103k fw* test temp dirs; ENOSPC stopped 3 builders). Investigation (workflow disk-gc-gaps, result in the lead scratch disk-gc-gaps-result.json): F1 a vanished candidate (lstat fails -> uid -1) aborts the whole Lean request ('field uid: expected a non-negative integer'): uid becomes Option, unknown owner is kept, never fatal; F2a under sys.diskLow the scratch age floor drops 8 h -> 2 h (theorem pressure_only_lowers, guards unchanged); F2b scratch dirs of a landed task by identity; F3 fw run leaks .fw-console/tmp/<engine>-<runId> (run.ts:286-289, no rmSync; ci.ts and ci-telemetry.ts remove theirs in finally). New: a Lean class for the user temp folder (DARWIN_USER_TEMP_DIR): owned entries whose name matches our prefix allowlist (fw*, oracle*, ghb*, engine-check*, premises*, land-base*, lint*, var*, instruments*.ktrace) older than a floor and not open (lsof, fails closed); never the folder itself, never other names; theorem deletes_subset_allowlist extends to it. A lint (scripts/lint-tmpdirs.mjs) that flags test mkdtemp without a matching rm in afterAll/finally. Report freed bytes per class.",
+   "evidence": "6b2cd76"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-fixed-size",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/nav.hitTest/**",
+    "lean/Fw/Parts/NavClipBox*.lean",
+    "lean/Fw/Parts/NavBarFixed*.lean",
+    "lean/Fw/Engine/WebKitSimple*.lean",
+    "packages/contracts/golden/parts/nav-clip-box*.jsonl",
+    "packages/contracts/golden/parts/nav-bar-fixed*.jsonl",
+    "research/notes/2026/10-2x-nav-fixed-size.md",
+    "results/nav-fixed-size/**",
+    "docs/team/handoffs/nav-fixed-size.md",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "research/findings/ledger.json"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 1). Nav fixed size (C8u + C14 + translate3d logo): while .is-morphing:not(.is-locale-open) the nav box is the union box (phone 406x908 top 12; desktop panelW x panelH+4 top 16) and the pill is clip-path: inset(...) round navRadius(m) with border-radius 0; the bar keeps the union width (C14); logo moves by one translate3d(X(m),0,0) calc of --morph; actions by translateX = -(unionW - navW(m))/2; nav.hitTest probes the Lean box, not getBoundingClientRect. Background rides along: radius 0 on the box may make the nav a simple container (colour as CA contents, no nav raster). Flags in nav/part.json: nav:clip-box, nav:bar-fixed (requires clip-box), nav:logo-3d (requires bar-fixed); arms measured cumulatively. Rows: nav box, background, bar, logo, actions, hitTest. Source answers gap (a): the clip-path mask sits on the backdrop structural layer (GraphicsLayerCA.cpp:3353-3364@862f17d), so the backdrop is clipped to the pill; L case 1 is refuted in source, Safari pixels only confirm. Cite Chromium kBackdropFilter at compositing_reason_finder.cc:456-457@f842f52 and the RecompositeLayer decision at RenderElement.cpp:321-326@862f17d (verification corrections). F9/F11 engine lines are unverified: re-check in WebKit source before claiming them. Flag: Same look E-s for geometry; Q at the mask's curved edge and for logo-3d at 430 (CA downsamples the 3x raster at scale 0.75): logo-3d goes to the user's look-review class if the pixel diff exceeds tolerance. logo-3d saves only under the Normal policy (Conservative drops translate3d). Raster area during the morph is a trade (+31 % mean on phone, +34 % at 1280x800) unless the simple-container premise (BarComposited, nav drawsContent false) holds in the layer census. Write overlap to sequence: morph-nav-scope (not started) also lists nav/nav.module.css. Layer budget: +1 CAShapeLayer mask (no backing), +1 logo layer 0.17 MB RGB10A8 only while morphing; nav backing pinned at 16.6 MB/buffer during the morph (0 if simple container); bar backing constant or 0.. Lean: New Fw.Parts.NavClipBox over Nav.Vp, per breakpoint band and m in [0,1]: box_eq (clip rect of the union box with insets v m = navLeft/navTop/navWidth/navHeight, clipR m = navRadius m; reuses Nav.lean:244-254, navWidth_expand_irrel), insets_nonneg (why the union box), union_const above morphingCut, rest_same (no rule at m <= morphingCut or localeOpen), probe_eq (hitPoint Lean box = hitPoint original rect). Fw.Parts.NavBarFixed: barW_const, logoX_eq (Rat identity, quadratic in m, Nav.logoLeft), actionsX_eq (affine), gap untouched. Fw.Engine.WebKitSimple: simpleContainer_backing (no radius/border/filter/painted descendant -> residentKpx 0, resizePaint 0; extends simple_layer WebKit.lean:1126) with BarComposited as a stated premise. Work: wk_allocs_push (nav resize allocations per push = 2 < frames for >= 3 frames), bar resizePaint = 0, logo layout units -1 per frame under Normal; writer_unchanged (same --morph sequence, trajectory proofs reuse MorphTween.tween); raster area stated as >= (trade) unless simpleContainer. Layer budget stated as a theorem over the census rows. Measure: (1) Breakpoint gate, both engines, all breakpoints: rest unchanged. (2) WebKit Simulator cost lane (webkit-cost-counters) per arm: IOSurface creations and nav/bar Paint records per morph frame, Layout object count, Composite minus nested Paint, RecalculateStyles (expected equal, no win claimed). (3) Layer census: nav and bar drawsContent, mask layer, logo layer present only while morphing. (4) Trajectory: nav clip rect and radius per frame vs the Lean box; logo and actions rects; is-on-dark rows (cells from gpu-trajectory-cells). (5) Local Safari lane via gpu-safari-lane: pixels at m in {0.1, 0.5, 0.9}, glass colour at {0.25, 0.5, 0.75}, logo at 430."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-trajectory-cells",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/src/trajectory/cells-gpu*.mjs",
+    "packages/gate-breakpoints/src/trajectory/registry.mjs",
+    "packages/gate-breakpoints/test/trajectory-gpu*.mjs",
+    "lean/Fw/Gate/TrajectoryGpu*.lean",
+    "packages/contracts/golden/gate/trajectory-gpu*.jsonl",
+    "docs/team/handoffs/gpu-trajectory-cells.md",
+    ".github/workflows/trajectory-probe.yml",
+    "lean/scripts/TrajectoryGpuGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 2). Trajectory cells for the GPU arms, specified in Lean first: (a) nav clip cell: read the computed clip-path inset/round on the nav (flag on) or the border box (flag off) and reduce both to one rect + radius per frame; (b) panel effect cell: opacity, filter blur, transform scale per frame at matched tween progress, including the CA-clock vs rAF lead/lag in frames; (c) pain dark cell: the solid-colour layer's opacity vs the faithful class per scroll offset; (d) carousel avatar rects per frame. The reduction (clip -> rect, tolerance, lag in frames) is a Lean function with golden vectors the JS is checked against. Flag: Blocker for the verdicts of nav-fixed-size, morph-panel-threaded, pain-dark-scroll and people-carousel-crop; start it now. No site code.. Lean: Fw.Gate.TrajectoryGpu: clipRect_of_inset (inset + box -> rect, exact on Rat), cell_eq_iff within PixTol 1/2 device px, lagFrames (panel vs nav) with lag <= 1 -> Q else L; goldens for each reducer. Measure: Unit goldens only; first CI run on faithful (A/A) to calibrate the cells."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-panel-threaded",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "morph-touch-band"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.tween/driver.ts",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "lean/Fw/Parts/MorphPanelThreaded*.lean",
+    "packages/contracts/golden/parts/morph-panel-threaded*.jsonl",
+    "research/notes/2026/10-2x-morph-panel-threaded.md",
+    "results/morph-panel-threaded/**",
+    "docs/team/handoffs/morph-panel-threaded.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 3). morph.panel:threaded on top of const-bounds: one WAAPI effect per push on opacity + filter + transform (all in the WebKit 'always' list), keyframes from the Lean tween at the 0.08 and 0.8 kinks, easing cubic-bezier(1/3,1,2/3,1), legacy CA path. The rAF tween keeps writing --morph and data-fw-morph so nav classes stay fresh (avoids the morph.tween:waapi staleness). Not installed under reduced motion. Measured alone and in one bundle arm with platform:fade-threaded (URL flag combination, no platform writes). Dep morph-touch-band because the push start hook lives in morph.tween. Verification correction: the panel backing is one untiled 1170x2460 device px backing (tiling compares CSS px x pageScale with 1280/1024), 14.4 MB RGB10A8 per buffer. Flag: Look Q: PathPix grades any CA blur as not E (ca_blur_not_e, premise c6 open); the PathPix cell needs path-pix-lanes. L if the trajectory shows the CA-clocked blur/scale more than 1 frame off the nav clip: then it goes to the user's look-review class. Expected win is Composite per frame only; RecalculateStyles stays (recalc_same is the proved limit). Chromium: split the filter into its own effect or the pixel-moving blur demotes the whole animation. Write overlap to sequence: morph-nav-scope (not started) lists morph.panel/morph.module.css and morph.tween/index.tsx. Layer budget: 0 added.. Lean: New Fw.Parts.MorphPanelThreaded on PlatformFade (keyframes, interp_eq, ca_accepts, retarget_from_shown): for every push f -> t (f != t) and eased p in [0,1], interpKf (panelKfs f t) p = (panelOpacity m, panelBlurPx m, panelScale m) with m = f+(t-f)p; Bezier ease_err <= 3/2^41. Bands: no media rule other than reduced motion sets the three properties, and under reduced motion no effect exists, so the look is equal in every band; pivot_same from MorphConstBounds. Work: props_accelerated, CA timing accepted (rate 1, forwards, >= 2 keyframes, no steps, y in [0,1]); wkStages(variant) = wkStages(orig) minus the panel Layout(outset) and prop units; recalc_same stated. Bundle: writesT drops (.platform, --morph-fade) and the panel's three diffs, (.nav, --morph) remains. Layer budget 0 (own_robust). Measure: WebKit Simulator cost lane: Composite per frame on open and close push, Layout, Paint records, RecalculateStyles expected equal; arms faithful, panel-threaded, panel-threaded + platform:fade-threaded. Breakpoint gate both engines. Trajectory panel cell (gpu-trajectory-cells) at matched progress, lag in frames. PathPix pixel cell after path-pix-lanes. Local Safari lane via gpu-safari-lane (saving expected in Composite and the render server)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pain-dark-scroll",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/pain/**",
+    "apps/site/src/parts/people.card/**",
+    "lean/Fw/Parts/PainDarkScroll*.lean",
+    "packages/contracts/golden/parts/pain-dark-scroll*.jsonl",
+    "research/notes/2026/10-2x-pain-dark-scroll.md",
+    "results/pain-dark-scroll/**",
+    "docs/team/handoffs/pain-dark-scroll.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 4). pain:dark-scroll at <= 860 px: replace the is-pain-dark class flip (section restyle + 3.6-4.6 Mpx background repaint, 10-20 ms in the toggle frame, ledger n10-d) with a scroll-driven steps(1) opacity animation on an empty solid-colour layer behind the content, range start = header document top - 0.5 px on the root scroll timeline (written once per layout/resize); people.card stops toggling the class under the flag. ThreadedScrollDrivenAnimationsEnabled is stable and on by default (UnifiedWebPreferences.yaml:8518-8531@862f17d), steps allowed on the threaded branch (KeyframeEffect.cpp:2001-2004). Engines without ScrollTimeline keep faithful. Flag: Look E-s (opacity exactly 0 or 1). Premises to prove or measure: the card reveal transform has finished before the flip offset, and the original is current at that offset. Q only for flip-frame timing (UI-process flip vs main-thread class). Running in the UI process is INFERRED (UIProcess sources not in the clone). Must pass the engine.scroll throttle-lift rule: its only effect is completely accelerated. Layer budget: +1 to 3 solid-colour layers, 0 MB backing each (simple container: no radius, no painted content).. Lean: New Fw.Parts.PainDarkScroll: for all y, band <= 860, Reveal y and Cont: pixel(variant, y) = pixel(orig, y), orig = if headerTop(y) <= 0.5 then dark else white, variant = over(white, dark, step(y >= T)), T = headerDocTop - 0.5. Accelerated(darkEffect) (opacity only) so the throttle-lift gate passes. Work: stylePasses(variant, toggleFrame) = 0, paints = 0. Layer budget: solidColour layers <= 3, residentKpx 0 each. Measure: WebKit Simulator cost lane: RecalculateStyles and Paint in the crossing window, layer census (solid-colour contents, no backing). Breakpoint gate pixel cells at <= 860 px on both engines. Trajectory pain dark cell (class vs layer opacity per offset, from gpu-trajectory-cells). Local Safari lane via gpu-safari-lane."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "commission-band-gate",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/commission/**",
+    "lean/Fw/Parts/Commission.lean",
+    "lean/Fw/Parts/CommissionOpt*.lean",
+    "packages/contracts/golden/parts/commission-gate*.jsonl",
+    "research/notes/2026/10-2x-commission-band-gate.md",
+    "results/commission-band-gate/**",
+    "docs/team/handoffs/commission-band-gate.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 5). commission:band-gate (ledger n22 compact-band snap, partly proved, no flag yet): in the c1000 band the CSS pins scale 1 and radius 0, yet the driver writes --commission-enter-shrink/--commission-shrink every follower frame (JS 3092-3123 runs every frame while the follower moves). Skip both writes in band; write the current pair on band exit before paint; keep class toggles. Non-GPU item: it removes RecalculateStyles of the commission subtree on every follower frame during the platform scroll-in. Flag: Not a GPU route (style-only saving). Look E: catch-up write on band exit before paint. Premise check already passed (commission is not the last section, unlike platform.mq). Layer budget 0.. Lean: Extend Fw.Parts.Commission (pattern PlatformShrinkOpt): look_gated (in the c1000 band the card look does not depend on (n,r)), visSame (skip in band + catch-up on exit gives equal scenes at every breakpoint band), writes_le (writes per frame = 0 in band). Layer budget 0. Measure: WebKit Simulator cost lane, window = platform scroll-in (commission bottom from 0.85h to 0.35h): RecalculateStyles and script per frame. Breakpoint gate both engines including the band-exit catch-up."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "people-carousel-crop",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/people.carousel/**",
+    "lean/Fw/Parts/PeopleCarouselCrop*.lean",
+    "packages/contracts/golden/parts/people-carousel-crop*.jsonl",
+    "research/notes/2026/10-2x-people-carousel-crop.md",
+    "results/people-carousel-crop/**",
+    "docs/team/handoffs/people-carousel-crop.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 6). people.carousel:crop (st6, look-change class): the isExit keyframes animate width/flex-basis/margin-right/border-width, a mixed effect that ticks on main (KeyframeEffect.cpp:2724-2744@862f17d) and lays out the 104x32 row for 220 ms of every 1.02 s while People is active. Replace with a clip-path crop + translate on accelerated properties only, so the effect runs on CA. User accepted it in v1 as a look change (ledger row 19). Flag: LOOK CHANGE (class L): crop cuts the border ring, followers land at +-1 device px. Goes to the user's look-review class with a work-only theorem; never in the same-look preset. Layer budget: avatar layers about 0.04 MB each (32x32 at dpr 3), already created per swap today.. Lean: New Fw.Parts.PeopleCarouselCrop: split_keeps_layout (any E split of avatarsExit keeps layoutFrames because width/flex-basis/margin stay animated, the why for no same-look route); work: layoutFrames(crop) = 0 per swap, Accelerated(cropExit); look bound: follower offset <= 1 device px and the ring difference region stated (not VisSame). Layer budget per swap stated. Measure: WebKit Simulator cost lane while People is active (Layout per frame, swap windows). Breakpoint gate both engines. Trajectory avatar rects per frame (gpu-trajectory-cells). Frame strips for the user's review card."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "people-o-preview-translate",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/people.o/**",
+    "lean/Fw/Parts/PeopleOPreview*.lean",
+    "packages/contracts/golden/parts/people-o-preview*.jsonl",
+    "research/notes/2026/10-2x-people-o-preview-translate.md",
+    "results/people-o-preview-translate/**",
+    "docs/team/handoffs/people-o-preview-translate.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 7). people.o:preview-translate (desktop hover > 860 px): the fixed 320x440 seller preview writes left/top every scroll frame, a full Layout diff for a fixed box (movement-only shortcut is position:absolute only, StyleDifference.cpp:557-565@862f17d). Set left/top once at open and at each above/below flip; per frame write the integer scroll delta as the translate property (separate from previewIn's transform). Card is already a layer. Flag: Desktop only, so no iPhone felt gain; felt only in Mac Safari and desktop Chromium. Look E-s under the premise that WebKit scroll offsets are integral (INFERRED; read ScrollView/ScrollableArea source first), Q if fractional. Layer budget 0 (existing 5.07 MB layer).. Lean: New Fw.Parts.PeopleOPreview: for all y y0 in Z with noFlip y0 y, snapDev(cardTop(rect y)) = snapDev(cardTop(rect y0)) - (y - y0) and phase(y) = phase(y0); flip and viewport clamps identical to faithful; work: layoutPasses(variant, frame) = 0 on non-flip frames. Layer budget 0. Measure: Chromium CI lane (Layout count with a synthetic hover, desktop band). Breakpoint gate pixel cells at > 860 px, both engines. Local Safari lane via gpu-safari-lane (Mac desktop is the real target)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-safari-lane",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [
+    "mac-safari-measure",
+    "nav-fixed-size",
+    "morph-panel-threaded",
+    "pain-dark-scroll",
+    "people-o-preview-translate"
+   ],
+   "writes": [
+    "results/gpu-safari/**",
+    "research/notes/2026/10-2x-gpu-safari-lane.md",
+    "docs/team/handoffs/gpu-safari-lane.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 8). Local Safari lane for the GPU arms (exclusive measure lease, after mac-safari-measure lands): nav-fixed-size pixel captures at m in {0.1, 0.5, 0.9} (clip and backdrop edge AA, confirms gap (a)), glass colour at {0.25, 0.5, 0.75}, logo-3d at 430 wide, IOSurface allocations per push (Instruments); morph-panel-threaded Composite and render-server time per push, alone and bundled with platform:fade-threaded; pain-dark-scroll crossing frame; people-o-preview-translate hover scroll. Each arm against faithful in the same session. Flag: Local lane under CLAUDE.md exception (c): real Apple GPU and display, which CI VMs lack. Reports are paired with the CI Simulator rows, never alone.. Lean: Verdicts reduce through the Lean rules mac-safari-measure lands (Fw.Sup.Measure); no new Lean here. Measure: The lane itself; one result JSON per arm under results/gpu-safari/."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-width-tail-lean",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/NavWidthTail*.lean",
+    "packages/contracts/golden/parts/nav-width-tail*.jsonl",
+    "research/notes/2026/10-2x-nav-width-tail.md",
+    "docs/team/handoffs/nav-width-tail-lean.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 9). Lean first for the nav width tail skip (non-GPU): after each close the 0.68 s width transition runs about 41 frames of nav restyle and layout for an amplitude dW*m_prev <= 0.004 px at 1280 in the faithful tween (<= 0.1 px for a frame up to 50 ms late). Prove the amplitude bound and that skipping the tail below 1/2 device px is VisSame under PixTol 1/2, against ledger tail_orig_pos (the tail is real in the original). The flag code goes into nav after nav-fixed-size lands (its nav files), as a follow-up. Flag: Proof-only now because nav-fixed-size owns the nav files. Not a GPU route. Premise: frame gap G from the faithful tween; check it against existing MorphTweenWebkit trajectory rows (read only).. Lean: tail_amp_le: for a faithful tween frame sequence with gap g <= G, amplitude <= dW*(G/680)^3; skip_visSame under PixTol 1/2 at every breakpoint band; work: layout frames after close 41 -> 0 when the bound holds. Measure: Read-only check of the premise G against recorded trajectory size rows; lanes run in the follow-up flag task."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-negative-findings",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/WebKit.lean",
+    "lean/Fw/Engine/WebKitGpuFindings*.lean",
+    "lean/Fw/Parts/GpuFindings*.lean",
+    "packages/contracts/golden/parts/gpu-findings*.jsonl",
+    "research/notes/2026/10-2x-gpu-negative-findings.md",
+    "docs/team/handoffs/gpu-negative-findings.md"
+   ],
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 10). Record every no-route row as a finding with mechanism + Lean why: translate3d_no_gain (composites p .transform3DFlat = composites p .willChange, hero and morph countdown), ca_accepts_alternate (add direction to the CA acceptance predicate; alternate is forwards per GraphicsLayerAnimation.h:80@862f17d; corrects the old table), subset_congr (nav backdrop radius stages are a subset of the clip-path change stages on the same layer and frame), earnClip_not_Q (filter-then-clip != clip-then-filter on the bleed band), crossfade_ne_lerp (logo/switch colour), width_reflows (hero.accent), lerp_not_offset_fn (people.card desktop shrink), rot_raster_ne (pain.notes drag), scrollPort_accel (engine.scroll gate: every scroll-driven port effect is completely accelerated, else reject as a throttle lift), plus #guard classification rows for the already-composited animations (langMenu menuIn/out, chevron, scroll-hide, cue float, cta hover, card reveal, drawer, signup, deck profileFade/feedPanelIn/vinylSpin, marquee, entrances). Flag: Proof only, no site code, no lanes. Ledger rows are added by the lead at land (ledger.json is held by running tasks).. Lean: Theorems listed in the title, each with its WebKit/Chromium cite file:line@commit in the note; translate3d_no_gain by cases p <;> rfl; scrollPort_accel as a decidable gate other route-(a) ports reuse. Measure: None (proof only)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-orphan-call",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Fold.lean",
+    "lean/Fw/Obs/Health.lean",
+    "packages/contracts/golden/obs/watch-inflight*.jsonl",
+    "apps/runner/src/watch-fold.ts",
+    "apps/runner/test/watch-fold.test.ts",
+    "docs/team/handoffs/watch-orphan-call.md",
+    "lean/Fw/Obs/Golden.lean"
+   ],
+   "title": "Incident inc-orphan-tool-call: fw watch raised agent.toolHang 'Bash running for 38 min' for census-load-variance's builder while it was making fresh calls. Its transcript holds a Bash tool_use (15:04:44Z) with no tool_result record; the agent's next assistant message came at 15:10:21Z. watch-fold.ts keeps every tool_use id in `open` until its tool_result arrives, and finishInfo takes the newest open id as inflight, so one missing result record pins inflight forever. Closed rule by identity: a tool call is in flight only while its assistant message (message.id) is the agent's newest assistant message, because the API takes a new assistant turn only after every tool_use of the previous turn has its result; parallel calls share one message.id and stay open together. State the rule in Lean (Fw.Obs: inflight is a function of the newest message's open calls; theorem: a later assistant message clears every older open call; the existing pass_eq_full resume property still holds), generate golden vectors, check watch-fold.ts against them. Regression: replay of a transcript with a missing tool_result gives inflight none after the next assistant message and no toolHang.",
+   "evidence": "9af690f"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-queue-wait",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/test/slot*.test.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-queue-wait.md",
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Ci/Telemetry.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/src/slot-queue.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/slot-queue.test.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md"
+   ],
+   "title": "fw watch raised timing.slow for 'fw/slot acquire sim' at 1521 s (2026-10-22): the acquire waited behind another sim holder (locks.jsonl: one sim lease held 1826 s), i.e. a queue wait, not a slow step. Fw.Obs.Timing judges contention by load only (contendedLoad 8), so a lock wait at load 4 reads as slow. Closed rule by identity: the acquire span records the holder it waited behind (slot.ts: kind, owner, waitMs from the queue); Timing gives a sample that waited behind a live holder the verdict queued (never slow, never in a window) and judges only the remaining non-wait time; theorem queued_not_slow plus the existing windowOf properties. A queue wait longer than the holder's lease plus grace stays an alert (lease expiry is the real fault). Golden vectors from Lean; slot.ts and the timing reader checked against them."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-leg-pending-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Console/LandLegs.lean",
+    "packages/contracts/golden/console/land-remote.jsonl",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "apps/runner/test/land-legs.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/land-leg-pending-followups.md"
+   ],
+   "title": "Review follow-ups of land-leg-pending (landed 9824f535): (1) legState now maps a completed 'skipped' leg to ok; a guard-skipped land run is safe only because normalizeGithub binds an unbound pass to '' (land-remote.ts:104-110), which has no theorem: either drop the skipped->ok branch (with its #guard and golden rows) or prove that a guard-skipped run normalizes to an unbound run and never accepts a land, and record the change in inc-land-leg-unfinished; (2) delete legsPass / LandLegs.legsVeto (no caller; they disagree with legState on skipped and pending) so one leg rule exists; (3) a multi-run corollary of verdict_pending_leg_no_refuse (a land with several runs, one pending, is not refused)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-measure-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sup/MeasureWindow.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-measure-followups.md"
+   ],
+   "title": "Review follow-ups of slot-measure-exclusive (landed a1c72e74): (1) passStartCli: `want` closes the gap (next := now) before passStart; when the pass exits on --wait with VERDICT wait (exit 75) the gap stays closed, so every non-measure ticket waits as `gap` until pass stop/release or the 5400 s deadline, and times out first at maxWaitS 1800: reopen the gap on a refused start (Lean: theorem refused_start_reopens) and document it in slot.md; (2) admitBuild ignores the measure window: gate build admission on passLive (Lean rule, golden); (3) measure tickets get no sim-like priority (decide in Lean)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "disk-gc-tmp-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/scripts/DiskGcGolden.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "scripts/lint-tmpdirs.mjs",
+    "scripts/lint-tmpdirs.test.mjs",
+    ".github/workflows/lean.yml",
+    "docs/team/tools/disk-gc.md",
+    "docs/team/handoffs/disk-gc-tmp-followups.md"
+   ],
+   "title": "Review follow-ups of disk-gc-tmp: (1) add usertmp to the post-land disk-gc list (fw-main.ts:25 runs lake, landed, console) so the temp folder no longer grows until sys.diskLow; (2) tmpPrefixes misses our own test leftovers (MEASURED: dryl* 715, jev* 679, cm* 678, slots* 306, difftest* 185, rr* 157, replay* 113, wkrep* 122, wkraw* 111, vd* 106, compose* 52, graph* 51): extend the allowlist from git grep of mkdtemp prefixes, with the usertmp_named docstring; (3) wire scripts/lint-tmpdirs.test.mjs into lean.yml's node --test line; (4) Cand.sym fails open: make it Option Bool, require some false in ruleConsole/ruleUsertmp, regenerate goldens; (5) port gatherEventFacts liveness (stop/resume ordered by seq) to Lean; (6) lint pairs each mkdtemp binding with an rm of that name."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cc-pool-wait-stops",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ci/Provider.lean",
+    "packages/contracts/golden/ci/provider.jsonl",
+    "scripts/circleci.mjs",
+    "scripts/circleci.test.mjs",
+    "apps/runner/src/ci-pool-tier.ts",
+    "docs/team/tools/circleci.md",
+    "docs/team/handoffs/cc-pool-wait-stops.md"
+   ],
+   "title": "Review follow-up of cc-storage-count: a pool run on CircleCI (ci-pool-tier.ts:44 starts it through the CLI) waited on with `fw ci wait --provider circleci` still applies the pilot stops including ledger storage, so above 1000 that wait cancels the run (code 5), while circleci.md:44 says the pool route does not stop on storage. Use Provider.landStops for pool runs too (a --land-stops flag or the pool tier passing it), with a theorem that a pool-route wait never stops on storage, and a test at ledger 1297."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "census-allowlist-close",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "census-load-variance"
+   ],
+   "writes": [
+    "lean/Fw/Measure/Census.lean",
+    "packages/contracts/golden/measure/census.jsonl",
+    "packages/measure-webkit/src/census-check.mjs",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/test/census*.test.mjs",
+    "apps/site/src/parts/commission/**",
+    "research/notes/2026/10-2x-census-allowlist-close.md",
+    "docs/team/handoffs/census-allowlist-close.md"
+   ],
+   "title": "Review follow-ups of census-load-variance: the runnerStems allowlist is not closed (3 of the last 4 runs each added a stem; only run 39812409397 is fresh on the final list). Closed design: replace prefix stems for non-timer boxes by identity (data-fw ids on the commission section, fee visual, hero feed body and typing avatar in the rewrite, declared layers) or find their load-state cause as for cause 1 (commission section co-occurs with page height 6006 vs 6042 in 39795650433); 'div.fee-visual' without separator hides the steady box too; the rewrite twin section.commission-module_commission_* is not listed (arms unequal). Lean theorem: allowlist monotonicity (accepted under s implies accepted under s' ⊇ s). Check scrollY == requestedY per sample (determinism.mjs pinStates). Then a series of >= 3 fresh base-vs-base runs per arm on the final list before WebKit A/B uses the census."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-skip-generated",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/handoffs/polish-skip-generated.md"
+   ],
+   "title": "The build-review Polish stage (comment-sicko) deleted the guard comment that scripts/ci-paths.mjs generates in .github/workflows/path-pix.yml; the land dry then refused with VERDICT lint (ci-paths --check: 'the comment above the guard job differs'), costing a land cycle (2026-10-23). Closed rule by identity: fw polish never edits lines a generator owns; ask each generator (ci-paths --check, the golden writers) after the polish edits and revert any hunk the check refuses, or pass the generator-owned paths/blocks to comment-sicko as read-only. Test: a polish run over a workflow file keeps the generated guard comment."
   }
  ],
  "deadline": {

@@ -11,7 +11,7 @@ export function slotStep(rest: string[]): string {
 
 export const writesOwnSpans = (rest: string[]): boolean => rest[0] === "run";
 
-export const SLOT_SUBS = ["run", "acquire", "renew", "release", "status", "sim", "held", "admit"] as const;
+export const SLOT_SUBS = ["run", "acquire", "renew", "release", "pass", "status", "sim", "held", "admit"] as const;
 
 function slotStepBase(rest: string[]): string {
   const sub = rest[0];

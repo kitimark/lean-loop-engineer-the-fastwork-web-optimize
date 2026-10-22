@@ -1,35 +1,9 @@
 import Lean.Data.Json
-/-!
-# When is a gate sample settled? (`gate-settle`)
-
-The breakpoint gate compares a page state of the original against one of the rewrite. A sample taken while the page is
-still moving measures the moment, not the page. Run 39067170911 had three such misreads, each with a different cause:
-
-| cell | what moved | observable that says so |
-|---|---|---|
-| `pain.notes` | the original lays its notes out from a `ResizeObserver` callback and a `requestAnimationFrame` callback, so after a resize it is one layout behind until two rendered frames have passed | `frames < 2` (or no real rAF at all) |
-| `hero.orbit` | `z-index` is 1 + the number of `pointerenter` events the parked pointer caused, a count that depends on timing | the pointer is inside a hover-reactive target |
-| `overlays.signup` (WebKit touch) | the dialog was sampled mid enter animation (scale 0.9977) | a finite animation or transition still runs under the probed subtree |
-
-The decision is `settled` over an observation `Obs` of the page. The wait policy `wait` looks at observations in order and
-stops at the first settled one inside a time budget; past the budget it answers `unsettled`. A cell report
-(`report`) is `pass`/`fail` only when both arms settled; otherwise it is `unsettled`, never a silent pass or fail.
-`Traj` is the stated monotone-settling model: animations only finish, frames only count up, the pointer stays where it
-is, and a settled page does not repaint the probed properties. Under it a settled sample is independent of when it was
-taken (`sample_delay_invariant`).
-
-The TypeScript twin is `packages/gate-breakpoints/src/settle.mjs`; `packages/contracts/golden/gate/settle.jsonl` is
-generated here (`goldenText`) and the package test replays it.
--/
+/-! Gate settle decisions: the wait, the report and the golden vectors for the Node twin. -/
 namespace Fw.Gate.Settle
 open Lean
 
-/-- One observation of a page arm while the gate waits.
-
-`running`: finite animations and transitions under the probed subtree that have not finished; `frames`: real
-`requestAnimationFrame` callbacks since the wait began (the wait begins after the last resize); `stable`: consecutive
-frames whose probed boxes did not change; `hoverInside`: the pointer is inside a hover-reactive probed target (always false in an environment that cannot hover: `:hover` can match there after a touch, but no hover rule applies);
-`t`: milliseconds since the wait began. -/
+/-- One observation of a page arm while the gate waits. -/
 structure Obs where
   running : Nat
   frames : Nat
@@ -38,12 +12,7 @@ structure Obs where
   t : Nat
   deriving DecidableEq, Repr
 
-/-- The wait policy.
-
-`minFrames`: real frames required after the last resize; `minStable`: quiet frames required in a row; `eps`: the quiet
-threshold in millionths of a unit (px, or a unitless value such as a scale); `timeoutMs`: the time bound of the wait;
-`maxFrames`: the frame budget of the wait (gate-shard-balance): an observation after more than `F` real frames ends the
-wait as `unsettled`, as one after more than `T` milliseconds does. -/
+/-- The wait policy: frames, quiet run, eps (millionths), time and frame budget. -/
 structure Policy where
   minFrames : Nat
   minStable : Nat
@@ -52,36 +21,23 @@ structure Policy where
   maxFrames : Nat
   deriving DecidableEq, Repr
 
-/-- The policy the gate uses: two frames after each resize (a `ResizeObserver` notification, then the callback it
-schedules), three quiet frames in a row, quiet meaning every probed value moved by at most 0.0001, 30000 ms (the CI WebKit paints this page at 0.3 to 1.7 frames per second, MEASURED in run 39078493093, so three frames can take 10 s),
-and at most 60 real frames. The frame budget is gate-shard-balance's fix of run 39101532038 (MEASURED from its 7 job logs):
-every wait that settled did so within 25 real frames (Chromium at most 25, WebKit at most 20), and every wait that did not
-settle ran to the 30 s timeout after at least 78 frames. A 60-frame budget gives a wait that settles within 60 frames the
-same outcome (`wait_budget_keeps`) and a page that never settles the same `unsettled` (`wait_unsettled_of_never`); an
-unsettled wait on Chromium (60 frames per second) then ends after about 1 s instead of 30 s. -/
+/-- The policy the gate uses. -/
 def gatePolicy : Policy := { minFrames := 2, minStable := 3, eps := 100, timeoutMs := 30000, maxFrames := 60 }
 
-/-- The decision on one observation: nothing animates, enough real frames passed, the boxes were stable, and the pointer
-is not inside a hover-reactive target. -/
+/-- Nothing animates, enough real frames, enough quiet frames, pointer not in a hover target. -/
 def settled (p : Policy) (o : Obs) : Bool :=
   o.running == 0 && decide (p.minFrames ≤ o.frames) && decide (p.minStable ≤ o.stable) && !o.hoverInside
 
-/-- The sample decision (a sample is good when its observation is settled). -/
 def sampleOk (p : Policy) (o : Obs) : Bool := settled p o
 
-/-- How a wait ends.
-
-`settled i`: observation `i` (0-based) was the first settled one inside the budget; `unsettled`: the budget (time or
-frames) ran out first. -/
 inductive Outcome where
   | settled (at_ : Nat)
   | unsettled
   deriving DecidableEq, Repr
 
-/-- The budget is spent at an observation: more than `T` milliseconds or more than `F` real frames since the wait began. -/
+/-- The time or the frame budget is spent at an observation. -/
 def spent (p : Policy) (o : Obs) : Bool := decide (p.timeoutMs < o.t) || decide (p.maxFrames < o.frames)
 
-/-- The scan behind `wait`: from observation `i`, with `fuel` observations left. -/
 def scan (p : Policy) (o : Nat → Obs) : Nat → Nat → Outcome
   | _, 0 => .unsettled
   | i, f + 1 =>
@@ -89,33 +45,25 @@ def scan (p : Policy) (o : Nat → Obs) : Nat → Nat → Outcome
     else if settled p (o i) then .settled i
     else scan p o (i + 1) f
 
-/-- The wait: the first settled observation inside the time budget, else `unsettled`. One observation per millisecond at
-most, so `timeoutMs + 1` observations cover the budget. -/
+/-- The first settled observation inside the budget, else `unsettled`. -/
 def wait (p : Policy) (o : Nat → Obs) : Outcome := scan p o 0 (p.timeoutMs + 1)
 
-/-- The cell report: three outcomes, no silent one. -/
 inductive Report where
   | pass
   | fail
   | unsettled
   deriving DecidableEq, Repr
 
-/-- The report of a cell from the two arms' wait outcomes and whether the values they gave are equal. -/
+/-- `pass`/`fail` only when both arms settled, else `unsettled`. -/
 def report : Outcome → Outcome → Bool → Report
   | .settled _, .settled _, true => .pass
   | .settled _, .settled _, false => .fail
   | _, _, _ => .unsettled
 
--- ---------------------------------------------------------------------------------------------------------------
--- the wait is sound and bounded
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- The budget is not spent exactly when both the time and the frame count are inside it. -/
 theorem spent_false_iff (p : Policy) (o : Obs) :
     spent p o = false ↔ o.t ≤ p.timeoutMs ∧ o.frames ≤ p.maxFrames := by
   simp only [spent, Bool.or_eq_false_iff, decide_eq_false_iff_not, Nat.not_lt]
 
-/-- The scan answers `settled k` only for a settled observation inside the budget, at or after where it started. -/
 theorem scan_sound (p : Policy) (o : Nat → Obs) :
     ∀ f i k, scan p o i f = .settled k →
       settled p (o k) = true ∧ (o k).t ≤ p.timeoutMs ∧ (o k).frames ≤ p.maxFrames ∧ i ≤ k := by
@@ -136,15 +84,11 @@ theorem scan_sound (p : Policy) (o : Nat → Obs) :
         exact ⟨a, b, c, by omega⟩
     · simp [h1] at h
 
-/-- A settled answer is a settled observation inside the budget.
-
-The wait never reports a settled sample it did not see, and never one after the timeout or the frame budget. -/
 theorem wait_sound (p : Policy) (o : Nat → Obs) (k : Nat) (h : wait p o = .settled k) :
     settled p (o k) = true ∧ (o k).t ≤ p.timeoutMs ∧ (o k).frames ≤ p.maxFrames := by
   obtain ⟨a, b, c, _⟩ := scan_sound p o _ _ _ h
   exact ⟨a, b, c⟩
 
-/-- A scan over observations none of which is settled is `unsettled`. -/
 theorem scan_unsettled_of_never (p : Policy) (o : Nat → Obs) (never : ∀ i, settled p (o i) = false) :
     ∀ f i, scan p o i f = .unsettled := by
   intro f
@@ -158,13 +102,10 @@ theorem scan_unsettled_of_never (p : Policy) (o : Nat → Obs) (never : ∀ i, s
       exact ih (i + 1)
     · simp
 
-/-- A page that never settles ends the wait as `unsettled` (the time and frame budgets are the bound; there is no silent
-success). -/
 theorem wait_unsettled_of_never (p : Policy) (o : Nat → Obs) (never : ∀ i, settled p (o i) = false) :
     wait p o = .unsettled :=
   scan_unsettled_of_never p o never _ _
 
-/-- A non-decreasing sequence is bounded by its later values. -/
 theorem mono_le (g : Nat → Nat) (h : ∀ n, g n ≤ g (n + 1)) (i j : Nat) (hij : i ≤ j) : g i ≤ g j := by
   have : ∀ d, g i ≤ g (i + d) := by
     intro d
@@ -174,8 +115,6 @@ theorem mono_le (g : Nat → Nat) (h : ∀ n, g n ≤ g (n + 1)) (i j : Nat) (hi
   have h2 := this (j - i)
   rwa [show i + (j - i) = j by omega] at h2
 
-/-- A scan with enough fuel that reaches a settled observation inside the budget (time and frames non-decreasing) finds
-one no later. -/
 theorem scan_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ n, (o n).t ≤ (o (n + 1)).t)
     (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) :
     ∀ f i j, i ≤ j → j < i + f → settled p (o j) = true → (o j).t ≤ p.timeoutMs → (o j).frames ≤ p.maxFrames →
@@ -196,10 +135,6 @@ theorem scan_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ n, (o n).t ≤
       · obtain ⟨k, hk, hk1, hk2⟩ := ih (i + 1) j (by omega) (by omega) hs ht hfr
         exact ⟨k, by simp [h1, h2, hk], by omega, hk2⟩
 
-/-- If time and frames are non-decreasing and some observation `j` is settled inside both budgets, the wait finds a
-settled observation no later than `j`: a page that settles in time is not reported `unsettled`.
-
-(The bound `j ≤ T` says one observation per millisecond at most: the scan covers `T + 1` of them.) -/
 theorem wait_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ n, (o n).t ≤ (o (n + 1)).t)
     (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) (j : Nat)
     (hj : j ≤ p.timeoutMs) (hs : settled p (o j) = true) (ht : (o j).t ≤ p.timeoutMs) (hf : (o j).frames ≤ p.maxFrames) :
@@ -207,42 +142,26 @@ theorem wait_complete (p : Policy) (o : Nat → Obs) (tmono : ∀ n, (o n).t ≤
   obtain ⟨k, hk, _, hk2⟩ := scan_complete p o tmono fmono (p.timeoutMs + 1) 0 j (by omega) (by omega) hs ht hf
   exact ⟨k, hk, hk2⟩
 
--- ---------------------------------------------------------------------------------------------------------------
--- the report has no silent outcome
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- An unsettled arm never gives a pass. -/
 theorem unsettled_never_pass (a b : Outcome) (e : Bool) (h : a = .unsettled ∨ b = .unsettled) :
     report a b e ≠ .pass := by
   rcases a with _ | _ <;> rcases b with _ | _ <;> cases e <;> simp [report] at h ⊢
 
-/-- An unsettled arm never gives a fail either: the report says `unsettled`. -/
 theorem unsettled_never_fail (a b : Outcome) (e : Bool) (h : a = .unsettled ∨ b = .unsettled) :
     report a b e = .unsettled := by
   rcases a with _ | _ <;> rcases b with _ | _ <;> cases e <;> simp [report] at h ⊢
 
-/-- A pass or fail needs both arms to have settled. -/
 theorem report_decided_settled (a b : Outcome) (e : Bool) (h : report a b e ≠ .unsettled) :
     ∃ i j, a = .settled i ∧ b = .settled j := by
   rcases a with i | _ <;> rcases b with j | _ <;> cases e <;> simp [report] at h ⊢
 
-/-- When both arms settled, the report is the comparison and nothing else. -/
 theorem report_settled (i j : Nat) (e : Bool) :
     report (.settled i) (.settled j) e = (if e then .pass else .fail) := by
   cases e <;> rfl
 
--- ---------------------------------------------------------------------------------------------------------------
--- the frame budget (gate-shard-balance): it only ends waits sooner, and keeps every outcome inside it
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- The policy `π` with frame budget `F` instead of its own. -/
 def withBudget (p : Policy) (F : Nat) : Policy := { p with maxFrames := F }
 
-/-- The settled decision does not read the frame budget. -/
 theorem settled_withBudget (p : Policy) (F : Nat) (o : Obs) : settled (withBudget p F) o = settled p o := rfl
 
-/-- A smaller frame budget either changes nothing or turns the scan's answer into `unsettled`: it never invents a settled
-answer. -/
 theorem scan_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p.maxFrames) :
     ∀ f i, scan (withBudget p F) o i f = scan p o i f ∨ scan (withBudget p F) o i f = .unsettled := by
   intro f
@@ -261,13 +180,10 @@ theorem scan_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p
         simp only [h1', h0, h2, Bool.false_eq_true, ite_false]
         exact ih (i + 1)
 
-/-- A smaller frame budget never invents a settled wait: the answer is the old one or `unsettled`. -/
 theorem wait_budget_cases (p : Policy) (o : Nat → Obs) (F : Nat) (hF : F ≤ p.maxFrames) :
     wait (withBudget p F) o = wait p o ∨ wait (withBudget p F) o = .unsettled :=
   scan_budget_cases p o F hF _ _
 
-/-- A scan that settles at observation `k` within `F` frames (frames non-decreasing) gives the same answer under the
-budget `F`. -/
 theorem scan_budget_keeps (p : Policy) (o : Nat → Obs) (F : Nat) (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames) :
     ∀ f i k, scan p o i f = .settled k → (o k).frames ≤ F → scan (withBudget p F) o i f = .settled k := by
   intro f
@@ -292,14 +208,10 @@ theorem scan_budget_keeps (p : Policy) (o : Nat → Obs) (F : Nat) (fmono : ∀ 
         simp only [h0, h2, Bool.false_eq_true, ite_false]
         exact ih (i + 1) k h hk
 
-/-- The frame budget keeps every wait that settles within it: if the wait without the budget settles at observation `k`
-after at most `F` real frames (frames non-decreasing), the wait with budget `F` settles at the same `k`. -/
 theorem wait_budget_keeps (p : Policy) (o : Nat → Obs) (F k : Nat) (fmono : ∀ n, (o n).frames ≤ (o (n + 1)).frames)
     (h : wait p o = .settled k) (hk : (o k).frames ≤ F) : wait (withBudget p F) o = .settled k :=
   scan_budget_keeps p o F fmono _ _ _ h hk
 
-/-- The cell report under a smaller frame budget is the old report or `unsettled`: the budget never creates a pass or a
-fail that the wait without it would not give. -/
 theorem report_budget (p : Policy) (F : Nat) (hF : F ≤ p.maxFrames) (oa ob : Nat → Obs) (e : Bool) :
     report (wait (withBudget p F) oa) (wait (withBudget p F) ob) e = report (wait p oa) (wait p ob) e ∨
       report (wait (withBudget p F) oa) (wait (withBudget p F) ob) e = .unsettled := by
@@ -309,9 +221,6 @@ theorem report_budget (p : Policy) (F : Nat) (hF : F ≤ p.maxFrames) (oa ob : N
   · exact Or.inr (unsettled_never_fail _ _ e (Or.inl ha))
   · exact Or.inr (unsettled_never_fail _ _ e (Or.inl ha))
 
-/-- The scan's answer depends on no observation past the first one whose budget is spent: if two observation sequences
-agree up to index `n` and the budget is spent at `n`, the scans agree. So the page loop may stop at `n` (and with the
-frame budget, `n ≤ F + 1` when every observation is a real frame: `wait_stops_by_frames`; Fw.Gate.Freeze.wait_frozen_agree states it for the frozen clock). -/
 theorem scan_decided_by (p : Policy) (o o' : Nat → Obs) (n : Nat) (hs : spent p (o n) = true) :
     ∀ f i, i ≤ n → (∀ m, i ≤ m → m ≤ n → o m = o' m) → scan p o i f = scan p o' i f := by
   intro f
@@ -327,8 +236,6 @@ theorem scan_decided_by (p : Policy) (o o' : Nat → Obs) (n : Nat) (hs : spent 
     · have hr := ih (i + 1) (by omega) (fun m h1 h2 => hag m (by omega) h2)
       simp only [scan, he, hr]
 
-/-- When every observation of the wait is a real frame (`i ≤ fr(o_i)`), the budget `F_π` is spent by observation `F_π + 1`, so
-the wait reads at most `F_π + 2` observations: whatever comes after does not change its answer. -/
 theorem wait_stops_by_frames (p : Policy) (o o' : Nat → Obs) (hfr : ∀ i, i ≤ (o i).frames)
     (hag : ∀ m, m ≤ p.maxFrames + 1 → o m = o' m) : wait p o = wait p o' := by
   have hs : spent p (o (p.maxFrames + 1)) = true := by
@@ -337,39 +244,24 @@ theorem wait_stops_by_frames (p : Policy) (o o' : Nat → Obs) (hfr : ∀ i, i �
     exact Or.inr (by omega)
   exact scan_decided_by p o o' (p.maxFrames + 1) hs _ 0 (by omega) (fun m _ h => hag m h)
 
-
--- ---------------------------------------------------------------------------------------------------------------
--- the mount stage's idle wait and the sample's fold (gate-shard-balance)
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- The policy of the mount stage's idle wait (`prepareInPage` stage `ready`, after the mount steps scrolled the page and
-back): it ends when no finite animation of the document runs, with no frame or quiet minimum, under the arm's time cap
-`c` and the gate's frame budget. Before gate-shard-balance this wait had only the time cap (20 s for the original), and in
-run 39101532038 it ran to that cap at each of the 29 desktop-sweep stops from 400 px back up to 1512 px (about 21 s per
-stop, MEASURED), whose main settle waits were all unsettled anyway. -/
+/-- The mount stage's idle wait: nothing runs, under the arm's cap and the frame budget. -/
 def idlePolicy (p : Policy) (c : Nat) : Policy := { p with minFrames := 0, minStable := 0, timeoutMs := c }
 
-/-- Under the idle policy an observation is settled exactly when nothing runs and the pointer is not inside a target (the
-idle observations always say `false` there). -/
 theorem idle_settled_iff (p : Policy) (c : Nat) (o : Obs) :
     settled (idlePolicy p c) o = true ↔ o.running = 0 ∧ o.hoverInside = false := by
   simp [settled, idlePolicy]
 
-/-- One step of the sample's fold: `unsettled` when either outcome is, else the first. -/
 def fold1 (a w : Outcome) : Outcome := if a = .unsettled ∨ w = .unsettled then .unsettled else a
 
-/-- The outcome of a sample: its first (main) wait folded with the later waits it made (overlays opened, parts brought into
-view, the mount stage's idle wait), left to right (`run.mjs` `foldSettle`). -/
+/-- A sample is unsettled when any of its waits is. -/
 def fold (first : Outcome) (extra : List Outcome) : Outcome := extra.foldl fold1 first
 
-/-- An unsettled start stays unsettled through the fold. -/
 theorem fold_unsettled_start : ∀ ws : List Outcome, fold .unsettled ws = .unsettled := by
   intro ws
   induction ws with
   | nil => rfl
   | cons w ws ih => simpa [fold, List.foldl, fold1] using ih
 
-/-- The sample is unsettled when any of its waits is: the first one or a later one. -/
 theorem fold_unsettled (a : Outcome) (ws : List Outcome) (h : a = .unsettled ∨ Outcome.unsettled ∈ ws) :
     fold a ws = .unsettled := by
   induction ws generalizing a with
@@ -387,7 +279,6 @@ theorem fold_unsettled (a : Outcome) (ws : List Outcome) (h : a = .unsettled ∨
         rw [h1]; exact fold_unsettled_start ws
       · exact ih (fold1 a w) (Or.inr h)
 
-/-- When every wait of the sample settled, the sample's outcome is its first wait's. -/
 theorem fold_settled (a : Outcome) (ws : List Outcome) (ha : a ≠ .unsettled) (h : Outcome.unsettled ∉ ws) :
     fold a ws = a := by
   induction ws with
@@ -399,8 +290,6 @@ theorem fold_settled (a : Outcome) (ws : List Outcome) (ha : a ≠ .unsettled) (
     rw [h1]
     exact ih (fun e => h (List.mem_cons_of_mem _ e))
 
-/-- A sample one of whose waits (the main settle, an overlay, a brought part or the mount stage's idle wait) is unsettled
-never gives a pass, whatever the other arm and the values. -/
 theorem fold_unsettled_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome) (e : Bool)
     (h : Outcome.unsettled ∈ ws) : report (fold a ws) b e ≠ .pass :=
   unsettled_never_pass _ _ e (Or.inl (fold_unsettled a ws (Or.inr h)))
@@ -411,32 +300,18 @@ theorem fold_unsettled_never_pass (a : Outcome) (ws : List Outcome) (b : Outcome
 #guard settled (idlePolicy gatePolicy 20000) { running := 0, frames := 0, stable := 0, hoverInside := false, t := 0 } == true
 #guard settled (idlePolicy gatePolicy 20000) { running := 2, frames := 9, stable := 9, hoverInside := false, t := 10 } == false
 
--- ---------------------------------------------------------------------------------------------------------------
--- a probe on a node that is not rendered has no verdict (fix-commission: inner/rows margin-inline at pain-1440 #0)
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- A node counts as rendered when no element on its ancestor chain (itself included) is flagged by the caller as unrendered.
-The flags are an INPUT: this module proves what a flagged probe means (no verdict), not when a flag is right. The gate (probes only; on in the Chromium probes and off in WebKit: `viewFor`; see `viewCell`) flags a node the engine has skipped under `content-visibility:auto` (premise `cv.skip-flag`: `checkVisibility()` true and the
-`contentVisibilityAuto` form false) and, before a flag takes effect, brings the part into view and reads again (`view`,
-`viewCell` below), so only a node still skipped after that is `notRendered`. Premise-tests (run 39076735134) refuted the
-earlier idea that a skipped node reports an unresolved `auto`: `getComputedStyle` returns the resolved length there.
-
-Here `s_i` says that the caller flagged ancestor `i` as unrendered. -/
+/-- No ancestor (itself included) skips its subtree. -/
 def rendered (skips : List Bool) : Bool := !skips.any id
 
-/-- The classification of one probe in one arm. -/
 inductive Verdict where
   | notRendered
   | unsettled
   | ok
   deriving DecidableEq, Repr
 
-/-- `sampleOk` extended with rendering: a probe the caller flagged as unrendered is `notRendered`, whatever
-its observation says; otherwise `ok` exactly when `sampleOk` holds, else `unsettled`. -/
 def classify (p : Policy) (r : Bool) (o : Obs) : Verdict :=
   if r then (if sampleOk p o then .ok else .unsettled) else .notRendered
 
-/-- The report of a probe cell, four outcomes and no silent one. -/
 inductive Cell where
   | pass
   | fail
@@ -444,8 +319,7 @@ inductive Cell where
   | notRendered
   deriving DecidableEq, Repr
 
-/-- The report of a probe from the two arms' rendering, their wait outcomes and whether the values are equal. A node that
-is not rendered in either arm gives `notRendered` (before anything else); otherwise the cell is `report`. -/
+/-- `notRendered` when the node is not rendered in either arm, else `report`. -/
 def cell (ra rb : Bool) (a b : Outcome) (e : Bool) : Cell :=
   if ra && rb then
     match report a b e with
@@ -454,106 +328,78 @@ def cell (ra rb : Bool) (a b : Outcome) (e : Bool) : Cell :=
     | .unsettled => .unsettled
   else .notRendered
 
-/-- Whether a cell counts as a pass for an exit decision (`Fw.Gate.Exit` imports `Cell` and this): only `pass` does. -/
 def Cell.passes : Cell → Bool
   | .pass => true
   | _ => false
 
-/-- Only `pass` is a passing cell: `fail`, `unsettled` and `notRendered` are not. -/
 theorem Cell.passes_iff (c : Cell) : c.passes = true ↔ c = .pass := by
   cases c <;> simp [Cell.passes]
 
-/-- A probe on a node under a flagged ancestor is `notRendered`, whatever the observation. -/
 theorem skipped_classified_notRendered (p : Policy) (skips : List Bool) (o : Obs) (h : true ∈ skips) :
     classify p (rendered skips) o = .notRendered := by
   have : (skips.any id) = true := List.any_eq_true.mpr ⟨true, h, rfl⟩
   simp [classify, rendered, this]
 
-/-- For a rendered node the classification is exactly `sampleOk`. -/
 theorem classify_rendered_ok (p : Policy) (o : Obs) : classify p true o = .ok ↔ sampleOk p o = true := by
   unfold classify
   by_cases h : sampleOk p o = true <;> simp [h]
 
-/-- A node that is not rendered in either arm never gives a pass. -/
 theorem notRendered_never_pass (ra rb : Bool) (a b : Outcome) (e : Bool) (h : ra = false ∨ rb = false) :
     cell ra rb a b e ≠ .pass := by
   rcases h with h | h <;> simp [cell, h]
 
-/-- It never gives a fail either: the cell says `notRendered`. -/
 theorem notRendered_never_fail (ra rb : Bool) (a b : Outcome) (e : Bool) (h : ra = false ∨ rb = false) :
     cell ra rb a b e = .notRendered := by
   rcases h with h | h <;> simp [cell, h]
 
-/-- When both nodes are rendered, the cell is the settle report and nothing else.
-
-(the three outcomes renamed) -/
 theorem cell_rendered (a b : Outcome) (e : Bool) :
     (cell true true a b e = .pass ↔ report a b e = .pass) ∧ (cell true true a b e = .fail ↔ report a b e = .fail)
     ∧ (cell true true a b e = .unsettled ↔ report a b e = .unsettled) := by
   cases h : report a b e <;> simp [cell, h]
 
-/-- A pass or fail needs both nodes rendered and both arms settled. -/
 theorem cell_decided (ra rb : Bool) (a b : Outcome) (e : Bool) (h : cell ra rb a b e = .pass ∨ cell ra rb a b e = .fail) :
     ra = true ∧ rb = true ∧ ∃ i j, a = .settled i ∧ b = .settled j := by
   rcases ra with _ | _ <;> rcases rb with _ | _ <;> simp [cell] at h ⊢
   rcases a with i | _ <;> rcases b with j | _ <;> cases e <;> simp [report] at h ⊢
 
--- ---------------------------------------------------------------------------------------------------------------
--- a node in a skipped subtree is brought into view and read again (fix-commission)
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- One arm's reading of one node: whether the engine had the node's subtree skipped (`content-visibility:auto`, off screen)
-at the read, and the value read. -/
 structure Reading (α : Type) where
   skipped : Bool
   val : α
   deriving Repr
 
-/-- The reading the gate keeps for a node. `bring` says that the gate brought the node's part into view (`scrollIntoView`),
-settled and read again; then the kept reading is the second one, and the first (possibly stale) value is dropped. Without
-`bring` the first reading is kept. -/
+/-- The reading the gate keeps for a node. -/
 def view {α : Type} (bring : Bool) (first again : Reading α) : Reading α := if bring then again else first
 
-/-- The gate brings a part into view whenever one of its nodes was read in a skipped subtree, so every skipped first reading is covered. -/
 def Covered {α : Type} (bring : Bool) (first : Reading α) : Prop := first.skipped = true → bring = true
 
-/-- The cell of one node from the two arms' first and second readings: the kept readings decide which arm renders the node and
-whether the values are equal; `a`, `b` are the arms' settle outcomes. -/
+/-- The cell of one node from the two arms' first and second readings. -/
 def viewCell {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (a b : Outcome) : Cell :=
   cell (!(view bo fo go).skipped) (!(view br fr gr).skipped) a b (decide ((view bo fo go).val = (view br fr gr).val))
 
-/-- A brought node's stale first value never reaches the cell: the kept reading is the second one. -/
 theorem view_bring {α : Type} (f g : Reading α) : view true f g = g := by simp [view]
 
-/-- With nothing brought into view the rule is inert: the first reading is kept, so a gate run without a skipped node is unchanged. -/
 theorem viewCell_inert {α : Type} [DecidableEq α] (fo go fr gr : Reading α) (a b : Outcome) :
     viewCell false false fo go fr gr a b = cell (!fo.skipped) (!fr.skipped) a b (decide (fo.val = fr.val)) := by
   simp [viewCell, view]
 
-/-- A node is `notRendered` only when the kept reading of one arm is still skipped. -/
 theorem viewCell_notRendered_iff {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (a b : Outcome) :
     viewCell bo br fo go fr gr a b = .notRendered ↔ (view bo fo go).skipped = true ∨ (view br fr gr).skipped = true := by
   unfold viewCell cell
   rcases h1 : (view bo fo go).skipped <;> rcases h2 : (view br fr gr).skipped <;> simp <;>
     cases report a b _ <;> simp
 
-/-- A node reads as skipped after the rule only if the gate brought it into view and the engine still reported it skipped on
-the second reading: a skipped node is never given up before it was brought into view. -/
 theorem skipped_after_view_only_if_brought {α : Type} (bring : Bool) (f g : Reading α) (hc : Covered bring f)
     (h : (view bring f g).skipped = true) : bring = true ∧ g.skipped = true := by
   cases bring
   · exact absurd (hc (by simpa [view] using h)) (by simp)
   · exact ⟨rfl, by simpa [view] using h⟩
 
-/-- The rule never hides a rendered difference: when both kept readings are of rendered nodes, both arms settled and the kept
-values differ, the cell is `fail`. -/
 theorem viewCell_fail_of_rendered_diff {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (i j : Nat)
     (ho : (view bo fo go).skipped = false) (hr : (view br fr gr).skipped = false)
     (hd : (view bo fo go).val ≠ (view br fr gr).val) :
     viewCell bo br fo go fr gr (.settled i) (.settled j) = .fail := by
   simp [viewCell, cell, ho, hr, hd, report]
 
-/-- The rule never invents a pass: a pass needs both kept readings of rendered nodes, equal values and both arms settled. -/
 theorem viewCell_pass_sound {α : Type} [DecidableEq α] (bo br : Bool) (fo go fr gr : Reading α) (a b : Outcome)
     (h : viewCell bo br fo go fr gr a b = .pass) :
     (view bo fo go).skipped = false ∧ (view br fr gr).skipped = false ∧ (view bo fo go).val = (view br fr gr).val
@@ -567,68 +413,43 @@ theorem viewCell_pass_sound {α : Type} [DecidableEq α] (bo br : Bool) (fo go f
   · simp [viewCell, cell, report, h1', h2', hd] at h
   · simpa using hd
 
--- ---------------------------------------------------------------------------------------------------------------
--- which engine reads a skipped part again (the bring flag as a function of the engine)
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- The engines the gate runs, by the launcher name the runner records (`engines.mjs` `name`). -/
 inductive ViewEngine where
   | chromium
   | webkit
   deriving DecidableEq, Repr
 
-/-- The launcher name of an engine as `run.mjs` knows it (`chromium`, `playwright-webkit`). -/
 def engineOf (n : String) : Option ViewEngine :=
   if n = "chromium" then some .chromium else if n = "playwright-webkit" then some .webkit else none
 
-/-- Whether the probes of an engine bring a skipped part into view and read it again. Chromium needs it: its `getComputedStyle`
-returns a stale used `auto` margin inside a `content-visibility:auto` subtree it skipped (run 39101532038: commission
-`margin-inline` 869.5 against 869 at one probe). WebKit does not and breaks with it: the scroll flips the commission
-scene's `content-visibility` and `--commission-shrink` in one arm only (run 39105279831: 11 probes). -/
 def viewOn : ViewEngine → Bool
   | .chromium => true
   | .webkit => false
 
-/-- The bring flag of a run: the debug switch `FW_GATE_VIEW` (`1` on, `0` off, anything else or absent: the engine's own policy),
-and an engine name the runner does not know reads nothing again. -/
+/-- Whether an engine's probes bring a skipped part into view and read it again. -/
 def viewFor (s : Option String) (n : String) : Bool :=
   match s with
   | some "1" => true
   | some "0" => false
   | _ => (engineOf n).any viewOn
 
-/-- With no switch set, Chromium reads again and WebKit does not. -/
 theorem viewFor_default : viewFor none "chromium" = true ∧ viewFor none "playwright-webkit" = false := by
   decide
 
-/-- The switch overrides the engine's policy in both directions. -/
 theorem viewFor_switch (n : String) : viewFor (some "1") n = true ∧ viewFor (some "0") n = false := by
   simp [viewFor]
 
-/-- Any other switch value is no switch. -/
 theorem viewFor_other (s n : String) (h1 : s ≠ "1") (h0 : s ≠ "0") : viewFor (some s) n = viewFor none n := by
   simp [viewFor, h1, h0]
 
-/-- An unknown engine name never brings a part into view. -/
 theorem viewFor_unknown (n : String) (h : engineOf n = none) : viewFor none n = false := by
   simp [viewFor, h]
 
-/-- Where the engine does not bring parts (WebKit by default), the cell is the first reading's, whatever the second reading holds. -/
 theorem viewCell_webkit_default {α : Type} [DecidableEq α] (fo go fr gr : Reading α) (a b : Outcome) :
     viewCell (viewFor none "playwright-webkit") (viewFor none "playwright-webkit") fo go fr gr a b =
       cell (!fo.skipped) (!fr.skipped) a b (decide (fo.val = fr.val)) := by
   rw [viewFor_default.2]
   exact viewCell_inert fo go fr gr a b
 
--- ---------------------------------------------------------------------------------------------------------------
--- the model: a settled sample does not depend on when it was taken
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- The monotone-settling model of one page arm whose inputs do not change (no resize, no pointer move, no new
-animation): a trajectory of observations `obs n` and of the probed properties `props n` (any type `α`) at frame `n`.
-
-The last line is the one empirical premise ("a settled page does not repaint the probed properties"); the others say
-animations only finish, frames only count up, and stable frames count the unchanged ones. -/
 structure Traj (p : Policy) (α : Type) where
   obs : Nat → Obs
   props : Nat → α
@@ -638,7 +459,6 @@ structure Traj (p : Policy) (α : Type) where
   stable_succ : ∀ n, props (n + 1) = props n → (obs (n + 1)).stable = (obs n).stable + 1
   quiet : ∀ n, settled p (obs n) = true → props (n + 1) = props n
 
-/-- One step of a trajectory from a settled observation stays settled and keeps the properties. -/
 theorem Traj.settled_succ {p : Policy} {α : Type} (T : Traj p α) (n : Nat) (h : settled p (T.obs n) = true) :
     settled p (T.obs (n + 1)) = true ∧ T.props (n + 1) = T.props n := by
   have hq := T.quiet n h
@@ -651,7 +471,6 @@ theorem Traj.settled_succ {p : Policy} {α : Type} (T : Traj p α) (n : Nat) (h 
   obtain ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩ := h
   refine ⟨⟨⟨by omega, by omega⟩, by omega⟩, by rw [hh]; exact h4⟩
 
-/-- Settling is absorbing: once settled, every later frame is settled and shows the same properties. -/
 theorem Traj.settled_after {p : Policy} {α : Type} (T : Traj p α) (i : Nat) (h : settled p (T.obs i) = true) :
     ∀ k, settled p (T.obs (i + k)) = true ∧ T.props (i + k) = T.props i := by
   intro k
@@ -661,8 +480,6 @@ theorem Traj.settled_after {p : Policy} {α : Type} (T : Traj p α) (i : Nat) (h
     obtain ⟨h1, h2⟩ := T.settled_succ (i + k) ih.1
     exact ⟨h1, h2.trans ih.2⟩
 
-/-- A sample that settled does not depend on the delay at which it was taken: two settled samples of the same arm give the
-same probed properties, so the comparison with the other arm does not depend on when each arm was sampled. -/
 theorem sample_delay_invariant {p : Policy} {α : Type} (T : Traj p α) (i j : Nat)
     (hi : settled p (T.obs i) = true) (hj : settled p (T.obs j) = true) : T.props i = T.props j := by
   rcases Nat.le_total i j with hij | hji
@@ -673,80 +490,104 @@ theorem sample_delay_invariant {p : Policy} {α : Type} (T : Traj p α) (i j : N
     rw [show j + (i - j) = i by omega] at h2
     exact h2
 
--- ---------------------------------------------------------------------------------------------------------------
--- the three misreads of run 39067170911 are unsettled
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- `pain.notes`: the original is one layout behind until two real frames have passed since the resize (a
-`ResizeObserver` notification, then the `requestAnimationFrame` callback it schedules). Fewer than `minFrames` real
-frames is unsettled. -/
 theorem pain_notes_unsettled (p : Policy) (o : Obs) (h : o.frames < p.minFrames) : settled p o = false := by
   simp only [settled]
   have : ¬ p.minFrames ≤ o.frames := by omega
   simp [this]
 
-/-- `pain.notes`, no frame at all: a page whose frames never reach `minFrames` ends the wait as `unsettled`. -/
 theorem pain_notes_wait_unsettled (p : Policy) (o : Nat → Obs) (h : ∀ i, (o i).frames < p.minFrames) :
     wait p o = .unsettled :=
   wait_unsettled_of_never p o (fun i => pain_notes_unsettled p (o i) (h i))
 
-/-- `hero.orbit`: `z-index` is `1 +` the `pointerenter` events a pointer inside a hover-reactive target caused. While the
-pointer is inside such a target the observation is unsettled, whatever else holds. -/
 theorem hero_orbit_unsettled (p : Policy) (o : Obs) (h : o.hoverInside = true) : settled p o = false := by
   simp [settled, h]
 
-/-- Parking the pointer outside every probed hover target. -/
 def park (o : Obs) : Obs := { o with hoverInside := false }
 
-/-- After parking, hover is no obstacle: the parked observation is settled exactly when the other three conditions hold. -/
 theorem park_settled_iff (p : Policy) (o : Obs) :
     settled p (park o) = true ↔ (o.running = 0 ∧ p.minFrames ≤ o.frames ∧ p.minStable ≤ o.stable) := by
   unfold settled park
   by_cases h1 : o.running = 0 <;> by_cases h2 : p.minFrames ≤ o.frames <;> by_cases h3 : p.minStable ≤ o.stable <;>
     simp [h1, h2, h3]
 
-/-- A finite animation or transition under the probed subtree: its duration and elapsed time (ms). -/
 structure Anim where
   dur : Nat
   elapsed : Nat
+  onDocument : Bool := true
   deriving DecidableEq, Repr
 
-/-- The number of running animations. -/
-def runCount (as : List Anim) : Nat := (as.filter (fun a => decide (a.elapsed < a.dur))).length
+/-- Finite animations on the document timeline that have not run their duration. -/
+def runCount (as : List Anim) : Nat := (as.filter (fun a => a.onDocument && decide (a.elapsed < a.dur))).length
 
-/-- `overlays.signup`: the dialog enter animation (0.4 s) is running at any elapsed time below its duration, so a sample taken
-there (scale 0.9977 at the WebKit touch probe) has `running ≥ 1` and is unsettled. -/
+def runCountAll (as : List Anim) : Nat := (as.filter (fun a => decide (a.elapsed < a.dur))).length
+
 theorem signup_unsettled (p : Policy) (as : List Anim) (a : Anim) (ha : a ∈ as) (he : a.elapsed < a.dur)
+    (hd : a.onDocument = true)
     (frames stable t : Nat) (hov : Bool) :
     settled p { running := runCount as, frames := frames, stable := stable, hoverInside := hov, t := t } = false := by
   have hpos : 0 < runCount as := by
     unfold runCount
     apply List.length_pos_of_mem (a := a)
-    simp [List.mem_filter, ha, he]
+    simp [List.mem_filter, ha, he, hd]
   simp only [settled]
   have : ¬ runCount as = 0 := by omega
   simp [this]
 
-/-- The dialog enter animation of the original (duration 400 ms) is finished only from 400 ms on. -/
+theorem runCount_document (as : List Anim) (h : ∀ a ∈ as, a.onDocument = true) : runCount as = runCountAll as := by
+  unfold runCount runCountAll
+  congr 1
+  apply List.filter_congr
+  intro a ha
+  simp [h a ha]
+
+theorem runCount_cons_scroll (a : Anim) (as : List Anim) (h : a.onDocument = false) : runCount (a :: as) = runCount as := by
+  simp [runCount, h]
+
+theorem runCount_cons_document (a : Anim) (as : List Anim) (h : a.onDocument = true) :
+    runCount (a :: as) = runCount as + (if a.elapsed < a.dur then 1 else 0) := by
+  by_cases he : a.elapsed < a.dur <;> simp [runCount, h, he]
+
+theorem settled_cons_scroll (p : Policy) (a : Anim) (as : List Anim) (h : a.onDocument = false) (frames stable t : Nat) (hov : Bool) :
+    settled p { running := runCount (a :: as), frames := frames, stable := stable, hoverInside := hov, t := t }
+      = settled p { running := runCount as, frames := frames, stable := stable, hoverInside := hov, t := t } := by
+  rw [runCount_cons_scroll a as h]
+
+theorem runCount_zero_of_scroll_or_done (as : List Anim) (h : ∀ a ∈ as, a.onDocument = false ∨ a.dur ≤ a.elapsed) :
+    runCount as = 0 := by
+  unfold runCount
+  rw [List.length_eq_zero_iff, List.filter_eq_nil_iff]
+  intro a ha
+  rcases h a ha with h1 | h2
+  · simp [h1]
+  · have : ¬ a.elapsed < a.dur := by omega
+    simp [this]
+
+theorem runCountAll_scroll_blocks (p : Policy) (a : Anim) (as : List Anim) (ha : a ∈ as) (he : a.elapsed < a.dur)
+    (frames stable t : Nat) (hov : Bool) :
+    settled p { running := runCountAll as, frames := frames, stable := stable, hoverInside := hov, t := t } = false := by
+  have hpos : 0 < runCountAll as := by
+    unfold runCountAll
+    apply List.length_pos_of_mem (a := a)
+    simp [List.mem_filter, ha, he]
+  simp only [settled]
+  have : ¬ runCountAll as = 0 := by omega
+  simp [this]
+
+theorem scroll_cannot_block (p : Policy) (as : List Anim) (h : ∀ a ∈ as, a.onDocument = false ∨ a.dur ≤ a.elapsed)
+    (frames stable t : Nat) (hf : p.minFrames ≤ frames) (hs : p.minStable ≤ stable) :
+    settled p { running := runCount as, frames := frames, stable := stable, hoverInside := false, t := t } = true := by
+  simp [settled, runCount_zero_of_scroll_or_done as h, hf, hs]
+
 theorem signup_enter_finished (e : Nat) : runCount [{ dur := 400, elapsed := e }] = 0 ↔ 400 ≤ e := by
   unfold runCount
   by_cases h : e < 400 <;> simp [h] <;> omega
 
--- ---------------------------------------------------------------------------------------------------------------
--- values that move without a CSS animation: the quiet condition
--- ---------------------------------------------------------------------------------------------------------------
-
-/-- A frame is quiet when the probed values (boxes, numbers of transforms and opacity) have the same length as the frame
-before and each moved by at most `eps` (millionths).
-
-`getAnimations()` does not list a `requestAnimationFrame`-driven value (a per-frame lerp); this does. -/
+/-- Same number of values, each moved by at most `eps` (millionths). -/
 def quiet (eps : Nat) (u v : List Int) : Bool :=
   u.length == v.length && (List.zipWith (fun a b => decide ((a - b).natAbs ≤ eps)) u v).all id
 
-/-- The run of quiet frames after one more frame. -/
 def nextStable (eps : Nat) (s : Nat) (u v : List Int) : Nat := if quiet eps u v then s + 1 else 0
 
-/-- A frame is quiet against itself. -/
 theorem quiet_refl (eps : Nat) (u : List Int) : quiet eps u u = true := by
   induction u with
   | nil => simp [quiet]
@@ -754,19 +595,15 @@ theorem quiet_refl (eps : Nat) (u : List Int) : quiet eps u u = true := by
     simp only [quiet, List.length_cons, beq_self_eq_true, Bool.true_and, List.zipWith_cons_cons, List.all_cons] at ih ⊢
     simp
 
-/-- A change in the number of probed values is never quiet. -/
 theorem quiet_length (eps : Nat) (u v : List Int) (h : u.length ≠ v.length) : quiet eps u v = false := by
   simp [quiet, h]
 
-/-- A value that moved by more than `eps` between two frames ends the quiet run. -/
 theorem moving_not_quiet (eps : Nat) (s : Nat) (x y : Int) (h : eps < (x - y).natAbs) :
     quiet eps [x] [y] = false ∧ nextStable eps s [x] [y] = 0 := by
   have : quiet eps [x] [y] = false := by
     simp [quiet]; omega
   exact ⟨this, by simp [nextStable, this]⟩
 
-/-- `people.card` and `people.deck` (WebKit): a value still moving frame to frame (a per-frame lerp read at a fixed wall
-time) resets the quiet run, so the observation is unsettled whenever the policy asks for at least one quiet frame. -/
 theorem lerp_moving_unsettled (p : Policy) (s : Nat) (x y : Int) (h : p.eps < (x - y).natAbs) (hm : 1 ≤ p.minStable)
     (running frames t : Nat) (hov : Bool) :
     settled p { running := running, frames := frames, stable := nextStable p.eps s [x] [y], hoverInside := hov, t := t } = false := by
@@ -776,8 +613,6 @@ theorem lerp_moving_unsettled (p : Policy) (s : Nat) (x y : Int) (h : p.eps < (x
   have : ¬ p.minStable ≤ 0 := by omega
   simp [this]
 
-/-- A per-frame lerp toward a target `T` with rate `a/b` (scaled to integers, `0 < a`): each step covers the fraction
-`a/b` of the distance left, so `b (x_{n+1} - x_n) = a (T - x_n)`. -/
 structure Lerp where
   x : Nat → Int
   target : Int
@@ -786,9 +621,6 @@ structure Lerp where
   pos : 0 < a
   step : ∀ n, (b : Int) * (x (n + 1) - x n) = (a : Int) * (target - x n)
 
-/-- A quiet frame of a lerp is near the target: a step of at most `eps` leaves at most `eps b / a` of distance.
-
-So a quiet sample of a lerp is within `eps b / a` of where it ends up, whatever frame it was taken at. -/
 theorem Lerp.quiet_near (L : Lerp) (eps n : Nat) (h : (L.x (n + 1) - L.x n).natAbs ≤ eps) :
     L.a * (L.target - L.x n).natAbs ≤ eps * L.b := by
   have h1 := L.step n
@@ -799,10 +631,6 @@ theorem Lerp.quiet_near (L : Lerp) (eps n : Nat) (h : (L.x (n + 1) - L.x n).natA
   calc L.b * (L.x (n + 1) - L.x n).natAbs ≤ L.b * eps := Nat.mul_le_mul_left _ h
     _ = eps * L.b := Nat.mul_comm _ _
 
-/-- Delay invariance for a lerp: two quiet samples (steps at most `eps`) of the same lerp differ by at most `2 eps b / a`.
-
-With `eps = 0.0001` and a lerp of rate a tenth per frame (`b / a = 10`) the bound is 0.002: inside the gate's 0.5 px
-for boxes, above its 0.001 for numbers, so a number-valued lerp that slow needs `eps <= 0.001 a / (2 b)`. -/
 theorem Lerp.sample_delay_invariant (L : Lerp) (eps i j : Nat)
     (hi : (L.x (i + 1) - L.x i).natAbs ≤ eps) (hj : (L.x (j + 1) - L.x j).natAbs ≤ eps) :
     L.a * (L.x i - L.x j).natAbs ≤ 2 * (eps * L.b) := by
@@ -814,48 +642,47 @@ theorem Lerp.sample_delay_invariant (L : Lerp) (eps i j : Nat)
     _ = L.a * (L.target - L.x i).natAbs + L.a * (L.target - L.x j).natAbs := Nat.mul_add _ _ _
     _ ≤ 2 * (eps * L.b) := by omega
 
--- ---------------------------------------------------------------------------------------------------------------
--- golden vectors for the TypeScript twin
--- ---------------------------------------------------------------------------------------------------------------
+def scrollSig (fs : List (Int → Int)) (o : Int) : List Int := fs.map (fun f => f o)
 
-/-- The JSON of an observation (key order as the TypeScript twin writes it). -/
+theorem scroll_fixed_quiet (eps : Nat) (fs : List (Int → Int)) (o₁ o₂ : Int) (h : o₁ = o₂) :
+    quiet eps (scrollSig fs o₁) (scrollSig fs o₂) = true := by
+  subst h
+  exact quiet_refl eps _
+
+theorem scroll_fixed_nextStable (eps s : Nat) (fs : List (Int → Int)) (o₁ o₂ : Int) (h : o₁ = o₂) :
+    nextStable eps s (scrollSig fs o₁) (scrollSig fs o₂) = s + 1 := by
+  simp [nextStable, scroll_fixed_quiet eps fs o₁ o₂ h]
+
 def obsJson (o : Obs) : Json :=
   Json.mkObj [("running", toJson o.running), ("frames", toJson o.frames), ("stable", toJson o.stable),
     ("hoverInside", toJson o.hoverInside), ("t", toJson o.t)]
 
-/-- The JSON of a policy. -/
 def policyJson (p : Policy) : Json :=
   Json.mkObj [("minFrames", toJson p.minFrames), ("minStable", toJson p.minStable), ("eps", toJson p.eps), ("timeoutMs", toJson p.timeoutMs),
     ("maxFrames", toJson p.maxFrames)]
 
-/-- An outcome as the twin writes it: `"settled@i"` or `"unsettled"`. -/
 def outcomeText : Outcome → String
   | .settled i => s!"settled@{i}"
   | .unsettled => "unsettled"
 
-/-- A report as the twin writes it. -/
 def reportText : Report → String
   | .pass => "pass"
   | .fail => "fail"
   | .unsettled => "unsettled"
 
-/-- A cell as the twin writes it. -/
 def cellText : Cell → String
   | .pass => "pass"
   | .fail => "fail"
   | .unsettled => "unsettled"
   | .notRendered => "notRendered"
 
-/-- The observation the wait sees once a finite trace is over: late, so the budget has run out. -/
 def pastEnd : Obs := { running := 1, frames := 0, stable := 0, hoverInside := false, t := 1000000000 }
 
-/-- The wait over a finite trace (what the page returned); beyond its end the budget has run out. -/
 def waitList (p : Policy) (tr : List Obs) : Outcome := wait p (fun i => tr.getD i pastEnd)
 
 private def ob (running frames stable : Nat) (hov : Bool) (t : Nat) : Obs :=
   { running := running, frames := frames, stable := stable, hoverInside := hov, t := t }
 
-/-- Single observations: (name, observation). Each of the first conditions on its own, then the three misreads. -/
 def obsCases : List (String × Obs) :=
   [ ("all conditions hold", ob 0 2 3 false 100),
     ("exactly at the thresholds", ob 0 2 3 false 0),
@@ -869,7 +696,6 @@ def obsCases : List (String × Obs) :=
     ("overlays.signup: dialog enter animation running", ob 1 7 3 false 120),
     ("hero.orbit after parking", park (ob 0 9 9 true 600)) ]
 
-/-- Waits over finite traces: (name, policy, trace). -/
 def waitCases : List (String × Policy × List Obs) :=
   [ ("settles at the third frame",
       gatePolicy, [ob 1 1 0 false 16, ob 0 2 1 false 33, ob 0 3 3 false 50, ob 0 4 4 false 66]),
@@ -905,7 +731,6 @@ def waitCases : List (String × Policy × List Obs) :=
     ("idle: the cap comes first on slow frames",
       idlePolicy gatePolicy 15000, [ob 1 0 0 false 0, ob 1 20 0 false 14000, ob 1 21 0 false 15001]) ]
 
-/-- Sample folds: (name, first wait, later waits). -/
 def foldCases : List (String × Outcome × List Outcome) :=
   [ ("no later waits", .settled 3, []),
     ("all settled", .settled 3, [.settled 0, .settled 7]),
@@ -913,7 +738,6 @@ def foldCases : List (String × Outcome × List Outcome) :=
     ("the main wait did not settle", .unsettled, [.settled 0]),
     ("the idle wait did not settle", .settled 1, [.unsettled]) ]
 
-/-- Cell reports: (name, arm a, arm b, equal). -/
 def reportCases : List (String × Outcome × Outcome × Bool) :=
   [ ("both settled and equal", .settled 2, .settled 0, true),
     ("both settled and different", .settled 2, .settled 5, false),
@@ -921,7 +745,6 @@ def reportCases : List (String × Outcome × Outcome × Bool) :=
     ("rewrite unsettled, values different", .settled 1, .unsettled, false),
     ("both unsettled", .unsettled, .unsettled, true) ]
 
-/-- The bring flag: (name, value of `FW_GATE_VIEW` or none, launcher name). -/
 def viewForCases : List (String × Option String × String) :=
   [ ("chromium, no switch", none, "chromium"),
     ("webkit, no switch", none, "playwright-webkit"),
@@ -932,7 +755,6 @@ def viewForCases : List (String × Option String × String) :=
     ("unknown engine, no switch", none, "firefox"),
     ("unknown engine forced on", some "1", "firefox") ]
 
-/-- Probe cells: (name, arm a rendered, arm b rendered, outcome a, outcome b, equal). -/
 def cellCases : List (String × Bool × Bool × Outcome × Outcome × Bool) :=
   [ ("both rendered, equal", true, true, .settled 1, .settled 2, true),
     ("both rendered, different", true, true, .settled 1, .settled 2, false),
@@ -941,8 +763,6 @@ def cellCases : List (String × Bool × Bool × Outcome × Outcome × Bool) :=
     ("rewrite not rendered, values equal", true, false, .settled 1, .settled 2, true),
     ("neither rendered, both unsettled", false, false, .unsettled, .unsettled, false) ]
 
-/-- View cells: (name, original brought, rewrite brought, original first and second reading, rewrite first and second reading,
-outcome a, outcome b). A reading is (skipped, value). -/
 def viewCases : List (String × Bool × Bool × (Bool × Nat) × (Bool × Nat) × (Bool × Nat) × (Bool × Nat) × Outcome × Outcome) :=
   [ ("nothing skipped, equal", false, false, (false, 132), (false, 0), (false, 132), (false, 0), .settled 1, .settled 2),
     ("nothing skipped, different", false, false, (false, 132), (false, 0), (false, 0), (false, 0), .settled 1, .settled 2),
@@ -953,12 +773,10 @@ def viewCases : List (String × Bool × Bool × (Bool × Nat) × (Bool × Nat) �
     ("rendered difference is not hidden by a brought node elsewhere", true, true, (true, 1), (false, 9), (true, 2), (false, 8), .settled 1, .settled 2),
     ("rendered, one arm unsettled", false, true, (false, 5), (false, 0), (true, 0), (false, 5), .settled 1, .unsettled) ]
 
-/-- Ancestor chains: (name, one flag per ancestor, true = it skips its subtree). -/
 def renderedCases : List (String × List Bool) :=
   [ ("no ancestors", []), ("none skips", [false, false, false]), ("the middle one skips", [false, true, false]),
     ("only the root skips", [true]) ]
 
-/-- Quiet frames: (name, eps, previous values, current values). Values in millionths. -/
 def quietCases : List (String × Nat × List Int × List Int) :=
   [ ("identical", 100, [1000000, 250000], [1000000, 250000]),
     ("moved exactly eps", 100, [1000000], [1000100]),
@@ -970,7 +788,15 @@ def quietCases : List (String × Nat × List Int × List Int) :=
     ("no values at all", 100, [], []),
     ("people.deck scale mid lerp", 100, [977000], [979000]) ]
 
-/-- One golden line per case, in the order of the nine case lists: observation, wait, quiet, rendered, cell, view, fold, report, viewFor. -/
+def runCases : List (String × List (Bool × Nat × Nat)) :=
+  [ ("no animation", []),
+    ("document animation running", [(true, 400, 120)]),
+    ("document animation finished", [(true, 400, 400)]),
+    ("document: two running, one finished", [(true, 400, 0), (true, 1000, 999), (true, 200, 200)]),
+    ("scroll animation at a fixed offset (never finishes)", [(false, 1000000, 0)]),
+    ("hero.exit:threaded: view-timeline animations beside a finished transition", [(false, 1000000, 300000), (false, 1000000, 300000), (true, 400, 400)]),
+    ("scroll animations do not hide a running document animation", [(false, 1000000, 0), (true, 400, 120), (false, 1000000, 500000)]) ]
+
 def goldenLines (_ : Unit := ()) : List String :=
   obsCases.map (fun (n, o) =>
     (Json.mkObj [("kind", "settled"), ("name", toJson n), ("policy", policyJson gatePolicy), ("obs", obsJson o),
@@ -1003,18 +829,19 @@ def goldenLines (_ : Unit := ()) : List String :=
   ++ viewForCases.map (fun (n, s, e) =>
     (Json.mkObj [("kind", "viewFor"), ("name", toJson n), ("switch", toJson s), ("engine", toJson e),
       ("view", toJson (viewFor s e))]).compress)
+  ++ runCases.map (fun (n, as) =>
+    let anims := as.map (fun (d, dur, e) => ({ dur := dur, elapsed := e, onDocument := d } : Anim))
+    (Json.mkObj [("kind", "runs"), ("name", toJson n),
+      ("anims", Json.arr (as.map (fun (d, dur, e) =>
+        Json.mkObj [("onDocument", toJson d), ("dur", toJson dur), ("elapsed", toJson e)])).toArray),
+      ("running", toJson (runCount anims)), ("before", toJson (runCountAll anims))]).compress)
 
-/-- The exact bytes of `packages/contracts/golden/gate/settle.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
-/-- The value after the first occurrence of `flag` that has a successor in an argument list. -/
 def argAfter : List String → String → Option String
   | a :: b :: rest, flag => if a == flag then some b else argAfter (b :: rest) flag
   | _, _ => none
 
-/-- Command-line driver: print the golden text, or with `--check <file>` exit 0 when the file holds exactly these bytes and 1 otherwise.
-
-Print mode returns 0. -/
 def run (args : List String) : IO UInt32 := do
   match argAfter args "--check" with
   | some path =>
@@ -1028,7 +855,6 @@ def run (args : List String) : IO UInt32 := do
     IO.print goldenText
     return 0
 
--- sanity of the golden table (the proofs above are the statement; these pin the vectors)
 #guard settled gatePolicy (ob 0 2 3 false 100) == true
 #guard settled gatePolicy (ob 0 1 5 false 100) == false
 #guard waitList gatePolicy [ob 1 1 0 false 16, ob 0 2 1 false 33, ob 0 3 3 false 50] == .settled 2
@@ -1038,6 +864,8 @@ def run (args : List String) : IO UInt32 := do
 #guard waitList gatePolicy [ob 0 61 3 false 1000] == .unsettled
 #guard spent gatePolicy (ob 0 61 0 false 10) == true
 #guard spent gatePolicy (ob 0 60 0 false 30000) == false
+#guard runCount [{ dur := 1000000, elapsed := 0, onDocument := false }] == 0
+#guard runCountAll [{ dur := 1000000, elapsed := 0, onDocument := false }] == 1
 #guard cell false true (.settled 1) (.settled 2) false == .notRendered
 #guard cell true true (.settled 1) (.settled 2) false == .fail
 #guard rendered [false, true, false] == false

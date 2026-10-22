@@ -1,10 +1,8 @@
-// The settle decisions (src/settle.mjs, and the copies inside page.mjs settleInPage) against the golden file Lean generates
-// (packages/contracts/golden/gate/settle.jsonl, lean/Fw/Gate/Settle.lean). Nothing is decided here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
+import { GATE_POLICY, cell, fold, idlePolicy, nextStable, quiet, rendered, report, runCount, settled, spent, view, viewCell, viewFor, waitTrace } from '../src/settle.mjs';
 import { settleInPage } from '../src/page.mjs';
 import { maskNotRendered } from '../src/summary.mjs';
 import { PKG } from '../src/serve.mjs';
@@ -14,7 +12,6 @@ const ROOT = resolve(PKG, '../..');
 const lines = readFileSync(SETTLE_GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
-/** The predicate texts between markers in settleInPage, rebuilt as functions: the very text that runs in the page. */
 function fromPage(tag) {
   const src = settleInPage.toString();
   const m = new RegExp(`// <${tag}>\\s*([\\s\\S]*?)\\s*// </${tag}>`).exec(src);
@@ -133,4 +130,29 @@ test('rendered and cell: a node in a skipped subtree is notRendered, never pass 
     assert.equal(cell(false, true, 'settled@1', 'settled@1', e), 'notRendered');
     assert.equal(cell(true, false, 'unsettled', 'settled@1', e), 'notRendered');
   }
+});
+
+test('runs: the node twin and the page copy count document-timeline animations only (golden)', () => {
+  const pageCounts = fromPage('counts');
+  assert.ok(of('runs').length >= 6);
+  for (const l of of('runs')) {
+    assert.equal(runCount(l.anims), l.running, l.name);
+    const inPage = l.anims.filter((a) => pageCounts({ onDocument: a.onDocument, finite: true, state: a.elapsed < a.dur ? 'running' : 'finished' })).length;
+    assert.equal(inPage, l.running, l.name);
+  }
+});
+
+test('runs: a scroll-driven animation was counted by the old rule and is not by the new one (the unsettled arms of run 39769627588)', () => {
+  const l = of('runs').find((x) => x.name.startsWith('hero.exit:threaded'));
+  assert.equal(l.before, 2, 'the old rule counted the two view-timeline animations');
+  assert.equal(l.running, 0);
+  assert.equal(settled(GATE_POLICY, { running: l.running, frames: 5, stable: 5, hoverInside: false, t: 100 }), true);
+  assert.equal(settled(GATE_POLICY, { running: l.before, frames: 5, stable: 5, hoverInside: false, t: 100 }), false);
+});
+
+test('runs: no counting site in page.mjs lets a non-document animation through', () => {
+  const src = readFileSync(resolve(PKG, 'src/page.mjs'), 'utf8');
+  const sites = src.split('\n').filter((l) => /Number\.isFinite\(t\.iterations\)/.test(l) && /playState/.test(l));
+  assert.equal(sites.length, 4, 'the three filters that read playState and the call of `counts` in the settle probe');
+  for (const l of sites) assert.match(l, /a\.timeline instanceof DocumentTimeline/, l.trim());
 });
