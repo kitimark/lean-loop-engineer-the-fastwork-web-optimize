@@ -46,8 +46,14 @@ def half : Nat → Rat
 
 def maxDec : Nat := 9
 
-/-- `x` is written with at most `d` decimals. -/
-def onGrid (d : Nat) (x : Rat) : Bool := (x * 10 ^ d).den == 1
+/-- `x` rounded half up to `d` decimals. -/
+def roundTo (d : Nat) (x : Rat) : Rat := ((x * 10 ^ d + 1 / 2).floor : Rat) / 10 ^ d
+
+/-- The binary-float error a value written with at most `maxDec` decimals may carry. -/
+def noise : Rat := 1 / 10 ^ 12
+
+/-- `x` is written with at most `d` decimals, up to `noise`. -/
+def onGrid (d : Nat) (x : Rat) : Bool := decide (x - roundTo d x ≤ noise) && decide (roundTo d x - x ≤ noise)
 
 def gridFrom (ps : List Rat) (k : Nat) : Nat → Option Nat
   | 0 => none
@@ -77,9 +83,6 @@ def Near (h : Rat) : List Rat → List Rat → Prop
   | [], [] => True
   | x :: xs, p :: ps => (x - p ≤ h ∧ p - x ≤ h) ∧ Near h xs ps
   | _, _ => False
-
-/-- `x` rounded half up to `d` decimals. -/
-def roundTo (d : Nat) (x : Rat) : Rat := ((x * 10 ^ d + 1 / 2).floor : Rat) / 10 ^ d
 
 theorem half_pos : ∀ d, 0 < half d
   | 0 => by simp only [half]; grind
@@ -237,8 +240,14 @@ theorem roundTo_near (d : Nat) (x : Rat) : roundTo d x - x ≤ half d ∧ x - ro
   rw [Rat.div_def, e2]
   constructor <;> grind
 
+theorem roundTo_idem (d : Nat) (x : Rat) : roundTo d (roundTo d x) = roundTo d x := by
+  have hk : ∀ k : Int, ((k : Rat) + 1 / 2).floor = k := fun k => by
+    rw [Rat.add_comm, Rat.floor_add_intCast]; simp only [show (1 / 2 : Rat).floor = 0 by decide +kernel, Int.zero_add]
+  simp only [roundTo, Rat.div_mul_cancel (Rat.ne_of_gt (pow_ten_pos d)), hk]
+
 theorem roundTo_onGrid (d : Nat) (x : Rat) : onGrid d (roundTo d x) = true := by
-  simp [onGrid, roundTo, Rat.div_mul_cancel (Rat.ne_of_gt (pow_ten_pos d))]
+  simp only [onGrid, roundTo_idem, Rat.sub_self, Bool.and_self, decide_eq_true_eq]
+  simp only [noise]; decide +kernel
 
 /-- A distribution over at most 255 options, each value rounded half up to `d` decimals, passes the sum check. -/
 theorem roundTo_sumOk (d : Nat) {ps : List Rat} (hl : ps.length ≤ 255) (hu : ps.all unit) (hs : ps.sum = 1) :
@@ -247,6 +256,8 @@ theorem roundTo_sumOk (d : Nat) {ps : List Rat} (hl : ps.length ≤ 255) (hu : p
     (near_map (roundTo_near d) ps) hu hs
 
 #guard precision [1 / 2, 3 / 100] == some 2 && precision [1 / 3] == none && precision [1, 0] == some 0
+#guard precision [15000000000000002 / 10 ^ 17, 1 / 10] == some 2 && precision [3333333333333 / 10 ^ 13] == none
+#guard sumOk [41000000000000003 / 10 ^ 17, 27 / 100, 17 / 100, 7 / 100, 5 / 100, 1 / 100, 1 / 100, 0, 0, 0, 0, 0, 0, 0]
 #guard !sumEps [1 / 2, 2 / 10, 1 / 10, 5 / 100, 3 / 100, 2 / 100, 2 / 100, 2 / 100, 1 / 100, 1 / 100, 1 / 100,
   1 / 100, 1 / 100, 0] && sumOk [1 / 2, 2 / 10, 1 / 10, 5 / 100, 3 / 100, 2 / 100, 2 / 100, 2 / 100, 1 / 100,
   1 / 100, 1 / 100, 1 / 100, 1 / 100, 0]

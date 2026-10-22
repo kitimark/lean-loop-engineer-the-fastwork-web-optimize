@@ -30,6 +30,8 @@ def overSum : String := sampleReply "real" "0.1" "0.1" "0.9" "0.3"
 
 def roundedSum : String := sampleReply "real" "0.01" "0.01" "0.96" "0.01"
 
+def floatSum : String := sampleReply "real" "0.01" "0.01" "0.9600000000000001" "0.01"
+
 def foreignPick : String := sampleReply "billing" "0.25" "0.25" "0.25" "0.25"
 
 def confFlake : String := sampleReply "flake" "0.97" "0.01" "0.01" "0.01"
@@ -148,6 +150,8 @@ def cases : List (String × String × Json) := [
     lit s!"\{\"name\":\"ci-triage\",\"reply\":{replyField otherModel}}"),
   ("validate: 0.01, 0.01, 0.96, 0.01 (sum 0.99, two decimals) is accepted as a rounding", "oracle.validate",
     lit s!"\{\"name\":\"ci-triage\",\"reply\":{replyField roundedSum}}"),
+  ("validate: 0.01, 0.01, 0.9600000000000001, 0.01 (binary-float noise) is a two-decimal rounding", "oracle.validate",
+    lit s!"\{\"name\":\"ci-triage\",\"reply\":{replyField floatSum}}"),
   ("validate: 0.1, 0.1, 0.9, 0.1 (sum 1.2) rounds 0.05, 0.05, 0.85, 0.05 to one decimal and is accepted", "oracle.validate",
     lit s!"\{\"name\":\"ci-triage\",\"reply\":{replyField tieSum}}"),
   ("validate: 0.1, 0.1, 0.9, 0.3 (sum 1.4) is no one-decimal rounding and is a schema failure", "oracle.validate",

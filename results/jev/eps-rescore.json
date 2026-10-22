@@ -1,0 +1,232 @@
+{
+  "jev": {
+    "d1": {
+      "question": "incident-class",
+      "rows": 116,
+      "parts": {
+        "all": {
+          "replies": 116,
+          "old": {
+            "valid": 106,
+            "invalid": {
+              "probabilities: the sum is not 1 within eps": 9,
+              "choice: the pick is not the highest-probability option": 1
+            }
+          },
+          "new": {
+            "valid": 115,
+            "invalid": {
+              "choice: the pick is not the highest-probability option": 1
+            }
+          }
+        },
+        "calibrate": {
+          "replies": 83,
+          "old": {
+            "valid": 75,
+            "invalid": {
+              "probabilities: the sum is not 1 within eps": 7,
+              "choice: the pick is not the highest-probability option": 1
+            }
+          },
+          "new": {
+            "valid": 82,
+            "invalid": {
+              "choice: the pick is not the highest-probability option": 1
+            }
+          }
+        },
+        "holdout": {
+          "replies": 33,
+          "old": {
+            "valid": 31,
+            "invalid": {
+              "probabilities: the sum is not 1 within eps": 2
+            }
+          },
+          "new": {
+            "valid": 33,
+            "invalid": {}
+          }
+        }
+      },
+      "flipped": [
+        {
+          "id": "inc-land-scope-registrations",
+          "part": "calibrate",
+          "label": "c-order-derived",
+          "pick": "c-handcopy",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-worktree-force-untracked",
+          "part": "calibrate",
+          "label": "c-late-check",
+          "pick": "c-sample-validity",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-proof-of-dead-code",
+          "part": "calibrate",
+          "label": "c-unearned-claim",
+          "pick": "c-spec-gap",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-land-dry-needs-console",
+          "part": "calibrate",
+          "label": "c-env-assume",
+          "pick": "c-env-assume",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-preview-port-collision",
+          "part": "calibrate",
+          "label": "c-shared-no-lock",
+          "pick": "c-shared-no-lock",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-hidden-pause-unfaithful-port",
+          "part": "holdout",
+          "label": "c-unearned-claim",
+          "pick": "c-sample-validity",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-rule-before-enforcer",
+          "part": "calibrate",
+          "label": "c-spec-gap",
+          "pick": "c-order-derived",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-helper-spawn-named",
+          "part": "holdout",
+          "label": "c-identity-heuristic",
+          "pick": "c-identity-heuristic",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        },
+        {
+          "id": "inc-ci-status-misread",
+          "part": "calibrate",
+          "label": "c-env-assume",
+          "pick": "c-env-assume",
+          "oldReason": "probabilities: the sum is not 1 within eps"
+        }
+      ],
+      "rejectedNow": 0
+    },
+    "d2": {
+      "question": "finding-severity",
+      "rows": 90,
+      "parts": {
+        "all": {
+          "replies": 83,
+          "old": {
+            "valid": 83,
+            "invalid": {}
+          },
+          "new": {
+            "valid": 83,
+            "invalid": {}
+          }
+        },
+        "holdout": {
+          "replies": 73,
+          "old": {
+            "valid": 73,
+            "invalid": {}
+          },
+          "new": {
+            "valid": 73,
+            "invalid": {}
+          }
+        },
+        "calibrate": {
+          "replies": 10,
+          "old": {
+            "valid": 10,
+            "invalid": {}
+          },
+          "new": {
+            "valid": 10,
+            "invalid": {}
+          }
+        }
+      },
+      "flipped": [],
+      "rejectedNow": 0
+    }
+  },
+  "claudeArms": {
+    "d1-haiku": {
+      "file": "results/jev-arms-clean/d1-haiku.answers.jsonl",
+      "answers": 116,
+      "withProbabilities": 116,
+      "old": {
+        "valid": 37,
+        "invalid": {
+          "probabilities: the sum is not 1 within eps": 78,
+          "probabilities: the keys differ from the question's": 1
+        }
+      },
+      "new": {
+        "valid": 53,
+        "invalid": {
+          "probabilities: the sum is not 1 up to rounding": 62,
+          "probabilities: the keys differ from the question's": 1
+        }
+      },
+      "rejectedNow": 0
+    },
+    "d1-sonnet": {
+      "file": "results/jev-arms-clean/d1-sonnet.answers.jsonl",
+      "answers": 116,
+      "withProbabilities": 116,
+      "old": {
+        "valid": 87,
+        "invalid": {
+          "probabilities: the sum is not 1 within eps": 16,
+          "probabilities: the keys differ from the question's": 13
+        }
+      },
+      "new": {
+        "valid": 95,
+        "invalid": {
+          "probabilities: the sum is not 1 up to rounding": 8,
+          "probabilities: the keys differ from the question's": 13
+        }
+      },
+      "rejectedNow": 0
+    },
+    "d2-haiku": {
+      "file": "results/jev-arms-clean/d2-haiku.answers.jsonl",
+      "answers": 90,
+      "withProbabilities": 90,
+      "old": {
+        "valid": 90,
+        "invalid": {}
+      },
+      "new": {
+        "valid": 90,
+        "invalid": {}
+      },
+      "rejectedNow": 0
+    },
+    "d2-sonnet": {
+      "file": "results/jev-arms-clean/d2-sonnet.answers.jsonl",
+      "answers": 89,
+      "withProbabilities": 89,
+      "old": {
+        "valid": 89,
+        "invalid": {}
+      },
+      "new": {
+        "valid": 89,
+        "invalid": {}
+      },
+      "rejectedNow": 0
+    }
+  }
+}
