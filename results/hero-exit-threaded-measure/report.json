@@ -1,0 +1,313 @@
+{
+  "id": "hero-exit-threaded-measure",
+  "proposal": "hero-exit",
+  "title": "Hero exit on iOS Simulator WebKit: base against the threaded scroll-driven exit",
+  "arms": [
+    {
+      "name": "base",
+      "search": ""
+    },
+    {
+      "name": "hero-exit-threaded",
+      "search": "?fw=hero.exit:threaded"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "iOS Simulator WebKit 430x775, hero exit zone (scroll A), cost counters on",
+      "rows": [
+        {
+          "metric": "Recalculate styles events per scroll step",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 7.52,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 6.46,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout events per scroll step",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 7.8,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 6.51,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "requestAnimationFrame callbacks per scroll step",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 6.88,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 5.88,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Recalculate styles time per scroll step",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 24064.03,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 16468.56,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Layout time per scroll step",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 7717.81,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 4661.75,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "skipped display slots per 100 frames",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 78.91,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 81.77,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "frames over 50 ms per 100 frames",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 43.75,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 31.25,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "new layers per 100 layer-tree reads",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 122.66,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 116.15,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "resized layers per 100 layer-tree reads",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 88.28,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 86.98,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Paint time per frame",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 2906.21,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 2408.94,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "Composite time per frame",
+          "unit": "us",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 56847.86,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 37586.38,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "compositing layers at scroll state 2 (y 388)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 120,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 121.67,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "backing store at scroll state 2 (y 388)",
+          "unit": "MB",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 51.61,
+              "tag": {
+                "kind": "measured",
+                "run": "39739724461"
+              }
+            },
+            {
+              "arm": "hero-exit-threaded",
+              "value": 54.54,
+              "tag": {
+                "kind": "measured",
+                "run": "39731192687"
+              }
+            }
+          ]
+        }
+      ],
+      "layers": []
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "The threaded exit leaves one script callback, one layout and one style pass fewer per scrolled step in this lane; style time relative to the calm scroll is lower; absolute times and frame cadence do not separate. The new-layer counters do not separate from the base, and the backing store is a little larger. Skipped slots and the per-frame times do not separate on a Simulator without a GPU, so a smoother feel is not shown. Hold until a phone replay of the hero exit says whether it feels smoother; the entrance is covered by Lean and unit tests, not by this lane."
+  }
+}
