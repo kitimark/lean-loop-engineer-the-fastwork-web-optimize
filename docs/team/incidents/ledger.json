@@ -4159,6 +4159,35 @@
    "leanReason": "The wire shape (step.post has a non-empty description) is a Lean Wire field and golden; the lead truncating output is a process slip that only the non-zero exit makes visible.",
    "empiricalCheck": "The next user ask posted as a step shows its description under the title in the console; a refused fw call exits non-zero.",
    "hardening": "step-description"
+  },
+  {
+   "id": "inc-land-leg-unfinished",
+   "at": "2026-10-22T21:16+07:00",
+   "title": "A land was refused as a CI failure while GitHub had not yet finalised its jobs",
+   "symptom": "fw land gate-settle-scroll-timeline printed REFUSED: remote tier ... github:fail, failed legs playwright-webkit, chromium, suites-a, suites-b (run 39792901389). The run record read status completed, conclusion success; the four jobs read status in_progress, conclusion empty, and every step of them had concluded success.",
+   "cause": "CONFIRMED (apps/runner/src/land-remote.ts:65-67 legResults: a job counts when typeof conclusion is string, and an unfinished job has the empty string, so it maps to false = failed leg): the land judged legs from conclusions without checking that each job had completed.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39792901389",
+     "note": "run completed/success with 4 jobs in_progress and empty conclusion; all steps success"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land-remote.ts",
+     "note": "legResults lines 65-67"
+    }
+   ],
+   "repro": "Land a branch while GitHub lags in finalising job status after the run completes: the land reads conclusion empty and refuses.",
+   "fix": {
+    "task": "land-leg-pending"
+   },
+   "regression": "Lean laneState: a leg without status completed is pending, never failed; golden with this record.",
+   "mistakeClass": "c-proxy-verdict",
+   "leanVerdict": "provable",
+   "leanReason": "Leg classification is pure (record -> pending|ok|fail); that no fail comes from an uncompleted leg is a theorem over it.",
+   "empiricalCheck": "The next land whose run record lags reads pending and re-reads instead of refusing.",
+   "hardening": "land-leg-pending"
   }
  ]
 }
