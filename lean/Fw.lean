@@ -64,6 +64,7 @@ import Fw.Parts.PainNotesOpt
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.PeopleDeckOpt
 import Fw.Parts.PeopleCardOpt
+import Fw.Parts.PeopleOPreview
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
