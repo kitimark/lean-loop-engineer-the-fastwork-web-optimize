@@ -107,6 +107,15 @@ test('carousel: swaps are cut out of the series and graded at the swap clock', (
   assert.equal(carouselCell(390, a, rows(still)).swaps[1], 0);
 });
 
+test('carousel: the key is the frame count and only full-count vectors compare (rAF jitter and the entering avatar are not motion)', () => {
+  const rest = [0, 0, 1000, 1000], mid = (i) => [5000 * i, 0, 1000, 1000, 0, 0, 1000, 1000];
+  const series = (ts) => [...Array(3).fill(rest), ...ts.map((_, i) => mid(i + 1)), ...Array(10).fill(rest)].map((v, i) => ({ t: i < 3 ? i * 16.7 : (ts[i - 3] ?? 99 + i), v }));
+  const a = series([100, 116.7, 133.4, 150.1]), jit = series([100, 115.1, 133.3, 149.9]);
+  assert.equal(swapsOf(a).length, 1);
+  assert.ok(swapsOf(a)[0].every((p) => p.v.length === 8));
+  assert.deepEqual(carouselCell(390, a, jit).grades, ['E']);
+});
+
 test('the report counts cells and grades and prints a unit line each', () => {
   const p = phase(std);
   const { units, lines, md } = reduceCells(raw(std, p, p));

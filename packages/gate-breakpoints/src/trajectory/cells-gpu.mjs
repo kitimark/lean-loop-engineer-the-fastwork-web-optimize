@@ -280,9 +280,16 @@ export function swapsOf(rows, still = 6) {
       if (quiet >= still) { swaps.push(cur); cur = null; quiet = 0; }
     }
   }
-  return swaps.map(({ from, to }) => rows.slice(from, Math.min(rows.length, to + 2)).map((r) => ({
-    k: rat(BigInt(Math.round((r.t - rows[from].t) * 10)), 10n), v: r.v.map(ratQ),
-  })));
+  // The key is the frame count times one frame: the swap advances per frame, and an A/A showed the rAF timestamps jitter by 1.7 ms
+  // while the rects of frame i agree within 0.025 px, so a timestamp key made equal swaps L. Only samples with the swap's full child
+  // count compare: the avatar that enters or leaves changes the count at the ends (20 children inside, 16 at rest), and a vector of
+  // another length is a DOM change, not a motion.
+  return swaps.map(({ from, to }) => {
+    const rs = rows.slice(from, Math.min(rows.length, to + 2));
+    const full = Math.max(...rs.map((r) => r.v.length));
+    return rs.map((r, j) => ({ k: mul(rat(BigInt(j)), FRAME_MS), v: r.v })).filter((p) => p.v.length === full)
+      .map((p) => ({ k: p.k, v: p.v.map(ratQ) }));
+  });
 }
 
 /** The carousel cell of one width: grades of the candidate's swaps against the base's, paired by order. */
