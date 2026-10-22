@@ -25,18 +25,27 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 
 const ITEM = { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string', enum: ['done', 'pending', 'dispatch', 'followUp', 'undelivered'] }, evidence: { type: 'string' } }, required: ['id', 'status', 'evidence'] }
 const RUN = { type: 'object', properties: { id: { type: 'string' }, state: { type: 'string', enum: ['running', 'complete', 'failed'] } }, required: ['id', 'state'] }
+// items, runs, dry and gate are what the Lean gate (Fw.Plan.ReviewReady, `fw review ready`) reads. They are optional in the schema so an old-style
+// handback still parses; the gate then sends it back (no items, no dry line).
 const BUILD = { type: 'object', properties: { branch: { type: 'string' }, commit: { type: 'string' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, open: { type: 'array', items: { type: 'string' } }, items: { type: 'array', items: ITEM }, runs: { type: 'array', items: RUN }, dry: { type: 'string' }, gate: { type: 'string' } }, required: ['branch', 'commit', 'summary', 'files'] }
+// the gate agent returns the printed line; the script routes on the word after the id (no decision lives in this file)
 const GATE = { type: 'object', properties: { line: { type: 'string' } }, required: ['line'] }
+// severity (Lean Fw.Plan.ReviewReady.Sev): blocker refuses; fix-before-land is text the lead applies, then a checker re-checks it; follow-up is later work.
+// accept comes from the last line of `fw review verdict` (Lean strictVerdict until the medium-only audit; then verdictOf: accept iff no blocker).
+// Polish stage (task polish-in-flow): classes, scopes and cut verdicts are Lean (Fw.Plan.Polish via `fw polish`); this file passes text along.
 const OUT = { type: 'object', properties: { line: { type: 'string' }, out: { type: 'string' } }, required: ['line'] }
 const EDITS = { type: 'object', properties: { edited: { type: 'array', items: { type: 'string' } }, summary: { type: 'string' } }, required: ['edited'] }
 const CUTS = { type: 'object', properties: { cuts: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, old: { type: 'string' }, new: { type: 'string' } }, required: ['path', 'old', 'new'] } } }, required: ['cuts'] }
 const VERDICT = { type: 'object', properties: { accept: { type: 'boolean' }, verdictLine: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'fix-before-land', 'follow-up'] }, where: { type: 'string' }, what: { type: 'string' } }, required: ['severity', 'where', 'what'] } } }, required: ['accept', 'findings'] }
 
+// One task per run: the lead is notified when a run ends, so a bundled run holds an accepted task until its slowest
+// neighbour finishes (user feedback 2026-10-21).
 const tasks = args && args.task ? [args.task] : (args && args.tasks) || []
 const voice = (args && args.voice) || ''
 if (tasks.length !== 1) throw new Error(`build-review: one task per run (got ${tasks.length}); start one run per task`)
 const t = tasks[0]
 
+// Checkpoint rule (task builder-checkpoint): a builder that stops without a report still leaves a state the lead can restart from.
 const CHECKPOINT = (id) => `Checkpoint rule: write docs/team/handoffs/${id}.md right after your first CI push, and update it after each CI run finishes and before any wait longer than 10 minutes. First lines: your branch, your worktree path, the last commit sha, every CI run id with its state, what is verified, what is open. Commit it with your work. The lead restarts from this file if you end without a report.`
 
 const scope = (t) => [
@@ -45,6 +54,8 @@ const scope = (t) => [
   t.findings ? `Prior review findings (read every one; apply each exact fix or say why not): ${t.findings}` : '',
 ].filter(Boolean).join('\n')
 
+// Lead resume path (task build-review-report-resume): args.task.report (a builder report JSON path) with args.task.worktree skips the build
+// stage. One runner agent reads the report and reruns the dry land in the worktree; the exact last `VERDICT dry` line replaces the report's dry field.
 const RESUME = { type: 'object', properties: { report: BUILD, line: { type: 'string' } }, required: ['report', 'line'] }
 const resumeDry = (r) => {
   const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(/VERDICT dry [^\n]*/g)] : []
@@ -57,21 +68,30 @@ Step 2: from the worktree run exactly: pnpm -s fw slot run --kind land --cache -
     { label: `resume-dry:${t.id}`, phase: 'Build', agentType: 'runner', schema: RESUME })
   return r && r.report && typeof r.report === 'object' ? { ...r.report, dry: resumeDry(r) } : null
 }
+// A builder that ends without StructuredOutput makes agent({schema}) throw (incident inc-builder-no-result): treat it as the no-result record.
 const attempt = async (f) => { try { return await f() } catch (e) { return null } }
 const b = t.report && t.worktree
   ? await attempt(resumed)
   : await attempt(() => agent(`Task ${t.id}.${t.worktree ? ` Work only in ${t.worktree}.` : ''}\n${t.prompt}\n${scope(t)}\n\n${voice}\n\n${CHECKPOINT(t.id)}\n\n${PREAMBLE}`,
     { label: `build:${t.id}`, phase: 'Build', agentType: t.role, schema: BUILD, ...(t.worktree ? {} : { isolation: 'worktree' }) }))
+// Builder with no structured result (it ended or crashed without StructuredOutput; incident inc-builder-no-result): hand the lead the place to
+// restart from and skip every later stage. Branch and worktree path are in the handoff file the checkpoint rule made it write.
 if (!b || typeof b.branch !== 'string' || typeof b.commit !== 'string') {
   return [{ task: t.id, worktree: t.worktree || 'isolated worktree: see git worktree list and the first lines of the handoff', branch: (b && b.branch) || 'see the handoff, or git branch --list "worktree-*"', handoff: `docs/team/handoffs/${t.id}.md`, state: 'no-result' }]
 }
+// Evidence gate (task review-flow-v2): fwcore decides (`fw review ready`, Lean Fw.Plan.ReviewReady). Only the answer `review` spends an
+// Opus review; dispatch, wait and returnToBuilder return the build to the lead with the gate lines. The builder's own `gate` line is not trusted.
+// Run states are read by the gate agent itself, by run id (`fw ci state <id>`, one `gh run list`; never the builder's state field).
 const report = JSON.stringify({ items: b.items || [], runs: b.runs || [], dry: b.dry || '' })
 const g = await agent(`Run this in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints; fwcore is built there) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file gate-${t.id}.log (agents/runner.md).
 Step 1: the builder's report is the JSON below. For each run id in its runs array, read that run's state yourself: pnpm -s fw ci state <run id> (it prints "<id> running|complete|failed|unknown" from gh run list; never gh api, never gh run view). Replace every runs[].state with what it printed and ignore the builder's state field; an id that prints unknown gets state "failed". Also read the id of every item whose evidence is "run:<id>" with status pending the same way, and add it to runs if the builder left it out.
 Step 2: write the corrected report JSON, and nothing else, to its own new file gate-${t.id}.json in your scratchpad with one heredoc (never append to it, never reuse the log file), check it with node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' <file>, then run: pnpm -s fw review ready --report <that file> --task ${t.id}. If the JSON check fails, rewrite the file once from the report below (wf_ffc0cfbf piped its log into --report).
 Return its last VERDICT line as line (and any "item ..." or "fwcore:" lines above it as detail). The exit code (0 review, 21 wait, 22 dispatch, 23 returnToBuilder) goes with the line; do not interpret it.\nReport:\n${report}`,
   { label: `gate:${t.id}`, phase: 'Review', agentType: 'runner', schema: GATE })
+// the last VERDICT line of the answer decides and must carry this task's id (escaped: ids hold - and .);
+// runners append "Log: <path>" after it (wf_d2d71389 was sent back on a review-ready line)
 const idRe = t.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// runners also put the line mid-text ('exit=0 | VERDICT ... review (note)', wf_73b9728f); the last match decides
 const all = g && typeof g.line === 'string' ? [...g.line.matchAll(new RegExp(`VERDICT review-ready ${idRe} (review|wait|dispatch|returnToBuilder)\\b`, 'g'))] : []
 const m = all.length ? all[all.length - 1] : null
 const ready = m ? m[1] : 'returnToBuilder'
@@ -81,6 +101,8 @@ const adv = await agent(`Adversarial review of task ${t.id}: branch ${b.branch} 
 const onlyFixes = !!adv && (adv.findings || []).every((f) => f.severity === 'fix-before-land' || f.severity === 'follow-up')
 if (!adv || (!adv.accept && !onlyFixes)) return [{ task: t.id, build: b, gate: ready, adv }]
 
+// Polish: comment-sicko on the code and shell files of the diff, slop-checker cuts on its prose, both judged by Lean before
+// anything is committed; skip-class files (generated, golden, snapshot) are never handed to an agent and edits to them are restored.
 const MAIN = `Run in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file`
 const run1 = (label, cmd, input) => agent(`${MAIN} ${label}-${t.id}.log (agents/runner.md). Run exactly: ${cmd}${input ? ` <<'JSON'\n${input}\nJSON` : ''}\nReturn its last VERDICT line as line and its whole stdout (no log path, no home path) as out.`,
   { label: `${label}:${t.id}`, phase: 'Polish', agentType: 'runner', schema: OUT })
@@ -92,6 +114,7 @@ const plan = await run1('polish-plan', `pnpm -s fw polish plan --branch ${b.bran
 const stages = verdictWord(plan, 'polish-plan')
 if (stages === 'none' || stages === 'error') return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, plan: plan ? plan.line : null } }]
 const outLines = (plan.out || '').split('\n')
+// plan lines: `comments <mark> <absolute path>` (mark from Lean `mark`: # for shell and YAML, -- for Lean, // for TS) and `prose <absolute path>`
 const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => l.slice(9).split(' ')).map(([mark, ...p]) => `${p.join(' ')} (comment mark ${mark})`)
 const prose = outLines.filter((l) => l.startsWith('prose ')).map((l) => l.slice(6))
 const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}). Edit comments only, in these files only, each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nApply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the paths you edited.`,
@@ -101,5 +124,6 @@ const slop = prose.length ? await agent(`Prose review of task ${t.id} (branch ${
 const cuts = slop && slop.cuts && slop.cuts.length ? await run1('polish-cuts', `pnpm -s fw polish cuts --branch ${b.branch} --task ${t.id} --cuts - --apply yes`, JSON.stringify({ cuts: slop.cuts })) : null
 const commit = await run1('polish-commit', `pnpm -s fw polish commit --branch ${b.branch} --task ${t.id}`)
 const committed = verdictWord(commit, 'polish-commit')
+// the polish commit lands only through the same dry land as the build; a failing line goes back to the lead with the result
 const dry = committed === 'committed' ? await run1('polish-dry', `pnpm -s fw slot run --kind land --cache -- pnpm -s fw land ${b.branch} --task ${t.id} --dry`) : null
 return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko ? sicko.edited : [], cuts: cuts ? cuts.line : null, commit: committed, dry: dry ? dry.line : null } }]
