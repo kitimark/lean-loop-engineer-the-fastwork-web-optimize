@@ -14158,7 +14158,8 @@
     "packages/measure-webkit/test/xctrace-*.test.mjs",
     "research/notes/2026/10-2x-xctrace-ci.md",
     "docs/team/handoffs/xctrace-ci-probe.md"
-   ]
+   ],
+   "evidence": "492fcc7"
   },
   {
    "devices": [
