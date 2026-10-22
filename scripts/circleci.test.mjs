@@ -9,7 +9,7 @@ import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { creditsSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
+import { creditsSoFar, ledgerRows, storageCredits, storageNow, storageSoFar, landLane, landLegs, CHECKOUT_STEP, checkoutOfStatus, keyAdvice, keyCheck, keyExit, keyProceed, keyVerdict, readCloneResult, readKeyList, usableKeyKind, cachePipelineBytes, cacheSavedBytes, classOfApi, parseCacheSave, readCacheSave, savesCacheJob, API, MIN_POLL_S, ROOT, call, callBytes, comparePairs, compare, credits, digestJob, dryRun, fetchPipeline, fixtureFetch, githubDigests, githubRuns, isPilotPipeline, jobOfGithub, listAll, loadFixture, loadGolden, main, ofCircleStatus, ofGithubConclusion, parseLoose, premiseDigest, premisesArtifact, readLedger, redact, renderComparison, route, stops, storageMilli, timingsDoc, triggerRequest, urls, waitPipeline, waitStep } from './circleci.mjs';
 
 const g = loadGolden();
 const here = dirname(fileURLToPath(import.meta.url));
@@ -17,7 +17,7 @@ const rowsOf = (op) => g.byOp[op] ?? [];
 const toRun = (r) => ({ ...r, class: r.class });
 
 test('the golden has every op the glue replays, and no more', () => {
-  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'rates', 'route', 'stop', 'storage', 'wait']);
+  assert.deepEqual([...new Set(g.rows.map((r) => r.op))].sort(), ['cachePipeline', 'cacheSaved', 'checkoutStatus', 'circleStatus', 'classOfApi', 'compare', 'constants', 'credits', 'ghJob', 'githubConclusion', 'jobMap', 'keyCheck', 'keyKind', 'rates', 'route', 'stop', 'storage', 'storageCredits', 'storageNow', 'wait']);
   assert.ok(g.rows.length >= 140);
 });
 
@@ -38,6 +38,31 @@ test('credits: every golden row', () => {
 
 test('storage: every golden row', () => {
   for (const r of rowsOf('storage')) assert.equal(storageMilli(r.request.bytes, r.request.days), r.response.milli, r.name);
+});
+
+test('storageNow and storageCredits: every golden row', () => {
+  assert.ok(rowsOf('storageNow').length >= 10);
+  for (const r of rowsOf('storageNow')) assert.equal(storageNow(g, r.request.rows, r.request.now), r.response.milli, r.name);
+  for (const r of rowsOf('storageCredits')) assert.equal(storageCredits(g, r.request.milli), r.response.credits, r.name);
+});
+
+test('storageSoFar: the ledger at retention within the 30-day window; a pipeline with no time counts; no golden in ctx loads it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fwwin-'));
+  const ledgerPath = join(dir, 'ledger.json');
+  const now = Date.parse('2026-10-22T00:00:00Z');
+  const day = 86400000;
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: {
+    old: { artifacts: 0, cache: 1000000000, workspace: 0, at: now - 30 * day - 1 },
+    edge: { artifacts: 0, cache: 1000000000, workspace: 0, at: now - 30 * day },
+    untimed: { artifacts: 1000000000, cache: 0, workspace: 0 },
+  } }));
+  assert.equal(storageSoFar({ ledgerPath, golden: g }, '', now), 500 + 1000);
+  assert.equal(storageSoFar({ ledgerPath }, '', now), 1500);
+  assert.equal(storageSoFar({ ledgerPath, golden: g }, 'untimed', now), 500);
+  assert.equal(storageSoFar({ ledgerPath, golden: g }, '', now + 1), 1000);
+  assert.equal(storageSoFar({ golden: g }, '', now), 0);
+  assert.deepEqual(ledgerRows({ pipelines: { a: { cache: 5, at: 7 }, b: { workspace: 3, at: 'x' } } }), [
+    { at: 7, cache: 5, workspace: 0, artifacts: 0 }, { at: null, cache: 0, workspace: 3, artifacts: 0 }]);
 });
 
 test('compare: every golden row', () => {
@@ -446,7 +471,7 @@ test('wait --branch skips pipelines a push created (webhook), which hold no work
   assert.equal(isPilotPipeline({ trigger: { type: 'api' } }), true);
 });
 
-test('storage: the ledger adds cache, workspace and artifact bytes over all pilot pipelines; over 1 GB-month is exit 5 from fetch and wait', async () => {
+test('storage: the ledger adds cache, workspace and artifact bytes over all pilot pipelines; over the 1 GB-month stop at retention is exit 5 from fetch and wait', async () => {
   const fx = loadFixture('premise-tests');
   const dir = mkdtempSync(join(tmpdir(), 'fwled-'));
   const ledgerPath = join(dir, 'ledger.json');
@@ -457,9 +482,13 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   assert.equal(b.cache, 9856615, 'pipeline 15: one job stored a 9.3 MiB archive, the other found the key (skipped)');
   assert.ok(b.workspace > 0, 'the engine jobs report the workspace they persisted');
   assert.equal(doc.storage.ledgerBytes, b.artifacts + b.cache + b.workspace);
-  assert.equal(doc.storage.milli, storageMilli(doc.storage.ledgerBytes, 30));
-  // an earlier pilot pipeline of 1.2 GB: the next fetch stops, and so does a wait before any job runs
+  assert.equal(doc.storage.milli, storageNow(g, ledgerRows(readLedger(ledgerPath)), ctx.now()));
+  assert.ok(doc.storage.milli <= storageMilli(doc.storage.ledgerBytes, 30));
+  // an earlier pilot pipeline of 1.2 GB of cache counts 600 at 15 days: no stop
   writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
+  assert.deepEqual((await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o1') })).storage.stops, []);
+  // one of 2.4 GB counts 1200: the next fetch stops, and so does a wait before any job runs
+  writeFileSync(ledgerPath, JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 2400000000, workspace: 0 } } }));
   const doc2 = await fetchPipeline(ctx, { slug: fx.slug, pipelineId: fx.pipelineId, out: join(dir, 'o2') });
   assert.deepEqual(doc2.storage.stops, ['storage']);
   const calls = [];
@@ -470,7 +499,7 @@ test('storage: the ledger adds cache, workspace and artifact bytes over all pilo
   const logs = [];
   const root = dir;
   mkdirSync(join(root, '.local'), { recursive: true });
-  writeFileSync(join(root, '.local', 'circleci-ledger.json'), JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 1200000000, workspace: 0 } } }));
+  writeFileSync(join(root, '.local', 'circleci-ledger.json'), JSON.stringify({ pipelines: { old: { artifacts: 0, cache: 2400000000, workspace: 0 } } }));
   assert.equal(await main(['fetch', '--pipeline', fx.pipelineId, '--out', join(dir, 'o3')], { root, env: { FW_CIRCLECI_SLUG: fx.slug }, ctx: { fetchFn: fixtureFetch(fx.api), getToken: () => 't', sleep: async () => {} }, log: (l) => logs.push(l) }), 5);
 });
 

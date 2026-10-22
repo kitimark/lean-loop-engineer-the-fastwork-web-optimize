@@ -102,7 +102,7 @@ type Cci = {
   call: (ctx: unknown, method: string, url: string, body?: unknown) => Promise<{ id: string }>;
   waitPipeline: (ctx: unknown, a: { slug: string; pipelineId: string; timeoutS: number; intervalS: number }) => Promise<{ code: number }>;
   fetchPipeline: (ctx: unknown, a: { slug: string; pipelineId: string; out: string }) => Promise<{ sha: string; lanes: CircleLane[]; runs: { queueMs: number; durMs: number }[] }>;
-  storageSoFar: (ctx: unknown) => number;
+  storageSoFar: (ctx: unknown, exceptId?: string, now?: number) => number;
   creditsSoFar: (ctx: unknown, now?: number) => number;
 };
 
@@ -158,7 +158,10 @@ export async function realCircle(root: string, outDir: string, log: (l: string) 
       const r = await m.keyCheck(mkCtx(), { slug: cfg.slug });
       return { keys: r.keys, checkout: r.checkout };
     },
-    budget: () => ({ spent: m.creditsSoFar({ ledgerPath }), storage: m.storageSoFar({ ledgerPath }) }),
+    budget: () => {
+      const now = Date.now();
+      return { spent: m.creditsSoFar({ ledgerPath }, now), storage: m.storageSoFar({ ledgerPath, golden }, "", now) };
+    },
   };
 }
 

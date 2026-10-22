@@ -105,6 +105,21 @@ export function storageMilli(bytes, days) {
   return Number((BigInt(bytes) * BigInt(days) * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
 }
 
+/** Lean `storageNow`: the ledger rows fetched within the window (a row with no time always counts) at the documented retention per
+ *  kind, rounded up once over the sum, in thousandths of a GB-month. */
+export function storageNow(g, rows, now) {
+  const { windowMs, retentionDays: d } = g.constants;
+  const byteDays = rows.filter((r) => r.at == null || now <= r.at + windowMs)
+    .reduce((n, r) => n + BigInt(r.cache) * BigInt(d.cache) + BigInt(r.workspace) * BigInt(d.workspace) + BigInt(r.artifacts) * BigInt(d.artifact), 0n);
+  return Number((byteDays * 1000n + 30n * 1000000000n - 1n) / (30n * 1000000000n));
+}
+
+/** Lean `storageCredits`: credits for the storage past the allowance, rounded up. */
+export function storageCredits(g, milli) {
+  const c = g.constants;
+  return Math.floor((Math.max(0, milli - c.storageAllowMilli) * c.overageCreditsPerGbMonth + 999) / 1000);
+}
+
 /** Lean `verdictEq`: equal conclusions and, when both sides carry a digest, equal digests. */
 export const verdictEq = (a, b) => a.conclusion === b.conclusion && (a.digest == null || b.digest == null || a.digest === b.digest);
 
@@ -135,7 +150,7 @@ export const cachePipelineBytes = (saves) => saves.reduce((n, s) => n + cacheSav
 /** Lean `stops`: every reason the pilot stops, in the order cap, queue, storage. */
 export function stops(g, i) {
   const c = g.constants;
-  return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : []), ...(c.storageMaxMilli < i.storageMilli ? ['storage'] : [])];
+  return [...(c.capMs <= i.durMs ? ['cap'] : []), ...(c.queueMaxMs < i.queueMs ? ['queue'] : []), ...(c.storageStopMilli < i.storageMilli ? ['storage'] : [])];
 }
 
 /** Lean `route`: github or circleci for one lane. */
@@ -439,18 +454,23 @@ export function readLedger(path) {
 
 export const ledgerBytes = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId).reduce((n, [, b]) => n + (b.artifacts ?? 0) + (b.cache ?? 0) + (b.workspace ?? 0), 0);
 
-/** Retention assumed for every stored byte: 30 days (an upper bound: caches and workspaces expire sooner). */
-export const RETENTION_DAYS = 30;
+/** The ledger's pipelines except `exceptId` as Lean `LedgerRow`s; a pipeline without a numeric `at` has none. */
+export const ledgerRows = (ledger, exceptId = '') => Object.entries(ledger.pipelines ?? {}).filter(([id]) => id !== exceptId)
+  .map(([, b]) => ({ at: typeof b.at === 'number' && Number.isFinite(b.at) ? b.at : null, cache: b.cache ?? 0, workspace: b.workspace ?? 0, artifacts: b.artifacts ?? 0 }));
 
-/** Thousandths of a GB-month stored by every pilot pipeline of the ledger except `exceptId` (0 without a ledger path). */
-export const storageSoFar = (ctx, exceptId = '') => (ctx.ledgerPath ? storageMilli(ledgerBytes(readLedger(ctx.ledgerPath), exceptId), RETENTION_DAYS) : 0);
+/** Lean `windowMs` in days: the window storage and credits are counted over. */
+export const WINDOW_DAYS = 30;
 
-/** Credits the fetched pilot pipelines of the ledger spent in the last RETENTION_DAYS days (a rolling month: it counts more than a
+/** Lean `storageNow` over the ledger except `exceptId` at `now` (0 without a ledger path). */
+export const storageSoFar = (ctx, exceptId = '', now = ctx.now?.() ?? Date.now()) =>
+  (ctx.ledgerPath ? storageNow(ctx.golden ?? loadGolden(), ledgerRows(readLedger(ctx.ledgerPath), exceptId), now) : 0);
+
+/** Credits the fetched pilot pipelines of the ledger spent in the last WINDOW_DAYS days (a rolling month: it counts more than a
  *  calendar month does early in the month, the safe side). A pipeline that was never fetched, and every pipeline fetched before the
  *  ledger kept credits, counts 0. */
 export function creditsSoFar(ctx, now = Date.now()) {
   if (!ctx.ledgerPath) return 0;
-  const since = now - RETENTION_DAYS * 86400000;
+  const since = now - WINDOW_DAYS * 86400000;
   return Object.values(readLedger(ctx.ledgerPath).pipelines ?? {}).reduce((n, b) => n + (Number(b.at) >= since ? Number(b.credits) || 0 : 0), 0);
 }
 
@@ -567,8 +587,8 @@ export async function fetchPipeline(ctx, { slug, pipelineId, out }) {
     writeFileSync(ctx.ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
   }
   const all = ctx.ledgerPath ? ledgerBytes(ledger) : total;
-  const milli = storageMilli(all, RETENTION_DAYS);
-  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, lanes, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, days: RETENTION_DAYS, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
+  const milli = storageNow(g, ctx.ledgerPath ? ledgerRows(ledger) : [{ at: null, ...bytes }], ctx.now?.() ?? Date.now());
+  const doc = { schema: 'fw.circleci-run/1', pipelineId, sha, runs, lanes, spans, storage: { ...bytes, cacheSaves, bytes: total, ledgerBytes: all, milli, stops: stops(g, { durMs: 0, queueMs: 0, storageMilli: milli }) } };
   writeFileSync(join(out, 'run.json'), `${JSON.stringify(doc, null, 2)}\n`);
   return doc;
 }

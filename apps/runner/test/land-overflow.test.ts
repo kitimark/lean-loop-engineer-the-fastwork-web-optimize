@@ -82,11 +82,17 @@ describe("planOverflow", () => {
       { keys: async () => ({ keys: 0, checkout: null }) },
       { keys: async () => { throw new Error("no token"); } },
       { budget: () => ({ spent: 399_000, storage: 0 }) },
-      { budget: () => ({ spent: 0, storage: 2000 }) },
+      { budget: () => ({ spent: 0, storage: 1_000_000 }) },
     ] as Partial<OverflowDeps>[]) {
       const p = await planOverflow(baseDeps({ forceFull: true, ...over }));
       expect(p, JSON.stringify(Object.keys(over))).toMatchObject({ gh: LEGS, cc: [] });
     }
+  });
+  it("storage past the stop of 1000 goes to CircleCI while the budget fits; the overage refuses only past the pool", async () => {
+    for (const storage of [1297, 2000, 100_000])
+      expect(await planOverflow(baseDeps({ forceFull: true, budget: () => ({ spent: 819, storage }) }))).toMatchObject({ gh: [], cc: LEGS, reason: "github-full" });
+    expect(await planOverflow(baseDeps({ forceFull: true, budget: () => ({ spent: 319_550, storage: 1765 }) }))).toMatchObject({ cc: LEGS });
+    expect(await planOverflow(baseDeps({ forceFull: true, budget: () => ({ spent: 319_550, storage: 3765 }) }))).toMatchObject({ gh: LEGS, cc: [], reason: "circleci-storage" });
   });
   it("GitHub Actions degraded: every leg goes to CircleCI", async () => {
     const p = await planOverflow(baseDeps({ ghStatus: async () => ({ actions: "partial_outage", prevDegraded: false }) }));
