@@ -31,7 +31,7 @@ engine, and both are fixed in the Lean grader (`lean/Fw/Gate/TrajectoryGpu.lean`
 - MEASURED: after onset the two arms agree within 0.02 px. Swaps 1 and 2 match only at a shift of exactly +1 frame,
   swaps 3 and 4 at 0; no quarter-frame shift matches. The earlier reading "two of four swaps match only at a sub-frame
   shift" is refuted.
-- MEASURED (older runs 39823047557, 39823476824, 39824100493, before the settle rule): holds 4,4,2 in both arms, graded E.
+- MEASURED (older runs 39823047557, 39823476824, 39824100493, before the settle rule): rows from insertion to first motion 4,4,2 in both arms, graded E.
 - INFERRED: the longer holds of the first swaps are warm-up or scheduling after the start-selling avatar template swap
   mounts a fresh image. Not confirmed.
 - Premise (stated in Lean, `holdTol`): the hold varies by 2 frames inside one recording, but between the arms of one
@@ -68,7 +68,7 @@ engine, and both are fixed in the Lean grader (`lean/Fw/Gate/TrajectoryGpu.lean`
 
 Three trajectory-probe runs of this branch (Chromium 156.0.8078.4, widths 390 and 640, same code both arms). MEASURED, artifact `cells-gpu-chromium` of each run:
 
-| Run | Commit | Units graded E of 12 | Carousel holds (base, cand) at 390 | at 640 |
+| Run | Commit | Units graded E of 12 | Carousel holdFrames (base, cand) at 390 | at 640 |
 |---|---|---|---|---|
 | 39860085568 | 76f9a545d | 12 | 2,2,0,0 and 2,2,0,0 | 2,2,0,0 and 2,2,0,0 |
 | 39861846900 | f3b07d2ee | 12 | 2,2,0,0 and 2,2,0,0 | 1,1,0,0 and 2,2,0,0 |
