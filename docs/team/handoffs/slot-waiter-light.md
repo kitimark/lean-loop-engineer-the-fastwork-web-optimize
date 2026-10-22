@@ -5,3 +5,5 @@ Measured (ps rss of the waiter's process group, node 24.22.0, one run): slot-sel
 Write outside the graph list: apps/runner/src/fw-main.ts (new, the renamed body).
 Follow-ups: precompiled JS waiter (99 MB vs 46 MB bare); `manage-package-manager-versions=false` for the nested pnpm; scripts/sim-lock.sh still calls fw.ts (works, it just loads the slot branch).
 Read first: docs/team/tools/slot.md "Light waiter", apps/runner/src/fw.ts, scripts/slot-self.mjs.
+
+Round 3: merged main (graph r224, work-graph.json only; runner files unchanged). Plain dry land: `VERDICT dry slot-waiter-light` (exit 0).
