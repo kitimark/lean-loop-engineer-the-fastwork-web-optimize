@@ -13561,7 +13561,10 @@
     "packages/measure-webkit/test/safari-local*.test.mjs",
     "research/notes/2026/10-2x-mac-safari-measure.md",
     "results/mac-safari/**",
-    "docs/team/handoffs/mac-safari-measure.md"
+    "docs/team/handoffs/mac-safari-measure.md",
+    "packages/measure-webkit/src/sim-local*.mjs",
+    "packages/measure-webkit/test/sim-local*.test.mjs",
+    "packages/measure-webkit/src/xctrace/**"
    ]
   },
   {
@@ -14348,7 +14351,9 @@
     "apps/site/src/parts/morph.countdown/**",
     "apps/site/src/parts/hero.countdown/**",
     "research/findings/ledger.json",
-    "docs/team/handoffs/morph-strip-webkit.md"
+    "docs/team/handoffs/morph-strip-webkit.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ]
   },
   {
@@ -14367,7 +14372,14 @@
     "packages/contracts/golden/parts/morph-listen*.jsonl",
     "apps/site/src/parts/morph.mount/**",
     "apps/site/src/parts/morph.tween/**",
-    "docs/team/handoffs/morph-touch-band.md"
+    "docs/team/handoffs/morph-touch-band.md",
+    "research/findings/ledger.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ]
   },
   {
@@ -15080,7 +15092,10 @@
    "title": "User 2026-10-22 approved the Layer Composer design (review page answers: design Approve; Q4 text layers are a look change until the user sees their strips; Q5 Core Animation blur measured only, shown as Q; snap off by default, on per layer after the user approves its strip; headline = B vs the page as it runs today, frame time p50/p90/p99 ms with fps at the same quantiles, compositor frames on Chromium only; a cell measured within 1 level with no proved bound is Q). Original ask: 'i could pick which layers/component by myself ... some change may effective multiple layer, part or components'. Design text: lead scratch layer-composer/design-checked.md (path in the build prompt). Task 4: hero.exit threaded CSS selects other parts' boxes by [data-fw-layer=…] instead of [data-orbit-id] and > article; hero.exit layers/files in part.json. No behaviour change, same goldens, gate both engines.",
    "writes": [
     "apps/site/src/parts/hero.exit/**",
-    "docs/team/handoffs/hero-exit-layer-ids.md"
+    "docs/team/handoffs/hero-exit-layer-ids.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/console/layers.jsonl"
    ]
   },
   {
@@ -16069,7 +16084,8 @@
     "docs/team/handoffs/slot-span-key-followups.md",
     "apps/runner/src/fw-main.ts"
    ],
-   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
+   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests.",
+   "evidence": "efb52b8"
   },
   {
    "devices": [
@@ -16123,9 +16139,11 @@
     "apps/runner/src/land.ts",
     "apps/runner/test/land-dry.test.ts",
     "packages/contracts/golden/console/land-dry*.jsonl",
-    "docs/team/handoffs/dry-merge-tree.md"
+    "docs/team/handoffs/dry-merge-tree.md",
+    "docs/team/tools/land.md"
    ],
-   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today."
+   "title": "Five resumed reviews on 2026-10-22 (slot-span-key, site-layer-opts, morph-constant-bounds, land-scope-golden-regs, sim-step-watchdog) got VERDICT stale from fw land --dry only because main gained unrelated commits (graph edits, ledger records, other lands) after the branch's last merge; each cost a merge, a dry rerun and a resumed review. The stale rule exists so a stale base cannot carry another task's diff into the scope check (land.ts:480). Replace it with a closed check: when the branch does not contain main, compute the merge with git merge-tree (no checkout); a conflict stays a refusal (conflict); a clean merge runs the scope and read checks on the diff between that merged tree and main, which contains only the branch's own changes. Lean first in Fw.Console.LandDry: dryKind takes the merge-tree outcome; theorems: a clean merge-tree never yields stale; the scope paths of the merged diff are exactly the branch's own changed paths (no path main changed alone); a conflict still refuses. Goldens the TS replays; a test with a branch behind main by an unrelated commit gives VERDICT dry. Unit: the Lean rule with goldens, land.ts using merge-tree, the test. Limits: the real land still merges main itself as today.",
+   "evidence": "e64ef10"
   },
   {
    "devices": [
@@ -16185,6 +16203,181 @@
     "docs/team/handoffs/census-load-variance.md"
    ],
    "title": "Follow-up of layer-census-check (2026-10-22): on the iOS Simulator the undeclared layer set differs between two loads of the same page at y=0 (original 124 vs 106 layers, rewrite 118 vs 110; runs 39760288475, 39763719675), so the base census refuses and no WebKit A/B census can accept. Find the cause (load timing, hold length, the running page's own animations, or the Simulator) with at most 3 dispatches; then state in Lean which undeclared boxes may vary between loads (a settle rule or an allowlist keyed by identity, never a count tolerance) so base vs base accepts, with goldens. Also amend design text section 2.4 / S1 so path-pix-core's S1 premise names the in-page node origin (InspectorLayerTreeAgent.cpp:189-191@862f17d gives integer CSS px bounds). Unit: the cause with run ids, the Lean rule, base vs base accepted on CI."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-settle-scroll-timeline",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gate-settle"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Settle.lean",
+    "lean/Fw/Gate/Golden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/**",
+    "research/notes/2026/10-2x-gate-settle-scroll-timeline.md",
+    "docs/team/handoffs/gate-settle-scroll-timeline.md"
+   ],
+   "title": "(S) Settle probe counts scroll-driven animations as running forever (page.mjs:342 keeps any finite non-finished animation; a ScrollTimeline/ViewTimeline animation never finishes), so every arm with hero.exit:threaded ends UNSETTLED (run 39769627588: 155 unsettled samples, 0 fail readings, merge red). Rule: an animation on a non-document timeline is settled when its timeline's scroll offset is stable; its effect is already in the stable signature. Read the spec and Chromium/WebKit source for scroll-timeline playState/currentTime at a fixed offset (cite file:line@sha), state the rule in Lean Settle (running counts document-timeline animations only; theorem: a scroll-timeline animation at a fixed offset leaves the signature constant), golden vectors, page.mjs change, then rerun the full gate for fw=hero.exit:threaded on both engines and report whether the merge verdict turns pass."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "step-description",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Wire.lean",
+    "lean/Fw/Console.lean",
+    "lean/Fw/Console/**",
+    "packages/contracts/src/index.ts",
+    "packages/contracts/golden/console/**",
+    "apps/runner/src/lib.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/test/**",
+    "apps/console-web/src/**",
+    "apps/console-api/src/spool/**",
+    "apps/console-api/test/**",
+    "docs/team/handoffs/step-description.md"
+   ],
+   "title": "User 2026-10-22 on step ask-free-memory: 'why the your steps section contain only title. where is the description?' Step cards carry only a title (lib.ts stepCommand; Command step.post). Add a required description to step.post (Lean Wire field + golden first; CLI --detail <text>, refused when empty), render it under the title in the console-web Your steps card (plain text, line breaks kept), keep old title-only events readable. Also: fw exits non-zero and prints the refusal on stderr when the console refuses a command (incident inc-step-title-only: a refused step post was hidden by a pipe). After land the lead re-posts open steps with descriptions."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-merge-tree-followups",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [
+    "dry-merge-tree"
+   ],
+   "writes": [
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/land-verdict*.test.ts",
+    "lean/Fw/Console/LandVerdict.lean",
+    "lean/Fw/Spec/Incidents.lean",
+    "packages/contracts/golden/console/land-verdict*.jsonl",
+    "docs/team/handoffs/dry-merge-tree-followups.md"
+   ],
+   "title": "Follow-ups of dry-merge-tree: land-verdict.ts dryKind still maps containsMain=false to stale and has no caller in land.ts (drop it or route it through dryBase/dryOutcome, with its golden); lean/Fw/Spec/Incidents.lean:41 docstring still describes the stale stage of the dry."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "compose-gpu-pill",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/Gpu.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/Compose.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "packages/contracts/src/index.ts",
+    "apps/console-api/src/preview/compose.ts",
+    "apps/console-api/test/compose*.test.ts",
+    "apps/console-web/src/Compose.tsx",
+    "apps/console-web/src/**/*.test.tsx",
+    "docs/team/handoffs/compose-gpu-pill.md"
+   ],
+   "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-measure-exclusive",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-measure-exclusive.md",
+    "lean/Fw/Sup/MeasureWindow.lean",
+    "lean/Fw.lean"
+   ],
+   "title": "User 2026-10-22: 'our daemon could handle these lean slots: agents that want to test while we measure wait until the measure is done, or manage it by resource calculation.' Observed 20:15: mac-safari-measure held sim, the adaptive limit rose 1 -> 2, gate-settle-scroll-timeline's check ran beside it (lean 100% CPU) and Fw.Sup.Measure's quiet rule (holdersMax 0) refused passes. Lean first (Fw.Sup.Adapt + new Fw.Sup.MeasureWindow): a measure lease with pass windows. (1) During a live pass window nothing else is admitted (theorem: passLive -> every other request waits). (2) Between passes a queued job is admitted only if its predicted duration plus settle time (per-kind spans and memory from sup-baseline / Fw.Obs.Timing, a stated percentile) ends before the next pass start and its memory fits; else it waits (theorem: an admitted gap job cannot overlap the next pass under the prediction premise; the premise is INFERRED and the pass's quiet check still guards it). (3) Bounded wait: the measure lease has a hard deadline and sup-fairness's starvation bound still holds for queued kinds (theorem). Goldens; slot.ts / slot-core.ts follow the Lean verdict; fw slot status shows the measure window and why each ticket waits. The lead switches packages/measure-webkit/src/safari-local-lease.mjs to the measure kind after both land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-first-scroll-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-touch-band"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    "lean/Fw/Measure/TouchStart*.lean",
+    "packages/contracts/golden/measure/touch-start*.jsonl",
+    ".github/workflows/webkit-lag-probe.yml",
+    "research/notes/2026/10-2x-touch-first-scroll.md",
+    "docs/team/handoffs/touch-first-scroll-probe.md"
+   ],
+   "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-leg-pending",
+   "owner": "lean-prover",
+   "stream": "console",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LandRemote.lean",
+    "lean/Fw/Wire/Console.lean",
+    "packages/contracts/golden/console/land-remote*.jsonl",
+    "packages/contracts/golden/console/console.landLaneState*.jsonl",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "docs/team/handoffs/land-leg-pending.md"
+   ],
+   "title": "Incident inc-land-leg-unfinished (2026-10-22): the gate-settle-scroll-timeline land was refused 'github:fail' on run 39792901389 whose record said status completed / conclusion success while four jobs still read status in_progress with conclusion '' (all their steps had succeeded; GitHub had not finalised the jobs). legResults (land-remote.ts:65) treats '' as a string, so an unfinished job counts as a failed leg. Lean first (LandRemote laneState / LandLegs): a leg whose job status is not completed is pending, never failed; a completed run with a pending leg is re-read (bounded) before any verdict; theorem: no fail verdict from a leg without a completed status; goldens including this record; TS follows."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "safari-macos-ci",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "mac-safari-measure"
+   ],
+   "writes": [
+    ".github/workflows/safari-macos.yml",
+    "packages/measure-webkit/src/safari-ci*.mjs",
+    "packages/measure-webkit/test/safari-ci*.test.mjs",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Steps.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Pool/Caps.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/2026/10-2x-safari-macos-ci.md",
+    "results/safari-macos-ci/**",
+    "docs/team/handoffs/safari-macos-ci.md"
+   ],
+   "title": "User 2026-10-22: 'Do you try to measure safari macos ci'. Not yet: CI WebKit lanes are the iOS Simulator and Playwright WebKit; real Safari never ran on CI. The free macos-26 runner ships Safari 26.6 + SafariDriver (research/notes/2026/10-17-gha-public-runners.md). Reuse mac-safari-measure's safaridriver engine (safari-local.mjs) in a workflow_dispatch lane on macos-26: check whether safaridriver --enable needs sudo there; A/A on 2 runs first (variance), then original vs rewrite vs the GPU flags (hero.exit:threaded, morph.panel:const-bounds, platform:fade-threaded) at the hero exit and end of page, >= 3 jobs each; compare with the local Mac numbers in ci-device-accuracy terms. VM, no real GPU: cadence ranks arms, it does not judge GPU gains."
   }
  ],
  "deadline": {
