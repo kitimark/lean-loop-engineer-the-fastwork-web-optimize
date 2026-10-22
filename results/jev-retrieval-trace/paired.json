@@ -17,6 +17,16 @@
    "c": 38,
    "x": 38
   },
+  "t-haiku-read": {
+   "arm": 38,
+   "c": 38,
+   "x": 38
+  },
+  "t-sonnet-read": {
+   "arm": 38,
+   "c": 38,
+   "x": 38
+  },
   "j-hybrid": {
    "arm": 38,
    "c": 38,
@@ -372,6 +382,344 @@
     }
    }
   },
+  "t-haiku-read": {
+   "strict": {
+    "adopt": false,
+    "arm": "t-haiku-read/strict",
+    "reasons": [
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-land-undeclared-reads",
+      "kind": "gainOnDropped"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-upsert-keeps-evidence",
+      "kind": "gainOnDropped"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-retention-hides-unlanded",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-worktree-role-as-teammate",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-watch-unlanded-after-land",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-land-undeclared-reads",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-land-scope-stale-base",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-upsert-keeps-evidence",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-test-pid-marker",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-proof-of-dead-code",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-land-queue-unknown",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/strict",
+      "id": "inc-main-checkout-busy-queue",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 14,
+     "baseRight": 9,
+     "gains": [
+      "inc-retention-hides-unlanded",
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-land-undeclared-reads",
+      "inc-land-scope-stale-base",
+      "inc-upsert-keeps-evidence",
+      "inc-test-pid-marker",
+      "inc-proof-of-dead-code",
+      "inc-land-queue-unknown",
+      "inc-main-checkout-busy-queue"
+     ],
+     "losses": [
+      "inc-claim-order",
+      "inc-land-retry-text-match",
+      "inc-parallel-write-overlap",
+      "inc-console-stale-service",
+      "inc-land-dry-needs-console"
+     ],
+     "net": 5,
+     "p": {
+      "den": "1024",
+      "num": "309"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 14,
+     "baseRight": 8,
+     "gains": [
+      "inc-retention-hides-unlanded",
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-land-undeclared-reads",
+      "inc-land-scope-stale-base",
+      "inc-upsert-keeps-evidence",
+      "inc-land-dry-no-verdict",
+      "inc-ci-skipped-false-pass",
+      "inc-proof-of-dead-code",
+      "inc-land-queue-unknown",
+      "inc-main-checkout-busy-queue",
+      "inc-runner-bin-mode-flip"
+     ],
+     "losses": [
+      "inc-claim-order",
+      "inc-wt-prep-lsp-as-build",
+      "inc-parallel-write-overlap",
+      "inc-console-stale-service",
+      "inc-land-dry-needs-console",
+      "inc-plan-sync-manual"
+     ],
+     "net": 6,
+     "p": {
+      "den": "32768",
+      "num": "7795"
+     },
+     "rows": 38
+    }
+   },
+   "renorm": {
+    "adopt": false,
+    "arm": "t-haiku-read/renorm",
+    "reasons": [
+     {
+      "arm": "t-haiku-read/renorm",
+      "id": "inc-worktree-role-as-teammate",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/renorm",
+      "id": "inc-watch-unlanded-after-land",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/renorm",
+      "id": "inc-prompt-premise-align",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/renorm",
+      "id": "inc-land-queue-unknown",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-haiku-read/renorm",
+      "id": "inc-helper-spawn-named",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 25,
+     "baseRight": 21,
+     "gains": [
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-prompt-premise-align",
+      "inc-land-queue-unknown",
+      "inc-helper-spawn-named"
+     ],
+     "losses": [
+      "inc-ci-run-cap-prompt"
+     ],
+     "net": 4,
+     "p": {
+      "den": "32",
+      "num": "7"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 25,
+     "baseRight": 18,
+     "gains": [
+      "inc-worktree-role-as-teammate",
+      "inc-watch-unlanded-after-land",
+      "inc-prompt-premise-align",
+      "inc-land-retry-text-match",
+      "inc-land-dry-no-verdict",
+      "inc-land-queue-unknown",
+      "inc-helper-spawn-named"
+     ],
+     "losses": [],
+     "net": 7,
+     "p": {
+      "den": "64",
+      "num": "1"
+     },
+     "rows": 38
+    }
+   }
+  },
+  "t-sonnet-read": {
+   "strict": {
+    "adopt": false,
+    "arm": "t-sonnet-read/strict",
+    "reasons": [
+     {
+      "arm": "t-sonnet-read/strict",
+      "kind": "netLowC",
+      "net": -2
+     },
+     {
+      "arm": "t-sonnet-read/strict",
+      "id": "inc-wt-prep-lsp-as-build",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet-read/strict",
+      "id": "inc-runner-bin-mode-flip",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet-read/strict",
+      "id": "inc-reap-console-kill",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 18,
+     "baseRight": 20,
+     "gains": [
+      "inc-wt-prep-lsp-as-build",
+      "inc-runner-bin-mode-flip",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-after-land",
+      "inc-watch-alert-during-land",
+      "inc-watch-unlanded-queued",
+      "inc-upsert-keeps-evidence",
+      "inc-plan-sync-manual"
+     ],
+     "net": -2,
+     "p": {
+      "den": "128",
+      "num": "93"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 18,
+     "baseRight": 18,
+     "gains": [
+      "inc-findings-shared-entry",
+      "inc-ci-run-cap-prompt",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-queued",
+      "inc-upsert-keeps-evidence",
+      "inc-land-queue-unknown"
+     ],
+     "net": 0,
+     "p": {
+      "den": "1",
+      "num": "1"
+     },
+     "rows": 38
+    }
+   },
+   "renorm": {
+    "adopt": false,
+    "arm": "t-sonnet-read/renorm",
+    "reasons": [
+     {
+      "arm": "t-sonnet-read/renorm",
+      "kind": "netLowC",
+      "net": -4
+     },
+     {
+      "arm": "t-sonnet-read/renorm",
+      "kind": "netLowX",
+      "net": -2
+     },
+     {
+      "arm": "t-sonnet-read/renorm",
+      "id": "inc-wt-prep-lsp-as-build",
+      "kind": "untraced"
+     },
+     {
+      "arm": "t-sonnet-read/renorm",
+      "id": "inc-reap-console-kill",
+      "kind": "untraced"
+     }
+    ],
+    "vsC": {
+     "armRight": 18,
+     "baseRight": 22,
+     "gains": [
+      "inc-wt-prep-lsp-as-build",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-after-land",
+      "inc-watch-alert-during-land",
+      "inc-watch-unlanded-queued",
+      "inc-upsert-keeps-evidence",
+      "inc-workflow-multi-unbound",
+      "inc-plan-sync-manual"
+     ],
+     "net": -4,
+     "p": {
+      "den": "128",
+      "num": "37"
+     },
+     "rows": 38
+    },
+    "vsX": {
+     "armRight": 18,
+     "baseRight": 20,
+     "gains": [
+      "inc-ci-run-cap-prompt",
+      "inc-reap-console-kill"
+     ],
+     "losses": [
+      "inc-watch-unlanded-queued",
+      "inc-upsert-keeps-evidence",
+      "inc-land-queue-unknown",
+      "inc-plan-sync-manual"
+     ],
+     "net": -2,
+     "p": {
+      "den": "16",
+      "num": "11"
+     },
+     "rows": 38
+    }
+   }
+  },
   "j-hybrid": {
    "strict": {
     "adopt": false,
@@ -578,6 +926,107 @@
      },
      "rows": 38
     }
+   }
+  }
+ },
+ "vsT": {
+  "t-haiku-read": {
+   "strict": {
+    "base": "t-haiku",
+    "armRight": 14,
+    "baseRight": 13,
+    "gains": [
+     "inc-watch-unlanded-after-land",
+     "inc-land-undeclared-reads",
+     "inc-land-dry-no-verdict",
+     "inc-proof-of-dead-code",
+     "inc-land-queue-unknown"
+    ],
+    "losses": [
+     "inc-claim-order",
+     "inc-wt-prep-lsp-as-build",
+     "inc-mutants-red-no-task",
+     "inc-plan-sync-manual"
+    ],
+    "mode": "strict",
+    "net": 1,
+    "p": {
+     "den": "1",
+     "num": "1"
+    },
+    "rows": 38
+   },
+   "renorm": {
+    "base": "t-haiku",
+    "armRight": 25,
+    "baseRight": 20,
+    "gains": [
+     "inc-watch-unlanded-after-land",
+     "inc-prompt-premise-align",
+     "inc-land-dry-no-verdict",
+     "inc-proof-of-dead-code",
+     "inc-land-queue-unknown"
+    ],
+    "losses": [],
+    "mode": "renorm",
+    "net": 5,
+    "p": {
+     "den": "16",
+     "num": "1"
+    },
+    "rows": 38
+   }
+  },
+  "t-sonnet-read": {
+   "strict": {
+    "base": "t-sonnet",
+    "armRight": 18,
+    "baseRight": 23,
+    "gains": [
+     "inc-land-dry-needs-console",
+     "inc-reap-console-kill"
+    ],
+    "losses": [
+     "inc-watch-unlanded-queued",
+     "inc-upsert-keeps-evidence",
+     "inc-workflow-multi-unbound",
+     "inc-proof-of-dead-code",
+     "inc-land-queue-unknown",
+     "inc-helper-spawn-named",
+     "inc-trajectory-pooled-window"
+    ],
+    "mode": "strict",
+    "net": -5,
+    "p": {
+     "den": "128",
+     "num": "23"
+    },
+    "rows": 38
+   },
+   "renorm": {
+    "base": "t-sonnet",
+    "armRight": 18,
+    "baseRight": 23,
+    "gains": [
+     "inc-land-dry-needs-console",
+     "inc-reap-console-kill"
+    ],
+    "losses": [
+     "inc-watch-unlanded-queued",
+     "inc-upsert-keeps-evidence",
+     "inc-workflow-multi-unbound",
+     "inc-proof-of-dead-code",
+     "inc-land-queue-unknown",
+     "inc-helper-spawn-named",
+     "inc-trajectory-pooled-window"
+    ],
+    "mode": "renorm",
+    "net": -5,
+    "p": {
+     "den": "128",
+     "num": "23"
+    },
+    "rows": 38
    }
   }
  }

@@ -15952,7 +15952,8 @@
     "lean/scripts/SlotKeyGolden.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "timing.slow on `fw/slot run check` is noise (2026-10-22): the key `slot run <kind>` pools every command run under a slot (56 samples from 0.2 s to 370 s, p50 90 s; a 38.7 s run alerted because the last 20 mixed 1 s and 290 s commands), and the span starts before the slot wait, so queue time counts as run time. (1) Key the span by command identity: `slot run <kind> <cmd>` with <cmd> = the command's script or tool name plus its first non-flag arg (e.g. `vitest test/land-inputs.test.ts`, `lake build`), with a cap on distinct keys (fall back to the kind). (2) Split the span: `slot wait <kind>` (acquire to grant) and `slot run <kind> <cmd>` (grant to exit). (3) If the key rule decides anything (cap, fallback), state it in Lean (Fw.Obs.Timing or a sibling) with golden vectors the TS replays. Unit: the split keys and spans, a test replaying the 56 recorded samples' commands to their new keys, and a statement that the alert of 2026-10-22 16:51 would not fire. Limits: past samples keep their old key (no rewrite of timings.jsonl)."
+   "title": "timing.slow on `fw/slot run check` is noise (2026-10-22): the key `slot run <kind>` pools every command run under a slot (56 samples from 0.2 s to 370 s, p50 90 s; a 38.7 s run alerted because the last 20 mixed 1 s and 290 s commands), and the span starts before the slot wait, so queue time counts as run time. (1) Key the span by command identity: `slot run <kind> <cmd>` with <cmd> = the command's script or tool name plus its first non-flag arg (e.g. `vitest test/land-inputs.test.ts`, `lake build`), with a cap on distinct keys (fall back to the kind). (2) Split the span: `slot wait <kind>` (acquire to grant) and `slot run <kind> <cmd>` (grant to exit). (3) If the key rule decides anything (cap, fallback), state it in Lean (Fw.Obs.Timing or a sibling) with golden vectors the TS replays. Unit: the split keys and spans, a test replaying the 56 recorded samples' commands to their new keys, and a statement that the alert of 2026-10-22 16:51 would not fire. Limits: past samples keep their old key (no rewrite of timings.jsonl).",
+   "evidence": "baae92e"
   },
   {
    "devices": [
@@ -15975,7 +15976,8 @@
     "research/notes/2026/10-2x-jev-retrieval-trace.md",
     "docs/team/handoffs/jev-retrieval-followups.md"
    ],
-   "title": "Follow-ups of jev-retrieval-trace (landed 2026-10-22). (1) Position statistic in Lean: a pick-position share defined only over rows with at least 2 candidates (single-candidate rows excluded by type), with a theorem that a 1-candidate row adds nothing to it; jev-trace computes the share through fwcore, never by hand (hardening for the refuted 'f1 in 30 of 36' claim, incident inc-pick-position). (2) Forced-read variant: T-haiku and T-sonnet with a system prompt that requires at least one Read before answering, every read recorded; paired verdict against C with the Lean adopt rule (Claude calls only, no Jev sends). (3) Record the Jev run split used for d1k and d1p, or state the deviation from runs of 19 rows. Unit: the Lean statistic with goldens, the forced-read paired table, the note update. Limits: D1 only; Claude cost within the per-call caps; a shuffled-slot J-pick stays optional (no bias seen over 10 rows)."
+   "title": "Follow-ups of jev-retrieval-trace (landed 2026-10-22). (1) Position statistic in Lean: a pick-position share defined only over rows with at least 2 candidates (single-candidate rows excluded by type), with a theorem that a 1-candidate row adds nothing to it; jev-trace computes the share through fwcore, never by hand (hardening for the refuted 'f1 in 30 of 36' claim, incident inc-pick-position). (2) Forced-read variant: T-haiku and T-sonnet with a system prompt that requires at least one Read before answering, every read recorded; paired verdict against C with the Lean adopt rule (Claude calls only, no Jev sends). (3) Record the Jev run split used for d1k and d1p, or state the deviation from runs of 19 rows. Unit: the Lean statistic with goldens, the forced-read paired table, the note update. Limits: D1 only; Claude cost within the per-call caps; a shuffled-slot J-pick stays optional (no bias seen over 10 rows).",
+   "evidence": "2361e10"
   },
   {
    "devices": [
@@ -16013,6 +16015,53 @@
     "docs/team/handoffs/land-scope-golden-regs.md"
    ],
    "title": "Three dry lands refused at scope on 2026-10-22 for the same registration files (incident inc-golden-reg-scope): jev-retrieval-trace (graph r253), site-layer-opts (r257) and slot-span-key (r258) each needed lean/scripts/check.sh, a new lean/scripts/*Golden.lean and the read lists in apps/runner/src/land.ts (CHECK_SH_READS, PACKAGE_EXTRA_READS), lean/Fw/Console/LandSpeed.lean (checkShReads) and lean/Fw/Ci/Trigger.lean added by the lead after the build. (1) One source for the check.sh read list: LandSpeed.checkShReads and land.ts CHECK_SH_READS are a hand copy; generate the TS list from Lean (land-reads.gen.ts) with a freshness check, so a new generated file is declared once. (2) A golden registration set in Land.landScope: when a task's writes include a path under packages/contracts/golden/**, admit lean/scripts/<Name>Golden.lean and lean/scripts/check.sh, with a theorem that the set is empty for tasks with no golden write and never lifts a protected glob. (3) Goldens for landScope over the three refused write lists (each admitted after the change, the protected globs still refused). Unit: the generated read list with its check, the Lean registration set with theorems and goldens. Limits: Trigger.lean read tables stay hand-kept unless they share the same source (state which)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "site-layer-opts-followups",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "site-layer-opts"
+   ],
+   "writes": [
+    "apps/site/src/registry/layer-opts.test.ts",
+    "apps/site/src/registry/resolve.ts",
+    "lean/Fw/Console/BuildsOpen.lean",
+    "packages/contracts/golden/console/layers-search.jsonl",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/site-layer-opts-followups.md"
+   ],
+   "title": "Follow-ups of site-layer-opts (landed 2026-10-22). (1) layer-opts.test.ts compares the layers-search ok rows after .sort(): compare in URL order so the test checks an exact mirror of BuildsOpen.canonical. (2) resolve.ts reads ?fwl= through URLSearchParams (percent-decoding, + to space) while Lean BuildsOpen.validate refuses those characters before parsing: add golden vectors with an encoded layer id (e.g. ?fwl=hero%5Fcopy:c) and make the site and the console agree (decode in both or refuse in both, stated in Lean). (3) The builder saw 10 local failures in @fw/runner reap-safety and reap-stop: run them once on main (debug run, ≤ 5 min) and record whether they fail there; if they do, file the cause as a task. Unit: the order-exact test, the encoded-fwl vectors with the agreed rule, the reap-test result on main."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-span-key-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-span-key",
+    "land-scope-golden-regs"
+   ],
+   "writes": [
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Console/LandDry.lean",
+    "apps/runner/test/slot-span.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/SlotKeyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/obs/slot-key.jsonl",
+    "packages/contracts/golden/obs/*.jsonl",
+    "docs/team/handoffs/slot-span-key-followups.md"
+   ],
+   "title": "Follow-ups of slot-span-key (accepted 2026-10-22). (1) `slot wait <kind>` spans are judged by timing.slow: a queue wait over the 30 s budget against a near-zero median alerts, which is the queue noise the task removed, under a new key; exclude wait spans from slow or give them their own Lean budget (theorem). (2) cmdKey maps `pnpm -s fw <sub>` to `pnpm fw`: treat fw as a launcher and key its subcommand. (3) The ` dry`/` cached` suffixes and the seenKeys parser live only in TS, and the 24-key cap counts the last 2 MB of timings.jsonl, so keys that scroll out free places: state the suffix and seen-set rule in Lean with goldens and make the cap per kind and window-independent. (4) slot.ts writes no run span when exec throws or the process exits on a signal: move endRun into a finally with an error exit code. (5) Mark the 16:51 test's `own` samples as synthetic. (6) `fw land/dry total` and `fw/land dry` are bimodal: about 22 s without the Lean build step and about 45 s with it (alerts of 2026-10-22 16:4x and 17:5x), so key the dry span by its Lean dry plan (with or without the lake build) and add apps/runner/src/land.ts to the writes for that. Unit: the six items with goldens and tests."
   }
  ],
  "deadline": {

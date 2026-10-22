@@ -1601,3 +1601,144 @@ def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
 def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
 
 end Fw.Wire.Obs.Timing
+
+namespace Fw.Obs.Timing.SlotKey
+
+def valueFlags : List String := ["--filter", "-F", "-C", "--dir", "--kind"]
+
+def filterFlags : List String := ["--filter", "-F"]
+
+def base (t : String) : String := (t.splitOn "/").getLast?.getD t
+
+def okTok (t : String) : Bool :=
+  decide (0 < t.length) && decide (t.length ≤ 60) &&
+    t.all fun c => c.isAlphanum || c == '.' || c == '_' || c == '-' || c == '/'
+
+def launchWords : List String := ["exec", "dlx"]
+
+def skipWords : List String := ["run"]
+
+def scan (filt : Option String) : List String → Option String × Option String × List String
+  | [] => (filt, none, [])
+  | [t] => if t.startsWith "-" || skipWords.contains t then (filt, none, []) else (filt, some t, [])
+  | t :: v :: r =>
+    if valueFlags.contains t then
+      scan (if filterFlags.contains t then filt.orElse fun _ => some v else filt) r
+    else if t.startsWith "-" || skipWords.contains t then scan filt (v :: r)
+    else (filt, some t, v :: r)
+termination_by l => l.length
+
+def tidy (a : String) : String := if a.startsWith "/" then base a else a
+
+def core (h : String) (args : List String) : List String :=
+  let (_, first, _) := scan none args
+  [base h] ++ (first.map tidy).toList
+
+def cmdKey : List String → Option String
+  | [] => none
+  | h :: args =>
+    let (filt, first, rest) := scan none args
+    let parts :=
+      match first, rest with
+      | some w, p :: more => if launchWords.contains w then [base h] ++ (filt.map base).toList ++ core p more else
+          [base h] ++ (filt.map base).toList ++ [tidy w]
+      | some w, [] => [base h] ++ (filt.map base).toList ++ [tidy w]
+      | none, _ => [base h] ++ (filt.map base).toList
+    if parts.all okTok then some (" ".intercalate parts) else none
+
+def capKey (seen : List String) (cap : Nat) (k : Option String) : Option String :=
+  match k with
+  | some x => if seen.contains x || decide (seen.length < cap) then some x else none
+  | none => none
+
+def keyCap : Nat := 24
+
+def runStep (kind : String) (seen : List String) (argv : List String) : String :=
+  match capKey seen keyCap (cmdKey argv) with
+  | some k => s!"slot run {kind} {k}"
+  | none => s!"slot run {kind}"
+
+def waitStep (kind : String) : String := s!"slot wait {kind}"
+
+theorem cmdKey_nil : cmdKey [] = none := rfl
+
+theorem capKey_none (seen : List String) (cap : Nat) : capKey seen cap none = none := rfl
+
+theorem capKey_seen (seen : List String) (cap : Nat) (x : String) (h : x ∈ seen) : capKey seen cap (some x) = some x := by
+  simp [capKey, h]
+
+theorem capKey_full (seen : List String) (cap : Nat) (x : String) (h : x ∉ seen) (hc : cap ≤ seen.length) :
+    capKey seen cap (some x) = none := by
+  simp [capKey, h, Nat.not_lt.2 hc]
+
+theorem capKey_room (seen : List String) (cap : Nat) (x : String) (hc : seen.length < cap) : capKey seen cap (some x) = some x := by
+  simp [capKey, hc]
+
+theorem capKey_some (seen : List String) (cap : Nat) (k : Option String) (x : String) (h : capKey seen cap k = some x) :
+    x ∈ seen ∨ seen.length < cap := by
+  cases k with
+  | none => simp [capKey] at h
+  | some y =>
+    by_cases hc : x ∈ seen ∨ seen.length < cap
+    · exact hc
+    · exfalso
+      simp [capKey] at h
+      grind
+
+theorem wait_ne_run (kind : String) (seen : List String) (argv : List String) : waitStep kind ≠ runStep kind seen argv := by
+  unfold waitStep runStep
+  intro h
+  have e1 : (toString "slot wait ").toList[5]? = some 'w' := by decide
+  have e2 : (toString "slot run ").toList[5]? = some 'r' := by decide
+  have l1 : 5 < (toString "slot wait ").toList.length := by decide
+  have l2 : 5 < (toString "slot run ").toList.length := by decide
+  split at h
+  · have := congrArg (fun s : String => s.toList[5]?) h
+    simp only [String.toList_append, List.append_assoc, List.getElem?_append_left l1, List.getElem?_append_left l2, e1, e2] at this
+    exact absurd this (by decide)
+  · have := congrArg (fun s : String => s.toList[5]?) h
+    simp only [String.toList_append, List.getElem?_append_left l1, List.getElem?_append_left l2, e1, e2] at this
+    exact absurd this (by decide)
+
+def cases : List (String × String × List String × List String) :=
+  [("check.sh", "check", [], ["sh", "lean/scripts/check.sh"]),
+   ("vitest file", "test", [], ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"]),
+   ("pnpm test of a package", "test", [], ["pnpm", "--filter", "./apps/runner", "test"]),
+   ("pnpm test of another package", "test", [], ["pnpm", "-F", "console-api", "test"]),
+   ("dry land", "land", [], ["pnpm", "-s", "fw", "land", "b", "--task", "t", "--dry"]),
+   ("flags only", "check", [], ["lake", "--quiet"]),
+   ("lake build", "check", [], ["lake", "build"]),
+   ("absolute program and script", "check", [], ["/usr/bin/env", "/opt/x/check.sh"]),
+   ("token outside the set", "check", [], ["sh", "a b"]),
+   ("equals sign in an argument", "check", [], ["node", "--x=1", "y=2"]),
+   ("empty argv", "check", [], []),
+   ("seen key at the cap", "check", (List.range 24).map (fun i => s!"k{i}") ++ ["sh lean/scripts/check.sh"], ["sh", "lean/scripts/check.sh"]),
+   ("new key at the cap", "check", (List.range 24).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"]),
+   ("new key one below the cap", "check", (List.range 23).map (fun i => s!"k{i}"), ["sh", "lean/scripts/check.sh"])]
+
+#guard cases.map (fun (_, k, seen, a) => runStep k seen a) ==
+  ["slot run check sh lean/scripts/check.sh", "slot run test pnpm runner vitest test/land-inputs.test.ts", "slot run test pnpm runner test",
+   "slot run test pnpm console-api test", "slot run land pnpm fw", "slot run check lake", "slot run check lake build",
+   "slot run check env check.sh", "slot run check", "slot run check", "slot run check",
+   "slot run check sh lean/scripts/check.sh", "slot run check", "slot run check sh lean/scripts/check.sh"]
+
+end Fw.Obs.Timing.SlotKey
+
+namespace Fw.Wire.Obs.SlotKey
+open Lean
+open Fw.Obs.Timing.SlotKey
+
+def caseJson (n k : String) (seen argv : List String) : Json :=
+  Json.mkObj [("name", n), ("request", Json.mkObj [("kind", k), ("seen", toJson seen), ("argv", toJson argv)]),
+    ("response", Json.mkObj [("step", runStep k seen argv), ("wait", waitStep k)])]
+
+def goldenText (_ : Unit := ()) : String :=
+  String.join (cases.map fun (n, k, seen, a) => (caseJson n k seen a).compress ++ "\n")
+
+def goldenPath : System.FilePath := "../packages/contracts/golden/obs/slot-key.jsonl"
+
+def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+
+def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+
+end Fw.Wire.Obs.SlotKey

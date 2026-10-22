@@ -6,8 +6,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { fwcoreBin, fwcoreCall } from "../packages/gh-budget/src/core.ts";
-import { answerLine, answerSchema, callOf, evidenceOf, hitOf, hookSettings, lowerAscii, readSpan, readsOf, streamOf,
-  traceArgs, traceCalls, treeVerdict } from "./jev-trace.mjs";
+import { answerLine, answerSchema, armName, callOf, evidenceOf, gateLog, hitOf, hookSettings, lowerAscii, pickPosRows, readSpan,
+  readsOf, streamOf, traceArgs, traceCalls, traceSystem, treeVerdict } from "./jev-trace.mjs";
 
 const golden = readFileSync(new URL("../packages/contracts/golden/oracle/retrieve.jsonl", import.meta.url), "utf8")
   .split("\n").filter(Boolean).map((l) => JSON.parse(l));
@@ -25,9 +25,10 @@ for (const c of golden) {
 }
 
 test("the golden covers every op of the module", () => {
-  assert.deepEqual([...new Set(golden.map((c) => c.request.op))].sort(), ["oracle.retrieveAdopt", "oracle.retrieveEvidence",
-    "oracle.retrieveHook", "oracle.retrieveHybrid", "oracle.retrievePick", "oracle.retrievePick1", "oracle.retrievePlan",
-    "oracle.retrieveRanges", "oracle.retrieveScope", "oracle.retrieveTrace", "oracle.retrieveTree", "oracle.retrieveVocab"]);
+  assert.deepEqual([...new Set(golden.map((c) => c.request.op))].sort(), ["oracle.retrieveAdopt", "oracle.retrieveAnswer",
+    "oracle.retrieveEvidence", "oracle.retrieveHook", "oracle.retrieveHybrid", "oracle.retrievePick", "oracle.retrievePick1",
+    "oracle.retrievePickPos", "oracle.retrievePlan", "oracle.retrieveRanges", "oracle.retrieveScope", "oracle.retrieveTrace",
+    "oracle.retrieveTree", "oracle.retrieveVocab"]);
 });
 
 test("the JS tree mirror gives Lean's verdicts on the golden tree case", () => {
@@ -97,8 +98,9 @@ test("streamOf reads tool uses, thinking shape and the structured answer", () =>
   assert.deepEqual(s.structured, { choice: "none" });
 });
 
-test("an answer counts only with an ok trace", () => {
+test("an answer counts only with an ok trace and an open answer gate", () => {
   assert.equal(answerLine({ id: "a", choice: "x", probabilities: {}, trace: { verdict: "overReads" } }), null);
+  assert.equal(answerLine({ id: "a", choice: "x", probabilities: {}, trace: { verdict: "ok", gate: "deny" } }), null);
   assert.deepEqual(answerLine({ id: "a", choice: "x", probabilities: { x: 1 }, trace: { verdict: "ok" } }),
     { id: "a", choice: "x", probabilities: { x: 1 } });
 });
@@ -134,4 +136,41 @@ test("the hook allows a read in the tree, denies one outside, and counts", needC
     const s = JSON.parse(readFileSync(st, "utf8"));
     assert.deepEqual([s.calls, s.bytes, s.log.map((l) => l.decision)], [1, 8, ["allow", "deny", "answer"]]);
   } finally { rmSync(work, { recursive: true, force: true }); }
+});
+
+test("the forced-read prompt asks for a Read; the free prompt keeps the first run's words", () => {
+  assert.match(traceSystem(true), /read at least one file with Read/);
+  assert.match(traceSystem(false), /You may read them with Read, Grep and Glob, using paths relative/);
+  assert.deepEqual([armName("haiku", false), armName("sonnet", true)], ["t-haiku", "t-sonnet-read"]);
+  assert.deepEqual(gateLog([{ tool: "Read", decision: "allow", rel: "a" }]), [{ tool: "Read", decision: "allow" }]);
+});
+
+test("the forced hook refuses the answer before a read and allows it after one", needCore, () => {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "jt-")));
+  try {
+    const root = join(work, "tree");
+    mkdirSync(join(root, "apps"), { recursive: true });
+    writeFileSync(join(root, "apps", "a.ts"), "one\n");
+    writeFileSync(join(work, "paths.json"), JSON.stringify(["apps/a.ts"]));
+    const st = join(work, "st.json");
+    writeFileSync(st, JSON.stringify({ root, pathsFile: join(work, "paths.json"), forced: true, calls: 0, bytes: 0, log: [] }));
+    const run = (tool_name, tool_input, id) => JSON.parse(spawnSync(process.execPath,
+      [fileURLToPath(new URL("./jev-trace.mjs", import.meta.url)), "hook", "--state", st],
+      { input: JSON.stringify({ tool_name, tool_input, tool_use_id: id }) }).stdout.toString()).hookSpecificOutput;
+    assert.equal(run("Glob", { pattern: "**" }, "1").permissionDecision, "allow");
+    const d = run("StructuredOutput", {}, "2");
+    assert.deepEqual([d.permissionDecision, d.permissionDecisionReason.split(":")[0]], ["deny", "readFirst"]);
+    assert.equal(run("Read", { file_path: join(root, "apps", "a.ts") }, "3").permissionDecision, "allow");
+    assert.equal(run("StructuredOutput", {}, "4").permissionDecision, "allow");
+    const s = JSON.parse(readFileSync(st, "utf8"));
+    assert.deepEqual(s.log.map((l) => l.decision), ["allow", "deny", "allow", "answer"]);
+  } finally { rmSync(work, { recursive: true, force: true }); }
+});
+
+test("the D1 J-pick record gives Lean's position counts over the 10 multi-candidate rows", needCore, () => {
+  const rows = JSON.parse(readFileSync(new URL("../results/jev-retrieval-trace/pick.json", import.meta.url), "utf8")).rows;
+  const r = core({ op: "oracle.retrievePickPos", rows: pickPosRows(rows) });
+  assert.deepEqual([r.rows, r.empty, r.single, r.multi, r.none.count], [38, 2, 26, 10, 0]);
+  assert.deepEqual(r.slots.map((x) => x.count), [4, 5, 1, 0]);
+  assert.deepEqual(r, one("pickPos: the D1").response);
 });
