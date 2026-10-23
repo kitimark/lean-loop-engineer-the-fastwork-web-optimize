@@ -1,6 +1,7 @@
 // The trajectory reducer against the vectors Lean generates (lean/Fw/Gate/Trajectory.lean, scripts/TrajectoryGolden.lean), and the
 // loop around it (reduceWidth) on small synthetic readings whose answers are worked out by hand.
 import { test } from 'node:test';
+import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -525,7 +526,7 @@ test('reduceRaw: a faithful failure one extra original pass clears takes the lan
   assert.deepEqual([cellRel(after).relAll, cellRel(after).rel, after.lane], ['new', 'undecided', 'undecided']);
 });
 
-test('byMFam equals byMFamEach on every golden segment, under every phase and with a copy of the original as one more pass', () => {
+test('byMFam equals byMFamEach on every golden segment, under every phase, with a shifted copy of the original as one more pass and on a window that settles to its epoch end', () => {
   const PH = [['push', 0], ['hold', 1], ['push', 2], ['hold', 3]];
   let n = 0;
   for (const g of golden.filter((x) => x.oSeg && (x.wSeg || x.cand))) {
@@ -534,7 +535,8 @@ test('byMFam equals byMFamEach on every golden segment, under every phase and wi
     const e = named ? startFor(g.node, g.prop, g.width) : null;
     const id = g.id ?? (named && idOn(g.node, g.prop));
     const shift = Math.max(...g.oSeg.map((s) => s.rep)) + 1;
-    const origs = [g.oSeg, [...g.oSeg, ...g.oSeg.map((s) => ({ ...s, rep: s.rep + shift }))], ...(g.oSeg2 ? [g.oSeg2] : [])];
+    const bump = (els) => els.map((v) => (Array.isArray(v) ? v.map((x) => (typeof x === 'number' ? x + 7 : x)) : v));
+    const origs = [g.oSeg, [...g.oSeg, ...g.oSeg.map((s) => ({ ...s, rep: s.rep + shift, els: bump(s.els), since: s.since === null ? null : s.since + 50 }))], ...(g.oSeg2 ? [g.oSeg2] : [])];
     for (const w of [g.wSeg, g.cand, g.base].filter(Boolean)) {
       for (const o of origs) {
         for (const [ph, p] of PH) {
@@ -544,10 +546,21 @@ test('byMFam equals byMFamEach on every golden segment, under every phase and wi
       }
     }
   }
+  const open = (cls) => (cls.includes('open') ? 300 : null);
+  const smp = (rep, m, since, x) => ({ rep, ph: 1, cls: ['open'], since, m, els: [[x, 0, 100, 40]] });
+  const settling = (rep) => [smp(rep, 0, 100, 10), smp(rep, 1000, 150, 10), smp(rep, 2000, 200, 10), smp(rep, 3000, 250, 10), smp(rep, 9000, 900, 60)];
+  const late = [smp(0, 0, 1000, 60)];
+  for (const o of [settling(0), [...settling(0), ...settling(1)]]) {
+    for (const [ph, p] of PH) {
+      assert.deepEqual(byMFam(ph, p, 'geometry', open, null, null, o, late), byMFamEach(ph, p, 'geometry', open, null, null, o, late), `settling ${ph} ${p}`);
+      n++;
+    }
+    assert.equal(byMFam('hold', 1, 'geometry', open, null, null, o, late)[0][0][1], 'pass', 'the in-flight window settles to its epoch end');
+  }
   assert.ok(n >= 900, `${n} cases`);
 });
 
-test('cli: a refused input, a summary without raw files and an unknown command exit 2, the refused code (Lean laneExit_refused), never 1', async () => {
+test('cli: a refused input, a summary without raw files or of a malformed one and an unknown command exit 2, the refused code (Lean laneExit_refused), never 1', async () => {
   const err = console.error;
   console.error = () => {};
   const dir = mkdtempSync(join(tmpdir(), 'traj-refused-'));
@@ -557,6 +570,9 @@ test('cli: a refused input, a summary without raw files and an unknown command e
       ['summary'], ['summary', '--strict'], ['summary', '--engine', 'chromium'], ['merge'], ['merge', '--in', join(dir, 'none'), '--engine', 'chromium'], ['help'], []]) {
       assert.equal(await main([...argv, '--out', dir]), 2, argv.join(' '));
     }
+    writeFileSync(join(dir, 'raw-chromium.json'), '{}');
+    const cli = fileURLToPath(new URL('../src/trajectory/cli.mjs', import.meta.url));
+    assert.equal(spawnSync(process.execPath, [cli, 'summary', '--out', dir], { stdio: 'ignore' }).status, 2, 'summary of a malformed raw file');
   } finally {
     console.error = err;
     rmSync(dir, { recursive: true, force: true });

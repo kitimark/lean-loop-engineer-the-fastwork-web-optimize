@@ -10,7 +10,7 @@
 //   0  the probe completed (RED, UNDECIDED or CLEAN is a result, not an error; with --strict only CLEAN exits 0),
 //   1  with --strict, RED,
 //   2  refused: an arm was not measured as asked (`refused:config`), an input is outside its allowlist, `summary` found no
-//      raw file, `merge` has no leg or legs that disagree, or the command is unknown; the run is void, never a pass,
+//      raw file, `merge` has no leg or legs that disagree, the command is unknown or it threw (a malformed raw file); the run is void, never a pass,
 //   3  with --strict, UNDECIDED: no verdict either way; rerun with more passes (Lean `laneExit`); `summary` over several engines exits the worst (Lean `exitJoin`).
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -111,4 +111,4 @@ export async function main(argv) {
   return refuse('usage: cli.mjs run --engine <e> --out <dir> [--widths ...] [--search ...] [--paths ...] [--reads ...] [--strict] | summary --out <dir> | merge --in <leg dirs, comma separated> --engine <e> --out <dir>');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await main(process.argv.slice(2)));
+if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await main(process.argv.slice(2)).catch((e) => refuse(String(e?.message ?? e))));

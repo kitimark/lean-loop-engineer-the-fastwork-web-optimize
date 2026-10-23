@@ -116,14 +116,16 @@ runs the probe with the inputs of one message line:
    one walk. `annotate`, `headOf`, `windowOne`, `flightWindow` and `endOf` each read one pass, so a rewrite sample's window
    and envelope are its per-pass pieces joined in pass order; each piece is computed once and the member without pass q
    joins the other pieces. `byMFamEach` (one `byMFirst` per member) is the definition; test `byMFam equals byMFamEach`
-   checks the two on every golden segment, in all four phases, and with the original doubled into one more pass (928
-   cases). MEASURED offline (dev check) on the merged raw of run 39926829451: 39.8 s one member at a time,
-   9.5 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix 7940268bea3474da). Offline re-reduction (dev check): run
+   checks the two on every golden segment, in all four phases, with the original plus a shifted copy as one more pass
+   (values +7, `since` +50) and on a window that settles to its epoch end (936 cases); a member that keeps every pass's
+   envelope, or a settle without the epoch-end fallback, fails it. MEASURED offline (dev check) on the merged raw of run 39926829451: 39.8 s one member at a time,
+   9.5 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix a15d328e00bd26de: units-chromium.json from `summary` on the artifact
+   `trajectory-chromium` raw, both ways). Offline re-reduction (dev check): run
    39926829451 CLEAN (new 0, undecided 0, leave-one-out 0, cleared 1, 14416 units); run 39557718020 CLEAN (3604 units,
    all ok).
    **WebKit cadence.** `firstCover`, `laneOf_extra` and `laneOf_stable_extra` count passes and hold at any cadence; only
    the timing link (`slots_cadence`, `sampled_iff`, `lateRate_delays`) assumes 17 ms. MEASURED: Linux WebKit's open gap
-   p50 is 120 to 183 ms (median 148) over the 30 arm rows of these 10 runs, whose `trajectory-playwright-webkit` artifacts
+   p50 is 120 to 183 ms (median 148.5) over the 30 arm rows of these 10 runs, whose `trajectory-playwright-webkit` artifacts
    walked the morph path before task trajectory-probe-speed cut Linux WebKit to hero only:
 
    | run | original | faithful | candidate |
@@ -146,7 +148,7 @@ runs the probe with the inputs of one message line:
    coverage" as above.
    **WebKit Simulator rows.** The `webkit-sim` lag passes record frame times but no lane sample. The timed morph pass marks
    each rAF of the push (`performance.mark`, read from the Web Inspector timeline): MEASURED open push gap p50 30.0 and
-   31.4 ms, p90 54.7 and 60.4 ms (run 39511908073, artifact `webkit-sim-v1`, passes 0 and 1). It reads no morph value and
+   31.4 ms, p90 54.7 and 60.4 ms (artifact `webkit-sim-v1` of run 39511908073, which concluded failure; passes 0 and 1). It reads no morph value and
    no probe property, and the untimed geometry pass reads part boxes without times, so no row has the `m`, `els` and `t0`
    of one frame that a unit needs. A Simulator lane needs a timed pass that reads them per frame, a new `webkit-sim` mode:
    not built here.
@@ -155,7 +157,7 @@ runs the probe with the inputs of one message line:
    red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate).
    Exit codes (`laneExit`): refused 2; without `--strict` 0; with `--strict` RED 1, UNDECIDED 3, CLEAN 0. Refused also
    covers the inputs: a widths, paths, reads or reps value outside its allowlist, `summary` without a raw file, `merge`
-   without legs or with legs that disagree, and an unknown command all exit 2, so 1 is only ever a strict RED. UNDECIDED is
+   without legs or with legs that disagree, an unknown command and a command that throws (a malformed raw file) all exit 2, so 1 is only ever a strict RED. UNDECIDED is
    neither a pass nor a regression, so it gets its own code: a caller can rerun with more passes instead of reading it as
    RED or CLEAN. No caller passes `--strict` today. `summary` over several engines exits the worst, refused before RED
    before UNDECIDED (`exitJoin`). The summary splits the
