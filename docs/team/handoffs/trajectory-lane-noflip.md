@@ -4,7 +4,7 @@
 - CI runs: none started (no probe needed); evidence runs 39926829451 and 39557718020 re-reduced offline (dev check).
 - Verified: `lean/scripts/check.sh` green (axioms standard, trajectory golden 342 lines up to date); `@fw/gate-breakpoints`
   tests 692/692; `scripts/ci-paths.test.mjs` 54/54; runner `land-inputs` 56/56.
-- Open: ledger row `hero.scenePause` in `docs/report/v2-report.md` (lead). WebKit cadence still unmodelled.
+- Open: ledger row `hero.scenePause` in `docs/report/v2-report.md` (lead). WebKit cadence still unmodelled. CI golden changed: packages/contracts/golden/gate/trajectory.jsonl (rel first open both ok->undecided, +2 rel rows, +3 laneStep rows).
 
 ## What changed
 - `rel`: a faithful `skip:firstOpen` is `undecided` against any failing candidate (coverage or content), and a candidate

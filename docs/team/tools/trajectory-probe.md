@@ -81,7 +81,7 @@ runs the probe with the inputs of one message line:
    5 and 5 passes, `k` 0-1 is late, 2-3 undecided, 4-5 missing (`cover_five`). The verdict never flips between
    `fail:coverage` and `skip:firstLate` when one original pass is added, hit or not (`firstCover_extra`), or one
    original miss becomes a hit (`firstCover_step`); concrete check `first_extra_pass`. A unit is `undecided` (`rel`) when
-   the candidate's open@1 is `skip:firstOpen`, or when the faithful arm's is `skip:firstOpen` and the candidate fails
+   the candidate's open@1 is `skip:firstOpen` and the faithful arm does not fail, or when the faithful arm's is `skip:firstOpen` and the candidate fails
    (`fail:coverage` or a content failure: the faithful arm was not measured there, as in `unmeasured`). The lane word is
    RED, UNDECIDED or CLEAN (`laneOf`; `summary-<engine>.md` prints the same word and an `undecided` row). The lane never
    moves between RED and CLEAN when the original arm gets one extra pass, hit or miss (`laneOf_extra`): each unit's arm is

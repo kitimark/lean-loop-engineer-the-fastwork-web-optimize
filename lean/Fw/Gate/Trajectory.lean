@@ -2542,7 +2542,7 @@ theorem laneFails_none : laneFails [.pass, .skip .noSample] = false := by decide
 `new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared`
 fails only there; `ok` fails in neither. `unmeasured`: the candidate fails on content (a difference) where the faithful arm
 fails on coverage, so the faithful arm was not measured there and the unit has no verdict either way. `undecided`: the
-candidate's open@1 is `skip firstOpen`, or the faithful arm's is `skip firstOpen` where the candidate fails. -/
+candidate's open@1 is `skip firstOpen` where the faithful arm does not fail, or the faithful arm's is `skip firstOpen` where the candidate fails. -/
 inductive Rel where
   | ok
   | both
