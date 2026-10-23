@@ -1396,30 +1396,21 @@ theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈
     rw [he] at this
     simp at this
 
-/-! ## Consensus of the identical arms -/
-
-/-- One region of a P cell once the identical arms are compared: no P change, a P change where the identical arms
-disagree, or a P change where they agree. -/
 inductive Seen where
   | quiet | varied | counted
 deriving DecidableEq, Repr
 
-/-- The golden name of a region reading. -/
 def Seen.name : Seen → String
   | .quiet => "quiet" | .varied => "varied" | .counted => "counted"
 
-/-- One region (outside every mask, or inside the layer's mask): P against A, and A against the identical arms A2
-and, when captured, A3. -/
 structure Zone where
   p : Raw
   aa2 : Raw
   aa3 : Option Raw
 deriving DecidableEq, Repr
 
-/-- Every captured identical arm equals A in the region. -/
 def Zone.agree (r : Zone) : Bool := r.aa2.changed == 0 && r.aa3.all (·.changed == 0)
 
-/-- A P change counts only where the identical arms agree. -/
 def Zone.seen (r : Zone) : Seen :=
   if r.p.changed == 0 then .quiet else if r.agree then .counted else .varied
 
@@ -1466,7 +1457,6 @@ theorem seen_dropping_a3 (r : Zone) (h : r.seen = .counted) : { r with aa3 := no
   have := (r.agree_iff).1 h.2
   exact ({ r with aa3 := none }.agree_iff).2 ⟨this.1, by simp⟩
 
-/-- The reading of a cell: the stronger of its two regions, counted over varied over quiet. -/
 def Seen.join : Seen → Seen → Seen
   | .counted, _ => .counted
   | _, .counted => .counted
@@ -1483,18 +1473,15 @@ theorem join_varied_iff (a b : Seen) : a.join b = .varied ↔ a ≠ .counted ∧
 theorem join_quiet_iff (a b : Seen) : a.join b = .quiet ↔ a = .quiet ∧ b = .quiet := by
   cases a <;> cases b <;> simp [Seen.join]
 
-/-- What a cell reports: its grade, or `varied` when its only P changes lie where the identical arms disagree. -/
 inductive Verdict where
   | graded (g : Grade)
   | varied
 deriving DecidableEq, Repr
 
-/-- The golden name of a verdict. -/
 def Verdict.name : Verdict → String
   | .graded g => g.name
   | .varied => "varied"
 
-/-- The grade `g` stands unless the cell is valid and all its P changes lie where the identical arms disagree. -/
 def verdict (g : Grade) (out inside : Zone) : Verdict :=
   if g == .invalid then .graded .invalid
   else if (out.seen.join inside.seen) == .varied then .varied
@@ -1535,18 +1522,14 @@ theorem seen_ne_varied_of_agree (r : Zone) (h : r.agree = true) : r.seen ≠ .va
   rw [Ne, seen_varied_iff]
   simp [h]
 
-/-- A region of a cell is outside every mask, or inside the layer's mask; `Aa` is A against one identical arm. -/
 structure Aa where
   out : Raw
   inside : Raw
 deriving DecidableEq, Repr
 
-/-- The cell's two regions with the identical arms attached. -/
 def Cell.regions (c : Cell) (a2 : Aa) (a3 : Option Aa) : Zone × Zone :=
   (⟨c.out, a2.out, a3.map (·.out)⟩, ⟨c.inside, a2.inside, a3.map (·.inside)⟩)
 
-/-- The consensus verdict of a P cell: its relative grade, withheld when its P changes lie only where A, A2 and A3
-disagree. -/
 def consensus (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa) : Verdict :=
   verdict (gradeRel c f live) (c.regions a2 a3).1 (c.regions a2 a3).2
 
@@ -1587,10 +1570,6 @@ theorem consensus_agreeing (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa)
   · exact seen_ne_varied_of_agree _ ao h
   · exact seen_ne_varied_of_agree _ ai h
 
-/-! ## Probe elements -/
-
-/-- A recorded element box in micro-CSS px (x, y, width, height), compared with a device-px box x0, y0, x1, y1 at an
-integer device pixel ratio. -/
 structure Probe where
   x : Int
   y : Int
@@ -1598,12 +1577,10 @@ structure Probe where
   h : Int
 deriving DecidableEq, Repr
 
-/-- The probe's box overlaps the device box with positive area on both axes: touching edges do not hit. -/
 def probeHit (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe) : Bool :=
   decide (p.x * dpr < (b.2.2.1 : Int) * 1000000) && decide ((p.x + p.w) * dpr > (b.1 : Int) * 1000000) &&
     decide (p.y * dpr < (b.2.2.2 : Int) * 1000000) && decide ((p.y + p.h) * dpr > (b.2.1 : Int) * 1000000)
 
-/-- The names of the probes the box overlaps, in the recorded order; no box names none. -/
 def probesHit (dpr : Nat) (b : Option (Nat × Nat × Nat × Nat)) (ps : List (String × Probe)) : List String :=
   match b with
   | none => []

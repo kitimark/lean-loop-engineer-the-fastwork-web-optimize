@@ -22,7 +22,7 @@ webkit-2 and 23-1 in webkit-3 at offset 0. This note replaces the "remaining flo
 **Two corrections.** (1) `10-2x-pathpix-accent-pin.md` says the misplaced row was "offset index 7 (y 855)": the row is offset
 index 7 with arm A at scrollY 0 and arms A2 and P at 855 (accent re-created). This run has 0 misplaced rows in all 6 jobs, so
 the validity rule (Lean `AccentRow.placed`: scrollY must equal the offset) did not fire; a lane test covers it. (2) The
-round-0 version of this note called the WebKit y 0 change the "countdown tile top edge". That was wrong: the tiles are at CSS y
+round-0 version of this note called the WebKit y 0 change the "countdown tile top edge". The tiles are at CSS y
 364..452 (manifest `div[hero-countdown]`), while the changed box (device px, dpr 3) x 123..1164, y 1607..1626 is CSS y 536, the
 top corners of the left and right hero deck cards (cells.json of run 39971881582: `hero.deck_article#0` A/A inside 24-1 at
 123,1607,143,1624, `#2` 24-1 at 1144,1607,1164,1624 in webkit-2; webkit-3 `#2` 148-2 and `#3` 47-2). The "three face spans" the
