@@ -15,9 +15,10 @@ What the change touches. The title is `clamp(36px, 4vw, 48px)` with the `o` word
 and a flex column, never balanced. So the only width range in which the declaration does anything is the one where the
 title fits one line, and there no break position exists to differ.
 
-Flag, not default (`people.card:title-wrap`). The breakpoint gate reads the title's `text-wrap-style`. With the change as the
+Flag, not default (`people.o:title-wrap`). The breakpoint gate reads the title's `text-wrap-style`. With the change as the
 default it failed 111 readings on Chromium and 105 on WebKit, all `balance` against `auto` on the title at the widths above
-860 px (run 39891679733), so the faithful default keeps `balance` and the gate stays green.
+860 px (run 39891679733), so the faithful default keeps `balance` and the gate stays green. The flag is a variant of
+`people.o`, whose CSS reaches the heading that holds the `o` with `:has`.
 -/
 namespace Fw.Parts.PeopleTitleWrap
 

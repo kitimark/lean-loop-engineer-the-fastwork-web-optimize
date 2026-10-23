@@ -7,7 +7,6 @@
   "muiStates": [],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:11257-11560;assets/2.gBuqKVzi.css:2358-2418,2784-2860,3519-3650" } },
-    "title-wrap": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.PeopleTitleWrap", "limit": "crash fix, not a speed win: the title wraps instead of balancing above 860 px so stock desktop Chrome does not crash (MEASURED); no look change while the title is one line (Lean fits_one_line); the gate reads text-wrap-style, so it reports balance vs auto on the title with this flag on; excludes mq (one variant per part)" } },
     "mq": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.PeopleCardOpt", "ledger": "n=16", "limit": "Lean premise P1 (the c860 band is fixed per load) is not enforced: outside P1, a resize across c860 shows a multi-frame visible lerp of scale and radius from the stale frozen value (INFERRED)" } }
   },
   "requires": {},

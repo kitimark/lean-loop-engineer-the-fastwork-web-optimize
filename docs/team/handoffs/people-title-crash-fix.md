@@ -20,8 +20,8 @@ Last commit: see `git log -1` (CI tip b3a92c3a1 held the change as default; fina
 Dispatches used: 6 of 6 (gate, counts x2, bisect, visual-diff base, stock load).
 
 ## State
-Fix = flag `people.card:title-wrap` (default stays `balance` so the gate is green); Lean `PeopleTitleWrap.lean` (fits_one_line,
+Fix = flag `people.o:title-wrap` (default stays `balance` so the gate is green); Lean `PeopleTitleWrap.lean` (fits_one_line,
 same_when_fits); `PeopleOBlock.lean` kept as the refuted option. Note `research/notes/2026/10-2x-people-title-crash-fix.md`.
-Open: CI pixel compare base vs flag (dispatch visual-diff, WebKit, parts people.card, probes desk-861,desk-1100, fw people.card:title-wrap);
-stock load with the flag on (`pnpm -s fw run --target rewrite --engines chromium --profile people-title-crash --runs 2 --fw people.card:title-wrap`;
-needs the probe copied to profiles/ on the ci branch); gate with the flag (`pnpm -s fw run --gate --engines both --fw people.card:title-wrap`).
+Open: CI pixel compare base vs flag (dispatch visual-diff, WebKit, parts people.card, probes desk-861,desk-1100, fw people.o:title-wrap);
+stock load with the flag on (`pnpm -s fw run --target rewrite --engines chromium --profile people-title-crash --runs 2 --fw people.o:title-wrap`;
+needs the probe copied to profiles/ on the ci branch); gate with the flag (`pnpm -s fw run --gate --engines both --fw people.o:title-wrap`).

@@ -328,6 +328,13 @@
     }
   }
 
+  /* Variant title-wrap (Lean PeopleTitleWrap): the title that holds the o wraps instead of balancing. Stock desktop Chrome
+     crashes while it balances the line with the o word. The title is one line above 860 px; at 860 px and below the card
+     unsets it, which computes to the same value. Reaches the heading by its id because the heading is the card's. */
+  :global(#future-heading):has(.isTitleWrap) {
+    text-wrap: wrap;
+  }
+
   @media (width<=860px) {
     .face {
       cursor: default;
