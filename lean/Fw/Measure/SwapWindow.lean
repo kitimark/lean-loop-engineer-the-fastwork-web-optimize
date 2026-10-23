@@ -557,7 +557,8 @@ private def bgCases : List (List Nat) :=
 
 private def nbCases : List (Nat × Nat) := [(0, 8), (1, 8), (6, 8), (7, 8), (0, 1), (0, 2), (1, 2)]
 
-private def goldenLines : List String :=
+/-- The golden lines in two constants, so each stays under the init-cost bound (`Fw.Lint.InitCost.bound`). -/
+private def goldenLinesA : List String :=
   [(Json.mkObj [("kind", "swapConst"), ("restUs", restUs), ("swapUs", swapUs), ("periodUs", periodUs), ("periods", periods),
     ("tolUs", tolUs), ("deadlineUs", deadlineUs periods), ("frames60", windowFrames60),
     ("minFaithful", minFaithful), ("busyMin", busyMin)]).compress] ++
@@ -567,7 +568,9 @@ private def goldenLines : List String :=
   (([wsNominal, wsDrift, wsOne, []]).map fun ws =>
     (Json.mkObj [("kind", "swapPhase"), ("wins", Json.arr (ws.map winJ).toArray), ("ts", toJson (phaseTimes ws)),
       ("phases", Json.arr ((phaseTimes ws).map fun t => phaseJ (phaseOf ws t)).toArray),
-      ("valid", Json.arr ((List.range (ws.length + 1)).map fun k => toJson (validAt ws k)).toArray)]).compress) ++
+      ("valid", Json.arr ((List.range (ws.length + 1)).map fun k => toJson (validAt ws k)).toArray)]).compress)
+
+private def goldenLinesB : List String :=
   (recCases.map fun (ws, rs) =>
     (Json.mkObj [("kind", "swapCount"), ("wins", Json.arr (ws.map winJ).toArray), ("recs", Json.arr (rs.map recJ).toArray),
       ("cells", Json.arr (((List.range ws.length).flatMap fun k =>
@@ -583,6 +586,6 @@ private def goldenLines : List String :=
     (Json.mkObj [("kind", "swapNeighbours"), ("k", k), ("n", n), ("rests", toJson (swapNeighbours k n))]).compress) ++
   [(Json.mkObj [("kind", "swapPredict"), ("faithful", predictedLayout 1), ("crop", predictedLayout 0)]).compress]
 
-def swapGoldenLines : List String := goldenLines
+def swapGoldenLines : List String := goldenLinesA ++ goldenLinesB
 
 end Fw.Measure.SwapWindow
