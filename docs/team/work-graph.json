@@ -18951,7 +18951,8 @@
     "scripts/fwcore-build.sh",
     "docs/team/handoffs/lake-prune-verify.md"
    ],
-   "title": "ci-lake-prune-artifacts review follow-ups (2026-10-24): (1) cross-runner proof: the first land legs and ci/* runs that restore a PRUNED main entry: Built lines vs Lean files changed (revert the prune step if a leg rebuilds hundreds of modules); branches behind main lose the history hits of the old 8 GB entry, measure that too; (2) the fwcore exe always has links=1 (scripts/fwcore-build.sh:16-19 strip -o + rename breaks the hard link), so it is pruned and every restoring job relinks fwcore:exe: record the first shipped main save's blob size and decide whether to keep the exe (or strip in place); (3) item 3 table: add the leg-restore-after-save gaps (36 s, 91 s) next to the waits; (4) Lean first: the prune selection (artifacts with links=1, keep outputs/) and the do-not-gate rule as decisions in Fw.Ops.LakeCache with the measured inputs as a verdict and golden."
+   "title": "ci-lake-prune-artifacts review follow-ups (2026-10-24): (1) cross-runner proof: the first land legs and ci/* runs that restore a PRUNED main entry: Built lines vs Lean files changed (revert the prune step if a leg rebuilds hundreds of modules); branches behind main lose the history hits of the old 8 GB entry, measure that too; (2) the fwcore exe always has links=1 (scripts/fwcore-build.sh:16-19 strip -o + rename breaks the hard link), so it is pruned and every restoring job relinks fwcore:exe: record the first shipped main save's blob size and decide whether to keep the exe (or strip in place); (3) item 3 table: add the leg-restore-after-save gaps (36 s, 91 s) next to the waits; (4) Lean first: the prune selection (artifacts with links=1, keep outputs/) and the do-not-gate rule as decisions in Fw.Ops.LakeCache with the measured inputs as a verdict and golden.",
+   "evidence": "a1d40c6"
   },
   {
    "devices": [
