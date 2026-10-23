@@ -140,7 +140,7 @@ this process (not a lane fault)".
 
 ## TS stand-ins (temporary; to be Lean-proved or generated)
 
-`ringSplit`, `glassOf`, `glassDelta`, `againstLoads`, `FLIP_SCAN` (pix.mjs/reduce.mjs/plan.mjs),
+`ringSplit`, `glassOf`, `glassDelta`, `againstLoads`, `FLIP_SCAN` (pix.mjs, reduce.mjs, sim-capture.mjs),
 `parseIOSurface`, `simServicePids`, `iosurfaceSample` (iosurface.mjs), `summary.mjs`, `quiet-refusal.mjs`.
 `grade` is the existing Lean-backed cell grade. Moving the lane to `packages/measure-webkit` is a follow-up.
 
