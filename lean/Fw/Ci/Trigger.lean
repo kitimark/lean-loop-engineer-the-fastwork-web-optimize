@@ -186,9 +186,9 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".node-version", own "engine-premises.yml"], []⟩,
   ⟨"font-fidelity.yml", ciAll, [
     "packages/measure-chromium/src/**", "packages/measure-chromium/Dockerfile", "packages/measure-chromium/docker/**",
-    "packages/contracts/golden/measure/**", "packages/contracts/golden/port/**", "scripts/port/**",
-    "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".node-version",
-    own "font-fidelity.yml"], []⟩,
+    "packages/measure-webkit/src/**", "packages/measure-webkit/fixtures/**", "packages/contracts/golden/measure/**", "packages/contracts/golden/port/**", "scripts/port/**",
+    "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/check-simulator.sh",
+    ".github/scripts/changed-inputs.mjs", ".node-version", own "font-fidelity.yml"], []⟩,
   ⟨"gate-gaps.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",

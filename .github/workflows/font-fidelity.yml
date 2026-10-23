@@ -188,8 +188,89 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  sim:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:font-fidelity:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:sim:${{ strategy.job-index }}
+    runs-on: xcode-27
+    timeout-minutes: 40
+    env:
+      FW_IOS_VERSION: '27.0'
+      FW_IOS_BUILD: 24A434
+      FW_SIM_NAME: fw-iphone-27
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/measure-chromium
+            packages/measure-webkit
+            packages/contracts
+            scripts/port
+            snapshot
+            .github/scripts
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Pinned iOS runtime build, then create the device
+        run: sh .github/scripts/check-simulator.sh --create
+      - name: Tool (ios_webkit_debug_proxy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install ios-webkit-debug-proxy
+          command -v ios_webkit_debug_proxy
+      - name: Section rows (the port gate's table)
+        run: node packages/measure-chromium/src/fidelity-rows.mjs "$RUNNER_TEMP/rows.json"
+      - name: Boot the Simulator (kept booted for the whole job)
+        run: |
+          set -euo pipefail
+          xcrun simctl shutdown all || true
+          udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+      - name: Safari in the Simulator, the same page function (two runs)
+        timeout-minutes: 25
+        shell: bash
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_WK_TIMEOUT_SCALE: '8'
+          FW_WK_ATTEMPTS: '3'
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/out/fidelity-sim"
+          mkdir -p "$out"
+          sw_vers | tee "$out/os.txt"
+          xcrun simctl list runtimes | tee -a "$out/os.txt" || true
+          for v in sim sim-r2; do
+            node packages/measure-chromium/src/fidelity-sim.mjs --rows="$RUNNER_TEMP/rows.json" --out="$out" --variant="$v" 2>&1 | tee -a "$out/log.txt"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: fidelity-sim
+          path: out/fidelity-sim
+          if-no-files-found: error
+          retention-days: 30
+
   report:
-    needs: [chromium, webkit-mac]
+    needs: [chromium, webkit-mac, sim]
     if: ${{ !cancelled() && needs.chromium.result == 'success' && needs.webkit-mac.result == 'success' }}
     concurrency:
       group: ci-lane:font-fidelity:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:report:${{ strategy.job-index }}
