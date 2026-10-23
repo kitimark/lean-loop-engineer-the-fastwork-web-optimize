@@ -57,7 +57,7 @@ runs the probe with the inputs of one message line:
 1. **Arm identity (refuses the run).** Each arm records its resolved config hash and `fwMode`. Lean `armCheck` allows only:
    rewrite arm = the hash of its search (from `configs.json` `bySearch`), non-empty, and `fwMode` is `hydrate`; original arm
    = no `window.__fw`. Anything else is `refused:config`: exit 2, no verdict, never a pass. (A page loaded at `/` with no
-   search client-renders the default config; an earlier round measured that for every run. Incident
+   search client-renders the default config. Incident
    `inc-variant-gate-flags-off`.) The faithful arm (rewrite, default config) is loaded from its own server for the same reason.
 2. **Coverage is a verdict.** In a push phase (open, close) an empty bucket 1-9 (a tenth of the morph value `m`), a missing
    morph value or a `beyond` window is `fail:coverage`, never skip. Hold phases may skip an empty bucket. The tween is driven
@@ -100,7 +100,7 @@ runs the probe with the inputs of one message line:
    `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). With `laneOf_extra`: run 39926829451 CLEAN (new 0, undecided 0, cleared 1; its
    open@1 `skip:first` units are 42 `skip:firstLate` vs pass and 42 pass vs `skip:firstLate`, no `skip:firstOpen`), run
    39557718020 CLEAN (new 0, undecided 0).
-   **Leave-one-out band (task trajectory-noflip-followups).** Content verdicts compare values with the band of the original's
+   **Leave-one-out band.** Content verdicts compare values with the band of the original's
    passes, so one extra pass can move them: it widens a band (candidate `new` becomes `ok`, RED to CLEAN) or clears the faithful
    arm (`both` becomes `new`, CLEAN to RED); checks `contentRel` with `bumpPass`. Each unit is now judged against its
    `family`: the original and, with two passes or more, the original without each pass (`dropPass`). `stableRel` gives `new`

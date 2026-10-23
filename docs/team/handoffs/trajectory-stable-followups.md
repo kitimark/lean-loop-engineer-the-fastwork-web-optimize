@@ -18,7 +18,7 @@
   artifact of run 39511908073, which concluded failure.
 
 ## Open
-- CI reduce-step time not re-measured on CI (offline only).
+- CI reduce-step time not re-measured on CI.
 - A Simulator lane needs a new timed `webkit-sim` pass reading `m`, the probe properties and `t0` per frame.
 
 ## Read first

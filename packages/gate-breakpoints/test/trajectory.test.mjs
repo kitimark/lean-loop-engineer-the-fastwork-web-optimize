@@ -1,5 +1,3 @@
-// The trajectory reducer against the vectors Lean generates (lean/Fw/Gate/Trajectory.lean, scripts/TrajectoryGolden.lean), and the
-// loop around it (reduceWidth) on small synthetic readings whose answers are worked out by hand.
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';

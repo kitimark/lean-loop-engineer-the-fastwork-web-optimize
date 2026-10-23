@@ -209,7 +209,6 @@ export function matchOne(kind, win, r) {
 export const judgeColour = (core, win, r) =>
   combine([matchOne('colour', core.map((x) => chan(x.els)), chan(r.els)), judgeEls('colour', win.map((x) => alpha(x.els)), alpha(r.els))]);
 
-/** Lean `isCoreIn`. */
 export const isCoreIn = (r, o) => isCore({ ...r, rep: o.rep }, o);
 
 export const envelope = (seg, r) => repsOf(seg).flatMap((q) => flightWindow(seg, { ...r, rep: q }));
@@ -228,7 +227,6 @@ export const judgeWith = (kind, d, seg, fw, core, win, r) => judgeWithBy(kind, d
 
 export const judgeUnit = (kind, d, seg, win, r) => judgeWith(kind, d, seg, envelope(seg, r), (o) => isCoreIn(r, o), win, r);
 
-/** Lean `judgeOwn`. */
 export const judgeOwn = (kind, d, seg, win, r) => judgeWith(kind, d, seg, flightWindow(seg, r), (o) => isCore(r, o), win, r);
 
 /** Lean `bucket`: the tenth of a morph value (floor((m + 500) / 1000), clamped to 0..10); 11 for no morph value. */
@@ -395,14 +393,12 @@ export function triggersOf(ps) {
 
 const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
 
-/** Lean `origFirst`. */
 export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
 
 export const excess = (lo, hi, w) => (w < lo ? lo - w : hi < w ? w - hi : 0);
 
 export const startCheck = (kind, full, seg, prior, r) => startCheckAt(kind, full, origFirst(seg, r), prior, r);
 
-/** Lean `excess`. */
 function startCheckAt(kind, full, o, prior, r) {
   const q = triggersOf([...prior, r])[0] ?? null;
   if (q === null || o === null) return null;
