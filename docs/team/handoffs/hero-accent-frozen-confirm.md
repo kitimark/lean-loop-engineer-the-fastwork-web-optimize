@@ -1,7 +1,7 @@
 branch: worktree-wf_1014fee6-cdd-1 (CI branch ci/hero-accent-frozen-confirm)
 worktree: .claude/worktrees/wf_1014fee6-cdd-1
 CI runs: dispatch 1 = run 39996415429 webkit-sim at 9997926ab: FAILED as a set (r1 job 120562437169 failure: Simulator died in the zone captures, no json; r2 job 120562437268 cancelled: slow boot, diag capture timed out, Safari relaunch failed, json with no pass; r3 job 120580412344 success, 2 passes). Runner load averages were 366 to 893 in the host dumps.
-dispatch 2 of 2 (the last): see the last commit; hardened (see below). Never pool jobs of different commits (r3 of dispatch 1 stays a single-job pilot).
+dispatch 2 of 2 (the last): pushed at the token commit after ffb0934db (run id in the next handoff line once known); hardened (see below). Never pool jobs of different commits (r3 of dispatch 1 stays a single-job pilot).
 read first: research/notes/2026/10-2x-carousel-swap-webkit.md (section on the freeze), results/carousel-swap-webkit/hero-accent-frozen.md
 done (code, committed):
 - freeze.mjs (harness-side hero.accent freeze, inert when --freeze is unset), zoneprobe.mjs (hero-exit zone Layout/Paint, aligned = scroll starts in a draw), freezesession.mjs, freezereport.mjs, cli.mjs `--freeze hero-accent` and `freeze-report`
