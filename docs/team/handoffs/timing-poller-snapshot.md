@@ -20,9 +20,11 @@
   `prevPollS` (240000), interval grew 10→30 s (220000), stall past the earlier 60 s (190000). Wire reads `prevPollS`.
 
 ## Verified
-- See the report; tests: wait.test.ts "a failed call after the deciding tick…" (2 waiters, 403 on the holder's view
-  raises state retryUntil to +600 s, the late reader still records 0) and "an interval that shrank…" (drain before a
-  reset: prevPollS 250, pollS 10).
+- `lean/scripts/check.sh` green after merging main (axioms ok); @fw/gh-budget 81 tests, @fw/runner 3268, @fw/contracts
+  11, ci-paths 56; plan lint 0 errors; dry land `VERDICT dry timing-poller-snapshot`.
+- wait.test.ts "a failed call after the deciding tick…" (2 waiters, a 403 on the holder's view raises the state's
+  retryUntil by 600 s, the late reader still records 0) and "an interval that shrank…" (drain before a reset:
+  prevPollS 250, pollS 10, gap 250 s).
 
 ## Open
 - The recorded interval is the state's before the tick's `listed`/`pages` events; a pages change shows in the
