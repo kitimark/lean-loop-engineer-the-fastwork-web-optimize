@@ -3,19 +3,20 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { REST_US, SWAP_US, PERIOD_US, PERIODS, TOL_US, DEADLINE_US, FRAMES_60, nominal, validAt, phaseOf, countCells, cell } from '../src/lag/swap.mjs';
+import { REST_US, SWAP_US, PERIOD_US, PERIODS, TOL_US, DEADLINE_US, FRAMES_60, MIN_FAITHFUL, BUSY_MIN, nominal, validAt, phaseOf, countCells, cell, bgOf, swapNeighbours } from '../src/lag/swap.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/measure/wkcost.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('every swap golden kind has lines', () => {
-  for (const k of ['swapConst', 'swapNominal', 'swapPhase', 'swapCount', 'swapCell', 'swapPredict']) assert.ok(of(k).length > 0, k);
+  for (const k of ['swapConst', 'swapNominal', 'swapPhase', 'swapCount', 'swapCell', 'swapBg', 'swapNeighbours', 'swapPredict']) assert.ok(of(k).length > 0, k);
 });
 
 test('constants come from the golden and add up', () => {
   const [c] = of('swapConst');
   assert.deepEqual([REST_US, SWAP_US, PERIOD_US, PERIODS, TOL_US, DEADLINE_US, FRAMES_60], [c.restUs, c.swapUs, c.periodUs, c.periods, c.tolUs, c.deadlineUs, c.frames60]);
+  assert.deepEqual([MIN_FAITHFUL, BUSY_MIN], [c.minFaithful, c.busyMin]);
   assert.equal(REST_US + SWAP_US, PERIOD_US);
   assert.equal(DEADLINE_US, PERIODS * PERIOD_US + SWAP_US + PERIOD_US);
 });
@@ -52,6 +53,14 @@ test('theorem: a record on a window start is in the swap and on its stop in the 
 
 test('verdict of one window and one event kind', () => {
   for (const g of of('swapCell')) assert.equal(cell(g.a1, g.a2, g.crop, g.dropped), g.cell, JSON.stringify([g.a1, g.a2, g.crop]));
+});
+
+test('background of a swap window from its neighbouring rest windows (Lean bgOf)', () => {
+  for (const g of of('swapBg')) assert.equal(bgOf(g.rows), g.bg, JSON.stringify(g.rows));
+});
+
+test('the rest windows next to a swap window (Lean swapNeighbours)', () => {
+  for (const g of of('swapNeighbours')) assert.deepEqual(swapNeighbours(g.k, g.n), g.rests, `${g.k}/${g.n}`);
 });
 
 test('the model predicts 13 Layout frames per faithful swap and none for the crop', () => {
