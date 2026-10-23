@@ -29,7 +29,7 @@ the 50-minute step limit) kept real-touch end windows in only the first 1 to 3 w
 - **On a quiet Mac the same push takes 4.6 s (MEASURED locally, debug evidence only, not a result).** Per press: pre-event wait
   0.02 s, interrupt check 0.2 s, five `Find the Window` snapshots inside `Synthesize event`, 2.0 s of finger (0.1 s press,
   0.5 s drag, 1 s hold), post-event wait 0.03 s. Earlier note `10-2x-toolbar-throttle.md:91-102` already saw 60 to 185 s per
-  pass on the runner against about 50 s on a Mac. So the swipe itself is cheap; only the idle waits stretch under load.
+  pass on the runner against about 50 s on a Mac.
 - **Timeline.stop timed out because a touch window recorded minutes of Timeline (INFERRED mechanism, CONFIRMED volume).**
   `InspectorTimelineAgent::stop` is cheap (`InspectorTimelineAgent.cpp:112-120`, `internalStop` 186-199: no work
   proportional to the records). But the stop reply and every record share one channel in order:
@@ -42,7 +42,7 @@ the 50-minute step limit) kept real-touch end windows in only the first 1 to 3 w
   `Runtime.evaluate timed out after 120000 ms`: every later command waited too. That the channel (and not only the
   starved WebContent process) is what stalls is not separated by these logs.
 - **Raising the stop wait cannot fix it (MEASURED).** With 240 s, job 2 still timed out and kept 0 of 15 windows; jobs 1 and 3
-  hit the 50-minute step limit. The wait only moved the cost into the job time.
+  hit the 50-minute step limit.
 - **The Timeline of a touch window is not needed.** Frame counts and intervals come from page timestamps (`rec.ts`); the
   Timeline only gave per-zone render work. A touch end window now records no Timeline (Lean `timelinePlan`), so no stop
   can time out there.
@@ -93,7 +93,7 @@ the failed push), so record volume is not the only cause of stop timeouts; the i
   760,912 ms on one window.
 - `timelinePlan_touch` / `timelinePlan_other`: touch window records none, any other window stops its Timeline within the stated wait.
 
-Honest limit: the bound says the harness stops waiting; it does not make XCUITest finish a push when the runner is starved. One
+The bound says the harness stops waiting; it does not make XCUITest finish a push when the runner is starved. One
 failing push per job is the worst case, after which the job continues with the synthetic wheel (as before, but within 3 minutes, not
 within the step limit).
 
@@ -124,4 +124,4 @@ within the step limit).
 - Phone not measured. Control arm (`FW_TOUCH_VARIANTS=safari`, same commit) would separate the two changes; it needs the workflow to pass the variable (`smoothness.yml`, owned by smoothness-cpu-throttle).
 - `report.mjs` labels the Timeline column from `mode`, so touch rows read "on"; a `timeline:false` label is a follow-up (outside this task's writes).
 - Simulator hero windows are starved on the runner (2 to 40 frames in 7 s, runs above); not touched here.
-- Negative result worth keeping: lengthening the stop wait (60 s to 240 s) made the job slower and kept fewer windows.
+- Lengthening the stop wait (60 s to 240 s) made the job slower and kept fewer windows.

@@ -65,7 +65,6 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
-    // no Timeline in a touch window (Lean timelinePlan): its counts come from page timestamps, and stop() timed out after minutes of records
     const plan = timelinePlan(win === 'end' && touch.on, T(7500));
     const tl = plan.kind === 'off' ? null : await startTimeline(ctx.c, { stopMs: plan.ms });
     let rec;

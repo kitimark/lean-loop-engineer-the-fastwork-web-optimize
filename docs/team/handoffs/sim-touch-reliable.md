@@ -17,7 +17,7 @@
 - Files outside the task writes: `lean/Fw/Measure/TouchPush.lean`, `lean/scripts/TouchPushGolden.lean`, `lean/Fw.lean`, `lean/scripts/check.sh`,
   `lean/Fw/Ci/Trigger.lean` (one input), `packages/contracts/golden/ci/triggers.jsonl` (regenerated), `packages/contracts/golden/measure/touch-push.jsonl`.
   Dry land without `--allow` ends `VERDICT scope sim-touch-reliable` (4 files); with `--allow` for them it ends `VERDICT dry sim-touch-reliable`.
-- Green: `sh lean/scripts/check.sh`, measure-webkit tests (426), ci-paths test (54), apps/runner test (2914 incl. tsc, rerun after the merge of main).
+- Green: `sh lean/scripts/check.sh`, measure-webkit tests (426), ci-paths test (54), apps/runner test (2914 incl. tsc).
 
 ## Read first
 `research/notes/2026/10-2x-sim-touch-reliable.md`, then `packages/measure-webkit/src/touch-push.mjs` (`touchWindow`, stand-ins), `lean/Fw/Measure/TouchPush.lean`.

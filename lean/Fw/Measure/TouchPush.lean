@@ -4,7 +4,6 @@ import Lean.Data.Json
 -/
 namespace Fw.Measure.TouchPush
 
-/-- Millisecond deadlines of one touch window and of the driver start. -/
 structure Budget where
   readyMs : Nat
   beginMs : Nat
@@ -14,10 +13,8 @@ structure Budget where
   doneMs : Nat
 deriving Repr, BEq
 
-/-- Ready: 240 s (runs 39901005729 and 39909042070: 51 to 214 s). Begin, swipe, answer and done: several times the 3.1 s a push takes. -/
 def budget : Budget := ⟨240000, 45000, 20000, 600, 20000, 60000⟩
 
-/-- What the harness saw of one touch window, in ms from the `go` file; `none` is a point never reached. -/
 structure Obs where
   beginAt : Option Nat
   swipeAt : Option Nat
@@ -42,7 +39,6 @@ def within (x : Option Nat) (cap : Nat) : Bool :=
   | some v => decide (v ≤ cap)
   | none => false
 
-/-- The window's verdict: the first failing check in this order. -/
 def classify (b : Budget) (o : Obs) : Outcome :=
   if o.answered = false then .pageLost
   else if within o.beginAt b.beginMs = false then .beginLate
@@ -50,23 +46,18 @@ def classify (b : Budget) (o : Obs) : Outcome :=
   else if o.moves = 0 then .noMove
   else .ok
 
-/-- The driver ended its push in time. -/
 def doneInTime (b : Budget) (o : Obs) : Bool := within o.doneAt (b.beginMs + b.swipeMs + b.doneMs)
 
-/-- The lane stays on after a window iff it was on, the window is ok and the driver finished in time. -/
 def laneAfter (b : Budget) (on : Bool) (o : Obs) : Bool :=
   on && decide (classify b o = .ok) && doneInTime b o
 
-/-- Longest wait of the harness for one window: each deadline at most once. -/
 def windowCap (b : Budget) : Nat := b.beginMs + b.swipeMs + b.tailMs + b.answerMs
 
-/-- Time the harness waits for one window, given what it saw. -/
 def spent (b : Budget) (o : Obs) : Nat :=
   (match o.beginAt with | some v => min v b.beginMs | none => b.beginMs)
   + (match o.swipeAt with | some v => min v b.swipeMs | none => b.swipeMs)
   + b.tailMs + (if o.answered then 0 else b.answerMs)
 
-/-- Windows of one job: touch time and failures while the lane is on. -/
 def lane (b : Budget) : Bool → List Obs → Nat × Nat
   | _, [] => (0, 0)
   | false, _ :: rest => lane b false rest
@@ -74,7 +65,6 @@ def lane (b : Budget) : Bool → List Obs → Nat × Nat
     let (t, f) := lane b (laneAfter b true o) rest
     (spent b o + b.doneMs + t, (if classify b o = .ok then 0 else 1) + f)
 
-/-- Timeline plan of a window: a touch window records none. -/
 inductive Plan where
   | off
   | stopWithin (ms : Nat)
@@ -135,7 +125,6 @@ theorem spent_le_windowCap (b : Budget) (o : Obs) : spent b o ≤ windowCap b :=
     split <;> omega
   omega
 
-/-- Time and failures of a job are bounded: at most one failure, and `n` windows cost at most `n` window caps plus `n` done waits. -/
 theorem lane_failures_le_one (b : Budget) (on : Bool) (os : List Obs) : (lane b on os).2 ≤ 1 := by
   induction os generalizing on with
   | nil => simp [lane]

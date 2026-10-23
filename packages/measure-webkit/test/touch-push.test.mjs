@@ -74,7 +74,6 @@ test('variantFor cycles the list and refuses an unknown name', () => {
   assert.throws(() => variantFor(0, 'finger'), /unknown touch variant/);
 });
 
-// the Lean golden (Fw.Measure.TouchPush, packages/contracts/golden/measure/touch-push.jsonl)
 const golden = readFileSync(new URL('../../contracts/golden/measure/touch-push.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 
 test('touch-push stand-ins replay the Lean golden', () => {
