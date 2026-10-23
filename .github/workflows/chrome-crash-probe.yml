@@ -6,7 +6,7 @@ name: chrome-crash-probe
 # emulation), loads the minimal repro and the original snapshot page at 1280 and 860 and reports the exit state per variant.
 # Probe: packages/measure-chromium/probes/balance-platforms.json, run by src/crash-probe.mjs (the same code as the container lane).
 # Legs: linux x86_64 headless and headed (under xvfb), linux arm64 headless (the control: the container lane crashed there; with runner fonts it does not), macOS arm64 headless and headed, macOS x86_64 headless, Windows x86_64
-# headless and headed. Three more Linux legs set FONTCONFIG_FILE to the container lane's empty fonts.conf (no system fonts, as in the lane that crashed). Free runners only. Nothing here is phone time.
+# headless and headed. Three more Linux legs set FONTCONFIG_FILE to an empty fontconfig (no <dir>), as the container lane had before counts-lane-fonts, (no system fonts, as in the lane that crashed). Free runners only. Nothing here is phone time.
 on:
   push:
     branches: ['ci/**']
@@ -132,9 +132,11 @@ jobs:
       - name: Verify the snapshot against snapshot.lock.json
         continue-on-error: true
         run: node .github/scripts/verify-snapshot.mjs
-      - name: No system fonts (the container lane's empty fontconfig, as a leg of its own)
+      - name: No system fonts (an empty fontconfig (no <dir>), as the container lane had before counts-lane-fonts)
         if: ${{ matrix.nofonts == '1' }}
-        run: echo "FONTCONFIG_FILE=$GITHUB_WORKSPACE/packages/measure-chromium/docker/fonts.conf" >> "$GITHUB_ENV"
+        run: |
+          printf '<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n  <cachedir>/tmp/fontconfig-cache</cachedir>\n</fontconfig>\n' > "$RUNNER_TEMP/fw-empty-fonts.conf"
+          echo "FONTCONFIG_FILE=$RUNNER_TEMP/fw-empty-fonts.conf" >> "$GITHUB_ENV"
       - name: Xvfb (the headed leg on Linux)
         if: ${{ runner.os == 'Linux' && matrix.headed == '1' }}
         run: |

@@ -28,6 +28,7 @@ e2fsprogs=1.47.0-2+b2
 findutils=4.9.0-4
 fontconfig-config=2.14.1-4
 fontconfig=2.14.1-4
+fonts-liberation=1:1.07.4-11
 gcc-12-base=12.2.0-14+deb12u1
 gpgv=2.2.40-1.1+deb12u2
 grep=3.8-5
