@@ -87,7 +87,7 @@ Synthetic pair (MEASURED, real gh-budget code, a fake gh that sleeps 90 s; holde
 
 `fw ci state` now writes `ci state gh lock`, `gh reserve`, `gh call`, `gh backoff` (only when non-zero) and `reduce` (everything outside the gh calls: parse and id search) beside the whole `ci state` span (`ciStateParts`, `ciStateSteps` in Lean).
 
-One real run, unknown id (all three lists), load 4.3 (MEASURED 2026-10-23, `.fw-console/timings.jsonl`):
+One real run, unknown id (all three lists), load 4.06 (MEASURED 2026-10-23, `.fw-console/timings.jsonl`):
 
 | Part | ms |
 |---|---|
@@ -97,7 +97,7 @@ One real run, unknown id (all three lists), load 4.3 (MEASURED 2026-10-23, `.fw-
 | reduce | 153 |
 | whole span | 38892, exit 2 |
 
-Per list call, including its reserve: limit 100 took 2789 ms, 400 took 9276 ms, 1000 took 22319 ms.
+Per list call, including its reserve, from a separate timed run (not in timings.jsonl, which has no per-call span; the three sum to 34384 ms): limit 100 took 2789 ms, 400 took 9276 ms, 1000 took 22319 ms.
 
 - **The slow part is the gh call**, which grows with the list size (about 22 ms per run listed: gh pages 100 rows per request). It is not the gh-budget lock (3 ms), so follow-ups (1)-(3) are not the fix for it; they bound hung holders only.
 - **Exit 2** means the run id is in none of the lists (100, 400, 1000 newest runs; `ciState` prints `<id> unknown`), after all three calls ran. The slow alerts of 34.9 s, 37.3 s (exit 2) and 43.0 s match this: three lists cost about 35-38 s. A run id that is on a branch is cheap when `--branch` or `--workflow` narrows the list; an id older than 1000 runs is always the 35 s path.
