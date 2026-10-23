@@ -12,7 +12,7 @@ here), CONFIRMED (source cited), INFERRED (reasoned, not seen).
 | Does the trusted push open the morph? | Yes: `--morph` reached 1 and returned to 0 in all 36 trusted runs, as in the synthetic runs | MEASURED, run 39971123168 |
 | Do per-frame counts differ, trusted vs synthetic? | No separated difference in 41 of the 42 cells (2 arms x 3 phases x 7 counters); the one cell with a separation is in the idle phase (see below) | MEASURED, run 39971123168; pooled over 18 runs, superseded by the per-job verdicts of the follow-up below |
 | Phase rule | Lean `Fw.Measure.WebKitLagPhase` with golden `webkit-lag.jsonl`; 72 of 72 runs accepted, 0 refused | MEASURED + Lean |
-| Simulator leg | Not done: sim-touch-reliable (worktree-wf_b60a7b2e) is not on main | follow-up |
+| Simulator leg | Run once (40018153769): touch pushes open the morph (job 1: 13 of 14; job 3: 3 of 3, then the lane was lost; job 2: no device), no counts (touch windows record no Timeline): INCONCLUSIVE for counts; see follow-up 2 | MEASURED |
 
 The one separated cell (orig FireAnimationFrame, trusted higher) is in the idle phase, which ends at the first push. The trusted drive reaches its push 3 frames
 later (13.89 vs 10.83 idle frames for `orig`), so the idle window is longer for it, and the cell is not a morph effect (INFERRED).
@@ -61,8 +61,66 @@ path (INFERRED from the region rule and the handler, not seen as a trace). The s
 trusted wheel scrolls by `defaultWheelEventHandler` (`EventHandler.cpp:3814-3825`) when the page does not prevent it.
 determineWheelEventProcessing (ScrollingTree.cpp:139-151) reaches computeWheelProcessingSteps for every wheel, whatever the scroll position, so the at-end pushes of run 39971123168 also ran it. What the scroll-in drive adds is a real page scroll of 300 px before the push, not the async-scrolling path: with the non-passive listener region both runs take SynchronousScrolling (INFERRED).
 
-Limits: Playwright mac WebKit on a CI VM is not the phone; the Simulator leg is still a follow-up (sim-touch-reliable is not on main);
+Limits: Playwright mac WebKit on a CI VM is not the phone; the Simulator leg ran later (follow-up 2);
 one CI run, three jobs.
+
+## Follow-up 2: the push during the scroll, and the Simulator leg (runs 40018133445, 40018153769)
+
+Review finding: in run 39989441570 the scroll had settled before the push (last scroll at frame 23, push at frame 28), so no open phase had
+a scroll in flight. The fourth drive `momentum` (`macmorph.mjs`) starts 300 px above the end, sends trusted scroll wheels with a 2-frame gap
+until one is left, then sends the last scroll wheel, waits one frame and sends the push wheel. A scroll wheel at frame s counts as in flight for frames
+s to s + 2 (Lean `flightHold`, `inFlight`, `flightFrames`, `WebKitLagPhase.lean`); a run is used only if the scroll-in rule holds, a push was seen,
+at least 2 scroll wheels came before it and the push frame is in flight (`acceptMomentum`; refusals `noPush`, `fewWheels`, `settled`). Frame indices come from the page's
+wheel events (`splitPush`: the scroll wheels are the events before the first one marked as the push). Tags: MEASURED (run 40018133445, sha 704cb3741, tags
+`[ci:smoothness] [webkit-cadence] [morph-wheel]`, 3 jobs of 6 reps per cell), INFERRED, CONFIRMED.
+
+| question | answer | tag |
+|---|---|---|
+| Did the push land with a scroll in flight? | Only by the 2-frame wheel label: the push came 2 frames after the last scroll wheel in 2 to 4 of 6 runs per cell (orig 4, 4, 3; rewrite 3, 3, 2), and 3 to 5 frames after it in the rest (refused settled); the page had stopped at maxY in all 36 runs, so no scroll was moving at the push. Mean frames from the last scroll wheel to the push: 2.3 to 2.8 (momentum) against 7.5 to 9.8 (scrollin), every job and arm | MEASURED |
+| Is there scroll momentum to overlap? | No: the page was already at the end (`scrollY` = `maxY`) at the push event in 36 of 36 momentum runs and 36 of 36 scrollin runs, 1 to 5 frames after the last scroll wheel. The trusted wheel's scroll is applied at once, so the "scroll in flight" of a run is the wheel stream, not a continued scroll motion (INFERRED from `scrollY` at the push event; the Playwright wheel carries no momentum phase) | MEASURED + INFERRED |
+| Open-phase frames with a scroll in flight | 0.33 to 0.67 of about 61 per run (at most 3 by the rule), so any difference in the open phase is not an effect of 60 frames of scrolling | MEASURED |
+| Open phase, orig, momentum vs synthetic (jobs 1 / 2 / 3) | Layout overlap / overlap / lower; RecalculateStyles overlap / lower / lower; Paint overlap / overlap / higher; paintArea overlap / higher / higher; Composite, RenderingFrame, FireAnimationFrame overlap in all three | MEASURED |
+| Open phase, rewrite, momentum vs synthetic | overlap in all 7 counters in all 3 jobs | MEASURED |
+| Open phase, momentum, rewrite vs original (jobs 1 / 2 / 3) | Layout overlap / overlap / higher; Paint overlap / overlap / lower; FireAnimationFrame overlap / overlap / higher; paintArea overlap / overlap / higher; RecalculateStyles, Composite, RenderingFrame overlap | MEASURED |
+| Close phase | drive vs synthetic: overlap in all 7 counters, both arms, all 3 jobs; rewrite vs original: Layout higher in job 3, rest overlap | MEASURED |
+| Runs behind the verdicts | accepted runs per cell (jobs 1 / 2 / 3): orig 4 / 4 / 3, rewrite 3 / 3 / 2 of 6; verdicts need separated per-run ranges, so with 2 to 4 runs a "overlap" is weaker than in the other drives | MEASURED |
+
+The Paint and paintArea "higher" cells for orig lie in the same direction as the scrollin drive's non-significant 27 to 35 percent (above) and appear in jobs 2 and 3 only; the Layout and RecalculateStyles
+"lower" cells repeat the scrollin result for orig. None of the cells is stated for the rewrite arm.
+
+**Labels (review item 2).** `macreport.mjs` named every job "job 1" because each matrix job reports its own file. A file now carries `jobIndex` (`mac-cli.mjs run --job-index N` or `FW_MATRIX_JOB`); the label rule is Lean `jobLabel`
+(named index, else `this job` for one file, else the position); `report --files a,b,c --jobs 1,2,3` labels downloaded files. The workflow passes no index (`smoothness.yml` is outside this task), so the in-job table
+says `this job`, and the table above was built offline with `--jobs 1,2,3`.
+
+**Simulator leg (run 40018153769, sha eca3c0e60, tags `[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`, the PushServer touch of `sim-touch-reliable`): INCONCLUSIVE for counts.** A touch window records no Timeline
+(Lean `timelinePlan`), so this leg can show only whether the real touch opens the morph and how many frames the page saw, not record counts.
+
+| job | result | tag |
+|---|---|---|
+| 1 | 14 touch end windows, 14 `ok`; `--morph` reached 1 in 13 of 14 (the 14th, `bound` rep 2, recorded 0 frames); frames per window 0 to 165, median 104; 4 to 50 touch moves | MEASURED |
+| 2 | failed before any window: `simctl list devices` timed out (host load average 570) | MEASURED (artifact `smoothness-webkit-sim-2`, no `sim.json`) |
+| 3 | 3 touch windows `ok`, `--morph` reached 1 in all 3, then `pageLost`; the touch lane went off for the rest of the job (host load average 1000) | MEASURED |
+
+Hero windows and the touch swipe are not scroll-in-flight windows (the touch window starts at the page end), so the Simulator leg does not test the overlap question; it shows that the real-touch push opens the morph on CI. The windows are starved
+(median 104 frames in the push window against about 480 for the same time at 60 Hz). Limits: CI macOS and CI Simulator are not the phone; Playwright WebKit has no momentum phase.
+
+## Follow-up 3: no momentum phase on this lane, the site holds the page, and the pull drive (run 40032804511)
+
+Review finding on follow-up 2: the push met a page already stopped at `maxY`, so "in flight" was only a label. Two questions: does a Playwright WebKit trusted wheel have a momentum phase at all, and can a scroll move during the open phase. Run 40032804511 (sha 8687ac51a, tags `[ci:smoothness] [webkit-cadence] [morph-wheel]`, mac only, 3 jobs of 6 reps per cell).
+
+| question | answer | tag |
+|---|---|---|
+| Does a Playwright WebKit trusted wheel have a momentum phase? | No. Playwright 1.64.1 `RawMouseImpl.wheel` (`playwright-core/lib/coreBundle.js` lines 47746 to 47758; tag v1.64.1 = cfe490d94) sends `Page.updateScrollingState`, waits one rAF, then `Input.dispatchWheelEvent` with x, y, deltaX, deltaY and modifiers only, and throws on mobile. The WebKit patch (`browser_patches/webkit/patches/bootstrap.diff` @v1.64.1 lines 13937 to 13962, new file `Source/WebKit/UIProcess/WebPageInspectorInputAgent.cpp`) builds the `WebWheelEvent` with the six-argument constructor (`Source/WebKit/Shared/WebWheelEvent.h:63` @56453fdfe0b0, the base in `UPSTREAM_CONFIG.sh`), whose `m_phase` and `m_momentumPhase` start as `Phase::None` (`WebWheelEvent.h:102-103`; identical at the pinned 862f17d), then calls `handleNativeWheelEvent` (`WebPageProxy.cpp:4805` @56453fdfe0b0). The only synthetic momentum code runs on `momentumPhase() == Phase::Began` (`WebPageProxy.cpp:4988` and `:5012` @56453fdfe0b0; :4918 and :4942 at the pinned 862f17d), which never happens. So momentum is not reproducible on this lane; the phone's momentum stays the phone's | CONFIRMED |
+| Can a scroll move during the open phase? | No, by the site's own code. While the morph is open every wheel is `preventDefault`ed (`snapshot/site/_app/immutable/nodes/2.DyWL8TcE.js`: handler `A`, `k(dy) = C() or (dy > 0 and O())`) and the scroll handler `L` puts `scrollY` back to the position taken at the push with `scrollTo({top: s, behavior: 'instant'})`. A push opens the morph only when `.start-selling-platform` is at least 0.45 of the viewport tall and ends within 8 px below it (`O()`), which is `scrollY` at or above `maxY - 7` (local debug check: `maxY` 5102, `O()` true from 5095, false at 5094). So a wheel cannot scroll the page in the open phase, and on this lane neither can a touch; a page script can move it only between the site restores, which run in a rAF scheduled by its scroll listener (dE adds L to the set iE runs; aE adds rE as the scroll listener; 2.DyWL8TcE.js). On iOS a touch pan that began before the morph opened cannot be cancelled by touchmove (WKContentViewInteraction.mm:4239-4245 and :2491-2498 @862f17d), so this does not hold for the phone (INFERRED, not measured), and a push far from the end does not open the morph | CONFIRMED (source) + MEASURED (local debug, not a result) |
+| What does the new drive `pull` do? | It scrolls to 4 px above the end (`maxY - 4`, inside the 7 px window), waits until the page stops, sends the trusted push (the morph opens, the wheel is prevented), then from the page calls `scrollBy({top: -2, behavior: 'instant'})` once per rAF frame until the trusted up push. The site puts the page back after every scroll event, so each open-phase frame carries a real scroll and a scroll event (scroll style, layout and event work) that a push into a stopped page does not. A plain `scrollBy(0, -2)` left `scrollY` unchanged in a local debug run (cause not isolated); `behavior: 'instant'` moved it every frame | INFERRED (pull-and-restore at the lock, not a moving scroll) |
+| Rule (Lean `acceptPull`, `offFrames`, `pullFrames`) | A run is used only if the scroll-in rule holds, a push was seen, the push event reported `scrollY` below `maxY` (else `atEnd`), and every open-phase frame has a frame within 2 frames after it (`pullLook`) in which the position read right after the pull is not the lock position (else `stalled`). The reading is taken in the page between the pull and the site's restore, so it shows that the pull took effect, not that a frame was drawn at the pulled position | Lean + golden (16 pull lines) |
+| Did the push land on a moving scroll? | Not on a drawn moving scroll: the push arrived at scrollY 5098 against maxY 5102 in 36 of 36 pull runs (0 atEnd, 0 stalled, 0 refused). In every open-phase frame the page pulled 2 px off the lock and the site restore (a rAF from its scroll listener, run after the page rAF; Page.cpp:2295 and :2330 @862f17d) put it back before paint, so each frame was drawn at the lock; scroll events in the open phase 60.2 to 62.7 per run | MEASURED + INFERRED |
+| Open phase, pull vs synthetic (jobs 1 / 2 / 3, both arms) | Layout higher / higher / higher (3.5 to 4.0 per frame against 1.5 to 1.8); RecalculateStyles higher in all 3 (4.1 to 4.3 against 2.2 to 2.3); FireAnimationFrame higher in all 3 (3.1 to 3.3 against 1.3); paintArea higher in all 3; Paint, Composite, RenderingFrame overlap | MEASURED |
+| Open phase, pull, rewrite vs original (jobs 1 / 2 / 3) | Layout, Paint, Composite, RenderingFrame, FireAnimationFrame, paintArea overlap in all 3; RecalculateStyles overlap / lower / overlap | MEASURED |
+| Close phase, pull | pull vs synthetic overlap in all 7 counters for orig, and for rewrite except FireAnimationFrame higher in job 2; rewrite vs original: Paint lower in job 1, rest overlap | MEASURED |
+| Idle phase | unchanged by the drive (the pull starts at the push); the idle window of `pull` is 17.5 to 31.2 frames, so idle cells of that drive are not compared with the other drives | MEASURED |
+
+What this changes: the open phase now runs with scroll work in every frame (about twice the Layout, RecalculateStyles and FireAnimationFrame records of a push into a stopped page), and the rewrite's open-phase counts still overlap the original's, so the open-phase result holds with a scroll event and a pull-and-restore in every frame; the drawn position still stays at the lock (Layout, Paint, Composite, RenderingFrame, FireAnimationFrame, paintArea overlap in all 3 jobs, RecalculateStyles lower in one). It does not test the phone's momentum, which is not reproducible here, and the pull is not a moving scroll: strictly changing scrollY was not delivered. The Simulator leg stays INCONCLUSIVE (touch windows record no Timeline). CI macOS is not the phone.
 
 ## What was run (first run, 39971123168)
 
@@ -78,7 +136,7 @@ one CI run, three jobs.
 | synthetic drive | in-page `WheelEvent` on `document.body`, the probe's push |
 | synthetic and trusted on the same SHA | yes: both drives of one arm run in the same job, order rotated per rep |
 
-Not the phone: Playwright mac WebKit on a CI VM is neither the iPhone nor the Simulator (accepted limit).
+Not the phone: Playwright mac WebKit on a CI VM is not the iPhone or the Simulator.
 
 ## Per-frame counts (mean over 18 runs per cell, three jobs; MEASURED, run 39971123168)
 
@@ -136,4 +194,7 @@ In the first run `scroll moved` was 0 in all runs; the wheel handler alone drove
 | per-run means and table layout | `lag/macreport.mjs` | TS stand-in (arithmetic means, formatting) |
 | `morphMilli` (largest `--morph` at the labelled frames, times 1000, rounded) | `lag/phase.mjs` | TS stand-in |
 | Playwright session, rAF loop, wheel listener, scroll-in wheel loop | `lag/macmorph.mjs`, `lag/mac-cli.mjs` | glue |
-| Simulator leg | PushServer touch | follow-up, not on main |
+| momentum drive, `inFlight`, `flightFrames`, `splitPush`, `acceptMomentum`, `jobLabel` | `WebKitLagPhase.lean`, golden `momentum*`, `flight`, `splitPush`, `jobLabel`; twins in `lag/macreport.mjs`, replayed in `test/lag-mac-morph.test.mjs` | Lean |
+| pull drive: `offFrames`, `pullFrames`, `acceptPull` with refusals `atEnd`, `stalled` | `WebKitLagPhase.lean`, golden `pullConst`, `pull`; twins in `lag/macreport.mjs`, replayed in `test/lag-mac-morph.test.mjs` | Lean |
+| pull page script (`scrollBy` per rAF, position reading), drive orchestration, report tables | `lag/macmorph.mjs`, `lag/macreport.mjs` | TS stand-in / glue |
+| Simulator leg | PushServer touch, existing `webkit-sim` job | run 40018153769 |
