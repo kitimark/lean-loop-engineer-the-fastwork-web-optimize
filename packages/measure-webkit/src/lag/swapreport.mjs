@@ -1,8 +1,5 @@
-// The swap-window report: per window and event kind, the crop against the faithful passes, with the A/A floor of the two
-// faithful captures. The verdict of one cell is swap.mjs `cell` (Lean `cell`); nothing is pooled over windows or kinds.
 import { PERIODS, KINDS, FRAMES_60, validAt, cell } from './swap.mjs';
 
-/** The count of phase `p` and kind `ty` in a capture, or null when its window `k` is not valid (a rest also needs the next window). */
 export function countOf(cap, k, p, ty) {
   if (!cap) return undefined;
   const ok = validAt(cap.ws, k) && (p.startsWith('swap:') || k + 1 < cap.ws.length);
@@ -10,10 +7,6 @@ export function countOf(cap, k, p, ty) {
   return cap.cells.find((x) => x[0] === p && x[1] === ty)?.[2] ?? null;
 }
 
-/**
- * The cells of all passes: for each phase `swap:k` / `rest:k` and each kind, the faithful counts of slot a (a1) and slot b (a2),
- * the crop counts of both slots (c), and the captures dropped as invalid. A failed capture adds no sample and no drop.
- */
 export function windowCells(passes, periods = PERIODS) {
   const out = [];
   for (const phase of ['swap', 'rest']) {
@@ -43,10 +36,8 @@ export function windowCells(passes, periods = PERIODS) {
 
 const range = (xs) => (xs.length === 0 ? '-' : `${Math.min(...xs)}${Math.min(...xs) === Math.max(...xs) ? '' : `-${Math.max(...xs)}`} (n=${xs.length})`);
 
-/** Passes of the swap lane from lag JSON files. */
 export const swapPassesOf = (docs) => docs.flatMap((d) => d.passes.map((p) => p.cost?.swap).filter(Boolean));
 
-/** One table per kind: the swap windows (the unit of decision), then the rest windows as the control. */
 export function swapMd(cells, sources) {
   const lines = [`Sources: ${sources.join('; ')}`, '', `Model (INFERRED from the Lean part model): a faithful swap shows ${FRAMES_60} Layout frames at 60 Hz, the crop none.`, ''];
   for (const ty of KINDS) {

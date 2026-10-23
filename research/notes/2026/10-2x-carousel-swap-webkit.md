@@ -33,15 +33,14 @@ show fewer Layout, Paint, Composite and RecalculateStyles Timeline rows than the
 | 39947916723 | 8dc944f90 | r3 | success, 2 passes, 8 windows in each of 8 captures |
 | 39947916723 | 8dc944f90 | r1, r2 | failed in the cost `layersScroll` step after pass 1 (inspector lost, Safari relaunch refused / `layersForNode` timeout); no lag file |
 
-Counted: 3 jobs on separate CI jobs (39937838325 r1, r2; 39947916723 r3), 6 passes, 24 captures, 12 per arm.
+Counted: 3 jobs (39937838325 r1, r2; 39947916723 r3), 6 passes, 24 captures, 12 per arm.
 Report: `results/carousel-swap-webkit/people-carousel-crop.md` and `.json`.
 
 ## Negative finding: the first run saw nothing
 
 Run 39932917436 scrolled to the end of the page. Page order is hero, people, pain, commission, platform, so the people section was far
 off screen and the carousel loop (gated by an IntersectionObserver) was idle: 0 windows in every capture (INFERRED from the page
-structure; the fix below confirms it). The earlier design note's "scroll B = people zone" was wrong. Lesson: a probe that waits for an
-event must first prove the event source is active; the capture now records the scroll position, the reduced-motion flag, the observer
+structure; the fix below confirms it). The capture now records the scroll position, the reduced-motion flag, the observer
 call count and the end child count so a silent window shows its cause.
 
 ## Result (MEASURED, class counts of the Timeline over 12 captures per arm)
@@ -55,7 +54,7 @@ Verdicts of the 15 windows x 4 kinds, per cell:
 | Composite | 8 unresolved:overlap | 7 unresolved:overlap |
 | RecalculateStyles | 8 unresolved:overlap | 7 unresolved:overlap |
 
-No window is a loss. The answer for the pinned unit is therefore: Paint is a win in 2 of 8 swap windows, every other cell is unresolved.
+No window is a loss. Answer: Paint is a win in 2 of 8 swap windows, every other cell is unresolved.
 
 Layout rows per swap window (12 captures per arm, sorted):
 
@@ -76,7 +75,7 @@ What the table shows:
 
 - MEASURED: the crop has about 3 to 7 Layout rows in most swap windows where the faithful arm has about 14, but in windows 1, 4 and 7
   (every third) its median is 14.5 to 15, the same as the faithful arm. The cause of the every-third pattern is not found (open).
-- MEASURED: the faithful floor is wide (4 to 16 in a window). The 4 to 6 values occur in some captures only (9 of 96 faithful window samples), and they are enough to make the crop range overlap, so the rule leaves the cell unresolved. The rule is conservative on purpose.
+- MEASURED: the faithful floor is wide (4 to 16 in a window). The 4 to 6 values occur in some captures only (9 of 96 faithful window samples), and they are enough to make the crop range overlap, so the rule leaves the cell unresolved.
 - MEASURED: Paint is lower in the crop in every window (medians 7..21 against 31..38), but only swap:1 and swap:5, where the faithful
   minimum is highest (28 and 30), clear the rule.
 - The Lean model line "faithful 13 Layout rows, crop none" (INFERRED from the part model) is contradicted for the crop: the crop never
@@ -88,8 +87,7 @@ What the table shows:
 - A window starts at the DOM change (MutationObserver callback), not at the first painted frame; the page-side mark to window mapping is
   I/O glue with no proof, tested only against a stand-in carousel (`packages/measure-webkit/test/lag-swap-probe.test.mjs`).
 - Rest window 7 is undefined (the last swap has no following rest); the original arm is not in this lane, only crop against faithful of one build.
-- 3 jobs completed; the other 3 of the two runs failed in the cost step or at the job limit, which is a Simulator inspector problem
-  already seen in other lag runs, not a swap-lane result.
+- 3 jobs completed; the other 3 of the two runs failed in the cost step or at the job limit; this is a Simulator inspector problem, not a swap-lane result.
 - Not a trigger-path change: `lean/Fw/Ci/Trigger.lean` is untouched (held by counts-font-fidelity); the `[swap-lane]` token is read in
   the workflow only.
 

@@ -1,10 +1,8 @@
-// The page-side watcher of the swap probe against a stand-in carousel: it marks every swap on (5 avatars) and off (4).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { WATCH_JS, FIND_JS, ORDER, FLIPPED } from '../src/lag/swapprobe.mjs';
 
-/** Run the watcher in a context with a fake carousel; `script(el, fire)` drives the child count. */
 async function watch(periods, children, script, deadlineMs = 50) {
   const marks = [];
   let callback = null;
@@ -39,7 +37,6 @@ test('the pass order has the two faithful captures as slots a and b, the flipped
   assert.deepEqual(FLIPPED.map(([a, s]) => `${a}-${s}`), ['crop-a', 'faithful-a', 'crop-b', 'faithful-b']);
 });
 
-/** Run the scroll search in a context whose carousel sits at document y 1000..1032 (viewport 800 high). */
 function find(maxY, { reduced = false, docTop = 1000 } = {}) {
   let y = 0;
   const el = { childElementCount: 4, getBoundingClientRect: () => ({ top: docTop - y, bottom: docTop - y + 32, width: 120 }) };

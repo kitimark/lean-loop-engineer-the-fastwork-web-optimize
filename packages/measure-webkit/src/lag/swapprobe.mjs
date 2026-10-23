@@ -1,9 +1,3 @@
-// webkit-swap-probe: the Timeline events inside the swap windows of the people carousel (I/O only; the schedule, the counts and
-// the verdict are swap.mjs, the Lean module Fw.Measure.SwapWindow, and swapreport.mjs).
-// One capture: a fresh load of an arm's page, scrolled until the carousel lies in the viewport (the carousel loop runs only while the people
-// section is active), then a MutationObserver on the carousel marks every swap on (5 avatars) and off (4 avatars) with
-// performance.mark, without a rAF loop of its own. The Timeline rows are counted per observed window.
-// A pass is four captures, faithful, crop, faithful, crop: the two faithful ones are the A/A floor of the crop against the faithful.
 import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { startTimeline } from '../timeline.mjs';
 import { sleep } from '../sim.mjs';
@@ -11,9 +5,7 @@ import { TargetLostError } from '../inspector.mjs';
 import { markTimes } from '../reduce.mjs';
 import { PERIODS, DEADLINE_US, KINDS, validAt, countCells } from './swap.mjs';
 
-/** The order of the captures of one pass: [arm, slot]; slots a and b of the faithful arm are the two floor samples. */
 export const ORDER = Object.freeze([['faithful', 'a'], ['crop', 'a'], ['faithful', 'b'], ['crop', 'b']]);
-/** The same four with the crop first in each pair, for every other pass. */
 export const FLIPPED = Object.freeze([ORDER[1], ORDER[0], ORDER[3], ORDER[2]]);
 
 export const WATCH_JS = (periods, deadlineMs) => `(async () => {
@@ -39,7 +31,6 @@ export const WATCH_JS = (periods, deadlineMs) => `(async () => {
   return { why, closed, open, calls, children: el.childElementCount, variant: el.getAttribute('data-fw-variant') };
 })()`;
 
-/** Scroll down until the whole carousel lies inside the viewport: the people section sits in the middle of the page, not at its end. */
 export const FIND_JS = (maxY) => `(async () => {
   ${RAF_HELPER}
   const el = document.querySelector('[data-fw="people-carousel"]');
@@ -56,7 +47,6 @@ export const FIND_JS = (maxY) => `(async () => {
 })()`;
 const us = (s) => Math.round(s * 1e6);
 
-/** Load the arm's page and check it is the arm asked for (the config hash the server answered with). */
 export async function loadArm(ctx, arm, { clock, settleMs }) {
   ctx.setArm(arm.id);
   await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + arm.search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
@@ -67,7 +57,6 @@ export async function loadArm(ctx, arm, { clock, settleMs }) {
   return info;
 }
 
-/** One capture: the observed windows (Timeline µs), their validity and the counts per phase and kind. */
 export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS }) {
   const info = await loadArm(ctx, arm, { clock, settleMs });
   const at = await ctx.c.runAsync(FIND_JS(info.maxY), { pollMs: 500 });
@@ -88,10 +77,6 @@ export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS
   };
 }
 
-/**
- * One pass: the four captures in ORDER (`flip` runs the crop first). A capture that still fails after its retries is recorded as
- * null with its reason; the pass goes on. `arms` is { faithful: {id, search}, crop: {id, search} }; `retry(name, fn)` repeats from a fresh load.
- */
 export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = false, restore }) {
   const order = flip ? FLIPPED : ORDER;
   const out = { schema: 'fw.webkit.lag.swap/1', order: order.map(([a, s]) => `${a}-${s}`), captures: {}, failed: [] };

@@ -1,4 +1,3 @@
-// The swap-window schedule agrees with the Lean golden (Fw.Measure.SwapWindow, golden/measure/wkcost.jsonl).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

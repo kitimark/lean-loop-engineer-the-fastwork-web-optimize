@@ -3,18 +3,14 @@ import Fw.Measure.WebKitLag
 import Fw.Parts.PeopleCarouselCrop
 /-!
 # Swap-window sampling of people.carousel on the WebKit lane (`packages/measure-webkit/src/lag/swap.mjs`)
-Window bounds from the part's timing constants, the bucketing of Timeline records into them, and the verdict per window. Times are integer microseconds.
 -/
 namespace Fw.Measure.SwapWindow
 open Lean Fw.Measure.WebKitLag
 
-/-- The rest between swaps in microseconds (`Fw.Parts.PeopleCarousel.restMs`). -/
 def restUs : Int := (Fw.Parts.PeopleCarousel.restMs : Int) * 1000
 
-/-- The swap template's time in microseconds (`Fw.Parts.PeopleCarousel.swapMs`). -/
 def swapUs : Int := (Fw.Parts.PeopleCarousel.swapMs : Int) * 1000
 
-/-- One cycle in microseconds. -/
 def periodUs : Int := (Fw.Parts.PeopleCarousel.periodMs : Int) * 1000
 
 theorem period_split : periodUs = restUs + swapUs := by decide
@@ -25,34 +21,26 @@ theorem rest_eq : restUs = 800000 := by decide
 
 theorem swap_eq : swapUs = 220000 := by decide
 
-/-- Swap windows a capture records. -/
 def periods : Nat := 8
 
-/-- How far an observed window may lie from the nominal length or spacing: two display slots at 60 Hz. -/
 def tolUs : Int := 33333
 
-/-- The latest end of a capture of `n` windows, from the start of the capture: one period to the first swap, then the `n` windows. -/
 def deadlineUs (n : Nat) : Int := (n : Int) * periodUs + swapUs + periodUs
 
-/-- Frames of one swap window at 60 Hz (`Fw.Parts.PeopleCarouselCrop.swapFrames`). -/
 def windowFrames60 : Nat := Fw.Parts.PeopleCarouselCrop.swapFrames 60
 
 theorem windowFrames60_eq : windowFrames60 = 13 := Fw.Parts.PeopleCarouselCrop.swapFrames_60
 
-/-- One swap window: the template shows from `start` up to `stop`. -/
 structure Win where
   start : Int
   stop : Int
   deriving Repr, DecidableEq
 
-/-- Start of the `k`-th nominal swap, the first at `s0`. -/
 def nomStart (s0 : Int) (k : Nat) : Int := s0 + (k : Int) * periodUs
 
-/-- The nominal windows of a capture whose first swap starts at `s0`. -/
 def nominal (s0 : Int) (n : Nat) : List Win :=
   (List.range n).map fun k => ⟨nomStart s0 k, nomStart s0 k + swapUs⟩
 
-/-- Windows are non-empty and each ends before the next starts. -/
 def Wf (ws : List Win) : Prop := (∀ w ∈ ws, w.start < w.stop) ∧ ws.Pairwise fun a b => a.stop ≤ b.start
 
 theorem nominal_wf (s0 : Int) (n : Nat) : Wf (nominal s0 n) := by
@@ -71,25 +59,21 @@ theorem nominal_wf (s0 : Int) (n : Nat) : Wf (nominal s0 n) := by
 
 theorem nominal_length (s0 : Int) (n : Nat) : (nominal s0 n).length = n := by simp [nominal]
 
-/-- A swap and the rest after it fill one cycle: the next nominal swap starts when the rest ends. -/
 theorem nominal_next (s0 : Int) (k : Nat) : nomStart s0 (k + 1) = nomStart s0 k + swapUs + restUs := by
   simp only [nomStart, swap_eq, rest_eq, period_eq]; push_cast; omega
 
-/-- The last nominal window of a capture that starts within one period ends before the deadline. -/
 theorem nominal_last_before_deadline (s0 : Int) (n : Nat) (h1 : s0 ≤ periodUs) (hn : 0 < n) :
     nomStart s0 (n - 1) + swapUs ≤ deadlineUs n := by
   obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
   simp only [nomStart, deadlineUs, Nat.add_sub_cancel, swap_eq, period_eq] at *
   push_cast; omega
 
-/-- Where a record start lies: in swap `k`, in the rest after swap `k`, or outside the captured windows. -/
 inductive Phase where
   | swap (k : Nat)
   | rest (k : Nat)
   | outside
   deriving Repr, DecidableEq
 
-/-- The phase of `t` among windows numbered from `k0`; a window holds its start and not its stop. -/
 def phaseFrom : Nat → List Win → Int → Phase
   | _, [], _ => .outside
   | k, [w], t => if w.start ≤ t ∧ t < w.stop then .swap k else .outside
@@ -99,14 +83,11 @@ def phaseFrom : Nat → List Win → Int → Phase
     else if t < v.start then .rest k
     else phaseFrom (k + 1) (v :: vs) t
 
-/-- The phase of `t` among the windows `ws`. -/
 def phaseOf (ws : List Win) (t : Int) : Phase := phaseFrom 0 ws t
 
-/-- `t` lies in the `i`-th swap window. -/
 def InSwap (ws : List Win) (i : Nat) (t : Int) : Prop :=
   ∃ w, ws[i]? = some w ∧ w.start ≤ t ∧ t < w.stop
 
-/-- `t` lies in the rest between the `i`-th and the next swap window. -/
 def InRest (ws : List Win) (i : Nat) (t : Int) : Prop :=
   ∃ w v, ws[i]? = some w ∧ ws[i + 1]? = some v ∧ w.stop ≤ t ∧ t < v.start
 
@@ -150,7 +131,6 @@ private theorem rest_ge {ws : List Win} (hp : ∀ x ∈ ws, x.start < x.stop) {a
   have := hp x (getElem?_mem hx)
   omega
 
-/-- On well-formed windows, `phaseFrom` names swap `j` exactly when `t` lies in a swap window. -/
 theorem phaseFrom_swap : ∀ (ws : List Win) (k0 : Nat) (t : Int), Wf ws →
     ∀ j, phaseFrom k0 ws t = .swap j ↔ ∃ i, j = k0 + i ∧ InSwap ws i t
   | [], k0, t, _, j => by simp [phaseFrom, InSwap]
@@ -205,7 +185,6 @@ theorem phaseFrom_swap : ∀ (ws : List Win) (k0 : Nat) (t : Int), Wf ws →
             | zero => have := swap_cons_zero.1 hi; omega
             | succ i => exact ⟨i, by omega, swap_cons_succ.1 hi⟩
 
-/-- On well-formed windows, `phaseFrom` names rest `j` exactly when `t` lies between swap `j` and the next. -/
 theorem phaseFrom_rest : ∀ (ws : List Win) (k0 : Nat) (t : Int), Wf ws →
     ∀ j, phaseFrom k0 ws t = .rest j ↔ ∃ i, j = k0 + i ∧ InRest ws i t
   | [], k0, t, _, j => by simp [phaseFrom, InRest]
@@ -258,13 +237,11 @@ theorem phaseFrom_rest : ∀ (ws : List Win) (k0 : Nat) (t : Int), Wf ws →
             | zero => obtain ⟨x, y, hx, hy, h4, h5⟩ := hi; simp at hx hy; subst hx; subst hy; omega
             | succ i => exact ⟨i, by omega, rest_cons_succ.1 hi⟩
 
-/-- A Timeline record: its type and its start. -/
 structure Rec where
   ty : String
   t : Int
   deriving Repr, DecidableEq
 
-/-- Records of type `ty` that start in phase `p`. -/
 def countIn (ws : List Win) (p : Phase) (ty : String) (rs : List Rec) : Nat :=
   (rs.filter fun r => r.ty == ty && decide (phaseOf ws r.t = p)).length
 
@@ -278,7 +255,6 @@ theorem countIn_other_type (ws : List Win) (p : Phase) (ty : String) (rs : List 
     not_and]
   exact fun r hr hty => absurd hty (h r hr)
 
-/-- A counted swap record starts inside the swap window. -/
 theorem countIn_swap_sound (ws : List Win) (hw : Wf ws) (k : Nat) (ty : String) (rs : List Rec)
     (h : 0 < countIn ws (.swap k) ty rs) : ∃ r ∈ rs, r.ty = ty ∧ InSwap ws k r.t := by
   obtain ⟨r, hr⟩ := List.exists_mem_of_length_pos h
@@ -287,14 +263,12 @@ theorem countIn_swap_sound (ws : List Win) (hw : Wf ws) (k : Nat) (ty : String) 
   obtain ⟨i, hi, hs⟩ := (phaseFrom_swap ws 0 r.t hw k).1 hph
   exact ⟨r, hmem, hty, by simpa [show k = i by omega] using hs⟩
 
-/-- A record of the type that starts inside a swap window is counted. -/
 theorem countIn_swap_complete (ws : List Win) (hw : Wf ws) (k : Nat) (ty : String) (rs : List Rec)
     (r : Rec) (hr : r ∈ rs) (hty : r.ty = ty) (hs : InSwap ws k r.t) : 0 < countIn ws (.swap k) ty rs := by
   have hph : phaseOf ws r.t = .swap k := (phaseFrom_swap ws 0 r.t hw k).2 ⟨k, by omega, hs⟩
   apply List.length_pos_of_mem (a := r)
   simp [hr, hty, hph]
 
-/-- A record that starts in the rest between two swaps is not counted in any swap window. -/
 theorem countIn_rest_not_swap (ws : List Win) (hw : Wf ws) (k j : Nat) (r : Rec) (hs : InRest ws k r.t) :
     phaseOf ws r.t ≠ .swap j := by
   intro h
@@ -302,7 +276,6 @@ theorem countIn_rest_not_swap (ws : List Win) (hw : Wf ws) (k j : Nat) (r : Rec)
   rw [h] at this
   cases this
 
-/-- Window `k` is as long as the swap, and the next swap starts one cycle later, both within `tolUs`. -/
 def validAt (ws : List Win) (k : Nat) : Bool :=
   match ws[k]? with
   | none => false
@@ -315,7 +288,6 @@ def validAt (ws : List Win) (k : Nat) : Bool :=
 theorem validAt_none (ws : List Win) (k : Nat) (h : ws[k]? = none) : validAt ws k = false := by
   simp [validAt, h]
 
-/-- A valid window is as long as the swap within the tolerance. -/
 theorem validAt_length (ws : List Win) (k : Nat) (h : validAt ws k = true) :
     ∃ w, ws[k]? = some w ∧ (w.stop - w.start - swapUs).natAbs ≤ tolUs.toNat := by
   unfold validAt at h
@@ -325,14 +297,12 @@ theorem validAt_length (ws : List Win) (k : Nat) (h : validAt ws k = true) :
     simp only [Bool.and_eq_true, decide_eq_true_eq] at h
     exact ⟨w, hw, h.1⟩
 
-/-- A valid window that has a successor starts it one cycle before the successor, within the tolerance. -/
 theorem validAt_spacing (ws : List Win) (k : Nat) (w v : Win) (hw : ws[k]? = some w) (hv : ws[k + 1]? = some v)
     (h : validAt ws k = true) : (v.start - w.start - periodUs).natAbs ≤ tolUs.toNat := by
   unfold validAt at h
   simp only [hw, hv, Bool.and_eq_true, decide_eq_true_eq] at h
   exact h.2
 
-/-- A window whose length is off by more than the tolerance is not valid. -/
 theorem validAt_false_long (ws : List Win) (k : Nat) (w : Win) (hw : ws[k]? = some w)
     (h : tolUs.toNat < (w.stop - w.start - swapUs).natAbs) : validAt ws k = false := by
   unfold validAt
@@ -340,7 +310,6 @@ theorem validAt_false_long (ws : List Win) (k : Nat) (w : Win) (hw : ws[k]? = so
   have : ¬ ((w.stop - w.start - swapUs).natAbs ≤ tolUs.toNat) := by omega
   simp [this]
 
-/-- A window that starts too early or too late after its predecessor in the list is not valid. -/
 theorem validAt_false_spacing (ws : List Win) (k : Nat) (w v : Win) (hw : ws[k]? = some w) (hv : ws[k + 1]? = some v)
     (h : tolUs.toNat < (v.start - w.start - periodUs).natAbs) : validAt ws k = false := by
   unfold validAt
@@ -348,7 +317,6 @@ theorem validAt_false_spacing (ws : List Win) (k : Nat) (w v : Win) (hw : ws[k]?
   have : ¬ ((v.start - w.start - periodUs).natAbs ≤ tolUs.toNat) := by omega
   simp [this]
 
-/-- Every window of the nominal schedule is valid. -/
 theorem nominal_valid (s0 : Int) (n k : Nat) (hk : k < n) : validAt (nominal s0 n) k = true := by
   have e1 : (nominal s0 n)[k]? = some ⟨nomStart s0 k, nomStart s0 k + swapUs⟩ := by
     simp [nominal, hk]
@@ -368,7 +336,6 @@ theorem nominal_valid (s0 : Int) (n k : Nat) (hk : k < n) : validAt (nominal s0 
       rw [List.getElem?_eq_none_iff, nominal_length]; omega
     rw [e2]
 
-/-- Faithful layout events a swap window holds per pass: one per frame at 60 Hz, none when the swap leaves the main thread. -/
 def predictedLayout (layoutPasses : Nat) : Nat := Fw.Parts.PeopleCarouselCrop.layoutFrames 60 layoutPasses
 
 theorem predicted_crop : predictedLayout 0 = 0 := (Fw.Parts.PeopleCarouselCrop.layoutFrames_swap 60).1
@@ -378,7 +345,6 @@ theorem predicted_faithful : predictedLayout 1 = 13 := (Fw.Parts.PeopleCarouselC
 theorem predicted_crop_lt : predictedLayout 0 < predictedLayout 1 := by
   rw [predicted_crop, predicted_faithful]; decide
 
-/-- Why a window could not be decided. -/
 inductive Reason where
   | drift
   | noSamples
@@ -386,14 +352,12 @@ inductive Reason where
   | overlap
   deriving Repr, DecidableEq
 
-/-- The verdict on one window and one event kind: crop below the faithful passes is a win, above is a loss. -/
 inductive Cell where
   | win
   | loss
   | unresolved (r : Reason)
   deriving Repr, DecidableEq
 
-/-- The word written in the output. -/
 def Cell.name : Cell → String
   | .win => "win"
   | .loss => "loss"
@@ -402,10 +366,8 @@ def Cell.name : Cell → String
   | .unresolved .floorBroken => "unresolved:floorBroken"
   | .unresolved .overlap => "unresolved:overlap"
 
-/-- Per-pass counts as the ratios `verdict` takes. -/
 def asRat (xs : List Int) : List Rat := xs.map fun x => Int.cast x
 
-/-- Faithful runs `a1` and `a2` (the A/A floor) and crop runs `c`, the per-pass counts of the passes whose window was valid; `dropped` passes were not. -/
 def cell (a1 a2 c : List Int) (dropped : Nat) : Cell :=
   if a1.isEmpty || a2.isEmpty || c.isEmpty then (if 0 < dropped then .unresolved .drift else .unresolved .noSamples)
   else if verdict (asRat a1) (asRat a2) != .overlap then .unresolved .floorBroken
@@ -495,7 +457,6 @@ private def goldenLines : List String :=
       ("cell", (cell a1 a2 c d).name)]).compress) ++
   [(Json.mkObj [("kind", "swapPredict"), ("faithful", predictedLayout 1), ("crop", predictedLayout 0)]).compress]
 
-/-- The golden lines of the swap-window sampling, appended to the wkcost golden. -/
 def swapGoldenLines : List String := goldenLines
 
 end Fw.Measure.SwapWindow

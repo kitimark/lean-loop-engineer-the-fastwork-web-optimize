@@ -1,10 +1,8 @@
-// The swap-window report decides every window and kind on its own (Lean `cell`) from synthetic captures.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { nominal, validAt, countCells, KINDS, PERIOD_US, PERIODS } from '../src/lag/swap.mjs';
 import { windowCells, swapMd, swapPassesOf } from '../src/lag/swapreport.mjs';
 
-/** A capture whose windows each hold `layout` Layout records and `paint` Paint records. */
 function capture(layout, { paint = 1, shift = 0, drift = null } = {}) {
   const ws = nominal(shift, PERIODS);
   if (drift !== null) ws[drift] = [ws[drift][0], ws[drift][1] + 200000];

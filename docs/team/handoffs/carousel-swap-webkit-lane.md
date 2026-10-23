@@ -1,5 +1,5 @@
 branch: worktree-wf_379d0376-a33-1 (CI branch ci/carousel-swap-webkit-lane)
-worktree: .claude/worktrees/wf_379d0376-a33-1 (in the main checkout)
+worktree: .claude/worktrees/wf_379d0376-a33-1
 last commit: 8dc944f90 (pushed to ci/carousel-swap-webkit-lane; tokens [ci:webkit-sim] [swap-lane])
 CI runs:
 - 39932917436 webkit-sim at 48142c753: probe scrolled to page end, 0 swap windows in r1 (carousel loop idle there); superseded
@@ -19,4 +19,4 @@ Conventions
 - One capture = fresh load of an arm, scroll until the carousel is in the viewport, MutationObserver marks swap on/off (5 vs 4 avatars); Timeline rows counted per observed window; pass = faithful-a, crop-a, faithful-b, crop-b (flipped on odd passes).
 - Cell verdict per (window, kind): win/loss/unresolved(drift|noSamples|floorBroken|overlap); never pooled.
 - Read first: lean/Fw/Measure/SwapWindow.lean, packages/measure-webkit/src/lag/swapprobe.mjs.
-- No local Simulator run was made (the sim slot was held by another agent).
+- No local Simulator run was made.

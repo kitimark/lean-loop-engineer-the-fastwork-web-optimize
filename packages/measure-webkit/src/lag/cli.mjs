@@ -32,8 +32,6 @@ async function main() {
   switch (cmd) {
     case 'run': {
       const costMode = parseCost(v.cost);
-      // The swap lane needs the crop page and the faithful page of one build on one origin: a rewrite session at a query
-      // (the plan's fw= flag) with the cost passes on. The session starts on the crop page, as every other pass expects.
       const swapOn = costMode.cost && v.site && v.search;
       const swapArms = swapOn ? { crop: { dir: v.site, search: v.search }, faithful: { dir: v.site, search: '' } } : null;
       const swap = swapOn ? { arms: { crop: { id: 'crop', search: v.search }, faithful: { id: 'faithful', search: '' } }, home: { id: 'crop', search: v.search } } : null;
