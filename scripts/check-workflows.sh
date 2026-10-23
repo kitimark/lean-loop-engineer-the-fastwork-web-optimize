@@ -14,6 +14,7 @@ if [ "$rc" -gt 1 ]; then
   echo "REFUSED workflow-lint: actionlint failed to run (exit $rc)"
   exit 3
 fi
+[ "$rc" -eq 1 ] && [ -z "$out" ] && { echo "REFUSED workflow-lint: actionlint exit 1 without findings"; exit 3; }
 printf '%s\n' "$out" | node "$here/../apps/runner/src/land-checks-workflow.ts"
 vrc=$?
 printf '# tests %s\n# skipped 0\n' "$#"
