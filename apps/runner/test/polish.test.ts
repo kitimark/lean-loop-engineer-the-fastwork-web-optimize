@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { genOutputs, genOwned, polishCli, walkHunks, wtName, type WHunk } from "../src/polish.ts";
+import { genOutputs, genOwned, polishCli, walkHunks, type WHunk } from "../src/polish.ts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -39,7 +39,19 @@ const jev = { path: "docs/team/handoffs/jev-datasets.md",
 const doc = (c: { path: string; old: string }) => ({ path: c.path, text: `Intro.\n${c.old}\nEnd.\n` });
 const md = "docs/a.md";
 
+const WT_DIRS: [string, string, string | null][] = [
+  ["a valid absolute worktree", "/h/src/r/.claude/worktrees/wf_b291cc70-2f8-1", "wf_b291cc70-2f8-1"],
+  ["a trailing slash", "/h/r/.claude/worktrees/wf_a/", null],
+  ["a name with a space", "/h/.claude/worktrees/a b", null],
+  ["a ~ prefix", "~/source/.../.claude/worktrees/wf_b291cc70-2f8-1", null],
+  ["a relative path", ".claude/worktrees/wf_a", null],
+  ["the name ..", "/h/.claude/worktrees/..", null],
+  ["an empty name", "/h/.claude/worktrees/", null],
+  ["no .claude parent", "/h/r/worktrees/wf_a", null],
+  ["a deeper path", "/h/r/.claude/worktrees/wf_a/sub", null],
+];
 const cases: [string, Record<string, unknown>][] = [
+  ...WT_DIRS.map(([n, dir]) => [`wtName: ${n}`, { op: "plan.wtName", dir }] as [string, Record<string, unknown>]),
   ["plan: one path of each class, two stages", plan(["apps/x/a.ts", "scripts/x.sh", md, "snapshot/a.css"])],
   ["plan: skip by root, segment, lock name, .gen. name and generator output",
     plan(["packages/contracts/golden/plan/x.jsonl", "apps/x/test/fixtures/a.ts", "pnpm-lock.yaml", "apps/x/src/a.gen.ts", LAKE_GEN, ".github/workflows/w.yml"], { gen: [LAKE_GEN, ".github/workflows/w.yml"] })],
@@ -123,16 +135,11 @@ describe("settings.json Edit rules are covered by the Lean skip rule (one canoni
   });
 });
 
-describe("worktree identity survives a shortened path (stand-in for Fw.Plan.Polish.wtName)", () => {
-  it("an absolute .claude/worktrees directory gives its name; relative, ~, placeholder, odd names give none", () => {
-    expect(wtName("/h/src/r/.claude/worktrees/wf_b291cc70-2f8-1")).toBe("wf_b291cc70-2f8-1");
-    expect(wtName("~/source/.../.claude/worktrees/wf_b291cc70-2f8-1")).toBeNull();
-    expect(wtName(".claude/worktrees/wf_a")).toBeNull();
-    expect(wtName("/h/.claude/worktrees/..")).toBeNull();
-    expect(wtName("/h/.claude/worktrees/")).toBeNull();
-    expect(wtName("/h/.claude/worktrees/a b")).toBeNull();
-    expect(wtName("/h/r/worktrees/wf_a")).toBeNull();
-    expect(wtName("/h/r/.claude/worktrees/wf_a/sub")).toBeNull();
+describe("plan.wtName goldens: fwcore decides the worktree name, TS holds no copy", () => {
+  it("an absolute .claude/worktrees directory gives its name; trailing slash, space, ~, relative, odd names give none", () => {
+    const rows = stored().filter((l) => l.request.op === "plan.wtName");
+    expect(rows.length).toBe(WT_DIRS.length);
+    expect(rows.map((l) => l.response.name)).toEqual(WT_DIRS.map(([, , n]) => n));
   });
 });
 

@@ -147,11 +147,12 @@ test('the live witnesses', () => {
   assert.equal(liveA({ live: true, variant: 'threaded' }), false);
 });
 
-function fakeExitLane(dir, { boxes: boxes0, pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts, probes }) {
+function fakeExitLane(dir, { boxes: boxes0, pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts, probes, withA3 = false, a3Edit }) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
   const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
   put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
+  if (withA3) put('A3_0', a3Edit);
   const boxes = boxes0 ?? { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
   const accent = (arm) => { const a = accentOf(arm); return a && { shotStart: a, shotEnd: a }; };
   const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: scrollOf(arm), dateNow: dateOf(arm), cover: coverOf(arm), parts: parts, probes, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
@@ -161,7 +162,7 @@ function fakeExitLane(dir, { boxes: boxes0, pEdit, pLive, a2Edit, still = false,
     schema: 'fw.path-pix/1', mode: 'exit', flag: 'hero.exit:threaded', engine: 'webkit', lane: 'test', run: 'test', lossless: true, compositing: 'test', dpr: 1, vw: 100, vh: 100,
     frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0, 1], cut: [], ...(maxY === undefined ? {} : { maxY }),
     handover: { pin: { A: { ssr: 'ssr' }, A2: { ssr: 'ssr' }, P: { ssr: 'ssr' } } },
-    samples: { A: [row('A', faithful), moved], A2: [row('A2', faithful), null], P: [row('P', pLive), null] },
+    samples: { A: [row('A', faithful), moved], A2: [row('A2', faithful), null], ...(withA3 ? { A3: [row('A3', faithful), null] } : {}), P: [row('P', pLive), null] },
   }));
 }
 const liveOk = { live: true, variant: 'threaded', supported: true, nonDoc: 4 };
@@ -366,4 +367,44 @@ test('the served-accent expression only reads: it compares the live accent with 
 test('both lanes pin every arm the same way', () => {
   for (const [sv, a, b, n] of [['s', 's', 's', 1], ['s', 'x', 's', 1], ['s', 's', 'x', 1], ['s', 's', 's', 2], ['s', 's', 's', 0]]) assert.equal(chromiumAccentPinned(sv, a, b, n), accentPinned(sv, a, b, n));
   for (const arm of ['A', 'A2', 'P']) { assert.equal(chromiumArmPin(arm), armPin(arm)); for (let i = 0; i < 9; i++) assert.equal(chromiumPinAt(arm, i), pinAt(arm, i)); }
+});
+
+test('exit analysis: a P change counts only where A, A2 and A3 agree (Lean consensus rule), per region', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-cons-'));
+  try {
+    const P = (img) => { setPx(15, 15)(img); setPx(80, 80)(img); };
+    const view = (res) => Object.fromEntries(res.cells.filter((c) => c.kind === 'P').map((c) => [c.key, c.consensus]));
+    fakeExitLane(dir, { a2Edit: null, pEdit: P, pLive: liveOk, withA3: true });
+    const agree = view(analyzeExit(dir, { strips: 'none' }));
+    assert.equal(agree.hero_copy.out, 'counted');
+    assert.equal(agree.hero_copy.inside, 'counted');
+    assert.equal(agree.hero_copy.verdict, 'L');
+    assert.deepEqual(agree.hero_copy.a3, { out: { changed: 0, maxDelta: 0 }, inside: { changed: 0, maxDelta: 0 } });
+
+    fakeExitLane(dir, { a2Edit: null, pEdit: P, pLive: liveOk, withA3: true, a3Edit: setPx(80, 80) });
+    const a3out = view(analyzeExit(dir, { strips: 'none' }));
+    assert.equal(a3out.hero_copy.out, 'varied');
+    assert.equal(a3out.hero_copy.inside, 'counted', 'the inside region is decided on its own');
+    assert.equal(a3out.hero_copy.verdict, 'L');
+
+    fakeExitLane(dir, { a2Edit: setPx(80, 80), pEdit: setPx(80, 80), pLive: liveOk, withA3: true });
+    const onlyOut = view(analyzeExit(dir, { strips: 'none' }));
+    assert.equal(onlyOut.hero_copy.seen, 'varied');
+    assert.equal(onlyOut.hero_copy.verdict, 'varied', 'a P change only where the arms disagree is not counted');
+    assert.equal(onlyOut['hero.deck_article#1'].verdict, 'varied');
+
+    fakeExitLane(dir, { a2Edit: null, pEdit: setPx(80, 80), pLive: liveOk });
+    const noA3 = analyzeExit(dir, { strips: 'none' });
+    assert.equal(view(noA3).hero_copy.a3, null);
+    assert.equal(view(noA3).hero_copy.seen, 'counted', 'A3 not captured: A2 alone decides');
+    assert.ok(noA3.armsRun.every((a) => a !== 'A3'));
+
+    fakeExitLane(dir, { a2Edit: null, pEdit: null, pLive: liveOk, withA3: true, a3Edit: setPx(80, 80) });
+    assert.equal(view(analyzeExit(dir, { strips: 'none' })).hero_copy.seen, 'quiet', 'no P change: nothing to count, whatever A3 shows');
+
+    fakeExitLane(dir, { a2Edit: null, pEdit: P, pLive: { ...liveOk, live: false }, withA3: true });
+    assert.equal(view(analyzeExit(dir, { strips: 'none' })).hero_copy.verdict, 'invalid');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

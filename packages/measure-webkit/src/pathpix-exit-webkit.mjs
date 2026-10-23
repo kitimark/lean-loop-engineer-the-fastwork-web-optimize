@@ -75,7 +75,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
       const frame = { w: content[2], h: content[3] };
       log(`lane webkit exit: dpr ${info.dpr}, viewport ${info.vw}x${info.vh}, frame ${frame.w}x${frame.h} at ${content.slice(0, 2).join(',')}, maxY ${info.maxY}, track T ${exit.T} h ${exit.h} n ${exit.n}, offsets ${offs.join(',')}`);
 
-      const arms = ['A', 'A2', 'P'];
+      const arms = ['A', 'A2', 'A3', 'P'];
       const samples = {};
       const cut = [];
       const writeManifest = () => {

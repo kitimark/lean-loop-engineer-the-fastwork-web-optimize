@@ -19165,7 +19165,8 @@
     "research/notes/2026/10-2x-hero-copy-floor.md",
     "docs/team/handoffs/pathpix-consensus-capture.md"
    ],
-   "title": "hero-copy-floor-followups review follow-ups (2026-10-24, run 40007968162): (1) two unexplained WebKit changes in 1 of 3 jobs (webkit-3 offset 5): hero_copy P 192513-20 inside the mask on the red deck-card artwork, and an A/A change outside every mask, 4478-2 at nav-earn; build the consensus capture (A, A2, A3 arms, Lean rule: a cell counts a change only when A/A agree) so render-server variation is separated from the arm, one path-pix run with >= 3 jobs per engine; (2) probesHit (box-overlap element naming in pathpix-exit.mjs) is a TS stand-in: give it a Lean twin with golden, or record it as an accepted stand-in in the handoff with the reason; (3) the report script prints the probe boxes at the asked scrollY (today only arm A at scrollY 0), so element matches are read from the report, not the artifacts."
+   "title": "hero-copy-floor-followups review follow-ups (2026-10-24, run 40007968162): (1) two unexplained WebKit changes in 1 of 3 jobs (webkit-3 offset 5): hero_copy P 192513-20 inside the mask on the red deck-card artwork, and an A/A change outside every mask, 4478-2 at nav-earn; build the consensus capture (A, A2, A3 arms, Lean rule: a cell counts a change only when A/A agree) so render-server variation is separated from the arm, one path-pix run with >= 3 jobs per engine; (2) probesHit (box-overlap element naming in pathpix-exit.mjs) is a TS stand-in: give it a Lean twin with golden, or record it as an accepted stand-in in the handoff with the reason; (3) the report script prints the probe boxes at the asked scrollY (today only arm A at scrollY 0), so element matches are read from the report, not the artifacts.",
+   "evidence": "0b5b2d5"
   },
   {
    "devices": [
@@ -19184,7 +19185,8 @@
     "apps/runner/test/polish*.test.ts",
     "docs/team/handoffs/polish-wtname-wire.md"
    ],
-   "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout."
+   "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout.",
+   "evidence": "c5a8d9d"
   },
   {
    "devices": [
@@ -19207,6 +19209,126 @@
     "docs/team/handoffs/timing-wait-state-interval.md"
    ],
    "title": "timing-poll-interval-observed review follow-ups (2026-10-24): (1) noteDecided in packages/gh-budget/src/wait.ts records the Budget.interval of the deciding tick's own state plus any failure backoff on the span (today timing-ci.ts re-reads the state file at span write); (2) cap the observed gap tickMs - prevTickMs at that recorded interval plus backoff, so a poller stall between the two ticks is own time again (today it nets to 0), with a theorem and a golden row for a stalled gap."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-strays-sound",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "polish-wtname-wire"
+   ],
+   "writes": [
+    "lean/Fw/Wire/Plan.lean",
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/polish-strays-sound.md"
+   ],
+   "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gc-landed-identity",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "packages/contracts/golden/ops/disk-gc*.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc*.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/gc-landed-identity.md"
+   ],
+   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-gate-engine-webkit-slow",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-ci-gate-engine-webkit-slow.md",
+    "lean/Fw/Ops/GateEngineTiming.lean",
+    "packages/contracts/golden/ops/gate-engine-timing.jsonl",
+    ".github/actions/gate-engine/**",
+    "docs/team/handoffs/ci-gate-engine-webkit-slow.md"
+   ],
+   "title": "timing.slow alerts 2026-10-24 on land legs: 'Run ./.github/actions/gate-engine' (playwright-webkit) 66 s vs 39 s baseline (commit 32c4fd4), 87 s vs 54 s (9bdab20), and its Post step 43 s vs 5 s (910dacd); chromium gate-engine 42 s vs 25 s. Find where the time goes per sub-step from existing land runs (gh run view --log, poll >= 120 s, no gh api): Playwright browser cache restore/save, WebKit install, deps, or the gate itself; decide in Lean whether it is download variance (no action) or a fixable cost (cache key churn, save on every run, missing restore), with golden rows per run; fix the fixable part in the action and measure on the next land legs."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-consensus-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "pathpix-consensus-capture"
+   ],
+   "writes": [
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix-exit*.mjs",
+    "packages/measure-webkit/test/pathpix*.test.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    ".github/workflows/path-pix.yml",
+    "research/notes/2026/10-2x-hero-copy-floor.md",
+    "docs/team/handoffs/pathpix-consensus-followups.md"
+   ],
+   "title": "pathpix-consensus-capture review follow-ups (2026-10-24, run 40026419647): (1) lookList and heroCopySummary show the consensus verdict next to the grade and leave varied cells out of the 'L cells with a strip' list, so the user's look review does not count render-server variation as an arm change; (2) a per-zone grade in Lean that drops varied zones in mixed cells (one counted, one varied); (3) the Chromium A3 arm (one entry in packages/measure-chromium/src/pathpix.mjs); (4) a majority reference or a second run to class the hero_copy 192513-20 raster (varied in webkit-1, counted in webkit-2) and the nav-earn 4478-2 A/A change; (5) accent-nolayout-measure item 2 moved here: a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) giving pixel numbers for hero.accent:draw-nolayout and draw-nolayout-full vs faithful for the user's look review. One path-pix run, >= 3 jobs per engine."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-poller-snapshot",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-wait-state-interval"
+   ],
+   "writes": [
+    "packages/gh-budget/src/poller.ts",
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/test/*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-poller-snapshot.md"
+   ],
+   "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-watch-one-rule",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gc-landed-identity"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "apps/runner/src/reap.ts",
+    "apps/runner/test/reap*.test.ts",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/watch*.ts",
+    "docs/team/handoffs/reap-watch-one-rule.md"
+   ],
+   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case."
   }
  ],
  "deadline": {
