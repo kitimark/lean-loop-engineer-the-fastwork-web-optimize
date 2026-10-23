@@ -1,0 +1,20 @@
+{
+  "run": "39999057900",
+  "baselineRun": "39983630584",
+  "commit": "08e6bcdf0b95fd5f5ed16f1490e227996164ef4d",
+  "lane": "webkit-sim swap lane, iPhone 430x775 Simulator, arm hero.accent:draw-nolayout (named crop in the report tables) against faithful-a and faithful-b of the same page",
+  "jobs": {"r1": "success", "r2": "success", "r3": "failure (Boot the Simulator)"},
+  "captures": {"faithful-a": 4, "faithful-b": 4, "arm": 8},
+  "restWindows": {
+    "layoutAtLeast24": {"faithful-a": "20 of 32", "faithful-b": "18 of 32", "arm": "17 of 64"},
+    "layoutRowsPerCapture": {"faithful-a": 246.5, "faithful-b": 226.5, "arm": 122.3},
+    "median": {"faithful-a": 46, "faithful-b": 45.5, "arm": 5}
+  },
+  "swapWindows": {
+    "layoutMedian": {"faithful-a": 14, "faithful-b": 14, "arm": 14},
+    "layoutRowsPerCapture": {"faithful-a": 112.5, "faithful-b": 102.5, "arm": 109.4},
+    "perWindowVerdict": "unresolved:overlap in all 8 windows and all 4 kinds"
+  },
+  "heroExit": "scroll-A cadence, Paint and Composite time per frame: ranges overlap the baseline run 39983630584 (cost-report.md); the lane records no Layout count per scroll frame",
+  "pixel": "not measured"
+}
