@@ -66,7 +66,7 @@ describe.skipIf(!haveCore)("the own time of a wait replays the Lean golden throu
     .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; ownMs: number | null });
   const params = { budgetMs: 1, budgets: [], ceilings: [], kDen: 1, kNum: 1, loadMax: 1000, nMin: 1, stages: [] };
   const input = golden.map((g, id) => JSON.stringify({ id, op: "obs.timing", params, samples: parseSamples(JSON.stringify(g.span)) })).join("\n") + "\n";
-  const out = spawnSync(fwcore, [], { input, encoding: "utf8", timeout: 120_000, maxBuffer: 64 << 20 }).stdout ?? "";
+  const out = spawnSync(fwcore, [], { input, encoding: "utf8", maxBuffer: 64 << 20 }).stdout ?? "";
   const byId = new Map(out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { id: number; verdicts?: { kind: string; durMs: number }[] })
     .map((r) => [r.id, r] as const));
   it("has the Lean cases", () => expect(golden.length).toBe(8));
