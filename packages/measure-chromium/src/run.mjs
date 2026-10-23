@@ -1,14 +1,16 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, openSync, existsSync } from 'node:fs';
+import { createServer } from 'node:http';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents } from './profile.mjs';
+import { parseProfile, replayEvents, keep, userAgent } from './profile.mjs';
 import { collectCensus } from './census.mjs';
+import { pngRegionHash } from './png-region.mjs';
 
 const N0_ON = !process.env.FW_NO_N0;
 
@@ -33,6 +35,101 @@ const SEARCH = args.search && args.search !== true ? args.search : '';
 const TARGET = args.target ?? 'original';
 const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scrollTop' : 'scrollY';
 const srv = await startServer(ROOT);
+const REPRO = process.env.FW_REPRO ? await startRepro(process.env.FW_REPRO) : null;
+if (process.env.FW_STOCK) await stockRun(process.env.FW_STOCK);
+
+/** Serve profile.repro[key] at `/` and the site's latin text face at `/font.woff2`; returns the page URL. */
+async function startRepro(key) {
+  const html = profile.repro?.[key];
+  if (typeof html !== 'string') { console.error(`profile ${profile.id}: no repro page "${key}"`); process.exit(2); }
+  const font = ['fonts/google-sans-latin-normal.BbZhqv4U.woff2', '_app/immutable/assets/google-sans-latin-normal.BbZhqv4U.woff2']
+    .map((f) => `${ROOT}/${f}`).find((f) => existsSync(f));
+  const s = createServer((req, res) => {
+    if (req.url === '/font.woff2' && font) { const b = readFileSync(font); res.writeHead(200, { 'content-type': 'font/woff2', 'content-length': b.length }).end(b); return; }
+    if (req.url === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(html); return; }
+    res.writeHead(404).end();
+  });
+  await new Promise((r) => s.listen(0, '127.0.0.1', r));
+  console.error(`FW_REPRO ${key} font ${font ?? 'none'}`);
+  return `http://127.0.0.1:${s.address().port}/`;
+}
+
+/** The binary of Chrome for Testing <version> for this machine, downloaded once per container into /tmp/cft. */
+function cftChrome(version) {
+  const plat = process.arch === 'arm64' ? 'linux-arm64' : 'linux64';
+  const dir = `/tmp/cft/${version}`;
+  const exe = `${dir}/chrome-${plat}/chrome`;
+  if (existsSync(exe)) return exe;
+  mkdirSync(dir, { recursive: true });
+  const url = `https://storage.googleapis.com/chrome-for-testing-public/${version}/${plat}/chrome-${plat}.zip`;
+  const get = spawnSync('curl', ['-fsSL', '--retry', '5', '--retry-all-errors', '-o', `${dir}.zip`, url], { stdio: ['ignore', 'inherit', 'inherit'] });
+  if (get.status !== 0) { console.error(`FW_STOCK_FETCH_FAILED ${url}`); process.exit(3); }
+  console.error(`FW_STOCK_ZIP ${url} sha256 ${createHash('sha256').update(readFileSync(`${dir}.zip`)).digest('hex')}`);
+  if (spawnSync('unzip', ['-q', `${dir}.zip`, '-d', dir], { stdio: 'inherit' }).status !== 0) process.exit(3);
+  return exe;
+}
+
+/** Load the repro page or the target once in a browser started without the harness, then exit 0 (alive) or 76 (renderer crash). */
+async function stockRun(spec) {
+  const exe = spec === 'shell' ? process.env.FW_CHROME : spec.startsWith('cft:') ? cftChrome(spec.slice(4)) : null;
+  if (!exe) { console.error(`FW_STOCK must be cft:<version> or shell, got ${spec}`); process.exit(2); }
+  const url = REPRO ?? `http://127.0.0.1:${srv.port}/${SEARCH}`;
+  const { width, height } = profile.viewport;
+  const log = `/tmp/stock-${process.pid}.log`;
+  const argv = [...(spec === 'shell' ? [] : ['--headless']), '--remote-debugging-port=9222', '--no-sandbox', '--no-first-run',
+    `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-stock'}`, `--window-size=${width},${height}`,
+    '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1', ...(process.env.FW_STOCK_EXTRA ? process.env.FW_STOCK_EXTRA.split(' ') : []), 'about:blank'];
+  const fd = openSync(log, 'w');
+  const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd] });
+  process.on('exit', () => { try { ch.kill('SIGKILL'); } catch {} });
+  let ver = null;
+  for (let i = 0; i < 300 && !ver; i++) { try { ver = await (await fetch('http://127.0.0.1:9222/json/version')).json(); } catch { await sleep(100); } }
+  if (!ver) { console.error(`FW_STOCK_NO_BROWSER ${spec}\n${readFileSync(log, 'utf8').slice(-3000)}`); process.exit(4); }
+  console.error(`FW_STOCK ${spec} ${ver.Browser} url ${REPRO ? `repro ${process.env.FW_REPRO}` : `${TARGET} ${SEARCH}`} argv ${argv.filter((a) => !a.startsWith('--user-data-dir')).join(' ')}`);
+  const br = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222', defaultViewport: null, protocolTimeout: 60000 });
+  const bsess = await br.target().createCDPSession();
+  let crashSeen = false;
+  const crashed = async (why) => {
+    if (crashSeen) return;
+    crashSeen = true;
+    console.error(`FW_RENDERER_CRASH: ${why} (${spec}, ${ver.Browser})`);
+    let text = '';
+    for (let i = 0; i < 20; i++) { await sleep(250); text = readFileSync(log, 'utf8'); if (/\[end of stack trace\]/.test(text)) break; }
+    const at = text.indexOf('Received signal');
+    console.error('stock browser log, signal block:\n' + (at >= 0 ? text.slice(at, at + 12000) : text.slice(-3000)));
+    process.exit(76);
+  };
+  bsess.on('Target.targetCrashed', (e) => crashed(`Target.targetCrashed status ${e.status} errorCode ${e.errorCode}`));
+  await bsess.send('Target.setDiscoverTargets', { discover: true });
+  const { targetId: tid } = await bsess.send('Target.createTarget', { url: 'about:blank' });
+  const pg = await (await br.waitForTarget((t) => t._targetId === tid)).page();
+  const cs = await pg.createCDPSession();
+  cs.on('Inspector.targetCrashed', () => crashed('Inspector.targetCrashed'));
+  await cs.send('Inspector.enable').catch(() => {});
+  await cs.send('Page.enable');
+  if (profile.css) await cs.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
+  const loaded = new Promise((r) => cs.once('Page.loadEventFired', r));
+  await cs.send('Page.navigate', { url });
+  await Promise.race([loaded, sleep(20000)]);
+  const evs = async (expression) => (await cs.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
+  try {
+    for (let i = 1; i <= 20; i++) { await evs(`window.scrollTo(0, ${i / 20} * (document.documentElement.scrollHeight - innerHeight))`); await sleep(100); }
+    await evs('window.scrollTo(0, 0)');
+    await sleep(3000);
+    const facts = await evs(`(() => { const h = document.getElementById('future-heading') ?? document.querySelector('h2'); const st = h ? getComputedStyle(h) : null;
+      return { innerWidth, ua: navigator.userAgent, fonts: document.fonts.status, title: h ? h.textContent.trim().slice(0, 60) : null,
+        textWrapStyle: st ? st.textWrapStyle : null, textWrapMode: st ? st.textWrapMode : null, titleHeight: h ? h.getBoundingClientRect().height : null }; })()`);
+    console.error(`FW_STOCK_RESULT ${JSON.stringify({ spec, browser: ver.Browser, ...facts })}`);
+  } catch (e) {
+    await sleep(6000);
+    console.error(`FW_STOCK_ERROR ${String(e).slice(0, 300)}`);
+    process.exit(1);
+  }
+  console.error(`FW_LOAD_OK: stock ${spec} ${ver.Browser} alive 5 s after load`);
+  ch.kill('SIGKILL');
+  process.exit(0);
+}
+
 const CHROME_ARGS = [
   '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-profile'}`,
   '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw',
@@ -47,8 +144,7 @@ const CHROME_ARGS = [
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
 ];
-const DROP = [...(process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean), ...(profile.dropFlags ?? [])];
-for (let i = CHROME_ARGS.length - 1; i >= 0; i--) if (DROP.some((d) => CHROME_ARGS[i].startsWith(d))) CHROME_ARGS.splice(i, 1);
+CHROME_ARGS.splice(0, CHROME_ARGS.length, ...keep(CHROME_ARGS, profile.dropFlags ?? []));
 const chrome = spawn(process.env.FW_CHROME, CHROME_ARGS, { stdio: ['ignore', DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'w'), DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'a')] });
 process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch {} });
 for (let i = 0; i < 200; i++) { try { await fetch('http://127.0.0.1:9222/json/version'); break; } catch { await sleep(50); } }
@@ -74,9 +170,8 @@ const ev = async (expression) => {
   if (r.exceptionDetails) throw new Error('evaluate failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
   return r.result.value;
 };
-// Network.enable makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
-// static server instead (every request that can succeed goes through it; external hosts are unresolvable by design).
-{
+c.on('Page.javascriptDialogOpening', () => { c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); }); // not a diagnostic: an open dialog would block the page
+if (process.env.FW_LOAD_TRACE) {
   let logged = 0;
   const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
   c.on('Inspector.targetCrashed', () => say('TARGET CRASHED'));
@@ -87,16 +182,16 @@ const ev = async (expression) => {
   bs.on('Target.targetDestroyed', (e) => say('target destroyed', e.targetId));
   c.on('Page.frameNavigated', (e) => say('navigated', e.frame.url.slice(0, 60)));
   c.on('Page.lifecycleEvent', (e) => say('lifecycle', e.name));
-  c.on('Page.javascriptDialogOpening', (e) => { say('DIALOG', e.type, JSON.stringify(e.message).slice(0, 200)); c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); });
   c.on('Runtime.exceptionThrown', (e) => say('EXCEPTION', (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text ?? '').slice(0, 300)));
   c.on('Runtime.consoleAPICalled', (e) => { if (e.type === 'error' || e.type === 'warning' || e.type === 'assert') say(e.type, e.args.map((x) => x.value ?? x.description ?? '').join(' ').slice(0, 300)); });
 }
 await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable');
 await c.send('Emulation.setDeviceMetricsOverride', { width: profile.viewport.width, height: profile.viewport.height, deviceScaleFactor: profile.viewport.dpr, mobile: profile.viewport.mobile, screenWidth: profile.viewport.width, screenHeight: profile.viewport.height });
 if (!process.env.FW_NOTOUCH) await c.send('Emulation.setTouchEmulationEnabled', { enabled: profile.viewport.touch, maxTouchPoints: 5 });
-const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean));if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
+const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean));
+if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
 if (!SKIP.has('locale')) await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
-if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
+if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: userAgent(profile.viewport.mobile), acceptLanguage: profile.locale });
 const shim = readFileSync('/driver/clock-shim.js', 'utf8');
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
@@ -143,8 +238,8 @@ async function hangProfile(frameNo) {
   console.error(`hang trace names:\n  ${names.join('\n  ')}`);
   throw new Error(`load hang at frame ${frameNo}: ${events.length} trace events\n top samples:\n  ${top.join('\n  ') || '(none)'}\n long tasks:\n  ${longs.join('\n  ') || '(none)'}`);
 }
-let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
-async function frame(vtMs, pre = '', mid = null) {
+let loaded = false;
+async function frame(vtMs, pre = '', mid = null, shot = false) {
   touch.frames++;
   const sent0 = touch.sent;
   const r0 = srv.requests();
@@ -153,7 +248,7 @@ async function frame(vtMs, pre = '', mid = null) {
   if (DEBUG) console.error('frame', vtMs.toFixed(1));
   let bf = null;
   for (let attempt = 0; attempt < 20 && !bf; attempt++) {
-    bf = await Promise.race([c.send('HeadlessExperimental.beginFrame', { frameTimeTicks: T0 + vtMs, interval: dt }), sleep(+(process.env.FW_BF_TIMEOUT_MS ?? (loaded ? 5000 : 1500))).then(() => null)]);
+    bf = await Promise.race([c.send('HeadlessExperimental.beginFrame', { frameTimeTicks: T0 + vtMs, interval: dt, ...(shot ? { screenshot: { format: 'png' } } : {}) }), sleep(+(process.env.FW_BF_TIMEOUT_MS ?? (loaded ? 5000 : 1500))).then(() => null)]);
     if (!bf && DEBUG) { console.error('beginFrame retry', attempt); console.error('main thread alive?', await Promise.race([ev('performance.now()').then((v) => 'yes ' + v, (e) => 'error ' + e), sleep(3000).then(() => 'NO (no answer in 3 s)')])); }
     if (!bf && DEBUG && process.env.FW_EXTRA_CATEGORIES) { const done = new Promise((res) => c.once('Tracing.tracingComplete', res)); await c.send('Tracing.end'); const { stream } = await done; let tx = ''; for (;;) { const r = await c.send('IO.read', { handle: stream, size: 1 << 20 }); tx += r.data; if (r.eof) break; } writeFileSync(`${OUT}/hang-trace.json`, tx); console.error('hang trace written'); process.exit(3); }
     if (!bf && loaded) { console.error(`FW_BEGINFRAME_HANG: no answer to beginFrame at vt ${vtMs} (touch events unacknowledged: ${touch.unacked}); the container is no good, run it again`); process.exit(75); }
@@ -162,10 +257,10 @@ async function frame(vtMs, pre = '', mid = null) {
   if (touch.unacked > 0) { const t = Date.now(); await Promise.race([touch.settled(), sleep(TOUCH_ACK_MS)]); if (DEBUG) console.error('touch unacked', touch.unacked, 'after', Date.now() - t, 'ms'); }
   if (touch.sent > sent0) await sleep(TOUCH_POST_ACK_MS);
   await networkBarrier(r0);
-  return { out, hasDamage: !!bf.hasDamage };
+  return { out, hasDamage: !!bf.hasDamage, screenshot: bf.screenshotData ?? null };
 }
 
-const navRes = await c.send('Page.navigate', { url: `http://127.0.0.1:${srv.port}/${SEARCH}` });
+const navRes = await c.send('Page.navigate', { url: REPRO ?? `http://127.0.0.1:${srv.port}/${SEARCH}` });
 if (navRes.errorText) throw new Error('navigation failed: ' + navRes.errorText);
 let quiet = 0, loadFrames = 0;
 for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; loadFrames++) {
@@ -268,7 +363,6 @@ const warmN = inputMode === 'page' ? plan.filter((x) => x.phase === 'warm').leng
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   for (let n = 0; n < plan.length; n++, vt += dt) {
     const { phase, y, run } = plan[n];
-    // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
     const pre = inputMode === 'page'
       ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = ${POS};`
       : `console.timeStamp('F${n}'); ${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
@@ -339,6 +433,30 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
+let probe = null;
+if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try {
+  const { selector, faceSelector } = profile.cardProbe;
+  const read = `(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const q = (n) => { const r = n.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 1000) / 1000); };
+    const f = ${faceSelector ? `document.querySelector(${JSON.stringify(faceSelector)})` : 'null'};
+    const cb = []; for (let n = e.parentElement; n; n = n.parentElement) { const cs = getComputedStyle(n); const why = [cs.transform !== 'none' && 'transform', cs.translate !== 'none' && 'translate', cs.filter !== 'none' && 'filter', cs.perspective !== 'none' && 'perspective', cs.contain !== 'none' && 'contain:' + cs.contain, /transform|translate/.test(cs.willChange) && 'will-change', cs.backdropFilter !== 'none' && 'backdrop-filter'].filter(Boolean); if (why.length) cb.push(n.tagName.toLowerCase() + '.' + String(n.className).slice(0, 40) + ' ' + why.join(',')); }
+    return { rect: q(e), face: f ? q(f) : null, top: e.style.top, left: e.style.left, translate: e.style.translate, cb }; })()`;
+  const rows = [];
+  let prevPng = '', prevCard = null, containing = null;
+  for (let n = 0; n < plan.length; n++, vt += dt) {
+    const { phase, y, run } = plan[n];
+    const r = await frame(vt, `${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`, null, true);
+    const v = await ev(read);
+    const { cb, ...rest } = v ?? {};
+    if (v && containing === null) containing = cb;
+    if (r.screenshot) {
+      prevPng = createHash('sha256').update(r.screenshot).digest('hex').slice(0, 16);
+      prevCard = v ? pngRegionHash(r.screenshot, v.rect[0] - 60, v.rect[1] - 60, v.rect[0] + v.rect[2] + 60, v.rect[1] + v.rect[3] + 60) : null;
+    } else if (!v) prevCard = null;
+    rows.push({ n, phase, y: r.out, png: prevPng, cardPng: v ? prevCard : null, found: v !== null, ...rest });
+  }
+  probe = { selector, containing, frames: rows };
+} catch (e) { probe = { selector: profile.cardProbe.selector, error: String(e.message ?? e).slice(0, 300) }; } // the counts stay valid: the probe runs after them
+
 const censusPump = async () => {
   vt += dt;
   await ev(`__fwclock.advanceTo(${vt})`);
@@ -366,6 +484,7 @@ const result = {
   },
   frames,
   runLevel,
+  ...(probe ? { cardProbe: probe } : {}),
 };
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/counts.json`, JSON.stringify(result, null, 1) + '\n');
