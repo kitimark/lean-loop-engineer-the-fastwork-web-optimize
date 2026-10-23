@@ -138,15 +138,45 @@ export async function stagedChecks(dir: string, git: (cwd: string, args: string[
 }
 
 const BASELINE = "fw-polish-untracked";
+const DIRTY_BASELINE = "fw-polish-dirty";
 type Git = NonNullable<Deps["git"]>;
 
 const untrackedOf = (dir: string, git: Git) => lines(git(dir, ["-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard"]));
 const dirtyOf = (dir: string, git: Git) => lines(git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", "HEAD"]));
 
-/** Writes the untracked files present before the polish stage (read by `settleTree`). TS glue. */
+/** Writes the untracked files and the tracked dirty paths present before the polish stage (read by `settleTree` and the commit step). TS glue. */
 function saveBaseline(dir: string, git: Git, write: NonNullable<Deps["write"]>): void {
   const gd = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
   write(join(gd, BASELINE), untrackedOf(dir, git).join("\n") + "\n");
+  write(join(gd, DIRTY_BASELINE), dirtyOf(dir, git).join("\n") + "\n");
+}
+
+/** One `-U0` hunk of the polish edits for `walkHunks`: the TS stand-in of Lean `Fw.Plan.Polish.WHunk`, replayed against the `plan.polishWalk` goldens. */
+export type WHunk = { target: number; oldLen: number; new: string[]; keep: boolean };
+
+/** HEAD lines with exactly the kept hunks applied (Lean `Fw.Plan.Polish.walk`: `walk_restored`, `walk_skip_restored`). TS stand-in. */
+export function walkHunks(head: string[], hunks: WHunk[]): string[] {
+  const out: string[] = [];
+  let at = 0;
+  for (const h of hunks) {
+    const skip = Math.max(h.target - at, 0);
+    out.push(...head.slice(at, at + skip));
+    out.push(...(h.keep ? h.new : head.slice(at + skip, at + skip + h.oldLen)));
+    at += skip + h.oldLen;
+  }
+  out.push(...head.slice(at));
+  return out;
+}
+
+/** The file text after the kept hunks of `file` are applied to its HEAD text; null when a hunk has a no-newline marker (the caller restores the whole file). */
+export function keptText(headText: string, file: FileDiff, kept: boolean[]): string | null {
+  const hunks: WHunk[] = [];
+  for (const [i, h] of file.hunks.entries()) {
+    const body = h.text.split("\n").slice(1);
+    if (body.some((l) => l.startsWith("\\"))) return null;
+    hunks.push({ target: h.oldLen === 0 ? h.oldStart : h.oldStart - 1, oldLen: h.oldLen, new: body.filter((l) => l.startsWith("+")).map((l) => l.slice(1)), keep: kept[i] === true });
+  }
+  return walkHunks(headText.split("\n"), hunks).join("\n");
 }
 
 /** Leaves the polish worktree clean, whatever the commit step did: the index goes back to HEAD, every tracked path still
@@ -155,16 +185,18 @@ function saveBaseline(dir: string, git: Git, write: NonNullable<Deps["write"]>):
 export async function settleTree(dir: string, git: Git, call: CoreCall | null, read: NonNullable<Deps["read"]>, remove: (p: string) => void): Promise<string> {
   const gd = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
   const base = read(join(gd, BASELINE));
+  const dirtyBase = read(join(gd, DIRTY_BASELINE));
   git(dir, ["reset", "-q"]);
   const dirty = dirtyOf(dir, git);
   const untracked = untrackedOf(dir, git);
   const before = base === null ? untracked : lines(base);
-  let restore = dirty;
+  let restore = dirtyBase === null ? dirty : dirty.filter((p) => !lines(dirtyBase).includes(p));
   let rm: string[] = [];
-  let note = base === null ? "; no baseline from fw polish plan, untracked files kept" : "";
+  let note = dirtyBase !== null && restore.length < dirty.length ? `; ${dirty.length - restore.length} path(s) were dirty before plan and kept` : "";
+  note += base === null ? "; no baseline from fw polish plan, untracked files kept" : "";
   try {
     if (!call) throw new Error("no fwcore");
-    const r = await call({ op: "plan.polishSettle", before, dirty, untracked });
+    const r = await call({ op: "plan.polishSettle", before, dirtyBefore: dirtyBase === null ? [] : lines(dirtyBase), dirty, untracked });
     if (!Array.isArray(r.restore) || !Array.isArray(r.remove)) throw new Error("no settle verdict");
     restore = r.restore as string[]; rm = r.remove as string[];
   } catch (e) { note += `; Lean settle unavailable (${e instanceof Error ? e.message : e}), restored all dirty paths`; }
@@ -224,19 +256,26 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
         out(`VERDICT polish-commit ${task} refused`);
         return 1;
       }
-      if (plan.restore.length) { git(dir, ["checkout", "HEAD", "--", ...plan.restore]); out(`restored ${plan.restore.join(" ")}`); }
+      const gdir = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
+      const dirtyText = read(join(gdir, DIRTY_BASELINE));
+      const mine = new Set(dirtyText === null ? [] : lines(dirtyText));
+      for (const p of [...plan.restore, ...plan.keep].filter((q) => mine.has(q))) out(`left ${p} (dirty before fw polish plan, not the polish stage's)`);
+      const restoreNow = plan.restore.filter((q) => !mine.has(q));
+      if (restoreNow.length) { git(dir, ["checkout", "HEAD", "--", ...restoreNow]); out(`restored ${restoreNow.join(" ")}`); }
       const clsOf = new Map(plan.classes.map((c) => [c.path, c.class]));
       const keep: string[] = [];
-      for (const path of plan.keep) {
+      for (const path of plan.keep.filter((q) => !mine.has(q))) {
         const ed = hk.edits.find((e) => e.path === path);
         const file = editDiff.find((f) => f.path === path);
         if (clsOf.get(path) === "prose") { keep.push(path); continue; }
         if (!ed || !file) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (no edit record)`); continue; }
         const bad = file.hunks.map((h, i) => ({ h, i })).filter(({ i }) => !ed.pathOk || ed.kept[i] !== true);
         if (!file.hunks.length || bad.length === file.hunks.length) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (outside the branch's hunks)`); continue; }
-        for (const { h } of [...bad].sort((a, b) => b.h.newStart - a.h.newStart)) {
-          git(dir, ["apply", "-R", "--unidiff-zero", "-"], `${file.header}\n${h.text}\n`);
-          out(`restored ${path}:${h.oldStart}-${h.oldStart + Math.max(h.oldLen, 1) - 1} (outside the branch's hunks)`);
+        if (bad.length) {
+          const text = keptText(git(dir, ["show", `HEAD:${path}`]), file, file.hunks.map((_, i) => !bad.some((b) => b.i === i)));
+          if (text === null) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (a hunk has a no-newline marker)`); continue; }
+          write(join(dir, path), text);
+          for (const { h } of bad) out(`restored ${path}:${h.oldStart}-${h.oldStart + Math.max(h.oldLen, 1) - 1} (outside the branch's hunks)`);
         }
         keep.push(path);
       }

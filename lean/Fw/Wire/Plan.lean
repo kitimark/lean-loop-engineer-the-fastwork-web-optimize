@@ -52,7 +52,8 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: the verdict used is accept and a `fix-before-land` finding is present, so the checker re-checks], `blockers`, `fixes` [counts] |
 | `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`), `heads`? [{path, head}] (first lines; a generator stamp makes the path skip) (`Fw.Plan.Polish`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore` |
 | `plan.polishHunks` | `diff` [{path, spans [{start, len}]}] (new-side hunks of the branch diff, merge-base to head, `-U0`), `edits` [{path, spans}] (old-side hunks of the uncommitted edits against head), `main` [paths dirty in the main checkout] (`Fw.Plan.Polish.admitted`, `relOk`, `blocked`) | `ranges` [{path, ranges [{lo, hi}]}], `edits` [{path, pathOk, kept [bool per span]}], `blocked` |
-| `plan.polishSettle` | `before` [untracked paths before the polish stage], `dirty` [tracked paths differing from HEAD], `untracked` [untracked paths now] (`Fw.Plan.Polish.settle`) | `restore` [paths to restore from HEAD], `remove` [untracked paths created since `before`] |
+| `plan.polishSettle` | `before` [untracked paths before the polish stage], `dirtyBefore`? [tracked paths dirty at plan time; missing = `[]`], `dirty` [tracked paths differing from HEAD], `untracked` [untracked paths now] (`Fw.Plan.Polish.settle`) | `restore` [dirty paths that were clean at plan time, to restore from HEAD], `remove` [untracked paths created since `before`] |
+| `plan.polishWalk` | `head` [lines of the HEAD file], `hunks` [{target, oldLen, new [lines], keep}] in ascending order (`Fw.Plan.Polish.walk`) | `lines` [the file: HEAD with exactly the kept hunks applied] |
 | `plan.polishCuts` | `gen` [paths], `heads`?, `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
 | `plan.roster` | (none) | `roles` [{name, runsAs, edits}]: `Fw.Ops.SpawnGuard.prodRoles` |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
@@ -311,8 +312,17 @@ def opPolishHunks (req : Json) : Except String Reply := do
 open Fw.Plan.Polish in
 /-- `plan.polishSettle`: the paths to restore and the stray untracked paths to delete so the polish stage ends clean (`settle`). -/
 def opPolishSettle (req : Json) : Except String Reply := do
-  let a := settle (← strsD req "before") ⟨← strsD req "dirty", ← strsD req "untracked"⟩
+  let a := settle (← strsD req "before") (← strsD req "dirtyBefore") ⟨← strsD req "dirty", ← strsD req "untracked"⟩
   pure [("restore", strsJson a.restore), ("remove", strsJson a.remove)]
+
+open Fw.Plan.Polish in
+/-- `plan.polishWalk`: the lines of a file after the kept hunks are applied to HEAD and the restored ones are not (`walk`). -/
+def opPolishWalk (req : Json) : Except String Reply := do
+  let head ← strsD req "head"
+  let hs ← (← arr req "hunks").toList.mapM fun h => do
+    pure ({ target := ← natD h "target" 0, oldLen := ← natD h "oldLen" 0, new := ← strsD h "new",
+            keep := (h.getObjValAs? Bool "keep").toOption.getD false } : WHunk)
+  pure [("lines", strsJson (walk head 0 hs))]
 
 open Fw.Ops.SpawnGuard in
 /-- `plan.roster`: `Fw.Ops.SpawnGuard.prodRoles`, the roles the spawn guard knows. -/
@@ -324,7 +334,7 @@ def opRoster : Reply :=
 /-- The stateless ops of this module. -/
 def ops : List String :=
   ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts",
-   "plan.polishHunks", "plan.polishSettle", "plan.roster"]
+   "plan.polishHunks", "plan.polishSettle", "plan.polishWalk", "plan.roster"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -337,6 +347,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "plan.polishCuts" => some (opPolishCuts req)
   | "plan.polishHunks" => some (opPolishHunks req)
   | "plan.polishSettle" => some (opPolishSettle req)
+  | "plan.polishWalk" => some (opPolishWalk req)
   | "plan.roster" => some (pure opRoster)
   | _ => none
 

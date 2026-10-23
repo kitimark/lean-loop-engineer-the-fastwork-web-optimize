@@ -55,6 +55,21 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
   (`relOk`, `editKept`): the path is non-empty, does not start with `/`, and no `..` climbs above the worktree root (`a/../b` passes, `../a` and `a/../../b` do not); `blocked_mem` names the dirty main-checkout files.
   Prose files are kept whole (their cuts are judged by `cutSafe`).
 
+- Restore rule (op `plan.polishWalk`, `walk`): the commit step never reverse-applies a single zero-context hunk (git
+  places it by the new-side line, which an earlier kept hunk has shifted; this reinserted a deleted docstring 7 lines too
+  low in Trajectory.lean and Timing.lean, which then did not build). For a file with kept and restored hunks it walks the
+  `-U0` hunks in ascending order over the HEAD blob: kept hunks emit their new lines, restored hunks the HEAD lines
+  (`walk_restored`, `walk_keep`, `walk_restore`, `walk_skip_restored`: the result is HEAD with exactly the kept hunks
+  applied). The walk is TS (`walkHunks`, a stand-in) replayed against the Lean goldens; a hunk with a
+  no-newline marker restores the whole file.
+- The stage ends clean (`plan.polishSettle`, `settle`): after every commit outcome the index goes back to HEAD, dirty
+  tracked paths that were clean at plan time are restored, untracked files not present at plan time are deleted, and one
+  line `cleanup: restored N (...), removed M (...), worktree clean` is printed (`settle_clean`, `settle_dirty_before`,
+  `settle_keeps_dirty_before`, `settle_restores_clean_only`, `settle_removes_created`, `settle_keeps_before`,
+  `settle_committed`, `settle_idempotent`). `fw polish plan` saves the untracked files (`fw-polish-untracked`) and the dirty
+  tracked paths (`fw-polish-dirty`) in the git dir; a path dirty at plan time is left alone and never committed by the
+  stage (`left <path>` line). Without a plan baseline nothing untracked is deleted and every dirty path is restored.
+
 ## Goldens
 
 `packages/contracts/golden/plan/polish.jsonl` (test `apps/runner/test/polish.test.ts`; regenerate with

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { genOutputs, genOwned, polishCli } from "../src/polish.ts";
+import { genOutputs, genOwned, polishCli, walkHunks, type WHunk } from "../src/polish.ts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -25,7 +25,9 @@ const cutsReq = (docs: { path: string; text: string }[], cuts: { path: string; o
 type Sp = { path: string; spans: { start: number; len: number }[] };
 const hunks = (o: { diff?: Sp[]; edits?: Sp[]; main?: string[] }) => ({ op: "plan.polishHunks", diff: o.diff ?? [], edits: o.edits ?? [], main: o.main ?? [] });
 
-const settle = (o: { before: string[]; dirty: string[]; untracked: string[] }) => ({ op: "plan.polishSettle", ...o });
+const settle = (o: { before: string[]; dirty: string[]; untracked: string[]; dirtyBefore?: string[] }) => ({ op: "plan.polishSettle", ...o });
+const walk = (head: string[], hunks: WHunk[]) => ({ op: "plan.polishWalk", head, hunks });
+const H10 = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
 
 const supWire = { path: "docs/team/handoffs/sup-wire.md",
   old: "`Fw.Wire.Sup.Golden.gen` (cases take the token as a parameter, so fwcore builds no start-time constant); `--check`",
@@ -64,6 +66,12 @@ const cases: [string, Record<string, unknown>][] = [
   ["settle: dirty edits are restored, only untracked files created since plan are removed", settle({ before: ["keep.txt"], dirty: ["a.ts", "b.ts"], untracked: ["keep.txt", "a.ts-e", "x.orig"] })],
   ["settle: a clean worktree needs no action", settle({ before: ["keep.txt"], dirty: [], untracked: ["keep.txt"] })],
   ["settle: a file that was untracked before and is gone now is not named", settle({ before: ["gone.txt"], dirty: [], untracked: [] })],
+  ["settle: a path dirty at plan time keeps the builder's edits", settle({ before: [], dirtyBefore: ["mine.ts"], dirty: ["a.ts", "mine.ts"], untracked: [] })],
+  ["walk: a kept deletion above, a restored 3-line deletion below", walk(H10, [{ target: 1, oldLen: 1, new: [], keep: true }, { target: 6, oldLen: 3, new: [], keep: false }])],
+  ["walk: both deletions kept", walk(H10, [{ target: 1, oldLen: 1, new: ["B"], keep: true }, { target: 6, oldLen: 3, new: [], keep: true }])],
+  ["walk: a pure insertion kept", walk(H10, [{ target: 3, oldLen: 0, new: ["x"], keep: true }])],
+  ["walk: first restored, second kept to the end", walk(H10, [{ target: 1, oldLen: 1, new: ["B"], keep: false }, { target: 8, oldLen: 2, new: ["Y"], keep: true }])],
+  ["walk: every hunk restored gives HEAD back", walk(H10, [{ target: 0, oldLen: 2, new: ["z"], keep: false }, { target: 5, oldLen: 0, new: ["q"], keep: false }])],
   ["cuts: apply a cut that keeps every fact", cutsReq([{ path: md, text: "See lean/Fw/A.lean:12 for the rule, which is the rule.\n" }],
     [{ path: md, old: "for the rule, which is the rule.", new: "for the rule." }])],
   ["cuts: 10-22 sup-wire over-cut leaves a space before ;", cutsReq([doc(supWire)], [supWire])],
@@ -134,6 +142,18 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
     expect(res("settle: dirty edits")).toEqual({ restore: ["a.ts", "b.ts"], remove: ["a.ts-e", "x.orig"] });
     expect(res("settle: a clean")).toEqual({ restore: [], remove: [] });
     expect(res("settle: a file that was")).toEqual({ restore: [], remove: [] });
+  });
+
+  it("settle keeps the paths dirty at plan time", () => {
+    expect(res("settle: a path dirty at plan time")).toEqual({ restore: ["a.ts"], remove: [] });
+  });
+
+  it("walk goldens: the TS walkHunks gives every Lean row", () => {
+    const rows = stored().filter((l) => l.request.op === "plan.polishWalk");
+    expect(rows.length).toBe(5);
+    for (const l of rows) expect(walkHunks(l.request.head as string[], l.request.hunks as WHunk[])).toEqual(l.response.lines);
+    expect(res("walk: a kept deletion above").lines).toEqual(["a", "c", "d", "e", "f", "g", "h", "i", "j"]);
+    expect(res("walk: every hunk restored").lines).toEqual(H10);
   });
 
   it("cut verdicts, one per branch of judge", () => {
@@ -428,6 +448,36 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       expect(await run(wt, lines)).toBe(0);
       expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
       expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a kept deletion above and a restored 3-line deletion below give HEAD minus only the kept deletion (the Trajectory over-cut)", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      const t = tip.slice(); t.splice(89, 3); t.splice(61, 1);
+      writeFileSync(join(wt, file), t.join("\n") + "\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`restored ${file}:90-92 (outside the branch's hunks)`);
+      const want = tip.slice(); want.splice(61, 1);
+      expect(readFileSync(join(wt, file), "utf8")).toBe(want.join("\n") + "\n");
+      expect(g(wt, "show", "--stat", "--format=", "HEAD")).toContain("1 file changed, 1 deletion(-)");
+      expect(g(wt, "status", "--porcelain").trim()).toBe("");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a path the builder left dirty at plan time is neither committed nor restored by the polish stage", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 5: "# builder wip" });
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, []))).toBe(0);
+      edit(wt, tip, { 5: "# builder wip", 62: "# comment 62 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines.some((l) => l.startsWith(`left ${file} (dirty before fw polish plan`))).toBe(true);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8").split("\n")[4]).toBe("# builder wip");
+      expect(g(wt, "log", "--format=%s", "-1")).toContain("builder");
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 
