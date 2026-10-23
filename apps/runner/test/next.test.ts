@@ -12,7 +12,7 @@ import {
   type AgentFacts, type NextReply, type Raw, type RawPs,
 } from "../src/next.ts";
 import { coreCaller } from "../src/watch.ts";
-import { hasWorktree } from "../src/watch-collect.ts";
+import { hasWorktree, parsePs as parsePsRows, startFromAge } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const fwcore = join(root, "lean/.lake/build/bin/fwcore");
@@ -210,3 +210,33 @@ describe("false-positive facts (inc-next-false-positives) and retention", () => 
 });
 
 export type { AgentFacts };
+
+// proc-startedat-negative: CircleCI (ubuntu-2404) failed with "field startedAt: expected a non-negative integer". The
+// start is now - age; the age came from `ps etime`, which on that image can exceed the clock, so the start was negative.
+describe("an etime longer than the clock (the CircleCI shape)", () => {
+  const now = 1_760_000_000_000;
+  const psText = "    1     0 03:41:48 /usr/local/bin/claude\n    5     1 25000-03:04:05 sh -c until grep -q X /t/o; do sleep 1; done\n";
+  it("startFromAge: a longer-than-clock age is unknown (-1), a normal age is the start", () => {
+    expect(startFromAge(now, 90_000)).toBe(now - 90_000);
+    expect(startFromAge(now, now)).toBe(0);
+    expect(startFromAge(now, now + 1)).toBe(-1);
+    expect(startFromAge(now, 1_728_000_000_000 * 40)).toBe(-1);
+  });
+  it("the child fact carries the unknown start and fwcore accepts it without proposing a kill for age", async () => {
+    const ps = parsePsRows(psText);
+    expect(ps.find((r) => r.pid === 5)!.ageMs).toBeGreaterThan(now); // the text parses to an age beyond the epoch
+    const raw: Raw = {
+      now, session: 1, ps, alive: () => true, file: () => null, queuedText: "", ci: [], board: new Map(),
+      procs: [{ pid: 5, name: "sh", startedAt: -1, pids: [], agent: "e2e" }],
+      agents: [{ id: "e2e", name: "e2e", task: "e2e", state: "idle", ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
+    };
+    const facts = buildFacts(raw);
+    expect(facts[0]!.children[0]!.startedAt).toBe(-1);
+    if (existsSync(fwcore)) {
+      const r = (await coreCaller([fwcore])({ op: "obs.next", now, agents: facts })) as NextReply;
+      expect(formatNext(r).filter((l) => l.includes("killOrphan"))).toEqual([]);
+      const h = await coreCaller([fwcore])({ op: "obs.health", now, system: { diskFreeGB: 50, procs: [{ pid: 5, name: "sh", startedAt: -1 }] } });
+      expect(JSON.stringify(h)).not.toContain("proc.long");
+    }
+  });
+});

@@ -214,6 +214,22 @@ def ciOf (j : Json) : Except String CiRun := do
          conclusion := ← optS j "conclusion", startedAt := ← nat j "startedAt", endedAt := ← optN j "endedAt",
          headSha := ← Fw.Wire.Ops.strD j "headSha" "" }
 
+/-- The start time of a process whose start is not known, written as a time after every clock reading, so its age
+`now - startedAt` is `0` (natural subtraction): an unknown start is never a long-runner. -/
+def unknownStart : Nat := 2 ^ 64
+
+/-- A required start time (ms). A non-negative integer is the start; a negative integer (a `ps` age longer than the
+wall clock, as a Linux container with a different boot base can print) is an unknown start, `unknownStart`; any other
+value (a fraction, a string) is refused as before. -/
+def startOf (j : Json) (k : String) : Except String Nat := do
+  let v ← field j k
+  match v.getNat? with
+  | .ok n => .ok n
+  | .error _ =>
+    match v.getInt? with
+    | .ok i => if i < 0 then .ok unknownStart else asNat k v
+    | .error _ => asNat k v
+
 /-- A process tree as JSON. -/
 def procJson (q : Proc) : Json :=
   Json.mkObj [("pid", toJson q.pid), ("name", .str q.name), ("startedAt", toJson q.startedAt),
@@ -221,7 +237,7 @@ def procJson (q : Proc) : Json :=
 
 /-- Decode a process tree (`pids` optional, default empty; `agent` optional). -/
 def procOf (j : Json) : Except String Proc := do
-  pure { pid := ← nat j "pid", name := ← str j "name", startedAt := ← nat j "startedAt",
+  pure { pid := ← nat j "pid", name := ← str j "name", startedAt := ← startOf j "startedAt",
          pids := ← (← arrD j "pids").mapM (asNat "pids"), agent := ← optS j "agent" }
 
 /-- A feedback event as JSON: `kind` `post` (`ref` the comment id) or `reply` (`ref` the comment answered). -/
@@ -713,11 +729,51 @@ def childKindOf (j : Json) : Except String ChildKind := do
 `watch` optional). -/
 def childOf (j : Json) : Except String Child := do
   pure { pid := ← nat j "pid", chain := ← (← arrD j "chain").mapM (asNat "chain"), kind := ← childKindOf j,
-         startedAt := ← nat j "startedAt", watchedAt := ← optN j "watchedAt",
+         startedAt := ← startOf j "startedAt", watchedAt := ← optN j "watchedAt",
          producerExited := ← boolD j "producerExited" false,
          watch := ← match opt j "watch" with
            | none => pure none
            | some v => some <$> watchOf v }
+
+/-- A start the wire carries as a non-negative integer is read as it is. -/
+theorem startOf_nat (k : String) (n : Nat) : startOf (Json.mkObj [(k, toJson n)]) k = .ok n := by
+  have g : (Json.mkObj [(k, toJson n)]).getObjVal? k = .ok (toJson n) :=
+    getObjVal_mkObj (l := [(k, toJson n)]) (by simp) (by simp)
+  unfold startOf field
+  rw [g]
+  rfl
+
+/-- A negative integer start is an unknown start, not a decoder failure (the CircleCI shape: task
+`proc-startedat-negative`). -/
+theorem startOf_neg (k : String) (n : Nat) :
+    startOf (Json.mkObj [(k, toJson (-(n + 1 : Int)))]) k = .ok unknownStart := by
+  have g : (Json.mkObj [(k, toJson (-(n + 1 : Int)))]).getObjVal? k = .ok (toJson (-(n + 1 : Int))) :=
+    getObjVal_mkObj (l := [(k, toJson (-(n + 1 : Int)))]) (by simp) (by simp)
+  unfold startOf field
+  rw [g]
+  rw [← Int.negSucc_eq]
+  have hn : Int.negSucc n < 0 := Int.negSucc_lt_zero n
+  simp [Json.getNat?, Json.getInt?, toJson, JsonNumber.fromInt, hn, bind, Except.bind, pure, Except.pure]
+  rfl
+
+/-- An unknown start has age `0` at every clock reading before `unknownStart`. -/
+theorem unknownStart_age (now : Nat) (h : now < unknownStart) : now - unknownStart = 0 := by omega
+
+/-- A child with an unknown start is never past the loop cap. -/
+theorem oldB_unknown (p : Fw.Obs.Next.Params) (now : Nat) (c : Fw.Obs.Next.Child) (h : now < unknownStart)
+    (hs : c.startedAt = unknownStart) : Fw.Obs.Next.oldB p now c = false := by
+  simp [Fw.Obs.Next.oldB, hs, unknownStart_age now h]
+
+/-- A CI wait with an unknown start is never overdue. -/
+theorem overdueB_unknown (now : Nat) (c : Fw.Obs.Next.Child) (h : now < unknownStart)
+    (hs : c.startedAt = unknownStart) : Fw.Obs.Next.overdueB now c = false := by
+  unfold Fw.Obs.Next.overdueB
+  split <;> simp [hs, unknownStart_age now h]
+
+/-- A process tree with an unknown start never raises `proc.long`. -/
+theorem procLongB_unknown (p : Params) (o : Obs) (q : Proc) (h : o.now < unknownStart)
+    (hs : q.startedAt = unknownStart) : procLongB p o q = false := by
+  simp [procLongB, hs, unknownStart_age o.now h]
 
 /-- A branch as JSON. -/
 def branchJson (b : Branch) : Json :=
@@ -1262,6 +1318,9 @@ def literal : List (String × Json) := [
   ("minimal: only now", lit "{\"now\":0}"),
   ("nulls count as absent: handbackAt, branch, worktree, ci, board, watchedAt",
    lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"n\",\"task\":\"n\",\"state\":\"idle\",\"session\":1,\"handbackAt\":null,\"branch\":null,\"worktree\":null,\"ci\":null,\"board\":null,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"build\",\"startedAt\":0,\"watchedAt\":null}]}]}"),
+  ("child start 0 (older than the loop cap): killOrphan", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0}]}]}"),
+  ("child start negative (a ps age longer than the clock) is unknown: not old, no killOrphan", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":-1760000000001}]}]}"),
+  ("refused: a fractional child start", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":1.5}]}]}"),
   ("refused: unknown state", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"busy\",\"session\":1}]}"),
   ("refused: unknown child kind", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"kind\":\"robot\",\"startedAt\":0}]}]}"),
   ("refused: ciWait without run", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"kind\":\"ciWait\",\"timeoutMin\":10,\"startedAt\":0}]}]}"),
