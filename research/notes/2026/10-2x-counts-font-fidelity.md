@@ -104,7 +104,7 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   height 6278 px in every job. Frozen classes over the three runs (kMax 4, tMax 24; `freeze.mjs`, Lean `Fw.Measure.Freeze`), deterministic/stable/quarantined
   of 70 types: original 30/16/24, rewrite 23/22/25. The font-less image gave original 36/25/9 (503 frames, frozen snapshot 499).
   The quarantined share is the cross-run worst class: one run alone gave 34/26/10 (39900399252).
-- NOT committed here: `classes.frozen.json` and the zone baselines. `freeze.mjs --out` writes the whole file from the runs it is given, and the
+- (Superseded by the refreeze below, now committed.) Earlier state: `classes.frozen.json` and the zone baselines were not committed. `freeze.mjs --out` writes the whole file from the runs it is given, and the
   file holds one image id for all profiles and arms ("image digest across profiles and arms" refuses a mix). A file from the three swipe-v1 runs alone
   loses the swipe-touch-v1 table and fails 7 tests of `pnpm --filter @fw/measure-chromium test` (the four baseline checks and three faithful comparisons);
   with the old file all 76 pass. So the refreeze is one step over both profiles, after the touch runs below exist.
@@ -135,6 +135,24 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   `node packages/measure-chromium/src/freeze.mjs runs/39914488176 runs/39916914389 runs/39916917890 runs/<t1> runs/<t2> runs/<t3> --built-by 39914488176 --out packages/measure-chromium/classes.frozen.json`,
   the zone stores (`pnpm -s fw ci <run> --branch ci/counts-font-fidelity`, then `zone-baseline.mjs --store <store> --target original|rewrite --profile <p> --run <id> --out results/baselines/chromium` per profile and arm),
   `node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium`.
+- MEASURED, swipe-touch-v1 on the pick image, three workflow runs of one image: 39924634896, 39924639452, 39924643106 (branch ci/counts-font-fidelity, sha c3c94a0b5, `image_run=39914488176`,
+  image `sha256:47b1dcbe...` in all 18 jobs). All 18 jobs ended `input.endReason = stalled` with `endGapPx = 4` and `scrollLimitPx = 5346` (limit minus highest scrollY): within one
+  move (780 px) of the limit as Lean `Swipe.ended` requires, so the end rule held in every job; none ended at the limit. The 4 px gap is the same in every job, so it is a property of the
+  touch scroller, not noise (INFERRED cause stays: compositor bound a few px below the main-thread bound). Every job has 771 frames.
+- MEASURED, frozen classes of the font image against the font-less table (kMax 4, tMax 24; types det/stable/quarantined of 70, per arm; `freeze.mjs`, `classes.frozen.json` now image `47b1dcbe...`, built by run 39914488176):
+
+| profile, arm | font-less (image 8f0e17f5, run set 39184638066...) | font image (runs above) |
+|---|---|---|
+| swipe-v1 original | 33/27/10 | 30/16/24 (runs 39914488176, 39916914389, 39916917890) |
+| swipe-v1 rewrite | 30/22/18 | 23/22/25 (same runs) |
+| swipe-touch-v1 original | 24/35/11 | 33/18/19 (runs 39924634896, 39924639452, 39924643106) |
+| swipe-touch-v1 rewrite | 27/26/17 | 20/19/31 (same runs) |
+
+  Frames: swipe-v1 575 in every job of both arms (font-less baseline 503 original, 385 rewrite); swipe-touch-v1 771 in every job of both arms (font-less 531 original, 409 rewrite).
+  Zones: swipe-v1 13 (was 12), touch 14 (was 13). Zone baselines (`results/baselines/chromium`, `detDrift` 0 in all four) are of runs 39916914389 (swipe-v1) and 39924634896 (touch).
+  The quarantined share grows because the page now lays out text, which varies run to run; INFERRED, not tested per type.
+- Consequence for the faithful check: `results/faithful/*.verdict.json` and `lean/Fw/Faithful/Measured.lean` were regenerated (generators, no hand edit) against the new original baseline A.
+  R (rewrite) and the control A' in `results/faithful/runs` are still of the font-less image, so the pair is mixed: swipe-v1 control A'/A went from pass to FAIL (y04000, y04500, tail), touch control FAIL (y04000, y04500). Read that as "the image changed", not as a rewrite verdict. Follow-up: re-run faithful-checks on the font image (INFERRED that this restores a passing control).
 - MEASURED, engine-premises (A/B on the font and font-less images): font image run 39909930901 (sha 3783b391d) against the font-less tree run 39912692117
   (branch ci/counts-font-fidelity-nofont). Every row reads the same except Chromium `paint` and `raster` of the main step set: font-less 130 of 130 agree
   (both rows hold), font image 129 of 130 (both rows fail) at step 118, case `margin@own`, act `set`: the model says Paint and RasterTask are absent, all
