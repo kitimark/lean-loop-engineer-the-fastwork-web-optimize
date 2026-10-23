@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MORPH_NODES, GPU_NODES, GPU_CELLS } from '../src/trajectory/registry.mjs';
-import { cellsOfRaw, layoutOf, swapsOf, tally, ratOf, ratStr, effectAt, painCell, carouselCell, navShapeOf } from '../src/trajectory/cells-gpu.mjs';
+import { cellsOfRaw, layoutOf, swapsOf, tally, ratOf, ratStr, effectAt, painCell, carouselCell, navShapeOf, holdsOf } from '../src/trajectory/cells-gpu.mjs';
 import { reduceCells } from '../src/trajectory/cells-gpu-cli.mjs';
 
 const q = (x) => Math.round(x * 1000);
@@ -135,4 +135,29 @@ test('the registry names the pain and carousel parts of anchors.json', () => {
   assert.ok(GPU_CELLS.pain.maxWidth <= 860 && GPU_CELLS.carousel.sampleMs > 0);
   assert.ok(GPU_NODES.find((n) => n.id === 'nav').props.some((pr) => pr.id === 'clip-path'));
   assert.ok(!MORPH_NODES.find((n) => n.id === 'nav').props.some((pr) => pr.id === 'clip-path'));
+});
+
+test('a sparse base reference across the opacity kink does not make a run on the declared effect L', () => {
+  const grid = (off, step) => Array.from({ length: Math.floor((0.97 - off) / step) + 1 }, (_, i) => off + i * step);
+  const rows = (off, step, rep) => grid(off, step).map((m) => row(gpu, m, rep));
+  const base = rows(0.0764, 0.1, 0);
+  const cand = [0, 1, 2].flatMap((rep) => rows(0.031 + rep * 0.0173, 0.0397, rep));
+  const units = cellsOfRaw(raw(gpu, base, cand));
+  assert.deepEqual(grades(units, 'panel-effect'), ['E', 'E']);
+});
+
+test('carousel: an entering avatar held one row longer is E when the motion is the same, two rows longer is L, and the cell carries its holds', () => {
+  const rowsOf = (hold) => {
+    const rest = Array.from({ length: 8 }, () => [0, 0, 1000, 1000]);
+    const entry = (x) => [0, 0, 1000, 1000, x, 0, 1000, 1000];
+    const moved = Array.from({ length: 12 }, (_, i) => entry(24000 - 2000 * (i + 1)));
+    return [...rest, ...Array.from({ length: hold }, () => entry(24000)), ...moved, ...Array.from({ length: 12 }, () => entry(0))].map((v, t) => ({ t: t * 17, v }));
+  };
+  const c = carouselCell(390, rowsOf(4), rowsOf(3));
+  assert.deepEqual(c.grades, ['E']);
+  assert.equal(c.grade, 'E');
+  assert.deepEqual([holdsOf(rowsOf(4)), holdsOf(rowsOf(3))], [[3], [2]]);
+  const far = carouselCell(390, rowsOf(4), rowsOf(2));
+  assert.deepEqual(far.grades, ['L']);
+  assert.deepEqual([holdsOf(rowsOf(4)), holdsOf(rowsOf(2))], [[3], [1]]);
 });

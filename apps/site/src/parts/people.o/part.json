@@ -6,7 +6,8 @@
   "impls": ["plain"],
   "muiStates": [],
   "variants": {
-    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:6158-6470;assets/2.gBuqKVzi.css:2430-2780" } }
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:6158-6470;assets/2.gBuqKVzi.css:2430-2780" } },
+    "preview-translate": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.PeopleOPreview", "limit": "desktop only (the card exists above 860 px); a kept scroll frame sets translate by the integer scroll delta and writes no left/top, a flip, resize or layout shift rewrites them; the card needs its own layer for the layout win (WebKit table: transform on a non-composited layer still lays out)" } }
   },
   "requires": {},
   "conflicts": {}

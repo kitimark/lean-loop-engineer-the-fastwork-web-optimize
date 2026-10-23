@@ -191,6 +191,22 @@ theorem toggle_cost (n a : Nat) (hn : 0 < n) (ha : 0 < a) :
     varToggle.styleUnits < (origToggle n a).styleUnits ∧ varToggle.paintKpx < (origToggle n a).paintKpx :=
   ⟨hn, ha⟩
 
+def chromiumBasePx : Nat := 3413963
+
+def chromiumVarPx : Nat := 3013203
+
+def chromiumBase : Work := ⟨4, chromiumBasePx / 1000⟩
+
+def chromiumVar : Work := ⟨5, chromiumVarPx / 1000⟩
+
+theorem chromium_paint_drop : chromiumBasePx - chromiumVarPx = 430 * 932 := by decide
+
+theorem chromium_paint_lt : chromiumVar.paintKpx < chromiumBase.paintKpx := by decide
+
+theorem chromium_style_gt : chromiumBase.styleUnits < chromiumVar.styleUnits := by decide
+
+theorem chromium_not_toggle_free : chromiumVar.styleUnits ≠ varToggle.styleUnits := by decide
+
 def varRide (f : Nat) : Nat := f
 
 theorem ride_exceeds (f n : Nat) (h : n < f) : n < varRide f := h
@@ -223,6 +239,94 @@ theorem layer_backing_zero (areaKpx : Nat) :
     Fw.Engine.WebKit.residentKpx false false areaKpx = 0 :=
   (Fw.Engine.WebKit.simple_layer true areaKpx).1
 
+structure Span where
+  top : Int
+  bot : Int
+
+def Span.meets (a b : Span) : Prop := a.top < b.bot ∧ b.top < a.bot
+
+instance (a b : Span) : Decidable (a.meets b) := inferInstanceAs (Decidable (_ ∧ _))
+
+structure Content where
+  span : Span
+  kpx : Nat
+
+-- RenderLayerCompositor.cpp:1332-1335@862f17d
+def promoted (animated : List Span) (c : Content) : Bool := animated.any fun a => decide (a.meets c.span)
+
+def backingKpx (animated : List Span) (content : List Content) (stageKpx : Nat) : Nat :=
+  ((content.filter (promoted animated)).map (·.kpx)).sum + (if content.any (!promoted animated ·) then stageKpx else 0)
+
+def baseBackingKpx (content : List Content) (stageKpx : Nat) : Nat := if content.isEmpty then 0 else stageKpx
+
+theorem static_eq_base (content : List Content) (stageKpx : Nat) :
+    backingKpx [] content stageKpx = baseBackingKpx content stageKpx := by
+  have hp : ∀ c : Content, promoted [] c = false := by intro c; simp [promoted]
+  have hf : content.filter (promoted []) = [] := List.filter_eq_nil_iff.2 (by intro c _; simp [hp])
+  unfold backingKpx baseBackingKpx
+  rw [hf]
+  cases content with
+  | nil => simp
+  | cons c cs => simp [hp]
+
+def stageSpan : Span := ⟨0, 775⟩
+
+def stickyKpx : Nat := 3568
+
+def stageContent : List Content := [⟨⟨0, 922⟩, stickyKpx⟩, ⟨stageSpan, promotedKpx⟩]
+
+-- Census at y=1500, webkit-sim runs 39856782689 (base sticky 430x922) and 39856789295 (HOLD canvas 430x922, .inner 430x775).
+theorem hold_backing : backingKpx [stageSpan] stageContent stickyKpx = baseBackingKpx stageContent stickyKpx + promotedKpx := by
+  decide +kernel
+
+theorem animated_meets_costs (a : Span) (c : Content) (hm : a.meets c.span) (s : Nat) :
+    backingKpx [a] [c] s = c.kpx := by
+  simp [backingKpx, promoted, hm]
+
+def staticPixel : Rgb := darkRgb
+
+def Hidden (h p vh : Rat) : Prop := h + 48 - darkTop + vh ≤ p
+
+def Seen (p vh y : Rat) : Prop := p < y + vh
+
+theorem static_pixel_eq (w h tr lastY y p vh : Rat) (hh : Hidden h p vh) (h48 : tr ≤ 48)
+    (hc : Cont lastY y) (hs : Seen p vh y) : staticPixel = origPixel w h tr lastY := by
+  unfold Hidden at hh; unfold Cont at hc; unfold Seen at hs
+  subst hc
+  unfold staticPixel origPixel
+  by_cases hw : w ≤ 860
+  · have : h + tr - lastY ≤ darkTop := by grind
+    simp [hw, painDark, headerTop, this]
+  · simp [hw, painDark]
+
+theorem hidden_needed : ∃ w h tr y p vh : Rat, Seen p vh y ∧ staticPixel ≠ origPixel w h tr y := by
+  refine ⟨390, 1000, 0, 0, 500, 775, ?_, ?_⟩
+  · unfold Seen; decide +kernel
+  · decide +kernel
+
+theorem hidden_fails_390 : ¬ Hidden 873 1243 844 := by unfold Hidden darkTop; decide +kernel
+
+theorem hidden_fails_640 : ¬ Hidden 873 1716 844 := by unfold Hidden darkTop; decide +kernel
+
+theorem cover_meets (a stage c : Span) (hcov : a.top ≤ stage.top ∧ stage.bot ≤ a.bot)
+    (hin : stage.top ≤ c.top ∧ c.bot ≤ stage.bot) (hne : c.top < c.bot) : a.meets c := by
+  unfold Span.meets; omega
+
+theorem below_promotes (a : Span) (c : Content) (hm : a.meets c.span) : promoted [a] c = true := by
+  simp [promoted, hm]
+
+theorem above_hides (c : Rgb) (hc : c ≠ light) : over c light 1 ≠ c := by
+  rw [over_one]; exact fun h => hc h.symm
+
+def ownsFlip (variant : String) (supports : Bool) : Bool :=
+  (variant == "dark-scroll" && supports) || variant == "dark-static"
+
+theorem owns_static (s : Bool) : ownsFlip "dark-static" s = true := by simp [ownsFlip]
+
+theorem owns_scroll (s : Bool) : ownsFlip "dark-scroll" s = s := by cases s <;> simp [ownsFlip]
+
+theorem owns_faithful (s : Bool) : ownsFlip "faithful" s = false := by cases s <;> simp [ownsFlip]
+
 open Lean in
 private def jrat (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
@@ -249,9 +353,14 @@ def pixelRows (_ : Unit := ()) : List String :=
       ("opacity", jrat (layerOpacity (rangeStart h) rangeLen offsetX y)), ("orig", jrgb (origPixel w h 0 y)),
       ("var", jrgb (varPixel w h y))]).compress
 
-def darkScrollJsonl (_ : Unit := ()) : String := String.join ((flipRows () ++ pixelRows ()).map (· ++ "\n"))
+open Lean in
+def ownsRows (_ : Unit := ()) : List String :=
+  ["faithful", "dark-scroll", "dark-static", ""].flatMap fun v => [false, true].map fun s =>
+    (Json.mkObj [("kind", .str "owns"), ("variant", .str v), ("supports", .bool s), ("owns", .bool (ownsFlip v s))]).compress
 
-#guard ((flipRows ()).length, (pixelRows ()).length) == (24, 216)
+def darkScrollJsonl (_ : Unit := ()) : String := String.join ((flipRows () ++ pixelRows () ++ ownsRows ()).map (· ++ "\n"))
+
+#guard ((flipRows ()).length, (pixelRows ()).length, (ownsRows ()).length) == (24, 216, 8)
 
 #guard darkScrollJsonl () == include_str "../../../packages/contracts/golden/parts/pain-dark-scroll.jsonl"
 

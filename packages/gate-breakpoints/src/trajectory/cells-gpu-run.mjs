@@ -8,6 +8,7 @@ import { GPU_CELLS, GPU_NODES, PAGE_PROPS, envFor, resolveNodes } from './regist
 import { installKit } from './kit.mjs';
 import { PUSH_PHASES } from './run.mjs';
 import { layoutOf } from './cells-gpu.mjs';
+import { carouselSample } from './cells-gpu-page.mjs';
 
 const INIT = `${PIN_SRC}\n(${installKit.toString()})();`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -53,12 +54,15 @@ const painScan = async ({ sec, trig, cls, step }) => {
   if (!el || !pain) return null;
   const vh = window.innerHeight;
   const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+  const pTop = Math.round(pain.getBoundingClientRect().top + window.scrollY);
   const max = document.documentElement.scrollHeight - vh;
   const lo = Math.max(0, top - vh), hi = Math.max(lo, Math.min(max, top + Math.round(vh / 2)));
   const at = async (y) => {
     window.scrollTo({ top: y, left: 0, behavior: 'instant' });
     await raf(); await raf();
-    return { y, layer: null, cls: pain.classList.contains(cls) };
+    const cs = getComputedStyle(pain, '::before');
+    const r = pain.getBoundingClientRect();
+    return { y, layer: cs.animationName !== 'none' && cs.animationName !== '' ? Number(cs.opacity) : null, cls: pain.classList.contains(cls), vis: r.top < vh && r.bottom > 0 };
   };
   window.scrollTo({ top: lo, left: 0, behavior: 'instant' });
   await new Promise((r) => setTimeout(r, 800));
@@ -68,41 +72,7 @@ const painScan = async ({ sec, trig, cls, step }) => {
   for (const y of ys) down.push(await at(y));
   const up = [];
   for (const y of ys.slice().reverse()) up.push(await at(y));
-  return { down, up };
-};
-
-const carouselSample = async ({ scene, cont, ms, still = 6, settleMs = 2200, tailMs = 1500 }) => {
-  const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
-  const sc = document.querySelector(scene), c = document.querySelector(cont);
-  if (!sc || !c) return null;
-  const read = () => {
-    const cr = c.getBoundingClientRect();
-    const v = [];
-    for (const k of Array.from(c.children)) { const r = k.getBoundingClientRect(); v.push(r.x - cr.x, r.y - cr.y, r.width, r.height); }
-    return v.map((x) => Math.round(x * 1000));
-  };
-  const same = (a, b) => a.length === b.length && a.every((x, j) => x === b[j]);
-  sc.scrollIntoView({ block: 'center', behavior: 'instant' });
-  await raf(); await raf();
-  let prev = read(), moved = false, quiet = 0;
-  const s0 = performance.now();
-  while (!(moved && quiet >= still) && performance.now() - s0 < settleMs) {
-    await raf();
-    const v = read();
-    if (!same(prev, v)) { moved = true; quiet = 0; } else if (moved) quiet++;
-    prev = v;
-  }
-  const rows = [];
-  const t0 = performance.now();
-  let tail = 0;
-  for (;;) {
-    await raf();
-    const t = performance.now() - t0, v = read();
-    tail = rows.length > 0 && same(rows[rows.length - 1].v, v) ? tail + 1 : 0;
-    rows.push({ t: Math.round(t * 10) / 10, v });
-    if (t >= ms + tailMs || (t >= ms && tail >= still)) break;
-  }
-  return rows;
+  return { down, up, top, pTop, vh };
 };
 
 async function pagePass(engine, env, origin, search, fn, arg) {
@@ -110,7 +80,7 @@ async function pagePass(engine, env, origin, search, fn, arg) {
   try { await sleep(1500); return await s.evaluate(fn, arg); } finally { await s.close().catch(() => {}); }
 }
 
-export async function runCells({ engineName, widths, search = '', reps = 3, env = process.env }) {
+export async function runCells({ engineName, widths, search = '', reps = 3, only = '', env = process.env }) {
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const baseHash = configs.bySearch[''];
@@ -127,7 +97,7 @@ export async function runCells({ engineName, widths, search = '', reps = 3, env 
         const t0 = Date.now();
         const run = { width, site: 'rewrite', role: a.role, search: a.search, want: a.want };
         let morph = null;
-        for (let rep = 0; rep < reps; rep++) {
+        for (let rep = 0; rep < (only === 'pain' ? 0 : reps); rep++) {
           log(`cells-gpu ${engineName} ${width} ${a.role}: morph rep ${rep}`);
           const one = await morphPass(engine, e, a.origin, a.search);
           for (const rows of Object.values(one.phases)) for (const r of rows) r.rep = rep;
@@ -141,8 +111,7 @@ export async function runCells({ engineName, widths, search = '', reps = 3, env 
             sec: selOf(anchors, GPU_CELLS.pain.section), trig: selOf(anchors, GPU_CELLS.pain.trigger), cls: GPU_CELLS.pain.cls, step: GPU_CELLS.pain.stepPx,
           });
         }
-        log(`cells-gpu ${engineName} ${width} ${a.role}: carousel`);
-        run.carousel = await pagePass(engine, e, a.origin, a.search, carouselSample, {
+        if (only !== 'pain') run.carousel = await pagePass(engine, e, a.origin, a.search, carouselSample, {
           scene: selOf(anchors, GPU_CELLS.carousel.scene), cont: selOf(anchors, GPU_CELLS.carousel.container), ms: GPU_CELLS.carousel.sampleMs,
         });
         runs.push(run);

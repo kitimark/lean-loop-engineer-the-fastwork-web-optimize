@@ -1,7 +1,7 @@
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { fwcorePreflight, httpFor, land, lastDryStep, loopback, type LandResult } from "./land.ts";
+import { dryLandReport, fwcorePreflight, httpFor, land, landExit, lastDryStep, loopback, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
 import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
@@ -166,21 +166,17 @@ try {
       const dry = rest.includes("--dry");
       const res = await land(args[0]!, landOpts(task, allow)).catch((e: unknown): LandResult => ({ ok: false, lines: [`REFUSED: ${e instanceof Error ? e.message : String(e)}`], kind: "unknown", outcome: dry ? outcome({ threw: true }) : undefined }));
       if (dry) { const s = lastDryStep(); if (s !== null) spanExtra = { ...spanExtra, step: s.replace(/^dry total/, "land dry") }; }
-      if (dry && res.kind === "install") {
-        for (const l of res.lines) console.error(l);
-        console.log(verdictLine("install", task ?? args[0]!));
-        process.exitCode = exitCode("install");
-      } else if (dry) {
-        const oc = res.outcome ?? outcome({ threw: true });
-        for (const l of res.lines) console.error(l);
-        for (const l of dryRun(oc, task ?? args[0]!)) console.log(l);
-        process.exitCode = exitCode(outcomeKind(oc));
+      if (dry) {
+        const rep = dryLandReport(res, task ?? args[0]!);
+        for (const l of rep.err) console.error(l);
+        for (const l of rep.out) console.log(l);
+        process.exitCode = rep.code;
       } else {
         for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
         const kind = res.kind ?? (res.ok ? "done" : "unknown");
         if (kind === "done") { const { worktreeOf } = await import("./land.ts"); const m = worktreeOf(process.cwd(), "main"); if (m) await postLandGc(m); }
         console.log(verdictLine(kind, task ?? args[0]!));
-        process.exitCode = exitCode(kind);
+        process.exitCode = landExit(res);
       }
     }
   } else if (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) {

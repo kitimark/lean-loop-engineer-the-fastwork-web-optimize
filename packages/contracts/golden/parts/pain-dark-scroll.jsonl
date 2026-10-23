@@ -238,3 +238,11 @@
 {"h":{"den":"2","num":"6241"},"kind":"pixel","opacity":{"den":"1","num":"1"},"orig":[{"den":"1","num":"19"},{"den":"1","num":"25"},{"den":"1","num":"34"}],"start":{"den":"1","num":"2864"},"var":[{"den":"1","num":"19"},{"den":"1","num":"25"},{"den":"1","num":"34"}],"w":{"den":"1","num":"1280"},"y":{"den":"2","num":"6241"}}
 {"h":{"den":"2","num":"6241"},"kind":"pixel","opacity":{"den":"1","num":"1"},"orig":[{"den":"1","num":"19"},{"den":"1","num":"25"},{"den":"1","num":"34"}],"start":{"den":"1","num":"2864"},"var":[{"den":"1","num":"19"},{"den":"1","num":"25"},{"den":"1","num":"34"}],"w":{"den":"1","num":"1280"},"y":{"den":"1","num":"3121"}}
 {"h":{"den":"2","num":"6241"},"kind":"pixel","opacity":{"den":"1","num":"1"},"orig":[{"den":"1","num":"19"},{"den":"1","num":"25"},{"den":"1","num":"34"}],"start":{"den":"1","num":"2864"},"var":[{"den":"1","num":"19"},{"den":"1","num":"25"},{"den":"1","num":"34"}],"w":{"den":"1","num":"1280"},"y":{"den":"1","num":"4120"}}
+{"kind":"owns","owns":false,"supports":false,"variant":"faithful"}
+{"kind":"owns","owns":false,"supports":true,"variant":"faithful"}
+{"kind":"owns","owns":false,"supports":false,"variant":"dark-scroll"}
+{"kind":"owns","owns":true,"supports":true,"variant":"dark-scroll"}
+{"kind":"owns","owns":true,"supports":false,"variant":"dark-static"}
+{"kind":"owns","owns":true,"supports":true,"variant":"dark-static"}
+{"kind":"owns","owns":false,"supports":false,"variant":""}
+{"kind":"owns","owns":false,"supports":true,"variant":""}
