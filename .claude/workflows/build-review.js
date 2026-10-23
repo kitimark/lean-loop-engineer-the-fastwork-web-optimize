@@ -126,9 +126,15 @@ const wt = wtLine ? wtLine.slice(9).trim() : ''
 if (!/^\/.+\/\.claude\/worktrees\/[^/]+$/.test(wt)) return [{ task: t.id, build: b, gate: ready, adv, polish: { stages: 'error', plan: `polish-plan printed no worktree path (got "${wt}")` } }]
 const rels = outLines.filter((l) => l.startsWith('class ')).map((l) => l.split(' ').slice(3).join(' '))
 const relOf = (p) => rels.find((r) => p === r || p.endsWith(`/${r}`))
-const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => l.slice(9).split(' ')).map(([mark, ...p]) => [mark, relOf(p.join(' '))]).filter(([, r]) => r).map(([mark, r]) => `${wt}/${r} (comment mark ${mark})`)
+// comments lines: `comments <mark> <relative path> lines <lo-hi,lo-hi|none>`, the branch's own changed lines plus a margin (Lean
+// Fw.Plan.Polish.reach, incident inc-polish-file-scope); `fw polish commit` restores any edit outside them.
+const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => {
+  const [mark, ...rest] = l.slice(9).split(' ')
+  const at = rest.lastIndexOf('lines')
+  return [mark, relOf((at < 0 ? rest : rest.slice(0, at)).join(' ')), at < 0 ? 'none' : rest.slice(at + 1).join('')]
+}).filter(([, r]) => r).map(([mark, r, lines]) => `${wt}/${r} (comment mark ${mark}; edit only comments on lines ${lines}; any edit outside those lines is reverted)`)
 const prose = outLines.filter((l) => l.startsWith('prose ')).map((l) => relOf(l.slice(6))).filter(Boolean).map((r) => `${wt}/${r}`)
-const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}) in the worktree ${wt}. Edit comments only, in these files only, each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nNever edit a file outside ${wt} (the main checkout above all). Apply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the absolute paths you edited.`,
+const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}) in the worktree ${wt}. Edit comments only, in these files and these line ranges only (the lines the builder changed, plus a margin), each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nNever edit a file outside ${wt} (the main checkout above all). Apply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the absolute paths you edited.`,
   { label: `comment-sicko:${t.id}`, phase: 'Polish', agentType: 'comment-sicko', schema: EDITS }) : null
 const strays = sicko && sicko.edited ? sicko.edited.filter((p) => !p.startsWith(`${wt}/`)) : []
 if (strays.length) return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko.edited, strays, commit: 'not run: comment-sicko edited files outside the worktree; the lead restores them' } }]

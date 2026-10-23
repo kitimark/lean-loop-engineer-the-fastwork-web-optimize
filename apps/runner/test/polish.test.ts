@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -20,6 +21,9 @@ const plan = (paths: string[], o: { gen?: string[]; heads?: { path: string; head
   ({ op: "plan.polishPlan", gen: o.gen ?? [LAKE_GEN], ...(o.heads ? { heads: o.heads } : {}), paths, edited: o.edited ?? [] });
 const cutsReq = (docs: { path: string; text: string }[], cuts: { path: string; old: string; new: string }[]) =>
   ({ op: "plan.polishCuts", gen: [LAKE_GEN], docs, cuts });
+
+type Sp = { path: string; spans: { start: number; len: number }[] };
+const hunks = (o: { diff?: Sp[]; edits?: Sp[]; main?: string[] }) => ({ op: "plan.polishHunks", diff: o.diff ?? [], edits: o.edits ?? [], main: o.main ?? [] });
 
 const supWire = { path: "docs/team/handoffs/sup-wire.md",
   old: "`Fw.Wire.Sup.Golden.gen` (cases take the token as a parameter, so fwcore builds no start-time constant); `--check`",
@@ -42,6 +46,17 @@ const cases: [string, Record<string, unknown>][] = [
   ["plan: only skip paths, so no stage", plan(["snapshot/a.css", "pnpm-lock.yaml"])],
   ["plan: no paths, so no stage", plan([])],
   ["plan: edits kept only in the diff and outside skip", plan(["apps/x/a.ts", "snapshot/a.css", md], { edited: ["apps/x/a.ts", "snapshot/a.css", "apps/y/c.ts", md] })],
+  ["hunks: an edit in the hunk or within the margin is kept, one 50 lines away is not",
+    hunks({ diff: [{ path: "lean/scripts/check.sh", spans: [{ start: 60, len: 2 }] }],
+      edits: [{ path: "lean/scripts/check.sh", spans: [{ start: 61, len: 1 }, { start: 64, len: 1 }, { start: 65, len: 1 }, { start: 57, len: 1 }, { start: 56, len: 1 }, { start: 10, len: 3 }] }] })],
+  ["hunks: a point hunk (pure deletion) and a point edit", hunks({ diff: [{ path: "a.ts", spans: [{ start: 20, len: 0 }] }], edits: [{ path: "a.ts", spans: [{ start: 23, len: 0 }, { start: 24, len: 2 }] }] })],
+  ["hunks: a file with no branch hunk keeps nothing", hunks({ diff: [{ path: "a.ts", spans: [{ start: 5, len: 1 }] }], edits: [{ path: "b.ts", spans: [{ start: 5, len: 1 }] }] })],
+  ["hunks: several branch hunks of one file, the edit between them is far from both", hunks({ diff: [{ path: "a.ts", spans: [{ start: 5, len: 1 }, { start: 100, len: 4 }] }],
+    edits: [{ path: "a.ts", spans: [{ start: 50, len: 1 }, { start: 103, len: 3 }, { start: 1, len: 1 }] }] })],
+  ["hunks: absolute, parent and empty paths are refused even in a hunk", hunks({ diff: [{ path: "/etc/x", spans: [{ start: 1, len: 5 }] }, { path: "../x", spans: [{ start: 1, len: 5 }] }, { path: "", spans: [{ start: 1, len: 5 }] }],
+    edits: [{ path: "/etc/x", spans: [{ start: 2, len: 1 }] }, { path: "../x", spans: [{ start: 2, len: 1 }] }, { path: "", spans: [{ start: 2, len: 1 }] }, { path: "a/../b.ts", spans: [{ start: 2, len: 1 }] }] })],
+  ["hunks: a dirty main-checkout file that the plan names blocks", hunks({ diff: [{ path: "a.ts", spans: [{ start: 1, len: 1 }] }, { path: "b.ts", spans: [{ start: 1, len: 1 }] }], main: ["b.ts", "c.ts", "b.ts"] })],
+  ["hunks: a clean main checkout blocks nothing", hunks({ diff: [{ path: "a.ts", spans: [{ start: 1, len: 1 }] }], main: [] })],
   ["cuts: apply a cut that keeps every fact", cutsReq([{ path: md, text: "See lean/Fw/A.lean:12 for the rule, which is the rule.\n" }],
     [{ path: md, old: "for the rule, which is the rule.", new: "for the rule." }])],
   ["cuts: 10-22 sup-wire over-cut leaves a space before ;", cutsReq([doc(supWire)], [supWire])],
@@ -95,6 +110,18 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
     expect(res("plan: edits kept")).toMatchObject({ keep: ["apps/x/a.ts", md], restore: ["snapshot/a.css", "apps/y/c.ts"] });
   });
 
+  it("hunk verdicts: margin edge, point hunks, no hunk, far above and below, bad paths, blocked", () => {
+    const kept = (prefix: string) => (res(prefix).edits as { kept: boolean[] }[]).map((e) => e.kept);
+    expect(kept("hunks: an edit in the hunk")).toEqual([[true, true, false, true, false, false]]);
+    expect(kept("hunks: a point hunk")).toEqual([[true, false]]);
+    expect(kept("hunks: a file with no branch hunk")).toEqual([[false]]);
+    expect(kept("hunks: several branch hunks")).toEqual([[false, true, false]]);
+    expect((res("hunks: absolute").edits as { pathOk: boolean; kept: boolean[] }[]).map((e) => [e.pathOk, ...e.kept])).toEqual([[false, false], [false, false], [false, false], [true, false]]);
+    expect(res("hunks: an edit in the hunk").ranges).toEqual([{ path: "lean/scripts/check.sh", ranges: [{ lo: 57, hi: 64 }] }]);
+    expect(res("hunks: a dirty main").blocked).toEqual(["b.ts"]);
+    expect(res("hunks: a clean main").blocked).toEqual([]);
+  });
+
   it("cut verdicts, one per branch of judge", () => {
     expect(verdicts("cuts: apply a cut")).toEqual(["apply"]);
     expect(verdicts("cuts: 10-22 sup-wire")).toEqual(["dropsFacts"]);
@@ -115,13 +142,15 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
 describe("fw polish CLI", () => {
   const call = coreCaller(bins);
   const wt = "/wt";
-  function fake(files: Record<string, string>, diff: string[], edited: string[] = [], staged: string[] = []) {
+  function fake(files: Record<string, string>, diff: string[], edited: string[] = [], staged: string[] = [], hunk = "", status = "") {
     const gitCalls: string[][] = [];
     const written: Record<string, string> = {};
     const lines: string[] = [];
     const git = (_cwd: string, args: string[]) => {
       gitCalls.push(args);
       if (args[0] === "rev-parse") return "/root\n";
+      if (args[0] === "status") return status;
+      if (args.includes("-U0")) return args.includes("HEAD") ? "" : hunk;
       if (args[0] === "diff" && args[1] === "--cached") return staged.join("\n");
       if (args[0] === "diff" && args.includes("HEAD")) return edited.join("\n");
       if (args[0] === "diff") return diff.join("\n");
@@ -132,11 +161,12 @@ describe("fw polish CLI", () => {
     return { deps, gitCalls, written, lines };
   }
 
-  it("plan prints classes, absolute scopes with marks, and the stage line last", async () => {
-    const f = fake({ "a.sh": "#!/bin/sh\n" }, ["a.sh", md, "snapshot/x.css"]);
+  it("plan prints classes, relative scopes with marks and hunk lines, and the stage line last", async () => {
+    const hunk = "diff --git a/a.sh b/a.sh\n--- a/a.sh\n+++ b/a.sh\n@@ -1 +1 @@\n-x\n+y\n";
+    const f = fake({ "a.sh": "#!/bin/sh\n" }, ["a.sh", md, "snapshot/x.css"], [], [], hunk);
     expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(0);
     expect(f.lines).toEqual(["worktree /wt", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
-      "comments # /wt/a.sh", "prose /wt/docs/a.md", "VERDICT polish-plan t comments,prose"]);
+      "comments # a.sh lines 1-4", "prose docs/a.md", "VERDICT polish-plan t comments,prose"]);
   });
 
   it("plan with only skip paths prints none", async () => {
@@ -215,4 +245,93 @@ describe("fw polish CLI", () => {
     await expect(polishCli(["cuts", "--branch", "b", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
   });
 
+});
+
+describe("fw polish commit on a real fixture branch (incidents inc-polish-file-scope, inc-polish-main-checkout)", () => {
+  const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_CONFIG_GLOBAL: "/dev/null" };
+  const g = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", env });
+  const file = "lean/scripts/check.sh";
+  const body = Array.from({ length: 120 }, (_, i) => `# comment ${i + 1}`);
+
+  function fixture() {
+    const base = mkdtempSync(join(tmpdir(), "polish-fx-"));
+    const main = join(base, "main");
+    const wt = join(base, "wt");
+    mkdirSync(join(main, "lean/scripts"), { recursive: true });
+    g(main, "init", "-q", "-b", "main");
+    writeFileSync(join(main, file), body.join("\n") + "\n");
+    g(main, "add", "."); g(main, "commit", "-q", "-m", "base");
+    g(main, "worktree", "add", "-q", "-b", "feat", wt);
+    const tip = body.slice(); tip[59] = "echo changed 60"; tip[60] = "echo changed 61";
+    writeFileSync(join(wt, file), tip.join("\n") + "\n");
+    g(wt, "commit", "-qam", "builder");
+    return { base, main, wt, tip };
+  }
+  const deps = (wt: string, lines: string[]) => ({ core: coreCaller(bins), log: (l: string) => lines.push(l), gen: async () => [] as string[], worktree: () => wt });
+  const run = (wt: string, lines: string[]) => polishCli(["commit", "--branch", "feat", "--task", "t"], wt, deps(wt, lines));
+  const edit = (wt: string, tip: string[], at: Record<number, string>) => {
+    const t = tip.slice(); for (const [n, v] of Object.entries(at)) t[+n - 1] = v;
+    writeFileSync(join(wt, file), t.join("\n") + "\n");
+  };
+
+  it("keeps the edit inside the hunk, restores the one 50 lines away, and names it", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 62: "# comment 62 reworded", 10: "# comment 10 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`restored ${file}:10-10 (outside the branch's hunks)`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t committed");
+      const now = readFileSync(join(wt, file), "utf8").split("\n");
+      expect(now[9]).toBe("# comment 10");
+      expect(now[61]).toBe("# comment 62 reworded");
+      expect(g(wt, "status", "--porcelain").trim()).toBe("");
+      expect(g(wt, "show", "--stat", "--format=", "HEAD")).toContain("1 file changed, 1 insertion(+), 1 deletion(-)");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("restores a file whose edits all lie outside the hunks and commits nothing", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 10: "# comment 10 reworded", 11: "# comment 11 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("restores several far hunks of one file independently", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 5: "# five", 59: "# fifty-nine", 100: "# hundred" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      const now = readFileSync(join(wt, file), "utf8").split("\n");
+      expect([now[4], now[58], now[99]]).toEqual(["# comment 5", "# fifty-nine", "# comment 100"]);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("refuses, naming the files, when the main checkout has uncommitted edits in the plan's files", async () => {
+    const { base, main, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      writeFileSync(join(main, file), "# someone else's edit\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines[0]).toBe(`the main checkout has uncommitted edits in the plan's files: ${file}`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t refused");
+      expect(g(wt, "log", "--format=%s", "-1").trim()).toBe("builder");
+      expect(readFileSync(join(wt, file), "utf8")).toContain("# comment 62 reworded");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("plan prints repo-relative paths with the hunk lines and one worktree line", async () => {
+    const { base, wt } = fixture();
+    try {
+      const lines: string[] = [];
+      await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines));
+      expect(lines).toEqual([`worktree ${wt}`, `class shell # ${file}`, `comments # ${file} lines 57-64`, "VERDICT polish-plan t comments"]);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
 });

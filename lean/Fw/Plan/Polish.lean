@@ -312,6 +312,118 @@ def applyAll (gen : List String) (doc : String) (cs : List Cut) : String × List
     let v := judge gen d c
     (if v = .apply then d.replace c.old c.new else d, vs ++ [v])) (doc, [])
 
+/-! ## Hunks: an edit stays only near the branch's own changed lines -/
+
+/-- Lines `start .. start + len - 1` of one side of a `git diff -U0` hunk; `len = 0` is a point after line `start`. -/
+structure Span where
+  start : Nat
+  len : Nat
+deriving Repr, DecidableEq
+
+/-- The last line of a span; a point span ends where it starts. -/
+def Span.hi (s : Span) : Nat := s.start + max s.len 1 - 1
+
+/-- Lines of margin around a branch hunk inside which an edit is kept. -/
+def margin : Nat := 3
+
+/-- `hs`: the branch's hunks of one file (merge-base to head); `e`: one edit hunk against head. -/
+def admitted (hs : List Span) (e : Span) : Bool :=
+  hs.any fun h => decide (h.start - margin ≤ e.hi ∧ e.start ≤ h.hi + margin)
+
+theorem Span.start_le_hi (s : Span) : s.start ≤ s.hi := by
+  unfold Span.hi; omega
+
+theorem admitted_iff (hs : List Span) (e : Span) :
+    admitted hs e = true ↔ ∃ h ∈ hs, h.start - margin ≤ e.hi ∧ e.start ≤ h.hi + margin := by
+  simp [admitted]
+
+theorem admitted_nil (e : Span) : admitted [] e = false := rfl
+
+theorem admitted_hunk (hs : List Span) (h : Span) (hm : h ∈ hs) : admitted hs h = true :=
+  (admitted_iff hs h).2 ⟨h, hm, by have := h.start_le_hi; omega, by have := h.start_le_hi; omega⟩
+
+theorem admitted_inside (hs : List Span) (h e : Span) (hm : h ∈ hs) (a : h.start ≤ e.start) (b : e.hi ≤ h.hi) :
+    admitted hs e = true :=
+  (admitted_iff hs e).2 ⟨h, hm, by have := e.start_le_hi; omega, by have := e.start_le_hi; omega⟩
+
+theorem restored_far_above (hs : List Span) (e : Span) (far : ∀ h ∈ hs, h.hi + margin < e.start) :
+    admitted hs e = false := by
+  cases hb : admitted hs e
+  · rfl
+  · obtain ⟨h, hm, _, h2⟩ := (admitted_iff hs e).1 hb
+    have := far h hm; omega
+
+theorem restored_far_below (hs : List Span) (e : Span) (far : ∀ h ∈ hs, e.hi + margin < h.start) :
+    admitted hs e = false := by
+  cases hb : admitted hs e
+  · rfl
+  · obtain ⟨h, hm, h1, _⟩ := (admitted_iff hs e).1 hb
+    have := far h hm; omega
+
+/-- The lines `comment-sicko` may edit for a hunk: the hunk plus the margin, first line 1. -/
+def Span.reach (s : Span) : Nat × Nat := (max 1 (s.start - margin), s.hi + margin)
+
+theorem reach_admits (h : Span) : admitted [h] ⟨h.reach.1, 1⟩ = true :=
+  admitted_iff _ _ |>.2 ⟨h, List.mem_singleton.2 rfl, by simp [Span.reach, Span.hi, margin]; omega,
+    by simp [Span.reach, Span.hi, margin]; omega⟩
+
+/-! ## Paths: an admitted path is repo-relative and never leaves the worktree -/
+
+/-- Walk the segments with the depth below the root; `..` at depth 0 leaves the root. -/
+def depthOk : List String → Nat → Bool
+  | [], _ => true
+  | s :: r, d =>
+    if s == ".." then (match d with | 0 => false | d + 1 => depthOk r d)
+    else if s == "." || s.isEmpty then depthOk r d
+    else depthOk r (d + 1)
+
+def relOk (p : String) : Bool := !p.isEmpty && !p.startsWith "/" && depthOk (segs p) 0
+
+theorem relOk_empty (p : String) (h : p.isEmpty = true) : relOk p = false := by simp [relOk, h]
+
+theorem relOk_abs (p : String) (h : p.startsWith "/" = true) : relOk p = false := by simp [relOk, h]
+
+theorem relOk_up (p : String) (r : List String) (h : segs p = ".." :: r) : relOk p = false := by
+  simp [relOk, h, depthOk]
+
+theorem depthOk_plain (l : List String) (hl : ∀ s ∈ l, s ≠ "..") (d : Nat) : depthOk l d = true := by
+  induction l generalizing d with
+  | nil => rfl
+  | cons s r ih =>
+    have hs : (s == "..") = false := by simpa using hl s List.mem_cons_self
+    have hr := ih (fun x hx => hl x (List.mem_cons_of_mem _ hx))
+    simp only [depthOk, hs, Bool.false_eq_true, ↓reduceIte]
+    split <;> simp [hr]
+
+theorem relOk_plain (p : String) (hne : p.isEmpty = false) (hab : p.startsWith "/" = false)
+    (h : ∀ s ∈ segs p, s ≠ "..") : relOk p = true := by
+  simp [relOk, hne, hab, depthOk_plain _ h]
+
+/-- An edit hunk of `p` is kept iff `p` is a relative path inside the worktree and the hunk is near a branch hunk. -/
+def editKept (hs : List Span) (p : String) (e : Span) : Bool := relOk p && admitted hs e
+
+theorem editKept_rel (hs : List Span) (p : String) (e : Span) (h : editKept hs p e = true) : relOk p = true := by
+  simp only [editKept, Bool.and_eq_true] at h; exact h.1
+
+theorem editKept_near (hs : List Span) (p : String) (e : Span) (h : editKept hs p e = true) :
+    ∃ x ∈ hs, x.start - margin ≤ e.hi ∧ e.start ≤ x.hi + margin := by
+  simp only [editKept, Bool.and_eq_true] at h; exact (admitted_iff hs e).1 h.2
+
+/-! ## The main checkout stays untouched -/
+
+/-- The dirty paths of the main checkout that the polish plan names. -/
+def blocked (dirty planned : List String) : List String := (dirty.filter planned.contains).eraseDups
+
+theorem blocked_mem (d ps : List String) (p : String) : p ∈ blocked d ps ↔ p ∈ d ∧ p ∈ ps := by
+  simp [blocked]
+
+theorem blocked_empty_of_clean (ps : List String) : blocked [] ps = [] := rfl
+
+theorem blocked_ne_nil (d ps : List String) (p : String) (hd : p ∈ d) (hp : p ∈ ps) : blocked d ps ≠ [] := by
+  intro h
+  have := (blocked_mem d ps p).2 ⟨hd, hp⟩
+  rw [h] at this; simp at this
+
 /-! ## Goldens: the three 10-22 over-cuts -/
 
 def supWire : Cut := ⟨"docs/team/handoffs/sup-wire.md",
@@ -359,5 +471,11 @@ def jevCounts : Cut := ⟨"docs/team/handoffs/jev-datasets.md",
 #guard judge [] "x a x" ⟨"a.md", "x", ""⟩ = .notUnique && judge [] "a" ⟨"a.md", "b", ""⟩ = .notFound
 #guard judge [] "a" ⟨"a.ts", "a", ""⟩ = .notProse
 #guard applyAll [] "one two three" [⟨"a.md", "two ", ""⟩, ⟨"a.md", "two", "2"⟩] = ("one three", [.apply, .notFound])
+
+#guard admitted [⟨10, 2⟩] ⟨12, 1⟩ && admitted [⟨10, 2⟩] ⟨14, 1⟩ && !admitted [⟨10, 2⟩] ⟨15, 1⟩
+#guard !admitted [⟨10, 2⟩] ⟨60, 2⟩ && !admitted [] ⟨1, 1⟩ && admitted [⟨10, 2⟩] ⟨7, 1⟩ && !admitted [⟨10, 2⟩] ⟨6, 1⟩
+#guard (Span.mk 10 0).hi = 10 && (Span.mk 10 3).hi = 12 && (Span.mk 1 2).reach = (1, 5)
+#guard relOk "lean/a.lean" && relOk "a/../b" && !relOk "../a" && !relOk "/etc/x" && !relOk "a/../../b" && !relOk ""
+#guard blocked ["a", "b", "a"] ["a", "c"] = ["a"] && blocked [] ["a"] = []
 
 end Fw.Plan.Polish

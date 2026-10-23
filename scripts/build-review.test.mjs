@@ -102,10 +102,10 @@ const polishRun = (planOut, edited) => {
 }
 
 test('polish: a redacted comments path is rebuilt from the worktree line and the class path', async () => {
-  const plan = 'worktree /r/.claude/worktrees/wf_a\nclass code -- lean/Fw/A.lean\ncomments -- <worktree>/lean/Fw/A.lean\nVERDICT polish-plan demo-task comments'
+  const plan = 'worktree /r/.claude/worktrees/wf_a\nclass code -- lean/Fw/A.lean\ncomments -- lean/Fw/A.lean lines 5-12,40-44\nVERDICT polish-plan demo-task comments'
   const { out, calls } = await polishRun(plan, ['/r/.claude/worktrees/wf_a/lean/Fw/A.lean'])
   const sicko = calls.find((c) => c.label.startsWith('comment-sicko'))
-  assert.match(sicko.p, /\/r\/\.claude\/worktrees\/wf_a\/lean\/Fw\/A\.lean \(comment mark --\)/)
+  assert.match(sicko.p, /\/r\/\.claude\/worktrees\/wf_a\/lean\/Fw\/A\.lean \(comment mark --; edit only comments on lines 5-12,40-44;/)
   assert.doesNotMatch(sicko.p, /<worktree>/)
   assert.equal(out[0].polish.commit, 'committed')
 })

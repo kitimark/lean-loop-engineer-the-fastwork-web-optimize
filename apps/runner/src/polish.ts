@@ -9,7 +9,7 @@ import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 export const POLISH_USAGE =
   "usage: fw polish plan --branch <b> --task <id>                     (classes and scopes of the branch diff against main)\n" +
   "       fw polish cuts --branch <b> --task <id> --cuts <file|-> [--apply yes]   (cuts: {cuts:[{path,old,new}]} or [...])\n" +
-  "       fw polish commit --branch <b> --task <id> [--message <m>]     (commit kept edits, restore the rest)\n" +
+  "       fw polish commit --branch <b> --task <id> [--message <m>]     (commit kept edits; restore edits outside the branch's hunks; refuse when the main checkout is dirty in the plan's files)\n" +
   "       fw polish --staged [--cuts <file|-> [--apply yes]]            (the staged files of this checkout, for the lead's commits)";
 
 type Cls = { path: string; class: string; mark: string | null };
@@ -21,14 +21,49 @@ export interface Deps {
   core?: CoreCall;
   log?: (l: string) => void;
   stdin?: () => string;
-  git?: (cwd: string, args: string[]) => string;
+  git?: (cwd: string, args: string[], input?: string) => string;
   read?: (path: string) => string | null;
   write?: (path: string, text: string) => void;
   gen?: (root: string) => Promise<string[]>;
   worktree?: (cwd: string, branch: string) => string | null;
 }
 
-const realGit = (cwd: string, args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 << 20 });
+const realGit = (cwd: string, args: string[], input?: string) =>
+  execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 << 20, ...(input === undefined ? {} : { input }) });
+
+type Hunk = { oldStart: number; oldLen: number; newStart: number; newLen: number; text: string };
+type FileDiff = { path: string; header: string; hunks: Hunk[] };
+
+/** Reads `git diff -U0` text into files and hunks. TS glue: the rule that decides which hunk stays is Lean `Fw.Plan.Polish.admitted`. */
+export function parseDiff(text: string): FileDiff[] {
+  const files: FileDiff[] = [];
+  let cur: FileDiff | null = null;
+  let hunk: string[] | null = null;
+  const flush = () => {
+    if (cur && hunk) {
+      const m = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(hunk[0]!)!;
+      cur.hunks.push({ oldStart: +m[1]!, oldLen: m[2] === undefined ? 1 : +m[2], newStart: +m[3]!, newLen: m[4] === undefined ? 1 : +m[4], text: hunk.join("\n") });
+    }
+    hunk = null;
+  };
+  for (const l of text.split("\n")) {
+    if (l.startsWith("diff --git ")) {
+      flush();
+      const m = /^diff --git a\/(.*) b\/(.*)$/.exec(l);
+      cur = { path: m ? m[2]! : l, header: l, hunks: [] };
+      files.push(cur);
+    } else if (l.startsWith("@@") && cur) { flush(); hunk = [l]; }
+    else if (hunk) hunk.push(l);
+    else if (cur) cur.header += `\n${l}`;
+  }
+  flush();
+  return files.map((f) => ({ ...f, hunks: f.hunks.map((h) => ({ ...h, text: h.text.replace(/\n+$/, "") })) }));
+}
+
+const porcelainPaths = (s: string) => s.split("\n").filter((l) => l.length > 3).map((l) => l.slice(3).split(" -> ").pop()!.replace(/^"|"$/g, ""));
+const spansOf = (fs: FileDiff[], side: "old" | "new") =>
+  fs.map((f) => ({ path: f.path, spans: f.hunks.map((h) => (side === "old" ? { start: h.oldStart, len: h.oldLen } : { start: h.newStart, len: h.newLen })) }));
+type HunkOut = { ranges: { path: string; ranges: { lo: number; hi: number }[] }[]; edits: { path: string; pathOk: boolean; kept: boolean[] }[]; blocked: string[] };
 const realRead = (p: string) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
 
 export async function genOutputs(root: string): Promise<string[]> {
@@ -84,20 +119,47 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     const edited = verb === "commit" ? lines(git(dir, ["diff", "--name-only", "HEAD"])) : [];
     const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited })) as unknown as Plan;
     if (!Array.isArray(plan.classes)) throw new Error(`fwcore: no plan (${JSON.stringify(plan).slice(0, 200)})`);
+    const diffArgs = staged ? ["diff", "--cached", "-U0", "--no-color", "--no-ext-diff"] : ["diff", "-U0", "--no-color", "--no-ext-diff", `main...${flags.branch}`];
+    const branchDiff = parseDiff(git(dir, diffArgs));
+    const mainDir = staged ? dir : join(git(dir, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim(), "..");
+    const dirty = verb === "commit" && mainDir !== dir ? porcelainPaths(git(mainDir, ["status", "--porcelain", "--", ...paths])) : [];
+    const editDiff = verb === "commit" ? parseDiff(git(dir, ["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"])) : [];
+    const hk = (await call({ op: "plan.polishHunks", diff: spansOf(branchDiff, "new"), edits: spansOf(editDiff, "old"), main: dirty })) as unknown as HunkOut;
+    if (!Array.isArray(hk.ranges)) throw new Error(`fwcore: no hunk verdicts (${JSON.stringify(hk).slice(0, 200)})`);
     if (verb === "commit") {
+      if (hk.blocked.length) {
+        out(`the main checkout has uncommitted edits in the plan's files: ${hk.blocked.join(" ")}`);
+        out(`VERDICT polish-commit ${task} refused`);
+        return 1;
+      }
       if (plan.restore.length) { git(dir, ["checkout", "HEAD", "--", ...plan.restore]); out(`restored ${plan.restore.join(" ")}`); }
-      if (!plan.keep.length) { out(`VERDICT polish-commit ${task} nothing`); return 0; }
-      git(dir, ["add", "--", ...plan.keep]);
+      const clsOf = new Map(plan.classes.map((c) => [c.path, c.class]));
+      const keep: string[] = [];
+      for (const path of plan.keep) {
+        const ed = hk.edits.find((e) => e.path === path);
+        const file = editDiff.find((f) => f.path === path);
+        if (!ed || !file || clsOf.get(path) === "prose") { keep.push(path); continue; }
+        const bad = file.hunks.map((h, i) => ({ h, i })).filter(({ i }) => !ed.pathOk || ed.kept[i] !== true);
+        if (!file.hunks.length || bad.length === file.hunks.length) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (outside the branch's hunks)`); continue; }
+        for (const { h } of [...bad].sort((a, b) => b.h.newStart - a.h.newStart)) {
+          git(dir, ["apply", "-R", "--unidiff-zero", "-"], `${file.header}\n${h.text}\n`);
+          out(`restored ${path}:${h.oldStart}-${h.oldStart + Math.max(h.oldLen, 1) - 1} (outside the branch's hunks)`);
+        }
+        keep.push(path);
+      }
+      if (!keep.length) { out(`VERDICT polish-commit ${task} nothing`); return 0; }
+      git(dir, ["add", "--", ...keep]);
       git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`]);
-      out(`kept ${plan.keep.join(" ")}`);
+      out(`kept ${keep.join(" ")}`);
       out(`VERDICT polish-commit ${task} committed`);
       return 0;
     }
     if (kind === "polish-plan") {
       out(`worktree ${dir}`);
       for (const c of plan.classes) out(`class ${c.class} ${c.mark ?? "-"} ${c.path}`);
-      for (const c of plan.classes.filter((c) => plan.scopes.comments.includes(c.path))) out(`comments ${c.mark ?? "-"} ${join(dir, c.path)}`);
-      for (const p of plan.scopes.prose) out(`prose ${join(dir, p)}`);
+      const rangeOf = (p: string) => (hk.ranges.find((r) => r.path === p)?.ranges ?? []).map((r) => `${r.lo}-${r.hi}`).join(",") || "none";
+      for (const c of plan.classes.filter((c) => plan.scopes.comments.includes(c.path))) out(`comments ${c.mark ?? "-"} ${c.path} lines ${rangeOf(c.path)}`);
+      for (const p of plan.scopes.prose) out(`prose ${p}`);
       if (staged && plan.stages.length) out("next: spawn comment-sicko on the comments lines and slop-checker on the prose lines; judge its cuts with fw polish --staged --cuts <file>");
       out(`VERDICT polish-plan ${task} ${plan.stages.length ? plan.stages.join(",") : "none"}`);
       return 0;
