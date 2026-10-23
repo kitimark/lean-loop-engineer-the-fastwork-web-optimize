@@ -18841,7 +18841,8 @@
     "research/notes/2026/10-2x-hero-copy-floor.md",
     "docs/team/handoffs/hero-copy-floor-followups.md"
    ],
-   "title": "hero-copy-floor-sources review follow-ups (2026-10-24): (1) the ownership rule yields every hero_copy pixel inside any graded overlapping layer, P changes included: add a Lean lemma or golden row that the receiving cell's inside count includes the yielded pixels, and print the receiving deck cells' P grade next to the 'counted by another layer' table; (2) the reason string names the deck-card corners for every yielded pixel: make it generic or list the receiving layer key per row; (3) the WebKit P-only 2-1 column at device 873,118..134 (ask y 813) is outside every mask and unidentified: identify its element from the page boxes; (4) the deck-card corner A/A variation (Core Animation rounded clip, GraphicsLayerCA.cpp:3218-3262@862f17d) is INFERRED: find whether a capture-side pin (e.g. layer contentsScale or a settled frame) removes it."
+   "title": "hero-copy-floor-sources review follow-ups (2026-10-24): (1) the ownership rule yields every hero_copy pixel inside any graded overlapping layer, P changes included: add a Lean lemma or golden row that the receiving cell's inside count includes the yielded pixels, and print the receiving deck cells' P grade next to the 'counted by another layer' table; (2) the reason string names the deck-card corners for every yielded pixel: make it generic or list the receiving layer key per row; (3) the WebKit P-only 2-1 column at device 873,118..134 (ask y 813) is outside every mask and unidentified: identify its element from the page boxes; (4) the deck-card corner A/A variation (Core Animation rounded clip, GraphicsLayerCA.cpp:3218-3262@862f17d) is INFERRED: find whether a capture-side pin (e.g. layer contentsScale or a settled frame) removes it.",
+   "evidence": "a7f6555"
   },
   {
    "devices": [
