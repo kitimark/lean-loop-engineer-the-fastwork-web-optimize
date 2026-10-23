@@ -45,7 +45,7 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
 `lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
 `judgeQ0_same_work`, `judgeQ_other_work`, `judgeQ_other_mods`, `judgeQ_unbuilt`, `unkeyed_late_no_slow`, `unkeyedLate_iff`, `judgeQ_no_keyed_history`,
-`slow_not_unkeyed_late`, `remoteQueue_never_slow`, `ciWait_never_slow`, `ciWait_dur_indep`, `verdictsOf_remoteQueue_not_slow`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
+`slow_not_unkeyed_late`, `remoteQueue_never_slow`, `ciWait_never_slow`, `verdictsOf_ciWait_not_slow`, `ownOfPhases_some`, `ciWait_dur_indep`, `verdictsOf_remoteQueue_not_slow`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 -/
@@ -72,6 +72,8 @@ structure Sample where
   waits   : List (Fw.Sup.Adapt.WhyTag × Nat) := []
   work    : List (String × String) := []
   ownMs   : Option Nat := none
+  startMs : Nat := 0
+  commit  : String := ""
 deriving DecidableEq, Repr
 
 def fullRun (exit : Option Int) (skipped : Bool) : Bool := !skipped && (exit == none || exit == some 0)
@@ -95,6 +97,42 @@ def Sample.remoteQueue (s : Sample) : Bool := s.tool == "fw land" && s.step == "
 def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
+
+/-- The own time of a `fw ci wait` span: the span end (`startMs + durMs`) minus the remote run's `updatedAt`
+(`phases.updMs`), only when the wait ended `done` and the run did not end after the span. Anything else has no own
+time, so `norm` skips the sample and it gets no verdict. -/
+def ownOfPhases (startMs durMs : Nat) (how : String) (updMs : Option Nat) : Option Nat :=
+  match updMs with
+  | some u => if how == "done" && u ≤ startMs + durMs then some (startMs + durMs - u) else none
+  | none => none
+
+theorem ownOfPhases_some (s d : Nat) (how : String) (u o : Nat) :
+    ownOfPhases s d how (some u) = some o ↔ how = "done" ∧ u ≤ s + d ∧ o = s + d - u := by
+  simp only [ownOfPhases]
+  by_cases h : (how == "done" && decide (u ≤ s + d)) = true
+  · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
+    simp [h, eq_comm]
+  · simp only [h, if_false]
+    simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, not_and] at h
+    constructor
+    · intro e; cases e
+    · intro ⟨h1, h2, _⟩; exact absurd h2 (h h1)
+
+theorem ownOfPhases_not_done (s d : Nat) (how : String) (u : Option Nat) (h : how ≠ "done") :
+    ownOfPhases s d how u = none := by
+  unfold ownOfPhases; cases u <;> simp [h]
+
+theorem ownOfPhases_no_upd (s d : Nat) (how : String) : ownOfPhases s d how none = none := rfl
+
+theorem ownOfPhases_after_end (s d : Nat) (how : String) (u : Nat) (h : s + d < u) :
+    ownOfPhases s d how (some u) = none := by
+  unfold ownOfPhases; simp [Nat.not_le.2 h]
+
+#guard ownOfPhases 1000 1377258 "done" (some (1000 + 1377258 - 27294)) == some 27294
+#guard ownOfPhases 0 900000 "done" none == none
+#guard ownOfPhases 0 900000 "timeout" (some 5) == none
+#guard ownOfPhases 0 10 "done" (some 99) == none
+#guard ownOfPhases 0 10 "done" (some 10) == some 0
 
 def Sample.own (s : Sample) : Option Nat :=
   if s.remoteQueue then some 0 else if s.ciWait then s.ownMs else some s.durMs
@@ -506,6 +544,10 @@ def Sample.sameStep (s t : Sample) : Bool :=
 
 def Sample.unkeyed (s : Sample) : Bool := !(s.work.any fun kv => kv.1 == checksDim || kv.1 == modsDim)
 
+/-- A sample with no `checks` or `mods` work class that follows a full keyed sample of the same step. The only writers
+of unkeyed `fw polish commit` spans are a commit whose fwcore gave no command list and spans written before the
+`checks` member existed; a commit that keeps nothing is keyed `checks = light`. Such a sample gets no verdict, being of
+unknown work. -/
 def unkeyedLate (hist : List Sample) (s : Sample) : Bool :=
   s.unkeyed && hist.any (fun t => t.full && !t.unkeyed && s.sameStep t)
 
@@ -1955,10 +1997,33 @@ theorem verdictsOf_remoteQueue_not_slow (p : Params) (ss : List Sample) (v : Sam
   rw [judgeQ_step] at hs
   exact remoteQueue_never_slow p _ i ss[i] (by simpa [Sample.remoteQueue, Sample.norm] using And.intro ht hs)
 
-def SampleVerdict.detail (v : SampleVerdict) : String :=
+/-- **No slow verdict from a ci wait within budget, whole output.** If every `fw ci wait` sample of the history that has
+an own time has it within its budget, no `fw`/`ci wait` sample verdict of `verdictsOf` is `slow`; a wait without own time
+is skipped by `norm` and has no verdict at all. -/
+theorem verdictsOf_ciWait_not_slow (p : Params) (ss : List Sample)
+    (hb : ∀ s ∈ ss, s.ciWait = true → ∀ o, s.ownMs = some o → o ≤ budgetFor p s)
+    (v : SampleVerdict) (h : Verdict.sample v ∈ verdictsOf p ss) (ht : v.tool = "fw") (hs : v.step = "ci wait") :
+    v.code ≠ .slow := by
+  obtain ⟨i, hi, hf, rfl⟩ := mem_sample_full p (ss.map Sample.norm) v h
+  have hi' : i < ss.length := by simpa using hi
+  have hx : (ss.map Sample.norm)[i] = ss[i].norm := by simp
+  rw [hx] at ht hs hf ⊢
+  rw [judgeQ_tool] at ht
+  rw [judgeQ_step] at hs
+  have hc : ss[i].ciWait = true := by simpa [Sample.ciWait, Sample.norm] using And.intro ht hs
+  obtain ⟨o, ho⟩ : ∃ o, ss[i].ownMs = some o := by
+    cases hm : ss[i].ownMs with
+    | some o => exact ⟨o, rfl⟩
+    | none => exact absurd hf (by rw [ciWait_unknown_not_full _ hc hm]; simp)
+  exact ciWait_never_slow p _ i ss[i] hc o ho (hb _ (List.getElem_mem hi') hc o ho)
+
+/-- The line of a sample verdict, naming the sample by `label`. -/
+def SampleVerdict.detailWith (label : String) (v : SampleVerdict) : String :=
   let own := if ({ tool := v.tool, step := v.step, durMs := 0, host := v.host } : Sample).remote
     then " (our own time: the remote run's wait is not counted)" else ""
-  s!"sample #{v.idx} took {v.durMs} ms{own}, against baseline {v.baseline} ms (p50 of the {v.n} earlier samples of the same tool, step, host, run kind and work), budget {v.budgetMs} ms"
+  s!"{label} took {v.durMs} ms{own}, against baseline {v.baseline} ms (p50 of the {v.n} earlier samples of the same tool, step, host, run kind and work), budget {v.budgetMs} ms"
+
+def SampleVerdict.detail (v : SampleVerdict) : String := v.detailWith s!"sample #{v.idx}"
 
 theorem windowOf_append_contended (p : Params) (hist cs : List Sample) (k : Key)
     (hc : ∀ c ∈ cs, contended p c = true) : windowOf p (hist ++ cs) k = windowOf p hist k := by
@@ -2213,7 +2278,9 @@ def sampleJson (s : Sample) : Json :=
     ("exit", (s.exit.map toJson).getD .null), ("skipped", toJson s.skipped),
     ("waitMs", toJson s.waitMs),
     ("waits", .arr (s.waits.map (fun (t, ms) => Json.mkObj [("why", .str t.name), ("ms", toJson ms)])).toArray)] ++
-    workField s.work ++ (s.ownMs.map fun o => [("ownMs", toJson o)]).getD [])
+    workField s.work ++ (if s.startMs == 0 then [] else [("startMs", toJson s.startMs)]) ++
+    (if s.commit == "" then [] else [("commit", .str s.commit)]) ++
+    (s.ownMs.map fun o => [("phases", Json.mkObj [("how", "done"), ("updMs", toJson (s.startMs + s.durMs - o))])]).getD [])
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -2385,9 +2452,13 @@ def ciWaitData : List (Nat × Nat × Nat) :=
   [(316141, 20570, 2), (440814, 16696, 3), (179419, 26169, 4), (335984, 25290, 5), (387370, 27352, 5),
    (293198, 12245, 4), (1377258, 27294, 5)]
 
+#guard ciWaitData.all fun (d, o, _) => o ≤ d
+
+/-- The `fw ci wait` samples of the 2026-10-23 numbers; the golden encodes each own time as `updMs = startMs + durMs - ownMs`. -/
 def ciWaitRun : List Sample :=
   ciWaitData.map fun (d, o, l) =>
-    { tool := "fw", step := "ci wait", durMs := d, host := .«local», load := l, exit := some 0, ownMs := some o }
+    { tool := "fw", step := "ci wait", durMs := d, host := .«local», load := l, exit := some 0, ownMs := some o,
+      startMs := 1792745374550, commit := "3d0d68a" }
 
 def remoteQueueData : List (Nat × Nat) := [(0, 4), (0, 1), (37079, 4), (0, 3), (0, 2), (0, 4), (36034, 5)]
 

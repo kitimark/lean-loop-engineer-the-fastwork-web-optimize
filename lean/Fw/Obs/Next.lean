@@ -1391,6 +1391,28 @@ def slowLatestFrom (prev : List Timing.SampleVerdict) : List Timing.Verdict → 
 /-- The slow steps that are alerts of a verdict list: `slowLatestFrom` with no earlier verdicts. -/
 def slowLatest (vs : List Timing.Verdict) : List String := slowLatestFrom [] vs
 
+/-- The sample verdicts that are alerts: the same recursion as `slowLatestFrom`, keeping the verdict (with its host,
+index and numbers) instead of its subject. -/
+def alertsFrom (prev : List Timing.SampleVerdict) : List Timing.Verdict → List Timing.SampleVerdict
+  | [] => []
+  | .sample v :: rest =>
+      (if v.code == .slow && !laterSame v rest && !prevSlow v prev then [v] else []) ++ alertsFrom (v :: prev) rest
+  | .structural _ :: rest => alertsFrom prev rest
+
+/-- **The alert verdicts name the alert subjects.** The subjects of `alertsFrom` are exactly `slowLatestFrom`, in order,
+so a detail taken from an alert verdict describes the very sample that raised the alert (the full key, host included),
+not the latest slow verdict that shares its subject text. -/
+theorem alertsFrom_map (prev : List Timing.SampleVerdict) (vs : List Timing.Verdict) :
+    (alertsFrom prev vs).map stepName = slowLatestFrom prev vs := by
+  induction vs generalizing prev with
+  | nil => rfl
+  | cons x rest ih =>
+    cases x with
+    | structural w => exact ih prev
+    | sample v =>
+      simp only [alertsFrom, slowLatestFrom, List.map_append, ih (v :: prev)]
+      split <;> simp_all
+
 /-- Remove repeats, keeping the last occurrence of each. -/
 def dedupL : List String → List String
   | [] => []
@@ -1475,8 +1497,8 @@ theorem slowSteps_nil_of_no_slow (vs : List Timing.Verdict)
       exact absurd hc (h v hv)
   rw [this]; rfl
 
-/-- **A contended sample never raises `timing.slow`.** Every alert subject of the whole pipeline (`timingVerdicts`, then
-`slowSteps`) is the name of a sample that is not contended: a step whose samples are all contended, however slow, has
+/-- **A contended sample never raises `timing.slow`.** Every alert subject of the whole pipeline (`verdictsOf`, which is `timingVerdicts` of the normalised
+samples, then `slowSteps`; the statement holds for any list, so for `ss.map Sample.norm`) is the name of a sample that is not contended: a step whose samples are all contended, however slow, has
 no `timing.slow` (the machine-wide `sys.contended` signal carries it instead). Task `local-mem-budget`.
 -/
 theorem slowSteps_uncontended (p : Timing.Params) (ss : List Timing.Sample) (s : String)
@@ -1564,7 +1586,7 @@ theorem prevSlow_other_work (v : Timing.SampleVerdict) (prev : List Timing.Sampl
   unfold prevSlow
   rw [List.find?_eq_none.2 fun u hu => by simp [sameKey_work_ne v u fun e => hw u hu e.symm]]
 
-/-- **No alert names an overflow bucket.** No subject of the entry point is the name of an `fw` overflow bucket step:
+/-- **No alert names an overflow bucket.** No subject of the entry point (`verdictsOf`, as above) is the name of an `fw` overflow bucket step:
 its samples are `mixed`, never `slow`.
 -/
 theorem slowSteps_no_bucket (p : Timing.Params) (ss : List Timing.Sample) (s : String)
@@ -1578,7 +1600,7 @@ theorem slowSteps_no_bucket (p : Timing.Params) (ss : List Timing.Sample) (s : S
 theorem slowSteps_nodup (vs : List Timing.Verdict) : (slowSteps vs).Nodup := by
   exact nodup_dedupL _
 
-/-- **Every alert of the entry point is a slow sample of the history.** For `timingVerdicts`, each alert subject comes
+/-- **Every alert of the entry point is a slow sample of the history.** For `verdictsOf` (`timingVerdicts` of the normalised samples), each alert subject comes
 from a sample verdict with code `slow`.
 -/
 theorem slowSteps_of_timing (p : Timing.Params) (ss : List Timing.Sample) (s : String)
@@ -1650,7 +1672,7 @@ def cases : List (String × Params × List Sample) :=
    ("slot run with a command key: the same durations alert", {}, bucketRun "slot run check sh lean/scripts/check.sh"),
    ("slot width: a 200 s width-1 group alerts under its width", {}, groupMix ++ [group (some 1) 2 200000])]
 
-def slowOf (p : Params) (ss : List Sample) : List String := Fw.Obs.Next.slowSteps (timingVerdicts p ss)
+def slowOf (p : Params) (ss : List Sample) : List String := Fw.Obs.Next.slowSteps (verdictsOf p ss)
 
 #guard cases.map (fun (_, p, ss) => slowOf p ss) ==
   [["fw/polish commit [checks=lakeBuild]"], ["fw/polish commit"], ["fw/polish commit [checks=lakeBuild]"], [], [],

@@ -1004,13 +1004,27 @@ def waitsOf (j : Json) : Except String (List (Fw.Sup.Adapt.WhyTag × Nat)) := do
   let es ← (← arrD j "waits").mapM (fun e => do pure (← str e "why", ← nat e "ms"))
   pure (es.filterMap (fun (n, ms) => (Fw.Sup.Adapt.WhyTag.ofName? n).map (·, ms)))
 
+/-- The own time of a span from its raw `startMs`, `durMs` and `phases` (`how`, `updMs`): `Fw.Obs.Timing.ownOfPhases`.
+A span without `phases`, or with a malformed `how` or `updMs`, has none. -/
+def ownOfJson (j : Json) : Except String (Option Nat) := do
+  let start ← natD j "startMs" 0
+  let dur ← nat j "durMs"
+  pure <| match opt j "phases" with
+    | none => none
+    | some ph =>
+      let how := match opt ph "how" with
+        | some (.str h) => h
+        | _ => ""
+      Fw.Obs.Timing.ownOfPhases start dur how ((opt ph "updMs").bind fun v => (v.getNat?).toOption)
+
 /-- Decode a sample (`load` default 0). -/
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
          kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false,
          waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j, work := ← workOf j,
-         ownMs := (opt j "ownMs").bind fun v => (v.getNat?).toOption }
+         startMs := ← natD j "startMs" 0, commit := ← Fw.Wire.Ops.strD j "commit" "",
+         ownMs := ← ownOfJson j }
 
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
   pure { name := ← str j "name", keys := ← (← arrD j "keys").mapM keyOf }
@@ -1040,11 +1054,17 @@ def opTiming (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   pure [("verdicts", .arr ((Fw.Obs.Timing.verdictsOf p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
 
-def detailOf (vs : List Fw.Obs.Timing.Verdict) (s : String) : String :=
-  match (vs.filterMap fun
-      | .sample v => if v.code == .slow && Fw.Obs.Next.stepName v == s then some v.detail else none
-      | .structural _ => none).getLast? with
-  | some d => d
+/-- The line of an alert: the sample verdict that raised it, named by its host, start time and commit (the index in the
+window shifts with every poll). -/
+def alertLine (ss : List Fw.Obs.Timing.Sample) (v : Fw.Obs.Timing.SampleVerdict) : String :=
+  let s := ss[v.idx]?
+  v.detailWith s!"{hostStr v.host} sample (startMs {s.map (·.startMs) |>.getD 0}, commit {s.map (·.commit) |>.getD ""})"
+
+/-- The detail of an alert subject: the line of the last alert verdict of that subject (the alert's full key, not the
+latest slow verdict sharing the subject text on another host). -/
+def detailOf (ss : List Fw.Obs.Timing.Sample) (vs : List Fw.Obs.Timing.Verdict) (s : String) : String :=
+  match ((Fw.Obs.Next.alertsFrom [] vs).filter fun v => Fw.Obs.Next.stepName v == s).getLast? with
+  | some v => alertLine ss v
   | none => ""
 
 def opSlow (req : Json) : Except String Reply := do
@@ -1053,8 +1073,22 @@ def opSlow (req : Json) : Except String Reply := do
   let slow := Fw.Obs.Next.slowSteps vs
   let base := [("slow", Json.arr (slow.toArray.map .str))]
   match req.getObjVal? "detail" with
-  | .ok (.bool true) => pure (base ++ [("details", Json.arr (slow.toArray.map fun s => .str (detailOf vs s)))])
+  | .ok (.bool true) => pure (base ++ [("details", Json.arr (slow.toArray.map fun s => .str (detailOf ss vs s)))])
   | _ => pure base
+
+private def ciWaitJson (how : String) (upd : Nat) : Json :=
+  Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("durMs", toJson (900000 : Nat)), ("host", "local"),
+    ("startMs", toJson (1000 : Nat)), ("phases", Json.mkObj [("how", .str how), ("updMs", toJson upd)])]
+
+#guard (sampleOf (ciWaitJson "done" (1000 + 900000 - 27294))).toOption.map (·.ownMs) == some (some 27294)
+#guard (sampleOf (ciWaitJson "timeout" 5)).toOption.map (·.ownMs) == some none
+#guard (sampleOf (ciWaitJson "done" 901001)).toOption.map (·.ownMs) == some none
+#guard (sampleOf (Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("durMs", toJson (9 : Nat)), ("host", "local")])).toOption.map
+  (·.ownMs) == some none
+#guard (sampleOf (Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("durMs", toJson (9 : Nat)), ("host", "local"),
+  ("ownMs", toJson (3 : Nat))])).toOption.map (·.ownMs) == some none
+
+#guard ciWaitRun.all fun s => (sampleOf (sampleJson s)).toOption == some s
 
 end Timing
 
@@ -1162,7 +1196,8 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[\"t/s [width=2]\"]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"work\":3}]}" == "error: field work: expected an object"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
-#guard run "obs.slow" "{\"detail\":true,\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"}]}" == "{\"details\":[\"sample #1 took 5000 ms, against baseline 100 ms (p50 of the 1 earlier samples of the same tool, step, host, run kind and work), budget 1000 ms\"],\"slow\":[\"t/s\"]}"
+#guard run "obs.slow" "{\"detail\":true,\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"startMs\":77,\"commit\":\"abc1234\"}]}" == "{\"details\":[\"local sample (startMs 77, commit abc1234) took 5000 ms, against baseline 100 ms (p50 of the 1 earlier samples of the same tool, step, host, run kind and work), budget 1000 ms\"],\"slow\":[\"t/s\"]}"
+#guard run "obs.slow" "{\"detail\":true,\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"startMs\":1},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"ci\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":6000,\"host\":\"ci\",\"startMs\":2,\"commit\":\"c1\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"startMs\":3}]}" == "{\"details\":[\"ci sample (startMs 2, commit c1) took 6000 ms, against baseline 100 ms (p50 of the 1 earlier samples of the same tool, step, host, run kind and work), budget 1000 ms\"],\"slow\":[\"t/s\"]}"
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"exit\":null},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":16},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true}]}" ==
   "{\"slow\":[\"t/s\"]}"
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"ci\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2500,\"host\":\"ci\",\"exit\":0}]}" ==
