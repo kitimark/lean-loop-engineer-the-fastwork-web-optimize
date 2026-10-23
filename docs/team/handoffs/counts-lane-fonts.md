@@ -1,10 +1,9 @@
-branch: worktree-wf_c886ec11-19e-1 (CI branch ci/counts-lane-fonts)
+branch: worktree-wf_c886ec11-19e-1 (CI branches ci/counts-lane-fonts = candidate 907b3195b, ci/counts-lane-fonts-base = old-image arm 22bf968f2)
 worktree: .claude/worktrees/wf_c886ec11-19e-1
-last commit: 907b3195b (pushed as ci/counts-lane-fonts); pushes+dispatches used: 1 of 6
-CI runs: 39900399252 chromium-counts push of 907b3195b (swipe-v1 both x3, new image): running
-verified: Lean Profile.lean builds, golden regenerated and --check ok, profile.test.mjs 11 pass, ci-paths 54 pass (all local, not results)
-open: image build must pass (fonts-liberation=1:1.07.4-11 line in docker/apt-manifest.txt was added by hand-sorted insertion, the Dockerfile's dpkg diff is its check); then dispatch desktop-1280 both x3, people-o-hover base and --fw people.o:preview-translate x3 on ci/counts-lane-fonts; compare swipe-v1 classes with classes.frozen.json; write research/notes/2026/10-2x-counts-lane-fonts.md; full check.sh, package tests, merge main, fw land --dry
+last commit: see the branch log; pushes+dispatches used: 6 of 6 (2 pushes, 4 dispatches)
+CI runs (all complete, success): 39900399252 push 907b319 swipe-v1 both x3 (new image); 39901082850 push 22bf968 swipe-v1 both x3 (old image, A/B base); 39900925552 desktop-1280 rewrite x3; 39900932545 desktop-1280 original x3 (no text-wrap workaround, no crash); 39900922311 people-o-hover base x3; 39900929308 people-o-hover with people.o:preview-translate x3
+verified: lean check.sh green (slot); the image builds with fonts-liberation; run.mjs font check passed in every job; no crash at 1280 on original and rewrite
+open: compare counts (rows vs old rows, swipe-v1 A/B), write research/notes/2026/10-2x-counts-lane-fonts.md, package tests, merge main, fw land --dry, review ready
 
-Design (why): the lane's system fonts = one pinned Debian package fonts-liberation (the Chrome .deb's own font dependency, per the old Dockerfile comment) in one dir (docker/fonts.conf, generated text from Lean Fw.Measure.Profile.fontsConf); run.mjs refuses a container whose fc-list lacks the Lean fontsOk families and records meta.systemFonts. Rejected: page's web font ready before first layout (cannot be forced on the original page without editing it).
-Dispatch form: pnpm -s fw run --target both --engines chromium --profile desktop-1280 --runs 3 --ref ci/counts-lane-fonts (people-o-hover: --target rewrite, flag --fw people.o:preview-translate)
+Design: the lane's system fonts = one pinned Debian package fonts-liberation 1:1.07.4-11 (the font package of the Chrome .deb's dependency list, per the old Dockerfile comment) in one dir; docker/fonts.conf is the text of Lean Fw.Measure.Profile.fontsConf (golden profile.jsonl "fonts" line; test/profile.test.mjs compares). run.mjs refuses a container whose fc-list lacks the Lean fontsOk families and records meta.systemFonts. Rejected: the page's web font ready before the first layout (cannot be forced on the original page without editing it).
 Read first: research/notes/2026/10-2x-chrome-balance-repro.md (Platforms), packages/measure-chromium/Dockerfile.
