@@ -12730,7 +12730,8 @@
     "packages/gate-breakpoints/test/trajectory*.test.mjs",
     "docs/team/handoffs/hero-probe-original.md",
     "docs/team/tools/trajectory-probe.md"
-   ]
+   ],
+   "evidence": "32ebf4b"
   },
   {
    "devices": [
