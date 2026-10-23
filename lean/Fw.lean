@@ -102,6 +102,8 @@ import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
 import Fw.Measure.Compose
 import Fw.Measure.ImageArm
+import Fw.Measure.TouchPush
+import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
 import Fw.Ops.Wait

@@ -1,0 +1,21 @@
+{"answerMs":20000,"beginMs":45000,"doneMs":60000,"op":"constants","readyMs":240000,"swipeMs":20000,"tailMs":600,"windowCap":85600}
+{"case":"ok","doneInTime":true,"laneAfter":true,"obs":{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},"op":"classify","out":"ok","spent":11600}
+{"case":"ok at the deadlines","doneInTime":true,"laneAfter":true,"obs":{"answered":true,"beginAt":45000,"doneAt":125000,"moves":1,"swipeAt":20000},"op":"classify","out":"ok","spent":65600}
+{"case":"page lost","doneInTime":true,"laneAfter":false,"obs":{"answered":false,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},"op":"classify","out":"pageLost","spent":31600}
+{"case":"page lost and no begin","doneInTime":false,"laneAfter":false,"obs":{"answered":false,"beginAt":null,"doneAt":null,"moves":0,"swipeAt":null},"op":"classify","out":"pageLost","spent":85600}
+{"case":"begin at the deadline plus 1","doneInTime":true,"laneAfter":false,"obs":{"answered":true,"beginAt":45001,"doneAt":20000,"moves":12,"swipeAt":7000},"op":"classify","out":"beginLate","spent":52600}
+{"case":"never began","doneInTime":true,"laneAfter":false,"obs":{"answered":true,"beginAt":null,"doneAt":20000,"moves":12,"swipeAt":7000},"op":"classify","out":"beginLate","spent":52600}
+{"case":"swipe at the deadline plus 1","doneInTime":true,"laneAfter":false,"obs":{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":20001},"op":"classify","out":"swipeLate","spent":24600}
+{"case":"never finished the swipe","doneInTime":true,"laneAfter":false,"obs":{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":null},"op":"classify","out":"swipeLate","spent":24600}
+{"case":"no touchmove","doneInTime":true,"laneAfter":false,"obs":{"answered":true,"beginAt":4000,"doneAt":20000,"moves":0,"swipeAt":7000},"op":"classify","out":"noMove","spent":11600}
+{"case":"ok, driver done late","doneInTime":false,"laneAfter":false,"obs":{"answered":true,"beginAt":4000,"doneAt":125001,"moves":12,"swipeAt":7000},"op":"classify","out":"ok","spent":11600}
+{"case":"ok, driver never done","doneInTime":false,"laneAfter":false,"obs":{"answered":true,"beginAt":4000,"doneAt":null,"moves":12,"swipeAt":7000},"op":"classify","out":"ok","spent":11600}
+{"case":"empty","failures":0,"obs":[],"op":"lane","time":0}
+{"case":"all ok","failures":0,"obs":[{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000}],"op":"lane","time":214800}
+{"case":"second fails, third is not run","failures":1,"obs":[{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":0,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000}],"op":"lane","time":143200}
+{"case":"first fails","failures":1,"obs":[{"answered":false,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000}],"op":"lane","time":91600}
+{"case":"slow driver ends the lane after an ok window","failures":0,"obs":[{"answered":true,"beginAt":4000,"doneAt":200000,"moves":12,"swipeAt":7000},{"answered":true,"beginAt":4000,"doneAt":20000,"moves":12,"swipeAt":7000}],"op":"lane","time":71600}
+{"op":"timelinePlan","out":"off","stopMs":7500,"touch":true}
+{"op":"timelinePlan","out":"stopWithin 7500","stopMs":7500,"touch":false}
+{"op":"timelinePlan","out":"off","stopMs":60000,"touch":true}
+{"op":"timelinePlan","out":"stopWithin 0","stopMs":0,"touch":false}

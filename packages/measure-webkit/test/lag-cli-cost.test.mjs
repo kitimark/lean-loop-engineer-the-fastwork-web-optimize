@@ -28,5 +28,6 @@ test('the CLI refuses a bad value before it opens a session', () => {
 test('the workflow offers the same three modes, quoted (YAML 1.1 reads bare off and on as booleans)', () => {
   const yml = readFileSync(join(dirname(cli), '../../../../.github/workflows/webkit-sim.yml'), 'utf8');
   assert.match(yml, /\n {6}cost:\n(?: {8}.*\n)*? {8}options: \['off', 'on', only\]\n {8}default: 'off'\n/);
-  assert.match(yml, /lag\/cli\.mjs run --passes 2 --cost "\$COST" /);
+  assert.match(yml, /lag\/cli\.mjs run --passes "\$PASSES" --cost "\$COST" /);
+  assert.match(yml, /PASSES: \$\{\{ contains\(github\.event\.head_commit\.message, '\[swap-freeze\]'\) && '1' \|\| '2' \}\}/);
 });
