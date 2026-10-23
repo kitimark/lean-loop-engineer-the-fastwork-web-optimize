@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Open-card probe of profile people-o-hover (TS stand-in: an equality of two lists, no Lean golden). Usage:
-//   node probe-compare.mjs a=<counts.json> b=<counts.json>
-// Both files carry `cardProbe.frames` (run.mjs probe pass: per frame the card rect, the rect of its face, the inline top/left/translate,
-// a PNG hash of the viewport and a PNG hash of the pixels around the card). Prints, over all frames of the plan, how many frames differ
-// in the card rect, the card pixels (frames where the card is found in both) and the viewport pixels, how many frames of b use the
-// translate property, and the largest rect difference. Exit 0 iff the card was found in a frame and rect and card pixels agree in every
-// frame of phase `scroll` where it is found in both (the opening animation of the card runs in the earlier phases and differs by
-// hundredths of a pixel from run to run, so those frames are reported as `otherMaxRectDeltaPx` only); the viewport hash is reported only
-// (it also holds the rest of the page).
 import { readFileSync } from 'node:fs';
 
 const [a, b] = process.argv.slice(2).map((arg) => JSON.parse(readFileSync(arg.split('=')[1], 'utf8')).cardProbe?.frames);

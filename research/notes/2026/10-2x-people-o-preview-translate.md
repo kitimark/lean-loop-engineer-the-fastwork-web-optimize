@@ -38,9 +38,7 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
 
 ## Measured
 
-- Breakpoint gate, both engines, flag `people.o:preview-translate`: run 39850908365 at dce0985, success. Config 08b2ef03265b7880
- , chromium and playwright-webkit, row `people.o`: all cells pass except the two WebKit cells
-  that cannot be built on that engine (UNREACHABLE: primary-pair, whole-width), no FAIL. MEASURED. The gate cells do not hover, so
+- Breakpoint gate, both engines, flag `people.o:preview-translate`: run 39850908365 at dce0985, success. Config 08b2ef03265b7880, chromium and playwright-webkit, row `people.o`: all cells pass except the two WebKit cells that cannot be built (UNREACHABLE: primary-pair, whole-width), no FAIL. MEASURED. The gate cells do not hover, so
   the card is closed in them: this shows the closed page is unchanged, not the open card (the open card is the Lean theorem above).
 - Earlier (before task chromium-desktop-crash): the counts were blocked. Every desktop-width run, base and flag alike, failed at the first
   load frame: the renderer died with SIGSEGV (SEGV_MAPERR 0x84, a recursive tree walk; chrome.log of run 39862057861) about 0.5 s after the
@@ -83,7 +81,7 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
   six that differs from the other five (identical in the scroll phase); its card left is 0.92 px off from the first hover frame on, before
   any scroll frame, where the flag does nothing (INFERRED: a start-phase difference of the card animation, not the flag; 3 runs per arm
   cannot show it). So the look claim: rect identical in 3 of 3 pairs, pixels identical in 2 of 3 pairs, the third unexplained. The viewport
-  PNG hash is noise (50 differing frames base vs flag and 49 base vs base) and is only reported; the card-region hash is deterministic
+  PNG hash is noise (50 differing frames base vs flag and 49 base vs base); the card-region hash is deterministic
   (base r1 = r2 = r3).
 - The base card rect moves 6 px per frame in the scroll phase while the face moves 3 px and the inline `top` moves 3 px: the card sits at an
   offset from `top` that itself changes with the scroll. The `containing` list (ancestors with transform, filter, contain) holds only the

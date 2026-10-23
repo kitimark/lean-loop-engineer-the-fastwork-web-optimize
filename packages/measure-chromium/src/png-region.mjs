@@ -1,10 +1,6 @@
-// Hash of one pixel rectangle of a PNG (the open-card probe in run.mjs). The screenshot of HeadlessExperimental.beginFrame is a base64
-// 8-bit PNG, truecolor with or without alpha, not interlaced. The rows are un-filtered (PNG filters 0..4, RFC 2083 section 6.6), the
-// rectangle's bytes are hashed in row order. Anything else returns null, so a probe row says "unsupported" and never a wrong hash.
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 
-/** Decode: { w, h, bpp, px } (px = un-filtered rows, bpp bytes per pixel) or null for a PNG this does not handle. */
 export function decodePng(b64) {
   const buf = Buffer.from(b64, 'base64');
   if (buf.length < 33 || buf.readUInt32BE(0) !== 0x89504e47) return null;
@@ -47,7 +43,6 @@ export function decodePng(b64) {
   return { w, h, bpp, px };
 }
 
-/** First 16 hex digits of the SHA-256 of the pixels x0..x1-1, y0..y1-1 (clipped to the picture), or null. */
 export function pngRegionHash(b64, x0, y0, x1, y1) {
   const img = decodePng(b64);
   if (!img) return null;

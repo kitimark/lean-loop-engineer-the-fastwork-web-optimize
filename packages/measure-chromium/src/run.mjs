@@ -75,10 +75,6 @@ const ev = async (expression) => {
   if (r.exceptionDetails) throw new Error('evaluate failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
   return r.result.value;
 };
-// Network.enable makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
-// static server instead (every request that can succeed goes through it; external hosts are unresolvable by design).
-// Load diagnostics (target, lifecycle, console and exception lines on stderr, at most 40): off by default so the default run opens no
-// extra protocol domain and adds no listener; FW_LOAD_TRACE=1 turns them on, together with the per-load-frame line below.
 if (process.env.FW_LOAD_TRACE) {
   let logged = 0;
   const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
@@ -146,7 +142,7 @@ async function hangProfile(frameNo) {
   console.error(`hang trace names:\n  ${names.join('\n  ')}`);
   throw new Error(`load hang at frame ${frameNo}: ${events.length} trace events\n top samples:\n  ${top.join('\n  ') || '(none)'}\n long tasks:\n  ${longs.join('\n  ') || '(none)'}`);
 }
-let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
+let loaded = false;
 async function frame(vtMs, pre = '', mid = null, shot = false) {
   touch.frames++;
   const sent0 = touch.sent;
@@ -271,7 +267,6 @@ const warmN = inputMode === 'page' ? plan.filter((x) => x.phase === 'warm').leng
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   for (let n = 0; n < plan.length; n++, vt += dt) {
     const { phase, y, run } = plan[n];
-    // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
     const pre = inputMode === 'page'
       ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = ${POS};`
       : `console.timeStamp('F${n}'); ${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
@@ -342,11 +337,6 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
-// Open-card probe (profile.cardProbe = { selector, faceSelector }): after the counted pass and its trace, the plan is replayed once more
-// and every frame records the rect and inline position of the element, the rect of the face it follows, a hash of the viewport PNG and a
-// hash of the PNG pixels around the element (its rect grown by 60 px for the shadow), so two arms can be compared in position and pixels.
-// The counts are untouched: tracing has ended and the N0 read is done. A frame without damage keeps the previous picture and hashes.
-// `containing` (once, at the first frame the element exists) lists the ancestors that make a fixed box position against them.
 let probe = null;
 if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try {
   const { selector, faceSelector } = profile.cardProbe;

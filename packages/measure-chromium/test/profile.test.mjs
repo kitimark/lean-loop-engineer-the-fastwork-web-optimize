@@ -1,5 +1,3 @@
-// The profile loader's pure half (src/profile.mjs): every committed profile loads, and the replay check agrees with the Lean
-// golden (Fw.Device.Session replayOk, packages/contracts/golden/device/session.jsonl "loader" lines).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

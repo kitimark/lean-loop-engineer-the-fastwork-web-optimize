@@ -5,8 +5,6 @@ import * as P from './preview';
 const golden = readGolden('people-o-preview', 'main');
 
 describe('people.o:preview-translate golden', () => {
-  // snapDev is the browser's device-pixel rounding (Lean spec of what the engine does to the card's top), not site code: no function of
-  // preview.ts computes it, so its rows have no site function to compare and are proved in Lean only (snapDev_add, snap_noFlip).
   const LEAN_ONLY = new Set(['snapDev']);
   it('every golden fn is either compared with site code below or Lean-only', () => {
     expect(new Set(golden.map((g) => g.fn).filter((f) => !LEAN_ONLY.has(f)))).toEqual(new Set(['regime', 'step', 'layoutPasses']));

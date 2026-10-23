@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Per phase, the sum over frames of some counts of each counts.json (TS stand-in: sums; the classes are fwcore's). Usage:
-//   node phase-sums.mjs label=<counts.json> ...
 import { readFileSync } from 'node:fs';
 
 const KEYS = ['trace.Layout', 'trace.Layout.dirtyObjects', 'trace.UpdateLayoutTree', 'trace.Paint', 'trace.PrePaint', 'trace.UpdateLayer', 'raster.invalidationAreaPx'];

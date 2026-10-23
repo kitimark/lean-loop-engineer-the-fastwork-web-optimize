@@ -1,5 +1,3 @@
-// Unit tests of the pure extraction module (no Docker). Zone sums moved to Lean (fwcore measure.zoneSums): see
-// test/fwcore.test.mjs and packages/contracts/golden/measure/.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { traceToFrameCounts, N1_KEYS } from '../src/trace.mjs';
@@ -55,7 +53,7 @@ test('traceToFrameCounts: HitTest inside the overlay-ad detector is its own type
 test('n0Windows: events go to the first frame at or after their time; load, preroll and after are separate', async () => {
   const { n0Windows, n0FrameCounts } = await import('../src/n0.mjs');
   const dt = 10;
-  const frameVts = [20100, 20110, 20120]; // recorded frames; the last pre-roll frame is at 20090
+  const frameVts = [20100, 20110, 20120];
   const E = (kind, vt) => ({ kind, vt });
   const evs = [E('cssom.sheet', 5), E('cssom.sheet', 20050), E('cssom.sheet', 20090), E('sheetNode.added', 20095), E('cssom.keyframes', 20110), E('sheetNode.text', 20111), E('cssom.sheet', 20999)];
   const { win, perFrame } = n0Windows(evs, frameVts, 20000, dt);
