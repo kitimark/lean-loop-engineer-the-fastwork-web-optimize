@@ -18851,9 +18851,15 @@
     "packages/contracts/golden/ops/checkmap*.jsonl",
     "apps/runner/src/checkmap*.ts",
     "apps/runner/test/checkmap*.test.ts",
-    "docs/team/handoffs/checkmap-workflow-widths-local.md"
+    "docs/team/handoffs/checkmap-workflow-widths-local.md",
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/land-tier-local.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-*.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/tools/land.md"
    ],
-   "title": "Incident 2026-10-24: hero-copy-floor-sources changed .github/workflows/path-pix.yml (matrix 3 sim + 3 chromium) without the Lean width row (Fw.Ci.Overflow widths path-pix 4 -> 6); the lead dry land passed and the remote land tier failed (run 39995255573, land suites-a, test/land-overflow-widths.test.ts), costing a remote CI round. Fix by the Lean check map: a change to any .github/workflows/*.yml selects apps/runner test/land-overflow-widths.test.ts (and the fwcore rebuild it needs) in the LOCAL tier, so fw land --dry refuses it; theorem that every workflow path maps to that check, golden row, test. Record the incident in docs/team/incidents/ledger.json."
+   "title": "Incident 2026-10-24: hero-copy-floor-sources changed .github/workflows/path-pix.yml (matrix 3 sim + 3 chromium) without the Lean width row (Fw.Ci.Overflow widths path-pix 4 -> 6); the lead dry land passed and the remote land tier failed (run 39995255573, land suites-a, test/land-overflow-widths.test.ts), costing a remote CI round. Fix by the Lean check map: a change to any .github/workflows/*.yml selects apps/runner test/land-overflow-widths.test.ts (and the fwcore rebuild it needs) in the LOCAL tier, so fw land --dry refuses it; theorem that every workflow path maps to that check, golden row, test. Record the incident in docs/team/incidents/ledger.json. (Delivered in Fw.Console.LandTier.localTests, which fw land --dry uses; CheckMap.lean is the pre-commit map without tiers.)"
   },
   {
    "devices": [
@@ -18877,6 +18883,26 @@
     "docs/team/handoffs/timing-verdict-polish.md"
    ],
    "title": "timing-module-count-followups review follow-ups (2026-10-24): (1) ownOf in timing.ts:54-63 decides which fw ci wait spans get an own time (how=done, end minus phases.updMs, none when negative): move it into Lean (decode phases in Fw.Wire.Obs sampleOf) with #guard/golden; (2) unkeyed fw/polish commit spans are still written (polish.ts 'nothing' return; stagedSpan null when fwcore gives no command list) and would now get no verdict silently: key those paths or narrow the rule and docstring; (3) detailOf matches on stepName and the latest slow verdict across hosts and names the sample by a shifting index: match the full key, print host and startMs/commit; (4) state the ci-wait whole-output theorem (no slow verdict from a ci wait within budget) and update Next.lean docstrings to verdictsOf; (5) land-dry.test.ts lake-note case: rmSync in finally, end the span through the fw-main exit path."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "overflow-widths-reads",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "checkmap-workflow-widths-local"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/land-tier-local.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land-*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/overflow-widths-reads.md"
+   ],
+   "title": "checkmap-workflow-widths-local review follow-ups (2026-10-24): (1) overflowWidthsReads (Lean) and OVERFLOW_WIDTHS_READS (TS) miss inputs the planner .github/scripts/gate-jobs.mjs reads via workflow-widths.ts: packages/contracts/golden/gate/schedule.jsonl, packages/contracts/golden/gate/shards.jsonl, apps/site/src/breakpoints.gen.json, packages/gate-breakpoints/src/anchors.json; add them (one canonical list: TS reads the Lean golden instead of a hand copy) and regenerate the golden; (2) a real test: workflow-widths.ts width(parseWorkflow(...)) on a 6-job path-pix fixture against a table row of 4 fails (the current dry-land test swaps the argv); (3) land.md: any Lean change (fwcore binary moves) also selects runner:overflow-widths, about 11 s (MEASURED 10.96 s vitest, 22.4 s wall)."
   }
  ],
  "deadline": {
