@@ -161,7 +161,8 @@ export async function ciCli(argv: string[], cwd: string, env: Record<string, str
 export class LoadTimer {
   ms = 0;
   private at: number | null = null;
-  constructor(private readonly clock: () => number = () => performance.now()) {}
+  private readonly clock: () => number;
+  constructor(clock: () => number = () => performance.now()) { this.clock = clock; }
   on(e: "loadStart" | "loadEnd"): void {
     if (e === "loadStart") this.at = this.clock();
     else if (this.at !== null) { this.ms += this.clock() - this.at; this.at = null; }
