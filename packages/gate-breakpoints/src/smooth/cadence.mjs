@@ -66,7 +66,6 @@ async function open(engine, env, origin, site, search) {
   return { s, arm };
 }
 
-/** One window on one arm: returns the intervals (tenths of ms) and the arm identity the page reported. */
 async function oneWindow(engine, env, a, win, traced, cpuThrottle) {
   const { s, arm } = await open(engine, env, a.origin, a.site, a.search);
   try {
@@ -74,7 +73,6 @@ async function oneWindow(engine, env, a, win, traced, cpuThrottle) {
     const cy = env.height / 2;
     if (win === 'end') await s.evaluate(toEnd);
     else await sleep(400);
-    // The page is loaded and settled at full speed; the throttle covers the scripted scroll only (the window a person feels).
     await s.setCpuThrottle(cpuThrottle);
     if (traced) await s.startTrace();
     await s.histograms();
@@ -96,10 +94,6 @@ async function oneWindow(engine, env, a, win, traced, cpuThrottle) {
   } finally { await s.close().catch(() => {}); }
 }
 
-/**
- * Run the cadence lane for the widths in `widths`. `search` is the candidate's (`?preset=...` or `?fw=...`). Returns
- * { engine, version, cpuThrottle, search, hash, baseHash, reps, traceReps, refused, runs: [{ width, arm, window, rep, ivs, config, mode }], traces: [...] }.
- */
 export async function runCadence({ widths, search = '', reps = 6, traceReps = 2, cpuThrottle = 1, env = process.env, chromePath }) {
   const variant = rewriteFor(siteDist(env), { ...env, FW_SEARCH: search });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));

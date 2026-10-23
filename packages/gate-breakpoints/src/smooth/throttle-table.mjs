@@ -1,6 +1,3 @@
-// The 1x against 6x table of task smoothness-cpu-throttle. TS stand-in (no Lean rule): it only lines up the cadence tables that cadence-table.mjs
-// built per throttle (cadence.table.json of a 1x run directory and of a 6x one) and takes medians over the job samples. The pair verdicts in it
-// are the Lean rules' (reduce.mjs), copied from those tables. A PROXY of the lag felt on WebKit (iPhone), never WebKit evidence.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -9,7 +6,6 @@ const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s
 const pct = (r) => (r / 100).toFixed(1);
 const load = (dir) => JSON.parse(readFileSync(join(dir, 'cadence.table.json'), 'utf8'));
 
-/** Per width, window and arm: rate (percent, median and range over the job samples), hitches per rep (median over all reps), p50 and p95 ms (median over jobs). */
 export function armRows(table) {
   const rows = [];
   for (const width of [...new Set(table.cells.map((c) => c.width))].sort((a, b) => a - b)) for (const window of ['hero', 'end']) {
@@ -24,7 +20,6 @@ export function armRows(table) {
   return rows;
 }
 
-/** The markdown: one table of arms (1x beside 6x), one of the Lean pair verdicts over the job samples. */
 export function compareMarkdown(a, b) {
   const ra = armRows(a);
   const rb = armRows(b);

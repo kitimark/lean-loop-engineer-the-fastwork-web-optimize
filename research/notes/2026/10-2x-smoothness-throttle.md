@@ -60,7 +60,7 @@ Rate = bad frames per frame, percent, median over 3 samples (range). Hitches/rep
 | 1280 | end | aa | 19.4 (17.8-20.8) | 46.1 (35.8-51.3) | 3 | 15 | 50.1 / 100.0 |
 | 1280 | end | cand | 16.5 (16.2-20.1) | 43.4 (34.3-46.8) | 3 | 13 | 66.6 / 100.0 |
 
-The full table with p50 and the round a table are `results/smoothness-throttle/compare.md` and `results/smoothness-throttle/a-empty-cand/compare.md`. Round a (orig, base, aa) at 390: hero 6x 37.5 / 38.8 / 38.4 %
+The full table with p50 and the round a table: `results/smoothness-throttle/compare.md` and `results/smoothness-throttle/a-empty-cand/compare.md`. Round a (orig, base, aa) at 390: hero 6x 37.5 / 38.8 / 38.4 %
 (1x 0.0 / 0.6 / 0.6 %), end 6x 32.6 / 33.8 / 34.9 % (1x 0.5 / 1.0 / 0.9 %): the level of the 6x rates moves by up to 12 points between the two runs (runner load), the order orig at or below base does not.
 
 ## Lean verdicts (existing rules, no new rule), pair over the 3 job samples

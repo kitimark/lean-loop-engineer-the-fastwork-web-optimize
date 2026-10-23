@@ -28,7 +28,6 @@ export function cellOf(runId, file, width, window) {
   return { run: runId, width, window, cpuThrottle: file.cpuThrottle ?? 1, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, hitchReps, hitchVerdicts, countReps, counts, histograms, traces, hitches: hitchesOf(rows) };
 }
 
-/** Per arm and histogram name: the windows that reported it, the samples and the summed value (descriptive; Chromium's own jank and smoothness metrics). */
 export function histogramsOf(rows) {
   const out = {};
   for (const a of ARMS) {
