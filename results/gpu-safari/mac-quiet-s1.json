@@ -1,0 +1,113 @@
+{
+ "schema": "fw.gpu-safari-quiet/1",
+ "at": "2026-10-23T14:44:08.558Z",
+ "readings": 8,
+ "quiet": 8,
+ "refused": 0,
+ "floorMaxCenti": 800,
+ "loadMarginCenti": 100,
+ "baseMinSamples": 8,
+ "baselineFloorCenti": 470,
+ "loadMin": 4.33,
+ "loadMedian": 4.85,
+ "loadMax": 5.2,
+ "whyCounts": {},
+ "verdicts": [
+  {
+   "time": 1792766617,
+   "load": 5.2,
+   "availMB": 1579,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766622,
+   "load": 5.03,
+   "availMB": 1549,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766626,
+   "load": 4.7,
+   "availMB": 1531,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766631,
+   "load": 4.41,
+   "availMB": 1503,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766635,
+   "load": 4.85,
+   "availMB": 1518,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766639,
+   "load": 4.85,
+   "availMB": 1492,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766644,
+   "load": 4.63,
+   "availMB": 1422,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 1,
+   "quiet": true,
+   "why": []
+  },
+  {
+   "time": 1792766648,
+   "load": 4.33,
+   "availMB": 1064,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 2,
+   "quiet": true,
+   "why": []
+  }
+ ]
+}

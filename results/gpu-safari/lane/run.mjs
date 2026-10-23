@@ -5,6 +5,7 @@ import { captureZone } from './sim-capture.mjs';
 import { captureZoneMac } from './mac-capture.mjs';
 import { reduceArm, armsOfZone } from './reduce.mjs';
 import { CI_PAIRS } from './ci-pairs.mjs';
+import { armPair } from './armpair.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
@@ -31,6 +32,11 @@ function emit({ cap, zone, shotsDir, run, lane = 'ios-simulator-on-mac' }) {
       ci: CI_PAIRS[arm.id] ?? null, ...r,
     }, null, 1) + '\n');
     console.error(`wrote ${file}: ${r.states.map((s) => `${s.id}=${JSON.stringify(s.grade)}`).join(' ')}`);
+  }
+  if (zone === 'morph') {
+    const file = join(out, `${lane === 'macos-safari' ? 'mac-' : ''}bundled-vs-threaded-pixels${suffix}.json`);
+    writeFileSync(file, JSON.stringify({ schema: 'fw.gpu-safari-armpair/1', lane, run, zone, session: cap.session, rows: armPair(cap, shotsDir, 'morph-panel-threaded', 'morph-panel-threaded-fade') }, null, 1) + '\n');
+    console.error(`wrote ${file}`);
   }
 }
 

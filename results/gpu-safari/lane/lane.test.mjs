@@ -1,12 +1,13 @@
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { FLAG_ARMS, statesOf, zoneArms, NAV_M, elapsedAt } from './plan.mjs';
+import { FLAG_ARMS, statesOf, zoneArms, NAV_M, elapsedAt, CAROUSEL_AT_MS, SWAP_MS } from './plan.mjs';
 import { wantEffects, PUSH_EXPR, STEP_EXPR } from './sim-capture.mjs';
 import { CI_PAIRS } from './ci-pairs.mjs';
 import { ringSplit, glassOf, glassDelta, againstLoads, maskOf, hashOf } from './pix.mjs';
 import { unionBox } from './reduce.mjs';
-import { flat } from './mac-capture.mjs';
+import { diffImages } from './armpair.mjs';
+import { flat, CAROUSEL_ARM, CAROUSEL_STEP } from './mac-capture.mjs';
 import { bytesOf, parseIOSurface, simServicePids, iosurfaceSample } from './iosurface.mjs';
 import { encodePng } from '../../../packages/measure-webkit/src/pathpix-png.mjs';
 
@@ -16,16 +17,48 @@ const img = (w, h, f) => {
   return { w, h, rgba };
 };
 
-test('every flag arm has a zone, a task and a CI pairing', () => {
+const RUN_KINDS = Object.freeze({
+  'nav-clip-box': ['gate', 'trajectory', 'webkitSim'],
+  'nav-bar-fixed': ['gate', 'trajectory', 'webkitSim'],
+  'nav-logo-3d': ['gate', 'trajectory', 'webkitSim'],
+  'morph-panel-threaded': ['counts', 'gate', 'trajectory', 'webkitSim'],
+  'morph-panel-threaded-fade': ['counts', 'gate', 'trajectory', 'webkitSim'],
+  'pain-dark-scroll': ['base', 'counts', 'gate', 'webkitSim'],
+  'hero-exit-threaded': ['base', 'pathPix', 'trajectory', 'webkitSim'],
+  'people-carousel-crop': ['webkitSim'],
+  'people-o-preview-translate': ['gate'],
+});
+
+test('every flag arm has a zone and a task, and its CI pairing holds exactly the run kinds of its row in the table', () => {
   const ids = FLAG_ARMS.map((a) => a.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const a of FLAG_ARMS) { assert.ok(a.zone && a.task && a.search.startsWith('?fw=')); const p = CI_PAIRS[a.id]; assert.ok(p?.gate || p?.trajectory?.length || p?.webkitSim?.length, a.id); }
+  assert.deepEqual([...ids].sort(), Object.keys(RUN_KINDS).sort());
+  for (const a of FLAG_ARMS) {
+    assert.ok(a.zone && a.task && a.search.startsWith('?fw='));
+    const p = CI_PAIRS[a.id];
+    const kinds = Object.entries(p ?? {}).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : Boolean(v))).map(([k]) => k).sort();
+    assert.deepEqual(kinds, RUN_KINDS[a.id], a.id);
+    for (const v of Object.values(p).flat()) assert.match(String(v), /^\d{10,}$/, a.id);
+  }
 });
 
 test('a zone loads faithful, the A/A control, its flag arms, then faithful again as an order probe', () => {
   assert.deepEqual(zoneArms('morph').map((a) => a.id), ['base', 'base2', 'morph-panel-threaded', 'morph-panel-threaded-fade', 'base3']);
   assert.deepEqual(zoneArms('pain').map((a) => a.id), ['base', 'base2', 'pain-dark-scroll', 'base3']);
   assert.ok(zoneArms('nav').every((a) => a.id.startsWith('base') || a.zone === 'nav'));
+});
+
+test('the carousel zone parks a swap row and steps the paused animations inside the 220 ms swap; extra loads add base4 on', () => {
+  assert.deepEqual(zoneArms('carousel').map((a) => a.id), ['base', 'base2', 'people-carousel-crop', 'base3']);
+  assert.deepEqual(zoneArms('morph', 6).map((a) => a.id), ['base', 'base2', 'morph-panel-threaded', 'morph-panel-threaded-fade', 'base3', 'base4', 'base5', 'base6']);
+  assert.throws(() => zoneArms('morph', 2));
+  const st = statesOf('carousel');
+  assert.deepEqual(st.map((s) => s.elapsedMs), CAROUSEL_AT_MS);
+  assert.ok(st.every((s) => s.kind === 'swap' && s.mask === 'box' && s.elapsedMs > 0 && s.elapsedMs < SWAP_MS));
+  assert.deepEqual(maskOf('box', 2, 860, 1864, [10e6, 100e6, 104e6, 32e6]), [12, 236, 192, 272]);
+  assert.match(CAROUSEL_ARM, /lane\.parked = true/);
+  assert.match(CAROUSEL_STEP(110), /currentTime = 110/);
+  assert.doesNotMatch(CAROUSEL_STEP(110), /finish\(|cancel\(/);
 });
 
 test('the nav states hold the task values and the pain states need the flip offset', () => {
@@ -104,6 +137,24 @@ test('againstLoads: the A/A floor is the later-load pair, the first load is the 
   assert.equal(q.nearest, 0);
   assert.equal(q.laterNearest, 64);
   assert.equal(q.within, false);
+});
+
+test('againstLoads gives the spread of the later-load floors: min, median, max over the pairs without the first load', () => {
+  const w = 8, h = 8, m = [0, w, 0, h];
+  const L = (n) => img(w, h, (x) => (x < n ? [20, 10, 10] : [10, 10, 10]));
+  const r = againstLoads([L(7), L(0), L(1), L(3)], L(0), w, m);
+  assert.deepEqual(r.laterFloors, { n: 3, min: 8, median: 16, max: 24 });
+  assert.equal(r.floor, 8);
+  assert.equal(r.laterNearest, 0);
+  assert.equal(againstLoads([L(7), L(0)], L(0), w, m).laterFloors, null);
+});
+
+test('diffImages counts changed px, the largest channel delta, their box and how many fall in a named box', () => {
+  const a = img(6, 6, () => [10, 10, 10]);
+  const b = img(6, 6, (x, y) => (x === 1 && y === 2 ? [10, 14, 10] : x === 4 && y === 5 ? [10, 10, 11] : [10, 10, 10]));
+  const r = diffImages(a, b, { left: [0, 3, 0, 6], none: [5, 6, 0, 1] });
+  assert.deepEqual(r, { changed: 2, maxDelta: 4, bbox: [1, 2, 4, 5], inside: { left: 1, none: 0 } });
+  assert.deepEqual(diffImages(a, a), { changed: 0, maxDelta: 0, bbox: null, inside: {} });
 });
 
 test('maskOf takes the nav box in micro px and the whole frame otherwise; unionBox grows both', () => {
