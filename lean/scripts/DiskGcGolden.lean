@@ -14,7 +14,7 @@ def base : List (String × Json) := [("roots", roots), ("classes", .arr ((#[1, 2
   ("uid", toJson 501), ("now", toJson now), ("opens", .arr #[]), ("procs", .arr #[]), ("queued", .arr #[]),
   ("cited", .arr #[]), ("named", .arr #[.str "fw-iphone-27"]), ("simLock", .bool false),
   ("landSubjects", .arr #[.str "land worktree-w1", .str "land worktree-w2", .str "land b"]),
-  ("liveRuns", .arr #[]), ("landedRuns", .arr #[]),
+  ("liveRuns", .arr #[]), ("landedRuns", .arr #[]), ("cwds", .arr #[]), ("taskRuns", .arr #[]),
   ("lake", Json.mkObj [("checkouts", .arr #[]), ("procs", .arr #[]), ("outputs", .arr #[])])]
 
 def req (extra : List (String × Json)) (cands : List Json) : Json :=
@@ -97,6 +97,21 @@ def gcCases : List (String × String × Json) := [
     req [("landSubjects", .arr #[.str "land worktree-open"])] [wt 2 "wf_a1-b-1" 0 false false "worktree-open"]),
   ("class 2 (inc-gc-landed-ff): a land commit with the tip on main selects it", "ops.diskGc",
     req [("landSubjects", .arr #[.str "land worktree-wf_a1-b-1"])] [wt 2 "wf_a1-b-1" 0 true false "worktree-wf_a1-b-1"]),
+  ("class 2 (gc-live-agent-cwd): a live agent's cwd inside the worktree keeps it, also with a land commit", "ops.diskGc",
+    req [("cwds", .arr #[.str "/h/r/.claude/worktrees/w1/apps", .str "/"])] [wt 2 "w1" 0 true false, wt 2 "w2" 0 true false (.str "free") "worktree-w2"]),
+  ("class 3 (gc-live-agent-cwd): a live agent's cwd in the worktree root keeps its idle node_modules", "ops.diskGc",
+    req [("cwds", .arr #[.str "/h/r/.claude/worktrees/w1"])]
+      [wt 3 "w1/node_modules" 100 false false, wt 3 "w2/node_modules" 100 false false]),
+  ("class 2 (gc-live-agent-cwd): cwds not gathered keep it", "ops.diskGc", req [("cwds", .null)] [wt 2 "w1" 0 true false]),
+  ("class 2 (gc-live-agent-cwd): remote land 'land <task> <sha7>' with the task's run owning the worktree selects it, "
+    ++ "another task or an unread task map keeps it", "ops.diskGc",
+    req [("landSubjects", .arr #[.str "land task-x 1234567"]), ("taskRuns", .arr #[Json.mkObj [("task", .str "task-x"), ("run", .str "wf_1f18354c-dfd")]])]
+      [wt 2 "wf_1f18354c-dfd-1" 0 true false, wt 2 "wf_aaaaaaaa-bbb-1" 0 true false]),
+  ("class 2 (gc-live-agent-cwd): remote land with the task map unread keeps it", "ops.diskGc",
+    req [("landSubjects", .arr #[.str "land task-x 1234567"]), ("taskRuns", .null)] [wt 2 "wf_1f18354c-dfd-1" 0 true false]),
+  ("class 2 (gc-live-agent-cwd): remote land of an owning run whose tip is not on main is kept", "ops.diskGc",
+    req [("landSubjects", .arr #[.str "land task-x 1234567"]), ("taskRuns", .arr #[Json.mkObj [("task", .str "task-x"), ("run", .str "wf_1f18354c-dfd")]])]
+      [wt 2 "wf_1f18354c-dfd-1" 0 false false]),
   ("class 2 (inc-gc-landed-ff): unread land subjects keep it", "ops.diskGc",
     req [("landSubjects", .null)] [wt 2 "w1" 0 true false]),
   ("class 2 (inc-gc-landed-ff): live runs not gathered keep it", "ops.diskGc",

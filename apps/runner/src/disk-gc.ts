@@ -30,6 +30,7 @@ export type Args = { mode: Mode; classes: Cls[]; idleH?: number; scratchH?: numb
 
 export type Io = {
   opens: () => string[] | null;
+  cwds: () => string[] | null;
   procs: () => { pid: number; start: string }[] | null;
   lakeProcs: () => LakeProc[] | null;
   devices: () => Device[] | null;
@@ -113,6 +114,14 @@ export function gatherOpens(): string[] | null {
   return r.out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1));
 }
 
+/** Fact: the working directory of every process lsof can see (agents, shells, tools). Limit: a snapshot of now, and
+ * processes of other users are invisible; null (kept) when lsof prints nothing. Lean decides what the paths block. */
+export function gatherCwds(): string[] | null {
+  const r = run("lsof", ["-n", "-w", "-a", "-d", "cwd", "-Fn"]);
+  if (!r.out) return null;
+  return [...new Set(r.out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1)))];
+}
+
 export function gatherStarts(): { pid: number; start: string }[] | null {
   const r = run("ps", ["-axo", "pid=,lstart="]);
   if (r.status !== 0) return null;
@@ -135,6 +144,7 @@ export function gatherDevices(): Device[] | null {
 
 export const realIo: Io = {
   opens: gatherOpens,
+  cwds: gatherCwds,
   procs: gatherStarts,
   lakeProcs: gatherProcs,
   devices: gatherDevices,
@@ -221,7 +231,7 @@ export function gatherNamed(repo: string): string[] | null {
   return [...new Set(r.out.split("\n").filter(Boolean).map((l) => l.slice(l.indexOf("fw-"))))];
 }
 
-export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[]; liveRuns: string[]; landedRuns: string[] };
+export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[]; liveRuns: string[]; landedRuns: string[]; taskRuns: { task: string; run: string }[] };
 
 export function landSubjects(repo: string): string[] | null {
   const r = git(repo, ["log", "refs/heads/main", "--format=%s"]);
@@ -247,8 +257,10 @@ export function gatherEventFacts(repo: string, call: Call): EventFacts | null {
     const strs = (v: unknown): string[] | null => Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null;
     const liveAgents = strs(r.liveAgents), landedTasks = strs(r.landedTasks), finishedRuns = strs(r.finishedRuns);
     const liveRuns = strs(r.liveRuns), landedRuns = strs(r.landedRuns);
-    return liveAgents && landedTasks && finishedRuns && liveRuns && landedRuns
-      ? { liveAgents, landedTasks, finishedRuns, liveRuns, landedRuns } : null;
+    const trs = Array.isArray(r.taskRuns) && r.taskRuns.every((x) => x && typeof x.task === "string" && typeof x.run === "string")
+      ? (r.taskRuns as { task: string; run: string }[]) : null;
+    return liveAgents && landedTasks && finishedRuns && liveRuns && landedRuns && trs
+      ? { liveAgents, landedTasks, finishedRuns, liveRuns, landedRuns, taskRuns: trs } : null;
   } catch { return null; }
 }
 
@@ -319,6 +331,7 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, 
       const evl = gatherEventFacts(roots.repo, call);
       req.liveRuns = evl ? evl.liveRuns : null;
       req.landedRuns = evl ? evl.landedRuns : null;
+      req.taskRuns = evl ? evl.taskRuns : null;
     }
   }
 
@@ -369,10 +382,11 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, 
   }
 
   const prefixes = [roots.lake, roots.repo, roots.scratch, roots.devices, roots.utmp ?? ""].filter(Boolean);
+  if (on("landed") || on("idle")) req.cwds = io.cwds();
   const opens = io.opens();
   req.opens = opens === null ? null : [...new Set(opens.filter((o) => prefixes.some((r) => o === r || o.startsWith(`${r}/`))))];
   req.procs = io.procs();
-  for (const k of ["opens", "procs", "queued", "cited", "named"]) if (req[k] === null) delete req[k];
+  for (const k of ["opens", "cwds", "procs", "queued", "cited", "named"]) if (req[k] === null) delete req[k];
   return { req, cands, lazy, outputs };
 }
 
