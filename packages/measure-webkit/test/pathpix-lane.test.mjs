@@ -8,7 +8,9 @@ import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_I
 import { encodePng, decodePng, cropImage, sameImage } from '../src/pathpix-png.mjs';
 import { analyzeLane, table } from '../src/pathpix-analyze.mjs';
 import { magentaBox, inViewPositions } from '../src/pathpix-webkit.mjs';
-import { pathSearch as chromiumPathSearch, laneOffsets } from '../../measure-chromium/src/pathpix-pure.mjs';
+import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
+import { analyzeExit, analyzeDir, exitTable, exitOffsets, splitUnion, region, liveP, liveA } from '../src/pathpix-exit.mjs';
+import { pathSearch as chromiumPathSearch, laneOffsets, exitOffsets as chromiumExitOffsets } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 test('the Chromium driver computes the same offsets and arm search as the Simulator lane', () => {
   for (const maxY of [0, 1, 7, 8, 4626, 5267, 123457]) assert.deepEqual(laneOffsets(maxY), offsets(maxY), `maxY ${maxY}`);
@@ -17,7 +19,7 @@ test('the Chromium driver computes the same offsets and arm search as the Simula
 });
 
 test('page-side expressions are well-formed scripts', () => {
-  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
+  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
 });
 
 test('png codec round-trips, crops and compares', () => {
@@ -98,6 +100,77 @@ test('a P arm is captured only where arm A shows the layer, and the analysis rea
     assert.ok(res.skipped.some((x) => x.kind === 'P' && /not captured/.test(x.why)));
     assert.deepEqual(res.cut, ['P:other (failed: x)']);
     assert.match(table(res), /arms cut short/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the Chromium driver computes the same exit offsets as the Simulator lane', () => {
+  for (const [T, n] of [[0, 600], [0, 932], [300, 664], [12, 1688], [0, 1]]) assert.deepEqual(chromiumExitOffsets(T, n), exitOffsets(T, n), `${T} ${n}`);
+});
+
+test('the union split agrees with the Lean region rule pixel by pixel', () => {
+  const w = 40, h = 30, del = new Uint8Array(w * h);
+  for (let i = 0; i < del.length; i++) del[i] = (i * 7) % 5 === 0 ? 1 + (i % 9) : 0;
+  const masks = [[5, 20, 4, 15], [12, 30, 10, 25], [33, 36, 0, 3]];
+  const sp = splitUnion(del, w, h, masks);
+  const want = { out: { changed: 0, maxDelta: 0 }, inside: masks.map(() => ({ changed: 0, maxDelta: 0 })) };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const d = del[y * w + x];
+    if (!d) continue;
+    if (region(masks, [0, 0, 0, 0], x, y) === 'out') { want.out.changed++; want.out.maxDelta = Math.max(want.out.maxDelta, d); }
+    masks.forEach((m, k) => { if (region(masks, m, x, y) === 'inside') { want.inside[k].changed++; want.inside[k].maxDelta = Math.max(want.inside[k].maxDelta, d); } });
+  }
+  assert.deepEqual(sp.out, want.out);
+  assert.deepEqual(sp.inside.map((x) => x.raw), want.inside);
+});
+
+test('the live witnesses', () => {
+  assert.equal(liveP({ live: true, variant: 'threaded', supported: true, nonDoc: 4 }), true);
+  for (const bad of [null, { live: false, variant: 'threaded', supported: true, nonDoc: 4 }, { live: true, variant: 'faithful', supported: true, nonDoc: 4 }, { live: true, variant: 'threaded', supported: false, nonDoc: 4 }, { live: true, variant: 'threaded', supported: true, nonDoc: 0 }]) assert.equal(liveP(bad), false);
+  assert.equal(liveA({ live: false, variant: 'faithful' }), true);
+  assert.equal(liveA({ live: true, variant: 'threaded' }), false);
+});
+
+function fakeExitLane(dir, { pEdit, pLive, a2Edit }) {
+  mkdirSync(join(dir, 'shots'), { recursive: true });
+  const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
+  const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
+  put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
+  const boxes = { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
+  const row = (arm, live) => ({ i: 0, y: 0, scrollY: 0, boxes, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
+  const faithful = { live: false, variant: 'faithful', supported: true, nonDoc: 0 };
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+    schema: 'fw.path-pix/1', mode: 'exit', flag: 'hero.exit:threaded', engine: 'webkit', lane: 'test', run: 'test', lossless: true, compositing: 'test', dpr: 1, vw: 100, vh: 100,
+    frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0], cut: [],
+    samples: { A: [row('A', faithful)], A2: [row('A2', faithful)], P: [row('P', pLive)] },
+  }));
+}
+const liveOk = { live: true, variant: 'threaded', supported: true, nonDoc: 4 };
+const setPx = (x, y, v = 250) => (img) => { img.rgba[(y * 100 + x) * 4] = v; };
+
+test('exit analysis: cells per consumer, floor from A/A, outside change is L, a live witness gates P', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-exit-'));
+  try {
+    fakeExitLane(dir, { a2Edit: setPx(15, 15), pEdit: (img) => { setPx(15, 15)(img); setPx(15, 16)(img); setPx(80, 80)(img); }, pLive: liveOk });
+    const res = analyzeExit(dir, { strips: 'changed', emit: () => {} });
+    const cell = (kind, key) => res.cells.find((c) => c.kind === kind && c.key === key);
+    assert.equal(res.cells.length, 4);
+    assert.deepEqual(cell('A/A', 'hero_copy').cell.inside, { changed: 1, maxDelta: 5 });
+    assert.deepEqual(cell('P', 'hero_copy').cell.inside, { changed: 2, maxDelta: 5 });
+    assert.deepEqual(cell('P', 'hero_copy').cell.out, { changed: 1, maxDelta: 5 });
+    assert.deepEqual(cell('P', 'hero_copy').floor.inside, { changed: 1, maxDelta: 5 });
+    assert.equal(cell('P', 'hero_copy').why, 'outside');
+    assert.equal(cell('P', 'hero_copy').grade, 'L');
+    assert.equal(cell('P', 'hero.deck_article#1').cell.inside.changed, 0);
+    assert.equal(cell('P', 'hero.deck_article#1').cell.out.changed, 1);
+    assert.equal(cell('P', 'hero.deck_article#1').cell.claim.props.join(), 'opacity,translate');
+    assert.match(exitTable(res), /hero_copy/);
+    fakeExitLane(dir, { a2Edit: null, pEdit: null, pLive: { ...liveOk, live: false } });
+    const dead = analyzeExit(dir, { strips: 'none' });
+    assert.ok(dead.cells.filter((c) => c.kind === 'P').every((c) => c.grade === 'invalid' && !c.live));
+    assert.ok(dead.cells.filter((c) => c.kind === 'A/A').every((c) => c.grade !== 'invalid'));
+    assert.equal(analyzeDir(dir, { strips: 'none' }).res.schema, 'fw.path-pix.exit/1');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
