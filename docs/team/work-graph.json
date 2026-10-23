@@ -18341,7 +18341,8 @@
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-noflip-followups.md"
    ],
-   "title": "trajectory-lane-noflip (landed eea0723ac) follow-ups: (1) laneOf_extra covers only open@1 units whose arms are the firstCover fallback or verdicts one extra pass leaves unchanged; extend the no-flip guarantee (or an undecided band) to content verdicts that move with one extra original pass (sampled open@1 and the other buckets), with theorem + golden; (2) cli.mjs strict mode: decide whether an UNDECIDED lane gets its own exit code (today exit 0 from red.red) and mirror the Lean Rel docstring (undecided cases) in the reduce.mjs rel JSDoc; (3) WebKit cadence for the lane (Chromium only so far)."
+   "title": "trajectory-lane-noflip (landed eea0723ac) follow-ups: (1) laneOf_extra covers only open@1 units whose arms are the firstCover fallback or verdicts one extra pass leaves unchanged; extend the no-flip guarantee (or an undecided band) to content verdicts that move with one extra original pass (sampled open@1 and the other buckets), with theorem + golden; (2) cli.mjs strict mode: decide whether an UNDECIDED lane gets its own exit code (today exit 0 from red.red) and mirror the Lean Rel docstring (undecided cases) in the reduce.mjs rel JSDoc; (3) WebKit cadence for the lane (Chromium only so far).",
+   "evidence": "b52b3e1"
   },
   {
    "devices": [
