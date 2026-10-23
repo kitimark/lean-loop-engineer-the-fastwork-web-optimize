@@ -18890,7 +18890,8 @@
     "docs/team/handoffs/timing-verdict-polish.md",
     "apps/runner/src/watch-collect.ts"
    ],
-   "title": "timing-module-count-followups review follow-ups (2026-10-24): (1) ownOf in timing.ts:54-63 decides which fw ci wait spans get an own time (how=done, end minus phases.updMs, none when negative): move it into Lean (decode phases in Fw.Wire.Obs sampleOf) with #guard/golden; (2) unkeyed fw/polish commit spans are still written (polish.ts 'nothing' return; stagedSpan null when fwcore gives no command list) and would now get no verdict silently: key those paths or narrow the rule and docstring; (3) detailOf matches on stepName and the latest slow verdict across hosts and names the sample by a shifting index: match the full key, print host and startMs/commit; (4) state the ci-wait whole-output theorem (no slow verdict from a ci wait within budget) and update Next.lean docstrings to verdictsOf; (5) land-dry.test.ts lake-note case: rmSync in finally, end the span through the fw-main exit path."
+   "title": "timing-module-count-followups review follow-ups (2026-10-24): (1) ownOf in timing.ts:54-63 decides which fw ci wait spans get an own time (how=done, end minus phases.updMs, none when negative): move it into Lean (decode phases in Fw.Wire.Obs sampleOf) with #guard/golden; (2) unkeyed fw/polish commit spans are still written (polish.ts 'nothing' return; stagedSpan null when fwcore gives no command list) and would now get no verdict silently: key those paths or narrow the rule and docstring; (3) detailOf matches on stepName and the latest slow verdict across hosts and names the sample by a shifting index: match the full key, print host and startMs/commit; (4) state the ci-wait whole-output theorem (no slow verdict from a ci wait within budget) and update Next.lean docstrings to verdictsOf; (5) land-dry.test.ts lake-note case: rmSync in finally, end the span through the fw-main exit path.",
+   "evidence": "69a6a02"
   },
   {
    "devices": [
@@ -19010,6 +19011,25 @@
     "docs/team/handoffs/overflow-widths-reads-code.md"
    ],
    "title": "overflow-widths-reads review follow-ups (2026-10-24): (1) add the planner code inputs packages/gate-breakpoints/src/spec.mjs and serve.mjs (gate-jobs.mjs:43, spec.mjs:7) to the read set and plannerFiles_select, regenerate the golden; write overflowWidthsReads with ++ plannerFiles instead of repeating the strings; (2) land.md: 'a Lean change that moves the fwcore binary (digest differs) also selects runner:overflow-widths' (binMoved, LandSpeed.lean:352); (3) one exported table-check function in workflow-widths.ts used by land-overflow-widths.test.ts and land-widths-fixture.test.ts; (4) land.ts:241-242 fileURLToPath and row lookup by name; (5) land-widths-fixture.test.ts removes its mkdtemp dirs in afterAll."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-verdict-proofs",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-verdict-polish"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/test/timing-slow.test.ts",
+    "docs/team/handoffs/timing-verdict-proofs.md"
+   ],
+   "title": "timing-verdict-polish review follow-ups (2026-10-24): (1) corollaries of slowSteps_uncontended / slowSteps_no_bucket / slowSteps_of_timing over Timing.verdictsOf p ss (instantiate with ss.map Sample.norm); (2) lemma: Verdict.sample v in verdictsOf p ss -> v.idx < ss.length and ss[v.idx].host = v.host (from mem_sample_full), so alertLine's startMs/commit belong to the alerting sample; (3) a polishCli run with nothing to keep asserts its span line carries checks {n:0,kinds:[]}; (4) rewrap added docstring lines over 120 columns (Next.lean:1500,1603; Timing.lean:48)."
   }
  ],
  "deadline": {

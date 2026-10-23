@@ -142,6 +142,8 @@ async function stagedCmds(dir: string, git: (cwd: string, args: string[]) => str
   } catch { return null; }
 }
 
+export const NO_CHECKS: Checks = { n: 0, kinds: [] };
+
 const checksOf = (cmds: StagedCmd[]): Checks =>
   ({ n: cmds.length, kinds: [...new Set(cmds.map((c) => c.check).filter((k): k is string => typeof k === "string"))].sort() });
 
@@ -313,7 +315,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
         }
         keep.push(path);
       }
-      if (!keep.length) { await settled(dir); out(`VERDICT polish-commit ${task} nothing`); return 0; }
+      if (!keep.length) { noteSpan("fw", "polish commit", { checks: NO_CHECKS }); await settled(dir); out(`VERDICT polish-commit ${task} nothing`); return 0; }
       git(dir, ["add", "--", ...keep]);
       const fields = await stagedSpan(dir, git, call, deps.run ?? realRun);
       if (fields) noteSpan("fw", "polish commit", fields);
