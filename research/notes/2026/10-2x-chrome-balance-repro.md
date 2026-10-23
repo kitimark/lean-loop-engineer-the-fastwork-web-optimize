@@ -101,14 +101,13 @@ stable 156.0.8078.47, beta 157.0.8103.15, canary 158.0.8118.0. Six runs on separ
 | macOS arm64 headless, headed (macos-latest) | yes | canary ok 5/5, stable ok 1/1 | same | stable ok 1/1 | stable ok 1/1 | 6 |
 | macOS x86_64 headless (macos-15-intel) | yes | canary ok 5/5, stable ok 1/1 | same | stable ok 1/1 | stable ok 1/1 | 6 |
 | linux x86_64 headless (ubuntu-latest) | no (empty fonts.conf) | crash 4/4 | crash 4/4 | ok 4/4 | ok 4/4 | 4 |
-| linux x86_64 headed, xvfb | no | crash 4/4 | crash 4/4 | ok 4/4 | ok 4/4 | 4 |
+| linux x86_64 headed, xvfb | no | stable 4/4, lane 3/4, beta 3/4, canary 0/4 crash | crash 4/4 | ok 4/4 | ok 4/4 | 4 |
 | linux arm64 headless (ubuntu-24.04-arm) | no | crash 4/4 | crash 4/4 | ok 4/4 | ok 4/4 | 4 |
 
 - MEASURED: linux x86_64 crashes, headless and headed. Every crash is signal 11 `SEGV_MAPERR 000000000084`, the same signal as the
-  arm64 container runs. The legs without system fonts crash on all four builds (lane, stable, beta, canary): 4 of 4 runs each, min and page.
+  arm64 container runs. The headless legs without system fonts crash on all four builds, 4 of 4 runs, min and page; the headed xvfb leg crashes on page 4 of 4 on every build but on min only 11 of 16 (canary never).
 - MEASURED: with the system fonts of the runner images no leg crashed, on any build the leg could load (linux, Windows: all four builds,
-  every row ok in every run). So the crash needs the missing fonts, not the CPU or the OS. `CSS.getPlatformFontsForNode`
-  on the h2: `Google Sans` (web font, 18 glyphs) with system fonts, an empty list without them. The title height differs too: 55.2 px at
+  every row ok in every run). So the crash needs the missing fonts, not the CPU or the OS. Without system fonts the h2 gets Google Sans (web, 18 glyphs) when the web font is ready before layout, and then it does not crash (the headed min rows that passed); when it is not ready the h2 has no font data and the balanced layout crashes. INFERRED: the crash needs a layout pass with no font at all. The title height differs too: 55.2 px at
   1280 with fonts, 77 px for the wrapped control without (37.5 versus 82.8 at 860). With no usable font the text is laid out with no
   font data, and the balance path then runs on it.
 - INFERRED: the fault is a null font pointer in the balanced layout of a line that holds the inline-grid atom. The offset 0x84 with
@@ -123,7 +122,7 @@ stable 156.0.8078.47, beta 157.0.8103.15, canary 158.0.8118.0. Six runs on separ
   condition was not run there.
 - Limits: Chrome for Testing stands in for branded Chrome; the runners' fonts and screens are what the images hold (headed Windows and
   macOS windows are 1024-1028 px wide, so `page` there lays out at that width, recorded as `innerWidth`; the width is above 860 and
-  does not crash); the live fastwork.com was not loaded.
+  does not crash); Windows headless lays out at innerWidth 1264 for the 1280 variants and 844 for page-860 (the window frame); both are on the same side of the 860 reset as intended; the live fastwork.com was not loaded.
 
 ## Why `white-space: nowrap` on the h2 still crashed (CONFIRMED)
 
