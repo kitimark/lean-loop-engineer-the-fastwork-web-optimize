@@ -53,7 +53,6 @@ def freshOf (tracked : List String) (w : String) : Fresh :=
 def needs (tracked writes : List String) (f : Fresh) : List String :=
   ((writes.filter (freshOf tracked · == f)).flatMap (implied ∘ kindOf)).eraseDups
 
-/-- A literal `../<path>` read of a `lean/scripts/*.sh` the lean.yml row lacks: a `leanInputProblems` refusal. -/
 structure Gap where
   script : String
   path : String

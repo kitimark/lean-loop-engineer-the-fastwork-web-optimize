@@ -1,7 +1,7 @@
 # Writes closure lint
 
 - Branch `worktree-wf_29c7f846-55b-1`, worktree `.claude/worktrees/wf_29c7f846-55b-1`, main merged at 578e80911.
-- Round 2 code commit e3dacea76; no CI runs (check.sh green in 1m37s, runner tests 2967/2967, ci-paths 54/54).
+- Round 2 code commit e3dacea76; no CI runs. check.sh green in 1m37s, runner tests 2967/2967, ci-paths 54/54.
 
 ## Rule (lean/Fw/Plan/WritesClosure.lean)
 - `Gap` = a literal `../<path>` read of a `lean/scripts/*.sh` that the lean.yml row lacks, the exact `leanInputProblems`
@@ -16,8 +16,7 @@
 
 ## Verified
 - Per real pre-build row: r325 error on Trigger.lean when the lint reads the build branch f4743ef8a (check.sh reads
-  the classpos golden, the lean row lacks it); r328 the same on its build branch 5599b944d; at their graph state on
-  main r322, r323, r325, r328, r330, r331, r334 give no finding (main's check.sh reads are all lean inputs). A closure
+  the classpos golden, the lean row lacks it); r328 the same on its build branch 5599b944d; on main r322, r323, r325, r328, r330, r331, r334 give no finding (main's check.sh reads are all lean inputs). A closure
   of the writes cannot flag artefacts a row does not name. Differs from finding (1)'s text: design (3) removes the
   open-glob Trigger warnings and makes r328's branch an error too.
 - Main graph 578e80911: 5 errors on 2 rows, each confirmed `outOfScope` by fwcore `console.landScope`:
