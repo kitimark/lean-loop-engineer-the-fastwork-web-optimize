@@ -65,7 +65,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
-    const tl = await startTimeline(ctx.c, { stopMs: T(7500) });
+    // a touch window runs for minutes on the runner (XCUITest idle waits), so its Timeline holds tens of thousands of records and stop() needs longer
+    const tl = await startTimeline(ctx.c, { stopMs: T(win === 'end' && touch.on ? 30000 : 7500) });
     let rec;
     let push = 'synthetic';
     let touched = null;
