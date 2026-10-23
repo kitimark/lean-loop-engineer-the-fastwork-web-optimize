@@ -148,6 +148,7 @@ import Fw.Guidance.Stability
 import Fw.Engine.Keys
 import Fw.Engine.WebKitImage
 import Fw.Engine.WebKitSimple
+import Fw.Engine.StyleDiffAccent
 import Fw.Ci.Wire
 import Fw.Oracle
 import Fw.Plan.Lint

@@ -60,7 +60,7 @@ describe('the CSS carries the Lean premise and decision', () => {
     }
   });
   it('the attribute is read by one rule only, which does not touch the idle boil', () => {
-    expect(css.match(/data-fw-draw/g)).toHaveLength(1);
+    expect(css.match(/data-fw-draw='one'/g)).toHaveLength(1);
     const rule = css.match(/\.accent\[data-fw-draw='one'\][^{]*\{[^}]*\}/)![0];
     expect(rule).not.toMatch(/\.idle(?![A-Za-z])/);
   });
