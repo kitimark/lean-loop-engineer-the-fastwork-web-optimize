@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { sampleAt } from './census.mjs';
 import { parseProfile } from './profile.mjs';
-import { pathSearch, laneOffsets, exitOffsets, armPin, pinAt } from './pathpix-pure.mjs';
+import { pathSearch, laneOffsets, exitOffsets, armPin, exitClockPinned } from './pathpix-pure.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const { profile } = parseProfile(JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8')));
@@ -21,6 +21,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const dt = 1000 / profile.hz;
 const T0 = 5_000_000;
 const EPOCH_MS = Date.parse(profile.pinnedDate);
+// Exit mode only (Lean `Fw.Gate.PathPix.clockNow`, `exitClockPinned`): Date.now stays at the epoch, as in the WebKit lane,
+// so the countdown's seconds digit (it reads the clock at its own tick) is the same in every arm. The other lanes keep the shim's moving Date.
+// The page also gets the site's accent hook ('?fwpin=accent', hero.accent/hook.ts) in its URL before any page script runs.
+// The test server picks the prerendered page by the exact search, so the navigation keeps the prerendered search and the
+// new-document script adds the hook to 'location.search' (history.replaceState), where the site reads it at hydration.
+const EXIT_DATE_PIN = `\nglobalThis.Date.now = () => ${EPOCH_MS};`;
+const EXIT_HOOK = `\nif (location.protocol === 'http:') history.replaceState(history.state, '', location.pathname + (location.search ? location.search + '&fwpin=accent' : '?fwpin=accent') + location.hash);`;
 const srv = await startServer('/site');
 const CHROME_ARGS = [
   '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--user-data-dir=/tmp/fw-profile',
@@ -57,7 +64,7 @@ async function main() {
     await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
     await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
     await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
-    await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
+    await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}${MODE === 'exit' ? (exitClockPinned('chromium') ? EXIT_DATE_PIN : '') + EXIT_HOOK : ''}` });
     const beginFrame = async (png) => {
       let bf = null;
       for (let attempt = 0; attempt < 20 && !bf; attempt++) {
@@ -106,12 +113,11 @@ async function main() {
     if (quiet < profile.load.quietFrames) throw new Error(`page not quiet after ${frames} frames (server inflight ${srv.inflight()}, search ${JSON.stringify(search)})`);
     vt = 20_000;
     for (let i = 0; i < profile.load.prerollFrames; i++, vt += dt) { await ev(`__fwclock.advanceTo(${vt})`); await pump(1); }
-    if (MODE === 'exit' && arm && armPin(arm) === 'ssr-accent') {
-      const pin = JSON.parse(await ev(exprs.pinAccent));
-      if (!pin.pinned || !pin.same) throw new Error(`accent pin failed for arm ${arm}: ${JSON.stringify(pin)}`);
+    if (MODE === 'exit' && arm && armPin(arm) === 'accent-hook') {
+      const pin = JSON.parse(await ev(exprs.accentServed));
+      if (!pin.hooked || !pin.same) throw new Error(`accent hook not in effect for arm ${arm}: ${JSON.stringify(pin)}`);
       pins[arm] = pin;
-      log(`  accent pinned (live ${pin.before}, served ${pin.ssr})`);
-      await pump(2);
+      log(`  accent held by the site hook (live ${pin.live}, served ${pin.ssr})`);
     }
     await quietNet(p);
     await ev(exprs.freeze);
@@ -137,9 +143,9 @@ async function main() {
     const frame = { w: png0.readUInt32BE(16), h: png0.readUInt32BE(20) };
     const dpr = frame.w / info.vw;
     if (!Number.isInteger(dpr) || dpr < 1 || frame.h !== Math.round(info.vh * dpr)) throw new Error(`screenshot ${frame.w}x${frame.h} does not fit the ${info.vw}x${info.vh} viewport at an integer scale (page dpr ${info.dpr})`);
-    const searchP = `?fw=${FLAG}`;
+    const searchA = '', searchP = `?fw=${FLAG}`;
     log(`lane chromium exit: page dpr ${info.dpr}, screenshot scale ${dpr}, viewport ${info.vw}x${info.vh}, frame ${frame.w}x${frame.h}, track T ${exit.T} h ${exit.h} n ${exit.n}, offsets ${offs.join(',')}`);
-    const arms = [['A', ''], ['A2', ''], ['P', searchP]];
+    const arms = [['A', searchA], ['A2', searchA], ['P', searchP]];
     const samples = {}, handover = {};
     const liveNow = async (p) => JSON.parse(await p.ev(exprs.exitLive));
     for (let a = 0; a < arms.length; a++) {
@@ -169,11 +175,6 @@ async function main() {
           last = now;
         }
         await quietNet(p);
-        let pinRow = null;
-        if (pinAt(arm, k) === 'ssr-accent') {
-          pinRow = JSON.parse(await p.ev(exprs.pinAccent));
-          if (!pinRow.pinned || !pinRow.same) throw new Error(`accent pin failed for arm ${arm} at offset ${k}: ${JSON.stringify(pinRow)}`);
-        }
         await p.ev(exprs.freeze);
         await p.pump(3);
         const accentStart = JSON.parse(await p.ev(exprs.accentSig));
@@ -188,8 +189,8 @@ async function main() {
         const census = await sampleAt(p.c, { ev: p.ev, pump: () => p.pump(1), y });
         const accentEnd = JSON.parse(await p.ev(exprs.accentSig));
         rows.push({
-          accent: { drift: pinRow && { before: pinRow.before, wasPinned: pinRow.wasPinned, n: pinRow.n }, shotStart: accentStart, shotEnd: accentEnd },
-          i: k, y, scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, dprMilli: census.dprMilli,
+          accent: { shotStart: accentStart, shotEnd: accentEnd },
+          i: k, y, scrollY: here.scrollY, dateNow: here.dateNow, boxes: here.boxes, alpha: here.alpha, cover: here.cover, parts: here.parts, live, files, dprMilli: census.dprMilli,
           layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: null, memory: l.memory, reasons: l.reasons })),
           layerCount: census.layerCount, ...(census.error ? { censusError: census.error } : {}),
         });

@@ -16,9 +16,14 @@ const cases = rows.filter((r) => r.type === "case");
 const globs = rows.filter((r) => r.type === "glob");
 const gapRows = rows.filter((r) => r.type === "gaps");
 const syncRows = rows.filter((r) => r.type === "sync");
+const agreePaths: string[] = rows.find((r) => r.type === "agreePaths").paths;
+const agreeRows = rows.filter((r) => r.type === "agree");
+const timeRows = rows.filter((r) => r.type === "timeTable");
+const timeParamsRow = rows.find((r) => r.type === "timeParams");
 type CiPathsGaps = {
   leanScriptPaths: (text: string) => (string | null)[];
-  normRead: (p: string) => string;
+  readPath: (p: string) => string | null;
+  rowGlob: (g: string) => boolean;
   gapsFrom: (scripts: { script: string; text: string }[], globs: string[]) => { script: string; path: string | null }[];
 };
 const ciPaths = async () => (await import(pathToFileURL(join(root, "scripts/ci-paths.mjs")).href)) as CiPathsGaps;
@@ -63,10 +68,29 @@ describe("writes closure golden (Fw.Plan.WritesClosure)", () => {
   it.each(gapRows.map((r, i) => [i, r]))("gap vector %i: reads, input gaps and closure gaps", async (_i, r) => {
     const cp = await ciPaths();
     const reads = r.scripts.flatMap((s: { script: string; text: string }) =>
-      cp.leanScriptPaths(s.text).map((p) => ({ script: s.script, path: p === null ? null : cp.normRead(p) })));
+      cp.leanScriptPaths(s.text).map((p) => ({ script: s.script, path: p === null ? null : cp.readPath(p) })));
     expect(reads).toEqual(r.reads);
     expect(cp.gapsFrom(r.scripts, r.globs)).toEqual(r.inputGaps);
     expect(cp.gapsFrom(r.scripts, r.globs).filter((g) => g.path !== null)).toEqual(r.gaps);
+  });
+  it.each(agreeRows.map((r) => [r.globs.join(" "), r]))("JS matches agrees with Lean ghMatches on rowGlob globs: %s", async (_n, r) => {
+    const cp = await ciPaths();
+    const ci = (await import(pathToFileURL(join(root, ".github/scripts/changed-inputs.mjs")).href)) as { matches: (g: string[], f: string) => boolean };
+    expect(r.globs.every(cp.rowGlob)).toBe(true);
+    expect(agreePaths.filter((p) => ci.matches(r.globs, p))).toEqual(r.hits);
+  });
+  it("a ../ inside a word is refused, never read and never dropped", async () => {
+    const cp = await ciPaths();
+    expect(cp.leanScriptPaths("cat x/../y")).toEqual([null]);
+    expect(cp.gapsFrom([{ script: "s", text: "cat x/../y\n" }], ["y"])).toEqual([{ script: "s", path: null }]);
+    expect(cp.leanScriptPaths("a../b .../c ;../d")).toEqual([null, null, "d"]);
+    expect(cp.leanScriptPaths("G=../x")).toEqual([null]);
+    for (const t of ["G=../packages/x.jsonl", "node --golden=../a.json", "x $(../b.sh)", "a,../c", "x:../d"])
+      expect(cp.leanScriptPaths(t)).toEqual([null]);
+  });
+  it("a read with a .. segment is a non-literal gap even under a ** row glob", async () => {
+    const cp = await ciPaths();
+    expect(cp.gapsFrom([{ script: "s", text: "../lean/../x ../../e ../a/b..c\n" }], ["**"])).toEqual([{ script: "s", path: null }, { script: "s", path: null }]);
   });
   it.each(syncRows.map((r, i) => [i, r]))("sync vector %i", (_i, r) => {
     expect(newErrors(r.before, r.after)).toEqual(r.refused);
@@ -90,6 +114,26 @@ describe.skipIf(bins.length === 0)("fwcore console.landScope agrees with the gol
     const live = cases.filter((c) => !c.done && c.required.length + c.mayNeed.length > 0);
     const rs = await scopeBatch(bins)(live.map((c) => ({ op: "console.landScope", writes: c.writes, names: [c.id, c.owner], allow: [], paths: [...c.required, ...c.mayNeed], task: c.id, stream: c.stream })));
     expect(rs.map((r) => r.violations)).toEqual(live.map((c) => c.violations));
+  });
+});
+
+describe("plan.md time table (ci-paths --plan-time, Lean timeTable)", () => {
+  const planTime = async () => (await import(pathToFileURL(join(root, "scripts/ci-paths.mjs")).href)) as {
+    timeTable: (b: [number, number][], a: [number, number][], p: { calmLoad: number; window: number }) => string;
+    timeParams: (root?: string) => { calmLoad: number; window: number }; planTimeRender: (doc: string) => string;
+    planTimeSamples: (doc: string) => { durMs: number; load: number; closure: boolean }[]; PLAN_DOC: string };
+  it("ci-paths reads calmLoad and the window from the Lean timeParams row", async () => {
+    expect(timeParamsRow).toBeDefined();
+    expect((await planTime()).timeParams(root)).toEqual({ calmLoad: timeParamsRow.calmLoad, window: timeParamsRow.window });
+  });
+  it.each(timeRows.map((r, i) => [i, r]))("time vector %i", async (_i, r) => {
+    expect((await planTime()).timeTable(r.before, r.after, timeParamsRow)).toBe(r.text);
+  });
+  it("the committed table is generated from the samples committed with it", async () => {
+    const pt = await planTime();
+    const doc = readFileSync(join(root, pt.PLAN_DOC), "utf8");
+    expect(pt.planTimeSamples(doc).length).toBeGreaterThan(0);
+    expect(doc).toBe(pt.planTimeRender(doc));
   });
 });
 

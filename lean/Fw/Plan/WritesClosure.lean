@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Console.Land
+import Fw.Obs.Timing
 
 namespace Fw.Plan.WritesClosure
 open Fw.Ops.PathCheck Fw.Console.Land
@@ -266,25 +267,119 @@ theorem error_iff (tr : List String) (gs : List Gap) (t : Task) :
     exact ⟨_, List.mem_append_left _ (List.mem_map_of_mem hp), rfl⟩
 
 def jsSpace (c : Char) : Bool :=
-  "\t\n\x0b\x0c\r \u00a0\u1680\u2028\u2029\u202f\u205f\u3000\uFEFF".contains c || ('\u2000' ≤ c && c ≤ '\u200a')
+  ['\t', '\n', '\x0b', '\x0c', '\r', ' ', '\u00a0', '\u1680', '\u2028', '\u2029', '\u202f', '\u205f', '\u3000', '\uFEFF'].contains c ||
+    ('\u2000' ≤ c && c ≤ '\u200a')
 
-def readStop (c : Char) : Bool := jsSpace c || "'\"`;)|&<>".contains c
+def readStop (c : Char) : Bool := jsSpace c || ['\'', '"', '`', ';', ')', '|', '&', '<', '>'].contains c
 
 def literalRead (s : List Char) : Option String :=
   if s.isEmpty || s.any (fun c => "$*?{}".contains c) then none else some (String.ofList s)
 
-def readsOf : List Char → List (Option String)
-  | '.' :: '.' :: '/' :: r => literalRead (r.takeWhile (!readStop ·)) :: readsOf (r.dropWhile (!readStop ·))
-  | _ :: r => readsOf r
-  | [] => []
-termination_by s => s.length
+theorem readStop_dot : readStop '.' = false := by decide
+
+theorem readStop_slash : readStop '/' = false := by decide
+
+def readsFrom : Bool → List Char → List (Option String)
+  | true, '.' :: '.' :: '/' :: r => literalRead (r.takeWhile (!readStop ·)) :: readsFrom false (r.dropWhile (!readStop ·))
+  | false, '.' :: '.' :: '/' :: r => none :: readsFrom false (r.dropWhile (!readStop ·))
+  | _, c :: r => readsFrom (readStop c) r
+  | _, [] => []
+termination_by _ s => s.length
 decreasing_by
   all_goals simp_wf
   all_goals first
     | omega
     | (have := (List.dropWhile_suffix (p := fun c => !readStop c) (l := r)).length_le; omega)
 
+def readsOf (s : List Char) : List (Option String) := readsFrom true s
+
+def upSeg : List Char := ['.', '.', '/']
+
+def dotdotSeg : List Char := ['/', '.', '.', '/']
+
+theorem readsFrom_start (r : List Char) :
+    readsFrom true ('.' :: '.' :: '/' :: r) =
+      literalRead (r.takeWhile (!readStop ·)) :: readsFrom false (r.dropWhile (!readStop ·)) := by
+  rw [readsFrom]
+
+theorem readsFrom_mid (r : List Char) :
+    readsFrom false ('.' :: '.' :: '/' :: r) = none :: readsFrom false (r.dropWhile (!readStop ·)) := by
+  rw [readsFrom]
+
+theorem readsFrom_cons (b : Bool) (c : Char) (r : List Char) (h : ¬upSeg <+: c :: r) :
+    readsFrom b (c :: r) = readsFrom (readStop c) r := by
+  rw [readsFrom.eq_def]
+  split
+  next _ _ _ he => exact absurd ⟨_, he.symm⟩ h
+  next _ _ _ he => exact absurd ⟨_, he.symm⟩ h
+  next _ _ _ _ _ _ he => obtain ⟨rfl, rfl⟩ := List.cons.inj he; rfl
+  next _ _ _ he => simp at he
+
+theorem readsFrom_seg (b : Bool) (r : List Char) :
+    readsFrom b ('/' :: '.' :: '.' :: '/' :: r) = none :: readsFrom false (r.dropWhile (!readStop ·)) := by
+  rw [readsFrom_cons b '/' _ (by simp [upSeg]), readStop_slash, readsFrom_mid]
+
+theorem dropWhile_word (t : List Char) (h : ∀ c ∈ t, readStop c = false) : t.dropWhile (!readStop ·) = [] := by
+  induction t with
+  | nil => rfl
+  | cons c r ih => simp [h c List.mem_cons_self, ih fun d hd => h d (List.mem_cons_of_mem c hd)]
+
+theorem readsFrom_word (w : List Char) (hw : ∀ c ∈ w, readStop c = false) :
+    readsFrom false w = if upSeg <:+: w then [none] else [] := by
+  induction w using List.rec with
+  | nil => simp [readsFrom, upSeg]
+  | cons c r ih =>
+    have hr : ∀ c ∈ r, readStop c = false := fun d hd => hw d (List.mem_cons_of_mem c hd)
+    by_cases hs : upSeg <+: c :: r
+    · obtain ⟨t, ht⟩ := hs
+      simp only [upSeg, List.cons_append, List.nil_append] at ht
+      obtain ⟨rfl, rfl⟩ := List.cons.inj ht
+      rw [readsFrom_mid, dropWhile_word t fun d hd => hw d (by simp [hd]), readsFrom]
+      simp [show upSeg <:+: '.' :: '.' :: '/' :: t from ⟨[], t, rfl⟩]
+    · simp only [List.infix_cons_iff, hs, false_or]
+      rw [← ih hr, readsFrom_cons false c r hs, hw c List.mem_cons_self]
+
+theorem readsFrom_true_eq (w : List Char) (h : w.head? ≠ some '.') : readsFrom true w = readsFrom false w := by
+  cases w with
+  | nil => rw [readsFrom, readsFrom]
+  | cons c r =>
+    have hc : ¬upSeg <+: c :: r := fun ⟨_, ht⟩ => h (by simp [upSeg, ← ht])
+    rw [readsFrom_cons true c r hc, readsFrom_cons false c r hc]
+
+theorem readsOf_word (w : List Char) (hw : ∀ c ∈ w, readStop c = false) (h : w.head? ≠ some '.') :
+    readsOf w = if upSeg <:+: w then [none] else [] := by
+  rw [readsOf, readsFrom_true_eq w h, readsFrom_word w hw]
+
+theorem readsOf_inner_up (x y : List Char) (hx : ∀ c ∈ x, readStop c = false) (hy : ∀ c ∈ y, readStop c = false)
+    (hn : x ≠ []) (h : x.head? ≠ some '.') : readsOf (x ++ upSeg ++ y) = [none] := by
+  have hd : (x ++ upSeg ++ y).head? ≠ some '.' := by cases x <;> simp_all
+  have hw : ∀ c ∈ x ++ upSeg ++ y, readStop c = false := by
+    intro c hc
+    simp only [List.mem_append] at hc
+    rcases hc with (hc | hc) | hc
+    · exact hx c hc
+    · simp only [upSeg, List.mem_cons, List.not_mem_nil, or_false] at hc
+      rcases hc with rfl | rfl | rfl <;> simp only [readStop_dot, readStop_slash]
+    · exact hy c hc
+  rw [readsOf_word _ hw hd]
+  simp
+
+theorem readsOf_mid_dotdot (x y : List Char) (hx : ∀ c ∈ x, readStop c = false) (hy : ∀ c ∈ y, readStop c = false)
+    (h : x.head? ≠ some '.') : readsOf (x ++ dotdotSeg ++ y) = [none] := by
+  have he : x ++ dotdotSeg ++ y = (x ++ ['/']) ++ upSeg ++ y := by simp [dotdotSeg, upSeg]
+  rw [he]
+  exact readsOf_inner_up _ y (fun c hc => (List.mem_append.mp hc).elim (hx c) fun hs => by simp only [List.mem_singleton] at hs; exact hs ▸ readStop_slash) hy (by simp) (by cases x <;> simp_all)
+
 def normRead (p : String) : String := "/".intercalate (Fw.Ops.PathCheck.segs p)
+
+def readPath (p : String) : Option String :=
+  if (Fw.Ops.PathCheck.segs p).contains ".." then none else some (normRead p)
+
+theorem readPath_dotdot (p : String) (h : ".." ∈ Fw.Ops.PathCheck.segs p) : readPath p = none := by
+  simp [readPath, h]
+
+theorem readPath_plain (p : String) (h : ".." ∉ Fw.Ops.PathCheck.segs p) : readPath p = some (normRead p) := by
+  simp [readPath, h]
 
 def ghGlob : List Char → List Char → Bool
   | '*' :: '*' :: '/' :: g, s =>
@@ -338,7 +433,7 @@ structure Read where
 deriving Repr, DecidableEq
 
 def scriptReads (scripts : List (String × String)) : List Read :=
-  scripts.flatMap fun (s, text) => (readsOf text.toList).map fun p => ⟨s, p.map normRead⟩
+  scripts.flatMap fun (s, text) => (readsOf text.toList).map fun p => ⟨s, p.bind readPath⟩
 
 def unmatched (globs : List String) : Read → Bool
   | ⟨_, none⟩ => true
@@ -377,6 +472,10 @@ theorem mem_gapsOf (ss : List (String × String)) (gs : List String) (g : Gap) :
   · rintro ⟨hr, hm⟩
     exact ⟨_, ⟨hr, by simp [unmatched, hm]⟩, g.path, rfl, rfl⟩
 
+theorem dotdot_gap (ss : List (String × String)) (gs : List String) (s text p : String) (hs : (s, text) ∈ ss)
+    (hp : some p ∈ readsOf text.toList) (hd : ".." ∈ Fw.Ops.PathCheck.segs p) : ⟨s, none⟩ ∈ inputGaps ss gs :=
+  nonliteral_gap ss gs s (List.mem_flatMap.mpr ⟨(s, text), hs, List.mem_map.mpr ⟨some p, hp, by simp [readPath_dotdot p hd]⟩⟩)
+
 theorem required_of_unmatched_read (tr ws : List String) (ss : List (String × String)) (gs : List String)
     (s p : String) (hr : ⟨s, some p⟩ ∈ scriptReads ss) (hm : ghMatches gs p = false)
     (hn : names ws p = true ∨ names ws s = true) : ∀ q ∈ triggerFix, q ∈ required tr ws (gapsOf ss gs) :=
@@ -394,12 +493,18 @@ theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String 
     exact ⟨⟨s, p⟩, (mem_gapsOf ss gs ⟨s, p⟩).mpr ⟨hr, hm⟩, hn⟩
 
 #guard readsOf ". ../scripts/span.sh\nx ../a/$b ../ .../c;../d".toList ==
-  [some "scripts/span.sh", none, none, some "c", some "d"]
+  [some "scripts/span.sh", none, none, none, some "d"]
+#guard readsOf "x/../y".toList == [none] && readsOf "a../b .../c ;../d ../..".toList == [none, none, some "d", some ".."]
+#guard ["G=../x", "node --golden=../a.json", "x $(../b.sh)", "a,../c", "x:../d"].all (readsOf ·.toList == [none])
+#guard readsOf "$R/../x \"/../y\" ../a/../b x/../../c".toList == [none, none, some "a/../b", none]
+#guard scriptReads [("s", "cat x/../y")] == [⟨"s", none⟩]
 #guard ghMatches ["lean/**"] "lean/a/b.lean" && !ghMatches ["lean/**"] "lean"
 #guard !ghMatches ["lean/Fw"] "lean/Fw/X.lean" && ghMatches ["a/**/c.json"] "a/c.json"
 #guard ghMatches ["**", "!x/**", "x/y"] "x/y" && !ghMatches ["x/y", "!x/**"] "x/y"
 #guard normRead "a//b/./c.json" == "a/b/c.json"
-#guard normRead "a/../b" == "a/../b"
+#guard normRead "a/../b" == "a/../b" && readPath "a/../b" == none && readPath "lean/.." == none
+#guard readPath "a//./b..c/...x" == some "a/b..c/...x"
+#guard inputGaps [("s", "../lean/../x ../../e")] ["**"] == [⟨"s", none⟩, ⟨"s", none⟩]
 #guard jsSpace '\u00a0' && jsSpace '\u2005' && jsSpace '\uFEFF' && !jsSpace '\u200b' && !jsSpace 'a'
 #guard rowGlob "lean/**" && rowGlob "!lean/Fw/A_b-c.lean" && !rowGlob "" && !rowGlob "!" && !rowGlob "!!a"
 #guard !rowGlob "lean/?.lean" && !rowGlob "a+" && !rowGlob "lean/[ab].lean" && !rowGlob "@fwcore"
@@ -697,6 +802,78 @@ def rowGlobVectors : List String :=
 
 def rowGlobRow (g : String) : Json := Json.mkObj [("type", "rowGlob"), ("glob", g), ("ok", rowGlob g)]
 
+def prefixes (s : String) : List String := (List.range s.length).map fun i => String.ofList (s.toList.take (i + 1))
+
+def agreeGlobs : List String :=
+  (["**", "***", "**/", "***/", "*", "**/*"] ++
+    ["lean/**/*.lean", "a/***/b", "**/b*.json", "a**/b", "*/**/", "x/*.json"].flatMap prefixes).eraseDups
+
+def agreePaths : List String :=
+  ["", "a", "b", "ab", "a/b", "a/x/b", "a/x/y/b", "a/b/c", "ab/b", "a//b", "a/", "/a", ".x", "*", "a*b", "lean",
+    "lean/", "lean/a.lean", "lean/Fw/A.lean", "lean/Fw/A/B.lean", "lean/a.leanx", "lean/.lean", "leanx/a.lean",
+    "x/lean/a.lean", "b.json", "x/b1.json", "x/y/bc.json", "x/c.json", "x/.json", "a/../b", "lean/../x", "lean/**"]
+
+def agreeLists : List (List String) := agreeGlobs.map ([·]) ++ agreeGlobs.map fun g => ["**", "!" ++ g]
+
+#guard agreeLists.all (·.all rowGlob)
+
+def agreeRow (gs : List String) : Json :=
+  Json.mkObj [("type", "agree"), ("globs", strs gs), ("hits", strs (agreePaths.filter (ghMatches gs)))]
+
+def timeWindow : Nat := 30
+
+def syncSample (durMs load : Nat) : Fw.Obs.Timing.Sample :=
+  { tool := "fw", step := "plan sync", durMs, host := .«local», load }
+
+def calm (durMs load : Nat) : Bool :=
+  !Fw.Obs.Timing.contended { loadMax := Fw.Obs.Timing.calmLoad } (syncSample durMs load)
+
+theorem calm_iff (d l : Nat) : calm d l = true ↔ l ≤ Fw.Obs.Timing.calmLoad := by
+  simp only [calm, Fw.Obs.Timing.contended, syncSample]
+  by_cases h : Fw.Obs.Timing.calmLoad < l <;> simp [h] <;> omega
+
+def calmDurs (xs : List (Nat × Nat)) : List Nat := (xs.filter fun (d, l) => calm d l).map (·.1)
+
+theorem mem_calmDurs (xs : List (Nat × Nat)) (d : Nat) :
+    d ∈ calmDurs xs ↔ ∃ l, (d, l) ∈ xs ∧ l ≤ Fw.Obs.Timing.calmLoad := by
+  simp [calmDurs, calm_iff]
+
+theorem contended_not_in_calmDurs (xs : List (Nat × Nat)) (d l : Nat) (h : Fw.Obs.Timing.calmLoad < l)
+    (hx : ∀ l', (d, l') ∈ xs → l' = l) : d ∉ calmDurs xs := by
+  rw [mem_calmDurs]
+  rintro ⟨l', hm, hl⟩
+  rw [hx l' hm] at hl
+  omega
+
+def timeRow (label : String) (xs : List Nat) : String :=
+  s!"| {label} | {xs.length} | {Fw.Obs.Timing.p50 xs} ms | {Fw.Obs.Timing.p90 xs} ms | {Fw.Obs.Timing.maxL xs} ms |\n"
+
+def timeTable (before after : List (Nat × Nat)) : String :=
+  let b := Fw.Obs.Timing.lastN timeWindow (calmDurs before)
+  let a := calmDurs after
+  let d : Int := (Fw.Obs.Timing.p50 a : Int) - Fw.Obs.Timing.p50 b
+  let calmN := (calmDurs before).length + a.length
+  s!"Calm runs only: load floor at most {Fw.Obs.Timing.calmLoad} (Fw.Obs.Timing.calmLoad); {calmN} of " ++
+    s!"{before.length + after.length} samples are calm.\n\n" ++
+    "| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n" ++
+    timeRow s!"last {b.length} calm runs before the closure check" b ++ timeRow "every calm run with it" a ++
+    s!"\nINFERRED: the closure check adds about {d} ms to a calm sync (p50 with it minus p50 before).\n"
+
+#guard timeTable [(300, 0), (100, 4), (200, 2), (900, 5)] [(650, 1), (600, 3), (4000, 12)] ==
+  "Calm runs only: load floor at most 4 (Fw.Obs.Timing.calmLoad); 5 of 7 samples are calm.\n\n" ++
+  "| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n| last 3 calm runs before the closure check | 3 | 200 ms | 300 ms | 300 ms |\n" ++
+  "| every calm run with it | 2 | 600 ms | 650 ms | 650 ms |\n\nINFERRED: the closure check adds about 400 ms to a calm sync (p50 with it minus p50 before).\n"
+
+def timeVectors : List (List (Nat × Nat) × List (Nat × Nat)) :=
+  [([], []), ([(300, 0), (100, 4), (200, 2), (900, 5)], [(650, 1), (600, 3), (4000, 12)]),
+    ((List.range 40).map fun i => (100 + i, i % 7), [(811, 4), (642, 5), (700, 0), (600, 140)]), ([(500, 9), (400, 8)], [(450, 4)])]
+
+def timeTableRow (b a : List (Nat × Nat)) : Json :=
+  Json.mkObj [("type", "timeTable"), ("before", Lean.toJson b), ("after", Lean.toJson a), ("text", timeTable b a)]
+
+def timeParamsRow : Json :=
+  Json.mkObj [("type", "timeParams"), ("calmLoad", Fw.Obs.Timing.calmLoad), ("window", timeWindow)]
+
 def gapVectors : List (List (String × String) × List String) := [
   ([("lean/scripts/check.sh", "job a x --check ../packages/a.jsonl ../packages/b.jsonl ../lean/Fw/X.lean ../$V\n"),
     ("lean/scripts/other.sh", "node ../packages/c.json\n")], ["lean/**", "packages/a.jsonl"]),
@@ -704,6 +881,8 @@ def gapVectors : List (List (String × String) × List String) := [
     ["scripts/span.sh", "scripts/*.sh"]),
   ([("lean/scripts/n.sh", "x ../a//b/./c.json .../d.json ../../e ../f*.json ../g{1}\n")], ["a/b/**", "!a/b/c.json"]),
   ([("lean/scripts/w.sh", "x ../a.json\u00a0../b.json\u2003../c.json\x0b../d.json;../e.json|../f.json\n")], ["a.json", "c.json"]),
+  ([("lean/scripts/b.sh", "cat x/../y a../b.json .../c.json \"$R/../z\" /../d ../ok.json ../e/../f\n")], ["**"]),
+  ([("lean/scripts/v.sh", "G=../packages/x.jsonl node --golden=../a.json x $(../b.sh) a,../c x:../d ../ok.json\n")], ["**"]),
   (classposScripts, leanRow), (sumsScripts, leanRow), (mainScripts, leanRow)]
 
 def gapRow (ss : List (String × String)) (gs : List String) : Json :=
@@ -742,6 +921,10 @@ def goldenText (_ : Unit) : String :=
   String.join ((pathVectors.map fun (tr, w) => (pathRow tr w).compress ++ "\n") ++
     (cases.map fun c => (caseRow c).compress ++ "\n") ++ (globVectors.map fun (gs, p) => (globRow gs p).compress ++ "\n") ++
     (rowGlobVectors.map fun g => (rowGlobRow g).compress ++ "\n") ++
+    [(Json.mkObj [("type", "agreePaths"), ("paths", strs agreePaths)]).compress ++ "\n"] ++
+    (agreeLists.map fun gs => (agreeRow gs).compress ++ "\n") ++
+    (timeVectors.map fun (b, a) => (timeTableRow b a).compress ++ "\n") ++
+    [timeParamsRow.compress ++ "\n"] ++
     (gapVectors.map fun (ss, gs) => (gapRow ss gs).compress ++ "\n") ++
     syncVectors.map fun (b, a) => (syncRow b a).compress ++ "\n")
 
