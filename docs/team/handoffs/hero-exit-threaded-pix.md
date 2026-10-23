@@ -1,8 +1,8 @@
 branch: worktree-wf_4a8ad90b-552-1 (CI branch ci/hero-exit-threaded-pix)
 worktree: .claude/worktrees/wf_4a8ad90b-552-1
-last commit: see `git log -1` on the branch (note + cells of run 3 committed after af3009d51, the dispatch-3 head)
+last commit: 7e01b2bbe (note + cells of run 3), then merge of main 27794977e; dispatch-3 head was af3009d51
 CI runs (all on ci/hero-exit-threaded-pix, all 3 dispatches used): 39920801675 path-pix success (run 1, Chromium invalid, Simulator earlier harness); 39924527942 path-pix success (run 2); 39929556147 path-pix success (run 3)
-verified: Lean check green, golden up to date, measure-webkit 409, measure-chromium 72, ci-paths 54, runner land-inputs 56, pathpix tests 20; re-run at the final commit before the report
+verified at the merge 27794977e: Lean check green, measure-webkit 422, measure-chromium 72, ci-paths 54, runner land-inputs 56
 result: no P cell is E or Q under the Lean rule in runs 2 and 3 (4 jobs per lane); all L (text hold or change outside the masks); webkit-4 has 4 invalid cells at y 427
 open: land dry run, review gate, look review of the L strips (user), pin the accent-word chain in the lanes
 
