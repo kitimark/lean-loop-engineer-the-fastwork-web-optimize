@@ -9,7 +9,10 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { dryBase, dryLintArgv, dryMerge, dryOutcome, land, type DryBase, type Http } from "../src/land.ts";
+import { dryBase, dryLintArgv, dryMerge, dryOutcome, land, lastDryStep, LOCAL_TESTS, type DryBase, type Http } from "../src/land.ts";
+import { LINT_ARGV } from "../src/land-verdict.ts";
+import { begin } from "../src/timing.ts";
+import { parseSamples } from "../src/watch-collect.ts";
 import { lockFile } from "../hooks/land-guard.mjs";
 
 let stores: Store[] = [];
@@ -66,6 +69,19 @@ describe("fw land --dry", () => {
     expect(text(ok)).toContain("dry: local tests ok (console-api:compose)");
     const idle = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...t("exit 1", ["docs/**"]) });
     expect(idle.kind).toBe("dry");
+  });
+  it("path-pix 4 -> 6 (incident 2026-10-24): a workflow file change runs the overflow width test and the dry land refuses the stale row", async () => {
+    const { fx, wt, opts } = await setup([".github/**"]);
+    fx.commit(wt, ".github/workflows/path-pix.yml");
+    const real = LOCAL_TESTS.find((x) => x.id === "runner:overflow-widths")!;
+    const stale = { ...real, argv: ["sh", "-c", "echo 'path-pix.yml: Lean widths row (derived 6): expected 4 to be greater than or equal to 6'; exit 1"] };
+    const bad = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [stale] });
+    expect(bad.ok).toBe(false);
+    expect(bad.kind).toBe("lint");
+    expect(text(bad)).toContain("derived 6");
+    const ok = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [{ ...stale, argv: ["true"] }] });
+    expect(ok.kind).toBe("dry");
+    expect(text(ok)).toContain("dry: local tests ok (runner:overflow-widths)");
   });
   it("passes on a clean branch and leaves main, the lock and the queue untouched; the real land then passes", async () => {
     const { fx, wt, opts, snap } = await setup();
@@ -217,6 +233,26 @@ describe("fw land --dry", () => {
     expect(lint.kind, text(lint)).toBe("lint");
     const mixed = await land(BR, { ...opts, checks: [["sh", "-c", "echo 'check: FAILED stage: axiom check'; echo 'check: FAILED stage: lake test'; exit 1"]] });
     expect(mixed.kind, text(mixed)).toBe("checks");
+  });
+  it("a dry land that ran the axiom lint (lake build) notes the modules it built on the `land dry` span, and the span becomes the keyed sample", async () => {
+    const { fx, wt, opts } = await setup(["src/**", "scripts/**", "lean/**"]);
+    fx.commit(wt, "src/a.ts");
+    fx.commit(wt, "scripts/lake-slot-lib.sh", "lake_slot() { shift; echo '✔ [1/3] Built Fw.A (1s)'; echo '✔ [2/3] Built fwcore:exe (1s)'; echo '✔ [3/3] Built Fw.B (2s)'; }\n");
+    fx.commit(wt, "lean/scripts/axiom-check.sh", "true\n");
+    const dir = mkdtempSync(join(tmpdir(), "fw-dry-lake-"));
+    const file = join(dir, "timings.jsonl");
+    process.env.FW_TIMINGS_FILE = file;
+    try {
+      const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [LINT_ARGV.axioms], dryLocal: [] });
+      expect(r.ok, text(r)).toBe(true);
+      expect(lastDryStep()).toBe("dry total lake");
+      begin("fw", "land dry")(0, { step: "land dry lake" });
+    } finally { delete process.env.FW_TIMINGS_FILE; }
+    const spans = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { tool: string; step: string; lake?: { built: number } });
+    expect(spans.find((s) => s.tool === "fw" && s.step === "land dry lake")?.lake).toEqual({ built: 2 });
+    const samples = parseSamples(readFileSync(file, "utf8"));
+    expect(samples.find((s) => s.step === "land dry lake")?.work).toEqual({ mods: "1" });
+    rmSync(dir, { recursive: true, force: true });
   });
   it("needs --task", async () => {
     const { fx, wt, opts } = await setup();

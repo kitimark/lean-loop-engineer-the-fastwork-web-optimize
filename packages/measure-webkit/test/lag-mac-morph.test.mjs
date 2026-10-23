@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { MAC_PAGE_JS, MAC_SCHEDULE, runRecord } from '../src/lag/macmorph.mjs';
-import { analyze, macMd, rangesOfRun, METRICS } from '../src/lag/macreport.mjs';
+import { analyze, macMd, rangesOfRun, METRICS, DRIVES } from '../src/lag/macreport.mjs';
 import { COUNT_TYPES } from '../src/reduce.mjs';
 
 const stamp = (t, message) => ({ type: 'TimeStamp', startTime: t, data: { message } });
@@ -74,34 +74,76 @@ test('the page script marks frames and the first push in each direction, and kee
   assert.deepEqual({ ...MAC_SCHEDULE }, { idle: 10, open: 60, close: 60, dy: 120 });
 });
 
-function file(reps, layout) {
+function file(reps, layout, { scrollin = true } = {}) {
   const runs = [];
-  for (let rep = 0; rep < reps; rep++) for (const arm of ['orig', 'rewrite']) for (const drive of ['trusted', 'synthetic']) {
+  for (let rep = 0; rep < reps; rep++) for (const arm of ['orig', 'rewrite']) for (const drive of DRIVES) {
     const r = runRecord(records({ layouts: (k) => (k >= 10 && k < 70 ? layout(arm, drive, rep) : 0) }), 130);
-    runs.push({ rep, arm, drive, ...r, info: { maxY: 100 }, fin: { frames: 130, y: 100, events: [{ f: 10, dy: 120, trusted: drive === 'trusted', cancelable: true, prevented: false }], at: [{ label: 'open', f: 70, morph: drive === 'trusted' ? 1 : 0.5, y: 100 }] } });
+    const startY = drive === 'scrollin' ? (scrollin ? 4800 : 5102) : 5102;
+    runs.push({ rep, arm, drive, ...r, startY, pushY: 5102, wheels: drive === 'scrollin' ? 3 : 0, info: { maxY: 5102 }, fin: { frames: 130, y: 5102, events: [{ f: 10, dy: 120, trusted: drive !== 'synthetic', cancelable: true, prevented: false }], at: [{ label: 'open', f: 70, morph: drive === 'synthetic' ? 0.5 : 1, y: 5102 }] } });
   }
   return { runs };
 }
 
-test('tables: separated per-run ranges give a verdict, equal ones do not, refused runs are counted', () => {
-  const lay = (arm, drive, rep) => (drive === 'synthetic' ? 5 : 1) + (arm === 'rewrite' ? 0 : 0) + (rep % 2) * 0;
+test('tables: each job is decided on its own, refused runs are counted per job', () => {
+  const lay = (arm, drive) => (drive === 'synthetic' ? 5 : 1);
   const files = [file(3, lay), file(3, lay), file(3, lay)];
   files[0].runs.push({ rep: 9, arm: 'orig', drive: 'trusted', outcome: 'noUp', marks: [], down: 1, up: null });
   const a = analyze(files);
   assert.equal(a.jobs, 3);
-  assert.equal(a.stat['orig|trusted|open'].n, 9);
-  assert.equal(a.stat['orig|trusted|open'].mean.Layout, 1);
-  assert.equal(a.stat['orig|synthetic|open'].mean.Layout, 5);
-  assert.equal(a.drive['orig|open'].Layout, 'lower');
-  assert.equal(a.arm['trusted|open'].Layout, 'overlap');
-  assert.equal(a.cls['orig|trusted|open'].Layout, 'deterministic');
-  assert.deepEqual(a.refused['orig|trusted'].map((r) => r.outcome), ['noUp']);
-  assert.equal(a.facts['orig|trusted'].trusted, 9);
-  assert.equal(a.facts['orig|synthetic'].trusted, 0);
-  assert.equal(a.facts['orig|trusted'].morphMax, 1);
+  assert.deepEqual(a.stat['orig|trusted|open'].map((s) => s.n), [3, 3, 3]);
+  assert.equal(a.stat['orig|trusted|open'][0].mean.Layout, 1);
+  assert.equal(a.stat['orig|synthetic|open'][1].mean.Layout, 5);
+  assert.deepEqual(a.drive['orig|trusted|open'].Layout.verdicts, ['lower', 'lower', 'lower']);
+  assert.deepEqual(a.drive['orig|trusted|open'].Layout.tally, { lower: 3, higher: 0, overlap: 0 });
+  assert.deepEqual(a.arm['trusted|open'].Layout.verdicts, ['overlap', 'overlap', 'overlap']);
+  assert.equal(a.cls['orig|trusted|open'][2].Layout, 'deterministic');
+  assert.deepEqual(a.refused[0]['orig|trusted'].map((r) => r.outcome), ['noUp']);
+  assert.deepEqual(a.refused[1], {});
+  assert.equal(a.facts[0]['orig|trusted'].trusted, 3);
+  assert.equal(a.facts[0]['orig|synthetic'].trusted, 0);
+  assert.equal(a.facts[0]['orig|trusted'].morphMax, 1);
+  assert.equal(a.facts[0]['orig|scrollin'].scrolledIn, 3);
+  assert.equal(a.facts[0]['orig|trusted'].scrolledIn, 0);
   const md = macMd(a);
-  for (const h of ['Pushes seen by the page', 'open phase', 'orig: synthetic vs trusted', 'trusted lower', 'refused']) assert.ok(md.includes(h), h);
+  for (const h of ['Pushes seen by the page', 'open phase', 'orig: trusted vs synthetic', 'orig: scrollin vs synthetic', 'lower / lower / lower', 'refused', 'never pooled']) assert.ok(md.includes(h), h);
   assert.equal(METRICS.length, 7);
+});
+
+test('a difference in one job is stated for that job only, not diluted or lifted by the other jobs', () => {
+  const sep = (arm, drive) => (drive === 'synthetic' ? 5 : 1);
+  const same = () => 3;
+  const a = analyze([file(3, sep), file(3, same), file(3, sep)]);
+  assert.deepEqual(a.drive['orig|trusted|open'].Layout.verdicts, ['lower', 'overlap', 'lower']);
+  assert.deepEqual(a.drive['orig|trusted|open'].Layout.tally, { lower: 2, higher: 0, overlap: 1 });
+  const wide = (arm, drive, rep) => (drive === 'synthetic' ? 5 : 1) + (rep % 3) * 3;
+  const b = analyze([file(3, wide)]);
+  assert.deepEqual(b.drive['orig|trusted|open'].Layout.verdicts, ['overlap']);
+});
+
+test('the run that scrolls into the push is used only when it scrolled and the push opened the morph', () => {
+  const f = file(2, () => 1);
+  const base = f.runs.find((r) => r.drive === 'scrollin');
+  assert.deepEqual(rangesOfRun(base), { idle: [0, 10], open: [10, 70], close: [70, 130] });
+  assert.equal(rangesOfRun({ ...base, startY: 5102 }), null);
+  assert.equal(rangesOfRun({ ...base, fin: { ...base.fin, at: [{ morph: 0.5 }] } }), null);
+  const trusted = f.runs.find((r) => r.drive === 'trusted');
+  assert.notEqual(rangesOfRun({ ...trusted, startY: 5102, fin: { ...trusted.fin, at: [{ morph: 0 }] } }), null);
+  const a = analyze([{ runs: [{ ...base, startY: 5102 }, { ...base, rep: 1 }] }]);
+  assert.deepEqual(a.refused[0]['orig|scrollin'].map((r) => r.outcome), ['noScroll']);
+});
+
+test('the page script marks only the armed push, so wheels that scroll in leave no mark', () => {
+  const { S, marks, frame } = stubPage();
+  S.start(); frame();
+  S.arm('none'); S.push(120); S.push(120);
+  S.arm('down'); S.push(120);
+  frame();
+  const fin = S.finish();
+  frame();
+  return fin.then((r) => {
+    assert.deepEqual(marks.filter((m) => m === 'wk:down' || m === 'wk:up'), ['wk:down']);
+    assert.equal(r.events.length, 3);
+  });
 });
 
 test('rangesOfRun uses the rule on the recorded marks', () => {
