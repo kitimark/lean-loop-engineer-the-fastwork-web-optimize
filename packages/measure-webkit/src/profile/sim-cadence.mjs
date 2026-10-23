@@ -5,7 +5,9 @@ import { findDevice } from '../sim.mjs';
 import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
-import { RECORDER_SRC, TO_END_JS, heroJs, endJs, pageOf, intervalsOf } from './recorder.mjs';
+import { RECORDER_SRC, TO_END_JS, heroJs, endJs, endTouchJs, pageOf, intervalsOf } from './recorder.mjs';
+import { openDriver, touchWindow, TOUCH_COUNT_JS, TOUCH_PUSH } from '../touch-push.mjs';
+import { dragPass } from '../throttle/driver.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
 import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
@@ -31,7 +33,8 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, log = (s) => console.error(s) }) {
+/** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
+export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
@@ -42,6 +45,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let refused = false;
   let error = null;
   let ua = '';
+  const opened = openDriver(touchDriver);
+  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why };
 
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
@@ -62,15 +67,36 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
     const tl = await startTimeline(ctx.c, { stopMs: T(7500) });
-    const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
-    await tl.stop();
+    let rec;
+    let push = 'synthetic';
+    let touched = null;
+    if (win === 'end' && touch.on) {
+      await ctx.c.evaluate(TOUCH_COUNT_JS);
+      const got = await touchWindow(ctx.c, { driver: touch.driver, udid: device.udid, tag: `${a.id}-r${rep}`, log, pageJs: endTouchJs });
+      await tl.stop();
+      const bad = !got.result ? got.error : got.run.code !== 0 ? `driver exit ${got.run.code}${got.run.timedOut ? ' (timed out)' : ''}` : !got.result.begun ? 'no touch reached the page' : !(got.result.touch?.moves > 0) ? 'the page saw no touchmove' : null;
+      if (bad) { touch.on = false; touch.why = bad; throw new Error(`touch push failed: ${bad}`); }
+      rec = got.result;
+      push = 'touch';
+      touched = { ...rec.touch, morphMax: rec.morphMax };
+    } else {
+      rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
+      await tl.stop();
+    }
     const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
-    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
+    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
   };
 
   try {
     await withSession(async (ctx) => {
+      if (touch.on) {
+        // the first XCUITest run relaunches Safari and reloads the page (toolbar-throttle cli.mjs), so one unrecorded cycle comes first
+        await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 });
+        const w = await dragPass(touch.driver, { udid: device.udid, tag: 'warm-up', log, ...TOUCH_PUSH });
+        if (w.code !== 0) { touch.on = false; touch.why = `warm-up driver exit ${w.code}${w.timedOut ? ' (timed out)' : ''}`; }
+        log(`webkit sim: touch warm-up ${touch.on ? 'done' : touch.why}`);
+      }
       for (let rep = 0; rep < reps && !refused; rep++) {
         for (const a of orderFor(arms, rep)) {
           for (const win of ['hero', 'end']) {
@@ -101,6 +127,6 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   return {
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   };
 }

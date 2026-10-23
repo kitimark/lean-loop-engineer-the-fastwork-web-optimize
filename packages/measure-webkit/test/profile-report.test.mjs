@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
 import { medianNat } from '../src/profile/reduce.mjs';
 import { writeRaws } from '../src/profile/raw.mjs';
-import { jobCell, poolCell, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -204,6 +204,13 @@ test('cadenceTable: miss counts are totals over all reps of a pooled cell, skipp
   assert.deepEqual(leg.cadence['end|events'].pool.base.counts, { frames: 30, over25: 6, over34: 0, over50: 0, skips: 6 });
   const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| end | on | base'));
   assert.match(row, /\| 6 \(3\+3\) \| 0 \| 6 \| 0 \| 0 \| 6 \| 30 \|/);
+});
+
+test('runTable: the end push column names the push of each leg and why a Simulator job fell back to the synthetic wheel', () => {
+  const f = (leg, push) => ({ label: leg, file: { leg, engine: 'e', arms: ['base'], plan: { dropped: [] }, rows: [], ...(push ? { push } : {}) } });
+  const table = runTable([f('mac'), f('sim', { driver: true, touch: true, why: null }), f('sim', { driver: true, touch: false, why: 'warm-up driver exit 65' }), f('sim')]);
+  const cells = table.split('\n').slice(2).map((l) => l.split(' | ').at(-2));
+  assert.deepEqual(cells, ['wheel', 'touch', 'synthetic wheel (warm-up driver exit 65)', 'synthetic wheel']);
 });
 
 test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s is 16, not the 15 of the 0.1-minute display', () => {

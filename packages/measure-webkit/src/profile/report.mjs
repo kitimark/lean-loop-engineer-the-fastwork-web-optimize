@@ -232,14 +232,16 @@ export function cadenceVerdictTable(leg) {
   return out.join('\n');
 }
 
+const pushOf = (f) => (f.leg === 'mac' ? 'wheel' : f.push?.touch ? 'touch' : f.push ? `synthetic wheel (${f.push.why})` : 'synthetic wheel');
+
 export function runTable(jobs) {
-  const out = [head(['job', 'leg', 'engine', 'version / runtime', 'arms', 'dropped by flags', 'windows', 'kept', 'refused (reason)', 'wall s'])];
+  const out = [head(['job', 'leg', 'engine', 'version / runtime', 'arms', 'dropped by flags', 'windows', 'kept', 'refused (reason)', 'end push', 'wall s'])];
   for (const j of jobs) {
     const f = j.file;
     const ev = f.rows.filter((r) => r.mode === 'events');
     const refused = ev.filter((r) => !r.ok);
     const why = [...new Set(refused.map((r) => r.reason))].join(', ');
-    out.push(row([j.label, f.leg, f.engine, f.version ?? f.runtime ?? '-', f.arms.join(', '), f.plan.dropped.map((d) => `${d.arm} = ${d.sameAs}`).join(', ') || '-', ev.length, ev.length - refused.length, `${refused.length}${why ? ` (${why})` : ''}`, fmt(f.wallSeconds)]));
+    out.push(row([j.label, f.leg, f.engine, f.version ?? f.runtime ?? '-', f.arms.join(', '), f.plan.dropped.map((d) => `${d.arm} = ${d.sameAs}`).join(', ') || '-', ev.length, ev.length - refused.length, `${refused.length}${why ? ` (${why})` : ''}`, pushOf(f), fmt(f.wallSeconds)]));
   }
   return out.join('\n');
 }
