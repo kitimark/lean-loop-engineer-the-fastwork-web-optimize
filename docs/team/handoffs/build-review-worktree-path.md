@@ -1,6 +1,6 @@
 branch: worktree-wf_23b1b99a-2c5-1
 worktree: .claude/worktrees/wf_23b1b99a-2c5-1
-last commit: see `git log -1` on the branch (item 2 commit)
+last commit: 2b0d85106 (item 2)
 CI runs: none (no CI push; the task needs none)
 
 # build-review-worktree-path (item 2 only)
