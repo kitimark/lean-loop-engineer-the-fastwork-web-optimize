@@ -10,6 +10,7 @@ import { analyzeArm, reportMd } from './report.mjs';
 import { fillBlock } from './note.mjs';
 import { collectArm, costMd } from './costreport.mjs';
 import { parseCost } from './costmode.mjs';
+import { armsOutcome } from './morphcost.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -58,8 +59,16 @@ async function main() {
       if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(Object.fromEntries(arms), null, 1)}\n`);
       break;
     }
+    case 'morph-verdict': {
+      if (!v.original || !v.rewrite) throw new Error('usage: morph-verdict --original a.json,b.json --rewrite c.json,d.json [--json file]');
+      const res = armsOutcome(read(v.original).flatMap((d) => d.passes), read(v.rewrite).flatMap((d) => d.passes));
+      for (const r of res.rows) console.log(r.join('\t'));
+      console.log(`outcome\t${res.outcome}`);
+      if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(res, null, 1)}\n`);
+      break;
+    }
     default:
-      console.error('usage: run|report|cost-report');
+      console.error('usage: run|report|cost-report|morph-verdict');
       process.exitCode = 2;
   }
 }
