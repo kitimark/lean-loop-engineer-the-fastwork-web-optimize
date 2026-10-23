@@ -17885,7 +17885,10 @@
     "apps/site/src/parts/morph.columns/idle*",
     "apps/site/src/parts/morph.panel/**",
     "research/notes/2026/10-20-morph-idle-none.md",
-    "docs/team/handoffs/morph-idle-followups.md"
+    "docs/team/handoffs/morph-idle-followups.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Measure/IdleHold.lean",
+    "apps/site/src/parts/morph.columns/**"
    ],
    "title": "Follow-ups of morph-idle-none (landed 011bf99e7): (1) WebKit Paint/Composite per frame on the morph zone reads higher with the flag in 11 of 12 cells, confounded by the simulator frame rate (3x between passes): resolve it with a pinned frame rate or per-frame normalization, Lean-specified, and decide win/loss on WebKit; (2) a committed Lean reducer with goldens for fw.webkit.lag.cost.morph/1 (the per-zone means came from a scratch script); (3) the scene threshold (mm > 1 -> active) is checked against Lean only inside idle.golden.test.ts, not in morph.panel's attribute writer, and IdleHold has no golden; (4) re-measure the Chromium base 28107 layer-frames on the font image (counts-font-fidelity) and restate the delta."
   },
@@ -17911,9 +17914,12 @@
     "lean/Fw.lean",
     "lean/scripts/ClassPosGolden.lean",
     "packages/contracts/golden/parts/footprint*.jsonl",
-    "lean/scripts/check.sh"
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them)."
+   "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them).",
+   "evidence": "a3a15db"
   },
   {
    "devices": [
@@ -17955,6 +17961,46 @@
     "docs/team/handoffs/classpos-model-align.md"
    ],
    "title": "footprint-classname-operands review follow-up: the JS extractor accepts more than the Lean ClassPos model (CLASS_HELPERS has 'classnames'; any .join(sep) / .filter(f) vs Lean .joined = .filter(Boolean).join(' ') only; no member-class setModuleClass golden case; string + concatenation and object-form clsx({a: b}) are non-class positions, so a real class written that way drops silently). Align: one canonical rule in Lean (add concat and member-class cases, keep the separator), JS narrowed or extended to match, golden covers every JS branch; an unmodelled class position fails the extractor loudly instead of dropping. Note the position theorems are rfl restatements (accepted)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-cost-sums-golden",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-idle-followups"
+   ],
+   "writes": [
+    "lean/Fw/Measure/WkCost.lean",
+    "lean/scripts/*WkCost*.lean",
+    "packages/contracts/golden/measure/wkcost*.jsonl",
+    "packages/measure-webkit/src/lag/morphcost.mjs",
+    "packages/measure-webkit/src/lag/cli.mjs",
+    "packages/measure-webkit/test/lag-morphcost.test.mjs",
+    "results/morph-idle-none/**",
+    "docs/team/handoffs/morph-cost-sums-golden.md"
+   ],
+   "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-idle-chromium-rebaseline",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-idle-followups",
+    "counts-font-fidelity"
+   ],
+   "writes": [
+    "results/morph-idle-none/**",
+    "research/notes/2026/10-20-morph-idle-none.md",
+    "docs/team/handoffs/morph-idle-chromium-rebaseline.md"
+   ],
+   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids."
   }
  ],
  "deadline": {
