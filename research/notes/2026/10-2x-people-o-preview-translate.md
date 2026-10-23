@@ -42,9 +42,54 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
  , chromium and playwright-webkit, row `people.o`: all cells pass except the two WebKit cells
   that cannot be built on that engine (UNREACHABLE: primary-pair, whole-width), no FAIL. MEASURED. The gate cells do not hover, so
   the card is closed in them: this shows the closed page is unchanged, not the open card (the open card is the Lean theorem above).
-- Chromium counts, profile `people-o-hover` (1280 x 800, synthetic mouseover): BLOCKED, no number. Every desktop-width run, base and flag
-  alike, fails at the first load frame: the renderer dies with SIGSEGV (SEGV_MAPERR 0x84, a recursive tree walk; chrome.log of run
-  39862057861) about 0.5 s after the first frame of any rewrite page wider than 860 px. A 430 px profile passes on the same branch
-  (swipe-v1, run 39859057574), so the flag is not the cause. Runs: 39850913549, 39850930778, 39852501132, 39854385797, 39855096795,
-  39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861.
-  The crash is task chromium-desktop-crash; it re-runs this count after the fix.
+- Earlier (before task chromium-desktop-crash): the counts were blocked. Every desktop-width run, base and flag alike, failed at the first
+  load frame: the renderer died with SIGSEGV (SEGV_MAPERR 0x84, a recursive tree walk; chrome.log of run 39862057861) about 0.5 s after the
+  first frame of any rewrite page wider than 860 px. Runs: 39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093,
+  39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861.
+- Chromium counts, profile `people-o-hover` v2, desktop 1280 x 800, base vs flag `people.o:preview-translate`, 3 runs per arm on separate
+  CI jobs (base run 39881189724, flag run 39881193403): MEASURED. Premise: the profile sets `text-wrap: wrap !important` (the desktop-1280
+  workaround, no text balancing), so these counts hold for that page only; desktop only, so no iPhone felt gain; Safari on a Mac is task
+  gpu-safari-lane. Scenario v2: rest 10, approach (anchor 250), open 110, hover 60, scroll 40 frames at 3 px per frame, tail 10.
+
+  | scroll phase, 40 frames | base | flag |
+  |---|---|---|
+  | trace.Layout | 67 | 28 |
+  | trace.Layout.dirtyObjects | 2139 | 969 |
+  | frames with a Layout | 40 | 26 |
+  | trace.UpdateLayoutTree | 191 | 191 |
+  | trace.Paint | 149 | 150 |
+  | trace.PrePaint | 120 | 120 |
+  | trace.UpdateLayer | 1070 | 1070 |
+  | raster.invalidationAreaPx | 308551 | 308551 |
+
+  Layout per scroll frame, base: 1 for frames 0-14, 2 for frames 15-39, 3 at frames 26 and 28. Flag: 1 at frame 0, 0 for frames 1-14, 1 for
+  frames 15-39, 2 at frames 26 and 28. The card is the 1 Layout per frame removed; the second Layout source that starts at frame 15 is not
+  the card (not diagnosed, follow-up). The series is identical across the 3 runs of each arm. Classes (fwcore, kMax 4, tMax 24): base
+  trace.Layout, dirtyObjects and UpdateLayoutTree deterministic, Paint quarantined; flag trace.Layout, dirtyObjects, UpdateLayoutTree and
+  Paint stable (k2 to k4). The phase sums are equal across the flag runs, so the flag classes come from small differences of UpdateLayer and
+  invalidation area in the open and hover phases, not from the scroll phase. Data: results/people-o-preview-translate/followups.json.
+- Scenario v1 (hover 12 frames, 10 px per frame, anchor 140; runs 39879309834 base, 39879313255 flag) counted 55 Layout in the scroll phase
+  in both arms: a no-win by non-engagement, not a result for the flag. The flag never took its keep path (0 translate frames, `top`
+  rewritten every frame). INFERRED cause: the face still slid in x after the hover (card left 380.906, .734, .594 ..., decay about 0.8 per
+  frame) and keep needs an equal x; the card also closed after 10 scroll frames (the heading under 35 percent visible, `logic.ts`).
+  Lesson: a count of a "keep" path needs a probe that shows the path was taken; v2 settles the face (hover 60 frames), scrolls 3 px per
+  frame, and the probe shows translate on 49 frames. Runs 39878167282 and 39878174234 failed because the profile key `probe` is the crash
+  probe of host.mjs (renamed `cardProbe`).
+- Open-card probe (run.mjs, profile key `cardProbe`): after the counted pass it replays the plan and records per frame the card rect, the
+  rect of its face, the inline top, left and translate, a PNG hash of the viewport and a PNG hash of the card rect grown by 60 px
+  (`HeadlessExperimental.beginFrame` screenshot, decoded by png-region.mjs). Compare: results/people-o-preview-translate/probe-compare.mjs.
+  Base r1 vs flag r1 and r2 vs r2: 40 scroll frames with the card in both, 0 rect differences (max 0 px), 0 card-pixel differences, translate
+  on 49 frames of the flag. Pair 3: rect equal in all 40 scroll frames, but the card pixels differ in all 40: flag run 3 is the one run of
+  six that differs from the other five (identical in the scroll phase); its card left is 0.92 px off from the first hover frame on, before
+  any scroll frame, where the flag does nothing (INFERRED: a start-phase difference of the card animation, not the flag; 3 runs per arm
+  cannot show it). So the look claim: rect identical in 3 of 3 pairs, pixels identical in 2 of 3 pairs, the third unexplained. The viewport
+  PNG hash is noise (50 differing frames base vs flag and 49 base vs base) and is only reported; the card-region hash is deterministic
+  (base r1 = r2 = r3).
+- The base card rect moves 6 px per frame in the scroll phase while the face moves 3 px and the inline `top` moves 3 px: the card sits at an
+  offset from `top` that itself changes with the scroll. The `containing` list (ancestors with transform, filter, contain) holds only the
+  card with `will-change`; the cause is not diagnosed (follow-up). It is the same in both arms.
+- Load diagnostics of run.mjs (Target.setDiscoverTargets, lifecycle, console, exception, dialog and target listeners) are behind
+  `FW_LOAD_TRACE` (host.mjs passes it through); the crash exit (`Inspector.targetCrashed`, exit 76) and the hang watchdog stay on. Test:
+  packages/measure-chromium/test/profile.test.mjs.
+- The `snapDev rows` case of preview.golden.test.ts called no site code (snapDev is the browser's device-pixel rounding); the case is
+  dropped and the file says snapDev is proved in Lean (`snapDev_add`, `snap_noFlip`).
