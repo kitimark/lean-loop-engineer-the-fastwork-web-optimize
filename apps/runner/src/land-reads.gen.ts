@@ -21,4 +21,5 @@ export const CHECK_SH_READS: string[] = [
   "apps/site/src/registry/layer-opts.gen.ts",
   "packages/measure-chromium/scenarios.gen.json",
   "apps/runner/src/land-reads.gen.ts",
+  "packages/gh-budget/src/bounds.gen.ts",
 ];
