@@ -1,5 +1,3 @@
-// Prints one line per arm and state from the committed results/gpu-safari/<arm>.json files: the table of the note. Reads only; decides nothing.
-//   node results/gpu-safari/lane/summary.mjs [dir]
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

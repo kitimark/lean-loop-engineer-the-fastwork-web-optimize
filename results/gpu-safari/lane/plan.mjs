@@ -1,10 +1,6 @@
-// The lane's plan: which arms run in which zone, at which states. Pure data and two pure functions.
-// Arms are the unit of decision (pinned): one result file per arm, each against the faithful arm of the same zone in the same session.
 
-/** `base` is the faithful rewrite (no flags); the A/A control is a second, separately loaded copy of it. */
 export const FAITHFUL = Object.freeze({ id: 'base', search: '', label: 'faithful' });
 
-/** Flag arms. `zone` names the state list they are captured at. */
 export const FLAG_ARMS = Object.freeze([
   { id: 'nav-clip-box', zone: 'nav', search: '?fw=nav:clip-box', label: 'nav:clip-box', task: 'nav-fixed-size' },
   { id: 'nav-bar-fixed', zone: 'nav', search: '?fw=nav:bar-fixed', label: 'nav:bar-fixed', task: 'nav-fixed-size' },
@@ -15,28 +11,18 @@ export const FLAG_ARMS = Object.freeze([
   { id: 'people-o-preview-translate', zone: 'people', search: '?fw=people.o:preview-translate', label: 'people.o:preview-translate', task: 'people-o-preview-translate' },
 ].map((a) => Object.freeze(a)));
 
-/** Nav morph values: 0.1, 0.5, 0.9 for the clip and backdrop edge pixels, 0.25, 0.5, 0.75 for the glass colour (the task title). */
 export const NAV_M = Object.freeze([0.1, 0.25, 0.5, 0.75, 0.9]);
 export const NAV_EDGE_M = Object.freeze([0.1, 0.5, 0.9]);
 export const NAV_GLASS_M = Object.freeze([0.25, 0.5, 0.75]);
-/** The morph panel arms are captured at the middle three morph values. */
 export const MORPH_M = Object.freeze([0.25, 0.5, 0.75]);
-/** Scroll offsets around the pain flip (the first offset at which the original puts `is-pain-dark` on the section). */
 export const PAIN_AROUND = Object.freeze([-16, -1, 0, 1, 16]);
 
-/** Tween length in ms (morph.tween/logic.ts DURATION_MS; the panel and fade effects use the same value). */
 export const MORPH_DURATION_MS = 680;
-/**
- * Elapsed ms of a push at which the morph value is `m`. The tween eases with 1 - (1 - x)^3 (logic.ts `ease`), and the panel and fade effects use
- * cubic-bezier(1/3, 1, 2/3, 1), whose x(s) = s and y(s) = 1 - (1 - s)^3 are the same curve, so one elapsed time drives the nav value and every
- * effect (TS stand-in; the page reads back the effect progress and the published value as a check).
- */
 export const elapsedAt = (m) => {
   if (!(m > 0 && m < 1)) throw new Error(`morph value ${m} is outside (0, 1)`);
   return Math.round(MORPH_DURATION_MS * (1 - Math.pow(1 - m, 1 / 3)) * 1000) / 1000;
 };
 
-/** The states of a zone, in capture order. `flipY` is only read by the pain zone. */
 export function statesOf(zone, flipY = null) {
   if (zone === 'nav') return NAV_M.map((m) => ({ id: `m${m}`, kind: 'morph', m, mask: 'nav' }));
   if (zone === 'morph') return MORPH_M.map((m) => ({ id: `m${m}`, kind: 'morph', m, mask: 'frame', drive: 'push', elapsedMs: elapsedAt(m) }));
@@ -47,7 +33,6 @@ export function statesOf(zone, flipY = null) {
   throw new Error(`no state list for zone ${zone}`);
 }
 
-/** The arms of a zone in capture order: faithful, the A/A control (faithful again), then the flag arms. */
 export function zoneArms(zone) {
   return [FAITHFUL, { ...FAITHFUL, id: 'base2', label: 'faithful (A/A control)' }, ...FLAG_ARMS.filter((a) => a.zone === zone), { ...FAITHFUL, id: 'base3', label: 'faithful (order probe)' }];
 }

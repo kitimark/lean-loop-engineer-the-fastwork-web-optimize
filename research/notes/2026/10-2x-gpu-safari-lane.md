@@ -10,7 +10,7 @@ topics: [measurement, webkit, simulator, safari, gpu, nav, morph, pain, iosurfac
 
 # GPU arms: the Simulator lane (local, paired with CI)
 
-Every number below is a local Simulator reading, taken in one session per zone on one Mac, and is paired
+Every number below is a local Simulator reading from one session per zone on one Mac, paired
 evidence, not a gate. Each reading sits next to the CI rows of the same arm (run ids in
 `results/gpu-safari/lane/ci-pairs.mjs`). Code lives under `results/gpu-safari/lane/`; results are JSON
 (stats and hashes, never PNGs) in `results/gpu-safari/<arm>.json`.
@@ -120,7 +120,7 @@ rows were the const-bounds class only and are replaced by these.
 - Arm vs base2 and base3: 0 changed px at all five states (pixel-identical to the later faithful loads,
   MEASURED), against the later-load floor 6,804 / 6,323 / 4,355 / 3,107 / 4,711 px (within at every state).
   Against the first load 337k-355k px, which is Finding 1, so the control "aa" is the outlier and the grade
-  is "Q". The honest reading is the nearest-later-load figure 0.
+  is "Q". The reading is the nearest-later-load figure 0.
 - The arm never sets is-pain-dark (the flag replaces the class); its pixels equal base2 at every state,
   including y+0 where base2 is dark, so the visible flip lands at the same offset (MEASURED).
 - Census: layers 110 (faithful) vs 114 (arm, +4), memory 98 vs 110 MB (+12 MB), IOSurface gpu region

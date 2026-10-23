@@ -2,7 +2,6 @@
 //   node results/gpu-safari/lane/run.mjs sim <nav|morph|pain|all> [--out <dir>] [--shots <dir>]   capture in the Simulator, then reduce
 //   node results/gpu-safari/lane/run.mjs mac <nav|morph|pain|all> [--out <dir>] [--shots <dir>]   the same on macOS Safari (needs a visible, unlocked display; inside a `measure` slot)
 //   node results/gpu-safari/lane/run.mjs reduce <shots dir of one zone> <zone> [--out <dir>]      reduce an earlier capture again
-// `sim` needs a `sim` slot held by the caller (pnpm -s fw slot acquire --kind sim). A local run is paired evidence, never a result alone.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,9 +20,6 @@ const shotsRoot = resolve(arg('--shots', join(process.env.TMPDIR || '/tmp', 'fw-
 const siteDir = join(ROOT, 'apps', 'site', 'dist', 'aot');
 mkdirSync(out, { recursive: true });
 
-// 'connection closed by this tool' is what a pending call reports once withSession's own SIGTERM/SIGINT cleanup closed the client
-// (packages/measure-webkit/src/session.mjs:81). It is the symptom of a signal sent to this process (a slot release, a killed tool call or
-// process group), never of a fault in the lane; name the signal instead of printing the stack, and run the lane in its own process group.
 let signalled = null;
 for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => { signalled = sig; });
 const stoppedBySignal = (e) => signalled && /connection closed by this tool/.test(e?.message ?? '');
@@ -54,7 +50,6 @@ if (mode === 'reduce') {
     } catch (e) {
       if (stoppedBySignal(e)) { console.error(`zone ${zone}: stopped by ${signalled} sent to this process (not a lane fault); nothing written for it`); process.exit(130); }
       if (mode !== 'mac') throw e;
-      // an arm the harness cannot drive is reported with its reason, not faked
       const file = join(out, 'mac-safari-refusal.json');
       writeFileSync(file, JSON.stringify({ schema: 'fw.gpu-safari-refusal/1', lane: 'macos-safari', run, zone, reason: e.message }, null, 1) + '\n');
       console.error(`macOS Safari lane refused: ${e.message}\nwrote ${file}`);

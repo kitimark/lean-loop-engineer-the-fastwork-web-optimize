@@ -1,12 +1,9 @@
-// One macOS Safari session (safaridriver) over one origin that serves every arm's prerendered tree.
-// Glue only: it holds no decision. The driver, the Safari windows it opened and the server are stopped by `close`.
 import { spawn, spawnSync } from 'node:child_process';
 import { armServer, freePort, webdriver } from '../../../packages/measure-webkit/src/safari-local.mjs';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pids = (name) => spawnSync('pgrep', ['-x', name], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(Number);
 
-/** The WebDriver calls the existing client lacks: a raw call, a viewport screenshot (base64 PNG). */
 export function extra(base, getSid) {
   const call = async (method, path, body, timeoutMs = 120000) => {
     const r = await fetch(base + path, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
@@ -20,10 +17,6 @@ export function extra(base, getSid) {
   };
 }
 
-/**
- * Open the lane. `arms` = [{ id, site, tree: { dir, search } | { dir: null }, search }] as `armServer` takes them.
- * Returns the client, the server and `close`, which stops only the driver pid this call started and the Safari pids that did not exist before.
- */
 export async function openLane({ arms, width = 430, height = 932, log = (s) => console.error(s) }) {
   const server = await armServer(arms);
   const port = await freePort();
@@ -49,7 +42,6 @@ export async function openLane({ arms, width = 430, height = 932, log = (s) => c
   return { wd, x, server, rect, close, driverPid: driver.pid };
 }
 
-/** Navigate to an arm and wait until the page reports the arm's config hash (a wrong page throws). */
 export async function loadArm(lane, arm, { settleMs = 2500 } = {}) {
   lane.server.setArm(arm.id);
   await lane.wd.navigate(`${lane.server.url}${arm.search}`);

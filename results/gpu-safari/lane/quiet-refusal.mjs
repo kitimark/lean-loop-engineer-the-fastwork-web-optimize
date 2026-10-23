@@ -1,8 +1,3 @@
-// How many machine readings the Lean quiet rule (Fw.Measure.Quiet via safari-local-reduce.mjs) would accept for a timing pass right now.
-//   node results/gpu-safari/lane/quiet-refusal.mjs [--n 24] [--every 5] [--mine <slot token>] [--out <file>]
-// Each reading is `fw slot status --json` (the same read a pass takes). A reading is "quiet" when the rule accepts it against the largest
-// idle floor the rule allows (Q.floorMaxCenti): a reading that fails even that cannot start a timing pass. Also reports `baselineFloor` over the window
-// (null = no steady idle floor, so no pass runs at all). Reads only; it is the same decision a timing arm gets, counted.
 import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { readMachine, brief } from '../../../packages/measure-webkit/src/safari-local-run.mjs';

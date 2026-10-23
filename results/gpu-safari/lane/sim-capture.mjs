@@ -1,5 +1,3 @@
-// Capture side of the Simulator lane: one booted Simulator, one origin, the arms of one zone loaded one after the other in the same session.
-// Glue only. It decides nothing: it writes settled PNG shots to a scratch dir (never committed) and a small index of what each shot is.
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,12 +13,6 @@ import { iosurfaceSample } from './iosurface.mjs';
 
 const NAV = `document.querySelector('[data-fw="nav"]')`;
 export const SET_MORPH = (m) => `(() => { const n = ${NAV}; n.style.setProperty('--morph', '${m}'); n.dataset.fwMorph = '${m}'; return 1; })()`;
-/**
- * A real push through the page's own tween driver (wheel, deltaY 120, at the page end where the platform arms it). While the wheel handler runs,
- * requestAnimationFrame parks its callbacks, so the driver's own frame loop waits for `STEP_EXPR` instead of racing the wall clock; the push itself
- * (state, the panel and fade WAAPI effects, listeners) is the driver's. The effects it started are paused at once. Faithful goes through the same
- * path and starts none; a threaded arm starts the panel effects (main, blur) and, with platform:fade-threaded, the fade.
- */
 export const PUSH_EXPR = `(() => {
   const w = window;
   const lane = w.__lane = { parked: [], cap: false, id: 0, t0: 0, anims: [] };
@@ -36,12 +28,6 @@ export const PUSH_EXPR = `(() => {
   for (const a of lane.anims) a.pause();
   return JSON.stringify({ taken: e.defaultPrevented, parked: lane.parked.length, anims: lane.anims.length });
 })()`;
-/**
- * Move the paused push to `ms` elapsed: every pushed effect to currentTime = ms, and the driver's frame at the time that makes its published
- * value equal `m`. The tween starts a little after `t0` (a forced layout in the wheel handler took 11 ms in the faithful arm, 0 in a threaded one), so
- * the frame time is corrected from the published value until it equals `m`; without that the faithful loads differ from each other by ~1.8M px.
- * The last line pins the value exactly (the correction ends within 1e-6).
- */
 export const STEP_EXPR = (ms, m) => `(() => {
   const lane = window.__lane;
   const n = ${NAV};
@@ -55,7 +41,6 @@ export const STEP_EXPR = (ms, m) => `(() => {
 })()`;
 export const NAV_STATE = `(() => { const n = ${NAV}; const r = n.getBoundingClientRect(); return JSON.stringify({ cls: n.className, morph: getComputedStyle(n).getPropertyValue('--morph').trim(), rect: [Math.round(r.left * 1e6), Math.round(r.top * 1e6), Math.round(r.width * 1e6), Math.round(r.height * 1e6)], scrollY: Math.round(scrollY) }); })()`;
 export const PAIN_STATE = `(() => { const p = document.querySelector('[data-fw="pain"]'); return JSON.stringify({ dark: !!p && p.classList.contains('is-pain-dark'), variant: p ? p.getAttribute('data-fw-variant') : null, scrollY: Math.round(scrollY) }); })()`;
-/** First scroll offset (step 8, then 1) at which the section carries is-pain-dark, or null. */
 export const FLIP_SCAN = (maxY) => `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const dark = async (y) => { scrollTo({ top: y, behavior: 'instant' }); await raf(); await raf(); const p = document.querySelector('[data-fw="pain"]'); return !!p && p.classList.contains('is-pain-dark'); };
@@ -67,7 +52,6 @@ export const FLIP_SCAN = (maxY) => `(async () => {
   return JSON.stringify({ flip: hit });
 })()`;
 
-/** Effects the driver starts on a push: faithful none; morph.panel:threaded the panel (opacity+transform, filter); platform:fade-threaded one more. */
 export const wantEffects = (arm) => (arm.search.includes('morph.panel:threaded') ? 2 : 0) + (arm.search.includes('platform:fade-threaded') ? 1 : 0);
 
 const shot = (udid, file) => {
@@ -80,10 +64,6 @@ const pinBar = (udid, log) => {
   if (r.status !== 0) log(`status_bar override failed (the crop leaves the bar out): ${(r.stderr || '').trim().slice(0, 120)}`);
 };
 
-/**
- * Capture every arm of `zone`. Returns { session, arms: { [armId]: { states: [{ id, files, state, census }] } } }.
- * The shot files are in `shotsDir`; `states` is the zone's state list (the pain list needs the flip offset, found on the faithful arm).
- */
 export async function captureZone({ zone, siteDir, shotsDir, settleMs = 4500, log = (s) => console.error(s) }) {
   mkdirSync(shotsDir, { recursive: true });
   const tmp = mkdtempSync(join(tmpdir(), 'fw-gpusaf-'));
@@ -132,8 +112,6 @@ export async function captureZone({ zone, siteDir, shotsDir, settleMs = 4500, lo
         throw new Error('unreachable');
       };
 
-      // A warm-up load of the faithful arm: the first load after the session starts differed from every later load in the people headline
-      // (its avatars were not yet in), which made the A/A control unclean. The warm-up places the viewport and finds the pain flip, then is discarded.
       {
         const info = await load(arms[0]);
         content = await place(info);
@@ -153,7 +131,6 @@ export async function captureZone({ zone, siteDir, shotsDir, settleMs = 4500, lo
         if (zone !== 'pain') { await scrollHold(ctx.c, info.maxY, { holdMs: 800 }); }
         let pushSeen = null;
         if (zone === 'morph') {
-          // The panel and fade effects start only inside the driver on a push: start a real one, then place it at each state.
           await ctx.c.runAsync(NEAR_IMAGES_EXPR);
           await ctx.c.runAsync(VIDEO_EXPR);
           await ctx.c.evaluate(FREEZE_EXPR);

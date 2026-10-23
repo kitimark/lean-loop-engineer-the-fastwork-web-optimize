@@ -1,5 +1,3 @@
-// Pixel reduction of the lane. The grade is the existing Lean-backed `grade` (Fw.Gate.PathPix, TS twin pathpix.mjs); the counts come
-// from the path-pix reducers (`deltas`, `split`). `ringSplit` and `glassOf` are descriptive and are TS stand-ins (no Lean golden).
 import { createHash } from 'node:crypto';
 import { deltas, split, microRat } from '../../../packages/measure-webkit/src/pathpix-analyze.mjs';
 import { mask, grade, premises, rawOf } from '../../../packages/measure-webkit/src/pathpix.mjs';
@@ -7,14 +5,12 @@ import { sameImage } from '../../../packages/measure-webkit/src/pathpix-png.mjs'
 
 export const hashOf = (img) => createHash('sha256').update(img.rgba).digest('hex').slice(0, 16);
 
-/** The mask of a state: the nav rect (micro CSS px, as `mask` takes it, padded by one device px) or the whole frame. */
 export function maskOf(kind, dpr, w, h, box) {
   if (kind === 'frame') return [0, w, 0, h];
   if (!box) throw new Error('a nav mask needs the nav box');
   return mask(dpr, w, h, box);
 }
 
-/** Changed pixels of `del` inside `m`, split into the ring of `k` device px along the mask edge and the rest. Pixels on the frame border are not edge. */
 export function ringSplit(del, w, m, k = 3) {
   const edge = [], inner = [];
   for (let i = 0; i < del.length; i++) {
@@ -26,7 +22,6 @@ export function ringSplit(del, w, m, k = 3) {
   return { edge: rawOf(edge), interior: rawOf(inner) };
 }
 
-/** Mean and median of each colour channel over the mask shrunk by `inset` device px on every side. */
 export function glassOf(img, m, inset = 12) {
   const x0 = m[0] + inset, x1 = m[1] - inset, y0 = m[2] + inset, y1 = m[3] - inset;
   if (x0 >= x1 || y0 >= y1) return null;
@@ -46,13 +41,6 @@ export function glassOf(img, m, inset = 12) {
 
 export const glassDelta = (a, b) => (a && b ? { mean: a.mean.map((v, i) => Math.round(100 * (b.mean[i] - v)) / 100), median: a.median.map((v, i) => b.median[i] - v) } : null);
 
-/**
- * The arm against every faithful load of the session, and the faithful loads against each other, inside mask `m`.
- * `loads` is in load order: [first faithful, A/A control, order probe]. The first load is an outlier (note, finding 1), so the A/A floor is
- * the later-load pair `floor` = loads[1] against loads[2] (pairs i=1, j=2); with fewer than three loads it falls back to `spread`, the largest
- * changed count between any two loads. `laterNearest` is the smallest changed count of the arm against a later load (index 1 and up);
- * `nearest` also counts the outlier. An arm whose `laterNearest` is not above the floor lies inside the load-to-load variation of the faithful arm.
- */
 export function againstLoads(loads, b0, w, m) {
   const inM = (x, y) => { const r = split(deltas(x, y), w, m).inside; return r; };
   const arm = loads.map((x) => inM(x, b0));
@@ -66,10 +54,6 @@ export function againstLoads(loads, b0, w, m) {
   return { arm, pairs, nearest, laterNearest, spread, floor, within: laterNearest <= floor };
 }
 
-/**
- * One cell: arm B against faithful A over mask `m`, with the A/A control C (the faithful arm loaded again).
- * `a0 a1` are two settled shots of A, `b0 b1` of B, `c0 c1` of C. Returns the graded cell and the descriptive counts.
- */
 export function pixelCell({ run, engine, dpr, a0, a1, b0, b1, c0, c1, d0 = null, m, box = null, own = null }) {
   const { w } = a0;
   const same = (p, q) => p.w === q.w && p.h === q.h;
@@ -86,8 +70,6 @@ export function pixelCell({ run, engine, dpr, a0, a1, b0, b1, c0, c1, d0 = null,
   };
   const ring = ringSplit(del, w, m);
   const loads = againstLoads([a0, c0, ...(d0 ? [d0] : [])], b0, w, m);
-  // `own`: the faithful nav rect inside the union mask. Changes there are the arm's effect on the nav's own pixels (edge and glass),
-  // changes in the rest of the union are the extra area an enlarged box covers.
   let ownPart = null;
   if (own) {
     const o = split(del, w, own), oc = split(deltas(a0, c0), w, own);

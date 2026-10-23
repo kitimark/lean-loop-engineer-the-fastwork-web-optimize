@@ -1,12 +1,9 @@
-// Reduction of a captured zone to one result per flag arm: per state the graded pixel cell (existing Lean-backed `grade`) plus descriptive counts.
-// The census numbers are layers and bytes the Inspector reports; they are a proxy for allocation, not IOSurface counts.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePng } from '../../../packages/measure-webkit/src/pathpix-png.mjs';
 import { pixelCell, maskOf, hashOf } from './pix.mjs';
 import { FLAG_ARMS } from './plan.mjs';
 
-/** Union of two micro-px boxes [x, y, w, h]. */
 export function unionBox(a, b) {
   const x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]);
   const x1 = Math.max(a[0] + a[2], b[0] + b[2]), y1 = Math.max(a[1] + a[3], b[1] + b[3]);
@@ -15,7 +12,6 @@ export function unionBox(a, b) {
 
 const load = (dir, f) => decodePng(readFileSync(join(dir, f)));
 
-/** One flag arm against `base`, with `base2` as the A/A control. `cap` is the captureZone result. */
 export function reduceArm({ cap, arm, shotsDir, run }) {
   const { session } = cap;
   const states = cap.states.map((st) => {

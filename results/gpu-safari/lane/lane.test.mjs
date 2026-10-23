@@ -38,7 +38,6 @@ test('the nav states hold the task values and the pain states need the flip offs
 test('the morph states are driven by a real push and sit at the elapsed time of their value; nav and pain are not', () => {
   assert.ok(statesOf('morph').every((s) => s.drive === 'push' && s.elapsedMs === elapsedAt(s.m)));
   assert.ok(statesOf('nav').every((s) => s.drive === undefined));
-  // 1 - (1 - x)^3 at the elapsed fraction returns m (tween ease, and the panel bezier cubic-bezier(1/3, 1, 2/3, 1))
   for (const m of [0.25, 0.5, 0.75]) assert.ok(Math.abs(1 - (1 - elapsedAt(m) / 680) ** 3 - m) < 1e-4, String(m));
   assert.equal(elapsedAt(0.5), 140.284);
   assert.throws(() => elapsedAt(1));
@@ -52,9 +51,9 @@ test('the morph states are driven by a real push and sit at the elapsed time of 
 
 test('ringSplit separates the mask edge from its interior and ignores the frame border', () => {
   const w = 10, h = 10, del = new Uint8Array(w * h);
-  del[2 * w + 2] = 5; // on the mask corner
-  del[5 * w + 5] = 9; // deep inside
-  del[0] = 7; // outside the mask
+  del[2 * w + 2] = 5;
+  del[5 * w + 5] = 9;
+  del[0] = 7;
   const r = ringSplit(del, w, [2, 8, 2, 8], 2);
   assert.deepEqual(r.edge, { changed: 1, maxDelta: 5 });
   assert.deepEqual(r.interior, { changed: 1, maxDelta: 9 });
@@ -96,11 +95,10 @@ test('againstLoads: the A/A floor is the later-load pair, the first load is the 
   const f1 = img(w, h, () => [10, 10, 10]);
   const f2 = img(w, h, (x) => (x < 2 ? [20, 10, 10] : [10, 10, 10]));
   const r = againstLoads([outlier, f1, f2], img(w, h, () => [10, 10, 10]), w, m);
-  assert.equal(r.floor, 16); // base2 against base3 only, not the outlier pair (64)
+  assert.equal(r.floor, 16);
   assert.equal(r.spread, 64);
   assert.equal(r.laterNearest, 0);
   assert.equal(r.within, true);
-  // an arm that equals only the outlier is not within the later-load floor
   const q = againstLoads([outlier, f1, f2], img(w, h, () => [90, 10, 10]), w, m);
   assert.equal(q.nearest, 0);
   assert.equal(q.laterNearest, 64);

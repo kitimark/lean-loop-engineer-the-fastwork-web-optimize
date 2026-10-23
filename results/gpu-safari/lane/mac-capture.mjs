@@ -1,9 +1,3 @@
-// Capture side of the macOS Safari lane (real Apple GPU and display, safaridriver). Same output shape as `captureZone` of sim-capture.mjs.
-// It refuses a Safari window that is not visible: on a locked screen `document.visibilityState` is `hidden`, rAF does not run and the
-// WebDriver screenshot is black (measured on this Mac: 0 rAF frames in 600 ms, an all-black 860x1760 PNG). It never fakes a frame.
-// Differences from the Simulator lane, all recorded in the result: no pinned clock and no timer hold (safaridriver has no bootstrap
-// script), so page animations are only frozen with `freezeAnimations`; no layer census (no Inspector). The A/A control and the faithful
-// loads (`loads` in the result) quantify what that costs. Run it inside a `measure` slot (pnpm -s fw slot acquire --kind measure).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openLane, loadArm, sleep } from './session.mjs';
@@ -12,7 +6,6 @@ import { FREEZE_EXPR } from '../../../packages/measure-webkit/src/pathpix-page.m
 import { statesOf, zoneArms } from './plan.mjs';
 import { SET_MORPH, NAV_STATE, PAIN_STATE, FLIP_SCAN } from './sim-capture.mjs';
 
-/** True when a PNG is one flat colour: what a locked screen or a hidden window gives. */
 export function flat(png) {
   const { rgba } = decodePng(png);
   for (let i = 4; i < rgba.length; i += 4) if (rgba[i] !== rgba[0] || rgba[i + 1] !== rgba[1] || rgba[i + 2] !== rgba[2]) return false;

@@ -1,4 +1,3 @@
-// The CI Simulator rows each local arm is paired with (run ids from the task notes). The three nav webkitSim ids are dispatched; task nav-fixed-followups reduces them. A local row is never reported alone.
 export const CI_PAIRS = Object.freeze({
   'nav-clip-box': { gate: '39842609609', trajectory: ['39842561544'], webkitSim: ['39872562267'] },
   'nav-bar-fixed': { gate: '39846092556', trajectory: ['39842569267'], webkitSim: ['39872566438'] },
