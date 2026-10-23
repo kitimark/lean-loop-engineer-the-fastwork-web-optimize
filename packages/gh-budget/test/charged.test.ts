@@ -5,8 +5,10 @@ import test from "node:test";
 import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { errorSummary, ghCharged, traceLines } from "../src/charged.ts";
+import { GH_BOUNDS } from "../src/bounds.gen.ts";
+import { pollOnce } from "../src/poller.ts";
 import { tryLock } from "../src/lock.ts";
-import { loadState, paths } from "../src/state.ts";
+import { loadState, paths, readStatus } from "../src/state.ts";
 import { mkWorld } from "./util.ts";
 
 const T0 = 1_800_000_000;
@@ -107,4 +109,16 @@ test("a hung gh is killed at timeoutMs and the failure is named", async () => {
   chmodSync(hang, 0o755);
   const r = await ghCharged({ ...w.env, gh: hang }, ["workflow", "run", "x.yml"], { cost: 2, timeoutMs: 300 });
   assert.ok(r.ran && r.code === null && r.error === "gh timed out after 0.3 s and was killed; the request may still have reached GitHub, check gh run list before running it again", JSON.stringify(r));
+});
+
+test("the poller answers a busy lock with a short retry, not a stop, and writes no stopped status", async () => {
+  const w = mkWorld(T0);
+  w.config({ start: T0 });
+  const held = tryLock(paths(w.stateDir).lock);
+  assert.ok(held);
+  try {
+    const p = await pollOnce(w.env, 100);
+    assert.deepEqual(p, { wakeAt: T0 + GH_BOUNDS.busyRetryS, ticked: false });
+    assert.equal(readStatus(w.stateDir)?.stopped, undefined);
+  } finally { held.release(); }
 });
