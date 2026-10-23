@@ -18530,7 +18530,8 @@
     "lean/Fw/Ops/CheckMap.lean",
     "docs/team/handoffs/timing-module-count.md"
    ],
-   "title": "timing-work-dims (landed 765f1ad03) review follow-ups: (1) the rebuilt Lean module count drives the remaining false alarms (polish commit lakeBuild 1.9-42.9 s; land dry lake 43 s at 17cb8b6 has no work field): record the number of Lean modules lake rebuilt (or the changed-module count) in the polish commit and land dry lake spans, and key or normalise the Timing verdict on it (Lean theorem + golden); (2) heavyChecks derived from the Fw.Ops.CheckMap Check type ([Check.lakeBuild, .leanElab, .presetCheck].map checkName) instead of a hand-written string list, TS HEAVY_CHECKS checked against it; decide where tscProject belongs (it runs for seconds)."
+   "title": "timing-work-dims (landed 765f1ad03) review follow-ups: (1) the rebuilt Lean module count drives the remaining false alarms (polish commit lakeBuild 1.9-42.9 s; land dry lake 43 s at 17cb8b6 has no work field): record the number of Lean modules lake rebuilt (or the changed-module count) in the polish commit and land dry lake spans, and key or normalise the Timing verdict on it (Lean theorem + golden); (2) heavyChecks derived from the Fw.Ops.CheckMap Check type ([Check.lakeBuild, .leanElab, .presetCheck].map checkName) instead of a hand-written string list, TS HEAVY_CHECKS checked against it; decide where tscProject belongs (it runs for seconds).",
+   "evidence": "f3360aa"
   },
   {
    "devices": [
