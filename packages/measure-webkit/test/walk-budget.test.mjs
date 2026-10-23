@@ -40,7 +40,7 @@ test('planWalk: the step timeout plus the post steps end inside the job timeout 
   assert.equal(capped.hardStopSeconds, 525);
 });
 
-test('the CLI prints the three step outputs', () => {
+test('the CLI prints the four step outputs', () => {
   const out = execFileSync(process.execPath, [fileURLToPath(new URL('../src/walk-budget.mjs', import.meta.url)), '--job-start-ms', '1000000000000', '--now-ms', '1000000276000', '--cap-min', '8'], { encoding: 'utf8' });
   assert.equal(out, 'run=true\nstep_minutes=10\ndeadline_ms=1000000756000\nhard_stop_seconds=525\n');
 });
