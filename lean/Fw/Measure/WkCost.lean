@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Measure.WebKitLag
 import Fw.Measure.IdleHold
+import Fw.Measure.SwapWindow
 /-!
 # WebKit cost counters (`packages/measure-webkit/src/lag/cost.mjs`)
 The counted predicates of the lag cost pass and their per-zone sums. Times are integer microseconds.
@@ -678,7 +679,8 @@ private def goldenLines (_ : Unit) : List String :=
       ("outcome", (outcome (cells bs fs)).name)]).compress) ++
   (outcomeCases.map fun cs =>
     (Json.mkObj [("kind", "morphOutcome"), ("cells", toJson (cs.map Verdict.name)), ("outcome", (outcome cs).name)]).compress) ++
-  Fw.Measure.IdleHold.goldenLines
+  Fw.Measure.IdleHold.goldenLines ++
+  Fw.Measure.SwapWindow.swapGoldenLines
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
