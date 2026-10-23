@@ -41,7 +41,7 @@ Definitions (all durations in whole ms, `Nat`):
 
 Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`,
 `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `slow_mono_window`, `no_self_mask`,
-`site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
+`site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`.
 -/
 namespace Fw.Obs.Timing
 
@@ -92,38 +92,80 @@ def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
 
-def ownOfPhases (startMs durMs : Nat) (how : String) (updMs : Option Nat) : Option Nat :=
-  match updMs with
-  | some u => if how == "done" && u ≤ startMs + durMs then some (startMs + durMs - u) else none
-  | none => none
+def ownOfPhases (startMs durMs : Nat) (how : String) (updMs tickMs pollS : Option Nat) : Option Nat :=
+  match updMs, tickMs, pollS with
+  | some u, some t, some p =>
+    if how == "done" && u ≤ startMs + durMs then
+      some (startMs + durMs - max u startMs - min (t - max u startMs) (p * 1000))
+    else none
+  | _, _, _ => none
 
-theorem ownOfPhases_some (s d : Nat) (how : String) (u o : Nat) :
-    ownOfPhases s d how (some u) = some o ↔ how = "done" ∧ u ≤ s + d ∧ o = s + d - u := by
+theorem ownOfPhases_some (s d : Nat) (how : String) (u t p o : Nat) :
+    ownOfPhases s d how (some u) (some t) (some p) = some o ↔
+      how = "done" ∧ u ≤ s + d ∧ o = s + d - max u s - min (t - max u s) (p * 1000) := by
   simp only [ownOfPhases]
   by_cases h : (how == "done" && decide (u ≤ s + d)) = true
   · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
     simp [h, eq_comm]
-  · simp only [h, if_false]
+  · simp only [h]
     simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, not_and] at h
     constructor
     · intro e; cases e
     · intro ⟨h1, h2, _⟩; exact absurd h2 (h h1)
 
-theorem ownOfPhases_not_done (s d : Nat) (how : String) (u : Option Nat) (h : how ≠ "done") :
-    ownOfPhases s d how u = none := by
-  unfold ownOfPhases; cases u <;> simp [h]
+theorem ownOfPhases_not_done (s d : Nat) (how : String) (u t p : Option Nat) (h : how ≠ "done") :
+    ownOfPhases s d how u t p = none := by
+  unfold ownOfPhases; cases u <;> cases t <;> cases p <;> simp [h]
 
-theorem ownOfPhases_no_upd (s d : Nat) (how : String) : ownOfPhases s d how none = none := rfl
+theorem ownOfPhases_no_upd (s d : Nat) (how : String) (t p : Option Nat) : ownOfPhases s d how none t p = none := rfl
 
-theorem ownOfPhases_after_end (s d : Nat) (how : String) (u : Nat) (h : s + d < u) :
-    ownOfPhases s d how (some u) = none := by
-  unfold ownOfPhases; simp [Nat.not_le.2 h]
+theorem ownOfPhases_no_tick (s d : Nat) (how : String) (u p : Option Nat) : ownOfPhases s d how u none p = none := by
+  cases u <;> rfl
 
-#guard ownOfPhases 1000 1377258 "done" (some (1000 + 1377258 - 27294)) == some 27294
-#guard ownOfPhases 0 900000 "done" none == none
-#guard ownOfPhases 0 900000 "timeout" (some 5) == none
-#guard ownOfPhases 0 10 "done" (some 99) == none
-#guard ownOfPhases 0 10 "done" (some 10) == some 0
+theorem ownOfPhases_no_poll (s d : Nat) (how : String) (u t : Option Nat) : ownOfPhases s d how u t none = none := by
+  cases u <;> cases t <;> rfl
+
+theorem ownOfPhases_after_end (s d : Nat) (how : String) (u : Nat) (t p : Option Nat) (h : s + d < u) :
+    ownOfPhases s d how (some u) t p = none := by
+  unfold ownOfPhases; cases t <;> cases p <;> simp [Nat.not_le.2 h]
+
+theorem ownOfPhases_le_dur (s d : Nat) (how : String) (u t p o : Nat)
+    (h : ownOfPhases s d how (some u) (some t) (some p) = some o) : o ≤ d := by
+  obtain ⟨_, _, rfl⟩ := (ownOfPhases_some s d how u t p o).1 h
+  omega
+
+theorem ownOfPhases_before_start (s d : Nat) (how : String) (u : Nat) (t p : Option Nat) (hu : u ≤ s) :
+    ownOfPhases s d how (some u) t p = ownOfPhases s d how (some s) t p := by
+  unfold ownOfPhases
+  cases t <;> cases p <;> simp [Nat.max_eq_right hu, Nat.le_trans hu (Nat.le_add_right s d)]
+
+theorem ownOfPhases_net_le (s d : Nat) (how : String) (u t p o : Nat)
+    (h : ownOfPhases s d how (some u) (some t) (some p) = some o) : s + d - max u s ≤ o + p * 1000 := by
+  obtain ⟨_, _, rfl⟩ := (ownOfPhases_some s d how u t p o).1 h
+  omega
+
+theorem ownOfPhases_within_interval (s d : Nat) (u t p : Nat) (hu : u ≤ s + d) (ht : max u s ≤ t)
+    (hp : t - max u s ≤ p * 1000) : ownOfPhases s d "done" (some u) (some t) (some p) = some (s + d - t) := by
+  refine (ownOfPhases_some s d "done" u t p _).2 ⟨rfl, hu, ?_⟩
+  omega
+
+theorem ownOfPhases_stall (s d : Nat) (u t p : Nat) (hu : u ≤ s + d) (hp : p * 1000 < t - max u s) :
+    ownOfPhases s d "done" (some u) (some t) (some p) = some (s + d - max u s - p * 1000) := by
+  refine (ownOfPhases_some s d "done" u t p _).2 ⟨rfl, hu, ?_⟩
+  omega
+
+#guard ownOfPhases 1000 1377258 "done" (some (1000 + 1377258 - 27294)) (some (1000 + 1377258 - 27294)) (some 10) ==
+  some 27294
+#guard 1792784208219 + 6921 - 1792784005000 == 210140
+#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) (some 10) == some 3140
+#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) (some 120) == some 3140
+#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) none == none
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 257000) (some 10) == some 240000
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 57000) (some 10) == some 243000
+#guard ownOfPhases 0 900000 "done" none (some 5) (some 10) == none
+#guard ownOfPhases 0 900000 "timeout" (some 5) (some 5) (some 10) == none
+#guard ownOfPhases 0 10 "done" (some 99) (some 99) (some 10) == none
+#guard ownOfPhases 0 10 "done" (some 10) (some 10) (some 10) == some 0
 
 def Sample.own (s : Sample) : Option Nat :=
   if s.remoteQueue then some 0 else if s.ciWait then s.ownMs else some s.durMs
@@ -1335,6 +1377,22 @@ theorem judgeQ_kind (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (
 theorem judgeQ_work (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).work = s.work := by
   unfold judgeQ; split <;> (try split) <;> exact judgeW_work p hist i s
 
+theorem judgeW_idx (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeW p hist i s).idx = i := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeW_host (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeW p hist i s).host = s.host := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeQ_idx (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).idx = i := by
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_idx p hist i s
+
+theorem judgeQ_host (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).host = s.host := by
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_host p hist i s
+
 theorem judge_idx (p : Params) (h : List Sample) (i j : Nat) (s : Sample) :
     judge p h i s = { judge p h j s with idx := i } := rfl
 
@@ -2001,6 +2059,14 @@ theorem verdictsOf_ciWait_not_slow (p : Params) (ss : List Sample)
     | none => exact absurd hf (by rw [ciWait_unknown_not_full _ hc hm]; simp)
   exact ciWait_never_slow p _ i ss[i] hc o ho (hb _ (List.getElem_mem hi') hc o ho)
 
+theorem verdictsOf_sample_at (p : Params) (ss : List Sample) (v : SampleVerdict)
+    (h : Verdict.sample v ∈ verdictsOf p ss) :
+    ∃ hi : v.idx < ss.length, ss[v.idx].host = v.host ∧ ss[v.idx].tool = v.tool ∧ ss[v.idx].step = v.step := by
+  obtain ⟨i, hi, _, rfl⟩ := mem_sample_full p (ss.map Sample.norm) v h
+  have hi' : i < ss.length := by simpa using hi
+  simp only [judgeQ_idx, judgeQ_host, judgeQ_tool, judgeQ_step, List.getElem_map]
+  exact ⟨hi', rfl, rfl, rfl⟩
+
 def SampleVerdict.detailWith (label : String) (v : SampleVerdict) : String :=
   let own := if ({ tool := v.tool, step := v.step, durMs := 0, host := v.host } : Sample).remote
     then " (our own time: the remote run's wait is not counted)" else ""
@@ -2255,6 +2321,9 @@ def keyJson (k : Key) : Json :=
   Json.mkObj ([("tool", .str k.tool), ("step", .str k.step), ("host", .str (hostStr k.host)),
     ("runKind", .str k.kind)] ++ workField k.work)
 
+def ownPhasesJson (u : Nat) : Json :=
+  Json.mkObj [("how", "done"), ("updMs", toJson u), ("tickMs", toJson u), ("pollS", toJson (0 : Nat))]
+
 def sampleJson (s : Sample) : Json :=
   Json.mkObj ([("tool", .str s.tool), ("step", .str s.step), ("durMs", toJson s.durMs),
     ("host", .str (hostStr s.host)), ("load", toJson s.load), ("runKind", .str s.kind),
@@ -2263,7 +2332,7 @@ def sampleJson (s : Sample) : Json :=
     ("waits", .arr (s.waits.map (fun (t, ms) => Json.mkObj [("why", .str t.name), ("ms", toJson ms)])).toArray)] ++
     workField s.work ++ (if s.startMs == 0 then [] else [("startMs", toJson s.startMs)]) ++
     (if s.commit == "" then [] else [("commit", .str s.commit)]) ++
-    (s.ownMs.map fun o => [("phases", Json.mkObj [("how", "done"), ("updMs", toJson (s.startMs + s.durMs - o))])]).getD [])
+    (s.ownMs.map fun o => [("phases", ownPhasesJson (s.startMs + s.durMs - o))]).getD [])
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -2766,13 +2835,45 @@ def boundsText (_ : Unit := ()) : String :=
 
 def boundsPath : System.FilePath := "../packages/gh-budget/src/bounds.gen.ts"
 
+def ownCases : List (String × Nat × Nat × String × Option Nat × Option Nat × Option Nat) :=
+  [("c1fdb56: the 6.9 s wait began 203 s after its run finished; 3.8 s of detection fell inside the wait",
+      1792784208219, 6921, "done", some 1792784005000, some 1792784212000, some 10),
+   ("c1fdb56: the same wait at the 120 s agent poll interval: the same own time",
+      1792784208219, 6921, "done", some 1792784005000, some 1792784212000, some 120),
+   ("c1fdb56: the same wait as recorded, without the interval: no own time, no verdict",
+      1792784208219, 6921, "done", some 1792784005000, some 1792784212000, none),
+   ("c1fdb56: the run's first wait, which saw it finish: 11 s of detection, 10 s netted at a 10 s interval",
+      1792783668155, 405554, "done", some 1792784005000, some 1792784016000, some 10),
+   ("a 207 s detection at a 10 s interval: the poller stalled, 197 s count as own time",
+      0, 300000, "done", some 50000, some 257000, some 10),
+   ("a wait that timed out has no own time", 0, 900000, "timeout", some 5, some 5, some 10),
+   ("a run marked done after the span ended has no own time", 0, 10, "done", some 99, some 99, some 10),
+   ("a span without a tick time has no own time", 0, 300000, "done", some 50000, none, some 10)]
+
+def ownSpanJson (s d : Nat) (how : String) (u t p : Option Nat) : Json :=
+  let opt (k : String) (x : Option Nat) : List (String × Json) := (x.map fun n => [(k, toJson n)]).getD []
+  Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("startMs", toJson s), ("durMs", toJson d), ("host", "local"),
+    ("exit", toJson (0 : Nat)),
+    ("phases", Json.mkObj ([("how", .str how)] ++ opt "updMs" u ++ opt "tickMs" t ++ opt "pollS" p))]
+
+def ownGoldenText (_ : Unit := ()) : String :=
+  String.join (ownCases.map fun (n, s, d, how, u, t, p) =>
+    (Json.mkObj [("name", .str n), ("span", ownSpanJson s d how u t p),
+      ("ownMs", ((ownOfPhases s d how u t p).map toJson).getD .null)]).compress ++ "\n")
+
+#guard ownCases.map (fun (_, s, d, how, u, t, p) => ownOfPhases s d how u t p) ==
+  [some 3140, some 3140, none, some 58709, some 240000, none, none, none]
+
+def ownGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-own.jsonl"
+
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
-  IO.FS.writeFile lakeGoldenPath lakeGoldenText
+  IO.FS.writeFile lakeGoldenPath lakeGoldenText; IO.FS.writeFile ownGoldenPath ownGoldenText
 
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
-    (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText
+    (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText &&
+    (← IO.FS.readFile ownGoldenPath) == ownGoldenText
 
 end Fw.Wire.Obs.Timing
 
