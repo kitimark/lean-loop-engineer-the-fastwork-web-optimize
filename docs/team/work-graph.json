@@ -17348,7 +17348,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/people-o-followups.md"
    ],
-   "title": "Review follow-ups of people-o-preview-translate (landed ec3009a22): (1) after chromium-desktop-crash is fixed, re-run the people-o-hover desktop Chromium counts (base vs flag, Layout per frame) and set the ledger row n 53 chromium verdict; add a position or pixel probe of the open card, since gate run 39850908365 never hovers and the open card rests on Lean step_faithful; (2) put the load diagnostics in run.mjs:78-93 (Target.setDiscoverTargets, lifecycle, console and exception listeners) behind FW_LOAD_TRACE, or show that determinism is unchanged on an existing profile; (3) the 'snapDev rows' case in preview.golden.test.ts checks the golden against Math.floor and calls no site code: export snapDev from preview.ts and compare it, or drop the case."
+   "title": "Review follow-ups of people-o-preview-translate (landed ec3009a22): (1) after chromium-desktop-crash is fixed, re-run the people-o-hover desktop Chromium counts (base vs flag, Layout per frame) and set the ledger row n 53 chromium verdict; add a position or pixel probe of the open card, since gate run 39850908365 never hovers and the open card rests on Lean step_faithful; (2) put the load diagnostics in run.mjs:78-93 (Target.setDiscoverTargets, lifecycle, console and exception listeners) behind FW_LOAD_TRACE, or show that determinism is unchanged on an existing profile; (3) the 'snapDev rows' case in preview.golden.test.ts checks the golden against Math.floor and calls no site code: export snapDev from preview.ts and compare it, or drop the case.",
+   "evidence": "415ec06"
   },
   {
    "devices": [
@@ -17411,7 +17412,13 @@
     "packages/measure-chromium/src/run.mjs",
     "lean/Fw/Measure/Profile*.lean",
     "packages/contracts/golden/measure/profile*.jsonl",
-    "docs/team/handoffs/chrome-balance-repro.md"
+    "docs/team/handoffs/chrome-balance-repro.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/ProfileGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/measure-chromium/src/profile.mjs",
+    "packages/measure-chromium/test/profile.test.mjs"
    ],
    "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now)."
   },
@@ -17440,6 +17447,72 @@
     "docs/team/handoffs/dispatch-latency-followups.md"
    ],
    "title": "Review follow-ups of dispatch-latency: (1) the other gh-budget callers (wait.ts, poller.ts, cli.ts, timing-ci.ts, fw run non-dispatch calls) keep the 60 s default timeout, so one hung non-dispatch call fills the whole 60 s dispatch lock wait and the dispatch is refused busy (before: waited 120 s and succeeded): bound those callers or keep dispatchLockWaitMs above the largest caller timeout plus a margin, proved in Lean; (2) handle busy in the poller as a short wait, not stopped, and word the chargedGh busy message per call ('nothing was dispatched' only for workflow run); (3) the lock sub-span also counts loadState and the fwcore reserve: split lock acquisition from reserve, mark the holder of the 13.47 s wait INFERRED or identify it; (4) generate the TS bounds (DISPATCH_LIMITS, WATCH_LOCK_WAIT_MS, the 10000 watch gh timeout at watch-collect.ts:741) from Lean instead of regex reads; (5) commit the synthetic hung-gh probe as a script so the 60094 -> 20104 ms pair can be re-run; correct the golden count (6, not 7)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-look-class",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "gpu-safari-lane",
+    "nav-fixed-followups"
+   ],
+   "writes": [
+    "apps/site/src/parts/nav/part.json",
+    "lean/Fw/Parts/Footprint*.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "packages/contracts/golden/preset/*.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-nav-fixed-size.md",
+    "docs/team/handoffs/nav-look-class.md"
+   ],
+   "title": "From gpu-safari-lane review (2026-10-23): on the local Simulator lane the three nav flags (clip-box, bar-fixed, logo-3d) change the look mid-animation (about 1.01M changed px at m0.5 against a later-load A/A floor near 0; pill edge ring 8,617 px; subpixel content shift up to maxDelta 220 at m0.9) while faithful, arm and control share --morph and scrollY; the CI gate (rest states) and trajectory (rects) do not see mid-morph pixels. Move the three flags from visClass Q to the look-change class L (user visual review, kind proposal) in part.json with the evidence, keep them out of v2-proved presets until the user reviews them, regenerate footprints and preset decisions, update the ledger rows; then the lead posts the look review to the user."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "chrome-crash-platforms",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "chrome-balance-repro"
+   ],
+   "writes": [
+    "packages/measure-chromium/probes/**",
+    "packages/measure-chromium/src/host.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/src/crash-probe.mjs",
+    ".github/workflows/chromium-counts.yml",
+    ".github/workflows/chrome-crash-probe.yml",
+    "research/notes/2026/10-2x-chrome-balance-repro.md",
+    "docs/team/handoffs/chrome-crash-platforms.md"
+   ],
+   "title": "Follow-ups of chrome-balance-repro: stock Chrome 156/157/158 (CfT linux-arm64, new headless) crashes with SIGSEGV 0x84 on the original fastwork page at 1280 wide (text-wrap: balance on the people title holding an inline-grid o), run 39878812594. Measure whether real users on other platforms crash: one stock CfT linux64 (x86_64) row on a free ubuntu-latest runner, one headed run under xvfb, and stock Chrome on a free macos runner (and Windows if a free runner allows); record each MEASURED with run ids. Have the lane read probes/ and refuse kind probe in counts mode. Report to the lead at once if x86_64 or macOS crashes."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "people-title-crash-fix",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "chrome-balance-repro"
+   ],
+   "writes": [
+    "apps/site/src/parts/people/**",
+    "apps/site/src/parts/people.o/**",
+    "lean/Fw/Parts/People*.lean",
+    "lean/Fw/Parts/Footprint*.lean",
+    "packages/contracts/golden/parts/**",
+    "research/notes/2026/10-2x-people-title-crash-fix.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/people-title-crash-fix.md"
+   ],
+   "title": "The rewrite's people title (text-wrap: balance holding the inline-grid o) crashes stock desktop Chrome above 860 px (chrome-balance-repro, run 39878812594). Two measured ways stop it: making the o inline-block, or dropping balance on that h2 (text-wrap: wrap). Prefer the one with the same look: prove in Lean what changes (inline-block vs inline-grid layout of the o; balanced line breaks), measure with the breakpoint gate on both engines and a pixel compare at 861-1440 widths, and a stock Chrome load at 1280 (no crash). A look change goes to the user's look-review class. The original site's crash is Fastwork's to fix; we only report it."
   }
  ],
  "deadline": {

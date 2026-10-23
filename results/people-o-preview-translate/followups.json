@@ -1,0 +1,274 @@
+{
+ "task": "people-o-followups",
+ "profile": "people-o-hover",
+ "scenario": "v2 (rest 10, approach anchor 250, open 110, hover 60, scroll 40 frames at 3 px, tail 10); css text-wrap:wrap!important (desktop-1280 workaround)",
+ "engine": "chromium desktop 1280, rewrite target, 3 runs per arm on separate CI jobs",
+ "runs": {
+  "base": "39881189724",
+  "flag": "39881193403",
+  "baseV1": "39879309834",
+  "flagV1": "39879313255",
+  "failedKeyProbe": [
+   "39878167282",
+   "39878174234"
+  ]
+ },
+ "layoutPerScrollFrame": {
+  "base": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   3,
+   2,
+   3,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2
+  ],
+  "flag": [
+   1,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   2,
+   1,
+   2,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "identicalAcrossRuns": true
+ },
+ "phaseSums": {
+  "base": {
+   "rest": {
+    "frames": 10,
+    "trace.Layout": 9,
+    "trace.Layout.dirtyObjects": 18,
+    "trace.UpdateLayoutTree": 10,
+    "trace.Paint": 50,
+    "trace.PrePaint": 24,
+    "trace.UpdateLayer": 160,
+    "raster.invalidationAreaPx": 103153735
+   },
+   "approach": {
+    "frames": 1,
+    "trace.Layout": 0,
+    "trace.Layout.dirtyObjects": 0,
+    "trace.UpdateLayoutTree": 4,
+    "trace.Paint": 2,
+    "trace.PrePaint": 3,
+    "trace.UpdateLayer": 16,
+    "raster.invalidationAreaPx": 76260
+   },
+   "open": {
+    "frames": 110,
+    "trace.Layout": 110,
+    "trace.Layout.dirtyObjects": 3852,
+    "trace.UpdateLayoutTree": 119,
+    "trace.Paint": 450,
+    "trace.PrePaint": 226,
+    "trace.UpdateLayer": 3418,
+    "raster.invalidationAreaPx": 389629287
+   },
+   "hover": {
+    "frames": 60,
+    "trace.Layout": 36,
+    "trace.Layout.dirtyObjects": 1347,
+    "trace.UpdateLayoutTree": 64,
+    "trace.Paint": 192,
+    "trace.PrePaint": 93,
+    "trace.UpdateLayer": 1975,
+    "raster.invalidationAreaPx": 714569707
+   },
+   "scroll": {
+    "frames": 40,
+    "trace.Layout": 67,
+    "trace.Layout.dirtyObjects": 2139,
+    "trace.UpdateLayoutTree": 191,
+    "trace.Paint": 149,
+    "trace.PrePaint": 120,
+    "trace.UpdateLayer": 1070,
+    "raster.invalidationAreaPx": 308551
+   },
+   "tail": {
+    "frames": 10,
+    "trace.Layout": 10,
+    "trace.Layout.dirtyObjects": 350,
+    "trace.UpdateLayoutTree": 10,
+    "trace.Paint": 20,
+    "trace.PrePaint": 20,
+    "trace.UpdateLayer": 240,
+    "raster.invalidationAreaPx": 0
+   }
+  },
+  "flag": {
+   "rest": {
+    "frames": 10,
+    "trace.Layout": 9,
+    "trace.Layout.dirtyObjects": 18,
+    "trace.UpdateLayoutTree": 10,
+    "trace.Paint": 50,
+    "trace.PrePaint": 24,
+    "trace.UpdateLayer": 160,
+    "raster.invalidationAreaPx": 103153735
+   },
+   "approach": {
+    "frames": 1,
+    "trace.Layout": 0,
+    "trace.Layout.dirtyObjects": 0,
+    "trace.UpdateLayoutTree": 4,
+    "trace.Paint": 2,
+    "trace.PrePaint": 3,
+    "trace.UpdateLayer": 16,
+    "raster.invalidationAreaPx": 76260
+   },
+   "open": {
+    "frames": 110,
+    "trace.Layout": 110,
+    "trace.Layout.dirtyObjects": 3852,
+    "trace.UpdateLayoutTree": 119,
+    "trace.Paint": 450,
+    "trace.PrePaint": 226,
+    "trace.UpdateLayer": 3420,
+    "raster.invalidationAreaPx": 389615285
+   },
+   "hover": {
+    "frames": 60,
+    "trace.Layout": 36,
+    "trace.Layout.dirtyObjects": 1347,
+    "trace.UpdateLayoutTree": 64,
+    "trace.Paint": 192,
+    "trace.PrePaint": 93,
+    "trace.UpdateLayer": 1975,
+    "raster.invalidationAreaPx": 714569707
+   },
+   "scroll": {
+    "frames": 40,
+    "trace.Layout": 28,
+    "trace.Layout.dirtyObjects": 969,
+    "trace.UpdateLayoutTree": 191,
+    "trace.Paint": 150,
+    "trace.PrePaint": 120,
+    "trace.UpdateLayer": 1070,
+    "raster.invalidationAreaPx": 308551
+   },
+   "tail": {
+    "frames": 10,
+    "trace.Layout": 10,
+    "trace.Layout.dirtyObjects": 350,
+    "trace.UpdateLayoutTree": 10,
+    "trace.Paint": 20,
+    "trace.PrePaint": 20,
+    "trace.UpdateLayer": 240,
+    "raster.invalidationAreaPx": 0
+   }
+  }
+ },
+ "probe": {
+  "pairs": "base rN vs flag rN, node probe-compare.mjs",
+  "r1": {
+   "rectDiff": 0,
+   "cardPixelDiff": 0,
+   "translateFrames": 49
+  },
+  "r2": {
+   "rectDiff": 0,
+   "cardPixelDiff": 0,
+   "translateFrames": 49
+  },
+  "r3": {
+   "rectDiff": 0,
+   "cardPixelDiff": 40,
+   "translateFrames": 49,
+   "note": "flag run 3 differs from all five other runs in card pixels; its card left is 0.92 px off from hover frame 121 on, before any scroll frame (a start-phase difference of the card animation, INFERRED not the flag)"
+  },
+  "cardPixelGroupsScroll": [
+   "b1,b2,b3,f1,f2 identical",
+   "f3 alone"
+  ],
+  "viewportHash": "differs between runs of one arm (noise), reported only"
+ },
+ "classes": {
+  "kMax": 4,
+  "tMax": 24,
+  "base": {
+   "trace.Layout": "deterministic",
+   "trace.Layout.dirtyObjects": "deterministic",
+   "trace.UpdateLayoutTree": "deterministic",
+   "trace.Paint": "quarantined (k6)",
+   "metric.LayoutCount": "deterministic"
+  },
+  "flag": {
+   "trace.Layout": "stable (k2)",
+   "trace.Layout.dirtyObjects": "stable",
+   "trace.UpdateLayoutTree": "stable",
+   "trace.Paint": "stable (k4)",
+   "metric.LayoutCount": "stable",
+   "metric.LayoutObjects": "quarantined",
+   "metric.Nodes": "quarantined",
+   "metric.JSEventListeners": "quarantined"
+  }
+ }
+}
