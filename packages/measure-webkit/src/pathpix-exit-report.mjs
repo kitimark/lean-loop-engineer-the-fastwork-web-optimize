@@ -51,7 +51,7 @@ const raw = (x) => `${x.changed}-${x.maxDelta}`;
 export const lSource = (p) => (p.grade !== 'L' ? null : p.why === 'text' ? 'strips not accepted' : p.why === 'inside' ? 'floor' : p.why === 'outside' ? 'outside the mask' : '?');
 
 const cellAt = (l, key, i, kind) => l.cells.find((c) => c.key === key && c.i === i && c.kind === kind);
-const skipAt = (l, key, i, kind) => l.skipped.find((x) => (x.key === key || x.kind === 'all') && x.i === i && (x.kind === kind || x.kind === 'all'))?.why ?? null;
+const skipAt = (l, key, i, kind) => l.skipped.find((x) => (x.key === key || x.key === undefined) && x.i === i && (x.kind === kind || x.kind === 'all'))?.why ?? null;
 
 /** hero_copy at every offset in every job: the A/A floor and the P cell side by side (no number typed by hand). */
 export function heroCopyTable(engine, lanes, key = HERO) {
@@ -83,10 +83,17 @@ export function heroCopySummary(engine, lanes, key = HERO) {
     `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
 }
 
+/** Parts by name with a count, so thirty digit faces print as one entry. */
+const partList = (parts) => {
+  const n = new Map();
+  for (const p of parts) n.set(p, (n.get(p) ?? 0) + 1);
+  return [...n].map(([p, k]) => (k > 1 ? `${p} x${k}` : p)).join(', ') || 'none named';
+};
+
 /** The pixels an A/A cell changed inside the layer's mask, as a box (device px), with the parts of the layer that box touches. */
 export function heroCopyWhere(lanes, key = HERO) {
   const out = ['| job | offset | kind | inside chg-max | box (device px) | parts the box touches |', '|---|---|---|---|---|---|'];
-  for (const l of lanes) for (const c of l.cells) if (c.key === key && c.inside.changed > 0 && c.where) out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.inside)} | ${c.where.bbox ? c.where.bbox.join(',') : '-'} | ${c.where.parts.join(', ') || 'none named'} |`);
+  for (const l of lanes) for (const c of l.cells) if (c.key === key && c.inside.changed > 0 && c.where) out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.inside)} | ${c.where.bbox ? c.where.bbox.join(',') : '-'} | ${partList(c.where.parts)} |`);
   return out.join('\n');
 }
 

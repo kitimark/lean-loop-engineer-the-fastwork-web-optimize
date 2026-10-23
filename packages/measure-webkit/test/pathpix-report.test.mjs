@@ -16,12 +16,12 @@ const lane = (label, cells, skipped = [], extra = {}) => slimLane(label, `art-${
 
 const jobs = () => [
   lane('webkit-1', [
-    full('hero_copy', 0, 'A/A', { cell: { inside: raw(48, 1), out: raw(0, 0), p1: true, claim }, where: { bbox: [10, 20, 30, 40], parts: ['button.cta', 'p.note'] } }),
+    full('hero_copy', 0, 'A/A', { cell: { inside: raw(48, 1), out: raw(0, 0), p1: true, claim }, where: { bbox: [10, 20, 30, 40], parts: ['button.cta', 'span.face', 'span.face', 'p.note'] } }),
     full('hero_copy', 0, 'P', { grade: 'L', why: 'inside', ifAccepted: 'L', cell: { inside: raw(60, 2), out: raw(0, 0), p1: true, claim } }),
     full('hero_copy', 1, 'A/A', {}),
     full('hero_copy', 1, 'P', { grade: 'L', why: 'text', ifAccepted: 'Q' }),
     full('hero_copy', 2, 'P', { grade: 'invalid', invalidWhy: 'misplaced', ifAccepted: 'invalid', accentPinned: false }),
-  ], [{ key: 'hero_copy', i: 2, kind: 'A/A', why: 'occluded by opaque foreign content in both arms' }], { clock: { values: [100], constant: true } }),
+  ], [{ key: 'hero.cue_cue', i: 2, kind: 'all', why: 'off screen at this offset' }, { key: 'hero_copy', i: 2, kind: 'A/A', why: 'occluded by opaque foreign content in both arms' }], { clock: { values: [100], constant: true } }),
   lane('webkit-2', [
     full('hero_copy', 0, 'A/A', {}),
     full('hero_copy', 0, 'P', { grade: 'L', why: 'outside', ifAccepted: 'L', cell: { inside: raw(0, 0), out: raw(3, 9), p1: true, claim } }),
@@ -64,7 +64,7 @@ test('hero_copy summary counts grades and L sources from the cells', () => {
 test('the changed-box list names the parts, only for cells with a change inside', () => {
   const md = heroCopyWhere(jobs()).split('\n');
   assert.equal(md.length, 3);
-  assert.ok(md[2].includes('webkit-1 | 0 | A/A | 48-1 | 10,20,30,40 | button.cta, p.note'));
+  assert.ok(md[2].includes('webkit-1 | 0 | A/A | 48-1 | 10,20,30,40 | button.cta, span.face x2, p.note'));
 });
 
 test('the pin table reads the page clock, unpinned, misplaced and occluded counts', () => {
