@@ -7,6 +7,7 @@ import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { GhClock, phasedEnv } from "./run-phases.ts";
 import { collectGh, type GhFetch, type GhSnap } from "./watch-gh.ts";
 import { collectSvcs, type Svc } from "./watch-svc.ts";
 import { foldFile, sweepCache } from "./watch-cache.ts";
@@ -516,6 +517,8 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
+export const WATCH_LOCK_WAIT_MS = 3000;
+
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
  *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
  *  the caller carries the previous value forward. The collector never blocks on the budget. `getEnv` is lazy and cached. */
@@ -523,13 +526,15 @@ export function chargedRunner(base: Runner, getEnv: () => Env): Runner {
   return async (cmd, args, timeout, cwd, anyExit) => {
     if (cmd !== "gh") return base(cmd, args, timeout, cwd, anyExit);
     try {
-      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3 });
+      watchGh.start();
+      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3, timeoutMs: timeout, lockWaitMs: WATCH_LOCK_WAIT_MS }).finally(() => watchGh.end());
       return res.ran && res.code === 0 ? res.stdout : null;
     } catch { return null; }
   };
 }
 let sysEnv: { cwd: string; env: Env } | null = null;
-const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: realEnv(cwd) }).env);
+export const watchGh = new GhClock();
+const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: phasedEnv(realEnv(cwd), (e) => watchGh.on(e)) }).env);
 
 export function parseMemLevel(out: string | null): "normal" | "warn" | "critical" {
   // kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical (xnu sys/kern_memorystatus.h)

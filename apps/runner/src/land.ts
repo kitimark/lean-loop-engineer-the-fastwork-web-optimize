@@ -17,7 +17,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -350,12 +350,12 @@ export function checkoutLandWt(mainDir: string, dir: string, commit: string, pre
     rmSync(dir, { recursive: true, force: true });
     git(mainDir, ["worktree", "add", "--detach", "--force", dir, commit]);
     refusal = prep?.(dir, false) ?? null;
+    git(dir, ["clean", "-fdxq", "-e", ".lake", "-e", "node_modules"]);
   } else {
     git(dir, ["checkout", "--detach", "--force", commit]);
     git(dir, ["clean", "-fdxq", "-e", ".lake", "-e", "node_modules"]);
     refusal = prep?.(dir, true) ?? null;
   }
-  git(dir, ["clean", "-fdxq", "-e", ".lake", "-e", "node_modules"]);
   return refusal;
 }
 
@@ -373,6 +373,10 @@ const installExec: InstallExec = (argv, cwd) => {
 };
 const resultOf = (r: InstallResult) => (typeof r === "boolean" ? { ok: r, tail: "" } : { ok: r.ok, tail: r.tail ?? "" });
 export const landExit = (res: { ok: boolean; kind?: Kind }): number => exitCode(res.kind ?? (res.ok ? "done" : "unknown"));
+export const dryLandReport = (res: Pick<LandResult, "lines" | "outcome">, task: string): { err: string[]; out: string[]; code: number } => {
+  const oc = res.outcome ?? outcome({ threw: true });
+  return { err: res.lines, out: dryRun(oc, task), code: exitCode(outcomeKind(oc)) };
+};
 export function landInstall(dir: string, exec: InstallExec = installExec): string | null {
   const off = resultOf(exec(["pnpm", "install", "--offline", "--frozen-lockfile"], dir));
   const on = installRunsOnline(off.ok) ? resultOf(exec(["pnpm", "install", "--frozen-lockfile"], dir)) : { ok: false, tail: "" };

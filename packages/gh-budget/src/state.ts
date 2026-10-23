@@ -40,9 +40,9 @@ export function saveState(dir: string, s: Json): void {
 }
 
 /** Exactly one writer at a time: run `fn` holding the state lock. `fn` is synchronous, so no await can interleave. */
-export function locked<T>(env: Env, fn: () => T): T {
+export function locked<T>(env: Env, fn: () => T, lockWaitMs: number = 120_000): T {
   mkdirSync(env.dir, { recursive: true });
-  const l = lockSync(paths(env.dir).lock, 120_000);
+  const l = lockSync(paths(env.dir).lock, lockWaitMs);
   try { return fn(); } finally { l.release(); }
 }
 

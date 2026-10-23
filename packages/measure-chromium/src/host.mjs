@@ -1,6 +1,3 @@
-// Host-side launcher: builds the image if needed, then runs the in-container driver against the read-only snapshot.
-//   node src/host.mjs --profile swipe-v1 [--label NAME] [--rebuild] [--debug] [--dump-trace]
-// Output: out/<profile>/<label>/counts.json (gitignored). Needs Docker (Docker Desktop is fine) and the local snapshot.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { loadavg, cpus } from 'node:os';
@@ -18,21 +15,20 @@ const label = opt('label', 'latest');
 
 function sh(cmd, args, o = {}) { return execFileSync(cmd, args, { encoding: 'utf8', ...o }).trim(); }
 
-// The snapshot lives in the main checkout (gitignored); a worktree finds it through the common git dir.
 function findSnapshot() {
   if (process.env.FW_SNAPSHOT_DIR) return resolve(process.env.FW_SNAPSHOT_DIR);
   const common = resolve(PKG, sh('git', ['-C', PKG, 'rev-parse', '--git-common-dir']));
   return join(dirname(common), 'snapshot', 'site');
 }
-const target = opt('target', 'original'); // original | rewrite
-const search = opt('search', '');         // rewrite: the query the page is opened with, for example ?fw=engine.scroll:batched
+const target = opt('target', 'original');
+const search = opt('search', '');
 const repoRoot = sh('git', ['-C', PKG, 'rev-parse', '--show-toplevel']);
 const rewriteDir = resolve(opt('site-dir', join(repoRoot, 'apps', 'site', 'dist', 'aot')));
 if (!['original', 'rewrite', 'fixture'].includes(target)) { console.error('--target must be original, rewrite or fixture'); process.exit(2); }
-const snapshot = target === 'original' ? findSnapshot() : rewriteDir; // rewrite and fixture: --site-dir (rewrite default apps/site/dist/aot)
+const snapshot = target === 'original' ? findSnapshot() : rewriteDir;
 if (!existsSync(join(snapshot, 'index.html'))) { console.error(`${target} not found at ${snapshot} (original: set FW_SNAPSHOT_DIR; rewrite: pnpm --filter @fw/site build, or --site-dir)`); process.exit(2); }
 let snapshotId = null;
-try { snapshotId = JSON.parse(readFileSync(join(repoRoot, 'snapshot.lock.json'), 'utf8')).snapshot; } catch { /* lock file absent */ }
+try { snapshotId = JSON.parse(readFileSync(join(repoRoot, 'snapshot.lock.json'), 'utf8')).snapshot; } catch {}
 
 const have = spawnSync('docker', ['image', 'inspect', IMAGE], { stdio: 'ignore' }).status === 0;
 if (!have || flag('rebuild')) {
@@ -45,18 +41,18 @@ const imageId = sh('docker', ['image', 'inspect', '--format', '{{.Id}}', IMAGE])
 const out = join(PKG, 'out', profile, label);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-const inner = ['/driver/run.mjs', `--profile=${profile}`, `--target=${target}`, ...(search ? [`--search=${search}`] : []), ...(flag('dump-trace') ? ['--dump-trace'] : [])];
+const isProbe = !!JSON.parse(readFileSync(join(PKG, 'profiles', `${profile}.json`), 'utf8')).probe;
+const inner = [isProbe ? '/driver/crash-probe.mjs' : '/driver/run.mjs', `--profile=${profile}`, `--target=${target}`, ...(search ? [`--search=${search}`] : []), ...(flag('dump-trace') ? ['--dump-trace'] : [])];
 const t0 = Date.now();
-// Host load stamp, written NEXT TO counts.json (host.json), never into it: counts are virtual-time and must not carry wall data.
-const loadStamp = () => { let idle = null; try { const m = /([\d.]+)% idle/.exec(sh('top', ['-l', '1', '-n', '0'])); idle = m ? +m[1] : null; } catch { /* top unavailable */ } return { at: new Date().toISOString(), load1: +loadavg()[0].toFixed(2), cpuIdlePct: idle, cores: cpus().length }; };
+const loadStamp = () => { let idle = null; try { const m = /([\d.]+)% idle/.exec(sh('top', ['-l', '1', '-n', '0'])); idle = m ? +m[1] : null; } catch {} return { at: new Date().toISOString(), load1: +loadavg()[0].toFixed(2), cpuIdlePct: idle, cores: cpus().length }; };
 const loadBefore = loadStamp();
-const MAX_ATTEMPTS = 5; // exit code 75 = BeginFrame hang (README, findings): run the whole container again
+const MAX_ATTEMPTS = 5;
 let r, attempts = 0;
 while (attempts < MAX_ATTEMPTS) {
   attempts++;
   r = spawnSync('docker', [
-  'run', '--rm', '--init', '--shm-size=1g', ...(process.env.FW_DOCKER_CPUS ? ['--cpus', process.env.FW_DOCKER_CPUS] : []), // H2: CPU quota of the container (CI portability)
-  ...Object.entries(process.env).filter(([k]) => /^FW_(DROP_FLAGS|NO_LAYERS|BARRIER_MIN_MS|CHROME_EXTRA|EXTRA_CATEGORIES|PROBE|BF_TIMEOUT_MS|BARRIER_MS|NOTOUCH|DEBUG|TOUCH_ACK_MS|TOUCH_SETTLE_MS)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${target === 'original' ? snapshotId ?? '' : ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
+  'run', '--rm', '--init', '--shm-size=1g', ...(process.env.FW_DOCKER_CPUS ? ['--cpus', process.env.FW_DOCKER_CPUS] : []),
+  ...Object.entries(process.env).filter(([k]) => /^FW_(DROP_FLAGS|NO_LAYERS|BARRIER_MIN_MS|CHROME_EXTRA|EXTRA_CATEGORIES|PROBE|LOAD_TRACE|BF_TIMEOUT_MS|BARRIER_MS|NOTOUCH|DEBUG|TOUCH_ACK_MS|TOUCH_SETTLE_MS)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${target === 'original' ? snapshotId ?? '' : ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
   '-v', `${join(PKG, 'src')}:/driver:ro`, '-v', `${join(PKG, 'profiles')}:/profiles:ro`,
   '-v', `${snapshot}:/snapshot/site:ro`, '-v', `${out}:/out`,
   '--entrypoint', 'node', IMAGE, ...inner,
@@ -69,9 +65,8 @@ writeFileSync(join(out, 'host.json'), JSON.stringify({ note: 'host-side wall fac
 console.error(`attempts=${attempts} (not part of the result)`);
 console.error(`wrote ${join(out, 'counts.json')} (host wall ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (r.status !== 0) process.exit(r.status ?? 1);
-if (flag('no-zones')) process.exit(0); // fixture profiles with no scroll zones (engine premise fixtures): counts.json only
-// Per-zone sums come from fwcore (Lean Fw.Measure.zoneSums), never from TS. Without a built fwcore the raw counts stay
-// valid and only zones.json is missing.
+if (isProbe) { writeFileSync(join(out, 'zones.json'), JSON.stringify({ schema: 'fw.zones/1', counts: 'counts.json', zoneHeightPx: 0, zones: [], note: 'crash probe: no counts' }) + '\n'); process.exit(0); }
+if (flag('no-zones')) process.exit(0);
 try {
   const counts = JSON.parse(readFileSync(join(out, 'counts.json'), 'utf8'));
   const zoneHeightPx = JSON.parse(readFileSync(join(PKG, 'profiles', `${profile}.json`), 'utf8')).zoneHeightPx;
