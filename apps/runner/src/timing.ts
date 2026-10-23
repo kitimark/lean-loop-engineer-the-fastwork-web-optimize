@@ -13,7 +13,13 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   kind?: string;
   skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
-  runIds?: number[]; phases?: Record<string, number | string | boolean> };
+  runIds?: number[]; phases?: Record<string, number | string | boolean>;
+  slot?: { width: number; jobs: number } };
+
+export function slotWork(slot: unknown): { work?: Record<string, string> } {
+  const w = (slot as { width?: unknown } | null | undefined)?.width;
+  return typeof w === "number" && Number.isInteger(w) && w >= 0 ? { work: { width: String(w) } } : {};
+}
 
 type Where = { main: string; sha: string };
 const cache = new Map<string, Where>();
