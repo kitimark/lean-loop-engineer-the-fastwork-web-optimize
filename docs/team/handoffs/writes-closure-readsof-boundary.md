@@ -10,12 +10,13 @@
 - Open: none inside the graph row's writes.
 
 ## What changed
-- (1) Lean `readsFrom b s` (`readsOf s = readsFrom true s`): a `../` starts a read only at a word start (text start or
-  after a `readStop` char); a `/../` inside a word reads `none`; another `../` inside a word reads nothing. Theorems
-  `readsFrom_seg`, `readsFrom_start`, `readsFrom_cons`, `readsFrom_word`, `readsFrom_true_eq`, `readsOf_mid_dotdot`
-  (`x ++ "/../" ++ y` reads `[none]`). `jsSpace`/`readStop` now use `Char` lists so `decide` proves `readStop_dot`.
-  JS twin: ci-paths.mjs `READ` regex in `leanScriptPaths`; new golden gap vector `lean/scripts/b.sh`; test
-  "x/../y is refused ..." in apps/runner/test/plan-closure.test.ts.
+- (1) Lean `readsFrom b s` (`readsOf s = readsFrom true s`): a `../` at a word start (text start or after a
+  `readStop` char) reads its word; any other `../` reads `none` (refused, fails closed), so `x/../y`, `G=../x`,
+  `a../b` and `.../c` are refused. Theorems `readsFrom_start`, `readsFrom_mid`, `readsFrom_cons`, `readsFrom_seg`,
+  `readsFrom_word`, `readsFrom_true_eq`, `readsOf_word`, `readsOf_inner_up`, `readsOf_mid_dotdot`. JS twin:
+  ci-paths.mjs `READ` (a match without capture is null); golden gap rows `lean/scripts/b.sh`, `lean/scripts/v.sh`;
+  test "a ../ inside a word is refused ..." in apps/runner/test/plan-closure.test.ts. No real lean/scripts/*.sh
+  has an inner `../` (0 refused reads on the repo).
 - (2) Lean `calm d l` = not `Fw.Obs.Timing.contended {loadMax := calmLoad}`; `calm_iff`, `mem_calmDurs`;
   `timeTable` takes `(durMs, load floor)` pairs and keeps calm runs. Golden row `timeParams` (calmLoad 4, window 30) is
   read by ci-paths `timeParams`. plan.md refreshed from main's `.fw-console/timings.jsonl`: 114 samples, 58 calm

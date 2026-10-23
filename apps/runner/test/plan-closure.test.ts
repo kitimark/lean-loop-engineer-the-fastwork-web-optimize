@@ -79,11 +79,14 @@ describe("writes closure golden (Fw.Plan.WritesClosure)", () => {
     expect(r.globs.every(cp.rowGlob)).toBe(true);
     expect(agreePaths.filter((p) => ci.matches(r.globs, p))).toEqual(r.hits);
   });
-  it("x/../y is refused for its .. segment, not read as y; a ../ inside a word without /../ reads nothing", async () => {
+  it("a ../ inside a word is refused, never read and never dropped", async () => {
     const cp = await ciPaths();
     expect(cp.leanScriptPaths("cat x/../y")).toEqual([null]);
     expect(cp.gapsFrom([{ script: "s", text: "cat x/../y\n" }], ["y"])).toEqual([{ script: "s", path: null }]);
-    expect(cp.leanScriptPaths("a../b .../c ;../d")).toEqual(["d"]);
+    expect(cp.leanScriptPaths("a../b .../c ;../d")).toEqual([null, null, "d"]);
+    expect(cp.leanScriptPaths("G=../x")).toEqual([null]);
+    for (const t of ["G=../packages/x.jsonl", "node --golden=../a.json", "x $(../b.sh)", "a,../c", "x:../d"])
+      expect(cp.leanScriptPaths(t)).toEqual([null]);
   });
   it("a read with a .. segment is a non-literal gap even under a ** row glob", async () => {
     const cp = await ciPaths();

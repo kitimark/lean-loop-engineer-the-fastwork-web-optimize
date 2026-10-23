@@ -20,8 +20,9 @@ differs (`previousGraph`, from `git log --first-parent`). It refuses only the wr
 
 The gaps both lints use come from `scripts/ci-paths.mjs` `leanInputGaps`: every `../` path at a word start that a
 `lean/scripts/*.sh` reads and the lean.yml row globs miss. A read with a `..` segment counts as a non-literal read and is
-refused (Lean `readPath`, `dotdot_gap`), so a `**` row glob cannot cover `lean/../x`; a `/../` inside a word is refused
-the same way, so `x/../y` is not read as `y` (Lean `readsOf_mid_dotdot`). `node scripts/ci-paths.mjs --check` refuses a row
+refused (Lean `readPath`, `dotdot_gap`), so a `**` row glob cannot cover `lean/../x`; a `../` inside a word is refused
+the same way, so `x/../y`, `G=../x` and `a,../c` are refused, never read or dropped (Lean `readsFrom_mid`,
+`readsOf_inner_up`, `readsOf_mid_dotdot`). `node scripts/ci-paths.mjs --check` refuses a row
 glob outside Lean `rowGlob` (letters, digits, `._-/*`, one leading `!`). MEASURED: on that subset the JS `matches` and
 Lean `ghMatches` agree on the golden `agree` rows of `packages/contracts/golden/plan/writes-closure.jsonl` (globs built
 from `**`, `***`, `**/` and the prefixes of longer patterns, each alone and as `**` minus it, over a path list), replayed by

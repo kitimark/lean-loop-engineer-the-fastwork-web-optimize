@@ -281,7 +281,7 @@ theorem readStop_slash : readStop '/' = false := by decide
 
 def readsFrom : Bool → List Char → List (Option String)
   | true, '.' :: '.' :: '/' :: r => literalRead (r.takeWhile (!readStop ·)) :: readsFrom false (r.dropWhile (!readStop ·))
-  | _, '/' :: '.' :: '.' :: '/' :: r => none :: readsFrom false (r.dropWhile (!readStop ·))
+  | false, '.' :: '.' :: '/' :: r => none :: readsFrom false (r.dropWhile (!readStop ·))
   | _, c :: r => readsFrom (readStop c) r
   | _, [] => []
 termination_by _ s => s.length
@@ -293,25 +293,31 @@ decreasing_by
 
 def readsOf (s : List Char) : List (Option String) := readsFrom true s
 
-def dotdotSeg : List Char := ['/', '.', '.', '/']
+def upSeg : List Char := ['.', '.', '/']
 
-theorem readsFrom_seg (b : Bool) (r : List Char) :
-    readsFrom b ('/' :: '.' :: '.' :: '/' :: r) = none :: readsFrom false (r.dropWhile (!readStop ·)) := by
-  cases b <;> rw [readsFrom]
+def dotdotSeg : List Char := ['/', '.', '.', '/']
 
 theorem readsFrom_start (r : List Char) :
     readsFrom true ('.' :: '.' :: '/' :: r) =
       literalRead (r.takeWhile (!readStop ·)) :: readsFrom false (r.dropWhile (!readStop ·)) := by
   rw [readsFrom]
 
-theorem readsFrom_cons (b : Bool) (c : Char) (r : List Char) (h1 : ¬(b = true ∧ ['.', '.', '/'] <+: c :: r))
-    (h2 : ¬dotdotSeg <+: c :: r) : readsFrom b (c :: r) = readsFrom (readStop c) r := by
+theorem readsFrom_mid (r : List Char) :
+    readsFrom false ('.' :: '.' :: '/' :: r) = none :: readsFrom false (r.dropWhile (!readStop ·)) := by
+  rw [readsFrom]
+
+theorem readsFrom_cons (b : Bool) (c : Char) (r : List Char) (h : ¬upSeg <+: c :: r) :
+    readsFrom b (c :: r) = readsFrom (readStop c) r := by
   rw [readsFrom.eq_def]
   split
-  next _ _ _ he => exact absurd ⟨rfl, _, he.symm⟩ h1
-  next _ _ _ _ he => exact absurd ⟨_, he.symm⟩ h2
-  next _ _ _ _ _ _ _ he => obtain ⟨rfl, rfl⟩ := List.cons.inj he; rfl
+  next _ _ _ he => exact absurd ⟨_, he.symm⟩ h
+  next _ _ _ he => exact absurd ⟨_, he.symm⟩ h
+  next _ _ _ _ _ _ he => obtain ⟨rfl, rfl⟩ := List.cons.inj he; rfl
   next _ _ _ he => simp at he
+
+theorem readsFrom_seg (b : Bool) (r : List Char) :
+    readsFrom b ('/' :: '.' :: '.' :: '/' :: r) = none :: readsFrom false (r.dropWhile (!readStop ·)) := by
+  rw [readsFrom_cons b '/' _ (by simp [upSeg]), readStop_slash, readsFrom_mid]
 
 theorem dropWhile_word (t : List Char) (h : ∀ c ∈ t, readStop c = false) : t.dropWhile (!readStop ·) = [] := by
   induction t with
@@ -319,44 +325,50 @@ theorem dropWhile_word (t : List Char) (h : ∀ c ∈ t, readStop c = false) : t
   | cons c r ih => simp [h c List.mem_cons_self, ih fun d hd => h d (List.mem_cons_of_mem c hd)]
 
 theorem readsFrom_word (w : List Char) (hw : ∀ c ∈ w, readStop c = false) :
-    readsFrom false w = if dotdotSeg <:+: w then [none] else [] := by
+    readsFrom false w = if upSeg <:+: w then [none] else [] := by
   induction w using List.rec with
-  | nil => simp [readsFrom, dotdotSeg]
+  | nil => simp [readsFrom, upSeg]
   | cons c r ih =>
     have hr : ∀ c ∈ r, readStop c = false := fun d hd => hw d (List.mem_cons_of_mem c hd)
-    by_cases hs : dotdotSeg <+: c :: r
+    by_cases hs : upSeg <+: c :: r
     · obtain ⟨t, ht⟩ := hs
-      simp only [dotdotSeg, List.cons_append, List.nil_append] at ht
+      simp only [upSeg, List.cons_append, List.nil_append] at ht
       obtain ⟨rfl, rfl⟩ := List.cons.inj ht
-      rw [readsFrom_seg, dropWhile_word t fun d hd => hw d (by simp [hd]), readsFrom]
-      simp [show dotdotSeg <:+: '/' :: '.' :: '.' :: '/' :: t from ⟨[], t, rfl⟩]
+      rw [readsFrom_mid, dropWhile_word t fun d hd => hw d (by simp [hd]), readsFrom]
+      simp [show upSeg <:+: '.' :: '.' :: '/' :: t from ⟨[], t, rfl⟩]
     · simp only [List.infix_cons_iff, hs, false_or]
-      rw [← ih hr, readsFrom_cons false c r (by simp) hs, hw c List.mem_cons_self]
+      rw [← ih hr, readsFrom_cons false c r hs, hw c List.mem_cons_self]
 
 theorem readsFrom_true_eq (w : List Char) (h : w.head? ≠ some '.') : readsFrom true w = readsFrom false w := by
   cases w with
   | nil => rw [readsFrom, readsFrom]
   | cons c r =>
-    by_cases hs : dotdotSeg <+: c :: r
-    · obtain ⟨t, ht⟩ := hs
-      simp only [dotdotSeg, List.cons_append, List.nil_append] at ht
-      rw [← ht, readsFrom_seg, readsFrom_seg]
-    · have hc : ¬['.', '.', '/'] <+: c :: r := fun ⟨_, ht⟩ => h (by simp [← ht])
-      rw [readsFrom_cons true c r (by simp [hc]) hs, readsFrom_cons false c r (by simp) hs]
+    have hc : ¬upSeg <+: c :: r := fun ⟨_, ht⟩ => h (by simp [upSeg, ← ht])
+    rw [readsFrom_cons true c r hc, readsFrom_cons false c r hc]
 
-theorem readsOf_mid_dotdot (x y : List Char) (hx : ∀ c ∈ x, readStop c = false) (hy : ∀ c ∈ y, readStop c = false)
-    (h : x.head? ≠ some '.') : readsOf (x ++ dotdotSeg ++ y) = [none] := by
-  have hd : (x ++ dotdotSeg ++ y).head? ≠ some '.' := by cases x <;> simp_all [dotdotSeg]
-  have hw : ∀ c ∈ x ++ dotdotSeg ++ y, readStop c = false := by
+theorem readsOf_word (w : List Char) (hw : ∀ c ∈ w, readStop c = false) (h : w.head? ≠ some '.') :
+    readsOf w = if upSeg <:+: w then [none] else [] := by
+  rw [readsOf, readsFrom_true_eq w h, readsFrom_word w hw]
+
+theorem readsOf_inner_up (x y : List Char) (hx : ∀ c ∈ x, readStop c = false) (hy : ∀ c ∈ y, readStop c = false)
+    (hn : x ≠ []) (h : x.head? ≠ some '.') : readsOf (x ++ upSeg ++ y) = [none] := by
+  have hd : (x ++ upSeg ++ y).head? ≠ some '.' := by cases x <;> simp_all
+  have hw : ∀ c ∈ x ++ upSeg ++ y, readStop c = false := by
     intro c hc
     simp only [List.mem_append] at hc
     rcases hc with (hc | hc) | hc
     · exact hx c hc
-    · simp only [dotdotSeg, List.mem_cons, List.not_mem_nil, or_false] at hc
-      rcases hc with rfl | rfl | rfl | rfl <;> simp only [readStop_dot, readStop_slash]
+    · simp only [upSeg, List.mem_cons, List.not_mem_nil, or_false] at hc
+      rcases hc with rfl | rfl | rfl <;> simp only [readStop_dot, readStop_slash]
     · exact hy c hc
-  rw [readsOf, readsFrom_true_eq _ hd, readsFrom_word _ hw]
+  rw [readsOf_word _ hw hd]
   simp
+
+theorem readsOf_mid_dotdot (x y : List Char) (hx : ∀ c ∈ x, readStop c = false) (hy : ∀ c ∈ y, readStop c = false)
+    (h : x.head? ≠ some '.') : readsOf (x ++ dotdotSeg ++ y) = [none] := by
+  have he : x ++ dotdotSeg ++ y = (x ++ ['/']) ++ upSeg ++ y := by simp [dotdotSeg, upSeg]
+  rw [he]
+  exact readsOf_inner_up _ y (fun c hc => (List.mem_append.mp hc).elim (hx c) fun hs => by simp only [List.mem_singleton] at hs; exact hs ▸ readStop_slash) hy (by simp) (by cases x <;> simp_all)
 
 def normRead (p : String) : String := "/".intercalate (Fw.Ops.PathCheck.segs p)
 
@@ -481,8 +493,9 @@ theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String 
     exact ⟨⟨s, p⟩, (mem_gapsOf ss gs ⟨s, p⟩).mpr ⟨hr, hm⟩, hn⟩
 
 #guard readsOf ". ../scripts/span.sh\nx ../a/$b ../ .../c;../d".toList ==
-  [some "scripts/span.sh", none, none, some "d"]
-#guard readsOf "x/../y".toList == [none] && readsOf "a../b .../c ../..".toList == [some ".."]
+  [some "scripts/span.sh", none, none, none, some "d"]
+#guard readsOf "x/../y".toList == [none] && readsOf "a../b .../c ;../d ../..".toList == [none, none, some "d", some ".."]
+#guard ["G=../x", "node --golden=../a.json", "x $(../b.sh)", "a,../c", "x:../d"].all (readsOf ·.toList == [none])
 #guard readsOf "$R/../x \"/../y\" ../a/../b x/../../c".toList == [none, none, some "a/../b", none]
 #guard scriptReads [("s", "cat x/../y")] == [⟨"s", none⟩]
 #guard ghMatches ["lean/**"] "lean/a/b.lean" && !ghMatches ["lean/**"] "lean"
@@ -869,6 +882,7 @@ def gapVectors : List (List (String × String) × List String) := [
   ([("lean/scripts/n.sh", "x ../a//b/./c.json .../d.json ../../e ../f*.json ../g{1}\n")], ["a/b/**", "!a/b/c.json"]),
   ([("lean/scripts/w.sh", "x ../a.json\u00a0../b.json\u2003../c.json\x0b../d.json;../e.json|../f.json\n")], ["a.json", "c.json"]),
   ([("lean/scripts/b.sh", "cat x/../y a../b.json .../c.json \"$R/../z\" /../d ../ok.json ../e/../f\n")], ["**"]),
+  ([("lean/scripts/v.sh", "G=../packages/x.jsonl node --golden=../a.json x $(../b.sh) a,../c x:../d ../ok.json\n")], ["**"]),
   (classposScripts, leanRow), (sumsScripts, leanRow), (mainScripts, leanRow)]
 
 def gapRow (ss : List (String × String)) (gs : List String) : Json :=

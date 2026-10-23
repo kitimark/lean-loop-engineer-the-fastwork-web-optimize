@@ -838,10 +838,10 @@ export function portableGlob(g) {
   return !/[?+\[\]!{}]/.test(g) && !g.split('/').some((seg) => seg.includes('**') && seg !== '**') && !g.startsWith('/');
 }
 
-const READ = /(?<![^\s'"`;)|&<>])\.\.\/([^\s'"`;)|&<>]*)|\/\.\.\/[^\s'"`;)|&<>]*/g;
+const READ = /(?<![^\s'"`;)|&<>])\.\.\/([^\s'"`;)|&<>]*)|\.\.\/[^\s'"`;)|&<>]*/g;
 
 /** Lean `readsOf`: the repo paths a shell script under lean/scripts reads relative to lean/ (a `../<path>` at a word
- *  start); a path that is not a literal (empty, or with `$`, `*`, `?`, `{`) and a `/../` inside a word are null, so the
+ *  start); a path that is not a literal (empty, or with `$`, `*`, `?`, `{`) and a `../` inside a word are null, so the
  *  lint fails closed on them. */
 export function leanScriptPaths(text) {
   return [...text.matchAll(READ)].map((m) => (m[1] === undefined || m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
