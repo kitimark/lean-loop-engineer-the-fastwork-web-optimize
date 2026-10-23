@@ -95,6 +95,9 @@ structure Config where
   liveAgents : Option (List String) := none
   landedTasks : Option (List String) := none
   finishedRuns : Option (List String) := none
+  landSubjects : Option (List String) := none
+  liveRuns : Option (List String) := none
+  landedRuns : Option (List String) := none
 deriving Repr
 
 def defaultIdleH : Nat := 24
@@ -226,7 +229,25 @@ def ruleLake (cfg : Config) (x : Cand) : Bool :=
   | some lc, some f => lc.root == cfg.roots.lake && x.path == LakeGc.pathOf lc.root f.name && LakeGc.ok lc f
   | _, _ => false
 
-def ruleLanded (x : Cand) : Bool := x.dir && x.branch != "" && x.merged == some true && x.dirty == some false
+def runOwns (r path : String) : Bool := (lastSeg path).startsWith (r ++ "-")
+
+def landCommit (cfg : Config) (x : Cand) : Bool :=
+  match cfg.landSubjects with
+  | none => false
+  | some l => l.contains ("land " ++ x.branch)
+
+def landedByTask (cfg : Config) (x : Cand) : Bool :=
+  match cfg.landedRuns with
+  | none => false
+  | some l => l.any (runOwns · x.path)
+
+def usedByLive (cfg : Config) (x : Cand) : Bool :=
+  match cfg.liveRuns with
+  | none => true
+  | some l => l.any (runOwns · x.path)
+
+def ruleLanded (cfg : Config) (x : Cand) : Bool :=
+  x.dir && x.branch != "" && (landCommit cfg x || landedByTask cfg x) && x.merged == some true && !usedByLive cfg x && x.dirty == some false
 
 def ruleIdle (cfg : Config) (x : Cand) : Bool :=
   x.dir && x.branch != "" && x.merged == some false && olderThan cfg x (cfg.idleH * 3600)
@@ -261,7 +282,7 @@ def ruleUsertmp (cfg : Config) (x : Cand) : Bool := x.sym == some false && older
 def rule (cfg : Config) (x : Cand) : Bool :=
   match x.cls with
   | .lake => ruleLake cfg x
-  | .landed => ruleLanded x
+  | .landed => ruleLanded cfg x
   | .idle => ruleIdle cfg x
   | .scratch => ruleScratch cfg x
   | .sim => ruleSim cfg x
@@ -296,7 +317,8 @@ def exRoots : Roots :=
 def exCfg : Config :=
   { roots := exRoots, classes := Cls.all, uid := 1, now := 1000000, idleH := 24, scratchH := 8, keepDays := 7,
     lake := some ⟨exRoots.lake, 1000000, 7200, 0, some [], some [], some []⟩, opens := some [], procs := some [],
-    queued := some [], cited := some [], named := some ["fw-iphone-27"], simLock := some false }
+    queued := some [], cited := some [], named := some ["fw-iphone-27"], simLock := some false,
+    landSubjects := some ["land b"], liveRuns := some [], landedRuns := some [] }
 
 def exScratch (d : String) (newest : Nat) : Cand :=
   { cls := .scratch, path := s!"/private/tmp/claude-1/-u-r/s1/scratchpad/{d}", bytes := 10, uid := some 1, tracked := false,
@@ -315,7 +337,7 @@ def exScratch (d : String) (newest : Nat) : Cand :=
 #guard !chosen { exCfg with classes := [.lake] } (exScratch "old" 0)
 def exWt (c : Cls) (rel : String) (merged : Bool) (k : Lock) : Cand :=
   { cls := c, path := s!"/u/r/.claude/worktrees/{rel}", bytes := 1, uid := some 1, tracked := false, newest := 0,
-    dir := true, branch := "b", merged := some merged, dirty := some false, lock := k }
+    dir := true, branch := if merged then "b" else "open", merged := some merged, dirty := some false, lock := k }
 
 def exSim (n : String) : Cand :=
   { cls := .sim, path := "/u/Library/Developer/CoreSimulator/Devices/0a1b2c3d-0000-1111-2222-333344445555",
@@ -331,6 +353,17 @@ def exConsole (rel : String) : Cand :=
 #guard !chosen { exCfg with queued := some ["b"] } (exWt .landed "w1" true .free)
 #guard chosen exCfg (exWt .landed "w1" true (.held 7 "Mon Oct  9 1"))
 #guard !chosen { exCfg with procs := some [⟨7, "Mon Oct 9 1"⟩] } (exWt .landed "w1" true (.held 7 "Mon Oct  9 1"))
+#guard !chosen { exCfg with landSubjects := some ["land other"] } (exWt .landed "wf_1f-dfd-1" true .free)
+#guard !chosen { exCfg with landSubjects := none } (exWt .landed "w1" true .free)
+#guard !chosen { exCfg with liveRuns := some ["wf_1f-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
+#guard chosen { exCfg with liveRuns := some ["wf_2a-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
+#guard !chosen { exCfg with liveRuns := none } (exWt .landed "w1" true .free)
+#guard chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
+#guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-dfd"], liveRuns := some ["wf_1f-dfd"] }
+  (exWt .landed "wf_1f-dfd-1" true .free)
+#guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-df"] } (exWt .landed "wf_1f-dfd-1" true .free)
+#guard !chosen exCfg (exWt .landed "w1" false .free)
+#guard !chosen { exCfg with landSubjects := some ["land open"] } (exWt .landed "w1" false .free)
 #guard chosen exCfg (exWt .idle "w1/lean/.lake" false .free)
 #guard chosen exCfg (exWt .idle "w1/apps/site/node_modules" false .free)
 #guard !chosen exCfg (exWt .idle "w1/lean" false .free)
@@ -528,9 +561,58 @@ theorem rule_lake (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select c
       exact ⟨lc, f, rfl, rfl, hr.1.1.symm ▸ hr.1.2, hr.2⟩
 
 theorem rule_landed (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
-    x.dir = true ∧ x.branch ≠ "" ∧ x.merged = some true ∧ x.dirty = some false := by
+    x.dir = true ∧ x.branch ≠ "" ∧ (landCommit cfg x = true ∨ landedByTask cfg x = true) ∧
+      x.merged = some true ∧ usedByLive cfg x = false ∧ x.dirty = some false := by
   have hr := selected_rule cfg xs x h
-  simpa [rule, hc, ruleLanded, and_assoc] using hr
+  simp only [rule, hc, ruleLanded, Bool.and_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true',
+    beq_iff_eq] at hr
+  exact ⟨hr.1.1.1.1.1, hr.1.1.1.1.2, hr.1.1.1.2, hr.1.1.2, hr.1.2, hr.2⟩
+
+theorem landed_by_identity (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
+    (∃ l, cfg.landSubjects = some l ∧ ("land " ++ x.branch) ∈ l) ∨
+    (∃ l, cfg.landedRuns = some l ∧ ∃ r ∈ l, runOwns r x.path = true) := by
+  rcases (rule_landed cfg xs x h hc).2.2.1 with h1 | h1
+  · left
+    unfold landCommit at h1
+    cases hs : cfg.landSubjects with
+    | none => simp [hs] at h1
+    | some l => rw [hs] at h1; exact ⟨l, rfl, List.contains_iff_mem.mp h1⟩
+  · right
+    unfold landedByTask at h1
+    cases hs : cfg.landedRuns with
+    | none => simp [hs] at h1
+    | some l => rw [hs] at h1; exact ⟨l, rfl, by simpa using h1⟩
+
+theorem landed_never_live (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
+    ∃ l, cfg.liveRuns = some l ∧ ∀ r ∈ l, runOwns r x.path = false := by
+  have h1 := (rule_landed cfg xs x h hc).2.2.2.2.1
+  unfold usedByLive at h1
+  cases hs : cfg.liveRuns with
+  | none => simp [hs] at h1
+  | some l =>
+    rw [hs] at h1
+    refine ⟨l, rfl, fun r hr => ?_⟩
+    cases hb : runOwns r x.path
+    · rfl
+    · simp at h1; exact absurd hb (by simp [h1 r hr])
+
+theorem fast_forward_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
+    (hl : landCommit cfg x = false) (ht : landedByTask cfg x = false) : x ∉ select cfg xs := by
+  intro h
+  have := (rule_landed cfg xs x h hc).2.2.1
+  simp [hl, ht] at this
+
+theorem land_commit_selects (cfg : Config) (x : Cand) (hcl : x.cls ∈ cfg.classes) (hc : x.cls = .landed)
+    (hg : guard cfg x = true) (hd : x.dir = true) (hb : x.branch ≠ "") (hl : landCommit cfg x = true)
+    (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false) :
+    chosen cfg x = true := by
+  simp [chosen, hg, rule, hc, ruleLanded, hd, hb, hl, hm, hu, hy] at *
+  exact hcl
+
+theorem reopened_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
+    (hm : x.merged ≠ some true) : x ∉ select cfg xs := by
+  intro h
+  exact hm (rule_landed cfg xs x h hc).2.2.2.1
 
 theorem rule_idle (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .idle) :
     x.dir = true ∧ x.branch ≠ "" ∧ x.merged = some false ∧ x.newest + cfg.idleH * 3600 ≤ cfg.now := by
@@ -717,6 +799,13 @@ def namesOf (es : List Ev) (a : String) : List String :=
 def running (es : List Ev) (a : String) : Bool :=
   !stopped es a && !((runOf es a).any fun r => (finishedRuns es).contains r)
 
+def liveRuns (es : List Ev) : List String :=
+  (((agentsOf es).filter (running es)).filterMap (runOf es)).eraseDups
+
+def landedRuns (es : List Ev) : List String :=
+  (((labelled es).filterMap fun e => runOfLabel e.key).eraseDups).filter fun r =>
+    (labelled es).all fun e => runOfLabel e.key != some r || (landedTasks es).contains e.name
+
 def liveAgents (es : List Ev) : List String :=
   (((agentsOf es).filter (running es)).flatMap (namesOf es)).eraseDups
 
@@ -761,6 +850,40 @@ theorem liveAgents_spec (es : List Ev) (n : String) (h : n ∈ liveAgents es) :
   intro r hr' hmem
   have := hr.2
   simp [hr', hmem] at this
+
+theorem liveRuns_spec (es : List Ev) (r : String) (h : r ∈ liveRuns es) :
+    ∃ a, a ∈ agentsOf es ∧ stopped es a = false ∧ runOf es a = some r ∧ r ∉ finishedRuns es := by
+  unfold liveRuns at h
+  rw [List.mem_eraseDups, List.mem_filterMap] at h
+  obtain ⟨a, ha, hr⟩ := h
+  rw [List.mem_filter] at ha
+  have hh := ha.2
+  unfold running at hh
+  simp only [Bool.and_eq_true, Bool.not_eq_true'] at hh
+  refine ⟨a, ha.1, hh.1, hr, ?_⟩
+  have := hh.2
+  simp [hr] at this
+  exact this
+
+theorem landedRuns_spec (es : List Ev) (r : String) (h : r ∈ landedRuns es) :
+    (∃ e ∈ labelled es, runOfLabel e.key = some r) ∧
+      ∀ e ∈ labelled es, runOfLabel e.key = some r → e.name ∈ landedTasks es := by
+  unfold landedRuns at h
+  rw [List.mem_filter, List.mem_eraseDups, List.mem_filterMap] at h
+  obtain ⟨⟨e, he, hr⟩, hall⟩ := h
+  refine ⟨⟨e, he, hr⟩, fun e' he' hr' => ?_⟩
+  have := (List.all_eq_true.mp hall) e' he'
+  simpa [hr', List.contains_iff_mem] using this
+
+theorem landedRuns_undone (es : List Ev) (r : String) (e : Ev) (he : e ∈ labelled es)
+    (hr : runOfLabel e.key = some r) (hn : e.name ∉ landedTasks es) : r ∉ landedRuns es :=
+  fun h => hn ((landedRuns_spec es r h).2 e he hr)
+
+#guard landedRuns [⟨1, "agent.label", "wfid-label:wf_x:a:t1", "a", "t1", ""⟩,
+  ⟨2, "agent.label", "wfid-label:wf_x:b:t2", "b", "t2", ""⟩, ⟨3, "task.done", "", "", "", "t1"⟩] == []
+#guard landedRuns [⟨1, "agent.label", "wfid-label:wf_x:a:t1", "a", "t1", ""⟩,
+  ⟨2, "agent.label", "wfid-label:wf_x:b:t2", "b", "t2", ""⟩, ⟨3, "task.done", "", "", "", "t1"⟩,
+  ⟨4, "task.done", "", "", "", "t2"⟩] == ["wf_x"]
 
 theorem finishedRuns_spec (es : List Ev) (r : String) (h : r ∈ finishedRuns es) :
     ∃ e ∈ es, e.type = "agent.stop" ∧ runOfEnd e.key = some r := by
@@ -857,7 +980,10 @@ def configOf (req : Json) : Except String Config := do
     tmpH := ← natD req "tmpH" defaultTmpH, pressure := (← optBool req "pressure").getD false,
     liveAgents := ← Fw.Wire.LakeGc.optList req "liveAgents" (asStr "liveAgents"),
     landedTasks := ← Fw.Wire.LakeGc.optList req "landedTasks" (asStr "landedTasks"),
-    finishedRuns := ← Fw.Wire.LakeGc.optList req "finishedRuns" (asStr "finishedRuns") }
+    finishedRuns := ← Fw.Wire.LakeGc.optList req "finishedRuns" (asStr "finishedRuns"),
+    landSubjects := ← Fw.Wire.LakeGc.optList req "landSubjects" (asStr "landSubjects"),
+    liveRuns := ← Fw.Wire.LakeGc.optList req "liveRuns" (asStr "liveRuns"),
+    landedRuns := ← Fw.Wire.LakeGc.optList req "landedRuns" (asStr "landedRuns") }
 
 def opDiskGc (req : Json) : Except String Reply := do
   let cfg ← configOf req
@@ -890,7 +1016,8 @@ def opDiskGcFacts (req : Json) : Except String Reply := do
   let es ← (← arr req "events").toList.mapM evOf
   let strs (l : List String) : Json := .arr (l.toArray.map .str)
   pure [("liveAgents", strs (liveAgents es)), ("landedTasks", strs (landedTasks es)),
-    ("finishedRuns", strs (finishedRuns es))]
+    ("finishedRuns", strs (finishedRuns es)), ("liveRuns", strs (liveRuns es)),
+    ("landedRuns", strs (landedRuns es))]
 
 def ops : List String := ["ops.diskGc", "ops.diskGcPath", "ops.diskGcFacts"]
 
