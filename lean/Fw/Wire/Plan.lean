@@ -346,12 +346,10 @@ def opRoster : Reply :=
     ("runsAs", .str (match r.runsAs with | .teammate => "teammate" | .subagent => "subagent" | .worktree => "worktree")),
     ("edits", .bool r.edits)]))]
 
-/-- The stateless ops of this module. -/
 def ops : List String :=
   ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts",
    "plan.polishHunks", "plan.polishSettle", "plan.polishWalk", "plan.wtName", "plan.inWt", "plan.roster"]
 
-/-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "plan.incidentLint" => some (opIncidentLint req)

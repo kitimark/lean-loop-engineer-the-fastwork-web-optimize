@@ -238,7 +238,6 @@ deriving Repr, DecidableEq
 def Own.name : Own → String
   | .own => "own" | .badMain => "badMain" | .badName => "badName" | .notPlain => "notPlain" | .outside => "outside"
 
-/-- Whether an edited path is inside worktree `name` of the main checkout `main`, after anchoring a relative `raw` at `main`. -/
 def ownEdit (main name raw : String) : Own :=
   if !absPlain main then .badMain
   else if !nameOk name then .badName
