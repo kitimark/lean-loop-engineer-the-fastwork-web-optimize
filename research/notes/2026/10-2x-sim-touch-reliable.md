@@ -215,3 +215,18 @@ Task `sim-touch-followups`, items (1) to (6) of the 2026-10-24 review of run `40
 - Slow windows occur in 5 of 6 jobs, 1 to 5 per job, in hero and end windows alike (4 hero, 9 end). The `Timeline.stop` timeout happened in 2 of 6 jobs, once each, and only in non-touch windows (touch windows start no Timeline).
 - The 744 s hero window has no retry line in the log (no timeout, no attempt, two `inspector probe failed (tick): socket up, proxy down, page missing`): a single `readWindow` waited that long inside our harness, so the wait was, INFERRED, a chain of calls that each stayed under its own timeout (`FW_WK_TIMEOUT_SCALE` 8) on a host with load average 718; the window log has no phase times, so the phase is not read.
 - Why no per-window bound (CONFIRMED by reading `sim-cadence.mjs`): a window shares one inspector socket with the retry. Abandoning a window leaves its pending calls on that socket and the only recovery is `reconnect`, the path that already ran in the 744 s window. A Lean bound on the window would only rename the wait. What is bounded is the sum: the walk deadline (`startsWindow`, `untilDeadline`, hard stop) and, with this task, the rep plan (45 s allowance, the 6 jobs above: 4 of 5 uncapped jobs fit 30 windows).
+
+### CI dispatch 1 (run 40023506144, commit 90e7c09f6): MEASURED, the plan did not reach 5 kept windows
+
+Four sim jobs on the same commit: jobs 1 to 3 SpringBoard coordinates, job 4 the control (`FW_TOUCH_VARIANTS=safari`). The Lean plan said `ok` in every job (5 or 6 reps of 3 arms). Kept finish-zone windows per arm are `base, aa, bound` from `report.mjs` `zoneReps`.
+
+| job | push server | windows | walk | job | kept finish (base, aa, bound) | why it stopped |
+|---|---|---|---|---|---|---|
+| 1 | not ready in 240 s | 4 | 1288 s | 31.3 min, green | 1, 1, 0 | page target lost 484 s, relaunch found no tab |
+| 2 | not ready in 240 s | 4 | 1110 s | 25.3 min, green | 1, 1, 0 | `Runtime.evaluate` 120 s timeout, inspector dead, relaunch found no tab |
+| 3 | not ready in 241 s | 16 | 1647 s | 37.4 min, red | 3, 2, 4 | walk deadline; windows of 285, 432 and 125 s; red from `Shut down and delete the Simulator` (139 s against its 2 min bound) |
+| 4 (control) | ready in 66 s | 29 | 1639 s | green | 4, 5, 6 | walk deadline before `base end` of rep 4; windows of 196, 85, 75 s and a 400 s tab wait |
+
+- The plan is a bound on time at 45 s a window; it cannot cover a host where the inspector dies after 4 windows (jobs 1, 2) or a rep takes 285 + 432 s (job 3). The mean window in job 4 was 28 s (819 s over 29), so a healthy job fits; the tail decides.
+- Touch: in jobs 1 to 3 the driver started its tests after the 240 s `readyMs` cut (job 3 log: the driver printed `Running tests...` 37 s after xcodebuild started, after the cut), so no end window was a touch window (`touch 0`); in job 4 the driver was ready after 66 s, pushes 0 to 3 passed with the Safari coordinates and push 4 ended `pageLost`, then the driver was given up. Control against test is therefore confounded by driver start time, not by coordinates (INFERRED: nothing in `touch-push.mjs`, `TouchPush.lean` or the driver build changed since the earlier runs, where the push server was ready in 45 to 142 s on hosts with load 480 to 960; here 1000).
+- Keep host state (item 6): in job 3 the injected `sleep 90` hit `timeout-minutes: 1`; the step took 78 s (60 s plus about 18 s to cancel), its conclusion was `success` under `continue-on-error`, and `host.txt` was never written. The job went red only through the Simulator shutdown step. Without the hang the step took 53 s (job 1) and 22 s (job 2) with both 8 s commands, so the 77 s of the first run was command time under load 728 plus runner overhead, not a missing bound.

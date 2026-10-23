@@ -546,6 +546,8 @@ jobs:
       - name: Shut down and delete the Simulator
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 2
+        # the runner is deleted after the job; a shutdown that outlasts its 2 min on a starved host (run 40023506144 job 3, 139 s) must not turn a finished walk red
+        continue-on-error: true
         run: |
           xcrun simctl shutdown all || true
           xcrun simctl delete "$FW_SIM_NAME" || true
