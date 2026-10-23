@@ -70,6 +70,9 @@ test('arms equal to faithful read same; a change inside the faithful floor reads
     assert.equal(at('in', 3).arms.F.changed, 2);
     assert.equal(at('in', 3).arms.F.band.changed, 1);
     assert.equal(at('in', 3).arms.F.rest.changed, 1);
+    assert.equal(at('in', 3).arms.F.bandDraw, 'above');
+    assert.equal(at('in', 3).arms.F.restDraw, 'above');
+    assert.equal(res.worstZone.F.band, 'above');
     assert.equal(res.worst.N, 'above');
     assert.equal(res.worstBy.N.in, 'same');
     assert.equal(res.worstBy.N.out, 'above');

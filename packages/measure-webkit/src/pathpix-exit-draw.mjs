@@ -52,7 +52,8 @@ export function analyzeDraw(dir, { strips = 'changed', emit = () => {} } = {}) {
         if (!o) { rec.arms[n] = { missing: true }; return; }
         const c = cell(a.img, o.img, band, frame.w);
         const draw = drawOf(rec.floor, c.raw);
-        rec.arms[n] = { ...c.raw, bbox: c.bbox, band: c.band, rest: c.rest, draw, kinds: o.row.kinds, anims: o.row.n };
+        const zone = (z) => (c.band && rec.floor.band ? drawOf(rec.floor[z], c[z]) : 'n/a');
+        rec.arms[n] = { ...c.raw, bbox: c.bbox, band: c.band, rest: c.rest, draw, bandDraw: zone('band'), restDraw: zone('rest'), kinds: o.row.kinds, anims: o.row.n };
         if (strips !== 'none' && band && (strips === 'all' || c.raw.changed)) {
           const m = [band[0], band[1], band[2], band[3]];
           emit(`strips/draw_${n}_${phase}_${k}.png`, encodePng(strip(a.img, o.img, c.del, m, { pad: 0, maxH: 400 })));
@@ -63,15 +64,18 @@ export function analyzeDraw(dir, { strips = 'changed', emit = () => {} } = {}) {
   }
   const worst = {};
   const worstBy = {};
+  const worstZone = {};
   for (const n of DRAW_ARMS) {
     const ds = frames.filter((f) => f.arms[n] && !f.arms[n].missing).map((f) => f.arms[n].draw);
     const read = (xs) => (xs.length ? drawWorst(xs) : 'missing');
     worst[n] = read(ds);
+    const zr = (key) => read(frames.filter((f) => f.arms[n] && !f.arms[n].missing && f.arms[n][key] !== 'n/a').map((f) => f.arms[n][key]));
+    worstZone[n] = { band: zr('bandDraw'), rest: zr('restDraw') };
     worstBy[n] = Object.fromEntries(DRAW_PHASES.map((p) => [p, read(frames.filter((f) => f.phase === p && f.arms[n] && !f.arms[n].missing).map((f) => f.arms[n].draw))]));
   }
   const missing = frames.filter((f) => f.missing || DRAW_ARMS.some((n) => f.arms[n]?.missing)).length;
   const floorMax = frames.reduce((m, f) => (f.floor ? { changed: Math.max(m.changed, f.floor.changed), maxDelta: Math.max(m.maxDelta, f.floor.maxDelta) } : m), { changed: 0, maxDelta: 0 });
-  return { mode: 'draw', run: man.run, engine: man.engine, flags: man.flags, dpr, frame, times, frames, worst, worstBy, floorMax, missing, cut: man.cut ?? [] };
+  return { mode: 'draw', run: man.run, engine: man.engine, flags: man.flags, dpr, frame, times, frames, worst, worstBy, worstZone, floorMax, missing, cut: man.cut ?? [] };
 }
 
 const px = (r) => (r ? `${r.changed} (max ${r.maxDelta})` : 'n/a');
@@ -82,18 +86,18 @@ export function drawTable(res) {
   L.push('');
   L.push(`flags: ${DRAW_ARMS.map((n) => `${n} = ${res.flags?.[n] ?? '?'}`).join(', ')}; frame ${res.frame.w}x${res.frame.h} device px; missing frames: ${res.missing}`);
   L.push('');
-  L.push(`| phase | t ms | floor changed (max) | ${DRAW_ARMS.map((n) => `${n} changed (max) | ${n} in band | ${n} outside band | ${n} read`).join(' | ')} |`);
+  L.push(`| phase | t ms | floor changed (max) | ${DRAW_ARMS.map((n) => `${n} changed (max) | ${n} in band | ${n} outside band | ${n} read (band / outside)`).join(' | ')} |`);
   L.push(`|---|---|---|${DRAW_ARMS.map(() => '---|---|---|---').join('|')}|`);
   for (const f of res.frames) {
     if (!f.floor) { L.push(`| ${f.phase} | ${f.t} | missing ${f.missing} | ${DRAW_ARMS.map(() => ' | | | ').join('|')}|`); continue; }
     const cols = DRAW_ARMS.map((n) => {
       const a = f.arms[n];
-      return !a || a.missing ? 'missing | | | ' : `${px(a)} | ${a.band ? a.band.changed : 'n/a'} | ${a.rest ? a.rest.changed : 'n/a'} | ${a.draw}`;
+      return !a || a.missing ? 'missing | | | ' : `${px(a)} | ${a.band ? a.band.changed : 'n/a'} | ${a.rest ? a.rest.changed : 'n/a'} | ${a.draw} (${a.bandDraw} / ${a.restDraw})`;
     });
     L.push(`| ${f.phase} | ${f.t} | ${px(f.floor)}${f.unstable.length ? ` unstable ${f.unstable.join('+')}` : ''} | ${cols.join(' | ')} |`);
   }
   L.push('');
-  for (const n of DRAW_ARMS) L.push(`- ${n}: worst frame ${res.worst[n]} (out ${res.worstBy[n].out}, in ${res.worstBy[n].in})`);
+  for (const n of DRAW_ARMS) L.push(`- ${n}: worst frame ${res.worst[n]} (out ${res.worstBy[n].out}, in ${res.worstBy[n].in}); inside the word band ${res.worstZone[n].band}, outside it ${res.worstZone[n].rest}`);
   if (res.cut.length) L.push(`- cut: ${res.cut.join('; ')}`);
   return L.join('\n');
 }
