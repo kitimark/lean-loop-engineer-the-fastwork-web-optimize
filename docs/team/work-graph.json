@@ -18114,7 +18114,8 @@
     "packages/measure-webkit/src/profile/cli.mjs",
     "packages/measure-webkit/src/profile/report.mjs"
    ],
-   "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
+   "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it.",
+   "evidence": "010790c"
   },
   {
    "devices": [
