@@ -35,7 +35,6 @@ The derivation: the heaviest set of jobs no two of which are ancestor and descen
 its `max-parallel`, and at most 5 on a macOS runner (https://docs.github.com/en/actions/reference/limits). A matrix from `fromJSON` counts
 the maximum its inputs allow (over-count is safe, under-count is not). The set behind each row:
 - breakpoint-gate 10: `gate` (breakpoint-gate.yml:226; `gate-jobs.mjs` plans at most 10 over the inputs of :171-:174)
-- chrome-crash-probe 11: `probe` (chrome-crash-probe.yml, the eleven legs of the include list; 3 of them on macOS runners, under the 5 macOS slots)
 - chromium-counts 20: `counts` (chromium-counts.yml:380; 2 targets x 10 runs, :145)
 - device-replay 1: `replay` (device-replay.yml, one VM)
 - difftest 2: `fixed`, `rotating` (difftest.yml:99,158)

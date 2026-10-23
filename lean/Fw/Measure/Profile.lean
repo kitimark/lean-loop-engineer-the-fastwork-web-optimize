@@ -159,7 +159,6 @@ theorem problem_eq_none (w : Wire) : problem w = none ↔
 theorem userAgent_mobile : userAgent true = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36" := rfl
 theorem userAgent_desktop : userAgent false = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36" := rfl
 
-/-- What a run does with its profile: a counts run measures, a load run only loads the page and may crash. -/
 inductive Mode where
   | counts
   | load
@@ -173,7 +172,6 @@ def Mode.kind : Mode → Kind
   | .counts => .counts
   | .load => .probe
 
-/-- A mode runs the profiles of its own kind only. -/
 def runnable (k : Kind) (m : Mode) : Bool := decide (k = m.kind)
 
 theorem counts_refuses_probe : runnable .probe .counts = false := by decide
@@ -181,14 +179,12 @@ theorem counts_runs_counts : runnable .counts .counts = true := by decide
 theorem load_runs_probe : runnable .probe .load = true := by decide
 theorem load_refuses_counts : runnable .counts .load = false := by decide
 
-/-- The kind of a profile name by the directory that holds it: exactly one of `profiles/` and `probes/`. -/
 def resolve (inProfiles inProbes : Bool) : Option Kind :=
   match inProfiles, inProbes with
   | true, false => some .counts
   | false, true => some .probe
   | _, _ => none
 
-/-- The lane reads a file when the directory that holds it and the kind it declares agree. -/
 def readOk (inProfiles inProbes : Bool) (declared : Kind) : Bool := resolve inProfiles inProbes == some declared
 
 theorem readOk_probe_in_probes : readOk false true .probe = true := by decide
@@ -202,7 +198,6 @@ theorem readOk_iff (a b : Bool) (k : Kind) : readOk a b k = true ↔
     (a = true ∧ b = false ∧ k = .counts) ∨ (a = false ∧ b = true ∧ k = .probe) := by
   cases a <;> cases b <;> cases k <;> decide
 
-/-- The Chrome for Testing platform key of a Node platform and architecture (`process.platform`, `process.arch`). -/
 def cftPlatform : String → String → Option String
   | "linux", "x64" => some "linux64"
   | "linux", "arm64" => some "linux-arm64"
@@ -213,7 +208,6 @@ def cftPlatform : String → String → Option String
 
 def cftPlatforms : List String := ["linux64", "linux-arm64", "mac-arm64", "mac-x64", "win64"]
 
-/-- The browser executable inside the archive of a platform, relative to the directory the archive is unpacked to. -/
 def cftExe (plat : String) : String :=
   if plat.startsWith "mac-" then s!"chrome-{plat}/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
   else if plat = "win64" then s!"chrome-{plat}/chrome.exe"

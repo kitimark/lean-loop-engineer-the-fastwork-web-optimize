@@ -58,7 +58,6 @@ async function startRepro(key) {
   return `http://127.0.0.1:${s.address().port}/`;
 }
 
-/** The binary of Chrome for Testing <version> for this machine, downloaded once per machine into FW_CFT_DIR (default: the temp dir). */
 function cftChrome(version) {
   const plat = cftPlatform(process.platform, process.arch);
   if (plat === null) { console.error(`FW_STOCK_NO_PLATFORM ${process.platform} ${process.arch}`); process.exit(2); }

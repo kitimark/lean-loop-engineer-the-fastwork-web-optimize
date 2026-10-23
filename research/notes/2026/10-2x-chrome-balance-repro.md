@@ -18,7 +18,7 @@ branch `ci/chrome-balance-repro` at 90bf4ab, jobs `counts (original, r1)` and `c
   157.0.8103.15 (Beta) and 158.0.8118.0 (Canary) all die with SIGSEGV `SEGV_MAPERR` at 0x84. Each ran in new headless mode with no
   BeginFrameControl and no emulation. The minimal page below fails at 1280x800, and so does the original snapshot page. Those runs
   were inside the container lane, which has no system fonts at all (`docker/fonts.conf` is empty on purpose). Section "Platforms"
-  below corrects the reading that real users would crash: the crash needs that no-font environment.
+  shows the crash needs that no-font environment.
 - MEASURED (task `chrome-crash-platforms`, section "Platforms"): the crash is not tied to arm64 or to headless. It reproduces on
   linux x86_64, headless and headed under xvfb, and on linux arm64 when the browser has no system fonts. With the system fonts of the
   hosted runner images, nothing crashed on linux x86_64, linux arm64, Windows x86_64 or macOS (arm64 and x86_64).
@@ -114,8 +114,7 @@ stable 156.0.8078.47, beta 157.0.8103.15, canary 158.0.8118.0. Six runs on separ
 - INFERRED: the fault is a null font pointer in the balanced layout of a line that holds the inline-grid atom. The offset 0x84 with
   `SEGV_MAPERR` is a small-offset read from a null object; Blink frames stay unsymbolized, so which pointer is not known. It would be a
   Chromium bug (a font-less machine should not crash), but a real desktop user has system fonts, so only font-less environments are hit:
-  minimal containers, kiosk images, or a CI job like our container lane. The earlier statement that real desktop users would crash on the
-  original page is withdrawn.
+  minimal containers, kiosk images, or a CI job like our container lane.
 - MEASURED, limit: macOS loaded only the first CfT build of each job. Every later build stalled in `Page.navigate` (60 s protocol
   timeout, counted as a harness failure, not a crash; no crash signal, no renderer-crashed event). Order decided: stable ran first in
   39889986847 (4 of 4 ok on all three macOS legs, then lane and beta stalled); canary ran first in the later runs (5 of 5 ok, then
@@ -124,7 +123,7 @@ stable 156.0.8078.47, beta 157.0.8103.15, canary 158.0.8118.0. Six runs on separ
   condition was not run there.
 - Limits: Chrome for Testing stands in for branded Chrome; the runners' fonts and screens are what the images hold (headed Windows and
   macOS windows are 1024-1028 px wide, so `page` there lays out at that width, recorded as `innerWidth`; the width is above 860 and
-  does not crash); the live fastwork.com was not loaded. Free runners only. Nothing here is phone time.
+  does not crash); the live fastwork.com was not loaded.
 
 ## Why `white-space: nowrap` on the h2 still crashed (CONFIRMED)
 
