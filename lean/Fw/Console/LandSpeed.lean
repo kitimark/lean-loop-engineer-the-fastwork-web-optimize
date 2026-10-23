@@ -183,13 +183,15 @@ theorem mem_selectChecks (ds : List Decl) (changed : List String) (i : String) :
 `sweepsgen --scope --check` compares, the workflow files the lane lint of `Fw.Ops.Premise` reads, the span helper, the fwcore build helper,
 the incident ledger that `scripts/PropsLint.lean` matches the registry rows against, and the findings ledger, the parts
 and the site preset that `Fw.Preset.Gen.run ["--check"]` regenerates the v2-proved preset from and compares, and the
-generated TS copy of this list that `checkGolden` compares). `checksfor-inputs` owns the final list. -/
+generated TS copy of this list that `checkGolden` compares, and the generated gh bounds that the timing golden check compares). `checksfor-inputs` owns the final list. -/
 def checkShReads : List String :=
   ["lean/**", "packages/contracts/golden/**", "apps/site/src/breakpoints.gen.json",
     "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
     "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/slot-self.mjs", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/layer-opts.gen.ts",
-    "packages/measure-chromium/scenarios.gen.json", "apps/runner/src/land-reads.gen.ts"]
+    "packages/measure-chromium/scenarios.gen.json", "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/fixtures/trajectory-gpu/**", "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
+    "packages/gh-budget/src/bounds.gen.ts"]
 
 /-- The sample `checksFor` table of the golden cases: check.sh and one package test. -/
 def sampleDecls : List Decl :=
@@ -220,7 +222,9 @@ theorem parseScope_checkShReads : parseScope checkShReads =
       ["docs", "team", "incidents", "ledger.json"],
       ["research", "findings", "ledger.json"], ["apps", "site", "src", "parts", "**"],
       ["apps", "site", "src", "registry", "presets", "v2-proved.json"], ["apps", "site", "src", "registry", "layer-opts.gen.ts"],
-      ["packages", "measure-chromium", "scenarios.gen.json"], ["apps", "runner", "src", "land-reads.gen.ts"]], []⟩ := by
+      ["packages", "measure-chromium", "scenarios.gen.json"], ["apps", "runner", "src", "land-reads.gen.ts"],
+      ["packages", "contracts", "fixtures", "trajectory-gpu", "**"], ["packages", "gate-breakpoints", "src", "trajectory", "cells-gpu-cli.mjs"],
+      ["packages", "gh-budget", "src", "bounds.gen.ts"]], []⟩ := by
   have hi : checkShReads.filter (!·.startsWith "!") = checkShReads := by
     simp (config := {decide := true}) [checkShReads]
   have he : checkShReads.filter (·.startsWith "!") = [] := by

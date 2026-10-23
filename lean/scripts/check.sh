@@ -100,6 +100,7 @@ run_group() {
   job "faithful golden check" lake env lean --run scripts/FaithfulGolden.lean --check  # golden/faithful/faithful.{verdict,comparable}.jsonl (Fw.Faithful)
   job "stage-mode golden check" lake env lean --run scripts/StageModeGolden.lean --check ../packages/contracts/golden/parts/stage-mode.jsonl  # the part-page plan, accept and read decisions the Chromium driver is checked against (Fw.Site.StageMode)
   job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check  # golden/ops/checkmap.jsonl (Fw.Ops.CheckMap)
+  job "workflow-lint golden check" lake env lean --run scripts/WorkflowLintGolden.lean --check
   job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl  # the continuity and cadence vectors packages/gate-breakpoints/src/smooth is checked against (Fw.Gate.Smooth)
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl  # the exit verdict vectors cli.mjs is checked against (Fw.Gate.Exit)
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
@@ -135,6 +136,10 @@ run_group() {
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
   job "trajectory golden check" lake env lean --run scripts/TrajectoryGolden.lean --check  # the trajectory-probe verdict vectors reduce.mjs is checked against (Fw.Gate.Trajectory)
   job "trajectory-gpu golden check" lake env lean --run scripts/TrajectoryGpuGolden.lean --check ../packages/contracts/golden/gate/trajectory-gpu.jsonl
+  job "trajectory-gpu raw cells" sh -c 'd=$(mktemp -d "${TMPDIR:-/tmp}/gpuraw.XXXXXX") && trap "rm -rf $d" EXIT &&
+    lake env lean --run scripts/TrajectoryGpuGolden.lean --raw ../packages/contracts/fixtures/trajectory-gpu/raw-39823047557.json ../packages/contracts/fixtures/trajectory-gpu/raw-39852684450.json ../packages/contracts/fixtures/trajectory-gpu/raw-39861846900.json > $d/lean.txt &&
+    node ../packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs raw ../packages/contracts/fixtures/trajectory-gpu/raw-39823047557.json ../packages/contracts/fixtures/trajectory-gpu/raw-39852684450.json ../packages/contracts/fixtures/trajectory-gpu/raw-39861846900.json > $d/js.txt &&
+    test -s $d/lean.txt && cmp $d/lean.txt $d/js.txt'
   job "trajectory-dispatch golden check" lake env lean --run scripts/TrajectoryDispatchGolden.lean --check  # the dispatch scope vectors run-pick.ts is checked against (Fw.Gate.Trajectory.Dispatch)
   job "trajectory-colour golden check" lake env lean --run scripts/ColourGolden.lean --check ../packages/contracts/golden/gate/trajectory-colour.jsonl  # the colour readings kit.mjs is checked against (Fw.Gate.Colour)
   job "run-perm golden check" lake env lean --run scripts/RunPermGolden.lean --check ../packages/contracts/golden/gate/run-perm.jsonl  # the run-level close-gap test closegap-did.mjs is checked against (Fw.Gate.RunPerm)

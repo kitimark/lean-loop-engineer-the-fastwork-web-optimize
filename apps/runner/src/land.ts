@@ -21,6 +21,7 @@ import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwc
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
+import { WORKFLOW_LINT_ARGV, WORKFLOW_LINT_ID, WORKFLOW_LINT_READS } from "./land-checks-workflow.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
@@ -166,7 +167,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**",
     "packages/contracts/golden/device/**", "packages/measure-webkit/src/pathpix*.mjs"],
   "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
-    "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**",
+    "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**", "packages/contracts/fixtures/trajectory-gpu/**",
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
     "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
   "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
@@ -238,6 +239,9 @@ export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
 ];
 
+export const WORKFLOW_LINT: Check = { id: WORKFLOW_LINT_ID, argv: WORKFLOW_LINT_ARGV, reads: WORKFLOW_LINT_READS };
+export const LOCAL_GATES: Check[] = [...LOCAL_TESTS, WORKFLOW_LINT];
+
 export function candidateChecks(root: string): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
@@ -255,7 +259,7 @@ export function candidateChecks(root: string): Check[] {
       } catch { }
     }
   }
-  return withScan([...out, ...LOCAL_TESTS]);
+  return withScan([...out, ...LOCAL_GATES]);
 }
 
 export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null, select: typeof selectTwoPhase = selectTwoPhase): Check[] {
@@ -753,9 +757,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         }
       } else lines.push("dry: lints skipped (reads refused first)");
       if (reads && lints) {
-        const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
+        const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const needsBuild = !o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
+          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
           dryStep = dryTotalStep(o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
           const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);

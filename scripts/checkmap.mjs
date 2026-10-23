@@ -12,7 +12,7 @@
 //   node scripts/checkmap.mjs --tracked       every tracked file is mapped to a kind (no command runs)
 //   node scripts/checkmap.mjs --paths a b ..  these paths
 //   --strict: a missing tool (exit 127) or a missing fwcore fails instead of being skipped.
-//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|preset|tsc> <args..>   our own checks (argv emitted by Lean).
+//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|preset|tsc|workflow> <args..>   our own checks (argv emitted by Lean).
 //                                             With --staged, modes json, jsonl, ts and graph read each file's index blob
 //                                             (`:path`), and mode preset exports the index inputs of Fw.Preset.Gen into a
 //                                             temp tree and runs its --check there. Mode tsc and the tools Lean names
@@ -21,7 +21,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const git = (cwd, args) => {
@@ -29,6 +29,7 @@ const git = (cwd, args) => {
   if (r.status !== 0) throw new Error(`git ${args.join(" ")}: ${(r.stderr ?? "").trim()}`);
   return r.stdout;
 };
+const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 const z = (s) => s.split("\0").filter(Boolean);
 
 /** Ask Lean one op; the reply, or null when fwcore is missing, too old or refuses. */
@@ -105,7 +106,7 @@ function main(args) {
 
 /** The text a `file` check judges: the index blob when FW_CHECKMAP_STAGED is set (set by `--staged`), else the file. */
 function source(top, f) {
-  if (process.env.FW_CHECKMAP_STAGED !== "1") return readFileSync(join(top, f), "utf8");
+  if (process.env.FW_CHECKMAP_STAGED !== "1") return readFileSync(resolve(top, f), "utf8");
   return git(top, ["show", `:${f}`]);
 }
 
@@ -168,6 +169,15 @@ async function fileMode([mode, ...files]) {
       let text;
       try { text = source(top, f); } catch (e) { fail(f, e); continue; }
       for (const p of checkGraph(text)) fail(`${f} task`, p);
+    }
+    return bad ? 1 : 0;
+  }
+  if (mode === "workflow") {  // a workflow body (top-level return and await), not a module: parse it as an AsyncFunction, as build-review.test.mjs loads it
+    for (const f of files) {
+      try {
+        const body = source(top, f).replace(/^export const meta = /m, "const meta = ");
+        new AsyncFunction("agent", "args", body);  // construction parses; nothing runs
+      } catch (e) { fail(f, e); }
     }
     return bad ? 1 : 0;
   }

@@ -2819,6 +2819,46 @@
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
   },
   {
+   "id": "commission.band-gate",
+   "n": 48,
+   "part": "commission",
+   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "status": "partly-proved",
+   "flag": "commission:band-gate",
+   "flags": [
+    "commission:band-gate"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
+   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window 3070 <= scrollY < 3530, half-open, 46 frames (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.09 per frame, elements recalculated 127.3 -> 60.9 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
+   "leanFor": [
+    "Fw.Parts.CommissionOpt.look_gated",
+    "Fw.Parts.CommissionOpt.look_const_iff",
+    "Fw.Parts.CommissionOpt.exit_catchup",
+    "Fw.Parts.CommissionOpt.inl_settled",
+    "Fw.Parts.CommissionOpt.media_catchup",
+    "Fw.Parts.CommissionOpt.commission_visSame",
+    "Fw.Parts.CommissionOpt.writes_le",
+    "Fw.Parts.CommissionOpt.moving_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
+    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
+    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
+   ],
+   "premises": [
+    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
+    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
+    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
+   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
+  },
+  {
    "id": "pain.dark-scroll",
    "n": 47,
    "part": "pain",
@@ -2919,50 +2959,10 @@
    "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
   },
   {
-   "id": "commission.band-gate",
-   "n": 48,
-   "part": "commission",
-   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
-   "status": "partly-proved",
-   "flag": "commission:band-gate",
-   "flags": [
-    "commission:band-gate"
-   ],
-   "chromium": "win",
-   "webkit": "win",
-   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
-   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window scrollY 3070-3530 (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.07 per frame, elements recalculated 127.3 -> 60.1 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
-   "leanFor": [
-    "Fw.Parts.CommissionOpt.look_gated",
-    "Fw.Parts.CommissionOpt.look_const_iff",
-    "Fw.Parts.CommissionOpt.exit_catchup",
-    "Fw.Parts.CommissionOpt.inl_settled",
-    "Fw.Parts.CommissionOpt.media_catchup",
-    "Fw.Parts.CommissionOpt.commission_visSame",
-    "Fw.Parts.CommissionOpt.writes_le",
-    "Fw.Parts.CommissionOpt.moving_run"
-   ],
-   "leanAgainst": [],
-   "missingWhy": [
-    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
-    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
-    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
-   ],
-   "premises": [
-    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
-    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
-    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
-   ],
-   "v1Evidence": "",
-   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
-   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
-   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
-  },
-  {
    "id": "nav.clip-box",
    "n": 52,
    "part": "nav",
-   "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius and lays out nothing per frame",
+   "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius on the nav; the bar and the panel are still placed by the insets, so they lay out per frame",
    "status": "partly-proved",
    "flag": "nav:clip-box",
    "flags": [
@@ -2970,22 +2970,24 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39842609609); transition lists unchanged",
-   "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched and no width transition starts. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39857031808; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint clipBox_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-clip-box.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,015 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887328839). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
+   "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched. Dropping .is-morphing at m = 0 starts no width transition (decl_eq_rest_zero for every hero-pill state), but for 0 < m <= cut one starts, under 0.42 px (decl_close_rest): a stated limit. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
    "leanFor": [
     "Fw.Parts.NavClipBox.box_eq",
     "Fw.Parts.NavClipBox.union_const",
     "Fw.Parts.NavClipBox.layout_only_at_endpoints",
     "Fw.Parts.NavClipBox.usedW_eq_unionW",
-    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero",
+    "Fw.Parts.NavClipBox.decl_close_rest",
+    "Fw.Parts.NavClipBox.used_eq_rest_one"
    ],
    "leanAgainst": [],
-   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "missingWhy": "MEASURED no cost number moves: chromium-counts swipe-v1 x3 (target rewrite) vs default run 39865294590: every zone equal (hero exit scrollY<700: LayoutCount 80/80, RecalcStyle 293/293, RasterTask 125/125, invalidation area 37097834/37097834), run 39872606664, results/nav-fixed-size/chromium-counts-zones-default-clip-bar.txt; webkit-sim lag=true cost=on, 430, hero-exit zone (Region A): Layout 5,251 (original 147,256) us per step, Paint 5,239 us, Composite 105,376 us; census layers 118 to 123 at y 0 and 388, 128 at the end; results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; no default-arm lag run exists, the flags agree with each other inside their spread and the original arm of the run is the only control, so no flag-attributable gain is measurable on CI VMs (no real GPU; the felt gain belongs to gpu-safari-lane or the device). webkit-sim run 39872562267 is red on simulator infrastructure (simctl launch Safari failed, session 1 lost), 2 of 3 sessions usable; the earlier run 39865298847 failed the same way, no further dispatch. Per-flag nav-clip cell grade: not delivered: the three pushes ci/nav-fixed-followups-tj1..3 (runs 39874658206, 39874669031, 39874677939) were skipped by the guard (no trajectory-probe input differs from main after the merge), so the cells step did not run; needs the lead's dispatch.",
    "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
    "v1Evidence": "",
-   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
-   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
-   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; follow-up gates 39857031808, trajectory-probe 39856949244; webkit-sim base 39864122924, chromium-counts base 39865294590; clip-box lag 39872562267, chromium-counts 39872606664; docs/team/handoffs/nav-fixed-followups.md"
   },
   {
    "id": "nav.bar-fixed",
@@ -2999,9 +3001,13 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39846092556); transition lists unchanged",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39860402069; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint barFixed_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-bar-fixed.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,655 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887331854). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
    "mechanism": "PROVED (Fw.Parts.NavBarFixed, NavBarFixedWork): bar width constant (barW_const) where the original grows; logo and actions translations are closed forms of the Lean rows; the union box of clip-box underlies it. Breakpoint gate on both engines with the flag: run 39846092556 PASS. Trajectory probe (verdict run) 39842569267.",
    "leanFor": [
+    "Fw.Parts.NavBarFixed.barW_const",
+    "Fw.Parts.NavBarFixed.logoX_eq",
+    "Fw.Parts.NavBarFixed.actionsX_eq",
+    "Fw.Parts.NavBarFixed.barY_eq",
     "Fw.Parts.NavClipBox.box_eq",
     "Fw.Parts.NavClipBox.union_const",
     "Fw.Parts.NavClipBox.layout_only_at_endpoints",
@@ -3009,12 +3015,12 @@
     "Fw.Parts.NavClipBox.decl_eq_rest_zero"
    ],
    "leanAgainst": [],
-   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865290039 equals the default rewrite at the same page-height variant; chromium-counts swipe-v1 x3 (target rewrite) vs default run 39865294590: every zone equal (hero exit scrollY<700: LayoutCount 80/80, RecalcStyle 293/293, RasterTask 125/125, invalidation area 37097834/37097834), run 39873283200, results/nav-fixed-size/chromium-counts-zones-default-clip-bar.txt; webkit-sim lag=true cost=on, 430, hero-exit zone (Region A): Layout 4,435 (original 191,106) us per step, Paint 4,898 us, Composite 74,024 us; census layers 118 to 125 at y 0 and 388, 128 at the end; results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; no default-arm lag run exists, the flags agree with each other inside their spread and the original arm of the run is the only control, so no flag-attributable gain is measurable on CI VMs (no real GPU; the felt gain belongs to gpu-safari-lane or the device). Run 39872566438 is red on simulator infrastructure (ETIMEDOUT, no page target), 1 original and 2 rewrite sessions usable. Per-flag nav-clip cell grade: not delivered: the three pushes ci/nav-fixed-followups-tj1..3 (runs 39874658206, 39874669031, 39874677939) were skipped by the guard (no trajectory-probe input differs from main after the merge), so the cells step did not run; needs the lead's dispatch.",
    "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
    "v1Evidence": "",
-   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
-   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
-   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; follow-up gates 39860402069, trajectory-probe 39856971788; webkit-sim base 39864122924, chromium-counts base 39865294590; bar-fixed lag 39872566438, chromium-counts 39873283200; docs/team/handoffs/nav-fixed-followups.md"
   },
   {
    "id": "nav.logo-3d",
@@ -3028,9 +3034,15 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E: same-look breakpoint gate passes on chromium and webkit with the flag (run 39848853982); transition lists unchanged",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39862686589; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint logo3d_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-logo-3d.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,932 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887335005). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
    "mechanism": "PROVED (Fw.Parts.NavBarFixed): translate3d then scale keeps the original translate-then-scale order (translate_scale_order). Breakpoint gate on both engines with the flag: run 39848853982 PASS. Trajectory probe (verdict run) 39842581192.",
    "leanFor": [
+    "Fw.Parts.NavBarFixed.translate_scale_order",
+    "Fw.Parts.NavBarFixedWork.logo3d_layout_normal",
+    "Fw.Parts.NavBarFixed.barW_const",
+    "Fw.Parts.NavBarFixed.logoX_eq",
+    "Fw.Parts.NavBarFixed.actionsX_eq",
+    "Fw.Parts.NavBarFixed.barY_eq",
     "Fw.Parts.NavClipBox.box_eq",
     "Fw.Parts.NavClipBox.union_const",
     "Fw.Parts.NavClipBox.layout_only_at_endpoints",
@@ -3038,12 +3050,12 @@
     "Fw.Parts.NavClipBox.decl_eq_rest_zero"
    ],
    "leanAgainst": [],
-   "missingWhy": "Layer census and cost lane not run; the trajectory nav clip cell is pending on gpu-trajectory-cells.",
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865284565 equals the default rewrite at the same page-height variant; chromium-counts run 39865303675 against default run 39865294590: LayoutCount, RecalcStyleCount, Layout.dirtyObjects (173), RasterTask, raster invalidation area equal in every scroll zone; webkit-sim lag=true cost=on, 430, hero-exit zone (Region A): Layout 7,097 (original 143,178) us per step, Paint 6,281 us, Composite 128,068 us; census layers 120 to 127 at y 0 and 388, 124 to 128 at the end; results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; no default-arm lag run exists, the flags agree with each other inside their spread and the original arm of the run is the only control, so no flag-attributable gain is measurable on CI VMs (no real GPU; the felt gain belongs to gpu-safari-lane or the device) (run 39872570182, 3 sessions, success). No win. Per-flag nav-clip cell grade: not delivered: the three pushes ci/nav-fixed-followups-tj1..3 (runs 39874658206, 39874669031, 39874677939) were skipped by the guard (no trajectory-probe input differs from main after the merge), so the cells step did not run; needs the lead's dispatch.",
    "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
    "v1Evidence": "",
-   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped.",
-   "next": "Layer census on both engines, cost lane, trajectory nav clip cell.",
-   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; first round gates 39835303279 and 39837964273 failed on the dropped width in transition-property."
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; follow-up gates 39862686589, trajectory-probe 39856990203; webkit-sim base 39864122924, chromium-counts base 39865294590; logo-3d lag 39872570182; docs/team/handoffs/nav-fixed-followups.md"
   },
   {
    "id": "morph.panel-threaded",

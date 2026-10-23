@@ -3,7 +3,7 @@
 // Scoping rules that ARE here (which agents get into the snapshot): see SCOPE below.
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
-import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
+import { GH_BOUNDS, ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -56,6 +56,7 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
+  ciAt?: number;
   ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
@@ -78,7 +79,7 @@ export interface SystemSnap {
    *  threads and raises `review.feedback` for a flag with an open comment (Lean `Fw.Obs.FeedbackAlert`) */
   feedback?: FeedbackEv[];
   /** GitHub Actions, Pages and Webhooks states and the open incidents (watch-gh.ts); fwcore raises sys.ghDegraded */
-  gh?: GhSnap;
+  gh?: GhSnap & { ciAgeMs?: number };
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -517,7 +518,8 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
-export const WATCH_LOCK_WAIT_MS = 3000;
+export const WATCH_LOCK_WAIT_MS = GH_BOUNDS.watchLockWaitMs;
+export const WATCH_GH_TIMEOUT_MS = GH_BOUNDS.watchCallTimeoutMs;
 
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
  *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
@@ -736,7 +738,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], WATCH_GH_TIMEOUT_MS, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
     exec("env", PS_START, 3000),
   ]);
@@ -747,7 +749,8 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   let docker = parseDocker(text(dock));
   if (dock === null) { stale.push("docker"); docker = old?.docker ?? []; }
   let ciRuns = parseCi(text(ci));
-  if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; }
+  let ciAt = now;
+  if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; if (old) ciAt = old.ciAt ?? prev!.at; }
   const rows = parsePs(text(ps));
   let procs = sessionProcs(rows, process.pid, now);
   let keep: number[] = [];
@@ -774,7 +777,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!),
     load: { builders: countBuilders(rows), heavyJobs: countHeavy(p.root, parseStartRows(text(psStart))), prevContended: prev?.contended === true }, memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale, feedback: collectFeedback(p),
+    consolePids, ci: ciRuns, ciAt, procs, services: [process.pid, ...consolePids], keep, svcs, stale, feedback: collectFeedback(p),
     ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),
   };
 }
@@ -829,7 +832,7 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
   const agents = collectAgents(p, now, owners);
   const [system, crit, gh] = await Promise.all([collectSystem(p, prev, now, undefined, owners, keepOf), collectCritical(p, process.env, get),
     collectGh(prev?.ghDegraded === true, ghGet)]);
-  system.gh = gh;
+  system.gh = { ...gh, ciAgeMs: Math.max(0, now - (system.ciAt ?? now)) };
   ensureSampler(p);
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");

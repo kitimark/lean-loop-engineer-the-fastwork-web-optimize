@@ -1,0 +1,74 @@
+## hero<700 frames base 69.0 logo 69.0
+  metric.LayoutCount               base         80.0 logo         80.0  d +0.0
+  metric.RecalcStyleCount          base        283.0 logo        283.0  d +0.0
+  trace.Layout                     base         84.0 logo         84.0  d +0.0
+  trace.UpdateLayoutTree           base        284.0 logo        284.0  d +0.0
+  trace.Paint                      base        580.0 logo        580.0  d +0.0
+  trace.PrePaint                   base        219.0 logo        219.0  d +0.0
+  trace.Layerize                   base         69.0 logo         69.0  d +0.0
+  trace.UpdateLayer                base        863.0 logo        863.0  d +0.0
+  raster.invalidationAreaPx        base    7134233.0 logo    7134233.0  d +0.0
+  raster.invalidatedLayers         base        229.0 logo        229.0  d +0.0
+  trace.DisplayItemListRaster      base        106.0 logo        106.0  d +0.0
+  trace.RasterTask                 base        106.0 logo        106.0  d +0.0
+  census.layers                    base       1347.0 logo       1347.0  d +0.0
+  census.drawingLayers             base       1000.0 logo       1000.0  d +0.0
+  census.drawingAreaPx             base  306127208.0 logo  306127208.0  d +0.0
+  trace.HitTest                    base        138.0 logo        138.0  d +0.0
+## 700-1400 frames base 70.0 logo 70.0
+  metric.LayoutCount               base         73.0 logo         73.0  d +0.0
+  metric.RecalcStyleCount          base        249.0 logo        249.0  d +0.0
+  trace.Layout                     base        105.3 logo        106.0  d +0.7
+  trace.UpdateLayoutTree           base        265.0 logo        265.0  d +0.0
+  trace.Paint                      base        442.0 logo        442.0  d +0.0
+  trace.PrePaint                   base        299.0 logo        299.0  d +0.0
+  trace.Layerize                   base         70.0 logo         70.0  d +0.0
+  trace.UpdateLayer                base       2220.0 logo       2220.0  d +0.0
+  raster.invalidationAreaPx        base   40732492.0 logo   40732492.0  d +0.0
+  raster.invalidatedLayers         base        380.0 logo        380.0  d +0.0
+  trace.DisplayItemListRaster      base        427.0 logo        427.0  d +0.0
+  trace.RasterTask                 base        427.0 logo        427.0  d +0.0
+  census.layers                    base       3453.3 logo       3453.3  d -0.0
+  census.drawingLayers             base       3048.3 logo       3048.3  d +0.0
+  census.drawingAreaPx             base  705268769.0 logo  705268769.0  d +0.0
+  trace.HitTest                    base        141.0 logo        141.0  d +0.0
+## 1400-4000 frames base 260.0 logo 260.0
+  metric.LayoutCount               base        140.0 logo        140.0  d +0.0
+  metric.RecalcStyleCount          base       1040.0 logo       1040.0  d +0.0
+  trace.Layout                     base        140.0 logo        140.0  d +0.0
+  trace.UpdateLayoutTree           base       1040.0 logo       1040.0  d +0.0
+  trace.Paint                      base       1146.0 logo       1146.7  d +0.7
+  trace.PrePaint                   base        814.0 logo        814.0  d +0.0
+  trace.Layerize                   base        260.0 logo        260.0  d +0.0
+  trace.UpdateLayer                base      10660.3 logo      10660.3  d +0.0
+  raster.invalidationAreaPx        base   14703741.0 logo   14703741.0  d +0.0
+  raster.invalidatedLayers         base       1343.0 logo       1343.0  d +0.0
+  trace.DisplayItemListRaster      base        266.7 logo        266.0  d -0.7
+  trace.RasterTask                 base        266.7 logo        266.0  d -0.7
+  census.layers                    base      15958.3 logo      15958.7  d +0.3
+  census.drawingLayers             base      14007.3 logo      14007.3  d -0.0
+  census.drawingAreaPx             base 3267157074.3 logo 3267157074.3  d +0.0
+  trace.HitTest                    base        520.0 logo        520.0  d +0.0
+## >=4000(end) frames base 64.0 logo 64.0
+  metric.LayoutCount               base         24.0 logo         24.0  d +0.0
+  metric.RecalcStyleCount          base        220.0 logo        220.0  d +0.0
+  trace.Layout                     base         24.0 logo         24.0  d +0.0
+  trace.UpdateLayoutTree           base        220.0 logo        220.0  d +0.0
+  trace.Paint                      base        221.0 logo        221.0  d +0.0
+  trace.PrePaint                   base        200.0 logo        200.0  d +0.0
+  trace.Layerize                   base         64.0 logo         64.0  d +0.0
+  trace.UpdateLayer                base       3943.0 logo       3943.0  d +0.0
+  raster.invalidationAreaPx        base    1737576.0 logo    1737576.0  d +0.0
+  raster.invalidatedLayers         base        331.0 logo        331.0  d +0.0
+  trace.DisplayItemListRaster      base         53.0 logo         53.0  d +0.0
+  trace.RasterTask                 base         53.0 logo         53.0  d +0.0
+  census.layers                    base       4915.0 logo       4915.0  d +0.0
+  census.drawingLayers             base       4610.0 logo       4610.0  d +0.0
+  census.drawingAreaPx             base  905704856.0 logo  905704856.0  d +0.0
+  trace.HitTest                    base        128.0 logo        128.0  d +0.0
+base trace.DisplayItemListRaster [934, 934, 936]
+base trace.RasterTask [934, 934, 936]
+base trace.cc.BeginImplFrame [503, 503, 503]
+logo trace.DisplayItemListRaster [934, 934, 934]
+logo trace.RasterTask [934, 934, 934]
+logo trace.cc.BeginImplFrame [503, 503, 503]

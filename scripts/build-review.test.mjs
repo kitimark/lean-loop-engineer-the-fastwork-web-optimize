@@ -84,3 +84,41 @@ test('report without worktree does not resume: normal build runs', async () => {
   await run(async (_p, o) => { labels.push(o.label); return null }, { task: { ...task, report: '/r.json' } })
   assert.deepEqual(labels, ['build:demo-task'])
 })
+
+const polishRun = (planOut, edited) => {
+  const calls = []
+  const done = run(async (p, o) => {
+    calls.push({ label: o.label, p })
+    if (o.label.startsWith('resume-dry')) return { report, line: 'VERDICT dry demo-task' }
+    if (o.label.startsWith('gate')) return { line: 'VERDICT review-ready demo-task review' }
+    if (o.label.startsWith('adv')) return { accept: true, findings: [], verdictLine: 'VERDICT review-verdict demo-task accept' }
+    if (o.label.startsWith('polish-plan')) return { line: 'VERDICT polish-plan demo-task comments', out: planOut }
+    if (o.label.startsWith('comment-sicko')) return { edited }
+    if (o.label.startsWith('polish-commit')) return { line: 'VERDICT polish-commit demo-task committed', out: '' }
+    if (o.label.startsWith('polish-dry')) return { line: 'VERDICT dry demo-task', out: '' }
+    throw new Error('unexpected ' + o.label)
+  }, { task: { ...resumeTask, worktree: '/r/.claude/worktrees/wf_a' } })
+  return done.then((out) => ({ out, calls }))
+}
+
+test('polish: a redacted comments path is rebuilt from the worktree line and the class path', async () => {
+  const plan = 'worktree /r/.claude/worktrees/wf_a\nclass code -- lean/Fw/A.lean\ncomments -- lean/Fw/A.lean lines 5-12,40-44\nVERDICT polish-plan demo-task comments'
+  const { out, calls } = await polishRun(plan, ['/r/.claude/worktrees/wf_a/lean/Fw/A.lean'])
+  const sicko = calls.find((c) => c.label.startsWith('comment-sicko'))
+  assert.match(sicko.p, /\/r\/\.claude\/worktrees\/wf_a\/lean\/Fw\/A\.lean \(comment mark --; edit only comments on lines 5-12,40-44;/)
+  assert.doesNotMatch(sicko.p, /<worktree>/)
+  assert.equal(out[0].polish.commit, 'committed')
+})
+
+test('polish: no worktree line stops polish before comment-sicko', async () => {
+  const { out, calls } = await polishRun('class code -- lean/Fw/A.lean\ncomments -- <worktree>/lean/Fw/A.lean', [])
+  assert.ok(!calls.some((c) => c.label.startsWith('comment-sicko')))
+  assert.equal(out[0].polish.stages, 'error')
+})
+
+test('polish: an edit outside the worktree stops before the polish commit', async () => {
+  const plan = 'worktree /r/.claude/worktrees/wf_a\nclass code -- lean/Fw/A.lean\ncomments -- /r/.claude/worktrees/wf_a/lean/Fw/A.lean'
+  const { out, calls } = await polishRun(plan, ['/r/lean/Fw/A.lean'])
+  assert.ok(!calls.some((c) => c.label.startsWith('polish-commit')))
+  assert.deepEqual(out[0].polish.strays, ['/r/lean/Fw/A.lean'])
+})

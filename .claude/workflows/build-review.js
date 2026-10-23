@@ -107,7 +107,7 @@ if (!adv || (!adv.accept && !onlyFixes)) return [{ task: t.id, build: b, gate: r
 // Polish: comment-sicko on the code and shell files of the diff, slop-checker cuts on its prose, both judged by Lean before
 // anything is committed; skip-class files (generated, golden, snapshot) are never handed to an agent and edits to them are restored.
 const MAIN = `Run in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file`
-const run1 = (label, cmd, input) => agent(`${MAIN} ${label}-${t.id}.log (agents/runner.md). Run exactly: ${cmd}${input ? ` <<'JSON'\n${input}\nJSON` : ''}\nReturn its last VERDICT line as line and its whole stdout (no log path, no home path) as out.`,
+const run1 = (label, cmd, input) => agent(`${MAIN} ${label}-${t.id}.log (agents/runner.md). Run exactly: ${cmd}${input ? ` <<'JSON'\n${input}\nJSON` : ''}\nReturn its last VERDICT line as line and its whole stdout as out, verbatim: every path exactly as printed (absolute, never shortened to ~ or a placeholder), no log path.`,
   { label: `${label}:${t.id}`, phase: 'Polish', agentType: 'runner', schema: OUT })
 const verdictWord = (r, kind) => {
   const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(new RegExp(`VERDICT ${kind} ${idRe} (\\S+)`, 'g'))] : []
@@ -117,11 +117,27 @@ const plan = await run1('polish-plan', `pnpm -s fw polish plan --branch ${b.bran
 const stages = verdictWord(plan, 'polish-plan')
 if (stages === 'none' || stages === 'error') return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, plan: plan ? plan.line : null } }]
 const outLines = (plan.out || '').split('\n')
-// plan lines: `comments <mark> <absolute path>` (mark from Lean `mark`: # for shell and YAML, -- for Lean, // for TS) and `prose <absolute path>`
-const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => l.slice(9).split(' ')).map(([mark, ...p]) => `${p.join(' ')} (comment mark ${mark})`)
-const prose = outLines.filter((l) => l.startsWith('prose ')).map((l) => l.slice(6))
-const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}). Edit comments only, in these files only, each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nApply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the paths you edited.`,
+// plan lines: `worktree <absolute dir>`, `class <class> <mark> <relative path>`, `comments <mark> <absolute path>` (mark from Lean
+// `mark`: # for shell and YAML, -- for Lean, // for TS) and `prose <absolute path>`. The runner may redact the absolute prefix
+// (incident inc-polish-main-checkout: `<worktree>/...` sent comment-sicko into the main checkout), so every path is rebuilt here
+// from the worktree line and the relative class paths, and polish stops when the worktree line is not a worktree.
+const wtLine = outLines.find((l) => l.startsWith('worktree '))
+const wt = wtLine ? wtLine.slice(9).trim() : ''
+if (!/^\/.+\/\.claude\/worktrees\/[^/]+$/.test(wt)) return [{ task: t.id, build: b, gate: ready, adv, polish: { stages: 'error', plan: `polish-plan printed no worktree path (got "${wt}")` } }]
+const rels = outLines.filter((l) => l.startsWith('class ')).map((l) => l.split(' ').slice(3).join(' '))
+const relOf = (p) => rels.find((r) => p === r || p.endsWith(`/${r}`))
+// comments lines: `comments <mark> <relative path> lines <lo-hi,lo-hi|none>`, the branch's own changed lines plus a margin (Lean
+// Fw.Plan.Polish.reach, incident inc-polish-file-scope); `fw polish commit` restores any edit outside them.
+const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => {
+  const [mark, ...rest] = l.slice(9).split(' ')
+  const at = rest.lastIndexOf('lines')
+  return [mark, relOf((at < 0 ? rest : rest.slice(0, at)).join(' ')), at < 0 ? 'none' : rest.slice(at + 1).join('')]
+}).filter(([, r]) => r).map(([mark, r, lines]) => `${wt}/${r} (comment mark ${mark}; edit only comments on lines ${lines}; any edit outside those lines is reverted)`)
+const prose = outLines.filter((l) => l.startsWith('prose ')).map((l) => relOf(l.slice(6))).filter(Boolean).map((r) => `${wt}/${r}`)
+const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}) in the worktree ${wt}. Edit comments only, in these files and these line ranges only (the lines the builder changed, plus a margin), each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nNever edit a file outside ${wt} (the main checkout above all). Apply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the absolute paths you edited.`,
   { label: `comment-sicko:${t.id}`, phase: 'Polish', agentType: 'comment-sicko', schema: EDITS }) : null
+const strays = sicko && sicko.edited ? sicko.edited.filter((p) => !p.startsWith(`${wt}/`)) : []
+if (strays.length) return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko.edited, strays, commit: 'not run: comment-sicko edited files outside the worktree; the lead restores them' } }]
 const slop = prose.length ? await agent(`Prose review of task ${t.id} (branch ${b.branch}) against .claude/skills/no-slop/SKILL.md, in these files only:\n${prose.join('\n')}\nReturn each cut as {path, old, new}: old is an exact substring that occurs once in the file, new its shorter text. Keep every number, commit, path:line, status word and identifier; Lean refuses a cut that drops one (Fw.Plan.Polish.cutSafe).`,
   { label: `slop:${t.id}`, phase: 'Polish', agentType: 'slop-checker', schema: CUTS }) : null
 const cuts = slop && slop.cuts && slop.cuts.length ? await run1('polish-cuts', `pnpm -s fw polish cuts --branch ${b.branch} --task ${t.id} --cuts - --apply yes`, JSON.stringify({ cuts: slop.cuts })) : null
