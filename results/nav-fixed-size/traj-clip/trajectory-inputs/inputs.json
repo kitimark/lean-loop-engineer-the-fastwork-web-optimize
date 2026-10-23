@@ -1,0 +1,12 @@
+{
+  "event": "push",
+  "sha": "6f35ba80a4561f41cad3bee639ca89a7df1cfd1b",
+  "nonce": "",
+  "engines": "both",
+  "fw": "nav:clip-box",
+  "preset": "",
+  "widths": "",
+  "debug": "",
+  "diagnostic": false,
+  "source": "commit-line"
+}

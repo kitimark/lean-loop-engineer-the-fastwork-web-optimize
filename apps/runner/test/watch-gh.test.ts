@@ -97,9 +97,17 @@ describe("fwcore decides the flag from the collected reading", () => {
   });
 });
 
+describe("a carried run list names its age (watch-ci-stale: finished runs read as in_progress for 22 min)", () => {
+  runCore("fresh list: plain detail; list 22 min old: the age ends the detail; the limit itself adds nothing", async () => {
+    expect((await ask({ ciAgeMs: 0 })).alerts.find((a) => a.code === "ci.slow")!.detail).toBe("queued for 30 min");
+    expect((await ask({ ciAgeMs: 240_000 })).alerts.find((a) => a.code === "ci.slow")!.detail).toBe("queued for 30 min");
+    expect((await ask({ ciAgeMs: 22 * 60_000 + 5000 })).alerts.find((a) => a.code === "ci.slow")!.detail).toBe("queued for 30 min (CI data 22 min old)");
+  });
+});
+
 describe("the Lean golden agrees with the collector", () => {
   it("the golden degraded request holds the reading the collector yields for the recorded incident", async () => {
     const row = healthGolden.find((g) => g.name.startsWith("gh-status: Actions degraded_performance"))!;
-    expect(row.request.system.gh).toEqual(await collectGh(false, async () => fx("degraded-2026-10-19.json")));
+    expect(row.request.system.gh).toEqual({ ...(await collectGh(false, async () => fx("degraded-2026-10-19.json"))), ciAgeMs: 0 });
   });
 });

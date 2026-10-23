@@ -72,8 +72,31 @@ function rig(events: Ev[], bandGate: boolean) {
     onCompact?.();
     out.push(snap());
   };
-  return { out, media, off };
+  const body = (e: Ev) => {
+    cur = e;
+    cb!();
+    out.push(snap());
+  };
+  return { out, media, body, off };
 }
+
+interface Tick {
+  media: boolean | null;
+  body: Ev | null;
+  c1000: boolean;
+}
+
+const runTicks = (ticks: Tick[], bandGate: boolean) => {
+  const r = rig([ticks[0]!.body!], bandGate);
+  const per = [r.out[0]!];
+  for (const t of ticks.slice(1)) {
+    if (t.media !== null) r.media(t.media);
+    if (t.body !== null) r.body(t.body);
+    per.push(r.out[r.out.length - 1]!);
+  }
+  r.off();
+  return per.map((s, k) => ({ ...s, look: cardLook(ticks[k]!.c1000, s.inl.enter, s.inl.shrink) }));
+};
 
 const run = (events: Ev[], bandGate: boolean) => {
   const r = rig(events, bandGate);
@@ -97,6 +120,19 @@ goldenConformance('commission-gate', {
       variantWrites: v.map((s) => s.writes),
       origInl: o.map((s) => s.inl),
       origWrites: o.map((s) => s.writes),
+    };
+  },
+  mergedTrace: (i) => {
+    const ticks = i.ticks as Tick[];
+    const v = runTicks(ticks, true);
+    const o = runTicks(ticks, false);
+    return {
+      variantInl: v.map((s) => s.inl),
+      variantWrites: v.map((s) => s.writes),
+      origInl: o.map((s) => s.inl),
+      origWrites: o.map((s) => s.writes),
+      variantLook: v.map((s) => s.look),
+      origLook: o.map((s) => s.look),
     };
   },
 });

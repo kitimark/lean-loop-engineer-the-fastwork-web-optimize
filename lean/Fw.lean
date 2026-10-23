@@ -264,6 +264,7 @@ import Fw.Sup.Route
 import Fw.Sup.Measure
 import Fw.Ci.Pool.Key
 import Fw.Ci.Codemagic
+import Fw.Ci.WorkflowLint
 import Fw.Ci.Steps
 import Fw.Oracle.Labels
 import Fw.Oracle.Expand
