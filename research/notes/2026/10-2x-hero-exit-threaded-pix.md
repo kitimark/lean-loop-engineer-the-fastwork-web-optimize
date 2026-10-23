@@ -168,8 +168,14 @@ capture of A, A2 or P did not stabilise at that offset (two screenshots differ a
   (webkit-4: 57825 and 59127 px outside at delta 255 in A/A and P alike; webkit-1: 192503 px inside the hero_copy mask
   at delta 20 in A/A and P alike). The floor covers it where it occurs (Q if strips accepted); where the floor is 0
   and P has 2 px at delta 1 (webkit-3) the cell is L outside.
-- MEASURED, invalid cells: webkit-4 offset y 427: arm A's two screenshots differ after six tries (accent word), so the
-  floor is invalid and the 4 P cells at that offset are invalid. No other invalid cells in runs 2 and 3.
+- MEASURED, invalid cells (webkit-4, run 39929556147, y 427, the 4 P cells of cue_cue, deck_article#1, deck_article#3,
+  hero_copy): the cell JSON frames show `sameA` false (arm A's two screenshots at that offset differ after six tries)
+  while `sameB` is true for A2 and P, so the floor is invalid and the P cells with it. The A-versus-A2 frame diff there is
+  29982 px at delta 106, the size of one accent word. CONFIRMED by eye (strip `AA_hero_copy_3.png` of
+  `path-pix-webkit-2`, run 39929556147): arm A shows the accent word, A2 shows an empty accent slot, and the words
+  around it shift. INFERRED cause: arm A was captured while the accent chain was mid-cycle (the chain runs until
+  `__wk.hold()`, so which frame it is on depends on load timing); this is the same accent-word noise as in the hero_copy
+  floor, only here it crossed between A's two shots. No other invalid cells in runs 2 and 3.
 - Run 1 (39920801675): Chromium arm A never ran the faithful driver (the page clock `__fwclock` was not advanced
   after the scroll, so the faithful driver's rAF never ticked), so every Chromium cell of run 1 compares P against a
   fully visible hero, not the faithful exit; fixed in a4df295a3 (tick the clock after each scroll and pump frames until
@@ -183,11 +189,71 @@ capture of A, A2 or P did not stabilise at that offset (two screenshots differ a
 
 ## L cells for the user's look review
 
-Every P cell in the tables above that shows `L` in the second position is a candidate; the ones with a pixel change
-have strips. Strip names are `strips/P_<key>_<i>.png` (the cell's strip) and `strips/FRAME_P_<i>.png`
-(whole frame) inside the CI artifact of the job: `path-pix-webkit-1`, `path-pix-webkit-2`, `path-pix-chromium-1`,
-`path-pix-chromium-2` of run 39924527942 and run 39929556147 (`gh run download <id> -n <artifact>`). The report script
-lists them per job (`pathpix-exit-report.mjs`, table "L cells with a strip"). Priority for the look review:
+Every P cell graded L is named below (a cell with Q in the ifAccepted position would pass if the text hold were
+accepted; L there means it fails even then). Job to artifact (CONFIRMED, `artifact` field of each cell JSON): webkit-1
+and webkit-2 are `path-pix-webkit-1` and `path-pix-webkit-2` of run 39924527942, webkit-3 and webkit-4 are
+`path-pix-webkit-1` and `path-pix-webkit-2` of run 39929556147; chromium-1..-4 map the same way to
+`path-pix-chromium-1` and `-2` of those two runs. The strip is `strips/P_<key>_<i>.png` in that artifact
+(`gh run download <run> -n <artifact>`; CI artifacts only, 30-day retention), `strips/FRAME_P_<i>.png` is the whole
+frame. Per cell, jobs 1..4 of the lane, `t` text hold, `o` outside, `i` inside, then `/` and the ifAccepted grade
+(table generated from the cell JSON; strip name from the first job that has one):
+
+| lane | consumer | y | job: why, ifAccepted (Q = would pass if the text hold were accepted) | strip in the job artifact |
+|---|---|---|---|---|
+| webkit | hero.cue_cue | 0 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.cue_cue_0.png |
+| webkit | hero.cue_cue | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.cue_cue_1.png |
+| webkit | hero.cue_cue | 213 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.cue_cue_2.png |
+| webkit | hero.cue_cue | 427 | 1:Lo/L 2:Lo/L 3:Lo/L 4:invalid | strips/P_hero.cue_cue_3.png |
+| webkit | hero.cue_cue | 812 | 1:Lo/Q 2:Lt/Q 3:Lo/L 4:Lo/Q | strips/P_hero.cue_cue_4.png |
+| webkit | hero.cue_cue | 813 | 1:Lo/Q 2:Lt/Q 3:Lo/L 4:Lo/Q | strips/P_hero.cue_cue_5.png |
+| webkit | hero.deck_article#0 | 0 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | strips/P_hero.deck_article_0_0.png |
+| webkit | hero.deck_article#0 | 1 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| webkit | hero.deck_article#0 | 213 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_0_2.png |
+| webkit | hero.deck_article#1 | 0 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | strips/P_hero.deck_article_1_0.png |
+| webkit | hero.deck_article#1 | 1 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| webkit | hero.deck_article#1 | 213 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_1_2.png |
+| webkit | hero.deck_article#1 | 427 | 1:Lo/L 2:Lo/L 3:Lo/L 4:invalid | strips/P_hero.deck_article_1_3.png |
+| webkit | hero.deck_article#2 | 0 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | strips/P_hero.deck_article_2_0.png |
+| webkit | hero.deck_article#2 | 1 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| webkit | hero.deck_article#2 | 213 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_2_2.png |
+| webkit | hero.deck_article#3 | 0 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | strips/P_hero.deck_article_3_0.png |
+| webkit | hero.deck_article#3 | 1 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| webkit | hero.deck_article#3 | 213 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_3_2.png |
+| webkit | hero.deck_article#3 | 427 | 1:Lo/L 2:Lo/L 3:Lo/L 4:invalid | strips/P_hero.deck_article_3_3.png |
+| webkit | hero_copy | 0 | 1:Lt/Q 2:Lt/Q 3:Lt/L 4:Lt/Q | strips/P_hero_copy_0.png |
+| webkit | hero_copy | 1 | 1:Lt/Q 2:Lt/Q 3:Lt/L 4:Lt/Q | strips/P_hero_copy_1.png |
+| webkit | hero_copy | 213 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero_copy_2.png |
+| webkit | hero_copy | 427 | 1:Lo/L 2:Lo/L 3:Lo/L 4:invalid | strips/P_hero_copy_3.png |
+| webkit | hero_copy | 812 | 1:Lo/Q 2:Lt/Q 3:Lo/L 4:Lo/Q | strips/P_hero_copy_4.png |
+| webkit | hero_copy | 813 | 1:Lo/Q 2:Lt/Q 3:Lo/L 4:Lo/Q | strips/P_hero_copy_5.png |
+| chromium | hero.cue_cue | 0 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.cue_cue_0.png |
+| chromium | hero.cue_cue | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.cue_cue_1.png |
+| chromium | hero.cue_cue | 233 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.cue_cue_2.png |
+| chromium | hero.cue_cue | 466 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.cue_cue_3.png |
+| chromium | hero.cue_cue | 885 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| chromium | hero.cue_cue | 886 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| chromium | hero.deck_article#0 | 0 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_0_0.png |
+| chromium | hero.deck_article#0 | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.deck_article_0_1.png |
+| chromium | hero.deck_article#0 | 233 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_0_2.png |
+| chromium | hero.deck_article#1 | 0 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_1_0.png |
+| chromium | hero.deck_article#1 | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.deck_article_1_1.png |
+| chromium | hero.deck_article#1 | 233 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_1_2.png |
+| chromium | hero.deck_article#1 | 466 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_1_3.png |
+| chromium | hero.deck_article#2 | 0 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_2_0.png |
+| chromium | hero.deck_article#2 | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.deck_article_2_1.png |
+| chromium | hero.deck_article#2 | 233 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_2_2.png |
+| chromium | hero.deck_article#3 | 0 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_3_0.png |
+| chromium | hero.deck_article#3 | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero.deck_article_3_1.png |
+| chromium | hero.deck_article#3 | 233 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_3_2.png |
+| chromium | hero.deck_article#3 | 466 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero.deck_article_3_3.png |
+| chromium | hero_copy | 0 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero_copy_0.png |
+| chromium | hero_copy | 1 | 1:Lt/L 2:Lt/L 3:Lt/L 4:Lt/L | strips/P_hero_copy_1.png |
+| chromium | hero_copy | 233 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero_copy_2.png |
+| chromium | hero_copy | 466 | 1:Lo/L 2:Lo/L 3:Lo/L 4:Lo/L | strips/P_hero_copy_3.png |
+| chromium | hero_copy | 885 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+| chromium | hero_copy | 886 | 1:Lt/Q 2:Lt/Q 3:Lt/Q 4:Lt/Q | none (no pixel change, text hold only) |
+
+Priority for the look review:
 
 | lane | offsets (y) | consumers | strip | what to look at |
 |---|---|---|---|---|
