@@ -18615,7 +18615,8 @@
     "research/notes/2026/10-2x-morph-real-wheel.md",
     "docs/team/handoffs/morph-real-wheel-followups.md"
    ],
-   "title": "morph-real-wheel review follow-ups (2026-10-23): (1) report.mjs analyzeMorphItems reads geometry boxes at the fixed MORPH_PHASES offset but clips at the per-run r.ph offset: index geometry with r.ph[phase][0]+i or clamp to the sample count, with a test where marks differ from 10/60/60; (2) neither drive scrolled (page at its end, scroll moved 0 in 72 runs): add a trusted run that starts above the end and scrolls into the push, so ScrollingTree::computeWheelProcessingSteps is exercised; (3) Simulator leg with the PushServer touch once sim-touch-reliable lands; (4) macreport.mjs per-run means and the 3-job pooling are a TS stand-in that pools 18 runs: decide each job on its own in Lean with golden; (5) the polish comment cut in probe.mjs (morphSession docstring) was dropped after the polish restore broke it; redo it by hand."
+   "title": "morph-real-wheel review follow-ups (2026-10-23): (1) report.mjs analyzeMorphItems reads geometry boxes at the fixed MORPH_PHASES offset but clips at the per-run r.ph offset: index geometry with r.ph[phase][0]+i or clamp to the sample count, with a test where marks differ from 10/60/60; (2) neither drive scrolled (page at its end, scroll moved 0 in 72 runs): add a trusted run that starts above the end and scrolls into the push, so ScrollingTree::computeWheelProcessingSteps is exercised; (3) Simulator leg with the PushServer touch once sim-touch-reliable lands; (4) macreport.mjs per-run means and the 3-job pooling are a TS stand-in that pools 18 runs: decide each job on its own in Lean with golden; (5) the polish comment cut in probe.mjs (morphSession docstring) was dropped after the polish restore broke it; redo it by hand.",
+   "evidence": "e4afcbb"
   },
   {
    "devices": [
