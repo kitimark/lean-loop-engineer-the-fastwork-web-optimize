@@ -65,7 +65,7 @@ describe('people.carousel crop (Lean Fw.Parts.PeopleCarouselCrop)', () => {
         }
       }
     }
-    for (const name of ['avatarsCropExit', 'avatarsShift']) {
+    for (const name of ['avatarsCropExit', 'avatarsShift', 'avatarsPop']) {
       expect(keyframes(name).match(/(^|\s)(\d+%|from|to)\s*\{/g)).toHaveLength(2);
     }
   });

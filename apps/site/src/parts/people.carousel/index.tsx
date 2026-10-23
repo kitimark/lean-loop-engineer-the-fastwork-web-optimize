@@ -38,6 +38,8 @@ export function PeopleCarousel({ variant }: { variant: string }) {
         <div ref={ref} className={`${css.avatars} ${css.carousel}`} aria-hidden="true" data-fw="people-carousel" data-fw-variant={variant}>
           {ids.map((ring, i) => {
             const role = swapRole({ i, len: ids.length });
+            const exit = role === 'exit';
+            const enter = role === 'enter';
             return (
               <img
                 key={`${s.swapping ? 'swap' : 'rest'}-${ring}`}
@@ -48,10 +50,10 @@ export function PeopleCarousel({ variant }: { variant: string }) {
                   !s.swapping
                     ? css.avatar
                     : crop
-                      ? `${css.avatar} ${role === 'exit' ? css.cropExit : role === 'enter' ? `${css.isEnter} ${css.cropEnter}` : css.cropShift}`
-                      : role === 'exit'
+                      ? `${css.avatar} ${exit ? css.cropExit : enter ? `${css.isEnter} ${css.cropEnter}` : css.cropShift}`
+                      : exit
                         ? `${css.avatar} ${css.isExit}`
-                        : role === 'enter'
+                        : enter
                           ? `${css.avatar} ${css.isEnter}`
                           : css.avatar
                 }

@@ -79,8 +79,8 @@ Linux WebKit walks the pain cell only, so there is no WebKit people-zone traject
    `lake build Fw.Parts.Contract` and `ContractsGolden.lean --check` are green; FootprintRows.lean and footprint-diff.gen.json
    regenerate unchanged.
 2. Premise WkAnim.clean (CONFIRMED, crop.golden.test.ts): every crop rule has cubic-bezier with both y in [0, 1] and
-   `avatarsCropExit` and `avatarsShift` have exactly 2 stops. The test fails if a later edit breaks the premise.
-3. nav.background-color 1280 close@0 (INFERRED flake): 1 of 62 samples, `close@0=apart`, in a part that does not touch the nav.
+   `avatarsCropExit`, `avatarsShift` and `avatarsPop` each have exactly 2 stops. The test fails if a later edit breaks the premise.
+3. nav.background-color 1280 close@0 (MEASURED: rerun 39914708420 shows no such unit): 1 of 62 samples, `close@0=apart`, in a part that does not touch the nav.
    The same unit appears in earlier runs of unrelated arms: 10-21-trajectory-probe.md (4 units, one per width, at close@0),
    10-21-morph-scroll-lock.md (A/A arm, mac 390 and Chromium 1280), 10-20-earn-transition-retarget.md (all four runs). Run id of
    the people-carousel-crop sighting: 39896845339. The rerun is under Follow-up runs.
