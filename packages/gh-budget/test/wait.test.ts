@@ -264,10 +264,9 @@ test("waitKind and critIndex replay golden ci-budget/lag-kind.jsonl", () => {
   }
 });
 
-// task ci-wait-lag: the phases of a wait are recorded in order and cost no gh call
-async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600) {
+async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600, cfg: Record<string, unknown> = {}) {
   const w = mkWorld(T0, { fastGh: true });
-  w.config({ start: T0, listCost: 2, runs });
+  w.config({ start: T0, listCost: 2, runs, ...cfg });
   const got: import("../src/wait.ts").WaitPhases[] = [];
   const res = await drive(w.sim, Array.from({ length: N }, () => waitFor(w.env, target, { timeoutS, phases: (p) => got.push(p) })));
   return { res, got, calls: w.calls() };
@@ -311,6 +310,26 @@ test("phases: the tick before the finish is the previous tick (the list still sh
   assert.equal(p.how, "done");
   assert.ok(p.prevTickMs !== undefined && p.prevTickMs < p.updMs!, "previous tick precedes the update");
   assert.ok(p.tickMs! > p.prevTickMs!);
+});
+
+test("phases: the deciding tick's own budget state gives the interval and retryUntil the own-time cap reads", async () => {
+  const r = await phased(1, [run(75, { completeAt: T0 + 100 })], { kind: "run", runId: 75 });
+  const p = r.got[0]!;
+  assert.equal(p.how, "done");
+  assert.equal(p.pollS, 10, "Budget.interval of the default limits on a fresh state");
+  assert.equal(p.retryUntilS, 0, "no failure backoff");
+  const a = await phased(1, [run(76, { completeAt: T0 - 1 })], { kind: "run", runId: 76 });
+  assert.equal(a.got[0]!.pollS, undefined, "an already finished run has no deciding tick");
+});
+
+test("phases: a failed tick between the two ticks shows as a retryUntil past the earlier tick, and the gap fits interval plus backoff", async () => {
+  const r = await phased(1, [run(77, { completeAt: T0 + 100 })], { kind: "run", runId: 77 }, 3600, { overrides: [{ at: T0 + 85, lines: ["HTTP/2.0 403 Forbidden"] }] });
+  const p = r.got[0]!;
+  assert.equal(p.how, "done");
+  assert.ok(p.prevTickMs !== undefined && p.retryUntilS !== undefined && p.pollS !== undefined, JSON.stringify(p));
+  assert.ok(p.retryUntilS * 1000 > p.prevTickMs, `backoff past the earlier tick: ${JSON.stringify(p)}`);
+  assert.ok(p.tickMs! - p.prevTickMs > p.pollS * 1000, "the backoff spaced the ticks wider than the interval");
+  assert.ok(p.tickMs! - p.prevTickMs <= p.pollS * 1000 + (p.retryUntilS * 1000 - p.prevTickMs), "the gap fits interval plus backoff");
 });
 
 // ---- real processes, real clock ----------------------------------------------------------------------------------------

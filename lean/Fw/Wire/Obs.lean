@@ -1015,6 +1015,7 @@ def ownOfJson (j : Json) : Except String (Option Nat) := do
         | _ => ""
       let n (k : String) : Option Nat := (opt ph k).bind fun v => (v.getNat?).toOption
       Fw.Obs.Timing.ownOfPhases start dur how (n "updMs") (n "tickMs") (n "prevTickMs") (n "pollS")
+        (n "retryUntilS")
 
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
