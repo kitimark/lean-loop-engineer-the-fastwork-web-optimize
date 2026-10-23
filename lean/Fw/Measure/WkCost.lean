@@ -699,7 +699,7 @@ def run (args : List String) : IO UInt32 := do
 def recordedRuns : List (String × List PassSums × List PassSums) :=
   [("39903977820,39903974246", runBase, runFlag), ("39915136431,39915146774", runBase6, runFlag6)]
 
-theorem recordedRuns_overlap : recordedRuns.all (fun r => outcome (cells r.2.1 r.2.2) == Outcome.overlap) = true := by
+theorem recordedRuns_overlap : recordedRuns.all (fun r => cells r.2.1 r.2.2 == List.replicate 8 Verdict.overlap) = true := by
   decide +kernel
 
 def sumsMismatches (text : String) : List String :=
