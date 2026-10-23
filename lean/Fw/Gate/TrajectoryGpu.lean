@@ -685,6 +685,44 @@ def panelCell (tols : List Rat) (minCovered : Nat) (ref : Series) (fs : Series) 
   let lag := lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩)
   panelGrade series lag (lag.bind fun l => shiftedGrade tols minCovered ref l fs)
 
+/-- A matching series is E whatever the lag: the first branch of `panelCell`. -/
+theorem panelCell_series_e (tols : List Rat) (n : Nat) (ref fs : Series)
+    (h : modelGrade tols n ref (seriesOf (interior fs)) = some .e) : panelCell tols n ref fs = some .e := by
+  simp [panelCell, h, panelGrade]
+
+/-- A differing series with no lag reading is not comparable. -/
+theorem panelCell_no_lag (tols : List Rat) (n : Nat) (ref fs : Series) (g : Grade) (hg : g ≠ .e)
+    (h : modelGrade tols n ref (seriesOf (interior fs)) = some g)
+    (hl : lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩) = none) : panelCell tols n ref fs = none := by
+  simp only [panelCell, h, hl, Option.bind_none]
+  exact panelGrade_no_lag g hg _
+
+/-- A differing series whose lagged copy (at the measured lag) still does not match the model residual at shift 0 is L:
+`shiftedGrade_ne_e` composed with `panelGrade_no_match_l`, through the definition of `panelCell`. -/
+theorem panelCell_unmatched_l (tols : List Rat) (n : Nat) (ref fs : Series) (g : Grade) (hg : g ≠ .e) (l : Rat)
+    (h : modelGrade tols n ref (seriesOf (interior fs)) = some g)
+    (hl : lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩) = some l)
+    (hm : (matchAt tols (residual ref) (residual (seriesOf (laggedSeries l fs))) 0).2 = false) :
+    panelCell tols n ref fs = some .l := by
+  simp only [panelCell, h, hl, Option.bind_some]
+  exact panelGrade_no_match_l g hg l _ (shiftedGrade_ne_e tols n ref l fs hm)
+
+/-- A differing series with a lag over one frame plus the slack is L, whatever the lagged copy does. -/
+theorem panelCell_long_lag_l (tols : List Rat) (n : Nat) (ref fs : Series) (g : Grade) (hg : g ≠ .e) (l : Rat)
+    (h : modelGrade tols n ref (seriesOf (interior fs)) = some g)
+    (hl : lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩) = some l) (hs : 1 + lagSlack < l) :
+    panelCell tols n ref fs = some .l := by
+  simp only [panelCell, h, hl, Option.bind_some]
+  exact panelGrade_long_lag_l g hg l hs _
+
+/-- A differing series with a short lag whose lagged copy matches is Q. -/
+theorem panelCell_matched_q (tols : List Rat) (n : Nat) (ref fs : Series) (g : Grade) (hg : g ≠ .e) (l : Rat)
+    (h : modelGrade tols n ref (seriesOf (interior fs)) = some g)
+    (hl : lagFrames (fs.map fun f => ⟨f.1, f.2.headD 0⟩) = some l) (hs : l ≤ 1 + lagSlack)
+    (hm : shiftedGrade tols n ref l fs = some .e) : panelCell tols n ref fs = some .q := by
+  simp only [panelCell, h, hl, Option.bind_some, hm]
+  exact panelGrade_short_lag_q g hg l hs
+
 def darkness (layer : Option Rat) (cls : Bool) : Rat :=
   match layer with
   | some o => o
