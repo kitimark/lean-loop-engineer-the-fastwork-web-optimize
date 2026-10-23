@@ -60,7 +60,7 @@ function tree() {
   g(repo, "worktree", "add", "-q", "-b", "landed-b", join(wt, "w1"), "main");
   file(join(wt, "w1", "a.txt"), "a", false);
   g(join(wt, "w1"), "add", "-A"); g(join(wt, "w1"), "commit", "-q", "-m", "a");
-  g(repo, "merge", "-q", "--no-ff", "-m", "land", "landed-b");
+  g(repo, "merge", "-q", "--no-ff", "-m", "land landed-b", "landed-b");
   g(repo, "worktree", "add", "-q", "-b", "idle-b", join(wt, "w2"), "main");
   file(join(wt, "w2", "b.txt"), "b", false);
   g(join(wt, "w2"), "add", "-A");
@@ -80,6 +80,7 @@ function tree() {
   file(join(t, "outside", "keep.txt"), "keep", false);
   symlinkSync(join(t, "outside"), join(pad, "link"));
   const croot = join(repo, ".fw-console");
+  file(join(croot, "events.jsonl"), "", false);
   file(join(croot, "tmp", "chromium-1", "x"));
   file(join(croot, "land-logs", "t-abc.log"));
   file(join(croot, "land-logs", "u-new.log"), "n", false);
@@ -143,6 +144,25 @@ describe("fw disk-gc on a temp tree", () => {
     const r = diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2,5,6"]), call, io: x.io, roots: x.roots, uid });
     expect(r.reply.items.map((i) => i.num).sort()).toEqual([6, 6]);
     expect(r.reply.classes.map((c) => c.num)).toEqual([2, 5, 6]);
+  });
+
+  it("landed is decided by identity: a fast-forward onto a landed branch and a live run's worktree are kept (inc-gc-landed-ff)", () => {
+    const x = tree();
+    g(x.repo, "worktree", "add", "-q", "-b", "ff-b", join(x.wt, "wf_ff-aaa-1"), "main");
+    g(join(x.wt, "wf_ff-aaa-1"), "merge", "-q", "--ff-only", "landed-b");
+    g(x.repo, "worktree", "add", "-q", "-b", "live-b", join(x.wt, "wf_live-bbb-1"), "main");
+    g(x.repo, "merge", "-q", "--no-ff", "--allow-empty", "-m", "land live-b", "live-b");
+    const paths = () => diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2"]), call, io: x.io, roots: x.roots, uid })
+      .reply.items.map((i) => i.path.slice(x.wt.length + 1)).sort();
+    writeFileSync(join(x.croot, "events.jsonl"), JSON.stringify({ seq: 1, type: "agent.label", agent: "a1", name: "t", key: "wfid-label:wf_live-bbb:a1:t" }) + "\n");
+    expect(paths()).toEqual(["w1"]);
+    writeFileSync(join(x.croot, "events.jsonl"), [
+      { seq: 1, type: "agent.label", agent: "a1", name: "t", key: "wfid-label:wf_live-bbb:a1:t" },
+      { seq: 2, type: "agent.stop", agent: "a1", key: "wfr-end:wf_live-bbb" },
+    ].map((e) => JSON.stringify(e)).join("\n") + "\n");
+    expect(paths()).toEqual(["w1", "wf_live-bbb-1"]);
+    rmSync(join(x.croot, "events.jsonl"));
+    expect(paths()).toEqual([]);
   });
 
   it("--delete removes the list, keeps everything else, and records one event", () => {
@@ -218,7 +238,7 @@ describe("fw disk-gc on a temp tree", () => {
       { seq: 3, type: "task.done", task: "t1", key: "td:t1" },
       { seq: 4, type: "agent.stop", agent: "a3", key: "wfr-end:wf_1" },
     ].map((e) => JSON.stringify(e)).join("\n") + "\n");
-    expect(gatherEventFacts(x.repo, call)).toEqual({ liveAgents: [], landedTasks: ["t1"], finishedRuns: ["wf_1"] });
+    expect(gatherEventFacts(x.repo, call)).toEqual({ liveAgents: [], landedTasks: ["t1"], finishedRuns: ["wf_1"], liveRuns: [], landedRuns: [] });
     expect(num(["--list", "--class", "4"])).toEqual(["old", "owned"]);
   });
 

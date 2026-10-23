@@ -221,7 +221,14 @@ export function gatherNamed(repo: string): string[] | null {
   return [...new Set(r.out.split("\n").filter(Boolean).map((l) => l.slice(l.indexOf("fw-"))))];
 }
 
-export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[] };
+export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[]; liveRuns: string[]; landedRuns: string[] };
+
+/** Subjects of main's commits that start with "land " (a fact only; Lean matches "land <branch>"). */
+export function landSubjects(repo: string): string[] | null {
+  const r = git(repo, ["log", "refs/heads/main", "--format=%s"]);
+  if (r.status !== 0) return null;
+  return r.out.split("\n").filter((l) => l.startsWith("land "));
+}
 
 export function gatherEventFacts(repo: string, call: Call): EventFacts | null {
   let text: string;
@@ -240,7 +247,9 @@ export function gatherEventFacts(repo: string, call: Call): EventFacts | null {
     const r = call({ op: "ops.diskGcFacts", events });
     const strs = (v: unknown): string[] | null => Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null;
     const liveAgents = strs(r.liveAgents), landedTasks = strs(r.landedTasks), finishedRuns = strs(r.finishedRuns);
-    return liveAgents && landedTasks && finishedRuns ? { liveAgents, landedTasks, finishedRuns } : null;
+    const liveRuns = strs(r.liveRuns), landedRuns = strs(r.landedRuns);
+    return liveAgents && landedTasks && finishedRuns && liveRuns && landedRuns
+      ? { liveAgents, landedTasks, finishedRuns, liveRuns, landedRuns } : null;
   } catch { return null; }
 }
 
@@ -290,7 +299,7 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, 
       const merged = w.branch ? landedOf(roots.repo, w.branch) : null;
       const st = wtState(w.path);
       const facts = { branch: w.branch, merged, dirty: st.dirty, lock: w.lock };
-      if (on("landed") && merged === true) {
+      if (on("landed")) {
         cands.push(base("landed", w.path, { ...facts, tracked: trackedIn(tracked, w.path.slice(roots.repo.length + 1)) }));
         lazy.set(`landed ${w.path}`, () => duBytes(w.path));
       }
@@ -306,6 +315,12 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, 
       }
     }
     req.queued = (() => { try { return queuedBranches(join(roots.repo, ".fw-console")); } catch { return null; } })();
+    if (on("landed")) {
+      req.landSubjects = landSubjects(roots.repo);
+      const evl = gatherEventFacts(roots.repo, call);
+      req.liveRuns = evl ? evl.liveRuns : null;
+      req.landedRuns = evl ? evl.landedRuns : null;
+    }
   }
 
   if (on("scratch")) {

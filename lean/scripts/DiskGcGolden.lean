@@ -13,6 +13,8 @@ def now : Nat := 864000
 def base : List (String × Json) := [("roots", roots), ("classes", .arr ((#[1, 2, 3, 4, 5, 6, 7] : Array Nat).map toJson)),
   ("uid", toJson 501), ("now", toJson now), ("opens", .arr #[]), ("procs", .arr #[]), ("queued", .arr #[]),
   ("cited", .arr #[]), ("named", .arr #[.str "fw-iphone-27"]), ("simLock", .bool false),
+  ("landSubjects", .arr #[.str "land worktree-w1", .str "land worktree-w2", .str "land b"]),
+  ("liveRuns", .arr #[]), ("landedRuns", .arr #[]),
   ("lake", Json.mkObj [("checkouts", .arr #[]), ("procs", .arr #[]), ("outputs", .arr #[])])]
 
 def req (extra : List (String × Json)) (cands : List Json) : Json :=
@@ -29,6 +31,7 @@ def lakeFile (n : String) (links : Nat) : Json :=
 
 def wt (cls : Nat) (rel : String) (newest : Nat) (merged dirty : Bool) (lock : Json := .str "free")
     (branch := "worktree-w1") : Json :=
+  let branch := if cls == 2 && !merged && branch == "worktree-w1" then "worktree-open" else branch
   cand cls s!"{repo}/.claude/worktrees/{rel}" newest [("branch", .str branch), ("merged", .bool merged),
     ("dirty", .bool dirty), ("lock", lock)]
 
@@ -75,6 +78,22 @@ def gcCases : List (String × String × Json) := [
     req [("queued", .arr #[.str "worktree-w1"])] [wt 2 "w1" 0 true false, wt 2 "w2" 0 true false .null "worktree-w2"]),
   ("class 2: queue not gathered", "ops.diskGc", req [("queued", .null)] [wt 2 "w1" 0 true false]),
   ("class 2: a detached worktree (no branch) is kept", "ops.diskGc", req [] [wt 2 "w1" 0 true false (.str "free") ""]),
+  ("class 2 (inc-gc-landed-ff): a fast-forward onto a landed branch has no land commit of its own and is kept",
+    "ops.diskGc", req [("landSubjects", .arr #[.str "land worktree-wf_efb32ee2-da5-1"])]
+      [wt 2 "wf_1f18354c-dfd-1" 0 true false (.str "free") "worktree-wf_1f18354c-dfd-1",
+       wt 2 "wf_efb32ee2-da5-1" 0 true false (.str "free") "worktree-wf_efb32ee2-da5-1"]),
+  ("class 2 (inc-gc-landed-ff): a worktree a live agent's run owns is kept, also with a land commit", "ops.diskGc",
+    req [("liveRuns", .arr #[.str "wf_1f18354c-dfd"])] [wt 2 "wf_1f18354c-dfd-1" 0 true false, wt 2 "w1" 0 true false]),
+  ("class 2 (inc-gc-landed-ff): a live agent's run owns it, the landed-task identity is kept too", "ops.diskGc",
+    req [("landSubjects", .arr #[]), ("landedRuns", .arr #[.str "wf_1f18354c-dfd"]), ("liveRuns", .arr #[.str "wf_1f18354c-dfd"])]
+      [wt 2 "wf_1f18354c-dfd-1" 0 false false]),
+  ("class 2 (inc-gc-landed-ff): the landed task owning the worktree selects it once no agent runs", "ops.diskGc",
+    req [("landSubjects", .arr #[]), ("landedRuns", .arr #[.str "wf_1f18354c-dfd"])]
+      [wt 2 "wf_1f18354c-dfd-1" 0 false false, wt 2 "wf_1f18354c-df-1" 0 false false]),
+  ("class 2 (inc-gc-landed-ff): unread land subjects keep it", "ops.diskGc",
+    req [("landSubjects", .null)] [wt 2 "w1" 0 true false]),
+  ("class 2 (inc-gc-landed-ff): live runs not gathered keep it", "ops.diskGc",
+    req [("liveRuns", .null)] [wt 2 "w1" 0 true false]),
   ("class 3: rebuildable folders of an unmerged worktree idle for 24 h are listed; its sources never", "ops.diskGc",
     req [] [wt 3 "w1/node_modules" 0 false true, wt 3 "w1/lean/.lake" 0 false true,
       wt 3 "w1/apps/site/node_modules" 0 false true, wt 3 "w1/lean" 0 false true, wt 3 "w1/src/node_modules" 0 false true]),
@@ -182,6 +201,10 @@ def gcCases : List (String × String × Json) := [
       ev 3 "agent.stop" [("agent", "wf:wf_12345678-abc"), ("key", "wfr-end:wf_12345678-abc")],
       ev 4 "agent.stop" [("agent", "z"), ("key", "wfr-end:wf_12345678-abc")], ev 5 "task.done" [("task", "t1")],
       ev 6 "task.done" [("task", "t1")], ev 7 "task.done" [], ev 8 "agent.stop" [("key", "wfr-end:wf_")]]),
+  ("facts: live runs are the runs of running agents; landed runs are runs labelled with a done task", "ops.diskGcFacts",
+    facts [ev 1 "agent.label" [("agent", "a"), ("name", "t1"), ("key", "wfid-label:wf_12345678-abc:a:t1")],
+      ev 2 "agent.label" [("agent", "b"), ("name", "t2"), ("key", "wfid-label:wf_87654321-def:b:t2")],
+      ev 3 "agent.stop" [("agent", "b")], ev 4 "task.done" [("task", "t2")], ev 5 "task.done" [("task", "t1")]]),
   ("facts: a label without an agent or a name is ignored", "ops.diskGcFacts",
     facts [ev 1 "agent.label" [("name", "x")], ev 2 "agent.label" [("agent", "a")]]),
   ("facts: an event without a seq is refused", "ops.diskGcFacts",
