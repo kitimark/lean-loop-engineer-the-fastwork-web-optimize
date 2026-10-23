@@ -21,6 +21,13 @@ const shotsRoot = resolve(arg('--shots', join(process.env.TMPDIR || '/tmp', 'fw-
 const siteDir = join(ROOT, 'apps', 'site', 'dist', 'aot');
 mkdirSync(out, { recursive: true });
 
+// 'connection closed by this tool' is what a pending call reports once withSession's own SIGTERM/SIGINT cleanup closed the client
+// (packages/measure-webkit/src/session.mjs:81). It is the symptom of a signal sent to this process (a slot release, a killed tool call or
+// process group), never of a fault in the lane; name the signal instead of printing the stack, and run the lane in its own process group.
+let signalled = null;
+for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => { signalled = sig; });
+const stoppedBySignal = (e) => signalled && /connection closed by this tool/.test(e?.message ?? '');
+
 function emit({ cap, zone, shotsDir, run, lane = 'ios-simulator-on-mac' }) {
   for (const arm of armsOfZone(zone)) {
     const r = reduceArm({ cap, arm, shotsDir, run });
@@ -45,6 +52,7 @@ if (mode === 'reduce') {
     try {
       cap = await (mode === 'sim' ? captureZone : captureZoneMac)({ zone, siteDir, shotsDir });
     } catch (e) {
+      if (stoppedBySignal(e)) { console.error(`zone ${zone}: stopped by ${signalled} sent to this process (not a lane fault); nothing written for it`); process.exit(130); }
       if (mode !== 'mac') throw e;
       // an arm the harness cannot drive is reported with its reason, not faked
       const file = join(out, 'mac-safari-refusal.json');
