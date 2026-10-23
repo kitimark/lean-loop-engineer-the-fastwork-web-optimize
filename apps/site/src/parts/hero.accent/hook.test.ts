@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { act, createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -51,9 +51,10 @@ describe('the hook is inert when unset (the faithful page is unchanged)', () => 
 
   const mount = (search: string) => {
     window.history.replaceState({}, '', `/${search}`);
-    const r = createRoot(host);
-    act(() => r.render(createElement(HeroAccent, { variant: 'faithful' })));
-    return r;
+    host.innerHTML = served(false); // the page is server-rendered, then hydrated
+    act(() => {
+      hydrateRoot(host, createElement(HeroAccent, { variant: 'faithful' }));
+    });
   };
   // The server markup parsed by the same DOM, so style serialisation matches the mounted tree.
   const served = (pin: boolean) => {
