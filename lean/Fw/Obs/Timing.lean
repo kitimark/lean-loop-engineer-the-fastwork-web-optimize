@@ -92,8 +92,6 @@ def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
 
-/-- The own time of a `fw ci wait` span: from the later of the run's finish (`updMs`) and the wait's start to the span
-end, net of the poller's detection delay (`tickMs` minus that instant) up to one tick interval `pollS`. -/
 def ownOfPhases (startMs durMs : Nat) (how : String) (updMs tickMs pollS : Option Nat) : Option Nat :=
   match updMs, tickMs, pollS with
   | some u, some t, some p =>

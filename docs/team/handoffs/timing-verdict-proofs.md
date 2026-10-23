@@ -1,6 +1,6 @@
 # timing-verdict-proofs handoff
 
-- Branch `worktree-wf_47509087-1e5-1`, worktree `.claude/worktrees/wf_47509087-1e5-1`; main merged at 2189891e3.
+- Branch `worktree-wf_47509087-1e5-1`; main merged at 2189891e3.
 - CI runs: none (accepted limit "no CI run").
 
 ## State

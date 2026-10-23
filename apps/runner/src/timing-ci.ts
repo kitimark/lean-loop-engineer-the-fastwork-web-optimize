@@ -1,5 +1,3 @@
-// CI spans (timing-spans): fetch a finished run's jobs ONCE through the gh-budget charged call and write one span per job
-// and per step. Deduped by run id (timing.ts seenRuns), so a second call for the same run costs no gh request.
 import { readFileSync } from "node:fs";
 import { ghCharged, paths, readJson, realEnv, type WaitPhases } from "@fw/gh-budget";
 import { ghCost } from "./run.ts";
@@ -63,8 +61,6 @@ export function pollIntervalS(cwd: string): number | undefined {
   }
 }
 
-/** The `runIds` and `phases` fields of the `fw ci wait` span: the wait's phases, the span writer's ingest window and,
- *  on a `done` wait, the poll interval `pollS` that Lean `Fw.Obs.Timing.ownOfPhases` nets off. */
 export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number,
   pollS: () => number | undefined = () => pollIntervalS(process.cwd())): Pick<Span, "runIds" | "phases"> {
   if (!p) return {};

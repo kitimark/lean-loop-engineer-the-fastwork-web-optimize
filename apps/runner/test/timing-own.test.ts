@@ -60,7 +60,6 @@ const landSpans = (n: number) => LAND.slice(0, n).map(([d, m, l], i) => ({
   tool: "fw", step: "land dry lake", startMs: 1000 * (i + 1), durMs: d, host: "local", load: l, exit: 0, ...(m === null ? {} : { lake: { built: m } }),
 }));
 
-// Golden timing-own.jsonl is Lean `Fw.Obs.Timing.ownCases`: the own time of a `fw ci wait` span net of the poll interval.
 describe.skipIf(!haveCore)("the own time of a wait replays the Lean golden through fwcore obs.timing", () => {
   const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing-own.jsonl"), "utf8").trim().split("\n")
     .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; ownMs: number | null });
