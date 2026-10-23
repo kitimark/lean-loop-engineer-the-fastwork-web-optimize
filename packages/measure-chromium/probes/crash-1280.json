@@ -1,5 +1,6 @@
 {
   "id": "crash-1280",
+  "kind": "probe",
   "about": "Desktop-band crash bisect (task chromium-desktop-crash): 1280x800, mouse, no touch, dpr 1; 10 rest frames, 40 scroll frames at 10 CSS px, 10 tail frames. Short on purpose: the renderer crash comes about 0.5 s after the first frame, so the load decides.",
   "hz": 60,
   "viewport": {

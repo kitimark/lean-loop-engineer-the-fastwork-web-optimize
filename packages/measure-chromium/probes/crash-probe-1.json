@@ -1,6 +1,7 @@
 {
  "id": "crash-probe-1",
- "about": "Crash bisect (task chromium-desktop-crash): one fresh Chrome per probe.variants entry, each loaded to the end of the pre-roll at 1280x800 unless the variant sets a width; the row is ok, crash (76), hang (75) or other. Diagnostic, records no counts.",
+ "kind": "probe",
+ "about": "Crash bisect (task chromium-desktop-crash): one fresh Chrome per probe.variants entry, each loaded to the end of the pre-roll at 1280x800 unless the variant sets a width; the row is ok, crash (76), hang (75) or other. Diagnostic, records no counts. The variant that dropped --run-all-compositor-stages-before-draw is gone: that flag is pinned (Fw.Measure.Profile pinned), the run exits 1 without it.",
  "hz": 60,
  "viewport": {
   "width": 1280,
@@ -149,12 +150,6 @@
     "id": "drop--num-raster-threads",
     "dropFlags": [
      "--num-raster-threads"
-    ]
-   },
-   {
-    "id": "drop--run-all-compositor-stages-before-draw",
-    "dropFlags": [
-     "--run-all-compositor-stages-before-draw"
     ]
    },
    {

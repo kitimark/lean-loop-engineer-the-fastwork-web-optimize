@@ -1,0 +1,1363 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "ios-simulator-on-mac",
+ "run": "gpu-safari-sim-2026-10-23T01-08-55-113Z",
+ "zone": "pain",
+ "session": {
+  "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1",
+  "dpr": 3,
+  "vw": 430,
+  "vh": 775,
+  "maxY": 5267,
+  "frame": {
+   "w": 1290,
+   "h": 2325
+  },
+  "content": [
+   0,
+   177,
+   1290,
+   2325
+  ],
+  "device": "fw-iphone-27",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+ },
+ "flip": 888,
+ "ci": {
+  "gate": "39828600078",
+  "webkitSim": [
+   "39828605244"
+  ],
+  "counts": [
+   "39828614430"
+  ],
+  "base": [
+   "39818734599",
+   "39818749535"
+  ]
+ },
+ "arm": "pain-dark-scroll",
+ "search": "?fw=pain:dark-scroll",
+ "states": [
+  {
+   "id": "y-16",
+   "kind": "scroll",
+   "m": null,
+   "y": 872,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "Q",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 348579,
+     "maxDelta": 255
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 151446,
+     "b2_3": 79467,
+     "b4_15": 56005,
+     "b16_255": 61661
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 348579,
+      "maxDelta": 255
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 348579,
+      "maxDelta": 255
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 348579,
+      "maxDelta": 255
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 6804,
+      "maxDelta": 50
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 348579,
+      "maxDelta": 255
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 348579,
+      "maxDelta": 255
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 6804,
+      "maxDelta": 50
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 348579,
+    "floor": 6804,
+    "within": true
+   },
+   "hash": {
+    "a": "cc84280228fd6d6d",
+    "b": "7972bca2d89afecc",
+    "c": "7972bca2d89afecc",
+    "d": "9cb89f015234bf17"
+   },
+   "stateSeen": {
+    "faithful": {
+     "dark": false,
+     "variant": "faithful",
+     "scrollY": 872
+    },
+    "arm": {
+     "dark": false,
+     "variant": "dark-scroll",
+     "scrollY": 872
+    },
+    "control": {
+     "dark": false,
+     "variant": "faithful",
+     "scrollY": 872
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "arm": {
+     "layerCount": 114,
+     "memoryBytes": 110417897,
+     "reasonCounts": {
+      "animation": 7,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 96,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "control": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "order": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 244947354,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 113
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 286890394,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 292867277,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 151
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 293076992,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 153
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  },
+  {
+   "id": "y-1",
+   "kind": "scroll",
+   "m": null,
+   "y": 887,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "Q",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 354710,
+     "maxDelta": 255
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 135318,
+     "b2_3": 57747,
+     "b4_15": 78031,
+     "b16_255": 83614
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 354710,
+      "maxDelta": 255
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 354710,
+      "maxDelta": 255
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 354710,
+      "maxDelta": 255
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 6323,
+      "maxDelta": 49
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 354710,
+      "maxDelta": 255
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 354709,
+      "maxDelta": 255
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 6323,
+      "maxDelta": 49
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 354710,
+    "floor": 6323,
+    "within": true
+   },
+   "hash": {
+    "a": "1136156a62efaa07",
+    "b": "a16c57e69266fcad",
+    "c": "a16c57e69266fcad",
+    "d": "c48c1ad92522bf42"
+   },
+   "stateSeen": {
+    "faithful": {
+     "dark": false,
+     "variant": "faithful",
+     "scrollY": 887
+    },
+    "arm": {
+     "dark": false,
+     "variant": "dark-scroll",
+     "scrollY": 887
+    },
+    "control": {
+     "dark": false,
+     "variant": "faithful",
+     "scrollY": 887
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "arm": {
+     "layerCount": 114,
+     "memoryBytes": 110417897,
+     "reasonCounts": {
+      "animation": 7,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 96,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "control": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "order": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 259417702,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 114
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 286890394,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 292867277,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 151
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 293076992,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 153
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  },
+  {
+   "id": "y+0",
+   "kind": "scroll",
+   "m": null,
+   "y": 888,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "Q",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 352947,
+     "maxDelta": 255
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 135159,
+     "b2_3": 56916,
+     "b4_15": 76278,
+     "b16_255": 84594
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 352947,
+      "maxDelta": 255
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 352947,
+      "maxDelta": 255
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 352947,
+      "maxDelta": 255
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 4355,
+      "maxDelta": 49
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 352947,
+      "maxDelta": 255
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 352947,
+      "maxDelta": 255
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 4355,
+      "maxDelta": 49
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 352947,
+    "floor": 4355,
+    "within": true
+   },
+   "hash": {
+    "a": "a7e0ed01c248df9f",
+    "b": "03216d120bde1b32",
+    "c": "03216d120bde1b32",
+    "d": "6e71eb99a7622df7"
+   },
+   "stateSeen": {
+    "faithful": {
+     "dark": true,
+     "variant": "faithful",
+     "scrollY": 888
+    },
+    "arm": {
+     "dark": false,
+     "variant": "dark-scroll",
+     "scrollY": 888
+    },
+    "control": {
+     "dark": true,
+     "variant": "faithful",
+     "scrollY": 888
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "arm": {
+     "layerCount": 114,
+     "memoryBytes": 110417897,
+     "reasonCounts": {
+      "animation": 7,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 96,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "control": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "order": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 267491738,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 115
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 286890394,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 300941312,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 152
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 301151027,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  },
+  {
+   "id": "y+1",
+   "kind": "scroll",
+   "m": null,
+   "y": 889,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "Q",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 351463,
+     "maxDelta": 255
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 135183,
+     "b2_3": 56169,
+     "b4_15": 73836,
+     "b16_255": 86275
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 351463,
+      "maxDelta": 255
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 351463,
+      "maxDelta": 255
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 351463,
+      "maxDelta": 255
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 3107,
+      "maxDelta": 49
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 351463,
+      "maxDelta": 255
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 351463,
+      "maxDelta": 255
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 3107,
+      "maxDelta": 49
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 351463,
+    "floor": 3107,
+    "within": true
+   },
+   "hash": {
+    "a": "0762c58ec669d350",
+    "b": "ea24a33d17e08cc7",
+    "c": "ea24a33d17e08cc7",
+    "d": "54724965f3f4cdc6"
+   },
+   "stateSeen": {
+    "faithful": {
+     "dark": true,
+     "variant": "faithful",
+     "scrollY": 889
+    },
+    "arm": {
+     "dark": false,
+     "variant": "dark-scroll",
+     "scrollY": 889
+    },
+    "control": {
+     "dark": true,
+     "variant": "faithful",
+     "scrollY": 889
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "arm": {
+     "layerCount": 114,
+     "memoryBytes": 110417897,
+     "reasonCounts": {
+      "animation": 7,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 96,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "control": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "order": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 267491738,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 115
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 286890394,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 300941312,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 152
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 301151027,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  },
+  {
+   "id": "y+16",
+   "kind": "scroll",
+   "m": null,
+   "y": 904,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "Q",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 337245,
+     "maxDelta": 71
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 133238,
+     "b2_3": 53575,
+     "b4_15": 51717,
+     "b16_255": 98715
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 337245,
+      "maxDelta": 71
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 337245,
+      "maxDelta": 71
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 337245,
+      "maxDelta": 71
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 4711,
+      "maxDelta": 1
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 337245,
+      "maxDelta": 71
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 337245,
+      "maxDelta": 71
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 4711,
+      "maxDelta": 1
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 337245,
+    "floor": 4711,
+    "within": true
+   },
+   "hash": {
+    "a": "4bb4f321918182d0",
+    "b": "81f5627fab854d90",
+    "c": "81f5627fab854d90",
+    "d": "e5fe1668f4929919"
+   },
+   "stateSeen": {
+    "faithful": {
+     "dark": true,
+     "variant": "faithful",
+     "scrollY": 904
+    },
+    "arm": {
+     "dark": false,
+     "variant": "dark-scroll",
+     "scrollY": 904
+    },
+    "control": {
+     "dark": true,
+     "variant": "faithful",
+     "scrollY": 904
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "arm": {
+     "layerCount": 114,
+     "memoryBytes": 110417897,
+     "reasonCounts": {
+      "animation": 7,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 4,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 96,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "control": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    },
+    "order": {
+     "layerCount": 110,
+     "memoryBytes": 98410013,
+     "reasonCounts": {
+      "animation": 5,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "overflowScrollingTouch": 2,
+      "overlap": 2,
+      "positionFixed": 1,
+      "positionSticky": 2,
+      "root": 1,
+      "stacking": 95,
+      "transformWithCompositedDescendants": 2,
+      "willChange": 92
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 267491738,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 115
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 286890394,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 300941312,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 152
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 25693,
+      "virtualBytes": 301151027,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 154
+     },
+     "content": {
+      "pid": 26137,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  }
+ ]
+}

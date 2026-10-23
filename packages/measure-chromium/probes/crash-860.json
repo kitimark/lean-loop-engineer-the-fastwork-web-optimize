@@ -1,9 +1,10 @@
 {
-  "id": "crash-861",
-  "about": "Desktop-band crash bisect (task chromium-desktop-crash): 861x800, mouse, no touch, dpr 1; 10 rest frames, 40 scroll frames at 10 CSS px, 10 tail frames. Short on purpose: the renderer crash comes about 0.5 s after the first frame, so the load decides.",
+  "id": "crash-860",
+  "kind": "probe",
+  "about": "Desktop-band crash bisect (task chromium-desktop-crash): 860x800, mouse, no touch, dpr 1; 10 rest frames, 40 scroll frames at 10 CSS px, 10 tail frames. Short on purpose: the renderer crash comes about 0.5 s after the first frame, so the load decides.",
   "hz": 60,
   "viewport": {
-    "width": 861,
+    "width": 860,
     "height": 800,
     "dpr": 1,
     "mobile": false,
