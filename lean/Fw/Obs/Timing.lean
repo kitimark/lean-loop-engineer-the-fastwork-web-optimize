@@ -757,9 +757,9 @@ def runSteps : List String :=
 def passSteps : List String :=
   ["watch pass", "watch pass gh lock", "watch pass gh reserve", "watch pass gh call", "watch pass gh backoff", "watch pass other"]
 
-/-- The spans of `fw ci state`: the whole command, then lock wait, fwcore reserve, gh call, backoff and the rest (`reduce`). -/
+/-- The spans of `fw ci state`: the whole command, then lock wait, state read (`load`), fwcore reserve, gh call, backoff and the rest (`reduce`). -/
 def ciStateSteps : List String :=
-  ["ci state", "ci state gh lock", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
+  ["ci state", "ci state gh lock", "ci state gh load", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
 
 theorem ciStateSteps_nodup : ciStateSteps.Nodup := by decide
 
@@ -796,8 +796,24 @@ def callerTimeoutsMs : List Nat :=
 
 def maxCallTimeoutMs : Nat := callerTimeoutsMs.foldl max 0
 
-/-- Slack a dispatch keeps behind a holder that runs to its timeout: reserve, observe and the hand-over. -/
-def lockMarginMs : Nat := 20000
+/-- Longest one fwcore call may take: the default of the console's fwcore client (`CALL_TIMEOUT_MS` in console-api `core/lean.ts`; INFERRED
+for the spawn in `packages/gh-budget/src/core.ts`, which sets no timeout of its own). -/
+def fwcoreCallMs : Nat := 10000
+
+/-- What `fw land` sets for its child processes (`LOAD_TOLERANT_ENV.FW_CORE_CALL_MS` in `land.ts`). -/
+def fwcoreLoadedCallMs : Nat := 60000
+
+/-- fwcore calls a holder makes inside the lock after gh returns or before it starts: reserve and observe. -/
+def holderCoreCalls : Nat := 2
+
+/-- Slack a dispatch keeps behind a holder that runs to its timeout: the reserve and the observe call, each at most `fwcoreCallMs`. -/
+def lockMarginMs : Nat := holderCoreCalls * fwcoreCallMs
+
+theorem lock_margin_derived : lockMarginMs = 20000 := by decide
+
+/-- With the loaded-environment fwcore timeout the margin would not fit beside the longest gh timeout, so that value
+must not reach the gh-budget calls (it is the console-api client's, `land.ts` sets it for child processes only). -/
+theorem loaded_core_margin_too_big : maxCallTimeoutMs + holderCoreCalls * fwcoreLoadedCallMs > dispatchLockWaitMs := by decide
 
 /-- Longest wait of the gh-budget poller for the state lock; past it the tick answers `busy`. -/
 def pollLockWaitMs : Nat := 10000
@@ -1948,7 +1964,7 @@ def boundsText (_ : Unit := ()) : String :=
   "export const GH_BOUNDS = {\n" ++
   String.join ([("dispatchLockWaitMs", dispatchLockWaitMs), ("dispatchCallTimeoutMs", dispatchCallTimeoutMs),
     ("watchLockWaitMs", watchLockWaitMs), ("watchCallTimeoutMs", watchCallTimeoutMs),
-    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
+    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("landCallTimeoutMs", landCallTimeoutMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
       fun (n, v) => "  " ++ n ++ ": " ++ toString v ++ ",\n") ++
   "} as const;\n"
 

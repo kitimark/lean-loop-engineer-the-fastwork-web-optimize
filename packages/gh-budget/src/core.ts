@@ -46,6 +46,9 @@ export type Env = {
    *  in-process instead (a fake server; the spawn of a node process costs ~0.1 s and is all a replay of thousands of
    *  calls would spend). Production never sets it. */
   exec?: GhExec;
+  /** Timing hook, no decision: called around the read of the state file inside the lock (`loadStart`, `loadEnd`), so the
+   *  lock wait and the state read are told apart. Production sets it only to time `fw ci state`. */
+  mark?: (e: "loadStart" | "loadEnd") => void;
   /** Epoch seconds. */
   now(): number;
   /** Resolve at epoch second `t`, or earlier (callers re-check). */

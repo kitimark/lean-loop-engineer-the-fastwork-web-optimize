@@ -11,7 +11,8 @@ import { UsageError } from "./lib.ts";
 import { realEnv } from "@fw/gh-budget";
 import { chargedGh, fwcoreCall, ingest, storeDir, type FwCall, type Gh } from "./run.ts";
 import { GhClock, ciStateParts, phasedEnv } from "./run-phases.ts";
-import { record } from "./timing.ts";
+import { record, type Span } from "./timing.ts";
+type StateSpan = Pick<Span, "tool" | "step" | "startMs" | "durMs" | "exit">;
 
 export const CI_USAGE = "usage: fw ci <run id> | --branch ci/<x> [--workflow chromium-counts] [--store <dir>]\n" +
   "  a run id or --branch is required (a main push runs no measurement). With --branch: the latest run of the workflow\n" +
@@ -70,26 +71,41 @@ export function runStateWord(status: string, conclusion: string | null): "runnin
   return conclusion === "success" ? "complete" : "failed";
 }
 
-/** The list sizes `fw ci state` tries in turn: the newest 100 runs cover about an hour of a busy repository, so a run that
- *  finished earlier needs a longer list (MEASURED 2026-10-21: 100 runs spanned 51 min; gh pages up to 1000 in one call). */
+/** The list sizes `fw ci state` tries in turn (Lean `Fw.Ci.StateList.limits`): 100 newest runs cover about an hour of a busy repository
+ *  (MEASURED 2026-10-21: 100 runs spanned 51 min); gh pages up to 1000 in one call, 22.3 s for the 1000 list (MEASURED 2026-10-23). */
 export const STATE_LIMITS = [100, 400, 1000] as const;
 
+export type StateStep = { step: "found" | "ended" | "older" | "absent" | "exhausted" } | { step: "grow"; next: number };
+
+/** What to do after one `gh run list` of `limit` rows (newest first, ids ascending with age reversed) for `id`. TS stand-in for Lean
+ *  `Fw.Ci.StateList.step`, checked against `packages/contracts/golden/ci/state-list.jsonl` in `apps/runner/test/ci-state.test.ts`;
+ *  marked for replacement by an fwcore op. */
+export function stateStep(narrowed: boolean, limit: number, id: number, ids: number[]): StateStep {
+  if (ids.includes(id)) return { step: "found" };
+  if (ids.length < limit) return { step: "ended" };
+  if (!ids.every((x) => id < x)) return { step: "absent" };
+  if (!narrowed) return { step: "older" };
+  const i = STATE_LIMITS.indexOf(limit as (typeof STATE_LIMITS)[number]);
+  const next = i >= 0 ? STATE_LIMITS[i + 1] : undefined;
+  return next === undefined ? { step: "exhausted" } : { step: "grow", next };
+}
+
 /** `fw ci state <run id> [--branch b] [--workflow w]`: read one run by identity from `gh run list` (list calls only, never `gh run view` or `gh api`).
- *  The list grows (100, 400, 1000) until the id appears; `--branch` and `--workflow` narrow it so older runs are in reach.
- *  Prints `<id> <state>`; exit 0, or 2 when the id is in none of the lists. TS stand-in: pure I/O plus one status word. */
+ *  With `--branch` or `--workflow` the list is filtered, so an older run is in reach and the list grows (100, 400, 1000) while the id is older than its
+ *  oldest row; without them one list of 100 is read and an older id stops there (`stateStep`). Prints `<id> <state>`; exit 0, or 2 when not found. */
 export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void; branch?: string; workflow?: string }): Promise<number> {
   if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id> [--branch <b>] [--workflow <w>]");
   const narrow = [...(d.branch ? ["--branch", d.branch] : []), ...(d.workflow ? ["--workflow", d.workflow] : [])];
-  let last = 0;
-  for (const limit of STATE_LIMITS) {
+  const id = Number(runId);
+  let limit: number = STATE_LIMITS[0];
+  for (;;) {
     const rows = JSON.parse(await d.gh(["run", "list", ...narrow, "--limit", String(limit), "--json", "databaseId,status,conclusion"])) as { databaseId: number; status: string; conclusion: string | null }[];
-    const r = rows.find((x) => String(x.databaseId) === runId);
-    if (r) { d.log(`${runId} ${runStateWord(r.status, r.conclusion)}`); return 0; }
-    if (rows.length < limit || rows.length === last) break; // the list ended before the limit: a longer one adds nothing
-    last = rows.length;
+    const s = stateStep(narrow.length > 0, limit, id, rows.map((x) => x.databaseId));
+    if (s.step === "found") { const r = rows.find((x) => x.databaseId === id)!; d.log(`${runId} ${runStateWord(r.status, r.conclusion)}`); return 0; }
+    if (s.step === "grow") { limit = s.next; continue; }
+    d.log(s.step === "older" ? `${runId} unknown (older than the newest ${limit} runs; pass --branch or --workflow)` : `${runId} unknown`);
+    return 2;
   }
-  d.log(`${runId} unknown`);
-  return 2;
 }
 
 /** The whole command. Exit code: 0 stored (or unchanged), 2 refused. */
@@ -141,6 +157,11 @@ export async function ciCli(argv: string[], cwd: string, env: Record<string, str
   return ciMain(args, { call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), store: args.store ?? storeDir(consoleDir), tmp: join(consoleDir, "tmp"), log: (l) => console.log(l) });
 }
 
+/** One span per part of `fw ci state`, each carrying the command's real exit (0 found, 2 not found, 1 a throw). */
+export function recordStateParts(parts: { step: string; durMs: number }[], startMs: number, exit: number, rec: (s: StateSpan) => void): void {
+  for (const p of parts) rec({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit });
+}
+
 export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
   const usage = "usage: fw ci state <run id> [--branch <b>] [--workflow <w>]";
   const [id, ...rest] = argv;
@@ -155,9 +176,11 @@ export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
   const gh = chargedGh(phasedEnv(realEnv(cwd), (e) => clock.on(e)));
   const t0 = performance.now(), startMs = Date.now();
   const timed: Gh = async (a, op) => { clock.start(); try { return await gh(a, op); } finally { clock.end(); } };
+  let exit = 1; // a throw is a failure; the real exit of the command goes into every part span
   try {
-    return await ciState(id, { gh: timed, log: (l) => console.log(l), ...o });
+    exit = await ciState(id, { gh: timed, log: (l) => console.log(l), ...o });
+    return exit;
   } finally {
-    for (const p of ciStateParts(clock, performance.now() - t0)) record({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit: 0 }, cwd);
+    recordStateParts(ciStateParts(clock, performance.now() - t0), startMs, exit, (sp) => record(sp, cwd));
   }
 }

@@ -35,6 +35,11 @@ One name per cost, so no history pools unlike work:
 - `fw watch` writes `watch pass` and, when the pass made a gh call, `watch pass gh lock`, `watch pass gh call`,
   `watch pass gh backoff` (only when non-zero) and `watch pass other` (the rest), all starting with the pass
   (`passParts`, Lean `passSteps`). Each part is its own key, so a slow lock wait is judged against lock waits only.
+- `fw ci state` writes `ci state` and, when it made a gh call, `ci state gh lock` (the wait for the lock), `ci state gh load` (the
+  state-file read inside the lock), `ci state gh reserve` (the fwcore decision), `ci state gh call` (the gh process),
+  `ci state gh backoff` (only when non-zero) and `ci state reduce` (the rest: parse and id search); every span carries the
+  command's real exit (0 found, 2 not found) (`ciStateParts`, `recordStateParts`, Lean `ciStateSteps`). Without `--branch` or
+  `--workflow` it reads one list of 100 runs and stops (Lean `Fw.Ci.StateList.step`).
 - `fw slot` is `slot run <kind>`, `slot acquire <kind>`, `slot held <kind>`, `slot admit`, `slot status`, ... from both entries
   (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`). A wrapped argv with `--dry` adds ` dry`
   (`slot run land dry`); a `--cache` replay ends as `... cached` (`slot run test cached`), apart from the real run.

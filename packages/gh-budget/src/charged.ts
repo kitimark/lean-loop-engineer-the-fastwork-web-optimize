@@ -50,7 +50,9 @@ export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) =
 
 function chargedLocked(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs: number, lockWaitMs: number): Charged {
   return locked(env, () => {
+    env.mark?.("loadStart");
     const s = loadState(env.dir);
+    env.mark?.("loadEnd");
     const r = decide(s, env.now());
     saveState(env.dir, r.state as Json); // the booking (or the advanced clock) is on disk before gh starts
     if (r.decision === "wait") return { ran: false, decision: "wait", until: Number(r.until), reason: String(r.reason) };

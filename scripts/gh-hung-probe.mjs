@@ -5,7 +5,7 @@
 // usage: node scripts/gh-hung-probe.mjs [--timeout-ms 20000] [--lock-wait-ms 60000] [--sleep 90] [--waiter-delay 1]
 // "before" row: --timeout-ms 60000 --lock-wait-ms 120000. Prints one JSON line.
 import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chargedOnce } from "../packages/gh-budget/src/charged.ts";
@@ -13,8 +13,9 @@ import { chargedOnce } from "../packages/gh-budget/src/charged.ts";
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i < 0 ? d : Number(process.argv[i + 1]); };
 const timeoutMs = arg("timeout-ms", 20000), lockWaitMs = arg("lock-wait-ms", 60000), sleepS = arg("sleep", 90), delayS = arg("waiter-delay", 1);
 
+const owner = !process.env.GH_HUNG_PROBE_ROOT; // the process that made the directory removes it; the holder child only uses it
 const root = process.env.GH_HUNG_PROBE_ROOT ?? mkdtempSync(join(tmpdir(), "gh-hung-probe-"));
-if (!process.env.GH_HUNG_PROBE_ROOT) {
+if (owner) {
   writeFileSync(join(root, "gh"), `#!/bin/sh\nsleep ${sleepS}\n`);
   chmodSync(join(root, "gh"), 0o755);
 }
@@ -36,5 +37,6 @@ if (process.argv.includes("--holder")) {
   const waiter = call({ ...env, exec: () => ({ status: 0, stdout: "", stderr: "" }) }); // its own gh is instant: the wait measured is the lock
   const waiterGotLockAfterMs = Date.now() - w0;
   await new Promise((r) => child.on("close", r));
+  if (owner) rmSync(root, { recursive: true, force: true });
   console.log(JSON.stringify({ timeoutMs, lockWaitMs, holder: JSON.parse(out), waiterGotLockAfterMs, waiter: waiter.ran ? "ran" : waiter.decision }));
 }
