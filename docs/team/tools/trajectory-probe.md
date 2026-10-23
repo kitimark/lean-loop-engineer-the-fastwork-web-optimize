@@ -98,8 +98,7 @@ runs the probe with the inputs of one message line:
    or phase (`firstVerdict_not_first`, `close_empty`). `verdictLines` prints a `FIRSTFRAME` line with the counts.
    Offline re-reduction (dev check): run 39926829451 stays CLEAN, its 640
    candidate open@1 goes from `skip:origEmpty` to `skip:firstLate`, its 641 faithful open@1 from `fail:coverage` to
-   `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). Re-reduced with the
-   `laneOf_extra` rule (task trajectory-lane-noflip, dev check): run 39926829451 CLEAN (new 0, undecided 0, cleared 1; its
+   `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). With `laneOf_extra`: run 39926829451 CLEAN (new 0, undecided 0, cleared 1; its
    open@1 `skip:first` units are 42 `skip:firstLate` vs pass and 42 pass vs `skip:firstLate`, no `skip:firstOpen`), run
    39557718020 CLEAN (new 0, undecided 0). Limit: the cadence is Chromium's;
    WebKit's cadence is a follow-up.
