@@ -104,7 +104,7 @@ export function PeopleCard({ variant, o, deck, pill }: PeopleCardProps) {
       <div ref={cardRef} className={css.card} data-fw="people-card">
         <div ref={headerRef} className={css.header}>
           <div className={css.headerCopy}>
-            <h2 id="future-heading" className={css.title}>
+            <h2 id="future-heading" className={variant === 'title-wrap' ? `${css.title} ${css.titleWrap}` : css.title}>
               <span className={css.titleLead}>{COPY.titleLead}</span>{' '}
               <span className={css.titleWords}>
                 {before}

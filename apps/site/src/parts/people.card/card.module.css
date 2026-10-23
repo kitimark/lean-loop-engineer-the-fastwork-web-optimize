@@ -86,17 +86,19 @@
     width: 100%;
     display: flex;
   }
-  /* The original balances this title (text-wrap: balance). Stock desktop Chrome crashes while it balances the line that holds
-     the o word, so the rewrite wraps. The title is one line above 860 px (Lean PeopleTitleWrap), where balance has nothing to
-     place; at 860 px and below the original already unsets it. */
   .title {
     color: #2b313b;
     letter-spacing: -0.02em;
-    text-wrap: wrap;
+    text-wrap: balance;
     margin: 0;
     font-size: clamp(36px, 4vw, 48px);
     font-weight: 500;
     line-height: 1.15;
+  }
+  /* Variant title-wrap (Lean PeopleTitleWrap): stock desktop Chrome crashes while it balances the line that holds the o word.
+     Above 860 px the title is one line, where balance has nothing to place; at 860 px and below .title unsets it anyway. */
+  .titleWrap {
+    text-wrap: wrap;
   }
   .titleLead {
     display: inline;

@@ -11,9 +11,13 @@ block `o` and is kept as the record of the refuted option.
 
 What the change touches. The title is `clamp(36px, 4vw, 48px)` with the `o` word on one line; above 860 px the card pads
 `56px` on each side. The balancing code returns at once for a one-line paragraph
-(`score_line_breaker.cc:139-142`, `paragraph_line_breaker.cc:210`@f842f52). Below 861 px the title is `text-wrap: unset`
+(`score_line_breaker.cc:139-142`, `paragraph_line_breaker.cc:210`@f842f52). At 860 px and below the title is `text-wrap: unset`
 and a flex column, never balanced. So the only width range in which the declaration does anything is the one where the
 title fits one line, and there no break position exists to differ.
+
+Flag, not default (`people.card:title-wrap`). The breakpoint gate reads the title's `text-wrap-style`. With the change as the
+default it failed 111 readings on Chromium and 105 on WebKit, all `balance` against `auto` on the title at the widths above
+860 px (run 39891679733), so the faithful default keeps `balance` and the gate stays green.
 -/
 namespace Fw.Parts.PeopleTitleWrap
 
