@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { checksWithReads } from "../src/land.ts";
 import { fwcoreCall } from "../src/run.ts";
 import { checkRow, gateJobsMax, parseWorkflow, trajectoryMax, widest, width, type Job, type Workflow, widthTable } from "./workflow-widths.ts";
 
@@ -97,5 +98,12 @@ describe("the width table is the width of every workflow file", () => {
       const r = call({ op: "ci.overflow", legs: LEGS, ghActive: [w.name], ghActions: "operational", ghPrev: false, ccArm: "unknown", ccReadAt: null, now: 1, spent: 0, storage: 0, keys: null, checkout: null, forceFull: false }) as { ghFree: number };
       expect(r.ghFree, w.name).toBe(Math.max(0, 20 - table.get(w.name)!));
     }
+  });
+});
+
+describe("the scope file the width planner loads selects the width test", () => {
+  it("spec.mjs loads scope.gen.json, and a change to that file alone selects runner:overflow-widths", () => {
+    expect(readFileSync(join(root, "packages/gate-breakpoints/src/spec.mjs"), "utf8")).toContain("scope.gen.json");
+    expect(checksWithReads(root, ["packages/gate-breakpoints/src/scope.gen.json"]).map((c) => c.id)).toEqual(["runner:overflow-widths"]);
   });
 });
