@@ -1,7 +1,7 @@
 # graph-writes-closure (lean-prover)
 
 - Branch `worktree-wf_29c7f846-55b-1`, worktree `.claude/worktrees/wf_29c7f846-55b-1`, base main f3248e954.
-- No CI runs (Lean golden + runner tests are local land checks).
+- Last code commit 7ba9e279b; no CI runs (check.sh, runner tests, ci-paths, dry land all pass locally).
 
 ## What exists
 - `lean/Fw/Plan/WritesClosure.lean`: `kindOf` (golden / script / module / workflow / other), `freshOf` (new / existing /
