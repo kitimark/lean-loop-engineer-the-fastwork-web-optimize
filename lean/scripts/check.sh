@@ -164,7 +164,7 @@ run_group() {
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check
   job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check
-  job "lake-cache golden check" sh -c 'printf "import Fw.Ops.LakeCache\n#eval Fw.Ops.LakeCache.gen [\"--check\"]\n" | lake env lean --stdin'  # golden/ops/lake-cache.jsonl
+  job "lake-cache golden check" sh -c 'printf "import Fw.Ops.LakeCache\n#eval Fw.Ops.LakeCache.gen [\"--check\"]\n" | lake env lean --stdin'
   job "oracle expand golden check" lake env lean --run scripts/ExpandGolden.lean --check
   job "oracle retrieve golden check" lake env lean --run scripts/RetrieveGolden.lean --check
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
