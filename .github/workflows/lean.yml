@@ -115,36 +115,6 @@ jobs:
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 > fwcore-start.json && cat fwcore-start.json
 
-      # Prune the Lake cache before the post step saves it (task ci-lake-cache-fresh). The restored entry holds the artifacts of
-      # every earlier build; a file with one link is not linked into this build's .lake/build, so it is dead weight in the blob
-      # (research/notes/2026/10-2x-ci-setup-lean-slow.md). Sizes before and after go in the log.
-      - name: prune the Lake cache (links 1 = not used by this build)
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        run: |
-          report() {
-            echo "== $1"
-            echo "total bytes: $(du -sb "$LAKE_CACHE_DIR" | cut -f1)"
-            find "$LAKE_CACHE_DIR" -type f -printf '%n %s\n' | awk '{k=($1>=2)?"links>=2":"links=1"; n[k]++; b[k]+=$2} END {for (k in n) printf "%s files=%d bytes=%d\n", k, n[k], b[k]}' | sort
-          }
-          report before
-          find "$LAKE_CACHE_DIR" -type f -links 1 -delete
-          find "$LAKE_CACHE_DIR" -mindepth 1 -type d -empty -delete
-          report after
-
-      - name: TEMP rebuild from the pruned cache
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        working-directory: lean
-        run: |
-          rm -rf .lake/build
-          start=$(date +%s)
-          lake build 2>&1 | tee ../lake-rebuild.log | tail -5
-          echo "rebuild seconds: $(( $(date +%s) - start ))"
-          echo "built lines: $(grep -c '^✔ \[' ../lake-rebuild.log || true)"
-          echo "total bytes after rebuild: $(du -sb "$LAKE_CACHE_DIR" | cut -f1)"
-          find "$LAKE_CACHE_DIR" -type f -links 1 -delete
-          find "$LAKE_CACHE_DIR" -mindepth 1 -type d -empty -delete
-          echo "total bytes after second prune: $(du -sb "$LAKE_CACHE_DIR" | cut -f1)"
-
       - name: Runner facts
         run: sh .github/scripts/runner-info.sh lean-runner.json
 
