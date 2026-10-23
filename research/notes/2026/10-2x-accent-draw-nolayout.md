@@ -124,3 +124,32 @@ The report tables call the arm `crop`.
 - The text jump is the look change; the user judges it. draw-nolayout keeps the glide.
 - The pushed commit wrote `[data-fw-draw^='nolayout']`; the later commit writes `:is()` of the two values (same elements; the hero.exit
   cascade test does not parse `^=`).
+
+# Three arms in one run: Layout per hero-exit scroll frame (task accent-nolayout-measure)
+
+## Premise: `transition: none` makes the width one change (cites file:line@sha)
+CONFIRMED in the engine source, pins WebKit@862f17d and Chromium@f842f52 (`.cache/upstream/`):
+- WebKit `Source/WebCore/style/Styleable.cpp`: `updateCSSTransitions` :761 (called from `style/StyleTreeResolver.cpp:856`) walks the new style per property
+  (`updateCSSTransitionsForStyleableAndProperty` :570). `hasMatchingTransitionProperty` is built from `newStyle.transitions()` :586-601 and
+  `transitionMatchesProperty` :499 returns false for `CSS::Keyword::None` :508. A transition starts only if there is a match and the duration is above
+  zero :648; with no match a running transition is cancelled and the function returns (:672-680). So with `transition: none` the style change to the new
+  width is a single computed-value change and no per-frame animated width exists.
+- Chromium `third_party/blink/renderer/core/animation/css/css_animations.cc`: `CalculateTransitionUpdate` :3076 calls
+  `CalculateTransitionUpdateForProperty` :2928-2945, where `kTransitionNone` falls to `default: break` :2942 (no transition is created);
+  a start delay plus duration of at most zero calls `UnstartTransition` and returns :2850-2858. `css/resolver/css_to_style_map.cc:471` maps the
+  keyword `none` to `kTransitionNone`.
+- Site side (INFERRED from our source): `hero.accent/index.tsx` onCursor sets `em.style.width` in the same task as the `drawingIn` class (lines 67-81);
+  `accent.module.css` gives `.drawingIn { transition: width .9s }` (:12-14) and `[data-fw-draw='nolayout-full'].drawingIn { transition: none }` (:76-78).
+  The draw probe below counts `transitionrun` for width per capture to MEASURE this per arm.
+
+## Draw-only freeze (`--freeze hero-accent-draw`)
+`src/lag/freeze.mjs` `FREEZE_DRAW_CSS` removes only the draw: path animations, the svg clip animation of `drawingIn` and `drawingOut`, and the width
+transition, all scoped to `[data-fw="hero-accent"]`. The idle boil keeps running. The mode counts `animationstart` (`stroke|clip` In|Out) and width
+`transitionrun` in `window.__fwDraw`; the unfrozen twin only counts. Lean `busyFrozen` (golden `swapBusyFrozen`) decides each window of unfrozen busy
+samples against frozen samples.
+
+## Lane (`--accent`, token `[swap-accent]`)
+13 units per job (Lean `laneUnits`, golden `swapLaneUnits`): faithful, draw-nolayout and draw-nolayout-full at one build, arm order shifted by the VM
+number, hero-exit zone captures aligned (slot a) and natural (slot b), one draw-frozen faithful pass. Lane budget 24 min (Lean `laneBudgetMin`); a unit
+that no longer fits is listed as skipped, never silently dropped. Layout per scroll frame is `perFrameMilli` (rows over frames, thousandths).
+`accent-report` prints per-window verdicts against the faithful A/A floor, the frozen comparison, the pooled numbers and the zone verdicts per pair.
