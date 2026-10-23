@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
+import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, probeTable, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
 
 const raw = (changed, maxDelta) => ({ changed, maxDelta });
 const claim = { compA: true, compB: true };
@@ -70,18 +70,35 @@ test('the changed-box list names the parts, only for cells with a change inside'
   assert.ok(md[2].includes('webkit-1 | 0 | A/A | 48-1 | 10,20,30,40 | button.cta, span.face x2, p.note'));
 });
 
-test('the shared-pixel list prints the reason, the pixels hero_copy left to other layers and where the outside changes are', () => {
+test('the shared-pixel list prints the reason, the receiving cells with their grades and where the outside changes are', () => {
+  const deck = (i, kind, grade, why, ins) => full('hero.deck_article#0', i, kind, { grade, why, ifAccepted: grade, cell: { inside: ins, out: raw(0, 0), p1: true, claim } });
   const l = lane('webkit-1', [
-    full('hero_copy', 0, 'A/A', { shared: raw(48, 1), sharedWith: 3 }),
-    full('hero_copy', 1, 'A/A', { shared: raw(0, 0), sharedWith: 3 }),
-    full('hero_copy', 2, 'A/A', { shared: raw(0, 0), sharedWith: 3, cell: { inside: raw(0, 0), out: raw(2, 1), p1: true, claim }, where: { bbox: null, parts: [], outBbox: [5, 6, 9, 10] } }),
-    full('hero_copy', 0, 'P', {}),
+    full('hero_copy', 0, 'A/A', { shared: raw(48, 1), sharedWith: 3, sharedTo: ['hero.deck_article#0'] }),
+    full('hero_copy', 1, 'A/A', { shared: raw(0, 0), sharedWith: 3, sharedTo: [] }),
+    full('hero_copy', 2, 'A/A', { shared: raw(0, 0), sharedWith: 3, sharedTo: [], cell: { inside: raw(0, 0), out: raw(2, 1), p1: true, claim }, where: { bbox: null, parts: [], outBbox: [5, 6, 9, 10], outProbes: [['nav-lang button', 4, 5, 10, 20]] } }),
+    full('hero_copy', 0, 'P', { shared: raw(153, 13), sharedWith: 5, sharedTo: ['hero.deck_article#0', 'hero.cue_cue'] }),
+    full('hero_copy', 1, 'P', { shared: raw(4, 1), sharedWith: 5 }),
+    deck(0, 'A/A', 'L', 'inside', raw(24, 1)),
+    deck(0, 'P', 'L', null, raw(177, 13)),
+    full('hero.cue_cue', 0, 'P', { grade: 'Q', ifAccepted: 'Q' }),
   ]);
   const md = heroCopyShared([l]).split('\n');
-  assert.ok(md[0].startsWith('Reason: pixels inside another graded layer'));
-  assert.equal(md.length, 6, 'reason, blank, header, rule and two rows; the offset with nothing is left out');
-  assert.ok(md[4].includes('| webkit-1 | 0 | A/A | 48-1 | 3 | - |'));
-  assert.ok(md[5].includes('| webkit-1 | 2 | A/A | 0-0 | 3 | 2-1 at 5,6,9,10 |'));
+  assert.ok(md[0].startsWith("Reason: a pixel inside another graded layer's mask is counted by that layer's cell"));
+  assert.ok(!md[0].includes('deck card'), 'the reason names no layer: the receivers are per row');
+  assert.equal(md.length, 8, 'reason, blank, header, rule and four rows; the offset with nothing is left out');
+  assert.ok(md[4].includes('| webkit-1 | 0 | A/A | 48-1 | hero.deck_article#0: L, inside 24-1 | - | - |'));
+  assert.ok(md[5].includes('| webkit-1 | 2 | A/A | 0-0 | - | 2-1 at 5,6,9,10 | nav-lang button 4,5,10,20 |'));
+  assert.ok(md[6].includes('| webkit-1 | 0 | P | 153-13 | hero.deck_article#0: L (inside, above the floor), inside 177-13; hero.cue_cue: Q, inside 0-0 |'));
+  assert.ok(md[7].includes('| webkit-1 | 1 | P | 4-1 | not recorded |'));
+});
+
+test('the probe table lists the recorded elements outside the graded layers per job', () => {
+  const l = lane('webkit-1', [], [], {});
+  l.probes = { 'nav-lang button': [219e6, 24e6, 72e6, 36e6] };
+  l.dpr = 3;
+  const md = probeTable([l, lane('webkit-2', [])]).split('\n');
+  assert.ok(md[2].includes('| webkit-1 | nav-lang button | 657,72,873,180 |'));
+  assert.ok(md[3].includes('| webkit-2 | not recorded | - |'));
 });
 
 test('the pin table reads the page clock, unpinned, misplaced and occluded counts', () => {
