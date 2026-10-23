@@ -69,12 +69,25 @@ runs the probe with the inputs of one message line:
    rewrite passed; incident `inc-trajectory-pooled-window`.) Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
    construction there (see the research note): report a Linux WebKit push cell as "no verdict: coverage" on the units where the
    faithful arm fails coverage, and read its hero rows as usable.
-   **First frame.** The original often misses bucket 1 of the open push on a 17 ms Chromium
-   frame (MEASURED: control run 39557718020, width 390, original 0 of 5 passes, faithful arm 3 of 5; run 39926829451,
-   original 1, 0, 1, 5 of 5 at widths 390, 640, 641, 1280), so the look reference can lack a first frame there. An empty open@1 of the rewrite is then `skip:origEmpty`, not `fail:coverage` (Lean
-   `byMFirst`, `firstVerdict_both_empty`); every arm gets the rule, the faithful arm too. Kept as before: an open@1 the
-   original sampled (`firstVerdict_orig_sampled`), a content failure of a sampled open@1 (`firstVerdict_content`), any other
-   bucket or phase (`firstVerdict_not_first`, `close_neither`). `verdictLines` prints a `FIRSTFRAME` line with the count.
+   **First frame.** Bucket 1 of the open push is `m` in [500, 1500), elapsed 12 to 35 ms of the 680 ms tween
+   (`mAt_first_iff`, `mAt_edges`). At the 17 ms Chromium cadence that is 2 frame slots (`slots_cadence`): a pass samples it
+   iff its first frame after the push is less than 2 vsyncs late (`sampled_iff`). MEASURED (runs 39926829451 and
+   39557718020, 75 open passes): the first nonzero sample is either in bucket 1 (27 passes, gap 22.6-26 ms) or in bucket 2
+   (48 passes, gap 54.5-58.7 ms, two vsyncs late); a pass never lands one vsync late. So open@1 coverage is a property of the
+   pass count, not of the page: Lean `firstCover no k nw` (`k` of `no` original passes in bucket 1, `nw` rewrite passes,
+   none there; `alpha` = 1/20) is `missing` when even with one original hit fewer all `nw` rewrite passes would miss with
+   chance at most `alpha`, `late` when with one hit more that chance is above `alpha`, else `undecided`. An empty open@1 of
+   the rewrite becomes `fail:coverage`, `skip:firstLate` or `skip:firstOpen` (`coverVerdict`, `firstVerdict_empty`); at
+   5 and 5 passes, `k` 0-1 is late, 2-3 undecided, 4-5 missing (`cover_five`). The verdict never jumps between
+   `fail:coverage` and `skip:firstLate` when one original pass more is taken, hit or not (`firstCover_extra`), or one
+   original miss turns into a hit (`firstCover_step`); concrete check `first_extra_pass`. A candidate's `skip:firstOpen`
+   where the faithful arm's is not is `undecided` (`rel`), and the lane word is RED, UNDECIDED or CLEAN (`laneOf`). Kept
+   as before: a sampled open@1 (`firstVerdict_rew_sampled`), a content failure (`firstVerdict_content`), any other bucket
+   or phase (`firstVerdict_not_first`, `close_empty`). `verdictLines` prints a `FIRSTFRAME` line with the counts.
+   Offline re-reduction of the raws (a dev check; the CI evidence stays the two runs): run 39926829451 stays CLEAN, its 640
+   candidate open@1 goes from `skip:origEmpty` to `skip:firstLate`, its 641 faithful open@1 from `fail:coverage` to
+   `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). Limit: the cadence is Chromium's;
+   WebKit's cadence is a follow-up.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
    red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
