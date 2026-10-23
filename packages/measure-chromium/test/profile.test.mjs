@@ -105,9 +105,17 @@ test('the load diagnostics of run.mjs sit behind FW_LOAD_TRACE, the crash exit d
     if (src[i] === '{') depth++;
     if (src[i] === '}' && --depth === 0) { close = i; break; }
   }
+  // stockRun (the stock-Chrome crash probe) needs target discovery to see the crash; the rule covers the counts path only.
+  const stockOpen = src.indexOf('async function stockRun(');
+  let stockClose = stockOpen;
+  for (let i = src.indexOf('{', stockOpen), d = 0; stockOpen >= 0 && i < src.length; i++) {
+    if (src[i] === '{') d++;
+    if (src[i] === '}' && --d === 0) { stockClose = i; break; }
+  }
   for (const marker of ['Target.setDiscoverTargets', 'Page.lifecycleEvent', 'Runtime.exceptionThrown', 'Runtime.consoleAPICalled', 'Page.frameNavigated', 'Target.targetInfoChanged']) {
     const at = [...src.matchAll(new RegExp(`'${marker.replace('.', '\\.')}'`, 'g'))].map((m) => m.index);
-    assert.ok(at.length > 0 && at.every((i) => i > open && i < close), `${marker} only inside the FW_LOAD_TRACE block`);
+    const counts = at.filter((i) => i < stockOpen || i > stockClose);
+    assert.ok(counts.length > 0 && counts.every((i) => i > open && i < close), `${marker} only inside the FW_LOAD_TRACE block`);
   }
   assert.ok(src.indexOf('FW_RENDERER_CRASH') < open, 'the renderer-crash exit is outside the flag block');
 });
