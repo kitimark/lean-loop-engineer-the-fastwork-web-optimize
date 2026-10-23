@@ -6,7 +6,7 @@
   "jobs": {"r1": "success", "r2": "success", "r3": "failure (Boot the Simulator)"},
   "captures": {"faithful-a": 4, "faithful-b": 4, "arm": 8},
   "restWindows": {
-    "layoutAtLeast24": {"faithful-a": "20 of 32", "faithful-b": "18 of 32", "arm": "17 of 64"},
+    "layoutAtLeast24": {"faithful-a": "20 of 28", "faithful-b": "18 of 28", "arm": "17 of 56"},
     "layoutRowsPerCapture": {"faithful-a": 246.5, "faithful-b": 226.5, "arm": 122.3},
     "median": {"faithful-a": 46, "faithful-b": 45.5, "arm": 5}
   },

@@ -55,7 +55,7 @@ The report tables call the arm `crop`.
 
 | window class | metric | faithful-a | faithful-b (A/A) | arm |
 |---|---|---:|---:|---:|
-| rest (800 ms), 7 per capture | windows with at least 24 Layout rows | 20 of 32 | 18 of 32 | 17 of 64 |
+| rest (800 ms), 7 per capture | windows with at least 24 Layout rows | 20 of 28 | 18 of 28 | 17 of 56 |
 | rest | Layout rows per capture | 246.5 | 226.5 | 122.3 |
 | rest | median Layout rows per window | 46 | 45.5 | 5 |
 | swap (220 ms), 8 per capture | median Layout rows per window | 14 | 14 | 14 |
@@ -63,6 +63,7 @@ The report tables call the arm `crop`.
 
 - Layout in the rest windows halves, as `layoutPhases_values` says (2 to 1): the remaining busy runs are the draw-in (width).
   The A/A difference of the two faithful slots (2 windows, 20 rows per capture) is far below the arm difference.
+  The tool's per-window verdict is unresolved:overlap for every rest window too (swap-report.md); the halving is the pooled count over the 7 rest windows of 2 jobs, not a per-window resolved result.
 - Swap windows: no change. The tool's per-window verdict is `unresolved:overlap` for all 8 windows and 4 kinds (`swap-report.md`);
   a swap window's 13 Layout frames are the carousel's own, and the accent draw is not what fills them. The end-of-page swap windows
   therefore gain nothing from this arm; the gain is in the quiet windows between swaps.
