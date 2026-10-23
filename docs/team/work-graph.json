@@ -19229,7 +19229,8 @@
     "apps/runner/test/polish*.test.ts",
     "docs/team/handoffs/polish-strays-sound.md"
    ],
-   "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead."
+   "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead.",
+   "evidence": "3dc6678"
   },
   {
    "devices": [
