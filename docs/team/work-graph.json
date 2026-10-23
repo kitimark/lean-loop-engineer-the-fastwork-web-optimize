@@ -17145,7 +17145,8 @@
     "lean/Fw/Parts/CommissionOpt*.lean",
     "packages/contracts/golden/parts/commission-gate.jsonl",
     "research/notes/2026/10-2x-commission-band-gate.md",
-    "docs/team/handoffs/commission-band-followups.md"
+    "docs/team/handoffs/commission-band-followups.md",
+    "apps/site/src/parts/commission/bandgate.test.ts"
    ],
    "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1)."
   },
@@ -17393,7 +17394,13 @@
     "scripts/check-workflows.sh",
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/workflow-syntax-gate.md"
+    "docs/team/handoffs/workflow-syntax-gate.md",
+    ".github/workflows/land.yml",
+    ".circleci/config.yml",
+    ".circleci/job.sh",
+    "lean/Fw.lean",
+    "lean/scripts/WorkflowLintGolden.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "Incident inc-workflow-dup-key (2026-10-23): the lead's conflict resolution in the pain-dark-followups merge (ac6fa79a4) kept SEARCH twice in one env block of .github/workflows/trajectory-probe.yml; GitHub refused the file ('workflow file issue', run 39873292504 on ci/land-across-k-decisive-5bdaee9) and every trajectory-probe push failed after the land 341e7a9c9. No land check runs actionlint. Add a land check, selected by the Lean check selection when a .github/workflows/*.yml changes, that runs actionlint (Homebrew, already installed) with only the syntax-check and expression kinds as errors (shellcheck findings stay warnings); the existing webkit-sim.yml 'string should not be empty' option is accepted or fixed with the reason. A golden or test shows a duplicated env key refuses the land."
   },
