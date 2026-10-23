@@ -254,3 +254,22 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
   TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).
 
 The CLI prints a dry land through `dryLandReport` (`land.ts`, Lean `dryRun` plus `exitCode`): a failed dry install shows the stage lines up to `dry: conflict ok` and then `VERDICT install` (no special branch), and the real land's exit is `landExit(res)`. A reused land worktree is cleaned once (after checkout, before prep); a new one once after prep.
+
+## Workflow lint
+
+Incident `inc-workflow-dup-key`: a merge kept the key `SEARCH` twice in one `env` block of
+`.github/workflows/trajectory-probe.yml`, and GitHub refused the file because no land check read workflow files.
+
+- Check `workflow-lint` (`sh scripts/check-workflows.sh`) runs `actionlint`. Selected when a changed path is `.github/workflows/*.yml`,
+  `.github/workflows/*.yaml` or `scripts/check-workflows.sh` (Lean `Fw.Ci.WorkflowLint.select`, theorems `yml_selects`, `yaml_selects`,
+  `script_selects`; golden `packages/contracts/golden/ci/workflow-lint.jsonl`, checked by `apps/runner/test/land-workflow.test.ts`).
+  The dry land runs it too (`LOCAL_GATES` in `land.ts`).
+- Verdict (Lean `verdict`, TS stand-in `workflowVerdict` in `apps/runner/src/land-checks-workflow.ts`): the kinds `syntax-check` and
+  `expression` fail (exit 1; the duplicated env key is `syntax-check`, theorem `dup_key_fails`); every other kind, `shellcheck` included,
+  is a warning printed without failing (`warnings_never_fail`). A missing `actionlint` refuses with
+  `REFUSED workflow-lint: actionlint is not installed (brew install actionlint)` and exit 3, never a pass (`missing_refuses`).
+- Accepted finding: `webkit-sim.yml` lists `''` as a `choice` option of the fault input, GitHub accepts it and actionlint says "string
+  should not be empty". Changing the option would change the dispatch contract, so the finding is accepted for that file and message only
+  (`accepted`, `accepted_is_file_scoped`).
+- Tier: local (not on the remote allowlist `remoteIds`). The GitHub-hosted runners are not known to carry `actionlint`, so the check
+  runs where `fw land` runs. The remote tier needs a runner install step first.
