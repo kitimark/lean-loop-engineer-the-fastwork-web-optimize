@@ -110,7 +110,7 @@ theorem skipped_skip (gen : List String) (p : String) (h : skipped gen p = true)
   simp [classify, h]
 
 theorem protected_skip (gen : List String) (p : String) (h : protectedPath p = true) : classify gen p = .skip :=
-  skipped_skip gen p (by simp [skipped, h])
+  skipped_skip gen p (by simp [skipped, polishable, h])
 
 theorem claude_dir_protected (s : String) : protectedPath (".claude/" ++ s) = true := by
   simp [protectedPath, protectedDirs]
