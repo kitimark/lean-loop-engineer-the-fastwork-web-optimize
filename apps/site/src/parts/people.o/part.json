@@ -7,6 +7,7 @@
   "muiStates": [],
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:6158-6470;assets/2.gBuqKVzi.css:2430-2780" } },
+    "block": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.PeopleOBlock", "limit": "crash fix, not a speed win: the o is a block with a declared width instead of an inline grid, same box and transition (Lean), so a balanced title holds no inline grid (stock desktop Chrome above 860 px crashes on that); not for the standalone o (its baseline is read outside a flex line); excludes preview-translate (one variant per part)" } },
     "preview-translate": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.PeopleOPreview", "limit": "desktop only (the card exists above 860 px); a kept scroll frame sets translate by the integer scroll delta and writes no left/top, a flip, resize or layout shift rewrites them; the card needs its own layer for the layout win (WebKit table: transform on a non-composited layer still lays out)" } }
   },
   "requires": {},
