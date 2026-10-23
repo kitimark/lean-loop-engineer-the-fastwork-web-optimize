@@ -1,7 +1,5 @@
-/** The declared layers of the hero exit consumers (Lean `exitClaim`). */
 export const EXIT_LAYERS = ['hero_copy', 'hero.cue_cue', 'hero.orbit_card', 'hero.deck_article'];
 
-/** Track top (document px), track height, viewport height and width, and the track's variant. */
 export const EXIT_GEOM_EXPR = `(() => {
   const t = document.querySelector('[data-fw="hero-exit"]');
   if (!t) return JSON.stringify(null);
@@ -9,7 +7,6 @@ export const EXIT_GEOM_EXPR = `(() => {
   return JSON.stringify({ T: Math.round(r.top + scrollY), h: Math.round(r.height), v: innerHeight, vw: innerWidth, dpr: devicePixelRatio, variant: t.getAttribute('data-fw-variant') });
 })()`;
 
-/** Boxes of the visible exit consumers, the union of the element and its descendants; a layer on several elements is keyed `layer#k` by DOM index. */
 export const EXIT_BOX_EXPR = `(() => {
   const boxes = {}, alpha = {};
   const opa = (e) => { let a = 1; for (let n = e; n && n.nodeType === 1; n = n.parentElement) a *= Number(getComputedStyle(n).opacity); return Math.round(a * 1e4) / 1e4; };
@@ -31,7 +28,6 @@ export const EXIT_BOX_EXPR = `(() => {
   return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), boxes, alpha });
 })()`;
 
-/** Whether the threaded hand-over happened: the live attribute, the variant, scroll-driven animations present. */
 export const EXIT_LIVE_EXPR = `(() => {
   const t = document.querySelector('[data-fw="hero-exit"]');
   const s = t && t.querySelector('[data-splash]');
@@ -44,7 +40,6 @@ export const EXIT_LIVE_EXPR = `(() => {
   });
 })()`;
 
-/** The hand-over listener's own event (hero `animationend`), dispatched once when the finished entrance raised none. */
 export const EXIT_NUDGE_EXPR = `(() => {
   const t = document.querySelector('[data-fw="hero-exit"]');
   const s = t && t.querySelector('[data-splash]');
@@ -53,7 +48,6 @@ export const EXIT_NUDGE_EXPR = `(() => {
   return 1;
 })()`;
 
-/** Frames waited (at most 120) until the track carries `data-exit-live`. */
 export const EXIT_WAIT_EXPR = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const t = document.querySelector('[data-fw="hero-exit"]');

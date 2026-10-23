@@ -2,7 +2,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-/** Slim cell record of one exit cell: grade, reason, raw counts and the floor. */
 export function slimCell(c) {
   return {
     key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live,
@@ -10,7 +9,6 @@ export function slimCell(c) {
   };
 }
 
-/** One lane replicate as slim JSON: header facts from the manifest, grades and counts from the cells. */
 export function slimLane(label, artifact, cells, man) {
   return {
     schema: 'fw.path-pix.exit.cells/1', label, artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
@@ -23,7 +21,6 @@ export function slimLane(label, artifact, cells, man) {
 
 const count = (cs, f) => cs.filter(f).length;
 
-/** Markdown for the replicates of one engine: counts per replicate, then one row per consumer and offset. */
 export function engineTable(engine, lanes) {
   const out = [`#### ${engine}`, '', '| replicate | run | kind | cells | E | E1 | Q | L | invalid | L text | L outside | L inside | if strips accepted: E/E1/Q/L/invalid |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|'];
   for (const l of lanes) for (const k of ['A/A', 'P']) {
@@ -46,7 +43,6 @@ export function engineTable(engine, lanes) {
   return out.join('\n');
 }
 
-/** Markdown list of the L cells with the artifact and file of their strip, for the look review. */
 export function lookList(lanes) {
   const out = ['| replicate | artifact | strip | consumer | offset | why |', '|---|---|---|---|---|---|'];
   for (const l of lanes) for (const c of l.cells) if (c.kind === 'P' && c.grade === 'L' && c.strip) out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.why} |`);

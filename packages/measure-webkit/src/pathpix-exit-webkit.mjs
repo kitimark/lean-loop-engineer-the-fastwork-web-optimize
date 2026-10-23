@@ -13,7 +13,6 @@ import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WA
 import { exitOffsets } from './pathpix-exit.mjs';
 import { magentaBox, navigateHeld, screenshot, pinStatusBar } from './pathpix-webkit.mjs';
 
-/** The Simulator lane for the hero exit: arms A, A2 (the default page) and P (the page with `?fw=<flag>`), all at the exit offsets. */
 export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = null, settleMs = 6000, holdMs = 800, log: log0 = (s) => console.error(s) }) {
   const t0 = Date.now();
   const log = (m) => { const s = Math.round((Date.now() - t0) / 1000); log0(`[${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}] ${m}`); };

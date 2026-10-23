@@ -4,10 +4,8 @@ import { decodePng, encodePng, sameImage } from './pathpix-png.mjs';
 import { analyzeLane, table, deltas, frameDiff, strip, thumb, microRat } from './pathpix-analyze.mjs';
 import { mask, maskEmpty, inMask, grade, premises, cellS1, cellValid, textHold } from './pathpix.mjs';
 
-/** The scroll offsets of a hero exit track at document offset T with scroll range n (Lean `exitOffsets`). */
 export const exitOffsets = (T, n) => [T, T + 1, T + Math.floor(n / 4), T + Math.floor(n / 2), T + Math.floor((n * 19) / 20), T + Math.floor((n * 19) / 20) + 1, T + n - 1, T + n, T + n + 1];
 
-/** The claim of an exit consumer by its declared layer at width band le600 (Lean `exitClaim`). */
 export function exitClaim(layer, le600) {
   const mk = (props) => ({ props, scales: false, text: true, snap: false, compA: false, compB: false, bound: null });
   if (layer === 'hero_copy') return mk(le600 ? ['opacity', 'transform'] : ['opacity', 'transform', 'filter']);
@@ -16,14 +14,10 @@ export function exitClaim(layer, le600) {
   return null;
 }
 
-/** `a` has no more changed pixels and no larger delta than `b` (Lean `Raw.le`). */
 export const rawLe = (a, b) => a.changed <= b.changed && a.maxDelta <= b.maxDelta;
-/** The A/A floor an A/A cell gives (Lean `Cell.floor`). */
 export const floorOf = (c) => ({ valid: cellValid(c), out: c.out, inside: c.inside });
-/** The floor is valid and the cell moved no more than it on both regions (Lean `Cell.withinFloor`). */
 export const withinFloor = (c, f) => f.valid && rawLe(c.out, f.out) && rawLe(c.inside, f.inside);
 
-/** The cell decision against the floor (Lean `gradeRel`). */
 export function gradeRel(c, f, live) {
   if (!live) return 'invalid';
   const g = grade(c);
@@ -31,18 +25,15 @@ export function gradeRel(c, f, live) {
   return !textHold(c) && f && withinFloor(c, f) ? 'Q' : 'L';
 }
 
-/** Why a cell is L: outside, text or inside; null for any other grade (Lean `whyL`). */
 export function whyL(c, f, live) {
   if (gradeRel(c, f, live) !== 'L') return null;
   return c.out.changed !== 0 ? 'outside' : textHold(c) ? 'text' : 'inside';
 }
 
-/** The region of a pixel for the consumer with mask m among all declared masks ms (Lean `region`). */
 export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k) => inMask(k, x, y)) ? 'other' : 'out');
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
 
-/** Counts of changed pixels outside every mask and inside each mask (Lean `region` out / inside), with the delta histogram. */
 export function splitUnion(del, w, h, masks) {
   const cover = new Uint8Array(w * h);
   for (const m of masks) for (let y = m[2]; y < m[3]; y++) cover.fill(1, y * w + m[0], y * w + m[1]);
@@ -62,12 +53,9 @@ const recs = (s, layer) => (s.layers ?? []).filter((l) => l.layer === layer);
 const sigOf = (s, layer) => JSON.stringify(recs(s, layer).map((l) => [l.layer, l.boundsU, l.memory ?? null]).sort());
 const safe = (s) => s.replace(/[^\w.-]/g, '_');
 
-/** The arm P is live when the track carries the live attribute, the page is the threaded variant and scroll-driven animations exist. */
 export const liveP = (l) => !!l && l.live === true && l.variant === 'threaded' && l.supported === true && l.nonDoc > 0;
-/** The arm A is the faithful exit when the page is not the threaded variant and the track is not live. */
 export const liveA = (l) => !l || (l.variant !== 'threaded' && l.live !== true);
 
-/** The faithful driver ran: the first consumer's box in arm A at some offset inside the track differs from its box at offset 0. */
 export function driverMoved(rows, exit) {
   const first = rows.find((r) => r && r.y === 0) ?? rows.find(Boolean);
   if (!first) return false;
@@ -76,7 +64,6 @@ export function driverMoved(rows, exit) {
   return rows.some((r) => r && r.y > exit.T && r.y <= exit.T + exit.n && r.boxes?.[key] && JSON.stringify(r.boxes[key]) !== JSON.stringify(first.boxes[key]));
 }
 
-/** Cells of one exit lane directory (manifest with mode exit): A/A (A against A2) then P (A against P), masks from arm A. */
 export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   if (man.mode !== 'exit') throw new Error('manifest is not an exit lane');
@@ -150,7 +137,6 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
 
 const sumRaw = (r) => `${r.changed}/${r.maxDelta}`;
 
-/** Markdown for one exit lane: grade counts per kind, then one row per consumer and offset. */
 export function exitTable(res) {
   const out = [`### path-pix exit ${res.lane ?? res.engine} (run ${res.run}, flag ${res.flag}, ${res.compositing ?? '?'} compositing)`, ''];
   out.push(`exit track: T ${res.exit?.T}, n ${res.exit?.n}, viewport ${res.exit?.v}, offsets ${res.offsets.join(',')}`, '');
@@ -176,7 +162,6 @@ export function exitTable(res) {
   return out.join('\n');
 }
 
-/** Analyse a lane directory by its manifest mode; returns the result and its markdown. */
 export function analyzeDir(dir, opts) {
   const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   if (man.mode === 'exit') { const res = analyzeExit(dir, opts); return { res, md: exitTable(res) }; }

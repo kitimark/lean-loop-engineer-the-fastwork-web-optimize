@@ -546,9 +546,6 @@ theorem grade_noise_mono (c : Cell) (p p' : Control) (hc : c.control = some p) (
     by_cases hx : c.exactBacked <;> by_cases hm : c.inside.within1 <;> by_cases hn : c.near1Backed <;>
     by_cases hn' : c.withinNoise <;> simp_all
 
-/-! ## Cells against the lane's own A/A floor -/
-
-/-- `a` has no more changed pixels and no larger delta than `b`. -/
 def Raw.le (a b : Raw) : Bool := a.changed ≤ b.changed && a.maxDelta ≤ b.maxDelta
 
 theorem Raw.le_refl (a : Raw) : a.le a = true := by simp [Raw.le]
@@ -557,21 +554,16 @@ theorem Raw.le_trans (a b c : Raw) (h1 : a.le b = true) (h2 : b.le c = true) : a
   simp only [Raw.le, Bool.and_eq_true, decide_eq_true_eq] at *
   omega
 
-/-- The A/A floor of a cell: arm A against its reload A2 at the same offset, layer and masks. -/
 structure Floor where
   valid : Bool
   out : Raw
   inside : Raw
 deriving DecidableEq, Repr
 
-/-- The floor an A/A cell gives. -/
 def Cell.floor (c : Cell) : Floor := ⟨c.valid, c.out, c.inside⟩
 
-/-- The floor is valid and the cell moved no more than the floor on both regions. -/
 def Cell.withinFloor (c : Cell) (f : Floor) : Bool := f.valid && c.out.le f.out && c.inside.le f.inside
 
-/-- **The cell decision against the floor**: an arm that is not live is invalid, the absolute grade stands except
-that an L without a text hold drops to Q when the cell is within the floor. -/
 def gradeRel (c : Cell) (f : Option Floor) (live : Bool) : Grade :=
   if !live then .invalid
   else match grade c with
@@ -626,16 +618,13 @@ theorem gradeRel_invalid_iff (c : Cell) (f : Option Floor) (live : Bool) :
       by_cases hq : (!c.textHold && f.any c.withinFloor) = true <;> simp [gradeRel, hl, hq, hv]
     · rw [gradeRel_of_ne_l c f hl]; simp [grade_invalid_iff]
 
-/-- Why a cell is L: outside change, a text hold, or inside change above the floor. -/
 inductive Why where
   | outside | text | inside
 deriving DecidableEq, Repr
 
-/-- The golden name of a reason. -/
 def Why.name : Why → String
   | .outside => "outside" | .text => "text" | .inside => "inside"
 
-/-- The reason of an L cell, none for any other grade. -/
 def whyL (c : Cell) (f : Option Floor) (live : Bool) : Option Why :=
   if gradeRel c f live = .l then
     if c.out.changed != 0 then some .outside else if c.textHold then some .text else some .inside
@@ -658,9 +647,6 @@ theorem whyL_inside (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c
     (ho : c.out.changed = 0) (ht : c.textHold = false) : whyL c f live = some .inside := by
   simp [whyL, hl, ho, ht]
 
-/-! ## Golden vectors -/
-
-/-- The CSS name of a property. -/
 def cssName : CssProp → String
   | .transform => "transform" | .translate => "translate" | .scale => "scale" | .rotate => "rotate"
   | .opacity => "opacity" | .filter => "filter" | .backdropFilter => "backdrop-filter" | .offset => "offset"
@@ -695,10 +681,8 @@ def Cell.json (c : Cell) : Json :=
     ("dpr", toJson c.dpr), ("t1", match c.t1 with | some r => toJson r | none => Json.null),
     ("stripsAccepted", toJson c.stripsAccepted)]
 
-/-- A golden floor object. -/
 def Floor.json (f : Floor) : Json := Json.mkObj [("valid", toJson f.valid), ("out", f.out.json), ("inside", f.inside.json)]
 
-/-- An opacity-only claim, on the compositor in arm B only. -/
 def opacityClaim : Claim := ⟨[.opacity], false, false, false, false, true, none⟩
 
 /-- A translate claim, on the compositor in arm B only. -/
@@ -773,7 +757,6 @@ def premiseCases : List (String × Engine × Claim) :=
    ("rotate", .chromium, ⟨[.rotate], false, false, false, true, true, none⟩)]
 
 
-/-- The golden cases of the cell decision against the floor: a name, a cell, the floor and whether the arm is live. -/
 def relCases : List (String × Cell × Option Floor × Bool) :=
   let z : Raw := ⟨0, 0⟩
   let fl (v : Bool) (o i : Raw) : Option Floor := some ⟨v, o, i⟩
@@ -794,17 +777,14 @@ def relCases : List (String × Cell × Option Floor × Bool) :=
    ("arm not live is invalid", ({ mkCell { opacityClaim with compA := true } z z with p1 := true }, fl true ⟨9, 9⟩ ⟨9, 9⟩, false)),
    ("L outside with text hold is outside", ({ txt with out := ⟨1, 1⟩ }, fl true ⟨0, 0⟩ ⟨99, 99⟩, true))]
 
-/-- The golden region cases: masks, the consumer's mask index and a pixel. -/
 def regionCases : List (List ((Nat × Nat) × (Nat × Nat)) × Nat × Nat × Nat) :=
   let a : (Nat × Nat) × (Nat × Nat) := ((10, 20), (10, 20))
   let b : (Nat × Nat) × (Nat × Nat) := ((15, 30), (15, 30))
   [([a, b], 0, 12, 12), ([a, b], 0, 17, 17), ([a, b], 0, 25, 25), ([a, b], 0, 40, 40), ([a, b], 1, 17, 17),
    ([a], 0, 20, 10), ([], 0, 0, 0)]
 
-/-- The golden exit-offset cases `(T, n)`. -/
 def exitCases : List (Nat × Nat) := [(0, 600), (0, 932), (300, 664), (0, 40), (12, 1688)]
 
-/-- The golden exit-claim cases. -/
 def exitClaimCases : List (String × Bool) :=
   [("hero_copy", true), ("hero_copy", false), ("hero.cue_cue", true), ("hero.cue_cue", false),
    ("hero.orbit_card", true), ("hero.orbit_card", false), ("hero.deck_article", true), ("nav_bar", true)]
@@ -900,9 +880,6 @@ theorem rawOf_ok (px : List Nat) (h : ∀ d ∈ px, d ≤ 255) : (rawOf px).ok =
   rw [e]
   simp [h1]
 
-/-! ## Regions of a frame with several declared masks -/
-
-/-- A pixel is in the mask of some consumer of the list. -/
 def inAny (ms : List ((Nat × Nat) × (Nat × Nat))) (c r : Nat) : Bool := ms.any (inMask · c r)
 
 theorem inAny_nil (c r : Nat) : inAny [] c r = false := rfl
@@ -911,16 +888,13 @@ theorem inAny_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (c r : Nat) :
     inAny ms c r = true ↔ ∃ m ∈ ms, inMask m c r = true := by
   simp [inAny]
 
-/-- The region of a pixel for the consumer with mask `m` among all the declared masks `ms`. -/
 inductive Region where
   | inside | other | out
 deriving DecidableEq, Repr
 
-/-- The golden name of a region. -/
 def Region.name : Region → String
   | .inside => "inside" | .other => "other" | .out => "out"
 
-/-- Inside the consumer's own mask, else in another consumer's mask (judged by that consumer), else outside. -/
 def region (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Region :=
   if inMask m c r then .inside else if inAny ms c r then .other else .out
 
@@ -948,10 +922,6 @@ theorem region_out_not_in_any (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c 
   · have : inAny ms c r = true := (inAny_iff ms c r).2 ⟨m', hm', hb⟩
     simp_all
 
-/-! ## The hero exit -/
-
-/-- The scroll offsets of the hero exit for a track at document offset `T` with scroll range `n`: the start, one
-past it, a quarter, the middle, the pointer-off cut and one past it, one before the end, the end and one past it. -/
 def exitOffsets (T n : Nat) : List Nat :=
   [T, T + 1, T + n / 4, T + n / 2, T + n * 19 / 20, T + n * 19 / 20 + 1, T + n - 1, T + n, T + n + 1]
 
@@ -971,8 +941,6 @@ theorem exitOffsets_sorted (T n : Nat) (hn : 40 ≤ n) : (exitOffsets T n).Pairw
     forall_eq, List.Pairwise.nil, and_true, false_implies, implies_true]
   omega
 
-/-- The claim of an exit consumer by its declared layer name at width band `le600`: the animated properties and
-text inside; the composited flags come from the census. -/
 def exitClaim (layer : String) (le600 : Bool) : Option Claim :=
   let mk (ps : List CssProp) : Option Claim := some ⟨ps, false, true, false, false, false, none⟩
   if layer == "hero_copy" then mk (if le600 then [.opacity, .transform] else [.opacity, .transform, .filter])
