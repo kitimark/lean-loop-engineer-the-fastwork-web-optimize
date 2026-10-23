@@ -321,6 +321,8 @@ export const stableRel = (rs) => (rs.every((r) => r === 'new') ? 'new' : rs.ever
 export const unitRel = (cf, bf) => stableRel(cf.map((c, i) => rel(c, bf?.[i])));
 
 export const laneExit = (refused, strict, lane) => (refused ? 2 : !strict ? 0 : lane === 'red' ? 1 : lane === 'undecided' ? 3 : 0);
+/** Lean `exitJoin`: the exit over several engines, refused (2) over RED (1) over UNDECIDED (3) over CLEAN (0). */
+export const exitJoin = (a, b) => [2, 1, 3].find((c) => a === c || b === c) ?? 0;
 export const laneOf = (rels) => (laneRed(rels) ? 'red' : rels.includes('undecided') ? 'undecided' : 'clean');
 
 

@@ -4381,6 +4381,11 @@ theorem slots_cadence : slots cadence = 2 := by decide
 theorem phase_covers :
     (List.range cadence).all (fun φ => (List.range 3).any fun j => inFirst (φ + j * cadence)) = true := by decide
 
+/-- At a 141 ms frame gap, frames on multiples of the gap never reach bucket 1, and 24 of the 141 phases reach it. -/
+theorem slow_cadence_phases :
+    slots 141 = 0 ∧ ((List.range 141).filter fun φ => (List.range 3).any fun j => inFirst (φ + j * 141)).length = 24 := by
+  decide
+
 def sampledFrom (c d : Nat) : Bool := (List.range 37).any fun j => inFirst ((1 + d + j) * c)
 
 theorem sampled_iff (d : Nat) : sampledFrom cadence d = true ↔ d < slots cadence := by
@@ -4956,6 +4961,21 @@ theorem laneExit_red : laneExit false true .red = 1 := rfl
 theorem laneExit_undecided : laneExit false true .undecided = 3 := rfl
 
 theorem laneExit_clean : laneExit false true .clean = 0 := rfl
+
+/-- The exit over several engines: refused, then RED, then UNDECIDED, then CLEAN. -/
+def exitJoin (a b : Nat) : Nat :=
+  if a == 2 || b == 2 then 2 else if a == 1 || b == 1 then 1 else if a == 3 || b == 3 then 3 else 0
+
+#guard exitJoin 3 2 == 2
+#guard exitJoin 3 1 == 1
+#guard exitJoin 0 3 == 3
+#guard exitJoin 0 0 == 0
+
+theorem exitJoin_refused (b : Nat) : exitJoin 2 b = 2 ∧ exitJoin b 2 = 2 := by
+  simp [exitJoin]
+
+theorem exitJoin_comm (a b : Nat) : exitJoin a b = exitJoin b a := by
+  simp only [exitJoin, Bool.or_comm]
 
 end Stable
 
@@ -5747,7 +5767,9 @@ def Case.line : Case → Json
     Json.mkObj [("op", "exit"), ("name", "table"),
       ("rows", Json.arr ([true, false].flatMap fun r => [true, false].flatMap fun st =>
         [Lane.red, .undecided, .clean].map fun l =>
-          Json.arr #[Json.bool r, Json.bool st, Json.str l.name, toJson (laneExit r st l)]).toArray)]
+          Json.arr #[Json.bool r, Json.bool st, Json.str l.name, toJson (laneExit r st l)]).toArray),
+      ("join", Json.arr ([0, 1, 2, 3].flatMap fun a => [0, 1, 2, 3].map fun b =>
+        Json.arr #[toJson a, toJson b, toJson (exitJoin a b)]).toArray)]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 

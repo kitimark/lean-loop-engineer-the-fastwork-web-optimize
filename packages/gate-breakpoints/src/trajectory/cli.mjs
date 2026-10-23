@@ -10,13 +10,13 @@
 //   0  the probe completed (RED, UNDECIDED or CLEAN is a result, not an error; with --strict only CLEAN exits 0),
 //   1  with --strict, RED,
 //   2  an arm was not measured as asked (`refused:config`): the run is void, never a pass,
-//   3  with --strict, UNDECIDED: no verdict either way; rerun with more passes (Lean `laneExit`).
+//   3  with --strict, UNDECIDED: no verdict either way; rerun with more passes (Lean `laneExit`); `summary` over several engines exits the worst (Lean `exitJoin`).
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mergeRaws } from './plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS } from './registry.mjs';
-import { laneExit, pickWidths, reduceRaw, verdictLines } from './reduce.mjs';
+import { exitJoin, laneExit, pickWidths, reduceRaw, verdictLines } from './reduce.mjs';
 
 const REGISTRIES = { hero: HERO_NODES, morph: MORPH_NODES, page: PAGE_PROPS };
 
@@ -88,7 +88,7 @@ export async function main(argv) {
     const files = readdirSync(out).filter((f) => /^raw-.+\.json$/.test(f) && (only === '' || f === `raw-${only}.json`));
     if (files.length === 0) { console.error(`trajectory: no raw-<engine>.json in ${out}`); return 1; }
     let code = 0;
-    for (const f of files) code = Math.max(code, report(out, JSON.parse(readFileSync(join(out, f), 'utf8')), strict));
+    for (const f of files) code = exitJoin(code, report(out, JSON.parse(readFileSync(join(out, f), 'utf8')), strict));
     return code;
   }
   if (cmd === 'merge') {
