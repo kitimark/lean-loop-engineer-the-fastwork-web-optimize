@@ -174,7 +174,7 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
 
   Reading: a second original run that was not used to build A or its bands passes all three zones on both profiles, so the bands of the frozen table hold out of sample for the original (one run per profile, not a distribution).
   The rewrite R still fails y04000, y04500 and tail on both profiles, with the same failing zones as the freeze-run check; the verdict does not come from the bands being tight to the run that built them.
-  Both profiles, R: `raster.invalidatedLayers` and `trace.UpdateLayer` are above the band in every failing zone (invalidatedLayers 296 against 196 in swipe-v1 y04000); `trace.FireAnimationFrame`
+  Both profiles, R: `trace.UpdateLayer` is above the band in all six zones and `raster.invalidatedLayers` in five (not touch tail; 296 against 196 in swipe-v1 y04000); `trace.FireAnimationFrame`
   and `trace.RequestAnimationFrame` are below it in y04000 and y04500 on both profiles (swipe-v1 y04000 167 against 253). On touch the census tile counts (`census.tiles`, `census.tilings`, `census.drawingAreaPx`, `census.solidTiles`) are also above the band in all three zones.
   Limits: one out-of-sample run per profile; the font image stays 39914488176; Chromium lane only.
 - MEASURED, engine-premises (A/B on the font and font-less images): font image run 39909930901 (sha 3783b391d) against the font-less tree run 39912692117
