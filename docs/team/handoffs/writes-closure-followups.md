@@ -1,12 +1,11 @@
 # writes-closure-followups
 
 - Branch: worktree-wf_39a630d6-e70-1 (worktree .claude/worktrees/wf_39a630d6-e70-1)
-- Last code commit: 9a09d8066, then a merge of main (17cb8b6dc)
+- Last code commit: 9a09d8066, then a merge of main (642babc15, main at 17cb8b6dc)
 - CI runs: none (all checks are local Lean, vitest and node tests)
 - Verified: check.sh green (writes-closure golden 21 cases, axioms ok); apps/runner 3006/3006 tests and tsc ok;
   ci-paths + build-review node tests 69/69; live `fw plan lint`: 0 writesClosure errors
-- Open: `scripts/build-review.test.mjs` is outside the row's writes; the live lint's 1 error
-  (`timing-slot-width trailerNoEvidence`) comes from main's graph
+- Open: the live lint's 1 error (`timing-slot-width trailerNoEvidence`) comes from main's graph
 
 ## What landed
 - `lean/Fw/Plan/WritesClosure.lean` section "Gaps from the scripts and the row globs": `readsOf`, `normRead`,
