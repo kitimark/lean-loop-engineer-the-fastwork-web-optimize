@@ -214,13 +214,8 @@ def ciOf (j : Json) : Except String CiRun := do
          conclusion := ← optS j "conclusion", startedAt := ← nat j "startedAt", endedAt := ← optN j "endedAt",
          headSha := ← Fw.Wire.Ops.strD j "headSha" "" }
 
-/-- The start time of a process whose start is not known, written as a time after every clock reading, so its age
-`now - startedAt` is `0` (natural subtraction): an unknown start is never a long-runner. -/
 def unknownStart : Nat := 2 ^ 64
 
-/-- A required start time (ms). A non-negative integer is the start; a negative integer (a `ps` age longer than the
-wall clock, as a Linux container with a different boot base can print) is an unknown start, `unknownStart`; any other
-value (a fraction, a string) is refused as before. -/
 def startOf (j : Json) (k : String) : Except String Nat := do
   let v ← field j k
   match v.getNat? with
@@ -230,12 +225,10 @@ def startOf (j : Json) (k : String) : Except String Nat := do
     | .ok i => if i < 0 then .ok unknownStart else asNat k v
     | .error _ => asNat k v
 
-/-- A process tree as JSON. -/
 def procJson (q : Proc) : Json :=
   Json.mkObj [("pid", toJson q.pid), ("name", .str q.name), ("startedAt", toJson q.startedAt),
     ("pids", .arr (q.pids.toArray.map toJson)), ("agent", ostr q.agent)]
 
-/-- Decode a process tree (`pids` optional, default empty; `agent` optional). -/
 def procOf (j : Json) : Except String Proc := do
   pure { pid := ← nat j "pid", name := ← str j "name", startedAt := ← startOf j "startedAt",
          pids := ← (← arrD j "pids").mapM (asNat "pids"), agent := ← optS j "agent" }
@@ -735,7 +728,6 @@ def childOf (j : Json) : Except String Child := do
            | none => pure none
            | some v => some <$> watchOf v }
 
-/-- A start the wire carries as a non-negative integer is read as it is. -/
 theorem startOf_nat (k : String) (n : Nat) : startOf (Json.mkObj [(k, toJson n)]) k = .ok n := by
   have g : (Json.mkObj [(k, toJson n)]).getObjVal? k = .ok (toJson n) :=
     getObjVal_mkObj (l := [(k, toJson n)]) (by simp) (by simp)
@@ -743,8 +735,6 @@ theorem startOf_nat (k : String) (n : Nat) : startOf (Json.mkObj [(k, toJson n)]
   rw [g]
   rfl
 
-/-- A negative integer start is an unknown start, not a decoder failure (the CircleCI shape: task
-`proc-startedat-negative`). -/
 theorem startOf_neg (k : String) (n : Nat) :
     startOf (Json.mkObj [(k, toJson (-(n + 1 : Int)))]) k = .ok unknownStart := by
   have g : (Json.mkObj [(k, toJson (-(n + 1 : Int)))]).getObjVal? k = .ok (toJson (-(n + 1 : Int))) :=
@@ -756,26 +746,21 @@ theorem startOf_neg (k : String) (n : Nat) :
   simp [Json.getNat?, Json.getInt?, toJson, JsonNumber.fromInt, hn, bind, Except.bind, pure, Except.pure]
   rfl
 
-/-- An unknown start has age `0` at every clock reading before `unknownStart`. -/
 theorem unknownStart_age (now : Nat) (h : now < unknownStart) : now - unknownStart = 0 := by omega
 
-/-- A child with an unknown start is never past the loop cap. -/
 theorem oldB_unknown (p : Fw.Obs.Next.Params) (now : Nat) (c : Fw.Obs.Next.Child) (h : now < unknownStart)
     (hs : c.startedAt = unknownStart) : Fw.Obs.Next.oldB p now c = false := by
   simp [Fw.Obs.Next.oldB, hs, unknownStart_age now h]
 
-/-- A CI wait with an unknown start is never overdue. -/
 theorem overdueB_unknown (now : Nat) (c : Fw.Obs.Next.Child) (h : now < unknownStart)
     (hs : c.startedAt = unknownStart) : Fw.Obs.Next.overdueB now c = false := by
   unfold Fw.Obs.Next.overdueB
   split <;> simp [hs, unknownStart_age now h]
 
-/-- A process tree with an unknown start never raises `proc.long`. -/
 theorem procLongB_unknown (p : Params) (o : Obs) (q : Proc) (h : o.now < unknownStart)
     (hs : q.startedAt = unknownStart) : procLongB p o q = false := by
   simp [procLongB, hs, unknownStart_age o.now h]
 
-/-- A branch as JSON. -/
 def branchJson (b : Branch) : Json :=
   Json.mkObj [("name", .str b.name), ("ahead", toJson b.ahead), ("landed", .bool b.landed), ("queued", .bool b.queued),
     ("mergesClean", .bool b.mergesClean), ("deps", .arr (b.deps.toArray.map .str)),

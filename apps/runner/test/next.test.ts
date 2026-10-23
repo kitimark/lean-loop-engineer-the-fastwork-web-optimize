@@ -211,8 +211,6 @@ describe("false-positive facts (inc-next-false-positives) and retention", () => 
 
 export type { AgentFacts };
 
-// proc-startedat-negative: CircleCI (ubuntu-2404) failed with "field startedAt: expected a non-negative integer". The
-// start is now - age; the age came from `ps etime`, which on that image can exceed the clock, so the start was negative.
 describe("an etime longer than the clock (the CircleCI shape)", () => {
   const now = 1_760_000_000_000;
   const psText = "    1     0 03:41:48 /usr/local/bin/claude\n    5     1 25000-03:04:05 sh -c until grep -q X /t/o; do sleep 1; done\n";
@@ -224,7 +222,7 @@ describe("an etime longer than the clock (the CircleCI shape)", () => {
   });
   it("the child fact carries the unknown start and fwcore accepts it without proposing a kill for age", async () => {
     const ps = parsePsRows(psText);
-    expect(ps.find((r) => r.pid === 5)!.ageMs).toBeGreaterThan(now); // the text parses to an age beyond the epoch
+    expect(ps.find((r) => r.pid === 5)!.ageMs).toBeGreaterThan(now);
     const raw: Raw = {
       now, session: 1, ps, alive: () => true, file: () => null, queuedText: "", ci: [], board: new Map(),
       procs: [{ pid: 5, name: "sh", startedAt: -1, pids: [], agent: "e2e" }],

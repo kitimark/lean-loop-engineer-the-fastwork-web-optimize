@@ -600,8 +600,7 @@ export function parseEtime(s: string): number | null {
   return (((d * 24 + h) * 60 + mi) * 60 + se) * 1000;
 }
 /** A process start (ms) from the clock and a `ps` age. An age longer than the clock is not a reading (procps computes
- *  etime as `boot_tics - start_time`, pids.c:287@v4.0.4, two bases that disagree in a container or a restored VM), so
- *  the start is unknown, written `-1`: Lean `Fw.Wire.Obs.startOf` reads a negative start as unknown (never old). */
+ *  etime as `boot_tics - start_time`, pids.c:287@v4.0.4). */
 export const startFromAge = (now: number, ageMs: number): number => (ageMs > now ? -1 : Math.floor(now - ageMs));
 export function parsePs(out: string | null): PsRow[] {
   const rows: PsRow[] = [];
