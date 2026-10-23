@@ -49,9 +49,10 @@ export type WaitPhases = {
   /** Ids of the runs the verdict covers. */
   runIds: number[];
   updMs?: number;
-  /** Tick of the list read just before the deciding one, when that list still showed the latest decisive run unfinished. */
   prevTickMs?: number;
   tickMs?: number;
+  pollS?: number;
+  retryUntilS?: number;
   readMs?: number;
   viewEndMs?: number;
   doneMs?: number;
@@ -346,8 +347,17 @@ export function critIndex(upds: number[]): number | null {
   return best;
 }
 
-/** The phases of the run whose finish decided the wait: the latest `updatedAt` among the decisive rows is the critical one. */
-function noteDecided(pr: Probe, rows: Row[], st: Status | null, prev: Status | null, readMs: number, holder: boolean, required: string[] | null): void {
+function budgetAt(env: Env, atS: number): Pick<WaitPhases, "pollS" | "retryUntilS"> {
+  try {
+    const r = env.core({ op: "ci.budget.status", now: atS, state: readJson(paths(env.dir).state) });
+    const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+    return nat(r.interval) && nat(r.retryUntil) ? { pollS: r.interval, retryUntilS: r.retryUntil } : {};
+  } catch {
+    return {};
+  }
+}
+
+function noteDecided(env: Env, pr: Probe, rows: Row[], st: Status | null, prev: Status | null, readMs: number, holder: boolean, required: string[] | null): void {
   const ph = pr.ph;
   ph.runIds = rows.map((r) => r.databaseId);
   ph.holder = holder;
@@ -356,7 +366,7 @@ function noteDecided(pr: Probe, rows: Row[], st: Status | null, prev: Status | n
   const ci = critIndex(stamped.map((r) => Date.parse(r.updatedAt!)));
   const crit = ci === null ? undefined : stamped[ci];
   if (crit) ph.updMs = Date.parse(crit.updatedAt!);
-  if (st?.tickAt !== undefined) ph.tickMs = st.tickAt * 1000;
+  if (st?.tickAt !== undefined) { ph.tickMs = st.tickAt * 1000; Object.assign(ph, budgetAt(env, st.tickAt)); }
   const lanesMissing = required !== null && !required.every((n) => rows.some((r) => r.workflowName === n && r.status === "completed"));
   ph.how = waitKind(lanesMissing, ph.tickMs, ph.regMs);
   const before = crit ? prev?.rows.find((r) => r.databaseId === crit.databaseId) : undefined;
@@ -420,7 +430,7 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
       // time, or a recent one (Lean `fresh`), decides; the watch registered above brings the next tick
       if ("done" in ev && (st?.tickAt ?? st?.at ?? 0) < regAt && !freshRead(env, st?.tickAt ?? st?.at)) ev = { pending: true };
       if ("done" in ev && ev.done.every((r) => attemptOf(env, { floor: floor.get(r.databaseId) ?? 0, row: r.attempt ?? null }, "current"))) {
-        noteDecided(pr, ev.done, st, prev, readMs, poller !== null, required);
+        noteDecided(env, pr, ev.done, st, prev, readMs, poller !== null, required);
         const v = required ? await lanesVerdictOf(env, msgOf(t), required, ev.done, deadline, pr) : await verdictOf(env, ev.done, deadline, pr);
         if (!("stale" in v)) return v;
         floor.set(v.stale.runId, v.stale.attempt);
