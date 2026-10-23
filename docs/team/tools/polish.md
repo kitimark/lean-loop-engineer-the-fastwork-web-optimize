@@ -40,6 +40,7 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
   (Markdown, the ledger and the work graph); any other file is `skip`. Generator outputs are the workflow files `scripts/ci-paths.mjs --write`
   reconciles and `lean/Fw/Ops/LakeJobsGen.lean`. Theorems: `skipped_skip`, `gen_skip`, `stamped_skip`, `snapshot_skip`.
 - A shell file is never Lean: its mark is `#` (`shell_mark`, `shell_not_lean`).
+- A protected path (`.claude/`, `CLAUDE.md`: the `ask` rules of `.claude/settings.json`, an Edit waits on the user) is skip (`protectedPath`, `protected_skip`, `protected_never_scoped`, `protected_not_kept`, `claude_dir_protected`, `claude_md_protected`); `fw polish plan` prints `skip <path> (protected)` from Lean `protected`.
 - A skip file is never in a scope and its edits are restored (`admits_not_skip`, `skip_never_edited`, `gen_never_edited`,
   `kept_not_skip`, `kept_in_diff`).
 - A stage runs only when its class is in the diff (`comments_runs_iff`, `prose_runs_iff`, `stages_nil`).

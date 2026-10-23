@@ -51,6 +51,8 @@ const cases: [string, Record<string, unknown>][] = [
   ["plan: no paths, so no stage", plan([])],
   ["plan: edits kept only in the diff and outside skip", plan(["apps/x/a.ts", "snapshot/a.css", md], { edited: ["apps/x/a.ts", "snapshot/a.css", "apps/y/c.ts", md] })],
   ["plan: a path dirty at plan time is in no scope, not kept, not restored, and named in left", plan(["apps/x/a.ts", "apps/x/b.ts"], { dirtyBefore: ["apps/x/a.ts"], edited: ["apps/x/a.ts", "apps/x/b.ts"] })],
+  ["plan: a path that needs a user permission prompt (.claude/, CLAUDE.md) is skip, in no scope, never kept, and named in protected",
+    plan([".claude/agents/a.md", ".claude/workflows/w.js", "CLAUDE.md", "docs/CLAUDE.md", "apps/x/a.ts"], { edited: [".claude/agents/a.md", "CLAUDE.md", "apps/x/a.ts"] })],
   ["hunks: an edit in the hunk or within the margin is kept, one 50 lines away is not",
     hunks({ diff: [{ path: "lean/scripts/check.sh", spans: [{ start: 60, len: 2 }] }],
       edits: [{ path: "lean/scripts/check.sh", spans: [{ start: 61, len: 1 }, { start: 64, len: 1 }, { start: 65, len: 1 }, { start: 57, len: 1 }, { start: 56, len: 1 }, { start: 10, len: 3 }] }] })],
@@ -568,6 +570,21 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines))).toBe(0);
       expect(lines).toEqual([`worktree ${wt}`, `skip ${file} (dirty before plan)`, "VERDICT polish-plan t none"]);
       expect(readFileSync(baselineFiles(wt)[1]!, "utf8")).toBe(`${file}\n`);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("plan skips a protected path (.claude/, CLAUDE.md): a skip line, no scope line, for a real branch diff", async () => {
+    const { base, wt } = fixture();
+    try {
+      mkdirSync(join(wt, ".claude/agents"), { recursive: true });
+      writeFileSync(join(wt, ".claude/agents/a.md"), "x\n");
+      writeFileSync(join(wt, "CLAUDE.md"), "x\n");
+      g(wt, "add", "."); g(wt, "commit", "-qm", "protected files");
+      const lines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines))).toBe(0);
+      expect(lines).toContain("skip .claude/agents/a.md (protected)");
+      expect(lines).toContain("skip CLAUDE.md (protected)");
+      expect(lines.filter((l) => /^(comments|prose) /.test(l)).join("\n")).not.toMatch(/claude/i);
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 

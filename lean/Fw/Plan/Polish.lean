@@ -33,11 +33,23 @@ def codeExts : List String := ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "c
 
 def proseJson : List String := ["docs/team/incidents/ledger.json", "docs/team/work-graph.json"]
 
+/-- Repo-relative prefixes whose Edit waits on a user permission prompt (`ask` rules `Edit(/.claude/**)`, `Edit(/CLAUDE.md)` in `.claude/settings.json`). -/
+def protectedDirs : List String := [".claude/"]
+
+/-- The single files of the same `ask` rules. -/
+def protectedFiles : List String := ["CLAUDE.md"]
+
+/-- A path whose edit needs a user prompt; a polish stage waiting on it stalls. -/
+def protectedPath (p : String) : Bool := protectedFiles.contains p || protectedDirs.any fun r => p.startsWith r
+
+/-- The paths a polish stage may edit without a prompt. -/
+def polishable (p : String) : Bool := !protectedPath p
+
 def genName (p : String) : Bool := ((baseName p).splitOn ".gen.").length > 1
 
 /-- `gen`: the paths a generator writes or compares (`fw polish` collects them). -/
 def skipped (gen : List String) (p : String) : Bool :=
-  gen.contains p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
+  gen.contains p || protectedPath p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
     lockNames.contains (baseName p) || p.startsWith "/" || p.isEmpty
 
 /-- A generator's stamp on the first line of a file it writes. -/
@@ -101,6 +113,16 @@ theorem dirty_never_scoped (gen dirtyBefore ps ed : List String) (p : String) (h
 theorem skipped_skip (gen : List String) (p : String) (h : skipped gen p = true) : classify gen p = .skip := by
   simp [classify, h]
 
+theorem protected_skip (gen : List String) (p : String) (h : protectedPath p = true) : classify gen p = .skip :=
+  skipped_skip gen p (by simp [skipped, h])
+
+theorem claude_dir_protected (s : String) : protectedPath (".claude/" ++ s) = true := by
+  simp [protectedPath, protectedDirs]
+
+theorem claude_md_protected : protectedPath "CLAUDE.md" = true := by simp [protectedPath, protectedFiles]
+
+theorem polishable_iff (p : String) : polishable p = true ↔ protectedPath p = false := by simp [polishable]
+
 theorem gen_skip (gen : List String) (p : String) (h : p ∈ gen) : classify gen p = .skip :=
   skipped_skip gen p (by simp [skipped, h])
 
@@ -132,6 +154,15 @@ theorem kept_not_skip (gen diff : List String) (p : String) (h : keeps gen diff 
 theorem kept_in_diff (gen diff : List String) (p : String) (h : keeps gen diff p = true) : p ∈ diff := by
   simp only [keeps, Bool.and_eq_true, List.contains_iff_mem] at h
   exact h.1
+
+theorem protected_never_scoped (gen : List String) (st : Stage) (ps : List String) (p : String)
+    (h : protectedPath p = true) : p ∉ scope gen st ps := fun hm => skip_never_edited gen st ps p hm (protected_skip gen p h)
+
+theorem protected_not_kept (gen diff : List String) (p : String) (h : protectedPath p = true) :
+    keeps gen diff p = false := by
+  cases hk : keeps gen diff p
+  · rfl
+  · exact absurd (protected_skip gen p h) (kept_not_skip gen diff p hk)
 
 theorem shell_mark (gen : List String) (p : String) (h : classify gen p = .shell) : mark p = some "#" := by
   simp only [classify] at h
