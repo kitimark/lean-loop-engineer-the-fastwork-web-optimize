@@ -16,7 +16,7 @@ The step time follows the download rate of that blob, not the cache key and not 
 | 39966639416 / land (playwright-webkit) 120458262847 | 76 s | 14:05:49 to 14:06:31.8 = 43 s | 32.1 MB/s | 14.3 s | not read |
 | 39965489939 / land (chromium) 120454308192 | 88 s | 13:57:47.6 to 13:58:39.9 = 52 s | 25.4 MB/s | 14.4 s | 17.2 s (download 10.4 s) |
 
-Step durations come from the job step start/end times (`gh run view --json jobs`). A slower download means a longer step. The elan install (about 1 s) and the cache lookup (about 1 s) are
+Step durations come from the job step start/end times (`gh run view --json jobs`). The elan install (about 1 s) and the cache lookup (about 1 s) are
 the same everywhere. The spread (25 to 159 MB/s) is cache download throughput (MEASURED); that it comes from the runner-to-storage network or backend load, not from anything setup-lean sets, is INFERRED.
 
 ## Not the cause
@@ -26,7 +26,7 @@ the same everywhere. The spread (25 to 159 MB/s) is cache download throughput (M
 - Module growth: the blob did not change between the fast and the slow legs (1419617412 B in 39955108083, 39965489939 and 39966639416).
 - Building changed modules does not happen inside setup-lean at all. It happens in the next step, `fwcore build`
   (`lake build fwcore`): 78 modules built, about 260 s of summed module times, step 90 s (39965489939 chromium) and 81 modules,
-  257 s, step 92 s (39966639416 suites-b). That cost is the same on fast and slow setup legs.
+  257 s, step 92 s (39966639416 suites-b).
 - Blob growth across runs: fast land 39946751704 restored 1360013538 B (hit to Cache Size 6-8 s, step 36-46 s); fast land 39979064402 restored 1479166945 B, larger than the slow runs, in 6.5-10 s (step 39-45 s). A bigger blob downloaded fast, so the 68-88 s runs are not explained by blob growth.
 
 ## Second finding: land legs restore a stale main entry (MEASURED, `gh cache list --json`; the rebuild-by-age link is INFERRED)
@@ -78,7 +78,7 @@ suffix so a save happens) repeated the same prune, deleted `.lake/build`, and ra
 423 s (step TEMP rebuild, 16:18:29 to 16:25:32), versus 1 s for `lake build` on the unpruned cache in the same job (16:17:33 to 16:17:34).
 So after the prune the cache no longer serves a build. Cause INFERRED: Lake keeps input-to-output mappings in `outputs/<scope>/<hash>.json`
 and content in `artifacts/` (lean4@eb6cafb src/lake/Lake/Config/Cache.lean:398-431); the mapping files are not linked into `.lake/build`, so
-`-links 1` deletes them. That run saved a 39 MB entry (id 9410841746) from a cache pruned twice (1 535 056 668 B after the rebuild, 168 501 312 B after a second prune, same step); a cache that cannot serve a build. The compressed blob after a single prune was not measured.
+`-links 1` deletes them. That run saved a 39 MB entry (id 9410841746) from a cache pruned twice (1 535 056 668 B after the rebuild, 168 501 312 B after a second prune, same step). The compressed blob after a single prune was not measured.
 Decision: neither the prune nor the temporary key change is in the branch (both reverted); the 2-run limit is spent.
 Proposed, UNPROVEN, needs one more lean.yml run: prune only `artifacts/`: `find "$LAKE_CACHE_DIR/artifacts" -type f -links 1 -delete`,
 keeping `outputs/`. Whether Lake treats an `outputs` entry whose artifact is gone as a miss (rebuild that module) or as an error is not read yet.
@@ -174,4 +174,4 @@ Main lean run durations (createdAt to updatedAt): 2:50, 2:45, 3:27, 2:45, 3:42, 
 | 39995255573 | 17:27:47Z (land created) to 17:28:49Z = 62 s | 2 files cost 11-12 s (39989742276, 39994191829 changed exactly them): 12 s | at most 4 legs x 12 s = 48 s |
 | 39997746052 | 17:45:53Z to 17:47:56Z = 123 s | 72 s step minus about 12 s for the own 2 files: 60 s | at most 2 legs x 60 s = 120 s |
 
-Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 60 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 168 s over 7 lands) are on free runners. Gating loses on lead wall time in both cases and gains little elsewhere. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
+Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 60 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 168 s over 7 lands) are on free runners. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
