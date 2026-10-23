@@ -25,10 +25,9 @@ export function cellOf(runId, file, width, window) {
   const counts = Object.fromEntries(ARMS.map((a) => [a, sumCounts(countReps[a])]));
   const histograms = histogramsOf(rows);
   const traces = (file.traces ?? []).filter((t) => t.width === width && t.window === window);
-  return { run: runId, width, window, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, hitchReps, hitchVerdicts, countReps, counts, histograms, traces, hitches: hitchesOf(rows) };
+  return { run: runId, width, window, cpuThrottle: file.cpuThrottle ?? 1, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, hitchReps, hitchVerdicts, countReps, counts, histograms, traces, hitches: hitchesOf(rows) };
 }
 
-/** Per arm and histogram name: the windows that reported it, the samples and the summed value (descriptive; Chromium's own jank and smoothness metrics). */
 export function histogramsOf(rows) {
   const out = {};
   for (const a of ARMS) {
@@ -142,7 +141,7 @@ export function markdown({ cells, skipped }, sum) {
   out.push('Verdicts (rate rule `Fw.Gate.Smooth.verdict`, hitch rule `hitchVerdict`) are main-thread rAF cadence. The compositor frame counts further down come from the trace of the page\'s own frame sink and are reported beside them; they never enter a verdict.', '');
   out.push('### Per run', '');
   for (const c of cells) {
-    out.push(`**run ${c.run}, ${c.width}px, window ${c.window}** (candidate ${c.search || 'default'}, A/A spread ${pct(c.spread)} points)`, '');
+    out.push(`**run ${c.run}, ${c.width}px, window ${c.window}** (CPU throttle ${c.cpuThrottle}x, candidate ${c.search || 'default'}, A/A spread ${pct(c.spread)} points)`, '');
     out.push('| arm | reps | frames | bad-frame rate % | range of reps (points) | reps with a hitch | hitches per rep | p50 ms | p95 ms | p99 ms | max ms |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
     for (const a of ARMS) {
       const s = c.arms[a];
@@ -192,6 +191,8 @@ export function markdown({ cells, skipped }, sum) {
 export async function cadenceMain(runsDir, outDir) {
   if (!runsDir || !outDir) { console.error('cadence needs --runs <dir> --out <dir>'); process.exit(2); }
   const all = cellsOf(runsDir);
+  const throttles = [...new Set(all.cells.map((c) => c.cpuThrottle))];
+  if (throttles.length > 1) { console.error(`cadence: runs with different CPU throttles (${throttles.join(', ')}); build one table per throttle`); process.exit(2); }
   const sum = summary(all.cells);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, 'cadence.table.json'), `${JSON.stringify({ skipped: all.skipped, cells: all.cells, summary: sum, countTotals: countTotals(all.cells), traceTotals: traceTotals(all.cells).map((e) => ({ ...e, slow: [...e.slow.entries()].map(([name, x]) => ({ name, ...x })) })) }, null, 1)}\n`);
