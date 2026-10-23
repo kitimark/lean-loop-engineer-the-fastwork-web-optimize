@@ -45,7 +45,7 @@ def genName (p : String) : Bool := ((baseName p).splitOn ".gen.").length > 1
 
 /-- `gen`: the paths a generator writes or compares (`fw polish` collects them). -/
 def skipped (gen : List String) (p : String) : Bool :=
-  gen.contains p || protectedPath p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
+  gen.contains p || !polishable p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
     lockNames.contains (baseName p) || p.startsWith "/" || p.isEmpty
 
 /-- A generator's stamp on the first line of a file it writes. -/
