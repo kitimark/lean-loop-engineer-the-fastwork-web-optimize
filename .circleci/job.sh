@@ -5,7 +5,7 @@
 #   sh .circleci/job.sh <step> [args]
 #   steps: since <name> | toolchain | install <filters> | browser | test | verdict | cache-probe | cache-gate
 #          sim-prepare | sim-boot | sim-run | sim-delete | finish
-#          land-lean | land-setup | land-fwcore | land-suites <leg> | land-engine <leg>   (the land lane, task land-lane-circleci)
+#          land-lean | land-setup | land-actionlint | land-fwcore | land-suites <leg> | land-engine <leg>   (the land lane, task land-lane-circleci)
 #          lake-key | lake-probe | lake-gate   (the Lake cache of the land job, task circleci-lean-cache)
 # Env (set by the job): FW_CI_JOB, FW_CI_CLASS, FW_CI_ENGINE (engine jobs), HS_VERSION and HS_SHA256 (chromium).
 set -eu
@@ -197,6 +197,14 @@ land_lean() {  # elan from the pinned release (sha256 checked), then the toolcha
   (cd lean && lean --version && lake --version)
 }
 
+land_actionlint() {
+  mkdir -p "$HOME/.fw-node/bin"
+  curl -fsSL -o "$fw/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz"
+  echo "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6  $fw/actionlint.tgz" | sha256sum -c -
+  tar -xzf "$fw/actionlint.tgz" -C "$HOME/.fw-node/bin" actionlint
+  actionlint -version | head -1
+  command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }
+}
 land_setup() {  # main is the pushed commit's first parent (.github/scripts/land-base.sh); the commit identity the temp repos of the tests need
   git branch -f main "$(sh .github/scripts/land-base.sh main)"
   git config --global user.name land-lane
@@ -300,6 +308,7 @@ case "$cmd" in
   sim-delete) T "simulator delete" sim_delete ;;
   land-lean) T "lean toolchain" land_lean ;;
   land-setup) T "main ref and identity" land_setup ;;
+  land-actionlint) T "actionlint" land_actionlint ;;
   land-fwcore) T "fwcore build" land_fwcore ;;
   land-suites) T "suites" land_suites "$1" ;;
   land-engine) T "browser suite" land_engine "$1" ;;
