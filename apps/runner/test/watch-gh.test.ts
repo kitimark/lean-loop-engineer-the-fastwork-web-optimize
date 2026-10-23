@@ -108,6 +108,6 @@ describe("a carried run list names its age (watch-ci-stale: finished runs read a
 describe("the Lean golden agrees with the collector", () => {
   it("the golden degraded request holds the reading the collector yields for the recorded incident", async () => {
     const row = healthGolden.find((g) => g.name.startsWith("gh-status: Actions degraded_performance"))!;
-    expect(row.request.system.gh).toEqual(await collectGh(false, async () => fx("degraded-2026-10-19.json")));
+    expect(row.request.system.gh).toEqual({ ...(await collectGh(false, async () => fx("degraded-2026-10-19.json"))), ciAgeMs: 0 });
   });
 });
