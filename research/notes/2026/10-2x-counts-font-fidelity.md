@@ -155,6 +155,7 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   R (rewrite) and the control A' (a second original) = the three shards of one other run of the same profile and image, 39916917890 (swipe-v1) and 39924639452 (touch), both `target=both`,
   rebuilt with `zone-baseline.mjs` (store entry, then `baseline --profile --target`) into `results/faithful/runs`; `faithful.mjs verdict` and `faithful.mjs lean` regenerated
   `results/faithful/*.verdict.json` and `lean/Fw/Faithful/Measured.lean`. The control A'/A passes on both profiles (swipe-v1 and touch, all three zones), so run-to-run variance of the original on the font image is inside its own bands.
+  The control run is one of the three freeze runs, so it is not an out-of-sample test of the bands (follow-up faithful-control-oos).
   The rewrite R fails y04000, y04500 and tail on both profiles (as on the font-less image). The earlier mixed-image control FAIL was the image change, as inferred.
   Store note: runs 39916914389 and 39916917890 map to one store key, so A' was pulled into a scratch store (`FW_CONSOLE_DIR=<dir> pnpm -s fw ci <run> --branch ci/counts-font-fidelity`).
 - MEASURED, engine-premises (A/B on the font and font-less images): font image run 39909930901 (sha 3783b391d) against the font-less tree run 39912692117
