@@ -7,3 +7,4 @@ export const exitOffsets = (T, n) => [T, T + 1, T + Math.floor(n / 4), T + Math.
 
 export const armPin = () => 'ssr-accent';
 export const pinAt = (arm, _i) => armPin(arm);
+export const accentPinned = (served, start, stop, n) => n === 1 && start === served && stop === served;

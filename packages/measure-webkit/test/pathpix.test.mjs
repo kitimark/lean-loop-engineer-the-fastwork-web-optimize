@@ -4,14 +4,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, gradePinned, unpinnedWhy, floorPinned } from '../src/pathpix-exit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -85,5 +85,17 @@ test('the pin changes no mask: regions under the pin equal the Lean golden', () 
     const ms = pinMasks(g.pin, g.masks);
     assert.deepEqual(ms, g.masks);
     assert.equal(region(ms, ms[g.mine] ?? [0, 0, 0, 0], g.x, g.y), g.region, JSON.stringify(g));
+  }
+});
+
+test('the accent pin is enforced per measured row as the Lean golden says', () => {
+  for (const r of of('accentRow')) assert.equal(accentPinned(r.served, r.start, r.stop, r.n), r.pinned, JSON.stringify(r));
+  const gs = of('accentGrade');
+  assert.ok(gs.some((g) => !g.pinned) && gs.some((g) => g.pinned));
+  for (const g of gs) {
+    assert.equal(rowsPinned(g.served, g.rows), g.pinned, g.name);
+    assert.equal(unpinnedWhy(g.served, g.rows), g.why, g.name);
+    assert.deepEqual(g.floor && floorPinned(g.served, g.rows, g.floor), g.floorPinned, g.name);
+    assert.equal(gradePinned(g.served, g.rows, g.cell, g.floor, g.live), g.grade, g.name);
   }
 });
