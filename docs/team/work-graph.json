@@ -17394,7 +17394,13 @@
     "scripts/check-workflows.sh",
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/workflow-syntax-gate.md"
+    "docs/team/handoffs/workflow-syntax-gate.md",
+    ".github/workflows/land.yml",
+    ".circleci/config.yml",
+    ".circleci/job.sh",
+    "lean/Fw.lean",
+    "lean/scripts/WorkflowLintGolden.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "Incident inc-workflow-dup-key (2026-10-23): the lead's conflict resolution in the pain-dark-followups merge (ac6fa79a4) kept SEARCH twice in one env block of .github/workflows/trajectory-probe.yml; GitHub refused the file ('workflow file issue', run 39873292504 on ci/land-across-k-decisive-5bdaee9) and every trajectory-probe push failed after the land 341e7a9c9. No land check runs actionlint. Add a land check, selected by the Lean check selection when a .github/workflows/*.yml changes, that runs actionlint (Homebrew, already installed) with only the syntax-check and expression kinds as errors (shellcheck findings stay warnings); the existing webkit-sim.yml 'string should not be empty' option is accepted or fixed with the reason. A golden or test shows a duplicated env key refuses the land."
   },
