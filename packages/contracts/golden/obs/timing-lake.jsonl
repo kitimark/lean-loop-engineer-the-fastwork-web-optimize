@@ -1,0 +1,5 @@
+{"built":0,"name":"no build: lake prints no Built line","out":"Build completed successfully (843 jobs).\n"}
+{"built":2,"name":"two modules, a warning mark, the exe and a C object of a facet","out":"✔ [795/843] Built Fw.Wire (1.3s)\n⚠ [797/843] Built FwTest.Mutants.Wire (834ms)\nwarning: unused variable\n✔ [840/843] Built fwcore:exe (2.1s)\n✔ [12/843] Built Fw:c.o (90ms)\nBuild completed successfully (843 jobs).\n"}
+{"built":0,"name":"a failed module is not built","out":"✖ [4/9] Building Fw.Obs.Timing (1.2s)\nerror: build failed\n"}
+{"built":0,"name":"a Built line without a progress counter is not lake's","out":"Built Fw.Wire\n✔ [a/9] Built Fw.Wire (1s)\n"}
+{"built":3,"name":"a Built line without a time, and a last line without a newline","out":"✔ [1/3] Built Fw.A\n✔ [2/3] Built Fw.B (1s)\n✔ [3/3] Built Fw.C (2s)"}
