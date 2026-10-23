@@ -15,17 +15,13 @@ pnpm -s fw polish --staged [--cuts <file|-> [--apply yes]]
 ```
 
 - `plan`: classes of `git diff --name-only main...<b>`, read in the branch's worktree. Prints `class <class> <mark> <path>`,
-  then `comments <mark> <relative path> lines <lo-hi,...>` (the branch's changed lines plus 3 lines of margin, from
-  `git diff -U0 main...<b>`) and `prose <relative path>`, then `VERDICT polish-plan <id> <stages>`
+  then `comments <mark> <absolute path>` and `prose <absolute path>`, then `VERDICT polish-plan <id> <stages>`
   (`comments`, `prose`, `comments,prose` or `none`).
 - `cuts`: cuts are `{cuts:[{path, old, new}]}` or a bare array; paths relative to the worktree or absolute. Prints one
   `cut <verdict> <path> "<old…>"` line per cut (`missing <tokens>` for `dropsFacts`), then
   `VERDICT polish-cuts <id> applied|judged <n>/<m>`. Only files in the prose scope are read; a cut on another file is `notProse` or `notFound`.
 - `commit`: edits in the worktree (`git diff --name-only HEAD`) that Lean keeps are added and committed; the rest are
-  restored from HEAD. In a code or shell file each edit hunk (`git diff -U0 HEAD`) must lie within 3 lines of a hunk of
-  the branch's own diff; the others are reverted one by one and named (`restored <path>:<lo>-<hi>`). Prose files are
-  scoped by the unique-substring cuts (`cutSafe`), not by hunks. It refuses (`VERDICT polish-commit <id> refused`, exit 1)
-  when the main checkout has uncommitted edits in the plan's files (incident `inc-polish-main-checkout`). `VERDICT polish-commit <id> committed|nothing`.
+  restored from HEAD. `VERDICT polish-commit <id> committed|nothing`.
 - `--staged`: the lead's own commit. Scopes come from the index of this checkout; spawn `comment-sicko` on the
   `comments` lines and `slop-checker` on the `prose` lines, then judge its cuts with `--cuts`. `--apply yes` re-stages
   the changed files.
@@ -41,10 +37,6 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
 - A shell file is never Lean: its mark is `#` (`shell_mark`, `shell_not_lean`).
 - A skip file is never in a scope and its edits are restored (`admits_not_skip`, `skip_never_edited`, `gen_never_edited`,
   `kept_not_skip`, `kept_in_diff`).
-- Hunk rule (`Fw.Plan.Polish.admitted`, op `plan.polishHunks`): an edit hunk is kept iff some branch hunk, widened by
-  `margin` lines, meets it (`admitted_hunk`, `admitted_inside`, `restored_far_above`, `restored_far_below`, `admitted_nil`).
-  Path rule (`relOk`): relative and never above the worktree root (`relOk_abs`, `relOk_up`, `relOk_plain`).
-  Main checkout (`blocked`, `blocked_mem`): the dirty paths that the plan names.
 - A stage runs only when its class is in the diff (`comments_runs_iff`, `prose_runs_iff`, `stages_nil`).
 - Cuts (`judge`, in order on the text the earlier cuts left): `notProse`, `notFound`, `notUnique` (old must occur once),
   `dropsFacts` (a number, commit, `path:line`, status word or identifier of old is missing from new; `cutSafe_iff`),
