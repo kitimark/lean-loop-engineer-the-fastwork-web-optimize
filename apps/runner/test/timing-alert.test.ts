@@ -76,8 +76,8 @@ describe("samples and lines", () => {
       JSON.stringify({ tool: "a", step: "y", startMs: 30, durMs: 1, host: "mars" }),
     ].join("\n");
     expect(parseSamples(text)).toEqual([
-      { tool: "a", step: "y", durMs: 7, host: "ci", load: 0 },
-      { tool: "b", step: "x", durMs: 5, host: "local", load: 9, exit: 0 },
+      { tool: "a", step: "y", durMs: 7, host: "ci", load: 0, startMs: 10 },
+      { tool: "b", step: "x", durMs: 5, host: "local", load: 9, exit: 0, startMs: 20 },
     ]);
   });
   it("prints NEXT investigate step= and one timing.slow alert per slow step", () => {
