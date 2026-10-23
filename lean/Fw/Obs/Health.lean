@@ -1064,7 +1064,7 @@ theorem ciSetFailed_raised (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci)
 /-- A `ci.slow` alert while an Actions incident is open names it; outside one it is the plain detail. -/
 def ciSlowAlert (o : Obs) (r : CiRun) : Alert :=
   ⟨.ciSlow, s!"{r.workflow}@{r.branch}",
-    s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ o.system.gh.suffix, critCi o.critical r⟩
+    s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ o.system.gh.suffix ++ o.system.gh.ciNote, critCi o.critical r⟩
 
 /-- `ci.slow`: a run waiting or running for more than the workflow's limit `s_p(wf(r))` minutes. -/
 def sCiSlow (p : Params) (o : Obs) : List Alert :=
@@ -1091,16 +1091,26 @@ theorem sGh_unknown (o : Obs) (h : o.system.gh.actions = .unknown) :
   have : o.system.gh.degradedB = o.system.gh.prevDegraded := by simp [Gh.degradedB, h, ghOpenB]
   cases hp : o.system.gh.prevDegraded <;> simp [sGh, when, this, hp]
 
-/-- Outside an open Actions incident a `ci.slow` alert is unchanged. -/
-theorem ciSlowAlert_plain (o : Obs) (r : CiRun) (h : o.system.gh.incident = none) :
+/-- Outside an open Actions incident, with a fresh run list, a `ci.slow` alert is unchanged. -/
+theorem ciSlowAlert_plain (o : Obs) (r : CiRun) (h : o.system.gh.incident = none)
+    (hf : o.system.gh.ciAgeMs ≤ ciFreshMs) :
     (ciSlowAlert o r).detail = s!"{r.status} for {mins (o.now - r.startedAt)} min" := by
-  simp [ciSlowAlert, Gh.suffix_none _ h]
+  simp [ciSlowAlert, Gh.suffix_none _ h, Gh.ciNote, ciAgeNote_fresh _ hf]
+
+/-- **A stale run list is named** (`ciSlowAlert_ages`): when the list is older than `ciFreshMs`, the `ci.slow` detail
+ends with its age in minutes. This is the fix for a finished run that still reads as running.
+-/
+theorem ciSlowAlert_ages (o : Obs) (r : CiRun) (h : ciFreshMs < o.system.gh.ciAgeMs) :
+    ∃ a, (ciSlowAlert o r).detail = a ++ " (CI data " ++ toString (o.system.gh.ciAgeMs / 60000) ++ " min old)" := by
+  refine ⟨s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ o.system.gh.suffix, ?_⟩
+  simp [ciSlowAlert, Gh.ciNote, ciAgeNote_old _ h, String.append_assoc]
 
 /-- During an open Actions incident a `ci.slow` alert names it. -/
 theorem ciSlowAlert_names (o : Obs) (r : CiRun) (i : GhIncident) (h : o.system.gh.incident = some i) :
     ∃ a b, (ciSlowAlert o r).detail = a ++ i.name ++ b := by
   obtain ⟨a, b, hs⟩ := Gh.suffix_names _ i h
-  exact ⟨s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ a, b, by simp [ciSlowAlert, hs, String.append_assoc]⟩
+  exact ⟨s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ a, b ++ o.system.gh.ciNote, by
+    simp [ciSlowAlert, hs, String.append_assoc]⟩
 
 /-- `ci.finished`: a run flagged slow by the previous check has finished (once): its conclusion and duration. -/
 def sCiFin (p : Params) (o : Obs) : List Alert :=
