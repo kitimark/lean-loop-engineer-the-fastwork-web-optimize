@@ -17601,7 +17601,16 @@
    "writes": [
     "results/gpu-safari/**",
     "research/notes/2026/10-2x-gpu-safari-lane.md",
-    "docs/team/handoffs/gpu-safari-mac.md"
+    "docs/team/handoffs/gpu-safari-mac.md",
+    "lean/Fw/Measure/GpuElapsed.lean",
+    "lean/scripts/GpuElapsedGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land-reads.gen.ts"
    ],
    "title": "Follow-ups of gpu-safari-lane (landed 76643b76b): (1) USER-GATED: once the user unlocks the Mac and keeps the display awake (console step mac-unlock-safari), run `node results/gpu-safari/lane/run.mjs mac all` inside a measure slot: macOS Safari on the real Apple GPU for the nav, morph (alone and bundled), pain and people-o arms (people-o needs a window wider than 860 px, which macOS Safari gives), each against faithful in the same session, reduced against the later-load floor, paired with the CI Simulator rows; Composite and render-server timing if the Lean quiet rule accepts the passes; (2) explain why the bundled arm is pixel-identical to threaded at morph m0.25 (fade({m:0.25}) = 0.545 should be half faded): the threaded fade renders bit-identical to the CSS --morph-fade path, or the platform is outside the 430x775 frame at scrollY 5267 (name which from the platform rect); (3) a Lean golden for elapsedAt (the paused-effect time) and the TS stand-ins listed in the note."
   },
@@ -18032,7 +18041,8 @@
     "research/notes/2026/10-20-morph-idle-none.md",
     "docs/team/handoffs/morph-idle-chromium-rebaseline.md"
    ],
-   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids."
+   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids.",
+   "evidence": "7e2e4d8"
   },
   {
    "devices": [
@@ -18252,6 +18262,23 @@
     "docs/team/handoffs/trajectory-lane-noflip.md"
    ],
    "title": "trajectory-first-coverage review follow-ups: (1) the lane can still flip on one extra original sample when the candidate and faithful arms differ in open-pass count: rel (skip firstOpen) (skip firstOpen) = ok but rel (fail coverage) (skip firstOpen) = new (reproduced: original 5 passes 3 hits, cand nw 5, faithful nw 4 -> CLEAN; one more original hit -> RED). Treat a faithful skip:firstOpen as undecided in rel whenever the candidate's open@1 is skip:firstOpen or fail:coverage, and prove a lane-level no-flip theorem (laneOf never moves red<->clean under one extra original pass); golden + JS twin. (2) cli.mjs:27 summaryMd prints red.red ? 'RED' : 'CLEAN', so an UNDECIDED lane is published as CLEAN: print red.lane.toUpperCase() and add the undecided row. (3) Link the timing model (sampled_iff, phase_covers: 1 or 2 slots by vsync phase) to firstCover's rate by a theorem or state the gap. Then the lead moves ledger row hero.scenePause (runs 39926829451, 39557718020)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-safari-mac-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-safari-mac"
+   ],
+   "writes": [
+    "results/gpu-safari/**",
+    "research/notes/2026/10-2x-gpu-safari-lane.md",
+    "docs/team/handoffs/gpu-safari-mac-followups.md"
+   ],
+   "title": "gpu-safari-mac follow-ups (user-gated: Mac unlocked): (1) people.carousel:crop against faithful on macOS Safari: its swap is timer-driven (220 ms in a 1020 ms cycle), so park the timers or pin the clock to capture a mid-swap frame; (2) a third hero.exit:threaded Mac session (the x0.5 size did not repeat: 20.8k then 5.2k px) and a Simulator hero row of this lane; (3) the Mac morph arms are inconclusive (A/A floor as large as the arm): a lower Mac floor or the Simulator rows; (4) Composite and render-server timing need a quiet Mac (Lean quiet rule refused 12 of 12) or Instruments; (5) move the lane to packages/measure-webkit."
   }
  ],
  "deadline": {
