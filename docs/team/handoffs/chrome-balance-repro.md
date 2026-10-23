@@ -1,8 +1,8 @@
 # chrome-balance-repro handoff
 
-- Branch: worktree-wf_15096bff-386-1 (CI branch ci/chrome-balance-repro)
+- Branch: worktree-wf_15096bff-386-1 (CI branch ci/chrome-balance-repro at 90bf4ab, the probe)
 - Worktree: .claude/worktrees/wf_15096bff-386-1
-- Last commit: the branch head (probe pushed at 90bf4ab)
+- Last commit: the branch head (work at 9536f41f3 and 606bdf21a, this handoff after)
 - Pushes and dispatches: 1 push + 1 dispatch of 4.
 
 ## CI runs
@@ -15,8 +15,15 @@
   158.0.8118.0 (new headless, no BeginFrameControl) crash SIGSEGV 0x84 on the minimal repro and on the original page at 1280;
   ok at 860, with h2 `text-wrap: wrap` or `nowrap`, with the o as inline-block. `white-space: nowrap`, `.c` block, `.w` inline
   and an empty o still crash.
+- Lean `Fw/Measure/Profile.lean` compiles; golden `packages/contracts/golden/measure/profile.jsonl` (31 lines) --check ok;
+  `test/profile.test.mjs` 7/7; `scripts/ci-paths.test.mjs` 54/54 (after the Trigger.lean row edit); runner land-inputs 56/56.
 
 ## Open
-- Item (3): move crash-* and balance-repro to probes/, Lean `Fw/Measure/Profile.lean` (css, dropFlags, kind, UA) with golden.
-- Item (2): desktop UA for `mobile: false` profiles (Lean decision).
-- Note: research/notes/2026/10-2x-chrome-balance-repro.md.
+- Slot check.sh and measure-chromium / measure-webkit tests were queued (slot limit 1); rerun if their result is not in the report.
+- Then: dry land, review ready, StructuredOutput.
+- Follow-ups: host.mjs, crash-probe.mjs and chromium-counts.yml read only `profiles/`; a probe runs by copying it there on a
+  ci branch (probes/README.md). Rewrite people title fix (drop balance or o inline-block) is a new task. Filing the crbug is a
+  user step (note has the text).
+
+## Read first
+research/notes/2026/10-2x-chrome-balance-repro.md, lean/Fw/Measure/Profile.lean, packages/measure-chromium/probes/README.md.
