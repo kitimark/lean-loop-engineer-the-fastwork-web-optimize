@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
+import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
 
 const raw = (changed, maxDelta) => ({ changed, maxDelta });
 const claim = { compA: true, compB: true };
@@ -28,11 +28,15 @@ const jobs = () => [
   ], [{ kind: 'all', i: 1, why: 'arm A not captured at this offset' }], { clock: { values: [100, 200], constant: false } }),
 ];
 
-test('the L source follows the Lean whyL order: outside, text, inside', () => {
-  assert.equal(lSource({ grade: 'Q', why: null }), null);
-  assert.equal(lSource({ grade: 'L', why: 'text' }), 'strips not accepted');
-  assert.equal(lSource({ grade: 'L', why: 'inside' }), 'floor');
-  assert.equal(lSource({ grade: 'L', why: 'outside' }), 'outside the mask');
+test('the L source: strips not accepted only when the grade would be Q with them, else outside the mask or inside above the floor', () => {
+  assert.equal(lSource({ grade: 'Q', ifAccepted: 'Q', out: raw(0, 0) }), null);
+  assert.equal(lSource({ grade: 'invalid', ifAccepted: 'invalid', out: raw(0, 0) }), null);
+  assert.equal(lSource({ grade: 'L', ifAccepted: 'Q', out: raw(0, 0) }), 'strips not accepted');
+  assert.equal(lSource({ grade: 'L', ifAccepted: 'L', out: raw(5, 1) }), 'outside the mask');
+  assert.equal(lSource({ grade: 'L', ifAccepted: 'L', out: raw(0, 0) }), 'inside, above the floor');
+  // the text rule fires as well as a change above the floor: the strips would not help, so the cell is not "strips not accepted"
+  assert.equal(lSource({ grade: 'L', why: 'text', ifAccepted: 'L', out: raw(0, 0) }), 'inside, above the floor');
+  assert.equal(lSource({ grade: 'L', why: 'inside', ifAccepted: 'Q', out: raw(0, 0) }), 'strips not accepted');
 });
 
 test('hero_copy table: one row per offset, every job side by side, skips named, nothing typed by hand', () => {
@@ -43,7 +47,7 @@ test('hero_copy table: one row per offset, every job side by side, skips named, 
   assert.equal(body.length, OFFS.length);
   assert.ok(body[0].startsWith('| 0 | 0 |'));
   assert.ok(body[0].includes('48-1/0-0'), 'A/A floor inside/outside of job 1');
-  assert.ok(body[0].includes('L (floor) [L]'));
+  assert.ok(body[0].includes('L (inside, above the floor) [L]'));
   assert.ok(body[1].includes('L (strips not accepted) [Q]'));
   assert.ok(body[2].includes('skipped: occluded by opaque foreign content in both arms'));
   assert.ok(body[2].includes('invalid (misplaced)'));
@@ -65,6 +69,20 @@ test('the changed-box list names the parts, only for cells with a change inside'
   const md = heroCopyWhere(jobs()).split('\n');
   assert.equal(md.length, 3);
   assert.ok(md[2].includes('webkit-1 | 0 | A/A | 48-1 | 10,20,30,40 | button.cta, span.face x2, p.note'));
+});
+
+test('the shared-pixel list prints the reason, the pixels hero_copy left to other layers and where the outside changes are', () => {
+  const l = lane('webkit-1', [
+    full('hero_copy', 0, 'A/A', { shared: raw(48, 1), sharedWith: 3 }),
+    full('hero_copy', 1, 'A/A', { shared: raw(0, 0), sharedWith: 3 }),
+    full('hero_copy', 2, 'A/A', { shared: raw(0, 0), sharedWith: 3, cell: { inside: raw(0, 0), out: raw(2, 1), p1: true, claim }, where: { bbox: null, parts: [], outBbox: [5, 6, 9, 10] } }),
+    full('hero_copy', 0, 'P', {}),
+  ]);
+  const md = heroCopyShared([l]).split('\n');
+  assert.ok(md[0].startsWith('Reason: pixels inside another graded layer'));
+  assert.equal(md.length, 6, 'reason, blank, header, rule and two rows; the offset with nothing is left out');
+  assert.ok(md[4].includes('| webkit-1 | 0 | A/A | 48-1 | 3 | - |'));
+  assert.ok(md[5].includes('| webkit-1 | 2 | A/A | 0-0 | 3 | 2-1 at 5,6,9,10 |'));
 });
 
 test('the pin table reads the page clock, unpinned, misplaced and occluded counts', () => {

@@ -125,6 +125,21 @@ test('the union split agrees with the Lean region rule pixel by pixel', () => {
   assert.deepEqual(sp.inside.map((x) => x.raw), want.inside);
 });
 
+test('the union split leaves a pixel in another mask to that mask: only the yielding mask drops it, and it is counted once', () => {
+  const w = 20, h = 20, del = new Uint8Array(w * h);
+  del[5 * w + 5] = 1; del[5 * w + 12] = 3; del[12 * w + 5] = 2;
+  const masks = [[0, 15, 0, 15], [10, 20, 3, 8]];
+  const none = splitUnion(del, w, h, masks);
+  assert.deepEqual(none.inside.map((x) => x.raw), [{ changed: 3, maxDelta: 3 }, { changed: 1, maxDelta: 3 }]);
+  assert.deepEqual(none.shared, [{ changed: 0, maxDelta: 0 }, { changed: 0, maxDelta: 0 }]);
+  const sp = splitUnion(del, w, h, masks, [[masks[1]], []]);
+  assert.deepEqual(sp.inside.map((x) => x.raw), [{ changed: 2, maxDelta: 2 }, { changed: 1, maxDelta: 3 }], 'the other mask keeps every pixel');
+  assert.deepEqual(sp.shared[0], { changed: 1, maxDelta: 3 });
+  assert.deepEqual(sp.inside[0].bbox, [5, 5, 6, 13]);
+  assert.equal(sp.out.changed, 0);
+  assert.equal(splitUnion(del, w, h, masks, [[], [masks[0]]]).inside[1].raw.changed, 0, 'a mask told to yield drops what the first covers');
+});
+
 test('the live witnesses', () => {
   assert.equal(liveP({ live: true, variant: 'threaded', supported: true, nonDoc: 4 }), true);
   for (const bad of [null, { live: false, variant: 'threaded', supported: true, nonDoc: 4 }, { live: true, variant: 'faithful', supported: true, nonDoc: 4 }, { live: true, variant: 'threaded', supported: false, nonDoc: 4 }, { live: true, variant: 'threaded', supported: true, nonDoc: 0 }]) assert.equal(liveP(bad), false);
@@ -132,12 +147,12 @@ test('the live witnesses', () => {
   assert.equal(liveA({ live: true, variant: 'threaded' }), false);
 });
 
-function fakeExitLane(dir, { pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts }) {
+function fakeExitLane(dir, { boxes: boxes0, pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts }) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
   const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
   put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
-  const boxes = { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
+  const boxes = boxes0 ?? { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
   const accent = (arm) => { const a = accentOf(arm); return a && { shotStart: a, shotEnd: a }; };
   const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: scrollOf(arm), dateNow: dateOf(arm), cover: coverOf(arm), parts: parts, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
   const faithful = { live: false, variant: 'faithful', supported: true, nonDoc: 0 };
@@ -242,9 +257,9 @@ test('exit analysis: a misplaced row is invalid, an occluded layer is skipped wi
     fakeExitLane(dir, { ...edits, parts: { hero_copy: [['button.cta', 14, 14, 3, 3], ['p.far', 25, 25, 4, 4]] } });
     const where = analyzeExit(dir, { strips: 'none' });
     const w = (kind, key) => where.cells.find((c) => c.kind === kind && c.key === key).where;
-    assert.deepEqual(w('P', 'hero_copy'), { bbox: [15, 15, 16, 17], parts: ['button.cta'] });
-    assert.deepEqual(w('A/A', 'hero_copy'), { bbox: [15, 15, 16, 16], parts: ['button.cta'] });
-    assert.deepEqual(w('P', 'hero.deck_article#1'), { bbox: null, parts: [] });
+    assert.deepEqual(w('P', 'hero_copy'), { bbox: [15, 15, 16, 17], parts: ['button.cta'], outBbox: [80, 80, 81, 81] });
+    assert.deepEqual(w('A/A', 'hero_copy'), { bbox: [15, 15, 16, 16], parts: ['button.cta'], outBbox: null });
+    assert.deepEqual(w('P', 'hero.deck_article#1'), { bbox: null, parts: [], outBbox: [80, 80, 81, 81] });
 
     assert.deepEqual(where.clock, { values: [1000], constant: true });
     fakeExitLane(dir, { ...edits, dateOf: (arm) => (arm === 'P' ? 2000 : 1000) });
@@ -252,6 +267,35 @@ test('exit analysis: a misplaced row is invalid, an occluded layer is skipped wi
     assert.deepEqual(moving.clock, { values: [1000, 2000], constant: false });
     assert.match(exitTable(moving), /Date\.now in every row: moves/);
     assert.match(exitTable(where), /Date\.now in every row: constant \(1000\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('exit analysis: a pixel inside both hero_copy and a deck card is the card cell\'s, unless the card is not graded', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-shared-'));
+  try {
+    const boxes = { hero_copy: [10e6, 10e6, 30e6, 30e6], 'hero.deck_article#1': [25e6, 25e6, 40e6, 40e6] };
+    const edits = { boxes, a2Edit: setPx(28, 28), pEdit: (img) => { setPx(28, 28)(img); setPx(15, 15)(img); }, pLive: liveOk };
+    fakeExitLane(dir, edits);
+    const res = analyzeExit(dir, { strips: 'none' });
+    const cell = (kind, key) => res.cells.find((c) => c.kind === kind && c.key === key);
+    assert.deepEqual(cell('A/A', 'hero_copy').cell.inside, { changed: 0, maxDelta: 0 });
+    assert.deepEqual(cell('A/A', 'hero_copy').shared, { changed: 1, maxDelta: 5 });
+    assert.equal(cell('A/A', 'hero_copy').sharedWith, 1);
+    assert.deepEqual(cell('A/A', 'hero.deck_article#1').cell.inside, { changed: 1, maxDelta: 5 }, 'the card layer counts it');
+    assert.equal(cell('A/A', 'hero.deck_article#1').sharedWith, 0);
+    assert.deepEqual(cell('P', 'hero_copy').cell.inside, { changed: 1, maxDelta: 5 }, 'only the pixel that is not in the card mask');
+    assert.deepEqual(cell('P', 'hero_copy').shared, { changed: 1, maxDelta: 5 });
+    assert.equal(cell('P', 'hero_copy').grade, 'L');
+    assert.equal(cell('P', 'hero_copy').why, 'text');
+    assert.equal(cell('P', 'hero_copy').ifAccepted, 'L', 'strips would not help: the inside change is above the floor');
+    const deckFull = { 'hero.deck_article#1': { n: 49, k: 49 } };
+    fakeExitLane(dir, { ...edits, coverOf: () => deckFull });
+    const open = analyzeExit(dir, { strips: 'none' });
+    assert.ok(open.cells.every((c) => c.key !== 'hero.deck_article#1'), 'the card is skipped as occluded');
+    assert.deepEqual(open.cells.find((c) => c.kind === 'A/A' && c.key === 'hero_copy').cell.inside, { changed: 1, maxDelta: 5 }, 'no graded card, so hero_copy keeps the pixel');
+    assert.equal(open.cells.find((c) => c.kind === 'A/A' && c.key === 'hero_copy').sharedWith, 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

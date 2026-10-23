@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { FOREIGN_REASON } from './pathpix-exit.mjs';
 
 export function slimCell(c) {
   return {
     key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live, accentPinned: c.accentPinned, invalidWhy: c.invalidWhy,
-    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null, where: c.where ?? null,
+    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null, where: c.where ?? null, shared: c.shared ?? null, sharedWith: c.sharedWith ?? 0,
   };
 }
 
@@ -46,9 +47,9 @@ export function engineTable(engine, lanes) {
 const HERO = 'hero_copy';
 const raw = (x) => `${x.changed}-${x.maxDelta}`;
 
-// Where an L on a P cell comes from: change outside the layer's mask, the text rule (strips not accepted), or an inside
-// change above the A/A floor (Lean `whyL`: outside, then text, then inside). Null when the cell is not L.
-export const lSource = (p) => (p.grade !== 'L' ? null : p.why === 'text' ? 'strips not accepted' : p.why === 'inside' ? 'floor' : p.why === 'outside' ? 'outside the mask' : '?');
+// Where an L on a P cell comes from: the text rule alone (the grade would be Q if strips were accepted), a change outside the
+// layer's mask, or an inside change above the A/A floor. Null when the cell is not L.
+export const lSource = (p) => (p.grade !== 'L' ? null : p.ifAccepted !== 'L' ? 'strips not accepted' : p.out.changed > 0 ? 'outside the mask' : 'inside, above the floor');
 
 const cellAt = (l, key, i, kind) => l.cells.find((c) => c.key === key && c.i === i && c.kind === kind);
 const skipAt = (l, key, i, kind) => l.skipped.find((x) => (x.key === key || x.key === undefined) && x.i === i && (x.kind === kind || x.kind === 'all'))?.why ?? null;
@@ -79,8 +80,18 @@ export function heroCopySummary(engine, lanes, key = HERO) {
   const skips = lanes.flatMap((l) => l.skipped.filter((x) => x.key === key));
   const reasons = [...new Set(skips.map((x) => x.why))].map((w) => `${w} x${count(skips, (x) => x.why === w)}`);
   return [`#### ${engine}: ${key} summary over ${lanes.length} jobs`, '',
-    '| P cells | E | E1 | Q | L | invalid | L: strips not accepted | L: floor | L: outside the mask | A/A cells | A/A with a change inside | A/A with a change outside | skipped (reason) |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-    `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
+    '| P cells | E | E1 | Q | L | invalid | L: strips not accepted | L: inside, above the floor | L: outside the mask | A/A cells | A/A with a change inside | A/A with a change outside | skipped (reason) |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('inside, above the floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
+}
+
+/** hero_copy pixels another graded layer counts (Lean `countedIn`): per job and offset, the changed pixels hero_copy left to the other layers. */
+export function heroCopyShared(lanes, key = HERO) {
+  const out = [`Reason: ${FOREIGN_REASON}`, '', '| job | offset | kind | changed pixels left to other layers (chg-max) | other layers graded in this row | changes outside every mask: box (device px) |', '|---|---|---|---|---|---|'];
+  for (const l of lanes) for (const c of l.cells) {
+    if (c.key !== key || !c.shared || (c.shared.changed === 0 && !(c.where && c.where.outBbox))) continue;
+    out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.shared)} | ${c.sharedWith} | ${c.where?.outBbox ? `${raw(c.out)} at ${c.where.outBbox.join(',')}` : '-'} |`);
+  }
+  return out.join('\n');
 }
 
 /** Parts by name with a count, so thirty digit faces print as one entry. */
@@ -129,7 +140,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.arg
     return lane;
   });
   const engines = [...new Set(lanes.map((l) => l.engine))];
-  const hero = engines.flatMap((e) => { const ls = lanes.filter((l) => l.engine === e); return [heroCopySummary(e, ls), '', heroCopyTable(e, ls), '', `#### ${e}: ${HERO} changes inside the mask`, '', heroCopyWhere(ls), '']; });
+  const hero = engines.flatMap((e) => { const ls = lanes.filter((l) => l.engine === e); return [heroCopySummary(e, ls), '', heroCopyTable(e, ls), '', `#### ${e}: ${HERO} changes inside the mask`, '', heroCopyWhere(ls), '', `#### ${e}: ${HERO} pixels counted by another layer`, '', heroCopyShared(ls), '']; });
   const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', ...hero, '#### Page clock, accent pin and row placement per job', '', pinTable(lanes), '', '#### L cells with a strip', '', lookList(lanes)].join('\n');
   console.log(md);
 }

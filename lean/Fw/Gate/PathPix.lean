@@ -1311,6 +1311,84 @@ def coverCases : List (Cover × Cover) :=
   [(⟨49, 49⟩, ⟨49, 49⟩), (⟨49, 49⟩, ⟨49, 48⟩), (⟨49, 48⟩, ⟨49, 49⟩), (⟨0, 0⟩, ⟨0, 0⟩), (⟨49, 0⟩, ⟨49, 0⟩),
    (⟨1, 1⟩, ⟨1, 1⟩), (⟨25, 25⟩, ⟨49, 49⟩)]
 
+/-! ## Pixels another layer owns
+
+hero_copy's mask is the union of the rectangles of every element in it, the hidden countdown faces (translated out of
+their digit and clipped there) included, so it spans the top corners of the deck cards: at scroll offset 0 the A/A
+changes of hero_copy (48 pixels in webkit-2, 23 in webkit-3, delta 1, box on the card tops) are the same pixels as the
+A/A changes inside the cells of `hero.deck_article#0` and `#2` (24 and 24, 148 in webkit-3). They are not on the
+countdown tiles. The pixels belong to the card layer's cell, which counts them; hero_copy does not count a pixel that
+lies in the mask of another graded layer. The cause of the card-corner change itself (anti-aliased corners of a rotated,
+rounded, composited card) is INFERRED and not removed; the deck cells carry it as their own floor. -/
+
+/-- The layer whose mask yields the pixels it shares with another graded layer. -/
+def yieldsShared (layer : String) : Bool := layer == "hero_copy"
+
+/-- The masks `layer` must not count: those of the other graded layers when it yields, none otherwise. -/
+def foreignMasks (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) :=
+  if yieldsShared layer then others else []
+
+/-- The reason the report prints next to the shared-pixel counts. -/
+def foreignReason : String :=
+  "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards"
+
+/-- A pixel counts toward a layer's inside count when it is in the layer's mask and in none of its foreign masks. -/
+def countedIn (foreign : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
+  inMask m c r && !inAny foreign c r
+
+theorem yieldsShared_iff (layer : String) : yieldsShared layer = true ↔ layer = "hero_copy" := by
+  simp [yieldsShared]
+
+theorem foreignMasks_yields (others : List ((Nat × Nat) × (Nat × Nat))) : foreignMasks "hero_copy" others = others := by
+  simp [foreignMasks, yieldsShared]
+
+theorem foreignMasks_other_layer (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) (h : layer ≠ "hero_copy") :
+    foreignMasks layer others = [] := by
+  simp [foreignMasks, yieldsShared, h]
+
+/-- With no foreign mask every pixel of the mask counts. -/
+theorem countedIn_nil (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : countedIn [] m c r = inMask m c r := by
+  simp [countedIn, inAny_nil]
+
+theorem countedIn_shared (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inAny foreign c r = true) :
+    countedIn foreign m c r = false := by
+  simp [countedIn, h]
+
+theorem countedIn_unshared (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inAny foreign c r = false) :
+    countedIn foreign m c r = inMask m c r := by
+  simp [countedIn, h]
+
+theorem countedIn_in_mask (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : countedIn foreign m c r = true) :
+    inMask m c r = true := by
+  simp only [countedIn, Bool.and_eq_true] at h
+  exact h.1
+
+/-- Another layer counts every pixel of its mask. -/
+theorem countedIn_other_layer (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : layer ≠ "hero_copy") :
+    countedIn (foreignMasks layer others) m c r = inMask m c r := by
+  rw [foreignMasks_other_layer layer others h, countedIn_nil]
+
+/-- No pixel of hero_copy's mask is lost: it is counted by hero_copy or lies in the mask of another graded layer, whose own
+cell counts it (`countedIn_other_layer`). -/
+theorem shared_accounted (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inMask m c r = true) :
+    countedIn (foreignMasks "hero_copy" others) m c r = true ∨ ∃ o ∈ others, inMask o c r = true := by
+  rw [foreignMasks_yields]
+  by_cases hs : inAny others c r = true
+  · exact Or.inr ((inAny_iff others c r).1 hs)
+  · left
+    have : inAny others c r = false := by simpa using hs
+    rw [countedIn_unshared others m c r this, h]
+
+def foreignCases : List (String × String × List ((Nat × Nat) × (Nat × Nat)) × Nat × Nat) :=
+  let o : (Nat × Nat) × (Nat × Nat) := ((15, 30), (10, 14))
+  [("pixel in another mask", "hero_copy", [o], 20, 12), ("pixel outside it", "hero_copy", [o], 20, 14),
+   ("no other mask", "hero_copy", [], 20, 20), ("on the other mask's edge", "hero_copy", [o], 15, 10),
+   ("outside its own mask", "hero_copy", [o], 5, 12), ("deck card, pixel in another mask", "hero.deck_article", [o], 20, 12),
+   ("cue, pixel in another mask", "hero.cue_cue", [o], 16, 11)]
+
+/-- The mask of the layer under test in `foreignCases`. -/
+def foreignMine : (Nat × Nat) × (Nat × Nat) := ((10, 40), (10, 40))
+
 def accentRowCases : List (String × String × String × Nat) :=
   [("22a26c2a", "22a26c2a", "22a26c2a", 1), ("22a26c2a", "e1380ab3", "a7ccf8cf", 1), ("22a26c2a", "e1380ab3", "22a26c2a", 1),
    ("22a26c2a", "22a26c2a", "a7ccf8cf", 1), ("22a26c2a", "22a26c2a", "22a26c2a", 0), ("22a26c2a", "22a26c2a", "22a26c2a", 2)]
@@ -1420,6 +1498,14 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("kind", "pinRegion"), ("pin", toJson (armPin "P").name),
       ("masks", toJson ((pinMasks (armPin "P") ms).map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])), ("mine", toJson i),
       ("x", toJson x), ("y", toJson y), ("region", toJson (region (pinMasks (armPin "P") ms) m x y).name)]).compress) ++
+  foreignCases.map (fun (n, layer, others, x, y) =>
+    let fm := foreignMasks layer others
+    (Json.mkObj [("kind", "foreign"), ("name", toJson n), ("layer", toJson layer),
+      ("others", toJson (others.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])),
+      ("mine", toJson [foreignMine.1.1, foreignMine.1.2, foreignMine.2.1, foreignMine.2.2]), ("x", toJson x), ("y", toJson y),
+      ("yields", toJson (yieldsShared layer)),
+      ("foreign", toJson (fm.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])),
+      ("counted", toJson (countedIn fm foreignMine x y)), ("reason", toJson foreignReason)]).compress) ++
   maskCases.map (fun (n, dpr, fw, fh, b) =>
     let m := mask dpr fw fh b
     (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),

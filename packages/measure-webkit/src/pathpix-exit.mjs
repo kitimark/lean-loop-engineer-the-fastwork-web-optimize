@@ -46,6 +46,12 @@ export const floorPinned = (served, maxY, rows, f) => ({ ...f, valid: f.valid &&
 export const coverAll = (c) => !!c && c.n > 0 && c.k === c.n;
 export const occludedBoth = (a, b) => coverAll(a) && coverAll(b);
 
+// Twins of Lean `Fw.Gate.PathPix` (golden kind foreign): hero_copy does not count a pixel in the mask of another graded layer.
+export const FOREIGN_REASON = "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards";
+export const yieldsShared = (layer) => layer === 'hero_copy';
+export const foreignMasks = (layer, others) => (yieldsShared(layer) ? others : []);
+export const countedIn = (foreign, m, x, y) => inMask(m, x, y) && !foreign.some((k) => inMask(k, x, y));
+
 export const rawLe = (a, b) => a.changed <= b.changed && a.maxDelta <= b.maxDelta;
 export const floorOf = (c) => ({ valid: cellValid(c), out: c.out, inside: c.inside });
 export const withinFloor = (c, f) => f.valid && rawLe(c.out, f.out) && rawLe(c.inside, f.inside);
@@ -66,22 +72,31 @@ export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k)
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
 
-export function splitUnion(del, w, h, masks) {
+// `foreign[n]` lists the masks mask n does not count (Lean `countedIn`); the pixels it drops from mask n are returned in `shared[n]`.
+export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
   const cover = new Uint8Array(w * h);
   for (const m of masks) for (let y = m[2]; y < m[3]; y++) cover.fill(1, y * w + m[0], y * w + m[1]);
-  let oc = 0, om = 0;
-  for (let i = 0; i < del.length; i++) if (!cover[i]) { const d = del[i]; if (d) { oc++; if (d > om) om = d; } }
-  const inside = masks.map((m) => {
-    let changed = 0, maxDelta = 0;
+  let oc = 0, om = 0, ox0 = Infinity, oy0 = Infinity, ox1 = -1, oy1 = -1;
+  for (let i = 0; i < del.length; i++) if (!cover[i]) {
+    const d = del[i];
+    if (d) { oc++; if (d > om) om = d; const x = i % w, y = (i - x) / w; if (x < ox0) ox0 = x; if (x > ox1) ox1 = x; if (y < oy0) oy0 = y; if (y > oy1) oy1 = y; }
+  }
+  const shared = [];
+  const inside = masks.map((m, n) => {
+    let changed = 0, maxDelta = 0, sc = 0, sm = 0;
     const hist = { b1: 0, b2_3: 0, b4_15: 0, b16_255: 0 };
     let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+    const fo = foreign[n] ?? [];
     for (let y = m[2]; y < m[3]; y++) for (let x = m[0]; x < m[1]; x++) {
       const d = del[y * w + x];
-      if (d) { changed++; if (d > maxDelta) maxDelta = d; hist[bucket(d)]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (!d) continue;
+      if (fo.length && !countedIn(fo, m, x, y)) { sc++; if (d > sm) sm = d; continue; }
+      changed++; if (d > maxDelta) maxDelta = d; hist[bucket(d)]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     }
+    shared.push({ changed: sc, maxDelta: sm });
     return { raw: { changed, maxDelta }, hist, bbox: changed ? [x0, y0, x1 + 1, y1 + 1] : null };
   });
-  return { out: { changed: oc, maxDelta: om }, inside };
+  return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared };
 }
 
 // Names of the parts (capture-side rects in css px) that a changed device-pixel box [x0, y0, x1, y1] touches.
@@ -142,12 +157,19 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
       const accentRows = [accentRowOf(rowA), accentRowOf(row)];
       const pinned = rowsOk(served, maxY, accentRows);
       liveness.push({ arm: armB, i, y: row.scrollY, live: row.live ?? null, accepted: live, accentPinned: pinned });
-      const sp = splitUnion(del, frame.w, frame.h, masks);
+      const skipWhy = (key) => {
+        if (!exitClaim(baseLayer(key), le600)) return 'not an exit consumer';
+        if ((rowA.alpha?.[key] ?? 1) < 1 / 255 && (row.alpha?.[key] ?? 1) < 1 / 255) return 'transparent in both arms';
+        if (occludedBoth(rowA.cover?.[key], row.cover?.[key])) return 'occluded by opaque foreign content in both arms';
+        return null;
+      };
+      const graded = keys.map((k) => skipWhy(k) === null);
+      const foreign = keys.map((key, n) => foreignMasks(baseLayer(key), masks.filter((_, o) => graded[o] && baseLayer(keys[o]) !== baseLayer(key))));
+      const sp = splitUnion(del, frame.w, frame.h, masks, foreign);
       keys.forEach((key, n) => {
         const box = rowA.boxes[key], layer = baseLayer(key), claim0 = exitClaim(layer, le600);
-        if (!claim0) { skipped.push({ key, i, kind, why: 'not an exit consumer' }); return; }
-        if ((rowA.alpha?.[key] ?? 1) < 1 / 255 && (row.alpha?.[key] ?? 1) < 1 / 255) { skipped.push({ key, i, kind, why: 'transparent in both arms' }); return; }
-        if (occludedBoth(rowA.cover?.[key], row.cover?.[key])) { skipped.push({ key, i, kind, why: 'occluded by opaque foreign content in both arms' }); return; }
+        const why0 = skipWhy(key);
+        if (why0) { skipped.push({ key, i, kind, why: why0 }); return; }
         const compA = recs(rowA, layer).length > 0, compB = recs(row, layer).length > 0;
         const p1 = compA && compB && sigOf(rowA, layer) === sigOf(row, layer);
         const cell = {
@@ -167,8 +189,8 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
           key, layer, i, y: rowA.scrollY, kind, mask: masks[n], boxSame: JSON.stringify(row.boxes?.[key] ?? null) === JSON.stringify(box), live,
           cell, floor, accentPinned: ok, invalidWhy: unpinnedWhy(served, maxY, accentRows, floorRows, floor), grade: gradePinned(served, maxY, accentRows, floorRows, cell, floor, live), absGrade: ok ? grade(cell) : 'invalid',
           why: ok ? whyL(cell, floor, live) : null,
-          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr) },
-          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist,
+          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr), outBbox: sp.outBbox },
+          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist, shared: sp.shared[n], sharedWith: foreign[n].length,
         };
         const changed = cell.inside.changed + cell.out.changed > 0;
         const sk = `${kind}:${key}`;

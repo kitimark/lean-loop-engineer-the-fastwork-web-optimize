@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON } from '../src/pathpix-exit.mjs';
 import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,7 +12,7 @@ const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.json
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -49,6 +49,16 @@ test('count reduction equals the Lean golden', () => {
     assert.deepEqual(rawOf(r.pixels), r.raw);
     assert.equal(rawOk(r.raw), r.ok);
   }
+});
+
+test('the shared-pixel rule equals the Lean golden: hero_copy yields pixels another graded layer owns, every other layer counts its whole mask', () => {
+  for (const f of of('foreign')) {
+    assert.equal(yieldsShared(f.layer), f.yields, f.name);
+    assert.deepEqual(foreignMasks(f.layer, f.others), f.foreign, f.name);
+    assert.equal(countedIn(f.foreign, f.mine, f.x, f.y), f.counted, f.name);
+    assert.equal(f.reason, FOREIGN_REASON);
+  }
+  assert.ok(of('foreign').some((f) => f.yields && f.counted === false) && of('foreign').some((f) => !f.yields && f.counted === true));
 });
 
 test('the cell decision against the floor equals the Lean golden', () => {
