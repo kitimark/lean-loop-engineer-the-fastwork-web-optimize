@@ -203,7 +203,7 @@ land_actionlint() {
   echo "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6  $fw/actionlint.tgz" | sha256sum -c -
   tar -xzf "$fw/actionlint.tgz" -C "$HOME/.fw-node/bin" actionlint
   actionlint -version | head -1
-  command -v shellcheck >/dev/null || sudo apt-get install -y shellcheck
+  command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y shellcheck; }
 }
 land_setup() {  # main is the pushed commit's first parent (.github/scripts/land-base.sh); the commit identity the temp repos of the tests need
   git branch -f main "$(sh .github/scripts/land-base.sh main)"

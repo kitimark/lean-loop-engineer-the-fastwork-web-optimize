@@ -12,18 +12,16 @@ open: CircleCI legs shown by reading only; shellcheck warnings accepted
 - TS stand-in `apps/runner/src/land-checks-workflow.ts` (verdict mirrors Lean, pinned by the golden); `WORKFLOW_LINT` / `LOCAL_GATES` in `land.ts`
   (candidate check and dry land); `scripts/check-workflows.sh` (refuses exit 3 when actionlint is missing; prints a TAP summary because the
   land lane fails a check without a summary as "unknown").
-- Test `apps/runner/test/land-workflow.test.ts` (29 tests): golden replay, selection, script on dup key / expression / shellcheck / missing
+- Test `apps/runner/test/land-workflow.test.ts` (30 tests): golden replay, selection, script on dup key / expression / shellcheck / missing
   actionlint, and `runTier` refusing the land on a duplicated env key.
 - webkit-sim.yml `''` option finding: accepted, file+message scoped (reason in Lean `accepted` and docs/team/tools/land.md).
 - Tier: local (not in `remoteIds`); reason in land.md.
 
 ## Open
-- Writes outside the task: `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/scripts/WorkflowLintGolden.lean` (golden wiring).
-- A future move to the remote tier needs an actionlint install step in land.yml and a `remoteIds` row in Lean LandTier.
+- A future move to the remote tier needs a remoteIds row in Lean LandTier.
 - Read first: lean/Fw/Ci/WorkflowLint.lean, scripts/check-workflows.sh.
 
 ## Round 2 (land-lane fix)
 - Decision: install, not seam. land.yml step "actionlint (pinned, sha256-checked)" puts rhysd/actionlint v1.7.12 linux_arm64 (sha256 325e971b...c0c6, checked
   against the release checksums file) on PATH in every land leg, so land-workflow.test.ts runs its real-binary cases with 0 skipped. skipIf commit reverted.
 - Check reads now include apps/runner/src/land-checks-workflow.ts (Lean `reads`, `parse_reads`, `verdict_code_selects`; TS WORKFLOW_LINT_READS; golden regenerated).
-- Open: land.yml is a new write; CircleCI overflow leg (.circleci) has no actionlint install; if it runs apps/runner the same skip fails there.
