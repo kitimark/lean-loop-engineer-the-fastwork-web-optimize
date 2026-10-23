@@ -179,3 +179,39 @@ ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
   have lost its last windows, with the rows kept.
 - TS stand-ins: `walk-budget.mjs` functions replayed against the golden; the `sim-cadence.mjs` loop wiring, `untilDeadline` and the workflow's hard-stop wrapper are glue
   (`untilDeadline` has a unit test; the wrapper was run once locally with `sleep` and exit codes, debug evidence only).
+
+## Follow-ups (sim-touch-followups)
+
+Task `sim-touch-followups`, items (1) to (6) of the 2026-10-24 review of run `40003317485`. Source data: the `sim.log` and step times of runs `39934951574`, `39995201296` and `40003317485` (`gh run download`, `gh run view --json jobs`).
+
+### Rep plan (item 4): Lean `Fw.Measure.WalkBudget.planReps`, golden `walk-budget.jsonl` (27 lines)
+
+- **What failed (CONFIRMED, run `40003317485`).** The rule "a job needs 5 kept end windows per arm" is `Fw.Gate.Smooth.minReps`, per job: `jobCadence` and `zoneVerdict` decide inside one job, `acrossJobs` only counts agreeing verdicts, so windows of different jobs are never pooled. Job 1 was cut by the test cap (20 windows, 3 to 4 reps), job 3 by the 32-min deadline at 16 windows because four windows took 217, 744, 84 and 84 s (host load average 718 in `host.txt`).
+- **Cost of a window (MEASURED, 144 windows of the four complete 36-window walks).** Mean 35.6 s per window (job means 31.5 to 42.9 s), p50 17 to 31 s, p90 31 to 102 s. Cumulative time to the 30th window (5 reps of 3 arms): 703, 1060, 1194 and 1433 s, all under the 1644 s a walk has after a 4.6-min setup. The one starved job (`40003317485` job 3) needed 1477 s for 16 windows.
+- **The plan.** `planReps dl now arms = min (repsLife arms) (repsFit dl now arms)`: `repsFit` = whole reps of `2 x arms x 45 s` that fit between now and the deadline, `repsLife` = whole reps in the Simulator's 36 windows. `outcome` is `ok` iff both give `minKept` (5), else `lifeShort` (4 arms or more: 4 reps of 8 windows) or `budgetShort` (walk started late or capped). One theorem per branch: `outcome_lifeShort`, `outcome_budgetShort`, `outcome_ok`; `outcome_ok_plan` (ok means at least 5 planned reps), `outcome_ok_time` (5 reps at 45 s fit before the deadline), `planReps_fits`, `planReps_life`. The rep-major order (hero then end, per arm, arms rotated per rep) gives arm at position p `endsDone` = `n / (2 arms)` or one more end windows after `n` windows (`endsDone_ge`, `endsDone_le`), so `kept_after` and `planReps_complete`: after the planned reps every arm has at least 5 end windows.
+- **Decision.** Per job, not across jobs: pooling two jobs would need a pooled verdict in `Fw.Gate.Smooth`, and the per-job verdicts are the independent noise samples the design relies on. "Fewer reps per job" does not help (a job below 5 cannot decide); the harness now runs `--reps auto`, which for 3 arms is 6 reps (36 windows, the old `[sim-only]` value; `[earn-bound]` asked 7, which the budget never fit) and logs the outcome; 4 arms are `lifeShort` and need the arms split over jobs (follow-up, not built). The header of `smoothness.yml` no longer promises 6 reps.
+- **Limit (accepted).** `windowMs` = 45 s is a mean with margin, not a bound: a starved job (3 windows over 150 s) misses 5 reps. The deadline still holds; the job ends with its rows and the verdict says insufficient.
+
+### Gaps and docstring (item 5)
+
+`Gaps` in Lean names what the 1-min slack covers, each at the longest value of the three jobs of run `40003317485` (jobs API step times): `clockMs` 6 s (runner job start to the Job clock step, 3 to 6 s), `driftMs` 50 s (the Walk budget step reads the clock; the walk step starts when it ends, step took 22, 36 and 50 s on a starved host), `completeMs` 4 s (Post and Complete job steps, 1 to 4 s). They sum to `slackMs` (`gaps_total`); `job_ends_inside_gaps` states the job end with the three gaps explicit. `postSteps` lists host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min of the 10-min allowance (`postSteps_fit`), and the `job` docstring says so. The golden `step` line carries `hardStopInside` only when `runs` is true.
+
+### Report labels (item 2)
+
+`report.mjs` labels the Timeline column of the cadence tables from the rows (`timeline: false` gives `off`, mixed rows `mixed`), not from `mode`; touch end windows now read `off`. The control job is left out of the sim pool and listed in the new block `sim-touch` (`touchTable`: coordinates, pushes, outcomes, begin, swipe, done, moves per job).
+
+### Starved and lost windows (item 3): CONFIRMED why-not, counts per job
+
+| Run, job | Windows | Over 90 s | Over 150 s | Over 300 s | Slowest | Timeline.stop timeouts | Evaluate timeouts |
+|---|---|---|---|---|---|---|---|
+| 39934951574, 1 | 36 | 2 | 2 | 1 | 398 s | 1 | 0 |
+| 39934951574, 2 | 36 | 5 | 1 | 0 | 151 s | 0 | 0 |
+| 39934951574, 3 | 36 | 3 | 2 | 1 | 329 s | 1 | 1 |
+| 39995201296, 3 | 36 | 1 | 1 | 0 | 280 s | 0 | 0 |
+| 40003317485, 1 (cap) | 20 | 0 | 0 | 0 | 41 s | 0 | 0 |
+| 40003317485, 3 | 16 | 2 | 2 | 1 | 744 s | 0 | 0 |
+| all | 180 | 13 (7.2 %) | 8 (4.4 %) | 3 (1.7 %) | | 2 | 1 |
+
+- Slow windows occur in 5 of 6 jobs, 1 to 5 per job, in hero and end windows alike (4 hero, 9 end). The `Timeline.stop` timeout happened in 2 of 6 jobs, once each, and only in non-touch windows (touch windows start no Timeline).
+- The 744 s hero window has no retry line in the log (no timeout, no attempt, two `inspector probe failed (tick): socket up, proxy down, page missing`): a single `readWindow` waited that long inside our harness, so the wait was, INFERRED, a chain of calls that each stayed under its own timeout (`FW_WK_TIMEOUT_SCALE` 8) on a host with load average 718; the window log has no phase times, so the phase is not read.
+- Why no per-window bound (CONFIRMED by reading `sim-cadence.mjs`): a window shares one inspector socket with the retry. Abandoning a window leaves its pending calls on that socket and the only recovery is `reconnect`, the path that already ran in the 744 s window. A Lean bound on the window would only rename the wait. What is bounded is the sum: the walk deadline (`startsWindow`, `untilDeadline`, hard stop) and, with this task, the rep plan (45 s allowance, the 6 jobs above: 4 of 5 uncapped jobs fit 30 windows).
