@@ -41,7 +41,7 @@ and the layers that overlap them go.
   and y=5231 is deterministic). WebKit cost counters (`cost=on`, `lag=true`) were not collected: `fw run` sends no such input.
   Dispatch for the lead: `gh workflow run webkit-sim.yml --ref ci/morph-idle-none -f target=rewrite -f lag=true -f cost=on -f fw=morph.columns:idle-none`
   and the same without `-f fw=...`.
-- TS stand-in: `IdleHold` (DOM glue) has no golden; `idleRemoved` and `idleStep` equal the Lean golden `morph-idle-none.jsonl`.
+- TS stand-in: the glue in `index.tsx` (keep and restore of `currentTime`) is not checked against `morph-idle-none.jsonl`: the checker file `idle.golden.test.ts` and the ledger row sit outside the task writes, on branch `morph-idle-none-extras` (commit cb38275fe).
 
 ## Runs (sha 540130e9f on ci/morph-idle-none)
 
