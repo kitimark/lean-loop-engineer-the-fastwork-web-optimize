@@ -4444,6 +4444,39 @@
    "leanReason": "The closure is a pure function from a write list to required paths; it can be stated and proved in Lean (Fw.Plan) with goldens.",
    "empiricalCheck": "fw land --dry scope check (existing) catches it late; the lint catches it at graph edit.",
    "hardening": "graph-writes-closure"
+  },
+  {
+   "id": "inc-workflow-widths-remote",
+   "at": "2026-10-24T12:00+07:00",
+   "title": "A workflow file change (path-pix.yml 4 -> 6 jobs) passed the dry land and failed the remote land tier, costing a remote CI round",
+   "symptom": "hero-copy-floor-sources changed .github/workflows/path-pix.yml to 3 sim + 3 chromium jobs. fw land --dry passed; the remote land tier failed (run 39995255573, land suites-a, apps/runner test/land-overflow-widths.test.ts: path-pix.yml Lean widths row (derived 6): expected 4 to be greater than or equal to 6, then fwcore counts expected 16 to be 14 until fwcore was rebuilt). The lead fixed Fw.Ci.Overflow widths and landed (840a81bdf).",
+   "cause": "CONFIRMED (lean/Fw/Console/LandTier.lean at 840a81bdf: remoteIds holds apps/runner, localTests held only console-api:compose; apps/runner/src/land.ts LOCAL_GATES held compose and workflow-lint): the width test lives in the apps/runner package suite, which is a remote-tier check, and no local check read a workflow file for its width, so the dry land (local tier plus fast lints) never ran it. A workflow change selected only workflow-lint (syntax) locally.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/land-overflow-widths.test.ts",
+     "note": "failed in run 39995255573 (land suites-a): path-pix.yml Lean widths row (derived 6): expected 4 to be greater than or equal to 6"
+    },
+    {
+     "kind": "commit",
+     "ref": "840a81bdf",
+     "note": "the lead fix of Fw.Ci.Overflow widths"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Console/LandTier.lean",
+     "note": "workflow_selects_overflowWidths and the local test row"
+    }
+   ],
+   "repro": "Change the job count of any .github/workflows/*.yml without raising its row in lean/Fw/Ci/Overflow.lean widths, then run fw land --dry: before the fix it printed VERDICT dry; now the dry land runs apps/runner test/land-overflow-widths.test.ts and refuses.",
+   "fix": {
+    "task": "checkmap-workflow-widths-local"
+   },
+   "regression": "Lean theorem workflow_selects_overflowWidths (every path under .github/workflows/ selects runner:overflow-widths in the local tier), goldens in land-tier-local.jsonl, tests in apps/runner/test/land-tier.test.ts and land-dry.test.ts (the path-pix 4 -> 6 case is refused by the dry land).",
+   "leanVerdict": "provable",
+   "leanReason": "Which checks a change selects is a pure function of the changed paths and the declared reads (Fw.Console.LandTier.selectLocal over LandSpeed.selectChecks); the selection of every workflow path is a theorem.",
+   "empiricalCheck": "fw land --dry runs the selected local test on the merge tree; the test derives the widths from the workflow files.",
+   "hardening": "checkmap-workflow-widths-local"
   }
  ]
 }
