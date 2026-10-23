@@ -12,8 +12,7 @@ Done
 - TS STAND-IN `wtName` (apps/runner/src/polish.ts, same rule, table test in polish.test.ts). Not Lean-golden-checked: wiring
   an op `plan.wtName` needs lean/Fw/Wire/Plan.lean and packages/contracts/golden/plan/polish.jsonl, outside this task's writes
   (followUp).
-- `fw polish plan` prints `worktree-name <name>` (or `-`) right after `worktree <abs dir>`; the name is one word of safe
-  characters, so a copy cannot be "shortened" into something the workflow accepts wrongly.
+- `fw polish plan` prints `worktree-name <name>` (or `-`) right after `worktree <abs dir>`; the name is one word of safe characters.
 - (a) polish-protected-from-settings handoff reworded and subagent-worktree line added; (b) polish.test.ts sample2 checks
   `<dir>/z.md` for every Edit rule, so a narrower protectedDirs entry fails.
 - Verified: `pnpm --filter @fw/runner test` 3243 passed; lean check green.

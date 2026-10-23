@@ -21,4 +21,4 @@ Done
   path (the docs do not say; INFERRED: matches, since the path is under `<main>/.claude/`).
 - Subagent worktrees (isolation:worktree builders): INFERRED same anchor (the session's primary working directory is the worktree), not checked.
 
-Open: none outside the task's writes. Read first: Polish.lean protectedPath, the new describe block in polish.test.ts.
+Open: none. Read first: Polish.lean protectedPath, the new describe block in polish.test.ts.

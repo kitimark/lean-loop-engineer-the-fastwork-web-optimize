@@ -18,8 +18,6 @@ type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; pr
 type CutOut = { path: string; old: string; verdict: string; missing: string[] };
 type DocOut = { path: string; text: string; changed: boolean };
 
-/** TS STAND-IN for Lean `Fw.Plan.Polish.wtName` (spec and proofs there; wire op `plan.wtName` is a follow-up): the name of an
- * absolute `/.../.claude/worktrees/<name>` directory, null for a relative, `~` or placeholder path or an unsafe name. */
 export function wtName(dir: string): string | null {
   if (!dir.startsWith("/")) return null;
   const s = dir.split("/");
