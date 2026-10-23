@@ -47,6 +47,25 @@ animates opacity, transform and translate only; the crop is the container's exis
 
 CI has no real GPU; the felt-lag check on the phone is the user's. A no-win on a cost lane is a finding with the Lean why above.
 
-## Runs
+## Runs (branch ci/people-carousel-crop, code tip ee8ff9c58; files in results/people-carousel-crop/)
 
-(filled from the handoff when runs finish)
+| lane | run | result |
+|---|---|---|
+| trajectory-probe, fw=people.carousel:crop, both engines, all widths (inputs read back from the step name: commit-line) | 39896845339 | success. Chromium hero and morph units RED as in the faithful arm (42 fail in both) plus one new unit nav.background-color 1280 close@0, not this part; Linux WebKit CLEAN (hero path) |
+| GPU carousel cell, people zone (avatar rects per frame, Chromium, 390 and 640) | same run, artifact cells-gpu-chromium | grade L at both widths, 4 reps each, swaps 4 against 4: the rects differ because the leaver keeps its box (Lean `leaver_box_differs`), as class L says |
+| breakpoint gate, both engines, fw=people.carousel:crop | 39898995879 | pass |
+| webkit-sim lag+cost, rewrite, 430x775, vms 3, base | 39899015125 | r1 and r2 gave lag json (r3 cancelled after r2 failed) |
+| webkit-sim lag+cost, same, fw=people.carousel:crop | 39899018175 | failed, no data (Safari lost in every VM) |
+| same, retry | 39906731945 | success, r1 r2 r3 |
+
+Dispatches used: 4 of 6 (gate 1, webkit-sim 3).
+
+WebKit cost (end of page = scroll B, the people zone; base 3 passes, flag 6 passes): no counter and no frame-cadence value differs
+beyond overlapping ranges (Paint, Composite, Layout, RecalculateStyles, skipped slots, over 25 ms, over 50 ms). This is
+not a no-win proof. The lane scrolls in steps through the page and does not sample inside the 220 ms swap windows, which hold 13
+layout frames of every 61, and the Simulator is noisy (wide ranges). What the lane does show, and the Lean layer budget predicts:
+layer census at the end-of-page state 124 layers against 128 (+4) and compositing reason `animation` 5 against 8.
+Follow-up outside the unit: a lane that samples inside the swap windows (the time-driven swap), and the felt-lag check on the phone.
+
+The trajectory units of the hero and morph paths do not read the people zone; the one new unit is on the nav.
+Linux WebKit walks the pain cell only, so there is no WebKit people-zone trajectory (accepted limit).
