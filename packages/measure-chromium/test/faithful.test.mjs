@@ -78,7 +78,7 @@ test('the two cited runs are comparable and reproduce the committed verdict file
   for (const p of PROFILES) {
     const d = load(p, RUNS);
     assert.equal(metaOf(d.R).observed.width, 430);
-    assert.equal(metaOf(d.A).observed, undefined, 'the frozen original recorded no observed viewport');
+    assert.equal(metaOf(d.A).observed.width, 430, 'the font-image frozen original records its observed viewport');
   }
 });
 

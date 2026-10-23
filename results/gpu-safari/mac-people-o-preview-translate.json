@@ -1,0 +1,589 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "macos-safari",
+ "run": "gpu-safari-mac-2026-10-23T10-31-08-209Z",
+ "zone": "people",
+ "session": {
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+  "dpr": 2,
+  "vw": 1280,
+  "vh": 948,
+  "maxY": 8492,
+  "device": "macOS Safari (safaridriver)",
+  "timing": "cadence only: the Lean quiet rule refuses a loaded Mac",
+  "pinnedClock": false
+ },
+ "flip": null,
+ "ci": {
+  "gate": "39850908365",
+  "counts": []
+ },
+ "arm": "people-o-preview-translate",
+ "search": "?fw=people.o:preview-translate",
+ "states": [
+  {
+   "id": "f10",
+   "kind": "hover-scroll",
+   "m": null,
+   "y": null,
+   "mask": [
+    0,
+    2560,
+    0,
+    1896
+   ],
+   "maskKind": "frame",
+   "grade": "E",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 0,
+     "b2_3": 0,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 0,
+      "maxDelta": 0
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 0,
+    "floor": 0,
+    "within": true
+   },
+   "hash": {
+    "a": "4f1512b3b3743d02",
+    "b": "4f1512b3b3743d02",
+    "c": "4f1512b3b3743d02",
+    "d": "4f1512b3b3743d02"
+   },
+   "stateSeen": {
+    "faithful": {
+     "scrollY": 862,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "229px",
+      "left": "544.109375px",
+      "translate": "",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      316,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      169
+     ]
+    },
+    "arm": {
+     "scrollY": 862,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "256px",
+      "left": "544.109375px",
+      "translate": "0px -27px",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      316,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      169
+     ]
+    },
+    "control": {
+     "scrollY": 862,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "229px",
+      "left": "544.109375px",
+      "translate": "",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      316,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      169
+     ]
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "f20",
+   "kind": "hover-scroll",
+   "m": null,
+   "y": null,
+   "mask": [
+    0,
+    2560,
+    0,
+    1896
+   ],
+   "maskKind": "frame",
+   "grade": "E",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 0,
+     "b2_3": 0,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 0,
+      "maxDelta": 0
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 0,
+    "floor": 0,
+    "within": true
+   },
+   "hash": {
+    "a": "b3da55961a1569b9",
+    "b": "b3da55961a1569b9",
+    "c": "b3da55961a1569b9",
+    "d": "b3da55961a1569b9"
+   },
+   "stateSeen": {
+    "faithful": {
+     "scrollY": 889,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "202px",
+      "left": "544.109375px",
+      "translate": "",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      262,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      142
+     ]
+    },
+    "arm": {
+     "scrollY": 889,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "256px",
+      "left": "544.109375px",
+      "translate": "0px -54px",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      262,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      142
+     ]
+    },
+    "control": {
+     "scrollY": 889,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "202px",
+      "left": "544.109375px",
+      "translate": "",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      262,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      142
+     ]
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "f40",
+   "kind": "hover-scroll",
+   "m": null,
+   "y": null,
+   "mask": [
+    0,
+    2560,
+    0,
+    1896
+   ],
+   "maskKind": "frame",
+   "grade": "E",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 0,
+     "b2_3": 0,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 1339148,
+      "maxDelta": 255
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 1339148,
+      "maxDelta": 255
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 1339148,
+      "maxDelta": 255
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 1339148,
+    "floor": 1339148,
+    "within": true
+   },
+   "hash": {
+    "a": "8c33a01a221fbe03",
+    "b": "8c33a01a221fbe03",
+    "c": "8c33a01a221fbe03",
+    "d": "579a6920e56713d0"
+   },
+   "stateSeen": {
+    "faithful": {
+     "scrollY": 946,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "145px",
+      "left": "544.109375px",
+      "translate": "",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      148,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      85
+     ]
+    },
+    "arm": {
+     "scrollY": 946,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "256px",
+      "left": "544.109375px",
+      "translate": "0px -111px",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      148,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      85
+     ]
+    },
+    "control": {
+     "scrollY": 946,
+     "vw": 1280,
+     "tooltip": true,
+     "style": {
+      "top": "145px",
+      "left": "544.109375px",
+      "translate": "",
+      "opacity": "1"
+     },
+     "rect": [
+      544.11,
+      148,
+      320,
+      373.91
+     ],
+     "face": [
+      680.11,
+      85
+     ]
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  }
+ ]
+}

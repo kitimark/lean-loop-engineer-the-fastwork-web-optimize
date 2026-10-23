@@ -72,7 +72,7 @@ function closed(c, p) {
 const exactBacked = (c) => premises(c.engine, c.claim).every((p) => closed(c, p));
 const covers = (b, claim) => b === 'doubleRound' && claim.props.length > 0 && claim.props.every((p) => p === 'opacity') && !claim.scales && !claim.text;
 const near1Backed = (c) => c.claim.bound !== null && covers(c.claim.bound, c.claim) && premises(c.engine, c.claim).filter((p) => p !== 'P1').every((p) => closed(c, p));
-const textHold = (c) => premises(c.engine, c.claim).includes('C1') && !c.stripsAccepted;
+export const textHold = (c) => premises(c.engine, c.claim).includes('C1') && !c.stripsAccepted;
 const withinNoise = (c) => c.control !== null && c.inside.changed <= c.control.raw.changed && c.inside.maxDelta <= c.control.raw.maxDelta;
 
 export function grade(c) {

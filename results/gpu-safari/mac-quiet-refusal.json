@@ -1,0 +1,187 @@
+{
+ "schema": "fw.gpu-safari-quiet/1",
+ "at": "2026-10-23T10:27:41.233Z",
+ "readings": 12,
+ "quiet": 0,
+ "refused": 12,
+ "floorMaxCenti": 800,
+ "loadMarginCenti": 100,
+ "baseMinSamples": 8,
+ "baselineFloorCenti": null,
+ "loadMin": 2.83,
+ "loadMedian": 3.25,
+ "loadMax": 3.71,
+ "whyCounts": {
+  "holders": 12
+ },
+ "verdicts": [
+  {
+   "time": 1792751202,
+   "load": 3.71,
+   "availMB": 1557,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751207,
+   "load": 3.57,
+   "availMB": 1399,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751212,
+   "load": 3.61,
+   "availMB": 1595,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751218,
+   "load": 3.4,
+   "availMB": 1669,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751223,
+   "load": 3.29,
+   "availMB": 1685,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751228,
+   "load": 3.02,
+   "availMB": 1696,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751234,
+   "load": 3.19,
+   "availMB": 1700,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751239,
+   "load": 3.25,
+   "availMB": 1820,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751245,
+   "load": 3.07,
+   "availMB": 1799,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751250,
+   "load": 2.99,
+   "availMB": 1824,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751255,
+   "load": 2.99,
+   "availMB": 1821,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  },
+  {
+   "time": 1792751261,
+   "load": 2.83,
+   "availMB": 1822,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 1,
+   "queued": 3,
+   "quiet": false,
+   "why": [
+    "holders"
+   ]
+  }
+ ]
+}

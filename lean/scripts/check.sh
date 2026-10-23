@@ -80,6 +80,7 @@ run_group() {
   job "port golden check" lake env lean --run scripts/PortGolden.lean --check  # golden/port/* the port digest is checked against (Fw.Port.*, Fw.Site.Assets)
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
   job "diskgc golden check" lake env lean --run scripts/DiskGcGolden.lean --check  # golden/ops/diskgc.jsonl (Fw.Ops.DiskGc)
+  job "writes-closure golden check" lake env lean --run scripts/WritesClosureGolden.lean --check
   job "rebuild golden check" lake env lean --run scripts/RebuildGolden.lean --check  # golden/ops/rebuild.jsonl: the Lake-graph rebuild set of each sampled land equals what CI built (Fw.Ops.Rebuild)
   job "lspreap golden check" lake env lean --run scripts/ReapGolden.lean --check  # golden/ops/lspreap.jsonl (Fw.Ops.Reap)
   job "pool-caps golden check" lake env lean --run scripts/PoolCapsGolden.lean --check  # golden/ci/pool-caps.jsonl (Fw.Ci.Pool.Caps), read by scripts/ci-paths.mjs
@@ -157,6 +158,7 @@ run_group() {
   job "classpos golden check" lake env lean --run scripts/ClassPosGolden.lean --check ../packages/contracts/golden/parts/footprint.classpos.jsonl
   job "people-o preview golden check" lake env lean --run scripts/PeopleOPreviewGolden.lean --check ../packages/contracts/golden/parts/people-o-preview.jsonl
   job "morph-idle-none golden check" lake env lean --run scripts/MorphIdleNoneGolden.lean --check ../packages/contracts/golden/parts/morph-idle-none.jsonl
+  job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check
   job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check

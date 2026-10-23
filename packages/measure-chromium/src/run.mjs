@@ -10,7 +10,7 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents, keep, userAgent, runnable, fontsOk, cftPlatform, cftExe, cftUrl } from './profile.mjs';
+import { parseProfile, swipeEnded, replayEvents, keep, userAgent, runnable, fontsOk, cftPlatform, cftExe, cftUrl } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 import { pngRegionHash } from './png-region.mjs';
 
@@ -304,6 +304,7 @@ if (!viewportGate(profileSize, frame0)) {
 }
 const gate = gateSize(frame0);
 const maxScroll = geo.docH - gate.h;
+const scrollLimit = Math.max(0, Math.round(await ev(`(() => { const e = document.scrollingElement || document.documentElement; return e.scrollHeight - e.clientHeight; })()`)));
 if (process.env.FW_PROBE === '1') {
   await ev(`window.__probe = {}; for (const t of ['touchstart','touchmove','touchend','pointerdown','pointermove','pointerup','pointercancel','scroll','mousemove','click','wheel']) addEventListener(t, (e) => { __probe[t] = (__probe[t]||0)+1; }, { capture: true, passive: true }); 0`);
 }
@@ -365,6 +366,7 @@ let prev = Object.fromEntries((await c.send('Performance.getMetrics')).metrics.m
 const n0Start = N0_ON ? JSON.parse(await ev('JSON.stringify(__fwN0.read())')) : null;
 await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: [...TRACE_CATEGORIES, ...(process.env.FW_EXTRA_CATEGORIES ? process.env.FW_EXTRA_CATEGORIES.split(',') : [])], traceBufferSizeInKb: 1_000_000 } });
 const frames = [];
+let yMax = 0, endReason = null;
 const wallStart = Date.now();
 const record = (n, phase, scrollY, r) => {
   const m0 = r.metrics;
@@ -388,11 +390,14 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
 } else {
   const inp = profile.input;
   const touchNext = inputMode === 'wheel' ? (yNow, ended) => (ended ? null : { phase: 'swipe', touch: { type: 'wheel', y: inp.y } }) : touchPlanner(inp);
-  let last = null, yMax = 0, n = 0, swipeFrames = 0, ended = false, finished = false;
+  let last = null, yCur = 0, idle = 0, n = 0, swipeFrames = 0, ended = false, finished = false;
+  const endInp = inputMode === 'wheel' ? { startY: inp.dyPerFrame, minY: 0, dyPerFrame: inp.dyPerFrame, holdFrames: 0, gapFrames: 0 } : inp;
   const runFrame = async (choose) => {
     let step = null;
     const r = await frame(vt, `var __fwStepResult = ${POS}; console.timeStamp('F${n}')`, async (yNow) => {
       if (last) last.scrollY = yNow;
+      yCur = yNow;
+      idle = yNow > yMax ? 0 : idle + 1;
       yMax = Math.max(yMax, yNow); if (DEBUG) console.error("y", yNow);
       if (process.env.FW_PROBE) console.error('probe', n, yNow, process.env.FW_PROBE === '1' ? JSON.stringify(await ev('JSON.stringify(window.__probe)')) : '');
       step = choose(yNow);
@@ -412,14 +417,14 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
     for (let guard = 0; !finished; guard++) {
       let stop = false;
       await runFrame((yNow) => {
-        if (yNow >= maxScroll - 0.5) ended = true;
+        if (!ended && swipeEnded(endInp, scrollLimit, Math.round(yNow), idle)) { ended = true; endReason = Math.round(yNow) >= scrollLimit ? 'limit' : 'stalled'; }
         const st = touchNext(yNow, ended);
         if (!st) { stop = true; return { phase: 'settle', touch: null }; }
         if (st.phase === 'swipe') swipeFrames++;
         return st;
       });
       if (stop) finished = true;
-      if (guard > inp.maxFrames) throw new Error('touch swipe did not finish within maxFrames');
+      if (guard > inp.maxFrames) { if (last) last.scrollY = yCur; throw new Error(`touch swipe did not finish within maxFrames (${inp.maxFrames}): scrollY ${yCur} of ${scrollLimit}, highest ${yMax}, ${swipeFrames} moves, ${touch.sent} touch events`); }
       if (swipeFrames === 40 && yMax < 1) throw new Error('touch input did not scroll the page after 40 moves');
     }
   }
@@ -494,7 +499,7 @@ const result = {
     image: process.env.FW_IMAGE_ID ?? null, systemFonts: FONT_FAMILIES, snapshot: process.env.FW_SNAPSHOT_ID ?? null,
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
-    target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
+    target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent, scrollLimitPx: scrollLimit, ...(inputMode === 'scrollTo' || inputMode === 'page' ? {} : { endReason, endGapPx: scrollLimit - Math.round(yMax) }) }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
     n0, docHeightPx: geo.docH, innerWidthPx: frame0.real.w, innerHeightPx: frame0.real.h, pinnedInnerWidthPx: geo.innerW, pinnedInnerHeightPx: geo.innerH, clientWidthPx: geo.clientW, clientHeightPx: geo.clientH, gateSize: gate, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads, layerCensus,
   },
   frames,

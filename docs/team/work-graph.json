@@ -13385,7 +13385,8 @@
     "results/smoothness-throttle/**",
     "research/notes/2026/10-2x-smoothness-throttle.md",
     "docs/team/handoffs/smoothness-cpu-throttle.md"
-   ]
+   ],
+   "evidence": "584c36b"
   },
   {
    "devices": [
@@ -14496,7 +14497,10 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/tools/offload.md",
-    "docs/team/handoffs/ci-offload-checks.md"
+    "docs/team/handoffs/ci-offload-checks.md",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/ci/**"
    ]
   },
   {
@@ -14764,8 +14768,16 @@
    "writes": [
     "research/notes/2026/10-2x-hero-exit-threaded-pix.md",
     "results/hero-exit-threaded-pix/**",
-    "docs/team/handoffs/hero-exit-threaded-pix.md"
-   ]
+    "docs/team/handoffs/hero-exit-threaded-pix.md",
+    ".github/workflows/path-pix.yml",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-webkit/test/pathpix*.test.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-chromium/test/pathpix*.test.mjs"
+   ],
+   "evidence": "ed7aa5c"
   },
   {
    "devices": [
@@ -16379,7 +16391,11 @@
     "packages/contracts/golden/measure/touch-start*.jsonl",
     ".github/workflows/webkit-lag-probe.yml",
     "research/notes/2026/10-2x-touch-first-scroll.md",
-    "docs/team/handoffs/touch-first-scroll-probe.md"
+    "docs/team/handoffs/touch-first-scroll-probe.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/ci/**"
    ],
    "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
   },
@@ -16421,7 +16437,7 @@
     "lean/Fw/Ci/Intent.lean",
     "lean/Fw/Ci/Steps.lean",
     "lean/Fw/Ci/Overflow.lean",
-    "lean/Fw/Pool/Caps.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
     "packages/contracts/golden/ci/**",
     "research/notes/2026/10-2x-safari-macos-ci.md",
     "results/safari-macos-ci/**",
@@ -17592,9 +17608,19 @@
    "writes": [
     "results/gpu-safari/**",
     "research/notes/2026/10-2x-gpu-safari-lane.md",
-    "docs/team/handoffs/gpu-safari-mac.md"
+    "docs/team/handoffs/gpu-safari-mac.md",
+    "lean/Fw/Measure/GpuElapsed.lean",
+    "lean/scripts/GpuElapsedGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land-reads.gen.ts"
    ],
-   "title": "Follow-ups of gpu-safari-lane (landed 76643b76b): (1) USER-GATED: once the user unlocks the Mac and keeps the display awake (console step mac-unlock-safari), run `node results/gpu-safari/lane/run.mjs mac all` inside a measure slot: macOS Safari on the real Apple GPU for the nav, morph (alone and bundled), pain and people-o arms (people-o needs a window wider than 860 px, which macOS Safari gives), each against faithful in the same session, reduced against the later-load floor, paired with the CI Simulator rows; Composite and render-server timing if the Lean quiet rule accepts the passes; (2) explain why the bundled arm is pixel-identical to threaded at morph m0.25 (fade({m:0.25}) = 0.545 should be half faded): the threaded fade renders bit-identical to the CSS --morph-fade path, or the platform is outside the 430x775 frame at scrollY 5267 (name which from the platform rect); (3) a Lean golden for elapsedAt (the paused-effect time) and the TS stand-ins listed in the note."
+   "title": "Follow-ups of gpu-safari-lane (landed 76643b76b): (1) USER-GATED: once the user unlocks the Mac and keeps the display awake (console step mac-unlock-safari), run `node results/gpu-safari/lane/run.mjs mac all` inside a measure slot: macOS Safari on the real Apple GPU for the nav, morph (alone and bundled), pain and people-o arms (people-o needs a window wider than 860 px, which macOS Safari gives), each against faithful in the same session, reduced against the later-load floor, paired with the CI Simulator rows; Composite and render-server timing if the Lean quiet rule accepts the passes; (2) explain why the bundled arm is pixel-identical to threaded at morph m0.25 (fade({m:0.25}) = 0.545 should be half faded): the threaded fade renders bit-identical to the CSS --morph-fade path, or the platform is outside the 430x775 frame at scrollY 5267 (name which from the platform rect); (3) a Lean golden for elapsedAt (the paused-effect time) and the TS stand-ins listed in the note.",
+   "evidence": "c2d9300"
   },
   {
    "devices": [
@@ -17859,7 +17885,8 @@
     "results/faithful/**",
     "packages/measure-chromium/test/faithful.test.mjs"
    ],
-   "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
+   "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15).",
+   "evidence": "e8bce1f"
   },
   {
    "devices": [
@@ -18022,7 +18049,8 @@
     "research/notes/2026/10-20-morph-idle-none.md",
     "docs/team/handoffs/morph-idle-chromium-rebaseline.md"
    ],
-   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids."
+   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids.",
+   "evidence": "7e2e4d8"
   },
   {
    "devices": [
@@ -18084,7 +18112,8 @@
     "apps/runner/test/plan*.test.ts",
     "docs/team/handoffs/graph-writes-closure.md"
    ],
-   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328)."
+   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328).",
+   "evidence": "50a73b4"
   },
   {
    "devices": [
@@ -18103,7 +18132,10 @@
     "apps/runner/test/timing*.test.ts",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "docs/team/handoffs/timing-slot-width.md"
+    "docs/team/handoffs/timing-slot-width.md",
+    "scripts/span.sh",
+    "apps/runner/src/watch-collect.ts",
+    "lean/Fw/Wire/Obs.lean"
    ],
    "title": "fw watch opened timing.slow for lean/check 'parallel group' (2026-10-23): the group takes ~48 s at effective parallelism 2.0 and ~95 s at 1.0 (commits 046ff5f vs 3d0d68a; per-job durations equal), because the adaptive Lake build slot granted width 1 under load. The span does not record the granted width, so Fw.Obs.Timing judges a by-design narrow slot as slow. Record the granted slot width (and job count) in the span, and make the Timing slow verdict compare samples of the same width (Lean rule with theorems + golden; the TS reader checked against it). Then the alert only fires when a same-width sample is slow."
   },
@@ -18126,7 +18158,213 @@
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-first-coverage.md"
    ],
-   "title": "hero-probe-original review follow-up: run 39926829451 is CLEAN only by open@1 sampling jitter (width 640: original 0/5, flag 0/5 -> origEmpty; 641: faithful 0/5 vs original 1/5). A coverage model for bucket 1 in Lean: from the frame cadence (17 ms) and the bucket width, the probability that a pass samples open@1, and from the pass count the chance an arm samples it in none of n passes; judge open@1 coverage by that model (a verdict that does not flip when the original lands one more sample), theorems + golden, JS twin checked; re-reduce hero:scene-pause raw of 39926829451 and 39557718020 offline and report; then the ledger row hero.scenePause can move (lead)."
+   "title": "hero-probe-original review follow-up: run 39926829451 is CLEAN only by open@1 sampling jitter (width 640: original 0/5, flag 0/5 -> origEmpty; 641: faithful 0/5 vs original 1/5). A coverage model for bucket 1 in Lean: from the frame cadence (17 ms) and the bucket width, the probability that a pass samples open@1, and from the pass count the chance an arm samples it in none of n passes; judge open@1 coverage by that model (a verdict that does not flip when the original lands one more sample), theorems + golden, JS twin checked; re-reduce hero:scene-pause raw of 39926829451 and 39557718020 offline and report; then the ledger row hero.scenePause can move (lead).",
+   "evidence": "be1e3f5"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-throttle-followups",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "smoothness-cpu-throttle"
+   ],
+   "writes": [
+    ".github/workflows/smoothness.yml",
+    "packages/gate-breakpoints/src/smooth/throttle.mjs",
+    "packages/gate-breakpoints/test/smooth-throttle.test.mjs",
+    "lean/Fw/Ci/Dispatch.lean",
+    "lean/Fw/Gate/SmoothThrottle.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Throttle*Golden.lean",
+    "packages/contracts/golden/gate/smooth-throttle.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/*.jsonl",
+    "docs/team/tools/smoothness-probe.md",
+    "docs/team/handoffs/smoothness-throttle-followups.md"
+   ],
+   "title": "smoothness-cpu-throttle review follow-ups: (1) smoothness.yml workflow_dispatch has no nonce input or run-name, so Fw.Ci.Dispatch (lean/Fw/Ci/Dispatch.lean:23 dispatchWorkflows) cannot identify a smoothness dispatch: add them and register the workflow in Lean; (2) two throttle allowlists disagree (throttle.mjs parseThrottle('06') = 6, the shell step refuses '06'): one rule in Lean with golden, the step calls the one parser; (3) docs/team/tools/smoothness-probe.md: document the cpu_throttle input, the [cpu-throttle=N] token and the own-line [trajectory ...] rule; (4) a 6x A/A spread rule needs more than 3 samples: state the sample count the Lean verdict needs at 6x (open item if more CI is needed)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faithful-control-oos",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "counts-font-fidelity"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/faithful.mjs",
+    "packages/measure-chromium/package.json",
+    "packages/measure-chromium/test/faithful.test.mjs",
+    "packages/measure-chromium/test/fidelity-compare.test.mjs",
+    "lean/Fw/Faithful/Measured.lean",
+    "results/faithful/**",
+    "research/notes/2026/10-2x-counts-font-fidelity.md",
+    "docs/team/handoffs/faithful-control-oos.md"
+   ],
+   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-accent-pin",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-threaded-pix"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-*/test/pathpix*.test.mjs",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "research/notes/2026/10-2x-pathpix-accent-pin.md",
+    "docs/team/handoffs/pathpix-accent-pin.md"
+   ],
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-work-dims",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-slot-width"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/*Timing*Golden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "scripts/checkmap*.mjs",
+    "docs/team/handoffs/timing-work-dims.md",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/test/slot-span*.test.ts",
+    "lean/Fw/Obs/Next.lean",
+    "packages/contracts/golden/obs/next*.jsonl"
+   ],
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-lane-noflip",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-first-coverage"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/cli.mjs",
+    "packages/gate-breakpoints/test/trajectory*.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-lane-noflip.md"
+   ],
+   "title": "trajectory-first-coverage review follow-ups: (1) the lane can still flip on one extra original sample when the candidate and faithful arms differ in open-pass count: rel (skip firstOpen) (skip firstOpen) = ok but rel (fail coverage) (skip firstOpen) = new (reproduced: original 5 passes 3 hits, cand nw 5, faithful nw 4 -> CLEAN; one more original hit -> RED). Treat a faithful skip:firstOpen as undecided in rel whenever the candidate's open@1 is skip:firstOpen or fail:coverage, and prove a lane-level no-flip theorem (laneOf never moves red<->clean under one extra original pass); golden + JS twin. (2) cli.mjs:27 summaryMd prints red.red ? 'RED' : 'CLEAN', so an UNDECIDED lane is published as CLEAN: print red.lane.toUpperCase() and add the undecided row. (3) Link the timing model (sampled_iff, phase_covers: 1 or 2 slots by vsync phase) to firstCover's rate by a theorem or state the gap. Then the lead moves ledger row hero.scenePause (runs 39926829451, 39557718020).",
+   "evidence": "ba1159f"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-safari-mac-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-safari-mac"
+   ],
+   "writes": [
+    "results/gpu-safari/**",
+    "research/notes/2026/10-2x-gpu-safari-lane.md",
+    "docs/team/handoffs/gpu-safari-mac-followups.md",
+    "lean/Fw/Measure/GpuElapsed.lean",
+    "lean/scripts/GpuElapsedGolden.lean",
+    "packages/contracts/golden/measure/gpu-elapsed*.jsonl"
+   ],
+   "title": "gpu-safari-mac follow-ups (user-gated: Mac unlocked): (1) people.carousel:crop against faithful on macOS Safari: its swap is timer-driven (220 ms in a 1020 ms cycle), so park the timers or pin the clock to capture a mid-swap frame; (2) a third hero.exit:threaded Mac session (the x0.5 size did not repeat: 20.8k then 5.2k px) and a Simulator hero row of this lane; (3) the Mac morph arms are inconclusive (A/A floor as large as the arm): a lower Mac floor or the Simulator rows; (4) Composite and render-server timing need a quiet Mac (Lean quiet rule refused 12 of 12) or Instruments; (5) move the lane to packages/measure-webkit. Review follow-ups from gpu-safari-mac: (6) commit the repeat-session reductions (mac-hero-exit-threaded.repeat.json, mac-morph-panel-threaded*.repeat.json); (7) results/gpu-safari/lane/lane.test.mjs: replace the any-of run-kind check (gate || trajectory || webkitSim) with a per-arm table of expected run kinds; (8) Lean GpuElapsed: prove elapsed_largest (every grid time after elapsedMilli passes m) or reword the note to 'the last grid time before ease passes m'; (9) explain the bundled vs threaded pixel difference at m0.5/m0.75 in the Simulator (style equal, hashes differ)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "writes-closure-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/plan-closure.ts",
+    "apps/runner/test/plan-closure.test.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/plan.ts",
+    "lean/Fw/Plan/WritesClosure.lean",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    ".claude/workflows/build-review.js",
+    "docs/team/handoffs/writes-closure-followups.md",
+    "scripts/build-review.test.mjs",
+    "apps/runner/test/plan.test.ts",
+    "apps/runner/test/plan-sync*.test.ts"
+   ],
+   "title": "graph-writes-closure (landed a5bd5e198) follow-ups: (1) export leanInputGaps(root, table) from scripts/ci-paths.mjs returning {script, path|null}[], make leanInputProblems map over it and plan-closure.ts gapsOf call it, and state the gap predicate (literal ../<path> read in lean/scripts/*.sh not matched by the lean.yml row globs) in Lean so Gap is derived, not input; (2) run `fw plan lint` errors (writesClosure only) in `fw plan sync` (refuse sync on a new error) and in the build-review builder preamble before the dry land, against the build tree, so the r325 and r328 catches fire automatically; (3) keep main's live lint at 0 writesClosure errors (the lead fixed the 5 in graph r338)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-noflip-followups",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-noflip-followups.md"
+   ],
+   "title": "trajectory-lane-noflip (landed eea0723ac) follow-ups: (1) laneOf_extra covers only open@1 units whose arms are the firstCover fallback or verdicts one extra pass leaves unchanged; extend the no-flip guarantee (or an undecided band) to content verdicts that move with one extra original pass (sampled open@1 and the other buckets), with theorem + golden; (2) cli.mjs strict mode: decide whether an UNDECIDED lane gets its own exit code (today exit 0 from red.red) and mirror the Lean Rel docstring (undecided cases) in the reduce.mjs rel JSDoc; (3) WebKit cadence for the lane (Chromium only so far)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-copy-floor-sources",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "pathpix-accent-pin"
+   ],
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/parts/hero.countdown/**",
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-*/test/pathpix*.test.mjs",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "research/notes/2026/10-2x-hero-copy-floor.md",
+    "docs/team/handoffs/hero-copy-floor-sources.md"
+   ],
+   "title": "pathpix-accent-pin closed as a finding (round 1 refused): pinning the accent word does not bring the hero_copy A/A floor to 0 (runs 39943789128, 39947605395); the floor has other sources. Find and pin each so the hero exit's look review can be judged: (1) Chromium: the countdown seconds digit (hero.countdown) needs a capture pin or a page clock hook; (2) WebKit y 0: 48 px at delta 1 inside the hero_copy mask in the button area, all 4 jobs: find the element (read WebKit source for the cause, e.g. focus ring, caret, text AA) and pin or mask it with a Lean-stated reason; (3) WebKit y 812/813 avatar art noise inside the hero_copy mask (192503 px at delta 20 in webkit-2): find why the hero_copy mask covers avatar art there and fix the mask or the zone; (4) replace the capture-side accent DOM swap (React re-creates the node, arm A at y 855) with a site-side hook that is inert when unset (the faithful page must behave the same when unset: test it); (5) one path-pix exit run with >= 3 jobs per engine; report every hero_copy offset per job and re-grade the P cells (state whether L comes from the floor or from strips not accepted)."
   }
  ],
  "deadline": {

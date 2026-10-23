@@ -7,6 +7,12 @@ on:
 permissions:
   contents: read
 
+# Lane mode: `layers` forces each declared layer (the layer cells), `exit` compares the hero exit consumers of the faithful page with the
+# page of one flag (the exit cells). Both engines read these two values; PP_FLAG is the flag id:variant of the P arm.
+env:
+  PP_MODE: exit
+  PP_FLAG: hero.exit:threaded
+
 jobs:
   # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
   # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
@@ -188,7 +194,7 @@ jobs:
           set -euo pipefail
           node --test test/pathpix.test.mjs test/pathpix-lane.test.mjs
           mkdir -p out
-          node src/pathpix-cli.mjs --site "$SITE_DIR" --out "out/$VM-path-pix-webkit" --run "$GITHUB_RUN_ID" --p-layers "$P_LAYERS" --deadline-min 34 2> >(tee "out/$VM-path-pix.log" >&2)
+          node src/pathpix-cli.mjs --site "$SITE_DIR" --out "out/$VM-path-pix-webkit" --run "$GITHUB_RUN_ID" --mode "$PP_MODE" ${PP_FLAG:+--flag "$PP_FLAG"} --p-layers "$P_LAYERS" --deadline-min 34 2> >(tee "out/$VM-path-pix.log" >&2)
           ls -l out
 
       - name: Keep logs
@@ -287,7 +293,7 @@ jobs:
         run: |
           set -euo pipefail
           node --test packages/measure-webkit/test/pathpix.test.mjs packages/measure-webkit/test/pathpix-lane.test.mjs
-          node packages/measure-chromium/src/pathpix-host.mjs --site "$SITE_DIR" --out "$RUNNER_TEMP/pp-chromium" --run "$GITHUB_RUN_ID"
+          node packages/measure-chromium/src/pathpix-host.mjs --site "$SITE_DIR" --out "$RUNNER_TEMP/pp-chromium" --run "$GITHUB_RUN_ID" --mode "$PP_MODE" ${PP_FLAG:+--flag "$PP_FLAG"}
       - name: Collect the result
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         env:

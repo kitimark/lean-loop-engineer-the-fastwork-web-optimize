@@ -9,7 +9,7 @@
   "seed": 1592661556,
   "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
   "zoneHeightPx": 500,
-  "input": { "mode": "touch", "x": 215, "startY": 880, "minY": 100, "dyPerFrame": 10, "holdFrames": 0, "gapFrames": 2, "maxFrames": 2000 },
+  "input": { "mode": "touch", "x": 215, "startY": 880, "minY": 100, "dyPerFrame": 10, "holdFrames": 0, "gapFrames": 2, "maxFrames": 2378 },
   "segments": [
     { "name": "rest", "dyPerFrame": 0, "frames": 10 },
     { "name": "swipe", "until": "end" },

@@ -10,6 +10,7 @@
 {"file":"toolbar-throttle.yml","kind":"excluded","task":"toolbar-throttle-probe"}
 {"file":"webkit-sim.yml","kind":"excluded","task":"webkit-sim-failfast"}
 {"file":"chrome-crash-probe.yml","kind":"excluded","task":"chrome-crash-platforms"}
+{"file":"font-fidelity.yml","kind":"excluded","task":"counts-font-fidelity"}
 {"capMin":0,"kind":"vector","p90dm":0}
 {"capMin":1,"kind":"vector","p90dm":1}
 {"capMin":8,"kind":"vector","p90dm":56}
