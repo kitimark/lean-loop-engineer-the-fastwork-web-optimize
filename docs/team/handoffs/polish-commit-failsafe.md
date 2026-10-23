@@ -1,6 +1,6 @@
 branch: worktree-wf_85b6e7f2-42f-1
 worktree: .claude/worktrees/wf_85b6e7f2-42f-1
-last commit: see `git log -1` (round 3, final design round, items 1-6 of scratchpad/pcf/final-spec.md)
+last commit: 58c911864 (round 3, final design round, items 1-6; merged main at 59488cf1c)
 CI runs: none (no CI push; the task needs none)
 
 # polish-commit-failsafe (round 3)
