@@ -115,6 +115,34 @@ jobs:
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 > fwcore-start.json && cat fwcore-start.json
 
+      # Prune the Lake cache before the post step saves it (task ci-lake-prune-artifacts). Only artifacts/: Lake reads
+      # outputs/<scope>/<hash>.json first and treats an unreadable artifact as a miss (lean4@eb6cafb Lake/Build/Common.lean:521-534,
+      # 579-614), and restoreAllArtifacts = true hard-links every artifact of a used module into .lake/build (Module.lean:821-831), so a
+      # file with one link belongs to no module of this build. Sizes before and after go in the log.
+      - name: prune the Lake cache (artifacts with links 1 = not used by this build)
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: |
+          report() {
+            echo "== $1"
+            echo "total bytes: $(du -sb "$LAKE_CACHE_DIR" | cut -f1)"
+            find "$LAKE_CACHE_DIR" -type f -printf '%P %n %s\n' | awk '{d=($1 ~ /^artifacts\//)?"artifacts":"outputs";k=d" "(($2>=2)?"links>=2":"links=1"); n[k]++; b[k]+=$3} END {for (k in n) printf "%s files=%d bytes=%d\n", k, n[k], b[k]}' | sort
+          }
+          report before
+          find "$LAKE_CACHE_DIR/artifacts" -type f -links 1 -delete
+          find "$LAKE_CACHE_DIR/artifacts" -mindepth 1 -type d -empty -delete
+          report after
+
+      - name: TEMP rebuild from the pruned cache (run proof, reverted after)
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        working-directory: lean
+        run: |
+          rm -rf .lake/build
+          start=$(date +%s)
+          lake build 2>&1 | tee ../lake-rebuild.log | tail -5
+          echo "rebuild seconds: $(( $(date +%s) - start ))"
+          echo "built lines: $(grep -c '^✔ \[' ../lake-rebuild.log || true)"
+          echo "total bytes after rebuild: $(du -sb "$LAKE_CACHE_DIR" | cut -f1)"
+
       - name: Runner facts
         run: sh .github/scripts/runner-info.sh lean-runner.json
 
