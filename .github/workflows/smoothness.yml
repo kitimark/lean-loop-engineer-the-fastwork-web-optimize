@@ -455,7 +455,8 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
       # Lean Fw.Measure.WalkBudget: the walk may run until job start + timeout - post steps - grace - slack, and its step timeout ends inside it.
-      # `[sim-walk-cap=N]` in the commit message (job 1 only) cuts the walk N minutes after it starts, to prove the cut path.
+      # `[sim-walk-cap=N]` in the commit message (job 1 only) cuts the walk N minutes after it starts, to prove the cut path;
+      # `[sim-walk-hang=N]` (job 2 only) does the same and also blocks the harness's event loop 2 minutes into the walk, to prove the hard stop.
       - name: Walk budget
         id: budget
         env:
@@ -467,6 +468,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/result"
           cap=$(printf '%s' "${COMMIT_MSG:-}" | sed -n 's/.*\[sim-walk-cap=\([0-9][0-9]*\)\].*/\1/p' | head -1)
           if [ "$JOB" != 1 ]; then cap=""; fi
+          hang=$(printf '%s' "${COMMIT_MSG:-}" | sed -n 's/.*\[sim-walk-hang=\([0-9][0-9]*\)\].*/\1/p' | head -1)
+          if [ "$JOB" = 2 ] && [ -n "$hang" ]; then cap="$hang"; echo "FW_WALK_TEST_BLOCK_AFTER_MS=120000" >> "$GITHUB_ENV"; fi
           node src/walk-budget.mjs --job-start-ms "$FW_JOB_START_MS" ${cap:+--cap-min "$cap"} | tee -a "$GITHUB_OUTPUT" | tee "$RUNNER_TEMP/result/walk-budget.txt"
       - name: Walk the windows (all arms, one session), record the Timeline, write sim.json
         if: ${{ steps.budget.outputs.run == 'true' }}

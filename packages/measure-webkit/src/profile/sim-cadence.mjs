@@ -14,6 +14,8 @@ import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/re
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS } from '../walk-budget.mjs';
 
+const BLOCK_MS = 15 * 60000;
+
 export function simArms(plan, siteDir, lookSearch, only) {
   const out = [
     { id: 'orig', site: 'orig', tree: { dir: null }, search: '' },
@@ -42,7 +44,7 @@ export function windowVerdict(pw, timelineOn) {
 }
 
 /** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, log = (s) => console.error(s) }) {
+export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, blockAfterMs = null, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
@@ -112,6 +114,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   };
 
   let cut = null;
+  let blocked = false;
   try {
     const walk = withSession(async (ctx) => {
       if (touch.on) {
@@ -130,6 +133,11 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
               if (deadlineMs != null && !startsWindow(deadlineMs, now(), WINDOW_RESERVE_MS)) {
                 cut = `walk deadline: no time left to start ${a.id} ${win} rep ${rep}`;
                 break walk;
+              }
+              if (blockAfterMs != null && !blocked && Date.now() - started >= blockAfterMs) {
+                blocked = true;
+                log(`webkit sim: test hook, blocking the event loop for ${BLOCK_MS} ms before ${a.id} ${win} rep ${rep}`);
+                Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, BLOCK_MS);
               }
               await ctx.check?.();
               try {
