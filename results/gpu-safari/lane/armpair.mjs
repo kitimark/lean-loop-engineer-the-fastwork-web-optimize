@@ -6,10 +6,6 @@ import { hashOf } from './pix.mjs';
 const boxOf = (r, dpr) => (r ? [(r[0] / 1e6) * dpr, ((r[0] + r[2]) / 1e6) * dpr, (r[1] / 1e6) * dpr, ((r[1] + r[3]) / 1e6) * dpr] : null);
 const inBox = (bx, x, y) => !!bx && x >= bx[0] && x < bx[1] && y >= bx[2] && y < bx[3];
 
-/**
- * Direct pixel difference of two images: changed px, max delta, the box of the changed px, and how many changed px lie in
- * each named box (device px, [x0, x1, y0, y1]).
- */
 export function diffImages(a, b, boxes = {}) {
   let changed = 0, maxDelta = 0, x0 = a.w, y0 = a.h, x1 = -1, y1 = -1;
   const inside = Object.fromEntries(Object.keys(boxes).map((k) => [k, 0]));
@@ -30,7 +26,6 @@ export function diffImages(a, b, boxes = {}) {
   return { changed, maxDelta, bbox: changed ? [x0, y0, x1, y1] : null, inside };
 }
 
-/** Per state, the first shot of arm `idA` against the first shot of arm `idB` of one session, with the platform and nav boxes read in the state. */
 export function armPair(cap, shotsDir, idA, idB) {
   const dpr = cap.session.dpr;
   const load = (id, st) => decodePng(readFileSync(join(shotsDir, cap.arms[id].states.find((s) => s.id === st).files[0])));

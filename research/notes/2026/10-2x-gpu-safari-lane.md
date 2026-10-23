@@ -146,9 +146,14 @@ a floor-maximum of 8.00 and a load margin of 1.00; no steady idle floor (baselin
 pass runs. The Lean quiet rule is what refuses; the refusal is a finding, not a failure. Use the CI
 Simulator Composite figures cited above for timing.
 
-macOS Safari, same rule: `results/gpu-safari/mac-quiet-refusal.json` (2026-10-23T10:27:41Z, unlocked Mac, lane idle): 12 readings,
-0 quiet, 12 refused (why=holders 12); load 2.83-3.71 against a floor-maximum of 8.00 and a load margin of 1.00; baselineFloorCenti null.
-Other agents' builds hold the Mac, so no Composite or render-server pass ran on macOS either (MEASURED). The lane records cadence only.
+macOS Safari, same rule, two readings (MEASURED). The first, `results/gpu-safari/mac-quiet-refusal.json` (2026-10-23T10:27:41Z): 12 readings, 0 quiet,
+12 refused (why=holders 12). That call did not pass `--mine`, so the measure lease the lane itself held counted as a holder; the refusal said
+nothing about other agents. Corrected (task gpu-safari-mac-followups): `lane/quiet-refusal.mjs --n 8 --every 4 --mine <own token>` with the lane's
+own lease excluded passes the Lean rule 8 of 8 quiet in each of 5 attempts (`results/gpu-safari/mac-quiet-s1.json` to `-s5.json`, 2026-10-23T14:44Z to
+14:56Z): load 2.54 to 5.22 against a floor-maximum of 8.00, baseline floor 260 to 470 centi, available memory 1064 to 2368 MB. So the Mac was quiet
+by the rule, and the earlier sentence that other agents' builds held it is withdrawn. The timing itself is still not taken: macOS Safari through
+safaridriver has no Composite or render-server timing instrument (the Simulator figures cited above came from CI), so the quiet window
+cannot be spent on it. Follow-up: Instruments (a trace of the Safari GPU process) under the measure lease. The lane records cadence only.
 
 ## macOS Safari arms (real Apple GPU, measured 2026-10-23, task gpu-safari-mac)
 
@@ -159,8 +164,8 @@ The Mac is not the phone: the readings answer "does the arm render differently o
 Session (MEASURED): macOS 27 Safari 27.0.1 through safaridriver (no "Allow remote automation" refusal), `measure` slot, screen unlocked
 all session. Window 430 wide (DPR 2, viewport 430x880, scroll range 5229 px); the people zone a 1280x1000 window (viewport 1280x948).
 Shot runs (UTC ids, PNGs stay in `$TMPDIR`, never committed): nav `gpu-safari-mac-2026-10-23T10-13-13-503Z`, morph
-`...10-17-23-955Z` (repeat `...10-27-49-373Z`), pain `...10-19-05-456Z`, hero `...10-24-40-822Z` (repeat `...10-29-30-206Z`), people
-`...10-31-08-209Z`. No CI run exists for the Mac rows (lane exception (c), the real GPU runs only here); the CI rows they pair with are in
+`...10-17-23-955Z` (s2 `...14-52-26-600Z`), pain `...10-19-05-456Z`, hero `...10-24-40-822Z` (s2 `...14-47-39-032Z`, s3 `...14-49-39-686Z`), people
+`...10-31-08-209Z`, carousel `...14-44-59-747Z` (s2 `...14-57-16-401Z`). Reductions of all repeat sessions side by side: `results/gpu-safari/mac-sessions.json` (`lane/sessions.mjs`). No CI run exists for the Mac rows (lane exception (c), the real GPU runs only here); the CI rows they pair with are in
 `lane/ci-pairs.mjs`.
 
 Reading rule on the Mac (MEASURED). Most nav, morph and hero cells grade "invalid": the two shots of one state differ (the page is not
@@ -173,26 +178,61 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   floor, by 4.2x to 327x, the same direction as the Simulator (8x to 363669x; its floors were 0 at m0.25 to m0.75). The three arms differ from each other by 3% or less except logo-3d at m0.5 and m0.75, as on the Simulator, so what separates them from faithful on both lanes is one
   shared change of the morph frame (a look-change candidate, for the user's visual review). Glass median delta is 0 (m0.1: -1, 0, 0), like A/A,
   so the frosted bar itself does not move. Status: MEASURED.
-- Morph, real push, effects counted (faithful 0, threaded 2, bundled 3): nearest / floor at m0.25, m0.5, m0.75. Threaded 13.0k / 26.4k (within),
-  63.8k / 41.3k (1.5x above), 29.5k / 69.6k (within). Bundled 13.5k / 26.4k (within), 77.8k / 41.3k (1.9x above), 56.1k / 69.6k (within).
-  The repeat run: threaded 9.7k / 17.9k, 45.3k / 68.4k, 53.6k / 61.2k (all within); bundled 23.5k / 17.9k (1.3x above), 81.4k / 68.4k
-  (1.2x above), 59.6k / 61.2k (within). Max pixel delta 2 to 4 levels at m0.25, 20 to 23 at m0.5, about 190 to 200 at m0.75 (text edges). Verdict: INCONCLUSIVE on the Mac. Two sessions
-  agree that the morph panel is no more than a few tens of thousands of px from faithful (under 1% of 1.5M px at DPR 2), the same order as the
-  A/A control (25k to 130k px), so a small change would hide inside the Mac floor. The Simulator rows (2.4x, 77x, 27x above floor)
-  are the clearer ones; the Mac cannot separate the arm from load-to-load blur drift.
+- Morph, real push, effects counted (faithful 0, threaded 2, bundled 3): nearest later load / floor at m0.25, m0.5, m0.75, two committed sessions
+  (`mac-morph-panel-threaded.json`, `.s2.json`; table by `lane/sessions.mjs`, `mac-sessions.json`). Threaded s1 13.0k / 26.4k (within), 63.8k / 41.3k
+  (1.5x above), 29.5k / 69.6k (within); s2 14.4k / 20.3k (within), 12.8k / 29.3k (within), 43.9k / 38.2k (1.1x above). Bundled s1 13.5k / 26.4k (within),
+  77.8k / 41.3k (1.9x above), 56.1k / 69.6k (within); s2 15.1k / 20.3k (within), 43.3k / 29.3k (1.5x above), 46.9k / 38.2k (1.2x above).
+  Max pixel delta 3 to 4 levels at m0.25, 20 to 23 at m0.5, 195 to 200 at m0.75. The earlier text quoted a "repeat" session (run 10-27-49) whose
+  reduction was never committed and whose shots are gone; its numbers are withdrawn and the committed s2 replaces it.
+  Floor session (task gpu-safari-mac-followups, s2, `--loads 6`, run `gpu-safari-mac-2026-10-23T14-52-26-600Z`): six faithful loads give ten
+  later-load pairs. The floor is not one number: pair floors (min / median / max) are 16.4k / 20.3k / 27.4k at m0.25, 18.4k / 62.1k / 85.8k at m0.5 and
+  8.0k / 44.0k / 87.2k at m0.75. Against the pair set the threaded nearest load is at or under the smallest floor at m0.25 and m0.5 (within) and
+  between the smallest and largest at m0.75; bundled is within at m0.25 and between at m0.5 and m0.75. The cell where session s1 read "1.5x above" (m0.5) reads
+  "within" here at 12.8k, so the one cell that looked above does not repeat. More loads did not shrink the floor, they showed it spans 8k to 87k px.
+  Where the floor lives: faithful loads 2 and 3 of this session differ by 20,278 / 29,273 / 38,228 px at m0.25 / 0.5 / 0.75, all of them inside the
+  platform box and the nav box, max delta 4 / 17 / 182 (`lane/armpair.mjs`; MEASURED for the counts, the cause, GPU-rasterised blur varying between loads, is INFERRED).
+  Verdict: INCONCLUSIVE on the Mac, and now with a measured reason: the arm's difference (tens of thousands of px, under 5% of 1.5M) is the size of the
+  platform and nav blur drift between two loads of the same page, so the Mac cannot separate them. The Simulator rows (2.4x, 77x, 27x above floor) stay the
+  clearer ones.
 - Pain (dark-scroll), five states y-16..y+16: 0 changed px against the later loads at every state, floor 0 (identical on the real GPU;
   y-16, y-1, y+0 grade E, y+1 and y+16 grade Q because the first load is the outlier, finding 1). The Simulator also gave 0 against floors of 3k to 7k.
   MEASURED: the arm without `is-pain-dark` renders the faithful frame at the flip offset on the Mac too.
 - hero.exit:threaded, scroll 220/440/660 px (exit 0.25/0.5/0.75 of 880 px; faithful exit opacity 0.75/0.5/0.25):
-  the arm is live (`data-exit-live`, 13 scroll animations). x0.25 7.7k / 5.2k (1.5x above), x0.5 20.8k / 2.5k (8.2x above), x0.75 0 / 5.2k
-  (identical, grade E). Repeat: x0.25 8.3k / 2.6k (3.1x above), x0.5 5.2k / 3.9k (1.3x above), x0.75 0 / 0 (identical). Max delta 167 and 111 at x0.25 and x0.5 in
-  both runs. The direction repeats; the size at x0.5 does not (20.8k then 5.2k). Verdict: a candidate look difference in the middle of the
-  exit; it needs a third session before it counts. The CI path-pixel cells of the same arm on the Simulator (runs 39920801675, 39924527942, 39929556147, `results/hero-exit-threaded-pix/`; note `10-2x-hero-exit-threaded-pix`) grade no P cell E or Q and call the differences L (text hold or change outside the masks), INFERRED to be the same class as the Mac readings (max deltas of 167 and 111 levels); a Simulator hero row of this lane (`run.mjs sim hero`) was not taken. Status: MEASURED, not settled.
+  the arm is live (`data-exit-live`, 13 scroll animations). Three committed sessions (`mac-hero-exit-threaded.json`, `.s2.json`, `.s3.json`; runs
+  10-24-40, 14-47-39, 14-49-39), nearest later load / floor:
+
+  | state | s1 | s2 | s3 |
+  |---|---|---|---|
+  | x0.25 | 7.7k / 5.2k (1.5x) | 10.3k / 4.8k (2.1x) | 6.3k / 1.3k (5.0x) |
+  | x0.5 | 20.8k / 2.5k (8.2x) | 6.3k / 1.8k (3.5x) | 5.2k / 1.4k (3.7x) |
+  | x0.75 | 0 / 5.2k (identical) | 5.2k / 0 (grade L) | 0 / 0 (identical, grade Q) |
+
+  x0.25 and x0.5 are above the floor in all three sessions (1.5x to 8.2x); max delta 167 and 111 levels in every session. The size at x0.5
+  varies from 5.2k to 20.8k px, so the direction repeats and the size does not. x0.75 is mixed: identical twice and a 5,187 px region once,
+  the same region size as the s1 floor, so it is load dependent (INFERRED). The old "repeat" session (run 10-29-30) was never committed; its numbers
+  are withdrawn. Verdict: a repeating look difference in the first half of the exit (x0.25, x0.5), size 5k to 21k px of 1.5M, not settled in size;
+  a candidate for the user's visual review. The CI path-pixel cells of the same arm on the Simulator (runs 39920801675, 39924527942, 39929556147,
+  `results/hero-exit-threaded-pix/`; note `10-2x-hero-exit-threaded-pix`) grade no P cell E or Q and call the differences L (text hold or change outside the masks),
+  INFERRED to be the same class as the Mac readings (max deltas of 167 and 111 levels). A Simulator hero row of this lane (`run.mjs sim hero`) is not taken
+  (a local Simulator run is not an allowed lane for this task and no CI run was pushed); it stays a follow-up. Status: MEASURED, three sessions.
 - people.o:preview-translate (1280 px window, hover on the first face, scroll 3 px per frame for 10, 20, 40 frames; the card must open, the
   lane refuses otherwise): the arm sets `translate: 0px -27px / -54px / -111px` with `top` fixed at 256 px, faithful moves `top` 229 / 202 / 145 px, and the
   card lands at the same rect (544.11, 316 / 262 / 148, 320 x 373.9). The arm equals both earlier faithful loads with 0 changed px at all three states (the
   same frame hash). At f40 the third faithful load (order probe) alone differs, 1.34M px over the whole frame, so the floor there is that one load and
   the arm's reading is "within". MEASURED: translate gives the faithful pixels on the real GPU.
+- people.carousel:crop (1280 px window, scroll to the carousel, mid-swap at 55 / 110 / 165 ms of the 220 ms swap; task gpu-safari-mac-followups,
+  zone `carousel`, `CAROUSEL_ARM` in `mac-capture.mjs`). The swap is timer-driven (a 220 ms swap in a 1020 ms cycle), so the page's `setInterval` is wrapped
+  before load: a parked page runs no timer callback, a MutationObserver stops at the first swap row with 5 avatars, pauses its animations at 0 and the lane then
+  sets `currentTime` to 55 / 110 / 165 ms. Read back per state: the swap row is parked, faithful has 2 paused animations (`avatarsExit`, `avatarsPop`), the arm 6 (the
+  six compositor effects), both arms show the same five avatar images, and opacity and transform are equal at every state. Two committed sessions
+  (`mac-people-carousel-crop.json` run 14-44-59, `.s2.json` run 14-57-16), changed px inside the mask (the avatar box padded 4 css px, about 18k px) of the arm against the nearest
+  later faithful load: t55 8,694 then 8,663 (max delta 108), t110 7,201 then 7,187 (32), t165 8,000 then 7,979 (53); the three faithful loads are pixel-identical
+  inside the mask in s1, and loads 2 and 3 in s2 (load 1 differs, finding 1), so the floor is 0 and every cell is above it. Grade "invalid" in both sessions, because the whole
+  frame is not frozen (s1, outside the mask, arm against faithful 32k to 37k px against 21k to 27k for the A/A control; s2 has max delta 251 on its first-load pair
+  only). Cause, MEASURED from the style readback: at t55 the leaving avatar in faithful has `width` 13.5 px and `margin-right` -3.38 px; in the arm it keeps 32 px
+  and -8 px (the arm drops the width and margin animation, keeps only opacity and transform). So the neighbours in the arm stay put while the faithful row closes
+  up, a layout difference during the swap, the look-change class L (for the user's visual review), and exactly the "crop" of the flag's name. Status: MEASURED,
+  two sessions agree to 31 px; the Simulator row is not taken (CI Simulator pairs in `lane/ci-pairs.mjs`).
 - Layer census and IOSurface: not taken on macOS (the Simulator census is a `vmmap` proxy; macOS Safari needs Instruments). The Mac rows carry
   null census and IOSurface fields.
 
@@ -205,7 +245,21 @@ platform: its box is 413 x 1854 at top -974 and 47.5% of it lies in the viewport
 faithful and threaded have `--morph-fade` 0.5454545, computed opacity 0.545455 and `blur(5.454545px)`. The bundled arm has three effects, the CSS
 variable stays 1, and the computed opacity is still 0.545455 with `blur(5.454545px)`, the same pair that the CSS variable produces. The same holds at m0.5 (0.090907,
 blur(10.909113px)) and m0.75 (0, blur(12px)). So (a): the threaded fade computes the same opacity and blur as the CSS path (INFERRED to be by design: `createThreadedFade` takes its keyframes from Lean `PlatformFade`), so the fade adds no style difference at any of the three states. CONFIRMED by the probe on both the opacity and the
-filter; it reads the computed style, not pixels, so it proves style equality only. Pixels were identical in the Simulator at m0.25 alone; at m0.5 and m0.75 the two arms' frames differ (hashes differ; at m0.75 both stable, platform opacity 0), so the remaining pixel difference comes from outside the platform's computed style and is not explained here (INFERRED: raster/compositing path or load noise).
+filter; it reads the computed style, not pixels, so it proves style equality only. Pixels: the byte hashes of the two Simulator arms are equal at m0.25 and differ at m0.5 and m0.75, and that difference is explained below (task gpu-safari-mac-followups, item 9).
+
+#### Why the bundled and threaded frames differ at m0.5 and m0.75 (MEASURED counts, INFERRED mechanism)
+
+A byte hash flips on one pixel, so "the hashes differ" says nothing about size. From the committed Simulator rows (`morph-panel-threaded.json`,
+`morph-panel-threaded-fade.json`), changed px against faithful for threaded / bundled: m0.25 29,272 / 29,272, m0.5 121,715 / 121,843, m0.75 146,134 /
+146,135, max delta 2 to 3 levels. The two arms therefore differ from each other by at most 128 px at m0.5 (and the bundled arm's own two
+shots differ there, so that row is unstable) and by 1 px at m0.75, of 1.5M. Direct Mac diff of the two arms' frames in one session
+(`results/gpu-safari/mac-bundled-vs-threaded-pixels.s2.json`, `lane/armpair.mjs`, run `gpu-safari-mac-2026-10-23T14-52-26-600Z`): 10,155 / 44,275 /
+6,662 px at m0.25 / 0.5 / 0.75, max delta 2 / 17 / 187, every changed px inside the platform box and the nav box (inside counts equal the totals). Those three
+counts sit under the median later-load floor of the same session (20.3k / 62.1k / 44.0k) and the changed px lie where the floor lives (above). Reading: the third effect, the
+animated platform layer, gives the same computed opacity and blur (probe above) but is a separately composited layer, so its edges are resampled
+and blended by the compositor instead of rastered inside the parent. That moves a few pixels of the platform edge by 1 to 3 levels (Simulator) and
+the blur region by up to 17 levels on the real GPU. The mechanism is INFERRED (not isolated by a layer-level experiment); the size claim, "at most about 128 px
+in the Simulator and inside the Mac blur drift", is MEASURED. Nothing in the 1 to 3 level difference is a look change.
 
 ### The elapsedAt golden (item 3)
 
@@ -214,6 +268,9 @@ ease-out cubic does not pass `m` (`elapsedMilli`), and proves both sides: `elaps
 grid step later passes `m`, unless the time is already 680 ms), over `Rat`, without Float. `lean/scripts/GpuElapsedGolden.lean` writes
 `results/gpu-safari/lane/elapsed.golden.jsonl` (10 values of `m`, edges included), `lean/scripts/check.sh` checks it is current, and
 `lane.test.mjs` checks the TS `elapsedAt` against it to the millisecond grid. `elapsedAt` is therefore no longer a TS stand-in.
+The wording "largest time on the grid" is now a theorem too, `elapsed_largest` (`lean/Fw/Measure/GpuElapsed.lean`): for `0 <= m`, every grid
+step `k` above `elapsedMilli m` (up to the 680 ms end) already passes `m`, i.e. `m < ease (k / steps)`. Together with `elapsed_not_past` the value is the greatest
+grid time that does not pass `m`. Axioms: propext, Classical.choice, Quot.sound only. The golden is unchanged.
 
 ## The "connection closed by this tool" error of round 1
 
@@ -228,6 +285,7 @@ this process (not a lane fault)".
 
 `ringSplit`, `glassOf`, `glassDelta`, `againstLoads`, `FLIP_SCAN` (pix.mjs, reduce.mjs, sim-capture.mjs),
 `wantEffects`, `PUSH_EXPR`, `STEP_EXPR`, `HERO_RANGE`, `HERO_SPLASH_DONE`, `HERO_STATE`, the people expressions (`PEOPLE_SETUP`, `PEOPLE_HOVER`, `PEOPLE_SCROLL`, `PEOPLE_STATE`, mac-capture.mjs),
+`CAROUSEL_ARM`, `CAROUSEL_STEP`, `CAROUSEL_STATE`, `maskOf('box')`, `laterFloors` (pix.mjs), `floorVerdict` and `sessions.mjs`, `diffImages` and `armpair.mjs`,
 `probe-fade.mjs`, `pairs.mjs` (plan.mjs, sim-capture.mjs, mac-capture.mjs), `parseIOSurface`, `simServicePids`, `iosurfaceSample` (iosurface.mjs), `summary.mjs`, `quiet-refusal.mjs`.
 `grade` is the existing Lean-backed cell grade. Moving the lane to `packages/measure-webkit` is a follow-up.
 
@@ -235,7 +293,8 @@ this process (not a lane fault)".
 
 Local numbers are paired evidence, not a gate. IOSurface is a vmmap proxy. One Simulator session per
 zone; load-order drift of 10-20 MB is not removed, only bracketed by control and base3. Timing arms are
-refused on both lanes. The macOS Safari rows are one session each (morph and hero have a repeat); the Mac pages do not freeze as fully as the
+refused on both lanes. The macOS Safari rows are one session each except hero (three), morph (two, the second with six loads) and carousel (two); the Mac pages do not freeze as fully as the
 Simulator's, so most Mac cells grade "invalid" and the nearest-later-load reading carries them. The phone is not measured.
-Follow-ups: people.carousel:crop (its swap is timer-driven, a 220 ms swap in a 1020 ms cycle, so a paused mid-swap frame needs the timers parked or the clock pinned, which WebDriver screenshot latency does not allow); a third hero session and a CI Simulator hero row;
-moving the lane to `packages/measure-webkit`.
+Follow-ups: a CI Simulator hero row (a local Simulator run is not an allowed lane here and no CI run was pushed); Composite and render-server timing on the Mac by
+Instruments (the quiet rule passes, no instrument is wired); a morph reading that is not drowned by the platform and nav blur drift (masking the two boxes would
+hide the arm's own platform change, so it needs a different instrument); moving the lane to `packages/measure-webkit`.

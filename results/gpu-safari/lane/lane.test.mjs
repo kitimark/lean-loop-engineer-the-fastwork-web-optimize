@@ -6,6 +6,7 @@ import { wantEffects, PUSH_EXPR, STEP_EXPR } from './sim-capture.mjs';
 import { CI_PAIRS } from './ci-pairs.mjs';
 import { ringSplit, glassOf, glassDelta, againstLoads, maskOf, hashOf } from './pix.mjs';
 import { unionBox } from './reduce.mjs';
+import { floorVerdict } from './sessions.mjs';
 import { diffImages } from './armpair.mjs';
 import { flat, CAROUSEL_ARM, CAROUSEL_STEP } from './mac-capture.mjs';
 import { bytesOf, parseIOSurface, simServicePids, iosurfaceSample } from './iosurface.mjs';
@@ -155,6 +156,15 @@ test('diffImages counts changed px, the largest channel delta, their box and how
   const r = diffImages(a, b, { left: [0, 3, 0, 6], none: [5, 6, 0, 1] });
   assert.deepEqual(r, { changed: 2, maxDelta: 4, bbox: [1, 2, 4, 5], inside: { left: 1, none: 0 } });
   assert.deepEqual(diffImages(a, a), { changed: 0, maxDelta: 0, bbox: null, inside: {} });
+});
+
+test('floorVerdict: above every later pair, at or under the smallest, or between', () => {
+  const f = { n: 3, min: 10, median: 20, max: 30 };
+  assert.equal(floorVerdict(31, f), 'above-all');
+  assert.equal(floorVerdict(30, f), 'between');
+  assert.equal(floorVerdict(10, f), 'within-min');
+  assert.equal(floorVerdict(0, f), 'within-min');
+  assert.equal(floorVerdict(5, null), 'no-floor');
 });
 
 test('maskOf takes the nav box in micro px and the whole frame otherwise; unionBox grows both', () => {

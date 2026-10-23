@@ -34,7 +34,6 @@ export const PEOPLE_STATE = `(() => {
 })()`;
 
 const BOX = `document.querySelector('[data-fw="people-carousel"]')`;
-/** Wraps setInterval so a parked page runs no timer callback, then scrolls the carousel in and waits for the first swap row (5 avatars): animations are paused at 0 inside the observer microtask, before the 220 ms swap timer can fire. */
 export const CAROUSEL_ARM = `(async () => {
   const w = window, box = ${BOX};
   if (!box) return JSON.stringify({ ok: false, why: 'no carousel' });
