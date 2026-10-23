@@ -10,7 +10,7 @@ settle and on the first ungated body, and on a media change writes the follower'
 CI runs: lean 39843527891 success; breakpoint-gate flag 39843552595 success (v1 39836996121 failure), base 39840038549 success;
 chromium-counts swipe-v1 x3 base 39837044649, flag 39843560957 (v1 39837049981); webkit-sim base 39837001915, flag 39843567401
 (v1 flag 39837008165 failed, no artifact).
-MEASURED chromium window scrollY 3070-3530: RecalcStyleCount 5.02 -> 3.07, elements 127.3 -> 60.1 per frame.
+MEASURED chromium window 3070 <= scrollY < 3530 (half-open, 46 frames): RecalcStyleCount 5.02 -> 3.09, elements 127.3 -> 60.9 per frame (corrected in commission-band-followups; 3.07 and 60.1 were the v1 flag run).
 MEASURED webkit y 2500-3500: RecalculateStyles 124/127 -> 99/92. Details: research/notes/2026/10-2x-commission-band-gate.md.
 
 Land: needs `--allow lean/Fw/Parts/FootprintData.lean --allow lean/Fw/Parts/Golden.lean --allow research/findings/ledger.json`
