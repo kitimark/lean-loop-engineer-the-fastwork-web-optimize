@@ -18437,7 +18437,8 @@
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-stable-followups.md"
    ],
-   "title": "trajectory-noflip-followups review follow-ups: (1) trajectory-probe.md WebKit cadence: tag the Linux WebKit open gap p50 141-170 ms claim MEASURED with run ids, and answer whether the WebKit Simulator rows record frame timing the lane can use; (2) doc the scope of laneOf_stable_extra (mem_family_extra: original already has samples and the extra pass has a new pass number; a first pass on an empty original is outside); (3) cli.mjs refused inputs and summary without a raw file exit 1 = strict RED: route them through laneExit's refused code or document 1 as usage error; (4) leave-one-out reduce cost 8.7 s -> ~40 s on run 39926829451: track the CI reduce-step time and cut it (share work across the family members) if it exceeds the step budget."
+   "title": "trajectory-noflip-followups review follow-ups: (1) trajectory-probe.md WebKit cadence: tag the Linux WebKit open gap p50 141-170 ms claim MEASURED with run ids, and answer whether the WebKit Simulator rows record frame timing the lane can use; (2) doc the scope of laneOf_stable_extra (mem_family_extra: original already has samples and the extra pass has a new pass number; a first pass on an empty original is outside); (3) cli.mjs refused inputs and summary without a raw file exit 1 = strict RED: route them through laneExit's refused code or document 1 as usage error; (4) leave-one-out reduce cost 8.7 s -> ~40 s on run 39926829451: track the CI reduce-step time and cut it (share work across the family members) if it exceeds the step budget.",
+   "evidence": "55db52e"
   },
   {
    "devices": [
