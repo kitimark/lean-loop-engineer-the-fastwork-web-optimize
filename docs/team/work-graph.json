@@ -17145,7 +17145,8 @@
     "lean/Fw/Parts/CommissionOpt*.lean",
     "packages/contracts/golden/parts/commission-gate.jsonl",
     "research/notes/2026/10-2x-commission-band-gate.md",
-    "docs/team/handoffs/commission-band-followups.md"
+    "docs/team/handoffs/commission-band-followups.md",
+    "apps/site/src/parts/commission/bandgate.test.ts"
    ],
    "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1)."
   },
