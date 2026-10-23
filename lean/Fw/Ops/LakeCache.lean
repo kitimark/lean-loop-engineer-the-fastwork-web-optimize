@@ -151,33 +151,23 @@ theorem lake_writers : (jobs.filter (·.saves)).map (fun j => (j.file, j.job, ".
     Fw.Ci.Trigger.cacheWriters.filter (·.2.2 == ".lake-cache") := by
   decide
 
-/-! ## The pruned main entry (task `lake-prune-verify`) -/
-
-/-- A file of the Lake cache dir: whether it lies under `artifacts/`, and its hard-link count. -/
 structure CacheFile where
   artifact : Bool
   links : Nat
 deriving Repr, DecidableEq
 
-/-- The prune cases of the golden: outputs, one link, two links. -/
 def CacheFile.cases : List CacheFile := [⟨false, 1⟩, ⟨true, 1⟩, ⟨true, 2⟩, ⟨true, 7⟩]
 
-/-- The prune step of `lean.yml` (`find artifacts -type f -links 1 -delete`) keeps a file unless it is an artifact with one link. -/
 def keeps (f : CacheFile) : Bool := !(f.artifact && f.links == 1)
 
-/-- Every file under `outputs/` is kept: Lake finds no module without its mapping. -/
 theorem keeps_outputs (n : Nat) : keeps ⟨false, n⟩ = true := by simp [keeps]
 
-/-- An artifact with two or more links belongs to a module of the build and is kept. -/
 theorem keeps_linked (n : Nat) (h : 2 ≤ n) : keeps ⟨true, n⟩ = true := by
   have : (n == 1) = false := by simp; omega
   simp [keeps, this]
 
-/-- An artifact with one link belongs to no module of the build and is deleted. -/
 theorem prunes_unlinked : keeps ⟨true, 1⟩ = false := by decide
 
-/-- A restoring leg: ids, whether the restore-key hit, the files of the key's hash set that differ from the entry's
-tree, the `Built` log lines, the jobs of the build, and the seconds of the `setup-lean` step. -/
 structure RestoreLeg where
   run : Nat
   job : Nat
@@ -188,18 +178,14 @@ structure RestoreLeg where
   setupS : Nat
 deriving Repr, DecidableEq
 
-/-- What one leg shows about the pruned entry. -/
 inductive LegVerdict | ok | rebuilt | miss
 deriving Repr, DecidableEq
 
-/-- The verdict as the word the golden holds. -/
 def LegVerdict.name : LegVerdict → String
   | .ok => "ok" | .rebuilt => "rebuilt" | .miss => "miss"
 
-/-- `Built` lines from which a leg counts as a rebuild of hundreds of modules. -/
 def revertLines : Nat := 200
 
-/-- The verdict of one leg, decided on its own: no hit is a miss, `revertLines` or more `Built` lines a rebuild. -/
 def verdict (l : RestoreLeg) : LegVerdict :=
   if !l.hit then .miss else if revertLines ≤ l.builtLines then .rebuilt else .ok
 
@@ -212,8 +198,6 @@ theorem verdict_ok (l : RestoreLeg) (h : l.hit = true) (n : l.builtLines < rever
   have : ¬ revertLines ≤ l.builtLines := by omega
   simp [verdict, h, this]
 
-/-- The legs that restored a pruned main entry (MEASURED 2026-10-23 from the job logs; main's first pruned save was
-run 40009814844, blob 299 193 260 B). The first is a ci leg, then two main runs, then land legs. -/
 def legs : List RestoreLeg := [
   ⟨40010696608, 120610140089, true, 2, 48, 849, 19⟩, ⟨40010826449, 120610621304, true, 2, 48, 849, 24⟩,
   ⟨40011143247, 120611676101, true, 1, 51, 849, 19⟩,
@@ -222,14 +206,10 @@ def legs : List RestoreLeg := [
   ⟨40011600530, 120613238767, true, 3, 43, 826, 20⟩, ⟨40011600647, 120613247310, true, 3, 44, 849, 18⟩,
   ⟨40012913395, 120617723600, true, 3, 44, 849, 18⟩]
 
-/-- Every measured leg is a hit with no rebuild of hundreds: the prune step stays. -/
 theorem legs_ok : legs.all (fun l => verdict l == .ok) = true := by decide
 
-/-- The slowest `Built` count of the measured legs is below `revertLines`. -/
 theorem legs_built_max : legs.all (fun l => l.builtLines < revertLines) = true := by decide
 
-/-- A land that waits for the main run in flight: seconds waited, seconds of one leg `fwcore build`, seconds of the
-land's own Lean changes, seconds from the leg's restore to the main save. -/
 structure GateRow where
   run : Nat
   waitS : Nat
@@ -238,52 +218,38 @@ structure GateRow where
   gapS : Nat
 deriving Repr, DecidableEq
 
-/-- The wall seconds a gate saves at most: one leg's build minus the land's own part. -/
 def GateRow.savedS (r : GateRow) : Nat := r.legBuildS - r.ownS
 
-/-- A gate pays only when the wall seconds it saves exceed the seconds it waits. -/
 def GateRow.pays (r : GateRow) : Bool := r.waitS < r.savedS
 
-/-- The two lands whose leg restored an entry one push behind (MEASURED; own seconds INFERRED from lands that changed
-exactly two files). -/
 def gateRows : List GateRow := [⟨39995255573, 62, 58, 12, 36⟩, ⟨39997746052, 123, 72, 12, 91⟩]
 
-/-- Do not gate: neither measured wait is paid back. -/
 theorem no_gate_pays : gateRows.all (fun r => !r.pays) = true := by decide
 
-/-- A gate never pays when the wait is at least a whole leg build. -/
 theorem gate_unpaid (r : GateRow) (h : r.legBuildS ≤ r.waitS) : r.pays = false := by
   have : r.savedS ≤ r.waitS := by unfold GateRow.savedS; omega
   simp only [GateRow.pays, decide_eq_false_iff_not]; omega
 
-/-- The fwcore executable: bytes of its compressed copy, restore rate in bytes per second, ms to relink it. -/
 structure ExeFacts where
   blobB : Nat
   rateBps : Nat
   relinkMs : Nat
 deriving Repr, DecidableEq
 
-/-- ms a restoring job saves by finding the executable in the cache: the relink it skips minus the download it adds. -/
 def ExeFacts.gainMs (e : ExeFacts) : Nat := e.relinkMs - e.blobB * 1000 / e.rateBps
 
-/-- Milliseconds below which a changed build script is not worth its risk. -/
 def minGainMs : Nat := 1000
 
-/-- Keep the executable in the pruned entry only when it saves at least `minGainMs`. -/
 def ExeFacts.keep (e : ExeFacts) : Bool := minGainMs ≤ e.gainMs
 
-/-- Never keep it while the relink takes under `minGainMs`, at any download rate. -/
 theorem exe_pruned (e : ExeFacts) (h : e.relinkMs < minGainMs) : e.keep = false := by
   have : e.gainMs ≤ e.relinkMs := Nat.sub_le _ _
   simp only [ExeFacts.keep, decide_eq_false_iff_not]; unfold minGainMs at *; omega
 
-/-- MEASURED: the stripped executable is 97 182 976 B (34 117 988 B zipped, run 40012913395); 100 MB/s is the median
-restore rate of the legs above; the relink (`Built fwcore:exe`) took 630 to 683 ms in them. -/
 def exeFacts : ExeFacts := ⟨34117988, 100000000, 683⟩
 
 theorem exe_measured : exeFacts.keep = false := by decide
 
-/-- A golden line: the case name, its kind, the input and the verdict as strings. -/
 def goldenLines : List Json :=
   (CacheFile.cases.map fun (f : CacheFile) => Json.mkObj [("kind", "prune"), ("artifact", toJson f.artifact),
       ("links", toJson f.links), ("keeps", toJson (keeps f))]) ++
@@ -296,10 +262,8 @@ def goldenLines : List Json :=
   [Json.mkObj [("kind", "exe"), ("blobB", toJson exeFacts.blobB), ("rateBps", toJson exeFacts.rateBps),
       ("relinkMs", toJson exeFacts.relinkMs), ("gainMs", toJson exeFacts.gainMs), ("keep", toJson exeFacts.keep)]]
 
-/-- The golden file text. -/
 def goldenText : String := "\n".intercalate (goldenLines.map Json.compress) ++ "\n"
 
-/-- Write `packages/contracts/golden/ops/lake-cache.jsonl`, or with `--check` throw when it differs. -/
 def gen (args : List String) : IO Unit := do
   let path := "../packages/contracts/golden/ops/lake-cache.jsonl"
   if args.contains "--check" then

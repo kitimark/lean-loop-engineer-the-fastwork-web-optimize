@@ -1,7 +1,7 @@
 branch: worktree-wf_47f5b5af-b15-1
 worktree: .claude/worktrees/wf_47f5b5af-b15-1 (under the repo root)
 last commit: see `git log -1` on the branch
-CI runs started by me: none (existing runs answered the unit; accepted limit of one dispatched run unused). Runs read: 40010696608, 40010826449, 40011143247, 40011600530, 40011600647, 40012913395 (restores of pruned main entries), 40009814844 (first pruned main save), 40012913395 (exe artifact).
+CI runs started by me: none (existing runs answered the unit). Runs read: 40010696608, 40010826449, 40011143247, 40011600530, 40011600647, 40012913395 (restores of pruned main entries), 40009814844 (first pruned main save), 40012913395 (exe artifact).
 
 State: all four title items done except the behind-main measure. Verdict per leg (Fw.Ops.LakeCache.verdict): 10 of 10 legs hit, 43-51 Built lines of 826/849 jobs, setup-lean 17-24 s. Prune stays; exe stays pruned (relink 0.63-0.68 s < 1 s rule); lean.yml and fwcore-build.sh unchanged.
 Verified: lake build Fw.Ops.LakeCache green, golden lake-cache.jsonl equals the Lean output (gen ["--check"]), theorems legs_ok, no_gate_pays, exe_pruned, keeps_*.
