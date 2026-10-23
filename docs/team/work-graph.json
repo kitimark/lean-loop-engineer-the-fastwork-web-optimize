@@ -16996,7 +16996,8 @@
     "packages/contracts/golden/console/land-speed.jsonl",
     "apps/runner/src/land.ts"
    ],
-   "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l."
+   "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l.",
+   "evidence": "09a0f27"
   },
   {
    "devices": [
@@ -17569,7 +17570,9 @@
     "apps/runner/test/polish.test.ts",
     ".claude/workflows/build-review.js",
     "docs/team/handoffs/polish-hunk-scope.md",
-    "scripts/build-review.test.mjs"
+    "scripts/build-review.test.mjs",
+    "lean/Fw/Wire/Plan.lean",
+    "docs/team/tools/polish.md"
    ],
    "title": "Incident inc-polish-file-scope: the polish stage hands comment-sicko whole files of the branch diff, so a 2-line builder change in lean/scripts/check.sh let polish (162a69416) rewrite 157 comment lines; main's polish of another branch (81464d810) cut the same file differently and the two branches conflicted. Restrict polish to the branch's changed hunks: state in Lean (Fw.Plan.Polish) that an admitted edit lies inside the branch's diff hunks of that file (merge-base to head, a small context margin), with goldens; `fw polish commit` restores every edit outside the hunks before committing (and prints which); the comment-sicko prompt in build-review.js names the line ranges. Test: a fixture branch that changes 2 lines of a commented file, where an edit 50 lines away is restored and an edit inside the hunk is kept. (2) Incident inc-polish-main-checkout: the polish-plan runner redacted the worktree prefix to `<worktree>` and comment-sicko edited the main checkout. The lead added an interim guard in build-review.js (paths rebuilt from the worktree line and class paths, strays stop the commit; scripts/build-review.test.mjs). Make it structural: `fw polish plan` prints repo-relative paths plus one worktree line, and `fw polish commit` refuses (and names them) when the main checkout has uncommitted edits in the plan's files."
   },
