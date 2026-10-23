@@ -9,6 +9,8 @@ export const PERIOD_US = CONST.periodUs;
 export const PERIODS = CONST.periods;
 export const TOL_US = CONST.tolUs;
 export const DEADLINE_US = CONST.deadlineUs;
+export const MIN_FAITHFUL = CONST.minFaithful;
+export const BUSY_MIN = CONST.busyMin;
 export const KINDS = Object.freeze(['Layout', 'Paint', 'Composite', 'RecalculateStyles']);
 
 export const nominal = (s0, n) => Array.from({ length: n }, (_, k) => [s0 + k * PERIOD_US, s0 + k * PERIOD_US + SWAP_US]);
@@ -43,9 +45,21 @@ const asFrac = (xs) => xs.map((x) => frac(x, 1));
 
 export function cell(a1, a2, c, dropped) {
   if (a1.length === 0 || a2.length === 0 || c.length === 0) return dropped > 0 ? 'unresolved:drift' : 'unresolved:noSamples';
+  if (a1.length < MIN_FAITHFUL || a2.length < MIN_FAITHFUL) return 'unresolved:fewSamples';
   if (verdict(asFrac(a1), asFrac(a2)) !== 'overlap') return 'unresolved:floorBroken';
   const v = verdict(asFrac([...a1, ...a2]), asFrac(c));
   return v === 'lower' ? 'win' : v === 'higher' ? 'loss' : 'unresolved:overlap';
 }
 
 export const FRAMES_60 = CONST.frames60;
+
+/** Lean `bgOf`: what the rest windows next to a swap window say about work that is not the carousel. */
+export function bgOf(ns) {
+  if (ns.length === 0) return 'unknown';
+  if (ns.every((n) => BUSY_MIN <= n)) return 'busy';
+  if (ns.every((n) => n < BUSY_MIN)) return 'idle';
+  return 'mixed';
+}
+
+/** Lean `swapNeighbours`: the rest windows before and after swap window k of n. */
+export const swapNeighbours = (k, n) => [...(k > 0 ? [k - 1] : []), ...(k + 1 < n ? [k] : [])];

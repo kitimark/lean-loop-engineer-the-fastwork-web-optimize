@@ -2,7 +2,7 @@ import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { startTimeline } from '../timeline.mjs';
 import { sleep } from '../sim.mjs';
 import { TargetLostError } from '../inspector.mjs';
-import { markTimes } from '../reduce.mjs';
+import { markTimes, markTime } from '../reduce.mjs';
 import { PERIODS, DEADLINE_US, KINDS, validAt, countCells } from './swap.mjs';
 
 export const ORDER = Object.freeze([['faithful', 'a'], ['crop', 'a'], ['faithful', 'b'], ['crop', 'b']]);
@@ -47,6 +47,90 @@ export const FIND_JS = (maxY) => `(async () => {
 })()`;
 const us = (s) => Math.round(s * 1e6);
 
+/**
+ * The fixed-length diagnostic watch: which DOM writes (grouped by the nearest data-fw owner) and which running animations
+ * exist while the page lays out on its own. It only counts mutations per bucket (no style or layout read per frame); the
+ * animation list is read before it starts and after it ends.
+ */
+export const DIAG_JS = (durationMs, bucketMs) => `(async () => {
+  const B = ${bucketMs}, n = Math.ceil(${durationMs} / B);
+  const owner = (node) => {
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (!el) return 'none';
+    const f = el.closest('[data-fw]');
+    return f ? f.getAttribute('data-fw') : el.tagName.toLowerCase();
+  };
+  const skip = ['offset', 'easing', 'composite', 'computedOffset'];
+  const anims = () => {
+    const seen = {};
+    for (const a of document.getAnimations()) {
+      const kf = a.effect ? a.effect.getKeyframes() : [];
+      const props = [...new Set(kf.flatMap((k) => Object.keys(k)).filter((k) => !skip.includes(k)))].sort().join(',');
+      const tm = a.effect ? a.effect.getComputedTiming() : {};
+      const key = [owner(a.effect && a.effect.target), a.animationName || a.transitionProperty || a.constructor.name, a.constructor.name, a.playState, tm.duration, tm.iterations, props].join('|');
+      seen[key] = (seen[key] || 0) + 1;
+    }
+    return seen;
+  };
+  const before = anims();
+  const owners = {};
+  const t0 = performance.now();
+  performance.mark('wk:dbegin');
+  const mo = new MutationObserver((recs) => {
+    const b = Math.min(n - 1, Math.floor((performance.now() - t0) / B));
+    for (const r of recs) {
+      const key = owner(r.target) + ':' + (r.type === 'attributes' ? r.attributeName : r.type);
+      (owners[key] || (owners[key] = new Array(n).fill(0)))[b]++;
+    }
+  });
+  mo.observe(document.documentElement, { subtree: true, attributes: true, childList: true, characterData: true });
+  await new Promise((r) => setTimeout(r, ${durationMs}));
+  mo.disconnect();
+  performance.mark('wk:dend');
+  return { buckets: n, bucketMs: B, owners, before, after: anims() };
+})()`;
+
+/** Timeline rows of one type per bucket of `bucketMs` from `beginS` (page mark, seconds) over `n` buckets. */
+export function bucketRows(rows, type, beginS, bucketMs, n) {
+  const out = new Array(n).fill(0);
+  for (const r of rows) {
+    if (r[0] !== type || typeof r[1] !== 'number') continue;
+    const b = Math.floor(((r[1] - beginS) * 1000) / bucketMs);
+    if (b >= 0 && b < n) out[b]++;
+  }
+  return out;
+}
+
+export const DIAG_MS = 7000;
+export const DIAG_BUCKET_MS = 100;
+
+export async function diagCapture(ctx, arm, { clock, settleMs }) {
+  const info = await loadArm(ctx, arm, { clock, settleMs });
+  const at = await ctx.c.runAsync(FIND_JS(info.maxY), { pollMs: 500 });
+  if (at.error) throw new Error(`arm ${arm.id}: ${at.error}`);
+  await sleep(500);
+  const tl = await startTimeline(ctx.c);
+  const res = await ctx.c.runAsync(DIAG_JS(DIAG_MS, DIAG_BUCKET_MS), { pollMs: 1000 });
+  await sleep(300);
+  const records = await tl.stop();
+  const begin = markTime(records, 'wk:dbegin');
+  if (begin === null) throw new Error('diag mark missing from the Timeline');
+  const active = Object.fromEntries(Object.entries(res.owners).filter(([, v]) => v.reduce((a, b) => a + b, 0) >= 2));
+  return {
+    schema: 'fw.webkit.lag.swap.diag/1', arm: arm.id, bucketMs: res.bucketMs, buckets: res.buckets,
+    layout: bucketRows(records, 'Layout', begin, res.bucketMs, res.buckets), paint: bucketRows(records, 'Paint', begin, res.bucketMs, res.buckets),
+    owners: active, before: res.before, after: res.after,
+  };
+}
+
+let passNo = 0;
+
+/** Which CI job took a sample (default GitHub variables, VM = the matrix cell; FW_JOB_ID = the numeric job id when the workflow passes it). */
+export const jobMeta = (env = process.env) => ({
+  run: env.GITHUB_RUN_ID ?? null, attempt: env.GITHUB_RUN_ATTEMPT ?? null, job: env.GITHUB_JOB ?? null, vm: env.VM ?? null,
+  jobId: env.FW_JOB_ID ?? null, sha: env.GITHUB_SHA ?? null,
+});
+
 export async function loadArm(ctx, arm, { clock, settleMs }) {
   ctx.setArm(arm.id);
   await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + arm.search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
@@ -79,7 +163,7 @@ export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS
 
 export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = false, restore }) {
   const order = flip ? FLIPPED : ORDER;
-  const out = { schema: 'fw.webkit.lag.swap/1', order: order.map(([a, s]) => `${a}-${s}`), captures: {}, failed: [] };
+  const out = { schema: 'fw.webkit.lag.swap/1', order: order.map(([a, s]) => `${a}-${s}`), job: { ...jobMeta(), pass: ++passNo }, captures: {}, failed: [], diag: null };
   try {
     for (const [arm, slot] of order) {
       const name = `${arm}-${slot}`;
@@ -92,6 +176,16 @@ export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = 
         out.captures[name] = null;
         out.failed.push(`${name}: ${e.message}`);
         log(`  swap ${name} failed: ${e.message}`);
+      }
+    }
+    if (!flip) {
+      try {
+        out.diag = await retry('swap diag', () => diagCapture(ctx, arms.crop, { clock, settleMs }));
+        log(`  swap diag: ${Object.keys(out.diag.owners).length} owners with writes, layout rows ${out.diag.layout.reduce((a, b) => a + b, 0)}`);
+      } catch (e) {
+        if (e instanceof TargetLostError) throw e;
+        out.failed.push(`diag: ${e.message}`);
+        log(`  swap diag failed: ${e.message}`);
       }
     }
   } finally {

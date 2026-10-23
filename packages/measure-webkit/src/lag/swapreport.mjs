@@ -1,4 +1,4 @@
-import { PERIODS, KINDS, FRAMES_60, validAt, cell } from './swap.mjs';
+import { PERIODS, KINDS, FRAMES_60, MIN_FAITHFUL, BUSY_MIN, validAt, cell, bgOf, swapNeighbours } from './swap.mjs';
 
 export function countOf(cap, k, p, ty) {
   if (!cap) return undefined;
@@ -7,47 +7,153 @@ export function countOf(cap, k, p, ty) {
   return cap.cells.find((x) => x[0] === p && x[1] === ty)?.[2] ?? null;
 }
 
-export function windowCells(passes, periods = PERIODS) {
+/** Background of swap window k in one capture: the Layout rows of the rest windows next to it (Lean `bgOf`). */
+export function bgOfCapture(cap, k, periods = PERIODS) {
+  if (!cap) return 'unknown';
+  const ns = swapNeighbours(k, periods).map((j) => countOf(cap, j, `rest:${j}`, 'Layout')).filter((n) => typeof n === 'number');
+  return bgOf(ns);
+}
+
+/** The id of the CI job and pass that took a sample, as one string. */
+export const jobKey = (pass) => {
+  const j = pass.job;
+  if (!j) return 'unknown';
+  return `${j.jobId ?? `${j.run ?? '?'}.${j.attempt ?? '?'}/${j.vm ?? j.job ?? '?'}`}/p${j.pass ?? '?'}`;
+};
+
+const SLOTS = [['faithful-a', 'a1'], ['faithful-b', 'a2'], ['crop-a', 'crop'], ['crop-b', 'crop']];
+
+/**
+ * One cell per (window, kind). `only` keeps the samples whose background state is that one ('idle' or 'busy'), so the
+ * cell still compares like with like and is decided on its own. Every sample carries its job and background.
+ */
+export function cellsOf(passes, periods = PERIODS, only = null) {
   const out = [];
   for (const phase of ['swap', 'rest']) {
+    if (only && phase === 'rest') continue;
     for (let k = 0; k < (phase === 'swap' ? periods : periods - 1); k++) {
       for (const ty of KINDS) {
+        if (only && ty !== 'Layout' && ty !== 'Paint') continue;
         const p = `${phase}:${k}`;
-        const a1 = [], a2 = [], c = [];
+        const a1 = [], a2 = [], c = [], a1Job = [], a2Job = [], cropJob = [], a1Bg = [], a2Bg = [], cropBg = [];
         let dropped = 0;
-        const take = (cap, into) => {
+        const take = (cap, into, jobs, bgs, pass) => {
           const n = countOf(cap, k, p, ty);
           if (n === undefined) return;
-          if (n === null) dropped++; else into.push(n);
+          if (n === null) { dropped++; return; }
+          const bg = phase === 'swap' ? bgOfCapture(cap, k, periods) : 'unknown';
+          if (only && bg !== only) return;
+          into.push(n); jobs.push(jobKey(pass)); bgs.push(bg);
         };
         for (const s of passes) {
           const caps = s.captures;
-          take(caps['faithful-a'], a1);
-          take(caps['faithful-b'], a2);
-          take(caps['crop-a'], c);
-          take(caps['crop-b'], c);
+          take(caps['faithful-a'], a1, a1Job, a1Bg, s);
+          take(caps['faithful-b'], a2, a2Job, a2Bg, s);
+          take(caps['crop-a'], c, cropJob, cropBg, s);
+          take(caps['crop-b'], c, cropJob, cropBg, s);
         }
-        out.push({ phase: p, kind: ty, a1, a2, crop: c, dropped, cell: cell(a1, a2, c, dropped) });
+        out.push({ phase: p, kind: ty, bg: only ?? 'all', a1, a2, crop: c, a1Job, a2Job, cropJob, a1Bg, a2Bg, cropBg, dropped, cell: cell(a1, a2, c, dropped) });
       }
     }
   }
   return out;
 }
 
+/** Diagnostic captures as rows of the same list (kind Diag), so the report file holds them. */
+export const diagRows = (passes) => passes.filter((s) => s.diag).map((s) => ({ phase: 'diag', kind: 'Diag', job: jobKey(s), ...s.diag }));
+
+/**
+ * The list the report file holds (the CLI writes it as it is): every cell (bg all), then the Layout and Paint cells of the idle-
+ * and of the busy-background samples, then the diagnostic rows. `only` names one background and gives just those cells.
+ */
+export const windowCells = (passes, periods = PERIODS, only = null) =>
+  only ? cellsOf(passes, periods, only) : [...cellsOf(passes, periods), ...cellsOf(passes, periods, 'idle'), ...cellsOf(passes, periods, 'busy'), ...diagRows(passes)];
+
 const range = (xs) => (xs.length === 0 ? '-' : `${Math.min(...xs)}${Math.min(...xs) === Math.max(...xs) ? '' : `-${Math.max(...xs)}`} (n=${xs.length})`);
+
+export function median(xs) {
+  if (xs.length === 0) return null;
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+const med = (xs) => (xs.length === 0 ? '-' : `${median(xs)} (n=${xs.length})`);
+const byBg = (vals, bgs, bg) => vals.filter((_, i) => bgs[i] === bg);
 
 export const swapPassesOf = (docs) => docs.flatMap((d) => d.passes.map((p) => p.cost?.swap).filter(Boolean));
 
-export function swapMd(cells, sources) {
-  const lines = [`Sources: ${sources.join('; ')}`, '', `Model (INFERRED from the Lean part model): a faithful swap shows ${FRAMES_60} Layout frames at 60 Hz, the crop none.`, ''];
-  for (const ty of KINDS) {
-    lines.push(`### ${ty}`, '', '| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |', '|---|---|---|---|---|---|');
-    for (const x of cells.filter((y) => y.kind === ty)) lines.push(`| ${x.phase} | ${range(x.a1)} | ${range(x.a2)} | ${range(x.crop)} | ${x.dropped} | ${x.cell} |`);
+function bgSection(cells, kind) {
+  const rows = cells.filter((x) => x.bg === 'all' && x.kind === kind && x.phase.startsWith('swap:'));
+  const lines = [`### ${kind} rows of a swap window by background (rest windows next to it: busy = at least ${BUSY_MIN} Layout rows)`, '',
+    '| window | crop idle | crop busy | crop mixed | faithful idle | faithful busy |', '|---|---|---|---|---|---|'];
+  for (const x of rows) {
+    const fv = [...x.a1, ...x.a2], fb = [...x.a1Bg, ...x.a2Bg];
+    lines.push(`| ${x.phase} | ${med(byBg(x.crop, x.cropBg, 'idle'))} | ${med(byBg(x.crop, x.cropBg, 'busy'))} | ${med(byBg(x.crop, x.cropBg, 'mixed'))} | ${med(byBg(fv, fb, 'idle'))} | ${med(byBg(fv, fb, 'busy'))} |`);
+  }
+  return [...lines, ''];
+}
+
+function busyWindows(cells) {
+  const rows = cells.filter((x) => x.bg === 'all' && x.kind === 'Layout' && x.phase.startsWith('swap:'));
+  return rows.map((x) => {
+    const n = (b) => x.cropBg.filter((y) => y === b).length;
+    return { phase: x.phase, busy: n('busy'), idle: n('idle'), mixed: n('mixed'), unknown: n('unknown') };
+  });
+}
+
+const digit = (n, top) => (n <= 0 ? '.' : String(Math.min(9, Math.max(1, Math.ceil((n / top) * 9)))));
+
+function diagSection(rows) {
+  const lines = ['### Diagnostic captures (crop arm, no swap marks, 100 ms buckets)', ''];
+  if (rows.length === 0) return [...lines, 'none captured', ''];
+  for (const d of rows) {
+    const top = Math.max(1, ...d.layout);
+    lines.push(`Job ${d.job}: ${d.buckets} buckets; scale 1-9 of the bucket maximum (Layout max ${Math.max(...d.layout)}), '.' = 0`, '', '```',
+      `Layout    ${d.layout.map((n) => digit(n, top)).join('')}`, `Paint     ${d.paint.map((n) => digit(n, Math.max(1, ...d.paint))).join('')}`);
+    for (const [k, v] of Object.entries(d.owners).sort()) lines.push(`${k.slice(0, 9).padEnd(9)} ${v.map((n) => digit(n, Math.max(1, ...v))).join('')}  ${k} (total ${v.reduce((a, b) => a + b, 0)})`);
+    lines.push('```', '');
+    const keys = [...new Set([...Object.keys(d.before), ...Object.keys(d.after)])].sort();
+    lines.push('Running animations (owner | name | kind | state | duration ms | iterations | properties), count before / after:', '');
+    for (const k of keys) lines.push(`- ${k}: ${d.before[k] ?? 0} / ${d.after[k] ?? 0}`);
     lines.push('');
   }
-  const swaps = cells.filter((x) => x.phase.startsWith('swap:'));
+  return lines;
+}
+
+export function swapMd(cells, sources) {
+  const std = cells.filter((x) => x.bg === 'all' || x.bg === undefined);
+  const lines = [`Sources: ${sources.join('; ')}`, '', `Model (INFERRED from the Lean part model): a faithful swap shows ${FRAMES_60} Layout frames at 60 Hz, the crop none.`];
+  const swapLayout = std.filter((x) => x.kind === 'Layout' && x.phase.startsWith('swap:'));
+  const cropAll = swapLayout.flatMap((x) => x.crop);
+  const cropIdle = swapLayout.flatMap((x) => byBg(x.crop, x.cropBg ?? [], 'idle'));
+  if (cropAll.length) {
+    lines.push(`Measured (the crop, Layout rows in a swap window, ${cropAll.length} samples): minimum ${Math.min(...cropAll)}, median ${median(cropAll)}${cropIdle.length ? `; idle background only (${cropIdle.length} samples): minimum ${Math.min(...cropIdle)}, median ${median(cropIdle)}` : ''}.`);
+  }
+  const jobs = new Set(std.flatMap((x) => [...(x.a1Job ?? []), ...(x.a2Job ?? []), ...(x.cropJob ?? [])]).map((j) => j.replace(/\/p\d+$/, '')));
+  lines.push(`Jobs counted (${jobs.size}): ${[...jobs].sort().join(', ')}. Cells need at least ${MIN_FAITHFUL} samples in each faithful slot (unresolved:fewSamples otherwise).`, '');
+  for (const ty of KINDS) {
+    lines.push(`### ${ty}`, '', '| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |', '|---|---|---|---|---|---|');
+    for (const x of std.filter((y) => y.kind === ty)) lines.push(`| ${x.phase} | ${range(x.a1)} | ${range(x.a2)} | ${range(x.crop)} | ${x.dropped} | ${x.cell} |`);
+    lines.push('');
+  }
+  const swaps = std.filter((x) => x.phase.startsWith('swap:'));
   const tally = (ty) => ['win', 'loss', 'unresolved'].map((w) => swaps.filter((x) => x.kind === ty && x.cell.startsWith(w)).length);
   lines.push('Swap windows decided one by one (win / loss / unresolved of ' + PERIODS + ' per kind):', '', '| kind | win | loss | unresolved |', '|---|---|---|---|');
   for (const ty of KINDS) lines.push(`| ${ty} | ${tally(ty).join(' | ')} |`);
+  lines.push('');
+  const bw = busyWindows(std);
+  if (bw.length) {
+    lines.push('### Background of each swap window in the crop captures', '', '| window | busy | idle | mixed | unknown |', '|---|---|---|---|---|');
+    for (const b of bw) lines.push(`| ${b.phase} | ${b.busy} | ${b.idle} | ${b.mixed} | ${b.unknown} |`);
+    lines.push('');
+    lines.push(...bgSection(std, 'Layout'), ...bgSection(std, 'Paint'));
+    for (const only of ['idle', 'busy']) {
+      const sub = cells.filter((x) => x.bg === only);
+      if (!sub.length) continue;
+      lines.push(`### Cells on ${only}-background samples only (each window and kind decided on its own)`, '', '| window | Layout | Paint |', '|---|---|---|');
+      for (const x of sub.filter((y) => y.kind === 'Layout')) lines.push(`| ${x.phase} | ${x.cell} (faithful n=${x.a1.length}+${x.a2.length}, crop n=${x.crop.length}) | ${sub.find((y) => y.phase === x.phase && y.kind === 'Paint').cell} |`);
+      lines.push('');
+    }
+  }
+  lines.push(...diagSection(cells.filter((x) => x.kind === 'Diag')));
   return lines.join('\n');
 }
