@@ -18868,7 +18868,8 @@
     "research/findings/ledger.json",
     "docs/team/incidents/ledger.json"
    ],
-   "title": "morph-real-wheel-followups review follow-ups (2026-10-24): (1) the scroll settles before the push (run 39989441570 job 1 run 1: last scroll at frame 23, push at frame 28), so no open phase has a scroll in flight: add a drive that sends the push during the scroll (momentum overlapping the morph); (2) macreport.mjs labels every job's rows 'job 1': pass the matrix job index; (3) the Simulator leg with the PushServer touch (morph-real-wheel-followups item 3) once sim-touch-reliable lands; (4) probe.mjs header: keep one short pointer ('pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs')."
+   "title": "morph-real-wheel-followups review follow-ups (2026-10-24): (1) the scroll settles before the push (run 39989441570 job 1 run 1: last scroll at frame 23, push at frame 28), so no open phase has a scroll in flight: add a drive that sends the push during the scroll (momentum overlapping the morph); (2) macreport.mjs labels every job's rows 'job 1': pass the matrix job index; (3) the Simulator leg with the PushServer touch (morph-real-wheel-followups item 3) once sim-touch-reliable lands; (4) probe.mjs header: keep one short pointer ('pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs').",
+   "evidence": "5be82cd"
   },
   {
    "devices": [

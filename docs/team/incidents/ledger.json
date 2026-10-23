@@ -1985,7 +1985,7 @@
    "at": "2026-10-18T14:43+07:00",
    "title": "Three tasks went through 3-4 refused review rounds each, every round patching the reviewer's newest probe inside an open design",
    "symptom": "lfg-props-shape was refused 3 times, console-stale 4 times and wait-guard-enforce 3 times. Each round fixed the reviewer's latest probe (a deny-list over bash shapes; a build commit inferred from mtimes and the reflog; author-chosen registries). The lead wrote the threat model and moved to allowlist, identity or canonical-source designs only at round 4-5.",
-   "cause": "CONFIRMED (workflow run journals, local-only, verdict ready_to_land false in: lfg-props-shape runs wf_49b2933e-3c9, wf_7237e934-b3b, wf_d4784429-e5d; console-stale runs wf_ebc4ff5b-4b6, wf_ab1bec0a-ed0, wf_56a18937-3ba, wf_78d166a4-1a6; wait-guard-enforce runs wf_59731989-59c, wf_64b49155-762, wf_4586f057-5c7). INFERRED (lead's retro): with no written threat model, each round's spec was the last probe, so the design boundary stayed open. The rule is now in CLAUDE.md (Team, 'Review loops (lead)', f0e5cec).",
+   "cause": "CONFIRMED (workflow run journals, local-only, verdict ready_to_land false in: lfg-props-shape runs wf_49b2933e-3c9, wf_7237e934-b3b, wf_d4784429-e5d; console-stale runs wf_ebc4ff5b-4b6, wf_ab1bec0a-ed0, wf_56a18937-3ba, wf_78d166a4-1a6; wait-guard-enforce runs wf_59731989-59c, wf_64b49155-762, wf_4586f057-5c7). INFERRED (lead's retro): with no written threat model, each round's spec was the last probe, so the design boundary stayed open. The rule is now in CLAUDE.md (Team, 'Review loops (lead)', f0e5cec). Retro (INFERRED, morph-wheel-momentum): round 1: source reading refuted the task's premise (a momentum phase on the Playwright WebKit wheel lane), and the branch built a different drive (pull) inside the same task instead of closing the premise as a finding and re-planning; the lead closed the task as a finding without a round 3. CLAUDE.md 'Review loops (lead)' already says to close a task whose premise is refuted; the check is still prose.",
    "evidence": [
     {
      "kind": "commit",
@@ -2011,6 +2011,11 @@
      "kind": "commit",
      "ref": "80bfed2",
      "note": "work-graph: wait-guard-enforce-2, round 3 under its own id"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-2x-morph-real-wheel.md",
+     "note": "retro: morph-wheel-momentum closed as a finding (follow-up 3 holds the refuting sources)"
     }
    ],
    "repro": "Send a refused task back twice with only the reviewer's findings as the spec: round 3 is refused on a new probe of the same class.",
