@@ -298,9 +298,9 @@ export const laneFails = (vs) => vs.some(isFail);
  */
 export function rel(cand, base) {
   const c = isFail(cand), b = base !== undefined && isFail(base);
-  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : 'new';
+  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : base === skip('firstOpen') ? 'undecided' : 'new';
   if (b) return 'cleared';
-  return cand === skip('firstOpen') && base !== skip('firstOpen') ? 'undecided' : 'ok';
+  return cand === skip('firstOpen') ? 'undecided' : 'ok';
 }
 export const laneRed = (rels) => rels.includes('new');
 export const laneOf = (rels) => (laneRed(rels) ? 'red' : rels.includes('undecided') ? 'undecided' : 'clean');
