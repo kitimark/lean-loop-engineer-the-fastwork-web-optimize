@@ -14,7 +14,7 @@ import { exitOffsets } from './pathpix-exit.mjs';
 import { magentaBox, navigateHeld, screenshot, pinStatusBar } from './pathpix-webkit.mjs';
 
 /** The Simulator lane for the hero exit: arms A, A2 (the default page) and P (the page with `?fw=<flag>`), all at the exit offsets. */
-export async function runWebkitExitLane({ siteDir, out, run, flag, settleMs = 6000, holdMs = 800, log: log0 = (s) => console.error(s) }) {
+export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = null, settleMs = 6000, holdMs = 800, log: log0 = (s) => console.error(s) }) {
   const t0 = Date.now();
   const log = (m) => { const s = Math.round((Date.now() - t0) / 1000); log0(`[${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}] ${m}`); };
   const tmp = mkdtempSync(join(tmpdir(), 'fw-pathpix-exit-'));
@@ -85,6 +85,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, settleMs = 60
       async function captureArm(arm) {
         const rows = offs.map(() => null);
         for (let k = 0; k < offs.length; k++) {
+          if (offsetIdx && !offsetIdx.includes(k)) continue;
           await scrollHold(ctx.c, offs[k], { holdMs });
           await ctx.c.runAsync(NEAR_IMAGES_EXPR);
           const video = await ctx.c.runAsync(VIDEO_EXPR);

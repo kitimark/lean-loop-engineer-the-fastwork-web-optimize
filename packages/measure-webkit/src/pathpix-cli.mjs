@@ -24,7 +24,7 @@ if (!v['analyze-only']) {
   if (!v.site) { console.error('--site is required'); process.exit(2); }
   if (v.mode === 'exit') {
     if (!v.flag) { console.error('--mode exit needs --flag'); process.exit(2); }
-    await runWebkitExitLane({ siteDir: resolve(v.site), out, run: v.run ?? process.env.GITHUB_RUN_ID ?? 'local', flag: v.flag, settleMs: Number(v.settle), holdMs: Number(v.hold) });
+    await runWebkitExitLane({ siteDir: resolve(v.site), out, run: v.run ?? process.env.GITHUB_RUN_ID ?? 'local', flag: v.flag, offsetIdx: v.offsets ? v.offsets.split(',').map(Number) : null, settleMs: Number(v.settle), holdMs: Number(v.hold) });
   } else await runWebkitLane({
     siteDir: resolve(v.site), out, run: v.run ?? process.env.GITHUB_RUN_ID ?? 'local',
     layers: v.layers ? v.layers.split(',') : null, pLayers: v['p-layers'] ? v['p-layers'].split(',') : null,

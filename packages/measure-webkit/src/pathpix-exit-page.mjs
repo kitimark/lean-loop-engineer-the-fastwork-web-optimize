@@ -9,15 +9,21 @@ export const EXIT_GEOM_EXPR = `(() => {
   return JSON.stringify({ T: Math.round(r.top + scrollY), h: Math.round(r.height), v: innerHeight, vw: innerWidth, dpr: devicePixelRatio, variant: t.getAttribute('data-fw-variant') });
 })()`;
 
-/** Boxes of the visible exit consumers; a layer on several elements is keyed `layer#k` by DOM index. */
+/** Boxes of the visible exit consumers, the union of the element and its descendants; a layer on several elements is keyed `layer#k` by DOM index. */
 export const EXIT_BOX_EXPR = `(() => {
   const boxes = {};
   for (const l of ${JSON.stringify(EXIT_LAYERS)}) {
     const els = [...document.querySelectorAll('[data-fw-layer="' + l + '"]')];
     els.forEach((e, k) => {
       if (e.getClientRects().length === 0 || getComputedStyle(e).visibility === 'hidden') return;
-      const r = e.getBoundingClientRect();
-      boxes[els.length > 1 ? l + '#' + k : l] = [Math.round(r.left * 1e6), Math.round(r.top * 1e6), Math.round(r.width * 1e6), Math.round(r.height * 1e6)];
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const d of [e, ...e.querySelectorAll('*')]) {
+        const r = d.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
+      }
+      if (x0 === Infinity) return;
+      boxes[els.length > 1 ? l + '#' + k : l] = [Math.round(x0 * 1e6), Math.round(y0 * 1e6), Math.round((x1 - x0) * 1e6), Math.round((y1 - y0) * 1e6)];
     });
   }
   return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), boxes });
