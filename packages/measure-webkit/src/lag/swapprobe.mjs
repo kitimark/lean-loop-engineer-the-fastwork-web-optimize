@@ -16,7 +16,7 @@ export const ORDER = Object.freeze([['faithful', 'a'], ['crop', 'a'], ['faithful
 /** The same four with the crop first in each pair, for every other pass. */
 export const FLIPPED = Object.freeze([ORDER[1], ORDER[0], ORDER[3], ORDER[2]]);
 
-const WATCH_JS = (periods, deadlineMs) => `(async () => {
+export const WATCH_JS = (periods, deadlineMs) => `(async () => {
   const el = document.querySelector('[data-fw="people-carousel"]');
   if (!el) return { error: 'no carousel' };
   let armed = el.childElementCount <= 4, open = false, closed = 0, resolve;

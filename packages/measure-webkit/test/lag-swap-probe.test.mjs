@@ -1,0 +1,40 @@
+// The page-side watcher of the swap probe against a stand-in carousel: it marks every swap on (5 avatars) and off (4).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { WATCH_JS, ORDER, FLIPPED } from '../src/lag/swapprobe.mjs';
+
+/** Run the watcher in a context with a fake carousel; `script(el, fire)` drives the child count. */
+async function watch(periods, children, script, deadlineMs = 50) {
+  const marks = [];
+  let callback = null;
+  const el = { childElementCount: children, getAttribute: () => 'crop' };
+  const fire = (n) => { el.childElementCount = n; callback?.(); };
+  const sandbox = {
+    document: { querySelector: () => el },
+    MutationObserver: class { constructor(cb) { callback = cb; } observe() {} disconnect() { callback = null; } },
+    performance: { mark: (m) => marks.push(m) },
+    setTimeout, clearTimeout,
+  };
+  const done = vm.runInNewContext(WATCH_JS(periods, deadlineMs), sandbox);
+  await new Promise((r) => setImmediate(r));
+  script(fire);
+  return { res: await done, marks };
+}
+
+test('every swap is marked on and off, and the watcher stops after the asked number of windows', async () => {
+  const { res, marks } = await watch(2, 4, (fire) => { fire(5); fire(4); fire(5); fire(4); });
+  assert.deepEqual(marks, ['wk:begin', 'wk:on0', 'wk:off0', 'wk:on1', 'wk:off1', 'wk:end']);
+  assert.deepEqual([res.why, res.closed, res.open, res.variant], ['full', 2, false, 'crop']);
+});
+
+test('a swap already running when the watcher starts is not counted, a window left open at the deadline is reported open', async () => {
+  const { res, marks } = await watch(3, 5, (fire) => { fire(5); fire(4); fire(5); }, 30);
+  assert.deepEqual(marks, ['wk:begin', 'wk:on0', 'wk:end']);
+  assert.deepEqual([res.why, res.closed, res.open], ['deadline', 0, true]);
+});
+
+test('the pass order has the two faithful captures as slots a and b, the flipped order the same captures crop first', () => {
+  assert.deepEqual(ORDER.map(([a, s]) => `${a}-${s}`), ['faithful-a', 'crop-a', 'faithful-b', 'crop-b']);
+  assert.deepEqual(FLIPPED.map(([a, s]) => `${a}-${s}`), ['crop-a', 'faithful-a', 'crop-b', 'faithful-b']);
+});
