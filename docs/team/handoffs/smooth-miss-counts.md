@@ -20,5 +20,5 @@ Findings
 - Simulator real touch is not reliable on CI: XCUITest idle waits make a push take 50 to 130 s and the Timeline stops time out. Do not dispatch for it again without a new idea.
 
 Open
-- `lag/probe.mjs` `morphRun` still uses the synthetic WheelEvent: its report assumes fixed idle/open/close frame counts (follow-up).
+- `lag/probe.mjs` `morphRun` still uses the synthetic WheelEvent: its report assumes fixed idle/open/close frame counts. The lead split this item into task morph-real-wheel.
 - Simulator orig hero keeps 1 to 7 frames per window (pre-existing starvation).

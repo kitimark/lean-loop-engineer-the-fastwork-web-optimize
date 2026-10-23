@@ -18,7 +18,7 @@ Actions (run ids given); CI Simulator and Playwright WebKit are not the phone.
 | piece | where | status |
 | --- | --- | --- |
 | `over25`, `over34`, `over50`, `skips`, `longGaps`, `Counts`, `countsOf` | `lean/Fw/Gate/Smooth.lean` | CONFIRMED (builds, `lean/scripts/check.sh` green) |
-| `over50 <= over34 <= over25 <= frames`, `over34 = badTenths 340`, `hitches <= over50`, `longGaps <= skips`, an interval of at most 2 slots is no skip, `countsOf_ordered`, `Counts.add_ordered` | same file | CONFIRMED |
+| `over50 <= over34 <= over25 <= frames`, `over34 = badTenths 340`, `hitches <= over50`, `longGaps <= skips`, an interval of at most one slot (16.67 ms) is no skip; an interval over 2 slots is a skip (`longGaps <= skips`), `countsOf_ordered`, `Counts.add_ordered` | same file | CONFIRMED |
 | 39 golden lines for the counts | `packages/contracts/golden/gate/smooth.jsonl` | CONFIRMED (`--check` up to date) |
 | TS twin `countsOf`, `sumCounts` (checked against the golden) | `packages/gate-breakpoints/src/smooth/reduce.mjs` | TS stand-in, tested against the Lean golden |
 | counts per row, per run and pooled; Chromium `Browser.getHistograms` read per window | `src/smooth/{cadence,cadence-table,launch}.mjs` | glue |
@@ -46,8 +46,9 @@ Counts summed over the 3 jobs of a width (frames / over 25 / over 34 / over 50 /
   The rewrite arms (base = aa = cand) agree with each other, so that gap is a difference between orig and rewrite at 390
   hero (INFERRED: the three rewrite arms agree, which an A/A split would not).
 - Histograms (`Browser.getHistograms` for ScrollJank, Smoothness, Checkerboarding): the call answers (not null) but every one
-  of 56 windows of job 390-1 returns an empty list. FINDING: the headless shell records no sample in these histograms in the
-  real-time run, so the lane has no histogram data. The plumbing stays (it costs one call per window) for a headed run.
+  of 336 windows returns an empty list. INFERRED cause: getHistograms reads browser-process histograms only
+  (browser_handler.cc:643-652@f842f52), and the child-process histograms are not merged within the 600 ms wait; whether the
+  headless shell records them at all is not tested. The lane has no histogram data. The plumbing stays (it costs one call per window) for a headed run.
 
 ## WebKit, run 39901005729 (mac x3, Simulator x3)
 
@@ -64,8 +65,8 @@ arm and job with the Timeline on, 5 with it off):
 | end | on | aa | 519 | 356 | 198 | 534 | 1137 |
 
 Hero: orig vs base is "second" (the rewrite has fewer misses) in 3 of 3 jobs, with the Timeline on and off. End: "same" in
-3 of 3. On WebKit skipped slots exceed over-25 (hero base 313 vs 276) because WebKit's frames do not sit on exact slots; the
-skipped-slot count is the better one there (it counts frames missed, not only long gaps).
+3 of 3. On WebKit skipped slots exceed over-25 (hero base 313 vs 276) because an interval of 16.7 to 25 ms can cross two slot
+boundaries when frames sit off the 60 Hz grid; `skips` counts such intervals, not the slots lost (INFERRED).
 
 Simulator: the end-of-page real touch worked for the first end window of each of the 3 jobs (251 to 353 frames, touchmove
 seen, morph opened) and for the second end window of job 1 only:
@@ -88,7 +89,7 @@ touch in the CI Simulator is therefore not a reliable lane; what stands is the 3
 ## Not done
 
 - `lag/probe.mjs` `morphRun` still sends a synthetic WheelEvent: `lag/report.mjs` assumes fixed idle/open/close frame counts,
-  and a real push has a variable length. FOLLOW-UP: a real-path morph run needs a report that takes phases by marker, not by
+  and a real push has a variable length. Split into task morph-real-wheel: a real-path morph run needs a report that takes phases by marker, not by
   count. The real wheel (mac) and real touch (Simulator, partly) are in the cadence legs instead.
 - Chromium jank and smoothness histograms: empty in headless shell, see above.
 - Phone: none of this is phone time.
