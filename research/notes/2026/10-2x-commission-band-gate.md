@@ -86,8 +86,7 @@ paint.
   driver then requests its own rAF (`driver.ts:125`, 92; `clock.ts:31`), so the next frame runs a body before paint.
   That the clock runs the requested rAF in the next painted frame is INFERRED (no source read for throttled frames).
 
-Finding: the variant's look in Chromium rests on the body after a skip, not on the media event. A media handler that
-arrives late reads the live gate, so `Reads` still holds for it.
+In Chromium the variant's look rests on the body after a skip, not on the media event. A late media handler reads the live gate, so `Reads` still holds.
 
 ## Design history (finding)
 
@@ -123,7 +122,7 @@ Layer budget 0 (layers, tiles equal). In 250 px bins of scrollY starting at 0 (r
 and elementCount differ only in the bins from 2500 to 3750 and are equal within 1 in every other bin (the saving is where
 the follower runs). The flag's FunctionCall is unchanged because the follower and the class toggles still run.
 
-Bound convention (correction): an earlier version of this note gave the flag as 3.07 and 60.1. Those are the means of
+Bound convention: the flag figures 3.07 and 60.1 are the means of
 the v1 flag run 39837049981 in the same half-open window (3.065, 60.11), not of the v2 run 39843560957 (3.087,
 60.87). With the inclusive window 3070 <= scrollY <= 3530 (47 frames) the means are base 5.02 and 127.1, flag 3.09 and
 60.6. The base and the other rows in the table match the half-open window.
@@ -150,6 +149,5 @@ Gate: breakpoint-gate `--fw commission:band-gate` both engines, run 39843552595 
 ## Verdict
 
 Win on style recalculation in both engines (Chromium 5.02 to 3.09 recalcs and 127.3 to 60.9 elements per frame in the
-scroll-in window; WebKit RecalculateStyles minus 20-28 %), layer budget 0. Same look by the gate and by proof over the
-merged trajectory: P1 in WebKit (CONFIRMED from source), `BodyAfterSkip` in Chromium, where P1 does not hold. Not
+scroll-in window; WebKit RecalculateStyles minus 20-28 %), layer budget 0. Same look by the gate and by proof: P1 in WebKit (CONFIRMED from source), `BodyAfterSkip` in Chromium, where P1 does not hold. Not
 measured: frame times, the phone. Ledger row 48 is `partly-proved`; promotion to the v2-proved preset is the lead's call.
