@@ -17414,6 +17414,32 @@
     "docs/team/handoffs/chrome-balance-repro.md"
    ],
    "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dispatch-latency-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "dispatch-latency"
+   ],
+   "writes": [
+    "packages/gh-budget/src/**",
+    "packages/gh-budget/test/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/src/run-phases.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/run-phases.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Gh/Budget*.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "research/notes/2026/10-2x-dispatch-latency.md",
+    "scripts/gh-hung-probe.mjs",
+    "docs/team/handoffs/dispatch-latency-followups.md"
+   ],
+   "title": "Review follow-ups of dispatch-latency: (1) the other gh-budget callers (wait.ts, poller.ts, cli.ts, timing-ci.ts, fw run non-dispatch calls) keep the 60 s default timeout, so one hung non-dispatch call fills the whole 60 s dispatch lock wait and the dispatch is refused busy (before: waited 120 s and succeeded): bound those callers or keep dispatchLockWaitMs above the largest caller timeout plus a margin, proved in Lean; (2) handle busy in the poller as a short wait, not stopped, and word the chargedGh busy message per call ('nothing was dispatched' only for workflow run); (3) the lock sub-span also counts loadState and the fwcore reserve: split lock acquisition from reserve, mark the holder of the 13.47 s wait INFERRED or identify it; (4) generate the TS bounds (DISPATCH_LIMITS, WATCH_LOCK_WAIT_MS, the 10000 watch gh timeout at watch-collect.ts:741) from Lean instead of regex reads; (5) commit the synthetic hung-gh probe as a script so the 60094 -> 20104 ms pair can be re-run; correct the golden count (6, not 7)."
   }
  ],
  "deadline": {
