@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { onMainSet } from "../../console-api/src/reconcile/git.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
-import { lintClosure, scopeBatch, type ScopeBatch } from "./plan-closure.ts";
+import { gapsOf, lintClosure, scopeBatch, type Gap, type ScopeBatch } from "./plan-closure.ts";
 
 export type { WorkGraph } from "@fw/contracts";
 
@@ -99,7 +99,7 @@ export function mainCommits(cwd: string, ref = "main"): { sha: string; body: str
 }
 
 export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[], onMain?: OnMain,
-  closure?: { tracked: string[]; batch: ScopeBatch }): Promise<number> {
+  closure?: { tracked: string[]; gaps?: Gap[]; batch: ScopeBatch }): Promise<number> {
   if (!args[0]) throw new UsageError("usage: fw plan lint <work-graph.json>");
   const g = JSON.parse(readFileSync(args[0], "utf8")) as WorkGraph;
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
@@ -114,7 +114,7 @@ export async function lintCli(args: string[], cwd: string, core?: CoreCall, comm
     commits: commits ?? mainCommits(cwd) })) as unknown as LintReply;
   const tracked = closure?.tracked ?? execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
   const cs = await lintClosure(g.tasks.map((t) => ({ id: t.id, owner: t.owner, stream: t.stream, writes: t.writes ?? [], done: !!t.evidence || !!t.cut })),
-    tracked, closure?.batch ?? scopeBatch(coreCandidates(root, join(common, ".."))));
+    tracked, closure?.gaps ?? await gapsOf(root), closure?.batch ?? scopeBatch(coreCandidates(root, join(common, ".."))));
   const errs = cs.filter((f) => f.severity === "error").length;
   const all: LintReply = { ...r, ok: r.ok && errs === 0, errors: r.errors + errs, warnings: r.warnings + cs.length - errs, findings: [...r.findings, ...cs] };
   console.log(renderLint(all));

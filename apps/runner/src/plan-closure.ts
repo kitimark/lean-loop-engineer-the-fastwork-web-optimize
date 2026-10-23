@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { LintFinding } from "./plan.ts";
 
-export type Kind = "golden" | "script" | "module" | "workflow" | "other";
+export type Kind = "module" | "workflow" | "other";
+export type Gap = { script: string; path: string };
 export type Fresh = "new" | "existing" | "open";
 export type ClosureTask = { id: string; owner: string; stream: string; writes: string[]; done: boolean };
 export type ScopeReq = { op: "console.landScope"; writes: string[]; names: string[]; allow: string[]; paths: string[]; task: string; stream: string };
@@ -35,21 +39,16 @@ const leanFile = (w: string) => lastSeg(w).endsWith(".lean") || wild(lastSeg(w))
 const ymlFile = (w: string) => lastSeg(w).endsWith(".yml") || lastSeg(w).endsWith(".yaml") || wild(lastSeg(w));
 
 export function kindOf(w: string): Kind {
-  if (w.startsWith("packages/contracts/golden/ci/")) return "other";
-  if (w.startsWith("packages/contracts/golden/")) return "golden";
-  if (w.startsWith("lean/scripts/") && leanFile(w)) return "script";
   if (w.startsWith("lean/Fw/") && leanFile(w)) return "module";
   if (w.startsWith(".github/workflows/") && ymlFile(w)) return "workflow";
   return "other";
 }
 
-const triggerLean = "lean/Fw/Ci/Trigger.lean", triggersGolden = "packages/contracts/golden/ci/triggers.jsonl";
-const goldenCheck = ["lean/scripts/check.sh", triggerLean, triggersGolden];
-const ciTables = [triggerLean, "lean/Fw/Ci/Intent.lean", "lean/Fw/Ci/Overflow.lean", "lean/Fw/Ci/Pool/Caps.lean", triggersGolden,
-  "packages/contracts/golden/ci/intent.jsonl", "packages/contracts/golden/ci/pool-caps.jsonl"];
+const triggerFix = ["lean/Fw/Ci/Trigger.lean", "packages/contracts/golden/ci/triggers.jsonl"];
+const wfTables = [...triggerFix, "lean/Fw/Ci/Intent.lean", "packages/contracts/golden/ci/intent.jsonl", "lean/Fw/Ci/Overflow.lean"];
 
 export function implied(k: Kind): string[] {
-  return k === "golden" || k === "script" ? goldenCheck : k === "module" ? ["lean/Fw.lean"] : k === "workflow" ? ciTables : [];
+  return k === "module" ? ["lean/Fw.lean"] : k === "workflow" ? wfTables : [];
 }
 
 export function freshOf(tracked: string[], w: string): Fresh {
@@ -61,21 +60,48 @@ export function freshOf(tracked: string[], w: string): Fresh {
 
 const needs = (tracked: string[], writes: string[], f: Fresh) =>
   [...new Set(writes.filter((w) => kindOf(w) !== "other" && freshOf(tracked, w) === f).flatMap((w) => implied(kindOf(w))))];
-export const required = (tracked: string[], writes: string[]) => needs(tracked, writes, "new");
-export function mayNeed(tracked: string[], writes: string[]): string[] {
-  const r = required(tracked, writes);
+const names = (writes: string[], p: string) => !writes.some((w) => w.startsWith("!") && inOne(w.slice(1), p)) && writes.some((w) => inOne(w, p));
+export const owned = (writes: string[], gaps: Gap[]) => gaps.filter((g) => names(writes, g.path) || names(writes, g.script));
+export const required = (tracked: string[], writes: string[], gaps: Gap[]) =>
+  [...new Set([...needs(tracked, writes, "new"), ...(owned(writes, gaps).length > 0 ? triggerFix : [])])];
+export function mayNeed(tracked: string[], writes: string[], gaps: Gap[]): string[] {
+  const r = required(tracked, writes, gaps);
   return needs(tracked, writes, "open").filter((p) => !r.includes(p));
 }
 
-const source = (tracked: string[], writes: string[], f: Fresh, p: string) =>
-  writes.find((w) => implied(kindOf(w)).includes(p) && freshOf(tracked, w) === f) ?? "";
+function source(tracked: string[], writes: string[], gaps: Gap[], f: Fresh, p: string): string {
+  const w = writes.find((x) => freshOf(tracked, x) === f && implied(kindOf(x)).includes(p));
+  if (w !== undefined) return w;
+  const g = f === "new" ? owned(writes, gaps)[0] : undefined;
+  return g ? `../${g.path} in ${g.script}` : "";
+}
 
-export function closureFindings(tracked: string[], t: ClosureTask, violations: string[]): LintFinding[] {
+export function closureFindings(tracked: string[], gaps: Gap[], t: ClosureTask, violations: string[]): LintFinding[] {
   if (t.done) return [];
-  const req = required(tracked, t.writes), may = mayNeed(tracked, t.writes);
-  const f = (code: string, severity: string, fr: Fresh) => (p: string) => ({ task: t.id, code, severity, detail: `${p} for ${source(tracked, t.writes, fr, p)}` });
+  const req = required(tracked, t.writes, gaps), may = mayNeed(tracked, t.writes, gaps);
+  const f = (code: string, severity: string, fr: Fresh) => (p: string) => ({ task: t.id, code, severity, detail: `${p} for ${source(tracked, t.writes, gaps, fr, p)}` });
   return [...violations.filter((p) => req.includes(p)).map(f("writesClosure", "error", "new")),
     ...violations.filter((p) => may.includes(p)).map(f("writesClosureOpen", "warn", "open"))];
+}
+
+type CiPaths = {
+  leanScriptPaths: (text: string) => (string | null)[];
+  loadGolden: (root: string) => { table: { workflows: { file: string; inputs: string[] }[] } };
+  setMapFor: (root: string, table: unknown) => unknown;
+  expand: (sets: unknown, inputs: string[]) => string[];
+};
+type ChangedInputs = { matches: (globs: string[], file: string) => boolean };
+
+export async function gapsOf(root: string, code = root): Promise<Gap[]> {
+  const cp = (await import(pathToFileURL(join(code, "scripts/ci-paths.mjs")).href)) as CiPaths;
+  const ci = (await import(pathToFileURL(join(code, ".github/scripts/changed-inputs.mjs")).href)) as ChangedInputs;
+  const { table } = cp.loadGolden(root);
+  const row = table.workflows.find((w) => w.file === "lean.yml");
+  const globs = row ? cp.expand(cp.setMapFor(root, table), row.inputs) : [];
+  const dir = join(root, "lean", "scripts");
+  return readdirSync(dir).filter((x) => x.endsWith(".sh")).sort().flatMap((f) =>
+    cp.leanScriptPaths(readFileSync(join(dir, f), "utf8")).flatMap((p) =>
+      p !== null && !ci.matches(globs, normalize(p)) ? [{ script: `lean/scripts/${f}`, path: normalize(p) }] : []));
 }
 
 export function scopeBatch(bins: string[]): ScopeBatch {
@@ -96,10 +122,10 @@ export function scopeBatch(bins: string[]): ScopeBatch {
   };
 }
 
-export async function lintClosure(tasks: ClosureTask[], tracked: string[], batch: ScopeBatch): Promise<LintFinding[]> {
-  const open = tasks.map((t) => ({ t, paths: [...required(tracked, t.writes), ...mayNeed(tracked, t.writes)] }))
+export async function lintClosure(tasks: ClosureTask[], tracked: string[], gaps: Gap[], batch: ScopeBatch): Promise<LintFinding[]> {
+  const open = tasks.map((t) => ({ t, paths: [...required(tracked, t.writes, gaps), ...mayNeed(tracked, t.writes, gaps)] }))
     .filter((x) => !x.t.done && x.paths.length > 0);
   if (open.length === 0) return [];
   const rs = await batch(open.map(({ t, paths }) => ({ op: "console.landScope", writes: t.writes, names: [t.id, t.owner], allow: [], paths, task: t.id, stream: t.stream })));
-  return open.flatMap(({ t }, i) => closureFindings(tracked, t, rs[i]!.violations));
+  return open.flatMap(({ t }, i) => closureFindings(tracked, gaps, t, rs[i]!.violations));
 }
