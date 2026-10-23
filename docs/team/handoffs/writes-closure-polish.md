@@ -6,7 +6,7 @@
 - Verified: check.sh green (writes-closure golden 21 cases, axioms ok); apps/runner 3019/3019 and tsc ok;
   contracts 11/11; ci-paths 56/56, build-review 15/15; `node scripts/ci-paths.mjs --check` ok; live `fw plan lint`:
   0 errors
-- Open: none in the unit. Follow-up: `normRead` keeps `..`, so a `**` row glob over the prefix (`lean/**`) also
+- Open: none. Follow-up: `normRead` keeps `..`, so a `**` row glob over the prefix (`lean/**`) also
   matches `lean/../x`; no script reads such a path today.
 
 ## What changed

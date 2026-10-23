@@ -843,11 +843,8 @@ export function leanScriptPaths(text) {
   return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
-/** Twin of Lean `normRead`: drops empty and `.` segments and keeps `..`, so `a/../b` is matched as written, not as `b`. */
 export const normRead = (p) => p.split('/').filter((x) => x !== '' && x !== '.').join('/');
 
-/** Twin of Lean `rowGlob`: a lean.yml row glob is, after one optional leading `!`, a non-empty run of ASCII letters,
- *  digits and `._-/*`, the subset on which `matches` and Lean `ghMatches` agree. */
 export const rowGlob = (g) => /^[A-Za-z0-9._\-/*]+$/.test(g.startsWith('!') ? g.slice(1) : g);
 
 export function gapsFrom(scripts, globs) {
