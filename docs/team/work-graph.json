@@ -18032,7 +18032,8 @@
     "research/notes/2026/10-20-morph-idle-none.md",
     "docs/team/handoffs/morph-idle-chromium-rebaseline.md"
    ],
-   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids."
+   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids.",
+   "evidence": "7e2e4d8"
   },
   {
    "devices": [
