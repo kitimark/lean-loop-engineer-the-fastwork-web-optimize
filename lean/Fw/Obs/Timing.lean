@@ -761,7 +761,11 @@ def passSteps : List String :=
 def ciStateSteps : List String :=
   ["ci state", "ci state gh lock", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
 
+def ciStateLoadStep : String := "ci state gh load"
+
 theorem ciStateSteps_nodup : ciStateSteps.Nodup := by decide
+
+theorem ciStateLoadStep_new : ciStateLoadStep ∉ ciStateSteps := by decide
 
 theorem runSteps_nodup : runSteps.Nodup := by decide
 
@@ -796,13 +800,20 @@ def callerTimeoutsMs : List Nat :=
 
 def maxCallTimeoutMs : Nat := callerTimeoutsMs.foldl max 0
 
-/-- Slack a dispatch keeps behind a holder that runs to its timeout: reserve, observe and the hand-over. -/
-def lockMarginMs : Nat := 20000
+def fwcoreCallMs : Nat := 10000
 
-/-- Longest wait of the gh-budget poller for the state lock; past it the tick answers `busy`. -/
+def fwcoreLoadedCallMs : Nat := 60000
+
+def holderCoreCalls : Nat := 2
+
+def lockMarginMs : Nat := holderCoreCalls * fwcoreCallMs
+
+theorem lock_margin_derived : lockMarginMs = 20000 := by decide
+
+theorem loaded_core_margin_too_big : maxCallTimeoutMs + holderCoreCalls * fwcoreLoadedCallMs > dispatchLockWaitMs := by decide
+
 def pollLockWaitMs : Nat := 10000
 
-/-- The poller sleeps this long after a `busy` or an idle tick, then asks again; `busy` never stops it. -/
 def busyRetryS : Nat := 2
 
 /-- Longest list `fw ci state` asks for took this long (MEASURED). -/
@@ -1948,7 +1959,7 @@ def boundsText (_ : Unit := ()) : String :=
   "export const GH_BOUNDS = {\n" ++
   String.join ([("dispatchLockWaitMs", dispatchLockWaitMs), ("dispatchCallTimeoutMs", dispatchCallTimeoutMs),
     ("watchLockWaitMs", watchLockWaitMs), ("watchCallTimeoutMs", watchCallTimeoutMs),
-    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
+    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("landCallTimeoutMs", landCallTimeoutMs), ("fwcoreCallMs", fwcoreCallMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
       fun (n, v) => "  " ++ n ++ ": " ++ toString v ++ ",\n") ++
   "} as const;\n"
 
