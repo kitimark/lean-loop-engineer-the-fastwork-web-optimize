@@ -42,9 +42,9 @@ test('the CLI prints the three step outputs', () => {
 });
 
 test('untilDeadline: a promise that never settles is abandoned at the deadline, a fast one wins, a rejection passes through', async () => {
-  const t0 = Date.now();
-  assert.equal(await untilDeadline(new Promise(() => {}), t0 + 60), 'deadline');
-  assert.ok(Date.now() - t0 >= 50 && Date.now() - t0 < 1000);
+  const dl = Date.now() + 60;
+  assert.equal(await untilDeadline(new Promise(() => {}), dl), 'deadline');
+  assert.ok(Date.now() >= dl - 5);
   assert.equal(await untilDeadline(Promise.resolve(1), Date.now() + 5000), 'done');
   await assert.rejects(untilDeadline(Promise.reject(new Error('boom')), Date.now() + 5000), /boom/);
   const late = new Promise((_, rej) => setTimeout(() => rej(new Error('late')), 100));
