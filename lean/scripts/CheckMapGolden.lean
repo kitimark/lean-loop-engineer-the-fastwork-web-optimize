@@ -27,6 +27,8 @@ def checkCases : List (String × String × Json) := [
   ("ops.checkMap", "unmapped: an unknown extension and an unknown extensionless name", paths ["x.unknownext", "Makefile", "a.mjs"]),
   ("ops.checkMap", "the work graph gets the graph schema check, the findings ledger the preset check, other JSON a parse",
     paths ["docs/team/work-graph.json", "research/findings/ledger.json", "docs/team/incidents/ledger.json"]),
+  ("ops.checkMap", "workflow bodies get the body parse, not node --check; other .claude files keep their kind",
+    paths [".claude/workflows/build-review.js", ".claude/workflows/fable-refusals.js", "a.mjs", ".claude/agents/checker.md"]),
   ("ops.checkMap", "each other input of the preset generator also runs the preset check, once; a look-alike does not",
     paths ["packages/contracts/golden/preset/v2-proved.trajectory.jsonl", "apps/site/src/registry/presets/v2-proved.json",
       "apps/site/src/parts/hero/part.json", "lean/Fw/Preset/Gen.lean", "lean/Fw/Preset/V2Proved.lean", "lean/Fw/Gate/Trajectory.lean",

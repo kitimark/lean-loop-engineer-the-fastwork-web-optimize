@@ -17593,7 +17593,8 @@
     "scripts/checkmap.test.mjs",
     "docs/team/handoffs/checkmap-workflow-scripts.md"
    ],
-   "title": "The pre-commit checkmap runs `node --check` on .claude/workflows/*.js, which are workflow bodies (top-level return and await), not modules: node 24.14 accepts build-review.js and node 24.22 refuses it ('Illegal return statement' at line 83), so the commit verdict depends on which node is first on PATH. Give workflow scripts their own kind in Lean Fw.Ops.CheckMap (classify `.claude/workflows/*.js`), checked by parsing the body as an AsyncFunction after stripping `export const meta = ` (the way scripts/build-review.test.mjs loads it), with goldens; test on both node versions."
+   "title": "The pre-commit checkmap runs `node --check` on .claude/workflows/*.js, which are workflow bodies (top-level return and await), not modules: node 24.14 accepts build-review.js and node 24.22 refuses it ('Illegal return statement' at line 83), so the commit verdict depends on which node is first on PATH. Give workflow scripts their own kind in Lean Fw.Ops.CheckMap (classify `.claude/workflows/*.js`), checked by parsing the body as an AsyncFunction after stripping `export const meta = ` (the way scripts/build-review.test.mjs loads it), with goldens; test on both node versions.",
+   "evidence": "98538f9"
   },
   {
    "devices": [

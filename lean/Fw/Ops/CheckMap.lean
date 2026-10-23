@@ -27,6 +27,7 @@ match wins:
 | 7 | under `scripts/hooks/` and `e = ""` | `shell` | `sh -n` |
 | 8 | `s = docs/team/work-graph.json` | `workGraph` | schema check (`graphCheck`) |
 | 9 | `s = research/findings/ledger.json` | `findingsLedger` | preset `--check` (`presetCheck`) |
+| 9a | under `.claude/workflows/`, `e = js` | `workflow` (a workflow body: top-level `return` and `await`, not a module) | body parsed as an `AsyncFunction` (`workflowParse`) |
 
 | 10 | by extension (`byExt`) | see `byExt` | `checkOf` |
 | 11 | `e = ""`, by basename (`byName`) | `prose` / `text` | exempt |
@@ -43,21 +44,21 @@ open Fw.Ops.PathCheck (segs)
 
 /-- A file kind.
 
-The twenty kinds a tracked file can have.
+The twenty-one kinds a tracked file can have.
 -/
 inductive Kind
   | jsMod | ts | tsDecl | tsx | leanModule | leanScript | lakeConfig | json | jsonl | yaml | shell | python | swift
-  | workGraph | findingsLedger
+  | workGraph | findingsLedger | workflow
   | snapshot | sketch | asset | prose | text
 deriving DecidableEq, Repr
 
 /-- A static check. `exempt`: no check (the kind is not code our tools parse or run).
 
-The thirteen static checks, plus `exempt` for files with none.
+The fourteen static checks, plus `exempt` for files with none.
 -/
 inductive Check
   | lakeBuild | leanElab | nodeCheck | tsStrip | tscProject | jsonParse | jsonlParse | yamlParse | shParse | pyParse
-  | swiftParse | graphCheck | presetCheck | exempt
+  | swiftParse | graphCheck | presetCheck | workflowParse | exempt
 deriving DecidableEq, Repr
 
 /-- The check of a kind.
@@ -68,7 +69,7 @@ def checkOf : Kind → Check
   | .jsMod => .nodeCheck | .ts => .tsStrip | .tsDecl => .tscProject | .tsx => .tscProject | .leanModule => .lakeBuild
   | .leanScript => .leanElab | .lakeConfig => .lakeBuild | .json => .jsonParse | .jsonl => .jsonlParse
   | .yaml => .yamlParse | .shell => .shParse | .python => .pyParse | .swift => .swiftParse
-  | .workGraph => .graphCheck | .findingsLedger => .presetCheck
+  | .workGraph => .graphCheck | .findingsLedger => .presetCheck | .workflow => .workflowParse
   | .snapshot => .exempt | .sketch => .exempt | .asset => .exempt | .prose => .exempt | .text => .exempt
 
 /-- The kinds without a static check. -/
@@ -126,6 +127,7 @@ def classifyKey (s : List String) (e : String) : Option Kind :=
   else if s.take 2 == ["scripts", "hooks"] && e == "" then some .shell
   else if s == ["docs", "team", "work-graph.json"] then some .workGraph
   else if s == ["research", "findings", "ledger.json"] then some .findingsLedger
+  else if s.take 2 == [".claude", "workflows"] && e == "js" then some .workflow
   else match byExt e with
     | some k => some k
     | none => if e == "" then byName (s.getLast?.getD "") else none
@@ -176,7 +178,7 @@ deriving DecidableEq, Repr
 /-- The checks that run, in plan order (`lakeBuild` before `leanElab`, which elaborates against the built modules). -/
 def order : List Check :=
   [.lakeBuild, .leanElab, .nodeCheck, .tsStrip, .tscProject, .jsonParse, .jsonlParse, .yamlParse, .shParse, .pyParse,
-    .swiftParse, .graphCheck, .presetCheck]
+    .swiftParse, .graphCheck, .presetCheck, .workflowParse]
 
 /-- A path relative to `lean/` (its segments without the first, joined by `/`). -/
 def rel (p : String) : String := "/".intercalate ((segs p).drop 1)
@@ -236,6 +238,7 @@ def cmdsFor (c : Check) (fs : List String) : List Cmd :=
   | .pyParse => [⟨c, ".", ["python3", "-c", pyProg] ++ fs, fs⟩]
   | .graphCheck => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "graph"] ++ fs, fs⟩]
   | .presetCheck => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "preset"], fs⟩]
+  | .workflowParse => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "workflow"] ++ fs, fs⟩]
   | .exempt => []
 
 /-- The files of a check among the paths: those whose check it is, except that the preset check takes every
@@ -326,6 +329,8 @@ theorem precommit_covers (s : List String) (e : String) (hs : s ≠ []) (he : e 
   · exact ⟨_, rfl, by simp [checkOf]⟩
   split
   · split <;> exact ⟨_, rfl, by simp [checkOf]⟩
+  split
+  · exact ⟨_, rfl, by simp [checkOf]⟩
   split
   · exact ⟨_, rfl, by simp [checkOf]⟩
   split
@@ -692,6 +697,22 @@ theorem incidentLedger_plain :
     (classifyKey ["docs", "team", "incidents", "ledger.json"] "json").map checkOf = some .jsonParse := by
   decide +kernel
 
+/-- A workflow script is routed to the body parse, not to `node --check` (which reads it as a module and refuses its
+top-level `return` on node 24.22).
+
+A commit that stages a `.claude/workflows/*.js` file runs `checkmap file workflow` on it.
+-/
+theorem workflow_routed (n : String) :
+    (classifyKey [".claude", "workflows", n] "js").map checkOf = some .workflowParse := by
+  simp [classifyKey, isSketch, checkOf]
+
+/-- The workflow check is `checkmap file workflow` over the files it was given.
+
+Its one command parses every given workflow body.
+-/
+theorem workflowParse_cmd (fs : List String) :
+    cmdsFor .workflowParse fs = [⟨.workflowParse, ".", ["node", "scripts/checkmap.mjs", "file", "workflow"] ++ fs, fs⟩] := rfl
+
 /-- The preset check is `checkmap file preset` over the files it was given.
 
 Its one command is the runner's preset mode (which judges the index tree when staged) over exactly the given files.
@@ -794,6 +815,10 @@ theorem runOk_iff (strict : Bool) (u : Nat) (codes : List Nat) :
 #guard classify "docs/team/work-graph.json" == some .workGraph && checkOfPath "docs/team/work-graph.json" == some .graphCheck
 #guard classify "research/findings/ledger.json" == some .findingsLedger && checkOfPath "research/findings/ledger.json" == some .presetCheck
 #guard classify "docs/team/incidents/ledger.json" == some .json
+#guard classify ".claude/workflows/build-review.js" == some .workflow && checkOfPath ".claude/workflows/build-review.js" == some .workflowParse
+#guard classify ".claude/agents/x.md" == some .prose && classify ".claude/workflows/x.json" == some .json
+#guard (plan [".claude/workflows/build-review.js", "a.mjs"]).map (·.argv) ==
+  [["node", "--check", "a.mjs"], ["node", "scripts/checkmap.mjs", "file", "workflow", ".claude/workflows/build-review.js"]]
 #guard (plan ["docs/team/work-graph.json", "a.json"]).map (·.argv) ==
   [["node", "scripts/checkmap.mjs", "file", "json", "a.json"], ["node", "scripts/checkmap.mjs", "file", "graph", "docs/team/work-graph.json"]]
 #guard (plan ["research/findings/ledger.json"]).map (·.argv) == [["node", "scripts/checkmap.mjs", "file", "preset"]]
@@ -829,7 +854,7 @@ open Lean Fw.Ops.CheckMap Fw.Wire.Ops
 def kindName : Kind → String
   | .jsMod => "jsMod" | .ts => "ts" | .tsDecl => "tsDecl" | .tsx => "tsx" | .leanModule => "leanModule" | .leanScript => "leanScript"
   | .lakeConfig => "lakeConfig" | .json => "json" | .jsonl => "jsonl" | .yaml => "yaml" | .shell => "shell"
-  | .workGraph => "workGraph" | .findingsLedger => "findingsLedger"
+  | .workGraph => "workGraph" | .findingsLedger => "findingsLedger" | .workflow => "workflow"
   | .python => "python" | .swift => "swift" | .snapshot => "snapshot" | .sketch => "sketch" | .asset => "asset"
   | .prose => "prose" | .text => "text"
 
@@ -837,7 +862,7 @@ def kindName : Kind → String
 def checkName : Check → String
   | .lakeBuild => "lakeBuild" | .leanElab => "leanElab" | .nodeCheck => "nodeCheck" | .tsStrip => "tsStrip"
   | .tscProject => "tscProject" | .jsonParse => "jsonParse" | .jsonlParse => "jsonlParse" | .yamlParse => "yamlParse"
-  | .shParse => "shParse" | .pyParse => "pyParse" | .swiftParse => "swiftParse" | .graphCheck => "graphCheck" | .presetCheck => "presetCheck" | .exempt => "exempt"
+  | .shParse => "shParse" | .pyParse => "pyParse" | .swiftParse => "swiftParse" | .graphCheck => "graphCheck" | .presetCheck => "presetCheck" | .workflowParse => "workflowParse" | .exempt => "exempt"
 
 /-- A string list as JSON. -/
 def strs (xs : List String) : Json := .arr (xs.toArray.map .str)
