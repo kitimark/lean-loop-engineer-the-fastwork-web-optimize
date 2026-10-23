@@ -33,14 +33,37 @@ and the layers that overlap them go.
 - Premises (hypotheses): the observer callback runs before the frame's style pass; `getAnimations()` forces the pause style so the kept time is the
   original's held time; assigning `currentTime` to the returned CSS animation sets its hold before the first frame.
 
+## WebKit morph-zone cost (MEASURED, runs 39903977820 base, 39903974246 flag; webkit-sim rewrite lag=true cost=on, two passes)
+
+Morph zone = idle frames, then open, rest, close after a synthetic wheel push. Paint / Composite in microseconds per frame, layers from
+LayerTree reads in the zone (pass 0 / pass 1).
+
+| zone | Paint base | Paint flag | Composite base | Composite flag | layers base | layers flag |
+|---|---|---|---|---|---|---|
+| idle | 975 / 1043 | 1169 / 1228 | 15875 / 48705 | 55593 / 49749 | 128 / 128 | 112 / 112 |
+| open | 4110 / 11437 | 4792 / 17211 | 110861 / 343364 | 238475 / 218334 | 209 / 209 | 205 / 205 |
+| close | 2365 / 1967 | 4430 / 4945 | 117733 / 160058 | 289735 / 510848 | 209 / 209 | 205 / 205 |
+| all frames | 1343 / 2932 | 2347 / 2769 | 38125 / 91019 | 120950 / 111708 | | |
+
+- Layers: lower in every zone (idle 128 -> 112, -12.5 %, mean composited area 9.96 -> 8.9 Mpx; open and close 209 -> 205). Same as the
+  census. Layer count is deterministic in both passes.
+- Paint and Composite per frame: no win shown. The flag arm reads higher, but the runner's frame rate differed (frames in the zone: base 78 and
+  36, flag 29 and 28) and one arm varies up to 3x between its own two passes (base idle composite 15875 vs 48705), so the sign of the delta is
+  not resolvable from these runs. Verdict: layers down, per-frame Paint and Composite unresolved (a no-win on cost, not a loss).
+- Why (INFERRED): the Lean model `tracks_layers_drop` counts layers only; it proves 5 layers -> 1 with the tracks not animated and says nothing
+  about per-frame cost. WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
+  not the 16 layers freed at rest.
+- Run 39903974246 shows failed: `error: forced exit: ... PipeWrap 2, Timeout 2` after `wrote r1-lag.json`; the artifact is complete.
+- Reduction: scratch script over `webkit-sim-r1/r1-lag.json` (costs are [zone, paintUs, compUs]; snaps are [zone, layers]).
+
 ## Costs and limits
 
 - Layout 318 -> 319 and style recalc 1832 -> 1833 over the run (MEASURED, +1 each; INFERRED: the forced style flush of `getAnimations()` at a
   pause or a return).
 - Touch and WebKit attribution stay INFERRED (WebKit census is one session, layerCount spread 4-7 between passes; backing memory at y=3000
-  and y=5231 is deterministic). WebKit cost counters (`cost=on`, `lag=true`) were not collected: `fw run` sends no such input.
-  Dispatch for the lead: `gh workflow run webkit-sim.yml --ref ci/morph-idle-none -f target=rewrite -f lag=true -f cost=on -f fw=morph.columns:idle-none`
-  and the same without `-f fw=...`.
+  and y=5231 is deterministic).
+- Base moved? counts-lane-fonts changed the Chromium image after these runs. No Chromium rerun was made; the 28107 base and the
+  base-vs-flag delta come from one image (both arms at 540130e9f), so the delta stays valid; whether the base now differs is not measured.
 - TS stand-in: the DOM glue (`IdleHold`, keep and restore of `currentTime`) is not checked against a golden; `idleRemoved` and `idleStep` equal `morph-idle-none.jsonl` (`idle.golden.test.ts`).
 
 ## Runs (sha 540130e9f on ci/morph-idle-none)
@@ -49,6 +72,7 @@ and the layers that overlap them go.
 |---|---|---|
 | chromium-counts swipe-v1 x3 | 39897804079 | 39897818039 |
 | webkit-sim | 39897814980 | 39897807511 |
+| webkit-sim cost=on lag=true | 39903977820 | 39903974246 |
 | breakpoint-gate both engines | | 39897800920 (merge job re-run once: ECONNRESET in download-artifact; all 7 shards succeeded) |
 
 Numbers: `results/morph-idle-none/report.json`.

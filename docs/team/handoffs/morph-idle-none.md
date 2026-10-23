@@ -1,6 +1,7 @@
-CHECKPOINT round 2: merged main; waiting on webkit-sim cost runs: flag 39903974246 (running, ci/morph-idle-none), no-flag 39903977820 (success). Next: download both, reduce Paint/Composite/census, write note+report.json+ledger, runs[] with branch, dry land.
-Branch: worktree-wf_38f9845b-370-1 (CI branch ci/morph-idle-none, pushed at 540130e9f). Worktree: .claude/worktrees/wf_38f9845b-370-1
-Last commit: see git log (after 540130e9f: footprint rows, results, note, ledger).
+Branch: worktree-wf_38f9845b-370-1 (CI ci/morph-idle-none @540130e9f). Worktree: .claude/worktrees/wf_38f9845b-370-1
+Last commit: see git log. Round 2 done: main merged; WebKit cost runs read.
+CI runs (branch ci/morph-idle-none): gate 39897800920; chromium-counts base 39897804079, flag 39897818039; webkit-sim base 39897814980, flag 39897807511; cost: base 39903977820 success, flag 39903974246 (marked failed by forced-exit after data upload; data complete). All complete.
+Verified: layers lower in WebKit morph zones (idle 128->112); Paint/Composite per frame unresolved (noise 3x). Details: note 10-20-morph-idle-none.md, results/morph-idle-none/report.json webkitSim.morphCost.
 CI runs (ci/morph-idle-none @540130e9f; all complete, success): gate 39897800920 (merge job re-run once after ECONNRESET); chromium-counts swipe-v1 x3 base 39897804079, flag 39897818039; webkit-sim base 39897814980, flag 39897807511. Dispatches used 5 of 6.
 Verified: Lean MorphIdleNone (varRun_clock, varRun_present, restart_shifts, idleNone_visSame, tracks_layers_drop); site tests 123 files pass; gate passes both engines; Chromium layer-frames 28107 -> 24667, drawing 24904 -> 21464, layout +1, recalc +1; WebKit census layerCount and backing memory lower at y>=3000.
 Open: WebKit cost counters (needs cost=on lag=true, no fw run input): gh workflow run webkit-sim.yml --ref ci/morph-idle-none -f target=rewrite -f lag=true -f cost=on -f fw=morph.columns:idle-none (and base without fw). Final check.sh and dry land: see the report.
