@@ -382,7 +382,7 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, 
   }
 
   const prefixes = [roots.lake, roots.repo, roots.scratch, roots.devices, roots.utmp ?? ""].filter(Boolean);
-  if (on("landed") || on("idle")) req.cwds = io.cwds();
+  req.cwds = io.cwds();
   const opens = io.opens();
   req.opens = opens === null ? null : [...new Set(opens.filter((o) => prefixes.some((r) => o === r || o.startsWith(`${r}/`))))];
   req.procs = io.procs();

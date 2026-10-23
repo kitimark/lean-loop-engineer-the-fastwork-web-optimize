@@ -180,10 +180,13 @@ describe("fw disk-gc on a temp tree", () => {
     file(join(x.wt, "wf_rem-ddd-1", "r.txt"), "r", false);
     g(join(x.wt, "wf_rem-ddd-1"), "add", "-A"); g(join(x.wt, "wf_rem-ddd-1"), "commit", "-q", "-m", "r");
     g(x.repo, "merge", "-q", "--no-ff", "-m", "land task-r abc1234", "rem-b");
-    const paths = (io = x.io) => diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2,3"]), call, io, roots: x.roots, uid })
+    const paths = (io = x.io) => diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2"]), call, io, roots: x.roots, uid })
       .reply.items.map((i) => i.path.slice(x.wt.length + 1)).sort();
     expect(paths()).toEqual(["w1"]);
-    writeFileSync(join(x.croot, "events.jsonl"), JSON.stringify({ seq: 1, type: "agent.label", agent: "a1", name: "task-r", key: "wfid-label:wf_rem-ddd:a1:t" }) + "\n");
+    writeFileSync(join(x.croot, "events.jsonl"), [
+      { seq: 1, type: "agent.label", agent: "a1", name: "task-r", key: "wfid-label:wf_rem-ddd:a1:t" },
+      { seq: 2, type: "agent.stop", agent: "a1", key: "wfr-end:wf_rem-ddd" },
+    ].map((e) => JSON.stringify(e)).join("\n") + "\n");
     expect(paths()).toEqual(["w1", "wf_rem-ddd-1"]);
     expect(paths({ ...x.io, cwds: () => [join(x.wt, "wf_rem-ddd-1", "apps")] })).toEqual(["w1"]);
     expect(paths({ ...x.io, cwds: () => ["/"] })).toEqual(["w1", "wf_rem-ddd-1"]);
