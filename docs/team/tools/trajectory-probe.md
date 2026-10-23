@@ -80,13 +80,28 @@ runs the probe with the inputs of one message line:
    the rewrite becomes `fail:coverage`, `skip:firstLate` or `skip:firstOpen` (`coverVerdict`, `firstVerdict_empty`); at
    5 and 5 passes, `k` 0-1 is late, 2-3 undecided, 4-5 missing (`cover_five`). The verdict never flips between
    `fail:coverage` and `skip:firstLate` when one original pass is added, hit or not (`firstCover_extra`), or one
-   original miss becomes a hit (`firstCover_step`); concrete check `first_extra_pass`. A candidate's `skip:firstOpen`
-   where the faithful arm's is not is `undecided` (`rel`), and the lane word is RED, UNDECIDED or CLEAN (`laneOf`). Kept
+   original miss becomes a hit (`firstCover_step`); concrete check `first_extra_pass`. A unit is `undecided` (`rel`) when
+   the candidate's open@1 is `skip:firstOpen`, or when the faithful arm's is `skip:firstOpen` and the candidate fails
+   (`fail:coverage` or a content failure: the faithful arm was not measured there, as in `unmeasured`). The lane word is
+   RED, UNDECIDED or CLEAN (`laneOf`; `summary-<engine>.md` prints the same word and an `undecided` row). The lane never
+   moves between RED and CLEAN when the original arm gets one extra pass, hit or miss (`laneOf_extra`): each unit's arm is
+   either the `firstCover` fallback or a verdict the extra pass leaves unchanged (`Arm`), and every unit with `k <= no`
+   steps to `(no + 1, k)` or `(no + 1, k + 1)`. Content verdicts that move with the extra pass are outside it: they compare
+   values. Check `openLane`: original 5 passes 3 hits, candidate 5 passes, faithful 4 passes, both arms empty at open@1,
+   is UNDECIDED before and after one more original hit (the old `rel` gave CLEAN, then RED). Timing link:
+   `lateRate_delays` proves that when pass `i` of the original is `d_i` vsyncs late, `firstCover`'s late rate
+   `(no - k) / no` is the share of passes with `d_i >= 2` (`sampled_iff`). What stays a model assumption: the rewrite's
+   passes are independent and as late as the original's (same delay distribution), so `missChance` is a probability only
+   under that assumption; `phase_covers` (some frame of the first 3 lands in bucket 1 at every vsync phase) bounds `d` but
+   does not give its distribution. Kept
    as before: a sampled open@1 (`firstVerdict_rew_sampled`), a content failure (`firstVerdict_content`), any other bucket
    or phase (`firstVerdict_not_first`, `close_empty`). `verdictLines` prints a `FIRSTFRAME` line with the counts.
    Offline re-reduction (dev check): run 39926829451 stays CLEAN, its 640
    candidate open@1 goes from `skip:origEmpty` to `skip:firstLate`, its 641 faithful open@1 from `fail:coverage` to
-   `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). Limit: the cadence is Chromium's;
+   `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). Re-reduced with the
+   `laneOf_extra` rule (task trajectory-lane-noflip, dev check): run 39926829451 CLEAN (new 0, undecided 0, cleared 1; its
+   open@1 `skip:first` units are 42 `skip:firstLate` vs pass and 42 pass vs `skip:firstLate`, no `skip:firstOpen`), run
+   39557718020 CLEAN (new 0, undecided 0). Limit: the cadence is Chromium's;
    WebKit's cadence is a follow-up.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline

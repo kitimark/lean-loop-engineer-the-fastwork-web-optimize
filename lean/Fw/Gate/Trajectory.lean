@@ -2542,7 +2542,7 @@ theorem laneFails_none : laneFails [.pass, .skip .noSample] = false := by decide
 `new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared`
 fails only there; `ok` fails in neither. `unmeasured`: the candidate fails on content (a difference) where the faithful arm
 fails on coverage, so the faithful arm was not measured there and the unit has no verdict either way. `undecided`: the
-candidate's open@1 is `skip firstOpen` where the faithful arm's is not. -/
+candidate's open@1 is `skip firstOpen`, or the faithful arm's is `skip firstOpen` where the candidate fails. -/
 inductive Rel where
   | ok
   | both
@@ -2559,9 +2559,9 @@ def isCoverage : Verdict → Bool
 def rel (cand base : Verdict) : Rel :=
   match isFail cand, isFail base with
   | true, true => if isCoverage base && !isCoverage cand then .unmeasured else .both
-  | true, false => .new
+  | true, false => if base == .skip .firstOpen then .undecided else .new
   | false, true => .cleared
-  | false, false => if cand == .skip .firstOpen && base != .skip .firstOpen then .undecided else .ok
+  | false, false => if cand == .skip .firstOpen then .undecided else .ok
 
 def laneRed (rs : List Rel) : Bool := rs.any (· == .new)
 
@@ -2597,11 +2597,15 @@ theorem rel_ok : rel .pass .pass = .ok ∧ rel (.skip .noSample) .pass = .ok := 
 theorem rel_undecided : rel (.skip .firstOpen) .pass = .undecided ∧ rel (.skip .firstOpen) (.skip .noSample) = .undecided :=
   by decide
 
-theorem rel_undecided_both : rel (.skip .firstOpen) (.skip .firstOpen) = .ok := by decide
+theorem rel_undecided_both : rel (.skip .firstOpen) (.skip .firstOpen) = .undecided := by decide
 
-theorem rel_new_iff (c b : Verdict) : rel c b = .new ↔ isFail c = true ∧ isFail b = false := by
+theorem rel_undecided_base : rel (.fail .coverage) (.skip .firstOpen) = .undecided ∧
+    rel (.fail .apart) (.skip .firstOpen) = .undecided := by decide
+
+theorem rel_new_iff (c b : Verdict) :
+    rel c b = .new ↔ isFail c = true ∧ isFail b = false ∧ b ≠ .skip .firstOpen := by
   unfold rel
-  cases hc : isFail c <;> cases hb : isFail b <;> simp <;> split <;> simp
+  cases hc : isFail c <;> cases hb : isFail b <;> simp <;> split <;> simp_all
 
 /-- The candidate is red exactly when some unit is new. -/
 theorem laneRed_iff (rs : List Rel) : laneRed rs = true ↔ Rel.new ∈ rs := by
@@ -4414,6 +4418,28 @@ def firstCover (no k nw : Nat) : Cover :=
 #guard firstCover 0 0 0 == .late
 #guard firstCover 1 1 1 == .undecided
 
+theorem late_count (ds : List Nat) :
+    ds.length - ds.countP (sampledFrom cadence) = ds.countP fun d => decide (slots cadence ≤ d) := by
+  have h := List.length_eq_countP_add_countP (sampledFrom cadence) (l := ds)
+  have e : ds.countP (fun d => decide ¬sampledFrom cadence d = true) =
+      ds.countP fun d => decide (slots cadence ≤ d) := by
+    apply List.countP_congr
+    intro d _
+    by_cases hs : sampledFrom cadence d = true
+    · have := (sampled_iff d).1 hs
+      simp [hs]
+      omega
+    · have : ¬ d < slots cadence := fun h => hs ((sampled_iff d).2 h)
+      simp [hs]
+      omega
+  omega
+
+theorem lateRate_delays (ds : List Nat) :
+    lateRate ds.length (ds.countP (sampledFrom cadence)) =
+      ((ds.countP fun d => decide (slots cadence ≤ d) : Nat) : Rat) / ds.length := by
+  unfold lateRate
+  rw [late_count]
+
 theorem firstCover_missing {no k nw : Nat} (h : firstCover no k nw = .missing) :
     1 ≤ k ∧ missChance no (k - 1) nw ≤ alpha := by
   unfold firstCover at h
@@ -4603,7 +4629,7 @@ theorem byMFirst_mem (ph : Phase) (p : Nat) (k : Kind) (d : List String → Opti
   exact ⟨y, hy, rfl⟩
 
 theorem rel_cover_new (c : Cover) (base : Verdict) :
-    rel (coverVerdict c) base = .new ↔ c = .missing ∧ isFail base = false := by
+    rel (coverVerdict c) base = .new ↔ c = .missing ∧ isFail base = false ∧ base ≠ .skip .firstOpen := by
   rw [rel_new_iff, coverVerdict_fail]
 
 theorem rel_first_skip_not_new (base : Verdict) :
@@ -4631,6 +4657,115 @@ theorem laneOf_undecided (rs : List Rel) (h : laneRed rs = false) (hu : rs.conta
 
 theorem laneOf_clean (rs : List Rel) (h : laneRed rs = false) (hu : rs.contains .undecided = false) :
     laneOf rs = .clean := by unfold laneOf; rw [h, hu]; rfl
+
+theorem laneOf_red_iff (rs : List Rel) : laneOf rs = .red ↔ Rel.new ∈ rs := by
+  rw [← laneRed_iff]
+  unfold laneOf
+  cases laneRed rs <;> simp <;> split <;> simp
+
+theorem laneOf_clean_iff (rs : List Rel) : laneOf rs = .clean ↔ Rel.new ∉ rs ∧ Rel.undecided ∉ rs := by
+  rw [← laneRed_iff]
+  unfold laneOf
+  cases h : laneRed rs <;> simp
+
+def jump (c c' : Cover) : Bool := (c == .missing && c' == .late) || (c == .late && c' == .missing)
+
+theorem jump_extra (no k nw : Nat) (hk : k ≤ no) (hit : Bool) :
+    jump (firstCover no k nw) (firstCover (no + 1) (k + if hit then 1 else 0) nw) = false := by
+  have h := firstCover_extra no k (k + if hit then 1 else 0) nw hk (by cases hit <;> simp)
+  revert h
+  cases firstCover no k nw <;> cases firstCover (no + 1) (k + if hit then 1 else 0) nw <;> simp [jump]
+
+def unitFlip (r r' : Rel) : Bool :=
+  (r == .new && r' != .new && r' != .undecided) || (r != .new && r != .undecided && r' == .new)
+
+def coverAll : List Cover := [.missing, .late, .undecided]
+
+theorem mem_covers (c : Cover) : c ∈ coverAll := by cases c <;> decide
+
+def verdicts : List Verdict :=
+  .pass :: ([.count, .missing, .type, .shape, .differs, .apart, .coverage].map .fail) ++
+    [.noSample, .firstLate, .firstOpen].map .skip
+
+theorem mem_verdicts (v : Verdict) : v ∈ verdicts := by
+  cases v with
+  | pass => decide
+  | fail w => cases w <;> decide
+  | skip s => cases s <;> decide
+
+theorem flip_both : (coverAll.all fun c => coverAll.all fun c' => coverAll.all fun d => coverAll.all fun d' =>
+    jump c c' || jump d d' ||
+      !unitFlip (rel (coverVerdict c) (coverVerdict d)) (rel (coverVerdict c') (coverVerdict d'))) = true := by decide
+
+theorem flip_base : (verdicts.all fun v => coverAll.all fun d => coverAll.all fun d' =>
+    jump d d' || !unitFlip (rel v (coverVerdict d)) (rel v (coverVerdict d'))) = true := by decide
+
+theorem flip_cand : (verdicts.all fun v => coverAll.all fun c => coverAll.all fun c' =>
+    jump c c' || !unitFlip (rel (coverVerdict c) v) (rel (coverVerdict c') v)) = true := by decide
+
+inductive Arm where
+  | fixed (v : Verdict)
+  | cover (nw : Nat)
+  deriving DecidableEq, Repr
+
+def Arm.at : Arm → Nat → Nat → Verdict
+  | .fixed v, _, _ => v
+  | .cover nw, no, k => coverVerdict (firstCover no k nw)
+
+structure FirstUnit where
+  cand : Arm
+  base : Arm
+  no : Nat
+  k : Nat
+  deriving DecidableEq, Repr
+
+def FirstUnit.relOf (u : FirstUnit) : Rel := rel (u.cand.at u.no u.k) (u.base.at u.no u.k)
+
+def FirstUnit.extra (u : FirstUnit) (hit : Bool) : FirstUnit := { u with no := u.no + 1, k := u.k + if hit then 1 else 0 }
+
+theorem unit_extra (u : FirstUnit) (hk : u.k ≤ u.no) (hit : Bool) : unitFlip u.relOf (u.extra hit).relOf = false := by
+  have all3 := fun {c c' d d' : Cover} => (List.all_eq_true.1 ((List.all_eq_true.1 ((List.all_eq_true.1
+    ((List.all_eq_true.1 flip_both) c (mem_covers c))) c' (mem_covers c'))) d (mem_covers d))) d' (mem_covers d')
+  obtain ⟨cand, base, no, k⟩ := u
+  simp only [FirstUnit.relOf, FirstUnit.extra] at hk ⊢
+  cases cand with
+  | fixed v =>
+    cases base with
+    | fixed w => simp [Arm.at, unitFlip]; cases rel v w <;> simp
+    | cover nw =>
+      have := (List.all_eq_true.1 ((List.all_eq_true.1 ((List.all_eq_true.1 flip_base) v (mem_verdicts v)))
+        _ (mem_covers (firstCover no k nw)))) _ (mem_covers (firstCover (no + 1) (k + if hit then 1 else 0) nw))
+      simpa [Arm.at, jump_extra no k nw hk hit] using this
+  | cover nc =>
+    cases base with
+    | fixed w =>
+      have := (List.all_eq_true.1 ((List.all_eq_true.1 ((List.all_eq_true.1 flip_cand) w (mem_verdicts w)))
+        _ (mem_covers (firstCover no k nc)))) _ (mem_covers (firstCover (no + 1) (k + if hit then 1 else 0) nc))
+      simpa [Arm.at, jump_extra no k nc hk hit] using this
+    | cover nw =>
+      have := all3 (c := firstCover no k nc) (c' := firstCover (no + 1) (k + if hit then 1 else 0) nc)
+        (d := firstCover no k nw) (d' := firstCover (no + 1) (k + if hit then 1 else 0) nw)
+      simpa [Arm.at, jump_extra no k nc hk hit, jump_extra no k nw hk hit] using this
+
+theorem laneOf_extra (us : List (FirstUnit × Bool)) (hk : ∀ x ∈ us, x.1.k ≤ x.1.no) :
+    ¬ (laneOf (us.map (·.1.relOf)) = .red ∧ laneOf (us.map fun x => (x.1.extra x.2).relOf) = .clean) ∧
+      ¬ (laneOf (us.map (·.1.relOf)) = .clean ∧ laneOf (us.map fun x => (x.1.extra x.2).relOf) = .red) := by
+  rw [laneOf_red_iff, laneOf_clean_iff, laneOf_clean_iff, laneOf_red_iff]
+  refine ⟨fun ⟨hr, hn, hu⟩ => ?_, fun ⟨⟨hn, hu⟩, hr⟩ => ?_⟩
+  · obtain ⟨x, hx, e⟩ := List.mem_map.1 hr
+    have h := unit_extra x.1 (hk x hx) x.2
+    have a : (x.1.extra x.2).relOf ≠ .new := fun e' => hn (List.mem_map.2 ⟨x, hx, e'⟩)
+    have b : (x.1.extra x.2).relOf ≠ .undecided := fun e' => hu (List.mem_map.2 ⟨x, hx, e'⟩)
+    rw [e] at h
+    revert a b h
+    cases (x.1.extra x.2).relOf <;> simp [unitFlip]
+  · obtain ⟨x, hx, e⟩ := List.mem_map.1 hr
+    have h := unit_extra x.1 (hk x hx) x.2
+    have a : x.1.relOf ≠ .new := fun e' => hn (List.mem_map.2 ⟨x, hx, e'⟩)
+    have b : x.1.relOf ≠ .undecided := fun e' => hu (List.mem_map.2 ⟨x, hx, e'⟩)
+    rw [e] at h
+    revert a b h
+    cases x.1.relOf <;> simp [unitFlip]
 
 def rampPass (q : Nat) (hit : Bool) : List Samp :=
   ((List.range 11).filter fun i => hit || i != 1).map fun i =>
@@ -4665,6 +4800,20 @@ theorem second_empty :
 theorem close_empty :
     (firstAt 2 ((fiveWith 0).map ({ · with ph := 2 })) ((fiveWith 0).map ({ · with ph := 2 }))).lookup 1 =
       some (.fail .coverage) := by decide +kernel
+
+def passesWith (n k : Nat) : List Samp := (List.range n).flatMap fun q => rampPass q (decide (q < k))
+
+def openAt (o w : List Samp) : Verdict := ((byMFirst .push 0 .geometry atRest none false o w).lookup 1).getD .pass
+
+def openLane (o cand base : List Samp) : Lane := laneOf [rel (openAt o cand) (openAt o base)]
+
+#guard openAt (passesWith 5 3) (passesWith 5 0) == .skip .firstOpen
+#guard openAt (passesWith 5 3) (passesWith 4 0) == .skip .firstOpen
+#guard openAt (passesWith 5 3 ++ rampPass 5 true) (passesWith 5 0) == .fail .coverage
+#guard openAt (passesWith 5 3 ++ rampPass 5 true) (passesWith 4 0) == .skip .firstOpen
+#guard openLane (passesWith 5 3) (passesWith 5 0) (passesWith 4 0) == .undecided
+#guard openLane (passesWith 5 3 ++ rampPass 5 true) (passesWith 5 0) (passesWith 4 0) == .undecided
+#guard openLane (passesWith 5 3 ++ rampPass 5 false) (passesWith 5 0) (passesWith 4 0) == .undecided
 
 end FirstFrame
 
@@ -4780,6 +4929,7 @@ inductive Case where
   | first (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
   | cover
   | lane (name : String) (rs : List Rel)
+  | laneStep (name : String) (o o' cand base : List Samp)
 
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -4872,6 +5022,8 @@ def casesRest : List Case := [
   .versus "first late" (.skip .firstLate) .pass, .versus "first open" (.skip .firstOpen) .pass,
   .versus "first open both" (.skip .firstOpen) (.skip .firstOpen), .versus "first open late" (.skip .firstOpen) (.skip .firstLate),
   .versus "first open cleared" (.skip .firstOpen) (.fail .coverage), .versus "first late new" (.fail .coverage) (.skip .firstLate),
+  .versus "first open base coverage" (.fail .coverage) (.skip .firstOpen),
+  .versus "first open base content" (.fail .apart) (.skip .firstOpen),
   .armOf "rewrite ok" ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩,
   .armOf "flags off" ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩,
   .armOf "client render" ⟨.rewrite, some "ab12", some "ab12", some "client-render"⟩,
@@ -5270,7 +5422,13 @@ def casesFirst : List Case :=
     earn .hold 1 "hold, neither arm" (inPh 1 (fiveWith 0)) (inPh 1 (fiveWith 0)),
     .first "nav background, neither arm" .push 0 .colour "nav" "background-color" 390 (fiveWith 0) (fiveWith 0),
     .cover, .lane "clean" [.ok, .cleared, .both], .lane "undecided" [.ok, .undecided], .lane "red" [.undecided, .new],
-    .lane "empty" []]
+    .lane "empty" [],
+    .laneStep "original 5 passes 3 hits, faithful 4 passes, one more hit" (passesWith 5 3) (passesWith 5 3 ++ rampPass 5 true)
+      (passesWith 5 0) (passesWith 4 0),
+    .laneStep "original 5 passes 3 hits, faithful 4 passes, one more miss" (passesWith 5 3)
+      (passesWith 5 3 ++ rampPass 5 false) (passesWith 5 0) (passesWith 4 0),
+    .laneStep "original 4 of 5, faithful sampled, one more hit" (passesWith 5 4) (passesWith 5 4 ++ rampPass 5 true)
+      (passesWith 5 0) (passesWith 5 5)]
 
 def cases : List Case :=
   casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst
@@ -5409,6 +5567,12 @@ def Case.line : Case → Json
   | .lane n rs =>
     Json.mkObj [("op", "lane"), ("name", n), ("rels", Json.arr (rs.map fun r => Json.str r.name).toArray),
       ("lane", Json.str (laneOf rs).name)]
+  | .laneStep n o o' c b =>
+    let segs := fun (l : List Samp) => Json.arr (l.map Samp.json).toArray
+    Json.mkObj [("op", "laneStep"), ("name", n), ("oSeg", segs o), ("oSeg2", segs o'), ("cand", segs c), ("base", segs b),
+      ("open", Json.arr #[Json.str (openAt o c).name, Json.str (openAt o b).name, Json.str (openAt o' c).name,
+        Json.str (openAt o' b).name]),
+      ("lanes", Json.arr #[Json.str (openLane o c b).name, Json.str (openLane o' c b).name])]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
