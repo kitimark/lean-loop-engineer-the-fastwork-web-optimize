@@ -1327,22 +1327,18 @@ theorem shared_accounted (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r
     have : inAny others c r = false := by simpa using hs
     rw [countedIn_unshared others m c r this, h]
 
-/-- One graded layer of a row: its key, its base layer and its mask. -/
 structure RowLayer where
   key : String
   layer : String
   mask : (Nat × Nat) × (Nat × Nat)
 deriving DecidableEq, Repr
 
-/-- The masks of the row's graded layers of another base layer: what the lane hands `foreignMasks`. -/
 def othersOf (ls : List RowLayer) (layer : String) : List ((Nat × Nat) × (Nat × Nat)) :=
   (ls.filter fun l => l.layer != layer).map (·.mask)
 
-/-- Layer `l` counts the pixel at (c, r) in its cell, whatever the kind of the cell (A/A or P) or the size of the change. -/
 def RowLayer.counts (ls : List RowLayer) (l : RowLayer) (c r : Nat) : Bool :=
   countedIn (foreignMasks l.layer (othersOf ls l.layer)) l.mask c r
 
-/-- The keys of the row's cells that count the pixel at (c, r). -/
 def countedBy (ls : List RowLayer) (c r : Nat) : List String :=
   (ls.filter fun l => l.counts ls c r).map (·.key)
 
@@ -1361,7 +1357,6 @@ theorem hero_yields_to_receiver (ls : List RowLayer) (h o : RowLayer) (hh : h.la
   simp only [othersOf, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq]
   exact ⟨o, ⟨ho, hol⟩, rfl⟩
 
-/-- A yielded pixel is counted: hero_copy's cell does not count it and the receiving layer's cell does. -/
 theorem yielded_counted_by_receiver (ls : List RowLayer) (h o : RowLayer) (hh : h.layer = "hero_copy") (ho : o ∈ ls)
     (hol : o.layer ≠ "hero_copy") (c r : Nat) (hin : inMask o.mask c r = true) :
     h.counts ls c r = false ∧ o.key ∈ countedBy ls c r := by
@@ -1369,7 +1364,6 @@ theorem yielded_counted_by_receiver (ls : List RowLayer) (h o : RowLayer) (hh : 
   simp only [countedBy, List.mem_map, List.mem_filter]
   exact ⟨o, ⟨ho, receiver_counts ls o hol c r hin⟩, rfl⟩
 
-/-- No pixel is lost: a pixel inside any graded mask of the row is counted by at least one cell. -/
 theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈ ls, inMask l.mask c r = true) :
     countedBy ls c r ≠ [] := by
   obtain ⟨l, hl, hin⟩ := h
@@ -1402,7 +1396,6 @@ theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈
     rw [he] at this
     simp at this
 
-/-- Golden rows for `countedBy`: (name, row layers, pixel). -/
 def yieldCases : List (String × List RowLayer × Nat × Nat) :=
   let hero : RowLayer := ⟨"hero_copy", "hero_copy", ((10, 40), (10, 40))⟩
   let d0 : RowLayer := ⟨"hero.deck_article#0", "hero.deck_article", ((30, 60), (30, 60))⟩

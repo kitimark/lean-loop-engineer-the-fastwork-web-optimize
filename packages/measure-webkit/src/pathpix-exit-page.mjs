@@ -9,7 +9,6 @@ export const EXIT_GEOM_EXPR = `(() => {
 
 export const COVER_GRID = 7;
 
-/** Elements outside the graded layers whose boxes are recorded, to name an element a change outside every mask falls on. */
 export const EXIT_PROBES = [['nav', '[data-fw="nav"]'], ['nav-lang', '[data-fw="nav-lang"]'], ['nav-lang button', '[data-fw="nav-lang"] > button'], ['nav-earn', '[data-fw="nav-earn"]'], ['nav logo', '[data-fw="nav"] a[href="/"]']];
 
 export const EXIT_BOX_EXPR = `(() => {

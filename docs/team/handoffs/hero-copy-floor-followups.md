@@ -1,8 +1,8 @@
 branch: worktree-wf_2d420399-b29-1 (CI branch ci/hero-copy-floor-followups, pushed at ee7bd519a)
 worktree: .claude/worktrees/wf_2d420399-b29-1
 last commit sha: see `git log -1` (main merged after the note commit 9da29014b)
-CI runs: path-pix 40007968162 success (sim (2) first attempt failed in `simctl list devices` ETIMEDOUT, runner fault; re-run once with `gh run rerun --failed`, passed); the only run for this task
-state: Lean lemmas, golden, TS twin, report and probes tested; note regenerated from the run's report output; final checks listed below.
+CI runs: path-pix 40007968162 success (sim (2) first attempt failed in `simctl list devices` ETIMEDOUT, runner fault; re-run once with `gh run rerun --failed`, passed)
+state: Lean lemmas, golden, TS twin, report and probes tested; note regenerated from the run's report output.
 
 Verified
 - Lean `lean/Fw/Gate/PathPix.lean`: `RowLayer`, `countedBy`, `receiver_counts`, `hero_yields_to_receiver`, `yielded_counted_by_receiver`, `inside_some_mask_counted`; generic `foreignReason`; golden kind `yield` (8 rows).

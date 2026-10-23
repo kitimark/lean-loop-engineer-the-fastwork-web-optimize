@@ -102,7 +102,6 @@ export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
 
 export const probeParts = (probes) => Object.entries(probes ?? {}).map(([name, b]) => [name, b[0] / 1e6, b[1] / 1e6, b[2] / 1e6, b[3] / 1e6]);
 
-/** Recorded probe elements whose device box overlaps `bbox`: [name, x0, y0, x1, y1] in device px, rounded to 0.1. */
 export const probesHit = (probes, bbox, dpr) => {
   const r1 = (v) => Math.round(v * dpr * 10) / 10;
   return !bbox ? [] : probeParts(probes).filter(([, x, y, w, h]) => x * dpr < bbox[2] && (x + w) * dpr > bbox[0] && y * dpr < bbox[3] && (y + h) * dpr > bbox[1]).map(([n, x, y, w, h]) => [n, r1(x), r1(y), r1(x + w), r1(y + h)]);
