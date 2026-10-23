@@ -43,12 +43,10 @@ def polishable (p : String) : Bool := !protectedPath p
 
 def genName (p : String) : Bool := ((baseName p).splitOn ".gen.").length > 1
 
-/-- `gen`: the paths a generator writes or compares (`fw polish` collects them). -/
 def skipped (gen : List String) (p : String) : Bool :=
-  gen.contains p || protectedPath p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
+  gen.contains p || !polishable p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
     lockNames.contains (baseName p) || p.startsWith "/" || p.isEmpty
 
-/-- A generator's stamp on the first line of a file it writes. -/
 def stamped (head : String) : Bool := ["-- GENERATED", "// GENERATED", "# GENERATED"].any fun m => head.startsWith m
 
 /-- `outputs`: what the generators report they write (`ci-paths`); `heads`: (path, first line) of the diff's files. -/
@@ -110,7 +108,7 @@ theorem skipped_skip (gen : List String) (p : String) (h : skipped gen p = true)
   simp [classify, h]
 
 theorem protected_skip (gen : List String) (p : String) (h : protectedPath p = true) : classify gen p = .skip :=
-  skipped_skip gen p (by simp [skipped, h])
+  skipped_skip gen p (by simp [skipped, polishable, h])
 
 theorem claude_dir_protected (s : String) : protectedPath (".claude/" ++ s) = true := by
   simp [protectedPath, protectedDirs]

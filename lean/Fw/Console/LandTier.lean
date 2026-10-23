@@ -430,7 +430,8 @@ def overflowWidthsId : String := "runner:overflow-widths"
 
 def plannerFiles : List String :=
   ["packages/contracts/golden/gate/schedule.jsonl", "packages/contracts/golden/gate/shards.jsonl", "apps/site/src/breakpoints.gen.json",
-   "packages/gate-breakpoints/src/anchors.json", "packages/gate-breakpoints/src/spec.mjs", "packages/gate-breakpoints/src/serve.mjs"]
+   "packages/gate-breakpoints/src/anchors.json", "packages/gate-breakpoints/src/spec.mjs", "packages/gate-breakpoints/src/serve.mjs",
+   "packages/gate-breakpoints/src/scope.gen.json"]
 
 def overflowWidthsReads : List String :=
   [".github/workflows/**", ".github/scripts/**", "packages/gate-breakpoints/src/trajectory/**", "packages/visual-diff/src/shards.mjs"] ++ plannerFiles ++
@@ -469,7 +470,8 @@ theorem overflowWidths_scope :
       ["packages", "visual-diff", "src", "shards.mjs"],
       ["packages", "contracts", "golden", "gate", "schedule.jsonl"], ["packages", "contracts", "golden", "gate", "shards.jsonl"],
       ["apps", "site", "src", "breakpoints.gen.json"], ["packages", "gate-breakpoints", "src", "anchors.json"],
-      ["packages", "gate-breakpoints", "src", "spec.mjs"], ["packages", "gate-breakpoints", "src", "serve.mjs"], ["lean", "Fw", "Ci", "Overflow.lean"], ["lean", "land-legs.txt"],
+      ["packages", "gate-breakpoints", "src", "spec.mjs"], ["packages", "gate-breakpoints", "src", "serve.mjs"],
+      ["packages", "gate-breakpoints", "src", "scope.gen.json"], ["lean", "Fw", "Ci", "Overflow.lean"], ["lean", "land-legs.txt"],
       ["apps", "runner", "test", "land-overflow-widths.test.ts"], ["apps", "runner", "test", "workflow-widths.ts"],
       ["apps", "runner", "src", "run.ts"], ["lean", ".lake", "build", "bin", "fwcore"]], []⟩ := by
   have hi : overflowWidthsReads.filter (!·.startsWith "!") = overflowWidthsReads := by
@@ -509,7 +511,9 @@ theorem plannerFiles_select : ∀ x ∈ plannerFiles, overflowWidthsId ∈ selec
     simp (config := {decide := true}) [Fw.Ops.PathCheck.segs, String.splitOn, String.splitOnAux]
   have e6 : Fw.Ops.PathCheck.segs "packages/gate-breakpoints/src/serve.mjs" = ["packages", "gate-breakpoints", "src", "serve.mjs"] := by
     simp (config := {decide := true}) [Fw.Ops.PathCheck.segs, String.splitOn, String.splitOnAux]
-  rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> simp (config := {decide := true}) [Fw.Ops.PathCheck.inScope, e1, e2, e3, e4, e5, e6, Fw.Ops.PathCheck.matchesPath,
+  have e7 : Fw.Ops.PathCheck.segs "packages/gate-breakpoints/src/scope.gen.json" = ["packages", "gate-breakpoints", "src", "scope.gen.json"] := by
+    simp (config := {decide := true}) [Fw.Ops.PathCheck.segs, String.splitOn, String.splitOnAux]
+  rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp (config := {decide := true}) [Fw.Ops.PathCheck.inScope, e1, e2, e3, e4, e5, e6, e7, Fw.Ops.PathCheck.matchesPath,
       Fw.Ops.PathCheck.globMatch, Fw.Ops.PathCheck.segMatch, List.range_succ]
 
 theorem overflowWidths_local : tier overflowWidthsId = .onMac := by decide
@@ -522,6 +526,7 @@ theorem overflowWidths_core_user : isCoreUser overflowWidthsId = true := by deci
 #guard selectLocal ["lean/Fw/Ci/Overflow.lean"] == [overflowWidthsId]
 #guard selectLocal ["packages/gate-breakpoints/src/spec.mjs"] == [overflowWidthsId]
 #guard selectLocal ["packages/gate-breakpoints/src/serve.mjs"] == [overflowWidthsId]
+#guard selectLocal ["packages/gate-breakpoints/src/scope.gen.json"] == [overflowWidthsId]
 #guard selectLocal [".github/CODEOWNERS"] == []
 #guard selectLocal ["apps/site/src/parts/morph.columns/part.json"] == [composeId]
 #guard selectLocal ["apps/site/src/parts/nav/part.json", "docs/x.md"] == [composeId]
@@ -557,6 +562,7 @@ def localCases (_ : Unit) : List Json :=
    localLine "anchors.json selects overflow-widths" ["packages/gate-breakpoints/src/anchors.json"],
    localLine "planner code spec.mjs selects overflow-widths" ["packages/gate-breakpoints/src/spec.mjs"],
    localLine "planner code serve.mjs selects overflow-widths" ["packages/gate-breakpoints/src/serve.mjs"],
+   localLine "planner data scope.gen.json selects overflow-widths" ["packages/gate-breakpoints/src/scope.gen.json"],
    localLine "Lean width table selects overflow-widths" ["lean/Fw/Ci/Overflow.lean"],
    localLine "github file outside workflows and scripts does not" [".github/CODEOWNERS"],
    localLine "nothing changed" []]
