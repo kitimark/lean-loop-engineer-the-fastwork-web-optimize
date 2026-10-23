@@ -6,8 +6,7 @@ import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
 import { RECORDER_SRC, TO_END_JS, heroJs, endJs, endTouchJs, pageOf, intervalsOf } from './recorder.mjs';
-import { openDriver, touchWindow, TOUCH_COUNT_JS, TOUCH_PUSH } from '../touch-push.mjs';
-import { dragPass } from '../throttle/driver.mjs';
+import { openDriver, startServer, stopServer, touchWindow, logTail, TOUCH_COUNT_JS } from '../touch-push.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
 import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
@@ -46,7 +45,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let error = null;
   let ua = '';
   const opened = openDriver(touchDriver);
-  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why };
+  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null };
 
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
@@ -72,10 +71,10 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     let touched = null;
     if (win === 'end' && touch.on) {
       await ctx.c.evaluate(TOUCH_COUNT_JS);
-      const got = await touchWindow(ctx.c, { driver: touch.driver, udid: device.udid, tag: `${a.id}-r${rep}`, log, pageJs: endTouchJs });
+      const got = await touchWindow(ctx.c, { server: touch.server, pageJs: endTouchJs });
       await tl.stop();
-      const bad = !got.result ? got.error : got.run.code !== 0 ? `driver exit ${got.run.code}${got.run.timedOut ? ' (timed out)' : ''}` : !got.result.begun ? 'no touch reached the page' : !(got.result.touch?.moves > 0) ? 'the page saw no touchmove' : null;
-      if (bad) { touch.on = false; touch.why = bad; throw new Error(`touch push failed: ${bad}`); }
+      const bad = !got.pushed ? 'the swipe pair did not finish' : !got.result ? got.error : !got.result.begun ? 'no touch reached the page' : !(got.result.touch?.moves > 0) ? 'the page saw no touchmove' : null;
+      if (bad) { touch.on = false; touch.why = `${bad}${logTail(touch.server.run.logFile) ? `; driver log tail: ${logTail(touch.server.run.logFile)}` : ''}`; throw new Error(`touch push failed: ${bad}`); }
       rec = got.result;
       push = 'touch';
       touched = { ...rec.touch, morphMax: rec.morphMax };
@@ -91,11 +90,11 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   try {
     await withSession(async (ctx) => {
       if (touch.on) {
-        // the first XCUITest run relaunches Safari and reloads the page (toolbar-throttle cli.mjs), so one unrecorded cycle comes first
-        await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 });
-        const w = await dragPass(touch.driver, { udid: device.udid, tag: 'warm-up', log, ...TOUCH_PUSH });
-        if (w.code !== 0) { touch.on = false; touch.why = `warm-up driver exit ${w.code}${w.timedOut ? ' (timed out)' : ''}`; }
-        log(`webkit sim: touch warm-up ${touch.on ? 'done' : touch.why}`);
+        // one XCUITest run for the whole job; its start relaunches Safari (toolbar-throttle cli.mjs), so the page is loaded after it
+        try {
+          touch.server = await startServer(touch.driver, { udid: device.udid, log });
+          await reconnect(ctx, { log });
+        } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
       for (let rep = 0; rep < reps && !refused; rep++) {
         for (const a of orderFor(arms, rep)) {
@@ -123,6 +122,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   } catch (e) {
     error = e.message;
     log(`webkit sim: INCOMPLETE after ${rows.length} windows (${error})`);
+  } finally {
+    if (touch.server) await stopServer(touch.server);
   }
   return {
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
