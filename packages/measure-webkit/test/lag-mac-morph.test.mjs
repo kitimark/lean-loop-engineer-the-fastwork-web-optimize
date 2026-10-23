@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { MAC_PAGE_JS, MAC_SCHEDULE, runRecord } from '../src/lag/macmorph.mjs';
-import { analyze, macMd, rangesOfRun, METRICS, DRIVES } from '../src/lag/macreport.mjs';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { MAC_PAGE_JS, MAC_SCHEDULE, MOMENTUM, runRecord } from '../src/lag/macmorph.mjs';
+import { analyze, macMd, rangesOfRun, METRICS, DRIVES, FLIGHT_HOLD, MIN_WHEELS, inFlight, flightFrames, splitPush, acceptMomentum, jobLabel } from '../src/lag/macreport.mjs';
+import { classify } from '../src/lag/phase.mjs';
 import { COUNT_TYPES } from '../src/reduce.mjs';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const gold = readFileSync(join(here, '../../contracts/golden/measure/webkit-lag.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+const of = (kind) => gold.filter((l) => l.kind === kind);
 
 const stamp = (t, message) => ({ type: 'TimeStamp', startTime: t, data: { message } });
 
@@ -78,8 +86,12 @@ function file(reps, layout, { scrollin = true } = {}) {
   const runs = [];
   for (let rep = 0; rep < reps; rep++) for (const arm of ['orig', 'rewrite']) for (const drive of DRIVES) {
     const r = runRecord(records({ layouts: (k) => (k >= 10 && k < 70 ? layout(arm, drive, rep) : 0) }), 130);
-    const startY = drive === 'scrollin' ? (scrollin ? 4800 : 5102) : 5102;
-    runs.push({ rep, arm, drive, ...r, startY, pushY: 5102, wheels: drive === 'scrollin' ? 3 : 0, info: { maxY: 5102 }, fin: { frames: 130, y: 5102, events: [{ f: 10, dy: 120, trusted: drive !== 'synthetic', cancelable: true, prevented: false }], at: [{ label: 'open', f: 70, morph: drive === 'synthetic' ? 0.5 : 1, y: 5102 }] } });
+    const scrolls = drive === 'scrollin' || drive === 'momentum';
+    const startY = scrolls ? (scrollin ? 4800 : 5102) : 5102;
+    const events = drive === 'momentum'
+      ? [{ f: 5, m: false }, { f: 7, m: false }, { f: 9, m: false }, { f: 10, m: true }, { f: 70, m: true }].map((e) => ({ ...e, dy: 120, trusted: true, cancelable: true, prevented: false }))
+      : [{ f: 10, dy: 120, trusted: drive !== 'synthetic', cancelable: true, prevented: false, m: true }];
+    runs.push({ rep, arm, drive, ...r, startY, pushY: 5102, wheels: scrolls ? 3 : 0, info: { maxY: 5102 }, fin: { frames: 130, y: 5102, events, at: [{ label: 'open', f: 70, morph: drive === 'synthetic' ? 0.5 : 1, y: 5102 }] } });
   }
   return { runs };
 }
@@ -104,8 +116,12 @@ test('tables: each job is decided on its own, refused runs are counted per job',
   assert.equal(a.facts[0]['orig|trusted'].morphMax, 1);
   assert.equal(a.facts[0]['orig|scrollin'].scrolledIn, 3);
   assert.equal(a.facts[0]['orig|trusted'].scrolledIn, 0);
+  assert.equal(a.facts[0]['orig|momentum'].inFlight, 3);
+  assert.deepEqual(a.facts[0]['orig|momentum'].gapFrames, [1, 1, 1]);
+  assert.deepEqual(a.facts[0]['orig|momentum'].flightOpen, [2, 2, 2]);
+  assert.deepEqual(a.labels, ['job 1', 'job 2', 'job 3']);
   const md = macMd(a);
-  for (const h of ['Pushes seen by the page', 'open phase', 'orig: trusted vs synthetic', 'orig: scrollin vs synthetic', 'lower / lower / lower', 'refused', 'never pooled']) assert.ok(md.includes(h), h);
+  for (const h of ['Scroll in flight at the push', 'orig: momentum vs synthetic', 'Pushes seen by the page', 'open phase', 'orig: trusted vs synthetic', 'orig: scrollin vs synthetic', 'lower / lower / lower', 'refused', 'never pooled']) assert.ok(md.includes(h), h);
   assert.equal(METRICS.length, 7);
 });
 
@@ -150,4 +166,65 @@ test('rangesOfRun uses the rule on the recorded marks', () => {
   const r = runRecord(records({ idle: 12, open: 58 }), 130);
   assert.deepEqual(rangesOfRun(r), { idle: [0, 12], open: [12, 70], close: [70, 130] });
   assert.equal(rangesOfRun({ ...r, up: null }), null);
+});
+
+test('in flight, flight frames, the push split and the momentum acceptance agree with every Lean golden case', () => {
+  const k = of('momentumConst')[0];
+  assert.equal(FLIGHT_HOLD, k.flightHold);
+  assert.equal(MIN_WHEELS, k.minWheels);
+  const fl = of('flight');
+  assert.ok(fl.length >= 8);
+  for (const g of fl) {
+    assert.equal(inFlight(g.scrolls, g.push), g.inFlight, JSON.stringify(g));
+    assert.equal(flightFrames(g.scrolls, g.push, g.n), g.frames, JSON.stringify(g));
+  }
+  const sp = of('splitPush');
+  assert.ok(sp.length >= 5);
+  for (const g of sp) assert.deepEqual(splitPush(g.events.map(([f, m]) => ({ f, m }))), { scrolls: g.scrolls, push: g.push }, JSON.stringify(g.events));
+  const mo = of('momentum');
+  for (const g of mo) {
+    const o = acceptMomentum(classify(g.marks, g.down, g.up), g.startY, g.pushY, g.morphMilli, g.scrolls, g.push);
+    assert.equal(o.outcome, g.outcome, JSON.stringify([g.scrolls, g.push, g.startY, g.pushY, g.morphMilli]));
+    if (g.outcome === 'ok') assert.deepEqual([o.idle, o.open, o.close], [g.idle, g.open, g.close]);
+  }
+  for (const o of ['ok', 'noScroll', 'noOpen', 'noPush', 'fewWheels', 'settled', 'noUp', 'openShort']) assert.ok(mo.some((g) => g.outcome === o), o);
+  for (const g of of('jobLabel')) assert.equal(jobLabel(g.index ?? undefined, g.pos, g.n), g.label, JSON.stringify(g));
+});
+
+test('job labels name the matrix job when the file knows it, else this job or the position', () => {
+  const f = file(2, () => 1);
+  assert.deepEqual(analyze([f]).labels, ['this job']);
+  assert.deepEqual(analyze([{ ...f, jobIndex: 2 }]).labels, ['job 2']);
+  assert.deepEqual(analyze([f, f]).labels, ['job 1', 'job 2']);
+  const md = macMd(analyze([{ ...f, jobIndex: 3 }]));
+  assert.ok(md.includes('| job 3 | orig | trusted |') && !md.includes('| job 1 |') && md.includes('job 3 in that order'));
+  assert.ok(macMd(analyze([f])).includes('| this job | orig | trusted |'));
+});
+
+test('the page script skips the armed push on request, so the last scroll wheel is told from the push by order', async () => {
+  const { S, marks, frame } = stubPage();
+  S.start(); frame();
+  S.arm('none'); S.push(120); S.push(120);
+  frame();
+  S.arm('down', 1); S.push(120);
+  frame();
+  S.push(120);
+  frame();
+  const fin = S.finish();
+  frame();
+  const r = await fin;
+  assert.deepEqual(marks.filter((m) => m === 'wk:down'), ['wk:down']);
+  assert.deepEqual([...r.events.map((e) => e.m)], [false, false, false, true]);
+  assert.equal(splitPush(r.events).scrolls.length, 3);
+  assert.equal(MOMENTUM.before, 1);
+});
+
+test('a momentum run whose push lands after the scroll settled, or with one wheel, or with no push, is refused for that reason', () => {
+  const f = file(2, () => 1);
+  const base = f.runs.find((r) => r.drive === 'momentum');
+  const ev = (list) => ({ ...base, fin: { ...base.fin, events: list.map(([fr, m]) => ({ f: fr, m, dy: 120, trusted: true, cancelable: true, prevented: false })) } });
+  assert.deepEqual(rangesOfRun(base), { idle: [0, 10], open: [10, 70], close: [70, 130] });
+  assert.equal(rangesOfRun(ev([[5, false], [7, false], [9, false], [13, true]])), null);
+  const a = analyze([{ runs: [ev([[5, false], [7, false], [9, false], [13, true]]), ev([[9, false], [10, true]]), ev([[5, false], [7, false]]), base] }]);
+  assert.deepEqual(a.refused[0]['orig|momentum'].map((r) => r.outcome), ['settled', 'fewWheels', 'noPush']);
 });

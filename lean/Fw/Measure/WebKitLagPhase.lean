@@ -113,6 +113,9 @@ inductive Refusal where
   | closeShort
   | noScroll
   | noOpen
+  | noPush
+  | fewWheels
+  | settled
   deriving DecidableEq, Repr
 
 def Refusal.name : Refusal → String
@@ -125,6 +128,9 @@ def Refusal.name : Refusal → String
   | .closeShort => "closeShort"
   | .noScroll => "noScroll"
   | .noOpen => "noOpen"
+  | .noPush => "noPush"
+  | .fewWheels => "fewWheels"
+  | .settled => "settled"
 
 inductive Outcome where
   | ok (idle open_ close : Nat)
@@ -279,6 +285,140 @@ theorem acceptScrollIn_spec {o : Outcome} {s p m : Int} {a b c : Nat} (h : accep
         cases h
         exact ⟨rfl, by omega, by omega⟩
 
+/-! ## A push that lands while the scroll is still in flight -/
+
+/-- Frames after a scroll wheel's frame in which that scroll still counts as in flight: the quiet gap the drives wait between two scroll wheels. -/
+def flightHold : Nat := 2
+
+/-- Fewest scroll wheels before the push for the run to count as a scroll (one wheel is a nudge, not a gesture). -/
+def minWheels : Nat := 2
+
+/-- Frame `k` has a scroll in flight when some scroll wheel arrived at frame `s` with `s ≤ k ≤ s + flightHold`. -/
+def inFlight (scrolls : List Nat) (k : Nat) : Bool := scrolls.any fun s => decide (s ≤ k ∧ k ≤ s + flightHold)
+
+/-- How many of the `n` frames from frame `p` on (the open phase when `p` is the push frame) have a scroll in flight. -/
+def flightFrames (scrolls : List Nat) (p n : Nat) : Nat := ((List.range n).filter fun i => inFlight scrolls (p + i)).length
+
+theorem inFlight_wheel {scrolls : List Nat} {s : Nat} (h : s ∈ scrolls) : inFlight scrolls s = true := by
+  simp only [inFlight, List.any_eq_true, decide_eq_true_eq]
+  exact ⟨s, h, Nat.le_refl s, by omega⟩
+
+theorem inFlight_after {scrolls : List Nat} {s k : Nat} (h : s ∈ scrolls) (h1 : s ≤ k) (h2 : k ≤ s + flightHold) :
+    inFlight scrolls k = true := by
+  simp only [inFlight, List.any_eq_true, decide_eq_true_eq]
+  exact ⟨s, h, h1, h2⟩
+
+theorem inFlight_settled {scrolls : List Nat} {k : Nat} (h : ∀ s ∈ scrolls, s + flightHold < k) :
+    inFlight scrolls k = false := by
+  rw [Bool.eq_false_iff]
+  intro hb
+  simp only [inFlight, List.any_eq_true, decide_eq_true_eq] at hb
+  obtain ⟨s, hs, _, h2⟩ := hb
+  have := h s hs
+  omega
+
+theorem inFlight_nil (k : Nat) : inFlight [] k = false := rfl
+
+theorem flightFrames_le (scrolls : List Nat) (p n : Nat) : flightFrames scrolls p n ≤ n := by
+  have := List.length_filter_le (fun i => inFlight scrolls (p + i)) (List.range n)
+  simpa [flightFrames] using this
+
+theorem flightFrames_settled {scrolls : List Nat} {p : Nat} (h : ∀ s ∈ scrolls, s + flightHold < p) (n : Nat) :
+    flightFrames scrolls p n = 0 := by
+  have hf : ∀ i, inFlight scrolls (p + i) = false := fun i => inFlight_settled fun s hs => by have := h s hs; omega
+  simp [flightFrames, hf]
+
+theorem flightFrames_pos {scrolls : List Nat} {s p n : Nat} (h : s ∈ scrolls) (h1 : s ≤ p) (h2 : p ≤ s + flightHold)
+    (hn : 0 < n) : 0 < flightFrames scrolls p n := by
+  unfold flightFrames
+  apply List.length_pos_of_mem (a := 0)
+  simp only [List.mem_filter, List.mem_range, Nat.add_zero]
+  exact ⟨hn, inFlight_after h h1 h2⟩
+
+/-- Wheel events as (frame, marked as a push). The scroll wheels are those before the first marked one; the push is the first marked. -/
+def splitPush (evs : List (Nat × Bool)) : List Nat × Option Nat :=
+  ((evs.takeWhile fun e => !e.2).map Prod.fst, (evs.find? fun e => e.2).map Prod.fst)
+
+theorem splitPush_nil : splitPush [] = ([], none) := rfl
+
+theorem splitPush_marked_first (f : Nat) (rest : List (Nat × Bool)) : splitPush ((f, true) :: rest) = ([], some f) := by
+  simp [splitPush]
+
+theorem splitPush_unmarked (f : Nat) (rest : List (Nat × Bool)) :
+    splitPush ((f, false) :: rest) = (f :: (splitPush rest).1, (splitPush rest).2) := by
+  simp [splitPush]
+
+theorem splitPush_none {evs : List (Nat × Bool)} (h : ∀ e ∈ evs, e.2 = false) : (splitPush evs).2 = none := by
+  simp only [splitPush, Option.map_eq_none_iff, List.find?_eq_none, Bool.not_eq_true]
+  intro e he
+  simp [h e he]
+
+/-- The run that sends the push while the scroll is in flight is used only if the scroll-in rule holds, a push was seen, at least `minWheels` scroll wheels came before it, and the last of them is within `flightHold` frames of the push. -/
+def acceptMomentum (o : Outcome) (startY pushY morphMilli : Int) (scrolls : List Nat) (p : Option Nat) : Outcome :=
+  match acceptScrollIn o startY pushY morphMilli with
+  | .refused r => .refused r
+  | .ok a b c =>
+    match p with
+    | none => .refused .noPush
+    | some p =>
+      if scrolls.length < minWheels then .refused .fewWheels
+      else if inFlight scrolls p = false then .refused .settled
+      else .ok a b c
+
+theorem acceptMomentum_scrollIn {o : Outcome} {r : Refusal} {s y m : Int} (h : acceptScrollIn o s y m = .refused r)
+    (scrolls : List Nat) (p : Option Nat) : acceptMomentum o s y m scrolls p = .refused r := by
+  simp [acceptMomentum, h]
+
+theorem acceptMomentum_noPush {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    (scrolls : List Nat) : acceptMomentum o s y m scrolls none = .refused .noPush := by
+  simp [acceptMomentum, h]
+
+theorem acceptMomentum_fewWheels {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    {scrolls : List Nat} (hl : scrolls.length < minWheels) (p : Nat) :
+    acceptMomentum o s y m scrolls (some p) = .refused .fewWheels := by
+  simp [acceptMomentum, h, hl]
+
+theorem acceptMomentum_settled {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    {scrolls : List Nat} (hl : ¬ scrolls.length < minWheels) {p : Nat} (hf : inFlight scrolls p = false) :
+    acceptMomentum o s y m scrolls (some p) = .refused .settled := by
+  simp [acceptMomentum, h, hl, hf]
+
+theorem acceptMomentum_ok {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    {scrolls : List Nat} (hl : ¬ scrolls.length < minWheels) {p : Nat} (hf : inFlight scrolls p = true) :
+    acceptMomentum o s y m scrolls (some p) = .ok a b c := by
+  simp [acceptMomentum, h, hl, hf]
+
+theorem acceptMomentum_spec {o : Outcome} {s y m : Int} {scrolls : List Nat} {p : Option Nat} {a b c : Nat}
+    (h : acceptMomentum o s y m scrolls p = .ok a b c) :
+    acceptScrollIn o s y m = .ok a b c ∧ minWheels ≤ scrolls.length ∧ ∃ q, p = some q ∧ inFlight scrolls q = true := by
+  unfold acceptMomentum at h
+  split at h
+  · cases h
+  · rename_i a' b' c' hs
+    cases p with
+    | none => simp at h
+    | some q =>
+      by_cases h1 : scrolls.length < minWheels
+      · simp [h1] at h
+      · by_cases h2 : inFlight scrolls q = false
+        · simp [h1, h2] at h
+        · simp only [h1, h2, ite_false] at h
+          obtain ⟨rfl, rfl, rfl⟩ := h
+          exact ⟨hs, by omega, q, rfl, by simpa using h2⟩
+
+/-- The label of a job in a table: the matrix index when the run file names it, else `this job` for a lone file or the position (from 1) among several. -/
+def jobLabel (idx : Option Nat) (pos n : Nat) : String :=
+  match idx with
+  | some i => s!"job {i}"
+  | none => if n ≤ 1 then "this job" else s!"job {pos + 1}"
+
+theorem jobLabel_named (i pos n : Nat) : jobLabel (some i) pos n = s!"job {i}" := rfl
+
+theorem jobLabel_lone (pos : Nat) : jobLabel none pos 1 = "this job" := by simp [jobLabel]
+
+theorem jobLabel_position {pos n : Nat} (h : 2 ≤ n) : jobLabel none pos n = s!"job {pos + 1}" := by
+  simp [jobLabel, show ¬ n ≤ 1 by omega]
+
 private def mj (ms : List Int) : Json := toJson ms
 private def oj (o : Option Int) : Json := match o with | some v => toJson v | none => Json.null
 
@@ -323,6 +463,53 @@ private def scrollLine (c : List Int × Option Int × Option Int × Int × Int �
      ("morphMilli", toJson m)]
   (Json.mkObj (base ++ rest)).compress
 
+private def flightCases : List (List Nat × Nat × Nat) :=
+  [([10, 12, 14], 16, 60), ([10, 12, 14], 17, 60), ([10, 12, 14], 14, 60), ([10, 12, 14], 19, 60), ([], 10, 60),
+   ([10], 12, 5), ([10, 12, 14], 9, 60), ([10, 12, 14], 30, 60), ([3, 5], 5, 1), ([3, 5], 8, 0)]
+
+private def flightLine (c : List Nat × Nat × Nat) : String :=
+  let (sc, p, n) := c
+  (Json.mkObj [("kind", "flight"), ("scrolls", toJson sc), ("push", p), ("n", n), ("inFlight", toJson (inFlight sc p)),
+    ("frames", flightFrames sc p n)]).compress
+
+private def splitCases : List (List (Nat × Bool)) :=
+  [[], [(5, true)], [(5, false), (7, false), (9, true), (70, true)], [(5, false), (7, false)], [(5, false), (7, true), (9, false), (70, true)],
+   [(9, true), (70, true)]]
+
+private def splitLine (evs : List (Nat × Bool)) : String :=
+  let (sc, p) := splitPush evs
+  (Json.mkObj [("kind", "splitPush"), ("events", toJson (evs.map fun e => toJson [toJson e.1, toJson e.2])), ("scrolls", toJson sc),
+    ("push", oj (p.map (fun x => (x : Int))))]).compress
+
+private def momentumCases (_ : Unit) :
+    List (List Int × Option Int × Option Int × Int × Int × Int × List Nat × Option Nat) :=
+  let m := fixedMarks 130
+  [(m, some 19, some 139, 4800, 5102, 1000, [10, 12, 14], some 16), (m, some 19, some 139, 4800, 5102, 1000, [10, 12, 14], some 17),
+   (m, some 19, some 139, 4800, 5102, 1000, [10, 12, 14], some 19), (m, some 19, some 139, 4800, 5102, 1000, [10, 12, 14], some 14),
+   (m, some 19, some 139, 4800, 5102, 1000, [14], some 14), (m, some 19, some 139, 4800, 5102, 1000, [], some 14),
+   (m, some 19, some 139, 4800, 5102, 1000, [10, 12, 14], none), (m, some 19, some 139, 5102, 5102, 1000, [10, 12, 14], some 16),
+   (m, some 19, some 139, 4800, 5102, 899, [10, 12, 14], some 16), (m, some 19, none, 4800, 5102, 1000, [10, 12, 14], some 16),
+   (fixedMarks 40, some 9, some 41, 4800, 5102, 1000, [10, 12, 14], some 16), (m, some 19, some 139, 4800, 5102, 900, [10, 12], some 14)]
+
+private def momentumLine (c : List Int × Option Int × Option Int × Int × Int × Int × List Nat × Option Nat) : String :=
+  let (ms, d, u, s, y, mm, sc, p) := c
+  let out := acceptMomentum (classify ms d u) s y mm sc p
+  let rest : List (String × Json) :=
+    match out with
+    | .ok a b c => [("outcome", "ok"), ("idle", a), ("open", b), ("close", c)]
+    | .refused r => [("outcome", r.name)]
+  let base : List (String × Json) :=
+    [("kind", "momentum"), ("marks", mj ms), ("down", oj d), ("up", oj u), ("startY", toJson s), ("pushY", toJson y),
+     ("morphMilli", toJson mm), ("scrolls", toJson sc), ("push", oj (p.map (fun x => (x : Int))))]
+  (Json.mkObj (base ++ rest)).compress
+
+private def labelCases : List (Option Nat × Nat × Nat) :=
+  [(some 2, 0, 1), (some 3, 1, 3), (none, 0, 1), (none, 0, 3), (none, 2, 3), (none, 0, 2)]
+
+private def labelLine (c : Option Nat × Nat × Nat) : String :=
+  let (i, pos, n) := c
+  (Json.mkObj [("kind", "jobLabel"), ("index", oj (i.map fun x => (x : Int))), ("pos", pos), ("n", n), ("label", jobLabel i pos n)]).compress
+
 private def geometryCases : List (Nat × Nat × Nat) :=
   [(0, 0, 130), (10, 0, 130), (13, 0, 130), (10, 59, 130), (70, 59, 130), (70, 60, 130), (72, 59, 130), (73, 59, 130),
    (74, 59, 130), (10, 0, 5), (0, 3, 0), (12, 5, 1)]
@@ -332,7 +519,12 @@ def phaseGoldenLines (_ : Unit) : List String :=
     ++ (cases ()).map line
     ++ [(Json.mkObj [("kind", "scrollInConst"), ("minOpenMilli", minOpenMilli)]).compress]
     ++ (scrollCases ()).map scrollLine
-    ++ geometryCases.map fun (st, i, n) =>
-      (Json.mkObj [("kind", "geometryIndex"), ("start", st), ("i", i), ("n", n), ("index", geometryIndex st i n)]).compress
+    ++ geometryCases.map (fun (st, i, n) =>
+      (Json.mkObj [("kind", "geometryIndex"), ("start", st), ("i", i), ("n", n), ("index", geometryIndex st i n)]).compress)
+    ++ [(Json.mkObj [("kind", "momentumConst"), ("flightHold", flightHold), ("minWheels", minWheels)]).compress]
+    ++ flightCases.map flightLine
+    ++ splitCases.map splitLine
+    ++ (momentumCases ()).map momentumLine
+    ++ labelCases.map labelLine
 
 end Fw.Measure.WebKitLagPhase

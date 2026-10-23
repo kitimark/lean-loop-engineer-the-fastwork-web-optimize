@@ -1,6 +1,6 @@
 // webkit-lag-probe: the passes that record where the Simulator lag regions spend their work (I/O only; the reductions are
 // reduce.mjs, the Lean module Fw.Measure.WebKitLag, and report.mjs).
-//   geometry : untimed. At every scroll step (and every frame of the morph push) the part boxes and the filter /
+// Pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs.
 import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { reconnect } from '../wip.mjs';
 import { TargetLostError } from '../inspector.mjs';

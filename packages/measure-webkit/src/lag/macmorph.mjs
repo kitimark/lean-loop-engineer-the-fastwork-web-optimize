@@ -4,22 +4,26 @@ import { serveTree } from '../serve.mjs';
 import { bootstrapSource } from '../page.mjs';
 import { flattenRecords, markTimes, markTime, reduceSteps, COUNT_TYPES } from '../reduce.mjs';
 import { classify, acceptScrollIn, morphMilli } from './phase.mjs';
-import { DRIVES, ARMS } from './macreport.mjs';
+import { DRIVES, ARMS, acceptMomentum, splitPush } from './macreport.mjs';
 
 export const MAC_SCHEDULE = Object.freeze({ idle: 10, open: 60, close: 60, dy: 120 });
 export const SCROLL_IN = Object.freeze({ lead: 300, first: 3, gap: 2, settle: 2, maxWheels: 12, near: 8, stableTries: 20 });
+export const MOMENTUM = Object.freeze({ lead: 300, first: 5, gap: 2, before: 1, maxWheels: 12, near: 8 });
 export { DRIVES, ARMS };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const MAC_PAGE_JS = `(() => {
   const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
-  const S = window.__wkm = { k: 0, on: false, events: [], pending: [], seen: { down: false, up: false }, armed: null, at: [], waiters: [] };
+  const S = window.__wkm = { k: 0, on: false, events: [], pending: [], seen: { down: false, up: false }, armed: null, skip: 0, at: [], waiters: [] };
   const morph = () => (nav ? Number(nav.style.getPropertyValue('--morph')) : null);
   addEventListener('wheel', (e) => {
     const d = e.deltaY > 0 ? 'down' : e.deltaY < 0 ? 'up' : null;
-    if (d && !S.seen[d] && (S.armed === null || S.armed === d)) { S.seen[d] = true; performance.mark('wk:' + d); }
-    S.pending.push({ f: S.k, dy: e.deltaY, trusted: e.isTrusted, cancelable: e.cancelable, y: Math.round(scrollY), ev: e });
+    let m = false;
+    if (d && !S.seen[d] && (S.armed === null || S.armed === d)) {
+      if (S.skip > 0) S.skip--; else { S.seen[d] = true; performance.mark('wk:' + d); m = true; }
+    }
+    S.pending.push({ f: S.k, dy: e.deltaY, trusted: e.isTrusted, cancelable: e.cancelable, y: Math.round(scrollY), m, ev: e });
   }, { capture: true, passive: true });
   const tick = () => {
     if (!S.on) return;
@@ -29,7 +33,7 @@ export const MAC_PAGE_JS = `(() => {
     requestAnimationFrame(tick);
   };
   S.start = () => { S.on = true; S.at.push({ label: 'start', f: 0, morph: morph(), y: Math.round(scrollY) }); requestAnimationFrame(tick); };
-  S.arm = (d) => { S.armed = d; };
+  S.arm = (d, skip = 0) => { S.armed = d; S.skip = skip; };
   S.until = (k, label) => new Promise((ok) => S.waiters.push({ k, label, ok }));
   S.push = (d) => document.body.dispatchEvent(new WheelEvent('wheel', { deltaY: d, cancelable: true, bubbles: true }));
   S.finish = async () => {
@@ -89,7 +93,7 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
     if (a.arm === 'rewrite') await page.waitForFunction(() => !!(window.__fw && window.__fw.hydrated), null, { timeout: 30000 });
     await sleep(settleMs);
     const info = await page.evaluate(() => ({ maxY: Math.max(0, document.documentElement.scrollHeight - innerHeight), config: window.__fw?.configHash ?? null, mode: window.__fw?.mode ?? null }));
-    const startY = Math.max(0, info.maxY - (drive === 'scrollin' ? SCROLL_IN.lead : 0));
+    const startY = Math.max(0, info.maxY - (drive === 'scrollin' ? SCROLL_IN.lead : drive === 'momentum' ? MOMENTUM.lead : 0));
     await page.evaluate(async (top) => {
       const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
       scrollTo({ top, behavior: 'instant' }); await raf(); await raf(); await raf();
@@ -112,10 +116,27 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
       }
       for (let i = 0, last = -1, now = await readY(); i < SCROLL_IN.stableTries && now !== last; i++) { last = now; await wait(SCROLL_IN.gap, 'stable'); now = await readY(); }
     }
-    await page.evaluate(([n, extra]) => window.__wkm.until(Math.max(n, window.__wkm.k + extra), 'idle'), [schedule.idle, drive === 'scrollin' ? SCROLL_IN.settle : 0]);
-    const pushY = await readY();
-    await page.evaluate(() => window.__wkm.arm('down'));
-    await push(schedule.dy);
+    let pushY;
+    if (drive === 'momentum') {
+      const need = Math.max(2, Math.ceil((info.maxY - (await readY())) / schedule.dy));
+      await page.evaluate(() => window.__wkm.arm('none'));
+      await wait(MOMENTUM.first, 'lead');
+      for (; wheels < Math.min(need - 1, MOMENTUM.maxWheels); wheels++) {
+        await page.mouse.wheel(0, schedule.dy);
+        await wait(MOMENTUM.gap, 'scroll');
+      }
+      pushY = await readY();
+      await page.evaluate(() => window.__wkm.arm('down', 1));
+      await page.mouse.wheel(0, schedule.dy);
+      wheels++;
+      await wait(MOMENTUM.before, 'momentum');
+      await page.mouse.wheel(0, schedule.dy);
+    } else {
+      await page.evaluate(([n, extra]) => window.__wkm.until(Math.max(n, window.__wkm.k + extra), 'idle'), [schedule.idle, drive === 'scrollin' ? SCROLL_IN.settle : 0]);
+      pushY = await readY();
+      await page.evaluate(() => window.__wkm.arm('down'));
+      await push(schedule.dy);
+    }
     await wait(schedule.open, 'open');
     await page.evaluate(() => window.__wkm.arm('up'));
     await push(-schedule.dy);
@@ -124,7 +145,9 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
     const records = await tl.stop();
     const y = await readY();
     const rec = runRecord(records, fin.frames);
-    const out = drive === 'scrollin' ? { ...rec, outcome: acceptScrollIn(rec, startY, pushY, morphMilli(fin.at)).outcome } : rec;
+    const sp = splitPush(fin.events);
+    const out = drive === 'scrollin' ? { ...rec, outcome: acceptScrollIn(rec, startY, pushY, morphMilli(fin.at)).outcome }
+      : drive === 'momentum' ? { ...rec, outcome: acceptMomentum(rec, startY, pushY, morphMilli(fin.at), sp.scrolls, sp.push).outcome } : rec;
     return { info, fin, y, startY, pushY, wheels, ...out, records: records.length };
   } finally { await context.close().catch(() => {}); }
 }
