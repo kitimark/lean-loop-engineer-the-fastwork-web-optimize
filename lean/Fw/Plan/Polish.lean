@@ -83,6 +83,21 @@ def stages (gen : List String) (ps : List String) : List Stage :=
 def keeps (gen diff : List String) (p : String) : Bool :=
   diff.contains p && [Stage.comments, Stage.prose].any fun st => st.admits (classify gen p)
 
+/-- The paths of `ps` that were clean at plan time. -/
+def undirty (dirtyBefore ps : List String) : List String := ps.filter fun p => !dirtyBefore.contains p
+
+/-- A path dirty at plan time is in no stage scope, is not kept and is not restored; the plan is computed from `undirty`. -/
+theorem dirty_never_scoped (gen dirtyBefore ps ed : List String) (p : String) (h : p ∈ dirtyBefore) :
+    (∀ st, p ∉ scope gen st (undirty dirtyBefore ps)) ∧ p ∉ (undirty dirtyBefore ed).filter (keeps gen (undirty dirtyBefore ps))
+      ∧ p ∉ (undirty dirtyBefore ed).filter (fun q => !keeps gen (undirty dirtyBefore ps) q) := by
+  have hn : ∀ l, p ∉ undirty dirtyBefore l := by
+    intro l hp
+    simp [undirty, List.mem_filter] at hp
+    exact hp.2 h
+  refine ⟨fun st hp => ?_, fun hp => hn _ (List.mem_filter.1 hp).1, fun hp => hn _ (List.mem_filter.1 hp).1⟩
+  simp only [scope, List.mem_eraseDups, List.mem_filter] at hp
+  exact hn _ hp.1
+
 theorem skipped_skip (gen : List String) (p : String) (h : skipped gen p = true) : classify gen p = .skip := by
   simp [classify, h]
 
@@ -424,6 +439,139 @@ theorem blocked_ne_nil (d ps : List String) (p : String) (hd : p ∈ d) (hp : p 
   have := (blocked_mem d ps p).2 ⟨hd, hp⟩
   rw [h] at this; simp at this
 
+/-! ## The polish stage ends clean -/
+
+/-- What the worktree holds after the commit step: tracked paths that differ from HEAD (index or tree) and untracked paths. -/
+structure St where
+  dirty : List String
+  untracked : List String
+deriving Repr, DecidableEq
+
+/-- Paths to restore from HEAD and untracked paths to delete. -/
+structure Act where
+  restore : List String
+  remove : List String
+deriving Repr, DecidableEq
+
+def Act.run (a : Act) (s : St) : St :=
+  ⟨s.dirty.filter fun p => !a.restore.contains p, s.untracked.filter fun p => !a.remove.contains p⟩
+
+/-- Restore the dirty paths that were clean at plan time (`dirtyBefore`; a path the builder had dirty keeps its edits);
+delete the untracked paths that were not there before the polish stage. -/
+def settle (before dirtyBefore : List String) (s : St) : Act :=
+  ⟨s.dirty.filter fun p => !dirtyBefore.contains p, s.untracked.filter fun p => !before.contains p⟩
+
+/-- With a clean worktree at plan time no dirty path survives the settle. -/
+theorem settle_clean (before : List String) (s : St) : ((settle before [] s).run s).dirty = [] := by
+  simp [settle, Act.run, List.filter_eq_nil_iff]
+
+/-- A path still dirty after the settle was dirty at plan time. -/
+theorem settle_dirty_before (before dirtyBefore : List String) (s : St) (p : String)
+    (h : p ∈ ((settle before dirtyBefore s).run s).dirty) : p ∈ dirtyBefore := by
+  simp [settle, Act.run] at h
+  rcases h with ⟨h1, h2⟩
+  rcases h2 with h2 | h2
+  · exact absurd h1 h2
+  · exact h2
+
+/-- Builder work is never wiped: a path dirty at plan time keeps its edits. -/
+theorem settle_keeps_dirty_before (before dirtyBefore : List String) (s : St) (p : String)
+    (hs : p ∈ s.dirty) (hb : p ∈ dirtyBefore) : p ∈ ((settle before dirtyBefore s).run s).dirty := by
+  simp [settle, Act.run]; exact ⟨hs, Or.inr hb⟩
+
+/-- Only paths that were clean at plan time and are dirty now are restored. -/
+theorem settle_restores_clean_only (before dirtyBefore : List String) (s : St) (p : String)
+    (h : p ∈ (settle before dirtyBefore s).restore) : p ∈ s.dirty ∧ p ∉ dirtyBefore := by
+  simp [settle] at h; exact ⟨h.1, h.2⟩
+
+theorem settle_untracked_before (before dirtyBefore : List String) (s : St) (p : String)
+    (h : p ∈ ((settle before dirtyBefore s).run s).untracked) : p ∈ before := by
+  simp [settle, Act.run] at h
+  rcases h with ⟨h1, h2⟩
+  rcases h2 with h2 | h2
+  · exact absurd h1 h2
+  · exact h2
+
+theorem settle_keeps_before (before dirtyBefore : List String) (s : St) (p : String) (hs : p ∈ s.untracked) (hb : p ∈ before) :
+    p ∈ ((settle before dirtyBefore s).run s).untracked := by
+  simp [settle, Act.run]; exact ⟨hs, Or.inr hb⟩
+
+theorem settle_removes_created (before dirtyBefore : List String) (s : St) (p : String) (h : p ∈ (settle before dirtyBefore s).remove) :
+    p ∈ s.untracked ∧ p ∉ before := by
+  simp [settle] at h; exact ⟨h.1, h.2⟩
+
+theorem settle_committed (before dirtyBefore : List String) (s : St) (hd : ∀ p ∈ s.dirty, p ∈ dirtyBefore)
+    (hu : ∀ p ∈ s.untracked, p ∈ before) : settle before dirtyBefore s = ⟨[], []⟩ := by
+  simp [settle]
+  exact ⟨hd, hu⟩
+
+theorem settle_idempotent (before dirtyBefore : List String) (s : St) :
+    settle before dirtyBefore ((settle before dirtyBefore s).run s) = ⟨[], []⟩ :=
+  settle_committed before dirtyBefore _ (settle_dirty_before before dirtyBefore s) (settle_untracked_before before dirtyBefore s)
+
+/-! ## The kept hunks of one file: HEAD with exactly the kept hunks applied -/
+
+/-- One `-U0` hunk of the polish edits against HEAD: `target` HEAD lines come before it (the old start, minus one unless
+the hunk only inserts), it replaces `oldLen` HEAD lines with `new`, and `keep` says whether the hunk stays. -/
+structure WHunk where
+  target : Nat
+  oldLen : Nat
+  new : List String
+  keep : Bool
+deriving Repr, DecidableEq
+
+/-- The text of the file as lines: walk the hunks in ascending order over the HEAD lines `rest` (`done` already consumed);
+a kept hunk emits its new lines, a restored hunk emits the HEAD lines it covers. No hunk is ever reverse-applied alone, so
+a restored hunk cannot land at a shifted line. -/
+def walk : List String → Nat → List WHunk → List String
+  | rest, _, [] => rest
+  | rest, done, h :: hs =>
+    let skip := h.target - done
+    rest.take skip ++ (if h.keep then h.new else (rest.drop skip).take h.oldLen)
+      ++ walk ((rest.drop skip).drop h.oldLen) (done + skip + h.oldLen) hs
+
+theorem walk_nil (rest : List String) (done : Nat) : walk rest done [] = rest := rfl
+
+/-- With every hunk restored the walk gives back HEAD. -/
+theorem walk_restored (hs : List WHunk) (hk : ∀ h ∈ hs, h.keep = false) :
+    ∀ (rest : List String) (done : Nat), walk rest done hs = rest := by
+  induction hs with
+  | nil => intro rest done; rfl
+  | cons h hs ih =>
+    intro rest done
+    have h0 : h.keep = false := hk h (by simp)
+    have := ih (fun x hx => hk x (by simp [hx])) ((rest.drop (h.target - done)).drop h.oldLen)
+      (done + (h.target - done) + h.oldLen)
+    simp only [walk, h0, Bool.false_eq_true, ↓reduceIte, this]
+    rw [List.append_assoc, List.take_append_drop, List.take_append_drop]
+
+/-- A kept hunk emits its new lines between the HEAD lines before it and the walk of the rest. -/
+theorem walk_keep (rest : List String) (done : Nat) (h : WHunk) (hs : List WHunk) (hk : h.keep = true) :
+    walk rest done (h :: hs) = rest.take (h.target - done) ++ h.new
+      ++ walk ((rest.drop (h.target - done)).drop h.oldLen) (done + (h.target - done) + h.oldLen) hs := by
+  simp [walk, hk]
+
+/-- A restored hunk emits the HEAD lines it covers, unchanged. -/
+theorem walk_restore (rest : List String) (done : Nat) (h : WHunk) (hs : List WHunk) (hk : h.keep = false) :
+    walk rest done (h :: hs) = rest.take (h.target - done) ++ (rest.drop (h.target - done)).take h.oldLen
+      ++ walk ((rest.drop (h.target - done)).drop h.oldLen) (done + (h.target - done) + h.oldLen) hs := by
+  simp [walk, hk]
+
+/-- A restored hunk in ascending order is as if it were not there: the result is HEAD with only the kept hunks applied. -/
+theorem walk_skip_restored (rest : List String) (done : Nat) (h h2 : WHunk) (hs : List WHunk) (hk : h.keep = false)
+    (o1 : done ≤ h.target) (o2 : h.target + h.oldLen ≤ h2.target) :
+    walk rest done (h :: h2 :: hs) = walk rest done (h2 :: hs) := by
+  simp only [walk, hk, Bool.false_eq_true, ↓reduceIte]
+  have e : h2.target - done = (h.target - done) + h.oldLen + (h2.target - (done + (h.target - done) + h.oldLen)) := by omega
+  have e1 : done + (h.target - done) + h.oldLen + (h2.target - (done + (h.target - done) + h.oldLen)) = h2.target := by omega
+  generalize h.target - done = a at *
+  generalize h.oldLen = n at *
+  generalize h2.target - (done + a + n) = b at *
+  rw [e]
+  simp only [List.drop_drop, List.take_add, List.append_assoc, e1]
+  have e2 : h2.target = done + (a + n + b) := by omega
+  rw [e2]
+
 /-! ## Goldens: the three 10-22 over-cuts -/
 
 def supWire : Cut := ⟨"docs/team/handoffs/sup-wire.md",
@@ -478,5 +626,16 @@ def jevCounts : Cut := ⟨"docs/team/handoffs/jev-datasets.md",
 #guard (Span.mk 10 0).hi = 10 && (Span.mk 10 3).hi = 12 && (Span.mk 1 2).reach = (1, 5)
 #guard relOk "lean/a.lean" && relOk "a/../b" && !relOk "../a" && !relOk "/etc/x" && !relOk "a/../../b" && !relOk ""
 #guard blocked ["a", "b", "a"] ["a", "c"] = ["a"] && blocked [] ["a"] = []
+
+#guard (settle ["keep.txt"] [] ⟨["a.ts", "b.ts"], ["keep.txt", "a.ts-e", "x.orig"]⟩) = ⟨["a.ts", "b.ts"], ["a.ts-e", "x.orig"]⟩
+#guard (settle ["k"] [] ⟨[], ["k"]⟩) = ⟨[], []⟩ && ((settle ["k"] [] ⟨["a"], ["k", "z"]⟩).run ⟨["a"], ["k", "z"]⟩) = ⟨[], ["k"]⟩
+#guard (settle [] ["mine.ts"] ⟨["a.ts", "mine.ts"], []⟩) = ⟨["a.ts"], []⟩
+
+-- the Trajectory case: a kept deletion above, a 3-line deletion below that is restored (HEAD lines a..j)
+private def head10 : List String := ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+#guard walk head10 0 [⟨1, 1, [], true⟩, ⟨6, 3, [], false⟩] = ["a", "c", "d", "e", "f", "g", "h", "i", "j"]
+#guard walk head10 0 [⟨1, 1, ["B"], true⟩, ⟨6, 3, [], true⟩] = ["a", "B", "c", "d", "e", "f", "j"]
+#guard walk head10 0 [⟨3, 0, ["x"], true⟩] = ["a", "b", "c", "x", "d", "e", "f", "g", "h", "i", "j"]
+#guard walk head10 0 [⟨1, 1, ["B"], false⟩, ⟨8, 2, ["Y"], true⟩] = ["a", "b", "c", "d", "e", "f", "g", "h", "Y"]
 
 end Fw.Plan.Polish
