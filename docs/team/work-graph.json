@@ -18243,7 +18243,8 @@
     "research/notes/2026/10-2x-pathpix-accent-pin.md",
     "docs/team/handoffs/pathpix-accent-pin.md"
    ],
-   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0.",
+   "evidence": "3641b82"
   },
   {
    "devices": [
@@ -18477,7 +18478,8 @@
     "docs/team/handoffs/writes-closure-followups.md",
     "docs/team/handoffs/writes-closure-polish.md"
    ],
-   "title": "writes-closure-followups review follow-ups: (1) handoff: drop the build-review.test.mjs clause and write 'merge of main (642babc15, main at 17cb8b6dc)'; (2) WritesClosure.lean jsSpace: write the invisible Unicode characters as \\u escapes; (3) ci-paths refuses lean.yml row globs with ?, + or [ (JS matches agrees with Lean ghMatches only without them), or model them in ghGlob; (4) fw plan sync now needs a built fwcore and lints two graphs: time it and name the dependency in docs/team/tools; (5) normRead keeps '..' segments (safe side, matches Lean): say so in its comment."
+   "title": "writes-closure-followups review follow-ups: (1) handoff: drop the build-review.test.mjs clause and write 'merge of main (642babc15, main at 17cb8b6dc)'; (2) WritesClosure.lean jsSpace: write the invisible Unicode characters as \\u escapes; (3) ci-paths refuses lean.yml row globs with ?, + or [ (JS matches agrees with Lean ghMatches only without them), or model them in ghGlob; (4) fw plan sync now needs a built fwcore and lints two graphs: time it and name the dependency in docs/team/tools; (5) normRead keeps '..' segments (safe side, matches Lean): say so in its comment.",
+   "evidence": "94c7e9b"
   }
  ],
  "deadline": {
