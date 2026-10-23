@@ -10,7 +10,7 @@ const load = (n) => JSON.parse(readFileSync(dir + n, 'utf8'));
 const lines = (n) => rawLines(n.replace(/^raw-|\.json$/g, ''), load(n));
 const cand = (raw) => raw.runs.filter((u) => u.role === 'cand');
 
-test('the fixture holds the runs named in the task, trimmed to what cellsOfRaw reads', () => {
+test('the fixture holds the A/A runs with distinct hold shapes (39823047557, 39852684450, 39861846900), trimmed to what cellsOfRaw reads', () => {
   assert.deepEqual(names, ['raw-39823047557.json', 'raw-39852684450.json', 'raw-39861846900.json']);
   for (const n of names) {
     const raw = load(n);
