@@ -70,14 +70,18 @@ export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Hea
   } catch { return null; }
 }
 
-export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> {
+export async function slowWith(paths: Paths, core: CoreCall): Promise<{ slow: string[]; details: string[] }> {
   try {
     const samples = readSamples(paths);
-    if (samples.length === 0) return [];
-    const r = await core({ op: "obs.slow", samples });
-    return Array.isArray(r.slow) ? (r.slow as unknown[]).filter((x): x is string => typeof x === "string") : [];
-  } catch { return []; }
+    if (samples.length === 0) return { slow: [], details: [] };
+    const r = await core({ op: "obs.slow", detail: true, samples });
+    const strs = (x: unknown) => (Array.isArray(x) ? (x as unknown[]).filter((y): y is string => typeof y === "string") : []);
+    const slow = strs(r.slow), details = strs(r.details);
+    return { slow, details: details.length === slow.length ? details : [] };
+  } catch { return { slow: [], details: [] }; }
 }
+
+export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> { return (await slowWith(paths, core)).slow; }
 
 export async function nextMain(args: string[], cwd: string, print: (s: string) => void = console.log, core?: CoreCall): Promise<number> {
   if (args.length) throw new UsageError("usage: fw next   (prints `NEXT <agent> <action> <args>` once; read-only)");
@@ -315,8 +319,8 @@ async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: Cor
   const h = await check(snap, call);
   const nx = await nextFor(paths, main, snap, h, call);
   if (nx) h.alerts.push(...nextAlerts(nx));
-  const slow = await slowFor(paths, call);
-  h.alerts.push(...slowAlerts(slow));
+  const { slow, details } = await slowWith(paths, call);
+  h.alerts.push(...slowAlerts(slow, details));
   appendLog(paths, snap, h);
   endPass(0);
   for (const p of passParts(watchGh, performance.now() - t0)) record({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit: 0 }, main);

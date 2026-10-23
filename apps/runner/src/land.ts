@@ -198,7 +198,7 @@ function workspaceDeps(root: string, pkg: any): string[] {
   return out;
 }
 
-export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr", "console-api:compose"];
+export const FWCORE_USERS = ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check", "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit", "packages/measure-wktr", "console-api:compose", "runner:overflow-widths"];
 export const FWCORE_BIN = "lean/.lake/build/bin/fwcore";
 export const FWCORE_BUILD_READS = ["lean/**", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh"];
 export type Digest = string | null;
@@ -235,8 +235,17 @@ export const withScan = (cs: Check[]): Check[] =>
 
 export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
+export const LAND_TIER_LOCAL_GOLDEN = "packages/contracts/golden/console/land-tier-local.jsonl";
+export function overflowWidthsReadsFromGolden(goldenPath = join(new URL(import.meta.url).pathname, "../../../../", LAND_TIER_LOCAL_GOLDEN)): string[] {
+  const row = JSON.parse(readFileSync(goldenPath, "utf8").split("\n")[0]!) as { request: { tests: { id: string; reads: string[] }[] } };
+  const t = row.request.tests.find((x) => x.id === "runner:overflow-widths");
+  if (!t) throw new Error(`${goldenPath}: no runner:overflow-widths test`);
+  return t.reads;
+}
+export const OVERFLOW_WIDTHS_READS = overflowWidthsReadsFromGolden();
 export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
+  { id: "runner:overflow-widths", argv: ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-overflow-widths.test.ts"], reads: OVERFLOW_WIDTHS_READS },
 ];
 
 export const WORKFLOW_LINT: Check = { id: WORKFLOW_LINT_ID, argv: WORKFLOW_LINT_ARGV, reads: WORKFLOW_LINT_READS };

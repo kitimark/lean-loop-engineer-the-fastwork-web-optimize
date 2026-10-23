@@ -44,12 +44,10 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
 `ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
 `lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
-`judgeQ_same_work`, `judgeQ_other_work`, `judgeQ_other_mods`, `judgeQ_unbuilt`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
+`judgeQ0_same_work`, `judgeQ_other_work`, `judgeQ_other_mods`, `judgeQ_unbuilt`, `unkeyed_late_no_slow`, `unkeyedLate_iff`, `judgeQ_no_keyed_history`,
+`slow_not_unkeyed_late`, `remoteQueue_never_slow`, `ciWait_never_slow`, `ciWait_dur_indep`, `verdictsOf_remoteQueue_not_slow`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
-
-Wire: `timingVerdicts` is the entry point (op `obs.timing`, wired by `timing-alert`); the golden is
-`packages/contracts/golden/obs/timing.jsonl`, rendered by `Fw.Wire.Obs.Timing.goldenText` at the end of this file.
 -/
 namespace Fw.Obs.Timing
 
@@ -61,10 +59,6 @@ inductive Host where
   | ci
 deriving DecidableEq, Repr
 
-/-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, the run
-kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
-different histories), the exit code (`none` when unknown) and whether CI reported the step or job `skipped`.
--/
 structure Sample where
   tool    : String
   step    : String
@@ -77,6 +71,7 @@ structure Sample where
   waitMs  : Nat := 0
   waits   : List (Fw.Sup.Adapt.WhyTag × Nat) := []
   work    : List (String × String) := []
+  ownMs   : Option Nat := none
 deriving DecidableEq, Repr
 
 def fullRun (exit : Option Int) (skipped : Bool) : Bool := !skipped && (exit == none || exit == some 0)
@@ -95,7 +90,23 @@ theorem fullRun_skipped (e : Option Int) : fullRun e true = false := rfl
 theorem fullRun_nonzero (n : Int) (b : Bool) (h : n ≠ 0) : fullRun (some n) b = false := by
   simp [fullRun, h]
 
-/-- The history a sample belongs to: same tool, step, host, run kind and work dimensions. -/
+def Sample.remoteQueue (s : Sample) : Bool := s.tool == "fw land" && s.step == "remote queue"
+
+def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
+
+def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
+
+def Sample.own (s : Sample) : Option Nat :=
+  if s.remoteQueue then some 0 else if s.ciWait then s.ownMs else some s.durMs
+
+def Sample.norm (s : Sample) : Sample :=
+  { s with durMs := s.own.getD s.durMs, skipped := s.skipped || s.own.isNone }
+
+#guard ({ tool := "fw", step := "ci wait", durMs := 293198, host := .«local», ownMs := some 12245 } : Sample).norm.durMs == 12245
+#guard !({ tool := "fw", step := "ci wait", durMs := 293198, host := .«local» } : Sample).norm.full
+#guard ({ tool := "fw land", step := "remote queue", durMs := 36034, host := .«local» } : Sample).norm.durMs == 0
+#guard ({ tool := "fw", step := "land dry", durMs := 36034, host := .«local» } : Sample).norm.durMs == 36034
+
 structure Key where
   tool : String
   step : String
@@ -423,6 +434,7 @@ inductive Code where
   | slow
   | queued
   | mixed
+  | unkeyed
 deriving DecidableEq, Repr
 
 /-- The code of sample `s` against window `w`, first match: too short a window, contended, slow, ok. The baseline is the
@@ -486,9 +498,23 @@ def Sample.mixed (s : Sample) : Bool := s.tool == "fw" && slotKinds.any fun k =>
 
 def SampleVerdict.markMixed (v : SampleVerdict) : SampleVerdict := { v with code := .mixed }
 
-/-- The verdict of one sample: `mixed` for an overflow bucket sample, otherwise `judgeW`. -/
-def judgeQ (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
+def judgeQ0 (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   if s.mixed then (judgeW p hist i s).markMixed else judgeW p hist i s
+
+def Sample.sameStep (s t : Sample) : Bool :=
+  s.tool == t.tool && s.step == t.step && decide (s.host = t.host) && s.kind == t.kind
+
+def Sample.unkeyed (s : Sample) : Bool := !(s.work.any fun kv => kv.1 == checksDim || kv.1 == modsDim)
+
+def unkeyedLate (hist : List Sample) (s : Sample) : Bool :=
+  s.unkeyed && hist.any (fun t => t.full && !t.unkeyed && s.sameStep t)
+
+def SampleVerdict.markUnkeyed (v : SampleVerdict) : SampleVerdict := { v with code := .unkeyed }
+
+def judgeQ(p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
+  if s.mixed then (judgeW p hist i s).markMixed
+  else if unkeyedLate hist s then (judgeW p hist i s).markUnkeyed
+  else judgeW p hist i s
 
 #guard ({ tool := "fw", step := "slot run check", durMs := 1, host := .«local» } : Sample).mixed
 #guard ({ tool := "fw", step := "slot run test dry cached", durMs := 1, host := .«local» } : Sample).mixed
@@ -959,9 +985,9 @@ theorem judgeW_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sampl
   unfold judgeW
   rw [hj s rfl, hj s.rest (rest_key s)]
 
-theorem judgeQ_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
-    judgeQ p (hist.filter (fun x => decide (x.key = s.key))) i s = judgeQ p hist i s := by
-  simp only [judgeQ, judgeW_filter_key]
+theorem judgeQ0_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    judgeQ0 p (hist.filter (fun x => decide (x.key = s.key))) i s = judgeQ0 p hist i s := by
+  simp only [judgeQ0, judgeW_filter_key]
 
 theorem filter_key_work (hist : List Sample) (s : Sample) :
     (hist.filter (fun x => decide (x.work = s.work))).filter (fun x => decide (x.key = s.key)) =
@@ -974,32 +1000,32 @@ theorem filter_key_work (hist : List Sample) (s : Sample) :
     simp [h, hw]
   · simp [h]
 
-theorem judgeQ_same_work (p : Params) (hist hist' : List Sample) (i : Nat) (s : Sample)
+theorem judgeQ0_same_work (p : Params) (hist hist' : List Sample) (i : Nat) (s : Sample)
     (h : hist.filter (fun x => decide (x.work = s.work)) = hist'.filter (fun x => decide (x.work = s.work))) :
-    judgeQ p hist i s = judgeQ p hist' i s := by
-  rw [← judgeQ_filter_key p hist, ← judgeQ_filter_key p hist', ← filter_key_work hist, ← filter_key_work hist', h]
+    judgeQ0 p hist i s = judgeQ0 p hist' i s := by
+  rw [← judgeQ0_filter_key p hist, ← judgeQ0_filter_key p hist', ← filter_key_work hist, ← filter_key_work hist', h]
 
-theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s : Sample)
+theorem judgeQ0_other_work (p : Params) (hist others : List Sample) (i : Nat) (s : Sample)
     (h : ∀ x ∈ others, x.work ≠ s.work) :
-    judgeQ p (hist ++ others) i s = judgeQ p hist i s := by
-  apply judgeQ_same_work
+    judgeQ0 p (hist ++ others) i s = judgeQ0 p hist i s := by
+  apply judgeQ0_same_work
   rw [List.filter_append, List.append_right_eq_self]
   exact List.filter_eq_nil_iff.2 (fun x hx => by simpa using h x hx)
 
-theorem judgeQ_other_mods (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+theorem judgeQ0_other_mods (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
     (c : Option (List String)) (b : Nat) (hs : s.work = spanWork w j c (some b))
     (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a) ∧ modsLow a ≠ modsLow b) :
-    judgeQ p (hist ++ others) i s = judgeQ p hist i s :=
-  judgeQ_other_work p hist others i s fun x hx => by
+    judgeQ0 p (hist ++ others) i s = judgeQ0 p hist i s :=
+  judgeQ0_other_work p hist others i s fun x hx => by
     obtain ⟨a, hx, hne⟩ := h x hx
     rw [hx, hs]
     exact spanWork_mods_ne w j c a b hne
 
-theorem judgeQ_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+theorem judgeQ0_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
     (c : Option (List String)) (hs : s.work = spanWork w j c none)
     (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a)) :
-    judgeQ p (hist ++ others) i s = judgeQ p hist i s :=
-  judgeQ_other_work p hist others i s fun x hx => by
+    judgeQ0 p (hist ++ others) i s = judgeQ0 p hist i s :=
+  judgeQ0_other_work p hist others i s fun x hx => by
     obtain ⟨a, hx⟩ := h x hx
     rw [hx, hs]
     exact spanWork_built_ne_unbuilt w j c a
@@ -1017,13 +1043,44 @@ theorem windowOf_unworked (p : Params) (hist : List Sample) (k : Key) (hk : k.wo
   subst hk
   simp [Sample.key, hh x hx]
 
-theorem judgeQ_unworked (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hs : s.work = []) :
-    judgeQ p hist i s = judgeQ p (hist.filter (fun x => decide (x.work = []))) i s := by
-  apply judgeQ_same_work
+theorem judgeQ0_unworked (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hs : s.work = []) :
+    judgeQ0 p hist i s = judgeQ0 p (hist.filter (fun x => decide (x.work = []))) i s := by
+  apply judgeQ0_same_work
   rw [hs, List.filter_filter]
   congr 1
   funext x
   by_cases h : x.work = [] <;> simp [h]
+
+theorem judgeQ_keyed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.unkeyed = false) :
+    judgeQ p hist i s = judgeQ0 p hist i s := by
+  simp [judgeQ, judgeQ0, unkeyedLate, h]
+
+theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (hs : s.unkeyed = false)
+    (h : ∀ x ∈ others, x.work ≠ s.work) :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s := by
+  rw [judgeQ_keyed p _ i s hs, judgeQ_keyed p _ i s hs]
+  exact judgeQ0_other_work p hist others i s h
+
+theorem spanWork_built_keyed (w j : Option Nat) (c : Option (List String)) (b : Nat) :
+    ({ tool := "", step := "", durMs := 0, host := .ci, work := spanWork w j c (some b) } : Sample).unkeyed = false := by
+  simp [Sample.unkeyed, spanWork, modsWork, modsDim]
+
+theorem judgeQ_other_mods (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+    (c : Option (List String)) (b : Nat) (hs : s.work = spanWork w j c (some b))
+    (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a) ∧ modsLow a ≠ modsLow b) :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s := by
+  have hk : s.unkeyed = false := by
+    have := spanWork_built_keyed w j c b
+    simpa [Sample.unkeyed, hs] using this
+  rw [judgeQ_keyed p _ i s hk, judgeQ_keyed p _ i s hk]
+  exact judgeQ0_other_mods p hist others i s w j c b hs h
+
+theorem judgeQ_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+    (c : Option (List String)) (hs : s.work = spanWork w j c none) (hk : s.unkeyed = false)
+    (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a)) :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s := by
+  rw [judgeQ_keyed p _ i s hk, judgeQ_keyed p _ i s hk]
+  exact judgeQ0_unbuilt p hist others i s w j c hs h
 
 def runSteps : List String :=
   ["run plan", "run dispatch lock", "run dispatch reserve", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
@@ -1162,18 +1219,24 @@ theorem judgeW_unwaited (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     judgeW p hist i s = judge p hist i s :=
   judgeW_plain p hist i s (by simp [queuedWithin, h])
 
-theorem judgeQ_unmixed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.mixed = false) :
-    judgeQ p hist i s = judgeW p hist i s := by
-  simp [judgeQ, h]
+theorem judgeQ_unmixed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.mixed = false)
+    (hu : unkeyedLate hist s = false) : judgeQ p hist i s = judgeW p hist i s := by
+  simp [judgeQ, h, hu]
 
 theorem judgeQ_mixed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.mixed = true) :
     judgeQ p hist i s = (judgeW p hist i s).markMixed := by
   simp [judgeQ, h]
 
+theorem judgeQ_unkeyed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hm : s.mixed = false)
+    (h : unkeyedLate hist s = true) : judgeQ p hist i s = (judgeW p hist i s).markUnkeyed := by
+  simp [judgeQ, hm, h]
+
 theorem judgeQ_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : (judgeQ p hist i s).code = .slow) :
     s.mixed = false ∧ (judgeW p hist i s).code = .slow := by
   cases hm : s.mixed
-  · rw [judgeQ_unmixed p hist i s hm] at h; exact ⟨rfl, h⟩
+  · cases hu : unkeyedLate hist s
+    · rw [judgeQ_unmixed p hist i s hm hu] at h; exact ⟨rfl, h⟩
+    · rw [judgeQ_unkeyed p hist i s hm hu] at h; cases h
   · rw [judgeQ_mixed p hist i s hm] at h; cases h
 
 theorem judgeQ_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
@@ -1225,23 +1288,23 @@ theorem judgeW_work (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (
   · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
 
 theorem judgeQ_durMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).durMs = s.durMs := by
-  unfold judgeQ; split <;> exact judgeW_durMs p hist i s
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_durMs p hist i s
 
 theorem judgeQ_budgetMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judgeQ p hist i s).budgetMs = budgetFor p s := by
-  unfold judgeQ; split <;> exact judgeW_budgetMs p hist i s
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_budgetMs p hist i s
 
 theorem judgeQ_tool (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).tool = s.tool := by
-  unfold judgeQ; split <;> exact judgeW_tool p hist i s
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_tool p hist i s
 
 theorem judgeQ_step (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).step = s.step := by
-  unfold judgeQ; split <;> exact judgeW_step p hist i s
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_step p hist i s
 
 theorem judgeQ_kind (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).kind = s.kind := by
-  unfold judgeQ; split <;> exact judgeW_kind p hist i s
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_kind p hist i s
 
 theorem judgeQ_work (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).work = s.work := by
-  unfold judgeQ; split <;> exact judgeW_work p hist i s
+  unfold judgeQ; split <;> (try split) <;> exact judgeW_work p hist i s
 
 theorem judge_idx (p : Params) (h : List Sample) (i j : Nat) (s : Sample) :
     judge p h i s = { judge p h j s with idx := i } := rfl
@@ -1259,14 +1322,29 @@ theorem judgeW_unindexed (p : Params) (h h' : List Sample) (i j : Nat) (s : Samp
   · rw [judgeW_plain p h i s (by simpa using hq), judgeW_plain p h' j s (by simpa using hq), key]
     simp [SampleVerdict.unindexed]
 
+theorem unkeyedLate_filter_full (h : List Sample) (s : Sample) :
+    unkeyedLate h s = unkeyedLate (h.filter Sample.full) s := by
+  unfold unkeyedLate
+  congr 1
+  apply Bool.eq_iff_iff.2
+  simp only [List.any_eq_true, List.mem_filter]
+  constructor
+  · rintro ⟨t, ht, hp⟩
+    have hf : t.full = true := by simp only [Bool.and_eq_true] at hp; exact hp.1.1
+    exact ⟨t, ⟨ht, hf⟩, hp⟩
+  · rintro ⟨t, ⟨ht, _⟩, hp⟩; exact ⟨t, ht, hp⟩
+
 theorem judgeQ_unindexed (p : Params) (h h' : List Sample) (i j : Nat) (s : Sample)
     (hh : h.filter Sample.full = h'.filter Sample.full) :
     (judgeQ p h i s).unindexed = (judgeQ p h' j s).unindexed := by
   have hw := judgeW_unindexed p h h' i j s hh
   unfold judgeQ
+  rw [unkeyedLate_filter_full h s, unkeyedLate_filter_full h' s, hh]
   split
   · exact congrArg SampleVerdict.markMixed hw
-  · exact hw
+  · split
+    · exact congrArg SampleVerdict.markUnkeyed hw
+    · exact hw
 
 theorem fullVerdicts_unindexed (p : Params) (ss : List Sample) :
     (fullVerdicts p ss).map SampleVerdict.unindexed =
@@ -1787,9 +1865,101 @@ theorem no_slow_bucket (p : Params) (hist : List Sample) (v : SampleVerdict)
   simp only [Sample.mixed, ht, beq_self_eq_true, Bool.true_and, List.any_eq_true]
   exact ⟨k, hk, by simpa using hb⟩
 
-/-- **Contended samples never enter a window.** Appending samples that are all contended to the history leaves every
-window unchanged.
--/
+theorem unkeyed_late_no_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : unkeyedLate hist s = true) :
+    (judgeQ p hist i s).code ≠ .slow := by
+  cases hm : s.mixed
+  · rw [judgeQ_unkeyed p hist i s hm h]; simp [SampleVerdict.markUnkeyed]
+  · exact judgeQ_mixed_not_slow p hist i s hm
+
+theorem unkeyed_late_code (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hm : s.mixed = false)
+    (h : unkeyedLate hist s = true) : (judgeQ p hist i s).code = .unkeyed := by
+  rw [judgeQ_unkeyed p hist i s hm h]; rfl
+
+theorem unkeyedLate_iff (hist : List Sample) (s : Sample) :
+    unkeyedLate hist s = true ↔
+      s.unkeyed = true ∧ ∃ t ∈ hist, t.full = true ∧ t.unkeyed = false ∧ s.sameStep t = true := by
+  unfold unkeyedLate
+  simp only [Bool.and_eq_true, List.any_eq_true, Bool.not_eq_true']
+  constructor
+  · rintro ⟨hs, t, ht, ⟨hf, hu⟩, hss⟩; exact ⟨hs, t, ht, hf, hu, hss⟩
+  · rintro ⟨hs, t, ht, hf, hu, hss⟩; exact ⟨hs, t, ht, ⟨hf, hu⟩, hss⟩
+
+theorem judgeQ_no_keyed_history (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hm : s.mixed = false)
+    (h : ∀ t ∈ hist, t.full = true → t.unkeyed = false → s.sameStep t = false) :
+    judgeQ p hist i s = judgeW p hist i s := by
+  apply judgeQ_unmixed p hist i s hm
+  cases hu : unkeyedLate hist s
+  · rfl
+  · obtain ⟨_, t, ht, hf, hk, hss⟩ := (unkeyedLate_iff hist s).1 hu
+    rw [h t ht hf hk] at hss; cases hss
+
+theorem slow_not_unkeyed_late (p : Params) (hist : List Sample) (v : SampleVerdict)
+    (h : Verdict.sample v ∈ timingVerdicts p hist) (hs : v.code = .slow) :
+    ∃ i, ∃ hi : i < hist.length, v = judgeQ p (hist.take i) i hist[i] ∧ unkeyedLate (hist.take i) hist[i] = false := by
+  obtain ⟨i, hi, rfl⟩ := mem_sample p hist v h
+  refine ⟨i, hi, rfl, ?_⟩
+  cases hu : unkeyedLate (hist.take i) hist[i]
+  · rfl
+  · exact absurd hs (unkeyed_late_no_slow p _ i _ hu)
+
+theorem norm_key (s : Sample) : s.norm.key = s.key := rfl
+
+theorem norm_of_not_remote (s : Sample) (h : s.remote = false) : s.norm = s := by
+  have h1 : s.remoteQueue = false := by simpa [Sample.remote] using (Bool.or_eq_false_iff.1 h).1
+  have h2 : s.ciWait = false := by simpa [Sample.remote] using (Bool.or_eq_false_iff.1 h).2
+  simp [Sample.norm, Sample.own, h1, h2]
+
+theorem remoteQueue_norm_dur (s : Sample) (h : s.remoteQueue = true) : s.norm.durMs = 0 := by
+  simp [Sample.norm, Sample.own, h]
+
+theorem ciWait_norm_dur (s : Sample) (hc : s.ciWait = true) (o : Nat) (ho : s.ownMs = some o) : s.norm.durMs = o := by
+  have h1 : s.remoteQueue = false := by
+    simp only [Sample.remoteQueue, Bool.and_eq_false_imp, beq_iff_eq]
+    simp only [Sample.ciWait, Bool.and_eq_true, beq_iff_eq] at hc
+    intro _; rw [hc.2]; decide
+  simp [Sample.norm, Sample.own, h1, hc, ho]
+
+theorem ciWait_dur_indep (s : Sample) (d o : Nat) (hc : s.ciWait = true) (ho : s.ownMs = some o) :
+    ({ s with durMs := d } : Sample).norm.durMs = s.norm.durMs := by
+  rw [ciWait_norm_dur s hc o ho]
+  exact ciWait_norm_dur { s with durMs := d } hc o ho
+
+theorem ciWait_unknown_not_full (s : Sample) (hc : s.ciWait = true) (ho : s.ownMs = none) : s.norm.full = false := by
+  have h1 : s.remoteQueue = false := by
+    simp only [Sample.remoteQueue, Bool.and_eq_false_imp, beq_iff_eq]
+    simp only [Sample.ciWait, Bool.and_eq_true, beq_iff_eq] at hc
+    intro _; rw [hc.2]; decide
+  simp [Sample.norm, Sample.own, Sample.full, fullRun, h1, hc, ho]
+
+theorem remoteQueue_never_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : s.remoteQueue = true) :
+    (judgeQ p hist i s.norm).code ≠ .slow := by
+  apply no_alert_within_budget_Q
+  rw [remoteQueue_norm_dur s hq]; exact Nat.zero_le _
+
+theorem ciWait_never_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hc : s.ciWait = true) (o : Nat)
+    (ho : s.ownMs = some o) (hb : o ≤ budgetFor p s) : (judgeQ p hist i s.norm).code ≠ .slow := by
+  apply no_alert_within_budget_Q
+  rw [ciWait_norm_dur s hc o ho]; exact hb
+
+/-- The entry point with remote waits judged by their own time (wire ops `obs.timing` and `obs.slow`). -/
+def verdictsOf (p : Params) (ss : List Sample) : List Verdict := timingVerdicts p (ss.map Sample.norm)
+
+theorem verdictsOf_remoteQueue_not_slow (p : Params) (ss : List Sample) (v : SampleVerdict)
+    (h : Verdict.sample v ∈ verdictsOf p ss) (ht : v.tool = "fw land") (hs : v.step = "remote queue") :
+    v.code ≠ .slow := by
+  obtain ⟨i, hi, rfl⟩ := mem_sample p (ss.map Sample.norm) v h
+  have hi' : i < ss.length := by simpa using hi
+  have hx : (ss.map Sample.norm)[i] = ss[i].norm := by simp
+  rw [hx] at ht hs ⊢
+  rw [judgeQ_tool] at ht
+  rw [judgeQ_step] at hs
+  exact remoteQueue_never_slow p _ i ss[i] (by simpa [Sample.remoteQueue, Sample.norm] using And.intro ht hs)
+
+def SampleVerdict.detail (v : SampleVerdict) : String :=
+  let own := if ({ tool := v.tool, step := v.step, durMs := 0, host := v.host } : Sample).remote
+    then " (our own time: the remote run's wait is not counted)" else ""
+  s!"sample #{v.idx} took {v.durMs} ms{own}, against baseline {v.baseline} ms (p50 of the {v.n} earlier samples of the same tool, step, host, run kind and work), budget {v.budgetMs} ms"
+
 theorem windowOf_append_contended (p : Params) (hist cs : List Sample) (k : Key)
     (hc : ∀ c ∈ cs, contended p c = true) : windowOf p (hist ++ cs) k = windowOf p hist k := by
   have h : cs.filter (fun s => decide (s.key = k) && counts p s) = [] :=
@@ -2022,6 +2192,7 @@ def codeStr : Code → String
   | .slow => "slow"
   | .queued => "queued"
   | .mixed => "mixed"
+  | .unkeyed => "unkeyed"
 
 def callStr : Call → String
   | .structural => "structural"
@@ -2042,7 +2213,7 @@ def sampleJson (s : Sample) : Json :=
     ("exit", (s.exit.map toJson).getD .null), ("skipped", toJson s.skipped),
     ("waitMs", toJson s.waitMs),
     ("waits", .arr (s.waits.map (fun (t, ms) => Json.mkObj [("why", .str t.name), ("ms", toJson ms)])).toArray)] ++
-    workField s.work)
+    workField s.work ++ (s.ownMs.map fun o => [("ownMs", toJson o)]).getD [])
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -2067,9 +2238,8 @@ def caseJson (name : String) (p : Params) (ss : List Sample) : Json :=
   Json.mkObj [("name", .str name),
     ("request", Json.mkObj [("op", "obs.timing"), ("params", paramsJson p),
       ("samples", .arr (ss.map sampleJson).toArray)]),
-    ("response", Json.mkObj [("verdicts", .arr ((timingVerdicts p ss).map verdictJson).toArray)])]
+    ("response", Json.mkObj [("verdicts", .arr ((verdictsOf p ss).map verdictJson).toArray)])]
 
-/-- The tool name of the breakpoint-gate CI jobs. -/
 def gateTool : String := "ci:breakpoint-gate"
 
 def gateJob (step : String) (s : Nat) : Sample := { tool := gateTool, step, durMs := s * 1000, host := .ci }
@@ -2200,9 +2370,31 @@ def landDryRun (built : Bool) : List Sample :=
     { tool := "fw", step := "land dry lake", durMs := d, host := .«local», load := l, exit := some (Int.ofNat e),
       work := if built then spanWork none none none (some m) else [] }
 
-/-- The 38.3 s `slot run check` span of 2026-10-23T11:37:35Z (commit 7e8d89c) and the twelve spans of that step before
-it, as (ms, exit).
--/
+def landKeyedData : List (Nat × Option Nat × Nat) :=
+  [(44947, some 24, 3), (26801, none, 4), (26410, none, 4), (30086, none, 3), (26599, some 0, 3), (28357, none, 3),
+   (28350, none, 3), (26396, none, 2), (26823, none, 3), (26490, none, 2), (28192, none, 5), (37163, some 6, 4),
+   (33250, some 0, 5), (51092, none, 4), (36623, some 6, 4), (29602, some 0, 4), (34463, some 6, 2), (34173, some 6, 3),
+   (39692, some 6, 3), (28563, some 0, 4), (29974, some 0, 3), (26441, some 0, 3), (25264, some 0, 2), (26484, some 0, 3)]
+
+def landKeyedRun (n : Nat) : List Sample :=
+  (landKeyedData.take n).map fun (d, m, l) =>
+    { tool := "fw", step := "land dry lake", durMs := d, host := .«local», load := l, exit := some 0,
+      work := (m.map modsWork).getD [] }
+
+def ciWaitData : List (Nat × Nat × Nat) :=
+  [(316141, 20570, 2), (440814, 16696, 3), (179419, 26169, 4), (335984, 25290, 5), (387370, 27352, 5),
+   (293198, 12245, 4), (1377258, 27294, 5)]
+
+def ciWaitRun : List Sample :=
+  ciWaitData.map fun (d, o, l) =>
+    { tool := "fw", step := "ci wait", durMs := d, host := .«local», load := l, exit := some 0, ownMs := some o }
+
+def remoteQueueData : List (Nat × Nat) := [(0, 4), (0, 1), (37079, 4), (0, 3), (0, 2), (0, 4), (36034, 5)]
+
+def remoteQueueRun : List Sample :=
+  remoteQueueData.map fun (d, l) =>
+    { tool := "fw land", step := "remote queue", durMs := d, host := .«local», load := l, exit := some 0 }
+
 def bucketRun (step : String) : List Sample :=
   runX "fw" step .«local» 4 ([(1261, some 0), (50394, some 0), (621, some 1), (731, some 0), (7957, some 0),
     (13855, some 1), (38629, some 0), (12607, some 0), (516, some 0), (8, some 1), (7824, some 0), (854, some 0),
@@ -2358,14 +2550,22 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
    ("slot run overflow bucket: a dry cached bucket step is mixed too",
       {}, bucketRun "slot run land dry cached"),
    ("slot run with a command key: the same durations under one command's step are judged: slow",
-      {}, bucketRun "slot run check sh lean/scripts/check.sh")]
+      {}, bucketRun "slot run check sh lean/scripts/check.sh"),
+   ("land dry lake: the 51.1 s span of commit ffb7792 without a lake member comes after keyed spans (24, 0, 6 modules): unkeyed, no verdict (it was slow against the unkeyed history)",
+      {}, landKeyedRun 14),
+   ("land dry lake: the built-0 spans of 19dd16e (26.4, 25.3, 26.5 s) and d08e461 (30.0 s) are judged on the built-0 history alone (p50 28.6 s over seven): ok",
+      {}, landKeyedRun 24),
+   ("fw ci wait: the 23 min wait is judged by its own 27.3 s against the six waits before it (own p50 20.6 s): ok, though 23 min is far over 1.5 times its raw p50",
+      {}, ciWaitRun),
+   ("fw land remote queue: the 36.0 s runner queue wait is judged as 0 ms of our time: ok",
+      {}, remoteQueueRun),
+   ("fw ci wait of an old span without phases: no own time, no verdict (the last verdict is the sixth wait's)",
+      {}, ciWaitRun.take 6 ++ [{ tool := "fw", step := "ci wait", durMs := 900000, host := .«local», load := 3, exit := some 0 }])]
 
--- six run-split cases: three dispatch, two watch pass, one new split step
 #guard ((cases ()).filter fun c => c.1.startsWith "run split:").length == 6
 
-/-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
-  ((fullVerdicts p ss).getLast?).map (·.code)
+  ((fullVerdicts p (ss.map Sample.norm)).getLast?).map (·.code)
 
 #guard (structuralVerdicts gateParams gateRun).map (fun v => (v.stage, v.group, v.call, v.baseline, v.siblingMax)) ==
   [("breakpoint-gate:test", "gate", .noise, 147000, 345000), ("breakpoint-gate:test", "sweeps", .structural, 345000, 147000),
@@ -2381,7 +2581,22 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline,
    some .slow, some .noBaseline, some .slow, some .ok, some .slow,
    some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
-   some .mixed, some .mixed, some .slow]
+   some .mixed, some .mixed, some .slow,
+   some .unkeyed, some .ok, some .ok, some .ok, some .ok]
+#guard ((landKeyedRun 14)[13]?).map (fun s => (judgeW {} ((landKeyedRun 14).take 13) 13 s).code) == some .slow
+#guard ((sampleVerdicts {} (landKeyedRun 14))[13]?).map (·.code) == some .unkeyed
+#guard ((landKeyedRun 14)[13]?).map (unkeyedLate ((landKeyedRun 14).take 13)) == some true
+#guard ((landKeyedRun 14)[13]?).map (unkeyedLate (((landKeyedRun 14).drop 1).take 2)) == some false
+#guard ((sampleVerdicts {} (landKeyedRun 24)).drop 20).map (fun v => (v.n, v.baseline, v.code)) ==
+  [(4, 28563, .noBaseline), (5, 29602, .ok), (6, 28563, .ok), (7, 28563, .ok)]
+#guard ((sampleVerdicts {} (landKeyedRun 24))[23]?).map (·.detail) ==
+  some "sample #23 took 26484 ms, against baseline 28563 ms (p50 of the 7 earlier samples of the same tool, step, host, run kind and work), budget 30000 ms"
+#guard ((sampleVerdicts {} ciWaitRun)[6]?).map (·.code) == some .slow
+#guard ((sampleVerdicts {} (ciWaitRun.map Sample.norm))[6]?).map (·.code) == some .ok
+#guard ((sampleVerdicts {} (remoteQueueRun.map Sample.norm))[6]?).map (·.durMs) == some 0
+#guard (fullVerdicts {} ((ciWaitRun.take 6 ++ [({ tool := "fw", step := "ci wait", durMs := 900000, host := .«local», exit := some 0 } : Sample)]).map Sample.norm)).length == 6
+#guard ((sampleVerdicts {} (ciWaitRun.map Sample.norm))[6]?).map (·.detail) ==
+  some "sample #6 took 27294 ms (our own time: the remote run's wait is not counted), against baseline 20570 ms (p50 of the 6 earlier samples of the same tool, step, host, run kind and work), budget 30000 ms"
 #guard (fullVerdicts {} (groupView.map (fun (d, l, w) => group (some w) l d) ++ groupRecorded)).getLast?.map
     (fun v => (v.n, v.baseline)) == some (7, 97284)
 #guard (fullVerdicts {} polishRun).getLast?.map (fun v => (v.n, v.baseline)) == some (9, 18826)

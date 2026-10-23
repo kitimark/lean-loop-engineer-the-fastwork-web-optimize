@@ -201,7 +201,7 @@ describe("fw land --task on an agent branch", () => {
 describe("checksFor", () => {
   it("derives the checks from the changed files", () => {
     expect(checksFor("/nonexistent", ["docs/a.md"])).toEqual([]);
-    expect(checksFor("/nonexistent", ["lean/Fw/A.lean"])).toEqual([["sh", "lean/scripts/check.sh"], LOCAL_TESTS[0]!.argv, READS_SCAN_ARGV]);
+    expect(checksFor("/nonexistent", ["lean/Fw/A.lean"])).toEqual([["sh", "lean/scripts/check.sh"], ...LOCAL_TESTS.map((t) => t.argv), READS_SCAN_ARGV]);
     const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
     expect(checksFor(root, ["apps/runner/src/land.ts", "apps/runner/test/x.ts"])).toEqual([["pnpm", "--filter", "./apps/runner", "test"], ["pnpm", "--filter", "./packages/engine-check", "test"], READS_SCAN_ARGV]);
   });
