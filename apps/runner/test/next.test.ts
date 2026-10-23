@@ -211,9 +211,10 @@ describe("false-positive facts (inc-next-false-positives) and retention", () => 
 
 export type { AgentFacts };
 
+// procps wraps boot_tics - start_time for a process started after the uptime sample; ps prints 441077234-00:18:40
 describe("an etime longer than the clock (the CircleCI shape)", () => {
   const now = 1_760_000_000_000;
-  const psText = "    1     0 03:41:48 /usr/local/bin/claude\n    5     1 25000-03:04:05 sh -c until grep -q X /t/o; do sleep 1; done\n";
+  const psText = "    1     0 03:41:48 /usr/local/bin/claude\n    5     1 441077234-00:18:40 sh -c until grep -q X /t/o; do sleep 1; done\n";
   it("startFromAge: a longer-than-clock age is unknown (-1), a normal age is the start", () => {
     expect(startFromAge(now, 90_000)).toBe(now - 90_000);
     expect(startFromAge(now, now)).toBe(0);

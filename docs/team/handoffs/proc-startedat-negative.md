@@ -2,10 +2,9 @@ branch: worktree-wf_a666a56e-9e7-1
 worktree: .claude/worktrees/wf_a666a56e-9e7-1
 no CI run pushed (reproduced from text; accepted limit)
 
-Cause (INFERRED, mechanism CONFIRMED): the collector writes a process start as `now - ageMs` (next.ts child fact, watch-collect.ts
+Cause (CONFIRMED, procps source): the collector writes a process start as `now - ageMs` (next.ts child fact, watch-collect.ts
 sessionProcs); ageMs is parsed from `ps etime`. procps computes etime as `boot_tics - start_time` (library/pids.c:287@v4.0.4),
-two bases that can disagree in a container or restored VM, so the age can exceed the epoch (Linux text shape
-`25000-03:04:05`). Then startedAt < 0 and fwcore's `nat` refused it: "field startedAt: expected a non-negative integer".
+unsigned boot_tics - start_time wraps when a process starts after procps sampled uptime (pids.c:1494@v4.0.4), e.g. a child spawned during the ps run, so the age exceeds the epoch (ps prints `441077234-00:18:40`). Then startedAt < 0 and fwcore's `nat` refused it: "field startedAt: expected a non-negative integer".
 The error text says obs.health because coreCaller labels every op so (watch.ts:57); the failing op was obs.next.
 
 Fix: TS `startFromAge` (watch-collect.ts) writes -1 for an age longer than the clock. Lean `startOf`/`unknownStart`
