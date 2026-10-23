@@ -302,12 +302,9 @@ export function rel(cand, base) {
   if (b) return 'cleared';
   return cand === skip('firstOpen') && base !== skip('firstOpen') ? 'undecided' : 'ok';
 }
-/** Lean `laneRed`: the candidate is red when some unit is new. */
 export const laneRed = (rels) => rels.includes('new');
-/** Lean `laneOf`: 'red', 'undecided' or 'clean'. */
 export const laneOf = (rels) => (laneRed(rels) ? 'red' : rels.includes('undecided') ? 'undecided' : 'clean');
 
-// ---- which arm was measured (Lean `armCheck`, `runCheck`) ---------------------------------------------------------------------
 
 /** Lean `armCheck`: 'ok' or 'refused:config'. An arm is { site, want, config, mode }, each of the last three a string or null. */
 export function armCheck(a) {
@@ -511,7 +508,6 @@ export const firstFrame = (ph, p, b) => ph === 'push' && p === OPEN_PH && b === 
 
 export const hasBucket = (seg, p, b) => seg.some((s) => s.ph === p && bucket(s.m) === b);
 
-/** Lean `alpha` as a fraction. */
 export const ALPHA = [1n, 20n];
 
 const chanceCmp = (no, j, nw) => {
@@ -520,11 +516,9 @@ const chanceCmp = (no, j, nw) => {
   return lhs > rhs ? 1 : lhs < rhs ? -1 : 0;
 };
 
-/** Lean `firstCover`: 'missing', 'late' or 'undecided'. */
 export const firstCover = (no, k, nw) =>
   (k >= 1 && chanceCmp(no, k - 1, nw) <= 0 ? 'missing' : chanceCmp(no, k + 1, nw) > 0 ? 'late' : 'undecided');
 
-/** Lean `coverVerdict`. */
 export const coverVerdict = (c) => (c === 'missing' ? fail('coverage') : c === 'late' ? skip('firstLate') : skip('firstOpen'));
 
 export const passes = (seg, p) => new Set(seg.filter((s) => s.ph === p).map((s) => s.rep ?? 0)).size;
@@ -709,7 +703,6 @@ export function verdictLines(engine, search, red) {
   const lines = [];
   for (const g of red.groups.filter((x) => x.newSteps.length > 0)) {
     lines.push(`VERDICT trajectory ${engine} w=${g.width} ${g.path} ${g.node}.${g.prop} NEW ${g.newSteps.length}/${g.pass + g.fail + g.skip} units: ${g.newSteps.slice(0, 6).join(' ')}${g.newSteps.length > 6 ? ' ...' : ''}`);
-/** VERDICT lines: refusal; else one per group with a new failure, then the total, then the timing rows. */
   }
   lines.push(`VERDICT trajectory ${engine} search=${s} ${red.lane.toUpperCase()} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} undecided=${red.rels.undecided} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
   lines.push(`FIRSTFRAME trajectory ${engine} search=${s} open@1 without a rewrite sample: skip:firstLate candidate ${red.totals.firstLate} faithful ${red.totals.baseFirstLate}, skip:firstOpen candidate ${red.totals.firstOpen} faithful ${red.totals.baseFirstOpen}`);

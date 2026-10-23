@@ -2552,16 +2552,10 @@ inductive Rel where
   | undecided
   deriving DecidableEq, Repr
 
-/-- The failure is a coverage failure (nothing to compare with), not a difference between the arms. -/
 def isCoverage : Verdict → Bool
   | .fail .coverage => true
   | _ => false
 
-/-- One unit against the same unit of the baseline. A unit the baseline does not have is a skip there, so a failure is `new`.
-
-Both fail: `unmeasured` when the candidate's failure is a difference and the baseline's is coverage (the faithful arm has no
-sample to compare, so the candidate's difference is not shown to be shared); else `both`. Neither fails: `undecided` when
-the candidate's verdict is `skip firstOpen` and the baseline's is not; else `ok`. -/
 def rel (cand base : Verdict) : Rel :=
   match isFail cand, isFail base with
   | true, true => if isCoverage base && !isCoverage cand then .unmeasured else .both
@@ -2569,7 +2563,6 @@ def rel (cand base : Verdict) : Rel :=
   | false, true => .cleared
   | false, false => if cand == .skip .firstOpen && base != .skip .firstOpen then .undecided else .ok
 
-/-- The candidate is red when any unit is `new`. -/
 def laneRed (rs : List Rel) : Bool := rs.any (· == .new)
 
 /-- Branch fails here, passes there: new. -/
@@ -2599,7 +2592,6 @@ theorem rel_cleared : rel .pass (.fail .apart) = .cleared := by decide
 /-- Branch a skip against a failing baseline is cleared, never `new`. -/
 theorem rel_skip_cleared : rel (.skip .noSample) (.fail .differs) = .cleared := by decide
 
-/-- Branch passes in both: ok. -/
 theorem rel_ok : rel .pass .pass = .ok ∧ rel (.skip .noSample) .pass = .ok := by decide
 
 theorem rel_undecided : rel (.skip .firstOpen) .pass = .undecided ∧ rel (.skip .firstOpen) (.skip .noSample) = .undecided :=
@@ -2607,7 +2599,6 @@ theorem rel_undecided : rel (.skip .firstOpen) .pass = .undecided ∧ rel (.skip
 
 theorem rel_undecided_both : rel (.skip .firstOpen) (.skip .firstOpen) = .ok := by decide
 
-/-- A unit is new exactly when it fails in the candidate and not in the baseline. -/
 theorem rel_new_iff (c b : Verdict) : rel c b = .new ↔ isFail c = true ∧ isFail b = false := by
   unfold rel
   cases hc : isFail c <;> cases hb : isFail b <;> simp <;> split <;> simp
@@ -4411,7 +4402,6 @@ inductive Cover where
   | undecided
   deriving DecidableEq, Repr
 
-/-- Open@1 coverage from `k` of `no` original passes in bucket 1 and `nw` rewrite passes with none there. -/
 def firstCover (no k nw : Nat) : Cover :=
   if 1 ≤ k ∧ missChance no (k - 1) nw ≤ alpha then .missing
   else if alpha < missChance no (k + 1) nw then .late
@@ -4626,7 +4616,6 @@ inductive Lane where
   | clean
   deriving DecidableEq, Repr
 
-/-- The lane word: red on any `new`, else undecided on any `undecided`, else clean. -/
 def laneOf (rs : List Rel) : Lane :=
   if laneRed rs then .red else if rs.contains .undecided then .undecided else .clean
 
@@ -4698,7 +4687,6 @@ def Verdict.name : Verdict → String
 def Phase.name : Phase → String
   | .push => "push" | .hold => "hold"
 
-/-- The name of a relative verdict in the golden file. -/
 def Rel.name : Rel → String
   | .ok => "ok" | .both => "both" | .cleared => "cleared" | .new => "new"
   | .unmeasured => "unmeasured" | .undecided => "undecided"
@@ -4709,7 +4697,6 @@ def Cover.name : Cover → String
 def Lane.name : Lane → String
   | .red => "red" | .undecided => "undecided" | .clean => "clean"
 
-/-- The name of an arm verdict in the golden file. -/
 def ArmVerdict.name : ArmVerdict → String
   | .ok => "ok" | .refusedConfig => "refused:config"
 
@@ -5423,7 +5410,6 @@ def Case.line : Case → Json
     Json.mkObj [("op", "lane"), ("name", n), ("rels", Json.arr (rs.map fun r => Json.str r.name).toArray),
       ("lane", Json.str (laneOf rs).name)]
 
-/-- Where the golden lives, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
 /-- Write, or with `--check` verify, the golden file.

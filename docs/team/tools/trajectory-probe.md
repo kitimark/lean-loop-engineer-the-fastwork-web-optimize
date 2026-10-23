@@ -78,13 +78,13 @@ runs the probe with the inputs of one message line:
    none there; `alpha` = 1/20) is `missing` when even with one original hit fewer all `nw` rewrite passes would miss with
    chance at most `alpha`, `late` when with one hit more that chance is above `alpha`, else `undecided`. An empty open@1 of
    the rewrite becomes `fail:coverage`, `skip:firstLate` or `skip:firstOpen` (`coverVerdict`, `firstVerdict_empty`); at
-   5 and 5 passes, `k` 0-1 is late, 2-3 undecided, 4-5 missing (`cover_five`). The verdict never jumps between
-   `fail:coverage` and `skip:firstLate` when one original pass more is taken, hit or not (`firstCover_extra`), or one
-   original miss turns into a hit (`firstCover_step`); concrete check `first_extra_pass`. A candidate's `skip:firstOpen`
+   5 and 5 passes, `k` 0-1 is late, 2-3 undecided, 4-5 missing (`cover_five`). The verdict never flips between
+   `fail:coverage` and `skip:firstLate` when one original pass is added, hit or not (`firstCover_extra`), or one
+   original miss becomes a hit (`firstCover_step`); concrete check `first_extra_pass`. A candidate's `skip:firstOpen`
    where the faithful arm's is not is `undecided` (`rel`), and the lane word is RED, UNDECIDED or CLEAN (`laneOf`). Kept
    as before: a sampled open@1 (`firstVerdict_rew_sampled`), a content failure (`firstVerdict_content`), any other bucket
    or phase (`firstVerdict_not_first`, `close_empty`). `verdictLines` prints a `FIRSTFRAME` line with the counts.
-   Offline re-reduction of the raws (a dev check; the CI evidence stays the two runs): run 39926829451 stays CLEAN, its 640
+   Offline re-reduction (dev check): run 39926829451 stays CLEAN, its 640
    candidate open@1 goes from `skip:origEmpty` to `skip:firstLate`, its 641 faithful open@1 from `fail:coverage` to
    `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). Limit: the cadence is Chromium's;
    WebKit's cadence is a follow-up.

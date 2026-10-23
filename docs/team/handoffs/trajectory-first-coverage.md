@@ -1,7 +1,7 @@
 # trajectory-first-coverage (lean-prover)
 
-- Branch `worktree-wf_c8ba7449-951-1`, worktree `.claude/worktrees/wf_c8ba7449-951-1`, last code commit 5133cca8f (then a merge of main and this note).
-- CI runs: none new; evidence stays runs 39926829451 and 39557718020 (both completed, CLEAN).
+- Branch `worktree-wf_c8ba7449-951-1`, worktree `.claude/worktrees/wf_c8ba7449-951-1`, last code commit 5133cca8f.
+- CI runs: none new; evidence is runs 39926829451 and 39557718020 (both CLEAN).
 - Verified: `lean/scripts/check.sh` green (axioms standard, golden 337 lines up to date); `@fw/gate-breakpoints` tests
   687/687; `scripts/ci-paths.test.mjs` 54/54; `fw land --dry` prints `VERDICT dry trajectory-first-coverage`.
 - Open: `src/trajectory/cli.mjs` summary header still prints `red.red ? 'RED' : 'CLEAN'` and has no `undecided` row (outside
