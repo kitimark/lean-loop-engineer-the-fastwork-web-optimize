@@ -1,5 +1,3 @@
-// Report of the hero.accent freeze run (TS stand-in for tables and medians; the decisions are the Lean twins in swap.mjs:
-// longRuns, frozenCell, sharePct, zoneVerdict, golden kinds swapRuns, swapFrozen, swapShare, swapZone).
 import { PERIODS, BUSY_MIN, BUSY_BUCKET, LONG_RUN_MIN, longRuns, median2, frozenCell, sharePct, zoneVerdict } from './swap.mjs';
 import { countOf, bgOfCapture, jobKey, jobBase, median } from './swapreport.mjs';
 

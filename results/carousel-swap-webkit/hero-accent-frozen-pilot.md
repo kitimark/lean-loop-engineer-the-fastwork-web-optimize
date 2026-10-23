@@ -1,4 +1,4 @@
-Sources: run 39996415429 job r3 only (job 120580412344, commit 9997926ab, 2 passes);  a pilot, not pooled with the final run
+Sources: run 39996415429 job r3 only (job 120580412344, commit 9997926ab, 2 passes); a pilot, not pooled
 
 Jobs counted (1): 120580412344. Passes: 2 unfrozen, 2 frozen. Background of a window: busy = both rest windows next to it have at least 24 Layout rows (i idle, m mixed, b busy, u unknown).
 

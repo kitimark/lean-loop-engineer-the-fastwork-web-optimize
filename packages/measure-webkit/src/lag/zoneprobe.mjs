@@ -1,5 +1,3 @@
-// One timed stepped scroll through the hero-exit zone (scroll zone A, Lean regionOf) from a fresh load, counting the Timeline
-// rows of the zone, with the hero.accent freeze or without. I/O only; the counts are reduce.mjs reduceSteps.
 import { RAF_HELPER } from '../page.mjs';
 import { schedule } from '../scrollrun.mjs';
 import { startTimeline } from '../timeline.mjs';

@@ -1,9 +1,3 @@
-// Harness-side freeze of the hero.accent part (I/O only). Premise: it removes the animations and transitions of the elements
-// inside [data-fw="hero-accent"] and nothing else, with the same visible result as that part's own prefers-reduced-motion block
-// (apps/site/src/parts/hero.accent/accent.module.css, @media (prefers-reduced-motion: reduce)): no CSS animation, no width
-// transition, stroke fully drawn, idle frame 0 shown. The chain of timers still runs and still writes the class, the width, the
-// view box and the path, so the DOM writes stay; only the per-frame animation work goes. Applied after the load through an
-// adopted style sheet (no DOM node added, no change to the page's own sheets); unset, nothing is called.
 import { RAF_HELPER } from '../page.mjs';
 
 export const FREEZE_OPTIONS = ['hero-accent'];

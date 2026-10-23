@@ -108,7 +108,7 @@ model), faithful Layout median is 13.5 to 16 on a busy background and 14 to 15 o
 faithful Paint is 31.5 to 48.5 against the crop's 19 to 34 on busy and 8 to 13 on idle. That the source is `hero.accent` in the faithful
 arm too is INFERRED: the arms differ only in the `?fw=people.carousel` flag, and the diagnostic capture ran on the crop arm only.
 
-## hero.accent frozen from the harness (task hero-accent-frozen-confirm)
+## hero.accent frozen from the harness
 
 Premise (CONFIRMED in source): the strokeIn and strokeOut animations change `stroke-dashoffset`, which WebKit treats as a layout
 change (`StyleDifference.cpp:161` via `:399`@862f17d; the width transition is at `:404`), so the draw cycle (1250 + 900 + 900 = 3050 ms)
@@ -132,7 +132,7 @@ CONFIRMED for the crop: the busy runs vanish and every swap window sits at the i
 has 0 long runs (Lean `longRuns`, `longRuns_quiet`) against 2 to 3 unfrozen, and the rest windows go from a median of 47 Layout rows to
 1. For the faithful arm the pattern was already masked by the arm's own Layout (see above); the freeze removes the busy runs of its
 rest windows (42 median to 1) and its diagnostic runs, but its swap-window Layout stays 11.5 to 15 because that is the arm's own carousel
-cost, so "dropped to the idle level" holds there only in the sense that no window is above the idle level.
+cost; no window is above the idle level.
 
 hero.exit zone (`scroll-A`, crop arm, Layout and Paint rows per capture; Lean `sharePct`, `zoneVerdict`, golden `swapShare`, `swapZone`):
 

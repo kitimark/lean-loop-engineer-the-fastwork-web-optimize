@@ -19,7 +19,6 @@ export const jobBase = (pass) => {
   return `${j.jobId ?? `${j.run ?? '?'}.${j.attempt ?? '?'}/${j.vm ?? j.job ?? '?'}`}`;
 };
 
-/** The key of one sample: job (numeric job id when the workflow passes FW_JOB_ID), pass, and the capture slot (a or b; diag for the diagnostic capture). */
 export const jobKey = (pass, slot) => `${jobBase(pass)}/p${pass.job?.pass ?? '?'}/${slot}`;
 
 export function cellsOf(passes, periods = PERIODS, only = null) {

@@ -1,6 +1,3 @@
-// The freeze session (I/O only): per pass the swap pass of both arms and the hero-exit zone scroll, unfrozen and frozen
-// (hero.accent frozen from the harness, freeze.mjs) in the same Simulator session, the order of the two states alternating
-// with the pass. Output shape fw.webkit.lag/1: passes[].cost.swap (unfrozen), .swapFrozen, .zone {free, frozen}.
 import { reconnect } from '../wip.mjs';
 import { TargetLostError } from '../inspector.mjs';
 import { attempts } from '../timeouts.mjs';
