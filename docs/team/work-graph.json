@@ -16628,7 +16628,12 @@
     "packages/contracts/golden/parts/people-carousel-crop*.jsonl",
     "research/notes/2026/10-2x-people-carousel-crop.md",
     "results/people-carousel-crop/**",
-    "docs/team/handoffs/people-carousel-crop.md"
+    "docs/team/handoffs/people-carousel-crop.md",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "research/findings/ledger.json"
    ],
    "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 6). people.carousel:crop (st6, look-change class): the isExit keyframes animate width/flex-basis/margin-right/border-width, a mixed effect that ticks on main (KeyframeEffect.cpp:2724-2744@862f17d) and lays out the 104x32 row for 220 ms of every 1.02 s while People is active. Replace with a clip-path crop + translate on accelerated properties only, so the effect runs on CA. User accepted it in v1 as a look change (ledger row 19). Flag: LOOK CHANGE (class L): crop cuts the border ring, followers land at +-1 device px. Goes to the user's look-review class with a work-only theorem; never in the same-look preset. Layer budget: avatar layers about 0.04 MB each (32x32 at dpr 3), already created per swap today.. Lean: New Fw.Parts.PeopleCarouselCrop: split_keeps_layout (any E split of avatarsExit keeps layoutFrames because width/flex-basis/margin stay animated, the why for no same-look route); work: layoutFrames(crop) = 0 per swap, Accelerated(cropExit); look bound: follower offset <= 1 device px and the ring difference region stated (not VisSame). Layer budget per swap stated. Measure: WebKit Simulator cost lane while People is active (Layout per frame, swap windows). Breakpoint gate both engines. Trajectory avatar rects per frame (gpu-trajectory-cells). Frame strips for the user's review card."
   },
