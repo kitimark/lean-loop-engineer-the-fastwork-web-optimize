@@ -14765,7 +14765,14 @@
    "writes": [
     "research/notes/2026/10-2x-hero-exit-threaded-pix.md",
     "results/hero-exit-threaded-pix/**",
-    "docs/team/handoffs/hero-exit-threaded-pix.md"
+    "docs/team/handoffs/hero-exit-threaded-pix.md",
+    ".github/workflows/path-pix.yml",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-webkit/test/pathpix*.test.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-chromium/test/pathpix*.test.mjs"
    ]
   },
   {
@@ -17860,7 +17867,8 @@
     "results/faithful/**",
     "packages/measure-chromium/test/faithful.test.mjs"
    ],
-   "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
+   "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15).",
+   "evidence": "e8bce1f"
   },
   {
    "devices": [
@@ -18177,6 +18185,49 @@
     "docs/team/handoffs/faithful-control-oos.md"
    ],
    "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-accent-pin",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-threaded-pix"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-*/test/pathpix*.test.mjs",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "research/notes/2026/10-2x-pathpix-accent-pin.md",
+    "docs/team/handoffs/pathpix-accent-pin.md"
+   ],
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-work-dims",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-slot-width"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/*Timing*Golden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "scripts/checkmap*.mjs",
+    "docs/team/handoffs/timing-work-dims.md"
+   ],
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples)."
   }
  ],
  "deadline": {

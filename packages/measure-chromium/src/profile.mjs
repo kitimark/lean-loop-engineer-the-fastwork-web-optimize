@@ -75,6 +75,28 @@ export const FONT_FAMILIES = ['Liberation Mono', 'Liberation Sans', 'Liberation 
 
 export const fontsOk = (found) => FONT_FAMILIES.every((f) => found.includes(f));
 
+const absDiff = (a, b) => (a <= b ? b - a : a - b);
+
+export const fontDist = (refDoc, gotDoc, pairs) => absDiff(refDoc, gotDoc) + pairs.reduce((n, [a, b]) => n + absDiff(a, b), 0);
+
+export const fontBefore = (a, b) => a.dist < b.dist || (a.dist === b.dist && (a.notdef < b.notdef || (a.notdef === b.notdef && (a.pkgs < b.pkgs || (a.pkgs === b.pkgs && a.idx < b.idx)))));
+
+export const fontPick = (scores) => scores.reduceRight((best, s) => (best === null || fontBefore(s, best) ? s : best), null);
+
+export const notdefCount = (covered, cps) => {
+  const has = covered instanceof Set ? (c) => covered.has(c) : (c) => covered.includes(c);
+  return cps.reduce((n, [c, k]) => n + (has(c) ? 0 : k), 0);
+};
+
+export const swipeMoves = (w) => Math.floor((w.startY - w.minY) / w.dyPerFrame);
+export const swipeStroke = (w) => swipeMoves(w) + w.holdFrames + w.gapFrames + 2;
+export const swipeReach = (w) => swipeMoves(w) * w.dyPerFrame;
+export const swipeStrokes = (w, scroll) => Math.floor((scroll + swipeReach(w) - 1) / swipeReach(w));
+export const swipeBudget = (w, scroll) => (4 * swipeStrokes(w, scroll) + 1) * swipeStroke(w);
+export const swipeBand = (w) => w.dyPerFrame;
+export const swipeIdleFrames = (w) => 2 * swipeStroke(w);
+export const swipeEnded = (w, limit, y, idle) => limit <= y || (limit <= y + swipeBand(w) && swipeIdleFrames(w) <= idle);
+
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
   dropFlags: profile.dropFlags ?? [], variants: profile.probe?.variants?.length ?? 0,
