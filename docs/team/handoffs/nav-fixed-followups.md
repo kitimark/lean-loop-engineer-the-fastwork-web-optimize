@@ -1,5 +1,12 @@
 branch: worktree-wf_cad36a29-020-1
 worktree: .claude/worktrees/wf_cad36a29-020-1 (repo-relative)
+last commit: c71a0cf9b (round 2; see git log)
+Round 2 CI: trajectory-probe pushes ci/nav-fixed-followups-tj1 (clip-box, b0d8cdd91), -tj2 (bar-fixed, 86b9bbc82), -tj3 (logo-3d, c71a0cf9b): running. Lead dispatches: webkit-sim lag+cost 39872562267 clip-box, 39872566438 bar-fixed, 39872570182 logo-3d; chromium-counts clip-box 39872606664, bar-fixed 39873283200.
+Open: reduce these into ledger rows, note tables, results/nav-fixed-size; dry land.
+
+--- round 1 below ---
+branch: worktree-wf_cad36a29-020-1
+worktree: .claude/worktrees/wf_cad36a29-020-1 (repo-relative)
 last commit: see git log (final)
 CI branches: ci/nav-fixed-followups 6f35ba80a (trajectory fw=nav:clip-box), ci/nav-fixed-followups-bar 19b301f45, ci/nav-fixed-followups-logo 4503e6d66.
 Runs, all complete: per-flag gates (both engines, 6f35ba8) clip-box 39857031808, bar-fixed 39860402069, logo-3d 39862686589, all PASS. trajectory-probe verdict runs clip-box 39856949244, bar-fixed 39856971788, logo-3d 39856990203. webkit-sim default 39864122924, bar-fixed 39865290039, logo-3d 39865284565 (success); clip-box 39865298847 failed (simulator lost Safari, infra). chromium-counts swipe-v1 x3: default 39865294590, logo-3d 39865303675. Budget of 9 dispatches used.
