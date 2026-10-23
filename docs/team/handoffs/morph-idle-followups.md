@@ -1,10 +1,14 @@
 Branch: worktree-wf_1a3f883b-68d-1 (CI branch ci/morph-idle-followups). Worktree: .claude/worktrees/wf_1a3f883b-68d-1
-Last commit: 6d9ac50bc (Lean reducer + IdleHold + goldens + JS twin + site tests committed; CI branch not yet pushed with them).
-CI runs: webkit-sim 39915136431 base (nonce mifbase01, in progress), webkit-sim 39915146774 flag (morph.columns:idle-none, nonce mifflag01, in progress);
-both lag=true cost=only target=rewrite vms=3 (3 VMs x 2 passes = 6 passes per arm). Source runs: 39903977820 base, 39903974246 flag (2 passes each).
-Verified (local, not a result): Lean WkCost.lean + IdleHold.lean compile, wkcost.jsonl regenerated and --check green (81 lines), measure-webkit
-lag-morphcost test and 3 site golden tests pass. Run 39903977820/39903974246 outcome by the Lean rule: overlap (all 8 cells).
-Open: (a) add the 6-pass sums of the two new runs as Lean constants + theorem, rerun golden, update the note; (b) full test scripts, lean check,
-merge main, dry land, review ready; (c) item 4 Chromium base 28107 re-baseline waits for counts-font-fidelity's image.
-Read first: research/notes/2026/10-20-morph-idle-none.md, lean/Fw/Measure/WkCost.lean (section "Morph zones: cost per frame of two arms"),
-lean/Fw/Measure/IdleHold.lean, packages/measure-webkit/src/lag/morphcost.mjs.
+Last commit: see git log (final handoff commit on top of 2de2e8b82).
+CI runs: webkit-sim 39915136431 base and 39915146774 flag (morph.columns:idle-none), both success; lag=true cost=only target=rewrite vms=3
+(3 VMs x 2 passes = 6 passes per arm). Source runs: 39903977820 base, 39903974246 flag (2 passes each). 2 of 6 dispatches used.
+Verdict (MEASURED, Lean-proved on the recorded sums): per-frame WebKit Paint/Composite on the morph zone is UNRESOLVED (overlap in all 8 cells,
+both views); layers down 128 -> 112 stays. Theorems run_39903977820_overlap, run_39915136431_overlap/_outcome in lean/Fw/Measure/WkCost.lean.
+Verified: lean/scripts/check.sh green; @fw/measure-webkit (407), @fw/site (6523 + typecheck), @fw/runner, scripts/ci-paths.test.mjs pass.
+Delivered: reducer (Lean + packages/measure-webkit/src/lag/morphcost.mjs + CLI morph-verdict), goldens in wkcost.jsonl (morphNorm, morphCells,
+morphOutcome, idleHold), IdleHold model lean/Fw/Measure/IdleHold.lean (here only because of the writes scope), site tests
+morph.panel/scene.golden.test.ts, morph.columns/idle.golden.test.ts (writer -> attribute -> removal), idle.hold.golden.test.ts.
+Outside the writes: apps/runner/src/land.ts (one declared read of wkcost.jsonl for apps/site, required by land-inputs.test.ts).
+Open: item 4 Chromium base 28107 re-baseline on the font image waits for counts-font-fidelity (not landed). A phone arm would settle the sign.
+TS stand-ins: MutationObserver wiring in morph.columns/index.tsx; IdleHold's element-keyed Map (model keys by id).
+Read first: research/notes/2026/10-20-morph-idle-none.md (last sections), lean/Fw/Measure/WkCost.lean, lean/Fw/Measure/IdleHold.lean.
