@@ -12,6 +12,6 @@
 {"builtLines":43,"filesChanged":3,"hit":true,"job":120613238767,"jobs":826,"kind":"leg","run":40011600530,"setupS":20,"verdict":"ok"}
 {"builtLines":44,"filesChanged":3,"hit":true,"job":120613247310,"jobs":849,"kind":"leg","run":40011600647,"setupS":18,"verdict":"ok"}
 {"builtLines":44,"filesChanged":3,"hit":true,"job":120617723600,"jobs":849,"kind":"leg","run":40012913395,"setupS":18,"verdict":"ok"}
-{"gapS":36,"kind":"gate","legBuildS":58,"ownS":12,"pays":false,"run":39995255573,"savedS":46,"waitS":62}
+{"gapS":36,"kind":"gate","legBuildS":63,"ownS":12,"pays":false,"run":39995255573,"savedS":51,"waitS":62}
 {"gapS":91,"kind":"gate","legBuildS":72,"ownS":12,"pays":false,"run":39997746052,"savedS":60,"waitS":123}
 {"blobB":34117988,"gainMs":342,"keep":false,"kind":"exe","rateBps":100000000,"relinkMs":683}

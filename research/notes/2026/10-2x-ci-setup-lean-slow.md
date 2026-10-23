@@ -171,12 +171,12 @@ Main lean run durations (createdAt to updatedAt): 2:50, 2:45, 3:27, 2:45, 3:42, 
 
 | land | wait for the in-flight main run | leg restore to main save | wall saved per leg (upper bound) | leg time saved |
 |---|---|---|---|---|
-| 39995255573 | 17:27:47Z (land created) to 17:28:49Z = 62 s | 36 s | 58 s step minus about 12 s for the own 2 files (39989742276, 39994191829 changed exactly 2): 46 s | at most 4 legs x 46 s = 184 s |
+| 39995255573 | 17:27:47Z (land created) to 17:28:49Z = 62 s | 36 s | 63 s slowest leg step (check-sh 58 s) minus about 12 s for the own 2 files (39989742276, 39994191829 changed exactly 2): 51 s | at most 4 legs: (58+63+55+60) - 4 x 12 = 188 s |
 | 39997746052 | 17:45:53Z to 17:47:56Z = 123 s | 91 s | 72 s step minus about 12 s for the own 2 files: 60 s | at most 2 legs x 60 s = 120 s |
 
-Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 60 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 304 s over 7 lands) are on free runners. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
+Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 72 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 308 s over 7 lands) are on free runners. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
 
-Correction 2026-10-24 (task lake-prune-verify): the first row of the table above gave 12 s as the wall saved; that is the 12 s of the own change, so the saved upper bound is 58 - 12 = 46 s (the rule holds: 46 < 62). `Fw.Ops.LakeCache.gateRows` and `no_gate_pays` now hold both rows with the gaps.
+Correction 2026-10-24 (task lake-prune-verify): the first row of the table above gave 12 s as the wall saved; that is the 12 s of the own change, so the saved upper bound is 63 - 12 = 51 s, the slowest of the 4 legs (the rule holds: 51 < 62). `Fw.Ops.LakeCache.gateRows` and `no_gate_pays` now hold both rows with the gaps.
 
 ## Follow-up 2026-10-24 (task lake-prune-verify): the pruned main entry, restored
 

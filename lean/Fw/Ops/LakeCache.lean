@@ -222,7 +222,7 @@ def GateRow.savedS (r : GateRow) : Nat := r.legBuildS - r.ownS
 
 def GateRow.pays (r : GateRow) : Bool := r.waitS < r.savedS
 
-def gateRows : List GateRow := [⟨39995255573, 62, 58, 12, 36⟩, ⟨39997746052, 123, 72, 12, 91⟩]
+def gateRows : List GateRow := [⟨39995255573, 62, 63, 12, 36⟩, ⟨39997746052, 123, 72, 12, 91⟩]
 
 theorem no_gate_pays : gateRows.all (fun r => !r.pays) = true := by decide
 
