@@ -78,8 +78,11 @@ seen, morph opened) and for the second end window of job 1 only:
 n is below the sufficiency line, so no verdict. After the first push, `Timeline.stop timed out after 60000 ms` (the touch
 windows last 60 to 130 s on the runner and hold 20 to 40 thousand records) and the retry fell back to the synthetic wheel; jobs
 2 and 3 ended INCOMPLETE. One xcodebuild start per window was worse (about 60 to 90 s each, run 39897310152), hence one long
-`PushServer` per job (ready after 51 to 198 s). A fix attempt (Timeline.stop wait 240 s for touch windows) ran as
-39909042070; see the handoff for its result. The Simulator hero window of orig also keeps only 1 to 7 frames per window
+`PushServer` per job (ready after 51 to 198 s). A fix attempt (Timeline.stop wait 240 s for touch windows, run 39909042070) was worse:
+sim jobs 1 and 3 hit the 50 minute step limit and were cancelled (no artifact), job 2 timed out even on its first touch window
+and kept 0 touch end windows of 15 (the rest ran on the synthetic wheel). The mac jobs of that run repeat run 39901005729:
+hero orig vs base is "second" and end is "same" in 3 of 3 jobs again, so the mac verdicts hold over 6 jobs of 2 runs. The real
+touch in the CI Simulator is therefore not a reliable lane; what stands is the 3 first-window rows above, with n below the line. The Simulator hero window of orig also keeps only 1 to 7 frames per window
 (pre-existing starvation on the runner), so orig hero in the Simulator has no usable counts.
 
 ## Not done
