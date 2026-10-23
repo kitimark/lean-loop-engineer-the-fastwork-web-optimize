@@ -17760,6 +17760,28 @@
     "docs/team/handoffs/counts-lane-fonts.md"
    ],
    "title": "chrome-crash-platforms (MEASURED) refuted the premise that real desktop Chrome crashes on the people title: the crash needs a layout pass with no font at all (the container lane's empty fonts.conf, and the web font not ready yet); with runner system fonts nothing crashed on linux x86_64/arm64, Windows or macOS. So the fix belongs in the lane, not the site: give the Chromium counts container the fonts a desktop user has (a pinned font package or the page's own web font ready before the first layout; decide which keeps counts comparable with the existing baselines and say why), then load the ORIGINAL page and the rewrite at 1280 in the lane with no crash, and drop the text-wrap: wrap workaround from profiles desktop-1280 and people-o-hover (their counts were taken without balancing). Re-measure the desktop rows those profiles fed (people-o-followups Layout 67 -> 28) and say whether they move. Lean first for any profile rule; run ids for every claim; free runners only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-state-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "ci-state-fast"
+   ],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/gh-budget/src/**",
+    "packages/gh-budget/test/**",
+    "apps/runner/src/land.ts",
+    "docs/team/handoffs/ci-state-followups.md"
+   ],
+   "title": "Follow-ups of ci-state-fast: (1) the gate's pending items with run:<id> evidence enter runs without a branch and are read unfiltered: use the evidence form run:<id>@<branch> or require those runs in runs[]; (2) lean/Fw/Plan/ReviewReady.lean:64 comment gains --branch <b>; (3) the lead made gh-budget core.ts take FW_CORE_CALL_MS over GH_BOUNDS.fwcoreCallMs so loaded lands (LOAD_TOLERANT_ENV 60000) are not killed at 10 s; the Lean theorem loaded_core_margin_too_big records that lockMarginMs then no longer covers the holder: derive the margin from the effective call timeout in Lean (one canonical source for the load-tolerant bound, generated into land.ts and core.ts), with goldens; (4) the core-timeout test reads source text: replace it with a test that runs a stub fwcore that sleeps past the bound."
   }
  ],
  "deadline": {
