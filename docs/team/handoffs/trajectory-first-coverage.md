@@ -6,7 +6,10 @@
   687/687; `scripts/ci-paths.test.mjs` 54/54; `fw land --dry` prints `VERDICT dry trajectory-first-coverage`.
 - Open: `src/trajectory/cli.mjs` summary header still prints `red.red ? 'RED' : 'CLEAN'` and has no `undecided` row (outside
   this task's writes; use `red.lane`). WebKit cadence (only Chromium's 17 ms is modelled). Ledger row `hero.scenePause` in
-  `docs/report/v2-report.md` is the lead's.
+  `docs/report/v2-report.md` (lead): run 39926829451 re-reduced stays CLEAN with new 0 and undecided 0, its open@1 units pass or
+  skip:firstLate, so CLEAN no longer rests on skip:origEmpty; run 39557718020 (raw search=(default)) is unchanged and CLEAN. The
+  lead holds the row until trajectory-lane-noflip: rel can still flip the lane on one extra original pass when arms differ in
+  open-pass count.
 
 ## What changed
 - Lean `Fw/Gate/Trajectory.lean` section FirstFrame: `mAt`, `mAt_first_iff` (bucket 1 = elapsed 12-35 ms), `slots_cadence`,

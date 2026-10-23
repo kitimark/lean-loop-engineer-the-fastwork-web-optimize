@@ -70,7 +70,7 @@ runs the probe with the inputs of one message line:
    construction there (see the research note): report a Linux WebKit push cell as "no verdict: coverage" on the units where the
    faithful arm fails coverage, and read its hero rows as usable.
    **First frame.** Bucket 1 of the open push is `m` in [500, 1500), elapsed 12 to 35 ms of the 680 ms tween
-   (`mAt_first_iff`, `mAt_edges`). At the 17 ms Chromium cadence that is 2 frame slots (`slots_cadence`): a pass samples it
+   (`mAt_first_iff`, `mAt_edges`). At the 17 ms Chromium cadence that is 1 or 2 frame slots depending on the vsync phase, 2 when the first frame lands at 17 ms (`slots_cadence`, `phase_covers`): a pass samples it
    iff its first frame after the push is less than 2 vsyncs late (`sampled_iff`). MEASURED (runs 39926829451 and
    39557718020, 75 open passes): the first nonzero sample is either in bucket 1 (27 passes, gap 22.6-26 ms) or in bucket 2
    (48 passes, gap 54.5-58.7 ms, two vsyncs late); a pass never lands one vsync late. So open@1 coverage is a property of the
