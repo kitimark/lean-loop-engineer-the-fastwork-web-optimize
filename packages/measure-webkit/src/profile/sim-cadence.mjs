@@ -5,11 +5,12 @@ import { findDevice } from '../sim.mjs';
 import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
-import { RECORDER_SRC, TO_END_JS, heroJs, endJs, pageOf, intervalsOf } from './recorder.mjs';
+import { RECORDER_SRC, TO_END_JS, heroJs, endJs, endTouchJs, pageOf, intervalsOf } from './recorder.mjs';
+import { openDriver, startServer, stopServer, touchWindow, logTail, TOUCH_COUNT_JS } from '../touch-push.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
 import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
-import { hitches } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
+import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
 
 export function simArms(plan, siteDir, lookSearch, only) {
@@ -31,7 +32,8 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, log = (s) => console.error(s) }) {
+/** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
+export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
@@ -42,6 +44,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let refused = false;
   let error = null;
   let ua = '';
+  const opened = openDriver(touchDriver);
+  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null };
 
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
@@ -61,16 +65,38 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
-    const tl = await startTimeline(ctx.c, { stopMs: T(7500) });
-    const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
-    await tl.stop();
+    // a touch window runs for minutes on the runner (XCUITest idle waits), so its Timeline holds tens of thousands of records and stop() needs longer
+    const tl = await startTimeline(ctx.c, { stopMs: T(win === 'end' && touch.on ? 30000 : 7500) });
+    let rec;
+    let push = 'synthetic';
+    let touched = null;
+    if (win === 'end' && touch.on) {
+      await ctx.c.evaluate(TOUCH_COUNT_JS);
+      const got = await touchWindow(ctx.c, { server: touch.server, pageJs: endTouchJs });
+      await tl.stop();
+      const bad = !got.pushed ? 'the swipe pair did not finish' : !got.result ? got.error : !got.result.begun ? 'no touch reached the page' : !(got.result.touch?.moves > 0) ? 'the page saw no touchmove' : null;
+      if (bad) { touch.on = false; touch.why = `${bad}${logTail(touch.server.run.logFile) ? `; driver log tail: ${logTail(touch.server.run.logFile)}` : ''}`; throw new Error(`touch push failed: ${bad}`); }
+      rec = got.result;
+      push = 'touch';
+      touched = { ...rec.touch, morphMax: rec.morphMax };
+    } else {
+      rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
+      await tl.stop();
+    }
     const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
-    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
+    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
   };
 
   try {
     await withSession(async (ctx) => {
+      if (touch.on) {
+        // one XCUITest run for the whole job; its start relaunches Safari (toolbar-throttle cli.mjs), so the page is loaded after it
+        try {
+          touch.server = await startServer(touch.driver, { udid: device.udid, log });
+          await reconnect(ctx, { log });
+        } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
+      }
       for (let rep = 0; rep < reps && !refused; rep++) {
         for (const a of orderFor(arms, rep)) {
           for (const win of ['hero', 'end']) {
@@ -97,10 +123,12 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   } catch (e) {
     error = e.message;
     log(`webkit sim: INCOMPLETE after ${rows.length} windows (${error})`);
+  } finally {
+    if (touch.server) await stopServer(touch.server);
   }
   return {
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   };
 }

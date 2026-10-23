@@ -64,6 +64,24 @@ export const endJs = ({ dy, holdMs }) => `(async () => {
   return st.stop();
 })()`;
 
+/**
+ * The end-of-page window with real touches (touch-push.mjs): the recorder starts at the first touchstart and ends when the Node side
+ * sets `window.__fwTouchStop`. `morphMax` is the largest `--morph` the nav showed, read every 40 ms from its inline style.
+ */
+export const endTouchJs = `(async () => {
+  const st = window.__pr;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
+  let begun = false, morphMax = 0;
+  addEventListener('touchstart', () => { if (!begun) { begun = true; st.start(); } }, { capture: true, passive: true });
+  while (!window.__fwTouchStop) {
+    const m = nav ? Number(nav.style.getPropertyValue('--morph')) : 0;
+    if (m > morphMax) morphMax = m;
+    await sleep(40);
+  }
+  return { ...st.stop(), begun, morphMax, touch: window.__fwTouch || null };
+})()`;
+
 /** The page result of the recorder (ms, scrollY tenths) as the reducer's `page` (hundredths of a ms on the page clock). */
 export function pageOf(rec, toHundredths) {
   return {
