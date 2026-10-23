@@ -1,9 +1,9 @@
 branch: worktree-wf_54d3eb3f-c6d-1 (CI branch ci/hero-copy-floor-sources)
 worktree: .claude/worktrees/wf_54d3eb3f-c6d-1
-last pushed sha: d6798db66 (lane tag commit; WIP commits before it)
-CI runs: path-pix 39971881582 (complete, success: 3 sim + 3 chromium jobs); lean 39971882086 (push-triggered)
-second run budget: 1 left (max 2); not needed (no capture bug; report skip-reason fix was report-side only)
-note written: research/notes/2026/10-2x-hero-copy-floor.md (tables from pathpix-exit-report.mjs over run 39971881582); main merged, all package tests + check.sh green
+last pushed sha: see git log (round-1 findings commit, tag [ci:path-pix])
+CI runs: path-pix 39971881582 (complete, success, round 0 tables); round-1 run: pushed, id in the next update (state running)
+second run budget: this is the last run (round 1 findings: WebKit y 0 floor source masked by the Lean ownership rule countedIn)
+note: research/notes/2026/10-2x-hero-copy-floor.md still holds run 39971881582 tables until the round-1 run is reported; tests and check.sh green before push
 
 State
 - Lean `lean/Fw/Gate/PathPix.lean` + golden `packages/contracts/golden/gate/path-pix.jsonl`: hook, chainStarts, clockPin, cover, accentGrade with maxY/rows/floorRows. check.sh green.
