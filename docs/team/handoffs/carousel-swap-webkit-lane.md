@@ -4,9 +4,10 @@ last commit: 8dc944f90 (pushed to ci/carousel-swap-webkit-lane; tokens [ci:webki
 CI runs:
 - 39932917436 webkit-sim at 48142c753: probe scrolled to page end, 0 swap windows in r1 (carousel loop idle there); superseded
 - 39937838325 webkit-sim at 58b1df271 (scroll search): r1, r2 success (8 windows per capture, all 16 captures); r3 cancelled at the job limit (no log); 2 VMs only
-- third push 8dc944f90: run id pending (list with gh run list --branch ci/carousel-swap-webkit-lane --workflow webkit-sim)
-verified: Lean SwapWindow builds (no sorry), wkcost.jsonl regenerated and --check ok, measure-webkit tests 432 pass, ci-paths 54 pass, ci-steps-lint ok.
-open: CI result of the 8dc944f90 run (third VM); r1+r2 of 39937838325 downloaded to the scratchpad; analysis into results/carousel-swap-webkit/ and research/notes/2026/10-2x-carousel-swap-webkit.md; lean check.sh; land dry; review ready.
+- 39947916723 webkit-sim at 8dc944f90: r3 success (2 passes); r1, r2 failed in cost layersScroll (inspector lost, no lag file)
+- counted: 39937838325 r1, r2 + 39947916723 r3 (6 passes, 12 captures per arm); report in results/carousel-swap-webkit/; note research/notes/2026/10-2x-carousel-swap-webkit.md
+verified: Lean SwapWindow builds (no sorry), wkcost.jsonl regenerated and --check ok, measure-webkit tests 434 pass, ci-paths 54 pass, ci-steps-lint ok.
+open: land dry, review ready; follow-ups in the note (every-third-window Layout in the crop, more passes per job).
 
 State
 - Lean: lean/Fw/Measure/SwapWindow.lean (schedule, phase, counts, validity, cell verdict); golden appended to packages/contracts/golden/measure/wkcost.jsonl through lean/Fw/Measure/WkCost.lean.
