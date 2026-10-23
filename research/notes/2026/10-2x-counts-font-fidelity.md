@@ -155,9 +155,28 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   R (rewrite) and the control A' (a second original) = the three shards of one other run of the same profile and image, 39916917890 (swipe-v1) and 39924639452 (touch), both `target=both`,
   rebuilt with `zone-baseline.mjs` (store entry, then `baseline --profile --target`) into `results/faithful/runs`; `faithful.mjs verdict` and `faithful.mjs lean` regenerated
   `results/faithful/*.verdict.json` and `lean/Fw/Faithful/Measured.lean`. The control A'/A passes on both profiles (swipe-v1 and touch, all three zones), so run-to-run variance of the original on the font image is inside its own bands.
-  The control run is one of the three freeze runs, so it is not an out-of-sample test of the bands (follow-up faithful-control-oos).
+  The control run is one of the three freeze runs, so it is not an out-of-sample test of the bands; the out-of-sample section below replaces it.
   The rewrite R fails y04000, y04500 and tail on both profiles (as on the font-less image). The earlier mixed-image control FAIL was the image change, as inferred.
   Store note: runs 39916914389 and 39916917890 map to one store key, so A' was pulled into a scratch store (`FW_CONSOLE_DIR=<dir> pnpm -s fw ci <run> --branch ci/counts-font-fidelity`).
+- MEASURED, out-of-sample faithful control (task faithful-control-oos): one fresh `target=both` run per profile on branch ci/faithful-control-oos (sha 82c7820bf), `image_run=39914488176`, image `sha256:47b1dcbe...`
+  (the zones files record it); neither run is a freeze run or one of the runs A was built from. A stays the frozen baselines (swipe-v1 run 39916914389, touch run 39924634896); R and the control A' are the
+  three shards of the fresh run of each profile (`zone-baseline.mjs` per target, then `baseline`, into `results/faithful/runs`, replacing the freeze-run files). `detDrift` 0 in all four.
+  Lean `Fw.Faithful.comparable` accepted both pairs (R/A and A'/A) on both profiles. Verdicts per zone (Lean `zoneVerdict`; `results/faithful/*.verdict.json`; theorems `<P>_<zone>` (R against A), `<P>_control_<zone>` (A' against A) and `<P>_comparable` / `<P>_control_comparable` in `lean/Fw/Faithful/Measured.lean`):
+
+| profile (run) | zone | control A' against A | R against A | types off band in R |
+|---|---|---|---|---|
+| swipe-v1 (39953020710) | y04000 | pass | FAIL | 11 |
+| swipe-v1 | y04500 | pass | FAIL | 8 |
+| swipe-v1 | tail | pass | FAIL | 2 (raster.invalidatedLayers, trace.UpdateLayer) |
+| swipe-touch-v1 (39953025217) | y04000 | pass | FAIL | 14 |
+| swipe-touch-v1 | y04500 | pass | FAIL | 11 |
+| swipe-touch-v1 | tail | pass | FAIL | 9 |
+
+  Reading: a second original run that was not used to build A or its bands passes all three zones on both profiles, so the bands of the frozen table hold out of sample for the original (one run per profile, not a distribution).
+  The rewrite R still fails y04000, y04500 and tail on both profiles, with the same failing zones as the freeze-run check; the verdict does not come from the bands being tight to the run that built them.
+  Both profiles, R: `trace.UpdateLayer` is above the band in all six zones and `raster.invalidatedLayers` in five (not touch tail; 296 against 196 in swipe-v1 y04000); `trace.FireAnimationFrame`
+  and `trace.RequestAnimationFrame` are below it in y04000 and y04500 on both profiles (swipe-v1 y04000 167 against 253). On touch the census tile counts (`census.tiles`, `census.tilings`, `census.drawingAreaPx`, `census.solidTiles`) are also above the band in all three zones.
+  Limits: one out-of-sample run per profile; the font image stays 39914488176; Chromium lane only.
 - MEASURED, engine-premises (A/B on the font and font-less images): font image run 39909930901 (sha 3783b391d) against the font-less tree run 39912692117
   (branch ci/counts-font-fidelity-nofont). Every row reads the same except Chromium `paint` and `raster` of the main step set: font-less 130 of 130 agree
   (both rows hold), font image 129 of 130 (both rows fail) at step 118, case `margin@own`, act `set`: the model says Paint and RasterTask are absent, all

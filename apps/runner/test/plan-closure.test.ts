@@ -1,10 +1,11 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { closureFindings, freshOf, gapsOf, implied, kindOf, lintClosure, mayNeed, owned, required, scopeBatch, type ScopeReq } from "../src/plan-closure.ts";
-import { lintCli } from "../src/plan.ts";
+import { closureFindings, freshOf, gapsOf, implied, kindOf, lintClosure, mayNeed, newErrors, owned, required, scopeBatch, type ScopeReq } from "../src/plan-closure.ts";
+import { lintCli, previousGraph, syncClosureRefusal } from "../src/plan.ts";
 import { coreCandidates } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,7 +13,16 @@ const root = resolve(here, "../../..");
 const rows = readFileSync(join(root, "packages/contracts/golden/plan/writes-closure.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 const paths = rows.filter((r) => r.type === "path");
 const cases = rows.filter((r) => r.type === "case");
-const task = (c: { id: string; owner: string; stream: string; writes: string[]; done: boolean }) => ({ id: c.id, owner: c.owner, stream: c.stream, writes: c.writes, done: c.done });
+const globs = rows.filter((r) => r.type === "glob");
+const gapRows = rows.filter((r) => r.type === "gaps");
+const syncRows = rows.filter((r) => r.type === "sync");
+type CiPathsGaps = {
+  leanScriptPaths: (text: string) => (string | null)[];
+  normRead: (p: string) => string;
+  gapsFrom: (scripts: { script: string; text: string }[], globs: string[]) => { script: string; path: string | null }[];
+};
+const ciPaths = async () => (await import(pathToFileURL(join(root, "scripts/ci-paths.mjs")).href)) as CiPathsGaps;
+const task = (c:{ id: string; owner: string; stream: string; writes: string[]; done: boolean }) => ({ id: c.id, owner: c.owner, stream: c.stream, writes: c.writes, done: c.done });
 
 describe("writes closure golden (Fw.Plan.WritesClosure)", () => {
   it("has path and case rows", () => {
@@ -41,6 +51,25 @@ describe("writes closure golden (Fw.Plan.WritesClosure)", () => {
   });
   it("the checkout has no gap: every literal read of lean/scripts/*.sh is a lean.yml input (ci-paths holds)", async () => {
     expect(await gapsOf(root)).toEqual([]);
+  });
+  it("case gaps derive from the scripts and the row globs through ci-paths gapsFrom", async () => {
+    const cp = await ciPaths();
+    for (const c of cases) expect(cp.gapsFrom(c.scripts, c.globs).filter((g) => g.path !== null)).toEqual(c.gaps);
+  });
+  it.each(globs.map((r) => [`${r.globs.join(" ")} ~ ${r.path}`, r]))("glob %s", async (_n, r) => {
+    const ci = (await import(pathToFileURL(join(root, ".github/scripts/changed-inputs.mjs")).href)) as { matches: (g: string[], f: string) => boolean };
+    expect(ci.matches(r.globs, r.path)).toBe(r.match);
+  });
+  it.each(gapRows.map((r, i) => [i, r]))("gap vector %i: reads, input gaps and closure gaps", async (_i, r) => {
+    const cp = await ciPaths();
+    const reads = r.scripts.flatMap((s: { script: string; text: string }) =>
+      cp.leanScriptPaths(s.text).map((p) => ({ script: s.script, path: p === null ? null : cp.normRead(p) })));
+    expect(reads).toEqual(r.reads);
+    expect(cp.gapsFrom(r.scripts, r.globs)).toEqual(r.inputGaps);
+    expect(cp.gapsFrom(r.scripts, r.globs).filter((g) => g.path !== null)).toEqual(r.gaps);
+  });
+  it.each(syncRows.map((r, i) => [i, r]))("sync vector %i", (_i, r) => {
+    expect(newErrors(r.before, r.after)).toEqual(r.refused);
   });
   it("a gap is a literal ../ read of a lean/scripts/*.sh that the lean.yml row lacks", async () => {
     const dir = mkdtempSync(join(tmpdir(), "gaps-"));
@@ -88,5 +117,41 @@ describe("plan lint with the writes closure", () => {
     expect(await lintCli([graph(wf, { evidence: "abc1234" })], here, good, [], () => true, { tracked: [], gaps: [], batch: async () => { throw new Error("no call"); } })).toBe(0);
     expect(await lintCli([graph(wf)], here, good, [], () => true, { tracked: [], gaps: [], batch })).toBe(0);
     log.mockRestore();
+  });
+});
+
+describe("plan sync refuses a new writesClosure error", () => {
+  const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_CONFIG_GLOBAL: "/dev/null" };
+  const row = (id: string, writes: string[]) => ({ id, title: id, stream: "tooling", milestone: "M", deps: [], owner: "o", writes });
+  const text = (...tasks: object[]) => JSON.stringify({ milestones: [], tasks }, null, 1) + "\n";
+  const repo = (...versions: string[]) => {
+    const dir = mkdtempSync(join(tmpdir(), "sync-closure-"));
+    const g = (...a: string[]) => execFileSync("git", a, { cwd: dir, env, stdio: "ignore" });
+    g("init", "-q", "-b", "main");
+    for (const v of versions) { writeFileSync(join(dir, "g.json"), v); g("add", "g.json"); g("commit", "-q", "-m", "v"); }
+    return dir;
+  };
+  const closure = { tracked: ["lean/Fw/Ci/Trigger.lean"], gaps: [], batch: async (reqs: ScopeReq[]) => reqs.map((r) => ({ violations: r.paths.filter((p) => !r.writes.includes(p)) })) };
+  const ok = row("a", ["docs/x.md"]), wf = row("b", [".github/workflows/new.yml"]);
+  const wfFixed = row("b", [".github/workflows/new.yml", "lean/Fw/Ci/Trigger.lean"]);
+  it("a committed edit is compared with the version before it", async () => {
+    const dir = repo(text(ok), text(ok, wf));
+    expect(previousGraph(dir, "g.json", text(ok, wf)).tasks.map((t) => t.id)).toEqual(["a"]);
+    const r = await syncClosureRefusal(dir, "g.json", closure);
+    expect(r).toContain("plan sync refused: the graph adds 5 writesClosure error(s)");
+    expect(r).toContain("b: lean/Fw/Ci/Trigger.lean for .github/workflows/new.yml");
+  });
+  it("an uncommitted edit is compared with HEAD: an error HEAD has passes, a fixed row adds nothing", async () => {
+    const dir = repo(text(ok, wf));
+    writeFileSync(join(dir, "g.json"), text(ok, wf, row("c", ["docs/y.md"])));
+    expect(await syncClosureRefusal(dir, "g.json", closure)).toBeNull();
+    writeFileSync(join(dir, "g.json"), text(ok, wfFixed));
+    expect(await syncClosureRefusal(dir, "g.json", closure)).toBeNull();
+  });
+  it("an uncommitted new row with a closure error is refused; a first version has an empty previous graph", async () => {
+    const dir = repo(text(ok));
+    writeFileSync(join(dir, "g.json"), text(ok, wf));
+    expect(await syncClosureRefusal(dir, "g.json", closure)).toContain("b: lean/Fw/Ci/Intent.lean");
+    expect(previousGraph(dir, "g.json", text(ok))).toEqual({ milestones: [], tasks: [] });
   });
 });

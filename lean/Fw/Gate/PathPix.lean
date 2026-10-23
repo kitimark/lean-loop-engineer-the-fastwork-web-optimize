@@ -961,6 +961,148 @@ theorem exitClaim_none (layer : String) (le600 : Bool) (h : exitClaim layer le60
   unfold exitClaim at h
   refine ⟨fun e => ?_, fun e => ?_, fun e => ?_, fun e => ?_⟩ <;> subst e <;> simp at h
 
+/-! ## Accent pin -/
+
+inductive Pin where
+  | none | ssr
+deriving DecidableEq, Repr
+
+def Pin.name : Pin → String
+  | .none => "none" | .ssr => "ssr-accent"
+
+inductive Phase where
+  | idle | drawOut | drawIn
+deriving DecidableEq, Repr
+
+def Phase.name : Phase → String
+  | .idle => "idle" | .drawOut => "draw-out" | .drawIn => "draw-in"
+
+structure Accent where
+  cursor : Int
+  phase : Phase
+deriving DecidableEq, Repr
+
+def Accent.base : Accent := ⟨-1, .idle⟩
+
+def Accent.json (a : Accent) : Json := Json.mkObj [("cursor", toJson a.cursor), ("phase", toJson a.phase.name)]
+
+def pinArms : List String := ["A", "A2", "P"]
+
+def armPin (_arm : String) : Pin := .ssr
+
+def shown (p : Pin) (live : Accent) : Accent := match p with | .none => live | .ssr => Accent.base
+
+def pinAt (arm : String) (_i : Nat) : Pin := armPin arm
+
+def pinMasks (_ : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) := ms
+
+theorem armPin_same (a b : String) : armPin a = armPin b := rfl
+
+theorem armPin_all : ∀ a ∈ pinArms, armPin a = .ssr := fun _ _ => rfl
+
+theorem pinAt_same (a b : String) (i j : Nat) : pinAt a i = pinAt b j := rfl
+
+theorem pinAt_all : ∀ a ∈ pinArms, ∀ i < 9, pinAt a i = .ssr := fun _ _ _ _ => rfl
+
+theorem shown_none (live : Accent) : shown .none live = live := rfl
+
+theorem shown_ssr (live : Accent) : shown .ssr live = Accent.base := rfl
+
+theorem shown_arm_independent (a b : String) (la lb : Accent) : shown (armPin a) la = shown (armPin b) lb := rfl
+
+theorem pinMasks_eq (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : pinMasks p ms = ms := rfl
+
+theorem region_pin (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) :
+    region (pinMasks p ms) m c r = region ms m c r := rfl
+
+structure AccentRow where
+  n : Nat
+  start : String
+  stop : String
+deriving DecidableEq, Repr
+
+def accentPinned (served start stop : String) (n : Nat) : Bool := n == 1 && start == served && stop == served
+
+def AccentRow.pinned (served : String) (r : AccentRow) : Bool := accentPinned served r.start r.stop r.n
+
+def rowsPinned (served : String) (rows : List AccentRow) : Bool := rows.all (AccentRow.pinned served)
+
+def gradePinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) : Grade :=
+  if rowsPinned served rows then gradeRel c f live else .invalid
+
+def unpinnedWhy (served : String) (rows : List AccentRow) : Option String :=
+  if rowsPinned served rows then none else some "accent-unpinned"
+
+def floorPinned (served : String) (rows : List AccentRow) (f : Floor) : Floor :=
+  { f with valid := f.valid && rowsPinned served rows }
+
+theorem accentPinned_iff (served start stop : String) (n : Nat) :
+    accentPinned served start stop n = true ↔ n = 1 ∧ start = served ∧ stop = served := by
+  simp [accentPinned, and_assoc]
+
+theorem accentPinned_false_of_n (served start stop : String) (n : Nat) (h : n ≠ 1) :
+    accentPinned served start stop n = false := by
+  simp [accentPinned, h]
+
+theorem accentPinned_false_of_start (served start stop : String) (n : Nat) (h : start ≠ served) :
+    accentPinned served start stop n = false := by
+  simp [accentPinned, h]
+
+theorem accentPinned_false_of_stop (served start stop : String) (n : Nat) (h : stop ≠ served) :
+    accentPinned served start stop n = false := by
+  simp [accentPinned, h]
+
+theorem rowsPinned_iff (served : String) (rows : List AccentRow) :
+    rowsPinned served rows = true ↔ ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true := by
+  simp [rowsPinned, AccentRow.pinned]
+
+theorem gradePinned_of_pinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool)
+    (h : rowsPinned served rows = true) : gradePinned served rows c f live = gradeRel c f live := by
+  simp [gradePinned, h]
+
+theorem gradePinned_invalid_of_unpinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor)
+    (live : Bool) (r : AccentRow) (hr : r ∈ rows) (h : accentPinned served r.start r.stop r.n = false) :
+    gradePinned served rows c f live = .invalid := by
+  have : rowsPinned served rows = false := by
+    cases hp : rowsPinned served rows
+    · rfl
+    · have := (rowsPinned_iff served rows).1 hp r hr; rw [h] at this; cases this
+  simp [gradePinned, this]
+
+theorem gradePinned_valid_only_if (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor)
+    (live : Bool) (h : gradePinned served rows c f live ≠ .invalid) :
+    ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true := by
+  intro r hr
+  cases hp : accentPinned served r.start r.stop r.n
+  · exact absurd (gradePinned_invalid_of_unpinned served rows c f live r hr hp) h
+  · rfl
+
+theorem gradePinned_invalid_iff (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) :
+    gradePinned served rows c f live = .invalid ↔ rowsPinned served rows = false ∨ live = false ∨ c.valid = false := by
+  by_cases h : rowsPinned served rows = true
+  · rw [gradePinned_of_pinned served rows c f live h, gradeRel_invalid_iff]; simp [h]
+  · have h' : rowsPinned served rows = false := by simpa using h
+    simp [gradePinned, h']
+
+theorem unpinnedWhy_iff (served : String) (rows : List AccentRow) :
+    (unpinnedWhy served rows).isSome = true ↔ rowsPinned served rows = false := by
+  unfold unpinnedWhy
+  by_cases h : rowsPinned served rows = true <;> simp [h]
+
+theorem floorPinned_valid_only_if (served : String) (rows : List AccentRow) (f : Floor)
+    (h : (floorPinned served rows f).valid = true) : rowsPinned served rows = true := by
+  simp [floorPinned] at h; exact h.2
+
+def accentRowCases : List (String × String × String × Nat) :=
+  [("22a26c2a", "22a26c2a", "22a26c2a", 1), ("22a26c2a", "e1380ab3", "a7ccf8cf", 1), ("22a26c2a", "e1380ab3", "22a26c2a", 1),
+   ("22a26c2a", "22a26c2a", "a7ccf8cf", 1), ("22a26c2a", "22a26c2a", "22a26c2a", 0), ("22a26c2a", "22a26c2a", "22a26c2a", 2)]
+
+def accentRowSets : List (String × List AccentRow) :=
+  [("both pinned", [⟨1, "s", "s"⟩, ⟨1, "s", "s"⟩]), ("A unpinned", [⟨1, "x", "y"⟩, ⟨1, "s", "s"⟩]),
+   ("B unpinned at the end", [⟨1, "s", "s"⟩, ⟨1, "s", "t"⟩]), ("two elements", [⟨1, "s", "s"⟩, ⟨2, "s", "s"⟩]), ("no rows", [])]
+
+def liveAccentCases : List Accent := [⟨-1, .idle⟩, ⟨2, .drawIn⟩, ⟨5, .drawOut⟩]
+
 def offsetCases : List Nat := [0, 1, 7, 8, 100, 4626, 5000]
 
 def maskCases : List (String × Nat × Nat × Nat × Box) :=
@@ -1001,6 +1143,26 @@ def goldenLines (_ : Unit := ()) : List String :=
   exitClaimCases.map (fun (l, b) =>
     (Json.mkObj [("kind", "exitClaim"), ("layer", toJson l), ("le600", toJson b),
       ("claim", match exitClaim l b with | some c => c.json | none => Json.null)]).compress) ++
+  pinArms.flatMap (fun arm => liveAccentCases.map (fun live =>
+    (Json.mkObj [("kind", "accentPin"), ("arm", toJson arm), ("pin", toJson (armPin arm).name), ("perOffset", toJson ((List.range 9).map fun i => (pinAt arm i).name)),
+      ("live", live.json),
+      ("shown", (shown (armPin arm) live).json)]).compress)) ++
+  accentRowCases.map (fun (served, start, stop, n) =>
+    (Json.mkObj [("kind", "accentRow"), ("served", toJson served), ("start", toJson start), ("stop", toJson stop), ("n", toJson n),
+      ("pinned", toJson (accentPinned served start stop n))]).compress) ++
+  accentRowSets.flatMap (fun (name, rows) => relCases.map (fun (cn, c, f, live) =>
+    (Json.mkObj [("kind", "accentGrade"), ("name", toJson (name ++ ": " ++ cn)), ("served", toJson "s"),
+      ("rows", toJson (rows.map fun r => Json.mkObj [("n", toJson r.n), ("start", toJson r.start), ("stop", toJson r.stop)])),
+      ("cell", c.json), ("floor", match f with | some x => x.json | none => Json.null),
+      ("floorPinned", match f with | some x => (floorPinned "s" rows x).json | none => Json.null), ("live", toJson live),
+      ("pinned", toJson (rowsPinned "s" rows)),
+      ("why", match unpinnedWhy "s" rows with | some w => toJson w | none => Json.null),
+      ("grade", toJson (gradePinned "s" rows c f live).name)]).compress)) ++
+  regionCases.map (fun (ms, i, x, y) =>
+    let m := ms.getD i ((0, 0), (0, 0))
+    (Json.mkObj [("kind", "pinRegion"), ("pin", toJson (armPin "P").name),
+      ("masks", toJson ((pinMasks (armPin "P") ms).map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])), ("mine", toJson i),
+      ("x", toJson x), ("y", toJson y), ("region", toJson (region (pinMasks (armPin "P") ms) m x y).name)]).compress) ++
   maskCases.map (fun (n, dpr, fw, fh, b) =>
     let m := mask dpr fw fh b
     (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),
@@ -1044,5 +1206,10 @@ def run (args : List String) : IO UInt32 := do
 #guard (rawOf [3, 0, 255, 2]) == ⟨3, 255⟩ && (rawOf [0, 256]).ok == false
 #guard (accelCases.map accelerated) ==
   [true, true, true, true, false, false, false, false, false, false, false, false]
+
+#guard (pinArms.map fun a => (armPin a).name) == ["ssr-accent", "ssr-accent", "ssr-accent"]
+#guard (liveAccentCases.map fun l => (shown .ssr l).cursor) == [-1, -1, -1]
+#guard (accentRowCases.map fun (a, b, c, n) => accentPinned a b c n) == [true, false, false, false, false, false]
+#guard (accentRowSets.map fun (_, rows) => rowsPinned "s" rows) == [true, false, false, false, true]
 
 end Fw.Gate.PathPix

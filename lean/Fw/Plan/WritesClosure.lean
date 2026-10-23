@@ -56,7 +56,7 @@ def needs (tracked writes : List String) (f : Fresh) : List String :=
 structure Gap where
   script : String
   path : String
-deriving Repr, BEq, DecidableEq
+deriving Repr, DecidableEq
 
 def names (writes : List String) (p : String) : Bool := inScope (parseScope writes) p
 
@@ -99,7 +99,7 @@ structure Finding where
   code : String
   severity : String
   detail : String
-deriving Repr, BEq
+deriving Repr, DecidableEq
 
 def findings (tracked : List String) (gaps : List Gap) (t : Task) : List Finding :=
   (missing tracked gaps t).map (fun p =>
@@ -265,6 +265,170 @@ theorem error_iff (tr : List String) (gs : List Gap) (t : Task) :
     obtain ⟨p, hp⟩ := List.exists_mem_of_ne_nil _ h
     exact ⟨_, List.mem_append_left _ (List.mem_map_of_mem hp), rfl⟩
 
+def jsSpace (c : Char) : Bool :=
+  "\t\n\x0b\x0c\r \u00a0\u1680\u2028\u2029\u202f\u205f\u3000\uFEFF".contains c || ('\u2000' ≤ c && c ≤ '\u200a')
+
+def readStop (c : Char) : Bool := jsSpace c || "'\"`;)|&<>".contains c
+
+def literalRead (s : List Char) : Option String :=
+  if s.isEmpty || s.any (fun c => "$*?{}".contains c) then none else some (String.ofList s)
+
+def readsOf : List Char → List (Option String)
+  | '.' :: '.' :: '/' :: r => literalRead (r.takeWhile (!readStop ·)) :: readsOf (r.dropWhile (!readStop ·))
+  | _ :: r => readsOf r
+  | [] => []
+termination_by s => s.length
+decreasing_by
+  all_goals simp_wf
+  all_goals first
+    | omega
+    | (have := (List.dropWhile_suffix (p := fun c => !readStop c) (l := r)).length_le; omega)
+
+def normRead (p : String) : String := "/".intercalate (Fw.Ops.PathCheck.segs p)
+
+def ghGlob : List Char → List Char → Bool
+  | '*' :: '*' :: '/' :: g, s =>
+      ghGlob g s || (List.range s.length).any fun i => s[i]? == some '/' && ghGlob g (s.drop (i + 1))
+  | '*' :: '*' :: g, s => (List.range (s.length + 1)).any fun i => ghGlob g (s.drop i)
+  | '*' :: g, s => (List.range (s.length + 1)).any fun i => !(s.take i).contains '/' && ghGlob g (s.drop i)
+  | [], s => s.isEmpty
+  | _ :: _, [] => false
+  | c :: g, d :: s => c == d && ghGlob g s
+
+def ghMatches (globs : List String) (p : String) : Bool :=
+  globs.foldl (fun hit g => if g.startsWith "!" then hit && !ghGlob (g.toList.drop 1) p.toList
+    else hit || ghGlob g.toList p.toList) false
+
+def rowGlobChar (c : Char) : Bool := c.isAlphanum || ['.', '_', '-', '/', '*'].contains c
+
+def globBody : List Char → List Char
+  | '!' :: r => r
+  | r => r
+
+def rowGlob (g : String) : Bool := !(globBody g.toList).isEmpty && (globBody g.toList).all rowGlobChar
+
+theorem rowGlob_iff (g : String) :
+    rowGlob g = true ↔ globBody g.toList ≠ [] ∧ ∀ c ∈ globBody g.toList, rowGlobChar c = true := by
+  simp [rowGlob]
+
+theorem rowGlob_empty_refused (g : String) (h : globBody g.toList = []) : rowGlob g = false := by
+  simp [rowGlob, h]
+
+theorem rowGlob_char_refused (g : String) (c : Char) (hc : c ∈ globBody g.toList) (hr : rowGlobChar c = false) :
+    rowGlob g = false := by
+  cases hg : rowGlob g
+  · rfl
+  · exact absurd ((rowGlob_iff g).mp hg |>.2 c hc) (by simp [hr])
+
+theorem mem_globBody (l : List Char) (c : Char) (h : c ∈ l) : c = '!' ∨ c ∈ globBody l := by
+  match l, h with
+  | '!' :: r, h => simpa [globBody] using h
+  | [], h => simp at h
+  | a :: r, h => by_cases ha : a = '!' <;> simp_all [globBody]
+
+theorem rowGlob_meta_refused (g : String) (c : Char) (hc : c ∈ g.toList) (hm : c = '?' ∨ c = '+' ∨ c = '[') :
+    rowGlob g = false := by
+  rcases mem_globBody _ c hc with rfl | hb
+  · rcases hm with h | h | h <;> exact absurd h (by decide)
+  · exact rowGlob_char_refused g c hb (by rcases hm with rfl | rfl | rfl <;> decide)
+
+structure Read where
+  script : String
+  path : Option String
+deriving Repr, DecidableEq
+
+def scriptReads (scripts : List (String × String)) : List Read :=
+  scripts.flatMap fun (s, text) => (readsOf text.toList).map fun p => ⟨s, p.map normRead⟩
+
+def unmatched (globs : List String) : Read → Bool
+  | ⟨_, none⟩ => true
+  | ⟨_, some p⟩ => !ghMatches globs p
+
+def inputGaps (scripts : List (String × String)) (globs : List String) : List Read :=
+  (scriptReads scripts).filter (unmatched globs)
+
+def gapsOf (scripts : List (String × String)) (globs : List String) : List Gap :=
+  (inputGaps scripts globs).filterMap fun r => r.path.map (Gap.mk r.script)
+
+theorem ghMatches_nil (p : String) : ghMatches [] p = false := rfl
+
+theorem mem_inputGaps (ss : List (String × String)) (gs : List String) (r : Read) :
+    r ∈ inputGaps ss gs ↔ r ∈ scriptReads ss ∧ unmatched gs r = true := by
+  simp [inputGaps]
+
+theorem nonliteral_gap (ss : List (String × String)) (gs : List String) (s : String)
+    (h : ⟨s, none⟩ ∈ scriptReads ss) : ⟨s, none⟩ ∈ inputGaps ss gs :=
+  (mem_inputGaps ss gs _).mpr ⟨h, rfl⟩
+
+theorem unmatched_gap (ss : List (String × String)) (gs : List String) (s p : String)
+    (h : ⟨s, some p⟩ ∈ scriptReads ss) (hm : ghMatches gs p = false) : ⟨s, some p⟩ ∈ inputGaps ss gs :=
+  (mem_inputGaps ss gs _).mpr ⟨h, by simp [unmatched, hm]⟩
+
+theorem matched_no_gap (ss : List (String × String)) (gs : List String) (s p : String)
+    (hm : ghMatches gs p = true) : ⟨s, some p⟩ ∉ inputGaps ss gs := by
+  rw [mem_inputGaps]; simp [unmatched, hm]
+
+theorem mem_gapsOf (ss : List (String × String)) (gs : List String) (g : Gap) :
+    g ∈ gapsOf ss gs ↔ ⟨g.script, some g.path⟩ ∈ scriptReads ss ∧ ghMatches gs g.path = false := by
+  simp only [gapsOf, List.mem_filterMap, Option.map_eq_some_iff, mem_inputGaps]
+  constructor
+  · rintro ⟨⟨s, p⟩, ⟨hr, hu⟩, q, rfl, rfl⟩
+    simpa [unmatched] using And.intro hr hu
+  · rintro ⟨hr, hm⟩
+    exact ⟨_, ⟨hr, by simp [unmatched, hm]⟩, g.path, rfl, rfl⟩
+
+theorem required_of_unmatched_read (tr ws : List String) (ss : List (String × String)) (gs : List String)
+    (s p : String) (hr : ⟨s, some p⟩ ∈ scriptReads ss) (hm : ghMatches gs p = false)
+    (hn : names ws p = true ∨ names ws s = true) : ∀ q ∈ triggerFix, q ∈ required tr ws (gapsOf ss gs) :=
+  required_of_gap tr ws _ ⟨s, p⟩ ((mem_gapsOf ss gs ⟨s, p⟩).mpr ⟨hr, hm⟩) hn
+
+theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String × String)) (gs : List String)
+    (hw : ∀ w ∈ ws, freshOf tr w = .new → kindOf w ≠ .workflow) :
+    triggerLean ∈ required tr ws (gapsOf ss gs) ↔
+      ∃ s p, ⟨s, some p⟩ ∈ scriptReads ss ∧ ghMatches gs p = false ∧ (names ws p = true ∨ names ws s = true) := by
+  rw [trigger_only_by_read tr ws _ hw]
+  constructor
+  · rintro ⟨g, hg, hn⟩
+    exact ⟨g.script, g.path, ((mem_gapsOf ss gs g).mp hg).1, ((mem_gapsOf ss gs g).mp hg).2, hn⟩
+  · rintro ⟨s, p, hr, hm, hn⟩
+    exact ⟨⟨s, p⟩, (mem_gapsOf ss gs ⟨s, p⟩).mpr ⟨hr, hm⟩, hn⟩
+
+#guard readsOf ". ../scripts/span.sh\nx ../a/$b ../ .../c;../d".toList ==
+  [some "scripts/span.sh", none, none, some "c", some "d"]
+#guard ghMatches ["lean/**"] "lean/a/b.lean" && !ghMatches ["lean/**"] "lean"
+#guard !ghMatches ["lean/Fw"] "lean/Fw/X.lean" && ghMatches ["a/**/c.json"] "a/c.json"
+#guard ghMatches ["**", "!x/**", "x/y"] "x/y" && !ghMatches ["x/y", "!x/**"] "x/y"
+#guard normRead "a//b/./c.json" == "a/b/c.json"
+#guard normRead "a/../b" == "a/../b"
+#guard jsSpace '\u00a0' && jsSpace '\u2005' && jsSpace '\uFEFF' && !jsSpace '\u200b' && !jsSpace 'a'
+#guard rowGlob "lean/**" && rowGlob "!lean/Fw/A_b-c.lean" && !rowGlob "" && !rowGlob "!" && !rowGlob "!!a"
+#guard !rowGlob "lean/?.lean" && !rowGlob "a+" && !rowGlob "lean/[ab].lean" && !rowGlob "@fwcore"
+#guard inputGaps [("s", "../a ../b ../$c")] ["a"] == [⟨"s", some "b"⟩, ⟨"s", none⟩]
+#guard gapsOf [("s", "../a ../b ../$c")] ["a"] == [⟨"s", "b"⟩]
+
+def isError (f : Finding) : Bool := f.code == "writesClosure" && f.severity == "error"
+
+def newErrors (before after : List Finding) : List Finding :=
+  after.filter fun f => isError f && decide (f ∉ before)
+
+theorem mem_newErrors (b a : List Finding) (f : Finding) :
+    f ∈ newErrors b a ↔ f ∈ a ∧ isError f = true ∧ f ∉ b := by
+  simp [newErrors]
+
+theorem new_error_refused (b a : List Finding) (f : Finding) (ha : f ∈ a) (he : isError f = true) (hb : f ∉ b) :
+    f ∈ newErrors b a := (mem_newErrors b a f).mpr ⟨ha, he, hb⟩
+
+theorem old_error_passes (b a : List Finding) (f : Finding) (hb : f ∈ b) : f ∉ newErrors b a := by
+  rw [mem_newErrors]; exact fun h => h.2.2 hb
+
+theorem warning_passes (b a : List Finding) (f : Finding) (hc : f.code = "writesClosureOpen") :
+    f ∉ newErrors b a := by
+  rw [mem_newErrors]; simp [isError, hc]
+
+theorem newErrors_self (a : List Finding) : newErrors a a = [] := by
+  simp [newErrors, List.filter_eq_nil_iff]
+  exact fun _ h _ => h
+
 def fontPre : List String :=
   ["packages/measure-chromium/**", "lean/Fw/Measure/Profile.lean", "packages/contracts/golden/measure/**",
     "research/notes/2026/10-2x-counts-font-fidelity.md", "docs/team/handoffs/counts-font-fidelity.md"]
@@ -351,8 +515,11 @@ structure Case where
   tree : String
   task : Task
   tracked : List String
-  gaps : List Gap
+  scripts : List (String × String)
+  globs : List String
   added : List String
+
+def Case.gaps (c : Case) : List Gap := gapsOf c.scripts c.globs
 
 def classposGap : Gap := ⟨checkSh, "packages/contracts/golden/parts/footprint.classpos.jsonl"⟩
 
@@ -360,48 +527,68 @@ def sumsGap : Gap := ⟨checkSh, "packages/contracts/golden/measure/wkcost-sums.
 
 def otherGap : Gap := ⟨checkSh, "packages/x/y.jsonl"⟩
 
+def leanRow : List String :=
+  ["lean/**", "scripts/span.sh", "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/measure/wkcost.jsonl"]
+
+def readText (golden : String) : String := ". ../scripts/span.sh\njob golden --check ../" ++ golden ++ "\n"
+
+def classposScripts : List (String × String) := [(checkSh, readText classposGap.path)]
+
+def sumsScripts : List (String × String) := [(checkSh, readText sumsGap.path)]
+
+def otherScripts : List (String × String) := [(checkSh, readText otherGap.path)]
+
+def mainScripts : List (String × String) := [(checkSh, readText "packages/contracts/golden/parts/footprint.gen.json")]
+
+#guard gapsOf mainScripts leanRow == [] && leanRow.all rowGlob
+#guard gapsOf classposScripts leanRow == [classposGap]
+#guard gapsOf sumsScripts leanRow == [sumsGap]
+#guard gapsOf otherScripts leanRow == [otherGap]
+#guard gapsOf classposScripts (leanRow ++ [classposGap.path]) == []
+
 def cases : List Case := [
   ⟨"r322 before: counts-font-fidelity", "31bf66d51^", "31bf66d51^",
-    mk "counts-font-fidelity" "measure-engineer" "measure" fontPre, fontTracked, [],
+    mk "counts-font-fidelity" "measure-engineer" "measure" fontPre, fontTracked, mainScripts, leanRow,
     [".github/workflows/font-fidelity.yml"] ++ fontTables⟩,
   ⟨"r322 workflow named, tables not", "31bf66d51^", "31bf66d51^",
     mk "counts-font-fidelity" "measure-engineer" "measure" (fontPre ++ [".github/workflows/font-fidelity.yml"]),
-    fontTracked, [], fontTables⟩,
+    fontTracked, mainScripts, leanRow, fontTables⟩,
   ⟨"r322 after", "31bf66d51", "31bf66d51", mk "counts-font-fidelity" "measure-engineer" "measure" fontPost,
-    fontTracked, [], []⟩,
+    fontTracked, mainScripts, leanRow, []⟩,
   ⟨"r323 before: footprint-classname-operands", "132cfa8e1^", "132cfa8e1^",
-    mk "footprint-classname-operands" "part-builder" "parts" footPre, footTracked, [],
+    mk "footprint-classname-operands" "part-builder" "parts" footPre, footTracked, mainScripts, leanRow,
     footR323.drop footPre.length ++ footLater⟩,
   ⟨"r323 after", "132cfa8e1", "132cfa8e1", mk "footprint-classname-operands" "part-builder" "parts" footR323,
-    footTracked, [], footLater⟩,
+    footTracked, mainScripts, leanRow, footLater⟩,
   ⟨"r325 before", "6d61219e9^", "f4743ef8a",
-    mk "footprint-classname-operands" "part-builder" "parts" (footR323 ++ [checkSh]), footTracked, [classposGap],
+    mk "footprint-classname-operands" "part-builder" "parts" (footR323 ++ [checkSh]), footTracked, classposScripts, leanRow,
     triggerFix⟩,
   ⟨"r325 after", "6d61219e9", "f4743ef8a",
-    mk "footprint-classname-operands" "part-builder" "parts" (footR323 ++ footLater), footTracked, [classposGap], []⟩,
+    mk "footprint-classname-operands" "part-builder" "parts" (footR323 ++ footLater), footTracked, classposScripts, leanRow, []⟩,
   ⟨"r328 before: morph-cost-sums-golden", "890278714^", "890278714^",
-    mk "morph-cost-sums-golden" "measure-engineer" "measure" morphPre, morphTracked, [], morphAdded⟩,
+    mk "morph-cost-sums-golden" "measure-engineer" "measure" morphPre, morphTracked, mainScripts, leanRow, morphAdded⟩,
   ⟨"r328 build branch", "890278714^", "5599b944d",
-    mk "morph-cost-sums-golden" "measure-engineer" "measure" morphPre, morphTracked, [sumsGap], morphAdded⟩,
+    mk "morph-cost-sums-golden" "measure-engineer" "measure" morphPre, morphTracked, sumsScripts, leanRow, morphAdded⟩,
   ⟨"r328 after", "890278714", "5599b944d",
-    mk "morph-cost-sums-golden" "measure-engineer" "measure" (morphPre ++ morphAdded), morphTracked, [sumsGap], []⟩,
+    mk "morph-cost-sums-golden" "measure-engineer" "measure" (morphPre ++ morphAdded), morphTracked, sumsScripts, leanRow, []⟩,
   ⟨"r330 before: counts-font-fidelity", "b3f6f21bd^", "b3f6f21bd^",
-    mk "counts-font-fidelity" "measure-engineer" "measure" fontPost, fontTracked, [],
+    mk "counts-font-fidelity" "measure-engineer" "measure" fontPost, fontTracked, mainScripts, leanRow,
     ["lean/Fw/Faithful/Measured.lean", "results/faithful/**", "packages/measure-chromium/test/faithful.test.mjs"]⟩,
   ⟨"r331 before: hero-probe-original", "1baf5a8a5^", "1baf5a8a5^",
-    mk "hero-probe-original" "measure-engineer" "gate" probePre, probeTracked, [], ["docs/team/tools/trajectory-probe.md"]⟩,
+    mk "hero-probe-original" "measure-engineer" "gate" probePre, probeTracked, mainScripts, leanRow, ["docs/team/tools/trajectory-probe.md"]⟩,
   ⟨"r334 before: hero-exit-threaded-pix", "f3248e954^", "f3248e954^",
-    mk "hero-exit-threaded-pix" "measure-engineer" "measure" pixPre, [], [], pixAdded⟩,
+    mk "hero-exit-threaded-pix" "measure-engineer" "measure" pixPre, [], mainScripts, leanRow, pixAdded⟩,
   ⟨"r334 after", "f3248e954", "f3248e954",
-    mk "hero-exit-threaded-pix" "measure-engineer" "measure" (pixPre ++ pixAdded), pixTracked, [], []⟩,
+    mk "hero-exit-threaded-pix" "measure-engineer" "measure" (pixPre ++ pixAdded), pixTracked, mainScripts, leanRow, []⟩,
   ⟨"graph-writes-closure", "f3248e954", "f3248e954",
-    mk "graph-writes-closure" "lean-prover" "tooling" selfWrites, selfTracked, [], []⟩,
-  ⟨"a new module alone", "-", "-", mk "x" "o" "tooling" ["lean/Fw/X/New.lean"], [], [], [fwRoot]⟩,
-  ⟨"a new workflow alone", "-", "-", mk "x" "o" "tooling" [".github/workflows/new.yml"], [], [], wfTables⟩,
-  ⟨"a gap in a script the row writes", "-", "-", mk "x" "o" "tooling" [checkSh], [], [otherGap], triggerFix⟩,
-  ⟨"a gap of another row", "-", "-", mk "x" "o" "tooling" ["apps/runner/src/x.ts"], [], [otherGap], []⟩,
-  ⟨"no artefact", "-", "-", mk "x" "o" "tooling" ["apps/runner/src/x.ts", "docs/team/tools/x.md"], [], [], []⟩,
-  ⟨"a done row", "-", "-", { mk "x" "o" "tooling" [".github/workflows/new.yml"] with done := true }, [], [], []⟩]
+    mk "graph-writes-closure" "lean-prover" "tooling" selfWrites, selfTracked, mainScripts, leanRow, []⟩,
+  ⟨"a new module alone", "-", "-", mk "x" "o" "tooling" ["lean/Fw/X/New.lean"], [], [], [], [fwRoot]⟩,
+  ⟨"a new workflow alone", "-", "-", mk "x" "o" "tooling" [".github/workflows/new.yml"], [], [], [], wfTables⟩,
+  ⟨"a gap in a script the row writes", "-", "-", mk "x" "o" "tooling" [checkSh], [], otherScripts, leanRow, triggerFix⟩,
+  ⟨"a gap of another row", "-", "-", mk "x" "o" "tooling" ["apps/runner/src/x.ts"], [], otherScripts, leanRow, []⟩,
+  ⟨"no artefact", "-", "-", mk "x" "o" "tooling" ["apps/runner/src/x.ts", "docs/team/tools/x.md"], [], [], [], []⟩,
+  ⟨"a done row", "-", "-", { mk "x" "o" "tooling" [".github/workflows/new.yml"] with done := true }, [], [], [], []⟩]
 
 def named (c : Case) : List (String × String) :=
   (findings c.tracked c.gaps c.task).map fun f => (f.code, (f.detail.splitOn " for ").headD "")
@@ -469,6 +656,16 @@ def strs (xs : List String) : Json := .arr (xs.toArray.map Json.str)
 
 def gapJson (g : Gap) : Json := Json.mkObj [("script", g.script), ("path", g.path)]
 
+def readJson (r : Read) : Json := Json.mkObj [("script", r.script), ("path", (r.path.map Json.str).getD .null)]
+
+def scriptsJson (ss : List (String × String)) : Json :=
+  .arr (ss.toArray.map fun (s, text) => Json.mkObj [("script", s), ("text", text)])
+
+def findingJson (f : Finding) : Json :=
+  Json.mkObj [("task", f.task), ("code", f.code), ("severity", f.severity), ("detail", f.detail)]
+
+def findingsJson (fs : List Finding) : Json := .arr (fs.toArray.map findingJson)
+
 def pathRow (tracked : List String) (w : String) : Json :=
   Json.mkObj [("type", "path"), ("write", w), ("tracked", strs tracked), ("kind", (kindOf w).name),
     ("fresh", (freshOf tracked w).name), ("implied", strs (implied (kindOf w)))]
@@ -477,12 +674,57 @@ def caseRow (c : Case) : Json :=
   let t := c.task
   Json.mkObj [("type", "case"), ("name", c.name), ("graph", c.graph), ("tree", c.tree), ("id", t.id),
     ("owner", t.owner), ("stream", t.stream), ("done", t.done), ("writes", strs t.writes), ("tracked", strs c.tracked),
+    ("scripts", scriptsJson c.scripts), ("globs", strs c.globs),
     ("gaps", .arr (c.gaps.toArray.map gapJson)), ("owned", .arr ((owned t.writes c.gaps).toArray.map gapJson)),
     ("required", strs (required c.tracked t.writes c.gaps)), ("mayNeed", strs (mayNeed c.tracked t.writes c.gaps)),
     ("violations", strs (missing c.tracked c.gaps t ++ missingOpen c.tracked c.gaps t)),
-    ("findings", .arr ((findings c.tracked c.gaps t).toArray.map fun f =>
-      Json.mkObj [("task", f.task), ("code", f.code), ("severity", f.severity), ("detail", f.detail)])),
-    ("added", strs c.added)]
+    ("findings", findingsJson (findings c.tracked c.gaps t)), ("added", strs c.added)]
+
+def globVectors : List (List String × String) := [
+  (["lean/**"], "lean/a/b.lean"), (["lean/**"], "lean"), (["lean/Fw"], "lean/Fw/X.lean"), (["lean/Fw"], "lean/Fw"),
+  (["a/**/c.json"], "a/c.json"), (["a/**/c.json"], "a/b/d/c.json"), (["a/**/c.json"], "a/b/c.jsonx"),
+  (["a/*.json"], "a/b/c.json"), (["a/*.json"], "a/.json"), (["**/c"], "c"), (["**/c"], "x/y/c"), (["a**"], "ab/c"),
+  (["**", "!x/**", "x/y"], "x/y"), (["x/y", "!x/**"], "x/y"), (["x/**", "!x/y"], "x/z"), ([], "a"),
+  (["packages/contracts/golden/**"], "packages/contracts/golden/ci/triggers.jsonl"), (["scripts/*.sh"], "scripts/a/b.sh"),
+  (["lean/*.lean"], "lean/Fw.lean"), (["lean/*.lean"], "lean/Fw/A.lean")]
+
+def globRow (gs : List String) (p : String) : Json :=
+  Json.mkObj [("type", "glob"), ("globs", strs gs), ("path", p), ("match", ghMatches gs p)]
+
+def rowGlobVectors : List String :=
+  leanRow ++ ["lean/Fw/A_b-c.lean", "!lean/a.lean", "", "!", "!!a", "lean/?.lean", "a+", "lean/[ab].lean", "lean/[!a]",
+    "a b", "a{b,c}", "@fwcore", "lean/\u00e9.lean", "lean/a\\b"]
+
+def rowGlobRow (g : String) : Json := Json.mkObj [("type", "rowGlob"), ("glob", g), ("ok", rowGlob g)]
+
+def gapVectors : List (List (String × String) × List String) := [
+  ([("lean/scripts/check.sh", "job a x --check ../packages/a.jsonl ../packages/b.jsonl ../lean/Fw/X.lean ../$V\n"),
+    ("lean/scripts/other.sh", "node ../packages/c.json\n")], ["lean/**", "packages/a.jsonl"]),
+  ([("lean/scripts/check.sh", ". ../scripts/span.sh\nsh -c 'sh ../scripts/fwcore-build.sh && x' ../a/$b ../\n")],
+    ["scripts/span.sh", "scripts/*.sh"]),
+  ([("lean/scripts/n.sh", "x ../a//b/./c.json .../d.json ../../e ../f*.json ../g{1}\n")], ["a/b/**", "!a/b/c.json"]),
+  ([("lean/scripts/w.sh", "x ../a.json\u00a0../b.json\u2003../c.json\x0b../d.json;../e.json|../f.json\n")], ["a.json", "c.json"]),
+  (classposScripts, leanRow), (sumsScripts, leanRow), (mainScripts, leanRow)]
+
+def gapRow (ss : List (String × String)) (gs : List String) : Json :=
+  Json.mkObj [("type", "gaps"), ("scripts", scriptsJson ss), ("globs", strs gs),
+    ("reads", .arr ((scriptReads ss).toArray.map readJson)), ("inputGaps", .arr ((inputGaps ss gs).toArray.map readJson)),
+    ("gaps", .arr ((gapsOf ss gs).toArray.map gapJson))]
+
+def errAt (task p : String) : Finding := ⟨task, "writesClosure", "error", p ++ " for x"⟩
+
+def warnAt (task p : String) : Finding := ⟨task, "writesClosureOpen", "warn", p ++ " for x"⟩
+
+def syncVectors : List (List Finding × List Finding) := [
+  ([], []), ([], [errAt "a" triggerLean]), ([errAt "a" triggerLean], [errAt "a" triggerLean]),
+  ([], [warnAt "a" triggerLean]), ([errAt "a" triggerLean], [errAt "a" triggerLean, errAt "b" triggerLean]),
+  ([errAt "a" triggerLean], [errAt "a" fwRoot]), ([errAt "a" triggerLean, warnAt "b" fwRoot], []),
+  ([], [⟨"a", "evNotOnMain", "error", "x"⟩])]
+
+#guard syncVectors.map (fun (b, a) => (newErrors b a).length) == [0, 1, 0, 0, 1, 1, 0, 0]
+
+def syncRow (b a : List Finding) : Json :=
+  Json.mkObj [("type", "sync"), ("before", findingsJson b), ("after", findingsJson a), ("refused", findingsJson (newErrors b a))]
 
 def pathVectors : List (List String × String) := [
   ([], "packages/contracts/golden/plan/writes-closure.jsonl"), ([], "packages/contracts/golden/**"),
@@ -498,7 +740,10 @@ def pathVectors : List (List String × String) := [
 
 def goldenText (_ : Unit) : String :=
   String.join ((pathVectors.map fun (tr, w) => (pathRow tr w).compress ++ "\n") ++
-    cases.map fun c => (caseRow c).compress ++ "\n")
+    (cases.map fun c => (caseRow c).compress ++ "\n") ++ (globVectors.map fun (gs, p) => (globRow gs p).compress ++ "\n") ++
+    (rowGlobVectors.map fun g => (rowGlobRow g).compress ++ "\n") ++
+    (gapVectors.map fun (ss, gs) => (gapRow ss gs).compress ++ "\n") ++
+    syncVectors.map fun (b, a) => (syncRow b a).compress ++ "\n")
 
 def goldenPath : String := "../packages/contracts/golden/plan/writes-closure.jsonl"
 

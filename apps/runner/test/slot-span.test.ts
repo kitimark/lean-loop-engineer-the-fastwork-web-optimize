@@ -78,9 +78,10 @@ const lastCode = (samples: object[]): string => {
 };
 
 describe.skipIf(!existsSync(fwcore))("the 2026-10-22 16:51 alert", () => {
-  it("fired under the pooled key `slot run check`: the window mixed 0.3 s and 370 s runs", () => {
+  it("fired under the pooled key `slot run check`: the window mixed 0.3 s and 370 s runs; that overflow bucket is now mixed, never slow", () => {
     expect(POOLED.length).toBe(53);
-    expect(lastCode(POOLED.map((d) => sample("slot run check", d)))).toBe("slow");
+    expect(lastCode(POOLED.map((d) => sample("slot run check", d)))).toBe("mixed");
+    expect(lastCode(POOLED.map((d) => sample("slot run check pooled", d)))).toBe("slow");
   });
   it("does not fire under the command key: its key has no earlier sample, so it is noBaseline until five runs of that command exist", () => {
     const step = runStep("check", [], ["sh", "lean/scripts/check.sh"]);

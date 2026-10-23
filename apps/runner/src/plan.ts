@@ -7,12 +7,12 @@ import {
   topoSort as sharedTopoSort, syncCommands as sharedSyncCommands,
 } from "@fw/contracts";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { onMainSet } from "../../console-api/src/reconcile/git.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
-import { gapsOf, lintClosure, scopeBatch, type Gap, type ScopeBatch } from "./plan-closure.ts";
+import { gapsOf, lintClosure, newErrors, scopeBatch, type ClosureTask, type Gap, type ScopeBatch } from "./plan-closure.ts";
 
 export type { WorkGraph } from "@fw/contracts";
 
@@ -98,6 +98,41 @@ export function mainCommits(cwd: string, ref = "main"): { sha: string; body: str
   });
 }
 
+const closureTasks = (g: WorkGraph): ClosureTask[] =>
+  g.tasks.map((t) => ({ id: t.id, owner: t.owner, stream: t.stream, writes: t.writes ?? [], done: !!t.evidence || !!t.cut }));
+const trackedFiles = (root: string) =>
+  execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
+
+export function previousGraph(cwd: string, file: string, text: string): WorkGraph {
+  const q = (...a: string[]) => {
+    try { return execFileSync("git", a, { cwd, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; }
+  };
+  const root = (q("rev-parse", "--show-toplevel") ?? cwd).trim();
+  const rel = relative(realpathSync(root), realpathSync(resolve(cwd, file)));
+  for (const c of (q("log", "-n", "50", "--first-parent", "--format=%H", "HEAD", "--", rel) ?? "").split("\n").filter(Boolean)) {
+    for (const v of [`${c}:${rel}`, `${c}^:${rel}`]) {
+      const t = q("show", v);
+      if (t !== null && t !== text) return JSON.parse(t) as WorkGraph;
+    }
+  }
+  return { milestones: [], tasks: [] };
+}
+
+export async function syncClosureRefusal(cwd: string, file: string,
+  closure?: { tracked: string[]; gaps: Gap[]; batch: ScopeBatch }): Promise<string | null> {
+  const text = readFileSync(resolve(cwd, file), "utf8");
+  const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
+  const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8" }).trim();
+  const tracked = closure?.tracked ?? trackedFiles(root);
+  const gaps = closure?.gaps ?? await gapsOf(root);
+  const batch = closure?.batch ?? scopeBatch(coreCandidates(root, join(common, "..")));
+  const lint = (g: WorkGraph) => lintClosure(closureTasks(g), tracked, gaps, batch);
+  const fresh = newErrors(await lint(previousGraph(cwd, file, text)), await lint(JSON.parse(text) as WorkGraph));
+  if (fresh.length === 0) return null;
+  return `plan sync refused: the graph adds ${fresh.length} writesClosure error(s); add each path to the row's writes, then sync again:${
+    fresh.map((f) => `\n  ${f.task}: ${f.detail}`).join("")}`;
+}
+
 export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[], onMain?: OnMain,
   closure?: { tracked: string[]; gaps?: Gap[]; batch: ScopeBatch }): Promise<number> {
   if (!args[0]) throw new UsageError("usage: fw plan lint <work-graph.json>");
@@ -112,9 +147,9 @@ export async function lintCli(args: string[], cwd: string, core?: CoreCall, comm
       return { id: t.id, title: t.title, deps: t.deps ?? [], evidence: t.evidence ?? null, ...(off ? { evidenceOnMain: false } : {}) };
     }),
     commits: commits ?? mainCommits(cwd) })) as unknown as LintReply;
-  const tracked = closure?.tracked ?? execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
-  const cs = await lintClosure(g.tasks.map((t) => ({ id: t.id, owner: t.owner, stream: t.stream, writes: t.writes ?? [], done: !!t.evidence || !!t.cut })),
-    tracked, closure?.gaps ?? await gapsOf(root), closure?.batch ?? scopeBatch(coreCandidates(root, join(common, ".."))));
+  const tracked = closure?.tracked ?? trackedFiles(root);
+  const cs = await lintClosure(closureTasks(g), tracked, closure?.gaps ?? await gapsOf(root),
+    closure?.batch ?? scopeBatch(coreCandidates(root, join(common, ".."))));
   const errs = cs.filter((f) => f.severity === "error").length;
   const all: LintReply = { ...r, ok: r.ok && errs === 0, errors: r.errors + errs, warnings: r.warnings + cs.length - errs, findings: [...r.findings, ...cs] };
   console.log(renderLint(all));

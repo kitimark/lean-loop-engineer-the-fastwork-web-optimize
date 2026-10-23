@@ -17979,9 +17979,15 @@
     "packages/measure-webkit/src/lag/**",
     "results/carousel-swap-webkit/**",
     "research/notes/2026/10-2x-carousel-swap-webkit.md",
-    "docs/team/handoffs/carousel-swap-webkit-lane.md"
+    "docs/team/handoffs/carousel-swap-webkit-lane.md",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Measure/SwapWindow.lean",
+    "lean/Fw/Measure/WkCost.lean",
+    "packages/contracts/golden/measure/wkcost.jsonl",
+    "packages/measure-webkit/test/lag-swap*.test.mjs"
    ],
-   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens."
+   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens.",
+   "evidence": "c138128"
   },
   {
    "devices": [
@@ -18068,7 +18074,9 @@
     "lean/Fw/Measure/WebKitLag*.lean",
     "packages/contracts/golden/measure/lag*.jsonl",
     "research/notes/2026/10-2x-morph-real-wheel.md",
-    "docs/team/handoffs/morph-real-wheel.md"
+    "docs/team/handoffs/morph-real-wheel.md",
+    ".github/workflows/smoothness.yml",
+    "packages/contracts/golden/measure/webkit-lag.jsonl"
    ],
    "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA."
   },
@@ -18088,7 +18096,14 @@
     "packages/measure-webkit/src/throttle/driver/UITests/PushServer.swift",
     "packages/measure-webkit/test/touch-push.test.mjs",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
-    "docs/team/handoffs/sim-touch-reliable.md"
+    "docs/team/handoffs/sim-touch-reliable.md",
+    "lean/Fw/Measure/TouchPush.lean",
+    "lean/scripts/TouchPushGolden.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/measure/touch-push.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
   },
@@ -18137,7 +18152,8 @@
     "apps/runner/src/watch-collect.ts",
     "lean/Fw/Wire/Obs.lean"
    ],
-   "title": "fw watch opened timing.slow for lean/check 'parallel group' (2026-10-23): the group takes ~48 s at effective parallelism 2.0 and ~95 s at 1.0 (commits 046ff5f vs 3d0d68a; per-job durations equal), because the adaptive Lake build slot granted width 1 under load. The span does not record the granted width, so Fw.Obs.Timing judges a by-design narrow slot as slow. Record the granted slot width (and job count) in the span, and make the Timing slow verdict compare samples of the same width (Lean rule with theorems + golden; the TS reader checked against it). Then the alert only fires when a same-width sample is slow."
+   "title": "fw watch opened timing.slow for lean/check 'parallel group' (2026-10-23): the group takes ~48 s at effective parallelism 2.0 and ~95 s at 1.0 (commits 046ff5f vs 3d0d68a; per-job durations equal), because the adaptive Lake build slot granted width 1 under load. The span does not record the granted width, so Fw.Obs.Timing judges a by-design narrow slot as slow. Record the granted slot width (and job count) in the span, and make the Timing slow verdict compare samples of the same width (Lean rule with theorems + golden; the TS reader checked against it). Then the alert only fires when a same-width sample is slow.",
+   "evidence": "cd20241"
   },
   {
    "devices": [
@@ -18208,7 +18224,8 @@
     "research/notes/2026/10-2x-counts-font-fidelity.md",
     "docs/team/handoffs/faithful-control-oos.md"
    ],
-   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run.",
+   "evidence": "902f8ab"
   },
   {
    "devices": [
@@ -18229,7 +18246,8 @@
     "research/notes/2026/10-2x-pathpix-accent-pin.md",
     "docs/team/handoffs/pathpix-accent-pin.md"
    ],
-   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0.",
+   "evidence": "3641b82"
   },
   {
    "devices": [
@@ -18253,9 +18271,17 @@
     "apps/runner/src/slot-span.ts",
     "apps/runner/test/slot-span*.test.ts",
     "lean/Fw/Obs/Next.lean",
-    "packages/contracts/golden/obs/next*.jsonl"
+    "packages/contracts/golden/obs/next*.jsonl",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/src/watch-collect.ts",
+    "scripts/span.sh",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "apps/runner/test/watch*.test.ts",
+    "apps/runner/test/polish*.test.ts"
    ],
-   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too."
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too. Also from timing-slot-width review: groupView re-judge uses INFERRED widths (summed job time / group wall time): say so in its docstring and add a golden case from recorded widths once spans carry them; TS slotWork drops non-integer widths while Lean workOf keeps any JSON value: restrict workOf to string values or add a golden row for a non-string work value.",
+   "evidence": "10f7e09"
   },
   {
    "devices": [
@@ -18323,7 +18349,8 @@
     "apps/runner/test/plan.test.ts",
     "apps/runner/test/plan-sync*.test.ts"
    ],
-   "title": "graph-writes-closure (landed a5bd5e198) follow-ups: (1) export leanInputGaps(root, table) from scripts/ci-paths.mjs returning {script, path|null}[], make leanInputProblems map over it and plan-closure.ts gapsOf call it, and state the gap predicate (literal ../<path> read in lean/scripts/*.sh not matched by the lean.yml row globs) in Lean so Gap is derived, not input; (2) run `fw plan lint` errors (writesClosure only) in `fw plan sync` (refuse sync on a new error) and in the build-review builder preamble before the dry land, against the build tree, so the r325 and r328 catches fire automatically; (3) keep main's live lint at 0 writesClosure errors (the lead fixed the 5 in graph r338)."
+   "title": "graph-writes-closure (landed a5bd5e198) follow-ups: (1) export leanInputGaps(root, table) from scripts/ci-paths.mjs returning {script, path|null}[], make leanInputProblems map over it and plan-closure.ts gapsOf call it, and state the gap predicate (literal ../<path> read in lean/scripts/*.sh not matched by the lean.yml row globs) in Lean so Gap is derived, not input; (2) run `fw plan lint` errors (writesClosure only) in `fw plan sync` (refuse sync on a new error) and in the build-review builder preamble before the dry land, against the build tree, so the r325 and r328 catches fire automatically; (3) keep main's live lint at 0 writesClosure errors (the lead fixed the 5 in graph r338).",
+   "evidence": "0a52ada"
   },
   {
    "devices": [
@@ -18363,9 +18390,259 @@
     "lean/Fw/Gate/PathPix.lean",
     "packages/contracts/golden/gate/path-pix.jsonl",
     "research/notes/2026/10-2x-hero-copy-floor.md",
-    "docs/team/handoffs/hero-copy-floor-sources.md"
+    "docs/team/handoffs/hero-copy-floor-sources.md",
+    "packages/measure-webkit/src/pathpix-exit-report.mjs"
    ],
-   "title": "pathpix-accent-pin closed as a finding (round 1 refused): pinning the accent word does not bring the hero_copy A/A floor to 0 (runs 39943789128, 39947605395); the floor has other sources. Find and pin each so the hero exit's look review can be judged: (1) Chromium: the countdown seconds digit (hero.countdown) needs a capture pin or a page clock hook; (2) WebKit y 0: 48 px at delta 1 inside the hero_copy mask in the button area, all 4 jobs: find the element (read WebKit source for the cause, e.g. focus ring, caret, text AA) and pin or mask it with a Lean-stated reason; (3) WebKit y 812/813 avatar art noise inside the hero_copy mask (192503 px at delta 20 in webkit-2): find why the hero_copy mask covers avatar art there and fix the mask or the zone; (4) replace the capture-side accent DOM swap (React re-creates the node, arm A at y 855) with a site-side hook that is inert when unset (the faithful page must behave the same when unset: test it); (5) one path-pix exit run with >= 3 jobs per engine; report every hero_copy offset per job and re-grade the P cells (state whether L comes from the floor or from strips not accepted)."
+   "title": "pathpix-accent-pin closed as a finding (round 1 refused): pinning the accent word does not bring the hero_copy A/A floor to 0 (runs 39943789128, 39947605395); the floor has other sources. Find and pin each so the hero exit's look review can be judged: (1) Chromium: the countdown seconds digit (hero.countdown) needs a capture pin or a page clock hook; (2) WebKit y 0: 48 px at delta 1 inside the hero_copy mask in the button area, all 4 jobs: find the element (read WebKit source for the cause, e.g. focus ring, caret, text AA) and pin or mask it with a Lean-stated reason; (3) WebKit y 812/813 avatar art noise inside the hero_copy mask (192503 px at delta 20 in webkit-2): find why the hero_copy mask covers avatar art there and fix the mask or the zone; (4) replace the capture-side accent DOM swap (React re-creates the node, arm A at y 855) with a site-side hook that is inert when unset (the faithful page must behave the same when unset: test it); (5) one path-pix exit run with >= 3 jobs per engine; report every hero_copy offset per job and re-grade the P cells (state whether L comes from the floor or from strips not accepted). Also from pathpix-accent-pin (final design round, Fable advice): (6) the note's hero_copy tables and counts are generated from the run's cells.json and manifests by the committed pathpix-exit-report.mjs (engineTable has a per-consumer, per-offset, per-lane table: add a hero_copy per-job filter and a test); no hand-typed number in the note; (7) pass the A/A floor's rows into gradePinned so an A2-only-unpinned P cell is invalid (Lean theorem + golden); (8) a validity rule for a row whose scrollY differs from its offset (Lean + golden)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-reliable"
+   ],
+   "writes": [
+    ".github/workflows/smoothness.yml",
+    "packages/measure-webkit/src/profile/report*.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/test/touch-push.test.mjs",
+    "packages/measure-webkit/test/profile-*.test.mjs",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "docs/team/handoffs/sim-touch-followups.md"
+   ],
+   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-stable-followups",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "trajectory-noflip-followups"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-stable-followups.md"
+   ],
+   "title": "trajectory-noflip-followups review follow-ups: (1) trajectory-probe.md WebKit cadence: tag the Linux WebKit open gap p50 141-170 ms claim MEASURED with run ids, and answer whether the WebKit Simulator rows record frame timing the lane can use; (2) doc the scope of laneOf_stable_extra (mem_family_extra: original already has samples and the extra pass has a new pass number; a first pass on an empty original is outside); (3) cli.mjs refused inputs and summary without a raw file exit 1 = strict RED: route them through laneExit's refused code or document 1 as usage error; (4) leave-one-out reduce cost 8.7 s -> ~40 s on run 39926829451: track the CI reduce-step time and cut it (share work across the family members) if it exceeds the step budget.",
+   "evidence": "55db52e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-swap-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "carousel-swap-webkit-lane"
+   ],
+   "writes": [
+    "lean/Fw/Measure/SwapWindow.lean",
+    "packages/contracts/golden/measure/wkcost.jsonl",
+    "packages/measure-webkit/src/lag/swap*.mjs",
+    "packages/measure-webkit/test/lag-swap*.test.mjs",
+    "results/carousel-swap-webkit/**",
+    "research/notes/2026/10-2x-carousel-swap-webkit.md",
+    "docs/team/handoffs/carousel-swap-followups.md"
+   ],
+   "title": "carousel-swap-webkit-lane follow-ups (end-of-page lag zone): (1) the crop's every-third swap window (swap 1, 4, 7) shows Layout medians 14.5-15 vs 3.5-5.5 and Paint 20-20.5 vs 7-11 in the others: find the cause from the part's timing constants and WebKit source (which swap, which element relayouts), and say whether faithful shows the same pattern; (2) SwapWindow cell: add a minimum-n reason (unresolved:fewSamples when a faithful slot has < 3 samples) with theorem + golden, since single-job replays gave false wins; (3) swapreport prints the measured crop minimum next to the model line 'the crop none' (measured floor 3 Layout rows per window); (4) one [swap-lane] webkit-sim run with 3 completed jobs at one commit so the cells come from one run. Also from the round-2 review: (5) the [swap-lane] -> SWAP=--swap -> cli --swap path has never run on CI: the run in (4) must confirm swap captures still appear; (6) store a job id per sample in the swap cells JSON so per-run claims (e.g. 39937838325 alone gives the same Paint wins) are reproducible without assuming array order."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "writes-closure-polish",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "writes-closure-followups"
+   ],
+   "writes": [
+    "lean/Fw/Plan/WritesClosure.lean",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/plan.ts",
+    "docs/team/tools/plan.md",
+    "docs/team/handoffs/writes-closure-followups.md",
+    "docs/team/handoffs/writes-closure-polish.md"
+   ],
+   "title": "writes-closure-followups review follow-ups: (1) handoff: drop the build-review.test.mjs clause and write 'merge of main (642babc15, main at 17cb8b6dc)'; (2) WritesClosure.lean jsSpace: write the invisible Unicode characters as \\u escapes; (3) ci-paths refuses lean.yml row globs with ?, + or [ (JS matches agrees with Lean ghMatches only without them), or model them in ghGlob; (4) fw plan sync now needs a built fwcore and lints two graphs: time it and name the dependency in docs/team/tools; (5) normRead keeps '..' segments (safe side, matches Lean): say so in its comment.",
+   "evidence": "94c7e9b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-commit-failsafe",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/handoffs/polish-commit-failsafe.md",
+    "lean/Fw/Wire/Plan.lean",
+    "docs/team/tools/polish.md"
+   ],
+   "title": "The build-review Polish stage twice today (trajectory-noflip-followups 2026-10-23, timing-work-dims) ended with commit=error and left the worktree dirty: staged comment cuts (some deleting Lean docstrings and a handoff title) plus a stray `<file>-e` backup (BSD `sed -i -e` on macOS). The lead had to find and discard them by hand before landing. Fix: (1) Lean rule in Fw.Plan.Polish: after the polish commit step the worktree is clean (commit succeeded, or every polish edit is restored), never partial; golden; fw polish commit restores the index and working tree of the polish edits on any failure and reports why; (2) refuse untracked files created during the polish stage (e.g. `*-e`, `*.orig`) and remove only those it created; (3) comment-sicko edits with the Edit tool only, never `sed -i` (state it in .claude/agents/comment-sicko.md); (4) build-review.js reports polish commit=error with the reason and the cleanup result; test in scripts/build-review.test.mjs."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-module-count",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-work-dims"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/scripts/TimingGolden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "lean/Fw/Ops/CheckMap.lean",
+    "docs/team/handoffs/timing-module-count.md"
+   ],
+   "title": "timing-work-dims (landed 765f1ad03) review follow-ups: (1) the rebuilt Lean module count drives the remaining false alarms (polish commit lakeBuild 1.9-42.9 s; land dry lake 43 s at 17cb8b6 has no work field): record the number of Lean modules lake rebuilt (or the changed-module count) in the polish commit and land dry lake spans, and key or normalise the Timing verdict on it (Lean theorem + golden); (2) heavyChecks derived from the Fw.Ops.CheckMap Check type ([Check.lakeBuild, .leanElab, .presetCheck].map checkName) instead of a hand-written string list, TS HEAVY_CHECKS checked against it; decide where tscProject belongs (it runs for seconds).",
+   "evidence": "f3360aa"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "writes-closure-doc-touchups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "docs/team/tools/plan.md",
+    "scripts/ci-paths.mjs",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    "lean/Fw/Plan/WritesClosure.lean",
+    "apps/runner/test/plan-closure.test.ts",
+    "docs/team/handoffs/writes-closure-doc-touchups.md"
+   ],
+   "title": "writes-closure-polish (landed 2d9d55153) review follow-ups: (1) docs/team/tools/plan.md time table: n=2, p50 642 ms, max 811 ms, 'about 0.4-0.6 s'; (2) the claim that JS matches and Lean ghMatches agree on rowGlob-valid globs: add golden vectors comparing matches with ghMatches over rowGlob-valid globs (**, ***, **/ and prefixes) and replay them, or mark it INFERRED; (3) normRead keeps '..', so a '**' row glob also matches 'lean/../x': refuse '..' segments in reads or state the limit."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-setup-lean-slow",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".github/actions/setup-lean/**",
+    "research/notes/2026/10-2x-ci-setup-lean-slow.md",
+    "docs/team/handoffs/ci-setup-lean-slow.md"
+   ],
+   "title": "fw watch timing.slow on land (playwright-webkit) and land (chromium) 'Run ./.github/actions/setup-lean' (2026-10-23): 36-48 s for most lands, 68-88 s for the last lands (runs 39965489939, 39966639416; earlier 72 s in 39955108083), after new Lean modules landed (SwapWindow, Timing changes). Find from the step logs whether the extra time is cache restore (size, miss, partial key) or building changed modules; compare a fast and a slow run step by step. If the cause is a cache key or what is cached, fix setup-lean so a land leg restores the built modules of main; state the expected time per leg. If the change touches workflow trigger inputs, list it in open."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-safari-mac-followups-2",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-safari-mac-followups"
+   ],
+   "writes": [
+    "results/gpu-safari/**",
+    "research/notes/2026/10-2x-gpu-safari-lane.md",
+    "packages/measure-webkit/src/gpu-safari/**",
+    "packages/measure-webkit/test/gpu-safari*.test.mjs",
+    "lean/Fw/Measure/GpuElapsed.lean",
+    "docs/team/handoffs/gpu-safari-mac-followups-2.md"
+   ],
+   "title": "gpu-safari-mac-followups review follow-ups (2026-10-23): (1) mac-capture.mjs session.timing says 'cadence only: the Lean quiet rule refuses a loaded Mac' but the rule passed 8/8 x5: change it to 'cadence only: no timing instrument wired for macOS Safari'; (2) premise check that every load parks on the arm's swap row (refuse or flag a load whose stateSeen.src differs; in s2 faithful load 1 slipped to the next row); (3) the .repeat.json reductions were withdrawn, not committed: record that in the note; (4) Composite timing on macOS Safari: attach the Web Inspector Timeline (as scrollrun.mjs:57 does for the Simulator) or Instruments, under the measure lease with the quiet rule; (5) lane move to packages/measure-webkit; (6) the Simulator hero.exit:threaded row through CI; (7) a Mac morph reading not drowned by the platform and nav blur drift (mask both boxes, state what the mask hides). Mac Safari runs need the user's unlocked screen (lane exception c)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-real-wheel-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-real-wheel"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    "lean/Fw/Measure/WebKitLag*.lean",
+    "packages/contracts/golden/measure/webkit-lag*.jsonl",
+    "research/notes/2026/10-2x-morph-real-wheel.md",
+    "docs/team/handoffs/morph-real-wheel-followups.md"
+   ],
+   "title": "morph-real-wheel review follow-ups (2026-10-23): (1) report.mjs analyzeMorphItems reads geometry boxes at the fixed MORPH_PHASES offset but clips at the per-run r.ph offset: index geometry with r.ph[phase][0]+i or clamp to the sample count, with a test where marks differ from 10/60/60; (2) neither drive scrolled (page at its end, scroll moved 0 in 72 runs): add a trusted run that starts above the end and scrolls into the push, so ScrollingTree::computeWheelProcessingSteps is exercised; (3) Simulator leg with the PushServer touch once sim-touch-reliable lands; (4) macreport.mjs per-run means and the 3-job pooling are a TS stand-in that pools 18 runs: decide each job on its own in Lean with golden; (5) the polish comment cut in probe.mjs (morphSession docstring) was dropped after the polish restore broke it; redo it by hand."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-module-count-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "timing-module-count",
+    "polish-commit-failsafe"
+   ],
+   "writes": [
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.test.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/timing-module-count-followups.md"
+   ],
+   "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-worktree-path",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "polish-commit-failsafe"
+   ],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/handoffs/build-review-worktree-path.md"
+   ],
+   "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs."
   }
  ],
  "deadline": {

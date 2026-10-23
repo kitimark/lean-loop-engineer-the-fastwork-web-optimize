@@ -40,10 +40,10 @@
  },
  "sourceR": {
   "zonesFile": "results/faithful/runs/swipe-touch-v1/rewrite.zones.json",
-  "zonesSha256": "9c96f7550cedce09bebb2896792d7bc385a33a31bffee1ebdb77262827da7bab",
-  "storeKey": "07115e9f4335e4a6a15fec95113d9aab6218b9465cc45187ce1944dc4e3a8e2b",
-  "runId": "39924639452",
-  "gitSha": "c3c94a0b5284f623e9edef03de3c391d8ddf7cf2",
+  "zonesSha256": "5089c8717173967051b90fb256ceaa8e305c2ec43022093d010a443f66351533",
+  "storeKey": "43522ce2a420f813f2edd073ae17cc33e9bac33b0b1805ca5120c9294777068d",
+  "runId": "39953025217",
+  "gitSha": "82c7820bf59f5871817df43c9b430221c85f43ef",
   "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab",
   "zoneHeightPx": 500,
   "preset": "original",
@@ -61,10 +61,10 @@
  },
  "sourceControl": {
   "zonesFile": "results/faithful/runs/swipe-touch-v1/original.zones.json",
-  "zonesSha256": "761e7fe1a3117832811212ea48b646b6473ce7b22986cc89ced5c038fa752c04",
-  "storeKey": "99ae4de893da146339c12d7dab96c1c2e0683d92aa5397713b8692dd320ffadc",
-  "runId": "39924639452",
-  "gitSha": "c3c94a0b5284f623e9edef03de3c391d8ddf7cf2",
+  "zonesSha256": "352487bada03424a9154462e949a1bea8592c7d6f41f8c19bc11e804344e241f",
+  "storeKey": "948f3a7e5e0b4ad02d173ff2c80cab701bcc5747ae422f2cf8817066e0579232",
+  "runId": "39953025217",
+  "gitSha": "82c7820bf59f5871817df43c9b430221c85f43ef",
   "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab",
   "zoneHeightPx": 500,
   "preset": "original",
@@ -431,12 +431,12 @@
      {
       "type": "trace.EventDispatch",
       "a": 95,
-      "r": 133
+      "r": 134
      },
      {
       "type": "trace.FunctionCall",
       "a": 371,
-      "r": 585
+      "r": 589
      }
     ]
    },
@@ -595,18 +595,7 @@
     },
     "failed": [],
     "offBand": [],
-    "unbandedDiffs": [
-     {
-      "type": "trace.EventDispatch",
-      "a": 95,
-      "r": 96
-     },
-     {
-      "type": "trace.FunctionCall",
-      "a": 371,
-      "r": 372
-     }
-    ]
+    "unbandedDiffs": []
    },
    {
     "id": "tail",
@@ -765,7 +754,7 @@
       "family": "pct5",
       "hi": 47,
       "lo": -118,
-      "r": -32,
+      "r": -80,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -973,7 +962,7 @@
       "family": "exact",
       "hi": 6,
       "lo": 0,
-      "r": 0,
+      "r": 2,
       "status": "skipped"
      },
      "trace.Layerize": {
@@ -1029,7 +1018,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 0,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.N1.fontUpdateInvalidation": {
@@ -1335,7 +1324,7 @@
       "family": "pct5",
       "hi": 3,
       "lo": 3,
-      "r": 21,
+      "r": 8,
       "status": "skipped"
      },
      "metric.Nodes": {
@@ -1343,7 +1332,7 @@
       "family": "pct5",
       "hi": 201,
       "lo": -113,
-      "r": 20,
+      "r": 7,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -1471,7 +1460,7 @@
       "family": "unbanded",
       "hi": 96,
       "lo": 95,
-      "r": 133,
+      "r": 134,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -1487,7 +1476,7 @@
       "family": "unbanded",
       "hi": 372,
       "lo": 371,
-      "r": 585,
+      "r": 589,
       "status": "unbanded"
      },
      "trace.HitTest": {
@@ -1495,7 +1484,7 @@
       "family": "unbanded",
       "hi": 111,
       "lo": 110,
-      "r": 108,
+      "r": 109,
       "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
@@ -1543,7 +1532,7 @@
       "family": "exact",
       "hi": 11,
       "lo": 0,
-      "r": 0,
+      "r": 10,
       "status": "skipped"
      },
      "trace.Layerize": {
@@ -1591,7 +1580,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 0,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.MinorGC": {
@@ -1599,7 +1588,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 0,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.N1.fontUpdateInvalidation": {
@@ -1655,7 +1644,7 @@
       "family": "pct10",
       "hi": 187,
       "lo": 186,
-      "r": 184,
+      "r": 185,
       "status": "skipped"
      },
      "trace.RasterTask": {
@@ -1719,7 +1708,7 @@
       "family": "pct5",
       "hi": 2590,
       "lo": 2589,
-      "r": 2613,
+      "r": 2614,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -2337,7 +2326,7 @@
       "family": "pct5",
       "hi": 47,
       "lo": -118,
-      "r": 67,
+      "r": 38,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -2900,7 +2889,7 @@
       "family": "pct5",
       "hi": 201,
       "lo": -113,
-      "r": 201,
+      "r": -63,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -3028,7 +3017,7 @@
       "family": "unbanded",
       "hi": 96,
       "lo": 95,
-      "r": 96,
+      "r": 95,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -3044,7 +3033,7 @@
       "family": "unbanded",
       "hi": 372,
       "lo": 371,
-      "r": 372,
+      "r": 371,
       "status": "unbanded"
      },
      "trace.HitTest": {
@@ -3052,7 +3041,7 @@
       "family": "unbanded",
       "hi": 111,
       "lo": 110,
-      "r": 111,
+      "r": 110,
       "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
@@ -3100,7 +3089,7 @@
       "family": "exact",
       "hi": 11,
       "lo": 0,
-      "r": 0,
+      "r": 11,
       "status": "skipped"
      },
      "trace.Layerize": {
@@ -3148,7 +3137,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 0,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.MinorGC": {
@@ -3212,7 +3201,7 @@
       "family": "pct10",
       "hi": 187,
       "lo": 186,
-      "r": 187,
+      "r": 186,
       "status": "skipped"
      },
      "trace.RasterTask": {
