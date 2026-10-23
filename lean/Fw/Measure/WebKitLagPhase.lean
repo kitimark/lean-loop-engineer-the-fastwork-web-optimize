@@ -226,8 +226,6 @@ theorem classify_fixed : classify (fixedMarks 130) (some 19) (some 139) = .ok 10
   rw [classify_ok h (by decide) (by decide) (by decide) (by decide)]
   decide
 
-/-! ## The geometry sample of a frame -/
-
 /-- The geometry sample of frame `i` of a phase that starts at frame `start` of this run, held at the last of `n` samples. -/
 def geometryIndex (start i n : Nat) : Nat := min (start + i) (n - 1)
 
@@ -240,10 +238,7 @@ theorem geometryIndex_clamp {start i n : Nat} (h : n ≤ start + i) : geometryIn
 theorem geometryIndex_lt {start i n : Nat} (h : 0 < n) : geometryIndex start i n < n := by
   simp [geometryIndex]; omega
 
-/-- A run whose phase starts at another frame than the fixed schedule reads another sample. -/
 theorem geometryIndex_follows_start : geometryIndex 13 0 130 ≠ geometryIndex 10 0 130 := by decide
-
-/-! ## A trusted run that scrolls into the push -/
 
 /-- The morph value, in thousandths, that a push must reach for the morph to count as open. -/
 def minOpenMilli : Int := 900
@@ -271,7 +266,6 @@ theorem acceptScrollIn_ok (a b c : Nat) {s p m : Int} (h : s < p) (hm : minOpenM
     acceptScrollIn (.ok a b c) s p m = .ok a b c := by
   simp [acceptScrollIn, Int.not_le.mpr h, Int.not_lt.mpr hm]
 
-/-- An accepted run was accepted by the phase rule, scrolled down, and opened the morph. -/
 theorem acceptScrollIn_spec {o : Outcome} {s p m : Int} {a b c : Nat} (h : acceptScrollIn o s p m = .ok a b c) :
     o = .ok a b c ∧ s < p ∧ minOpenMilli ≤ m := by
   cases o with
@@ -284,8 +278,6 @@ theorem acceptScrollIn_spec {o : Outcome} {s p m : Int} {a b c : Nat} (h : accep
       · simp only [acceptScrollIn, h1, h2, ite_false] at h
         cases h
         exact ⟨rfl, by omega, by omega⟩
-
-/-! ## The golden -/
 
 private def mj (ms : List Int) : Json := toJson ms
 private def oj (o : Option Int) : Json := match o with | some v => toJson v | none => Json.null

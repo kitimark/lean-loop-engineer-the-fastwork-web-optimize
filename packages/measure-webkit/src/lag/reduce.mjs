@@ -112,13 +112,10 @@ export function verdict(orig, faith) {
   return 'overlap';
 }
 
-/** One verdict per job from that job's own per-run values `{ a, b }`; no run crosses jobs (Lean: jobVerdicts). */
 export const jobVerdicts = (jobs) => jobs.map((j) => verdict(j.a, j.b));
 
-/** How many jobs said lower, higher and overlap (Lean: tally). */
 export const tally = (vs) => ({ lower: vs.filter((v) => v === 'lower').length, higher: vs.filter((v) => v === 'higher').length, overlap: vs.filter((v) => v === 'overlap').length });
 
-/** The baseline of an arm is rare when one of its passes has fewer than `RARE_MIN` events of the counter (Lean: rareBase). */
 export const rareBase = (passSums) => passSums.some((x) => x < RARE_MIN);
 
 /** The rare-baseline flag of one cell: `name` is a count column and `rareBase` of its per-pass baseline sums (Lean: flagged). */

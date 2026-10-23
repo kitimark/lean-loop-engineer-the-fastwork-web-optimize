@@ -1,10 +1,6 @@
 // webkit-lag-probe: the passes that record where the Simulator lag regions spend their work (I/O only; the reductions are
 // reduce.mjs, the Lean module Fw.Measure.WebKitLag, and report.mjs).
 //   geometry : untimed. At every scroll step (and every frame of the morph push) the part boxes and the filter /
-//              backdrop-filter elements are read in viewport coordinates, quarter CSS px; then a LayerTree census.
-//   scroll   : the timed stepped scroll of the lane (scrollrun.mjs), unchanged; its Paint clips are joined to the boxes.
-//   morph    : timed, at the end of the page: idle frames, a synthetic wheel push down, settle, a push up (the push is
-//              the only trigger of morph.tween, N2:13065-13069), one rAF per step mark.
 import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { reconnect } from '../wip.mjs';
 import { TargetLostError } from '../inspector.mjs';

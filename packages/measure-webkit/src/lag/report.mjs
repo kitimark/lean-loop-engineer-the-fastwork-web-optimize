@@ -1,6 +1,5 @@
 // The ranked attribution of the lag probe: raw `fw.webkit.lag/1` sessions in, per region a counter ranking by a unit-free
 // ratio, a paint attribution to parts, the top steps, the filter layers and the layer census out, for both arms with the
-// arm difference decided on per-pass ranges. Every decision is reduce.mjs (twin of Fw.Measure.WebKitLag); this file joins
 import { COUNT_TYPES, bucketBySteps } from '../reduce.mjs';
 import { MORPH_FRAMES, scanSteps } from './probe.mjs';
 import { phaseRanges, geometryIndex } from './phase.mjs';

@@ -10,7 +10,6 @@ export const BASE_DRIVE = 'synthetic';
 
 const col = (name) => COUNT_TYPES.indexOf(name);
 
-/** The outcome of a run and, when it is used, its phase ranges; the run that scrolls into the push also needs its scroll and an open morph (Lean: acceptScrollIn). */
 export function judge(r) {
   if (!r.marks || !r.perStep) return { outcome: r.outcome ?? 'marksMissing', ranges: null };
   const c = phaseClass(r.marks, r.down, r.up);
@@ -32,7 +31,6 @@ export function phaseSums(r, [a, b]) {
 const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 const num = ([n, d]) => n / d;
 
-/** Per job: the accepted runs by `arm|drive|phase`, and the refused runs by `arm|drive`. */
 export function jobCells(file) {
   const cells = new Map();
   const refused = new Map();
@@ -51,7 +49,6 @@ export function jobCells(file) {
   return { cells, refused };
 }
 
-/** What the pages saw in one job, per `arm|drive`. */
 export function pushFacts(file) {
   const out = new Map();
   for (const r of file.runs) {
@@ -68,7 +65,6 @@ export function pushFacts(file) {
   return out;
 }
 
-/** Every number is per job: the means, the classes and the verdicts (Lean: jobVerdicts); no run of one job meets a run of another. */
 export function analyze(files) {
   const per = files.map(jobCells);
   const get = (j, arm, drive, ph) => per[j].cells.get(`${arm}|${drive}|${ph}`) ?? [];

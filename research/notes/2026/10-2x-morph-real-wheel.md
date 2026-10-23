@@ -18,7 +18,7 @@ The one separated cell (orig FireAnimationFrame, trusted higher) is in the idle 
 later (13.89 vs 10.83 idle frames for `orig`), so the idle window is longer for it, and the cell is not a morph effect (INFERRED).
 In the open and close phases, where the morph runs, no counter separates (every cell "overlap").
 
-## Follow-up: a trusted wheel that scrolls into the push (task morph-real-wheel-followups, run 39989441570)
+## Follow-up: a trusted wheel that scrolls into the push (run 39989441570)
 
 The first run started at the page end, so no wheel scrolled anything. The third drive `scrollin` starts 300 px above the end,
 sends trusted `page.mouse.wheel(0, 120)` until the page is within 8 px of the end (3 wheels, each moves the page 120 px, the last 60 px), waits for the
@@ -38,7 +38,7 @@ CONFIRMED (source), INFERRED.
 
 Every verdict above is stated inside one job from that job's own runs (Lean `jobVerdicts`, `WebKitLag.lean`: job i depends
 only on job i; `pooling_hides` shows two jobs that are each "lower" whose pool is "overlap"); no pooled 18-run verdict is
-used. The tally of three jobs is per job in the table below.
+used.
 
 | open phase, orig, scrollin vs synthetic (jobs 1 / 2 / 3) | verdicts |
 |---|---|
@@ -122,8 +122,7 @@ frames in the phase, which varies by a few frames per run (the cause is INFERRED
 `Node.cpp` is not in the sparse clone, so the claim that the script event skips latching and the delta filter is INFERRED.
 Playwright 1.64.1 `Mouse.wheel` (`lib/coreBundle.js:47745-47757`) sends `Page.updateScrollingState`, waits one rAF, then
 `Input.dispatchWheelEvent` on the page-proxy session (UI process); it throws on mobile WebKit, so the context is not mobile.
-In the first run the page was already at its end, so neither drive scrolled (`scroll moved` 0 in all runs); the morph is
-driven by the wheel handler only.
+In the first run `scroll moved` was 0 in all runs; the wheel handler alone drove the morph.
 
 ## Method (what is Lean, what is glue)
 

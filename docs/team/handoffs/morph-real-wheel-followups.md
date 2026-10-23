@@ -1,12 +1,12 @@
 branch: worktree-wf_41867f2b-b5a-1 (CI branch ci/morph-real-wheel-followups, pushed at bba5ad159)
-worktree: .claude/worktrees/wf_41867f2b-b5a-1 (in the repo checkout)
+worktree: .claude/worktrees/wf_41867f2b-b5a-1
 CI run (smoothness.yml, webkit-mac jobs 1..3, macos-26, Playwright WebKit 27.2): 39989441570, success
 State: all five items handled; main merged; checks below green on the merged tree.
 
 Verified
 - Lean `check.sh` green (slot); `@fw/measure-webkit` tests 468/468; `scripts/ci-paths.test.mjs` 56/56; apps/runner land-inputs 56/56.
 - `fw land --dry` ends `VERDICT dry morph-real-wheel-followups`.
-- `plan lint`: 0 errors; the only line naming this task is `longTitle` (graph title, not edited by me).
+- `plan lint`: 0 errors; only `longTitle` names this task (graph title, not edited).
 - Run 39989441570, MEASURED: 36 of 36 scrollin runs accepted (0 of 108 refused); pushY - startY = 300 and 3 trusted scroll wheels in every one; --morph reached 1.
   Open phase, orig, scrollin vs synthetic: RecalculateStyles lower in 3/3 jobs, Layout lower in jobs 1 and 3; rewrite none. Close: none. Per-job verdicts, never pooled.
 
