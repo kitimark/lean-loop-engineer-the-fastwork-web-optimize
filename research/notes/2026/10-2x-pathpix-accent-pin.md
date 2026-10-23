@@ -72,8 +72,8 @@ column lists the scroll offsets of the job.
 Reading (MEASURED, the wording of round 1 corrected):
 
 - Chromium: run 1 had a floor in chromium-1 only (490 px at delta 222 at y 0, 377 px delta 213 at y 1, 142 px delta 20 at
-  y 233, all inside the mask); chromium-2 of run 1 and both Chromium jobs of run 2 are 0 at every cell. The pin did not
-  change the Chromium accent (same word in all arms under the virtual clock), so run 1 chromium-1 and run 2 differ for
+  y 233, all inside the mask); chromium-2 of run 1 and both Chromium jobs of run 2 are 0 at every cell. The pin replaced the
+  Chromium accent (live 517919cd, served 22a26c2a) the same way in all arms; the live word was already the same in all arms under the virtual clock, so run 1 chromium-1 and run 2 differ for
   a reason not isolated (see the countdown digit below).
 - WebKit y 0: 48 px at delta 1 inside the mask in all 4 WebKit jobs of both runs, pinned or not.
 - WebKit y 812 and 813 (i4, i5): these are hero_copy cells with change, not cells outside the hero zone. webkit-1 has 2 px
@@ -88,6 +88,8 @@ Reading (MEASURED, the wording of round 1 corrected):
   `accent-unpinned` (below).
 
 ## hero_copy P cells with their grade, per job and offset (MEASURED)
+
+Grades as recorded by the runs, before the per-row accent rule. Under that rule the webkit-1 run 2 offset 7 row is invalid (accent-unpinned), so run 2 has 24 L (15 above the floor, 9 strips not accepted), and every run 1 cell is invalid (no row record).
 
 Same units. P = the threaded arm against arm A. `floor` = the A/A cell of the same offset. `why` = reason of the
 absolute grade L. `if strips accepted` = the grade the cell would get if the strips were reviewed and accepted
@@ -140,7 +142,7 @@ A by more than the floor, so L stays even with strips accepted (the exit motion 
 | webkit-1 r2 | 3 (y 427) | 0 : 2744/1 | 0 : 0 | L | outside | L | above floor |
 | webkit-1 r2 | 4 (y 812) | 0 : 0 | 0 : 2/1 | L | text | Q | strips not accepted |
 | webkit-1 r2 | 5 (y 813) | 0 : 0 | 0 : 2/1 | L | text | Q | strips not accepted |
-| webkit-1 r2 | 7 (y 855) | 0 : 63756/255 | 66/1 : 63775/255 | L | outside | Q | strips not accepted |
+| webkit-1 r2 | 7 (A at y 0, P at 855) | 0 : 63756/255 | 66/1 : 63775/255 | L (now invalid: accent-unpinned) | outside | Q (now invalid: accent-unpinned) | strips not accepted |
 | webkit-2 r2 | 0 (y 0) | 0 : 0 | 48/1 : 0 | L | text | Q | strips not accepted |
 | webkit-2 r2 | 1 (y 1) | 0 : 0 | 0 : 0 | L | text | Q | strips not accepted |
 | webkit-2 r2 | 2 (y 213) | 0 : 1833/2 | 0 : 0 | L | outside | L | above floor |
@@ -148,9 +150,9 @@ A by more than the floor, so L stays even with strips accepted (the exit motion 
 | webkit-2 r2 | 4 (y 812) | 192503/20 : 6493/5 | 192503/20 : 2015/5 | L | outside | L | above floor |
 | webkit-2 r2 | 5 (y 813) | 192513/20 : 6493/5 | 192513/20 : 2015/5 | L | outside | L | above floor |
 
-Counts of L cells: run 1 has 24, 12 above the floor and 12 from strips not accepted; run 2 has 25, 15 above the floor and
-10 from strips not accepted. Every L is one of these two; none comes from the floor alone. In the 10 + 12 `strips not
-accepted` rows P is within its floor (0 changed, or inside a larger floor), so with accepted strips they would be Q. The
+Counts of L cells: run 1 recorded 24 (all invalid under the rule), 12 above the floor and 12 from strips not accepted; run 2 recorded 25 (24 under the rule), 15 above the floor and
+10 from strips not accepted. Every L is one of these two; none comes from the floor alone. In the 10 + 12 recorded `strips not
+accepted` rows (9 + 0 under the rule) P is within its floor (0 changed, or inside a larger floor), so with accepted strips they would be Q. The
 `above floor` cells are P changes with floor 0 (130 to 925 px inside in Chromium, 1833 and 2744 px outside in WebKit),
 except webkit-2 run 2 at y 812 and 813 where the floor is itself art noise. webkit-1 run 2 at y 0 has 16655 px at delta
 42 inside in P (0 in the other three WebKit jobs and in run 1) over the usual 48 px A/A floor: a P-versus-A difference
@@ -210,7 +212,7 @@ the served accent, once, at the start and at the end of its two screenshots.
 
 | run | cells | marked accent-unpinned |
 |---|---|---|
-| 39947605395 (row records exist) | 232 (52 + 52 + 64 + 52) | **12**: webkit-1, offset index 7 (y 855): 6 A/A + 6 P cells (hero_copy, hero.cue_cue, 4 hero.deck_article) |
+| 39947605395 (row records exist) | 220 (52 + 52 + 64 + 52) | **12**: webkit-1, offset index 7 (y 855): 6 A/A + 6 P cells (hero_copy, hero.cue_cue, 4 hero.deck_article) |
 | 39943789128 (single pin, no per-row record) | 208 | 208 (all: no row record, so no proof the accent was pinned at the shot) |
 
 ## Open
@@ -223,4 +225,5 @@ the served accent, once, at the start and at the end of its two screenshots.
 
 - No phone; the strips stay CI artifacts (`path-pix-webkit-N/.../strips`); no local timing is reported.
 - 2 jobs per engine per run, below the project's 3 separate-job bar. No new CI run in round 2.
-- Cells for other consumers (other layers than hero_copy) keep their earlier grades, except the 12 unpinned cells above.
+- All committed cells.json grades predate the per-row rule; under it the 12 run 2 cells above and all 208 run 1 cells are invalid; no cell was regraded here.
+- A P cell whose A2 row alone is unpinned grades L through its invalid floor, not invalid; it can never grade Q.
