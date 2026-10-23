@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, probeTable, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
+import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, probeTable, probeOffsets, consensusSummary, consensusCells, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
 
 const raw = (changed, maxDelta) => ({ changed, maxDelta });
 const claim = { compA: true, compB: true };
@@ -92,13 +92,44 @@ test('the shared-pixel list prints the reason, the receiving cells with their gr
   assert.ok(md[7].includes('| webkit-1 | 1 | P | 4-1 | not recorded |'));
 });
 
-test('the probe table lists the recorded elements outside the graded layers per job', () => {
-  const l = lane('webkit-1', [], [], {});
-  l.probes = { 'nav-lang button': [219e6, 24e6, 72e6, 36e6] };
-  l.dpr = 3;
-  const md = probeTable([l, lane('webkit-2', [])]).split('\n');
-  assert.ok(md[2].includes('| webkit-1 | nav-lang button | 657,72,873,180 |'));
-  assert.ok(md[3].includes('| webkit-2 | not recorded | - |'));
+test('the probe table lists the recorded elements at the asked scrollY of every offset with a change outside every mask', () => {
+  const at = (i, y, scrollY, probes) => ({ i, y, scrollY, probes });
+  const l1 = lane('webkit-1', [
+    full('hero_copy', 1, 'P', { cell: { inside: raw(0, 0), out: raw(2, 1), p1: true, claim } }),
+    full('hero_copy', 2, 'P', { cell: { inside: raw(0, 0), out: raw(0, 0), p1: true, claim } }),
+  ]);
+  l1.probesAt = [at(0, 0, 0, { 'nav-lang button': [219e6, 24e6, 72e6, 36e6] }), at(1, 1, 1, { 'nav-lang button': [219e6, 23e6, 72e6, 36e6] }), at(2, 300, 300, {})];
+  l1.dpr = 3;
+  assert.deepEqual(probeOffsets(l1), [1], 'only the offsets with an outside change');
+  const l2 = lane('webkit-2', [full('hero_copy', 0, 'P', {})]);
+  l2.probesAt = [at(0, 0, 0, { 'nav-lang button': [219e6, 24e6, 72e6, 36e6] })];
+  l2.dpr = 3;
+  const l3 = lane('webkit-3', []);
+  const md = probeTable([l1, l2, l3]).split('\n');
+  assert.ok(md[0].includes('ask y | scrollY'));
+  assert.ok(md[2].includes('| webkit-1 | 1 | 1 | 1 | nav-lang button | 657,69,873,177 |'), 'the box at offset 1, not at offset 0');
+  assert.ok(md[3].includes('| webkit-2 | 0 | 0 | 0 | nav-lang button | 657,72,873,180 |'), 'no outside change: the first offset');
+  assert.ok(md[4].includes('| webkit-3 | - | - | - | not recorded | - |'));
+});
+
+test('the consensus tables count the readings per job and list the P cells that changed', () => {
+  const cons = (seen, verdict, a3) => ({ a2: { out: raw(0, 0), inside: raw(0, 0) }, a3, out: seen, inside: seen, seen, verdict });
+  const zero = { out: raw(0, 0), inside: raw(0, 0) };
+  const l = lane('webkit-3', [
+    full('hero_copy', 5, 'P', { grade: 'L', consensus: cons('counted', 'L', zero), cell: { inside: raw(192513, 20), out: raw(0, 0), p1: true, claim } }),
+    full('hero_copy', 6, 'P', { grade: 'L', consensus: cons('varied', 'varied', zero) }),
+    full('hero_copy', 7, 'P', { grade: 'Q', consensus: cons('quiet', 'Q', null) }),
+    full('hero_copy', 8, 'P', {}),
+  ]);
+  l.armsRun = ['A', 'A2', 'A3', 'P'];
+  const sum = consensusSummary('webkit', [l]).split('\n');
+  const cells = sum[4].split('|').map((x) => x.trim()).filter(Boolean);
+  assert.deepEqual(cells.slice(0, 6), ['webkit-3', 'yes', '4', '1', '1', '1']);
+  assert.equal(cells[cells.length - 1], '1', 'one P cell without consensus data');
+  const md = consensusCells([l]).split('\n');
+  assert.equal(md.length, 4, 'header, rule and the two cells that changed');
+  assert.ok(md[2].includes('| webkit-3 | hero_copy | 5 | 0 | L | L | 192513-20 / 0-0 | 0-0 / 0-0 | 0-0 / 0-0 | counted | counted |'));
+  assert.ok(md[3].includes('| varied | varied |'));
 });
 
 test('the pin table reads the page clock, unpinned, misplaced and occluded counts', () => {

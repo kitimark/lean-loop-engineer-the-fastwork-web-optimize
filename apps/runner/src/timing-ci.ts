@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { ghCharged, paths, readJson, realEnv, type WaitPhases } from "@fw/gh-budget";
+import { ghCharged, realEnv, type WaitPhases } from "@fw/gh-budget";
 import { ghCost } from "./run.ts";
 import { CI_VIEW_FIELDS, fmtMs, parseTimings, quantile, recordCiRun, seenRuns, timingsFile, type GhRun, type Span } from "./timing.ts";
 
@@ -46,28 +46,13 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
   return `backfill: ${ids.size} runs considered, ${n} span lines written`;
 }
 
-// ---- wait lag (task ci-wait-lag): the phases of a `fw ci wait` span and how the lag splits ---------------------------
-
-export function pollIntervalS(cwd: string, atS?: number): number | undefined {
-  try {
-    const env = realEnv(cwd);
-    const v = env.core({ op: "ci.budget.status", now: atS ?? env.now(), state: readJson(paths(env.dir).state) }).interval;
-    return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number,
-  pollS: (atS: number | undefined) => number | undefined = (atS) => pollIntervalS(process.cwd(), atS)): Pick<Span, "runIds" | "phases"> {
+export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number): Pick<Span, "runIds" | "phases"> {
   if (!p) return {};
   const { runIds, ...rest } = p;
   const phases: Record<string, number | string | boolean> = {};
   for (const [k, v] of Object.entries(rest)) if (v !== undefined) phases[k] = v as number | string | boolean;
   phases.ingestStartMs = ingestStartMs;
   phases.ingestEndMs = ingestEndMs;
-  const poll = p.how === "done" ? pollS(p.tickMs === undefined ? undefined : Math.floor(p.tickMs / 1000)) : undefined;
-  if (poll !== undefined) phases.pollS = poll;
   return { runIds, phases };
 }
 
