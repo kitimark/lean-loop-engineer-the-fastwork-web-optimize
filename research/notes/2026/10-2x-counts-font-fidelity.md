@@ -151,8 +151,12 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   Frames: swipe-v1 575 in every job of both arms (font-less baseline 503 original, 385 rewrite); swipe-touch-v1 771 in every job of both arms (font-less 531 original, 409 rewrite).
   Zones: swipe-v1 13 (was 12), touch 14 (was 13). Zone baselines (`results/baselines/chromium`, `detDrift` 0 in all four) are of runs 39916914389 (swipe-v1) and 39924634896 (touch).
   The quarantined share grows because the page now lays out text, which varies run to run; INFERRED, not tested per type.
-- Consequence for the faithful check: `results/faithful/*.verdict.json` and `lean/Fw/Faithful/Measured.lean` were regenerated (generators, no hand edit) against the new original baseline A.
-  R (rewrite) and the control A' in `results/faithful/runs` are still of the font-less image, so the pair is mixed: swipe-v1 control A'/A went from pass to FAIL (y04000, y04500, tail), touch control FAIL (y04000, y04500). Read that as "the image changed", not as a rewrite verdict. Follow-up: re-run faithful-checks on the font image (INFERRED that this restores a passing control).
+- Faithful check on one image (MEASURED, Lean-decided): every arm now sits on the font image `47b1dcbe...`. A = the frozen original baseline (runs 39916914389 swipe-v1, 39924634896 touch);
+  R (rewrite) and the control A' (a second original) = the three shards of one other run of the same profile and image, 39916917890 (swipe-v1) and 39924639452 (touch), both `target=both`,
+  rebuilt with `zone-baseline.mjs` (store entry, then `baseline --profile --target`) into `results/faithful/runs`; `faithful.mjs verdict` and `faithful.mjs lean` regenerated
+  `results/faithful/*.verdict.json` and `lean/Fw/Faithful/Measured.lean`. The control A'/A passes on both profiles (swipe-v1 and touch, all three zones), so run-to-run variance of the original on the font image is inside its own bands.
+  The rewrite R fails y04000, y04500 and tail on both profiles (as on the font-less image). The earlier mixed-image control FAIL was the image change, as inferred.
+  Store note: runs 39916914389 and 39916917890 map to one store key, so A' was pulled into a scratch store (`FW_CONSOLE_DIR=<dir> pnpm -s fw ci <run> --branch ci/counts-font-fidelity`).
 - MEASURED, engine-premises (A/B on the font and font-less images): font image run 39909930901 (sha 3783b391d) against the font-less tree run 39912692117
   (branch ci/counts-font-fidelity-nofont). Every row reads the same except Chromium `paint` and `raster` of the main step set: font-less 130 of 130 agree
   (both rows hold), font image 129 of 130 (both rows fail) at step 118, case `margin@own`, act `set`: the model says Paint and RasterTask are absent, all

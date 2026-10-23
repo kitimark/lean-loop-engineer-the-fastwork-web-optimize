@@ -40,11 +40,11 @@
  },
  "sourceR": {
   "zonesFile": "results/faithful/runs/swipe-touch-v1/rewrite.zones.json",
-  "zonesSha256": "631cb382d7baae34696c2bfda29daac8acaab279179d5e9b4d374d6e7e72b80e",
-  "storeKey": "305e4c63f695c84e61ee4b5828bb6d70ca8e56d8e632ce63d8fb44fad287c4f1",
-  "runId": "39184646781",
-  "gitSha": "4283c5a1fb4af5861eaa8254890ae9cb8f508bbb",
-  "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+  "zonesSha256": "9c96f7550cedce09bebb2896792d7bc385a33a31bffee1ebdb77262827da7bab",
+  "storeKey": "07115e9f4335e4a6a15fec95113d9aab6218b9465cc45187ce1944dc4e3a8e2b",
+  "runId": "39924639452",
+  "gitSha": "c3c94a0b5284f623e9edef03de3c391d8ddf7cf2",
+  "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab",
   "zoneHeightPx": 500,
   "preset": "original",
   "browser": "HeadlessChrome/156.0.8078.4",
@@ -61,11 +61,11 @@
  },
  "sourceControl": {
   "zonesFile": "results/faithful/runs/swipe-touch-v1/original.zones.json",
-  "zonesSha256": "6733321bb881d483cc1117dae240bdf126d2ee7c3221ceceb207c5d0803259c1",
-  "storeKey": "a5bf9bdc7aff00874e27e0bf07020081de99089898054d3aa24aa71f34923470",
-  "runId": "39184646781",
-  "gitSha": "4283c5a1fb4af5861eaa8254890ae9cb8f508bbb",
-  "image": "sha256:8f0e17f50db9e3ae59f06d12d8b2fd483ba39582999a8469fab4fd8432cff2b0",
+  "zonesSha256": "761e7fe1a3117832811212ea48b646b6473ce7b22986cc89ced5c038fa752c04",
+  "storeKey": "99ae4de893da146339c12d7dab96c1c2e0683d92aa5397713b8692dd320ffadc",
+  "runId": "39924639452",
+  "gitSha": "c3c94a0b5284f623e9edef03de3c391d8ddf7cf2",
+  "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab",
   "zoneHeightPx": 500,
   "preset": "original",
   "browser": "HeadlessChrome/156.0.8078.4",
@@ -161,36 +161,26 @@
     "pxA": 500,
     "pxR": 500,
     "tally": {
-     "fail": 24,
-     "pass": 15,
+     "fail": 14,
+     "pass": 25,
      "skipped": 19,
      "unbanded": 10
     },
     "failed": [
      "census.activeTileAreaPx",
+     "census.activeTiles",
      "census.drawingAreaPx",
      "census.solidTiles",
+     "census.tiles",
      "census.tilings",
-     "hasDamage",
-     "metric.RecalcStyleCount",
+     "raster.invalidatedLayers",
      "trace.Animation.begin",
      "trace.Animation.compositeFailedBits",
      "trace.Animation.instant",
-     "trace.DisplayItemListRaster",
      "trace.FireAnimationFrame",
      "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.Layout.partial",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RasterTask",
      "trace.RequestAnimationFrame",
-     "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
-     "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit"
+     "trace.UpdateLayer"
     ],
     "offBand": [
      {
@@ -199,7 +189,15 @@
       "loA": 328318976,
       "hiA": 328318976,
       "a": 328318976,
-      "r": 281563136
+      "r": 376541184
+     },
+     {
+      "type": "census.activeTiles",
+      "family": "pct10",
+      "loA": 5034,
+      "hiA": 5034,
+      "a": 5034,
+      "r": 5767
      },
      {
       "type": "census.drawingAreaPx",
@@ -207,7 +205,7 @@
       "loA": 567716786,
       "hiA": 567716786,
       "a": 567716786,
-      "r": 655741410
+      "r": 713741249
      },
      {
       "type": "census.solidTiles",
@@ -215,7 +213,15 @@
       "loA": 1404,
       "hiA": 1404,
       "a": 1404,
-      "r": 1931
+      "r": 1904
+     },
+     {
+      "type": "census.tiles",
+      "family": "pct10",
+      "loA": 5574,
+      "hiA": 5574,
+      "a": 5574,
+      "r": 7320
      },
      {
       "type": "census.tilings",
@@ -223,23 +229,15 @@
       "loA": 1703,
       "hiA": 1703,
       "a": 1703,
-      "r": 2448
+      "r": 6259
      },
      {
-      "type": "hasDamage",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 47
-     },
-     {
-      "type": "metric.RecalcStyleCount",
-      "family": "pct5",
+      "type": "raster.invalidatedLayers",
+      "family": "pct10",
       "loA": 190,
       "hiA": 190,
       "a": 190,
-      "r": 168
+      "r": 289
      },
      {
       "type": "trace.Animation.begin",
@@ -247,7 +245,7 @@
       "loA": 11,
       "hiA": 11,
       "a": 11,
-      "r": 6
+      "r": 9
      },
      {
       "type": "trace.Animation.compositeFailedBits",
@@ -255,7 +253,7 @@
       "loA": 53280,
       "hiA": 53280,
       "a": 53280,
-      "r": 0
+      "r": 49184
      },
      {
       "type": "trace.Animation.instant",
@@ -266,20 +264,12 @@
       "r": 15
      },
      {
-      "type": "trace.DisplayItemListRaster",
-      "family": "pct10",
-      "loA": 254,
-      "hiA": 254,
-      "a": 254,
-      "r": 20
-     },
-     {
       "type": "trace.FireAnimationFrame",
       "family": "exact",
       "loA": 228,
       "hiA": 228,
       "a": 228,
-      "r": 131
+      "r": 147
      },
      {
       "type": "trace.ImageDecodeTask",
@@ -287,47 +277,7 @@
       "loA": 12,
       "hiA": 12,
       "a": 12,
-      "r": 4
-     },
-     {
-      "type": "trace.Layer.created",
-      "family": "exact",
-      "loA": 5,
-      "hiA": 5,
-      "a": 5,
-      "r": 8
-     },
-     {
-      "type": "trace.Layout.partial",
-      "family": "pct5",
-      "loA": 31,
-      "hiA": 31,
-      "a": 31,
-      "r": 24
-     },
-     {
-      "type": "trace.Paint",
-      "family": "pct10",
-      "loA": 156,
-      "hiA": 156,
-      "a": 156,
-      "r": 175
-     },
-     {
-      "type": "trace.PaintImage",
-      "family": "pct10",
-      "loA": 204,
-      "hiA": 204,
-      "a": 204,
-      "r": 11
-     },
-     {
-      "type": "trace.RasterTask",
-      "family": "pct10",
-      "loA": 254,
-      "hiA": 254,
-      "a": 254,
-      "r": 20
+      "r": 7
      },
      {
       "type": "trace.RequestAnimationFrame",
@@ -335,23 +285,7 @@
       "loA": 227,
       "hiA": 227,
       "a": 227,
-      "r": 131
-     },
-     {
-      "type": "trace.ScheduleStyleRecalculation",
-      "family": "pct5",
-      "loA": 190,
-      "hiA": 190,
-      "a": 190,
-      "r": 168
-     },
-     {
-      "type": "trace.ScrollLayer",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 47
+      "r": 158
      },
      {
       "type": "trace.UpdateLayer",
@@ -359,127 +293,58 @@
       "loA": 2167,
       "hiA": 2167,
       "a": 2167,
-      "r": 2886
-     },
-     {
-      "type": "trace.UpdateLayoutTree",
-      "family": "pct5",
-      "loA": 190,
-      "hiA": 190,
-      "a": 190,
-      "r": 168
-     },
-     {
-      "type": "trace.cc.Activate",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 46
-     },
-     {
-      "type": "trace.cc.Commit",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 46
+      "r": 2728
      }
     ],
     "unbandedDiffs": [
      {
-      "type": "census.snapshots",
-      "a": 50,
-      "r": 47
-     },
-     {
       "type": "trace.EventDispatch",
       "a": 104,
-      "r": 131
+      "r": 133
      },
      {
       "type": "trace.FunctionCall",
       "a": 474,
-      "r": 451
-     },
-     {
-      "type": "trace.ResizeObserverNotify",
-      "a": 50,
-      "r": 53
+      "r": 634
      }
     ]
    },
    {
     "id": "y04500",
     "present": true,
-    "shape": false,
+    "shape": true,
     "pass": false,
     "framesA": 50,
-    "framesR": 13,
+    "framesR": 50,
     "pxA": 475,
-    "pxR": 129,
+    "pxR": 475,
     "tally": {
-     "fail": 30,
-     "pass": 8,
+     "fail": 11,
+     "pass": 27,
      "skipped": 19,
      "unbanded": 10
     },
     "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
      "census.drawingAreaPx",
      "census.solidTiles",
      "census.tiles",
      "census.tilings",
-     "hasDamage",
      "metric.RecalcStyleCount",
      "raster.invalidatedLayers",
-     "trace.Animation.begin",
-     "trace.Animation.instant",
-     "trace.Commit",
-     "trace.CullRectUpdate",
-     "trace.DisplayItemListRaster",
      "trace.FireAnimationFrame",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.Layerize",
-     "trace.Layout.partial",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RasterTask",
      "trace.RequestAnimationFrame",
      "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
      "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.cc.Draw"
+     "trace.UpdateLayoutTree"
     ],
     "offBand": [
-     {
-      "type": "census.activeTileAreaPx",
-      "family": "pct10",
-      "loA": 352268288,
-      "hiA": 352268288,
-      "a": 352268288,
-      "r": 75522048
-     },
-     {
-      "type": "census.activeTiles",
-      "family": "pct10",
-      "loA": 5476,
-      "hiA": 5476,
-      "a": 5476,
-      "r": 1301
-     },
      {
       "type": "census.drawingAreaPx",
       "family": "pct10",
       "loA": 542198439,
       "hiA": 542198439,
       "a": 542198439,
-      "r": 175793228
+      "r": 679026545
      },
      {
       "type": "census.solidTiles",
@@ -487,7 +352,7 @@
       "loA": 1492,
       "hiA": 1492,
       "a": 1492,
-      "r": 559
+      "r": 1924
      },
      {
       "type": "census.tiles",
@@ -495,7 +360,7 @@
       "loA": 6367,
       "hiA": 6367,
       "a": 6367,
-      "r": 1473
+      "r": 7890
      },
      {
       "type": "census.tilings",
@@ -503,15 +368,7 @@
       "loA": 2003,
       "hiA": 2003,
       "a": 2003,
-      "r": 703
-     },
-     {
-      "type": "hasDamage",
-      "family": "exact",
-      "loA": 47,
-      "hiA": 47,
-      "a": 47,
-      "r": 13
+      "r": 6333
      },
      {
       "type": "metric.RecalcStyleCount",
@@ -519,7 +376,7 @@
       "loA": 141,
       "hiA": 141,
       "a": 141,
-      "r": 43
+      "r": 171
      },
      {
       "type": "raster.invalidatedLayers",
@@ -527,47 +384,7 @@
       "loA": 176,
       "hiA": 176,
       "a": 176,
-      "r": 71
-     },
-     {
-      "type": "trace.Animation.begin",
-      "family": "exact",
-      "loA": 14,
-      "hiA": 14,
-      "a": 14,
-      "r": 2
-     },
-     {
-      "type": "trace.Animation.instant",
-      "family": "exact",
-      "loA": 23,
-      "hiA": 23,
-      "a": 23,
-      "r": 4
-     },
-     {
-      "type": "trace.Commit",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.CullRectUpdate",
-      "family": "pct10",
-      "loA": 76,
-      "hiA": 76,
-      "a": 76,
-      "r": 13
-     },
-     {
-      "type": "trace.DisplayItemListRaster",
-      "family": "pct10",
-      "loA": 261,
-      "hiA": 261,
-      "a": 261,
-      "r": 22
+      "r": 268
      },
      {
       "type": "trace.FireAnimationFrame",
@@ -575,63 +392,7 @@
       "loA": 166,
       "hiA": 166,
       "a": 166,
-      "r": 53
-     },
-     {
-      "type": "trace.ImageDecodeTask",
-      "family": "pct10",
-      "loA": 11,
-      "hiA": 11,
-      "a": 11,
-      "r": 2
-     },
-     {
-      "type": "trace.Layer.created",
-      "family": "exact",
-      "loA": 14,
-      "hiA": 14,
-      "a": 14,
-      "r": 2
-     },
-     {
-      "type": "trace.Layerize",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.Layout.partial",
-      "family": "pct5",
-      "loA": 21,
-      "hiA": 21,
-      "a": 21,
-      "r": 1
-     },
-     {
-      "type": "trace.Paint",
-      "family": "pct10",
-      "loA": 181,
-      "hiA": 181,
-      "a": 181,
-      "r": 40
-     },
-     {
-      "type": "trace.PaintImage",
-      "family": "pct10",
-      "loA": 238,
-      "hiA": 238,
-      "a": 238,
-      "r": 0
-     },
-     {
-      "type": "trace.RasterTask",
-      "family": "pct10",
-      "loA": 261,
-      "hiA": 261,
-      "a": 261,
-      "r": 22
+      "r": 130
      },
      {
       "type": "trace.RequestAnimationFrame",
@@ -639,7 +400,7 @@
       "loA": 166,
       "hiA": 166,
       "a": 166,
-      "r": 54
+      "r": 129
      },
      {
       "type": "trace.ScheduleStyleRecalculation",
@@ -647,15 +408,7 @@
       "loA": 141,
       "hiA": 141,
       "a": 141,
-      "r": 43
-     },
-     {
-      "type": "trace.ScrollLayer",
-      "family": "exact",
-      "loA": 44,
-      "hiA": 44,
-      "a": 44,
-      "r": 13
+      "r": 171
      },
      {
       "type": "trace.UpdateLayer",
@@ -663,7 +416,7 @@
       "loA": 2546,
       "hiA": 2546,
       "a": 2546,
-      "r": 745
+      "r": 3096
      },
      {
       "type": "trace.UpdateLayoutTree",
@@ -671,63 +424,19 @@
       "loA": 141,
       "hiA": 141,
       "a": 141,
-      "r": 43
-     },
-     {
-      "type": "trace.cc.Activate",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.cc.Commit",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.cc.Draw",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
+      "r": 171
      }
     ],
     "unbandedDiffs": [
      {
-      "type": "census.snapshots",
-      "a": 47,
-      "r": 13
-     },
-     {
-      "type": "trace.EvaluateScript",
-      "a": 50,
-      "r": 13
-     },
-     {
       "type": "trace.EventDispatch",
       "a": 95,
-      "r": 37
+      "r": 133
      },
      {
       "type": "trace.FunctionCall",
       "a": 371,
-      "r": 148
-     },
-     {
-      "type": "trace.IntersectionObserverCompute",
-      "a": 100,
-      "r": 26
-     },
-     {
-      "type": "trace.ResizeObserverNotify",
-      "a": 76,
-      "r": 13
+      "r": 585
      }
     ]
    },
@@ -741,60 +450,30 @@
     "pxA": 0,
     "pxR": 0,
     "tally": {
-     "fail": 23,
-     "pass": 15,
-     "skipped": 18,
+     "fail": 9,
+     "pass": 20,
+     "skipped": 10,
      "unbanded": 10
     },
     "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
      "census.drawingAreaPx",
      "census.solidTiles",
      "census.tiles",
      "census.tilings",
-     "raster.invalidatedLayers",
-     "trace.CullRectUpdate",
      "trace.FireAnimationFrame",
-     "trace.Paint",
-     "trace.PaintImage",
      "trace.RequestAnimationFrame",
      "trace.UpdateLayer",
      "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.Animation.begin",
-     "trace.Animation.compositeFailedBits",
-     "trace.Animation.instant",
-     "trace.DecodeImage",
-     "trace.DisplayItemListRaster",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.RasterTask"
+     "trace.cc.Commit"
     ],
     "offBand": [
-     {
-      "type": "census.activeTileAreaPx",
-      "family": "pct10",
-      "loA": 167116800,
-      "hiA": 167116800,
-      "a": 167116800,
-      "r": 192479232
-     },
-     {
-      "type": "census.activeTiles",
-      "family": "pct10",
-      "loA": 4740,
-      "hiA": 4740,
-      "a": 4740,
-      "r": 2939
-     },
      {
       "type": "census.drawingAreaPx",
       "family": "pct10",
       "loA": 363986100,
       "hiA": 363986100,
       "a": 363986100,
-      "r": 420280205
+      "r": 451323240
      },
      {
       "type": "census.solidTiles",
@@ -802,7 +481,7 @@
       "loA": 960,
       "hiA": 960,
       "a": 960,
-      "r": 1224
+      "r": 1140
      },
      {
       "type": "census.tiles",
@@ -810,7 +489,7 @@
       "loA": 6900,
       "hiA": 6900,
       "a": 6900,
-      "r": 4101
+      "r": 7740
      },
      {
       "type": "census.tilings",
@@ -818,63 +497,7 @@
       "loA": 3720,
       "hiA": 3720,
       "a": 3720,
-      "r": 1676
-     },
-     {
-      "type": "raster.invalidatedLayers",
-      "family": "pct10",
-      "loA": 90,
-      "hiA": 90,
-      "a": 90,
-      "r": 280
-     },
-     {
-      "type": "trace.Animation.begin",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 4
-     },
-     {
-      "type": "trace.Animation.compositeFailedBits",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 24576
-     },
-     {
-      "type": "trace.Animation.instant",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 7
-     },
-     {
-      "type": "trace.CullRectUpdate",
-      "family": "pct10",
-      "loA": 30,
-      "hiA": 30,
-      "a": 30,
-      "r": 51
-     },
-     {
-      "type": "trace.DecodeImage",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 6
-     },
-     {
-      "type": "trace.DisplayItemListRaster",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 656
+      "r": 6510
      },
      {
       "type": "trace.FireAnimationFrame",
@@ -882,47 +505,7 @@
       "loA": 14,
       "hiA": 14,
       "a": 14,
-      "r": 47
-     },
-     {
-      "type": "trace.ImageDecodeTask",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 367
-     },
-     {
-      "type": "trace.Layer.created",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 8
-     },
-     {
-      "type": "trace.Paint",
-      "family": "pct10",
-      "loA": 60,
-      "hiA": 60,
-      "a": 60,
-      "r": 236
-     },
-     {
-      "type": "trace.PaintImage",
-      "family": "pct10",
-      "loA": 120,
-      "hiA": 120,
-      "a": 120,
-      "r": 583
-     },
-     {
-      "type": "trace.RasterTask",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 656
+      "r": 15
      },
      {
       "type": "trace.RequestAnimationFrame",
@@ -930,7 +513,7 @@
       "loA": 12,
       "hiA": 12,
       "a": 12,
-      "r": 45
+      "r": 13
      },
      {
       "type": "trace.UpdateLayer",
@@ -938,7 +521,7 @@
       "loA": 776,
       "hiA": 776,
       "a": 776,
-      "r": 1245
+      "r": 3240
      },
      {
       "type": "trace.cc.Activate",
@@ -961,621 +544,67 @@
      {
       "type": "trace.EventDispatch",
       "a": 0,
-      "r": 41
+      "r": 4
      },
      {
       "type": "trace.FunctionCall",
       "a": 28,
-      "r": 157
-     },
-     {
-      "type": "trace.ResizeObserverNotify",
-      "a": 30,
-      "r": 51
+      "r": 23
      }
     ]
    }
   ]
  },
  "control": {
-  "pass": false,
-  "failedZones": [
-   "y04000",
-   "y04500",
-   "tail"
-  ],
+  "pass": true,
+  "failedZones": [],
   "zones": [
    {
     "id": "y04000",
     "present": true,
     "shape": true,
-    "pass": false,
+    "pass": true,
     "framesA": 50,
     "framesR": 50,
     "pxA": 500,
     "pxR": 500,
     "tally": {
-     "fail": 25,
-     "pass": 14,
+     "fail": 0,
+     "pass": 39,
      "skipped": 19,
      "unbanded": 10
     },
-    "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
-     "census.solidTiles",
-     "census.tiles",
-     "census.tilings",
-     "hasDamage",
-     "metric.RecalcStyleCount",
-     "raster.invalidatedLayers",
-     "trace.Animation.begin",
-     "trace.Animation.compositeFailedBits",
-     "trace.Animation.instant",
-     "trace.CullRectUpdate",
-     "trace.DisplayItemListRaster",
-     "trace.FireAnimationFrame",
-     "trace.ImageDecodeTask",
-     "trace.Layout.partial",
-     "trace.PaintImage",
-     "trace.RasterTask",
-     "trace.RequestAnimationFrame",
-     "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
-     "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit"
-    ],
-    "offBand": [
-     {
-      "type": "census.activeTileAreaPx",
-      "family": "pct10",
-      "loA": 328318976,
-      "hiA": 328318976,
-      "a": 328318976,
-      "r": 413495296
-     },
-     {
-      "type": "census.activeTiles",
-      "family": "pct10",
-      "loA": 5034,
-      "hiA": 5034,
-      "a": 5034,
-      "r": 6470
-     },
-     {
-      "type": "census.solidTiles",
-      "family": "pct10",
-      "loA": 1404,
-      "hiA": 1404,
-      "a": 1404,
-      "r": 2773
-     },
-     {
-      "type": "census.tiles",
-      "family": "pct10",
-      "loA": 5574,
-      "hiA": 5574,
-      "a": 5574,
-      "r": 7290
-     },
-     {
-      "type": "census.tilings",
-      "family": "pct10",
-      "loA": 1703,
-      "hiA": 1703,
-      "a": 1703,
-      "r": 2003
-     },
-     {
-      "type": "hasDamage",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 47
-     },
-     {
-      "type": "metric.RecalcStyleCount",
-      "family": "pct5",
-      "loA": 190,
-      "hiA": 190,
-      "a": 190,
-      "r": 146
-     },
-     {
-      "type": "raster.invalidatedLayers",
-      "family": "pct10",
-      "loA": 190,
-      "hiA": 190,
-      "a": 190,
-      "r": 101
-     },
-     {
-      "type": "trace.Animation.begin",
-      "family": "exact",
-      "loA": 11,
-      "hiA": 11,
-      "a": 11,
-      "r": 5
-     },
-     {
-      "type": "trace.Animation.compositeFailedBits",
-      "family": "exact",
-      "loA": 53280,
-      "hiA": 53280,
-      "a": 53280,
-      "r": 0
-     },
-     {
-      "type": "trace.Animation.instant",
-      "family": "exact",
-      "loA": 18,
-      "hiA": 18,
-      "a": 18,
-      "r": 14
-     },
-     {
-      "type": "trace.CullRectUpdate",
-      "family": "pct10",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 58
-     },
-     {
-      "type": "trace.DisplayItemListRaster",
-      "family": "pct10",
-      "loA": 254,
-      "hiA": 254,
-      "a": 254,
-      "r": 28
-     },
-     {
-      "type": "trace.FireAnimationFrame",
-      "family": "exact",
-      "loA": 228,
-      "hiA": 228,
-      "a": 228,
-      "r": 175
-     },
-     {
-      "type": "trace.ImageDecodeTask",
-      "family": "pct10",
-      "loA": 12,
-      "hiA": 12,
-      "a": 12,
-      "r": 6
-     },
-     {
-      "type": "trace.Layout.partial",
-      "family": "pct5",
-      "loA": 31,
-      "hiA": 31,
-      "a": 31,
-      "r": 0
-     },
-     {
-      "type": "trace.PaintImage",
-      "family": "pct10",
-      "loA": 204,
-      "hiA": 204,
-      "a": 204,
-      "r": 19
-     },
-     {
-      "type": "trace.RasterTask",
-      "family": "pct10",
-      "loA": 254,
-      "hiA": 254,
-      "a": 254,
-      "r": 28
-     },
-     {
-      "type": "trace.RequestAnimationFrame",
-      "family": "exact",
-      "loA": 227,
-      "hiA": 227,
-      "a": 227,
-      "r": 175
-     },
-     {
-      "type": "trace.ScheduleStyleRecalculation",
-      "family": "pct5",
-      "loA": 190,
-      "hiA": 190,
-      "a": 190,
-      "r": 146
-     },
-     {
-      "type": "trace.ScrollLayer",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 47
-     },
-     {
-      "type": "trace.UpdateLayer",
-      "family": "pct10",
-      "loA": 2167,
-      "hiA": 2167,
-      "a": 2167,
-      "r": 2395
-     },
-     {
-      "type": "trace.UpdateLayoutTree",
-      "family": "pct5",
-      "loA": 190,
-      "hiA": 190,
-      "a": 190,
-      "r": 146
-     },
-     {
-      "type": "trace.cc.Activate",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.cc.Commit",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     }
-    ],
-    "unbandedDiffs": [
-     {
-      "type": "census.snapshots",
-      "a": 50,
-      "r": 47
-     },
-     {
-      "type": "trace.EventDispatch",
-      "a": 104,
-      "r": 94
-     },
-     {
-      "type": "trace.FunctionCall",
-      "a": 474,
-      "r": 382
-     },
-     {
-      "type": "trace.ResizeObserverNotify",
-      "a": 50,
-      "r": 58
-     }
-    ]
+    "failed": [],
+    "offBand": [],
+    "unbandedDiffs": []
    },
    {
     "id": "y04500",
     "present": true,
-    "shape": false,
-    "pass": false,
+    "shape": true,
+    "pass": true,
     "framesA": 50,
-    "framesR": 13,
+    "framesR": 50,
     "pxA": 475,
-    "pxR": 129,
+    "pxR": 475,
     "tally": {
-     "fail": 30,
-     "pass": 8,
+     "fail": 0,
+     "pass": 38,
      "skipped": 19,
-     "unbanded": 11
+     "unbanded": 10
     },
-    "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
-     "census.drawingAreaPx",
-     "census.solidTiles",
-     "census.tiles",
-     "census.tilings",
-     "hasDamage",
-     "metric.RecalcStyleCount",
-     "raster.invalidatedLayers",
-     "trace.Animation.begin",
-     "trace.Animation.instant",
-     "trace.Commit",
-     "trace.CullRectUpdate",
-     "trace.DisplayItemListRaster",
-     "trace.FireAnimationFrame",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.Layerize",
-     "trace.Layout.partial",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RasterTask",
-     "trace.RequestAnimationFrame",
-     "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
-     "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.cc.Draw"
-    ],
-    "offBand": [
-     {
-      "type": "census.activeTileAreaPx",
-      "family": "pct10",
-      "loA": 352268288,
-      "hiA": 352268288,
-      "a": 352268288,
-      "r": 112390144
-     },
-     {
-      "type": "census.activeTiles",
-      "family": "pct10",
-      "loA": 5476,
-      "hiA": 5476,
-      "a": 5476,
-      "r": 1862
-     },
-     {
-      "type": "census.drawingAreaPx",
-      "family": "pct10",
-      "loA": 542198439,
-      "hiA": 542198439,
-      "a": 542198439,
-      "r": 153974138
-     },
-     {
-      "type": "census.solidTiles",
-      "family": "pct10",
-      "loA": 1492,
-      "hiA": 1492,
-      "a": 1492,
-      "r": 767
-     },
-     {
-      "type": "census.tiles",
-      "family": "pct10",
-      "loA": 6367,
-      "hiA": 6367,
-      "a": 6367,
-      "r": 2053
-     },
-     {
-      "type": "census.tilings",
-      "family": "pct10",
-      "loA": 2003,
-      "hiA": 2003,
-      "a": 2003,
-      "r": 591
-     },
-     {
-      "type": "hasDamage",
-      "family": "exact",
-      "loA": 47,
-      "hiA": 47,
-      "a": 47,
-      "r": 13
-     },
-     {
-      "type": "metric.RecalcStyleCount",
-      "family": "pct5",
-      "loA": 141,
-      "hiA": 141,
-      "a": 141,
-      "r": 43
-     },
-     {
-      "type": "raster.invalidatedLayers",
-      "family": "pct10",
-      "loA": 176,
-      "hiA": 176,
-      "a": 176,
-      "r": 49
-     },
-     {
-      "type": "trace.Animation.begin",
-      "family": "exact",
-      "loA": 14,
-      "hiA": 14,
-      "a": 14,
-      "r": 4
-     },
-     {
-      "type": "trace.Animation.instant",
-      "family": "exact",
-      "loA": 23,
-      "hiA": 23,
-      "a": 23,
-      "r": 6
-     },
-     {
-      "type": "trace.Commit",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.CullRectUpdate",
-      "family": "pct10",
-      "loA": 76,
-      "hiA": 76,
-      "a": 76,
-      "r": 13
-     },
-     {
-      "type": "trace.DisplayItemListRaster",
-      "family": "pct10",
-      "loA": 261,
-      "hiA": 261,
-      "a": 261,
-      "r": 28
-     },
-     {
-      "type": "trace.FireAnimationFrame",
-      "family": "exact",
-      "loA": 166,
-      "hiA": 166,
-      "a": 166,
-      "r": 66
-     },
-     {
-      "type": "trace.ImageDecodeTask",
-      "family": "pct10",
-      "loA": 11,
-      "hiA": 11,
-      "a": 11,
-      "r": 3
-     },
-     {
-      "type": "trace.Layer.created",
-      "family": "exact",
-      "loA": 14,
-      "hiA": 14,
-      "a": 14,
-      "r": 4
-     },
-     {
-      "type": "trace.Layerize",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     },
-     {
-      "type": "trace.Layout.partial",
-      "family": "pct5",
-      "loA": 21,
-      "hiA": 21,
-      "a": 21,
-      "r": 1
-     },
-     {
-      "type": "trace.Paint",
-      "family": "pct10",
-      "loA": 181,
-      "hiA": 181,
-      "a": 181,
-      "r": 42
-     },
-     {
-      "type": "trace.PaintImage",
-      "family": "pct10",
-      "loA": 238,
-      "hiA": 238,
-      "a": 238,
-      "r": 4
-     },
-     {
-      "type": "trace.RasterTask",
-      "family": "pct10",
-      "loA": 261,
-      "hiA": 261,
-      "a": 261,
-      "r": 28
-     },
-     {
-      "type": "trace.RequestAnimationFrame",
-      "family": "exact",
-      "loA": 166,
-      "hiA": 166,
-      "a": 166,
-      "r": 67
-     },
-     {
-      "type": "trace.ScheduleStyleRecalculation",
-      "family": "pct5",
-      "loA": 141,
-      "hiA": 141,
-      "a": 141,
-      "r": 43
-     },
-     {
-      "type": "trace.ScrollLayer",
-      "family": "exact",
-      "loA": 44,
-      "hiA": 44,
-      "a": 44,
-      "r": 13
-     },
-     {
-      "type": "trace.UpdateLayer",
-      "family": "pct10",
-      "loA": 2546,
-      "hiA": 2546,
-      "a": 2546,
-      "r": 672
-     },
-     {
-      "type": "trace.UpdateLayoutTree",
-      "family": "pct5",
-      "loA": 141,
-      "hiA": 141,
-      "a": 141,
-      "r": 43
-     },
-     {
-      "type": "trace.cc.Activate",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 10
-     },
-     {
-      "type": "trace.cc.Commit",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 10
-     },
-     {
-      "type": "trace.cc.Draw",
-      "family": "exact",
-      "loA": 50,
-      "hiA": 50,
-      "a": 50,
-      "r": 13
-     }
-    ],
+    "failed": [],
+    "offBand": [],
     "unbandedDiffs": [
-     {
-      "type": "census.snapshots",
-      "a": 47,
-      "r": 13
-     },
-     {
-      "type": "trace.EvaluateScript",
-      "a": 50,
-      "r": 13
-     },
      {
       "type": "trace.EventDispatch",
       "a": 95,
-      "r": 34
+      "r": 96
      },
      {
       "type": "trace.FunctionCall",
       "a": 371,
-      "r": 137
-     },
-     {
-      "type": "trace.IntersectionObserverCompute",
-      "a": 100,
-      "r": 26
-     },
-     {
-      "type": "trace.ParseHTML",
-      "a": 0,
-      "r": 2
-     },
-     {
-      "type": "trace.ResizeObserverNotify",
-      "a": 76,
-      "r": 13
+      "r": 372
      }
     ]
    },
@@ -1583,236 +612,20 @@
     "id": "tail",
     "present": true,
     "shape": true,
-    "pass": false,
+    "pass": true,
     "framesA": 30,
     "framesR": 30,
     "pxA": 0,
     "pxR": 0,
     "tally": {
-     "fail": 22,
-     "pass": 16,
-     "skipped": 18,
-     "unbanded": 10
+     "fail": 0,
+     "pass": 29,
+     "skipped": 10,
+     "unbanded": 9
     },
-    "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
-     "census.solidTiles",
-     "census.tiles",
-     "census.tilings",
-     "raster.invalidatedLayers",
-     "trace.CullRectUpdate",
-     "trace.FireAnimationFrame",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RequestAnimationFrame",
-     "trace.UpdateLayer",
-     "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.Animation.begin",
-     "trace.Animation.compositeFailedBits",
-     "trace.Animation.instant",
-     "trace.DecodeImage",
-     "trace.DisplayItemListRaster",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.RasterTask"
-    ],
-    "offBand": [
-     {
-      "type": "census.activeTileAreaPx",
-      "family": "pct10",
-      "loA": 167116800,
-      "hiA": 167116800,
-      "a": 167116800,
-      "r": 240996352
-     },
-     {
-      "type": "census.activeTiles",
-      "family": "pct10",
-      "loA": 4740,
-      "hiA": 4740,
-      "a": 4740,
-      "r": 3668
-     },
-     {
-      "type": "census.solidTiles",
-      "family": "pct10",
-      "loA": 960,
-      "hiA": 960,
-      "a": 960,
-      "r": 1658
-     },
-     {
-      "type": "census.tiles",
-      "family": "pct10",
-      "loA": 6900,
-      "hiA": 6900,
-      "a": 6900,
-      "r": 5451
-     },
-     {
-      "type": "census.tilings",
-      "family": "pct10",
-      "loA": 3720,
-      "hiA": 3720,
-      "a": 3720,
-      "r": 1436
-     },
-     {
-      "type": "raster.invalidatedLayers",
-      "family": "pct10",
-      "loA": 90,
-      "hiA": 90,
-      "a": 90,
-      "r": 280
-     },
-     {
-      "type": "trace.Animation.begin",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 4
-     },
-     {
-      "type": "trace.Animation.compositeFailedBits",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 24576
-     },
-     {
-      "type": "trace.Animation.instant",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 7
-     },
-     {
-      "type": "trace.CullRectUpdate",
-      "family": "pct10",
-      "loA": 30,
-      "hiA": 30,
-      "a": 30,
-      "r": 56
-     },
-     {
-      "type": "trace.DecodeImage",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 6
-     },
-     {
-      "type": "trace.DisplayItemListRaster",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 656
-     },
-     {
-      "type": "trace.FireAnimationFrame",
-      "family": "exact",
-      "loA": 14,
-      "hiA": 14,
-      "a": 14,
-      "r": 47
-     },
-     {
-      "type": "trace.ImageDecodeTask",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 367
-     },
-     {
-      "type": "trace.Layer.created",
-      "family": "exact",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 8
-     },
-     {
-      "type": "trace.Paint",
-      "family": "pct10",
-      "loA": 60,
-      "hiA": 60,
-      "a": 60,
-      "r": 247
-     },
-     {
-      "type": "trace.PaintImage",
-      "family": "pct10",
-      "loA": 120,
-      "hiA": 120,
-      "a": 120,
-      "r": 591
-     },
-     {
-      "type": "trace.RasterTask",
-      "family": "pct10",
-      "loA": 0,
-      "hiA": 0,
-      "a": 0,
-      "r": 656
-     },
-     {
-      "type": "trace.RequestAnimationFrame",
-      "family": "exact",
-      "loA": 12,
-      "hiA": 12,
-      "a": 12,
-      "r": 45
-     },
-     {
-      "type": "trace.UpdateLayer",
-      "family": "pct10",
-      "loA": 776,
-      "hiA": 776,
-      "a": 776,
-      "r": 957
-     },
-     {
-      "type": "trace.cc.Activate",
-      "family": "exact",
-      "loA": 8,
-      "hiA": 8,
-      "a": 8,
-      "r": 30
-     },
-     {
-      "type": "trace.cc.Commit",
-      "family": "exact",
-      "loA": 8,
-      "hiA": 8,
-      "a": 8,
-      "r": 30
-     }
-    ],
-    "unbandedDiffs": [
-     {
-      "type": "trace.EventDispatch",
-      "a": 0,
-      "r": 5
-     },
-     {
-      "type": "trace.FunctionCall",
-      "a": 28,
-      "r": 95
-     },
-     {
-      "type": "trace.ResizeObserverNotify",
-      "a": 30,
-      "r": 56
-     }
-    ]
+    "failed": [],
+    "offBand": [],
+    "unbandedDiffs": []
    }
   ]
  },
@@ -1832,7 +645,7 @@
       "family": "pct10",
       "hi": 328318976,
       "lo": 328318976,
-      "r": 281563136,
+      "r": 376541184,
       "status": "fail"
      },
      "census.activeTiles": {
@@ -1840,15 +653,15 @@
       "family": "pct10",
       "hi": 5034,
       "lo": 5034,
-      "r": 4521,
-      "status": "pass"
+      "r": 5767,
+      "status": "fail"
      },
      "census.drawingAreaPx": {
       "a": 567716786,
       "family": "pct10",
       "hi": 567716786,
       "lo": 567716786,
-      "r": 655741410,
+      "r": 713741249,
       "status": "fail"
      },
      "census.drawingLayers": {
@@ -1856,7 +669,7 @@
       "family": "exact",
       "hi": 2667,
       "lo": 2667,
-      "r": 3393,
+      "r": 7378,
       "status": "skipped"
      },
      "census.layers": {
@@ -1864,7 +677,7 @@
       "family": "exact",
       "hi": 3007,
       "lo": 3007,
-      "r": 3628,
+      "r": 7755,
       "status": "skipped"
      },
      "census.snapshots": {
@@ -1872,7 +685,7 @@
       "family": "unbanded",
       "hi": 50,
       "lo": 50,
-      "r": 47,
+      "r": 50,
       "status": "unbanded"
      },
      "census.solidTiles": {
@@ -1880,7 +693,7 @@
       "family": "pct10",
       "hi": 1404,
       "lo": 1404,
-      "r": 1931,
+      "r": 1904,
       "status": "fail"
      },
      "census.tiles": {
@@ -1888,15 +701,15 @@
       "family": "pct10",
       "hi": 5574,
       "lo": 5574,
-      "r": 5302,
-      "status": "pass"
+      "r": 7320,
+      "status": "fail"
      },
      "census.tilings": {
       "a": 1703,
       "family": "pct10",
       "hi": 1703,
       "lo": 1703,
-      "r": 2448,
+      "r": 6259,
       "status": "fail"
      },
      "hasDamage": {
@@ -1904,8 +717,8 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 47,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "metric.Documents": {
       "a": 0,
@@ -1936,7 +749,7 @@
       "family": "pct5",
       "hi": 33,
       "lo": 33,
-      "r": 24,
+      "r": 34,
       "status": "skipped"
      },
      "metric.LayoutObjects": {
@@ -1944,7 +757,7 @@
       "family": "pct5",
       "hi": -1,
       "lo": -1,
-      "r": 25,
+      "r": -1,
       "status": "skipped"
      },
      "metric.Nodes": {
@@ -1952,7 +765,7 @@
       "family": "pct5",
       "hi": 47,
       "lo": -118,
-      "r": 24,
+      "r": -32,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -1960,8 +773,8 @@
       "family": "pct5",
       "hi": 190,
       "lo": 190,
-      "r": 168,
-      "status": "fail"
+      "r": 194,
+      "status": "pass"
      },
      "metric.Resources": {
       "a": 0,
@@ -2000,15 +813,15 @@
       "family": "pct10",
       "hi": 190,
       "lo": 190,
-      "r": 201,
-      "status": "pass"
+      "r": 289,
+      "status": "fail"
      },
      "raster.invalidationAreaPx": {
       "a": 1933697,
       "family": "pct10",
       "hi": 1933697,
       "lo": 1933697,
-      "r": 1728850,
+      "r": 2119579,
       "status": "skipped"
      },
      "raster.invalidationRects": {
@@ -2016,7 +829,7 @@
       "family": "pct10",
       "hi": 870,
       "lo": 870,
-      "r": 201,
+      "r": 970,
       "status": "skipped"
      },
      "trace.Animation.begin": {
@@ -2024,7 +837,7 @@
       "family": "exact",
       "hi": 11,
       "lo": 11,
-      "r": 6,
+      "r": 9,
       "status": "fail"
      },
      "trace.Animation.compositeFailedBits": {
@@ -2032,7 +845,7 @@
       "family": "exact",
       "hi": 53280,
       "lo": 53280,
-      "r": 0,
+      "r": 49184,
       "status": "fail"
      },
      "trace.Animation.instant": {
@@ -2056,7 +869,7 @@
       "family": "pct10",
       "hi": 50,
       "lo": 50,
-      "r": 53,
+      "r": 50,
       "status": "pass"
      },
      "trace.DecodeImage": {
@@ -2064,7 +877,7 @@
       "family": "pct10",
       "hi": 1,
       "lo": 1,
-      "r": 0,
+      "r": 1,
       "status": "pass"
      },
      "trace.DisplayItemListRaster": {
@@ -2072,8 +885,8 @@
       "family": "pct10",
       "hi": 254,
       "lo": 254,
-      "r": 20,
-      "status": "fail"
+      "r": 255,
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 50,
@@ -2088,7 +901,7 @@
       "family": "unbanded",
       "hi": 104,
       "lo": 104,
-      "r": 131,
+      "r": 133,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -2096,7 +909,7 @@
       "family": "exact",
       "hi": 228,
       "lo": 228,
-      "r": 131,
+      "r": 147,
       "status": "fail"
      },
      "trace.FunctionCall": {
@@ -2104,7 +917,7 @@
       "family": "unbanded",
       "hi": 474,
       "lo": 474,
-      "r": 451,
+      "r": 634,
       "status": "unbanded"
      },
      "trace.HitTest": {
@@ -2112,7 +925,7 @@
       "family": "unbanded",
       "hi": 133,
       "lo": 133,
-      "r": 118,
+      "r": 134,
       "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
@@ -2128,7 +941,7 @@
       "family": "pct10",
       "hi": 12,
       "lo": 12,
-      "r": 4,
+      "r": 7,
       "status": "fail"
      },
      "trace.IntersectionObserverCompute": {
@@ -2144,7 +957,7 @@
       "family": "pct5",
       "hi": 33,
       "lo": 33,
-      "r": 24,
+      "r": 34,
       "status": "skipped"
      },
      "trace.Layer.created": {
@@ -2152,15 +965,15 @@
       "family": "exact",
       "hi": 5,
       "lo": 5,
-      "r": 8,
-      "status": "fail"
+      "r": 4,
+      "status": "pass"
      },
      "trace.Layer.deleted": {
       "a": 0,
       "family": "exact",
       "hi": 6,
       "lo": 0,
-      "r": 1,
+      "r": 0,
       "status": "skipped"
      },
      "trace.Layerize": {
@@ -2176,7 +989,7 @@
       "family": "pct5",
       "hi": 33,
       "lo": 33,
-      "r": 24,
+      "r": 34,
       "status": "skipped"
      },
      "trace.Layout.dirtyObjects": {
@@ -2184,7 +997,7 @@
       "family": "pct5",
       "hi": 343,
       "lo": 343,
-      "r": 170,
+      "r": 341,
       "status": "skipped"
      },
      "trace.Layout.partial": {
@@ -2192,15 +1005,15 @@
       "family": "pct5",
       "hi": 31,
       "lo": 31,
-      "r": 24,
-      "status": "fail"
+      "r": 33,
+      "status": "pass"
      },
      "trace.Layout.totalObjects": {
       "a": 3902,
       "family": "pct5",
       "hi": 3902,
       "lo": 3902,
-      "r": 1340,
+      "r": 3740,
       "status": "skipped"
      },
      "trace.MajorGC": {
@@ -2208,7 +1021,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 1,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.MinorGC": {
@@ -2256,23 +1069,23 @@
       "family": "pct10",
       "hi": 156,
       "lo": 156,
-      "r": 175,
-      "status": "fail"
+      "r": 153,
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 204,
       "family": "pct10",
       "hi": 204,
       "lo": 204,
-      "r": 11,
-      "status": "fail"
+      "r": 202,
+      "status": "pass"
      },
      "trace.PrePaint": {
       "a": 183,
       "family": "pct10",
       "hi": 183,
       "lo": 183,
-      "r": 171,
+      "r": 184,
       "status": "skipped"
      },
      "trace.RasterTask": {
@@ -2280,15 +1093,15 @@
       "family": "pct10",
       "hi": 254,
       "lo": 254,
-      "r": 20,
-      "status": "fail"
+      "r": 255,
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 227,
       "family": "exact",
       "hi": 227,
       "lo": 227,
-      "r": 131,
+      "r": 158,
       "status": "fail"
      },
      "trace.ResizeObserverNotify": {
@@ -2296,7 +1109,7 @@
       "family": "unbanded",
       "hi": 50,
       "lo": 50,
-      "r": 53,
+      "r": 50,
       "status": "unbanded"
      },
      "trace.ScheduleStyleRecalculation": {
@@ -2304,23 +1117,23 @@
       "family": "pct5",
       "hi": 190,
       "lo": 190,
-      "r": 168,
-      "status": "fail"
+      "r": 194,
+      "status": "pass"
      },
      "trace.ScrollLayer": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 47,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.UpdateLayer": {
       "a": 2167,
       "family": "pct10",
       "hi": 2167,
       "lo": 2167,
-      "r": 2886,
+      "r": 2728,
       "status": "fail"
      },
      "trace.UpdateLayoutTree": {
@@ -2328,15 +1141,15 @@
       "family": "pct5",
       "hi": 190,
       "lo": 190,
-      "r": 168,
-      "status": "fail"
+      "r": 194,
+      "status": "pass"
      },
      "trace.UpdateLayoutTree.elementCount": {
       "a": 4111,
       "family": "pct5",
       "hi": 4111,
       "lo": 4111,
-      "r": 1642,
+      "r": 3735,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -2344,16 +1157,16 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 46,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Commit": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 46,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Draw": {
       "a": 50,
@@ -2368,35 +1181,25 @@
       "family": "exact",
       "hi": 6,
       "lo": 6,
-      "r": 6,
+      "r": 4,
       "status": "skipped"
      }
     },
     "failed": [
      "census.activeTileAreaPx",
+     "census.activeTiles",
      "census.drawingAreaPx",
      "census.solidTiles",
+     "census.tiles",
      "census.tilings",
-     "hasDamage",
-     "metric.RecalcStyleCount",
+     "raster.invalidatedLayers",
      "trace.Animation.begin",
      "trace.Animation.compositeFailedBits",
      "trace.Animation.instant",
-     "trace.DisplayItemListRaster",
      "trace.FireAnimationFrame",
      "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.Layout.partial",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RasterTask",
      "trace.RequestAnimationFrame",
-     "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
-     "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit"
+     "trace.UpdateLayer"
     ],
     "framesA": 50,
     "framesR": 50,
@@ -2407,8 +1210,8 @@
     "pxR": 500,
     "shape": true,
     "tally": {
-     "fail": 24,
-     "pass": 15,
+     "fail": 14,
+     "pass": 25,
      "skipped": 19,
      "unbanded": 10
     }
@@ -2420,23 +1223,23 @@
       "family": "pct10",
       "hi": 352268288,
       "lo": 352268288,
-      "r": 75522048,
-      "status": "fail"
+      "r": 387002368,
+      "status": "pass"
      },
      "census.activeTiles": {
       "a": 5476,
       "family": "pct10",
       "hi": 5476,
       "lo": 5476,
-      "r": 1301,
-      "status": "fail"
+      "r": 6006,
+      "status": "pass"
      },
      "census.drawingAreaPx": {
       "a": 542198439,
       "family": "pct10",
       "hi": 542198439,
       "lo": 542198439,
-      "r": 175793228,
+      "r": 679026545,
       "status": "fail"
      },
      "census.drawingLayers": {
@@ -2444,7 +1247,7 @@
       "family": "exact",
       "hi": 2907,
       "lo": 2907,
-      "r": 915,
+      "r": 7320,
       "status": "skipped"
      },
      "census.layers": {
@@ -2452,7 +1255,7 @@
       "family": "exact",
       "hi": 3189,
       "lo": 3189,
-      "r": 980,
+      "r": 7649,
       "status": "skipped"
      },
      "census.snapshots": {
@@ -2460,7 +1263,7 @@
       "family": "unbanded",
       "hi": 47,
       "lo": 47,
-      "r": 13,
+      "r": 47,
       "status": "unbanded"
      },
      "census.solidTiles": {
@@ -2468,7 +1271,7 @@
       "family": "pct10",
       "hi": 1492,
       "lo": 1492,
-      "r": 559,
+      "r": 1924,
       "status": "fail"
      },
      "census.tiles": {
@@ -2476,7 +1279,7 @@
       "family": "pct10",
       "hi": 6367,
       "lo": 6367,
-      "r": 1473,
+      "r": 7890,
       "status": "fail"
      },
      "census.tilings": {
@@ -2484,7 +1287,7 @@
       "family": "pct10",
       "hi": 2003,
       "lo": 2003,
-      "r": 703,
+      "r": 6333,
       "status": "fail"
      },
      "hasDamage": {
@@ -2492,8 +1295,8 @@
       "family": "exact",
       "hi": 47,
       "lo": 47,
-      "r": 13,
-      "status": "fail"
+      "r": 47,
+      "status": "pass"
      },
      "metric.Documents": {
       "a": 0,
@@ -2524,7 +1327,7 @@
       "family": "pct5",
       "hi": 22,
       "lo": 22,
-      "r": 1,
+      "r": 19,
       "status": "skipped"
      },
      "metric.LayoutObjects": {
@@ -2532,7 +1335,7 @@
       "family": "pct5",
       "hi": 3,
       "lo": 3,
-      "r": 0,
+      "r": 21,
       "status": "skipped"
      },
      "metric.Nodes": {
@@ -2540,7 +1343,7 @@
       "family": "pct5",
       "hi": 201,
       "lo": -113,
-      "r": 4,
+      "r": 20,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -2548,7 +1351,7 @@
       "family": "pct5",
       "hi": 141,
       "lo": 141,
-      "r": 43,
+      "r": 171,
       "status": "fail"
      },
      "metric.Resources": {
@@ -2588,7 +1391,7 @@
       "family": "pct10",
       "hi": 176,
       "lo": 176,
-      "r": 71,
+      "r": 268,
       "status": "fail"
      },
      "raster.invalidationAreaPx": {
@@ -2596,7 +1399,7 @@
       "family": "pct10",
       "hi": 1342566,
       "lo": 1342566,
-      "r": 194696,
+      "r": 1584495,
       "status": "skipped"
      },
      "raster.invalidationRects": {
@@ -2604,7 +1407,7 @@
       "family": "pct10",
       "hi": 787,
       "lo": 787,
-      "r": 71,
+      "r": 879,
       "status": "skipped"
      },
      "trace.Animation.begin": {
@@ -2612,39 +1415,39 @@
       "family": "exact",
       "hi": 14,
       "lo": 14,
-      "r": 2,
-      "status": "fail"
+      "r": 14,
+      "status": "pass"
      },
      "trace.Animation.instant": {
       "a": 23,
       "family": "exact",
       "hi": 23,
       "lo": 23,
-      "r": 4,
-      "status": "fail"
+      "r": 23,
+      "status": "pass"
      },
      "trace.Commit": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.CullRectUpdate": {
       "a": 76,
       "family": "pct10",
       "hi": 76,
       "lo": 76,
-      "r": 13,
-      "status": "fail"
+      "r": 76,
+      "status": "pass"
      },
      "trace.DecodeImage": {
       "a": 2,
       "family": "pct10",
       "hi": 2,
       "lo": 2,
-      "r": 0,
+      "r": 2,
       "status": "pass"
      },
      "trace.DisplayItemListRaster": {
@@ -2652,15 +1455,15 @@
       "family": "pct10",
       "hi": 261,
       "lo": 261,
-      "r": 22,
-      "status": "fail"
+      "r": 259,
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 50,
       "family": "unbanded",
       "hi": 50,
       "lo": 50,
-      "r": 13,
+      "r": 50,
       "status": "unbanded"
      },
      "trace.EventDispatch": {
@@ -2668,7 +1471,7 @@
       "family": "unbanded",
       "hi": 96,
       "lo": 95,
-      "r": 37,
+      "r": 133,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -2676,7 +1479,7 @@
       "family": "exact",
       "hi": 166,
       "lo": 166,
-      "r": 53,
+      "r": 130,
       "status": "fail"
      },
      "trace.FunctionCall": {
@@ -2684,7 +1487,7 @@
       "family": "unbanded",
       "hi": 372,
       "lo": 371,
-      "r": 148,
+      "r": 585,
       "status": "unbanded"
      },
      "trace.HitTest": {
@@ -2692,7 +1495,7 @@
       "family": "unbanded",
       "hi": 111,
       "lo": 110,
-      "r": 27,
+      "r": 108,
       "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
@@ -2700,7 +1503,7 @@
       "family": "unbanded",
       "hi": 13,
       "lo": 13,
-      "r": 4,
+      "r": 13,
       "status": "skipped"
      },
      "trace.ImageDecodeTask": {
@@ -2708,15 +1511,15 @@
       "family": "pct10",
       "hi": 11,
       "lo": 11,
-      "r": 2,
-      "status": "fail"
+      "r": 11,
+      "status": "pass"
      },
      "trace.IntersectionObserverCompute": {
       "a": 100,
       "family": "unbanded",
       "hi": 100,
       "lo": 100,
-      "r": 26,
+      "r": 100,
       "status": "unbanded"
      },
      "trace.InvalidateLayout": {
@@ -2724,7 +1527,7 @@
       "family": "pct5",
       "hi": 22,
       "lo": 22,
-      "r": 1,
+      "r": 19,
       "status": "skipped"
      },
      "trace.Layer.created": {
@@ -2732,15 +1535,15 @@
       "family": "exact",
       "hi": 14,
       "lo": 14,
-      "r": 2,
-      "status": "fail"
+      "r": 14,
+      "status": "pass"
      },
      "trace.Layer.deleted": {
       "a": 11,
       "family": "exact",
       "hi": 11,
       "lo": 0,
-      "r": 1,
+      "r": 0,
       "status": "skipped"
      },
      "trace.Layerize": {
@@ -2748,15 +1551,15 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.Layout": {
       "a": 22,
       "family": "pct5",
       "hi": 22,
       "lo": 22,
-      "r": 1,
+      "r": 19,
       "status": "skipped"
      },
      "trace.Layout.dirtyObjects": {
@@ -2764,7 +1567,7 @@
       "family": "pct5",
       "hi": 155,
       "lo": 155,
-      "r": 6,
+      "r": 135,
       "status": "skipped"
      },
      "trace.Layout.partial": {
@@ -2772,15 +1575,15 @@
       "family": "pct5",
       "hi": 21,
       "lo": 21,
-      "r": 1,
-      "status": "fail"
+      "r": 19,
+      "status": "pass"
      },
      "trace.Layout.totalObjects": {
       "a": 2348,
       "family": "pct5",
       "hi": 2348,
       "lo": 2348,
-      "r": 48,
+      "r": 969,
       "status": "skipped"
      },
      "trace.MajorGC": {
@@ -2836,23 +1639,23 @@
       "family": "pct10",
       "hi": 181,
       "lo": 181,
-      "r": 40,
-      "status": "fail"
+      "r": 176,
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 238,
       "family": "pct10",
       "hi": 238,
       "lo": 238,
-      "r": 0,
-      "status": "fail"
+      "r": 238,
+      "status": "pass"
      },
      "trace.PrePaint": {
       "a": 186,
       "family": "pct10",
       "hi": 187,
       "lo": 186,
-      "r": 40,
+      "r": 184,
       "status": "skipped"
      },
      "trace.RasterTask": {
@@ -2860,15 +1663,15 @@
       "family": "pct10",
       "hi": 261,
       "lo": 261,
-      "r": 22,
-      "status": "fail"
+      "r": 259,
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 166,
       "family": "exact",
       "hi": 166,
       "lo": 166,
-      "r": 54,
+      "r": 129,
       "status": "fail"
      },
      "trace.ResizeObserverNotify": {
@@ -2876,7 +1679,7 @@
       "family": "unbanded",
       "hi": 76,
       "lo": 76,
-      "r": 13,
+      "r": 76,
       "status": "unbanded"
      },
      "trace.ScheduleStyleRecalculation": {
@@ -2884,7 +1687,7 @@
       "family": "pct5",
       "hi": 141,
       "lo": 141,
-      "r": 43,
+      "r": 171,
       "status": "fail"
      },
      "trace.ScrollLayer": {
@@ -2892,15 +1695,15 @@
       "family": "exact",
       "hi": 44,
       "lo": 44,
-      "r": 13,
-      "status": "fail"
+      "r": 44,
+      "status": "pass"
      },
      "trace.UpdateLayer": {
       "a": 2546,
       "family": "pct10",
       "hi": 2546,
       "lo": 2546,
-      "r": 745,
+      "r": 3096,
       "status": "fail"
      },
      "trace.UpdateLayoutTree": {
@@ -2908,7 +1711,7 @@
       "family": "pct5",
       "hi": 141,
       "lo": 141,
-      "r": 43,
+      "r": 171,
       "status": "fail"
      },
      "trace.UpdateLayoutTree.elementCount": {
@@ -2916,7 +1719,7 @@
       "family": "pct5",
       "hi": 2590,
       "lo": 2589,
-      "r": 420,
+      "r": 2613,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -2924,24 +1727,24 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Commit": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Draw": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.SynchronizeTrees": {
       "a": 6,
@@ -2953,48 +1756,29 @@
      }
     },
     "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
      "census.drawingAreaPx",
      "census.solidTiles",
      "census.tiles",
      "census.tilings",
-     "hasDamage",
      "metric.RecalcStyleCount",
      "raster.invalidatedLayers",
-     "trace.Animation.begin",
-     "trace.Animation.instant",
-     "trace.Commit",
-     "trace.CullRectUpdate",
-     "trace.DisplayItemListRaster",
      "trace.FireAnimationFrame",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.Layerize",
-     "trace.Layout.partial",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RasterTask",
      "trace.RequestAnimationFrame",
      "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
      "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.cc.Draw"
+     "trace.UpdateLayoutTree"
     ],
     "framesA": 50,
-    "framesR": 13,
+    "framesR": 50,
     "id": "y04500",
     "pass": false,
     "present": true,
     "pxA": 475,
-    "pxR": 129,
-    "shape": false,
+    "pxR": 475,
+    "shape": true,
     "tally": {
-     "fail": 30,
-     "pass": 8,
+     "fail": 11,
+     "pass": 27,
      "skipped": 19,
      "unbanded": 10
     }
@@ -3006,23 +1790,23 @@
       "family": "pct10",
       "hi": 167116800,
       "lo": 167116800,
-      "r": 192479232,
-      "status": "fail"
+      "r": 178913280,
+      "status": "pass"
      },
      "census.activeTiles": {
       "a": 4740,
       "family": "pct10",
       "hi": 4740,
       "lo": 4740,
-      "r": 2939,
-      "status": "fail"
+      "r": 4920,
+      "status": "pass"
      },
      "census.drawingAreaPx": {
       "a": 363986100,
       "family": "pct10",
       "hi": 363986100,
       "lo": 363986100,
-      "r": 420280205,
+      "r": 451323240,
       "status": "fail"
      },
      "census.drawingLayers": {
@@ -3030,7 +1814,7 @@
       "family": "exact",
       "hi": 4020,
       "lo": 4020,
-      "r": 2002,
+      "r": 6840,
       "status": "skipped"
      },
      "census.layers": {
@@ -3038,7 +1822,7 @@
       "family": "exact",
       "hi": 4200,
       "lo": 4200,
-      "r": 2152,
+      "r": 7050,
       "status": "skipped"
      },
      "census.snapshots": {
@@ -3054,7 +1838,7 @@
       "family": "pct10",
       "hi": 960,
       "lo": 960,
-      "r": 1224,
+      "r": 1140,
       "status": "fail"
      },
      "census.tiles": {
@@ -3062,7 +1846,7 @@
       "family": "pct10",
       "hi": 6900,
       "lo": 6900,
-      "r": 4101,
+      "r": 7740,
       "status": "fail"
      },
      "census.tilings": {
@@ -3070,7 +1854,7 @@
       "family": "pct10",
       "hi": 3720,
       "lo": 3720,
-      "r": 1676,
+      "r": 6510,
       "status": "fail"
      },
      "hasDamage": {
@@ -3110,7 +1894,7 @@
       "family": "pct5",
       "hi": 0,
       "lo": 0,
-      "r": 30,
+      "r": 0,
       "status": "skipped"
      },
      "metric.LayoutObjects": {
@@ -3174,15 +1958,15 @@
       "family": "pct10",
       "hi": 90,
       "lo": 90,
-      "r": 280,
-      "status": "fail"
+      "r": 90,
+      "status": "pass"
      },
      "raster.invalidationAreaPx": {
       "a": 22187880,
       "family": "pct10",
       "hi": 22187880,
       "lo": 22187880,
-      "r": 33555344,
+      "r": 22187880,
       "status": "skipped"
      },
      "raster.invalidationRects": {
@@ -3190,32 +1974,8 @@
       "family": "pct10",
       "hi": 90,
       "lo": 90,
-      "r": 665,
+      "r": 90,
       "status": "skipped"
-     },
-     "trace.Animation.begin": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 4,
-      "status": "fail"
-     },
-     "trace.Animation.compositeFailedBits": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 24576,
-      "status": "fail"
-     },
-     "trace.Animation.instant": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 7,
-      "status": "fail"
      },
      "trace.Commit": {
       "a": 30,
@@ -3230,24 +1990,8 @@
       "family": "pct10",
       "hi": 30,
       "lo": 30,
-      "r": 51,
-      "status": "fail"
-     },
-     "trace.DecodeImage": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 6,
-      "status": "fail"
-     },
-     "trace.DisplayItemListRaster": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 656,
-      "status": "fail"
+      "r": 30,
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 30,
@@ -3262,7 +2006,7 @@
       "family": "unbanded",
       "hi": 0,
       "lo": 0,
-      "r": 41,
+      "r": 4,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -3270,7 +2014,7 @@
       "family": "exact",
       "hi": 14,
       "lo": 14,
-      "r": 47,
+      "r": 15,
       "status": "fail"
      },
      "trace.FunctionCall": {
@@ -3278,16 +2022,8 @@
       "family": "unbanded",
       "hi": 28,
       "lo": 28,
-      "r": 157,
+      "r": 23,
       "status": "unbanded"
-     },
-     "trace.HitTest": {
-      "a": 0,
-      "family": "unbanded",
-      "hi": 0,
-      "lo": 0,
-      "r": 30,
-      "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
       "a": 3,
@@ -3297,14 +2033,6 @@
       "r": 4,
       "status": "skipped"
      },
-     "trace.ImageDecodeTask": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 367,
-      "status": "fail"
-     },
      "trace.IntersectionObserverCompute": {
       "a": 60,
       "family": "unbanded",
@@ -3313,30 +2041,6 @@
       "r": 60,
       "status": "unbanded"
      },
-     "trace.InvalidateLayout": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 30,
-      "status": "skipped"
-     },
-     "trace.Layer.created": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 8,
-      "status": "fail"
-     },
-     "trace.Layer.deleted": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 10,
-      "status": "skipped"
-     },
      "trace.Layerize": {
       "a": 30,
       "family": "exact",
@@ -3344,46 +2048,6 @@
       "lo": 30,
       "r": 30,
       "status": "pass"
-     },
-     "trace.Layout": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 30,
-      "status": "skipped"
-     },
-     "trace.Layout.dirtyObjects": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 891,
-      "status": "skipped"
-     },
-     "trace.Layout.partial": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 0,
-      "status": "pass"
-     },
-     "trace.Layout.totalObjects": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 46620,
-      "status": "skipped"
-     },
-     "trace.MajorGC": {
-      "a": 0,
-      "family": "unbanded",
-      "hi": 0,
-      "lo": 0,
-      "r": 1,
-      "status": "skipped"
      },
      "trace.N1.fontUpdateInvalidation": {
       "a": 0,
@@ -3422,39 +2086,31 @@
       "family": "pct10",
       "hi": 60,
       "lo": 60,
-      "r": 236,
-      "status": "fail"
+      "r": 60,
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 120,
       "family": "pct10",
       "hi": 120,
       "lo": 120,
-      "r": 583,
-      "status": "fail"
+      "r": 120,
+      "status": "pass"
      },
      "trace.PrePaint": {
       "a": 30,
       "family": "pct10",
       "hi": 30,
       "lo": 30,
-      "r": 81,
+      "r": 30,
       "status": "skipped"
-     },
-     "trace.RasterTask": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 656,
-      "status": "fail"
      },
      "trace.RequestAnimationFrame": {
       "a": 12,
       "family": "exact",
       "hi": 12,
       "lo": 12,
-      "r": 45,
+      "r": 13,
       "status": "fail"
      },
      "trace.ResizeObserverNotify": {
@@ -3462,7 +2118,7 @@
       "family": "unbanded",
       "hi": 30,
       "lo": 30,
-      "r": 51,
+      "r": 30,
       "status": "unbanded"
      },
      "trace.ScheduleStyleRecalculation": {
@@ -3478,7 +2134,7 @@
       "family": "pct10",
       "hi": 776,
       "lo": 776,
-      "r": 1245,
+      "r": 3240,
       "status": "fail"
      },
      "trace.UpdateLayoutTree": {
@@ -3494,7 +2150,7 @@
       "family": "pct5",
       "hi": 410,
       "lo": 410,
-      "r": 3056,
+      "r": 390,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -3520,40 +2176,18 @@
       "lo": 30,
       "r": 30,
       "status": "pass"
-     },
-     "trace.cc.SynchronizeTrees": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 32,
-      "status": "skipped"
      }
     },
     "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
      "census.drawingAreaPx",
      "census.solidTiles",
      "census.tiles",
      "census.tilings",
-     "raster.invalidatedLayers",
-     "trace.CullRectUpdate",
      "trace.FireAnimationFrame",
-     "trace.Paint",
-     "trace.PaintImage",
      "trace.RequestAnimationFrame",
      "trace.UpdateLayer",
      "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.Animation.begin",
-     "trace.Animation.compositeFailedBits",
-     "trace.Animation.instant",
-     "trace.DecodeImage",
-     "trace.DisplayItemListRaster",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.RasterTask"
+     "trace.cc.Commit"
     ],
     "framesA": 30,
     "framesR": 30,
@@ -3564,21 +2198,17 @@
     "pxR": 0,
     "shape": true,
     "tally": {
-     "fail": 23,
-     "pass": 15,
-     "skipped": 18,
+     "fail": 9,
+     "pass": 20,
+     "skipped": 10,
      "unbanded": 10
     }
    }
   ]
  },
  "controlReply": {
-  "failedZones": [
-   "y04000",
-   "y04500",
-   "tail"
-  ],
-  "pass": false,
+  "failedZones": [],
+  "pass": true,
   "zones": [
    {
     "cells": {
@@ -3587,23 +2217,23 @@
       "family": "pct10",
       "hi": 328318976,
       "lo": 328318976,
-      "r": 413495296,
-      "status": "fail"
+      "r": 328318976,
+      "status": "pass"
      },
      "census.activeTiles": {
       "a": 5034,
       "family": "pct10",
       "hi": 5034,
       "lo": 5034,
-      "r": 6470,
-      "status": "fail"
+      "r": 5034,
+      "status": "pass"
      },
      "census.drawingAreaPx": {
       "a": 567716786,
       "family": "pct10",
       "hi": 567716786,
       "lo": 567716786,
-      "r": 561329804,
+      "r": 567716786,
       "status": "pass"
      },
      "census.drawingLayers": {
@@ -3611,7 +2241,7 @@
       "family": "exact",
       "hi": 2667,
       "lo": 2667,
-      "r": 2912,
+      "r": 2667,
       "status": "skipped"
      },
      "census.layers": {
@@ -3619,7 +2249,7 @@
       "family": "exact",
       "hi": 3007,
       "lo": 3007,
-      "r": 3194,
+      "r": 3007,
       "status": "skipped"
      },
      "census.snapshots": {
@@ -3627,7 +2257,7 @@
       "family": "unbanded",
       "hi": 50,
       "lo": 50,
-      "r": 47,
+      "r": 50,
       "status": "unbanded"
      },
      "census.solidTiles": {
@@ -3635,32 +2265,32 @@
       "family": "pct10",
       "hi": 1404,
       "lo": 1404,
-      "r": 2773,
-      "status": "fail"
+      "r": 1404,
+      "status": "pass"
      },
      "census.tiles": {
       "a": 5574,
       "family": "pct10",
       "hi": 5574,
       "lo": 5574,
-      "r": 7290,
-      "status": "fail"
+      "r": 5574,
+      "status": "pass"
      },
      "census.tilings": {
       "a": 1703,
       "family": "pct10",
       "hi": 1703,
       "lo": 1703,
-      "r": 2003,
-      "status": "fail"
+      "r": 1703,
+      "status": "pass"
      },
      "hasDamage": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 47,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "metric.Documents": {
       "a": 0,
@@ -3691,7 +2321,7 @@
       "family": "pct5",
       "hi": 33,
       "lo": 33,
-      "r": 0,
+      "r": 33,
       "status": "skipped"
      },
      "metric.LayoutObjects": {
@@ -3699,7 +2329,7 @@
       "family": "pct5",
       "hi": -1,
       "lo": -1,
-      "r": 0,
+      "r": -1,
       "status": "skipped"
      },
      "metric.Nodes": {
@@ -3707,7 +2337,7 @@
       "family": "pct5",
       "hi": 47,
       "lo": -118,
-      "r": 200,
+      "r": 67,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -3715,8 +2345,8 @@
       "family": "pct5",
       "hi": 190,
       "lo": 190,
-      "r": 146,
-      "status": "fail"
+      "r": 190,
+      "status": "pass"
      },
      "metric.Resources": {
       "a": 0,
@@ -3755,15 +2385,15 @@
       "family": "pct10",
       "hi": 190,
       "lo": 190,
-      "r": 101,
-      "status": "fail"
+      "r": 190,
+      "status": "pass"
      },
      "raster.invalidationAreaPx": {
       "a": 1933697,
       "family": "pct10",
       "hi": 1933697,
       "lo": 1933697,
-      "r": 1127117,
+      "r": 1933697,
       "status": "skipped"
      },
      "raster.invalidationRects": {
@@ -3771,7 +2401,7 @@
       "family": "pct10",
       "hi": 870,
       "lo": 870,
-      "r": 571,
+      "r": 870,
       "status": "skipped"
      },
      "trace.Animation.begin": {
@@ -3779,24 +2409,24 @@
       "family": "exact",
       "hi": 11,
       "lo": 11,
-      "r": 5,
-      "status": "fail"
+      "r": 11,
+      "status": "pass"
      },
      "trace.Animation.compositeFailedBits": {
       "a": 53280,
       "family": "exact",
       "hi": 53280,
       "lo": 53280,
-      "r": 0,
-      "status": "fail"
+      "r": 53280,
+      "status": "pass"
      },
      "trace.Animation.instant": {
       "a": 18,
       "family": "exact",
       "hi": 18,
       "lo": 18,
-      "r": 14,
-      "status": "fail"
+      "r": 18,
+      "status": "pass"
      },
      "trace.Commit": {
       "a": 50,
@@ -3811,15 +2441,15 @@
       "family": "pct10",
       "hi": 50,
       "lo": 50,
-      "r": 58,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.DecodeImage": {
       "a": 1,
       "family": "pct10",
       "hi": 1,
       "lo": 1,
-      "r": 0,
+      "r": 1,
       "status": "pass"
      },
      "trace.DisplayItemListRaster": {
@@ -3827,8 +2457,8 @@
       "family": "pct10",
       "hi": 254,
       "lo": 254,
-      "r": 28,
-      "status": "fail"
+      "r": 254,
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 50,
@@ -3843,7 +2473,7 @@
       "family": "unbanded",
       "hi": 104,
       "lo": 104,
-      "r": 94,
+      "r": 104,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -3851,15 +2481,15 @@
       "family": "exact",
       "hi": 228,
       "lo": 228,
-      "r": 175,
-      "status": "fail"
+      "r": 228,
+      "status": "pass"
      },
      "trace.FunctionCall": {
       "a": 474,
       "family": "unbanded",
       "hi": 474,
       "lo": 474,
-      "r": 382,
+      "r": 474,
       "status": "unbanded"
      },
      "trace.HitTest": {
@@ -3867,7 +2497,7 @@
       "family": "unbanded",
       "hi": 133,
       "lo": 133,
-      "r": 94,
+      "r": 133,
       "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
@@ -3875,7 +2505,7 @@
       "family": "unbanded",
       "hi": 13,
       "lo": 13,
-      "r": 12,
+      "r": 13,
       "status": "skipped"
      },
      "trace.ImageDecodeTask": {
@@ -3883,8 +2513,8 @@
       "family": "pct10",
       "hi": 12,
       "lo": 12,
-      "r": 6,
-      "status": "fail"
+      "r": 12,
+      "status": "pass"
      },
      "trace.IntersectionObserverCompute": {
       "a": 100,
@@ -3899,7 +2529,7 @@
       "family": "pct5",
       "hi": 33,
       "lo": 33,
-      "r": 0,
+      "r": 33,
       "status": "skipped"
      },
      "trace.Layer.created": {
@@ -3907,7 +2537,7 @@
       "family": "exact",
       "hi": 5,
       "lo": 5,
-      "r": 6,
+      "r": 5,
       "status": "pass"
      },
      "trace.Layer.deleted": {
@@ -3931,7 +2561,7 @@
       "family": "pct5",
       "hi": 33,
       "lo": 33,
-      "r": 0,
+      "r": 33,
       "status": "skipped"
      },
      "trace.Layout.dirtyObjects": {
@@ -3939,7 +2569,7 @@
       "family": "pct5",
       "hi": 343,
       "lo": 343,
-      "r": 0,
+      "r": 343,
       "status": "skipped"
      },
      "trace.Layout.partial": {
@@ -3947,15 +2577,15 @@
       "family": "pct5",
       "hi": 31,
       "lo": 31,
-      "r": 0,
-      "status": "fail"
+      "r": 31,
+      "status": "pass"
      },
      "trace.Layout.totalObjects": {
       "a": 3902,
       "family": "pct5",
       "hi": 3902,
       "lo": 3902,
-      "r": 0,
+      "r": 3902,
       "status": "skipped"
      },
      "trace.MajorGC": {
@@ -3963,7 +2593,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 1,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.MinorGC": {
@@ -3971,7 +2601,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 0,
-      "r": 0,
+      "r": 1,
       "status": "skipped"
      },
      "trace.N1.fontUpdateInvalidation": {
@@ -4011,7 +2641,7 @@
       "family": "pct10",
       "hi": 156,
       "lo": 156,
-      "r": 173,
+      "r": 156,
       "status": "pass"
      },
      "trace.PaintImage": {
@@ -4019,15 +2649,15 @@
       "family": "pct10",
       "hi": 204,
       "lo": 204,
-      "r": 19,
-      "status": "fail"
+      "r": 204,
+      "status": "pass"
      },
      "trace.PrePaint": {
       "a": 183,
       "family": "pct10",
       "hi": 183,
       "lo": 183,
-      "r": 152,
+      "r": 183,
       "status": "skipped"
      },
      "trace.RasterTask": {
@@ -4035,23 +2665,23 @@
       "family": "pct10",
       "hi": 254,
       "lo": 254,
-      "r": 28,
-      "status": "fail"
+      "r": 254,
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 227,
       "family": "exact",
       "hi": 227,
       "lo": 227,
-      "r": 175,
-      "status": "fail"
+      "r": 227,
+      "status": "pass"
      },
      "trace.ResizeObserverNotify": {
       "a": 50,
       "family": "unbanded",
       "hi": 50,
       "lo": 50,
-      "r": 58,
+      "r": 50,
       "status": "unbanded"
      },
      "trace.ScheduleStyleRecalculation": {
@@ -4059,39 +2689,39 @@
       "family": "pct5",
       "hi": 190,
       "lo": 190,
-      "r": 146,
-      "status": "fail"
+      "r": 190,
+      "status": "pass"
      },
      "trace.ScrollLayer": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 47,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.UpdateLayer": {
       "a": 2167,
       "family": "pct10",
       "hi": 2167,
       "lo": 2167,
-      "r": 2395,
-      "status": "fail"
+      "r": 2167,
+      "status": "pass"
      },
      "trace.UpdateLayoutTree": {
       "a": 190,
       "family": "pct5",
       "hi": 190,
       "lo": 190,
-      "r": 146,
-      "status": "fail"
+      "r": 190,
+      "status": "pass"
      },
      "trace.UpdateLayoutTree.elementCount": {
       "a": 4111,
       "family": "pct5",
       "hi": 4111,
       "lo": 4111,
-      "r": 2545,
+      "r": 4111,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -4099,16 +2729,16 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Commit": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Draw": {
       "a": 50,
@@ -4123,48 +2753,22 @@
       "family": "exact",
       "hi": 6,
       "lo": 6,
-      "r": 4,
+      "r": 6,
       "status": "skipped"
      }
     },
-    "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
-     "census.solidTiles",
-     "census.tiles",
-     "census.tilings",
-     "hasDamage",
-     "metric.RecalcStyleCount",
-     "raster.invalidatedLayers",
-     "trace.Animation.begin",
-     "trace.Animation.compositeFailedBits",
-     "trace.Animation.instant",
-     "trace.CullRectUpdate",
-     "trace.DisplayItemListRaster",
-     "trace.FireAnimationFrame",
-     "trace.ImageDecodeTask",
-     "trace.Layout.partial",
-     "trace.PaintImage",
-     "trace.RasterTask",
-     "trace.RequestAnimationFrame",
-     "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
-     "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit"
-    ],
+    "failed": [],
     "framesA": 50,
     "framesR": 50,
     "id": "y04000",
-    "pass": false,
+    "pass": true,
     "present": true,
     "pxA": 500,
     "pxR": 500,
     "shape": true,
     "tally": {
-     "fail": 25,
-     "pass": 14,
+     "fail": 0,
+     "pass": 39,
      "skipped": 19,
      "unbanded": 10
     }
@@ -4176,31 +2780,31 @@
       "family": "pct10",
       "hi": 352268288,
       "lo": 352268288,
-      "r": 112390144,
-      "status": "fail"
+      "r": 352268288,
+      "status": "pass"
      },
      "census.activeTiles": {
       "a": 5476,
       "family": "pct10",
       "hi": 5476,
       "lo": 5476,
-      "r": 1862,
-      "status": "fail"
+      "r": 5476,
+      "status": "pass"
      },
      "census.drawingAreaPx": {
       "a": 542198439,
       "family": "pct10",
       "hi": 542198439,
       "lo": 542198439,
-      "r": 153974138,
-      "status": "fail"
+      "r": 542198439,
+      "status": "pass"
      },
      "census.drawingLayers": {
       "a": 2907,
       "family": "exact",
       "hi": 2907,
       "lo": 2907,
-      "r": 810,
+      "r": 2907,
       "status": "skipped"
      },
      "census.layers": {
@@ -4208,7 +2812,7 @@
       "family": "exact",
       "hi": 3189,
       "lo": 3189,
-      "r": 888,
+      "r": 3189,
       "status": "skipped"
      },
      "census.snapshots": {
@@ -4216,7 +2820,7 @@
       "family": "unbanded",
       "hi": 47,
       "lo": 47,
-      "r": 13,
+      "r": 47,
       "status": "unbanded"
      },
      "census.solidTiles": {
@@ -4224,32 +2828,32 @@
       "family": "pct10",
       "hi": 1492,
       "lo": 1492,
-      "r": 767,
-      "status": "fail"
+      "r": 1492,
+      "status": "pass"
      },
      "census.tiles": {
       "a": 6367,
       "family": "pct10",
       "hi": 6367,
       "lo": 6367,
-      "r": 2053,
-      "status": "fail"
+      "r": 6367,
+      "status": "pass"
      },
      "census.tilings": {
       "a": 2003,
       "family": "pct10",
       "hi": 2003,
       "lo": 2003,
-      "r": 591,
-      "status": "fail"
+      "r": 2003,
+      "status": "pass"
      },
      "hasDamage": {
       "a": 47,
       "family": "exact",
       "hi": 47,
       "lo": 47,
-      "r": 13,
-      "status": "fail"
+      "r": 47,
+      "status": "pass"
      },
      "metric.Documents": {
       "a": 0,
@@ -4280,7 +2884,7 @@
       "family": "pct5",
       "hi": 22,
       "lo": 22,
-      "r": 1,
+      "r": 22,
       "status": "skipped"
      },
      "metric.LayoutObjects": {
@@ -4288,7 +2892,7 @@
       "family": "pct5",
       "hi": 3,
       "lo": 3,
-      "r": 0,
+      "r": 3,
       "status": "skipped"
      },
      "metric.Nodes": {
@@ -4296,7 +2900,7 @@
       "family": "pct5",
       "hi": 201,
       "lo": -113,
-      "r": 66,
+      "r": 201,
       "status": "skipped"
      },
      "metric.RecalcStyleCount": {
@@ -4304,8 +2908,8 @@
       "family": "pct5",
       "hi": 141,
       "lo": 141,
-      "r": 43,
-      "status": "fail"
+      "r": 141,
+      "status": "pass"
      },
      "metric.Resources": {
       "a": 0,
@@ -4344,15 +2948,15 @@
       "family": "pct10",
       "hi": 176,
       "lo": 176,
-      "r": 49,
-      "status": "fail"
+      "r": 176,
+      "status": "pass"
      },
      "raster.invalidationAreaPx": {
       "a": 1342566,
       "family": "pct10",
       "hi": 1342566,
       "lo": 1342566,
-      "r": 550129,
+      "r": 1342566,
       "status": "skipped"
      },
      "raster.invalidationRects": {
@@ -4360,7 +2964,7 @@
       "family": "pct10",
       "hi": 787,
       "lo": 787,
-      "r": 179,
+      "r": 787,
       "status": "skipped"
      },
      "trace.Animation.begin": {
@@ -4368,32 +2972,32 @@
       "family": "exact",
       "hi": 14,
       "lo": 14,
-      "r": 4,
-      "status": "fail"
+      "r": 14,
+      "status": "pass"
      },
      "trace.Animation.instant": {
       "a": 23,
       "family": "exact",
       "hi": 23,
       "lo": 23,
-      "r": 6,
-      "status": "fail"
+      "r": 23,
+      "status": "pass"
      },
      "trace.Commit": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.CullRectUpdate": {
       "a": 76,
       "family": "pct10",
       "hi": 76,
       "lo": 76,
-      "r": 13,
-      "status": "fail"
+      "r": 76,
+      "status": "pass"
      },
      "trace.DecodeImage": {
       "a": 2,
@@ -4408,15 +3012,15 @@
       "family": "pct10",
       "hi": 261,
       "lo": 261,
-      "r": 28,
-      "status": "fail"
+      "r": 261,
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 50,
       "family": "unbanded",
       "hi": 50,
       "lo": 50,
-      "r": 13,
+      "r": 50,
       "status": "unbanded"
      },
      "trace.EventDispatch": {
@@ -4424,7 +3028,7 @@
       "family": "unbanded",
       "hi": 96,
       "lo": 95,
-      "r": 34,
+      "r": 96,
       "status": "unbanded"
      },
      "trace.FireAnimationFrame": {
@@ -4432,15 +3036,15 @@
       "family": "exact",
       "hi": 166,
       "lo": 166,
-      "r": 66,
-      "status": "fail"
+      "r": 166,
+      "status": "pass"
      },
      "trace.FunctionCall": {
       "a": 371,
       "family": "unbanded",
       "hi": 372,
       "lo": 371,
-      "r": 137,
+      "r": 372,
       "status": "unbanded"
      },
      "trace.HitTest": {
@@ -4448,7 +3052,7 @@
       "family": "unbanded",
       "hi": 111,
       "lo": 110,
-      "r": 27,
+      "r": 111,
       "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
@@ -4456,7 +3060,7 @@
       "family": "unbanded",
       "hi": 13,
       "lo": 13,
-      "r": 4,
+      "r": 13,
       "status": "skipped"
      },
      "trace.ImageDecodeTask": {
@@ -4464,15 +3068,15 @@
       "family": "pct10",
       "hi": 11,
       "lo": 11,
-      "r": 3,
-      "status": "fail"
+      "r": 11,
+      "status": "pass"
      },
      "trace.IntersectionObserverCompute": {
       "a": 100,
       "family": "unbanded",
       "hi": 100,
       "lo": 100,
-      "r": 26,
+      "r": 100,
       "status": "unbanded"
      },
      "trace.InvalidateLayout": {
@@ -4480,7 +3084,7 @@
       "family": "pct5",
       "hi": 22,
       "lo": 22,
-      "r": 1,
+      "r": 22,
       "status": "skipped"
      },
      "trace.Layer.created": {
@@ -4488,8 +3092,8 @@
       "family": "exact",
       "hi": 14,
       "lo": 14,
-      "r": 4,
-      "status": "fail"
+      "r": 14,
+      "status": "pass"
      },
      "trace.Layer.deleted": {
       "a": 11,
@@ -4504,15 +3108,15 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.Layout": {
       "a": 22,
       "family": "pct5",
       "hi": 22,
       "lo": 22,
-      "r": 1,
+      "r": 22,
       "status": "skipped"
      },
      "trace.Layout.dirtyObjects": {
@@ -4520,7 +3124,7 @@
       "family": "pct5",
       "hi": 155,
       "lo": 155,
-      "r": 8,
+      "r": 155,
       "status": "skipped"
      },
      "trace.Layout.partial": {
@@ -4528,15 +3132,15 @@
       "family": "pct5",
       "hi": 21,
       "lo": 21,
-      "r": 1,
-      "status": "fail"
+      "r": 21,
+      "status": "pass"
      },
      "trace.Layout.totalObjects": {
       "a": 2348,
       "family": "pct5",
       "hi": 2348,
       "lo": 2348,
-      "r": 50,
+      "r": 2348,
       "status": "skipped"
      },
      "trace.MajorGC": {
@@ -4552,7 +3156,7 @@
       "family": "unbanded",
       "hi": 1,
       "lo": 0,
-      "r": 1,
+      "r": 0,
       "status": "skipped"
      },
      "trace.N1.fontUpdateInvalidation": {
@@ -4592,31 +3196,23 @@
       "family": "pct10",
       "hi": 181,
       "lo": 181,
-      "r": 42,
-      "status": "fail"
+      "r": 181,
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 238,
       "family": "pct10",
       "hi": 238,
       "lo": 238,
-      "r": 4,
-      "status": "fail"
-     },
-     "trace.ParseHTML": {
-      "a": 0,
-      "family": "unbanded",
-      "hi": 0,
-      "lo": 0,
-      "r": 2,
-      "status": "unbanded"
+      "r": 238,
+      "status": "pass"
      },
      "trace.PrePaint": {
       "a": 186,
       "family": "pct10",
       "hi": 187,
       "lo": 186,
-      "r": 40,
+      "r": 187,
       "status": "skipped"
      },
      "trace.RasterTask": {
@@ -4624,23 +3220,23 @@
       "family": "pct10",
       "hi": 261,
       "lo": 261,
-      "r": 28,
-      "status": "fail"
+      "r": 261,
+      "status": "pass"
      },
      "trace.RequestAnimationFrame": {
       "a": 166,
       "family": "exact",
       "hi": 166,
       "lo": 166,
-      "r": 67,
-      "status": "fail"
+      "r": 166,
+      "status": "pass"
      },
      "trace.ResizeObserverNotify": {
       "a": 76,
       "family": "unbanded",
       "hi": 76,
       "lo": 76,
-      "r": 13,
+      "r": 76,
       "status": "unbanded"
      },
      "trace.ScheduleStyleRecalculation": {
@@ -4648,39 +3244,39 @@
       "family": "pct5",
       "hi": 141,
       "lo": 141,
-      "r": 43,
-      "status": "fail"
+      "r": 141,
+      "status": "pass"
      },
      "trace.ScrollLayer": {
       "a": 44,
       "family": "exact",
       "hi": 44,
       "lo": 44,
-      "r": 13,
-      "status": "fail"
+      "r": 44,
+      "status": "pass"
      },
      "trace.UpdateLayer": {
       "a": 2546,
       "family": "pct10",
       "hi": 2546,
       "lo": 2546,
-      "r": 672,
-      "status": "fail"
+      "r": 2546,
+      "status": "pass"
      },
      "trace.UpdateLayoutTree": {
       "a": 141,
       "family": "pct5",
       "hi": 141,
       "lo": 141,
-      "r": 43,
-      "status": "fail"
+      "r": 141,
+      "status": "pass"
      },
      "trace.UpdateLayoutTree.elementCount": {
       "a": 2589,
       "family": "pct5",
       "hi": 2590,
       "lo": 2589,
-      "r": 683,
+      "r": 2590,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -4688,24 +3284,24 @@
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 10,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Commit": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 10,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.Draw": {
       "a": 50,
       "family": "exact",
       "hi": 50,
       "lo": 50,
-      "r": 13,
-      "status": "fail"
+      "r": 50,
+      "status": "pass"
      },
      "trace.cc.SynchronizeTrees": {
       "a": 6,
@@ -4716,51 +3312,20 @@
       "status": "skipped"
      }
     },
-    "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
-     "census.drawingAreaPx",
-     "census.solidTiles",
-     "census.tiles",
-     "census.tilings",
-     "hasDamage",
-     "metric.RecalcStyleCount",
-     "raster.invalidatedLayers",
-     "trace.Animation.begin",
-     "trace.Animation.instant",
-     "trace.Commit",
-     "trace.CullRectUpdate",
-     "trace.DisplayItemListRaster",
-     "trace.FireAnimationFrame",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.Layerize",
-     "trace.Layout.partial",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RasterTask",
-     "trace.RequestAnimationFrame",
-     "trace.ScheduleStyleRecalculation",
-     "trace.ScrollLayer",
-     "trace.UpdateLayer",
-     "trace.UpdateLayoutTree",
-     "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.cc.Draw"
-    ],
+    "failed": [],
     "framesA": 50,
-    "framesR": 13,
+    "framesR": 50,
     "id": "y04500",
-    "pass": false,
+    "pass": true,
     "present": true,
     "pxA": 475,
-    "pxR": 129,
-    "shape": false,
+    "pxR": 475,
+    "shape": true,
     "tally": {
-     "fail": 30,
-     "pass": 8,
+     "fail": 0,
+     "pass": 38,
      "skipped": 19,
-     "unbanded": 11
+     "unbanded": 10
     }
    },
    {
@@ -4770,23 +3335,23 @@
       "family": "pct10",
       "hi": 167116800,
       "lo": 167116800,
-      "r": 240996352,
-      "status": "fail"
+      "r": 167116800,
+      "status": "pass"
      },
      "census.activeTiles": {
       "a": 4740,
       "family": "pct10",
       "hi": 4740,
       "lo": 4740,
-      "r": 3668,
-      "status": "fail"
+      "r": 4740,
+      "status": "pass"
      },
      "census.drawingAreaPx": {
       "a": 363986100,
       "family": "pct10",
       "hi": 363986100,
       "lo": 363986100,
-      "r": 377097305,
+      "r": 363986100,
       "status": "pass"
      },
      "census.drawingLayers": {
@@ -4794,7 +3359,7 @@
       "family": "exact",
       "hi": 4020,
       "lo": 4020,
-      "r": 1762,
+      "r": 4020,
       "status": "skipped"
      },
      "census.layers": {
@@ -4802,7 +3367,7 @@
       "family": "exact",
       "hi": 4200,
       "lo": 4200,
-      "r": 1942,
+      "r": 4200,
       "status": "skipped"
      },
      "census.snapshots": {
@@ -4818,24 +3383,24 @@
       "family": "pct10",
       "hi": 960,
       "lo": 960,
-      "r": 1658,
-      "status": "fail"
+      "r": 960,
+      "status": "pass"
      },
      "census.tiles": {
       "a": 6900,
       "family": "pct10",
       "hi": 6900,
       "lo": 6900,
-      "r": 5451,
-      "status": "fail"
+      "r": 6900,
+      "status": "pass"
      },
      "census.tilings": {
       "a": 3720,
       "family": "pct10",
       "hi": 3720,
       "lo": 3720,
-      "r": 1436,
-      "status": "fail"
+      "r": 3720,
+      "status": "pass"
      },
      "hasDamage": {
       "a": 30,
@@ -4874,7 +3439,7 @@
       "family": "pct5",
       "hi": 0,
       "lo": 0,
-      "r": 30,
+      "r": 0,
       "status": "skipped"
      },
      "metric.LayoutObjects": {
@@ -4938,15 +3503,15 @@
       "family": "pct10",
       "hi": 90,
       "lo": 90,
-      "r": 280,
-      "status": "fail"
+      "r": 90,
+      "status": "pass"
      },
      "raster.invalidationAreaPx": {
       "a": 22187880,
       "family": "pct10",
       "hi": 22187880,
       "lo": 22187880,
-      "r": 33555344,
+      "r": 22187880,
       "status": "skipped"
      },
      "raster.invalidationRects": {
@@ -4954,32 +3519,8 @@
       "family": "pct10",
       "hi": 90,
       "lo": 90,
-      "r": 665,
+      "r": 90,
       "status": "skipped"
-     },
-     "trace.Animation.begin": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 4,
-      "status": "fail"
-     },
-     "trace.Animation.compositeFailedBits": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 24576,
-      "status": "fail"
-     },
-     "trace.Animation.instant": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 7,
-      "status": "fail"
      },
      "trace.Commit": {
       "a": 30,
@@ -4994,24 +3535,8 @@
       "family": "pct10",
       "hi": 30,
       "lo": 30,
-      "r": 56,
-      "status": "fail"
-     },
-     "trace.DecodeImage": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 6,
-      "status": "fail"
-     },
-     "trace.DisplayItemListRaster": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 656,
-      "status": "fail"
+      "r": 30,
+      "status": "pass"
      },
      "trace.EvaluateScript": {
       "a": 30,
@@ -5021,53 +3546,29 @@
       "r": 30,
       "status": "unbanded"
      },
-     "trace.EventDispatch": {
-      "a": 0,
-      "family": "unbanded",
-      "hi": 0,
-      "lo": 0,
-      "r": 5,
-      "status": "unbanded"
-     },
      "trace.FireAnimationFrame": {
       "a": 14,
       "family": "exact",
       "hi": 14,
       "lo": 14,
-      "r": 47,
-      "status": "fail"
+      "r": 14,
+      "status": "pass"
      },
      "trace.FunctionCall": {
       "a": 28,
       "family": "unbanded",
       "hi": 28,
       "lo": 28,
-      "r": 95,
+      "r": 28,
       "status": "unbanded"
-     },
-     "trace.HitTest": {
-      "a": 0,
-      "family": "unbanded",
-      "hi": 0,
-      "lo": 0,
-      "r": 30,
-      "status": "skipped"
      },
      "trace.HitTest.overlayAdDetector": {
       "a": 3,
       "family": "unbanded",
       "hi": 3,
       "lo": 3,
-      "r": 4,
+      "r": 3,
       "status": "skipped"
-     },
-     "trace.ImageDecodeTask": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 367,
-      "status": "fail"
      },
      "trace.IntersectionObserverCompute": {
       "a": 60,
@@ -5077,30 +3578,6 @@
       "r": 60,
       "status": "unbanded"
      },
-     "trace.InvalidateLayout": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 30,
-      "status": "skipped"
-     },
-     "trace.Layer.created": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 8,
-      "status": "fail"
-     },
-     "trace.Layer.deleted": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 0,
-      "status": "skipped"
-     },
      "trace.Layerize": {
       "a": 30,
       "family": "exact",
@@ -5108,46 +3585,6 @@
       "lo": 30,
       "r": 30,
       "status": "pass"
-     },
-     "trace.Layout": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 30,
-      "status": "skipped"
-     },
-     "trace.Layout.dirtyObjects": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 1010,
-      "status": "skipped"
-     },
-     "trace.Layout.partial": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 0,
-      "status": "pass"
-     },
-     "trace.Layout.totalObjects": {
-      "a": 0,
-      "family": "pct5",
-      "hi": 0,
-      "lo": 0,
-      "r": 21540,
-      "status": "skipped"
-     },
-     "trace.MajorGC": {
-      "a": 0,
-      "family": "unbanded",
-      "hi": 0,
-      "lo": 0,
-      "r": 0,
-      "status": "skipped"
      },
      "trace.N1.fontUpdateInvalidation": {
       "a": 0,
@@ -5186,47 +3623,39 @@
       "family": "pct10",
       "hi": 60,
       "lo": 60,
-      "r": 247,
-      "status": "fail"
+      "r": 60,
+      "status": "pass"
      },
      "trace.PaintImage": {
       "a": 120,
       "family": "pct10",
       "hi": 120,
       "lo": 120,
-      "r": 591,
-      "status": "fail"
+      "r": 120,
+      "status": "pass"
      },
      "trace.PrePaint": {
       "a": 30,
       "family": "pct10",
       "hi": 30,
       "lo": 30,
-      "r": 86,
+      "r": 30,
       "status": "skipped"
-     },
-     "trace.RasterTask": {
-      "a": 0,
-      "family": "pct10",
-      "hi": 0,
-      "lo": 0,
-      "r": 656,
-      "status": "fail"
      },
      "trace.RequestAnimationFrame": {
       "a": 12,
       "family": "exact",
       "hi": 12,
       "lo": 12,
-      "r": 45,
-      "status": "fail"
+      "r": 12,
+      "status": "pass"
      },
      "trace.ResizeObserverNotify": {
       "a": 30,
       "family": "unbanded",
       "hi": 30,
       "lo": 30,
-      "r": 56,
+      "r": 30,
       "status": "unbanded"
      },
      "trace.ScheduleStyleRecalculation": {
@@ -5242,8 +3671,8 @@
       "family": "pct10",
       "hi": 776,
       "lo": 776,
-      "r": 957,
-      "status": "fail"
+      "r": 776,
+      "status": "pass"
      },
      "trace.UpdateLayoutTree": {
       "a": 30,
@@ -5258,7 +3687,7 @@
       "family": "pct5",
       "hi": 410,
       "lo": 410,
-      "r": 4328,
+      "r": 410,
       "status": "skipped"
      },
      "trace.cc.Activate": {
@@ -5266,16 +3695,16 @@
       "family": "exact",
       "hi": 8,
       "lo": 8,
-      "r": 30,
-      "status": "fail"
+      "r": 8,
+      "status": "pass"
      },
      "trace.cc.Commit": {
       "a": 8,
       "family": "exact",
       "hi": 8,
       "lo": 8,
-      "r": 30,
-      "status": "fail"
+      "r": 8,
+      "status": "pass"
      },
      "trace.cc.Draw": {
       "a": 30,
@@ -5284,53 +3713,22 @@
       "lo": 30,
       "r": 30,
       "status": "pass"
-     },
-     "trace.cc.SynchronizeTrees": {
-      "a": 0,
-      "family": "exact",
-      "hi": 0,
-      "lo": 0,
-      "r": 32,
-      "status": "skipped"
      }
     },
-    "failed": [
-     "census.activeTileAreaPx",
-     "census.activeTiles",
-     "census.solidTiles",
-     "census.tiles",
-     "census.tilings",
-     "raster.invalidatedLayers",
-     "trace.CullRectUpdate",
-     "trace.FireAnimationFrame",
-     "trace.Paint",
-     "trace.PaintImage",
-     "trace.RequestAnimationFrame",
-     "trace.UpdateLayer",
-     "trace.cc.Activate",
-     "trace.cc.Commit",
-     "trace.Animation.begin",
-     "trace.Animation.compositeFailedBits",
-     "trace.Animation.instant",
-     "trace.DecodeImage",
-     "trace.DisplayItemListRaster",
-     "trace.ImageDecodeTask",
-     "trace.Layer.created",
-     "trace.RasterTask"
-    ],
+    "failed": [],
     "framesA": 30,
     "framesR": 30,
     "id": "tail",
-    "pass": false,
+    "pass": true,
     "present": true,
     "pxA": 0,
     "pxR": 0,
     "shape": true,
     "tally": {
-     "fail": 22,
-     "pass": 16,
-     "skipped": 18,
-     "unbanded": 10
+     "fail": 0,
+     "pass": 29,
+     "skipped": 10,
+     "unbanded": 9
     }
    }
   ]
