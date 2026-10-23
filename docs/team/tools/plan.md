@@ -16,7 +16,7 @@ The writes-closure rule and its proofs are in `lean/Fw/Plan/WritesClosure.lean`.
 differs (`previousGraph`, from `git log --first-parent`). It refuses only the writesClosure errors the new graph adds
 (Lean `newErrors`). Each lint sends its scope requests in one batch to fwcore (`scopeBatch`). It tries, in order,
 `FW_CORE_BIN` and `lean/.lake/build/bin/fwcore` in the current checkout, the main checkout and each worktree
-(`coreCandidates`). With none built, sync sends nothing and throws `plan lint: writes closure: fwcore not built: sh scripts/fwcore-build.sh`.
+(`coreCandidates`). With none built, sync throws `plan lint: writes closure: fwcore not built: sh scripts/fwcore-build.sh`.
 
 The gaps both lints use come from `scripts/ci-paths.mjs` `leanInputGaps`: every `../` path a `lean/scripts/*.sh` reads
 that the lean.yml row globs miss. A read with a `..` segment counts as a non-literal read and is refused (Lean

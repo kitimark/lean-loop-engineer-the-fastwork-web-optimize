@@ -10,7 +10,7 @@
 
 ## What changed
 - (1) `docs/team/tools/plan.md` Time section is generated between the `plan-time begin/end` markers by
-  `node scripts/ci-paths.mjs --plan-time`. The samples are committed in the same block (collapsed `jsonl`: exit-0 `fw`
+  `node scripts/ci-paths.mjs --plan-time`. The samples sit in the same block (`jsonl`: exit-0 `fw`
   `plan sync` spans, `closure` = commit contains 9a09d8066); `--refresh <timings.jsonl>` rebuilds them from a local
   timings file, `--check` refuses a stale doc. Table text is Lean `timeTable` (Fw.Obs.Timing p50/p90/maxL/lastN); the
   JS twin replays the golden `timeTable` rows and a test asserts the doc equals `planTimeRender(doc)`.

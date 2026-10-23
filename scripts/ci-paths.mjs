@@ -1106,7 +1106,6 @@ export function run(root, write) {
   return { problems, wrote };
 }
 
-// ---- plan.md time table (task writes-closure-doc-touchups) -------------------------------------------------------------
 export const CLOSURE_COMMIT = '9a09d8066';
 export const PLAN_DOC = 'docs/team/tools/plan.md';
 const TIME_BEGIN = '<!-- plan-time begin: node scripts/ci-paths.mjs --plan-time -->';
@@ -1118,7 +1117,6 @@ export const p90 = (xs) => ord(xs, Math.floor((9 * xs.length + 9) / 10));
 const maxL = (xs) => xs.reduce((a, b) => Math.max(a, b), 0);
 const timeRow = (label, xs) => `| ${label} | ${xs.length} | ${p50(xs)} ms | ${p90(xs)} ms | ${maxL(xs)} ms |\n`;
 
-/** Lean `Fw.Plan.WritesClosure.timeTable`, replayed by apps/runner/test/plan-closure.test.ts. */
 export function timeTable(before, after) {
   const b = before.slice(Math.max(0, before.length - 30));
   return '| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n' + timeRow(`last ${b.length} runs before the closure check`, b) +
