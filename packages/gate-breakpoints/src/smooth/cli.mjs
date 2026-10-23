@@ -27,7 +27,10 @@ if (cmd === 'continuity') {
   const { runCadence } = await import('./cadence.mjs');
   const widths = (flag('--widths') ?? '390,1280').split(',').map(Number);
   const out = flag('--out') ?? 'out/smoothness';
-  const res = await runCadence({ widths, search: flag('--search') ?? '', reps: Number(flag('--reps') ?? 6), traceReps: Number(flag('--trace-reps') ?? 2) });
+  const { parseThrottle } = await import('./throttle.mjs');
+  const cpuThrottle = parseThrottle(flag('--cpu-throttle'));
+  if (cpuThrottle === null) { console.error('--cpu-throttle must be 1 or 6'); process.exit(2); }
+  const res = await runCadence({ widths, cpuThrottle, search: flag('--search') ?? '', reps: Number(flag('--reps') ?? 6), traceReps: Number(flag('--trace-reps') ?? 2) });
   mkdirSync(out, { recursive: true });
   for (const w of widths) writeFileSync(join(out, `cadence-${w}.json`), `${JSON.stringify({ ...res, runs: res.runs.filter((r) => r.width === w), traces: res.traces.filter((r) => r.width === w) })}\n`);
   console.log(`cadence run: ${res.runs.length} windows, ${res.traces.length} traced, refused=${res.refused}`);

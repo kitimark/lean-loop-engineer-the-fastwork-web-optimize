@@ -19,9 +19,27 @@ name: smoothness
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
 # The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
+# CPU throttle (task smoothness-cpu-throttle): the cadence job can run with CDP Emulation.setCPUThrottlingRate 6 (control 1, the default) on the scripted
+# scroll only. A PROXY of the lag felt on WebKit (iPhone), never WebKit evidence. A dispatch sets the `cpu_throttle` input; a ci/* push cannot take
+# inputs, so its head commit says `[cpu-throttle=6]` (no token = 1). Only 1 and 6 pass. Under a throttle no traced reps run (they never enter the verdict).
 on:
   push:
     branches: ['ci/**']
+  workflow_dispatch:
+    inputs:
+      cpu_throttle:
+        description: CPU throttle of the cadence windows (1 = control, 6 = the proxy of a slow phone CPU)
+        type: choice
+        options: ['1', '6']
+        default: '1'
+      fw:
+        description: Flag set of the candidate arm, e.g. morph.tween:scroll-lock,nav:earn-no-transition (becomes ?fw=...). Empty = the default config.
+        type: string
+        default: ''
+      widths:
+        description: Widths of the legs
+        type: string
+        default: '390,1280'
 
 permissions:
   contents: read
@@ -77,6 +95,7 @@ jobs:
     outputs:
       legs: ${{ steps.p.outputs.legs }}
       search: ${{ steps.p.outputs.search }}
+      throttle: ${{ steps.t.outputs.throttle }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -109,10 +128,25 @@ jobs:
           EVENT: ${{ github.event_name }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
           LANE: smoothness  # Lean ProbeLane: the mark rule does not bind this lane (its verdict is at 390,1280)
+          FW: ${{ inputs.fw }}  # a dispatch carries its inputs; a push reads the commit line instead
+          WIDTHS: ${{ inputs.widths }}
         run: |
           set -euo pipefail
           node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe
           node .github/scripts/trajectory-line.mjs | tee -a "$GITHUB_OUTPUT"
+      - id: t
+        name: The CPU throttle (dispatch input, else the head commit's [cpu-throttle=N]; 1 or 6)
+        env:
+          THROTTLE_IN: ${{ inputs.cpu_throttle }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          t="$THROTTLE_IN"
+          if [ -z "$t" ]; then t=$(printf '%s\n' "$HEAD_MSG" | grep -oiE '\[cpu-throttle=[0-9]+\]' | head -n 1 | tr -dc '0-9' || true); fi
+          t="${t:-1}"
+          case "$t" in 1|6) ;; *) echo "smoothness: refused: the CPU throttle must be 1 or 6, got '$t'" >&2; exit 1 ;; esac
+          echo "throttle=$t" >> "$GITHUB_OUTPUT"
+          echo "smoothness: CPU throttle ${t}x (PROXY, not WebKit)" | tee -a "$GITHUB_STEP_SUMMARY"
       - id: p
         name: Plan the legs (widths) and the candidate search
         env:
@@ -221,11 +255,15 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          # Repeats that enter the verdict (Lean minReps is 5) and extra repeats with the frame trace on (reported apart).
+          # Repeats that enter the verdict (Lean minReps is 5) and extra repeats with the frame trace on (reported apart; none under a throttle).
           REPS: 7
-          TRACE_REPS: 5
+          CPU_THROTTLE: ${{ needs.site.outputs.throttle }}
         working-directory: packages/gate-breakpoints
-        run: node src/smooth/cli.mjs run --widths "$WIDTH" --search "$SEARCH" --reps "$REPS" --trace-reps "$TRACE_REPS" --out out/smoothness
+        run: |
+          set -euo pipefail
+          trace_reps=5
+          if [ "$CPU_THROTTLE" != 1 ]; then trace_reps=0; fi
+          node src/smooth/cli.mjs run --widths "$WIDTH" --search "$SEARCH" --reps "$REPS" --trace-reps "$trace_reps" --cpu-throttle "$CPU_THROTTLE" --out out/smoothness
       - name: Table of this leg (the verdict is the Lean twin; the step summary is a convenience, the artifact is the record)
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         env:

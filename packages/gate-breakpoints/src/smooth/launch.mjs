@@ -56,6 +56,8 @@ export async function launchCadence({ chromePath = process.env.CHROME_PATH ?? CH
             await page.mouse.wheel(0, dy);
           }
         },
+        /** CDP Emulation.setCPUThrottlingRate: 1 = none, n = the main thread runs n times slower (the cheap proxy of a slow phone CPU). */
+        setCpuThrottle: (rate) => cdp.send('Emulation.setCPUThrottlingRate', { rate }),
         startTrace: () => browser.startTracing(page, { categories: TRACE_CATEGORIES, screenshots: false }),
         stopTrace: () => browser.stopTracing(),
         async close() { await context.close(); },
