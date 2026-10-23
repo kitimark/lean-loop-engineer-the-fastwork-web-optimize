@@ -94,7 +94,7 @@ test('report without worktree does not resume: normal build runs', async () => {
   assert.deepEqual(labels, ['build:demo-task'])
 })
 
-const polishRun = (planOut, edited) => {
+const polishRun = (planOut, edited, commitReply) => {
   const calls = []
   const done = run(async (p, o) => {
     calls.push({ label: o.label, p })
@@ -103,7 +103,7 @@ const polishRun = (planOut, edited) => {
     if (o.label.startsWith('adv')) return { accept: true, findings: [], verdictLine: 'VERDICT review-verdict demo-task accept' }
     if (o.label.startsWith('polish-plan')) return { line: 'VERDICT polish-plan demo-task comments', out: planOut }
     if (o.label.startsWith('comment-sicko')) return { edited }
-    if (o.label.startsWith('polish-commit')) return { line: 'VERDICT polish-commit demo-task committed', out: '' }
+    if (o.label.startsWith('polish-commit')) return commitReply || { line: 'VERDICT polish-commit demo-task committed', out: '' }
     if (o.label.startsWith('polish-dry')) return { line: 'VERDICT dry demo-task', out: '' }
     throw new Error('unexpected ' + o.label)
   }, { task: { ...resumeTask, worktree: '/r/.claude/worktrees/wf_a' } })
@@ -130,6 +130,22 @@ test('polish: an edit outside the worktree stops before the polish commit', asyn
   const { out, calls } = await polishRun(plan, ['/r/lean/Fw/A.lean'])
   assert.ok(!calls.some((c) => c.label.startsWith('polish-commit')))
   assert.deepEqual(out[0].polish.strays, ['/r/lean/Fw/A.lean'])
+})
+
+test('polish: a failed commit is reported with its reason and the cleanup line, and no dry land runs', async () => {
+  const plan = 'worktree /r/.claude/worktrees/wf_a\nclass code -- lean/Fw/A.lean\ncomments -- lean/Fw/A.lean lines 5-12'
+  const out1 = 'checkmap: FAIL lakeBuild lean/Fw/A.lean\ncleanup: restored 1 (lean/Fw/A.lean), removed 1 (lean/Fw/A.lean-e), worktree clean\nVERDICT polish-commit demo-task error'
+  const { out, calls } = await polishRun(plan, ['/r/.claude/worktrees/wf_a/lean/Fw/A.lean'], { line: 'VERDICT polish-commit demo-task error', out: out1 })
+  assert.equal(out[0].polish.commit, 'error')
+  assert.match(out[0].polish.reason, /checkmap: FAIL lakeBuild/)
+  assert.equal(out[0].polish.cleanup, 'cleanup: restored 1 (lean/Fw/A.lean), removed 1 (lean/Fw/A.lean-e), worktree clean')
+  assert.ok(!calls.some((c) => c.label.startsWith('polish-dry')))
+})
+
+test('polish: comment-sicko is told to edit with the Edit tool only', async () => {
+  const plan = 'worktree /r/.claude/worktrees/wf_a\nclass code -- lean/Fw/A.lean\ncomments -- lean/Fw/A.lean lines 5-12'
+  const { calls } = await polishRun(plan, [])
+  assert.match(calls.find((c) => c.label.startsWith('comment-sicko')).p, /Edit tool only, never sed -i/)
 })
 
 test('gate agent reads a run state with the run branch; the RUN schema carries branch', () => {
