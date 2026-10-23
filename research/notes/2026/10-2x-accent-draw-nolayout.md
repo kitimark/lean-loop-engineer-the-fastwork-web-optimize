@@ -78,3 +78,49 @@ The report tables call the arm `crop`.
 - `StyleDiffAccent` covers the legacy SVG renderer path; the layer-based SVG engine is not modelled.
 
 Files: `results/accent-draw-nolayout/` (`summary.json`, `swap-report.md`, `swap-report.json`, `cost-report.md`).
+
+# Draw-in without the width transition: `hero.accent:draw-nolayout-full` (task accent-drawin-width-nolayout, ledger `accent.drawin-width-nolayout`)
+
+Class look-change. Same engine pins as above (WebKit @862f17d, Chromium @f842f52). No new engine row is needed: the candidate is no new
+property, it is the existing `width` row (`WC/style/StyleDifference.cpp:404`, `B/css/css_properties.json5:8286`) changed once instead of every frame.
+
+## Why not a transform
+The text after the word sits in normal flow and follows the word box. Any smooth glide of that text is itself a width or position change that the
+engines lay out in every frame. A `transform: scaleX` on a wrapper moves only the wrapper; the text stays where layout put it. So no same-look,
+layout-free replacement exists (INFERRED: in-flow text follows the word box; `width_layout` proves the width row lays out, and no layout-free row in the table moves in-flow text). The arm gives the glide up.
+
+## Arm
+`.accent[data-fw-draw='nolayout-full'].drawingIn { transition: none }` on top of the draw-nolayout rules (those now select
+`:is([data-fw-draw='nolayout'], [data-fw-draw='nolayout-full'])`). The cursor callback already sets the width in the same task as the `drawingIn`
+class, so the width changes once. Faithful and draw-nolayout are unchanged (the new rule keys on the new attribute; test `drawNoLayout.test.ts`).
+
+## Proof (Lean `Fw.Engine.StyleDiffAccent`, no sorry; `wkLayoutFrames_values` and `crLayoutFrames_values` hold for every n)
+- `full_out_nolayout`, `full_inRest_nolayout`: every frame except the width set needs no layout in WebKit or Chromium.
+- `full_inFirst_layout_only_width`: among the modelled draw candidates, the one frame with layout gets it only through `width`; the same frame also swaps the word (path d, viewBox, paint insets in onCursor), which lays out in every arm and is not modelled.
+- Layout frames in a cycle of n+1 frames per phase: WebKit 2(n+1) faithful, n+1 draw-nolayout, 1 full; Chromium n+1, n+1, 1.
+  At 54 frames (900 ms at 60 Hz): 108, 54, 1 (`wkLayoutFrames_54`). Golden rows `slot` and `cycle` in `hero.accent.nolayout.jsonl`.
+
+## Measurement (MEASURED, run 40010826238, commit 3c1ab9970, webkit-sim swap lane, 430x775, jobs r1 r2 with 2 passes each)
+Push with `[ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]` (a first push without `[ci:webkit-sim]` was skipped by the guard, run 40010696479;
+it is not a dispatch). Job r3 did not finish and the run was cancelled, which skipped the report jobs; the report was built from the r1 and r2
+artifacts with `node src/lag/cli.mjs swap-report --files r1-lag.json,r2-lag.json` (the same command reproduces the committed run-39999057900 numbers).
+The report tables call the arm `crop`.
+
+| window class | metric | faithful-a | faithful-b (A/A) | draw-nolayout (run 39999057900) | draw-nolayout-full |
+|---|---|---:|---:|---:|---:|
+| rest (800 ms), 7 per capture | windows with at least 24 Layout rows | 18 of 28 | 19 of 28 | 17 of 56 | 0 of 56 |
+| rest | Layout rows per capture | 225.0 | 232.8 | 122.3 | 19.4 |
+| rest | median Layout rows per window | 45 | 45 | 5 | 2 |
+| swap (220 ms), 8 per capture | median Layout rows per window | 14 | 14 | 14 | 13 |
+| swap | Layout rows per capture | 107.8 | 109.8 | 109.4 | 96.5 |
+
+- The rest windows lose the accent layout: no window reaches 24 rows (faithful windows reach 24 in 18 and 19 of 28). The tool's per-window verdict is
+  `unresolved:overlap` for every window (`full-swap-report.md`): the result is the pooled count over 7 windows of 2 jobs, as for draw-nolayout.
+- Swap windows: 96.5 against 107.8 and 109.8 rows per capture, median 13 against 14; all 8 windows unresolved:overlap, so this is not a resolved win.
+- Hero exit and pixel numbers: NOT DELIVERED here (task accent-nolayout-measure; the lane records no Layout events per scroll frame).
+
+## Limits
+- The CI Simulator is not the phone; 2 jobs, 4 passes; the A/A faithful slots differ by about 8 rows per capture in the rest windows.
+- The text jump is the look change; the user judges it. draw-nolayout keeps the glide.
+- The pushed commit wrote `[data-fw-draw^='nolayout']`; the later commit writes `:is()` of the two values (same elements; the hero.exit
+  cascade test does not parse `^=`).
