@@ -18136,7 +18136,8 @@
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-first-coverage.md"
    ],
-   "title": "hero-probe-original review follow-up: run 39926829451 is CLEAN only by open@1 sampling jitter (width 640: original 0/5, flag 0/5 -> origEmpty; 641: faithful 0/5 vs original 1/5). A coverage model for bucket 1 in Lean: from the frame cadence (17 ms) and the bucket width, the probability that a pass samples open@1, and from the pass count the chance an arm samples it in none of n passes; judge open@1 coverage by that model (a verdict that does not flip when the original lands one more sample), theorems + golden, JS twin checked; re-reduce hero:scene-pause raw of 39926829451 and 39557718020 offline and report; then the ledger row hero.scenePause can move (lead)."
+   "title": "hero-probe-original review follow-up: run 39926829451 is CLEAN only by open@1 sampling jitter (width 640: original 0/5, flag 0/5 -> origEmpty; 641: faithful 0/5 vs original 1/5). A coverage model for bucket 1 in Lean: from the frame cadence (17 ms) and the bucket width, the probability that a pass samples open@1, and from the pass count the chance an arm samples it in none of n passes; judge open@1 coverage by that model (a verdict that does not flip when the original lands one more sample), theorems + golden, JS twin checked; re-reduce hero:scene-pause raw of 39926829451 and 39557718020 offline and report; then the ledger row hero.scenePause can move (lead).",
+   "evidence": "be1e3f5"
   },
   {
    "devices": [
