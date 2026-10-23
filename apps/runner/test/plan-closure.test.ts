@@ -107,15 +107,18 @@ describe.skipIf(bins.length === 0)("fwcore console.landScope agrees with the gol
   });
 });
 
-describe("plan.md time table (scripts/plan-time.mjs, Lean timeTable)", () => {
-  const planTime = async () => (await import(pathToFileURL(join(root, "scripts/plan-time.mjs")).href)) as {
-    timeTable: (b: number[], a: number[]) => string; render: (root: string) => string; DOC: string };
+describe("plan.md time table (ci-paths --plan-time, Lean timeTable)", () => {
+  const planTime = async () => (await import(pathToFileURL(join(root, "scripts/ci-paths.mjs")).href)) as {
+    timeTable: (b: number[], a: number[]) => string; planTimeRender: (doc: string) => string;
+    planTimeSamples: (doc: string) => { durMs: number; closure: boolean }[]; PLAN_DOC: string };
   it.each(timeRows.map((r, i) => [i, r]))("time vector %i", async (_i, r) => {
     expect((await planTime()).timeTable(r.before, r.after)).toBe(r.text);
   });
-  it("the committed table is generated from the committed samples", async () => {
+  it("the committed table is generated from the samples committed with it", async () => {
     const pt = await planTime();
-    expect(readFileSync(join(root, pt.DOC), "utf8")).toBe(pt.render(root));
+    const doc = readFileSync(join(root, pt.PLAN_DOC), "utf8");
+    expect(pt.planTimeSamples(doc).length).toBeGreaterThan(0);
+    expect(doc).toBe(pt.planTimeRender(doc));
   });
 });
 

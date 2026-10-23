@@ -32,6 +32,7 @@
 // `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
 // guard skipped.
 // Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -1105,9 +1106,95 @@ export function run(root, write) {
   return { problems, wrote };
 }
 
+// ---- plan.md time table (task writes-closure-doc-touchups) -------------------------------------------------------------
+export const CLOSURE_COMMIT = '9a09d8066';
+export const PLAN_DOC = 'docs/team/tools/plan.md';
+const TIME_BEGIN = '<!-- plan-time begin: node scripts/ci-paths.mjs --plan-time -->';
+const TIME_END = '<!-- plan-time end -->';
+
+const ord = (xs, rank) => (rank === 0 ? 0 : [...xs].sort((a, b) => a - b)[rank - 1]);
+export const p50 = (xs) => ord(xs, Math.floor((xs.length + 1) / 2));
+export const p90 = (xs) => ord(xs, Math.floor((9 * xs.length + 9) / 10));
+const maxL = (xs) => xs.reduce((a, b) => Math.max(a, b), 0);
+const timeRow = (label, xs) => `| ${label} | ${xs.length} | ${p50(xs)} ms | ${p90(xs)} ms | ${maxL(xs)} ms |\n`;
+
+/** Lean `Fw.Plan.WritesClosure.timeTable`, replayed by apps/runner/test/plan-closure.test.ts. */
+export function timeTable(before, after) {
+  const b = before.slice(Math.max(0, before.length - 30));
+  return '| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n' + timeRow(`last ${b.length} runs before the closure check`, b) +
+    timeRow('every run with it', after) + `\nINFERRED: the closure check adds about ${p50(after) - p50(b)} ms to a sync (p50 with it minus p50 before).\n`;
+}
+
+const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+export function planTimeBlock(samples) {
+  const dur = (closure) => samples.filter((s) => s.closure === closure).map((s) => s.durMs);
+  const span = samples.length ? `${day(samples[0].startMs)} to ${day(samples.at(-1).startMs)}` : 'none';
+  return `${TIME_BEGIN}\nMEASURED (the samples below, ${span}: every exit-0 \`plan sync\` span of the tool \`fw\` in the main ` +
+    `checkout's\n\`.fw-console/timings.jsonl\`, any load; a run is "with it" when its commit contains ${CLOSURE_COMMIT}):\n\n` +
+    `${timeTable(dur(false), dur(true))}\n<details><summary>Samples (node scripts/ci-paths.mjs --plan-time --refresh &lt;timings.jsonl&gt;)</summary>\n\n` +
+    '```jsonl\n' + samples.map((s) => JSON.stringify(s) + '\n').join('') + '```\n\n</details>\n' + TIME_END;
+}
+
+function timeSpan(doc) {
+  const i = doc.indexOf(TIME_BEGIN), j = doc.indexOf(TIME_END);
+  if (i < 0 || j < i) throw new Error(`${PLAN_DOC}: no ${TIME_BEGIN} ... ${TIME_END} block`);
+  return [i, j + TIME_END.length];
+}
+
+export function planTimeSamples(doc) {
+  const [i, j] = timeSpan(doc);
+  const m = doc.slice(i, j).match(/```jsonl\n([\s\S]*?)```/);
+  return m ? m[1].split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
+}
+
+export function planTimeRender(doc, samples = planTimeSamples(doc)) {
+  const [i, j] = timeSpan(doc);
+  return doc.slice(0, i) + planTimeBlock(samples) + doc.slice(j);
+}
+
+function hasClosure(root, commit) {
+  try { execFileSync('git', ['merge-base', '--is-ancestor', CLOSURE_COMMIT, commit], { cwd: root, stdio: 'ignore' }); return true; }
+  catch (e) { return e.status === 1 ? false : null; }
+}
+
+export function planTimeRefresh(root, timingsFile) {
+  const spans = readFileSync(timingsFile, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
+    .filter((s) => s.tool === 'fw' && s.step === 'plan sync' && s.exit === 0 && s.host === 'local' && typeof s.commit === 'string')
+    .sort((a, b) => a.startMs - b.startMs);
+  const known = new Map();
+  const out = [];
+  for (const s of spans) {
+    if (!known.has(s.commit)) known.set(s.commit, hasClosure(root, s.commit));
+    const closure = known.get(s.commit);
+    if (closure !== null) out.push({ commit: s.commit, startMs: s.startMs, durMs: s.durMs, load: s.load, closure });
+  }
+  return { samples: out, dropped: spans.length - out.length };
+}
+
+function planTimeMain(root, args) {
+  const file = join(root, PLAN_DOC);
+  const doc = readFileSync(file, 'utf8');
+  const r = args.indexOf('--refresh');
+  let samples = planTimeSamples(doc);
+  if (r >= 0) {
+    const got = planTimeRefresh(root, args[r + 1]);
+    samples = got.samples;
+    console.log(`ci-paths --plan-time: ${samples.length} samples, ${got.dropped} dropped (commit not in this repo)`);
+  }
+  const next = planTimeRender(doc, samples);
+  if (args.includes('--check')) {
+    console.log(next === doc ? `ci-paths --plan-time: ${PLAN_DOC} is up to date` : `ci-paths --plan-time: ${PLAN_DOC} is stale (node scripts/ci-paths.mjs --plan-time)`);
+    process.exit(next === doc ? 0 : 1);
+  }
+  writeFileSync(file, next);
+  console.log(`ci-paths --plan-time: ${PLAN_DOC} written`);
+}
+
 function main() {
   const i = process.argv.indexOf('--root');
   const root = i >= 0 ? process.argv[i + 1] : join(dirname(new URL(import.meta.url).pathname), '..');
+  if (process.argv.includes('--plan-time')) return planTimeMain(root, process.argv.slice(2));
   const write = process.argv.includes('--write');
   const { problems, wrote } = run(root, write);
   if (write) {
