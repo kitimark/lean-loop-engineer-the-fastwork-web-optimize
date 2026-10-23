@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LOCAL_TESTS, binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
+import { LOCAL_GATES, LOCAL_TESTS, binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
 
 const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
 
@@ -263,7 +263,9 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
   it("every PACKAGE_EXTRA_READS entry is exercised: it matches a tracked file or is a deliberate directory", () => {
     const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
     // the fwcore binary is a build output, never tracked
-    for (const c of candidateChecks(root)) for (const g of c.reads.filter((x) => x !== FWCORE_BIN)) expect(tracked.some((f) => inScope([g], f)), `${c.id}: ${g}`).toBe(true);
+    // the workflow lint also reads `.yaml` workflow files, which GitHub accepts; none is tracked today, and a future one must be linted
+    const untrackedOk = [FWCORE_BIN, ".github/workflows/*.yaml"];
+    for (const c of candidateChecks(root)) for (const g of c.reads.filter((x) => !untrackedOk.includes(x))) expect(tracked.some((f) => inScope([g], f)), `${c.id}: ${g}`).toBe(true);
   });
 });
 
@@ -292,7 +294,7 @@ describe("premise land.readsOnly: the key over the declared inputs (dynamic)", (
   it("the fixture holds install, check.sh and three package tests; a workspace dependency is declared", () => {
     const fx = fixture();
     try {
-      expect(fx.checks.map((c) => c.id)).toEqual(["install", "check.sh", "apps/runner", "packages/contracts", "packages/lone", ...LOCAL_TESTS.map((t) => t.id), READS_SCAN_ID]);
+      expect(fx.checks.map((c) => c.id)).toEqual(["install", "check.sh", "apps/runner", "packages/contracts", "packages/lone", ...LOCAL_GATES.map((t) => t.id), READS_SCAN_ID]);
       expect(fx.checks.find((c) => c.id === "apps/runner")!.reads).toContain("packages/contracts/**");
     } finally { fx.done(); }
   });
