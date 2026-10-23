@@ -1,12 +1,11 @@
 # writes-closure-readsof-boundary
 
 - Branch: worktree-wf_8a2bc754-9d5-1 (worktree .claude/worktrees/wf_8a2bc754-9d5-1)
-- Work commit: 412e175f5; main 069aa37ce merged after it; dry land `VERDICT dry writes-closure-readsof-boundary`;
-  review gate `VERDICT review-ready writes-closure-readsof-boundary review`
+- Work commits: 412e175f5 (round 0), 381d14c68 (review round 1: inner `../` refused); main 06e5bd45e merged after it
 - CI runs: none (all checks local: check.sh, vitest, node tests)
-- Verified: check.sh green (axiom check 0 failing); @fw/runner 3181/3181 incl. tsc; @fw/contracts 11/11; ci-paths
-  56/56; `node scripts/ci-paths.mjs --check` and `--plan-time --check` ok; `fw plan lint` on main's graph: 0
-  writesClosure errors (1 unrelated error: polish-commit-failsafe trailerNoEvidence)
+- Verified at 381d14c68: check.sh green (axiom check 0 failing); @fw/runner 3195/3195 incl. tsc; @fw/contracts
+  11/11; ci-paths 56/56; `node scripts/ci-paths.mjs --check` and `--plan-time --check` ok; `fw plan lint` on main's
+  graph: 0 errors, no writesClosure line for this task
 - Open: none inside the graph row's writes.
 
 ## What changed
