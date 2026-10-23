@@ -3,7 +3,7 @@
 // finger swipe up at the end of the page opens the morph and a swipe down closes it. One xcodebuild start costs about 60 s on the CI
 // runner, so one long run (PushServer.swift) serves every push of a job. The deadlines and verdicts below are TS stand-ins of
 // Lean `Fw.Measure.TouchPush`, replayed against its golden in test/touch-push.test.mjs.
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findDriver, serve } from './throttle/driver.mjs';
@@ -74,13 +74,13 @@ export function logTail(file) {
 /**
  * In-page: counts the touches the page receives and ends the window itself: `window.__fwTouchStop` is set `tailMs` after the second
  * touchend (the swipe up and the swipe down), so the recorded window holds the fingers' time and not the driver's idle waits.
- * Install once per load, before the touches. Times are `Date.now()`, the clock the Simulator shares with the harness.
+ * Install once per load, before the touches. Times are `performance.timeOrigin + performance.now()` (epoch ms; `Date` is pinned by the harness), the clock the Simulator shares with the harness.
  */
 export const touchCountJs = (tailMs) => `(() => {
   const w = window.__fwTouch = { starts: 0, moves: 0, ends: 0, firstAt: null, lastEndAt: null };
-  addEventListener('touchstart', () => { if (w.starts++ === 0) w.firstAt = Date.now(); }, { capture: true, passive: true });
+  addEventListener('touchstart', () => { if (w.starts++ === 0) w.firstAt = performance.timeOrigin + performance.now(); }, { capture: true, passive: true });
   addEventListener('touchmove', () => { w.moves++; }, { capture: true, passive: true });
-  addEventListener('touchend', () => { w.lastEndAt = Date.now(); if (++w.ends === 2) setTimeout(() => { window.__fwTouchStop = true; }, ${tailMs}); }, { capture: true, passive: true });
+  addEventListener('touchend', () => { w.lastEndAt = performance.timeOrigin + performance.now(); if (++w.ends === 2) setTimeout(() => { window.__fwTouchStop = true; }, ${tailMs}); }, { capture: true, passive: true });
   return true;
 })()`;
 export const TOUCH_COUNT_JS = touchCountJs(TOUCH_BUDGET.tailMs);
@@ -103,10 +103,11 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   return { dir, run, next: 0 };
 }
 
-/** Ask the server to end and clean up. */
+/** Ask the server to end and clean up; `FW_TOUCH_KEEP_LOG=<file>` keeps the XCUITest log (its activity lines show every idle wait). */
 export async function stopServer(server) {
   try { writeFileSync(join(server.dir, 'stop'), ''); } catch { /* directory gone */ }
   await Promise.race([server.run.exited, sleep(20000)]);
+  if (process.env.FW_TOUCH_KEEP_LOG) { try { copyFileSync(server.run.logFile, process.env.FW_TOUCH_KEEP_LOG); } catch { /* no log */ } }
   rmSync(server.dir, { recursive: true, force: true });
 }
 
