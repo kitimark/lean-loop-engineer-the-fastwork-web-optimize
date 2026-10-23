@@ -1,13 +1,14 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, openSync, existsSync } from 'node:fs';
+import { createServer } from 'node:http';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents } from './profile.mjs';
+import { parseProfile, replayEvents, keep, userAgent } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 import { pngRegionHash } from './png-region.mjs';
 
@@ -34,6 +35,101 @@ const SEARCH = args.search && args.search !== true ? args.search : '';
 const TARGET = args.target ?? 'original';
 const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scrollTop' : 'scrollY';
 const srv = await startServer(ROOT);
+const REPRO = process.env.FW_REPRO ? await startRepro(process.env.FW_REPRO) : null;
+if (process.env.FW_STOCK) await stockRun(process.env.FW_STOCK);
+
+/** Serve profile.repro[key] at `/` and the site's latin text face at `/font.woff2`; returns the page URL. */
+async function startRepro(key) {
+  const html = profile.repro?.[key];
+  if (typeof html !== 'string') { console.error(`profile ${profile.id}: no repro page "${key}"`); process.exit(2); }
+  const font = ['fonts/google-sans-latin-normal.BbZhqv4U.woff2', '_app/immutable/assets/google-sans-latin-normal.BbZhqv4U.woff2']
+    .map((f) => `${ROOT}/${f}`).find((f) => existsSync(f));
+  const s = createServer((req, res) => {
+    if (req.url === '/font.woff2' && font) { const b = readFileSync(font); res.writeHead(200, { 'content-type': 'font/woff2', 'content-length': b.length }).end(b); return; }
+    if (req.url === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(html); return; }
+    res.writeHead(404).end();
+  });
+  await new Promise((r) => s.listen(0, '127.0.0.1', r));
+  console.error(`FW_REPRO ${key} font ${font ?? 'none'}`);
+  return `http://127.0.0.1:${s.address().port}/`;
+}
+
+/** The binary of Chrome for Testing <version> for this machine, downloaded once per container into /tmp/cft. */
+function cftChrome(version) {
+  const plat = process.arch === 'arm64' ? 'linux-arm64' : 'linux64';
+  const dir = `/tmp/cft/${version}`;
+  const exe = `${dir}/chrome-${plat}/chrome`;
+  if (existsSync(exe)) return exe;
+  mkdirSync(dir, { recursive: true });
+  const url = `https://storage.googleapis.com/chrome-for-testing-public/${version}/${plat}/chrome-${plat}.zip`;
+  const get = spawnSync('curl', ['-fsSL', '--retry', '5', '--retry-all-errors', '-o', `${dir}.zip`, url], { stdio: ['ignore', 'inherit', 'inherit'] });
+  if (get.status !== 0) { console.error(`FW_STOCK_FETCH_FAILED ${url}`); process.exit(3); }
+  console.error(`FW_STOCK_ZIP ${url} sha256 ${createHash('sha256').update(readFileSync(`${dir}.zip`)).digest('hex')}`);
+  if (spawnSync('unzip', ['-q', `${dir}.zip`, '-d', dir], { stdio: 'inherit' }).status !== 0) process.exit(3);
+  return exe;
+}
+
+/** Load the repro page or the target once in a browser started without the harness, then exit 0 (alive) or 76 (renderer crash). */
+async function stockRun(spec) {
+  const exe = spec === 'shell' ? process.env.FW_CHROME : spec.startsWith('cft:') ? cftChrome(spec.slice(4)) : null;
+  if (!exe) { console.error(`FW_STOCK must be cft:<version> or shell, got ${spec}`); process.exit(2); }
+  const url = REPRO ?? `http://127.0.0.1:${srv.port}/${SEARCH}`;
+  const { width, height } = profile.viewport;
+  const log = `/tmp/stock-${process.pid}.log`;
+  const argv = [...(spec === 'shell' ? [] : ['--headless']), '--remote-debugging-port=9222', '--no-sandbox', '--no-first-run',
+    `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-stock'}`, `--window-size=${width},${height}`,
+    '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1', ...(process.env.FW_STOCK_EXTRA ? process.env.FW_STOCK_EXTRA.split(' ') : []), 'about:blank'];
+  const fd = openSync(log, 'w');
+  const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd] });
+  process.on('exit', () => { try { ch.kill('SIGKILL'); } catch {} });
+  let ver = null;
+  for (let i = 0; i < 300 && !ver; i++) { try { ver = await (await fetch('http://127.0.0.1:9222/json/version')).json(); } catch { await sleep(100); } }
+  if (!ver) { console.error(`FW_STOCK_NO_BROWSER ${spec}\n${readFileSync(log, 'utf8').slice(-3000)}`); process.exit(4); }
+  console.error(`FW_STOCK ${spec} ${ver.Browser} url ${REPRO ? `repro ${process.env.FW_REPRO}` : `${TARGET} ${SEARCH}`} argv ${argv.filter((a) => !a.startsWith('--user-data-dir')).join(' ')}`);
+  const br = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222', defaultViewport: null, protocolTimeout: 60000 });
+  const bsess = await br.target().createCDPSession();
+  let crashSeen = false;
+  const crashed = async (why) => {
+    if (crashSeen) return;
+    crashSeen = true;
+    console.error(`FW_RENDERER_CRASH: ${why} (${spec}, ${ver.Browser})`);
+    let text = '';
+    for (let i = 0; i < 20; i++) { await sleep(250); text = readFileSync(log, 'utf8'); if (/\[end of stack trace\]/.test(text)) break; }
+    const at = text.indexOf('Received signal');
+    console.error('stock browser log, signal block:\n' + (at >= 0 ? text.slice(at, at + 12000) : text.slice(-3000)));
+    process.exit(76);
+  };
+  bsess.on('Target.targetCrashed', (e) => crashed(`Target.targetCrashed status ${e.status} errorCode ${e.errorCode}`));
+  await bsess.send('Target.setDiscoverTargets', { discover: true });
+  const { targetId: tid } = await bsess.send('Target.createTarget', { url: 'about:blank' });
+  const pg = await (await br.waitForTarget((t) => t._targetId === tid)).page();
+  const cs = await pg.createCDPSession();
+  cs.on('Inspector.targetCrashed', () => crashed('Inspector.targetCrashed'));
+  await cs.send('Inspector.enable').catch(() => {});
+  await cs.send('Page.enable');
+  if (profile.css) await cs.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
+  const loaded = new Promise((r) => cs.once('Page.loadEventFired', r));
+  await cs.send('Page.navigate', { url });
+  await Promise.race([loaded, sleep(20000)]);
+  const evs = async (expression) => (await cs.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
+  try {
+    for (let i = 1; i <= 20; i++) { await evs(`window.scrollTo(0, ${i / 20} * (document.documentElement.scrollHeight - innerHeight))`); await sleep(100); }
+    await evs('window.scrollTo(0, 0)');
+    await sleep(3000);
+    const facts = await evs(`(() => { const h = document.getElementById('future-heading') ?? document.querySelector('h2'); const st = h ? getComputedStyle(h) : null;
+      return { innerWidth, ua: navigator.userAgent, fonts: document.fonts.status, title: h ? h.textContent.trim().slice(0, 60) : null,
+        textWrapStyle: st ? st.textWrapStyle : null, textWrapMode: st ? st.textWrapMode : null, titleHeight: h ? h.getBoundingClientRect().height : null }; })()`);
+    console.error(`FW_STOCK_RESULT ${JSON.stringify({ spec, browser: ver.Browser, ...facts })}`);
+  } catch (e) {
+    await sleep(6000);
+    console.error(`FW_STOCK_ERROR ${String(e).slice(0, 300)}`);
+    process.exit(1);
+  }
+  console.error(`FW_LOAD_OK: stock ${spec} ${ver.Browser} alive 5 s after load`);
+  ch.kill('SIGKILL');
+  process.exit(0);
+}
+
 const CHROME_ARGS = [
   '--remote-debugging-port=9222', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-profile'}`,
   '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw',
@@ -48,8 +144,7 @@ const CHROME_ARGS = [
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
 ];
-const DROP = [...(process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean), ...(profile.dropFlags ?? [])];
-for (let i = CHROME_ARGS.length - 1; i >= 0; i--) if (DROP.some((d) => CHROME_ARGS[i].startsWith(d))) CHROME_ARGS.splice(i, 1);
+CHROME_ARGS.splice(0, CHROME_ARGS.length, ...keep(CHROME_ARGS, profile.dropFlags ?? []));
 const chrome = spawn(process.env.FW_CHROME, CHROME_ARGS, { stdio: ['ignore', DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'w'), DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'a')] });
 process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch {} });
 for (let i = 0; i < 200; i++) { try { await fetch('http://127.0.0.1:9222/json/version'); break; } catch { await sleep(50); } }
@@ -93,9 +188,10 @@ if (process.env.FW_LOAD_TRACE) {
 await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable');
 await c.send('Emulation.setDeviceMetricsOverride', { width: profile.viewport.width, height: profile.viewport.height, deviceScaleFactor: profile.viewport.dpr, mobile: profile.viewport.mobile, screenWidth: profile.viewport.width, screenHeight: profile.viewport.height });
 if (!process.env.FW_NOTOUCH) await c.send('Emulation.setTouchEmulationEnabled', { enabled: profile.viewport.touch, maxTouchPoints: 5 });
-const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean));if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
+const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean));
+if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
 if (!SKIP.has('locale')) await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
-if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
+if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: userAgent(profile.viewport.mobile), acceptLanguage: profile.locale });
 const shim = readFileSync('/driver/clock-shim.js', 'utf8');
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
@@ -164,7 +260,7 @@ async function frame(vtMs, pre = '', mid = null, shot = false) {
   return { out, hasDamage: !!bf.hasDamage, screenshot: bf.screenshotData ?? null };
 }
 
-const navRes = await c.send('Page.navigate', { url: `http://127.0.0.1:${srv.port}/${SEARCH}` });
+const navRes = await c.send('Page.navigate', { url: REPRO ?? `http://127.0.0.1:${srv.port}/${SEARCH}` });
 if (navRes.errorText) throw new Error('navigation failed: ' + navRes.errorText);
 let quiet = 0, loadFrames = 0;
 for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; loadFrames++) {
