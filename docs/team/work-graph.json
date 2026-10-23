@@ -17375,7 +17375,8 @@
     "lean/Fw/Obs/Golden.lean",
     "lean/Fw/Wire/Obs.lean"
    ],
-   "title": "Found 2026-10-23: fw watch opened ci.slow for land@ and lean@ ci/land-people-o-preview-translate-87a29c2 'in_progress for 22 min' and again at 26 min, while gh run list showed every run on that branch completed (lean 39869394794, land 39869394814 failed at about 23:10Z). The watch's CI state is stale by 20+ min. Find where watch-collect gets run states (cache, gh-budget charged reads, list cadence) with forensics before naming the cause; fix so a run that completed closes its ci.slow within one watch pass (or the alert names the age of its data); state the freshness rule in Lean (Fw.Obs.Health / GhStatus) with goldens, within the gh rate-limit rules (list not view, poll >= 120 s)."
+   "title": "Found 2026-10-23: fw watch opened ci.slow for land@ and lean@ ci/land-people-o-preview-translate-87a29c2 'in_progress for 22 min' and again at 26 min, while gh run list showed every run on that branch completed (lean 39869394794, land 39869394814 failed at about 23:10Z). The watch's CI state is stale by 20+ min. Find where watch-collect gets run states (cache, gh-budget charged reads, list cadence) with forensics before naming the cause; fix so a run that completed closes its ci.slow within one watch pass (or the alert names the age of its data); state the freshness rule in Lean (Fw.Obs.Health / GhStatus) with goldens, within the gh rate-limit rules (list not view, poll >= 120 s).",
+   "evidence": "940a1cb"
   },
   {
    "devices": [

@@ -17,7 +17,7 @@ number is a non-negative integer (a fraction is refused, so the caller floors `d
 
 | op | request | reply |
 |---|---|---|
-| `obs.health` | `now`, `params`?, `agents`? [Agent], `lead`? Lead, `system` System (`gh`? {actions, pages, webhooks (githubstatus state names), prevDegraded, incidents [{name, status, impact, createdAt, updatedAt, body, actions}]}), `prevAt`?, `critical`? [string] | `agents` [{id, state, alerts:[code]}] (input order), `system` {alerts:[code]} (code order), `counts` {active, idle, parked, stalled, gone, done}, `alerts` [{code, subject, detail, critical}] (critical first, then by code, subject, detail; no duplicates) |
+| `obs.health` | `now`, `params`?, `agents`? [Agent], `lead`? Lead, `system` System (`gh`? {actions, pages, webhooks (githubstatus state names), prevDegraded, incidents [{name, status, impact, createdAt, updatedAt, body, actions}], ciAgeMs? (age in ms of the run list in `ci`; 0 = read this pass; above `Fw.Obs.ciFreshMs` ci.slow details end with the age)}), `prevAt`?, `critical`? [string] | `agents` [{id, state, alerts:[code]}] (input order), `system` {alerts:[code]} (code order), `counts` {active, idle, parked, stalled, gone, done}, `alerts` [{code, subject, detail, critical}] (critical first, then by code, subject, detail; no duplicates) |
 | `obs.next` | `now`, `params`?, `agents`? [AgentFacts] | `agents` [{id, actions:[{action, …args}]}] (input order; `Fw.Obs.Next.next`) |
 
 Shapes. Params (every field optional, defaults in brackets): `{idleMin [10], stallMin [20], toolHangMin [30]` (minutes),
@@ -269,13 +269,14 @@ def ghIncidentOf (j : Json) : Except String Fw.Obs.GhIncident := do
 /-- The GitHub reading as JSON. -/
 def ghJson (g : Fw.Obs.Gh) : Json :=
   Json.mkObj [("actions", .str g.actions.name), ("pages", .str g.pages.name), ("webhooks", .str g.webhooks.name),
-    ("prevDegraded", .bool g.prevDegraded), ("incidents", .arr (g.incidents.toArray.map ghIncidentJson))]
+    ("prevDegraded", .bool g.prevDegraded), ("incidents", .arr (g.incidents.toArray.map ghIncidentJson)),
+    ("ciAgeMs", toJson g.ciAgeMs)]
 
 /-- Decode the GitHub reading (every field optional; an unreadable state is `unknown`). -/
 def ghOf (j : Json) : Except String Fw.Obs.Gh := do
   pure { actions := .ofName (← Fw.Wire.Ops.strD j "actions" "unknown"), pages := .ofName (← Fw.Wire.Ops.strD j "pages" "unknown"),
          webhooks := .ofName (← Fw.Wire.Ops.strD j "webhooks" "unknown"), prevDegraded := ← boolD j "prevDegraded" false,
-         incidents := ← (← arrD j "incidents").mapM ghIncidentOf }
+         incidents := ← (← arrD j "incidents").mapM ghIncidentOf, ciAgeMs := ← natD j "ciAgeMs" 0 }
 
 /-- The load facts as JSON (every field written). -/
 def loadJson (l : Fw.Obs.Health.LoadInfo) : Json :=
@@ -501,13 +502,14 @@ theorem ghIncidentOf_ghIncidentJson (i : Fw.Obs.GhIncident) : ghIncidentOf (ghIn
 
 /-- The GitHub reading round-trips. -/
 theorem ghOf_ghJson (g : Fw.Obs.Gh) : ghOf (ghJson g) = .ok g := by
-  obtain ⟨a, pg, w, pv, inc⟩ := g
-  have hi := arrD_arr (ghJson ⟨a, pg, w, pv, inc⟩) "incidents" _ rfl
-  have ha : Fw.Wire.Ops.strD (ghJson ⟨a, pg, w, pv, inc⟩) "actions" "unknown" = .ok a.name := rfl
-  have hp : Fw.Wire.Ops.strD (ghJson ⟨a, pg, w, pv, inc⟩) "pages" "unknown" = .ok pg.name := rfl
-  have hw : Fw.Wire.Ops.strD (ghJson ⟨a, pg, w, pv, inc⟩) "webhooks" "unknown" = .ok w.name := rfl
-  have hv : boolD (ghJson ⟨a, pg, w, pv, inc⟩) "prevDegraded" false = .ok pv := rfl
-  simp only [ghOf, ha, hp, hw, hv, hi, Array.toList_map, ok_bind, Fw.Obs.GhComp.ofName_name,
+  obtain ⟨a, pg, w, pv, inc, ca⟩ := g
+  have hi := arrD_arr (ghJson ⟨a, pg, w, pv, inc, ca⟩) "incidents" _ rfl
+  have hc : natD (ghJson ⟨a, pg, w, pv, inc, ca⟩) "ciAgeMs" 0 = .ok ca := rfl
+  have ha : Fw.Wire.Ops.strD (ghJson ⟨a, pg, w, pv, inc, ca⟩) "actions" "unknown" = .ok a.name := rfl
+  have hp : Fw.Wire.Ops.strD (ghJson ⟨a, pg, w, pv, inc, ca⟩) "pages" "unknown" = .ok pg.name := rfl
+  have hw : Fw.Wire.Ops.strD (ghJson ⟨a, pg, w, pv, inc, ca⟩) "webhooks" "unknown" = .ok w.name := rfl
+  have hv : boolD (ghJson ⟨a, pg, w, pv, inc, ca⟩) "prevDegraded" false = .ok pv := rfl
+  simp only [ghOf, ha, hp, hw, hv, hc, hi, Array.toList_map, ok_bind, Fw.Obs.GhComp.ofName_name,
     mapM_rt ghIncidentJson ghIncidentOf ghIncidentOf_ghIncidentJson]
   rfl
 
