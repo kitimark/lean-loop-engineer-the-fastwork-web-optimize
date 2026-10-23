@@ -18544,6 +18544,21 @@
     "docs/team/handoffs/writes-closure-doc-touchups.md"
    ],
    "title": "writes-closure-polish (landed 2d9d55153) review follow-ups: (1) docs/team/tools/plan.md time table: n=2, p50 642 ms, max 811 ms, 'about 0.4-0.6 s'; (2) the claim that JS matches and Lean ghMatches agree on rowGlob-valid globs: add golden vectors comparing matches with ghMatches over rowGlob-valid globs (**, ***, **/ and prefixes) and replay them, or mark it INFERRED; (3) normRead keeps '..', so a '**' row glob also matches 'lean/../x': refuse '..' segments in reads or state the limit."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-setup-lean-slow",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".github/actions/setup-lean/**",
+    "research/notes/2026/10-2x-ci-setup-lean-slow.md",
+    "docs/team/handoffs/ci-setup-lean-slow.md"
+   ],
+   "title": "fw watch timing.slow on land (playwright-webkit) and land (chromium) 'Run ./.github/actions/setup-lean' (2026-10-23): 36-48 s for most lands, 68-88 s for the last lands (runs 39965489939, 39966639416; earlier 72 s in 39955108083), after new Lean modules landed (SwapWindow, Timing changes). Find from the step logs whether the extra time is cache restore (size, miss, partial key) or building changed modules; compare a fast and a slow run step by step. If the cause is a cache key or what is cached, fix setup-lean so a land leg restores the built modules of main; state the expected time per leg. If the change touches workflow trigger inputs, list it in open."
   }
  ],
  "deadline": {
