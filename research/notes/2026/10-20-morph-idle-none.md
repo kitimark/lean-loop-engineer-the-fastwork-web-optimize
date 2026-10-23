@@ -49,11 +49,11 @@ LayerTree reads in the zone (pass 0 / pass 1).
   deterministic in both passes.
 - Paint and Composite per frame: no win shown. The flag arm reads higher, but the runner's frame rate differed (frames in the zone: base 78 and
   36, flag 29 and 28) and one arm varies up to 3x between its own two passes (base idle composite 15875 vs 48705), so the sign of the delta is
-  not resolvable from these runs. Verdict: layers down, per-frame Paint and Composite unresolved (a no-win on cost, not a loss).
+  not resolvable from these runs. Verdict: layers down, per-frame Paint and Composite unresolved (no win shown; the flag reads higher in 11 of 12 Paint/Composite cells, confounded by frame rate, so a loss is not ruled out).
 - Why (INFERRED): the Lean model `tracks_layers_drop` counts layers only; it proves 5 layers -> 1 with the tracks not animated and says nothing
-  about per-frame cost. WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
+  about per-frame cost. Unsourced guess: WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
   not the 16 layers freed at rest.
-- Run 39903974246 shows failed: `error: forced exit: ... PipeWrap 2, Timeout 2` after `wrote r1-lag.json`; the artifact is complete.
+- Run 39903974246 shows failed: the Determinism sessions step hit its 35-minute timeout (2106 s, after two 120 s inspector retries) 4 s after the CLI wrote r1-lag.json and exited 0. align, merge and lag-report were skipped. The uploaded artifact holds both passes (cost ok, failed []).
 - Reduction: scratch script over `webkit-sim-r1/r1-lag.json` (costs are [zone, paintUs, compUs]; snaps are [zone, layers]).
 
 ## Costs and limits

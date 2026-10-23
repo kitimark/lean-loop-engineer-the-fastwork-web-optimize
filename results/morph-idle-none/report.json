@@ -9,7 +9,7 @@
   "webkitSimBase": "39897814980",
   "webkitSimFlag": "39897807511",
   "webkitCostBase": "39903977820 (success)",
-  "webkitCostFlag": "39903974246 (job marked failed by a forced-exit error after r1-lag.json was written and uploaded; data complete)"
+  "webkitCostFlag": "39903974246 (Run 39903974246 shows failed: the Determinism sessions step hit its 35-minute timeout (2106 s, after two 120 s inspector retries) 4 s after the CLI wrote r1-lag.json and exited 0. align, merge and lag-report were skipped. The uploaded artifact holds both passes (cost ok, failed []).)"
  },
  "chromium": {
   "profile": "swipe-v1",
