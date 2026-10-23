@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { slotWork } from "../src/timing.ts";
+import { checksWork, HEAVY_CHECKS, slotWork, spanWork } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -25,6 +25,22 @@ describe("span slot -> sample work against Fw.Obs.Timing.slotWork (golden/obs/ti
       expect(s!.durMs).toBe(g.span.durMs);
     });
   }
+  it("has polish commit rows with a checks member, light and heavy, and one with both checks and slot", () => {
+    const withChecks = golden.filter((g) => g.span.checks !== undefined);
+    expect(withChecks.map((g) => g.work.checks)).toEqual(expect.arrayContaining(["light", "lakeBuild", "lakeBuild+presetCheck"]));
+    expect(golden.some((g) => g.span.checks !== undefined && g.span.slot !== undefined)).toBe(true);
+    for (const g of withChecks) expect(g.span).toMatchObject({ tool: "fw", step: "polish commit" });
+  });
+  it("every heavy check kind appears in a golden class, in Lean order", () => {
+    const classes = golden.map((g) => g.work.checks).filter(Boolean).join("+").split("+");
+    for (const h of HEAVY_CHECKS) expect(classes).toContain(h);
+    expect(checksWork({ n: 3, kinds: [...HEAVY_CHECKS].reverse() })).toEqual({ work: { checks: HEAVY_CHECKS.join("+") } });
+  });
+  it("a checks member without a kinds array gives no checks dimension", () => {
+    expect([checksWork(undefined), checksWork(null), checksWork({ n: 2 }), checksWork({ kinds: "lakeBuild" })]).toEqual([{}, {}, {}, {}]);
+    expect(spanWork({ checks: { n: 2 } })).toEqual({});
+    expect(spanWork({ checks: { n: 0, kinds: [] }, slot: { width: 1, jobs: 9 } })).toEqual({ work: { checks: "light", width: "1" } });
+  });
   it("a slot member without an integer width gives no work dimensions", () => {
     expect([slotWork(undefined), slotWork(null), slotWork({ jobs: 30 }), slotWork({ width: "2" }), slotWork({ width: 1.5 }), slotWork({ width: -1 })])
       .toEqual([{}, {}, {}, {}, {}, {}]);

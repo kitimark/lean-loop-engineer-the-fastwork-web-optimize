@@ -13,7 +13,7 @@ import { collectSvcs, type Svc } from "./watch-svc.ts";
 import { foldFile, sweepCache } from "./watch-cache.ts";
 import { BG_TEXT, finishInfo, finishSignals, foldText, initFold, parseNotifications, waitingNote } from "./watch-fold.ts";
 import { parseWaits } from "./slot-queue.ts";
-import { slotWork } from "./timing.ts";
+import { spanWork } from "./timing.ts";
 export { parseNotifications, waitingNote };
 
 export interface SpoolEvent {
@@ -856,7 +856,7 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
     try {
       const o = JSON.parse(line);
       if (typeof o.tool !== "string" || typeof o.step !== "string" || !Number.isFinite(o.durMs) || o.durMs < 0 || (o.host !== "local" && o.host !== "ci")) continue;
-      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}), ...(Number.isInteger(o.exit) ? { exit: o.exit } : {}), ...(o.skipped === true ? { skipped: true as const } : {}), ...queueOf(o.queue), ...slotWork(o.slot) } });
+      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}), ...(Number.isInteger(o.exit) ? { exit: o.exit } : {}), ...(o.skipped === true ? { skipped: true as const } : {}), ...queueOf(o.queue), ...spanWork(o) } });
     } catch { /* partial line */ }
   }
   return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
