@@ -4,27 +4,37 @@ import { serveTree } from '../serve.mjs';
 import { bootstrapSource } from '../page.mjs';
 import { flattenRecords, markTimes, markTime, reduceSteps, COUNT_TYPES } from '../reduce.mjs';
 import { classify, acceptScrollIn, morphMilli } from './phase.mjs';
-import { DRIVES, ARMS } from './macreport.mjs';
+import { DRIVES, ARMS, acceptPull, splitPush, pushEventY } from './macreport.mjs';
 
 export const MAC_SCHEDULE = Object.freeze({ idle: 10, open: 60, close: 60, dy: 120 });
 export const SCROLL_IN = Object.freeze({ lead: 300, first: 3, gap: 2, settle: 2, maxWheels: 12, near: 8, stableTries: 20 });
+export const PULL = Object.freeze({ lead: 300, first: 3, gap: 2, slack: 4, step: -2, maxWheels: 12, stableTries: 20 });
+export const RUN_DRIVES = Object.freeze(DRIVES.filter((d) => d !== 'momentum'));
 export { DRIVES, ARMS };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const MAC_PAGE_JS = `(() => {
   const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
-  const S = window.__wkm = { k: 0, on: false, events: [], pending: [], seen: { down: false, up: false }, armed: null, at: [], waiters: [] };
+  const S = window.__wkm = { k: 0, on: false, events: [], pending: [], seen: { down: false, up: false }, armed: null, at: [], waiters: [], ys: [], scrolls: [], pullStep: 0, pulling: false };
   const morph = () => (nav ? Number(nav.style.getPropertyValue('--morph')) : null);
   addEventListener('wheel', (e) => {
     const d = e.deltaY > 0 ? 'down' : e.deltaY < 0 ? 'up' : null;
-    if (d && !S.seen[d] && (S.armed === null || S.armed === d)) { S.seen[d] = true; performance.mark('wk:' + d); }
-    S.pending.push({ f: S.k, dy: e.deltaY, trusted: e.isTrusted, cancelable: e.cancelable, y: Math.round(scrollY), ev: e });
+    let m = false;
+    if (d && !S.seen[d] && (S.armed === null || S.armed === d)) {
+      S.seen[d] = true; performance.mark('wk:' + d); m = true;
+      if (d === 'down' && S.pullStep) S.pulling = true;
+      if (d === 'up') S.pulling = false;
+    }
+    S.pending.push({ f: S.k, dy: e.deltaY, trusted: e.isTrusted, cancelable: e.cancelable, y: Math.round(scrollY), m, ev: e });
   }, { capture: true, passive: true });
+  addEventListener('scroll', () => { if (S.on) S.scrolls.push(S.k); }, { capture: true, passive: true });
   const tick = () => {
     if (!S.on) return;
-    performance.mark('wk:s' + S.k); S.k++;
+    performance.mark('wk:s' + S.k); const y0 = Math.round(scrollY); S.k++;
     for (const p of S.pending.splice(0)) { const { ev, ...rest } = p; S.events.push({ ...rest, prevented: ev.defaultPrevented }); }
+    if (S.pulling) scrollBy({ top: S.pullStep, behavior: 'instant' });
+    S.ys.push(S.pulling ? Math.round(scrollY) : y0);
     for (const w of S.waiters.splice(0)) { if (S.k >= w.k) { S.at.push({ label: w.label, f: S.k, morph: morph(), y: Math.round(scrollY) }); w.ok(); } else S.waiters.push(w); }
     requestAnimationFrame(tick);
   };
@@ -36,7 +46,7 @@ export const MAC_PAGE_JS = `(() => {
     await new Promise((r) => requestAnimationFrame(() => r()));
     performance.mark('wk:end'); S.on = false;
     for (const p of S.pending.splice(0)) { const { ev, ...rest } = p; S.events.push({ ...rest, prevented: ev.defaultPrevented }); }
-    return { frames: S.k, events: S.events, at: S.at, y: Math.round(scrollY) };
+    return { frames: S.k, events: S.events, ys: S.ys, scrolls: S.scrolls, at: S.at, y: Math.round(scrollY) };
   };
   return true;
 })()`;
@@ -89,7 +99,7 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
     if (a.arm === 'rewrite') await page.waitForFunction(() => !!(window.__fw && window.__fw.hydrated), null, { timeout: 30000 });
     await sleep(settleMs);
     const info = await page.evaluate(() => ({ maxY: Math.max(0, document.documentElement.scrollHeight - innerHeight), config: window.__fw?.configHash ?? null, mode: window.__fw?.mode ?? null }));
-    const startY = Math.max(0, info.maxY - (drive === 'scrollin' ? SCROLL_IN.lead : 0));
+    const startY = Math.max(0, info.maxY - (drive === 'scrollin' ? SCROLL_IN.lead : drive === 'pull' ? PULL.lead : 0));
     await page.evaluate(async (top) => {
       const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
       scrollTo({ top, behavior: 'instant' }); await raf(); await raf(); await raf();
@@ -112,10 +122,28 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
       }
       for (let i = 0, last = -1, now = await readY(); i < SCROLL_IN.stableTries && now !== last; i++) { last = now; await wait(SCROLL_IN.gap, 'stable'); now = await readY(); }
     }
-    await page.evaluate(([n, extra]) => window.__wkm.until(Math.max(n, window.__wkm.k + extra), 'idle'), [schedule.idle, drive === 'scrollin' ? SCROLL_IN.settle : 0]);
-    const pushY = await readY();
-    await page.evaluate(() => window.__wkm.arm('down'));
-    await push(schedule.dy);
+    let pushY;
+    if (drive === 'pull') {
+      await page.evaluate((step) => { window.__wkm.arm('none'); window.__wkm.pullStep = step; }, PULL.step);
+      await wait(PULL.first, 'lead');
+      for (; wheels < PULL.maxWheels; wheels++) {
+        const from = await readY();
+        const left = info.maxY - PULL.slack - from;
+        if (left <= 0) break;
+        await page.mouse.wheel(0, Math.min(schedule.dy, left));
+        let now = from;
+        for (let i = 0; i < PULL.stableTries && now === from; i++) { await wait(PULL.gap, 'moved'); now = await readY(); }
+      }
+      for (let i = 0, last = -1, now = await readY(); i < PULL.stableTries && now !== last; i++) { last = now; await wait(PULL.gap, 'stable'); now = await readY(); }
+      pushY = await readY();
+      await page.evaluate(() => window.__wkm.arm('down'));
+      await push(schedule.dy);
+    } else {
+      await page.evaluate(([n, extra]) => window.__wkm.until(Math.max(n, window.__wkm.k + extra), 'idle'), [schedule.idle, drive === 'scrollin' ? SCROLL_IN.settle : 0]);
+      pushY = await readY();
+      await page.evaluate(() => window.__wkm.arm('down'));
+      await push(schedule.dy);
+    }
     await wait(schedule.open, 'open');
     await page.evaluate(() => window.__wkm.arm('up'));
     await push(-schedule.dy);
@@ -124,7 +152,9 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
     const records = await tl.stop();
     const y = await readY();
     const rec = runRecord(records, fin.frames);
-    const out = drive === 'scrollin' ? { ...rec, outcome: acceptScrollIn(rec, startY, pushY, morphMilli(fin.at)).outcome } : rec;
+    const sp = splitPush(fin.events);
+    const out = drive === 'scrollin' ? { ...rec, outcome: acceptScrollIn(rec, startY, pushY, morphMilli(fin.at)).outcome }
+      : drive === 'pull' ? { ...rec, outcome: acceptPull(rec, startY, pushY, morphMilli(fin.at), info.maxY, pushEventY(fin.events), sp.push, fin.ys).outcome } : rec;
     return { info, fin, y, startY, pushY, wheels, ...out, records: records.length };
   } finally { await context.close().catch(() => {}); }
 }
@@ -146,12 +176,12 @@ export async function serveArms({ snapshotDir, siteDir, search = '' }) {
 
 /**
  * `reps` repeats; per repeat every arm x drive once, the order rotated per repeat. The result keeps one record per run, refused runs included.
- * @param {{webkit:object, snapshotDir:string, siteDir:string, search?:string, reps?:number, log?:Function, schedule?:object}} o
+ * @param {{webkit:object, snapshotDir:string, siteDir:string, search?:string, reps?:number, log?:Function, schedule?:object, drives?:readonly string[]}} o
  */
-export async function runMacMorph({ webkit, snapshotDir, siteDir, search = '', reps = 4, log = () => {}, schedule = MAC_SCHEDULE }) {
+export async function runMacMorph({ webkit, snapshotDir, siteDir, search = '', reps = 4, log = () => {}, schedule = MAC_SCHEDULE, drives = RUN_DRIVES }) {
   const served = await serveArms({ snapshotDir, siteDir, search });
   const browser = await webkit.launch();
-  const cells = served.arms.flatMap((a) => DRIVES.map((drive) => ({ ...a, drive })));
+  const cells = served.arms.flatMap((a) => drives.map((drive) => ({ ...a, drive })));
   const runs = [];
   const started = Date.now();
   try {
