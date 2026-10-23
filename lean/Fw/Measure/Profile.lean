@@ -1,6 +1,6 @@
 import Lean.Data.Json
 /-!
-# Profile wire format of the Chromium arm: `kind`, `css`, `dropFlags` and the user agent
+# Profile wire format of the Chromium arm: `kind`, `css`, `dropFlags`, the user agent and the lane's system fonts
 Twin: `packages/measure-chromium/src/profile.mjs`, checked against `packages/contracts/golden/measure/profile.jsonl`.
 -/
 namespace Fw.Measure.Profile
@@ -231,6 +231,48 @@ theorem cftPlatform_listed (os arch p : String) (h : cftPlatform os arch = some 
 
 theorem cftExe_in_archive : ∀ p ∈ cftPlatforms, (cftExe p).startsWith s!"chrome-{p}/" = true := by decide +kernel
 
+def fontPkg : String := "fonts-liberation"
+
+def fontVersion : String := "1:1.07.4-11"
+
+def fontDir : String := "/usr/share/fonts/truetype/liberation"
+
+def fontFamilies : List String := ["Liberation Mono", "Liberation Sans", "Liberation Serif"]
+
+def fontsConfLines : List String :=
+  ["<?xml version=\"1.0\"?>", "<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">", "<fontconfig>", s!"  <dir>{fontDir}</dir>",
+   "  <cachedir>/tmp/fontconfig-cache</cachedir>", "</fontconfig>"]
+
+def fontsConf : String := String.intercalate "\n" fontsConfLines ++ "\n"
+
+def fontsOk (found : List String) : Bool := fontFamilies.all (fun f => found.contains f)
+
+theorem fontsOk_nil : fontsOk [] = false := by decide
+theorem fontsOk_families : fontsOk fontFamilies = true := by decide
+
+theorem fontsOk_iff (found : List String) : fontsOk found = true ↔ ∀ f ∈ fontFamilies, f ∈ found := by
+  simp [fontsOk, List.all_eq_true]
+
+theorem fontsOk_missing (found : List String) (f : String) (hf : f ∈ fontFamilies) (hn : f ∉ found) : fontsOk found = false := by
+  cases h : fontsOk found
+  · rfl
+  · exact absurd ((fontsOk_iff found).1 h f hf) hn
+
+theorem fontsOk_mono (found extra : List String) (h : fontsOk found = true) : fontsOk (found ++ extra) = true :=
+  (fontsOk_iff _).2 fun f hf => List.mem_append_left _ ((fontsOk_iff found).1 h f hf)
+
+theorem fontsConf_dir : s!"  <dir>{fontDir}</dir>" ∈ fontsConfLines := by simp [fontsConfLines]
+
+theorem fontsConf_one_dir : (fontsConfLines.filter (fun l => l.startsWith "  <dir>")).length = 1 := by decide +kernel
+
+theorem fontDir_system : fontDir.startsWith "/usr/share/fonts/" = true := by decide +kernel
+
+theorem fontDir_not_snapshot : fontDir.startsWith "/snapshot" = false := by decide +kernel
+
+private def fontsCases : List (List String) :=
+  [[], fontFamilies, ["Liberation Sans"], ["Liberation Mono", "Liberation Sans", "Liberation Sans Narrow", "Liberation Serif"],
+   ["DejaVu Sans", "Liberation Mono", "Liberation Sans", "Liberation Serif"], ["Liberation Mono", "Liberation Serif"]]
+
 private def keepCases : List (List String × List String) :=
   let a := ["--remote-debugging-port=9222", "--no-sandbox", "--disable-gpu", "--user-data-dir=/tmp/p", "--enable-begin-frame-control",
     "--run-all-compositor-stages-before-draw", "--font-render-hinting=none", "--lang=en-US", "about:blank"]
@@ -256,6 +298,9 @@ private def kindCases : List (Option String) := [none, some "counts", some "prob
 def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("pinned", toJson pinned), ("ua", Json.mkObj [("mobile", userAgent true), ("desktop", userAgent false)]),
      ("dirs", Json.mkObj [("counts", Kind.counts.dir), ("probe", Kind.probe.dir)])]).compress] ++
+  [(Json.mkObj [("kind", "fonts"), ("pkg", fontPkg), ("version", fontVersion), ("dir", fontDir), ("families", toJson fontFamilies),
+     ("conf", fontsConf)]).compress] ++
+  (fontsCases.map fun found => (Json.mkObj [("kind", "fontsOk"), ("found", toJson found), ("ok", toJson (fontsOk found))]).compress) ++
   (kindCases.map fun k => (Json.mkObj [("kind", "parseKind"), ("in", match k with | some s => Json.str s | none => Json.null),
      ("out", match parseKind k with | some x => Json.str x.name | none => Json.null)]).compress) ++
   (dropCases.map fun (d : String) => (Json.mkObj [("kind", "dropOk"), ("drop", Json.str d), ("ok", toJson (dropOk d))]).compress) ++

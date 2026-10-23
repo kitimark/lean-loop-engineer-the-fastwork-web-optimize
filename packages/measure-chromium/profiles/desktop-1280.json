@@ -1,6 +1,6 @@
 {
   "id": "desktop-1280",
-  "about": "Desktop band, 1280x800, mouse, no touch, dpr 1. Workaround for the Chrome 156.0.8078.4 renderer crash (task chromium-desktop-crash): the page runs with text-wrap: wrap on every element, because text-wrap: balance on the people card title (applied only above 860 px) kills the renderer with SIGSEGV 0x84 in this build. Premise: line breaks of balanced and pretty text differ from the real page, so desktop counts here are counts of the page without text balancing; they are never compared with the phone or a mobile profile. Stock Chrome 156 to 158 crashes on the same title (task chrome-balance-repro), so this is a Chrome bug, not a harness effect. The user agent is the Linux desktop one (viewport.mobile false, Fw.Measure.Profile userAgent); the site does not branch on the user agent.",
+  "about": "Desktop band, 1280x800, mouse, no touch, dpr 1. The page runs as served: text-wrap: balance on the people card title (applied only above 860 px) is in force. The container has a system font (task counts-lane-fonts), so the layout never runs with no font at all, which is what crashed Chrome 156 on that title. The user agent is the Linux desktop one (viewport.mobile false, Fw.Measure.Profile userAgent); the site does not branch on the user agent. Counts taken before task counts-lane-fonts (runs 39868985767, 39869000429) had text-wrap: wrap on every element and an image with no system font; research/notes/2026/10-2x-counts-lane-fonts.md compares them.",
   "hz": 60,
   "viewport": {
     "width": 1280,
@@ -9,7 +9,6 @@
     "mobile": false,
     "touch": false
   },
-  "css": "*,*::before,*::after{text-wrap:wrap!important}",
   "pinnedDate": "2026-10-01T00:00:00+07:00",
   "timezone": "Asia/Bangkok",
   "locale": "en-US",
