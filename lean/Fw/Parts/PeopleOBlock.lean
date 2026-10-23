@@ -2,6 +2,10 @@ import Fw.Parts.PeopleO
 /-!
 # people.o `block`: the "o" as a block box instead of an inline grid
 
+Status: REFUTED as a crash fix (MEASURED, runs 39889621434 and 39890158715: a block `o` with any width above zero still
+crashes stock Chrome 156.0.8078.4 at 861 to 1440 px). The look proof below is kept as the record of the option; the site
+flag was removed. The fix is `Fw.Parts.PeopleTitleWrap`.
+
 Why. Stock desktop Chrome crashes (SIGSEGV, `chrome-balance-repro`, run 39878812594) when an `h2` with
 `text-wrap: balance` has a line that holds an inline-grid atomic inline, in a window wider than 860 px. Two changes stopped
 it in that run: the `o` as `inline-block`, and `text-wrap: wrap` on the `h2`.

@@ -143,22 +143,6 @@
     margin-right: 0;
   }
 
-  /* Variant block (Lean PeopleOBlock): the same box as a block, so a balanced title holds no inline grid (stock desktop
-     Chrome crashes on that). Width carries the column length and animates like the track did. */
-  .o.isBlock {
-    transition:
-      width 0.92s cubic-bezier(0.22, 1, 0.36, 1),
-      height 0.92s cubic-bezier(0.22, 1, 0.36, 1);
-    width: 0.6042em;
-    display: block;
-  }
-  .o.isBlock.isExpanded {
-    width: 5.25em;
-  }
-  .o.isBlock > .stage {
-    display: block;
-  }
-
   .preview {
     z-index: 120;
     color: #171717;
@@ -361,9 +345,6 @@
     .o.isExpanded {
       grid-template-columns: minmax(0, 5.25em);
       height: 1.0833em;
-    }
-    .o.isBlock {
-      transition: none;
     }
   }
 }

@@ -37,7 +37,6 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
   const narrowRef = useRef<MediaQueryList | null>(null);
   const heldRef = useRef<Held | null>(null);
   const translateFlag = variant === 'preview-translate';
-  const blockFlag = variant === 'block' && !standalone;
 
   const place = () => {
     const a = anchorRef.current;
@@ -126,7 +125,7 @@ export function PeopleO({ variant, standalone = false, onGetStarted }: PeopleOPr
     <>
       <span
         ref={rootRef}
-        className={[css.o, flags.stack && css.isStack, flags.expanded && css.isExpanded, blockFlag && css.isBlock, standalone && css.isStandalone].filter(Boolean).join(' ')}
+        className={[css.o, flags.stack && css.isStack, flags.expanded && css.isExpanded, standalone && css.isStandalone].filter(Boolean).join(' ')}
         data-fw="people-o"
         data-fw-variant={variant}
         data-o-stack={flags.stack ? 'true' : 'false'}
