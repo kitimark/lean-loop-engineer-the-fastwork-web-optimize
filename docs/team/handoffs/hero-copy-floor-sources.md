@@ -1,7 +1,7 @@
 branch: worktree-wf_54d3eb3f-c6d-1 (CI branch ci/hero-copy-floor-sources)
 worktree: .claude/worktrees/wf_54d3eb3f-c6d-1
 last pushed sha: see git log (round-1 findings commit, tag [ci:path-pix])
-CI runs: path-pix 39971881582 (complete, success, round 0 tables); round-1 run: pushed, id in the next update (state running)
+CI runs: path-pix 39971881582 (complete, success, round 0 tables); round-1 run: path-pix 39985824264 (sha f16ee6ff6, state running)
 second run budget: this is the last run (round 1 findings: WebKit y 0 floor source masked by the Lean ownership rule countedIn)
 note: research/notes/2026/10-2x-hero-copy-floor.md still holds run 39971881582 tables until the round-1 run is reported; tests and check.sh green before push
 
