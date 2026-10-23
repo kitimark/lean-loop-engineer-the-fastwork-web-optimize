@@ -7,7 +7,11 @@ export const hashOf = (img) => createHash('sha256').update(img.rgba).digest('hex
 
 export function maskOf(kind, dpr, w, h, box) {
   if (kind === 'frame') return [0, w, 0, h];
-  if (!box) throw new Error('a nav mask needs the nav box');
+  if (!box) throw new Error(`a ${kind} mask needs a box`);
+  if (kind === 'box') {
+    const pad = 4, css = box.map((v) => v / 1e6);
+    return [Math.max(0, Math.floor((css[0] - pad) * dpr)), Math.min(w, Math.ceil((css[0] + css[2] + pad) * dpr)), Math.max(0, Math.floor((css[1] - pad) * dpr)), Math.min(h, Math.ceil((css[1] + css[3] + pad) * dpr))];
+  }
   return mask(dpr, w, h, box);
 }
 
@@ -51,10 +55,12 @@ export function againstLoads(loads, b0, w, m) {
   const later = pairs.find((r) => r.i === 1 && r.j === 2);
   const floor = later ? later.changed : spread;
   const laterNearest = loads.length > 2 ? Math.min(...arm.slice(1).map((r) => r.changed)) : nearest;
-  return { arm, pairs, nearest, laterNearest, spread, floor, within: laterNearest <= floor };
+  const laterPairs = pairs.filter((r) => r.i >= 1).map((r) => r.changed).sort((x, y) => x - y);
+  const laterFloors = laterPairs.length ? { n: laterPairs.length, min: laterPairs[0], median: laterPairs[Math.floor(laterPairs.length / 2)], max: laterPairs[laterPairs.length - 1] } : null;
+  return { arm, pairs, nearest, laterNearest, spread, floor, within: laterNearest <= floor, laterFloors };
 }
 
-export function pixelCell({ run, engine, dpr, a0, a1, b0, b1, c0, c1, d0 = null, m, box = null, own = null }) {
+export function pixelCell({ run, engine, dpr, a0, a1, b0, b1, c0, c1, d0 = null, more = [], m, box = null, own = null }) {
   const { w } = a0;
   const same = (p, q) => p.w === q.w && p.h === q.h;
   if (![a1, b0, b1, c0, c1].every((x) => same(a0, x))) throw new Error('the captures differ in size');
@@ -69,7 +75,7 @@ export function pixelCell({ run, engine, dpr, a0, a1, b0, b1, c0, c1, d0 = null,
     origin: box ? [microRat(box[0]), microRat(box[1])] : null, dpr, t1: null, stripsAccepted: false,
   };
   const ring = ringSplit(del, w, m);
-  const loads = againstLoads([a0, c0, ...(d0 ? [d0] : [])], b0, w, m);
+  const loads = againstLoads([a0, c0, ...(d0 ? [d0] : []), ...more], b0, w, m);
   let ownPart = null;
   if (own) {
     const o = split(del, w, own), oc = split(deltas(a0, c0), w, own);

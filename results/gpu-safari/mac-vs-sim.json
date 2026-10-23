@@ -1088,6 +1088,11 @@
     ],
     "base": [
      "39739724461"
+    ],
+    "pathPix": [
+     "39920801675",
+     "39924527942",
+     "39929556147"
     ]
    }
   },
@@ -1117,6 +1122,11 @@
     ],
     "base": [
      "39739724461"
+    ],
+    "pathPix": [
+     "39920801675",
+     "39924527942",
+     "39929556147"
     ]
    }
   },
@@ -1146,6 +1156,83 @@
     ],
     "base": [
      "39739724461"
+    ],
+    "pathPix": [
+     "39920801675",
+     "39924527942",
+     "39929556147"
+    ]
+   }
+  },
+  {
+   "arm": "people-carousel-crop",
+   "state": "t55",
+   "mac": {
+    "nearest": 8694,
+    "floor": 0,
+    "x": 8694,
+    "above": true,
+    "maxDelta": 108,
+    "grade": "invalid",
+    "stable": {
+     "faithful": false,
+     "arm": false,
+     "control": false
+    }
+   },
+   "sim": null,
+   "ci": {
+    "webkitSim": [
+     "39937838325",
+     "39947916723"
+    ]
+   }
+  },
+  {
+   "arm": "people-carousel-crop",
+   "state": "t110",
+   "mac": {
+    "nearest": 7201,
+    "floor": 0,
+    "x": 7201,
+    "above": true,
+    "maxDelta": 32,
+    "grade": "invalid",
+    "stable": {
+     "faithful": false,
+     "arm": false,
+     "control": false
+    }
+   },
+   "sim": null,
+   "ci": {
+    "webkitSim": [
+     "39937838325",
+     "39947916723"
+    ]
+   }
+  },
+  {
+   "arm": "people-carousel-crop",
+   "state": "t165",
+   "mac": {
+    "nearest": 8000,
+    "floor": 0,
+    "x": 8000,
+    "above": true,
+    "maxDelta": 53,
+    "grade": "invalid",
+    "stable": {
+     "faithful": false,
+     "arm": false,
+     "control": false
+    }
+   },
+   "sim": null,
+   "ci": {
+    "webkitSim": [
+     "39937838325",
+     "39947916723"
     ]
    }
   },

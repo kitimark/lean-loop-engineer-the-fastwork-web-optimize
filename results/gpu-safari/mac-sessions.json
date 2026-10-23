@@ -1,0 +1,545 @@
+{
+ "schema": "fw.gpu-safari-sessions/1",
+ "rows": [
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-24-40-822Z",
+   "state": "x0.25",
+   "nearest": 7712,
+   "floor": 5231,
+   "x": 1.5,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 5231,
+    "median": 5231,
+    "max": 5231
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 167,
+   "grade": "invalid"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-24-40-822Z",
+   "state": "x0.5",
+   "nearest": 20803,
+   "floor": 2545,
+   "x": 8.2,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 2545,
+    "median": 2545,
+    "max": 2545
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 111,
+   "grade": "invalid"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-24-40-822Z",
+   "state": "x0.75",
+   "nearest": 0,
+   "floor": 5187,
+   "x": 0,
+   "above": false,
+   "laterFloors": {
+    "n": 1,
+    "min": 5187,
+    "median": 5187,
+    "max": 5187
+   },
+   "verdict": "within-min",
+   "loads": 3,
+   "maxDelta": 0,
+   "grade": "E"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-47-39-032Z",
+   "state": "x0.25",
+   "nearest": 10252,
+   "floor": 4821,
+   "x": 2.1,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 4821,
+    "median": 4821,
+    "max": 4821
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 167,
+   "grade": "invalid"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-47-39-032Z",
+   "state": "x0.5",
+   "nearest": 6337,
+   "floor": 1802,
+   "x": 3.5,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 1802,
+    "median": 1802,
+    "max": 1802
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 111,
+   "grade": "invalid"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-47-39-032Z",
+   "state": "x0.75",
+   "nearest": 5187,
+   "floor": 0,
+   "x": 5187,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 59,
+   "grade": "L"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s3",
+   "run": "gpu-safari-mac-2026-10-23T14-49-39-686Z",
+   "state": "x0.25",
+   "nearest": 6295,
+   "floor": 1269,
+   "x": 5,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 1269,
+    "median": 1269,
+    "max": 1269
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 167,
+   "grade": "invalid"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s3",
+   "run": "gpu-safari-mac-2026-10-23T14-49-39-686Z",
+   "state": "x0.5",
+   "nearest": 5150,
+   "floor": 1405,
+   "x": 3.7,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 1405,
+    "median": 1405,
+    "max": 1405
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 111,
+   "grade": "invalid"
+  },
+  {
+   "arm": "hero-exit-threaded",
+   "session": ".s3",
+   "run": "gpu-safari-mac-2026-10-23T14-49-39-686Z",
+   "state": "x0.75",
+   "nearest": 0,
+   "floor": 0,
+   "x": 0,
+   "above": false,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "within-min",
+   "loads": 3,
+   "maxDelta": 204,
+   "grade": "Q"
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+   "state": "m0.25",
+   "nearest": 12985,
+   "floor": 26413,
+   "x": 0.5,
+   "above": false,
+   "laterFloors": {
+    "n": 1,
+    "min": 26413,
+    "median": 26413,
+    "max": 26413
+   },
+   "verdict": "within-min",
+   "loads": 3,
+   "maxDelta": 4,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+   "state": "m0.5",
+   "nearest": 63790,
+   "floor": 41279,
+   "x": 1.5,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 41279,
+    "median": 41279,
+    "max": 41279
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 23,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+   "state": "m0.75",
+   "nearest": 29453,
+   "floor": 69583,
+   "x": 0.4,
+   "above": false,
+   "laterFloors": {
+    "n": 1,
+    "min": 69583,
+    "median": 69583,
+    "max": 69583
+   },
+   "verdict": "within-min",
+   "loads": 3,
+   "maxDelta": 200,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+   "state": "m0.25",
+   "nearest": 14423,
+   "floor": 20278,
+   "x": 0.7,
+   "above": false,
+   "laterFloors": {
+    "n": 10,
+    "min": 16361,
+    "median": 20278,
+    "max": 27380
+   },
+   "verdict": "within-min",
+   "loads": 6,
+   "maxDelta": 4,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+   "state": "m0.5",
+   "nearest": 12779,
+   "floor": 29273,
+   "x": 0.4,
+   "above": false,
+   "laterFloors": {
+    "n": 10,
+    "min": 18362,
+    "median": 62061,
+    "max": 85794
+   },
+   "verdict": "within-min",
+   "loads": 6,
+   "maxDelta": 20,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+   "state": "m0.75",
+   "nearest": 43944,
+   "floor": 38228,
+   "x": 1.1,
+   "above": true,
+   "laterFloors": {
+    "n": 10,
+    "min": 8020,
+    "median": 44013,
+    "max": 87224
+   },
+   "verdict": "between",
+   "loads": 6,
+   "maxDelta": 200,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+   "state": "m0.25",
+   "nearest": 13471,
+   "floor": 26413,
+   "x": 0.5,
+   "above": false,
+   "laterFloors": {
+    "n": 1,
+    "min": 26413,
+    "median": 26413,
+    "max": 26413
+   },
+   "verdict": "within-min",
+   "loads": 3,
+   "maxDelta": 3,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+   "state": "m0.5",
+   "nearest": 77821,
+   "floor": 41279,
+   "x": 1.9,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 41279,
+    "median": 41279,
+    "max": 41279
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 21,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+   "state": "m0.75",
+   "nearest": 56117,
+   "floor": 69583,
+   "x": 0.8,
+   "above": false,
+   "laterFloors": {
+    "n": 1,
+    "min": 69583,
+    "median": 69583,
+    "max": 69583
+   },
+   "verdict": "within-min",
+   "loads": 3,
+   "maxDelta": 197,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+   "state": "m0.25",
+   "nearest": 15135,
+   "floor": 20278,
+   "x": 0.7,
+   "above": false,
+   "laterFloors": {
+    "n": 10,
+    "min": 16361,
+    "median": 20278,
+    "max": 27380
+   },
+   "verdict": "within-min",
+   "loads": 6,
+   "maxDelta": 4,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+   "state": "m0.5",
+   "nearest": 43304,
+   "floor": 29273,
+   "x": 1.5,
+   "above": true,
+   "laterFloors": {
+    "n": 10,
+    "min": 18362,
+    "median": 62061,
+    "max": 85794
+   },
+   "verdict": "between",
+   "loads": 6,
+   "maxDelta": 21,
+   "grade": "invalid"
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+   "state": "m0.75",
+   "nearest": 46862,
+   "floor": 38228,
+   "x": 1.2,
+   "above": true,
+   "laterFloors": {
+    "n": 10,
+    "min": 8020,
+    "median": 44013,
+    "max": 87224
+   },
+   "verdict": "between",
+   "loads": 6,
+   "maxDelta": 195,
+   "grade": "invalid"
+  },
+  {
+   "arm": "people-carousel-crop",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T14-44-59-747Z",
+   "state": "t55",
+   "nearest": 8694,
+   "floor": 0,
+   "x": 8694,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 108,
+   "grade": "invalid"
+  },
+  {
+   "arm": "people-carousel-crop",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T14-44-59-747Z",
+   "state": "t110",
+   "nearest": 7201,
+   "floor": 0,
+   "x": 7201,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 32,
+   "grade": "invalid"
+  },
+  {
+   "arm": "people-carousel-crop",
+   "session": ".s1",
+   "run": "gpu-safari-mac-2026-10-23T14-44-59-747Z",
+   "state": "t165",
+   "nearest": 8000,
+   "floor": 0,
+   "x": 8000,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 53,
+   "grade": "invalid"
+  },
+  {
+   "arm": "people-carousel-crop",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-57-16-401Z",
+   "state": "t55",
+   "nearest": 8663,
+   "floor": 0,
+   "x": 8663,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 251,
+   "grade": "invalid"
+  },
+  {
+   "arm": "people-carousel-crop",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-57-16-401Z",
+   "state": "t110",
+   "nearest": 7187,
+   "floor": 0,
+   "x": 7187,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 251,
+   "grade": "invalid"
+  },
+  {
+   "arm": "people-carousel-crop",
+   "session": ".s2",
+   "run": "gpu-safari-mac-2026-10-23T14-57-16-401Z",
+   "state": "t165",
+   "nearest": 7979,
+   "floor": 0,
+   "x": 7979,
+   "above": true,
+   "laterFloors": {
+    "n": 1,
+    "min": 0,
+    "median": 0,
+    "max": 0
+   },
+   "verdict": "above-all",
+   "loads": 3,
+   "maxDelta": 251,
+   "grade": "invalid"
+  }
+ ]
+}
