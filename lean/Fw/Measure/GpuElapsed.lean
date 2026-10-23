@@ -131,6 +131,16 @@ theorem elapsed_next_past (m : Rat) (h : 0 ≤ m) (hk : elapsedMilli m < steps) 
   rw [e] at hc'
   exact hleast (remain m - 1) (by unfold elapsedMilli at hk; omega) hc'
 
+/-- Every grid time after `elapsedMilli m` (up to the end) passes `m`: the time is the largest one whose ease does not. -/
+theorem elapsed_largest (m : Rat) (h : 0 ≤ m) (k : Nat) (hk : elapsedMilli m < k) (hks : k ≤ steps) :
+    m < ease ((k : Rat) / steps) := by
+  obtain ⟨hle, _, hleast⟩ := remain_spec m h
+  refine Classical.byContradiction fun hc => ?_
+  have hc' : ease ((k : Rat) / steps) ≤ m := by grind
+  rw [ease_le_iff m k hks] at hc'
+  have hlt : steps - k < remain m := by unfold elapsedMilli at hk; omega
+  exact hleast (steps - k) hlt hc'
+
 def elapsedMs (m : Rat) : Rat := (elapsedMilli m : Rat) / 1000
 
 

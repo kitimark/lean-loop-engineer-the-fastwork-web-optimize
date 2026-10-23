@@ -10,7 +10,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const [, , mode, which = 'all', zoneArg] = process.argv;
-if (mode !== 'sim' && mode !== 'mac' && mode !== 'reduce') { console.error('usage: run.mjs sim|mac <nav|morph|pain|hero|people|all> | run.mjs reduce <shots dir> <zone>'); process.exit(2); }
+if (mode !== 'sim' && mode !== 'mac' && mode !== 'reduce') { console.error('usage: run.mjs sim|mac <nav|morph|pain|hero|people|carousel|all> [--suffix .sN] [--loads 3..9] | run.mjs reduce <shots dir> <zone>'); process.exit(2); }
+const suffix = arg('--suffix', '');
+const loads = Number(arg('--loads', '3'));
 const out = resolve(arg('--out', join(ROOT, 'results', 'gpu-safari')));
 const shotsRoot = resolve(arg('--shots', join(process.env.TMPDIR || '/tmp', 'fw-gpu-safari-shots')));
 const siteDir = join(ROOT, 'apps', 'site', 'dist', 'aot');
@@ -23,7 +25,7 @@ const stoppedBySignal = (e) => signalled && /connection closed by this tool/.tes
 function emit({ cap, zone, shotsDir, run, lane = 'ios-simulator-on-mac' }) {
   for (const arm of armsOfZone(zone)) {
     const r = reduceArm({ cap, arm, shotsDir, run });
-    const file = join(out, lane === 'macos-safari' ? `mac-${arm.id}.json` : `${arm.id}.json`);
+    const file = join(out, lane === 'macos-safari' ? `mac-${arm.id}${suffix}.json` : `${arm.id}${suffix}.json`);
     writeFileSync(file, JSON.stringify({
       schema: 'fw.gpu-safari/1', lane, run, zone, session: cap.session, flip: cap.flip,
       ci: CI_PAIRS[arm.id] ?? null, ...r,
@@ -38,11 +40,11 @@ if (mode === 'reduce') {
   emit({ cap: JSON.parse(readFileSync(join(shotsDir, 'capture.json'), 'utf8')), zone: zoneArg, shotsDir, run });
 } else {
   const run = `gpu-safari-${mode}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
-  for (const zone of which === 'all' ? ['nav', 'morph', 'pain', ...(mode === 'mac' ? ['hero', 'people'] : [])] : [which]) {
+  for (const zone of which === 'all' ? ['nav', 'morph', 'pain', ...(mode === 'mac' ? ['hero', 'people', 'carousel'] : [])] : [which]) {
     const shotsDir = join(shotsRoot, run, zone);
     let cap;
     try {
-      cap = await (mode === 'sim' ? captureZone : captureZoneMac)({ zone, siteDir, shotsDir });
+      cap = await (mode === 'sim' ? captureZone : captureZoneMac)({ zone, siteDir, shotsDir, loads });
     } catch (e) {
       if (stoppedBySignal(e)) { console.error(`zone ${zone}: stopped by ${signalled} sent to this process (not a lane fault); nothing written for it`); process.exit(130); }
       if (mode !== 'mac') throw e;

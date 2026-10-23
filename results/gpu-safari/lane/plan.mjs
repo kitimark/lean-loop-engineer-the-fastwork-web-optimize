@@ -9,6 +9,7 @@ export const FLAG_ARMS = Object.freeze([
   { id: 'morph-panel-threaded-fade', zone: 'morph', search: '?fw=morph.panel:threaded,platform:fade-threaded', label: 'morph.panel:threaded + platform:fade-threaded (bundled)', task: 'morph-panel-threaded' },
   { id: 'pain-dark-scroll', zone: 'pain', search: '?fw=pain:dark-scroll', label: 'pain:dark-scroll', task: 'pain-dark-scroll' },
   { id: 'hero-exit-threaded', zone: 'hero', search: '?fw=hero.exit:threaded', label: 'hero.exit:threaded', task: 'hero-exit-threaded-port' },
+  { id: 'people-carousel-crop', zone: 'carousel', search: '?fw=people.carousel:crop', label: 'people.carousel:crop', task: 'people-carousel-crop' },
   { id: 'people-o-preview-translate', zone: 'people', search: '?fw=people.o:preview-translate', label: 'people.o:preview-translate', task: 'people-o-preview-translate' },
 ].map((a) => Object.freeze(a)));
 
@@ -19,6 +20,8 @@ export const MORPH_M = Object.freeze([0.25, 0.5, 0.75]);
 export const HERO_EXIT_AT = Object.freeze([0.25, 0.5, 0.75]);
 export const PEOPLE_FRAMES = Object.freeze([10, 20, 40]);
 export const PEOPLE_DY = 3;
+export const SWAP_MS = 220;
+export const CAROUSEL_AT_MS = Object.freeze([55, 110, 165]);
 export const PAIN_AROUND = Object.freeze([-16, -1, 0, 1, 16]);
 
 export const MORPH_DURATION_MS = 680;
@@ -39,9 +42,12 @@ export function statesOf(zone, flipY = null) {
     return HERO_EXIT_AT.map((f) => ({ id: `x${f}`, kind: 'scroll', y: Math.round(flipY * f), mask: 'frame' }));
   }
   if (zone === 'people') return PEOPLE_FRAMES.map((n) => ({ id: `f${n}`, kind: 'hover-scroll', frames: n, dy: PEOPLE_DY, mask: 'frame' }));
+  if (zone === 'carousel') return CAROUSEL_AT_MS.map((t) => ({ id: `t${t}`, kind: 'swap', elapsedMs: t, mask: 'box' }));
   throw new Error(`no state list for zone ${zone}`);
 }
 
-export function zoneArms(zone) {
-  return [FAITHFUL, { ...FAITHFUL, id: 'base2', label: 'faithful (A/A control)' }, ...FLAG_ARMS.filter((a) => a.zone === zone), { ...FAITHFUL, id: 'base3', label: 'faithful (order probe)' }];
+export function zoneArms(zone, loads = 3) {
+  if (!(Number.isInteger(loads) && loads >= 3 && loads <= 9)) throw new Error(`loads ${loads} is outside 3..9`);
+  const more = Array.from({ length: loads - 3 }, (_, i) => ({ ...FAITHFUL, id: `base${i + 4}`, label: `faithful (load ${i + 4})` }));
+  return [FAITHFUL, { ...FAITHFUL, id: 'base2', label: 'faithful (A/A control)' }, ...FLAG_ARMS.filter((a) => a.zone === zone), { ...FAITHFUL, id: 'base3', label: 'faithful (order probe)' }, ...more];
 }
