@@ -341,11 +341,11 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
-// Open-card probe (profile.probe = { selector }): after the counted pass and its trace, the plan is replayed once more with a PNG of every
+// Open-card probe (profile.cardProbe = { selector }): after the counted pass and its trace, the plan is replayed once more with a PNG of every
 // frame and the rect and inline position of the element, so two arms can be compared in position and pixels (the counts are untouched:
 // tracing has ended and the N0 read is done). A frame without damage keeps the previous picture, so it keeps the previous hash.
 let probe = null;
-if (profile.probe && (inputMode === 'scrollTo' || inputMode === 'page')) {
+if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try {
   const read = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return { rect: [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 1000) / 1000), top: e.style.top, left: e.style.left, translate: e.style.translate }; })()`;
   const rows = [];
   let prevPng = '';
@@ -353,11 +353,11 @@ if (profile.probe && (inputMode === 'scrollTo' || inputMode === 'page')) {
     const { phase, y, run } = plan[n];
     const r = await frame(vt, `${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`, null, true);
     if (r.screenshot) prevPng = createHash('sha256').update(r.screenshot).digest('hex').slice(0, 16);
-    const v = await ev(read(profile.probe.selector));
+    const v = await ev(read(profile.cardProbe.selector));
     rows.push({ n, phase, y: r.out, png: prevPng, found: v !== null, ...v });
   }
-  probe = { selector: profile.probe.selector, frames: rows };
-}
+  probe = { selector: profile.cardProbe.selector, frames: rows };
+} catch (e) { probe = { selector: profile.cardProbe.selector, error: String(e.message ?? e).slice(0, 300) }; } // the counts stay valid: the probe runs after them
 
 const censusPump = async () => {
   vt += dt;
@@ -386,7 +386,7 @@ const result = {
   },
   frames,
   runLevel,
-  ...(probe ? { probe } : {}),
+  ...(probe ? { cardProbe: probe } : {}),
 };
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/counts.json`, JSON.stringify(result, null, 1) + '\n');

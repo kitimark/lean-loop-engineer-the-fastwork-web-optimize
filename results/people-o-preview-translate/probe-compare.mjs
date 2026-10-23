@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Open-card probe of profile people-o-hover (TS stand-in: an equality of two lists, no Lean golden). Usage:
 //   node probe-compare.mjs base=<counts.json> flag=<counts.json>
-// Both files carry `probe.frames` (run.mjs probe pass: per frame the card rect, inline top/left/translate and a PNG hash of the
+// Both files carry `cardProbe.frames` (run.mjs probe pass: per frame the card rect, inline top/left/translate and a PNG hash of the
 // viewport). The script prints, per frame of the plan, whether rect and PNG hash are equal, and the number of frames where the card
 // was found. Exit 0 iff every frame has equal rect and equal PNG hash and the card was found in at least one frame.
 import { readFileSync } from 'node:fs';
 
-const [base, flag] = process.argv.slice(2).map((a) => JSON.parse(readFileSync(a.split('=')[1], 'utf8')).probe?.frames);
-if (!base || !flag) { console.error('both files need probe.frames'); process.exit(2); }
+const [base, flag] = process.argv.slice(2).map((a) => JSON.parse(readFileSync(a.split('=')[1], 'utf8')).cardProbe?.frames);
+if (!base || !flag) { console.error('both files need cardProbe.frames'); process.exit(2); }
 const rows = Math.max(base.length, flag.length);
 const bad = [];
 let found = 0, written = 0;

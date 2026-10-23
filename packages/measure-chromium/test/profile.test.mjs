@@ -72,5 +72,5 @@ test('the load diagnostics of run.mjs sit behind FW_LOAD_TRACE, the crash exit d
 test('profile people-o-hover carries the text-wrap workaround and the open-card probe', () => {
   const p = parseProfile(read('people-o-hover.json')).profile;
   assert.equal(p.css, read('desktop-1280.json').css);
-  assert.equal(p.probe.selector, '[role="tooltip"]');
+  assert.equal(p.cardProbe.selector, '[role="tooltip"]');
 });
