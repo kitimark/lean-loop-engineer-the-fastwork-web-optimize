@@ -8,7 +8,7 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents } from './profile.mjs';
+import { parseProfile, replayEvents, keep, userAgent } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 
 const N0_ON = !process.env.FW_NO_N0;
@@ -146,8 +146,7 @@ const CHROME_ARGS = [
   '--font-render-hinting=none', '--force-color-profile=srgb', '--hide-scrollbars', '--mute-audio',
   '--disable-background-networking', '--disable-breakpad', '--no-first-run', '--lang=en-US', ...(process.env.FW_CHROME_EXTRA ? process.env.FW_CHROME_EXTRA.split(' ') : []), 'about:blank',
 ];
-const DROP = [...(process.env.FW_DROP_FLAGS ?? '').split(',').filter(Boolean), ...(profile.dropFlags ?? [])];
-for (let i = CHROME_ARGS.length - 1; i >= 0; i--) if (DROP.some((d) => CHROME_ARGS[i].startsWith(d))) CHROME_ARGS.splice(i, 1);
+CHROME_ARGS.splice(0, CHROME_ARGS.length, ...keep(CHROME_ARGS, profile.dropFlags ?? []));
 const chrome = spawn(process.env.FW_CHROME, CHROME_ARGS, { stdio: ['ignore', DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'w'), DEBUG ? 'inherit' : openSync('/tmp/chrome.log', 'a')] });
 process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch {} });
 for (let i = 0; i < 200; i++) { try { await fetch('http://127.0.0.1:9222/json/version'); break; } catch { await sleep(50); } }
@@ -193,9 +192,10 @@ const ev = async (expression) => {
 await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable');
 await c.send('Emulation.setDeviceMetricsOverride', { width: profile.viewport.width, height: profile.viewport.height, deviceScaleFactor: profile.viewport.dpr, mobile: profile.viewport.mobile, screenWidth: profile.viewport.width, screenHeight: profile.viewport.height });
 if (!process.env.FW_NOTOUCH) await c.send('Emulation.setTouchEmulationEnabled', { enabled: profile.viewport.touch, maxTouchPoints: 5 });
-const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean));if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
+const SKIP = new Set((process.env.FW_SKIP ?? '').split(',').filter(Boolean));
+if (!SKIP.has('tz')) await c.send('Emulation.setTimezoneOverride', { timezoneId: profile.timezone });
 if (!SKIP.has('locale')) await c.send('Emulation.setLocaleOverride', { locale: profile.locale });
-if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', acceptLanguage: profile.locale });
+if (!SKIP.has('ua')) await c.send('Emulation.setUserAgentOverride', { userAgent: userAgent(profile.viewport.mobile), acceptLanguage: profile.locale });
 const shim = readFileSync('/driver/clock-shim.js', 'utf8');
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW_CFG = ${JSON.stringify({ epochMs: EPOCH_MS, seed: profile.seed })};\n${shim}` });
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
