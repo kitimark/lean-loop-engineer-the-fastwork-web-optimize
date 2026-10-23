@@ -18216,7 +18216,8 @@
     "research/notes/2026/10-2x-counts-font-fidelity.md",
     "docs/team/handoffs/faithful-control-oos.md"
    ],
-   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run.",
+   "evidence": "902f8ab"
   },
   {
    "devices": [
