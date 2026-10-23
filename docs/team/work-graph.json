@@ -18864,7 +18864,9 @@
     "lean/Fw/Measure/WebKitLagPhase.lean",
     "packages/contracts/golden/measure/webkit-lag.jsonl",
     "packages/measure-webkit/src/lag/mac-cli.mjs",
-    "packages/measure-webkit/src/lag/probe.mjs"
+    "packages/measure-webkit/src/lag/probe.mjs",
+    "research/findings/ledger.json",
+    "docs/team/incidents/ledger.json"
    ],
    "title": "morph-real-wheel-followups review follow-ups (2026-10-24): (1) the scroll settles before the push (run 39989441570 job 1 run 1: last scroll at frame 23, push at frame 28), so no open phase has a scroll in flight: add a drive that sends the push during the scroll (momentum overlapping the morph); (2) macreport.mjs labels every job's rows 'job 1': pass the matrix job index; (3) the Simulator leg with the PushServer touch (morph-real-wheel-followups item 3) once sim-touch-reliable lands; (4) probe.mjs header: keep one short pointer ('pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs')."
   },
@@ -19229,7 +19231,8 @@
     "apps/runner/test/polish*.test.ts",
     "docs/team/handoffs/polish-strays-sound.md"
    ],
-   "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead."
+   "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead.",
+   "evidence": "3dc6678"
   },
   {
    "devices": [
@@ -19247,7 +19250,8 @@
     "docs/team/incidents/ledger.json",
     "docs/team/handoffs/gc-landed-identity.md"
    ],
-   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main)."
+   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main).",
+   "evidence": "99ef893"
   },
   {
    "devices": [
@@ -19329,7 +19333,74 @@
     "apps/runner/src/watch*.ts",
     "docs/team/handoffs/reap-watch-one-rule.md"
    ],
-   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases)."
+   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases). Third item 2026-10-24: a builder's local sim-slot debug run (197 s, fw slot kind sim) left the Simulator fw-iphone-27 booted after the slot release (load average 70 over 8 CPUs during boot); fw reap and disk-gc --class sim select nothing: a Lean rule that a sim slot release shuts down the Simulator its run booted (pid + boot time checked), golden row."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-strays-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "polish-strays-sound"
+   ],
+   "writes": [
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/test/polish*.test.ts",
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "docs/team/handoffs/polish-strays-followups.md"
+   ],
+   "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gc-live-agent-cwd",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gc-landed-identity"
+   ],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/scripts/DiskGcGolden.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "docs/team/handoffs/gc-live-agent-cwd.md"
+   ],
+   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-lock-page-end",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-followups"
+   ],
+   "writes": [
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/scripts/TouchLockGolden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/measure/touch-lock.jsonl",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/test/touchlock*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-touch-lock-page-end.md",
+    "results/touch-lock-page-end/**",
+    "docs/team/handoffs/touch-lock-page-end.md"
+   ],
+   "title": "End-of-page lag candidate from the morph-wheel-momentum Fable review (2026-10-24; spec in that task's closing round): the morph (avatar deck) opens only at scrollY >= maxY-7; while .start-selling-platform is within a 200% root margin or the morph is open, the site installs non-passive touchmove and wheel listeners and restores scrollY after each scroll event (L, instant scrollTo). Q1 (lock fight, the phone's felt jitter): a touch pan that began before the morph opened, or momentum after release, cannot be cancelled by touchmove (WKContentViewInteraction.mm:4239-4245 @862f17d) and WebKit does not stop a user deceleration on a script scrollTo (WKWebViewIOS.mm:1515-1548, ScrollingTreeScrollingNodeDelegateIOS.mm:494-510 @862f17d); whether UIKit's setContentOffset stops it is UNKNOWN: measure on the CI Simulator with the PushServer touch: a pan from > 2 viewports above the end into the end, released with velocity, arms original and rewrite; per run count restores (scroll events with y != s while open), sign reversals of the per-frame scrollY delta in the open phase, and drawn-offset reversals from simctl io recordVideo. Q2 (touch deferral): only the first touchmove (and touchstart) of a gesture inside the zone defers the native pan until the main thread answers (WebPageProxy.cpp:5253, :5291-5292, :5199-5201 @862f17d): measure touchstart to first scroll event against main-thread long frames. Lean first: unit one gesture run, verdict jitter iff the open phase has a reversal with a restore to s; golden from the reducer. At most 2 dispatches."
   }
  ],
  "deadline": {
