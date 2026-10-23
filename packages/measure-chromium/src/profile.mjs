@@ -30,6 +30,34 @@ export const HARD_CAP = 12000;
 
 const tenth = (v) => Math.round(v * 10);
 
+export const PINNED = ['--remote-debugging-port=', '--user-data-dir=', '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw'];
+
+export const DIRS = { counts: 'profiles', probe: 'probes' };
+
+export const parseKind = (k) => (k === undefined || k === null ? 'counts' : k === 'counts' || k === 'probe' ? k : null);
+
+const pre = (d, a) => a.startsWith(d);
+
+export const dropOk = (d) => d.length > 2 && pre('--', d) && PINNED.every((p) => !pre(d, p) && !pre(p, d));
+
+export const keep = (args, drops) => args.filter((a) => !drops.some((d) => pre(d, a)));
+
+export function problem(w) {
+  if (w.kind === 'counts' && w.dropFlags.length > 0) return 'dropInCounts';
+  if (w.kind === 'counts' && w.variants !== 0) return 'variantsInCounts';
+  if (w.dropFlags.some((d) => !dropOk(d))) return 'badDrop';
+  return w.css === '' ? 'emptyCss' : null;
+}
+
+export const userAgent = (mobile) => (mobile
+  ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36'
+  : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');
+
+export const wireOf = (profile, kind) => ({
+  kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
+  dropFlags: profile.dropFlags ?? [], variants: profile.probe?.variants?.length ?? 0,
+});
+
 /**
  * Check a parsed profile file. Returns { profile, strokes } where strokes is null unless input.mode is "replay", then the
  * strokes in tenth CSS px. Throws with the reason when the file is refused.
@@ -40,11 +68,19 @@ export function parseProfile(profile) {
   const vp = profile.viewport;
   for (const k of ['width', 'height', 'dpr']) if (!(vp[k] > 0)) throw new Error(`profile ${profile.id}: viewport.${k} must be positive`);
   if (!Array.isArray(profile.segments) || profile.segments.length === 0) throw new Error(`profile ${profile.id}: no segments`);
+  const kind = parseKind(profile.kind);
+  if (kind === null) throw new Error(`profile ${profile.id}: kind must be "counts" or "probe", got ${JSON.stringify(profile.kind)}`);
+  if (profile.dropFlags !== undefined && !(Array.isArray(profile.dropFlags) && profile.dropFlags.every((d) => typeof d === 'string'))) {
+    throw new Error(`profile ${profile.id}: dropFlags must be a list of strings`);
+  }
+  if (profile.css !== undefined && typeof profile.css !== 'string') throw new Error(`profile ${profile.id}: css must be a string`);
+  const why = problem(wireOf(profile, kind));
+  if (why !== null) throw new Error(`profile ${profile.id}: refused (${why}); a counts profile has no dropFlags or probe.variants, a drop entry is a flag (--x) that is no pinned harness flag, css is not empty`);
   const mode = profile.input?.mode ?? 'scrollTo';
   const script = profile.segments.filter((s) => s.until === 'script');
   if (mode !== 'replay') {
     if (script.length > 0) throw new Error(`profile ${profile.id}: a "script" segment needs input.mode "replay"`);
-    return { profile, strokes: null };
+    return { profile, kind, strokes: null };
   }
   const inp = profile.input;
   if (script.length !== 1) throw new Error(`profile ${profile.id}: a replay has exactly one "script" segment, found ${script.length}`);
@@ -54,7 +90,7 @@ export function parseProfile(profile) {
   if (!replayOk(tenth(vp.width), tenth(vp.height), cap, strokes)) {
     throw new Error(`profile ${profile.id}: the replay is refused (empty, a stroke shorter than 2 points or outside ${vp.width}x${vp.height}, strokes out of order, or longer than ${cap} frames)`);
   }
-  return { profile, strokes };
+  return { profile, kind, strokes };
 }
 
 /**

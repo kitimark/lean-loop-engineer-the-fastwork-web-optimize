@@ -14,8 +14,9 @@ Task `chromium-desktop-crash`, branch `ci/chromium-desktop-crash`. Claims carry 
   `--disable-image-animation-resync`, `--disable-new-content-rendering-timeout`, `--mute-audio`; no UA, locale or timezone
   override; no N0 census; no touch emulation; `--disable-blink-features=ScoreLineBreakerAbort`; `--disable-features=SitePerProcess`.
   (`--run-all-compositor-stages-before-draw` cannot be dropped: the harness needs it, run exits 1 in 0.5 s.) Untested:
-  BeginFrameControl, `--run-all-compositor-stages-before-draw` (the harness needs both), and full Chrome vs Headless Shell, so
-  whether stock Chrome 156 crashes on this page is not known (INFERRED Chrome bug: a renderer SIGSEGV on valid CSS).
+  BeginFrameControl and `--run-all-compositor-stages-before-draw` (the harness needs both). Follow-up (MEASURED, run
+  39878812594, `10-2x-chrome-balance-repro.md`): stock Chrome for Testing 156.0.8078.4, 156.0.8078.47, 157 and 158 without the
+  harness crash the same way, on the original page and on a one-`h2` repro, so this is a Chrome bug that real desktop users hit.
 - MEASURED, rewrite only (the people part): hiding `[data-fw="people"]` removes the crash, and so does `text-wrap: wrap` on
   the people title `h2` alone; `text-wrap: pretty` or `stable` on that `h2` also does not crash, and `display: inline-block` or
   `display: none` or `position: absolute` on the `o` (`[data-fw="people-o"]`) does not either. `text-wrap: wrap` on the `p` of the
@@ -71,6 +72,6 @@ Before the workaround the same two targets at 1280 failed in every job (39865150
 
 ## Method
 
-`packages/measure-chromium/src/crash-probe.mjs` runs the harness once per variant of a probe profile (`profiles/crash-probe-1.json`,
+`packages/measure-chromium/src/crash-probe.mjs` runs the harness once per variant of a probe profile (`probes/crash-probe-1.json`,
 `crash-probe-2.json`) with `FW_LOAD_ONLY=1`, a fresh Chrome and user-data dir each, and reads the exit code (76 renderer crash,
 75 BeginFrame hang, 0 ok). `run.mjs` prints the signal block on `Inspector.targetCrashed`. No counts are recorded by a probe.
