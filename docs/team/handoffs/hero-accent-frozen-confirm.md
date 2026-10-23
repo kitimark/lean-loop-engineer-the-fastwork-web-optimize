@@ -1,7 +1,7 @@
 branch: worktree-wf_1014fee6-cdd-1 (CI branch ci/hero-accent-frozen-confirm)
 worktree: .claude/worktrees/wf_1014fee6-cdd-1
 last commit: 9997926ab (token commit [ci:webkit-sim] [swap-lane] [swap-freeze])
-CI runs: 39996415429 webkit-sim at 9997926ab, queued (dispatch 1 of 2; the other workflows of the push are skipped, lean is the push check)
+CI runs: 39996415429 webkit-sim at 9997926ab, in progress (guard, fwcore, plan, site success; sim r1 job 120562437169 and r2 120562437268 running, r3 not started at the last check); dispatch 1 of 2
 read first: research/notes/2026/10-2x-carousel-swap-webkit.md (section on the freeze, once written), results/carousel-swap-webkit/hero-accent-frozen.md
 
 done (code, committed):
