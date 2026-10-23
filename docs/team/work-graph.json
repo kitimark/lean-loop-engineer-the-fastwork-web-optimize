@@ -17915,7 +17915,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them)."
+   "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them).",
+   "evidence": "a3a15db"
   },
   {
    "devices": [
