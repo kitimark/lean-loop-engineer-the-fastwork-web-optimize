@@ -170,11 +170,12 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/site...'
-      # A `[webkit-cadence]` commit builds the candidate's query as one more page (the WebKit legs serve it); other commits build the default only.
+      # A `[webkit-cadence]` commit builds the candidate's query as one more page (the WebKit legs serve it). A `[cpu-throttle=N]` commit or a dispatch
+      # with the `cpu_throttle` input does too, so a flag set that is not a prerendered preset or single flag (a real flag arm) can be the candidate; other commits build the default only.
       - name: Build the rewrite (default prerendered config)
         env:
           SEARCH: ${{ steps.p.outputs.search }}
-          WEBKIT: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') && 'yes' || 'no' }}
+          WEBKIT: ${{ (contains(github.event.head_commit.message, '[webkit-cadence]') || contains(github.event.head_commit.message, '[cpu-throttle=') || inputs.cpu_throttle != '') && 'yes' || 'no' }}
         run: |
           set -euo pipefail
           if [ "$WEBKIT" = yes ] && [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
