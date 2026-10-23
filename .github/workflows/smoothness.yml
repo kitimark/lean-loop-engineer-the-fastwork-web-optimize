@@ -496,8 +496,16 @@ jobs:
               alarm $s; waitpid($p, 0); alarm 0; exit($? & 127 ? 128 + ($? & 127) : $? >> 8);' -- "$@"
           }
           hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
-      # Upload first: sim.json and sim.log exist by now (sim.json is rewritten after every window), the host state follows in its own artifact.
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      # Host state first (under 1 min, every command bounded), then one upload of result/ with one retry; the post steps total 9 min.
+      - name: Keep host state
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 1
+        run: |
+          mkdir -p "$RUNNER_TEMP/result"
+          bounded() { perl -e 'alarm 15; exec @ARGV' -- "$@"; }
+          { uptime; bounded xcrun simctl list devices booted; bounded ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 2
         with:
@@ -505,19 +513,12 @@ jobs:
           path: ${{ runner.temp }}/result
           if-no-files-found: warn
           retention-days: 30
-      - name: Keep host state
-        if: ${{ always() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 2
-        run: |
-          mkdir -p "$RUNNER_TEMP/host"
-          bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
-          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/host/host.txt" 2>&1 || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        if: ${{ always() && steps.stale.outcome == 'skipped' && steps.upload.outcome != 'success' }}
         timeout-minutes: 2
         with:
-          name: smoothness-webkit-sim-host-${{ matrix.job }}
-          path: ${{ runner.temp }}/host
+          name: smoothness-webkit-sim-${{ matrix.job }}-retry
+          path: ${{ runner.temp }}/result
           if-no-files-found: warn
           retention-days: 30
       - name: Shut down and delete the Simulator
