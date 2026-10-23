@@ -18639,7 +18639,11 @@
     "packages/contracts/golden/obs/timing*.jsonl",
     "lean/scripts/TimingGolden.lean",
     "apps/runner/src/timing*.ts",
-    "apps/runner/test/timing*.test.ts"
+    "apps/runner/test/timing*.test.ts",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/watch.ts",
+    "lean/Fw/Wire/Obs.lean"
    ],
    "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test. (3) 2026-10-23 alert timing.slow 'fw/land dry lake': a 51 s sample (commit ffb7792) without a lake field, written by a worktree on pre-key fw code, was judged against the unkeyed baseline; once a step has keyed samples, an unkeyed sample gets no verdict (Lean rule in Fw.Obs.Timing with golden), and the alert closes. (4) the alert stayed OPEN after keyed samples at commit 19dd16e (lake built 0: 26.4 s, 25.3 s, 26.5 s; d08e461 built 0: 30.0 s): find which sample and baseline the verdict compares (print them in the alert detail), fix the rule if it compares across module counts or hosts, with a golden row from these samples. (5) 2026-10-23 alert timing.slow 'fw/ci wait': a wait span lasts as long as the remote CI run, so its duration is not our automation's speed; key ci wait samples by workflow (and job count) or judge them by the run's own queue+run time from fw ci state, Lean rule with golden. The same holds for 'fw land/remote queue' (GitHub runner queue time, alert 2026-10-23 23:5x)."
   },
@@ -18849,6 +18853,29 @@
     "docs/team/handoffs/checkmap-workflow-widths-local.md"
    ],
    "title": "Incident 2026-10-24: hero-copy-floor-sources changed .github/workflows/path-pix.yml (matrix 3 sim + 3 chromium) without the Lean width row (Fw.Ci.Overflow widths path-pix 4 -> 6); the lead dry land passed and the remote land tier failed (run 39995255573, land suites-a, test/land-overflow-widths.test.ts), costing a remote CI round. Fix by the Lean check map: a change to any .github/workflows/*.yml selects apps/runner test/land-overflow-widths.test.ts (and the fwcore rebuild it needs) in the LOCAL tier, so fw land --dry refuses it; theorem that every workflow path maps to that check, golden row, test. Record the incident in docs/team/incidents/ledger.json."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-verdict-polish",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "timing-module-count-followups"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/Fw/Obs/Next.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/timing*.test.ts",
+    "apps/runner/test/land-dry.test.ts",
+    "docs/team/handoffs/timing-verdict-polish.md"
+   ],
+   "title": "timing-module-count-followups review follow-ups (2026-10-24): (1) ownOf in timing.ts:54-63 decides which fw ci wait spans get an own time (how=done, end minus phases.updMs, none when negative): move it into Lean (decode phases in Fw.Wire.Obs sampleOf) with #guard/golden; (2) unkeyed fw/polish commit spans are still written (polish.ts 'nothing' return; stagedSpan null when fwcore gives no command list) and would now get no verdict silently: key those paths or narrow the rule and docstring; (3) detailOf matches on stepName and the latest slow verdict across hosts and names the sample by a shifting index: match the full key, print host and startMs/commit; (4) state the ci-wait whole-output theorem (no slow verdict from a ci wait within budget) and update Next.lean docstrings to verdictsOf; (5) land-dry.test.ts lake-note case: rmSync in finally, end the span through the fw-main exit path."
   }
  ],
  "deadline": {
