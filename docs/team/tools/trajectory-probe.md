@@ -118,8 +118,8 @@ runs the probe with the inputs of one message line:
    joins the other pieces. `byMFamEach` (one `byMFirst` per member) is the definition; test `byMFam equals byMFamEach`
    checks the two on every golden segment, in all four phases, with the original plus a shifted copy as one more pass
    (values +7, `since` +50) and on a window that settles to its epoch end (936 cases); a member that keeps every pass's
-   envelope, or a settle without the epoch-end fallback, fails it. MEASURED offline (dev check) on the merged raw of run 39926829451: 39.8 s one member at a time,
-   9.5 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix a15d328e00bd26de: units-chromium.json from `summary` on the artifact
+   envelope, or a settle without the epoch-end fallback, fails it. MEASURED offline (dev check) on the merged raw of run 39926829451: 40.6 s one member at a time,
+   9.9 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix a15d328e00bd26de: units-chromium.json from `summary` on the artifact
    `trajectory-chromium` raw, both ways). Offline re-reduction (dev check): run
    39926829451 CLEAN (new 0, undecided 0, leave-one-out 0, cleared 1, 14416 units); run 39557718020 CLEAN (3604 units,
    all ok).

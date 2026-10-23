@@ -2,6 +2,7 @@
 
 - Branch `worktree-wf_e50be261-576-1`, worktree `.claude/worktrees/wf_e50be261-576-1`; round 2 commit b8040523c, main merged at 5b9e8b673.
 - Checks at c9b0b6831: gate-breakpoints test 706/706, lean check.sh green (145 s), ci-paths 56, land-inputs 56; dry land `VERDICT dry trajectory-stable-followups`; review ready `review`.
+- gate-breakpoints test re-run at 443a4def4 (polish cut comments only): 706/706.
 - No CI run made: every claim reads existing runs or re-reduces run 39926829451 offline (dev check).
 
 ## Verified
@@ -9,8 +10,8 @@
   `byMFam equals byMFamEach`: 936 cases (golden segments, original plus a shifted copy (values +7, `since` +50) as one more
   pass, and a hand-made window that settles to its epoch end). Mutants checked by hand, both fail the test, reverted:
   (a) member keeps every envelope piece (`pieceOf(r).env.flat()`); (b) `settle` without the epoch-end fallback.
-- Run 39926829451, `summary` on the artifact `trajectory-chromium` raw: 40.6 s with `byMFamEach`, 9.9 s with `byMFam`;
-  `units-chromium.json` sha256 prefix a15d328e00bd26de both ways (CLEAN, 14416 units).
+- Run 39926829451, `summary` on the artifact `trajectory-chromium` raw, `byMFamEach` vs `byMFam`:
+  timing and units hash are kept in one place, doc check 2 (Leave-one-out band); units identical both ways (CLEAN, 14416 units).
 - CLI exits 2 on every refused input and on a throw (entry line catches into `refuse`); test `cli: a refused input ...`
   runs `summary` on a raw of `{}` as a child process.
 - Lean `nil_not_mem_family`: a first pass on an empty original is outside `laneOf_stable_extra` (doc check 2).
