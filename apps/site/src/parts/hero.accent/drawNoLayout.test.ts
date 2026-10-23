@@ -35,13 +35,13 @@ describe('draw-nolayout against the Lean golden (Fw.Engine.StyleDiffAccent)', ()
       ['draw-in', 2, true, true],
     ]);
     expect(css).toMatch(
-      /\[data-fw-draw\^='nolayout'\]:is\(\.drawingIn, \.drawingOut\) \.path \{\s*stroke-dasharray: none;\s*stroke-dashoffset: 0;\s*animation: none;/,
+      /\.accent:is\(\[data-fw-draw='nolayout'\], \[data-fw-draw='nolayout-full'\]\):is\(\.drawingIn, \.drawingOut\) \.path \{\s*stroke-dasharray: none;\s*stroke-dashoffset: 0;\s*animation: none;/,
     );
     expect(css).toMatch(
-      /\[data-fw-draw\^='nolayout'\]\.drawingIn \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipIn;/,
+      /\.accent:is\(\[data-fw-draw='nolayout'\], \[data-fw-draw='nolayout-full'\]\)\.drawingIn \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipIn;/,
     );
     expect(css).toMatch(
-      /\[data-fw-draw\^='nolayout'\]\.drawingOut \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipOut;/,
+      /\.accent:is\(\[data-fw-draw='nolayout'\], \[data-fw-draw='nolayout-full'\]\)\.drawingOut \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipOut;/,
     );
   });
   it('the two clip keyframes animate clip-path and nothing else', () => {
@@ -73,7 +73,7 @@ describe('draw-nolayout-full against the Lean golden', () => {
     expect(c['draw-nolayout-full']).toMatchObject({ wkLayoutFrames: 1, crLayoutFrames: 1 });
   });
   it('the width transition is dropped by one rule that only the full attribute selects', () => {
-    expect(css.match(/data-fw-draw='nolayout-full'/g)).toHaveLength(1);
+    expect(css.match(/\.accent\[data-fw-draw='nolayout-full'\]\.drawingIn \{/g)).toHaveLength(1);
     expect(css).toMatch(/\[data-fw-draw='nolayout-full'\]\.drawingIn \{\s*transition: none;\s*\}/);
     expect(css).toMatch(/\.drawingIn \{\s*transition: width 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\);/);
   });
