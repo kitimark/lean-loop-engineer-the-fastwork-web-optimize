@@ -25,8 +25,6 @@ const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-autom
 
 const ITEM = { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string', enum: ['done', 'pending', 'dispatch', 'followUp', 'undelivered'] }, evidence: { type: 'string' } }, required: ['id', 'status', 'evidence'] }
 const RUN = { type: 'object', properties: { id: { type: 'string' }, branch: { type: 'string' }, state: { type: 'string', enum: ['running', 'complete', 'failed'] } }, required: ['id', 'state'] }
-// items, runs, dry and gate are what the Lean gate (Fw.Plan.ReviewReady, `fw review ready`) reads. They are optional in the schema so an old-style
-// handback still parses; the gate then sends it back (no items, no dry line).
 const BUILD = { type: 'object', properties: { branch: { type: 'string' }, commit: { type: 'string' }, summary: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, open: { type: 'array', items: { type: 'string' } }, items: { type: 'array', items: ITEM }, runs: { type: 'array', items: RUN }, dry: { type: 'string' }, gate: { type: 'string' } }, required: ['branch', 'commit', 'summary', 'files'] }
 // the gate agent returns the printed line; the script routes on the word after the id (no decision lives in this file)
 const GATE = { type: 'object', properties: { line: { type: 'string' } }, required: ['line'] }
@@ -84,7 +82,6 @@ if (!b || typeof b.branch !== 'string' || typeof b.commit !== 'string') {
 }
 // Evidence gate (task review-flow-v2): fwcore decides (`fw review ready`, Lean Fw.Plan.ReviewReady). Only the answer `review` spends an
 // Opus review; dispatch, wait and returnToBuilder return the build to the lead with the gate lines. The builder's own `gate` line is not trusted.
-// Run states are read by the gate agent itself, by run id (`fw ci state <id>`, one `gh run list`; never the builder's state field).
 const report = JSON.stringify({ items: b.items || [], runs: b.runs || [], dry: b.dry || '' })
 const g = await agent(`Run this in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints; fwcore is built there) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file gate-${t.id}.log (agents/runner.md).
 Step 1: the builder's report is the JSON below. For each run id in its runs array, read that run's state yourself: pnpm -s fw ci state <run id> --branch <its runs[].branch> (it prints "<id> running|complete|failed|unknown" from gh run list; never gh api, never gh run view). Replace every runs[].state with what it printed and ignore the builder's state field; an id that prints unknown gets state "failed". Also read the id of every item whose evidence is "run:<id>" with status pending the same way, and add it to runs if the builder left it out.

@@ -32,7 +32,7 @@ After (new bounds; two concurrent dispatches, load about 4.0, shared gh-budget l
 | lock, after backoff | 54 ms | 2385 ms |
 | call | 2237 ms | 2451 ms |
 
-The totals are not comparable, since contention differed. The pairs show the shape, not a speed-up.
+The totals are not comparable, since contention differed.
 
 ## Slow part
 

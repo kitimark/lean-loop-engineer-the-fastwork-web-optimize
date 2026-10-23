@@ -814,7 +814,6 @@ theorem loaded_core_margin_too_big : maxCallTimeoutMs + holderCoreCalls * fwcore
 
 def pollLockWaitMs : Nat := 10000
 
-/-- The poller sleeps this long after a `busy` or an idle tick, then asks again; `busy` never stops it. -/
 def busyRetryS : Nat := 2
 
 /-- Longest list `fw ci state` asks for took this long (MEASURED). -/
