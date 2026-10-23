@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { alphaOk, annotate, armCheck, byM, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { alphaOk, annotate, armCheck, byM, byMFirst, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -117,7 +117,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'idCheck', 'identity'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -221,6 +221,10 @@ for (const g of golden) {
       const d = (cls) => durOf(g.node, g.prop, g.width, cls);
       assert.equal(idOn(g.node, g.prop), g.id);
       assert.deepEqual(byMRule(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.id, g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
+    } else if (g.op === 'byMFirst') {
+      const d = (cls) => durOf(g.node, g.prop, g.width, cls);
+      assert.equal(idOn(g.node, g.prop), g.id);
+      assert.deepEqual(byMFirst(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.id, g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
     } else if (g.op === 'idCheck') assert.equal(idCheck((cls) => durOf('nav', 'background-color', g.width, cls), g.q, g.r), g.check);
     else if (g.op === 'identity') {
       assert.equal(CUT_M, g.cut);
@@ -404,6 +408,48 @@ test('reduceWidth: an empty bucket 1..9 in a push is fail:coverage, in a hold a 
   assert.deepEqual([by['open@3'], by['open@4'], by['open@5'], by['open@6'], by['open@7']], Array(5).fill('fail:coverage'));
   assert.equal(by['open@1'], 'pass');
   assert.equal(by['open@11'], 'skip:noSample');
+});
+
+const NO_FIRST = [0, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+const cellOf = (units, prop, step) => units.find((x) => x.node === 'nav' && x.prop === prop && x.phase === 'open' && x.step === step);
+
+test('reduceWidth: open@1 empty in both arms is skip:origEmpty, not fail:coverage (Lean byMFirst)', () => {
+  const orig = { morph: morphOf(phaseRows(NO_FIRST, () => 'off'), NO_FW) };
+  const rewrite = { morph: morphOf(phaseRows(NO_FIRST, () => 'off'), OK_REWRITE) };
+  const u = reduceWidth({ width: 390, orig, rewrite, registries });
+  assert.equal(cellOf(u, 'cls.is-expanded', 'open@1').verdict, 'skip:origEmpty');
+  assert.equal(cellOf(u, 'cls.is-expanded', 'open@2').verdict, 'pass');
+  assert.equal(u.filter((x) => x.phase === 'open' && x.step === 'open@1').every((x) => x.verdict === 'skip:origEmpty' || x.verdict === 'pass'), true);
+  assert.equal(u.filter((x) => x.phase !== 'open').some((x) => x.verdict === 'skip:origEmpty'), false);
+});
+
+test('reduceWidth: open@1 the original sampled and the rewrite did not stays fail:coverage', () => {
+  const orig = { morph: morphOf(phaseRows(EVERY, () => 'off'), NO_FW) };
+  const rewrite = { morph: morphOf(phaseRows(NO_FIRST, () => 'off'), OK_REWRITE) };
+  const u = reduceWidth({ width: 390, orig, rewrite, registries });
+  assert.equal(cellOf(u, 'cls.is-expanded', 'open@1').verdict, 'fail:coverage');
+});
+
+test('reduceWidth: an empty open@2 stays fail:coverage when the original has no open@2 either', () => {
+  const none2 = [0, 1000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+  const orig = { morph: morphOf(phaseRows(none2, () => 'off'), NO_FW) };
+  const rewrite = { morph: morphOf(phaseRows(none2, () => 'off'), OK_REWRITE) };
+  assert.equal(cellOf(reduceWidth({ width: 390, orig, rewrite, registries }), 'cls.is-expanded', 'open@2').verdict, 'fail:coverage');
+});
+
+test('reduceRaw: the flag that matches the original at open@1 is not red where the faithful arm sampled it (hero:scene-pause shape)', () => {
+  const raw = (candRows) => ({
+    engine: 'chromium', search: '?fw=hero:scene-pause', reps: 1, paths: ['morph'], runs: [
+      { ...runOf('orig', morphOf(phaseRows(NO_FIRST, () => 'off'), NO_FW)) },
+      { ...runOf('base', morphOf(phaseRows(EVERY, () => 'off'), OK_REWRITE)) },
+      { ...runOf('cand', morphOf(phaseRows(candRows, () => 'off'), OK_REWRITE)) }] });
+  const regs = { hero: [], morph: registries.morph, page: [] };
+  const flag = reduceRaw(raw(NO_FIRST), regs), plain = reduceRaw(raw(EVERY), regs);
+  assert.equal(flag.refused, false);
+  assert.equal(flag.red, false);
+  assert.ok(flag.totals.origEmpty > 0);
+  assert.ok(verdictLines('chromium', '?fw=hero:scene-pause', flag).some((l) => l.startsWith('FIRSTFRAME ')));
+  assert.equal(plain.red, false);
 });
 
 test('reduceWidth: a push sample without a morph value is fail:coverage', () => {
