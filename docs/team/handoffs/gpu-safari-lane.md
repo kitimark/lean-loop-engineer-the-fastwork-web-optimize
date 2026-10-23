@@ -1,8 +1,8 @@
 # gpu-safari-lane handoff (checkpoint)
 
-branch: `worktree-wf_85608f68-de1-1`
 worktree: `.claude/worktrees/wf_85608f68-de1-1` (under the main checkout)
-last commit: see `git log -1` (WIP e1ed415ce, results and note follow)
+last commit: see `git log -1` (round 2: 6d15a14c1 plus the results commit)
+CI runs: none pushed (local lane, exception (c)); paired CI rows are cited by run id in `results/gpu-safari/lane/ci-pairs.mjs`. Round 2: sim slot token d7b2fd92-68e (28 min lease from 07:46), `run.mjs sim all` running in its own process group (pid file in the scratchpad), release the token when it ends
 CI runs: none pushed (local lane, exception (c)); paired CI rows are cited by run id in `results/gpu-safari/lane/ci-pairs.mjs`
 verified: lane tests `node --test results/gpu-safari/lane/lane.test.mjs` (9 pass); one local Simulator run per zone (not a result, paired evidence)
 open: macOS Safari is blocked while the Mac screen is locked (IOConsoleLocked true, `document.visibilityState` hidden, rAF 0 in 600 ms, WebDriver screenshots all black); IOSurface per push needs Instruments on macOS Safari (not run)
