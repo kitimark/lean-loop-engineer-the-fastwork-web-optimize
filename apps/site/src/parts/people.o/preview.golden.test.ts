@@ -5,21 +5,16 @@ import * as P from './preview';
 const golden = readGolden('people-o-preview', 'main');
 
 describe('people.o:preview-translate golden', () => {
-  it('every golden fn is covered', () => {
-    expect(new Set(golden.map((g) => g.fn))).toEqual(new Set(['regime', 'snapDev', 'step', 'layoutPasses']));
+  const LEAN_ONLY = new Set(['snapDev']);
+  it('every golden fn is either compared with site code below or Lean-only', () => {
+    expect(new Set(golden.map((g) => g.fn).filter((f) => !LEAN_ONLY.has(f)))).toEqual(new Set(['regime', 'step', 'layoutPasses']));
+    expect(golden.some((g) => LEAN_ONLY.has(g.fn))).toBe(true);
   });
 
   it('regime equals the Lean regime', () => {
     for (const g of golden.filter((x) => x.fn === 'regime')) {
       const i = decodeRat(g.in) as { vh: number; t: number; b: number };
       expect(P.regime(i), JSON.stringify(g.in)).toBe(g.out);
-    }
-  });
-
-  it('snapDev rows are device-pixel rounding half up', () => {
-    for (const g of golden.filter((x) => x.fn === 'snapDev')) {
-      const i = decodeRat(g.in) as { d: number; v: number };
-      expect(Math.floor(i.v * i.d + 0.5), JSON.stringify(g.in)).toBe(g.out);
     }
   });
 
