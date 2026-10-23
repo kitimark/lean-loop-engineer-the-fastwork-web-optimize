@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON } from '../src/pathpix-exit.mjs';
+import { splitUnion } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON, zoneAgree, zoneSeen, joinSeen, verdictOf, consensusOf, probeHit, probesHit } from '../src/pathpix-exit.mjs';
 import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -12,7 +13,7 @@ const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.json
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign', 'yield', 'seen', 'consensus', 'probeHit']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -80,7 +81,7 @@ test('exit offsets and claims equal the Lean golden', () => {
 
 test('the accent pin is the same in every arm and shows the served word, as the Lean golden says', () => {
   const rows = of('accentPin');
-  assert.deepEqual([...new Set(rows.map((r) => r.arm))], ['A', 'A2', 'P']);
+  assert.deepEqual([...new Set(rows.map((r) => r.arm))], ['A', 'A2', 'A3', 'P']);
   for (const r of rows) {
     assert.equal(armPin(r.arm), r.pin, r.arm);
     assert.deepEqual(r.perOffset.map((_, i) => pinAt(r.arm, i)), r.perOffset, `${r.arm} per offset`);
@@ -145,4 +146,58 @@ test('the capture opens every exit arm with the site hook set, keeping the arm q
   }
   assert.ok(of('hook').some((g) => g.search === '?fwpin=accent' && g.hook === true));
   assert.ok(of('hook').some((g) => g.search === '?fw=hero.exit:threaded&fwpin=accent' && g.hook === true));
+});
+
+test('the yield rule equals the Lean golden: hero_copy hands a pixel to the cells of other graded layers and they count it, A/A and P changes alike', () => {
+  const ys = of('yield');
+  assert.ok(ys.some((y) => y.heroCounts.length && y.heroCounts.every((c) => c === false) && y.countedBy.length > 0), 'a yielded pixel is counted by a receiver');
+  assert.ok(ys.some((y) => y.countedBy.length === 0), 'a pixel in no mask is counted by none');
+  for (const y of ys) {
+    const masks = y.layers.map((l) => l.mask);
+    const foreign = y.layers.map((l, n) => foreignMasks(l.layer, masks.filter((_, o) => y.layers[o].layer !== l.layer)));
+    for (const d of [1, 13]) {
+      const del = new Uint8Array(200 * 200);
+      del[y.y * 200 + y.x] = d;
+      const sp = splitUnion(del, 200, 200, masks, foreign);
+      const counting = y.layers.filter((_, n) => sp.inside[n].raw.changed === 1).map((l) => l.key);
+      assert.deepEqual(counting, y.countedBy, `${y.name}, delta ${d}`);
+      y.layers.forEach((l, n) => {
+        if (l.layer === 'hero_copy') assert.deepEqual(sp.inside[n].raw.changed === 1, y.heroCounts[0], y.name);
+        const inOwn = masks[n][0] <= y.x && y.x < masks[n][1] && masks[n][2] <= y.y && y.y < masks[n][3];
+        const yielded = inOwn && sp.inside[n].raw.changed === 0;
+        assert.deepEqual(sp.receivers[n].map((o) => y.layers[o].key).every((k) => y.countedBy.includes(k)), true, y.name);
+        assert.equal(sp.shared[n].changed, yielded ? 1 : 0, y.name);
+        assert.equal(sp.receivers[n].length > 0, yielded, y.name);
+      });
+    }
+  }
+});
+
+test('the consensus rule equals the Lean golden: a P change counts only where the identical arms agree', () => {
+  const ss = of('seen');
+  assert.deepEqual([...new Set(ss.map((x) => x.seen))].sort(), ['counted', 'quiet', 'varied']);
+  for (const x of ss) {
+    assert.equal(zoneAgree(x.region), x.agree, x.name);
+    assert.equal(zoneSeen(x.region), x.seen, x.name);
+  }
+  const cs = of('consensus');
+  assert.ok(cs.some((c) => c.verdict === 'varied') && cs.some((c) => c.verdict === c.grade) && cs.some((c) => c.verdict === 'invalid'));
+  for (const c of cs) {
+    assert.equal(consensusOf(c.cell, c.floor, c.live, c.a2, c.a3), c.verdict, c.name);
+    assert.equal(gradeRel(c.cell, c.floor, c.live), c.grade, c.name);
+    assert.ok(c.verdict === 'varied' || c.verdict === c.grade, `${c.name}: a verdict is the grade or varied`);
+  }
+  for (const a of ['quiet', 'varied', 'counted']) for (const b of ['quiet', 'varied', 'counted']) assert.equal(joinSeen(a, b), joinSeen(b, a));
+  assert.equal(verdictOf('invalid', { p: { changed: 1, maxDelta: 1 }, aa2: { changed: 1, maxDelta: 1 }, aa3: null }, { p: { changed: 0, maxDelta: 0 }, aa2: { changed: 0, maxDelta: 0 }, aa3: null }), 'invalid');
+});
+
+test('the probe overlap equals the Lean golden: touching edges do not hit, the recorded order is kept', () => {
+  const ps = of('probeHit');
+  assert.ok(ps.some((p) => p.hit.length === 0) && ps.some((p) => p.hit.length > 1));
+  for (const p of ps) {
+    const probes = Object.fromEntries(p.probes.map(([n, x, y, w, h]) => [n, [x, y, w, h]]));
+    assert.deepEqual(probesHit(probes, p.bbox, p.dpr).map((h) => h[0]), p.hit, p.name);
+  }
+  assert.equal(probeHit(1, [10, 0, 20, 5], [20e6, 1e6, 5e6, 1e6]), false);
+  assert.equal(probeHit(1, [10, 0, 21, 5], [20e6, 1e6, 5e6, 1e6]), true);
 });

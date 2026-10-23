@@ -17,36 +17,32 @@ const ph = (o: Partial<WaitPhases> = {}): WaitPhases => ({
   how: "done", holder: false, regMs: 1_000, runIds: [900], updMs: 10_000, prevTickMs: 9_000, tickMs: 40_000, readMs: 41_000,
   viewEndMs: 43_000, doneMs: 43_500, retMs: 44_000, views: 1, cached: 0, lockMs: 200, ghMs: 900, loops: 12, ...o,
 });
-const noPoll = () => undefined;
 const span = (p: WaitPhases, extra: [number, number] = [44_100, 46_000], load = 5): Span => ({
-  tool: "fw", step: "ci wait", startMs: 1_000, durMs: 47_000 - 1_000, exit: 0, host: "local", load, commit: "abc1234", ...waitSpanExtra(p, extra[0], extra[1], noPoll),
+  tool: "fw", step: "ci wait", startMs: 1_000, durMs: 47_000 - 1_000, exit: 0, host: "local", load, commit: "abc1234", ...waitSpanExtra(p, extra[0], extra[1]),
 } as Span);
 
 describe("wait span extras", () => {
   it("begin(...)(exit, extra) writes runIds and phases on the one line", () => {
-    begin("fw", "ci wait")(0, waitSpanExtra(ph(), 44_100, 46_000, noPoll));
+    begin("fw", "ci wait")(0, waitSpanExtra(ph(), 44_100, 46_000));
     const [s] = lines();
     expect(s!.runIds).toEqual([900]);
     expect(s!.phases).toMatchObject({ how: "done", tickMs: 40_000, ingestStartMs: 44_100, ingestEndMs: 46_000 });
     expect(JSON.stringify(s)).not.toMatch(/"runId":/);
   });
   it("a wait span with runIds is not a CI-run span: seenRuns ignores it and parseSamples still reads it", () => {
-    begin("fw", "ci wait")(0, waitSpanExtra(ph(), 44_100, 46_000, noPoll));
+    begin("fw", "ci wait")(0, waitSpanExtra(ph(), 44_100, 46_000));
     expect(seenRuns(file).size).toBe(0);
     expect(parseSamples(readFileSync(file, "utf8")).length).toBeGreaterThanOrEqual(0);
   });
-  it("no phases: no extra fields", () => { expect(waitSpanExtra(null, 1, 2, noPoll)).toEqual({}); });
+  it("no phases: no extra fields", () => { expect(waitSpanExtra(null, 1, 2)).toEqual({}); });
   it("undefined phase fields are dropped", () => {
-    const e = waitSpanExtra(ph({ prevTickMs: undefined }), 1, 2, noPoll);
+    const e = waitSpanExtra(ph({ prevTickMs: undefined }), 1, 2);
     expect(Object.keys(e.phases!)).not.toContain("prevTickMs");
   });
-  it("a done wait carries the poll interval; other waits do not ask for it", () => {
-    expect(waitSpanExtra(ph(), 1, 2, () => 10).phases).toMatchObject({ how: "done", pollS: 10 });
-    expect(Object.keys(waitSpanExtra(ph(), 1, 2, noPoll).phases!)).not.toContain("pollS");
-    let asked = 0;
-    const e = waitSpanExtra(ph({ how: "timeout" }), 1, 2, () => { asked++; return 10; });
-    expect(asked).toBe(0);
-    expect(Object.keys(e.phases!)).not.toContain("pollS");
+  it("the interval and retryUntil are the ones the wait recorded at its deciding tick, copied as they are", () => {
+    expect(waitSpanExtra(ph({ pollS: 10, retryUntilS: 30 }), 1, 2).phases).toMatchObject({ how: "done", pollS: 10, retryUntilS: 30, prevTickMs: 9_000, tickMs: 40_000 });
+    expect(Object.keys(waitSpanExtra(ph(), 1, 2).phases!)).not.toContain("pollS");
+    expect(Object.keys(waitSpanExtra(ph(), 1, 2).phases!)).not.toContain("retryUntilS");
   });
 });
 

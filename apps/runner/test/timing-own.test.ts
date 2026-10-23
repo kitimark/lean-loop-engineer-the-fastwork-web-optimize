@@ -23,6 +23,12 @@ describe("rawOf: the raw facts forwarded to Lean, which decides the own time (Fw
     expect(rawOf({ ...wait(1000, 5, { how: "done", updMs: 7 }), commit: "3d0d68a" })).toEqual({ startMs: 1000, commit: "3d0d68a", phases: { how: "done", updMs: 7 } });
     expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: 9, pollS: 10, readMs: 11 })))
       .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9, pollS: 10 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10 })))
+      .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10, retryUntilS: 30 })))
+      .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10, retryUntilS: 30 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: 9, retryUntilS: -2 }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, prevTickMs: 3.5, tickMs: 9 }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9 } });
     expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: -1, pollS: "10" }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7 } });
   });
   it("drops malformed numbers and phases, so one bad line cannot make fwcore refuse the request", () => {
@@ -62,13 +68,16 @@ const landSpans = (n: number) => LAND.slice(0, n).map(([d, m, l], i) => ({
 
 describe.skipIf(!haveCore)("the own time of a wait replays the Lean golden through fwcore obs.timing", () => {
   const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing-own.jsonl"), "utf8").trim().split("\n")
-    .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; ownMs: number | null });
+    .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; netSrc: string; ownMs: number | null });
   const params = { budgetMs: 1, budgets: [], ceilings: [], kDen: 1, kNum: 1, loadMax: 1000, nMin: 1, stages: [] };
   const input = golden.map((g, id) => JSON.stringify({ id, op: "obs.timing", params, samples: parseSamples(JSON.stringify(g.span)) })).join("\n") + "\n";
   const out = spawnSync(fwcore, [], { input, encoding: "utf8", maxBuffer: 64 << 20 }).stdout ?? "";
   const byId = new Map(out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { id: number; verdicts?: { kind: string; durMs: number }[] })
     .map((r) => [r.id, r] as const));
-  it("has the Lean cases", () => expect(golden.length).toBe(8));
+  it("has the Lean cases, netting the observed tick gap and the state's interval", () => {
+    expect(golden.length).toBe(16);
+    expect(new Set(golden.filter((g) => g.ownMs !== null).map((g) => g.netSrc))).toEqual(new Set(["observed", "state"]));
+  });
   golden.forEach((g, id) => it(g.name, () => {
     const v = byId.get(id)?.verdicts?.filter((x) => x.kind === "sample") ?? [];
     expect(v[0]?.durMs ?? null).toBe(g.ownMs);

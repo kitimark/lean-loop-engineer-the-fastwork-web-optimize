@@ -43,7 +43,7 @@ export const floorPinned = (served, maxY, rows, f) => ({ ...f, valid: f.valid &&
 export const coverAll = (c) => !!c && c.n > 0 && c.k === c.n;
 export const occludedBoth = (a, b) => coverAll(a) && coverAll(b);
 
-export const FOREIGN_REASON = "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards";
+export const FOREIGN_REASON = "a pixel inside another graded layer's mask is counted by that layer's cell, not by hero_copy: hero_copy's mask is the union of all its element boxes, hidden countdown faces included, and can overlap the masks of other layers";
 export const yieldsShared = (layer) => layer === 'hero_copy';
 export const foreignMasks = (layer, others) => (yieldsShared(layer) ? others : []);
 export const countedIn = (foreign, m, x, y) => inMask(m, x, y) && !foreign.some((k) => inMask(k, x, y));
@@ -64,6 +64,13 @@ export function whyL(c, f, live) {
   return c.out.changed !== 0 ? 'outside' : textHold(c) ? 'text' : 'inside';
 }
 
+export const zoneAgree = (z) => z.aa2.changed === 0 && (z.aa3 === null || z.aa3.changed === 0);
+export const zoneSeen = (z) => (z.p.changed === 0 ? 'quiet' : zoneAgree(z) ? 'counted' : 'varied');
+export const joinSeen = (a, b) => (a === 'counted' || b === 'counted' ? 'counted' : a === 'varied' || b === 'varied' ? 'varied' : 'quiet');
+export const verdictOf = (g, out, inside) => (g !== 'invalid' && joinSeen(zoneSeen(out), zoneSeen(inside)) === 'varied' ? 'varied' : g);
+export const zonesOf = (c, a2, a3) => [{ p: c.out, aa2: a2.out, aa3: a3 ? a3.out : null }, { p: c.inside, aa2: a2.inside, aa3: a3 ? a3.inside : null }];
+export const consensusOf = (c, f, live, a2, a3) => { const [o, i] = zonesOf(c, a2, a3); return verdictOf(gradeRel(c, f, live), o, i); };
+
 export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k) => inMask(k, x, y)) ? 'other' : 'out');
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
@@ -76,23 +83,36 @@ export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
     const d = del[i];
     if (d) { oc++; if (d > om) om = d; const x = i % w, y = (i - x) / w; if (x < ox0) ox0 = x; if (x > ox1) ox1 = x; if (y < oy0) oy0 = y; if (y > oy1) oy1 = y; }
   }
-  const shared = [];
+  const shared = [], receivers = [];
   const inside = masks.map((m, n) => {
     let changed = 0, maxDelta = 0, sc = 0, sm = 0;
+    const to = new Set();
     const hist = { b1: 0, b2_3: 0, b4_15: 0, b16_255: 0 };
     let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
     const fo = foreign[n] ?? [];
     for (let y = m[2]; y < m[3]; y++) for (let x = m[0]; x < m[1]; x++) {
       const d = del[y * w + x];
       if (!d) continue;
-      if (fo.length && !countedIn(fo, m, x, y)) { sc++; if (d > sm) sm = d; continue; }
+      if (fo.length && !countedIn(fo, m, x, y)) {
+        sc++; if (d > sm) sm = d;
+        for (const k of fo) if (inMask(k, x, y)) to.add(masks.indexOf(k));
+        continue;
+      }
       changed++; if (d > maxDelta) maxDelta = d; hist[bucket(d)]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     }
     shared.push({ changed: sc, maxDelta: sm });
+    receivers.push([...to].sort((p, q) => p - q));
     return { raw: { changed, maxDelta }, hist, bbox: changed ? [x0, y0, x1 + 1, y1 + 1] : null };
   });
-  return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared };
+  return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared, receivers };
 }
+
+export const probeHit = (dpr, bb, [x, y, w, h]) => x * dpr < bb[2] * 1e6 && (x + w) * dpr > bb[0] * 1e6 && y * dpr < bb[3] * 1e6 && (y + h) * dpr > bb[1] * 1e6;
+
+export const probesHit = (probes, bbox, dpr) => {
+  const r1 = (v) => Math.round(v * dpr * 10) / 10;
+  return !bbox ? [] : Object.entries(probes ?? {}).filter(([, b]) => probeHit(dpr, bbox, b)).map(([n, [x, y, w, h]]) => [n, r1(x / 1e6), r1(y / 1e6), r1((x + w) / 1e6), r1((y + h) / 1e6)]);
+};
 
 export const partsHit = (parts, bbox, dpr) => (!bbox || !parts ? [] : parts.filter(([, x, y, w, h]) => x * dpr < bbox[2] && (x + w) * dpr > bbox[0] && y * dpr < bbox[3] && (y + h) * dpr > bbox[1]).map((p) => p[0]));
 
@@ -160,6 +180,8 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
       const graded = keys.map((k) => skipWhy(k) === null);
       const foreign = keys.map((key, n) => foreignMasks(baseLayer(key), masks.filter((_, o) => graded[o] && baseLayer(keys[o]) !== baseLayer(key))));
       const sp = splitUnion(del, frame.w, frame.h, masks, foreign);
+      const aaSplit = (r) => (r && kind === 'P' ? splitUnion(deltas(a0, load(r.files[0])), frame.w, frame.h, masks, foreign) : null);
+      const sp2 = aaSplit(S.A2[i]), sp3 = aaSplit(S.A3?.[i]);
       keys.forEach((key, n) => {
         const box = rowA.boxes[key], layer = baseLayer(key), claim0 = exitClaim(layer, le600);
         const why0 = skipWhy(key);
@@ -183,9 +205,15 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
           key, layer, i, y: rowA.scrollY, kind, mask: masks[n], boxSame: JSON.stringify(row.boxes?.[key] ?? null) === JSON.stringify(box), live,
           cell, floor, accentPinned: ok, invalidWhy: unpinnedWhy(served, maxY, accentRows, floorRows, floor), grade: gradePinned(served, maxY, accentRows, floorRows, cell, floor, live), absGrade: ok ? grade(cell) : 'invalid',
           why: ok ? whyL(cell, floor, live) : null,
-          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr), outBbox: sp.outBbox },
-          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist, shared: sp.shared[n], sharedWith: foreign[n].length,
+          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr), outBbox: sp.outBbox, outProbes: probesHit(row.probes ?? rowA.probes, sp.outBbox, dpr) },
+          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist, shared: sp.shared[n], sharedWith: foreign[n].length, sharedTo: sp.receivers[n].map((o) => keys[o]),
         };
+        const aaOf = (x) => (x ? { out: x.out, inside: x.inside[n].raw } : null);
+        const a2 = aaOf(sp2), a3 = aaOf(sp3);
+        if (a2) {
+          const [zo, zi] = zonesOf(cell, a2, a3);
+          rec.consensus = { a2, a3, out: zoneSeen(zo), inside: zoneSeen(zi), seen: joinSeen(zoneSeen(zo), zoneSeen(zi)), verdict: verdictOf(rec.grade, zo, zi) };
+        }
         const changed = cell.inside.changed + cell.out.changed > 0;
         const sk = `${kind}:${key}`;
         if (strips === 'all' || (strips === 'changed' && (changed || !firstStrip.has(sk)) && (kind === 'P' || changed))) {
@@ -222,6 +250,8 @@ export function exitTable(res) {
     const f = aa.get(`${c.key}@${c.i}`);
     out.push(`| ${c.key} | ${c.i} | ${c.y} | ${c.grade}${c.why ? ` (${c.why})` : ''} | ${c.ifAccepted} | ${sumRaw(c.cell.inside)} | ${sumRaw(c.cell.out)} | ${f ? f.grade : '-'} | ${f ? sumRaw(f.cell.inside) : '-'} | ${f ? sumRaw(f.cell.out) : '-'} | ${c.live} | ${c.strip ?? ''} |`);
   }
+  const ps = res.cells.filter((c) => c.kind === 'P'), seenN = (x) => ps.filter((c) => c.consensus?.seen === x).length;
+  out.push('', `consensus of the identical arms (${res.armsRun.filter((a) => a !== 'P').join(', ')}): P cells counted ${seenN('counted')}, varied ${seenN('varied')}, quiet ${seenN('quiet')}, without data ${ps.filter((c) => !c.consensus).length}; verdict varied ${ps.filter((c) => c.consensus?.verdict === 'varied').length}`);
   out.push('', `faithful driver moved the consumers in arm A: ${res.driverMoved}`);
   out.push('', `cells marked invalid with reason accent-unpinned: ${res.cells.filter((c) => c.invalidWhy === 'accent-unpinned').length} of ${res.cells.length}; misplaced (scrollY is not the offset): ${res.cells.filter((c) => c.invalidWhy === 'misplaced').length}`);
   if (res.clock) out.push(`page Date.now in every row: ${res.clock.constant ? 'constant' : 'moves'} (${res.clock.values.join(', ') || 'not recorded'})`);

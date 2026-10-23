@@ -53,6 +53,8 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`), `dirtyBefore`? [paths dirty at plan time; dropped from `paths` and `edited`; missing = `[]`], `heads`? [{path, head}] (first lines; a generator stamp makes the path skip) (`Fw.Plan.Polish`, `dirty_never_scoped`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore`, `left` [edited paths that were dirty at plan time] |
 | `plan.polishHunks` | `diff` [{path, spans [{start, len}]}] (new-side hunks of the branch diff, merge-base to head, `-U0`), `edits` [{path, spans}] (old-side hunks of the uncommitted edits against head), `main` [paths dirty in the main checkout] (`Fw.Plan.Polish.admitted`, `relOk`, `blocked`) | `ranges` [{path, ranges [{lo, hi}]}], `edits` [{path, pathOk, kept [bool per span]}], `blocked` |
 | `plan.polishSettle` | `before` [untracked paths before the polish stage], `dirtyBefore`? [tracked paths dirty at plan time; missing = `[]`], `dirty` [tracked paths differing from HEAD], `untracked` [untracked paths now] (`Fw.Plan.Polish.settle`) | `restore` [dirty paths that were clean at plan time, to restore from HEAD], `remove` [untracked paths created since `before`] |
+| `plan.wtName` | `dir` (a worktree directory) (`Fw.Plan.Polish.wtName`, `wtName_relative`, `wtName_safe`, `wtName_not_dots`) | `name` [the last segment of an absolute `.../.claude/worktrees/<name>`; `null` for a relative, `~`, trailing-slash or odd-named path] |
+| `plan.inWt` | `main` (the main checkout root, absolute), `name` (the worktree name), `path` (an edited path; relative = under `main`) (`Fw.Plan.Polish.ownEdit`, `ownEdit_sound`) | `verdict` (`own`, `badMain`, `badName`, `notPlain`, `outside`), `own` [bool] |
 | `plan.polishWalk` | `head` [lines of the HEAD file], `hunks` [{target, oldLen, new [lines], keep}] in ascending order (`Fw.Plan.Polish.walk`) | `lines` [the file: HEAD with exactly the kept hunks applied] |
 | `plan.polishCuts` | `gen` [paths], `heads`?, `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
 | `plan.roster` | (none) | `roles` [{name, runsAs, edits}]: `Fw.Ops.SpawnGuard.prodRoles` |
@@ -329,19 +331,25 @@ def opPolishWalk (req : Json) : Except String Reply := do
             keep := (h.getObjValAs? Bool "keep").toOption.getD false } : WHunk)
   pure [("lines", strsJson (walk head 0 hs))]
 
+open Fw.Plan.Polish in
+def opWtName (req : Json) : Except String Reply := do
+  pure [("name", match wtName (← Fw.Wire.str req "dir") with | some n => .str n | none => .null)]
+
+open Fw.Plan.Polish in
+def opInWt (req : Json) : Except String Reply := do
+  let v := ownEdit (← Fw.Wire.str req "main") (← Fw.Wire.str req "name") (← Fw.Wire.str req "path")
+  pure [("verdict", .str v.name), ("own", .bool (v == .own))]
+
 open Fw.Ops.SpawnGuard in
-/-- `plan.roster`: `Fw.Ops.SpawnGuard.prodRoles`, the roles the spawn guard knows. -/
 def opRoster : Reply :=
   [("roles", .arr (prodRoles.toArray.map fun r => Json.mkObj [("name", .str r.name),
     ("runsAs", .str (match r.runsAs with | .teammate => "teammate" | .subagent => "subagent" | .worktree => "worktree")),
     ("edits", .bool r.edits)]))]
 
-/-- The stateless ops of this module. -/
 def ops : List String :=
   ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts",
-   "plan.polishHunks", "plan.polishSettle", "plan.polishWalk", "plan.roster"]
+   "plan.polishHunks", "plan.polishSettle", "plan.polishWalk", "plan.wtName", "plan.inWt", "plan.roster"]
 
-/-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "plan.incidentLint" => some (opIncidentLint req)
@@ -353,6 +361,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "plan.polishHunks" => some (opPolishHunks req)
   | "plan.polishSettle" => some (opPolishSettle req)
   | "plan.polishWalk" => some (opPolishWalk req)
+  | "plan.wtName" => some (opWtName req)
+  | "plan.inWt" => some (opInWt req)
   | "plan.roster" => some (pure opRoster)
   | _ => none
 

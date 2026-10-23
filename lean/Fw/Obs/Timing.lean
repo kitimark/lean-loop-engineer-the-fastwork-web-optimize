@@ -92,18 +92,131 @@ def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
 
-def ownOfPhases (startMs durMs : Nat) (how : String) (updMs tickMs pollS : Option Nat) : Option Nat :=
-  match updMs, tickMs, pollS with
-  | some u, some t, some p =>
+inductive NetSrc where
+  | observed
+  | state
+deriving DecidableEq, Repr
+
+def netSrc (tickMs prevTickMs : Option Nat) : NetSrc :=
+  match tickMs, prevTickMs with
+  | some t, some p => if p < t then .observed else .state
+  | _, _ => .state
+
+def backoffMs (prevTickMs retryUntilS : Option Nat) : Nat :=
+  match prevTickMs, retryUntilS with
+  | some p, some r => r * 1000 - p
+  | _, _ => 0
+
+def gapCapMs (prevTickMs pollS retryUntilS : Option Nat) : Option Nat :=
+  match pollS, retryUntilS with
+  | some q, some _ => some (q * 1000 + backoffMs prevTickMs retryUntilS)
+  | _, _ => none
+
+def netMsOf (tickMs prevTickMs pollS retryUntilS : Option Nat) : Option Nat :=
+  match netSrc tickMs prevTickMs, tickMs, prevTickMs with
+  | .observed, some t, some p =>
+    match gapCapMs (some p) pollS retryUntilS with
+    | some c => some (min (t - p) c)
+    | none => some (t - p)
+  | _, _, _ => pollS.map (· * 1000)
+
+theorem netSrc_observed_iff (t p : Option Nat) :
+    netSrc t p = .observed ↔ ∃ t' p', t = some t' ∧ p = some p' ∧ p' < t' := by
+  unfold netSrc
+  cases t <;> cases p <;> simp
+
+theorem netSrc_no_prev (t : Option Nat) : netSrc t none = .state := by cases t <;> rfl
+
+theorem netSrc_no_tick (p : Option Nat) : netSrc none p = .state := rfl
+
+theorem netSrc_not_before (t p : Nat) (h : t ≤ p) : netSrc (some t) (some p) = .state := by
+  simp [netSrc, Nat.not_lt.2 h]
+
+theorem backoffMs_before (p r : Nat) (h : r * 1000 ≤ p) : backoffMs (some p) (some r) = 0 := by
+  simp [backoffMs]; omega
+
+theorem gapCapMs_no_retry (p q : Option Nat) : gapCapMs p q none = none := by cases q <;> rfl
+
+theorem gapCapMs_no_poll (p r : Option Nat) : gapCapMs p none r = none := rfl
+
+theorem gapCapMs_some (p q r : Nat) : gapCapMs (some p) (some q) (some r) = some (q * 1000 + (r * 1000 - p)) := rfl
+
+theorem netMsOf_observed (t p : Nat) (q : Option Nat) (h : p < t) :
+    netMsOf (some t) (some p) q none = some (t - p) := by
+  cases q <;> simp [netMsOf, netSrc, h, gapCapMs]
+
+theorem netMsOf_capped (t p q r : Nat) (h : p < t) :
+    netMsOf (some t) (some p) (some q) (some r) = some (min (t - p) (q * 1000 + (r * 1000 - p))) := by
+  simp [netMsOf, netSrc, h, gapCapMs, backoffMs]
+
+theorem netMsOf_gap_within (t p q r : Nat) (h : p < t) (hc : t - p ≤ q * 1000 + (r * 1000 - p)) :
+    netMsOf (some t) (some p) (some q) (some r) = some (t - p) := by
+  rw [netMsOf_capped t p q r h, Nat.min_eq_left hc]
+
+theorem netMsOf_gap_stall (t p q r : Nat) (h : p < t) (hc : q * 1000 + (r * 1000 - p) < t - p) :
+    netMsOf (some t) (some p) (some q) (some r) = some (q * 1000 + (r * 1000 - p)) := by
+  rw [netMsOf_capped t p q r h, Nat.min_eq_right (Nat.le_of_lt hc)]
+
+theorem netMsOf_state (t p q r : Option Nat) (h : netSrc t p = .state) : netMsOf t p q r = q.map (· * 1000) := by
+  unfold netMsOf
+  rw [h]
+
+theorem netMsOf_observed_ignores_poll (t p : Nat) (q q' : Option Nat) (h : p < t) :
+    netMsOf (some t) (some p) q none = netMsOf (some t) (some p) q' none := by
+  rw [netMsOf_observed t p q h, netMsOf_observed t p q' h]
+
+theorem netMsOf_le_cap (t p q r : Option Nat) (n c : Nat) (hn : netMsOf t p q r = some n)
+    (hc : gapCapMs p q r = some c) : n ≤ c := by
+  cases q with
+  | none => simp [gapCapMs] at hc
+  | some q =>
+    cases r with
+    | none => simp [gapCapMs] at hc
+    | some r =>
+      cases hs : netSrc t p with
+      | state =>
+        rw [netMsOf_state t p (some q) (some r) hs] at hn
+        simp [gapCapMs] at hc hn
+        omega
+      | observed =>
+        obtain ⟨t', p', rfl, rfl, hp⟩ := (netSrc_observed_iff t p).1 hs
+        rw [netMsOf_capped t' p' q r hp] at hn
+        simp [gapCapMs, backoffMs] at hc hn
+        omega
+
+#guard netMsOf (some 1792784016000) (some 1792784004000) (some 10) none == some 12000
+#guard netMsOf (some 1792784016000) (some 1792784004000) none none == some 12000
+#guard netMsOf (some 1792784016000) none (some 10) none == some 10000
+#guard netMsOf (some 1792784016000) (some 1792784016000) (some 10) none == some 10000
+#guard netMsOf (some 1792784016000) (some 1792784020000) (some 10) none == some 10000
+#guard netMsOf none (some 5) (some 10) none == some 10000
+#guard netMsOf (some 9) none none none == none
+#guard netSrc (some 9) (some 3) == .observed && netSrc (some 9) (some 9) == .state && netSrc none (some 3) == .state
+#guard netMsOf (some 1792784016000) (some 1792784004000) (some 10) (some 1792783000) == some 10000
+#guard netMsOf (some 1792784016000) (some 1792784004000) (some 10) (some 1792784006) == some 12000
+#guard netMsOf (some 257000) (some 40000) (some 10) (some 30) == some 10000
+#guard netMsOf (some 257000) (some 40000) none (some 30) == some 217000
+#guard netMsOf (some 257000) none (some 10) (some 300) == some 10000
+#guard backoffMs (some 40000) (some 110) == 70000 && backoffMs (some 40000) (some 30) == 0
+#guard backoffMs none (some 30) == 0
+#guard gapCapMs (some 40000) (some 10) (some 110) == some 80000 && gapCapMs (some 40000) (some 10) none == none
+
+def ownOfNet (startMs durMs : Nat) (how : String) (updMs tickMs netMs : Option Nat) : Option Nat :=
+  match updMs, tickMs, netMs with
+  | some u, some t, some n =>
     if how == "done" && u ≤ startMs + durMs then
-      some (startMs + durMs - max u startMs - min (t - max u startMs) (p * 1000))
+      some (startMs + durMs - max u startMs - min (t - max u startMs) n)
     else none
   | _, _, _ => none
 
-theorem ownOfPhases_some (s d : Nat) (how : String) (u t p o : Nat) :
-    ownOfPhases s d how (some u) (some t) (some p) = some o ↔
-      how = "done" ∧ u ≤ s + d ∧ o = s + d - max u s - min (t - max u s) (p * 1000) := by
-  simp only [ownOfPhases]
+def ownOfPhases (startMs durMs : Nat) (how : String) (updMs tickMs prevTickMs pollS retryUntilS : Option Nat) :
+    Option Nat :=
+  ownOfNet startMs durMs how updMs tickMs (netMsOf tickMs prevTickMs pollS retryUntilS)
+
+theorem ownOfNet_some (s d : Nat) (how : String) (u t n o : Nat) :
+    ownOfNet s d how (some u) (some t) (some n) = some o ↔
+      how = "done" ∧ u ≤ s + d ∧ o = s + d - max u s - min (t - max u s) n := by
+  simp only [ownOfNet]
   by_cases h : (how == "done" && decide (u ≤ s + d)) = true
   · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
     simp [h, eq_comm]
@@ -113,59 +226,164 @@ theorem ownOfPhases_some (s d : Nat) (how : String) (u t p o : Nat) :
     · intro e; cases e
     · intro ⟨h1, h2, _⟩; exact absurd h2 (h h1)
 
-theorem ownOfPhases_not_done (s d : Nat) (how : String) (u t p : Option Nat) (h : how ≠ "done") :
-    ownOfPhases s d how u t p = none := by
-  unfold ownOfPhases; cases u <;> cases t <;> cases p <;> simp [h]
-
-theorem ownOfPhases_no_upd (s d : Nat) (how : String) (t p : Option Nat) : ownOfPhases s d how none t p = none := rfl
-
-theorem ownOfPhases_no_tick (s d : Nat) (how : String) (u p : Option Nat) : ownOfPhases s d how u none p = none := by
-  cases u <;> rfl
-
-theorem ownOfPhases_no_poll (s d : Nat) (how : String) (u t : Option Nat) : ownOfPhases s d how u t none = none := by
+theorem ownOfNet_none_net (s d : Nat) (how : String) (u t : Option Nat) : ownOfNet s d how u t none = none := by
   cases u <;> cases t <;> rfl
 
-theorem ownOfPhases_after_end (s d : Nat) (how : String) (u : Nat) (t p : Option Nat) (h : s + d < u) :
-    ownOfPhases s d how (some u) t p = none := by
-  unfold ownOfPhases; cases t <;> cases p <;> simp [Nat.not_le.2 h]
+theorem ownOfPhases_observed (s d : Nat) (how : String) (u : Option Nat) (t p : Nat) (q : Option Nat) (h : p < t) :
+    ownOfPhases s d how u (some t) (some p) q none = ownOfNet s d how u (some t) (some (t - p)) := by
+  simp only [ownOfPhases, netMsOf_observed t p q h]
 
-theorem ownOfPhases_le_dur (s d : Nat) (how : String) (u t p o : Nat)
-    (h : ownOfPhases s d how (some u) (some t) (some p) = some o) : o ≤ d := by
-  obtain ⟨_, _, rfl⟩ := (ownOfPhases_some s d how u t p o).1 h
+theorem ownOfPhases_capped (s d : Nat) (how : String) (u : Option Nat) (t p q r : Nat) (h : p < t) :
+    ownOfPhases s d how u (some t) (some p) (some q) (some r) =
+      ownOfNet s d how u (some t) (some (min (t - p) (q * 1000 + (r * 1000 - p)))) := by
+  simp only [ownOfPhases, netMsOf_capped t p q r h]
+
+theorem ownOfPhases_state (s d : Nat) (how : String) (u t p q r : Option Nat) (h : netSrc t p = .state) :
+    ownOfPhases s d how u t p q r = ownOfNet s d how u t (q.map (· * 1000)) := by
+  simp only [ownOfPhases, netMsOf_state t p q r h]
+
+theorem ownOfPhases_not_done (s d : Nat) (how : String) (u t p q r : Option Nat) (h : how ≠ "done") :
+    ownOfPhases s d how u t p q r = none := by
+  unfold ownOfPhases ownOfNet
+  generalize netMsOf t p q r = n
+  cases u <;> cases t <;> cases n <;> simp [h]
+
+theorem ownOfPhases_no_upd (s d : Nat) (how : String) (t p q r : Option Nat) :
+    ownOfPhases s d how none t p q r = none := rfl
+
+theorem ownOfPhases_no_tick (s d : Nat) (how : String) (u p q r : Option Nat) :
+    ownOfPhases s d how u none p q r = none := by
+  unfold ownOfPhases ownOfNet
+  cases u <;> rfl
+
+theorem ownOfPhases_no_interval (s d : Nat) (how : String) (u t r : Option Nat) :
+    ownOfPhases s d how u t none none r = none := by
+  rw [ownOfPhases_state s d how u t none none r (netSrc_no_prev t)]
+  exact ownOfNet_none_net s d how u t
+
+theorem ownOfPhases_after_end (s d : Nat) (how : String) (u : Nat) (t p q r : Option Nat) (h : s + d < u) :
+    ownOfPhases s d how (some u) t p q r = none := by
+  unfold ownOfPhases ownOfNet
+  generalize netMsOf t p q r = n
+  cases t <;> cases n <;> simp [Nat.not_le.2 h]
+
+theorem ownOfNet_le_dur (s d : Nat) (how : String) (u t n o : Nat)
+    (h : ownOfNet s d how (some u) (some t) (some n) = some o) : o ≤ d := by
+  obtain ⟨_, _, rfl⟩ := (ownOfNet_some s d how u t n o).1 h
   omega
 
-theorem ownOfPhases_before_start (s d : Nat) (how : String) (u : Nat) (t p : Option Nat) (hu : u ≤ s) :
-    ownOfPhases s d how (some u) t p = ownOfPhases s d how (some s) t p := by
-  unfold ownOfPhases
-  cases t <;> cases p <;> simp [Nat.max_eq_right hu, Nat.le_trans hu (Nat.le_add_right s d)]
+theorem ownOfPhases_le_dur (s d : Nat) (how : String) (u t p q r : Option Nat) (o : Nat)
+    (h : ownOfPhases s d how u t p q r = some o) : o ≤ d := by
+  unfold ownOfPhases at h
+  cases u with
+  | none => cases h
+  | some u =>
+    cases t with
+    | none => cases h
+    | some t =>
+      cases hn : netMsOf (some t) p q r with
+      | none => rw [hn] at h; cases h
+      | some n => rw [hn] at h; exact ownOfNet_le_dur s d how u t n o h
 
-theorem ownOfPhases_net_le (s d : Nat) (how : String) (u t p o : Nat)
-    (h : ownOfPhases s d how (some u) (some t) (some p) = some o) : s + d - max u s ≤ o + p * 1000 := by
-  obtain ⟨_, _, rfl⟩ := (ownOfPhases_some s d how u t p o).1 h
+theorem ownOfPhases_before_start (s d : Nat) (how : String) (u : Nat) (t p q r : Option Nat) (hu : u ≤ s) :
+    ownOfPhases s d how (some u) t p q r = ownOfPhases s d how (some s) t p q r := by
+  unfold ownOfPhases ownOfNet
+  generalize netMsOf t p q r = n
+  cases t <;> cases n <;> simp [Nat.max_eq_right hu, Nat.le_trans hu (Nat.le_add_right s d)]
+
+theorem ownOfNet_net_le (s d : Nat) (how : String) (u t n o : Nat)
+    (h : ownOfNet s d how (some u) (some t) (some n) = some o) : s + d - max u s ≤ o + n := by
+  obtain ⟨_, _, rfl⟩ := (ownOfNet_some s d how u t n o).1 h
   omega
 
-theorem ownOfPhases_within_interval (s d : Nat) (u t p : Nat) (hu : u ≤ s + d) (ht : max u s ≤ t)
-    (hp : t - max u s ≤ p * 1000) : ownOfPhases s d "done" (some u) (some t) (some p) = some (s + d - t) := by
-  refine (ownOfPhases_some s d "done" u t p _).2 ⟨rfl, hu, ?_⟩
+theorem ownOfPhases_observed_net_le (s d : Nat) (how : String) (u t p o : Nat) (q : Option Nat) (hp : p < t)
+    (h : ownOfPhases s d how (some u) (some t) (some p) q none = some o) : s + d - max u s ≤ o + (t - p) := by
+  rw [ownOfPhases_observed s d how _ t p q hp] at h
+  exact ownOfNet_net_le s d how u t _ o h
+
+theorem ownOfPhases_capped_net_le (s d : Nat) (how : String) (u t p q r o : Nat) (hp : p < t)
+    (h : ownOfPhases s d how (some u) (some t) (some p) (some q) (some r) = some o) :
+    s + d - max u s ≤ o + (q * 1000 + (r * 1000 - p)) := by
+  rw [ownOfPhases_capped s d how _ t p q r hp] at h
+  have := ownOfNet_net_le s d how u t _ o h
   omega
 
-theorem ownOfPhases_stall (s d : Nat) (u t p : Nat) (hu : u ≤ s + d) (hp : p * 1000 < t - max u s) :
-    ownOfPhases s d "done" (some u) (some t) (some p) = some (s + d - max u s - p * 1000) := by
-  refine (ownOfPhases_some s d "done" u t p _).2 ⟨rfl, hu, ?_⟩
+theorem ownOfPhases_state_net_le (s d : Nat) (how : String) (u t q o : Nat) (r : Option Nat)
+    (h : ownOfPhases s d how (some u) (some t) none (some q) r = some o) : s + d - max u s ≤ o + q * 1000 := by
+  rw [ownOfPhases_state s d how _ _ none _ r (netSrc_no_prev _)] at h
+  exact ownOfNet_net_le s d how u t _ o h
+
+theorem ownOfNet_within (s d u t n : Nat) (hu : u ≤ s + d) (ht : max u s ≤ t) (hn : t - max u s ≤ n) :
+    ownOfNet s d "done" (some u) (some t) (some n) = some (s + d - t) := by
+  refine (ownOfNet_some s d "done" u t n _).2 ⟨rfl, hu, ?_⟩
   omega
 
-#guard ownOfPhases 1000 1377258 "done" (some (1000 + 1377258 - 27294)) (some (1000 + 1377258 - 27294)) (some 10) ==
-  some 27294
+theorem ownOfNet_stall (s d u t n : Nat) (hu : u ≤ s + d) (hn : n < t - max u s) :
+    ownOfNet s d "done" (some u) (some t) (some n) = some (s + d - max u s - n) := by
+  refine (ownOfNet_some s d "done" u t n _).2 ⟨rfl, hu, ?_⟩
+  omega
+
+theorem ownOfPhases_observed_unfinished (s d u t p : Nat) (q : Option Nat) (hu : u ≤ s + d) (hp : p ≤ max u s)
+    (ht : max u s ≤ t) (hpt : p < t) :
+    ownOfPhases s d "done" (some u) (some t) (some p) q none = some (s + d - t) := by
+  rw [ownOfPhases_observed s d _ _ t p q hpt]
+  exact ownOfNet_within s d u t _ hu ht (by omega)
+
+theorem ownOfPhases_capped_within (s d u t p q r : Nat) (hu : u ≤ s + d) (hp : p ≤ max u s) (ht : max u s ≤ t)
+    (hpt : p < t) (hc : t - p ≤ q * 1000 + (r * 1000 - p)) :
+    ownOfPhases s d "done" (some u) (some t) (some p) (some q) (some r) = some (s + d - t) := by
+  rw [ownOfPhases_capped s d _ _ t p q r hpt, Nat.min_eq_left hc]
+  exact ownOfNet_within s d u t _ hu ht (by omega)
+
+theorem ownOfPhases_gap_stall (s d u t p q r : Nat) (hu : u ≤ s + d) (hp : p ≤ max u s) (hpt : p < t)
+    (hc : q * 1000 + (r * 1000 - p) < t - max u s) :
+    ownOfPhases s d "done" (some u) (some t) (some p) (some q) (some r) =
+      some (s + d - max u s - (q * 1000 + (r * 1000 - p))) := by
+  rw [ownOfPhases_capped s d _ _ t p q r hpt, Nat.min_eq_right (by omega)]
+  exact ownOfNet_stall s d u t _ hu hc
+
+theorem ownOfPhases_gap_stall_counts (s d u t p q r : Nat) (hu : u ≤ s + d) (hp : p ≤ max u s) (hpt : p < t)
+    (ht : t ≤ s + d) (hc : q * 1000 + (r * 1000 - p) < t - max u s) :
+    ownOfPhases s d "done" (some u) (some t) (some p) (some q) (some r) =
+      (ownOfPhases s d "done" (some u) (some t) (some p) (some q) none).map
+        (· + (t - max u s - (q * 1000 + (r * 1000 - p)))) := by
+  rw [ownOfPhases_gap_stall s d u t p q r hu hp hpt hc,
+    ownOfPhases_observed_unfinished s d u t p (some q) hu hp (by omega) hpt]
+  simp only [Option.map_some]
+  congr 1
+  omega
+
+theorem ownOfPhases_state_within (s d u t q : Nat) (r : Option Nat) (hu : u ≤ s + d) (ht : max u s ≤ t)
+    (hq : t - max u s ≤ q * 1000) : ownOfPhases s d "done" (some u) (some t) none (some q) r = some (s + d - t) := by
+  rw [ownOfPhases_state s d _ _ _ none _ r (netSrc_no_prev _)]
+  exact ownOfNet_within s d u t _ hu ht hq
+
+theorem ownOfPhases_state_stall (s d u t q : Nat) (r : Option Nat) (hu : u ≤ s + d) (hq : q * 1000 < t - max u s) :
+    ownOfPhases s d "done" (some u) (some t) none (some q) r = some (s + d - max u s - q * 1000) := by
+  rw [ownOfPhases_state s d _ _ _ none _ r (netSrc_no_prev _)]
+  exact ownOfNet_stall s d u t _ hu hq
+
+#guard ownOfPhases 1000 1377258 "done" (some (1000 + 1377258 - 27294)) (some (1000 + 1377258 - 27294)) none (some 10)
+  none == some 27294
 #guard 1792784208219 + 6921 - 1792784005000 == 210140
-#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) (some 10) == some 3140
-#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) (some 120) == some 3140
-#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) none == none
-#guard ownOfPhases 0 300000 "done" (some 50000) (some 257000) (some 10) == some 240000
-#guard ownOfPhases 0 300000 "done" (some 50000) (some 57000) (some 10) == some 243000
-#guard ownOfPhases 0 900000 "done" none (some 5) (some 10) == none
-#guard ownOfPhases 0 900000 "timeout" (some 5) (some 5) (some 10) == none
-#guard ownOfPhases 0 10 "done" (some 99) (some 99) (some 10) == none
-#guard ownOfPhases 0 10 "done" (some 10) (some 10) (some 10) == some 0
+#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) none (some 10) none == some 3140
+#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) none (some 120) none == some 3140
+#guard ownOfPhases 1792784208219 6921 "done" (some 1792784005000) (some 1792784212000) none none none == none
+#guard ownOfPhases 1792783668155 405554 "done" (some 1792784005000) (some 1792784016000) (some 1792784004000) (some 10)
+  none == some 57709
+#guard ownOfPhases 1792783668155 405554 "done" (some 1792784005000) (some 1792784016000) none (some 10) none ==
+  some 58709
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 257000) none (some 10) none == some 240000
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 257000) (some 245000) (some 10) none == some 238000
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 100000) (some 40000) (some 10) none == some 200000
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 57000) none (some 10) none == some 243000
+#guard ownOfPhases 0 900000 "done" none (some 5) none (some 10) none == none
+#guard ownOfPhases 0 900000 "timeout" (some 5) (some 5) none (some 10) none == none
+#guard ownOfPhases 0 10 "done" (some 99) (some 99) none (some 10) none == none
+#guard ownOfPhases 0 10 "done" (some 10) (some 10) none (some 10) none == some 0
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 257000) (some 40000) (some 10) (some 30) == some 240000
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 257000) (some 40000) (some 10) none == some 43000
+#guard ownOfPhases 0 300000 "done" (some 50000) (some 111000) (some 40000) (some 10) (some 110) == some 189000
 
 def Sample.own (s : Sample) : Option Nat :=
   if s.remoteQueue then some 0 else if s.ciWait then s.ownMs else some s.durMs
@@ -2835,34 +3053,79 @@ def boundsText (_ : Unit := ()) : String :=
 
 def boundsPath : System.FilePath := "../packages/gh-budget/src/bounds.gen.ts"
 
-def ownCases : List (String × Nat × Nat × String × Option Nat × Option Nat × Option Nat) :=
-  [("c1fdb56: the 6.9 s wait began 203 s after its run finished; 3.8 s of detection fell inside the wait",
-      1792784208219, 6921, "done", some 1792784005000, some 1792784212000, some 10),
-   ("c1fdb56: the same wait at the 120 s agent poll interval: the same own time",
-      1792784208219, 6921, "done", some 1792784005000, some 1792784212000, some 120),
-   ("c1fdb56: the same wait as recorded, without the interval: no own time, no verdict",
-      1792784208219, 6921, "done", some 1792784005000, some 1792784212000, none),
-   ("c1fdb56: the run's first wait, which saw it finish: 11 s of detection, 10 s netted at a 10 s interval",
-      1792783668155, 405554, "done", some 1792784005000, some 1792784016000, some 10),
-   ("a 207 s detection at a 10 s interval: the poller stalled, 197 s count as own time",
-      0, 300000, "done", some 50000, some 257000, some 10),
-   ("a wait that timed out has no own time", 0, 900000, "timeout", some 5, some 5, some 10),
-   ("a run marked done after the span ended has no own time", 0, 10, "done", some 99, some 99, some 10),
-   ("a span without a tick time has no own time", 0, 300000, "done", some 50000, none, some 10)]
+structure OwnCase where
+  name : String
+  s : Nat
+  d : Nat
+  how : String := "done"
+  u : Option Nat
+  t : Option Nat
+  p : Option Nat := none
+  q : Option Nat
+  r : Option Nat := none
 
-def ownSpanJson (s d : Nat) (how : String) (u t p : Option Nat) : Json :=
+def OwnCase.own (c : OwnCase) : Option Nat := ownOfPhases c.s c.d c.how c.u c.t c.p c.q c.r
+
+def netSrcStr : NetSrc → String
+  | .observed => "observed"
+  | .state => "state"
+
+def ownCases : List OwnCase :=
+  [{ name := "c1fdb56: the 6.9 s wait began 203 s after its run finished; 3.8 s of detection fell inside the wait",
+     s := 1792784208219, d := 6921, u := some 1792784005000, t := some 1792784212000, q := some 10 },
+   { name := "c1fdb56: the same wait at the 120 s agent poll interval: the same own time",
+     s := 1792784208219, d := 6921, u := some 1792784005000, t := some 1792784212000, q := some 120 },
+   { name := "c1fdb56: the same wait as recorded, without the interval: no own time, no verdict",
+     s := 1792784208219, d := 6921, u := some 1792784005000, t := some 1792784212000, q := none },
+   { name := "c1fdb56: the run's first wait saw its deciding tick 12 s after the one before: all 11 s of detection netted",
+     s := 1792783668155, d := 405554, u := some 1792784005000, t := some 1792784016000, p := some 1792784004000,
+     q := some 10 },
+   { name := "c1fdb56: the same wait without the earlier tick: the state's 10 s interval is netted",
+     s := 1792783668155, d := 405554, u := some 1792784005000, t := some 1792784016000, q := some 10 },
+   { name := "c1fdb56: the same observed gap on a span without pollS: the gap alone decides",
+     s := 1792783668155, d := 405554, u := some 1792784005000, t := some 1792784016000, p := some 1792784004000,
+     q := none },
+   { name := "a failure backoff spaced the ticks 60 s apart: all 50 s of detection netted, not the state's 10 s",
+     s := 0, d := 300000, u := some 50000, t := some 100000, p := some 40000, q := some 10 },
+   { name := "a list still unfinished 195 s after the finish, ticks 12 s apart: 12 s netted",
+     s := 0, d := 300000, u := some 50000, t := some 257000, p := some 245000, q := some 10 },
+   { name := "a 207 s detection at a 10 s interval: the poller stalled, 197 s count as own time",
+     s := 0, d := 300000, u := some 50000, t := some 257000, q := some 10 },
+   { name := "an earlier tick not before the deciding one: the state's interval is netted",
+     s := 0, d := 300000, u := some 50000, t := some 57000, p := some 57000, q := some 10 },
+   { name := "a wait that timed out has no own time", s := 0, d := 900000, how := "timeout", u := some 5, t := some 5,
+     q := some 10 },
+   { name := "a run marked done after the span ended has no own time", s := 0, d := 10, u := some 99, t := some 99,
+     q := some 10 },
+   { name := "a span without a tick time has no own time", s := 0, d := 300000, u := some 50000, t := none,
+     p := some 40000, q := some 10 },
+   { name := "ticks 217 s apart at a 10 s interval, no backoff after the earlier tick: 10 s netted, 197 s own time again",
+     s := 0, d := 300000, u := some 50000, t := some 257000, p := some 40000, q := some 10, r := some 30 },
+   { name := "the same stalled gap on a span recorded before the cap (no retryUntilS): the whole gap nets",
+     s := 0, d := 300000, u := some 50000, t := some 257000, p := some 40000, q := some 10 },
+   { name := "a backoff until 110 s spaced the ticks 71 s apart, within interval plus backoff: all 61 s of detection netted",
+     s := 0, d := 300000, u := some 50000, t := some 111000, p := some 40000, q := some 10, r := some 110 }]
+
+def ownSpanJson (c : OwnCase) : Json :=
   let opt (k : String) (x : Option Nat) : List (String × Json) := (x.map fun n => [(k, toJson n)]).getD []
-  Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("startMs", toJson s), ("durMs", toJson d), ("host", "local"),
+  Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("startMs", toJson c.s), ("durMs", toJson c.d), ("host", "local"),
     ("exit", toJson (0 : Nat)),
-    ("phases", Json.mkObj ([("how", .str how)] ++ opt "updMs" u ++ opt "tickMs" t ++ opt "pollS" p))]
+    ("phases", Json.mkObj ([("how", .str c.how)] ++ opt "updMs" c.u ++ opt "prevTickMs" c.p ++ opt "tickMs" c.t ++
+      opt "pollS" c.q ++ opt "retryUntilS" c.r))]
 
 def ownGoldenText (_ : Unit := ()) : String :=
-  String.join (ownCases.map fun (n, s, d, how, u, t, p) =>
-    (Json.mkObj [("name", .str n), ("span", ownSpanJson s d how u t p),
-      ("ownMs", ((ownOfPhases s d how u t p).map toJson).getD .null)]).compress ++ "\n")
+  String.join (ownCases.map fun c =>
+    (Json.mkObj [("name", .str c.name), ("span", ownSpanJson c), ("netSrc", .str (netSrcStr (netSrc c.t c.p))),
+      ("capMs", ((gapCapMs c.p c.q c.r).map toJson).getD .null),
+      ("netMs", ((netMsOf c.t c.p c.q c.r).map toJson).getD .null), ("ownMs", (c.own.map toJson).getD .null)]).compress ++
+      "\n")
 
-#guard ownCases.map (fun (_, s, d, how, u, t, p) => ownOfPhases s d how u t p) ==
-  [some 3140, some 3140, none, some 58709, some 240000, none, none, none]
+#guard ownCases.map OwnCase.own ==
+  [some 3140, some 3140, none, some 57709, some 58709, some 57709, some 200000, some 238000, some 240000, some 243000,
+   none, none, none, some 240000, some 43000, some 189000]
+#guard ownCases.map (fun c => netSrc c.t c.p) ==
+  [.state, .state, .state, .observed, .state, .observed, .observed, .observed, .state, .state, .state, .state, .state,
+   .observed, .observed, .observed]
 
 def ownGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-own.jsonl"
 

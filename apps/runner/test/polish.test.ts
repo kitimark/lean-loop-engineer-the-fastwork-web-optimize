@@ -39,7 +39,43 @@ const jev = { path: "docs/team/handoffs/jev-datasets.md",
 const doc = (c: { path: string; old: string }) => ({ path: c.path, text: `Intro.\n${c.old}\nEnd.\n` });
 const md = "docs/a.md";
 
+const WT_DIRS: [string, string, string | null][] = [
+  ["a valid absolute worktree", "/h/src/r/.claude/worktrees/wf_b291cc70-2f8-1", "wf_b291cc70-2f8-1"],
+  ["a trailing slash", "/h/r/.claude/worktrees/wf_a/", null],
+  ["a name with a space", "/h/.claude/worktrees/a b", null],
+  ["a ~ prefix", "~/source/.../.claude/worktrees/wf_b291cc70-2f8-1", null],
+  ["a relative path", ".claude/worktrees/wf_a", null],
+  ["the name ..", "/h/.claude/worktrees/..", null],
+  ["an empty name", "/h/.claude/worktrees/", null],
+  ["no .claude parent", "/h/r/worktrees/wf_a", null],
+  ["a deeper path", "/h/r/.claude/worktrees/wf_a/sub", null],
+];
+const IN_WT: [string, string, string, string, string][] = [
+  ["a file in the worktree", "/m", "wf_a", "/m/.claude/worktrees/wf_a/apps/x.ts", "own"],
+  ["a relative path anchored at main", "/m", "wf_a", ".claude/worktrees/wf_a/apps/x.ts", "own"],
+  ["the ../../ escape", "/m", "wf_a", "/m/.claude/worktrees/wf_a/../../apps/x.ts", "notPlain"],
+  ["a relative ../../ escape", "/m", "wf_a", ".claude/worktrees/wf_a/../../apps/x.ts", "notPlain"],
+  ["a . segment", "/m", "wf_a", "/m/.claude/worktrees/wf_a/./x.ts", "notPlain"],
+  ["a double slash", "/m", "wf_a", "/m/.claude/worktrees/wf_a//x.ts", "notPlain"],
+  ["a trailing slash", "/m", "wf_a", "/m/.claude/worktrees/wf_a/apps/", "notPlain"],
+  ["an empty path", "/m", "wf_a", "", "notPlain"],
+  ["a main checkout file", "/m", "wf_a", "/m/apps/x.ts", "outside"],
+  ["a relative main checkout file", "/m", "wf_a", "apps/x.ts", "outside"],
+  ["the same name in another checkout", "/m", "wf_a", "/o/.claude/worktrees/wf_a/apps/x.ts", "outside"],
+  ["another worktree of main", "/m", "wf_a", "/m/.claude/worktrees/wf_b/apps/x.ts", "outside"],
+  ["a name prefix", "/m", "wf_a", "/m/.claude/worktrees/wf_ab/apps/x.ts", "outside"],
+  ["the worktree directory itself", "/m", "wf_a", "/m/.claude/worktrees/wf_a", "outside"],
+  ["a checkout nested in the worktree", "/m", "wf_a", "/m/.claude/worktrees/wf_a/sub/.claude/worktrees/wf_a/x.ts", "own"],
+  ["a relative main", "m", "wf_a", "/m/.claude/worktrees/wf_a/x.ts", "badMain"],
+  ["a main with a trailing slash", "/m/", "wf_a", "/m/.claude/worktrees/wf_a/x.ts", "badMain"],
+  ["the root as main", "/", "wf_a", "/.claude/worktrees/wf_a/x.ts", "badMain"],
+  ["the name ..", "/m", "..", "/m/.claude/worktrees/../x.ts", "badName"],
+  ["a name with a slash", "/m", "wf_a/x", "/m/.claude/worktrees/wf_a/x/y.ts", "badName"],
+  ["an empty name", "/m", "", "/m/.claude/worktrees//x.ts", "badName"],
+];
 const cases: [string, Record<string, unknown>][] = [
+  ...WT_DIRS.map(([n, dir]) => [`wtName: ${n}`, { op: "plan.wtName", dir }] as [string, Record<string, unknown>]),
+  ...IN_WT.map(([n, main, name, path]) => [`inWt: ${n}`, { op: "plan.inWt", main, name, path }] as [string, Record<string, unknown>]),
   ["plan: one path of each class, two stages", plan(["apps/x/a.ts", "scripts/x.sh", md, "snapshot/a.css"])],
   ["plan: skip by root, segment, lock name, .gen. name and generator output",
     plan(["packages/contracts/golden/plan/x.jsonl", "apps/x/test/fixtures/a.ts", "pnpm-lock.yaml", "apps/x/src/a.gen.ts", LAKE_GEN, ".github/workflows/w.yml"], { gen: [LAKE_GEN, ".github/workflows/w.yml"] })],
@@ -105,6 +141,7 @@ describe("settings.json Edit rules are covered by the Lean skip rule (one canoni
   const rules = [...(settings.permissions.ask ?? []).map((r) => ["ask", r]), ...(settings.permissions.deny ?? []).map((r) => ["deny", r])]
     .flatMap(([kind, r]) => { const m = /^Edit\((.*)\)$/.exec(r!); return m ? [{ kind: kind!, rule: r!, pat: m[1]! }] : []; });
   const sample = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "x/y.md");
+  const sample2 = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "z.md");
 
   it("settings.json has Edit rules to check, each anchored at the project root with / and at most a trailing /**", () => {
     expect(rules.length).toBeGreaterThan(0);
@@ -112,13 +149,30 @@ describe("settings.json Edit rules are covered by the Lean skip rule (one canoni
   });
 
   it("every Edit ask/deny rule: its path is skip, and an ask rule's path is named in protected", () => {
-    const paths = rules.map((r) => sample(r.pat));
+    const paths = rules.flatMap((r) => [sample(r.pat), sample2(r.pat)]);
     const [r] = fwcore([plan(paths)]) as { classes: { path: string; class: string }[]; protected?: string[] }[];
-    for (const [i, rule] of rules.entries()) {
+    for (const [i, rule] of rules.flatMap((x) => [x, x]).entries()) {
       const p = paths[i]!;
       expect(r!.classes.find((c) => c.path === p)?.class, `${rule.rule} -> ${p}`).toBe("skip");
       if (rule.kind === "ask") expect(r!.protected ?? [], `${rule.rule} -> ${p}`).toContain(p);
     }
+  });
+});
+
+describe("plan.wtName goldens: fwcore decides the worktree name, TS holds no copy", () => {
+  it("an absolute .claude/worktrees directory gives its name; trailing slash, space, ~, relative, odd names give none", () => {
+    const rows = stored().filter((l) => l.request.op === "plan.wtName");
+    expect(rows.length).toBe(WT_DIRS.length);
+    expect(rows.map((l) => l.response.name)).toEqual(WT_DIRS.map(([, , n]) => n));
+  });
+});
+
+describe("plan.inWt goldens: fwcore decides root-pinned stray edits (Fw.Plan.Polish.ownEdit)", () => {
+  it("one row per case, with the verdict the case names; own exactly when the verdict is own", () => {
+    const rows = stored().filter((l) => l.request.op === "plan.inWt");
+    expect(rows.length).toBe(IN_WT.length);
+    expect(rows.map((l) => l.response.verdict)).toEqual(IN_WT.map(([, , , , v]) => v));
+    for (const l of rows) expect(l.response.own).toBe(l.response.verdict === "own");
   });
 });
 
@@ -230,11 +284,18 @@ describe("fw polish CLI", () => {
     return { deps, gitCalls, written, lines, removed };
   }
 
+  it("plan prints worktree-name as a single word after the worktree line", async () => {
+    const f = fake({}, [], [], [], "");
+    const wt = "/h/r/.claude/worktrees/wf_b291cc70-2f8-1";
+    expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", { ...f.deps, worktree: () => wt })).toBe(0);
+    expect(f.lines.slice(0, 2)).toEqual([`worktree ${wt}`, "worktree-name wf_b291cc70-2f8-1"]);
+  });
+
   it("plan prints classes, relative scopes with marks and hunk lines, and the stage line last", async () => {
     const hunk = "diff --git a/a.sh b/a.sh\n--- a/a.sh\n+++ b/a.sh\n@@ -1 +1 @@\n-x\n+y\n";
     const f = fake({ "a.sh": "#!/bin/sh\n" }, ["a.sh", md, "snapshot/x.css"], [], [], hunk);
     expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(0);
-    expect(f.lines).toEqual(["worktree /wt", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
+    expect(f.lines).toEqual(["worktree /wt", "worktree-name -", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
       "comments # a.sh lines 1-4", "prose docs/a.md", "VERDICT polish-plan t comments,prose"]);
   });
 
@@ -334,7 +395,57 @@ describe("fw polish CLI", () => {
     await expect(genOwned(async (r) => { if (r === "/wt") throw new Error("x"); return ["a"]; }, "/root", "/wt")).rejects.toThrow("x");
   });
 
+  describe("fw polish strays", () => {
+    const wtDir = "/m/.claude/worktrees/wf_a";
+    const strays = async (paths: unknown, o: { links?: Record<string, string>; worktree?: string | null; core?: typeof call; common?: string } = {}) => {
+      const lines: string[] = [];
+      const real = (p: string) => (o.links ?? {})[p] ?? (p.includes("missing") ? null : p.replace(/\/\.git\/\.\.$/, ""));
+      const code = await polishCli(["strays", "--branch", "b", "--task", "t", "--paths", "-"], "/m", {
+        core: o.core ?? call, log: (l) => lines.push(l), stdin: () => JSON.stringify(paths), realpath: real,
+        git: (_c, a) => (a.includes("--git-common-dir") ? `${o.common ?? "/m/.git"}\n` : "/m\n"),
+        worktree: () => (o.worktree === undefined ? wtDir : o.worktree) });
+      return { code, lines };
+    };
+
+    it("edits inside the worktree are clean, absolute or relative to the main checkout", async () => {
+      const r = await strays({ paths: [`${wtDir}/apps/x.ts`, ".claude/worktrees/wf_a/lean/A.lean"] });
+      expect(r.code).toBe(0);
+      expect(r.lines).toEqual(["main /m", "worktree-name wf_a", "VERDICT polish-strays t clean"]);
+    });
+
+    it("main checkout files, the ../../ escape and another checkout's same-named worktree are strays", async () => {
+      const esc = `${wtDir}/../../apps/x.ts`;
+      const r = await strays([`/m/apps/x.ts`, `${esc}-missing`, "/o/.claude/worktrees/wf_a/x.ts", `${wtDir}/ok.ts`]);
+      expect(r.code).toBe(1);
+      expect(r.lines.filter((l) => l.startsWith("stray "))).toEqual(["stray /m/apps/x.ts", `stray ${esc}-missing`, "stray /o/.claude/worktrees/wf_a/x.ts"]);
+      expect(r.lines).toContain(`  notPlain ${esc}-missing`);
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
+    });
+
+    it("a path that resolves through a symlink is judged where it lands", async () => {
+      const link = `${wtDir}/link/x.ts`;
+      const r = await strays([link], { links: { [link]: "/m/apps/x.ts" } });
+      expect(r.lines).toContain("  outside /m/apps/x.ts");
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
+    });
+
+    it("no edits are clean; a missing worktree, a non-worktree directory, bad JSON shape or a fwcore failure is error", async () => {
+      expect((await strays([])).lines.at(-1)).toBe("VERDICT polish-strays t clean");
+      expect((await strays([], { worktree: null })).lines.at(-1)).toBe("VERDICT polish-strays t error");
+      expect((await strays(["x"], { worktree: "/m/wt" })).lines.at(-1)).toBe("VERDICT polish-strays t error");
+      expect((await strays(["x"], { core: async () => ({ error: "down" }) })).lines.at(-1)).toBe("VERDICT polish-strays t error");
+      await expect(strays({ paths: [1] })).rejects.toThrow(/--paths/);
+    });
+
+    it("a main checkout that does not resolve is error", async () => {
+      const r = await strays(["x"], { common: "/missing/.git" });
+      expect(r.code).toBe(1);
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t error");
+    });
+  });
+
   it("usage errors throw", async () => {
+    await expect(polishCli(["strays", "--branch", "b", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
     await expect(polishCli(["plan", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
     await expect(polishCli(["cuts", "--branch", "b", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
   });
@@ -590,7 +701,7 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       edit(wt, tip, { 5: "# builder wip" });
       const lines: string[] = [];
       expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines))).toBe(0);
-      expect(lines).toEqual([`worktree ${wt}`, `skip ${file} (dirty before plan)`, "VERDICT polish-plan t none"]);
+      expect(lines).toEqual([`worktree ${wt}`, "worktree-name -", `skip ${file} (dirty before plan)`, "VERDICT polish-plan t none"]);
       expect(readFileSync(baselineFiles(wt)[1]!, "utf8")).toBe(`${file}\n`);
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
@@ -641,7 +752,7 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
     try {
       const lines: string[] = [];
       await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines));
-      expect(lines).toEqual([`worktree ${wt}`, `class shell # ${file}`, `comments # ${file} lines 57-64`, "VERDICT polish-plan t comments"]);
+      expect(lines).toEqual([`worktree ${wt}`, "worktree-name -", `class shell # ${file}`, `comments # ${file} lines 57-64`, "VERDICT polish-plan t comments"]);
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 });

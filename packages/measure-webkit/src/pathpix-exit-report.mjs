@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { FOREIGN_REASON } from './pathpix-exit.mjs';
+import { FOREIGN_REASON, probesHit } from './pathpix-exit.mjs';
 
 export function slimCell(c) {
   return {
     key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live, accentPinned: c.accentPinned, invalidWhy: c.invalidWhy,
-    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null, where: c.where ?? null, shared: c.shared ?? null, sharedWith: c.sharedWith ?? 0,
+    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null, where: c.where ?? null, shared: c.shared ?? null, sharedWith: c.sharedWith ?? 0, sharedTo: c.sharedTo ?? null, consensus: c.consensus ?? null,
   };
 }
 
 export function slimLane(label, artifact, cells, man) {
   return {
-    schema: 'fw.path-pix.exit.cells/1', label, artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
+    schema: 'fw.path-pix.exit.cells/1', label, probes: (man.samples?.A ?? []).find(Boolean)?.probes ?? null,
+    probesAt: (man.samples?.A ?? []).filter(Boolean).map((r) => ({ i: r.i, y: r.y, scrollY: r.scrollY, probes: r.probes ?? null })), artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
     ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, maxY: cells.maxY ?? null, clock: cells.clock ?? null, handover: man.handover ?? null, fonts: man.fonts ?? null,
     cut: cells.cut, armsRun: cells.armsRun, driverMoved: cells.driverMoved ?? null, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, accentPinned: l.accentPinned, live: l.live })),
     skipped: cells.skipped, frames: cells.frames.map((f) => ({ arm: f.arm, i: f.i, sameA: f.sameA, sameB: f.sameB, changed: f.changed, maxDelta: f.maxDelta })),
@@ -80,11 +81,61 @@ export function heroCopySummary(engine, lanes, key = HERO) {
     `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('inside, above the floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
 }
 
+const receiverText = (l, c, key) => {
+  const r = cellAt(l, key, c.i, c.kind);
+  if (!r) return `${key}: no cell`;
+  const src = r.kind === 'P' ? lSource(r) : null;
+  return `${key}: ${r.grade}${src ? ` (${src})` : ''}, inside ${raw(r.inside)}`;
+};
+
 export function heroCopyShared(lanes, key = HERO) {
-  const out = [`Reason: ${FOREIGN_REASON}`, '', '| job | offset | kind | changed pixels left to other layers (chg-max) | other layers graded in this row | changes outside every mask: box (device px) |', '|---|---|---|---|---|---|'];
+  const out = [`Reason: ${FOREIGN_REASON}`, '', '| job | offset | kind | changed pixels left to other layers (chg-max) | receiving cells in the same job, offset and kind: grade (source), inside chg-max | changes outside every mask: box (device px) | probe elements the outside box touches |', '|---|---|---|---|---|---|---|'];
   for (const l of lanes) for (const c of l.cells) {
     if (c.key !== key || !c.shared || (c.shared.changed === 0 && !(c.where && c.where.outBbox))) continue;
-    out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.shared)} | ${c.sharedWith} | ${c.where?.outBbox ? `${raw(c.out)} at ${c.where.outBbox.join(',')}` : '-'} |`);
+    const rec = c.shared.changed === 0 ? '-' : c.sharedTo ? c.sharedTo.map((k) => receiverText(l, c, k)).join('; ') : 'not recorded';
+    const pr = c.where?.outProbes ? (c.where.outProbes.length ? c.where.outProbes.map(([n, a, b, d, e]) => `${n} ${a},${b},${d},${e}`).join('; ') : 'none') : '-';
+    out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.shared)} | ${rec} | ${c.where?.outBbox ? `${raw(c.out)} at ${c.where.outBbox.join(',')}` : '-'} | ${pr} |`);
+  }
+  return out.join('\n');
+}
+
+export const probeOffsets = (l) => {
+  const hit = [...new Set(l.cells.filter((c) => c.out.changed > 0).map((c) => c.i))].sort((a, b) => a - b);
+  return hit.length ? hit : (l.probesAt ?? []).slice(0, 1).map((r) => r.i);
+};
+
+export function probeTable(lanes) {
+  const out = ['| job | offset | ask y | scrollY | probe element | device box x0,y0,x1,y1 (arm A at that offset) |', '|---|---|---|---|---|---|'];
+  for (const l of lanes) {
+    const rows = probeOffsets(l).map((i) => (l.probesAt ?? []).find((r) => r.i === i)).filter(Boolean);
+    if (!rows.length) out.push(`| ${l.label} | - | - | - | not recorded | - |`);
+    for (const r of rows) {
+      const hits = r.probes ? probesHit(r.probes, [-1e9, -1e9, 1e9, 1e9], l.dpr) : [];
+      if (!hits.length) out.push(`| ${l.label} | ${r.i} | ${r.y} | ${r.scrollY} | none recorded | - |`);
+      for (const [n, a, b, c, d] of hits) out.push(`| ${l.label} | ${r.i} | ${r.y} | ${r.scrollY} | ${n} | ${a},${b},${c},${d} |`);
+    }
+  }
+  return out.join('\n');
+}
+
+const VERDICTS = ['E', 'E1', 'Q', 'L', 'invalid', 'varied'];
+
+export function consensusSummary(engine, lanes) {
+  const out = [`#### ${engine}: consensus of the identical arms, P cells per job`, '', `| job | A3 captured | P cells | counted | varied | quiet | ${VERDICTS.join(' | ')} | no consensus data |`, `|---|---|---|---|---|---|${VERDICTS.map(() => '---').join('|')}|---|`];
+  for (const l of lanes) {
+    const ps = l.cells.filter((c) => c.kind === 'P'), cs = ps.filter((c) => c.consensus);
+    const seen = (x) => count(cs, (c) => c.consensus.seen === x), v = (x) => count(cs, (c) => c.consensus.verdict === x);
+    out.push(`| ${l.label} | ${l.armsRun?.includes('A3') ? 'yes' : 'no'} | ${ps.length} | ${seen('counted')} | ${seen('varied')} | ${seen('quiet')} | ${VERDICTS.map(v).join(' | ')} | ${ps.length - cs.length} |`);
+  }
+  return out.join('\n');
+}
+
+export function consensusCells(lanes) {
+  const out = ['| job | consumer | offset | ask y | P grade | verdict | P inside / out (chg-max) | A vs A2 inside / out | A vs A3 inside / out | inside | outside |', '|---|---|---|---|---|---|---|---|---|---|---|'];
+  const pair = (x) => (x ? `${raw(x.inside)} / ${raw(x.out)}` : 'not captured');
+  for (const l of lanes) for (const c of l.cells) {
+    if (c.kind !== 'P' || !c.consensus || c.consensus.seen === 'quiet') continue;
+    out.push(`| ${l.label} | ${c.key} | ${c.i} | ${c.y} | ${c.grade} | ${c.consensus.verdict} | ${raw(c.inside)} / ${raw(c.out)} | ${pair(c.consensus.a2)} | ${pair(c.consensus.a3)} | ${c.consensus.inside} | ${c.consensus.out} |`);
   }
   return out.join('\n');
 }
@@ -132,7 +183,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.arg
     return lane;
   });
   const engines = [...new Set(lanes.map((l) => l.engine))];
-  const hero = engines.flatMap((e) => { const ls = lanes.filter((l) => l.engine === e); return [heroCopySummary(e, ls), '', heroCopyTable(e, ls), '', `#### ${e}: ${HERO} changes inside the mask`, '', heroCopyWhere(ls), '', `#### ${e}: ${HERO} pixels counted by another layer`, '', heroCopyShared(ls), '']; });
-  const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', ...hero, '#### Page clock, accent pin and row placement per job', '', pinTable(lanes), '', '#### L cells with a strip', '', lookList(lanes)].join('\n');
+  const hero = engines.flatMap((e) => { const ls = lanes.filter((l) => l.engine === e); return [consensusSummary(e, ls), '', heroCopySummary(e, ls), '', heroCopyTable(e, ls), '', `#### ${e}: ${HERO} changes inside the mask`, '', heroCopyWhere(ls), '', `#### ${e}: ${HERO} pixels counted by another layer`, '', heroCopyShared(ls), '']; });
+  const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', ...hero, '#### Consensus: every P cell with a change against arm A', '', consensusCells(lanes), '', '#### Page clock, accent pin and row placement per job', '', pinTable(lanes), '', ...(lanes.some((l) => l.probesAt?.length) ? ['#### Probe elements outside the graded layers, at the offsets with a change outside every mask', '', probeTable(lanes.filter((l) => l.probesAt?.length)), ''] : []), '#### L cells with a strip', '', lookList(lanes)].join('\n');
   console.log(md);
 }
