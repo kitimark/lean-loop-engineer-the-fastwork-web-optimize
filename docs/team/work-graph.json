@@ -16679,7 +16679,8 @@
     "research/notes/2026/10-2x-gpu-safari-lane.md",
     "docs/team/handoffs/gpu-safari-lane.md"
    ],
-   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 8). Local Safari lane for the GPU arms (exclusive measure lease, after mac-safari-measure lands): nav-fixed-size pixel captures at m in {0.1, 0.5, 0.9} (clip and backdrop edge AA, confirms gap (a)), glass colour at {0.25, 0.5, 0.75}, logo-3d at 430 wide, IOSurface allocations per push (Instruments); morph-panel-threaded Composite and render-server time per push, alone and bundled with platform:fade-threaded; pain-dark-scroll crossing frame; people-o-preview-translate hover scroll. Each arm against faithful in the same session. Flag: Local lane under CLAUDE.md exception (c): real Apple GPU and display, which CI VMs lack. Reports are paired with the CI Simulator rows, never alone.. Lean: Verdicts reduce through the Lean rules mac-safari-measure lands (Fw.Sup.Measure); no new Lean here. Measure: The lane itself; one result JSON per arm under results/gpu-safari/."
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 8). Local Safari lane for the GPU arms (exclusive measure lease, after mac-safari-measure lands): nav-fixed-size pixel captures at m in {0.1, 0.5, 0.9} (clip and backdrop edge AA, confirms gap (a)), glass colour at {0.25, 0.5, 0.75}, logo-3d at 430 wide, IOSurface allocations per push (Instruments); morph-panel-threaded Composite and render-server time per push, alone and bundled with platform:fade-threaded; pain-dark-scroll crossing frame; people-o-preview-translate hover scroll. Each arm against faithful in the same session. Flag: Local lane under CLAUDE.md exception (c): real Apple GPU and display, which CI VMs lack. Reports are paired with the CI Simulator rows, never alone.. Lean: Verdicts reduce through the Lean rules mac-safari-measure lands (Fw.Sup.Measure); no new Lean here. Measure: The lane itself; one result JSON per arm under results/gpu-safari/.",
+   "evidence": "92190a1"
   },
   {
    "devices": [
@@ -17144,7 +17145,8 @@
     "lean/Fw/Parts/CommissionOpt*.lean",
     "packages/contracts/golden/parts/commission-gate.jsonl",
     "research/notes/2026/10-2x-commission-band-gate.md",
-    "docs/team/handoffs/commission-band-followups.md"
+    "docs/team/handoffs/commission-band-followups.md",
+    "apps/site/src/parts/commission/bandgate.test.ts"
    ],
    "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1)."
   },
@@ -17369,7 +17371,9 @@
     "lean/Fw/Obs/GhStatus.lean",
     "packages/contracts/golden/obs/**",
     "research/notes/2026/10-2x-watch-ci-stale.md",
-    "docs/team/handoffs/watch-ci-stale.md"
+    "docs/team/handoffs/watch-ci-stale.md",
+    "lean/Fw/Obs/Golden.lean",
+    "lean/Fw/Wire/Obs.lean"
    ],
    "title": "Found 2026-10-23: fw watch opened ci.slow for land@ and lean@ ci/land-people-o-preview-translate-87a29c2 'in_progress for 22 min' and again at 26 min, while gh run list showed every run on that branch completed (lean 39869394794, land 39869394814 failed at about 23:10Z). The watch's CI state is stale by 20+ min. Find where watch-collect gets run states (cache, gh-budget charged reads, list cadence) with forensics before naming the cause; fix so a run that completed closes its ci.slow within one watch pass (or the alert names the age of its data); state the freshness rule in Lean (Fw.Obs.Health / GhStatus) with goldens, within the gh rate-limit rules (list not view, poll >= 120 s)."
   },
@@ -17390,7 +17394,13 @@
     "scripts/check-workflows.sh",
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/workflow-syntax-gate.md"
+    "docs/team/handoffs/workflow-syntax-gate.md",
+    ".github/workflows/land.yml",
+    ".circleci/config.yml",
+    ".circleci/job.sh",
+    "lean/Fw.lean",
+    "lean/scripts/WorkflowLintGolden.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "Incident inc-workflow-dup-key (2026-10-23): the lead's conflict resolution in the pain-dark-followups merge (ac6fa79a4) kept SEARCH twice in one env block of .github/workflows/trajectory-probe.yml; GitHub refused the file ('workflow file issue', run 39873292504 on ci/land-across-k-decisive-5bdaee9) and every trajectory-probe push failed after the land 341e7a9c9. No land check runs actionlint. Add a land check, selected by the Lean check selection when a .github/workflows/*.yml changes, that runs actionlint (Homebrew, already installed) with only the syntax-check and expression kinds as errors (shellcheck findings stay warnings); the existing webkit-sim.yml 'string should not be empty' option is accepted or fixed with the reason. A golden or test shows a duplicated env key refuses the land."
   },
@@ -17420,7 +17430,8 @@
     "packages/measure-chromium/src/profile.mjs",
     "packages/measure-chromium/test/profile.test.mjs"
    ],
-   "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now)."
+   "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now).",
+   "evidence": "8df3c57"
   },
   {
    "devices": [
@@ -17513,6 +17524,23 @@
     "docs/team/handoffs/people-title-crash-fix.md"
    ],
    "title": "The rewrite's people title (text-wrap: balance holding the inline-grid o) crashes stock desktop Chrome above 860 px (chrome-balance-repro, run 39878812594). Two measured ways stop it: making the o inline-block, or dropping balance on that h2 (text-wrap: wrap). Prefer the one with the same look: prove in Lean what changes (inline-block vs inline-grid layout of the o; balanced line breaks), measure with the breakpoint gate on both engines and a pixel compare at 861-1440 widths, and a stock Chrome load at 1280 (no crash). A look change goes to the user's look-review class. The original site's crash is Fastwork's to fix; we only report it."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-safari-mac",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-safari-lane"
+   ],
+   "writes": [
+    "results/gpu-safari/**",
+    "research/notes/2026/10-2x-gpu-safari-lane.md",
+    "docs/team/handoffs/gpu-safari-mac.md"
+   ],
+   "title": "Follow-ups of gpu-safari-lane (landed 76643b76b): (1) USER-GATED: once the user unlocks the Mac and keeps the display awake (console step mac-unlock-safari), run `node results/gpu-safari/lane/run.mjs mac all` inside a measure slot: macOS Safari on the real Apple GPU for the nav, morph (alone and bundled), pain and people-o arms (people-o needs a window wider than 860 px, which macOS Safari gives), each against faithful in the same session, reduced against the later-load floor, paired with the CI Simulator rows; Composite and render-server timing if the Lean quiet rule accepts the passes; (2) explain why the bundled arm is pixel-identical to threaded at morph m0.25 (fade({m:0.25}) = 0.545 should be half faded): the threaded fade renders bit-identical to the CSS --morph-fade path, or the platform is outside the 430x775 frame at scrollY 5267 (name which from the platform rect); (3) a Lean golden for elapsedAt (the paused-effect time) and the TS stand-ins listed in the note."
   }
  ],
  "deadline": {

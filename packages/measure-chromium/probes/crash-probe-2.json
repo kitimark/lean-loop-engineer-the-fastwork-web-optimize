@@ -1,5 +1,6 @@
 {
  "id": "crash-probe-2",
+ "kind": "probe",
  "about": "Crash bisect 2 (task chromium-desktop-crash): narrows the crash-probe-1 result (the people part, text-wrap) to the people title and its inline-grid o. Diagnostic, records no counts.",
  "hz": 60,
  "viewport": {
