@@ -180,6 +180,14 @@ def order : List Check :=
   [.lakeBuild, .leanElab, .nodeCheck, .tsStrip, .tscProject, .jsonParse, .jsonlParse, .yamlParse, .shParse, .pyParse,
     .swiftParse, .graphCheck, .presetCheck, .workflowParse]
 
+def heavy : Check → Bool
+  | .lakeBuild | .leanElab | .presetCheck => true
+  | .nodeCheck | .tsStrip | .tscProject | .jsonParse | .jsonlParse | .yamlParse | .shParse | .pyParse | .swiftParse
+  | .graphCheck | .workflowParse | .exempt => false
+
+#guard order.filter heavy == [.lakeBuild, .leanElab, .presetCheck]
+#guard !heavy .tscProject && !heavy .exempt
+
 /-- A path relative to `lean/` (its segments without the first, joined by `/`). -/
 def rel (p : String) : String := "/".intercalate ((segs p).drop 1)
 

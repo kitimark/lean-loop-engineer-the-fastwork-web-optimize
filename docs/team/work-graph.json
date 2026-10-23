@@ -18074,9 +18074,12 @@
     "lean/Fw/Measure/WebKitLag*.lean",
     "packages/contracts/golden/measure/lag*.jsonl",
     "research/notes/2026/10-2x-morph-real-wheel.md",
-    "docs/team/handoffs/morph-real-wheel.md"
+    "docs/team/handoffs/morph-real-wheel.md",
+    ".github/workflows/smoothness.yml",
+    "packages/contracts/golden/measure/webkit-lag.jsonl"
    ],
-   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA."
+   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA.",
+   "evidence": "bae2431"
   },
   {
    "devices": [
@@ -18528,7 +18531,8 @@
     "lean/Fw/Ops/CheckMap.lean",
     "docs/team/handoffs/timing-module-count.md"
    ],
-   "title": "timing-work-dims (landed 765f1ad03) review follow-ups: (1) the rebuilt Lean module count drives the remaining false alarms (polish commit lakeBuild 1.9-42.9 s; land dry lake 43 s at 17cb8b6 has no work field): record the number of Lean modules lake rebuilt (or the changed-module count) in the polish commit and land dry lake spans, and key or normalise the Timing verdict on it (Lean theorem + golden); (2) heavyChecks derived from the Fw.Ops.CheckMap Check type ([Check.lakeBuild, .leanElab, .presetCheck].map checkName) instead of a hand-written string list, TS HEAVY_CHECKS checked against it; decide where tscProject belongs (it runs for seconds)."
+   "title": "timing-work-dims (landed 765f1ad03) review follow-ups: (1) the rebuilt Lean module count drives the remaining false alarms (polish commit lakeBuild 1.9-42.9 s; land dry lake 43 s at 17cb8b6 has no work field): record the number of Lean modules lake rebuilt (or the changed-module count) in the polish commit and land dry lake spans, and key or normalise the Timing verdict on it (Lean theorem + golden); (2) heavyChecks derived from the Fw.Ops.CheckMap Check type ([Check.lakeBuild, .leanElab, .presetCheck].map checkName) instead of a hand-written string list, TS HEAVY_CHECKS checked against it; decide where tscProject belongs (it runs for seconds).",
+   "evidence": "f3360aa"
   },
   {
    "devices": [
@@ -18562,6 +18566,84 @@
     "docs/team/handoffs/ci-setup-lean-slow.md"
    ],
    "title": "fw watch timing.slow on land (playwright-webkit) and land (chromium) 'Run ./.github/actions/setup-lean' (2026-10-23): 36-48 s for most lands, 68-88 s for the last lands (runs 39965489939, 39966639416; earlier 72 s in 39955108083), after new Lean modules landed (SwapWindow, Timing changes). Find from the step logs whether the extra time is cache restore (size, miss, partial key) or building changed modules; compare a fast and a slow run step by step. If the cause is a cache key or what is cached, fix setup-lean so a land leg restores the built modules of main; state the expected time per leg. If the change touches workflow trigger inputs, list it in open."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-safari-mac-followups-2",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-safari-mac-followups"
+   ],
+   "writes": [
+    "results/gpu-safari/**",
+    "research/notes/2026/10-2x-gpu-safari-lane.md",
+    "packages/measure-webkit/src/gpu-safari/**",
+    "packages/measure-webkit/test/gpu-safari*.test.mjs",
+    "lean/Fw/Measure/GpuElapsed.lean",
+    "docs/team/handoffs/gpu-safari-mac-followups-2.md"
+   ],
+   "title": "gpu-safari-mac-followups review follow-ups (2026-10-23): (1) mac-capture.mjs session.timing says 'cadence only: the Lean quiet rule refuses a loaded Mac' but the rule passed 8/8 x5: change it to 'cadence only: no timing instrument wired for macOS Safari'; (2) premise check that every load parks on the arm's swap row (refuse or flag a load whose stateSeen.src differs; in s2 faithful load 1 slipped to the next row); (3) the .repeat.json reductions were withdrawn, not committed: record that in the note; (4) Composite timing on macOS Safari: attach the Web Inspector Timeline (as scrollrun.mjs:57 does for the Simulator) or Instruments, under the measure lease with the quiet rule; (5) lane move to packages/measure-webkit; (6) the Simulator hero.exit:threaded row through CI; (7) a Mac morph reading not drowned by the platform and nav blur drift (mask both boxes, state what the mask hides). Mac Safari runs need the user's unlocked screen (lane exception c)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-real-wheel-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-real-wheel"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    "lean/Fw/Measure/WebKitLag*.lean",
+    "packages/contracts/golden/measure/webkit-lag*.jsonl",
+    "research/notes/2026/10-2x-morph-real-wheel.md",
+    "docs/team/handoffs/morph-real-wheel-followups.md"
+   ],
+   "title": "morph-real-wheel review follow-ups (2026-10-23): (1) report.mjs analyzeMorphItems reads geometry boxes at the fixed MORPH_PHASES offset but clips at the per-run r.ph offset: index geometry with r.ph[phase][0]+i or clamp to the sample count, with a test where marks differ from 10/60/60; (2) neither drive scrolled (page at its end, scroll moved 0 in 72 runs): add a trusted run that starts above the end and scrolls into the push, so ScrollingTree::computeWheelProcessingSteps is exercised; (3) Simulator leg with the PushServer touch once sim-touch-reliable lands; (4) macreport.mjs per-run means and the 3-job pooling are a TS stand-in that pools 18 runs: decide each job on its own in Lean with golden; (5) the polish comment cut in probe.mjs (morphSession docstring) was dropped after the polish restore broke it; redo it by hand."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-module-count-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "timing-module-count",
+    "polish-commit-failsafe"
+   ],
+   "writes": [
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/land*.test.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/timing-module-count-followups.md"
+   ],
+   "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "build-review-worktree-path",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "polish-commit-failsafe"
+   ],
+   "writes": [
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/handoffs/build-review-worktree-path.md"
+   ],
+   "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs."
   }
  ],
  "deadline": {
