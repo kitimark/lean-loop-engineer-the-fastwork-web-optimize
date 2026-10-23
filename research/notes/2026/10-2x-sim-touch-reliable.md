@@ -171,6 +171,12 @@ ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
   the host upload after it took 11 s. Job 1 ended 17.7 min after its start. So the bound held on all 3 jobs; the one miss was an upload
   stall on a starved runner, which cost the main artifact. Round 3c: host state is written into `result/` and runs first, one upload with one
   retry under another artifact name.
+- **Third proof run, `40003317485` (commit `c0cb0f0dd`, `[sim-walk-cap=10] [sim-walk-hang=6]`): all 3 jobs ended inside the bound with logs kept (MEASURED, jobs API and artifacts).**
+  Job 1 (cap): 16.9 min, walk ended at its deadline with 20 windows and `incomplete: walk deadline: no time left to start aa hero rep 3`, sim.json, sim.raw.json.gz, sim.log, host.txt,
+  walk-budget.txt uploaded in 59 s. Job 2 (event loop blocked): 13.1 min, `walk hard stop: killing the process group`, sim.log, host.txt and walk-budget.txt uploaded
+  (no sim.json: the block came before the first window ended, setup took 114 s). Job 3 (natural, no cap): 33.9 min, walk step 30 min, ended at the deadline with 16 windows
+  (`no time left to start aa hero rep 2`), uploaded. Keep host state hit its 1-min limit in job 1 (77 s on a starved host) and failed the job, so it now has `continue-on-error`
+  (not re-run on CI: one attribute, actionlint clean).
 - **Cost.** Setup is 3.7 to 4.6 min in the jobs, so the walk gets about 27 min; job 3 of run `39957772249` (32.5 min walk) would
   have lost its last windows, with the rows kept.
 - TS stand-ins: `walk-budget.mjs` functions replayed against the golden; the `sim-cadence.mjs` loop wiring, `untilDeadline` and the workflow's hard-stop wrapper are glue

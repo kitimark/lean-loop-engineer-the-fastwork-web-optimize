@@ -514,6 +514,7 @@ jobs:
       - name: Keep host state
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 1
+        continue-on-error: true
         run: |
           mkdir -p "$RUNNER_TEMP/result"
           bounded() { perl -e 'alarm 15; exec @ARGV' -- "$@"; }
