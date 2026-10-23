@@ -72,6 +72,7 @@ export async function launchCadence({ chromePath = process.env.CHROME_PATH ?? CH
             await page.mouse.wheel(0, dy);
           }
         },
+        setCpuThrottle: (rate) => cdp.send('Emulation.setCPUThrottlingRate', { rate }),
         histograms,
         startTrace: () => browser.startTracing(page, { categories: TRACE_CATEGORIES, screenshots: false }),
         stopTrace: () => browser.stopTracing(),
