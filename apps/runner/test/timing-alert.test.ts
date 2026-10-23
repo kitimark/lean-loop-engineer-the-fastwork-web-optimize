@@ -58,7 +58,8 @@ describe.skipIf(!haveCore)("obs.timing / obs.slow against the Lean golden", () =
   it("every obs.slow subject of every golden case is a slow sample verdict of the same request", () => {
     for (const [i, g] of golden.entries()) {
       const r = slowBatch!.get(i)!.slow as string[];
-      const slowNames = new Set((g.response.verdicts as any[]).filter((v) => v.kind === "sample" && v.code === "slow").map((v) => `${v.tool}/${v.step}${v.runKind ? "#" + v.runKind : ""}`));
+      const workOf = (w?: Record<string, string>) => (w ? ` [${Object.entries(w).map(([k, x]) => `${k}=${x}`).join(",")}]` : "");
+      const slowNames = new Set((g.response.verdicts as any[]).filter((v) => v.kind === "sample" && v.code === "slow").map((v) => `${v.tool}/${v.step}${v.runKind ? "#" + v.runKind : ""}${workOf(v.work)}`));
       for (const s of r) expect(slowNames.has(s)).toBe(true);
       if (slowNames.size === 0) expect(r).toEqual([]);
     }

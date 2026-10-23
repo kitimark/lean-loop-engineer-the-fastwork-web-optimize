@@ -1339,13 +1339,28 @@ def loopOn (q : Nat) (v : Watch) : Child :=
 
 /-! ## Timing alerts: the slow steps that raise `timing.slow` (`Fw.Obs.Timing`) -/
 
-/-- The alert subject of a sample verdict: `<tool>/<step>`, with `#<kind>` appended when the run has a kind. -/
-def stepName (v : Timing.SampleVerdict) : String :=
-  v.tool ++ "/" ++ v.step ++ (if v.kind == "" then "" else "#" ++ v.kind)
+/-- The work part of an alert subject: ` [k=v,…]` over the work dimensions, empty when there are none. -/
+def workSuffix (work : List (String × String)) : String :=
+  if work.isEmpty then "" else " [" ++ ",".intercalate (work.map fun (k, v) => k ++ "=" ++ v) ++ "]"
 
-/-- Two sample verdicts are of the same history (same tool, step, host and run kind). -/
+/-- An alert subject: `<tool>/<step>`, then `#<kind>` when the run has a kind, then the `workSuffix`. -/
+def subject (tool step kind : String) (work : List (String × String)) : String :=
+  tool ++ "/" ++ step ++ (if kind == "" then "" else "#" ++ kind) ++ workSuffix work
+
+/-- The alert subject of a sample verdict. -/
+def stepName (v : Timing.SampleVerdict) : String := subject v.tool v.step v.kind v.work
+
+#guard subject "lean" "check.sh" "" [] == "lean/check.sh" && subject "w" "s" "k1" [] == "w/s#k1"
+#guard subject "fw" "polish commit" "" [("checks", "lakeBuild")] == "fw/polish commit [checks=lakeBuild]"
+#guard subject "lean/check" "parallel group" "" [("checks", "light"), ("width", "1")] ==
+  "lean/check/parallel group [checks=light,width=1]"
+
+/-- Two sample verdicts are of the same history (same tool, step, host, run kind and work dimensions). -/
 def sameKey (v w : Timing.SampleVerdict) : Bool :=
-  v.tool == w.tool && v.step == w.step && v.host == w.host && v.kind == w.kind
+  v.tool == w.tool && v.step == w.step && v.host == w.host && v.kind == w.kind && v.work == w.work
+
+theorem sameKey_work_ne (v w : Timing.SampleVerdict) (h : v.work ≠ w.work) : sameKey v w = false := by
+  simp [sameKey, h]
 
 /-- Some later sample verdict of the list is of the same history as `v`. -/
 def laterSame (v : Timing.SampleVerdict) (rest : List Timing.Verdict) : Bool :=
@@ -1466,11 +1481,10 @@ no `timing.slow` (the machine-wide `sys.contended` signal carries it instead). T
 -/
 theorem slowSteps_uncontended (p : Timing.Params) (ss : List Timing.Sample) (s : String)
     (h : s ∈ slowSteps (Timing.timingVerdicts p ss)) :
-    ∃ x ∈ ss, Timing.contended p x = false ∧
-      x.tool ++ "/" ++ x.step ++ (if x.kind == "" then "" else "#" ++ x.kind) = s := by
+    ∃ x ∈ ss, Timing.contended p x = false ∧ subject x.tool x.step x.kind x.work = s := by
   obtain ⟨v, hv, hc, hn⟩ := slowLatest_sound _ s ((mem_dedupL _ s).1 h)
   obtain ⟨i, hi, rfl⟩ := Timing.mem_sample p ss v hv
-  simp only [stepName, Timing.judgeQ_tool, Timing.judgeQ_step, Timing.judgeQ_kind] at hn
+  simp only [stepName, Timing.judgeQ_tool, Timing.judgeQ_step, Timing.judgeQ_kind, Timing.judgeQ_work] at hn
   refine ⟨ss[i], List.getElem_mem hi, ?_, hn⟩
   cases hq : Timing.contended p ss[i]
   · rfl
@@ -1534,6 +1548,32 @@ theorem slowSteps_latest (v : Timing.SampleVerdict) (rest : List Timing.Verdict)
   rw [mem_dedupL]
   exact slowLatestFrom_transition [] v rest hc hl rfl
 
+/-- **Work dimensions separate alerts.** A slow sample is an alert when every later sample of its tool, step, host and
+kind has other work dimensions: an ok `light` polish commit after a slow `lakeBuild` one does not replace it.
+-/
+theorem slowSteps_other_work (v : Timing.SampleVerdict) (rest : List Timing.Verdict) (hc : v.code = .slow)
+    (hw : ∀ w, Timing.Verdict.sample w ∈ rest → w.work ≠ v.work) :
+    stepName v ∈ slowSteps (.sample v :: rest) :=
+  slowSteps_latest v rest hc fun w hm => sameKey_work_ne v w fun e => hw w hm e.symm
+
+/-- The previous sample of another work class does not count: `prevSlow` is false when every earlier sample has other
+work dimensions.
+-/
+theorem prevSlow_other_work (v : Timing.SampleVerdict) (prev : List Timing.SampleVerdict)
+    (hw : ∀ u ∈ prev, u.work ≠ v.work) : prevSlow v prev = false := by
+  unfold prevSlow
+  rw [List.find?_eq_none.2 fun u hu => by simp [sameKey_work_ne v u fun e => hw u hu e.symm]]
+
+/-- **No alert names an overflow bucket.** No subject of the entry point is the name of an `fw` overflow bucket step:
+its samples are `mixed`, never `slow`.
+-/
+theorem slowSteps_no_bucket (p : Timing.Params) (ss : List Timing.Sample) (s : String)
+    (h : s ∈ slowSteps (Timing.timingVerdicts p ss)) :
+    ∃ v, Timing.Verdict.sample v ∈ Timing.timingVerdicts p ss ∧ stepName v = s ∧
+      ¬ (v.tool = "fw" ∧ ∃ k ∈ Timing.slotKinds, v.step ∈ Timing.bucketSteps k) := by
+  obtain ⟨v, hv, hc, hn⟩ := slowLatest_sound _ s ((mem_dedupL _ s).1 h)
+  exact ⟨v, hv, hn, Timing.no_slow_bucket p ss v hv hc⟩
+
 /-- **The alert list has no repeats.** -/
 theorem slowSteps_nodup (vs : List Timing.Verdict) : (slowSteps vs).Nodup := by
   exact nodup_dedupL _
@@ -1572,6 +1612,15 @@ private def tvk (tool step kind : String) (code : Timing.Code) : Timing.Verdict 
 #guard slowSteps [tvk "w" "s" "k1" .ok, tvk "w" "s" "k2" .slow, tvk "w" "s" "k1" .slow] == ["w/s#k2", "w/s#k1"]
 -- the same step slow on two hosts alerts once
 #guard slowSteps [tv "a" "b" .slow, (match tv "a" "b" .slow with | .sample v => .sample { v with host := .«local» } | x => x)] == ["a/b"]
+-- work dimensions separate histories: an ok light polish commit after a slow lakeBuild one does not replace it
+private def tvw (step : String) (work : List (String × String)) (code : Timing.Code) : Timing.Verdict :=
+  match tv "fw" step code with | .sample v => .sample { v with work } | x => x
+#guard slowSteps [tvw "polish commit" [("checks", "lakeBuild")] .slow, tvw "polish commit" [("checks", "light")] .ok] ==
+  ["fw/polish commit [checks=lakeBuild]"]
+#guard slowSteps [tvw "polish commit" [("checks", "lakeBuild")] .slow, tvw "polish commit" [("checks", "lakeBuild")] .ok] == []
+#guard slowSteps [tvw "polish commit" [("checks", "light")] .slow, tvw "polish commit" [("checks", "lakeBuild")] .slow] ==
+  ["fw/polish commit [checks=light]", "fw/polish commit [checks=lakeBuild]"]
+#guard slowSteps [tvw "slot run check" [] .mixed] == []
 
 -- landed from main's history; the land lock
 private def lbr (b : Branch) : AgentFacts :=
@@ -1584,3 +1633,41 @@ private def lbr (b : Branch) : AgentFacts :=
 #guard (lands (lbr { name := "w", ahead := 3, landed := false, queued := false, landLock := some "x" })) == [.land "w" "t"]
 
 end Fw.Obs.Next
+
+namespace Fw.Wire.Obs.TimingSlow
+open Lean
+open Fw.Obs.Timing
+open Fw.Wire.Obs.Timing
+
+/-- The `obs.slow` cases: the alert subjects keyed on work dimensions, and no alert for an overflow bucket. -/
+def cases : List (String × Params × List Sample) :=
+  [("polish commit by checks class: the 38.2 s lakeBuild commit alerts under its class", {}, polishRun),
+   ("polish commit without a checks class: the same durations alert under the bare step", {},
+      polishRun.map fun s => { s with work := [] }),
+   ("a later ok light polish commit does not replace the lakeBuild alert", {}, polishRun ++ [polish ["nodeCheck"] 2 600]),
+   ("a later ok lakeBuild polish commit replaces it", {}, polishRun ++ [polish ["lakeBuild"] 2 9000]),
+   ("slot run overflow bucket: mixed, no alert", {}, bucketRun "slot run check"),
+   ("slot run with a command key: the same durations alert", {}, bucketRun "slot run check sh lean/scripts/check.sh"),
+   ("slot width: a 200 s width-1 group alerts under its width", {}, groupMix ++ [group (some 1) 2 200000])]
+
+def slowOf (p : Params) (ss : List Sample) : List String := Fw.Obs.Next.slowSteps (timingVerdicts p ss)
+
+#guard cases.map (fun (_, p, ss) => slowOf p ss) ==
+  [["fw/polish commit [checks=lakeBuild]"], ["fw/polish commit"], ["fw/polish commit [checks=lakeBuild]"], [], [],
+   ["fw/slot run check sh lean/scripts/check.sh"], ["lean/check/parallel group [width=1]"]]
+
+def caseJson (n : String) (p : Params) (ss : List Sample) : Json :=
+  Json.mkObj [("name", .str n),
+    ("request", Json.mkObj [("op", "obs.slow"), ("params", paramsJson p), ("samples", .arr (ss.map sampleJson).toArray)]),
+    ("response", Json.mkObj [("slow", toJson (slowOf p ss))])]
+
+def goldenText (_ : Unit := ()) : String :=
+  String.join (cases.map fun (n, p, ss) => (caseJson n p ss).compress ++ "\n")
+
+def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-slow.jsonl"
+
+def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+
+def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+
+end Fw.Wire.Obs.TimingSlow
