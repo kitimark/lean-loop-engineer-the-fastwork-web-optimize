@@ -12,7 +12,6 @@ open Fw.Ops.PathCheck Fw.Console.Land
 inductive Kind | golden | script | module | workflow | other
 deriving DecidableEq, Repr
 
-/-- The wire name of a kind. -/
 def Kind.name : Kind → String
   | .golden => "golden" | .script => "script" | .module => "module" | .workflow => "workflow"
   | .other => "other"
@@ -58,12 +57,10 @@ def implied : Kind → List String
   | .workflow => ciTables
   | .other => []
 
-/-- Whether a write adds a file: `new` matches no tracked file, `existing` is a plain path that does, `open` is a
-glob that does and may add more. -/
+/-- `new`: the write matches no tracked file; `existing`: a plain path that does; `open`: a glob that does. -/
 inductive Fresh | new | existing | «open»
 deriving DecidableEq, Repr
 
-/-- The wire name of a freshness. -/
 def Fresh.name : Fresh → String
   | .new => "new" | .existing => "existing" | .open => "open"
 
@@ -104,7 +101,6 @@ def missing (tracked : List String) (t : Task) : List String :=
 def missingOpen (tracked : List String) (t : Task) : List String :=
   if t.done then [] else violations (scopeOf t) (mayNeed tracked t.writes)
 
-/-- The first write of freshness `f` that implies `p`. -/
 def source (tracked writes : List String) (f : Fresh) (p : String) : String :=
   ((writes.filter (freshOf tracked · == f)).find? fun w => (implied (kindOf w)).contains p).getD ""
 
@@ -122,8 +118,6 @@ def findings (tracked : List String) (t : Task) : List Finding :=
       ⟨t.id, "writesClosure", "error", p ++ " for " ++ source tracked t.writes .new p⟩) ++
     (missingOpen tracked t).map (fun p =>
       ⟨t.id, "writesClosureOpen", "warn", p ++ " for " ++ source tracked t.writes .open p⟩)
-
-/-! ## Kinds -/
 
 theorem kindOf_golden_iff (w : String) :
     kindOf w = .golden ↔ w.startsWith ciGoldenDir = false ∧ w.startsWith goldenDir = true := by
@@ -149,22 +143,17 @@ theorem kindOf_workflow_iff (w : String) :
   unfold kindOf; repeat' split
   all_goals simp_all
 
-/-- A CI golden is never a golden of its own: it is a closure target. -/
 theorem kindOf_ci (w : String) (h : w.startsWith ciGoldenDir = true) : kindOf w = .other := by
   simp [kindOf, h]
 
 theorem implied_eq_nil_iff (k : Kind) : implied k = [] ↔ k = .other := by
   cases k <;> simp [implied, goldenCheck, ciTables]
 
-/-- A new module needs only the library root: `lean.yml` already reads `lean/**`, and `check.sh` runs no line per
-module. -/
 theorem implied_module : implied .module = [fwRoot] := rfl
 
 theorem implied_golden : implied .golden = [checkSh, triggerLean, triggersGolden] := rfl
 
 theorem implied_script : implied .script = implied .golden := rfl
-
-/-! ## Freshness -/
 
 theorem freshOf_new_iff (tr : List String) (w : String) :
     freshOf tr w = .new ↔ ∀ f ∈ tr, inScope (parseScope [w]) f = false := by
@@ -181,8 +170,6 @@ theorem freshOf_open_iff (tr : List String) (w : String) :
   unfold freshOf; repeat' split
   all_goals simp_all
 
-/-! ## The closure -/
-
 theorem mem_needs (tr ws : List String) (f : Fresh) (p : String) :
     p ∈ needs tr ws f ↔ ∃ w ∈ ws, freshOf tr w = f ∧ p ∈ implied (kindOf w) := by
   simp [needs, List.mem_eraseDups, and_assoc]
@@ -191,7 +178,6 @@ theorem mem_required (tr ws : List String) (p : String) :
     p ∈ required tr ws ↔ ∃ w ∈ ws, freshOf tr w = .new ∧ p ∈ implied (kindOf w) :=
   mem_needs tr ws .new p
 
-/-- **No new golden, script, module or workflow: nothing is required.** -/
 theorem required_eq_nil_iff (tr ws : List String) :
     required tr ws = [] ↔ ∀ w ∈ ws, freshOf tr w = .new → kindOf w = .other := by
   constructor
@@ -229,9 +215,6 @@ theorem mem_mayNeed (tr ws : List String) (p : String) :
     p ∈ mayNeed tr ws ↔ (∃ w ∈ ws, freshOf tr w = .open ∧ p ∈ implied (kindOf w)) ∧ p ∉ required tr ws := by
   simp [mayNeed, mem_needs]
 
-/-! ## Agreement with `fw land` -/
-
-/-- A missing path is a required path the land's scope does not admit. -/
 theorem mem_missing_iff (tr : List String) (t : Task) (hd : t.done = false) (p : String) :
     p ∈ missing tr t ↔ p ∈ required tr t.writes ∧ inScope (parseScope (scopeOf t)) p = false := by
   simp [missing, hd, mem_violations]
@@ -240,19 +223,16 @@ theorem mem_missingOpen_iff (tr : List String) (t : Task) (hd : t.done = false) 
     p ∈ missingOpen tr t ↔ p ∈ mayNeed tr t.writes ∧ inScope (parseScope (scopeOf t)) p = false := by
   simp [missingOpen, hd, mem_violations]
 
-/-- **The lint passes exactly when a land that changes the whole closure passes its scope check.** -/
 theorem missing_nil_iff_land_ok (tr : List String) (t : Task) (hd : t.done = false) (hw : t.writes ≠ []) :
     missing tr t = [] ↔
       landVerdict t.writes [t.id, t.owner] [] (required tr t.writes) t.id t.stream = .ok := by
   cases hv : violations (scopeOf t) (required tr t.writes) <;>
     simp_all [landVerdict, missing, scopeOf, List.isEmpty_iff]
 
-/-- A missing path refuses the land of any branch that changes it. -/
 theorem missing_refused (tr : List String) (t : Task) (hd : t.done = false) (p : String)
     (h : p ∈ missing tr t) : p ∈ violations (scopeOf t) [p] := by
   rw [mem_violations]; exact ⟨by simp, ((mem_missing_iff tr t hd p).mp h).2⟩
 
-/-- One scope request answers both lists: the glue asks fwcore once per task. -/
 theorem one_call (tr : List String) (t : Task) (hd : t.done = false) :
     violations (scopeOf t) (required tr t.writes ++ mayNeed tr t.writes) = missing tr t ++ missingOpen tr t := by
   simp [violations, missing, missingOpen, hd, List.filter_append]
@@ -260,7 +240,6 @@ theorem one_call (tr : List String) (t : Task) (hd : t.done = false) :
 theorem done_silent (tr : List String) (t : Task) (hd : t.done = true) : findings tr t = [] := by
   simp [findings, missing, missingOpen, hd]
 
-/-- **An error finding exists exactly when a required path is missing.** -/
 theorem error_iff (tr : List String) (t : Task) :
     (∃ f ∈ findings tr t, f.severity = "error") ↔ missing tr t ≠ [] := by
   constructor
@@ -273,10 +252,7 @@ theorem error_iff (tr : List String) (t : Task) :
     obtain ⟨p, hp⟩ := List.exists_mem_of_ne_nil _ h
     exact ⟨_, List.mem_append_left _ (List.mem_map_of_mem hp), rfl⟩
 
-/-! ## The recorded cases: graph r322 to r334 -/
-
-/-- A replayed work-graph row: the graph commit it is read from, the tracked files its writes matched there, and the
-paths the next graph commit added to the row. -/
+/-- A work-graph row at graph commit `graph`, and the paths later graph commits added to it. -/
 structure Case where
   name : String
   graph : String
@@ -396,7 +372,6 @@ def cases : List Case := [
   ⟨"no artefact", "-", mk "x" "o" "tooling" ["apps/runner/src/x.ts", "docs/team/tools/x.md"], [], []⟩,
   ⟨"a done row", "-", { mk "x" "o" "tooling" [".github/workflows/new.yml"] with done := true }, [], []⟩]
 
-/-- The (code, path) pairs a case's findings name. -/
 def named (c : Case) : List (String × String) :=
   (findings c.tracked c.task).map fun f => (f.code, (f.detail.splitOn " for ").headD "")
 
@@ -421,7 +396,6 @@ def warn (p : String) : String × String := ("writesClosureOpen", p)
   [],
   []]
 
--- Each error names a path a later graph commit added to the row.
 #guard cases.all fun c => (named c).all fun (code, p) => code != "writesClosure" || c.added.contains p
 
 #guard kindOf "packages/contracts/golden/parts/footprint*.jsonl" == .golden
@@ -436,8 +410,6 @@ def warn (p : String) : String × String := ("writesClosureOpen", p)
 #guard freshOf ["lean/scripts/WkCostGolden.lean"] "lean/scripts/WkCostSums.lean" == .new
 #guard freshOf ["lean/Fw/Ci/Trigger.lean"] "lean/Fw/Ci/Trigger.lean" == .existing
 #guard freshOf [] "packages/contracts/golden/parts/footprint*.jsonl" == .new
-
-/-! ## Golden -/
 
 open Lean (Json)
 

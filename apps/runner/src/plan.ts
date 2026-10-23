@@ -12,6 +12,7 @@ import { join, resolve } from "node:path";
 import { UsageError } from "./lib.ts";
 import { onMainSet } from "../../console-api/src/reconcile/git.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
+import { lintClosure, scopeBatch, type ScopeBatch } from "./plan-closure.ts";
 
 export type { WorkGraph } from "@fw/contracts";
 
@@ -84,6 +85,7 @@ export function renderLint(r: LintReply): string {
   const L = r.findings.filter((f) => f.severity !== "info").map((f) => `${f.severity.padEnd(5)} ${f.task} ${f.code}${f.detail ? `: ${f.detail.slice(0, 90)}` : ""}`);
   L.push(`plan lint: ${r.errors} errors, ${r.warnings} warnings, ${r.infos} info (evidence without a Task: trailer on main)`);
   if (r.findings.some((f) => f.code === "evNotOnMain")) L.push("evNotOnMain: the evidence commit is not on main yet; plan sync refuses that define until it lands");
+  if (r.findings.some((f) => f.code.startsWith("writesClosure"))) L.push("writesClosure: add the named path to the row's writes before the build starts; fw land refuses it otherwise (Open: only if the glob adds a file)");
   return L.join("\n");
 }
 
@@ -96,8 +98,10 @@ export function mainCommits(cwd: string, ref = "main"): { sha: string; body: str
   });
 }
 
-/** `fw plan lint <work-graph.json>`: exit code 1 when fwcore finds errors. */
-export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[], onMain?: OnMain): Promise<number> {
+/** `fw plan lint <work-graph.json>`: exit code 1 when fwcore finds errors or an open row misses a path of its writes
+ *  closure (`Fw.Plan.WritesClosure`, checked against the tracked files). */
+export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[], onMain?: OnMain,
+  closure?: { tracked: string[]; batch: ScopeBatch }): Promise<number> {
   if (!args[0]) throw new UsageError("usage: fw plan lint <work-graph.json>");
   const g = JSON.parse(readFileSync(args[0], "utf8")) as WorkGraph;
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
@@ -110,8 +114,13 @@ export async function lintCli(args: string[], cwd: string, core?: CoreCall, comm
       return { id: t.id, title: t.title, deps: t.deps ?? [], evidence: t.evidence ?? null, ...(off ? { evidenceOnMain: false } : {}) };
     }),
     commits: commits ?? mainCommits(cwd) })) as unknown as LintReply;
-  console.log(renderLint(r));
-  return r.ok ? 0 : 1;
+  const tracked = closure?.tracked ?? execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
+  const cs = await lintClosure(g.tasks.map((t) => ({ id: t.id, owner: t.owner, stream: t.stream, writes: t.writes ?? [], done: !!t.evidence || !!t.cut })),
+    tracked, closure?.batch ?? scopeBatch(coreCandidates(root, join(common, ".."))));
+  const errs = cs.filter((f) => f.severity === "error").length;
+  const all: LintReply = { ...r, ok: r.ok && errs === 0, errors: r.errors + errs, warnings: r.warnings + cs.length - errs, findings: [...r.findings, ...cs] };
+  console.log(renderLint(all));
+  return all.ok ? 0 : 1;
 }
 
 /** `fw plan sync` is the live board's only input from the file, so it runs only in the main checkout with HEAD = main:
