@@ -213,4 +213,62 @@ private def ex (op : Op) (name owner ctx : String) : Access := ⟨"p", "p/a.ts",
   "{\"part\":\"p\",\"file\":\"p/a.ts\",\"line\":1,\"op\":\"vw\",\"name\":\"\",\"owner\":\"\",\"ctx\":\"x\",\"variants\":[\"faithful\"]}"
 #guard golden ["a"] [] [] == "{\"parts\":[\"a\"],\n\"accesses\":[\n\n],\n\"findings\":[\n\n]}\n"
 
+/-- The nav-clip cell grade of the open/close frames. -/
+inductive LookCell where
+  | e
+  | q
+  | l
+deriving DecidableEq, Repr
+
+/-- What was seen for one flag: the rest-state gate, the open/close cell, the changed pixels mid-morph against the
+later-load floor of the same lane, and whether the morph trajectory is red. -/
+structure LookSeen where
+  restGate : Bool
+  cell : LookCell
+  midChanged : Nat
+  midFloor : Nat
+  morphRed : Bool
+deriving Repr
+
+/-- Whether the mid-morph pixel count is above the lane's own later-load floor. -/
+def pxOver (s : LookSeen) : Bool := decide (s.midFloor < s.midChanged)
+
+/-- The look class `l` (user look review) when the pixels, the morph trajectory or the cell see a change; else `q`. -/
+def isLookChange (s : LookSeen) : Bool := pxOver s || s.morphRed || s.cell == .l
+
+theorem look_of_px {s : LookSeen} (h : s.midFloor < s.midChanged) : isLookChange s = true := by
+  simp [isLookChange, pxOver, h]
+
+theorem look_of_traj {s : LookSeen} (h : s.morphRed = true) : isLookChange s = true := by
+  simp [isLookChange, h]
+
+theorem look_of_cell {s : LookSeen} (h : s.cell = .l) : isLookChange s = true := by
+  simp [isLookChange, h]
+
+theorem q_only_if_clean {s : LookSeen} (h : isLookChange s = false) :
+    s.midChanged ≤ s.midFloor ∧ s.morphRed = false ∧ s.cell ≠ .l := by
+  simp [isLookChange, pxOver] at h
+  exact ⟨h.1.1, h.1.2, h.2⟩
+
+/-- **The rest-state gate cannot see it**: the class does not depend on the rest gate. -/
+theorem rest_blind (s : LookSeen) (b : Bool) : isLookChange { s with restGate := b } = isLookChange s := rfl
+
+/-- **An exact open/close cell cannot see it**: with pixels above the floor the class is `l` for every cell grade. -/
+theorem cell_blind {s : LookSeen} (c : LookCell) (h : s.midFloor < s.midChanged) :
+    isLookChange { s with cell := c } = true := look_of_px (s := { s with cell := c }) h
+
+/-- nav:clip-box, Simulator run gpu-safari-sim-2026-10-23T00-46-14-744Z at m0.5; CI morph trajectory run 39887328839. -/
+def clipBoxSeen : LookSeen :=
+  { restGate := true, cell := .e, midChanged := 1020729, midFloor := 0, morphRed := true }
+/-- nav:bar-fixed at m0.5; CI morph trajectory run 39887331854. -/
+def barFixedSeen : LookSeen :=
+  { restGate := true, cell := .e, midChanged := 1021369, midFloor := 0, morphRed := true }
+/-- nav:logo-3d at m0.5; CI morph trajectory run 39887335005. -/
+def logo3dSeen : LookSeen :=
+  { restGate := true, cell := .e, midChanged := 1021646, midFloor := 0, morphRed := true }
+
+theorem clipBox_look : isLookChange clipBoxSeen = true := look_of_px (by decide)
+theorem barFixed_look : isLookChange barFixedSeen = true := look_of_px (by decide)
+theorem logo3d_look : isLookChange logo3dSeen = true := look_of_px (by decide)
+
 end Fw.Parts.Footprint

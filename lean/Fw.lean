@@ -238,7 +238,6 @@ import Fw.Ops.LeanFirstProofs
 import Fw.Spec.Reach
 import Fw.Spec.MathFacts
 import Fw.Spec.MathFactsGuards
-import Fw.Preset.LookClass
 import Fw.Preset.Gen
 import Fw.Faithful.Band
 import Fw.Faithful.Comparable
