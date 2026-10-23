@@ -424,6 +424,56 @@ theorem blocked_ne_nil (d ps : List String) (p : String) (hd : p ∈ d) (hp : p 
   have := (blocked_mem d ps p).2 ⟨hd, hp⟩
   rw [h] at this; simp at this
 
+/-! ## The polish stage ends clean -/
+
+/-- What the worktree holds after the commit step: tracked paths that differ from HEAD (index or tree) and untracked paths. -/
+structure St where
+  dirty : List String
+  untracked : List String
+deriving Repr, DecidableEq
+
+/-- Paths to restore from HEAD and untracked paths to delete. -/
+structure Act where
+  restore : List String
+  remove : List String
+deriving Repr, DecidableEq
+
+def Act.run (a : Act) (s : St) : St :=
+  ⟨s.dirty.filter fun p => !a.restore.contains p, s.untracked.filter fun p => !a.remove.contains p⟩
+
+/-- Restore every dirty path; delete the untracked paths that were not there before the polish stage. -/
+def settle (before : List String) (s : St) : Act := ⟨s.dirty, s.untracked.filter fun p => !before.contains p⟩
+
+theorem settle_clean (before : List String) (s : St) : ((settle before s).run s).dirty = [] := by
+  simp [settle, Act.run, List.filter_eq_nil_iff]
+
+theorem settle_untracked_before (before : List String) (s : St) (p : String)
+    (h : p ∈ ((settle before s).run s).untracked) : p ∈ before := by
+  simp [settle, Act.run] at h
+  rcases h.2 with h2 | h2
+  · exact absurd h.1 h2
+  · exact h2
+
+theorem settle_keeps_before (before : List String) (s : St) (p : String) (hs : p ∈ s.untracked) (hb : p ∈ before) :
+    p ∈ ((settle before s).run s).untracked := by
+  simp [settle, Act.run]; exact ⟨hs, Or.inr hb⟩
+
+theorem settle_removes_created (before : List String) (s : St) (p : String) (h : p ∈ (settle before s).remove) :
+    p ∈ s.untracked ∧ p ∉ before := by
+  simp [settle] at h; exact ⟨h.1, h.2⟩
+
+theorem settle_committed (before : List String) (s : St) (hd : s.dirty = []) (hu : ∀ p ∈ s.untracked, p ∈ before) :
+    settle before s = ⟨[], []⟩ := by
+  have : s.untracked.filter (fun p => !before.contains p) = [] := by
+    simp only [List.filter_eq_nil_iff]
+    intro p hp; simpa using hu p hp
+  simp [settle, hd]
+  exact hu
+
+theorem settle_idempotent (before : List String) (s : St) :
+    settle before ((settle before s).run s) = ⟨[], []⟩ :=
+  settle_committed before _ (settle_clean before s) (settle_untracked_before before s)
+
 /-! ## Goldens: the three 10-22 over-cuts -/
 
 def supWire : Cut := ⟨"docs/team/handoffs/sup-wire.md",
@@ -478,5 +528,8 @@ def jevCounts : Cut := ⟨"docs/team/handoffs/jev-datasets.md",
 #guard (Span.mk 10 0).hi = 10 && (Span.mk 10 3).hi = 12 && (Span.mk 1 2).reach = (1, 5)
 #guard relOk "lean/a.lean" && relOk "a/../b" && !relOk "../a" && !relOk "/etc/x" && !relOk "a/../../b" && !relOk ""
 #guard blocked ["a", "b", "a"] ["a", "c"] = ["a"] && blocked [] ["a"] = []
+
+#guard (settle ["keep.txt"] ⟨["a.ts", "b.ts"], ["keep.txt", "a.ts-e", "x.orig"]⟩) = ⟨["a.ts", "b.ts"], ["a.ts-e", "x.orig"]⟩
+#guard (settle ["k"] ⟨[], ["k"]⟩) = ⟨[], []⟩ && ((settle ["k"] ⟨["a"], ["k", "z"]⟩).run ⟨["a"], ["k", "z"]⟩) = ⟨[], ["k"]⟩
 
 end Fw.Plan.Polish

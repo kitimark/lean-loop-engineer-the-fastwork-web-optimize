@@ -25,6 +25,8 @@ const cutsReq = (docs: { path: string; text: string }[], cuts: { path: string; o
 type Sp = { path: string; spans: { start: number; len: number }[] };
 const hunks = (o: { diff?: Sp[]; edits?: Sp[]; main?: string[] }) => ({ op: "plan.polishHunks", diff: o.diff ?? [], edits: o.edits ?? [], main: o.main ?? [] });
 
+const settle = (o: { before: string[]; dirty: string[]; untracked: string[] }) => ({ op: "plan.polishSettle", ...o });
+
 const supWire = { path: "docs/team/handoffs/sup-wire.md",
   old: "`Fw.Wire.Sup.Golden.gen` (cases take the token as a parameter, so fwcore builds no start-time constant); `--check`",
   new: "`Fw.Wire.Sup.Golden.gen` ; `--check`" };
@@ -59,6 +61,9 @@ const cases: [string, Record<string, unknown>][] = [
     edits: [{ path: "/etc/x", spans: [{ start: 2, len: 1 }] }, { path: "../x", spans: [{ start: 2, len: 1 }] }, { path: "", spans: [{ start: 2, len: 1 }] }, { path: "a/../b.ts", spans: [{ start: 2, len: 1 }] }] })],
   ["hunks: a dirty main-checkout file that the plan names blocks", hunks({ diff: [{ path: "a.ts", spans: [{ start: 1, len: 1 }] }, { path: "b.ts", spans: [{ start: 1, len: 1 }] }], main: ["b.ts", "c.ts", "b.ts"] })],
   ["hunks: a clean main checkout blocks nothing", hunks({ diff: [{ path: "a.ts", spans: [{ start: 1, len: 1 }] }], main: [] })],
+  ["settle: dirty edits are restored, only untracked files created since plan are removed", settle({ before: ["keep.txt"], dirty: ["a.ts", "b.ts"], untracked: ["keep.txt", "a.ts-e", "x.orig"] })],
+  ["settle: a clean worktree needs no action", settle({ before: ["keep.txt"], dirty: [], untracked: ["keep.txt"] })],
+  ["settle: a file that was untracked before and is gone now is not named", settle({ before: ["gone.txt"], dirty: [], untracked: [] })],
   ["cuts: apply a cut that keeps every fact", cutsReq([{ path: md, text: "See lean/Fw/A.lean:12 for the rule, which is the rule.\n" }],
     [{ path: md, old: "for the rule, which is the rule.", new: "for the rule." }])],
   ["cuts: 10-22 sup-wire over-cut leaves a space before ;", cutsReq([doc(supWire)], [supWire])],
@@ -125,6 +130,12 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
     expect(res("hunks: a clean main").blocked).toEqual([]);
   });
 
+  it("settle verdicts: restore all dirty paths, remove only the created untracked ones", () => {
+    expect(res("settle: dirty edits")).toEqual({ restore: ["a.ts", "b.ts"], remove: ["a.ts-e", "x.orig"] });
+    expect(res("settle: a clean")).toEqual({ restore: [], remove: [] });
+    expect(res("settle: a file that was")).toEqual({ restore: [], remove: [] });
+  });
+
   it("cut verdicts, one per branch of judge", () => {
     expect(verdicts("cuts: apply a cut")).toEqual(["apply"]);
     expect(verdicts("cuts: 10-22 sup-wire")).toEqual(["dropsFacts"]);
@@ -145,14 +156,20 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
 describe("fw polish CLI", () => {
   const call = coreCaller(bins);
   const wt = "/wt";
-  function fake(files: Record<string, string>, diff: string[], edited: string[] = [], staged: string[] = [], hunk = "", status = "") {
+  function fake(files: Record<string, string>, diff: string[], edited0: string[] = [], staged: string[] = [], hunk = "", status = "", o: { failCommit?: boolean; untracked?: string[] } = {}) {
+    let edited = edited0.slice();
+    let untracked = (o.untracked ?? []).slice();
+    const removed: string[] = [];
     const gitCalls: string[][] = [];
     const written: Record<string, string> = {};
     const lines: string[] = [];
     const git = (_cwd: string, raw: string[]) => {
       const args = raw[0] === "-c" ? raw.slice(2) : raw;
       gitCalls.push(args);
-      if (args[0] === "rev-parse") return "/root\n";
+      if (args[0] === "rev-parse") return args.includes("--absolute-git-dir") ? "/wt/.git\n" : "/root\n";
+      if (args[0] === "checkout") edited = edited.filter((p) => !args.slice(3).includes(p));
+      if (args[0] === "commit") { if (o.failCommit) throw new Error("Command failed: git commit\ncheckmap: FAIL lakeBuild"); edited = []; }
+      if (args[0] === "ls-files") return untracked.join("\n");
       if (args[0] === "status") return status;
       const lineOne = (ps: string[]) => ps.map((q) => `diff --git a/${q} b/${q}\n--- a/${q}\n+++ b/${q}\n@@ -1 +1 @@\n-x\n+y\n`).join("");
       if (args.includes("-U0")) return args.includes("HEAD") ? lineOne(edited) : hunk || lineOne(diff);
@@ -162,8 +179,9 @@ describe("fw polish CLI", () => {
       return "";
     };
     const deps = { core: call, log: (l: string) => lines.push(l), git, gen: async () => [LAKE_GEN], worktree: () => wt,
-      read: (p: string) => files[p.replace(`${wt}/`, "").replace("/root/", "")] ?? null, write: (p: string, t: string) => { written[p] = t; } };
-    return { deps, gitCalls, written, lines };
+      read: (p: string) => files[p.replace(`${wt}/`, "").replace("/root/", "")] ?? written[p] ?? null, write: (p: string, t: string) => { written[p] = t; },
+      remove: (p: string) => { removed.push(p); untracked = untracked.filter((u) => `${wt}/${u}` !== p); } };
+    return { deps, gitCalls, written, lines, removed };
   }
 
   it("plan prints classes, relative scopes with marks and hunk lines, and the stage line last", async () => {
@@ -196,6 +214,30 @@ describe("fw polish CLI", () => {
     expect(f.gitCalls.filter((a) => ["checkout", "add", "commit"].includes(a[0]!)).map((a) => a.slice(0, 4))).toEqual([
       ["checkout", "HEAD", "--", "snapshot/x.css"], ["add", "--", "apps/x/a.ts"], ["commit", "-q", "-m", "polish t: comment and prose cuts (fw polish)"]]);
     expect(f.lines.at(-1)).toBe("VERDICT polish-commit t committed");
+  });
+
+  it("a failing commit restores every polish edit, deletes only the untracked files created since plan, and says so", async () => {
+    const f = fake({}, ["apps/x/a.ts"], ["apps/x/a.ts"], [], "", "", { failCommit: true, untracked: ["mine.txt", "apps/x/a.ts-e", "x.orig"] });
+    f.written["/wt/.git/fw-polish-untracked"] = "mine.txt\n";
+    expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(1);
+    expect(f.removed).toEqual(["/wt/apps/x/a.ts-e", "/wt/x.orig"]);
+    expect(f.gitCalls.some((a) => a[0] === "reset")).toBe(true);
+    expect(f.lines.at(-3)).toMatch(/checkmap: FAIL lakeBuild/);
+    expect(f.lines.at(-2)).toBe("cleanup: restored 1 (apps/x/a.ts), removed 2 (apps/x/a.ts-e x.orig), worktree clean");
+    expect(f.lines.at(-1)).toBe("VERDICT polish-commit t error");
+  });
+
+  it("without a plan baseline the commit step deletes nothing and says why", async () => {
+    const f = fake({}, ["apps/x/a.ts"], ["apps/x/a.ts"], [], "", "", { failCommit: true, untracked: ["x.orig"] });
+    expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(1);
+    expect(f.removed).toEqual([]);
+    expect(f.lines.at(-2)).toMatch(/^cleanup: restored 1 .*removed 0, worktree clean; no baseline/);
+  });
+
+  it("plan saves the untracked files of the worktree as the baseline", async () => {
+    const f = fake({}, ["apps/x/a.ts"], [], [], "", "", { untracked: ["mine.txt"] });
+    await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", f.deps);
+    expect(f.written["/wt/.git/fw-polish-untracked"]).toBe("mine.txt\n");
   });
 
   it("commit with no edits prints nothing", async () => {
@@ -278,6 +320,27 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
     const t = tip.slice(); for (const [n, v] of Object.entries(at)) t[+n - 1] = v;
     writeFileSync(join(wt, file), t.join("\n") + "\n");
   };
+
+  it("a commit the pre-commit hook refuses leaves the worktree clean: edits restored, the stray -e file gone, files from before plan kept", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      writeFileSync(join(wt, "mine.txt"), "pre-existing\n");
+      const planLines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, planLines))).toBe(0);
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      writeFileSync(join(wt, `${file}-e`), "backup\n");
+      const hooks = join(base, "hooks");
+      mkdirSync(hooks);
+      writeFileSync(join(hooks, "pre-commit"), "#!/bin/sh\necho 'checkmap: FAIL lakeBuild'\nexit 1\n", { mode: 0o755 });
+      g(wt, "config", "core.hooksPath", hooks);
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t error");
+      expect(lines.at(-2)).toBe(`cleanup: restored 1 (${file}), removed 1 (${file}-e), worktree clean`);
+      expect(g(wt, "status", "--porcelain").trim()).toBe("?? mine.txt");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
 
   it("keeps the edit inside the hunk, restores the one 50 lines away, and names it", async () => {
     const { base, wt, tip } = fixture();
@@ -389,7 +452,8 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       expect(lines[0]).toBe(`the main checkout has uncommitted edits in the plan's files: ${file}`);
       expect(lines.at(-1)).toBe("VERDICT polish-commit t refused");
       expect(g(wt, "log", "--format=%s", "-1").trim()).toBe("builder");
-      expect(readFileSync(join(wt, file), "utf8")).toContain("# comment 62 reworded");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+      expect(g(wt, "status", "--porcelain").trim()).toBe("");
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 
