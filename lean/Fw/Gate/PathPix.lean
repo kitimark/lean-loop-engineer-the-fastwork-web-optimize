@@ -992,11 +992,17 @@ def armPin (_arm : String) : Pin := .ssr
 
 def shown (p : Pin) (live : Accent) : Accent := match p with | .none => live | .ssr => Accent.base
 
+def pinAt (arm : String) (_i : Nat) : Pin := armPin arm
+
 def pinMasks (_ : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) := ms
 
 theorem armPin_same (a b : String) : armPin a = armPin b := rfl
 
 theorem armPin_all : ∀ a ∈ pinArms, armPin a = .ssr := fun _ _ => rfl
+
+theorem pinAt_same (a b : String) (i j : Nat) : pinAt a i = pinAt b j := rfl
+
+theorem pinAt_all : ∀ a ∈ pinArms, ∀ i < 9, pinAt a i = .ssr := fun _ _ _ _ => rfl
 
 theorem shown_none (live : Accent) : shown .none live = live := rfl
 
@@ -1052,7 +1058,8 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("kind", "exitClaim"), ("layer", toJson l), ("le600", toJson b),
       ("claim", match exitClaim l b with | some c => c.json | none => Json.null)]).compress) ++
   pinArms.flatMap (fun arm => liveAccentCases.map (fun live =>
-    (Json.mkObj [("kind", "accentPin"), ("arm", toJson arm), ("pin", toJson (armPin arm).name), ("live", live.json),
+    (Json.mkObj [("kind", "accentPin"), ("arm", toJson arm), ("pin", toJson (armPin arm).name), ("perOffset", toJson ((List.range 9).map fun i => (pinAt arm i).name)),
+      ("live", live.json),
       ("shown", (shown (armPin arm) live).json)]).compress)) ++
   regionCases.map (fun (ms, i, x, y) =>
     let m := ms.getD i ((0, 0), (0, 0))

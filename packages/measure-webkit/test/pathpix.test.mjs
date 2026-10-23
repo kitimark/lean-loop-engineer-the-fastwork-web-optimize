@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, shownAccent, pinMasks } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks } from '../src/pathpix-exit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -72,6 +72,9 @@ test('the accent pin is the same in every arm and shows the served word, as the 
   assert.deepEqual([...new Set(rows.map((r) => r.arm))], ['A', 'A2', 'P']);
   for (const r of rows) {
     assert.equal(armPin(r.arm), r.pin, r.arm);
+    assert.deepEqual(r.perOffset.map((_, i) => pinAt(r.arm, i)), r.perOffset, `${r.arm} per offset`);
+    assert.equal(r.perOffset.length, 9);
+    assert.ok(r.perOffset.every((x) => x === r.pin));
     assert.deepEqual(shownAccent(armPin(r.arm), { cursor: r.live.cursor, phase: r.live.phase }), r.shown, JSON.stringify(r));
   }
   assert.deepEqual(shownAccent('none', { cursor: 3, phase: 'draw-in' }), { cursor: 3, phase: 'draw-in' });

@@ -15,6 +15,7 @@ export function exitClaim(layer, le600) {
 }
 
 export const armPin = () => 'ssr-accent';
+export const pinAt = (arm, _i) => armPin(arm);
 export const shownAccent = (pin, live) => (pin === 'ssr-accent' ? { cursor: -1, phase: 'idle' } : live);
 export const pinMasks = (_pin, ms) => ms;
 

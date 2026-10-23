@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { sampleAt } from './census.mjs';
 import { parseProfile } from './profile.mjs';
-import { pathSearch, laneOffsets, exitOffsets, armPin } from './pathpix-pure.mjs';
+import { pathSearch, laneOffsets, exitOffsets, armPin, pinAt } from './pathpix-pure.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const { profile } = parseProfile(JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8')));
@@ -169,8 +169,14 @@ async function main() {
           last = now;
         }
         await quietNet(p);
+        let pinRow = null;
+        if (pinAt(arm, k) === 'ssr-accent') {
+          pinRow = JSON.parse(await p.ev(exprs.pinAccent));
+          if (!pinRow.pinned || !pinRow.same) throw new Error(`accent pin failed for arm ${arm} at offset ${k}: ${JSON.stringify(pinRow)}`);
+        }
         await p.ev(exprs.freeze);
         await p.pump(3);
+        const accentStart = JSON.parse(await p.ev(exprs.accentSig));
         const here = JSON.parse(await p.ev(exprs.exitBoxes));
         const live = await liveNow(p);
         const files = [];
@@ -180,7 +186,9 @@ async function main() {
           files.push(f);
         }
         const census = await sampleAt(p.c, { ev: p.ev, pump: () => p.pump(1), y });
+        const accentEnd = JSON.parse(await p.ev(exprs.accentSig));
         rows.push({
+          accent: { drift: pinRow && { before: pinRow.before, wasPinned: pinRow.wasPinned, n: pinRow.n }, shotStart: accentStart, shotEnd: accentEnd },
           i: k, y, scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, dprMilli: census.dprMilli,
           layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: null, memory: l.memory, reasons: l.reasons })),
           layerCount: census.layerCount, ...(census.error ? { censusError: census.error } : {}),
