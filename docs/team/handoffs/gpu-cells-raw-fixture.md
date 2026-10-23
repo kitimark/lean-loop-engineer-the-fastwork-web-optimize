@@ -1,6 +1,6 @@
-branch worktree-wf_462a1737-49a-1 | worktree .claude/worktrees/wf_462a1737-49a-1 | last code commit 3bed8385d (git log -1 for the handoff commit)
+branch worktree-wf_462a1737-49a-1 | worktree .claude/worktrees/wf_462a1737-49a-1 | last code commit 9cc61db06 (merge of main; git log -1 for the handoff commit)
 CI runs: none started (no new dispatch). Fixtures come from the existing complete A/A runs 39823047557, 39852684450, 39861846900 (artifact cells-gpu-chromium).
-Verified (MEASURED, local, at 3bed8385d): check.sh green; gate-breakpoints 649/649; runner 2837/2837; contracts 11/11; ci-paths 54/54; Lean `--raw` and JS `raw` print equal lists (36 lines, all E) and agree on six scratch mutants (L/Q mix).
+Verified (MEASURED, local, at 9cc61db06, after merging main): check.sh green; gate-breakpoints 649/649; runner 2852/2852; dry land VERDICT dry (needs --allow for the 4 hand-edited files outside the writes); contracts 11/11; ci-paths 54/54; Lean `--raw` and JS `raw` print equal lists (36 lines, all E) and agree on six scratch mutants (L/Q mix).
 Open: WebKit raws (follow-up); non-E agreement is scratch-only.
 
 # gpu-cells-raw-fixture handoff
