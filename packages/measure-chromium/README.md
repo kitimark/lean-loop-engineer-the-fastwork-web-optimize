@@ -37,7 +37,7 @@ stderr only and never enters `counts.json`.
 | Base image | `node:24-bookworm-slim@sha256:a5f4366e...daee5` (linux/arm64, Node 24.22) |
 | Browser | `chrome-headless-shell-linux-arm64.zip` 156.0.8078.4, sha256 `81ab9d4d3c30...c476` |
 | Driver library | `puppeteer-core@25.14.0` over CDP |
-| Fonts | none in the image (`src/image-check.sh`: `fc-list` is empty, no font files). Webfonts come from the snapshot only (Google Sans latin/thai, Fastwork, Playpen) |
+| Fonts | one system package, `fonts-liberation` 1:1.07.4-11, in one directory (`docker/fonts.conf`, Lean `Fw.Measure.Profile.fontsConf`); `run.mjs` refuses a container whose `fc-list` lacks its families and records them in `meta.systemFonts`. Webfonts come from the snapshot (Google Sans latin/thai, Fastwork, Playpen). Counts taken before this change (no `meta.systemFonts`) came from an image with no system font |
 | Network | every host except 127.0.0.1 is unresolvable (`--host-resolver-rules`); the page is served by `src/server.mjs`, which records the sha256 of every file it sent (`meta.servedSha256`) |
 | Apt libraries | all 211 packages pinned: dated snapshot.debian.org mirror (SNAP=20261016T000000Z) + `docker/apt-manifest.txt`; the build fails if dpkg differs from the manifest (`node src/pin-apt.mjs`). npm: `docker/driver/package-lock.json` (`npm ci`) |
 
@@ -265,7 +265,7 @@ All numbers MEASURED on GitHub Actions (ubuntu-24.04-arm), original target, harn
   `chromium-classes` artifact, checked for all 6); then fwcore `measure.summarize` over rows {family: profile, metric: type,
   level: "run <id>", cls} gives the worst. Only JSON was moved by a scratch script; a `src/freeze.mjs` that does this is an open item.
 - Workflow: new dispatch input `image_run` (reuse the `chromium-image` artifact of an earlier run); the classes artifact now also holds
-  `image-ids.txt`, `image-inputs.txt` (sha256 of Dockerfile, apt manifest, npm lock) and `run.txt`. Dispatches on one ref cancel each
+  `image-ids.txt`, `image-inputs.txt` (sha256 of Dockerfile, apt manifest, fonts.conf, npm lock) and `run.txt`. Dispatches on one ref cancel each
   other (concurrency), so the five dispatches ran from five `ci/chromium-ci-*` branches at the same commit.
 - Reproduce: `gh workflow run chromium-counts.yml --ref ci/<branch> -f profile=swipe-touch-v1 -f runs=3 -f image_run=39038861283`
   (the image artifact lives 3 days; after that rebuild and re-freeze).

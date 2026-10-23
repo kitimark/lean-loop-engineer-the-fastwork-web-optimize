@@ -1,4 +1,11 @@
 {"dirs":{"counts":"profiles","probe":"probes"},"kind":"consts","pinned":["--remote-debugging-port=","--user-data-dir=","--enable-begin-frame-control","--run-all-compositor-stages-before-draw"],"ua":{"desktop":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","mobile":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"}}
+{"conf":"<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n<fontconfig>\n  <dir>/usr/share/fonts/truetype/liberation</dir>\n  <cachedir>/tmp/fontconfig-cache</cachedir>\n</fontconfig>\n","dir":"/usr/share/fonts/truetype/liberation","families":["Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fonts","pkg":"fonts-liberation","version":"1:1.07.4-11"}
+{"found":[],"kind":"fontsOk","ok":false}
+{"found":["Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fontsOk","ok":true}
+{"found":["Liberation Sans"],"kind":"fontsOk","ok":false}
+{"found":["Liberation Mono","Liberation Sans","Liberation Sans Narrow","Liberation Serif"],"kind":"fontsOk","ok":true}
+{"found":["DejaVu Sans","Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fontsOk","ok":true}
+{"found":["Liberation Mono","Liberation Serif"],"kind":"fontsOk","ok":false}
 {"in":null,"kind":"parseKind","out":"counts"}
 {"in":"counts","kind":"parseKind","out":"counts"}
 {"in":"probe","kind":"parseKind","out":"probe"}

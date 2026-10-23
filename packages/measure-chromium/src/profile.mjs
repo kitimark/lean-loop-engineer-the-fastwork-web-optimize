@@ -71,6 +71,11 @@ export const userAgent = (mobile) => (mobile
   ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36'
   : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');
 
+export const FONT_FAMILIES = ['Liberation Mono', 'Liberation Sans', 'Liberation Serif'];
+
+/** Lean `fontsOk`: every pinned family is among the families `fc-list` shows. */
+export const fontsOk = (found) => FONT_FAMILIES.every((f) => found.includes(f));
+
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
   dropFlags: profile.dropFlags ?? [], variants: profile.probe?.variants?.length ?? 0,

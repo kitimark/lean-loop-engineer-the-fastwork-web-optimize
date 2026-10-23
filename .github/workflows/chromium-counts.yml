@@ -559,7 +559,7 @@ jobs:
               echo '> Part page (`?only=`): counts of one mounted part. Premise: the classes frozen on the whole page are assumed to bound it (declared-rows-unverified).' >> "$GITHUB_STEP_SUMMARY" ;;
           esac
           # The pinned inputs of the image (class-freeze records them next to the image id).
-          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
+          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/fonts.conf docker/driver/package-lock.json) > "$out/image-inputs.txt"
           echo '### chromium-counts: classes over the runs' >> "$GITHUB_STEP_SUMMARY"
           # Each target goes through the same classify path (fwcore Fw.Measure.classify, kMax 4, tMax 24).
           for t in $(echo "$TARGETS" | jq -r '.[]'); do
