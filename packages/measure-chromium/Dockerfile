@@ -14,7 +14,7 @@ ARG HS_VERSION=156.0.8078.4
 ARG HS_SHA256=81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476
 ARG HS_URL=https://cdn.playwright.dev/builds/cft/${HS_VERSION}/linux-arm64/chrome-headless-shell-linux-arm64.zip
 
-# Debian packages: every installed package is pinned. The mirror is a dated snapshot.debian.org archive (SNAP), the 29
+# Debian packages: every installed package is pinned. The mirror is a dated snapshot.debian.org archive (SNAP), the 30
 # direct packages are installed as name=version taken from docker/apt-manifest.txt, and the build FAILS unless dpkg's full
 # package list equals that manifest (regenerate it with `node src/pin-apt.mjs <image>` after a deliberate change).
 # The list is the browser's own deb.deps minus wget and xdg-utils (no helpers); fonts-liberation stays, no other font package.

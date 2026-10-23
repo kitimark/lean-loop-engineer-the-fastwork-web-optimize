@@ -39,7 +39,7 @@ stderr only and never enters `counts.json`.
 | Driver library | `puppeteer-core@25.14.0` over CDP |
 | Fonts | one system package, `fonts-liberation` 1:1.07.4-11, in one directory (`docker/fonts.conf`, Lean `Fw.Measure.Profile.fontsConf`); `run.mjs` refuses a container whose `fc-list` lacks its families and records them in `meta.systemFonts`. Webfonts come from the snapshot (Google Sans latin/thai, Fastwork, Playpen). Counts taken before this change (no `meta.systemFonts`) came from an image with no system font |
 | Network | every host except 127.0.0.1 is unresolvable (`--host-resolver-rules`); the page is served by `src/server.mjs`, which records the sha256 of every file it sent (`meta.servedSha256`) |
-| Apt libraries | all 211 packages pinned: dated snapshot.debian.org mirror (SNAP=20261016T000000Z) + `docker/apt-manifest.txt`; the build fails if dpkg differs from the manifest (`node src/pin-apt.mjs`). npm: `docker/driver/package-lock.json` (`npm ci`) |
+| Apt libraries | all 212 packages pinned: dated snapshot.debian.org mirror (SNAP=20261016T000000Z) + `docker/apt-manifest.txt`; the build fails if dpkg differs from the manifest (`node src/pin-apt.mjs`). npm: `docker/driver/package-lock.json` (`npm ci`) |
 
 ## One virtual frame (src/run.mjs)
 

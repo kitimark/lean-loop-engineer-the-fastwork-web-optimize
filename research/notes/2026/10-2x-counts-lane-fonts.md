@@ -22,7 +22,7 @@ branded Chrome.
   `fonts-liberation` 1:1.07.4-11 (bookworm snapshot, pinned), in one fontconfig directory, no aliases. The text of the config is
   `Fw.Measure.Profile.fontsConf` (Lean); `docker/fonts.conf` is that text, and a test compares the two.
 - MEASURED, comparability: the fonts move counts. On `swipe-v1` the same tip with the old image (run 39901082850) and with the new
-  image (run 39900399252) differ in 61 of 75 count types, because the swipe page is 720 px taller (max scroll 5346 px vs 4626 px)
+  image (run 39900399252) differ in 57 (original) and 58 (rewrite) of 71 count types (frame sums and run-level), because the swipe page is 720 px taller (max scroll 5346 px vs 4626 px)
   and the swipe lasts 575 frames instead of 503. Counts from before this task, taken without fonts, are therefore not comparable
   with counts from after it. Layout counts of the desktop rows did not move (below).
 
@@ -40,6 +40,8 @@ Options:
 | the page's own web font ready before the first layout | rejected | it cannot be forced on the original page without editing it, and the order of the font and the first layout is exactly what the page does on a user's machine |
 | keep no fonts, keep `text-wrap: wrap` on every element | rejected | the counts then describe a page without balancing (a look change), and a site-side fix would turn the breakpoint gate red (it reads `text-wrap-style`; branch note `10-2x-people-title-crash-fix.md`: the block `o` does not stop the crash, only `text-wrap: wrap` on the title does) |
 | a larger font set (DejaVu, Noto, emoji) | rejected | more fallback faces change line breaks and the count of font loads without a user-visible reason; one family set is enough to avoid the empty-font state |
+
+Comparability: neither option keeps every baseline. The web-font-ready option would leave the font-less fallback for glyphs the web fonts do not cover, so it would likely stay closer to the old swipe-v1 counts (INFERRED, not measured: the run budget was spent). The pinned package was chosen for realism (a desktop user always has a system font) over comparability, and the old baselines are re-measured as a follow-up.
 
 INFERRED: that `fonts-liberation` is in Chrome's own dependency list comes from the old Dockerfile comment, not from a read of
 the `.deb` control file (the fetch was blocked).
@@ -112,9 +114,7 @@ Same tip, same `run.mjs` except the font check, `swipe-v1` at 430 px, both targe
 | old image | 503 (463 swipe frames) | 4626 px |
 
 The old-image arm reproduces the 499 snapshots (`census.snapshots`) of the frozen classes (`classes.frozen.json`, image 8f0e17f5,
-run 39184638066) exactly, so the lane is stable across weeks; the new image (570 snapshots) is what changes it. In 61 of 75 types
-the 3-job ranges of the two images do not overlap. Of the deterministic types of the new arm, only 10 (original) and 8
-(rewrite) of 34 and 23 have an equal sum in the old arm; the rest scale with the 72 extra frames (Commit, Layerize, EvaluateScript,
+run 39184638066) exactly, so the lane is stable across weeks; the new image (570 snapshots) is what changes it. In 57 (original) and 58 (rewrite) of 71 count types (frame sums and run-level) the 3-job ranges of the two images do not overlap. Of the deterministic types of the new arm, only 10 of 34 (original) and 10 of 26 (rewrite) have an equal sum in the old arm; the rest scale with the 72 extra frames (Commit, Layerize, EvaluateScript,
 cc.Draw, ScrollLayer and others), and Layer.created and Animation counts also move.
 
 INFERRED: the page is taller with fonts because text that had no installed face in the old lane (glyphs not covered by the
