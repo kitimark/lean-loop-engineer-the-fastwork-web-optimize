@@ -18658,9 +18658,12 @@
     "lean/Fw/Plan/Polish.lean",
     "packages/contracts/golden/plan/polish*.jsonl",
     "apps/runner/src/polish*.ts",
-    "apps/runner/test/polish*.test.ts"
+    "apps/runner/test/polish*.test.ts",
+    "lean/Fw/Wire/Plan.lean",
+    "docs/team/tools/polish.md"
    ],
-   "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs. (2) 2026-10-23: the Polish stage's comment-sicko waited 17+ min on a user permission prompt for an Edit of .claude/workflows/build-review.js (protected path) in polish-commit-failsafe's worktree. Polish scopes must exclude paths that need a user prompt (.claude/**, per settings): a Lean allowlist rule in Fw.Plan.Polish for polishable paths, golden, and fw polish plan prints skip <path> (protected)."
+   "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs. (2) 2026-10-23: the Polish stage's comment-sicko waited 17+ min on a user permission prompt for an Edit of .claude/workflows/build-review.js (protected path) in polish-commit-failsafe's worktree. Polish scopes must exclude paths that need a user prompt (.claude/**, per settings): a Lean allowlist rule in Fw.Plan.Polish for polishable paths, golden, and fw polish plan prints skip <path> (protected).",
+   "evidence": "0936a23"
   },
   {
    "devices": [
@@ -18766,6 +18769,25 @@
     "docs/team/handoffs/hero-accent-draw-nolayout.md"
    ],
    "title": "Optimization (user goal: smoother hero exit and end-of-page in WebKit): the hero.accent draw animates stroke-dashoffset on the visible copy, and in WebKit every strokeDashOffset change requires layout (StyleDifference.cpp:161 svgDataChangeRequiresLayout via changeRequiresLayout :399 @862f17d), so the page relayouts on every frame of both 900 ms draws, page-wide (the end-of-page swap windows pay it: carousel-swap-followups). accent-draw-one (landed) removed the hidden copies' draws and found no win; this task removes the layout itself. Read WebKit source (StyleDifference.cpp, RenderSVGShape/RenderSVGPath layout and repaint, LegacyRenderSVG vs LBSE on the pinned commit) for each candidate: a mask or clip reveal driven by transform or clip-path, a pre-split dash with opacity, an SVG mask rect with transform, and Chromium's equivalent (blink style diff for stroke-dashoffset). Lean first: model the StyleDifference decision for the candidate properties from the cited source lines (one canonical table, theorem: the chosen arm's per-frame changes need no layout in both engines), goldens. Register flag hero.accent:draw-nolayout; visual sameness measured with path-pix against faithful across the draw (if not pixel-identical, class look-change for the user's visual review); one webkit-sim count run (swap lane and hero exit zone) with run id. Negative result is a finding with its Lean why."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-protected-from-settings",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "build-review-worktree-path"
+   ],
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "docs/team/handoffs/polish-protected-from-settings.md"
+   ],
+   "title": "build-review-worktree-path review follow-ups (2026-10-24): (1) protectedDirs/protectedFiles in Fw.Plan.Polish are copied by hand from the .claude/settings.json Edit ask rules: add a test that parses every Edit(...) ask and deny rule in settings.json and checks protectedPath or skipRoots covers it (one canonical source), and make skipped call polishable; (2) confirm from the Claude Code permission docs whether the main checkout's Edit(/.claude/**) ask rule also matches files under .claude/worktrees/<wt>/ (worktree files are edited without prompts so far: INFERRED not matched); cite the doc."
   }
  ],
  "deadline": {

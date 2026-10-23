@@ -279,7 +279,8 @@ def opPolishPlan (req : Json) : Except String Reply := do
         ("stages", strsJson ((stages gen ps).map (·.name))),
         ("scopes", Json.mkObj [("comments", strsJson (scope gen .comments ps)), ("prose", strsJson (scope gen .prose ps))]),
         ("keep", strsJson (ed.filter (keeps gen ps))), ("restore", strsJson (ed.filter (!keeps gen ps ·))),
-        ("left", strsJson (ed0.filter dirtyBefore.contains))]
+        ("left", strsJson (ed0.filter dirtyBefore.contains)),
+        ("protected", strsJson (ps.filter protectedPath))]
 
 open Fw.Plan.Polish in
 /-- `plan.polishCuts`: each cut judged in order against its file's text (`applyAll`), and each file's text after the applied cuts. -/
