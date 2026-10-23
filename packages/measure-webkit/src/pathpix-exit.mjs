@@ -43,7 +43,7 @@ export const floorPinned = (served, maxY, rows, f) => ({ ...f, valid: f.valid &&
 export const coverAll = (c) => !!c && c.n > 0 && c.k === c.n;
 export const occludedBoth = (a, b) => coverAll(a) && coverAll(b);
 
-export const FOREIGN_REASON = "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards";
+export const FOREIGN_REASON = "a pixel inside another graded layer's mask is counted by that layer's cell, not by hero_copy: hero_copy's mask is the union of all its element boxes, hidden countdown faces included, and can overlap the masks of other layers";
 export const yieldsShared = (layer) => layer === 'hero_copy';
 export const foreignMasks = (layer, others) => (yieldsShared(layer) ? others : []);
 export const countedIn = (foreign, m, x, y) => inMask(m, x, y) && !foreign.some((k) => inMask(k, x, y));
@@ -76,23 +76,37 @@ export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
     const d = del[i];
     if (d) { oc++; if (d > om) om = d; const x = i % w, y = (i - x) / w; if (x < ox0) ox0 = x; if (x > ox1) ox1 = x; if (y < oy0) oy0 = y; if (y > oy1) oy1 = y; }
   }
-  const shared = [];
+  const shared = [], receivers = [];
   const inside = masks.map((m, n) => {
     let changed = 0, maxDelta = 0, sc = 0, sm = 0;
+    const to = new Set();
     const hist = { b1: 0, b2_3: 0, b4_15: 0, b16_255: 0 };
     let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
     const fo = foreign[n] ?? [];
     for (let y = m[2]; y < m[3]; y++) for (let x = m[0]; x < m[1]; x++) {
       const d = del[y * w + x];
       if (!d) continue;
-      if (fo.length && !countedIn(fo, m, x, y)) { sc++; if (d > sm) sm = d; continue; }
+      if (fo.length && !countedIn(fo, m, x, y)) {
+        sc++; if (d > sm) sm = d;
+        for (const k of fo) if (inMask(k, x, y)) to.add(masks.indexOf(k));
+        continue;
+      }
       changed++; if (d > maxDelta) maxDelta = d; hist[bucket(d)]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     }
     shared.push({ changed: sc, maxDelta: sm });
+    receivers.push([...to].sort((p, q) => p - q));
     return { raw: { changed, maxDelta }, hist, bbox: changed ? [x0, y0, x1 + 1, y1 + 1] : null };
   });
-  return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared };
+  return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared, receivers };
 }
+
+export const probeParts = (probes) => Object.entries(probes ?? {}).map(([name, b]) => [name, b[0] / 1e6, b[1] / 1e6, b[2] / 1e6, b[3] / 1e6]);
+
+/** Recorded probe elements whose device box overlaps `bbox`: [name, x0, y0, x1, y1] in device px, rounded to 0.1. */
+export const probesHit = (probes, bbox, dpr) => {
+  const r1 = (v) => Math.round(v * dpr * 10) / 10;
+  return !bbox ? [] : probeParts(probes).filter(([, x, y, w, h]) => x * dpr < bbox[2] && (x + w) * dpr > bbox[0] && y * dpr < bbox[3] && (y + h) * dpr > bbox[1]).map(([n, x, y, w, h]) => [n, r1(x), r1(y), r1(x + w), r1(y + h)]);
+};
 
 export const partsHit = (parts, bbox, dpr) => (!bbox || !parts ? [] : parts.filter(([, x, y, w, h]) => x * dpr < bbox[2] && (x + w) * dpr > bbox[0] && y * dpr < bbox[3] && (y + h) * dpr > bbox[1]).map((p) => p[0]));
 
@@ -183,8 +197,8 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
           key, layer, i, y: rowA.scrollY, kind, mask: masks[n], boxSame: JSON.stringify(row.boxes?.[key] ?? null) === JSON.stringify(box), live,
           cell, floor, accentPinned: ok, invalidWhy: unpinnedWhy(served, maxY, accentRows, floorRows, floor), grade: gradePinned(served, maxY, accentRows, floorRows, cell, floor, live), absGrade: ok ? grade(cell) : 'invalid',
           why: ok ? whyL(cell, floor, live) : null,
-          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr), outBbox: sp.outBbox },
-          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist, shared: sp.shared[n], sharedWith: foreign[n].length,
+          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr), outBbox: sp.outBbox, outProbes: probesHit(row.probes ?? rowA.probes, sp.outBbox, dpr) },
+          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist, shared: sp.shared[n], sharedWith: foreign[n].length, sharedTo: sp.receivers[n].map((o) => keys[o]),
         };
         const changed = cell.inside.changed + cell.out.changed > 0;
         const sk = `${kind}:${key}`;

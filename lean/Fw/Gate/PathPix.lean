@@ -1283,7 +1283,7 @@ def foreignMasks (layer : String) (others : List ((Nat × Nat) × (Nat × Nat)))
   if yieldsShared layer then others else []
 
 def foreignReason : String :=
-  "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards"
+  "a pixel inside another graded layer's mask is counted by that layer's cell, not by hero_copy: hero_copy's mask is the union of all its element boxes, hidden countdown faces included, and can overlap the masks of other layers"
 
 def countedIn (foreign : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
   inMask m c r && !inAny foreign c r
@@ -1326,6 +1326,96 @@ theorem shared_accounted (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r
   · left
     have : inAny others c r = false := by simpa using hs
     rw [countedIn_unshared others m c r this, h]
+
+/-- One graded layer of a row: its key, its base layer and its mask. -/
+structure RowLayer where
+  key : String
+  layer : String
+  mask : (Nat × Nat) × (Nat × Nat)
+deriving DecidableEq, Repr
+
+/-- The masks of the row's graded layers of another base layer: what the lane hands `foreignMasks`. -/
+def othersOf (ls : List RowLayer) (layer : String) : List ((Nat × Nat) × (Nat × Nat)) :=
+  (ls.filter fun l => l.layer != layer).map (·.mask)
+
+/-- Layer `l` counts the pixel at (c, r) in its cell, whatever the kind of the cell (A/A or P) or the size of the change. -/
+def RowLayer.counts (ls : List RowLayer) (l : RowLayer) (c r : Nat) : Bool :=
+  countedIn (foreignMasks l.layer (othersOf ls l.layer)) l.mask c r
+
+/-- The keys of the row's cells that count the pixel at (c, r). -/
+def countedBy (ls : List RowLayer) (c r : Nat) : List String :=
+  (ls.filter fun l => l.counts ls c r).map (·.key)
+
+theorem receiver_counts (ls : List RowLayer) (o : RowLayer) (hl : o.layer ≠ "hero_copy") (c r : Nat)
+    (hin : inMask o.mask c r = true) : o.counts ls c r = true := by
+  simp only [RowLayer.counts]
+  rw [countedIn_other_layer o.layer (othersOf ls o.layer) o.mask c r hl]
+  exact hin
+
+theorem hero_yields_to_receiver (ls : List RowLayer) (h o : RowLayer) (hh : h.layer = "hero_copy") (ho : o ∈ ls)
+    (hol : o.layer ≠ "hero_copy") (c r : Nat) (hin : inMask o.mask c r = true) : h.counts ls c r = false := by
+  simp only [RowLayer.counts, hh]
+  apply countedIn_shared
+  rw [foreignMasks_yields, inAny_iff]
+  refine ⟨o.mask, ?_, hin⟩
+  simp only [othersOf, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq]
+  exact ⟨o, ⟨ho, hol⟩, rfl⟩
+
+/-- A yielded pixel is counted: hero_copy's cell does not count it and the receiving layer's cell does. -/
+theorem yielded_counted_by_receiver (ls : List RowLayer) (h o : RowLayer) (hh : h.layer = "hero_copy") (ho : o ∈ ls)
+    (hol : o.layer ≠ "hero_copy") (c r : Nat) (hin : inMask o.mask c r = true) :
+    h.counts ls c r = false ∧ o.key ∈ countedBy ls c r := by
+  refine ⟨hero_yields_to_receiver ls h o hh ho hol c r hin, ?_⟩
+  simp only [countedBy, List.mem_map, List.mem_filter]
+  exact ⟨o, ⟨ho, receiver_counts ls o hol c r hin⟩, rfl⟩
+
+/-- No pixel is lost: a pixel inside any graded mask of the row is counted by at least one cell. -/
+theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈ ls, inMask l.mask c r = true) :
+    countedBy ls c r ≠ [] := by
+  obtain ⟨l, hl, hin⟩ := h
+  by_cases hx : ∃ o ∈ ls, o.layer ≠ "hero_copy" ∧ inMask o.mask c r = true
+  · obtain ⟨o, ho, hol, hino⟩ := hx
+    have hc := receiver_counts ls o hol c r hino
+    intro he
+    have : o.key ∈ countedBy ls c r := by
+      simp only [countedBy, List.mem_map, List.mem_filter]
+      exact ⟨o, ⟨ho, hc⟩, rfl⟩
+    rw [he] at this
+    simp at this
+  · have hlh : l.layer = "hero_copy" := by
+      refine Classical.byContradiction fun hne => ?_
+      exact hx ⟨l, hl, hne, hin⟩
+    have hc : l.counts ls c r = true := by
+      simp only [RowLayer.counts, hlh]
+      have hno : inAny (othersOf ls "hero_copy") c r = false := by
+        refine Bool.eq_false_iff.2 fun hy' => ?_
+        obtain ⟨m, hm, hmin⟩ := (inAny_iff _ c r).1 hy'
+        simp only [othersOf, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq] at hm
+        obtain ⟨o, ⟨ho, hol⟩, rfl⟩ := hm
+        exact hx ⟨o, ho, hol, hmin⟩
+      rw [foreignMasks_yields, countedIn_unshared _ _ c r hno]
+      exact hin
+    intro he
+    have : l.key ∈ countedBy ls c r := by
+      simp only [countedBy, List.mem_map, List.mem_filter]
+      exact ⟨l, ⟨hl, hc⟩, rfl⟩
+    rw [he] at this
+    simp at this
+
+/-- Rows of (key, layer, mask) and a pixel: hero_copy over two deck cards and a cue, as the lane sees the first offsets. -/
+def yieldCases : List (String × List RowLayer × Nat × Nat) :=
+  let hero : RowLayer := ⟨"hero_copy", "hero_copy", ((10, 40), (10, 40))⟩
+  let d0 : RowLayer := ⟨"hero.deck_article#0", "hero.deck_article", ((30, 60), (30, 60))⟩
+  let d2 : RowLayer := ⟨"hero.deck_article#2", "hero.deck_article", ((35, 70), (35, 70))⟩
+  let cue : RowLayer := ⟨"hero.cue_cue", "hero.cue", ((5, 15), (50, 70))⟩
+  [("pixel only in hero_copy", [hero, d0, d2, cue], 20, 20), ("pixel in hero_copy and one deck card", [hero, d0, d2, cue], 32, 32),
+   ("pixel in hero_copy and two deck cards", [hero, d0, d2, cue], 38, 38), ("pixel only in a deck card", [hero, d0, d2, cue], 50, 50),
+   ("pixel in no mask", [hero, d0, d2, cue], 100, 100), ("receiver not graded in this row", [hero, cue], 32, 32),
+   ("pixel in the cue only", [hero, d0, d2, cue], 8, 55), ("pixel in two deck cards, no hero_copy", [d0, d2], 38, 38)]
+
+#guard (yieldCases.map fun (_, ls, c, r) => countedBy ls c r) ==
+  [["hero_copy"], ["hero.deck_article#0"], ["hero.deck_article#0", "hero.deck_article#2"], ["hero.deck_article#0", "hero.deck_article#2"],
+   [], ["hero_copy"], ["hero.cue_cue"], ["hero.deck_article#0", "hero.deck_article#2"]]
 
 def foreignCases : List (String × String × List ((Nat × Nat) × (Nat × Nat)) × Nat × Nat) :=
   let o : (Nat × Nat) × (Nat × Nat) := ((15, 30), (10, 14))
@@ -1451,6 +1541,12 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("yields", toJson (yieldsShared layer)),
       ("foreign", toJson (fm.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])),
       ("counted", toJson (countedIn fm foreignMine x y)), ("reason", toJson foreignReason)]).compress) ++
+  yieldCases.map (fun (n, ls, x, y) =>
+    (Json.mkObj [("kind", "yield"), ("name", toJson n),
+      ("layers", toJson (ls.map fun l => Json.mkObj [("key", toJson l.key), ("layer", toJson l.layer),
+        ("mask", toJson [l.mask.1.1, l.mask.1.2, l.mask.2.1, l.mask.2.2])])),
+      ("x", toJson x), ("y", toJson y), ("countedBy", toJson (countedBy ls x y)),
+      ("heroCounts", toJson (ls.filter (·.layer == "hero_copy") |>.map fun l => l.counts ls x y))]).compress) ++
   maskCases.map (fun (n, dpr, fw, fh, b) =>
     let m := mask dpr fw fh b
     (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),

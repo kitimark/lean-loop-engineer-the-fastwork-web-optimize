@@ -9,8 +9,11 @@ export const EXIT_GEOM_EXPR = `(() => {
 
 export const COVER_GRID = 7;
 
+/** Elements outside the graded layers whose boxes are recorded, to name an element a change outside every mask falls on. */
+export const EXIT_PROBES = [['nav', '[data-fw="nav"]'], ['nav-lang', '[data-fw="nav-lang"]'], ['nav-lang button', '[data-fw="nav-lang"] > button'], ['nav-earn', '[data-fw="nav-earn"]'], ['nav logo', '[data-fw="nav"] a[href="/"]']];
+
 export const EXIT_BOX_EXPR = `(() => {
-  const boxes = {}, alpha = {}, cover = {}, parts = {};
+  const boxes = {}, alpha = {}, cover = {}, parts = {}, probes = {};
   const G = ${COVER_GRID};
   const opa = (e) => { let a = 1; for (let n = e; n && n.nodeType === 1; n = n.parentElement) a *= Number(getComputedStyle(n).opacity); return Math.round(a * 1e4) / 1e4; };
   const opaque = (e) => {
@@ -53,7 +56,13 @@ export const EXIT_BOX_EXPR = `(() => {
       cover[key] = { n, k: hit };
     });
   }
-  return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), dateNow: Date.now(), boxes, alpha, cover, parts });
+  for (const [name, sel] of ${JSON.stringify(EXIT_PROBES)}) {
+    const e = document.querySelector(sel);
+    if (!e) continue;
+    const r = e.getBoundingClientRect();
+    probes[name] = [Math.round(r.left * 1e6), Math.round(r.top * 1e6), Math.round(r.width * 1e6), Math.round(r.height * 1e6)];
+  }
+  return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), dateNow: Date.now(), boxes, alpha, cover, parts, probes });
 })()`;
 
 export const EXIT_LIVE_EXPR = `(() => {
