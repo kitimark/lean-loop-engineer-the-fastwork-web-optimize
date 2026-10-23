@@ -128,3 +128,14 @@ export function trajectoryMax(root: string, node = process.execPath): { linux: n
   }
   return { linux, apple };
 }
+
+/** The `(name, width)` rows of `def widths` in lean/Fw/Ci/Overflow.lean. */
+export function widthTable(lean: string): Map<string, number> {
+  return new Map([...(/def widths[\s\S]*?\]\n/.exec(lean)![0]).matchAll(/\("([a-z0-9-]+)", (\d+)\)/g)].map((m) => [m[1]!, Number(m[2])]));
+}
+
+/** The one table check: the row of workflow `w` is at least the derived width (exactly it when `exact`); throws with the derived width in the message. */
+export function checkRow(table: Map<string, number>, w: Workflow, derived: number, exact = false): void {
+  const row = table.get(w.name);
+  if (row === undefined || (exact ? row !== derived : row < derived)) throw new Error(`${w.file}: Lean widths row ${row ?? "missing"} (derived ${derived}${exact ? ", must be equal" : ""})`);
+}
