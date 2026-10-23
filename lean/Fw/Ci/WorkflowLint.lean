@@ -179,6 +179,7 @@ def goldenText : String := String.join ((
   [selLine "yml workflow selects" [".github/workflows/trajectory-probe.yml"],
    selLine "yaml workflow selects" [".github/workflows/x.yaml"],
    selLine "own script selects" ["scripts/check-workflows.sh"],
+   selLine "verdict code selects" ["apps/runner/src/land-checks-workflow.ts"],
    selLine "workflow among others selects" ["docs/x.md", ".github/workflows/lean.yml"],
    selLine "github script does not" [".github/scripts/changed-inputs.mjs"],
    selLine "nested file does not" [".github/workflows/sub/x.txt"],
