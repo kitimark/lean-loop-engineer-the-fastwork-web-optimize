@@ -23,4 +23,5 @@ export const CHECK_SH_READS: string[] = [
   "apps/runner/src/land-reads.gen.ts",
   "packages/contracts/fixtures/trajectory-gpu/**",
   "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
+  "packages/gh-budget/src/bounds.gen.ts",
 ];

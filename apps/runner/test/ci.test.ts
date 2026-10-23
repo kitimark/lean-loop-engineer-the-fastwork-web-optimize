@@ -173,12 +173,12 @@ describe("fw ci state <run id> (review-flow-v2-followups: the gate agent reads r
     await expect(read("x1")).rejects.toThrow(UsageError);
     expect(seen.every((a) => a[0] === "run" && a[1] === "list")).toBe(true);
   });
-  it("a run older than the newest 100 is found by the longer list (MEASURED: 100 runs span about an hour)", async () => {
+  it("a run older than the newest 100 is found by the longer list when the list is filtered (MEASURED: 100 runs span about an hour)", async () => {
     const calls: string[][] = [];
     const all = Array.from({ length: 1000 }, (_, i) => ({ databaseId: 5000 - i, status: "completed", conclusion: i === 250 ? "success" : "failure" }));
     const big: Gh = async (args) => { calls.push(args); return JSON.stringify(all.slice(0, Number(args[args.indexOf("--limit") + 1]))); };
     const out: string[] = [];
-    expect(await ciState(String(5000 - 250), { gh: big, log: (l) => out.push(l) })).toBe(0);
+    expect(await ciState(String(5000 - 250), { gh: big, log: (l) => out.push(l), branch: "ci/x" })).toBe(0);
     expect(out).toEqual(["4750 complete"]);
     expect(calls.map((a) => a[a.indexOf("--limit") + 1])).toEqual(["100", "400"]);
     expect(calls.every((a) => a[0] === "run" && a[1] === "list")).toBe(true);
@@ -196,5 +196,9 @@ describe("fw ci state <run id> (review-flow-v2-followups: the gate agent reads r
     const small: Gh = async (args) => { calls.push(args); return JSON.stringify(all.slice(0, 7)); };
     expect(await ciState("1", { gh: small, log: () => {} })).toBe(2);
     expect(calls.length).toBe(1);
+    calls.length = 0; out.length = 0;
+    expect(await ciState("1", { gh: big, log: (l) => out.push(l) })).toBe(2);
+    expect(calls.map((a) => a[a.indexOf("--limit") + 1])).toEqual(["100"]);
+    expect(out).toEqual(["1 unknown (older than the newest 100 runs; pass --branch or --workflow)"]);
   });
 });

@@ -2,7 +2,9 @@
 // `createdSince`, one call covers all waiters) and write the runs-status file. Waiters read that file and call no gh.
 import { appendFileSync } from "node:fs";
 import type { Env, Json } from "./core.ts";
+import { GH_BOUNDS } from "./bounds.gen.ts";
 import { chargedCall } from "./charged.ts";
+import { LockBusy } from "./lock.ts";
 import { readMarkers } from "./waiters.ts";
 import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeStatus, type Row } from "./state.ts";
 
@@ -23,21 +25,25 @@ export type Poll = {
 
 /** Watches fwcore dropped (unseen, uncovered, orphan) are logged to `incidents.jsonl`, then acknowledged. The decision
  *  to drop is fwcore's (`Fw.Ci.Budget.listed`); this only writes them down. */
-export function drainIncidents(env: Env): number {
+export function drainIncidents(env: Env, lockWaitMs?: number): number {
+  try { return drainLocked(env, lockWaitMs); } catch (e) { if (e instanceof LockBusy) return 0; throw e; } // the next tick drains
+}
+
+function drainLocked(env: Env, lockWaitMs?: number): number {
   return locked(env, () => {
     const inc = (loadState(env.dir)?.incidents as Json[] | undefined) ?? [];
     if (inc.length === 0) return 0;
     appendFileSync(paths(env.dir).incidents, inc.map((i) => JSON.stringify(i)).join("\n") + "\n");
     stepUnlocked(env, { ack: inc.length });
     return inc.length;
-  });
+  }, lockWaitMs);
 }
 
-export async function pollOnce(env: Env): Promise<Poll> {
-  try { return await pollTick(env); } finally { drainIncidents(env); }
+export async function pollOnce(env: Env, lockWaitMs: number = GH_BOUNDS.pollLockWaitMs): Promise<Poll> {
+  try { return await pollTick(env, lockWaitMs); } finally { drainIncidents(env, lockWaitMs); }
 }
 
-async function pollTick(env: Env): Promise<Poll> {
+async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
   const res = await chargedCall(
     env,
     // under the state lock: the waiters dir is read here, so fwcore sweeps the watches whose waiter is gone before it
@@ -48,10 +54,12 @@ async function pollTick(env: Env): Promise<Poll> {
       return ["run", "list", ...(r.createdSince == null ? [] : ["--created", `>=${iso(Number(r.createdSince))}`]),
         "--limit", String(PAGE * pages), "--json", LIST_FIELDS];
     },
+    { lockWaitMs },
   );
   const now = env.now();
   if (!res.ran) {
     if (res.decision === "wait") return { wakeAt: res.until, ticked: false };
+    if (res.decision === "busy") return { wakeAt: now + GH_BOUNDS.busyRetryS, ticked: false }; // a short wait, never stopped
     if (res.reason === "idle") return { wakeAt: now + 2, ticked: false };
     writeStatus(env.dir, { rows: [], ...(readStatus(env.dir) ?? {}), at: now, stopped: res.reason, stoppedAt: now });
     return { wakeAt: now + 2, ticked: false, stopped: res.reason };

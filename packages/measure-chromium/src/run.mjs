@@ -1,4 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, openSync, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -8,7 +10,7 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents, keep, userAgent } from './profile.mjs';
+import { parseProfile, replayEvents, keep, userAgent, runnable, fontsOk, cftPlatform, cftExe, cftUrl } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 import { pngRegionHash } from './png-region.mjs';
 
@@ -16,7 +18,9 @@ const N0_ON = !process.env.FW_NO_N0;
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const PROFILE_FILE = args['profile-file'] ?? `/profiles/${args.profile ?? 'swipe-v1'}.json`;
-const { profile, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')));
+const { profile, kind: PROFILE_KIND, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')));
+const MODE = process.env.FW_LOAD_ONLY ? 'load' : 'counts';
+if (!runnable(PROFILE_KIND, MODE)) { console.error(`profile ${profile.id}: kind ${PROFILE_KIND} is refused in ${MODE} mode`); process.exit(2); }
 const OUT = args.out ?? '/out';
 const DEBUG = !!process.env.FW_DEBUG;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -37,8 +41,9 @@ const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scro
 const srv = await startServer(ROOT);
 const REPRO = process.env.FW_REPRO ? await startRepro(process.env.FW_REPRO) : null;
 if (process.env.FW_STOCK) await stockRun(process.env.FW_STOCK);
+const FONT_FAMILIES = [...new Set(spawnSync('fc-list', [':', 'family'], { encoding: 'utf8' }).stdout?.split(/[\n,]/).map((f) => f.trim()).filter(Boolean))].sort();
+if (!fontsOk(FONT_FAMILIES)) { console.error(`FW_NO_SYSTEM_FONTS: fc-list shows ${JSON.stringify(FONT_FAMILIES)}; a layout with no font crashes Chrome (docker/fonts.conf)`); process.exit(2); }
 
-/** Serve profile.repro[key] at `/` and the site's latin text face at `/font.woff2`; returns the page URL. */
 async function startRepro(key) {
   const html = profile.repro?.[key];
   if (typeof html !== 'string') { console.error(`profile ${profile.id}: no repro page "${key}"`); process.exit(2); }
@@ -54,18 +59,21 @@ async function startRepro(key) {
   return `http://127.0.0.1:${s.address().port}/`;
 }
 
-/** The binary of Chrome for Testing <version> for this machine, downloaded once per container into /tmp/cft. */
 function cftChrome(version) {
-  const plat = process.arch === 'arm64' ? 'linux-arm64' : 'linux64';
-  const dir = `/tmp/cft/${version}`;
-  const exe = `${dir}/chrome-${plat}/chrome`;
+  const plat = cftPlatform(process.platform, process.arch);
+  if (plat === null) { console.error(`FW_STOCK_NO_PLATFORM ${process.platform} ${process.arch}`); process.exit(2); }
+  const dir = join(process.env.FW_CFT_DIR ?? join(tmpdir(), 'cft'), version);
+  const exe = join(dir, cftExe(plat));
   if (existsSync(exe)) return exe;
   mkdirSync(dir, { recursive: true });
-  const url = `https://storage.googleapis.com/chrome-for-testing-public/${version}/${plat}/chrome-${plat}.zip`;
+  const url = cftUrl(version, plat);
   const get = spawnSync('curl', ['-fsSL', '--retry', '5', '--retry-all-errors', '-o', `${dir}.zip`, url], { stdio: ['ignore', 'inherit', 'inherit'] });
   if (get.status !== 0) { console.error(`FW_STOCK_FETCH_FAILED ${url}`); process.exit(3); }
   console.error(`FW_STOCK_ZIP ${url} sha256 ${createHash('sha256').update(readFileSync(`${dir}.zip`)).digest('hex')}`);
-  if (spawnSync('unzip', ['-q', `${dir}.zip`, '-d', dir], { stdio: 'inherit' }).status !== 0) process.exit(3);
+  const unpack = process.platform === 'win32'
+    ? spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', `${dir}.zip`, '-C', dir], { stdio: 'inherit' })
+    : spawnSync('unzip', ['-q', `${dir}.zip`, '-d', dir], { stdio: 'inherit' });
+  if (unpack.status !== 0 || !existsSync(exe)) { console.error(`FW_STOCK_UNPACK_FAILED ${exe}`); process.exit(3); }
   return exe;
 }
 
@@ -75,17 +83,19 @@ async function stockRun(spec) {
   if (!exe) { console.error(`FW_STOCK must be cft:<version> or shell, got ${spec}`); process.exit(2); }
   const url = REPRO ?? `http://127.0.0.1:${srv.port}/${SEARCH}`;
   const { width, height } = profile.viewport;
-  const log = `/tmp/stock-${process.pid}.log`;
-  const argv = [...(spec === 'shell' ? [] : ['--headless']), '--remote-debugging-port=9222', '--no-sandbox', '--no-first-run',
-    `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-stock'}`, `--window-size=${width},${height}`,
+  const log = join(tmpdir(), `stock-${process.pid}.log`);
+  const headed = !!process.env.FW_STOCK_HEADED;
+  const argv = [...(spec === 'shell' || headed ? [] : ['--headless']), '--remote-debugging-port=9222', '--no-sandbox', '--no-first-run',
+    `--user-data-dir=${process.env.FW_PROFILE_DIR ?? join(tmpdir(), 'fw-stock')}`, `--window-size=${width},${height}`,
     '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1', ...(process.env.FW_STOCK_EXTRA ? process.env.FW_STOCK_EXTRA.split(' ') : []), 'about:blank'];
   const fd = openSync(log, 'w');
-  const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd] });
-  process.on('exit', () => { try { ch.kill('SIGKILL'); } catch {} });
+  const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd], detached: process.platform !== 'win32' });
+  const killTree = () => { try { if (process.platform === 'win32') ch.kill('SIGKILL'); else process.kill(-ch.pid, 'SIGKILL'); } catch {} };
+  process.on('exit', killTree);
   let ver = null;
   for (let i = 0; i < 300 && !ver; i++) { try { ver = await (await fetch('http://127.0.0.1:9222/json/version')).json(); } catch { await sleep(100); } }
   if (!ver) { console.error(`FW_STOCK_NO_BROWSER ${spec}\n${readFileSync(log, 'utf8').slice(-3000)}`); process.exit(4); }
-  console.error(`FW_STOCK ${spec} ${ver.Browser} url ${REPRO ? `repro ${process.env.FW_REPRO}` : `${TARGET} ${SEARCH}`} argv ${argv.filter((a) => !a.startsWith('--user-data-dir')).join(' ')}`);
+  console.error(`FW_STOCK ${spec} ${ver.Browser} ${headed ? 'headed' : 'headless'} ${process.platform}-${process.arch} url ${REPRO ? `repro ${process.env.FW_REPRO}` : `${TARGET} ${SEARCH}`} argv ${argv.filter((a) => !a.startsWith('--user-data-dir')).join(' ')}`);
   const br = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222', defaultViewport: null, protocolTimeout: 60000 });
   const bsess = await br.target().createCDPSession();
   let crashSeen = false;
@@ -109,7 +119,11 @@ async function stockRun(spec) {
   await cs.send('Page.enable');
   if (profile.css) await cs.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
   const loaded = new Promise((r) => cs.once('Page.loadEventFired', r));
-  await cs.send('Page.navigate', { url });
+  try { await cs.send('Page.navigate', { url }); } catch (e) {
+    console.error(`FW_STOCK_NAV_ERROR ${String(e).slice(0, 200)}`);
+    console.error(`FW_STOCK_LOG_TAIL ${readFileSync(log, 'utf8').slice(-1200).replace(/\n/g, ' / ')}`);
+    process.exit(1);
+  }
   await Promise.race([loaded, sleep(20000)]);
   const evs = async (expression) => (await cs.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
   try {
@@ -119,14 +133,15 @@ async function stockRun(spec) {
     const facts = await evs(`(() => { const h = document.getElementById('future-heading') ?? document.querySelector('h2'); const st = h ? getComputedStyle(h) : null;
       return { innerWidth, ua: navigator.userAgent, fonts: document.fonts.status, title: h ? h.textContent.trim().slice(0, 60) : null,
         textWrapStyle: st ? st.textWrapStyle : null, textWrapMode: st ? st.textWrapMode : null, titleHeight: h ? h.getBoundingClientRect().height : null }; })()`);
-    console.error(`FW_STOCK_RESULT ${JSON.stringify({ spec, browser: ver.Browser, ...facts })}`);
+    const platformFonts = await (async () => { try { await cs.send('DOM.enable'); await cs.send('CSS.enable'); const { root } = await cs.send('DOM.getDocument', { depth: 0 }); const { nodeId } = await cs.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#future-heading, h2' }); const r = await cs.send('CSS.getPlatformFontsForNode', { nodeId }); return r.fonts.map((f) => `${f.familyName}:${f.isCustomFont ? 'web' : 'system'}:${f.glyphCount}`); } catch (e) { return String(e).slice(0, 80); } })();
+    console.error(`FW_STOCK_RESULT ${JSON.stringify({ spec, browser: ver.Browser, ...facts, platformFonts })}`);
   } catch (e) {
     await sleep(6000);
     console.error(`FW_STOCK_ERROR ${String(e).slice(0, 300)}`);
     process.exit(1);
   }
   console.error(`FW_LOAD_OK: stock ${spec} ${ver.Browser} alive 5 s after load`);
-  ch.kill('SIGKILL');
+  killTree();
   process.exit(0);
 }
 
@@ -476,7 +491,7 @@ const result = {
   profile: { id: profile.id, file: `${profile.id}.json`, sha256: createHash('sha256').update(readFileSync(PROFILE_FILE)).digest('hex') },
   meta: {
     browser: version.Browser, browserArgs, protocol: version['Protocol-Version'],
-    image: process.env.FW_IMAGE_ID ?? null, snapshot: process.env.FW_SNAPSHOT_ID ?? null,
+    image: process.env.FW_IMAGE_ID ?? null, systemFonts: FONT_FAMILIES, snapshot: process.env.FW_SNAPSHOT_ID ?? null,
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),

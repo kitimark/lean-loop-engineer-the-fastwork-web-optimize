@@ -3,7 +3,7 @@
 // Scoping rules that ARE here (which agents get into the snapshot): see SCOPE below.
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
-import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
+import { GH_BOUNDS, ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -518,7 +518,8 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
-export const WATCH_LOCK_WAIT_MS = 3000;
+export const WATCH_LOCK_WAIT_MS = GH_BOUNDS.watchLockWaitMs;
+export const WATCH_GH_TIMEOUT_MS = GH_BOUNDS.watchCallTimeoutMs;
 
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
  *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
@@ -598,6 +599,10 @@ export function parseEtime(s: string): number | null {
   const [d, h, mi, se] = [m[1], m[2], m[3], m[4]].map((x) => Number(x ?? 0)) as [number, number, number, number];
   return (((d * 24 + h) * 60 + mi) * 60 + se) * 1000;
 }
+/** A process start (ms) from the clock and a `ps` age. An age longer than the clock is not a reading: unsigned
+ *  boot_tics - start_time wraps when a process starts after procps sampled uptime (pids.c:287,1494@v4.0.4), e.g. a child
+ *  spawned during the ps run. */
+export const startFromAge = (now: number, ageMs: number): number => (ageMs > now ? -1 : Math.floor(now - ageMs));
 export function parsePs(out: string | null): PsRow[] {
   const rows: PsRow[] = [];
   for (const line of (out ?? "").split("\n")) {
@@ -631,7 +636,7 @@ export function sessionProcs(rows: PsRow[], self: number, now: number): NonNulla
       if (name === null && !SHELLS.has(exe(r.comm))) name = exe(r.comm);
       q.push(...(kids.get(r.pid) ?? []));
     }
-    out.push({ pid: root.pid, name: name ?? exe(root.comm), startedAt: Math.floor(now - root.ageMs), pids });
+    out.push({ pid: root.pid, name: name ?? exe(root.comm), startedAt: startFromAge(now, root.ageMs), pids });
   }
   return out;
 }
@@ -737,7 +742,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], WATCH_GH_TIMEOUT_MS, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
     exec("env", PS_START, 3000),
   ]);

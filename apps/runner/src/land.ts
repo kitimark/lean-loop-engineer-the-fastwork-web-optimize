@@ -23,7 +23,7 @@ import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
 import { WORKFLOW_LINT_ARGV, WORKFLOW_LINT_ID, WORKFLOW_LINT_READS } from "./land-checks-workflow.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
-import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
+import { chargedOnce, GH_BOUNDS, realEnv, type Env } from "@fw/gh-budget";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -287,7 +287,7 @@ export function ciLines(ref: string, cwd: string = process.cwd(), env?: Env): st
   const args = ["run", "list", "--branch", ref, "--limit", "5", "--json", "name,conclusion,status,headSha"];
   try {
     const e = env ?? realEnv(cwd);
-    const r = chargedOnce(e, (state, now) => e.core({ op: "ci.budget.reserve", now, state, cost: ghCost(args) }), () => args, 20_000);
+    const r = chargedOnce(e, (state, now) => e.core({ op: "ci.budget.reserve", now, state, cost: ghCost(args) }), () => args, GH_BOUNDS.landCallTimeoutMs);
     if (!r.ran) return [`budget ${r.decision} (${r.reason})`];
     if (r.code !== 0) return ["unavailable"];
     const rs = JSON.parse(r.stdout) as { name: string; conclusion: string; status: string; headSha: string }[];

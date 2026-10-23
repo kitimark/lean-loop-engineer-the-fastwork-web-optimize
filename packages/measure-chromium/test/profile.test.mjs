@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent } from '../src/profile.mjs';
+import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES } from '../src/profile.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = join(here, '../profiles');
@@ -35,7 +35,7 @@ test('kind, dropFlags, css and user agent agree with the Lean golden', () => {
   assert.deepEqual(PINNED, c.pinned);
   assert.deepEqual(DIRS, c.dirs);
   assert.deepEqual([userAgent(true), userAgent(false)], [c.ua.mobile, c.ua.desktop]);
-  const n = { parseKind: 0, dropOk: 0, keep: 0, wire: 0 };
+  const n = { parseKind: 0, dropOk: 0, keep: 0, wire: 0, runnable: 0, readOk: 0, cft: 0 };
   for (const g of wire) {
     if (g.kind === 'parseKind') assert.equal(parseKind(g.in), g.out, JSON.stringify(g));
     if (g.kind === 'dropOk') assert.equal(dropOk(g.drop), g.ok, JSON.stringify(g));
@@ -45,9 +45,17 @@ test('kind, dropFlags, css and user agent agree with the Lean golden', () => {
       assert.equal(DIRS[g.wire.kind], g.dir);
       assert.equal(userAgent(g.wire.mobile), g.ua);
     }
+    if (g.kind === 'runnable') assert.equal(runnable(g.profile, g.mode), g.ok, JSON.stringify(g));
+    if (g.kind === 'readOk') assert.equal(readOk(g.inProfiles, g.inProbes, g.declared), g.ok, JSON.stringify(g));
+    if (g.kind === 'cft') {
+      const p = cftPlatform(g.os, g.arch);
+      assert.equal(p, g.platform, JSON.stringify(g));
+      assert.equal(p === null ? null : cftExe(p), g.exe);
+      assert.equal(p === null ? null : cftUrl('156.0.8078.47', p), g.url);
+    }
     if (g.kind in n) n[g.kind]++;
   }
-  assert.ok(n.parseKind >= 5 && n.dropOk >= 10 && n.keep >= 6 && n.wire >= 9, JSON.stringify(n));
+  assert.ok(n.parseKind >= 5 && n.dropOk >= 10 && n.keep >= 6 && n.wire >= 9 && n.runnable === 4 && n.readOk === 8 && n.cft >= 8, JSON.stringify(n));
 });
 
 test('the loader refuses what Lean refuses', () => {
@@ -120,8 +128,26 @@ test('the load diagnostics of run.mjs sit behind FW_LOAD_TRACE, the crash exit d
   assert.ok(src.indexOf('FW_RENDERER_CRASH') < open, 'the renderer-crash exit is outside the flag block');
 });
 
-test('profile people-o-hover carries the text-wrap workaround and the open-card probe', () => {
-  const p = parseProfile(read('people-o-hover.json')).profile;
-  assert.equal(p.css, read('desktop-1280.json').css);
-  assert.equal(p.cardProbe.selector, '[role="tooltip"]');
+test('profile people-o-hover carries the open-card probe', () => {
+  assert.equal(parseProfile(read('people-o-hover.json')).profile.cardProbe.selector, '[role="tooltip"]');
+});
+
+test('the lane fonts agree with the Lean golden: families, fonts.conf, Dockerfile pin, apt manifest', () => {
+  const f = wire.find((l) => l.kind === 'fonts');
+  assert.deepEqual(FONT_FAMILIES, f.families);
+  assert.equal(readFileSync(join(here, '../docker/fonts.conf'), 'utf8'), f.conf);
+  const docker = readFileSync(join(here, '../Dockerfile'), 'utf8');
+  assert.ok(docker.includes(` ${f.pkg}; do`), 'the Dockerfile installs the pinned font package');
+  assert.ok(docker.includes('FONTCONFIG_FILE=/etc/fonts/fw-lane-fonts.conf'));
+  assert.ok(docker.includes(`-path '${f.dir}/*'`), 'the font file scan allows only the pinned directory');
+  const manifest = readFileSync(join(here, '../docker/apt-manifest.txt'), 'utf8').split('\n');
+  assert.deepEqual(manifest.filter((l) => l.startsWith('fonts-')), [`${f.pkg}=${f.version}`]);
+  assert.ok(f.conf.includes(`<dir>${f.dir}</dir>`));
+  let n = 0;
+  for (const g of wire) if (g.kind === 'fontsOk') { assert.equal(fontsOk(g.found), g.ok, JSON.stringify(g)); n++; }
+  assert.ok(n >= 6);
+});
+
+test('the desktop counts profiles run the page as served', () => {
+  for (const f of ['desktop-1280.json', 'people-o-hover.json']) assert.equal(read(f).css, undefined, f);
 });

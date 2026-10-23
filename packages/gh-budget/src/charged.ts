@@ -4,6 +4,7 @@
 // The glue never reads or prints a token and never calls `gh api`.
 import { spawnSync } from "node:child_process";
 import type { Env, GhOut, Json } from "./core.ts";
+import { GH_BOUNDS } from "./bounds.gen.ts";
 import { LockBusy } from "./lock.ts";
 import { loadState, locked, saveState } from "./state.ts";
 
@@ -38,7 +39,7 @@ export type Charged = Ran | NotRan;
 
 export type Decide = (state: Json | null, now: number) => Json;
 
-export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs = 60_000, lockWaitMs = 120_000): Charged {
+export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs: number = GH_BOUNDS.defaultCallTimeoutMs, lockWaitMs = 120_000): Charged {
   try {
     return chargedLocked(env, decide, buildArgs, timeoutMs, lockWaitMs);
   } catch (e) {
@@ -49,9 +50,11 @@ export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) =
 
 function chargedLocked(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs: number, lockWaitMs: number): Charged {
   return locked(env, () => {
+    env.mark?.("loadStart");
     const s = loadState(env.dir);
+    env.mark?.("loadEnd");
     const r = decide(s, env.now());
-    saveState(env.dir, r.state as Json); // the booking (or the advanced clock) is on disk before gh starts
+    saveState(env.dir, r.state as Json);
     if (r.decision === "wait") return { ran: false, decision: "wait", until: Number(r.until), reason: String(r.reason) };
     if (r.decision !== "issue") return { ran: false, decision: "stop", reason: String(r.reason) };
     const args = buildArgs(r);
