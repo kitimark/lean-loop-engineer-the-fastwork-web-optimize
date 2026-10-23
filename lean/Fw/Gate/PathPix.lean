@@ -961,6 +961,56 @@ theorem exitClaim_none (layer : String) (le600 : Bool) (h : exitClaim layer le60
   unfold exitClaim at h
   refine ⟨fun e => ?_, fun e => ?_, fun e => ?_, fun e => ?_⟩ <;> subst e <;> simp at h
 
+/-! ## Accent pin -/
+
+inductive Pin where
+  | none | ssr
+deriving DecidableEq, Repr
+
+def Pin.name : Pin → String
+  | .none => "none" | .ssr => "ssr-accent"
+
+inductive Phase where
+  | idle | drawOut | drawIn
+deriving DecidableEq, Repr
+
+def Phase.name : Phase → String
+  | .idle => "idle" | .drawOut => "draw-out" | .drawIn => "draw-in"
+
+structure Accent where
+  cursor : Int
+  phase : Phase
+deriving DecidableEq, Repr
+
+def Accent.base : Accent := ⟨-1, .idle⟩
+
+def Accent.json (a : Accent) : Json := Json.mkObj [("cursor", toJson a.cursor), ("phase", toJson a.phase.name)]
+
+def pinArms : List String := ["A", "A2", "P"]
+
+def armPin (_arm : String) : Pin := .ssr
+
+def shown (p : Pin) (live : Accent) : Accent := match p with | .none => live | .ssr => Accent.base
+
+def pinMasks (_ : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) := ms
+
+theorem armPin_same (a b : String) : armPin a = armPin b := rfl
+
+theorem armPin_all : ∀ a ∈ pinArms, armPin a = .ssr := fun _ _ => rfl
+
+theorem shown_none (live : Accent) : shown .none live = live := rfl
+
+theorem shown_ssr (live : Accent) : shown .ssr live = Accent.base := rfl
+
+theorem shown_arm_independent (a b : String) (la lb : Accent) : shown (armPin a) la = shown (armPin b) lb := rfl
+
+theorem pinMasks_eq (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : pinMasks p ms = ms := rfl
+
+theorem region_pin (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) :
+    region (pinMasks p ms) m c r = region ms m c r := rfl
+
+def liveAccentCases : List Accent := [⟨-1, .idle⟩, ⟨2, .drawIn⟩, ⟨5, .drawOut⟩]
+
 def offsetCases : List Nat := [0, 1, 7, 8, 100, 4626, 5000]
 
 def maskCases : List (String × Nat × Nat × Nat × Box) :=
@@ -1001,6 +1051,14 @@ def goldenLines (_ : Unit := ()) : List String :=
   exitClaimCases.map (fun (l, b) =>
     (Json.mkObj [("kind", "exitClaim"), ("layer", toJson l), ("le600", toJson b),
       ("claim", match exitClaim l b with | some c => c.json | none => Json.null)]).compress) ++
+  pinArms.flatMap (fun arm => liveAccentCases.map (fun live =>
+    (Json.mkObj [("kind", "accentPin"), ("arm", toJson arm), ("pin", toJson (armPin arm).name), ("live", live.json),
+      ("shown", (shown (armPin arm) live).json)]).compress)) ++
+  regionCases.map (fun (ms, i, x, y) =>
+    let m := ms.getD i ((0, 0), (0, 0))
+    (Json.mkObj [("kind", "pinRegion"), ("pin", toJson (armPin "P").name),
+      ("masks", toJson ((pinMasks (armPin "P") ms).map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])), ("mine", toJson i),
+      ("x", toJson x), ("y", toJson y), ("region", toJson (region (pinMasks (armPin "P") ms) m x y).name)]).compress) ++
   maskCases.map (fun (n, dpr, fw, fh, b) =>
     let m := mask dpr fw fh b
     (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),
@@ -1044,5 +1102,8 @@ def run (args : List String) : IO UInt32 := do
 #guard (rawOf [3, 0, 255, 2]) == ⟨3, 255⟩ && (rawOf [0, 256]).ok == false
 #guard (accelCases.map accelerated) ==
   [true, true, true, true, false, false, false, false, false, false, false, false]
+
+#guard (pinArms.map fun a => (armPin a).name) == ["ssr-accent", "ssr-accent", "ssr-accent"]
+#guard (liveAccentCases.map fun l => (shown .ssr l).cursor) == [-1, -1, -1]
 
 end Fw.Gate.PathPix

@@ -55,3 +55,24 @@ export const EXIT_WAIT_EXPR = `(async () => {
   for (; n < 120 && !(t && t.hasAttribute('data-exit-live')); n++) await raf();
   return n;
 })()`;
+
+export const PIN_ACCENT_EXPR = `(() => {
+  const sel = '[data-fw="hero-accent"]';
+  const live = document.querySelector(sel);
+  if (!live) return JSON.stringify({ pinned: false, why: 'no accent element' });
+  const sig = (e) => {
+    const h = (t) => { let a = 5381; for (let i = 0; i < t.length; i++) a = ((a * 33) ^ t.charCodeAt(i)) >>> 0; return a.toString(16); };
+    const svgs = [...e.querySelectorAll('svg')].map((v) => v.getAttribute('viewBox') + ':' + h(v.querySelector('path').getAttribute('d')));
+    return h([e.className, e.getAttribute('style'), e.getAttribute('aria-label'), e.querySelector('[data-paint]').getAttribute('style'), ...svgs].join('|'));
+  };
+  const x = new XMLHttpRequest();
+  x.open('GET', location.pathname + location.search, false);
+  x.send();
+  if (x.status !== 200) return JSON.stringify({ pinned: false, why: 'page fetch status ' + x.status });
+  const ssr = new DOMParser().parseFromString(x.responseText, 'text/html').querySelector(sel);
+  if (!ssr) return JSON.stringify({ pinned: false, why: 'no accent element in the served page' });
+  const before = sig(live);
+  live.replaceWith(document.importNode(ssr, true));
+  const now = document.querySelector(sel);
+  return JSON.stringify({ pinned: true, before, ssr: sig(ssr), after: sig(now), same: sig(now) === sig(ssr) });
+})()`;

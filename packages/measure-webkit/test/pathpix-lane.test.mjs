@@ -8,9 +8,9 @@ import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_I
 import { encodePng, decodePng, cropImage, sameImage } from '../src/pathpix-png.mjs';
 import { analyzeLane, table } from '../src/pathpix-analyze.mjs';
 import { magentaBox, inViewPositions } from '../src/pathpix-webkit.mjs';
-import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
-import { analyzeExit, analyzeDir, exitTable, exitOffsets, splitUnion, region, liveP, liveA } from '../src/pathpix-exit.mjs';
-import { pathSearch as chromiumPathSearch, laneOffsets, exitOffsets as chromiumExitOffsets } from '../../measure-chromium/src/pathpix-pure.mjs';
+import { PIN_ACCENT_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
+import { armPin, analyzeExit, analyzeDir, exitTable, exitOffsets, splitUnion, region, liveP, liveA } from '../src/pathpix-exit.mjs';
+import { pathSearch as chromiumPathSearch, laneOffsets, exitOffsets as chromiumExitOffsets, armPin as chromiumArmPin } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 test('the Chromium driver computes the same offsets and arm search as the Simulator lane', () => {
   for (const maxY of [0, 1, 7, 8, 4626, 5267, 123457]) assert.deepEqual(laneOffsets(maxY), offsets(maxY), `maxY ${maxY}`);
@@ -19,7 +19,7 @@ test('the Chromium driver computes the same offsets and arm search as the Simula
 });
 
 test('page-side expressions are well-formed scripts', () => {
-  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
+  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR, PIN_ACCENT_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
 });
 
 test('png codec round-trips, crops and compares', () => {
@@ -184,4 +184,41 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+class El {
+  constructor(attrs, kids = []) { this.attrs = attrs; this.kids = kids; this.parent = null; kids.forEach((k) => { k.parent = this; }); }
+  get className() { return this.attrs.class ?? ''; }
+  getAttribute(n) { return this.attrs[n] ?? null; }
+  all() { return this.kids.flatMap((k) => [k, ...k.all()]); }
+  querySelector(sel) { return this.querySelectorAll(sel)[0] ?? null; }
+  querySelectorAll(sel) { return this.all().filter((e) => (sel === 'svg' ? e.attrs.tag === 'svg' : sel === 'path' ? e.attrs.tag === 'path' : sel === '[data-paint]' ? 'data-paint' in e.attrs : sel === '[data-fw="hero-accent"]' ? e.attrs['data-fw'] === 'hero-accent' : false)); }
+  replaceWith(n) { const i = this.parent.kids.indexOf(this); this.parent.kids[i] = n; n.parent = this.parent; this.parent = null; }
+}
+const accentEl = (word, cls) => new El({ 'data-fw': 'hero-accent', class: cls, style: `width:${word}`, 'aria-label': 'you' }, [
+  new El({ 'data-paint': '', style: 'top:0' }, [0, 1, 2].map(() => new El({ tag: 'svg', viewBox: `0 0 ${word} 9` }, [new El({ tag: 'path', d: `M${word}` })]))),
+]);
+
+test('the pin expression replaces the live accent element by the served one, whatever word the live one shows', () => {
+  for (const [liveWord, liveCls] of [['10', 'accent idle'], ['20', 'accent drawingIn'], ['30', 'accent drawingOut']]) {
+    const body = new El({}, [accentEl(liveWord, liveCls)]);
+    const served = new El({}, [accentEl('10', 'accent idle')]);
+    const doc = { querySelector: (s) => body.querySelector(s), importNode: (n) => n };
+    const env = {
+      document: doc, location: { pathname: '/', search: '?fw=hero.exit:threaded' },
+      XMLHttpRequest: class { open() {} send() { this.status = 200; this.responseText = 'html'; } },
+      DOMParser: class { parseFromString() { return served; } },
+    };
+    const out = JSON.parse(new Function(...Object.keys(env), `return ${PIN_ACCENT_EXPR}`)(...Object.values(env)));
+    assert.equal(out.pinned, true);
+    assert.equal(out.same, true, liveWord);
+    assert.equal(out.after, out.ssr);
+    assert.equal(out.before === out.ssr, liveWord === '10' && liveCls === 'accent idle');
+  }
+  const none = { document: { querySelector: () => null } };
+  assert.equal(JSON.parse(new Function(...Object.keys(none), `return ${PIN_ACCENT_EXPR}`)(...Object.values(none))).pinned, false);
+});
+
+test('both lanes pin every arm the same way', () => {
+  for (const arm of ['A', 'A2', 'P']) assert.equal(chromiumArmPin(arm), armPin(arm));
 });

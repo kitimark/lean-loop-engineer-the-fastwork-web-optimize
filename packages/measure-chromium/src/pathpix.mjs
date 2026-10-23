@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { sampleAt } from './census.mjs';
 import { parseProfile } from './profile.mjs';
-import { pathSearch, laneOffsets, exitOffsets } from './pathpix-pure.mjs';
+import { pathSearch, laneOffsets, exitOffsets, armPin } from './pathpix-pure.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const { profile } = parseProfile(JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8')));
@@ -87,7 +87,8 @@ async function main() {
     }
   }
 
-  async function loadArm(search) {
+  const pins = {};
+  async function loadArm(search, arm = null) {
     const p = await openPage();
     const { c, ev, pump } = p;
     const navRes = await c.send('Page.navigate', { url: `http://127.0.0.1:${srv.port}/${search}` });
@@ -105,6 +106,13 @@ async function main() {
     if (quiet < profile.load.quietFrames) throw new Error(`page not quiet after ${frames} frames (server inflight ${srv.inflight()}, search ${JSON.stringify(search)})`);
     vt = 20_000;
     for (let i = 0; i < profile.load.prerollFrames; i++, vt += dt) { await ev(`__fwclock.advanceTo(${vt})`); await pump(1); }
+    if (MODE === 'exit' && arm && armPin(arm) === 'ssr-accent') {
+      const pin = JSON.parse(await ev(exprs.pinAccent));
+      if (!pin.pinned || !pin.same) throw new Error(`accent pin failed for arm ${arm}: ${JSON.stringify(pin)}`);
+      pins[arm] = pin;
+      log(`  accent pinned (live ${pin.before}, served ${pin.ssr})`);
+      await pump(2);
+    }
     await quietNet(p);
     await ev(exprs.freeze);
     await pump(3);
@@ -114,7 +122,7 @@ async function main() {
 
   mkdirSync(`${OUT}/shots`, { recursive: true });
   const probe = async (p) => JSON.parse(await p.ev(exprs.boxes));
-  const pa = await loadArm('');
+  const pa = await loadArm('', 'A');
   const info = await probe(pa);
   const ua = await pa.ev('navigator.userAgent');
   const fonts = { systemFonts: FONT_FAMILIES, pageFonts: JSON.parse(await pa.ev(PAGE_FONTS)) };
@@ -136,7 +144,7 @@ async function main() {
     const liveNow = async (p) => JSON.parse(await p.ev(exprs.exitLive));
     for (let a = 0; a < arms.length; a++) {
       const [arm, search] = arms[a];
-      const p = a === 0 ? pa : await loadArm(search);
+      const p = a === 0 ? pa : await loadArm(search, arm);
       if (arm === 'P') {
         let live = await liveNow(p), frames = 0, nudged = false;
         for (; frames < 90 && !live.live; frames++) { await p.pump(1); await sleep(20); live = await liveNow(p); }
@@ -185,7 +193,7 @@ async function main() {
     const manifest = {
       schema: 'fw.path-pix/1', mode: 'exit', flag: FLAG, engine: 'chromium', lane: 'chromium-begin-frame', run: RUN, lossless: true,
       compositing: 'software (--disable-gpu), secondary', browser: version.Browser, browserArgs: CHROME_ARGS.filter((x) => !x.startsWith('--user-data-dir') && !x.startsWith('--remote-debugging-port')), ua,
-      dpr, pageDpr: info.dpr, vw: info.vw, vh: info.vh, frame, content: [0, 0, frame.w, frame.h], maxY, exit, offsets: offs, handover, fonts,
+      dpr, pageDpr: info.dpr, vw: info.vw, vh: info.vh, frame, content: [0, 0, frame.w, frame.h], maxY, exit, offsets: offs, handover: { ...handover, pin: pins }, fonts,
       arms: arms.map(([arm, search]) => ({ arm, search })), samples, served: Object.keys(srv.served()).length, missing: srv.missing(),
     };
     writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest) + '\n');

@@ -14,6 +14,10 @@ export function exitClaim(layer, le600) {
   return null;
 }
 
+export const armPin = () => 'ssr-accent';
+export const shownAccent = (pin, live) => (pin === 'ssr-accent' ? { cursor: -1, phase: 'idle' } : live);
+export const pinMasks = (_pin, ms) => ms;
+
 export const rawLe = (a, b) => a.changed <= b.changed && a.maxDelta <= b.maxDelta;
 export const floorOf = (c) => ({ valid: cellValid(c), out: c.out, inside: c.inside });
 export const withinFloor = (c, f) => f.valid && rawLe(c.out, f.out) && rawLe(c.inside, f.inside);

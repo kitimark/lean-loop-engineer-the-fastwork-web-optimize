@@ -92,6 +92,22 @@
 {"claim":{"bound":null,"compA":false,"compB":false,"props":["opacity","translate"],"scales":false,"snap":false,"text":true},"kind":"exitClaim","layer":"hero.orbit_card","le600":false}
 {"claim":{"bound":null,"compA":false,"compB":false,"props":["opacity","translate"],"scales":false,"snap":false,"text":true},"kind":"exitClaim","layer":"hero.deck_article","le600":true}
 {"claim":null,"kind":"exitClaim","layer":"nav_bar","le600":true}
+{"arm":"A","kind":"accentPin","live":{"cursor":-1,"phase":"idle"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"A","kind":"accentPin","live":{"cursor":2,"phase":"draw-in"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"A","kind":"accentPin","live":{"cursor":5,"phase":"draw-out"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"A2","kind":"accentPin","live":{"cursor":-1,"phase":"idle"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"A2","kind":"accentPin","live":{"cursor":2,"phase":"draw-in"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"A2","kind":"accentPin","live":{"cursor":5,"phase":"draw-out"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"P","kind":"accentPin","live":{"cursor":-1,"phase":"idle"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"P","kind":"accentPin","live":{"cursor":2,"phase":"draw-in"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"arm":"P","kind":"accentPin","live":{"cursor":5,"phase":"draw-out"},"pin":"ssr-accent","shown":{"cursor":-1,"phase":"idle"}}
+{"kind":"pinRegion","masks":[[10,20,10,20],[15,30,15,30]],"mine":0,"pin":"ssr-accent","region":"inside","x":12,"y":12}
+{"kind":"pinRegion","masks":[[10,20,10,20],[15,30,15,30]],"mine":0,"pin":"ssr-accent","region":"inside","x":17,"y":17}
+{"kind":"pinRegion","masks":[[10,20,10,20],[15,30,15,30]],"mine":0,"pin":"ssr-accent","region":"other","x":25,"y":25}
+{"kind":"pinRegion","masks":[[10,20,10,20],[15,30,15,30]],"mine":0,"pin":"ssr-accent","region":"out","x":40,"y":40}
+{"kind":"pinRegion","masks":[[10,20,10,20],[15,30,15,30]],"mine":1,"pin":"ssr-accent","region":"inside","x":17,"y":17}
+{"kind":"pinRegion","masks":[[10,20,10,20]],"mine":0,"pin":"ssr-accent","region":"out","x":20,"y":10}
+{"kind":"pinRegion","masks":[],"mine":0,"pin":"ssr-accent","region":"out","x":0,"y":0}
 {"box":[10000000,20500000,100000000,40000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[29,331,60,183],"name":"interior box, dpr 3"}
 {"box":[-5000000,-2000000,50000000,30000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[0,136,0,85],"name":"box past the top and left edges"}
 {"box":[380000000,800000000,100000000,100000000],"dpr":3,"fh":2532,"fw":1170,"kind":"mask","mask":[1139,1170,2399,2532],"name":"box past the bottom and right edges"}
