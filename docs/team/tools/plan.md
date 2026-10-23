@@ -1,7 +1,7 @@
 # fw plan: work graph to board
 
 `pnpm fw plan <sub>` reads `docs/team/work-graph.json`. Code: `apps/runner/src/plan.ts`, `apps/runner/src/plan-closure.ts`.
-The writes-closure rule and its proofs are in `lean/Fw/Plan/WritesClosure.lean`.
+The writes-closure rule and proofs: `lean/Fw/Plan/WritesClosure.lean`.
 
 | Command | Does | Needs |
 |---|---|---|

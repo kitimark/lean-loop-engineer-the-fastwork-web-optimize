@@ -6,7 +6,7 @@
 - Verified at 381d14c68: check.sh green (axiom check 0 failing); @fw/runner 3195/3195 incl. tsc; @fw/contracts
   11/11; ci-paths 56/56; `node scripts/ci-paths.mjs --check` and `--plan-time --check` ok; `fw plan lint` on main's
   graph: 0 errors, no writesClosure line for this task
-- Open: none inside the graph row's writes.
+- Open: none.
 
 ## What changed
 - (1) Lean `readsFrom b s` (`readsOf s = readsFrom true s`): a `../` at a word start (text start or after a

@@ -28,9 +28,6 @@
 // the seeders. The keys under `on:` are the row's Lean `onKeys` (push, workflow_dispatch; schedule only with a cron), and
 // `on.schedule` equals the row's crons (none: a schedule is a main run). The jobs that save a cache, read
 // from the workflows and their local actions, equal Lean `cacheWriters`.
-// --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
-// `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
-// guard skipped.
 // Run:  node scripts/ci-paths.mjs [--write | --check | --plan-time [--refresh <timings.jsonl>] [--check]] [--root <dir>]
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
