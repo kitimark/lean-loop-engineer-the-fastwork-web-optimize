@@ -17491,7 +17491,8 @@
     "research/notes/2026/10-2x-nav-fixed-size.md",
     "docs/team/handoffs/nav-look-class.md"
    ],
-   "title": "From gpu-safari-lane review (2026-10-23): on the local Simulator lane the three nav flags (clip-box, bar-fixed, logo-3d) change the look mid-animation (about 1.01M changed px at m0.5 against a later-load A/A floor near 0; pill edge ring 8,617 px; subpixel content shift up to maxDelta 220 at m0.9) while faithful, arm and control share --morph and scrollY; the CI gate (rest states) and trajectory (rects) do not see mid-morph pixels. Move the three flags from visClass Q to the look-change class L (user visual review, kind proposal) in part.json with the evidence, keep them out of v2-proved presets until the user reviews them, regenerate footprints and preset decisions, update the ledger rows; then the lead posts the look review to the user."
+   "title": "From gpu-safari-lane review (2026-10-23): on the local Simulator lane the three nav flags (clip-box, bar-fixed, logo-3d) change the look mid-animation (about 1.01M changed px at m0.5 against a later-load A/A floor near 0; pill edge ring 8,617 px; subpixel content shift up to maxDelta 220 at m0.9) while faithful, arm and control share --morph and scrollY; the CI gate (rest states) and trajectory (rects) do not see mid-morph pixels. Move the three flags from visClass Q to the look-change class L (user visual review, kind proposal) in part.json with the evidence, keep them out of v2-proved presets until the user reviews them, regenerate footprints and preset decisions, update the ledger rows; then the lead posts the look review to the user.",
+   "evidence": "dcb0f58"
   },
   {
    "devices": [
