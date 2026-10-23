@@ -1,10 +1,20 @@
 branch: worktree-wf_b23d1ba6-96a-1 (CI branch ci/carousel-swap-followups)
 worktree: .claude/worktrees/wf_b23d1ba6-96a-1
-last commit: 6f09b8c45 (pushed to ci/carousel-swap-followups; head message has the lane token and [swap-lane])
-CI runs:
-- 39968418529 (and siblings) at 793f38e48: all skipped (head commit had no lane token); not a result
-- 39968644601 webkit-sim at 6f09b8c45: running (one of the 2 allowed)
-verified: Lean SwapWindow builds (fewSamples, bgOf, swapNeighbours + theorems), wkcost.jsonl regenerated and --check ok, measure-webkit tests 459 pass.
-open: wait for the run, build the report (swap-report with the 3 job files), note, dry land.
-Writes outside the task graph: packages/measure-webkit/src/lag/probe.mjs (swap lane before the cost passes, so a layersScroll failure keeps the swap samples).
-Finding so far (MEASURED, committed report results/carousel-swap-webkit/people-carousel-crop.json, 12 crop captures): rest-window Layout is about 5 or 40-50 rows, with a period of exactly 3 swap periods (busy rest k, swap k+1, rest k+1; idle swap k+2, rest k+2, swap k+3); the faithful captures show the same rest windows. So the crop's every-third window Layout/Paint is a page background layout source, not the swap, masked in faithful by its own 13 Layout frames. The source part is not named yet: a diag capture (DIAG_JS) is in the run.
+CI run: 39983630584 webkit-sim at 3bfca9339, jobs r1 r2 r3 all success (the 2nd of 2 dispatches). Earlier, not results: 39968418529 (no lane
+token, skipped), 39968644601 (r1, r2 ok, r3 cancelled at the job limit).
+read first: research/notes/2026/10-2x-carousel-swap-webkit.md, results/carousel-swap-webkit/people-carousel-crop.md
+
+done:
+- Cause of the every-third-window Layout/Paint pattern: the hero.accent width transition (900 ms, cycle 1250+900+900 = 3050 ms against 3 carousel
+  periods of 3060 ms). MEASURED timing match in 3 of 3 diagnostic captures; causal link INFERRED, confirmed by a capture with hero.accent frozen.
+  WebKit: StyleDifference.cpp:404 and LocalFrameViewLayoutContext.cpp:223,335 at 862f17d. Faithful shows it in the rest windows, masked in swap windows.
+- Lean SwapWindow: fewSamples (minFaithful 3), Bg/bgOf (busyMin 24), swapNeighbours, theorems and goldens; golden split in two constants (init-cost bound).
+- swapreport prints the measured crop minimum next to the model line; per-sample job key; by-background tables; diagnostic section.
+- Opt-in path [swap-lane] -> SWAP=--swap -> cli --swap confirmed (webkit-sim.yml:415, cli.mjs:24).
+
+verified: lean/scripts/check.sh green, measure-webkit tests 470 pass, ci-paths 56 pass, runner land-inputs 56 pass, plan lint 0 errors.
+open:
+- Outside the task writes: packages/measure-webkit/src/lag/probe.mjs (swap pass before the cost passes).
+- .github/workflows/webkit-sim.yml has no FW_JOB_ID, so the JSON holds <run>.<attempt>/<vm>/p<pass>, not the numeric job id (vm -> id in the note).
+- Next measurement: freeze hero.accent in the swap lane to get quiet-background cells and the confirming test.
+conventions: report built with `node src/lag/cli.mjs swap-report --files r1,r2,r3 ...` from packages/measure-webkit; never pool runs of different commits.
