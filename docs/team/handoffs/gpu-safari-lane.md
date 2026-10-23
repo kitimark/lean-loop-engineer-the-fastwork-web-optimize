@@ -1,7 +1,7 @@
 branch: `worktree-wf_85608f68-de1-1`
 worktree: `.claude/worktrees/wf_85608f68-de1-1`
 last work commit: 1d1cd48a8 (round 3: morph driven by a real push)
-CI runs: none pushed (local lane, exception (c)). Paired CI rows are cited in `results/gpu-safari/lane/ci-pairs.mjs`; nav webkit-sim rows dispatched (39872562267 clip-box, 39872566438 bar-fixed, 39872570182 logo-3d); task nav-fixed-followups reduces them
+CI runs: none pushed (local lane, exception (c)). Paired CI rows are cited in `results/gpu-safari/lane/ci-pairs.mjs`; nav webkit-sim rows: 39872562267 clip-box (failure; v1/r1 failed, r2 pair usable), 39872566438 bar-fixed (failure; r1/r2 failed, r3 pair usable), 39872570182 logo-3d (success); task nav-fixed-followups reduces them
 verified: `node --test results/gpu-safari/lane/lane.test.mjs` (13 pass); one Simulator run of the morph zone (run gpu-safari-sim-2026-10-23T01-50-53-878Z, one sim slot, released; Simulator shut down); nav and pain re-reduced from their round-2 shots with the later-load floor
 open: macOS Safari arms (Mac screen locked, followUp); people-o not measurable at 430 wide; lane code move to `packages/measure-webkit`; TS stand-ins to Lean (follow-up)
 

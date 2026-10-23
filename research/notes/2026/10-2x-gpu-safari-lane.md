@@ -32,7 +32,7 @@ by no more than that floor.
 
 ## Finding 1: the first faithful load is an outlier (MEASURED)
 
-The first measured faithful load differs from later loads. base2 and base3 are pixel-identical at nav
+The first measured faithful load differs from later loads. Not at every state: at nav m0.1 the A/A control is the odd load (base-base3 14,236, base2-base3 45,635), and in the morph run the order probe is (base-base2 0). The pair-1,2 floor then includes the odd load, so it is the larger, conservative floor. base2 and base3 are pixel-identical at nav
 m0.25/0.5/0.75, but base vs base2 changes 19,437 / 9,121 / 8,717 px (m0.1 59,857; m0.9 13-17). On pain it
 is 337k-355k changed px with maxDelta up to 255 (cause not identified; the dark class matches at y-16 and
 y-1, so it is not the flag state), while base2 vs base3 is 3.1k-6.8k. So the control must be the later loads and the arm is compared to the nearest faithful load
@@ -51,7 +51,7 @@ y-1, so it is not the flag state), while base2 vs base3 is 3.1k-6.8k. So the con
 
 - All three arms sit above the later-load floor at every state (grades L at m0.5 and m0.9, "invalid" where
   the arm's two shots or the A/A control were not stable). The earlier floor (first load against the second,
-  59,857 / 19,437 / 9,121 / 8,717 / 13-17 px) was the outlier pair and is not used. bar-fixed and logo-3d differ from clip-box by about 2k px
+  59,857 / 19,437 / 9,121 / 8,717 / 13-17 px) is not used (it includes the first load). bar-fixed and logo-3d differ from clip-box by about 2k px
   at the logo/bar; all three share the fixed 406x791 box, which explains the common diff (MEASURED; cause
   INFERRED).
 - Histogram at clip-box m0.5: 84% differ by 1 level, 12% by 2-3, 3.5% by 4-15, 1,457 px by 16 or more. At
@@ -65,15 +65,14 @@ y-1, so it is not the flag state), while base2 vs base3 is 3.1k-6.8k. So the con
 - Census: 208 layers in faithful, clip-box and bar-fixed; logo-3d 209 (transform3D 0 to 1, one more layer);
   bar-fixed and logo-3d: overlap 5 to 4, stacking 169 to 170, willChange 173 to 174 (MEASURED).
 - Not a lane artifact (MEASURED): stateSeen shows equal --morph and scrollY 5267 for faithful, arm and control
-  at every state, and the arm shots are stable. The CI breakpoint gate covers rest states and the trajectory
+  at every state, and the arm shots are stable at m0.5 and m0.9 for all three arms (unstable, graded invalid: m0.1 all three, m0.25 bar-fixed, m0.75 clip-box and logo-3d; the changed px there, 365k-852k, is still 8x or more above the later-load floor). The CI breakpoint gate covers rest states and the trajectory
   covers rects, so neither sees these mid-morph pixels. The three nav flags change the look mid-animation
   (pill edge ring, subpixel content shift up to maxDelta 220 at m0.9) and go to the user look-review class.
 - Memory 100-117 MB arm vs 107-132 MB faithful, but the control and base3 drift the same way (order drift).
   IOSurface (vmmap proxy, not Instruments) e.g. m0.5 gpu region/MB: faithful 220/303, arm 213/290,
   control 213/287: no difference beyond drift.
 - CI pairing: breakpoint-gate nav-clip-box 39842609609, bar-fixed 39846092556, logo-3d 39848853982;
-  trajectory 39842561544 / 39842569267 / 39842581192. webkit-sim rows dispatched (39872562267 clip-box,
-  39872566438 bar-fixed, 39872570182 logo-3d); task nav-fixed-followups reduces them.
+  trajectory 39842561544 / 39842569267 / 39842581192. webkit-sim rows: 39872562267 clip-box (failure; v1/r1 failed, r2 pair usable), 39872566438 bar-fixed (failure; r1/r2 failed, r3 pair usable), 39872570182 logo-3d (success); task nav-fixed-followups reduces them.
 
 ## Morph panel (morph-panel-threaded, bundled morph-panel-threaded-fade), states m0.25/0.5/0.75
 
