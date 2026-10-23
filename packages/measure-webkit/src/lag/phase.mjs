@@ -23,6 +23,20 @@ export function classify(marks, down, up) {
 
 export const rangesOf = (c) => ({ idle: [0, c.idle], open: [c.idle, c.idle + c.open], close: [c.idle + c.open, c.idle + c.open + c.close] });
 
+/** Lean: minOpenMilli (WebKitLagPhase), the morph value in thousandths that a push must reach. */
+export const MIN_OPEN_MILLI = 900;
+
+/** Lean: geometryIndex. The geometry sample of frame `i` of a phase starting at frame `start` of this run, held at the last of `n`. */
+export const geometryIndex = (start, i, n) => Math.min(start + i, Math.max(0, n - 1));
+
+/** Lean: acceptScrollIn. `o` is `classify`, `morphMilli` the largest morph value times 1000. */
+export function acceptScrollIn(o, startY, pushY, morphMilli) {
+  if (o.outcome !== 'ok') return o;
+  if (pushY <= startY) return { outcome: 'noScroll' };
+  if (morphMilli < MIN_OPEN_MILLI) return { outcome: 'noOpen' };
+  return o;
+}
+
 export function phaseRanges(m, fixed) {
   if (!m.phases) return fixed;
   const c = classify(m.marks, m.phases.down, m.phases.up);

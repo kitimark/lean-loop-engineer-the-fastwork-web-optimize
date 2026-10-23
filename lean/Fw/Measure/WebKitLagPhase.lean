@@ -111,6 +111,8 @@ inductive Refusal where
   | idleShort
   | openShort
   | closeShort
+  | noScroll
+  | noOpen
   deriving DecidableEq, Repr
 
 def Refusal.name : Refusal → String
@@ -121,6 +123,8 @@ def Refusal.name : Refusal → String
   | .idleShort => "idleShort"
   | .openShort => "openShort"
   | .closeShort => "closeShort"
+  | .noScroll => "noScroll"
+  | .noOpen => "noOpen"
 
 inductive Outcome where
   | ok (idle open_ close : Nat)
@@ -222,6 +226,65 @@ theorem classify_fixed : classify (fixedMarks 130) (some 19) (some 139) = .ok 10
   rw [classify_ok h (by decide) (by decide) (by decide) (by decide)]
   decide
 
+/-! ## The geometry sample of a frame -/
+
+/-- The geometry sample of frame `i` of a phase that starts at frame `start` of this run, held at the last of `n` samples. -/
+def geometryIndex (start i n : Nat) : Nat := min (start + i) (n - 1)
+
+theorem geometryIndex_exact {start i n : Nat} (h : start + i < n) : geometryIndex start i n = start + i := by
+  simp [geometryIndex]; omega
+
+theorem geometryIndex_clamp {start i n : Nat} (h : n ≤ start + i) : geometryIndex start i n = n - 1 := by
+  simp [geometryIndex]; omega
+
+theorem geometryIndex_lt {start i n : Nat} (h : 0 < n) : geometryIndex start i n < n := by
+  simp [geometryIndex]; omega
+
+/-- A run whose phase starts at another frame than the fixed schedule reads another sample. -/
+theorem geometryIndex_follows_start : geometryIndex 13 0 130 ≠ geometryIndex 10 0 130 := by decide
+
+/-! ## A trusted run that scrolls into the push -/
+
+/-- The morph value, in thousandths, that a push must reach for the morph to count as open. -/
+def minOpenMilli : Int := 900
+
+/-- The run that scrolls into the push is used only when the page scrolled down before the push and the push opened the morph. -/
+def acceptScrollIn (o : Outcome) (startY pushY morphMilli : Int) : Outcome :=
+  match o with
+  | .refused r => .refused r
+  | .ok a b c =>
+    if pushY ≤ startY then .refused .noScroll
+    else if morphMilli < minOpenMilli then .refused .noOpen
+    else .ok a b c
+
+theorem acceptScrollIn_refused (r : Refusal) (s p m : Int) : acceptScrollIn (.refused r) s p m = .refused r := rfl
+
+theorem acceptScrollIn_noScroll (a b c : Nat) {s p : Int} (h : p ≤ s) (m : Int) :
+    acceptScrollIn (.ok a b c) s p m = .refused .noScroll := by
+  simp [acceptScrollIn, h]
+
+theorem acceptScrollIn_noOpen (a b c : Nat) {s p m : Int} (h : s < p) (hm : m < minOpenMilli) :
+    acceptScrollIn (.ok a b c) s p m = .refused .noOpen := by
+  simp [acceptScrollIn, Int.not_le.mpr h, hm]
+
+theorem acceptScrollIn_ok (a b c : Nat) {s p m : Int} (h : s < p) (hm : minOpenMilli ≤ m) :
+    acceptScrollIn (.ok a b c) s p m = .ok a b c := by
+  simp [acceptScrollIn, Int.not_le.mpr h, Int.not_lt.mpr hm]
+
+/-- An accepted run was accepted by the phase rule, scrolled down, and opened the morph. -/
+theorem acceptScrollIn_spec {o : Outcome} {s p m : Int} {a b c : Nat} (h : acceptScrollIn o s p m = .ok a b c) :
+    o = .ok a b c ∧ s < p ∧ minOpenMilli ≤ m := by
+  cases o with
+  | refused r => simp [acceptScrollIn] at h
+  | ok a' b' c' =>
+    by_cases h1 : p ≤ s
+    · simp [acceptScrollIn, h1] at h
+    · by_cases h2 : m < minOpenMilli
+      · simp [acceptScrollIn, h1, h2] at h
+      · simp only [acceptScrollIn, h1, h2, ite_false] at h
+        cases h
+        exact ⟨rfl, by omega, by omega⟩
+
 /-! ## The golden -/
 
 private def mj (ms : List Int) : Json := toJson ms
@@ -249,8 +312,35 @@ private def line (c : List Int × Option Int × Option Int) : String :=
     | _, _ => []
   (Json.mkObj (base ++ rest ++ ph)).compress
 
+private def scrollCases (_ : Unit) : List (List Int × Option Int × Option Int × Int × Int × Int) :=
+  [(fixedMarks 130, some 19, some 139, 4800, 5102, 1000), (fixedMarks 130, some 19, some 139, 5102, 5102, 1000),
+   (fixedMarks 130, some 19, some 139, 5102, 5000, 1000), (fixedMarks 130, some 19, some 139, 4800, 5102, 0),
+   (fixedMarks 130, some 19, some 139, 4800, 5102, 899), (fixedMarks 130, some 19, some 139, 4800, 5102, 900),
+   (fixedMarks 130, some 19, none, 4800, 5102, 1000), (fixedMarks 130, some 19, some 139, 4800, 4801, 1000),
+   (fixedMarks 40, some 9, some 41, 4800, 5102, 1000), (fixedMarks 130, some 19, some 139, 5102, 5102, 0)]
+
+private def scrollLine (c : List Int × Option Int × Option Int × Int × Int × Int) : String :=
+  let (ms, d, u, s, p, m) := c
+  let out := acceptScrollIn (classify ms d u) s p m
+  let rest : List (String × Json) :=
+    match out with
+    | .ok a b c => [("outcome", "ok"), ("idle", a), ("open", b), ("close", c)]
+    | .refused r => [("outcome", r.name)]
+  let base : List (String × Json) :=
+    [("kind", "scrollIn"), ("marks", mj ms), ("down", oj d), ("up", oj u), ("startY", toJson s), ("pushY", toJson p),
+     ("morphMilli", toJson m)]
+  (Json.mkObj (base ++ rest)).compress
+
+private def geometryCases : List (Nat × Nat × Nat) :=
+  [(0, 0, 130), (10, 0, 130), (13, 0, 130), (10, 59, 130), (70, 59, 130), (70, 60, 130), (72, 59, 130), (73, 59, 130),
+   (74, 59, 130), (10, 0, 5), (0, 3, 0), (12, 5, 1)]
+
 def phaseGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "phaseConst"), ("minIdle", minIdle), ("minOpen", minOpen), ("minClose", minClose)]).compress]
     ++ (cases ()).map line
+    ++ [(Json.mkObj [("kind", "scrollInConst"), ("minOpenMilli", minOpenMilli)]).compress]
+    ++ (scrollCases ()).map scrollLine
+    ++ geometryCases.map fun (st, i, n) =>
+      (Json.mkObj [("kind", "geometryIndex"), ("start", st), ("i", i), ("n", n), ("index", geometryIndex st i n)]).compress
 
 end Fw.Measure.WebKitLagPhase
