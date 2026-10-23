@@ -3,7 +3,7 @@
 // Scoping rules that ARE here (which agents get into the snapshot): see SCOPE below.
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
-import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
+import { GH_BOUNDS, ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -518,7 +518,8 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
-export const WATCH_LOCK_WAIT_MS = 3000;
+export const WATCH_LOCK_WAIT_MS = GH_BOUNDS.watchLockWaitMs;
+export const WATCH_GH_TIMEOUT_MS = GH_BOUNDS.watchCallTimeoutMs;
 
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
  *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
@@ -737,7 +738,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], WATCH_GH_TIMEOUT_MS, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
     exec("env", PS_START, 3000),
   ]);

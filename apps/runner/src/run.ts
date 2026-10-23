@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
+import { GH_BOUNDS, ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
@@ -149,14 +149,21 @@ export function ghCost(args: string[]): number {
   return 1;
 }
 
-export const DISPATCH_LIMITS = { timeoutMs: 20_000, lockWaitMs: 60_000 } as const;
+export const DISPATCH_LIMITS = { timeoutMs: GH_BOUNDS.dispatchCallTimeoutMs, lockWaitMs: GH_BOUNDS.dispatchLockWaitMs } as const;
+
+/** The refusal text of a call that never got the gh-budget lock; only a dispatch can say nothing was dispatched. */
+export function busyMessage(args: string[], reason: string): string {
+  const isDispatch = args[0] === "workflow" && args[1] === "run";
+  return `gh ${args.slice(0, 3).join(" ")} not made: ${reason}; ${isDispatch ? "nothing was dispatched" : "no request was made"}, run it again`;
+}
 
 export function chargedGh(env: Env): Gh {
   return async (args, o) => {
     const what = args.slice(0, 3).join(" ");
+    const isDispatch = args[0] === "workflow" && args[1] === "run";
     if (o?.signal?.aborted) throw new Error(`gh ${what} not made: aborted`);
-    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}), ...(args[0] === "workflow" && args[1] === "run" ? DISPATCH_LIMITS : {}) });
-    if (!res.ran && res.decision === "busy") throw new Error(`gh ${what} not made: ${res.reason}; nothing was dispatched, run it again`);
+    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}), ...(isDispatch ? DISPATCH_LIMITS : {}) });
+    if (!res.ran && res.decision === "busy") throw new Error(busyMessage(args, res.reason));
     if (!res.ran) throw new Error(`gh ${what} not made: the request budget says ${res.decision} (${res.reason}); see \`fw ci budget\``);
     if (res.code !== 0) throw new Error(`gh ${what} failed: ${res.error ?? "unknown"}`);
     return res.stdout;

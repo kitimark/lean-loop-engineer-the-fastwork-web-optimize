@@ -10,6 +10,8 @@ import { spawnSync } from "node:child_process";
 import { UsageError } from "./lib.ts";
 import { realEnv } from "@fw/gh-budget";
 import { chargedGh, fwcoreCall, ingest, storeDir, type FwCall, type Gh } from "./run.ts";
+import { GhClock, ciStateParts, phasedEnv } from "./run-phases.ts";
+import { record } from "./timing.ts";
 
 export const CI_USAGE = "usage: fw ci <run id> | --branch ci/<x> [--workflow chromium-counts] [--store <dir>]\n" +
   "  a run id or --branch is required (a main push runs no measurement). With --branch: the latest run of the workflow\n" +
@@ -149,5 +151,13 @@ export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
     if ((f !== "--branch" && f !== "--workflow") || v === undefined || v.startsWith("--")) throw new UsageError(usage);
     o[f === "--branch" ? "branch" : "workflow"] = v;
   }
-  return ciState(id, { gh: chargedGh(realEnv(cwd)), log: (l) => console.log(l), ...o });
+  const clock = new GhClock();
+  const gh = chargedGh(phasedEnv(realEnv(cwd), (e) => clock.on(e)));
+  const t0 = performance.now(), startMs = Date.now();
+  const timed: Gh = async (a, op) => { clock.start(); try { return await gh(a, op); } finally { clock.end(); } };
+  try {
+    return await ciState(id, { gh: timed, log: (l) => console.log(l), ...o });
+  } finally {
+    for (const p of ciStateParts(clock, performance.now() - t0)) record({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit: 0 }, cwd);
+  }
 }
