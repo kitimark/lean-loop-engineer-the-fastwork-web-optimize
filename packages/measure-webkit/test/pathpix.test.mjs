@@ -4,14 +4,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, gradePinned, unpinnedWhy, floorPinned } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON } from '../src/pathpix-exit.mjs';
+import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -48,6 +49,16 @@ test('count reduction equals the Lean golden', () => {
     assert.deepEqual(rawOf(r.pixels), r.raw);
     assert.equal(rawOk(r.raw), r.ok);
   }
+});
+
+test('the shared-pixel rule equals the Lean golden: hero_copy yields pixels another graded layer owns, every other layer counts its whole mask', () => {
+  for (const f of of('foreign')) {
+    assert.equal(yieldsShared(f.layer), f.yields, f.name);
+    assert.deepEqual(foreignMasks(f.layer, f.others), f.foreign, f.name);
+    assert.equal(countedIn(f.foreign, f.mine, f.x, f.y), f.counted, f.name);
+    assert.equal(f.reason, FOREIGN_REASON);
+  }
+  assert.ok(of('foreign').some((f) => f.yields && f.counted === false) && of('foreign').some((f) => !f.yields && f.counted === true));
 });
 
 test('the cell decision against the floor equals the Lean golden', () => {
@@ -88,14 +99,50 @@ test('the pin changes no mask: regions under the pin equal the Lean golden', () 
   }
 });
 
-test('the accent pin is enforced per measured row as the Lean golden says', () => {
+test('the accent pin and the row placement are enforced per measured row as the Lean golden says', () => {
   for (const r of of('accentRow')) assert.equal(accentPinned(r.served, r.start, r.stop, r.n), r.pinned, JSON.stringify(r));
   const gs = of('accentGrade');
   assert.ok(gs.some((g) => !g.pinned) && gs.some((g) => g.pinned));
+  assert.ok(gs.some((g) => !g.placed) && gs.some((g) => g.placed));
+  assert.ok(gs.some((g) => g.why === 'misplaced') && gs.some((g) => g.why === 'accent-unpinned') && gs.some((g) => g.why === null));
   for (const g of gs) {
-    assert.equal(rowsPinned(g.served, g.rows), g.pinned, g.name);
-    assert.equal(unpinnedWhy(g.served, g.rows), g.why, g.name);
-    assert.deepEqual(g.floor && floorPinned(g.served, g.rows, g.floor), g.floorPinned, g.name);
-    assert.equal(gradePinned(g.served, g.rows, g.cell, g.floor, g.live), g.grade, g.name);
+    const rs = checkedRows(g.rows, g.floorRows, g.floor);
+    assert.equal(rowsPinned(g.served, rs), g.pinned, g.name);
+    assert.equal(rowsPlaced(g.maxY, rs), g.placed, g.name);
+    assert.equal(unpinnedWhy(g.served, g.maxY, g.rows, g.floorRows, g.floor), g.why, g.name);
+    assert.deepEqual(g.floor && floorPinned(g.served, g.maxY, g.floorRows, g.floor), g.floorPinned, g.name);
+    assert.equal(gradePinned(g.served, g.maxY, g.rows, g.floorRows, g.cell, g.floor, g.live), g.grade, g.name);
   }
+});
+
+test('opaque cover of a layer in both arms equals the Lean golden', () => {
+  const cs = of('cover');
+  assert.ok(cs.some((c) => c.occluded) && cs.some((c) => !c.occluded));
+  for (const c of cs) assert.equal(occludedBoth(c.a, c.b), c.occluded, JSON.stringify(c));
+  assert.equal(coverAll(undefined), false, 'an old manifest without cover is never occluded');
+  assert.equal(occludedBoth({ n: 0, k: 0 }, { n: 0, k: 0 }), false);
+});
+
+test('the page clock an exit run reads equals the Lean golden: pinned, the countdown seconds do not depend on the arm', () => {
+  const cs = of('clockPin');
+  assert.ok(cs.some((c) => c.pinned) && cs.some((c) => !c.pinned));
+  assert.equal(exitClockPinned('chromium'), true);
+  assert.equal(exitClockPinned('webkit'), true);
+  for (const c of cs) {
+    const now = clockNow(c.pinned, c.epoch, c.vnow);
+    assert.equal(now, c.now, JSON.stringify(c));
+    assert.equal(secondsLeft(c.target, now), c.seconds, JSON.stringify(c));
+  }
+  const secs = (pinned) => new Set(cs.filter((c) => c.pinned === pinned).map((c) => c.seconds)).size;
+  assert.equal(secs(true), 1);
+  assert.ok(secs(false) > 1);
+});
+
+test('the capture opens every exit arm with the site hook set, keeping the arm query', () => {
+  for (const h of [hookSearch, chromiumHookSearch]) {
+    assert.equal(h(''), '?fwpin=accent');
+    assert.equal(h('?fw=hero.exit:threaded'), '?fw=hero.exit:threaded&fwpin=accent');
+  }
+  assert.ok(of('hook').some((g) => g.search === '?fwpin=accent' && g.hook === true));
+  assert.ok(of('hook').some((g) => g.search === '?fw=hero.exit:threaded&fwpin=accent' && g.hook === true));
 });

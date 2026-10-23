@@ -57,7 +57,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
   ("breakpoint-gate", 10), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("font-fidelity", 3), ("gate-gaps", 29), ("land", 5),
-  ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 4), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
+  ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 6), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
   ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
