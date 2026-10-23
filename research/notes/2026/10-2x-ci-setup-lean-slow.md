@@ -16,14 +16,13 @@ The step time follows the download rate of that blob, not the cache key and not 
 | 39966639416 / land (playwright-webkit) 120458262847 | 76 s | 14:05:49 to 14:06:31.8 = 43 s | 32.1 MB/s | 14.3 s | not read |
 | 39965489939 / land (chromium) 120454308192 | 88 s | 13:57:47.6 to 13:58:39.9 = 52 s | 25.4 MB/s | 14.4 s | 17.2 s (download 10.4 s) |
 
-Step durations come from the job step start/end times (`gh run view --json jobs`). Rank order of the step time equals the
-reverse rank order of the download rate in all five rows. The elan install (about 1 s) and the cache lookup (about 1 s) are
+Step durations come from the job step start/end times (`gh run view --json jobs`). In all five rows, a slower download means a longer step. The elan install (about 1 s) and the cache lookup (about 1 s) are
 the same everywhere. The spread (25 to 159 MB/s) is runner-to-blob network throughput, which setup-lean does not control.
 
 ## Not the cause
 
-- Cache key / hit: all legs print `Cache hit for restore-key: lake-ARM64-ef17aadf...-00301c2b...` (the same entry, a restore-key
-  hit, never an exact hit, because a land leg's source hash is new). Same entry in the fast and the slow runs.
+- Cache key / hit: all legs print `Cache hit for restore-key: lake-ARM64-ef17aadf...-00301c2b...` (a restore-key
+  hit, never an exact hit, because a land leg's source hash is new).
 - Module growth: the blob did not change between the fast and the slow legs (1419617412 B in 39955108083, 39965489939 and 39966639416).
 - Building changed modules does not happen inside setup-lean at all. It happens in the next step, `fwcore build`
   (`lake build fwcore`): 78 modules built, about 260 s of summed module times, step 90 s (39965489939 chromium) and 81 modules,
@@ -35,7 +34,7 @@ GitHub scopes a cache to the ref that saved it. A land leg runs on `ci/land-*`, 
 branch). The `lean` job saves on every push (lean.yml `branches: ['ci/**', main]`), so most saves land on `ci/*` refs where no other
 branch sees them. The `main` entries seen: id 9397445268 created 11:44:49Z (last used 14:14:31Z), id 9404522111 created 14:18:09Z. Runs
 39955108083 (12:41), 39965489939 (13:57) and 39966639416 (14:05) all restored the 11:44 entry, up to 2.5 h older than main, so every leg
-rebuilt the modules landed since (78-81 modules: the "new Lean modules" of the task title). The build step, not setup-lean, grows with that age.
+rebuilt the modules landed since (78-81 modules). The build step, not setup-lean, grows with that age.
 
 ## Third finding: cache storage is at the quota (MEASURED)
 
