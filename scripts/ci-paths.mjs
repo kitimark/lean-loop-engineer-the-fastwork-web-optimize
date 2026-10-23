@@ -843,23 +843,35 @@ export function leanScriptPaths(text) {
   return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
+/** A read path without empty and `.` segments (Lean `Fw.Plan.WritesClosure.normRead`). */
+export const normRead = (p) => p.split('/').filter((x) => x !== '' && x !== '.').join('/');
+
+/** The reads of each `{ script, text }` that no glob admits, a non-literal read with path null (Lean
+ *  `Fw.Plan.WritesClosure.inputGaps`, checked against packages/contracts/golden/plan/writes-closure.jsonl). */
+export function gapsFrom(scripts, globs) {
+  return scripts.flatMap(({ script, text }) => leanScriptPaths(text).map((p) => ({ script, path: p === null ? null : normRead(p) })))
+    .filter((r) => r.path === null || !matches(globs, r.path));
+}
+
+/** The gaps of the lean/scripts/*.sh texts against the expanded inputs of the lean.yml row (none when it has no row):
+ *  the one source of `leanInputProblems` and the writes-closure lint (apps/runner/src/plan-closure.ts `gapsOf`). */
+export function leanInputGaps(root, table) {
+  const row = table.workflows.find((w) => w.file === 'lean.yml');
+  const globs = row ? expand(setMapFor(root, table), row.inputs) : [];
+  const dir = join(root, 'lean', 'scripts');
+  const scripts = readdirSync(dir).filter((x) => x.endsWith('.sh')).sort().map((f) => ({ script: `lean/scripts/${f}`, text: readFileSync(join(dir, f), 'utf8') }));
+  return gapsFrom(scripts, globs);
+}
+
 /** Round 4 of task ci-own-trigger: every repo path a lean/scripts/*.sh reads (`../<path>`) must be an input of the
  *  lean row of the Lean table. Since round 5 lean never skips as `unchanged` on ci/** (Lean `lean_never_unchanged`), so
  *  this is no safety input of a branch wait; it keeps a main push that changes only such a file running lean (the
- *  coarse paths rule, Lean `main_keeps_paths_rule`). Returns the problems. */
+ *  coarse paths rule, Lean `main_keeps_paths_rule`). Returns the problems, one per `leanInputGaps` entry. */
 export function leanInputProblems(root, table) {
-  const row = table.workflows.find((w) => w.file === 'lean.yml');
-  if (!row) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
-  const globs = expand(setMapFor(root, table), row.inputs);
-  const dir = join(root, 'lean', 'scripts');
-  const out = [];
-  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sh')).sort()) {
-    for (const p of leanScriptPaths(readFileSync(join(dir, f), 'utf8'))) {
-      if (p === null) out.push(`lean/scripts/${f}: reads a ../ path that is not a literal file path (write it out, so the lean row can name it)`);
-      else if (!matches(globs, normalize(p))) out.push(`lean/scripts/${f}: reads ../${p}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
-    }
-  }
-  return out;
+  if (!table.workflows.some((w) => w.file === 'lean.yml')) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
+  return leanInputGaps(root, table).map(({ script, path }) => path === null
+    ? `${script}: reads a ../ path that is not a literal file path (write it out, so the lean row can name it)`
+    : `${script}: reads ../${path}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
 }
 
 // ---- Node pin (tasks node-pin, node-pin-local) -----------------------------------------------------------------------

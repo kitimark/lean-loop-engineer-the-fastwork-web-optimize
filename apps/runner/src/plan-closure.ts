@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
-import { join, normalize } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { LintFinding } from "./plan.ts";
 
@@ -85,23 +84,24 @@ export function closureFindings(tracked: string[], gaps: Gap[], t: ClosureTask, 
 }
 
 type CiPaths = {
-  leanScriptPaths: (text: string) => (string | null)[];
-  loadGolden: (root: string) => { table: { workflows: { file: string; inputs: string[] }[] } };
-  setMapFor: (root: string, table: unknown) => unknown;
-  expand: (sets: unknown, inputs: string[]) => string[];
+  loadGolden: (root: string) => { table: unknown };
+  leanInputGaps: (root: string, table: unknown) => { script: string; path: string | null }[];
 };
-type ChangedInputs = { matches: (globs: string[], file: string) => boolean };
 
+/** The literal reads of ci-paths `leanInputGaps` in `root`, with the ci-paths code of `code` (Lean
+ *  `Fw.Plan.WritesClosure.gapsOf`). */
 export async function gapsOf(root: string, code = root): Promise<Gap[]> {
   const cp = (await import(pathToFileURL(join(code, "scripts/ci-paths.mjs")).href)) as CiPaths;
-  const ci = (await import(pathToFileURL(join(code, ".github/scripts/changed-inputs.mjs")).href)) as ChangedInputs;
-  const { table } = cp.loadGolden(root);
-  const row = table.workflows.find((w) => w.file === "lean.yml");
-  const globs = row ? cp.expand(cp.setMapFor(root, table), row.inputs) : [];
-  const dir = join(root, "lean", "scripts");
-  return readdirSync(dir).filter((x) => x.endsWith(".sh")).sort().flatMap((f) =>
-    cp.leanScriptPaths(readFileSync(join(dir, f), "utf8")).flatMap((p) =>
-      p !== null && !ci.matches(globs, normalize(p)) ? [{ script: `lean/scripts/${f}`, path: normalize(p) }] : []));
+  return cp.leanInputGaps(root, cp.loadGolden(root).table).flatMap((g) => (g.path === null ? [] : [{ script: g.script, path: g.path }]));
+}
+
+const isError = (f: LintFinding) => f.code === "writesClosure" && f.severity === "error";
+const same = (a: LintFinding, b: LintFinding) => a.task === b.task && a.code === b.code && a.severity === b.severity && a.detail === b.detail;
+
+/** The writesClosure errors of `after` that `before` lacks; plan sync refuses when any (Lean
+ *  `Fw.Plan.WritesClosure.newErrors`, golden `sync` rows). */
+export function newErrors(before: LintFinding[], after: LintFinding[]): LintFinding[] {
+  return after.filter((f) => isError(f) && !before.some((b) => same(b, f)));
 }
 
 export function scopeBatch(bins: string[]): ScopeBatch {
