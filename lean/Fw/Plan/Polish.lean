@@ -139,6 +139,8 @@ theorem wtName_safe (dir n : String) (h : wtName dir = some n) : (n != "" && n.a
   · cases h
 
 example : wtName "~/source/x/.claude/worktrees/wf_b291cc70-2f8-1" = none := wtName_relative _ (by simp)
+#guard wtName "/h/r/.claude/worktrees/wf_b291cc70-2f8-1" == some "wf_b291cc70-2f8-1"
+#guard wtName "/h/r/.claude/worktrees/wf_a/" == none
 
 theorem wtName_not_dots (dir n : String) (h : wtName dir = some n) : (n != "." && n != "..") = true := by
   unfold wtName at h

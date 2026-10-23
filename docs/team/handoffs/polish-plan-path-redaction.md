@@ -41,6 +41,9 @@ Then in the comment-sicko prompt replace `in the worktree ${wt}.` by
 and `Never edit a file outside ${wt}` stays. Replace the strays test
 `sicko.edited.filter((p) => !p.startsWith(`${wt}/`))` by
 `sicko.edited.filter((p) => !p.includes(`/${wt}/`) && !p.startsWith(`${wt}/`))`.
+Prose: in the slop-checker prompt, after `${prose.join('\n')}`, add ` (relative to the main checkout: the parent of the path git rev-parse --path-format=absolute --git-common-dir prints; resolve it there, never type or shorten a home path)`. In the polish-cuts run1 call, replace `JSON.stringify({ cuts: slop.cuts })` by
+`JSON.stringify({ cuts: slop.cuts.map((c) => ({ ...c, path: relOf(c.path) || c.path })) })`, since fw polish cuts rebases only absolute paths (polish.ts relative(dir, p)) and a `.claude/worktrees/<n>/docs/x.md` path would match no prose file.
+When applying, also reword the run1 sentence "every path exactly as printed (absolute, never shortened ...)" and the comment "every path is rebuilt here from the worktree line".
 Optional test in scripts/build-review.test.mjs: the workflow text contains `worktree-name ` and no `\.claude\/worktrees\/\[\^\/\]\+\$` regex.
 Delete the stale comment line "plan lines: `worktree <absolute dir>`" mention only if wanted; fw still prints that line.
 Read first: lean/Fw/Plan/Polish.lean wtName, apps/runner/src/polish.ts plan branch.
