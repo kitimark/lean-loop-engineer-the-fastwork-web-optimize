@@ -25,6 +25,9 @@ describe("rawOf: the raw facts forwarded to Lean, which decides the own time (Fw
       .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9, pollS: 10 } });
     expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10 })))
       .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10, retryUntilS: 30 })))
+      .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, prevTickMs: 3, tickMs: 9, pollS: 10, retryUntilS: 30 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: 9, retryUntilS: -2 }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9 } });
     expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, prevTickMs: 3.5, tickMs: 9 }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9 } });
     expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: -1, pollS: "10" }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7 } });
   });
@@ -72,7 +75,7 @@ describe.skipIf(!haveCore)("the own time of a wait replays the Lean golden throu
   const byId = new Map(out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { id: number; verdicts?: { kind: string; durMs: number }[] })
     .map((r) => [r.id, r] as const));
   it("has the Lean cases, netting the observed tick gap and the state's interval", () => {
-    expect(golden.length).toBe(13);
+    expect(golden.length).toBe(16);
     expect(new Set(golden.filter((g) => g.ownMs !== null).map((g) => g.netSrc))).toEqual(new Set(["observed", "state"]));
   });
   golden.forEach((g, id) => it(g.name, () => {
