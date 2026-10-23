@@ -265,21 +265,14 @@ theorem error_iff (tr : List String) (gs : List Gap) (t : Task) :
     obtain ⟨p, hp⟩ := List.exists_mem_of_ne_nil _ h
     exact ⟨_, List.mem_append_left _ (List.mem_map_of_mem hp), rfl⟩
 
-/-! ## Gaps from the scripts and the row globs -/
-
-/-- The characters JavaScript `\s` matches. -/
 def jsSpace (c : Char) : Bool :=
   "\t\n\x0b\x0c\r       　﻿".contains c || (' ' ≤ c && c ≤ ' ')
 
-/-- A character that ends a `../` read: whitespace or a shell quote, separator or redirection. -/
 def readStop (c : Char) : Bool := jsSpace c || "'\"`;)|&<>".contains c
 
-/-- A read is literal when it is non-empty and has no `$`, `*`, `?`, `{` or `}`; `none` marks a read that is not. -/
 def literalRead (s : List Char) : Option String :=
   if s.isEmpty || s.any (fun c => "$*?{}".contains c) then none else some (String.ofList s)
 
-/-- The repo paths a script text reads relative to `lean/`: each `../` followed by its longest run of non-stop
-characters, scanned left to right without overlap. -/
 def readsOf : List Char → List (Option String)
   | '.' :: '.' :: '/' :: r => literalRead (r.takeWhile (!readStop ·)) :: readsOf (r.dropWhile (!readStop ·))
   | _ :: r => readsOf r
@@ -291,11 +284,8 @@ decreasing_by
     | omega
     | (have := (List.dropWhile_suffix (p := fun c => !readStop c) (l := r)).length_le; omega)
 
-/-- A read path without empty and `.` segments. -/
 def normRead (p : String) : String := "/".intercalate (Fw.Ops.PathCheck.segs p)
 
-/-- One GitHub `paths` glob against a whole path, as character lists: `**/` matches nothing or any run ending in
-`/`, `**` any run, `*` any run without `/`, and any other character itself. -/
 def ghGlob : List Char → List Char → Bool
   | '*' :: '*' :: '/' :: g, s =>
       ghGlob g s || (List.range s.length).any fun i => s[i]? == some '/' && ghGlob g (s.drop (i + 1))
@@ -305,8 +295,6 @@ def ghGlob : List Char → List Char → Bool
   | _ :: _, [] => false
   | c :: g, d :: s => c == d && ghGlob g s
 
-/-- A GitHub `paths` list against a path: a glob sets the hit, a `!` glob clears it, and the last glob that matches
-decides. -/
 def ghMatches (globs : List String) (p : String) : Bool :=
   globs.foldl (fun hit g => if g.startsWith "!" then hit && !ghGlob (g.toList.drop 1) p.toList
     else hit || ghGlob g.toList p.toList) false
@@ -316,7 +304,6 @@ structure Read where
   path : Option String
 deriving Repr, DecidableEq
 
-/-- Every read of each `(script, text)`, in order, its literal paths normalised. -/
 def scriptReads (scripts : List (String × String)) : List Read :=
   scripts.flatMap fun (s, text) => (readsOf text.toList).map fun p => ⟨s, p.map normRead⟩
 
@@ -324,11 +311,9 @@ def unmatched (globs : List String) : Read → Bool
   | ⟨_, none⟩ => true
   | ⟨_, some p⟩ => !ghMatches globs p
 
-/-- The reads `ci-paths` refuses: a non-literal read, or a literal one no row glob admits. -/
 def inputGaps (scripts : List (String × String)) (globs : List String) : List Read :=
   (scriptReads scripts).filter (unmatched globs)
 
-/-- The literal reads of `inputGaps`, the gaps the closure reads. -/
 def gapsOf (scripts : List (String × String)) (globs : List String) : List Gap :=
   (inputGaps scripts globs).filterMap fun r => r.path.map (Gap.mk r.script)
 
@@ -359,14 +344,11 @@ theorem mem_gapsOf (ss : List (String × String)) (gs : List String) (g : Gap) :
   · rintro ⟨hr, hm⟩
     exact ⟨_, ⟨hr, by simp [unmatched, hm]⟩, g.path, rfl, rfl⟩
 
-/-- A literal read no row glob admits, in a script or of a path the row names, requires both trigger tables. -/
 theorem required_of_unmatched_read (tr ws : List String) (ss : List (String × String)) (gs : List String)
     (s p : String) (hr : ⟨s, some p⟩ ∈ scriptReads ss) (hm : ghMatches gs p = false)
     (hn : names ws p = true ∨ names ws s = true) : ∀ q ∈ triggerFix, q ∈ required tr ws (gapsOf ss gs) :=
   required_of_gap tr ws _ ⟨s, p⟩ ((mem_gapsOf ss gs ⟨s, p⟩).mpr ⟨hr, hm⟩) hn
 
-/-- Without a new workflow, a row requires `Trigger.lean` exactly when it names the script or the path of a literal
-read no row glob admits. -/
 theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String × String)) (gs : List String)
     (hw : ∀ w ∈ ws, freshOf tr w = .new → kindOf w ≠ .workflow) :
     triggerLean ∈ required tr ws (gapsOf ss gs) ↔
@@ -387,12 +369,8 @@ theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String 
 #guard inputGaps [("s", "../a ../b ../$c")] ["a"] == [⟨"s", some "b"⟩, ⟨"s", none⟩]
 #guard gapsOf [("s", "../a ../b ../$c")] ["a"] == [⟨"s", "b"⟩]
 
-/-! ## Plan sync -/
-
 def isError (f : Finding) : Bool := f.code == "writesClosure" && f.severity == "error"
 
-/-- The `writesClosure` errors of the synced graph that the previous graph does not have; plan sync refuses when
-this is not empty. -/
 def newErrors (before after : List Finding) : List Finding :=
   after.filter fun f => isError f && decide (f ∉ before)
 

@@ -843,18 +843,13 @@ export function leanScriptPaths(text) {
   return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
-/** A read path without empty and `.` segments (Lean `Fw.Plan.WritesClosure.normRead`). */
 export const normRead = (p) => p.split('/').filter((x) => x !== '' && x !== '.').join('/');
 
-/** The reads of each `{ script, text }` that no glob admits, a non-literal read with path null (Lean
- *  `Fw.Plan.WritesClosure.inputGaps`, checked against packages/contracts/golden/plan/writes-closure.jsonl). */
 export function gapsFrom(scripts, globs) {
   return scripts.flatMap(({ script, text }) => leanScriptPaths(text).map((p) => ({ script, path: p === null ? null : normRead(p) })))
     .filter((r) => r.path === null || !matches(globs, r.path));
 }
 
-/** The gaps of the lean/scripts/*.sh texts against the expanded inputs of the lean.yml row (none when it has no row):
- *  the one source of `leanInputProblems` and the writes-closure lint (apps/runner/src/plan-closure.ts `gapsOf`). */
 export function leanInputGaps(root, table) {
   const row = table.workflows.find((w) => w.file === 'lean.yml');
   const globs = row ? expand(setMapFor(root, table), row.inputs) : [];
@@ -863,10 +858,6 @@ export function leanInputGaps(root, table) {
   return gapsFrom(scripts, globs);
 }
 
-/** Round 4 of task ci-own-trigger: every repo path a lean/scripts/*.sh reads (`../<path>`) must be an input of the
- *  lean row of the Lean table. Since round 5 lean never skips as `unchanged` on ci/** (Lean `lean_never_unchanged`), so
- *  this is no safety input of a branch wait; it keeps a main push that changes only such a file running lean (the
- *  coarse paths rule, Lean `main_keeps_paths_rule`). Returns the problems, one per `leanInputGaps` entry. */
 export function leanInputProblems(root, table) {
   if (!table.workflows.some((w) => w.file === 'lean.yml')) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
   return leanInputGaps(root, table).map(({ script, path }) => path === null

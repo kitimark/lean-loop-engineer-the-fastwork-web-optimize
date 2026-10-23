@@ -103,8 +103,6 @@ const closureTasks = (g: WorkGraph): ClosureTask[] =>
 const trackedFiles = (root: string) =>
   execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\n").filter(Boolean);
 
-/** The newest committed version of `file` on HEAD's first-parent line whose text differs from `text`: HEAD's version
- *  for an uncommitted edit, else the version before the last commit that changed it; an empty graph when none does. */
 export function previousGraph(cwd: string, file: string, text: string): WorkGraph {
   const q = (...a: string[]) => {
     try { return execFileSync("git", a, { cwd, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; }
@@ -120,8 +118,6 @@ export function previousGraph(cwd: string, file: string, text: string): WorkGrap
   return { milestones: [], tasks: [] };
 }
 
-/** `fw plan sync` refuses a graph that adds a writesClosure error to `previousGraph` (Lean
- *  `Fw.Plan.WritesClosure.newErrors`): warnings, and errors the previous graph had, pass. Returns the refusal or null. */
 export async function syncClosureRefusal(cwd: string, file: string,
   closure?: { tracked: string[]; gaps: Gap[]; batch: ScopeBatch }): Promise<string | null> {
   const text = readFileSync(resolve(cwd, file), "utf8");

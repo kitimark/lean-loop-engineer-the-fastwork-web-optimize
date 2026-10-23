@@ -88,8 +88,6 @@ type CiPaths = {
   leanInputGaps: (root: string, table: unknown) => { script: string; path: string | null }[];
 };
 
-/** The literal reads of ci-paths `leanInputGaps` in `root`, with the ci-paths code of `code` (Lean
- *  `Fw.Plan.WritesClosure.gapsOf`). */
 export async function gapsOf(root: string, code = root): Promise<Gap[]> {
   const cp = (await import(pathToFileURL(join(code, "scripts/ci-paths.mjs")).href)) as CiPaths;
   return cp.leanInputGaps(root, cp.loadGolden(root).table).flatMap((g) => (g.path === null ? [] : [{ script: g.script, path: g.path }]));
@@ -98,8 +96,6 @@ export async function gapsOf(root: string, code = root): Promise<Gap[]> {
 const isError = (f: LintFinding) => f.code === "writesClosure" && f.severity === "error";
 const same = (a: LintFinding, b: LintFinding) => a.task === b.task && a.code === b.code && a.severity === b.severity && a.detail === b.detail;
 
-/** The writesClosure errors of `after` that `before` lacks; plan sync refuses when any (Lean
- *  `Fw.Plan.WritesClosure.newErrors`, golden `sync` rows). */
 export function newErrors(before: LintFinding[], after: LintFinding[]): LintFinding[] {
   return after.filter((f) => isError(f) && !before.some((b) => same(b, f)));
 }
