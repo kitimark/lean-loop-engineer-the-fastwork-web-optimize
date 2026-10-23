@@ -184,6 +184,11 @@ def table (_ : Unit := ()) : List Wf := [
   ⟨"engine-premises.yml", ciAll, [
     "packages/measure-chromium/**", "packages/measure-wktr/**", "packages/contracts/golden/ops/engine-premises.jsonl",
     ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs", ".node-version", own "engine-premises.yml"], []⟩,
+  ⟨"font-fidelity.yml", ciAll, [
+    "packages/measure-chromium/src/**", "packages/measure-chromium/Dockerfile", "packages/measure-chromium/docker/**",
+    "packages/contracts/golden/measure/**", "packages/contracts/golden/port/**", "scripts/port/**",
+    "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".node-version",
+    own "font-fidelity.yml"], []⟩,
   ⟨"gate-gaps.yml", ciAll, [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
@@ -312,7 +317,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
 -- a change of the Node pin starts every lane that sets up Node (task node-pin)
-#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chrome-crash-probe.yml", "chromium-counts.yml", "device-replay.yml", "difftest.yml", "engine-premises.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "path-pix.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
+#guard run [".node-version"] [] == ["breakpoint-gate.yml", "chrome-crash-probe.yml", "chromium-counts.yml", "device-replay.yml", "difftest.yml", "engine-premises.yml", "font-fidelity.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "path-pix.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
@@ -458,7 +463,7 @@ theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if 
 /-- The `ci/**` triggers, unchanged by task `ci-main-triggers`. -/
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chrome-crash-probe.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("device-replay.yml", ["ci/device-replay"]), ("difftest.yml", ["ci/**"]),
-    ("engine-premises.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),
+    ("engine-premises.yml", ["ci/**"]), ("font-fidelity.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),
     ("lean.yml", ["ci/**"]), ("linux-webkit-probe.yml", ["ci/linux-webkit-probe"]), ("mutants.yml", ["ci/**"]), ("path-pix.yml", ["ci/**"]), ("premise-tests.yml", ["ci/**"]), ("preview-e2e.yml", ["ci/**"]), ("sim-speed.yml", ["ci/sim-speed"]),
     ("smoothness.yml", ["ci/**"]), ("snapshot-extract.yml", ["ci/**"]), ("toolbar-throttle.yml", ["ci/**"]), ("trajectory-probe.yml", ["ci/**"]), ("visual-diff.yml", ["ci/**"]), ("webkit-sim.yml", ["ci/**"]),
     ("wktr-fixtures.yml", ["ci/**"]), ("wktr.yml", ["ci/**"])] := by decide
