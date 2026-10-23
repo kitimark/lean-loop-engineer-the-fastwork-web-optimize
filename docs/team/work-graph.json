@@ -17856,7 +17856,8 @@
     "research/notes/2026/10-2x-people-carousel-crop.md",
     "docs/team/handoffs/carousel-crop-followups.md"
    ],
-   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement."
+   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement.",
+   "evidence": "1c639a8"
   },
   {
    "devices": [

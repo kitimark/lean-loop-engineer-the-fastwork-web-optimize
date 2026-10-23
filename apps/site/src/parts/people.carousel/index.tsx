@@ -32,24 +32,34 @@ export function PeopleCarousel({ variant }: { variant: string }) {
 
   const ids = s.swapping ? swapWindow({ x: s.x }) : restWindow({ x: s.x });
   const crop = variant === CROP_VARIANT;
-  const swapClass = (i: number): string => {
-    const role = swapRole({ i, len: ids.length });
-    if (crop) return `${css.avatar} ${role === 'exit' ? css.cropExit : role === 'enter' ? `${css.isEnter} ${css.cropEnter}` : css.cropShift}`;
-    return role === 'exit' ? `${css.avatar} ${css.isExit}` : role === 'enter' ? `${css.avatar} ${css.isEnter}` : css.avatar;
-  };
   return (
     <div className={css.pill} data-fw="people-pill">
       <div className={css.proof}>
         <div ref={ref} className={`${css.avatars} ${css.carousel}`} aria-hidden="true" data-fw="people-carousel" data-fw-variant={variant}>
-          {ids.map((ring, i) => (
-        <img
-          key={`${s.swapping ? 'swap' : 'rest'}-${ring}`}
-          alt=""
-          draggable={false}
-          src={avatarOf({ id: RING_ORDER[ring]! })}
-          className={s.swapping ? swapClass(i) : css.avatar}
-        />
-      ))}
+          {ids.map((ring, i) => {
+            const role = swapRole({ i, len: ids.length });
+            const exit = role === 'exit';
+            const enter = role === 'enter';
+            return (
+              <img
+                key={`${s.swapping ? 'swap' : 'rest'}-${ring}`}
+                alt=""
+                draggable={false}
+                src={avatarOf({ id: RING_ORDER[ring]! })}
+                className={
+                  !s.swapping
+                    ? css.avatar
+                    : crop
+                      ? `${css.avatar} ${exit ? css.cropExit : enter ? `${css.isEnter} ${css.cropEnter}` : css.cropShift}`
+                      : exit
+                        ? `${css.avatar} ${css.isExit}`
+                        : enter
+                          ? `${css.avatar} ${css.isEnter}`
+                          : css.avatar
+                }
+              />
+            );
+          })}
         </div>
         <span>{COPY.community}</span>
       </div>
