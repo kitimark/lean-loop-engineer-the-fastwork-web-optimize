@@ -18615,7 +18615,8 @@
     "research/notes/2026/10-2x-morph-real-wheel.md",
     "docs/team/handoffs/morph-real-wheel-followups.md"
    ],
-   "title": "morph-real-wheel review follow-ups (2026-10-23): (1) report.mjs analyzeMorphItems reads geometry boxes at the fixed MORPH_PHASES offset but clips at the per-run r.ph offset: index geometry with r.ph[phase][0]+i or clamp to the sample count, with a test where marks differ from 10/60/60; (2) neither drive scrolled (page at its end, scroll moved 0 in 72 runs): add a trusted run that starts above the end and scrolls into the push, so ScrollingTree::computeWheelProcessingSteps is exercised; (3) Simulator leg with the PushServer touch once sim-touch-reliable lands; (4) macreport.mjs per-run means and the 3-job pooling are a TS stand-in that pools 18 runs: decide each job on its own in Lean with golden; (5) the polish comment cut in probe.mjs (morphSession docstring) was dropped after the polish restore broke it; redo it by hand."
+   "title": "morph-real-wheel review follow-ups (2026-10-23): (1) report.mjs analyzeMorphItems reads geometry boxes at the fixed MORPH_PHASES offset but clips at the per-run r.ph offset: index geometry with r.ph[phase][0]+i or clamp to the sample count, with a test where marks differ from 10/60/60; (2) neither drive scrolled (page at its end, scroll moved 0 in 72 runs): add a trusted run that starts above the end and scrolls into the push, so ScrollingTree::computeWheelProcessingSteps is exercised; (3) Simulator leg with the PushServer touch once sim-touch-reliable lands; (4) macreport.mjs per-run means and the 3-job pooling are a TS stand-in that pools 18 runs: decide each job on its own in Lean with golden; (5) the polish comment cut in probe.mjs (morphSession docstring) was dropped after the polish restore broke it; redo it by hand.",
+   "evidence": "e4afcbb"
   },
   {
    "devices": [
@@ -18704,7 +18705,8 @@
     "docs/team/tools/plan.md",
     "docs/team/handoffs/writes-closure-readsof-boundary.md"
    ],
-   "title": "writes-closure-doc-touchups review follow-ups (2026-10-23): (1) Lean readsOf treats any '../' substring as a read start, so 'x/../y' in a script yields the read 'y' instead of being refused for its '..' segment: require a word boundary before '../' (theorem + golden + JS twin + test); (2) the plan.md time table pools samples at any load (before window has 614 ms and 4177 ms runs; 10-17/18 at load 10-140): compute it over a calm-load window (Fw.Obs.Timing contended/calmLoad) and --refresh from main's timings.jsonl; (3) scripts/ci-paths.mjs header 'Run:' line: add '--plan-time [--refresh <timings.jsonl>] [--check]'."
+   "title": "writes-closure-doc-touchups review follow-ups (2026-10-23): (1) Lean readsOf treats any '../' substring as a read start, so 'x/../y' in a script yields the read 'y' instead of being refused for its '..' segment: require a word boundary before '../' (theorem + golden + JS twin + test); (2) the plan.md time table pools samples at any load (before window has 614 ms and 4177 ms runs; 10-17/18 at load 10-140): compute it over a calm-load window (Fw.Obs.Timing contended/calmLoad) and --refresh from main's timings.jsonl; (3) scripts/ci-paths.mjs header 'Run:' line: add '--plan-time [--refresh <timings.jsonl>] [--check]'.",
+   "evidence": "795f574"
   },
   {
    "devices": [
@@ -18722,7 +18724,7 @@
     "research/notes/2026/10-2x-ci-setup-lean-slow.md",
     "docs/team/handoffs/ci-lake-prune-artifacts.md"
    ],
-   "title": "ci-lake-cache-fresh follow-ups (2026-10-23): (1) the naive prune (find -links 1 -delete) broke restore (MEASURED, run 39985377389: 837 rebuilt, 423 s); before spending a run on an artifacts-only prune (find \"$LAKE_CACHE_DIR/artifacts\" -type f -links 1 -delete, keep outputs/), read lean4@eb6cafb Lake (Cache.lean outputsFile/artifactPath readers and the build fetch path) and cite file:line for whether a missing artifact under an existing outputs mapping is a miss (rebuild) or an error; only then one lean.yml run with blob size and a working restore; (2) collect more land legs after per-land main pushes with the Lean-files-changed column before concluding a ci/land-* save is not needed."
+   "title": "ci-lake-cache-fresh follow-ups (2026-10-23): (1) the naive prune (find -links 1 -delete) broke restore (MEASURED, run 39985377389: 837 rebuilt, 423 s); before spending a run on an artifacts-only prune (find \"$LAKE_CACHE_DIR/artifacts\" -type f -links 1 -delete, keep outputs/), read lean4@eb6cafb Lake (Cache.lean outputsFile/artifactPath readers and the build fetch path) and cite file:line for whether a missing artifact under an existing outputs mapping is a miss (rebuild) or an error; only then one lean.yml run with blob size and a working restore; (2) collect more land legs after per-land main pushes with the Lean-files-changed column before concluding a ci/land-* save is not needed. (3) 2026-10-24 alerts timing.slow 'land (check-sh)/fwcore build' and 'land (suites-a)/fwcore build': lands start within the ~4 min main lean run after the lead's per-land push, so legs restore the previous main entry; measure whether gating each land on main's lean run (fw ci wait on the main lean run before fw land --queue) saves more leg minutes than it costs in lead wall time, and state the rule."
   },
   {
    "devices": [

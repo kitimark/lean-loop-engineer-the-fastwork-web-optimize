@@ -23,6 +23,19 @@ export function classify(marks, down, up) {
 
 export const rangesOf = (c) => ({ idle: [0, c.idle], open: [c.idle, c.idle + c.open], close: [c.idle + c.open, c.idle + c.open + c.close] });
 
+export const MIN_OPEN_MILLI = 900;
+
+export const geometryIndex = (start, i, n) => Math.min(start + i, Math.max(0, n - 1));
+
+export const morphMilli = (at) => Math.round(1000 * Math.max(0, ...at.map((a) => (typeof a.morph === 'number' ? a.morph : 0))));
+
+export function acceptScrollIn(o, startY, pushY, morphMilli) {
+  if (o.outcome !== 'ok') return o;
+  if (pushY <= startY) return { outcome: 'noScroll' };
+  if (morphMilli < MIN_OPEN_MILLI) return { outcome: 'noOpen' };
+  return o;
+}
+
 export function phaseRanges(m, fixed) {
   if (!m.phases) return fixed;
   const c = classify(m.marks, m.phases.down, m.phases.up);
