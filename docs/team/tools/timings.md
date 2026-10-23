@@ -25,9 +25,16 @@ One name per cost, so no history pools unlike work:
   the table `SUBCOMMANDS` in `apps/runner/src/fw-groups.ts`, built only from the lists each module exports (`POLISH_VERBS`,
   `ORACLE_SUBS`, `CONSOLE_SUBS`, `SLOT_SUBS`, ...; the module's own dispatch uses the same list). `apps/runner/test/span-names.test.ts`
   parses the `usage: fw ...` text of `fw-main.ts` and fails when a group or an alternative it names is missing, or a key has no list.
-- `fw run` writes `run dispatch` (plan and the dispatch call), `run wait` (the CI wait; carries `runId`), `run file` (download
-  and ingest), or `run dry` for `--dry`; there is no `run` span (`apps/runner/src/run-phases.ts`). The first span opens before the
-  arguments are parsed, so a usage error still writes `run dispatch` (exit 1).
+- `fw run` writes `run plan` (arguments, the fwcore plan, the checks before the dispatch), then the three parts of the
+  `gh workflow run` call: `run dispatch lock` (the wait for the shared gh-budget lock plus the fwcore decision),
+  `run dispatch backoff` (the sleep after a budget wait; written only when it happened) and `run dispatch call` (the gh
+  process); then `run wait` (the CI wait; carries `runId`) and `run file` (download and ingest), or `run dry` for `--dry`; there
+  is no `run` span (`apps/runner/src/run-phases.ts`, names listed in Lean `Fw.Obs.Timing.runSteps`). The first span opens before the
+  arguments are parsed, so a usage error still writes `run plan` (exit 1). Before task dispatch-latency the first four were one
+  step, `run dispatch`.
+- `fw watch` writes `watch pass` and, when the pass made a gh call, `watch pass gh lock`, `watch pass gh call`,
+  `watch pass gh backoff` (only when non-zero) and `watch pass other` (the rest), all starting with the pass
+  (`passParts`, Lean `passSteps`). Each part is its own key, so a slow lock wait is judged against lock waits only.
 - `fw slot` is `slot run <kind>`, `slot acquire <kind>`, `slot held <kind>`, `slot admit`, `slot status`, ... from both entries
   (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`). A wrapped argv with `--dry` adds ` dry`
   (`slot run land dry`); a `--cache` replay ends as `... cached` (`slot run test cached`), apart from the real run.
