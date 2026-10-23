@@ -1,0 +1,20 @@
+{
+  "id": "morph-idle-chromium-rebaseline",
+  "flag": "morph.columns:idle-none",
+  "profile": "swipe-v1",
+  "target": "rewrite",
+  "sha": "f3248e95435cc3217e4eca1fb4890940de8b028a",
+  "fontLessReference": { "layersBase": 28107, "layersFlag": 24667, "delta": -3440, "frames": 503 },
+  "runs": {
+    "base": { "run": "39936881473", "image": "sha256:a49c0675af56c4992bc754a88aee3957fd74433cd05558d2a8fa16e4576343a0" },
+    "flag": { "run": "39937184249", "image": "sha256:4782bc54dd9d14fa11fed24f75ac248fbae0184902920cb612c7f3d0c5fb80a4" },
+    "crossCheckBase": { "run": "39916914389", "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab", "layers503": [74370, 74367, 74365] }
+  },
+  "unit": "census.layers summed over the frames of the zones rest..y05000 (503 frames, no tail zone), per shard (one shard = one VM run); zone sums from fwcore measure.zoneSums via zone-baseline.mjs",
+  "perRun": [
+    { "shard": "r1", "base": 74368, "flag": 71037, "delta": -3331, "all575": { "base": 78950, "flag": 75358, "delta": -3592 }, "drawing503": { "base": 69999, "flag": 66668, "delta": -3331 } },
+    { "shard": "r2", "base": 74365, "flag": 71035, "delta": -3330, "all575": { "base": 78947, "flag": 75356, "delta": -3591 }, "drawing503": { "base": 69995, "flag": 66666, "delta": -3329 } },
+    { "shard": "r3", "base": 74365, "flag": 71040, "delta": -3325, "all575": { "base": 78947, "flag": 75448, "delta": -3499 }, "drawing503": { "base": 69995, "flag": 66671, "delta": -3324 } }
+  ],
+  "signKept": true
+}

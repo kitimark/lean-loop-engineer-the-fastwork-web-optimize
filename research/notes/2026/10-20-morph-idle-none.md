@@ -91,7 +91,8 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
 
 - Accepted limit: the CI Simulator is not the phone. A phone arm (the real GPU compositor) is the way to resolve the sign; it is not part of this task.
 - Item 4 (Chromium base 28107 layer-frames on the font image): not re-measured. counts-font-fidelity has not landed, so its
-  image is not the one to measure on; the base-vs-flag delta (-3440) stays valid because both arms ran on one image. Open, waits on counts-font-fidelity.
+  image is not the one to measure on; the base-vs-flag delta (-3440) stays valid because both arms ran on one image. Closed by the section
+  "Chromium re-baseline on the font image" below.
 
 ## Costs and limits
 
@@ -118,3 +119,27 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
 | breakpoint-gate both engines | | 39897800920 (merge job re-run once: ECONNRESET in download-artifact; all 7 shards succeeded) |
 
 Numbers: `results/morph-idle-none/report.json`.
+
+## Chromium re-baseline on the font image (task morph-idle-chromium-rebaseline)
+
+Item 4 above is closed: counts-font-fidelity landed (fonts-liberation pinned), so the Chromium lane now lays out with fonts. Same lane
+(chromium-counts, swipe-v1, rewrite target, 3 VMs per arm, sha f3248e9), dispatched with `fw run`; base run 39936881473 (no flag), flag run
+39937184249 (`fw=morph.columns:idle-none`). Unit: `census.layers` summed over the 503 frames of zones rest..y05000 (the unit of the 28107 / 24667
+figures; zone sums by fwcore `measure.zoneSums`), one sum per VM shard. Numbers: `results/morph-idle-none/chromium-font-rebaseline.json` (MEASURED).
+
+| shard | base | flag | delta | % |
+|---|---|---|---|---|
+| r1 | 74368 | 71037 | -3331 | -4.48 |
+| r2 | 74365 | 71035 | -3330 | -4.48 |
+| r3 | 74365 | 71040 | -3325 | -4.47 |
+| font-less (earlier) | 28107 | 24667 | -3440 | -12.2 |
+
+- The sign is kept in all three shards (flag fewer layer-frames); the delta stays near -3330 layer-frames, about 3 % below the font-less -3440.
+  Drawing layers move by the same amount (-3324 to -3331). With the tail zone (575 frames) the delta is -3592, -3591, -3499.
+- The base is 2.65 times the font-less base (74368 against 28107, about 148 layers a frame against 56), so the relative win falls from -12.2 % to
+  -4.5 %. The cause of the larger base is not attributed (INFERRED: the font-less lane laid the page out with fallback or missing text, so fewer
+  boxes got layers; not measured here).
+- One image: the two arms are two workflow runs and each built the image from the same sources, so their ids differ (a49c0675 base, 4782bc54 flag).
+  Base counts agree with the frozen font baseline run 39916914389 (image 47b1dcbe, 74370 / 74367 / 74365), so the rebuilds count alike. `fw run`
+  does not send `image_run`; a strict same-id pair is a dispatch with `image_run=39914488176` (command in the handoff).
+- Chromium only. WebKit stays unresolved (see morph-idle-followups).
