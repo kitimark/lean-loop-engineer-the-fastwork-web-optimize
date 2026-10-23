@@ -19244,13 +19244,9 @@
     "apps/runner/src/disk-gc.ts",
     "apps/runner/test/disk-gc*.test.ts",
     "docs/team/incidents/ledger.json",
-    "docs/team/handoffs/gc-landed-identity.md",
-    "lean/Fw/Ops/Reap.lean",
-    "apps/runner/src/reap.ts",
-    "apps/runner/test/reap*.test.ts",
-    "packages/contracts/golden/ops/reap*.jsonl"
+    "docs/team/handoffs/gc-landed-identity.md"
    ],
-   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main). Also (2026-10-24): fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell that outlived its tool call, while fw reap --list printed 'nothing leftover' for the same process: make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is the one fw reap --stop applies."
+   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main)."
   },
   {
    "devices": [
@@ -19313,6 +19309,26 @@
     "docs/team/handoffs/timing-poller-snapshot.md"
    ],
    "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-watch-one-rule",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gc-landed-identity"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "apps/runner/src/reap.ts",
+    "apps/runner/test/reap*.test.ts",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/watch*.ts",
+    "docs/team/handoffs/reap-watch-one-rule.md"
+   ],
+   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case."
   }
  ],
  "deadline": {
