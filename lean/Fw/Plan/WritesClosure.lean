@@ -442,7 +442,7 @@ def pathVectors : List (List String × String) := [
   (["lean/Fw/Ci/Trigger.lean"], "lean/Fw/**"), (["lean/Fw/Ci/Trigger.lean"], "lean/Fw/Ci/T*.lean"),
   (["a/b/c.json"], "a/**/c.json"), (["a/b/c.json"], "a/*/d.json")]
 
-def goldenText : String :=
+def goldenText (_ : Unit) : String :=
   String.join ((pathVectors.map fun (tr, w) => (pathRow tr w).compress ++ "\n") ++
     cases.map fun c => (caseRow c).compress ++ "\n")
 
@@ -452,12 +452,12 @@ def goldenPath : String := "../packages/contracts/golden/plan/writes-closure.jso
 def run (args : List String) : IO UInt32 := do
   if args.contains "--check" then
     let cur ← try IO.FS.readFile goldenPath catch _ => pure ""
-    if cur != goldenText then
+    if cur != goldenText () then
       IO.println s!"writes-closure golden: {goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/WritesClosureGolden.lean)"
       return 1
     IO.println s!"writes-closure golden: {cases.length} cases, up to date"
     return 0
-  IO.FS.writeFile goldenPath goldenText
+  IO.FS.writeFile goldenPath (goldenText ())
   IO.println s!"writes-closure golden: {cases.length} cases written"
   return 0
 
