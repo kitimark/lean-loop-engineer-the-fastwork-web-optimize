@@ -6,7 +6,7 @@ import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
 import { RECORDER_SRC, TO_END_JS, heroJs, endJs, endTouchJs, pageOf, intervalsOf } from './recorder.mjs';
-import { openDriver, startServer, stopServer, touchWindow, logTail, TOUCH_COUNT_JS } from '../touch-push.mjs';
+import { openDriver, startServer, stopServer, touchWindow, logTail, TOUCH_COUNT_JS, TOUCH_BUDGET, laneAfter, timelinePlan, variantFor } from '../touch-push.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
 import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
@@ -45,7 +45,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let error = null;
   let ua = '';
   const opened = openDriver(touchDriver);
-  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null };
+  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
 
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
@@ -65,27 +65,36 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
-    // a touch window runs for minutes on the runner (XCUITest idle waits), so its Timeline holds tens of thousands of records and stop() needs longer
-    const tl = await startTimeline(ctx.c, { stopMs: T(win === 'end' && touch.on ? 30000 : 7500) });
+    // no Timeline in a touch window (Lean timelinePlan): its counts come from page timestamps, and stop() timed out after minutes of records
+    const plan = timelinePlan(win === 'end' && touch.on, T(7500));
+    const tl = plan.kind === 'off' ? null : await startTimeline(ctx.c, { stopMs: plan.ms });
     let rec;
     let push = 'synthetic';
     let touched = null;
     if (win === 'end' && touch.on) {
       await ctx.c.evaluate(TOUCH_COUNT_JS);
-      const got = await touchWindow(ctx.c, { server: touch.server, pageJs: endTouchJs });
-      await tl.stop();
-      const bad = !got.pushed ? 'the swipe pair did not finish' : !got.result ? got.error : !got.result.begun ? 'no touch reached the page' : !(got.result.touch?.moves > 0) ? 'the page saw no touchmove' : null;
-      if (bad) { touch.on = false; touch.why = `${bad}${logTail(touch.server.run.logFile) ? `; driver log tail: ${logTail(touch.server.run.logFile)}` : ''}`; throw new Error(`touch push failed: ${bad}`); }
+      const variant = variantFor(touch.pushes++);
+      const got = await touchWindow(ctx.c, { server: touch.server, pageJs: endTouchJs, variant });
+      const keep = laneAfter(TOUCH_BUDGET, true, got.obs);
+      log(`webkit sim ${a.id} touch push ${touch.pushes - 1} (${variant}): ${got.outcome}, begin ${got.obs.beginAt} ms, swipe ${got.obs.swipeAt} ms, done ${got.obs.doneAt} ms, presses ${JSON.stringify(got.presses)}, ${got.obs.moves} moves`);
+      if (!keep) {
+        touch.on = false;
+        touch.why = `${got.outcome === 'ok' ? 'the driver finished late' : got.outcome}${logTail(touch.server.run.logFile) ? `; driver log tail: ${logTail(touch.server.run.logFile)}` : ''}`;
+        await stopServer(touch.server);
+        touch.server = null;
+        if (got.outcome !== 'ok') throw new Error(`touch push failed: ${got.outcome}`);
+      }
       rec = got.result;
       push = 'touch';
-      touched = { ...rec.touch, morphMax: rec.morphMax };
+      touched = { ...rec.touch, morphMax: rec.morphMax, variant, outcome: got.outcome, obs: got.obs, presses: got.presses };
     } else {
       rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
       await tl.stop();
     }
-    const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
+    const records = tl ? tl.top : [];
+    const pw = profileWindow(pageOf(rec, toHundredths), records);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
-    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
+    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: records.length, ...(tl ? {} : { timeline: false }) } };
   };
 
   try {
