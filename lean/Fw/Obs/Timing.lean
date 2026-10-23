@@ -1,6 +1,7 @@
 import Std.Data.String.ToNat
 import Lean.Data.Json
 import Fw.Sup.Adapt
+import Fw.Ops.CheckMap
 /-!
 # Timing: when an automation step took too long
 
@@ -43,7 +44,7 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
 `ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
 `lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
-`judgeQ_same_work`, `judgeQ_other_work`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
+`judgeQ_same_work`, `judgeQ_other_work`, `judgeQ_other_mods`, `judgeQ_unbuilt`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
@@ -131,8 +132,10 @@ theorem slotWork_width_ne (w w' : Nat) (j j' : Option Nat) (h : w ≠ w') : slot
 
 def checksDim : String := "checks"
 
-/-- The checkmap checks that start lake (`lake build`, `lake env lean`, the preset generator); the others parse files. -/
-def heavyChecks : List String := ["lakeBuild", "leanElab", "presetCheck"]
+def heavyChecks : List String :=
+  (Fw.Ops.CheckMap.order.filter Fw.Ops.CheckMap.heavy).map Fw.Wire.CheckMap.checkName
+
+theorem heavyChecks_eq : heavyChecks = ["lakeBuild", "leanElab", "presetCheck"] := rfl
 
 def lightClass : String := "light"
 
@@ -143,9 +146,28 @@ def checksWork (kinds : List String) : List (String × String) :=
   let heavy := heavyChecks.filter kinds.contains
   [(checksDim, if heavy.isEmpty then lightClass else "+".intercalate heavy)]
 
-/-- The work dimensions of a span: its polish checks class, then its slot width (the key order of a JSON object). -/
-def spanWork (width jobs : Option Nat) (checks : Option (List String)) : List (String × String) :=
-  (checks.map checksWork).getD [] ++ slotWork width jobs
+def modsDim : String := "mods"
+
+def modsLow (n : Nat) : Nat := if n = 0 then 0 else 4 ^ (n.log2 / 2)
+
+def modsWork (n : Nat) : List (String × String) := [(modsDim, toString (modsLow n))]
+
+def builtLine (l : String) : Bool :=
+  match l.splitOn "] Built " with
+  | [pre, post] =>
+    let num (t : String) := !t.isEmpty && t.all Char.isDigit
+    let progress := match ((pre.splitOn "[").getLast?.getD "").splitOn "/" with
+      | [i, n] => num i && num n
+      | _ => false
+    let name := (post.splitOn " ").headD ""
+    progress && !name.isEmpty && !name.contains ':'
+  | _ => false
+
+def builtModules (out : String) : Nat := (out.splitOn "\n").countP builtLine
+
+def spanWork (width jobs : Option Nat) (checks : Option (List String)) (built : Option Nat := none) :
+    List (String × String) :=
+  (checks.map checksWork).getD [] ++ (built.map modsWork).getD [] ++ slotWork width jobs
 
 #guard checksWork ["nodeCheck", "shParse"] == [("checks", "light")] && checksWork [] == [("checks", "light")]
 #guard checksWork ["shParse", "lakeBuild", "nodeCheck"] == [("checks", "lakeBuild")]
@@ -167,15 +189,78 @@ theorem checksWork_light (kinds : List String) (h : ∀ k ∈ heavyChecks, k ∉
 theorem checksWork_heavy (kinds : List String) (k : String) (hk : k ∈ heavyChecks) (hm : k ∈ kinds) :
     checksWork kinds ≠ [(checksDim, lightClass)] := by
   have hc : kinds.contains k = true := by simpa using hm
-  simp only [heavyChecks, List.mem_cons, List.not_mem_nil, or_false] at hk
-  simp only [checksWork, heavyChecks, lightClass, checksDim, List.filter_cons, List.filter_nil]
+  simp only [heavyChecks_eq, List.mem_cons, List.not_mem_nil, or_false] at hk
+  simp only [checksWork, heavyChecks_eq, lightClass, checksDim, List.filter_cons, List.filter_nil]
   rcases hk with rfl | rfl | rfl <;> rw [hc] <;>
     cases kinds.contains "lakeBuild" <;> cases kinds.contains "leanElab" <;> cases kinds.contains "presetCheck" <;>
     simp
 
 theorem spanWork_unchecked (w j : Option Nat) : spanWork w j none = slotWork w j := rfl
 
-/-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key). -/
+#guard [0, 1, 3, 4, 15, 16, 24, 40, 63, 64].map modsLow == [0, 1, 1, 4, 4, 16, 16, 16, 16, 64]
+#guard modsWork 24 == [("mods", "16")] && modsWork 0 == [("mods", "0")]
+#guard spanWork none none (some ["lakeBuild"]) (some 40) == [("checks", "lakeBuild"), ("mods", "16")]
+#guard spanWork (some 2) (some 30) none (some 6) == [("mods", "4"), ("width", "2")]
+#guard builtLine "✔ [795/843] Built Fw.Wire (1.3s)" && builtLine "⚠ [3/9] Built Fw.Obs.Timing (12s)"
+#guard !builtLine "✔ [840/843] Built fwcore:exe (2.1s)" && !builtLine "✔ [12/843] Built Fw:c.o (90ms)"
+#guard !builtLine "✖ [4/9] Building Fw.Obs.Timing" && !builtLine "Built Fw.Wire" && !builtLine "✔ [a/9] Built Fw.Wire"
+#guard builtModules "✔ [1/3] Built Fw.A (1s)\n✔ [2/3] Built Fw:c.o (1s)\nBuild completed successfully.\n✔ [3/3] Built Fw.B" == 2
+
+theorem modsLow_le (n : Nat) : modsLow n ≤ n := by
+  unfold modsLow
+  split
+  · omega
+  · rename_i h
+    have h1 : 4 ^ (n.log2 / 2) = 2 ^ (2 * (n.log2 / 2)) := by rw [Nat.pow_mul]
+    have h2 : 2 ^ (2 * (n.log2 / 2)) ≤ 2 ^ n.log2 := Nat.pow_le_pow_right (by omega) (by omega)
+    exact h1 ▸ Nat.le_trans h2 (Nat.log2_self_le h)
+
+theorem lt_modsLow (n : Nat) (h : n ≠ 0) : n < 4 * modsLow n := by
+  unfold modsLow
+  simp only [h, ↓reduceIte]
+  have h1 : 4 * 4 ^ (n.log2 / 2) = 2 ^ (2 * (n.log2 / 2) + 2) := by
+    rw [Nat.pow_add, Nat.pow_mul, Nat.mul_comm]
+  have h2 : 2 ^ (n.log2 + 1) ≤ 2 ^ (2 * (n.log2 / 2) + 2) := Nat.pow_le_pow_right (by omega) (by omega)
+  rw [h1]
+  exact Nat.lt_of_lt_of_le Nat.lt_log2_self h2
+
+theorem modsLow_eq_zero (n : Nat) : modsLow n = 0 ↔ n = 0 := by
+  constructor
+  · intro h
+    rcases Nat.eq_zero_or_pos n with hn | hn
+    · exact hn
+    · have := lt_modsLow n (by omega)
+      omega
+  · intro h
+    simp [modsLow, h]
+
+theorem modsWork_eq_iff (a b : Nat) : modsWork a = modsWork b ↔ modsLow a = modsLow b := by
+  constructor
+  · intro e
+    simp only [modsWork, List.cons.injEq, Prod.mk.injEq, true_and, and_true] at e
+    exact Nat.repr_injective e
+  · intro e
+    simp [modsWork, e]
+
+theorem mods_same_lt (a b : Nat) (h : modsLow a = modsLow b) (ha : a ≠ 0) : a < 4 * b :=
+  Nat.lt_of_lt_of_le (lt_modsLow a ha) (by rw [h]; exact Nat.mul_le_mul_left 4 (modsLow_le b))
+
+theorem mods_same_zero (a b : Nat) (h : modsLow a = modsLow b) (ha : a = 0) : b = 0 :=
+  (modsLow_eq_zero b).1 (by rw [← h, ha]; rfl)
+
+theorem spanWork_mods_ne (w j : Option Nat) (c : Option (List String)) (a b : Nat) (h : modsLow a ≠ modsLow b) :
+    spanWork w j c (some a) ≠ spanWork w j c (some b) := by
+  intro e
+  simp only [spanWork, Option.map_some, Option.getD_some, List.append_cancel_left_eq,
+    List.append_cancel_right_eq] at e
+  exact h ((modsWork_eq_iff a b).1 e)
+
+theorem spanWork_built_ne_unbuilt (w j : Option Nat) (c : Option (List String)) (a : Nat) :
+    spanWork w j c (some a) ≠ spanWork w j c none := by
+  intro e
+  have := congrArg List.length e
+  simp [spanWork, modsWork] at this
+
 structure Group where
   name : String
   keys : List Key
@@ -900,6 +985,24 @@ theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s 
   apply judgeQ_same_work
   rw [List.filter_append, List.append_right_eq_self]
   exact List.filter_eq_nil_iff.2 (fun x hx => by simpa using h x hx)
+
+theorem judgeQ_other_mods (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+    (c : Option (List String)) (b : Nat) (hs : s.work = spanWork w j c (some b))
+    (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a) ∧ modsLow a ≠ modsLow b) :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s :=
+  judgeQ_other_work p hist others i s fun x hx => by
+    obtain ⟨a, hx, hne⟩ := h x hx
+    rw [hx, hs]
+    exact spanWork_mods_ne w j c a b hne
+
+theorem judgeQ_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+    (c : Option (List String)) (hs : s.work = spanWork w j c none)
+    (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a)) :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s :=
+  judgeQ_other_work p hist others i s fun x hx => by
+    obtain ⟨a, hx⟩ := h x hx
+    rw [hx, hs]
+    exact spanWork_built_ne_unbuilt w j c a
 
 theorem windowOf_unworked (p : Params) (hist : List Sample) (k : Key) (hk : k.work = [])
     (hh : ∀ x ∈ hist, x.work = []) :
@@ -2066,14 +2169,36 @@ def polish (kinds : List String) (load d : Nat) : Sample :=
 (ms, load, heavy checks). The checks are INFERRED: the spans carried no `checks` member, so each span was matched by
 time to the polish commit it made and given the kinds `ops.checkMap` returns for that commit's files.
 -/
-def polishRun : List Sample :=
-  ([(11933, 4, ["lakeBuild", "leanElab"]), (18826, 2, ["lakeBuild"]), (39792, 2, ["lakeBuild", "leanElab"]),
+def polishData : List (Nat × Nat × List String) :=
+  [(11933, 4, ["lakeBuild", "leanElab"]), (18826, 2, ["lakeBuild"]), (39792, 2, ["lakeBuild", "leanElab"]),
     (39042, 2, ["lakeBuild"]), (1868, 2, ["lakeBuild"]), (26418, 6, ["lakeBuild"]), (10567, 1, ["lakeBuild"]),
     (11008, 1, ["lakeBuild", "leanElab"]), (500, 1, []), (9216, 3, ["lakeBuild", "leanElab"]), (9880, 2, ["lakeBuild"]),
     (11838, 1, ["lakeBuild", "leanElab"]), (32572, 3, ["lakeBuild", "presetCheck"]), (866, 3, []),
     (23918, 3, ["lakeBuild"]), (22774, 3, ["lakeBuild"]), (42892, 5, ["lakeBuild", "presetCheck"]), (549, 4, []),
-    (8752, 4, ["lakeBuild"]), (537, 2, []), (38160, 5, ["lakeBuild"])] : List (Nat × Nat × List String)).map
-    fun (d, l, k) => polish k l d
+    (8752, 4, ["lakeBuild"]), (537, 2, []), (38160, 5, ["lakeBuild"])]
+
+def polishRun : List Sample := polishData.map fun (d, l, k) => polish k l d
+
+def polishMods : List Nat := [1, 29, 32, 31, 1, 26, 7, 7, 0, 1, 2, 1, 50, 0, 37, 14, 50, 0, 1, 0, 40]
+
+def polishRunMods : List Sample :=
+  (polishData.zip polishMods).map fun ((d, l, k), m) =>
+    { polish k l d with work := spanWork none none (some k) (if k.contains "lakeBuild" then some m else none) }
+
+def landDryData : List (Nat × Nat × Nat × Nat) :=
+  [(51554, 3, 0, 24), (34947, 3, 0, 0), (29624, 2, 0, 0), (28979, 1, 0, 0), (23900, 1, 17, 0), (23930, 2, 0, 0),
+    (25719, 2, 0, 0), (46188, 3, 0, 24), (34806, 3, 0, 6), (25331, 2, 0, 0), (23709, 3, 0, 0), (24166, 2, 17, 0),
+    (23757, 1, 0, 0), (27863, 3, 0, 0), (30859, 2, 0, 0), (27223, 3, 0, 0), (23449, 2, 0, 0), (32841, 1, 0, 6),
+    (33402, 3, 0, 6), (28904, 3, 0, 0), (33229, 5, 0, 0), (27689, 3, 0, 0), (47126, 2, 0, 29), (47775, 4, 0, 29),
+    (36051, 7, 0, 0), (31795, 8, 0, 0), (50000, 3, 0, 29), (29142, 3, 0, 0), (55447, 2, 0, 29), (55092, 4, 0, 29),
+    (27436, 3, 0, 0), (32419, 3, 0, 6), (31964, 5, 0, 0), (29406, 3, 0, 0), (25554, 3, 0, 0), (24716, 3, 0, 0),
+    (25105, 1, 0, 0), (52693, 3, 0, 30), (46319, 2, 0, 29), (30026, 3, 0, 0), (24882, 2, 0, 0), (26318, 3, 0, 0),
+    (24784, 2, 0, 0), (24675, 2, 0, 0), (27111, 2, 0, 0), (26112, 4, 0, 0), (43470, 3, 0, 24)]
+
+def landDryRun (built : Bool) : List Sample :=
+  landDryData.map fun (d, l, e, m) =>
+    { tool := "fw", step := "land dry lake", durMs := d, host := .«local», load := l, exit := some (Int.ofNat e),
+      work := if built then spanWork none none none (some m) else [] }
 
 /-- The 38.3 s `slot run check` span of 2026-10-23T11:37:35Z (commit 7e8d89c) and the twelve spans of that step before
 it, as (ms, exit).
@@ -2222,6 +2347,12 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, polishRun.map fun s => { s with work := [] }),
    ("polish commit by checks class: a 20 s lakeBuild commit after five light commits near 0.5 s has no lakeBuild history: noBaseline",
       {}, [500, 866, 549, 537, 610].map (polish ["nodeCheck"] 2) ++ [polish ["lakeBuild", "nodeCheck"] 2 20000]),
+   ("polish commit by checks and rebuilt modules: the 38.2 s lakeBuild commit that rebuilt 40 modules has four lakeBuild commits of 16-63 modules before it: noBaseline",
+      {}, polishRunMods),
+   ("land dry lake without the rebuilt modules: the 43.5 s run of 2026-10-23T12:39Z (24 modules) against the last 20 runs, most of 0 modules: slow",
+      {}, landDryRun false),
+   ("land dry lake by rebuilt modules: the same run against the nine earlier runs of 16-63 modules: ok",
+      {}, landDryRun true),
    ("slot run overflow bucket: the 38.3 s slot run check of 2026-10-23T11:37Z after the bare slot run check spans before it is mixed, never slow",
       {}, bucketRun "slot run check"),
    ("slot run overflow bucket: a dry cached bucket step is mixed too",
@@ -2249,10 +2380,13 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .slow, some .ok, some .queued,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline,
    some .slow, some .noBaseline, some .slow, some .ok, some .slow,
-   some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .mixed, some .mixed, some .slow]
+   some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
+   some .mixed, some .mixed, some .slow]
 #guard (fullVerdicts {} (groupView.map (fun (d, l, w) => group (some w) l d) ++ groupRecorded)).getLast?.map
     (fun v => (v.n, v.baseline)) == some (7, 97284)
 #guard (fullVerdicts {} polishRun).getLast?.map (fun v => (v.n, v.baseline)) == some (9, 18826)
+#guard (fullVerdicts {} polishRunMods).getLast?.map (fun v => (v.n, v.code)) == some (4, .noBaseline)
+#guard (fullVerdicts {} (landDryRun true)).getLast?.map (fun v => (v.n, v.baseline, v.code)) == some (9, 50000, .ok)
 #guard (sampleVerdicts {} (bucketRun "slot run check")).all (·.code == .mixed)
 #guard (sampleVerdicts {} (groupView.map fun (d, l, w) => group (some w) l d)).map (·.code) == List.replicate 9 .noBaseline
 #guard ((sampleVerdicts {} (groupView.map fun (d, l, _) => group none l d)).map (·.code)).drop 5 ==
@@ -2285,16 +2419,16 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
-/-- A span line: a `polish commit` span when it has a `checks` member (command count and kinds), else a
-`parallel group` span.
--/
-def spanJson (d : Nat) (slot : Option (Nat × Nat)) (checks : Option (Nat × List String)) : Json :=
-  Json.mkObj ([("tool", .str (if checks.isSome then "fw" else "lean/check")),
-    ("step", .str (if checks.isSome then "polish commit" else "parallel group")), ("startMs", toJson (1792745374550 : Nat)),
+def spanJson (d : Nat) (slot : Option (Nat × Nat)) (checks : Option (Nat × List String)) (lake : Option Nat := none) :
+    Json :=
+  Json.mkObj ([("tool", .str (if checks.isSome || lake.isSome then "fw" else "lean/check")),
+    ("step", .str (if checks.isSome then "polish commit" else if lake.isSome then "land dry lake" else "parallel group")),
+    ("startMs", toJson (1792745374550 : Nat)),
     ("durMs", toJson d), ("exit", toJson (0 : Nat)), ("commit", .str "3d0d68a"), ("load", toJson (2 : Nat)),
     ("host", .str "local")] ++
     (slot.map fun (w, j) => [("slot", Json.mkObj [("width", toJson w), ("jobs", toJson j)])]).getD [] ++
-    (checks.map fun (n, ks) => [("checks", Json.mkObj [("n", toJson n), ("kinds", toJson ks)])]).getD [])
+    (checks.map fun (n, ks) => [("checks", Json.mkObj [("n", toJson n), ("kinds", toJson ks)])]).getD [] ++
+    (lake.map fun b => [("lake", Json.mkObj [("built", toJson b)])]).getD [])
 
 def workCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × List String)) :=
   [("a span written before the slot member has no work dimensions", 94437, none, none),
@@ -2312,14 +2446,47 @@ def workCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × Lis
       some (4, ["leanElab", "lakeBuild", "leanElab", "jsonParse"])),
    ("checks and slot width together", 30000, some (2, 30), some (1, ["leanElab"]))]
 
+#guard heavyChecks.all fun h => workCases.any fun (_, _, _, c) => (c.map (·.2.contains h)).getD false
+
+def lakeWorkCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × List String) × Nat) :=
+  [("land dry lake that built no module: class 0", 24675, none, none, 0),
+   ("land dry lake that built 6 modules: class 4", 32419, none, none, 6),
+   ("land dry lake that built 24 modules: class 16", 43470, none, none, 24),
+   ("land dry lake that built 30 modules: class 16, as 24", 52693, none, none, 30),
+   ("land dry lake that built 1 module: class 1", 9000, none, none, 1),
+   ("land dry lake that built 64 modules: class 64", 90000, none, none, 64),
+   ("polish commit with lake build that built 40 modules: checks class, then modules class", 38160, none,
+      some (3, ["lakeBuild", "nodeCheck", "shParse"]), 40),
+   ("modules class and slot width together", 30000, some (2, 30), none, 3)]
+
 def workGoldenText (_ : Unit := ()) : String :=
   String.join (workCases.map fun (n, d, slot, checks) =>
     (Json.mkObj [("name", .str n), ("span", spanJson d slot checks),
-      ("work", workJson (spanWork (slot.map (·.1)) (slot.map (·.2)) (checks.map (·.2))))]).compress ++ "\n")
+      ("work", workJson (spanWork (slot.map (·.1)) (slot.map (·.2)) (checks.map (·.2))))]).compress ++ "\n") ++
+  String.join (lakeWorkCases.map fun (n, d, slot, checks, b) =>
+    (Json.mkObj [("name", .str n), ("span", spanJson d slot checks (some b)),
+      ("work", workJson (spanWork (slot.map (·.1)) (slot.map (·.2)) (checks.map (·.2)) (some b)))]).compress ++ "\n")
 
 def workGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-work.jsonl"
 
-/-- `packages/gh-budget/src/bounds.gen.ts`: the gh bounds of `Fw.Obs.Timing` as TS constants, so no TS file keeps its own copy. -/
+def lakeCases : List (String × String) :=
+  [("no build: lake prints no Built line", "Build completed successfully (843 jobs).\n"),
+   ("two modules, a warning mark, the exe and a C object of a facet",
+      "✔ [795/843] Built Fw.Wire (1.3s)\n⚠ [797/843] Built FwTest.Mutants.Wire (834ms)\nwarning: unused variable\n" ++
+      "✔ [840/843] Built fwcore:exe (2.1s)\n✔ [12/843] Built Fw:c.o (90ms)\nBuild completed successfully (843 jobs).\n"),
+   ("a failed module is not built", "✖ [4/9] Building Fw.Obs.Timing (1.2s)\nerror: build failed\n"),
+   ("a Built line without a progress counter is not lake's", "Built Fw.Wire\n✔ [a/9] Built Fw.Wire (1s)\n"),
+   ("a Built line without a time, and a last line without a newline",
+      "✔ [1/3] Built Fw.A\n✔ [2/3] Built Fw.B (1s)\n✔ [3/3] Built Fw.C (2s)")]
+
+def lakeGoldenText (_ : Unit := ()) : String :=
+  String.join (lakeCases.map fun (n, out) =>
+    (Json.mkObj [("name", .str n), ("out", .str out), ("built", toJson (builtModules out))]).compress ++ "\n")
+
+#guard lakeCases.map (builtModules ·.2) == [0, 2, 0, 0, 3]
+
+def lakeGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-lake.jsonl"
+
 def boundsText (_ : Unit := ()) : String :=
   "// Generated from lean/Fw/Obs/Timing.lean by lean/scripts/TimingGolden.lean; do not edit.\n" ++
   "export const GH_BOUNDS = {\n" ++
@@ -2333,10 +2500,11 @@ def boundsPath : System.FilePath := "../packages/gh-budget/src/bounds.gen.ts"
 
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
+  IO.FS.writeFile lakeGoldenPath lakeGoldenText
 
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
-    (← IO.FS.readFile workGoldenPath) == workGoldenText
+    (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText
 
 end Fw.Wire.Obs.Timing
 
