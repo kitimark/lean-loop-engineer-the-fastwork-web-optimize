@@ -54,7 +54,7 @@ function chargedLocked(env: Env, decide: Decide, buildArgs: (reply: Json) => str
     const s = loadState(env.dir);
     env.mark?.("loadEnd");
     const r = decide(s, env.now());
-    saveState(env.dir, r.state as Json); // the booking (or the advanced clock) is on disk before gh starts
+    saveState(env.dir, r.state as Json);
     if (r.decision === "wait") return { ran: false, decision: "wait", until: Number(r.until), reason: String(r.reason) };
     if (r.decision !== "issue") return { ran: false, decision: "stop", reason: String(r.reason) };
     const args = buildArgs(r);

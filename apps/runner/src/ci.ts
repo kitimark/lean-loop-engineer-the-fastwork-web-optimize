@@ -71,15 +71,10 @@ export function runStateWord(status: string, conclusion: string | null): "runnin
   return conclusion === "success" ? "complete" : "failed";
 }
 
-/** The list sizes `fw ci state` tries in turn (Lean `Fw.Ci.StateList.limits`): 100 newest runs cover about an hour of a busy repository
- *  (MEASURED 2026-10-21: 100 runs spanned 51 min); gh pages up to 1000 in one call, 22.3 s for the 1000 list (MEASURED 2026-10-23). */
 export const STATE_LIMITS = [100, 400, 1000] as const;
 
 export type StateStep = { step: "found" | "ended" | "older" | "absent" | "exhausted" } | { step: "grow"; next: number };
 
-/** What to do after one `gh run list` of `limit` rows (newest first, ids ascending with age reversed) for `id`. TS stand-in for Lean
- *  `Fw.Ci.StateList.step`, checked against `packages/contracts/golden/ci/state-list.jsonl` in `apps/runner/test/ci-state.test.ts`;
- *  marked for replacement by an fwcore op. */
 export function stateStep(narrowed: boolean, limit: number, id: number, ids: number[]): StateStep {
   if (ids.includes(id)) return { step: "found" };
   if (ids.length < limit) return { step: "ended" };
@@ -90,9 +85,6 @@ export function stateStep(narrowed: boolean, limit: number, id: number, ids: num
   return next === undefined ? { step: "exhausted" } : { step: "grow", next };
 }
 
-/** `fw ci state <run id> [--branch b] [--workflow w]`: read one run by identity from `gh run list` (list calls only, never `gh run view` or `gh api`).
- *  With `--branch` or `--workflow` the list is filtered, so an older run is in reach and the list grows (100, 400, 1000) while the id is older than its
- *  oldest row; without them one list of 100 is read and an older id stops there (`stateStep`). Prints `<id> <state>`; exit 0, or 2 when not found. */
 export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void; branch?: string; workflow?: string }): Promise<number> {
   if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id> [--branch <b>] [--workflow <w>]");
   const narrow = [...(d.branch ? ["--branch", d.branch] : []), ...(d.workflow ? ["--workflow", d.workflow] : [])];
@@ -108,7 +100,6 @@ export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => vo
   }
 }
 
-/** The whole command. Exit code: 0 stored (or unchanged), 2 refused. */
 export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
   const runId = args.runId ?? (args.branch ? await latestRunId(d.gh, args.workflow, args.branch) : null);
   if (!runId) { d.log(`refused: no run of ${args.workflow} on ${args.branch ?? "(no branch given)"}`); return 2; }
@@ -157,7 +148,6 @@ export async function ciCli(argv: string[], cwd: string, env: Record<string, str
   return ciMain(args, { call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), store: args.store ?? storeDir(consoleDir), tmp: join(consoleDir, "tmp"), log: (l) => console.log(l) });
 }
 
-/** Sums the time between `loadStart` and `loadEnd` (the state-file read inside the gh-budget lock). I/O glue, no decision. */
 export class LoadTimer {
   ms = 0;
   private at: number | null = null;
@@ -169,7 +159,6 @@ export class LoadTimer {
   }
 }
 
-/** Adds `ci state gh load` (Lean `ciStateLoadStep`) after the lock part and takes the same time out of the lock part, which includes it. */
 export function withLoadPart(parts: { step: string; durMs: number }[], loadMs: number): { step: string; durMs: number }[] {
   const i = parts.findIndex((p) => p.step === "ci state gh lock");
   if (i < 0) return parts;
@@ -177,7 +166,6 @@ export function withLoadPart(parts: { step: string; durMs: number }[], loadMs: n
   return [...parts.slice(0, i), { step: "ci state gh lock", durMs: parts[i]!.durMs - load }, { step: "ci state gh load", durMs: load }, ...parts.slice(i + 1)];
 }
 
-/** One span per part of `fw ci state`, each carrying the command's real exit (0 found, 2 not found, 1 a throw). */
 export function recordStateParts(parts: { step: string; durMs: number }[], startMs: number, exit: number, rec: (s: StateSpan) => void): void {
   for (const p of parts) rec({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit });
 }
@@ -197,7 +185,7 @@ export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
   const gh = chargedGh({ ...phasedEnv(realEnv(cwd), (e) => clock.on(e)), mark: (e) => load.on(e) });
   const t0 = performance.now(), startMs = Date.now();
   const timed: Gh = async (a, op) => { clock.start(); try { return await gh(a, op); } finally { clock.end(); } };
-  let exit = 1; // a throw is a failure; the real exit of the command goes into every part span
+  let exit = 1;
   try {
     exit = await ciState(id, { gh: timed, log: (l) => console.log(l), ...o });
     return exit;

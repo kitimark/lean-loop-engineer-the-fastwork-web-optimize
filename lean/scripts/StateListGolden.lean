@@ -1,7 +1,5 @@
 import Fw.Ci.StateList
 
-/-! Write (or with `--check`, verify) `packages/contracts/golden/ci/state-list.jsonl` (rule `Fw.Ci.StateList.step`).
-Consumer: `apps/runner/test/ci-state.test.ts`. Run from `lean/`: `lake env lean --run scripts/StateListGolden.lean [--check]`. -/
 
 def main (args : List String) : IO UInt32 := do
   let p : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ci" / "state-list.jsonl"

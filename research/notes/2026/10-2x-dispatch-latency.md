@@ -1,6 +1,6 @@
 # Dispatch latency: where `fw run` and `fw watch` wait
 
-Task dispatch-latency. Claims carry CONFIRMED, INFERRED or MEASURED.
+Claims carry CONFIRMED, INFERRED or MEASURED.
 
 ## What was split
 
@@ -32,7 +32,7 @@ After (new bounds; two concurrent dispatches, load about 4.0, shared gh-budget l
 | lock, after backoff | 54 ms | 2385 ms |
 | call | 2237 ms | 2451 ms |
 
-The totals are not comparable: contention differed between the two pairs. The pairs show the shape, not a speed-up.
+The totals are not comparable, since contention differed. The pairs show the shape, not a speed-up.
 
 ## Slow part
 
@@ -63,18 +63,18 @@ Synthetic pair (MEASURED, real gh-budget code, a fake gh that sleeps 90 s; holde
 
 ## Limits and follow-ups
 
-- GitHub API latency is outside our control. No polling below 120 s was added.
+- No polling below 120 s was added.
 - Releasing the lock during the gh process needs a Lean redesign of the single `pending` slot (follow-up).
 - `DISPATCH_LIMITS`, `WATCH_LOCK_WAIT_MS`, `passParts`, `stepOf` are TS stand-ins checked against Lean text, not generated.
 - Backoff reason is not recorded in the span.
 
-## Follow-ups (task dispatch-latency-followups)
+## Follow-ups
 
-1. **Other callers bounded.** The charged wrapper's default gh timeout (wait, poller, `fw ci budget --probe`, timing ingest, `fw ci state`) was 60 s, so one hung non-dispatch call filled the whole 60 s dispatch lock wait and the dispatch was refused `busy`. The default is now 40 s: a `gh run list --limit 1000` took 22319 ms (MEASURED 2026-10-23), so 20 s would break `fw ci state`. Lean proves a hung holder of any caller ends before the dispatch wait with a 20 s margin (`hung_holder_fits`, `every_caller_fits`, `Timing.lean`); `land.ts` keeps its own 20 s (`landCallTimeoutMs`, a TS stand-in).
-2. **Busy is a wait.** The poller's lock wait is 10 s (`pollLockWaitMs`); `busy` gives a 2 s retry (`busyRetryS`), never a stop and never a `stopped` status (test `charged.test.ts`). The refusal text says "nothing was dispatched" only for `workflow run`; other calls say "no request was made" (`busyMessage`, test `run-phases.test.ts`).
-3. **Lock split from reserve.** New parts `run dispatch reserve` and `watch pass gh reserve`: lock ends when the first fwcore reserve request starts, reserve ends at issue or wait. The 13.47 s holder stays INFERRED: the lock file keeps a pid only, the span does not record who held it, and the 3 s watch lock wait plus a 54 s `fw land` local tier at that moment are the candidates. A repeat needs the holder's command at the time of the wait.
-4. **Bounds generated from Lean.** `packages/gh-budget/src/bounds.gen.ts` (`GH_BOUNDS`) is written by `lean --run scripts/TimingGolden.lean` and checked by `--check` in `check.sh`. `DISPATCH_LIMITS`, `WATCH_LOCK_WAIT_MS`, the 10 s watch `gh run list` timeout, the default timeout and the poller bounds read it; no regex read of Lean text remains for bounds. Step names are still compared with the Lean lists by a test.
-5. **Probe committed.** `node scripts/gh-hung-probe.mjs` re-runs the pair (real gh-budget code, fake gh sleeping 90 s, not a GitHub call). Re-run 2026-10-23:
+1. The charged wrapper's default gh timeout (wait, poller, `fw ci budget --probe`, timing ingest, `fw ci state`) was 60 s, so one hung non-dispatch call filled the whole 60 s dispatch lock wait and the dispatch was refused `busy`. The default is now 40 s: a `gh run list --limit 1000` took 22319 ms (MEASURED 2026-10-23), so 20 s would break `fw ci state`. Lean proves a hung holder of any caller ends before the dispatch wait with a 20 s margin (`hung_holder_fits`, `every_caller_fits`, `Timing.lean`); `land.ts` keeps its own 20 s (`landCallTimeoutMs`, a TS stand-in).
+2. The poller's lock wait is 10 s (`pollLockWaitMs`); `busy` gives a 2 s retry (`busyRetryS`), never a stop and never a `stopped` status (test `charged.test.ts`). The refusal text says "nothing was dispatched" only for `workflow run`; other calls say "no request was made" (`busyMessage`, test `run-phases.test.ts`).
+3. New parts `run dispatch reserve` and `watch pass gh reserve`: lock ends when the first fwcore reserve request starts, reserve ends at issue or wait. The 13.47 s holder stays INFERRED: the lock file keeps a pid only, the span does not record who held it, and the 3 s watch lock wait plus a 54 s `fw land` local tier at that moment are the candidates. A repeat needs the holder's command at the time of the wait.
+4. `packages/gh-budget/src/bounds.gen.ts` (`GH_BOUNDS`) is written by `lean --run scripts/TimingGolden.lean` and checked by `--check` in `check.sh`. `DISPATCH_LIMITS`, `WATCH_LOCK_WAIT_MS`, the 10 s watch `gh run list` timeout, the default timeout and the poller bounds read it; no regex read of Lean text remains for bounds. Step names are still compared with the Lean lists by a test.
+5. `node scripts/gh-hung-probe.mjs` re-runs the pair (real gh-budget code, fake gh sleeping 90 s, not a GitHub call). Re-run 2026-10-23:
 
 | Bounds | Holder killed after | Waiter got the lock after |
 |---|---|---|
@@ -99,11 +99,11 @@ One real run, unknown id (all three lists), load 4.06 (MEASURED 2026-10-23, `.fw
 
 Per list call, including its reserve, from a separate timed run (not in timings.jsonl, which has no per-call span; the three sum to 34384 ms): limit 100 took 2789 ms, 400 took 9276 ms, 1000 took 22319 ms.
 
-- **The slow part is the gh call**, which grows with the list size (about 22 ms per run listed: gh pages 100 rows per request). It is not the gh-budget lock (3 ms), so follow-ups (1)-(3) are not the fix for it; they bound hung holders only.
-- **Exit 2** means the run id is in none of the lists (100, 400, 1000 newest runs; `ciState` prints `<id> unknown`), after all three calls ran. The slow alerts of 34.9 s, 37.3 s (exit 2) and 43.0 s match this: three lists cost about 35-38 s. A run id that is on a branch is cheap when `--branch` or `--workflow` narrows the list; an id older than 1000 runs is always the 35 s path.
+- The slow part is the gh call, which grows with the list size (about 22 ms per run listed: gh pages 100 rows per request). It is not the gh-budget lock (3 ms), so follow-ups (1)-(3) are not the fix for it; they bound hung holders only.
+- Exit 2 means the run id is in none of the lists (100, 400, 1000 newest runs; `ciState` prints `<id> unknown`), after all three calls ran. The slow alerts of 34.9 s, 37.3 s (exit 2) and 43.0 s match this: three lists cost about 35-38 s. A run id that is on a branch is cheap when `--branch` or `--workflow` narrows the list; an id older than 1000 runs is always the 35 s path.
 - Follow-up outside the unit: callers that know the branch should pass `--branch`, so the 1000-run list is never read for a run that is not there.
 
-## `fw ci state` after task ci-state-fast (MEASURED 2026-10-23, one run each, spans in `.fw-console/timings.jsonl`)
+## `fw ci state` after the stop rule (MEASURED 2026-10-23, one run each, spans in `.fw-console/timings.jsonl`)
 
 Rule: Lean `Fw.Ci.StateList.step` (theorems per branch, golden `golden/ci/state-list.jsonl`). Without `--branch`/`--workflow` one list of 100 is read and an older id stops there (`<id> unknown (older than the newest 100 runs; ...)`, exit 2); with a filter the list grows 100, 400, 1000 while the id is older than its oldest row. The same session ran the old code (copy of 49422052d) and the new one. Ids from `gh run list --limit 400`: recent = newest run; old = run 400 of 400 (about 1.4 h old, branch `ci/people-title-crash-fix`); none = id in no list.
 

@@ -196,7 +196,6 @@ describe("fw ci state <run id> (review-flow-v2-followups: the gate agent reads r
     const small: Gh = async (args) => { calls.push(args); return JSON.stringify(all.slice(0, 7)); };
     expect(await ciState("1", { gh: small, log: () => {} })).toBe(2);
     expect(calls.length).toBe(1);
-    // unfiltered: an id older than the full first list stops there (one list, no 400 and 1000)
     calls.length = 0; out.length = 0;
     expect(await ciState("1", { gh: big, log: (l) => out.push(l) })).toBe(2);
     expect(calls.map((a) => a[a.indexOf("--limit") + 1])).toEqual(["100"]);

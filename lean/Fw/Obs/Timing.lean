@@ -761,7 +761,6 @@ def passSteps : List String :=
 def ciStateSteps : List String :=
   ["ci state", "ci state gh lock", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
 
-/-- The state-file read inside the lock, timed apart from the lock wait; written by `fw ci state` only, after the lock span. -/
 def ciStateLoadStep : String := "ci state gh load"
 
 theorem ciStateSteps_nodup : ciStateSteps.Nodup := by decide
@@ -801,26 +800,18 @@ def callerTimeoutsMs : List Nat :=
 
 def maxCallTimeoutMs : Nat := callerTimeoutsMs.foldl max 0
 
-/-- Longest one fwcore call may take: the default of the console's fwcore client (`CALL_TIMEOUT_MS` in console-api `core/lean.ts`; INFERRED
-for the spawn in `packages/gh-budget/src/core.ts`, which sets no timeout of its own). -/
 def fwcoreCallMs : Nat := 10000
 
-/-- What `fw land` sets for its child processes (`LOAD_TOLERANT_ENV.FW_CORE_CALL_MS` in `land.ts`). -/
 def fwcoreLoadedCallMs : Nat := 60000
 
-/-- fwcore calls a holder makes inside the lock after gh returns or before it starts: reserve and observe. -/
 def holderCoreCalls : Nat := 2
 
-/-- Slack a dispatch keeps behind a holder that runs to its timeout: the reserve and the observe call, each at most `fwcoreCallMs`. -/
 def lockMarginMs : Nat := holderCoreCalls * fwcoreCallMs
 
 theorem lock_margin_derived : lockMarginMs = 20000 := by decide
 
-/-- With the loaded-environment fwcore timeout the margin would not fit beside the longest gh timeout, so that value
-must not reach the gh-budget calls (it is the console-api client's, `land.ts` sets it for child processes only). -/
 theorem loaded_core_margin_too_big : maxCallTimeoutMs + holderCoreCalls * fwcoreLoadedCallMs > dispatchLockWaitMs := by decide
 
-/-- Longest wait of the gh-budget poller for the state lock; past it the tick answers `busy`. -/
 def pollLockWaitMs : Nat := 10000
 
 /-- The poller sleeps this long after a `busy` or an idle tick, then asks again; `busy` never stops it. -/
