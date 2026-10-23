@@ -8,7 +8,7 @@
 ## CI runs
 | run | what | state |
 |---|---|---|
-| 39878812594 | chromium-counts, profile balance-repro, target original, runs 2 | done: counts r1, r2 green; classify fails by design (a probe records no counts) |
+| 39878812594 | chromium-counts, profile balance-repro, target original, runs 2 | failed (conclusion failure): counts r1, r2 green and carry the result; classify fails because probe rows have no frames field |
 
 ## Verified
 - MEASURED 39878812594 (r1 = r2): stock Chrome for Testing linux-arm64 156.0.8078.4, 156.0.8078.47, 157.0.8103.15 and
@@ -19,6 +19,7 @@
   `test/profile.test.mjs` 7/7; `scripts/ci-paths.test.mjs` 54/54 (after the Trigger.lean row edit); runner land-inputs 56/56.
 
 ## Open
+- Outside task writes: lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl, lean/scripts/ProfileGolden.lean, lean/scripts/check.sh, packages/measure-chromium/src/profile.mjs, packages/measure-chromium/test/profile.test.mjs.
 - Done: slot check.sh all green, measure-chromium 67/67, measure-webkit 402/402; main e5c3d523e merged; dry land
   `VERDICT dry chrome-balance-repro` needs `--allow lean/Fw/Ci/Trigger.lean` (the lean.yml row now lists the profile golden);
   review ready: `review`.

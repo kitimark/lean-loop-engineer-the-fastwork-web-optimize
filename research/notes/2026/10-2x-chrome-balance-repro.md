@@ -10,14 +10,15 @@ topics: [chromium, crash, text-wrap, measurement, profiles]
 # Stock Chrome crashes on the balanced people title
 
 Task `chrome-balance-repro`, a follow-up to `chromium-desktop-crash` (`10-2x-chromium-desktop-crash.md`). Run 39878812594,
-branch `ci/chrome-balance-repro` at 90bf4ab, jobs `counts (original, r1)` and `counts (original, r2)`, identical rows.
+branch `ci/chrome-balance-repro` at 90bf4ab, jobs `counts (original, r1)` and `counts (original, r2)`, identical rows. The run concludes failure only because classify cannot read probe rows (no frames field).
 
 ## Answer
 
 - MEASURED: stock Chrome crashes. Chrome for Testing linux-arm64 156.0.8078.4 (the lane build), 156.0.8078.47 (Stable),
   157.0.8103.15 (Beta) and 158.0.8118.0 (Canary) all die with SIGSEGV `SEGV_MAPERR` at 0x84. Each ran in new headless mode with no
   BeginFrameControl and no emulation. The minimal page below fails at 1280x800, and so does the original snapshot page. So real
-  desktop Chrome users with a window wider than 860 CSS px would crash on this page.
+  desktop Chrome users on Linux arm64 with a window wider than 860 CSS px would crash on this page; for other platforms see the
+  INFERRED bullet below.
 - INFERRED: the crash is not tied to arm64 or to headless. New headless is the real Chrome: "Headless mode shares code
   with Chrome" (https://developer.chrome.com/docs/chromium/headless, CONFIRMED doc). The faulting path is layout code that has
   no per-platform branches. Not run: headed Chrome, x86_64, macOS, Windows, and the live fastwork.com (only the snapshot ran).
