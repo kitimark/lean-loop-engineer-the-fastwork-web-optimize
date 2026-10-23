@@ -18127,6 +18127,33 @@
     "docs/team/handoffs/trajectory-first-coverage.md"
    ],
    "title": "hero-probe-original review follow-up: run 39926829451 is CLEAN only by open@1 sampling jitter (width 640: original 0/5, flag 0/5 -> origEmpty; 641: faithful 0/5 vs original 1/5). A coverage model for bucket 1 in Lean: from the frame cadence (17 ms) and the bucket width, the probability that a pass samples open@1, and from the pass count the chance an arm samples it in none of n passes; judge open@1 coverage by that model (a verdict that does not flip when the original lands one more sample), theorems + golden, JS twin checked; re-reduce hero:scene-pause raw of 39926829451 and 39557718020 offline and report; then the ledger row hero.scenePause can move (lead)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "smoothness-throttle-followups",
+   "owner": "measure-engineer",
+   "stream": "gate",
+   "deps": [
+    "smoothness-cpu-throttle"
+   ],
+   "writes": [
+    ".github/workflows/smoothness.yml",
+    "packages/gate-breakpoints/src/smooth/throttle.mjs",
+    "packages/gate-breakpoints/test/smooth-throttle.test.mjs",
+    "lean/Fw/Ci/Dispatch.lean",
+    "lean/Fw/Gate/SmoothThrottle.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Throttle*Golden.lean",
+    "packages/contracts/golden/gate/smooth-throttle.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/*.jsonl",
+    "docs/team/tools/smoothness-probe.md",
+    "docs/team/handoffs/smoothness-throttle-followups.md"
+   ],
+   "title": "smoothness-cpu-throttle review follow-ups: (1) smoothness.yml workflow_dispatch has no nonce input or run-name, so Fw.Ci.Dispatch (lean/Fw/Ci/Dispatch.lean:23 dispatchWorkflows) cannot identify a smoothness dispatch: add them and register the workflow in Lean; (2) two throttle allowlists disagree (throttle.mjs parseThrottle('06') = 6, the shell step refuses '06'): one rule in Lean with golden, the step calls the one parser; (3) docs/team/tools/smoothness-probe.md: document the cpu_throttle input, the [cpu-throttle=N] token and the own-line [trajectory ...] rule; (4) a 6x A/A spread rule needs more than 3 samples: state the sample count the Lean verdict needs at 6x (open item if more CI is needed)."
   }
  ],
  "deadline": {
