@@ -159,6 +159,78 @@ theorem problem_eq_none (w : Wire) : problem w = none ↔
 theorem userAgent_mobile : userAgent true = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36" := rfl
 theorem userAgent_desktop : userAgent false = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36" := rfl
 
+inductive Mode where
+  | counts
+  | load
+  deriving DecidableEq, Repr
+
+def Mode.name : Mode → String
+  | .counts => "counts"
+  | .load => "load"
+
+def Mode.kind : Mode → Kind
+  | .counts => .counts
+  | .load => .probe
+
+def runnable (k : Kind) (m : Mode) : Bool := decide (k = m.kind)
+
+theorem counts_refuses_probe : runnable .probe .counts = false := by decide
+theorem counts_runs_counts : runnable .counts .counts = true := by decide
+theorem load_runs_probe : runnable .probe .load = true := by decide
+theorem load_refuses_counts : runnable .counts .load = false := by decide
+
+def resolve (inProfiles inProbes : Bool) : Option Kind :=
+  match inProfiles, inProbes with
+  | true, false => some .counts
+  | false, true => some .probe
+  | _, _ => none
+
+def readOk (inProfiles inProbes : Bool) (declared : Kind) : Bool := resolve inProfiles inProbes == some declared
+
+theorem readOk_probe_in_probes : readOk false true .probe = true := by decide
+theorem readOk_counts_in_profiles : readOk true false .counts = true := by decide
+theorem readOk_refuses_probe_in_profiles : readOk true false .probe = false := by decide
+theorem readOk_refuses_counts_in_probes : readOk false true .counts = false := by decide
+theorem readOk_refuses_both (k : Kind) : readOk true true k = false := by cases k <;> decide
+theorem readOk_refuses_neither (k : Kind) : readOk false false k = false := by cases k <;> decide
+
+theorem readOk_iff (a b : Bool) (k : Kind) : readOk a b k = true ↔
+    (a = true ∧ b = false ∧ k = .counts) ∨ (a = false ∧ b = true ∧ k = .probe) := by
+  cases a <;> cases b <;> cases k <;> decide
+
+def cftPlatform : String → String → Option String
+  | "linux", "x64" => some "linux64"
+  | "linux", "arm64" => some "linux-arm64"
+  | "darwin", "arm64" => some "mac-arm64"
+  | "darwin", "x64" => some "mac-x64"
+  | "win32", "x64" => some "win64"
+  | _, _ => none
+
+def cftPlatforms : List String := ["linux64", "linux-arm64", "mac-arm64", "mac-x64", "win64"]
+
+def cftExe (plat : String) : String :=
+  if plat.startsWith "mac-" then s!"chrome-{plat}/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+  else if plat = "win64" then s!"chrome-{plat}/chrome.exe"
+  else s!"chrome-{plat}/chrome"
+
+def cftUrl (version plat : String) : String :=
+  s!"https://storage.googleapis.com/chrome-for-testing-public/{version}/{plat}/chrome-{plat}.zip"
+
+theorem cftPlatform_linux_x64 : cftPlatform "linux" "x64" = some "linux64" := rfl
+theorem cftPlatform_linux_arm64 : cftPlatform "linux" "arm64" = some "linux-arm64" := rfl
+theorem cftPlatform_darwin_arm64 : cftPlatform "darwin" "arm64" = some "mac-arm64" := rfl
+theorem cftPlatform_darwin_x64 : cftPlatform "darwin" "x64" = some "mac-x64" := rfl
+theorem cftPlatform_win32_x64 : cftPlatform "win32" "x64" = some "win64" := rfl
+theorem cftPlatform_win32_arm64 : cftPlatform "win32" "arm64" = none := rfl
+
+theorem cftPlatforms_nodup : cftPlatforms.Nodup := by decide
+
+theorem cftPlatform_listed (os arch p : String) (h : cftPlatform os arch = some p) : p ∈ cftPlatforms := by
+  unfold cftPlatform at h
+  split at h <;> simp_all [cftPlatforms]
+
+theorem cftExe_in_archive : ∀ p ∈ cftPlatforms, (cftExe p).startsWith s!"chrome-{p}/" = true := by decide +kernel
+
 private def keepCases : List (List String × List String) :=
   let a := ["--remote-debugging-port=9222", "--no-sandbox", "--disable-gpu", "--user-data-dir=/tmp/p", "--enable-begin-frame-control",
     "--run-all-compositor-stages-before-draw", "--font-render-hinting=none", "--lang=en-US", "about:blank"]
@@ -176,6 +248,9 @@ private def wireCases : List Wire :=
    ⟨.counts, false, none, [], 3⟩, ⟨.probe, false, none, ["--lang", "--disable-gpu"], 4⟩, ⟨.probe, false, none, ["--remote"], 0⟩,
    ⟨.probe, false, some "", [], 2⟩, ⟨.counts, true, some "", [], 0⟩, ⟨.probe, true, some "h2{color:red}", [], 0⟩]
 
+private def cftCases : List (String × String) :=
+  [("linux", "x64"), ("linux", "arm64"), ("darwin", "arm64"), ("darwin", "x64"), ("win32", "x64"), ("win32", "arm64"), ("freebsd", "x64"), ("linux", "ia32")]
+
 private def kindCases : List (Option String) := [none, some "counts", some "probe", some "Probe", some ""]
 
 def goldenLines (_ : Unit) : List String :=
@@ -185,6 +260,14 @@ def goldenLines (_ : Unit) : List String :=
      ("out", match parseKind k with | some x => Json.str x.name | none => Json.null)]).compress) ++
   (dropCases.map fun (d : String) => (Json.mkObj [("kind", "dropOk"), ("drop", Json.str d), ("ok", toJson (dropOk d))]).compress) ++
   (keepCases.map fun (a, ds) => (Json.mkObj [("kind", "keep"), ("args", toJson a), ("drops", toJson ds), ("out", toJson (keep a ds))]).compress) ++
+  ([Kind.counts, .probe].flatMap fun k => [Mode.counts, .load].map fun m => (Json.mkObj [("kind", "runnable"), ("profile", k.name), ("mode", m.name),
+     ("ok", toJson (runnable k m))]).compress) ++
+  ([false, true].flatMap fun a => [false, true].flatMap fun b => [Kind.counts, .probe].map fun k => (Json.mkObj [("kind", "readOk"),
+     ("inProfiles", toJson a), ("inProbes", toJson b), ("declared", k.name), ("ok", toJson (readOk a b k))]).compress) ++
+  (cftCases.map fun (os, arch) => (Json.mkObj [("kind", "cft"), ("os", os), ("arch", arch),
+     ("platform", match cftPlatform os arch with | some p => Json.str p | none => Json.null),
+     ("exe", match cftPlatform os arch with | some p => Json.str (cftExe p) | none => Json.null),
+     ("url", match cftPlatform os arch with | some p => Json.str (cftUrl "156.0.8078.47" p) | none => Json.null)]).compress) ++
   (wireCases.map fun w => (Json.mkObj [("kind", "wire"), ("wire", wireJson w),
      ("problem", match problem w with | some p => Json.str p.name | none => Json.null), ("dir", w.kind.dir), ("ua", userAgent w.mobile)]).compress)
 

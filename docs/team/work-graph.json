@@ -17530,7 +17530,8 @@
     "packages/measure-chromium/src/profile.mjs",
     "packages/measure-chromium/test/profile.test.mjs"
    ],
-   "title": "Follow-ups of chrome-balance-repro: stock Chrome 156/157/158 (CfT linux-arm64, new headless) crashes with SIGSEGV 0x84 on the original fastwork page at 1280 wide (text-wrap: balance on the people title holding an inline-grid o), run 39878812594. Measure whether real users on other platforms crash: one stock CfT linux64 (x86_64) row on a free ubuntu-latest runner, one headed run under xvfb, and stock Chrome on a free macos runner (and Windows if a free runner allows); record each MEASURED with run ids. Have the lane read probes/ and refuse kind probe in counts mode. Report to the lead at once if x86_64 or macOS crashes."
+   "title": "Follow-ups of chrome-balance-repro: stock Chrome 156/157/158 (CfT linux-arm64, new headless) crashes with SIGSEGV 0x84 on the original fastwork page at 1280 wide (text-wrap: balance on the people title holding an inline-grid o), run 39878812594. Measure whether real users on other platforms crash: one stock CfT linux64 (x86_64) row on a free ubuntu-latest runner, one headed run under xvfb, and stock Chrome on a free macos runner (and Windows if a free runner allows); record each MEASURED with run ids. Have the lane read probes/ and refuse kind probe in counts mode. Report to the lead at once if x86_64 or macOS crashes.",
+   "evidence": "6afbd85"
   },
   {
    "devices": [
