@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Console.LandSpeed
 
-/-!
-Selection and verdict of the `workflow-lint` land check (`actionlint` on the workflow files).
--/
 namespace Fw.Ci.WorkflowLint
 
 open Lean (Json)

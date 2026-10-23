@@ -197,7 +197,7 @@ land_lean() {  # elan from the pinned release (sha256 checked), then the toolcha
   (cd lean && lean --version && lake --version)
 }
 
-land_actionlint() {  # the pinned actionlint of land.yml (rhysd/actionlint v1.7.12, linux arm64: every land resource class is arm), sha256-checked
+land_actionlint() {
   mkdir -p "$HOME/.fw-node/bin"
   curl -fsSL -o "$fw/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz"
   echo "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6  $fw/actionlint.tgz" | sha256sum -c -
