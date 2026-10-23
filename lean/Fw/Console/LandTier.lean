@@ -428,8 +428,6 @@ def composeReads : List String :=
 
 def overflowWidthsId : String := "runner:overflow-widths"
 
-/-- The files the width planner `.github/scripts/gate-jobs.mjs` reads besides the workflow files and the scripts directory
-(`gate-jobs.mjs:27-62`). The one canonical list: `overflowWidthsReads` contains it and the TS land reads the golden. -/
 def plannerFiles : List String :=
   ["packages/contracts/golden/gate/schedule.jsonl", "packages/contracts/golden/gate/shards.jsonl", "apps/site/src/breakpoints.gen.json",
    "packages/gate-breakpoints/src/anchors.json"]
@@ -494,7 +492,6 @@ theorem workflow_selects_overflowWidths (changed : List String) (x : String) (r 
     simp [Fw.Ops.PathCheck.matchesPath, Fw.Ops.PathCheck.globMatch, Fw.Ops.PathCheck.segMatch, List.range_succ]
   simpa using Fw.Ops.PathCheck.matchesPath_append _ _ r h2
 
-/-- Each planner input file, taken alone, selects the width test. -/
 theorem plannerFiles_select : ∀ x ∈ plannerFiles, overflowWidthsId ∈ selectLocal [x] := by
   intro x hx
   refine selects_reader localTests [x] ⟨overflowWidthsId, overflowWidthsReads⟩ (by simp [localTests]) x (by simp) ?_

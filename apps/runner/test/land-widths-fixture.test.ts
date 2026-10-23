@@ -1,5 +1,3 @@
-// task overflow-widths-reads: the width check run for real on a 6-job path-pix fixture against a table row of 4, and every input of the
-// width planner selects `runner:overflow-widths` (the read set is the Lean golden, not a copy).
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -18,7 +16,6 @@ function fixture(jobs: number): string {
   writeFileSync(join(dir, ".github/workflows/path-pix.yml"), `name: path-pix\non: push\njobs:\n${Array.from({ length: jobs }, (_, i) => job(i + 1)).join("")}`);
   return dir;
 }
-/** the table parse of land-overflow-widths.test.ts, on a Lean text with one row */
 const rowOf = (lean: string, name: string) => new Map([...(/def widths[\s\S]*?\]\n/.exec(lean)![0]).matchAll(/\("([a-z0-9-]+)", (\d+)\)/g)].map((m) => [m[1]!, Number(m[2])])).get(name)!;
 const LEAN_ROW4 = `def widths : List (String × Nat) :=\n  [("path-pix", 4)]\n`;
 

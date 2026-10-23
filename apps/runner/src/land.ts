@@ -235,7 +235,6 @@ export const withScan = (cs: Check[]): Check[] =>
 
 export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
-/** The read set of `runner:overflow-widths`: the one list is Lean `overflowWidthsReads`, read here from its golden (not copied). */
 export const LAND_TIER_LOCAL_GOLDEN = "packages/contracts/golden/console/land-tier-local.jsonl";
 export function overflowWidthsReadsFromGolden(goldenPath = join(new URL(import.meta.url).pathname, "../../../../", LAND_TIER_LOCAL_GOLDEN)): string[] {
   const row = JSON.parse(readFileSync(goldenPath, "utf8").split("\n")[0]!) as { request: { tests: { id: string; reads: string[] }[] } };
