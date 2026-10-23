@@ -1,9 +1,9 @@
 // The ranked attribution of the lag probe: raw `fw.webkit.lag/1` sessions in, per region a counter ranking by a unit-free
 // ratio, a paint attribution to parts, the top steps, the filter layers and the layer census out, for both arms with the
 // arm difference decided on per-pass ranges. Every decision is reduce.mjs (twin of Fw.Measure.WebKitLag); this file joins
-// records to boxes and formats. Every number in the Markdown is generated here from the raw sessions.
 import { COUNT_TYPES, bucketBySteps } from '../reduce.mjs';
 import { MORPH_FRAMES, scanSteps } from './probe.mjs';
+import { phaseRanges } from './phase.mjs';
 import {
   Q, regionOf, regionLedger, stepArea, topPart, rollup, rankWindows, colRatio, colSum, frac, fracLt, verdict, topK,
   filterTotals, byKey, RARE_MIN, flagged, ratioVerdict,
@@ -66,7 +66,6 @@ export function scrollSteps(session, pass) {
   return pass.scroll.ys.map((y, k) => ({ y, boxes: g.scroll[nearest(y)].boxes, clips: clips[k] }));
 }
 
-/** Phases of a morph run: idle (the idle page tail), open (after the push down), close (after the push up), as step index ranges. */
 export const MORPH_PHASES = Object.freeze({
   idle: [0, MORPH_FRAMES.idle],
   open: [MORPH_FRAMES.idle, MORPH_FRAMES.idle + MORPH_FRAMES.open],
@@ -172,37 +171,37 @@ function analyzeScrollItems(items, arm) {
   return out;
 }
 
-/** Morph phases of one arm: the open and close phases against the scroll calm baseline and against the idle page tail. */
 function analyzeMorphItems(arm, scrollOf) {
-  const runs = withPart(arm, 'morph').flatMap((s, si) => s.passes.map((p, pi) => ({ s, p, tag: `s${si + 1}p${pi + 1}`, m: p.morph, rows: stepRows(p.morph), clips: clipsPerStep(p.morph, p.morph.before?.y ?? 0) })));
-  const out = { passes: runs.length, phases: {} };
+  const all = withPart(arm, 'morph').flatMap((s, si) => s.passes.map((p, pi) => ({ s, p, tag: `s${si + 1}p${pi + 1}`, m: p.morph, ph: phaseRanges(p.morph, MORPH_PHASES), rows: stepRows(p.morph), clips: clipsPerStep(p.morph, p.morph.before?.y ?? 0) })));
+  const runs = all.filter((r) => r.ph);
+  const out = { passes: runs.length, refused: all.length - runs.length, phases: {} };
+  const len = (r, ph) => r.ph[ph][1] - r.ph[ph][0];
   const fps = scrollOf.length ? scrollOf[0].fps : 2;
   const calm = runs.map((r) => scrollOf.find((it) => it.p === r.p)).map((it) => (it ? regionRows(it, 'calm') : []));
-  const slice = (r, ph) => r.rows.slice(...MORPH_PHASES[ph]);
-  const frameStep = (r, k) => ({ y: 0, boxes: r.s.geometry.morph.samples[k]?.boxes ?? [], clips: r.clips[k] ?? [] });
+  const slice = (r, ph) => r.rows.slice(...r.ph[ph]);
+  const frameStep = (r, phase, i) => ({ y: 0, boxes: r.s.geometry.morph.samples[MORPH_PHASES[phase][0] + i]?.boxes ?? [], clips: r.clips[r.ph[phase][0] + i] ?? [] });
   for (const phase of ['open', 'close']) {
     const wins = runs.map((r) => slice(r, phase)), idle = runs.map((r) => slice(r, 'idle'));
     const [a, b] = MORPH_PHASES[phase];
-    const ledgers = runs.map((r) => byKey(Array.from({ length: b - a }, (_, i) => frameStep(r, a + i)).flatMap(stepArea)));
-    const pool = runs.flatMap((r) => Array.from({ length: b - a }, (_, i) => ({ tag: r.tag, y: i, row: r.rows[a + i], part: topPart(frameStep(r, a + i)) })));
+    const ledgers = runs.map((r) => byKey(Array.from({ length: len(r, phase) }, (_, i) => frameStep(r, phase, i)).flatMap(stepArea)));
+    const pool = runs.flatMap((r) => Array.from({ length: len(r, phase) }, (_, i) => ({ tag: r.tag, y: i, row: r.rows[r.ph[phase][0] + i], part: topPart(frameStep(r, phase, i)) })));
     const active = runs.map((r) => {
       const g = r.s.geometry.morph, nav = (smp) => JSON.stringify(smp?.boxes.find((x) => x.name === 'nav')?.rect ?? null);
       return g.samples.slice(a, b).filter((smp) => nav(smp) !== nav(g.samples[0])).length;
     });
     const filt = runs.flatMap((r) => r.s.geometry.morph.samples.slice(a, b).map((smp) => filterTotals([0, 0, Math.round(r.m.info.vw * Q), Math.round(r.m.info.vh * Q)], smp.filters)));
     out.phases[phase] = {
-      frames: b - a, table: counterTable(wins, calm, 1, fps), tableIdle: counterTable(wins, idle, 1, 1), parts: partTable(ledgers), leaves: leafTable(ledgers),
+      frames: mean(runs.map((r) => len(r, phase))), table: counterTable(wins, calm, 1, fps), tableIdle: counterTable(wins, idle, 1, 1), parts: partTable(ledgers), leaves: leafTable(ledgers),
       top: topOf(pool), activeFrames: mean(active),
       filter: { count: mean(filt.map((f) => f.count)), area: mean(filt.map((f) => f.area)) / PX2, areaRadius: mean(filt.map((f) => f.areaRadius)) / PX2 },
     };
   }
-  // the idle page tail: what is repainted every frame while nothing moves
-  const idleLedgers = runs.map((r) => byKey(Array.from({ length: MORPH_FRAMES.idle }, (_, i) => frameStep(r, i)).flatMap(stepArea)));
+  const idleLedgers = runs.map((r) => byKey(Array.from({ length: len(r, 'idle') }, (_, i) => frameStep(r, 'idle', i)).flatMap(stepArea)));
   out.idle = {
-    frames: MORPH_FRAMES.idle,
+    frames: mean(runs.map((r) => len(r, 'idle'))),
     paintsPerFrame: runs.map((r) => mean(slice(r, 'idle').map((x) => x[PAINT]))),
     areaPerFrame: runs.map((r) => mean(slice(r, 'idle').map((x) => x[AREA]))),
-    parts: leafTable(idleLedgers.map((l) => l.map(([k, v]) => [k, v / MORPH_FRAMES.idle]))),
+    parts: leafTable(idleLedgers.map((l, i) => l.map(([k, v]) => [k, v / len(runs[i], 'idle')]))),
     rects: runs[0] ? [...new Set((runs[0].clips[1] ?? []).map((c) => `${((c[2] - c[0]) / Q).toFixed(1)}x${((c[3] - c[1]) / Q).toFixed(1)} at ${(c[0] / Q).toFixed(0)},${(c[1] / Q).toFixed(0)}`))] : [],
   };
   out.taken = runs.map((r) => r.m.taken);

@@ -18078,7 +18078,8 @@
     ".github/workflows/smoothness.yml",
     "packages/contracts/golden/measure/webkit-lag.jsonl"
    ],
-   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA."
+   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA.",
+   "evidence": "bae2431"
   },
   {
    "devices": [
@@ -18324,7 +18325,8 @@
     "lean/scripts/GpuElapsedGolden.lean",
     "packages/contracts/golden/measure/gpu-elapsed*.jsonl"
    ],
-   "title": "gpu-safari-mac follow-ups (user-gated: Mac unlocked): (1) people.carousel:crop against faithful on macOS Safari: its swap is timer-driven (220 ms in a 1020 ms cycle), so park the timers or pin the clock to capture a mid-swap frame; (2) a third hero.exit:threaded Mac session (the x0.5 size did not repeat: 20.8k then 5.2k px) and a Simulator hero row of this lane; (3) the Mac morph arms are inconclusive (A/A floor as large as the arm): a lower Mac floor or the Simulator rows; (4) Composite and render-server timing need a quiet Mac (Lean quiet rule refused 12 of 12) or Instruments; (5) move the lane to packages/measure-webkit. Review follow-ups from gpu-safari-mac: (6) commit the repeat-session reductions (mac-hero-exit-threaded.repeat.json, mac-morph-panel-threaded*.repeat.json); (7) results/gpu-safari/lane/lane.test.mjs: replace the any-of run-kind check (gate || trajectory || webkitSim) with a per-arm table of expected run kinds; (8) Lean GpuElapsed: prove elapsed_largest (every grid time after elapsedMilli passes m) or reword the note to 'the last grid time before ease passes m'; (9) explain the bundled vs threaded pixel difference at m0.5/m0.75 in the Simulator (style equal, hashes differ)."
+   "title": "gpu-safari-mac follow-ups (user-gated: Mac unlocked): (1) people.carousel:crop against faithful on macOS Safari: its swap is timer-driven (220 ms in a 1020 ms cycle), so park the timers or pin the clock to capture a mid-swap frame; (2) a third hero.exit:threaded Mac session (the x0.5 size did not repeat: 20.8k then 5.2k px) and a Simulator hero row of this lane; (3) the Mac morph arms are inconclusive (A/A floor as large as the arm): a lower Mac floor or the Simulator rows; (4) Composite and render-server timing need a quiet Mac (Lean quiet rule refused 12 of 12) or Instruments; (5) move the lane to packages/measure-webkit. Review follow-ups from gpu-safari-mac: (6) commit the repeat-session reductions (mac-hero-exit-threaded.repeat.json, mac-morph-panel-threaded*.repeat.json); (7) results/gpu-safari/lane/lane.test.mjs: replace the any-of run-kind check (gate || trajectory || webkitSim) with a per-arm table of expected run kinds; (8) Lean GpuElapsed: prove elapsed_largest (every grid time after elapsedMilli passes m) or reword the note to 'the last grid time before ease passes m'; (9) explain the bundled vs threaded pixel difference at m0.5/m0.75 in the Simulator (style equal, hashes differ).",
+   "evidence": "aef2239"
   },
   {
    "devices": [
@@ -18391,7 +18393,10 @@
     "packages/contracts/golden/gate/path-pix.jsonl",
     "research/notes/2026/10-2x-hero-copy-floor.md",
     "docs/team/handoffs/hero-copy-floor-sources.md",
-    "packages/measure-webkit/src/pathpix-exit-report.mjs"
+    "packages/measure-webkit/src/pathpix-exit-report.mjs",
+    ".github/workflows/path-pix.yml",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ],
    "title": "pathpix-accent-pin closed as a finding (round 1 refused): pinning the accent word does not bring the hero_copy A/A floor to 0 (runs 39943789128, 39947605395); the floor has other sources. Find and pin each so the hero exit's look review can be judged: (1) Chromium: the countdown seconds digit (hero.countdown) needs a capture pin or a page clock hook; (2) WebKit y 0: 48 px at delta 1 inside the hero_copy mask in the button area, all 4 jobs: find the element (read WebKit source for the cause, e.g. focus ring, caret, text AA) and pin or mask it with a Lean-stated reason; (3) WebKit y 812/813 avatar art noise inside the hero_copy mask (192503 px at delta 20 in webkit-2): find why the hero_copy mask covers avatar art there and fix the mask or the zone; (4) replace the capture-side accent DOM swap (React re-creates the node, arm A at y 855) with a site-side hook that is inert when unset (the faithful page must behave the same when unset: test it); (5) one path-pix exit run with >= 3 jobs per engine; report every hero_copy offset per job and re-grade the P cells (state whether L comes from the floor or from strips not accepted). Also from pathpix-accent-pin (final design round, Fable advice): (6) the note's hero_copy tables and counts are generated from the run's cells.json and manifests by the committed pathpix-exit-report.mjs (engineTable has a per-consumer, per-offset, per-lane table: add a hero_copy per-job filter and a test); no hand-typed number in the note; (7) pass the A/A floor's rows into gradePinned so an A2-only-unpinned P cell is invalid (Lean theorem + golden); (8) a validity rule for a row whose scrollY differs from its offset (Lean + golden)."
   },
@@ -18622,9 +18627,14 @@
     "apps/runner/src/land*.ts",
     "apps/runner/test/land*.test.ts",
     "apps/runner/test/polish*.test.ts",
-    "docs/team/handoffs/timing-module-count-followups.md"
+    "docs/team/handoffs/timing-module-count-followups.md",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "lean/scripts/TimingGolden.lean",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts"
    ],
-   "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test."
+   "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test. (3) 2026-10-23 alert timing.slow 'fw/land dry lake': a 51 s sample (commit ffb7792) without a lake field, written by a worktree on pre-key fw code, was judged against the unkeyed baseline; once a step has keyed samples, an unkeyed sample gets no verdict (Lean rule in Fw.Obs.Timing with golden), and the alert closes."
   },
   {
    "devices": [
