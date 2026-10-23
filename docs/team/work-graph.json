@@ -17206,7 +17206,8 @@
     "docs/team/tools/land.md",
     "docs/team/handoffs/land-exit-cli.md"
    ],
-   "title": "Review follow-ups of land-wt-lock-drift: (1) fw-main.ts:169-172 exits early on `dry && res.kind === \"install\"` before dryRun, so a failed dry install prints only REFUSED and VERDICT install, not the stage lines land.md promises; delete that branch so the generic dry branch prints dryRun from outcome({installs:false}); (2) fw-main.ts:181-183 maps the real-land exit inline; use `process.exitCode = landExit(res)` (landExit is exported from land.ts and tested); (3) checkoutLandWt runs `git clean -fdxq -e .lake -e node_modules` twice for a reused worktree; drop the trailing one on that path. Test the CLI exit and the dry stage lines."
+   "title": "Review follow-ups of land-wt-lock-drift: (1) fw-main.ts:169-172 exits early on `dry && res.kind === \"install\"` before dryRun, so a failed dry install prints only REFUSED and VERDICT install, not the stage lines land.md promises; delete that branch so the generic dry branch prints dryRun from outcome({installs:false}); (2) fw-main.ts:181-183 maps the real-land exit inline; use `process.exitCode = landExit(res)` (landExit is exported from land.ts and tested); (3) checkoutLandWt runs `git clean -fdxq -e .lake -e node_modules` twice for a reused worktree; drop the trailing one on that path. Test the CLI exit and the dry stage lines.",
+   "evidence": "c409fb4"
   },
   {
    "devices": [
