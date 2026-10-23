@@ -47,11 +47,6 @@ export const FIND_JS = (maxY) => `(async () => {
 })()`;
 const us = (s) => Math.round(s * 1e6);
 
-/**
- * The fixed-length diagnostic watch: which DOM writes (grouped by the nearest data-fw owner) and which running animations
- * exist while the page lays out on its own. It only counts mutations per bucket (no style or layout read per frame); the
- * animation list is read before it starts and after it ends.
- */
 export const DIAG_JS = (durationMs, bucketMs) => `(async () => {
   const B = ${bucketMs}, n = Math.ceil(${durationMs} / B);
   const owner = (node) => {
@@ -90,7 +85,6 @@ export const DIAG_JS = (durationMs, bucketMs) => `(async () => {
   return { buckets: n, bucketMs: B, owners, before, after: anims() };
 })()`;
 
-/** Timeline rows of one type per bucket of `bucketMs` from `beginS` (page mark, seconds) over `n` buckets. */
 export function bucketRows(rows, type, beginS, bucketMs, n) {
   const out = new Array(n).fill(0);
   for (const r of rows) {
@@ -125,7 +119,6 @@ export async function diagCapture(ctx, arm, { clock, settleMs }) {
 
 let passNo = 0;
 
-/** Which CI job took a sample (default GitHub variables, VM = the matrix cell; FW_JOB_ID = the numeric job id when the workflow passes it). */
 export const jobMeta = (env = process.env) => ({
   run: env.GITHUB_RUN_ID ?? null, attempt: env.GITHUB_RUN_ATTEMPT ?? null, job: env.GITHUB_JOB ?? null, vm: env.VM ?? null,
   jobId: env.FW_JOB_ID ?? null, sha: env.GITHUB_SHA ?? null,

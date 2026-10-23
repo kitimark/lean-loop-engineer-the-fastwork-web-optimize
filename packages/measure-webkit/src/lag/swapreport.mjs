@@ -7,14 +7,12 @@ export function countOf(cap, k, p, ty) {
   return cap.cells.find((x) => x[0] === p && x[1] === ty)?.[2] ?? null;
 }
 
-/** Background of swap window k in one capture: the Layout rows of the rest windows next to it (Lean `bgOf`). */
 export function bgOfCapture(cap, k, periods = PERIODS) {
   if (!cap) return 'unknown';
   const ns = swapNeighbours(k, periods).map((j) => countOf(cap, j, `rest:${j}`, 'Layout')).filter((n) => typeof n === 'number');
   return bgOf(ns);
 }
 
-/** The id of the CI job and pass that took a sample, as one string. */
 export const jobKey = (pass) => {
   const j = pass.job;
   if (!j) return 'unknown';
@@ -23,10 +21,6 @@ export const jobKey = (pass) => {
 
 const SLOTS = [['faithful-a', 'a1'], ['faithful-b', 'a2'], ['crop-a', 'crop'], ['crop-b', 'crop']];
 
-/**
- * One cell per (window, kind). `only` keeps the samples whose background state is that one ('idle' or 'busy'), so the
- * cell still compares like with like and is decided on its own. Every sample carries its job and background.
- */
 export function cellsOf(passes, periods = PERIODS, only = null) {
   const out = [];
   for (const phase of ['swap', 'rest']) {
@@ -59,13 +53,8 @@ export function cellsOf(passes, periods = PERIODS, only = null) {
   return out;
 }
 
-/** Diagnostic captures as rows of the same list (kind Diag), so the report file holds them. */
 export const diagRows = (passes) => passes.filter((s) => s.diag).map((s) => ({ phase: 'diag', kind: 'Diag', job: jobKey(s), ...s.diag }));
 
-/**
- * The list the report file holds (the CLI writes it as it is): every cell (bg all), then the Layout and Paint cells of the idle-
- * and of the busy-background samples, then the diagnostic rows. `only` names one background and gives just those cells.
- */
 export const windowCells = (passes, periods = PERIODS, only = null) =>
   only ? cellsOf(passes, periods, only) : [...cellsOf(passes, periods), ...cellsOf(passes, periods, 'idle'), ...cellsOf(passes, periods, 'busy'), ...diagRows(passes)];
 

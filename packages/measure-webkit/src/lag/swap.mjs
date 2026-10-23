@@ -53,7 +53,6 @@ export function cell(a1, a2, c, dropped) {
 
 export const FRAMES_60 = CONST.frames60;
 
-/** Lean `bgOf`: what the rest windows next to a swap window say about work that is not the carousel. */
 export function bgOf(ns) {
   if (ns.length === 0) return 'unknown';
   if (ns.every((n) => BUSY_MIN <= n)) return 'busy';
@@ -61,5 +60,4 @@ export function bgOf(ns) {
   return 'mixed';
 }
 
-/** Lean `swapNeighbours`: the rest windows before and after swap window k of n. */
 export const swapNeighbours = (k, n) => [...(k > 0 ? [k - 1] : []), ...(k + 1 < n ? [k] : [])];

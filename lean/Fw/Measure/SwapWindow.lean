@@ -370,7 +370,6 @@ def Cell.name : Cell → String
 
 def asRat (xs : List Int) : List Rat := xs.map fun x => Int.cast x
 
-/-- Fewest samples a faithful slot needs before its range counts as a floor: one or two replays gave false wins. -/
 def minFaithful : Nat := 3
 
 def cell (a1 a2 c : List Int) (dropped : Nat) : Cell :=
@@ -398,7 +397,6 @@ theorem cell_fewSamples_a2 (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 :
     (hn : a2.length < minFaithful) : cell a1 a2 c d = .unresolved .fewSamples := by
   simp [cell, h1, h2, h3, hn]
 
-/-- Two faithful samples in a slot never decide a cell, win or loss. -/
 theorem cell_two_samples_undecided (a1 a2 c : List Int) (d : Nat) (h1 : a1.length = 2) (h2 : a2 ≠ []) (h3 : c ≠ []) :
     cell a1 a2 c d ≠ .win ∧ cell a1 a2 c d ≠ .loss := by
   have h1' : a1 ≠ [] := by intro h; simp [h] at h1
@@ -432,17 +430,14 @@ theorem cell_overlap (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 �
     (ht : sepBelow (asRat (a1 ++ a2)) (asRat c) = false) : cell a1 a2 c d = .unresolved .overlap := by
   simp [cell, h1, h2, h3, hf, verdict_overlap hs ht, Nat.not_lt.mpr hn1, Nat.not_lt.mpr hn2]
 
-/-- Frames of one rest window at 60 Hz. -/
 def restFrames60 : Nat := Int.toNat (restUs * 60 / 1000000)
 
 theorem restFrames60_eq : restFrames60 = 48 := by decide
 
-/-- A rest window with at least this many Layout rows (half its frames) had something laying out on most frames. -/
 def busyMin : Nat := restFrames60 / 2
 
 theorem busyMin_eq : busyMin = 24 := by decide
 
-/-- What the rest windows next to a swap window say about work that is not the carousel (measured: Layout in a rest window is 5 or 40 to 50). -/
 inductive Bg where
   | idle
   | busy
@@ -499,13 +494,10 @@ theorem bgOf_mixed (ns : List Nat) (a b : Nat) (ha : a ∈ ns) (hb : b ∈ ns) (
       simp at this; omega
   simp [bgOf, h1, h2, h3]
 
-/-- The measured idle floor of a rest window (5 rows) reads idle. -/
 theorem bgOf_floor : bgOf [5, 5] = .idle := by decide
 
-/-- A rest window with a Layout row on every frame reads busy. -/
 theorem bgOf_full : bgOf [restFrames60, restFrames60] = .busy := by decide
 
-/-- Indices of the rest windows that touch swap window `k` of `n`: the one before it and the one after it. -/
 def swapNeighbours (k n : Nat) : List Nat := (if 0 < k then [k - 1] else []) ++ (if k + 1 < n then [k] else [])
 
 theorem swapNeighbours_first (n : Nat) (h : 1 < n) : swapNeighbours 0 n = [0] := by
@@ -557,7 +549,6 @@ private def bgCases : List (List Nat) :=
 
 private def nbCases : List (Nat × Nat) := [(0, 8), (1, 8), (6, 8), (7, 8), (0, 1), (0, 2), (1, 2)]
 
-/-- The golden lines in two constants, so each stays under the init-cost bound (`Fw.Lint.InitCost.bound`). -/
 private def goldenLinesA : List String :=
   [(Json.mkObj [("kind", "swapConst"), ("restUs", restUs), ("swapUs", swapUs), ("periodUs", periodUs), ("periods", periods),
     ("tolUs", tolUs), ("deadlineUs", deadlineUs periods), ("frames60", windowFrames60),

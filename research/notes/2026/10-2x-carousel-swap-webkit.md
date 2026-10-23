@@ -11,8 +11,7 @@ topics: [webkit, carousel, swap-window, measure]
 
 Question: inside the swap windows of the people carousel (5 avatars on, 4 off), does the crop arm (`?fw=people.carousel:crop`)
 show fewer Layout, Paint, Composite and RecalculateStyles Timeline rows than the faithful arm, beyond the A/A floor of the same
-passes (faithful-a and faithful-b are captured in each pass)? Second report of the lane, after the follow-ups of task
-`carousel-swap-followups`: a cause for the every-third-window Layout/Paint pattern, a minimum-n reason, and one run of 3 jobs.
+passes (faithful-a and faithful-b are captured in each pass)? Task `carousel-swap-followups` adds a cause for the every-third-window Layout/Paint pattern, a minimum-n reason, and one run of 3 jobs.
 
 ## Design
 
@@ -20,7 +19,7 @@ passes (faithful-a and faithful-b are captured in each pass)? Second report of t
   `lean/Fw/Measure/SwapWindow.lean` (golden `packages/contracts/golden/measure/wkcost.jsonl`, TS twin
   `packages/measure-webkit/src/lag/swap.mjs`). Windows: swap k < 8, rest k < 7 (the control). A (window, kind) cell is decided on its
   own, never pooled: win, loss, or unresolved with a reason (overlap, drift, noSamples, floorBroken, fewSamples).
-- New in this task. `unresolved:fewSamples`: a faithful slot has fewer than `minFaithful` = 3 samples (theorems `cell_fewSamples_a1`,
+- `unresolved:fewSamples`: a faithful slot has fewer than `minFaithful` = 3 samples (theorems `cell_fewSamples_a1`,
   `cell_fewSamples_a2`, `cell_two_samples_undecided`; golden kind `swapCell`). Background state of a swap window (`bgOf`: idle,
   busy, mixed, unknown) from the Layout rows of the two rest windows next to it (`swapNeighbours`), busy from `busyMin` = 24 rows
   (golden kinds `swapBg`, `swapNeighbours`). The by-background tables and the report code are TS stand-ins (medians, tables).
@@ -44,7 +43,7 @@ passes no `FW_JOB_ID`), so the table above maps vm to job id from `gh run view`.
 
 History, not counted: 39968418529 (793f38e48) started no workflow, the head commit had the swap token but no `[ci:<lane>]` token;
 39968644601 (6f09b8c45) ran r1 and r2 to success and r3 was cancelled at the job limit (58 min) after a late start (queued 37 min), so
-it had 2 jobs; the earlier note pooled other runs at other commits, superseded by this one.
+it had 2 jobs.
 Report: `results/carousel-swap-webkit/people-carousel-crop.md` and `.json`.
 
 ## Result (this run alone, per window and kind)

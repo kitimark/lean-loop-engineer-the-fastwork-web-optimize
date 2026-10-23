@@ -186,7 +186,6 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
     if (cost || costOnly) {
       costs = {};
       try {
-        // the swap lane runs first: a later cost step that loses the inspector (layersScroll) must not take the swap samples with it
         if (swap) {
           const home = swap.home;
           costs.swap = await swapPass(ctx, {
