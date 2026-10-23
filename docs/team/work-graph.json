@@ -18820,7 +18820,8 @@
     "packages/contracts/golden/plan/polish*.jsonl",
     "docs/team/handoffs/polish-protected-from-settings.md"
    ],
-   "title": "build-review-worktree-path review follow-ups (2026-10-24): (1) protectedDirs/protectedFiles in Fw.Plan.Polish are copied by hand from the .claude/settings.json Edit ask rules: add a test that parses every Edit(...) ask and deny rule in settings.json and checks protectedPath or skipRoots covers it (one canonical source), and make skipped call polishable; (2) confirm from the Claude Code permission docs whether the main checkout's Edit(/.claude/**) ask rule also matches files under .claude/worktrees/<wt>/ (worktree files are edited without prompts so far: INFERRED not matched); cite the doc."
+   "title": "build-review-worktree-path review follow-ups (2026-10-24): (1) protectedDirs/protectedFiles in Fw.Plan.Polish are copied by hand from the .claude/settings.json Edit ask rules: add a test that parses every Edit(...) ask and deny rule in settings.json and checks protectedPath or skipRoots covers it (one canonical source), and make skipped call polishable; (2) confirm from the Claude Code permission docs whether the main checkout's Edit(/.claude/**) ask rule also matches files under .claude/worktrees/<wt>/ (worktree files are edited without prompts so far: INFERRED not matched); cite the doc.",
+   "evidence": "e57f8d2"
   },
   {
    "devices": [
