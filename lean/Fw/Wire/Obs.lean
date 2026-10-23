@@ -1004,8 +1004,6 @@ def waitsOf (j : Json) : Except String (List (Fw.Sup.Adapt.WhyTag × Nat)) := do
   let es ← (← arrD j "waits").mapM (fun e => do pure (← str e "why", ← nat e "ms"))
   pure (es.filterMap (fun (n, ms) => (Fw.Sup.Adapt.WhyTag.ofName? n).map (·, ms)))
 
-/-- The own time of a span from its raw `startMs`, `durMs` and `phases` (`how`, `updMs`): `Fw.Obs.Timing.ownOfPhases`.
-A span without `phases`, or with a malformed `how` or `updMs`, has none. -/
 def ownOfJson (j : Json) : Except String (Option Nat) := do
   let start ← natD j "startMs" 0
   let dur ← nat j "durMs"
@@ -1017,7 +1015,6 @@ def ownOfJson (j : Json) : Except String (Option Nat) := do
         | _ => ""
       Fw.Obs.Timing.ownOfPhases start dur how ((opt ph "updMs").bind fun v => (v.getNat?).toOption)
 
-/-- Decode a sample (`load` default 0). -/
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
@@ -1054,14 +1051,10 @@ def opTiming (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   pure [("verdicts", .arr ((Fw.Obs.Timing.verdictsOf p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
 
-/-- The line of an alert: the sample verdict that raised it, named by its host, start time and commit (the index in the
-window shifts with every poll). -/
 def alertLine (ss : List Fw.Obs.Timing.Sample) (v : Fw.Obs.Timing.SampleVerdict) : String :=
   let s := ss[v.idx]?
   v.detailWith s!"{hostStr v.host} sample (startMs {s.map (·.startMs) |>.getD 0}, commit {s.map (·.commit) |>.getD ""})"
 
-/-- The detail of an alert subject: the line of the last alert verdict of that subject (the alert's full key, not the
-latest slow verdict sharing the subject text on another host). -/
 def detailOf (ss : List Fw.Obs.Timing.Sample) (vs : List Fw.Obs.Timing.Verdict) (s : String) : String :=
   match ((Fw.Obs.Next.alertsFrom [] vs).filter fun v => Fw.Obs.Next.stepName v == s).getLast? with
   | some v => alertLine ss v

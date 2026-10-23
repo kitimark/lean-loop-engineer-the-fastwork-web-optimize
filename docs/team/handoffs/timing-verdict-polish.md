@@ -3,7 +3,7 @@ worktree: .claude/worktrees/wf_789d4038-d56-1
 last commit: see `git log -1` (code commit 79b5478c6, then the handoff)
 CI runs: none (accepted limit: no CI run for this task)
 verified: lean/scripts/check.sh, `@fw/runner` test, `@fw/contracts` test, ci-paths test, plan lint (results in the report)
-open: none recorded here; the report lists writes outside the graph (none expected)
+open: none; the report lists writes outside the graph (none expected)
 
 What changed
 - (1) `Fw.Obs.Timing.ownOfPhases` (+ theorems `ownOfPhases_some`, `_not_done`, `_no_upd`, `_after_end`, #guards). `Fw.Wire.Obs.Timing.ownOfJson`

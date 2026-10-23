@@ -51,9 +51,6 @@ export function lakeWork(lake: unknown): { work?: Record<string, string> } {
   return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { work: { mods: String(modsLow(b)) } } : {};
 }
 
-/** The raw facts of a span Lean decodes (`Fw.Wire.Obs.Timing.sampleOf`): `startMs`, `commit` and, of a `fw ci wait`
- *  span, `phases` (`how`, `updMs`). Lean decides the own time (`Fw.Obs.Timing.ownOfPhases`); this only forwards
- *  well-formed numbers, so one bad line cannot make fwcore refuse the whole request. */
 export function rawOf(o: unknown): { startMs?: number; commit?: string; phases?: { how: string; updMs: number } } {
   const s = o as { startMs?: unknown; commit?: unknown; phases?: { how?: unknown; updMs?: unknown } | null } | null | undefined;
   const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
@@ -65,7 +62,6 @@ export function rawOf(o: unknown): { startMs?: number; commit?: string; phases?:
   };
 }
 
-/** Lean `Fw.Obs.Timing.builtLine`. */
 export function builtLine(l: string): boolean {
   const parts = l.split("] Built ");
   if (parts.length !== 2) return false;

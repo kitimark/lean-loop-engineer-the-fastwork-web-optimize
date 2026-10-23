@@ -142,7 +142,6 @@ async function stagedCmds(dir: string, git: (cwd: string, args: string[]) => str
   } catch { return null; }
 }
 
-/** The `checks` member of a commit that keeps nothing: no command ran, so its work class is `light`. */
 export const NO_CHECKS: Checks = { n: 0, kinds: [] };
 
 const checksOf = (cmds: StagedCmd[]): Checks =>
@@ -154,9 +153,6 @@ export async function stagedChecks(dir: string, git: (cwd: string, args: string[
   return cmds ? checksOf(cmds) : null;
 }
 
-/** The `checks` (and `lake`) members of the `fw polish commit` span. Null when fwcore gives no command list: the span is
- *  then written unkeyed on purpose, and once the step has keyed spans Lean (`unkeyedLate`) gives it no verdict, since its
- *  work class is unknown. A commit that keeps nothing is keyed `checks = light` by the caller (it runs no check). */
 export async function stagedSpan(dir: string, git: (cwd: string, args: string[]) => string, call: CoreCall,
   run: (cwd: string, argv: string[]) => string | null): Promise<{ checks: Checks; lake?: { built: number } } | null> {
   const cmds = await stagedCmds(dir, git, call);

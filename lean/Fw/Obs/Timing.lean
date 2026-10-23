@@ -42,12 +42,6 @@ Definitions (all durations in whole ms, `Nat`):
 Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `land_budget_alert`,
 `no_alert_within_budget`, `no_alert_within_budget_list`, `slow_mono_dur`, `slow_mono_window`, `no_self_mask`,
 `site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
-`ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
-`lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
-`judgeQ0_same_work`, `judgeQ_other_work`, `judgeQ_other_mods`, `judgeQ_unbuilt`, `unkeyed_late_no_slow`, `unkeyedLate_iff`, `judgeQ_no_keyed_history`,
-`slow_not_unkeyed_late`, `remoteQueue_never_slow`, `ciWait_never_slow`, `verdictsOf_ciWait_not_slow`, `ownOfPhases_some`, `ciWait_dur_indep`, `verdictsOf_remoteQueue_not_slow`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
-`le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
-`calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 -/
 namespace Fw.Obs.Timing
 
@@ -98,9 +92,6 @@ def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
 
-/-- The own time of a `fw ci wait` span: the span end (`startMs + durMs`) minus the remote run's `updatedAt`
-(`phases.updMs`), only when the wait ended `done` and the run did not end after the span. Anything else has no own
-time, so `norm` skips the sample and it gets no verdict. -/
 def ownOfPhases (startMs durMs : Nat) (how : String) (updMs : Option Nat) : Option Nat :=
   match updMs with
   | some u => if how == "done" && u ≤ startMs + durMs then some (startMs + durMs - u) else none
@@ -544,10 +535,6 @@ def Sample.sameStep (s t : Sample) : Bool :=
 
 def Sample.unkeyed (s : Sample) : Bool := !(s.work.any fun kv => kv.1 == checksDim || kv.1 == modsDim)
 
-/-- A sample with no `checks` or `mods` work class that follows a full keyed sample of the same step. The only writers
-of unkeyed `fw polish commit` spans are a commit whose fwcore gave no command list and spans written before the
-`checks` member existed; a commit that keeps nothing is keyed `checks = light`. Such a sample gets no verdict, being of
-unknown work. -/
 def unkeyedLate (hist : List Sample) (s : Sample) : Bool :=
   s.unkeyed && hist.any (fun t => t.full && !t.unkeyed && s.sameStep t)
 
@@ -1997,9 +1984,6 @@ theorem verdictsOf_remoteQueue_not_slow (p : Params) (ss : List Sample) (v : Sam
   rw [judgeQ_step] at hs
   exact remoteQueue_never_slow p _ i ss[i] (by simpa [Sample.remoteQueue, Sample.norm] using And.intro ht hs)
 
-/-- **No slow verdict from a ci wait within budget, whole output.** If every `fw ci wait` sample of the history that has
-an own time has it within its budget, no `fw`/`ci wait` sample verdict of `verdictsOf` is `slow`; a wait without own time
-is skipped by `norm` and has no verdict at all. -/
 theorem verdictsOf_ciWait_not_slow (p : Params) (ss : List Sample)
     (hb : ∀ s ∈ ss, s.ciWait = true → ∀ o, s.ownMs = some o → o ≤ budgetFor p s)
     (v : SampleVerdict) (h : Verdict.sample v ∈ verdictsOf p ss) (ht : v.tool = "fw") (hs : v.step = "ci wait") :
@@ -2017,7 +2001,6 @@ theorem verdictsOf_ciWait_not_slow (p : Params) (ss : List Sample)
     | none => exact absurd hf (by rw [ciWait_unknown_not_full _ hc hm]; simp)
   exact ciWait_never_slow p _ i ss[i] hc o ho (hb _ (List.getElem_mem hi') hc o ho)
 
-/-- The line of a sample verdict, naming the sample by `label`. -/
 def SampleVerdict.detailWith (label : String) (v : SampleVerdict) : String :=
   let own := if ({ tool := v.tool, step := v.step, durMs := 0, host := v.host } : Sample).remote
     then " (our own time: the remote run's wait is not counted)" else ""
@@ -2454,7 +2437,6 @@ def ciWaitData : List (Nat × Nat × Nat) :=
 
 #guard ciWaitData.all fun (d, o, _) => o ≤ d
 
-/-- The `fw ci wait` samples of the 2026-10-23 numbers; the golden encodes each own time as `updMs = startMs + durMs - ownMs`. -/
 def ciWaitRun : List Sample :=
   ciWaitData.map fun (d, o, l) =>
     { tool := "fw", step := "ci wait", durMs := d, host := .«local», load := l, exit := some 0, ownMs := some o,
