@@ -1,6 +1,6 @@
 branch: worktree-wf_4e3726a1-e6b-1
-worktree: .claude/worktrees/wf_4e3726a1-e6b-1 (under the repo root)
-last commit: see `git log -1` (final commit of this task); CI runs: none (accepted limit: no CI run)
+worktree: .claude/worktrees/wf_4e3726a1-e6b-1
+last commit: see `git log -1`; CI runs: none (accepted limit: no CI run)
 
 # checkmap-workflow-widths-local
 
@@ -22,5 +22,5 @@ Lean overflow table; a Lean change also selects it (fwcore binary read) and was 
 
 Open / follow-up: the stand-in failure text in the dry-land test is not the real test run (the real test is run by the land); a
 dynamic-matrix bound elsewhere (new planner script outside `.github/scripts/**`, `packages/gate-breakpoints/src/trajectory/**`) must be added to `overflowWidthsReads` (Lean) and `OVERFLOW_WIDTHS_READS` (TS).
-Writes outside the task graph writes: LandTier.lean, land-tier-local.jsonl, land.ts, land-dry/land-tier/land-scope tests, ledger.json, land.md.
+Writes: LandTier.lean, land-tier-local.jsonl, land.ts, land-dry/land-tier/land-scope tests, ledger.json, land.md.
 Read first: `lean/Fw/Console/LandTier.lean` section "Local tests".

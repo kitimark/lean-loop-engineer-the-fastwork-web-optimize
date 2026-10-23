@@ -235,7 +235,6 @@ export const withScan = (cs: Check[]): Check[] =>
 
 export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
-// Lean LandTier.overflowWidthsReads (golden land-tier-local.jsonl): a workflow change must run the width test locally (incident 2026-10-24).
 export const OVERFLOW_WIDTHS_READS = [".github/workflows/**", ".github/scripts/**", "packages/gate-breakpoints/src/trajectory/**", "packages/visual-diff/src/shards.mjs",
   "lean/Fw/Ci/Overflow.lean", "lean/land-legs.txt", "apps/runner/test/land-overflow-widths.test.ts", "apps/runner/test/workflow-widths.ts",
   "apps/runner/src/run.ts", "lean/.lake/build/bin/fwcore"];

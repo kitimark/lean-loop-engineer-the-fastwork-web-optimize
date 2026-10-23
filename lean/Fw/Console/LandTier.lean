@@ -115,7 +115,6 @@ def fwcoreUsers : List String :=
    "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit",
    "packages/measure-wktr", "console-api:compose", "runner:overflow-widths"]
 
-/-- Does the check run the `fwcore` binary? -/
 def isCoreUser (id : String) : Bool := fwcoreUsers.contains id
 
 /-- One step of the local plan: the `fwcore` build, or a check by id. -/
@@ -427,14 +426,8 @@ def composeReads : List String :=
   ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
    "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", Fw.Console.LandSpeed.fwcoreBin]
 
-/-- The local check that holds the CI overflow width table (`Fw.Ci.Overflow.widths`) to the workflow files: the one test file
-`apps/runner/test/land-overflow-widths.test.ts`. Incident 2026-10-24, task checkmap-workflow-widths-local: a change to
-`.github/workflows/path-pix.yml` (3 sim + 3 chromium jobs) passed the dry land and failed the remote land tier, because no
-local check read a workflow file for its width. -/
 def overflowWidthsId : String := "runner:overflow-widths"
 
-/-- What that test reads: every workflow file, the scripts and planners it runs to bound a dynamic matrix, the Lean table, the leg
-list, its two source files, and the `fwcore` binary (it asks `fwcore` for the table). -/
 def overflowWidthsReads : List String :=
   [".github/workflows/**", ".github/scripts/**", "packages/gate-breakpoints/src/trajectory/**", "packages/visual-diff/src/shards.mjs",
    "lean/Fw/Ci/Overflow.lean", "lean/land-legs.txt", "apps/runner/test/land-overflow-widths.test.ts", "apps/runner/test/workflow-widths.ts",
@@ -466,9 +459,6 @@ theorem compose_local : tier composeId = .onMac := by decide
 
 theorem compose_core_user : isCoreUser composeId = true := by decide
 
-/-- **Any change under `.github/workflows/` selects the overflow width test.** For every path `x` whose segments are `.github`,
-`workflows` and then any segments `r` without `..` (every `.yml` and `.yaml` workflow file, `path-pix.yml` among them), the local
-selection holds `runner:overflow-widths`. -/
 theorem workflow_selects_overflowWidths (changed : List String) (x : String) (r : List String) (hx : x ∈ changed)
     (hs : Fw.Ops.PathCheck.segs x = ".github" :: "workflows" :: r) (hr : ".." ∉ r) :
     overflowWidthsId ∈ selectLocal changed := by

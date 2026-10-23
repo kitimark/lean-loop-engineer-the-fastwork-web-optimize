@@ -71,7 +71,6 @@ describe("fw land --dry", () => {
     const { fx, wt, opts } = await setup([".github/**"]);
     fx.commit(wt, ".github/workflows/path-pix.yml");
     const real = LOCAL_TESTS.find((x) => x.id === "runner:overflow-widths")!;
-    // stand-in argv: prints the failure the real test printed in run 39995255573 (Lean row 4, derived 6)
     const stale = { ...real, argv: ["sh", "-c", "echo 'path-pix.yml: Lean widths row (derived 6): expected 4 to be greater than or equal to 6'; exit 1"] };
     const bad = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [stale] });
     expect(bad.ok).toBe(false);

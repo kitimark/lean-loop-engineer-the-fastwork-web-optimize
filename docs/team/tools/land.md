@@ -253,7 +253,7 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
 - Second local test (task checkmap-workflow-widths-local, incident `inc-workflow-widths-remote`, 2026-10-24): `overflowWidthsId` =
   `runner:overflow-widths` runs `test/land-overflow-widths.test.ts` (the Lean width table against the workflow files). Theorem
   `workflow_selects_overflowWidths`: every path under `.github/workflows/` selects it; `overflowWidths_local`, `overflowWidths_core_user`
-  (a Lean-source or binary change rebuilds `fwcore` first). Cost: the test adds its own run time to a dry land that touches a workflow.
+  (a Lean-source or binary change rebuilds `fwcore` first). Cost: its run time is added to a dry land that touches a workflow.
 - Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
   TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).
 
