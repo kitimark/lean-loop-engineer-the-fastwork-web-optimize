@@ -21,7 +21,7 @@ engines (`WC/style/StyleDifference.cpp:404`, `B/css/css_properties.json5:8286`).
 | opacity reaching 1 | layout | yes | raster | no |
 | width | layout | yes | layoutFull | yes |
 
-Reading: a mask rectangle moved by transform stays an SVG child without a layer: `RenderElement.cpp:300-312` raises it to Layout
+A mask rectangle moved by transform stays an SVG child without a layer: `RenderElement.cpp:300-312` raises it to Layout
 (`transformSvgChild_wk_layout`). A transform on a composited box needs no layout (`transformOwn_nolayout`) but needs a layer per
 wrapper (two nested wrappers for a moving clip edge); not chosen. A pre-split dash with opacity needs the opacity to reach 1 at
 the end: one layout frame (`opacity_split`) and K paths in the DOM; not chosen. clip-path is `Equal` plus the ClipPath context
