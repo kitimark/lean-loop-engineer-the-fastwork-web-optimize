@@ -61,7 +61,7 @@ deriving Repr, DecidableEq
 
 /-- A run the report names, with its state (`running`, `complete`, `failed`).
 
-The gate agent reads it by run id with `fw ci state <id>` and replaces the builder's state field.
+The gate agent reads it by run id with `fw ci state <id> --branch <b>` and replaces the builder's state field.
 -/
 structure Run where
   id : String

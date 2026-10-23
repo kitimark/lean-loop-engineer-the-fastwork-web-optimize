@@ -127,4 +127,10 @@ test('gate agent reads a run state with the run branch; the RUN schema carries b
   assert.match(src, /const RUN = \{[^\n]*branch: \{ type: 'string' \}/)
   assert.match(src, /\{id, branch, state: running\|complete\|failed\} \(branch = the ci\/\* branch the run is on\)/)
   assert.match(src, /pnpm -s fw ci state <run id> --branch <its runs\[\]\.branch>/)
+  assert.match(src, /const RUN = \{[^\n]*required: \['id', 'branch', 'state'\]/)
+})
+
+test('the adversarial reviewer gets the runs and reads each with its branch', () => {
+  assert.match(src, /Builder runs: \$\{JSON\.stringify\(b\.runs \|\| \[\]\)\}/)
+  assert.match(src, /pnpm -s fw ci state <run id> --branch <its runs\[\]\.branch>\)\./)
 })
