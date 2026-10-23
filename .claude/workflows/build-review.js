@@ -107,7 +107,7 @@ if (!adv || (!adv.accept && !onlyFixes)) return [{ task: t.id, build: b, gate: r
 // Polish: comment-sicko on the code and shell files of the diff, slop-checker cuts on its prose, both judged by Lean before
 // anything is committed; skip-class files (generated, golden, snapshot) are never handed to an agent and edits to them are restored.
 const MAIN = `Run in the main checkout (the parent of the path that git rev-parse --path-format=absolute --git-common-dir prints) with PATH="$HOME/.nvm/versions/node/v24.22.0/bin:$PATH", logging to your scratchpad file`
-const run1 = (label, cmd, input) => agent(`${MAIN} ${label}-${t.id}.log (agents/runner.md). Run exactly: ${cmd}${input ? ` <<'JSON'\n${input}\nJSON` : ''}\nReturn its last VERDICT line as line and its whole stdout (no log path, no home path) as out.`,
+const run1 = (label, cmd, input) => agent(`${MAIN} ${label}-${t.id}.log (agents/runner.md). Run exactly: ${cmd}${input ? ` <<'JSON'\n${input}\nJSON` : ''}\nReturn its last VERDICT line as line and its whole stdout as out, verbatim: every path exactly as printed (absolute, never shortened to ~ or a placeholder), no log path.`,
   { label: `${label}:${t.id}`, phase: 'Polish', agentType: 'runner', schema: OUT })
 const verdictWord = (r, kind) => {
   const ms = r && typeof r.line === 'string' ? [...r.line.matchAll(new RegExp(`VERDICT ${kind} ${idRe} (\\S+)`, 'g'))] : []

@@ -189,7 +189,8 @@ def checkShReads : List String :=
     "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "packages/gate-breakpoints/src/scope.gen.json", ".github/workflows/**",
     "scripts/span.sh", "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/slot-self.mjs", "docs/team/incidents/ledger.json", "research/findings/ledger.json",
     "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/layer-opts.gen.ts",
-    "packages/measure-chromium/scenarios.gen.json", "apps/runner/src/land-reads.gen.ts"]
+    "packages/measure-chromium/scenarios.gen.json", "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/fixtures/trajectory-gpu/**", "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs"]
 
 /-- The sample `checksFor` table of the golden cases: check.sh and one package test. -/
 def sampleDecls : List Decl :=
@@ -220,7 +221,8 @@ theorem parseScope_checkShReads : parseScope checkShReads =
       ["docs", "team", "incidents", "ledger.json"],
       ["research", "findings", "ledger.json"], ["apps", "site", "src", "parts", "**"],
       ["apps", "site", "src", "registry", "presets", "v2-proved.json"], ["apps", "site", "src", "registry", "layer-opts.gen.ts"],
-      ["packages", "measure-chromium", "scenarios.gen.json"], ["apps", "runner", "src", "land-reads.gen.ts"]], []⟩ := by
+      ["packages", "measure-chromium", "scenarios.gen.json"], ["apps", "runner", "src", "land-reads.gen.ts"],
+      ["packages", "contracts", "fixtures", "trajectory-gpu", "**"], ["packages", "gate-breakpoints", "src", "trajectory", "cells-gpu-cli.mjs"]], []⟩ := by
   have hi : checkShReads.filter (!·.startsWith "!") = checkShReads := by
     simp (config := {decide := true}) [checkShReads]
   have he : checkShReads.filter (·.startsWith "!") = [] := by
