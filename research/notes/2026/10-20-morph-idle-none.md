@@ -49,7 +49,7 @@ LayerTree reads in the zone (pass 0 / pass 1).
   deterministic in both passes.
 - Paint and Composite per frame: no win shown. The flag arm reads higher, but the runner's frame rate differed (frames in the zone: base 78 and
   36, flag 29 and 28) and one arm varies up to 3x between its own two passes (base idle composite 15875 vs 48705), so the sign of the delta is
-  not resolvable from these two-pass runs. The follow-up below (task morph-idle-followups) settles the method and the verdict.
+  not resolvable from these two-pass runs. The follow-up below settles the method and the verdict.
 - Why (INFERRED): the Lean model `tracks_layers_drop` counts layers only; it proves 5 layers -> 1 with the tracks not animated and says nothing
   about per-frame cost. Unsourced guess: WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
   not the 16 layers freed at rest.

@@ -1,5 +1,4 @@
 Branch: worktree-wf_1a1544e3-bc5-1 (CI branch ci/morph-idle-chromium-rebaseline). Worktree: .claude/worktrees/wf_1a1544e3-bc5-1
-Last commit: see git log.
 CI runs (chromium-counts, swipe-v1, runs=3, rewrite), all complete/success:
  - primary, strict same image (image_run=39914488176, image 47b1dcbe in all six shards): base 39940682332, flag 39940686591 (fw=morph.columns:idle-none)
  - supporting, separate images (sha f3248e9): base 39936881473, flag 39937184249
