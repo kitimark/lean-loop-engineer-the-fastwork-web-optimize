@@ -7,7 +7,7 @@ import { envFor } from '../trajectory/registry.mjs';
 import { runCheck } from '../trajectory/reduce.mjs';
 import { HERO_BURST, orderFor } from './schedule.mjs';
 import { BOUND_JS, endPushFor } from './bound.mjs';
-import { hitches } from './reduce.mjs';
+import { hitches, hundredthsFrom } from './reduce.mjs';
 import { RECORDER_SRC, TO_END_JS, pageOf, intervalsOf } from '../../../measure-webkit/src/profile/recorder.mjs';
 import { profileWindow, toHundredths } from '../../../measure-webkit/src/profile/reduce.mjs';
 import { sessionPlan } from '../../../measure-webkit/src/device-arms.mjs';
@@ -141,7 +141,7 @@ export async function runWebkitCadence({ width = 390, lookSearch, reps = 6, cade
           const r = await oneWindow(browser, e, a, win, events, end);
           const base = { arm: a.id, window: win, rep, mode: events ? 'events' : 'cadence', config: r.arm.config, fwMode: r.arm.mode };
           const ivs = intervalsOf(r.rec.ts);
-          const row = { ...base, frames: r.rec.ts.length, hitches: hitches(ivs), ivs };
+          const row = { ...base, frames: r.rec.ts.length, hitches: hitches(ivs), ivs, th: hundredthsFrom(r.rec.ts) };
           if (events) {
             const pw = profileWindow(pageOf(r.rec, toHundredths), r.records);
             raws.push({ arm: a.id, window: win, rep, raw: pw.raw });

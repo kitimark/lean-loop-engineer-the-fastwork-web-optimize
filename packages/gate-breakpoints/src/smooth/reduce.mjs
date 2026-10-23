@@ -108,6 +108,28 @@ export const hitchJudge = (a, b) => (above(b, a) ? 'first' : above(a, b) ? 'seco
 export const hitchVerdict = (a, b, aa1, aa2) =>
   !(enoughN(a) && enoughN(b) && enoughN(aa1) && enoughN(aa2)) ? 'insufficient' : hitchJudge(aa1, aa2) === 'same' ? hitchJudge(a, b) : 'same';
 
+export const MISS_TENTHS = 250;
+export const FAIL_TENTHS = 500;
+
+export const overTenths = (th, ivs) => ivs.filter((i) => th < i).length;
+export const over25 = (ivs) => overTenths(MISS_TENTHS, ivs);
+export const over34 = (ivs) => overTenths(BAD_TENTHS, ivs);
+export const over50 = (ivs) => overTenths(FAIL_TENTHS, ivs);
+
+export const slotOf = (t0, t) => Math.floor(((t - t0) * 6 + 5000) / 10000);
+
+const slotAdvances = (ts) => ts.slice(1).map((t, i) => slotOf(ts[0], t) - slotOf(ts[0], ts[i]));
+
+export const skips = (ts) => slotAdvances(ts).filter((k) => 1 < k).length;
+export const longGaps = (ts) => ts.slice(1).filter((t, i) => 200000 < (t - ts[i]) * 60).length;
+
+export const COUNT_FIELDS = ['frames', 'over25', 'over34', 'over50', 'skips'];
+export const countsOf = (ivs, ts) => ({ frames: ivs.length, over25: over25(ivs), over34: over34(ivs), over50: over50(ivs), skips: skips(ts) });
+export const addCounts = (a, b) => Object.fromEntries(COUNT_FIELDS.map((f) => [f, a[f] + b[f]]));
+export const sumCounts = (cs) => cs.reduce(addCounts, { frames: 0, over25: 0, over34: 0, over50: 0, skips: 0 });
+
+export const hundredthsFrom = (ts) => ts.map((t) => Math.round((t - ts[0]) * 100));
+
 export const agreeNeeded = (n) => Math.floor((2 * n + 2) / 3);
 
 export const decisive = (vs) => vs.filter((v) => v === 'first' || v === 'second' || v === 'same').length;

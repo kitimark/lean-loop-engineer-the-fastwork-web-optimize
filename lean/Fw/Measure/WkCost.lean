@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Measure.WebKitLag
+import Fw.Measure.IdleHold
 /-!
 # WebKit cost counters (`packages/measure-webkit/src/lag/cost.mjs`)
 The counted predicates of the lag cost pass and their per-zone sums. Times are integer microseconds.
@@ -397,10 +398,174 @@ theorem morphZone_rest_after {po pc t : Int} (h : morphEnd pc < t) (h0 : morphEn
 
 /-! ## Scroll zones -/
 
-/-- The zone of a scroll step: its `Fw.Measure.WebKitLag` region at zone height `vh`. -/
 def scrollZone (vh : Nat) (maxY y : Int) : String := "scroll-" ++ (regionOf vh maxY y).name
 
-/-! ## Golden vectors -/
+
+inductive Metric where
+  | paint
+  | comp
+  deriving DecidableEq, Repr
+
+def Metric.name : Metric → String
+  | .paint => "paint"
+  | .comp => "comp"
+
+def Metric.sum : Metric → Sums → Int
+  | .paint, s => s.paintUs
+  | .comp, s => s.compUs
+
+def Sums.scale (k : Int) (s : Sums) : Sums := ⟨s.frames, k * s.paintUs, k * s.compUs, s.bound⟩
+
+def rawPF (m : Metric) (w : Sums) : Option Rat :=
+  if 0 < w.frames then some (Rat.divInt (m.sum w) w.frames) else none
+
+def normPF (m : Metric) (w b : Sums) : Option Rat :=
+  if 0 < w.frames ∧ 0 < b.frames ∧ 0 < m.sum b then some (ratio w.frames b.frames (m.sum w) (m.sum b)) else none
+
+theorem normPF_scale (m : Metric) {k : Int} (hk : 0 < k) (w b : Sums) :
+    normPF m (w.scale k) (b.scale k) = normPF m w b := by
+  have hs : ∀ s : Sums, m.sum (s.scale k) = k * m.sum s := by
+    intro s; cases m <;> rfl
+  have hp : 0 < k * m.sum b ↔ 0 < m.sum b := by
+    constructor
+    · intro h
+      by_cases hc : 0 < m.sum b
+      · exact hc
+      · have h2 := Int.mul_nonpos_of_nonneg_of_nonpos (Int.le_of_lt hk) (Int.not_lt.mp hc)
+        omega
+    · exact Int.mul_pos hk
+  have hf : ∀ s : Sums, (s.scale k).frames = s.frames := fun _ => rfl
+  unfold normPF
+  simp only [hs, hf, hp]
+  by_cases h : 0 < w.frames ∧ 0 < b.frames ∧ 0 < m.sum b
+  · simp [h, ratio_scale hk]
+  · simp [h]
+
+theorem rawPF_not_scale : rawPF .comp (Sums.scale 2 ⟨2, 100, 200, 0⟩) ≠ rawPF .comp ⟨2, 100, 200, 0⟩ := by
+  decide +kernel
+
+def cellVerdict (raw norm : Verdict) : Verdict := if raw = norm then norm else .overlap
+
+theorem cellVerdict_agree {v : Verdict} : cellVerdict v v = v := by simp [cellVerdict]
+
+theorem cellVerdict_disagree {raw norm : Verdict} (h : raw ≠ norm) : cellVerdict raw norm = .overlap := by
+  simp [cellVerdict, h]
+
+structure PassSums where
+  zones : List (String × Sums)
+  calm : Sums
+  deriving Repr, BEq
+
+def PassSums.zone (p : PassSums) (z : String) : Sums := ((p.zones.find? (·.1 == z)).map (·.2)).getD ⟨0, 0, 0, 0⟩
+
+def morphZoneNames : List String := ["idle", "open", "rest", "close"]
+
+def rawVals (m : Metric) (z : String) (ps : List PassSums) : List Rat := ps.filterMap fun p => rawPF m (p.zone z)
+
+def normVals (m : Metric) (z : String) (ps : List PassSums) : List Rat :=
+  ps.filterMap fun p => normPF m (p.zone z) p.calm
+
+def rawVerdict (m : Metric) (z : String) (base flag : List PassSums) : Verdict := verdict (rawVals m z base) (rawVals m z flag)
+
+def normVerdict (m : Metric) (z : String) (base flag : List PassSums) : Verdict :=
+  verdict (normVals m z base) (normVals m z flag)
+
+def cell (m : Metric) (z : String) (base flag : List PassSums) : Verdict :=
+  cellVerdict (rawVerdict m z base flag) (normVerdict m z base flag)
+
+def cells (base flag : List PassSums) : List Verdict :=
+  morphZoneNames.flatMap fun z => [Metric.paint, Metric.comp].map fun m => cell m z base flag
+
+inductive Outcome where
+  | win
+  | loss
+  | mixed
+  | overlap
+  | empty
+  deriving DecidableEq, Repr
+
+def Outcome.name : Outcome → String
+  | .win => "win"
+  | .loss => "loss"
+  | .mixed => "mixed"
+  | .overlap => "overlap"
+  | .empty => "empty"
+
+def outcome (cs : List Verdict) : Outcome :=
+  if cs.isEmpty then .empty
+  else if cs.all (· == .lower) then .win
+  else if cs.all (· == .higher) then .loss
+  else if cs.any (· == .lower) && cs.any (· == .higher) then .mixed
+  else .overlap
+
+theorem outcome_empty : outcome [] = .empty := rfl
+
+theorem outcome_win {cs : List Verdict} (hne : cs ≠ []) (h : cs.all (· == .lower) = true) : outcome cs = .win := by
+  have : cs.isEmpty = false := by cases cs <;> simp_all
+  simp [outcome, this, h]
+
+theorem outcome_loss {cs : List Verdict} (hne : cs ≠ []) (h : cs.all (· == .higher) = true) : outcome cs = .loss := by
+  have : cs.isEmpty = false := by cases cs <;> simp_all
+  have h2 : cs.all (· == .lower) = false := by
+    obtain ⟨x, xs, rfl⟩ := List.exists_cons_of_ne_nil hne
+    simp only [List.all_cons, Bool.and_eq_true] at h ⊢
+    have : x = .higher := by simpa using h.1
+    simp [this]
+  simp [outcome, this, h, h2]
+
+theorem outcome_mixed {cs : List Verdict} (hl : cs.any (· == .lower) = true) (hh : cs.any (· == .higher) = true) :
+    outcome cs = .mixed := by
+  have hne : cs.isEmpty = false := by cases cs <;> simp_all
+  have h1 : cs.all (· == .lower) = false := by
+    obtain ⟨x, hx, hxe⟩ := List.any_eq_true.mp hh
+    exact List.all_eq_false.mpr ⟨x, hx, by simp_all⟩
+  have h2 : cs.all (· == .higher) = false := by
+    obtain ⟨x, hx, hxe⟩ := List.any_eq_true.mp hl
+    exact List.all_eq_false.mpr ⟨x, hx, by simp_all⟩
+  simp [outcome, hne, h1, h2, hl, hh]
+
+theorem outcome_overlap {cs : List Verdict} (hne : cs ≠ []) (h1 : cs.all (· == .lower) = false)
+    (h2 : cs.all (· == .higher) = false) (h3 : (cs.any (· == .lower) && cs.any (· == .higher)) = false) :
+    outcome cs = .overlap := by
+  have : cs.isEmpty = false := by cases cs <;> simp_all
+  simp [outcome, this, h1, h2, h3]
+
+theorem outcome_win_ne_loss {cs : List Verdict} (h : outcome cs = .win) : outcome cs ≠ .loss := by
+  simp [h]
+
+def runBase : List PassSums :=
+  [⟨[("idle", ⟨9, 8774, 142878, 9⟩), ("open", ⟨5, 20549, 554307, 5⟩), ("rest", ⟨59, 63617, 1687880, 58⟩), ("close", ⟨5, 11823, 588663, 5⟩)], ⟨86, 65024, 2393093, 86⟩⟩,
+   ⟨[("idle", ⟨10, 10428, 487052, 10⟩), ("open", ⟨2, 22873, 686727, 2⟩), ("rest", ⟨21, 66340, 1622732, 20⟩), ("close", ⟨3, 5900, 480175, 3⟩)], ⟨86, 76614, 1653140, 86⟩⟩]
+
+def runFlag : List PassSums :=
+  [⟨[("idle", ⟨9, 10520, 500337, 9⟩), ("open", ⟨3, 14375, 715425, 3⟩), ("rest", ⟨14, 29872, 1422591, 13⟩), ("close", ⟨3, 13289, 869204, 3⟩)], ⟨86, 318362, 5347917, 86⟩⟩,
+   ⟨[("idle", ⟨9, 11052, 447739, 9⟩), ("open", ⟨2, 34421, 436667, 2⟩), ("rest", ⟨16, 27119, 1732556, 15⟩), ("close", ⟨1, 4945, 510848, 1⟩)], ⟨86, 105444, 2073968, 86⟩⟩]
+
+theorem run_39903977820_overlap : outcome (cells runBase runFlag) = .overlap := by
+  decide +kernel
+
+def runBase6 : List PassSums :=
+  [⟨[("idle", ⟨9, 8559, 217633, 9⟩), ("open", ⟨4, 18600, 480936, 4⟩), ("rest", ⟨56, 60157, 1747742, 55⟩), ("close", ⟨4, 11870, 572529, 4⟩)], ⟨88, 77125, 1477729, 88⟩⟩,
+   ⟨[("idle", ⟨10, 9189, 233154, 10⟩), ("open", ⟨3, 19937, 530121, 3⟩), ("rest", ⟨56, 63825, 1702398, 55⟩), ("close", ⟨5, 11172, 584519, 5⟩)], ⟨86, 68969, 1544301, 86⟩⟩,
+   ⟨[("idle", ⟨9, 11963, 372041, 9⟩), ("open", ⟨3, 12300, 534756, 3⟩), ("rest", ⟨27, 123792, 1742396, 26⟩), ("close", ⟨3, 9936, 583521, 3⟩)], ⟨88, 107317, 2706889, 88⟩⟩,
+   ⟨[("idle", ⟨10, 9930, 313377, 10⟩), ("open", ⟨2, 18156, 448855, 2⟩), ("rest", ⟨43, 72000, 1856383, 42⟩), ("close", ⟨3, 10964, 449523, 3⟩)], ⟨86, 91877, 2859512, 86⟩⟩,
+   ⟨[("idle", ⟨10, 9486, 205776, 10⟩), ("open", ⟨3, 11480, 659090, 3⟩), ("rest", ⟨56, 60813, 1633330, 55⟩), ("close", ⟨5, 12318, 514209, 5⟩)], ⟨86, 103717, 2706675, 86⟩⟩,
+   ⟨[("idle", ⟨9, 8623, 188351, 9⟩), ("open", ⟨5, 17286, 833815, 5⟩), ("rest", ⟨28, 29528, 1673672, 27⟩), ("close", ⟨3, 5415, 591436, 3⟩)], ⟨86, 66943, 1510983, 86⟩⟩]
+
+def runFlag6 : List PassSums :=
+  [⟨[("idle", ⟨10, 12588, 704174, 10⟩), ("open", ⟨1, 8675, 895820, 1⟩), ("rest", ⟨8, 147532, 1841111, 7⟩), ("close", ⟨1, 6322, 309093, 1⟩)], ⟨86, 78708, 1818716, 86⟩⟩,
+   ⟨[("idle", ⟨9, 9710, 199217, 9⟩), ("open", ⟨4, 30862, 539476, 4⟩), ("rest", ⟨61, 58839, 1672625, 60⟩), ("close", ⟨5, 10989, 564825, 5⟩)], ⟨88, 73244, 1540870, 88⟩⟩,
+   ⟨[("idle", ⟨9, 8508, 195813, 9⟩), ("open", ⟨4, 26819, 545723, 4⟩), ("rest", ⟨58, 55099, 1682451, 57⟩), ("close", ⟨5, 11921, 528201, 5⟩)], ⟨88, 69964, 1560059, 88⟩⟩,
+   ⟨[("idle", ⟨9, 10122, 191217, 9⟩), ("open", ⟨5, 28234, 552380, 5⟩), ("rest", ⟨61, 57813, 1659218, 60⟩), ("close", ⟨5, 11061, 539285, 5⟩)], ⟨88, 66727, 1398092, 88⟩⟩,
+   ⟨[("idle", ⟨10, 11918, 412926, 10⟩), ("open", ⟨1, 20250, 1025618, 1⟩), ("rest", ⟨20, 131213, 1605555, 19⟩), ("close", ⟨1, 4428, 262846, 1⟩)], ⟨88, 93340, 2943832, 88⟩⟩,
+   ⟨[("idle", ⟨10, 7257, 330036, 10⟩), ("open", ⟨1, 7150, 965274, 1⟩), ("rest", ⟨30, 51044, 1542472, 29⟩), ("close", ⟨3, 9331, 535095, 3⟩)], ⟨86, 79465, 1734663, 86⟩⟩]
+
+theorem run_39915136431_overlap : cells runBase6 runFlag6 = List.replicate 8 Verdict.overlap := by
+  decide +kernel
+
+theorem run_39915136431_outcome : outcome (cells runBase6 runFlag6) = .overlap := by
+  decide +kernel
+
 
 private def fj (f : Frame) : Json := Json.arr #[toJson f.t, toJson f.zone]
 private def dj (d : Delta) : Json := Json.arr #[toJson d.zone, toJson d.d, toJson d.g]
@@ -441,6 +606,37 @@ private def morphCases : List (Int × Int × Int) :=
    (100000, 1500000, 780001), (100000, 1500000, 1499999), (100000, 1500000, 1500000), (100000, 1500000, 2180000),
    (100000, 1500000, 2180001)]
 
+private def qj (q : Option Rat) : Json := match q with
+  | some r => toJson [r.num, (r.den : Int)]
+  | none => Json.null
+
+private def sumsJ (s : Sums) : Json := toJson [(s.frames : Int), s.paintUs, s.compUs, (s.bound : Int)]
+
+private def passJ (p : PassSums) : Json :=
+  Json.mkObj [("zones", Json.arr (p.zones.map fun (z, s) => Json.arr #[toJson z, sumsJ s]).toArray), ("calm", sumsJ p.calm)]
+
+private def normCases : List (Metric × Sums × Sums) :=
+  [(.comp, ⟨9, 142878, 142878, 9⟩, ⟨86, 2393093, 2393093, 86⟩), (.paint, ⟨9, 8774, 142878, 9⟩, ⟨86, 65024, 2393093, 86⟩),
+   (.comp, ⟨9, 8774, 142878, 9⟩, Sums.scale 2 ⟨86, 65024, 2393093, 86⟩), (.comp, Sums.scale 2 ⟨9, 8774, 142878, 9⟩, Sums.scale 2 ⟨86, 65024, 2393093, 86⟩),
+   (.comp, ⟨0, 0, 0, 0⟩, ⟨86, 65024, 2393093, 86⟩), (.paint, ⟨9, 8774, 142878, 9⟩, ⟨0, 0, 0, 0⟩),
+   (.comp, ⟨9, 8774, 142878, 9⟩, ⟨86, 65024, 0, 0⟩)]
+
+private def uniform (s c : Sums) : PassSums := ⟨morphZoneNames.map fun z => (z, s), c⟩
+
+private def calmA : Sums := ⟨10, 1000, 1000, 10⟩
+
+private def cellRun : List (List PassSums × List PassSums) :=
+  [(runBase, runFlag), (runBase6, runFlag6),
+   ([uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1100, 2200, 10⟩ calmA], [uniform ⟨10, 100, 200, 10⟩ calmA, uniform ⟨10, 110, 220, 10⟩ calmA]),
+   ([uniform ⟨10, 100, 200, 10⟩ calmA, uniform ⟨10, 110, 220, 10⟩ calmA], [uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1100, 2200, 10⟩ calmA]),
+   ([uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1000, 2000, 10⟩ calmA],
+    [uniform (Sums.scale 2 ⟨10, 1000, 2000, 10⟩) (Sums.scale 2 calmA), uniform (Sums.scale 2 ⟨10, 1000, 2000, 10⟩) (Sums.scale 2 calmA)]),
+   ([uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1100, 2200, 10⟩ calmA], [uniform ⟨10, 100, 4000, 10⟩ calmA, uniform ⟨10, 110, 4400, 10⟩ calmA]),
+   ([], [])]
+
+private def outcomeCases : List (List Verdict) :=
+  [[], [.lower, .lower], [.higher], [.lower, .higher], [.lower, .overlap], [.overlap], [.higher, .higher, .overlap]]
+
 private def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "const"), ("tweenUs", tweenUs), ("earlyUs", earlyUs), ("lateUs", lateUs),
     ("histEdges", toJson histEdges)]).compress] ++
@@ -470,9 +666,20 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "morphZone"), ("po", po), ("pc", pc), ("t", t), ("zone", morphZone po pc t)]).compress) ++
   (([(775, 9000, 0), (775, 9000, 774), (775, 9000, 775), (775, 9000, 4000), (775, 9000, 7450), (775, 9000, 8300)] : List (Nat × Int × Int)).map
     fun (vh, m, y) => (Json.mkObj [("kind", "scrollZone"), ("vh", vh), ("maxY", m), ("y", y),
-      ("zone", scrollZone vh m y)]).compress)
+      ("zone", scrollZone vh m y)]).compress) ++
+  (normCases.map fun (m, w, b) =>
+    (Json.mkObj [("kind", "morphNorm"), ("metric", m.name), ("w", sumsJ w), ("b", sumsJ b), ("raw", qj (rawPF m w)),
+      ("norm", qj (normPF m w b))]).compress) ++
+  (cellRun.map fun (bs, fs) =>
+    (Json.mkObj [("kind", "morphCells"), ("base", Json.arr (bs.map passJ).toArray), ("flag", Json.arr (fs.map passJ).toArray),
+      ("cells", Json.arr (morphZoneNames.flatMap fun z => [Metric.paint, Metric.comp].map fun m =>
+        Json.arr #[toJson z, toJson m.name, toJson (rawVerdict m z bs fs).name, toJson (normVerdict m z bs fs).name,
+          toJson (cell m z bs fs).name]).toArray),
+      ("outcome", (outcome (cells bs fs)).name)]).compress) ++
+  (outcomeCases.map fun cs =>
+    (Json.mkObj [("kind", "morphOutcome"), ("cells", toJson (cs.map Verdict.name)), ("outcome", (outcome cs).name)]).compress) ++
+  Fw.Measure.IdleHold.goldenLines
 
-/-- The bytes of `packages/contracts/golden/measure/wkcost.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
 /-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
