@@ -18318,7 +18318,10 @@
     "lean/Fw/Plan/WritesClosure.lean",
     "packages/contracts/golden/plan/writes-closure.jsonl",
     ".claude/workflows/build-review.js",
-    "docs/team/handoffs/writes-closure-followups.md"
+    "docs/team/handoffs/writes-closure-followups.md",
+    "scripts/build-review.test.mjs",
+    "apps/runner/test/plan.test.ts",
+    "apps/runner/test/plan-sync*.test.ts"
    ],
    "title": "graph-writes-closure (landed a5bd5e198) follow-ups: (1) export leanInputGaps(root, table) from scripts/ci-paths.mjs returning {script, path|null}[], make leanInputProblems map over it and plan-closure.ts gapsOf call it, and state the gap predicate (literal ../<path> read in lean/scripts/*.sh not matched by the lean.yml row globs) in Lean so Gap is derived, not input; (2) run `fw plan lint` errors (writesClosure only) in `fw plan sync` (refuse sync on a new error) and in the build-review builder preamble before the dry land, against the build tree, so the r325 and r328 catches fire automatically; (3) keep main's live lint at 0 writesClosure errors (the lead fixed the 5 in graph r338)."
   },
