@@ -23,7 +23,7 @@ pnpm -s fw polish --staged [--cuts <file|-> [--apply yes]]
   `VERDICT polish-cuts <id> applied|judged <n>/<m>`. Only files in the prose scope are read; a cut on another file is `notProse` or `notFound`.
 - `commit`: edits in the worktree (`git diff --name-only HEAD`) that Lean keeps are added and committed; the rest are
   restored from HEAD. Each edit hunk of a code or shell file is judged alone: a hunk not wholly inside a branch hunk plus
-  the margin is reverted whole (even one that starts inside the margin and runs past it) and named
+  the margin is reverted whole and named
   (`restored <path>:<lo>-<hi> (outside the branch's hunks)`); a kept file with no edit record is restored. If the main
   checkout has uncommitted edits in the plan's files, nothing is restored or committed:
   `VERDICT polish-commit <id> refused` (exit 1). `VERDICT polish-commit <id> committed|nothing`.
@@ -40,6 +40,7 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
   (Markdown, the ledger and the work graph); any other file is `skip`. Generator outputs are the workflow files `scripts/ci-paths.mjs --write`
   reconciles and `lean/Fw/Ops/LakeJobsGen.lean`. Theorems: `skipped_skip`, `gen_skip`, `stamped_skip`, `snapshot_skip`.
 - A shell file is never Lean: its mark is `#` (`shell_mark`, `shell_not_lean`).
+- A protected path (`.claude/`, `CLAUDE.md`: the `ask` rules of `.claude/settings.json`, an Edit waits on the user) is skip (`protectedPath`, `protected_skip`, `protected_never_scoped`, `protected_not_kept`, `claude_dir_protected`, `claude_md_protected`); `fw polish plan` prints `skip <path> (protected)` from Lean `protected`.
 - A skip file is never in a scope and its edits are restored (`admits_not_skip`, `skip_never_edited`, `gen_never_edited`,
   `kept_not_skip`, `kept_in_diff`).
 - A stage runs only when its class is in the diff (`comments_runs_iff`, `prose_runs_iff`, `stages_nil`).
@@ -84,13 +85,11 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
 ## Goldens
 
 `packages/contracts/golden/plan/polish.jsonl` (test `apps/runner/test/polish.test.ts`; regenerate with
-`FW_WRITE_POLISH_GOLDEN=1`). The three over-cuts of the 10-22 slop pass are cases: all three are `dropsFacts` (polarity words `not`, `no`, `never`,
-`without`, `unless` are facts).
+`FW_WRITE_POLISH_GOLDEN=1`). The three over-cuts of the 10-22 slop pass are `dropsFacts` cases (polarity words `not`, `no`, `never`, `without`, `unless` are facts).
 
 ## Limits
 
-- A cut that keeps every token and polarity word but drops other meaning applies; `slop-checker`'s judgement stays an
-  agent's, and so does `comment-sicko`'s.
+- A cut that keeps every token and polarity word but drops other meaning applies; the judgement of `slop-checker` and `comment-sicko` stays an agent's.
 - Each polish run costs one comment and one prose agent per accepted build.
 - `relOk` checks the path text, not symlink resolution.
 - A cut applies only where its old text occurs once in the file and `cutSafe` holds.
