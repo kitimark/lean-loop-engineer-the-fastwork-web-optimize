@@ -18859,7 +18859,8 @@
     "docs/team/incidents/ledger.json",
     "docs/team/tools/land.md"
    ],
-   "title": "Incident 2026-10-24: hero-copy-floor-sources changed .github/workflows/path-pix.yml (matrix 3 sim + 3 chromium) without the Lean width row (Fw.Ci.Overflow widths path-pix 4 -> 6); the lead dry land passed and the remote land tier failed (run 39995255573, land suites-a, test/land-overflow-widths.test.ts), costing a remote CI round. Fix by the Lean check map: a change to any .github/workflows/*.yml selects apps/runner test/land-overflow-widths.test.ts (and the fwcore rebuild it needs) in the LOCAL tier, so fw land --dry refuses it; theorem that every workflow path maps to that check, golden row, test. Record the incident in docs/team/incidents/ledger.json. (Delivered in Fw.Console.LandTier.localTests, which fw land --dry uses; CheckMap.lean is the pre-commit map without tiers.)"
+   "title": "Incident 2026-10-24: hero-copy-floor-sources changed .github/workflows/path-pix.yml (matrix 3 sim + 3 chromium) without the Lean width row (Fw.Ci.Overflow widths path-pix 4 -> 6); the lead dry land passed and the remote land tier failed (run 39995255573, land suites-a, test/land-overflow-widths.test.ts), costing a remote CI round. Fix by the Lean check map: a change to any .github/workflows/*.yml selects apps/runner test/land-overflow-widths.test.ts (and the fwcore rebuild it needs) in the LOCAL tier, so fw land --dry refuses it; theorem that every workflow path maps to that check, golden row, test. Record the incident in docs/team/incidents/ledger.json. (Delivered in Fw.Console.LandTier.localTests, which fw land --dry uses; CheckMap.lean is the pre-commit map without tiers.)",
+   "evidence": "12230fb"
   },
   {
    "devices": [

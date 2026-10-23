@@ -9,7 +9,7 @@ import { selectCore } from "../../console-api/src/core/index.ts";
 import { Reconciler } from "../../console-api/src/reconcile/reconciler.ts";
 import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { dryBase, dryLintArgv, dryMerge, dryOutcome, land, lastDryStep, type DryBase, type Http } from "../src/land.ts";
+import { dryBase, dryLintArgv, dryMerge, dryOutcome, land, lastDryStep, LOCAL_TESTS, type DryBase, type Http } from "../src/land.ts";
 import { LINT_ARGV } from "../src/land-verdict.ts";
 import { begin } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
@@ -69,6 +69,19 @@ describe("fw land --dry", () => {
     expect(text(ok)).toContain("dry: local tests ok (console-api:compose)");
     const idle = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...t("exit 1", ["docs/**"]) });
     expect(idle.kind).toBe("dry");
+  });
+  it("path-pix 4 -> 6 (incident 2026-10-24): a workflow file change runs the overflow width test and the dry land refuses the stale row", async () => {
+    const { fx, wt, opts } = await setup([".github/**"]);
+    fx.commit(wt, ".github/workflows/path-pix.yml");
+    const real = LOCAL_TESTS.find((x) => x.id === "runner:overflow-widths")!;
+    const stale = { ...real, argv: ["sh", "-c", "echo 'path-pix.yml: Lean widths row (derived 6): expected 4 to be greater than or equal to 6'; exit 1"] };
+    const bad = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [stale] });
+    expect(bad.ok).toBe(false);
+    expect(bad.kind).toBe("lint");
+    expect(text(bad)).toContain("derived 6");
+    const ok = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [{ ...stale, argv: ["true"] }] });
+    expect(ok.kind).toBe("dry");
+    expect(text(ok)).toContain("dry: local tests ok (runner:overflow-widths)");
   });
   it("passes on a clean branch and leaves main, the lock and the queue untouched; the real land then passes", async () => {
     const { fx, wt, opts, snap } = await setup();
