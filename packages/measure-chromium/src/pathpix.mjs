@@ -1,10 +1,10 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, openSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { startServer } from './server.mjs';
 import { sampleAt } from './census.mjs';
 import { parseProfile } from './profile.mjs';
-import { pathSearch, laneOffsets } from './pathpix-pure.mjs';
+import { pathSearch, laneOffsets, exitOffsets } from './pathpix-pure.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const { profile } = parseProfile(JSON.parse(readFileSync(`/profiles/${args.profile ?? 'swipe-v1'}.json`, 'utf8')));
@@ -13,6 +13,10 @@ const OUT = args.out ?? '/out';
 const RUN = args.run && args.run !== true ? args.run : 'local';
 const ONLY_LAYERS = args.layers && args.layers !== true ? args.layers.split(',') : null;
 const OFFSET_IDX = args.offsets && args.offsets !== true ? args.offsets.split(',').map(Number) : null;
+const MODE = args.mode && args.mode !== true ? args.mode : 'layers';
+const FLAG = args.flag && args.flag !== true ? args.flag : null;
+const FONT_FAMILIES = [...new Set((spawnSync('fc-list', [':', 'family'], { encoding: 'utf8' }).stdout ?? '').split(/[\n,]/).map((f) => f.trim()).filter(Boolean))].sort();
+const PAGE_FONTS = `JSON.stringify([...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family + ' ' + f.weight + ' ' + f.style))`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const dt = 1000 / profile.hz;
 const T0 = 5_000_000;
@@ -104,6 +108,7 @@ async function main() {
     await quietNet(p);
     await ev(exprs.freeze);
     await pump(3);
+    p.vt = vt;
     return p;
   }
 
@@ -112,7 +117,81 @@ async function main() {
   const pa = await loadArm('');
   const info = await probe(pa);
   const ua = await pa.ev('navigator.userAgent');
+  const fonts = { systemFonts: FONT_FAMILIES, pageFonts: JSON.parse(await pa.ev(PAGE_FONTS)) };
   const maxY = await pa.ev('document.documentElement.scrollHeight - innerHeight');
+  if (MODE === 'exit') {
+    if (!FLAG) throw new Error('--mode=exit needs --flag=<id:variant>');
+    const geom = JSON.parse(await pa.ev(exprs.exitGeom));
+    if (!geom) throw new Error('no hero exit track on the default page');
+    const exit = { T: geom.T, h: geom.h, v: geom.v, n: Math.max(1, geom.h - geom.v), variant: geom.variant };
+    const offs = exitOffsets(exit.T, exit.n);
+    const png0 = await pa.shot();
+    const frame = { w: png0.readUInt32BE(16), h: png0.readUInt32BE(20) };
+    const dpr = frame.w / info.vw;
+    if (!Number.isInteger(dpr) || dpr < 1 || frame.h !== Math.round(info.vh * dpr)) throw new Error(`screenshot ${frame.w}x${frame.h} does not fit the ${info.vw}x${info.vh} viewport at an integer scale (page dpr ${info.dpr})`);
+    const searchP = `?fw=${FLAG}`;
+    log(`lane chromium exit: page dpr ${info.dpr}, screenshot scale ${dpr}, viewport ${info.vw}x${info.vh}, frame ${frame.w}x${frame.h}, track T ${exit.T} h ${exit.h} n ${exit.n}, offsets ${offs.join(',')}`);
+    const arms = [['A', ''], ['A2', ''], ['P', searchP]];
+    const samples = {}, handover = {};
+    const liveNow = async (p) => JSON.parse(await p.ev(exprs.exitLive));
+    for (let a = 0; a < arms.length; a++) {
+      const [arm, search] = arms[a];
+      const p = a === 0 ? pa : await loadArm(search);
+      if (arm === 'P') {
+        let live = await liveNow(p), frames = 0, nudged = false;
+        for (; frames < 90 && !live.live; frames++) { await p.pump(1); await sleep(20); live = await liveNow(p); }
+        if (!live.live) {
+          nudged = (await p.ev(exprs.exitNudge)) === 1;
+          for (let f = 0; f < 30 && !live.live; f++) { await p.pump(1); await sleep(20); live = await liveNow(p); }
+        }
+        handover.P = { framesWaited: frames, nudged, ...live };
+        log(`  P hand-over: live ${live.live}, variant ${live.variant}, splash ${live.splash}, scroll-driven animations ${live.nonDoc}, nudged ${nudged}`);
+      }
+      const rows = [];
+      for (let k = 0; k < offs.length; k++) {
+        const y = offs[k];
+        await p.ev(`window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' })`);
+        let last = null, still = 0;
+        for (let f = 0; f < 240 && still < 6; f++) {
+          p.vt += dt;
+          await p.ev(`__fwclock.advanceTo(${p.vt})`);
+          await p.pump(1);
+          const now = await p.ev(exprs.exitBoxes);
+          still = now === last ? still + 1 : 0;
+          last = now;
+        }
+        await quietNet(p);
+        await p.ev(exprs.freeze);
+        await p.pump(3);
+        const here = JSON.parse(await p.ev(exprs.exitBoxes));
+        const live = await liveNow(p);
+        const files = [];
+        for (let rep = 0; rep < 2; rep++) {
+          const f = `shots/${arm}_${k}_${rep}.png`;
+          writeFileSync(`${OUT}/${f}`, await p.shot());
+          files.push(f);
+        }
+        const census = await sampleAt(p.c, { ev: p.ev, pump: () => p.pump(1), y });
+        rows.push({
+          i: k, y, scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, dprMilli: census.dprMilli,
+          layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: null, memory: l.memory, reasons: l.reasons })),
+          layerCount: census.layerCount, ...(census.error ? { censusError: census.error } : {}),
+        });
+      }
+      samples[arm] = rows;
+      log(`arm ${arm}: ${rows.length} offsets captured`);
+      await p.close();
+    }
+    const manifest = {
+      schema: 'fw.path-pix/1', mode: 'exit', flag: FLAG, engine: 'chromium', lane: 'chromium-begin-frame', run: RUN, lossless: true,
+      compositing: 'software (--disable-gpu), secondary', browser: version.Browser, browserArgs: CHROME_ARGS.filter((x) => !x.startsWith('--user-data-dir') && !x.startsWith('--remote-debugging-port')), ua,
+      dpr, pageDpr: info.dpr, vw: info.vw, vh: info.vh, frame, content: [0, 0, frame.w, frame.h], maxY, exit, offsets: offs, handover, fonts,
+      arms: arms.map(([arm, search]) => ({ arm, search })), samples, served: Object.keys(srv.served()).length, missing: srv.missing(),
+    };
+    writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest) + '\n');
+    log(`wrote ${OUT}/manifest.json`);
+    return;
+  }
   const declared = Object.keys(info.boxes).sort();
   const layers = ONLY_LAYERS ? ONLY_LAYERS.filter((l) => declared.includes(l)) : declared;
   if (!layers.length) throw new Error(`no declared layer to measure (rendered: ${declared.join(', ') || 'none'})`);
@@ -161,6 +240,7 @@ async function main() {
     compositing: 'software (--disable-gpu), secondary', browser: version.Browser, browserArgs: CHROME_ARGS.filter((x) => !x.startsWith('--user-data-dir') && !x.startsWith('--remote-debugging-port')), ua,
     dpr, pageDpr: info.dpr, vw: info.vw, vh: info.vh, frame, content: [0, 0, frame.w, frame.h], maxY, offsets: offs, offsetIndex: idx, layers,
     arms: arms.map(([arm, search]) => ({ arm, search })), samples, served: Object.keys(srv.served()).length, missing: srv.missing(),
+    fonts,
   };
   writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest) + '\n');
   log(`wrote ${OUT}/manifest.json`);

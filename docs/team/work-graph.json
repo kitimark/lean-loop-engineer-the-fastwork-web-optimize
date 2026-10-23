@@ -14765,8 +14765,16 @@
    "writes": [
     "research/notes/2026/10-2x-hero-exit-threaded-pix.md",
     "results/hero-exit-threaded-pix/**",
-    "docs/team/handoffs/hero-exit-threaded-pix.md"
-   ]
+    "docs/team/handoffs/hero-exit-threaded-pix.md",
+    ".github/workflows/path-pix.yml",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-webkit/test/pathpix*.test.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-chromium/test/pathpix*.test.mjs"
+   ],
+   "evidence": "ed7aa5c"
   },
   {
    "devices": [
@@ -17860,7 +17868,8 @@
     "results/faithful/**",
     "packages/measure-chromium/test/faithful.test.mjs"
    ],
-   "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
+   "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15).",
+   "evidence": "e8bce1f"
   },
   {
    "devices": [
@@ -18155,6 +18164,93 @@
     "docs/team/handoffs/smoothness-throttle-followups.md"
    ],
    "title": "smoothness-cpu-throttle review follow-ups: (1) smoothness.yml workflow_dispatch has no nonce input or run-name, so Fw.Ci.Dispatch (lean/Fw/Ci/Dispatch.lean:23 dispatchWorkflows) cannot identify a smoothness dispatch: add them and register the workflow in Lean; (2) two throttle allowlists disagree (throttle.mjs parseThrottle('06') = 6, the shell step refuses '06'): one rule in Lean with golden, the step calls the one parser; (3) docs/team/tools/smoothness-probe.md: document the cpu_throttle input, the [cpu-throttle=N] token and the own-line [trajectory ...] rule; (4) a 6x A/A spread rule needs more than 3 samples: state the sample count the Lean verdict needs at 6x (open item if more CI is needed)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faithful-control-oos",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "counts-font-fidelity"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/faithful.mjs",
+    "packages/measure-chromium/package.json",
+    "packages/measure-chromium/test/faithful.test.mjs",
+    "packages/measure-chromium/test/fidelity-compare.test.mjs",
+    "lean/Fw/Faithful/Measured.lean",
+    "results/faithful/**",
+    "research/notes/2026/10-2x-counts-font-fidelity.md",
+    "docs/team/handoffs/faithful-control-oos.md"
+   ],
+   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-accent-pin",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-threaded-pix"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-*/test/pathpix*.test.mjs",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "research/notes/2026/10-2x-pathpix-accent-pin.md",
+    "docs/team/handoffs/pathpix-accent-pin.md"
+   ],
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-work-dims",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-slot-width"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/*Timing*Golden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "scripts/checkmap*.mjs",
+    "docs/team/handoffs/timing-work-dims.md"
+   ],
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-lane-noflip",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-first-coverage"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/cli.mjs",
+    "packages/gate-breakpoints/test/trajectory*.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-lane-noflip.md"
+   ],
+   "title": "trajectory-first-coverage review follow-ups: (1) the lane can still flip on one extra original sample when the candidate and faithful arms differ in open-pass count: rel (skip firstOpen) (skip firstOpen) = ok but rel (fail coverage) (skip firstOpen) = new (reproduced: original 5 passes 3 hits, cand nw 5, faithful nw 4 -> CLEAN; one more original hit -> RED). Treat a faithful skip:firstOpen as undecided in rel whenever the candidate's open@1 is skip:firstOpen or fail:coverage, and prove a lane-level no-flip theorem (laneOf never moves red<->clean under one extra original pass); golden + JS twin. (2) cli.mjs:27 summaryMd prints red.red ? 'RED' : 'CLEAN', so an UNDECIDED lane is published as CLEAN: print red.lane.toUpperCase() and add the undecided row. (3) Link the timing model (sampled_iff, phase_covers: 1 or 2 slots by vsync phase) to firstCover's rate by a theorem or state the gap. Then the lead moves ledger row hero.scenePause (runs 39926829451, 39557718020)."
   }
  ],
  "deadline": {
