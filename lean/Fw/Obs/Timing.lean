@@ -752,10 +752,16 @@ theorem judge_insert_key (p : Params) (a b : List Sample) (x : Sample) (i : Nat)
   simp only [judge, windowOf_insert_key p a b x s.key h]
 
 def runSteps : List String :=
-  ["run plan", "run dispatch lock", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
+  ["run plan", "run dispatch lock", "run dispatch reserve", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
 
 def passSteps : List String :=
-  ["watch pass", "watch pass gh lock", "watch pass gh call", "watch pass gh backoff", "watch pass other"]
+  ["watch pass", "watch pass gh lock", "watch pass gh reserve", "watch pass gh call", "watch pass gh backoff", "watch pass other"]
+
+/-- The spans of `fw ci state`: the whole command, then lock wait, fwcore reserve, gh call, backoff and the rest (`reduce`). -/
+def ciStateSteps : List String :=
+  ["ci state", "ci state gh lock", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
+
+theorem ciStateSteps_nodup : ciStateSteps.Nodup := by decide
 
 theorem runSteps_nodup : runSteps.Nodup := by decide
 
@@ -777,8 +783,46 @@ theorem dispatch_limits_lighter : dispatchLockWaitMs < oldLockWaitMs ∧ dispatc
 
 theorem watch_limits_lighter : watchLockWaitMs < oldLockWaitMs ∧ watchCallTimeoutMs < oldCallTimeoutMs := by decide
 
-/-- Two dispatch calls at their 20 s timeout fit inside one 60 s dispatch lock wait (arithmetic on these bounds only; other gh-budget
-callers keep the 60 s default timeout and can still fill the whole wait). -/
+/-- gh timeout of the callers that pass none (wait, poller, `fw ci budget --probe`, timing ingest, `fw ci state`). It was 60 s; a
+`gh run list --limit 1000` took 22319 ms (MEASURED 2026-10-23, `fw ci state`), so 40 s keeps that call whole. -/
+def defaultCallTimeoutMs : Nat := 40000
+
+/-- gh timeout of `fw land`'s own charged call (`land.ts`). -/
+def landCallTimeoutMs : Nat := 20000
+
+/-- Every gh timeout a caller of the charged wrapper uses; a lock holder is killed by its timeout at the latest. -/
+def callerTimeoutsMs : List Nat :=
+  [defaultCallTimeoutMs, dispatchCallTimeoutMs, watchCallTimeoutMs, landCallTimeoutMs]
+
+def maxCallTimeoutMs : Nat := callerTimeoutsMs.foldl max 0
+
+/-- Slack a dispatch keeps behind a holder that runs to its timeout: reserve, observe and the hand-over. -/
+def lockMarginMs : Nat := 20000
+
+/-- Longest wait of the gh-budget poller for the state lock; past it the tick answers `busy`. -/
+def pollLockWaitMs : Nat := 10000
+
+/-- The poller sleeps this long after a `busy` or an idle tick, then asks again; `busy` never stops it. -/
+def busyRetryS : Nat := 2
+
+/-- Longest list `fw ci state` asks for took this long (MEASURED). -/
+def ciStateListMs : Nat := 22319
+
+theorem max_call_timeout_covers : ∀ t ∈ callerTimeoutsMs, t ≤ maxCallTimeoutMs := by decide
+
+/-- One hung holder of any caller is killed before a dispatch's lock wait ends, with the margin to spare, so a hung
+non-dispatch call no longer fills the whole wait. -/
+theorem hung_holder_fits : maxCallTimeoutMs + lockMarginMs ≤ dispatchLockWaitMs := by decide
+
+theorem every_caller_fits : ∀ t ∈ callerTimeoutsMs, t + lockMarginMs ≤ dispatchLockWaitMs := by decide
+
+theorem default_timeout_lighter : defaultCallTimeoutMs < oldCallTimeoutMs := by decide
+
+theorem state_list_fits : ciStateListMs < defaultCallTimeoutMs := by decide
+
+theorem poll_wait_short : pollLockWaitMs < dispatchLockWaitMs ∧ 0 < busyRetryS := by decide
+
+/-- Two dispatch calls at their 20 s timeout fit inside one 60 s dispatch lock wait (arithmetic on these bounds only). -/
 theorem three_dispatches_fit : 2 * dispatchCallTimeoutMs ≤ dispatchLockWaitMs := by decide
 
 theorem watch_gh_block_bound : watchLockWaitMs + watchCallTimeoutMs = 13000 := by decide
@@ -1851,6 +1895,9 @@ def cases : List (String × Params × List Sample) :=
    ("run split: the first sample of a new split step has no history of its own, so the old run dispatch history does not judge it: noBaseline",
       {}, run "fw" "run dispatch" .«local» 3 [5000, 5000, 5000, 5000, 5000] ++ run "fw" "run dispatch lock" .«local» 3 [20000])]
 
+-- six run-split cases: three dispatch, two watch pass, one new split step
+#guard (cases.filter fun c => c.1.startsWith "run split:").length == 6
+
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
   ((fullVerdicts p ss).getLast?).map (·.code)
@@ -1895,9 +1942,22 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
-def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+/-- `packages/gh-budget/src/bounds.gen.ts`: the gh bounds of `Fw.Obs.Timing` as TS constants, so no TS file keeps its own copy. -/
+def boundsText (_ : Unit := ()) : String :=
+  "// Generated from lean/Fw/Obs/Timing.lean by lean/scripts/TimingGolden.lean; do not edit.\n" ++
+  "export const GH_BOUNDS = {\n" ++
+  String.join ([("dispatchLockWaitMs", dispatchLockWaitMs), ("dispatchCallTimeoutMs", dispatchCallTimeoutMs),
+    ("watchLockWaitMs", watchLockWaitMs), ("watchCallTimeoutMs", watchCallTimeoutMs),
+    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
+      fun (n, v) => "  " ++ n ++ ": " ++ toString v ++ ",\n") ++
+  "} as const;\n"
 
-def checkGolden : IO Bool := do return (← IO.FS.readFile goldenPath) == goldenText
+def boundsPath : System.FilePath := "../packages/gh-budget/src/bounds.gen.ts"
+
+def writeGolden : IO Unit := do IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText
+
+def checkGolden : IO Bool := do
+  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText
 
 end Fw.Wire.Obs.Timing
 
