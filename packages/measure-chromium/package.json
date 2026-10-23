@@ -12,6 +12,6 @@
     "classify": "node src/classify.mjs",
     "determinism": "node src/host.mjs --profile swipe-v1 --label det-a && node src/host.mjs --profile swipe-v1 --label det-b && node src/compare.mjs out/swipe-v1/det-a/counts.json out/swipe-v1/det-b/counts.json",
     "test": "node ../../scripts/slot-self.mjs test -- pnpm run test:run",
-    "test:run": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} test/pure.test.mjs test/fwcore.test.mjs test/viewport.test.mjs test/premise.test.mjs test/faithful.test.mjs test/stage-mode.test.mjs test/overflow.test.mjs test/profile.test.mjs"
+    "test:run": "node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../contracts/golden/sched/node-budget.gen.json').workers\")} test/pure.test.mjs test/fwcore.test.mjs test/viewport.test.mjs test/premise.test.mjs test/faithful.test.mjs test/fidelity-compare.test.mjs test/stage-mode.test.mjs test/overflow.test.mjs test/profile.test.mjs"
   }
 }

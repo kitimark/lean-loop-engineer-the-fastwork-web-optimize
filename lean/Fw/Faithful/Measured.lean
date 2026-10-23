@@ -2,7 +2,8 @@
 import Fw.Faithful.Zone
 import Fw.Faithful.Comparable
 /-! Per profile: the runs are comparable, and each zone has the pass bit and failing types `Fw.Faithful.zoneVerdict`
-computes; a zone theorem with `pass = false` states a failing zone. -/
+computes; a zone theorem with `pass = false` states a failing zone;
+the `_control_` theorems state the same for the control A' against A. -/
 namespace Fw.Faithful.Measured
 open Fw.Measure
 
@@ -477,6 +478,199 @@ def swipeV1A : List ZBase := [swipeV1Ay04000, swipeV1Ay04500, swipeV1Atail]
 
 def swipeV1R : List ZBase := [swipeV1Ry04000, swipeV1Ry04500, swipeV1Rtail]
 
+def swipeV1Cy04000 : ZBase := ⟨"y04000", 50, 500, [
+  zc "census.activeTileAreaPx" 326402048 326402048 326402048,
+  zc "census.activeTiles" 4984 4984 4984,
+  zc "census.drawingAreaPx" 567780084 567780084 567780084,
+  zc "census.drawingLayers" 2630 2630 2630,
+  zc "census.layers" 2980 2980 2980,
+  zc "census.snapshots" 50 50 50,
+  zc "census.solidTiles" 1404 1404 1404,
+  zc "census.tiles" 5500 5500 5500,
+  zc "census.tilings" 1662 1662 1662,
+  zc "hasDamage" 50 50 50,
+  zc "metric.Documents" 0 0 0,
+  zc "metric.Frames" 0 0 0,
+  zc "metric.JSEventListeners" 0 0 0,
+  zc "metric.LayoutCount" 42 42 42,
+  zc "metric.LayoutObjects" (-1) 0 (-1),
+  zc "metric.Nodes" 6 29 8,
+  zc "metric.RecalcStyleCount" 199 199 199,
+  zc "metric.Resources" 0 0 0,
+  zc "n0.cssom" 0 0 0,
+  zc "n0.events" 0 0 0,
+  zc "n0.sheetNode" 0 0 0,
+  zc "raster.invalidatedLayers" 196 196 196,
+  zc "raster.invalidationAreaPx" 1794380 1794380 1794380,
+  zc "raster.invalidationRects" 886 886 886,
+  zc "trace.Animation.begin" 9 9 9,
+  zc "trace.Animation.compositeFailedBits" 180256 180256 180256,
+  zc "trace.Animation.instant" 16 16 16,
+  zc "trace.Commit" 50 50 50,
+  zc "trace.CullRectUpdate" 50 50 50,
+  zc "trace.DecodeImage" 1 1 1,
+  zc "trace.DisplayItemListRaster" 260 260 260,
+  zc "trace.EvaluateScript" 50 50 50,
+  zc "trace.EventDispatch" 104 104 104,
+  zc "trace.FireAnimationFrame" 253 253 253,
+  zc "trace.FunctionCall" 477 477 477,
+  zc "trace.HitTest" 100 100 100,
+  zc "trace.HitTest.overlayAdDetector" 5 5 5,
+  zc "trace.ImageDecodeTask" 10 10 10,
+  zc "trace.IntersectionObserverCompute" 100 100 100,
+  zc "trace.InvalidateLayout" 42 42 42,
+  zc "trace.Layer.created" 4 4 4,
+  zc "trace.Layer.deleted" 0 6 0,
+  zc "trace.Layerize" 50 50 50,
+  zc "trace.Layout" 42 42 42,
+  zc "trace.Layout.dirtyObjects" 495 495 495,
+  zc "trace.Layout.partial" 36 36 36,
+  zc "trace.Layout.totalObjects" 8063 8063 8063,
+  zc "trace.MajorGC" 1 1 1,
+  zc "trace.MinorGC" 0 1 1,
+  zc "trace.N1.fontUpdateInvalidation" 0 0 0,
+  zc "trace.N1.scheduleInvalidationsForRuleSets" 0 0 0,
+  zc "trace.N1.svgImageDocument" 0 0 0,
+  zc "trace.N1.updateActiveStyleSheets" 0 0 0,
+  zc "trace.Paint" 159 159 159,
+  zc "trace.PaintImage" 200 200 200,
+  zc "trace.PrePaint" 150 150 150,
+  zc "trace.RasterTask" 260 260 260,
+  zc "trace.RequestAnimationFrame" 252 252 252,
+  zc "trace.ResizeObserverNotify" 50 50 50,
+  zc "trace.ScheduleStyleRecalculation" 199 199 199,
+  zc "trace.ScrollLayer" 50 50 50,
+  zc "trace.UpdateLayer" 2124 2124 2124,
+  zc "trace.UpdateLayoutTree" 199 199 199,
+  zc "trace.UpdateLayoutTree.elementCount" 4255 4255 4255,
+  zc "trace.cc.Activate" 50 50 50,
+  zc "trace.cc.Commit" 50 50 50,
+  zc "trace.cc.Draw" 50 50 50,
+  zc "trace.cc.SynchronizeTrees" 4 4 4]⟩
+
+def swipeV1Cy04500 : ZBase := ⟨"y04500", 50, 500, [
+  zc "census.activeTileAreaPx" 350511104 350511104 350511104,
+  zc "census.activeTiles" 5414 5414 5414,
+  zc "census.drawingAreaPx" 540356602 540356602 540356602,
+  zc "census.drawingLayers" 2845 2845 2845,
+  zc "census.layers" 3174 3174 3174,
+  zc "census.snapshots" 47 47 47,
+  zc "census.solidTiles" 1490 1490 1490,
+  zc "census.tiles" 6345 6345 6345,
+  zc "census.tilings" 1943 1943 1943,
+  zc "hasDamage" 47 47 47,
+  zc "metric.Documents" 0 0 0,
+  zc "metric.Frames" 0 0 0,
+  zc "metric.JSEventListeners" 0 0 0,
+  zc "metric.LayoutCount" 20 20 20,
+  zc "metric.LayoutObjects" 2 3 3,
+  zc "metric.Nodes" (-42) 201 201,
+  zc "metric.RecalcStyleCount" 153 153 153,
+  zc "metric.Resources" 0 0 0,
+  zc "n0.cssom" 0 0 0,
+  zc "n0.events" 0 0 0,
+  zc "n0.sheetNode" 0 0 0,
+  zc "raster.invalidatedLayers" 172 172 172,
+  zc "raster.invalidationAreaPx" 1329900 1329900 1329900,
+  zc "raster.invalidationRects" 783 783 783,
+  zc "trace.Animation.begin" 14 14 14,
+  zc "trace.Animation.instant" 23 23 23,
+  zc "trace.Commit" 50 50 50,
+  zc "trace.CullRectUpdate" 76 76 76,
+  zc "trace.DecodeImage" 2 2 2,
+  zc "trace.DisplayItemListRaster" 267 267 267,
+  zc "trace.EvaluateScript" 50 50 50,
+  zc "trace.EventDispatch" 100 100 100,
+  zc "trace.FireAnimationFrame" 204 204 204,
+  zc "trace.FunctionCall" 389 389 389,
+  zc "trace.HitTest" 100 100 100,
+  zc "trace.HitTest.overlayAdDetector" 6 6 6,
+  zc "trace.ImageDecodeTask" 6 6 6,
+  zc "trace.IntersectionObserverCompute" 100 100 100,
+  zc "trace.InvalidateLayout" 20 20 20,
+  zc "trace.Layer.created" 14 14 14,
+  zc "trace.Layerize" 50 50 50,
+  zc "trace.Layout" 20 20 20,
+  zc "trace.Layout.dirtyObjects" 142 142 142,
+  zc "trace.Layout.partial" 20 20 20,
+  zc "trace.Layout.totalObjects" 1060 1060 1060,
+  zc "trace.MajorGC" 0 1 0,
+  zc "trace.MinorGC" 0 1 0,
+  zc "trace.N1.fontUpdateInvalidation" 0 0 0,
+  zc "trace.N1.scheduleInvalidationsForRuleSets" 0 0 0,
+  zc "trace.N1.svgImageDocument" 0 0 0,
+  zc "trace.N1.updateActiveStyleSheets" 0 0 0,
+  zc "trace.Paint" 185 185 185,
+  zc "trace.PaintImage" 238 238 238,
+  zc "trace.PrePaint" 176 176 176,
+  zc "trace.RasterTask" 267 267 267,
+  zc "trace.RequestAnimationFrame" 204 204 204,
+  zc "trace.ResizeObserverNotify" 76 76 76,
+  zc "trace.ScheduleStyleRecalculation" 153 153 153,
+  zc "trace.ScrollLayer" 50 50 50,
+  zc "trace.UpdateLayer" 2482 2482 2482,
+  zc "trace.UpdateLayoutTree" 153 153 153,
+  zc "trace.UpdateLayoutTree.elementCount" 2854 2855 2854,
+  zc "trace.cc.Activate" 50 50 50,
+  zc "trace.cc.Commit" 50 50 50,
+  zc "trace.cc.Draw" 50 50 50,
+  zc "trace.cc.SynchronizeTrees" 6 6 6]⟩
+
+def swipeV1Ctail : ZBase := ⟨"tail", 30, 0, [
+  zc "census.activeTileAreaPx" 196841472 196841472 196841472,
+  zc "census.activeTiles" 3299 3299 3299,
+  zc "census.drawingAreaPx" 306462256 306462256 306462256,
+  zc "census.drawingLayers" 1653 1653 1653,
+  zc "census.layers" 1827 1827 1827,
+  zc "census.snapshots" 29 29 29,
+  zc "census.solidTiles" 928 928 928,
+  zc "census.tiles" 3741 3741 3741,
+  zc "census.tilings" 1247 1247 1247,
+  zc "hasDamage" 29 29 29,
+  zc "metric.Documents" 0 0 0,
+  zc "metric.Frames" 0 0 0,
+  zc "metric.JSEventListeners" 0 0 0,
+  zc "metric.LayoutCount" 0 0 0,
+  zc "metric.LayoutObjects" 0 0 0,
+  zc "metric.Nodes" 120 120 120,
+  zc "metric.RecalcStyleCount" 30 30 30,
+  zc "metric.Resources" 0 0 0,
+  zc "n0.cssom" 0 0 0,
+  zc "n0.events" 0 0 0,
+  zc "n0.sheetNode" 0 0 0,
+  zc "raster.invalidatedLayers" 174 174 174,
+  zc "raster.invalidationAreaPx" 15580975 15580975 15580975,
+  zc "raster.invalidationRects" 551 551 551,
+  zc "trace.Commit" 30 30 30,
+  zc "trace.CullRectUpdate" 30 30 30,
+  zc "trace.DisplayItemListRaster" 215 215 215,
+  zc "trace.EvaluateScript" 29 29 29,
+  zc "trace.FireAnimationFrame" 35 35 35,
+  zc "trace.FunctionCall" 69 69 69,
+  zc "trace.HitTest" 1 1 1,
+  zc "trace.HitTest.overlayAdDetector" 3 3 3,
+  zc "trace.IntersectionObserverCompute" 60 60 60,
+  zc "trace.Layerize" 30 30 30,
+  zc "trace.N1.fontUpdateInvalidation" 0 0 0,
+  zc "trace.N1.scheduleInvalidationsForRuleSets" 0 0 0,
+  zc "trace.N1.svgImageDocument" 0 0 0,
+  zc "trace.N1.updateActiveStyleSheets" 0 0 0,
+  zc "trace.Paint" 61 61 61,
+  zc "trace.PaintImage" 120 120 120,
+  zc "trace.PrePaint" 31 31 31,
+  zc "trace.RasterTask" 215 215 215,
+  zc "trace.RequestAnimationFrame" 32 32 32,
+  zc "trace.ResizeObserverNotify" 30 30 30,
+  zc "trace.ScheduleStyleRecalculation" 30 30 30,
+  zc "trace.UpdateLayer" 1320 1320 1320,
+  zc "trace.UpdateLayoutTree" 30 30 30,
+  zc "trace.UpdateLayoutTree.elementCount" 459 460 459,
+  zc "trace.cc.Activate" 30 30 30,
+  zc "trace.cc.Commit" 30 30 30,
+  zc "trace.cc.Draw" 30 30 30]⟩
+
+def swipeV1C : List ZBase := [swipeV1Cy04000, swipeV1Cy04500, swipeV1Ctail]
+
 theorem swipeV1_y04000 :
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "y04000").pass = false ∧
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "y04000").failed = ["metric.RecalcStyleCount", "raster.invalidatedLayers", "trace.Animation.begin", "trace.Animation.compositeFailedBits", "trace.Animation.instant", "trace.FireAnimationFrame", "trace.Layer.created", "trace.RequestAnimationFrame", "trace.ScheduleStyleRecalculation", "trace.UpdateLayer", "trace.UpdateLayoutTree"] := by
@@ -490,6 +684,21 @@ theorem swipeV1_y04500 :
 theorem swipeV1_tail :
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "tail").pass = false ∧
     (zoneVerdict swipeV1Table swipeV1A swipeV1R "tail").failed = ["raster.invalidatedLayers", "trace.FireAnimationFrame", "trace.RequestAnimationFrame", "trace.UpdateLayer"] := by
+  decide +kernel
+
+theorem swipeV1_control_y04000 :
+    (zoneVerdict swipeV1Table swipeV1A swipeV1C "y04000").pass = true ∧
+    (zoneVerdict swipeV1Table swipeV1A swipeV1C "y04000").failed = [] := by
+  decide +kernel
+
+theorem swipeV1_control_y04500 :
+    (zoneVerdict swipeV1Table swipeV1A swipeV1C "y04500").pass = true ∧
+    (zoneVerdict swipeV1Table swipeV1A swipeV1C "y04500").failed = [] := by
+  decide +kernel
+
+theorem swipeV1_control_tail :
+    (zoneVerdict swipeV1Table swipeV1A swipeV1C "tail").pass = true ∧
+    (zoneVerdict swipeV1Table swipeV1A swipeV1C "tail").failed = [] := by
   decide +kernel
 
 def swipeTouchV1Table : Freeze.Table := [
@@ -952,6 +1161,197 @@ def swipeTouchV1A : List ZBase := [swipeTouchV1Ay04000, swipeTouchV1Ay04500, swi
 
 def swipeTouchV1R : List ZBase := [swipeTouchV1Ry04000, swipeTouchV1Ry04500, swipeTouchV1Rtail]
 
+def swipeTouchV1Cy04000 : ZBase := ⟨"y04000", 50, 500, [
+  zc "census.activeTileAreaPx" 328318976 328318976 328318976,
+  zc "census.activeTiles" 5034 5034 5034,
+  zc "census.drawingAreaPx" 567716786 567716786 567716786,
+  zc "census.drawingLayers" 2667 2667 2667,
+  zc "census.layers" 3007 3007 3007,
+  zc "census.snapshots" 50 50 50,
+  zc "census.solidTiles" 1404 1404 1404,
+  zc "census.tiles" 5574 5574 5574,
+  zc "census.tilings" 1703 1703 1703,
+  zc "hasDamage" 50 50 50,
+  zc "metric.Documents" 0 0 0,
+  zc "metric.Frames" 0 0 0,
+  zc "metric.JSEventListeners" 0 0 0,
+  zc "metric.LayoutCount" 33 33 33,
+  zc "metric.LayoutObjects" (-1) 0 (-1),
+  zc "metric.Nodes" (-162) 223 67,
+  zc "metric.RecalcStyleCount" 190 190 190,
+  zc "metric.Resources" 0 0 0,
+  zc "n0.cssom" 0 0 0,
+  zc "n0.events" 0 0 0,
+  zc "n0.sheetNode" 0 0 0,
+  zc "raster.invalidatedLayers" 190 190 190,
+  zc "raster.invalidationAreaPx" 1933697 1933697 1933697,
+  zc "raster.invalidationRects" 870 870 870,
+  zc "trace.Animation.begin" 11 11 11,
+  zc "trace.Animation.compositeFailedBits" 53280 53280 53280,
+  zc "trace.Animation.instant" 18 18 18,
+  zc "trace.Commit" 50 50 50,
+  zc "trace.CullRectUpdate" 50 50 50,
+  zc "trace.DecodeImage" 1 1 1,
+  zc "trace.DisplayItemListRaster" 254 254 254,
+  zc "trace.EvaluateScript" 50 50 50,
+  zc "trace.EventDispatch" 104 104 104,
+  zc "trace.FireAnimationFrame" 228 228 228,
+  zc "trace.FunctionCall" 474 474 474,
+  zc "trace.HitTest" 133 133 133,
+  zc "trace.HitTest.overlayAdDetector" 13 13 13,
+  zc "trace.ImageDecodeTask" 12 12 12,
+  zc "trace.IntersectionObserverCompute" 100 100 100,
+  zc "trace.InvalidateLayout" 33 33 33,
+  zc "trace.Layer.created" 5 5 5,
+  zc "trace.Layer.deleted" 0 6 0,
+  zc "trace.Layerize" 50 50 50,
+  zc "trace.Layout" 33 33 33,
+  zc "trace.Layout.dirtyObjects" 343 343 343,
+  zc "trace.Layout.partial" 31 31 31,
+  zc "trace.Layout.totalObjects" 3902 3902 3902,
+  zc "trace.MajorGC" 0 2 1,
+  zc "trace.MinorGC" 0 1 1,
+  zc "trace.N1.fontUpdateInvalidation" 0 0 0,
+  zc "trace.N1.scheduleInvalidationsForRuleSets" 0 0 0,
+  zc "trace.N1.svgImageDocument" 0 0 0,
+  zc "trace.N1.updateActiveStyleSheets" 0 0 0,
+  zc "trace.Paint" 156 156 156,
+  zc "trace.PaintImage" 204 204 204,
+  zc "trace.PrePaint" 183 183 183,
+  zc "trace.RasterTask" 254 254 254,
+  zc "trace.RequestAnimationFrame" 227 227 227,
+  zc "trace.ResizeObserverNotify" 50 50 50,
+  zc "trace.ScheduleStyleRecalculation" 190 190 190,
+  zc "trace.ScrollLayer" 50 50 50,
+  zc "trace.UpdateLayer" 2167 2167 2167,
+  zc "trace.UpdateLayoutTree" 190 190 190,
+  zc "trace.UpdateLayoutTree.elementCount" 4111 4111 4111,
+  zc "trace.cc.Activate" 50 50 50,
+  zc "trace.cc.Commit" 50 50 50,
+  zc "trace.cc.Draw" 50 50 50,
+  zc "trace.cc.SynchronizeTrees" 6 6 6]⟩
+
+def swipeTouchV1Cy04500 : ZBase := ⟨"y04500", 50, 475, [
+  zc "census.activeTileAreaPx" 352268288 352268288 352268288,
+  zc "census.activeTiles" 5476 5476 5476,
+  zc "census.drawingAreaPx" 542198439 542198439 542198439,
+  zc "census.drawingLayers" 2907 2907 2907,
+  zc "census.layers" 3189 3189 3189,
+  zc "census.snapshots" 47 47 47,
+  zc "census.solidTiles" 1492 1492 1492,
+  zc "census.tiles" 6367 6367 6367,
+  zc "census.tilings" 2003 2003 2003,
+  zc "hasDamage" 47 47 47,
+  zc "metric.Documents" 0 0 0,
+  zc "metric.Frames" 0 0 0,
+  zc "metric.JSEventListeners" 0 0 0,
+  zc "metric.LayoutCount" 22 22 22,
+  zc "metric.LayoutObjects" 3 3 3,
+  zc "metric.Nodes" (-9) 201 201,
+  zc "metric.RecalcStyleCount" 141 141 141,
+  zc "metric.Resources" 0 0 0,
+  zc "n0.cssom" 0 0 0,
+  zc "n0.events" 0 0 0,
+  zc "n0.sheetNode" 0 0 0,
+  zc "raster.invalidatedLayers" 176 176 176,
+  zc "raster.invalidationAreaPx" 1342566 1342566 1342566,
+  zc "raster.invalidationRects" 787 787 787,
+  zc "trace.Animation.begin" 14 14 14,
+  zc "trace.Animation.instant" 23 23 23,
+  zc "trace.Commit" 50 50 50,
+  zc "trace.CullRectUpdate" 76 76 76,
+  zc "trace.DecodeImage" 2 2 2,
+  zc "trace.DisplayItemListRaster" 261 261 261,
+  zc "trace.EvaluateScript" 50 50 50,
+  zc "trace.EventDispatch" 96 96 96,
+  zc "trace.FireAnimationFrame" 166 166 166,
+  zc "trace.FunctionCall" 372 372 372,
+  zc "trace.HitTest" 111 111 111,
+  zc "trace.HitTest.overlayAdDetector" 13 13 13,
+  zc "trace.ImageDecodeTask" 11 11 11,
+  zc "trace.IntersectionObserverCompute" 100 100 100,
+  zc "trace.InvalidateLayout" 22 22 22,
+  zc "trace.Layer.created" 14 14 14,
+  zc "trace.Layer.deleted" 0 1 0,
+  zc "trace.Layerize" 50 50 50,
+  zc "trace.Layout" 22 22 22,
+  zc "trace.Layout.dirtyObjects" 155 155 155,
+  zc "trace.Layout.partial" 21 21 21,
+  zc "trace.Layout.totalObjects" 2348 2348 2348,
+  zc "trace.MajorGC" 0 1 0,
+  zc "trace.MinorGC" 0 1 0,
+  zc "trace.N1.fontUpdateInvalidation" 0 0 0,
+  zc "trace.N1.scheduleInvalidationsForRuleSets" 0 0 0,
+  zc "trace.N1.svgImageDocument" 0 0 0,
+  zc "trace.N1.updateActiveStyleSheets" 0 0 0,
+  zc "trace.Paint" 181 181 181,
+  zc "trace.PaintImage" 238 238 238,
+  zc "trace.PrePaint" 187 187 187,
+  zc "trace.RasterTask" 261 261 261,
+  zc "trace.RequestAnimationFrame" 166 166 166,
+  zc "trace.ResizeObserverNotify" 76 76 76,
+  zc "trace.ScheduleStyleRecalculation" 141 141 141,
+  zc "trace.ScrollLayer" 44 44 44,
+  zc "trace.UpdateLayer" 2546 2546 2546,
+  zc "trace.UpdateLayoutTree" 141 141 141,
+  zc "trace.UpdateLayoutTree.elementCount" 2589 2590 2590,
+  zc "trace.cc.Activate" 50 50 50,
+  zc "trace.cc.Commit" 50 50 50,
+  zc "trace.cc.Draw" 50 50 50,
+  zc "trace.cc.SynchronizeTrees" 6 6 6]⟩
+
+def swipeTouchV1Ctail : ZBase := ⟨"tail", 30, 0, [
+  zc "census.activeTileAreaPx" 167116800 167116800 167116800,
+  zc "census.activeTiles" 4740 4740 4740,
+  zc "census.drawingAreaPx" 363986100 363986100 363986100,
+  zc "census.drawingLayers" 4020 4020 4020,
+  zc "census.layers" 4200 4200 4200,
+  zc "census.snapshots" 30 30 30,
+  zc "census.solidTiles" 960 960 960,
+  zc "census.tiles" 6900 6900 6900,
+  zc "census.tilings" 3720 3720 3720,
+  zc "hasDamage" 30 30 30,
+  zc "metric.Documents" 0 0 0,
+  zc "metric.Frames" 0 0 0,
+  zc "metric.JSEventListeners" 0 0 0,
+  zc "metric.LayoutCount" 0 0 0,
+  zc "metric.LayoutObjects" 0 0 0,
+  zc "metric.Nodes" 120 120 120,
+  zc "metric.RecalcStyleCount" 30 30 30,
+  zc "metric.Resources" 0 0 0,
+  zc "n0.cssom" 0 0 0,
+  zc "n0.events" 0 0 0,
+  zc "n0.sheetNode" 0 0 0,
+  zc "raster.invalidatedLayers" 90 90 90,
+  zc "raster.invalidationAreaPx" 22187880 22187880 22187880,
+  zc "raster.invalidationRects" 90 90 90,
+  zc "trace.Commit" 30 30 30,
+  zc "trace.CullRectUpdate" 30 30 30,
+  zc "trace.EvaluateScript" 30 30 30,
+  zc "trace.FireAnimationFrame" 14 14 14,
+  zc "trace.FunctionCall" 28 28 28,
+  zc "trace.HitTest.overlayAdDetector" 3 4 3,
+  zc "trace.IntersectionObserverCompute" 60 60 60,
+  zc "trace.Layerize" 30 30 30,
+  zc "trace.N1.fontUpdateInvalidation" 0 0 0,
+  zc "trace.N1.scheduleInvalidationsForRuleSets" 0 0 0,
+  zc "trace.N1.svgImageDocument" 0 0 0,
+  zc "trace.N1.updateActiveStyleSheets" 0 0 0,
+  zc "trace.Paint" 60 60 60,
+  zc "trace.PaintImage" 120 120 120,
+  zc "trace.PrePaint" 30 30 30,
+  zc "trace.RequestAnimationFrame" 12 12 12,
+  zc "trace.ResizeObserverNotify" 30 30 30,
+  zc "trace.ScheduleStyleRecalculation" 30 30 30,
+  zc "trace.UpdateLayer" 776 776 776,
+  zc "trace.UpdateLayoutTree" 30 30 30,
+  zc "trace.UpdateLayoutTree.elementCount" 410 410 410,
+  zc "trace.cc.Activate" 8 8 8,
+  zc "trace.cc.Commit" 8 8 8,
+  zc "trace.cc.Draw" 30 30 30]⟩
+
+def swipeTouchV1C : List ZBase := [swipeTouchV1Cy04000, swipeTouchV1Cy04500, swipeTouchV1Ctail]
+
 theorem swipeTouchV1_y04000 :
     (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1R "y04000").pass = false ∧
     (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1R "y04000").failed = ["census.activeTileAreaPx", "census.activeTiles", "census.drawingAreaPx", "census.solidTiles", "census.tiles", "census.tilings", "raster.invalidatedLayers", "trace.Animation.begin", "trace.Animation.compositeFailedBits", "trace.Animation.instant", "trace.FireAnimationFrame", "trace.ImageDecodeTask", "trace.RequestAnimationFrame", "trace.UpdateLayer"] := by
@@ -965,6 +1365,21 @@ theorem swipeTouchV1_y04500 :
 theorem swipeTouchV1_tail :
     (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1R "tail").pass = false ∧
     (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1R "tail").failed = ["census.drawingAreaPx", "census.solidTiles", "census.tiles", "census.tilings", "trace.FireAnimationFrame", "trace.RequestAnimationFrame", "trace.UpdateLayer", "trace.cc.Activate", "trace.cc.Commit"] := by
+  decide +kernel
+
+theorem swipeTouchV1_control_y04000 :
+    (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1C "y04000").pass = true ∧
+    (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1C "y04000").failed = [] := by
+  decide +kernel
+
+theorem swipeTouchV1_control_y04500 :
+    (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1C "y04500").pass = true ∧
+    (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1C "y04500").failed = [] := by
+  decide +kernel
+
+theorem swipeTouchV1_control_tail :
+    (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1C "tail").pass = true ∧
+    (zoneVerdict swipeTouchV1Table swipeTouchV1A swipeTouchV1C "tail").failed = [] := by
   decide +kernel
 
 end Fw.Faithful.Measured
