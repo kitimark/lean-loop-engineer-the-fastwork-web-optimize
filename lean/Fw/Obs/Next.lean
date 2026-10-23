@@ -1594,6 +1594,39 @@ theorem slowSteps_of_timing (p : Timing.Params) (ss : List Timing.Sample) (s : S
   rw [mem_dedupL] at h
   exact slowLatest_sound _ s h
 
+theorem verdictsOf_slowSteps_uncontended (p : Timing.Params) (ss : List Timing.Sample) (s : String)
+    (h : s ∈ slowSteps (Timing.verdictsOf p ss)) :
+    ∃ x ∈ ss, Timing.contended p x = false ∧ subject x.tool x.step x.kind x.work = s := by
+  obtain ⟨y, hy, hc, hs⟩ := slowSteps_uncontended p (ss.map Timing.Sample.norm) s h
+  obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hy
+  exact ⟨x, hx, hc, hs⟩
+
+theorem verdictsOf_slowSteps_no_bucket (p : Timing.Params) (ss : List Timing.Sample) (s : String)
+    (h : s ∈ slowSteps (Timing.verdictsOf p ss)) :
+    ∃ v, Timing.Verdict.sample v ∈ Timing.verdictsOf p ss ∧ stepName v = s ∧
+      ¬ (v.tool = "fw" ∧ ∃ k ∈ Timing.slotKinds, v.step ∈ Timing.bucketSteps k) :=
+  slowSteps_no_bucket p (ss.map Timing.Sample.norm) s h
+
+theorem verdictsOf_slowSteps_of_timing (p : Timing.Params) (ss : List Timing.Sample) (s : String)
+    (h : s ∈ slowSteps (Timing.verdictsOf p ss)) :
+    ∃ v, Timing.Verdict.sample v ∈ Timing.verdictsOf p ss ∧ v.code = .slow ∧ stepName v = s :=
+  slowSteps_of_timing p (ss.map Timing.Sample.norm) s h
+
+theorem alertsFrom_mem (prev : List Timing.SampleVerdict) (vs : List Timing.Verdict) (v : Timing.SampleVerdict)
+    (h : v ∈ alertsFrom prev vs) : Timing.Verdict.sample v ∈ vs := by
+  induction vs generalizing prev with
+  | nil => simp [alertsFrom] at h
+  | cons x rest ih =>
+    cases x with
+    | structural w => exact List.mem_cons_of_mem _ (ih prev (by simpa [alertsFrom] using h))
+    | sample w =>
+      simp only [alertsFrom, List.mem_append] at h
+      rcases h with h | h
+      · split at h
+        · simp only [List.mem_singleton] at h; subst h; exact List.mem_cons_self ..
+        · simp at h
+      · exact List.mem_cons_of_mem _ (ih (w :: prev) h)
+
 private def tv (tool step : String) (code : Timing.Code) : Timing.Verdict :=
   .sample { idx := 0, tool, step, host := .ci, durMs := 1, code, n := 5, baseline := 1, budgetMs := 1 }
 
