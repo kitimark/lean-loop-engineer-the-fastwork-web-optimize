@@ -1,8 +1,8 @@
 branch: worktree-wf_6ccadb14-8f5-1 (CI branches ci/morph-wheel-momentum = mac leg, ci/morph-wheel-momentum-sim = Simulator leg)
 worktree: .claude/worktrees/wf_6ccadb14-8f5-1
 last commit: see `git log -1` (CI pushes 704cb3741 mac, eca3c0e60 sim, both after the code commit and the main merge)
-CI runs (smoothness.yml): mac 40018133445 running; sim 40018153769 running. 2 dispatches used, no more allowed.
-State: code, Lean, golden and tests done; waiting for the two runs, then the note and report.
+CI runs (smoothness.yml): mac 40018133445 success (jobs 1..3 success, 8 to 11 min each); sim 40018153769 running. 2 dispatches used, no more allowed.
+State: code, Lean, golden, tests, lean check, ci-paths, land-inputs green; mac run read (momentum: push 2.3 to 2.8 frames after the last scroll, 2 to 4 of 6 runs in flight, page already at the end at the push in 36 of 36); waiting for the sim run, then note, fw land --dry, review ready.
 
 Verified so far
 - Lean `WebKitLagPhase.lean` compiles (inFlight, flightFrames, splitPush, acceptMomentum, jobLabel, 25 theorems); golden regenerated with `lake env lean --run scripts/WebkitLagGolden.lean` (145 lines), never hand-edited.

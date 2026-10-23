@@ -85,13 +85,15 @@ export function pushFacts(file) {
   for (const r of file.runs) {
     if (!r.fin) continue;
     const key = `${r.arm}|${r.drive}`;
-    const o = out.get(key) ?? { runs: 0, events: 0, trusted: 0, prevented: 0, cancelable: 0, morphMax: 0, scrolledIn: 0, wheels: 0, scrollEvents: 0, pushSeen: 0, inFlight: 0, gapFrames: [], flightOpen: [] };
+    const o = out.get(key) ?? { runs: 0, events: 0, trusted: 0, prevented: 0, cancelable: 0, morphMax: 0, scrolledIn: 0, wheels: 0, scrollEvents: 0, pushSeen: 0, inFlight: 0, atEnd: 0, gapFrames: [], flightOpen: [] };
     o.runs++;
     const sp = splitPush(r.fin.events);
     o.scrollEvents += sp.scrolls.length;
     if (sp.push !== null) {
       o.pushSeen++;
       if (inFlight(sp.scrolls, sp.push)) o.inFlight++;
+      const pe = r.fin.events.find((e) => e.m);
+      if (pe && typeof pe.y === 'number' && typeof r.info?.maxY === 'number' && pe.y >= r.info.maxY - 1) o.atEnd++;
       if (sp.scrolls.length) o.gapFrames.push(sp.push - Math.max(...sp.scrolls));
       o.flightOpen.push(flightFrames(sp.scrolls, sp.push, r.open ?? 0));
     }
@@ -136,8 +138,8 @@ export function macMd(a) {
   L.push(`Playwright WebKit, ${a.jobs} job(s). Per-frame record counts averaged over the runs the phase rule accepts (n). Every verdict is decided inside one job from that job's own runs and is stated only when its per-run ranges are separated; the jobs are listed in order and never pooled. Drive verdicts compare the drive against synthetic (lower: the drive is below synthetic); arm verdicts compare rewrite against original (lower: rewrite is below original). A verdict cell lists ${J.map((j) => a.labels[j]).join(' / ')} in that order.`, '');
   L.push('### Pushes seen by the page', '', '| job | arm | drive | runs | wheel events | isTrusted | cancelable | defaultPrevented | max --morph | scrolled before the push | scroll wheels |', '|---|---|---|---|---|---|---|---|---|---|---|');
   for (const j of J) for (const [k, o] of Object.entries(a.facts[j])) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${o.runs} | ${o.events} | ${o.trusted} | ${o.cancelable} | ${o.prevented} | ${f2(o.morphMax)} | ${o.scrolledIn} | ${o.wheels} |`);
-  L.push('', `### Scroll in flight at the push (a scroll wheel at frame s is in flight for frames s to s + ${FLIGHT_HOLD}; Lean inFlight, flightFrames)`, '', '| job | arm | drive | runs | push seen | scroll wheels before the push (mean) | push with a scroll in flight | last scroll to push, frames (mean) | open-phase frames in flight (mean) |', '|---|---|---|---|---|---|---|---|---|');
-  for (const j of J) for (const [k, o] of Object.entries(a.facts[j])) if (o.scrollEvents > 0) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${o.runs} | ${o.pushSeen} | ${f2(o.scrollEvents / o.runs)} | ${o.inFlight} | ${f2(mean(o.gapFrames))} | ${f2(mean(o.flightOpen))} |`);
+  L.push('', `### Scroll in flight at the push (a scroll wheel at frame s is in flight for frames s to s + ${FLIGHT_HOLD}; Lean inFlight, flightFrames)`, '', '| job | arm | drive | runs | push seen | scroll wheels before the push (mean) | push with a scroll in flight | page already at the end when the push arrived | last scroll to push, frames (mean) | open-phase frames in flight (mean) |', '|---|---|---|---|---|---|---|---|---|---|');
+  for (const j of J) for (const [k, o] of Object.entries(a.facts[j])) if (o.scrollEvents > 0) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${o.runs} | ${o.pushSeen} | ${f2(o.scrollEvents / o.runs)} | ${o.inFlight} | ${o.atEnd} | ${f2(mean(o.gapFrames))} | ${f2(mean(o.flightOpen))} |`);
   if (a.refused.some((r) => Object.keys(r).length)) {
     L.push('', '### Runs the phase rule or the capture refused', '', '| job | arm | drive | refused | reasons |', '|---|---|---|---|---|');
     for (const j of J) for (const [k, rows] of Object.entries(a.refused[j])) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${rows.length} | ${[...new Set(rows.map((r) => r.outcome))].join(', ')} |`);

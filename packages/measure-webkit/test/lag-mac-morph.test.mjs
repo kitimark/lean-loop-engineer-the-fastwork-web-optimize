@@ -89,7 +89,7 @@ function file(reps, layout, { scrollin = true } = {}) {
     const scrolls = drive === 'scrollin' || drive === 'momentum';
     const startY = scrolls ? (scrollin ? 4800 : 5102) : 5102;
     const events = drive === 'momentum'
-      ? [{ f: 5, m: false }, { f: 7, m: false }, { f: 9, m: false }, { f: 10, m: true }, { f: 70, m: true }].map((e) => ({ ...e, dy: 120, trusted: true, cancelable: true, prevented: false }))
+      ? [{ f: 5, m: false }, { f: 7, m: false }, { f: 9, m: false }, { f: 10, m: true }, { f: 70, m: true }].map((e) => ({ ...e, y: 5102, dy: 120, trusted: true, cancelable: true, prevented: false }))
       : [{ f: 10, dy: 120, trusted: drive !== 'synthetic', cancelable: true, prevented: false, m: true }];
     runs.push({ rep, arm, drive, ...r, startY, pushY: 5102, wheels: scrolls ? 3 : 0, info: { maxY: 5102 }, fin: { frames: 130, y: 5102, events, at: [{ label: 'open', f: 70, morph: drive === 'synthetic' ? 0.5 : 1, y: 5102 }] } });
   }
@@ -117,6 +117,7 @@ test('tables: each job is decided on its own, refused runs are counted per job',
   assert.equal(a.facts[0]['orig|scrollin'].scrolledIn, 3);
   assert.equal(a.facts[0]['orig|trusted'].scrolledIn, 0);
   assert.equal(a.facts[0]['orig|momentum'].inFlight, 3);
+  assert.equal(a.facts[0]['orig|momentum'].atEnd, 3);
   assert.deepEqual(a.facts[0]['orig|momentum'].gapFrames, [1, 1, 1]);
   assert.deepEqual(a.facts[0]['orig|momentum'].flightOpen, [2, 2, 2]);
   assert.deepEqual(a.labels, ['job 1', 'job 2', 'job 3']);
