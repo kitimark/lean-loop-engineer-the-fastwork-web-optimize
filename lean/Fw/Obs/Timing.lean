@@ -129,6 +129,52 @@ theorem slotWork_width_ne (w w' : Nat) (j j' : Option Nat) (h : w ≠ w') : slot
   simp only [slotWork, List.cons.injEq, Prod.mk.injEq, and_true, true_and] at e
   exact h (Nat.repr_injective e)
 
+def checksDim : String := "checks"
+
+/-- The checkmap checks that start lake (`lake build`, `lake env lean`, the preset generator); the others parse files. -/
+def heavyChecks : List String := ["lakeBuild", "leanElab", "presetCheck"]
+
+def lightClass : String := "light"
+
+/-- The work class of a polish commit from the kinds of its checkmap commands: the heavy kinds it ran, joined by `+` in
+`heavyChecks` order, or `light` when it ran none. The command count is recorded on the span but is not a dimension.
+-/
+def checksWork (kinds : List String) : List (String × String) :=
+  let heavy := heavyChecks.filter kinds.contains
+  [(checksDim, if heavy.isEmpty then lightClass else "+".intercalate heavy)]
+
+/-- The work dimensions of a span: its polish checks class, then its slot width (the key order of a JSON object). -/
+def spanWork (width jobs : Option Nat) (checks : Option (List String)) : List (String × String) :=
+  (checks.map checksWork).getD [] ++ slotWork width jobs
+
+#guard checksWork ["nodeCheck", "shParse"] == [("checks", "light")] && checksWork [] == [("checks", "light")]
+#guard checksWork ["shParse", "lakeBuild", "nodeCheck"] == [("checks", "lakeBuild")]
+#guard checksWork ["presetCheck", "lakeBuild", "lakeBuild"] == [("checks", "lakeBuild+presetCheck")]
+#guard spanWork (some 2) (some 30) none == [("width", "2")] && spanWork none none none == []
+#guard spanWork none none (some ["lakeBuild"]) == [("checks", "lakeBuild")]
+
+theorem checksWork_mem (a b : List String) (h : ∀ x, x ∈ a ↔ x ∈ b) : checksWork a = checksWork b := by
+  have hf : heavyChecks.filter a.contains = heavyChecks.filter b.contains :=
+    List.filter_congr fun x _ => by simp [h x]
+  simp only [checksWork, hf]
+
+theorem checksWork_light (kinds : List String) (h : ∀ k ∈ heavyChecks, k ∉ kinds) :
+    checksWork kinds = [(checksDim, lightClass)] := by
+  have hf : heavyChecks.filter kinds.contains = [] :=
+    List.filter_eq_nil_iff.2 fun k hk => by simp [h k hk]
+  simp [checksWork, hf]
+
+theorem checksWork_heavy (kinds : List String) (k : String) (hk : k ∈ heavyChecks) (hm : k ∈ kinds) :
+    checksWork kinds ≠ [(checksDim, lightClass)] := by
+  have hc : kinds.contains k = true := by simpa using hm
+  simp only [heavyChecks, List.mem_cons, List.not_mem_nil, or_false] at hk
+  simp only [checksWork, heavyChecks, lightClass, checksDim, List.filter_cons, List.filter_nil]
+  rcases hk with rfl | rfl | rfl <;> rw [hc] <;>
+    cases kinds.contains "lakeBuild" <;> cases kinds.contains "leanElab" <;> cases kinds.contains "presetCheck" <;>
+    simp
+
+theorem spanWork_unchecked (w j : Option Nat) : spanWork w j none = slotWork w j := rfl
+
 /-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key). -/
 structure Group where
   name : String
@@ -291,6 +337,7 @@ inductive Code where
   | ok
   | slow
   | queued
+  | mixed
 deriving DecidableEq, Repr
 
 /-- The code of sample `s` against window `w`, first match: too short a window, contended, slow, ok. The baseline is the
@@ -316,6 +363,7 @@ structure SampleVerdict where
   baseline : Nat
   budgetMs : Nat
   kind     : String := ""
+  work     : List (String × String) := []
 deriving DecidableEq, Repr
 
 /-- The verdict of sample `s` at index `i` with the earlier samples `hist`: `slow` when it breaches its step's ceiling
@@ -325,13 +373,43 @@ def judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdi
   let w := windowOf p hist s.key
   { idx := i, tool := s.tool, step := s.step, host := s.host, durMs := s.durMs,
     code := if ceilingBreach p s then .slow else codeOf p w s,
-    n := w.length, baseline := p50 w, budgetMs := budgetFor p s, kind := s.kind }
+    n := w.length, baseline := p50 w, budgetMs := budgetFor p s, kind := s.kind, work := s.work }
 
-def judgeQ (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
+/-- The verdict of a sample that waited for a slot holder: judged on its duration without the wait, and `queued` unless
+that is `slow`.
+-/
+def judgeW (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   if queuedWithin s then
     let v := judge p hist i s.rest
     { v with durMs := s.durMs, code := if v.code = .slow then .slow else .queued }
   else judge p hist i s
+
+/-- The `fw slot run` kinds (`apps/runner/src/slot-core.ts` `KINDS`). -/
+def slotKinds : List String := ["check", "test", "land", "sim", "other", "measure"]
+
+/-- The step names of the overflow bucket of slot kind `k`: `slot run k` with no command key, plain, dry, cached or
+both.
+-/
+def bucketSteps (k : String) : List String :=
+  let b := s!"slot run {k}"
+  [b, b ++ " dry", b ++ " cached", b ++ " dry cached"]
+
+/-- A sample of an overflow bucket: an `fw` span named by `bucketSteps` of a slot kind. Its history pools every command
+past the kind's key cap, so its window is no baseline for any one of them.
+-/
+def Sample.mixed (s : Sample) : Bool := s.tool == "fw" && slotKinds.any fun k => (bucketSteps k).contains s.step
+
+def SampleVerdict.markMixed (v : SampleVerdict) : SampleVerdict := { v with code := .mixed }
+
+/-- The verdict of one sample: `mixed` for an overflow bucket sample, otherwise `judgeW`. -/
+def judgeQ (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
+  if s.mixed then (judgeW p hist i s).markMixed else judgeW p hist i s
+
+#guard ({ tool := "fw", step := "slot run check", durMs := 1, host := .«local» } : Sample).mixed
+#guard ({ tool := "fw", step := "slot run test dry cached", durMs := 1, host := .«local» } : Sample).mixed
+#guard !({ tool := "fw", step := "slot run check sh lean/scripts/check.sh", durMs := 1, host := .«local» } : Sample).mixed
+#guard !({ tool := "lean", step := "slot run check", durMs := 1, host := .«local» } : Sample).mixed
+#guard !({ tool := "fw", step := "slot wait check", durMs := 1, host := .«local» } : Sample).mixed
 
 /-- One verdict per sample, in input order; sample `i` is judged against the samples before it. -/
 def sampleVerdicts (p : Params) (ss : List Sample) : List SampleVerdict :=
@@ -787,14 +865,18 @@ theorem windowOf_filter_key (p : Params) (hist : List Sample) (k : Key) :
 
 theorem rest_key (s : Sample) : s.rest.key = s.key := rfl
 
-theorem judgeQ_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
-    judgeQ p (hist.filter (fun x => decide (x.key = s.key))) i s = judgeQ p hist i s := by
+theorem judgeW_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    judgeW p (hist.filter (fun x => decide (x.key = s.key))) i s = judgeW p hist i s := by
   have hj : ∀ t : Sample, t.key = s.key →
       judge p (hist.filter (fun x => decide (x.key = s.key))) i t = judge p hist i t := by
     intro t ht
     simp only [judge, ← ht, windowOf_filter_key]
-  unfold judgeQ
+  unfold judgeW
   rw [hj s rfl, hj s.rest (rest_key s)]
+
+theorem judgeQ_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    judgeQ p (hist.filter (fun x => decide (x.key = s.key))) i s = judgeQ p hist i s := by
+  simp only [judgeQ, judgeW_filter_key]
 
 theorem filter_key_work (hist : List Sample) (s : Sample) :
     (hist.filter (fun x => decide (x.work = s.work))).filter (fun x => decide (x.key = s.key)) =
@@ -963,19 +1045,42 @@ theorem rest_contended (p : Params) (s : Sample) : contended p s.rest = contende
 
 theorem rest_budgetFor (p : Params) (s : Sample) : budgetFor p s.rest = budgetFor p s := rfl
 
-theorem judgeQ_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true) :
-    judgeQ p hist i s = { (judge p hist i s.rest) with
+theorem judgeW_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true) :
+    judgeW p hist i s = { (judge p hist i s.rest) with
       durMs := s.durMs
       code :=(if (judge p hist i s.rest).code = Code.slow then Code.slow else Code.queued) } := by
-  simp [judgeQ, hq]
+  simp [judgeW, hq]
 
-theorem judgeQ_plain (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hq : queuedWithin s = false) : judgeQ p hist i s = judge p hist i s := by
-  simp [judgeQ, hq]
+theorem judgeW_plain (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (hq : queuedWithin s = false) : judgeW p hist i s = judge p hist i s := by
+  simp [judgeW, hq]
 
-theorem judgeQ_unwaited (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.holdMs = 0) :
-    judgeQ p hist i s = judge p hist i s :=
-  judgeQ_plain p hist i s (by simp [queuedWithin, h])
+theorem judgeW_unwaited (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.holdMs = 0) :
+    judgeW p hist i s = judge p hist i s :=
+  judgeW_plain p hist i s (by simp [queuedWithin, h])
+
+theorem judgeQ_unmixed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.mixed = false) :
+    judgeQ p hist i s = judgeW p hist i s := by
+  simp [judgeQ, h]
+
+theorem judgeQ_mixed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.mixed = true) :
+    judgeQ p hist i s = (judgeW p hist i s).markMixed := by
+  simp [judgeQ, h]
+
+theorem judgeQ_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : (judgeQ p hist i s).code = .slow) :
+    s.mixed = false ∧ (judgeW p hist i s).code = .slow := by
+  cases hm : s.mixed
+  · rw [judgeQ_unmixed p hist i s hm] at h; exact ⟨rfl, h⟩
+  · rw [judgeQ_mixed p hist i s hm] at h; cases h
+
+theorem judgeQ_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
+    (h : (judgeW p hist i s).code ≠ .slow) : (judgeQ p hist i s).code ≠ .slow :=
+  fun hs => h (judgeQ_slow p hist i s hs).2
+
+/-- **No slow verdict on an overflow bucket**: whatever its history, a mixed sample is never `slow`. -/
+theorem judgeQ_mixed_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.mixed = true) :
+    (judgeQ p hist i s).code ≠ .slow := by
+  rw [judgeQ_mixed p hist i s h]; simp [SampleVerdict.markMixed]
 
 theorem judge_not_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judge p hist i s).code ≠ .queued := by
@@ -984,48 +1089,81 @@ theorem judge_not_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample
   repeat' split
   all_goals simp
 
-theorem judgeQ_durMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
-    (judgeQ p hist i s).durMs = s.durMs := by
+theorem judgeW_durMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judgeW p hist i s).durMs = s.durMs := by
   by_cases hq : queuedWithin s = true
-  · simp [judgeQ_queued p hist i s hq]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+  · simp [judgeW_queued p hist i s hq]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeW_budgetMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    (judgeW p hist i s).budgetMs = budgetFor p s := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge, rest_budgetFor]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeW_tool (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeW p hist i s).tool = s.tool := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeW_step (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeW p hist i s).step = s.step := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeW_kind (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeW p hist i s).kind = s.kind := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeW_work (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeW p hist i s).work = s.work := by
+  by_cases hq : queuedWithin s = true
+  · simp [judgeW_queued p hist i s hq, judge, Sample.rest]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; simp [judge]
+
+theorem judgeQ_durMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).durMs = s.durMs := by
+  unfold judgeQ; split <;> exact judgeW_durMs p hist i s
 
 theorem judgeQ_budgetMs (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
     (judgeQ p hist i s).budgetMs = budgetFor p s := by
-  by_cases hq : queuedWithin s = true
-  · simp [judgeQ_queued p hist i s hq, judge, rest_budgetFor]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+  unfold judgeQ; split <;> exact judgeW_budgetMs p hist i s
 
 theorem judgeQ_tool (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).tool = s.tool := by
-  by_cases hq : queuedWithin s = true
-  · simp [judgeQ_queued p hist i s hq, judge, Sample.rest]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+  unfold judgeQ; split <;> exact judgeW_tool p hist i s
 
 theorem judgeQ_step (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).step = s.step := by
-  by_cases hq : queuedWithin s = true
-  · simp [judgeQ_queued p hist i s hq, judge, Sample.rest]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+  unfold judgeQ; split <;> exact judgeW_step p hist i s
 
 theorem judgeQ_kind (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).kind = s.kind := by
-  by_cases hq : queuedWithin s = true
-  · simp [judgeQ_queued p hist i s hq, judge, Sample.rest]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; simp [judge]
+  unfold judgeQ; split <;> exact judgeW_kind p hist i s
+
+theorem judgeQ_work (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : (judgeQ p hist i s).work = s.work := by
+  unfold judgeQ; split <;> exact judgeW_work p hist i s
 
 theorem judge_idx (p : Params) (h : List Sample) (i j : Nat) (s : Sample) :
     judge p h i s = { judge p h j s with idx := i } := rfl
 
-theorem judgeQ_unindexed (p : Params) (h h' : List Sample) (i j : Nat) (s : Sample)
+theorem judgeW_unindexed (p : Params) (h h' : List Sample) (i j : Nat) (s : Sample)
     (hh : h.filter Sample.full = h'.filter Sample.full) :
-    (judgeQ p h i s).unindexed = (judgeQ p h' j s).unindexed := by
+    (judgeW p h i s).unindexed = (judgeW p h' j s).unindexed := by
   have key : ∀ s', judge p h i s' = { judge p h' j s' with idx := i } := by
     intro s'
     rw [judge_filter_full p h, judge_filter_full p h', hh]
     rfl
   by_cases hq : queuedWithin s = true
-  · rw [judgeQ_queued p h i s hq, judgeQ_queued p h' j s hq, key]
+  · rw [judgeW_queued p h i s hq, judgeW_queued p h' j s hq, key]
     simp [SampleVerdict.unindexed]
-  · rw [judgeQ_plain p h i s (by simpa using hq), judgeQ_plain p h' j s (by simpa using hq), key]
+  · rw [judgeW_plain p h i s (by simpa using hq), judgeW_plain p h' j s (by simpa using hq), key]
     simp [SampleVerdict.unindexed]
+
+theorem judgeQ_unindexed (p : Params) (h h' : List Sample) (i j : Nat) (s : Sample)
+    (hh : h.filter Sample.full = h'.filter Sample.full) :
+    (judgeQ p h i s).unindexed = (judgeQ p h' j s).unindexed := by
+  have hw := judgeW_unindexed p h h' i j s hh
+  unfold judgeQ
+  split
+  · exact congrArg SampleVerdict.markMixed hw
+  · exact hw
 
 theorem fullVerdicts_unindexed (p : Params) (ss : List Sample) :
     (fullVerdicts p ss).map SampleVerdict.unindexed =
@@ -1376,9 +1514,11 @@ theorem stable_never_slow (p : Params) (ss : List Sample) (h1 : 1 ≤ p.nMin)
   intro v hv
   obtain ⟨i, hi, he⟩ := List.mem_iff_getElem.1 hv
   have hi' : i < ss.length := by simpa [sampleVerdicts, List.length_mapIdx] using hi
-  have hv' : v = judge p (ss.take i) i ss[i] := by
-    rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx, judgeQ_unwaited p _ i _ (hw _ (List.getElem_mem hi'))]
+  have hv' : v = judgeQ p (ss.take i) i ss[i] := by
+    rw [← he]; simp [sampleVerdicts, List.getElem_mapIdx]
   subst hv'
+  apply judgeQ_not_slow
+  rw [judgeW_unwaited p _ i _ (hw _ (List.getElem_mem hi'))]
   intro hs
   rcases (slow_iff p _ i _).1 hs with hbr | ⟨hn, _, _, hk⟩
   · rw [hb _ (List.getElem_mem hi')] at hbr; cases hbr
@@ -1456,21 +1596,21 @@ theorem ceiling_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : 
   (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl⟩))
 
 theorem queued_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true)
-    (hr : (judge p hist i s.rest).code ≠ .slow) : (judgeQ p hist i s).code ≠ .slow := by
-  rw [judgeQ_queued p hist i s hq]; simp [hr]
+    (hr : (judge p hist i s.rest).code ≠ .slow) : (judgeW p hist i s).code ≠ .slow := by
+  rw [judgeW_queued p hist i s hq]; simp [hr]
 
 theorem queued_iff (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
-    (judgeQ p hist i s).code = .queued ↔
+    (judgeW p hist i s).code = .queued ↔
       queuedWithin s = true ∧ (judge p hist i s.rest).code ≠ .slow := by
   by_cases hq : queuedWithin s = true
-  · rw [judgeQ_queued p hist i s hq]
+  · rw [judgeW_queued p hist i s hq]
     by_cases hs : (judge p hist i s.rest).code = .slow <;> simp [hq, hs]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]
     simp [hq, judge_not_queued]
 
 theorem nonholder_judge (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (h : ∀ w ∈ s.waits, holderWait w.1 = false) : judgeQ p hist i s = judge p hist i s := by
-  apply judgeQ_unwaited
+    (h : ∀ w ∈ s.waits, holderWait w.1 = false) : judgeW p hist i s = judge p hist i s := by
+  apply judgeW_unwaited
   have : s.waits.filter (fun w => holderWait w.1) = [] := List.filter_eq_nil_iff.2 (fun w hw => by simp [h w hw])
   simp [Sample.holdMs, this]
 
@@ -1488,14 +1628,14 @@ theorem rest_ge (s : Sample) (hs : (s.waits.map (·.2)).sum ≤ s.waitMs) : s.du
   omega
 
 theorem wait_only_queued (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hq : queuedWithin s = true) (hd : s.durMs ≤ s.holdMs) : (judgeQ p hist i s).code = .queued := by
+    (hq : queuedWithin s = true) (hd : s.durMs ≤ s.holdMs) : (judgeW p hist i s).code = .queued := by
   refine (queued_iff p hist i s).2 ⟨hq, no_alert_within_budget p hist i s.rest ?_⟩
   show s.durMs - s.holdMs ≤ _
   omega
 
 theorem queued_remainder_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hq : queuedWithin s = true) (hs : (judge p hist i s.rest).code = .slow) : (judgeQ p hist i s).code = .slow := by
-  rw [judgeQ_queued p hist i s hq]; simp [hs]
+    (hq : queuedWithin s = true) (hs : (judge p hist i s.rest).code = .slow) : (judgeW p hist i s).code = .slow := by
+  rw [judgeW_queued p hist i s hq]; simp [hs]
 
 theorem windowOf_append_waited (p : Params) (hist ws : List Sample) (k : Key)
     (hw : ∀ w ∈ ws, w.waited = true) : windowOf p (hist ++ ws) k = windowOf p hist k := by
@@ -1505,19 +1645,21 @@ theorem windowOf_append_waited (p : Params) (hist ws : List Sample) (k : Key)
 
 theorem contended_not_slow_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (h : contended p s = true) : (judgeQ p hist i s).code ≠ .slow := by
+  apply judgeQ_not_slow
   have h0 := contended_not_slow p hist i s h
   have hr := contended_not_slow p hist i s.rest (by rw [rest_contended]; exact h)
   by_cases hq : queuedWithin s = true
-  · rw [judgeQ_queued p hist i s hq]; simp [hr]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; exact h0
+  · rw [judgeW_queued p hist i s hq]; simp [hr]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; exact h0
 
 theorem no_alert_within_budget_Q (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
     (h : s.durMs ≤ budgetFor p s) : (judgeQ p hist i s).code ≠ .slow := by
+  apply judgeQ_not_slow
   have h0 := no_alert_within_budget p hist i s h
   have hr := no_alert_within_budget p hist i s.rest (by rw [rest_budgetFor]; show s.durMs - s.holdMs ≤ _; omega)
   by_cases hq : queuedWithin s = true
-  · rw [judgeQ_queued p hist i s hq]; simp [hr]
-  · rw [judgeQ_plain p hist i s (by simpa using hq)]; exact h0
+  · rw [judgeW_queued p hist i s hq]; simp [hr]
+  · rw [judgeW_plain p hist i s (by simpa using hq)]; exact h0
 
 /-- No alert within budget, over the whole output: a sample verdict whose duration is at most its budget is not
 `slow`.
@@ -1527,6 +1669,20 @@ theorem no_alert_within_budget_list (p : Params) (hist : List Sample) (v : Sampl
   obtain ⟨i, hi, rfl⟩ := mem_sample p hist v h
   rw [judgeQ_durMs, judgeQ_budgetMs] at hb
   exact no_alert_within_budget_Q p _ i _ hb
+
+/-- **No slow verdict on an overflow bucket**, over the whole output: a `slow` sample verdict never names an `fw`
+overflow bucket step.
+-/
+theorem no_slow_bucket (p : Params) (hist : List Sample) (v : SampleVerdict)
+    (h : Verdict.sample v ∈ timingVerdicts p hist) (hs : v.code = .slow) :
+    ¬ (v.tool = "fw" ∧ ∃ k ∈ slotKinds, v.step ∈ bucketSteps k) := by
+  obtain ⟨i, hi, rfl⟩ := mem_sample p hist v h
+  rintro ⟨ht, k, hk, hb⟩
+  rw [judgeQ_tool] at ht
+  rw [judgeQ_step] at hb
+  apply judgeQ_mixed_not_slow p _ i _ _ hs
+  simp only [Sample.mixed, ht, beq_self_eq_true, Bool.true_and, List.any_eq_true]
+  exact ⟨k, hk, by simpa using hb⟩
 
 /-- **Contended samples never enter a window.** Appending samples that are all contended to the history leaves every
 window unchanged.
@@ -1762,6 +1918,7 @@ def codeStr : Code → String
   | .ok => "ok"
   | .slow => "slow"
   | .queued => "queued"
+  | .mixed => "mixed"
 
 def callStr : Call → String
   | .structural => "structural"
@@ -1796,10 +1953,10 @@ def paramsJson (p : Params) : Json :=
         ("keys", .arr (g.keys.map keyJson).toArray)])).toArray)])).toArray)]
 
 def verdictJson : Verdict → Json
-  | .sample v => Json.mkObj [("kind", "sample"), ("idx", toJson v.idx), ("tool", .str v.tool),
+  | .sample v => Json.mkObj ([("kind", Json.str "sample"), ("idx", toJson v.idx), ("tool", .str v.tool),
       ("step", .str v.step), ("host", .str (hostStr v.host)), ("durMs", toJson v.durMs),
       ("code", .str (codeStr v.code)), ("n", toJson v.n), ("baseline", toJson v.baseline),
-      ("budgetMs", toJson v.budgetMs), ("runKind", .str v.kind)]
+      ("budgetMs", toJson v.budgetMs), ("runKind", .str v.kind)] ++ workField v.work)
   | .structural v => Json.mkObj [("kind", "structural"), ("stage", .str v.stage), ("group", .str v.group),
       ("call", .str (callStr v.call)), ("baseline", toJson v.baseline), ("siblingMax", toJson v.siblingMax)]
 
@@ -1885,6 +2042,9 @@ def group (w : Option Nat) (load d : Nat) : Sample :=
   { tool := "lean/check", step := "parallel group", durMs := d, host := .«local», load, exit := some 0,
     work := slotWork w none }
 
+/-- The `parallel group` spans of `timings.jsonl` as (ms, load, width), written before spans had a `slot` member.
+The widths are INFERRED from the durations (about 95 s alone, about 48 s two at a time); they were not recorded.
+-/
 def groupView : List (Nat × Nat × Nat) :=
   [(116691, 3, 1), (49291, 4, 2), (46962, 3, 2), (92010, 2, 1), (47565, 2, 2), (97284, 2, 1), (94807, 1, 1),
    (49426, 5, 2), (94437, 2, 1)]
@@ -1892,6 +2052,35 @@ def groupView : List (Nat × Nat × Nat) :=
 def groupMix : List Sample :=
   [(92010, 1), (47565, 2), (97284, 1), (49291, 2), (94807, 1), (46962, 2), (91526, 1), (49426, 2), (90470, 1),
    (48630, 2)].map fun (d, w) => group (some w) 2 d
+
+/-- The first three `parallel group` spans with a recorded `slot` member (`timings.jsonl`, 2026-10-23, commits
+0f415fc, 6feef2b and 237e75a): width 1 of 97 to 99 jobs.
+-/
+def groupRecorded : List Sample := [(99840, 3), (99658, 4), (108545, 2)].map fun (d, l) => group (some 1) l d
+
+def polish (kinds : List String) (load d : Nat) : Sample :=
+  { tool := "fw", step := "polish commit", durMs := d, host := .«local», load, exit := some 0,
+    work := spanWork none none (some kinds) }
+
+/-- The 38.2 s `polish commit` span of 2026-10-23T11:10:16Z (commit aa96a910f) and the 20 spans before it, as
+(ms, load, heavy checks). The checks are those `ops.checkMap` gives for the files of the commit each span made.
+-/
+def polishRun : List Sample :=
+  ([(11933, 4, ["lakeBuild", "leanElab"]), (18826, 2, ["lakeBuild"]), (39792, 2, ["lakeBuild", "leanElab"]),
+    (39042, 2, ["lakeBuild"]), (1868, 2, ["lakeBuild"]), (26418, 6, ["lakeBuild"]), (10567, 1, ["lakeBuild"]),
+    (11008, 1, ["lakeBuild", "leanElab"]), (500, 1, []), (9216, 3, ["lakeBuild", "leanElab"]), (9880, 2, ["lakeBuild"]),
+    (11838, 1, ["lakeBuild", "leanElab"]), (32572, 3, ["lakeBuild", "presetCheck"]), (866, 3, []),
+    (23918, 3, ["lakeBuild"]), (22774, 3, ["lakeBuild"]), (42892, 5, ["lakeBuild", "presetCheck"]), (549, 4, []),
+    (8752, 4, ["lakeBuild"]), (537, 2, []), (38160, 5, ["lakeBuild"])] : List (Nat × Nat × List String)).map
+    fun (d, l, k) => polish k l d
+
+/-- The 38.3 s `slot run check` span of 2026-10-23T11:37:35Z (commit 7e8d89c) and the twelve spans of that step before
+it, as (ms, exit).
+-/
+def bucketRun (step : String) : List Sample :=
+  runX "fw" step .«local» 4 ([(1261, some 0), (50394, some 0), (621, some 1), (731, some 0), (7957, some 0),
+    (13855, some 1), (38629, some 0), (12607, some 0), (516, some 0), (8, some 1), (7824, some 0), (854, some 0),
+    (38315, some 0)].map fun (d, e) => (d, e, false))
 
 def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
   [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s), gate is noise, both merges are noise; one run, so every sample is noBaseline",
@@ -2021,7 +2210,23 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, groupMix ++ [group (some 1) 2 94437]),
    ("slot width: a span without a width is judged on the spans without one: 94 s after five 48 s is slow, the width-1 spans between them do not count",
       {}, [48000, 47000, 49000, 48000, 47500].map (group none 3) ++ [92000, 95000, 93000].map (group (some 1) 2) ++
-        [group none 2 94437])]
+        [group none 2 94437]),
+   ("slot width recorded: the first three parallel group spans with a recorded width 1 (99.8, 99.7, 108.5 s) have no baseline among themselves",
+      {}, groupRecorded),
+   ("slot width recorded after inferred: the nine spans with INFERRED widths, then the three recorded ones; 108.5 s against seven width-1 spans (p50 97.3 s) is ok",
+      {}, groupView.map (fun (d, l, w) => group (some w) l d) ++ groupRecorded),
+   ("polish commit by checks class: the 38.2 s lakeBuild commit of 2026-10-23T11:10Z is judged on the nine lakeBuild commits before it (p50 18.8 s): slow",
+      {}, polishRun),
+   ("polish commit without a checks class: the same 21 durations pooled with the light commits are slow",
+      {}, polishRun.map fun s => { s with work := [] }),
+   ("polish commit by checks class: a 20 s lakeBuild commit after five light commits near 0.5 s has no lakeBuild history: noBaseline",
+      {}, [500, 866, 549, 537, 610].map (polish ["nodeCheck"] 2) ++ [polish ["lakeBuild", "nodeCheck"] 2 20000]),
+   ("slot run overflow bucket: the 38.3 s slot run check of 2026-10-23T11:37Z after the bare slot run check spans before it is mixed, never slow",
+      {}, bucketRun "slot run check"),
+   ("slot run overflow bucket: a dry cached bucket step is mixed too",
+      {}, bucketRun "slot run land dry cached"),
+   ("slot run with a command key: the same durations under one command's step are judged: slow",
+      {}, bucketRun "slot run check sh lean/scripts/check.sh")]
 
 -- six run-split cases: three dispatch, two watch pass, one new split step
 #guard ((cases ()).filter fun c => c.1.startsWith "run split:").length == 6
@@ -2042,7 +2247,12 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .queued, some .slow, some .queued, some .queued, some .queued, some .slow, some .slow, some .ok, some .slow,
    some .slow, some .ok, some .queued,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline,
-   some .slow, some .noBaseline, some .slow, some .ok, some .slow]
+   some .slow, some .noBaseline, some .slow, some .ok, some .slow,
+   some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .mixed, some .mixed, some .slow]
+#guard (fullVerdicts {} (groupView.map (fun (d, l, w) => group (some w) l d) ++ groupRecorded)).getLast?.map
+    (fun v => (v.n, v.baseline)) == some (7, 97284)
+#guard (fullVerdicts {} polishRun).getLast?.map (fun v => (v.n, v.baseline)) == some (9, 18826)
+#guard (sampleVerdicts {} (bucketRun "slot run check")).all (·.code == .mixed)
 #guard (sampleVerdicts {} (groupView.map fun (d, l, w) => group (some w) l d)).map (·.code) == List.replicate 9 .noBaseline
 #guard ((sampleVerdicts {} (groupView.map fun (d, l, _) => group none l d)).map (·.code)).drop 5 ==
   [.slow, .slow, .ok, .slow]
@@ -2074,23 +2284,37 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
-def spanJson (d : Nat) (slot : Option (Nat × Nat)) : Json :=
-  Json.mkObj ([("tool", .str "lean/check"), ("step", .str "parallel group"), ("startMs", toJson (1792745374550 : Nat)),
+/-- A span line: a `polish commit` span when it has a `checks` member (command count and kinds), else a
+`parallel group` span.
+-/
+def spanJson (d : Nat) (slot : Option (Nat × Nat)) (checks : Option (Nat × List String)) : Json :=
+  Json.mkObj ([("tool", .str (if checks.isSome then "fw" else "lean/check")),
+    ("step", .str (if checks.isSome then "polish commit" else "parallel group")), ("startMs", toJson (1792745374550 : Nat)),
     ("durMs", toJson d), ("exit", toJson (0 : Nat)), ("commit", .str "3d0d68a"), ("load", toJson (2 : Nat)),
     ("host", .str "local")] ++
-    (slot.map fun (w, j) => [("slot", Json.mkObj [("width", toJson w), ("jobs", toJson j)])]).getD [])
+    (slot.map fun (w, j) => [("slot", Json.mkObj [("width", toJson w), ("jobs", toJson j)])]).getD [] ++
+    (checks.map fun (n, ks) => [("checks", Json.mkObj [("n", toJson n), ("kinds", toJson ks)])]).getD [])
 
-def workCases : List (String × Nat × Option (Nat × Nat)) :=
-  [("a span written before the slot member has no work dimensions", 94437, none),
-   ("width 1 of 30 jobs", 94437, some (1, 30)),
-   ("width 2 of 30 jobs", 49426, some (2, 30)),
-   ("width 2 of 31 jobs: the job count is recorded, not a work dimension", 49426, some (2, 31)),
-   ("width 8 of 30 jobs", 30000, some (8, 30))]
+def workCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × List String)) :=
+  [("a span written before the slot member has no work dimensions", 94437, none, none),
+   ("width 1 of 30 jobs", 94437, some (1, 30), none),
+   ("width 2 of 30 jobs", 49426, some (2, 30), none),
+   ("width 2 of 31 jobs: the job count is recorded, not a work dimension", 49426, some (2, 31), none),
+   ("width 8 of 30 jobs", 30000, some (8, 30), none),
+   ("polish commit of node and sh checks only: light", 537, none, some (2, ["nodeCheck", "shParse"])),
+   ("polish commit with no checkmap command: light", 420, none, some (0, [])),
+   ("polish commit with lake build: the command count is recorded, not a dimension", 38160, none,
+      some (3, ["lakeBuild", "nodeCheck", "shParse"])),
+   ("polish commit with the preset check listed before lake build: heavy kinds in fixed order", 42892, none,
+      some (2, ["presetCheck", "lakeBuild"])),
+   ("polish commit with a Lean script elaborated and lake build", 11008, none,
+      some (4, ["leanElab", "lakeBuild", "leanElab", "jsonParse"])),
+   ("checks and slot width together", 30000, some (2, 30), some (1, ["leanElab"]))]
 
 def workGoldenText (_ : Unit := ()) : String :=
-  String.join (workCases.map fun (n, d, slot) =>
-    (Json.mkObj [("name", .str n), ("span", spanJson d slot),
-      ("work", workJson (slotWork (slot.map (·.1)) (slot.map (·.2))))]).compress ++ "\n")
+  String.join (workCases.map fun (n, d, slot, checks) =>
+    (Json.mkObj [("name", .str n), ("span", spanJson d slot checks),
+      ("work", workJson (spanWork (slot.map (·.1)) (slot.map (·.2)) (checks.map (·.2))))]).compress ++ "\n")
 
 def workGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-work.jsonl"
 
