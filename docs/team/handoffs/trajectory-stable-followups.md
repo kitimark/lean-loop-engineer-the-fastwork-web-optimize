@@ -11,7 +11,7 @@
   pass, and a hand-made window that settles to its epoch end). Mutants checked by hand, both fail the test, reverted:
   (a) member keeps every envelope piece (`pieceOf(r).env.flat()`); (b) `settle` without the epoch-end fallback.
 - Run 39926829451, `summary` on the artifact `trajectory-chromium` raw, `byMFamEach` vs `byMFam`:
-  timing and units hash are kept in one place, doc check 2 (Leave-one-out band); units identical both ways (CLEAN, 14416 units).
+  timing and units hash are in doc check 2 (Leave-one-out band); units identical both ways (CLEAN, 14416 units).
 - CLI exits 2 on every refused input and on a throw (entry line catches into `refuse`); test `cli: a refused input ...`
   runs `summary` on a raw of `{}` as a child process.
 - Lean `nil_not_mem_family`: a first pass on an empty original is outside `laneOf_stable_extra` (doc check 2).

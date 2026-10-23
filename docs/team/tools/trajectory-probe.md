@@ -150,16 +150,14 @@ runs the probe with the inputs of one message line:
    each rAF of the push (`performance.mark`, read from the Web Inspector timeline): MEASURED open push gap p50 30.0 and
    31.4 ms, p90 54.7 and 60.4 ms (artifact `webkit-sim-v1` of run 39511908073, which concluded failure; passes 0 and 1). It reads no morph value and
    no probe property, and the untimed geometry pass reads part boxes without times, so no row has the `m`, `els` and `t0`
-   of one frame that a unit needs. A Simulator lane needs a timed pass that reads them per frame, a new `webkit-sim` mode:
-   not built here.
+   of one frame that a unit needs. A Simulator lane needs a new timed `webkit-sim` pass that reads them per frame; it is not built.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
    red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate).
    Exit codes (`laneExit`): refused 2; without `--strict` 0; with `--strict` RED 1, UNDECIDED 3, CLEAN 0. Refused also
    covers the inputs: a widths, paths, reads or reps value outside its allowlist, `summary` without a raw file, `merge`
    without legs or with legs that disagree, an unknown command and a command that throws (a malformed raw file) all exit 2, so 1 is only ever a strict RED. UNDECIDED is
-   neither a pass nor a regression, so it gets its own code: a caller can rerun with more passes instead of reading it as
-   RED or CLEAN. No caller passes `--strict` today. `summary` over several engines exits the worst, refused before RED
+   neither a pass nor a regression, so it has its own code and a caller can rerun with more passes. No caller passes `--strict` today. `summary` over several engines exits the worst, refused before RED
    before UNDECIDED (`exitJoin`). The summary splits the
    `new` count into content (apart, differs, ...) and coverage. A coverage-only RED is sampling noise (a default-vs-default
    run turns RED from one empty bucket); the signal is the content-new groups. Reads at `close@0` (the first sample of a

@@ -205,7 +205,6 @@ export function matchOne(kind, win, r) {
   return vs.some((v) => !v.startsWith('fail:')) ? pass : combine(vs);
 }
 
-/** Lean `judgeColour`. */
 export const judgeColour = (core, win, r) =>
   combine([matchOne('colour', core.map((x) => chan(x.els)), chan(r.els)), judgeEls('colour', win.map((x) => alpha(x.els)), alpha(r.els))]);
 
@@ -229,7 +228,6 @@ export const judgeUnit = (kind, d, seg, win, r) => judgeWith(kind, d, seg, envel
 
 export const judgeOwn = (kind, d, seg, win, r) => judgeWith(kind, d, seg, flightWindow(seg, r), (o) => isCore(r, o), win, r);
 
-/** Lean `bucket`: the tenth of a morph value (floor((m + 500) / 1000), clamped to 0..10); 11 for no morph value. */
 export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, Math.max(0, Math.floor((m + 500) / 1000))));
 
 /** Lean `needsSample`: the interior buckets of a push. */
