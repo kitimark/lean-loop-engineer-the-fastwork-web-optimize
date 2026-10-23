@@ -1,0 +1,12 @@
+{
+  "event": "push",
+  "sha": "4503e6d66b73d1c9d88c9904057706a42e5f678b",
+  "nonce": "",
+  "engines": "both",
+  "fw": "nav:logo-3d",
+  "preset": "",
+  "widths": "",
+  "debug": "",
+  "diagnostic": false,
+  "source": "commit-line"
+}

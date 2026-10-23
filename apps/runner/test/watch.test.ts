@@ -173,6 +173,14 @@ describe("system carry-forward", () => {
     expect(s.ci).toHaveLength(1);
     expect(s.docker).toHaveLength(1);
   });
+  it("the run list's read time: now when gh answered, the previous list's time when it failed (a carried list keeps its age)", async () => {
+    const ok = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, async () => "[]");
+    expect(ok.ciAt).toBe(2000);
+    const carried = await collectSystem(p, { at: 1000, system: prevSys() }, 2000, exec("timeout"));
+    expect(carried.ciAt).toBe(1000);
+    const again = await collectSystem(p, { at: 2000, system: { ...prevSys(), ciAt: 1000 } }, 3000, exec("timeout"));
+    expect(again.ciAt).toBe(1000);
+  });
   it("a previous check older than 1 h is not carried; a missing program is empty, not stale", async () => {
     const old = await collectSystem(p, { at: 0, system: prevSys() }, 3600_001, exec("timeout"));
     expect(old).toMatchObject({ stale: ["docker", "ci"], ci: [], docker: [] });

@@ -202,4 +202,247 @@ theorem stepC_writes (g : Bool) (st : St) :
     (stepC g st).writes = st.writes + (if catchupNow g then 2 else 0) := by
   cases g <;> simp [stepC, catchupNow]
 
+structure Tick where
+  media : Option Bool
+  body : Option Ev
+
+def Tick.skips (t : Tick) (st : St) : Bool :=
+  match t.body with
+  | some e => e.gate && (e.frame st).more
+  | none => false
+
+def Tick.pre (t : Tick) (st : St) : St :=
+  match t.media with
+  | some g => stepC g st
+  | none => st
+
+def tickV (t : Tick) (st : St) : St :=
+  match t.body with
+  | some e => stepV e (t.pre st)
+  | none => t.pre st
+
+def tickO (t : Tick) (st : St) : St :=
+  match t.body with
+  | some e => stepO e st
+  | none => st
+
+def mV (ts : Nat → Tick) : Nat → St
+  | 0 => St.init
+  | k + 1 => tickV (ts k) (mV ts k)
+
+def mO (ts : Nat → Tick) : Nat → St
+  | 0 => St.init
+  | k + 1 => tickO (ts k) (mO ts k)
+
+def Reads (envs : Nat → Env) (ts : Nat → Tick) : Prop :=
+  ∀ k, (∀ g, (ts k).media = some g → g = c1000.eval (envs k)) ∧
+    (∀ e, (ts k).body = some e → e.gate = c1000.eval (envs k))
+
+def MediaOnFlip (envs : Nat → Env) (ts : Nat → Tick) : Prop :=
+  ∀ k, c1000.eval (envs (k + 1)) ≠ c1000.eval (envs k) → (ts (k + 1)).media ≠ none
+
+def BodyAfterSkip (ts : Nat → Tick) : Prop :=
+  ∀ k, (ts k).skips (mO ts k) = true → (ts (k + 1)).body ≠ none
+
+def Canon (st : St) : Prop := st.inl = (st.fol.n, max st.fol.n st.fol.r)
+
+theorem canon_init : Canon St.init := by
+  have h10 : max (1 : Rat) 0 = 1 := by decide +kernel
+  simp [Canon, St.init, pair0, h10]
+
+theorem canon_stepO (e : Ev) (st : St) : Canon (stepO e st) := by
+  simp [Canon, stepO, Frame.shrink]
+
+theorem canon_mO (ts : Nat → Tick) (k : Nat) : Canon (mO ts k) := by
+  induction k with
+  | zero => exact canon_init
+  | succ k ih =>
+    simp only [mO, tickO]
+    split
+    · exact canon_stepO _ _
+    · exact ih
+
+theorem pre_fol_cls (t : Tick) (st : St) : (t.pre st).fol = st.fol ∧ (t.pre st).cls = st.cls := by
+  unfold Tick.pre
+  split
+  · rename_i g _
+    cases g <;> simp [stepC]
+  · exact ⟨rfl, rfl⟩
+
+theorem tick_fol_cls (t : Tick) (sV sO : St) (hf : sV.fol = sO.fol) (hc : sV.cls = sO.cls) :
+    (tickV t sV).fol = (tickO t sO).fol ∧ (tickV t sV).cls = (tickO t sO).cls := by
+  have hp := pre_fol_cls t sV
+  simp only [tickV, tickO]
+  cases t.body with
+  | none => exact ⟨hp.1.trans hf, hp.2.trans hc⟩
+  | some e =>
+    have hfr : e.frame (t.pre sV) = e.frame sO := by simp [Ev.frame, hp.1, hf]
+    simp only [stepV, stepO, hfr]
+    split <;> simp
+
+theorem m_fol_cls (ts : Nat → Tick) (k : Nat) :
+    (mV ts k).fol = (mO ts k).fol ∧ (mV ts k).cls = (mO ts k).cls := by
+  induction k with
+  | zero => simp [mV, mO]
+  | succ k ih => exact tick_fol_cls (ts k) _ _ ih.1 ih.2
+
+theorem tick_inl_body (t : Tick) (sV sO : St) (e : Ev) (hf : sV.fol = sO.fol) (hb : t.body = some e)
+    (hs : t.skips sO = false) : (tickV t sV).inl = (tickO t sO).inl := by
+  have hfr : e.frame (t.pre sV) = e.frame sO := by simp [Ev.frame, (pre_fol_cls t sV).1, hf]
+  have hs' : (e.gate && (e.frame sO).more) = false := by simpa [Tick.skips, hb] using hs
+  simp only [tickV, tickO, hb, stepV, hfr, hs', Bool.false_eq_true, ite_false]
+  simp [stepO, hfr]
+
+theorem tick_inl_media_off (t : Tick) (sV sO : St) (hf : sV.fol = sO.fol) (hc : Canon sO)
+    (hb : t.body = none) (hm : t.media = some false) : (tickV t sV).inl = (tickO t sO).inl := by
+  simp only [tickV, tickO, hb, Tick.pre, hm]
+  rw [hc]
+  simp [stepC, hf]
+
+theorem tick_inl_keep (t : Tick) (sV sO : St) (hb : t.body = none) (hm : t.media ≠ some false) :
+    (tickV t sV).inl = sV.inl ∧ (tickO t sO).inl = sO.inl := by
+  refine ⟨?_, by simp [tickO, hb]⟩
+  simp only [tickV, hb, Tick.pre]
+  cases h : t.media with
+  | none => rfl
+  | some g =>
+    cases g
+    · exact absurd h hm
+    · rfl
+
+theorem tick_inl_keep_agree (t : Tick) (sV sO : St) (hb : t.body = none) (hm : t.media ≠ some false)
+    (h : sV.inl = sO.inl) : (tickV t sV).inl = (tickO t sO).inl := by
+  have hk := tick_inl_keep t sV sO hb hm
+  rw [hk.1, hk.2, h]
+
+theorem inl_agree_p1 (envs : Nat → Env) (ts : Nat → Tick) (hr : Reads envs ts) (hp : MediaOnFlip envs ts)
+    (k : Nat) (hk : c1000.eval (envs k) = false) : (mV ts (k + 1)).inl = (mO ts (k + 1)).inl := by
+  induction k with
+  | zero =>
+    have hf := (m_fol_cls ts 0).1
+    show (tickV (ts 0) (mV ts 0)).inl = (tickO (ts 0) (mO ts 0)).inl
+    cases hb : (ts 0).body with
+    | some e =>
+      have hg : e.gate = false := by rw [(hr 0).2 e hb, hk]
+      exact tick_inl_body (ts 0) _ _ e hf hb (by simp [Tick.skips, hb, hg])
+    | none =>
+      cases hm : (ts 0).media with
+      | some g =>
+        have hg : g = false := by rw [(hr 0).1 g hm, hk]
+        subst hg
+        exact tick_inl_media_off (ts 0) _ _ hf (canon_mO ts 0) hb hm
+      | none => exact tick_inl_keep_agree (ts 0) _ _ hb (by simp [hm]) rfl
+  | succ k ih =>
+    have hf := (m_fol_cls ts (k + 1)).1
+    show (tickV (ts (k + 1)) (mV ts (k + 1))).inl = (tickO (ts (k + 1)) (mO ts (k + 1))).inl
+    cases hb : (ts (k + 1)).body with
+    | some e =>
+      have hg : e.gate = false := by rw [(hr (k + 1)).2 e hb, hk]
+      exact tick_inl_body (ts (k + 1)) _ _ e hf hb (by simp [Tick.skips, hb, hg])
+    | none =>
+      cases hm : (ts (k + 1)).media with
+      | some g =>
+        have hg : g = false := by rw [(hr (k + 1)).1 g hm, hk]
+        subst hg
+        exact tick_inl_media_off (ts (k + 1)) _ _ hf (canon_mO ts (k + 1)) hb hm
+      | none =>
+        have hsame : c1000.eval (envs k) = false := by
+          cases hc : c1000.eval (envs k)
+          · rfl
+          · exact absurd hm (hp k (by rw [hk, hc]; decide))
+        exact tick_inl_keep_agree (ts (k + 1)) _ _ hb (by simp [hm]) (ih hsame)
+
+theorem inl_agree_p2 (ts : Nat → Tick) (hb : BodyAfterSkip ts) (k : Nat)
+    (hs : (ts k).skips (mO ts k) = false) : (mV ts (k + 1)).inl = (mO ts (k + 1)).inl := by
+  induction k with
+  | zero =>
+    have hf := (m_fol_cls ts 0).1
+    show (tickV (ts 0) (mV ts 0)).inl = (tickO (ts 0) (mO ts 0)).inl
+    cases hbd : (ts 0).body with
+    | some e => exact tick_inl_body (ts 0) _ _ e hf hbd hs
+    | none =>
+      cases hm : (ts 0).media with
+      | some g =>
+        cases g
+        · exact tick_inl_media_off (ts 0) _ _ hf (canon_mO ts 0) hbd hm
+        · exact tick_inl_keep_agree (ts 0) _ _ hbd (by simp [hm]) rfl
+      | none => exact tick_inl_keep_agree (ts 0) _ _ hbd (by simp [hm]) rfl
+  | succ k ih =>
+    have hf := (m_fol_cls ts (k + 1)).1
+    show (tickV (ts (k + 1)) (mV ts (k + 1))).inl = (tickO (ts (k + 1)) (mO ts (k + 1))).inl
+    cases hbd : (ts (k + 1)).body with
+    | some e => exact tick_inl_body (ts (k + 1)) _ _ e hf hbd hs
+    | none =>
+      have hprev : (ts k).skips (mO ts k) = false := by
+        cases hp : (ts k).skips (mO ts k)
+        · rfl
+        · exact absurd hbd (hb k hp)
+      cases hm : (ts (k + 1)).media with
+      | some g =>
+        cases g
+        · exact tick_inl_media_off (ts (k + 1)) _ _ hf (canon_mO ts (k + 1)) hbd hm
+        · exact tick_inl_keep_agree (ts (k + 1)) _ _ hbd (by simp [hm]) (ih hprev)
+      | none => exact tick_inl_keep_agree (ts (k + 1)) _ _ hbd (by simp [hm]) (ih hprev)
+
+theorem skip_gated (envs : Nat → Env) (ts : Nat → Tick) (hr : Reads envs ts) (k : Nat)
+    (hs : (ts k).skips (mO ts k) = true) : c1000.eval (envs k) = true := by
+  cases hb : (ts k).body with
+  | none => simp [Tick.skips, hb] at hs
+  | some e =>
+    have hg : e.gate = true := by
+      simp only [Tick.skips, hb, Bool.and_eq_true] at hs
+      exact hs.1
+    rw [← (hr k).2 e hb, hg]
+
+theorem look_agree_p1 (envs : Nat → Env) (ts : Nat → Tick) (hr : Reads envs ts) (hp : MediaOnFlip envs ts)
+    (k : Nat) : look (envs k) (mV ts (k + 1)).inl = look (envs k) (mO ts (k + 1)).inl := by
+  cases hc : c1000.eval (envs k)
+  · rw [inl_agree_p1 envs ts hr hp k hc]
+  · rw [look_gated _ _ hc, look_gated _ _ hc]
+
+theorem look_agree_p2 (envs : Nat → Env) (ts : Nat → Tick) (hr : Reads envs ts) (hb : BodyAfterSkip ts)
+    (k : Nat) : look (envs k) (mV ts (k + 1)).inl = look (envs k) (mO ts (k + 1)).inl := by
+  cases hs : (ts k).skips (mO ts k)
+  · rw [inl_agree_p2 ts hb k hs]
+  · have hc := skip_gated envs ts hr k hs
+    rw [look_gated _ _ hc, look_gated _ _ hc]
+
+theorem look_agree_merged (envs : Nat → Env) (ts : Nat → Tick) (hr : Reads envs ts)
+    (h : MediaOnFlip envs ts ∨ BodyAfterSkip ts) (k : Nat) :
+    look (envs k) (mV ts (k + 1)).inl = look (envs k) (mO ts (k + 1)).inl := by
+  rcases h with hp | hb
+  · exact look_agree_p1 envs ts hr hp k
+  · exact look_agree_p2 envs ts hr hb k
+
+theorem commission_visSame_merged (vp : (Nat → Env) → Rect)
+    (scn : (Nat → Env) → Nat → Rat × Rat → Bool × Bool → Scene)
+    (ts : (Nat → Env) → Nat → Tick) (hr : ∀ envs, Reads envs (ts envs))
+    (h : ∀ envs, MediaOnFlip envs (ts envs) ∨ BodyAfterSkip (ts envs)) :
+    VisSame E vp
+      (fun envs k => scn envs k (look (envs k) (mO (ts envs) (k + 1)).inl) (mO (ts envs) (k + 1)).cls)
+      (fun envs k => scn envs k (look (envs k) (mV (ts envs) (k + 1)).inl) (mV (ts envs) (k + 1)).cls) := by
+  apply visSame_of_eq
+  intro envs k
+  rw [look_agree_merged envs (ts envs) (hr envs) (h envs) k, (m_fol_cls (ts envs) (k + 1)).2]
+
+def exTick (m : Option Bool) (b : Option (Bool × Rat)) : Tick :=
+  ⟨m, b.map fun (g, bot) => ⟨g, false, 0, bot, 1000⟩⟩
+
+def exRun (ts : List Tick) (n : Nat) : (Rat × Rat) × (Rat × Rat) :=
+  let f : Nat → Tick := fun k => ts.getD k ⟨none, none⟩
+  ((mV f n).inl, (mO f n).inl)
+
+#guard (exTick none (some (true, 600))).skips St.init
+#guard !(exTick none (some (false, 600))).skips St.init
+#guard !(exTick (some false) none).skips St.init
+#guard (exRun [exTick none (some (true, 850)), exTick none (some (true, 600))] 2).1 == (1, 1)
+#guard (exRun [exTick none (some (true, 850)), exTick none (some (true, 600))] 2).2 != (1, 1)
+#guard let r := exRun [exTick none (some (true, 850)), exTick none (some (true, 600)), exTick (some false) none] 3
+  r.1 == r.2
+#guard let r := exRun [exTick none (some (true, 850)), exTick none (some (true, 600)),
+  exTick none (some (false, 600))] 3
+  r.1 == r.2
+#guard let r := exRun [exTick none (some (true, 850)), exTick none (some (true, 600)), exTick none none] 3
+  r.1 != r.2
+
 end Fw.Parts.CommissionOpt
