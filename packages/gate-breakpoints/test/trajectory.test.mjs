@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { ALPHA, alphaOk, annotate, armCheck, byM, byMFirst, firstCover, laneOf, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { summaryMd } from '../src/trajectory/cli.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -117,7 +118,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -235,6 +236,11 @@ for (const g of golden) {
       assert.deepEqual({ num: String(ALPHA[0]), den: String(ALPHA[1]) }, g.alpha);
       for (const [no, k, nw, c] of g.rows) assert.equal(firstCover(no, k, nw), c, `no ${no} k ${k} nw ${nw}`);
     } else if (g.op === 'lane') assert.equal(laneOf(g.rels), g.lane);
+    else if (g.op === 'laneStep') {
+      const at = (o, w) => byMFirst('push', 0, 'geometry', () => null, null, false, o, w).find((x) => x[0] === 1)?.[1] ?? 'pass';
+      assert.deepEqual([at(g.oSeg, g.cand), at(g.oSeg, g.base), at(g.oSeg2, g.cand), at(g.oSeg2, g.base)], g.open);
+      assert.deepEqual([laneOf([rel(at(g.oSeg, g.cand), at(g.oSeg, g.base))]), laneOf([rel(at(g.oSeg2, g.cand), at(g.oSeg2, g.base))])], g.lanes);
+    }
     else assert.fail(`unknown op ${g.op}`);
   });
 }
@@ -467,6 +473,10 @@ test('reduceRaw: the flag that matches the original at open@1 is not red where t
   const lines = verdictLines('chromium', '?fw=hero:scene-pause', flag);
   assert.ok(lines.some((l) => l.startsWith('FIRSTFRAME ')));
   assert.ok(lines.some((l) => / UNDECIDED new=0 /.test(l)));
+  const md = summaryMd(raw(NO_FIRST), flag);
+  assert.match(md.split('\n')[0], / UNDECIDED$/);
+  assert.match(md, new RegExp(`\\| undecided \\(.*\\) \\| ${flag.rels.undecided} \\|`));
+  assert.match(summaryMd(raw(EVERY), plain).split('\n')[0], / CLEAN$/);
   assert.equal(plain.red, false);
   assert.equal(plain.lane, 'clean');
   const raw5 = { engine: 'chromium', search: '?fw=hero:scene-pause', reps: 5, paths: ['morph'], runs: [
