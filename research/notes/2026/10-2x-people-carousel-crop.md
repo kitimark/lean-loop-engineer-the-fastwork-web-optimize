@@ -89,3 +89,9 @@ Linux WebKit walks the pain cell only, so there is no WebKit people-zone traject
    frame for at least 8 periods, so 8 x 13 swap-window layout frames of the original arm meet the Lean prediction 0 for crop.
    The existing lag lane scrolls in steps; a hold-at-B profile with a timed capture window is the missing piece, owned by the
    webkit-sim harness, not by this part.
+
+### Runs of this task
+
+| lane | run | result |
+|---|---|---|
+| trajectory-probe, fw=people.carousel:crop, widths=1280, both engines, diagnostic (branch ci/carousel-crop-followups) | 39914708420 | success. Chromium 1280: no `nav.background-color` unit (new units 0, both 0, cleared 0): the 39896845339 unit is a flake (MEASURED). Dispatches used: 0 (one push run) |
