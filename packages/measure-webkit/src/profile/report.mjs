@@ -15,7 +15,7 @@ export function rereduce(file, windows) {
   const raw = new Map(windows.map((w) => [`${w.arm}|${w.window}|${w.rep}`, w.raw]));
   for (const r of file.rows) {
     const w = raw.get(`${r.arm}|${r.window}|${r.rep}`);
-    if (r.mode !== 'events' || !w) continue;
+    if (r.mode !== 'events' || !w || r.timeline === false) continue;
     const pw = profileFromRaw(w);
     Object.assign(r, { ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles });
   }

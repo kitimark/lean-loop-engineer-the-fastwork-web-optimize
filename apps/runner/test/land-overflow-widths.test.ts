@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { fwcoreCall } from "../src/run.ts";
-import { gateJobsMax, parseWorkflow, trajectoryMax, widest, width, type Job, type Workflow } from "./workflow-widths.ts";
+import { checkRow, gateJobsMax, parseWorkflow, trajectoryMax, widest, width, type Job, type Workflow, widthTable } from "./workflow-widths.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const call = fwcoreCall(root);
@@ -61,7 +61,7 @@ function dynamicMax(): Record<string, () => number> {
 
 const DYN = dynamicMax();
 const lean = read("lean/Fw/Ci/Overflow.lean");
-const table = new Map([...(/def widths[\s\S]*?\]\n/.exec(lean)![0]).matchAll(/\("([a-z0-9-]+)", (\d+)\)/g)].map((m) => [m[1]!, Number(m[2])]));
+const table = widthTable(lean);
 const files = readdirSync(join(root, ".github/workflows")).filter((f) => f.endsWith(".yml")).sort();
 const workflows: Workflow[] = files.map((f) => parseWorkflow(root, f));
 
@@ -84,10 +84,10 @@ describe("the width table is the width of every workflow file", () => {
     expect([...Object.keys(DYN)].filter((k) => !real.has(k))).toEqual([]);
   });
   it("no row of the table is below the width derived from its workflow", () => {
-    for (const w of workflows) expect(table.get(w.name), `${w.file}: Lean widths row (derived ${derived.get(w.name)})`).toBeGreaterThanOrEqual(derived.get(w.name)!);
+    for (const w of workflows) checkRow(table, w, derived.get(w.name)!);
   });
   it("and no row is above it either: the table is the derivation", () => {
-    for (const w of workflows) expect(table.get(w.name), `${w.file}: Lean widths row`).toBe(derived.get(w.name));
+    for (const w of workflows) checkRow(table, w, derived.get(w.name)!, true);
   });
   it("every workflow has a row and every row names a workflow", () => {
     expect([...table.keys()].sort()).toEqual(workflows.map((w) => w.name).sort());

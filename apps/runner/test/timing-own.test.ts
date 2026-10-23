@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { slowAlerts } from "../src/next.ts";
-import { ownOf } from "../src/timing.ts";
+import { rawOf } from "../src/timing.ts";
 import { parseSamples, pathsFor } from "../src/watch-collect.ts";
 import { coreCaller, slowWith } from "../src/watch.ts";
 
@@ -17,27 +17,24 @@ afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })))
 const wait = (startMs: number, durMs: number, phases: Record<string, unknown> | undefined) =>
   ({ tool: "fw", step: "ci wait", startMs, durMs, host: "local", load: 3, exit: 0, ...(phases ? { phases } : {}) });
 
-describe("ownOf: the part of a fw ci wait span that is ours", () => {
-  it("is the span end minus the remote run's updatedAt, only for a done wait", () => {
-    expect(ownOf(wait(1000, 1377258, { how: "done", updMs: 1000 + 1377258 - 27294 }))).toEqual({ ownMs: 27294 });
-    expect(ownOf(wait(1000, 316141, { how: "done", updMs: 1000 + 316141 - 20570 }))).toEqual({ ownMs: 20570 });
+describe("rawOf: the raw facts forwarded to Lean, which decides the own time (Fw.Obs.Timing.ownOfPhases)", () => {
+  it("forwards startMs, a hex commit and well-formed phases", () => {
+    expect(rawOf({ ...wait(1000, 5, { how: "done", updMs: 7 }), commit: "3d0d68a" })).toEqual({ startMs: 1000, commit: "3d0d68a", phases: { how: "done", updMs: 7 } });
   });
-  it("is absent without phases, without updMs, for another wait kind, for another step, or when the run ends after the span", () => {
-    expect(ownOf(wait(0, 900000, undefined))).toEqual({});
-    expect(ownOf(wait(0, 900000, { how: "done" }))).toEqual({});
-    expect(ownOf(wait(0, 900000, { how: "timeout", updMs: 5 }))).toEqual({});
-    expect(ownOf({ ...wait(0, 900000, { how: "done", updMs: 5 }), step: "ci state" })).toEqual({});
-    expect(ownOf(wait(0, 10, { how: "done", updMs: 99 }))).toEqual({});
-    expect(ownOf(null)).toEqual({});
+  it("drops malformed numbers and phases, so one bad line cannot make fwcore refuse the request", () => {
+    expect(rawOf(wait(1.5, 5, { how: "done", updMs: -1 }))).toEqual({});
+    expect(rawOf(wait(0, 5, { how: 3, updMs: 7 }))).toEqual({ startMs: 0 });
+    expect(rawOf({ commit: "not a sha" })).toEqual({});
+    expect(rawOf(null)).toEqual({});
   });
-  it("parseSamples carries ownMs of a ci wait and of no other span", () => {
+  it("parseSamples forwards the raw facts and decides nothing", () => {
     const text = [
       JSON.stringify(wait(10, 1377258, { how: "done", updMs: 10 + 1377258 - 27294 })),
-      JSON.stringify({ tool: "fw", step: "other", startMs: 20, durMs: 5, host: "local", load: 1, phases: { how: "done", updMs: 1 } }),
+      JSON.stringify({ tool: "fw", step: "other", startMs: 20, durMs: 5, host: "local", load: 1 }),
     ].join("\n");
     expect(parseSamples(text)).toEqual([
-      { tool: "fw", step: "ci wait", durMs: 1377258, host: "local", load: 3, exit: 0, ownMs: 27294 },
-      { tool: "fw", step: "other", durMs: 5, host: "local", load: 1 },
+      { tool: "fw", step: "ci wait", durMs: 1377258, host: "local", load: 3, exit: 0, startMs: 10, phases: { how: "done", updMs: 10 + 1377258 - 27294 } },
+      { tool: "fw", step: "other", durMs: 5, host: "local", load: 1, startMs: 20 },
     ]);
   });
 });
@@ -69,7 +66,7 @@ describe.skipIf(!haveCore)("obs.slow with detail against fwcore", () => {
     const unkeyedOnly = landSpans(14).filter((s) => !("lake" in s));
     const r = await run(unkeyedOnly);
     expect(r.slow).toEqual(["fw/land dry lake"]);
-    expect(r.details[0]).toMatch(/^sample #\d+ took 51092 ms, against baseline \d+ ms \(p50 of the \d+ earlier samples/);
+    expect(r.details[0]).toMatch(/^local sample \(startMs \d+, commit [0-9a-f]*\) took 51092 ms, against baseline \d+ ms \(p50 of the \d+ earlier samples/);
   });
   it("the same span gets no verdict once the step has keyed spans: the alert closes", async () => {
     const r = await run(landSpans(14));
@@ -80,6 +77,7 @@ describe.skipIf(!haveCore)("obs.slow with detail against fwcore", () => {
       .map(([d, o], i) => wait(1_000_000 * (i + 1), d!, { how: "done", updMs: 1_000_000 * (i + 1) + d! - o! }));
     expect((await run(ws)).slow).toEqual([]);
     expect((await run([...ws.slice(0, 6), wait(9_000_000, 1377258, undefined)])).slow).toEqual([]);
+    expect((await run([...ws.slice(0, 6), wait(9_000_000, 1377258, { how: "timeout", updMs: 9_000_000 })])).slow).toEqual([]);
   });
   it("a runner queue wait of 36 s is judged as 0 ms of our time: no alert", async () => {
     const q = [0, 0, 37079, 0, 0, 0, 36034].map((d, i) => ({ tool: "fw land", step: "remote queue", startMs: 1000 * (i + 1), durMs: d, host: "local", load: 3, exit: 0 }));

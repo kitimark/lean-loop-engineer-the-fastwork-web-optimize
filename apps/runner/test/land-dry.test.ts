@@ -243,16 +243,20 @@ describe("fw land --dry", () => {
     const file = join(dir, "timings.jsonl");
     process.env.FW_TIMINGS_FILE = file;
     try {
+      const end = begin("fw", "land dry");
       const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [LINT_ARGV.axioms], dryLocal: [] });
       expect(r.ok, text(r)).toBe(true);
-      expect(lastDryStep()).toBe("dry total lake");
-      begin("fw", "land dry")(0, { step: "land dry lake" });
-    } finally { delete process.env.FW_TIMINGS_FILE; }
-    const spans = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { tool: string; step: string; lake?: { built: number } });
-    expect(spans.find((s) => s.tool === "fw" && s.step === "land dry lake")?.lake).toEqual({ built: 2 });
-    const samples = parseSamples(readFileSync(file, "utf8"));
-    expect(samples.find((s) => s.step === "land dry lake")?.work).toEqual({ mods: "1" });
-    rmSync(dir, { recursive: true, force: true });
+      const dryStep = lastDryStep();
+      expect(dryStep).toBe("dry total lake");
+      end(0, { step: dryStep!.replace(/^dry total/, "land dry") });
+      const text0 = readFileSync(file, "utf8");
+      const spans = text0.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { tool: string; step: string; lake?: { built: number } });
+      expect(spans.find((s) => s.tool === "fw" && s.step === "land dry lake")?.lake).toEqual({ built: 2 });
+      expect(parseSamples(text0).find((s) => s.step === "land dry lake")?.work).toEqual({ mods: "1" });
+    } finally {
+      delete process.env.FW_TIMINGS_FILE;
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
   it("needs --task", async () => {
     const { fx, wt, opts } = await setup();
