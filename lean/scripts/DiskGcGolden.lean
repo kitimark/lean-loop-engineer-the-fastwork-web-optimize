@@ -208,7 +208,7 @@ def gcCases : List (String × String × Json) := [
       ev 3 "agent.stop" [("agent", "wf:wf_12345678-abc"), ("key", "wfr-end:wf_12345678-abc")],
       ev 4 "agent.stop" [("agent", "z"), ("key", "wfr-end:wf_12345678-abc")], ev 5 "task.done" [("task", "t1")],
       ev 6 "task.done" [("task", "t1")], ev 7 "task.done" [], ev 8 "agent.stop" [("key", "wfr-end:wf_")]]),
-  ("facts: live runs are the runs of running agents; landed runs are runs labelled with a done task", "ops.diskGcFacts",
+  ("facts: live runs are the runs of running agents; landed runs are runs whose every labelled task is done", "ops.diskGcFacts",
     facts [ev 1 "agent.label" [("agent", "a"), ("name", "t1"), ("key", "wfid-label:wf_12345678-abc:a:t1")],
       ev 2 "agent.label" [("agent", "b"), ("name", "t2"), ("key", "wfid-label:wf_87654321-def:b:t2")],
       ev 3 "agent.stop" [("agent", "b")], ev 4 "task.done" [("task", "t2")], ev 5 "task.done" [("task", "t1")]]),
