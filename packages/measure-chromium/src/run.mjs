@@ -74,6 +74,23 @@ const ev = async (expression) => {
   if (r.exceptionDetails) throw new Error('evaluate failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
   return r.result.value;
 };
+// Network.enable makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
+// static server instead (every request that can succeed goes through it; external hosts are unresolvable by design).
+{
+  let logged = 0;
+  const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
+  c.on('Inspector.targetCrashed', () => say('TARGET CRASHED'));
+  c.on('Inspector.detached', (e) => say('DETACHED', e.reason));
+  bs.on('Target.targetCrashed', (e) => say('BROWSER: targetCrashed', e.status, e.errorCode));
+  bs.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
+  bs.on('Target.targetInfoChanged', (e) => say('target', e.targetInfo.type, e.targetInfo.url.slice(0, 60)));
+  bs.on('Target.targetDestroyed', (e) => say('target destroyed', e.targetId));
+  c.on('Page.frameNavigated', (e) => say('navigated', e.frame.url.slice(0, 60)));
+  c.on('Page.lifecycleEvent', (e) => say('lifecycle', e.name));
+  c.on('Page.javascriptDialogOpening', (e) => { say('DIALOG', e.type, JSON.stringify(e.message).slice(0, 200)); c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); });
+  c.on('Runtime.exceptionThrown', (e) => say('EXCEPTION', (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text ?? '').slice(0, 300)));
+  c.on('Runtime.consoleAPICalled', (e) => { if (e.type === 'error' || e.type === 'warning' || e.type === 'assert') say(e.type, e.args.map((x) => x.value ?? x.description ?? '').join(' ').slice(0, 300)); });
+}
 await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable');
 await c.send('Emulation.setDeviceMetricsOverride', { width: profile.viewport.width, height: profile.viewport.height, deviceScaleFactor: profile.viewport.dpr, mobile: profile.viewport.mobile, screenWidth: profile.viewport.width, screenHeight: profile.viewport.height });
 if (!process.env.FW_NOTOUCH) await c.send('Emulation.setTouchEmulationEnabled', { enabled: profile.viewport.touch, maxTouchPoints: 5 });
@@ -100,7 +117,33 @@ async function networkBarrier(r0) {
     await sleep(5);
   }
 }
-let loaded = false;
+async function hangProfile(frameNo) {
+  try { const lg = readFileSync('/tmp/chrome.log', 'utf8'); const at = lg.indexOf('Received signal'); console.error('chrome.log crash:\n' + (at >= 0 ? lg.slice(Math.max(0, at - 300), at + 2600) : lg.slice(-3000))); } catch (e) { console.error('no chrome.log', String(e)); }
+  await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: ['disabled-by-default-v8.cpu_profiler', 'devtools.timeline', 'cc', 'viz', 'blink', 'headless', 'toplevel'] } });
+  await sleep(8000);
+  const done = new Promise((res) => c.once('Tracing.tracingComplete', res));
+  await c.send('Tracing.end');
+  const { stream } = await done;
+  let txt = '';
+  for (;;) { const r = await c.send('IO.read', { handle: stream, size: 1 << 20 }); txt += r.data; if (r.eof) break; }
+  const events = JSON.parse(txt).traceEvents ?? [];
+  const frames = new Map();
+  const hits = new Map();
+  for (const e of events) {
+    if (e.name !== 'ProfileChunk') continue;
+    const cp = e.args?.data?.cpuProfile;
+    for (const n of cp?.nodes ?? []) frames.set(n.id, n.callFrame);
+    for (const id of cp?.samples ?? []) hits.set(id, (hits.get(id) ?? 0) + 1);
+  }
+  const top = [...hits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id, n]) => { const f = frames.get(id) ?? {}; return `${n} ${f.functionName || '(anon)'} ${f.url ?? ''}:${(f.lineNumber ?? 0) + 1}:${(f.columnNumber ?? 0) + 1}`; });
+  const longs = events.filter((e) => e.ph === 'X' && e.dur > 500000).slice(0, 8).map((e) => `${e.name} ${Math.round(e.dur / 1000)}ms ${JSON.stringify(e.args?.data ?? {}).slice(0, 160)}`);
+  const byName = new Map();
+  for (const e of events) { const k = `${e.cat}/${e.name}`; const a = byName.get(k) ?? { n: 0, dur: 0 }; a.n++; a.dur += e.dur ?? 0; byName.set(k, a); }
+  const names = [...byName.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 25).map(([k, v]) => `${v.n}x ${Math.round(v.dur / 1000)}ms ${k}`);
+  console.error(`hang trace names:\n  ${names.join('\n  ')}`);
+  throw new Error(`load hang at frame ${frameNo}: ${events.length} trace events\n top samples:\n  ${top.join('\n  ') || '(none)'}\n long tasks:\n  ${longs.join('\n  ') || '(none)'}`);
+}
+let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
 async function frame(vtMs, pre = '', mid = null) {
   touch.frames++;
   const sent0 = touch.sent;
@@ -128,7 +171,12 @@ let quiet = 0, loadFrames = 0;
 for (; loadFrames < profile.load.maxFrames && quiet < profile.load.quietFrames; loadFrames++) {
   vt = loadFrames * dt;
   await frame(vt);
-  const st = await ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`);
+  if (process.env.FW_LOAD_TRACE) console.error(`load frame ${loadFrames} vt ${vt.toFixed(1)} inflight ${srv.inflight()} requests ${srv.requests()}`);
+  let hangTimer;
+  const st = await Promise.race([
+    ev(`document.readyState + ',' + (document.fonts ? document.fonts.status : 'loaded') + ',' + document.images.length + ',' + [...document.images].filter((i) => !i.complete).length`),
+    new Promise((_, reject) => { hangTimer = setTimeout(() => hangProfile(loadFrames).catch(reject), 20000); }),
+  ]).finally(() => clearTimeout(hangTimer));
   const [rs, fonts, , pendingImgs] = st.split(',');
   quiet = rs === 'complete' && fonts === 'loaded' && srv.inflight() === 0 ? quiet + 1 : 0;
 }
@@ -161,8 +209,13 @@ const plan = [];
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   let y = 0;
   for (const seg of profile.segments) {
+    if (seg.anchor) {
+      const ay = await ev(`(() => { const e = document.querySelector(${JSON.stringify(seg.anchor.selector)}); return e ? Math.round(e.getBoundingClientRect().top + scrollY - ${Number(seg.anchor.viewportTop)}) : null; })()`);
+      if (ay === null) throw new Error(`segment ${seg.name}: no element matches ${seg.anchor.selector}`);
+      y = Math.max(0, Math.min(maxScroll, ay));
+    }
     if (seg.until === 'end') { while (y < maxScroll) { y = Math.min(maxScroll, y + seg.dyPerFrame); plan.push({ phase: seg.name, y }); } }
-    else for (let i = 0; i < seg.frames; i++) { y = Math.min(maxScroll, y + (seg.dyPerFrame ?? 0)); plan.push({ phase: seg.name, y }); }
+    else for (let i = 0; i < seg.frames; i++) { y = Math.min(maxScroll, y + (seg.dyPerFrame ?? 0)); plan.push({ phase: seg.name, y, run: i === 0 ? seg.eval : undefined }); }
   }
 }
 function touchPlanner(inp) {
@@ -214,10 +267,11 @@ const metricsNow = async () => Object.fromEntries((await c.send('Performance.get
 const warmN = inputMode === 'page' ? plan.filter((x) => x.phase === 'warm').length : 0;
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   for (let n = 0; n < plan.length; n++, vt += dt) {
-    const { phase, y } = plan[n];
+    const { phase, y, run } = plan[n];
+    // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
     const pre = inputMode === 'page'
       ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = ${POS};`
-      : `console.timeStamp('F${n}'); window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
+      : `console.timeStamp('F${n}'); ${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
     const r = await frame(vt, pre);
     r.metrics = await metricsNow();
     record(n, phase, r.out, r);

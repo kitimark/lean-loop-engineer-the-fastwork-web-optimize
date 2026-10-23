@@ -1,9 +1,6 @@
-// Per-window, per-arm cadence tables from the downloaded cadence runs (task smoothness-probe, part B). Reads only.
-// Layout read: <runs>/<runId>/<artifact>/cadence-<width>.json (the file src/smooth/cli.mjs `run` writes); each file is one job, one sample.
-// Every decision (bad frame, rate, spread, verdict) is reduce.mjs, the TS twin of lean/Fw/Gate/Smooth.lean; this file only groups.
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { across, agreeNeeded, armRate, HITCH_TENTHS, hitches, hitchVerdict, quantile, repOf, repRange, spread, verdict } from './reduce.mjs';
+import { acrossDecisive, agreeNeeded, armRate, decisive, HITCH_TENTHS, hitches, hitchVerdict, quantile, repOf, repRange, spread, verdict } from './reduce.mjs';
 
 const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 const ARMS = ['orig', 'base', 'aa', 'cand'];
@@ -22,7 +19,6 @@ export function cellOf(runId, file, width, window) {
   }));
   const sp = spread(arms.base, arms.aa);
   const verdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, verdict(arms[a], arms[b], arms.base, arms.aa)]));
-  // Hitch counts per repeat (frames over 60 ms) and the Lean hitch verdict on them, against the same A/A pair.
   const hitchReps = Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a).sort((x, y) => x.rep - y.rep).map((r) => hitches(r.ivs))]));
   const hitchVerdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, hitchVerdict(hitchReps[a], hitchReps[b], hitchReps.base, hitchReps.aa)]));
   const traces = (file.traces ?? []).filter((t) => t.width === width && t.window === window);
@@ -42,7 +38,6 @@ export function cellsOf(dir) {
   for (const id of readdirSync(dir).filter((n) => /^\d+$/.test(n)).sort()) {
     for (const f of walk(join(dir, id)).filter((p) => /cadence-\d+\.json$/.test(p))) {
       const file = JSON.parse(readFileSync(f, 'utf8'));
-      // One job is one sample: the label is the run id and the artifact of the job (`smoothness-<width>-<set>`).
       const label = `${id}:${f.slice(join(dir, id).length + 1).split('/')[0]}`;
       if (file.refused || file.runs.length === 0) { skipped.push({ run: label, why: file.refused ? 'refused' : 'empty' }); continue; }
       for (const width of [...new Set(file.runs.map((r) => r.width))]) for (const window of ['hero', 'end']) cells.push(cellOf(label, file, width, window));
@@ -53,7 +48,7 @@ export function cellsOf(dir) {
 
 /**
  * Across samples (one CI job is one sample), per width, window and pair: how many samples said each verdict (rate rule and hitch rule), the
- * median rate difference (second minus first) and the verdict over the samples (Lean `across` with `agreeNeeded n`, the TS twin in reduce.mjs).
+ * median rate difference (second minus first) and the verdict over the samples (Lean `acrossDecisive`: `across` with `agreeNeeded` of the decisive samples, the TS twin in reduce.mjs).
  */
 export function summary(cells) {
   const g = new Map();
@@ -71,8 +66,8 @@ export function summary(cells) {
     e.diffs.push(c.arms[b].rate - c.arms[a].rate);
     e.spreads.push(c.spread);
   }
-  return [...g.values()].map((e) => ({ ...e, n: e.runs.length, need: agreeNeeded(e.runs.length), medianDiff: quantile(e.diffs, 50), medianSpread: quantile(e.spreads, 50),
-    acrossRate: across(agreeNeeded(e.runs.length), e.verdicts), acrossHitch: across(agreeNeeded(e.runs.length), e.hitchVerdicts) }))
+  return [...g.values()].map((e) => ({ ...e, n: e.runs.length, needRate: agreeNeeded(decisive(e.verdicts)), needHitch: agreeNeeded(decisive(e.hitchVerdicts)),
+    medianDiff: quantile(e.diffs, 50), medianSpread: quantile(e.spreads, 50), acrossRate: acrossDecisive(e.verdicts), acrossHitch: acrossDecisive(e.hitchVerdicts) }))
     .sort((x, y) => x.width - y.width || x.window.localeCompare(y.window) || PAIRS.findIndex(([a, b]) => a === x.first && b === x.second) - PAIRS.findIndex(([a, b]) => a === y.first && b === y.second));
 }
 
@@ -118,8 +113,8 @@ export function markdown({ cells, skipped }, sum) {
     }
     out.push('', `Rate verdicts: ${PAIRS.map(([a, b]) => `${a} vs ${b}: ${c.verdicts[`${a}|${b}`]}`).join('; ')}`, `Hitch verdicts: ${PAIRS.map(([a, b]) => `${a} vs ${b}: ${c.hitchVerdicts[`${a}|${b}`]}`).join('; ')}`, '');
   }
-  out.push('### Across samples (one CI job is one sample; Lean `across` with `agreeNeeded n` = two thirds of n, none disagreeing)', '', '| width | window | first | second | samples n | need | rate rule: first / second / same / insufficient | rate: across | hitch rule: first / second / same / insufficient | hitch: across | median rate difference second-first (points) | median A/A spread (points) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
-  for (const e of sum) out.push(`| ${e.width} | ${e.window} | ${e.first} | ${e.second} | ${e.n} | ${e.need} | ${e.counts.first} / ${e.counts.second} / ${e.counts.same} / ${e.counts.insufficient} | ${WORD[e.acrossRate]} | ${e.hitchCounts.first} / ${e.hitchCounts.second} / ${e.hitchCounts.same} / ${e.hitchCounts.insufficient} | ${WORD[e.acrossHitch]} | ${pct(e.medianDiff)} | ${pct(e.medianSpread)} |`);
+  out.push('### Across samples (one CI job is one sample; Lean `acrossDecisive`: two thirds of the decisive samples, none disagreeing)', '', '| width | window | first | second | samples n | need rate / hitch | rate rule: first / second / same / insufficient | rate: across | hitch rule: first / second / same / insufficient | hitch: across | median rate difference second-first (points) | median A/A spread (points) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  for (const e of sum) out.push(`| ${e.width} | ${e.window} | ${e.first} | ${e.second} | ${e.n} | ${e.needRate} / ${e.needHitch} | ${e.counts.first} / ${e.counts.second} / ${e.counts.same} / ${e.counts.insufficient} | ${WORD[e.acrossRate]} | ${e.hitchCounts.first} / ${e.hitchCounts.second} / ${e.hitchCounts.same} / ${e.hitchCounts.insufficient} | ${WORD[e.acrossHitch]} | ${pct(e.medianDiff)} | ${pct(e.medianSpread)} |`);
   out.push('', 'Samples: ' + [...new Set(sum.flatMap((e) => e.runs))].join(', '));
   out.push('', '### Hitches (gaps over 60 ms, placement; the verdict on the per-repeat counts is above)', '', '| run | width | window | arm | reps | hitches | median gap ms | median scroll y px | reps with a long animation frame |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const c of cells) for (const a of ARMS) {

@@ -16657,7 +16657,8 @@
     "packages/measure-chromium/profiles/people-o-hover*.json",
     "research/findings/ledger.json"
    ],
-   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 7). people.o:preview-translate (desktop hover > 860 px): the fixed 320x440 seller preview writes left/top every scroll frame, a full Layout diff for a fixed box (movement-only shortcut is position:absolute only, StyleDifference.cpp:557-565@862f17d). Set left/top once at open and at each above/below flip; per frame write the integer scroll delta as the translate property (separate from previewIn's transform). Card is already a layer. Flag: Desktop only, so no iPhone felt gain; felt only in Mac Safari and desktop Chromium. Look E-s under the premise that WebKit scroll offsets are integral (INFERRED; read ScrollView/ScrollableArea source first), Q if fractional. Layer budget 0 (existing 5.07 MB layer).. Lean: New Fw.Parts.PeopleOPreview: for all y y0 in Z with noFlip y0 y, snapDev(cardTop(rect y)) = snapDev(cardTop(rect y0)) - (y - y0) and phase(y) = phase(y0); flip and viewport clamps identical to faithful; work: layoutPasses(variant, frame) = 0 on non-flip frames. Layer budget 0. Measure: Chromium CI lane (Layout count with a synthetic hover, desktop band). Breakpoint gate pixel cells at > 860 px, both engines. Local Safari lane via gpu-safari-lane (Mac desktop is the real target)."
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 7). people.o:preview-translate (desktop hover > 860 px): the fixed 320x440 seller preview writes left/top every scroll frame, a full Layout diff for a fixed box (movement-only shortcut is position:absolute only, StyleDifference.cpp:557-565@862f17d). Set left/top once at open and at each above/below flip; per frame write the integer scroll delta as the translate property (separate from previewIn's transform). Card is already a layer. Flag: Desktop only, so no iPhone felt gain; felt only in Mac Safari and desktop Chromium. Look E-s under the premise that WebKit scroll offsets are integral (INFERRED; read ScrollView/ScrollableArea source first), Q if fractional. Layer budget 0 (existing 5.07 MB layer).. Lean: New Fw.Parts.PeopleOPreview: for all y y0 in Z with noFlip y0 y, snapDev(cardTop(rect y)) = snapDev(cardTop(rect y0)) - (y - y0) and phase(y) = phase(y0); flip and viewport clamps identical to faithful; work: layoutPasses(variant, frame) = 0 on non-flip frames. Layer budget 0. Measure: Chromium CI lane (Layout count with a synthetic hover, desktop band). Breakpoint gate pixel cells at > 860 px, both engines. Local Safari lane via gpu-safari-lane (Mac desktop is the real target).",
+   "evidence": "a7a545b"
   },
   {
    "devices": [
@@ -17036,7 +17037,8 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
-   "title": "Review follow-ups of pain-dark-scroll (landed HOLD): (1) the breakpoint gate compares only the pre-flip state (anchors.json excludes is-pain-dark; cells at scroll 0), so add a post-flip check on both engines (opacity or pixel at flipAt-1 and flipAt+1), or the trajectory pain-dark cell once gpu-trajectory-cells lands; (2) toggle_free and ride_exceeds hold by definition (varToggle, varRide), so tie the toggle-frame Work model to the measured counts (Chromium toggle-frame recalcs 4 -> 5) or relabel them as model assumptions in part.json provenance and the ledger leanFor; (3) a backing-free arrangement for WebKit: the overlap promotion of the stage text block adds 12.0 MB (run 39828605244); find the arrangement that keeps the paint saving (-28 to -34% per pass) without the backing, Lean layer budget first."
+   "title": "Review follow-ups of pain-dark-scroll (landed HOLD): (1) the breakpoint gate compares only the pre-flip state (anchors.json excludes is-pain-dark; cells at scroll 0), so add a post-flip check on both engines (opacity or pixel at flipAt-1 and flipAt+1), or the trajectory pain-dark cell once gpu-trajectory-cells lands; (2) toggle_free and ride_exceeds hold by definition (varToggle, varRide), so tie the toggle-frame Work model to the measured counts (Chromium toggle-frame recalcs 4 -> 5) or relabel them as model assumptions in part.json provenance and the ledger leanFor; (3) a backing-free arrangement for WebKit: the overlap promotion of the stage text block adds 12.0 MB (run 39828605244); find the arrangement that keeps the paint saving (-28 to -34% per pass) without the backing, Lean layer budget first.",
+   "evidence": "89d803f"
   },
   {
    "devices": [
@@ -17113,7 +17115,17 @@
     "apps/runner/src/run.ts",
     "apps/runner/test/run-phases*.test.ts",
     "research/notes/2026/10-2x-dispatch-latency.md",
-    "docs/team/handoffs/dispatch-latency.md"
+    "docs/team/handoffs/dispatch-latency.md",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/span-names.test.ts",
+    "packages/gh-budget/src/charged.ts",
+    "packages/gh-budget/src/lock.ts",
+    "packages/gh-budget/src/state.ts",
+    "packages/gh-budget/test/charged.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing.jsonl",
+    "docs/team/tools/timings.md"
    ],
    "title": "fw watch opens timing.slow for `fw run dispatch` repeatedly (2026-10-23): most dispatches take 2.5-13 s, but 20:25:47 took 35.2 s and 20:51:27 took 31.5 s, and up to 3 dispatches start in the same second from parallel builders. Find which part of the dispatch phase (run-phases.ts: workflow_dispatch call, the nonce run lookup, the gh rate-limit backoff, or a shared lock) takes the time, split the span so the verdict judges each part, and make the slow part lighter (e.g. one shared nonce lookup per poll for concurrent dispatches) within the gh rate-limit rules (poll >= 120 s for waits, no retry on 403). Report the split timings before and after."
   },
@@ -17214,7 +17226,8 @@
     "research/notes/2026/10-2x-earn-gpu.md",
     "docs/team/handoffs/across-k-decisive.md"
    ],
-   "title": "Review follow-ups of across-insufficient: k = agreeNeeded(all jobs) still counts insufficient jobs (report.mjs:76, cadence-table.mjs:75); decide in Lean whether k is two thirds of the decisive jobs, with a theorem stating the rule (e.g. across with k over decisive jobs never says second from fewer than minSamples decisive seconds) and goldens; JS twins follow. Also: Smooth.lean minSamples docstring -> 'Fewest decisive samples (first, second or same) before agreement means anything.'; research/notes/2026/10-2x-earn-gpu.md:307 cites across_same at :735, now :752."
+   "title": "Review follow-ups of across-insufficient: k = agreeNeeded(all jobs) still counts insufficient jobs (report.mjs:76, cadence-table.mjs:75); decide in Lean whether k is two thirds of the decisive jobs, with a theorem stating the rule (e.g. across with k over decisive jobs never says second from fewer than minSamples decisive seconds) and goldens; JS twins follow. Also: Smooth.lean minSamples docstring -> 'Fewest decisive samples (first, second or same) before agreement means anything.'; research/notes/2026/10-2x-earn-gpu.md:307 cites across_same at :735, now :752.",
+   "evidence": "229ce85"
   },
   {
    "devices": [
@@ -17308,6 +17321,95 @@
     "docs/team/handoffs/build-review-resume-guard.md"
    ],
    "title": "Incident inc-resume-report-echo: the lead resume path (task.report + task.worktree) never builds, yet a findings round was sent through it (wf_362ba514 re-reviewed an unchanged commit); and a runner echoing a report file dropped its 14 items (wf_8aa275ef). 8e923db89 already lets the report be passed inline. Remaining: the script refuses task.findings together with task.report (one line in the result naming the continue path), and refuses a resume whose report has no items; a test or dry-run fixture shows both refusals."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "people-o-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "people-o-preview-translate",
+    "chromium-desktop-crash"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/test/**",
+    "packages/measure-chromium/profiles/people-o-hover*.json",
+    "apps/site/src/parts/people.o/preview.ts",
+    "apps/site/src/parts/people.o/preview.golden.test.ts",
+    "research/notes/2026/10-2x-people-o-preview-translate.md",
+    "results/people-o-preview-translate/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/people-o-followups.md"
+   ],
+   "title": "Review follow-ups of people-o-preview-translate (landed ec3009a22): (1) after chromium-desktop-crash is fixed, re-run the people-o-hover desktop Chromium counts (base vs flag, Layout per frame) and set the ledger row n 53 chromium verdict; add a position or pixel probe of the open card, since gate run 39850908365 never hovers and the open card rests on Lean step_faithful; (2) put the load diagnostics in run.mjs:78-93 (Target.setDiscoverTargets, lifecycle, console and exception listeners) behind FW_LOAD_TRACE, or show that determinism is unchanged on an existing profile; (3) the 'snapDev rows' case in preview.golden.test.ts checks the golden against Math.floor and calls no site code: export snapDev from preview.ts and compare it, or drop the case."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-ci-stale",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "dispatch-latency"
+   ],
+   "writes": [
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/test/watch*.test.ts",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Obs/GhStatus.lean",
+    "packages/contracts/golden/obs/**",
+    "research/notes/2026/10-2x-watch-ci-stale.md",
+    "docs/team/handoffs/watch-ci-stale.md"
+   ],
+   "title": "Found 2026-10-23: fw watch opened ci.slow for land@ and lean@ ci/land-people-o-preview-translate-87a29c2 'in_progress for 22 min' and again at 26 min, while gh run list showed every run on that branch completed (lean 39869394794, land 39869394814 failed at about 23:10Z). The watch's CI state is stale by 20+ min. Find where watch-collect gets run states (cache, gh-budget charged reads, list cadence) with forensics before naming the cause; fix so a run that completed closes its ci.slow within one watch pass (or the alert names the age of its data); state the freshness rule in Lean (Fw.Obs.Health / GhStatus) with goldens, within the gh rate-limit rules (list not view, poll >= 120 s)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "workflow-syntax-gate",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-checks*.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Ci/**",
+    "packages/contracts/golden/ci/**",
+    "scripts/check-workflows.sh",
+    "scripts/ci-paths.test.mjs",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/workflow-syntax-gate.md"
+   ],
+   "title": "Incident inc-workflow-dup-key (2026-10-23): the lead's conflict resolution in the pain-dark-followups merge (ac6fa79a4) kept SEARCH twice in one env block of .github/workflows/trajectory-probe.yml; GitHub refused the file ('workflow file issue', run 39873292504 on ci/land-across-k-decisive-5bdaee9) and every trajectory-probe push failed after the land 341e7a9c9. No land check runs actionlint. Add a land check, selected by the Lean check selection when a .github/workflows/*.yml changes, that runs actionlint (Homebrew, already installed) with only the syntax-check and expression kinds as errors (shellcheck findings stay warnings); the existing webkit-sim.yml 'string should not be empty' option is accepted or fixed with the reason. A golden or test shows a duplicated env key refuses the land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "chrome-balance-repro",
+   "owner": "researcher",
+   "stream": "measure",
+   "deps": [
+    "chromium-desktop-crash"
+   ],
+   "writes": [
+    "research/notes/2026/10-2x-chrome-balance-repro.md",
+    "research/notes/2026/10-2x-chromium-desktop-crash.md",
+    "packages/measure-chromium/probes/**",
+    "packages/measure-chromium/profiles/**",
+    "packages/measure-chromium/src/run.mjs",
+    "lean/Fw/Measure/Profile*.lean",
+    "packages/contracts/golden/measure/profile*.jsonl",
+    "docs/team/handoffs/chrome-balance-repro.md"
+   ],
+   "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now)."
   }
  ],
  "deadline": {

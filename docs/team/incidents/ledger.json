@@ -4314,6 +4314,33 @@
    "leanReason": "Workflow orchestration choice and an LLM echo; the inline report removes the echo, the path choice is a lead rule.",
    "hardening": "build-review-resume-guard",
    "empiricalCheck": "A build-review run with task.findings and task.report refuses before any agent runs, and a resume whose report has no items refuses with that reason (fixture test in build-review-resume-guard)."
+  },
+  {
+   "id": "inc-workflow-dup-key",
+   "at": "2026-10-23T06:45+07:00",
+   "title": "The lead resolved a trajectory-probe.yml merge conflict by keeping both sides; a duplicated SEARCH key in one env block made GitHub refuse the workflow, and every trajectory-probe push failed after the pain-dark-followups land",
+   "symptom": "Run 39873292504 (trajectory-probe on ci/land-across-k-decisive-5bdaee9) failed with \"This run likely failed because of a workflow file issue\" right after land 341e7a9c9.",
+   "cause": "CONFIRMED (actionlint: key \"SEARCH\" is duplicated in \"env\" section, trajectory-probe.yml:342): main added SEARCH to the GPU cells step in 5519b5509 and the branch added the same line; the lead merge ac6fa79a4 kept both. No land check runs actionlint, so the land passed. Lesson for the lead: after resolving a conflict in a workflow file, run actionlint on it.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "ac6fa79a4",
+     "note": "lead merge that kept both SEARCH lines"
+    },
+    {
+     "kind": "file",
+     "ref": ".github/workflows/trajectory-probe.yml",
+     "note": "GPU cells step env block"
+    }
+   ],
+   "repro": "Duplicate any key in a step env block of a workflow and push: GitHub refuses the workflow file and starts no jobs.",
+   "fix": {
+    "task": "workflow-syntax-gate"
+   },
+   "regression": "A land check runs actionlint (syntax-check and expression kinds as errors) whenever a .github/workflows file changes.",
+   "leanVerdict": "partly",
+   "leanReason": "Selecting the actionlint check when a workflow file changes is a pure check-selection rule (Lean); YAML validity itself is actionlint, not Lean.",
+   "hardening": "workflow-syntax-gate"
   }
  ]
 }
