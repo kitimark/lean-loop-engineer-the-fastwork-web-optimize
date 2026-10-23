@@ -19027,9 +19027,46 @@
     "lean/Fw/Obs/Timing.lean",
     "lean/Fw/Wire/Obs.lean",
     "apps/runner/test/timing-slow.test.ts",
-    "docs/team/handoffs/timing-verdict-proofs.md"
+    "docs/team/handoffs/timing-verdict-proofs.md",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/ci-wait*.ts",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/test/timing*.test.ts"
    ],
-   "title": "timing-verdict-polish review follow-ups (2026-10-24): (1) corollaries of slowSteps_uncontended / slowSteps_no_bucket / slowSteps_of_timing over Timing.verdictsOf p ss (instantiate with ss.map Sample.norm); (2) lemma: Verdict.sample v in verdictsOf p ss -> v.idx < ss.length and ss[v.idx].host = v.host (from mem_sample_full), so alertLine's startMs/commit belong to the alerting sample; (3) a polishCli run with nothing to keep asserts its span line carries checks {n:0,kinds:[]}; (4) rewrap added docstring lines over 120 columns (Next.lean:1500,1603; Timing.lean:48)."
+   "title": "timing-verdict-polish review follow-ups (2026-10-24): (1) corollaries of slowSteps_uncontended / slowSteps_no_bucket / slowSteps_of_timing over Timing.verdictsOf p ss (instantiate with ss.map Sample.norm); (2) lemma: Verdict.sample v in verdictsOf p ss -> v.idx < ss.length and ss[v.idx].host = v.host (from mem_sample_full), so alertLine's startMs/commit belong to the alerting sample; (3) a polishCli run with nothing to keep asserts its span line carries checks {n:0,kinds:[]}; (4) rewrap added docstring lines over 120 columns (Next.lean:1500,1603; Timing.lean:48). (5) 2026-10-24 alert: a fw ci wait own time of 210140 ms against baseline 16134 ms (commit c1fdb56): own time includes the poller's detection latency, up to one poll interval (>= 120 s by policy). Judge ci-wait own time net of the poll interval the wait used (record it on the span), or compare against the interval, in Lean with golden; state which."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "overflow-widths-scope-data",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "overflow-widths-reads-code"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/land-tier-local.jsonl",
+    "apps/runner/test/land-overflow-widths.test.ts",
+    "docs/team/handoffs/overflow-widths-scope-data.md"
+   ],
+   "title": "overflow-widths-reads-code review follow-up (2026-10-24): gate-jobs.mjs --parts reads packages/gate-breakpoints/src/scope.gen.json through spec.scopeFor -> loadScope (spec.mjs:38-42), but plannerFiles omits it, so a scope.gen.json-only change does not select runner:overflow-widths. Add it to plannerFiles, extend plannerFiles_select by one case, regenerate the golden, one test row."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-plan-path-redaction",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/polish-plan-path-redaction.md"
+   ],
+   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests."
   }
  ],
  "deadline": {
