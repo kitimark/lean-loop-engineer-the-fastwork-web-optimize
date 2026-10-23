@@ -17517,7 +17517,18 @@
     ".github/workflows/chromium-counts.yml",
     ".github/workflows/chrome-crash-probe.yml",
     "research/notes/2026/10-2x-chrome-balance-repro.md",
-    "docs/team/handoffs/chrome-crash-platforms.md"
+    "docs/team/handoffs/chrome-crash-platforms.md",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Measure/Profile.lean",
+    "scripts/ci-paths.test.mjs",
+    "packages/contracts/golden/measure/profile.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/ci/intent.jsonl",
+    "packages/contracts/golden/ci/pool-caps.jsonl",
+    "packages/measure-chromium/src/profile.mjs",
+    "packages/measure-chromium/test/profile.test.mjs"
    ],
    "title": "Follow-ups of chrome-balance-repro: stock Chrome 156/157/158 (CfT linux-arm64, new headless) crashes with SIGSEGV 0x84 on the original fastwork page at 1280 wide (text-wrap: balance on the people title holding an inline-grid o), run 39878812594. Measure whether real users on other platforms crash: one stock CfT linux64 (x86_64) row on a free ubuntu-latest runner, one headed run under xvfb, and stock Chrome on a free macos runner (and Windows if a free runner allows); record each MEASURED with run ids. Have the lane read probes/ and refuse kind probe in counts mode. Report to the lead at once if x86_64 or macOS crashes."
   },
@@ -17722,6 +17733,26 @@
     "docs/team/handoffs/ci-state-fast.md"
    ],
    "title": "fw ci state is slow because a run id missing from the latest 100 runs makes it list 400 and then 1000 runs (gh call 37586 of 38892 ms, MEASURED in dispatch-latency-followups; per list 2.8 / 9.3 / 22.3 s; exit 2 = in none). Make it fast within the gh rules (list not view, no retry on 403): every caller passes the run's branch (or workflow) so one small filtered list finds it, and the id-only path stops after the first list when the id is older than that list's oldest run (Lean rule with goldens); time before/after with the run-phases spans. Also: (1) land.ts:290 keeps a hard-coded 20_000 gh timeout; add landCallTimeoutMs to Lean boundsText / GH_BOUNDS and read it there so every_caller_fits covers it; (2) the ci state part spans record exit 0 even when the command exits 2: pass the real exit; (3) scripts/gh-hung-probe.mjs removes its mkdtemp dir; (4) docs/team/tools/timings.md lists the new step names; (5) the lock part still counts loadState and lockMarginMs is not tied to the fwcore call timeout (land.ts LOAD_TOLERANT_ENV sets FW_CORE_CALL_MS 60000): split loadState out and derive the margin in Lean."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "counts-lane-fonts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "chrome-crash-platforms"
+   ],
+   "writes": [
+    "packages/measure-chromium/**",
+    ".github/workflows/chromium-counts.yml",
+    "lean/Fw/Measure/Profile.lean",
+    "packages/contracts/golden/measure/**",
+    "research/notes/2026/10-2x-counts-lane-fonts.md",
+    "docs/team/handoffs/counts-lane-fonts.md"
+   ],
+   "title": "chrome-crash-platforms (MEASURED) refuted the premise that real desktop Chrome crashes on the people title: the crash needs a layout pass with no font at all (the container lane's empty fonts.conf, and the web font not ready yet); with runner system fonts nothing crashed on linux x86_64/arm64, Windows or macOS. So the fix belongs in the lane, not the site: give the Chromium counts container the fonts a desktop user has (a pinned font package or the page's own web font ready before the first layout; decide which keeps counts comparable with the existing baselines and say why), then load the ORIGINAL page and the rewrite at 1280 in the lane with no crash, and drop the text-wrap: wrap workaround from profiles desktop-1280 and people-o-hover (their counts were taken without balancing). Re-measure the desktop rows those profiles fed (people-o-followups Layout 67 -> 28) and say whether they move. Lean first for any profile rule; run ids for every claim; free runners only."
   }
  ],
  "deadline": {
