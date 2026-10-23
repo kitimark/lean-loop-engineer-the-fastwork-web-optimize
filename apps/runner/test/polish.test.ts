@@ -244,7 +244,7 @@ describe("fw polish CLI", () => {
     return { deps, gitCalls, written, lines, removed };
   }
 
-  it("plan prints worktree-name as a bare token after the worktree line", async () => {
+  it("plan prints worktree-name as a single word after the worktree line", async () => {
     const f = fake({}, [], [], [], "");
     const wt = "/h/r/.claude/worktrees/wf_b291cc70-2f8-1";
     expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", { ...f.deps, worktree: () => wt })).toBe(0);

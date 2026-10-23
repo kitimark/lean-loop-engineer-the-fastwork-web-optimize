@@ -45,7 +45,7 @@ def polishable (p : String) : Bool := !protectedPath p
 def nameChar (c : Char) : Bool := c.isAlphanum || c == '_' || c == '-' || c == '.'
 
 /-- The worktree name of an absolute directory `/<...>/.claude/worktrees/<name>`, none for a relative, `~` or placeholder path or an
-unsafe name. `fw polish plan` prints it as `worktree-name <name>`, a bare token that a copy of the absolute path cannot damage. -/
+unsafe name. `fw polish plan` prints it as `worktree-name <name>`, one word that a copy of the absolute path cannot damage. -/
 def wtName (dir : String) : Option String :=
   if dir.startsWith "/" then
     match (segs dir).reverse with
