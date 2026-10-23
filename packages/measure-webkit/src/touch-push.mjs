@@ -43,6 +43,7 @@ export function openDriver(dir) {
   try { return { driver: findDriver(dir), why: null }; } catch (e) { return { driver: null, why: `driver not built (${e.message.replace(/\/Users\/[^/\s]+/g, '<home>')})` }; }
 }
 
+/** The last 1500 characters of a driver log with device ids and home paths removed. */
 export function logTail(file) {
   try {
     return readFileSync(file, 'utf8').slice(-1500)
@@ -63,7 +64,6 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   const dir = mkdtempSync(join(tmpdir(), 'fw-push-'));
   const run = serve(driver, { udid, dir, push, maxS });
   const t0 = Date.now();
-/** The last 1500 characters of a driver log with device ids and home paths removed. */
   while (!existsSync(join(dir, 'ready'))) {
     if (run.state.ended || Date.now() - t0 > readyMs) {
       const why = run.state.ended ? `the driver ended (code ${run.state.code})` : `no ready file after ${Math.round((Date.now() - t0) / 1000)} s`;
@@ -84,17 +84,30 @@ export async function stopServer(server) {
   rmSync(server.dir, { recursive: true, force: true });
 }
 
+/**
+ * One touch window. `obs` is what the harness saw of it, in the Lean `TouchPush` shape: beginAt and doneAt in ms from the go file,
+ * swipeAt in ms from the first touchstart to the last touchend; null is a point never reached.
+ * Every awaited inspector call in the window is raced against the window deadlines, so the window ends within windowCap(budget) + pollMs
+ * plus the doneMs wait, whatever the page or the proxy does.
+ */
 export async function touchWindow(c, { server, pageJs, variant = 'springboard', budget = TOUCH_BUDGET, pollMs = 500 }) {
-  await c.evaluate('window.__fwTouchStop = false; true');
+  const timers = [];
+  const after = (ms, value) => new Promise((resolve) => { timers.push(setTimeout(() => resolve(value), ms)); });
+  const armed = await Promise.race([
+    Promise.resolve(c.evaluate('window.__fwTouchStop = false; true', { timeoutMs: budget.answerMs })).then(() => true, (e) => e),
+    after(budget.answerMs, false),
+  ]);
+  if (armed !== true) {
+    for (const t of timers) clearTimeout(t);
+    throw armed === false ? new Error(`the page did not take the touch window start within ${budget.answerMs} ms`) : armed;
+  }
   const page = c.runAsync(pageJs, { pollMs, timeoutMs: windowCap(budget) + 10000 }).then((result) => ({ result }), (e) => ({ error: e.message }));
   const n = server.next++;
   const goAt = Date.now();
   writeFileSync(join(server.dir, `go-${n}`), variant);
-  const timers = [];
-  const after = (ms, value) => new Promise((resolve) => { timers.push(setTimeout(() => resolve(value), ms)); });
   let got = await Promise.race([page, after(budget.beginMs + budget.swipeMs + budget.tailMs, 'deadline')]);
   if (got === 'deadline') {
-    await c.evaluate('window.__fwTouchStop = true; true').catch(() => {});
+    Promise.resolve(c.evaluate('window.__fwTouchStop = true; true', { timeoutMs: budget.answerMs })).catch(() => {});
     got = await Promise.race([page, after(budget.answerMs, { error: 'the page did not answer after the touches (reloaded?)' })]);
   }
   for (const t of timers) clearTimeout(t);

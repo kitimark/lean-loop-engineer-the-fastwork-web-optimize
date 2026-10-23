@@ -6,6 +6,7 @@
 - Verified: Lean `Fw.Measure.TouchPush` compiles with its theorems and golden (`packages/contracts/golden/measure/touch-push.jsonl`);
   `test/touch-push.test.mjs` replays the golden; two short local debug runs (debug evidence, not results) show a push in 4.6 s on a quiet
   Mac with both variants reaching the page.
+- Round 2 (review round 1 findings applied): `touchWindow` races every awaited inspector call (start evaluate against answerMs; stop evaluate not awaited, per-call timeout; test with never-resolving stubs); touch end windows keep `ok:true, reason:'timeline-off'` (`windowVerdict` in sim-cadence.mjs, `rereduce` skips `timeline:false` rows; test); Lean `Obs`/`Budget` docstrings restored with the 4.2 s CI p50; note and PushServer.swift header aligned. CI re-proof of the bounded harness: dispatch item (not run).
 - Cause (note `research/notes/2026/10-2x-sim-touch-reliable.md`): XCUITest post-event wait for Safari idle (CI log tail), Timeline of a
   minutes-long touch window (no Timeline now). Bound: one failing touch window per job, at most 145,600 ms per window.
 

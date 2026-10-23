@@ -14,7 +14,7 @@ the 50-minute step limit) kept real-touch end windows in only the first 1 to 3 w
 
 ## Answer
 
-- **The slow step is XCUITest's wait for Safari to be idle, not the swipe (CONFIRMED position, INFERRED reason).** The driver
+- **XCUITest steps stall under runner load; the swipe itself is cheap (CONFIRMED stalls, INFERRED reason for the idle wait).** The idle wait is one instance (run `39901005729`, below); `Find the Application 'com.apple.springboard'` taking 27 s in run `39934951574` is another. The driver
   log tail kept in the run `39901005729` job 1 artifact (`sim.json` field `push.why`, read when the harness gave up) shows the
   up swipe taking 2.3 s (`Synthesize event` 584.41 to 586.71 s, post-event wait 0.01 s), the down swipe starting at 586.72 s with a
   0.01 s pre-event wait, finishing its event, and then the last line: `Wait for com.apple.mobilesafari to idle` at 591.00 s with
@@ -65,7 +65,7 @@ Over the 52 ok pushes: begin p50 2.0 s, swipe p50 5.9 s, done p50 11.2 s and p90
 first touch windows and lost the lane at the 2nd or 3rd. Slowest push of this run: `Find the Application 'com.apple.springboard'`
 inside `Synthesize event` took 27 s (log tail of job 1, 787.20 to 814.51 s), so XCUITest's element snapshot also stalls under
 load, besides the idle wait. That push crossed the 20 s swipe deadline, classified `swipeLate` and turned the lane off; the retry
-(synthetic wheel) first hit `Timeline.stop timed out after 60000 ms`, then succeeded: a 398 s window, inside the bound.
+(synthetic wheel) first hit `Timeline.stop timed out after 60000 ms`, then succeeded: a 398 s synthetic window; the Lean bound covers touch windows only.
 
 What this does not show: two things changed together (no Timeline in touch windows, SpringBoard coordinates), so which one
 removed the stalls is not separated. A control arm needs `FW_TOUCH_VARIANTS=safari` on the same commit (not run). Non-touch
@@ -91,6 +91,8 @@ the failed push), so record volume is not the only cause of stop timeouts; the i
   touch lane off for the rest of the job (`laneAfter_fail`, `laneAfter_slowDone`, `laneAfter_off`).
 - `lane_time_le`: n touch windows cost at most n x (windowCap + doneMs) = n x 145,600 ms. Run `39909042070` job 2 spent
   760,912 ms on one window.
+  The bound is on the model `spent`; the harness meets it only if every awaited inspector call inside the window is raced against the same deadlines (run 39934951574 job 1 push 16 reached the done check at 128 s, above windowCap, because the stop evaluate was awaited with the 120 s CI evaluate timeout).
+  `touchWindow` now sends the stop evaluate without awaiting it (per-call timeout answerMs) and races the start evaluate against answerMs, with tests that never-resolving stubs return within windowCap + pollMs; CI re-proof of this harness is a dispatch item.
 - `timelinePlan_touch` / `timelinePlan_other`: touch window records none, any other window stops its Timeline within the stated wait.
 
 The bound says the harness stops waiting; it does not make XCUITest finish a push when the runner is starved. One

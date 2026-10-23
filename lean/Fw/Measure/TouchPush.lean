@@ -4,6 +4,7 @@ import Lean.Data.Json
 -/
 namespace Fw.Measure.TouchPush
 
+/-- Millisecond deadlines of one touch window and of the driver start. -/
 structure Budget where
   readyMs : Nat
   beginMs : Nat
@@ -13,8 +14,10 @@ structure Budget where
   doneMs : Nat
 deriving Repr, BEq
 
+/-- Ready: 240 s (runs 39901005729 and 39909042070: 51 to 214 s). Begin, swipe, answer and done: several times the 4.2 s a press takes at the CI p50 (4.6 s a push in a local debug run). -/
 def budget : Budget := ⟨240000, 45000, 20000, 600, 20000, 60000⟩
 
+/-- What the harness saw of one touch window: beginAt and doneAt in ms from the go file, swipeAt in ms from the first touchstart to the last touchend; none is a point never reached. -/
 structure Obs where
   beginAt : Option Nat
   swipeAt : Option Nat

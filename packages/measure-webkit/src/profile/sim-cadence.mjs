@@ -32,6 +32,14 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
+/**
+ * The row's keep verdict. A window run without a Timeline (the real-touch end window) has no marks to align: it is kept with the reason
+ * 'timeline-off' and no profiles, never refused as 'marks-missing', so consumers that keep only `ok` rows keep the real-touch lane.
+ */
+export function windowVerdict(pw, timelineOn) {
+  return timelineOn ? { ok: pw.ok, reason: pw.reason ?? null } : { ok: true, reason: 'timeline-off' };
+}
+
 /** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
 export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
@@ -93,7 +101,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     const records = tl ? tl.top : [];
     const pw = profileWindow(pageOf(rec, toHundredths), records);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
-    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: records.length, ...(tl ? {} : { timeline: false }) } };
+    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ...windowVerdict(pw, !!tl), off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: records.length, ...(tl ? {} : { timeline: false }) } };
   };
 
   try {

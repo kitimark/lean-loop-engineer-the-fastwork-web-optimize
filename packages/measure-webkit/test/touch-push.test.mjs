@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { openDriver, touchWindow, TOUCH_PUSH, TOUCH_BUDGET, TOUCH_COUNT_JS, classifyWindow, doneInTime, laneAfter, spent, windowCap, timelinePlan, variantFor } from '../src/touch-push.mjs';
+import { windowVerdict } from '../src/profile/sim-cadence.mjs';
+import { rereduce } from '../src/profile/report.mjs';
 import { endTouchJs } from '../src/profile/recorder.mjs';
 
 test('openDriver: no directory or an unbuilt one gives a reason without a home path, a built one gives the xctestrun', () => {
@@ -60,6 +62,47 @@ test('touchWindow: a page that never ends is stopped at the deadline, a page tha
   const late = await touchWindow({ evaluate: async () => true, runAsync: async () => ({ begun: false, touch: null }) }, { server: { dir, next: 1, run: { state: { ended: true } } }, pageJs: '1', budget });
   assert.equal(late.outcome, 'beginLate');
   assert.equal(late.obs.beginAt, null);
+});
+
+test('touchWindow: an inspector evaluate that never resolves after the deadline does not hold the window past windowCap + pollMs', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-touch-'));
+  const budget = { ...TOUCH_BUDGET, beginMs: 30, swipeMs: 30, tailMs: 1, answerMs: 60, doneMs: 20 };
+  const pollMs = 20;
+  let n = 0;
+  const seen = [];
+  const c = {
+    evaluate: (js, opts) => { seen.push({ js, opts }); return n++ === 0 ? Promise.resolve(true) : new Promise(() => {}); },
+    runAsync: () => new Promise(() => {}),
+  };
+  const t0 = Date.now();
+  const got = await touchWindow(c, { server: { dir, next: 0, run: { state: { ended: true } } }, pageJs: '1', budget, pollMs });
+  assert.ok(Date.now() - t0 <= windowCap(budget) + pollMs, `took ${Date.now() - t0} ms`);
+  assert.equal(got.outcome, 'pageLost');
+  assert.ok(seen.every((x) => x.opts?.timeoutMs === budget.answerMs));
+  assert.ok(seen.some((x) => x.js.includes('__fwTouchStop = true')));
+});
+
+test('touchWindow: a start evaluate that never resolves fails within answerMs instead of hanging', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-touch-'));
+  const budget = { ...TOUCH_BUDGET, answerMs: 40 };
+  const t0 = Date.now();
+  await assert.rejects(touchWindow({ evaluate: () => new Promise(() => {}), runAsync: async () => ({}) }, { server: { dir, next: 0, run: { state: { ended: true } } }, pageJs: '1', budget }), /did not take the touch window start/);
+  assert.ok(Date.now() - t0 < budget.answerMs + 200);
+  assert.equal(readdirSync(dir).length, 0);
+});
+
+test('a touch end window has no Timeline: it is kept as timeline-off, never refused as marks-missing, also after the raw re-reduction', () => {
+  const noMarks = { ok: false, reason: 'marks-missing', profiles: null };
+  assert.deepEqual(windowVerdict(noMarks, false), { ok: true, reason: 'timeline-off' });
+  assert.deepEqual(windowVerdict(noMarks, true), { ok: false, reason: 'marks-missing' });
+  assert.deepEqual(windowVerdict({ ok: true }, true), { ok: true, reason: null });
+  const raw = { page: { marks: {}, frames: [], vh10: 0, maxY10: 0, w0: 0, w1: 0 }, tl: { a: null, b: null }, recs: [] };
+  const file = { rows: [{ arm: 'base', window: 'end', rep: 0, mode: 'events', ok: true, reason: 'timeline-off', profiles: null, timeline: false }] };
+  rereduce(file, [{ arm: 'base', window: 'end', rep: 0, raw }]);
+  assert.deepEqual([file.rows[0].ok, file.rows[0].reason], [true, 'timeline-off']);
+  const withTl = { rows: [{ arm: 'base', window: 'end', rep: 0, mode: 'events', ok: true }] };
+  rereduce(withTl, [{ arm: 'base', window: 'end', rep: 0, raw }]);
+  assert.equal(withTl.rows[0].reason, 'marks-missing');
 });
 
 test('touchCountJs is parseable and ends the window on the second touchend', () => {

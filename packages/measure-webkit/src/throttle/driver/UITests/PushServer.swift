@@ -7,7 +7,7 @@ import XCTest
 /// Parameters arrive as TEST_RUNNER_FW_* variables: DIR, DRAG_PT (points per drag), VELOCITY (points per second), HOLD_MS, MAX_S.
 ///
 /// Target. XCUITest resolves the element a coordinate belongs to before each synthesized event, and waits for that element's
-/// application to be idle before and after the event (XCUIApplicationProcess pre-event and post-event quiescence). `go-<n>` holding
+/// application to be idle before and after the event (XCUIApplicationProcess pre-event and post-event quiescence, INFERRED from the driver log and framework strings, not read from source). `go-<n>` holding
 /// `safari` takes the coordinates from Safari's window, so every press waits for Safari (a page that animates keeps it busy).
 /// Holding `springboard` takes them from SpringBoard, which is idle while Safari is in front: the touch lands on the same screen
 /// point and reaches Safari, but the wait is on SpringBoard. Any other text counts as `springboard`.
