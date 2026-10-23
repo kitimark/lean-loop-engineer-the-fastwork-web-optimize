@@ -5,6 +5,7 @@ import { drawAttr } from './drawOne';
 import { createBoil, type BoilTarget } from './boil';
 import { artOf, BASE_ART, strokePath } from './data';
 import { BASE_WIDTH, widthOf, type AccentState } from './logic';
+import { accentHookSet, chainStarts } from './hook';
 import { matchList } from './media';
 import css from './accent.module.css';
 
@@ -21,7 +22,8 @@ const frameCls = [css.frame0, css.frame1, css.frame2] as const;
  * hero.accent: the hand-drawn word inside the headline. Server and first client render show the base word, idle. After
  * mount the timer chain (Lean `HeroAccent.chainAt`) writes the state class every 0.9 s or more and, at each word change,
  * the box width, paint insets, view box and stroke of the three frames, straight on the DOM (no React state, nothing per
- * frame). Strokes are the original's, read from svg.gen.json.
+ * frame). Strokes are the original's, read from svg.gen.json. A page opened with `?fwpin=accent` never starts the chain
+ * (hook.ts, Lean `Fw.Gate.PathPix.chainStarts`); unset, nothing differs.
  */
 export function HeroAccent({ variant }: HeroAccentProps) {
   const emRef = useRef<HTMLElement>(null);
@@ -30,7 +32,9 @@ export function HeroAccent({ variant }: HeroAccentProps) {
     const em = emRef.current;
     if (!em) return;
     const reduce = matchList('mq.rm-reduce');
-    if (reduce?.matches) return; // the original returns before any timer (N2:3680)
+    const hooked = accentHookSet(location.search);
+    if (hooked) em.setAttribute('data-fw-pin', 'accent');
+    if (!chainStarts(!!reduce?.matches, hooked)) return; // the original returns before any timer under reduced motion (N2:3680); `?fwpin=accent` does too
     const frame = em.querySelector<HTMLElement>('[data-frame]')!;
     const paint = em.querySelector<HTMLElement>('[data-paint]')!;
     const svgs = [...em.querySelectorAll<SVGSVGElement>('svg')];

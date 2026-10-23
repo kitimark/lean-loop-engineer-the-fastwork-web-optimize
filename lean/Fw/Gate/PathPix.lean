@@ -964,11 +964,11 @@ theorem exitClaim_none (layer : String) (le600 : Bool) (h : exitClaim layer le60
 /-! ## Accent pin -/
 
 inductive Pin where
-  | none | ssr
+  | none | hook
 deriving DecidableEq, Repr
 
 def Pin.name : Pin → String
-  | .none => "none" | .ssr => "ssr-accent"
+  | .none => "none" | .hook => "accent-hook"
 
 inductive Phase where
   | idle | drawOut | drawIn
@@ -988,9 +988,9 @@ def Accent.json (a : Accent) : Json := Json.mkObj [("cursor", toJson a.cursor), 
 
 def pinArms : List String := ["A", "A2", "P"]
 
-def armPin (_arm : String) : Pin := .ssr
+def armPin (_arm : String) : Pin := .hook
 
-def shown (p : Pin) (live : Accent) : Accent := match p with | .none => live | .ssr => Accent.base
+def shown (p : Pin) (live : Accent) : Accent := match p with | .none => live | .hook => Accent.base
 
 def pinAt (arm : String) (_i : Nat) : Pin := armPin arm
 
@@ -998,15 +998,15 @@ def pinMasks (_ : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat �
 
 theorem armPin_same (a b : String) : armPin a = armPin b := rfl
 
-theorem armPin_all : ∀ a ∈ pinArms, armPin a = .ssr := fun _ _ => rfl
+theorem armPin_all : ∀ a ∈ pinArms, armPin a = .hook := fun _ _ => rfl
 
 theorem pinAt_same (a b : String) (i j : Nat) : pinAt a i = pinAt b j := rfl
 
-theorem pinAt_all : ∀ a ∈ pinArms, ∀ i < 9, pinAt a i = .ssr := fun _ _ _ _ => rfl
+theorem pinAt_all : ∀ a ∈ pinArms, ∀ i < 9, pinAt a i = .hook := fun _ _ _ _ => rfl
 
 theorem shown_none (live : Accent) : shown .none live = live := rfl
 
-theorem shown_ssr (live : Accent) : shown .ssr live = Accent.base := rfl
+theorem shown_hook (live : Accent) : shown .hook live = Accent.base := rfl
 
 theorem shown_arm_independent (a b : String) (la lb : Accent) : shown (armPin a) la = shown (armPin b) lb := rfl
 
@@ -1015,10 +1015,14 @@ theorem pinMasks_eq (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : pinMa
 theorem region_pin (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) :
     region (pinMasks p ms) m c r = region ms m c r := rfl
 
+/-- One recorded row: what the accent looked like at the shot (`n` elements, signature at the start and the stop) and
+where the page stood (`y` asked, `scrollY` read back). -/
 structure AccentRow where
   n : Nat
   start : String
   stop : String
+  y : Nat
+  scrollY : Nat
 deriving DecidableEq, Repr
 
 def accentPinned (served start stop : String) (n : Nat) : Bool := n == 1 && start == served && stop == served
@@ -1027,14 +1031,30 @@ def AccentRow.pinned (served : String) (r : AccentRow) : Bool := accentPinned se
 
 def rowsPinned (served : String) (rows : List AccentRow) : Bool := rows.all (AccentRow.pinned served)
 
-def gradePinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) : Grade :=
-  if rowsPinned served rows then gradeRel c f live else .invalid
+/-- A row is placed when the page stood where the offset asked. A page cannot scroll past `maxY`, so the last offsets
+may be clamped (task hero-copy-floor-sources item 8: a row whose `scrollY` differs from its offset is not a sample of
+that offset; a recorded run had arm A at the top where A2 and P stood at the offset). -/
+def AccentRow.placed (maxY : Nat) (r : AccentRow) : Bool := r.scrollY == min r.y maxY
 
-def unpinnedWhy (served : String) (rows : List AccentRow) : Option String :=
-  if rowsPinned served rows then none else some "accent-unpinned"
+def rowsPlaced (maxY : Nat) (rows : List AccentRow) : Bool := rows.all (AccentRow.placed maxY)
 
-def floorPinned (served : String) (rows : List AccentRow) (f : Floor) : Floor :=
-  { f with valid := f.valid && rowsPinned served rows }
+def rowsOk (served : String) (maxY : Nat) (rows : List AccentRow) : Bool := rowsPinned served rows && rowsPlaced maxY rows
+
+/-- The rows a P cell stands on: its own two (A and P) and, when it is compared with a floor, the two the floor was
+measured on (A and A2). Without a floor the floor rows are not read. -/
+def checkedRows (rows floorRows : List AccentRow) (f : Option Floor) : List AccentRow :=
+  rows ++ (match f with | none => [] | some _ => floorRows)
+
+def gradePinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell) (f : Option Floor)
+    (live : Bool) : Grade :=
+  if rowsOk served maxY (checkedRows rows floorRows f) then gradeRel c f live else .invalid
+
+def unpinnedWhy (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) : Option String :=
+  let rs := checkedRows rows floorRows f
+  if rowsPinned served rs then (if rowsPlaced maxY rs then none else some "misplaced") else some "accent-unpinned"
+
+def floorPinned (served : String) (maxY : Nat) (rows : List AccentRow) (f : Floor) : Floor :=
+  { f with valid := f.valid && rowsOk served maxY rows }
 
 theorem accentPinned_iff (served start stop : String) (n : Nat) :
     accentPinned served start stop n = true ↔ n = 1 ∧ start = served ∧ stop = served := by
@@ -1056,50 +1076,264 @@ theorem rowsPinned_iff (served : String) (rows : List AccentRow) :
     rowsPinned served rows = true ↔ ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true := by
   simp [rowsPinned, AccentRow.pinned]
 
-theorem gradePinned_of_pinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool)
-    (h : rowsPinned served rows = true) : gradePinned served rows c f live = gradeRel c f live := by
+theorem rowsPlaced_iff (maxY : Nat) (rows : List AccentRow) :
+    rowsPlaced maxY rows = true ↔ ∀ r ∈ rows, r.scrollY = min r.y maxY := by
+  simp [rowsPlaced, AccentRow.placed]
+
+theorem rowsOk_iff (served : String) (maxY : Nat) (rows : List AccentRow) :
+    rowsOk served maxY rows = true ↔
+      ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true ∧ r.scrollY = min r.y maxY := by
+  simp only [rowsOk, Bool.and_eq_true, rowsPinned_iff, rowsPlaced_iff]
+  exact ⟨fun h r hr => ⟨h.1 r hr, h.2 r hr⟩, fun h => ⟨fun r hr => (h r hr).1, fun r hr => (h r hr).2⟩⟩
+
+theorem rowsOk_false_of_unpinned (served : String) (maxY : Nat) (rows : List AccentRow) (r : AccentRow)
+    (hr : r ∈ rows) (h : accentPinned served r.start r.stop r.n = false) : rowsOk served maxY rows = false := by
+  cases hp : rowsOk served maxY rows
+  · rfl
+  · have := ((rowsOk_iff served maxY rows).1 hp r hr).1; rw [h] at this; cases this
+
+theorem rowsOk_false_of_misplaced (served : String) (maxY : Nat) (rows : List AccentRow) (r : AccentRow)
+    (hr : r ∈ rows) (h : r.scrollY ≠ min r.y maxY) : rowsOk served maxY rows = false := by
+  cases hp : rowsOk served maxY rows
+  · rfl
+  · exact absurd ((rowsOk_iff served maxY rows).1 hp r hr).2 h
+
+theorem checkedRows_none (rows floorRows : List AccentRow) : checkedRows rows floorRows none = rows := by
+  simp [checkedRows]
+
+theorem checkedRows_some (rows floorRows : List AccentRow) (fl : Floor) :
+    checkedRows rows floorRows (some fl) = rows ++ floorRows := rfl
+
+theorem gradePinned_of_ok (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (h : rowsOk served maxY (checkedRows rows floorRows f) = true) :
+    gradePinned served maxY rows floorRows c f live = gradeRel c f live := by
   simp [gradePinned, h]
 
-theorem gradePinned_invalid_of_unpinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor)
-    (live : Bool) (r : AccentRow) (hr : r ∈ rows) (h : accentPinned served r.start r.stop r.n = false) :
-    gradePinned served rows c f live = .invalid := by
-  have : rowsPinned served rows = false := by
-    cases hp : rowsPinned served rows
+theorem gradePinned_invalid_of_unpinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (r : AccentRow) (hr : r ∈ rows)
+    (h : accentPinned served r.start r.stop r.n = false) :
+    gradePinned served maxY rows floorRows c f live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows f := by
+    unfold checkedRows; exact List.mem_append_left _ hr
+  simp [gradePinned, rowsOk_false_of_unpinned served maxY _ r hm h]
+
+theorem gradePinned_invalid_of_floor_unpinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow)
+    (c : Cell) (fl : Floor) (live : Bool) (r : AccentRow) (hr : r ∈ floorRows)
+    (h : accentPinned served r.start r.stop r.n = false) :
+    gradePinned served maxY rows floorRows c (some fl) live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows (some fl) := by
+    rw [checkedRows_some]; exact List.mem_append_right _ hr
+  simp [gradePinned, rowsOk_false_of_unpinned served maxY _ r hm h]
+
+theorem gradePinned_invalid_of_misplaced (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (r : AccentRow) (hr : r ∈ rows) (h : r.scrollY ≠ min r.y maxY) :
+    gradePinned served maxY rows floorRows c f live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows f := by
+    unfold checkedRows; exact List.mem_append_left _ hr
+  simp [gradePinned, rowsOk_false_of_misplaced served maxY _ r hm h]
+
+theorem gradePinned_invalid_of_floor_misplaced (served : String) (maxY : Nat) (rows floorRows : List AccentRow)
+    (c : Cell) (fl : Floor) (live : Bool) (r : AccentRow) (hr : r ∈ floorRows) (h : r.scrollY ≠ min r.y maxY) :
+    gradePinned served maxY rows floorRows c (some fl) live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows (some fl) := by
+    rw [checkedRows_some]; exact List.mem_append_right _ hr
+  simp [gradePinned, rowsOk_false_of_misplaced served maxY _ r hm h]
+
+/-- Without a floor, the floor rows are not read. -/
+theorem gradePinned_no_floor (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (live : Bool) : gradePinned served maxY rows floorRows c none live = gradePinned served maxY rows [] c none live := by
+  simp [gradePinned, checkedRows]
+
+theorem gradePinned_valid_only_if (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (h : gradePinned served maxY rows floorRows c f live ≠ .invalid) :
+    ∀ r ∈ checkedRows rows floorRows f, accentPinned served r.start r.stop r.n = true ∧ r.scrollY = min r.y maxY := by
+  have hk : rowsOk served maxY (checkedRows rows floorRows f) = true := by
+    cases hk : rowsOk served maxY (checkedRows rows floorRows f)
+    · exact absurd (by simp [gradePinned, hk]) h
     · rfl
-    · have := (rowsPinned_iff served rows).1 hp r hr; rw [h] at this; cases this
-  simp [gradePinned, this]
+  exact (rowsOk_iff served maxY _).1 hk
 
-theorem gradePinned_valid_only_if (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor)
-    (live : Bool) (h : gradePinned served rows c f live ≠ .invalid) :
-    ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true := by
-  intro r hr
-  cases hp : accentPinned served r.start r.stop r.n
-  · exact absurd (gradePinned_invalid_of_unpinned served rows c f live r hr hp) h
-  · rfl
-
-theorem gradePinned_invalid_iff (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) :
-    gradePinned served rows c f live = .invalid ↔ rowsPinned served rows = false ∨ live = false ∨ c.valid = false := by
-  by_cases h : rowsPinned served rows = true
-  · rw [gradePinned_of_pinned served rows c f live h, gradeRel_invalid_iff]; simp [h]
-  · have h' : rowsPinned served rows = false := by simpa using h
+theorem gradePinned_invalid_iff (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) :
+    gradePinned served maxY rows floorRows c f live = .invalid ↔
+      rowsOk served maxY (checkedRows rows floorRows f) = false ∨ live = false ∨ c.valid = false := by
+  by_cases h : rowsOk served maxY (checkedRows rows floorRows f) = true
+  · rw [gradePinned_of_ok served maxY rows floorRows c f live h, gradeRel_invalid_iff]; simp [h]
+  · have h' : rowsOk served maxY (checkedRows rows floorRows f) = false := by simpa using h
     simp [gradePinned, h']
 
-theorem unpinnedWhy_iff (served : String) (rows : List AccentRow) :
-    (unpinnedWhy served rows).isSome = true ↔ rowsPinned served rows = false := by
+theorem unpinnedWhy_unpinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) :
+    unpinnedWhy served maxY rows floorRows f = some "accent-unpinned" ↔
+      rowsPinned served (checkedRows rows floorRows f) = false := by
   unfold unpinnedWhy
-  by_cases h : rowsPinned served rows = true <;> simp [h]
+  by_cases h : rowsPinned served (checkedRows rows floorRows f) = true
+  · by_cases h2 : rowsPlaced maxY (checkedRows rows floorRows f) = true <;> simp [h, h2]
+  · have h' : rowsPinned served (checkedRows rows floorRows f) = false := by simpa using h
+    simp [h']
 
-theorem floorPinned_valid_only_if (served : String) (rows : List AccentRow) (f : Floor)
-    (h : (floorPinned served rows f).valid = true) : rowsPinned served rows = true := by
+theorem unpinnedWhy_misplaced (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) :
+    unpinnedWhy served maxY rows floorRows f = some "misplaced" ↔
+      rowsPinned served (checkedRows rows floorRows f) = true ∧ rowsPlaced maxY (checkedRows rows floorRows f) = false := by
+  unfold unpinnedWhy
+  by_cases h : rowsPinned served (checkedRows rows floorRows f) = true
+  · by_cases h2 : rowsPlaced maxY (checkedRows rows floorRows f) = true <;> simp [h, h2]
+  · have h' : rowsPinned served (checkedRows rows floorRows f) = false := by simpa using h
+    simp [h']
+
+theorem unpinnedWhy_none_iff (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) :
+    unpinnedWhy served maxY rows floorRows f = none ↔ rowsOk served maxY (checkedRows rows floorRows f) = true := by
+  unfold unpinnedWhy rowsOk
+  by_cases h : rowsPinned served (checkedRows rows floorRows f) = true <;>
+    by_cases h2 : rowsPlaced maxY (checkedRows rows floorRows f) = true <;> simp [h, h2]
+
+theorem floorPinned_valid_only_if (served : String) (maxY : Nat) (rows : List AccentRow) (f : Floor)
+    (h : (floorPinned served maxY rows f).valid = true) : rowsOk served maxY rows = true := by
   simp [floorPinned] at h; exact h.2
+
+/-! ## Accent hook
+
+The capture no longer swaps the accent element for a served copy. The site holds the accent chain still when the page is
+opened with `?fwpin=accent`: `hero.accent` then returns before it starts a timer, as the original does under reduced
+motion, so the markup stays what the server sent. With the parameter unset the chain starts as before. -/
+
+def hookParam : String := "fwpin"
+
+def hookValue : String := "accent"
+
+def hookPair (kv : String) : Bool :=
+  match kv.splitOn "=" with
+  | [k, v] => k == hookParam && (v.splitOn ",").contains hookValue
+  | _ => false
+
+def hookSet (search : String) : Bool :=
+  let q := if search.startsWith "?" then (search.drop 1).toString else search
+  (q.splitOn "&").any hookPair
+
+/-- The effect starts the timer chain unless the original's reduced-motion return or the hook stops it. -/
+def chainStarts (reduce hook : Bool) : Bool := !reduce && !hook
+
+theorem chainStarts_unset (reduce : Bool) : chainStarts reduce false = !reduce := by
+  simp [chainStarts]
+
+theorem chainStarts_hooked (reduce : Bool) : chainStarts reduce true = false := by
+  simp [chainStarts]
+
+theorem chainStarts_iff (reduce hook : Bool) : chainStarts reduce hook = true ↔ reduce = false ∧ hook = false := by
+  cases reduce <;> cases hook <;> simp [chainStarts]
+
+#guard hookSet "" == false && hookSet "?fw=hero.exit:threaded" == false
+#guard hookSet "?fwpin=accent" == true && hookSet "?fw=hero.exit:threaded&fwpin=accent" == true
+
+/-- The hook is a function of the search only: the two arms of a capture get it from the same rule. -/
+theorem hookSet_arm_free (a b : String) (h : a = b) : hookSet a = hookSet b := by rw [h]
+
+def hookCases : List String :=
+  ["", "?", "?fwpin=accent", "fwpin=accent", "?fw=hero.exit:threaded", "?fw=hero.exit:threaded&fwpin=accent",
+   "?fwpin=accent&fw=hero.exit:threaded", "?fwpin=other", "?fwpin=", "?fwpin", "?xfwpin=accent", "?fwpin=accent,x",
+   "?fwpin=x,accent", "?fwpin=accentx", "?fwpin=accent=1", "?fwl=hero_copy:c&fwpin=accent"]
+
+/-! ## Page clock pin
+
+The countdown digits read `Date.now()` on a one-second timer and on `visibilitychange` (hero.countdown driver). In a
+Chromium capture `Date.now()` is the pinned instant plus the virtual time, and the virtual time at a shot differs from
+arm to arm, so the seconds digit ticked between arms. The capture now returns the pinned instant itself, as the
+WebKit lane does (Date pinned to the same instant), so no digit can tick. -/
+
+def clockNow (pinned : Bool) (epoch vnow : Nat) : Nat := if pinned then epoch else epoch + vnow
+
+def exitClockPinned (_ : Engine) : Bool := true
+
+def secondsLeft (target now : Nat) : Nat := (target - now) / 1000
+
+theorem exitClockPinned_all (e : Engine) : exitClockPinned e = true := rfl
+
+theorem clockNow_pinned (epoch v1 v2 : Nat) : clockNow true epoch v1 = clockNow true epoch v2 := rfl
+
+theorem clockNow_unpinned (epoch vnow : Nat) : clockNow false epoch vnow = epoch + vnow := rfl
+
+theorem clockNow_unpinned_moves (epoch v1 v2 : Nat) (h : v1 ≠ v2) :
+    clockNow false epoch v1 ≠ clockNow false epoch v2 := by
+  simp only [clockNow_unpinned]; omega
+
+theorem seconds_pinned_arm_free (target epoch v1 v2 : Nat) :
+    secondsLeft target (clockNow true epoch v1) = secondsLeft target (clockNow true epoch v2) := rfl
+
+/-- The cause: unpinned, one more second of virtual time between two shots changes the seconds digit. -/
+theorem seconds_unpinned_ticks (target epoch v : Nat) (h : epoch + v + 1000 ≤ target) :
+    secondsLeft target (clockNow false epoch (v + 1000)) + 1 = secondsLeft target (clockNow false epoch v) := by
+  simp only [secondsLeft, clockNow_unpinned]; omega
+
+def clockCases : List (Bool × Nat × Nat) :=
+  [(true, 100000, 0), (true, 100000, 500), (true, 100000, 1000), (true, 100000, 61000),
+   (false, 100000, 0), (false, 100000, 500), (false, 100000, 1000), (false, 100000, 61000)]
+
+def clockTarget : Nat := 3000000
+
+/-! ## Occluded layer
+
+A layer whose whole visible rectangle lies under an opaque element of another part shows none of its own pixels there
+(WebKit y 812 and 813: the people card is on top of the faded hero copy and its art differs between page loads, which
+set the A/A floor of hero_copy). The capture samples a grid of points in the layer's visible rectangle and counts the
+ones where an opaque element that is not part of the layer is in front of it. -/
+
+structure Cover where
+  n : Nat
+  k : Nat
+deriving DecidableEq, Repr
+
+def Cover.all (c : Cover) : Bool := 0 < c.n && c.k == c.n
+
+/-- A cell is skipped as occluded only when both of its arms are fully covered. -/
+def occludedBoth (a b : Cover) : Bool := a.all && b.all
+
+theorem Cover.all_iff (c : Cover) : c.all = true ↔ 0 < c.n ∧ c.k = c.n := by
+  simp [Cover.all]
+
+theorem occludedBoth_iff (a b : Cover) : occludedBoth a b = true ↔ a.all = true ∧ b.all = true := by
+  simp [occludedBoth]
+
+theorem cover_none_not_all (c : Cover) (h : c.n = 0) : c.all = false := by
+  simp [Cover.all, h]
+
+theorem cover_partial_not_all (c : Cover) (h : c.k < c.n) : c.all = false := by
+  simp [Cover.all]; omega
+
+theorem occludedBoth_one_arm (a b : Cover) (h : a.all = false) : occludedBoth a b = false := by
+  simp [occludedBoth, h]
+
+theorem occludedBoth_other_arm (a b : Cover) (h : b.all = false) : occludedBoth a b = false := by
+  simp [occludedBoth, h]
+
+theorem occludedBoth_comm (a b : Cover) : occludedBoth a b = occludedBoth b a := by
+  simp [occludedBoth, Bool.and_comm]
+
+def coverCases : List (Cover × Cover) :=
+  [(⟨49, 49⟩, ⟨49, 49⟩), (⟨49, 49⟩, ⟨49, 48⟩), (⟨49, 48⟩, ⟨49, 49⟩), (⟨0, 0⟩, ⟨0, 0⟩), (⟨49, 0⟩, ⟨49, 0⟩),
+   (⟨1, 1⟩, ⟨1, 1⟩), (⟨25, 25⟩, ⟨49, 49⟩)]
 
 def accentRowCases : List (String × String × String × Nat) :=
   [("22a26c2a", "22a26c2a", "22a26c2a", 1), ("22a26c2a", "e1380ab3", "a7ccf8cf", 1), ("22a26c2a", "e1380ab3", "22a26c2a", 1),
    ("22a26c2a", "22a26c2a", "a7ccf8cf", 1), ("22a26c2a", "22a26c2a", "22a26c2a", 0), ("22a26c2a", "22a26c2a", "22a26c2a", 2)]
 
+/-- Row sets: pinned and placed at offset 855 of a page with `maxY` 4000. -/
 def accentRowSets : List (String × List AccentRow) :=
-  [("both pinned", [⟨1, "s", "s"⟩, ⟨1, "s", "s"⟩]), ("A unpinned", [⟨1, "x", "y"⟩, ⟨1, "s", "s"⟩]),
-   ("B unpinned at the end", [⟨1, "s", "s"⟩, ⟨1, "s", "t"⟩]), ("two elements", [⟨1, "s", "s"⟩, ⟨2, "s", "s"⟩]), ("no rows", [])]
+  [("both pinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("A unpinned", [⟨1, "x", "y", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("B unpinned at the end", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "t", 855, 855⟩]),
+   ("two elements", [⟨1, "s", "s", 855, 855⟩, ⟨2, "s", "s", 855, 855⟩]),
+   ("no rows", []),
+   ("B misplaced", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 0⟩]),
+   ("A at the top where B stands at the offset", [⟨1, "s", "s", 855, 0⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("clamped last offset", [⟨1, "s", "s", 4001, 4000⟩, ⟨1, "s", "s", 4001, 4000⟩]),
+   ("clamped but short", [⟨1, "s", "s", 4001, 3999⟩, ⟨1, "s", "s", 4001, 4000⟩])]
+
+/-- Floor row sets (the rows the A/A floor stood on). -/
+def floorRowSets : List (String × List AccentRow) :=
+  [("floor pinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("floor A2 unpinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "t", 855, 855⟩]),
+   ("floor A2 misplaced", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 0⟩])]
+
+def pinMaxY : Nat := 4000
 
 def liveAccentCases : List Accent := [⟨-1, .idle⟩, ⟨2, .drawIn⟩, ⟨5, .drawOut⟩]
 
@@ -1115,6 +1349,23 @@ def maskCases : List (String × Nat × Nat × Nat × Box) :=
    ("box fully off screen", 3, 1170, 2532, ⟨0, 900000000, 100000000, 10000000⟩)]
 
 def rawCases : List (List Nat) := [[], [0, 0, 0], [0, 1, 0, 1], [3, 0, 255, 2], [16, 4], [0, 256]]
+
+def rowJson (r : AccentRow) : Json :=
+  Json.mkObj [("n", toJson r.n), ("start", toJson r.start), ("stop", toJson r.stop), ("y", toJson r.y), ("scrollY", toJson r.scrollY)]
+
+def pinnedRows : List AccentRow := (accentRowSets.head?.map (·.2)).getD []
+
+def pinnedFloorRows : List AccentRow := (floorRowSets.head?.map (·.2)).getD []
+
+def gradeLine (name : String) (rows floorRows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) : String :=
+  (Json.mkObj [("kind", "accentGrade"), ("name", toJson name), ("served", toJson "s"), ("maxY", toJson pinMaxY),
+    ("rows", toJson (rows.map rowJson)), ("floorRows", toJson (floorRows.map rowJson)),
+    ("cell", c.json), ("floor", match f with | some x => x.json | none => Json.null),
+    ("floorPinned", match f with | some x => (floorPinned "s" pinMaxY floorRows x).json | none => Json.null), ("live", toJson live),
+    ("pinned", toJson (rowsPinned "s" (checkedRows rows floorRows f))),
+    ("placed", toJson (rowsPlaced pinMaxY (checkedRows rows floorRows f))),
+    ("why", match unpinnedWhy "s" pinMaxY rows floorRows f with | some w => toJson w | none => Json.null),
+    ("grade", toJson (gradePinned "s" pinMaxY rows floorRows c f live).name)]).compress
 
 def goldenLines (_ : Unit := ()) : List String :=
   gradeCases.map (fun (n, c) =>
@@ -1151,13 +1402,19 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("kind", "accentRow"), ("served", toJson served), ("start", toJson start), ("stop", toJson stop), ("n", toJson n),
       ("pinned", toJson (accentPinned served start stop n))]).compress) ++
   accentRowSets.flatMap (fun (name, rows) => relCases.map (fun (cn, c, f, live) =>
-    (Json.mkObj [("kind", "accentGrade"), ("name", toJson (name ++ ": " ++ cn)), ("served", toJson "s"),
-      ("rows", toJson (rows.map fun r => Json.mkObj [("n", toJson r.n), ("start", toJson r.start), ("stop", toJson r.stop)])),
-      ("cell", c.json), ("floor", match f with | some x => x.json | none => Json.null),
-      ("floorPinned", match f with | some x => (floorPinned "s" rows x).json | none => Json.null), ("live", toJson live),
-      ("pinned", toJson (rowsPinned "s" rows)),
-      ("why", match unpinnedWhy "s" rows with | some w => toJson w | none => Json.null),
-      ("grade", toJson (gradePinned "s" rows c f live).name)]).compress)) ++
+    gradeLine (name ++ ": " ++ cn) rows pinnedFloorRows c f live)) ++
+  floorRowSets.flatMap (fun (name, fr) => relCases.map (fun (cn, c, f, live) =>
+    gradeLine (name ++ ": " ++ cn) pinnedRows fr c f live)) ++
+  hookCases.map (fun q =>
+    (Json.mkObj [("kind", "hook"), ("search", toJson q), ("hook", toJson (hookSet q))]).compress) ++
+  [false, true].flatMap (fun r => [false, true].map (fun h =>
+    (Json.mkObj [("kind", "chainStarts"), ("reduce", toJson r), ("hook", toJson h), ("starts", toJson (chainStarts r h))]).compress)) ++
+  clockCases.map (fun (p, e, v) =>
+    (Json.mkObj [("kind", "clockPin"), ("pinned", toJson p), ("epoch", toJson e), ("vnow", toJson v), ("target", toJson clockTarget),
+      ("now", toJson (clockNow p e v)), ("seconds", toJson (secondsLeft clockTarget (clockNow p e v)))]).compress) ++
+  coverCases.map (fun (a, b) =>
+    (Json.mkObj [("kind", "cover"), ("a", Json.mkObj [("n", toJson a.n), ("k", toJson a.k)]),
+      ("b", Json.mkObj [("n", toJson b.n), ("k", toJson b.k)]), ("occluded", toJson (occludedBoth a b))]).compress) ++
   regionCases.map (fun (ms, i, x, y) =>
     let m := ms.getD i ((0, 0), (0, 0))
     (Json.mkObj [("kind", "pinRegion"), ("pin", toJson (armPin "P").name),
@@ -1207,9 +1464,13 @@ def run (args : List String) : IO UInt32 := do
 #guard (accelCases.map accelerated) ==
   [true, true, true, true, false, false, false, false, false, false, false, false]
 
-#guard (pinArms.map fun a => (armPin a).name) == ["ssr-accent", "ssr-accent", "ssr-accent"]
-#guard (liveAccentCases.map fun l => (shown .ssr l).cursor) == [-1, -1, -1]
+#guard (pinArms.map fun a => (armPin a).name) == ["accent-hook", "accent-hook", "accent-hook"]
+#guard (liveAccentCases.map fun l => (shown .hook l).cursor) == [-1, -1, -1]
 #guard (accentRowCases.map fun (a, b, c, n) => accentPinned a b c n) == [true, false, false, false, false, false]
-#guard (accentRowSets.map fun (_, rows) => rowsPinned "s" rows) == [true, false, false, false, true]
+#guard (accentRowSets.map fun (_, rows) => rowsPinned "s" rows) == [true, false, false, false, true, true, true, true, true]
+#guard (accentRowSets.map fun (_, rows) => rowsPlaced pinMaxY rows) == [true, true, true, true, true, false, false, true, false]
+#guard (hookCases.map hookSet) == [false, false, true, true, false, true, true, false, false, false, false, true, true, false, false, true]
+#guard (clockCases.map fun (p, e, v) => secondsLeft clockTarget (clockNow p e v)) == [2900, 2900, 2900, 2900, 2900, 2899, 2899, 2839]
+#guard (coverCases.map fun (a, b) => occludedBoth a b) == [true, false, false, false, false, true, true]
 
 end Fw.Gate.PathPix
