@@ -13,13 +13,14 @@ export function bgOfCapture(cap, k, periods = PERIODS) {
   return bgOf(ns);
 }
 
-export const jobKey = (pass) => {
+export const jobBase = (pass) => {
   const j = pass.job;
   if (!j) return 'unknown';
-  return `${j.jobId ?? `${j.run ?? '?'}.${j.attempt ?? '?'}/${j.vm ?? j.job ?? '?'}`}/p${j.pass ?? '?'}`;
+  return `${j.jobId ?? `${j.run ?? '?'}.${j.attempt ?? '?'}/${j.vm ?? j.job ?? '?'}`}`;
 };
 
-const SLOTS = [['faithful-a', 'a1'], ['faithful-b', 'a2'], ['crop-a', 'crop'], ['crop-b', 'crop']];
+/** The key of one sample: job (numeric job id when the workflow passes FW_JOB_ID), pass, and the capture slot (a or b; diag for the diagnostic capture). */
+export const jobKey = (pass, slot) => `${jobBase(pass)}/p${pass.job?.pass ?? '?'}/${slot}`;
 
 export function cellsOf(passes, periods = PERIODS, only = null) {
   const out = [];
@@ -31,20 +32,20 @@ export function cellsOf(passes, periods = PERIODS, only = null) {
         const p = `${phase}:${k}`;
         const a1 = [], a2 = [], c = [], a1Job = [], a2Job = [], cropJob = [], a1Bg = [], a2Bg = [], cropBg = [];
         let dropped = 0;
-        const take = (cap, into, jobs, bgs, pass) => {
+        const take = (cap, into, jobs, bgs, pass, slot) => {
           const n = countOf(cap, k, p, ty);
           if (n === undefined) return;
           if (n === null) { dropped++; return; }
           const bg = phase === 'swap' ? bgOfCapture(cap, k, periods) : 'unknown';
           if (only && bg !== only) return;
-          into.push(n); jobs.push(jobKey(pass)); bgs.push(bg);
+          into.push(n); jobs.push(jobKey(pass, slot)); bgs.push(bg);
         };
         for (const s of passes) {
           const caps = s.captures;
-          take(caps['faithful-a'], a1, a1Job, a1Bg, s);
-          take(caps['faithful-b'], a2, a2Job, a2Bg, s);
-          take(caps['crop-a'], c, cropJob, cropBg, s);
-          take(caps['crop-b'], c, cropJob, cropBg, s);
+          take(caps['faithful-a'], a1, a1Job, a1Bg, s, 'a');
+          take(caps['faithful-b'], a2, a2Job, a2Bg, s, 'b');
+          take(caps['crop-a'], c, cropJob, cropBg, s, 'a');
+          take(caps['crop-b'], c, cropJob, cropBg, s, 'b');
         }
         out.push({ phase: p, kind: ty, bg: only ?? 'all', a1, a2, crop: c, a1Job, a2Job, cropJob, a1Bg, a2Bg, cropBg, dropped, cell: cell(a1, a2, c, dropped) });
       }
@@ -53,7 +54,7 @@ export function cellsOf(passes, periods = PERIODS, only = null) {
   return out;
 }
 
-export const diagRows = (passes) => passes.filter((s) => s.diag).map((s) => ({ phase: 'diag', kind: 'Diag', job: jobKey(s), ...s.diag }));
+export const diagRows = (passes) => passes.filter((s) => s.diag).map((s) => ({ phase: 'diag', kind: 'Diag', job: jobKey(s, 'diag'), ...s.diag }));
 
 export const windowCells = (passes, periods = PERIODS, only = null) =>
   only ? cellsOf(passes, periods, only) : [...cellsOf(passes, periods), ...cellsOf(passes, periods, 'idle'), ...cellsOf(passes, periods, 'busy'), ...diagRows(passes)];
@@ -117,7 +118,7 @@ export function swapMd(cells, sources) {
   if (cropAll.length) {
     lines.push(`Measured (the crop, Layout rows in a swap window, ${cropAll.length} samples): minimum ${Math.min(...cropAll)}, median ${median(cropAll)}${cropIdle.length ? `; idle background only (${cropIdle.length} samples): minimum ${Math.min(...cropIdle)}, median ${median(cropIdle)}` : ''}.`);
   }
-  const jobs = new Set(std.flatMap((x) => [...(x.a1Job ?? []), ...(x.a2Job ?? []), ...(x.cropJob ?? [])]).map((j) => j.replace(/\/p\d+$/, '')));
+  const jobs = new Set(std.flatMap((x) => [...(x.a1Job ?? []), ...(x.a2Job ?? []), ...(x.cropJob ?? [])]).map((j) => j.replace(/\/p\d+\/[a-z]+$/, '')));
   lines.push(`Jobs counted (${jobs.size}): ${[...jobs].sort().join(', ')}. Cells need at least ${MIN_FAITHFUL} samples in each faithful slot (unresolved:fewSamples otherwise).`, '');
   for (const ty of KINDS) {
     lines.push(`### ${ty}`, '', '| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |', '|---|---|---|---|---|---|');

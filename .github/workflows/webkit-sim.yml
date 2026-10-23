@@ -413,6 +413,10 @@ jobs:
           COST: ${{ inputs.cost || (contains(github.event.head_commit.message, '[swap-lane]') && 'only') || 'off' }}
           # swap-window pass (--swap) only when the head commit says [swap-lane]
           SWAP: ${{ contains(github.event.head_commit.message, '[swap-lane]') && '--swap' || '' }}
+          # hero.accent frozen from the harness (--freeze hero-accent) only when the head commit says [swap-freeze] next to [swap-lane]
+          FREEZE: ${{ contains(github.event.head_commit.message, '[swap-freeze]') && '--freeze hero-accent' || '' }}
+          # the numeric job id, written into every sample's job key
+          FW_JOB_ID: ${{ job.check_run_id }}
           ARMS: ${{ inputs.arms || '0,1,3' }}
           REPS: ${{ inputs.reps || '3' }}
           # The runner (3 vCPU) boots the Simulator and Safari several times slower than a Mac: every wait in
@@ -438,7 +442,7 @@ jobs:
           fi
           if [ "$LAG" != yes ] && [ "$COST" != off ]; then echo "::error::cost=$COST needs lag=true"; exit 2; fi
           if [ "$LAG" = yes ]; then
-            node src/lag/cli.mjs run --passes 2 --cost "$COST" $SWAP --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json" 2> >(tee "out/$VM-lag.log" >&2)
+            node src/lag/cli.mjs run --passes 2 --cost "$COST" $SWAP $FREEZE --keep ${site[@]+"${site[@]}"} --out "out/$VM-lag.json" 2> >(tee "out/$VM-lag.log" >&2)
             ls -l out
             exit 0
           fi

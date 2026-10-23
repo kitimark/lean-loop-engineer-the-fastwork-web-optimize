@@ -70,10 +70,12 @@ test('every sample carries the job and pass that took it, parallel to its value'
   const j = (vm, p) => ({ run: '77', attempt: '1', vm, pass: p });
   const passes = [pass(capture(13), capture(0), capture(13), capture(0), j('r1', 1)), pass(capture(13), capture(0), capture(13), capture(0), j('r2', 1)), pass(capture(13), capture(0), capture(13), capture(0), { ...j('r3', 2), jobId: '555' })];
   const c = cellOf(windowCells(passes), 'swap:0', 'Layout');
-  assert.deepEqual(c.a1Job, ['77.1/r1/p1', '77.1/r2/p1', '555/p2']);
-  assert.deepEqual(c.cropJob, ['77.1/r1/p1', '77.1/r1/p1', '77.1/r2/p1', '77.1/r2/p1', '555/p2', '555/p2']);
+  assert.deepEqual(c.a1Job, ['77.1/r1/p1/a', '77.1/r2/p1/a', '555/p2/a']);
+  assert.deepEqual(c.a2Job, ['77.1/r1/p1/b', '77.1/r2/p1/b', '555/p2/b']);
+  assert.deepEqual(c.cropJob, ['77.1/r1/p1/a', '77.1/r1/p1/b', '77.1/r2/p1/a', '77.1/r2/p1/b', '555/p2/a', '555/p2/b']);
   assert.equal(c.crop.length, c.cropJob.length);
-  assert.equal(jobKey({}), 'unknown');
+  assert.equal(new Set(c.cropJob).size, c.cropJob.length, 'no two samples share a key');
+  assert.equal(jobKey({}, 'a'), 'unknown/p?/a');
 });
 
 test('the background of a swap window comes from its rest windows, and the idle and busy cells keep only matching samples', () => {
