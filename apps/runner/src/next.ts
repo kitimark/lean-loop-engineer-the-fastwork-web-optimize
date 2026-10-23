@@ -11,7 +11,7 @@ import { basename, join } from "node:path";
 import { lockFacts, lockFile } from "../hooks/land-guard.mjs";
 import { queuedBranches } from "./land-queue.ts";
 import {
-  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, readMeta, readsStdin, signalsOf, withLeadNotes,
+  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, startFromAge, readMeta, readsStdin, signalsOf, withLeadNotes,
   type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
 } from "./watch-collect.ts";
 
@@ -167,7 +167,7 @@ export function childrenOf(raw: Raw, agentId: string): ChildFact[] {
     const cl = classifyTree(root.comm, q.pids.map((p) => by.get(p)?.comm ?? ""));
     const f = cl.watchedFile ? raw.file(cl.watchedFile) : null;
     const w = cl.watchedFile ? watchOf(cl.watchedFile, agentIds) : null;
-    const base = { pid: q.pid, chain: chainOf(raw.ps, q.pid), startedAt: Math.floor(raw.now - root.ageMs),
+    const base = { pid: q.pid, chain: chainOf(raw.ps, q.pid), startedAt: startFromAge(raw.now, root.ageMs),
       watchedAt: f ? Math.floor(f.mtimeMs) : null, producerExited: f ? producerExitedLine(f.lastLine) : false, ...(w ? { watch: w } : {}) };
     const kind = cl.kind !== "ciWait" && stdin.has(q.pid) ? "stdinWait" : cl.kind;
     out.push(kind === "ciWait" ? { ...base, kind: "ciWait", run: cl.run!, timeoutMin: cl.timeoutMin! } : { ...base, kind });

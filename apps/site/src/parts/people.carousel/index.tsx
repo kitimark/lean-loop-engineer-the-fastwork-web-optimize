@@ -5,7 +5,7 @@ import css from './carousel.module.css';
 import { createLoop } from './driver';
 import { avatarOf, RING_ORDER } from '../people/assets';
 import { COPY } from '../people/data';
-import { restWindow, START, swapWindow, type State } from './logic';
+import { CROP_VARIANT, restWindow, START, swapRole, swapWindow, type State } from './logic';
 import { matchList } from './media';
 
 /**
@@ -31,7 +31,12 @@ export function PeopleCarousel({ variant }: { variant: string }) {
   }, []);
 
   const ids = s.swapping ? swapWindow({ x: s.x }) : restWindow({ x: s.x });
-  const last = ids.length - 1;
+  const crop = variant === CROP_VARIANT;
+  const swapClass = (i: number): string => {
+    const role = swapRole({ i, len: ids.length });
+    if (crop) return `${css.avatar} ${role === 'exit' ? css.cropExit : role === 'enter' ? `${css.isEnter} ${css.cropEnter}` : css.cropShift}`;
+    return role === 'exit' ? `${css.avatar} ${css.isExit}` : role === 'enter' ? `${css.avatar} ${css.isEnter}` : css.avatar;
+  };
   return (
     <div className={css.pill} data-fw="people-pill">
       <div className={css.proof}>
@@ -42,7 +47,7 @@ export function PeopleCarousel({ variant }: { variant: string }) {
           alt=""
           draggable={false}
           src={avatarOf({ id: RING_ORDER[ring]! })}
-          className={s.swapping && i === 0 ? `${css.avatar} ${css.isExit}` : s.swapping && i === last ? `${css.avatar} ${css.isEnter}` : css.avatar}
+          className={s.swapping ? swapClass(i) : css.avatar}
         />
       ))}
         </div>

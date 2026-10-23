@@ -9698,7 +9698,8 @@
     "research/findings/ledger.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "0cbc010"
   },
   {
    "devices": [
@@ -16628,9 +16629,15 @@
     "packages/contracts/golden/parts/people-carousel-crop*.jsonl",
     "research/notes/2026/10-2x-people-carousel-crop.md",
     "results/people-carousel-crop/**",
-    "docs/team/handoffs/people-carousel-crop.md"
+    "docs/team/handoffs/people-carousel-crop.md",
+    "lean/Fw.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "research/findings/ledger.json"
    ],
-   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 6). people.carousel:crop (st6, look-change class): the isExit keyframes animate width/flex-basis/margin-right/border-width, a mixed effect that ticks on main (KeyframeEffect.cpp:2724-2744@862f17d) and lays out the 104x32 row for 220 ms of every 1.02 s while People is active. Replace with a clip-path crop + translate on accelerated properties only, so the effect runs on CA. User accepted it in v1 as a look change (ledger row 19). Flag: LOOK CHANGE (class L): crop cuts the border ring, followers land at +-1 device px. Goes to the user's look-review class with a work-only theorem; never in the same-look preset. Layer budget: avatar layers about 0.04 MB each (32x32 at dpr 3), already created per swap today.. Lean: New Fw.Parts.PeopleCarouselCrop: split_keeps_layout (any E split of avatarsExit keeps layoutFrames because width/flex-basis/margin stay animated, the why for no same-look route); work: layoutFrames(crop) = 0 per swap, Accelerated(cropExit); look bound: follower offset <= 1 device px and the ring difference region stated (not VisSame). Layer budget per swap stated. Measure: WebKit Simulator cost lane while People is active (Layout per frame, swap windows). Breakpoint gate both engines. Trajectory avatar rects per frame (gpu-trajectory-cells). Frame strips for the user's review card."
+   "title": "GPU route (user 2026-10-22: \"experiment then measure and do lean prove ... navbar and the end-of-page\"; design workflow gpu-route-design, lead scratch gpu-route-tasks.json rank 6). people.carousel:crop (st6, look-change class): the isExit keyframes animate width/flex-basis/margin-right/border-width, a mixed effect that ticks on main (KeyframeEffect.cpp:2724-2744@862f17d) and lays out the 104x32 row for 220 ms of every 1.02 s while People is active. Replace with a clip-path crop + translate on accelerated properties only, so the effect runs on CA. User accepted it in v1 as a look change (ledger row 19). Flag: LOOK CHANGE (class L): crop cuts the border ring, followers land at +-1 device px. Goes to the user's look-review class with a work-only theorem; never in the same-look preset. Layer budget: avatar layers about 0.04 MB each (32x32 at dpr 3), already created per swap today.. Lean: New Fw.Parts.PeopleCarouselCrop: split_keeps_layout (any E split of avatarsExit keeps layoutFrames because width/flex-basis/margin stay animated, the why for no same-look route); work: layoutFrames(crop) = 0 per swap, Accelerated(cropExit); look bound: follower offset <= 1 device px and the ring difference region stated (not VisSame). Layer budget per swap stated. Measure: WebKit Simulator cost lane while People is active (Layout per frame, swap windows). Breakpoint gate both engines. Trajectory avatar rects per frame (gpu-trajectory-cells). Frame strips for the user's review card.",
+   "evidence": "a3da1bb"
   },
   {
    "devices": [
@@ -17765,7 +17772,8 @@
     "docs/team/handoffs/counts-lane-fonts.md",
     ".github/workflows/chrome-crash-probe.yml"
    ],
-   "title": "chrome-crash-platforms (MEASURED) refuted the premise that real desktop Chrome crashes on the people title: the crash needs a layout pass with no font at all (the container lane's empty fonts.conf, and the web font not ready yet); with runner system fonts nothing crashed on linux x86_64/arm64, Windows or macOS. So the fix belongs in the lane, not the site: give the Chromium counts container the fonts a desktop user has (a pinned font package or the page's own web font ready before the first layout; decide which keeps counts comparable with the existing baselines and say why), then load the ORIGINAL page and the rewrite at 1280 in the lane with no crash, and drop the text-wrap: wrap workaround from profiles desktop-1280 and people-o-hover (their counts were taken without balancing). Re-measure the desktop rows those profiles fed (people-o-followups Layout 67 -> 28) and say whether they move. Lean first for any profile rule; run ids for every claim; free runners only."
+   "title": "chrome-crash-platforms (MEASURED) refuted the premise that real desktop Chrome crashes on the people title: the crash needs a layout pass with no font at all (the container lane's empty fonts.conf, and the web font not ready yet); with runner system fonts nothing crashed on linux x86_64/arm64, Windows or macOS. So the fix belongs in the lane, not the site: give the Chromium counts container the fonts a desktop user has (a pinned font package or the page's own web font ready before the first layout; decide which keeps counts comparable with the existing baselines and say why), then load the ORIGINAL page and the rewrite at 1280 in the lane with no crash, and drop the text-wrap: wrap workaround from profiles desktop-1280 and people-o-hover (their counts were taken without balancing). Re-measure the desktop rows those profiles fed (people-o-followups Layout 67 -> 28) and say whether they move. Lean first for any profile rule; run ids for every claim; free runners only.",
+   "evidence": "b757773"
   },
   {
    "devices": [
@@ -17806,7 +17814,8 @@
     "packages/contracts/golden/obs/**",
     "docs/team/handoffs/proc-startedat-negative.md"
    ],
-   "title": "The ci-state-fast land failed once on CircleCI (pipeline c28bc7fe, job 408, suites-a): apps/runner test/next.test.ts 'end to end with a real child process > a loop on a finished task's output file' threw 'fwcore obs.health failed: field startedAt: expected a non-negative integer'; it passes on this Mac and on GitHub. Find how the collector computes a process startedAt on Linux (ps etime/lstart, /proc stat, container clock or boot time) and why it can go negative on the CircleCI machine image; fix at the source (the proc reading), and state in Lean what the wire accepts (a negative or unknown start is reported as unknown, not a decoder failure), with goldens and a test that feeds the CircleCI shape. Record the flake rate from land history."
+   "title": "The ci-state-fast land failed once on CircleCI (pipeline c28bc7fe, job 408, suites-a): apps/runner test/next.test.ts 'end to end with a real child process > a loop on a finished task's output file' threw 'fwcore obs.health failed: field startedAt: expected a non-negative integer'; it passes on this Mac and on GitHub. Find how the collector computes a process startedAt on Linux (ps etime/lstart, /proc stat, container clock or boot time) and why it can go negative on the CircleCI machine image; fix at the source (the proc reading), and state in Lean what the wire accepts (a negative or unknown start is reported as unknown, not a decoder failure), with goldens and a test that feeds the CircleCI shape. Record the flake rate from land history.",
+   "evidence": "a142e36"
   },
   {
    "devices": [
@@ -17826,6 +17835,49 @@
     "docs/team/handoffs/counts-font-fidelity.md"
    ],
    "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-crop-followups",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "people-carousel-crop"
+   ],
+   "writes": [
+    "apps/site/src/parts/people.carousel/**",
+    "apps/site/scripts/part-footprint.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "results/people-carousel-crop/**",
+    "research/notes/2026/10-2x-people-carousel-crop.md",
+    "docs/team/handoffs/carousel-crop-followups.md"
+   ],
+   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-idle-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-idle-none"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "lean/Fw/Measure/**",
+    "packages/contracts/golden/measure/**",
+    "apps/site/src/parts/morph.columns/idle*",
+    "apps/site/src/parts/morph.panel/**",
+    "research/notes/2026/10-20-morph-idle-none.md",
+    "docs/team/handoffs/morph-idle-followups.md"
+   ],
+   "title": "Follow-ups of morph-idle-none (landed 011bf99e7): (1) WebKit Paint/Composite per frame on the morph zone reads higher with the flag in 11 of 12 cells, confounded by the simulator frame rate (3x between passes): resolve it with a pinned frame rate or per-frame normalization, Lean-specified, and decide win/loss on WebKit; (2) a committed Lean reducer with goldens for fw.webkit.lag.cost.morph/1 (the per-zone means came from a scratch script); (3) the scene threshold (mm > 1 -> active) is checked against Lean only inside idle.golden.test.ts, not in morph.panel's attribute writer, and IdleHold has no golden; (4) re-measure the Chromium base 28107 layer-frames on the font image (counts-font-fidelity) and restate the delta."
   }
  ],
  "deadline": {

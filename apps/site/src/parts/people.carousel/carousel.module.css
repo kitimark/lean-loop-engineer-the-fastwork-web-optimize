@@ -103,6 +103,35 @@
       transform: scale(1);
     }
   }
+  .avatars.carousel .avatar.cropExit {
+    animation: 0.22s cubic-bezier(0.33, 1, 0.68, 1) forwards avatarsCropExit;
+  }
+  .avatars.carousel .avatar.cropShift {
+    animation: 0.22s cubic-bezier(0.33, 1, 0.68, 1) forwards avatarsShift;
+  }
+  .avatars.carousel .avatar.cropEnter {
+    animation:
+      0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards avatarsPop,
+      0.22s cubic-bezier(0.33, 1, 0.68, 1) forwards avatarsShift;
+  }
+  @keyframes avatarsCropExit {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.35);
+    }
+  }
+  @keyframes avatarsShift {
+    0% {
+      translate: 0 0;
+    }
+    to {
+      translate: -24px 0;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .avatar {
       transition: none;
