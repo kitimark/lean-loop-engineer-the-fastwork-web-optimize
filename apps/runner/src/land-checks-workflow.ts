@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 export const WORKFLOW_LINT_ID = "workflow-lint";
 export const WORKFLOW_LINT_READS = [".github/workflows/*.yml", ".github/workflows/*.yaml", "scripts/check-workflows.sh", "apps/runner/src/land-checks-workflow.ts"];
-export const WORKFLOW_LINT_ARGV = ["sh", "scripts/check-workflows.sh", "apps/runner/src/land-checks-workflow.ts"];
+export const WORKFLOW_LINT_ARGV = ["sh", "scripts/check-workflows.sh"];
 
 export type Finding = { kind: string; file: string; message: string; line?: number };
 export type WorkflowVerdict = "pass" | "warn" | "fail" | "refused";
