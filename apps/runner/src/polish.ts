@@ -151,7 +151,7 @@ export async function stagedChecks(dir: string, git: (cwd: string, args: string[
 }
 
 /** The fields of the `fw polish commit` span: the staged checks and, when they include lake build, the modules the
- *  build of the staged tree made (run here before `git commit`, so the hook's own lake build finds them built). */
+ *  build made in `dir` (run here before `git commit`, so the hook's own lake build finds them built). */
 export async function stagedSpan(dir: string, git: (cwd: string, args: string[]) => string, call: CoreCall,
   run: (cwd: string, argv: string[]) => string): Promise<{ checks: Checks; lake?: { built: number } } | null> {
   const cmds = await stagedCmds(dir, git, call);
