@@ -21,6 +21,22 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
     `idleSec` (1200 s = 20 min) old (`quiet`).
   D is the one branch that takes a row in a live checkout. `never_live_mcp_parent`: a D selection is a quiet row with an
   MCP root in its chain of the same worktree id, no lean-lsp-mcp started in that worktree and no live lock on it.
+- E (`pickE`, task reap-watch-one-rule), kind `orphanLoop`: a shell whose argv is an `until [ -s <path> ]` loop (`classify`
+  gives `untilLoop`), in this repo, whose tool call ended (`callLive` false: glue sets it from `ppid > 1`, unproved), at
+  least `orphanMinSec` (60 s) old, and with no live writer: a `fw ci wait` of the same worktree id whose stdout (lsof fd 1,2)
+  is the awaited path and whose (pid, start) is in the table (`writerLive`; `live_writer_kept`, `writer_identity`,
+  `orphan_selected`). Both paths go through `canonPath` (realpath of the directory + basename, raw if it fails) so lsof's
+  `/private/tmp/x` and the argv's `/tmp/x` are one string. The watch's `agent.held` for a wait loop is `ops.reapHeld` (the
+  E selections) and nothing else: a TERM target of `ops.reapPlan` with the same pid and start (`held_in_plan`). The old
+  `killOrphan` agent.held alert of `nextAlerts` is gone.
+- F (`pickF`), kind `simBooted`: a Simulator device process (`launchd_sim`, device id in argv) that this project boots
+  (`ownSims`: the row's (pid, start) is in the list the glue built from `simctl` names starting `fw-`; Lean decides on that
+  fact), that started between the acquire second of the released sim slot run (`simAcquired`, kept in the slot
+  `state.json` on release and expiry) and the release (`simIdleSince`), while `Fw.Sup.Adapt.simAction` (the slot's own
+  rule, default `simIdleS` 600 s, `simVerdict`) says `shutdown` for the sim slots still held. Theorems: `sim_selected`,
+  `sim_held_kept`, `sim_after_release_kept`, `sim_before_acquire_kept`, `sim_not_own_kept`, `sim_idle_kept`,
+  `sim_no_release_kept`, `sim_no_acquire_kept`. The stop is not a signal: `stopSelected` calls `simctlShutdown(udid)` of
+  slot.ts (the call `fw slot sim` uses), never TERM or KILL of `launchd_sim`.
 - Serena: a row with a serena process in its chain (itself included) is never selected, by any branch (`serena_row`).
   reap.ts classifies argv with a `serena` word or a `/.serena/` path as `serena`; the serena-lean `lean --server` is kept
   through its serena parent.
@@ -62,3 +78,4 @@ of a selected process).
 Tests: `apps/runner/test/reap-stop.test.ts` (real process trees), `reap-safety.test.ts` (a console-like process of another
 repo), `reap.test.ts` (golden replay of `lspreap.jsonl` and `reap.jsonl`, stubbed table), `reap-idle.test.ts` (golden replay of
 `reap-idle.jsonl`, the CPU-time and lock parsers, serena classification, `--list` with MB; stubbed facts, no signal).
+`reap-one.test.ts` (golden replay of `reap-one.jsonl`: branches E and F, canonical paths, the Simulator stop through `simStop`, the watch alert equals the stop plan).

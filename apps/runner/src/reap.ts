@@ -3,11 +3,12 @@
 // packages/contracts/golden/ops/{lspreap,reap,reap-idle}.jsonl). This file gathers facts, sends the signals Lean names and
 // prints; every decision (who, group or pid, who survives the grace, who is KILLed, which CPU baselines to keep) is Lean's.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { consoleDirOf } from "./lib.ts";
 import { fwcoreCall } from "./run.ts";
+import { simctlShutdown } from "./slot.ts";
 
 export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason, MB of an idle lean-lsp-mcp stack; stores CPU baselines in reap-idle.json; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)";
 
@@ -34,7 +35,9 @@ export type Facts = {
   /** the current second, the previous run's CPU baselines and the worktree locks (branch D); absent: nothing is idle */
   now?: number; bases?: Base[]; locks?: Lock[];
   /** branches E and F: the live `fw ci wait` processes, the second of the last sim slot release (null: none) and the live sim slots */
-  loops?: LoopFact[]; waiters?: Waiter[]; simIdleSince?: number | null; simHolders?: number;
+  loops?: LoopFact[]; waiters?: Waiter[]; simIdleSince?: number | null; simAcquired?: number | null; simHolders?: number;
+  /** the identity of each Simulator row whose device has an `fw-` name (a fact per row; Lean's branch F decides) */
+  ownSims?: { pid: number; start: number }[];
   /** where the baselines Lean returns are stored for the next run; absent: not stored */
   idleFile?: string;
 };
@@ -95,12 +98,21 @@ export function ownSimUdids(): Set<string> | null {
   } catch { return null; }
 }
 
-/** The second of the last sim slot release and the number of live sim slots, from the slot `state.json`; null/0 when unread. */
-export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simHolders: number } {
+/** The second of the last sim slot release, the second its run acquired the slot and the number of live sim slots, from the slot
+ *  `state.json`; null/0 when unread. */
+export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simAcquired: number | null; simHolders: number } {
   try {
-    const st = JSON.parse(readFileSync(join(dir, "state.json"), "utf8")) as { simIdleSince?: number; holders?: { kind: string; till: number }[] };
-    return { simIdleSince: st.simIdleSince ? st.simIdleSince : null, simHolders: (st.holders ?? []).filter((h) => h.kind === "sim" && now < h.till).length };
-  } catch { return { simIdleSince: null, simHolders: 0 }; }
+    const st = JSON.parse(readFileSync(join(dir, "state.json"), "utf8")) as { simIdleSince?: number; simAcquired?: number; holders?: { kind: string; till: number }[] };
+    return {
+      simIdleSince: st.simIdleSince ? st.simIdleSince : null, simAcquired: st.simAcquired ? st.simAcquired : null,
+      simHolders: (st.holders ?? []).filter((h) => h.kind === "sim" && now < h.till).length,
+    };
+  } catch { return { simIdleSince: null, simAcquired: null, simHolders: 0 }; }
+}
+
+/** A path with its directory resolved (`/tmp/x` and `/private/tmp/x` give one string); the raw path when the directory is gone. */
+export function canonPath(p: string): string {
+  try { return join(realpathSync(dirname(p)), basename(p)); } catch { return p; }
 }
 
 /** A process of the lean-lsp-mcp server (its launcher or the Python it runs): the parents a `lake serve` may have. */
@@ -340,8 +352,8 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const cpu = cpuTable();
   const own = t.rows.some((r) => r.kind === "simDevice") ? ownSimUdids() : null;
   const argsOf = new Map(t.ps.map((p) => [p.pid, p.args]));
-  // a Simulator that is not one of ours (or whose device list is unreadable) is no candidate
-  for (const r of t.rows) if (r.kind === "simDevice" && !own?.has(simUdidOf(argsOf.get(r.pid) ?? "") ?? "")) r.kind = "other";
+  // the own-device fact per Simulator row (an unreadable device list: none); branch F decides
+  const ownSims = t.rows.filter((r) => r.kind === "simDevice" && own?.has(simUdidOf(argsOf.get(r.pid) ?? "") ?? "")).map((r) => ({ pid: r.pid, start: r.start }));
   const cand = t.rows.filter((r) => r.kind !== "other" && r.kind !== "serena");
   const mcpPs = t.ps.filter((p) => isMcp(p.args));
   const waitPs = t.ps.filter((p) => isCiWait(p.args));
@@ -360,12 +372,12 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const waiters: Waiter[] = [];
   for (const p of waitPs) {
     const wt = where.get(p.pid)?.wt ?? null, w = writes.get(p.pid);
-    if (wt !== null && w !== undefined) waiters.push({ pid: p.pid, start: p.start, wt, writes: w });
+    if (wt !== null && w !== undefined) waiters.push({ pid: p.pid, start: p.start, wt, writes: canonPath(w) });
   }
   const loops: LoopFact[] = [];
   for (const r of cand) {
     const a = r.kind === "untilLoop" ? awaitedPath(argsOf.get(r.pid) ?? "") : null;
-    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: a, callLive: r.ppid > 1 });
+    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: canonPath(a), callLive: r.ppid > 1 });
   }
   const now = secs(Date.now());
   const sim = simSlotFacts(env.FW_SLOT_DIR ?? join(consoleDirOf(env, top), "slot"), now);
@@ -382,7 +394,7 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
     liveIds,
     protect: selfChain(t.ps),
     now,
-    loops, waiters, ...sim,
+    loops, waiters, ownSims, ...sim,
     bases: loadBases(idleFile),
     locks: parseLocks(porcelain, (p) => wtIdOf(p, repo)),
     idleFile,
@@ -392,7 +404,7 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
 const request = (op: string, f: Facts) => ({
   op, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
   now: f.now ?? 0, bases: f.bases ?? [], locks: f.locks ?? [], loops: f.loops ?? [], waiters: f.waiters ?? [], simIdleSince: f.simIdleSince ?? null,
-  simHolders: f.simHolders ?? 0,
+  simAcquired: f.simAcquired ?? null, ownSims: f.ownSims ?? [], simHolders: f.simHolders ?? 0,
 });
 
 /** The orphan loops the watch alert names: Lean's `ops.reapHeld` on the same facts `fw reap` reads, each a TERM target of
@@ -460,6 +472,8 @@ export type Io = {
   sleep: (ms: number) => void;
   table: () => ReapRow[] | null;
   rss: (pids: number[]) => Map<number, number>;
+  /** stop a selected Simulator by `simctl shutdown` of its device id (the slot's stop); absent: nothing is sent */
+  simStop?: (t: Target) => void;
 };
 
 /** Block the thread for `ms` (the stopper is a short sequential tool, not a server). */
@@ -480,6 +494,11 @@ export const realIo: Io = {
   sleep: sleepSync,
   table: () => psRows()?.rows ?? null,
   rss: rssOf,
+  simStop: (t) => {
+    const r = spawnSync("ps", ["-o", "command=", "-p", String(t.pid)], { encoding: "utf8" });
+    const u = r.status === 0 ? simUdidOf(r.stdout) : null;
+    if (u !== null) simctlShutdown(u);
+  },
 };
 
 export type StopResult = {
@@ -507,9 +526,15 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
   const planned = plan.targets;
   const allowed = scope ?? plan.selected.map((s) => s.pid);
   const refused: Target[] = [];
+  const isSim = (t: Target) => plan.selected.some((s) => s.pid === t.pid && s.start === t.start && s.kind === "simBooted");
   const send = (t: Target, sig: "SIGTERM" | "SIGKILL", table: ReapRow[]): boolean => {
     const ok = (call({ op: "ops.reapGuard", scope: allowed, rows: table, target: t }) as { allowed: boolean }).allowed;
     if (!ok) { refused.push(t); return false; }
+    if (isSim(t)) {
+      if (sig === "SIGKILL" || io.simStop === undefined) return false;
+      io.simStop(t);
+      return true;
+    }
     io.signal(t, sig);
     return true;
   };

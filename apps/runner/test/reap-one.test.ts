@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { awaitedPath, classify, heldLoops, isCiWait, parseLsofOut, reapCli, select, simSlotFacts, simUdidOf, stopSelected, type Facts, type Io, type ReapRow, type Target } from "../src/reap.ts";
+import { awaitedPath, canonPath, classify, heldLoops, isCiWait, parseLsofOut, reapCli, select, simSlotFacts, simUdidOf, stopSelected, type Facts, type Io, type ReapRow, type Target } from "../src/reap.ts";
 import { reapHeldAlerts } from "../src/watch-reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
@@ -48,8 +48,29 @@ describe("facts of branches E and F", () => {
     const d = mkdtempSync(join(tmpdir(), "reap-one-"));
     mkdirSync(d, { recursive: true });
     writeFileSync(join(d, "state.json"), JSON.stringify({ simIdleSince: 1200, holders: [{ kind: "sim", till: 2000 }, { kind: "sim", till: 100 }, { kind: "check", till: 2000 }] }));
-    expect(simSlotFacts(d, 1500)).toEqual({ simIdleSince: 1200, simHolders: 1 });
-    expect(simSlotFacts(join(d, "missing"), 1500)).toEqual({ simIdleSince: null, simHolders: 0 });
+    expect(simSlotFacts(d, 1500)).toEqual({ simIdleSince: 1200, simAcquired: null, simHolders: 1 });
+    writeFileSync(join(d, "state.json"), JSON.stringify({ simIdleSince: 1200, simAcquired: 900, holders: [] }));
+    expect(simSlotFacts(d, 1500)).toEqual({ simIdleSince: 1200, simAcquired: 900, simHolders: 0 });
+    expect(simSlotFacts(join(d, "missing"), 1500)).toEqual({ simIdleSince: null, simAcquired: null, simHolders: 0 });
+    rmSync(d, { recursive: true, force: true });
+  });
+  it("canonical paths: a path through a symlinked directory and the real path are one string (/private/tmp/x vs /tmp/x)", () => {
+    const d = mkdtempSync(join(tmpdir(), "reap-canon-"));
+    const real = join(d, "real");
+    mkdirSync(real);
+    symlinkSync(real, join(d, "link"));
+    expect(canonPath(join(d, "link", "x.log"))).toBe(canonPath(join(real, "x.log")));
+    expect(canonPath(join(d, "link", "x.log"))).toBe(join(realpathSync(real), "x.log"));
+    expect(canonPath(join(d, "gone", "x.log"))).toBe(join(d, "gone", "x.log"));
+    // the loop awaits the symlink path, lsof reports the real path: Lean gets one path and keeps the loop
+    const f = facts();
+    f.loops = [{ pid: 2846, start: 1000, awaits: "/tmp/other.log", callLive: false },
+      { pid: 40204, start: 1000, awaits: canonPath(join(d, "link", "x.log")), callLive: false }];
+    f.waiters = [{ pid: 23868, start: 1100, wt: "w", writes: canonPath(join(real, "x.log")) }];
+    expect(select(f, call).map((s) => s.pid)).toEqual([2846, 3100]);
+    f.waiters = [{ pid: 23868, start: 1100, wt: "w", writes: join(real, "x.log") }];
+    f.loops[1]!.awaits = join(d, "link", "x.log");
+    expect(select(f, call).map((s) => s.pid)).toEqual([2846, 40204, 3100]);
     rmSync(d, { recursive: true, force: true });
   });
 });
@@ -60,9 +81,9 @@ const row = (pid: number, start: number, kind: string, extra: Partial<ReapRow> =
 const facts = (): Facts => ({
   rows: [row(2846, 1000, "untilLoop", { wt: "w2" }), row(40204, 1000, "untilLoop"),
     row(23868, 1100, "other"), row(3100, 1000, "simDevice", { wt: null, inRepo: false })],
-  live: [1], mcps: [], keep: [], liveIds: ["w", "w2"], now: 1720,
+  live: [1], mcps: [], keep: [], liveIds: ["w", "w2"], now: 1800,
   loops: [{ pid: 2846, start: 1000, awaits: "/tmp/mwm-wait.log", callLive: false }, { pid: 40204, start: 1000, awaits: "/tmp/mwm-wait.log", callLive: false }],
-  waiters: [{ pid: 23868, start: 1100, wt: "w", writes: "/tmp/mwm-wait.log" }], simIdleSince: 1200, simHolders: 0,
+  waiters: [{ pid: 23868, start: 1100, wt: "w", writes: "/tmp/mwm-wait.log" }], simIdleSince: 1200, simAcquired: 900, simHolders: 0, ownSims: [{ pid: 3100, start: 1000 }],
 });
 
 describe("the watch alert and fw reap read one rule", () => {
@@ -76,10 +97,14 @@ describe("the watch alert and fw reap read one rule", () => {
     const alerts = heldLoops(facts(), call);
     expect(alerts.map((a) => [a.pid, a.start, a.subject])).toEqual([[2846, 1000, "w2"]]);
     const sent: [number, string][] = [];
-    const io: Io = { signal: (t: Target, sig) => { sent.push([t.pid, sig]); }, sleep: () => {}, table: () => facts().rows, rss: () => new Map() };
+    const sims: number[] = [];
+    const io: Io = { signal: (t: Target, sig) => { sent.push([t.pid, sig]); }, sleep: () => {}, table: () => facts().rows, rss: () => new Map(),
+      simStop: (t: Target) => { sims.push(t.pid); } };
     expect(stopSelected(root, call, io, facts, [2846, 3100])).not.toBeNull();
-    expect(sent.filter(([, s]) => s === "SIGTERM").map(([p]) => p).sort()).toEqual([2846, 3100]);
-    expect(sent.some(([p]) => p === 40204)).toBe(false);
+    // the loop is TERMed; the Simulator is stopped by simctl shutdown (simStop), never signalled
+    expect(sent.filter(([, s]) => s === "SIGTERM").map(([p]) => p)).toEqual([2846]);
+    expect(sims).toEqual([3100]);
+    expect(sent.some(([p]) => p === 40204 || p === 3100)).toBe(false);
     expect(select(facts(), call).map((s) => s.pid)).toEqual([2846, 3100]);
   });
   it("reapHeldAlerts raises agent.held with the identity and the command that applies it; FW_WATCH_REAP=0 silences it", () => {

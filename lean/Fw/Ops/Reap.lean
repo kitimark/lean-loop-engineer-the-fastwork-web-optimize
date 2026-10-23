@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Ops.Wire
+import Fw.Sup.Adapt
 
 /-!
 # Which leftover processes `fw reap` names and how they are stopped (tasks `orphan-guard`, `reap-auto-stop`)
@@ -136,6 +137,8 @@ structure InputD extends Input where
   loops : List LoopFact := []
   waiters : List Waiter := []
   simIdleSince : Option Nat := none
+  simAcquired : Option Nat := none
+  ownSims : List (Nat × Nat) := []
   simHolders : Nat := 0
 deriving Repr
 
@@ -1244,15 +1247,23 @@ One rule that `fw reap --list`, `fw reap --stop`, the watch tick and the watch a
 E: a shell whose argv is an `until [ -s <path> ]` loop (`kind = "untilLoop"` with a `LoopFact` of the same pid and start) in this repo, whose tool
 call has ended (`callLive = false`), that is at least `orphanMinSec` old, and that no live `fw ci wait` of the same agent (the
 same worktree id) writes: a waiter writes the awaited path only while its (pid, start) is in the table.
-F: a Simulator device process (`kind = "simDevice"`) that started before the last sim slot release (`simIdleSince`), while no
-sim slot is held (`simHolders = 0`) and `simGraceSec` have passed since that release.
+F: a Simulator device process (`kind = "simDevice"`, `ownSim`) that the released sim run booted: it started between that
+run's acquire second (`simAcquired`) and its release (`simIdleSince`), while the slot rule `Fw.Sup.Adapt.simAction` says
+`shutdown` for the sim slots held (`simHolders`). The stop is `simctl shutdown` by device id, as the slot's own check does.
 Both refuse a pid <= 1, a row of a shielded chain and a row with a serena process in its chain. -/
 
 /-- A loop must be this old (seconds) before it is selected: a fresh loop is a wait that has just begun. -/
 def orphanMinSec : Nat := 60
 
-/-- Seconds after a sim slot release before its Simulator is selected: the release's own shutdown check goes first. -/
-def simGraceSec : Nat := 15
+/-- The Simulator row is one this project boots: its identity (pid, start) is in `ownSims`, the devices the glue read with an `fw-`
+name. The glue reports the fact per row; branch F decides on it. -/
+def ownSim (i : InputD) (r : Row) : Bool := i.ownSims.any fun p => p.1 == r.pid && p.2 == r.start
+
+/-- The slot rule's verdict for a booted Simulator: `simHolders` live sim slots (till one second past `now`), no legacy lock,
+idle since the release `s`. Branch F selects only on `shutdown`, the verdict the slot's own check acts on. -/
+def simVerdict (i : InputD) (s : Nat) : Fw.Sup.Adapt.SimAct :=
+  Fw.Sup.Adapt.simAction {} i.now
+    (List.replicate i.simHolders ⟨"", "", Fw.Sup.Adapt.Kind.sim, 0, i.now + 1, 0, 0⟩) true false (some s)
 
 /-- The waiter is a live process: a row of the table has its pid and start. -/
 def waiterLive (i : InputD) (w : Waiter) : Bool := i.rows.any fun r => r.pid == w.pid && r.start == w.start
@@ -1275,14 +1286,15 @@ def pickE (i : InputD) (r : Row) : Option Kind :=
     then some .orphanLoop else none
   | _, _, _ => none
 
-/-- Branch F: the kind a Simulator booted by a released sim slot run is selected as, or `none`. -/
+/-- Branch F: the kind an own Simulator booted by the released sim slot run is selected as, or `none`: it started between the
+run's acquire second and its release, and the slot rule says `shutdown`. -/
 def pickF (i : InputD) (r : Row) : Option Kind :=
-  match i.simIdleSince with
-  | some s =>
-    if r.kind == "simDevice" && i.simHolders == 0 && decide (r.start ≤ s) && decide (s + simGraceSec ≤ i.now) &&
+  match i.simAcquired, i.simIdleSince with
+  | some a, some s =>
+    if r.kind == "simDevice" && ownSim i r && decide (a ≤ r.start) && decide (r.start ≤ s) && simVerdict i s == .shutdown &&
         decide (1 < r.pid) && shielded i r
     then some .simBooted else none
-  | none => none
+  | _, _ => none
 
 /-- The kind E or F selects, never for a row with a serena process in its chain. -/
 def pickW (i : InputD) (r : Row) : Option Kind :=
@@ -1326,17 +1338,18 @@ theorem pickE_some {i : InputD} {r : Row} {k : Kind} (h : pickE i r = some k) :
   · cases h
 
 theorem pickF_some {i : InputD} {r : Row} {k : Kind} (h : pickF i r = some k) :
-    k = .simBooted ∧ r.kind = "simDevice" ∧ i.simHolders = 0 ∧
-      (∃ s, i.simIdleSince = some s ∧ r.start ≤ s ∧ s + simGraceSec ≤ i.now) ∧ 1 < r.pid ∧ shielded i r = true := by
+    k = .simBooted ∧ r.kind = "simDevice" ∧ ownSim i r = true ∧
+      (∃ a s, i.simAcquired = some a ∧ i.simIdleSince = some s ∧ a ≤ r.start ∧ r.start ≤ s ∧ simVerdict i s = .shutdown) ∧
+      1 < r.pid ∧ shielded i r = true := by
   unfold pickF at h
   split at h
-  · rename_i s hs
+  · rename_i a s ha hs
     split at h
     · rename_i hb
       cases h
       simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hb
-      obtain ⟨⟨⟨⟨⟨hk, hh⟩, hst⟩, hg⟩, h1⟩, hsh⟩ := hb
-      exact ⟨rfl, hk, hh, ⟨s, hs, hst, hg⟩, h1, hsh⟩
+      obtain ⟨⟨⟨⟨⟨⟨hk, ho⟩, ha'⟩, hst⟩, hv⟩, h1⟩, hsh⟩ := hb
+      exact ⟨rfl, hk, ho, ⟨a, s, ha, hs, ha', hst, hv⟩, h1, hsh⟩
     · cases h
   · cases h
 
@@ -1395,19 +1408,27 @@ theorem orphan_selected {i : InputD} {r : Row} {c : Nat} {a : String} {l : LoopF
   rw [hc, ha, hl]
   simp [hk, hin, hcl, hw, hn, h1, hs]
 
-/-- Case 3 (F, selected): a Simulator that started before the last sim slot release, with no slot held and the grace passed. -/
-theorem sim_selected {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (hk : r.kind = "simDevice")
-    (hh : i.simHolders = 0) (hb : r.start ≤ s) (hg : s + simGraceSec ≤ i.now) (h1 : 1 < r.pid) (hsh : shielded i r = true) :
-    pickF i r = some .simBooted := by
+/-- Case 3 (F, selected): an own Simulator that started between the run's acquire and its release, with the slot rule at
+`shutdown`. -/
+theorem sim_selected {i : InputD} {r : Row} {a s : Nat} (ha : i.simAcquired = some a) (hs : i.simIdleSince = some s)
+    (hk : r.kind = "simDevice") (ho : ownSim i r = true) (hl : a ≤ r.start) (hb : r.start ≤ s) (hv : simVerdict i s = .shutdown)
+    (h1 : 1 < r.pid) (hsh : shielded i r = true) : pickF i r = some .simBooted := by
   unfold pickF
-  rw [hs]
-  simp [hk, hh, hb, hg, h1, hsh]
+  rw [ha, hs]
+  simp [hk, ho, hl, hb, hv, h1, hsh]
+
+/-- The slot rule keeps the Simulator while a sim slot is held. -/
+theorem simVerdict_held {i : InputD} (s : Nat) (h : i.simHolders ≠ 0) : simVerdict i s = .keep := by
+  apply Fw.Sup.Adapt.sim_keep_under_holder
+  obtain ⟨n, hn⟩ := Nat.exists_eq_succ_of_ne_zero h
+  rw [hn]
+  simp [Fw.Sup.Adapt.simHeld, Fw.Sup.Adapt.prune, Fw.Sup.Adapt.live, List.replicate_succ]
 
 /-- F, kept: while a sim slot is held, its Simulator is in use. -/
 theorem sim_held_kept {i : InputD} {r : Row} (h : i.simHolders ≠ 0) : pickF i r = none := by
   unfold pickF
   split
-  · simp [h]
+  · simp [simVerdict_held _ h]
   · rfl
 
 /-- F, kept: a Simulator booted after the last release (by a run that has not released) is not selected. -/
@@ -1415,21 +1436,50 @@ theorem sim_after_release_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleS
     pickF i r = none := by
   unfold pickF
   rw [hs]
-  simp
-  omega
+  rcases hA : i.simAcquired with _ | a
+  · rfl
+  · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+    split
+    · rename_i hb; omega
+    · rfl
 
-/-- F, kept: without a recorded release nothing is selected. -/
+/-- F, kept: a Simulator booted before the released run acquired its slot was not booted by that run. -/
+theorem sim_before_acquire_kept {i : InputD} {r : Row} {a : Nat} (ha : i.simAcquired = some a) (h : r.start < a) :
+    pickF i r = none := by
+  unfold pickF
+  rw [ha]
+  rcases hS : i.simIdleSince with _ | s
+  · rfl
+  · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+    split
+    · rename_i hb; omega
+    · rfl
+
+/-- F, kept: a Simulator that is not an own `fw-` device. -/
+theorem sim_not_own_kept {i : InputD} {r : Row} (h : ownSim i r = false) : pickF i r = none := by
+  unfold pickF
+  split <;> simp [h]
+
+/-- F, kept: with no recorded release nothing is selected. -/
 theorem sim_no_release_kept {i : InputD} {r : Row} (h : i.simIdleSince = none) : pickF i r = none := by
   unfold pickF
   rw [h]
+  rcases i.simAcquired with _ | a <;> rfl
 
-/-- F, kept: before the grace has passed since the release. -/
-theorem sim_grace_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (h : i.now < s + simGraceSec) :
+/-- F, kept: with no recorded acquire second nothing is selected. -/
+theorem sim_no_acquire_kept {i : InputD} {r : Row} (h : i.simAcquired = none) : pickF i r = none := by
+  unfold pickF
+  rw [h]
+
+/-- F, kept: while the slot rule says `keep` (idle for less than `simIdleS` after the release). -/
+theorem sim_idle_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (h : i.now < s + 600) :
     pickF i r = none := by
   unfold pickF
   rw [hs]
-  simp
-  omega
+  have : simVerdict i s = .keep := by
+    unfold simVerdict
+    exact Fw.Sup.Adapt.sim_keep_within_idle _ _ _ _ _ h
+  rcases i.simAcquired with _ | a <;> simp [this]
 
 /-- Branches A, B and C never name the kinds of E and F. -/
 theorem pickAny_ne_w {i : Input} {r : Row} {k : Kind} (h : pickAny i r = some k) : k ≠ .orphanLoop ∧ k ≠ .simBooted := by
@@ -1540,8 +1590,8 @@ theorem orphan_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind 
 
 /-- A selection of F is a Simulator process that started before the last sim slot release, with no sim slot held. -/
 theorem sim_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind = .simBooted) :
-    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.kind = "simDevice" ∧ i.simHolders = 0 ∧
-      ∃ t, i.simIdleSince = some t ∧ r.start ≤ t ∧ t + simGraceSec ≤ i.now := by
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.kind = "simDevice" ∧ ownSim i r = true ∧
+      ∃ a t, i.simAcquired = some a ∧ i.simIdleSince = some t ∧ a ≤ r.start ∧ r.start ≤ t ∧ simVerdict i t = .shutdown := by
   obtain ⟨r, hr, hp, hpid, hst, -⟩ := reapOne_mem h
   rw [hk] at hp
   rcases one_some hp with hp | ⟨-, hp⟩
@@ -1549,8 +1599,8 @@ theorem sim_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind = .
   · obtain ⟨-, hp | ⟨-, hp⟩⟩ := pickW_some hp
     · obtain ⟨hk', -⟩ := pickE_some hp
       cases hk'
-    · obtain ⟨-, hkind, hh, ht, -⟩ := pickF_some hp
-      exact ⟨r, hr, hpid, hst, hkind, hh, ht⟩
+    · obtain ⟨-, hkind, ho, ht, -⟩ := pickF_some hp
+      exact ⟨r, hr, hpid, hst, hkind, ho, ht⟩
 
 /-- Every TERM target of every branch is a selected identity. -/
 theorem planOne_sel {i : InputD} {t : Target} (h : t ∈ planOne i) :
@@ -1637,8 +1687,10 @@ def inputOf (req : Json) : Except String InputD := do
     pure (LoopFact.mk (← nat j "pid") (← nat j "start") (← str j "awaits") (← boolD j "callLive" false))
   let now ← natD req "now" 0
   let simIdleSince ← optN req "simIdleSince"
+  let simAcquired ← optN req "simAcquired"
+  let ownSims ← (← arrD req "ownSims").mapM fun j => do pure ((← nat j "pid"), (← nat j "start"))
   let simHolders ← natD req "simHolders" 0
-  pure { rows, live, mcps, keep, liveIds, protect, now, uses, bases, locks, mcpWt, loops, waiters, simIdleSince, simHolders }
+  pure { rows, live, mcps, keep, liveIds, protect, now, uses, bases, locks, mcpWt, loops, waiters, simIdleSince, simAcquired, ownSims, simHolders }
 
 /-- A selected row as JSON. -/
 def selJson (s : Sel) : Json :=
