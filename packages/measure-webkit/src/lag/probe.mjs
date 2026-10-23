@@ -4,7 +4,8 @@
 //              backdrop-filter elements are read in viewport coordinates, quarter CSS px; then a LayerTree census.
 //   scroll   : the timed stepped scroll of the lane (scrollrun.mjs), unchanged; its Paint clips are joined to the boxes.
 //   morph    : timed, at the end of the page: idle frames, a synthetic wheel push down, settle, a push up (the push is
-//              the only trigger of morph.tween, N2:13065-13069), one rAF per step mark.
+//              the only trigger of morph.tween, N2:13065-13069), one rAF per step mark; `wk:down` / `wk:up` mark the pushes and the
+//              phases come from them (phase.mjs, Fw.Measure.WebKitLagPhase). The trusted-wheel run is macmorph.mjs.
 import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { reconnect } from '../wip.mjs';
 import { TargetLostError } from '../inspector.mjs';
@@ -17,6 +18,7 @@ import { markTimes, markTime, reduceSteps } from '../reduce.mjs';
 import { regionOf } from './reduce.mjs';
 import { costPasses } from './costprobe.mjs';
 import { swapPass } from './swapprobe.mjs';
+import { classify } from './phase.mjs';
 
 export const MORPH_FRAMES = Object.freeze({ idle: 10, open: 60, close: 60 });
 
@@ -65,7 +67,7 @@ const MORPH_JS = (sampling) => `(async () => {
   const counts = { scrollTo: 0 };
   const nativeScrollTo = window.scrollTo.bind(window);
   window.scrollTo = (...a) => { counts.scrollTo++; return nativeScrollTo(...a); };
-  const push = (d) => { const e = new WheelEvent('wheel', { deltaY: d, cancelable: true, bubbles: true }); document.body.dispatchEvent(e); return e.defaultPrevented; };
+  const push = (d) => { performance.mark(d > 0 ? 'wk:down' : 'wk:up'); const e = new WheelEvent('wheel', { deltaY: d, cancelable: true, bubbles: true }); document.body.dispatchEvent(e); return e.defaultPrevented; };
   const taken = [], samples = [];
   let k = 0;
   const frames = async (n) => { for (let i = 0; i < n; i++) { performance.mark('wk:s' + k); k++; await raf(); ${sampling ? 'samples.push(sample(true));' : ''} } };
@@ -148,8 +150,11 @@ export async function morphRun(c, { clock, settleMs }) {
   const marks = markTimes(records, 'wk:s', n);
   const endTime = markTime(records, 'wk:end');
   if (marks.some((t) => t === null) || endTime === null) throw new Error(`morph step marks missing from the Timeline (${marks.filter((t) => t === null).length} of ${n})`);
+  const down = markTime(records, 'wk:down'), up = markTime(records, 'wk:up');
+  const used = classify(marks, down, up);
+  if (used.outcome !== 'ok') throw new Error(`morph run refused by the phase rule: ${used.outcome}`);
   const after = JSON.parse(await c.evaluate(MORPH_STATE_JS));
-  return { schema: 'fw.webkit.lag.morph/1', info, frames: MORPH_FRAMES, before, after, taken: res.taken, scrollTo: res.scrollTo, marks, endTime, records, reduced: reduceSteps(records, marks, endTime) };
+  return { schema: 'fw.webkit.lag.morph/1', info, frames: MORPH_FRAMES, phases: { down, up }, before, after, taken: res.taken, scrollTo: res.scrollTo, marks, endTime, records, reduced: reduceSteps(records, marks, endTime) };
 }
 
 /**
