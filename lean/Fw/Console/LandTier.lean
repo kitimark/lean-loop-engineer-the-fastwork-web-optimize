@@ -113,7 +113,7 @@ theorem browser_runs_remote_pick (ids : List String) : browserRuns (pick .onCi i
 def fwcoreUsers : List String :=
   ["apps/console-api", "apps/runner", "packages/difftest", "packages/e2e-preview", "packages/engine-check",
    "packages/gate-breakpoints", "packages/gh-budget", "packages/measure-chromium", "packages/measure-webkit",
-   "packages/measure-wktr", "console-api:compose", "apps/runner:overflow-widths"]
+   "packages/measure-wktr", "console-api:compose", "runner:overflow-widths"]
 
 /-- Does the check run the `fwcore` binary? -/
 def isCoreUser (id : String) : Bool := fwcoreUsers.contains id
@@ -431,7 +431,7 @@ def composeReads : List String :=
 `apps/runner/test/land-overflow-widths.test.ts`. Incident 2026-10-24, task checkmap-workflow-widths-local: a change to
 `.github/workflows/path-pix.yml` (3 sim + 3 chromium jobs) passed the dry land and failed the remote land tier, because no
 local check read a workflow file for its width. -/
-def overflowWidthsId : String := "apps/runner:overflow-widths"
+def overflowWidthsId : String := "runner:overflow-widths"
 
 /-- What that test reads: every workflow file, the scripts and planners it runs to bound a dynamic matrix, the Lean table, the leg
 list, its two source files, and the `fwcore` binary (it asks `fwcore` for the table). -/
@@ -468,7 +468,7 @@ theorem compose_core_user : isCoreUser composeId = true := by decide
 
 /-- **Any change under `.github/workflows/` selects the overflow width test.** For every path `x` whose segments are `.github`,
 `workflows` and then any segments `r` without `..` (every `.yml` and `.yaml` workflow file, `path-pix.yml` among them), the local
-selection holds `apps/runner:overflow-widths`. -/
+selection holds `runner:overflow-widths`. -/
 theorem workflow_selects_overflowWidths (changed : List String) (x : String) (r : List String) (hx : x ∈ changed)
     (hs : Fw.Ops.PathCheck.segs x = ".github" :: "workflows" :: r) (hr : ".." ∉ r) :
     overflowWidthsId ∈ selectLocal changed := by

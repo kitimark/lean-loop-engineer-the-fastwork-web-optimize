@@ -33,7 +33,7 @@ describe("fw land selects compose.test", () => {
 });
 
 describe("a workflow change selects the overflow width test locally (incident 2026-10-24, task checkmap-workflow-widths-local)", () => {
-  const ID = "apps/runner:overflow-widths";
+  const ID = "runner:overflow-widths";
   it("every workflow file in the tree selects it; it is a fwcore user whose argv names the test file", () => {
     const workflows = readdirSync(join(root, ".github/workflows")).filter((f) => /\.ya?ml$/.test(f));
     expect(workflows).toContain("path-pix.yml");

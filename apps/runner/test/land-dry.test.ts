@@ -70,7 +70,7 @@ describe("fw land --dry", () => {
   it("path-pix 4 -> 6 (incident 2026-10-24): a workflow file change runs the overflow width test and the dry land refuses the stale row", async () => {
     const { fx, wt, opts } = await setup([".github/**"]);
     fx.commit(wt, ".github/workflows/path-pix.yml");
-    const real = LOCAL_TESTS.find((x) => x.id === "apps/runner:overflow-widths")!;
+    const real = LOCAL_TESTS.find((x) => x.id === "runner:overflow-widths")!;
     // stand-in argv: prints the failure the real test printed in run 39995255573 (Lean row 4, derived 6)
     const stale = { ...real, argv: ["sh", "-c", "echo 'path-pix.yml: Lean widths row (derived 6): expected 4 to be greater than or equal to 6'; exit 1"] };
     const bad = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [stale] });
@@ -79,7 +79,7 @@ describe("fw land --dry", () => {
     expect(text(bad)).toContain("derived 6");
     const ok = await land(BR, { ...opts, dry: true, ...reads(["true"], false), dryLints: [], dryLocal: [{ ...stale, argv: ["true"] }] });
     expect(ok.kind).toBe("dry");
-    expect(text(ok)).toContain("dry: local tests ok (apps/runner:overflow-widths)");
+    expect(text(ok)).toContain("dry: local tests ok (runner:overflow-widths)");
   });
   it("passes on a clean branch and leaves main, the lock and the queue untouched; the real land then passes", async () => {
     const { fx, wt, opts, snap } = await setup();
