@@ -11,6 +11,7 @@ import { decodePng, encodePng, cropImage, sameImage } from '../../../packages/me
 import { FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, VIDEO_EXPR, MARK_ON, MARK_OFF } from '../../../packages/measure-webkit/src/pathpix-page.mjs';
 import { magentaBox } from '../../../packages/measure-webkit/src/pathpix-webkit.mjs';
 import { statesOf, zoneArms } from './plan.mjs';
+import { iosurfaceSample } from './iosurface.mjs';
 
 const NAV = `document.querySelector('[data-fw="nav"]')`;
 export const SET_MORPH = (m) => `(() => { const n = ${NAV}; n.style.setProperty('--morph', '${m}'); n.dataset.fwMorph = '${m}'; return 1; })()`;
@@ -125,8 +126,9 @@ export async function captureZone({ zone, siteDir, shotsDir, settleMs = 4500, lo
           const state = JSON.parse(await ctx.c.evaluate(st.kind === 'morph' ? NAV_STATE : PAIN_STATE));
           const files = await settleShots(arm.id, st.id);
           const cen = await takeCensus(ctx.c, { paintWindowMs: 0 });
-          rows.push({ id: st.id, ...files, state, census: { layerCount: cen.layerCount, memoryBytes: cen.memoryBytes, reasonCounts: cen.reasonCounts } });
-          log(`  ${arm.id} ${st.id}: ${JSON.stringify(state)} layers ${cen.layerCount} mem ${cen.memoryBytes}`);
+          const iosurface = iosurfaceSample();
+          rows.push({ id: st.id, ...files, state, iosurface, census: { layerCount: cen.layerCount, memoryBytes: cen.memoryBytes, reasonCounts: cen.reasonCounts } });
+          log(`  ${arm.id} ${st.id}: ${JSON.stringify(state)} layers ${cen.layerCount} mem ${cen.memoryBytes} iosurf gpu ${iosurface.gpu?.regions ?? '-'}/${Math.round((iosurface.gpu?.virtualBytes ?? 0) / 1e6)}MB`);
         }
         out.arms[arm.id] = { search: arm.search, states: rows };
       }

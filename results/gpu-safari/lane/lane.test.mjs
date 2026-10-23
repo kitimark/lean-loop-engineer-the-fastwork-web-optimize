@@ -5,6 +5,7 @@ import { CI_PAIRS } from './ci-pairs.mjs';
 import { ringSplit, glassOf, glassDelta, againstLoads, maskOf, hashOf } from './pix.mjs';
 import { unionBox } from './reduce.mjs';
 import { flat } from './mac-capture.mjs';
+import { bytesOf, parseIOSurface, simServicePids, iosurfaceSample } from './iosurface.mjs';
 import { encodePng } from '../../../packages/measure-webkit/src/pathpix-png.mjs';
 
 const img = (w, h, f) => {
@@ -90,4 +91,29 @@ test('hashOf is stable and sees one changed pixel', () => {
 test('flat refuses the all-black frame a locked screen gives and accepts a real one', () => {
   assert.equal(flat(encodePng(img(8, 8, () => [0, 0, 0]))), true);
   assert.equal(flat(encodePng(img(8, 8, (x) => [x * 10, 0, 0]))), false);
+});
+
+test('vmmap IOSurface row: sizes, count, absent row', () => {
+  assert.equal(bytesOf('277.5M'), Math.round(277.5 * 1024 * 1024));
+  assert.equal(bytesOf('0K'), 0);
+  assert.equal(bytesOf('x'), null);
+  const text = 'REGION TYPE   VIRTUAL RESIDENT\nIOSurface   277.5M  12.0M  4K  0K  0K  0K  89.2M  205\nMALLOC  1M 1M 1M 0K 0K 0K 0K 3\n';
+  const r = parseIOSurface(text);
+  assert.equal(r.regions, 205);
+  assert.equal(r.residentBytes, 12 * 1024 * 1024);
+  assert.equal(r.dirtyBytes, 4096);
+  assert.equal(parseIOSurface('MALLOC 1M 1M 1M 0K 0K 0K 0K 3\n'), null);
+});
+
+test('service pids come from the base64 service name, only for Simulator processes, and the newest is read', () => {
+  const b = (n) => Buffer.from(JSON.stringify({ serviceName: n, type: 8 })).toString('base64');
+  const ps = [`11 /x/SimulatorRuntime/y ${b('com.apple.WebKit.GPU')}`, `12 /x/SimulatorRuntime/y ${b('com.apple.WebKit.WebContent')}`,
+    `13 /System/Library/WebKit.GPU.xpc/com.apple.WebKit.GPU`, `14 /x/SimulatorRuntime/y ${b('com.apple.WebKit.GPU')}`, `15 /x/SimulatorRuntime/y notbase64`].join('\n');
+  assert.deepEqual(simServicePids(ps), { gpu: [11, 14], content: [12] });
+  const seen = [];
+  const s = iosurfaceSample({ ps: () => ps, vmmap: (pid) => { seen.push(pid); return { status: 0, stdout: 'IOSurface 1M 0K 0K 0K 0K 0K 0K 7\n' }; } });
+  assert.deepEqual(seen, [14, 12]);
+  assert.equal(s.gpu.regions, 7);
+  assert.equal(iosurfaceSample({ ps: () => 'x', vmmap: () => ({ status: 1 }) }).gpu.error, 'no process');
+  assert.equal(iosurfaceSample({ ps: () => ps, vmmap: () => ({ status: 1, stdout: '' }) }).gpu.error, 'vmmap exit 1');
 });

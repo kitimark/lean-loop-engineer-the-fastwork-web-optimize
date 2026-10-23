@@ -39,6 +39,7 @@ export function reduceArm({ cap, arm, shotsDir, run }) {
       glass: st.mask === 'nav' ? r.glass : null, own: r.own, loads: r.loads,
       hash: { ...r.hash, d: d0 ? hashOf(d0) : null }, stateSeen: { faithful: A.state, arm: B.state, control: C.state },
       census: { faithful: A.census, arm: B.census, control: C.census },
+      iosurface: { faithful: A.iosurface ?? null, arm: B.iosurface ?? null, control: C.iosurface ?? null },
     };
   });
   return { arm: arm.id, search: arm.search, states };
