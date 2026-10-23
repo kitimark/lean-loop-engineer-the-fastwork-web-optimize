@@ -14,9 +14,7 @@ export function exitClaim(layer, le600) {
   return null;
 }
 
-// Twins of Lean `Fw.Gate.PathPix` (golden kinds accentPin, accentRow, accentGrade, cover, pinRegion).
 export const armPin = () => 'accent-hook';
-/** The capture sets the site's hook (`?fwpin=accent`, hero.accent/hook.ts) on every exit arm; `search` is the arm's other query. */
 export const hookSearch = (search) => (search ? `${search}&fwpin=accent` : '?fwpin=accent');
 export const pinAt = (arm, _i) => armPin(arm);
 export const shownAccent = (pin, live) => (pin === 'accent-hook' ? { cursor: -1, phase: 'idle' } : live);
@@ -42,11 +40,9 @@ export const unpinnedWhy = (served, maxY, rows, floorRows, f) => {
 };
 export const floorPinned = (served, maxY, rows, f) => ({ ...f, valid: f.valid && rowsOk(served, maxY, rows) });
 
-// Lean `Cover.all`, `occludedBoth`: every grid point of a layer is behind opaque foreign content, in both arms.
 export const coverAll = (c) => !!c && c.n > 0 && c.k === c.n;
 export const occludedBoth = (a, b) => coverAll(a) && coverAll(b);
 
-// Twins of Lean `Fw.Gate.PathPix` (golden kind foreign): hero_copy does not count a pixel in the mask of another graded layer.
 export const FOREIGN_REASON = "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards";
 export const yieldsShared = (layer) => layer === 'hero_copy';
 export const foreignMasks = (layer, others) => (yieldsShared(layer) ? others : []);
@@ -72,7 +68,6 @@ export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k)
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
 
-// `foreign[n]` lists the masks mask n does not count (Lean `countedIn`); the pixels it drops from mask n are returned in `shared[n]`.
 export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
   const cover = new Uint8Array(w * h);
   for (const m of masks) for (let y = m[2]; y < m[3]; y++) cover.fill(1, y * w + m[0], y * w + m[1]);
@@ -99,7 +94,6 @@ export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
   return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared };
 }
 
-// Names of the parts (capture-side rects in css px) that a changed device-pixel box [x0, y0, x1, y1] touches.
 export const partsHit = (parts, bbox, dpr) => (!bbox || !parts ? [] : parts.filter(([, x, y, w, h]) => x * dpr < bbox[2] && (x + w) * dpr > bbox[0] && y * dpr < bbox[3] && (y + h) * dpr > bbox[1]).map((p) => p[0]));
 
 const baseLayer = (key) => key.replace(/#\d+$/, '');

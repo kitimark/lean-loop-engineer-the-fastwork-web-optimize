@@ -19,7 +19,6 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
   const tmp = mkdtempSync(join(tmpdir(), 'fw-pathpix-exit-'));
   mkdirSync(join(out, 'shots'), { recursive: true });
   const dev = findDevice();
-  // The prerendered config is chosen by the flag alone (session.mjs `arms`); the hook only rides on the URL the page opens.
   const searchA = '', searchP = `?fw=${flag}`;
   try {
     return await withSession(async (ctx) => {

@@ -216,7 +216,6 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
     }
     fakeExitLane(dir, { ...edits, accentOf: (arm) => (arm === 'A2' ? { n: 1, sig: 'live' } : { n: 1, sig: 'ssr' }) });
     const noFloor = analyzeExit(dir, { strips: 'none' });
-    // the floor rows are checked too (Lean gradePinned_invalid_of_floor_unpinned): a P cell on an unpinned floor is invalid, not L
     assert.ok(noFloor.cells.filter((c) => c.kind === 'P').every((c) => !c.accentPinned && c.floor.valid === false && c.grade === 'invalid' && c.invalidWhy === 'accent-unpinned'));
     assert.equal(accentPinned('s', 's', 's', 1), true);
   } finally {

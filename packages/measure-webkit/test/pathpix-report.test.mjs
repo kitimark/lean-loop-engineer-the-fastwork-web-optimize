@@ -34,7 +34,6 @@ test('the L source: strips not accepted only when the grade would be Q with them
   assert.equal(lSource({ grade: 'L', ifAccepted: 'Q', out: raw(0, 0) }), 'strips not accepted');
   assert.equal(lSource({ grade: 'L', ifAccepted: 'L', out: raw(5, 1) }), 'outside the mask');
   assert.equal(lSource({ grade: 'L', ifAccepted: 'L', out: raw(0, 0) }), 'inside, above the floor');
-  // the text rule fires as well as a change above the floor: the strips would not help, so the cell is not "strips not accepted"
   assert.equal(lSource({ grade: 'L', why: 'text', ifAccepted: 'L', out: raw(0, 0) }), 'inside, above the floor');
   assert.equal(lSource({ grade: 'L', why: 'inside', ifAccepted: 'Q', out: raw(0, 0) }), 'strips not accepted');
 });

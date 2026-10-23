@@ -961,8 +961,6 @@ theorem exitClaim_none (layer : String) (le600 : Bool) (h : exitClaim layer le60
   unfold exitClaim at h
   refine ⟨fun e => ?_, fun e => ?_, fun e => ?_, fun e => ?_⟩ <;> subst e <;> simp at h
 
-/-! ## Accent pin -/
-
 inductive Pin where
   | none | hook
 deriving DecidableEq, Repr
@@ -1015,8 +1013,6 @@ theorem pinMasks_eq (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : pinMa
 theorem region_pin (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) :
     region (pinMasks p ms) m c r = region ms m c r := rfl
 
-/-- One recorded row: what the accent looked like at the shot (`n` elements, signature at the start and the stop) and
-where the page stood (`y` asked, `scrollY` read back). -/
 structure AccentRow where
   n : Nat
   start : String
@@ -1031,17 +1027,12 @@ def AccentRow.pinned (served : String) (r : AccentRow) : Bool := accentPinned se
 
 def rowsPinned (served : String) (rows : List AccentRow) : Bool := rows.all (AccentRow.pinned served)
 
-/-- A row is placed when the page stood where the offset asked. A page cannot scroll past `maxY`, so the last offsets
-may be clamped (task hero-copy-floor-sources item 8: a row whose `scrollY` differs from its offset is not a sample of
-that offset; a recorded run had arm A at the top where A2 and P stood at the offset). -/
 def AccentRow.placed (maxY : Nat) (r : AccentRow) : Bool := r.scrollY == min r.y maxY
 
 def rowsPlaced (maxY : Nat) (rows : List AccentRow) : Bool := rows.all (AccentRow.placed maxY)
 
 def rowsOk (served : String) (maxY : Nat) (rows : List AccentRow) : Bool := rowsPinned served rows && rowsPlaced maxY rows
 
-/-- The rows a P cell stands on: its own two (A and P) and, when it is compared with a floor, the two the floor was
-measured on (A and A2). Without a floor the floor rows are not read. -/
 def checkedRows (rows floorRows : List AccentRow) (f : Option Floor) : List AccentRow :=
   rows ++ (match f with | none => [] | some _ => floorRows)
 
@@ -1139,7 +1130,6 @@ theorem gradePinned_invalid_of_floor_misplaced (served : String) (maxY : Nat) (r
     rw [checkedRows_some]; exact List.mem_append_right _ hr
   simp [gradePinned, rowsOk_false_of_misplaced served maxY _ r hm h]
 
-/-- Without a floor, the floor rows are not read. -/
 theorem gradePinned_no_floor (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
     (live : Bool) : gradePinned served maxY rows floorRows c none live = gradePinned served maxY rows [] c none live := by
   simp [gradePinned, checkedRows]
@@ -1190,12 +1180,6 @@ theorem floorPinned_valid_only_if (served : String) (maxY : Nat) (rows : List Ac
     (h : (floorPinned served maxY rows f).valid = true) : rowsOk served maxY rows = true := by
   simp [floorPinned] at h; exact h.2
 
-/-! ## Accent hook
-
-The capture no longer swaps the accent element for a served copy. The site holds the accent chain still when the page is
-opened with `?fwpin=accent`: `hero.accent` then returns before it starts a timer, as the original does under reduced
-motion, so the markup stays what the server sent. With the parameter unset the chain starts as before. -/
-
 def hookParam : String := "fwpin"
 
 def hookValue : String := "accent"
@@ -1209,7 +1193,6 @@ def hookSet (search : String) : Bool :=
   let q := if search.startsWith "?" then (search.drop 1).toString else search
   (q.splitOn "&").any hookPair
 
-/-- The effect starts the timer chain unless the original's reduced-motion return or the hook stops it. -/
 def chainStarts (reduce hook : Bool) : Bool := !reduce && !hook
 
 theorem chainStarts_unset (reduce : Bool) : chainStarts reduce false = !reduce := by
@@ -1224,20 +1207,12 @@ theorem chainStarts_iff (reduce hook : Bool) : chainStarts reduce hook = true �
 #guard hookSet "" == false && hookSet "?fw=hero.exit:threaded" == false
 #guard hookSet "?fwpin=accent" == true && hookSet "?fw=hero.exit:threaded&fwpin=accent" == true
 
-/-- The hook is a function of the search only: the two arms of a capture get it from the same rule. -/
 theorem hookSet_arm_free (a b : String) (h : a = b) : hookSet a = hookSet b := by rw [h]
 
 def hookCases : List String :=
   ["", "?", "?fwpin=accent", "fwpin=accent", "?fw=hero.exit:threaded", "?fw=hero.exit:threaded&fwpin=accent",
    "?fwpin=accent&fw=hero.exit:threaded", "?fwpin=other", "?fwpin=", "?fwpin", "?xfwpin=accent", "?fwpin=accent,x",
    "?fwpin=x,accent", "?fwpin=accentx", "?fwpin=accent=1", "?fwl=hero_copy:c&fwpin=accent"]
-
-/-! ## Page clock pin
-
-The countdown digits read `Date.now()` on a one-second timer and on `visibilitychange` (hero.countdown driver). In a
-Chromium capture `Date.now()` is the pinned instant plus the virtual time, and the virtual time at a shot differs from
-arm to arm, so the seconds digit ticked between arms. The capture now returns the pinned instant itself, as the
-WebKit lane does (Date pinned to the same instant), so no digit can tick. -/
 
 def clockNow (pinned : Bool) (epoch vnow : Nat) : Nat := if pinned then epoch else epoch + vnow
 
@@ -1258,7 +1233,6 @@ theorem clockNow_unpinned_moves (epoch v1 v2 : Nat) (h : v1 ≠ v2) :
 theorem seconds_pinned_arm_free (target epoch v1 v2 : Nat) :
     secondsLeft target (clockNow true epoch v1) = secondsLeft target (clockNow true epoch v2) := rfl
 
-/-- The cause: unpinned, one more second of virtual time between two shots changes the seconds digit. -/
 theorem seconds_unpinned_ticks (target epoch v : Nat) (h : epoch + v + 1000 ≤ target) :
     secondsLeft target (clockNow false epoch (v + 1000)) + 1 = secondsLeft target (clockNow false epoch v) := by
   simp only [secondsLeft, clockNow_unpinned]; omega
@@ -1269,13 +1243,6 @@ def clockCases : List (Bool × Nat × Nat) :=
 
 def clockTarget : Nat := 3000000
 
-/-! ## Occluded layer
-
-A layer whose whole visible rectangle lies under an opaque element of another part shows none of its own pixels there
-(WebKit y 812 and 813: the people card is on top of the faded hero copy and its art differs between page loads, which
-set the A/A floor of hero_copy). The capture samples a grid of points in the layer's visible rectangle and counts the
-ones where an opaque element that is not part of the layer is in front of it. -/
-
 structure Cover where
   n : Nat
   k : Nat
@@ -1283,7 +1250,6 @@ deriving DecidableEq, Repr
 
 def Cover.all (c : Cover) : Bool := 0 < c.n && c.k == c.n
 
-/-- A cell is skipped as occluded only when both of its arms are fully covered. -/
 def occludedBoth (a b : Cover) : Bool := a.all && b.all
 
 theorem Cover.all_iff (c : Cover) : c.all = true ↔ 0 < c.n ∧ c.k = c.n := by
@@ -1311,28 +1277,14 @@ def coverCases : List (Cover × Cover) :=
   [(⟨49, 49⟩, ⟨49, 49⟩), (⟨49, 49⟩, ⟨49, 48⟩), (⟨49, 48⟩, ⟨49, 49⟩), (⟨0, 0⟩, ⟨0, 0⟩), (⟨49, 0⟩, ⟨49, 0⟩),
    (⟨1, 1⟩, ⟨1, 1⟩), (⟨25, 25⟩, ⟨49, 49⟩)]
 
-/-! ## Pixels another layer owns
-
-hero_copy's mask is the union of the rectangles of every element in it, the hidden countdown faces (translated out of
-their digit and clipped there) included, so it spans the top corners of the deck cards: at scroll offset 0 the A/A
-changes of hero_copy (48 pixels in webkit-2, 23 in webkit-3, delta 1, box on the card tops) are the same pixels as the
-A/A changes inside the cells of `hero.deck_article#0` and `#2` (24 and 24, 148 in webkit-3). They are not on the
-countdown tiles. The pixels belong to the card layer's cell, which counts them; hero_copy does not count a pixel that
-lies in the mask of another graded layer. The cause of the card-corner change itself (anti-aliased corners of a rotated,
-rounded, composited card) is INFERRED and not removed; the deck cells carry it as their own floor. -/
-
-/-- The layer whose mask yields the pixels it shares with another graded layer. -/
 def yieldsShared (layer : String) : Bool := layer == "hero_copy"
 
-/-- The masks `layer` must not count: those of the other graded layers when it yields, none otherwise. -/
 def foreignMasks (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) :=
   if yieldsShared layer then others else []
 
-/-- The reason the report prints next to the shared-pixel counts. -/
 def foreignReason : String :=
   "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards"
 
-/-- A pixel counts toward a layer's inside count when it is in the layer's mask and in none of its foreign masks. -/
 def countedIn (foreign : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
   inMask m c r && !inAny foreign c r
 
@@ -1346,7 +1298,6 @@ theorem foreignMasks_other_layer (layer : String) (others : List ((Nat × Nat) �
     foreignMasks layer others = [] := by
   simp [foreignMasks, yieldsShared, h]
 
-/-- With no foreign mask every pixel of the mask counts. -/
 theorem countedIn_nil (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : countedIn [] m c r = inMask m c r := by
   simp [countedIn, inAny_nil]
 
@@ -1363,13 +1314,10 @@ theorem countedIn_in_mask (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c
   simp only [countedIn, Bool.and_eq_true] at h
   exact h.1
 
-/-- Another layer counts every pixel of its mask. -/
 theorem countedIn_other_layer (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : layer ≠ "hero_copy") :
     countedIn (foreignMasks layer others) m c r = inMask m c r := by
   rw [foreignMasks_other_layer layer others h, countedIn_nil]
 
-/-- No pixel of hero_copy's mask is lost: it is counted by hero_copy or lies in the mask of another graded layer, whose own
-cell counts it (`countedIn_other_layer`). -/
 theorem shared_accounted (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inMask m c r = true) :
     countedIn (foreignMasks "hero_copy" others) m c r = true ∨ ∃ o ∈ others, inMask o c r = true := by
   rw [foreignMasks_yields]
@@ -1386,14 +1334,12 @@ def foreignCases : List (String × String × List ((Nat × Nat) × (Nat × Nat))
    ("outside its own mask", "hero_copy", [o], 5, 12), ("deck card, pixel in another mask", "hero.deck_article", [o], 20, 12),
    ("cue, pixel in another mask", "hero.cue_cue", [o], 16, 11)]
 
-/-- The mask of the layer under test in `foreignCases`. -/
 def foreignMine : (Nat × Nat) × (Nat × Nat) := ((10, 40), (10, 40))
 
 def accentRowCases : List (String × String × String × Nat) :=
   [("22a26c2a", "22a26c2a", "22a26c2a", 1), ("22a26c2a", "e1380ab3", "a7ccf8cf", 1), ("22a26c2a", "e1380ab3", "22a26c2a", 1),
    ("22a26c2a", "22a26c2a", "a7ccf8cf", 1), ("22a26c2a", "22a26c2a", "22a26c2a", 0), ("22a26c2a", "22a26c2a", "22a26c2a", 2)]
 
-/-- Row sets: pinned and placed at offset 855 of a page with `maxY` 4000. -/
 def accentRowSets : List (String × List AccentRow) :=
   [("both pinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
    ("A unpinned", [⟨1, "x", "y", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
@@ -1405,7 +1351,6 @@ def accentRowSets : List (String × List AccentRow) :=
    ("clamped last offset", [⟨1, "s", "s", 4001, 4000⟩, ⟨1, "s", "s", 4001, 4000⟩]),
    ("clamped but short", [⟨1, "s", "s", 4001, 3999⟩, ⟨1, "s", "s", 4001, 4000⟩])]
 
-/-- Floor row sets (the rows the A/A floor stood on). -/
 def floorRowSets : List (String × List AccentRow) :=
   [("floor pinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
    ("floor A2 unpinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "t", 855, 855⟩]),

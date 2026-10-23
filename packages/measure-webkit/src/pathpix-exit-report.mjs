@@ -47,14 +47,11 @@ export function engineTable(engine, lanes) {
 const HERO = 'hero_copy';
 const raw = (x) => `${x.changed}-${x.maxDelta}`;
 
-// Where an L on a P cell comes from: the text rule alone (the grade would be Q if strips were accepted), a change outside the
-// layer's mask, or an inside change above the A/A floor. Null when the cell is not L.
 export const lSource = (p) => (p.grade !== 'L' ? null : p.ifAccepted !== 'L' ? 'strips not accepted' : p.out.changed > 0 ? 'outside the mask' : 'inside, above the floor');
 
 const cellAt = (l, key, i, kind) => l.cells.find((c) => c.key === key && c.i === i && c.kind === kind);
 const skipAt = (l, key, i, kind) => l.skipped.find((x) => (x.key === key || x.key === undefined) && x.i === i && (x.kind === kind || x.kind === 'all'))?.why ?? null;
 
-/** hero_copy at every offset in every job: the A/A floor and the P cell side by side (no number typed by hand). */
 export function heroCopyTable(engine, lanes, key = HERO) {
   const offsets = lanes[0]?.offsets ?? [];
   const out = [`#### ${engine}: ${key} per job and offset`, '', `| offset | ask y | ${lanes.map((l) => `${l.label} A/A in/out | ${l.label} P in/out | ${l.label} P grade (source) [if strips accepted]`).join(' | ')} |`, `|---|---|${lanes.map(() => '---|---|---').join('|')}|`];
@@ -72,7 +69,6 @@ export function heroCopyTable(engine, lanes, key = HERO) {
   return out.join('\n');
 }
 
-/** Per engine: how many hero_copy P cells fall in each grade across the jobs, and where the L cells come from. */
 export function heroCopySummary(engine, lanes, key = HERO) {
   const ps = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'P'));
   const fs = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'A/A'));
@@ -84,7 +80,6 @@ export function heroCopySummary(engine, lanes, key = HERO) {
     `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('inside, above the floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
 }
 
-/** hero_copy pixels another graded layer counts (Lean `countedIn`): per job and offset, the changed pixels hero_copy left to the other layers. */
 export function heroCopyShared(lanes, key = HERO) {
   const out = [`Reason: ${FOREIGN_REASON}`, '', '| job | offset | kind | changed pixels left to other layers (chg-max) | other layers graded in this row | changes outside every mask: box (device px) |', '|---|---|---|---|---|---|'];
   for (const l of lanes) for (const c of l.cells) {
@@ -94,21 +89,18 @@ export function heroCopyShared(lanes, key = HERO) {
   return out.join('\n');
 }
 
-/** Parts by name with a count, so thirty digit faces print as one entry. */
 const partList = (parts) => {
   const n = new Map();
   for (const p of parts) n.set(p, (n.get(p) ?? 0) + 1);
   return [...n].map(([p, k]) => (k > 1 ? `${p} x${k}` : p)).join(', ') || 'none named';
 };
 
-/** The pixels an A/A cell changed inside the layer's mask, as a box (device px), with the parts of the layer that box touches. */
 export function heroCopyWhere(lanes, key = HERO) {
   const out = ['| job | offset | kind | inside chg-max | box (device px) | parts the box touches |', '|---|---|---|---|---|---|'];
   for (const l of lanes) for (const c of l.cells) if (c.key === key && c.inside.changed > 0 && c.where) out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.inside)} | ${c.where.bbox ? c.where.bbox.join(',') : '-'} | ${partList(c.where.parts)} |`);
   return out.join('\n');
 }
 
-/** Per job: whether the page clock stood still, how many cells the accent pin and the row placement left valid. */
 export function pinTable(lanes) {
   const out = ['| job | run | Date.now in every row | cells | accent-unpinned | misplaced | occluded skips |', '|---|---|---|---|---|---|---|'];
   for (const l of lanes) {

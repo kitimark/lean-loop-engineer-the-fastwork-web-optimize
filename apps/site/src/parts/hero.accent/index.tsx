@@ -34,7 +34,7 @@ export function HeroAccent({ variant }: HeroAccentProps) {
     const reduce = matchList('mq.rm-reduce');
     const hooked = accentHookSet(location.search);
     if (hooked) em.setAttribute('data-fw-pin', 'accent');
-    if (!chainStarts(!!reduce?.matches, hooked)) return; // the original returns before any timer under reduced motion (N2:3680); `?fwpin=accent` does too
+    if (!chainStarts(!!reduce?.matches, hooked)) return;
     const frame = em.querySelector<HTMLElement>('[data-frame]')!;
     const paint = em.querySelector<HTMLElement>('[data-paint]')!;
     const svgs = [...em.querySelectorAll<SVGSVGElement>('svg')];

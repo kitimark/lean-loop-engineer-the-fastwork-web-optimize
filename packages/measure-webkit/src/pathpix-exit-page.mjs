@@ -7,9 +7,6 @@ export const EXIT_GEOM_EXPR = `(() => {
   return JSON.stringify({ T: Math.round(r.top + scrollY), h: Math.round(r.height), v: innerHeight, vw: innerWidth, dpr: devicePixelRatio, variant: t.getAttribute('data-fw-variant') });
 })()`;
 
-// Opaque foreign content in front of a layer (Lean `Fw.Gate.PathPix.Cover`): a COVER_GRID x COVER_GRID grid over the
-// layer's part that lies in the viewport; a point counts as covered when an element in front of the layer's own
-// elements is opaque (background alpha 1, effective opacity 1). A layer missing from the hit stack counts as not covered.
 export const COVER_GRID = 7;
 
 export const EXIT_BOX_EXPR = `(() => {
@@ -94,15 +91,12 @@ const ACCENT_SIG_SRC = `const sel = '[data-fw="hero-accent"]';
     return h([e.className, e.getAttribute('style'), e.getAttribute('aria-label'), e.querySelector('[data-paint]').getAttribute('style'), ...svgs].join('|'));
   };`;
 
-// Per shot: how many accents, the signature, and whether the site's hook (\`?fwpin=accent\`) is set on the first.
 export const ACCENT_SIG_EXPR = `(() => {
   ${ACCENT_SIG_SRC}
   const all = [...document.querySelectorAll(sel)];
   return JSON.stringify({ n: all.length, sig: all.length ? sig(all[0]) : null, pinned: all.length ? all[0].getAttribute('data-fw-pin') === 'accent' : false });
 })()`;
 
-// Read only: the accent of the page as the server sent it (the page's own URL without the hook, which the server does not key on) against the live one.
-// The site stops its timer chain when \`?fwpin=accent\` is in the URL, so the two must agree and nothing is replaced.
 export const ACCENT_SERVED_EXPR = `(() => {
   ${ACCENT_SIG_SRC}
   const live = document.querySelector(sel);

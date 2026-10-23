@@ -51,12 +51,10 @@ describe('the hook is inert when unset (the faithful page is unchanged)', () => 
 
   const mount = (search: string) => {
     window.history.replaceState({}, '', `/${search}`);
-    host.innerHTML = served(false); // the page is server-rendered, then hydrated
-    act(() => {
+    host.innerHTML = served(false);    act(() => {
       hydrateRoot(host, createElement(HeroAccent, { variant: 'faithful' }));
     });
   };
-  // The server markup parsed by the same DOM, so style serialisation matches the mounted tree.
   const served = (pin: boolean) => {
     const ref = document.createElement('div');
     ref.innerHTML = renderToString(createElement(HeroAccent, { variant: 'faithful' }));
