@@ -19113,6 +19113,27 @@
     "docs/team/handoffs/lake-prune-followups.md"
    ],
    "title": "lake-prune-verify review follow-ups (2026-10-24): (1) add the lake-cache golden check job to lean/scripts/check.sh (line in docs/team/handoffs/lake-prune-verify.md) so golden/ops/lake-cache.jsonl drift fails the check; (2) the first ci/* or land leg whose Lean tree is behind the restored pruned main entry: add its row to Fw.Ops.LakeCache.legs and the golden (today INFERRED only; every inspected branch had the entry commit as merge base); (3) note section 2: 'stripping in place would change what the build record hashes' gets a status (INFERRED) or a Lake source file:line@commit."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-poll-interval-observed",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-verdict-proofs"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/ci-wait*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-poll-interval-observed.md"
+   ],
+   "title": "timing-verdict-proofs review follow-up (2026-10-24): pollS on the fw ci wait span is Fw.Ci.Budget.interval computed when the span is written (the next tick's interval), not the gap the wait used before its deciding tick, and it leaves out failure backoff (c1fdb56 wait: 12 s observed prevTickMs to tickMs vs 10 s in golden row 4). Record the interval from the deciding tick's state in noteDecided, or use tickMs - prevTickMs when present, with a Lean rule choosing between them and golden rows for both."
   }
  ],
  "deadline": {
