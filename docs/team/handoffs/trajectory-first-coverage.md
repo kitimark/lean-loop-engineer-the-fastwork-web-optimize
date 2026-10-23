@@ -27,5 +27,4 @@
 | 39926829451 | 640 cand | skip:origEmpty | skip:firstLate | |
 | 39926829451 | 641 faithful | fail:coverage (cleared) | skip:firstLate (ok) | cleared 43 to 1 |
 | 39557718020 | 390 | pass | pass | CLEAN / CLEAN |
-
 Read first: `docs/team/tools/trajectory-probe.md` (First frame paragraph), then FirstFrame in `Trajectory.lean`.
