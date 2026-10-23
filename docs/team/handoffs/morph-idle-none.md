@@ -1,3 +1,4 @@
+CHECKPOINT round 2: merged main; waiting on webkit-sim cost runs: flag 39903974246 (running, ci/morph-idle-none), no-flag 39903977820 (success). Next: download both, reduce Paint/Composite/census, write note+report.json+ledger, runs[] with branch, dry land.
 Branch: worktree-wf_38f9845b-370-1 (CI branch ci/morph-idle-none, pushed at 540130e9f). Worktree: .claude/worktrees/wf_38f9845b-370-1
 Last commit: see git log (after 540130e9f: footprint rows, results, note, ledger).
 CI runs (ci/morph-idle-none @540130e9f; all complete, success): gate 39897800920 (merge job re-run once after ECONNRESET); chromium-counts swipe-v1 x3 base 39897804079, flag 39897818039; webkit-sim base 39897814980, flag 39897807511. Dispatches used 5 of 6.
