@@ -70,7 +70,7 @@ Follow-up outside the unit: a lane that samples inside the swap windows (the tim
 The trajectory units of the hero and morph paths do not read the people zone; the one new unit is on the nav.
 Linux WebKit walks the pain cell only, so there is no WebKit people-zone trajectory (accepted limit).
 
-## Follow-ups (task carousel-crop-followups)
+## Follow-ups
 
 1. Footprint (CONFIRMED, packages/contracts/golden/parts/footprint.gen.json): part-footprint.mjs follows className expressions in
    the JSX attribute, not arrow-function locals. The role ternary now sits inline in className in people.carousel/index.tsx, so
@@ -83,14 +83,14 @@ Linux WebKit walks the pain cell only, so there is no WebKit people-zone traject
 3. nav.background-color 1280 close@0 (INFERRED flake): 1 of 62 samples, `close@0=apart`, in a part that does not touch the nav.
    The same unit appears in earlier runs of unrelated arms: 10-21-trajectory-probe.md (4 units, one per width, at close@0),
    10-21-morph-scroll-lock.md (A/A arm, mac 390 and Chromium 1280), 10-20-earn-transition-retarget.md (all four runs). Run id of
-   the people-carousel-crop sighting: 39896845339. A rerun on this branch is listed under Runs below.
+   the people-carousel-crop sighting: 39896845339. The rerun is under Follow-up runs.
 4. WebKit lane inside the swap windows: design only. The lane needs a time-driven sampler: start the Simulator page at the people
    zone (scroll B held), run `webkit-sim` with the carousel loop live (1020 ms period) and record layout counts per
    frame for at least 8 periods, so 8 x 13 swap-window layout frames of the original arm meet the Lean prediction 0 for crop.
    The existing lag lane scrolls in steps; a hold-at-B profile with a timed capture window is the missing piece, owned by the
    webkit-sim harness, not by this part.
 
-### Runs of this task
+### Follow-up runs
 
 | lane | run | result |
 |---|---|---|
