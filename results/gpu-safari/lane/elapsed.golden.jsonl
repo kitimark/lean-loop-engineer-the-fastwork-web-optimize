@@ -1,0 +1,10 @@
+{"fn":"elapsedMilli","in":{"m":{"den":"1","num":"0"}},"out":0}
+{"fn":"elapsedMilli","in":{"m":{"den":"100","num":"1"}},"out":2274}
+{"fn":"elapsedMilli","in":{"m":{"den":"10","num":"1"}},"out":23467}
+{"fn":"elapsedMilli","in":{"m":{"den":"4","num":"1"}},"out":62178}
+{"fn":"elapsedMilli","in":{"m":{"den":"5","num":"2"}},"out":106465}
+{"fn":"elapsedMilli","in":{"m":{"den":"2","num":"1"}},"out":140283}
+{"fn":"elapsedMilli","in":{"m":{"den":"4","num":"3"}},"out":251626}
+{"fn":"elapsedMilli","in":{"m":{"den":"10","num":"9"}},"out":364371}
+{"fn":"elapsedMilli","in":{"m":{"den":"100","num":"99"}},"out":533498}
+{"fn":"elapsedMilli","in":{"m":{"den":"1","num":"1"}},"out":680000}

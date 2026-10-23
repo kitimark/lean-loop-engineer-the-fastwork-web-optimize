@@ -8,6 +8,7 @@ export const FLAG_ARMS = Object.freeze([
   { id: 'morph-panel-threaded', zone: 'morph', search: '?fw=morph.panel:threaded', label: 'morph.panel:threaded', task: 'morph-panel-threaded' },
   { id: 'morph-panel-threaded-fade', zone: 'morph', search: '?fw=morph.panel:threaded,platform:fade-threaded', label: 'morph.panel:threaded + platform:fade-threaded (bundled)', task: 'morph-panel-threaded' },
   { id: 'pain-dark-scroll', zone: 'pain', search: '?fw=pain:dark-scroll', label: 'pain:dark-scroll', task: 'pain-dark-scroll' },
+  { id: 'hero-exit-threaded', zone: 'hero', search: '?fw=hero.exit:threaded', label: 'hero.exit:threaded', task: 'hero-exit-threaded-port' },
   { id: 'people-o-preview-translate', zone: 'people', search: '?fw=people.o:preview-translate', label: 'people.o:preview-translate', task: 'people-o-preview-translate' },
 ].map((a) => Object.freeze(a)));
 
@@ -15,6 +16,9 @@ export const NAV_M = Object.freeze([0.1, 0.25, 0.5, 0.75, 0.9]);
 export const NAV_EDGE_M = Object.freeze([0.1, 0.5, 0.9]);
 export const NAV_GLASS_M = Object.freeze([0.25, 0.5, 0.75]);
 export const MORPH_M = Object.freeze([0.25, 0.5, 0.75]);
+export const HERO_EXIT_AT = Object.freeze([0.25, 0.5, 0.75]);
+export const PEOPLE_FRAMES = Object.freeze([10, 20, 40]);
+export const PEOPLE_DY = 3;
 export const PAIN_AROUND = Object.freeze([-16, -1, 0, 1, 16]);
 
 export const MORPH_DURATION_MS = 680;
@@ -30,6 +34,11 @@ export function statesOf(zone, flipY = null) {
     if (!Number.isInteger(flipY)) throw new Error('the pain zone needs the flip offset of the faithful arm');
     return PAIN_AROUND.map((d) => ({ id: `y${d >= 0 ? '+' : ''}${d}`, kind: 'scroll', y: flipY + d, mask: 'frame' }));
   }
+  if (zone === 'hero') {
+    if (!(Number.isFinite(flipY) && flipY > 0)) throw new Error('the hero zone needs the exit range of the faithful arm in px');
+    return HERO_EXIT_AT.map((f) => ({ id: `x${f}`, kind: 'scroll', y: Math.round(flipY * f), mask: 'frame' }));
+  }
+  if (zone === 'people') return PEOPLE_FRAMES.map((n) => ({ id: `f${n}`, kind: 'hover-scroll', frames: n, dy: PEOPLE_DY, mask: 'frame' }));
   throw new Error(`no state list for zone ${zone}`);
 }
 

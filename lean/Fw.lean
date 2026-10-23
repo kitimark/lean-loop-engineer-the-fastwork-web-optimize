@@ -81,6 +81,7 @@ import Fw.Parts.PeopleCarouselCrop
 import Fw.Parts.PainDarkScroll
 import Fw.Parts.HeroAccentOpt
 import Fw.Parts.ClassPos
+import Fw.Measure.GpuElapsed
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet

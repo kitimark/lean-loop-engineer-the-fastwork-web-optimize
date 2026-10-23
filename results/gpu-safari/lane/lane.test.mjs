@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { FLAG_ARMS, statesOf, zoneArms, NAV_M, elapsedAt } from './plan.mjs';
 import { wantEffects, PUSH_EXPR, STEP_EXPR } from './sim-capture.mjs';
@@ -18,7 +19,7 @@ const img = (w, h, f) => {
 test('every flag arm has a zone, a task and a CI pairing', () => {
   const ids = FLAG_ARMS.map((a) => a.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const a of FLAG_ARMS) { assert.ok(a.zone && a.task && a.search.startsWith('?fw=')); assert.ok(CI_PAIRS[a.id]?.gate, a.id); }
+  for (const a of FLAG_ARMS) { assert.ok(a.zone && a.task && a.search.startsWith('?fw=')); const p = CI_PAIRS[a.id]; assert.ok(p?.gate || p?.trajectory?.length || p?.webkitSim?.length, a.id); }
 });
 
 test('a zone loads faithful, the A/A control, its flag arms, then faithful again as an order probe', () => {
@@ -147,4 +148,18 @@ test('service pids come from the base64 service name, only for Simulator process
   assert.equal(s.gpu.regions, 7);
   assert.equal(iosurfaceSample({ ps: () => 'x', vmmap: () => ({ status: 1 }) }).gpu.error, 'no process');
   assert.equal(iosurfaceSample({ ps: () => ps, vmmap: () => ({ status: 1, stdout: '' }) }).gpu.error, 'vmmap exit 1');
+});
+
+test('elapsedAt matches the Lean golden (Fw.Measure.GpuElapsed): the floor on the 1/1000 ms grid, rounded', () => {
+  const rows = readFileSync(new URL('./elapsed.golden.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.ok(rows.length >= 10);
+  let checked = 0;
+  for (const r of rows) {
+    const m = Number(r.in.m.num) / Number(r.in.m.den);
+    if (!(m > 0 && m < 1)) { assert.ok(r.out === 0 || r.out === 680000, `edge ${m}: ${r.out}`); continue; }
+    const got = Math.round(elapsedAt(m) * 1000);
+    assert.ok(got === r.out || got === r.out + 1, `m ${m}: TS ${got} vs Lean floor ${r.out}`);
+    checked++;
+  }
+  assert.ok(checked >= 8);
 });

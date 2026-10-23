@@ -1,6 +1,6 @@
 // The lane command:
-//   node results/gpu-safari/lane/run.mjs sim <nav|morph|pain|all> [--out <dir>] [--shots <dir>]   capture in the Simulator, then reduce
-//   node results/gpu-safari/lane/run.mjs mac <nav|morph|pain|all> [--out <dir>] [--shots <dir>]   the same on macOS Safari (needs a visible, unlocked display; inside a `measure` slot)
+//   node results/gpu-safari/lane/run.mjs sim <nav|morph|pain|hero|people|all> [--out <dir>] [--shots <dir>]   capture in the Simulator, then reduce
+//   node results/gpu-safari/lane/run.mjs mac <nav|morph|pain|hero|people|all> [--out <dir>] [--shots <dir>]   the same on macOS Safari (needs a visible, unlocked display; inside a `measure` slot)
 //   node results/gpu-safari/lane/run.mjs reduce <shots dir of one zone> <zone> [--out <dir>]      reduce an earlier capture again
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, basename } from 'node:path';
@@ -14,7 +14,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..', '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const [, , mode, which = 'all', zoneArg] = process.argv;
-if (mode !== 'sim' && mode !== 'mac' && mode !== 'reduce') { console.error('usage: run.mjs sim|mac <nav|morph|pain|all> | run.mjs reduce <shots dir> <zone>'); process.exit(2); }
+if (mode !== 'sim' && mode !== 'mac' && mode !== 'reduce') { console.error('usage: run.mjs sim|mac <nav|morph|pain|hero|people|all> | run.mjs reduce <shots dir> <zone>'); process.exit(2); }
 const out = resolve(arg('--out', join(ROOT, 'results', 'gpu-safari')));
 const shotsRoot = resolve(arg('--shots', join(process.env.TMPDIR || '/tmp', 'fw-gpu-safari-shots')));
 const siteDir = join(ROOT, 'apps', 'site', 'dist', 'aot');
@@ -42,7 +42,7 @@ if (mode === 'reduce') {
   emit({ cap: JSON.parse(readFileSync(join(shotsDir, 'capture.json'), 'utf8')), zone: zoneArg, shotsDir, run });
 } else {
   const run = `gpu-safari-${mode}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
-  for (const zone of which === 'all' ? ['nav', 'morph', 'pain'] : [which]) {
+  for (const zone of which === 'all' ? ['nav', 'morph', 'pain', ...(mode === 'mac' ? ['hero', 'people'] : [])] : [which]) {
     const shotsDir = join(shotsRoot, run, zone);
     let cap;
     try {

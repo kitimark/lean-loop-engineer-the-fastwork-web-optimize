@@ -41,6 +41,9 @@ export const STEP_EXPR = (ms, m) => `(() => {
 })()`;
 export const NAV_STATE = `(() => { const n = ${NAV}; const r = n.getBoundingClientRect(); return JSON.stringify({ cls: n.className, morph: getComputedStyle(n).getPropertyValue('--morph').trim(), rect: [Math.round(r.left * 1e6), Math.round(r.top * 1e6), Math.round(r.width * 1e6), Math.round(r.height * 1e6)], scrollY: Math.round(scrollY) }); })()`;
 export const PAIN_STATE = `(() => { const p = document.querySelector('[data-fw="pain"]'); return JSON.stringify({ dark: !!p && p.classList.contains('is-pain-dark'), variant: p ? p.getAttribute('data-fw-variant') : null, scrollY: Math.round(scrollY) }); })()`;
+export const HERO_RANGE = `(() => { const t = document.querySelector('[data-fw="hero-exit"]'); return t.getBoundingClientRect().height - innerHeight; })()`;
+export const HERO_SPLASH_DONE = `(async () => { const h = document.querySelector('[data-fw="hero-exit"] > div'); for (let i = 0; i < 300; i++) { if (h && h.dataset.splash === 'done') return true; await new Promise((r) => setTimeout(r, 100)); } return false; })()`;
+export const HERO_STATE = `(() => { const t = document.querySelector('[data-fw="hero-exit"]'); const h = t.firstElementChild; return JSON.stringify({ splash: h.dataset.splash, live: t.hasAttribute('data-exit-live'), variant: t.getAttribute('data-fw-variant'), scrollAnims: document.getAnimations().filter((a) => !(a.timeline instanceof DocumentTimeline)).length, exitOpacity: getComputedStyle(h).getPropertyValue('--exit-opacity').trim(), scrollY: Math.round(scrollY) }); })()`;
 export const FLIP_SCAN = (maxY) => `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const dark = async (y) => { scrollTo({ top: y, behavior: 'instant' }); await raf(); await raf(); const p = document.querySelector('[data-fw="pain"]'); return !!p && p.classList.contains('is-pain-dark'); };
