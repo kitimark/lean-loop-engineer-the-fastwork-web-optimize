@@ -35,13 +35,13 @@ describe('draw-nolayout against the Lean golden (Fw.Engine.StyleDiffAccent)', ()
       ['draw-in', 2, true, true],
     ]);
     expect(css).toMatch(
-      /\[data-fw-draw='nolayout'\]:is\(\.drawingIn, \.drawingOut\) \.path \{\s*stroke-dasharray: none;\s*stroke-dashoffset: 0;\s*animation: none;/,
+      /\[data-fw-draw\^='nolayout'\]:is\(\.drawingIn, \.drawingOut\) \.path \{\s*stroke-dasharray: none;\s*stroke-dashoffset: 0;\s*animation: none;/,
     );
     expect(css).toMatch(
-      /\[data-fw-draw='nolayout'\]\.drawingIn \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipIn;/,
+      /\[data-fw-draw\^='nolayout'\]\.drawingIn \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipIn;/,
     );
     expect(css).toMatch(
-      /\[data-fw-draw='nolayout'\]\.drawingOut \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipOut;/,
+      /\[data-fw-draw\^='nolayout'\]\.drawingOut \.frame0 \{\s*animation: 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\) forwards clipOut;/,
     );
   });
   it('the two clip keyframes animate clip-path and nothing else', () => {
@@ -54,6 +54,37 @@ describe('draw-nolayout against the Lean golden (Fw.Engine.StyleDiffAccent)', ()
     expect(t['stroke-dashoffset']).toMatchObject({ wkLayout: true, crLayout: false });
     expect(t['clip-path inset()']).toMatchObject({ wkLayout: false, crLayout: false });
     expect(t['width']).toMatchObject({ wkLayout: true, crLayout: true });
+  });
+});
+
+describe('draw-nolayout-full against the Lean golden', () => {
+  const slots = of('slot').filter((r) => r.arm === 'draw-nolayout-full');
+  it('only the frame that sets the width needs layout, in both engines', () => {
+    expect(slots.map((r) => [r.slot, r.changes, r.wkLayout, r.crLayout])).toEqual([
+      ['draw-out', 1, false, false],
+      ['draw-in-first', 2, true, true],
+      ['draw-in-rest', 1, false, false],
+    ]);
+  });
+  it('layout frames per cycle of 54 frames per phase', () => {
+    const c = Object.fromEntries(of('cycle').map((r) => [r.arm as string, r]));
+    expect(c['faithful']).toMatchObject({ wkLayoutFrames: 108, crLayoutFrames: 54 });
+    expect(c['draw-nolayout']).toMatchObject({ wkLayoutFrames: 54, crLayoutFrames: 54 });
+    expect(c['draw-nolayout-full']).toMatchObject({ wkLayoutFrames: 1, crLayoutFrames: 1 });
+  });
+  it('the width transition is dropped by one rule that only the full attribute selects', () => {
+    expect(css.match(/data-fw-draw='nolayout-full'/g)).toHaveLength(1);
+    expect(css).toMatch(/\[data-fw-draw='nolayout-full'\]\.drawingIn \{\s*transition: none;\s*\}/);
+    expect(css).toMatch(/\.drawingIn \{\s*transition: width 0\.9s cubic-bezier\(0\.4, 0, 0\.2, 1\);/);
+  });
+  it('the attribute decision and the registry', () => {
+    expect(drawAttr('draw-nolayout-full')).toBe('nolayout-full');
+    expect(renderToString(createElement(HeroAccent, { variant: 'draw-nolayout-full' }))).toContain(
+      'data-fw-draw="nolayout-full"',
+    );
+    const v = (part.variants as Record<string, { kind: string; provenance: { limit?: string } }>)['draw-nolayout-full'];
+    expect(v!.kind).toBe('optimized');
+    expect(v!.provenance.limit!.startsWith('look change')).toBe(true);
   });
 });
 

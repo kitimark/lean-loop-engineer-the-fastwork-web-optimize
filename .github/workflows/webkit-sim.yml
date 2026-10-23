@@ -199,7 +199,7 @@ jobs:
           SESSIONS: ${{ inputs.sessions || '1' }}
           TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[swap-lane]') && 'rewrite') || 'original' }}
           PRESET: ${{ inputs.preset || 'original' }}
-          FW: ${{ inputs.fw || (contains(github.event.head_commit.message, '[swap-lane]') && (contains(github.event.head_commit.message, '[swap-fw:accent-nolayout]') && 'hero.accent:draw-nolayout' || 'people.carousel:crop')) || '' }}
+          FW: ${{ inputs.fw || (contains(github.event.head_commit.message, '[swap-lane]') && (contains(github.event.head_commit.message, '[swap-fw:accent-nolayout-full]') && 'hero.accent:draw-nolayout-full' || contains(github.event.head_commit.message, '[swap-fw:accent-nolayout]') && 'hero.accent:draw-nolayout' || 'people.carousel:crop')) || '' }}
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
           SHA: ${{ github.sha }}
         run: |
