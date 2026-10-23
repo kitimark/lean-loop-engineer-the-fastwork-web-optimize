@@ -18155,6 +18155,28 @@
     "docs/team/handoffs/smoothness-throttle-followups.md"
    ],
    "title": "smoothness-cpu-throttle review follow-ups: (1) smoothness.yml workflow_dispatch has no nonce input or run-name, so Fw.Ci.Dispatch (lean/Fw/Ci/Dispatch.lean:23 dispatchWorkflows) cannot identify a smoothness dispatch: add them and register the workflow in Lean; (2) two throttle allowlists disagree (throttle.mjs parseThrottle('06') = 6, the shell step refuses '06'): one rule in Lean with golden, the step calls the one parser; (3) docs/team/tools/smoothness-probe.md: document the cpu_throttle input, the [cpu-throttle=N] token and the own-line [trajectory ...] rule; (4) a 6x A/A spread rule needs more than 3 samples: state the sample count the Lean verdict needs at 6x (open item if more CI is needed)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faithful-control-oos",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "counts-font-fidelity"
+   ],
+   "writes": [
+    "packages/measure-chromium/src/faithful.mjs",
+    "packages/measure-chromium/package.json",
+    "packages/measure-chromium/test/faithful.test.mjs",
+    "packages/measure-chromium/test/fidelity-compare.test.mjs",
+    "lean/Fw/Faithful/Measured.lean",
+    "results/faithful/**",
+    "research/notes/2026/10-2x-counts-font-fidelity.md",
+    "docs/team/handoffs/faithful-control-oos.md"
+   ],
+   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
   }
  ],
  "deadline": {
