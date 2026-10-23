@@ -9,7 +9,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { fwcoreBin } from '../src/fwcore.mjs';
-import { PROFILES, REGION, regionOf, summarize, verdictRun, metaOf, load } from '../src/faithful.mjs';
+import { PROFILES, REGION, regionOf, summarize, verdictRun, metaOf, load, leanSource } from '../src/faithful.mjs';
 
 const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), '../../contracts/golden/faithful');
 const read = (f) => readFileSync(join(GOLDEN, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -79,6 +79,23 @@ test('the two cited runs are comparable and reproduce the committed verdict file
     const d = load(p, RUNS);
     assert.equal(metaOf(d.R).observed.width, 430);
     assert.equal(metaOf(d.A).observed.width, 430, 'the font-image frozen original records its observed viewport');
+  }
+});
+
+test('the Lean file has one control theorem per profile and region zone, each stating the control verdict Lean computed', () => {
+  const src = leanSource(RUNS);
+  assert.equal(src, readFileSync(join(ROOT, 'lean/Fw/Faithful/Measured.lean'), 'utf8'), 'Measured.lean is the generated file');
+  for (const p of PROFILES) {
+    const P = p.replace(/[^A-Za-z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
+    const d = load(p, RUNS);
+    const control = JSON.parse(readFileSync(join(OUT, `${p}.verdict.json`), 'utf8')).control;
+    for (const id of REGION) {
+      const Z = id.replace(/[^A-Za-z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''));
+      const z = control.zones.find((x) => x.id === id);
+      const head = `theorem ${P}_control_${Z} :\n    (zoneVerdict ${P}Table ${P}A ${P}C "${id}").pass = ${z.pass} ∧`;
+      assert.ok(src.includes(head), `${head}`);
+    }
+    assert.equal(regionOf(d.C).length, REGION.length);
   }
 });
 

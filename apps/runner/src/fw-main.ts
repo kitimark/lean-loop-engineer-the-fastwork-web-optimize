@@ -3,7 +3,7 @@ import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, step
 import { CARD_USAGE, cardCommand } from "./card.ts";
 import { dryLandReport, fwcorePreflight, httpFor, land, landExit, lastDryStep, loopback, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
-import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
+import { gitOnMain, lintCli, renderPlan, syncClosureRefusal, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -105,6 +105,8 @@ try {
     } else if (rest[0] === "sync" && rest[1]) {
       const refusal = syncRefusal(process.cwd());
       if (refusal) throw new Error(refusal);
+      const closure = await syncClosureRefusal(process.cwd(), rest[1]);
+      if (closure) throw new Error(closure);
       const cmds = syncCommands(JSON.parse(readFileSync(rest[1], "utf8")) as WorkGraph, "lead", gitOnMain(process.cwd()));
       const { body } = await send(base, cmds, process.argv.slice(2));
       const rs = body.replies ?? [];
