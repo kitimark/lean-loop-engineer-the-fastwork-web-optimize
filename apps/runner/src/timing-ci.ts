@@ -46,8 +46,6 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
   return `backfill: ${ids.size} runs considered, ${n} span lines written`;
 }
 
-// ---- wait lag (task ci-wait-lag): the phases of a `fw ci wait` span and how the lag splits ---------------------------
-
 export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number): Pick<Span, "runIds" | "phases"> {
   if (!p) return {};
   const { runIds, ...rest } = p;

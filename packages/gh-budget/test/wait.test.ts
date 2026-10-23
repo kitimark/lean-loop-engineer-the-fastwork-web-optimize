@@ -264,7 +264,6 @@ test("waitKind and critIndex replay golden ci-budget/lag-kind.jsonl", () => {
   }
 });
 
-// task ci-wait-lag: the phases of a wait are recorded in order and cost no gh call
 async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600, cfg: Record<string, unknown> = {}) {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs, ...cfg });

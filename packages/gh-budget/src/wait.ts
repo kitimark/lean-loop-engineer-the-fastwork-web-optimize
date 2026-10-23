@@ -49,10 +49,8 @@ export type WaitPhases = {
   /** Ids of the runs the verdict covers. */
   runIds: number[];
   updMs?: number;
-  /** Tick of the list read just before the deciding one, when that list still showed the latest decisive run unfinished. */
   prevTickMs?: number;
   tickMs?: number;
-  /** `Budget.interval` (s) and `retryUntil` (epoch s) of the budget state read at the deciding tick, evaluated at its time (Lean `Fw.Obs.Timing.gapCapMs`). */
   pollS?: number;
   retryUntilS?: number;
   readMs?: number;
@@ -349,7 +347,6 @@ export function critIndex(upds: number[]): number | null {
   return best;
 }
 
-/** The phases of the run whose finish decided the wait: the latest `updatedAt` among the decisive rows is the critical one. */
 function budgetAt(env: Env, atS: number): Pick<WaitPhases, "pollS" | "retryUntilS"> {
   try {
     const r = env.core({ op: "ci.budget.status", now: atS, state: readJson(paths(env.dir).state) });
