@@ -18088,7 +18088,14 @@
     "packages/measure-webkit/src/throttle/driver/UITests/PushServer.swift",
     "packages/measure-webkit/test/touch-push.test.mjs",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
-    "docs/team/handoffs/sim-touch-reliable.md"
+    "docs/team/handoffs/sim-touch-reliable.md",
+    "lean/Fw/Measure/TouchPush.lean",
+    "lean/scripts/TouchPushGolden.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/measure/touch-push.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
   },
@@ -18256,7 +18263,7 @@
     "lean/Fw/Obs/Next.lean",
     "packages/contracts/golden/obs/next*.jsonl"
    ],
-   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too."
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too. Also from timing-slot-width review: groupView re-judge uses INFERRED widths (summed job time / group wall time): say so in its docstring and add a golden case from recorded widths once spans carry them; TS slotWork drops non-integer widths while Lean workOf keeps any JSON value: restrict workOf to string values or add a golden row for a non-string work value."
   },
   {
    "devices": [
@@ -18367,6 +18374,52 @@
     "docs/team/handoffs/hero-copy-floor-sources.md"
    ],
    "title": "pathpix-accent-pin closed as a finding (round 1 refused): pinning the accent word does not bring the hero_copy A/A floor to 0 (runs 39943789128, 39947605395); the floor has other sources. Find and pin each so the hero exit's look review can be judged: (1) Chromium: the countdown seconds digit (hero.countdown) needs a capture pin or a page clock hook; (2) WebKit y 0: 48 px at delta 1 inside the hero_copy mask in the button area, all 4 jobs: find the element (read WebKit source for the cause, e.g. focus ring, caret, text AA) and pin or mask it with a Lean-stated reason; (3) WebKit y 812/813 avatar art noise inside the hero_copy mask (192503 px at delta 20 in webkit-2): find why the hero_copy mask covers avatar art there and fix the mask or the zone; (4) replace the capture-side accent DOM swap (React re-creates the node, arm A at y 855) with a site-side hook that is inert when unset (the faithful page must behave the same when unset: test it); (5) one path-pix exit run with >= 3 jobs per engine; report every hero_copy offset per job and re-grade the P cells (state whether L comes from the floor or from strips not accepted)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-reliable"
+   ],
+   "writes": [
+    ".github/workflows/smoothness.yml",
+    "packages/measure-webkit/src/profile/report*.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/test/touch-push.test.mjs",
+    "packages/measure-webkit/test/profile-*.test.mjs",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/ci/**",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "docs/team/handoffs/sim-touch-followups.md"
+   ],
+   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-stable-followups",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "trajectory-noflip-followups"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-stable-followups.md"
+   ],
+   "title": "trajectory-noflip-followups review follow-ups: (1) trajectory-probe.md WebKit cadence: tag the Linux WebKit open gap p50 141-170 ms claim MEASURED with run ids, and answer whether the WebKit Simulator rows record frame timing the lane can use; (2) doc the scope of laneOf_stable_extra (mem_family_extra: original already has samples and the extra pass has a new pass number; a first pass on an empty original is outside); (3) cli.mjs refused inputs and summary without a raw file exit 1 = strict RED: route them through laneExit's refused code or document 1 as usage error; (4) leave-one-out reduce cost 8.7 s -> ~40 s on run 39926829451: track the CI reduce-step time and cut it (share work across the family members) if it exceeds the step budget."
   }
  ],
  "deadline": {
