@@ -16,7 +16,7 @@ The step time follows the download rate of that blob, not the cache key and not 
 | 39966639416 / land (playwright-webkit) 120458262847 | 76 s | 14:05:49 to 14:06:31.8 = 43 s | 32.1 MB/s | 14.3 s | not read |
 | 39965489939 / land (chromium) 120454308192 | 88 s | 13:57:47.6 to 13:58:39.9 = 52 s | 25.4 MB/s | 14.4 s | 17.2 s (download 10.4 s) |
 
-Step durations come from the job step start/end times (`gh run view --json jobs`). In all five rows, a slower download means a longer step. The elan install (about 1 s) and the cache lookup (about 1 s) are
+Step durations come from the job step start/end times (`gh run view --json jobs`). A slower download means a longer step. The elan install (about 1 s) and the cache lookup (about 1 s) are
 the same everywhere. The spread (25 to 159 MB/s) is cache download throughput (MEASURED); that it comes from the runner-to-storage network or backend load, not from anything setup-lean sets, is INFERRED.
 
 ## Not the cause
@@ -99,7 +99,7 @@ Answer: yes, a main push per land suffices when it lands before the next land le
 modules in 7 to 9 s instead of 57 to 76 modules in 74 to 100 s. It does not remove the lag: main's lean run takes about 4.5 min
 (16:02:32 push, entry created 16:06:42), and the three legs at 15:32 to 15:55 started before it, on the 14:18 entry. Also, a main push that
 changes no Lean source saves nothing (run 39984683144), so the entry age that matters is the age of the last Lean-source change on main. Saving a
-cache from `ci/land-*` under a key main can restore is not needed on this evidence; with 4 samples (one fresh) the claim is that the lag, not the missing push, is what is left.
+cache from `ci/land-*` under a key main can restore is not needed: with 4 samples (one fresh), the lag, not the missing push, remains.
 
 ### 3. Cache quota and eviction proposal
 
