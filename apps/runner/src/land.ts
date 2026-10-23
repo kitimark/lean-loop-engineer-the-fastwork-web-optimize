@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { availableParallelism, loadavg } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
 import { begin as rawBegin, builtModules, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
@@ -236,8 +237,11 @@ export const withScan = (cs: Check[]): Check[] =>
 export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
 export const LAND_TIER_LOCAL_GOLDEN = "packages/contracts/golden/console/land-tier-local.jsonl";
-export function overflowWidthsReadsFromGolden(goldenPath = join(new URL(import.meta.url).pathname, "../../../../", LAND_TIER_LOCAL_GOLDEN)): string[] {
-  const row = JSON.parse(readFileSync(goldenPath, "utf8").split("\n")[0]!) as { request: { tests: { id: string; reads: string[] }[] } };
+export const LAND_TIER_LOCAL_ROW = "nothing changed";
+export function overflowWidthsReadsFromGolden(goldenPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", LAND_TIER_LOCAL_GOLDEN)): string[] {
+  const rows = readFileSync(goldenPath, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { name: string; request: { tests: { id: string; reads: string[] }[] } });
+  const row = rows.find((r) => r.name === LAND_TIER_LOCAL_ROW);
+  if (!row) throw new Error(`${goldenPath}: no row named ${LAND_TIER_LOCAL_ROW}`);
   const t = row.request.tests.find((x) => x.id === "runner:overflow-widths");
   if (!t) throw new Error(`${goldenPath}: no runner:overflow-widths test`);
   return t.reads;

@@ -18104,9 +18104,18 @@
     "lean/Fw/Ci/Trigger.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/measure/touch-push.jsonl",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/scripts/WalkBudgetGolden.lean",
+    "packages/contracts/golden/measure/walk-budget.jsonl",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/walk-budget.test.mjs",
+    "packages/measure-webkit/src/profile/cli.mjs",
+    "packages/measure-webkit/src/profile/report.mjs"
    ],
-   "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
+   "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it.",
+   "evidence": "010790c"
   },
   {
    "devices": [
@@ -18424,9 +18433,15 @@
     "lean/Fw/Ci/Overflow.lean",
     "packages/contracts/golden/ci/**",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
-    "docs/team/handoffs/sim-touch-followups.md"
+    "docs/team/handoffs/sim-touch-followups.md",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/scripts/WalkBudgetGolden.lean",
+    "packages/contracts/golden/measure/walk-budget.jsonl",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/walk-budget.test.mjs",
+    "packages/measure-webkit/src/profile/cli.mjs"
    ],
-   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not."
+   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands."
   },
   {
    "devices": [
@@ -18748,9 +18763,12 @@
     ".github/workflows/webkit-sim.yml",
     "results/carousel-swap-webkit/**",
     "research/notes/2026/10-2x-carousel-swap-webkit.md",
-    "docs/team/handoffs/hero-accent-frozen-confirm.md"
+    "docs/team/handoffs/hero-accent-frozen-confirm.md",
+    "lean/Fw/Measure/SwapWindow.lean",
+    "packages/contracts/golden/measure/wkcost.jsonl"
    ],
-   "title": "carousel-swap-followups finding (2026-10-24): the every-third-window Layout/Paint pattern in the end-of-page swap windows matches the hero.accent draw cycle (1250+900+900 = 3050 ms vs 3 carousel periods of 3060 ms; stroke-dashoffset animations on both 900 ms draws require layout each frame, WebKit StyleDifference.cpp:161 via :399 @862f17d; width transition on draw-in, :404). Confirm it: one [swap-lane] run with hero.accent frozen from the harness (injected style setting animation: none and transition: none on the accent's elements, or emulated prefers-reduced-motion; no site edit) for the crop AND the faithful arm (diagnostic capture on both), 3 jobs at one commit; the busy runs must vanish and every swap window's Layout median drop to the idle level. Also report the hero.exit zone's Layout/Paint with and without the frozen accent, so the share of hero-exit work that is the accent is MEASURED. Follow-ups folded in: the capture slot (a/b) in the job key and FW_JOB_ID in webkit-sim.yml so each sample has a numeric job id."
+   "title": "carousel-swap-followups finding (2026-10-24): the every-third-window Layout/Paint pattern in the end-of-page swap windows matches the hero.accent draw cycle (1250+900+900 = 3050 ms vs 3 carousel periods of 3060 ms; stroke-dashoffset animations on both 900 ms draws require layout each frame, WebKit StyleDifference.cpp:161 via :399 @862f17d; width transition on draw-in, :404). Confirm it: one [swap-lane] run with hero.accent frozen from the harness (injected style setting animation: none and transition: none on the accent's elements, or emulated prefers-reduced-motion; no site edit) for the crop AND the faithful arm (diagnostic capture on both), 3 jobs at one commit; the busy runs must vanish and every swap window's Layout median drop to the idle level. Also report the hero.exit zone's Layout/Paint with and without the frozen accent, so the share of hero-exit work that is the accent is MEASURED. Follow-ups folded in: the capture slot (a/b) in the job key and FW_JOB_ID in webkit-sim.yml so each sample has a numeric job id.",
+   "evidence": "561e0b8"
   },
   {
    "devices": [
@@ -18802,7 +18820,8 @@
     "packages/contracts/golden/plan/polish*.jsonl",
     "docs/team/handoffs/polish-protected-from-settings.md"
    ],
-   "title": "build-review-worktree-path review follow-ups (2026-10-24): (1) protectedDirs/protectedFiles in Fw.Plan.Polish are copied by hand from the .claude/settings.json Edit ask rules: add a test that parses every Edit(...) ask and deny rule in settings.json and checks protectedPath or skipRoots covers it (one canonical source), and make skipped call polishable; (2) confirm from the Claude Code permission docs whether the main checkout's Edit(/.claude/**) ask rule also matches files under .claude/worktrees/<wt>/ (worktree files are edited without prompts so far: INFERRED not matched); cite the doc."
+   "title": "build-review-worktree-path review follow-ups (2026-10-24): (1) protectedDirs/protectedFiles in Fw.Plan.Polish are copied by hand from the .claude/settings.json Edit ask rules: add a test that parses every Edit(...) ask and deny rule in settings.json and checks protectedPath or skipRoots covers it (one canonical source), and make skipped call polishable; (2) confirm from the Claude Code permission docs whether the main checkout's Edit(/.claude/**) ask rule also matches files under .claude/worktrees/<wt>/ (worktree files are edited without prompts so far: INFERRED not matched); cite the doc.",
+   "evidence": "e57f8d2"
   },
   {
    "devices": [
@@ -18955,9 +18974,13 @@
     "packages/contracts/golden/gate/path-pix.jsonl",
     "research/notes/2026/10-2x-accent-draw-nolayout.md",
     "results/accent-draw-nolayout/**",
-    "docs/team/handoffs/accent-nolayout-measure.md"
+    "docs/team/handoffs/accent-nolayout-measure.md",
+    "lean/Fw/Measure/SwapWindow.lean",
+    "packages/contracts/golden/measure/wkcost.jsonl",
+    "results/carousel-swap-webkit/**",
+    "research/notes/2026/10-2x-carousel-swap-webkit.md"
    ],
-   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator)."
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates)."
   },
   {
    "devices": [
@@ -19010,7 +19033,8 @@
     "docs/team/tools/land.md",
     "docs/team/handoffs/overflow-widths-reads-code.md"
    ],
-   "title": "overflow-widths-reads review follow-ups (2026-10-24): (1) add the planner code inputs packages/gate-breakpoints/src/spec.mjs and serve.mjs (gate-jobs.mjs:43, spec.mjs:7) to the read set and plannerFiles_select, regenerate the golden; write overflowWidthsReads with ++ plannerFiles instead of repeating the strings; (2) land.md: 'a Lean change that moves the fwcore binary (digest differs) also selects runner:overflow-widths' (binMoved, LandSpeed.lean:352); (3) one exported table-check function in workflow-widths.ts used by land-overflow-widths.test.ts and land-widths-fixture.test.ts; (4) land.ts:241-242 fileURLToPath and row lookup by name; (5) land-widths-fixture.test.ts removes its mkdtemp dirs in afterAll."
+   "title": "overflow-widths-reads review follow-ups (2026-10-24): (1) add the planner code inputs packages/gate-breakpoints/src/spec.mjs and serve.mjs (gate-jobs.mjs:43, spec.mjs:7) to the read set and plannerFiles_select, regenerate the golden; write overflowWidthsReads with ++ plannerFiles instead of repeating the strings; (2) land.md: 'a Lean change that moves the fwcore binary (digest differs) also selects runner:overflow-widths' (binMoved, LandSpeed.lean:352); (3) one exported table-check function in workflow-widths.ts used by land-overflow-widths.test.ts and land-widths-fixture.test.ts; (4) land.ts:241-242 fileURLToPath and row lookup by name; (5) land-widths-fixture.test.ts removes its mkdtemp dirs in afterAll.",
+   "evidence": "59a178d"
   },
   {
    "devices": [
@@ -19064,9 +19088,11 @@
    "writes": [
     "apps/runner/src/polish.ts",
     "apps/runner/test/polish*.test.ts",
-    "docs/team/handoffs/polish-plan-path-redaction.md"
+    "docs/team/handoffs/polish-plan-path-redaction.md",
+    "docs/team/handoffs/polish-protected-from-settings.md",
+    "lean/Fw/Plan/Polish.lean"
    ],
-   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests."
+   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests. Also polish-protected-from-settings review follow-ups: (a) its handoff: add 'subagent worktrees: INFERRED same anchor' for isolation:worktree builders, and reword 'maps /x/** to x/x/y.md' as 'maps /<dir>/** to <dir>/x/y.md and /<file> to <file>'; (b) polish.test.ts sample(): check each /dir/** rule with a second sample dir/z.md so a narrower protectedDirs entry fails."
   }
  ],
  "deadline": {

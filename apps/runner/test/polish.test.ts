@@ -100,6 +100,28 @@ const stored = () => readFileSync(goldenFile, "utf8").trim().split("\n").map((l)
 const res = (prefix: string) => stored().find((l) => l.name.startsWith(prefix))!.response as Record<string, any>;
 const verdicts = (prefix: string) => (res(prefix).cuts as { verdict: string }[]).map((c) => c.verdict);
 
+describe("settings.json Edit rules are covered by the Lean skip rule (one canonical source)", () => {
+  const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8")) as { permissions: { ask?: string[]; deny?: string[] } };
+  const rules = [...(settings.permissions.ask ?? []).map((r) => ["ask", r]), ...(settings.permissions.deny ?? []).map((r) => ["deny", r])]
+    .flatMap(([kind, r]) => { const m = /^Edit\((.*)\)$/.exec(r!); return m ? [{ kind: kind!, rule: r!, pat: m[1]! }] : []; });
+  const sample = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "x/y.md");
+
+  it("settings.json has Edit rules to check, each anchored at the project root with / and at most a trailing /**", () => {
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules) expect(r.pat, r.rule).toMatch(/^\/[^*]+(\*\*)?$/);
+  });
+
+  it("every Edit ask/deny rule: its path is skip, and an ask rule's path is named in protected", () => {
+    const paths = rules.map((r) => sample(r.pat));
+    const [r] = fwcore([plan(paths)]) as { classes: { path: string; class: string }[]; protected?: string[] }[];
+    for (const [i, rule] of rules.entries()) {
+      const p = paths[i]!;
+      expect(r!.classes.find((c) => c.path === p)?.class, `${rule.rule} -> ${p}`).toBe("skip");
+      if (rule.kind === "ask") expect(r!.protected ?? [], `${rule.rule} -> ${p}`).toContain(p);
+    }
+  });
+});
+
 describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/plan/polish.jsonl)", () => {
   it("fwcore with the ops is built (cd lean && lake build)", () => expect(bin).toBeTruthy());
 

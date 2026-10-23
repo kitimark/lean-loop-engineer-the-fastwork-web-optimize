@@ -4,6 +4,7 @@ import { sleep } from '../sim.mjs';
 import { TargetLostError } from '../inspector.mjs';
 import { markTimes, markTime } from '../reduce.mjs';
 import { PERIODS, DEADLINE_US, KINDS, validAt, countCells } from './swap.mjs';
+import { freezeStep } from './freeze.mjs';
 
 export const ORDER = Object.freeze([['faithful', 'a'], ['crop', 'a'], ['faithful', 'b'], ['crop', 'b']]);
 export const FLIPPED = Object.freeze([ORDER[1], ORDER[0], ORDER[3], ORDER[2]]);
@@ -98,8 +99,9 @@ export function bucketRows(rows, type, beginS, bucketMs, n) {
 export const DIAG_MS = 7000;
 export const DIAG_BUCKET_MS = 100;
 
-export async function diagCapture(ctx, arm, { clock, settleMs }) {
+export async function diagCapture(ctx, arm, { clock, settleMs, freeze = null }) {
   const info = await loadArm(ctx, arm, { clock, settleMs });
+  const accent = await freezeStep(ctx.c, freeze);
   const at = await ctx.c.runAsync(FIND_JS(info.maxY), { pollMs: 500 });
   if (at.error) throw new Error(`arm ${arm.id}: ${at.error}`);
   await sleep(500);
@@ -111,7 +113,7 @@ export async function diagCapture(ctx, arm, { clock, settleMs }) {
   if (begin === null) throw new Error('diag mark missing from the Timeline');
   const active = Object.fromEntries(Object.entries(res.owners).filter(([, v]) => v.reduce((a, b) => a + b, 0) >= 2));
   return {
-    schema: 'fw.webkit.lag.swap.diag/1', arm: arm.id, bucketMs: res.bucketMs, buckets: res.buckets,
+    schema: 'fw.webkit.lag.swap.diag/1', arm: arm.id, ...(accent ? { accent } : {}), bucketMs: res.bucketMs, buckets: res.buckets,
     layout: bucketRows(records, 'Layout', begin, res.bucketMs, res.buckets), paint: bucketRows(records, 'Paint', begin, res.bucketMs, res.buckets),
     owners: active, before: res.before, after: res.after,
   };
@@ -134,8 +136,9 @@ export async function loadArm(ctx, arm, { clock, settleMs }) {
   return info;
 }
 
-export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS }) {
+export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS, freeze = null }) {
   const info = await loadArm(ctx, arm, { clock, settleMs });
+  const accent = await freezeStep(ctx.c, freeze);
   const at = await ctx.c.runAsync(FIND_JS(info.maxY), { pollMs: 500 });
   if (at.error) throw new Error(`arm ${arm.id}: ${at.error}${at.reduced ? ' (reduced motion is on)' : ''}`);
   await sleep(500);
@@ -149,20 +152,22 @@ export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS
   const ws = on.map((t, k) => [us(t), us(off[k])]);
   const recs = records.filter((r) => KINDS.includes(r[0]) && typeof r[1] === 'number').map((r) => [r[0], us(r[1])]);
   return {
-    schema: 'fw.webkit.lag.swap.capture/1', arm: arm.id, config: info.fw?.configHash ?? null, variant: res.variant, why: res.why,
+    schema: 'fw.webkit.lag.swap.capture/1', arm: arm.id, ...(accent ? { accent } : {}), config: info.fw?.configHash ?? null, variant: res.variant, why: res.why,
     open: res.open, calls: res.calls, at, endChildren: res.children, ws, valid: ws.map((_, k) => validAt(ws, k)), cells: countCells(ws, recs, KINDS), records: recs.length,
   };
 }
 
-export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = false, restore }) {
+export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = false, restore, freeze = null, diagArms = ['crop'], pass = null, onStart, onUnit }) {
   const order = flip ? FLIPPED : ORDER;
-  const out = { schema: 'fw.webkit.lag.swap/1', order: order.map(([a, s]) => `${a}-${s}`), job: { ...jobMeta(), pass: ++passNo }, captures: {}, failed: [], diag: null };
+  const out = { schema: 'fw.webkit.lag.swap/1', order: order.map(([a, s]) => `${a}-${s}`), job: { ...jobMeta(), pass: pass ?? ++passNo }, captures: {}, failed: [], diag: null, ...(freeze ? { freeze } : {}) };
+  onStart?.(out);
   try {
     for (const [arm, slot] of order) {
       const name = `${arm}-${slot}`;
       try {
-        out.captures[name] = await retry(`swap ${name}`, () => swapCapture(ctx, arms[arm], { clock, settleMs }));
+        out.captures[name] = await retry(`swap ${name}`, () => swapCapture(ctx, arms[arm], { clock, settleMs, freeze }));
         const c = out.captures[name];
+        onUnit?.();
         log(`  swap ${name}: ${c.ws.length} windows (${c.why}), valid ${c.valid.filter(Boolean).length}, layout in swaps ${c.cells.filter((x) => x[0].startsWith('swap:') && x[1] === 'Layout').map((x) => x[2]).join(',')}`);
       } catch (e) {
         if (e instanceof TargetLostError) throw e;
@@ -172,13 +177,17 @@ export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = 
       }
     }
     if (!flip) {
-      try {
-        out.diag = await retry('swap diag', () => diagCapture(ctx, arms.crop, { clock, settleMs }));
-        log(`  swap diag: ${Object.keys(out.diag.owners).length} owners with writes, layout rows ${out.diag.layout.reduce((a, b) => a + b, 0)}`);
-      } catch (e) {
-        if (e instanceof TargetLostError) throw e;
-        out.failed.push(`diag: ${e.message}`);
-        log(`  swap diag failed: ${e.message}`);
+      for (const id of diagArms) {
+        try {
+          const d = await retry(`swap diag ${id}`, () => diagCapture(ctx, arms[id], { clock, settleMs, freeze }));
+          if (id === 'crop') out.diag = d; else (out.diagOther ??= {})[id] = d;
+          onUnit?.();
+          log(`  swap diag ${id}: ${Object.keys(d.owners).length} owners with writes, layout rows ${d.layout.reduce((a, b) => a + b, 0)}`);
+        } catch (e) {
+          if (e instanceof TargetLostError) throw e;
+          out.failed.push(`diag ${id}: ${e.message}`);
+          log(`  swap diag ${id} failed: ${e.message}`);
+        }
       }
     }
   } finally {
