@@ -10,7 +10,7 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents, keep, userAgent, runnable, cftPlatform, cftExe, cftUrl } from './profile.mjs';
+import { parseProfile, replayEvents, keep, userAgent, runnable, fontsOk, cftPlatform, cftExe, cftUrl } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 import { pngRegionHash } from './png-region.mjs';
 
@@ -41,6 +41,8 @@ const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scro
 const srv = await startServer(ROOT);
 const REPRO = process.env.FW_REPRO ? await startRepro(process.env.FW_REPRO) : null;
 if (process.env.FW_STOCK) await stockRun(process.env.FW_STOCK);
+const FONT_FAMILIES = [...new Set(spawnSync('fc-list', [':', 'family'], { encoding: 'utf8' }).stdout?.split(/[\n,]/).map((f) => f.trim()).filter(Boolean))].sort();
+if (!fontsOk(FONT_FAMILIES)) { console.error(`FW_NO_SYSTEM_FONTS: fc-list shows ${JSON.stringify(FONT_FAMILIES)}; a layout with no font crashes Chrome (docker/fonts.conf)`); process.exit(2); }
 
 /** Serve profile.repro[key] at `/` and the site's latin text face at `/font.woff2`; returns the page URL. */
 async function startRepro(key) {
@@ -490,7 +492,7 @@ const result = {
   profile: { id: profile.id, file: `${profile.id}.json`, sha256: createHash('sha256').update(readFileSync(PROFILE_FILE)).digest('hex') },
   meta: {
     browser: version.Browser, browserArgs, protocol: version['Protocol-Version'],
-    image: process.env.FW_IMAGE_ID ?? null, snapshot: process.env.FW_SNAPSHOT_ID ?? null,
+    image: process.env.FW_IMAGE_ID ?? null, systemFonts: FONT_FAMILIES, snapshot: process.env.FW_SNAPSHOT_ID ?? null,
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
     target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),

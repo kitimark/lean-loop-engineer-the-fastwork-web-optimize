@@ -2,8 +2,10 @@
 # Linux arm64 container running Playwright's chromium-headless-shell (Chrome Headless Shell 156.0.8078.4 =
 # playwright-core 1.64.1 "chromium-headless-shell v1248") with HeadlessExperimental BeginFrameControl.
 # Chromium refuses BeginFrameControl on macOS (headless/lib/browser/protocol/target_handler.cc l.62-65 @317846d579b2),
-# hence the container. The image holds NO system fonts: every font the page uses is served from the read-only
-# snapshot mounted at /snapshot (fallback fonts would change line breaks, so layout and paint counts).
+# hence the container. The image holds exactly one system font package, fonts-liberation (the font package of the Chrome .deb's
+# own dependency list), in the one directory docker/fonts.conf names (Lean Fw.Measure.Profile.fontsConf); every font the page
+# uses is still served from the read-only snapshot mounted at /snapshot. A layout pass with no font at all crashes Chrome
+# (research note 10-2x-counts-lane-fonts), so run.mjs refuses a container with no system font.
 # Pinned: base image by digest (node:24-bookworm-slim, linux/arm64), every Debian package by version (dated
 # snapshot.debian.org mirror + a manifest checked at build time), browser zip by sha256, npm packages by lock file.
 FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
@@ -15,7 +17,7 @@ ARG HS_URL=https://cdn.playwright.dev/builds/cft/${HS_VERSION}/linux-arm64/chrom
 # Debian packages: every installed package is pinned. The mirror is a dated snapshot.debian.org archive (SNAP), the 29
 # direct packages are installed as name=version taken from docker/apt-manifest.txt, and the build FAILS unless dpkg's full
 # package list equals that manifest (regenerate it with `node src/pin-apt.mjs <image>` after a deliberate change).
-# The list is the browser's own deb.deps minus fonts-liberation, wget and xdg-utils (no fonts, no helpers).
+# The list is the browser's own deb.deps minus wget and xdg-utils (no helpers); fonts-liberation stays, no other font package.
 ARG SNAP=20261016T000000Z
 COPY docker/apt-manifest.txt /tmp/apt-manifest.txt
 RUN set -eux; \
@@ -26,13 +28,14 @@ RUN set -eux; \
     for p in ca-certificates curl unzip fontconfig-config libfontconfig1 \
       libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 libcairo2 libcups2 libdbus-1-3 libexpat1 \
       libgbm1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libudev1 libvulkan1 libx11-6 libxcb1 \
-      libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2; do \
+      libxcomposite1 libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 fonts-liberation; do \
       PINS="$PINS $(grep "^$p=" /tmp/apt-manifest.txt)"; \
     done; \
     apt-get install -y --no-install-recommends $PINS; \
-    dpkg --purge --force-depends $(dpkg-query -W -f='${Package}\n' 'fonts-*' 'ttf-*' 2>/dev/null) || true; \
-    rm -rf /usr/share/fonts /var/lib/apt/lists/*; \
-    test -z "$(find / -xdev \( -name '*.ttf' -o -name '*.otf' -o -name '*.pfb' -o -name '*.woff*' -o -name '*.pcf*' \) 2>/dev/null | head -1)"; \
+    dpkg --purge --force-depends $(dpkg-query -W -f='${Package}\n' 'fonts-*' 'ttf-*' 2>/dev/null | grep -vx fonts-liberation) || true; \
+    rm -rf /var/lib/apt/lists/*; \
+    test -z "$(find / -xdev \( -name '*.ttf' -o -name '*.otf' -o -name '*.pfb' -o -name '*.woff*' -o -name '*.pcf*' \) -not -path '/usr/share/fonts/truetype/liberation/*' 2>/dev/null | head -1)"; \
+    test -n "$(find /usr/share/fonts/truetype/liberation -name 'LiberationSans-Regular.ttf')"; \
     dpkg-query -W -f='${Package}=${Version}\n' | LC_ALL=C sort > /tmp/apt-now.txt; \
     diff /tmp/apt-now.txt /tmp/apt-manifest.txt
 
@@ -43,9 +46,9 @@ RUN set -eux; \
     mv /opt/chrome-headless-shell-linux-arm64 /opt/hs; \
     chmod +x /opt/hs/chrome-headless-shell
 
-# Fontconfig with no <dir>: the system font set is empty on purpose.
-COPY docker/fonts.conf /etc/fonts/fw-empty-fonts.conf
-ENV FONTCONFIG_FILE=/etc/fonts/fw-empty-fonts.conf
+# Fontconfig with the one <dir> of the pinned font package and no other config (no aliases, no default dirs).
+COPY docker/fonts.conf /etc/fonts/fw-lane-fonts.conf
+ENV FONTCONFIG_FILE=/etc/fonts/fw-lane-fonts.conf
 
 # npm: puppeteer-core and all its transitive packages, pinned by docker/driver/package-lock.json (npm ci).
 WORKDIR /opt/driver
