@@ -1,0 +1,582 @@
+{
+ "id": "morph-idle-none",
+ "flag": "morph.columns:idle-none",
+ "sha": "540130e9f7f7e240195e241cb8bcd2f711186f88",
+ "runs": {
+  "gate": "39897800920 (merge job re-run once after an ECONNRESET in actions/download-artifact; all shards succeeded)",
+  "chromiumCountsBase": "39897804079",
+  "chromiumCountsFlag": "39897818039",
+  "webkitSimBase": "39897814980",
+  "webkitSimFlag": "39897807511",
+  "webkitCostBase": "39903977820 (success)",
+  "webkitCostFlag": "39903974246 (Run 39903974246 shows failed: the Determinism sessions step hit its 35-minute timeout (2106 s, after two 120 s inspector retries) 4 s after the CLI wrote r1-lag.json and exited 0. align, merge and lag-report were skipped. The uploaded artifact holds both passes (cost ok, failed []).)"
+ },
+ "chromium": {
+  "profile": "swipe-v1",
+  "totals": {
+   "layersBase": 28107,
+   "layersFlag": 24667,
+   "drawingBase": 24904,
+   "drawingFlag": 21464,
+   "layoutBase": 318,
+   "layoutFlag": 319,
+   "recalcBase": 1832,
+   "recalcFlag": 1833
+  },
+  "zones": [
+   {
+    "id": "rest",
+    "frames": 10,
+    "layersBase": 190,
+    "layersFlag": 190,
+    "drawingBase": 140,
+    "drawingFlag": 140,
+    "layoutBase": 0,
+    "layoutFlag": 0,
+    "recalcBase": 10,
+    "recalcFlag": 10
+   },
+   {
+    "id": "y00000",
+    "frames": 49,
+    "layersBase": 931,
+    "layersFlag": 931,
+    "drawingBase": 686,
+    "drawingFlag": 686,
+    "layoutBase": 56,
+    "layoutFlag": 56,
+    "recalcBase": 199,
+    "recalcFlag": 199
+   },
+   {
+    "id": "y00500",
+    "frames": 50,
+    "layersBase": 1743,
+    "layersFlag": 1743,
+    "drawingBase": 1485,
+    "drawingFlag": 1485,
+    "layoutBase": 60,
+    "layoutFlag": 60,
+    "recalcBase": 204,
+    "recalcFlag": 204
+   },
+   {
+    "id": "y01000",
+    "frames": 50,
+    "layersBase": 2622,
+    "layersFlag": 2245,
+    "drawingBase": 2303,
+    "drawingFlag": 1926,
+    "layoutBase": 38,
+    "layoutFlag": 39,
+    "recalcBase": 170,
+    "recalcFlag": 171
+   },
+   {
+    "id": "y01500",
+    "frames": 50,
+    "layersBase": 2426,
+    "layersFlag": 1976,
+    "drawingBase": 2041,
+    "drawingFlag": 1590,
+    "layoutBase": 14,
+    "layoutFlag": 14,
+    "recalcBase": 200,
+    "recalcFlag": 200
+   },
+   {
+    "id": "y02000",
+    "frames": 50,
+    "layersBase": 3028,
+    "layersFlag": 2578,
+    "drawingBase": 2628,
+    "drawingFlag": 2178,
+    "layoutBase": 54,
+    "layoutFlag": 54,
+    "recalcBase": 156,
+    "recalcFlag": 156
+   },
+   {
+    "id": "y02500",
+    "frames": 50,
+    "layersBase": 3160,
+    "layersFlag": 2710,
+    "drawingBase": 2707,
+    "drawingFlag": 2257,
+    "layoutBase": 15,
+    "layoutFlag": 15,
+    "recalcBase": 216,
+    "recalcFlag": 216
+   },
+   {
+    "id": "y03000",
+    "frames": 50,
+    "layersBase": 3276,
+    "layersFlag": 2825,
+    "drawingBase": 2932,
+    "drawingFlag": 2482,
+    "layoutBase": 23,
+    "layoutFlag": 23,
+    "recalcBase": 252,
+    "recalcFlag": 252
+   },
+   {
+    "id": "y03500",
+    "frames": 50,
+    "layersBase": 3573,
+    "layersFlag": 3123,
+    "drawingBase": 3274,
+    "drawingFlag": 2824,
+    "layoutBase": 33,
+    "layoutFlag": 33,
+    "recalcBase": 175,
+    "recalcFlag": 175
+   },
+   {
+    "id": "y04000",
+    "frames": 50,
+    "layersBase": 3793,
+    "layersFlag": 3370,
+    "drawingBase": 3558,
+    "drawingFlag": 3135,
+    "layoutBase": 23,
+    "layoutFlag": 23,
+    "recalcBase": 175,
+    "recalcFlag": 175
+   },
+   {
+    "id": "y04500",
+    "frames": 14,
+    "layersBase": 1122,
+    "layersFlag": 996,
+    "drawingBase": 1052,
+    "drawingFlag": 926,
+    "layoutBase": 1,
+    "layoutFlag": 1,
+    "recalcBase": 45,
+    "recalcFlag": 45
+   },
+   {
+    "id": "tail",
+    "frames": 30,
+    "layersBase": 2243,
+    "layersFlag": 1980,
+    "drawingBase": 2098,
+    "drawingFlag": 1835,
+    "layoutBase": 1,
+    "layoutFlag": 1,
+    "recalcBase": 30,
+    "recalcFlag": 30
+   }
+  ]
+ },
+ "webkitSim": {
+  "base": [
+   [
+    {
+     "y": 0,
+     "layers": 106,
+     "anim": 2,
+     "backingBytes": 36150025
+    },
+    {
+     "y": 1500,
+     "layers": 116,
+     "anim": 8,
+     "backingBytes": 87015627
+    },
+    {
+     "y": 3000,
+     "layers": 140,
+     "anim": 14,
+     "backingBytes": 101255139
+    },
+    {
+     "y": 4500,
+     "layers": 145,
+     "anim": 16,
+     "backingBytes": 149264291
+    },
+    {
+     "y": 5231,
+     "layers": 128,
+     "anim": 8,
+     "backingBytes": 105794658
+    }
+   ],
+   [
+    {
+     "y": 0,
+     "layers": 110,
+     "anim": 5,
+     "backingBytes": 41322135
+    },
+    {
+     "y": 1500,
+     "layers": 114,
+     "anim": 5,
+     "backingBytes": 87054413
+    },
+    {
+     "y": 3000,
+     "layers": 136,
+     "anim": 11,
+     "backingBytes": 101255139
+    },
+    {
+     "y": 4500,
+     "layers": 141,
+     "anim": 13,
+     "backingBytes": 153635338
+    },
+    {
+     "y": 5231,
+     "layers": 124,
+     "anim": 5,
+     "backingBytes": 105794658
+    }
+   ]
+  ],
+  "flag": [
+   [
+    {
+     "y": 0,
+     "layers": 106,
+     "anim": 2,
+     "backingBytes": 36150025
+    },
+    {
+     "y": 1500,
+     "layers": 112,
+     "anim": 5,
+     "backingBytes": 87015627
+    },
+    {
+     "y": 3000,
+     "layers": 124,
+     "anim": 8,
+     "backingBytes": 85372257
+    },
+    {
+     "y": 4500,
+     "layers": 129,
+     "anim": 10,
+     "backingBytes": 137752456
+    },
+    {
+     "y": 5231,
+     "layers": 112,
+     "anim": 2,
+     "backingBytes": 89911776
+    }
+   ],
+   [
+    {
+     "y": 0,
+     "layers": 106,
+     "anim": 2,
+     "backingBytes": 41108447
+    },
+    {
+     "y": 1500,
+     "layers": 114,
+     "anim": 5,
+     "backingBytes": 87055959
+    },
+    {
+     "y": 3000,
+     "layers": 128,
+     "anim": 11,
+     "backingBytes": 85372257
+    },
+    {
+     "y": 4500,
+     "layers": 136,
+     "anim": 14,
+     "backingBytes": 133381409
+    },
+    {
+     "y": 5231,
+     "layers": 116,
+     "anim": 5,
+     "backingBytes": 89911776
+    }
+   ]
+  ],
+  "costNote": "webkit-sim target=rewrite lag=true cost=on, iPhone sim 430 px. MEASURED, two passes per arm. Per-frame Paint and Composite are the cost-probe durations bucketed to rAF frames of the morph zone (idle, open, rest, close); layers are the LayerTree reads in the same zones. Frame counts differ between arms (base 78/36, flag 29/28) because the runner's frame rate varied; per-frame cost varies up to 3x between two passes of one arm (base idle composite 15875 vs 48705 us), so the cost deltas are not resolvable.",
+  "morphCost": {
+   "base": [
+    {
+     "zones": {
+      "idle": {
+       "frames": 9,
+       "paintUsPerFrame": 975,
+       "compUsPerFrame": 15875,
+       "paintMax": 1232,
+       "compMax": 17148
+      },
+      "open": {
+       "frames": 5,
+       "paintUsPerFrame": 4110,
+       "compUsPerFrame": 110861,
+       "paintMax": 11762,
+       "compMax": 173726
+      },
+      "rest": {
+       "frames": 59,
+       "paintUsPerFrame": 1078,
+       "compUsPerFrame": 28608,
+       "paintMax": 4290,
+       "compMax": 270701
+      },
+      "close": {
+       "frames": 5,
+       "paintUsPerFrame": 2365,
+       "compUsPerFrame": 117733,
+       "paintMax": 4117,
+       "compMax": 214992
+      }
+     },
+     "layers": {
+      "idle": {
+       "snaps": 1,
+       "layersMean": 128,
+       "layersMin": 128,
+       "layersMax": 128,
+       "areaMeanMpx": 9.96
+      },
+      "open": {
+       "snaps": 1,
+       "layersMean": 209,
+       "layersMin": 209,
+       "layersMax": 209,
+       "areaMeanMpx": 10.7
+      },
+      "rest": {
+       "snaps": 11,
+       "layersMean": 158,
+       "layersMin": 128,
+       "layersMax": 211,
+       "areaMeanMpx": 10.72
+      },
+      "close": {
+       "snaps": 1,
+       "layersMean": 209,
+       "layersMin": 209,
+       "layersMax": 209,
+       "areaMeanMpx": 10.59
+      }
+     },
+     "all": {
+      "frames": 78,
+      "paintUsPerFrame": 1343,
+      "compUsPerFrame": 38125
+     }
+    },
+    {
+     "zones": {
+      "idle": {
+       "frames": 10,
+       "paintUsPerFrame": 1043,
+       "compUsPerFrame": 48705,
+       "paintMax": 1727,
+       "compMax": 67634
+      },
+      "open": {
+       "frames": 2,
+       "paintUsPerFrame": 11437,
+       "compUsPerFrame": 343364,
+       "paintMax": 15509,
+       "compMax": 375821
+      },
+      "rest": {
+       "frames": 21,
+       "paintUsPerFrame": 3159,
+       "compUsPerFrame": 77273,
+       "paintMax": 20640,
+       "compMax": 344456
+      },
+      "close": {
+       "frames": 3,
+       "paintUsPerFrame": 1967,
+       "compUsPerFrame": 160058,
+       "paintMax": 3189,
+       "compMax": 249288
+      }
+     },
+     "layers": {
+      "idle": {
+       "snaps": 1,
+       "layersMean": 128,
+       "layersMin": 128,
+       "layersMax": 128,
+       "areaMeanMpx": 9.96
+      },
+      "open": {
+       "snaps": 1,
+       "layersMean": 209,
+       "layersMin": 209,
+       "layersMax": 209,
+       "areaMeanMpx": 10.77
+      },
+      "rest": {
+       "snaps": 7,
+       "layersMean": 163.1,
+       "layersMin": 128,
+       "layersMax": 211,
+       "areaMeanMpx": 10.8
+      },
+      "close": {
+       "snaps": 1,
+       "layersMean": 209,
+       "layersMin": 209,
+       "layersMax": 209,
+       "areaMeanMpx": 10.66
+      }
+     },
+     "all": {
+      "frames": 36,
+      "paintUsPerFrame": 2932,
+      "compUsPerFrame": 91019
+     }
+    }
+   ],
+   "flag": [
+    {
+     "zones": {
+      "idle": {
+       "frames": 9,
+       "paintUsPerFrame": 1169,
+       "compUsPerFrame": 55593,
+       "paintMax": 2050,
+       "compMax": 77979
+      },
+      "open": {
+       "frames": 3,
+       "paintUsPerFrame": 4792,
+       "compUsPerFrame": 238475,
+       "paintMax": 7682,
+       "compMax": 349031
+      },
+      "rest": {
+       "frames": 14,
+       "paintUsPerFrame": 2134,
+       "compUsPerFrame": 101614,
+       "paintMax": 13662,
+       "compMax": 391376
+      },
+      "close": {
+       "frames": 3,
+       "paintUsPerFrame": 4430,
+       "compUsPerFrame": 289735,
+       "paintMax": 8420,
+       "compMax": 440069
+      }
+     },
+     "layers": {
+      "idle": {
+       "snaps": 1,
+       "layersMean": 112,
+       "layersMin": 112,
+       "layersMax": 112,
+       "areaMeanMpx": 8.88
+      },
+      "open": {
+       "snaps": 2,
+       "layersMean": 205,
+       "layersMin": 205,
+       "layersMax": 205,
+       "areaMeanMpx": 11.11
+      },
+      "rest": {
+       "snaps": 7,
+       "layersMean": 152.7,
+       "layersMin": 112,
+       "layersMax": 207,
+       "areaMeanMpx": 10.27
+      },
+      "close": {
+       "snaps": 2,
+       "layersMean": 205,
+       "layersMin": 205,
+       "layersMax": 205,
+       "areaMeanMpx": 11.27
+      }
+     },
+     "all": {
+      "frames": 29,
+      "paintUsPerFrame": 2347,
+      "compUsPerFrame": 120950
+     }
+    },
+    {
+     "zones": {
+      "idle": {
+       "frames": 9,
+       "paintUsPerFrame": 1228,
+       "compUsPerFrame": 49749,
+       "paintMax": 2884,
+       "compMax": 67892
+      },
+      "open": {
+       "frames": 2,
+       "paintUsPerFrame": 17211,
+       "compUsPerFrame": 218334,
+       "paintMax": 33644,
+       "compMax": 414283
+      },
+      "rest": {
+       "frames": 16,
+       "paintUsPerFrame": 1695,
+       "compUsPerFrame": 108285,
+       "paintMax": 5914,
+       "compMax": 414427
+      },
+      "close": {
+       "frames": 1,
+       "paintUsPerFrame": 4945,
+       "compUsPerFrame": 510848,
+       "paintMax": 4945,
+       "compMax": 510848
+      }
+     },
+     "layers": {
+      "idle": {
+       "snaps": 1,
+       "layersMean": 112,
+       "layersMin": 112,
+       "layersMax": 112,
+       "areaMeanMpx": 8.9
+      },
+      "open": {
+       "snaps": 1,
+       "layersMean": 205,
+       "layersMin": 205,
+       "layersMax": 205,
+       "areaMeanMpx": 10.62
+      },
+      "rest": {
+       "snaps": 12,
+       "layersMean": 135.4,
+       "layersMin": 112,
+       "layersMax": 205,
+       "areaMeanMpx": 9.54
+      },
+      "close": {
+       "snaps": 1,
+       "layersMean": 205,
+       "layersMin": 205,
+       "layersMax": 205,
+       "areaMeanMpx": 11.8
+      }
+     },
+     "all": {
+      "frames": 28,
+      "paintUsPerFrame": 2769,
+      "compUsPerFrame": 111708
+     }
+    }
+   ]
+  }
+ }
+}

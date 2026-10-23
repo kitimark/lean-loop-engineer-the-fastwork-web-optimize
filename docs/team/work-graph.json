@@ -9698,7 +9698,8 @@
     "research/findings/ledger.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "0cbc010"
   },
   {
    "devices": [
