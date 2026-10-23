@@ -4921,6 +4921,10 @@ theorem mem_family_extra (seg x : List Samp) (q : Nat) (hx : ∀ s ∈ x, s.rep 
   simp only [family, show ¬ (repsOf (seg ++ x)).length < 2 by omega, ite_false]
   exact List.mem_cons_of_mem _ (List.mem_map.2 ⟨q, hqm, hd⟩)
 
+theorem nil_not_mem_family (x : List Samp) (hx : x ≠ []) (h : (repsOf x).length < 2) : ([] : List Samp) ∉ family x := by
+  rw [family_one x h, List.mem_singleton]
+  exact fun e => hx e.symm
+
 def bumpPass (q : Nat) (v : Int) : List Samp :=
   (rampPass q true).map fun s => if s.m == some 5000 then { s with els := [.num [v]] } else s
 

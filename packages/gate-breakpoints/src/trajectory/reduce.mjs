@@ -205,34 +205,29 @@ export function matchOne(kind, win, r) {
   return vs.some((v) => !v.startsWith('fail:')) ? pass : combine(vs);
 }
 
-/** Lean `judgeColour`. */
 export const judgeColour = (core, win, r) =>
   combine([matchOne('colour', core.map((x) => chan(x.els)), chan(r.els)), judgeEls('colour', win.map((x) => alpha(x.els)), alpha(r.els))]);
 
-/** Lean `isCoreIn`. */
 export const isCoreIn = (r, o) => isCore({ ...r, rep: o.rep }, o);
 
-/** Lean `envelope`. */
 export const envelope = (seg, r) => repsOf(seg).flatMap((q) => flightWindow(seg, { ...r, rep: q }));
 
-/** Lean `judgeWith`. */
-export function judgeWith(kind, d, seg, fw, core, win, r) {
+function judgeWithBy(kind, d, settle, fw, core, win, r) {
   if (inFlight(d, r)) {
     if (fw.length === 0) return win === null ? fail('coverage') : judgeEls(kind, win.map((s) => s.els), r.els);
     return kind === 'colour' ? judgeColour(fw.filter(core), fw, r) : judgeEls(kind, fw.map((s) => s.els), r.els);
   }
   if (win === null) return fail('coverage');
-  const ref = win.map((w) => settledRef(d, seg, w)).filter((w) => w !== null);
+  const ref = win.map(settle).filter((w) => w !== null);
   return ref.length === 0 ? fail('coverage') : judgeEls(kind, ref.map((x) => x.els), r.els);
 }
 
-/** Lean `judgeUnit`. */
+export const judgeWith = (kind, d, seg, fw, core, win, r) => judgeWithBy(kind, d, (w) => settledRef(d, seg, w), fw, core, win, r);
+
 export const judgeUnit = (kind, d, seg, win, r) => judgeWith(kind, d, seg, envelope(seg, r), (o) => isCoreIn(r, o), win, r);
 
-/** Lean `judgeOwn`. */
 export const judgeOwn = (kind, d, seg, win, r) => judgeWith(kind, d, seg, flightWindow(seg, r), (o) => isCore(r, o), win, r);
 
-/** Lean `bucket`: the tenth of a morph value (floor((m + 500) / 1000), clamped to 0..10); 11 for no morph value. */
 export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, Math.max(0, Math.floor((m + 500) / 1000))));
 
 /** Lean `needsSample`: the interior buckets of a push. */
@@ -396,15 +391,14 @@ export function triggersOf(ps) {
 
 const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
 
-/** Lean `origFirst`. */
 export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
 
-/** Lean `excess`. */
 export const excess = (lo, hi, w) => (w < lo ? lo - w : hi < w ? w - hi : 0);
 
-/** Lean `startCheck`: true, false, or null (undecided). */
-export function startCheck(kind, full, seg, prior, r) {
-  const q = triggersOf([...prior, r])[0] ?? null, o = origFirst(seg, r);
+export const startCheck = (kind, full, seg, prior, r) => startCheckAt(kind, full, origFirst(seg, r), prior, r);
+
+function startCheckAt(kind, full, o, prior, r) {
+  const q = triggersOf([...prior, r])[0] ?? null;
   if (q === null || o === null) return null;
   const s = oneNum(o.els), w = oneNum(q.els), x = oneNum(r.els);
   if (s === null || w === null || x === null) return null;
@@ -552,7 +546,70 @@ export const firstVerdict = (ph, p, b, oSeg, wSeg, v) =>
 export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   byMRule(ph, p, kind, d, e, id, oSeg, wSeg, conv).map(([b, v]) => [b, firstVerdict(ph, p, b, oSeg, wSeg, v)]);
 
-export const byMFam = (ph, p, kind, d, e, id, oSeg, wSeg, conv) => family(oSeg).map((o) => byMFirst(ph, p, kind, d, e, id, o, wSeg, conv));
+export const byMFamEach = (ph, p, kind, d, e, id, oSeg, wSeg, conv) => family(oSeg).map((o) => byMFirst(ph, p, kind, d, e, id, o, wSeg, conv));
+
+export function byMFam(ph, p, kind, d0, e, id, oSeg, wSeg, conv) {
+  const durs = new Map();
+  const d = (cls) => { const k = JSON.stringify(cls); if (!durs.has(k)) durs.set(k, d0(cls)); return durs.get(k); };
+  const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p);
+  const reps = repsOf(seg), origReps = repsOf(orig);
+  const drops = reps.length < 2 ? [null] : [null, ...reps];
+  const strictPass = new Map(reps.map((q) => [q, seg.filter((o) => o.rep === q)]));
+  const segPass = new Map(reps.map((q) => [q, passOf(seg, q)]));
+  const origPass = new Map(origReps.map((q) => [q, passOf(orig, q)]));
+  const epoch = (o) => JSON.stringify([o.rep, o.cls, o.ord]);
+  const ends = new Map(seg.map((o) => [epoch(o), o]));
+  const settled = new Map();
+  const settle = (w) => {
+    if (!settled.has(w)) {
+      const end = ends.get(epoch(w)) ?? null;
+      settled.set(w, !inFlight(d, w) ? w : end !== null && !inFlight(d, end) ? end : null);
+    }
+    return settled.get(w);
+  };
+  const pieces = new Map();
+  const pieceOf = (r) => {
+    if (!pieces.has(r)) {
+      pieces.set(r, {
+        env: reps.map((q) => flightWindow(strictPass.get(q), { ...r, rep: q })),
+        win: origReps.map((q) => (ph === 'push' ? windowPass(d, segPass.get(q), origPass.get(q), r, q) : windowOne(origPass.get(q), r.m))),
+      });
+    }
+    return pieces.get(r);
+  };
+  const empty = (b) => (ph === 'push' && needsSample(b) ? fail('coverage') : skip('noSample'));
+  const ws = annotate(wSeg), rew = ws.filter((r) => r.ph === p);
+  const inB = (b) => rew.filter((r) => bucket(r.m) === b);
+  const starts = e !== null && ph === 'push' && p === CLOSE_PH
+    ? rew.map((r, i) => [passOf(rew.slice(0, i), r.rep ?? 0), r]).filter(([, r]) => bucket(r.m) === 0).map(([prior, r]) => [prior, r, origFirst(seg, r)]) : null;
+  const settles = e !== null && ph === 'hold' && p === CLOSE_PH + 1
+    ? Array.from({ length: 12 }, (_, b) => inB(b).map((r) => settleCheck(kind, e, ws, r))) : null;
+  const ids = id ? withPrev(ws).filter(([, r]) => r.ph === p) : null;
+  return drops.map((q) => {
+    const keep = (x) => x !== q;
+    const winOf = (r) => { const w = pieceOf(r).win.filter((x, i) => keep(origReps[i]) && x !== null); return w.length === 0 ? null : w.flat(); };
+    const unit = (r) => judgeWithBy(kind, d, settle, pieceOf(r).env.filter((_, i) => keep(reps[i])).flat(), (o) => isCoreIn(r, o), winOf(r), r);
+    const oSegQ = q === null ? oSeg : dropPass(oSeg, q);
+    const rule = (b) => {
+      if (id) {
+        const rs = ids.filter(([, r]) => bucket(r.m) === b);
+        if (rs.length === 0) return empty(b);
+        return combine(rs.map(([prev, r]) => { const c = idCheck(d, prev, r, conv); return c === true ? pass : c === false ? fail('apart') : unit(r); }));
+      }
+      if (starts !== null && b === 0) {
+        if (starts.length === 0) return skip('noSample');
+        return combine(starts.map(([prior, r, first]) => {
+          const c = startCheckAt(kind, e.full, keep(r.rep ?? 0) ? first : null, prior, r);
+          return c === true ? pass : c === false ? fail('apart') : unit(r);
+        }));
+      }
+      const rs = inB(b);
+      const v = rs.length === 0 ? empty(b) : combine(rs.map(unit));
+      return settles !== null ? settleAnd(v, settles[b]) : v;
+    };
+    return Array.from({ length: 12 }, (_, b) => [b, firstVerdict(ph, p, b, oSegQ, wSeg, rule(b))]);
+  });
+}
 
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
