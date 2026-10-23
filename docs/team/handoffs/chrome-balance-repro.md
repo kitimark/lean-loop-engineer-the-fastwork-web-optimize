@@ -19,8 +19,9 @@
   `test/profile.test.mjs` 7/7; `scripts/ci-paths.test.mjs` 54/54 (after the Trigger.lean row edit); runner land-inputs 56/56.
 
 ## Open
-- Slot check.sh and measure-chromium / measure-webkit tests were queued (slot limit 1); rerun if their result is not in the report.
-- Then: dry land, review ready, StructuredOutput.
+- Done: slot check.sh all green, measure-chromium 67/67, measure-webkit 402/402; main e5c3d523e merged; dry land
+  `VERDICT dry chrome-balance-repro` needs `--allow lean/Fw/Ci/Trigger.lean` (the lean.yml row now lists the profile golden);
+  review ready: `review`.
 - Follow-ups: host.mjs, crash-probe.mjs and chromium-counts.yml read only `profiles/`; a probe runs by copying it there on a
   ci branch (probes/README.md). Rewrite people title fix (drop balance or o inline-block) is a new task. Filing the crbug is a
   user step (note has the text).
