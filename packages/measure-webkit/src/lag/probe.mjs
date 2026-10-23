@@ -16,8 +16,8 @@ import { censusAt } from '../census.mjs';
 import { markTimes, markTime, reduceSteps } from '../reduce.mjs';
 import { regionOf } from './reduce.mjs';
 import { costPasses } from './costprobe.mjs';
+import { swapPass } from './swapprobe.mjs';
 
-/** Frames of the morph run: idle, after the push down, after the push up. A tween lasts 680 ms, so 60 frames cover it at >= 11.4 ms per frame. */
 export const MORPH_FRAMES = Object.freeze({ idle: 10, open: 60, close: 60 });
 
 /** In-page helpers: the parts of the page and one read of their boxes and filter elements (quarter CSS px, viewport coordinates). */
@@ -154,10 +154,9 @@ export async function morphRun(c, { clock, settleMs }) {
 
 /**
  * A session: the geometry pass once, then `passes` times a fresh-load scroll run and morph run. A run that still fails
- * after its retries ends the session; the completed runs are kept and the reason goes to `failed` (CI lost r2 and v3 of
- * the first dispatch whole to such a stall, 2026-10-21).
+ * after its retries ends the session; the completed runs are kept and the reason goes to `failed`.
  */
-export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = false, costOnly = false }) {
+export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = false, costOnly = false, swap = null }) {
   const geometry = costOnly ? null : await geometryPass(ctx, { clock, settleMs, step, log });
   const out = [], failed = [];
   let targetLost = false;
@@ -182,8 +181,16 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
     if (cost || costOnly) {
       try {
         costs = await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log);
+        if (swap) {
+          const home = swap.home;
+          costs.swap = await swapPass(ctx, {
+            clock, settleMs, arms: swap.arms, log, flip: i % 2 === 1,
+            retry: (name, fn) => retrying(ctx, name, log, fn),
+            restore: async () => { ctx.setArm(home.id); await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + home.search)}); 1`); },
+          });
+        }
       } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`); out.push({ scroll, morph }); break; }
-      log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph'].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
+      log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph', ...(swap ? ['swap'] : [])].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
     }
     out.push({ ...(scroll ? { scroll, morph } : {}), ...(costs ? { cost: costs } : {}) });
   }

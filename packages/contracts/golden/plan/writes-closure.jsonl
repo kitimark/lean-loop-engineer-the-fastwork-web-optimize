@@ -64,6 +64,24 @@
 {"globs":["scripts/*.sh"],"match":false,"path":"scripts/a/b.sh","type":"glob"}
 {"globs":["lean/*.lean"],"match":true,"path":"lean/Fw.lean","type":"glob"}
 {"globs":["lean/*.lean"],"match":false,"path":"lean/Fw/A.lean","type":"glob"}
+{"glob":"lean/**","ok":true,"type":"rowGlob"}
+{"glob":"scripts/span.sh","ok":true,"type":"rowGlob"}
+{"glob":"packages/contracts/golden/parts/footprint.gen.json","ok":true,"type":"rowGlob"}
+{"glob":"packages/contracts/golden/measure/wkcost.jsonl","ok":true,"type":"rowGlob"}
+{"glob":"lean/Fw/A_b-c.lean","ok":true,"type":"rowGlob"}
+{"glob":"!lean/a.lean","ok":true,"type":"rowGlob"}
+{"glob":"","ok":false,"type":"rowGlob"}
+{"glob":"!","ok":false,"type":"rowGlob"}
+{"glob":"!!a","ok":false,"type":"rowGlob"}
+{"glob":"lean/?.lean","ok":false,"type":"rowGlob"}
+{"glob":"a+","ok":false,"type":"rowGlob"}
+{"glob":"lean/[ab].lean","ok":false,"type":"rowGlob"}
+{"glob":"lean/[!a]","ok":false,"type":"rowGlob"}
+{"glob":"a b","ok":false,"type":"rowGlob"}
+{"glob":"a{b,c}","ok":false,"type":"rowGlob"}
+{"glob":"@fwcore","ok":false,"type":"rowGlob"}
+{"glob":"lean/é.lean","ok":false,"type":"rowGlob"}
+{"glob":"lean/a\\b","ok":false,"type":"rowGlob"}
 {"gaps":[{"path":"packages/b.jsonl","script":"lean/scripts/check.sh"},{"path":"packages/c.json","script":"lean/scripts/other.sh"}],"globs":["lean/**","packages/a.jsonl"],"inputGaps":[{"path":"packages/b.jsonl","script":"lean/scripts/check.sh"},{"path":null,"script":"lean/scripts/check.sh"},{"path":"packages/c.json","script":"lean/scripts/other.sh"}],"reads":[{"path":"packages/a.jsonl","script":"lean/scripts/check.sh"},{"path":"packages/b.jsonl","script":"lean/scripts/check.sh"},{"path":"lean/Fw/X.lean","script":"lean/scripts/check.sh"},{"path":null,"script":"lean/scripts/check.sh"},{"path":"packages/c.json","script":"lean/scripts/other.sh"}],"scripts":[{"script":"lean/scripts/check.sh","text":"job a x --check ../packages/a.jsonl ../packages/b.jsonl ../lean/Fw/X.lean ../$V\n"},{"script":"lean/scripts/other.sh","text":"node ../packages/c.json\n"}],"type":"gaps"}
 {"gaps":[],"globs":["scripts/span.sh","scripts/*.sh"],"inputGaps":[{"path":null,"script":"lean/scripts/check.sh"},{"path":null,"script":"lean/scripts/check.sh"}],"reads":[{"path":"scripts/span.sh","script":"lean/scripts/check.sh"},{"path":"scripts/fwcore-build.sh","script":"lean/scripts/check.sh"},{"path":null,"script":"lean/scripts/check.sh"},{"path":null,"script":"lean/scripts/check.sh"}],"scripts":[{"script":"lean/scripts/check.sh","text":". ../scripts/span.sh\nsh -c 'sh ../scripts/fwcore-build.sh && x' ../a/$b ../\n"}],"type":"gaps"}
 {"gaps":[{"path":"a/b/c.json","script":"lean/scripts/n.sh"},{"path":"d.json","script":"lean/scripts/n.sh"},{"path":"../e","script":"lean/scripts/n.sh"}],"globs":["a/b/**","!a/b/c.json"],"inputGaps":[{"path":"a/b/c.json","script":"lean/scripts/n.sh"},{"path":"d.json","script":"lean/scripts/n.sh"},{"path":"../e","script":"lean/scripts/n.sh"},{"path":null,"script":"lean/scripts/n.sh"},{"path":null,"script":"lean/scripts/n.sh"}],"reads":[{"path":"a/b/c.json","script":"lean/scripts/n.sh"},{"path":"d.json","script":"lean/scripts/n.sh"},{"path":"../e","script":"lean/scripts/n.sh"},{"path":null,"script":"lean/scripts/n.sh"},{"path":null,"script":"lean/scripts/n.sh"}],"scripts":[{"script":"lean/scripts/n.sh","text":"x ../a//b/./c.json .../d.json ../../e ../f*.json ../g{1}\n"}],"type":"gaps"}

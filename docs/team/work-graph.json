@@ -17986,7 +17986,8 @@
     "packages/contracts/golden/measure/wkcost.jsonl",
     "packages/measure-webkit/test/lag-swap*.test.mjs"
    ],
-   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens."
+   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens.",
+   "evidence": "c138128"
   },
   {
    "devices": [
@@ -18478,7 +18479,8 @@
     "docs/team/handoffs/writes-closure-followups.md",
     "docs/team/handoffs/writes-closure-polish.md"
    ],
-   "title": "writes-closure-followups review follow-ups: (1) handoff: drop the build-review.test.mjs clause and write 'merge of main (642babc15, main at 17cb8b6dc)'; (2) WritesClosure.lean jsSpace: write the invisible Unicode characters as \\u escapes; (3) ci-paths refuses lean.yml row globs with ?, + or [ (JS matches agrees with Lean ghMatches only without them), or model them in ghGlob; (4) fw plan sync now needs a built fwcore and lints two graphs: time it and name the dependency in docs/team/tools; (5) normRead keeps '..' segments (safe side, matches Lean): say so in its comment."
+   "title": "writes-closure-followups review follow-ups: (1) handoff: drop the build-review.test.mjs clause and write 'merge of main (642babc15, main at 17cb8b6dc)'; (2) WritesClosure.lean jsSpace: write the invisible Unicode characters as \\u escapes; (3) ci-paths refuses lean.yml row globs with ?, + or [ (JS matches agrees with Lean ghMatches only without them), or model them in ghGlob; (4) fw plan sync now needs a built fwcore and lints two graphs: time it and name the dependency in docs/team/tools; (5) normRead keeps '..' segments (safe side, matches Lean): say so in its comment.",
+   "evidence": "94c7e9b"
   }
  ],
  "deadline": {
