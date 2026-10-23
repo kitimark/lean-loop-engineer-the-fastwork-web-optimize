@@ -18104,7 +18104,15 @@
     "lean/Fw/Ci/Trigger.lean",
     "lean/scripts/check.sh",
     "packages/contracts/golden/measure/touch-push.jsonl",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/scripts/WalkBudgetGolden.lean",
+    "packages/contracts/golden/measure/walk-budget.jsonl",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/walk-budget.test.mjs",
+    "packages/measure-webkit/src/profile/cli.mjs",
+    "packages/measure-webkit/src/profile/report.mjs"
    ],
    "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
   },
@@ -18424,9 +18432,15 @@
     "lean/Fw/Ci/Overflow.lean",
     "packages/contracts/golden/ci/**",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
-    "docs/team/handoffs/sim-touch-followups.md"
+    "docs/team/handoffs/sim-touch-followups.md",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/scripts/WalkBudgetGolden.lean",
+    "packages/contracts/golden/measure/walk-budget.jsonl",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/walk-budget.test.mjs",
+    "packages/measure-webkit/src/profile/cli.mjs"
    ],
-   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not."
+   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands."
   },
   {
    "devices": [
