@@ -28,10 +28,7 @@
 // the seeders. The keys under `on:` are the row's Lean `onKeys` (push, workflow_dispatch; schedule only with a cron), and
 // `on.schedule` equals the row's crons (none: a schedule is a main run). The jobs that save a cache, read
 // from the workflows and their local actions, equal Lean `cacheWriters`.
-// --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
-// `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
-// guard skipped.
-// Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
+// Run:  node scripts/ci-paths.mjs [--write | --check | --plan-time [--refresh <timings.jsonl>] [--check]] [--root <dir>]
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
@@ -838,10 +835,13 @@ export function portableGlob(g) {
   return !/[?+\[\]!{}]/.test(g) && !g.split('/').some((seg) => seg.includes('**') && seg !== '**') && !g.startsWith('/');
 }
 
-/** The repo paths a shell script under lean/scripts reads relative to lean/ (every `../<path>`); a path that is not a
- *  literal (empty, or with `$`, `*`, `?`, `{`) is returned as null so the lint fails closed on it. */
+const READ = /(?<![^\s'"`;)|&<>])\.\.\/([^\s'"`;)|&<>]*)|\.\.\/[^\s'"`;)|&<>]*/g;
+
+/** Lean `readsOf`: the repo paths a shell script under lean/scripts reads relative to lean/ (a `../<path>` at a word
+ *  start); a path that is not a literal (empty, or with `$`, `*`, `?`, `{`) and a `../` inside a word are null, so the
+ *  lint fails closed on them. */
 export function leanScriptPaths(text) {
-  return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
+  return [...text.matchAll(READ)].map((m) => (m[1] === undefined || m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
 export const normRead = (p) => p.split('/').filter((x) => x !== '' && x !== '.').join('/');
@@ -873,7 +873,7 @@ export function leanInputProblems(root, table) {
     .map((g) => `lean.yml: row glob ${JSON.stringify(g)} is outside the plain subset (Lean Fw.Plan.WritesClosure.rowGlob: letters, digits, ._-/*), where the writes-closure matcher and GitHub agree`);
   if (bad.length) return bad;
   return leanInputGaps(root, table).map(({ script, path }) => path === null
-    ? `${script}: reads a ../ path that is not a literal file path or has a .. segment (write it out, so the lean row can name it)`
+    ? `${script}: reads a ../ path that is not at a word start, is not a literal file path, or has a .. segment (write it out as its own word, so the lean row can name it)`
     : `${script}: reads ../${path}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
 }
 
@@ -1108,6 +1108,8 @@ export function run(root, write) {
 
 export const CLOSURE_COMMIT = '9a09d8066';
 export const PLAN_DOC = 'docs/team/tools/plan.md';
+const CLOSURE_GOLDEN = 'packages/contracts/golden/plan/writes-closure.jsonl';
+const ROOT = join(dirname(new URL(import.meta.url).pathname), '..');
 const TIME_BEGIN = '<!-- plan-time begin: node scripts/ci-paths.mjs --plan-time -->';
 const TIME_END = '<!-- plan-time end -->';
 
@@ -1117,20 +1119,37 @@ export const p90 = (xs) => ord(xs, Math.floor((9 * xs.length + 9) / 10));
 const maxL = (xs) => xs.reduce((a, b) => Math.max(a, b), 0);
 const timeRow = (label, xs) => `| ${label} | ${xs.length} | ${p50(xs)} ms | ${p90(xs)} ms | ${maxL(xs)} ms |\n`;
 
-export function timeTable(before, after) {
-  const b = before.slice(Math.max(0, before.length - 30));
-  return '| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n' + timeRow(`last ${b.length} runs before the closure check`, b) +
-    timeRow('every run with it', after) + `\nINFERRED: the closure check adds about ${p50(after) - p50(b)} ms to a sync (p50 with it minus p50 before).\n`;
+/** Lean `timeParams` row of the writes-closure golden: `calmLoad` (Fw.Obs.Timing.calmLoad) and the before `window`. */
+export function timeParams(root = ROOT) {
+  const rows = readFileSync(join(root, CLOSURE_GOLDEN), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const r = rows.find((x) => x.type === 'timeParams');
+  if (!r) throw new Error(`${CLOSURE_GOLDEN}: no timeParams row (cd lean && lake env lean --run scripts/WritesClosureGolden.lean)`);
+  return { calmLoad: r.calmLoad, window: r.window };
+}
+
+const calmDurs = (xs, calmLoad) => xs.filter(([, l]) => l <= calmLoad).map(([d]) => d);
+
+/** Lean `timeTable` over `[durMs, load floor]` pairs: only calm runs (load floor at most `calmLoad`) enter the table. */
+export function timeTable(before, after, { calmLoad, window }) {
+  const cb = calmDurs(before, calmLoad);
+  const b = cb.slice(Math.max(0, cb.length - window));
+  const a = calmDurs(after, calmLoad);
+  return `Calm runs only: load floor at most ${calmLoad} (Fw.Obs.Timing.calmLoad); ${cb.length + a.length} of ` +
+    `${before.length + after.length} samples are calm.\n\n` +
+    '| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n' + timeRow(`last ${b.length} calm runs before the closure check`, b) +
+    timeRow('every calm run with it', a) + `\nINFERRED: the closure check adds about ${p50(a) - p50(b)} ms to a calm sync (p50 with it minus p50 before).\n`;
 }
 
 const day = (ms) => new Date(ms).toISOString().slice(0, 10);
 
-export function planTimeBlock(samples) {
-  const dur = (closure) => samples.filter((s) => s.closure === closure).map((s) => s.durMs);
+export const loadFloor = (load) => Math.floor(Math.max(0, load));
+
+export function planTimeBlock(samples, params = timeParams()) {
+  const dur = (closure) => samples.filter((s) => s.closure === closure).map((s) => [s.durMs, loadFloor(s.load)]);
   const span = samples.length ? `${day(samples[0].startMs)} to ${day(samples.at(-1).startMs)}` : 'none';
   return `${TIME_BEGIN}\nMEASURED (the samples below, ${span}: every exit-0 \`plan sync\` span of the tool \`fw\` in the main ` +
-    `checkout's\n\`.fw-console/timings.jsonl\`, any load; a run is "with it" when its commit contains ${CLOSURE_COMMIT}):\n\n` +
-    `${timeTable(dur(false), dur(true))}\n<details><summary>Samples (node scripts/ci-paths.mjs --plan-time --refresh &lt;timings.jsonl&gt;)</summary>\n\n` +
+    `checkout's\n\`.fw-console/timings.jsonl\` with a load; a run is "with it" when its commit contains ${CLOSURE_COMMIT}).\n\n` +
+    `${timeTable(dur(false), dur(true), params)}\n<details><summary>Samples (node scripts/ci-paths.mjs --plan-time --refresh &lt;timings.jsonl&gt;)</summary>\n\n` +
     '```jsonl\n' + samples.map((s) => JSON.stringify(s) + '\n').join('') + '```\n\n</details>\n' + TIME_END;
 }
 
@@ -1146,9 +1165,9 @@ export function planTimeSamples(doc) {
   return m ? m[1].split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
 }
 
-export function planTimeRender(doc, samples = planTimeSamples(doc)) {
+export function planTimeRender(doc, samples = planTimeSamples(doc), params = timeParams()) {
   const [i, j] = timeSpan(doc);
-  return doc.slice(0, i) + planTimeBlock(samples) + doc.slice(j);
+  return doc.slice(0, i) + planTimeBlock(samples, params) + doc.slice(j);
 }
 
 function hasClosure(root, commit) {
@@ -1160,14 +1179,16 @@ export function planTimeRefresh(root, timingsFile) {
   const spans = readFileSync(timingsFile, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
     .filter((s) => s.tool === 'fw' && s.step === 'plan sync' && s.exit === 0 && s.host === 'local' && typeof s.commit === 'string')
     .sort((a, b) => a.startMs - b.startMs);
+  const noLoad = spans.filter((s) => !Number.isFinite(s.load)).length;
   const known = new Map();
   const out = [];
   for (const s of spans) {
+    if (!Number.isFinite(s.load)) continue;
     if (!known.has(s.commit)) known.set(s.commit, hasClosure(root, s.commit));
     const closure = known.get(s.commit);
     if (closure !== null) out.push({ commit: s.commit, startMs: s.startMs, durMs: s.durMs, load: s.load, closure });
   }
-  return { samples: out, dropped: spans.length - out.length };
+  return { samples: out, dropped: spans.length - out.length - noLoad, noLoad };
 }
 
 function planTimeMain(root, args) {
@@ -1178,9 +1199,9 @@ function planTimeMain(root, args) {
   if (r >= 0) {
     const got = planTimeRefresh(root, args[r + 1]);
     samples = got.samples;
-    console.log(`ci-paths --plan-time: ${samples.length} samples, ${got.dropped} dropped (commit not in this repo)`);
+    console.log(`ci-paths --plan-time: ${samples.length} samples, ${got.dropped} dropped (commit not in this repo), ${got.noLoad} without a load`);
   }
-  const next = planTimeRender(doc, samples);
+  const next = planTimeRender(doc, samples, timeParams(root));
   if (args.includes('--check')) {
     console.log(next === doc ? `ci-paths --plan-time: ${PLAN_DOC} is up to date` : `ci-paths --plan-time: ${PLAN_DOC} is stale (node scripts/ci-paths.mjs --plan-time)`);
     process.exit(next === doc ? 0 : 1);
