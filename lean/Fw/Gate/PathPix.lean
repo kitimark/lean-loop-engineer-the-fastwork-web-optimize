@@ -1570,6 +1570,252 @@ theorem consensus_agreeing (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa)
   · exact seen_ne_varied_of_agree _ ao h
   · exact seen_ne_varied_of_agree _ ai h
 
+/-- One zone read against the majority arm: P, A2 and A3 against A, P against A2, and A2 against A3. -/
+structure MZone where
+  z : Zone
+  p2 : Option Raw
+  a23 : Option Raw
+deriving DecidableEq, Repr
+
+/-- A differs from A2 and from A3 while A2 and A3 agree: A is the odd arm out. -/
+def MZone.odd (m : MZone) : Bool :=
+  m.z.aa2.changed != 0 && m.z.aa3.any (·.changed != 0) && m.a23.any (·.changed == 0)
+
+/-- P changed against A while A is the odd arm, so P is read against A2. -/
+def MZone.viaRef (m : MZone) : Bool := m.odd && m.z.p.changed != 0
+
+/-- The zone's reading: against A2 when A is odd, else `Zone.seen`. -/
+def MZone.seen (m : MZone) : Seen :=
+  if m.viaRef then
+    match m.p2 with
+    | some r => if r.changed == 0 then .quiet else .counted
+    | none => .varied
+  else m.z.seen
+
+/-- P against the reference arm: A2 when `viaRef`, else A. -/
+def MZone.ref (m : MZone) : Raw := if m.viaRef then m.p2.getD m.z.p else m.z.p
+
+/-- The counts the zone adds to the grade: none when varied, else P against its reference. -/
+def MZone.eff (m : MZone) : Raw := if m.seen == .varied then ⟨0, 0⟩ else m.ref
+
+theorem MZone.odd_iff (m : MZone) : m.odd = true ↔
+    m.z.aa2.changed ≠ 0 ∧ (∃ x, m.z.aa3 = some x ∧ x.changed ≠ 0) ∧ ∃ y, m.a23 = some y ∧ y.changed = 0 := by
+  unfold MZone.odd
+  cases h3 : m.z.aa3 <;> cases h23 : m.a23 <;> simp [and_assoc]
+
+theorem MZone.viaRef_iff (m : MZone) : m.viaRef = true ↔ m.odd = true ∧ m.z.p.changed ≠ 0 := by
+  simp [MZone.viaRef]
+
+theorem MZone.odd_not_agree (m : MZone) (h : m.odd = true) : m.z.agree = false := by
+  have := ((MZone.odd_iff m).1 h).1
+  cases hg : m.z.agree
+  · rfl
+  · exact absurd ((m.z.agree_iff).1 hg).1 this
+
+theorem MZone.seen_plain (m : MZone) (h : m.viaRef = false) : m.seen = m.z.seen := by
+  simp [MZone.seen, h]
+
+theorem MZone.seen_quiet_of_ref (m : MZone) (r : Raw) (h : m.viaRef = true) (hr : m.p2 = some r)
+    (h0 : r.changed = 0) : m.seen = .quiet := by
+  simp [MZone.seen, h, hr, h0]
+
+theorem MZone.seen_counted_of_ref (m : MZone) (r : Raw) (h : m.viaRef = true) (hr : m.p2 = some r)
+    (h0 : r.changed ≠ 0) : m.seen = .counted := by
+  simp [MZone.seen, h, hr, h0]
+
+theorem MZone.seen_varied_of_ref (m : MZone) (h : m.viaRef = true) (hr : m.p2 = none) : m.seen = .varied := by
+  simp [MZone.seen, h, hr]
+
+theorem MZone.eff_varied (m : MZone) (h : m.seen = .varied) : m.eff = ⟨0, 0⟩ := by
+  simp [MZone.eff, h]
+
+theorem MZone.eff_plain (m : MZone) (h : m.seen ≠ .varied) (hv : m.viaRef = false) : m.eff = m.z.p := by
+  simp [MZone.eff, MZone.ref, h, hv]
+
+theorem MZone.eff_counted (m : MZone) (h : m.seen = .counted) : m.eff.changed ≠ 0 := by
+  by_cases hv : m.viaRef = true
+  · cases hr : m.p2 with
+    | none => simp [MZone.seen, hv, hr] at h
+    | some r =>
+      have hr0 : r.changed ≠ 0 := by
+        intro h0
+        simp [MZone.seen, hv, hr, h0] at h
+      simp [MZone.eff, MZone.ref, h, hv, hr, hr0]
+  · have hf : m.viaRef = false := by simpa using hv
+    rw [MZone.seen_plain m hf] at h
+    rw [MZone.eff_plain m (by rw [MZone.seen_plain m hf, h]; decide) hf]
+    exact ((seen_counted_iff m.z).1 h).1
+
+/-- The cell with its two zones replaced by the zones' effective counts. -/
+def effCell (c : Cell) (mo mi : MZone) : Cell := { c with out := mo.eff, inside := mi.eff }
+
+/-- The cell's reading across arms: varied when only varied zones carry its change, else the grade over the
+counted zones. -/
+def zoned (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) : Verdict :=
+  if gradeRel c f live == .invalid then .graded .invalid
+  else if (mo.seen.join mi.seen) == .varied then .varied
+  else .graded (gradeRel (effCell c mo mi) f live)
+
+theorem zoned_invalid (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (h : gradeRel c f live = .invalid) : zoned c f live mo mi = .graded .invalid := by
+  simp [zoned, h]
+
+theorem zoned_varied_iff (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) :
+    zoned c f live mo mi = .varied ↔ gradeRel c f live ≠ .invalid ∧ mo.seen.join mi.seen = .varied := by
+  unfold zoned
+  by_cases hg : gradeRel c f live = .invalid <;> by_cases hj : mo.seen.join mi.seen = .varied <;> simp_all
+
+theorem zoned_graded (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (hg : gradeRel c f live ≠ .invalid) (hj : mo.seen.join mi.seen ≠ .varied) :
+    zoned c f live mo mi = .graded (gradeRel (effCell c mo mi) f live) := by
+  simp [zoned, hg, hj]
+
+theorem zoned_mixed_out (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (hg : gradeRel c f live ≠ .invalid) (ho : mo.seen = .varied) (hi : mi.seen = .counted) :
+    zoned c f live mo mi = .graded (gradeRel { c with out := ⟨0, 0⟩, inside := mi.eff } f live) := by
+  have hj : mo.seen.join mi.seen ≠ .varied := by
+    intro h
+    exact absurd ((join_counted_iff _ _).2 (Or.inr hi)) (by rw [h]; decide)
+  rw [zoned_graded c f live mo mi hg hj, effCell, mo.eff_varied ho]
+
+theorem zoned_mixed_inside (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (hg : gradeRel c f live ≠ .invalid) (ho : mo.seen = .counted) (hi : mi.seen = .varied) :
+    zoned c f live mo mi = .graded (gradeRel { c with out := mo.eff, inside := ⟨0, 0⟩ } f live) := by
+  have hj : mo.seen.join mi.seen ≠ .varied := by
+    intro h
+    exact absurd ((join_counted_iff _ _).2 (Or.inl ho)) (by rw [h]; decide)
+  rw [zoned_graded c f live mo mi hg hj, effCell, mi.eff_varied hi]
+
+theorem zoned_plain (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (lo : c.out = mo.z.p) (li : c.inside = mi.z.p) (vo : mo.viaRef = false) (vi : mi.viaRef = false)
+    (so : mo.seen ≠ .varied) (si : mi.seen ≠ .varied) :
+    zoned c f live mo mi = .graded (gradeRel c f live) := by
+  by_cases hg : gradeRel c f live = .invalid
+  · rw [zoned_invalid c f live mo mi hg, hg]
+  · have hj : mo.seen.join mi.seen ≠ .varied := fun h =>
+      match (join_varied_iff _ _).1 h with
+      | ⟨_, _, Or.inl a⟩ => so a
+      | ⟨_, _, Or.inr a⟩ => si a
+    rw [zoned_graded c f live mo mi hg hj, effCell, mo.eff_plain so vo, mi.eff_plain si vi, ← lo, ← li]
+
+theorem zoned_out_counted_l (c : Cell) (mo mi : MZone)
+    (ho : mo.seen = .counted) (hv : (effCell c mo mi).valid = true) : grade (effCell c mo mi) = .l := by
+  have h : (effCell c mo mi).out.changed ≠ 0 := mo.eff_counted ho
+  unfold grade
+  simp [hv, h]
+
+/-- Why a zoned L cell is L, from the counted zones only. -/
+def zonedWhy (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) : Option Why :=
+  if zoned c f live mo mi == .graded .l then whyL (effCell c mo mi) f live else none
+
+theorem zoned_l_eff (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (h : zoned c f live mo mi = .graded .l) : gradeRel (effCell c mo mi) f live = .l := by
+  unfold zoned at h
+  by_cases hg : gradeRel c f live = .invalid
+  · simp [hg] at h
+  · by_cases hj : mo.seen.join mi.seen = .varied
+    · simp [hg, hj] at h
+    · simpa [hg, hj] using h
+
+theorem zonedWhy_isSome_iff (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) :
+    (zonedWhy c f live mo mi).isSome = true ↔ zoned c f live mo mi = .graded .l := by
+  unfold zonedWhy
+  by_cases h : zoned c f live mo mi = .graded .l
+  · simp [h, whyL_isSome_iff, zoned_l_eff c f live mo mi h]
+  · simp [h]
+
+/-- The look list holds only cells graded L; a varied cell is never listed. -/
+def Verdict.listed : Verdict → Bool
+  | .graded .l => true
+  | _ => false
+
+theorem Verdict.listed_iff (v : Verdict) : v.listed = true ↔ v = .graded .l := by
+  cases v with
+  | graded g => cases g <;> simp [Verdict.listed]
+  | varied => simp [Verdict.listed]
+
+theorem varied_not_listed : Verdict.varied.listed = false := rfl
+
+theorem zoned_listed_not_varied (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (h : (zoned c f live mo mi).listed = true) : mo.seen.join mi.seen ≠ .varied := by
+  intro hj
+  have := (Verdict.listed_iff _).1 h
+  by_cases hg : gradeRel c f live = .invalid
+  · rw [zoned_invalid c f live mo mi hg] at this
+    cases this
+  · rw [(zoned_varied_iff c f live mo mi).2 ⟨hg, hj⟩] at this
+    cases this
+
+/-- The ms between sampled frames of one accent draw. -/
+def drawStepMs : Nat := 150
+
+/-- The length of one accent draw in ms. -/
+def drawMs : Nat := 900
+
+/-- The seek times, in ms into one draw, at which a frame is read. -/
+def drawTimes : List Nat := (List.range 7).map (· * drawStepMs)
+
+theorem drawTimes_length : drawTimes.length = 7 := by simp [drawTimes]
+
+theorem drawTimes_first : drawTimes.head? = some 0 := by decide
+
+theorem drawTimes_last : drawTimes.getLast? = some drawMs := by decide
+
+theorem drawTimes_sorted : drawTimes.Pairwise (· < ·) := by decide
+
+/-- An arm's frame against faithful: no changed pixel, a change inside the faithful A/A floor, or above it. -/
+inductive Draw where
+  | same | floor | above
+deriving DecidableEq, Repr
+
+def Draw.name : Draw → String
+  | .same => "same" | .floor => "floor" | .above => "above"
+
+/-- Reads `arm` (arm against faithful) against `aa` (faithful against faithful) at one frame. -/
+def drawOf (aa arm : Raw) : Draw :=
+  if arm.changed == 0 then .same else if arm.le aa then .floor else .above
+
+theorem drawOf_same_iff (aa arm : Raw) : drawOf aa arm = .same ↔ arm.changed = 0 := by
+  unfold drawOf
+  by_cases h : arm.changed = 0 <;> by_cases g : arm.le aa = true <;> simp_all
+
+theorem drawOf_floor_iff (aa arm : Raw) : drawOf aa arm = .floor ↔ arm.changed ≠ 0 ∧ arm.le aa = true := by
+  unfold drawOf
+  by_cases h : arm.changed = 0 <;> by_cases g : arm.le aa = true <;> simp_all
+
+theorem drawOf_above_iff (aa arm : Raw) : drawOf aa arm = .above ↔ arm.changed ≠ 0 ∧ arm.le aa = false := by
+  unfold drawOf
+  by_cases h : arm.changed = 0 <;> by_cases g : arm.le aa = true <;> simp_all
+
+theorem drawOf_above_of_quiet_floor (aa arm : Raw) (ha : aa.changed = 0) (h : arm.changed ≠ 0) :
+    drawOf aa arm = .above := by
+  refine (drawOf_above_iff aa arm).2 ⟨h, ?_⟩
+  cases hg : arm.le aa
+  · rfl
+  · simp [Raw.le, ha] at hg
+    exact absurd hg.1 h
+
+/-- The worst frame of a run: above beats floor beats same. -/
+def Draw.worst (xs : List Draw) : Draw :=
+  if xs.contains .above then .above else if xs.contains .floor then .floor else .same
+
+theorem Draw.worst_above_iff (xs : List Draw) : Draw.worst xs = .above ↔ .above ∈ xs := by
+  unfold Draw.worst
+  by_cases h : Draw.above ∈ xs <;> by_cases hf : Draw.floor ∈ xs <;> simp_all
+
+theorem Draw.worst_same_iff (xs : List Draw) : Draw.worst xs = .same ↔ ∀ d ∈ xs, d = .same := by
+  unfold Draw.worst
+  constructor
+  · intro h d hd
+    cases d
+    · rfl
+    · by_cases ha : Draw.above ∈ xs <;> simp_all
+    · by_cases ha : Draw.above ∈ xs <;> simp_all
+  · intro h
+    have ha : Draw.above ∉ xs := fun hm => by simpa using h _ hm
+    have hf : Draw.floor ∉ xs := fun hm => by simpa using h _ hm
+    simp [ha, hf]
+
 structure Probe where
   x : Int
   y : Int
@@ -1660,6 +1906,40 @@ def armCases : List (String × Aa × Option Aa) :=
   [("A2 and A3 agree", ⟨z, z⟩, some ⟨z, z⟩), ("A2 differs inside", ⟨z, ⟨3, 1⟩⟩, some ⟨z, z⟩),
    ("A3 differs outside", ⟨z, z⟩, some ⟨⟨4478, 2⟩, z⟩), ("A2 and A3 differ outside", ⟨⟨4478, 2⟩, z⟩, some ⟨⟨4478, 2⟩, z⟩),
    ("A3 not captured, A2 agrees", ⟨z, z⟩, none), ("A3 not captured, A2 differs outside", ⟨⟨5, 2⟩, z⟩, none)]
+
+def Zone.json (r : Zone) : Json :=
+  Json.mkObj [("p", r.p.json), ("aa2", r.aa2.json), ("aa3", match r.aa3 with | some x => x.json | none => Json.null)]
+
+def MZone.json (m : MZone) : Json :=
+  Json.mkObj [("zone", m.z.json), ("p2", match m.p2 with | some x => x.json | none => Json.null),
+    ("a23", match m.a23 with | some x => x.json | none => Json.null)]
+
+def mzoneCases : List (String × MZone) :=
+  let z : Raw := ⟨0, 0⟩
+  let r : Raw := ⟨192513, 20⟩
+  [("quiet", ⟨⟨z, z, some z⟩, some z, some z⟩), ("counted", ⟨⟨r, z, some z⟩, some r, some z⟩),
+   ("varied", ⟨⟨⟨4478, 2⟩, ⟨4478, 2⟩, some ⟨4478, 2⟩⟩, some ⟨3, 1⟩, some ⟨1, 1⟩⟩),
+   ("A odd, P equals the majority", ⟨⟨r, r, some r⟩, some z, some z⟩),
+   ("A odd, P differs from the majority", ⟨⟨r, ⟨10, 1⟩, some ⟨10, 1⟩⟩, some ⟨500, 3⟩, some z⟩),
+   ("A odd, P against A2 not captured", ⟨⟨r, r, some r⟩, none, some z⟩)]
+
+def zoneFloors : List (Option Floor) := [none, some ⟨true, ⟨0, 0⟩, ⟨30, 4⟩⟩]
+
+def zonedCases : List (String × Cell × Option Floor × Bool × MZone × MZone) :=
+  let base := mkCell { moveClaim with compA := true } ⟨0, 0⟩ ⟨0, 0⟩
+  let live := mzoneCases.flatMap fun (on, mo) => mzoneCases.flatMap fun (inn, mi) => zoneFloors.map fun f =>
+    (s!"out {on}, inside {inn}, floor {f.isSome}", { base with out := mo.z.p, inside := mi.z.p }, f, true, mo, mi)
+  live ++ [("arm not live", { base with out := ⟨192513, 20⟩, inside := ⟨5, 1⟩ }, none, false,
+    ⟨⟨⟨192513, 20⟩, ⟨0, 0⟩, some ⟨0, 0⟩⟩, some ⟨192513, 20⟩, some ⟨0, 0⟩⟩,
+    ⟨⟨⟨5, 1⟩, ⟨0, 0⟩, some ⟨0, 0⟩⟩, some ⟨5, 1⟩, some ⟨0, 0⟩⟩)]
+
+def drawCases : List (String × Raw × Raw) :=
+  [("no change", ⟨0, 0⟩, ⟨0, 0⟩), ("no change, faithful floor", ⟨7, 2⟩, ⟨0, 0⟩), ("change under a zero floor", ⟨0, 0⟩, ⟨1, 1⟩),
+   ("change inside the floor", ⟨7, 2⟩, ⟨7, 2⟩), ("fewer pixels, larger delta", ⟨7, 2⟩, ⟨3, 9⟩),
+   ("more pixels", ⟨7, 2⟩, ⟨8, 1⟩)]
+
+def drawWorstCases : List (List Draw) :=
+  [[], [.same, .same], [.same, .floor], [.floor, .above, .same], [.above]]
 
 def probeCases : List (String × Nat × Option (Nat × Nat × Nat × Nat) × List (String × Probe)) :=
   let lang : Probe := ⟨218590000, 24000000, 73000000, 36000000⟩
@@ -1808,6 +2088,20 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("a2", Json.mkObj [("out", a2.out.json), ("inside", a2.inside.json)]),
       ("a3", match a3 with | some x => Json.mkObj [("out", x.out.json), ("inside", x.inside.json)] | none => Json.null),
       ("grade", toJson (gradeRel c f live).name), ("verdict", toJson (consensus c f live a2 a3).name)]).compress)) ++
+  zonedCases.map (fun (n, c, f, live, mo, mi) =>
+    (Json.mkObj [("kind", "zoned"), ("name", toJson n), ("cell", c.json),
+      ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("out", mo.json), ("inside", mi.json), ("odd", toJson [mo.odd, mi.odd]),
+      ("seen", toJson [mo.seen.name, mi.seen.name]), ("eff", toJson [mo.eff.json, mi.eff.json]),
+      ("grade", toJson (gradeRel c f live).name), ("verdict", toJson (zoned c f live mo mi).name),
+      ("why", match zonedWhy c f live mo mi with | some w => toJson w.name | none => Json.null),
+      ("listed", toJson (zoned c f live mo mi).listed)]).compress) ++
+  [(Json.mkObj [("kind", "drawTimes"), ("ms", toJson drawMs), ("times", toJson drawTimes)]).compress] ++
+  drawCases.map (fun (n, aa, arm) =>
+    (Json.mkObj [("kind", "draw"), ("name", toJson n), ("aa", aa.json), ("arm", arm.json),
+      ("draw", toJson (drawOf aa arm).name)]).compress) ++
+  drawWorstCases.map (fun ds =>
+    (Json.mkObj [("kind", "drawWorst"), ("draws", toJson (ds.map Draw.name)), ("worst", toJson (Draw.worst ds).name)]).compress) ++
   probeCases.map (fun (n, dpr, b, ps) =>
     (Json.mkObj [("kind", "probeHit"), ("name", toJson n), ("dpr", toJson dpr),
       ("bbox", match b with | some x => toJson [x.1, x.2.1, x.2.2.1, x.2.2.2] | none => Json.null),
@@ -1868,6 +2162,11 @@ def run (args : List String) : IO UInt32 := do
 
 #guard (seenCases.map fun (_, r) => r.seen.name) ==
   ["quiet", "quiet", "counted", "varied", "varied", "varied", "counted", "varied"]
+#guard (mzoneCases.map fun (_, m) => m.seen.name) == ["quiet", "counted", "varied", "quiet", "counted", "varied"]
+#guard (mzoneCases.map fun (_, m) => m.odd) == [false, false, false, true, true, true]
+#guard drawTimes == [0, 150, 300, 450, 600, 750, 900]
+#guard (drawCases.map fun (_, aa, arm) => (drawOf aa arm).name) == ["same", "same", "above", "floor", "above", "above"]
+#guard (drawWorstCases.map Draw.worst) == [.same, .same, .floor, .above, .above]
 #guard (probeCases.map fun (_, dpr, b, ps) => probesHit dpr b ps) ==
   [["nav-lang button"], ["nav-lang button"], [], [], [], [], ["nav-lang button", "nav-earn"], [], ["nav-lang button"], []]
 

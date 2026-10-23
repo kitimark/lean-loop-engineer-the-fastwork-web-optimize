@@ -48,6 +48,8 @@ export function engineTable(engine, lanes) {
 const HERO = 'hero_copy';
 const raw = (x) => `${x.changed}-${x.maxDelta}`;
 
+export const cellVerdict = (c) => c.consensus?.verdict ?? c.grade;
+
 export const lSource = (p) => (p.grade !== 'L' ? null : p.ifAccepted !== 'L' ? 'strips not accepted' : p.out.changed > 0 ? 'outside the mask' : 'inside, above the floor');
 
 const cellAt = (l, key, i, kind) => l.cells.find((c) => c.key === key && c.i === i && c.kind === kind);
@@ -63,7 +65,7 @@ export function heroCopyTable(engine, lanes, key = HERO) {
       const aa = f ? `${raw(f.inside)}/${raw(f.out)}${f.grade === 'invalid' ? ` (invalid: ${f.invalidWhy})` : ''}` : `skipped: ${sk('A/A') ?? 'no cell'}`;
       if (!p) return [aa, `skipped: ${sk('P') ?? 'no cell'}`, '-'];
       const src = lSource(p);
-      return [aa, `${raw(p.inside)}/${raw(p.out)}`, `${p.grade}${p.grade === 'invalid' ? ` (${p.invalidWhy ?? 'not live'})` : src ? ` (${src})` : ''} [${p.ifAccepted}]`];
+      return [aa, `${raw(p.inside)}/${raw(p.out)}`, `${p.grade}${p.grade === 'invalid' ? ` (${p.invalidWhy ?? 'not live'})` : src ? ` (${src})` : ''} [${p.ifAccepted}]${p.consensus ? ` verdict ${p.consensus.verdict}` : ''}`];
     });
     out.push(`| ${i} | ${y} | ${cols.join(' | ')} |`);
   });
@@ -74,11 +76,13 @@ export function heroCopySummary(engine, lanes, key = HERO) {
   const ps = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'P'));
   const fs = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'A/A'));
   const g = (x) => count(ps, (c) => c.grade === x), src = (x) => count(ps, (c) => lSource(c) === x);
+  const listed = count(ps, (c) => cellVerdict(c) === 'L'), varied = count(ps, (c) => cellVerdict(c) === 'varied');
+  const readDown = count(ps, (c) => c.grade === 'L' && cellVerdict(c) !== 'L' && cellVerdict(c) !== 'varied');
   const skips = lanes.flatMap((l) => l.skipped.filter((x) => x.key === key));
   const reasons = [...new Set(skips.map((x) => x.why))].map((w) => `${w} x${count(skips, (x) => x.why === w)}`);
   return [`#### ${engine}: ${key} summary over ${lanes.length} jobs`, '',
-    '| P cells | E | E1 | Q | L | invalid | L: strips not accepted | L: inside, above the floor | L: outside the mask | A/A cells | A/A with a change inside | A/A with a change outside | skipped (reason) |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-    `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('inside, above the floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
+    '| P cells | E | E1 | Q | L | invalid | L: strips not accepted | L: inside, above the floor | L: outside the mask | A/A cells | A/A with a change inside | A/A with a change outside | skipped (reason) | verdict L | verdict varied | grade L read down by the majority arm |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('inside, above the floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} | ${listed} | ${varied} | ${readDown} |`].join('\n');
 }
 
 const receiverText = (l, c, key) => {
@@ -121,21 +125,21 @@ export function probeTable(lanes) {
 const VERDICTS = ['E', 'E1', 'Q', 'L', 'invalid', 'varied'];
 
 export function consensusSummary(engine, lanes) {
-  const out = [`#### ${engine}: consensus of the identical arms, P cells per job`, '', `| job | A3 captured | P cells | counted | varied | quiet | ${VERDICTS.join(' | ')} | no consensus data |`, `|---|---|---|---|---|---|${VERDICTS.map(() => '---').join('|')}|---|`];
+  const out = [`#### ${engine}: consensus of the identical arms, P cells per job`, '', `| job | A3 captured | P cells | counted | varied | quiet | ${VERDICTS.join(' | ')} | A the odd arm | no consensus data |`, `|---|---|---|---|---|---|${VERDICTS.map(() => '---').join('|')}|---|---|`];
   for (const l of lanes) {
     const ps = l.cells.filter((c) => c.kind === 'P'), cs = ps.filter((c) => c.consensus);
     const seen = (x) => count(cs, (c) => c.consensus.seen === x), v = (x) => count(cs, (c) => c.consensus.verdict === x);
-    out.push(`| ${l.label} | ${l.armsRun?.includes('A3') ? 'yes' : 'no'} | ${ps.length} | ${seen('counted')} | ${seen('varied')} | ${seen('quiet')} | ${VERDICTS.map(v).join(' | ')} | ${ps.length - cs.length} |`);
+    out.push(`| ${l.label} | ${l.armsRun?.includes('A3') ? 'yes' : 'no'} | ${ps.length} | ${seen('counted')} | ${seen('varied')} | ${seen('quiet')} | ${VERDICTS.map(v).join(' | ')} | ${count(cs, (c) => c.consensus.odd?.some(Boolean))} | ${ps.length - cs.length} |`);
   }
   return out.join('\n');
 }
 
 export function consensusCells(lanes) {
-  const out = ['| job | consumer | offset | ask y | P grade | verdict | P inside / out (chg-max) | A vs A2 inside / out | A vs A3 inside / out | inside | outside |', '|---|---|---|---|---|---|---|---|---|---|---|'];
+  const out = ['| job | consumer | offset | ask y | P grade | verdict | P inside / out (chg-max) | A vs A2 inside / out | A vs A3 inside / out | inside | outside | verdict reading A as reference | A the odd arm | P vs A2 inside / out |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|'];
   const pair = (x) => (x ? `${raw(x.inside)} / ${raw(x.out)}` : 'not captured');
   for (const l of lanes) for (const c of l.cells) {
-    if (c.kind !== 'P' || !c.consensus || c.consensus.seen === 'quiet') continue;
-    out.push(`| ${l.label} | ${c.key} | ${c.i} | ${c.y} | ${c.grade} | ${c.consensus.verdict} | ${raw(c.inside)} / ${raw(c.out)} | ${pair(c.consensus.a2)} | ${pair(c.consensus.a3)} | ${c.consensus.inside} | ${c.consensus.out} |`);
+    if (c.kind !== 'P' || !c.consensus || (c.consensus.vsA ?? c.consensus).seen === 'quiet') continue;
+    out.push(`| ${l.label} | ${c.key} | ${c.i} | ${c.y} | ${c.grade} | ${c.consensus.verdict} | ${raw(c.inside)} / ${raw(c.out)} | ${pair(c.consensus.a2)} | ${pair(c.consensus.a3)} | ${c.consensus.inside} | ${c.consensus.out} | ${c.consensus.vsA?.verdict ?? '-'} | ${c.consensus.odd?.some(Boolean) ? 'yes' : 'no'} | ${pair(c.consensus.p2)} |`);
   }
   return out.join('\n');
 }
@@ -162,8 +166,15 @@ export function pinTable(lanes) {
 }
 
 export function lookList(lanes) {
-  const out = ['| replicate | artifact | strip | consumer | offset | why |', '|---|---|---|---|---|---|'];
-  for (const l of lanes) for (const c of l.cells) if (c.kind === 'P' && c.grade === 'L' && c.strip) out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.why} |`);
+  const out = ['| replicate | artifact | strip | consumer | offset | grade | verdict | why |', '|---|---|---|---|---|---|---|---|'];
+  let varied = 0, readDown = 0;
+  for (const l of lanes) for (const c of l.cells) {
+    if (c.kind !== 'P' || !c.strip) continue;
+    const v = cellVerdict(c);
+    if (v === 'L') out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.grade} | ${v} | ${c.consensus ? c.consensus.why : c.why} |`);
+    else if (c.grade === 'L') { if (v === 'varied') varied++; else readDown++; }
+  }
+  out.push('', `left out of the list: ${varied} varied cells (a change the identical arms also show), ${readDown} grade-L cells the majority arm reads as not L`);
   return out.join('\n');
 }
 
