@@ -14,11 +14,31 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
   runIds?: number[]; phases?: Record<string, number | string | boolean>;
-  slot?: { width: number; jobs: number } };
+  slot?: { width: number; jobs: number };
+  /** `fw polish commit` spans only: the checkmap commands of the commit (count and kinds). */
+  checks?: { n: number; kinds: string[] } };
 
 export function slotWork(slot: unknown): { work?: Record<string, string> } {
   const w = (slot as { width?: unknown } | null | undefined)?.width;
   return typeof w === "number" && Number.isInteger(w) && w >= 0 ? { work: { width: String(w) } } : {};
+}
+
+/** Lean `Fw.Obs.Timing.heavyChecks`, checked against the work golden. */
+export const HEAVY_CHECKS = ["lakeBuild", "leanElab", "presetCheck"] as const;
+
+/** Lean `Fw.Obs.Timing.checksWork`: the heavy kinds of a `checks` member joined by `+`, or `light`; none without a
+ *  `kinds` array. */
+export function checksWork(checks: unknown): { work?: Record<string, string> } {
+  const k = (checks as { kinds?: unknown } | null | undefined)?.kinds;
+  if (!Array.isArray(k)) return {};
+  const heavy = HEAVY_CHECKS.filter((h) => k.includes(h));
+  return { work: { checks: heavy.length ? heavy.join("+") : "light" } };
+}
+
+/** Lean `Fw.Obs.Timing.spanWork`: the checks class and the slot width of a span line. */
+export function spanWork(o: { slot?: unknown; checks?: unknown }): { work?: Record<string, string> } {
+  const work = { ...checksWork(o.checks).work, ...slotWork(o.slot).work };
+  return Object.keys(work).length ? { work } : {};
 }
 
 type Where = { main: string; sha: string };
