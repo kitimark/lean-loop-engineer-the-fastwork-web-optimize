@@ -23,7 +23,7 @@ pnpm -s fw polish --staged [--cuts <file|-> [--apply yes]]
   `VERDICT polish-cuts <id> applied|judged <n>/<m>`. Only files in the prose scope are read; a cut on another file is `notProse` or `notFound`.
 - `commit`: edits in the worktree (`git diff --name-only HEAD`) that Lean keeps are added and committed; the rest are
   restored from HEAD. Each edit hunk of a code or shell file is judged alone: a hunk not wholly inside a branch hunk plus
-  the margin is reverted whole (even one that starts inside the margin and runs past it) and named
+  the margin is reverted whole and named
   (`restored <path>:<lo>-<hi> (outside the branch's hunks)`); a kept file with no edit record is restored. If the main
   checkout has uncommitted edits in the plan's files, nothing is restored or committed:
   `VERDICT polish-commit <id> refused` (exit 1). `VERDICT polish-commit <id> committed|nothing`.
@@ -85,13 +85,11 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
 ## Goldens
 
 `packages/contracts/golden/plan/polish.jsonl` (test `apps/runner/test/polish.test.ts`; regenerate with
-`FW_WRITE_POLISH_GOLDEN=1`). The three over-cuts of the 10-22 slop pass are cases: all three are `dropsFacts` (polarity words `not`, `no`, `never`,
-`without`, `unless` are facts).
+`FW_WRITE_POLISH_GOLDEN=1`). The three over-cuts of the 10-22 slop pass are `dropsFacts` cases (polarity words `not`, `no`, `never`, `without`, `unless` are facts).
 
 ## Limits
 
-- A cut that keeps every token and polarity word but drops other meaning applies; `slop-checker`'s judgement stays an
-  agent's, and so does `comment-sicko`'s.
+- A cut that keeps every token and polarity word but drops other meaning applies; the judgement of `slop-checker` and `comment-sicko` stays an agent's.
 - Each polish run costs one comment and one prose agent per accepted build.
 - `relOk` checks the path text, not symlink resolution.
 - A cut applies only where its old text occurs once in the file and `cutSafe` holds.

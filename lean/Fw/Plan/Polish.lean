@@ -33,16 +33,12 @@ def codeExts : List String := ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "c
 
 def proseJson : List String := ["docs/team/incidents/ledger.json", "docs/team/work-graph.json"]
 
-/-- Repo-relative prefixes whose Edit waits on a user permission prompt (`ask` rules `Edit(/.claude/**)`, `Edit(/CLAUDE.md)` in `.claude/settings.json`). -/
 def protectedDirs : List String := [".claude/"]
 
-/-- The single files of the same `ask` rules. -/
 def protectedFiles : List String := ["CLAUDE.md"]
 
-/-- A path whose edit needs a user prompt; a polish stage waiting on it stalls. -/
 def protectedPath (p : String) : Bool := protectedFiles.contains p || protectedDirs.any fun r => p.startsWith r
 
-/-- The paths a polish stage may edit without a prompt. -/
 def polishable (p : String) : Bool := !protectedPath p
 
 def genName (p : String) : Bool := ((baseName p).splitOn ".gen.").length > 1
