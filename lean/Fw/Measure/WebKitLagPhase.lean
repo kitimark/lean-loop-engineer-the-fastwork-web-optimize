@@ -235,7 +235,7 @@ theorem classify_fixed : classify (fixedMarks 130) (some 19) (some 139) = .ok 10
 private def mj (ms : List Int) : Json := toJson ms
 private def oj (o : Option Int) : Json := match o with | some v => toJson v | none => Json.null
 
-private def cases : List (List Int × Option Int × Option Int) :=
+private def cases (_ : Unit) : List (List Int × Option Int × Option Int) :=
   [(fixedMarks 130, some 19, some 139), (fixedMarks 130, some 20, some 140), (fixedMarks 130, some 21, some 139),
    (fixedMarks 130, some 19, none), (fixedMarks 130, none, some 139), (fixedMarks 130, none, none),
    (fixedMarks 130, some 139, some 19), (fixedMarks 130, some 19, some 19), (fixedMarks 40, some 9, some 41),
@@ -257,8 +257,8 @@ private def line (c : List Int × Option Int × Option Int) : String :=
     | _, _ => []
   (Json.mkObj (base ++ rest ++ ph)).compress
 
-def phaseGoldenLines : List String :=
+def phaseGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "phaseConst"), ("minIdle", minIdle), ("minOpen", minOpen), ("minClose", minClose)]).compress]
-    ++ cases.map line
+    ++ (cases ()).map line
 
 end Fw.Measure.WebKitLagPhase

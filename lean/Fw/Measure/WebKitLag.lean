@@ -880,7 +880,7 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "filter"), ("viewport", rj vp),
       ("items", Json.arr (items.map fun f => Json.mkObj [("radius", f.radius), ("rect", rj f.r)]).toArray),
       ("count", n), ("area", a), ("areaRadius", ar)]).compress) ++
-  Fw.Measure.WebKitLagPhase.phaseGoldenLines
+  Fw.Measure.WebKitLagPhase.phaseGoldenLines ()
 
 /-- The bytes of `packages/contracts/golden/measure/webkit-lag.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
