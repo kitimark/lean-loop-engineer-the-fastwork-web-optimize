@@ -81,6 +81,7 @@ import Fw.Parts.PeopleCarouselCrop
 import Fw.Parts.PainDarkScroll
 import Fw.Parts.HeroAccentOpt
 import Fw.Parts.ClassPos
+import Fw.Measure.GpuElapsed
 import Fw.Measure.Zones
 import Fw.Measure.Classes
 import Fw.Measure.Quiet
@@ -160,6 +161,7 @@ import Fw.Plan.Incident
 import Fw.Plan.Overlap
 import Fw.Plan.ReviewReady
 import Fw.Plan.Workflow
+import Fw.Plan.WritesClosure
 import Fw.Obs.Timing
 import Fw.Obs.Backoff
 import Fw.Ci.Trigger

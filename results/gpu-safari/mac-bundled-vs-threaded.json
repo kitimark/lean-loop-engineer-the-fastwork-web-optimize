@@ -1,0 +1,381 @@
+{
+ "schema": "fw.gpu-safari-fade-probe/1",
+ "lane": "macos-safari",
+ "rows": [
+  {
+   "arm": "base",
+   "m": 0.25,
+   "elapsedMs": 62.179,
+   "effects": 0,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0.545455",
+    "filter": "blur(5.454545px)",
+    "morphFade": "0.5454545351056022",
+    "morph": "0.25",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "base",
+   "m": 0.5,
+   "elapsedMs": 140.284,
+   "effects": 0,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0.090907",
+    "filter": "blur(10.909113px)",
+    "morphFade": "0.09090728355090871",
+    "morph": "0.5",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "base",
+   "m": 0.75,
+   "elapsedMs": 251.627,
+   "effects": 0,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0",
+    "filter": "blur(12px)",
+    "morphFade": "0",
+    "morph": "0.75",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "m": 0.25,
+   "elapsedMs": 62.179,
+   "effects": 2,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0.545455",
+    "filter": "blur(5.454545px)",
+    "morphFade": "0.5454545351056022",
+    "morph": "0.25",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "m": 0.5,
+   "elapsedMs": 140.284,
+   "effects": 2,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0.090907",
+    "filter": "blur(10.909113px)",
+    "morphFade": "0.09090728355090871",
+    "morph": "0.5",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "morph-panel-threaded",
+   "m": 0.75,
+   "elapsedMs": 251.627,
+   "effects": 2,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0",
+    "filter": "blur(12px)",
+    "morphFade": "0",
+    "morph": "0.75",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "m": 0.25,
+   "elapsedMs": 62.179,
+   "effects": 3,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0.545455",
+    "filter": "blur(5.454545px)",
+    "morphFade": "1",
+    "morph": "0.25",
+    "animations": [
+     {
+      "playState": "paused",
+      "progress": 0.2500000056919185
+     }
+    ],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "m": 0.5,
+   "elapsedMs": 140.284,
+   "effects": 3,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0.090907",
+    "filter": "blur(10.909113px)",
+    "morphFade": "1",
+    "morph": "0.5",
+    "animations": [
+     {
+      "playState": "paused",
+      "progress": 0.500000994047
+     }
+    ],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  },
+  {
+   "arm": "morph-panel-threaded-fade",
+   "m": 0.75,
+   "elapsedMs": 251.627,
+   "effects": 3,
+   "rest": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "1",
+    "filter": "blur(0px)",
+    "morphFade": "1",
+    "morph": "0",
+    "animations": [],
+    "scrollY": 5229,
+    "innerHeight": 880
+   },
+   "platform": {
+    "found": true,
+    "rect": [
+     0,
+     -973.98,
+     413,
+     1854.38
+    ],
+    "inViewportShare": 0.4746,
+    "opacity": "0",
+    "filter": "blur(12px)",
+    "morphFade": "1",
+    "morph": "0.75",
+    "animations": [
+     {
+      "playState": "paused",
+      "progress": 0.7500002748144873
+     }
+    ],
+    "scrollY": 5229,
+    "innerHeight": 880
+   }
+  }
+ ]
+}
