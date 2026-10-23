@@ -44,5 +44,4 @@ export const armsOutcome = (basePasses, flagPasses) => {
   return { rows, outcome: outcome(rows.map((r) => r[4])), base: b.map(passJson), flag: f.map(passJson) };
 };
 
-/** One line of `wkcost-sums.jsonl`: the reduced per-pass sums of two runs, numbers only (Lean checks it in `Fw.Measure.WkCost`). */
 export const sumsLine = (run, res) => JSON.stringify({ kind: 'morphRunSums', run, base: res.base, flag: res.flag });

@@ -1,5 +1,5 @@
-Branch: worktree-wf_879f7b4e-2cf-1. Worktree: .claude/worktrees/wf_879f7b4e-2cf-1. Last commit: see git log. No CI runs (none needed; no push).
-Task: runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean were hand-copied; now a committed reduced golden checks them.
+Branch: worktree-wf_879f7b4e-2cf-1. Worktree: .claude/worktrees/wf_879f7b4e-2cf-1. Last commit: see git log. No CI runs, no push.
+Task: a committed reduced golden now checks runBase, runFlag, runBase6 and runFlag6 in lean/Fw/Measure/WkCost.lean, which were hand-copied.
 Delivered:
 - `morph-verdict --json` now also emits `base`/`flag` PassSums (packages/measure-webkit/src/lag/morphcost.mjs `passJson`); `--sums <file> --run baseId,flagId` writes one `morphRunSums` line (numbers only).
 - packages/contracts/golden/measure/wkcost-sums.jsonl: 2 lines, runs 39903977820,39903974246 (2 passes/arm) and 39915136431,39915146774 (6 passes/arm). Not Lean-generated: it is the reduction of the r*-lag.json artifacts.
