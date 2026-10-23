@@ -1,7 +1,7 @@
 branch: worktree-wf_6d52745a-a7b-1 (CI branch ci/pathpix-accent-pin)
 worktree: .claude/worktrees/wf_6d52745a-a7b-1
-last commit: see git log (WIP before the first CI push)
-CI runs: none yet
+last commit: 32d2316b3
+CI runs: 39943789128 (path-pix, ci/pathpix-accent-pin, 32d2316b3) running
 verified: measure-webkit pathpix tests (24) green locally; Lean PathPix builds, golden regenerated and --check green
 open: CI run (floor of hero_copy A/A at 0?), package tests, lean check, ci-paths, land-inputs, land dry
 
