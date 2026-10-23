@@ -16987,7 +16987,14 @@
     "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
     "packages/gate-breakpoints/test/trajectory-gpu-raw.test.mjs",
     "lean/scripts/check.sh",
-    "docs/team/handoffs/gpu-cells-raw-fixture.md"
+    "docs/team/handoffs/gpu-cells-raw-fixture.md",
+    "lean/Fw/Gate/TrajectoryGpu.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts"
    ],
    "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l."
   },
@@ -17148,7 +17155,8 @@
     "docs/team/handoffs/commission-band-followups.md",
     "apps/site/src/parts/commission/bandgate.test.ts"
    ],
-   "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1)."
+   "title": "Review follow-ups of commission-band-gate: (1) visSame covers bodies only; model events as Ev ⊕ media change and prove look agreement over the merged trajectory; (2) premise P1 (the media-query change event fires before paint, in the same rendering update as the rAF body) is a hypothesis: cite the HTML 'update the rendering' order and the WebKit and Chromium source (file:line@commit) and mark it CONFIRMED; (3) state the Chromium window bound convention in the note so the figures reproduce (inclusive 3070 <= scrollY <= 3530 gives 47 frames per run, RecalcStyleCount 5.02 -> 3.09, elementCount 127.1 -> 60.6; the note says 46, 3.07, 60.1).",
+   "evidence": "d2cb3e8"
   },
   {
    "devices": [
@@ -17169,7 +17177,8 @@
     "results/nav-fixed-size/**",
     "docs/team/handoffs/nav-fixed-followups.md"
    ],
-   "title": "Review follow-ups of nav-fixed-size (landed): (1) ledger rows nav.clip-box/bar-fixed/logo-3d: the clip-box candidate says the morph 'lays out nothing per frame' and the mechanism 'no width transition starts', both refuted (bar and panel insets are placed per frame; a width transition under 0.42 px starts for 0 < m <= cut); bar-fixed and logo-3d leanFor lists only NavClipBox theorems, add their own (barW_const, logoX_eq, translate_scale_order, logo3d_layout_normal); (2) restW fixes heroPill = false while the hero pill can come on in the same frame .is-morphing drops (logic.ts:63): make restW take h : Bool and state decl_eq_rest_zero for every h; (3) post-land: rerun the three per-flag gates on main (the main merge changed morph.tween/index.tsx, which publishes --morph to the nav) and the trajectory nav clip cell (gpu-trajectory-cells is on main); (4) the layer census and cost lane (webkit-sim --target rewrite --fw nav:<flag>, chromium-counts) with ledger numbers."
+   "title": "Review follow-ups of nav-fixed-size (landed): (1) ledger rows nav.clip-box/bar-fixed/logo-3d: the clip-box candidate says the morph 'lays out nothing per frame' and the mechanism 'no width transition starts', both refuted (bar and panel insets are placed per frame; a width transition under 0.42 px starts for 0 < m <= cut); bar-fixed and logo-3d leanFor lists only NavClipBox theorems, add their own (barW_const, logoX_eq, translate_scale_order, logo3d_layout_normal); (2) restW fixes heroPill = false while the hero pill can come on in the same frame .is-morphing drops (logic.ts:63): make restW take h : Bool and state decl_eq_rest_zero for every h; (3) post-land: rerun the three per-flag gates on main (the main merge changed morph.tween/index.tsx, which publishes --morph to the nav) and the trajectory nav clip cell (gpu-trajectory-cells is on main); (4) the layer census and cost lane (webkit-sim --target rewrite --fw nav:<flag>, chromium-counts) with ledger numbers.",
+   "evidence": "ece63f9"
   },
   {
    "devices": [
@@ -17375,7 +17384,8 @@
     "lean/Fw/Obs/Golden.lean",
     "lean/Fw/Wire/Obs.lean"
    ],
-   "title": "Found 2026-10-23: fw watch opened ci.slow for land@ and lean@ ci/land-people-o-preview-translate-87a29c2 'in_progress for 22 min' and again at 26 min, while gh run list showed every run on that branch completed (lean 39869394794, land 39869394814 failed at about 23:10Z). The watch's CI state is stale by 20+ min. Find where watch-collect gets run states (cache, gh-budget charged reads, list cadence) with forensics before naming the cause; fix so a run that completed closes its ci.slow within one watch pass (or the alert names the age of its data); state the freshness rule in Lean (Fw.Obs.Health / GhStatus) with goldens, within the gh rate-limit rules (list not view, poll >= 120 s)."
+   "title": "Found 2026-10-23: fw watch opened ci.slow for land@ and lean@ ci/land-people-o-preview-translate-87a29c2 'in_progress for 22 min' and again at 26 min, while gh run list showed every run on that branch completed (lean 39869394794, land 39869394814 failed at about 23:10Z). The watch's CI state is stale by 20+ min. Find where watch-collect gets run states (cache, gh-budget charged reads, list cadence) with forensics before naming the cause; fix so a run that completed closes its ci.slow within one watch pass (or the alert names the age of its data); state the freshness rule in Lean (Fw.Obs.Health / GhStatus) with goldens, within the gh rate-limit rules (list not view, poll >= 120 s).",
+   "evidence": "940a1cb"
   },
   {
    "devices": [
@@ -17394,7 +17404,13 @@
     "scripts/check-workflows.sh",
     "scripts/ci-paths.test.mjs",
     "docs/team/tools/land.md",
-    "docs/team/handoffs/workflow-syntax-gate.md"
+    "docs/team/handoffs/workflow-syntax-gate.md",
+    ".github/workflows/land.yml",
+    ".circleci/config.yml",
+    ".circleci/job.sh",
+    "lean/Fw.lean",
+    "lean/scripts/WorkflowLintGolden.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "Incident inc-workflow-dup-key (2026-10-23): the lead's conflict resolution in the pain-dark-followups merge (ac6fa79a4) kept SEARCH twice in one env block of .github/workflows/trajectory-probe.yml; GitHub refused the file ('workflow file issue', run 39873292504 on ci/land-across-k-decisive-5bdaee9) and every trajectory-probe push failed after the land 341e7a9c9. No land check runs actionlint. Add a land check, selected by the Lean check selection when a .github/workflows/*.yml changes, that runs actionlint (Homebrew, already installed) with only the syntax-check and expression kinds as errors (shellcheck findings stay warnings); the existing webkit-sim.yml 'string should not be empty' option is accepted or fixed with the reason. A golden or test shows a duplicated env key refuses the land."
   },
@@ -17535,6 +17551,99 @@
     "docs/team/handoffs/gpu-safari-mac.md"
    ],
    "title": "Follow-ups of gpu-safari-lane (landed 76643b76b): (1) USER-GATED: once the user unlocks the Mac and keeps the display awake (console step mac-unlock-safari), run `node results/gpu-safari/lane/run.mjs mac all` inside a measure slot: macOS Safari on the real Apple GPU for the nav, morph (alone and bundled), pain and people-o arms (people-o needs a window wider than 860 px, which macOS Safari gives), each against faithful in the same session, reduced against the later-load floor, paired with the CI Simulator rows; Composite and render-server timing if the Lean quiet rule accepts the passes; (2) explain why the bundled arm is pixel-identical to threaded at morph m0.25 (fade({m:0.25}) = 0.545 should be half faded): the threaded fade renders bit-identical to the CSS --morph-fade path, or the platform is outside the 430x775 frame at scrollY 5267 (name which from the platform rect); (3) a Lean golden for elapsedAt (the paused-effect time) and the TS stand-ins listed in the note."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-hunk-scope",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "lean/Fw/Plan/PolishGolden.lean",
+    "packages/contracts/golden/plan/polish.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish.test.ts",
+    ".claude/workflows/build-review.js",
+    "docs/team/handoffs/polish-hunk-scope.md",
+    "scripts/build-review.test.mjs"
+   ],
+   "title": "Incident inc-polish-file-scope: the polish stage hands comment-sicko whole files of the branch diff, so a 2-line builder change in lean/scripts/check.sh let polish (162a69416) rewrite 157 comment lines; main's polish of another branch (81464d810) cut the same file differently and the two branches conflicted. Restrict polish to the branch's changed hunks: state in Lean (Fw.Plan.Polish) that an admitted edit lies inside the branch's diff hunks of that file (merge-base to head, a small context margin), with goldens; `fw polish commit` restores every edit outside the hunks before committing (and prints which); the comment-sicko prompt in build-review.js names the line ranges. Test: a fixture branch that changes 2 lines of a commented file, where an edit 50 lines away is restored and an edit inside the hunk is kept. (2) Incident inc-polish-main-checkout: the polish-plan runner redacted the worktree prefix to `<worktree>` and comment-sicko edited the main checkout. The lead added an interim guard in build-review.js (paths rebuilt from the worktree line and class paths, strays stop the commit; scripts/build-review.test.mjs). Make it structural: `fw polish plan` prints repo-relative paths plus one worktree line, and `fw polish commit` refuses (and names them) when the main checkout has uncommitted edits in the plan's files."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "checkmap-workflow-scripts",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/CheckMap.lean",
+    "packages/contracts/golden/ops/checkmap.jsonl",
+    "scripts/checkmap.mjs",
+    "scripts/checkmap.test.mjs",
+    "docs/team/handoffs/checkmap-workflow-scripts.md"
+   ],
+   "title": "The pre-commit checkmap runs `node --check` on .claude/workflows/*.js, which are workflow bodies (top-level return and await), not modules: node 24.14 accepts build-review.js and node 24.22 refuses it ('Illegal return statement' at line 83), so the commit verdict depends on which node is first on PATH. Give workflow scripts their own kind in Lean Fw.Ops.CheckMap (classify `.claude/workflows/*.js`), checked by parsing the body as an AsyncFunction after stripping `export const meta = ` (the way scripts/build-review.test.mjs loads it), with goldens; test on both node versions."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "commission-gate-followups-2",
+   "owner": "lean-prover",
+   "stream": "proof",
+   "deps": [
+    "commission-band-followups"
+   ],
+   "writes": [
+    "refs/upstream/sources.lock.yaml",
+    "research/notes/2026/10-2x-commission-band-gate.md",
+    "apps/site/src/parts/commission/bandgate.test.ts",
+    "docs/team/handoffs/commission-gate-followups-2.md"
+   ],
+   "title": "Follow-ups of commission-band-followups (landed 7a545c05d): (1) add third_party/blink/renderer/core/css/media_query_list.cc and media_query_matcher.cc to the chromium sparse paths in refs/upstream/sources.lock.yaml (the note cites them @f842f52); (2) the note's 'That recalc follows the rAF callbacks' becomes 'That recalc runs inside the rAF callbacks at the earliest (forced by the body's getBoundingClientRect) or after them, so MediaFeaturesChanged queues ...'; (3) the Chromium clock step of BodyAfterSkip (the requested rAF runs in the next painted frame) from the cc scheduler and page_animator source for throttled frames, CONFIRMED or kept INFERRED with the reason; (4) bandgate.test.ts runTicks asserts ticks[0].media === null && ticks[0].body !== null, or replays tick 0 like the others."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-cells-mutants",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-cells-raw-fixture"
+   ],
+   "writes": [
+    "lean/scripts/TrajectoryGpuGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/gate-breakpoints/src/trajectory/cells-gpu*.mjs",
+    "packages/gate-breakpoints/src/trajectory/mutants*.mjs",
+    "packages/gate-breakpoints/test/trajectory-gpu-raw.test.mjs",
+    "packages/contracts/fixtures/trajectory-gpu/**",
+    "docs/team/handoffs/gpu-cells-mutants.md"
+   ],
+   "title": "Follow-ups of gpu-cells-raw-fixture: (1) all 36 fixture lines grade E, so commit a mutant generator (blur zeroed, panel held back a frame, nav moved, pain flipped, carousel cut, nav dropped in one rep, scale raised, rows reversed, carousel v jittered) and add its output to the check.sh Lean-vs-node cmp so L, Q and null grades are compared on every run; (2) generate dpr per width and MIN_COVERED from Lean into cells-gpu.mjs instead of copying them into the Lean reader; add a fixture or mutant with a non-null pain layer so the rounding is compared; (3) WebKit raws (the accepted limit) from the same A/A runs if their artifacts exist."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "workflow-lint-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "workflow-syntax-gate"
+   ],
+   "writes": [
+    "scripts/check-workflows.sh",
+    "apps/runner/test/land-workflow.test.ts",
+    "docs/team/handoffs/workflow-lint-followups.md"
+   ],
+   "title": "Follow-up of workflow-syntax-gate: scripts/check-workflows.sh fails open when the node step prints no verdict (vrc 0, exit 0 with a TAP summary). Capture the node output and exit 3 with 'REFUSED workflow-lint: no verdict line' unless it holds a line starting 'workflow-lint: '; a test with a stub that prints nothing."
   }
  ],
  "deadline": {
