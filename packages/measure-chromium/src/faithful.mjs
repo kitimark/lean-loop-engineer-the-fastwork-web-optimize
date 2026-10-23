@@ -210,7 +210,6 @@ export function leanSource(runsDir) {
         `    (zoneVerdict ${P}Table ${P}A ${P}R "${z.id}").pass = ${z.pass} ∧`,
         `    (zoneVerdict ${P}Table ${P}A ${P}R "${z.id}").failed = ${failed} := by`, '  decide +kernel', '');
     }
-    // The control A' (the original of the same CI run) against A, one theorem per zone: a passing zone states `pass = true`.
     for (const z of control?.zones ?? []) {
       const failed = `[${z.failed.map((t) => `"${t}"`).join(', ')}]`;
       out.push(`theorem ${P}_control_${ident(z.id)} :`,

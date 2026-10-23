@@ -159,8 +159,8 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   The rewrite R fails y04000, y04500 and tail on both profiles (as on the font-less image). The earlier mixed-image control FAIL was the image change, as inferred.
   Store note: runs 39916914389 and 39916917890 map to one store key, so A' was pulled into a scratch store (`FW_CONSOLE_DIR=<dir> pnpm -s fw ci <run> --branch ci/counts-font-fidelity`).
 - MEASURED, out-of-sample faithful control (task faithful-control-oos): one fresh `target=both` run per profile on branch ci/faithful-control-oos (sha 82c7820bf), `image_run=39914488176`, image `sha256:47b1dcbe...`
-  (the zones files record it); neither run is a freeze run and neither is one of the runs A was built from. A stays the frozen baselines (swipe-v1 run 39916914389, touch run 39924634896); R and the control A' are the
-  three shards of the fresh run of each profile (`zone-baseline.mjs` per target, then `baseline`, into `results/faithful/runs`, replacing the freeze-run files; those stay in git history). `detDrift` 0 in all four.
+  (the zones files record it); neither run is a freeze run or one of the runs A was built from. A stays the frozen baselines (swipe-v1 run 39916914389, touch run 39924634896); R and the control A' are the
+  three shards of the fresh run of each profile (`zone-baseline.mjs` per target, then `baseline`, into `results/faithful/runs`, replacing the freeze-run files). `detDrift` 0 in all four.
   Lean `Fw.Faithful.comparable` accepted both pairs (R/A and A'/A) on both profiles. Verdicts per zone (Lean `zoneVerdict`; `results/faithful/*.verdict.json`; theorems `<P>_zone_*` and `<P>_control_*` in `lean/Fw/Faithful/Measured.lean`):
 
 | profile (run) | zone | control A' against A | R against A | types off band in R |
