@@ -17,6 +17,12 @@ export function animatedCount(i: { variant: DrawVariant; phase: DrawPhase }): nu
   return [0, 1, 2].filter((j) => strokeAnimated({ ...i, j })).length;
 }
 
-export function drawAttr(variant: string): 'one' | 'nolayout' | undefined {
-  return variant === 'draw-one' ? 'one' : variant === 'draw-nolayout' ? 'nolayout' : undefined;
+export function drawAttr(variant: string): 'one' | 'nolayout' | 'nolayout-full' | undefined {
+  return variant === 'draw-one'
+    ? 'one'
+    : variant === 'draw-nolayout'
+      ? 'nolayout'
+      : variant === 'draw-nolayout-full'
+        ? 'nolayout-full'
+        : undefined;
 }

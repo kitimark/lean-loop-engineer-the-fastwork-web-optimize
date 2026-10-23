@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { genOutputs, genOwned, polishCli, walkHunks, type WHunk } from "../src/polish.ts";
+import { genOutputs, genOwned, polishCli, walkHunks, wtName, type WHunk } from "../src/polish.ts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -105,6 +105,7 @@ describe("settings.json Edit rules are covered by the Lean skip rule (one canoni
   const rules = [...(settings.permissions.ask ?? []).map((r) => ["ask", r]), ...(settings.permissions.deny ?? []).map((r) => ["deny", r])]
     .flatMap(([kind, r]) => { const m = /^Edit\((.*)\)$/.exec(r!); return m ? [{ kind: kind!, rule: r!, pat: m[1]! }] : []; });
   const sample = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "x/y.md");
+  const sample2 = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "z.md");
 
   it("settings.json has Edit rules to check, each anchored at the project root with / and at most a trailing /**", () => {
     expect(rules.length).toBeGreaterThan(0);
@@ -112,13 +113,26 @@ describe("settings.json Edit rules are covered by the Lean skip rule (one canoni
   });
 
   it("every Edit ask/deny rule: its path is skip, and an ask rule's path is named in protected", () => {
-    const paths = rules.map((r) => sample(r.pat));
+    const paths = rules.flatMap((r) => [sample(r.pat), sample2(r.pat)]);
     const [r] = fwcore([plan(paths)]) as { classes: { path: string; class: string }[]; protected?: string[] }[];
-    for (const [i, rule] of rules.entries()) {
+    for (const [i, rule] of rules.flatMap((x) => [x, x]).entries()) {
       const p = paths[i]!;
       expect(r!.classes.find((c) => c.path === p)?.class, `${rule.rule} -> ${p}`).toBe("skip");
       if (rule.kind === "ask") expect(r!.protected ?? [], `${rule.rule} -> ${p}`).toContain(p);
     }
+  });
+});
+
+describe("worktree identity survives a shortened path (stand-in for Fw.Plan.Polish.wtName)", () => {
+  it("an absolute .claude/worktrees directory gives its name; relative, ~, placeholder, odd names give none", () => {
+    expect(wtName("/h/src/r/.claude/worktrees/wf_b291cc70-2f8-1")).toBe("wf_b291cc70-2f8-1");
+    expect(wtName("~/source/.../.claude/worktrees/wf_b291cc70-2f8-1")).toBeNull();
+    expect(wtName(".claude/worktrees/wf_a")).toBeNull();
+    expect(wtName("/h/.claude/worktrees/..")).toBeNull();
+    expect(wtName("/h/.claude/worktrees/")).toBeNull();
+    expect(wtName("/h/.claude/worktrees/a b")).toBeNull();
+    expect(wtName("/h/r/worktrees/wf_a")).toBeNull();
+    expect(wtName("/h/r/.claude/worktrees/wf_a/sub")).toBeNull();
   });
 });
 
@@ -230,11 +244,18 @@ describe("fw polish CLI", () => {
     return { deps, gitCalls, written, lines, removed };
   }
 
+  it("plan prints worktree-name as a single word after the worktree line", async () => {
+    const f = fake({}, [], [], [], "");
+    const wt = "/h/r/.claude/worktrees/wf_b291cc70-2f8-1";
+    expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", { ...f.deps, worktree: () => wt })).toBe(0);
+    expect(f.lines.slice(0, 2)).toEqual([`worktree ${wt}`, "worktree-name wf_b291cc70-2f8-1"]);
+  });
+
   it("plan prints classes, relative scopes with marks and hunk lines, and the stage line last", async () => {
     const hunk = "diff --git a/a.sh b/a.sh\n--- a/a.sh\n+++ b/a.sh\n@@ -1 +1 @@\n-x\n+y\n";
     const f = fake({ "a.sh": "#!/bin/sh\n" }, ["a.sh", md, "snapshot/x.css"], [], [], hunk);
     expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(0);
-    expect(f.lines).toEqual(["worktree /wt", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
+    expect(f.lines).toEqual(["worktree /wt", "worktree-name -", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
       "comments # a.sh lines 1-4", "prose docs/a.md", "VERDICT polish-plan t comments,prose"]);
   });
 
@@ -590,7 +611,7 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       edit(wt, tip, { 5: "# builder wip" });
       const lines: string[] = [];
       expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines))).toBe(0);
-      expect(lines).toEqual([`worktree ${wt}`, `skip ${file} (dirty before plan)`, "VERDICT polish-plan t none"]);
+      expect(lines).toEqual([`worktree ${wt}`, "worktree-name -", `skip ${file} (dirty before plan)`, "VERDICT polish-plan t none"]);
       expect(readFileSync(baselineFiles(wt)[1]!, "utf8")).toBe(`${file}\n`);
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
@@ -641,7 +662,7 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
     try {
       const lines: string[] = [];
       await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines));
-      expect(lines).toEqual([`worktree ${wt}`, `class shell # ${file}`, `comments # ${file} lines 57-64`, "VERDICT polish-plan t comments"]);
+      expect(lines).toEqual([`worktree ${wt}`, "worktree-name -", `class shell # ${file}`, `comments # ${file} lines 57-64`, "VERDICT polish-plan t comments"]);
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 });

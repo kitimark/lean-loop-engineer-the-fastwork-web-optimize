@@ -18982,7 +18982,7 @@
     "results/carousel-swap-webkit/**",
     "research/notes/2026/10-2x-carousel-swap-webkit.md"
    ],
-   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates)."
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates). accent-drawin-width-nolayout review follow-ups (run 40010826238, arm hero.accent:draw-nolayout-full): (9) cite WebKit Styleable updateCSSTransitions and Chromium css_animations.cc CalculateTransitionUpdate (file:line@sha) for the premise that transition: none in the after-change style makes the width one change (slotChanges .full .inRest = [.clipInset]); (10) swap-report prints the pooled numbers (windows with >= 24 Layout rows, rows per capture, medians) so summary-full.json is generated, not derived by hand; (11) a 3-job repeat with the full arm in the same run as faithful and draw-nolayout (r3 of 40010826238 was cancelled, n=4 per faithful slot, every window unresolved:overlap); measure items 1, 2 for both nolayout arms."
   },
   {
    "devices": [
@@ -19014,7 +19014,8 @@
     "results/accent-drawin-width-nolayout/**",
     "research/notes/2026/10-2x-accent-drawin-width-nolayout.md"
    ],
-   "title": "hero-accent-draw-nolayout finding: the arm removes the draw-out layout but draw-in frames still need layout through the original's width transition (accent.module.css:13 transition: width 0.9s on .drawingIn; WebKit StyleDifference.cpp:404), so layout phases per cycle drop only 2 -> 1. Find a same-look replacement for the width growth that needs no layout (transform scaleX on a composited wrapper with counter-scaled text, or a fixed-width box with clip), proved in Lean with StyleDiffAccent (theorem: draw-in frames need no layout in both engines), behind a flag variant, class look-change if not pixel-identical; one webkit-sim swap-lane run."
+   "title": "hero-accent-draw-nolayout finding: the arm removes the draw-out layout but draw-in frames still need layout through the original's width transition (accent.module.css:13 transition: width 0.9s on .drawingIn; WebKit StyleDifference.cpp:404), so layout phases per cycle drop only 2 -> 1. Find a same-look replacement for the width growth that needs no layout (transform scaleX on a composited wrapper with counter-scaled text, or a fixed-width box with clip), proved in Lean with StyleDiffAccent (theorem: draw-in frames need no layout in both engines), behind a flag variant, class look-change if not pixel-identical; one webkit-sim swap-lane run.",
+   "evidence": "f3ce894"
   },
   {
    "devices": [
@@ -19096,7 +19097,8 @@
     "docs/team/handoffs/polish-protected-from-settings.md",
     "lean/Fw/Plan/Polish.lean"
    ],
-   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests. Also polish-protected-from-settings review follow-ups: (a) its handoff: add 'subagent worktrees: INFERRED same anchor' for isolation:worktree builders, and reword 'maps /x/** to x/x/y.md' as 'maps /<dir>/** to <dir>/x/y.md and /<file> to <file>'; (b) polish.test.ts sample(): check each /dir/** rule with a second sample dir/z.md so a narrower protectedDirs entry fails."
+   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests. Also polish-protected-from-settings review follow-ups: (a) its handoff: add 'subagent worktrees: INFERRED same anchor' for isolation:worktree builders, and reword 'maps /x/** to x/x/y.md' as 'maps /<dir>/** to <dir>/x/y.md and /<file> to <file>'; (b) polish.test.ts sample(): check each /dir/** rule with a second sample dir/z.md so a narrower protectedDirs entry fails.",
+   "evidence": "e22a55b"
   },
   {
    "devices": [
@@ -19158,6 +19160,47 @@
     "docs/team/handoffs/pathpix-consensus-capture.md"
    ],
    "title": "hero-copy-floor-followups review follow-ups (2026-10-24, run 40007968162): (1) two unexplained WebKit changes in 1 of 3 jobs (webkit-3 offset 5): hero_copy P 192513-20 inside the mask on the red deck-card artwork, and an A/A change outside every mask, 4478-2 at nav-earn; build the consensus capture (A, A2, A3 arms, Lean rule: a cell counts a change only when A/A agree) so render-server variation is separated from the arm, one path-pix run with >= 3 jobs per engine; (2) probesHit (box-overlap element naming in pathpix-exit.mjs) is a TS stand-in: give it a Lean twin with golden, or record it as an accepted stand-in in the handoff with the reason; (3) the report script prints the probe boxes at the asked scrollY (today only arm A at scrollY 0), so element matches are read from the report, not the artifacts."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-wtname-wire",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "polish-plan-path-redaction"
+   ],
+   "writes": [
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/polish-wtname-wire.md"
+   ],
+   "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-wait-state-interval",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-poll-interval-observed"
+   ],
+   "writes": [
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/test/wait*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-wait-state-interval.md"
+   ],
+   "title": "timing-poll-interval-observed review follow-ups (2026-10-24): (1) noteDecided in packages/gh-budget/src/wait.ts records the Budget.interval of the deciding tick's own state plus any failure backoff on the span (today timing-ci.ts re-reads the state file at span write); (2) cap the observed gap tickMs - prevTickMs at that recorded interval plus backoff, so a poller stall between the two ticks is own time again (today it nets to 0), with a theorem and a golden row for a stalled gap."
   }
  ],
  "deadline": {
