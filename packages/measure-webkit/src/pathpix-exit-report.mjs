@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 
 export function slimCell(c) {
   return {
-    key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live,
+    key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live, accentPinned: c.accentPinned, invalidWhy: c.invalidWhy,
     inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null,
   };
 }
@@ -13,7 +13,7 @@ export function slimLane(label, artifact, cells, man) {
   return {
     schema: 'fw.path-pix.exit.cells/1', label, artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
     ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, handover: man.handover ?? null, fonts: man.fonts ?? null,
-    cut: cells.cut, armsRun: cells.armsRun, driverMoved: cells.driverMoved ?? null, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, live: l.live })),
+    cut: cells.cut, armsRun: cells.armsRun, driverMoved: cells.driverMoved ?? null, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, accentPinned: l.accentPinned, live: l.live })),
     skipped: cells.skipped, frames: cells.frames.map((f) => ({ arm: f.arm, i: f.i, sameA: f.sameA, sameB: f.sameB, changed: f.changed, maxDelta: f.maxDelta })),
     cells: cells.cells.map(slimCell),
   };
