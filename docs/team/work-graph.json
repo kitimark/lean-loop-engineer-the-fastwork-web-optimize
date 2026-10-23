@@ -18705,7 +18705,8 @@
     "docs/team/tools/plan.md",
     "docs/team/handoffs/writes-closure-readsof-boundary.md"
    ],
-   "title": "writes-closure-doc-touchups review follow-ups (2026-10-23): (1) Lean readsOf treats any '../' substring as a read start, so 'x/../y' in a script yields the read 'y' instead of being refused for its '..' segment: require a word boundary before '../' (theorem + golden + JS twin + test); (2) the plan.md time table pools samples at any load (before window has 614 ms and 4177 ms runs; 10-17/18 at load 10-140): compute it over a calm-load window (Fw.Obs.Timing contended/calmLoad) and --refresh from main's timings.jsonl; (3) scripts/ci-paths.mjs header 'Run:' line: add '--plan-time [--refresh <timings.jsonl>] [--check]'."
+   "title": "writes-closure-doc-touchups review follow-ups (2026-10-23): (1) Lean readsOf treats any '../' substring as a read start, so 'x/../y' in a script yields the read 'y' instead of being refused for its '..' segment: require a word boundary before '../' (theorem + golden + JS twin + test); (2) the plan.md time table pools samples at any load (before window has 614 ms and 4177 ms runs; 10-17/18 at load 10-140): compute it over a calm-load window (Fw.Obs.Timing contended/calmLoad) and --refresh from main's timings.jsonl; (3) scripts/ci-paths.mjs header 'Run:' line: add '--plan-time [--refresh <timings.jsonl>] [--check]'.",
+   "evidence": "795f574"
   },
   {
    "devices": [
