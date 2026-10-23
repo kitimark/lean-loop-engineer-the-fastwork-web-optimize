@@ -10,7 +10,7 @@ topics: [webkit, carousel, swap-window, measure]
 # People carousel swap windows, WebKit Simulator (task carousel-swap-webkit-lane)
 
 Question: inside the swap windows of the people carousel (5 avatars on, 4 off), does the crop arm (`?fw=people.carousel:crop`)
-show fewer Layout, Paint, Composite and RecalculateStyles Timeline rows than the faithful arm, beyond the same run's A/A floor?
+show fewer Layout, Paint, Composite and RecalculateStyles Timeline rows than the faithful arm, beyond the A/A floor of the same passes (faithful-a and faithful-b are captured in each pass; the cells pool 39937838325 r1, r2 and 39947916723 r3, whose probe code is identical, 58b1df271..8dc944f90 changes only the handoff; 39937838325 alone gives the same two Paint wins)?
 
 ## Design
 

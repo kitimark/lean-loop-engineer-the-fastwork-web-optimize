@@ -1,10 +1,10 @@
 branch: worktree-wf_379d0376-a33-1 (CI branch ci/carousel-swap-webkit-lane)
 worktree: .claude/worktrees/wf_379d0376-a33-1
-last commit: 8dc944f90 (pushed to ci/carousel-swap-webkit-lane; tokens [ci:webkit-sim] [swap-lane])
+last commit: see git log -1 on the branch (round-2 fixes: --swap opt-in, SWAP env in webkit-sim.yml); last CI push commit: 8dc944f90 on ci/carousel-swap-webkit-lane (tokens [ci:webkit-sim] [swap-lane]); no CI run this round
 CI runs:
-- 39932917436 webkit-sim at 48142c753: probe scrolled to page end, 0 swap windows in r1 (carousel loop idle there); superseded
-- 39937838325 webkit-sim at 58b1df271 (scroll search): r1, r2 success (8 windows per capture, all 16 captures); r3 cancelled at the job limit (no log); 2 VMs only
-- 39947916723 webkit-sim at 8dc944f90: r3 success (2 passes); r1, r2 failed in cost layersScroll (inspector lost, no lag file)
+- 39932917436 webkit-sim at 48142c753: ci state complete, 0 swap windows (probe scrolled to page end); superseded
+- 39937838325 webkit-sim at 58b1df271 (scroll search): ci state failed (r3 cancelled at the job limit, no log); r1, r2 success (8 windows per capture, 16 captures)
+- 39947916723 webkit-sim at 8dc944f90: ci state failed (r1, r2 lost the inspector in layersScroll); r3 success (2 passes)
 - counted: 39937838325 r1, r2 + 39947916723 r3 (6 passes, 12 captures per arm); report in results/carousel-swap-webkit/; note research/notes/2026/10-2x-carousel-swap-webkit.md
 verified: Lean SwapWindow builds (no sorry), wkcost.jsonl regenerated and --check ok, measure-webkit tests 434 pass, ci-paths 54 pass, ci-steps-lint ok.
 open: land dry, review ready; follow-ups in the note (every-third-window Layout in the crop, more passes per job).

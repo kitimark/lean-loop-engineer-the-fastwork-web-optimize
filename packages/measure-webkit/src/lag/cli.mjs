@@ -9,7 +9,7 @@ import { lagSession } from './probe.mjs';
 import { analyzeArm, reportMd } from './report.mjs';
 import { fillBlock } from './note.mjs';
 import { collectArm, costMd } from './costreport.mjs';
-import { parseCost } from './costmode.mjs';
+import { parseCost, swapSetup } from './costmode.mjs';
 import { armsOutcome, sumsLine } from './morphcost.mjs';
 import { windowCells, swapMd, swapPassesOf } from './swapreport.mjs';
 
@@ -21,7 +21,7 @@ const { values: v } = parseArgs({
     site: { type: 'string' }, search: { type: 'string', default: '' }, out: { type: 'string' }, keep: { type: 'boolean', default: true },
     passes: { type: 'string', default: '2' }, step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' },
     settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, vendors: { type: 'string', default: 'off' },
-    cost: { type: 'string', default: 'off' }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, sums: { type: 'string' }, run: { type: 'string' }, note: { type: 'string' }, files: { type: 'string' }, sources: { type: 'string' },
+    cost: { type: 'string', default: 'off' }, swap: { type: 'boolean', default: false }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, sums: { type: 'string' }, run: { type: 'string' }, note: { type: 'string' }, files: { type: 'string' }, sources: { type: 'string' },
   },
   allowNegative: true,
 });
@@ -32,9 +32,7 @@ async function main() {
   switch (cmd) {
     case 'run': {
       const costMode = parseCost(v.cost);
-      const swapOn = costMode.cost && v.site && v.search;
-      const swapArms = swapOn ? { crop: { dir: v.site, search: v.search }, faithful: { dir: v.site, search: '' } } : null;
-      const swap = swapOn ? { arms: { crop: { id: 'crop', search: v.search }, faithful: { id: 'faithful', search: '' } }, home: { id: 'crop', search: v.search } } : null;
+      const { swap, arms: swapArms } = swapSetup({ swap: v.swap, cost: costMode.cost, site: v.site, search: v.search });
       const res = await withSession((ctx) => lagSession(ctx, {
         passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode, swap,
       }), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null, arms: swapArms });
