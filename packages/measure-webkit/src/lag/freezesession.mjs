@@ -4,13 +4,13 @@ import { attempts } from '../timeouts.mjs';
 import { swapPass, jobMeta } from './swapprobe.mjs';
 import { zoneCapture } from './zoneprobe.mjs';
 
-const STATES = Object.freeze({ free: { on: false }, frozen: { on: true } });
+export const statesOf = (mode) => Object.freeze({ free: { on: false, ...(mode ? { mode } : {}) }, frozen: { on: true, ...(mode ? { mode } : {}) } });
 
 export const stateOrder = (i) => (i % 2 === 0 ? ['free', 'frozen'] : ['frozen', 'free']);
 export const vmShift = (env = process.env) => Number(/\d+/.exec(env.VM ?? '')?.[0] ?? 0);
 export const alignOrder = (i, j) => ((i + j) % 2 === 0 ? [true, false] : [false, true]);
 
-async function retrying(ctx, name, log, fn) {
+export async function retrying(ctx, name, log, fn) {
   for (let attempt = 1; ; attempt++) {
     await ctx.check?.();
     try { return await fn(); } catch (e) {
@@ -21,7 +21,8 @@ async function retrying(ctx, name, log, fn) {
   }
 }
 
-export async function freezeSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, swap, save }, deps = {}) {
+export async function freezeSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, swap, save, freezeMode }, deps = {}) {
+  const STATES = statesOf(freezeMode);
   const { swapPass: pass = swapPass, zoneCapture: zone = zoneCapture, retrying: retry = retrying, shift = vmShift() } = deps;
   if (!swap) throw new Error('the freeze session needs the swap setup (--swap --cost on|only, target rewrite, a query)');
   const out = [], failed = [];
