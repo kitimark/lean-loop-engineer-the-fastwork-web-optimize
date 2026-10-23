@@ -73,7 +73,6 @@ export const userAgent = (mobile) => (mobile
 
 export const FONT_FAMILIES = ['Liberation Mono', 'Liberation Sans', 'Liberation Serif'];
 
-/** Lean `fontsOk`: every pinned family is among the families `fc-list` shows. */
 export const fontsOk = (found) => FONT_FAMILIES.every((f) => found.includes(f));
 
 export const wireOf = (profile, kind) => ({

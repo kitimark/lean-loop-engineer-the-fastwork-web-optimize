@@ -231,10 +231,8 @@ theorem cftPlatform_listed (os arch p : String) (h : cftPlatform os arch = some 
 
 theorem cftExe_in_archive : ∀ p ∈ cftPlatforms, (cftExe p).startsWith s!"chrome-{p}/" = true := by decide +kernel
 
-/-- The one system font package of the counts container. -/
 def fontPkg : String := "fonts-liberation"
 
-/-- Its Debian bookworm version, the pin in `docker/apt-manifest.txt`. -/
 def fontVersion : String := "1:1.07.4-11"
 
 def fontDir : String := "/usr/share/fonts/truetype/liberation"
@@ -245,10 +243,8 @@ def fontsConfLines : List String :=
   ["<?xml version=\"1.0\"?>", "<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">", "<fontconfig>", s!"  <dir>{fontDir}</dir>",
    "  <cachedir>/tmp/fontconfig-cache</cachedir>", "</fontconfig>"]
 
-/-- The bytes of `docker/fonts.conf`. -/
 def fontsConf : String := String.intercalate "\n" fontsConfLines ++ "\n"
 
-/-- A counts run starts only when `fc-list` shows every pinned family. -/
 def fontsOk (found : List String) : Bool := fontFamilies.all (fun f => found.contains f)
 
 theorem fontsOk_nil : fontsOk [] = false := by decide

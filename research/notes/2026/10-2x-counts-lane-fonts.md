@@ -79,7 +79,7 @@ workaround and no fonts. New rows: no workaround, with fonts.
 | people-o-hover base / flag, `Layout.totalObjects` | 269582 / 220507 | 269582 / 220507 |
 
 So the people-o-followups result (Layout 67 to 28 in the scroll phase, with the flag) does not move: the layout counts of the
-three rows are equal to the unit, in all three jobs. What moves is paint and raster:
+three rows are equal in all three jobs. Paint and raster move:
 
 | type (sum of 3-job run 1) | desktop rewrite old / new | hover base old / new |
 |---|---|---|
@@ -93,10 +93,9 @@ change class: 7 go to quarantined (JSEventListeners, LayoutObjects, Nodes, inval
 MajorGC) and 3 go from quarantined to deterministic (FireAnimationFrame, RequestAnimationFrame, HitTest.overlayAdDetector). Desktop original: new 47 / 16 / 5 (run 39900932545), old 52 / 13 / 2 (run 39869000429, whose
 files were not fetched, so no type-level comparison). The class tallies move by a few types; the layout types stay deterministic.
 
-Attribution: the new rows change two things at once (fonts and no workaround), and the budget of runs was spent, so no run
+Attribution: the new rows change two things at once (fonts and no workaround), and no run
 isolates them. INFERRED: the paint, raster and tile changes come from the fonts (the swipe A/B below changes only the image and
-shows the same direction); the layout counts did not change with either, so the workaround never changed the layout counts of
-these profiles.
+shows the same direction); the layout counts did not change with either, so the workaround never changed them.
 
 ## Swipe A/B: do the fonts move counts? (MEASURED)
 

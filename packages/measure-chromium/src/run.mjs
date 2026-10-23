@@ -44,7 +44,6 @@ if (process.env.FW_STOCK) await stockRun(process.env.FW_STOCK);
 const FONT_FAMILIES = [...new Set(spawnSync('fc-list', [':', 'family'], { encoding: 'utf8' }).stdout?.split(/[\n,]/).map((f) => f.trim()).filter(Boolean))].sort();
 if (!fontsOk(FONT_FAMILIES)) { console.error(`FW_NO_SYSTEM_FONTS: fc-list shows ${JSON.stringify(FONT_FAMILIES)}; a layout with no font crashes Chrome (docker/fonts.conf)`); process.exit(2); }
 
-/** Serve profile.repro[key] at `/` and the site's latin text face at `/font.woff2`; returns the page URL. */
 async function startRepro(key) {
   const html = profile.repro?.[key];
   if (typeof html !== 'string') { console.error(`profile ${profile.id}: no repro page "${key}"`); process.exit(2); }

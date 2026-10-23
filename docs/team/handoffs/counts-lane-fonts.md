@@ -1,6 +1,6 @@
 branch: worktree-wf_c886ec11-19e-1 (CI branches ci/counts-lane-fonts = candidate 907b3195b, ci/counts-lane-fonts-base = old-image arm 22bf968f2)
 worktree: .claude/worktrees/wf_c886ec11-19e-1
-last commit: see the branch log; pushes+dispatches used: 6 of 6 (2 pushes, 4 dispatches), none left
+last commit: see the branch log; pushes and dispatches used: 6 of 6 (2 pushes, 4 dispatches)
 CI runs (all complete, success): 39900399252 push 907b319 swipe-v1 both x3 (new image); 39901082850 push 22bf968 swipe-v1 both x3 (old image, A/B base); 39900925552 desktop-1280 rewrite x3; 39900932545 desktop-1280 original x3 (no text-wrap workaround, no crash); 39900922311 people-o-hover base x3; 39900929308 people-o-hover with people.o:preview-translate x3
 verified: lean check.sh green (slot); image builds with fonts-liberation; run.mjs font check passed in every job; no crash at 1280 on original and rewrite; Layout counts of desktop-1280 rewrite (120), hover base (232, scroll 67) and flag (193, scroll 28) equal the old rows; fonts move swipe-v1 counts (page 720 px taller, 575 vs 503 frames)
 open: report only (package tests, merge main, fw land --dry, review ready); old frozen classes and baselines without meta.systemFonts may need re-measuring; apt-manifest line inserted by hand (no docker daemon), checked by the image build's dpkg diff; Chromium bug filing is a user step
