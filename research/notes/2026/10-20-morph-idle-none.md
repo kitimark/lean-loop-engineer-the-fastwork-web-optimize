@@ -71,8 +71,8 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
   (`outcome_loss`), mixed when both occur (`outcome_mixed`), otherwise overlap (`outcome_overlap`); win and loss never hold together.
 - Result, MEASURED: the two-pass runs 39903977820 / 39903974246 give overlap in all 8 cells (`run_39903977820_overlap`). New runs 39915136431
   (base) and 39915146774 (`morph.columns:idle-none`), webkit-sim rewrite lag=true cost=only, 3 VMs x 2 passes = 6 passes per arm
-  (`run_39915136431_overlap`: all 8 cells overlap; `run_39915136431_outcome`: overlap). Verdict: UNRESOLVED, no win and no loss on
-  per-frame Paint and Composite. Layers stay down (deterministic, idle 128 -> 112).
+  (`run_39915136431_overlap`: all 8 cells overlap; `run_39915136431_outcome`: overlap). Verdict: UNRESOLVED: neither a win nor a loss is
+  shown on per-frame Paint and Composite; the flag's ranges reach higher in 7 of 8 cells, so a loss is not ruled out. Layers stay down (deterministic, idle 128 -> 112).
 - Why it stays unresolved: the CI Simulator composites on the CPU, so Composite per frame is about the frame interval and the same idle page
   reads 21-41 ms (base) and 21-70 ms (flag) between passes; zone frame counts differ between passes (rest: base 27-56, flag 8-61), which moves
   the raw view; the normalization does not remove the pass-to-pass spread of the calm baseline (calm Composite 1.4-2.9 s per 86 frames).
@@ -83,8 +83,10 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
 | Paint idle | 0.92-1.33 | 0.73-1.26 | 0.79-1.23 | 0.79-1.48 |
 | Paint open | 3.46-9.08 | 5.65-20.25 | 3.17-8.50 | 7.45-19.09 |
 | Paint rest | 1.05-4.58 | 0.95-18.44 | 0.90-3.76 | 1.16-20.15 |
+| Paint close | 1.80-3.65 | 2.20-6.32 | 2.04-3.42 | 2.64-6.91 |
 | Composite idle | 20.6-41.3 | 21.3-70.4 | 0.65-1.44 | 1.23-3.33 |
 | Composite open | 120-224 | 110-1026 | 5.79-9.84 | 6.95-47.9 |
+| Composite rest | 29.2-64.5 | 27.2-230 | 0.93-3.40 | 1.57-10.9 |
 | Composite close | 103-197 | 106-309 | 3.27-11.2 | 5.96-14.6 |
 
 - Accepted limit: the CI Simulator is not the phone. A phone arm (the real GPU compositor) is the way to resolve the sign; it is not part of this task.
