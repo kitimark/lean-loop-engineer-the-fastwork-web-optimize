@@ -48,9 +48,6 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `slow_not_unkeyed_late`, `remoteQueue_never_slow`, `ciWait_never_slow`, `ciWait_dur_indep`, `verdictsOf_remoteQueue_not_slow`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
-
-Wire: `verdictsOf` (`timingVerdicts` of the samples judged by their own time) is the entry point (op `obs.timing`, wired by `timing-alert`); the golden is
-`packages/contracts/golden/obs/timing.jsonl`, rendered by `Fw.Wire.Obs.Timing.goldenText` at the end of this file.
 -/
 namespace Fw.Obs.Timing
 
@@ -62,12 +59,6 @@ inductive Host where
   | ci
 deriving DecidableEq, Repr
 
-/-- One timing sample: tool, step, duration in ms, host, the floor of the 1-min load average when it ran, the run
-kind (empty when the run has none; for a CI dispatch the digest of its inputs, so runs with different inputs are
-different histories), the exit code (`none` when unknown), whether CI reported the step or job `skipped` and, for a
-`fw ci wait` span, the part of its duration that is our automation's (`ownMs`: the span end minus the time the remote run
-finished; `none` when the span has no phases).
--/
 structure Sample where
   tool    : String
   step    : String
@@ -99,26 +90,15 @@ theorem fullRun_skipped (e : Option Int) : fullRun e true = false := rfl
 theorem fullRun_nonzero (n : Int) (b : Bool) (h : n ≠ 0) : fullRun (some n) b = false := by
   simp [fullRun, h]
 
-/-! ## Remote waits: judged by our own time -/
-
-/-- The `fw land` span of the time a remote lane waited in the provider's runner queue. -/
 def Sample.remoteQueue (s : Sample) : Bool := s.tool == "fw land" && s.step == "remote queue"
 
-/-- The `fw ci wait` span: it lasts as long as the remote CI run. -/
 def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
-/-- A remote wait: a span whose duration is set by a remote system, not by our automation. -/
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
 
-/-- The part of a sample's duration that is our automation's, if known: none of a runner queue wait (0), the recorded
-`ownMs` of a `fw ci wait` (`none` without it), the whole duration of any other step.
--/
 def Sample.own (s : Sample) : Option Nat :=
   if s.remoteQueue then some 0 else if s.ciWait then s.ownMs else some s.durMs
 
-/-- The sample as the verdicts judge it: its duration is its own time; a sample with no known own time is `skipped`, so
-it gets no verdict and joins no window. The key, host, load and work stay (`norm_key`).
--/
 def Sample.norm (s : Sample) : Sample :=
   { s with durMs := s.own.getD s.durMs, skipped := s.skipped || s.own.isNone }
 
@@ -127,7 +107,6 @@ def Sample.norm (s : Sample) : Sample :=
 #guard ({ tool := "fw land", step := "remote queue", durMs := 36034, host := .«local» } : Sample).norm.durMs == 0
 #guard ({ tool := "fw", step := "land dry", durMs := 36034, host := .«local» } : Sample).norm.durMs == 36034
 
-/-- The history a sample belongs to: same tool, step, host, run kind and work dimensions. -/
 structure Key where
   tool : String
   step : String
@@ -519,33 +498,20 @@ def Sample.mixed (s : Sample) : Bool := s.tool == "fw" && slotKinds.any fun k =>
 
 def SampleVerdict.markMixed (v : SampleVerdict) : SampleVerdict := { v with code := .mixed }
 
-/-- The verdict of one sample: `mixed` for an overflow bucket sample, otherwise `judgeW`. -/
 def judgeQ0 (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   if s.mixed then (judgeW p hist i s).markMixed else judgeW p hist i s
 
-/-- Two samples are of one step: same tool, step, host and run kind (their work dimensions may differ). -/
 def Sample.sameStep (s t : Sample) : Bool :=
   s.tool == t.tool && s.step == t.step && decide (s.host = t.host) && s.kind == t.kind
 
-/-- A sample has no build class when its work records neither a checks class nor a rebuilt-module class (`checksDim`,
-`modsDim`): it was written by code from before the step was keyed. The slot width is not a build class: a span outside
-a slot has none.
--/
 def Sample.unkeyed (s : Sample) : Bool := !(s.work.any fun kv => kv.1 == checksDim || kv.1 == modsDim)
 
-/-- An unkeyed sample comes after the step has keyed samples: it has no build class while an earlier full sample of the same
-step has one. Such a sample is a leftover of old code (a worktree on pre-key `fw`); its own history of unkeyed samples is
-no baseline for the keyed runs and the keyed histories are none for it.
--/
 def unkeyedLate (hist : List Sample) (s : Sample) : Bool :=
   s.unkeyed && hist.any (fun t => t.full && !t.unkeyed && s.sameStep t)
 
 def SampleVerdict.markUnkeyed (v : SampleVerdict) : SampleVerdict := { v with code := .unkeyed }
 
-/-- The verdict of one sample: `mixed` for an overflow bucket sample, `unkeyed` for an unkeyed sample once its step has
-keyed samples (`unkeyedLate`), otherwise `judgeW`.
--/
-def judgeQ (p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
+def judgeQ(p : Params) (hist : List Sample) (i : Nat) (s : Sample) : SampleVerdict :=
   if s.mixed then (judgeW p hist i s).markMixed
   else if unkeyedLate hist s then (judgeW p hist i s).markUnkeyed
   else judgeW p hist i s
@@ -1085,7 +1051,6 @@ theorem judgeQ0_unworked (p : Params) (hist : List Sample) (i : Nat) (s : Sample
   funext x
   by_cases h : x.work = [] <;> simp [h]
 
-/-- A keyed sample is judged by `judgeQ0`: `unkeyedLate` needs an unkeyed sample. -/
 theorem judgeQ_keyed (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : s.unkeyed = false) :
     judgeQ p hist i s = judgeQ0 p hist i s := by
   simp [judgeQ, judgeQ0, unkeyedLate, h]
@@ -1100,7 +1065,6 @@ theorem spanWork_built_keyed (w j : Option Nat) (c : Option (List String)) (b : 
     ({ tool := "", step := "", durMs := 0, host := .ci, work := spanWork w j c (some b) } : Sample).unkeyed = false := by
   simp [Sample.unkeyed, spanWork, modsWork, modsDim]
 
-/-- Other module-count classes never enter the history of a keyed sample (`judgeQ0_other_mods`). -/
 theorem judgeQ_other_mods (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
     (c : Option (List String)) (b : Nat) (hs : s.work = spanWork w j c (some b))
     (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a) ∧ modsLow a ≠ modsLow b) :
@@ -1111,9 +1075,6 @@ theorem judgeQ_other_mods (p : Params) (hist others : List Sample) (i : Nat) (s 
   rw [judgeQ_keyed p _ i s hk, judgeQ_keyed p _ i s hk]
   exact judgeQ0_other_mods p hist others i s w j c b hs h
 
-/-- A sample with the same work but no module count keeps its history when keyed samples with a module count are added
-(it must itself be keyed, else `unkeyedLate` applies: see `unkeyed_late_no_slow`).
--/
 theorem judgeQ_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
     (c : Option (List String)) (hs : s.work = spanWork w j c none) (hk : s.unkeyed = false)
     (h : ∀ x ∈ others, ∃ a, x.work = spanWork w j c (some a)) :
@@ -1904,23 +1865,16 @@ theorem no_slow_bucket (p : Params) (hist : List Sample) (v : SampleVerdict)
   simp only [Sample.mixed, ht, beq_self_eq_true, Bool.true_and, List.any_eq_true]
   exact ⟨k, hk, by simpa using hb⟩
 
-/-! ## Proofs: unkeyed samples and remote waits -/
-
-/-- **(a) An unkeyed sample gets no verdict once its step has keyed samples.** Whatever its duration and its history, such
-a sample is never `slow` (so it raises no `timing.slow`, and an old one cannot keep an alert open).
--/
 theorem unkeyed_late_no_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (h : unkeyedLate hist s = true) :
     (judgeQ p hist i s).code ≠ .slow := by
   cases hm : s.mixed
   · rw [judgeQ_unkeyed p hist i s hm h]; simp [SampleVerdict.markUnkeyed]
   · exact judgeQ_mixed_not_slow p hist i s hm
 
-/-- Its verdict code is `unkeyed`. -/
 theorem unkeyed_late_code (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hm : s.mixed = false)
     (h : unkeyedLate hist s = true) : (judgeQ p hist i s).code = .unkeyed := by
   rw [judgeQ_unkeyed p hist i s hm h]; rfl
 
-/-- The rule fires exactly when the sample has no build class and an earlier full sample of its step has one. -/
 theorem unkeyedLate_iff (hist : List Sample) (s : Sample) :
     unkeyedLate hist s = true ↔
       s.unkeyed = true ∧ ∃ t ∈ hist, t.full = true ∧ t.unkeyed = false ∧ s.sameStep t = true := by
@@ -1930,9 +1884,6 @@ theorem unkeyedLate_iff (hist : List Sample) (s : Sample) :
   · rintro ⟨hs, t, ht, ⟨hf, hu⟩, hss⟩; exact ⟨hs, t, ht, hf, hu, hss⟩
   · rintro ⟨hs, t, ht, hf, hu, hss⟩; exact ⟨hs, t, ht, ⟨hf, hu⟩, hss⟩
 
-/-- **A step without keyed samples is judged as before**: when no earlier full sample of the step has a build class, the
-rule does not fire and the verdict is `judgeW` (unless the sample is an overflow bucket).
--/
 theorem judgeQ_no_keyed_history (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hm : s.mixed = false)
     (h : ∀ t ∈ hist, t.full = true → t.unkeyed = false → s.sameStep t = false) :
     judgeQ p hist i s = judgeW p hist i s := by
@@ -1942,9 +1893,6 @@ theorem judgeQ_no_keyed_history (p : Params) (hist : List Sample) (i : Nat) (s :
   · obtain ⟨_, t, ht, hf, hk, hss⟩ := (unkeyedLate_iff hist s).1 hu
     rw [h t ht hf hk] at hss; cases hss
 
-/-- (a) over the whole output: no `slow` verdict of the entry point belongs to an unkeyed sample that comes after keyed
-samples of its step.
--/
 theorem slow_not_unkeyed_late (p : Params) (hist : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ timingVerdicts p hist) (hs : v.code = .slow) :
     ∃ i, ∃ hi : i < hist.length, v = judgeQ p (hist.take i) i hist[i] ∧ unkeyedLate (hist.take i) hist[i] = false := by
@@ -1956,17 +1904,14 @@ theorem slow_not_unkeyed_late (p : Params) (hist : List Sample) (v : SampleVerdi
 
 theorem norm_key (s : Sample) : s.norm.key = s.key := rfl
 
-/-- A step that is not a remote wait is judged as it is. -/
 theorem norm_of_not_remote (s : Sample) (h : s.remote = false) : s.norm = s := by
   have h1 : s.remoteQueue = false := by simpa [Sample.remote] using (Bool.or_eq_false_iff.1 h).1
   have h2 : s.ciWait = false := by simpa [Sample.remote] using (Bool.or_eq_false_iff.1 h).2
   simp [Sample.norm, Sample.own, h1, h2]
 
-/-- **(b) A runner queue wait is judged as 0 ms of our time**, whatever it lasted. -/
 theorem remoteQueue_norm_dur (s : Sample) (h : s.remoteQueue = true) : s.norm.durMs = 0 := by
   simp [Sample.norm, Sample.own, h]
 
-/-- **(b) A `fw ci wait` is judged by its own time** (`ownMs`), whatever the remote run lasted. -/
 theorem ciWait_norm_dur (s : Sample) (hc : s.ciWait = true) (o : Nat) (ho : s.ownMs = some o) : s.norm.durMs = o := by
   have h1 : s.remoteQueue = false := by
     simp only [Sample.remoteQueue, Bool.and_eq_false_imp, beq_iff_eq]
@@ -1974,13 +1919,11 @@ theorem ciWait_norm_dur (s : Sample) (hc : s.ciWait = true) (o : Nat) (ho : s.ow
     intro _; rw [hc.2]; decide
   simp [Sample.norm, Sample.own, h1, hc, ho]
 
-/-- The duration of the wait does not change how a `fw ci wait` with a known own time is judged. -/
 theorem ciWait_dur_indep (s : Sample) (d o : Nat) (hc : s.ciWait = true) (ho : s.ownMs = some o) :
     ({ s with durMs := d } : Sample).norm.durMs = s.norm.durMs := by
   rw [ciWait_norm_dur s hc o ho]
   exact ciWait_norm_dur { s with durMs := d } hc o ho
 
-/-- A `fw ci wait` without a recorded own time has no verdict and joins no window. -/
 theorem ciWait_unknown_not_full (s : Sample) (hc : s.ciWait = true) (ho : s.ownMs = none) : s.norm.full = false := by
   have h1 : s.remoteQueue = false := by
     simp only [Sample.remoteQueue, Bool.and_eq_false_imp, beq_iff_eq]
@@ -1988,13 +1931,11 @@ theorem ciWait_unknown_not_full (s : Sample) (hc : s.ciWait = true) (ho : s.ownM
     intro _; rw [hc.2]; decide
   simp [Sample.norm, Sample.own, Sample.full, fullRun, h1, hc, ho]
 
-/-- **(b) A runner queue wait never alerts**, however long the queue: its own time is 0 ms, within every budget. -/
 theorem remoteQueue_never_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : s.remoteQueue = true) :
     (judgeQ p hist i s.norm).code ≠ .slow := by
   apply no_alert_within_budget_Q
   rw [remoteQueue_norm_dur s hq]; exact Nat.zero_le _
 
-/-- **(b) A `fw ci wait` whose own time is within its budget never alerts**, however long the remote run took. -/
 theorem ciWait_never_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hc : s.ciWait = true) (o : Nat)
     (ho : s.ownMs = some o) (hb : o ≤ budgetFor p s) : (judgeQ p hist i s.norm).code ≠ .slow := by
   apply no_alert_within_budget_Q
@@ -2003,7 +1944,6 @@ theorem ciWait_never_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sampl
 /-- The entry point with remote waits judged by their own time (wire ops `obs.timing` and `obs.slow`). -/
 def verdictsOf (p : Params) (ss : List Sample) : List Verdict := timingVerdicts p (ss.map Sample.norm)
 
-/-- (b) over the whole output: no verdict of a `fw land` runner queue wait is `slow`. -/
 theorem verdictsOf_remoteQueue_not_slow (p : Params) (ss : List Sample) (v : SampleVerdict)
     (h : Verdict.sample v ∈ verdictsOf p ss) (ht : v.tool = "fw land") (hs : v.step = "remote queue") :
     v.code ≠ .slow := by
@@ -2015,15 +1955,11 @@ theorem verdictsOf_remoteQueue_not_slow (p : Params) (ss : List Sample) (v : Sam
   rw [judgeQ_step] at hs
   exact remoteQueue_never_slow p _ i ss[i] (by simpa [Sample.remoteQueue, Sample.norm] using And.intro ht hs)
 
-/-- The line of an alert says which sample is compared with which baseline. -/
 def SampleVerdict.detail (v : SampleVerdict) : String :=
   let own := if ({ tool := v.tool, step := v.step, durMs := 0, host := v.host } : Sample).remote
     then " (our own time: the remote run's wait is not counted)" else ""
   s!"sample #{v.idx} took {v.durMs} ms{own}, against baseline {v.baseline} ms (p50 of the {v.n} earlier samples of the same tool, step, host, run kind and work), budget {v.budgetMs} ms"
 
-/-- **Contended samples never enter a window.** Appending samples that are all contended to the history leaves every
-window unchanged.
--/
 theorem windowOf_append_contended (p : Params) (hist cs : List Sample) (k : Key)
     (hc : ∀ c ∈ cs, contended p c = true) : windowOf p (hist ++ cs) k = windowOf p hist k := by
   have h : cs.filter (fun s => decide (s.key = k) && counts p s) = [] :=
@@ -2304,7 +2240,6 @@ def caseJson (name : String) (p : Params) (ss : List Sample) : Json :=
       ("samples", .arr (ss.map sampleJson).toArray)]),
     ("response", Json.mkObj [("verdicts", .arr ((verdictsOf p ss).map verdictJson).toArray)])]
 
-/-- The tool name of the breakpoint-gate CI jobs. -/
 def gateTool : String := "ci:breakpoint-gate"
 
 def gateJob (step : String) (s : Nat) : Sample := { tool := gateTool, step, durMs := s * 1000, host := .ci }
@@ -2435,10 +2370,6 @@ def landDryRun (built : Bool) : List Sample :=
     { tool := "fw", step := "land dry lake", durMs := d, host := .«local», load := l, exit := some (Int.ofNat e),
       work := if built then spanWork none none none (some m) else [] }
 
-/-- The `fw land dry lake` spans of 2026-10-23 from the 24-module run of commit 6631034 to the third run of 19dd16e, as
-(ms, rebuilt modules, load): the unkeyed ones carry no `lake` member (MEASURED from `.fw-console/timings.jsonl`). The 51.1 s
-span without modules is the one of commit ffb7792, written by a worktree on `fw` code from before the key.
--/
 def landKeyedData : List (Nat × Option Nat × Nat) :=
   [(44947, some 24, 3), (26801, none, 4), (26410, none, 4), (30086, none, 3), (26599, some 0, 3), (28357, none, 3),
    (28350, none, 3), (26396, none, 2), (26823, none, 3), (26490, none, 2), (28192, none, 5), (37163, some 6, 4),
@@ -2450,9 +2381,6 @@ def landKeyedRun (n : Nat) : List Sample :=
     { tool := "fw", step := "land dry lake", durMs := d, host := .«local», load := l, exit := some 0,
       work := (m.map modsWork).getD [] }
 
-/-- Seven `fw ci wait` spans of 2026-10-23 that ended with `how = done`, as (span ms, own ms = span end minus the run's
-`updatedAt`, load): the waits last 3 to 23 minutes, our own part 12 to 27 s.
--/
 def ciWaitData : List (Nat × Nat × Nat) :=
   [(316141, 20570, 2), (440814, 16696, 3), (179419, 26169, 4), (335984, 25290, 5), (387370, 27352, 5),
    (293198, 12245, 4), (1377258, 27294, 5)]
@@ -2461,16 +2389,12 @@ def ciWaitRun : List Sample :=
   ciWaitData.map fun (d, o, l) =>
     { tool := "fw", step := "ci wait", durMs := d, host := .«local», load := l, exit := some 0, ownMs := some o }
 
-/-- Seven `fw land` `remote queue` spans of 2026-10-23 as (ms, load): the time a remote lane waited for a runner. -/
 def remoteQueueData : List (Nat × Nat) := [(0, 4), (0, 1), (37079, 4), (0, 3), (0, 2), (0, 4), (36034, 5)]
 
 def remoteQueueRun : List Sample :=
   remoteQueueData.map fun (d, l) =>
     { tool := "fw land", step := "remote queue", durMs := d, host := .«local», load := l, exit := some 0 }
 
-/-- The 38.3 s `slot run check` span of 2026-10-23T11:37:35Z (commit 7e8d89c) and the twelve spans of that step before
-it, as (ms, exit).
--/
 def bucketRun (step : String) : List Sample :=
   runX "fw" step .«local» 4 ([(1261, some 0), (50394, some 0), (621, some 1), (731, some 0), (7957, some 0),
     (13855, some 1), (38629, some 0), (12607, some 0), (516, some 0), (8, some 1), (7824, some 0), (854, some 0),
@@ -2638,10 +2562,8 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
    ("fw ci wait of an old span without phases: no own time, no verdict (the last verdict is the sixth wait's)",
       {}, ciWaitRun.take 6 ++ [{ tool := "fw", step := "ci wait", durMs := 900000, host := .«local», load := 3, exit := some 0 }])]
 
--- six run-split cases: three dispatch, two watch pass, one new split step
 #guard ((cases ()).filter fun c => c.1.startsWith "run split:").length == 6
 
-/-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
   ((fullVerdicts p (ss.map Sample.norm)).getLast?).map (·.code)
 
@@ -2661,18 +2583,14 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
    some .mixed, some .mixed, some .slow,
    some .unkeyed, some .ok, some .ok, some .ok, some .ok]
--- (a) the 51.1 s span of ffb7792: slow against the unkeyed history alone (judgeW: p50 26.8 s, over the 30 s budget and
--- 1.5 times the baseline), no verdict once the step has keyed spans (judgeQ)
 #guard ((landKeyedRun 14)[13]?).map (fun s => (judgeW {} ((landKeyedRun 14).take 13) 13 s).code) == some .slow
 #guard ((sampleVerdicts {} (landKeyedRun 14))[13]?).map (·.code) == some .unkeyed
 #guard ((landKeyedRun 14)[13]?).map (unkeyedLate ((landKeyedRun 14).take 13)) == some true
 #guard ((landKeyedRun 14)[13]?).map (unkeyedLate (((landKeyedRun 14).drop 1).take 2)) == some false
--- (4) the built-0 spans of d08e461 and 19dd16e are judged on the built-0 history only (never across module counts)
 #guard ((sampleVerdicts {} (landKeyedRun 24)).drop 20).map (fun v => (v.n, v.baseline, v.code)) ==
   [(4, 28563, .noBaseline), (5, 29602, .ok), (6, 28563, .ok), (7, 28563, .ok)]
 #guard ((sampleVerdicts {} (landKeyedRun 24))[23]?).map (·.detail) ==
   some "sample #23 took 26484 ms, against baseline 28563 ms (p50 of the 7 earlier samples of the same tool, step, host, run kind and work), budget 30000 ms"
--- (b) the 23 min wait is slow by its raw time, ok by its own
 #guard ((sampleVerdicts {} ciWaitRun)[6]?).map (·.code) == some .slow
 #guard ((sampleVerdicts {} (ciWaitRun.map Sample.norm))[6]?).map (·.code) == some .ok
 #guard ((sampleVerdicts {} (remoteQueueRun.map Sample.norm))[6]?).map (·.durMs) == some 0

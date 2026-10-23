@@ -70,7 +70,6 @@ export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Hea
   } catch { return null; }
 }
 
-/** The alert subjects of `obs.slow` and, per subject, the line naming the compared sample and baseline (`detail: true`). */
 export async function slowWith(paths: Paths, core: CoreCall): Promise<{ slow: string[]; details: string[] }> {
   try {
     const samples = readSamples(paths);

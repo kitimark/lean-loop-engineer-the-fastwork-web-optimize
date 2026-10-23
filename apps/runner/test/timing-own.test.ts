@@ -1,5 +1,3 @@
-// timing-module-count-followups: the span fields Lean's remote-wait and unkeyed rules read (Fw.Obs.Timing `ownMs`,
-// `unkeyedLate`), and the alert line that names the compared sample and baseline. Spans use the numbers of 2026-10-23.
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -53,7 +51,6 @@ describe("slowAlerts: the detail names the compared sample and baseline", () => 
   });
 });
 
-// dur, built modules (absent: the span has no lake member), load: the first 14 `fw land dry lake` spans of 2026-10-23
 const LAND: [number, number | null, number][] = [
   [44947, 24, 3], [26801, null, 4], [26410, null, 4], [30086, null, 3], [26599, 0, 3], [28357, null, 3], [28350, null, 3],
   [26396, null, 2], [26823, null, 3], [26490, null, 2], [28192, null, 5], [37163, 6, 4], [33250, 0, 5], [51092, null, 4],

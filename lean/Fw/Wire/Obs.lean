@@ -1012,7 +1012,6 @@ def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
          waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j, work := ← workOf j,
          ownMs := (opt j "ownMs").bind fun v => (v.getNat?).toOption }
 
-/-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
   pure { name := ← str j "name", keys := ← (← arrD j "keys").mapM keyOf }
 
@@ -1041,7 +1040,6 @@ def opTiming (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   pure [("verdicts", .arr ((Fw.Obs.Timing.verdictsOf p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
 
-/-- The line for an alert subject: the detail of the latest slow sample verdict of that subject (which sample, which baseline). -/
 def detailOf (vs : List Fw.Obs.Timing.Verdict) (s : String) : String :=
   match (vs.filterMap fun
       | .sample v => if v.code == .slow && Fw.Obs.Next.stepName v == s then some v.detail else none
@@ -1049,8 +1047,6 @@ def detailOf (vs : List Fw.Obs.Timing.Verdict) (s : String) : String :=
   | some d => d
   | none => ""
 
-/-- `obs.slow`: the alert subjects `<tool>/<step>[#<kind>][ [k=v,…]]` (`Fw.Obs.Next.subject`) of the ok to slow transitions (`Fw.Obs.Next.slowSteps` of the
-verdicts). -/
 def opSlow (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
   let vs := Fw.Obs.Timing.verdictsOf p ss

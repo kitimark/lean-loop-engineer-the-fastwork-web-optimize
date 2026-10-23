@@ -31,8 +31,6 @@ export interface Deps {
   run?: (cwd: string, argv: string[]) => string | null;
 }
 
-/** Runs `argv` in `cwd`; its output, or null when it did not exit 0 (a failed build made only some modules, so its count
- *  is no work class for the span). */
 export const realRun = (cwd: string, argv: string[]): string | null => {
   const r = spawnSync(argv[0]!, argv.slice(1), { cwd, encoding: "utf8", maxBuffer: 64 << 20 });
   return r.status === 0 ? `${r.stdout ?? ""}${r.stderr ?? ""}` : null;
@@ -153,8 +151,6 @@ export async function stagedChecks(dir: string, git: (cwd: string, args: string[
   return cmds ? checksOf(cmds) : null;
 }
 
-/** The fields of the `fw polish commit` span: the staged checks and, when they include lake build, the modules the
- *  build made in `dir` (run here before `git commit`, so the hook's own lake build finds them built). */
 export async function stagedSpan(dir: string, git: (cwd: string, args: string[]) => string, call: CoreCall,
   run: (cwd: string, argv: string[]) => string | null): Promise<{ checks: Checks; lake?: { built: number } } | null> {
   const cmds = await stagedCmds(dir, git, call);

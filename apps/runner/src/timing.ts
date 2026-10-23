@@ -51,8 +51,6 @@ export function lakeWork(lake: unknown): { work?: Record<string, string> } {
   return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { work: { mods: String(modsLow(b)) } } : {};
 }
 
-/** Lean `Fw.Obs.Timing.Sample.ownMs`: the part of a `fw ci wait` span that is ours, from its end back to the remote run's
- *  `updatedAt` (`phases.updMs`); only a wait that ended with `how = done` has one. Absent for every other span. */
 export function ownOf(o: unknown): { ownMs?: number } {
   const s = o as { tool?: unknown; step?: unknown; startMs?: unknown; durMs?: unknown; phases?: { how?: unknown; updMs?: unknown } | null } | null | undefined;
   if (s?.tool !== "fw" || s.step !== "ci wait" || s.phases?.how !== "done") return {};
