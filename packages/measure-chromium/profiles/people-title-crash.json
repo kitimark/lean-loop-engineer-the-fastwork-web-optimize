@@ -1,0 +1,115 @@
+{
+ "id": "people-title-crash",
+ "kind": "probe",
+ "about": "Task people-title-crash-fix: does stock Chrome (Chrome for Testing, new headless, no harness flags) load the rewrite page without a renderer crash? Dispatch with target rewrite and fw people.o:block (the fix) or empty (the control: the faithful o, expected to crash above 860 px). blockw-min is the minimal title with the block o at its declared width (not the zero width of the bare inline-block variant of chrome-balance-repro). Diagnostic, records no counts.",
+ "hz": 60,
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1,
+  "mobile": false,
+  "touch": false
+ },
+ "pinnedDate": "2026-10-01T00:00:00+07:00",
+ "timezone": "Asia/Bangkok",
+ "locale": "en-US",
+ "seed": 1592661556,
+ "load": {
+  "quietFrames": 30,
+  "maxFrames": 900,
+  "prerollFrames": 60
+ },
+ "zoneHeightPx": 500,
+ "segments": [
+  {
+   "name": "rest",
+   "dyPerFrame": 0,
+   "frames": 10
+  },
+  {
+   "name": "scroll",
+   "dyPerFrame": 10,
+   "frames": 40
+  },
+  {
+   "name": "tail",
+   "dyPerFrame": 0,
+   "frames": 10
+  }
+ ],
+ "repro": {
+  "title": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>balance repro</title><style>\n@font-face{font-family:\"Google Sans\";src:url(/font.woff2) format(\"woff2\");font-weight:400 700}\nbody{margin:0;font-family:\"Google Sans\",sans-serif;color:#2b313b}\n.c{display:flex;flex-direction:column;align-items:center;text-align:center;padding:80px 56px}\nh2{margin:0;font-size:48px;font-weight:500;line-height:1.15;letter-spacing:-0.02em;text-wrap:balance}\n.w{white-space:nowrap;display:inline-flex;flex-wrap:nowrap;align-items:flex-start}\n.o{vertical-align:baseline;flex-shrink:0;display:inline-grid;grid-template-columns:minmax(0,0.6042em);min-width:0;height:1.0417em;position:relative;overflow:hidden}\n.s{grid-column:1;width:100%;min-width:0;height:100%;position:relative}\n</style></head><body><div class=\"c\"><h2 id=\"future-heading\"><span>People still need</span> <span class=\"w\">pe<span class=\"o\"><span class=\"s\"></span></span>ple</span></h2></div></body></html>"
+ },
+ "probe": {
+  "timeoutMs": 240000,
+  "variants": [
+   {
+    "id": "cft4-min-blockw",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": ".o{display:block!important;width:0.6042em}.s{display:block}"
+   },
+   {
+    "id": "cft4-page-861",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "width": 861
+   },
+   {
+    "id": "cft4-page-1100",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "width": 1100
+   },
+   {
+    "id": "cft4-page-1280",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    }
+   },
+   {
+    "id": "cft4-page-1440",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "width": 1440
+   },
+   {
+    "id": "cft47-page",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47"
+    }
+   },
+   {
+    "id": "cft157-page",
+    "env": {
+     "FW_STOCK": "cft:157.0.8103.15"
+    }
+   },
+   {
+    "id": "cft158-page",
+    "env": {
+     "FW_STOCK": "cft:158.0.8118.0"
+    }
+   },
+   {
+    "id": "cft4-page-860",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "width": 860
+   },
+   {
+    "id": "cft4-page-390",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "width": 390
+   }
+  ]
+ }
+}
