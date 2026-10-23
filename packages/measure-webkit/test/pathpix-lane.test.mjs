@@ -8,7 +8,7 @@ import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_I
 import { encodePng, decodePng, cropImage, sameImage } from '../src/pathpix-png.mjs';
 import { analyzeLane, table } from '../src/pathpix-analyze.mjs';
 import { magentaBox, inViewPositions } from '../src/pathpix-webkit.mjs';
-import { PIN_ACCENT_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
+import { ACCENT_SERVED_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
 import { armPin, pinAt, accentPinned, analyzeExit, analyzeDir, exitTable, exitOffsets, splitUnion, region, liveP, liveA } from '../src/pathpix-exit.mjs';
 import { pathSearch as chromiumPathSearch, laneOffsets, exitOffsets as chromiumExitOffsets, armPin as chromiumArmPin, pinAt as chromiumPinAt, accentPinned as chromiumAccentPinned } from '../../measure-chromium/src/pathpix-pure.mjs';
 
@@ -19,7 +19,7 @@ test('the Chromium driver computes the same offsets and arm search as the Simula
 });
 
 test('page-side expressions are well-formed scripts', () => {
-  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR, PIN_ACCENT_EXPR, ACCENT_SIG_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
+  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR, ACCENT_SERVED_EXPR, ACCENT_SIG_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
 });
 
 test('png codec round-trips, crops and compares', () => {
@@ -132,19 +132,19 @@ test('the live witnesses', () => {
   assert.equal(liveA({ live: true, variant: 'threaded' }), false);
 });
 
-function fakeExitLane(dir, { pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }) }) {
+function fakeExitLane(dir, { pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts }) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
   const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
   put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
   const boxes = { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
-  const accent = (arm) => { const a = accentOf(arm); return a && { drift: null, shotStart: a, shotEnd: a }; };
-  const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: 0, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
+  const accent = (arm) => { const a = accentOf(arm); return a && { shotStart: a, shotEnd: a }; };
+  const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: scrollOf(arm), dateNow: dateOf(arm), cover: coverOf(arm), parts: parts, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
   const faithful = { live: false, variant: 'faithful', supported: true, nonDoc: 0 };
   const moved = { i: 1, y: 50, scrollY: 50, boxes: { ...boxes, hero_copy: [10e6, still ? 10e6 : 5e6, 20e6, 20e6] }, live: faithful, files: [], dprMilli: 1000, layers: [], layerCount: 0 };
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
     schema: 'fw.path-pix/1', mode: 'exit', flag: 'hero.exit:threaded', engine: 'webkit', lane: 'test', run: 'test', lossless: true, compositing: 'test', dpr: 1, vw: 100, vh: 100,
-    frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0, 1], cut: [],
+    frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0, 1], cut: [], ...(maxY === undefined ? {} : { maxY }),
     handover: { pin: { A: { ssr: 'ssr' }, A2: { ssr: 'ssr' }, P: { ssr: 'ssr' } } },
     samples: { A: [row('A', faithful), moved], A2: [row('A2', faithful), null], P: [row('P', pLive), null] },
   }));
@@ -188,7 +188,7 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
     for (const [name, accentOf, hit] of [
       ['arm A re-created', (arm) => (arm === 'A' ? { n: 1, sig: 'live' } : { n: 1, sig: 'ssr' }), () => true],
       ['arm P two elements', (arm) => (arm === 'P' ? { n: 2, sig: 'ssr' } : { n: 1, sig: 'ssr' }), (c) => c.kind === 'P'],
-      ['arm A2 unrecorded', (arm) => (arm === 'A2' ? null : { n: 1, sig: 'ssr' }), (c) => c.kind === 'A/A'],
+      ['arm A2 unrecorded', (arm) => (arm === 'A2' ? null : { n: 1, sig: 'ssr' }), () => true],
     ]) {
       fakeExitLane(dir, { ...edits, accentOf });
       const bad = analyzeExit(dir, { strips: 'none' });
@@ -201,8 +201,57 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
     }
     fakeExitLane(dir, { ...edits, accentOf: (arm) => (arm === 'A2' ? { n: 1, sig: 'live' } : { n: 1, sig: 'ssr' }) });
     const noFloor = analyzeExit(dir, { strips: 'none' });
-    assert.ok(noFloor.cells.filter((c) => c.kind === 'P').every((c) => c.accentPinned && c.floor.valid === false));
+    // the floor rows are checked too (Lean gradePinned_invalid_of_floor_unpinned): a P cell on an unpinned floor is invalid, not L
+    assert.ok(noFloor.cells.filter((c) => c.kind === 'P').every((c) => !c.accentPinned && c.floor.valid === false && c.grade === 'invalid' && c.invalidWhy === 'accent-unpinned'));
     assert.equal(accentPinned('s', 's', 's', 1), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('exit analysis: a misplaced row is invalid, an occluded layer is skipped with its reason, a change names the parts it touches', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-exit2-'));
+  try {
+    const edits = { a2Edit: setPx(15, 15), pEdit: (img) => { setPx(15, 15)(img); setPx(15, 16)(img); setPx(80, 80)(img); }, pLive: liveOk, maxY: 4000 };
+    fakeExitLane(dir, edits);
+    const base = analyzeExit(dir, { strips: 'none' });
+    assert.ok(base.cells.every((c) => c.accentPinned && c.invalidWhy === null), 'rows at their offsets are placed');
+    assert.equal(base.maxY, 4000);
+    fakeExitLane(dir, { ...edits, scrollOf: (arm) => (arm === 'A' ? 7 : 0) });
+    const all = analyzeExit(dir, { strips: 'none' });
+    assert.ok(all.cells.every((c) => c.grade === 'invalid' && c.invalidWhy === 'misplaced' && c.why === null && c.ifAccepted === 'invalid'));
+    fakeExitLane(dir, { ...edits, scrollOf: (arm) => (arm === 'P' ? 3 : 0) });
+    const pOnly = analyzeExit(dir, { strips: 'none' });
+    assert.ok(pOnly.cells.filter((c) => c.kind === 'A/A').every((c) => c.invalidWhy === null && c.grade !== 'invalid'));
+    assert.ok(pOnly.cells.filter((c) => c.kind === 'P').every((c) => c.invalidWhy === 'misplaced' && c.grade === 'invalid'));
+    fakeExitLane(dir, { ...edits, scrollOf: (arm) => (arm === 'A2' ? 3 : 0) });
+    const floorBad = analyzeExit(dir, { strips: 'none' });
+    assert.ok(floorBad.cells.filter((c) => c.kind === 'P').every((c) => c.invalidWhy === 'misplaced' && c.grade === 'invalid'), 'the floor rows are checked for placement too');
+
+    const full = { hero_copy: { n: 49, k: 49 } };
+    fakeExitLane(dir, { ...edits, coverOf: () => full });
+    const occ = analyzeExit(dir, { strips: 'none' });
+    assert.ok(occ.cells.every((c) => c.key !== 'hero_copy'));
+    assert.equal(occ.skipped.filter((x) => x.key === 'hero_copy' && x.why === 'occluded by opaque foreign content in both arms').length, 2);
+    assert.ok(occ.cells.some((c) => c.key === 'hero.deck_article#1'));
+    fakeExitLane(dir, { ...edits, coverOf: (arm) => (arm === 'P' ? full : { hero_copy: { n: 49, k: 48 } }) });
+    assert.ok(analyzeExit(dir, { strips: 'none' }).cells.some((c) => c.kind === 'P' && c.key === 'hero_copy'), 'one arm covered, or one grid point open: graded');
+    fakeExitLane(dir, { ...edits, coverOf: (arm) => (arm === 'P' ? full : undefined) });
+    assert.ok(analyzeExit(dir, { strips: 'none' }).cells.some((c) => c.kind === 'P' && c.key === 'hero_copy'), 'an arm without cover data is not occluded');
+
+    fakeExitLane(dir, { ...edits, parts: { hero_copy: [['button.cta', 14, 14, 3, 3], ['p.far', 25, 25, 4, 4]] } });
+    const where = analyzeExit(dir, { strips: 'none' });
+    const w = (kind, key) => where.cells.find((c) => c.kind === kind && c.key === key).where;
+    assert.deepEqual(w('P', 'hero_copy'), { bbox: [15, 15, 16, 17], parts: ['button.cta'] });
+    assert.deepEqual(w('A/A', 'hero_copy'), { bbox: [15, 15, 16, 16], parts: ['button.cta'] });
+    assert.deepEqual(w('P', 'hero.deck_article#1'), { bbox: null, parts: [] });
+
+    assert.deepEqual(where.clock, { values: [1000], constant: true });
+    fakeExitLane(dir, { ...edits, dateOf: (arm) => (arm === 'P' ? 2000 : 1000) });
+    const moving = analyzeExit(dir, { strips: 'none' });
+    assert.deepEqual(moving.clock, { values: [1000, 2000], constant: false });
+    assert.match(exitTable(moving), /Date\.now in every row: moves/);
+    assert.match(exitTable(where), /Date\.now in every row: constant \(1000\)/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -221,29 +270,33 @@ const accentEl = (word, cls) => new El({ 'data-fw': 'hero-accent', class: cls, s
   new El({ 'data-paint': '', style: 'top:0' }, [0, 1, 2].map(() => new El({ tag: 'svg', viewBox: `0 0 ${word} 9` }, [new El({ tag: 'path', d: `M${word}` })]))),
 ]);
 
-test('the pin expression replaces the live accent element by the served one, whatever word the live one shows', () => {
-  for (const [liveWord, liveCls] of [['10', 'accent idle'], ['20', 'accent drawingIn'], ['30', 'accent drawingOut']]) {
-    const body = new El({}, [accentEl(liveWord, liveCls)]);
+test('the served-accent expression only reads: it compares the live accent with the served page and reports the hook', () => {
+  for (const [liveWord, liveCls, hooked] of [['10', 'accent idle', true], ['20', 'accent drawingIn', true], ['10', 'accent idle', false]]) {
+    const live = accentEl(liveWord, liveCls);
+    if (hooked) live.attrs['data-fw-pin'] = 'accent';
+    const body = new El({}, [live]);
     const served = new El({}, [accentEl('10', 'accent idle')]);
-    const doc = { querySelector: (s) => body.querySelector(s), querySelectorAll: (s) => body.querySelectorAll(s), importNode: (n) => n };
+    const asked = [];
+    const doc = { querySelector: (s) => body.querySelector(s), querySelectorAll: (s) => body.querySelectorAll(s) };
     const env = {
-      document: doc, location: { pathname: '/', search: '?fw=hero.exit:threaded' },
-      XMLHttpRequest: class { open() {} send() { this.status = 200; this.responseText = 'html'; } },
+      document: doc, location: { pathname: '/', search: '?fw=hero.exit:threaded&fwpin=accent' },
+      XMLHttpRequest: class { open(m, u) { asked.push(u); } send() { this.status = 200; this.responseText = 'html'; } },
       DOMParser: class { parseFromString() { return served; } },
     };
-    const out = JSON.parse(new Function(...Object.keys(env), `return ${PIN_ACCENT_EXPR}`)(...Object.values(env)));
-    assert.equal(out.pinned, true);
-    assert.equal(out.same, true, liveWord);
-    assert.equal(out.after, out.ssr);
-    assert.equal(out.before === out.ssr, liveWord === '10' && liveCls === 'accent idle');
-    const again = JSON.parse(new Function(...Object.keys(env), `return ${PIN_ACCENT_EXPR}`)(...Object.values(env)));
-    assert.equal(again.wasPinned, true, 'a second pin finds the pinned node');
-    assert.equal(again.before, out.ssr, 'a pinned node still shows the served word');
+    const out = JSON.parse(new Function(...Object.keys(env), `return ${ACCENT_SERVED_EXPR}`)(...Object.values(env)));
+    assert.deepEqual(asked, ['/?fw=hero.exit:threaded'], 'the server is asked for the prerendered search, without the hook');
+    assert.equal(out.hooked, hooked);
+    assert.equal(out.same, liveWord === '10' && liveCls === 'accent idle');
+    assert.equal(body.querySelector('[data-fw="hero-accent"]'), live, 'the live element is not replaced');
     const seen = JSON.parse(new Function('document', `return ${ACCENT_SIG_EXPR}`)(doc));
-    assert.deepEqual(seen, { n: 1, sig: out.ssr, pinned: true });
+    assert.deepEqual(seen, { n: 1, sig: out.live, pinned: hooked });
   }
-  const none = { document: { querySelector: () => null } };
-  assert.equal(JSON.parse(new Function(...Object.keys(none), `return ${PIN_ACCENT_EXPR}`)(...Object.values(none))).pinned, false);
+  const only = { document: { querySelector: () => null } };
+  assert.equal(JSON.parse(new Function(...Object.keys(only), `return ${ACCENT_SERVED_EXPR}`)(...Object.values(only))).hooked, false);
+  const bare = { document: { querySelector: () => accentEl('1', 'a'), querySelectorAll: () => [1] }, location: { pathname: '/', search: '?fwpin=accent' }, XMLHttpRequest: class { open(m, u) { this.u = u; bareAsked.push(u); } send() { this.status = 404; } }, DOMParser: class {} };
+  const bareAsked = [];
+  JSON.parse(new Function(...Object.keys(bare), `return ${ACCENT_SERVED_EXPR}`)(...Object.values(bare)));
+  assert.deepEqual(bareAsked, ['/'], 'a hook-only search asks for the bare page');
 });
 
 test('both lanes pin every arm the same way', () => {
