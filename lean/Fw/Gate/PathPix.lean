@@ -984,7 +984,7 @@ def Accent.base : Accent := ⟨-1, .idle⟩
 
 def Accent.json (a : Accent) : Json := Json.mkObj [("cursor", toJson a.cursor), ("phase", toJson a.phase.name)]
 
-def pinArms : List String := ["A", "A2", "P"]
+def pinArms : List String := ["A", "A2", "A3", "P"]
 
 def armPin (_arm : String) : Pin := .hook
 
@@ -1396,6 +1396,258 @@ theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈
     rw [he] at this
     simp at this
 
+/-! ## Consensus of the identical arms -/
+
+/-- One region of a P cell once the identical arms are compared: no P change, a P change where the identical arms
+disagree, or a P change where they agree. -/
+inductive Seen where
+  | quiet | varied | counted
+deriving DecidableEq, Repr
+
+/-- The golden name of a region reading. -/
+def Seen.name : Seen → String
+  | .quiet => "quiet" | .varied => "varied" | .counted => "counted"
+
+/-- One region (outside every mask, or inside the layer's mask): P against A, and A against the identical arms A2
+and, when captured, A3. -/
+structure Zone where
+  p : Raw
+  aa2 : Raw
+  aa3 : Option Raw
+deriving DecidableEq, Repr
+
+/-- Every captured identical arm equals A in the region. -/
+def Zone.agree (r : Zone) : Bool := r.aa2.changed == 0 && r.aa3.all (·.changed == 0)
+
+/-- A P change counts only where the identical arms agree. -/
+def Zone.seen (r : Zone) : Seen :=
+  if r.p.changed == 0 then .quiet else if r.agree then .counted else .varied
+
+theorem Zone.agree_iff (r : Zone) :
+    r.agree = true ↔ r.aa2.changed = 0 ∧ ∀ x ∈ r.aa3, x.changed = 0 := by
+  unfold Zone.agree
+  cases h : r.aa3 <;> simp
+
+theorem seen_quiet_iff (r : Zone) : r.seen = .quiet ↔ r.p.changed = 0 := by
+  unfold Zone.seen
+  by_cases h : r.p.changed = 0 <;> by_cases g : r.agree <;> simp_all
+
+theorem seen_counted_iff (r : Zone) : r.seen = .counted ↔ r.p.changed ≠ 0 ∧ r.agree = true := by
+  unfold Zone.seen
+  by_cases h : r.p.changed = 0 <;> by_cases g : r.agree <;> simp_all
+
+theorem seen_varied_iff (r : Zone) : r.seen = .varied ↔ r.p.changed ≠ 0 ∧ r.agree = false := by
+  unfold Zone.seen
+  by_cases h : r.p.changed = 0 <;> by_cases g : r.agree <;> simp_all
+
+theorem seen_quiet_of_p (r : Zone) (h : r.p.changed = 0) : r.seen = .quiet :=
+  (seen_quiet_iff r).2 h
+
+theorem seen_counted_of_agree (r : Zone) (hp : r.p.changed ≠ 0) (h2 : r.aa2.changed = 0)
+    (h3 : ∀ x ∈ r.aa3, x.changed = 0) : r.seen = .counted :=
+  (seen_counted_iff r).2 ⟨hp, (r.agree_iff).2 ⟨h2, h3⟩⟩
+
+theorem seen_varied_of_a2 (r : Zone) (hp : r.p.changed ≠ 0) (h2 : r.aa2.changed ≠ 0) : r.seen = .varied := by
+  refine (seen_varied_iff r).2 ⟨hp, ?_⟩
+  cases hg : r.agree
+  · rfl
+  · exact absurd ((r.agree_iff).1 hg).1 h2
+
+theorem seen_varied_of_a3 (r : Zone) (x : Raw) (hp : r.p.changed ≠ 0) (hx : r.aa3 = some x)
+    (h3 : x.changed ≠ 0) : r.seen = .varied := by
+  refine (seen_varied_iff r).2 ⟨hp, ?_⟩
+  cases hg : r.agree
+  · rfl
+  · exact absurd (((r.agree_iff).1 hg).2 x (by simp [hx])) h3
+
+theorem seen_dropping_a3 (r : Zone) (h : r.seen = .counted) : { r with aa3 := none }.seen = .counted := by
+  rw [seen_counted_iff] at h ⊢
+  refine ⟨h.1, ?_⟩
+  have := (r.agree_iff).1 h.2
+  exact ({ r with aa3 := none }.agree_iff).2 ⟨this.1, by simp⟩
+
+/-- The reading of a cell: the stronger of its two regions, counted over varied over quiet. -/
+def Seen.join : Seen → Seen → Seen
+  | .counted, _ => .counted
+  | _, .counted => .counted
+  | .varied, _ => .varied
+  | _, .varied => .varied
+  | .quiet, .quiet => .quiet
+
+theorem join_counted_iff (a b : Seen) : a.join b = .counted ↔ a = .counted ∨ b = .counted := by
+  cases a <;> cases b <;> simp [Seen.join]
+
+theorem join_varied_iff (a b : Seen) : a.join b = .varied ↔ a ≠ .counted ∧ b ≠ .counted ∧ (a = .varied ∨ b = .varied) := by
+  cases a <;> cases b <;> simp [Seen.join]
+
+theorem join_quiet_iff (a b : Seen) : a.join b = .quiet ↔ a = .quiet ∧ b = .quiet := by
+  cases a <;> cases b <;> simp [Seen.join]
+
+/-- What a cell reports: its grade, or `varied` when its only P changes lie where the identical arms disagree. -/
+inductive Verdict where
+  | graded (g : Grade)
+  | varied
+deriving DecidableEq, Repr
+
+/-- The golden name of a verdict. -/
+def Verdict.name : Verdict → String
+  | .graded g => g.name
+  | .varied => "varied"
+
+/-- The grade `g` stands unless the cell is valid and all its P changes lie where the identical arms disagree. -/
+def verdict (g : Grade) (out inside : Zone) : Verdict :=
+  if g == .invalid then .graded .invalid
+  else if (out.seen.join inside.seen) == .varied then .varied
+  else .graded g
+
+theorem verdict_invalid (out inside : Zone) : verdict .invalid out inside = .graded .invalid := by
+  simp [verdict]
+
+theorem verdict_varied_iff (g : Grade) (out inside : Zone) :
+    verdict g out inside = .varied ↔ g ≠ .invalid ∧ out.seen.join inside.seen = .varied := by
+  unfold verdict
+  by_cases hg : g = .invalid <;> by_cases hj : out.seen.join inside.seen = .varied <;> simp_all
+
+theorem verdict_graded_iff (g : Grade) (out inside : Zone) :
+    verdict g out inside = .graded g ↔ g = .invalid ∨ out.seen.join inside.seen ≠ .varied := by
+  unfold verdict
+  by_cases hg : g = .invalid <;> by_cases hj : out.seen.join inside.seen = .varied <;> simp_all
+
+theorem verdict_counted_out (g : Grade) (out inside : Zone) (h : out.seen = .counted) :
+    verdict g out inside = .graded g := by
+  have : out.seen.join inside.seen = .counted := (join_counted_iff _ _).2 (Or.inl h)
+  exact (verdict_graded_iff _ _ _).2 (Or.inr (by rw [this]; decide))
+
+theorem verdict_counted_inside (g : Grade) (out inside : Zone) (h : inside.seen = .counted) :
+    verdict g out inside = .graded g := by
+  have : out.seen.join inside.seen = .counted := (join_counted_iff _ _).2 (Or.inr h)
+  exact (verdict_graded_iff _ _ _).2 (Or.inr (by rw [this]; decide))
+
+theorem verdict_quiet (g : Grade) (out inside : Zone) (ho : out.seen = .quiet) (hi : inside.seen = .quiet) :
+    verdict g out inside = .graded g := by
+  exact (verdict_graded_iff _ _ _).2 (Or.inr (by simp [Seen.join, ho, hi]))
+
+theorem verdict_varied_region (g : Grade) (out inside : Zone) (h : verdict g out inside = .varied) :
+    out.seen ≠ .counted ∧ inside.seen ≠ .counted ∧ (out.seen = .varied ∨ inside.seen = .varied) :=
+  ((join_varied_iff _ _).1 ((verdict_varied_iff g out inside).1 h).2)
+
+theorem seen_ne_varied_of_agree (r : Zone) (h : r.agree = true) : r.seen ≠ .varied := by
+  rw [Ne, seen_varied_iff]
+  simp [h]
+
+/-- A region of a cell is outside every mask, or inside the layer's mask; `Aa` is A against one identical arm. -/
+structure Aa where
+  out : Raw
+  inside : Raw
+deriving DecidableEq, Repr
+
+/-- The cell's two regions with the identical arms attached. -/
+def Cell.regions (c : Cell) (a2 : Aa) (a3 : Option Aa) : Zone × Zone :=
+  (⟨c.out, a2.out, a3.map (·.out)⟩, ⟨c.inside, a2.inside, a3.map (·.inside)⟩)
+
+/-- The consensus verdict of a P cell: its relative grade, withheld when its P changes lie only where A, A2 and A3
+disagree. -/
+def consensus (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa) : Verdict :=
+  verdict (gradeRel c f live) (c.regions a2 a3).1 (c.regions a2 a3).2
+
+theorem consensus_graded (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa) (g : Grade)
+    (h : consensus c f live a2 a3 = .graded g) : g = gradeRel c f live := by
+  unfold consensus at h
+  by_cases hg : gradeRel c f live = .invalid
+  · rw [hg, verdict_invalid] at h
+    cases h
+    exact hg.symm
+  · have hv : (c.regions a2 a3).1.seen.join (c.regions a2 a3).2.seen ≠ .varied := by
+      intro hj
+      exact absurd h (by rw [(verdict_varied_iff _ _ _).2 ⟨hg, hj⟩]; simp)
+    have := (verdict_graded_iff (gradeRel c f live) _ _).2 (Or.inr hv)
+    rw [this] at h
+    cases h
+    rfl
+
+theorem consensus_agreeing (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa)
+    (ho2 : a2.out.changed = 0) (hi2 : a2.inside.changed = 0)
+    (ho3 : ∀ x ∈ a3, x.out.changed = 0) (hi3 : ∀ x ∈ a3, x.inside.changed = 0) :
+    consensus c f live a2 a3 = .graded (gradeRel c f live) := by
+  have ao : (c.regions a2 a3).1.agree = true := by
+    refine ((c.regions a2 a3).1.agree_iff).2 ⟨ho2, ?_⟩
+    intro x hx
+    simp only [Cell.regions, Option.mem_def, Option.map_eq_some_iff] at hx
+    obtain ⟨y, hy, rfl⟩ := hx
+    exact ho3 y hy
+  have ai : (c.regions a2 a3).2.agree = true := by
+    refine ((c.regions a2 a3).2.agree_iff).2 ⟨hi2, ?_⟩
+    intro x hx
+    simp only [Cell.regions, Option.mem_def, Option.map_eq_some_iff] at hx
+    obtain ⟨y, hy, rfl⟩ := hx
+    exact hi3 y hy
+  unfold consensus
+  refine (verdict_graded_iff _ _ _).2 (Or.inr fun hj => ?_)
+  rcases ((join_varied_iff _ _).1 hj).2.2 with h | h
+  · exact seen_ne_varied_of_agree _ ao h
+  · exact seen_ne_varied_of_agree _ ai h
+
+/-! ## Probe elements -/
+
+/-- A recorded element box in micro-CSS px (x, y, width, height), compared with a device-px box x0, y0, x1, y1 at an
+integer device pixel ratio. -/
+structure Probe where
+  x : Int
+  y : Int
+  w : Int
+  h : Int
+deriving DecidableEq, Repr
+
+/-- The probe's box overlaps the device box with positive area on both axes: touching edges do not hit. -/
+def probeHit (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe) : Bool :=
+  decide (p.x * dpr < (b.2.2.1 : Int) * 1000000) && decide ((p.x + p.w) * dpr > (b.1 : Int) * 1000000) &&
+    decide (p.y * dpr < (b.2.2.2 : Int) * 1000000) && decide ((p.y + p.h) * dpr > (b.2.1 : Int) * 1000000)
+
+/-- The names of the probes the box overlaps, in the recorded order; no box names none. -/
+def probesHit (dpr : Nat) (b : Option (Nat × Nat × Nat × Nat)) (ps : List (String × Probe)) : List String :=
+  match b with
+  | none => []
+  | some bb => (ps.filter fun (_, p) => probeHit dpr bb p).map (·.1)
+
+theorem probeHit_iff (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe) :
+    probeHit dpr b p = true ↔ p.x * dpr < (b.2.2.1 : Int) * 1000000 ∧ (p.x + p.w) * dpr > (b.1 : Int) * 1000000 ∧
+      p.y * dpr < (b.2.2.2 : Int) * 1000000 ∧ (p.y + p.h) * dpr > (b.2.1 : Int) * 1000000 := by
+  simp [probeHit, and_assoc]
+
+theorem probeHit_not_right (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (b.2.2.1 : Int) * 1000000 ≤ p.x * dpr) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).1
+    omega
+
+theorem probeHit_not_left (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (p.x + p.w) * dpr ≤ (b.1 : Int) * 1000000) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).2.1
+    omega
+
+theorem probeHit_not_below (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (b.2.2.2 : Int) * 1000000 ≤ p.y * dpr) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).2.2.1
+    omega
+
+theorem probeHit_not_above (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (p.y + p.h) * dpr ≤ (b.2.1 : Int) * 1000000) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).2.2.2
+    omega
+
+theorem probesHit_none (dpr : Nat) (ps : List (String × Probe)) : probesHit dpr none ps = [] := rfl
+
+theorem probesHit_mem (dpr : Nat) (bb : Nat × Nat × Nat × Nat) (ps : List (String × Probe)) (n : String) :
+    n ∈ probesHit dpr (some bb) ps ↔ ∃ p, (n, p) ∈ ps ∧ probeHit dpr bb p = true := by
+  simp [probesHit]
+
 def yieldCases : List (String × List RowLayer × Nat × Nat) :=
   let hero : RowLayer := ⟨"hero_copy", "hero_copy", ((10, 40), (10, 40))⟩
   let d0 : RowLayer := ⟨"hero.deck_article#0", "hero.deck_article", ((30, 60), (30, 60))⟩
@@ -1416,6 +1668,35 @@ def foreignCases : List (String × String × List ((Nat × Nat) × (Nat × Nat))
    ("no other mask", "hero_copy", [], 20, 20), ("on the other mask's edge", "hero_copy", [o], 15, 10),
    ("outside its own mask", "hero_copy", [o], 5, 12), ("deck card, pixel in another mask", "hero.deck_article", [o], 20, 12),
    ("cue, pixel in another mask", "hero.cue_cue", [o], 16, 11)]
+
+def seenCases : List (String × Zone) :=
+  let z : Raw := ⟨0, 0⟩
+  [("no P change, arms agree", ⟨z, z, some z⟩), ("no P change, arms disagree", ⟨z, ⟨4478, 2⟩, some z⟩),
+   ("P change, A2 and A3 agree", ⟨⟨192513, 20⟩, z, some z⟩), ("P change, A2 differs", ⟨⟨192513, 20⟩, ⟨3, 1⟩, some z⟩),
+   ("P change, A3 differs", ⟨⟨4478, 2⟩, z, some ⟨1, 1⟩⟩),
+   ("P change, A2 and A3 differ", ⟨⟨4478, 2⟩, ⟨4478, 2⟩, some ⟨4478, 2⟩⟩),
+   ("P change, A3 not captured, A2 agrees", ⟨⟨1, 1⟩, z, none⟩),
+   ("P change, A3 not captured, A2 differs", ⟨⟨1, 1⟩, ⟨1, 1⟩, none⟩)]
+
+def armCases : List (String × Aa × Option Aa) :=
+  let z : Raw := ⟨0, 0⟩
+  [("A2 and A3 agree", ⟨z, z⟩, some ⟨z, z⟩), ("A2 differs inside", ⟨z, ⟨3, 1⟩⟩, some ⟨z, z⟩),
+   ("A3 differs outside", ⟨z, z⟩, some ⟨⟨4478, 2⟩, z⟩), ("A2 and A3 differ outside", ⟨⟨4478, 2⟩, z⟩, some ⟨⟨4478, 2⟩, z⟩),
+   ("A3 not captured, A2 agrees", ⟨z, z⟩, none), ("A3 not captured, A2 differs outside", ⟨⟨5, 2⟩, z⟩, none)]
+
+def probeCases : List (String × Nat × Option (Nat × Nat × Nat × Nat) × List (String × Probe)) :=
+  let lang : Probe := ⟨218590000, 24000000, 73000000, 36000000⟩
+  let earn : Probe := ⟨100000000, 24000000, 10000000, 36000000⟩
+  [("box inside the language switch", 3, some (700, 100, 800, 150), [("nav-lang button", lang), ("nav-earn", earn)]),
+   ("box on the right edge pixel of the switch", 3, some (873, 118, 874, 134), [("nav-lang button", lang), ("nav-earn", earn)]),
+   ("box starts at the probe's right edge", 3, some (875, 118, 900, 134), [("nav-lang button", lang)]),
+   ("box ends at the probe's left edge", 3, some (600, 118, 655, 134), [("nav-lang button", lang)]),
+   ("box above the probe", 3, some (700, 0, 800, 72), [("nav-lang button", lang)]),
+   ("box below the probe", 3, some (700, 180, 800, 200), [("nav-lang button", lang)]),
+   ("box overlapping both probes", 3, some (0, 0, 1200, 300), [("nav-lang button", lang), ("nav-earn", earn)]),
+   ("no box", 3, none, [("nav-lang button", lang)]),
+   ("dpr 2", 2, some (437, 50, 438, 60), [("nav-lang button", lang)]),
+   ("probe off screen to the left", 3, some (0, 0, 100, 100), [("left", ⟨-50000000, 0, 10000000, 10000000⟩)])]
 
 def foreignMine : (Nat × Nat) × (Nat × Nat) := ((10, 40), (10, 40))
 
@@ -1540,6 +1821,21 @@ def goldenLines (_ : Unit := ()) : List String :=
         ("mask", toJson [l.mask.1.1, l.mask.1.2, l.mask.2.1, l.mask.2.2])])),
       ("x", toJson x), ("y", toJson y), ("countedBy", toJson (countedBy ls x y)),
       ("heroCounts", toJson (ls.filter (·.layer == "hero_copy") |>.map fun l => l.counts ls x y))]).compress) ++
+  seenCases.map (fun (n, r) =>
+    (Json.mkObj [("kind", "seen"), ("name", toJson n),
+      ("region", Json.mkObj [("p", r.p.json), ("aa2", r.aa2.json), ("aa3", match r.aa3 with | some x => x.json | none => Json.null)]),
+      ("agree", toJson r.agree), ("seen", toJson r.seen.name)]).compress) ++
+  relCases.flatMap (fun (cn, c, f, live) => armCases.map (fun (an, a2, a3) =>
+    (Json.mkObj [("kind", "consensus"), ("name", toJson (cn ++ ": " ++ an)), ("cell", c.json),
+      ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("a2", Json.mkObj [("out", a2.out.json), ("inside", a2.inside.json)]),
+      ("a3", match a3 with | some x => Json.mkObj [("out", x.out.json), ("inside", x.inside.json)] | none => Json.null),
+      ("grade", toJson (gradeRel c f live).name), ("verdict", toJson (consensus c f live a2 a3).name)]).compress)) ++
+  probeCases.map (fun (n, dpr, b, ps) =>
+    (Json.mkObj [("kind", "probeHit"), ("name", toJson n), ("dpr", toJson dpr),
+      ("bbox", match b with | some x => toJson [x.1, x.2.1, x.2.2.1, x.2.2.2] | none => Json.null),
+      ("probes", toJson (ps.map fun (m, p) => Json.arr #[toJson m, toJson p.x, toJson p.y, toJson p.w, toJson p.h])),
+      ("hit", toJson (probesHit dpr b ps))]).compress) ++
   maskCases.map (fun (n, dpr, fw, fh, b) =>
     let m := mask dpr fw fh b
     (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),
@@ -1584,7 +1880,7 @@ def run (args : List String) : IO UInt32 := do
 #guard (accelCases.map accelerated) ==
   [true, true, true, true, false, false, false, false, false, false, false, false]
 
-#guard (pinArms.map fun a => (armPin a).name) == ["accent-hook", "accent-hook", "accent-hook"]
+#guard (pinArms.map fun a => (armPin a).name) == ["accent-hook", "accent-hook", "accent-hook", "accent-hook"]
 #guard (liveAccentCases.map fun l => (shown .hook l).cursor) == [-1, -1, -1]
 #guard (accentRowCases.map fun (a, b, c, n) => accentPinned a b c n) == [true, false, false, false, false, false]
 #guard (accentRowSets.map fun (_, rows) => rowsPinned "s" rows) == [true, false, false, false, true, true, true, true, true]
@@ -1592,5 +1888,10 @@ def run (args : List String) : IO UInt32 := do
 #guard (hookCases.map hookSet) == [false, false, true, true, false, true, true, false, false, false, false, true, true, false, false, true]
 #guard (clockCases.map fun (p, e, v) => secondsLeft clockTarget (clockNow p e v)) == [2900, 2900, 2900, 2900, 2900, 2899, 2899, 2839]
 #guard (coverCases.map fun (a, b) => occludedBoth a b) == [true, false, false, false, false, true, true]
+
+#guard (seenCases.map fun (_, r) => r.seen.name) ==
+  ["quiet", "quiet", "counted", "varied", "varied", "varied", "counted", "varied"]
+#guard (probeCases.map fun (_, dpr, b, ps) => probesHit dpr b ps) ==
+  [["nav-lang button"], ["nav-lang button"], [], [], [], [], ["nav-lang button", "nav-earn"], [], ["nav-lang button"], []]
 
 end Fw.Gate.PathPix
