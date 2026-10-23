@@ -61,7 +61,7 @@ y-1, so it is not the flag state), while base2 vs base3 is 3.1k-6.8k. So the con
   m0.25/0.5 against A/A [0,0,0] (MEASURED). No colour shift of the glass beyond one level.
 - Edge ring (3 device px around the faithful pill): clip-box 5,143 / 6,211 / 8,617 / 8,742 / 9,178 changed
   px against the A/A ring 12 / 2 / 0 / 2 / 0, so the pill edge moved clearly more than noise (MEASURED;
-  this is the look change of the fixed box). Out-of-mask changed px: 74-179 (tiny).
+  this is the look change of the fixed box). Out-of-mask changed px: 74-179.
 - Census: 208 layers in faithful, clip-box and bar-fixed; logo-3d 209 (transform3D 0 to 1, one more layer);
   bar-fixed and logo-3d: overlap 5 to 4, stacking 169 to 170, willChange 173 to 174 (MEASURED).
 - Not a lane artifact (MEASURED): stateSeen shows equal --morph and scrollY 5267 for faithful, arm and control
@@ -183,7 +183,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
 - Pain (dark-scroll), five states y-16..y+16: 0 changed px against the later loads at every state, floor 0 (identical on the real GPU;
   y-16, y-1, y+0 grade E, y+1 and y+16 grade Q because the first load is the outlier, finding 1). The Simulator also gave 0 against floors of 3k to 7k.
   MEASURED: the arm without `is-pain-dark` renders the faithful frame at the flip offset on the Mac too.
-- hero.exit:threaded (added, it was cheap), scroll 220/440/660 px (exit 0.25/0.5/0.75 of 880 px; faithful exit opacity 0.75/0.5/0.25):
+- hero.exit:threaded, scroll 220/440/660 px (exit 0.25/0.5/0.75 of 880 px; faithful exit opacity 0.75/0.5/0.25):
   the arm is live (`data-exit-live`, 13 scroll animations). x0.25 7.7k / 5.2k (1.5x above), x0.5 20.8k / 2.5k (8.2x above), x0.75 0 / 5.2k
   (identical, grade E). Repeat: x0.25 8.3k / 2.6k (3.1x above), x0.5 5.2k / 3.9k (1.3x above), x0.75 0 / 0 (identical). Max delta 167 and 111 at x0.25 and x0.5 in
   both runs. The direction repeats; the size at x0.5 does not (20.8k then 5.2k). Verdict: a candidate look difference in the middle of the
@@ -194,7 +194,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   same frame hash). At f40 the third faithful load (order probe) alone differs, 1.34M px over the whole frame, so the floor there is that one load and
   the arm's reading is "within". MEASURED: translate gives the faithful pixels on the real GPU.
 - Layer census and IOSurface: not taken on macOS (the Simulator census is a `vmmap` proxy; macOS Safari needs Instruments). The Mac rows carry
-  null census and IOSurface fields on purpose.
+  null census and IOSurface fields.
 
 ### Why the bundled arm equals threaded at morph m0.25 (item 2; MEASURED on the Mac by `lane/probe-fade.mjs`, `results/gpu-safari/mac-bundled-vs-threaded.json`)
 
@@ -229,7 +229,7 @@ this process (not a lane fault)".
 `ringSplit`, `glassOf`, `glassDelta`, `againstLoads`, `FLIP_SCAN` (pix.mjs, reduce.mjs, sim-capture.mjs),
 `wantEffects`, `PUSH_EXPR`, `STEP_EXPR`, `HERO_RANGE`, `HERO_SPLASH_DONE`, `HERO_STATE`, the people expressions (`PEOPLE_SETUP`, `PEOPLE_HOVER`, `PEOPLE_SCROLL`, `PEOPLE_STATE`, mac-capture.mjs),
 `probe-fade.mjs`, `pairs.mjs` (plan.mjs, sim-capture.mjs, mac-capture.mjs), `parseIOSurface`, `simServicePids`, `iosurfaceSample` (iosurface.mjs), `summary.mjs`, `quiet-refusal.mjs`.
-`elapsedAt` left this list: it is checked against the Lean golden (`elapsed.golden.jsonl`, `Fw.Measure.GpuElapsed`). `grade` is the existing Lean-backed cell grade. Moving the lane to `packages/measure-webkit` is a follow-up.
+`grade` is the existing Lean-backed cell grade. Moving the lane to `packages/measure-webkit` is a follow-up.
 
 ## Limits
 

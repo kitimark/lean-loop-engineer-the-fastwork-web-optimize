@@ -1,7 +1,3 @@
-// The lane command:
-//   node results/gpu-safari/lane/run.mjs sim <nav|morph|pain|hero|people|all> [--out <dir>] [--shots <dir>]   capture in the Simulator, then reduce
-//   node results/gpu-safari/lane/run.mjs mac <nav|morph|pain|hero|people|all> [--out <dir>] [--shots <dir>]   the same on macOS Safari (needs a visible, unlocked display; inside a `measure` slot)
-//   node results/gpu-safari/lane/run.mjs reduce <shots dir of one zone> <zone> [--out <dir>]      reduce an earlier capture again
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';

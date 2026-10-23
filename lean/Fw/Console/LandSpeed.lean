@@ -193,7 +193,6 @@ def checkShReads : List String :=
     "packages/contracts/fixtures/trajectory-gpu/**", "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
     "packages/gh-budget/src/bounds.gen.ts", "results/gpu-safari/lane/elapsed.golden.jsonl"]
 
-/-- The sample `checksFor` table of the golden cases: check.sh and one package test. -/
 def sampleDecls : List Decl :=
   [⟨"check.sh", checkShReads⟩, ⟨"contracts", ["packages/contracts/**"]⟩]
 

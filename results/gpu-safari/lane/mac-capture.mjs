@@ -7,7 +7,6 @@ import { statesOf, zoneArms } from './plan.mjs';
 import { SET_MORPH, NAV_STATE, PAIN_STATE, FLIP_SCAN, PUSH_EXPR, STEP_EXPR, wantEffects, HERO_RANGE, HERO_SPLASH_DONE, HERO_STATE } from './sim-capture.mjs';
 
 const FACE = `document.querySelector('[data-selenium^="start-selling.people.button.preview."]')`;
-// the profile people-o-hover, played in a wide window: the first face 250 px below the top, the row open, a mouseover, then 3 px frames
 export const PEOPLE_SETUP = `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const f = ${FACE};

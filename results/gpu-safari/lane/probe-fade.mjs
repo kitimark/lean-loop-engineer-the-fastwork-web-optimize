@@ -1,7 +1,3 @@
-// Why is the bundled morph arm pixel-identical to the threaded arm at m0.25?
-//   node results/gpu-safari/lane/probe-fade.mjs   (macOS Safari, inside a `measure` slot; writes results/gpu-safari/mac-bundled-vs-threaded.json)
-// Per arm (faithful, threaded, bundled) and state m: push, pause the effects at elapsedAt(m), read the platform's rect,
-// computed opacity and filter, its `--morph-fade`, and how much of its box lies in the viewport. Numbers only, no pixels.
 import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

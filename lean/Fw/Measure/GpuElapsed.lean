@@ -2,25 +2,17 @@ import Lean.Data.Json
 import Fw.Parts.MorphTween
 
 /-!
-# GPU lane: the paused-effect time of a morph state
-
-The GPU lane (`results/gpu-safari/lane/plan.mjs`, `elapsedAt`) pauses the morph effects of a real push at the
-time at which the tween value equals a chosen `m`. That time solves `ease (e / 680) = m`, where `ease` is the
-original's ease-out cubic (`Fw.Parts.MorphTween.ease`). The solution is a cube root, so the spec is the largest
-time on a grid of 1/1000 ms whose ease does not pass `m`. Over `Rat` and `Nat` only; no `Float`.
+Paused-effect time of a morph state for the GPU lane: the largest 1/1000 ms grid time whose `ease` does not pass `m`.
 -/
 namespace Fw.Measure.GpuElapsed
 open Fw.Parts.MorphTween
 
-/-- Grid steps in one tween: 680 ms at 1/1000 ms. -/
 def steps : Nat := 680000
 
-/-- A step count `j` lies at or past the cube root: `(1 - m) * steps^3 <= j^3`. -/
 def past (m : Rat) (j : Nat) : Prop := (1 - m) * (steps : Rat) ^ 3 ≤ (j : Rat) ^ 3
 
 instance (m : Rat) : DecidablePred (past m) := fun j => by unfold past; infer_instance
 
-/-- The first index from `i` (within `f` steps) where `p` holds; `i + f` when none does. -/
 def least (p : Nat → Bool) : Nat → Nat → Nat
   | i, 0 => i
   | i, f + 1 => if p i then i else least p (i + 1) f
@@ -50,10 +42,8 @@ theorem least_spec (p : Nat → Bool) (f : Nat) :
       · subst hji; exact hp'
       · exact d j (by omega) hj2
 
-/-- Remaining steps at the paused time: the least `j` past the cube root. -/
 def remain (m : Rat) : Nat := least (fun j => decide (past m j)) 0 steps
 
-/-- The paused-effect time in 1/1000 ms: `steps - remain m`. -/
 def elapsedMilli (m : Rat) : Nat := steps - remain m
 
 theorem past_steps (m : Rat) (h : 0 ≤ m) : past m steps := by
@@ -74,7 +64,6 @@ theorem remain_spec (m : Rat) (h : 0 ≤ m) :
   have := d j (by omega) hj
   simpa [remain] using this
 
-/-- On the grid, `ease` of `k` steps is one minus the cube of the remaining fraction. -/
 theorem ease_grid (k : Nat) (hk : k ≤ steps) :
     ease ((k : Rat) / steps) = 1 - (((steps - k : Nat) : Rat) / steps) ^ 3 := by
   have hs : (0 : Rat) < steps := by unfold steps; grind
@@ -101,7 +90,6 @@ theorem ease_grid (k : Nat) (hk : k ≤ steps) :
   rw [hc, hj]
   grind
 
-/-- `ease` of `k` steps does not pass `m` exactly when the remaining steps are past the cube root. -/
 theorem ease_le_iff (m : Rat) (k : Nat) (hk : k ≤ steps) :
     ease ((k : Rat) / steps) ≤ m ↔ past m (steps - k) := by
   have hs : (0 : Rat) < steps := by unfold steps; grind
@@ -125,7 +113,6 @@ theorem ease_le_iff (m : Rat) (k : Nat) (hk : k ≤ steps) :
     have := Rat.mul_lt_mul_of_pos_right h' h3
     grind
 
-/-- Upper side: the tween value at the paused time does not pass `m`. -/
 theorem elapsed_not_past (m : Rat) (h : 0 ≤ m) : ease ((elapsedMilli m : Rat) / steps) ≤ m := by
   obtain ⟨hle, hpast, _⟩ := remain_spec m h
   have e : steps - elapsedMilli m = remain m := by unfold elapsedMilli; omega
@@ -133,7 +120,6 @@ theorem elapsed_not_past (m : Rat) (h : 0 ≤ m) : ease ((elapsedMilli m : Rat) 
   rw [e] at key
   exact key.mpr hpast
 
-/-- Lower side: one more step passes `m`, unless the time already is the full 680 ms. -/
 theorem elapsed_next_past (m : Rat) (h : 0 ≤ m) (hk : elapsedMilli m < steps) :
     m < ease (((elapsedMilli m + 1 : Nat) : Rat) / steps) := by
   obtain ⟨hle, _, hleast⟩ := remain_spec m h
@@ -145,18 +131,14 @@ theorem elapsed_next_past (m : Rat) (h : 0 ≤ m) (hk : elapsedMilli m < steps) 
   rw [e] at hc'
   exact hleast (remain m - 1) (by unfold elapsedMilli at hk; omega) hc'
 
-/-- The paused time in ms, as the lane states it (floor on the 1/1000 ms grid). -/
 def elapsedMs (m : Rat) : Rat := (elapsedMilli m : Rat) / 1000
 
-/-! ## Golden for the TS twin (`results/gpu-safari/lane/plan.mjs`, `elapsedAt`) -/
 
-/-- The morph values the lane pauses at, the edges, and a few more. -/
 def values : List Rat := [0, 1 / 100, 1 / 10, 1 / 4, 2 / 5, 1 / 2, 3 / 4, 9 / 10, 99 / 100, 1]
 
 def ratJson (q : Rat) : Lean.Json :=
   Lean.Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- A function of `Unit` so no constant is evaluated when `fwcore` starts (`Fw.Lint.InitCost`). -/
 def lines (_ : Unit) : List String :=
   values.map fun m =>
     (Lean.Json.mkObj [("fn", .str "elapsedMilli"), ("in", Lean.Json.mkObj [("m", ratJson m)]),

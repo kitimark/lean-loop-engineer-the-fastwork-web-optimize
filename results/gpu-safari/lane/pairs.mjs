@@ -1,7 +1,3 @@
-// Pairs each macOS Safari row with the Simulator row of the same arm and state, and with the CI run ids of ci-pairs.mjs.
-//   node results/gpu-safari/lane/pairs.mjs [--write]   prints a table; --write stores results/gpu-safari/mac-vs-sim.json
-// A reading is "above" when the arm's nearest later faithful load differs by more px than the later-load A/A floor
-// (pix.mjs `againstLoads`). `x` = nearest / max(floor, 1). Numbers only; no pixels leave the machine.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
