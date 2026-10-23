@@ -47,6 +47,32 @@ the 50-minute step limit) kept real-touch end windows in only the first 1 to 3 w
   Timeline only gave per-zone render work. A touch end window now records no Timeline (Lean `timelinePlan`), so no stop
   can time out there.
 
+## CI proof (MEASURED)
+
+Run `39934951574`, branch `ci/sim-touch-reliable`, commit `610d43d70`, smoothness workflow with `[webkit-cadence] [earn-bound] [sim-only]`
+(arms base, aa, bound; 6 reps; 3 sim jobs on separate macOS 27 VMs; default variant `springboard`, no Timeline in touch windows).
+All three jobs finished (`success`), 1348, 1847 and 1456 s of probe wall time; run `39909042070` had two of three jobs cancelled at the 50-minute step limit, and run `39901005729` lost the touch lane at the 2nd or 3rd window.
+
+| job | end windows | touch pushes ok | non-ok | begin max (ms) | swipe max (ms) | done max (ms) | lane at end |
+|---|---|---|---|---|---|---|---|
+| 1 | 18 | 16 | 1 swipeLate (swipe 33,231 ms, done 128,351 ms) | 4,134 | 18,558 | 110,167 | off (synthetic after push 16) |
+| 2 | 18 | 18 | 0 | 17,350 | 10,092 | 28,560 | on |
+| 3 | 18 | 18 | 0 | 6,785 | 7,198 | 54,674 | on |
+| all | 54 | 52 of 53 | 1 | 17,350 | 18,558 | 110,167 | |
+
+Over the 52 ok pushes: begin p50 2.0 s, swipe p50 5.9 s, done p50 11.2 s and p90 26.1 s; per press p50 4.2 s, p90 5.5 s, max 19.0 s
+(`sim.json` field `rows[].touched`, artifacts `smoothness-webkit-sim-1..3`). The earlier runs took 50 to 130 s per push at the
+first touch windows and lost the lane at the 2nd or 3rd. Slowest push of this run: `Find the Application 'com.apple.springboard'`
+inside `Synthesize event` took 27 s (log tail of job 1, 787.20 to 814.51 s), so XCUITest's element snapshot also stalls under
+load, besides the idle wait. That push crossed the 20 s swipe deadline, classified `swipeLate` and turned the lane off; the retry
+(synthetic wheel) first hit `Timeline.stop timed out after 60000 ms`, then succeeded: a 398 s window, inside the bound.
+
+What this does not show: two things changed together (no Timeline in touch windows, SpringBoard coordinates), so which one
+removed the stalls is not separated. A control arm needs `FW_TOUCH_VARIANTS=safari` on the same commit (not run). Non-touch
+windows still lose a Timeline.stop now and then (job 3: one hero window at 60 s, one `Runtime.evaluate` at 120 s; job 1 after
+the failed push), so record volume is not the only cause of stop timeouts; the inspector channel is flaky on the runner
+(`inspector probe failed (tick): socket up, proxy down, page listed`).
+
 ## The bound (Lean `Fw.Measure.TouchPush`, golden `packages/contracts/golden/measure/touch-push.jsonl`, 21 lines)
 
 | Deadline | ms | Why this size |
@@ -95,7 +121,7 @@ within the step limit).
 
 ## Open
 
-- CI proof of the bounded push is a dispatch item for the lead (handoff). Phone not measured.
+- Phone not measured. Control arm (`FW_TOUCH_VARIANTS=safari`, same commit) would separate the two changes; it needs the workflow to pass the variable (`smoothness.yml`, owned by smoothness-cpu-throttle).
 - `report.mjs` labels the Timeline column from `mode`, so touch rows read "on"; a `timeline:false` label is a follow-up (outside this task's writes).
 - Simulator hero windows are starved on the runner (2 to 40 frames in 7 s, runs above); not touched here.
 - Negative result worth keeping: lengthening the stop wait (60 s to 240 s) made the job slower and kept fewer windows.
