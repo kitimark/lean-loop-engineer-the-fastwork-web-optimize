@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { UsageError, parseFlags } from "./lib.ts";
@@ -11,6 +11,7 @@ export const POLISH_USAGE =
   "usage: fw polish plan --branch <b> --task <id>                     (classes and scopes of the branch diff against main)\n" +
   "       fw polish cuts --branch <b> --task <id> --cuts <file|-> [--apply yes]   (cuts: {cuts:[{path,old,new}]} or [...])\n" +
   "       fw polish commit --branch <b> --task <id> [--message <m>]     (commit kept edits; restore edits outside the branch's hunks; refuse when the main checkout is dirty in the plan's files; always end with a clean worktree: leftover edits restored, untracked files created since plan deleted)\n" +
+  "       fw polish strays --branch <b> --task <id> --paths <file|->   (paths: {paths:[...]} or [...]; relative = under the main checkout; prints stray <path> for each edit outside <main>/.claude/worktrees/<name>/)\n" +
   "       fw polish --staged [--cuts <file|-> [--apply yes]]            (the staged files of this checkout, for the lead's commits)";
 
 type Cls = { path: string; class: string; mark: string | null };
@@ -29,6 +30,7 @@ export interface Deps {
   worktree?: (cwd: string, branch: string) => string | null;
   remove?: (path: string) => void;
   run?: (cwd: string, argv: string[]) => string | null;
+  realpath?: (path: string) => string | null;
 }
 
 export const realRun = (cwd: string, argv: string[]): string | null => {
@@ -118,6 +120,42 @@ function coreOf(cwd: string, deps: Deps, git: NonNullable<Deps["git"]>): CoreCal
   const root = git(cwd, ["rev-parse", "--show-toplevel"]).trim();
   const common = git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim();
   return coreCaller(coreCandidates(root, join(common, "..")));
+}
+
+const realPath = (p: string): string | null => { try { return realpathSync(p); } catch { return null; } };
+
+async function straysCli(flags: Record<string, string | undefined>, cwd: string, deps: Deps, out: (l: string) => void, git: NonNullable<Deps["git"]>): Promise<number> {
+  const task = flags.task!;
+  const real = deps.realpath ?? realPath;
+  try {
+    const raw = readJson(flags.paths!, deps);
+    const list = Array.isArray(raw) ? raw : (raw as { paths?: unknown }).paths;
+    if (!Array.isArray(list) || !list.every((p) => typeof p === "string")) throw new UsageError("--paths: expected {paths:[...]} or an array of strings");
+    const common = git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim();
+    const main = real(join(common, ".."));
+    if (!main) throw new Error(`main checkout ${join(common, "..")} does not resolve`);
+    const dir = (deps.worktree ?? worktreeOf)(cwd, flags.branch!);
+    if (!dir) throw new Error(`no worktree has branch ${flags.branch}`);
+    const call = coreOf(cwd, deps, git);
+    const name = ((await call({ op: "plan.wtName", dir: real(dir) ?? dir })) as { name?: string | null }).name;
+    if (typeof name !== "string") throw new Error(`worktree ${dir} is not a .claude/worktrees/<name> directory`);
+    out(`main ${main}`);
+    out(`worktree-name ${name}`);
+    let n = 0;
+    for (const p of list as string[]) {
+      const path = real(isAbsolute(p) ? p : `${main}/${p}`) ?? p;
+      const r = (await call({ op: "plan.inWt", main, name, path })) as { verdict?: unknown; own?: unknown };
+      if (typeof r.own !== "boolean") throw new Error(`fwcore: no plan.inWt verdict (${JSON.stringify(r).slice(0, 200)})`);
+      if (!r.own) { n++; out(`stray ${p}`); out(`  ${String(r.verdict)} ${path}`); }
+    }
+    out(`VERDICT polish-strays ${task} ${n ? "strays" : "clean"}`);
+    return n ? 1 : 0;
+  } catch (e) {
+    if (e instanceof UsageError) throw e;
+    out(`  ${e instanceof Error ? e.message : String(e)}`);
+    out(`VERDICT polish-strays ${task} error`);
+    return 1;
+  }
 }
 
 function readJson(src: string, deps: Deps): unknown {
@@ -238,7 +276,7 @@ function coreSafe(cwd: string, deps: Deps, git: Git): CoreCall | null {
   try { return coreOf(cwd, deps, git); } catch { return null; }
 }
 
-export const POLISH_VERBS = ["plan", "cuts", "commit", "staged"] as const;
+export const POLISH_VERBS = ["plan", "cuts", "commit", "staged", "strays"] as const;
 
 export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {
   const out = deps.log ?? ((l: string) => console.log(l));
@@ -255,6 +293,10 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
   const staged = verb === "staged";
   if (!staged && (!flags.branch || !flags.task)) throw new UsageError(POLISH_USAGE);
   if (verb === "cuts" && !flags.cuts) throw new UsageError(POLISH_USAGE);
+  if (verb === "strays") {
+    if (!flags.paths) throw new UsageError(POLISH_USAGE);
+    return straysCli(flags, cwd, deps, out, git);
+  }
   const task = staged ? "staged" : flags.task!;
   const kind = verb === "commit" ? "polish-commit" : verb === "cuts" || flags.cuts ? "polish-cuts" : "polish-plan";
   try {
