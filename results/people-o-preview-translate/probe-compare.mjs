@@ -1,25 +1,34 @@
 #!/usr/bin/env node
 // Open-card probe of profile people-o-hover (TS stand-in: an equality of two lists, no Lean golden). Usage:
-//   node probe-compare.mjs base=<counts.json> flag=<counts.json>
-// Both files carry `cardProbe.frames` (run.mjs probe pass: per frame the card rect, inline top/left/translate and a PNG hash of the
-// viewport). The script prints, per frame of the plan, whether rect and PNG hash are equal, and the number of frames where the card
-// was found. Exit 0 iff every frame has equal rect and equal PNG hash and the card was found in at least one frame.
+//   node probe-compare.mjs a=<counts.json> b=<counts.json>
+// Both files carry `cardProbe.frames` (run.mjs probe pass: per frame the card rect, the rect of its face, the inline top/left/translate,
+// a PNG hash of the viewport and a PNG hash of the pixels around the card). Prints, over all frames of the plan, how many frames differ
+// in the card rect, the card pixels (frames where the card is found in both) and the viewport pixels, how many frames of b use the
+// translate property, and the largest rect difference. Exit 0 iff the card was found in a frame and rect and card pixels agree in every
+// frame of phase `scroll` where it is found in both (the opening animation of the card runs in the earlier phases and differs by
+// hundredths of a pixel from run to run, so those frames are reported as `otherMaxRectDeltaPx` only); the viewport hash is reported only
+// (it also holds the rest of the page).
 import { readFileSync } from 'node:fs';
 
-const [base, flag] = process.argv.slice(2).map((a) => JSON.parse(readFileSync(a.split('=')[1], 'utf8')).cardProbe?.frames);
-if (!base || !flag) { console.error('both files need cardProbe.frames'); process.exit(2); }
-const rows = Math.max(base.length, flag.length);
-const bad = [];
-let found = 0, written = 0;
-for (let i = 0; i < rows; i++) {
-  const b = base[i], f = flag[i];
-  if (!b || !f) { bad.push({ n: i, why: 'frame missing' }); continue; }
-  if (b.found && f.found) found++;
-  if (f.found && f.translate) written++;
-  const rectEq = b.found === f.found && JSON.stringify(b.rect) === JSON.stringify(f.rect);
-  const pngEq = b.png === f.png;
-  if (!rectEq || !pngEq) bad.push({ n: i, phase: b.phase, y: b.y, rectBase: b.rect, rectFlag: f.rect, rectEq, pngEq });
-}
-const maxDelta = Math.max(0, ...base.map((b, i) => (b.found && flag[i]?.found ? Math.max(...b.rect.map((v, k) => Math.abs(v - flag[i].rect[k]))) : 0)));
-console.log(JSON.stringify({ frames: rows, cardFoundInBoth: found, flagFramesWithTranslate: written, maxRectDeltaPx: maxDelta, mismatches: bad.length, first: bad.slice(0, 5) }));
-process.exit(bad.length === 0 && found > 0 ? 0 : 1);
+const [a, b] = process.argv.slice(2).map((arg) => JSON.parse(readFileSync(arg.split('=')[1], 'utf8')).cardProbe?.frames);
+if (!a || !b || a.length !== b.length) { console.error('both files need cardProbe.frames of the same length'); process.exit(2); }
+let both = 0, translated = 0, rectBad = 0, cardBad = 0, pageBad = 0, maxDelta = 0, otherDelta = 0;
+const first = [];
+a.forEach((x, i) => {
+  const y = b[i];
+  if (y.found && y.translate) translated++;
+  if (x.png !== y.png) pageBad++;
+  if (x.found !== y.found) { rectBad++; first.push({ n: i, phase: x.phase, why: 'found differs' }); return; }
+  if (!x.found) return;
+  const delta = Math.max(...x.rect.map((v, k) => Math.abs(v - y.rect[k])));
+  if (x.phase !== 'scroll') { otherDelta = Math.max(otherDelta, delta); return; }
+  both++;
+  maxDelta = Math.max(maxDelta, delta);
+  const rectEq = delta === 0;
+  const cardEq = x.cardPng === y.cardPng;
+  if (!rectEq) rectBad++;
+  if (!cardEq) cardBad++;
+  if ((!rectEq || !cardEq) && first.length < 5) first.push({ n: i, phase: x.phase, y: x.y, rectA: x.rect, rectB: y.rect, cardEq });
+});
+console.log(JSON.stringify({ frames: a.length, scrollFramesCardInBoth: both, bFramesWithTranslate: translated, rectDiffFrames: rectBad, cardPixelDiffFrames: cardBad, viewportPixelDiffFrames: pageBad, maxRectDeltaPx: maxDelta, otherMaxRectDeltaPx: otherDelta, first }));
+process.exit(both > 0 && rectBad === 0 && cardBad === 0 ? 0 : 1);

@@ -64,3 +64,32 @@ test('n0Windows: events go to the first frame at or after their time; load, prer
   assert.deepEqual(n0FrameCounts(perFrame[1]), { 'n0.events': 1, 'n0.cssom': 1, 'n0.sheetNode': 0 });
   assert.deepEqual(n0FrameCounts(perFrame[2]), { 'n0.events': 1, 'n0.cssom': 0, 'n0.sheetNode': 1 });
 });
+
+test('pngRegionHash: every PNG row filter is undone, the hash is that of the rectangle\'s pixels', async () => {
+  const { deflateSync, crc32 } = await import('node:zlib');
+  const { createHash } = await import('node:crypto');
+  const { pngRegionHash } = await import('../src/png-region.mjs');
+  const w = 7, h = 10, bpp = 4;
+  const px = Buffer.alloc(w * h * bpp);
+  for (let i = 0; i < px.length; i++) px[i] = (i * 37 + (i >> 3) * 11) & 255;
+  const rows = [];
+  for (let y = 0; y < h; y++) {
+    const f = y % 5, row = Buffer.alloc(1 + w * bpp);
+    row[0] = f;
+    for (let x = 0; x < w * bpp; x++) {
+      const at = (yy, xx) => (yy < 0 || xx < 0 ? 0 : px[yy * w * bpp + xx]);
+      const a = at(y, x - bpp), b = at(y - 1, x), c = at(y - 1, x - bpp);
+      const pred = f === 0 ? 0 : f === 1 ? a : f === 2 ? b : f === 3 ? (a + b) >> 1 : (() => { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); return pa <= pb && pa <= pc ? a : pb <= pc ? b : c; })();
+      row[1 + x] = (px[y * w * bpp + x] - pred) & 255;
+    }
+    rows.push(row);
+  }
+  const chunk = (type, data) => { const t = Buffer.from(type, 'latin1'), len = Buffer.alloc(4), crc = Buffer.alloc(4); len.writeUInt32BE(data.length); crc.writeUInt32BE(crc32(Buffer.concat([t, data])) >>> 0); return Buffer.concat([len, t, data, crc]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(Buffer.concat(rows))), chunk('IEND', Buffer.alloc(0))]).toString('base64');
+  const want = (x0, y0, x1, y1) => { const hs = createHash('sha256'); for (let y = y0; y < y1; y++) hs.update(px.subarray((y * w + x0) * bpp, (y * w + x1) * bpp)); return hs.digest('hex').slice(0, 16); };
+  assert.equal(pngRegionHash(png, 1, 2, 5, 9), want(1, 2, 5, 9));
+  assert.equal(pngRegionHash(png, -3, -3, 99, 99), want(0, 0, w, h), 'clipped to the picture');
+  assert.equal(pngRegionHash(png, 8, 0, 9, 3), null, 'empty after clipping');
+  assert.equal(pngRegionHash('AAAA', 0, 0, 1, 1), null, 'not a PNG');
+});

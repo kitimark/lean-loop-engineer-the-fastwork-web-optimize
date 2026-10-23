@@ -9,6 +9,7 @@ import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 import { parseProfile, replayEvents } from './profile.mjs';
 import { collectCensus } from './census.mjs';
+import { pngRegionHash } from './png-region.mjs';
 
 const N0_ON = !process.env.FW_NO_N0;
 
@@ -341,22 +342,33 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
-// Open-card probe (profile.cardProbe = { selector }): after the counted pass and its trace, the plan is replayed once more with a PNG of every
-// frame and the rect and inline position of the element, so two arms can be compared in position and pixels (the counts are untouched:
-// tracing has ended and the N0 read is done). A frame without damage keeps the previous picture, so it keeps the previous hash.
+// Open-card probe (profile.cardProbe = { selector, faceSelector }): after the counted pass and its trace, the plan is replayed once more
+// and every frame records the rect and inline position of the element, the rect of the face it follows, a hash of the viewport PNG and a
+// hash of the PNG pixels around the element (its rect grown by 60 px for the shadow), so two arms can be compared in position and pixels.
+// The counts are untouched: tracing has ended and the N0 read is done. A frame without damage keeps the previous picture and hashes.
+// `containing` (once, at the first frame the element exists) lists the ancestors that make a fixed box position against them.
 let probe = null;
 if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try {
-  const read = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return { rect: [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 1000) / 1000), top: e.style.top, left: e.style.left, translate: e.style.translate }; })()`;
+  const { selector, faceSelector } = profile.cardProbe;
+  const read = `(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const q = (n) => { const r = n.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 1000) / 1000); };
+    const f = ${faceSelector ? `document.querySelector(${JSON.stringify(faceSelector)})` : 'null'};
+    const cb = []; for (let n = e.parentElement; n; n = n.parentElement) { const cs = getComputedStyle(n); const why = [cs.transform !== 'none' && 'transform', cs.translate !== 'none' && 'translate', cs.filter !== 'none' && 'filter', cs.perspective !== 'none' && 'perspective', cs.contain !== 'none' && 'contain:' + cs.contain, /transform|translate/.test(cs.willChange) && 'will-change', cs.backdropFilter !== 'none' && 'backdrop-filter'].filter(Boolean); if (why.length) cb.push(n.tagName.toLowerCase() + '.' + String(n.className).slice(0, 40) + ' ' + why.join(',')); }
+    return { rect: q(e), face: f ? q(f) : null, top: e.style.top, left: e.style.left, translate: e.style.translate, cb }; })()`;
   const rows = [];
-  let prevPng = '';
+  let prevPng = '', prevCard = null, containing = null;
   for (let n = 0; n < plan.length; n++, vt += dt) {
     const { phase, y, run } = plan[n];
     const r = await frame(vt, `${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`, null, true);
-    if (r.screenshot) prevPng = createHash('sha256').update(r.screenshot).digest('hex').slice(0, 16);
-    const v = await ev(read(profile.cardProbe.selector));
-    rows.push({ n, phase, y: r.out, png: prevPng, found: v !== null, ...v });
+    const v = await ev(read);
+    const { cb, ...rest } = v ?? {};
+    if (v && containing === null) containing = cb;
+    if (r.screenshot) {
+      prevPng = createHash('sha256').update(r.screenshot).digest('hex').slice(0, 16);
+      prevCard = v ? pngRegionHash(r.screenshot, v.rect[0] - 60, v.rect[1] - 60, v.rect[0] + v.rect[2] + 60, v.rect[1] + v.rect[3] + 60) : null;
+    } else if (!v) prevCard = null;
+    rows.push({ n, phase, y: r.out, png: prevPng, cardPng: v ? prevCard : null, found: v !== null, ...rest });
   }
-  probe = { selector: profile.cardProbe.selector, frames: rows };
+  probe = { selector, containing, frames: rows };
 } catch (e) { probe = { selector: profile.cardProbe.selector, error: String(e.message ?? e).slice(0, 300) }; } // the counts stay valid: the probe runs after them
 
 const censusPump = async () => {
