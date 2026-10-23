@@ -18,7 +18,6 @@ import { regionOf } from './reduce.mjs';
 import { costPasses } from './costprobe.mjs';
 import { swapPass } from './swapprobe.mjs';
 
-/** Frames of the morph run: idle, after the push down, after the push up. A tween lasts 680 ms, so 60 frames cover it at >= 11.4 ms per frame. */
 export const MORPH_FRAMES = Object.freeze({ idle: 10, open: 60, close: 60 });
 
 /** In-page helpers: the parts of the page and one read of their boxes and filter elements (quarter CSS px, viewport coordinates). */
@@ -155,8 +154,7 @@ export async function morphRun(c, { clock, settleMs }) {
 
 /**
  * A session: the geometry pass once, then `passes` times a fresh-load scroll run and morph run. A run that still fails
- * after its retries ends the session; the completed runs are kept and the reason goes to `failed` (CI lost r2 and v3 of
- * the first dispatch whole to such a stall, 2026-10-21).
+ * after its retries ends the session; the completed runs are kept and the reason goes to `failed`.
  */
 export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = false, costOnly = false, swap = null }) {
   const geometry = costOnly ? null : await geometryPass(ctx, { clock, settleMs, step, log });

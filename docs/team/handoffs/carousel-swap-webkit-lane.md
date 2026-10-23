@@ -1,6 +1,6 @@
 branch: worktree-wf_379d0376-a33-1 (CI branch ci/carousel-swap-webkit-lane)
 worktree: .claude/worktrees/wf_379d0376-a33-1
-state: round-2 fixes 748ff0cbd, handoff 13702dafe, main 7e4722c7d (graph r345) merged at 4350feb62, polish f4c9e4682, final-round texts in the commit that lands this line; last CI push commit: 8dc944f90 on ci/carousel-swap-webkit-lane; no CI run since.
+state: round-2 fixes 748ff0cbd, handoff 13702dafe, main 7e4722c7d (graph r345) merged at 4350feb62, polish f4c9e4682, last CI push commit: 8dc944f90 on ci/carousel-swap-webkit-lane; no CI run since.
 CI runs:
 - 39932917436 webkit-sim at 48142c753: ci state complete, 0 swap windows (probe scrolled to page end); superseded
 - 39937838325 webkit-sim at 58b1df271 (scroll search): ci state failed (r3 cancelled at the job limit, no log); r1, r2 success (8 windows per capture, 16 captures)

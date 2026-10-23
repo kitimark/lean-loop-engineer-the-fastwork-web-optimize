@@ -20,7 +20,7 @@ show fewer Layout, Paint, Composite and RecalculateStyles Timeline rows than the
   win, loss, or unresolved with a reason (overlap, drift, noSamples, floorBroken).
 - One capture = fresh load of one arm in the same Simulator session, scroll until the whole carousel lies in the viewport,
   a MutationObserver marks every swap on and off with `performance.mark`, the Timeline rows are counted per observed window.
-  A pass = faithful-a, crop-a, faithful-b, crop-b (flipped on odd passes). The two faithful captures are the A/A floor.
+  A pass = faithful-a, crop-a, faithful-b, crop-b (flipped on odd passes).
 - Cell rule: the crop range against both faithful ranges; win only when the crop range lies wholly below both.
 
 ## Runs (MEASURED)
@@ -39,8 +39,7 @@ Report: `results/carousel-swap-webkit/people-carousel-crop.md` and `.json`.
 ## Negative finding: the first run saw nothing
 
 Run 39932917436 scrolled to the end of the page. Page order is hero, people, pain, commission, platform, so the people section was far
-off screen and the carousel loop (gated by an IntersectionObserver) was idle: 0 windows in every capture (INFERRED from the page
-structure; the fix below confirms it). The capture now records the scroll position, the reduced-motion flag, the observer
+off screen and the carousel loop (gated by an IntersectionObserver) was idle: 0 windows in every capture (INFERRED from the page structure). The capture now records the scroll position, the reduced-motion flag, the observer
 call count and the end child count so a silent window shows its cause.
 
 ## Result (MEASURED, class counts of the Timeline over 12 captures per arm)
