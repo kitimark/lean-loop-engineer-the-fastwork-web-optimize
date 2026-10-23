@@ -14224,7 +14224,8 @@
     "packages/measure-webkit/test/profile-report.test.mjs",
     "packages/measure-webkit/test/touch-push.test.mjs",
     "research/notes/2026/10-23-smooth-miss-counts.md"
-   ]
+   ],
+   "evidence": "7c78f37"
   },
   {
    "devices": [
@@ -17991,7 +17992,11 @@
     "packages/measure-webkit/src/lag/cli.mjs",
     "packages/measure-webkit/test/lag-morphcost.test.mjs",
     "results/morph-idle-none/**",
-    "docs/team/handoffs/morph-cost-sums-golden.md"
+    "docs/team/handoffs/morph-cost-sums-golden.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "lean/scripts/WkCostSums.lean"
    ],
    "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted."
   },
@@ -18052,6 +18057,28 @@
     "docs/team/handoffs/sim-touch-reliable.md"
    ],
    "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "graph-writes-closure",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/WritesClosure.lean",
+    "lean/Fw.lean",
+    "lean/scripts/WritesClosureGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    "apps/runner/src/plan*.ts",
+    "apps/runner/test/plan*.test.ts",
+    "docs/team/handoffs/graph-writes-closure.md"
+   ],
+   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328)."
   }
  ],
  "deadline": {

@@ -16,10 +16,12 @@ import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { envFor } from '../trajectory/registry.mjs';
 import { runCheck } from '../trajectory/reduce.mjs';
 import { HERO_BURST, END_PUSH, orderFor } from './schedule.mjs';
+import { hundredthsFrom } from './reduce.mjs';
 import { launchCadence } from './launch.mjs';
 import { eventsOf, summariseTrace } from './trace.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const HISTOGRAM_WAIT_MS = 600;
 const log = (...a) => process.stderr.write(`${a.join(' ')}\n`);
 
 /**
@@ -73,6 +75,7 @@ async function oneWindow(engine, env, a, win, traced) {
     if (win === 'end') await s.evaluate(toEnd);
     else await sleep(400);
     if (traced) await s.startTrace();
+    await s.histograms();
     await s.evaluate(() => window.__sm.start());
     if (win === 'hero') {
       await s.wheelBurst(cx, cy, HERO_BURST.dy, HERO_BURST.count, HERO_BURST.everyMs);
@@ -84,8 +87,10 @@ async function oneWindow(engine, env, a, win, traced) {
       await sleep(END_PUSH.holdMs);
     }
     const rec = await s.evaluate(() => window.__sm.stop());
+    await sleep(HISTOGRAM_WAIT_MS);
+    const hist = (await s.histograms())?.filter((h) => h.count > 0) ?? null;
     const trace = traced ? summariseTrace(eventsOf(await s.stopTrace())) : null;
-    return { ivs: intervalsOf(rec.ts), ys: rec.ys.slice(1), loaf: rec.loaf, arm, trace };
+    return { ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ys: rec.ys.slice(1), loaf: rec.loaf, arm, trace, hist };
   } finally { await s.close().catch(() => {}); }
 }
 
@@ -127,7 +132,7 @@ export async function runCadence({ widths, search = '', reps = 6, traceReps = 2,
               const r = await oneWindow(engine, e, a, win, traced);
               const row = { width, arm: a.id, window: win, rep: traced ? rep - reps : rep, config: r.arm.config, mode: r.arm.mode };
               if (traced) traces.push({ ...row, trace: r.trace, frames: r.ivs.length });
-              else runs.push({ ...row, ivs: r.ivs, ys: r.ys, loaf: r.loaf });
+              else runs.push({ ...row, ivs: r.ivs, th: r.th, ys: r.ys, loaf: r.loaf, hist: r.hist });
               if (runCheck([{ site: a.site, want: a.want, config: r.arm.config, mode: r.arm.mode }]) !== 'ok') {
                 refused = true;
                 log(`cadence ${width} ${a.id} ${win}: REFUSED config (${JSON.stringify(r.arm)})`);
