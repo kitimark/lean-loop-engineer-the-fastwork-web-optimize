@@ -62,13 +62,24 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
   (`walk_restored`, `walk_keep`, `walk_restore`, `walk_skip_restored`: the result is HEAD with exactly the kept hunks
   applied). The walk is TS (`walkHunks`, a stand-in) replayed against the Lean goldens; a hunk with a
   no-newline marker restores the whole file.
-- The stage ends clean (`plan.polishSettle`, `settle`): after every commit outcome the index goes back to HEAD, dirty
-  tracked paths that were clean at plan time are restored, untracked files not present at plan time are deleted, and one
-  line `cleanup: restored N (...), removed M (...), worktree clean` is printed (`settle_clean`, `settle_dirty_before`,
-  `settle_keeps_dirty_before`, `settle_restores_clean_only`, `settle_removes_created`, `settle_keeps_before`,
-  `settle_committed`, `settle_idempotent`). `fw polish plan` saves the untracked files (`fw-polish-untracked`) and the dirty
-  tracked paths (`fw-polish-dirty`) in the git dir; a path dirty at plan time is left alone and never committed by the
-  stage (`left <path>` line). Without a plan baseline nothing untracked is deleted and every dirty path is restored.
+- Invariant (round 3): the polish commit's tree differs from HEAD only in the `keep` paths (`git commit -- <keep>` builds
+  a temporary index, so the pre-commit hook also sees only `keep`; other staged entries stay staged). `keep`, `restore`
+  and both stage scopes are disjoint from the paths dirty at plan time (`plan.polishPlan` takes `dirtyBefore`, drops those
+  paths from `paths` and `edited`, and names the dropped edited ones in `left`; theorem `dirty_never_scoped`). Settle
+  touches only paths outside the plan-time baseline. Without a baseline `fw polish commit` acts on nothing.
+- The stage ends clean (`plan.polishSettle`, `settle`): after every commit outcome the dirty tracked paths that were clean
+  at plan time are restored from HEAD (the index is reset only for those paths), untracked files not present at plan time
+  are deleted, and one line `cleanup: restored N (...), removed M (...), worktree clean` is printed (`settle_clean`,
+  `settle_dirty_before`, `settle_keeps_dirty_before`, `settle_restores_clean_only`, `settle_removes_created`,
+  `settle_keeps_before`, `settle_committed`, `settle_idempotent`).
+- Baseline lifetime: `fw polish plan` writes `fw-polish-untracked` and `fw-polish-dirty` in the git dir (the same dirty
+  list it passed as `dirtyBefore`) and prints `skip <path> (dirty before plan)` for each planned path that was dirty;
+  `--staged` passes no dirty paths (every staged path differs from HEAD). The commit step prints `left <path> (dirty
+  before fw polish plan, not the polish stage's)` from Lean `left`. Settle deletes both baseline files, so a second
+  commit needs a fresh plan.
+- No baseline (either file missing): `fw polish commit` prints `no baseline from fw polish plan` and
+  `VERDICT polish-commit <task> refused` and touches nothing; settle without a dirty baseline restores nothing, without an
+  untracked baseline deletes nothing. With fwcore down the stand-in restores only non-baseline dirty paths and deletes nothing.
 
 ## Goldens
 

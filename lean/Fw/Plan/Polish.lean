@@ -83,6 +83,21 @@ def stages (gen : List String) (ps : List String) : List Stage :=
 def keeps (gen diff : List String) (p : String) : Bool :=
   diff.contains p && [Stage.comments, Stage.prose].any fun st => st.admits (classify gen p)
 
+/-- The paths of `ps` that were clean at plan time. -/
+def undirty (dirtyBefore ps : List String) : List String := ps.filter fun p => !dirtyBefore.contains p
+
+/-- A path dirty at plan time is in no stage scope, is not kept and is not restored; the plan is computed from `undirty`. -/
+theorem dirty_never_scoped (gen dirtyBefore ps ed : List String) (p : String) (h : p ∈ dirtyBefore) :
+    (∀ st, p ∉ scope gen st (undirty dirtyBefore ps)) ∧ p ∉ (undirty dirtyBefore ed).filter (keeps gen (undirty dirtyBefore ps))
+      ∧ p ∉ (undirty dirtyBefore ed).filter (fun q => !keeps gen (undirty dirtyBefore ps) q) := by
+  have hn : ∀ l, p ∉ undirty dirtyBefore l := by
+    intro l hp
+    simp [undirty, List.mem_filter] at hp
+    exact hp.2 h
+  refine ⟨fun st hp => ?_, fun hp => hn _ (List.mem_filter.1 hp).1, fun hp => hn _ (List.mem_filter.1 hp).1⟩
+  simp only [scope, List.mem_eraseDups, List.mem_filter] at hp
+  exact hn _ hp.1
+
 theorem skipped_skip (gen : List String) (p : String) (h : skipped gen p = true) : classify gen p = .skip := by
   simp [classify, h]
 

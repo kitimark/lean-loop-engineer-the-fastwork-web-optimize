@@ -14,7 +14,7 @@ export const POLISH_USAGE =
   "       fw polish --staged [--cuts <file|-> [--apply yes]]            (the staged files of this checkout, for the lead's commits)";
 
 type Cls = { path: string; class: string; mark: string | null };
-type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; prose: string[] }; keep: string[]; restore: string[] };
+type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; prose: string[] }; keep: string[]; restore: string[]; left?: string[] };
 type CutOut = { path: string; old: string; verdict: string; missing: string[] };
 type DocOut = { path: string; text: string; changed: boolean };
 
@@ -145,10 +145,10 @@ const untrackedOf = (dir: string, git: Git) => lines(git(dir, ["-c", "core.quote
 const dirtyOf = (dir: string, git: Git) => lines(git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", "HEAD"]));
 
 /** Writes the untracked files and the tracked dirty paths present before the polish stage (read by `settleTree` and the commit step). TS glue. */
-function saveBaseline(dir: string, git: Git, write: NonNullable<Deps["write"]>): void {
+function saveBaseline(dir: string, git: Git, write: NonNullable<Deps["write"]>, dirty: string[]): void {
   const gd = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
   write(join(gd, BASELINE), untrackedOf(dir, git).join("\n") + "\n");
-  write(join(gd, DIRTY_BASELINE), dirtyOf(dir, git).join("\n") + "\n");
+  write(join(gd, DIRTY_BASELINE), dirty.join("\n") + "\n");
 }
 
 /** One `-U0` hunk of the polish edits for `walkHunks`: the TS stand-in of Lean `Fw.Plan.Polish.WHunk`, replayed against the `plan.polishWalk` goldens. */
@@ -179,18 +179,18 @@ export function keptText(headText: string, file: FileDiff, kept: boolean[]): str
   return walkHunks(headText.split("\n"), hunks).join("\n");
 }
 
-/** Leaves the polish worktree clean, whatever the commit step did: the index goes back to HEAD, every tracked path still
- *  differing from HEAD is restored and every untracked file not in the `fw polish plan` baseline is deleted. Which paths
- *  is Lean `Fw.Plan.Polish.settle`; with fwcore down, all dirty paths are restored and nothing is deleted (TS stand-in). Returns one report line. */
+/** Leaves the polish worktree as the builder left it at plan time, whatever the commit step did: only paths outside the
+ *  `fw polish plan` baseline are touched (tracked dirty ones restored from HEAD, new untracked ones deleted), then both
+ *  baseline files are deleted. Which paths is Lean `Fw.Plan.Polish.settle`; with fwcore down, the non-baseline dirty paths
+ *  are restored and nothing is deleted (TS stand-in); without a dirty baseline nothing is restored (fail closed). Returns one report line. */
 export async function settleTree(dir: string, git: Git, call: CoreCall | null, read: NonNullable<Deps["read"]>, remove: (p: string) => void): Promise<string> {
   const gd = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
   const base = read(join(gd, BASELINE));
   const dirtyBase = read(join(gd, DIRTY_BASELINE));
-  git(dir, ["reset", "-q"]);
   const dirty = dirtyOf(dir, git);
   const untracked = untrackedOf(dir, git);
   const before = base === null ? untracked : lines(base);
-  let restore = dirtyBase === null ? dirty : dirty.filter((p) => !lines(dirtyBase).includes(p));
+  let restore = dirtyBase === null ? [] : dirty.filter((p) => !lines(dirtyBase).includes(p));
   let rm: string[] = [];
   let note = dirtyBase !== null && restore.length < dirty.length ? `; ${dirty.length - restore.length} path(s) were dirty before plan and kept` : "";
   note += base === null ? "; no baseline from fw polish plan, untracked files kept" : "";
@@ -198,10 +198,12 @@ export async function settleTree(dir: string, git: Git, call: CoreCall | null, r
     if (!call) throw new Error("no fwcore");
     const r = await call({ op: "plan.polishSettle", before, dirtyBefore: dirtyBase === null ? [] : lines(dirtyBase), dirty, untracked });
     if (!Array.isArray(r.restore) || !Array.isArray(r.remove)) throw new Error("no settle verdict");
-    restore = r.restore as string[]; rm = r.remove as string[];
-  } catch (e) { note += `; Lean settle unavailable (${e instanceof Error ? e.message : e}), restored all dirty paths`; }
+    restore = dirtyBase === null ? [] : r.restore as string[]; rm = base === null ? [] : r.remove as string[];
+  } catch (e) { note += `; Lean settle unavailable (${e instanceof Error ? e.message : e}), restored the non-baseline dirty paths`; }
   if (restore.length) git(dir, ["checkout", "HEAD", "--", ...restore]);
   for (const p of rm) remove(join(dir, p));
+  remove(join(gd, BASELINE));
+  remove(join(gd, DIRTY_BASELINE));
   const left = dirtyOf(dir, git).length + untrackedOf(dir, git).filter((p) => !before.includes(p)).length;
   return `cleanup: restored ${restore.length}${restore.length ? ` (${restore.join(" ")})` : ""}, removed ${rm.length}${rm.length ? ` (${rm.join(" ")})` : ""}, worktree ${left === 0 ? "clean" : `NOT clean (${left} paths)`}${note}`;
 }
@@ -233,14 +235,26 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     const root = git(cwd, ["rev-parse", "--show-toplevel"]).trim();
     const dir = staged ? root : (deps.worktree ?? worktreeOf)(cwd, flags.branch!);
     if (!dir) throw new Error(`no worktree has branch ${flags.branch}`);
-    if (verb === "commit") settleDir = dir;
+    let dirtyBefore: string[] = [];
+    if (verb === "commit") {
+      const gd0 = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
+      const dtext = read(join(gd0, DIRTY_BASELINE));
+      if (dtext === null || read(join(gd0, BASELINE)) === null) {
+        out("no baseline from fw polish plan");
+        out(`VERDICT polish-commit ${task} refused`);
+        return 1;
+      }
+      dirtyBefore = lines(dtext);
+      settleDir = dir;
+    } else if (!staged && kind === "polish-plan") dirtyBefore = dirtyOf(dir, git);
+    else if (!staged) dirtyBefore = lines(read(join(git(dir, ["rev-parse", "--absolute-git-dir"]).trim(), DIRTY_BASELINE)) ?? "");
     const paths = lines(staged ? git(dir, ["-c", "core.quotePath=false", "diff", "--cached", "--name-only"]) : git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", `main...${flags.branch}`]));
     const heads = paths.map((p) => ({ path: p, head: (read(join(dir, p)) ?? "").split("\n", 1)[0]!.slice(0, 300) }));
     const gen = await genOwned(deps.gen ?? genOutputs, root, dir);
     const call = coreOf(cwd, deps, git);
     settled = async (d: string) => out(await settleTree(d, git, call, read, remove));
     const edited = verb === "commit" ? lines(git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", "HEAD"])) : [];
-    const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited })) as unknown as Plan;
+    const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited, dirtyBefore })) as unknown as Plan;
     if (!Array.isArray(plan.classes)) throw new Error(`fwcore: no plan (${JSON.stringify(plan).slice(0, 200)})`);
     const diffArgs = staged ? ["-c", "core.quotePath=false", "diff", "--cached", "-U0", "--no-color", "--no-ext-diff"] : ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--no-ext-diff", `main...${flags.branch}`];
     const branchDiff = parseDiff(git(dir, diffArgs));
@@ -256,15 +270,11 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
         out(`VERDICT polish-commit ${task} refused`);
         return 1;
       }
-      const gdir = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
-      const dirtyText = read(join(gdir, DIRTY_BASELINE));
-      const mine = new Set(dirtyText === null ? [] : lines(dirtyText));
-      for (const p of [...plan.restore, ...plan.keep].filter((q) => mine.has(q))) out(`left ${p} (dirty before fw polish plan, not the polish stage's)`);
-      const restoreNow = plan.restore.filter((q) => !mine.has(q));
-      if (restoreNow.length) { git(dir, ["checkout", "HEAD", "--", ...restoreNow]); out(`restored ${restoreNow.join(" ")}`); }
+      for (const p of plan.left ?? []) out(`left ${p} (dirty before fw polish plan, not the polish stage's)`);
+      if (plan.restore.length) { git(dir, ["checkout", "HEAD", "--", ...plan.restore]); out(`restored ${plan.restore.join(" ")}`); }
       const clsOf = new Map(plan.classes.map((c) => [c.path, c.class]));
       const keep: string[] = [];
-      for (const path of plan.keep.filter((q) => !mine.has(q))) {
+      for (const path of plan.keep) {
         const ed = hk.edits.find((e) => e.path === path);
         const file = editDiff.find((f) => f.path === path);
         if (clsOf.get(path) === "prose") { keep.push(path); continue; }
@@ -283,15 +293,16 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
       git(dir, ["add", "--", ...keep]);
       const checks = await stagedChecks(dir, git, call);
       if (checks) noteSpan("fw", "polish commit", { checks });
-      git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`]);
+      git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`, "--", ...keep]);
       out(`kept ${keep.join(" ")}`);
       await settled(dir);
       out(`VERDICT polish-commit ${task} committed`);
       return 0;
     }
     if (kind === "polish-plan") {
-      if (!staged) saveBaseline(dir, git, write);
+      if (!staged) saveBaseline(dir, git, write, dirtyBefore);
       out(`worktree ${dir}`);
+      for (const p of paths.filter((q) => dirtyBefore.includes(q))) out(`skip ${p} (dirty before plan)`);
       for (const c of plan.classes) out(`class ${c.class} ${c.mark ?? "-"} ${c.path}`);
       const rangeOf = (p: string) => (hk.ranges.find((r) => r.path === p)?.ranges ?? []).map((r) => `${r.lo}-${r.hi}`).join(",") || "none";
       for (const c of plan.classes.filter((c) => plan.scopes.comments.includes(c.path))) out(`comments ${c.mark ?? "-"} ${c.path} lines ${rangeOf(c.path)}`);

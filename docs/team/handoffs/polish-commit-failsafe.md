@@ -1,26 +1,22 @@
 branch: worktree-wf_85b6e7f2-42f-1
 worktree: .claude/worktrees/wf_85b6e7f2-42f-1
-last commit: see `git log -1`
+last commit: see `git log -1` (round 3, final design round, items 1-6 of scratchpad/pcf/final-spec.md)
 CI runs: none (no CI push; the task needs none)
 
-# polish-commit-failsafe (round 2)
+# polish-commit-failsafe (round 3)
 
-Real cause of the two `polish-commit error` runs (wf_85b609fd-a1c Trajectory.lean 5778:44, wf_cdc2f175-f40 Timing.lean):
-comment-sicko's cut was clean. `fw polish commit` restored an out-of-hunk deletion with `git apply -R --unidiff-zero` on a
-single zero-context hunk; git places it by the new-side line, which an earlier kept deletion had shifted, so a deleted
-3-line docstring came back 7 lines too low inside a do-block. The build hook then refused the commit.
+Live cause of round 3: morph-real-wheel polish ended `applied 2/3` and left probe.mjs with a deleted `/**` opener.
 
-Done
-- Restore: `walkHunks`/`keptText` (apps/runner/src/polish.ts) build the kept text from `git show HEAD:<path>`, walking the
-  -U0 hunks in ascending order. Lean `Fw.Plan.Polish.walk` (+ `walk_restored`, `walk_keep`, `walk_restore`,
-  `walk_skip_restored`), op `plan.polishWalk`, 5 golden rows replayed by TS (TS stand-in checked against goldens).
-- Regression: real-git test "a kept deletion above and a restored 3-line deletion below ..." in apps/runner/test/polish.test.ts.
-  The Trajectory file itself was not replayed (needs the journal's exact edit set).
-- Settle backstop kept; now baseline-aware of dirty paths: `settle before dirtyBefore s`, theorems `settle_dirty_before`,
-  `settle_keeps_dirty_before`, `settle_restores_clean_only`; `fw polish plan` saves `fw-polish-dirty`; dirty-at-plan paths
-  are left (not committed, not restored). Test "a path the builder left dirty at plan time ...".
-- docs/team/tools/polish.md documents walk, settle and the cleanup line.
+Done (round 3 commit)
+- Invariant stated in docs/team/tools/polish.md: commit tree differs from HEAD only in keep; keep/restore/scopes disjoint
+  from plan-time dirty; settle touches only non-baseline; no baseline = refused.
+- apps/runner/src/polish.ts: `git commit -- <keep>`; no `git reset`; no-baseline refusal; settleTree restores nothing
+  without a dirty baseline and deletes both baseline files; plan passes `dirtyBefore` to Lean, prints `skip`; commit prints
+  `left` from Lean (TS `mine` filter deleted).
+- Lean: `undirty`, theorem `dirty_never_scoped` (Plan/Polish.lean), `opPolishPlan` takes `dirtyBefore`, replies `left`;
+  golden regenerated with FW_WRITE_POLISH_GOLDEN=1 (new row).
+- Real-git tests in apps/runner/test/polish.test.ts: pathspec commit (staged q stays staged, HEAD lists only file),
+  hook-refused with staged new file, no-baseline refusal and second-commit refusal, plan skip line.
 
-Open
-- comment-sicko's judgement unchanged; with fwcore down the TS stand-in restores all non-baseline dirty paths.
-- Builder-dirty files the polish stage also edited are left alone (accepted limit).
+Open: accepted limits of final-spec.md (plan-time snapshot, stagedChecks telemetry, Trajectory not replayed, build-review-worktree-path follow-up).
+Read first: docs/team/tools/polish.md, apps/runner/src/polish.ts settleTree and the commit branch.

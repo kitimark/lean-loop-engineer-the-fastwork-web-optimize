@@ -50,7 +50,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.incidentLint` | `incidents` [ledger records as in the file], `tasks` [{id, evidence?, agent?}] (work graph rows with board state), `commits`? [refs that are commits on main], `files`? [refs that exist], `classes`? [class ids of research/mistakes/ledger.json] | `ok`, `errors`, `warnings`, `incidents` [{id, status, findings [{code, severity, detail}]}] |
 | `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `task` (the task id, missing = blank), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
 | `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: the verdict used is accept and a `fix-before-land` finding is present, so the checker re-checks], `blockers`, `fixes` [counts] |
-| `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`), `heads`? [{path, head}] (first lines; a generator stamp makes the path skip) (`Fw.Plan.Polish`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore` |
+| `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`), `dirtyBefore`? [paths dirty at plan time; dropped from `paths` and `edited`; missing = `[]`], `heads`? [{path, head}] (first lines; a generator stamp makes the path skip) (`Fw.Plan.Polish`, `dirty_never_scoped`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore`, `left` [edited paths that were dirty at plan time] |
 | `plan.polishHunks` | `diff` [{path, spans [{start, len}]}] (new-side hunks of the branch diff, merge-base to head, `-U0`), `edits` [{path, spans}] (old-side hunks of the uncommitted edits against head), `main` [paths dirty in the main checkout] (`Fw.Plan.Polish.admitted`, `relOk`, `blocked`) | `ranges` [{path, ranges [{lo, hi}]}], `edits` [{path, pathOk, kept [bool per span]}], `blocked` |
 | `plan.polishSettle` | `before` [untracked paths before the polish stage], `dirtyBefore`? [tracked paths dirty at plan time; missing = `[]`], `dirty` [tracked paths differing from HEAD], `untracked` [untracked paths now] (`Fw.Plan.Polish.settle`) | `restore` [dirty paths that were clean at plan time, to restore from HEAD], `remove` [untracked paths created since `before`] |
 | `plan.polishWalk` | `head` [lines of the HEAD file], `hunks` [{target, oldLen, new [lines], keep}] in ascending order (`Fw.Plan.Polish.walk`) | `lines` [the file: HEAD with exactly the kept hunks applied] |
@@ -269,13 +269,17 @@ open Fw.Plan.Polish in
 /-- `plan.polishPlan`: the class and comment mark of each path, the stages that run, their scopes, and which edited paths are kept. -/
 def opPolishPlan (req : Json) : Except String Reply := do
   let gen := genOf (← strsD req "gen") (← heads req)
+  let dirtyBefore ← strsD req "dirtyBefore"
   let ps ← strsD req "paths"
-  let ed ← strsD req "edited"
+  let ed0 ← strsD req "edited"
+  let ps := undirty dirtyBefore ps
+  let ed := undirty dirtyBefore ed0
   pure [("classes", .arr (ps.toArray.map fun p => Json.mkObj [("path", .str p), ("class", .str (classify gen p).name),
           ("mark", match mark p with | some m => .str m | none => .null)])),
         ("stages", strsJson ((stages gen ps).map (·.name))),
         ("scopes", Json.mkObj [("comments", strsJson (scope gen .comments ps)), ("prose", strsJson (scope gen .prose ps))]),
-        ("keep", strsJson (ed.filter (keeps gen ps))), ("restore", strsJson (ed.filter (!keeps gen ps ·)))]
+        ("keep", strsJson (ed.filter (keeps gen ps))), ("restore", strsJson (ed.filter (!keeps gen ps ·))),
+        ("left", strsJson (ed0.filter dirtyBefore.contains))]
 
 open Fw.Plan.Polish in
 /-- `plan.polishCuts`: each cut judged in order against its file's text (`applyAll`), and each file's text after the applied cuts. -/
