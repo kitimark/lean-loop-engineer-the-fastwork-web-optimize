@@ -9,8 +9,8 @@ import { takeCensus } from './census.mjs';
 import { findDevice, sleep } from './sim.mjs';
 import { decodePng, encodePng, cropImage, sameImage } from './pathpix-png.mjs';
 import { FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, VIDEO_EXPR, MARK_ON, MARK_OFF } from './pathpix-page.mjs';
-import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from './pathpix-exit-page.mjs';
-import { exitOffsets } from './pathpix-exit.mjs';
+import { PIN_ACCENT_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from './pathpix-exit-page.mjs';
+import { exitOffsets, armPin, pinAt } from './pathpix-exit.mjs';
 import { magentaBox, navigateHeld, screenshot, pinStatusBar } from './pathpix-webkit.mjs';
 
 export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = null, settleMs = 6000, holdMs = 800, log: log0 = (s) => console.error(s) }) {
@@ -32,6 +32,12 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
         ctx.url = url;
         await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' });
         log(`  timers held ${await ctx.c.runAsync(HOLD_EXPR)}`);
+        if (armPin(arm) === 'ssr-accent') {
+          const pin = JSON.parse(await ctx.c.evaluate(PIN_ACCENT_EXPR));
+          if (!pin.pinned || !pin.same) throw new Error(`accent pin failed for arm ${arm}: ${JSON.stringify(pin)}`);
+          handover.pin = { ...handover.pin, [arm]: pin };
+          log(`  accent pinned (live ${pin.before}, served ${pin.ssr})`);
+        }
         await ctx.c.evaluate(FREEZE_EXPR);
         if (arm === 'P') {
           const frames = await ctx.c.runAsync(EXIT_WAIT_EXPR);
@@ -88,6 +94,11 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
           await scrollHold(ctx.c, offs[k], { holdMs });
           await ctx.c.runAsync(NEAR_IMAGES_EXPR);
           const video = await ctx.c.runAsync(VIDEO_EXPR);
+          let pinRow = null;
+          if (pinAt(arm, k) === 'ssr-accent') {
+            pinRow = JSON.parse(await ctx.c.evaluate(PIN_ACCENT_EXPR));
+            if (!pinRow.pinned || !pinRow.same) throw new Error(`accent pin failed for arm ${arm} at offset ${k}: ${JSON.stringify(pinRow)}`);
+          }
           await ctx.c.evaluate(FREEZE_EXPR);
           await sleep(400);
           await ctx.c.evaluate(FREEZE_EXPR);
@@ -97,6 +108,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
           const live = JSON.parse(await ctx.c.evaluate(EXIT_LIVE_EXPR));
           const files = [];
           let prev = null, tries = 0;
+          const accentBefore = JSON.parse(await ctx.c.evaluate(ACCENT_SIG_EXPR));
           for (let rep = 0; rep < 6; rep++) {
             const png = cropImage(decodePng(screenshot(dev.udid, join(tmp, 'shot.png'))), content[0], content[1], frame.w, frame.h);
             tries++;
@@ -111,7 +123,9 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
             prev = png;
             await sleep(500);
           }
+          const accentAfter = JSON.parse(await ctx.c.evaluate(ACCENT_SIG_EXPR));
           rows[k] = {
+            accent: { drift: pinRow && { before: pinRow.before, wasPinned: pinRow.wasPinned, n: pinRow.n }, shotStart: accentBefore, shotEnd: accentAfter },
             i: k, y: offs[k], scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
             layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: l.compositedBounds, memory: l.memory, reasons: l.reasons })),
             layerCount: census.layerCount,
