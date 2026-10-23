@@ -18569,7 +18569,8 @@
     "research/notes/2026/10-2x-ci-setup-lean-slow.md",
     "docs/team/handoffs/ci-setup-lean-slow.md"
    ],
-   "title": "fw watch timing.slow on land (playwright-webkit) and land (chromium) 'Run ./.github/actions/setup-lean' (2026-10-23): 36-48 s for most lands, 68-88 s for the last lands (runs 39965489939, 39966639416; earlier 72 s in 39955108083), after new Lean modules landed (SwapWindow, Timing changes). Find from the step logs whether the extra time is cache restore (size, miss, partial key) or building changed modules; compare a fast and a slow run step by step. If the cause is a cache key or what is cached, fix setup-lean so a land leg restores the built modules of main; state the expected time per leg. If the change touches workflow trigger inputs, list it in open."
+   "title": "fw watch timing.slow on land (playwright-webkit) and land (chromium) 'Run ./.github/actions/setup-lean' (2026-10-23): 36-48 s for most lands, 68-88 s for the last lands (runs 39965489939, 39966639416; earlier 72 s in 39955108083), after new Lean modules landed (SwapWindow, Timing changes). Find from the step logs whether the extra time is cache restore (size, miss, partial key) or building changed modules; compare a fast and a slow run step by step. If the cause is a cache key or what is cached, fix setup-lean so a land leg restores the built modules of main; state the expected time per leg. If the change touches workflow trigger inputs, list it in open.",
+   "evidence": "06023da"
   },
   {
    "devices": [
