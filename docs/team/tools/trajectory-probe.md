@@ -69,6 +69,12 @@ runs the probe with the inputs of one message line:
    rewrite passed; incident `inc-trajectory-pooled-window`.) Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
    construction there (see the research note): report a Linux WebKit push cell as "no verdict: coverage" on the units where the
    faithful arm fails coverage, and read its hero rows as usable.
+   **First frame.** The original often misses bucket 1 of the open push on a 17 ms Chromium
+   frame (MEASURED: control run 39557718020, width 390, original 0 of 5 passes, faithful arm 3 of 5; run 39926829451,
+   original 1, 0, 1, 5 of 5 at widths 390, 640, 641, 1280), so the look reference can lack a first frame there. An empty open@1 of the rewrite is then `skip:origEmpty`, not `fail:coverage` (Lean
+   `byMFirst`, `firstVerdict_both_empty`); every arm gets the rule, the faithful arm too. Kept as before: an open@1 the
+   original sampled (`firstVerdict_orig_sampled`), a content failure of a sampled open@1 (`firstVerdict_content`), any other
+   bucket or phase (`firstVerdict_not_first`, `close_neither`). `verdictLines` prints a `FIRSTFRAME` line with the count.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
    red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
