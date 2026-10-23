@@ -7,14 +7,16 @@
 // smoke step). It walks, per width, the original, the faithful rewrite (default config) and the candidate (the search), writes
 // raw-<engine>.json (the readings, with what each arm's page reported about its config), units-<engine>.json (one verdict per unit,
 // and its relation to the faithful arm), summary-<engine>.md, prints the VERDICT lines, and exits
-//   0  the probe completed (RED or CLEAN is a result, not an error; with --strict RED exits 1),
-//   2  an arm was not measured as asked (`refused:config`): the run is void, never a pass.
+//   0  the probe completed (RED, UNDECIDED or CLEAN is a result, not an error; with --strict only CLEAN exits 0),
+//   1  with --strict, RED,
+//   2  an arm was not measured as asked (`refused:config`): the run is void, never a pass,
+//   3  with --strict, UNDECIDED: no verdict either way; rerun with more passes (Lean `laneExit`).
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mergeRaws } from './plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS } from './registry.mjs';
-import { pickWidths, reduceRaw, verdictLines } from './reduce.mjs';
+import { laneExit, pickWidths, reduceRaw, verdictLines } from './reduce.mjs';
 
 const REGISTRIES = { hero: HERO_NODES, morph: MORPH_NODES, page: PAGE_PROPS };
 
@@ -30,7 +32,7 @@ export function summaryMd(raw, red) {
     '| against the faithful arm | units |', '|---|---|',
     `| new (fails here, not in the faithful arm) | ${red.rels.new} (content ${red.rels.new - red.totals.coverageNew}, coverage ${red.totals.coverageNew}) |`, `| both (fails in both: baseline red) | ${red.rels.both} |`,
     `| unmeasured (fails on content here, on coverage in the faithful arm: no verdict) | ${red.rels.unmeasured} |`,
-    `| undecided (open@1 has no rewrite sample and the original's hit rate cannot tell late from missing) | ${red.rels.undecided} |`,
+    `| undecided (open@1 has no rewrite sample and the original's hit rate cannot tell late from missing, or the unit is new without one original pass and not new without another) | ${red.rels.undecided} (leave-one-out ${red.totals.moved}) |`,
     `| cleared (fails only in the faithful arm) | ${red.rels.cleared} |`, `| ok | ${red.rels.ok} |`, ''];
   for (const n of red.notes) out.push(`- note: ${n}`);
   const news = red.groups.filter((g) => g.newSteps.length > 0);
@@ -47,13 +49,12 @@ export function summaryMd(raw, red) {
 
 function report(dir, raw, strict) {
   const red = reduceRaw(raw, REGISTRIES);
-  writeFileSync(join(dir, `units-${raw.engine}.json`), JSON.stringify({ engine: raw.engine, search: raw.search, refused: red.refused, detail: red.detail, totals: red.totals, rels: red.rels, notes: red.notes, groups: red.groups, timing: red.timing, units: red.units }));
+  writeFileSync(join(dir, `units-${raw.engine}.json`), JSON.stringify({ engine: raw.engine, search: raw.search, refused: red.refused, detail: red.detail, totals: red.totals, rels: red.rels, notes: red.notes, groups: red.groups, timing: red.timing, units: red.units.map(({ fam, ...u }) => (u.rel === u.relAll ? u : { ...u, fam })) }));
   const md = summaryMd(raw, red);
   writeFileSync(join(dir, `summary-${raw.engine}.md`), md);
   for (const l of verdictLines(raw.engine, raw.search, red)) console.log(l);
   if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, md, { flag: 'a' });
-  if (red.refused) return 2;
-  return strict && red.red ? 1 : 0;
+  return laneExit(red.refused, strict, red.lane);
 }
 
 /** The paths input: hero, morph or hero,morph; null when refused. */

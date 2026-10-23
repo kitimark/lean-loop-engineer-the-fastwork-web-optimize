@@ -2,11 +2,13 @@
 // loop around it (reduceWidth) on small synthetic readings whose answers are worked out by hand.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { ALPHA, alphaOk, annotate, armCheck, byM, byMFirst, firstCover, laneOf, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
-import { summaryMd } from '../src/trajectory/cli.mjs';
+import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFirst, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { main, summaryMd } from '../src/trajectory/cli.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -118,7 +120,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -240,6 +242,15 @@ for (const g of golden) {
       const at = (o, w) => byMFirst('push', 0, 'geometry', () => null, null, false, o, w).find((x) => x[0] === 1)?.[1] ?? 'pass';
       assert.deepEqual([at(g.oSeg, g.cand), at(g.oSeg, g.base), at(g.oSeg2, g.cand), at(g.oSeg2, g.base)], g.open);
       assert.deepEqual([laneOf([rel(at(g.oSeg, g.cand), at(g.oSeg, g.base))]), laneOf([rel(at(g.oSeg2, g.cand), at(g.oSeg2, g.base))])], g.lanes);
+    } else if (g.op === 'stable') {
+      const d = (cls) => durOf(g.node, g.prop, g.width, cls);
+      assert.equal(idOn(g.node, g.prop), g.id);
+      const fam = (w) => byMFam(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.id, g.oSeg, w).map((vs) => vs.find((x) => x[0] === g.b)[1]);
+      const cf = fam(g.cand), bf = fam(g.base);
+      assert.deepEqual(cf.map((c, i) => rel(c, bf[i])), g.rels);
+      assert.equal(unitRel(cf, bf), g.rel);
+    } else if (g.op === 'exit') {
+      for (const [refused, strict, lane, code] of g.rows) assert.equal(laneExit(refused, strict, lane), code, `refused ${refused} strict ${strict} ${lane}`);
     }
     else assert.fail(`unknown op ${g.op}`);
   });
@@ -475,7 +486,7 @@ test('reduceRaw: the flag that matches the original at open@1 is not red where t
   assert.ok(lines.some((l) => / UNDECIDED new=0 /.test(l)));
   const md = summaryMd(raw(NO_FIRST), flag);
   assert.match(md.split('\n')[0], / UNDECIDED$/);
-  assert.match(md, new RegExp(`\\| undecided \\(.*\\) \\| ${flag.rels.undecided} \\|`));
+  assert.match(md, new RegExp(`\\| undecided \\(.*\\) \\| ${flag.rels.undecided} \\(leave-one-out ${flag.totals.moved}\\) \\|`));
   assert.match(summaryMd(raw(EVERY), plain).split('\n')[0], / CLEAN$/);
   assert.equal(plain.red, false);
   assert.equal(plain.lane, 'clean');
@@ -485,6 +496,54 @@ test('reduceRaw: the flag that matches the original at open@1 is not red where t
   const flag5 = reduceRaw(raw5, regs);
   assert.equal(flag5.lane, 'clean');
   assert.ok(flag5.totals.firstLate > 0);
+});
+
+/** `n` passes of the open phase with the class off everywhere, and pass `n` (when `bump`) with it on at m = 0.5. */
+const offPasses = (n, bump) => [...Array.from({ length: n }, (_, q) => phaseRows(EVERY, () => 'off', { rep: q })).flat(),
+  ...(bump ? phaseRows(EVERY, (m) => (m === 5000 ? 'on' : 'off'), { rep: n }) : [])];
+const contentRaw = (o, cand, base) => ({ engine: 'chromium', search: '?fw=x', reps: 3, paths: ['morph'], runs: [
+  runOf('orig', morphOf(o, NO_FW)), runOf('base', morphOf(base, OK_REWRITE)), runOf('cand', morphOf(cand, OK_REWRITE))] });
+const onAt5 = phaseRows(EVERY, (m) => (m === 5000 ? 'on' : 'off'));
+const cellRel = (red) => red.units.find((u) => u.node === 'nav' && u.prop === 'cls.is-expanded' && u.step === 'open@5');
+
+test('reduceRaw: a content verdict one extra original pass moves takes the lane from RED to UNDECIDED, never CLEAN (Lean laneOf_stable_extra)', () => {
+  const regs = { hero: [], morph: registries.morph, page: [] };
+  const before = reduceRaw(contentRaw(offPasses(3, false), onAt5, offPasses(1, false)), regs);
+  const after = reduceRaw(contentRaw(offPasses(3, true), onAt5, offPasses(1, false)), regs);
+  assert.deepEqual([cellRel(before).relAll, cellRel(before).rel, before.lane], ['new', 'new', 'red']);
+  assert.deepEqual([cellRel(after).relAll, cellRel(after).rel, after.lane], ['ok', 'undecided', 'undecided']);
+  assert.equal(after.totals.moved, 1);
+});
+
+test('reduceRaw: a faithful failure one extra original pass clears takes the lane from CLEAN to UNDECIDED, never RED', () => {
+  const regs = { hero: [], morph: registries.morph, page: [] };
+  const otherAt5 = phaseRows(EVERY, (m) => (m === 5000 ? 'other' : 'off'));
+  const before = reduceRaw(contentRaw(offPasses(3, false), otherAt5, onAt5), regs);
+  const after = reduceRaw(contentRaw(offPasses(3, true), otherAt5, onAt5), regs);
+  assert.deepEqual([cellRel(before).relAll, cellRel(before).rel, before.lane], ['both', 'both', 'clean']);
+  assert.deepEqual([cellRel(after).relAll, cellRel(after).rel, after.lane], ['new', 'undecided', 'undecided']);
+});
+
+test('cli summary --strict: UNDECIDED exits 3, RED 1, CLEAN 0; without --strict every lane exits 0 (Lean laneExit)', async () => {
+  const cases = [[contentRaw(offPasses(3, true), onAt5, offPasses(1, false)), 'undecided', 3],
+    [contentRaw(offPasses(3, false), onAt5, offPasses(1, false)), 'red', 1], [contentRaw(offPasses(3, false), offPasses(1, false), offPasses(1, false)), 'clean', 0]];
+  const log = console.log;
+  console.log = () => {};
+  try {
+    for (const [raw, lane, code] of cases) {
+      const dir = mkdtempSync(join(tmpdir(), 'traj-exit-'));
+      try {
+        writeFileSync(join(dir, 'raw-chromium.json'), JSON.stringify(raw));
+        assert.equal(reduceRaw(raw, registries).lane, lane);
+        assert.equal(await main(['summary', '--out', dir, '--strict']), code, lane);
+        assert.equal(await main(['summary', '--out', dir]), 0, lane);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  } finally {
+    console.log = log;
+  }
 });
 
 test('reduceWidth: a push sample without a morph value is fail:coverage', () => {
