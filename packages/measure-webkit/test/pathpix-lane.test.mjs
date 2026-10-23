@@ -132,18 +132,19 @@ test('the live witnesses', () => {
   assert.equal(liveA({ live: true, variant: 'threaded' }), false);
 });
 
-function fakeExitLane(dir, { pEdit, pLive, a2Edit }) {
+function fakeExitLane(dir, { pEdit, pLive, a2Edit, still = false, clear = false }) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
   const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
   put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
   const boxes = { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
-  const row = (arm, live) => ({ i: 0, y: 0, scrollY: 0, boxes, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
+  const row = (arm, live) => ({ i: 0, y: 0, scrollY: 0, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
   const faithful = { live: false, variant: 'faithful', supported: true, nonDoc: 0 };
+  const moved = { i: 1, y: 50, scrollY: 50, boxes: { ...boxes, hero_copy: [10e6, still ? 10e6 : 5e6, 20e6, 20e6] }, live: faithful, files: [], dprMilli: 1000, layers: [], layerCount: 0 };
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
     schema: 'fw.path-pix/1', mode: 'exit', flag: 'hero.exit:threaded', engine: 'webkit', lane: 'test', run: 'test', lossless: true, compositing: 'test', dpr: 1, vw: 100, vh: 100,
-    frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0], cut: [],
-    samples: { A: [row('A', faithful)], A2: [row('A2', faithful)], P: [row('P', pLive)] },
+    frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0, 1], cut: [],
+    samples: { A: [row('A', faithful), moved], A2: [row('A2', faithful), null], P: [row('P', pLive), null] },
   }));
 }
 const liveOk = { live: true, variant: 'threaded', supported: true, nonDoc: 4 };
@@ -155,6 +156,7 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
     fakeExitLane(dir, { a2Edit: setPx(15, 15), pEdit: (img) => { setPx(15, 15)(img); setPx(15, 16)(img); setPx(80, 80)(img); }, pLive: liveOk });
     const res = analyzeExit(dir, { strips: 'changed', emit: () => {} });
     const cell = (kind, key) => res.cells.find((c) => c.kind === kind && c.key === key);
+    assert.equal(res.driverMoved, true);
     assert.equal(res.cells.length, 4);
     assert.deepEqual(cell('A/A', 'hero_copy').cell.inside, { changed: 1, maxDelta: 5 });
     assert.deepEqual(cell('P', 'hero_copy').cell.inside, { changed: 2, maxDelta: 5 });
@@ -171,6 +173,14 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
     assert.ok(dead.cells.filter((c) => c.kind === 'P').every((c) => c.grade === 'invalid' && !c.live));
     assert.ok(dead.cells.filter((c) => c.kind === 'A/A').every((c) => c.grade !== 'invalid'));
     assert.equal(analyzeDir(dir, { strips: 'none' }).res.schema, 'fw.path-pix.exit/1');
+    fakeExitLane(dir, { a2Edit: null, pEdit: null, pLive: liveOk, still: true });
+    const frozen = analyzeExit(dir, { strips: 'none' });
+    fakeExitLane(dir, { a2Edit: null, pEdit: setPx(15, 15), pLive: liveOk, clear: true });
+    const clear = analyzeExit(dir, { strips: 'none' });
+    assert.ok(clear.cells.every((c) => c.key !== 'hero_copy'));
+    assert.ok(clear.skipped.some((x) => x.key === 'hero_copy' && x.why === 'transparent in both arms'));
+    assert.equal(frozen.driverMoved, false);
+    assert.ok(frozen.cells.every((c) => c.grade === 'invalid'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

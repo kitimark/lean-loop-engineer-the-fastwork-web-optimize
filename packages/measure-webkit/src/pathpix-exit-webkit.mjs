@@ -113,7 +113,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
             await sleep(500);
           }
           rows[k] = {
-            i: k, y: offs[k], scrollY: here.scrollY, boxes: here.boxes, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
+            i: k, y: offs[k], scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
             layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: l.compositedBounds, memory: l.memory, reasons: l.reasons })),
             layerCount: census.layerCount,
           };

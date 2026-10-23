@@ -11,7 +11,8 @@ export const EXIT_GEOM_EXPR = `(() => {
 
 /** Boxes of the visible exit consumers, the union of the element and its descendants; a layer on several elements is keyed `layer#k` by DOM index. */
 export const EXIT_BOX_EXPR = `(() => {
-  const boxes = {};
+  const boxes = {}, alpha = {};
+  const opa = (e) => { let a = 1; for (let n = e; n && n.nodeType === 1; n = n.parentElement) a *= Number(getComputedStyle(n).opacity); return Math.round(a * 1e4) / 1e4; };
   for (const l of ${JSON.stringify(EXIT_LAYERS)}) {
     const els = [...document.querySelectorAll('[data-fw-layer="' + l + '"]')];
     els.forEach((e, k) => {
@@ -23,10 +24,11 @@ export const EXIT_BOX_EXPR = `(() => {
         x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
       }
       if (x0 === Infinity) return;
+      alpha[els.length > 1 ? l + '#' + k : l] = opa(e);
       boxes[els.length > 1 ? l + '#' + k : l] = [Math.round(x0 * 1e6), Math.round(y0 * 1e6), Math.round((x1 - x0) * 1e6), Math.round((y1 - y0) * 1e6)];
     });
   }
-  return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), boxes });
+  return JSON.stringify({ dpr: devicePixelRatio, vw: innerWidth, vh: innerHeight, scrollY: Math.round(scrollY), boxes, alpha });
 })()`;
 
 /** Whether the threaded hand-over happened: the live attribute, the variant, scroll-driven animations present. */

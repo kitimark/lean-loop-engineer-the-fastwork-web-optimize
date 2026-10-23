@@ -67,6 +67,15 @@ export const liveP = (l) => !!l && l.live === true && l.variant === 'threaded' &
 /** The arm A is the faithful exit when the page is not the threaded variant and the track is not live. */
 export const liveA = (l) => !l || (l.variant !== 'threaded' && l.live !== true);
 
+/** The faithful driver ran: the first consumer's box in arm A at some offset inside the track differs from its box at offset 0. */
+export function driverMoved(rows, exit) {
+  const first = rows.find((r) => r && r.y === 0) ?? rows.find(Boolean);
+  if (!first) return false;
+  const key = Object.keys(first.boxes ?? {}).find((k) => k.startsWith('hero_copy')) ?? Object.keys(first.boxes ?? {})[0];
+  if (!key) return false;
+  return rows.some((r) => r && r.y > exit.T && r.y <= exit.T + exit.n && r.boxes?.[key] && JSON.stringify(r.boxes[key]) !== JSON.stringify(first.boxes[key]));
+}
+
 /** Cells of one exit lane directory (manifest with mode exit): A/A (A against A2) then P (A against P), masks from arm A. */
 export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
@@ -76,6 +85,7 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   if (!S.A || !S.A2) throw new Error('manifest lacks arm A or A2');
   const le600 = man.vw <= 600;
   const cells = [], skipped = [], frames = [], liveness = [];
+  const moved = driverMoved(S.A, man.exit);
   const floors = new Map();
   const firstStrip = new Set();
   const cache = new Map();
@@ -98,12 +108,13 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
       const fd = frameDiff(del, frame.w);
       frames.push({ arm: armB, i, y: rowA.scrollY, sameA: sameImage(a0, a1), sameB: sameImage(b0, b1), ...fd });
       if (kind === 'P' && strips !== 'none' && fd.changed) emit(`strips/FRAME_P_${i}.png`, encodePng(thumb(a0, b0, del)));
-      const live = kind === 'P' ? liveP(row.live) : liveA(rowA.live) && liveA(row.live);
+      const live = moved && (kind === 'P' ? liveP(row.live) : liveA(rowA.live) && liveA(row.live));
       liveness.push({ arm: armB, i, y: row.scrollY, live: row.live ?? null, accepted: live });
       const sp = splitUnion(del, frame.w, frame.h, masks);
       keys.forEach((key, n) => {
         const box = rowA.boxes[key], layer = baseLayer(key), claim0 = exitClaim(layer, le600);
         if (!claim0) { skipped.push({ key, i, kind, why: 'not an exit consumer' }); return; }
+        if ((rowA.alpha?.[key] ?? 1) < 1 / 255 && (row.alpha?.[key] ?? 1) < 1 / 255) { skipped.push({ key, i, kind, why: 'transparent in both arms' }); return; }
         const compA = recs(rowA, layer).length > 0, compB = recs(row, layer).length > 0;
         const p1 = compA && compB && sigOf(rowA, layer) === sigOf(row, layer);
         const cell = {
@@ -133,7 +144,7 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   }
   return {
     schema: 'fw.path-pix.exit/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, flag: man.flag, dpr, vw: man.vw, frame,
-    exit: man.exit, offsets: man.offsets, cells, skipped, frames, liveness, armsRun: Object.keys(S), cut: man.cut ?? [], fonts: man.fonts ?? null,
+    exit: man.exit, offsets: man.offsets, driverMoved: moved, cells, skipped, frames, liveness, armsRun: Object.keys(S), cut: man.cut ?? [], fonts: man.fonts ?? null,
   };
 }
 
@@ -157,6 +168,7 @@ export function exitTable(res) {
     const f = aa.get(`${c.key}@${c.i}`);
     out.push(`| ${c.key} | ${c.i} | ${c.y} | ${c.grade}${c.why ? ` (${c.why})` : ''} | ${c.ifAccepted} | ${sumRaw(c.cell.inside)} | ${sumRaw(c.cell.out)} | ${f ? f.grade : '-'} | ${f ? sumRaw(f.cell.inside) : '-'} | ${f ? sumRaw(f.cell.out) : '-'} | ${c.live} | ${c.strip ?? ''} |`);
   }
+  out.push('', `faithful driver moved the consumers in arm A: ${res.driverMoved}`);
   const notLive = res.liveness.filter((l) => l.arm === 'P' && !l.accepted);
   out.push('', `P rows not live: ${notLive.length} of ${res.liveness.filter((l) => l.arm === 'P').length}`);
   if (res.cut?.length) out.push(`arms cut short: ${res.cut.join('; ')}`);

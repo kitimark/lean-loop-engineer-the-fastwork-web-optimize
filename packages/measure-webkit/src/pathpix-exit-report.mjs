@@ -15,7 +15,7 @@ export function slimLane(label, artifact, cells, man) {
   return {
     schema: 'fw.path-pix.exit.cells/1', label, artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
     ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, handover: man.handover ?? null, fonts: man.fonts ?? null,
-    cut: cells.cut, armsRun: cells.armsRun, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, live: l.live })),
+    cut: cells.cut, armsRun: cells.armsRun, driverMoved: cells.driverMoved ?? null, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, live: l.live })),
     skipped: cells.skipped, frames: cells.frames.map((f) => ({ arm: f.arm, i: f.i, sameA: f.sameA, sameB: f.sameB, changed: f.changed, maxDelta: f.maxDelta })),
     cells: cells.cells.map(slimCell),
   };
@@ -32,13 +32,13 @@ export function engineTable(engine, lanes) {
     out.push(`| ${l.label} | ${l.run} | ${k} | ${cs.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${w('text')} | ${w('outside')} | ${w('inside')} | ${a('E')}/${a('E1')}/${a('Q')}/${a('L')}/${a('invalid')} |`);
   }
   const keys = [...new Set(lanes.flatMap((l) => l.cells.map((c) => `${c.key}\u0000${c.i}`)))].map((s) => s.split('\u0000')).sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] - y[1]));
-  out.push('', `| consumer | offset | y | ${lanes.map((l) => `${l.label} P grade (why) [if accepted] in/out chg-max; A/A`).join(' | ')} |`, `|---|---|---|${lanes.map(() => '---').join('|')}|`);
+  out.push('', `| consumer | offset | y | ${lanes.map((l) => `${l.label} P grade (why) [if accepted] in/out chg-max; A/A in/out`).join(' | ')} |`, `|---|---|---|${lanes.map(() => '---').join('|')}|`);
   for (const [key, i] of keys) {
     const cols = lanes.map((l) => {
       const p = l.cells.find((c) => c.key === key && c.i === Number(i) && c.kind === 'P'), f = l.cells.find((c) => c.key === key && c.i === Number(i) && c.kind === 'A/A');
       if (!p) return '-';
       const r = (x) => `${x.changed}-${x.maxDelta}`;
-      return `${p.grade}${p.why ? ` (${p.why})` : ''} [${p.ifAccepted}] ${r(p.inside)}/${r(p.out)}; ${f ? f.grade : '-'}`;
+      return `${p.grade}${p.why ? ` (${p.why})` : ''} [${p.ifAccepted}] ${r(p.inside)}/${r(p.out)}; A/A ${f ? `${r(f.inside)}/${r(f.out)}` : '-'}`;
     });
     const y = lanes.map((l) => l.cells.find((c) => c.key === key && c.i === Number(i))?.y).find((v) => v !== undefined);
     out.push(`| ${key} | ${i} | ${y} | ${cols.join(' | ')} |`);

@@ -108,6 +108,7 @@ async function main() {
     await quietNet(p);
     await ev(exprs.freeze);
     await pump(3);
+    p.vt = vt;
     return p;
   }
 
@@ -150,7 +151,15 @@ async function main() {
       for (let k = 0; k < offs.length; k++) {
         const y = offs[k];
         await p.ev(`window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' })`);
-        await p.pump(3);
+        let last = null, still = 0;
+        for (let f = 0; f < 240 && still < 6; f++) {
+          p.vt += dt;
+          await p.ev(`__fwclock.advanceTo(${p.vt})`);
+          await p.pump(1);
+          const now = await p.ev(exprs.exitBoxes);
+          still = now === last ? still + 1 : 0;
+          last = now;
+        }
         await quietNet(p);
         await p.ev(exprs.freeze);
         await p.pump(3);
@@ -164,7 +173,7 @@ async function main() {
         }
         const census = await sampleAt(p.c, { ev: p.ev, pump: () => p.pump(1), y });
         rows.push({
-          i: k, y, scrollY: here.scrollY, boxes: here.boxes, live, files, dprMilli: census.dprMilli,
+          i: k, y, scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, dprMilli: census.dprMilli,
           layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: null, memory: l.memory, reasons: l.reasons })),
           layerCount: census.layerCount, ...(census.error ? { censusError: census.error } : {}),
         });
