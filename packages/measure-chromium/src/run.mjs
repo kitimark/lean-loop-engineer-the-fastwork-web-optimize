@@ -89,8 +89,9 @@ async function stockRun(spec) {
     `--user-data-dir=${process.env.FW_PROFILE_DIR ?? join(tmpdir(), 'fw-stock')}`, `--window-size=${width},${height}`,
     '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1', ...(process.env.FW_STOCK_EXTRA ? process.env.FW_STOCK_EXTRA.split(' ') : []), 'about:blank'];
   const fd = openSync(log, 'w');
-  const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd] });
-  process.on('exit', () => { try { ch.kill('SIGKILL'); } catch {} });
+  const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd], detached: process.platform !== 'win32' });
+  const killTree = () => { try { if (process.platform === 'win32') ch.kill('SIGKILL'); else process.kill(-ch.pid, 'SIGKILL'); } catch {} };
+  process.on('exit', killTree);
   let ver = null;
   for (let i = 0; i < 300 && !ver; i++) { try { ver = await (await fetch('http://127.0.0.1:9222/json/version')).json(); } catch { await sleep(100); } }
   if (!ver) { console.error(`FW_STOCK_NO_BROWSER ${spec}\n${readFileSync(log, 'utf8').slice(-3000)}`); process.exit(4); }
@@ -139,7 +140,7 @@ async function stockRun(spec) {
     process.exit(1);
   }
   console.error(`FW_LOAD_OK: stock ${spec} ${ver.Browser} alive 5 s after load`);
-  ch.kill('SIGKILL');
+  killTree();
   process.exit(0);
 }
 

@@ -61,7 +61,7 @@ for (const v of variants) {
   if (status === 'crash' && v === variants[0]) writeFileSync(join(OUT, 'first-crash.txt'), err.slice(-16000));
 }
 const machine = {
-  leg: args.leg ?? null, platform: platform(), arch: arch(), release: release(), cpu: cpus()[0]?.model ?? null, headed: !!process.env.FW_STOCK_HEADED,
+  leg: args.leg ?? null, platform: platform(), arch: arch(), release: release(), cpu: cpus()[0]?.model ?? null, headed: !!process.env.FW_STOCK_HEADED, fontconfig: process.env.FONTCONFIG_FILE ? 'empty (container fonts.conf)' : 'system',
   image: process.env.ImageOS ? `${process.env.ImageOS} ${process.env.ImageVersion ?? ''}`.trim() : null,
 };
 writeFileSync(join(OUT, 'counts.json'), JSON.stringify({ schema: 'fw.crash-probe/1', profile: name, target: args.target ?? 'original', search: args.search ?? '', machine, note: 'diagnostic rows, not counts', rows }, null, 1) + '\n');

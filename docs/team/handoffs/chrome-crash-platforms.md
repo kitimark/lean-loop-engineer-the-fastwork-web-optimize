@@ -1,7 +1,7 @@
 branch: worktree-wf_3bba9083-6b9-1 (CI branch ci/chrome-crash-platforms)
 worktree: .claude/worktrees/wf_3bba9083-6b9-1 (inside the main checkout)
-last commit: f488a5f47 (push 1 of at most 6; push 2 next)
-CI runs: 39889986847 (push 1, f488a5f47, chrome-crash-probe, complete: no crash on linux x64 headless/xvfb, macOS arm64/x64 stable, Windows; macOS lane/beta builds hung at Page.navigate); push 2 pending (adds canary 158.0.8118.0, linux arm64 control leg, nav diagnostics)
+last commit: e47762c2b (push 2 of at most 6; push 3 next: no-system-fonts legs)
+CI runs: 39889986847 (push 1, complete); 39890929696 (push 2, e47762c2b, complete): no crash on any native leg incl. linux arm64 control, where the container lane crashed; hypothesis: the container has no system fonts (docker/fonts.conf empty); push 3 adds legs with FONTCONFIG_FILE set to it; macOS stalls at Page.navigate after 2-4 loads per job (not version-bound)
 verified: local tests only (ci-paths 54 pass, land-inputs + land-overflow-widths 62 pass, profile.test 9 pass); no platform result yet
 open: platform rows (linux x64 headless/xvfb, macOS arm64/x64, Windows), note, dry land, review ready
 

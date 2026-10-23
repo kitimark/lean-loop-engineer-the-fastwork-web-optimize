@@ -35,7 +35,7 @@ The derivation: the heaviest set of jobs no two of which are ancestor and descen
 its `max-parallel`, and at most 5 on a macOS runner (https://docs.github.com/en/actions/reference/limits). A matrix from `fromJSON` counts
 the maximum its inputs allow (over-count is safe, under-count is not). The set behind each row:
 - breakpoint-gate 10: `gate` (breakpoint-gate.yml:226; `gate-jobs.mjs` plans at most 10 over the inputs of :171-:174)
-- chrome-crash-probe 8: `probe` (chrome-crash-probe.yml, the eight legs of the include list; 3 of them on macOS runners, under the 5 macOS slots)
+- chrome-crash-probe 11: `probe` (chrome-crash-probe.yml, the eleven legs of the include list; 3 of them on macOS runners, under the 5 macOS slots)
 - chromium-counts 20: `counts` (chromium-counts.yml:380; 2 targets x 10 runs, :145)
 - device-replay 1: `replay` (device-replay.yml, one VM)
 - difftest 2: `fixed`, `rotating` (difftest.yml:99,158)
@@ -57,7 +57,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 2: `plan` and `fwcore` (wktr.yml)
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
-  ("breakpoint-gate", 10), ("chrome-crash-probe", 8), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
+  ("breakpoint-gate", 10), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
   ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 4), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
   ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
 
