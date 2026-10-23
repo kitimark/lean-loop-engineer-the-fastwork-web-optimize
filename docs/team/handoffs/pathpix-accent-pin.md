@@ -8,7 +8,7 @@ open: fw land dry on the final tree; follow-ups in hero-copy-floor-sources: coun
 read first: research/notes/2026/10-2x-pathpix-accent-pin.md (all 9 hero_copy offsets per job, P-cell grade table, conclusion, remaining sources)
 
 Round 2 delivered:
-- Note: A/A table for all 9 offsets per job (both runs), P-cell grade table (inside/out, floor, grade, why, L from floor vs strips not accepted), plain conclusion, y 812/813 reworded (hero_copy cells with change).
+- Note: A/A table for all 9 offsets per job (both runs), P-cell grade table (inside/out, floor, grade, why, L from floor vs strips not accepted), conclusion, y 812/813 reworded (hero_copy cells with change).
 - Per-row enforcement: Lean PathPix "The pin per measured row" (accentPinned served start stop n, rowsPinned, gradePinned, unpinnedWhy, floorPinned; gradePinned_valid_only_if etc.); golden kinds accentRow and accentGrade (regenerate: lake build Fw.Gate.PathPix, then lake env lean --run scripts/PathPixGolden.lean > packages/contracts/golden/gate/path-pix.jsonl); TS twin in packages/measure-webkit/src/pathpix-exit.mjs (analyzeExit marks accent-unpinned: grade invalid, invalidWhy, floor invalid); Chromium accentPinned in packages/measure-chromium/src/pathpix-pure.mjs.
 - Dev check on run 39947605395 manifests: 12 of 232 cells marked accent-unpinned (webkit-1, offset 7, y 855). Run 39943789128 has no per-row records: all 208 cells would be unpinned.
 conventions: served signature = handover.pin.A.ssr; a row without accent record is unpinned; accentRowOf is glue (TS stand-in).

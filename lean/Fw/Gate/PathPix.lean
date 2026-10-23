@@ -1015,36 +1015,24 @@ theorem pinMasks_eq (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : pinMa
 theorem region_pin (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) :
     region (pinMasks p ms) m c r = region ms m c r := rfl
 
-/-! ### The pin per measured row
-
-The pin is applied before each freeze, yet an element can still be re-created between the pin and a shot. A row
-records the accent element count and signature at the start and at the end of its two screenshots; a cell may be
-graded only when every arm row it uses shows the served accent, once, at both ends. -/
-
-/-- The accent record of one measured arm row: element count, signature at shot start and at shot end. -/
 structure AccentRow where
   n : Nat
   start : String
   stop : String
 deriving DecidableEq, Repr
 
-/-- One element, and its signature equals the served one at shot start and at shot end. -/
 def accentPinned (served start stop : String) (n : Nat) : Bool := n == 1 && start == served && stop == served
 
 def AccentRow.pinned (served : String) (r : AccentRow) : Bool := accentPinned served r.start r.stop r.n
 
-/-- Every arm row a cell uses is pinned. -/
 def rowsPinned (served : String) (rows : List AccentRow) : Bool := rows.all (AccentRow.pinned served)
 
-/-- The grade of a cell whose arm rows carry accent records: unpinned rows make it invalid. -/
 def gradePinned (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) : Grade :=
   if rowsPinned served rows then gradeRel c f live else .invalid
 
-/-- The reason a cell is invalid because of the accent. -/
 def unpinnedWhy (served : String) (rows : List AccentRow) : Option String :=
   if rowsPinned served rows then none else some "accent-unpinned"
 
-/-- The A/A floor of a cell is usable only when the rows behind it are pinned. -/
 def floorPinned (served : String) (rows : List AccentRow) (f : Floor) : Floor :=
   { f with valid := f.valid && rowsPinned served rows }
 
@@ -1081,7 +1069,6 @@ theorem gradePinned_invalid_of_unpinned (served : String) (rows : List AccentRow
     · have := (rowsPinned_iff served rows).1 hp r hr; rw [h] at this; cases this
   simp [gradePinned, this]
 
-/-- A cell is valid only if every arm row it uses is pinned. -/
 theorem gradePinned_valid_only_if (served : String) (rows : List AccentRow) (c : Cell) (f : Option Floor)
     (live : Bool) (h : gradePinned served rows c f live ≠ .invalid) :
     ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true := by

@@ -38,7 +38,7 @@ live state (`shown_ssr`, `shown_arm_independent`), an unpinned arm shows the liv
 mask (`pinMasks_eq`, `region_pin`). Golden kinds `accentPin` (3 arms x 3 live cases, with `perOffset`) and `pinRegion`
 in `packages/contracts/golden/gate/path-pix.jsonl`, replayed by `packages/measure-webkit/test/pathpix.test.mjs`; the
 Chromium `armPin` and `pinAt` are tested equal to the WebKit twin. The injected expressions are checked on a fake DOM
-(`pathpix-lane.test.mjs`); that fake-DOM check is the TS stand-in for the browser behaviour.
+(`pathpix-lane.test.mjs`), a TS stand-in for the browser.
 
 ## Runs
 
@@ -222,6 +222,5 @@ the served accent, once, at the start and at the end of its two screenshots.
 ## Limits
 
 - No phone; the strips stay CI artifacts (`path-pix-webkit-N/.../strips`); no local timing is reported.
-- 2 jobs per engine per run, below the project's 3 separate-job bar: the numbers above are reported as measured on those
-  jobs. No new CI run in round 2.
+- 2 jobs per engine per run, below the project's 3 separate-job bar. No new CI run in round 2.
 - Cells for other consumers (other layers than hero_copy) keep their earlier grades, except the 12 unpinned cells above.
