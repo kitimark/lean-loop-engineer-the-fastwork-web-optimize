@@ -212,10 +212,8 @@ export const judgeColour = (core, win, r) =>
 /** Lean `isCoreIn`. */
 export const isCoreIn = (r, o) => isCore({ ...r, rep: o.rep }, o);
 
-/** Lean `envelope`. */
 export const envelope = (seg, r) => repsOf(seg).flatMap((q) => flightWindow(seg, { ...r, rep: q }));
 
-/** Lean `judgeWith`, with `settle` standing for `settledRef d seg`. */
 function judgeWithBy(kind, d, settle, fw, core, win, r) {
   if (inFlight(d, r)) {
     if (fw.length === 0) return win === null ? fail('coverage') : judgeEls(kind, win.map((s) => s.els), r.els);
@@ -226,10 +224,8 @@ function judgeWithBy(kind, d, settle, fw, core, win, r) {
   return ref.length === 0 ? fail('coverage') : judgeEls(kind, ref.map((x) => x.els), r.els);
 }
 
-/** Lean `judgeWith`. */
 export const judgeWith = (kind, d, seg, fw, core, win, r) => judgeWithBy(kind, d, (w) => settledRef(d, seg, w), fw, core, win, r);
 
-/** Lean `judgeUnit`. */
 export const judgeUnit = (kind, d, seg, win, r) => judgeWith(kind, d, seg, envelope(seg, r), (o) => isCoreIn(r, o), win, r);
 
 /** Lean `judgeOwn`. */
@@ -402,13 +398,11 @@ const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
 /** Lean `origFirst`. */
 export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
 
-/** Lean `excess`. */
 export const excess = (lo, hi, w) => (w < lo ? lo - w : hi < w ? w - hi : 0);
 
-/** Lean `startCheck`: true, false, or null (undecided). */
 export const startCheck = (kind, full, seg, prior, r) => startCheckAt(kind, full, origFirst(seg, r), prior, r);
 
-/** Lean `startCheck` with `o` for `origFirst seg r`. */
+/** Lean `excess`. */
 function startCheckAt(kind, full, o, prior, r) {
   const q = triggersOf([...prior, r])[0] ?? null;
   if (q === null || o === null) return null;
@@ -558,10 +552,8 @@ export const firstVerdict = (ph, p, b, oSeg, wSeg, v) =>
 export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   byMRule(ph, p, kind, d, e, id, oSeg, wSeg, conv).map(([b, v]) => [b, firstVerdict(ph, p, b, oSeg, wSeg, v)]);
 
-/** `byMFirst` of each member of the original's `family`, one member at a time. */
 export const byMFamEach = (ph, p, kind, d, e, id, oSeg, wSeg, conv) => family(oSeg).map((o) => byMFirst(ph, p, kind, d, e, id, o, wSeg, conv));
 
-/** `byMFamEach`, with each rewrite sample's per-pass windows and envelopes computed once for all members (test `byMFam equals byMFamEach`). */
 export function byMFam(ph, p, kind, d0, e, id, oSeg, wSeg, conv) {
   const durs = new Map();
   const d = (cls) => { const k = JSON.stringify(cls); if (!durs.has(k)) durs.set(k, d0(cls)); return durs.get(k); };

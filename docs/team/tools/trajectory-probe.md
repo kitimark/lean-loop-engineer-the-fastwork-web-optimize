@@ -117,7 +117,7 @@ runs the probe with the inputs of one message line:
    and envelope are its per-pass pieces joined in pass order; each piece is computed once and the member without pass q
    joins the other pieces. `byMFamEach` (one `byMFirst` per member) is the definition; test `byMFam equals byMFamEach`
    checks the two on every golden segment, in all four phases, and with the original doubled into one more pass (928
-   cases). MEASURED offline (dev check, this Mac) on the merged raw of run 39926829451: 39.8 s one member at a time,
+   cases). MEASURED offline (dev check) on the merged raw of run 39926829451: 39.8 s one member at a time,
    9.5 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix 7940268bea3474da). Offline re-reduction (dev check): run
    39926829451 CLEAN (new 0, undecided 0, leave-one-out 0, cleared 1, 14416 units); run 39557718020 CLEAN (3604 units,
    all ok).
@@ -140,7 +140,7 @@ runs the probe with the inputs of one message line:
    | 39452631146 | 168 | 147 | 132 |
 
    The macOS WebKit witness (`trajectory-apple`) reads 18 to 24 ms on the same phase (runs 39453181962, 39455284967,
-   39887328839, 39887331854, 39887335005). At a 141 ms gap, inside the Linux range, frames on multiples of the gap never
+   39887328839, 39887331854, 39887335005). At a 141 ms gap frames on multiples of the gap never
    reach bucket 1 and 24 of 141 phases do (`slow_cadence_phases`). There a missed open@1 is the vsync phase, not
    lateness, so the late-rate reading of `firstCover` is Chromium's only; the WebKit push cells stay "no verdict:
    coverage" as above.

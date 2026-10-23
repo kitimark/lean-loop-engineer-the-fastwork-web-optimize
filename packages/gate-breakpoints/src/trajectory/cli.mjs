@@ -12,7 +12,6 @@
 //   2  refused: an arm was not measured as asked (`refused:config`), an input is outside its allowlist, `summary` found no
 //      raw file, `merge` has no leg or legs that disagree, or the command is unknown; the run is void, never a pass,
 //   3  with --strict, UNDECIDED: no verdict either way; rerun with more passes (Lean `laneExit`); `summary` over several engines exits the worst (Lean `exitJoin`).
-// So 1 is only ever a strict RED.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -28,7 +27,6 @@ const refuse = (why) => { console.error(`trajectory: refused: ${why}`); return R
 
 const arg = (argv, name, dflt = '') => { const i = argv.indexOf(name); return i < 0 ? dflt : (argv[i + 1] ?? dflt); };
 
-/** The markdown of one engine's reduction: arm identity, relation to the faithful arm, the new groups, the timing. */
 export function summaryMd(raw, red) {
   const head = `## trajectory ${raw.engine} (${raw.version ?? '?'}) search=${raw.search || '(default)'} reads=${raw.reads ?? 'full'} paths=${(raw.paths ?? ['hero', 'morph']).join('+')} reps=${raw.reps ?? 1}`;
   if (red.refused) return [`${head} REFUSED config`, '', `The run was not measured as asked, so it has no verdict: ${red.detail}`, ''].join('\n');
@@ -84,7 +82,7 @@ export async function main(argv) {
     if (reads !== 'full' && reads !== 'lean') return refuse('reads must be full or lean');
     const reps = Number(arg(argv, '--reps', '3'));
     if (!Number.isInteger(reps) || reps < 1 || reps > 5) return refuse('reps must be 1 to 5');
-    const { runLane } = await import('./run.mjs'); // lazy: summary and merge run with plain node (no playwright installed)
+    const { runLane } = await import('./run.mjs');
     const raw = await runLane({ engineName, widths, search: arg(argv, '--search'), paths, reads, reps, env: process.env });
     writeFileSync(join(out, `raw-${raw.engine}.json`), JSON.stringify(raw));
     return report(out, raw, strict);
@@ -98,7 +96,6 @@ export async function main(argv) {
     return code;
   }
   if (cmd === 'merge') {
-    // Joins the legs of one engine (each leg's directory holds its raw-<engine>.json) and reduces the whole as one run.
     const dirs = arg(argv, '--in').split(',').filter(Boolean);
     const engineName = arg(argv, '--engine');
     if (dirs.length === 0 || engineName === '') return refuse('merge needs --in <leg dirs> and --engine');

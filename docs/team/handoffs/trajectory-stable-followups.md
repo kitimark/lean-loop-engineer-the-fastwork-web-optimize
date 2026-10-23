@@ -11,8 +11,7 @@
 - CLI: every refused input, `summary` without raw files, `merge` without legs or with disagreeing legs, and an unknown
   command exit 2 (`laneExit` refused); test `cli: a refused input ...`.
 - Lean `nil_not_mem_family`: a first pass on an empty original is outside `laneOf_stable_extra`.
-- Doc `docs/team/tools/trajectory-probe.md` check 2: Linux WebKit open gap p50 120 to 183 ms over 10 runs (table with
-  run ids); Simulator lag rows (run 39511908073) carry frame marks (open gap p50 30.0 / 31.4 ms) but no unit samples.
+- Doc `docs/team/tools/trajectory-probe.md` check 2: Linux WebKit open gap p50 120 to 183 ms over 10 runs; Simulator lag rows (run 39511908073) carry frame marks (open gap p50 30.0 / 31.4 ms) but no unit samples.
 
 ## Open
 - CI reduce-step time of the merge step not re-measured on CI (offline only).
