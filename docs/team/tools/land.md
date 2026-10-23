@@ -257,8 +257,8 @@ The CLI prints a dry land through `dryLandReport` (`land.ts`, Lean `dryRun` plus
 
 ## Workflow lint
 
-Incident `inc-workflow-dup-key`: a merge kept the key `SEARCH` twice in one `env` block of
-`.github/workflows/trajectory-probe.yml`, and GitHub refused the file because no land check read workflow files.
+Incident `inc-workflow-dup-key`: a merge left the key `SEARCH` twice in one `env` block of
+`.github/workflows/trajectory-probe.yml`, which GitHub refused; no land check read workflow files.
 
 - Check `workflow-lint` (`sh scripts/check-workflows.sh`) runs `actionlint`. Selected when a changed path is `.github/workflows/*.yml`,
   `.github/workflows/*.yaml` or `scripts/check-workflows.sh` (Lean `Fw.Ci.WorkflowLint.select`, theorems `yml_selects`, `yaml_selects`,
@@ -272,4 +272,4 @@ Incident `inc-workflow-dup-key`: a merge kept the key `SEARCH` twice in one `env
   should not be empty". Changing the option would change the dispatch contract, so the finding is accepted for that file and message only
   (`accepted`, `accepted_is_file_scoped`).
 - Tier: local (not on the remote allowlist `remoteIds`). The GitHub-hosted runners are not known to carry `actionlint`, so the check
-  runs where `fw land` runs. The remote tier needs a runner install step first.
+  runs where `fw land` runs.

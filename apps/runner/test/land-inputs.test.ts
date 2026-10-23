@@ -1,11 +1,3 @@
-// Declared inputs of the land checks (task checksfor-inputs). Two things are tested:
-//  1. the choice of checks equals the Lean decision (`landSpeed.select` golden, from `Fw.Console.LandSpeed.selectChecks`);
-//  2. the empirical premise `land.readsOnly` that `cache_sound` / `skip_sound` rest on: a check reads only its declared
-//     inputs. Static form: scan every source file a check runs for paths that leave its own directory and fail on any not
-//     covered by the check's globs. Dynamic form: the key over the declared inputs moves for a change inside them and
-//     stays for a change outside them.
-// The scan is static, so reads built at run time (an environment variable, a `git` call, a path computed from data) are
-// invisible to it; those are listed in docs/team/handoffs/checksfor-inputs.md.
 import "./land-timeout.ts";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -64,12 +56,9 @@ describe("the choice of checks equals the Lean decision", () => {
     expect(checksFor(root, changed)).toEqual(all.filter((c) => selectTwoPhase(all, changed, null, null).includes(c.id)).map((c) => c.argv));
     expect(checksWithReads(root, ["docs/team/handoffs/x.md"])).toEqual([]);
     expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id)).toContain("check.sh");
-    // a golden or a generated site file is read by check.sh: the old rule (lean/ only) missed these
     expect(checksWithReads(root, ["packages/contracts/golden/obs/timing.jsonl"]).map((c) => c.id)).toContain("check.sh");
     expect(checksWithReads(root, ["apps/site/src/breakpoints.gen.json"]).map((c) => c.id)).toContain("check.sh");
-    // sweepsgen --scope --check reads the gate's generated scope (Lean scopeGen_selects_checkSh)
     expect(checksFor(root, ["packages/gate-breakpoints/src/scope.gen.json"])).toContainEqual(["sh", "lean/scripts/check.sh"]);
-    // the lane lint of Fw.Ops.Premise reads the workflows (Lean workflow_selects_checkSh)
     expect(checksFor(root, [".github/workflows/lean.yml"])).toContainEqual(["sh", "lean/scripts/check.sh"]);
   });
   it("the read-set scan is selected by every change a check can read (Lean scan_selected), as its own cheap check", () => {
@@ -79,7 +68,6 @@ describe("the choice of checks equals the Lean decision", () => {
     expect(scan.argv).toEqual(READS_SCAN_ARGV);
     expect(scan.argv).not.toContain("test");
     expect(scan.reads).toEqual(withScan(all.slice(0, -1)).at(-1)!.reads);
-    // the finding: a site-only change skipped the scan; now it selects it without selecting apps/runner
     const ids = checksWithReads(root, ["apps/site/src/registry/presets/original.json"]).map((c) => c.id);
     expect(ids).toContain(READS_SCAN_ID);
     expect(ids).not.toContain("apps/runner");
@@ -90,7 +78,6 @@ describe("the choice of checks equals the Lean decision", () => {
   });
 });
 
-/** The old `checksFor` (before checksfor-inputs), kept as a fixture. */
 function oldChecksFor(r: string, changed: string[]): string[][] {
   const out: string[][] = [];
   if (changed.some((f) => f === "pnpm-lock.yaml" || /(^|\/)package\.json$/.test(f))) out.push(["pnpm", "install", "--frozen-lockfile"]);
@@ -102,20 +89,16 @@ function oldChecksFor(r: string, changed: string[]): string[][] {
   }
   return out;
 }
-/** old checks the new selection lacks, for one changed-path set */
 const superset = (changed: string[]) => {
   const n = new Set(checksFor(root, changed).map((a) => a.join(" ")));
   return oldChecksFor(root, changed).map((a) => a.join(" ")).filter((k) => !n.has(k));
 };
 
-// ---- the static scan -------------------------------------------------------------------------------------------------
 
 const walk = (d: string, exts: RegExp): string[] =>
   readdirSync(d, { withFileTypes: true }).flatMap((e) =>
     e.name === "node_modules" || e.name === "dist" || e.name.startsWith(".") ? [] : e.isDirectory() ? walk(join(d, e.name), exts) : exts.test(e.name) ? [join(d, e.name)] : []);
 
-/** Existing repo paths, outside `base`, that a file of `base` names through `../` strings, TS `join(.., "..", "x")` lists or Lean
- *  `".." / "x"` paths. Each is resolved against the file's directory and against `base` (a script's cwd). */
 function escapes(base: string, exts: RegExp): { path: string; file: string }[] {
   const out: { path: string; file: string }[] = [];
   const bd = join(root, base);
@@ -137,20 +120,14 @@ function escapes(base: string, exts: RegExp): { path: string; file: string }[] {
 }
 const uniq = (xs: { path: string; file: string }[]) => [...new Map(xs.map((x) => [`${x.path} <- ${x.file}`, x])).values()];
 
-/** Reads a script has but a `check.sh` run never executes, each with the reason. */
 const NOT_REACHED_BY_CHECK_SH: Record<string, string> = {
   "docs/team/work-graph.json": "lean/Fw/Plan/Golden.lean reads it only in write mode (`lake test -- --write-plan-golden`); check.sh runs `lake test` without it",
 };
 
-/** Gitignored build outputs a package reads at run time, each with the reason. Named paths only: the scan finds them just
- *  when the folder exists on this machine, so a local build must not change the result. The land check (`pnpm test`) of these
- *  packages never reads it; only the serve/lane scripts do at run time, outside the land key. A declared read of a path git does not hold would match no file in a CI
- *  checkout, and the PACKAGE_EXTRA_READS exercised-entry test would refuse it. */
 const BUILD_OUTPUT_READS: Record<string, string> = {
   "apps/site/dist/aot": "output of `pnpm --filter @fw/site build`; read by gate-breakpoints/src/serve.mjs and the measure-webkit site/stamped lane scripts",
 };
 
-/** Quoted Lean source paths in a package that its land check does not read, each with the reason. */
 const LEAN_NAMED_NOT_READ: Record<string, string> = {
   "lean/Fw/Parts/FootprintData.lean <- apps/site/scripts/part-footprint.mjs": "the generator writes it; `pnpm test` does not run the generator",
   "lean/Fw/Measure/Classes.lean <- packages/measure-wktr/test/runset.test.mjs": "a classifier input path, not a file read",
@@ -159,17 +136,12 @@ const LEAN_NAMED_NOT_READ: Record<string, string> = {
   "lean/Fw/Wire/WktrFixturesGolden.lean <- packages/measure-wktr/fixtures/runset.mjs": "a classifier input path, not a file read",
   "lean/Fw/Measure/Classes.lean <- packages/measure-chromium/src/freeze.mjs": "a provenance string in the frozen output",
 };
-/** Files that spawn `lake` but run only outside the package's `test` script, each with the reason. */
 const LAKE_NOT_IN_TEST: Record<string, string> = {
   "apps/site/scripts/check-breakpoints.mjs": "runs in the `build` scripts only; the land runs `test`",
 };
 
-/** The source without its block comments and `//` line comments (a Lean path in a doc comment is not a read). */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 
-/** Lean source reads of the package checks that their declared reads miss: quoted `lean/...lean` paths (after any `../`
- *  segments, in any quote), `join`/`resolve` calls with a `"lean"` segment not followed by `".lake"`, and `lake` spawns. The
- *  last two need `lean/**`. Comments are not scanned. `seen` counts the quoted paths checked. */
 function leanReadMisses(checks: Check[], tracked: Set<string>): { missing: string[]; seen: number } {
   const missing: string[] = [];
   let seen = 0;
@@ -198,25 +170,21 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
     const found = uniq(escapes("lean", /\.(lean|sh|mjs|toml)$/)).filter((x) => !(x.path in NOT_REACHED_BY_CHECK_SH));
     const undeclared = found.filter((x) => !inScope(CHECK_SH_READS, x.path));
     expect(undeclared).toEqual([]);
-    expect(found.length).toBeGreaterThan(5); // the scan sees the golden and span.sh reads
-    // the exceptions are real: the path exists and is outside the declared inputs
+    expect(found.length).toBeGreaterThan(5);
     for (const k of Object.keys(NOT_REACHED_BY_CHECK_SH)) expect(inScope(CHECK_SH_READS, k)).toBe(false);
     expect(readFileSync(join(root, "lean/scripts/check.sh"), "utf8")).not.toContain("write-plan-golden");
   });
   for (const c of candidateChecks(root).filter((x) => /^(apps|packages)\//.test(x.id))) {
     it(`${c.id}: sources and tests read only ${c.reads.length} declared globs`, () => {
       const found = uniq(escapes(c.id, /\.(ts|tsx|mjs|js|sh)$/)).filter((x) => !(x.path in BUILD_OUTPUT_READS));
-      // the fwcore binary (lean/.lake) is the next test's business
       expect(found.filter((x) => !x.path.startsWith("lean/.lake/") && !inScope(c.reads, x.path))).toEqual([]);
     });
   }
   it("the packages that run the fwcore binary are exactly FWCORE_USERS; declaring lean/** for them covers the binary", () => {
     const users = candidateChecks(root).filter((c) => /^(apps|packages)\//.test(c.id) && walk(join(root, c.id), /\.(ts|tsx|mjs|js)$/)
       .some((f) => /\.lake|["'/]fwcore["']|FWCORE|bin\/fwcore/.test(readFileSync(f, "utf8")))).map((c) => c.id);
-    // measure-wktr runs the binary through measure-chromium/src/fwcore.mjs (a declared extra read), not by itself
     expect([...users, "packages/measure-wktr", ...LOCAL_TESTS.map((t) => t.id)].sort()).toEqual([...FWCORE_USERS].sort());
     for (const c of candidateChecks(root)) expect(inScope(c.reads, FWCORE_BIN), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh" || c.id === READS_SCAN_ID);
-    // a Lean change with an unknown or a moved digest selects check.sh and every fwcore user
     expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
     expect(checksWithReads(root, ["lean/Fw/A.lean"], "a".repeat(64), "b".repeat(64)).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
   });
@@ -262,15 +230,12 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
   });
   it("every PACKAGE_EXTRA_READS entry is exercised: it matches a tracked file or is a deliberate directory", () => {
     const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
-    // the fwcore binary is a build output, never tracked
     const untrackedOk = [FWCORE_BIN, ".github/workflows/*.yaml"];
     for (const c of candidateChecks(root)) for (const g of c.reads.filter((x) => !untrackedOk.includes(x))) expect(tracked.some((f) => inScope([g], f)), `${c.id}: ${g}`).toBe(true);
   });
 });
 
-// ---- the key over the declared inputs --------------------------------------------------------------------------------
 
-/** A concrete file inside a glob: `a/**` -> `a/f.txt`, an exact path stays. */
 const inside = (g: string) => g.replace(/\*\*\/?$/, "f.txt").replace(/\*\*/g, "d").replace(/\*/g, "x");
 
 function fixture(): { dir: string; write: (f: string, s: string) => void; checks: Check[]; done: () => void } {
@@ -302,7 +267,6 @@ describe("premise land.readsOnly: the key over the declared inputs (dynamic)", (
     try {
       for (const c of fx.checks) {
         const k0 = inputKey(fx.dir, c.reads);
-        // outside: a file no glob selects, and the declared inputs of every check that does not overlap this one
         const outsiders = ["docs/a.md", "misc/zzz/outside.txt", ...fx.checks.flatMap((o) => o.reads.map(inside)).filter((f) => !inScope(c.reads, f))];
         for (const f of outsiders) {
           fx.write(f, "changed");

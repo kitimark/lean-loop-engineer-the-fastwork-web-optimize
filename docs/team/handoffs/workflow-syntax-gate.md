@@ -16,7 +16,7 @@ CI runs: none (no ci/* push; the check is local tier)
 - Tier: local (not in `remoteIds`); reason in land.md.
 
 ## Open
-- Outside the task writes: `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/scripts/WorkflowLintGolden.lean` (golden wiring, same as the other Ci goldens).
+- Writes outside the task: `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/scripts/WorkflowLintGolden.lean` (golden wiring).
 - A future move to the remote tier needs an actionlint install step in land.yml and a `remoteIds` row in Lean LandTier.
 - Read first: lean/Fw/Ci/WorkflowLint.lean, scripts/check-workflows.sh.
 
