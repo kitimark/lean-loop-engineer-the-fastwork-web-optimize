@@ -180,6 +180,89 @@ Reason: a pixel inside another graded layer's mask is counted by that layer's ce
 | webkit-3 | nav-earn | 1218,72,1218,180 |
 | webkit-3 | nav logo | 96,91.1,370.5,160.9 |
 
+## Consensus capture (task pathpix-consensus-capture, run 40026419647)
+
+Branch `ci/pathpix-consensus-capture`, workflow `path-pix`, commit `eae3bfab5`, success at the first attempt (no re-run), 3 jobs per
+engine. Every table in this section is printed by `packages/measure-webkit/src/pathpix-exit-report.mjs` from the artifacts of that
+run (`consensusSummary`, `consensusCells`, `probeTable`); no number is typed by hand. Statuses as above.
+
+**Rule (CONFIRMED, Lean).** WebKit now captures three identical arms before P: A, A2, A3 (`pinArms` in `lean/Fw/Gate/PathPix.lean`).
+Per P cell and per zone (outside every mask, inside the layer's mask) a zone is `counted` when P differs from A there and A vs A2
+and A vs A3 both changed 0 pixels there (`Zone.agree`, `Zone.seen`); `varied` when P differs and an identical-arm pair also differs;
+`quiet` when P matches A. A cell with a `varied` zone gets the verdict `varied` and is not graded; otherwise it keeps its grade
+(`verdict`, `consensus`, theorems `verdict_varied_iff`, `verdict_graded_iff`, `seen_varied_of_a2`, `seen_varied_of_a3`,
+`seen_dropping_a3`; 78 golden lines of kind `consensus`, plus kinds `seen` and `probeHit`, replayed by `test/pathpix.test.mjs`). A cell
+without A3 (Chromium) is decided by A2 alone. `probesHit` has a Lean twin now (`probeHit`, `probesHit`, `probeHit_iff`,
+`probesHit_mem`, golden kind `probeHit`); the TS version uses integer micro-CSS px so it matches the Lean `Int` boxes.
+
+**Result per job (MEASURED, run 40026419647).**
+
+| job | A3 captured | P cells | counted | varied | quiet | E | E1 | Q | L | invalid | varied | no consensus data |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| webkit-1 | yes | 24 | 11 | 3 | 10 | 0 | 0 | 0 | 21 | 0 | 3 | 0 |
+| webkit-2 | yes | 24 | 13 | 0 | 11 | 0 | 0 | 0 | 24 | 0 | 0 | 0 |
+| webkit-3 | yes | 24 | 12 | 2 | 10 | 0 | 0 | 0 | 22 | 0 | 2 | 0 |
+
+| job | A3 captured | P cells | counted | varied | quiet | E | E1 | Q | L | invalid | varied | no consensus data |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| chromium-1 | no | 24 | 21 | 0 | 3 | 0 | 0 | 0 | 24 | 0 | 0 | 0 |
+| chromium-2 | no | 24 | 21 | 0 | 3 | 0 | 0 | 0 | 24 | 0 | 0 | 0 |
+| chromium-3 | no | 24 | 21 | 0 | 3 | 0 | 0 | 0 | 24 | 0 | 0 | 0 |
+
+Chromium has no A3 yet (its capture is `packages/measure-chromium/src/pathpix.mjs`, outside this task's writes; the arm list there
+needs one more entry), so its table is decided by A2 alone; its A/A is 0-0 everywhere, so every changed cell is `counted`.
+
+**Cells whose verdict is not their grade, and the offset 5 hero_copy cells (MEASURED).** Columns: P grade, verdict, P inside / outside
+(changed pixels - max delta), A vs A2, A vs A3, zone seen.
+
+| job | consumer | offset | ask y | P grade | verdict | P inside / out (chg-max) | A vs A2 inside / out | A vs A3 inside / out | inside | outside |
+|---|---|---|---|---|---|---|---|---|---|---|
+| webkit-1 | hero.cue_cue | 0 | 0 | L | varied | 2769-56 / 0-0 | 1965-6 / 0-0 | 1965-6 / 0-0 | varied | quiet |
+| webkit-1 | hero.cue_cue | 5 | 813 | L | varied | 0-0 / 2015-5 | 0-0 / 2015-5 | 0-0 / 2017-5 | quiet | varied |
+| webkit-1 | hero_copy | 5 | 813 | L | varied | 192513-20 / 2015-5 | 192513-20 / 2015-5 | 192513-20 / 2017-5 | varied | varied |
+| webkit-2 | hero_copy | 5 | 813 | L | L | 192513-20 / 0-0 | 0-0 / 0-0 | 0-0 / 0-0 | counted | quiet |
+| webkit-3 | hero.deck_article#0 | 0 | 0 | L | varied | 35651-45 / 0-0 | 24-1 / 0-0 | 24-1 / 0-0 | varied | quiet |
+| webkit-3 | hero.deck_article#1 | 0 | 0 | L | varied | 2004-11 / 0-0 | 33-1 / 0-0 | 33-1 / 0-0 | varied | quiet |
+
+- **webkit-1, offset 5 (hero_copy and hero.cue_cue):** the identical arms differ by the amount P differs (hero_copy inside 192513-20
+  in A vs A2 and A vs A3; outside 2015-5 vs A2 and 2017-5 vs A3), so the verdict is `varied` and the cell is not graded. A2 and A3
+  differ from each other outside (2015 vs 2017 pixels), so the three identical arms do not even agree on one image. P shows the same
+  inside count and delta as the identical arms, so A is the odd one out (INFERRED from the equal counts; the report has no pixel-level
+  A2 vs P column).
+- **webkit-2, offset 5, hero_copy:** P differs inside by 192513-20 while A, A2 and A3 agree (0-0), so the cell is `counted` and keeps
+  grade L. The same 192513-20 appears as A/A in webkit-1: one changed-pixel count and delta in two jobs, once as A/A and once as
+  P-only, suggests an alternate raster of the red deck-card artwork that any arm can land on (INFERRED). With A as the only reference, a
+  P cell that lands on the alternate while A, A2 and A3 do not is counted.
+- **webkit-3, offset 5:** 0-0 in all arms and zones (quiet). The cells the task named there (hero_copy P 192513-20 inside, and the
+  A/A 4478-2 outside every mask at nav-earn) did not recur in webkit-3 of this run: the first moved to webkit-1 (as A/A and P) and
+  webkit-2 (as P), the second appears in no job (no 4478 in any table). So these two cells could not be classed in the same job they
+  were seen in; the class of the 192513-20 raster is shown per job above, and the 4478-2 nav-earn change stays open.
+- **webkit-1 offset 0 hero.cue_cue; webkit-3 offset 0 hero.deck_article#0 and #1:** A vs A2 and A vs A3 change by the same small count
+  (1965-6, 24-1, 33-1) while P changes by more (2769-56, 35651-45, 2004-11). The verdict `varied` hides the part of P above that floor
+  (accepted limit 2 below).
+- The outside change at offset 5 (2015-5 / 2017-5) lies at device x 1239..1290, y 1125..1658 (the "counted by another layer" table of
+  the report shows `none` for probe elements there); the nav probes are at y 72..180, so it is not the nav row.
+
+**Probe boxes at the asked scrollY (MEASURED).** For each job the report prints the offsets that have a change outside every mask, with
+the asked y, the recorded scrollY and the box of every probe element at that scrollY (arm A of that offset). Here the asked y equals
+the scrollY in every WebKit row. The nav-earn box is 1218,72,1218,180 (zero width) at scrollY 213 and 427 and 886.8,72,1218,180 at
+scrollY 813 (webkit-1 rows shown; all other rows are in the report):
+
+| job | offset | ask y | scrollY | probe element | device box x0,y0,x1,y1 (arm A at that offset) |
+|---|---|---|---|---|---|
+| webkit-1 | 5 | 813 | 813 | nav | 48,48,1242,204 |
+| webkit-1 | 5 | 813 | 813 | nav-lang | 655.8,72,874.8,180 |
+| webkit-1 | 5 | 813 | 813 | nav-lang button | 655.8,72,874.8,180 |
+| webkit-1 | 5 | 813 | 813 | nav-earn | 886.8,72,1218,180 |
+| webkit-1 | 5 | 813 | 813 | nav logo | 96,91.1,370.5,160.9 |
+
+**Accepted limits (CONFIRMED by the rule; the consequences INFERRED).** (1) No majority reference: A stays the reference, so a cell
+where A is the odd one out is `varied`, not re-referenced to A2 = A3. (2) A cell whose only P differences lie where the identical arms
+disagree is not counted, even when P changes more than the identical arms do (the three cells above); the report prints the old grade
+next to the verdict. (3) Chromium has no A3 until its arm list gets one entry. (4) `partsHit` (the CSS-px part lookup behind the
+"parts the box touches" column) remains a TS stand-in with no Lean twin; `probesHit` has one. (5) One run, 3 jobs per engine: the
+class of the 192513-20 raster state needs another run or a majority reference. No phone; the look review is the user's.
+
 ## Follow-up for the user's look review (class look-change)
 
 With `hero.exit:threaded` at rest (offset 0, no scroll), Chromium P differs from A in hero_copy's union mask by 426 changed
@@ -193,7 +276,7 @@ run's artifacts). Chromium A/A is 0-0 everywhere, so these are real P difference
 
 ## Open
 
-- WebKit deck-card corner pixels vary between identical arms in 2 of 3 jobs of run 40007968162 (webkit-1, webkit-3; round 0: 2 of 3; run 39985824264: 1 of 3). Pinning is closed as a sourced negative (see the y 0 row): no page-side or capture-side input differs, the variation is in the Simulator render server (INFERRED). The deck cells carry it as their floor; hero_copy does not count it. Possible next step, not done: a consensus capture (A, A2, A3) to separate a one-off frame from a stable difference.
+- WebKit deck-card corner pixels vary between identical arms in 2 of 3 jobs of run 40007968162 (webkit-1, webkit-3; round 0: 2 of 3; run 39985824264: 1 of 3). Pinning is closed as a sourced negative (see the y 0 row): no page-side or capture-side input differs, the variation is in the Simulator render server (INFERRED). The deck cells carry it as their floor; hero_copy does not count it. The consensus capture (A, A2, A3) of run 40026419647 now separates these cells per job (section "Consensus capture").
 - Follow-up 3 is closed at box level (the language switch `button.switch`, `nav_bar` layer); the arc and the one-level cause are INFERRED, and the 2-1 did not recur, so the identification rests on the recorded box and the earlier strip.
-- webkit-3 offset 5: hero_copy P 192513-20 inside on the red deck-card artwork, not repeated in webkit-1 and webkit-2 (one job of three); needs a second run or an A3 arm to class it.
+- hero_copy P 192513-20 inside at offset 5: in run 40026419647 it is `varied` in webkit-1 (A, A2 and A3 disagree by the same amount), `counted` in webkit-2 (A, A2, A3 agree) and absent in webkit-3. Needs another run or a majority-reference rule to class; the A/A 4478-2 nav-earn change did not recur. Chromium has no A3 (one-entry edit in `packages/measure-chromium/src/pathpix.mjs`, outside the task writes).
 - Strips are CI artifacts of runs 39985824264 and 40007968162; the look review is the user's. No phone.

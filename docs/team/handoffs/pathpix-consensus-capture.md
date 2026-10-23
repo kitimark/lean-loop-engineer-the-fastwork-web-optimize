@@ -2,20 +2,21 @@
 
 - Branch: worktree-wf_651b0dc0-140-1 (CI branch ci/pathpix-consensus-capture)
 - Worktree: .claude/worktrees/wf_651b0dc0-140-1
-- Last code commit: eae3bfab5f96a88fbb95436a0655af847da75856
-- CI: path-pix run 40026419647 (sha eae3bfab5) in_progress (checkpoint 1)
+- Code commit measured: eae3bfab5f96a88fbb95436a0655af847da75856 (later commits: note and handoff only)
+- CI: path-pix run 40026419647 (sha eae3bfab5) success, 3 jobs per engine, no re-run
+- Local gates at eae3bfab5: lean check.sh green, measure-webkit tests 535 pass, ci-paths 56 pass, runner land-inputs 56 pass
 
-## Verified
-- Lean: consensus rule (Zone, Seen, verdict, consensus) and probeHit/probesHit twin compile; golden regenerated (434 lines, --check up to date).
-- TS: pathpix-exit consensus + integer probesHit replay the golden; 46 tests pass (pathpix, pathpix-lane, pathpix-report).
-- Report script prints probe boxes per offset at the asked scrollY and a consensus table.
+## Verified (run 40026419647, report script output in research/notes/2026/10-2x-hero-copy-floor.md)
+- Lean consensus rule + probeHit/probesHit twin + golden (434 lines); TS replays it; report prints probe boxes at the asked scrollY.
+- WebKit (A, A2, A3): counted/varied/quiet per job 11/3/10, 13/0/11, 12/2/10. Chromium (no A3): 21/0/3 in all 3 jobs.
+- webkit-1 offset 5 hero_copy: A/A and P both 192513-20 inside -> varied. webkit-2 offset 5: P-only 192513-20, A/A3 0-0 -> counted L.
+- webkit-3 offset 5 was quiet this run; the A/A 4478-2 nav-earn change recurred in no job (class open).
 
 ## Open
-- Run 40026419647 results: consensus per cell, webkit-3 offset 5 cells (hero_copy P 192513-20, A/A 4478-2 at nav-earn).
-- Chromium A3 arm: one-line edit in packages/measure-chromium/src/pathpix.mjs (arms list), outside task writes; lead decides.
-- partsHit (CSS px floats) stays a TS stand-in, no Lean twin.
-- Limits: no majority reference (A is reference); varied verdict hides larger-than-floor P changes in noisy cells.
-- Look review is the user's; no phone.
+- Chromium A3: one-entry edit in packages/measure-chromium/src/pathpix.mjs (arms list), outside task writes; lead decides.
+- partsHit (CSS px floats) stays a TS stand-in; probesHit has a Lean twin.
+- Limits: no majority reference (A is reference); varied hides P above the A/A floor in noisy cells (3 cells in this run).
+- Class of the 192513-20 raster needs another run or a majority-reference rule. Look review is the user's; no phone.
 
 ## Read first
-lean/Fw/Gate/PathPix.lean (section Consensus of the identical arms), packages/measure-webkit/src/pathpix-exit.mjs, pathpix-exit-report.mjs, research/notes/2026/10-2x-hero-copy-floor.md.
+lean/Fw/Gate/PathPix.lean (section Consensus of the identical arms), packages/measure-webkit/src/pathpix-exit.mjs, pathpix-exit-report.mjs, the "Consensus capture" section of the note.
