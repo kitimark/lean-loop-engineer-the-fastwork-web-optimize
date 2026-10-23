@@ -41,6 +41,18 @@ def protectedPath (p : String) : Bool := protectedFiles.contains p || protectedD
 
 def polishable (p : String) : Bool := !protectedPath p
 
+/-- A character a worktree directory name may hold. -/
+def nameChar (c : Char) : Bool := c.isAlphanum || c == '_' || c == '-' || c == '.'
+
+/-- The worktree name of an absolute directory `/<...>/.claude/worktrees/<name>`, none for a relative, `~` or placeholder path or an
+unsafe name. `fw polish plan` prints it as `worktree-name <name>`, a bare token that a copy of the absolute path cannot damage. -/
+def wtName (dir : String) : Option String :=
+  if dir.startsWith "/" then
+    match (segs dir).reverse with
+    | n :: "worktrees" :: ".claude" :: _ => if n != "" && n != "." && n != ".." && n.all nameChar then some n else none
+    | _ => none
+  else none
+
 def genName (p : String) : Bool := ((baseName p).splitOn ".gen.").length > 1
 
 def skipped (gen : List String) (p : String) : Bool :=
@@ -116,6 +128,30 @@ theorem claude_dir_protected (s : String) : protectedPath (".claude/" ++ s) = tr
 theorem claude_md_protected : protectedPath "CLAUDE.md" = true := by simp [protectedPath, protectedFiles]
 
 theorem polishable_iff (p : String) : polishable p = true ↔ protectedPath p = false := by simp [polishable]
+
+theorem wtName_relative (dir : String) (h : dir.startsWith "/" = false) : wtName dir = none := by simp [wtName, h]
+
+theorem wtName_safe (dir n : String) (h : wtName dir = some n) : (n != "" && n.all nameChar) = true := by
+  unfold wtName at h
+  split at h
+  · split at h
+    · split at h
+      · simp_all
+      · cases h
+    · cases h
+  · cases h
+
+example : wtName "~/source/x/.claude/worktrees/wf_b291cc70-2f8-1" = none := wtName_relative _ (by simp)
+
+theorem wtName_not_dots (dir n : String) (h : wtName dir = some n) : (n != "." && n != "..") = true := by
+  unfold wtName at h
+  split at h
+  · split at h
+    · split at h
+      · simp_all
+      · cases h
+    · cases h
+  · cases h
 
 theorem gen_skip (gen : List String) (p : String) (h : p ∈ gen) : classify gen p = .skip :=
   skipped_skip gen p (by simp [skipped, h])

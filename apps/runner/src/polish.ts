@@ -18,6 +18,16 @@ type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; pr
 type CutOut = { path: string; old: string; verdict: string; missing: string[] };
 type DocOut = { path: string; text: string; changed: boolean };
 
+/** TS STAND-IN for Lean `Fw.Plan.Polish.wtName` (spec and proofs there; wire op `plan.wtName` is a follow-up): the name of an
+ * absolute `/.../.claude/worktrees/<name>` directory, null for a relative, `~` or placeholder path or an unsafe name. */
+export function wtName(dir: string): string | null {
+  if (!dir.startsWith("/")) return null;
+  const s = dir.split("/");
+  const n = s[s.length - 1]!;
+  if (s[s.length - 2] !== "worktrees" || s[s.length - 3] !== ".claude") return null;
+  return n !== "" && n !== "." && n !== ".." && /^[A-Za-z0-9_.-]+$/.test(n) ? n : null;
+}
+
 export interface Deps {
   core?: CoreCall;
   log?: (l: string) => void;
@@ -328,6 +338,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     if (kind === "polish-plan") {
       if (!staged) saveBaseline(dir, git, write, dirtyBefore);
       out(`worktree ${dir}`);
+      out(`worktree-name ${wtName(dir) ?? "-"}`);
       for (const p of paths.filter((q) => dirtyBefore.includes(q))) out(`skip ${p} (dirty before plan)`);
       for (const p of plan.protected ?? []) out(`skip ${p} (protected)`);
       for (const c of plan.classes) out(`class ${c.class} ${c.mark ?? "-"} ${c.path}`);
