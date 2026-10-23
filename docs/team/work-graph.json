@@ -18763,7 +18763,9 @@
     ".github/workflows/webkit-sim.yml",
     "results/carousel-swap-webkit/**",
     "research/notes/2026/10-2x-carousel-swap-webkit.md",
-    "docs/team/handoffs/hero-accent-frozen-confirm.md"
+    "docs/team/handoffs/hero-accent-frozen-confirm.md",
+    "lean/Fw/Measure/SwapWindow.lean",
+    "packages/contracts/golden/measure/wkcost.jsonl"
    ],
    "title": "carousel-swap-followups finding (2026-10-24): the every-third-window Layout/Paint pattern in the end-of-page swap windows matches the hero.accent draw cycle (1250+900+900 = 3050 ms vs 3 carousel periods of 3060 ms; stroke-dashoffset animations on both 900 ms draws require layout each frame, WebKit StyleDifference.cpp:161 via :399 @862f17d; width transition on draw-in, :404). Confirm it: one [swap-lane] run with hero.accent frozen from the harness (injected style setting animation: none and transition: none on the accent's elements, or emulated prefers-reduced-motion; no site edit) for the crop AND the faithful arm (diagnostic capture on both), 3 jobs at one commit; the busy runs must vanish and every swap window's Layout median drop to the idle level. Also report the hero.exit zone's Layout/Paint with and without the frozen accent, so the share of hero-exit work that is the accent is MEASURED. Follow-ups folded in: the capture slot (a/b) in the job key and FW_JOB_ID in webkit-sim.yml so each sample has a numeric job id."
   },
@@ -18970,9 +18972,13 @@
     "packages/contracts/golden/gate/path-pix.jsonl",
     "research/notes/2026/10-2x-accent-draw-nolayout.md",
     "results/accent-draw-nolayout/**",
-    "docs/team/handoffs/accent-nolayout-measure.md"
+    "docs/team/handoffs/accent-nolayout-measure.md",
+    "lean/Fw/Measure/SwapWindow.lean",
+    "packages/contracts/golden/measure/wkcost.jsonl",
+    "results/carousel-swap-webkit/**",
+    "research/notes/2026/10-2x-carousel-swap-webkit.md"
    ],
-   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator)."
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates)."
   },
   {
    "devices": [
@@ -19080,9 +19086,11 @@
    "writes": [
     "apps/runner/src/polish.ts",
     "apps/runner/test/polish*.test.ts",
-    "docs/team/handoffs/polish-plan-path-redaction.md"
+    "docs/team/handoffs/polish-plan-path-redaction.md",
+    "docs/team/handoffs/polish-protected-from-settings.md",
+    "lean/Fw/Plan/Polish.lean"
    ],
-   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests."
+   "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests. Also polish-protected-from-settings review follow-ups: (a) its handoff: add 'subagent worktrees: INFERRED same anchor' for isolation:worktree builders, and reword 'maps /x/** to x/x/y.md' as 'maps /<dir>/** to <dir>/x/y.md and /<file> to <file>'; (b) polish.test.ts sample(): check each /dir/** rule with a second sample dir/z.md so a narrower protectedDirs entry fails."
   }
  ],
  "deadline": {
