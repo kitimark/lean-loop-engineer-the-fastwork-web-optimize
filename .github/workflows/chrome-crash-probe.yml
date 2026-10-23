@@ -1,0 +1,153 @@
+name: chrome-crash-probe
+
+# Task chrome-crash-platforms (note research/notes/2026/10-2x-chrome-balance-repro.md): does stock Chrome for Testing crash on the people
+# title (text-wrap: balance on an h2 whose line holds an inline-grid o) on other platforms than linux arm64? Each leg is one free hosted
+# runner that unpacks Chrome for Testing for its own platform, starts it as a user would (no harness flags, no BeginFrameControl, no
+# emulation), loads the minimal repro and the original snapshot page at 1280 and 860 and reports the exit state per variant.
+# Probe: packages/measure-chromium/probes/balance-platforms.json, run by src/crash-probe.mjs (the same code as the container lane).
+# Legs: linux x86_64 headless and headed (under xvfb), macOS arm64 headless and headed, macOS x86_64 headless, Windows x86_64
+# headless and headed. Free runners only. Nothing here is phone time.
+on:
+  push:
+    branches: ['ci/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Guard (Lean Fw.Ci.Intent + Fw.Ci.Trigger, scripts/ci-paths.mjs). On a ci/* push it, and so every job, is skipped unless
+  # the head commit asks for this lane (`[ci:<lane>]`; the default lane lean always); then it runs the workflow only if
+  # the commit is the branch tip, is not on main yet, and (lean: always) some file that differs from main on the whole
+  # branch is an input. A main push starts no run; dispatches always run. Fails open.
+  # Every other job re-checks the tip first (`stale:` fails it) and has its own group, never cancelled on ci/*.
+  guard:
+    if: ${{ github.event_name != 'push' || !startsWith(github.ref, 'refs/heads/ci/') || contains(github.event.head_commit.message, '[ci:chrome-crash-probe]') }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: g
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          GUARD_TOKEN: ${{ github.token }}
+        run: node .github/scripts/changed-inputs.mjs --workflow .github/workflows/chrome-crash-probe.yml
+      - name: 'decision: run'
+        if: steps.g.outputs.run == 'true'
+        run: 'true'
+      - name: 'decision: skip: ${{ steps.g.outputs.reason }}'
+        if: steps.g.outputs.run != 'true'
+        run: 'true'
+
+  probe:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    concurrency:
+      group: ci-lane:chrome-crash-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe:${{ strategy.job-index }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    name: probe ${{ matrix.leg }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: linux-x64
+            os: ubuntu-latest
+            headed: ''
+          - leg: linux-x64-xvfb
+            os: ubuntu-latest
+            headed: '1'
+          - leg: macos-arm64
+            os: macos-latest
+            headed: ''
+          - leg: macos-arm64-headed
+            os: macos-latest
+            headed: '1'
+          - leg: macos-x64
+            os: macos-15-intel
+            headed: ''
+          - leg: windows-x64
+            os: windows-latest
+            headed: ''
+          - leg: windows-x64-headed
+            os: windows-latest
+            headed: '1'
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        run: exit 1
+      - name: Keep line endings (the page is measured byte for byte)
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/measure-chromium
+            snapshot
+            .github/scripts
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Verify the snapshot against snapshot.lock.json
+        continue-on-error: true
+        run: node .github/scripts/verify-snapshot.mjs
+      - name: Xvfb (the headed leg on Linux)
+        if: ${{ runner.os == 'Linux' && matrix.headed != '' }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+      - name: Stage the driver as the container sees it (driver/, probes/, node_modules beside them)
+        run: |
+          set -euo pipefail
+          fw="$RUNNER_TEMP/fw"
+          mkdir -p "$fw"
+          cp -R packages/measure-chromium/src "$fw/driver"
+          cp -R packages/measure-chromium/probes "$fw/probes"
+          cp packages/measure-chromium/docker/driver/package.json packages/measure-chromium/docker/driver/package-lock.json "$fw/"
+          (cd "$fw" && npm ci --no-audit --no-fund --ignore-scripts)
+      - name: Probe (stock Chrome for Testing, the minimal repro and the original page)
+        env:
+          FW_STOCK_HEADED: ${{ matrix.headed }}
+        run: |
+          set -euo pipefail
+          fw="$RUNNER_TEMP/fw"
+          out="$GITHUB_WORKSPACE/out/chrome-crash-probe"
+          mkdir -p "$out"
+          cmd=(node "$fw/driver/crash-probe.mjs" --profile=balance-platforms --target=original --root="$GITHUB_WORKSPACE/snapshot/site"
+            --driver="$fw/driver" --probes="$fw/probes" --out="$out" --tmp="$RUNNER_TEMP/probe" --summary="$GITHUB_STEP_SUMMARY" --leg="${{ matrix.leg }}")
+          if [ "$RUNNER_OS" = Linux ] && [ -n "$FW_STOCK_HEADED" ]; then
+            xvfb-run -a -s "-screen 0 1920x1080x24" "${cmd[@]}" 2>&1 | tee "$out/log.txt"
+          else
+            "${cmd[@]}" 2>&1 | tee "$out/log.txt"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: crash-${{ matrix.leg }}
+          path: out/chrome-crash-probe
+          if-no-files-found: error
+          retention-days: 30

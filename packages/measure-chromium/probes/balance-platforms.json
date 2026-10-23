@@ -1,0 +1,102 @@
+{
+ "id": "balance-platforms",
+ "kind": "probe",
+ "about": "Task chrome-crash-platforms: does stock Chrome for Testing (new headless or headed, no BeginFrameControl, no emulation, no harness flags) crash on the balance repro on linux x86_64, macOS and Windows? Same pages as balance-repro: repro.title is the people title alone in the site font; page variants load the original snapshot page. Variants name the build: lane = 156.0.8078.4, stable = 156.0.8078.47, beta = 157.0.8103.15. min = the minimal page at 1280, page = the original at 1280, page-860 = the original at 860 (reset width, expected ok), min-wrap = the minimal page with text-wrap: wrap (expected ok). Run natively by .github/workflows/chrome-crash-probe.yml. Diagnostic, records no counts.",
+ "hz": 60,
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1,
+  "mobile": false,
+  "touch": false
+ },
+ "pinnedDate": "2026-10-01T00:00:00+07:00",
+ "timezone": "Asia/Bangkok",
+ "locale": "en-US",
+ "seed": 1592661556,
+ "load": {
+  "quietFrames": 30,
+  "maxFrames": 900,
+  "prerollFrames": 60
+ },
+ "zoneHeightPx": 500,
+ "segments": [
+  {
+   "name": "rest",
+   "dyPerFrame": 0,
+   "frames": 10
+  },
+  {
+   "name": "scroll",
+   "dyPerFrame": 10,
+   "frames": 40
+  },
+  {
+   "name": "tail",
+   "dyPerFrame": 0,
+   "frames": 10
+  }
+ ],
+ "repro": {
+  "title": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>balance repro</title><style>\n@font-face{font-family:\"Google Sans\";src:url(/font.woff2) format(\"woff2\");font-weight:400 700}\nbody{margin:0;font-family:\"Google Sans\",sans-serif;color:#2b313b}\n.c{display:flex;flex-direction:column;align-items:center;text-align:center;padding:80px 56px}\nh2{margin:0;font-size:48px;font-weight:500;line-height:1.15;letter-spacing:-0.02em;text-wrap:balance}\n.w{white-space:nowrap;display:inline-flex;flex-wrap:nowrap;align-items:flex-start}\n.o{vertical-align:baseline;flex-shrink:0;display:inline-grid;grid-template-columns:minmax(0,0.6042em);min-width:0;height:1.0417em;position:relative;overflow:hidden}\n.s{grid-column:1;width:100%;min-width:0;height:100%;position:relative}\n</style></head><body><div class=\"c\"><h2 id=\"future-heading\"><span>People still need</span> <span class=\"w\">pe<span class=\"o\"><span class=\"s\"></span></span>ple</span></h2></div></body></html>"
+ },
+ "probe": {
+  "timeoutMs": 180000,
+  "variants": [
+   {
+    "id": "stable-min",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "stable-page",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47"
+    }
+   },
+   {
+    "id": "stable-page-860",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47"
+    },
+    "width": 860
+   },
+   {
+    "id": "stable-min-wrap",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47",
+     "FW_REPRO": "title"
+    },
+    "css": "h2{text-wrap:wrap!important}"
+   },
+   {
+    "id": "lane-min",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "lane-page",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    }
+   },
+   {
+    "id": "beta-min",
+    "env": {
+     "FW_STOCK": "cft:157.0.8103.15",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "beta-page",
+    "env": {
+     "FW_STOCK": "cft:157.0.8103.15"
+    }
+   }
+  ]
+ }
+}

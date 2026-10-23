@@ -1,4 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, openSync, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -8,7 +10,7 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, replayEvents, keep, userAgent } from './profile.mjs';
+import { parseProfile, replayEvents, keep, userAgent, runnable, cftPlatform, cftExe, cftUrl } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 import { pngRegionHash } from './png-region.mjs';
 
@@ -16,7 +18,9 @@ const N0_ON = !process.env.FW_NO_N0;
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const s = a.replace(/^--/, ''); const i = s.indexOf('='); return i < 0 ? [s, true] : [s.slice(0, i), s.slice(i + 1)]; }));
 const PROFILE_FILE = args['profile-file'] ?? `/profiles/${args.profile ?? 'swipe-v1'}.json`;
-const { profile, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')));
+const { profile, kind: PROFILE_KIND, strokes: replayStrokes } = parseProfile(JSON.parse(readFileSync(PROFILE_FILE, 'utf8')));
+const MODE = process.env.FW_LOAD_ONLY ? 'load' : 'counts';
+if (!runnable(PROFILE_KIND, MODE)) { console.error(`profile ${profile.id}: kind ${PROFILE_KIND} is refused in ${MODE} mode`); process.exit(2); }
 const OUT = args.out ?? '/out';
 const DEBUG = !!process.env.FW_DEBUG;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -54,18 +58,22 @@ async function startRepro(key) {
   return `http://127.0.0.1:${s.address().port}/`;
 }
 
-/** The binary of Chrome for Testing <version> for this machine, downloaded once per container into /tmp/cft. */
+/** The binary of Chrome for Testing <version> for this machine, downloaded once per machine into FW_CFT_DIR (default: the temp dir). */
 function cftChrome(version) {
-  const plat = process.arch === 'arm64' ? 'linux-arm64' : 'linux64';
-  const dir = `/tmp/cft/${version}`;
-  const exe = `${dir}/chrome-${plat}/chrome`;
+  const plat = cftPlatform(process.platform, process.arch);
+  if (plat === null) { console.error(`FW_STOCK_NO_PLATFORM ${process.platform} ${process.arch}`); process.exit(2); }
+  const dir = join(process.env.FW_CFT_DIR ?? join(tmpdir(), 'cft'), version);
+  const exe = join(dir, cftExe(plat));
   if (existsSync(exe)) return exe;
   mkdirSync(dir, { recursive: true });
-  const url = `https://storage.googleapis.com/chrome-for-testing-public/${version}/${plat}/chrome-${plat}.zip`;
+  const url = cftUrl(version, plat);
   const get = spawnSync('curl', ['-fsSL', '--retry', '5', '--retry-all-errors', '-o', `${dir}.zip`, url], { stdio: ['ignore', 'inherit', 'inherit'] });
   if (get.status !== 0) { console.error(`FW_STOCK_FETCH_FAILED ${url}`); process.exit(3); }
   console.error(`FW_STOCK_ZIP ${url} sha256 ${createHash('sha256').update(readFileSync(`${dir}.zip`)).digest('hex')}`);
-  if (spawnSync('unzip', ['-q', `${dir}.zip`, '-d', dir], { stdio: 'inherit' }).status !== 0) process.exit(3);
+  const unpack = process.platform === 'win32'
+    ? spawnSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', `${dir}.zip`, '-C', dir], { stdio: 'inherit' })
+    : spawnSync('unzip', ['-q', `${dir}.zip`, '-d', dir], { stdio: 'inherit' });
+  if (unpack.status !== 0 || !existsSync(exe)) { console.error(`FW_STOCK_UNPACK_FAILED ${exe}`); process.exit(3); }
   return exe;
 }
 
@@ -75,9 +83,10 @@ async function stockRun(spec) {
   if (!exe) { console.error(`FW_STOCK must be cft:<version> or shell, got ${spec}`); process.exit(2); }
   const url = REPRO ?? `http://127.0.0.1:${srv.port}/${SEARCH}`;
   const { width, height } = profile.viewport;
-  const log = `/tmp/stock-${process.pid}.log`;
-  const argv = [...(spec === 'shell' ? [] : ['--headless']), '--remote-debugging-port=9222', '--no-sandbox', '--no-first-run',
-    `--user-data-dir=${process.env.FW_PROFILE_DIR ?? '/tmp/fw-stock'}`, `--window-size=${width},${height}`,
+  const log = join(tmpdir(), `stock-${process.pid}.log`);
+  const headed = !!process.env.FW_STOCK_HEADED;
+  const argv = [...(spec === 'shell' || headed ? [] : ['--headless']), '--remote-debugging-port=9222', '--no-sandbox', '--no-first-run',
+    `--user-data-dir=${process.env.FW_PROFILE_DIR ?? join(tmpdir(), 'fw-stock')}`, `--window-size=${width},${height}`,
     '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE localhost, EXCLUDE 127.0.0.1', ...(process.env.FW_STOCK_EXTRA ? process.env.FW_STOCK_EXTRA.split(' ') : []), 'about:blank'];
   const fd = openSync(log, 'w');
   const ch = spawn(exe, argv, { stdio: ['ignore', fd, fd] });
@@ -85,7 +94,7 @@ async function stockRun(spec) {
   let ver = null;
   for (let i = 0; i < 300 && !ver; i++) { try { ver = await (await fetch('http://127.0.0.1:9222/json/version')).json(); } catch { await sleep(100); } }
   if (!ver) { console.error(`FW_STOCK_NO_BROWSER ${spec}\n${readFileSync(log, 'utf8').slice(-3000)}`); process.exit(4); }
-  console.error(`FW_STOCK ${spec} ${ver.Browser} url ${REPRO ? `repro ${process.env.FW_REPRO}` : `${TARGET} ${SEARCH}`} argv ${argv.filter((a) => !a.startsWith('--user-data-dir')).join(' ')}`);
+  console.error(`FW_STOCK ${spec} ${ver.Browser} ${headed ? 'headed' : 'headless'} ${process.platform}-${process.arch} url ${REPRO ? `repro ${process.env.FW_REPRO}` : `${TARGET} ${SEARCH}`} argv ${argv.filter((a) => !a.startsWith('--user-data-dir')).join(' ')}`);
   const br = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222', defaultViewport: null, protocolTimeout: 60000 });
   const bsess = await br.target().createCDPSession();
   let crashSeen = false;

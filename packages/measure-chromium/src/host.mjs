@@ -3,6 +3,7 @@ import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node
 import { loadavg, cpus } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { zoneSums } from './fwcore.mjs';
+import { parseKind, readOk } from './profile.mjs';
 import { fileURLToPath } from 'node:url';
 
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,7 +42,12 @@ const imageId = sh('docker', ['image', 'inspect', '--format', '{{.Id}}', IMAGE])
 const out = join(PKG, 'out', profile, label);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-const isProbe = !!JSON.parse(readFileSync(join(PKG, 'profiles', `${profile}.json`), 'utf8')).probe;
+const inProfiles = existsSync(join(PKG, 'profiles', `${profile}.json`));
+const inProbes = existsSync(join(PKG, 'probes', `${profile}.json`));
+if (!inProfiles && !inProbes) { console.error(`profile ${profile} is in neither profiles/ nor probes/`); process.exit(2); }
+const declared = parseKind(JSON.parse(readFileSync(join(PKG, inProbes ? 'probes' : 'profiles', `${profile}.json`), 'utf8')).kind);
+if (declared === null || !readOk(inProfiles, inProbes, declared)) { console.error(`profile ${profile}: refused, a counts profile sits in profiles/ and a probe in probes/, each name in one of them`); process.exit(2); }
+const isProbe = declared === 'probe';
 const inner = [isProbe ? '/driver/crash-probe.mjs' : '/driver/run.mjs', `--profile=${profile}`, `--target=${target}`, ...(search ? [`--search=${search}`] : []), ...(flag('dump-trace') ? ['--dump-trace'] : [])];
 const t0 = Date.now();
 const loadStamp = () => { let idle = null; try { const m = /([\d.]+)% idle/.exec(sh('top', ['-l', '1', '-n', '0'])); idle = m ? +m[1] : null; } catch {} return { at: new Date().toISOString(), load1: +loadavg()[0].toFixed(2), cpuIdlePct: idle, cores: cpus().length }; };
@@ -53,7 +59,7 @@ while (attempts < MAX_ATTEMPTS) {
   r = spawnSync('docker', [
   'run', '--rm', '--init', '--shm-size=1g', ...(process.env.FW_DOCKER_CPUS ? ['--cpus', process.env.FW_DOCKER_CPUS] : []),
   ...Object.entries(process.env).filter(([k]) => /^FW_(DROP_FLAGS|NO_LAYERS|BARRIER_MIN_MS|CHROME_EXTRA|EXTRA_CATEGORIES|PROBE|LOAD_TRACE|BF_TIMEOUT_MS|BARRIER_MS|NOTOUCH|DEBUG|TOUCH_ACK_MS|TOUCH_SETTLE_MS)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${target === 'original' ? snapshotId ?? '' : ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
-  '-v', `${join(PKG, 'src')}:/driver:ro`, '-v', `${join(PKG, 'profiles')}:/profiles:ro`,
+  '-v', `${join(PKG, 'src')}:/driver:ro`, '-v', `${join(PKG, 'profiles')}:/profiles:ro`, '-v', `${join(PKG, 'probes')}:/probes:ro`,
   '-v', `${snapshot}:/snapshot/site:ro`, '-v', `${out}:/out`,
   '--entrypoint', 'node', IMAGE, ...inner,
 ], { stdio: ['ignore', 'inherit', 'inherit'] });

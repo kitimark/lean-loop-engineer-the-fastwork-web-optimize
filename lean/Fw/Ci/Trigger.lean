@@ -160,6 +160,10 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
     ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "breakpoint-gate.yml"], []⟩,
+  ⟨"chrome-crash-probe.yml", ciAll, [
+    "packages/measure-chromium/src/**", "packages/measure-chromium/probes/**", "packages/measure-chromium/docker/driver/**",
+    "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".node-version",
+    own "chrome-crash-probe.yml"], []⟩,
   ⟨"chromium-counts.yml", ciAll, [
     "packages/measure-chromium/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs",
