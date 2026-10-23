@@ -14,7 +14,7 @@ Round 2 (original transition lists kept). Same-look breakpoint gate with the fla
 | bar-fixed | `barW_const`, `logoX_*`, `actionsX_*`, `bar_resizePaint_zero`, golden 100 rows | run 39846092556 pass | 39842569267 | not run | partly-proved |
 | logo-3d | `translate_scale_order`, `logo3d_layout_*` | run 39848853982 pass | 39842581192 | not run | partly-proved |
 
-Round 1 gates (39835303279, 39837964273) failed on `transition-property` losing `width`; fixed as described under Design. The nav clip trajectory cell stays
+Round 1 gates (39835303279, 39837964273) failed on `transition-property` losing `width`; fixed under Design. The nav clip trajectory cell stays
 pending on gpu-trajectory-cells; layer census and cost lane are follow-ups.
 
 ## Design
@@ -92,8 +92,7 @@ Premises named in the hypotheses: the bar is composited (`barComposited`), no ot
 
 ## CI
 
-Runs (all MEASURED, GitHub Actions). The 2026-10-22 degradation dropped or delayed the first tips; runs of tips 3 appeared 37 min late and were superseded (stale,
-skipped); the tips of checkpoint 4 (empty request commits, same code) produced the runs below.
+Runs (all MEASURED, GitHub Actions). The 2026-10-22 degradation dropped or delayed the first tips; tips 3 ran 37 min late and were superseded; the tips of checkpoint 4 (empty request commits, same code) produced the runs below.
 
 | tip | lean | trajectory-probe (inputs read from the `trajectory inputs:` step) | breakpoint-gate (default config) |
 |---|---|---|---|
