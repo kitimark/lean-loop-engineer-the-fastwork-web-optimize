@@ -45,8 +45,8 @@ LayerTree reads in the zone (pass 0 / pass 1).
 | close | 2365 / 1967 | 4430 / 4945 | 117733 / 160058 | 289735 / 510848 | 209 / 209 | 205 / 205 |
 | all frames | 1343 / 2932 | 2347 / 2769 | 38125 / 91019 | 120950 / 111708 | | |
 
-- Layers: lower in every zone (idle 128 -> 112, -12.5 %, mean composited area 9.96 -> 8.9 Mpx; open and close 209 -> 205). Same as the
-  census. Layer count is deterministic in both passes.
+- Layers: lower in every zone (idle 128 -> 112, -12.5 %, mean composited area 9.96 -> 8.9 Mpx; open and close 209 -> 205). Layer count is
+  deterministic in both passes.
 - Paint and Composite per frame: no win shown. The flag arm reads higher, but the runner's frame rate differed (frames in the zone: base 78 and
   36, flag 29 and 28) and one arm varies up to 3x between its own two passes (base idle composite 15875 vs 48705), so the sign of the delta is
   not resolvable from these runs. Verdict: layers down, per-frame Paint and Composite unresolved (a no-win on cost, not a loss).
@@ -62,7 +62,7 @@ LayerTree reads in the zone (pass 0 / pass 1).
   pause or a return).
 - Touch and WebKit attribution stay INFERRED (WebKit census is one session, layerCount spread 4-7 between passes; backing memory at y=3000
   and y=5231 is deterministic).
-- Base moved? counts-lane-fonts changed the Chromium image after these runs. No Chromium rerun was made; the 28107 base and the
+- counts-lane-fonts changed the Chromium image after these runs. No Chromium rerun was made; the 28107 base and the
   base-vs-flag delta come from one image (both arms at 540130e9f), so the delta stays valid; whether the base now differs is not measured.
 - TS stand-in: the DOM glue (`IdleHold`, keep and restore of `currentTime`) is not checked against a golden; `idleRemoved` and `idleStep` equal `morph-idle-none.jsonl` (`idle.golden.test.ts`).
 

@@ -25,10 +25,6 @@ const SCENE_ATTR = 'data-start-selling-scene';
  * tracks (nothing removed); on the way back the tracks are seeked to `origClock` (the clock of an animation that ran
  * only while the scene was active), in the observer callback, before paint. The scene state is the panel's
  * `data-start-selling-scene` attribute, followed by a MutationObserver (it changes at one value of the morph only).
- *
- * Variant `idle-none` (Lean `Fw.Parts.MorphIdleNone`): while the scene attribute is `paused` the tracks carry no
- * animation (`data-fw-idle`); each animation's time is kept at the removal and set again on the return, in the
- * observer callback before paint, so the phase is the original's held one. `faithful` is unchanged.
  */
 export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
   const stageRef = useRef<HTMLDivElement>(null);

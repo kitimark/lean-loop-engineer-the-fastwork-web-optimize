@@ -1,5 +1,5 @@
 Branch: worktree-wf_38f9845b-370-1 (CI ci/morph-idle-none @540130e9f). Worktree: .claude/worktrees/wf_38f9845b-370-1
-Last commit: see git log. Round 2 done: main merged; WebKit cost runs read.
+Round 2 done.
 CI runs (branch ci/morph-idle-none): gate 39897800920; chromium-counts base 39897804079, flag 39897818039; webkit-sim base 39897814980, flag 39897807511; cost: base 39903977820 success, flag 39903974246 (marked failed by forced-exit after data upload; data complete). All complete.
 Verified: layers lower in WebKit morph zones (idle 128->112); Paint/Composite per frame unresolved (noise 3x). Details: note 10-20-morph-idle-none.md, results/morph-idle-none/report.json webkitSim.morphCost.
 CI runs (ci/morph-idle-none @540130e9f; all complete, success): gate 39897800920 (merge job re-run once after ECONNRESET); chromium-counts swipe-v1 x3 base 39897804079, flag 39897818039; webkit-sim base 39897814980, flag 39897807511. Dispatches used 5 of 6.
