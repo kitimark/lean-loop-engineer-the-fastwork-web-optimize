@@ -1,7 +1,8 @@
 # timing-module-count handoff
 
 - Branch `worktree-wf_44e4ecbb-fdc-1`, worktree `.claude/worktrees/wf_44e4ecbb-fdc-1`. No CI run (none needed).
-- State: Lean + TS done and committed; check.sh and runner tests run via slot; dry land and review ready close the task.
+- State: done at 6631034 (main merged in). Verified: check.sh green (125 s), runner 3072 tests, ci-paths 56,
+  land-inputs 56, `VERDICT dry timing-module-count`, review ready `review`.
 
 ## What changed
 - `Fw.Ops.CheckMap.heavy : Check → Bool` (total match). `Fw.Obs.Timing.heavyChecks` = `(order.filter heavy).map checkName`
