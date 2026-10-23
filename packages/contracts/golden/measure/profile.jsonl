@@ -1,5 +1,22 @@
 {"dirs":{"counts":"profiles","probe":"probes"},"kind":"consts","pinned":["--remote-debugging-port=","--user-data-dir=","--enable-begin-frame-control","--run-all-compositor-stages-before-draw"],"ua":{"desktop":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","mobile":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"}}
 {"conf":"<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n<fontconfig>\n  <dir>/usr/share/fonts/truetype/liberation</dir>\n  <cachedir>/tmp/fontconfig-cache</cachedir>\n</fontconfig>\n","dir":"/usr/share/fonts/truetype/liberation","families":["Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fonts","pkg":"fonts-liberation","version":"1:1.07.4-11"}
+{"kind":"fontSets","sets":[{"name":"none","pkgs":[]},{"name":"liberation","pkgs":["fonts-liberation"]},{"name":"liberation+dejavu","pkgs":["fonts-liberation","fonts-dejavu-core"]},{"name":"liberation+tlwg","pkgs":["fonts-liberation","fonts-thai-tlwg"]},{"name":"liberation+noto","pkgs":["fonts-liberation","fonts-noto-core"]},{"name":"liberation+noto+emoji","pkgs":["fonts-liberation","fonts-noto-core","fonts-noto-color-emoji"]}]}
+{"dist":0,"got":6000,"kind":"fontDist","pairs":[],"ref":6000}
+{"dist":700,"got":5300,"kind":"fontDist","pairs":[],"ref":6000}
+{"dist":720,"got":5300,"kind":"fontDist","pairs":[[100,120],[80,80]],"ref":4600}
+{"dist":0,"got":5300,"kind":"fontDist","pairs":[[10,10],[20,20]],"ref":5300}
+{"dist":5,"got":0,"kind":"fontDist","pairs":[[5,0]],"ref":0}
+{"kind":"fontPick","pick":null,"scores":[]}
+{"kind":"fontPick","pick":"a","scores":[{"dist":5,"idx":0,"name":"a","notdef":0,"pkgs":0}]}
+{"kind":"fontPick","pick":"b","scores":[{"dist":5,"idx":0,"name":"a","notdef":1,"pkgs":1},{"dist":5,"idx":1,"name":"b","notdef":0,"pkgs":2}]}
+{"kind":"fontPick","pick":"b","scores":[{"dist":7,"idx":0,"name":"a","notdef":0,"pkgs":0},{"dist":3,"idx":1,"name":"b","notdef":9,"pkgs":3}]}
+{"kind":"fontPick","pick":"b","scores":[{"dist":3,"idx":0,"name":"a","notdef":2,"pkgs":2},{"dist":3,"idx":1,"name":"b","notdef":2,"pkgs":1},{"dist":3,"idx":2,"name":"c","notdef":2,"pkgs":1}]}
+{"kind":"fontPick","pick":"a","scores":[{"dist":3,"idx":0,"name":"a","notdef":2,"pkgs":2},{"dist":3,"idx":1,"name":"b","notdef":2,"pkgs":2}]}
+{"count":0,"covered":[],"cps":[],"kind":"notdef"}
+{"count":5,"covered":[],"cps":[[9733,1],[65,4]],"kind":"notdef"}
+{"count":1,"covered":[65],"cps":[[9733,1],[65,4]],"kind":"notdef"}
+{"count":0,"covered":[65,9733],"cps":[[9733,1],[65,4]],"kind":"notdef"}
+{"count":1,"covered":[3585],"cps":[[3585,7],[9733,1]],"kind":"notdef"}
 {"found":[],"kind":"fontsOk","ok":false}
 {"found":["Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fontsOk","ok":true}
 {"found":["Liberation Sans"],"kind":"fontsOk","ok":false}

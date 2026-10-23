@@ -75,6 +75,23 @@ export const FONT_FAMILIES = ['Liberation Mono', 'Liberation Sans', 'Liberation 
 
 export const fontsOk = (found) => FONT_FAMILIES.every((f) => found.includes(f));
 
+const absDiff = (a, b) => (a <= b ? b - a : a - b);
+
+/** Layout distance from the reference: document-height gap plus the part-height gaps (`pairs` = [reference, got]). Twin of Lean `fontDist`. */
+export const fontDist = (refDoc, gotDoc, pairs) => absDiff(refDoc, gotDoc) + pairs.reduce((n, [a, b]) => n + absDiff(a, b), 0);
+
+/** `a` is strictly better than `b`: nearer, then fewer .notdef, then fewer packages, then earlier. Twin of Lean `fontBefore`. */
+export const fontBefore = (a, b) => a.dist < b.dist || (a.dist === b.dist && (a.notdef < b.notdef || (a.notdef === b.notdef && (a.pkgs < b.pkgs || (a.pkgs === b.pkgs && a.idx < b.idx)))));
+
+/** The best score under `fontBefore`, or null for an empty list. Twin of Lean `fontPick`. */
+export const fontPick = (scores) => scores.reduceRight((best, s) => (best === null || fontBefore(s, best) ? s : best), null);
+
+/** Occurrences of code points ([cp, n] pairs) that no installed font covers. `covered` is a Set or array of code points. Twin of Lean `notdefIn`. */
+export const notdefCount = (covered, cps) => {
+  const has = covered instanceof Set ? (c) => covered.has(c) : (c) => covered.includes(c);
+  return cps.reduce((n, [c, k]) => n + (has(c) ? 0 : k), 0);
+};
+
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
   dropFlags: profile.dropFlags ?? [], variants: profile.probe?.variants?.length ?? 0,

@@ -269,6 +269,178 @@ theorem fontDir_system : fontDir.startsWith "/usr/share/fonts/" = true := by dec
 
 theorem fontDir_not_snapshot : fontDir.startsWith "/snapshot" = false := by decide +kernel
 
+/-! ### Font fidelity
+
+The lane image must lay the page out like WebKit does. A candidate font set is installed beside the web fonts; its layout
+is measured (document height and part heights) and compared with the reference engine. `fontPick` chooses among the
+scored candidates: nearest layout, then fewest `.notdef` glyphs, then fewest packages, then the earlier candidate. -/
+
+/-- A candidate: a name and the Debian packages installed on top of the lane's base. -/
+structure FontSet where
+  name : String
+  pkgs : List String
+
+def fontSets : List FontSet :=
+  [⟨"none", []⟩, ⟨"liberation", ["fonts-liberation"]⟩, ⟨"liberation+dejavu", ["fonts-liberation", "fonts-dejavu-core"]⟩,
+   ⟨"liberation+tlwg", ["fonts-liberation", "fonts-thai-tlwg"]⟩, ⟨"liberation+noto", ["fonts-liberation", "fonts-noto-core"]⟩,
+   ⟨"liberation+noto+emoji", ["fonts-liberation", "fonts-noto-core", "fonts-noto-color-emoji"]⟩]
+
+theorem fontSets_names_nodup : (fontSets.map (·.name)).Nodup := by decide
+
+/-- One candidate's score: `dist` from `fontDist`, `notdef` from `notdefCount`, `pkgs` its package count, `idx` its list position. -/
+structure SetScore where
+  name : String
+  idx : Nat
+  dist : Nat
+  notdef : Nat
+  pkgs : Nat
+
+def absDiff (a b : Nat) : Nat := if a ≤ b then b - a else a - b
+
+/-- Layout distance from the reference: the document-height gap plus the sum of the part-height gaps (`pairs` = reference, got). -/
+def fontDist (refDoc gotDoc : Nat) (pairs : List (Nat × Nat)) : Nat :=
+  absDiff refDoc gotDoc + (pairs.map fun p => absDiff p.1 p.2).sum
+
+theorem absDiff_eq_zero (a b : Nat) : absDiff a b = 0 ↔ a = b := by
+  unfold absDiff
+  split <;> omega
+
+theorem fontDist_zero_iff (refDoc gotDoc : Nat) (pairs : List (Nat × Nat)) :
+    fontDist refDoc gotDoc pairs = 0 ↔ refDoc = gotDoc ∧ ∀ p ∈ pairs, p.1 = p.2 := by
+  unfold fontDist
+  induction pairs with
+  | nil => simp [absDiff_eq_zero]
+  | cons q t ih =>
+    have h1 := absDiff_eq_zero q.1 q.2
+    have h2 := absDiff_eq_zero refDoc gotDoc
+    simp only [List.map_cons, List.sum_cons, List.mem_cons, forall_eq_or_imp] at ih ⊢
+    constructor
+    · intro h
+      have hq : absDiff q.1 q.2 = 0 := by omega
+      have hrest : absDiff refDoc gotDoc + (t.map fun p => absDiff p.1 p.2).sum = 0 := by omega
+      obtain ⟨a, b⟩ := ih.1 hrest
+      exact ⟨a, h1.1 hq, b⟩
+    · rintro ⟨a, b, c⟩
+      have := ih.2 ⟨a, c⟩
+      have := h1.2 b
+      omega
+
+/-- `a` is strictly better than `b`: nearer the reference, then fewer `.notdef`, then fewer packages, then earlier in the list. -/
+def fontBefore (a b : SetScore) : Bool :=
+  a.dist < b.dist || (a.dist == b.dist && (a.notdef < b.notdef || (a.notdef == b.notdef && (a.pkgs < b.pkgs || (a.pkgs == b.pkgs && a.idx < b.idx)))))
+
+/-- Keep the better of `s` and the pick of the rest. -/
+def fontStep (s : SetScore) : Option SetScore → SetScore
+  | none => s
+  | some q => if fontBefore s q then s else q
+
+/-- The chosen set: the best of the scores under `fontBefore`. -/
+def fontPick : List SetScore → Option SetScore
+  | [] => none
+  | s :: t => some (fontStep s (fontPick t))
+
+theorem fontPick_nil : fontPick [] = none := rfl
+
+theorem fontBefore_irrefl (a : SetScore) : fontBefore a a = false := by
+  simp [fontBefore]
+
+theorem fontBefore_trans (a b c : SetScore) (h1 : fontBefore a b = true) (h2 : fontBefore b c = true) : fontBefore a c = true := by
+  simp only [fontBefore, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at *
+  omega
+
+theorem fontPick_mem : ∀ (l : List SetScore) (p : SetScore), fontPick l = some p → p ∈ l
+  | [], p, h => by simp [fontPick] at h
+  | s :: t, p, h => by
+    simp only [fontPick, Option.some.injEq] at h
+    subst h
+    cases hq : fontPick t with
+    | none => simp [fontStep]
+    | some q =>
+      have hm := fontPick_mem t q hq
+      by_cases hb : fontBefore s q = true
+      · simp [fontStep, hb]
+      · simp [fontStep, hb, hm]
+
+theorem fontPick_isSome (l : List SetScore) : (fontPick l).isSome = true ↔ l ≠ [] := by
+  cases l <;> simp [fontPick]
+
+/-- Nothing in the list is strictly before the pick. -/
+theorem fontPick_min : ∀ (l : List SetScore) (p : SetScore), fontPick l = some p → ∀ s ∈ l, fontBefore s p = false
+  | [], p, h => by simp [fontPick] at h
+  | s :: t, p, h => by
+    simp only [fontPick, Option.some.injEq] at h
+    subst h
+    intro x hx
+    cases hq : fontPick t with
+    | none =>
+      have ht : t = [] := by
+        cases t with
+        | nil => rfl
+        | cons a b => have := (fontPick_isSome (a :: b)).2 (by simp); rw [hq] at this; simp at this
+      subst ht
+      simp at hx; subst hx; simp [fontStep, fontBefore_irrefl]
+    | some q =>
+      have ih := fontPick_min t q hq
+      by_cases hb : fontBefore s q = true
+      · have hs : fontStep s (some q) = s := by simp [fontStep, hb]
+        rw [hs]
+        rcases List.mem_cons.1 hx with rfl | hx
+        · exact fontBefore_irrefl _
+        · cases hxs : fontBefore x s
+          · rfl
+          · have := fontBefore_trans x s q hxs hb
+            rw [ih x hx] at this
+            exact absurd this (by decide)
+      · have hs : fontStep s (some q) = q := by simp [fontStep, hb]
+        rw [hs]
+        rcases List.mem_cons.1 hx with rfl | hx
+        · simpa using hb
+        · exact ih x hx
+
+/-- Occurrences of code points (code point, count) that no installed font covers: each renders as `.notdef`. -/
+def notdefCount (installed : Nat → Bool) : List (Nat × Nat) → Nat
+  | [] => 0
+  | p :: t => (if installed p.1 then 0 else p.2) + notdefCount installed t
+
+theorem notdefCount_nil (i : Nat → Bool) : notdefCount i [] = 0 := rfl
+
+/-- Installing more fonts never raises the `.notdef` count. -/
+theorem notdefCount_mono (i j : Nat → Bool) (h : ∀ c, i c = true → j c = true) :
+    ∀ l, notdefCount j l ≤ notdefCount i l
+  | [] => Nat.le_refl _
+  | p :: t => by
+    have ih := notdefCount_mono i j h t
+    simp only [notdefCount]
+    by_cases hi : i p.1 = true
+    · simp [hi, h _ hi]; omega
+    · by_cases hj : j p.1 = true <;> simp [hi, hj] <;> omega
+
+theorem notdefCount_all (l : List (Nat × Nat)) : notdefCount (fun _ => true) l = 0 := by
+  induction l with
+  | nil => rfl
+  | cons p t ih => simp [notdefCount, ih]
+
+theorem notdefCount_none (l : List (Nat × Nat)) : notdefCount (fun _ => false) l = (l.map (·.2)).sum := by
+  induction l with
+  | nil => rfl
+  | cons p t ih => simp [notdefCount, ih]
+
+/-- `notdefCount` with the covered code points given as a list. -/
+def notdefIn (covered : List Nat) (l : List (Nat × Nat)) : Nat := notdefCount (fun c => covered.contains c) l
+
+private def distCases : List (Nat × Nat × List (Nat × Nat)) :=
+  [(6000, 6000, []), (6000, 5300, []), (4600, 5300, [(100, 120), (80, 80)]), (5300, 5300, [(10, 10), (20, 20)]), (0, 0, [(5, 0)])]
+
+private def pickCases : List (List SetScore) :=
+  [[], [⟨"a", 0, 5, 0, 0⟩], [⟨"a", 0, 5, 1, 1⟩, ⟨"b", 1, 5, 0, 2⟩], [⟨"a", 0, 7, 0, 0⟩, ⟨"b", 1, 3, 9, 3⟩],
+   [⟨"a", 0, 3, 2, 2⟩, ⟨"b", 1, 3, 2, 1⟩, ⟨"c", 2, 3, 2, 1⟩], [⟨"a", 0, 3, 2, 2⟩, ⟨"b", 1, 3, 2, 2⟩]]
+
+private def notdefCases : List (List Nat × List (Nat × Nat)) :=
+  [([], []), ([], [(9733, 1), (65, 4)]), ([65], [(9733, 1), (65, 4)]), ([65, 9733], [(9733, 1), (65, 4)]), ([3585], [(3585, 7), (9733, 1)])]
+
+def scoreJson (s : SetScore) : Json :=
+  Json.mkObj [("name", s.name), ("idx", s.idx), ("dist", s.dist), ("notdef", s.notdef), ("pkgs", s.pkgs)]
+
 private def fontsCases : List (List String) :=
   [[], fontFamilies, ["Liberation Sans"], ["Liberation Mono", "Liberation Sans", "Liberation Sans Narrow", "Liberation Serif"],
    ["DejaVu Sans", "Liberation Mono", "Liberation Sans", "Liberation Serif"], ["Liberation Mono", "Liberation Serif"]]
@@ -300,6 +472,13 @@ def goldenLines (_ : Unit) : List String :=
      ("dirs", Json.mkObj [("counts", Kind.counts.dir), ("probe", Kind.probe.dir)])]).compress] ++
   [(Json.mkObj [("kind", "fonts"), ("pkg", fontPkg), ("version", fontVersion), ("dir", fontDir), ("families", toJson fontFamilies),
      ("conf", fontsConf)]).compress] ++
+  [(Json.mkObj [("kind", "fontSets"), ("sets", Json.arr (fontSets.map fun f => Json.mkObj [("name", f.name), ("pkgs", toJson f.pkgs)]).toArray)]).compress] ++
+  (distCases.map fun (r, g, ps) => (Json.mkObj [("kind", "fontDist"), ("ref", r), ("got", g), ("pairs", toJson (ps.map fun p => [p.1, p.2])),
+     ("dist", fontDist r g ps)]).compress) ++
+  (pickCases.map fun l => (Json.mkObj [("kind", "fontPick"), ("scores", Json.arr (l.map scoreJson).toArray),
+     ("pick", match fontPick l with | some s => Json.str s.name | none => Json.null)]).compress) ++
+  (notdefCases.map fun (cov, l) => (Json.mkObj [("kind", "notdef"), ("covered", toJson cov), ("cps", toJson (l.map fun p => [p.1, p.2])),
+     ("count", notdefIn cov l)]).compress) ++
   (fontsCases.map fun found => (Json.mkObj [("kind", "fontsOk"), ("found", toJson found), ("ok", toJson (fontsOk found))]).compress) ++
   (kindCases.map fun k => (Json.mkObj [("kind", "parseKind"), ("in", match k with | some s => Json.str s | none => Json.null),
      ("out", match parseKind k with | some x => Json.str x.name | none => Json.null)]).compress) ++

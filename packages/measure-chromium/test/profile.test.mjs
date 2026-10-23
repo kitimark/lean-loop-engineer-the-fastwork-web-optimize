@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES } from '../src/profile.mjs';
+import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES, fontDist, fontPick, notdefCount } from '../src/profile.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = join(here, '../profiles');
@@ -146,6 +146,19 @@ test('the lane fonts agree with the Lean golden: families, fonts.conf, Dockerfil
   let n = 0;
   for (const g of wire) if (g.kind === 'fontsOk') { assert.equal(fontsOk(g.found), g.ok, JSON.stringify(g)); n++; }
   assert.ok(n >= 6);
+});
+
+test('font fidelity twins agree with the Lean golden: fontDist, fontPick, notdef, candidate sets', () => {
+  let n = 0;
+  for (const g of wire) {
+    if (g.kind === 'fontDist') { assert.equal(fontDist(g.ref, g.got, g.pairs), g.dist, JSON.stringify(g)); n++; }
+    if (g.kind === 'fontPick') { assert.equal(fontPick(g.scores)?.name ?? null, g.pick, JSON.stringify(g)); n++; }
+    if (g.kind === 'notdef') { assert.equal(notdefCount(g.covered, g.cps), g.count, JSON.stringify(g)); n++; }
+  }
+  assert.ok(n >= 15);
+  const sets = wire.find((l) => l.kind === 'fontSets').sets;
+  assert.deepEqual(new Set(sets.map((s) => s.name)).size, sets.length);
+  assert.deepEqual(sets[0], { name: 'none', pkgs: [] });
 });
 
 test('the desktop counts profiles run the page as served', () => {
