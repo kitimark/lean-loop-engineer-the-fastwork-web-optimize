@@ -1,7 +1,7 @@
 branch: worktree-wf_cad36a29-020-1
 worktree: .claude/worktrees/wf_cad36a29-020-1 (repo-relative)
 last commit: c71a0cf9b (round 2; see git log)
-Round 2 CI: trajectory-probe pushes ci/nav-fixed-followups-tj1 (clip-box, b0d8cdd91), -tj2 (bar-fixed, 86b9bbc82), -tj3 (logo-3d, c71a0cf9b): running. Lead dispatches: webkit-sim lag+cost 39872562267 clip-box, 39872566438 bar-fixed, 39872570182 logo-3d; chromium-counts clip-box 39872606664, bar-fixed 39873283200.
+Round 2 CI: trajectory-probe pushes ci/nav-fixed-followups-tj1 (clip-box, b0d8cdd91), -tj2 (bar-fixed, 86b9bbc82), -tj3 (logo-3d, c71a0cf9b): tj1 39874658206, tj2 39874669031, tj3 39874677939 all complete but the guard SKIPPED every job (no trajectory-probe input differs from main after the merge; the cells step never ran, so no per-flag cell grade). Needs a dispatch: gh workflow run trajectory-probe.yml --ref ci/nav-fixed-followups-tj1 -f fw=nav:clip-box (likewise bar-fixed, logo-3d). chromium-counts reduced: all three arms equal in every zone (results/nav-fixed-size/chromium-counts-zones-default-clip-bar.txt). Lead dispatches: webkit-sim lag+cost 39872562267 clip-box, 39872566438 bar-fixed, 39872570182 logo-3d; chromium-counts clip-box 39872606664, bar-fixed 39873283200.
 Open: reduce these into ledger rows, note tables, results/nav-fixed-size; dry land.
 
 --- round 1 below ---
