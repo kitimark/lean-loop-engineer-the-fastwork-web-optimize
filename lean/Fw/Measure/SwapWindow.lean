@@ -923,7 +923,7 @@ private def goldenLinesD : List String :=
       ([5], [5])] : List (List Int × List Int)).map fun (busy, frozen) =>
     (Json.mkObj [("kind", "swapBusyFrozen"), ("busy", toJson busy), ("frozen", toJson frozen), ("cell", (busyFrozen busy frozen).name)]).compress) ++
   (pooledCases.map fun (ns, caps) =>
-    (Json.mkObj [("kind", "swapPooled"), ("rows", toJson ns), ("captures", caps), ("busyWindows", busyWindows ns),
+    (Json.mkObj [("kind", "swapPooled"), ("rows", toJson ns), ("captures", caps), ("windows", ns.length), ("busyWindows", busyWindows ns),
       ("tenthsPerCapture", perCaptureTenths (ns.foldl (· + ·) 0) caps), ("median2", median2 (ns.map Int.ofNat))]).compress) ++
   (frameCases.map fun (rows, frames) =>
     (Json.mkObj [("kind", "swapPerFrame"), ("rows", rows), ("frames", frames),

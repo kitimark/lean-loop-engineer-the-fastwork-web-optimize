@@ -29,14 +29,14 @@
  "pooled": {
   "faithful": {
    "rest": {
-    "rows": 42,
+    "windows": 42,
     "captures": 6,
     "busyWindows": 27,
     "tenthsPerCapture": 2185,
     "median2": 86
    },
    "swap": {
-    "rows": 48,
+    "windows": 48,
     "captures": 6,
     "busyWindows": 0,
     "tenthsPerCapture": 758,
@@ -45,14 +45,14 @@
   },
   "nolayout": {
    "rest": {
-    "rows": 21,
+    "windows": 21,
     "captures": 3,
     "busyWindows": 6,
     "tenthsPerCapture": 1090,
     "median2": 10
    },
    "swap": {
-    "rows": 24,
+    "windows": 24,
     "captures": 3,
     "busyWindows": 0,
     "tenthsPerCapture": 830,
@@ -61,14 +61,14 @@
   },
   "full": {
    "rest": {
-    "rows": 21,
+    "windows": 21,
     "captures": 3,
     "busyWindows": 0,
     "tenthsPerCapture": 197,
     "median2": 4
    },
    "swap": {
-    "rows": 24,
+    "windows": 24,
     "captures": 3,
     "busyWindows": 0,
     "tenthsPerCapture": 733,
@@ -77,14 +77,14 @@
   },
   "faithful-frozen": {
    "rest": {
-    "rows": 21,
+    "windows": 21,
     "captures": 3,
     "busyWindows": 0,
     "tenthsPerCapture": 210,
     "median2": 6
    },
    "swap": {
-    "rows": 24,
+    "windows": 24,
     "captures": 3,
     "busyWindows": 0,
     "tenthsPerCapture": 947,

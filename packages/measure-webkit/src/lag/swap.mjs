@@ -127,6 +127,6 @@ export const laneUnits = (shift) => {
 };
 
 export const pooled = (rows, captures) => ({
-  rows: rows.length, captures, busyWindows: busyWindows(rows),
+  windows: rows.length, captures, busyWindows: busyWindows(rows),
   tenthsPerCapture: perCaptureTenths(rows.reduce((a, b) => a + b, 0), captures), median2: median2(rows),
 });

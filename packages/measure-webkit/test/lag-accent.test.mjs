@@ -35,7 +35,7 @@ test('unfrozen busy samples against frozen samples (Lean busyFrozen), one case p
 test('pooled numbers (Lean busyWindows, perCaptureTenths, median2)', () => {
   for (const g of of('swapPooled')) {
     const p = pooled(g.rows, g.captures);
-    assert.deepEqual([busyWindows(g.rows), p.tenthsPerCapture, p.median2], [g.busyWindows, g.tenthsPerCapture, g.median2], JSON.stringify(g));
+    assert.deepEqual([p.windows, busyWindows(g.rows), p.tenthsPerCapture, p.median2], [g.windows, g.busyWindows, g.tenthsPerCapture, g.median2], JSON.stringify(g));
     assert.equal(perCaptureTenths(g.rows.reduce((a, b) => a + b, 0), g.captures), g.tenthsPerCapture);
   }
 });
@@ -238,8 +238,8 @@ test('the accent report decides each window of each arm against the faithful flo
   assert.equal(an.records, 3);
   assert.deepEqual(an.jobs, ['j1', 'j2', 'j3']);
   const p = an.pooled;
-  assert.deepEqual([p.faithful.rest.captures, p.faithful.rest.rows, p.faithful.rest.busyWindows], [6, 42, 42]);
-  assert.deepEqual([p.nolayout.rest.captures, p.nolayout.rest.rows, p.nolayout.rest.busyWindows], [3, 21, 0]);
+  assert.deepEqual([p.faithful.rest.captures, p.faithful.rest.windows, p.faithful.rest.busyWindows], [6, 42, 42]);
+  assert.deepEqual([p.nolayout.rest.captures, p.nolayout.rest.windows, p.nolayout.rest.busyWindows], [3, 21, 0]);
   assert.equal(p.nolayout.rest.tenthsPerCapture, 350, 'seven rest windows of 5 rows per capture');
   assert.equal(p['faithful-frozen'].rest.median2 / 2, 1);
   const rest = an.windows.nolayout.filter((x) => x.phase === 'rest:0' && x.kind === 'Layout')[0];
@@ -301,7 +301,16 @@ test('the swap report names the arm column from the FW flag of the run, and prin
   assert.ok(md.includes('| rest | hero.accent:draw-nolayout | 4 | 28 | 0 of 28 | 21.0 | 3 |'));
   assert.ok(md.includes('| rest | faithful-a | 2 | 14 | 14 of 14 | 280.0 | 40 |'));
   const pool = pooledSummary(passes);
-  assert.deepEqual([pool.rest.arm.rows, pool.swap.arm.captures], [28, 4]);
+  assert.deepEqual([pool.rest.arm.windows, pool.swap.arm.captures], [28, 4]);
+});
+
+test('the diagnostic heading names the arm column', () => {
+  const diag = { layout: [1, 0], paint: [1, 1], owners: { 'hero-accent:class': [1, 0] }, before: {}, after: {}, buckets: 2 };
+  const passes = [0, 1].map(() => ({ captures: { 'faithful-a': capOf(14), 'faithful-b': capOf(14), 'crop-a': capOf(2), 'crop-b': capOf(2) }, diag }));
+  const named = swapMd(windowCells(passes), ['run 1'], { label: 'hero.accent:draw-nolayout-full', model: false, passes });
+  assert.ok(named.includes('### Diagnostic captures (hero.accent:draw-nolayout-full arm, no swap marks, 100 ms buckets)'));
+  assert.ok(!named.includes('(crop arm'));
+  assert.ok(swapMd(windowCells(passes), ['run 1']).includes('### Diagnostic captures (crop arm, no swap marks, 100 ms buckets)'));
 });
 
 test('without options the swap report keeps its crop wording', () => {

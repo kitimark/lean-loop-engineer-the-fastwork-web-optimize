@@ -169,7 +169,7 @@ Swap windows decided one by one (win / loss / unresolved of 8 per kind):
 | swap | faithful-b | 4 | 32 | 0 of 32 | 109.8 | 14 |
 | swap | hero.accent:draw-nolayout-full | 8 | 64 | 0 of 64 | 96.5 | 13 |
 
-### Diagnostic captures (crop arm, no swap marks, 100 ms buckets)
+### Diagnostic captures (hero.accent:draw-nolayout-full arm, no swap marks, 100 ms buckets)
 
 Job 40010826238.1/r1/p1/diag: 70 buckets; scale 1-9 of the bucket maximum (Layout max 7), '.' = 0
 

@@ -8,21 +8,21 @@
  "pooled": {
   "rest": {
    "faithful-a": {
-    "rows": 28,
+    "windows": 28,
     "captures": 4,
     "busyWindows": 18,
     "tenthsPerCapture": 2250,
     "median2": 90
    },
    "faithful-b": {
-    "rows": 28,
+    "windows": 28,
     "captures": 4,
     "busyWindows": 19,
     "tenthsPerCapture": 2328,
     "median2": 90
    },
    "arm": {
-    "rows": 56,
+    "windows": 56,
     "captures": 8,
     "busyWindows": 0,
     "tenthsPerCapture": 194,
@@ -31,21 +31,21 @@
   },
   "swap": {
    "faithful-a": {
-    "rows": 32,
+    "windows": 32,
     "captures": 4,
     "busyWindows": 0,
     "tenthsPerCapture": 1078,
     "median2": 28
    },
    "faithful-b": {
-    "rows": 32,
+    "windows": 32,
     "captures": 4,
     "busyWindows": 0,
     "tenthsPerCapture": 1098,
     "median2": 28
    },
    "arm": {
-    "rows": 64,
+    "windows": 64,
     "captures": 8,
     "busyWindows": 0,
     "tenthsPerCapture": 965,

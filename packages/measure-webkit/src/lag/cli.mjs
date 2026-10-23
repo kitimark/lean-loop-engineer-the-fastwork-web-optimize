@@ -44,7 +44,7 @@ async function main() {
       const freeze = parseFreeze(v.freeze);
       if (freeze && !swap) throw new Error('--freeze needs --swap --cost on|only with --site and --search');
       const file = resolve(v.out ?? 'out/lag.json');
-      const save = (doc) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify({ ...doc, search: v.search }) + '\n'); };
+      const save = (doc) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify({ ...doc, search: v.accent ? null : v.search }) + '\n'); };
       const opts = { passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode, swap, ...(freeze || accentLane.accent ? { save } : {}), ...(freeze?.mode ? { freezeMode: freeze.mode } : {}) };
       const body = (ctx) => (accentLane.accent ? accentSession(ctx, { ...opts, accent: accentLane.accent }) : freeze ? freezeSession(ctx, opts) : lagSession(ctx, opts));
       const res = await withSession(body, { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null, arms: swapArms });

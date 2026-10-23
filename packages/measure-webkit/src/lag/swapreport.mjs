@@ -127,7 +127,7 @@ function pooledSection(pool, label) {
   for (const phase of ['rest', 'swap']) {
     for (const [name] of POOL_GROUPS) {
       const p = pool[phase][name];
-      lines.push(`| ${phase} | ${name === 'arm' ? label : name} | ${p.captures} | ${p.rows} | ${p.busyWindows} of ${p.rows} | ${tenthsText(p.tenthsPerCapture)} | ${p.median2 / 2} |`);
+      lines.push(`| ${phase} | ${name === 'arm' ? label : name} | ${p.captures} | ${p.windows} | ${p.busyWindows} of ${p.windows} | ${tenthsText(p.tenthsPerCapture)} | ${p.median2 / 2} |`);
     }
   }
   return [...lines, ''];
@@ -135,8 +135,8 @@ function pooledSection(pool, label) {
 
 const digit = (n, top) => (n <= 0 ? '.' : String(Math.min(9, Math.max(1, Math.ceil((n / top) * 9)))));
 
-function diagSection(rows) {
-  const lines = ['### Diagnostic captures (crop arm, no swap marks, 100 ms buckets)', ''];
+function diagSection(rows, label) {
+  const lines = [`### Diagnostic captures (${label} arm, no swap marks, 100 ms buckets)`, ''];
   if (rows.length === 0) return [...lines, 'none captured', ''];
   for (const d of rows) {
     const top = Math.max(1, ...d.layout);
@@ -188,6 +188,6 @@ export function swapMd(cells, sources, { label = 'crop', model = true, passes = 
     }
   }
   if (passes) lines.push(...pooledSection(pooledSummary(passes), label));
-  lines.push(...diagSection(cells.filter((x) => x.kind === 'Diag')));
+  lines.push(...diagSection(cells.filter((x) => x.kind === 'Diag'), label));
   return lines.join('\n');
 }

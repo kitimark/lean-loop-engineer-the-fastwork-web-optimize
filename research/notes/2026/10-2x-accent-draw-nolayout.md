@@ -104,7 +104,7 @@ class, so the width changes once. Faithful and draw-nolayout are unchanged (the 
 Push with `[ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]` (a first push without `[ci:webkit-sim]` was skipped by the guard, run 40010696479;
 it is not a dispatch). Job r3 did not finish and the run was cancelled, which skipped the report jobs; the report was built from the r1 and r2
 artifacts with `node src/lag/cli.mjs swap-report --files r1-lag.json,r2-lag.json` (the same command reproduces the committed run-39999057900 numbers).
-The report tables call the arm `crop`.
+The report tables call the arm `crop`. Command: swap-report --arm hero.accent:draw-nolayout-full --files r1-lag.json,r2-lag.json --sources "run 40010826238 commit 3c1ab9970 jobs r1 r2" --summary summary-full.json (that run predates the search field, so the label is given by hand; runs from this task carry it).
 
 | window class | metric | faithful-a | faithful-b (A/A) | draw-nolayout (run 39999057900) | draw-nolayout-full |
 |---|---|---:|---:|---:|---:|
@@ -132,7 +132,7 @@ CONFIRMED in the engine source, pins WebKit@862f17d and Chromium@f842f52 (`.cach
 - WebKit `Source/WebCore/style/Styleable.cpp`: `updateCSSTransitions` :761 (called from `style/StyleTreeResolver.cpp:856`) walks the new style per property
   (`updateCSSTransitionsForStyleableAndProperty` :570). `hasMatchingTransitionProperty` is built from `newStyle.transitions()` :586-601 and
   `transitionMatchesProperty` :499 returns false for `CSS::Keyword::None` :508. A transition starts only if there is a match and the duration is above
-  zero :648; with no match a running transition is cancelled and the function returns (:672-680). So with `transition: none` the style change to the new
+  zero :648; with no match a running transition is cancelled and the function returns (:683-691). So with `transition: none` the style change to the new
   width is a single computed-value change and no per-frame animated width exists.
 - Chromium `third_party/blink/renderer/core/animation/css/css_animations.cc`: `CalculateTransitionUpdate` :3076 calls
   `CalculateTransitionUpdateForProperty` :2928-2945, where `kTransitionNone` falls to `default: break` :2942 (no transition is created);
@@ -189,7 +189,7 @@ Report: `results/accent-draw-nolayout/accent-report-40035116432.md`. Not pooled 
   Per-window verdicts: full wins Layout in 2 of 7 rest windows, nolayout 0; every swap window is unresolved:overlap. Swap windows pooled: 109.0 faithful, 111.7 nolayout, 110.7 full rows per capture, so no swap-window difference is resolved.
 - Both runs agree: per scroll frame Layout falls from about 2.4 to about 1.8 (-25%) for both arms and to about 1.9-2.0 with the draw frozen; the full arm adds nothing over draw-nolayout inside the zone (overlap in both runs);
   it differs only in the rest windows (0 busy windows against 6 and 7) and in the width transition (0 started).
-- The animation counter, now matching, shows draw-nolayout-full starts clip animations (96) where faithful starts stroke animations (66): the arm draws through clip-path, as designed.
+- The animation counter now matches hashed names. It counts animationstart per element (faithful: one per path; arms: one per .frame0), so counts compare captures within an arm, not across arms. 52 of the full arm's 96 come from one capture (r1 full-b).
 
 ## Limits of this measurement
 - The CI Simulator is not the phone. 3 jobs of one pass each per run, two runs; ranges of 3 captures per group are wide (natural group of run 1 overlaps, of run 2 separates).

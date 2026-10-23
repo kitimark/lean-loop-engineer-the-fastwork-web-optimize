@@ -147,7 +147,7 @@ export function accentMd(an, sources) {
     '| state | window kind | captures | windows | busy windows | Layout rows per capture | median |', '|---|---|---|---|---|---|---|');
   for (const s of STATES) for (const ph of ['rest', 'swap']) {
     const p = an.pooled[s][ph];
-    L.push(`| ${s} | ${ph} | ${p.captures} | ${p.rows} | ${p.busyWindows} of ${p.rows} | ${tenths(p.tenthsPerCapture)} | ${p.median2 / 2} |`);
+    L.push(`| ${s} | ${ph} | ${p.captures} | ${p.windows} | ${p.busyWindows} of ${p.windows} | ${tenths(p.tenthsPerCapture)} | ${p.median2 / 2} |`);
   }
   for (const arm of ['nolayout', 'full']) {
     L.push('', `### ${arm} against faithful, window by window (Lean cell: needs at least ${MIN_FAITHFUL} samples in each faithful slot)`, '');
