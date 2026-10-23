@@ -6,7 +6,9 @@
   `fw land --dry` gives `VERDICT dry timing-work-dims`, `fw review ready` gives `review`.
 - Open: land dry lake 43470 stays slow (no work field; module count is the driver); polish commit 38160 is still slow
   with 21 spans of history (golden polishRun, n 9); both are follow-ups. Wire/Obs.lean and watch-collect.ts were edited
-  outside the main write list but inside the land scope.
+  outside the main write list but inside the land scope. Goldens changed: packages/contracts/golden/obs/timing.jsonl,
+  timing-work.jsonl, new timing-slow.jsonl; lean/scripts/TimingGolden.lean now checks and writes
+  Fw.Wire.Obs.TimingSlow too.
 
 ## What changed
 - `lean/Fw/Obs/Timing.lean`: `checksWork`/`spanWork` give the work class `checks` (heavy kinds joined by `+`, or

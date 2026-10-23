@@ -2063,7 +2063,8 @@ def polish (kinds : List String) (load d : Nat) : Sample :=
     work := spanWork none none (some kinds) }
 
 /-- The 38.2 s `polish commit` span of 2026-10-23T11:10:16Z (commit aa96a910f) and the 20 spans before it, as
-(ms, load, heavy checks). The checks are those `ops.checkMap` gives for the files of the commit each span made.
+(ms, load, heavy checks). The checks are INFERRED: the spans carried no `checks` member, so each span was matched by
+time to the polish commit it made and given the kinds `ops.checkMap` returns for that commit's files.
 -/
 def polishRun : List Sample :=
   ([(11933, 4, ["lakeBuild", "leanElab"]), (18826, 2, ["lakeBuild"]), (39792, 2, ["lakeBuild", "leanElab"]),
