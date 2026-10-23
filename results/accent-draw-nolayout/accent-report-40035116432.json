@@ -1,0 +1,4891 @@
+{
+ "schema": "fw.webkit.lag.accent.report/1",
+ "records": 3,
+ "jobs": [
+  "120693308041",
+  "120693308091",
+  "120696099405"
+ ],
+ "units": [
+  {
+   "job": "120693308041/p1/lane",
+   "ran": 13,
+   "failed": [],
+   "skipped": []
+  },
+  {
+   "job": "120693308091/p1/lane",
+   "ran": 13,
+   "failed": [],
+   "skipped": []
+  },
+  {
+   "job": "120696099405/p1/lane",
+   "ran": 13,
+   "failed": [],
+   "skipped": []
+  }
+ ],
+ "pooled": {
+  "faithful": {
+   "rest": {
+    "rows": 42,
+    "captures": 6,
+    "busyWindows": 27,
+    "tenthsPerCapture": 2237,
+    "median2": 91
+   },
+   "swap": {
+    "rows": 48,
+    "captures": 6,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1090,
+    "median2": 28
+   }
+  },
+  "nolayout": {
+   "rest": {
+    "rows": 21,
+    "captures": 3,
+    "busyWindows": 7,
+    "tenthsPerCapture": 1283,
+    "median2": 10
+   },
+   "swap": {
+    "rows": 24,
+    "captures": 3,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1117,
+    "median2": 28
+   }
+  },
+  "full": {
+   "rest": {
+    "rows": 21,
+    "captures": 3,
+    "busyWindows": 0,
+    "tenthsPerCapture": 217,
+    "median2": 6
+   },
+   "swap": {
+    "rows": 24,
+    "captures": 3,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1107,
+    "median2": 28
+   }
+  },
+  "faithful-frozen": {
+   "rest": {
+    "rows": 21,
+    "captures": 3,
+    "busyWindows": 0,
+    "tenthsPerCapture": 220,
+    "median2": 6
+   },
+   "swap": {
+    "rows": 24,
+    "captures": 3,
+    "busyWindows": 0,
+    "tenthsPerCapture": 997,
+    "median2": 27
+   }
+  }
+ },
+ "windows": {
+  "nolayout": [
+   {
+    "phase": "swap:0",
+    "kind": "Layout",
+    "faithfulA": [
+     14,
+     15,
+     9
+    ],
+    "faithfulB": [
+     13,
+     15,
+     8
+    ],
+    "arm": [
+     14,
+     16,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:0",
+    "kind": "Paint",
+    "faithfulA": [
+     30,
+     36,
+     37
+    ],
+    "faithfulB": [
+     55,
+     39,
+     20
+    ],
+    "arm": [
+     46,
+     38,
+     29
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:0",
+    "kind": "Composite",
+    "faithfulA": [
+     13,
+     13,
+     7
+    ],
+    "faithfulB": [
+     11,
+     13,
+     8
+    ],
+    "arm": [
+     13,
+     14,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:0",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     14,
+     15,
+     9
+    ],
+    "faithfulB": [
+     13,
+     15,
+     9
+    ],
+    "arm": [
+     15,
+     16,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "Layout",
+    "faithfulA": [
+     11,
+     14,
+     10
+    ],
+    "faithfulB": [
+     15,
+     15,
+     13
+    ],
+    "arm": [
+     16,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "Paint",
+    "faithfulA": [
+     45,
+     35,
+     25
+    ],
+    "faithfulB": [
+     38,
+     34,
+     28
+    ],
+    "arm": [
+     35,
+     32,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "Composite",
+    "faithfulA": [
+     9,
+     14,
+     10
+    ],
+    "faithfulB": [
+     13,
+     14,
+     12
+    ],
+    "arm": [
+     14,
+     13,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     11,
+     15,
+     11
+    ],
+    "faithfulB": [
+     15,
+     15,
+     14
+    ],
+    "arm": [
+     16,
+     14,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "Layout",
+    "faithfulA": [
+     14,
+     16,
+     14
+    ],
+    "faithfulB": [
+     14,
+     15,
+     11
+    ],
+    "arm": [
+     13,
+     14,
+     16
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "Paint",
+    "faithfulA": [
+     37,
+     50,
+     31
+    ],
+    "faithfulB": [
+     31,
+     47,
+     32
+    ],
+    "arm": [
+     34,
+     47,
+     38
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "Composite",
+    "faithfulA": [
+     12,
+     14,
+     12
+    ],
+    "faithfulB": [
+     13,
+     13,
+     9
+    ],
+    "arm": [
+     13,
+     13,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     14,
+     16,
+     14
+    ],
+    "faithfulB": [
+     14,
+     15,
+     11
+    ],
+    "arm": [
+     14,
+     15,
+     16
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "Layout",
+    "faithfulA": [
+     12,
+     10,
+     14
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     6,
+     16,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "Paint",
+    "faithfulA": [
+     28,
+     36,
+     41
+    ],
+    "faithfulB": [
+     48,
+     36,
+     29
+    ],
+    "arm": [
+     18,
+     38,
+     33
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "Composite",
+    "faithfulA": [
+     11,
+     8,
+     12
+    ],
+    "faithfulB": [
+     14,
+     13,
+     13
+    ],
+    "arm": [
+     5,
+     14,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:floorBroken"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     12,
+     10,
+     14
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     7,
+     16,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "Layout",
+    "faithfulA": [
+     10,
+     13,
+     15
+    ],
+    "faithfulB": [
+     16,
+     14,
+     15
+    ],
+    "arm": [
+     13,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "Paint",
+    "faithfulA": [
+     29,
+     31,
+     32
+    ],
+    "faithfulB": [
+     39,
+     30,
+     35
+    ],
+    "arm": [
+     29,
+     29,
+     44
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "Composite",
+    "faithfulA": [
+     8,
+     12,
+     14
+    ],
+    "faithfulB": [
+     14,
+     13,
+     13
+    ],
+    "arm": [
+     11,
+     13,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     10,
+     13,
+     15
+    ],
+    "faithfulB": [
+     16,
+     14,
+     15
+    ],
+    "arm": [
+     13,
+     14,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "Layout",
+    "faithfulA": [
+     15,
+     14,
+     15
+    ],
+    "faithfulB": [
+     14,
+     15,
+     12
+    ],
+    "arm": [
+     13,
+     14,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "Paint",
+    "faithfulA": [
+     37,
+     41,
+     36
+    ],
+    "faithfulB": [
+     32,
+     44,
+     32
+    ],
+    "arm": [
+     28,
+     46,
+     33
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "Composite",
+    "faithfulA": [
+     13,
+     12,
+     13
+    ],
+    "faithfulB": [
+     13,
+     13,
+     10
+    ],
+    "arm": [
+     12,
+     13,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     15,
+     14,
+     15
+    ],
+    "faithfulB": [
+     14,
+     15,
+     12
+    ],
+    "arm": [
+     13,
+     15,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "Layout",
+    "faithfulA": [
+     14,
+     14,
+     13
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     14,
+     16,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "Paint",
+    "faithfulA": [
+     32,
+     30,
+     40
+    ],
+    "faithfulB": [
+     49,
+     34,
+     30
+    ],
+    "arm": [
+     47,
+     37,
+     31
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "Composite",
+    "faithfulA": [
+     13,
+     12,
+     11
+    ],
+    "faithfulB": [
+     14,
+     13,
+     13
+    ],
+    "arm": [
+     13,
+     14,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     14,
+     14,
+     13
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     15,
+     16,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "Layout",
+    "faithfulA": [
+     16,
+     13,
+     12
+    ],
+    "faithfulB": [
+     15,
+     13,
+     14
+    ],
+    "arm": [
+     15,
+     14,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "Paint",
+    "faithfulA": [
+     51,
+     31,
+     30
+    ],
+    "faithfulB": [
+     34,
+     32,
+     31
+    ],
+    "arm": [
+     29,
+     33,
+     43
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "Composite",
+    "faithfulA": [
+     14,
+     12,
+     11
+    ],
+    "faithfulB": [
+     13,
+     13,
+     12
+    ],
+    "arm": [
+     13,
+     13,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     16,
+     13,
+     12
+    ],
+    "faithfulB": [
+     15,
+     14,
+     14
+    ],
+    "arm": [
+     15,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "Layout",
+    "faithfulA": [
+     47,
+     5,
+     50
+    ],
+    "faithfulB": [
+     46,
+     5,
+     5
+    ],
+    "arm": [
+     49,
+     5,
+     3
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "Paint",
+    "faithfulA": [
+     45,
+     1,
+     63
+    ],
+    "faithfulB": [
+     60,
+     16,
+     15
+    ],
+    "arm": [
+     51,
+     15,
+     59
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "Composite",
+    "faithfulA": [
+     48,
+     19,
+     49
+    ],
+    "faithfulB": [
+     45,
+     21,
+     12
+    ],
+    "arm": [
+     48,
+     19,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     15,
+     51
+    ],
+    "faithfulB": [
+     46,
+     14,
+     9
+    ],
+    "arm": [
+     49,
+     13,
+     47
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "Layout",
+    "faithfulA": [
+     49,
+     48,
+     5
+    ],
+    "faithfulB": [
+     5,
+     45,
+     43
+    ],
+    "arm": [
+     5,
+     3,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "Paint",
+    "faithfulA": [
+     66,
+     46,
+     15
+    ],
+    "faithfulB": [
+     15,
+     59,
+     57
+    ],
+    "arm": [
+     1,
+     59,
+     63
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "Composite",
+    "faithfulA": [
+     48,
+     48,
+     17
+    ],
+    "faithfulB": [
+     19,
+     47,
+     42
+    ],
+    "arm": [
+     17,
+     47,
+     45
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     49,
+     49,
+     13
+    ],
+    "faithfulB": [
+     15,
+     48,
+     43
+    ],
+    "arm": [
+     13,
+     48,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "Layout",
+    "faithfulA": [
+     5,
+     49,
+     48
+    ],
+    "faithfulB": [
+     45,
+     48,
+     45
+    ],
+    "arm": [
+     3,
+     48,
+     5
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "Paint",
+    "faithfulA": [
+     15,
+     51,
+     62
+    ],
+    "faithfulB": [
+     57,
+     65,
+     58
+    ],
+    "arm": [
+     60,
+     64,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "Composite",
+    "faithfulA": [
+     18,
+     48,
+     47
+    ],
+    "faithfulB": [
+     46,
+     47,
+     44
+    ],
+    "arm": [
+     49,
+     47,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     13,
+     49,
+     48
+    ],
+    "faithfulB": [
+     47,
+     48,
+     46
+    ],
+    "arm": [
+     50,
+     48,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "Layout",
+    "faithfulA": [
+     46,
+     5,
+     47
+    ],
+    "faithfulB": [
+     48,
+     5,
+     5
+    ],
+    "arm": [
+     50,
+     5,
+     2
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "Paint",
+    "faithfulA": [
+     59,
+     15,
+     61
+    ],
+    "faithfulB": [
+     64,
+     16,
+     15
+    ],
+    "arm": [
+     64,
+     15,
+     60
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "Composite",
+    "faithfulA": [
+     47,
+     13,
+     46
+    ],
+    "faithfulB": [
+     47,
+     15,
+     14
+    ],
+    "arm": [
+     49,
+     17,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     9,
+     48
+    ],
+    "faithfulB": [
+     48,
+     10,
+     10
+    ],
+    "arm": [
+     50,
+     13,
+     48
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "Layout",
+    "faithfulA": [
+     48,
+     48,
+     5
+    ],
+    "faithfulB": [
+     5,
+     47,
+     44
+    ],
+    "arm": [
+     5,
+     3,
+     45
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "Paint",
+    "faithfulA": [
+     62,
+     60,
+     15
+    ],
+    "faithfulB": [
+     15,
+     46,
+     58
+    ],
+    "arm": [
+     15,
+     60,
+     58
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "Composite",
+    "faithfulA": [
+     47,
+     47,
+     18
+    ],
+    "faithfulB": [
+     13,
+     48,
+     43
+    ],
+    "arm": [
+     16,
+     48,
+     43
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     48,
+     13
+    ],
+    "faithfulB": [
+     9,
+     49,
+     44
+    ],
+    "arm": [
+     12,
+     49,
+     45
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "Layout",
+    "faithfulA": [
+     5,
+     47,
+     47
+    ],
+    "faithfulB": [
+     46,
+     50,
+     46
+    ],
+    "arm": [
+     3,
+     48,
+     5
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "Paint",
+    "faithfulA": [
+     15,
+     61,
+     61
+    ],
+    "faithfulB": [
+     59,
+     50,
+     59
+    ],
+    "arm": [
+     61,
+     62,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "Composite",
+    "faithfulA": [
+     17,
+     46,
+     46
+    ],
+    "faithfulB": [
+     47,
+     49,
+     46
+    ],
+    "arm": [
+     48,
+     47,
+     17
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     13,
+     47,
+     47
+    ],
+    "faithfulB": [
+     48,
+     50,
+     47
+    ],
+    "arm": [
+     49,
+     48,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "Layout",
+    "faithfulA": [
+     47,
+     5,
+     45
+    ],
+    "faithfulB": [
+     48,
+     5,
+     5
+    ],
+    "arm": [
+     46,
+     5,
+     1
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "Paint",
+    "faithfulA": [
+     60,
+     15,
+     68
+    ],
+    "faithfulB": [
+     62,
+     1,
+     1
+    ],
+    "arm": [
+     60,
+     1,
+     60
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "Composite",
+    "faithfulA": [
+     47,
+     14,
+     45
+    ],
+    "faithfulB": [
+     47,
+     14,
+     21
+    ],
+    "arm": [
+     45,
+     13,
+     45
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     10,
+     46
+    ],
+    "faithfulB": [
+     48,
+     11,
+     15
+    ],
+    "arm": [
+     46,
+     9,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   }
+  ],
+  "full": [
+   {
+    "phase": "swap:0",
+    "kind": "Layout",
+    "faithfulA": [
+     14,
+     15,
+     9
+    ],
+    "faithfulB": [
+     13,
+     15,
+     8
+    ],
+    "arm": [
+     15,
+     14,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:0",
+    "kind": "Paint",
+    "faithfulA": [
+     30,
+     36,
+     37
+    ],
+    "faithfulB": [
+     55,
+     39,
+     20
+    ],
+    "arm": [
+     40,
+     38,
+     26
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:0",
+    "kind": "Composite",
+    "faithfulA": [
+     13,
+     13,
+     7
+    ],
+    "faithfulB": [
+     11,
+     13,
+     8
+    ],
+    "arm": [
+     14,
+     13,
+     11
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:0",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     14,
+     15,
+     9
+    ],
+    "faithfulB": [
+     13,
+     15,
+     9
+    ],
+    "arm": [
+     16,
+     15,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "Layout",
+    "faithfulA": [
+     11,
+     14,
+     10
+    ],
+    "faithfulB": [
+     15,
+     15,
+     13
+    ],
+    "arm": [
+     13,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "Paint",
+    "faithfulA": [
+     45,
+     35,
+     25
+    ],
+    "faithfulB": [
+     38,
+     34,
+     28
+    ],
+    "arm": [
+     34,
+     35,
+     44
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "Composite",
+    "faithfulA": [
+     9,
+     14,
+     10
+    ],
+    "faithfulB": [
+     13,
+     14,
+     12
+    ],
+    "arm": [
+     13,
+     14,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:1",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     11,
+     15,
+     11
+    ],
+    "faithfulB": [
+     15,
+     15,
+     14
+    ],
+    "arm": [
+     14,
+     15,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "Layout",
+    "faithfulA": [
+     14,
+     16,
+     14
+    ],
+    "faithfulB": [
+     14,
+     15,
+     11
+    ],
+    "arm": [
+     14,
+     14,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "Paint",
+    "faithfulA": [
+     37,
+     50,
+     31
+    ],
+    "faithfulB": [
+     31,
+     47,
+     32
+    ],
+    "arm": [
+     42,
+     46,
+     39
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "Composite",
+    "faithfulA": [
+     12,
+     14,
+     12
+    ],
+    "faithfulB": [
+     13,
+     13,
+     9
+    ],
+    "arm": [
+     12,
+     13,
+     10
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:2",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     14,
+     16,
+     14
+    ],
+    "faithfulB": [
+     14,
+     15,
+     11
+    ],
+    "arm": [
+     14,
+     15,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "Layout",
+    "faithfulA": [
+     12,
+     10,
+     14
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     15,
+     14,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "Paint",
+    "faithfulA": [
+     28,
+     36,
+     41
+    ],
+    "faithfulB": [
+     48,
+     36,
+     29
+    ],
+    "arm": [
+     39,
+     34,
+     26
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "Composite",
+    "faithfulA": [
+     11,
+     8,
+     12
+    ],
+    "faithfulB": [
+     14,
+     13,
+     13
+    ],
+    "arm": [
+     14,
+     13,
+     11
+    ],
+    "dropped": 0,
+    "cell": "unresolved:floorBroken"
+   },
+   {
+    "phase": "swap:3",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     12,
+     10,
+     14
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     16,
+     15,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "Layout",
+    "faithfulA": [
+     10,
+     13,
+     15
+    ],
+    "faithfulB": [
+     16,
+     14,
+     15
+    ],
+    "arm": [
+     14,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "Paint",
+    "faithfulA": [
+     29,
+     31,
+     32
+    ],
+    "faithfulB": [
+     39,
+     30,
+     35
+    ],
+    "arm": [
+     33,
+     33,
+     41
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "Composite",
+    "faithfulA": [
+     8,
+     12,
+     14
+    ],
+    "faithfulB": [
+     14,
+     13,
+     13
+    ],
+    "arm": [
+     13,
+     14,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:4",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     10,
+     13,
+     15
+    ],
+    "faithfulB": [
+     16,
+     14,
+     15
+    ],
+    "arm": [
+     14,
+     15,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "Layout",
+    "faithfulA": [
+     15,
+     14,
+     15
+    ],
+    "faithfulB": [
+     14,
+     15,
+     12
+    ],
+    "arm": [
+     14,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "Paint",
+    "faithfulA": [
+     37,
+     41,
+     36
+    ],
+    "faithfulB": [
+     32,
+     44,
+     32
+    ],
+    "arm": [
+     46,
+     44,
+     34
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "Composite",
+    "faithfulA": [
+     13,
+     12,
+     13
+    ],
+    "faithfulB": [
+     13,
+     13,
+     10
+    ],
+    "arm": [
+     13,
+     13,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:5",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     15,
+     14,
+     15
+    ],
+    "faithfulB": [
+     14,
+     15,
+     12
+    ],
+    "arm": [
+     15,
+     15,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "Layout",
+    "faithfulA": [
+     14,
+     14,
+     13
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     15,
+     14,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "Paint",
+    "faithfulA": [
+     32,
+     30,
+     40
+    ],
+    "faithfulB": [
+     49,
+     34,
+     30
+    ],
+    "arm": [
+     37,
+     35,
+     36
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "Composite",
+    "faithfulA": [
+     13,
+     12,
+     11
+    ],
+    "faithfulB": [
+     14,
+     13,
+     13
+    ],
+    "arm": [
+     14,
+     13,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:6",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     14,
+     14,
+     13
+    ],
+    "faithfulB": [
+     16,
+     15,
+     14
+    ],
+    "arm": [
+     16,
+     15,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "Layout",
+    "faithfulA": [
+     16,
+     13,
+     12
+    ],
+    "faithfulB": [
+     15,
+     13,
+     14
+    ],
+    "arm": [
+     13,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "Paint",
+    "faithfulA": [
+     51,
+     31,
+     30
+    ],
+    "faithfulB": [
+     34,
+     32,
+     31
+    ],
+    "arm": [
+     32,
+     33,
+     41
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "Composite",
+    "faithfulA": [
+     14,
+     12,
+     11
+    ],
+    "faithfulB": [
+     13,
+     13,
+     12
+    ],
+    "arm": [
+     13,
+     13,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "swap:7",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     16,
+     13,
+     12
+    ],
+    "faithfulB": [
+     15,
+     14,
+     14
+    ],
+    "arm": [
+     14,
+     14,
+     14
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "Layout",
+    "faithfulA": [
+     47,
+     5,
+     50
+    ],
+    "faithfulB": [
+     46,
+     5,
+     5
+    ],
+    "arm": [
+     5,
+     5,
+     3
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "Paint",
+    "faithfulA": [
+     45,
+     1,
+     63
+    ],
+    "faithfulB": [
+     60,
+     16,
+     15
+    ],
+    "arm": [
+     15,
+     15,
+     45
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "Composite",
+    "faithfulA": [
+     48,
+     19,
+     49
+    ],
+    "faithfulB": [
+     45,
+     21,
+     12
+    ],
+    "arm": [
+     15,
+     19,
+     48
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:0",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     15,
+     51
+    ],
+    "faithfulB": [
+     46,
+     14,
+     9
+    ],
+    "arm": [
+     10,
+     15,
+     49
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "Layout",
+    "faithfulA": [
+     49,
+     48,
+     5
+    ],
+    "faithfulB": [
+     5,
+     45,
+     43
+    ],
+    "arm": [
+     3,
+     3,
+     1
+    ],
+    "dropped": 0,
+    "cell": "win"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "Paint",
+    "faithfulA": [
+     66,
+     46,
+     15
+    ],
+    "faithfulB": [
+     15,
+     59,
+     57
+    ],
+    "arm": [
+     56,
+     57,
+     49
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "Composite",
+    "faithfulA": [
+     48,
+     48,
+     17
+    ],
+    "faithfulB": [
+     19,
+     47,
+     42
+    ],
+    "arm": [
+     45,
+     46,
+     48
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:1",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     49,
+     49,
+     13
+    ],
+    "faithfulB": [
+     15,
+     48,
+     43
+    ],
+    "arm": [
+     45,
+     47,
+     49
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "Layout",
+    "faithfulA": [
+     5,
+     49,
+     48
+    ],
+    "faithfulB": [
+     45,
+     48,
+     45
+    ],
+    "arm": [
+     1,
+     1,
+     5
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "Paint",
+    "faithfulA": [
+     15,
+     51,
+     62
+    ],
+    "faithfulB": [
+     57,
+     65,
+     58
+    ],
+    "arm": [
+     60,
+     63,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "Composite",
+    "faithfulA": [
+     18,
+     48,
+     47
+    ],
+    "faithfulB": [
+     46,
+     47,
+     44
+    ],
+    "arm": [
+     45,
+     48,
+     17
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:2",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     13,
+     49,
+     48
+    ],
+    "faithfulB": [
+     47,
+     48,
+     46
+    ],
+    "arm": [
+     46,
+     49,
+     13
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "Layout",
+    "faithfulA": [
+     46,
+     5,
+     47
+    ],
+    "faithfulB": [
+     48,
+     5,
+     5
+    ],
+    "arm": [
+     5,
+     5,
+     3
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "Paint",
+    "faithfulA": [
+     59,
+     15,
+     61
+    ],
+    "faithfulB": [
+     64,
+     16,
+     15
+    ],
+    "arm": [
+     1,
+     15,
+     59
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "Composite",
+    "faithfulA": [
+     47,
+     13,
+     46
+    ],
+    "faithfulB": [
+     47,
+     15,
+     14
+    ],
+    "arm": [
+     13,
+     12,
+     46
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:3",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     9,
+     48
+    ],
+    "faithfulB": [
+     48,
+     10,
+     10
+    ],
+    "arm": [
+     9,
+     9,
+     47
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "Layout",
+    "faithfulA": [
+     48,
+     48,
+     5
+    ],
+    "faithfulB": [
+     5,
+     47,
+     44
+    ],
+    "arm": [
+     3,
+     2,
+     1
+    ],
+    "dropped": 0,
+    "cell": "win"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "Paint",
+    "faithfulA": [
+     62,
+     60,
+     15
+    ],
+    "faithfulB": [
+     15,
+     46,
+     58
+    ],
+    "arm": [
+     46,
+     60,
+     62
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "Composite",
+    "faithfulA": [
+     47,
+     47,
+     18
+    ],
+    "faithfulB": [
+     13,
+     48,
+     43
+    ],
+    "arm": [
+     48,
+     47,
+     47
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:4",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     48,
+     13
+    ],
+    "faithfulB": [
+     9,
+     49,
+     44
+    ],
+    "arm": [
+     49,
+     48,
+     48
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "Layout",
+    "faithfulA": [
+     5,
+     47,
+     47
+    ],
+    "faithfulB": [
+     46,
+     50,
+     46
+    ],
+    "arm": [
+     1,
+     1,
+     5
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "Paint",
+    "faithfulA": [
+     15,
+     61,
+     61
+    ],
+    "faithfulB": [
+     59,
+     50,
+     59
+    ],
+    "arm": [
+     49,
+     63,
+     15
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "Composite",
+    "faithfulA": [
+     17,
+     46,
+     46
+    ],
+    "faithfulB": [
+     47,
+     49,
+     46
+    ],
+    "arm": [
+     48,
+     48,
+     17
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:5",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     13,
+     47,
+     47
+    ],
+    "faithfulB": [
+     48,
+     50,
+     47
+    ],
+    "arm": [
+     49,
+     49,
+     12
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "Layout",
+    "faithfulA": [
+     47,
+     5,
+     45
+    ],
+    "faithfulB": [
+     48,
+     5,
+     5
+    ],
+    "arm": [
+     5,
+     5,
+     2
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "Paint",
+    "faithfulA": [
+     60,
+     15,
+     68
+    ],
+    "faithfulB": [
+     62,
+     1,
+     1
+    ],
+    "arm": [
+     1,
+     15,
+     57
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "Composite",
+    "faithfulA": [
+     47,
+     14,
+     45
+    ],
+    "faithfulB": [
+     47,
+     14,
+     21
+    ],
+    "arm": [
+     15,
+     12,
+     44
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   },
+   {
+    "phase": "rest:6",
+    "kind": "RecalculateStyles",
+    "faithfulA": [
+     48,
+     10,
+     46
+    ],
+    "faithfulB": [
+     48,
+     11,
+     15
+    ],
+    "arm": [
+     12,
+     8,
+     45
+    ],
+    "dropped": 0,
+    "cell": "unresolved:overlap"
+   }
+  ]
+ },
+ "frozen": [
+  {
+   "phase": "swap:0",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    13,
+    9
+   ],
+   "unfrozenAll": [
+    14,
+    13,
+    15,
+    15,
+    9,
+    8
+   ],
+   "frozen": [
+    12,
+    13,
+    10
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:0",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    30,
+    55,
+    37
+   ],
+   "unfrozenAll": [
+    30,
+    55,
+    36,
+    39,
+    37,
+    20
+   ],
+   "frozen": [
+    25,
+    26,
+    25
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "swap:0",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    13,
+    11,
+    7
+   ],
+   "unfrozenAll": [
+    13,
+    11,
+    13,
+    13,
+    7,
+    8
+   ],
+   "frozen": [
+    10,
+    11,
+    10
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:0",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    13,
+    9
+   ],
+   "unfrozenAll": [
+    14,
+    13,
+    15,
+    15,
+    9,
+    9
+   ],
+   "frozen": [
+    12,
+    13,
+    11
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:1",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    11
+   ],
+   "unfrozenAll": [
+    11,
+    15,
+    14,
+    15,
+    10,
+    13
+   ],
+   "frozen": [
+    14,
+    9,
+    11
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:1",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    45
+   ],
+   "unfrozenAll": [
+    45,
+    38,
+    35,
+    34,
+    25,
+    28
+   ],
+   "frozen": [
+    29,
+    25,
+    22
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "swap:1",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    9
+   ],
+   "unfrozenAll": [
+    9,
+    13,
+    14,
+    14,
+    10,
+    12
+   ],
+   "frozen": [
+    13,
+    9,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:1",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    11
+   ],
+   "unfrozenAll": [
+    11,
+    15,
+    15,
+    15,
+    11,
+    14
+   ],
+   "frozen": [
+    14,
+    10,
+    11
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:2",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    15,
+    11
+   ],
+   "unfrozenAll": [
+    14,
+    14,
+    16,
+    15,
+    14,
+    11
+   ],
+   "frozen": [
+    14,
+    14,
+    14
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:2",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    50,
+    47,
+    32
+   ],
+   "unfrozenAll": [
+    37,
+    31,
+    50,
+    47,
+    31,
+    32
+   ],
+   "frozen": [
+    34,
+    32,
+    31
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:2",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    13,
+    9
+   ],
+   "unfrozenAll": [
+    12,
+    13,
+    14,
+    13,
+    12,
+    9
+   ],
+   "frozen": [
+    13,
+    13,
+    12
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:2",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    15,
+    11
+   ],
+   "unfrozenAll": [
+    14,
+    14,
+    16,
+    15,
+    14,
+    11
+   ],
+   "frozen": [
+    15,
+    15,
+    14
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:3",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    14
+   ],
+   "unfrozenAll": [
+    12,
+    16,
+    10,
+    15,
+    14,
+    14
+   ],
+   "frozen": [
+    16,
+    15,
+    13
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:3",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    48,
+    41
+   ],
+   "unfrozenAll": [
+    28,
+    48,
+    36,
+    36,
+    41,
+    29
+   ],
+   "frozen": [
+    33,
+    34,
+    28
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "swap:3",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    12
+   ],
+   "unfrozenAll": [
+    11,
+    14,
+    8,
+    13,
+    12,
+    13
+   ],
+   "frozen": [
+    14,
+    13,
+    12
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:3",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    14
+   ],
+   "unfrozenAll": [
+    12,
+    16,
+    10,
+    15,
+    14,
+    14
+   ],
+   "frozen": [
+    16,
+    15,
+    13
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:4",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    10
+   ],
+   "unfrozenAll": [
+    10,
+    16,
+    13,
+    14,
+    15,
+    15
+   ],
+   "frozen": [
+    15,
+    14,
+    5
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:4",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    29
+   ],
+   "unfrozenAll": [
+    29,
+    39,
+    31,
+    30,
+    32,
+    35
+   ],
+   "frozen": [
+    34,
+    34,
+    13
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:4",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    8
+   ],
+   "unfrozenAll": [
+    8,
+    14,
+    12,
+    13,
+    14,
+    13
+   ],
+   "frozen": [
+    14,
+    13,
+    4
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:4",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    10
+   ],
+   "unfrozenAll": [
+    10,
+    16,
+    13,
+    14,
+    15,
+    15
+   ],
+   "frozen": [
+    15,
+    14,
+    6
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:5",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    15,
+    12
+   ],
+   "unfrozenAll": [
+    15,
+    14,
+    14,
+    15,
+    15,
+    12
+   ],
+   "frozen": [
+    13,
+    16,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:5",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    41,
+    44,
+    32
+   ],
+   "unfrozenAll": [
+    37,
+    32,
+    41,
+    44,
+    36,
+    32
+   ],
+   "frozen": [
+    32,
+    35,
+    17
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:5",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    12,
+    13,
+    10
+   ],
+   "unfrozenAll": [
+    13,
+    13,
+    12,
+    13,
+    13,
+    10
+   ],
+   "frozen": [
+    12,
+    14,
+    7
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:5",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    15,
+    12
+   ],
+   "unfrozenAll": [
+    15,
+    14,
+    14,
+    15,
+    15,
+    12
+   ],
+   "frozen": [
+    14,
+    16,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:6",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    13
+   ],
+   "unfrozenAll": [
+    14,
+    16,
+    14,
+    15,
+    13,
+    14
+   ],
+   "frozen": [
+    15,
+    15,
+    11
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:6",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    49,
+    40
+   ],
+   "unfrozenAll": [
+    32,
+    49,
+    30,
+    34,
+    40,
+    30
+   ],
+   "frozen": [
+    33,
+    33,
+    22
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "swap:6",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    11
+   ],
+   "unfrozenAll": [
+    13,
+    14,
+    12,
+    13,
+    11,
+    13
+   ],
+   "frozen": [
+    13,
+    13,
+    10
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:6",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    13
+   ],
+   "unfrozenAll": [
+    14,
+    16,
+    14,
+    15,
+    13,
+    14
+   ],
+   "frozen": [
+    15,
+    15,
+    11
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:7",
+   "kind": "Layout",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    15,
+    12
+   ],
+   "unfrozenAll": [
+    16,
+    15,
+    13,
+    13,
+    12,
+    14
+   ],
+   "frozen": [
+    15,
+    7,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:7",
+   "kind": "Paint",
+   "basis": "busy",
+   "unfrozen": [
+    51,
+    34,
+    30
+   ],
+   "unfrozenAll": [
+    51,
+    34,
+    31,
+    32,
+    30,
+    31
+   ],
+   "frozen": [
+    36,
+    31,
+    17
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:7",
+   "kind": "Composite",
+   "basis": "busy",
+   "unfrozen": [
+    14,
+    13,
+    11
+   ],
+   "unfrozenAll": [
+    14,
+    13,
+    12,
+    13,
+    11,
+    12
+   ],
+   "frozen": [
+    14,
+    7,
+    7
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "swap:7",
+   "kind": "RecalculateStyles",
+   "basis": "busy",
+   "unfrozen": [
+    16,
+    15,
+    12
+   ],
+   "unfrozenAll": [
+    16,
+    15,
+    13,
+    14,
+    12,
+    14
+   ],
+   "frozen": [
+    15,
+    8,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:0",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    47,
+    46,
+    5,
+    5,
+    50,
+    5
+   ],
+   "unfrozenAll": [
+    47,
+    46,
+    5,
+    5,
+    50,
+    5
+   ],
+   "frozen": [
+    5,
+    5,
+    3
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:0",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    45,
+    60,
+    1,
+    16,
+    63,
+    15
+   ],
+   "unfrozenAll": [
+    45,
+    60,
+    1,
+    16,
+    63,
+    15
+   ],
+   "frozen": [
+    15,
+    1,
+    2
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:0",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    45,
+    19,
+    21,
+    49,
+    12
+   ],
+   "unfrozenAll": [
+    48,
+    45,
+    19,
+    21,
+    49,
+    12
+   ],
+   "frozen": [
+    19,
+    18,
+    10
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:0",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    46,
+    15,
+    14,
+    51,
+    9
+   ],
+   "unfrozenAll": [
+    48,
+    46,
+    15,
+    14,
+    51,
+    9
+   ],
+   "frozen": [
+    14,
+    14,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:1",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    49,
+    5,
+    48,
+    45,
+    5,
+    43
+   ],
+   "unfrozenAll": [
+    49,
+    5,
+    48,
+    45,
+    5,
+    43
+   ],
+   "frozen": [
+    3,
+    3,
+    1
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:1",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    66,
+    15,
+    46,
+    59,
+    15,
+    57
+   ],
+   "unfrozenAll": [
+    66,
+    15,
+    46,
+    59,
+    15,
+    57
+   ],
+   "frozen": [
+    16,
+    2,
+    1
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:1",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    19,
+    48,
+    47,
+    17,
+    42
+   ],
+   "unfrozenAll": [
+    48,
+    19,
+    48,
+    47,
+    17,
+    42
+   ],
+   "frozen": [
+    8,
+    10,
+    5
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:1",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    49,
+    15,
+    49,
+    48,
+    13,
+    43
+   ],
+   "unfrozenAll": [
+    49,
+    15,
+    49,
+    48,
+    13,
+    43
+   ],
+   "frozen": [
+    6,
+    9,
+    4
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:2",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    5,
+    45,
+    49,
+    48,
+    48,
+    45
+   ],
+   "unfrozenAll": [
+    5,
+    45,
+    49,
+    48,
+    48,
+    45
+   ],
+   "frozen": [
+    1,
+    1,
+    5
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:2",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    15,
+    57,
+    51,
+    65,
+    62,
+    58
+   ],
+   "unfrozenAll": [
+    15,
+    57,
+    51,
+    65,
+    62,
+    58
+   ],
+   "frozen": [
+    15,
+    1,
+    1
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:2",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    18,
+    46,
+    48,
+    47,
+    47,
+    44
+   ],
+   "unfrozenAll": [
+    18,
+    46,
+    48,
+    47,
+    47,
+    44
+   ],
+   "frozen": [
+    5,
+    5,
+    13
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:2",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    13,
+    47,
+    49,
+    48,
+    48,
+    46
+   ],
+   "unfrozenAll": [
+    13,
+    47,
+    49,
+    48,
+    48,
+    46
+   ],
+   "frozen": [
+    4,
+    4,
+    9
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:3",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    46,
+    48,
+    5,
+    5,
+    47,
+    5
+   ],
+   "unfrozenAll": [
+    46,
+    48,
+    5,
+    5,
+    47,
+    5
+   ],
+   "frozen": [
+    5,
+    5,
+    3
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:3",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    59,
+    64,
+    15,
+    16,
+    61,
+    15
+   ],
+   "unfrozenAll": [
+    59,
+    64,
+    15,
+    16,
+    61,
+    15
+   ],
+   "frozen": [
+    15,
+    1,
+    16
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:3",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    47,
+    47,
+    13,
+    15,
+    46,
+    14
+   ],
+   "unfrozenAll": [
+    47,
+    47,
+    13,
+    15,
+    46,
+    14
+   ],
+   "frozen": [
+    12,
+    17,
+    9
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:3",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    48,
+    9,
+    10,
+    48,
+    10
+   ],
+   "unfrozenAll": [
+    48,
+    48,
+    9,
+    10,
+    48,
+    10
+   ],
+   "frozen": [
+    9,
+    13,
+    8
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:4",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    5,
+    48,
+    47,
+    5,
+    44
+   ],
+   "unfrozenAll": [
+    48,
+    5,
+    48,
+    47,
+    5,
+    44
+   ],
+   "frozen": [
+    2,
+    3,
+    1
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:4",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    62,
+    15,
+    60,
+    46,
+    15,
+    58
+   ],
+   "unfrozenAll": [
+    62,
+    15,
+    60,
+    46,
+    15,
+    58
+   ],
+   "frozen": [
+    16,
+    2,
+    15
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:4",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    47,
+    13,
+    47,
+    48,
+    18,
+    43
+   ],
+   "unfrozenAll": [
+    47,
+    13,
+    47,
+    48,
+    18,
+    43
+   ],
+   "frozen": [
+    7,
+    5,
+    6
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:4",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    9,
+    48,
+    49,
+    13,
+    44
+   ],
+   "unfrozenAll": [
+    48,
+    9,
+    48,
+    49,
+    13,
+    44
+   ],
+   "frozen": [
+    6,
+    5,
+    4
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:5",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    5,
+    46,
+    47,
+    50,
+    47,
+    46
+   ],
+   "unfrozenAll": [
+    5,
+    46,
+    47,
+    50,
+    47,
+    46
+   ],
+   "frozen": [
+    1,
+    1,
+    5
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:5",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    15,
+    59,
+    61,
+    50,
+    61,
+    59
+   ],
+   "unfrozenAll": [
+    15,
+    59,
+    61,
+    50,
+    61,
+    59
+   ],
+   "frozen": [
+    15,
+    1,
+    1
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:5",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    17,
+    47,
+    46,
+    49,
+    46,
+    46
+   ],
+   "unfrozenAll": [
+    17,
+    47,
+    46,
+    49,
+    46,
+    46
+   ],
+   "frozen": [
+    6,
+    6,
+    14
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:5",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    13,
+    48,
+    47,
+    50,
+    47,
+    47
+   ],
+   "unfrozenAll": [
+    13,
+    48,
+    47,
+    50,
+    47,
+    47
+   ],
+   "frozen": [
+    4,
+    5,
+    11
+   ],
+   "cell": "removed"
+  },
+  {
+   "phase": "rest:6",
+   "kind": "Layout",
+   "basis": "all",
+   "unfrozen": [
+    47,
+    48,
+    5,
+    5,
+    45,
+    5
+   ],
+   "unfrozenAll": [
+    47,
+    48,
+    5,
+    5,
+    45,
+    5
+   ],
+   "frozen": [
+    5,
+    6,
+    2
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:6",
+   "kind": "Paint",
+   "basis": "all",
+   "unfrozen": [
+    60,
+    62,
+    15,
+    1,
+    68,
+    1
+   ],
+   "unfrozenAll": [
+    60,
+    62,
+    15,
+    1,
+    68,
+    1
+   ],
+   "frozen": [
+    15,
+    1,
+    16
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:6",
+   "kind": "Composite",
+   "basis": "all",
+   "unfrozen": [
+    47,
+    47,
+    14,
+    14,
+    45,
+    21
+   ],
+   "unfrozenAll": [
+    47,
+    47,
+    14,
+    14,
+    45,
+    21
+   ],
+   "frozen": [
+    15,
+    13,
+    3
+   ],
+   "cell": "overlap"
+  },
+  {
+   "phase": "rest:6",
+   "kind": "RecalculateStyles",
+   "basis": "all",
+   "unfrozen": [
+    48,
+    48,
+    10,
+    11,
+    46,
+    15
+   ],
+   "unfrozenAll": [
+    48,
+    48,
+    10,
+    11,
+    46,
+    15
+   ],
+   "frozen": [
+    11,
+    10,
+    3
+   ],
+   "cell": "overlap"
+  }
+ ],
+ "zone": {
+  "stats": {
+   "faithful": {
+    "all": {
+     "captures": 6,
+     "frames": 192,
+     "layout": {
+      "n": 6,
+      "median": 79,
+      "min": 72,
+      "max": 83
+     },
+     "paint": {
+      "n": 6,
+      "median": 163,
+      "min": 144,
+      "max": 187
+     },
+     "layoutPerFrameMilli": 2443,
+     "paintPerFrameMilli": 5078,
+     "layoutSamples": [
+      82,
+      72,
+      76,
+      82,
+      74,
+      83
+     ],
+     "paintSamples": [
+      187,
+      151,
+      167,
+      163,
+      144,
+      163
+     ],
+     "drawStarts": {
+      "captures": 6,
+      "animations": 66,
+      "transitions": 10
+     }
+    },
+    "aligned": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 76,
+      "min": 74,
+      "max": 82
+     },
+     "paint": {
+      "n": 3,
+      "median": 167,
+      "min": 144,
+      "max": 187
+     },
+     "layoutPerFrameMilli": 2417,
+     "paintPerFrameMilli": 5188,
+     "layoutSamples": [
+      82,
+      76,
+      74
+     ],
+     "paintSamples": [
+      187,
+      167,
+      144
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 45,
+      "transitions": 7
+     }
+    },
+    "natural": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 82,
+      "min": 72,
+      "max": 83
+     },
+     "paint": {
+      "n": 3,
+      "median": 163,
+      "min": 151,
+      "max": 163
+     },
+     "layoutPerFrameMilli": 2469,
+     "paintPerFrameMilli": 4969,
+     "layoutSamples": [
+      72,
+      82,
+      83
+     ],
+     "paintSamples": [
+      151,
+      163,
+      163
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 21,
+      "transitions": 3
+     }
+    }
+   },
+   "nolayout": {
+    "all": {
+     "captures": 6,
+     "frames": 192,
+     "layout": {
+      "n": 6,
+      "median": 54.5,
+      "min": 51,
+      "max": 66
+     },
+     "paint": {
+      "n": 6,
+      "median": 162.5,
+      "min": 150,
+      "max": 184
+     },
+     "layoutPerFrameMilli": 1771,
+     "paintPerFrameMilli": 5099,
+     "layoutSamples": [
+      52,
+      66,
+      51,
+      53,
+      56,
+      62
+     ],
+     "paintSamples": [
+      164,
+      161,
+      150,
+      154,
+      166,
+      184
+     ],
+     "drawStarts": {
+      "captures": 6,
+      "animations": 19,
+      "transitions": 9
+     }
+    },
+    "aligned": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 52,
+      "min": 51,
+      "max": 56
+     },
+     "paint": {
+      "n": 3,
+      "median": 164,
+      "min": 150,
+      "max": 166
+     },
+     "layoutPerFrameMilli": 1656,
+     "paintPerFrameMilli": 5000,
+     "layoutSamples": [
+      52,
+      51,
+      56
+     ],
+     "paintSamples": [
+      164,
+      150,
+      166
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 10,
+      "transitions": 5
+     }
+    },
+    "natural": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 62,
+      "min": 53,
+      "max": 66
+     },
+     "paint": {
+      "n": 3,
+      "median": 161,
+      "min": 154,
+      "max": 184
+     },
+     "layoutPerFrameMilli": 1885,
+     "paintPerFrameMilli": 5198,
+     "layoutSamples": [
+      66,
+      53,
+      62
+     ],
+     "paintSamples": [
+      161,
+      154,
+      184
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 9,
+      "transitions": 4
+     }
+    }
+   },
+   "full": {
+    "all": {
+     "captures": 6,
+     "frames": 192,
+     "layout": {
+      "n": 6,
+      "median": 56.5,
+      "min": 50,
+      "max": 65
+     },
+     "paint": {
+      "n": 6,
+      "median": 174,
+      "min": 115,
+      "max": 207
+     },
+     "layoutPerFrameMilli": 1781,
+     "paintPerFrameMilli": 5161,
+     "layoutSamples": [
+      59,
+      50,
+      53,
+      65,
+      54,
+      61
+     ],
+     "paintSamples": [
+      207,
+      136,
+      185,
+      115,
+      181,
+      167
+     ],
+     "drawStarts": {
+      "captures": 6,
+      "animations": 96,
+      "transitions": 0
+     }
+    },
+    "aligned": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 54,
+      "min": 53,
+      "max": 59
+     },
+     "paint": {
+      "n": 3,
+      "median": 185,
+      "min": 181,
+      "max": 207
+     },
+     "layoutPerFrameMilli": 1729,
+     "paintPerFrameMilli": 5969,
+     "layoutSamples": [
+      59,
+      53,
+      54
+     ],
+     "paintSamples": [
+      207,
+      185,
+      181
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 25,
+      "transitions": 0
+     }
+    },
+    "natural": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 61,
+      "min": 50,
+      "max": 65
+     },
+     "paint": {
+      "n": 3,
+      "median": 136,
+      "min": 115,
+      "max": 167
+     },
+     "layoutPerFrameMilli": 1833,
+     "paintPerFrameMilli": 4354,
+     "layoutSamples": [
+      50,
+      65,
+      61
+     ],
+     "paintSamples": [
+      136,
+      115,
+      167
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 71,
+      "transitions": 0
+     }
+    }
+   },
+   "faithful-frozen": {
+    "all": {
+     "captures": 6,
+     "frames": 192,
+     "layout": {
+      "n": 6,
+      "median": 59.5,
+      "min": 54,
+      "max": 68
+     },
+     "paint": {
+      "n": 6,
+      "median": 123.5,
+      "min": 110,
+      "max": 166
+     },
+     "layoutPerFrameMilli": 1911,
+     "paintPerFrameMilli": 4094,
+     "layoutSamples": [
+      67,
+      68,
+      59,
+      59,
+      54,
+      60
+     ],
+     "paintSamples": [
+      129,
+      116,
+      118,
+      147,
+      110,
+      166
+     ],
+     "drawStarts": {
+      "captures": 6,
+      "animations": 0,
+      "transitions": 0
+     }
+    },
+    "aligned": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 59,
+      "min": 54,
+      "max": 67
+     },
+     "paint": {
+      "n": 3,
+      "median": 118,
+      "min": 110,
+      "max": 129
+     },
+     "layoutPerFrameMilli": 1875,
+     "paintPerFrameMilli": 3719,
+     "layoutSamples": [
+      67,
+      59,
+      54
+     ],
+     "paintSamples": [
+      129,
+      118,
+      110
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 0,
+      "transitions": 0
+     }
+    },
+    "natural": {
+     "captures": 3,
+     "frames": 96,
+     "layout": {
+      "n": 3,
+      "median": 60,
+      "min": 59,
+      "max": 68
+     },
+     "paint": {
+      "n": 3,
+      "median": 147,
+      "min": 116,
+      "max": 166
+     },
+     "layoutPerFrameMilli": 1948,
+     "paintPerFrameMilli": 4469,
+     "layoutSamples": [
+      68,
+      59,
+      60
+     ],
+     "paintSamples": [
+      116,
+      147,
+      166
+     ],
+     "drawStarts": {
+      "captures": 3,
+      "animations": 0,
+      "transitions": 0
+     }
+    }
+   }
+  },
+  "verdicts": [
+   {
+    "group": "all",
+    "from": "faithful",
+    "to": "nolayout",
+    "kind": "Layout",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "lower",
+    "share": 31
+   },
+   {
+    "group": "all",
+    "from": "faithful",
+    "to": "nolayout",
+    "kind": "Paint",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "overlap",
+    "share": 0
+   },
+   {
+    "group": "all",
+    "from": "faithful",
+    "to": "full",
+    "kind": "Layout",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "lower",
+    "share": 28
+   },
+   {
+    "group": "all",
+    "from": "faithful",
+    "to": "full",
+    "kind": "Paint",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "overlap",
+    "share": -7
+   },
+   {
+    "group": "all",
+    "from": "nolayout",
+    "to": "full",
+    "kind": "Layout",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "overlap",
+    "share": -4
+   },
+   {
+    "group": "all",
+    "from": "nolayout",
+    "to": "full",
+    "kind": "Paint",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "overlap",
+    "share": -8
+   },
+   {
+    "group": "all",
+    "from": "faithful",
+    "to": "faithful-frozen",
+    "kind": "Layout",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "lower",
+    "share": 24
+   },
+   {
+    "group": "all",
+    "from": "faithful",
+    "to": "faithful-frozen",
+    "kind": "Paint",
+    "fromN": 6,
+    "toN": 6,
+    "verdict": "overlap",
+    "share": 24
+   },
+   {
+    "group": "aligned",
+    "from": "faithful",
+    "to": "nolayout",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 31
+   },
+   {
+    "group": "aligned",
+    "from": "faithful",
+    "to": "nolayout",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": 1
+   },
+   {
+    "group": "aligned",
+    "from": "faithful",
+    "to": "full",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 28
+   },
+   {
+    "group": "aligned",
+    "from": "faithful",
+    "to": "full",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": -11
+   },
+   {
+    "group": "aligned",
+    "from": "nolayout",
+    "to": "full",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": -4
+   },
+   {
+    "group": "aligned",
+    "from": "nolayout",
+    "to": "full",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "higher",
+    "share": -13
+   },
+   {
+    "group": "aligned",
+    "from": "faithful",
+    "to": "faithful-frozen",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 22
+   },
+   {
+    "group": "aligned",
+    "from": "faithful",
+    "to": "faithful-frozen",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 29
+   },
+   {
+    "group": "natural",
+    "from": "faithful",
+    "to": "nolayout",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 24
+   },
+   {
+    "group": "natural",
+    "from": "faithful",
+    "to": "nolayout",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": 1
+   },
+   {
+    "group": "natural",
+    "from": "faithful",
+    "to": "full",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 25
+   },
+   {
+    "group": "natural",
+    "from": "faithful",
+    "to": "full",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": 16
+   },
+   {
+    "group": "natural",
+    "from": "nolayout",
+    "to": "full",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": 1
+   },
+   {
+    "group": "natural",
+    "from": "nolayout",
+    "to": "full",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": 15
+   },
+   {
+    "group": "natural",
+    "from": "faithful",
+    "to": "faithful-frozen",
+    "kind": "Layout",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "lower",
+    "share": 26
+   },
+   {
+    "group": "natural",
+    "from": "faithful",
+    "to": "faithful-frozen",
+    "kind": "Paint",
+    "fromN": 3,
+    "toN": 3,
+    "verdict": "overlap",
+    "share": 9
+   }
+  ]
+ },
+ "tally": {
+  "nolayout": {
+   "swap": {
+    "Layout": [
+     0,
+     0,
+     8
+    ],
+    "Paint": [
+     0,
+     0,
+     8
+    ],
+    "Composite": [
+     0,
+     0,
+     8
+    ],
+    "RecalculateStyles": [
+     0,
+     0,
+     8
+    ]
+   },
+   "rest": {
+    "Layout": [
+     0,
+     0,
+     7
+    ],
+    "Paint": [
+     0,
+     0,
+     7
+    ],
+    "Composite": [
+     0,
+     0,
+     7
+    ],
+    "RecalculateStyles": [
+     0,
+     0,
+     7
+    ]
+   }
+  },
+  "full": {
+   "swap": {
+    "Layout": [
+     0,
+     0,
+     8
+    ],
+    "Paint": [
+     0,
+     0,
+     8
+    ],
+    "Composite": [
+     0,
+     0,
+     8
+    ],
+    "RecalculateStyles": [
+     0,
+     0,
+     8
+    ]
+   },
+   "rest": {
+    "Layout": [
+     2,
+     0,
+     5
+    ],
+    "Paint": [
+     0,
+     0,
+     7
+    ],
+    "Composite": [
+     0,
+     0,
+     7
+    ],
+    "RecalculateStyles": [
+     0,
+     0,
+     7
+    ]
+   }
+  }
+ }
+}

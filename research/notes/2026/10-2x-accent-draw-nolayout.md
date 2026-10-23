@@ -171,4 +171,27 @@ Report: `results/accent-draw-nolayout/accent-report-40030735082.md` (and `.json`
 - Rest windows (pooled over 3 jobs): busy windows (at least 24 Layout rows) faithful 27 of 42, draw-nolayout 6 of 21, full 0 of 21, draw-frozen 0 of 21;
   Layout rows per capture 218.5, 109.0, 19.7, 21.0; medians 43, 5, 2, 3. Per-window verdicts against the A/A floor: nolayout Layout wins 3 of 7 rest windows, full 5 of 7; all 8 swap windows unresolved:overlap.
 - Unfrozen busy samples against frozen samples (Lean `busyFrozen`): rest windows 1 and 4 (the busy ones) `removed` by the freeze; swap windows overlap or have no busy sample.
-- Harness defect found: the draw-start counter matched animation names exactly (`strokeIn`), the built site hashes keyframe names, so it counted 0 animation starts in every arm (the width transition counter is not affected). Fixed in the next commit (`DRAW_ANIMS` without the start anchor); the next run repeats the lane.
+- Harness defect found: the draw-start counter matched animation names exactly (`strokeIn`), the built site hashes keyframe names, so it counted 0 animation starts in every arm (the width transition counter is not affected). Fixed in commit a3bb8cd67 (`DRAW_ANIMS` without the start anchor); run 40035116432 repeats the lane.
+
+## Result, run 40035116432 (MEASURED, commit a3bb8cd67, same lane, jobs r1 r2 r3 all success, 13 units each, none failed or skipped)
+Report: `results/accent-draw-nolayout/accent-report-40035116432.md`. Not pooled with the run above (different commit; the page and arms are the same build, only the draw counter changed).
+
+| state | Layout rows per scroll frame | Layout median per capture (min..max) | draw starts (animations / width transitions), 6 captures |
+|---|---:|---|---|
+| faithful | 2.443 | 79 (72..83) | 66 / 10 |
+| draw-nolayout | 1.771 | 54.5 (51..66) | 19 / 9 |
+| draw-nolayout-full | 1.781 | 56.5 (50..65) | 96 / 0 |
+| faithful, draw-only freeze | 1.911 | 59.5 (54..68) | 0 / 0 |
+
+- Zone verdicts (Lean `zoneVerdict`): all 6+6 captures, faithful against draw-nolayout lower (31% of the median), against draw-nolayout-full lower (28%), against draw-frozen faithful lower (24%);
+  the two arms against each other overlap. The same Layout verdicts hold in the aligned and the natural group (3+3 each, 22% to 31%). Paint: overlap, except the draw-frozen faithful in the aligned group (lower, 29%).
+- Rest windows (pooled over 3 jobs): busy windows faithful 27 of 42, draw-nolayout 7 of 21, full 0 of 21, draw-frozen 0 of 21; rows per capture 223.7, 128.3, 21.7, 22.0; medians 45.5, 5, 3, 3.
+  Per-window verdicts: full wins Layout in 2 of 7 rest windows, nolayout 0; every swap window is unresolved:overlap. Swap windows pooled: 109.0 faithful, 111.7 nolayout, 110.7 full rows per capture, so no swap-window difference is resolved.
+- Both runs agree: per scroll frame Layout falls from about 2.4 to about 1.8 (-25%) for both arms and to about 1.9-2.0 with the draw frozen; the full arm adds nothing over draw-nolayout inside the zone (overlap in both runs);
+  it differs only in the rest windows (0 busy windows against 6 and 7) and in the width transition (0 started).
+- The animation counter, now matching, shows draw-nolayout-full starts clip animations (96) where faithful starts stroke animations (66): the arm draws through clip-path, as designed.
+
+## Limits of this measurement
+- The CI Simulator is not the phone. 3 jobs of one pass each per run, two runs; ranges of 3 captures per group are wide (natural group of run 1 overlaps, of run 2 separates).
+- Rows per scroll frame are Timeline Layout rows over the 32 frames of scroll region A; the pixel sameness and the look review are the user's.
+- Item 2 (the path-pix draw window) is not part of this round.
