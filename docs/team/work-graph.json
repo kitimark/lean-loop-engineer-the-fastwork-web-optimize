@@ -18441,7 +18441,7 @@
     "packages/measure-webkit/test/walk-budget.test.mjs",
     "packages/measure-webkit/src/profile/cli.mjs"
    ],
-   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands."
+   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands. (7) morph-wheel-momentum review: pass FW_MATRIX_JOB: ${{ matrix.job }} on the smoothness.yml morph step so in-job reports read job N."
   },
   {
    "devices": [
@@ -18860,7 +18860,11 @@
     "packages/measure-webkit/src/lag/macreport.mjs",
     "packages/measure-webkit/test/lag-mac-morph.test.mjs",
     "research/notes/2026/10-2x-morph-real-wheel.md",
-    "docs/team/handoffs/morph-wheel-momentum.md"
+    "docs/team/handoffs/morph-wheel-momentum.md",
+    "lean/Fw/Measure/WebKitLagPhase.lean",
+    "packages/contracts/golden/measure/webkit-lag.jsonl",
+    "packages/measure-webkit/src/lag/mac-cli.mjs",
+    "packages/measure-webkit/src/lag/probe.mjs"
    ],
    "title": "morph-real-wheel-followups review follow-ups (2026-10-24): (1) the scroll settles before the push (run 39989441570 job 1 run 1: last scroll at frame 23, push at frame 28), so no open phase has a scroll in flight: add a drive that sends the push during the scroll (momentum overlapping the morph); (2) macreport.mjs labels every job's rows 'job 1': pass the matrix job index; (3) the Simulator leg with the PushServer touch (morph-real-wheel-followups item 3) once sim-touch-reliable lands; (4) probe.mjs header: keep one short pointer ('pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs')."
   },
@@ -19117,7 +19121,8 @@
     "research/notes/2026/10-2x-ci-setup-lean-slow.md",
     "docs/team/handoffs/lake-prune-followups.md"
    ],
-   "title": "lake-prune-verify review follow-ups (2026-10-24): (1) add the lake-cache golden check job to lean/scripts/check.sh (line in docs/team/handoffs/lake-prune-verify.md) so golden/ops/lake-cache.jsonl drift fails the check; (2) the first ci/* or land leg whose Lean tree is behind the restored pruned main entry: add its row to Fw.Ops.LakeCache.legs and the golden (today INFERRED only; every inspected branch had the entry commit as merge base); (3) note section 2: 'stripping in place would change what the build record hashes' gets a status (INFERRED) or a Lake source file:line@commit."
+   "title": "lake-prune-verify review follow-ups (2026-10-24): (1) add the lake-cache golden check job to lean/scripts/check.sh (line in docs/team/handoffs/lake-prune-verify.md) so golden/ops/lake-cache.jsonl drift fails the check; (2) the first ci/* or land leg whose Lean tree is behind the restored pruned main entry: add its row to Fw.Ops.LakeCache.legs and the golden (today INFERRED only; every inspected branch had the entry commit as merge base); (3) note section 2: 'stripping in place would change what the build record hashes' gets a status (INFERRED) or a Lake source file:line@commit.",
+   "evidence": "b727a09"
   },
   {
    "devices": [
@@ -19138,7 +19143,8 @@
     "apps/runner/test/timing*.test.ts",
     "docs/team/handoffs/timing-poll-interval-observed.md"
    ],
-   "title": "timing-verdict-proofs review follow-up (2026-10-24): pollS on the fw ci wait span is Fw.Ci.Budget.interval computed when the span is written (the next tick's interval), not the gap the wait used before its deciding tick, and it leaves out failure backoff (c1fdb56 wait: 12 s observed prevTickMs to tickMs vs 10 s in golden row 4). Record the interval from the deciding tick's state in noteDecided, or use tickMs - prevTickMs when present, with a Lean rule choosing between them and golden rows for both."
+   "title": "timing-verdict-proofs review follow-up (2026-10-24): pollS on the fw ci wait span is Fw.Ci.Budget.interval computed when the span is written (the next tick's interval), not the gap the wait used before its deciding tick, and it leaves out failure backoff (c1fdb56 wait: 12 s observed prevTickMs to tickMs vs 10 s in golden row 4). Record the interval from the deciding tick's state in noteDecided, or use tickMs - prevTickMs when present, with a Lean rule choosing between them and golden rows for both.",
+   "evidence": "9a00b16"
   },
   {
    "devices": [
@@ -19178,7 +19184,8 @@
     "apps/runner/test/polish*.test.ts",
     "docs/team/handoffs/polish-wtname-wire.md"
    ],
-   "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout."
+   "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout.",
+   "evidence": "c5a8d9d"
   },
   {
    "devices": [
@@ -19201,6 +19208,44 @@
     "docs/team/handoffs/timing-wait-state-interval.md"
    ],
    "title": "timing-poll-interval-observed review follow-ups (2026-10-24): (1) noteDecided in packages/gh-budget/src/wait.ts records the Budget.interval of the deciding tick's own state plus any failure backoff on the span (today timing-ci.ts re-reads the state file at span write); (2) cap the observed gap tickMs - prevTickMs at that recorded interval plus backoff, so a poller stall between the two ticks is own time again (today it nets to 0), with a theorem and a golden row for a stalled gap."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-strays-sound",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "polish-wtname-wire"
+   ],
+   "writes": [
+    "lean/Fw/Wire/Plan.lean",
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/polish-strays-sound.md"
+   ],
+   "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gc-landed-identity",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "packages/contracts/golden/ops/disk-gc*.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc*.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/gc-landed-identity.md"
+   ],
+   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main)."
   }
  ],
  "deadline": {
