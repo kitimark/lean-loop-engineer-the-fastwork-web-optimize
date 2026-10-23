@@ -15,3 +15,16 @@
 {"attr":null,"kind":"attr","variant":"steps"}
 {"attr":"one","kind":"attr","variant":"draw-one"}
 {"attr":"nolayout","kind":"attr","variant":"draw-nolayout"}
+{"attr":"nolayout-full","kind":"attr","variant":"draw-nolayout-full"}
+{"arm":"faithful","changes":3,"crLayout":false,"kind":"slot","slot":"draw-out","wkLayout":true}
+{"arm":"faithful","changes":4,"crLayout":true,"kind":"slot","slot":"draw-in-first","wkLayout":true}
+{"arm":"faithful","changes":4,"crLayout":true,"kind":"slot","slot":"draw-in-rest","wkLayout":true}
+{"arm":"draw-nolayout","changes":1,"crLayout":false,"kind":"slot","slot":"draw-out","wkLayout":false}
+{"arm":"draw-nolayout","changes":2,"crLayout":true,"kind":"slot","slot":"draw-in-first","wkLayout":true}
+{"arm":"draw-nolayout","changes":2,"crLayout":true,"kind":"slot","slot":"draw-in-rest","wkLayout":true}
+{"arm":"draw-nolayout-full","changes":1,"crLayout":false,"kind":"slot","slot":"draw-out","wkLayout":false}
+{"arm":"draw-nolayout-full","changes":2,"crLayout":true,"kind":"slot","slot":"draw-in-first","wkLayout":true}
+{"arm":"draw-nolayout-full","changes":1,"crLayout":false,"kind":"slot","slot":"draw-in-rest","wkLayout":false}
+{"arm":"faithful","crLayoutFrames":54,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":108}
+{"arm":"draw-nolayout","crLayoutFrames":54,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":54}
+{"arm":"draw-nolayout-full","crLayoutFrames":1,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":1}
