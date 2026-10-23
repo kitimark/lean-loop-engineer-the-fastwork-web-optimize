@@ -18243,7 +18243,8 @@
     "research/notes/2026/10-2x-pathpix-accent-pin.md",
     "docs/team/handoffs/pathpix-accent-pin.md"
    ],
-   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0.",
+   "evidence": "3641b82"
   },
   {
    "devices": [
@@ -18455,7 +18456,7 @@
     "research/notes/2026/10-2x-carousel-swap-webkit.md",
     "docs/team/handoffs/carousel-swap-followups.md"
    ],
-   "title": "carousel-swap-webkit-lane follow-ups (end-of-page lag zone): (1) the crop's every-third swap window (swap 1, 4, 7) shows Layout medians 14.5-15 vs 3.5-5.5 and Paint 20-20.5 vs 7-11 in the others: find the cause from the part's timing constants and WebKit source (which swap, which element relayouts), and say whether faithful shows the same pattern; (2) SwapWindow cell: add a minimum-n reason (unresolved:fewSamples when a faithful slot has < 3 samples) with theorem + golden, since single-job replays gave false wins; (3) swapreport prints the measured crop minimum next to the model line 'the crop none' (measured floor 3 Layout rows per window); (4) one [swap-lane] webkit-sim run with 3 completed jobs at one commit so the cells come from one run."
+   "title": "carousel-swap-webkit-lane follow-ups (end-of-page lag zone): (1) the crop's every-third swap window (swap 1, 4, 7) shows Layout medians 14.5-15 vs 3.5-5.5 and Paint 20-20.5 vs 7-11 in the others: find the cause from the part's timing constants and WebKit source (which swap, which element relayouts), and say whether faithful shows the same pattern; (2) SwapWindow cell: add a minimum-n reason (unresolved:fewSamples when a faithful slot has < 3 samples) with theorem + golden, since single-job replays gave false wins; (3) swapreport prints the measured crop minimum next to the model line 'the crop none' (measured floor 3 Layout rows per window); (4) one [swap-lane] webkit-sim run with 3 completed jobs at one commit so the cells come from one run. Also from the round-2 review: (5) the [swap-lane] -> SWAP=--swap -> cli --swap path has never run on CI: the run in (4) must confirm swap captures still appear; (6) store a job id per sample in the swap cells JSON so per-run claims (e.g. 39937838325 alone gives the same Paint wins) are reproducible without assuming array order."
   },
   {
    "devices": [

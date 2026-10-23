@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { BOX_EXPR, FREEZE_EXPR, IMAGES_READY_EXPR } from '../../measure-webkit/src/pathpix-page.mjs';
-import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR } from '../../measure-webkit/src/pathpix-exit-page.mjs';
+import { PIN_ACCENT_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR } from '../../measure-webkit/src/pathpix-exit-page.mjs';
 import { analyzeDir } from '../../measure-webkit/src/pathpix-exit.mjs';
 
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,7 +30,7 @@ if (!v['analyze-only']) {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(join(out, 'shots'), { recursive: true });
   const exprDir = mkdtempSync(join(tmpdir(), 'fw-pathpix-exprs-'));
-  writeFileSync(join(exprDir, 'page.json'), JSON.stringify({ boxes: BOX_EXPR, freeze: FREEZE_EXPR, imagesReady: IMAGES_READY_EXPR, exitBoxes: EXIT_BOX_EXPR, exitGeom: EXIT_GEOM_EXPR, exitLive: EXIT_LIVE_EXPR, exitNudge: EXIT_NUDGE_EXPR }));
+  writeFileSync(join(exprDir, 'page.json'), JSON.stringify({ boxes: BOX_EXPR, freeze: FREEZE_EXPR, imagesReady: IMAGES_READY_EXPR, exitBoxes: EXIT_BOX_EXPR, exitGeom: EXIT_GEOM_EXPR, exitLive: EXIT_LIVE_EXPR, exitNudge: EXIT_NUDGE_EXPR, pinAccent: PIN_ACCENT_EXPR, accentSig: ACCENT_SIG_EXPR }));
   const run = v.run ?? process.env.GITHUB_RUN_ID ?? 'local';
   const inner = ['/driver/pathpix.mjs', `--run=${run}`, `--mode=${v.mode}`, ...(v.flag ? [`--flag=${v.flag}`] : []), ...(v.layers ? [`--layers=${v.layers}`] : []), ...(v.offsets ? [`--offsets=${v.offsets}`] : [])];
   let r;

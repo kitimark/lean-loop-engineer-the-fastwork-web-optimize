@@ -8,9 +8,9 @@ import { BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_I
 import { encodePng, decodePng, cropImage, sameImage } from '../src/pathpix-png.mjs';
 import { analyzeLane, table } from '../src/pathpix-analyze.mjs';
 import { magentaBox, inViewPositions } from '../src/pathpix-webkit.mjs';
-import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
-import { analyzeExit, analyzeDir, exitTable, exitOffsets, splitUnion, region, liveP, liveA } from '../src/pathpix-exit.mjs';
-import { pathSearch as chromiumPathSearch, laneOffsets, exitOffsets as chromiumExitOffsets } from '../../measure-chromium/src/pathpix-pure.mjs';
+import { PIN_ACCENT_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from '../src/pathpix-exit-page.mjs';
+import { armPin, pinAt, accentPinned, analyzeExit, analyzeDir, exitTable, exitOffsets, splitUnion, region, liveP, liveA } from '../src/pathpix-exit.mjs';
+import { pathSearch as chromiumPathSearch, laneOffsets, exitOffsets as chromiumExitOffsets, armPin as chromiumArmPin, pinAt as chromiumPinAt, accentPinned as chromiumAccentPinned } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 test('the Chromium driver computes the same offsets and arm search as the Simulator lane', () => {
   for (const maxY of [0, 1, 7, 8, 4626, 5267, 123457]) assert.deepEqual(laneOffsets(maxY), offsets(maxY), `maxY ${maxY}`);
@@ -19,7 +19,7 @@ test('the Chromium driver computes the same offsets and arm search as the Simula
 });
 
 test('page-side expressions are well-formed scripts', () => {
-  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
+  for (const e of [BOX_EXPR, FREEZE_EXPR, HOLD_EXPR, VIDEO_EXPR, IMAGES_READY_EXPR, NEAR_IMAGES_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR, PIN_ACCENT_EXPR, ACCENT_SIG_EXPR]) assert.doesNotThrow(() => new Function(`return ${e}`));
 });
 
 test('png codec round-trips, crops and compares', () => {
@@ -132,18 +132,20 @@ test('the live witnesses', () => {
   assert.equal(liveA({ live: true, variant: 'threaded' }), false);
 });
 
-function fakeExitLane(dir, { pEdit, pLive, a2Edit, still = false, clear = false }) {
+function fakeExitLane(dir, { pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }) }) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
   const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
   put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
   const boxes = { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
-  const row = (arm, live) => ({ i: 0, y: 0, scrollY: 0, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
+  const accent = (arm) => { const a = accentOf(arm); return a && { drift: null, shotStart: a, shotEnd: a }; };
+  const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: 0, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
   const faithful = { live: false, variant: 'faithful', supported: true, nonDoc: 0 };
   const moved = { i: 1, y: 50, scrollY: 50, boxes: { ...boxes, hero_copy: [10e6, still ? 10e6 : 5e6, 20e6, 20e6] }, live: faithful, files: [], dprMilli: 1000, layers: [], layerCount: 0 };
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
     schema: 'fw.path-pix/1', mode: 'exit', flag: 'hero.exit:threaded', engine: 'webkit', lane: 'test', run: 'test', lossless: true, compositing: 'test', dpr: 1, vw: 100, vh: 100,
     frame: { w: 100, h: 100 }, exit: { T: 0, h: 200, v: 100, n: 100 }, offsets: [0, 1], cut: [],
+    handover: { pin: { A: { ssr: 'ssr' }, A2: { ssr: 'ssr' }, P: { ssr: 'ssr' } } },
     samples: { A: [row('A', faithful), moved], A2: [row('A2', faithful), null], P: [row('P', pLive), null] },
   }));
 }
@@ -181,7 +183,70 @@ test('exit analysis: cells per consumer, floor from A/A, outside change is L, a 
     assert.ok(clear.skipped.some((x) => x.key === 'hero_copy' && x.why === 'transparent in both arms'));
     assert.equal(frozen.driverMoved, false);
     assert.ok(frozen.cells.every((c) => c.grade === 'invalid'));
+    assert.ok(res.cells.every((c) => c.accentPinned && c.invalidWhy === null));
+    const edits = { a2Edit: setPx(15, 15), pEdit: setPx(15, 15), pLive: liveOk };
+    for (const [name, accentOf, hit] of [
+      ['arm A re-created', (arm) => (arm === 'A' ? { n: 1, sig: 'live' } : { n: 1, sig: 'ssr' }), () => true],
+      ['arm P two elements', (arm) => (arm === 'P' ? { n: 2, sig: 'ssr' } : { n: 1, sig: 'ssr' }), (c) => c.kind === 'P'],
+      ['arm A2 unrecorded', (arm) => (arm === 'A2' ? null : { n: 1, sig: 'ssr' }), (c) => c.kind === 'A/A'],
+    ]) {
+      fakeExitLane(dir, { ...edits, accentOf });
+      const bad = analyzeExit(dir, { strips: 'none' });
+      for (const c of bad.cells) {
+        assert.equal(c.accentPinned, !hit(c), `${name} ${c.kind} ${c.key}`);
+        if (hit(c)) { assert.equal(c.grade, 'invalid'); assert.equal(c.invalidWhy, 'accent-unpinned'); assert.equal(c.why, null); assert.equal(c.ifAccepted, 'invalid'); assert.equal(c.absGrade, 'invalid'); }
+        else assert.equal(c.invalidWhy, null);
+      }
+      assert.ok(bad.cells.some(hit), name);
+    }
+    fakeExitLane(dir, { ...edits, accentOf: (arm) => (arm === 'A2' ? { n: 1, sig: 'live' } : { n: 1, sig: 'ssr' }) });
+    const noFloor = analyzeExit(dir, { strips: 'none' });
+    assert.ok(noFloor.cells.filter((c) => c.kind === 'P').every((c) => c.accentPinned && c.floor.valid === false));
+    assert.equal(accentPinned('s', 's', 's', 1), true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+class El {
+  constructor(attrs, kids = []) { this.attrs = attrs; this.kids = kids; this.parent = null; kids.forEach((k) => { k.parent = this; }); }
+  get className() { return this.attrs.class ?? ''; }
+  getAttribute(n) { return this.attrs[n] ?? null; }
+  all() { return this.kids.flatMap((k) => [k, ...k.all()]); }
+  querySelector(sel) { return this.querySelectorAll(sel)[0] ?? null; }
+  querySelectorAll(sel) { return this.all().filter((e) => (sel === 'svg' ? e.attrs.tag === 'svg' : sel === 'path' ? e.attrs.tag === 'path' : sel === '[data-paint]' ? 'data-paint' in e.attrs : sel === '[data-fw="hero-accent"]' ? e.attrs['data-fw'] === 'hero-accent' : false)); }
+  replaceWith(n) { const i = this.parent.kids.indexOf(this); this.parent.kids[i] = n; n.parent = this.parent; this.parent = null; }
+}
+const accentEl = (word, cls) => new El({ 'data-fw': 'hero-accent', class: cls, style: `width:${word}`, 'aria-label': 'you' }, [
+  new El({ 'data-paint': '', style: 'top:0' }, [0, 1, 2].map(() => new El({ tag: 'svg', viewBox: `0 0 ${word} 9` }, [new El({ tag: 'path', d: `M${word}` })]))),
+]);
+
+test('the pin expression replaces the live accent element by the served one, whatever word the live one shows', () => {
+  for (const [liveWord, liveCls] of [['10', 'accent idle'], ['20', 'accent drawingIn'], ['30', 'accent drawingOut']]) {
+    const body = new El({}, [accentEl(liveWord, liveCls)]);
+    const served = new El({}, [accentEl('10', 'accent idle')]);
+    const doc = { querySelector: (s) => body.querySelector(s), querySelectorAll: (s) => body.querySelectorAll(s), importNode: (n) => n };
+    const env = {
+      document: doc, location: { pathname: '/', search: '?fw=hero.exit:threaded' },
+      XMLHttpRequest: class { open() {} send() { this.status = 200; this.responseText = 'html'; } },
+      DOMParser: class { parseFromString() { return served; } },
+    };
+    const out = JSON.parse(new Function(...Object.keys(env), `return ${PIN_ACCENT_EXPR}`)(...Object.values(env)));
+    assert.equal(out.pinned, true);
+    assert.equal(out.same, true, liveWord);
+    assert.equal(out.after, out.ssr);
+    assert.equal(out.before === out.ssr, liveWord === '10' && liveCls === 'accent idle');
+    const again = JSON.parse(new Function(...Object.keys(env), `return ${PIN_ACCENT_EXPR}`)(...Object.values(env)));
+    assert.equal(again.wasPinned, true, 'a second pin finds the pinned node');
+    assert.equal(again.before, out.ssr, 'a pinned node still shows the served word');
+    const seen = JSON.parse(new Function('document', `return ${ACCENT_SIG_EXPR}`)(doc));
+    assert.deepEqual(seen, { n: 1, sig: out.ssr, pinned: true });
+  }
+  const none = { document: { querySelector: () => null } };
+  assert.equal(JSON.parse(new Function(...Object.keys(none), `return ${PIN_ACCENT_EXPR}`)(...Object.values(none))).pinned, false);
+});
+
+test('both lanes pin every arm the same way', () => {
+  for (const [sv, a, b, n] of [['s', 's', 's', 1], ['s', 'x', 's', 1], ['s', 's', 'x', 1], ['s', 's', 's', 2], ['s', 's', 's', 0]]) assert.equal(chromiumAccentPinned(sv, a, b, n), accentPinned(sv, a, b, n));
+  for (const arm of ['A', 'A2', 'P']) { assert.equal(chromiumArmPin(arm), armPin(arm)); for (let i = 0; i < 9; i++) assert.equal(chromiumPinAt(arm, i), pinAt(arm, i)); }
 });

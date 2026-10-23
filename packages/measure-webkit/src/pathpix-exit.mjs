@@ -14,6 +14,23 @@ export function exitClaim(layer, le600) {
   return null;
 }
 
+export const armPin = () => 'ssr-accent';
+export const pinAt = (arm, _i) => armPin(arm);
+export const shownAccent = (pin, live) => (pin === 'ssr-accent' ? { cursor: -1, phase: 'idle' } : live);
+export const pinMasks = (_pin, ms) => ms;
+
+export const accentPinned = (served, start, stop, n) => n === 1 && start === served && stop === served;
+export const accentRowOf = (row) => {
+  const a = row?.accent;
+  if (!a?.shotStart || !a?.shotEnd) return { n: 0, start: null, stop: null };
+  const sig = (x) => (typeof x === 'string' && x ? x : null);
+  return { n: a.shotStart.n === a.shotEnd.n ? a.shotStart.n : 0, start: sig(a.shotStart.sig), stop: sig(a.shotEnd.sig) };
+};
+export const rowsPinned = (served, rows) => rows.every((r) => accentPinned(served, r.start, r.stop, r.n));
+export const gradePinned = (served, rows, c, f, live) => (rowsPinned(served, rows) ? gradeRel(c, f, live) : 'invalid');
+export const unpinnedWhy = (served, rows) => (rowsPinned(served, rows) ? null : 'accent-unpinned');
+export const floorPinned = (served, rows, f) => ({ ...f, valid: f.valid && rowsPinned(served, rows) });
+
 export const rawLe = (a, b) => a.changed <= b.changed && a.maxDelta <= b.maxDelta;
 export const floorOf = (c) => ({ valid: cellValid(c), out: c.out, inside: c.inside });
 export const withinFloor = (c, f) => f.valid && rawLe(c.out, f.out) && rawLe(c.inside, f.inside);
@@ -74,6 +91,7 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   const cells = [], skipped = [], frames = [], liveness = [];
   const moved = driverMoved(S.A, man.exit);
   const floors = new Map();
+  const served = typeof man.handover?.pin?.A?.ssr === 'string' && man.handover.pin.A.ssr ? man.handover.pin.A.ssr : undefined;
   const firstStrip = new Set();
   const cache = new Map();
   const load = (f) => { if (!cache.has(f)) cache.set(f, decodePng(readFileSync(join(dir, f)))); return cache.get(f); };
@@ -96,7 +114,9 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
       frames.push({ arm: armB, i, y: rowA.scrollY, sameA: sameImage(a0, a1), sameB: sameImage(b0, b1), ...fd });
       if (kind === 'P' && strips !== 'none' && fd.changed) emit(`strips/FRAME_P_${i}.png`, encodePng(thumb(a0, b0, del)));
       const live = moved && (kind === 'P' ? liveP(row.live) : liveA(rowA.live) && liveA(row.live));
-      liveness.push({ arm: armB, i, y: row.scrollY, live: row.live ?? null, accepted: live });
+      const accentRows = [accentRowOf(rowA), accentRowOf(row)];
+      const pinned = rowsPinned(served, accentRows);
+      liveness.push({ arm: armB, i, y: row.scrollY, live: row.live ?? null, accepted: live, accentPinned: pinned });
       const sp = splitUnion(del, frame.w, frame.h, masks);
       keys.forEach((key, n) => {
         const box = rowA.boxes[key], layer = baseLayer(key), claim0 = exitClaim(layer, le600);
@@ -112,11 +132,12 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
         };
         const fkey = `${key}@${i}`;
         const floor = kind === 'P' ? floors.get(fkey) ?? null : null;
-        if (kind === 'A/A') floors.set(fkey, floorOf(cell));
+        if (kind === 'A/A') floors.set(fkey, floorPinned(served, accentRows, floorOf(cell)));
         const rec = {
           key, layer, i, y: rowA.scrollY, kind, mask: masks[n], boxSame: JSON.stringify(row.boxes?.[key] ?? null) === JSON.stringify(box), live,
-          cell, floor, grade: gradeRel(cell, floor, live), absGrade: grade(cell), why: whyL(cell, floor, live),
-          ifAccepted: gradeRel({ ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist,
+          cell, floor, accentPinned: pinned, invalidWhy: unpinnedWhy(served, accentRows), grade: gradePinned(served, accentRows, cell, floor, live), absGrade: pinned ? grade(cell) : 'invalid',
+          why: pinned ? whyL(cell, floor, live) : null,
+          ifAccepted: gradePinned(served, accentRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist,
         };
         const changed = cell.inside.changed + cell.out.changed > 0;
         const sk = `${kind}:${key}`;
@@ -155,6 +176,7 @@ export function exitTable(res) {
     out.push(`| ${c.key} | ${c.i} | ${c.y} | ${c.grade}${c.why ? ` (${c.why})` : ''} | ${c.ifAccepted} | ${sumRaw(c.cell.inside)} | ${sumRaw(c.cell.out)} | ${f ? f.grade : '-'} | ${f ? sumRaw(f.cell.inside) : '-'} | ${f ? sumRaw(f.cell.out) : '-'} | ${c.live} | ${c.strip ?? ''} |`);
   }
   out.push('', `faithful driver moved the consumers in arm A: ${res.driverMoved}`);
+  out.push('', `cells marked invalid with reason accent-unpinned: ${res.cells.filter((c) => c.invalidWhy === 'accent-unpinned').length} of ${res.cells.length}`);
   const notLive = res.liveness.filter((l) => l.arm === 'P' && !l.accepted);
   out.push('', `P rows not live: ${notLive.length} of ${res.liveness.filter((l) => l.arm === 'P').length}`);
   if (res.cut?.length) out.push(`arms cut short: ${res.cut.join('; ')}`);
