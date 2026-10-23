@@ -15,7 +15,7 @@
     "census": "node scripts/census.mjs",
     "gen:svg": "node scripts/svg-extract.mjs",
     "test": "node ../../scripts/slot-self.mjs test -- pnpm run test:run",
-    "test:run": "node scripts/svg-extract.mjs && vitest run && node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../../packages/contracts/golden/sched/node-budget.gen.json').workers\")} 'test/port-*.test.mjs'",
+    "test:run": "node scripts/svg-extract.mjs && vitest run && node --test --test-concurrency=${VITEST_MAX_WORKERS:-$(node -p \"require('../../packages/contracts/golden/sched/node-budget.gen.json').workers\")} 'test/port-*.test.mjs' && node --test scripts/part-footprint.classpos.test.mjs",
     "typecheck": "node scripts/svg-extract.mjs && tsc --noEmit"
   },
   "dependencies": {
