@@ -546,9 +546,107 @@ theorem grade_noise_mono (c : Cell) (p p' : Control) (hc : c.control = some p) (
     by_cases hx : c.exactBacked <;> by_cases hm : c.inside.within1 <;> by_cases hn : c.near1Backed <;>
     by_cases hn' : c.withinNoise <;> simp_all
 
-/-! ## Golden vectors -/
+def Raw.le (a b : Raw) : Bool := a.changed ≤ b.changed && a.maxDelta ≤ b.maxDelta
 
-/-- The CSS name of a property. -/
+theorem Raw.le_refl (a : Raw) : a.le a = true := by simp [Raw.le]
+
+theorem Raw.le_trans (a b c : Raw) (h1 : a.le b = true) (h2 : b.le c = true) : a.le c = true := by
+  simp only [Raw.le, Bool.and_eq_true, decide_eq_true_eq] at *
+  omega
+
+structure Floor where
+  valid : Bool
+  out : Raw
+  inside : Raw
+deriving DecidableEq, Repr
+
+def Cell.floor (c : Cell) : Floor := ⟨c.valid, c.out, c.inside⟩
+
+def Cell.withinFloor (c : Cell) (f : Floor) : Bool := f.valid && c.out.le f.out && c.inside.le f.inside
+
+def gradeRel (c : Cell) (f : Option Floor) (live : Bool) : Grade :=
+  if !live then .invalid
+  else match grade c with
+    | .l => if !c.textHold && f.any c.withinFloor then .q else .l
+    | g => g
+
+theorem gradeRel_not_live (c : Cell) (f : Option Floor) : gradeRel c f false = .invalid := by
+  simp [gradeRel]
+
+theorem gradeRel_no_floor (c : Cell) : gradeRel c none true = grade c := by
+  unfold gradeRel
+  cases h : grade c <;> simp
+
+theorem gradeRel_of_ne_l (c : Cell) (f : Option Floor) (h : grade c ≠ .l) : gradeRel c f true = grade c := by
+  unfold gradeRel
+  cases hg : grade c <;> simp_all
+
+theorem gradeRel_q_of_floor (c : Cell) (f : Floor) (hl : grade c = .l) (ht : c.textHold = false)
+    (hw : c.withinFloor f = true) : gradeRel c (some f) true = .q := by
+  simp [gradeRel, hl, ht, hw]
+
+theorem gradeRel_l_of_text (c : Cell) (f : Option Floor) (hl : grade c = .l) (ht : c.textHold = true) :
+    gradeRel c f true = .l := by
+  simp [gradeRel, hl, ht]
+
+theorem gradeRel_l_of_above (c : Cell) (f : Floor) (hl : grade c = .l) (hw : c.withinFloor f = false) :
+    gradeRel c (some f) true = .l := by
+  simp [gradeRel, hl, hw]
+
+theorem gradeRel_l_of_invalid_floor (c : Cell) (f : Floor) (hl : grade c = .l) (hf : f.valid = false) :
+    gradeRel c (some f) true = .l := by
+  apply gradeRel_l_of_above c f hl
+  simp [Cell.withinFloor, hf]
+
+theorem gradeRel_e_iff (c : Cell) (f : Option Floor) (live : Bool) :
+    gradeRel c f live = .e ↔ live = true ∧ grade c = .e := by
+  cases live
+  · simp [gradeRel]
+  · by_cases hl : grade c = .l
+    · by_cases hq : (!c.textHold && f.any c.withinFloor) = true <;> simp [gradeRel, hl, hq]
+    · rw [gradeRel_of_ne_l c f hl]; simp
+
+theorem gradeRel_invalid_iff (c : Cell) (f : Option Floor) (live : Bool) :
+    gradeRel c f live = .invalid ↔ live = false ∨ c.valid = false := by
+  cases live
+  · simp [gradeRel]
+  · by_cases hl : grade c = .l
+    · have hv : c.valid = true := by
+        cases h : c.valid
+        · have := (grade_invalid_iff c).2 h; rw [hl] at this; cases this
+        · rfl
+      by_cases hq : (!c.textHold && f.any c.withinFloor) = true <;> simp [gradeRel, hl, hq, hv]
+    · rw [gradeRel_of_ne_l c f hl]; simp [grade_invalid_iff]
+
+inductive Why where
+  | outside | text | inside
+deriving DecidableEq, Repr
+
+def Why.name : Why → String
+  | .outside => "outside" | .text => "text" | .inside => "inside"
+
+def whyL (c : Cell) (f : Option Floor) (live : Bool) : Option Why :=
+  if gradeRel c f live = .l then
+    if c.out.changed != 0 then some .outside else if c.textHold then some .text else some .inside
+  else none
+
+theorem whyL_isSome_iff (c : Cell) (f : Option Floor) (live : Bool) :
+    (whyL c f live).isSome = true ↔ gradeRel c f live = .l := by
+  unfold whyL
+  by_cases h : gradeRel c f live = .l <;> by_cases ho : c.out.changed = 0 <;> by_cases ht : c.textHold <;> simp_all
+
+theorem whyL_outside (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c f live = .l)
+    (ho : c.out.changed ≠ 0) : whyL c f live = some .outside := by
+  simp [whyL, hl, ho]
+
+theorem whyL_text (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c f live = .l)
+    (ho : c.out.changed = 0) (ht : c.textHold = true) : whyL c f live = some .text := by
+  simp [whyL, hl, ho, ht]
+
+theorem whyL_inside (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c f live = .l)
+    (ho : c.out.changed = 0) (ht : c.textHold = false) : whyL c f live = some .inside := by
+  simp [whyL, hl, ho, ht]
+
 def cssName : CssProp → String
   | .transform => "transform" | .translate => "translate" | .scale => "scale" | .rotate => "rotate"
   | .opacity => "opacity" | .filter => "filter" | .backdropFilter => "backdrop-filter" | .offset => "offset"
@@ -583,7 +681,8 @@ def Cell.json (c : Cell) : Json :=
     ("dpr", toJson c.dpr), ("t1", match c.t1 with | some r => toJson r | none => Json.null),
     ("stripsAccepted", toJson c.stripsAccepted)]
 
-/-- An opacity-only claim, on the compositor in arm B only. -/
+def Floor.json (f : Floor) : Json := Json.mkObj [("valid", toJson f.valid), ("out", f.out.json), ("inside", f.inside.json)]
+
 def opacityClaim : Claim := ⟨[.opacity], false, false, false, false, true, none⟩
 
 /-- A translate claim, on the compositor in arm B only. -/
@@ -656,6 +755,39 @@ def premiseCases : List (String × Engine × Claim) :=
    ("filter on Chromium", .chromium, ⟨[.filter], false, false, false, false, true, none⟩),
    ("backdrop-filter on WebKit, not composited", .webkit, ⟨[.backdropFilter], false, false, false, false, false, none⟩),
    ("rotate", .chromium, ⟨[.rotate], false, false, false, true, true, none⟩)]
+
+
+def relCases : List (String × Cell × Option Floor × Bool) :=
+  let z : Raw := ⟨0, 0⟩
+  let fl (v : Bool) (o i : Raw) : Option Floor := some ⟨v, o, i⟩
+  let plain := mkCell { opacityClaim with compA := true, props := [.opacity, .translate] } z z
+  let txt := mkCell { moveClaim with text := true } z ⟨30, 4⟩
+  let big := mkCell { moveClaim with compA := true } z ⟨30, 4⟩
+  [("byte-equal E stays E under a floor", ({ mkCell { opacityClaim with compA := true } z z with p1 := true }, fl true ⟨9, 9⟩ ⟨9, 9⟩, true)),
+   ("L inside the floor drops to Q", (big, fl true ⟨0, 0⟩ ⟨30, 4⟩, true)),
+   ("L with a pixel more than the floor stays L", (big, fl true ⟨0, 0⟩ ⟨29, 4⟩, true)),
+   ("L with a larger delta than the floor stays L", (big, fl true ⟨0, 0⟩ ⟨40, 3⟩, true)),
+   ("L with an invalid floor stays L", (big, fl false ⟨0, 0⟩ ⟨99, 99⟩, true)),
+   ("L without a floor stays L", (big, none, true)),
+   ("text hold stays L inside the floor", (txt, fl true ⟨0, 0⟩ ⟨99, 99⟩, true)),
+   ("outside change within the floor drops to Q", ({ big with out := ⟨5, 2⟩ }, fl true ⟨5, 2⟩ ⟨30, 4⟩, true)),
+   ("outside change above the floor stays L", ({ big with out := ⟨6, 2⟩ }, fl true ⟨5, 2⟩ ⟨30, 4⟩, true)),
+   ("Q stays Q", ({ plain with inside := ⟨10, 1⟩ }, fl true z z, true)),
+   ("invalid cell stays invalid", ({ big with sameB := false }, fl true ⟨99, 99⟩ ⟨99, 99⟩, true)),
+   ("arm not live is invalid", ({ mkCell { opacityClaim with compA := true } z z with p1 := true }, fl true ⟨9, 9⟩ ⟨9, 9⟩, false)),
+   ("L outside with text hold is outside", ({ txt with out := ⟨1, 1⟩ }, fl true ⟨0, 0⟩ ⟨99, 99⟩, true))]
+
+def regionCases : List (List ((Nat × Nat) × (Nat × Nat)) × Nat × Nat × Nat) :=
+  let a : (Nat × Nat) × (Nat × Nat) := ((10, 20), (10, 20))
+  let b : (Nat × Nat) × (Nat × Nat) := ((15, 30), (15, 30))
+  [([a, b], 0, 12, 12), ([a, b], 0, 17, 17), ([a, b], 0, 25, 25), ([a, b], 0, 40, 40), ([a, b], 1, 17, 17),
+   ([a], 0, 20, 10), ([], 0, 0, 0)]
+
+def exitCases : List (Nat × Nat) := [(0, 600), (0, 932), (300, 664), (0, 40), (12, 1688)]
+
+def exitClaimCases : List (String × Bool) :=
+  [("hero_copy", true), ("hero_copy", false), ("hero.cue_cue", true), ("hero.cue_cue", false),
+   ("hero.orbit_card", true), ("hero.orbit_card", false), ("hero.deck_article", true), ("nav_bar", true)]
 
 def offsetAt (maxY i : Nat) : Nat := i * maxY / 8
 
@@ -748,6 +880,87 @@ theorem rawOf_ok (px : List Nat) (h : ∀ d ∈ px, d ≤ 255) : (rawOf px).ok =
   rw [e]
   simp [h1]
 
+def inAny (ms : List ((Nat × Nat) × (Nat × Nat))) (c r : Nat) : Bool := ms.any (inMask · c r)
+
+theorem inAny_nil (c r : Nat) : inAny [] c r = false := rfl
+
+theorem inAny_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (c r : Nat) :
+    inAny ms c r = true ↔ ∃ m ∈ ms, inMask m c r = true := by
+  simp [inAny]
+
+inductive Region where
+  | inside | other | out
+deriving DecidableEq, Repr
+
+def Region.name : Region → String
+  | .inside => "inside" | .other => "other" | .out => "out"
+
+def region (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Region :=
+  if inMask m c r then .inside else if inAny ms c r then .other else .out
+
+theorem region_inside_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) :
+    region ms m c r = .inside ↔ inMask m c r = true := by
+  unfold region
+  by_cases h : inMask m c r = true <;> by_cases h2 : inAny ms c r = true <;> simp_all
+
+theorem region_out_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) :
+    region ms m c r = .out ↔ inMask m c r = false ∧ inAny ms c r = false := by
+  unfold region
+  by_cases h : inMask m c r = true <;> by_cases h2 : inAny ms c r = true <;> simp_all
+
+theorem region_other_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) :
+    region ms m c r = .other ↔ inMask m c r = false ∧ inAny ms c r = true := by
+  unfold region
+  by_cases h : inMask m c r = true <;> by_cases h2 : inAny ms c r = true <;> simp_all
+
+theorem region_out_not_in_any (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat)
+    (h : region ms m c r = .out) : ∀ m' ∈ ms, inMask m' c r = false := by
+  intro m' hm'
+  have h2 := ((region_out_iff ms m c r).1 h).2
+  cases hb : inMask m' c r
+  · rfl
+  · have : inAny ms c r = true := (inAny_iff ms c r).2 ⟨m', hm', hb⟩
+    simp_all
+
+def exitOffsets (T n : Nat) : List Nat :=
+  [T, T + 1, T + n / 4, T + n / 2, T + n * 19 / 20, T + n * 19 / 20 + 1, T + n - 1, T + n, T + n + 1]
+
+theorem exitOffsets_length (T n : Nat) : (exitOffsets T n).length = 9 := rfl
+
+theorem exitOffsets_first (T n : Nat) : (exitOffsets T n).head? = some T := rfl
+
+theorem exitOffsets_last (T n : Nat) : (exitOffsets T n).getLast? = some (T + n + 1) := rfl
+
+theorem exitOffsets_in_range (T n : Nat) (hn : 1 ≤ n) : ∀ y ∈ exitOffsets T n, T ≤ y ∧ y ≤ T + n + 1 := by
+  intro y hy
+  simp only [exitOffsets, List.mem_cons, List.not_mem_nil, or_false] at hy
+  omega
+
+theorem exitOffsets_sorted (T n : Nat) (hn : 40 ≤ n) : (exitOffsets T n).Pairwise (· ≤ ·) := by
+  simp only [exitOffsets, List.pairwise_cons, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp,
+    forall_eq, List.Pairwise.nil, and_true, false_implies, implies_true]
+  omega
+
+def exitClaim (layer : String) (le600 : Bool) : Option Claim :=
+  let mk (ps : List CssProp) : Option Claim := some ⟨ps, false, true, false, false, false, none⟩
+  if layer == "hero_copy" then mk (if le600 then [.opacity, .transform] else [.opacity, .transform, .filter])
+  else if layer == "hero.cue_cue" then mk (if le600 then [.opacity, .transform, .filter] else [.opacity, .filter])
+  else if layer == "hero.orbit_card" || layer == "hero.deck_article" then mk [.opacity, .translate]
+  else none
+
+theorem exitClaim_text (layer : String) (le600 : Bool) (c : Claim) (h : exitClaim layer le600 = some c) :
+    c.text = true := by
+  unfold exitClaim at h
+  split at h <;> try (simp at h; subst h; rfl)
+  split at h <;> try (simp at h; subst h; rfl)
+  split at h <;> try (simp at h; subst h; rfl)
+  cases h
+
+theorem exitClaim_none (layer : String) (le600 : Bool) (h : exitClaim layer le600 = none) :
+    layer ≠ "hero_copy" ∧ layer ≠ "hero.cue_cue" ∧ layer ≠ "hero.orbit_card" ∧ layer ≠ "hero.deck_article" := by
+  unfold exitClaim at h
+  refine ⟨fun e => ?_, fun e => ?_, fun e => ?_, fun e => ?_⟩ <;> subst e <;> simp at h
+
 def offsetCases : List Nat := [0, 1, 7, 8, 100, 4626, 5000]
 
 def maskCases : List (String × Nat × Nat × Nat × Box) :=
@@ -773,6 +986,21 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("premises", toJson ((premises e c).map Premise.name))]).compress) ++
   offsetCases.map (fun m =>
     (Json.mkObj [("kind", "offsets"), ("maxY", toJson m), ("offsets", toJson (offsets m))]).compress) ++
+  relCases.map (fun (n, c, f, live) =>
+    (Json.mkObj [("kind", "rel"), ("name", toJson n), ("cell", c.json),
+      ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("grade", toJson (gradeRel c f live).name),
+      ("why", match whyL c f live with | some w => toJson w.name | none => Json.null),
+      ("ifAccepted", toJson (gradeRel { c with stripsAccepted := true } f live).name)]).compress) ++
+  regionCases.map (fun (ms, i, x, y) =>
+    let m := ms.getD i ((0, 0), (0, 0))
+    (Json.mkObj [("kind", "region"), ("masks", toJson (ms.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])), ("mine", toJson i),
+      ("x", toJson x), ("y", toJson y), ("region", toJson (region ms m x y).name)]).compress) ++
+  exitCases.map (fun (t, n) =>
+    (Json.mkObj [("kind", "exitOffsets"), ("T", toJson t), ("n", toJson n), ("offsets", toJson (exitOffsets t n))]).compress) ++
+  exitClaimCases.map (fun (l, b) =>
+    (Json.mkObj [("kind", "exitClaim"), ("layer", toJson l), ("le600", toJson b),
+      ("claim", match exitClaim l b with | some c => c.json | none => Json.null)]).compress) ++
   maskCases.map (fun (n, dpr, fw, fh, b) =>
     let m := mask dpr fw fh b
     (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),
@@ -809,6 +1037,9 @@ def run (args : List String) : IO UInt32 := do
    ["P1", "P2", "P3", "P4", "S1", "T1", "C1", "C2"], ["P1", "P2", "P3", "P4", "C6"], ["P1", "P2", "P3", "P4"],
    ["P2", "P3", "P4"], ["P1", "P2", "P3", "P4", "C2"]]
 #guard (offsets 4626) == [0, 578, 1156, 1734, 2313, 2891, 3469, 4047, 4626]
+#guard (exitOffsets 0 600) == [0, 1, 150, 300, 570, 571, 599, 600, 601]
+#guard (relCases.map fun (_, c, f, live) => (gradeRel c f live).name) ==
+  ["E", "Q", "L", "L", "L", "L", "L", "Q", "L", "Q", "invalid", "invalid", "L"]
 #guard (mask 3 1170 2532 ⟨10000000, 20500000, 100000000, 40000000⟩) == ((29, 331), (60, 183))
 #guard (rawOf [3, 0, 255, 2]) == ⟨3, 255⟩ && (rawOf [0, 256]).ok == false
 #guard (accelCases.map accelerated) ==
