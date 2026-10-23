@@ -152,6 +152,193 @@ theorem wtName_not_dots (dir n : String) (h : wtName dir = some n) : (n != "." &
     · cases h
   · cases h
 
+def wtSegs (name : String) : List String := [".claude", "worktrees", name]
+
+def inWtAny (name : String) (p : List String) : Prop := ∃ a b, p = a ++ wtSegs name ++ b ∧ b ≠ []
+
+def inWtAt (root : List String) (name : String) (p : List String) : Prop := ∃ b, p = root ++ wtSegs name ++ b ∧ b ≠ []
+
+def inWtB (root : List String) (name : String) (p : List String) : Bool :=
+  (root ++ wtSegs name).isPrefixOf p && decide (root.length + 3 < p.length)
+
+theorem inWtB_iff (root : List String) (name : String) (p : List String) :
+    inWtB root name p = true ↔ inWtAt root name p := by
+  simp only [inWtB, Bool.and_eq_true, List.isPrefixOf_iff_prefix, decide_eq_true_eq, inWtAt]
+  constructor
+  · rintro ⟨⟨b, rfl⟩, hl⟩
+    refine ⟨b, rfl, ?_⟩
+    rintro rfl
+    simp [wtSegs] at hl
+  · rintro ⟨b, rfl, hb⟩
+    refine ⟨⟨b, rfl⟩, ?_⟩
+    have := List.length_pos_iff.mpr hb
+    simp [wtSegs]
+    omega
+
+theorem inWtAt_inWtAny (root : List String) (name : String) (p : List String) (h : inWtAt root name p) : inWtAny name p :=
+  match h with | ⟨b, hp, hb⟩ => ⟨root, b, hp, hb⟩
+
+theorem inWtAt_below (root : List String) (name : String) (b : List String) (hb : b ≠ []) :
+    inWtAt root name (root ++ wtSegs name ++ b) :=
+  ⟨b, rfl, hb⟩
+
+def plainSeg (s : String) : Bool := s != "" && s != "." && s != ".."
+
+def step (acc : List String) (s : String) : List String :=
+  if s == "" || s == "." then acc else if s == ".." then acc.tail else s :: acc
+
+def resolveSegs (p : List String) : List String := (p.foldl step []).reverse
+
+theorem foldl_step_plain (p acc : List String) (h : ∀ s ∈ p, plainSeg s = true) :
+    p.foldl step acc = p.reverse ++ acc := by
+  induction p generalizing acc with
+  | nil => rfl
+  | cons s r ih =>
+    have hs := h s (by simp)
+    simp only [plainSeg, Bool.and_eq_true, bne_iff_ne, ne_eq] at hs
+    simp [List.foldl, step, hs, ih _ (fun x hx => h x (by simp [hx]))]
+
+theorem resolve_plain (p : List String) (h : ∀ s ∈ p, plainSeg s = true) : resolveSegs p = p := by
+  simp [resolveSegs, foldl_step_plain p [] h]
+
+theorem inWtAt_sound (root : List String) (name : String) (p : List String) (hp : ∀ s ∈ p, plainSeg s = true)
+    (h : inWtAt root name p) : ∃ b, b ≠ [] ∧ resolveSegs p = resolveSegs (root ++ wtSegs name) ++ b := by
+  obtain ⟨b, rfl, hb⟩ := h
+  refine ⟨b, hb, ?_⟩
+  rw [resolve_plain _ hp, resolve_plain _ (fun s hs => hp s (List.mem_append_left _ hs))]
+
+def escapeTail : List String := ["..", "..", "apps", "x.ts"]
+
+theorem escape_walks_out (root : List String) (n : String) (hr : ∀ s ∈ root, plainSeg s = true)
+    (hn : plainSeg n = true) :
+    inWtAt root n (root ++ wtSegs n ++ escapeTail) ∧
+      resolveSegs (root ++ wtSegs n ++ escapeTail) = root ++ [".claude", "apps", "x.ts"] ∧
+      ¬ inWtAt root n (resolveSegs (root ++ wtSegs n ++ escapeTail)) := by
+  have hres : resolveSegs (root ++ wtSegs n ++ escapeTail) = root ++ [".claude", "apps", "x.ts"] := by
+    simp only [plainSeg, Bool.and_eq_true, bne_iff_ne, ne_eq] at hn
+    simp [resolveSegs, foldl_step_plain root [] hr, wtSegs, escapeTail, step, hn]
+  refine ⟨inWtAt_below _ _ _ (by simp [escapeTail]), hres, ?_⟩
+  rw [hres]
+  rintro ⟨b, hb, -⟩
+  simp [wtSegs] at hb
+
+def nameOk (n : String) : Bool := plainSeg n && n.all nameChar
+
+def absPlain (p : String) : Bool :=
+  match segs p with
+  | "" :: r => !r.isEmpty && r.all plainSeg
+  | _ => false
+
+def anchor (main raw : String) : String := if raw.startsWith "/" then raw else main ++ "/" ++ raw
+
+inductive Own where
+  | own | badMain | badName | notPlain | outside
+deriving Repr, DecidableEq
+
+def Own.name : Own → String
+  | .own => "own" | .badMain => "badMain" | .badName => "badName" | .notPlain => "notPlain" | .outside => "outside"
+
+/-- Whether an edited path is inside worktree `name` of the main checkout `main`, after anchoring a relative `raw` at `main`. -/
+def ownEdit (main name raw : String) : Own :=
+  if !absPlain main then .badMain
+  else if !nameOk name then .badName
+  else if !absPlain (anchor main raw) then .notPlain
+  else if inWtB (segs main) name (segs (anchor main raw)) then .own else .outside
+
+theorem ownEdit_badMain (main name raw : String) (h : absPlain main = false) : ownEdit main name raw = .badMain := by
+  simp [ownEdit, h]
+
+theorem ownEdit_badName (main name raw : String) (hm : absPlain main = true) (h : nameOk name = false) :
+    ownEdit main name raw = .badName := by
+  simp [ownEdit, hm, h]
+
+theorem ownEdit_notPlain (main name raw : String) (hm : absPlain main = true) (hn : nameOk name = true)
+    (h : absPlain (anchor main raw) = false) : ownEdit main name raw = .notPlain := by
+  simp [ownEdit, hm, hn, h]
+
+theorem ownEdit_outside (main name raw : String) (hm : absPlain main = true) (hn : nameOk name = true)
+    (hp : absPlain (anchor main raw) = true) (h : ¬ inWtAt (segs main) name (segs (anchor main raw))) :
+    ownEdit main name raw = .outside := by
+  have : inWtB (segs main) name (segs (anchor main raw)) = false := by
+    cases hb : inWtB (segs main) name (segs (anchor main raw))
+    · rfl
+    · exact absurd ((inWtB_iff _ _ _).mp hb) h
+  simp [ownEdit, hm, hn, hp, this]
+
+theorem ownEdit_own_iff (main name raw : String) :
+    ownEdit main name raw = .own ↔ absPlain main = true ∧ nameOk name = true ∧ absPlain (anchor main raw) = true ∧
+      inWtAt (segs main) name (segs (anchor main raw)) := by
+  rw [← inWtB_iff]
+  unfold ownEdit
+  cases absPlain main <;> cases nameOk name <;> cases absPlain (anchor main raw) <;>
+    cases inWtB (segs main) name (segs (anchor main raw)) <;> simp
+
+theorem absPlain_segs (p : String) (h : absPlain p = true) : ∃ r, segs p = "" :: r ∧ ∀ s ∈ r, plainSeg s = true := by
+  unfold absPlain at h
+  split at h
+  · rename_i r hr
+    simp only [Bool.and_eq_true, List.all_eq_true] at h
+    exact ⟨r, hr, h.2⟩
+  · cases h
+
+theorem resolve_abs (r : List String) (h : ∀ s ∈ r, plainSeg s = true) : resolveSegs ("" :: r) = r := by
+  simp [resolveSegs, step, foldl_step_plain r [] h]
+
+theorem ownEdit_dot (main name raw : String) (h : "." ∈ segs (anchor main raw) ∨ ".." ∈ segs (anchor main raw)) :
+    ownEdit main name raw ≠ .own := by
+  intro ho
+  obtain ⟨-, -, hp, -⟩ := (ownEdit_own_iff _ _ _).mp ho
+  obtain ⟨r, hr, hpl⟩ := absPlain_segs _ hp
+  rw [hr] at h
+  rcases h with h | h <;> rcases List.mem_cons.mp h with h | h <;> simp_all [plainSeg] <;>
+    (have := hpl _ h; simp at this)
+
+theorem ownEdit_sound (main name raw : String) (h : ownEdit main name raw = .own) :
+    ∃ b, b ≠ [] ∧ (∀ s ∈ b, plainSeg s = true) ∧
+      resolveSegs (segs (anchor main raw)) = resolveSegs (segs main) ++ wtSegs name ++ b := by
+  obtain ⟨hm, -, hp, b, hb, hne⟩ := (ownEdit_own_iff _ _ _).mp h
+  obtain ⟨m, hm', hmp⟩ := absPlain_segs _ hm
+  obtain ⟨r, hr, hrp⟩ := absPlain_segs _ hp
+  rw [hm', hr] at hb
+  simp only [List.cons_append, List.cons.injEq, true_and] at hb
+  subst hb
+  refine ⟨b, hne, fun s hs => hrp s (by simp [hs]), ?_⟩
+  rw [hm', hr, resolve_abs _ hrp, resolve_abs _ hmp]
+
+theorem other_checkout_passes_name_only (main other : List String) (name f : String)
+    (wts : List (List String × String)) (_hmem : (other, name) ∈ wts) (_huniq : (wts.map Prod.snd).Nodup)
+    (hd : ¬ main <+: other) :
+    inWtAny name (other ++ wtSegs name ++ [f]) ∧ ¬ inWtAt main name (other ++ wtSegs name ++ [f]) := by
+  refine ⟨⟨other, [f], rfl, by simp⟩, ?_⟩
+  rintro ⟨b, hb, hne⟩
+  simp only [List.append_assoc] at hb
+  rcases List.append_eq_append_iff.mp hb with ⟨a', hma, ht⟩ | ⟨c', hoc, -⟩
+  · have hl := congrArg List.length ht
+    have := List.length_pos_iff.mpr hne
+    simp [wtSegs] at hl
+    have ha : a' = [] := List.eq_nil_of_length_eq_zero (by omega)
+    subst ha
+    exact hd ⟨[], by simp [hma]⟩
+  · exact hd ⟨c', hoc.symm⟩
+
+example : inWtAny "wf_a" (["other"] ++ wtSegs "wf_a" ++ ["x.ts"]) ∧ ¬ inWtAt ["main"] "wf_a" (["other"] ++ wtSegs "wf_a" ++ ["x.ts"]) :=
+  other_checkout_passes_name_only ["main"] ["other"] "wf_a" "x.ts" [(["other"], "wf_a")] (by simp) (by simp)
+    (by rintro ⟨t, ht⟩; simp at ht)
+
+theorem nested_checkout_inside (main : List String) (name f : String) :
+    main <+: main ++ wtSegs name ++ ["sub"] ∧ inWtAt main name ((main ++ wtSegs name ++ ["sub"]) ++ wtSegs name ++ [f]) :=
+  ⟨⟨wtSegs name ++ ["sub"], by simp⟩, ⟨["sub"] ++ wtSegs name ++ [f], by simp, by simp⟩⟩
+
+#guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a/apps/x.ts" == .own
+#guard ownEdit "/m" "wf_a" ".claude/worktrees/wf_a/apps/x.ts" == .own
+#guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a/../../apps/x.ts" == .notPlain
+#guard ownEdit "/m" "wf_a" "/m/apps/x.ts" == .outside
+#guard ownEdit "/m" "wf_a" "/o/.claude/worktrees/wf_a/apps/x.ts" == .outside
+#guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a" == .outside
+#guard ownEdit "/m/" "wf_a" "/m/.claude/worktrees/wf_a/x" == .badMain
+#guard ownEdit "/m" ".." "/m/.claude/worktrees/../x" == .badName
+#guard resolveSegs (segs "/m/.claude/worktrees/wf_a/../../apps/x.ts") == ["m", ".claude", "apps", "x.ts"]
+
 theorem gen_skip (gen : List String) (p : String) (h : p ∈ gen) : classify gen p = .skip :=
   skipped_skip gen p (by simp [skipped, h])
 
