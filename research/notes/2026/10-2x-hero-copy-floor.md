@@ -189,7 +189,7 @@ run (`consensusSummary`, `consensusCells`, `probeTable`); no number is typed by 
 **Rule (CONFIRMED, Lean).** WebKit now captures three identical arms before P: A, A2, A3 (`pinArms` in `lean/Fw/Gate/PathPix.lean`).
 Per P cell and per zone (outside every mask, inside the layer's mask) a zone is `counted` when P differs from A there and A vs A2
 and A vs A3 both changed 0 pixels there (`Zone.agree`, `Zone.seen`); `varied` when P differs and an identical-arm pair also differs;
-`quiet` when P matches A. A cell with a `varied` zone gets the verdict `varied` and is not graded; otherwise it keeps its grade
+`quiet` when P matches A. A cell gets the verdict `varied` and is not graded when at least one zone is `varied` and no zone is `counted` (`Seen.join`: counted over varied over quiet); otherwise it keeps its grade (`gradeRel`), and that grade still includes the P pixels of a `varied` zone when the other zone is `counted` (no such cell in run 40026419647)
 (`verdict`, `consensus`, theorems `verdict_varied_iff`, `verdict_graded_iff`, `seen_varied_of_a2`, `seen_varied_of_a3`,
 `seen_dropping_a3`; 78 golden lines of kind `consensus`, plus kinds `seen` and `probeHit`, replayed by `test/pathpix.test.mjs`). A cell
 without A3 (Chromium) is decided by A2 alone. `probesHit` has a Lean twin now (`probeHit`, `probesHit`, `probeHit_iff`,
@@ -225,7 +225,7 @@ needs one more entry), so its table is decided by A2 alone; its A/A is 0-0 every
 | webkit-3 | hero.deck_article#1 | 0 | 0 | L | varied | 2004-11 / 0-0 | 33-1 / 0-0 | 33-1 / 0-0 | varied | quiet |
 
 - **webkit-1, offset 5 (hero_copy and hero.cue_cue):** the identical arms differ by the amount P differs (hero_copy inside 192513-20
-  in A vs A2 and A vs A3; outside 2015-5 vs A2 and 2017-5 vs A3), so the verdict is `varied` and the cell is not graded. A2 and A3
+  in A vs A2 and A vs A3; outside 2015-5 vs A2 and 2017-5 vs A3), so the verdict is `varied` and the cell is not graded in the consensus tables; the engine tables, the hero_copy tables and the "L cells with a strip" list still show the P grade L for the 5 varied cells (lookList reads c.grade, not c.consensus.verdict). A2 and A3
   differ from each other outside (2015 vs 2017 pixels), so the three identical arms do not even agree on one image. P shows the same
   inside count and delta as the identical arms, so A is the odd one out (INFERRED from the equal counts; the report has no pixel-level
   A2 vs P column).
