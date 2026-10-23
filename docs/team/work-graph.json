@@ -18229,6 +18229,28 @@
     "docs/team/handoffs/timing-work-dims.md"
    ],
    "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-lane-noflip",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "trajectory-first-coverage"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/cli.mjs",
+    "packages/gate-breakpoints/test/trajectory*.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-lane-noflip.md"
+   ],
+   "title": "trajectory-first-coverage review follow-ups: (1) the lane can still flip on one extra original sample when the candidate and faithful arms differ in open-pass count: rel (skip firstOpen) (skip firstOpen) = ok but rel (fail coverage) (skip firstOpen) = new (reproduced: original 5 passes 3 hits, cand nw 5, faithful nw 4 -> CLEAN; one more original hit -> RED). Treat a faithful skip:firstOpen as undecided in rel whenever the candidate's open@1 is skip:firstOpen or fail:coverage, and prove a lane-level no-flip theorem (laneOf never moves red<->clean under one extra original pass); golden + JS twin. (2) cli.mjs:27 summaryMd prints red.red ? 'RED' : 'CLEAN', so an UNDECIDED lane is published as CLEAN: print red.lane.toUpperCase() and add the undecided row. (3) Link the timing model (sampled_iff, phase_covers: 1 or 2 slots by vsync phase) to firstCover's rate by a theorem or state the gap. Then the lead moves ledger row hero.scenePause (runs 39926829451, 39557718020)."
   }
  ],
  "deadline": {
