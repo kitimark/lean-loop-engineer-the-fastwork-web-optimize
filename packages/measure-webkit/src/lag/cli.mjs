@@ -75,7 +75,7 @@ async function main() {
       if (!v.files) throw new Error('usage: swap-report --files a.json,b.json [--sources "run id ..."] [--json file] [--out file]');
       const docs = read(v.files);
       const passes = swapPassesOf(docs);
-      if (!passes.length) throw new Error('no swap pass in the files (a run with --cost on|only at a query, target rewrite)');
+      if (!passes.length) throw new Error('no swap pass in the files (a run with --swap --cost on|only at a query, target rewrite)');
       const cells = windowCells(passes);
       const md = swapMd(cells, (v.sources ?? v.files).split(';'));
       if (v.out) writeFileSync(resolve(v.out), `${md}\n`); else console.log(md);

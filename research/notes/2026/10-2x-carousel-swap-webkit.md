@@ -69,10 +69,10 @@ Layout rows per swap window (12 captures per arm, sorted):
 | swap:6 | 4..16, median 14 | 3..14, median 4 |
 | swap:7 | 6..16, median 13 | 3..16, median 15 |
 
-Paint rows per swap window: faithful 8..49 (medians 31..38), crop 6..22 (medians 7..21), one crop outlier of 54 in swap:0.
+Paint rows per swap window: faithful 8..49 (medians 31..38.5), crop 6..22 (medians 7..20.5), one crop outlier of 54 in swap:0.
 
 - MEASURED: the crop has about 3 to 7 Layout rows in most swap windows where the faithful arm has about 14, but in windows 1, 4 and 7
-  (every third) its median is 14.5 to 15, the same as the faithful arm. The cause of the every-third pattern is not found (open).
+  (every third) its median is 14 to 15, the same as the faithful arm. The cause of the every-third pattern is not found (open).
 - MEASURED: the faithful floor is wide (4 to 16 in a window). Values of 4 to 6 occur in only 9 of 96 faithful window samples, yet they make the crop range overlap, so the rule leaves the cell unresolved.
 - MEASURED: Paint is lower in the crop in every window (medians 7..21 against 31..38), but only swap:1 and swap:5, where the faithful
   minimum is highest (28 and 30), clear the rule.
