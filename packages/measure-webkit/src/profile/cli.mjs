@@ -14,7 +14,7 @@ if (cmd === 'sim') {
   const only = parseArms(flag('--arms'));
   if (!site || (!search && !only)) { console.error('sim needs --site <dir> and --search ?fw=... (or --arms base,aa,bound)'); process.exit(2); }
   const out = flag('--out') ?? 'out/smoothness-webkit';
-  const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), only, holdMs: flag('--hold-ms'), settleMs: Number(flag('--settle') ?? 2500) });
+  const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), only, holdMs: flag('--hold-ms'), touchDriver: flag('--touch-driver') ? resolve(flag('--touch-driver')) : undefined, settleMs: Number(flag('--settle') ?? 2500) });
   mkdirSync(out, { recursive: true });
   const { writeRaws } = await import('./raw.mjs');
   writeFileSync(join(out, 'sim.json'), `${JSON.stringify(writeRaws(out, 'sim', res))}\n`);
