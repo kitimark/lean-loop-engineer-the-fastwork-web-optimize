@@ -1,0 +1,5 @@
+{"name":"a span written before the slot member has no work dimensions","span":{"commit":"3d0d68a","durMs":94437,"exit":0,"host":"local","load":2,"startMs":1792745374550,"step":"parallel group","tool":"lean/check"},"work":{}}
+{"name":"width 1 of 30 jobs","span":{"commit":"3d0d68a","durMs":94437,"exit":0,"host":"local","load":2,"slot":{"jobs":30,"width":1},"startMs":1792745374550,"step":"parallel group","tool":"lean/check"},"work":{"width":"1"}}
+{"name":"width 2 of 30 jobs","span":{"commit":"3d0d68a","durMs":49426,"exit":0,"host":"local","load":2,"slot":{"jobs":30,"width":2},"startMs":1792745374550,"step":"parallel group","tool":"lean/check"},"work":{"width":"2"}}
+{"name":"width 2 of 31 jobs: the job count is recorded, not a work dimension","span":{"commit":"3d0d68a","durMs":49426,"exit":0,"host":"local","load":2,"slot":{"jobs":31,"width":2},"startMs":1792745374550,"step":"parallel group","tool":"lean/check"},"work":{"width":"2"}}
+{"name":"width 8 of 30 jobs","span":{"commit":"3d0d68a","durMs":30000,"exit":0,"host":"local","load":2,"slot":{"jobs":30,"width":8},"startMs":1792745374550,"step":"parallel group","tool":"lean/check"},"work":{"width":"8"}}

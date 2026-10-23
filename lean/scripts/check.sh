@@ -174,6 +174,7 @@ run_group() {
     wait "$p" || echo "$i" >> "$tmp/failed"
     i=$((i + 1))
   done
+  span_more=",\"slot\":{\"width\":$LAKE_SLOT_WIDTH,\"jobs\":$n}"
 }
 lake_slot_hold ..
 lake_slot_gate "$tmp/gate"

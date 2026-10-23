@@ -1,3 +1,4 @@
+import Std.Data.String.ToNat
 import Lean.Data.Json
 import Fw.Sup.Adapt
 /-!
@@ -10,8 +11,9 @@ time by a wide margin (the sweeps-vs-shards case of the breakpoint gate). A step
 agent to investigate and improve (task `timing-alert` wires the op and the alert).
 
 Definitions (all durations in whole ms, `Nat`):
-* A sample is `(tool, step, d, h, λ, kind)` with host `h ∈ {local, ci}` and
-  `λ` the floor of the 1-min load average when it ran. Its key is `(tool, step, h, kind)`.
+* A sample is `(tool, step, d, h, λ, kind, work)` with host `h ∈ {local, ci}`,
+  `λ` the floor of the 1-min load average when it ran and `work` its work dimensions (`slotWork`: the granted Lake slot
+  width, none for a span written without one). Its key is `(tool, step, h, kind, work)`.
 * A local sample with `λ > L` is **contended** (`L = contendedLoad = 8`, the CPUs of the local Mac): the machine ran more
   runnable tasks than CPUs, so its duration says how busy the machine was, not how the step changed. It gets the verdict
   `contended` (never `slow`) and never enters a window. A CI sample is never contended.
@@ -42,7 +44,7 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
 `ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
 `lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
-`ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
+`judgeQ_same_work`, `judgeQ_other_work`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
@@ -74,6 +76,7 @@ structure Sample where
   skipped : Bool := false
   waitMs  : Nat := 0
   waits   : List (Fw.Sup.Adapt.WhyTag × Nat) := []
+  work    : List (String × String) := []
 deriving DecidableEq, Repr
 
 def fullRun (exit : Option Int) (skipped : Bool) : Bool := !skipped && (exit == none || exit == some 0)
@@ -92,16 +95,40 @@ theorem fullRun_skipped (e : Option Int) : fullRun e true = false := rfl
 theorem fullRun_nonzero (n : Int) (b : Bool) (h : n ≠ 0) : fullRun (some n) b = false := by
   simp [fullRun, h]
 
-/-- The history a sample belongs to: same tool, same step, same host, same run kind. -/
+/-- The history a sample belongs to: same tool, step, host, run kind and work dimensions. -/
 structure Key where
   tool : String
   step : String
   host : Host
   kind : String := ""
+  work : List (String × String) := []
 deriving DecidableEq, Repr
 
 /-- The key of a sample. -/
-def Sample.key (s : Sample) : Key := { tool := s.tool, step := s.step, host := s.host, kind := s.kind }
+def Sample.key (s : Sample) : Key := { tool := s.tool, step := s.step, host := s.host, kind := s.kind, work := s.work }
+
+def widthDim : String := "width"
+
+/-- The work dimensions of a span from its granted slot width and job count: the width only, none without a width. -/
+def slotWork (width : Option Nat) (_jobs : Option Nat) : List (String × String) :=
+  match width with
+  | some w => [(widthDim, toString w)]
+  | none => []
+
+#guard slotWork (some 2) (some 30) == [("width", "2")] && slotWork (some 1) none == [("width", "1")]
+#guard slotWork none (some 30) == [] && slotWork (some 2) (some 30) == slotWork (some 2) (some 31)
+
+theorem slotWork_some (w : Nat) (j : Option Nat) : slotWork (some w) j = [(widthDim, toString w)] := rfl
+
+theorem slotWork_none (j : Option Nat) : slotWork none j = [] := rfl
+
+theorem slotWork_jobs (w : Option Nat) (j j' : Option Nat) : slotWork w j = slotWork w j' := by
+  cases w <;> rfl
+
+theorem slotWork_width_ne (w w' : Nat) (j j' : Option Nat) (h : w ≠ w') : slotWork (some w) j ≠ slotWork (some w') j' := by
+  intro e
+  simp only [slotWork, List.cons.injEq, Prod.mk.injEq, and_true, true_and] at e
+  exact h (Nat.repr_injective e)
 
 /-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key). -/
 structure Group where
@@ -750,6 +777,72 @@ theorem windowOf_insert_key (p : Params) (a b : List Sample) (x : Sample) (k : K
 theorem judge_insert_key (p : Params) (a b : List Sample) (x : Sample) (i : Nat) (s : Sample) (h : x.key ≠ s.key) :
     judge p (a ++ x :: b) i s = judge p (a ++ b) i s := by
   simp only [judge, windowOf_insert_key p a b x s.key h]
+
+theorem windowOf_filter_key (p : Params) (hist : List Sample) (k : Key) :
+    windowOf p (hist.filter (fun x => decide (x.key = k))) k = windowOf p hist k := by
+  unfold windowOf
+  rw [List.filter_filter]
+  congr 3
+  funext x
+  by_cases h : x.key = k <;> simp [h]
+
+theorem rest_key (s : Sample) : s.rest.key = s.key := rfl
+
+theorem judgeQ_filter_key (p : Params) (hist : List Sample) (i : Nat) (s : Sample) :
+    judgeQ p (hist.filter (fun x => decide (x.key = s.key))) i s = judgeQ p hist i s := by
+  have hj : ∀ t : Sample, t.key = s.key →
+      judge p (hist.filter (fun x => decide (x.key = s.key))) i t = judge p hist i t := by
+    intro t ht
+    simp only [judge, ← ht, windowOf_filter_key]
+  unfold judgeQ
+  rw [hj s rfl, hj s.rest (rest_key s)]
+
+theorem filter_key_work (hist : List Sample) (s : Sample) :
+    (hist.filter (fun x => decide (x.work = s.work))).filter (fun x => decide (x.key = s.key)) =
+      hist.filter (fun x => decide (x.key = s.key)) := by
+  rw [List.filter_filter]
+  congr 1
+  funext x
+  by_cases h : x.key = s.key
+  · have hw : x.work = s.work := congrArg Key.work h
+    simp [h, hw]
+  · simp [h]
+
+/-- The verdict of a sample depends only on the samples with its work dimensions: two histories with the same such
+samples, in the same order, give the same verdict, whatever samples of other widths they hold. -/
+theorem judgeQ_same_work (p : Params) (hist hist' : List Sample) (i : Nat) (s : Sample)
+    (h : hist.filter (fun x => decide (x.work = s.work)) = hist'.filter (fun x => decide (x.work = s.work))) :
+    judgeQ p hist i s = judgeQ p hist' i s := by
+  rw [← judgeQ_filter_key p hist, ← judgeQ_filter_key p hist', ← filter_key_work hist, ← filter_key_work hist', h]
+
+theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s : Sample)
+    (h : ∀ x ∈ others, x.work ≠ s.work) :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s := by
+  apply judgeQ_same_work
+  rw [List.filter_append, List.append_right_eq_self]
+  exact List.filter_eq_nil_iff.2 (fun x hx => by simpa using h x hx)
+
+/-- A window over samples without work dimensions, for a key without them, is the window of the four-field key. -/
+theorem windowOf_unworked (p : Params) (hist : List Sample) (k : Key) (hk : k.work = [])
+    (hh : ∀ x ∈ hist, x.work = []) :
+    windowOf p hist k = lastN p.window ((hist.filter (fun s =>
+      decide (s.tool = k.tool ∧ s.step = k.step ∧ s.host = k.host ∧ s.kind = k.kind) && counts p s)).map (·.durMs)) := by
+  unfold windowOf
+  congr 2
+  apply List.filter_congr
+  intro x hx
+  obtain ⟨t, st, h, kd, w⟩ := k
+  simp only at hk
+  subst hk
+  simp [Sample.key, hh x hx]
+
+theorem judgeQ_unworked (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hs : s.work = []) :
+    judgeQ p hist i s = judgeQ p (hist.filter (fun x => decide (x.work = []))) i s := by
+  apply judgeQ_same_work
+  rw [hs, List.filter_filter]
+  congr 1
+  funext x
+  by_cases h : x.work = [] <;> simp [h]
 
 def runSteps : List String :=
   ["run plan", "run dispatch lock", "run dispatch reserve", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
@@ -1679,16 +1772,21 @@ def callStr : Call → String
   | .noise => "noise"
   | .undecided => "undecided"
 
+def workJson (w : List (String × String)) : Json := Json.mkObj (w.map fun (k, v) => (k, .str v))
+
+def workField (w : List (String × String)) : List (String × Json) := if w.isEmpty then [] else [("work", workJson w)]
+
 def keyJson (k : Key) : Json :=
-  Json.mkObj [("tool", .str k.tool), ("step", .str k.step), ("host", .str (hostStr k.host)),
-    ("runKind", .str k.kind)]
+  Json.mkObj ([("tool", .str k.tool), ("step", .str k.step), ("host", .str (hostStr k.host)),
+    ("runKind", .str k.kind)] ++ workField k.work)
 
 def sampleJson (s : Sample) : Json :=
-  Json.mkObj [("tool", .str s.tool), ("step", .str s.step), ("durMs", toJson s.durMs),
+  Json.mkObj ([("tool", .str s.tool), ("step", .str s.step), ("durMs", toJson s.durMs),
     ("host", .str (hostStr s.host)), ("load", toJson s.load), ("runKind", .str s.kind),
     ("exit", (s.exit.map toJson).getD .null), ("skipped", toJson s.skipped),
     ("waitMs", toJson s.waitMs),
-    ("waits", .arr (s.waits.map (fun (t, ms) => Json.mkObj [("why", .str t.name), ("ms", toJson ms)])).toArray)]
+    ("waits", .arr (s.waits.map (fun (t, ms) => Json.mkObj [("why", .str t.name), ("ms", toJson ms)])).toArray)] ++
+    workField s.work)
 
 def paramsJson (p : Params) : Json :=
   Json.mkObj [("nMin", toJson p.nMin), ("window", toJson p.window), ("kNum", toJson p.kNum),
@@ -1786,6 +1884,20 @@ def autoRuns : List Sample :=
      { tool := "wf", step := "test (b)", durMs := 110000, host := .ci },
      { tool := "wf", step := "lint", durMs := 20000, host := .ci },
      { tool := "wf", step := "test (a)/Run tests", durMs := 90000, host := .ci }]
+
+def group (w : Option Nat) (load d : Nat) : Sample :=
+  { tool := "lean/check", step := "parallel group", durMs := d, host := .«local», load, exit := some 0,
+    work := slotWork w none }
+
+/-- The `lean/check` parallel groups `fw watch` judged at 3d0d68a on 2026-10-23 (its last 3000 spans): duration, load
+floor and the width inferred from the job spans (their summed duration over the group's wall time, 1.00 or 1.99). -/
+def groupView : List (Nat × Nat × Nat) :=
+  [(116691, 3, 1), (49291, 4, 2), (46962, 3, 2), (92010, 2, 1), (47565, 2, 2), (97284, 2, 1), (94807, 1, 1),
+   (49426, 5, 2), (94437, 2, 1)]
+
+def groupMix : List Sample :=
+  [(92010, 1), (47565, 2), (97284, 1), (49291, 2), (94807, 1), (46962, 2), (91526, 1), (49426, 2), (90470, 1),
+   (48630, 2)].map fun (d, w) => group (some w) 2 d
 
 def cases : List (String × Params × List Sample) :=
   [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s), gate is noise, both merges are noise; one run, so every sample is noBaseline",
@@ -1904,7 +2016,18 @@ def cases : List (String × Params × List Sample) :=
    ("run split: a 115 s watch pass gh lock wait after five 1 s waits, judged on its own, is slow",
       {}, run "fw" "watch pass gh lock" .«local» 3 [1000, 1000, 1000, 1000, 1000, 115000]),
    ("run split: the first sample of a new split step has no history of its own, so the old run dispatch history does not judge it: noBaseline",
-      {}, run "fw" "run dispatch" .«local» 3 [5000, 5000, 5000, 5000, 5000] ++ run "fw" "run dispatch lock" .«local» 3 [20000])]
+      {}, run "fw" "run dispatch" .«local» 3 [5000, 5000, 5000, 5000, 5000] ++ run "fw" "run dispatch lock" .«local» 3 [20000]),
+   ("slot width: fw watch at 3d0d68a without the width: the 94 s group after a median of 49 s is slow",
+      {}, groupView.map fun (d, l, _) => group none l d),
+   ("slot width: the same groups with their width: 046ff5f (width 2) and 3d0d68a (width 1) have fewer than 5 same-width groups before them, noBaseline",
+      {}, groupView.map fun (d, l, w) => group (some w) l d),
+   ("slot width: a 150 s width-1 group after five width-1 groups near 92 s is slow, width-2 groups between them",
+      {}, groupMix ++ [group (some 1) 2 150000]),
+   ("slot width: a 94 s width-1 group after five width-1 groups near 92 s and five width-2 groups near 48 s is ok",
+      {}, groupMix ++ [group (some 1) 2 94437]),
+   ("slot width: a span without a width is judged on the spans without one: 94 s after five 48 s is slow, the width-1 spans between them do not count",
+      {}, [48000, 47000, 49000, 48000, 47500].map (group none 3) ++ [92000, 95000, 93000].map (group (some 1) 2) ++
+        [group none 2 94437])]
 
 -- six run-split cases: three dispatch, two watch pass, one new split step
 #guard (cases.filter fun c => c.1.startsWith "run split:").length == 6
@@ -1924,7 +2047,11 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow,
    some .queued, some .slow, some .queued, some .queued, some .queued, some .slow, some .slow, some .ok, some .slow,
    some .slow, some .ok, some .queued,
-   some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline]
+   some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline,
+   some .slow, some .noBaseline, some .slow, some .ok, some .slow]
+#guard (sampleVerdicts {} (groupView.map fun (d, l, w) => group (some w) l d)).map (·.code) == List.replicate 9 .noBaseline
+#guard ((sampleVerdicts {} (groupView.map fun (d, l, _) => group none l d)).map (·.code)).drop 5 ==
+  [.slow, .slow, .ok, .slow]
 #guard (fullVerdicts {} (runX "fw" "land dry" .«local» 3 landDry)).map (fun v => (v.durMs, v.code)) ==
   [(19140, .noBaseline), (20226, .noBaseline), (20710, .noBaseline), (20102, .noBaseline), (32103, .noBaseline),
    (28484, .ok), (879, .ok)]
@@ -1953,6 +2080,27 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
+/-- A `lean/check` span line as `scripts/span.sh` writes it, with the `slot` member when the width and job count are known. -/
+def spanJson (d : Nat) (slot : Option (Nat × Nat)) : Json :=
+  Json.mkObj ([("tool", .str "lean/check"), ("step", .str "parallel group"), ("startMs", toJson (1792745374550 : Nat)),
+    ("durMs", toJson d), ("exit", toJson (0 : Nat)), ("commit", .str "3d0d68a"), ("load", toJson (2 : Nat)),
+    ("host", .str "local")] ++
+    (slot.map fun (w, j) => [("slot", Json.mkObj [("width", toJson w), ("jobs", toJson j)])]).getD [])
+
+def workCases : List (String × Nat × Option (Nat × Nat)) :=
+  [("a span written before the slot member has no work dimensions", 94437, none),
+   ("width 1 of 30 jobs", 94437, some (1, 30)),
+   ("width 2 of 30 jobs", 49426, some (2, 30)),
+   ("width 2 of 31 jobs: the job count is recorded, not a work dimension", 49426, some (2, 31)),
+   ("width 8 of 30 jobs", 30000, some (8, 30))]
+
+def workGoldenText (_ : Unit := ()) : String :=
+  String.join (workCases.map fun (n, d, slot) =>
+    (Json.mkObj [("name", .str n), ("span", spanJson d slot),
+      ("work", workJson (slotWork (slot.map (·.1)) (slot.map (·.2))))]).compress ++ "\n")
+
+def workGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-work.jsonl"
+
 /-- `packages/gh-budget/src/bounds.gen.ts`: the gh bounds of `Fw.Obs.Timing` as TS constants, so no TS file keeps its own copy. -/
 def boundsText (_ : Unit := ()) : String :=
   "// Generated from lean/Fw/Obs/Timing.lean by lean/scripts/TimingGolden.lean; do not edit.\n" ++
@@ -1965,10 +2113,12 @@ def boundsText (_ : Unit := ()) : String :=
 
 def boundsPath : System.FilePath := "../packages/gh-budget/src/bounds.gen.ts"
 
-def writeGolden : IO Unit := do IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText
+def writeGolden : IO Unit := do
+  IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
 
 def checkGolden : IO Bool := do
-  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText
+  return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
+    (← IO.FS.readFile workGoldenPath) == workGoldenText
 
 end Fw.Wire.Obs.Timing
 
