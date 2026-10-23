@@ -511,6 +511,177 @@ theorem swapNeighbours_last (n : Nat) (h : 1 < n) : swapNeighbours (n - 1) n = [
 
 theorem swapNeighbours_mid (k n : Nat) (h0 : 0 < k) (h1 : k + 1 < n) : swapNeighbours k n = [k - 1, k] := by
   simp [swapNeighbours, h0, h1]
+def bucketUs : Int := 100000
+
+def swapBuckets : Nat := ((swapUs + bucketUs - 1) / bucketUs).toNat + 1
+
+theorem swapBuckets_eq : swapBuckets = 4 := by decide
+
+theorem window_touches (s len : Int) (h0 : 0 < len) (h1 : len ≤ swapUs) :
+    (s + len - 1) / bucketUs - s / bucketUs + 1 ≤ (swapBuckets : Int) := by
+  have h2 := swap_eq
+  have h3 : swapBuckets = 4 := swapBuckets_eq
+  unfold bucketUs
+  omega
+
+def busyBucket : Nat := 4
+
+def longRunMin : Nat := swapBuckets + 1
+
+theorem longRunMin_eq : longRunMin = 5 := by decide
+
+def runsGo (m : Nat) : Nat → List Nat → Nat
+  | cur, [] => if m ≤ cur then 1 else 0
+  | cur, n :: ns => if busyBucket ≤ n then runsGo m (cur + 1) ns else (if m ≤ cur then 1 else 0) + runsGo m 0 ns
+
+def longRuns (xs : List Nat) : Nat := runsGo longRunMin 0 xs
+
+theorem runsGo_quiet (m : Nat) (hm : 0 < m) : ∀ (xs : List Nat) (cur : Nat), (∀ n ∈ xs, n < busyBucket) →
+    runsGo m cur xs = if m ≤ cur then 1 else 0
+  | [], cur, _ => by simp [runsGo]
+  | n :: ns, cur, h => by
+    have hn : ¬ busyBucket ≤ n := by have := h n (by simp); omega
+    have ih := runsGo_quiet m hm ns 0 (fun k hk => h k (by simp [hk]))
+    have h0 : ¬ m ≤ 0 := by omega
+    simp [runsGo, hn, ih, h0]
+
+theorem longRuns_quiet (xs : List Nat) (h : ∀ n ∈ xs, n < busyBucket) : longRuns xs = 0 := by
+  have := runsGo_quiet longRunMin (by decide) xs 0 h
+  have h0 : longRunMin ≠ 0 := by decide
+  simpa [longRuns, h0] using this
+
+theorem runsGo_busy (m b : Nat) (hb : busyBucket ≤ b) : ∀ (n cur : Nat),
+    runsGo m cur (List.replicate n b) = if m ≤ cur + n then 1 else 0
+  | 0, cur => by simp [runsGo]
+  | n + 1, cur => by
+    have ih := runsGo_busy m b hb n (cur + 1)
+    have e : cur + 1 + n = cur + (n + 1) := by omega
+    simp [List.replicate_succ, runsGo, hb, ih, e]
+
+theorem longRuns_long_run (b n : Nat) (hb : busyBucket ≤ b) (hn : longRunMin ≤ n) :
+    longRuns (List.replicate n b) = 1 := by
+  simp [longRuns, runsGo_busy longRunMin b hb n 0, hn]
+
+theorem longRuns_short_run (b n : Nat) (hb : busyBucket ≤ b) (hn : n < longRunMin) :
+    longRuns (List.replicate n b) = 0 := by
+  have : ¬ longRunMin ≤ n := by omega
+  simp [longRuns, runsGo_busy longRunMin b hb n 0, this]
+
+def median2 (xs : List Int) : Int :=
+  let s := xs.mergeSort
+  s.getD ((s.length - 1) / 2) 0 + s.getD (s.length / 2) 0
+
+theorem median2_bounds (xs : List Int) (hne : xs ≠ []) (lo hi : Int) (hl : ∀ x ∈ xs, lo ≤ x) (hh : ∀ x ∈ xs, x ≤ hi) :
+    2 * lo ≤ median2 xs ∧ median2 xs ≤ 2 * hi := by
+  have hp : xs.mergeSort.Perm xs := List.mergeSort_perm xs _
+  have hlen : xs.mergeSort.length = xs.length := hp.length_eq
+  have hpos : 0 < xs.length := List.length_pos_iff.mpr hne
+  have hmem : ∀ i, i < xs.length → xs.mergeSort.getD i 0 ∈ xs := by
+    intro i hi
+    have hi' : i < xs.mergeSort.length := by omega
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi']
+    exact hp.subset (List.getElem_mem hi')
+  have h1 := hmem ((xs.length - 1) / 2) (by omega)
+  have h2 := hmem (xs.length / 2) (by omega)
+  have := hl _ h1; have := hl _ h2; have := hh _ h1; have := hh _ h2
+  simp only [median2, hlen]
+  omega
+
+inductive FrozenCell where
+  | noSamples
+  | busyRemains
+  | noIdleLevel
+  | notAtIdle
+  | atIdle
+  deriving DecidableEq, Repr
+
+def FrozenCell.name : FrozenCell → String
+  | .noSamples => "noSamples"
+  | .busyRemains => "busyRemains"
+  | .noIdleLevel => "noIdleLevel"
+  | .notAtIdle => "notAtIdle"
+  | .atIdle => "atIdle"
+
+def usableOf (frozen : List (Int × Bg)) : List (Int × Bg) := frozen.filter fun s => s.2 != Bg.unknown
+
+def frozenCell (frozen : List (Int × Bg)) (idle : List Int) : FrozenCell :=
+  let usable := usableOf frozen
+  if usable.isEmpty then .noSamples
+  else if usable.any (fun s => s.2 != Bg.idle) then .busyRemains
+  else match idle.max? with
+    | none => .noIdleLevel
+    | some m => if 2 * m < median2 (usable.map (·.1)) then .notAtIdle else .atIdle
+
+theorem frozenCell_noSamples (frozen : List (Int × Bg)) (idle : List Int) (h : ∀ s ∈ frozen, s.2 = Bg.unknown) :
+    frozenCell frozen idle = .noSamples := by
+  have : usableOf frozen = [] := by
+    simp only [usableOf, List.filter_eq_nil_iff]
+    intro s hs; simp [h s hs]
+  simp [frozenCell, this]
+
+theorem usableOf_ne (frozen : List (Int × Bg)) (s : Int × Bg) (hs : s ∈ frozen) (hu : s.2 ≠ Bg.unknown) :
+    (usableOf frozen).isEmpty = false := by
+  have hm : s ∈ usableOf frozen := by simp [usableOf, hs, hu]
+  cases h : usableOf frozen with
+  | nil => rw [h] at hm; simp at hm
+  | cons a l => rfl
+
+theorem usableOf_idle (frozen : List (Int × Bg)) (hq : ∀ t ∈ frozen, t.2 ≠ Bg.unknown → t.2 = Bg.idle) :
+    (usableOf frozen).any (fun s => s.2 != Bg.idle) = false := by
+  simp only [List.any_eq_false, usableOf, List.mem_filter]
+  intro t ⟨ht, hu'⟩
+  simp at hu'
+  simp [hq t ht hu']
+
+theorem frozenCell_busyRemains (frozen : List (Int × Bg)) (idle : List Int) (s : Int × Bg) (hs : s ∈ frozen)
+    (hu : s.2 ≠ Bg.unknown) (hi : s.2 ≠ Bg.idle) : frozenCell frozen idle = .busyRemains := by
+  have hm : s ∈ usableOf frozen := by simp [usableOf, hs, hu]
+  have hany : (usableOf frozen).any (fun s => s.2 != Bg.idle) = true :=
+    List.any_eq_true.mpr ⟨s, hm, by simp [hi]⟩
+  simp [frozenCell, usableOf_ne frozen s hs hu, hany]
+
+theorem frozenCell_noIdleLevel (frozen : List (Int × Bg)) (s : Int × Bg) (hs : s ∈ frozen)
+    (hu : s.2 ≠ Bg.unknown) (hq : ∀ t ∈ frozen, t.2 ≠ Bg.unknown → t.2 = Bg.idle) :
+    frozenCell frozen [] = .noIdleLevel := by
+  simp [frozenCell, usableOf_ne frozen s hs hu, usableOf_idle frozen hq]
+
+theorem frozenCell_notAtIdle (frozen : List (Int × Bg)) (idle : List Int) (s : Int × Bg) (hs : s ∈ frozen)
+    (hu : s.2 ≠ Bg.unknown) (hq : ∀ t ∈ frozen, t.2 ≠ Bg.unknown → t.2 = Bg.idle) (m : Int) (hm : idle.max? = some m)
+    (hlt : 2 * m < median2 ((usableOf frozen).map (·.1))) : frozenCell frozen idle = .notAtIdle := by
+  simp [frozenCell, usableOf_ne frozen s hs hu, usableOf_idle frozen hq, hm, hlt]
+
+theorem frozenCell_atIdle (frozen : List (Int × Bg)) (idle : List Int) (s : Int × Bg) (hs : s ∈ frozen)
+    (hu : s.2 ≠ Bg.unknown) (hq : ∀ t ∈ frozen, t.2 ≠ Bg.unknown → t.2 = Bg.idle) (m : Int) (hm : idle.max? = some m)
+    (hle : median2 ((usableOf frozen).map (·.1)) ≤ 2 * m) : frozenCell frozen idle = .atIdle := by
+  have hnl : ¬ 2 * m < median2 ((usableOf frozen).map (·.1)) := by omega
+  simp [frozenCell, usableOf_ne frozen s hs hu, usableOf_idle frozen hq, hm, hnl]
+
+def sharePct (u f : Int) : Option Int := if 0 < u then some ((u - f) * 100 / u) else none
+
+theorem sharePct_none (u f : Int) (h : u ≤ 0) : sharePct u f = none := by
+  simp [sharePct]; omega
+
+theorem sharePct_same (u : Int) (h : 0 < u) : sharePct u u = some 0 := by
+  simp [sharePct, h]
+
+theorem sharePct_all (u : Int) (h : 0 < u) : sharePct u 0 = some 100 := by
+  have e : u * 100 / u = 100 := Int.mul_ediv_cancel_left 100 (by omega)
+  simp [sharePct, h, e]
+
+theorem sharePct_le (u f : Int) (h : 0 < u) (hf : 0 ≤ f) : ∃ p, sharePct u f = some p ∧ p ≤ 100 := by
+  refine ⟨(u - f) * 100 / u, by simp [sharePct, h], ?_⟩
+  apply Int.le_of_lt_add_one
+  apply (Int.ediv_lt_iff_lt_mul h).mpr
+  omega
+
+
+def zoneVerdict (off on : List Int) : Verdict := verdict (asRat off) (asRat on)
+
+theorem zoneVerdict_nil_off (on : List Int) : zoneVerdict [] on = .overlap := by
+  simp [zoneVerdict, asRat, verdict]
+
+theorem zoneVerdict_nil_on (off : List Int) : zoneVerdict off [] = .overlap := by
+  simp [zoneVerdict, asRat, verdict]
 
 private def phaseJ (p : Phase) : Json := toJson (match p with | .swap k => s!"swap:{k}" | .rest k => s!"rest:{k}" | .outside => "outside")
 
@@ -577,6 +748,37 @@ private def goldenLinesB : List String :=
     (Json.mkObj [("kind", "swapNeighbours"), ("k", k), ("n", n), ("rests", toJson (swapNeighbours k n))]).compress) ++
   [(Json.mkObj [("kind", "swapPredict"), ("faithful", predictedLayout 1), ("crop", predictedLayout 0)]).compress]
 
-def swapGoldenLines : List String := goldenLinesA ++ goldenLinesB
+private def runCases : List (List Nat) :=
+  [[], [0, 0, 1, 0], List.replicate 18 6 ++ List.replicate 12 0 ++ List.replicate 19 9 ++ List.replicate 12 1,
+   [0, 6, 7, 6, 1, 0, 0, 5, 6, 7, 0, 0, 0, 6, 7, 5, 0, 0],
+   List.replicate 4 5 ++ [0] ++ List.replicate 5 5, List.replicate 5 4, List.replicate 4 4 ++ [3] ++ List.replicate 4 4,
+   [3, 3, 3, 3, 3, 3, 3], List.replicate 6 40, [0, 0, 8, 8, 8, 8, 8, 8]]
+
+private def medianCases : List (List Int) :=
+  [[], [4], [4, 6], [6, 4, 5], [3, 3, 4, 15], [16, 2, 9, 9, 1], [5, 5, 5, 5], [14, 3, 14, 12, 3, 14, 11, 3]]
+
+private def bgJ (b : Bg) : Json := toJson b.name
+
+private def frozenCases : List (List (Int × Bg) × List Int) :=
+  [([], [4, 5]), ([(6, .unknown)], [4, 5]), ([(3, .idle), (4, .idle), (5, .idle)], [3, 4, 6]),
+   ([(3, .idle), (4, .idle), (5, .idle)], []), ([(12, .idle), (13, .idle), (14, .idle)], [3, 4, 6]),
+   ([(3, .idle), (4, .busy), (5, .idle)], [3, 4, 6]), ([(3, .idle), (4, .mixed)], [3, 4, 6]),
+   ([(3, .idle), (9, .unknown), (6, .idle)], [3, 4, 6]), ([(7, .idle), (7, .idle)], [3, 4, 6]),
+   ([(14, .idle), (15, .idle), (16, .idle)], [13, 16]), ([(15, .busy)], [])]
+
+private def goldenLinesC : List String :=
+  [(Json.mkObj [("kind", "swapFreezeConst"), ("bucketUs", bucketUs), ("busyBucket", busyBucket), ("swapBuckets", swapBuckets),
+    ("longRunMin", longRunMin)]).compress] ++
+  (runCases.map fun xs => (Json.mkObj [("kind", "swapRuns"), ("buckets", toJson xs), ("longRuns", longRuns xs)]).compress) ++
+  (medianCases.map fun xs => (Json.mkObj [("kind", "swapMedian2"), ("xs", toJson xs), ("median2", median2 xs)]).compress) ++
+  (frozenCases.map fun (fr, idle) =>
+    (Json.mkObj [("kind", "swapFrozen"), ("frozen", Json.arr (fr.map fun s => Json.arr #[toJson s.1, bgJ s.2]).toArray),
+      ("idle", toJson idle), ("cell", (frozenCell fr idle).name)]).compress) ++
+  (([(20, 6), (20, 20), (20, 0), (0, 5), (-4, 5), (30, 31), (15, 4)] : List (Int × Int)).map fun (u, f) =>
+    (Json.mkObj [("kind", "swapShare"), ("u2", u), ("f2", f), ("pct", match sharePct u f with | some p => toJson p | none => Json.null)]).compress) ++
+  (([([15, 16, 14], [4, 5, 6]), ([4, 5, 6], [15, 16, 14]), ([4, 9], [5, 6]), ([], [4]), ([4], [])] : List (List Int × List Int)).map fun (off, on) =>
+    (Json.mkObj [("kind", "swapZone"), ("off", toJson off), ("on", toJson on), ("verdict", (zoneVerdict off on).name)]).compress)
+
+def swapGoldenLines : List String := goldenLinesA ++ goldenLinesB ++ goldenLinesC
 
 end Fw.Measure.SwapWindow

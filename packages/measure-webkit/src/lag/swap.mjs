@@ -3,6 +3,8 @@ import { verdict, frac } from './reduce.mjs';
 
 const CONST = readFileSync(new URL('../../../contracts/golden/measure/wkcost.jsonl', import.meta.url), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'swapConst');
+const FREEZE_CONST = readFileSync(new URL('../../../contracts/golden/measure/wkcost.jsonl', import.meta.url), 'utf8')
+  .split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'swapFreezeConst');
 export const REST_US = CONST.restUs;
 export const SWAP_US = CONST.swapUs;
 export const PERIOD_US = CONST.periodUs;
@@ -61,3 +63,35 @@ export function bgOf(ns) {
 }
 
 export const swapNeighbours = (k, n) => [...(k > 0 ? [k - 1] : []), ...(k + 1 < n ? [k] : [])];
+
+export const BUCKET_US = FREEZE_CONST.bucketUs;
+export const BUSY_BUCKET = FREEZE_CONST.busyBucket;
+export const LONG_RUN_MIN = FREEZE_CONST.longRunMin;
+
+export function longRuns(xs) {
+  let cur = 0, n = 0;
+  for (const x of xs) {
+    if (BUSY_BUCKET <= x) cur++;
+    else { if (LONG_RUN_MIN <= cur) n++; cur = 0; }
+  }
+  return LONG_RUN_MIN <= cur ? n + 1 : n;
+}
+
+export function median2(xs) {
+  const s = [...xs].sort((a, b) => a - b);
+  return s.length === 0 ? 0 : s[(s.length - 1) >> 1] + s[s.length >> 1];
+}
+
+export const usableOf = (frozen) => frozen.filter((s) => s[1] !== 'unknown');
+
+export function frozenCell(frozen, idle) {
+  const usable = usableOf(frozen);
+  if (usable.length === 0) return 'noSamples';
+  if (usable.some((s) => s[1] !== 'idle')) return 'busyRemains';
+  if (idle.length === 0) return 'noIdleLevel';
+  return 2 * Math.max(...idle) < median2(usable.map((s) => s[0])) ? 'notAtIdle' : 'atIdle';
+}
+
+export const sharePct = (u2, f2) => (u2 > 0 ? Math.floor(((u2 - f2) * 100) / u2) : null);
+
+export const zoneVerdict = (off, on) => verdict(asFrac(off), asFrac(on));

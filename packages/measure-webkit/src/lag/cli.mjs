@@ -12,6 +12,9 @@ import { collectArm, costMd } from './costreport.mjs';
 import { parseCost, swapSetup } from './costmode.mjs';
 import { armsOutcome, sumsLine } from './morphcost.mjs';
 import { windowCells, swapMd, swapPassesOf } from './swapreport.mjs';
+import { parseFreeze } from './freeze.mjs';
+import { freezeSession } from './freezesession.mjs';
+import { freezeAnalysis, freezeMd } from './freezereport.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -21,7 +24,7 @@ const { values: v } = parseArgs({
     site: { type: 'string' }, search: { type: 'string', default: '' }, out: { type: 'string' }, keep: { type: 'boolean', default: true },
     passes: { type: 'string', default: '2' }, step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' },
     settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, vendors: { type: 'string', default: 'off' },
-    cost: { type: 'string', default: 'off' }, swap: { type: 'boolean', default: false }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, sums: { type: 'string' }, run: { type: 'string' }, note: { type: 'string' }, files: { type: 'string' }, sources: { type: 'string' },
+    cost: { type: 'string', default: 'off' }, swap: { type: 'boolean', default: false }, freeze: { type: 'string' }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, sums: { type: 'string' }, run: { type: 'string' }, note: { type: 'string' }, files: { type: 'string' }, sources: { type: 'string' },
   },
   allowNegative: true,
 });
@@ -33,12 +36,13 @@ async function main() {
     case 'run': {
       const costMode = parseCost(v.cost);
       const { swap, arms: swapArms } = swapSetup({ swap: v.swap, cost: costMode.cost, site: v.site, search: v.search });
-      const res = await withSession((ctx) => lagSession(ctx, {
-        passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode, swap,
-      }), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null, arms: swapArms });
+      const freeze = parseFreeze(v.freeze);
+      if (freeze && !swap) throw new Error('--freeze needs --swap --cost on|only with --site and --search');
       const file = resolve(v.out ?? 'out/lag.json');
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify(res) + '\n');
+      const save = (doc) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(doc) + '\n'); };
+      const opts = { passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode, swap, ...(freeze ? { save } : {}) };
+      const res = await withSession((ctx) => (freeze ? freezeSession(ctx, opts) : lagSession(ctx, opts)), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null, arms: swapArms });
+      save(res);
       log(`wrote ${file}${res.failed.length ? ` (stopped early: ${res.failed.join('; ')})` : ''}`);
       if (res.targetLost) throw Object.assign(new Error(`the page target was lost for good (the passes kept are in ${file})`), { exitCode: TARGET_LOST_EXIT });
       if (!res.passes.length) throw new Error('no pass completed');
@@ -82,8 +86,17 @@ async function main() {
       if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify({ schema: 'fw.webkit.lag.swap.report/1', passes: passes.length, cells }, null, 1)}\n`);
       break;
     }
+    case 'freeze-report': {
+      if (!v.files) throw new Error('usage: freeze-report --files a.json,b.json [--sources "run id ..."] [--json file] [--out file]');
+      const an = freezeAnalysis(read(v.files));
+      if (!an.passes.free || !an.passes.frozen) throw new Error('no freeze pass in the files (a run with --swap --freeze hero-accent)');
+      const md = freezeMd(an, (v.sources ?? v.files).split(';'));
+      if (v.out) writeFileSync(resolve(v.out), `${md}\n`); else console.log(md);
+      if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(an, null, 1)}\n`);
+      break;
+    }
     default:
-      console.error('usage: run|report|cost-report|morph-verdict|swap-report');
+      console.error('usage: run|report|cost-report|morph-verdict|swap-report|freeze-report');
       process.exitCode = 2;
   }
 }

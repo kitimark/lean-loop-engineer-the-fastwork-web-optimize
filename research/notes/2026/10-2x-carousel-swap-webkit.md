@@ -108,6 +108,60 @@ model), faithful Layout median is 13.5 to 16 on a busy background and 14 to 15 o
 faithful Paint is 31.5 to 48.5 against the crop's 19 to 34 on busy and 8 to 13 on idle. That the source is `hero.accent` in the faithful
 arm too is INFERRED: the arms differ only in the `?fw=people.carousel` flag, and the diagnostic capture ran on the crop arm only.
 
+## hero.accent frozen from the harness
+
+Premise (CONFIRMED in source): the strokeIn and strokeOut animations change `stroke-dashoffset`, which WebKit treats as a layout
+change (`StyleDifference.cpp:161` via `:399`@862f17d; the width transition is at `:404`), so the draw cycle (1250 + 900 + 900 = 3050 ms)
+forces layout every frame while it runs, and 3 carousel periods are 3060 ms, hence every third window.
+
+Run (MEASURED): run 40006432997, commit f2dec2e2b (head commit tokens `[swap-lane] [swap-freeze]`), 3 jobs, all success, 1 pass each:
+r1 job 120597721629, r2 job 120597721732, r3 job 120603368909. Report: `results/carousel-swap-webkit/hero-accent-frozen.md` and `.json`
+(every number below is read from it). The freeze is `--freeze hero-accent` (`packages/measure-webkit/src/lag/freeze.mjs`): an adopted
+style sheet scoped to `[data-fw="hero-accent"]`, applied after the load, no site edit, inert when the option is unset. After it, the
+diagnostic capture lists 0 hero-accent animations before and after (all 6 frozen diagnostic rows, 3 jobs by 2 arms), unfrozen 3 to 4.
+
+Decision (unit: swap window per arm, Lean `frozenCell` in `lean/Fw/Measure/SwapWindow.lean`, one theorem per branch
+`frozenCell_noSamples`, `_busyRemains`, `_noIdleLevel`, `_notAtIdle`, `_atIdle`; golden kind `swapFrozen`):
+
+| arm | windows atIdle | frozen Layout median per window | unfrozen busy windows | long busy runs (diag) frozen / unfrozen | rest windows Layout max frozen / unfrozen |
+|---|---|---|---|---|---|
+| crop | 8 of 8 | 2 to 3 (idle level 9) | median 14 to 15 in swap:1, 2, 4, 5, 7 | 0 in 3 / 2 to 3 in 3 | 2 / 50 |
+| faithful | 8 of 8 | 12.5 to 15 (idle level 16) | no step: unfrozen 11.5 to 15 as well | 0 in 3 / 2 to 3 in 3 | 2 / 51 |
+
+CONFIRMED for the crop: the busy runs vanish and every swap window sits at the idle level; the diagnostic capture of every frozen job
+has 0 long runs (Lean `longRuns`, `longRuns_quiet`) against 2 to 3 unfrozen, and the rest windows go from a median of 47 Layout rows to
+1. For the faithful arm the pattern was already masked by the arm's own Layout (see above); the freeze removes the busy runs of its
+rest windows (42 median to 1) and its diagnostic runs, but its swap-window Layout stays 11.5 to 15 because that is the arm's own carousel
+cost; no window is above the idle level.
+
+hero.exit zone (`scroll-A`, crop arm, Layout and Paint rows per capture; Lean `sharePct`, `zoneVerdict`, golden `swapShare`, `swapZone`):
+
+| group | kind | unfrozen median | frozen median | verdict | share |
+|---|---|---|---|---|---|
+| all (n=6 + 6) | Layout | 76.5 | 53.5 | overlap | 30% |
+| all | Paint | 164 | 115 | overlap | 29% |
+| aligned (scroll starts in a draw, n=3 + 3) | Layout | 78 | 50 | lower | 35% |
+| aligned | Paint | 176 | 113 | lower | 35% |
+| natural (start unaligned, n=3 + 3) | Layout | 65 | 60 | overlap | 7% |
+| natural | Paint | 150 | 117 | overlap | 22% |
+
+MEASURED: the accent's share of the hero.exit zone is about 30% of Layout and 29% of Paint by the medians over all captures; only the
+aligned group (the scroll starts inside a draw) separates the ranges (`lower`). Since the all-capture ranges overlap (unfrozen Layout
+51..79 against frozen 43..61), the share is a median figure, not a separated verdict.
+
+Job key: `<numeric job id>/p<pass>/<slot>` with slot a or b for the swap captures, diag for the diagnostic capture, aligned or natural
+for the zone captures (`swapreport.mjs` `jobKey`); the numeric id comes from `FW_JOB_ID: ${{ job.check_run_id }}` in `webkit-sim.yml`.
+
+History, not pooled: dispatch 1 (run 39996415429, commit 9997926ab, 2 passes per job) lost r1 (the Simulator died in the zone
+captures, no json) and r2 (slow boot, a diagnostic capture timed out, Safari did not relaunch); only r3 finished, with the same
+picture (`results/carousel-swap-webkit/hero-accent-frozen-pilot.md`, single job). The fix: the session saves `--out` after every
+capture, the freeze run is one pass per job (`PASSES` in the workflow), and the state order shifts with the VM number.
+
+Limits specific to this run: the freeze also removes the idle-frame animations of the accent, so it is the accent's reduced-motion look
+and not only the stroke draws; the aligned and natural zone groups hold 3 captures per state, and the share of a group is a median of
+3; the CI Simulator is not the phone; the Playwright WebKit
+check on the build (0 accent animations over a 7 s draw cycle after the sheet) is functional only, not a result.
+
 ## Minimum n and the by-background cells
 
 With 6 faithful samples per slot no all-samples cell is `fewSamples`. Cut by background, the cells need 3 faithful samples each: on idle
@@ -131,7 +185,6 @@ makes the crop Layout as high as the faithful one, which is why Layout stays unr
 
 ## Next
 
-- Freeze `hero.accent` (reduced motion for that part only) in the swap lane and re-run: the confirming test above, and quiet-background
-  cells that can reach win or loss.
-- Add `FW_JOB_ID: ${{ job.check_run_id }}` to the sim step of `.github/workflows/webkit-sim.yml` so the file holds the numeric job id.
+- Done (hero-accent-frozen-confirm): the freeze in the swap lane and `FW_JOB_ID` in the workflow, see the section above.
+- hero-accent-draw-nolayout: rewrite the accent draw so it does not force layout (the site change this measurement motivates).
 - More passes per job (the floor needs more faithful samples per window and background).
