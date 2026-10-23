@@ -1,18 +1,19 @@
 branch: worktree-wf_9e4882e0-ebf-1 (CI branch ci/counts-font-fidelity)
 worktree: .claude/worktrees/wf_9e4882e0-ebf-1
-last commit: 6dbd68b6b
-CI runs: 39906869467 font-fidelity (in progress; pushed at 6dbd68b6b)
-verified: Lean pick rule (Profile.lean "Font fidelity", golden + TS twins, 12 profile tests); ci-paths tests 54 pass; measure-chromium tests 73 pass
-open: first CI result unread; set not chosen; no re-measure yet; Dockerfile/fonts.conf/Lean font constants unchanged
+last commit: see git log (fidelity-compare sim-row fix, then pushes of path-pix and engine-premises)
+CI runs: 39906869467 font-fidelity failed (rows dir missing, fixed); 39907447564 font-fidelity success (chromium, webkit-mac, sim, report); path-pix and engine-premises on the pick image: see below once pushed
+verified: pick = liberation (fontPick over 5 font sets; Playwright WebKit macOS reference); Simulator doc height 6042 at 430x775 equals the phone (results/phone/2026-10-17-s1); Lean golden + TS twins; ci-paths tests 54 pass; measure-chromium tests 73 pass
+open: refreeze of classes.frozen.json and zone baselines needs 3 workflow runs of one image id per profile (image_run); fw run does not send image_run and gh workflow run is refused in the sandbox, so the lead dispatches them (see note); path-pix / engine-premises re-run on the image; research note; merge main after counts-lane-fonts lands
 
 State
-- Lean: lean/Fw/Measure/Profile.lean fontSets (6 candidate sets), fontDist, fontPick, notdefCount; twins in packages/measure-chromium/src/profile.mjs.
-- Measurement code (packages/measure-chromium/src/fidelity*.mjs): page function (fidelity-page.mjs), views m430/p430/d1280, container driver, host orchestrator (fetches each set's Debian packages inside the lane image), Playwright WebKit driver, comparison (fidelity-compare.mjs, writes fidelity-summary.md and fidelity-choice.json).
-- Workflow .github/workflows/font-fidelity.yml (chromium, webkit-mac, report); Lean rows added in Trigger.lean, Overflow.lean (width 2), Pool/Caps.lean (excluded), Intent.lean (macosFiles); goldens under packages/contracts/golden/ci regenerated; scripts/ci-paths.test.mjs excluded list.
+- Lean: lean/Fw/Measure/Profile.lean fontSets (6 candidate sets), fontDist, fontPick, notdefCount; twins in packages/measure-chromium/src/profile.mjs; golden profile.jsonl.
+- Measurement code packages/measure-chromium/src/fidelity*.mjs (page function, views m430/p430/d1280, container driver, host orchestrator, Playwright WebKit driver, Simulator driver, comparison writing fidelity-summary.md and fidelity-choice.json).
+- Workflow .github/workflows/font-fidelity.yml (guard, chromium, webkit-mac, sim, report); Lean rows in Trigger.lean, Overflow.lean, Pool/Caps.lean, Intent.lean; goldens under packages/contracts/golden/ci; scripts/ci-paths.test.mjs; apps/runner/src/land.ts reads.
+- Result: every font-bearing set lays out like WebKit (dist 3 of 6277 px); the font-less image drew 0 lines for web-face text (page 720 px short on mobile, crash at 1280). Lane image keeps fonts-liberation only; no Dockerfile or Lean font constant change.
 
 Next
-1. pnpm -s fw ci wait --branch ci/counts-font-fidelity --workflow font-fidelity; fetch artifacts; read fidelity-summary.md.
-2. Apply the chosen set (Dockerfile, docker/apt-manifest.txt, docker/fonts.conf = Lean fontsConf, Lean font constants + golden), re-measure swipe-v1 / swipe-touch-v1, refreeze classes.frozen.json, zone baselines, path-pix and premise baselines, people-o-hover tallies.
-3. Note research/notes/2026/10-2x-counts-font-fidelity.md; merge main; dry land.
+1. Read path-pix / engine-premises results on the image; write research/notes/2026/10-2x-counts-font-fidelity.md.
+2. Lead: refreeze (3 dispatches per profile with image_run, then freeze.mjs and zone-baseline.mjs) as the note lists.
+3. Merge main, dry land (VERDICT dry counts-font-fidelity), fw review ready.
 
-Conventions: only ci/counts-font-fidelity* pushes; commit message line [ci:font-fidelity] starts this lane; at most 8 dispatches; counts-lane-fonts branch (worktree-wf_c886ec11-19e-1) merged locally, not on main at last check.
+Conventions: only ci/counts-font-fidelity* pushes; commit message token starts a lane; at most 8 dispatches (0 used); counts-lane-fonts branch (worktree-wf_c886ec11-19e-1) merged locally, not on main at last check.

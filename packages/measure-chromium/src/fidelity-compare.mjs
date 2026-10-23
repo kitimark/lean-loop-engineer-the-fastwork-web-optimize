@@ -71,7 +71,7 @@ p(`| **${REF}** (reference) | ${viewIds.map((v) => (usable(ref.views[v]) ? ref.v
 for (const s of sims) {
   const sv = s.views.sim;
   const note = usable(sv) ? ` (inner ${sv.innerW}x${sv.innerH} dpr ${sv.dpr})` : '';
-  p(`| ${s.variant} (${s.browser}) | ${viewIds.map((v) => (usable(sv) && sv.innerW === ref.views[v].width && ref.views[v].mobile ? `${sv.docH}${note}` : 'n/a')).join(' | ')} |`);
+  p(`| ${s.variant} (${s.browser}) | ${viewIds.map((v) => (usable(sv) && sv.innerW === ref.views[v].width && sv.innerH === ref.views[v].height && ref.views[v].mobile ? `${sv.docH}${note}` : 'n/a')).join(' | ')} |`);
 }
 if (args['phone-doc']) p(`| phone (iPhone 15 Pro Max Safari, results/phone/2026-10-17-s1) | n/a | ${args['phone-doc']} | n/a |`);
 const scores = [];
