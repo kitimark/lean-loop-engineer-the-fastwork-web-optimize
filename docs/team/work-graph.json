@@ -18729,7 +18729,8 @@
     "research/notes/2026/10-2x-ci-setup-lean-slow.md",
     "docs/team/handoffs/ci-lake-prune-artifacts.md"
    ],
-   "title": "ci-lake-cache-fresh follow-ups (2026-10-23): (1) the naive prune (find -links 1 -delete) broke restore (MEASURED, run 39985377389: 837 rebuilt, 423 s); before spending a run on an artifacts-only prune (find \"$LAKE_CACHE_DIR/artifacts\" -type f -links 1 -delete, keep outputs/), read lean4@eb6cafb Lake (Cache.lean outputsFile/artifactPath readers and the build fetch path) and cite file:line for whether a missing artifact under an existing outputs mapping is a miss (rebuild) or an error; only then one lean.yml run with blob size and a working restore; (2) collect more land legs after per-land main pushes with the Lean-files-changed column before concluding a ci/land-* save is not needed. (3) 2026-10-24 alerts timing.slow 'land (check-sh)/fwcore build' and 'land (suites-a)/fwcore build': lands start within the ~4 min main lean run after the lead's per-land push, so legs restore the previous main entry; measure whether gating each land on main's lean run (fw ci wait on the main lean run before fw land --queue) saves more leg minutes than it costs in lead wall time, and state the rule."
+   "title": "ci-lake-cache-fresh follow-ups (2026-10-23): (1) the naive prune (find -links 1 -delete) broke restore (MEASURED, run 39985377389: 837 rebuilt, 423 s); before spending a run on an artifacts-only prune (find \"$LAKE_CACHE_DIR/artifacts\" -type f -links 1 -delete, keep outputs/), read lean4@eb6cafb Lake (Cache.lean outputsFile/artifactPath readers and the build fetch path) and cite file:line for whether a missing artifact under an existing outputs mapping is a miss (rebuild) or an error; only then one lean.yml run with blob size and a working restore; (2) collect more land legs after per-land main pushes with the Lean-files-changed column before concluding a ci/land-* save is not needed. (3) 2026-10-24 alerts timing.slow 'land (check-sh)/fwcore build' and 'land (suites-a)/fwcore build': lands start within the ~4 min main lean run after the lead's per-land push, so legs restore the previous main entry; measure whether gating each land on main's lean run (fw ci wait on the main lean run before fw land --queue) saves more leg minutes than it costs in lead wall time, and state the rule.",
+   "evidence": "6951129"
   },
   {
    "devices": [
@@ -18775,7 +18776,11 @@
     "research/notes/2026/10-2x-accent-draw-nolayout.md",
     "results/accent-draw-nolayout/**",
     "research/findings/ledger.json",
-    "docs/team/handoffs/hero-accent-draw-nolayout.md"
+    "docs/team/handoffs/hero-accent-draw-nolayout.md",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
    "title": "Optimization (user goal: smoother hero exit and end-of-page in WebKit): the hero.accent draw animates stroke-dashoffset on the visible copy, and in WebKit every strokeDashOffset change requires layout (StyleDifference.cpp:161 svgDataChangeRequiresLayout via changeRequiresLayout :399 @862f17d), so the page relayouts on every frame of both 900 ms draws, page-wide (the end-of-page swap windows pay it: carousel-swap-followups). accent-draw-one (landed) removed the hidden copies' draws and found no win; this task removes the layout itself. Read WebKit source (StyleDifference.cpp, RenderSVGShape/RenderSVGPath layout and repaint, LegacyRenderSVG vs LBSE on the pinned commit) for each candidate: a mask or clip reveal driven by transform or clip-path, a pre-split dash with opacity, an SVG mask rect with transform, and Chromium's equivalent (blink style diff for stroke-dashoffset). Lean first: model the StyleDifference decision for the candidate properties from the cited source lines (one canonical table, theorem: the chosen arm's per-frame changes need no layout in both engines), goldens. Register flag hero.accent:draw-nolayout; visual sameness measured with path-pix against faithful across the draw (if not pixel-identical, class look-change for the user's visual review); one webkit-sim count run (swap lane and hero exit zone) with run id. Negative result is a finding with its Lean why."
   },
@@ -18924,6 +18929,52 @@
     "docs/team/handoffs/lake-prune-verify.md"
    ],
    "title": "ci-lake-prune-artifacts review follow-ups (2026-10-24): (1) cross-runner proof: the first land legs and ci/* runs that restore a PRUNED main entry: Built lines vs Lean files changed (revert the prune step if a leg rebuilds hundreds of modules); branches behind main lose the history hits of the old 8 GB entry, measure that too; (2) the fwcore exe always has links=1 (scripts/fwcore-build.sh:16-19 strip -o + rename breaks the hard link), so it is pruned and every restoring job relinks fwcore:exe: record the first shipped main save's blob size and decide whether to keep the exe (or strip in place); (3) item 3 table: add the leg-restore-after-save gaps (36 s, 91 s) next to the waits; (4) Lean first: the prune selection (artifacts with links=1, keep outputs/) and the do-not-gate rule as decisions in Fw.Ops.LakeCache with the measured inputs as a verdict and golden."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-nolayout-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "hero-accent-draw-nolayout",
+    "hero-accent-frozen-confirm"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    ".github/workflows/path-pix.yml",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "research/notes/2026/10-2x-accent-draw-nolayout.md",
+    "results/accent-draw-nolayout/**",
+    "docs/team/handoffs/accent-nolayout-measure.md"
+   ],
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-drawin-width-nolayout",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "hero-accent-draw-nolayout"
+   ],
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "lean/Fw/Engine/StyleDiffAccent.lean",
+    "packages/contracts/golden/parts/hero.accent*.jsonl",
+    "lean/scripts/AccentNoLayoutGolden.lean",
+    "research/notes/2026/10-2x-accent-draw-nolayout.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/accent-drawin-width-nolayout.md"
+   ],
+   "title": "hero-accent-draw-nolayout finding: the arm removes the draw-out layout but draw-in frames still need layout through the original's width transition (accent.module.css:13 transition: width 0.9s on .drawingIn; WebKit StyleDifference.cpp:404), so layout phases per cycle drop only 2 -> 1. Find a same-look replacement for the width growth that needs no layout (transform scaleX on a composited wrapper with counter-scaled text, or a fixed-width box with clip), proved in Lean with StyleDiffAccent (theorem: draw-in frames need no layout in both engines), behind a flag variant, class look-change if not pixel-identical; one webkit-sim swap-lane run."
   }
  ],
  "deadline": {
