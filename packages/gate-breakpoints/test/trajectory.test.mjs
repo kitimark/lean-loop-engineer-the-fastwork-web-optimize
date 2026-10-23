@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFamEach, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { main, summaryMd } from '../src/trajectory/cli.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
@@ -523,6 +523,44 @@ test('reduceRaw: a faithful failure one extra original pass clears takes the lan
   const after = reduceRaw(contentRaw(offPasses(3, true), otherAt5, onAt5), regs);
   assert.deepEqual([cellRel(before).relAll, cellRel(before).rel, before.lane], ['both', 'both', 'clean']);
   assert.deepEqual([cellRel(after).relAll, cellRel(after).rel, after.lane], ['new', 'undecided', 'undecided']);
+});
+
+test('byMFam equals byMFamEach on every golden segment, under every phase and with a copy of the original as one more pass', () => {
+  const PH = [['push', 0], ['hold', 1], ['push', 2], ['hold', 3]];
+  let n = 0;
+  for (const g of golden.filter((x) => x.oSeg && (x.wSeg || x.cand))) {
+    const named = g.node !== undefined;
+    const d = named ? (cls) => durOf(g.node, g.prop, g.width, cls) : g.dur !== undefined ? durFn(g.dur) : () => null;
+    const e = named ? startFor(g.node, g.prop, g.width) : null;
+    const id = g.id ?? (named && idOn(g.node, g.prop));
+    const shift = Math.max(...g.oSeg.map((s) => s.rep)) + 1;
+    const origs = [g.oSeg, [...g.oSeg, ...g.oSeg.map((s) => ({ ...s, rep: s.rep + shift }))], ...(g.oSeg2 ? [g.oSeg2] : [])];
+    for (const w of [g.wSeg, g.cand, g.base].filter(Boolean)) {
+      for (const o of origs) {
+        for (const [ph, p] of PH) {
+          assert.deepEqual(byMFam(ph, p, g.kind ?? 'geometry', d, e, id, o, w), byMFamEach(ph, p, g.kind ?? 'geometry', d, e, id, o, w), `${g.op} ${g.name} ${ph} ${p}`);
+          n++;
+        }
+      }
+    }
+  }
+  assert.ok(n >= 900, `${n} cases`);
+});
+
+test('cli: a refused input, a summary without raw files and an unknown command exit 2, the refused code (Lean laneExit_refused), never 1', async () => {
+  const err = console.error;
+  console.error = () => {};
+  const dir = mkdtempSync(join(tmpdir(), 'traj-refused-'));
+  try {
+    assert.equal(laneExit(true, true, 'red'), 2);
+    for (const argv of [['run', '--widths', '391'], ['run', '--paths', 'page'], ['run', '--reads', 'some'], ['run', '--reps', '6'],
+      ['summary'], ['summary', '--strict'], ['summary', '--engine', 'chromium'], ['merge'], ['merge', '--in', join(dir, 'none'), '--engine', 'chromium'], ['help'], []]) {
+      assert.equal(await main([...argv, '--out', dir]), 2, argv.join(' '));
+    }
+  } finally {
+    console.error = err;
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('cli summary --strict: UNDECIDED exits 3, RED 1, CLEAN 0; without --strict every lane exits 0 (Lean laneExit)', async () => {

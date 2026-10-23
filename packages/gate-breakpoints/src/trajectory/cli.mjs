@@ -9,8 +9,10 @@
 // and its relation to the faithful arm), summary-<engine>.md, prints the VERDICT lines, and exits
 //   0  the probe completed (RED, UNDECIDED or CLEAN is a result, not an error; with --strict only CLEAN exits 0),
 //   1  with --strict, RED,
-//   2  an arm was not measured as asked (`refused:config`): the run is void, never a pass,
+//   2  refused: an arm was not measured as asked (`refused:config`), an input is outside its allowlist, `summary` found no
+//      raw file, `merge` has no leg or legs that disagree, or the command is unknown; the run is void, never a pass,
 //   3  with --strict, UNDECIDED: no verdict either way; rerun with more passes (Lean `laneExit`); `summary` over several engines exits the worst (Lean `exitJoin`).
+// So 1 is only ever a strict RED.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,6 +21,10 @@ import { HERO_NODES, MORPH_NODES, PAGE_PROPS } from './registry.mjs';
 import { exitJoin, laneExit, pickWidths, reduceRaw, verdictLines } from './reduce.mjs';
 
 const REGISTRIES = { hero: HERO_NODES, morph: MORPH_NODES, page: PAGE_PROPS };
+
+const REFUSED = laneExit(true, false, 'clean');
+
+const refuse = (why) => { console.error(`trajectory: refused: ${why}`); return REFUSED; };
 
 const arg = (argv, name, dflt = '') => { const i = argv.indexOf(name); return i < 0 ? dflt : (argv[i + 1] ?? dflt); };
 
@@ -71,13 +77,13 @@ export async function main(argv) {
   if (cmd === 'run') {
     const engineName = arg(argv, '--engine', 'chromium');
     const widths = pickWidths(arg(argv, '--widths'));
-    if (widths === null) { console.error('trajectory: refused: widths must be a comma list of 390, 640, 641, 1280 without repeats'); return 1; }
+    if (widths === null) return refuse('widths must be a comma list of 390, 640, 641, 1280 without repeats');
     const paths = pickPaths(arg(argv, '--paths'));
-    if (paths === null) { console.error('trajectory: refused: paths must be hero, morph or hero,morph'); return 1; }
+    if (paths === null) return refuse('paths must be hero, morph or hero,morph');
     const reads = arg(argv, '--reads', 'full');
-    if (reads !== 'full' && reads !== 'lean') { console.error('trajectory: refused: reads must be full or lean'); return 1; }
+    if (reads !== 'full' && reads !== 'lean') return refuse('reads must be full or lean');
     const reps = Number(arg(argv, '--reps', '3'));
-    if (!Number.isInteger(reps) || reps < 1 || reps > 5) { console.error('trajectory: refused: reps must be 1 to 5'); return 1; }
+    if (!Number.isInteger(reps) || reps < 1 || reps > 5) return refuse('reps must be 1 to 5');
     const { runLane } = await import('./run.mjs'); // lazy: summary and merge run with plain node (no playwright installed)
     const raw = await runLane({ engineName, widths, search: arg(argv, '--search'), paths, reads, reps, env: process.env });
     writeFileSync(join(out, `raw-${raw.engine}.json`), JSON.stringify(raw));
@@ -86,7 +92,7 @@ export async function main(argv) {
   if (cmd === 'summary') {
     const only = arg(argv, '--engine');
     const files = readdirSync(out).filter((f) => /^raw-.+\.json$/.test(f) && (only === '' || f === `raw-${only}.json`));
-    if (files.length === 0) { console.error(`trajectory: no raw-<engine>.json in ${out}`); return 1; }
+    if (files.length === 0) return refuse(`no raw-<engine>.json in ${out}`);
     let code = 0;
     for (const f of files) code = exitJoin(code, report(out, JSON.parse(readFileSync(join(out, f), 'utf8')), strict));
     return code;
@@ -95,13 +101,17 @@ export async function main(argv) {
     // Joins the legs of one engine (each leg's directory holds its raw-<engine>.json) and reduces the whole as one run.
     const dirs = arg(argv, '--in').split(',').filter(Boolean);
     const engineName = arg(argv, '--engine');
-    const raws = dirs.map((d) => JSON.parse(readFileSync(join(d, `raw-${engineName}.json`), 'utf8')));
-    const raw = mergeRaws(raws);
+    if (dirs.length === 0 || engineName === '') return refuse('merge needs --in <leg dirs> and --engine');
+    let raw;
+    try {
+      raw = mergeRaws(dirs.map((d) => JSON.parse(readFileSync(join(d, `raw-${engineName}.json`), 'utf8'))));
+    } catch (e) {
+      return refuse(e.message);
+    }
     writeFileSync(join(out, `raw-${raw.engine}.json`), JSON.stringify(raw));
     return report(out, raw, strict);
   }
-  console.error('usage: cli.mjs run --engine <e> --out <dir> [--widths ...] [--search ...] [--paths ...] [--reads ...] [--strict] | summary --out <dir> | merge --in <leg dirs, comma separated> --engine <e> --out <dir>');
-  return 1;
+  return refuse('usage: cli.mjs run --engine <e> --out <dir> [--widths ...] [--search ...] [--paths ...] [--reads ...] [--strict] | summary --out <dir> | merge --in <leg dirs, comma separated> --engine <e> --out <dir>');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await main(process.argv.slice(2)));
