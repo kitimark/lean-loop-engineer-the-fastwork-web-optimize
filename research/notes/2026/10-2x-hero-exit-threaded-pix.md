@@ -1,7 +1,7 @@
 ---
 id: 2026-10-23-hero-exit-threaded-pix
 kind: note
-title: "hero.exit:threaded PathPix cells: every threaded cell is L under the Lean rule on both engines (text hold or change outside the masks); the Simulator differences sit at the A/A floor, the Chromium ones do not"
+title: "hero.exit:threaded PathPix cells: every threaded cell is L under the Lean rule on both engines (text hold or change outside the masks); mid-track halos on the Simulator and start-of-track changes on both engines exceed the A/A floor"
 status: draft
 created: 2026-10-23
 topics: [hero.exit, pathpix, webkit, chromium, scroll-driven, threaded-animations, look-review]
@@ -23,8 +23,9 @@ same run's A/A cell. Cell JSON: `results/hero-exit-threaded-pix/run-<id>/<label>
   never closed, so text consumers are L by design; the other cells are L because pixels outside every consumer mask
   change (a 1px blur/aliasing halo or a real shift).
 - MEASURED, read next to the A/A floor ("if strips accepted" column of the JSON, `ifAccepted`): on the Simulator the
-  only P cells that stay L are the cue and card boxes in the middle of the track (offsets y 213 and 427: 1833 and
-  2744 px outside the masks at delta 1 to 2, identical in all four jobs) plus, in single jobs, cells where the
+  P cells that stay L if strips are accepted are cue_cue at y 0, 1 (inside delta 56, above the floor), every visible
+  consumer at y 213 and 427 (1833 and 2744 px outside the masks at delta 1 to 2, identical in all four jobs), plus, in
+  single jobs, cells where the
   accent-word noise or the next-section noise differs from the floor (webkit-3: hero_copy y 0 and 1, cue_cue y 812 and
   813); the rest are Q if strips are accepted (webkit: 14 Q / 12 L in webkit-1, -2; 8 Q / 18 L in
   webkit-3; 14 Q / 8 L / 4 invalid in webkit-4). On Chromium 22 of 26 cells stay L (4 Q: the two offsets at and
@@ -57,8 +58,8 @@ Two aborted/short local debug runs happened on the Simulator while changing harn
 - MEASURED: every P row is live in all jobs (`data-exit-live` true, variant threaded, splash done, scroll-driven
   animations supported, 13 non-document animations, no nudge, config hash 5cfc87a3b48c71c0; A hash ede2c7641aacf2d2).
   `driverMoved` (arm A's hero_copy box moved) is true in all 8 jobs.
-- Cells per job: 26 P and 26 A/A cells; 52 skipped per kind (22 deck_article off screen, 6 cue_cue and 6 hero_copy
-  transparent in both arms, i.e. alpha below 1/255). `hero.orbit_card` is never present at 430 px in either lane.
+- Cells per job: 26 P and 26 A/A cells; 28 skipped per kind (22 deck_article off screen, 6 cue_cue/hero_copy transparent
+  in both arms at offsets 6 to 8, i.e. alpha below 1/255). `hero.orbit_card` is never present at 430 px in either lane.
 - Pixels inside an invisible consumer's mask are not judged; outside means outside every mask; a blur halo beyond the 1px
   mask margin counts as outside (L by rule).
 
@@ -80,6 +81,9 @@ Cell text: grade letter and why (`t` text hold, `o` outside, `i` inside), `[grad
 `changed-maxDelta` / outside `changed-maxDelta` raw counts. Jobs webkit-1, -2, chromium-1, -2 are run 39924527942;
 webkit-3, -4, chromium-3, -4 are run 39929556147. Skipped cells are not listed (see Setup). `invalid` means the
 capture of A, A2 or P did not stabilise at that offset (two screenshots differ after six tries).
+
+Offsets 6 to 8 have no consumer cell. Whole-frame P vs A there: webkit-2 95 px (y 855, 856), webkit-3 9/105/107 px
+(y 854 to 856) at delta 1, with A2 0. These are not judged by any cell; FRAME_P_6..8.png are listed for the look review.
 
 #### webkit
 
@@ -193,7 +197,7 @@ Every P cell graded L is named below (a cell with Q in the ifAccepted position w
 accepted; L there means it fails even then). Job to artifact (CONFIRMED, `artifact` field of each cell JSON): webkit-1
 and webkit-2 are `path-pix-webkit-1` and `path-pix-webkit-2` of run 39924527942, webkit-3 and webkit-4 are
 `path-pix-webkit-1` and `path-pix-webkit-2` of run 39929556147; chromium-1..-4 map the same way to
-`path-pix-chromium-1` and `-2` of those two runs. The strip is `strips/P_<key>_<i>.png` in that artifact
+`path-pix-chromium-1` and `-2` of those two runs. The strip is `<n>-path-pix-webkit/strips/P_<key>_<i>.png` (or `<n>-path-pix-chromium/...`) in that artifact, e.g. `2-path-pix-webkit/strips/AA_hero_copy_3.png`
 (`gh run download <run> -n <artifact>`; CI artifacts only, 30-day retention), `strips/FRAME_P_<i>.png` is the whole
 frame. Per cell, jobs 1..4 of the lane, `t` text hold, `o` outside, `i` inside, then `/` and the ifAccepted grade
 (table generated from the cell JSON; strip name from the first job that has one):
@@ -258,7 +262,7 @@ Priority for the look review:
 | lane | offsets (y) | consumers | strip | what to look at |
 |---|---|---|---|---|
 | Simulator | 213, 427 | cue_cue, deck_article#0..3, hero_copy | `P_<key>_2.png`, `P_<key>_3.png`, `FRAME_P_2.png`, `FRAME_P_3.png` | halo around the moving cards |
-| Simulator | 0, 1 | cue_cue, hero_copy (text hold) | `P_<key>_0.png`, `P_<key>_1.png` | text under the threaded translate |
+| Simulator | 0, 1 | cue_cue (inside delta 56 above the floor, L even if accepted), hero_copy (text hold) | `P_<key>_0.png`, `P_<key>_1.png` | text under the threaded translate |
 | Chromium | 0, 1 | deck_article#0..3, cue_cue, hero_copy | `P_<key>_0.png`, `P_<key>_1.png` | start of track state |
 | Chromium | 233, 466 | all | `P_<key>_2.png`, `P_<key>_3.png` | mid-track frame |
 
