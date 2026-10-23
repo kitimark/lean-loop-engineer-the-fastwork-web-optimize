@@ -15,6 +15,44 @@ import { iosurfaceSample } from './iosurface.mjs';
 
 const NAV = `document.querySelector('[data-fw="nav"]')`;
 export const SET_MORPH = (m) => `(() => { const n = ${NAV}; n.style.setProperty('--morph', '${m}'); n.dataset.fwMorph = '${m}'; return 1; })()`;
+/**
+ * A real push through the page's own tween driver (wheel, deltaY 120, at the page end where the platform arms it). While the wheel handler runs,
+ * requestAnimationFrame parks its callbacks, so the driver's own frame loop waits for `STEP_EXPR` instead of racing the wall clock; the push itself
+ * (state, the panel and fade WAAPI effects, listeners) is the driver's. The effects it started are paused at once. Faithful goes through the same
+ * path and starts none; a threaded arm starts the panel effects (main, blur) and, with platform:fade-threaded, the fade.
+ */
+export const PUSH_EXPR = `(() => {
+  const w = window;
+  const lane = w.__lane = { parked: [], cap: false, id: 0, t0: 0, anims: [] };
+  const nativeRaf = w.requestAnimationFrame.bind(w), nativeCaf = w.cancelAnimationFrame.bind(w);
+  w.requestAnimationFrame = (cb) => { if (!lane.cap) return nativeRaf(cb); const id = -(++lane.id); lane.parked.push({ id, cb }); return id; };
+  w.cancelAnimationFrame = (h) => { if (h < 0) lane.parked = lane.parked.filter((p) => p.id !== h); else nativeCaf(h); };
+  const before = new Set(document.getAnimations());
+  const e = new WheelEvent('wheel', { deltaY: 120, cancelable: true, bubbles: true });
+  lane.cap = true; lane.t0 = performance.now();
+  document.body.dispatchEvent(e);
+  lane.cap = false;
+  lane.anims = document.getAnimations().filter((a) => !before.has(a));
+  for (const a of lane.anims) a.pause();
+  return JSON.stringify({ taken: e.defaultPrevented, parked: lane.parked.length, anims: lane.anims.length });
+})()`;
+/**
+ * Move the paused push to `ms` elapsed: every pushed effect to currentTime = ms, and the driver's frame at the time that makes its published
+ * value equal `m`. The tween starts a little after `t0` (a forced layout in the wheel handler took 11 ms in the faithful arm, 0 in a threaded one), so
+ * the frame time is corrected from the published value until it equals `m`; without that the faithful loads differ from each other by ~1.8M px.
+ * The last line pins the value exactly (the correction ends within 1e-6).
+ */
+export const STEP_EXPR = (ms, m) => `(() => {
+  const lane = window.__lane;
+  const n = ${NAV};
+  for (const a of lane.anims) { a.pause(); a.currentTime = ${Number(ms)}; }
+  const tickAt = (t) => { lane.cap = true; const q = lane.parked.splice(0); for (const p of q) p.cb(t); lane.cap = false; return parseFloat(n.style.getPropertyValue('--morph')); };
+  let t = lane.t0 + ${Number(ms)}, v = tickAt(t), corrections = 0;
+  while (Math.abs(v - ${Number(m)}) > 1e-6 && corrections < 6) { const el = 680 * (1 - Math.pow(1 - Math.min(Math.max(v, 0), 1), 1 / 3)); t += ${Number(ms)} - el; v = tickAt(t); corrections++; }
+  const published = v;
+  n.style.setProperty('--morph', '${m}'); n.dataset.fwMorph = '${m}';
+  return JSON.stringify({ published, corrections, startLag: t - lane.t0 - ${Number(ms)}, parked: lane.parked.length, anims: lane.anims.map((a) => { const t = a.effect.getComputedTiming(); const el = a.effect.target; return { target: el ? (el.getAttribute('data-fw') || el.className || el.tagName).toString().slice(0, 40) : null, playState: a.playState, currentTime: a.currentTime, progress: t.progress, easing: a.effect.getTiming().easing, props: Object.keys((a.effect.getKeyframes()[0] || {})).filter((k) => !['offset', 'computedOffset', 'easing', 'composite'].includes(k)) }; }) });
+})()`;
 export const NAV_STATE = `(() => { const n = ${NAV}; const r = n.getBoundingClientRect(); return JSON.stringify({ cls: n.className, morph: getComputedStyle(n).getPropertyValue('--morph').trim(), rect: [Math.round(r.left * 1e6), Math.round(r.top * 1e6), Math.round(r.width * 1e6), Math.round(r.height * 1e6)], scrollY: Math.round(scrollY) }); })()`;
 export const PAIN_STATE = `(() => { const p = document.querySelector('[data-fw="pain"]'); return JSON.stringify({ dark: !!p && p.classList.contains('is-pain-dark'), variant: p ? p.getAttribute('data-fw-variant') : null, scrollY: Math.round(scrollY) }); })()`;
 /** First scroll offset (step 8, then 1) at which the section carries is-pain-dark, or null. */
@@ -28,6 +66,9 @@ export const FLIP_SCAN = (maxY) => `(async () => {
   scrollTo({ top: 0, behavior: 'instant' }); await raf();
   return JSON.stringify({ flip: hit });
 })()`;
+
+/** Effects the driver starts on a push: faithful none; morph.panel:threaded the panel (opacity+transform, filter); platform:fade-threaded one more. */
+export const wantEffects = (arm) => (arm.search.includes('morph.panel:threaded') ? 2 : 0) + (arm.search.includes('platform:fade-threaded') ? 1 : 0);
 
 const shot = (udid, file) => {
   const r = simctl(['io', udid, 'screenshot', '--type=png', file], { timeoutMs: 60000 });
@@ -110,24 +151,42 @@ export async function captureZone({ zone, siteDir, shotsDir, settleMs = 4500, lo
         const info = await load(arm);
         const rows = [];
         if (zone !== 'pain') { await scrollHold(ctx.c, info.maxY, { holdMs: 800 }); }
+        let pushSeen = null;
+        if (zone === 'morph') {
+          // The panel and fade effects start only inside the driver on a push: start a real one, then place it at each state.
+          await ctx.c.runAsync(NEAR_IMAGES_EXPR);
+          await ctx.c.runAsync(VIDEO_EXPR);
+          await ctx.c.evaluate(FREEZE_EXPR);
+          await sleep(400);
+          pushSeen = JSON.parse(await ctx.c.evaluate(PUSH_EXPR));
+          if (!pushSeen.taken || pushSeen.parked < 1) throw new Error(`arm ${arm.id}: the driver did not take the wheel push (${JSON.stringify(pushSeen)})`);
+          log(`  ${arm.id}: push taken, ${pushSeen.anims} effects started, ${pushSeen.parked} frame parked`);
+        }
         for (const st of out.states) {
-          if (st.kind === 'morph') {
+          let step = null;
+          if (st.drive === 'push') {
+            step = JSON.parse(await ctx.c.evaluate(STEP_EXPR(st.elapsedMs, st.m)));
+            if (step.anims.length !== wantEffects(arm)) throw new Error(`arm ${arm.id}: ${step.anims.length} effects started, expected ${wantEffects(arm)} (${JSON.stringify(step.anims.map((a) => a.target))})`);
+            await sleep(1200);
+          } else if (st.kind === 'morph') {
             await ctx.c.evaluate(SET_MORPH(st.m));
             await sleep(1200);
           } else {
             await scrollHold(ctx.c, st.y, { holdMs: 900 });
           }
-          await ctx.c.runAsync(NEAR_IMAGES_EXPR);
-          await ctx.c.runAsync(VIDEO_EXPR);
-          await ctx.c.evaluate(FREEZE_EXPR);
-          await sleep(400);
-          await ctx.c.evaluate(FREEZE_EXPR);
-          await sleep(300);
+          if (st.drive !== 'push') {
+            await ctx.c.runAsync(NEAR_IMAGES_EXPR);
+            await ctx.c.runAsync(VIDEO_EXPR);
+            await ctx.c.evaluate(FREEZE_EXPR);
+            await sleep(400);
+            await ctx.c.evaluate(FREEZE_EXPR);
+            await sleep(300);
+          }
           const state = JSON.parse(await ctx.c.evaluate(st.kind === 'morph' ? NAV_STATE : PAIN_STATE));
           const files = await settleShots(arm.id, st.id);
           const cen = await takeCensus(ctx.c, { paintWindowMs: 0 });
           const iosurface = iosurfaceSample();
-          rows.push({ id: st.id, ...files, state, iosurface, census: { layerCount: cen.layerCount, memoryBytes: cen.memoryBytes, reasonCounts: cen.reasonCounts } });
+          rows.push({ id: st.id, ...files, state, push: step ? { ...step, taken: pushSeen.taken } : null, iosurface, census: { layerCount: cen.layerCount, memoryBytes: cen.memoryBytes, reasonCounts: cen.reasonCounts } });
           log(`  ${arm.id} ${st.id}: ${JSON.stringify(state)} layers ${cen.layerCount} mem ${cen.memoryBytes} iosurf gpu ${iosurface.gpu?.regions ?? '-'}/${Math.round((iosurface.gpu?.virtualBytes ?? 0) / 1e6)}MB`);
         }
         out.arms[arm.id] = { search: arm.search, states: rows };

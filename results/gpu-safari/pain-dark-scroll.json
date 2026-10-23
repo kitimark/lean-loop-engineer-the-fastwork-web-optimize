@@ -137,7 +137,9 @@
      }
     ],
     "nearest": 0,
+    "laterNearest": 0,
     "spread": 348579,
+    "floor": 6804,
     "within": true
    },
    "hash": {
@@ -163,6 +165,7 @@
      "scrollY": 872
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 110,
@@ -398,7 +401,9 @@
      }
     ],
     "nearest": 0,
+    "laterNearest": 0,
     "spread": 354710,
+    "floor": 6323,
     "within": true
    },
    "hash": {
@@ -424,6 +429,7 @@
      "scrollY": 887
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 110,
@@ -659,7 +665,9 @@
      }
     ],
     "nearest": 0,
+    "laterNearest": 0,
     "spread": 352947,
+    "floor": 4355,
     "within": true
    },
    "hash": {
@@ -685,6 +693,7 @@
      "scrollY": 888
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 110,
@@ -920,7 +929,9 @@
      }
     ],
     "nearest": 0,
+    "laterNearest": 0,
     "spread": 351463,
+    "floor": 3107,
     "within": true
    },
    "hash": {
@@ -946,6 +957,7 @@
      "scrollY": 889
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 110,
@@ -1181,7 +1193,9 @@
      }
     ],
     "nearest": 0,
+    "laterNearest": 0,
     "spread": 337245,
+    "floor": 4711,
     "within": true
    },
    "hash": {
@@ -1207,6 +1221,7 @@
      "scrollY": 904
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 110,

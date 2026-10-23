@@ -27,6 +27,9 @@
   "gate": "39848853982",
   "trajectory": [
    "39842581192"
+  ],
+  "webkitSim": [
+   "39872570182"
   ]
  },
  "arm": "nav-logo-3d",
@@ -306,7 +309,9 @@
      }
     ],
     "nearest": 364942,
+    "laterNearest": 364942,
     "spread": 59857,
+    "floor": 45635,
     "within": false
    },
    "hash": {
@@ -350,6 +355,7 @@
      "scrollY": 5267
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 208,
@@ -774,7 +780,9 @@
      }
     ],
     "nearest": 716906,
+    "laterNearest": 716906,
     "spread": 19437,
+    "floor": 0,
     "within": false
    },
    "hash": {
@@ -818,6 +826,7 @@
      "scrollY": 5267
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 208,
@@ -1242,7 +1251,9 @@
      }
     ],
     "nearest": 1012932,
+    "laterNearest": 1012932,
     "spread": 9121,
+    "floor": 0,
     "within": false
    },
    "hash": {
@@ -1286,6 +1297,7 @@
      "scrollY": 5267
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 208,
@@ -1710,7 +1722,9 @@
      }
     ],
     "nearest": 843747,
+    "laterNearest": 843747,
     "spread": 8717,
+    "floor": 0,
     "within": false
    },
    "hash": {
@@ -1754,6 +1768,7 @@
      "scrollY": 5267
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 208,
@@ -2178,7 +2193,9 @@
      }
     ],
     "nearest": 1454605,
+    "laterNearest": 1454608,
     "spread": 17,
+    "floor": 4,
     "within": false
    },
    "hash": {
@@ -2222,6 +2239,7 @@
      "scrollY": 5267
     }
    },
+   "pushSeen": null,
    "census": {
     "faithful": {
      "layerCount": 208,

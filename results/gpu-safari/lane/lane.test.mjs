@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FLAG_ARMS, statesOf, zoneArms, NAV_M } from './plan.mjs';
+import { FLAG_ARMS, statesOf, zoneArms, NAV_M, elapsedAt } from './plan.mjs';
+import { wantEffects, PUSH_EXPR, STEP_EXPR } from './sim-capture.mjs';
 import { CI_PAIRS } from './ci-pairs.mjs';
 import { ringSplit, glassOf, glassDelta, againstLoads, maskOf, hashOf } from './pix.mjs';
 import { unionBox } from './reduce.mjs';
@@ -32,6 +33,21 @@ test('the nav states hold the task values and the pain states need the flip offs
   assert.throws(() => statesOf('pain'));
   assert.deepEqual(statesOf('pain', 888).map((s) => s.y), [872, 887, 888, 889, 904]);
   assert.throws(() => statesOf('hero'));
+});
+
+test('the morph states are driven by a real push and sit at the elapsed time of their value; nav and pain are not', () => {
+  assert.ok(statesOf('morph').every((s) => s.drive === 'push' && s.elapsedMs === elapsedAt(s.m)));
+  assert.ok(statesOf('nav').every((s) => s.drive === undefined));
+  // 1 - (1 - x)^3 at the elapsed fraction returns m (tween ease, and the panel bezier cubic-bezier(1/3, 1, 2/3, 1))
+  for (const m of [0.25, 0.5, 0.75]) assert.ok(Math.abs(1 - (1 - elapsedAt(m) / 680) ** 3 - m) < 1e-4, String(m));
+  assert.equal(elapsedAt(0.5), 140.284);
+  assert.throws(() => elapsedAt(1));
+  const arm = (id) => FLAG_ARMS.find((a) => a.id === id);
+  assert.equal(wantEffects({ search: '' }), 0);
+  assert.equal(wantEffects(arm('morph-panel-threaded')), 2);
+  assert.equal(wantEffects(arm('morph-panel-threaded-fade')), 3);
+  assert.doesNotMatch(STEP_EXPR(62, 0.25), /FREEZE|finish\(/);
+  assert.match(PUSH_EXPR, /new WheelEvent\('wheel'/);
 });
 
 test('ringSplit separates the mask edge from its interior and ignores the frame border', () => {
@@ -72,6 +88,23 @@ test('againstLoads: an arm equal to one faithful load is within the faithful spr
   assert.equal(q.within, false);
   const f2 = img(w, h, () => [10, 10, 10]);
   assert.equal(againstLoads([f0, f2], far, w, [0, w, 0, h]).within, false);
+});
+
+test('againstLoads: the A/A floor is the later-load pair, the first load is the outlier', () => {
+  const w = 8, h = 8, m = [0, w, 0, h];
+  const outlier = img(w, h, () => [90, 10, 10]);
+  const f1 = img(w, h, () => [10, 10, 10]);
+  const f2 = img(w, h, (x) => (x < 2 ? [20, 10, 10] : [10, 10, 10]));
+  const r = againstLoads([outlier, f1, f2], img(w, h, () => [10, 10, 10]), w, m);
+  assert.equal(r.floor, 16); // base2 against base3 only, not the outlier pair (64)
+  assert.equal(r.spread, 64);
+  assert.equal(r.laterNearest, 0);
+  assert.equal(r.within, true);
+  // an arm that equals only the outlier is not within the later-load floor
+  const q = againstLoads([outlier, f1, f2], img(w, h, () => [90, 10, 10]), w, m);
+  assert.equal(q.nearest, 0);
+  assert.equal(q.laterNearest, 64);
+  assert.equal(q.within, false);
 });
 
 test('maskOf takes the nav box in micro px and the whole frame otherwise; unionBox grows both', () => {

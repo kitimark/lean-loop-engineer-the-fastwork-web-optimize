@@ -24,10 +24,22 @@ export const MORPH_M = Object.freeze([0.25, 0.5, 0.75]);
 /** Scroll offsets around the pain flip (the first offset at which the original puts `is-pain-dark` on the section). */
 export const PAIN_AROUND = Object.freeze([-16, -1, 0, 1, 16]);
 
+/** Tween length in ms (morph.tween/logic.ts DURATION_MS; the panel and fade effects use the same value). */
+export const MORPH_DURATION_MS = 680;
+/**
+ * Elapsed ms of a push at which the morph value is `m`. The tween eases with 1 - (1 - x)^3 (logic.ts `ease`), and the panel and fade effects use
+ * cubic-bezier(1/3, 1, 2/3, 1), whose x(s) = s and y(s) = 1 - (1 - s)^3 are the same curve, so one elapsed time drives the nav value and every
+ * effect (TS stand-in; the page reads back the effect progress and the published value as a check).
+ */
+export const elapsedAt = (m) => {
+  if (!(m > 0 && m < 1)) throw new Error(`morph value ${m} is outside (0, 1)`);
+  return Math.round(MORPH_DURATION_MS * (1 - Math.pow(1 - m, 1 / 3)) * 1000) / 1000;
+};
+
 /** The states of a zone, in capture order. `flipY` is only read by the pain zone. */
 export function statesOf(zone, flipY = null) {
   if (zone === 'nav') return NAV_M.map((m) => ({ id: `m${m}`, kind: 'morph', m, mask: 'nav' }));
-  if (zone === 'morph') return MORPH_M.map((m) => ({ id: `m${m}`, kind: 'morph', m, mask: 'frame' }));
+  if (zone === 'morph') return MORPH_M.map((m) => ({ id: `m${m}`, kind: 'morph', m, mask: 'frame', drive: 'push', elapsedMs: elapsedAt(m) }));
   if (zone === 'pain') {
     if (!Number.isInteger(flipY)) throw new Error('the pain zone needs the flip offset of the faithful arm');
     return PAIN_AROUND.map((d) => ({ id: `y${d >= 0 ? '+' : ''}${d}`, kind: 'scroll', y: flipY + d, mask: 'frame' }));

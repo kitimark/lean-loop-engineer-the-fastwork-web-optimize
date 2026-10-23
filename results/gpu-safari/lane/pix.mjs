@@ -48,8 +48,10 @@ export const glassDelta = (a, b) => (a && b ? { mean: a.mean.map((v, i) => Math.
 
 /**
  * The arm against every faithful load of the session, and the faithful loads against each other, inside mask `m`.
- * `nearest` is the smallest changed count of the arm against any faithful load; `spread` is the largest changed count between two faithful loads.
- * An arm whose `nearest` is not above the `spread` lies inside the load-to-load variation of the faithful arm.
+ * `loads` is in load order: [first faithful, A/A control, order probe]. The first load is an outlier (note, finding 1), so the A/A floor is
+ * the later-load pair `floor` = loads[1] against loads[2] (pairs i=1, j=2); with fewer than three loads it falls back to `spread`, the largest
+ * changed count between any two loads. `laterNearest` is the smallest changed count of the arm against a later load (index 1 and up);
+ * `nearest` also counts the outlier. An arm whose `laterNearest` is not above the floor lies inside the load-to-load variation of the faithful arm.
  */
 export function againstLoads(loads, b0, w, m) {
   const inM = (x, y) => { const r = split(deltas(x, y), w, m).inside; return r; };
@@ -58,7 +60,10 @@ export function againstLoads(loads, b0, w, m) {
   for (let i = 0; i < loads.length; i++) for (let j = i + 1; j < loads.length; j++) pairs.push({ i, j, ...inM(loads[i], loads[j]) });
   const nearest = Math.min(...arm.map((r) => r.changed));
   const spread = Math.max(...pairs.map((r) => r.changed));
-  return { arm, pairs, nearest, spread, within: nearest <= spread };
+  const later = pairs.find((r) => r.i === 1 && r.j === 2);
+  const floor = later ? later.changed : spread;
+  const laterNearest = loads.length > 2 ? Math.min(...arm.slice(1).map((r) => r.changed)) : nearest;
+  return { arm, pairs, nearest, laterNearest, spread, floor, within: laterNearest <= floor };
 }
 
 /**
