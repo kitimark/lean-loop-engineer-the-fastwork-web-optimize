@@ -73,6 +73,21 @@ export async function dragPass(driver, { udid, cycles = 4, dragPt = 360, velocit
   return { ...r, logFile };
 }
 
+/**
+ * One long run of the push server (driver/UITests/PushServer.swift): it swipes on request through files in `dir` (go-<n> asks,
+ * done-<n> answers, ready first, stop last). Returns at once: {state, exited, logFile}; `state.ended` flips when xcodebuild ends.
+ */
+export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve' }) {
+  const env = { ...process.env, TEST_RUNNER_FW_DIR: dir, TEST_RUNNER_FW_DRAG_PT: String(push.dragPt), TEST_RUNNER_FW_VELOCITY: String(push.velocity),
+    TEST_RUNNER_FW_HOLD_MS: String(push.holdMs), TEST_RUNNER_FW_MAX_S: String(maxS) };
+  const logFile = join(driver.dir, `${tag}.log`);
+  const state = { ended: false, code: null, timedOut: false };
+  const exited = runGroup('xcodebuild', ['test-without-building', '-xctestrun', driver.xctestrun, '-destination', `id=${udid}`,
+    '-only-testing:DriverUITests/PushServer/testServe', '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs: (maxS + 120) * 1000, logFile })
+    .then((r) => { Object.assign(state, { ended: true, code: r.code, timedOut: r.timedOut }); return r; });
+  return { state, exited, logFile };
+}
+
 /** Remove the temp build. */
 export function cleanup(driver) {
   if (driver?.dir) rmSync(driver.dir, { recursive: true, force: true });

@@ -14224,7 +14224,8 @@
     "packages/measure-webkit/test/profile-report.test.mjs",
     "packages/measure-webkit/test/touch-push.test.mjs",
     "research/notes/2026/10-23-smooth-miss-counts.md"
-   ]
+   ],
+   "evidence": "7c78f37"
   },
   {
    "devices": [

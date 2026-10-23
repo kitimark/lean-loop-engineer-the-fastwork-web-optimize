@@ -1,6 +1,6 @@
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { acrossDecisive, agreeNeeded, armRate, decisive, HITCH_TENTHS, hitches, hitchVerdict, quantile, repOf, repRange, spread, verdict } from './reduce.mjs';
+import { acrossDecisive, agreeNeeded, armRate, countsOf, decisive, HITCH_TENTHS, hitches, hitchVerdict, quantile, repOf, repRange, spread, sumCounts, verdict } from './reduce.mjs';
 
 const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 const ARMS = ['orig', 'base', 'aa', 'cand'];
@@ -21,8 +21,25 @@ export function cellOf(runId, file, width, window) {
   const verdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, verdict(arms[a], arms[b], arms.base, arms.aa)]));
   const hitchReps = Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a).sort((x, y) => x.rep - y.rep).map((r) => hitches(r.ivs))]));
   const hitchVerdicts = Object.fromEntries(PAIRS.map(([a, b]) => [`${a}|${b}`, hitchVerdict(hitchReps[a], hitchReps[b], hitchReps.base, hitchReps.aa)]));
+  const countReps = Object.fromEntries(ARMS.map((a) => [a, rows.filter((r) => r.arm === a && r.th).sort((x, y) => x.rep - y.rep).map((r) => countsOf(r.ivs, r.th))]));
+  const counts = Object.fromEntries(ARMS.map((a) => [a, sumCounts(countReps[a])]));
+  const histograms = histogramsOf(rows);
   const traces = (file.traces ?? []).filter((t) => t.width === width && t.window === window);
-  return { run: runId, width, window, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, hitchReps, hitchVerdicts, traces, hitches: hitchesOf(rows) };
+  return { run: runId, width, window, search: file.search, hash: file.hash, baseHash: file.baseHash, version: file.version, spread: sp, arms: stat, verdicts, hitchReps, hitchVerdicts, countReps, counts, histograms, traces, hitches: hitchesOf(rows) };
+}
+
+/** Per arm and histogram name: the windows that reported it, the samples and the summed value (descriptive; Chromium's own jank and smoothness metrics). */
+export function histogramsOf(rows) {
+  const out = {};
+  for (const a of ARMS) {
+    const m = new Map();
+    for (const r of rows.filter((x) => x.arm === a)) for (const h of r.hist ?? []) {
+      const e = m.get(h.name) ?? { name: h.name, windows: 0, count: 0, sum: 0 };
+      m.set(h.name, { ...e, windows: e.windows + 1, count: e.count + h.count, sum: e.sum + h.sum });
+    }
+    out[a] = [...m.values()].sort((x, y) => x.name.localeCompare(y.name));
+  }
+  return out;
 }
 
 /** A hitch is a gap over 60 ms (Lean `hitchTenths`). Per arm: where it fell (scroll position, frame index), how long, and the long animation frame the browser reported. Descriptive. */
@@ -97,10 +114,31 @@ export function traceTotals(cells) {
     .sort((x, y) => x.width - y.width || x.window.localeCompare(y.window) || ARMS.indexOf(x.arm) - ARMS.indexOf(y.arm));
 }
 
+/** Per width, window and arm: the counts summed over every sample (one CI job is one sample) and over its repeats. Cells without recorded times are left out. */
+export function countTotals(cells) {
+  const g = new Map();
+  for (const c of cells) for (const a of ARMS) {
+    if (c.countReps?.[a]?.length > 0) {
+      const k = [c.width, c.window, a].join('|');
+      const e = g.get(k) ?? { width: c.width, window: c.window, arm: a, runs: [], reps: 0, counts: sumCounts([]) };
+      g.set(k, { ...e, runs: [...e.runs, c.run], reps: e.reps + c.countReps[a].length, counts: sumCounts([e.counts, c.counts[a]]) });
+    }
+  }
+  return [...g.values()].sort((x, y) => x.width - y.width || x.window.localeCompare(y.window) || ARMS.indexOf(x.arm) - ARMS.indexOf(y.arm));
+}
+
+/** The histogram table: what Chromium's own scroll-jank and smoothness histograms reported during the windows (empty when none did). */
+export function histogramRows(cells) {
+  const rows = [];
+  for (const c of cells) for (const a of ARMS) for (const h of c.histograms?.[a] ?? []) rows.push(`| ${c.run} | ${c.width} | ${c.window} | ${a} | ${h.name} | ${h.windows} | ${h.count} | ${(h.sum / Math.max(1, h.count)).toFixed(2)} |`);
+  if (rows.length === 0) return ['', 'Chromium histograms (`Browser.getHistograms`, delta per window): none reported a sample in these windows.'];
+  return ['', '### Chromium histograms (`Browser.getHistograms`, delta per window; descriptive, never in a verdict)', '', '| run | width | window | arm | histogram | windows | samples | mean |', '| --- | --- | --- | --- | --- | --- | --- | --- |', ...rows];
+}
+
 /** The tables as markdown. Rates are bad frames (interval over 34 ms) per 10000 frames, shown as percent. */
 export function markdown({ cells, skipped }, sum) {
   const out = [];
-  out.push('Bad frame = a gap between rAF callbacks above 34 ms. Rate = bad frames per frame, pooled over the repeats of an arm (percent). Hitch = a gap over 60 ms.', '');
+  out.push('Bad frame = a gap between rAF callbacks above 34 ms. Rate = bad frames per frame, pooled over the repeats of an arm (percent). Hitch = a gap over 60 ms. Over 25 / 34 / 50 ms = intervals above that line; skipped slot = an interval that advances the 60 Hz slot count (rounded from the first frame) by more than 1 (Lean `Fw.Gate.Smooth.over25`, `skips`).', '');
   out.push('Verdicts (rate rule `Fw.Gate.Smooth.verdict`, hitch rule `hitchVerdict`) are main-thread rAF cadence. The compositor frame counts further down come from the trace of the page\'s own frame sink and are reported beside them; they never enter a verdict.', '');
   out.push('### Per run', '');
   for (const c of cells) {
@@ -110,6 +148,10 @@ export function markdown({ cells, skipped }, sum) {
       const s = c.arms[a];
       const hr = c.hitchReps[a];
       out.push(`| ${a} | ${s.reps} | ${s.frames} | ${pct(s.rate)} | ${pct(s.range)} | ${hr.filter((x) => x > 0).length} of ${hr.length} | ${hr.join(',')} | ${ms(s.p50)} | ${ms(s.p95)} | ${ms(s.p99)} | ${ms(s.max)} |`);
+    }
+    if (ARMS.some((a) => c.countReps[a].length > 0)) {
+      out.push('', '| arm | frames | over 25 ms | over 34 ms | over 50 ms | skipped slots | skipped slots per rep |', '| --- | --- | --- | --- | --- | --- | --- |');
+      for (const a of ARMS) out.push(`| ${a} | ${c.counts[a].frames} | ${c.counts[a].over25} | ${c.counts[a].over34} | ${c.counts[a].over50} | ${c.counts[a].skips} | ${c.countReps[a].map((x) => x.skips).join(',')} |`);
     }
     out.push('', `Rate verdicts: ${PAIRS.map(([a, b]) => `${a} vs ${b}: ${c.verdicts[`${a}|${b}`]}`).join('; ')}`, `Hitch verdicts: ${PAIRS.map(([a, b]) => `${a} vs ${b}: ${c.hitchVerdicts[`${a}|${b}`]}`).join('; ')}`, '');
   }
@@ -124,6 +166,13 @@ export function markdown({ cells, skipped }, sum) {
     const loafReps = new Set(h.filter((x) => x.loaf).map((x) => x.rep)).size;
     out.push(`| ${c.run} | ${c.width} | ${c.window} | ${a} | ${c.arms[a].reps} | ${h.length} | ${(quantile(h.map((x) => x.ms * 10), 50) / 10).toFixed(1)} | ${ys.length ? quantile(ys, 50) : '-'} | ${loafReps} |`);
   }
+  const ct = countTotals(cells);
+  if (ct.length > 0) {
+    out.push('', '### Miss counts over all samples (summed over the repeats of every job; Lean `Fw.Gate.Smooth.countsOf`, `Counts.add`)', '',
+      '| width | window | arm | samples | reps | frames | over 25 ms | over 34 ms | over 50 ms | skipped slots | skipped slots per 1000 frames | over 25 ms per 1000 frames |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    for (const e of ct) out.push(`| ${e.width} | ${e.window} | ${e.arm} | ${e.runs.length} | ${e.reps} | ${e.counts.frames} | ${e.counts.over25} | ${e.counts.over34} | ${e.counts.over50} | ${e.counts.skips} | ${(1000 * e.counts.skips / Math.max(1, e.counts.frames)).toFixed(1)} | ${(1000 * e.counts.over25 / Math.max(1, e.counts.frames)).toFixed(1)} |`);
+  }
+  out.push(...histogramRows(cells));
   const totals = traceTotals(cells);
   const legacy = cells.reduce((n, c) => n + c.traces.filter((t) => !t.trace?.sink).length, 0);
   if (totals.length > 0) {
@@ -145,7 +194,7 @@ export async function cadenceMain(runsDir, outDir) {
   const all = cellsOf(runsDir);
   const sum = summary(all.cells);
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'cadence.table.json'), `${JSON.stringify({ skipped: all.skipped, cells: all.cells, summary: sum, traceTotals: traceTotals(all.cells).map((e) => ({ ...e, slow: [...e.slow.entries()].map(([name, x]) => ({ name, ...x })) })) }, null, 1)}\n`);
+  writeFileSync(join(outDir, 'cadence.table.json'), `${JSON.stringify({ skipped: all.skipped, cells: all.cells, summary: sum, countTotals: countTotals(all.cells), traceTotals: traceTotals(all.cells).map((e) => ({ ...e, slow: [...e.slow.entries()].map(([name, x]) => ({ name, ...x })) })) }, null, 1)}\n`);
   writeFileSync(join(outDir, 'cadence.table.md'), `${markdown(all, sum)}\n`);
   console.log(`cadence: ${all.cells.length} cells from ${new Set(all.cells.map((c) => c.run)).size} runs, ${all.skipped.length} skipped`);
 }
