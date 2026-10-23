@@ -1,0 +1,39 @@
+{
+  "id": "crash-861",
+  "about": "Desktop-band crash bisect (task chromium-desktop-crash): 861x800, mouse, no touch, dpr 1; 10 rest frames, 40 scroll frames at 10 CSS px, 10 tail frames. Short on purpose: the renderer crash comes about 0.5 s after the first frame, so the load decides.",
+  "hz": 60,
+  "viewport": {
+    "width": 861,
+    "height": 800,
+    "dpr": 1,
+    "mobile": false,
+    "touch": false
+  },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": {
+    "quietFrames": 30,
+    "maxFrames": 900,
+    "prerollFrames": 60
+  },
+  "zoneHeightPx": 500,
+  "segments": [
+    {
+      "name": "rest",
+      "dyPerFrame": 0,
+      "frames": 10
+    },
+    {
+      "name": "scroll",
+      "dyPerFrame": 10,
+      "frames": 40
+    },
+    {
+      "name": "tail",
+      "dyPerFrame": 0,
+      "frames": 10
+    }
+  ]
+}
