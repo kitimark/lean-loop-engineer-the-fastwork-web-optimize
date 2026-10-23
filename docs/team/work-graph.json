@@ -14497,7 +14497,10 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/tools/offload.md",
-    "docs/team/handoffs/ci-offload-checks.md"
+    "docs/team/handoffs/ci-offload-checks.md",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/ci/**"
    ]
   },
   {
@@ -16388,7 +16391,11 @@
     "packages/contracts/golden/measure/touch-start*.jsonl",
     ".github/workflows/webkit-lag-probe.yml",
     "research/notes/2026/10-2x-touch-first-scroll.md",
-    "docs/team/handoffs/touch-first-scroll-probe.md"
+    "docs/team/handoffs/touch-first-scroll-probe.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/ci/**"
    ],
    "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
   },
@@ -16430,7 +16437,7 @@
     "lean/Fw/Ci/Intent.lean",
     "lean/Fw/Ci/Steps.lean",
     "lean/Fw/Ci/Overflow.lean",
-    "lean/Fw/Pool/Caps.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
     "packages/contracts/golden/ci/**",
     "research/notes/2026/10-2x-safari-macos-ci.md",
     "results/safari-macos-ci/**",
@@ -18105,7 +18112,8 @@
     "apps/runner/test/plan*.test.ts",
     "docs/team/handoffs/graph-writes-closure.md"
    ],
-   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328)."
+   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328).",
+   "evidence": "50a73b4"
   },
   {
    "devices": [
@@ -18124,7 +18132,10 @@
     "apps/runner/test/timing*.test.ts",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "docs/team/handoffs/timing-slot-width.md"
+    "docs/team/handoffs/timing-slot-width.md",
+    "scripts/span.sh",
+    "apps/runner/src/watch-collect.ts",
+    "lean/Fw/Wire/Obs.lean"
    ],
    "title": "fw watch opened timing.slow for lean/check 'parallel group' (2026-10-23): the group takes ~48 s at effective parallelism 2.0 and ~95 s at 1.0 (commits 046ff5f vs 3d0d68a; per-job durations equal), because the adaptive Lake build slot granted width 1 under load. The span does not record the granted width, so Fw.Obs.Timing judges a by-design narrow slot as slow. Record the granted slot width (and job count) in the span, and make the Timing slow verdict compare samples of the same width (Lean rule with theorems + golden; the TS reader checked against it). Then the alert only fires when a same-width sample is slow."
   },
@@ -18238,9 +18249,13 @@
     "apps/runner/src/timing*.ts",
     "apps/runner/test/timing*.test.ts",
     "scripts/checkmap*.mjs",
-    "docs/team/handoffs/timing-work-dims.md"
+    "docs/team/handoffs/timing-work-dims.md",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/test/slot-span*.test.ts",
+    "lean/Fw/Obs/Next.lean",
+    "packages/contracts/golden/obs/next*.jsonl"
    ],
-   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples)."
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too."
   },
   {
    "devices": [
@@ -18278,9 +18293,52 @@
    "writes": [
     "results/gpu-safari/**",
     "research/notes/2026/10-2x-gpu-safari-lane.md",
-    "docs/team/handoffs/gpu-safari-mac-followups.md"
+    "docs/team/handoffs/gpu-safari-mac-followups.md",
+    "lean/Fw/Measure/GpuElapsed.lean",
+    "lean/scripts/GpuElapsedGolden.lean",
+    "packages/contracts/golden/measure/gpu-elapsed*.jsonl"
    ],
-   "title": "gpu-safari-mac follow-ups (user-gated: Mac unlocked): (1) people.carousel:crop against faithful on macOS Safari: its swap is timer-driven (220 ms in a 1020 ms cycle), so park the timers or pin the clock to capture a mid-swap frame; (2) a third hero.exit:threaded Mac session (the x0.5 size did not repeat: 20.8k then 5.2k px) and a Simulator hero row of this lane; (3) the Mac morph arms are inconclusive (A/A floor as large as the arm): a lower Mac floor or the Simulator rows; (4) Composite and render-server timing need a quiet Mac (Lean quiet rule refused 12 of 12) or Instruments; (5) move the lane to packages/measure-webkit."
+   "title": "gpu-safari-mac follow-ups (user-gated: Mac unlocked): (1) people.carousel:crop against faithful on macOS Safari: its swap is timer-driven (220 ms in a 1020 ms cycle), so park the timers or pin the clock to capture a mid-swap frame; (2) a third hero.exit:threaded Mac session (the x0.5 size did not repeat: 20.8k then 5.2k px) and a Simulator hero row of this lane; (3) the Mac morph arms are inconclusive (A/A floor as large as the arm): a lower Mac floor or the Simulator rows; (4) Composite and render-server timing need a quiet Mac (Lean quiet rule refused 12 of 12) or Instruments; (5) move the lane to packages/measure-webkit. Review follow-ups from gpu-safari-mac: (6) commit the repeat-session reductions (mac-hero-exit-threaded.repeat.json, mac-morph-panel-threaded*.repeat.json); (7) results/gpu-safari/lane/lane.test.mjs: replace the any-of run-kind check (gate || trajectory || webkitSim) with a per-arm table of expected run kinds; (8) Lean GpuElapsed: prove elapsed_largest (every grid time after elapsedMilli passes m) or reword the note to 'the last grid time before ease passes m'; (9) explain the bundled vs threaded pixel difference at m0.5/m0.75 in the Simulator (style equal, hashes differ)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "writes-closure-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/plan-closure.ts",
+    "apps/runner/test/plan-closure.test.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/src/plan.ts",
+    "lean/Fw/Plan/WritesClosure.lean",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    ".claude/workflows/build-review.js",
+    "docs/team/handoffs/writes-closure-followups.md"
+   ],
+   "title": "graph-writes-closure (landed a5bd5e198) follow-ups: (1) export leanInputGaps(root, table) from scripts/ci-paths.mjs returning {script, path|null}[], make leanInputProblems map over it and plan-closure.ts gapsOf call it, and state the gap predicate (literal ../<path> read in lean/scripts/*.sh not matched by the lean.yml row globs) in Lean so Gap is derived, not input; (2) run `fw plan lint` errors (writesClosure only) in `fw plan sync` (refuse sync on a new error) and in the build-review builder preamble before the dry land, against the build tree, so the r325 and r328 catches fire automatically; (3) keep main's live lint at 0 writesClosure errors (the lead fixed the 5 in graph r338)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-noflip-followups",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-noflip-followups.md"
+   ],
+   "title": "trajectory-lane-noflip (landed eea0723ac) follow-ups: (1) laneOf_extra covers only open@1 units whose arms are the firstCover fallback or verdicts one extra pass leaves unchanged; extend the no-flip guarantee (or an undecided band) to content verdicts that move with one extra original pass (sampled open@1 and the other buckets), with theorem + golden; (2) cli.mjs strict mode: decide whether an UNDECIDED lane gets its own exit code (today exit 0 from red.red) and mirror the Lean Rel docstring (undecided cases) in the reduce.mjs rel JSDoc; (3) WebKit cadence for the lane (Chromium only so far)."
   }
  ],
  "deadline": {
