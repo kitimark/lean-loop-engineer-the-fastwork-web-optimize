@@ -1,7 +1,7 @@
 branch: worktree-wf_9e4882e0-ebf-1 (CI branch ci/counts-font-fidelity)
 worktree: .claude/worktrees/wf_9e4882e0-ebf-1
-last commit: see git log (fidelity-compare sim-row fix, then pushes of path-pix and engine-premises)
-CI runs: 39906869467 font-fidelity failed (rows dir missing, fixed); 39907447564 font-fidelity success (chromium, webkit-mac, sim, report); path-pix and engine-premises on the pick image: see below once pushed
+last commit: see git log (swipe-touch-v1 maxFrames from Lean, after merging main)
+CI runs: 39906869467 font-fidelity failed (rows dir, fixed); 39907447564 font-fidelity success; path-pix 39909931032 success, engine-premises 39909930901 success (push 3783b391d, pick image); chromium-counts swipe-v1 image run 39914488176 success; swipe-touch-v1 39914492010 failed (every counts job: maxFrames); reuse runs swipe-v1 39916914389 and 39916917890 (image_run=39914488176) queued at 07:18Z
 verified: pick = liberation (fontPick over 5 font sets; Playwright WebKit macOS reference); Simulator doc height 6042 at 430x775 equals the phone (results/phone/2026-10-17-s1); Lean golden + TS twins; ci-paths tests 54 pass; measure-chromium tests 73 pass
 open: refreeze of classes.frozen.json and zone baselines needs 3 workflow runs of one image id per profile (image_run); fw run does not send image_run and gh workflow run is refused in the sandbox, so the lead dispatches them (see note); path-pix / engine-premises re-run on the image; research note; merge main after counts-lane-fonts lands
 
