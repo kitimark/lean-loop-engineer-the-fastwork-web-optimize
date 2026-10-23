@@ -1,7 +1,8 @@
 # sim-touch-reliable handoff
 
 - Branch `worktree-wf_b60a7b2e-e1c-1`, worktree `.claude/worktrees/wf_b60a7b2e-e1c-1`, last code commit `ace249c13` (this handoff commit follows it).
-- CI runs started by this task: none. Evidence used: runs `39901005729` and `39909042070` (read-only).
+- CI: pushed `ci/sim-touch-reliable` at `610d43d70` (smoothness, `[webkit-cadence] [earn-bound] [sim-only]`, default variant springboard); run id pending
+  (`pnpm -s fw ci wait --branch ci/sim-touch-reliable --workflow smoothness`). Evidence read-only: runs `39901005729` and `39909042070`.
 - Verified: Lean `Fw.Measure.TouchPush` compiles with its theorems and golden (`packages/contracts/golden/measure/touch-push.jsonl`);
   `test/touch-push.test.mjs` replays the golden; two short local debug runs (debug evidence, not results) show a push in 4.6 s on a quiet
   Mac with both variants reaching the page.
