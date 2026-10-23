@@ -1,10 +1,11 @@
 branch: worktree-wf_4a8ad90b-552-1 (CI branch ci/hero-exit-threaded-pix)
 worktree: .claude/worktrees/wf_4a8ad90b-552-1
-last commit: 75d148072 (pushed to ci/hero-exit-threaded-pix)
-CI runs (dispatch 1 of 3): 39920801675 path-pix on ci/hero-exit-threaded-pix, in progress
-verified: Lean check green, golden up to date, measure-webkit 409 and measure-chromium 72 tests, ci-paths 54, runner land-inputs 56
-verified: one local 3-offset Simulator debug run (not a result): P hand-over live, pipeline to cells.json works
-open: CI cells (webkit vm1/vm2, chromium 1/2), note, slim cell JSON, dry land, review gate
+last commit: see git log (code fixes after run 1, then dispatch 2)
+CI runs: 39920801675 path-pix (dispatch 1 of 3) success, artifacts webkit-1/2 and chromium-1/2; dispatch 2 follows this commit
+run 1 findings: Chromium arm A never ran the faithful driver (virtual page clock not advanced after the scroll, boxes constant, hero fully visible at every offset), so Chromium run 1 is not a valid comparison; Simulator: A/A noise (accent word differs per load, next-section animations), P hand-over live in both VMs
+fixes for dispatch 2: Chromium advances the page clock after each scroll until boxes settle; driverMoved witness (invalid cells if arm A did not move); cells skipped when the consumer is transparent in both arms; boxes cover descendants
+verified: Lean check green, golden up to date, measure-webkit 409 and measure-chromium 72 tests, ci-paths 54, runner land-inputs 56 (before the fixes); pathpix tests 20 after
+open: dispatch 2 cells, note, slim cell JSON (run 1 JSON in results/hero-exit-threaded-pix/run-39920801675), dry land, review gate
 
 # hero-exit-threaded-pix
 
