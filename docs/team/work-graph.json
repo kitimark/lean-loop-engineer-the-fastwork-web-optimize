@@ -17832,7 +17832,16 @@
     "lean/Fw/Measure/Profile.lean",
     "packages/contracts/golden/measure/**",
     "research/notes/2026/10-2x-counts-font-fidelity.md",
-    "docs/team/handoffs/counts-font-fidelity.md"
+    "docs/team/handoffs/counts-font-fidelity.md",
+    ".github/workflows/font-fidelity.yml",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "scripts/ci-paths.test.mjs",
+    "packages/contracts/golden/ci/**",
+    "lean/Fw/Ops/LakeJobsGen.lean"
    ],
    "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
   },
@@ -17896,7 +17905,13 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Parts/FootprintRows.lean",
     "packages/contracts/golden/parts/footprint*.json",
-    "docs/team/handoffs/footprint-classname-operands.md"
+    "docs/team/handoffs/footprint-classname-operands.md",
+    "apps/site/package.json",
+    "lean/Fw/Parts/ClassPos.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ClassPosGolden.lean",
+    "packages/contracts/golden/parts/footprint*.jsonl",
+    "lean/scripts/check.sh"
    ],
    "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them)."
   },
@@ -17917,6 +17932,29 @@
     "docs/team/handoffs/carousel-swap-webkit-lane.md"
    ],
    "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "classpos-model-align",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "footprint-classname-operands"
+   ],
+   "writes": [
+    "lean/Fw/Parts/ClassPos.lean",
+    "lean/scripts/ClassPosGolden.lean",
+    "packages/contracts/golden/parts/footprint.classpos.jsonl",
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint.classpos.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "docs/team/handoffs/classpos-model-align.md"
+   ],
+   "title": "footprint-classname-operands review follow-up: the JS extractor accepts more than the Lean ClassPos model (CLASS_HELPERS has 'classnames'; any .join(sep) / .filter(f) vs Lean .joined = .filter(Boolean).join(' ') only; no member-class setModuleClass golden case; string + concatenation and object-form clsx({a: b}) are non-class positions, so a real class written that way drops silently). Align: one canonical rule in Lean (add concat and member-class cases, keep the separator), JS narrowed or extended to match, golden covers every JS branch; an unmodelled class position fails the extractor loudly instead of dropping. Note the position theorems are rfl restatements (accepted)."
   }
  ],
  "deadline": {
