@@ -1,7 +1,8 @@
 # writes-closure-readsof-boundary
 
 - Branch: worktree-wf_8a2bc754-9d5-1 (worktree .claude/worktrees/wf_8a2bc754-9d5-1)
-- Work commit: 412e175f5 (main 409aad7c7 merged before it)
+- Work commit: 412e175f5; main 069aa37ce merged after it; dry land `VERDICT dry writes-closure-readsof-boundary`;
+  review gate `VERDICT review-ready writes-closure-readsof-boundary review`
 - CI runs: none (all checks local: check.sh, vitest, node tests)
 - Verified: check.sh green (axiom check 0 failing); @fw/runner 3181/3181 incl. tsc; @fw/contracts 11/11; ci-paths
   56/56; `node scripts/ci-paths.mjs --check` and `--plan-time --check` ok; `fw plan lint` on main's graph: 0
