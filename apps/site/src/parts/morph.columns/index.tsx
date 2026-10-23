@@ -4,6 +4,7 @@ import { createSceneClock } from '../engine.scene/logic';
 import { watchHidden } from '../engine.scene/observe';
 import '../engine.scene/scene.module.css';
 import { COLUMNS } from './data';
+import { IdleHold, idleRemoved } from './idle';
 import css from './morph.module.css';
 
 export interface MorphColumnsProps {
@@ -13,8 +14,6 @@ export interface MorphColumnsProps {
 }
 
 const SCENE_ATTR = 'data-start-selling-scene';
-
-const targetOf = (a: Animation): Element | null => (a.effect as KeyframeEffect | null)?.target ?? null;
 
 /**
  * morph.columns: the five marquee columns of the morph panel's backdrop, rendered as the backdrop's children (the
@@ -76,26 +75,18 @@ export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
     const stage = stageRef.current;
     const panel = stage?.closest<HTMLElement>(`[${SCENE_ATTR}]`);
     if (!idleNone || !stage || !panel) return;
-    const held = new Map<Element, number>();
+    const hold = new IdleHold();
     let removed = false;
     const sync = () => {
-      const want = panel.getAttribute(SCENE_ATTR) === 'paused';
+      const want = idleRemoved(panel.getAttribute(SCENE_ATTR));
       if (want === removed) return;
       removed = want;
       if (want) {
-        for (const a of stage.getAnimations({ subtree: true })) {
-          const target = targetOf(a);
-          if (target && a.currentTime !== null) held.set(target, Number(a.currentTime));
-        }
+        hold.keep(stage.getAnimations({ subtree: true }));
         stage.setAttribute('data-fw-idle', '');
       } else {
         stage.removeAttribute('data-fw-idle');
-        for (const a of stage.getAnimations({ subtree: true })) {
-          const target = targetOf(a);
-          const t = target ? held.get(target) : undefined;
-          if (t !== undefined) a.currentTime = t;
-        }
-        held.clear();
+        hold.restore(stage.getAnimations({ subtree: true }));
       }
     };
     sync();
