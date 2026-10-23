@@ -19,3 +19,9 @@ CI runs: none (no ci/* push; the check is local tier)
 - Outside the task writes: `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/scripts/WorkflowLintGolden.lean` (golden wiring, same as the other Ci goldens).
 - A future move to the remote tier needs an actionlint install step in land.yml and a `remoteIds` row in Lean LandTier.
 - Read first: lean/Fw/Ci/WorkflowLint.lean, scripts/check-workflows.sh.
+
+## Round 2 (land-lane fix)
+- Decision: install, not seam. land.yml step "actionlint (pinned, sha256-checked)" puts rhysd/actionlint v1.7.12 linux_arm64 (sha256 325e971b...c0c6, checked
+  against the release checksums file) on PATH in every land leg, so land-workflow.test.ts runs its real-binary cases with 0 skipped. skipIf commit reverted.
+- Check reads now include apps/runner/src/land-checks-workflow.ts (Lean `reads`, `parse_reads`, `verdict_code_selects`; TS WORKFLOW_LINT_READS; golden regenerated).
+- Open: land.yml is a new write; CircleCI overflow leg (.circleci) has no actionlint install; if it runs apps/runner the same skip fails there.

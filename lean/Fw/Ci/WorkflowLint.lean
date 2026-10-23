@@ -11,7 +11,8 @@ open Fw.Console.LandSpeed (Decl selectChecks mem_selectChecks)
 
 def checkId : String := "workflow-lint"
 
-def reads : List String := [".github/workflows/*.yml", ".github/workflows/*.yaml", "scripts/check-workflows.sh"]
+def reads : List String := [".github/workflows/*.yml", ".github/workflows/*.yaml", "scripts/check-workflows.sh",
+    "apps/runner/src/land-checks-workflow.ts"]
 
 def decls : List Decl := [⟨checkId, reads⟩]
 
@@ -27,7 +28,8 @@ open Fw.Ops.PathCheck (segs segMatch globMatch matchesPath inScope parseScope in
 
 set_option maxRecDepth 4096 in
 theorem parse_reads : parseScope reads =
-    ⟨[[".github", "workflows", "*.yml"], [".github", "workflows", "*.yaml"], ["scripts", "check-workflows.sh"]], []⟩ := by
+    ⟨[[".github", "workflows", "*.yml"], [".github", "workflows", "*.yaml"], ["scripts", "check-workflows.sh"],
+      ["apps", "runner", "src", "land-checks-workflow.ts"]], []⟩ := by
   have hi : reads.filter (!·.startsWith "!") = reads := by
     simp (config := {decide := true}) [reads]
   have he : reads.filter (·.startsWith "!") = [] := by
@@ -67,11 +69,19 @@ theorem script_selects (changed : List String) (x : String) (hx : x ∈ changed)
   refine ⟨by simp, by simp (config := {decide := true}), ⟨["scripts", "check-workflows.sh"], by simp, ?_⟩, by simp⟩
   exact Fw.Ops.PathCheck.matchesPath_lit _ (by simp) (by simp (config := {decide := true}))
 
+theorem verdict_code_selects (changed : List String) (x : String) (hx : x ∈ changed)
+    (hs : segs x = ["apps", "runner", "src", "land-checks-workflow.ts"]) : checkId ∈ select changed := by
+  refine select_of_inScope changed x hx ?_
+  rw [inScope_iff, parse_reads, hs]
+  refine ⟨by simp, by simp (config := {decide := true}), ⟨["apps", "runner", "src", "land-checks-workflow.ts"], by simp, ?_⟩, by simp⟩
+  exact Fw.Ops.PathCheck.matchesPath_lit _ (by simp) (by simp (config := {decide := true}))
+
 #guard select [".github/workflows/trajectory-probe.yml"] == [checkId]
 #guard select [".github/workflows/x.yaml"] == [checkId]
 #guard select ["scripts/check-workflows.sh"] == [checkId]
 #guard select ["docs/team/tools/land.md", ".github/scripts/changed-inputs.mjs", "apps/runner/src/land.ts"] == []
 #guard select [".github/workflows/sub/x.txt"] == []
+#guard select ["apps/runner/src/land-checks-workflow.ts"] == [checkId]
 #guard select [] == []
 
 structure Finding where
