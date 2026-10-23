@@ -17986,7 +17986,8 @@
     "packages/contracts/golden/measure/wkcost.jsonl",
     "packages/measure-webkit/test/lag-swap*.test.mjs"
    ],
-   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens."
+   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens.",
+   "evidence": "c138128"
   },
   {
    "devices": [
