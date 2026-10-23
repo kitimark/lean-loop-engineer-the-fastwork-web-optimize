@@ -38,11 +38,6 @@ export type Charged = Ran | NotRan;
 
 export type Decide = (state: Json | null, now: number) => Json;
 
-/**
- * One attempt: decide, and run gh only on `issue`. Holds the state lock from decision to observation.
- * `lockWaitMs` bounds the wait for the lock: when another process still holds it after that, the result is `busy` (no gh call, nothing
- * booked) instead of a thrown error after 120 s. `timeoutMs` kills a gh process that hangs (the lock is held that long).
- */
 export function chargedOnce(env: Env, decide: Decide, buildArgs: (reply: Json) => string[], timeoutMs = 60_000, lockWaitMs = 120_000): Charged {
   try {
     return chargedLocked(env, decide, buildArgs, timeoutMs, lockWaitMs);
@@ -85,9 +80,7 @@ export type Opts = {
   block?: boolean;
   /** Epoch second after which a blocking call returns the wait it last got. */
   deadline?: number;
-  /** Kill the gh process after this many ms (default 60000). */
   timeoutMs?: number;
-  /** Give up waiting for the shared lock after this many ms and return `busy` (default 120000). */
   lockWaitMs?: number;
 };
 

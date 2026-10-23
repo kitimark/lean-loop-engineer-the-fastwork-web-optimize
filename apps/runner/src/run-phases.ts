@@ -3,22 +3,13 @@ import type { Span } from "./timing.ts";
 import type { Gh, WaitFn } from "./run.ts";
 
 type Begin = (tool: string, step: string) => (exit?: number | null, extra?: Partial<Span>) => void;
-/** `plan` = arguments, plan and the checks before the dispatch; `lock`, `backoff` and `call` = the three parts of the
- *  dispatch call (see `GhClock`); `wait` = the CI wait; `file` = download and ingest; `dry` = a `--dry` run. */
 type Phase = "plan" | "lock" | "backoff" | "call" | "wait" | "file" | "dry";
 
-/** The span step of a phase. Lean `Fw.Obs.Timing.RunSplit.runSteps` lists the same names. */
 export const stepOf = (p: Phase): string => (p === "lock" || p === "backoff" || p === "call" ? `run dispatch ${p}` : `run ${p}`);
 
 export type GhPart = "lock" | "backoff" | "call";
 export type GhEvent = "issue" | "wait" | "slept" | "ghEnd";
 
-/**
- * Splits `ghCharged` calls into the three costs a call can have, from the events `phasedEnv` raises:
- * `lock` = from the call to the budget's `issue` (the wait for the shared state lock, plus the fwcore reserve),
- * `backoff` = the sleep after a budget `wait`, `call` = from `issue` to the end of the gh process.
- * The totals add up over every call between `start` and `end`.
- */
 export class GhClock {
   ms: Record<GhPart, number> = { lock: 0, backoff: 0, call: 0 };
   calls = 0;
@@ -46,8 +37,6 @@ export class GhClock {
   reset(): void { this.ms = { lock: 0, backoff: 0, call: 0 }; this.calls = 0; }
 }
 
-/** The env with its fwcore and sleep calls reporting to `on`; behaves exactly like `env` otherwise. The budget's `observe`
- *  call is made right after the gh process, so its start is the end of the call. */
 export function phasedEnv(env: Env, on: (e: GhEvent) => void): Env {
   return {
     ...env,
@@ -61,11 +50,6 @@ export function phasedEnv(env: Env, on: (e: GhEvent) => void): Env {
   };
 }
 
-/**
- * The sub-spans of a `watch pass` of `totalMs`: the time its gh calls spent waiting for the shared lock and in the gh process,
- * and the rest. No gh call in the pass gives no parts (a zero would drag the history of the step down).
- * Lean `Fw.Obs.Timing.RunSplit.passSteps` lists the same names.
- */
 export function passParts(c: Pick<GhClock, "ms" | "calls">, totalMs: number): { step: string; durMs: number }[] {
   if (c.calls === 0) return [];
   const lock = Math.round(c.ms.lock), call = Math.round(c.ms.call), backoff = Math.round(c.ms.backoff);
@@ -88,7 +72,6 @@ export function runPhases(begin: Begin, dry: boolean) {
   enter(dry ? "dry" : "plan");
   const isDispatch = (a: string[]) => a[0] === "workflow" && a[1] === "run";
   return {
-    /** The env `chargedGh` must run on, so the parts of a dispatch call are seen. */
     env: (env: Env): Env => phasedEnv(env, (e) => current?.on(e)),
     gh: (gh: Gh): Gh => async (a, o) => {
       const mine = isDispatch(a) && (open?.phase === "plan" || open?.phase === "file" || inCall());

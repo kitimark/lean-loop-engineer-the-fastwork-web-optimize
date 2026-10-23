@@ -10,7 +10,6 @@ import { randomBytes } from "node:crypto";
 type Held = { pid: number; token: string };
 export type Lock = { release(): void };
 
-/** The lock stayed held by a live process for the whole wait: a named refusal, not a crash (`ghCharged` turns it into `busy`). */
 export class LockBusy extends Error {}
 
 const alive = (pid: number): boolean => {

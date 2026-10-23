@@ -517,7 +517,6 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
-/** How long a watch pass waits for the shared gh-budget lock before it skips its gh call (TS stand-in for Lean `RunSplit.watchLockWaitMs`). */
 export const WATCH_LOCK_WAIT_MS = 3000;
 
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
@@ -534,7 +533,6 @@ export function chargedRunner(base: Runner, getEnv: () => Env): Runner {
   };
 }
 let sysEnv: { cwd: string; env: Env } | null = null;
-/** The parts (lock, backoff, call) of the gh calls of the current `fw watch` pass; `watch.ts` writes them as sub-spans of `watch pass`. */
 export const watchGh = new GhClock();
 const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: phasedEnv(realEnv(cwd), (e) => watchGh.on(e)) }).env);
 

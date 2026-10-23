@@ -149,12 +149,6 @@ export function ghCost(args: string[]): number {
   return 1;
 }
 
-/**
- * The bounds of the `gh workflow run` call (task dispatch-latency; TS stand-in for Lean `Fw.Obs.Timing.RunSplit.dispatchLockWaitMs` and
- * `dispatchCallTimeoutMs`): the call takes 2.2-2.7 s (MEASURED), and it holds the shared gh-budget lock all that time, so a hung gh blocked every
- * other dispatch and watch pass for up to the 60 s default timeout. Past 20 s the gh process is killed; a caller that cannot get the lock in 60 s
- * (three calls at the call limit) gets a named refusal instead of the 120 s thrown error.
- */
 export const DISPATCH_LIMITS = { timeoutMs: 20_000, lockWaitMs: 60_000 } as const;
 
 export function chargedGh(env: Env): Gh {

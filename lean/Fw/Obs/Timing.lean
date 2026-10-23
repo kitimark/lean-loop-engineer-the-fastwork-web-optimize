@@ -743,7 +743,6 @@ theorem judge_insert_other (p : Params) (a cs b : List Sample) (i : Nat) (s : Sa
   have h : cs.filter Sample.full = [] := List.filter_eq_nil_iff.2 (fun c h' => by simp [hc c h'])
   simp only [List.filter_append, h, List.append_nil]
 
-/-- A sample of another key in the history changes neither the window of `k` nor any verdict against it. -/
 theorem windowOf_insert_key (p : Params) (a b : List Sample) (x : Sample) (k : Key) (h : x.key ≠ k) :
     windowOf p (a ++ x :: b) k = windowOf p (a ++ b) k := by
   simp [windowOf, List.filter_append, h]
@@ -752,16 +751,9 @@ theorem judge_insert_key (p : Params) (a b : List Sample) (x : Sample) (i : Nat)
     judge p (a ++ x :: b) i s = judge p (a ++ b) i s := by
   simp only [judge, windowOf_insert_key p a b x s.key h]
 
-/-- The span steps of one `fw run` (task dispatch-latency): the plan, the three parts of the `gh workflow run` call (the wait for the
-shared gh-budget lock with the fwcore decision, the sleep after a budget `wait`, the gh process), then the CI wait and the filing.
-The writer is `apps/runner/src/run-phases.ts` (`stepOf`); before the split the first four were one step, `run dispatch`.
--/
 def runSteps : List String :=
   ["run plan", "run dispatch lock", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
 
-/-- The span steps of one `fw watch` pass: the whole pass, the time its gh call waited for the lock, the gh process, the sleep after a
-budget wait, and the rest of the pass (writer: `passParts` in `run-phases.ts`).
--/
 def passSteps : List String :=
   ["watch pass", "watch pass gh lock", "watch pass gh call", "watch pass gh backoff", "watch pass other"]
 
@@ -769,23 +761,14 @@ theorem runSteps_nodup : runSteps.Nodup := by decide
 
 theorem passSteps_nodup : passSteps.Nodup := by decide
 
-/-! The bounds of the gh calls that hold the shared gh-budget lock (writers: `DISPATCH_LIMITS` in `apps/runner/src/run.ts`,
-`WATCH_LOCK_WAIT_MS` in `apps/runner/src/watch-collect.ts`; a test compares them with these numbers). Before, a hung gh held the lock for
-the 60 s process timeout and a caller waited up to 120 s for it. -/
-
-/-- The longest a `gh workflow run` waits for the lock before it is refused by name. -/
 def dispatchLockWaitMs : Nat := 60000
 
-/-- The longest a `gh workflow run` process lives (it took 2.2-2.7 s in the measured dispatches). -/
 def dispatchCallTimeoutMs : Nat := 20000
 
-/-- The longest a watch pass waits for the lock before it skips its gh call. -/
 def watchLockWaitMs : Nat := 3000
 
-/-- The longest the gh process of a watch pass lives (the collector's own call timeout). -/
 def watchCallTimeoutMs : Nat := 10000
 
-/-- The limits before the task: the lock wait of `locked` and the process timeout of `chargedOnce`. -/
 def oldLockWaitMs : Nat := 120000
 
 def oldCallTimeoutMs : Nat := 60000
@@ -794,15 +777,10 @@ theorem dispatch_limits_lighter : dispatchLockWaitMs < oldLockWaitMs ∧ dispatc
 
 theorem watch_limits_lighter : watchLockWaitMs < oldLockWaitMs ∧ watchCallTimeoutMs < oldCallTimeoutMs := by decide
 
-/-- The last of three dispatches that start together waits behind two calls, and is not refused while they stay within their timeout. -/
 theorem three_dispatches_fit : 2 * dispatchCallTimeoutMs ≤ dispatchLockWaitMs := by decide
 
-/-- A watch pass blocks on gh for at most the lock wait plus its own call timeout. -/
 theorem watch_gh_block_bound : watchLockWaitMs + watchCallTimeoutMs = 13000 := by decide
 
-/-- A sample of another step leaves the verdict unchanged: each part of a `fw run` (`runSteps`) and of
-a `watch pass` (`passSteps`, distinct names by the two `_nodup` theorems) is judged on the history of its own step only.
--/
 theorem judge_insert_step (p : Params) (a b : List Sample) (x s : Sample) (i : Nat)
     (hne : x.step ≠ s.step) : judge p (a ++ x :: b) i s = judge p (a ++ b) i s := by
   apply judge_insert_key
