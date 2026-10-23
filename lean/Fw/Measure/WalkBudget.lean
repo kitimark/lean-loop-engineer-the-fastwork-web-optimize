@@ -12,8 +12,11 @@ structure Job where
   slackMs : Nat
 deriving Repr, BEq
 
-/-- 45 min as in smoothness.yml; post steps: keep host 3, shutdown 2, upload 2, telemetry 2 min (run 39957772249 took 0.2 to 4 min); grace 2 min; slack 1 min. -/
-def job : Job := ⟨2700000, 540000, 120000, 60000⟩
+/-- 45 min as in smoothness.yml; post steps: upload, host state, host upload, shutdown, telemetry, 2 min each; grace 2 min; slack 1 min. -/
+def job : Job := ⟨2700000, 600000, 120000, 60000⟩
+
+/-- A process-group kill after the deadline for a harness blocked in a synchronous call (run 39981414973 job 3: its walk step ended 4.4 min after its timeout). -/
+def hardStopMs : Nat := 45000
 
 def minuteMs : Nat := 60000
 
@@ -68,6 +71,18 @@ theorem job_ends_inside_uncapped (j : Job) (h : j.fits) (elapsed : Nat) (hc : el
   have h3 := deadline_add_le j h
   omega
 
+theorem stepEnd_gt (j : Job) (elapsed dl : Nat) (h : elapsed ≤ dl + j.graceMs) :
+    dl + j.graceMs < elapsed + stepMinutes j elapsed dl * minuteMs + minuteMs := by
+  unfold stepMinutes
+  have := Nat.lt_div_mul_add (a := dl + j.graceMs - elapsed) (b := minuteMs) (by decide)
+  omega
+
+/-- The hard stop falls inside the walk step's own timeout, so the step is never killed by the runner before it. -/
+theorem hardStop_inside_step (j : Job) (elapsed dl : Nat) (hg : minuteMs + hardStopMs ≤ j.graceMs) (h : elapsed ≤ dl + j.graceMs) :
+    dl + hardStopMs < elapsed + stepMinutes j elapsed dl * minuteMs := by
+  have := stepEnd_gt j elapsed dl h
+  omega
+
 theorem job_fits : job.fits := by simp [Job.fits, job]
 
 theorem startsWindow_false (dl now reserve : Nat) (h : dl < now + reserve) : startsWindow dl now reserve = false := by
@@ -91,32 +106,34 @@ theorem runsWalk_true (j : Job) (elapsed dl needMin : Nat) (h : needMin ≤ step
 /-- A fixed sum of per-window bounds cannot be the rule: 18 touch windows at the 145,600 ms bound already exceed the deadline (run 39957772249 job 1). -/
 theorem static_sum_exceeds : deadlineAt job < 18 * 145600 := by decide
 
-theorem deadline_value : deadlineAt job = 1980000 := by decide
+theorem deadline_value : deadlineAt job = 1920000 := by decide
 
 def stepCases : List (String × Nat × Option Nat) := [
   ("walk starts after 4.6 min", 276000, none),
   ("walk starts at the job start", 0, none),
-  ("walk starts at the deadline", 1980000, none),
-  ("walk starts in the grace", 2000000, none),
+  ("walk starts at the deadline", 1920000, none),
+  ("walk starts in the grace", 1950000, none),
   ("walk starts too late", 2100000, none),
   ("cap 8 min", 276000, some 480000),
   ("cap above the deadline", 276000, some 3000000)]
 
 def startCases : List (String × Nat × Nat × Nat) := [
-  ("plenty of time", 1980000, 100000, 30000),
-  ("exactly the reserve", 1980000, 1950000, 30000),
-  ("one ms short", 1980000, 1950001, 30000),
-  ("past the deadline", 1980000, 2000000, 30000)]
+  ("plenty of time", 1920000, 100000, 30000),
+  ("exactly the reserve", 1920000, 1890000, 30000),
+  ("one ms short", 1920000, 1890001, 30000),
+  ("past the deadline", 1920000, 2000000, 30000)]
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("timeoutMs", toJson job.timeoutMs), ("postMs", toJson job.postMs),
-    ("graceMs", toJson job.graceMs), ("slackMs", toJson job.slackMs), ("deadlineAt", toJson (deadlineAt job))]).compress
+    ("graceMs", toJson job.graceMs), ("slackMs", toJson job.slackMs), ("deadlineAt", toJson (deadlineAt job)),
+    ("hardStopMs", toJson hardStopMs)]).compress
   let ss := stepCases.map fun (name, elapsed, cap) =>
     let dl := cappedDeadline job elapsed cap
     (Json.mkObj [("op", "step"), ("case", Json.str name), ("elapsedMs", toJson elapsed),
       ("capMs", match cap with | some v => toJson v | none => Json.null), ("deadlineMs", toJson dl),
-      ("stepMinutes", toJson (stepMinutes job elapsed dl)), ("runs", toJson (runsWalk job elapsed dl 2))]).compress
+      ("stepMinutes", toJson (stepMinutes job elapsed dl)), ("runs", toJson (runsWalk job elapsed dl 2)),
+      ("hardStopInside", toJson (decide (dl + hardStopMs < elapsed + stepMinutes job elapsed dl * minuteMs)))]).compress
   let ws := startCases.map fun (name, dl, now, reserve) =>
     (Json.mkObj [("op", "start"), ("case", Json.str name), ("deadlineMs", toJson dl), ("nowMs", toJson now),
       ("reserveMs", toJson reserve), ("starts", toJson (startsWindow dl now reserve)),

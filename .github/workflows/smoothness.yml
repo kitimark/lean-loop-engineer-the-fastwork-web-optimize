@@ -482,23 +482,18 @@ jobs:
           # `[earn-bound]`: see the macOS leg.
           ARMS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && 'base,aa,bound' || '' }}
           HOLD_MS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '1400' || '' }}
+          HARD_STOP_S: ${{ steps.budget.outputs.hard_stop_seconds }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
-          node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
-      - name: Keep host state
-        if: ${{ always() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 3
-        run: |
-          mkdir -p "$RUNNER_TEMP/result"
-          bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
-          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
-      - name: Shut down and delete the Simulator
-        if: ${{ always() && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 2
-        run: |
-          xcrun simctl shutdown all || true
-          xcrun simctl delete "$FW_SIM_NAME" || true
+          # Lean Fw.Measure.WalkBudget `hardStopMs`: the harness stops itself at the deadline, but a synchronous simctl call can block it, so its process group is killed 45 s after.
+          hard_stop() {
+            perl -e 'use POSIX qw(setsid); my ($s, @c) = @ARGV; my $p = fork(); if (!$p) { setsid(); exec @c or exit 127; }
+              $SIG{ALRM} = sub { print STDERR "walk hard stop: killing the process group\n"; kill "TERM", -$p; sleep 5; kill "KILL", -$p; waitpid($p, 0); exit 124; };
+              alarm $s; waitpid($p, 0); alarm 0; exit($? & 127 ? 128 + ($? & 127) : $? >> 8);' -- "$@"
+          }
+          hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+      # Upload first: sim.json and sim.log exist by now (sim.json is rewritten after every window), the host state follows in its own artifact.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 2
@@ -507,6 +502,27 @@ jobs:
           path: ${{ runner.temp }}/result
           if-no-files-found: warn
           retention-days: 30
+      - name: Keep host state
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          mkdir -p "$RUNNER_TEMP/host"
+          bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
+          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/host/host.txt" 2>&1 || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 2
+        with:
+          name: smoothness-webkit-sim-host-${{ matrix.job }}
+          path: ${{ runner.temp }}/host
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Shut down and delete the Simulator
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 2
+        run: |
+          xcrun simctl shutdown all || true
+          xcrun simctl delete "$FW_SIM_NAME" || true
       - uses: ./.github/actions/telemetry
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 2

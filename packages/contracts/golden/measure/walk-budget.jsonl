@@ -1,12 +1,12 @@
-{"deadlineAt":1980000,"graceMs":120000,"op":"constants","postMs":540000,"slackMs":60000,"timeoutMs":2700000}
-{"capMs":null,"case":"walk starts after 4.6 min","deadlineMs":1980000,"elapsedMs":276000,"op":"step","runs":true,"stepMinutes":30}
-{"capMs":null,"case":"walk starts at the job start","deadlineMs":1980000,"elapsedMs":0,"op":"step","runs":true,"stepMinutes":35}
-{"capMs":null,"case":"walk starts at the deadline","deadlineMs":1980000,"elapsedMs":1980000,"op":"step","runs":true,"stepMinutes":2}
-{"capMs":null,"case":"walk starts in the grace","deadlineMs":1980000,"elapsedMs":2000000,"op":"step","runs":false,"stepMinutes":1}
-{"capMs":null,"case":"walk starts too late","deadlineMs":1980000,"elapsedMs":2100000,"op":"step","runs":false,"stepMinutes":0}
-{"capMs":480000,"case":"cap 8 min","deadlineMs":756000,"elapsedMs":276000,"op":"step","runs":true,"stepMinutes":10}
-{"capMs":3000000,"case":"cap above the deadline","deadlineMs":1980000,"elapsedMs":276000,"op":"step","runs":true,"stepMinutes":30}
-{"case":"plenty of time","deadlineMs":1980000,"nowMs":100000,"op":"start","remainingMs":1880000,"reserveMs":30000,"starts":true}
-{"case":"exactly the reserve","deadlineMs":1980000,"nowMs":1950000,"op":"start","remainingMs":30000,"reserveMs":30000,"starts":true}
-{"case":"one ms short","deadlineMs":1980000,"nowMs":1950001,"op":"start","remainingMs":29999,"reserveMs":30000,"starts":false}
-{"case":"past the deadline","deadlineMs":1980000,"nowMs":2000000,"op":"start","remainingMs":0,"reserveMs":30000,"starts":false}
+{"deadlineAt":1920000,"graceMs":120000,"hardStopMs":45000,"op":"constants","postMs":600000,"slackMs":60000,"timeoutMs":2700000}
+{"capMs":null,"case":"walk starts after 4.6 min","deadlineMs":1920000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":29}
+{"capMs":null,"case":"walk starts at the job start","deadlineMs":1920000,"elapsedMs":0,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":34}
+{"capMs":null,"case":"walk starts at the deadline","deadlineMs":1920000,"elapsedMs":1920000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":2}
+{"capMs":null,"case":"walk starts in the grace","deadlineMs":1920000,"elapsedMs":1950000,"hardStopInside":true,"op":"step","runs":false,"stepMinutes":1}
+{"capMs":null,"case":"walk starts too late","deadlineMs":1920000,"elapsedMs":2100000,"hardStopInside":true,"op":"step","runs":false,"stepMinutes":0}
+{"capMs":480000,"case":"cap 8 min","deadlineMs":756000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":10}
+{"capMs":3000000,"case":"cap above the deadline","deadlineMs":1920000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":29}
+{"case":"plenty of time","deadlineMs":1920000,"nowMs":100000,"op":"start","remainingMs":1820000,"reserveMs":30000,"starts":true}
+{"case":"exactly the reserve","deadlineMs":1920000,"nowMs":1890000,"op":"start","remainingMs":30000,"reserveMs":30000,"starts":true}
+{"case":"one ms short","deadlineMs":1920000,"nowMs":1890001,"op":"start","remainingMs":29999,"reserveMs":30000,"starts":false}
+{"case":"past the deadline","deadlineMs":1920000,"nowMs":2000000,"op":"start","remainingMs":0,"reserveMs":30000,"starts":false}

@@ -145,13 +145,24 @@ ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
   The walk has no per-window bound outside the touch lane, so no sum of per-window bounds can be the job bound: 18 touch windows at
   145,600 ms already exceed the deadline below (Lean `static_sum_exceeds`).
 - **The rule (Lean `Fw.Measure.WalkBudget`, golden `walk-budget.jsonl`, 12 lines).** A deadline from the job start:
-  45 min timeout - 9 min post steps (keep host 3, shutdown 2, upload 2, telemetry 2, each with its own `timeout-minutes`) - 2 min
-  grace - 1 min slack = 33 min. The workflow records the job start in its first steps, the `Walk budget` step computes the deadline and
+  45 min timeout - 10 min post steps (upload, host state, host upload, shutdown, telemetry, each with its own 2-min `timeout-minutes`) - 2 min
+  grace - 1 min slack = 32 min. The workflow records the job start, the `Walk budget` step computes the deadline and
   the walk step's `timeout-minutes` (whole minutes up to deadline + grace; `stepEnd_le`, `job_ends_inside`), and skips the walk when
   under 2 min remain (`runsWalk_false`). The harness starts no window that cannot finish (30 s reserve, `startsWindow_false`), abandons a
-  window in flight at the deadline and writes the rows so far (`incomplete: walk deadline ...`), then exits explicitly. Post steps run on
-  `always()`, so a step timeout (a failure, not a cancel) still keeps host state, `sim.log`, `sim.json` and the upload.
-- **Cost.** Setup is 3.7 to 4.6 min in the three jobs, so the walk gets about 28 min; job 3 of the run above (32.5 min walk) would
+  window in flight at the deadline and writes the rows so far (`incomplete: walk deadline ...`), then exits explicitly. It also rewrites
+  `sim.json` after every window, so a killed walk keeps its rows. Post steps run on `always()`, with the artifact upload first.
+- **First proof run, `39981414973` (commit `d6413d23d`): the cut worked, the bound did not hold (MEASURED, step times).** Job 1 (`[sim-walk-cap=8]`)
+  ended its walk 8.5 min after the start with `walk deadline: abandoned a window in flight after 4 windows` and uploaded `sim.json`, `sim.log`,
+  `walk-budget.txt` (the dynamic `timeout-minutes` expression is accepted). Job 2 finished (20.5 min). Job 3: deadline 17:00:40Z, step timeout 17:02:05Z,
+  but the walk step ended at 17:06:29Z (failure), Keep host state failed at 17:10:51Z (4.1 min on a 3-min limit), the shutdown and the upload were cancelled
+  by the job timeout at 17:12:38Z, no artifact. So (1) the harness did not stop itself at the deadline: its event loop was blocked, and
+  the blocking is in our code: `simctl` runs through `spawnSync` with `T(90000)` = 720 s timeouts, three tries with `Atomics.wait`
+  (`sim.mjs:38-52,104-105`), none of which a timer can interrupt; (2) the runner enforced the step timeout 4.4 min late and the
+  post steps ran 2 to 4 times slower than their limits (host starved, as in the runs above).
+- **Round 3b.** A process-group hard stop 45 s after the deadline (`hardStopMs`, `hardStop_inside_step`: it falls inside the walk
+  step's own timeout, so the runner is not what ends the walk), `sim.json` rewritten after every window, upload first, host state in its own small
+  artifact, post allowance 10 min. The harness blocking itself is not fixed (the `spawnSync` calls stay); the kill bounds it.
+- **Cost.** Setup is 3.7 to 4.6 min in the jobs, so the walk gets about 27 min; job 3 of run `39957772249` (32.5 min walk) would
   have lost its last windows, with the rows kept.
-- TS stand-ins: `walk-budget.mjs` functions replayed against the golden; the `sim-cadence.mjs` loop wiring and `untilDeadline` are glue
-  (`untilDeadline` has a unit test).
+- TS stand-ins: `walk-budget.mjs` functions replayed against the golden; the `sim-cadence.mjs` loop wiring, `untilDeadline` and the workflow's hard-stop wrapper are glue
+  (`untilDeadline` has a unit test; the wrapper was run once locally with `sleep` and exit codes, debug evidence only).

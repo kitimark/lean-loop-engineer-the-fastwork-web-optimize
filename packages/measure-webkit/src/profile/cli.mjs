@@ -14,10 +14,11 @@ if (cmd === 'sim') {
   const only = parseArms(flag('--arms'));
   if (!site || (!search && !only)) { console.error('sim needs --site <dir> and --search ?fw=... (or --arms base,aa,bound)'); process.exit(2); }
   const out = flag('--out') ?? 'out/smoothness-webkit';
-  const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), only, holdMs: flag('--hold-ms'), touchDriver: flag('--touch-driver') ? resolve(flag('--touch-driver')) : undefined, settleMs: Number(flag('--settle') ?? 2500), deadlineMs: flag('--deadline-ms') ? Number(flag('--deadline-ms')) : null });
   mkdirSync(out, { recursive: true });
   const { writeRaws } = await import('./raw.mjs');
-  writeFileSync(join(out, 'sim.json'), `${JSON.stringify(writeRaws(out, 'sim', res))}\n`);
+  const write = (r) => writeFileSync(join(out, 'sim.json'), `${JSON.stringify(writeRaws(out, 'sim', r))}\n`);
+  const res = await runSimCadence({ siteDir: resolve(site), lookSearch: search, reps: Number(flag('--reps') ?? 6), only, holdMs: flag('--hold-ms'), touchDriver: flag('--touch-driver') ? resolve(flag('--touch-driver')) : undefined, settleMs: Number(flag('--settle') ?? 2500), deadlineMs: flag('--deadline-ms') ? Number(flag('--deadline-ms')) : null, onProgress: write });
+  write(res);
   console.log(`webkit sim: ${res.rows.length} windows, refused=${res.refused}, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.runtime}`);
   process.exit(res.refused || (res.incomplete && !res.rows.some((r) => r.ok)) ? 1 : 0);
 } else if (cmd === 'report') {

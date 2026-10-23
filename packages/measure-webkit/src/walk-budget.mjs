@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 const MINUTE_MS = 60000;
 
-export const JOB = Object.freeze({ timeoutMs: 2700000, postMs: 540000, graceMs: 120000, slackMs: 60000 });
+export const JOB = Object.freeze({ timeoutMs: 2700000, postMs: 600000, graceMs: 120000, slackMs: 60000 });
 
 export const deadlineAt = (j) => j.timeoutMs - j.postMs - j.graceMs - j.slackMs;
 
@@ -15,6 +15,8 @@ export const runsWalk = (j, elapsed, dl, needMin) => needMin <= stepMinutes(j, e
 export const startsWindow = (dl, now, reserve) => now + reserve <= dl;
 
 export const remaining = (dl, now) => Math.max(0, dl - now);
+
+export const HARD_STOP_MS = 45000;
 
 export const MIN_WALK_MINUTES = 2;
 
@@ -32,7 +34,7 @@ export async function untilDeadline(p, dl, now = Date.now) {
 export function planWalk({ jobStartMs, nowMs, capMin }, j = JOB) {
   const elapsed = nowMs - jobStartMs;
   const dl = cappedDeadline(j, elapsed, capMin == null ? null : capMin * MINUTE_MS);
-  return { run: runsWalk(j, elapsed, dl, MIN_WALK_MINUTES), stepMinutes: stepMinutes(j, elapsed, dl), deadlineMs: jobStartMs + dl };
+  return { run: runsWalk(j, elapsed, dl, MIN_WALK_MINUTES), stepMinutes: stepMinutes(j, elapsed, dl), deadlineMs: jobStartMs + dl, hardStopSeconds: Math.max(1, Math.floor((jobStartMs + dl + HARD_STOP_MS - nowMs) / 1000)) };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
@@ -42,5 +44,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (!Number.isFinite(jobStartMs) || jobStartMs <= 0) { console.error('walk-budget needs --job-start-ms <epoch ms>'); process.exit(2); }
   const cap = flag('--cap-min');
   const p = planWalk({ jobStartMs, nowMs: Number(flag('--now-ms') ?? Date.now()), capMin: cap ? Number(cap) : null });
-  console.log(`run=${p.run}\nstep_minutes=${p.stepMinutes}\ndeadline_ms=${p.deadlineMs}`);
+  console.log(`run=${p.run}\nstep_minutes=${p.stepMinutes}\ndeadline_ms=${p.deadlineMs}\nhard_stop_seconds=${p.hardStopSeconds}`);
 }

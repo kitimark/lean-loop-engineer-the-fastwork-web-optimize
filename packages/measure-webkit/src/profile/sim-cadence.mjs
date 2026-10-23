@@ -42,7 +42,7 @@ export function windowVerdict(pw, timelineOn) {
 }
 
 /** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, log = (s) => console.error(s) }) {
+export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
@@ -55,6 +55,12 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let ua = '';
   const opened = openDriver(touchDriver);
   const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
+
+  const snapshot = (incomplete) => ({
+    leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
+    plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
+    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+  });
 
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
@@ -136,6 +142,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
             }
             if (got.refused) { refused = true; rows.push(got.refused); break; }
             rows.push(got.row);
+            onProgress?.(snapshot('walk not finished: this file was written after a window and the process may have been stopped'));
             log(`webkit sim rep ${rep} ${a.id} ${win}: ${got.row.frames} frames, ${got.row.records} records, window ${got.row.ok ? 'kept' : `refused (${got.row.reason})`} in ${Date.now() - t0} ms`);
           }
           if (refused) break;
@@ -151,9 +158,5 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   } finally {
     if (touch.server) await Promise.race([stopServer(touch.server), sleep(25000)]);
   }
-  return {
-    leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
-    plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
-  };
+  return snapshot(error);
 }
