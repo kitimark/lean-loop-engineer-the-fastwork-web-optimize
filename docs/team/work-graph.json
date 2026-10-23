@@ -18105,7 +18105,8 @@
     "apps/runner/test/plan*.test.ts",
     "docs/team/handoffs/graph-writes-closure.md"
    ],
-   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328)."
+   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328).",
+   "evidence": "50a73b4"
   },
   {
    "devices": [
