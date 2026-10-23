@@ -3149,6 +3149,40 @@
    "lesson": "A per-frame position write of a fixed box is a layout pass; a translate by the scroll delta removes it only while the box is its own layer and the delta is whole device pixels. Check the engine can load the measuring page before building the profile: a renderer crash at load blocked the count for every arm. A count of a keep path needs a probe that shows the path was taken (v1 counted 55 in both arms without engaging the flag), and a whole-viewport pixel hash is noise between runs of one arm; hash the card region.",
    "next": "Decide status from the Chromium counts; WebKit counts and the iPhone feel belong to gpu-safari-lane; diagnose the second Layout source from scroll frame 15 and the 6 px per frame card rect.",
    "evidence": "Chromium counts MEASURED: base run 39881189724, flag run 39881193403 (scenario v2); scenario v1 (non-engagement): 39879309834, 39879313255; failed on the profile key probe: 39878167282, 39878174234; results/people-o-preview-translate/followups.json; CI gate run 39850908365 (both engines pass); counts runs blocked by the renderer crash before the fix:39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861; research/notes/2026/10-2x-people-o-preview-translate.md"
+  },
+  {
+   "id": "morph.columns-idle-none",
+   "n": 54,
+   "part": "morph.columns",
+   "candidate": "morph.columns:idle-none: remove the marquee track animations (animation-name none) while the scene rule pauses the panel, and seek them back to their kept time on return",
+   "status": "partly-proved",
+   "flag": "morph.columns:idle-none",
+   "flags": [
+    "morph.columns:idle-none"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (idleNone_visSame: the removed state is under a panel of opacity 0; after the return the animation shows the original held clock, varRun_clock). Breakpoint gate passes on both engines (run 39897800920).",
+   "mechanism": "PROVED (Fw.Parts.MorphIdleNone): varRun_clock, varRun_present, restart_shifts (removal without the kept clock changes the phase), tracks_layers_drop (5 -> 1 in the layer model, INFERRED mapping). MEASURED Chromium swipe-v1, 3 runs per arm, base 39897804079, flag 39897818039: layer-frames 28107 -> 24667 (-3440), drawing layers 24904 -> 21464, layout 318 -> 319, style recalc 1832 -> 1833. MEASURED WebKit simulator census (base 39897814980, flag 39897807511, one session): layerCount at y=3000 140/136 -> 124/128, backing memory at y=3000 101 -> 85 MB and at y=5231 106 -> 90 MB (deterministic). Cost counters not collected.",
+   "leanFor": [
+    "Fw.Parts.MorphIdleNone.varRun_clock",
+    "Fw.Parts.MorphIdleNone.varRun_present",
+    "Fw.Parts.MorphIdleNone.idleNone_visSame",
+    "Fw.Parts.MorphIdleNone.restart_shifts",
+    "Fw.Parts.MorphIdleNone.tracks_layers_drop"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit cost counters (Paint and Composite per frame) not collected"
+   ],
+   "premises": [
+    "INFERRED: the MutationObserver callback runs before the frame style pass, so the seek lands before paint",
+    "INFERRED: the layers beyond tracks and cols (1530 of the 3440) are boxes overlapping the tracks"
+   ],
+   "v1Evidence": "",
+   "lesson": "A paused CSS animation still holds a compositing reason; removing it while the panel is transparent frees its layers, and the kept time makes the return exact.",
+   "next": "Run the WebKit cost counters (webkit-sim with cost=on lag=true) on the morph zone.",
+   "evidence": "CI runs 39897804079, 39897818039, 39897814980, 39897807511, 39897800920; research/notes/2026/10-20-morph-idle-none.md; results/morph-idle-none/report.json"
   }
  ],
  "notes": [
