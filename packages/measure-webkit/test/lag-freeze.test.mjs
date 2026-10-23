@@ -200,3 +200,31 @@ test('the freeze session needs the swap setup, and a zone failure is recorded wi
   assert.equal(res.failed.length, 4);
   assert.match(res.failed[0], /pass 1 zone free: marks missing/);
 });
+
+test('a pass that dies mid-way keeps the units saved before it, and the saves grow unit by unit', async () => {
+  const { ctx, deps, base, swap } = stubs();
+  const saves = [];
+  const dying = { ...deps, swapPass: async (_c, o) => {
+    const out = { schema: 'x', captures: {}, freeze: o.freeze };
+    o.onStart(out);
+    out.captures['crop-a'] = { ok: o.freeze.on };
+    o.onUnit();
+    if (o.freeze.on) throw new Error('connection closed by this tool');
+    return out;
+  } };
+  const res = await freezeSession(ctx, { ...base, passes: 2, swap, save: (d) => saves.push(JSON.stringify(d)) }, dying);
+  assert.equal(res.passes.length, 1);
+  assert.equal(res.passes[0].cost.swap.captures['crop-a'].ok, false);
+  assert.equal(res.passes[0].cost.swapFrozen.captures['crop-a'].ok, true);
+  assert.match(res.failed[0], /pass 1: connection closed/);
+  assert.ok(saves.length >= 3);
+  assert.deepEqual(JSON.parse(saves.at(-1)), JSON.parse(JSON.stringify(res)));
+});
+
+test('the VM number shifts the state order, so one pass per job still alternates over the jobs', async () => {
+  const { calls, swap, ctx, deps, base } = stubs();
+  await freezeSession(ctx, { ...base, passes: 1, swap }, { ...deps, shift: 1 });
+  assert.deepEqual(calls.filter((c) => c[0] === 'swap').map((c) => c[2]), [true, false]);
+  const { vmShift } = await import('../src/lag/freezesession.mjs');
+  assert.deepEqual([vmShift({ VM: 'r1' }), vmShift({ VM: 'r3' }), vmShift({})], [1, 3, 0]);
+});

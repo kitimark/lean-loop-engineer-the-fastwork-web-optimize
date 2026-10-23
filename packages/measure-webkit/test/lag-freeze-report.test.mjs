@@ -62,3 +62,14 @@ test('every sample is keyed by job, pass and capture slot, and the table names t
   assert.match(md, /\| frozen \| crop \| 9\/p1\/diag \|/);
   assert.match(md, /\| frozen \| 9\/p1\/aligned \| 6 \| 30 \|/);
 });
+
+test('a job saved mid-pass (captures missing, no zone) is analysed from what it kept', () => {
+  const d = doc('9', 1, { frozenSwap: () => 4, zone: { free: [], frozen: [] } });
+  delete d.passes[0].cost.swapFrozen.captures['crop-b'];
+  delete d.passes[0].cost.swapFrozen.captures['faithful-b'];
+  d.passes[0].cost.swapFrozen.captures['crop-a'] = null;
+  const an = freezeAnalysis([d, { passes: [{ cost: { swap: { job: job('9', 2), captures: {} }, zone: { free: [], frozen: [] } } }] }]);
+  assert.equal(an.arms.crop.windows[0].frozen.length, 0);
+  assert.equal(an.arms.faithful.windows[0].frozen.length, 1);
+  assert.ok(freezeMd(an, ['run 1']).length > 0);
+});

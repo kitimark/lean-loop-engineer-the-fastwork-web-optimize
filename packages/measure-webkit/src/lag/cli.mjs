@@ -38,11 +38,11 @@ async function main() {
       const { swap, arms: swapArms } = swapSetup({ swap: v.swap, cost: costMode.cost, site: v.site, search: v.search });
       const freeze = parseFreeze(v.freeze);
       if (freeze && !swap) throw new Error('--freeze needs --swap --cost on|only with --site and --search');
-      const opts = { passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode, swap };
-      const res = await withSession((ctx) => (freeze ? freezeSession(ctx, opts) : lagSession(ctx, opts)), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null, arms: swapArms });
       const file = resolve(v.out ?? 'out/lag.json');
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify(res) + '\n');
+      const save = (doc) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(doc) + '\n'); };
+      const opts = { passes: Number(v.passes), clock: v.clock, settleMs: Number(v.settle), step: Number(v.step), framesPerStep: Number(v.frames), log, ...costMode, swap, ...(freeze ? { save } : {}) };
+      const res = await withSession((ctx) => (freeze ? freezeSession(ctx, opts) : lagSession(ctx, opts)), { keep: v.keep, vendors: v.vendors, site: v.site ? { dir: v.site, search: v.search } : null, arms: swapArms });
+      save(res);
       log(`wrote ${file}${res.failed.length ? ` (stopped early: ${res.failed.join('; ')})` : ''}`);
       if (res.targetLost) throw Object.assign(new Error(`the page target was lost for good (the passes kept are in ${file})`), { exitCode: TARGET_LOST_EXIT });
       if (!res.passes.length) throw new Error('no pass completed');

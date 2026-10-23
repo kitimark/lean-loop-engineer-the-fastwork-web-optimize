@@ -1,14 +1,14 @@
 branch: worktree-wf_1014fee6-cdd-1 (CI branch ci/hero-accent-frozen-confirm)
 worktree: .claude/worktrees/wf_1014fee6-cdd-1
-last commit: 9997926ab (token commit [ci:webkit-sim] [swap-lane] [swap-freeze])
-CI runs: 39996415429 webkit-sim at 9997926ab, in progress (guard, fwcore, plan, site success; sim r1 job 120562437169 and r2 120562437268 running, r3 not started at the last check); dispatch 1 of 2
-read first: research/notes/2026/10-2x-carousel-swap-webkit.md (section on the freeze, once written), results/carousel-swap-webkit/hero-accent-frozen.md
-
+CI runs: dispatch 1 = run 39996415429 webkit-sim at 9997926ab: FAILED as a set (r1 job 120562437169 failure: Simulator died in the zone captures, no json; r2 job 120562437268 cancelled: slow boot, diag capture timed out, Safari relaunch failed, json with no pass; r3 job 120580412344 success, 2 passes). Runner load averages were 366 to 893 in the host dumps.
+dispatch 2 of 2 (the last): see the last commit; hardened (see below). Never pool jobs of different commits (r3 of dispatch 1 stays a single-job pilot).
+read first: research/notes/2026/10-2x-carousel-swap-webkit.md (section on the freeze), results/carousel-swap-webkit/hero-accent-frozen.md
 done (code, committed):
-- freeze.mjs: harness-side hero.accent freeze (adopted style sheet, scoped to [data-fw="hero-accent"], inert when --freeze is unset)
-- zoneprobe.mjs (hero-exit zone scroll-A Layout/Paint, aligned = scroll starts inside a draw), freezesession.mjs (per pass: swap pass unfrozen and frozen, both arms, diag on both arms, zone captures), freezereport.mjs, cli.mjs `--freeze hero-accent` and `freeze-report`
-- Lean (outside the task writes): SwapWindow.lean longRuns, median2, frozenCell (one theorem per branch), sharePct, zoneVerdict; golden kinds swapFreezeConst, swapRuns, swapMedian2, swapFrozen, swapShare, swapZone in wkcost.jsonl; TS twins in lag/swap.mjs
-- job key is <job id>/p<pass>/<slot a|b|diag|aligned|natural>; webkit-sim.yml has FW_JOB_ID and FREEZE (token [swap-freeze] next to [swap-lane])
-verified: lean/scripts/check.sh green, measure-webkit lag tests 122 pass, ci-paths 56 pass. Premise (functional only, Playwright WebKit on this Mac, not a result): after the sheet 0 hero-accent animations over a 7 s draw cycle, unfrozen 4 (strokeIn, strokeOut, width, idle frames).
-open: CI result of run 39996415429; report to build with `node src/lag/cli.mjs freeze-report --files r1,r2,r3 --sources "run 39996415429 ..." --out results/carousel-swap-webkit/hero-accent-frozen.md --json ...` from packages/measure-webkit; note section; dry land; review ready
-conventions: never pool runs of different commits; 3 jobs at one commit; do not edit lag/probe.mjs or lag/report.mjs
+- freeze.mjs (harness-side hero.accent freeze, inert when --freeze is unset), zoneprobe.mjs (hero-exit zone Layout/Paint, aligned = scroll starts in a draw), freezesession.mjs, freezereport.mjs, cli.mjs `--freeze hero-accent` and `freeze-report`
+- hardening after dispatch 1: the session saves --out after every capture/zone unit (swapPass onStart/onUnit), the report reads partial jobs, one pass per job under [swap-freeze] (PASSES in webkit-sim.yml), the state order shifts by VM number
+- Lean (outside the task writes): SwapWindow.lean longRuns, median2, frozenCell (a theorem per branch), sharePct, zoneVerdict; golden kinds swapFreezeConst/swapRuns/swapMedian2/swapFrozen/swapShare/swapZone in wkcost.jsonl
+- job key <job id>/p<pass>/<slot a|b|diag|aligned|natural>; webkit-sim.yml has FW_JOB_ID, FREEZE, PASSES
+verified: lean/scripts/check.sh green; lag tests pass; ci-paths 56. Playwright WebKit on this Mac (functional only): after the sheet 0 hero-accent animations over a 7 s draw cycle, unfrozen up to 4.
+pilot (log lines of r3, not pooled): frozen crop windows 2-4 Layout rows vs unfrozen busy 13-16; frozen faithful stays 8-16 (the carousel itself); zone free 72-80 vs frozen 47-54 Layout.
+open: result of dispatch 2; report `node src/lag/cli.mjs freeze-report --files a,b,c --sources "run <id> ..." --out ../../results/carousel-swap-webkit/hero-accent-frozen.md --json ...` from packages/measure-webkit; note section; dry land; review ready
+conventions: 3 jobs at one commit; do not edit lag/probe.mjs or lag/report.mjs; the ci branch tip must stay the token commit while its run is open

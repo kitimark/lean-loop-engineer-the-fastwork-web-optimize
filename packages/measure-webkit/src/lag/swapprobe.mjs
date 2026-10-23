@@ -157,15 +157,17 @@ export async function swapCapture(ctx, arm, { clock, settleMs, periods = PERIODS
   };
 }
 
-export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = false, restore, freeze = null, diagArms = ['crop'], pass = null }) {
+export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = false, restore, freeze = null, diagArms = ['crop'], pass = null, onStart, onUnit }) {
   const order = flip ? FLIPPED : ORDER;
   const out = { schema: 'fw.webkit.lag.swap/1', order: order.map(([a, s]) => `${a}-${s}`), job: { ...jobMeta(), pass: pass ?? ++passNo }, captures: {}, failed: [], diag: null, ...(freeze ? { freeze } : {}) };
+  onStart?.(out);
   try {
     for (const [arm, slot] of order) {
       const name = `${arm}-${slot}`;
       try {
         out.captures[name] = await retry(`swap ${name}`, () => swapCapture(ctx, arms[arm], { clock, settleMs, freeze }));
         const c = out.captures[name];
+        onUnit?.();
         log(`  swap ${name}: ${c.ws.length} windows (${c.why}), valid ${c.valid.filter(Boolean).length}, layout in swaps ${c.cells.filter((x) => x[0].startsWith('swap:') && x[1] === 'Layout').map((x) => x[2]).join(',')}`);
       } catch (e) {
         if (e instanceof TargetLostError) throw e;
@@ -179,6 +181,7 @@ export async function swapPass(ctx, { clock, settleMs, arms, retry, log, flip = 
         try {
           const d = await retry(`swap diag ${id}`, () => diagCapture(ctx, arms[id], { clock, settleMs, freeze }));
           if (id === 'crop') out.diag = d; else (out.diagOther ??= {})[id] = d;
+          onUnit?.();
           log(`  swap diag ${id}: ${Object.keys(d.owners).length} owners with writes, layout rows ${d.layout.reduce((a, b) => a + b, 0)}`);
         } catch (e) {
           if (e instanceof TargetLostError) throw e;
