@@ -47,10 +47,7 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
 }
 
 // ---- wait lag (task ci-wait-lag): the phases of a `fw ci wait` span and how the lag splits ---------------------------
-// The split is Lean `Fw.Ci.Lag.parts`; lagParts replays golden ci-budget/lag.jsonl (apps/runner/test/timing-lag.test.ts).
-// TS stand-ins: lagView, waitSpanExtra (formatting). Whether a lag is "too long" stays Lean's (timing-lean).
 
-/** The poller's tick interval in s at `atS` (Lean `Fw.Ci.Budget.interval` via fwcore `ci.budget.status`); undefined when unread. */
 export function pollIntervalS(cwd: string, atS?: number): number | undefined {
   try {
     const env = realEnv(cwd);
