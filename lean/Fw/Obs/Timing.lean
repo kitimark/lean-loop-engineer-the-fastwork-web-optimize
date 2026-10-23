@@ -1899,7 +1899,7 @@ def groupMix : List Sample :=
   [(92010, 1), (47565, 2), (97284, 1), (49291, 2), (94807, 1), (46962, 2), (91526, 1), (49426, 2), (90470, 1),
    (48630, 2)].map fun (d, w) => group (some w) 2 d
 
-def cases : List (String × Params × List Sample) :=
+def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
   [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s), gate is noise, both merges are noise; one run, so every sample is noBaseline",
       gateParams, gateRun),
    ("lean check.sh 128 s after a history of 117-136 s: ok (not slow)",
@@ -2030,7 +2030,7 @@ def cases : List (String × Params × List Sample) :=
         [group none 2 94437])]
 
 -- six run-split cases: three dispatch, two watch pass, one new split step
-#guard (cases.filter fun c => c.1.startsWith "run split:").length == 6
+#guard ((cases ()).filter fun c => c.1.startsWith "run split:").length == 6
 
 /-- The last verdict code of each case's samples, and the structural groups: the expected outcomes. -/
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
@@ -2041,7 +2041,7 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    ("breakpoint-gate:merge", "merge (chromium)", .noise, 36000, 34000),
    ("breakpoint-gate:merge", "merge (playwright-webkit)", .noise, 34000, 36000)]
 #guard (sampleVerdicts gateParams gateRun).all (·.code == .noBaseline)
-#guard (cases.drop 1).map (fun (_, p, ss) => lastCode p ss) ==
+#guard ((cases ()).drop 1).map (fun (_, p, ss) => lastCode p ss) ==
   [some .ok, some .slow, some .noBaseline, some .ok, some .slow, some .ok, some .slow, some .ok, some .slow, some .slow,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .contended, some .slow, some .slow, some .ok, some .ok,
    some .noBaseline, some .noBaseline, some .slow, some .slow, some .ok, some .ok, some .slow, some .slow, some .slow,
@@ -2076,7 +2076,7 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
   [.noBaseline, .noBaseline, .noBaseline, .noBaseline, .noBaseline, .contended, .ok]
 
 def goldenText (_ : Unit := ()) : String :=
-  String.join (cases.map fun (n, p, ss) => (caseJson n p ss).compress ++ "\n")
+  String.join ((cases ()).map fun (n, p, ss) => (caseJson n p ss).compress ++ "\n")
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
