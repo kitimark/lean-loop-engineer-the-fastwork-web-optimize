@@ -1307,6 +1307,49 @@
    "next": "Write st6_work_lt as a work-only theorem and list it with the FLIP and st6 proposals."
   },
   {
+   "id": "people.carousel.crop",
+   "n": 19,
+   "part": "people.carousel",
+   "candidate": "people.carousel:crop: avatars-exit animates width, flex-basis, margin-right and border-width (layout every frame in both engines); the crop variant animates opacity and transform on the leaver and the compositor translate on the followers",
+   "status": "look-change",
+   "flags": [
+    "people.carousel:crop"
+   ],
+   "chromium": "work proved (no layout, paint, raster or commit stage per frame); counts pending",
+   "webkit": "work proved (all six effects in the UI process in every mode); lag and cost pending",
+   "visual": "not equal (class L, proposal): the leaver keeps its 32 px box and fades and scales under the followers, so the width collapse and the border-width shrink are gone (the differing region is the 32 px leaver slot, Lean leaver_box_differs, leaver_region); followers move by translate -24p px, equal to the original shift in exact arithmetic (shift_eq_translate) and within one device pixel of the layout position (follower_within_one; LayoutUnit rounding not modelled). part.json marks it kind proposal, visClass L, so Fw.Preset.Gen keeps it out of v2-proved.",
+   "mechanism": "CONFIRMED (source): the original exit effect lists width, flex-basis, margin-right and border-width, so it is not an accelerated effect and ticks on main every frame (WebKit KeyframeEffect.cpp:2724-2744@862f17d; Chromium compositor_animations.cc kCompositableProperties :78-83@f842f52, failure bit 13). Lean split_keeps_layout_wk and split_keeps_layout_cr: any split of the exit keyframes into effects leaves a piece with width, which ticks on main and runs a layout pass in every mode and on every layer state, so there is no same-look route. The crop variant moves the layout properties out: leaver opacity and transform, followers and entering avatar translate only (six effects, all compositor in every WebKit mode, wk_crop_all_comp, and in the lane and real Chrome, cr_crop_all_comp): no layout, paint, raster or commit stage per frame (wk_layout, cr_crop_zero) against one layout pass and four layout units per frame of the 220 ms swap, 13 frames at 60 Hz (cr_orig_layout, layoutFrames_swap). It is a trade on the compositor stage: six compositor units against one (wk_comp_trade, cr_comp_trade) and five animated layers, about 0.18 MB at dpr 3 for 220 ms of every 1.02 s (layer_budget). No clip-path is animated: a clip-path effect ticks on main in WebKit (WebKit.lean wkThread guard for transform + clipPath) and paints in Chromium (paint worklet not used), so the first design (clip-path ellipse crop) keeps per-frame paint; the crop here is the container's existing overflow clip.",
+   "leanFor": [
+    "Fw.Parts.PeopleCarouselCrop.split_keeps_layout_wk",
+    "Fw.Parts.PeopleCarouselCrop.split_keeps_layout_cr",
+    "Fw.Parts.PeopleCarouselCrop.wk_crop_all_comp",
+    "Fw.Parts.PeopleCarouselCrop.cr_crop_all_comp",
+    "Fw.Parts.PeopleCarouselCrop.wk_layout",
+    "Fw.Parts.PeopleCarouselCrop.cr_crop_zero",
+    "Fw.Parts.PeopleCarouselCrop.cr_orig_layout",
+    "Fw.Parts.PeopleCarouselCrop.shift_eq_translate",
+    "Fw.Parts.PeopleCarouselCrop.follower_within_one",
+    "Fw.Parts.PeopleCarouselCrop.layer_budget"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleCarouselCrop.wk_comp_trade",
+    "Fw.Parts.PeopleCarouselCrop.cr_comp_trade",
+    "Fw.Parts.PeopleCarouselCrop.leaver_box_differs (not VisSame)"
+   ],
+   "missingWhy": [
+    "felt lag on the phone (the user's check; CI has no real GPU)"
+   ],
+   "premises": [
+    "flex-basis and border-width take the width key in Chromium and the size class in WebKit: INFERRED (same level as width)",
+    "LayoutUnit rounding of the original follower position (1/64 CSS px) is not modelled in follower_within_one"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/carousel-leaver/README.md:7-20,60-70: keep-st6 accepted with its motion differences",
+   "lesson": "A split of a mixed keyframe set keeps layout as long as one layout property stays animated; removing layout means changing the look, and WebKit accelerates transform, translate and opacity but not clip-path, so a crop must be made of those.",
+   "next": "User visual review of the frame strips; felt-lag check on the phone.",
+   "flag": "people.carousel:crop",
+   "evidence": "Lean Fw.Parts.PeopleCarouselCrop; CI runs pending"
+  },
+  {
    "n": 20,
    "part": "people.deck",
    "candidate": "cqiFormula sizing (g0.0j): aspect-ratio + height:auto -> container-type:inline-size + height:calc(100cqi*764/353)",

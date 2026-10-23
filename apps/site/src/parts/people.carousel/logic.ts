@@ -54,3 +54,18 @@ export function stateAt({ t }: { t: number }): State {
 export function rowPx({ k }: { k: number }): number {
   return k * AVATAR_PX - (k - 1) * OVERLAP_PX;
 }
+
+/** The variant that crops the exit: no layout property is animated (Lean `Fw.Parts.PeopleCarouselCrop`, look class L). */
+export const CROP_VARIANT = 'crop';
+
+/** Px the followers move left at progress `p` of the swap: the leaver's advance, 32 - 8 (Lean `cropTranslate`). */
+export function cropTranslate({ p }: { p: number }): number {
+  return (AVATAR_PX - OVERLAP_PX) * p;
+}
+
+export type SwapRole = 'exit' | 'shift' | 'enter';
+
+/** The role of slot `i` of a swap row of `len` avatars: the first leaves, the last enters, the others shift. */
+export function swapRole({ i, len }: { i: number; len: number }): SwapRole {
+  return i === 0 ? 'exit' : i === len - 1 ? 'enter' : 'shift';
+}

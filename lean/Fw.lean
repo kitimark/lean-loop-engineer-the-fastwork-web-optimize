@@ -76,6 +76,7 @@ import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork
+import Fw.Parts.PeopleCarouselCrop
 import Fw.Parts.PainDarkScroll
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones
