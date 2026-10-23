@@ -95,15 +95,22 @@ export function record(s: Partial<Span> & Pick<Span, "tool" | "step" | "startMs"
   } catch { /* a timing line never fails a step */ }
 }
 
+const notes = new Map<string, Partial<Span>>();
+
+/** Add fields to the line of the `begin` span of `tool`/`step` this process ends: the `checks` of `fw polish commit`. */
+export function noteSpan(tool: string, step: string, extra: Partial<Span>): void {
+  notes.set(`${tool}/${step}`, { ...notes.get(`${tool}/${step}`), ...extra });
+}
+
 /** Start a span now; call the returned function once with the exit code when the step ends (later calls are ignored).
- *  `extra`: fields to add to the line (the phases of a `fw ci wait`). */
+ *  `extra`: fields to add to the line (the phases of a `fw ci wait`), after the fields noted for this span. */
 export function begin(tool: string, step: string, cwd: string = process.cwd()): (exit?: number | null, extra?: Partial<Span>) => void {
   const startMs = Date.now(), t0 = performance.now();
   let done = false;
   return (exit = 0, extra = {}) => {
     if (done) return;
     done = true;
-    record({ ...extra, tool, step: extra.step ?? step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
+    record({ ...notes.get(`${tool}/${step}`), ...extra, tool, step: extra.step ?? step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
   };
 }
 

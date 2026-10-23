@@ -7,7 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { slowAlerts } from "../src/next.ts";
-import { polishSpanExtra, stagedChecks } from "../src/polish.ts";
+import { stagedChecks } from "../src/polish.ts";
+import { begin, noteSpan } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -75,5 +76,22 @@ describe("stagedChecks: the checks of the staged files, asked of ops.checkMap", 
     };
     expect((await stagedChecks(dir, git, call))?.kinds).toContain("lakeBuild");
   });
-  it("adds no checks member to a span line before a commit", () => expect(polishSpanExtra()).toEqual({}));
+});
+
+describe("noteSpan: the checks member reaches the line of its own span only", () => {
+  it("merges the note into the `fw`/`polish commit` line and into no other", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-note-span-")); dirs.push(dir);
+    const file = join(dir, "timings.jsonl");
+    const prev = process.env.FW_TIMINGS_FILE;
+    process.env.FW_TIMINGS_FILE = file;
+    try {
+      const commit = begin("fw", "polish commit", dir), other = begin("fw", "polish check", dir);
+      noteSpan("fw", "polish commit", { checks: { n: 2, kinds: ["lakeBuild", "shParse"] } });
+      commit(0); other(0);
+    } finally {
+      if (prev === undefined) delete process.env.FW_TIMINGS_FILE; else process.env.FW_TIMINGS_FILE = prev;
+    }
+    const lines = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(lines.map((l) => [l.step, l.checks])).toEqual([["polish commit", { n: 2, kinds: ["lakeBuild", "shParse"] }], ["polish check", undefined]]);
+  });
 });

@@ -18,7 +18,7 @@ import { spanStep } from "./fw-groups.ts";
 import { backfill, ingestRuns, lagCli, runIdsOf, waitSpanExtra } from "./timing-ci.ts";
 
 const [group, ...rest] = process.argv.slice(2);
-let spanExtra: ReturnType<typeof waitSpanExtra> & { step?: string; checks?: { n: number; kinds: string[] } } = {};
+let spanExtra: ReturnType<typeof waitSpanExtra> & { step?: string } = {};
 if (group && group !== "watch" && group !== "timings" && group !== "run" && !(group === "slot" && rest[0] === "run")) { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
 async function postLandGc(mainDir: string): Promise<void> {
   const { diskGcTick } = await import("./disk-gc.ts");
@@ -85,9 +85,7 @@ try {
     const { SlotUsage, realDeps, slotCli } = await import("./slot.ts");
     try { process.exitCode = await slotCli(rest, realDeps(process.cwd())); } catch (e) { throw e instanceof SlotUsage ? new UsageError(e.message) : e; }
   } else if (group === "polish") {
-    const polish = await import("./polish.ts");
-    process.exitCode = await polish.polishCli(rest, process.cwd());
-    spanExtra = { ...spanExtra, ...polish.polishSpanExtra() };
+    process.exitCode = await (await import("./polish.ts")).polishCli(rest, process.cwd());
   } else if (group === "watch") {
     process.exitCode = await watchMain(rest, process.cwd());
   } else if (group === "next") {

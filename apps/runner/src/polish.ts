@@ -4,6 +4,7 @@ import { isAbsolute, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { UsageError, parseFlags } from "./lib.ts";
 import { worktreeOf } from "./land.ts";
+import { noteSpan } from "./timing.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
 export const POLISH_USAGE =
@@ -135,11 +136,6 @@ export async function stagedChecks(dir: string, git: (cwd: string, args: string[
   } catch { return null; }
 }
 
-let commitChecks: Checks | null = null;
-
-/** The `checks` member of the `fw polish commit` span line: the checks of the commit this process made, if any. */
-export const polishSpanExtra = (): { checks?: Checks } => (commitChecks ? { checks: commitChecks } : {});
-
 export const POLISH_VERBS = ["plan", "cuts", "commit", "staged"] as const;
 
 export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {
@@ -198,7 +194,8 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
       }
       if (!keep.length) { out(`VERDICT polish-commit ${task} nothing`); return 0; }
       git(dir, ["add", "--", ...keep]);
-      commitChecks = await stagedChecks(dir, git, call);
+      const checks = await stagedChecks(dir, git, call);
+      if (checks) noteSpan("fw", "polish commit", { checks });
       git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`]);
       out(`kept ${keep.join(" ")}`);
       out(`VERDICT polish-commit ${task} committed`);
