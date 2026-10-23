@@ -33,7 +33,7 @@ CONFIRMED (source), INFERRED.
 | Does the morph open after scrolling in? | `--morph` reached 1 in all 36 | MEASURED |
 | Do open-phase counts differ, scroll-in vs synthetic? | orig only: RecalculateStyles lower in 3 of 3 jobs, Layout lower in 2 of 3 jobs (1 and 3); rewrite: none of 7 counters in any job | MEASURED |
 | Do close-phase counts differ? | No separated cell in any job (7 counters x 2 arms x 3 jobs) | MEASURED |
-| Idle phase | Not comparable: the scroll-in drive's idle phase holds the scrolling (26 to 31 frames against 10 to 13) and more RecalculateStyles and FireAnimationFrame per frame (orig: 3.7 vs 3.0 and 2.8 vs 2.0, higher in 3 of 3 jobs); the idle window of this drive is the scroll, not a rest | MEASURED + INFERRED |
+| Idle phase | Not comparable: the scroll-in drive's idle phase holds the scrolling (26 to 32 frames per job on average (19 to 42 per run) against 10 to 13 per run for synthetic) and more RecalculateStyles and FireAnimationFrame per frame (orig: 3.7 vs 3.0 and 2.8 vs 2.0, higher in 3 of 3 jobs); the idle window of this drive is the scroll, not a rest | MEASURED + INFERRED |
 | Trusted (at the end) vs synthetic | As in run 39971123168: no separated cell in open or close in any job (orig and rewrite); idle: orig FireAnimationFrame trusted higher in 3 of 3 jobs, rewrite once (job 3) | MEASURED |
 
 Every verdict above is stated inside one job from that job's own runs (Lean `jobVerdicts`, `WebKitLag.lean`: job i depends
@@ -59,6 +59,7 @@ handler is a non-passive capture listener on `window` installed while `#platform
 IntersectionObserver), and the drive starts 300 px above the end, inside that window, so the 3 scroll wheels and the 2 pushes all take the blocking
 path (INFERRED from the region rule and the handler, not seen as a trace). The start of the scroll is the page's own scrolling; the
 trusted wheel scrolls by `defaultWheelEventHandler` (`EventHandler.cpp:3814-3825`) when the page does not prevent it.
+determineWheelEventProcessing (ScrollingTree.cpp:139-151) reaches computeWheelProcessingSteps for every wheel, whatever the scroll position, so the at-end pushes of run 39971123168 also ran it. What the scroll-in drive adds is a real page scroll of 300 px before the push, not the async-scrolling path: with the non-passive listener region both runs take SynchronousScrolling (INFERRED).
 
 Limits: Playwright mac WebKit on a CI VM is not the phone; the Simulator leg is still a follow-up (sim-touch-reliable is not on main);
 one CI run, three jobs.
