@@ -18652,9 +18652,13 @@
     ".claude/workflows/build-review.js",
     "scripts/build-review.test.mjs",
     ".claude/agents/comment-sicko.md",
-    "docs/team/handoffs/build-review-worktree-path.md"
+    "docs/team/handoffs/build-review-worktree-path.md",
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts"
    ],
-   "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs."
+   "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs. (2) 2026-10-23: the Polish stage's comment-sicko waited 17+ min on a user permission prompt for an Edit of .claude/workflows/build-review.js (protected path) in polish-commit-failsafe's worktree. Polish scopes must exclude paths that need a user prompt (.claude/**, per settings): a Lean allowlist rule in Fw.Plan.Polish for polishable paths, golden, and fw polish plan prints skip <path> (protected)."
   },
   {
    "devices": [
