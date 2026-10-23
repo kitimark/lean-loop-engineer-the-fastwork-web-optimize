@@ -14,6 +14,7 @@ name: smoothness
 # (lean/Fw/Measure/WebKitProfile.lean, twin packages/measure-webkit/src/profile/reduce.mjs); both have a cap row in Fw.Ci.Pool.Caps.
 # A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
 # the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
+# `[morph-wheel]` (task morph-real-wheel) runs, in `webkit-mac` only, the end-of-page morph with a trusted wheel and a synthetic one (packages/measure-webkit/src/lag/mac-cli.mjs) and skips `webkit-sim`.
 # `[sim-only]` (with `[earn-bound]`) skips the macOS leg and runs 6 reps per simulator job (36 windows; a job needs 5 kept finish windows per arm to decide, and the Simulator tends to die after about 30 to 40 windows).
 # Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
@@ -336,7 +337,20 @@ jobs:
       - name: Playwright WebKit (macOS build; no system libraries to install)
         working-directory: packages/gate-breakpoints
         run: pnpm exec playwright-core install webkit
+      - name: Morph runs, trusted wheel and synthetic on the same page (task morph-real-wheel; head commit [morph-wheel]), write mac-morph.json
+        if: ${{ contains(github.event.head_commit.message, '[morph-wheel]') }}
+        env:
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          mkdir -p out/smoothness-webkit
+          { sw_vers; sysctl -n machdep.cpu.brand_string; sysctl -n hw.ncpu; } > out/smoothness-webkit/mac-tools.txt 2>&1 || true
+          node ../measure-webkit/src/lag/mac-cli.mjs run --site "$FW_SITE_DIST" --reps 6 --out out/smoothness-webkit/mac-morph.json
+          node ../measure-webkit/src/lag/mac-cli.mjs report --files out/smoothness-webkit/mac-morph.json --json out/smoothness-webkit/mac-morph-report.json | tee out/smoothness-webkit/mac-morph.md
       - name: Walk the windows (all arms, interleaved per repeat), record the Timeline, write mac.json
+        if: ${{ !contains(github.event.head_commit.message, '[morph-wheel]') }}
         env:
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
@@ -366,7 +380,7 @@ jobs:
   # schedule scripted in the page. This job installs no packages: its code imports only modules without dependencies.
   webkit-sim:
     needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') }}
+    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') && !contains(github.event.head_commit.message, '[morph-wheel]') }}
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-sim:${{ strategy.job-index }}
     runs-on: xcode-27
