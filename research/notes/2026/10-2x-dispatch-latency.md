@@ -102,3 +102,18 @@ Per list call, including its reserve, from a separate timed run (not in timings.
 - **The slow part is the gh call**, which grows with the list size (about 22 ms per run listed: gh pages 100 rows per request). It is not the gh-budget lock (3 ms), so follow-ups (1)-(3) are not the fix for it; they bound hung holders only.
 - **Exit 2** means the run id is in none of the lists (100, 400, 1000 newest runs; `ciState` prints `<id> unknown`), after all three calls ran. The slow alerts of 34.9 s, 37.3 s (exit 2) and 43.0 s match this: three lists cost about 35-38 s. A run id that is on a branch is cheap when `--branch` or `--workflow` narrows the list; an id older than 1000 runs is always the 35 s path.
 - Follow-up outside the unit: callers that know the branch should pass `--branch`, so the 1000-run list is never read for a run that is not there.
+
+## `fw ci state` after task ci-state-fast (MEASURED 2026-10-23, one run each, spans in `.fw-console/timings.jsonl`)
+
+Rule: Lean `Fw.Ci.StateList.step` (theorems per branch, golden `golden/ci/state-list.jsonl`). Without `--branch`/`--workflow` one list of 100 is read and an older id stops there (`<id> unknown (older than the newest 100 runs; ...)`, exit 2); with a filter the list grows 100, 400, 1000 while the id is older than its oldest row. The same session ran the old code (copy of 49422052d) and the new one. Ids from `gh run list --limit 400`: recent = newest run; old = run 400 of 400 (about 1.4 h old, branch `ci/people-title-crash-fix`); none = id in no list.
+
+| Case | Before: gh call ms (wall s) | After: whole span ms (gh call) |
+|---|---|---|
+| recent id | 2857 (3.1) | 2970 (2841) |
+| old id, no branch | 11619 (11.95), found in the 400 list | 2675 (2553), exit 2 `older`, one list |
+| old id, with its branch | about 4.9 wall, found in the first filtered list | 2784 (2655), exit 0, one list |
+| id in no list | 31516 (32.0), three lists | 2625 (2506), exit 2, one list |
+
+- The lock part is 1-2 ms and the new `ci state gh load` part (state-file read inside the lock) 0-1 ms; the time is the gh call.
+- Cost of the stop rule: an unfiltered id older than the newest 100 is no longer found; callers pass `--branch`. The gate agent in `.claude/workflows/build-review.js` still calls `fw ci state <id>` without a branch (follow-up, outside the task writes).
+- `fwcoreCall` in `packages/gh-budget/src/core.ts` sets no timeout, so `lockMarginMs = 2 * fwcoreCallMs` (Lean) assumes the console client default of 10 s; `land.ts` sets `FW_CORE_CALL_MS=60000` only for child processes (INFERRED), and `loaded_core_margin_too_big` shows that value would not fit.
