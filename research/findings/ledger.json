@@ -3321,6 +3321,7 @@
    "premises": [],
    "v1Evidence": "none",
    "lesson": "Read the harness input path to its event constructor before building a drive that assumes a phase the harness never sends.",
+   "evidence": "research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
    "next": "The phone's momentum stays the phone's (real-device replay). Note follow-up 3 of research/notes/2026/10-2x-morph-real-wheel.md holds the sources."
   },
   {
@@ -3344,6 +3345,7 @@
    ],
    "v1Evidence": "none",
    "lesson": "A site that restores the position after every scroll event cannot be driven into a moving drawn scroll by a page script; a drive that pulls and restores adds the event work but not the movement.",
+   "evidence": "mac run 40032804511; research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
    "next": "touch-lock-page-end (the iOS touch lock fight at the page end). Note research/notes/2026/10-2x-morph-real-wheel.md."
   }
  ],
