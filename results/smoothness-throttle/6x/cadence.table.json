@@ -101,6 +101,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [],
    "hitches": {
     "orig": [
@@ -1577,6 +1619,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [],
    "hitches": {
@@ -4014,6 +4098,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [],
    "hitches": {
     "orig": [
@@ -6015,6 +6141,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [],
    "hitches": {
@@ -9033,6 +9201,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [],
    "hitches": {
     "orig": [
@@ -11111,6 +11321,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [],
    "hitches": {
@@ -14241,6 +14493,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [],
    "hitches": {
     "orig": [
@@ -15563,6 +15857,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "second"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [],
    "hitches": {
@@ -16935,6 +17271,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [],
    "hitches": {
@@ -20142,6 +20520,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [],
    "hitches": {
     "orig": [
@@ -22501,6 +22921,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [],
    "hitches": {
     "orig": [
@@ -24418,6 +24880,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [],
    "hitches": {
@@ -27120,5 +27624,6 @@
    "acrossHitch": "same"
   }
  ],
+ "countTotals": [],
  "traceTotals": []
 }

@@ -1,4 +1,4 @@
-Bad frame = a gap between rAF callbacks above 34 ms. Rate = bad frames per frame, pooled over the repeats of an arm (percent). Hitch = a gap over 60 ms.
+Bad frame = a gap between rAF callbacks above 34 ms. Rate = bad frames per frame, pooled over the repeats of an arm (percent). Hitch = a gap over 60 ms. Over 25 / 34 / 50 ms = intervals above that line; skipped slot = an interval that advances the 60 Hz slot count (rounded from the first frame) by more than 1 (Lean `Fw.Gate.Smooth.over25`, `skips`).
 
 Verdicts (rate rule `Fw.Gate.Smooth.verdict`, hitch rule `hitchVerdict`) are main-thread rAF cadence. The compositor frame counts further down come from the trace of the page's own frame sink and are reported beside them; they never enter a verdict.
 
@@ -212,6 +212,8 @@ Samples: 39927164863:smoothness-390-1, 39927164863:smoothness-390-2, 39927164863
 | 39927164863:smoothness-390-3 | 390 | end | base | 7 | 2 | 66.6 | 5103 | 0 |
 | 39927164863:smoothness-390-3 | 390 | end | aa | 7 | 3 | 66.7 | 5103 | 0 |
 | 39927164863:smoothness-390-3 | 390 | end | cand | 7 | 2 | 66.6 | 5103 | 0 |
+
+Chromium histograms (`Browser.getHistograms`, delta per window): none reported a sample in these windows.
 
 ### Frames of the page's compositor sink (traced reps, the renderer process of the page only; reported beside the verdict, never in it)
 

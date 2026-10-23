@@ -101,6 +101,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [
     {
      "width": 1280,
@@ -1836,6 +1878,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [
     {
@@ -4287,6 +4371,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [
     {
      "width": 1280,
@@ -6010,6 +6136,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [
     {
@@ -8381,6 +8549,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [
     {
      "width": 1280,
@@ -10148,6 +10358,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [
     {
@@ -12632,6 +12884,48 @@
     "base|cand": "same",
     "orig|cand": "first"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [
     {
      "width": 390,
@@ -14595,6 +14889,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [
     {
      "width": 390,
@@ -16401,6 +16737,48 @@
     "orig|base": "first",
     "base|cand": "same",
     "orig|cand": "first"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [
     {
@@ -18349,6 +18727,48 @@
     "base|cand": "same",
     "orig|cand": "same"
    },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
    "traces": [
     {
      "width": 390,
@@ -20138,6 +20558,48 @@
     "orig|base": "first",
     "base|cand": "same",
     "orig|cand": "first"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [
     {
@@ -22100,6 +22562,48 @@
     "orig|base": "same",
     "base|cand": "same",
     "orig|cand": "same"
+   },
+   "countReps": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
+   },
+   "counts": {
+    "orig": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "base": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "aa": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    },
+    "cand": {
+     "frames": 0,
+     "over25": 0,
+     "over34": 0,
+     "over50": 0,
+     "skips": 0
+    }
+   },
+   "histograms": {
+    "orig": [],
+    "base": [],
+    "aa": [],
+    "cand": []
    },
    "traces": [
     {
@@ -24396,6 +24900,7 @@
    "acrossHitch": "same"
   }
  ],
+ "countTotals": [],
  "traceTotals": [
   {
    "width": 390,
