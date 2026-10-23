@@ -1,7 +1,7 @@
 import { withSession } from '../session.mjs';
 import { loadFresh, pageInfo } from '../page.mjs';
 import { startTimeline } from '../timeline.mjs';
-import { findDevice } from '../sim.mjs';
+import { findDevice, sleep } from '../sim.mjs';
 import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
@@ -12,6 +12,7 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS } from '../walk-budget.mjs';
 
 export function simArms(plan, siteDir, lookSearch, only) {
   const out = [
@@ -41,7 +42,7 @@ export function windowVerdict(pw, timelineOn) {
 }
 
 /** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, log = (s) => console.error(s) }) {
+export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
@@ -104,8 +105,9 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ...windowVerdict(pw, !!tl), off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: records.length, ...(tl ? {} : { timeline: false }) } };
   };
 
+  let cut = null;
   try {
-    await withSession(async (ctx) => {
+    const walk = withSession(async (ctx) => {
       if (touch.on) {
         // one XCUITest run for the whole job; its start relaunches Safari (toolbar-throttle cli.mjs), so the page is loaded after it
         try {
@@ -113,12 +115,16 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
           await reconnect(ctx, { log });
         } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
-      for (let rep = 0; rep < reps && !refused; rep++) {
+      walk: for (let rep = 0; rep < reps && !refused; rep++) {
         for (const a of orderFor(arms, rep)) {
           for (const win of ['hero', 'end']) {
             const t0 = Date.now();
             let got = null;
             for (let attempt = 1; !got; attempt++) {
+              if (deadlineMs != null && !startsWindow(deadlineMs, now(), WINDOW_RESERVE_MS)) {
+                cut = `walk deadline: no time left to start ${a.id} ${win} rep ${rep}`;
+                break walk;
+              }
               await ctx.check?.();
               try {
                 got = await readWindow(ctx, a, win, rep);
@@ -136,11 +142,14 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
         }
       }
     }, { keep: true, arms: Object.fromEntries(arms.map((a) => [a.id, a.tree])), log });
+    if (deadlineMs == null) await walk;
+    else if (await untilDeadline(walk, deadlineMs, now) === 'deadline') cut = `walk deadline: abandoned a window in flight after ${rows.length} windows`;
+    if (cut) { error = cut; log(`webkit sim: INCOMPLETE after ${rows.length} windows (${cut})`); }
   } catch (e) {
     error = e.message;
     log(`webkit sim: INCOMPLETE after ${rows.length} windows (${error})`);
   } finally {
-    if (touch.server) await stopServer(touch.server);
+    if (touch.server) await Promise.race([stopServer(touch.server), sleep(25000)]);
   }
   return {
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,

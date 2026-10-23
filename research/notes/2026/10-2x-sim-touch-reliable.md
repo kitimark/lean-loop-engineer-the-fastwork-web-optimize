@@ -127,3 +127,31 @@ within the step limit).
 - `report.mjs` labels the Timeline column from `mode`, so touch rows read "on"; a `timeline:false` label is a follow-up (outside this task's writes).
 - Simulator hero windows are starved on the runner (2 to 40 frames in 7 s, runs above); not touched here.
 - Lengthening the stop wait (60 s to 240 s) made the job slower and kept fewer windows.
+
+## Job-level bound (round 3, after run 39957772249)
+
+Run `39957772249` (commit `6928ed7c6`, 3 sim jobs one after another) broke the stated bound: job 1's walk step ran 43 min 27 s and the job
+ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
+
+- **Where job 1's time went (CONFIRMED from step times of the jobs API; log text is not served for a cancelled job).** The walk step had
+  `timeout-minutes: 50`, the job `timeout-minutes: 45`. The job timeout fired first (job start 13:02:45Z, step cancelled 13:50:47Z, 3 min
+  after the 45th), so the step limit could never act; the post steps carry `!cancelled()` and were skipped (Keep host state, upload), so
+  no `sim.json` and no `sim.log` were kept. The always-run telemetry step began at 13:50:55Z and did not finish before the runner
+  was reclaimed at 13:57:46Z.
+- **Why the walk is long (MEASURED in the logs of jobs 2 and 3).** The touch bound covers 18 end windows. The 36 hero and end windows are
+  the rest: typical 7 to 35 s, but job 3 has end windows of 107, 185, 247 and 291 s (31,846 and 36,311 Timeline records after the lane fell back to the
+  synthetic wheel), plus retries (`Timeline.stop timed out after 60000 ms`, `Runtime.evaluate timed out after 20000 ms` with
+  `FW_WK_ATTEMPTS=3`). Walk time: job 2 20.6 min, job 3 32.5 min; job 1 more than 43 min (its windows are not readable).
+  The walk has no per-window bound outside the touch lane, so no sum of per-window bounds can be the job bound: 18 touch windows at
+  145,600 ms already exceed the deadline below (Lean `static_sum_exceeds`).
+- **The rule (Lean `Fw.Measure.WalkBudget`, golden `walk-budget.jsonl`, 12 lines).** A deadline from the job start:
+  45 min timeout - 9 min post steps (keep host 3, shutdown 2, upload 2, telemetry 2, each with its own `timeout-minutes`) - 2 min
+  grace - 1 min slack = 33 min. The workflow records the job start in its first steps, the `Walk budget` step computes the deadline and
+  the walk step's `timeout-minutes` (whole minutes up to deadline + grace; `stepEnd_le`, `job_ends_inside`), and skips the walk when
+  under 2 min remain (`runsWalk_false`). The harness starts no window that cannot finish (30 s reserve, `startsWindow_false`), abandons a
+  window in flight at the deadline and writes the rows so far (`incomplete: walk deadline ...`), then exits explicitly. Post steps run on
+  `always()`, so a step timeout (a failure, not a cancel) still keeps host state, `sim.log`, `sim.json` and the upload.
+- **Cost.** Setup is 3.7 to 4.6 min in the three jobs, so the walk gets about 28 min; job 3 of the run above (32.5 min walk) would
+  have lost its last windows, with the rows kept.
+- TS stand-ins: `walk-budget.mjs` functions replayed against the golden; the `sim-cadence.mjs` loop wiring and `untilDeadline` are glue
+  (`untilDeadline` has a unit test).

@@ -1,24 +1,16 @@
 # sim-touch-reliable handoff
 
-- Branch `worktree-wf_b60a7b2e-e1c-1`, worktree `.claude/worktrees/wf_b60a7b2e-e1c-1`, last commit see `git log -1` (round 2 code at `e2b2b290a` merged with main; dry land `VERDICT dry sim-touch-reliable`; green: lean check, measure-webkit 429, ci-paths 54, runner 2967).
-- CI: pushed `ci/sim-touch-reliable` at `610d43d70` (smoothness, `[webkit-cadence] [earn-bound] [sim-only]`, default variant springboard); run `39934951574` complete (success, 3 sim jobs; 52 of 53 pushes ok, one swipeLate)
-  (`pnpm -s fw ci wait --branch ci/sim-touch-reliable --workflow smoothness`; fetch `pnpm -s fw ci 39934951574`). Evidence read-only: runs `39901005729` and `39909042070`.
-- Verified: Lean `Fw.Measure.TouchPush` compiles with its theorems and golden (`packages/contracts/golden/measure/touch-push.jsonl`);
-  `test/touch-push.test.mjs` replays the golden; two short local debug runs (debug evidence, not results) show a push in 4.6 s on a quiet
-  Mac with both variants reaching the page.
-- Round 2 (review round 1 findings applied): `touchWindow` races every awaited inspector call (start evaluate against answerMs; stop evaluate not awaited, per-call timeout; test with never-resolving stubs); touch end windows keep `ok:true, reason:'timeline-off'` (`windowVerdict` in sim-cadence.mjs, `rereduce` skips `timeline:false` rows; test); Lean `Obs`/`Budget` docstrings restored with the 4.2 s CI p50; note and PushServer.swift header aligned. CI re-proof of the bounded harness: dispatch item (not run).
-- Cause (note `research/notes/2026/10-2x-sim-touch-reliable.md`): XCUITest post-event wait for Safari idle (CI log tail), Timeline of a
-  minutes-long touch window (no Timeline now). Bound: one failing touch window per job, at most 145,600 ms per window.
+- Branch `worktree-wf_b60a7b2e-e1c-1`, worktree `.claude/worktrees/wf_b60a7b2e-e1c-1`, last commit see `git log -1`. Round 3 (findings after run 39957772249) pending its CI proof.
+- CI runs: `39934951574` complete (round 2 code, 52 of 53 pushes ok); `39957772249` complete (job 1 cancelled at the 45-min job limit, jobs 2 and 3 success; evidence for round 3); round 3 proof run: see `ci/sim-touch-reliable` newest smoothness run (id below when pushed).
+- Round 3 cause (CONFIRMED, step times of the jobs API): walk step `timeout-minutes: 50` above job `timeout-minutes: 45`; the job timeout cancelled the step, `!cancelled()` post steps were skipped, so no sim.json/log was kept. Non-touch windows have no per-window bound (Timeline.stop 60 s, retries, 107 to 291 s end windows in job 3).
+- Round 3 change: Lean `Fw.Measure.WalkBudget` (deadline = 45 - 9 post - 2 grace - 1 slack = 33 min from job start; golden `packages/contracts/golden/measure/walk-budget.jsonl`, 12 lines);
+  `packages/measure-webkit/src/walk-budget.mjs` (stand-ins + CLI, test `test/walk-budget.test.mjs`); `sim-cadence.mjs` (`deadlineMs`: no window starts without 30 s left, window in flight abandoned at the deadline, partial rows kept);
+  `profile/cli.mjs` (`--deadline-ms`, explicit exit); `smoothness.yml` webkit-sim job (Job clock, Walk budget step, dynamic walk `timeout-minutes`, per-step timeouts, post steps `always()`, upload `warn`, `[sim-walk-cap=N]` in the commit message cuts job 1's walk N min after it starts).
+- Verified: lean check, measure-webkit tests, ci-paths test, actionlint clean. Not verified: the workflow on CI (dynamic `timeout-minutes` expression) until the proof run.
 
 ## Open
-- Control arm: `FW_TOUCH_VARIANTS=safari` on the same commit would separate "no Timeline" from "SpringBoard coordinates"; it needs the
-  workflow to pass the variable. The touch rows log `touch push n (variant): outcome, begin, swipe, done, presses`.
-- Follow-ups outside this task's writes: `report.mjs` Timeline label for rows with `timeline:false`; `smoothness.yml` env pass-through for
-  `FW_TOUCH_VARIANTS`; Simulator hero windows are starved (2 to 40 frames in 7 s).
-- Files outside the task writes: `lean/Fw/Measure/TouchPush.lean`, `lean/scripts/TouchPushGolden.lean`, `lean/Fw.lean`, `lean/scripts/check.sh`,
-  `lean/Fw/Ci/Trigger.lean` (one input), `packages/contracts/golden/ci/triggers.jsonl` (regenerated), `packages/contracts/golden/measure/touch-push.jsonl`.
-  Dry land without `--allow` ends `VERDICT scope sim-touch-reliable` (4 files); with `--allow` for them it ends `VERDICT dry sim-touch-reliable`.
-- Green: `sh lean/scripts/check.sh`, measure-webkit tests (426), ci-paths test (54), apps/runner test (2914 incl. tsc).
+- Files outside the task writes: `.github/workflows/smoothness.yml`, `lean/Fw/Measure/WalkBudget.lean`, `lean/scripts/WalkBudgetGolden.lean`, `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/Fw/Ci/Trigger.lean`, `packages/contracts/golden/ci/triggers.jsonl`, `packages/contracts/golden/measure/walk-budget.jsonl`, `packages/measure-webkit/src/walk-budget.mjs`, `packages/measure-webkit/src/profile/cli.mjs`, plus round 1 and 2 Lean files (`TouchPush.lean`, `TouchPushGolden.lean`, `touch-push.jsonl`).
+- Control arm (`FW_TOUCH_VARIANTS=safari`), report.mjs `timeline:false` label, starved Simulator hero windows: follow-ups.
 
 ## Read first
-`research/notes/2026/10-2x-sim-touch-reliable.md`, then `packages/measure-webkit/src/touch-push.mjs` (`touchWindow`, stand-ins), `lean/Fw/Measure/TouchPush.lean`.
+`research/notes/2026/10-2x-sim-touch-reliable.md` section "Job-level bound", `lean/Fw/Measure/WalkBudget.lean`, the webkit-sim job of `.github/workflows/smoothness.yml`.
