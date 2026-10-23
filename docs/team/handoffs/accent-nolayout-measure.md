@@ -1,7 +1,9 @@
 branch: worktree-wf_a3f3d112-fbe-1 (ci branch ci/accent-nolayout-measure)
 worktree: .claude/worktrees/wf_a3f3d112-fbe-1
-last commit: 7e3e5fc96 (pushed as ci/accent-nolayout-measure)
-CI runs: webkit-sim 40030735082 (dispatch 1 of 2) running; lean 40030735001 running; other workflows skipped
+last commit: a3bb8cd67 (ci/accent-nolayout-measure tip, dispatch 2)
+CI runs: webkit-sim 40030735082 at 7e3e5fc96 success (3 jobs, 13 units each; report results/accent-draw-nolayout/accent-report-40030735082.md);
+webkit-sim dispatch 2 at a3bb8cd67 (draw counter fix for hashed keyframe names): run 40035116432 running.
+Never pool the two runs (different commits); the two are reported side by side.
 
 State: items 1, 3-11 built; item 2 (path-pix draw window) is out of this round (pathpix-consensus-capture owns it).
 - Lean `lean/Fw/Measure/SwapWindow.lean` (busyFrozen, busyWindows, perCaptureTenths, perFrameMilli, laneBudgetMin 24, unitFits, armOrder, laneUnits) + golden kinds in `packages/contracts/golden/measure/wkcost.jsonl`.
