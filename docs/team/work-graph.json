@@ -18216,7 +18216,8 @@
     "research/notes/2026/10-2x-counts-font-fidelity.md",
     "docs/team/handoffs/faithful-control-oos.md"
    ],
-   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+   "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run.",
+   "evidence": "902f8ab"
   },
   {
    "devices": [
@@ -18261,7 +18262,14 @@
     "apps/runner/src/slot-span.ts",
     "apps/runner/test/slot-span*.test.ts",
     "lean/Fw/Obs/Next.lean",
-    "packages/contracts/golden/obs/next*.jsonl"
+    "packages/contracts/golden/obs/next*.jsonl",
+    "lean/Fw/Wire/Obs.lean",
+    "apps/runner/src/watch-collect.ts",
+    "scripts/span.sh",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot*.test.ts",
+    "apps/runner/test/watch*.test.ts",
+    "apps/runner/test/polish*.test.ts"
    ],
    "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too. Also from timing-slot-width review: groupView re-judge uses INFERRED widths (summed job time / group wall time): say so in its docstring and add a golden case from recorded widths once spans carry them; TS slotWork drops non-integer widths while Lean workOf keeps any JSON value: restrict workOf to string values or add a golden row for a non-string work value."
   },
