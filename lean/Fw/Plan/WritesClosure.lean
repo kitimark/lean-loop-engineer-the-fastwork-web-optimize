@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Console.Land
+import Fw.Obs.Timing
 
 namespace Fw.Plan.WritesClosure
 open Fw.Ops.PathCheck Fw.Console.Land
@@ -286,6 +287,15 @@ decreasing_by
 
 def normRead (p : String) : String := "/".intercalate (Fw.Ops.PathCheck.segs p)
 
+def readPath (p : String) : Option String :=
+  if (Fw.Ops.PathCheck.segs p).contains ".." then none else some (normRead p)
+
+theorem readPath_dotdot (p : String) (h : ".." ∈ Fw.Ops.PathCheck.segs p) : readPath p = none := by
+  simp [readPath, h]
+
+theorem readPath_plain (p : String) (h : ".." ∉ Fw.Ops.PathCheck.segs p) : readPath p = some (normRead p) := by
+  simp [readPath, h]
+
 def ghGlob : List Char → List Char → Bool
   | '*' :: '*' :: '/' :: g, s =>
       ghGlob g s || (List.range s.length).any fun i => s[i]? == some '/' && ghGlob g (s.drop (i + 1))
@@ -338,7 +348,7 @@ structure Read where
 deriving Repr, DecidableEq
 
 def scriptReads (scripts : List (String × String)) : List Read :=
-  scripts.flatMap fun (s, text) => (readsOf text.toList).map fun p => ⟨s, p.map normRead⟩
+  scripts.flatMap fun (s, text) => (readsOf text.toList).map fun p => ⟨s, p.bind readPath⟩
 
 def unmatched (globs : List String) : Read → Bool
   | ⟨_, none⟩ => true
@@ -377,6 +387,10 @@ theorem mem_gapsOf (ss : List (String × String)) (gs : List String) (g : Gap) :
   · rintro ⟨hr, hm⟩
     exact ⟨_, ⟨hr, by simp [unmatched, hm]⟩, g.path, rfl, rfl⟩
 
+theorem dotdot_gap (ss : List (String × String)) (gs : List String) (s text p : String) (hs : (s, text) ∈ ss)
+    (hp : some p ∈ readsOf text.toList) (hd : ".." ∈ Fw.Ops.PathCheck.segs p) : ⟨s, none⟩ ∈ inputGaps ss gs :=
+  nonliteral_gap ss gs s (List.mem_flatMap.mpr ⟨(s, text), hs, List.mem_map.mpr ⟨some p, hp, by simp [readPath_dotdot p hd]⟩⟩)
+
 theorem required_of_unmatched_read (tr ws : List String) (ss : List (String × String)) (gs : List String)
     (s p : String) (hr : ⟨s, some p⟩ ∈ scriptReads ss) (hm : ghMatches gs p = false)
     (hn : names ws p = true ∨ names ws s = true) : ∀ q ∈ triggerFix, q ∈ required tr ws (gapsOf ss gs) :=
@@ -399,7 +413,9 @@ theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String 
 #guard !ghMatches ["lean/Fw"] "lean/Fw/X.lean" && ghMatches ["a/**/c.json"] "a/c.json"
 #guard ghMatches ["**", "!x/**", "x/y"] "x/y" && !ghMatches ["x/y", "!x/**"] "x/y"
 #guard normRead "a//b/./c.json" == "a/b/c.json"
-#guard normRead "a/../b" == "a/../b"
+#guard normRead "a/../b" == "a/../b" && readPath "a/../b" == none && readPath "lean/.." == none
+#guard readPath "a//./b..c/...x" == some "a/b..c/...x"
+#guard inputGaps [("s", "../lean/../x ../../e")] ["**"] == [⟨"s", none⟩, ⟨"s", none⟩]
 #guard jsSpace '\u00a0' && jsSpace '\u2005' && jsSpace '\uFEFF' && !jsSpace '\u200b' && !jsSpace 'a'
 #guard rowGlob "lean/**" && rowGlob "!lean/Fw/A_b-c.lean" && !rowGlob "" && !rowGlob "!" && !rowGlob "!!a"
 #guard !rowGlob "lean/?.lean" && !rowGlob "a+" && !rowGlob "lean/[ab].lean" && !rowGlob "@fwcore"
@@ -697,6 +713,44 @@ def rowGlobVectors : List String :=
 
 def rowGlobRow (g : String) : Json := Json.mkObj [("type", "rowGlob"), ("glob", g), ("ok", rowGlob g)]
 
+def prefixes (s : String) : List String := (List.range s.length).map fun i => String.ofList (s.toList.take (i + 1))
+
+def agreeGlobs : List String :=
+  (["**", "***", "**/", "***/", "*", "**/*"] ++
+    ["lean/**/*.lean", "a/***/b", "**/b*.json", "a**/b", "*/**/", "x/*.json"].flatMap prefixes).eraseDups
+
+def agreePaths : List String :=
+  ["", "a", "b", "ab", "a/b", "a/x/b", "a/x/y/b", "a/b/c", "ab/b", "a//b", "a/", "/a", ".x", "*", "a*b", "lean",
+    "lean/", "lean/a.lean", "lean/Fw/A.lean", "lean/Fw/A/B.lean", "lean/a.leanx", "lean/.lean", "leanx/a.lean",
+    "x/lean/a.lean", "b.json", "x/b1.json", "x/y/bc.json", "x/c.json", "x/.json", "a/../b", "lean/../x", "lean/**"]
+
+def agreeLists : List (List String) := agreeGlobs.map ([·]) ++ agreeGlobs.map fun g => ["**", "!" ++ g]
+
+#guard agreeLists.all (·.all rowGlob)
+
+def agreeRow (gs : List String) : Json :=
+  Json.mkObj [("type", "agree"), ("globs", strs gs), ("hits", strs (agreePaths.filter (ghMatches gs)))]
+
+def timeRow (label : String) (xs : List Nat) : String :=
+  s!"| {label} | {xs.length} | {Fw.Obs.Timing.p50 xs} ms | {Fw.Obs.Timing.p90 xs} ms | {Fw.Obs.Timing.maxL xs} ms |\n"
+
+def timeTable (before after : List Nat) : String :=
+  let b := Fw.Obs.Timing.lastN 30 before
+  let d : Int := (Fw.Obs.Timing.p50 after : Int) - Fw.Obs.Timing.p50 b
+  "| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n" ++
+    timeRow s!"last {b.length} runs before the closure check" b ++ timeRow "every run with it" after ++
+    s!"\nINFERRED: the closure check adds about {d} ms to a sync (p50 with it minus p50 before).\n"
+
+#guard timeTable [300, 100, 200] [650, 600] ==
+  "| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n| last 3 runs before the closure check | 3 | 200 ms | 300 ms | 300 ms |\n" ++
+  "| every run with it | 2 | 600 ms | 650 ms | 650 ms |\n\nINFERRED: the closure check adds about 400 ms to a sync (p50 with it minus p50 before).\n"
+
+def timeVectors : List (List Nat × List Nat) :=
+  [([], []), ([300, 100, 200], [650, 600]), ((List.range 40).map (100 + ·), [811, 642, 700, 600]), ([500, 400], [450])]
+
+def timeTableRow (b a : List Nat) : Json :=
+  Json.mkObj [("type", "timeTable"), ("before", Lean.toJson b), ("after", Lean.toJson a), ("text", timeTable b a)]
+
 def gapVectors : List (List (String × String) × List String) := [
   ([("lean/scripts/check.sh", "job a x --check ../packages/a.jsonl ../packages/b.jsonl ../lean/Fw/X.lean ../$V\n"),
     ("lean/scripts/other.sh", "node ../packages/c.json\n")], ["lean/**", "packages/a.jsonl"]),
@@ -742,6 +796,9 @@ def goldenText (_ : Unit) : String :=
   String.join ((pathVectors.map fun (tr, w) => (pathRow tr w).compress ++ "\n") ++
     (cases.map fun c => (caseRow c).compress ++ "\n") ++ (globVectors.map fun (gs, p) => (globRow gs p).compress ++ "\n") ++
     (rowGlobVectors.map fun g => (rowGlobRow g).compress ++ "\n") ++
+    [(Json.mkObj [("type", "agreePaths"), ("paths", strs agreePaths)]).compress ++ "\n"] ++
+    (agreeLists.map fun gs => (agreeRow gs).compress ++ "\n") ++
+    (timeVectors.map fun (b, a) => (timeTableRow b a).compress ++ "\n") ++
     (gapVectors.map fun (ss, gs) => (gapRow ss gs).compress ++ "\n") ++
     syncVectors.map fun (b, a) => (syncRow b a).compress ++ "\n")
 

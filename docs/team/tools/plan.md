@@ -19,17 +19,24 @@ differs (`previousGraph`, from `git log --first-parent`). It refuses only the wr
 (`coreCandidates`). With none built, sync sends nothing and throws `plan lint: writes closure: fwcore not built: sh scripts/fwcore-build.sh`.
 
 The gaps both lints use come from `scripts/ci-paths.mjs` `leanInputGaps`: every `../` path a `lean/scripts/*.sh` reads
-that the lean.yml row globs miss. `node scripts/ci-paths.mjs --check` refuses a row glob outside Lean `rowGlob`
-(letters, digits, `._-/*`, one leading `!`), the subset on which the JS matcher and Lean `ghMatches` agree.
+that the lean.yml row globs miss. A read with a `..` segment counts as a non-literal read and is refused (Lean
+`readPath`, `dotdot_gap`), so a `**` row glob cannot cover `lean/../x`. `node scripts/ci-paths.mjs --check` refuses a row
+glob outside Lean `rowGlob` (letters, digits, `._-/*`, one leading `!`). MEASURED: on that subset the JS `matches` and
+Lean `ghMatches` agree on the golden `agree` rows of `packages/contracts/golden/plan/writes-closure.jsonl` (globs built
+from `**`, `***`, `**/` and the prefixes of longer patterns, each alone and as `**` minus it, over a path list), replayed by
+`apps/runner/test/plan-closure.test.ts`. INFERRED beyond those rows. Limit: a path with a line terminator (`\n`, `\r`,
+U+2028, U+2029) can differ, since the JS `.*` stops at it and Lean `**` does not; `git ls-files` lists none.
 
 ## Time
 
-MEASURED (`.fw-console/timings.jsonl`, tool `fw`, step `plan sync`, exit 0; `pnpm fw timings --tool fw`):
+<!-- plan-time begin: node scripts/plan-time.mjs -->
+MEASURED (`results/plan-sync-time/samples.jsonl`, 2026-10-17 to 2026-10-23: every exit-0 `plan sync` span of the tool `fw`
+in the main checkout's `.fw-console/timings.jsonl`, any load; a run is "with it" when its commit contains 9a09d8066):
 
-| Window | n | p50 | p90 |
-|---|---|---|---|
-| last 30 runs before the closure check | 30 | 180 ms | 197 ms |
-| first run with it | 1 | 642 ms | 642 ms |
+| Window | n | p50 | p90 | max |
+|---|---|---|---|---|
+| last 30 runs before the closure check | 30 | 180 ms | 197 ms | 4177 ms |
+| every run with it | 7 | 618 ms | 811 ms | 811 ms |
 
-MEASURED: `syncClosureRefusal` alone on the live graph, in a worktree, load average 5: 374-404 ms over 5 calls.
-INFERRED: the closure check adds about 0.4 s to each sync.
+INFERRED: the closure check adds about 438 ms to a sync (p50 with it minus p50 before).
+<!-- plan-time end -->
