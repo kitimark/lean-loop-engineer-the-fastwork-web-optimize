@@ -47,7 +47,7 @@ const UDID = "0a1b2c3d-0000-1111-2222-333344445555";
 const temps: string[] = [];
 afterAll(() => { for (const t of temps) rmSync(t, { recursive: true, force: true }); });
 
-function tree() {
+function tree(events = true) {
   const t = realpathSync(mkdtempSync(join(tmpdir(), "diskgc")));
   temps.push(t);
   const repo = join(t, "repo");
@@ -80,7 +80,7 @@ function tree() {
   file(join(t, "outside", "keep.txt"), "keep", false);
   symlinkSync(join(t, "outside"), join(pad, "link"));
   const croot = join(repo, ".fw-console");
-  file(join(croot, "events.jsonl"), "", false);
+  if (events) file(join(croot, "events.jsonl"), "", false);
   file(join(croot, "tmp", "chromium-1", "x"));
   file(join(croot, "land-logs", "t-abc.log"));
   file(join(croot, "land-logs", "u-new.log"), "n", false);
@@ -151,7 +151,9 @@ describe("fw disk-gc on a temp tree", () => {
     g(x.repo, "worktree", "add", "-q", "-b", "ff-b", join(x.wt, "wf_ff-aaa-1"), "main");
     g(join(x.wt, "wf_ff-aaa-1"), "merge", "-q", "--ff-only", "landed-b");
     g(x.repo, "worktree", "add", "-q", "-b", "live-b", join(x.wt, "wf_live-bbb-1"), "main");
-    g(x.repo, "merge", "-q", "--no-ff", "--allow-empty", "-m", "land live-b", "live-b");
+    file(join(x.wt, "wf_live-bbb-1", "c.txt"), "c", false);
+    g(join(x.wt, "wf_live-bbb-1"), "add", "-A"); g(join(x.wt, "wf_live-bbb-1"), "commit", "-q", "-m", "c");
+    g(x.repo, "merge", "-q", "--no-ff", "-m", "land live-b", "live-b");
     const paths = () => diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2"]), call, io: x.io, roots: x.roots, uid })
       .reply.items.map((i) => i.path.slice(x.wt.length + 1)).sort();
     writeFileSync(join(x.croot, "events.jsonl"), JSON.stringify({ seq: 1, type: "agent.label", agent: "a1", name: "t", key: "wfid-label:wf_live-bbb:a1:t" }) + "\n");
@@ -211,7 +213,7 @@ describe("fw disk-gc on a temp tree", () => {
   });
 
   it("a path of unknown owner is kept; the pressure floor and the owner marker lower the scratch age", () => {
-    const x = tree();
+    const x = tree(false);
     const hoursAgo = (p: string, h: number) => { const t = Date.now() / 1000 - h * 3600; utimesSync(p, t, t); };
     file(join(x.pad, "mid", "f.txt"), "m", false);
     hoursAgo(join(x.pad, "mid", "f.txt"), 3); hoursAgo(join(x.pad, "mid"), 3);
@@ -243,7 +245,7 @@ describe("fw disk-gc on a temp tree", () => {
   });
 
   it("gatherEventFacts is null without an event log", () => {
-    const x = tree();
+    const x = tree(false);
     expect(gatherEventFacts(x.repo, call)).toBeNull();
   });
 
