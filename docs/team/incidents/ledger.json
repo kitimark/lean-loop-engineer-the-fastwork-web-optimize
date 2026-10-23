@@ -4341,6 +4341,71 @@
    "leanVerdict": "partly",
    "leanReason": "Selecting the actionlint check when a workflow file changes is a pure check-selection rule (Lean); YAML validity itself is actionlint, not Lean.",
    "hardening": "workflow-syntax-gate"
+  },
+  {
+   "id": "inc-polish-file-scope",
+   "at": "2026-10-23T09:40+07:00",
+   "title": "The polish stage rewrote comments across whole files of a branch diff, so two branches' polish passes cut lean/scripts/check.sh differently and workflow-syntax-gate no longer merged with main",
+   "symptom": "The reviewer's dry land of workflow-syntax-gate printed 'REFUSED: main b26c005 cannot merge worktree-wf_f1b87bb1-9b8-1 cleanly' and VERDICT conflict.",
+   "cause": "CONFIRMED (git show --stat): the builder changed 2 lines of lean/scripts/check.sh (e32e88822); its polish commit 162a69416 then rewrote 157 lines of that file's comments, while main's polish of chrome-balance-repro (81464d810) cut the same comments differently. Polish scope is the file list of the branch diff (Fw.Plan.Polish.scope), not the changed hunks, so an edit far from the task's lines enters the branch.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/scripts/check.sh",
+     "note": "branch polish commit 162a69416 (unlanded) rewrote 157 comment lines"
+    },
+    {
+     "kind": "commit",
+     "ref": "81464d810",
+     "note": "polish of chrome-balance-repro on main, check.sh"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Polish.lean",
+     "note": "scope by file"
+    }
+   ],
+   "repro": "Two branches each change a few lines of the same heavily commented file; build-review polishes both: the second to land conflicts on comment lines neither builder wrote.",
+   "fix": {
+    "task": "polish-hunk-scope"
+   },
+   "regression": "fw polish commit restores every edit outside the branch's diff hunks; a fixture test keeps an in-hunk edit and restores one 50 lines away.",
+   "leanVerdict": "provable",
+   "leanReason": "Whether an edit's line range lies inside the branch's diff hunks is a pure interval rule over the diff, provable in Fw.Plan.Polish with goldens.",
+   "hardening": "polish-hunk-scope"
+  },
+  {
+   "id": "inc-polish-main-checkout",
+   "at": "2026-10-23T09:27+07:00",
+   "title": "comment-sicko edited the main checkout instead of the task worktree: the polish-plan runner redacted the worktree prefix to <worktree>, and the dirty main tree made the next land's fwcore rebuild fail and opened svc.unknown",
+   "symptom": "After land f2247607a (watch-ci-stale): 'REFUSED: fwcore-rebuild-failed', git status on main showed lean/Fw/Parts/CommissionOpt.lean and CommissionOptGolden.lean modified (module docs deleted at 09:27), then fw watch opened svc.unknown for fwcore and console-api.",
+   "cause": "CONFIRMED (workflow journal wf_520cefe2-198): the polish-plan runner's out showed 'comments // <worktree>/apps/...' because build-review.js asked runners for stdout with 'no home path'; comment-sicko got paths with the <worktree> placeholder and resolved them against the main checkout, which holds the same files since commission-band-gate landed.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "f2247607a",
+     "note": "land whose fwcore rebuild failed on the dirty tree"
+    },
+    {
+     "kind": "file",
+     "ref": ".claude/workflows/build-review.js",
+     "note": "run1 'no home path'; polish comments list"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/polish.ts",
+     "note": "polish-plan prints absolute paths"
+    }
+   ],
+   "repro": "Polish a branch whose files also exist on main with a runner that redacts home paths: comment-sicko edits main's copies.",
+   "fix": {
+    "task": "polish-hunk-scope"
+   },
+   "regression": "build-review.js rebuilds every polish path from the worktree line and the relative class paths, stops when the worktree line is missing, and stops before the commit when comment-sicko reports an edit outside the worktree (scripts/build-review.test.mjs, 3 cases).",
+   "leanVerdict": "partly",
+   "leanReason": "The path rule (an admitted edit path lies under the worktree) is a pure prefix rule provable in Fw.Plan.Polish; that an agent actually edited the files it names is checked empirically against git status.",
+   "empiricalCheck": "fw polish commit compares the main checkout's git status with the plan's files and refuses on a match.",
+   "hardening": "polish-hunk-scope"
   }
  ]
 }
