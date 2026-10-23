@@ -352,7 +352,6 @@ test("phases: a failed call after the deciding tick raises the state's retryUnti
 });
 
 test("phases: an interval that shrank between the two ticks is recorded at both, and the gap fits the larger one", async () => {
-  // reset at T0+300; the drain leaves 2 ticks of headroom, so the tick at T0+50 spreads it to a 250 s interval
   const r = await phased(1, [run(80, { completeAt: T0 + 100 })], { kind: "run", runId: 80 }, 3600, { start: T0 - 3300, drains: [{ at: T0 + 45, remaining: 504 }] });
   const p = r.got[0]!;
   assert.equal(p.how, "done");

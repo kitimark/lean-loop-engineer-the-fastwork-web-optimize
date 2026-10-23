@@ -2,14 +2,12 @@
 
 - Branch `worktree-wf_8eb150d8-112-1`, worktree `.claude/worktrees/wf_8eb150d8-112-1`; main merged.
 - CI runs: none (accepted limit "no CI run").
-
 ## State
 - Poller (`poller.ts` `pollTick`): each tick's status carries `interval` (`ci.budget.status` on the state after the
   tick) and `retryUntil` (the state's value when fwcore issued the tick, so at most the tick time). Type `TickStatus`.
 - `wait.ts` `noteDecided` copies them (`tickBudget`): `pollS`, `retryUntilS` from the deciding tick's status,
   `prevPollS` from the earlier tick's status. No state read at decide time (`budgetAt` is gone).
-- Lean `Fw.Obs.Timing`: `gapCapMs p q r w` = `max q w · 1000 + backoffMs` (`w` = `prevPollS`, 0 when absent, so old
-  spans keep their verdicts: `gapCapMs_no_prev_poll`). `netMsOf`/`ownOfPhases` take `prevPollS` last.
+- Lean `Fw.Obs.Timing`: `gapCapMs p q r w` = `max q w · 1000 + backoffMs` (`w` = `prevPollS`, 0 when absent: `gapCapMs_no_prev_poll`). `netMsOf`/`ownOfPhases` take `prevPollS` last.
   Theorems: `gapCapMs_shrunk`/`_grew`/`_prev_le`, `netMsOf_shrunk_within`, `_shrunk_no_prev_poll`,
   `ownOfPhases_shrunk_within`; generic ones (`_capped`, `_gap_within`, `_gap_stall`, `_gap_stall_counts`) take the cap
   `c` with `gapCapMs … = some c`.
@@ -18,17 +16,14 @@
   `Fw.Ci.Budget.interval_sound`.
 - Golden `timing-own.jsonl`: 20 rows; new: interval shrank 60→10 s (55 s gap nets, own 205000), same without
   `prevPollS` (240000), interval grew 10→30 s (220000), stall past the earlier 60 s (190000). Wire reads `prevPollS`.
-
 ## Verified
 - `lean/scripts/check.sh` green after merging main (axioms ok); @fw/gh-budget 81 tests, @fw/runner 3268, @fw/contracts
   11, ci-paths 56; plan lint 0 errors; dry land `VERDICT dry timing-poller-snapshot`.
 - wait.test.ts "a failed call after the deciding tick…" (2 waiters, a 403 on the holder's view raises the state's
   retryUntil by 600 s, the late reader still records 0) and "an interval that shrank…" (drain before a reset:
   prevPollS 250, pollS 10, gap 250 s).
-
 ## Open
 - The recorded interval is the state's before the tick's `listed`/`pages` events; a pages change shows in the
   deciding tick's interval, which the max takes.
-
 ## Read first
 - `lean/Fw/Obs/Timing.lean` `gapCapMs`/`capNets`/`netMsOf` (~line 105), `ownCases`; `poller.ts` `tickBudget`.

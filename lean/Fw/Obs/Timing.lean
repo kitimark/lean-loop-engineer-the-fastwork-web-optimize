@@ -113,8 +113,6 @@ def gapCapMs (prevTickMs pollS retryUntilS prevPollS : Option Nat) : Option Nat 
   | some q, some _ => some (max q (prevPollS.getD 0) * 1000 + backoffMs prevTickMs retryUntilS)
   | _, _ => none
 
-/-- Whether `gapCapMs` nets a poller wait of this reason; a floor or share wait is own time, since ticks spaced by the
-interval alone fit both tick shares and the headroom (`Fw.Ci.Budget.interval_sound`). -/
 def capNets : Fw.Ci.Budget.Reason → Bool
   | .interval | .retryAfter => true
   | .failures | .idle | .tooBig | .floor | .hour | .minute => false

@@ -9,7 +9,6 @@ import { readMarkers } from "./waiters.ts";
 import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeStatus, type Row, type Status } from "./state.ts";
 
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt,event,displayTitle";
-/** gh rows per page (a page is what `pages` in the budget state counts). */
 const PAGE = 100;
 
 /** The runs-status file as a tick writes it: `interval` is `Fw.Ci.Budget.interval` of the state after the tick, `retryUntil` the
@@ -18,7 +17,6 @@ export type TickStatus = Status & { interval?: number; retryUntil?: number };
 
 const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
 
-/** The deciding tick's budget facts a wait records (`pollS`, `retryUntilS`), read from the status the tick wrote. */
 export function tickBudget(st: Status | null): { pollS?: number; retryUntilS?: number } {
   const t = st as TickStatus | null;
   return { ...(nat(t?.interval) ? { pollS: t.interval } : {}), ...(nat(t?.retryUntil) ? { retryUntilS: t.retryUntil } : {}) };
@@ -99,7 +97,6 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
   const retryUntil = (res.reply.state as { retryUntil?: unknown } | undefined)?.retryUntil;
   const tick: TickStatus = { at: now, tickAt: now, createdSince: since, rows, ...(interval === undefined ? {} : { interval }), ...(nat(retryUntil) ? { retryUntil } : {}) };
   writeStatus(env.dir, tick);
-  // Runs that finished no longer need ticks; one more page when the list came back full (glue rules, see the handoff).
   const st = loadState(env.dir);
   const watched = (st?.watched as { runId: number }[] | undefined) ?? [];
   for (const w of watched) if (rows.some((r) => r.databaseId === w.runId && r.status === "completed")) stepEvent(env, { unregister: w.runId });
