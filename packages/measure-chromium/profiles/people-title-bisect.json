@@ -1,0 +1,188 @@
+{
+ "id": "people-title-bisect",
+ "kind": "probe",
+ "about": "Task people-title-crash-fix: which CSS on the people o (or the title) keeps stock Chrome from crashing on the rewrite page at 1280. Each variant injects css into the rewrite page (default config unless the dispatch sets fw). Diagnostic, records no counts.",
+ "hz": 60,
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1,
+  "mobile": false,
+  "touch": false
+ },
+ "pinnedDate": "2026-10-01T00:00:00+07:00",
+ "timezone": "Asia/Bangkok",
+ "locale": "en-US",
+ "seed": 1592661556,
+ "load": {
+  "quietFrames": 30,
+  "maxFrames": 900,
+  "prerollFrames": 60
+ },
+ "zoneHeightPx": 500,
+ "segments": [
+  {
+   "name": "rest",
+   "dyPerFrame": 0,
+   "frames": 10
+  },
+  {
+   "name": "scroll",
+   "dyPerFrame": 10,
+   "frames": 40
+  },
+  {
+   "name": "tail",
+   "dyPerFrame": 0,
+   "frames": 10
+  }
+ ],
+ "repro": {
+  "title": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>balance repro</title><style>\n@font-face{font-family:\"Google Sans\";src:url(/font.woff2) format(\"woff2\");font-weight:400 700}\nbody{margin:0;font-family:\"Google Sans\",sans-serif;color:#2b313b}\n.c{display:flex;flex-direction:column;align-items:center;text-align:center;padding:80px 56px}\nh2{margin:0;font-size:48px;font-weight:500;line-height:1.15;letter-spacing:-0.02em;text-wrap:balance}\n.w{white-space:nowrap;display:inline-flex;flex-wrap:nowrap;align-items:flex-start}\n.o{vertical-align:baseline;flex-shrink:0;display:inline-grid;grid-template-columns:minmax(0,0.6042em);min-width:0;height:1.0417em;position:relative;overflow:hidden}\n.s{grid-column:1;width:100%;min-width:0;height:100%;position:relative}\n</style></head><body><div class=\"c\"><h2 id=\"future-heading\"><span>People still need</span> <span class=\"w\">pe<span class=\"o\"><span class=\"s\"></span></span>ple</span></h2></div></body></html>"
+ },
+ "probe": {
+  "timeoutMs": 1500000,
+  "variants": [
+   {
+    "id": "wrap",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "#future-heading{text-wrap:wrap!important}"
+   },
+   {
+    "id": "iblock-bare",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:inline-block!important}"
+   },
+   {
+    "id": "iblock-w0",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:inline-block!important;width:0!important}"
+   },
+   {
+    "id": "block-w",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:block!important;width:.6042em!important}[data-fw=\"people-o\"]>span{display:block!important}"
+   },
+   {
+    "id": "block-w1px",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:block!important;width:1px!important}[data-fw=\"people-o\"]>span{display:block!important}"
+   },
+   {
+    "id": "block-w-visible",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:block!important;width:.6042em!important;overflow:visible!important}[data-fw=\"people-o\"]>span{display:block!important}"
+   },
+   {
+    "id": "block-w-static",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:block!important;width:.6042em!important;position:static!important}[data-fw=\"people-o\"]>span{display:block!important}"
+   },
+   {
+    "id": "block-w-hauto",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:block!important;width:.6042em!important;height:auto!important}[data-fw=\"people-o\"]>span{display:block!important}"
+   },
+   {
+    "id": "block-w-h0",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{display:block!important;width:.6042em!important;height:0!important}[data-fw=\"people-o\"]>span{display:block!important}"
+   },
+   {
+    "id": "grid-contain-layout",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{contain:layout!important}"
+   },
+   {
+    "id": "grid-contain-size",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{contain:size layout!important;width:.6042em!important}"
+   },
+   {
+    "id": "grid-static",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{position:static!important}"
+   },
+   {
+    "id": "grid-visible",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{overflow:visible!important}"
+   },
+   {
+    "id": "grid-hauto",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{height:auto!important}"
+   },
+   {
+    "id": "grid-vtop",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{vertical-align:top!important}"
+   },
+   {
+    "id": "grid-abs",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{position:absolute!important}"
+   },
+   {
+    "id": "grid-w",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]{width:.6042em!important}"
+   },
+   {
+    "id": "grid-inline-flex-parent-block",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "#future-heading>span:last-child{display:inline-block!important}"
+   },
+   {
+    "id": "stage-abs",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]>span{position:absolute!important}"
+   },
+   {
+    "id": "stage-none",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "css": "[data-fw=\"people-o\"]>span{display:none!important}"
+   }
+  ]
+ }
+}
