@@ -20,7 +20,7 @@
   the 120 s agent poll policy.
 
 ## Open
-- Spans recorded before this change carry no `tickMs`/`pollS`, so old `fw ci wait` spans get no own time (no verdict).
+- Spans recorded before this change carry `tickMs` but no `pollS`, so old `fw ci wait` spans get no own time (no verdict).
 - `noteSpan` notes stay in the process-wide map after `begin` writes the line; one polish commit per process today.
 
 ## Read first
