@@ -1402,7 +1402,7 @@ theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈
     rw [he] at this
     simp at this
 
-/-- Rows of (key, layer, mask) and a pixel: hero_copy over two deck cards and a cue, as the lane sees the first offsets. -/
+/-- Golden rows for `countedBy`: (name, row layers, pixel). -/
 def yieldCases : List (String × List RowLayer × Nat × Nat) :=
   let hero : RowLayer := ⟨"hero_copy", "hero_copy", ((10, 40), (10, 40))⟩
   let d0 : RowLayer := ⟨"hero.deck_article#0", "hero.deck_article", ((30, 60), (30, 60))⟩
