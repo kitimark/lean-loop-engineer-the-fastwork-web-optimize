@@ -17,7 +17,7 @@ The step time follows the download rate of that blob, not the cache key and not 
 | 39965489939 / land (chromium) 120454308192 | 88 s | 13:57:47.6 to 13:58:39.9 = 52 s | 25.4 MB/s | 14.4 s | 17.2 s (download 10.4 s) |
 
 Step durations come from the job step start/end times (`gh run view --json jobs`). In all five rows, a slower download means a longer step. The elan install (about 1 s) and the cache lookup (about 1 s) are
-the same everywhere. The spread (25 to 159 MB/s) is runner-to-blob network throughput, which setup-lean does not control.
+the same everywhere. The spread (25 to 159 MB/s) is cache download throughput (MEASURED); that it comes from the runner-to-storage network or backend load, not from anything setup-lean sets, is INFERRED.
 
 ## Not the cause
 
@@ -27,14 +27,15 @@ the same everywhere. The spread (25 to 159 MB/s) is runner-to-blob network throu
 - Building changed modules does not happen inside setup-lean at all. It happens in the next step, `fwcore build`
   (`lake build fwcore`): 78 modules built, about 260 s of summed module times, step 90 s (39965489939 chromium) and 81 modules,
   257 s, step 92 s (39966639416 suites-b). That cost is the same on fast and slow setup legs.
+- Blob growth across runs: fast land 39946751704 restored 1360013538 B (hit to Cache Size 6-8 s, step 36-46 s); fast land 39979064402 restored 1479166945 B, larger than the slow runs, in 6.5-10 s (step 39-45 s). A bigger blob downloaded fast, so the 68-88 s runs are not explained by blob growth.
 
-## Second finding: land legs restore a stale main entry (MEASURED, `gh cache list --json`)
+## Second finding: land legs restore a stale main entry (MEASURED, `gh cache list --json`; the rebuild-by-age link is INFERRED)
 
 GitHub scopes a cache to the ref that saved it. A land leg runs on `ci/land-*`, so it can restore only `main` entries (and its own
 branch). The `lean` job saves on every push (lean.yml `branches: ['ci/**', main]`), so most saves land on `ci/*` refs where no other
 branch sees them. The `main` entries seen: id 9397445268 created 11:44:49Z (last used 14:14:31Z), id 9404522111 created 14:18:09Z. Runs
 39955108083 (12:41), 39965489939 (13:57) and 39966639416 (14:05) all restored the 11:44 entry, up to 2.5 h older than main, so every leg
-rebuilt the modules landed since (78-81 modules). The build step, not setup-lean, grows with that age.
+rebuilt 78-81 modules; that the count comes from the entry's age is INFERRED (the fast-setup run 39946751704 at 11:32 also spent 90-100 s in fwcore build, and entry 9397445268 is gone from gh cache list). The build step, not setup-lean, grows with that age.
 
 ## Third finding: cache storage is at the quota (MEASURED)
 
