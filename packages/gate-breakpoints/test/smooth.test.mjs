@@ -188,3 +188,26 @@ test('table: byArm keeps a median and a range per node with the run ids; differe
   assert.deepEqual(d.map((x) => [x.node, x.measure, x.dir]).sort(), [['hero.copy', 'defects', 'higher'], ['hero.stage', 'moved', 'arm moving']]);
   assert.match(markdown(rows), /hero\.stage \| hero\.exit \| orig \| 0 \/ 2/);
 });
+
+test('golden: the > 25 ms, 34 ms and 50 ms counts, the skipped slots and the window counts equal the Lean values', () => {
+  const [k] = ops('missConstants');
+  assert.equal(S.MISS_TENTHS, k.missTenths);
+  assert.equal(S.FAIL_TENTHS, k.failTenths);
+  for (const g of ops('over')) {
+    assert.deepEqual({ frames: g.ivs.length, over25: S.over25(g.ivs), over34: S.over34(g.ivs), over50: S.over50(g.ivs), hitches: S.hitches(g.ivs) }, g.out, JSON.stringify(g.ivs));
+    assert.equal(S.over34(g.ivs), S.repOf(g.ivs).bad);
+    assert.ok(g.out.over50 <= g.out.over34 && g.out.over34 <= g.out.over25 && g.out.hitches <= g.out.over50);
+  }
+  for (const g of ops('skips')) {
+    assert.deepEqual({ pairs: Math.max(0, g.ts.length - 1), skips: S.skips(g.ts), longGaps: S.longGaps(g.ts) }, g.out, JSON.stringify(g.ts));
+    assert.ok(g.out.longGaps <= g.out.skips && g.out.skips <= g.out.pairs);
+  }
+  for (const g of ops('counts')) assert.deepEqual(S.countsOf(g.ivs, g.ts), g.out, JSON.stringify(g.ts));
+  for (const g of ops('countsAdd')) assert.deepEqual(S.addCounts(g.a, g.b), g.out);
+  assert.equal(ops('over').length + ops('skips').length + ops('counts').length + ops('countsAdd').length, 6 + 11 + 11 + 10);
+});
+
+test('hundredthsFrom keeps the exact times that the tenths of the intervals round away', () => {
+  assert.deepEqual(S.hundredthsFrom([100, 116.67, 133.34, 150.01]), [0, 1667, 3334, 5001]);
+  assert.equal(S.skips(S.hundredthsFrom([100, 116.67, 133.34, 150.01, 183.34])), 1);
+});
