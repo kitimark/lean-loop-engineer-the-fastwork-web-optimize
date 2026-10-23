@@ -19331,6 +19331,46 @@
     "docs/team/handoffs/reap-watch-one-rule.md"
    ],
    "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-strays-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "polish-strays-sound"
+   ],
+   "writes": [
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/fw-main.ts",
+    "apps/runner/test/polish*.test.ts",
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "docs/team/handoffs/polish-strays-followups.md"
+   ],
+   "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gc-live-agent-cwd",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gc-landed-identity"
+   ],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "lean/scripts/DiskGcGolden.lean",
+    "packages/contracts/golden/ops/diskgc.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "docs/team/handoffs/gc-live-agent-cwd.md"
+   ],
+   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects."
   }
  ],
  "deadline": {
