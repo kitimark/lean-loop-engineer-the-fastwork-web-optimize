@@ -18437,7 +18437,8 @@
     "docs/team/tools/trajectory-probe.md",
     "docs/team/handoffs/trajectory-stable-followups.md"
    ],
-   "title": "trajectory-noflip-followups review follow-ups: (1) trajectory-probe.md WebKit cadence: tag the Linux WebKit open gap p50 141-170 ms claim MEASURED with run ids, and answer whether the WebKit Simulator rows record frame timing the lane can use; (2) doc the scope of laneOf_stable_extra (mem_family_extra: original already has samples and the extra pass has a new pass number; a first pass on an empty original is outside); (3) cli.mjs refused inputs and summary without a raw file exit 1 = strict RED: route them through laneExit's refused code or document 1 as usage error; (4) leave-one-out reduce cost 8.7 s -> ~40 s on run 39926829451: track the CI reduce-step time and cut it (share work across the family members) if it exceeds the step budget."
+   "title": "trajectory-noflip-followups review follow-ups: (1) trajectory-probe.md WebKit cadence: tag the Linux WebKit open gap p50 141-170 ms claim MEASURED with run ids, and answer whether the WebKit Simulator rows record frame timing the lane can use; (2) doc the scope of laneOf_stable_extra (mem_family_extra: original already has samples and the extra pass has a new pass number; a first pass on an empty original is outside); (3) cli.mjs refused inputs and summary without a raw file exit 1 = strict RED: route them through laneExit's refused code or document 1 as usage error; (4) leave-one-out reduce cost 8.7 s -> ~40 s on run 39926829451: track the CI reduce-step time and cut it (share work across the family members) if it exceeds the step budget.",
+   "evidence": "55db52e"
   },
   {
    "devices": [
@@ -18499,7 +18500,9 @@
     ".claude/workflows/build-review.js",
     "scripts/build-review.test.mjs",
     ".claude/agents/comment-sicko.md",
-    "docs/team/handoffs/polish-commit-failsafe.md"
+    "docs/team/handoffs/polish-commit-failsafe.md",
+    "lean/Fw/Wire/Plan.lean",
+    "docs/team/tools/polish.md"
    ],
    "title": "The build-review Polish stage twice today (trajectory-noflip-followups 2026-10-23, timing-work-dims) ended with commit=error and left the worktree dirty: staged comment cuts (some deleting Lean docstrings and a handoff title) plus a stray `<file>-e` backup (BSD `sed -i -e` on macOS). The lead had to find and discard them by hand before landing. Fix: (1) Lean rule in Fw.Plan.Polish: after the polish commit step the worktree is clean (commit succeeded, or every polish edit is restored), never partial; golden; fw polish commit restores the index and working tree of the polish edits on any failure and reports why; (2) refuse untracked files created during the polish stage (e.g. `*-e`, `*.orig`) and remove only those it created; (3) comment-sicko edits with the Edit tool only, never `sed -i` (state it in .claude/agents/comment-sicko.md); (4) build-review.js reports polish commit=error with the reason and the cleanup result; test in scripts/build-review.test.mjs."
   },
@@ -18544,6 +18547,21 @@
     "docs/team/handoffs/writes-closure-doc-touchups.md"
    ],
    "title": "writes-closure-polish (landed 2d9d55153) review follow-ups: (1) docs/team/tools/plan.md time table: n=2, p50 642 ms, max 811 ms, 'about 0.4-0.6 s'; (2) the claim that JS matches and Lean ghMatches agree on rowGlob-valid globs: add golden vectors comparing matches with ghMatches over rowGlob-valid globs (**, ***, **/ and prefixes) and replay them, or mark it INFERRED; (3) normRead keeps '..', so a '**' row glob also matches 'lean/../x': refuse '..' segments in reads or state the limit."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-setup-lean-slow",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    ".github/actions/setup-lean/**",
+    "research/notes/2026/10-2x-ci-setup-lean-slow.md",
+    "docs/team/handoffs/ci-setup-lean-slow.md"
+   ],
+   "title": "fw watch timing.slow on land (playwright-webkit) and land (chromium) 'Run ./.github/actions/setup-lean' (2026-10-23): 36-48 s for most lands, 68-88 s for the last lands (runs 39965489939, 39966639416; earlier 72 s in 39955108083), after new Lean modules landed (SwapWindow, Timing changes). Find from the step logs whether the extra time is cache restore (size, miss, partial key) or building changed modules; compare a fast and a slow run step by step. If the cause is a cache key or what is cached, fix setup-lean so a land leg restores the built modules of main; state the expected time per leg. If the change touches workflow trigger inputs, list it in open."
   }
  ],
  "deadline": {

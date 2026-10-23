@@ -1,13 +1,12 @@
-// The trajectory reducer against the vectors Lean generates (lean/Fw/Gate/Trajectory.lean, scripts/TrajectoryGolden.lean), and the
-// loop around it (reduceWidth) on small synthetic readings whose answers are worked out by hand.
 import { test } from 'node:test';
+import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFamEach, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { main, summaryMd } from '../src/trajectory/cli.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
@@ -523,6 +522,59 @@ test('reduceRaw: a faithful failure one extra original pass clears takes the lan
   const after = reduceRaw(contentRaw(offPasses(3, true), otherAt5, onAt5), regs);
   assert.deepEqual([cellRel(before).relAll, cellRel(before).rel, before.lane], ['both', 'both', 'clean']);
   assert.deepEqual([cellRel(after).relAll, cellRel(after).rel, after.lane], ['new', 'undecided', 'undecided']);
+});
+
+test('byMFam equals byMFamEach on every golden segment, under every phase, with a shifted copy of the original as one more pass and on a window that settles to its epoch end', () => {
+  const PH = [['push', 0], ['hold', 1], ['push', 2], ['hold', 3]];
+  let n = 0;
+  for (const g of golden.filter((x) => x.oSeg && (x.wSeg || x.cand))) {
+    const named = g.node !== undefined;
+    const d = named ? (cls) => durOf(g.node, g.prop, g.width, cls) : g.dur !== undefined ? durFn(g.dur) : () => null;
+    const e = named ? startFor(g.node, g.prop, g.width) : null;
+    const id = g.id ?? (named && idOn(g.node, g.prop));
+    const shift = Math.max(...g.oSeg.map((s) => s.rep)) + 1;
+    const bump = (els) => els.map((v) => (Array.isArray(v) ? v.map((x) => (typeof x === 'number' ? x + 7 : x)) : v));
+    const origs = [g.oSeg, [...g.oSeg, ...g.oSeg.map((s) => ({ ...s, rep: s.rep + shift, els: bump(s.els), since: s.since === null ? null : s.since + 50 }))], ...(g.oSeg2 ? [g.oSeg2] : [])];
+    for (const w of [g.wSeg, g.cand, g.base].filter(Boolean)) {
+      for (const o of origs) {
+        for (const [ph, p] of PH) {
+          assert.deepEqual(byMFam(ph, p, g.kind ?? 'geometry', d, e, id, o, w), byMFamEach(ph, p, g.kind ?? 'geometry', d, e, id, o, w), `${g.op} ${g.name} ${ph} ${p}`);
+          n++;
+        }
+      }
+    }
+  }
+  const open = (cls) => (cls.includes('open') ? 300 : null);
+  const smp = (rep, m, since, x) => ({ rep, ph: 1, cls: ['open'], since, m, els: [[x, 0, 100, 40]] });
+  const settling = (rep) => [smp(rep, 0, 100, 10), smp(rep, 1000, 150, 10), smp(rep, 2000, 200, 10), smp(rep, 3000, 250, 10), smp(rep, 9000, 900, 60)];
+  const late = [smp(0, 0, 1000, 60)];
+  for (const o of [settling(0), [...settling(0), ...settling(1)]]) {
+    for (const [ph, p] of PH) {
+      assert.deepEqual(byMFam(ph, p, 'geometry', open, null, null, o, late), byMFamEach(ph, p, 'geometry', open, null, null, o, late), `settling ${ph} ${p}`);
+      n++;
+    }
+    assert.equal(byMFam('hold', 1, 'geometry', open, null, null, o, late)[0][0][1], 'pass', 'the in-flight window settles to its epoch end');
+  }
+  assert.ok(n >= 900, `${n} cases`);
+});
+
+test('cli: a refused input, a summary without raw files or of a malformed one and an unknown command exit 2, the refused code (Lean laneExit_refused), never 1', async () => {
+  const err = console.error;
+  console.error = () => {};
+  const dir = mkdtempSync(join(tmpdir(), 'traj-refused-'));
+  try {
+    assert.equal(laneExit(true, true, 'red'), 2);
+    for (const argv of [['run', '--widths', '391'], ['run', '--paths', 'page'], ['run', '--reads', 'some'], ['run', '--reps', '6'],
+      ['summary'], ['summary', '--strict'], ['summary', '--engine', 'chromium'], ['merge'], ['merge', '--in', join(dir, 'none'), '--engine', 'chromium'], ['help'], []]) {
+      assert.equal(await main([...argv, '--out', dir]), 2, argv.join(' '));
+    }
+    writeFileSync(join(dir, 'raw-chromium.json'), '{}');
+    const cli = fileURLToPath(new URL('../src/trajectory/cli.mjs', import.meta.url));
+    assert.equal(spawnSync(process.execPath, [cli, 'summary', '--out', dir], { stdio: 'ignore' }).status, 2, 'summary of a malformed raw file');
+  } finally {
+    console.error = err;
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('cli summary --strict: UNDECIDED exits 3, RED 1, CLEAN 0; without --strict every lane exits 0 (Lean laneExit)', async () => {
