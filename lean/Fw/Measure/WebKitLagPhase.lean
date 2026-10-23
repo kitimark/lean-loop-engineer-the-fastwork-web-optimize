@@ -289,18 +289,12 @@ theorem acceptScrollIn_spec {o : Outcome} {s p m : Int} {a b c : Nat} (h : accep
         cases h
         exact ⟨rfl, by omega, by omega⟩
 
-/-! ## A push that lands while the scroll is still in flight -/
-
-/-- Frames after a scroll wheel's frame in which that scroll still counts as in flight: the quiet gap the drives wait between two scroll wheels. -/
 def flightHold : Nat := 2
 
-/-- Fewest scroll wheels before the push for the run to count as a scroll (one wheel is a nudge, not a gesture). -/
 def minWheels : Nat := 2
 
-/-- Frame `k` has a scroll in flight when some scroll wheel arrived at frame `s` with `s ≤ k ≤ s + flightHold`. -/
 def inFlight (scrolls : List Nat) (k : Nat) : Bool := scrolls.any fun s => decide (s ≤ k ∧ k ≤ s + flightHold)
 
-/-- How many of the `n` frames from frame `p` on (the open phase when `p` is the push frame) have a scroll in flight. -/
 def flightFrames (scrolls : List Nat) (p n : Nat) : Nat := ((List.range n).filter fun i => inFlight scrolls (p + i)).length
 
 theorem inFlight_wheel {scrolls : List Nat} {s : Nat} (h : s ∈ scrolls) : inFlight scrolls s = true := by
@@ -339,7 +333,6 @@ theorem flightFrames_pos {scrolls : List Nat} {s p n : Nat} (h : s ∈ scrolls) 
   simp only [List.mem_filter, List.mem_range, Nat.add_zero]
   exact ⟨hn, inFlight_after h h1 h2⟩
 
-/-- Wheel events as (frame, marked as a push). The scroll wheels are those before the first marked one; the push is the first marked. -/
 def splitPush (evs : List (Nat × Bool)) : List Nat × Option Nat :=
   ((evs.takeWhile fun e => !e.2).map Prod.fst, (evs.find? fun e => e.2).map Prod.fst)
 
@@ -357,7 +350,6 @@ theorem splitPush_none {evs : List (Nat × Bool)} (h : ∀ e ∈ evs, e.2 = fals
   intro e he
   simp [h e he]
 
-/-- The run that sends the push while the scroll is in flight is used only if the scroll-in rule holds, a push was seen, at least `minWheels` scroll wheels came before it, and the last of them is within `flightHold` frames of the push. -/
 def acceptMomentum (o : Outcome) (startY pushY morphMilli : Int) (scrolls : List Nat) (p : Option Nat) : Outcome :=
   match acceptScrollIn o startY pushY morphMilli with
   | .refused r => .refused r
@@ -410,17 +402,8 @@ theorem acceptMomentum_spec {o : Outcome} {s y m : Int} {scrolls : List Nat} {p 
           obtain ⟨rfl, rfl, rfl⟩ := h
           exact ⟨hs, by omega, q, rfl, by simpa using h2⟩
 
-/-! ## A page pulled off the scroll lock while the morph is open
-
-The site holds the scroll while the morph is open: it prevents every wheel and puts the scroll position back after every scroll event, so a wheel
-cannot move the page then. The pull drive moves the page itself once a frame; the page reads the position right after its own pull, before the site
-puts it back, and a frame in which that reading is not the lock position (the position when the push arrived) is a frame in which the pull took
-effect; the frame is still drawn at the lock. -/
-
-/-- Frames after an open-phase frame in which a record off the lock still counts for that frame (the scroll event of a pull arrives in the frame after it). -/
 def pullLook : Nat := 2
 
-/-- The frame numbers, counted from `k`, of the per-frame positions `ys` that are not the lock position `lock`. -/
 def offFrames (lock : Int) : Nat → List Int → List Nat
   | _, [] => []
   | k, y :: rest => (if y ≠ lock then [k] else []) ++ offFrames lock (k + 1) rest
@@ -451,10 +434,8 @@ theorem offFrames_mem {lock : Int} {k f : Nat} {ys : List Int} (h : f ∈ offFra
       simp only [List.length_cons]
       omega
 
-/-- Open-phase frame `p + i` is covered when a moved sample came in that frame or within `pullLook` frames after it. -/
 def pullCovered (ds : List Nat) (p i : Nat) : Bool := ds.any fun f => decide (p + i ≤ f ∧ f ≤ p + i + pullLook)
 
-/-- How many of the `n` open-phase frames from the push frame `p` on are covered. -/
 def pullFrames (ds : List Nat) (p n : Nat) : Nat := ((List.range n).filter fun i => pullCovered ds p i).length
 
 theorem pullCovered_event {ds : List Nat} {f p i : Nat} (h : f ∈ ds) (h1 : p + i ≤ f) (h2 : f ≤ p + i + pullLook) :
@@ -490,13 +471,11 @@ theorem pullFrames_lt {ds : List Nat} {p n i : Nat} (hi : i < n) (h : pullCovere
 theorem pullFrames_nil (p : Nat) {n : Nat} (hn : 0 < n) : pullFrames [] p n < n :=
   pullFrames_lt hn (pullCovered_silent (fun f hf => by simp at hf))
 
-/-- A page that stays on the lock leaves no open-phase frame covered. -/
 theorem pullFrames_lock (lock : Int) (ys : List Int) (p : Nat) {n : Nat} (hn : 0 < n) (h : ∀ y ∈ ys, y = lock) :
     pullFrames (offFrames lock 0 ys) p n < n := by
   rw [offFrames_lock lock 0 ys h]
   exact pullFrames_nil p hn
 
-/-- The run that pulls the page while the morph is open is used only if the scroll-in rule holds, a push was seen, the page was not already at the end `maxY` when the push arrived (`pushEvY` is the position its event reported), and every open-phase frame has, within `pullLook` frames after it, a reading off the lock position `pushEvY` (`ys` are the per-frame positions). -/
 def acceptPull (o : Outcome) (startY pushY morphMilli maxY pushEvY : Int) (p : Option Nat) (ys : List Int) : Outcome :=
   match acceptScrollIn o startY pushY morphMilli with
   | .refused r => .refused r
@@ -549,7 +528,6 @@ theorem acceptPull_spec {o : Outcome} {s y m maxY e : Int} {p : Option Nat} {ys 
           obtain ⟨rfl, rfl, rfl⟩ := h
           exact ⟨hs, by omega, q, rfl, Nat.le_antisymm (pullFrames_le _ _ _) (by omega)⟩
 
-/-- The label of a job in a table: the matrix index when the run file names it, else `this job` for a lone file or the position (from 1) among several. -/
 def jobLabel (idx : Option Nat) (pos n : Nat) : String :=
   match idx with
   | some i => s!"job {i}"
@@ -646,7 +624,6 @@ private def momentumLine (c : List Int × Option Int × Option Int × Int × Int
      ("morphMilli", toJson mm), ("scrolls", toJson sc), ("push", oj (p.map (fun x => (x : Int))))]
   (Json.mkObj (base ++ rest)).compress
 
-/-- `n` per-frame positions on the lock `lock`, 2 below it at every frame `k` for which `off k` holds. -/
 private def ySeries (lock : Int) (n : Nat) (off : Nat → Bool) : List Int :=
   (List.range n).map fun k => if off k then lock - 2 else lock
 

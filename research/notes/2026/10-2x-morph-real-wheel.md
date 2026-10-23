@@ -136,7 +136,7 @@ What this changes: the open phase now runs with scroll work in every frame (abou
 | synthetic drive | in-page `WheelEvent` on `document.body`, the probe's push |
 | synthetic and trusted on the same SHA | yes: both drives of one arm run in the same job, order rotated per rep |
 
-Not the phone: Playwright mac WebKit on a CI VM is neither the iPhone nor the Simulator (accepted limit).
+Not the phone: Playwright mac WebKit on a CI VM is not the iPhone or the Simulator.
 
 ## Per-frame counts (mean over 18 runs per cell, three jobs; MEASURED, run 39971123168)
 
