@@ -19158,6 +19158,25 @@
     "docs/team/handoffs/pathpix-consensus-capture.md"
    ],
    "title": "hero-copy-floor-followups review follow-ups (2026-10-24, run 40007968162): (1) two unexplained WebKit changes in 1 of 3 jobs (webkit-3 offset 5): hero_copy P 192513-20 inside the mask on the red deck-card artwork, and an A/A change outside every mask, 4478-2 at nav-earn; build the consensus capture (A, A2, A3 arms, Lean rule: a cell counts a change only when A/A agree) so render-server variation is separated from the arm, one path-pix run with >= 3 jobs per engine; (2) probesHit (box-overlap element naming in pathpix-exit.mjs) is a TS stand-in: give it a Lean twin with golden, or record it as an accepted stand-in in the handoff with the reason; (3) the report script prints the probe boxes at the asked scrollY (today only arm A at scrollY 0), so element matches are read from the report, not the artifacts."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-wtname-wire",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "polish-plan-path-redaction"
+   ],
+   "writes": [
+    "lean/Fw/Wire/Plan.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "docs/team/handoffs/polish-wtname-wire.md"
+   ],
+   "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout."
   }
  ],
  "deadline": {
