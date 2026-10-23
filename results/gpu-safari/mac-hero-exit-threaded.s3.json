@@ -1,0 +1,502 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "macos-safari",
+ "run": "gpu-safari-mac-2026-10-23T14-49-39-686Z",
+ "zone": "hero",
+ "session": {
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+  "dpr": 2,
+  "vw": 430,
+  "vh": 880,
+  "maxY": 5229,
+  "device": "macOS Safari (safaridriver)",
+  "timing": "cadence only: the Lean quiet rule refuses a loaded Mac",
+  "pinnedClock": false
+ },
+ "flip": 880,
+ "ci": {
+  "trajectory": [
+   "39669915362"
+  ],
+  "webkitSim": [
+   "39731192687"
+  ],
+  "base": [
+   "39739724461"
+  ],
+  "pathPix": [
+   "39920801675",
+   "39924527942",
+   "39929556147"
+  ]
+ },
+ "arm": "hero-exit-threaded",
+ "search": "?fw=hero.exit:threaded",
+ "states": [
+  {
+   "id": "x0.25",
+   "kind": "scroll",
+   "m": null,
+   "y": 220,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 9004,
+     "maxDelta": 167
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 5368,
+     "b2_3": 110,
+     "b4_15": 373,
+     "b16_255": 3153
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 9004,
+      "maxDelta": 167
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 3884,
+      "maxDelta": 167
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 9004,
+      "maxDelta": 167
+     },
+     {
+      "changed": 6321,
+      "maxDelta": 167
+     },
+     {
+      "changed": 6295,
+      "maxDelta": 167
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 3884,
+      "maxDelta": 167
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 3810,
+      "maxDelta": 167
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 1269,
+      "maxDelta": 167
+     }
+    ],
+    "nearest": 6295,
+    "laterNearest": 6295,
+    "spread": 3884,
+    "floor": 1269,
+    "within": false,
+    "laterFloors": {
+     "n": 1,
+     "min": 1269,
+     "median": 1269,
+     "max": 1269
+    }
+   },
+   "hash": {
+    "a": "259311b661a3d57a",
+    "b": "ed778425b2122cbf",
+    "c": "f74f180153819ae6",
+    "d": "2a9b8cfd3f82a605"
+   },
+   "stateSeen": {
+    "faithful": {
+     "splash": "done",
+     "live": false,
+     "variant": "faithful",
+     "scrollAnims": 0,
+     "exitOpacity": "0.75",
+     "scrollY": 220
+    },
+    "arm": {
+     "splash": "done",
+     "live": true,
+     "variant": "threaded",
+     "scrollAnims": 13,
+     "exitOpacity": "1",
+     "scrollY": 220
+    },
+    "control": {
+     "splash": "done",
+     "live": false,
+     "variant": "faithful",
+     "scrollAnims": 0,
+     "exitOpacity": "0.75",
+     "scrollY": 220
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "x0.5",
+   "kind": "scroll",
+   "m": null,
+   "y": 440,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 23838,
+     "maxDelta": 111
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 4000,
+     "b2_3": 211,
+     "b4_15": 955,
+     "b16_255": 18672
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 23838,
+      "maxDelta": 111
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 20518,
+      "maxDelta": 111
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 23838,
+      "maxDelta": 111
+     },
+     {
+      "changed": 5150,
+      "maxDelta": 111
+     },
+     {
+      "changed": 5364,
+      "maxDelta": 111
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 20518,
+      "maxDelta": 111
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 20618,
+      "maxDelta": 111
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 1405,
+      "maxDelta": 111
+     }
+    ],
+    "nearest": 5150,
+    "laterNearest": 5150,
+    "spread": 20618,
+    "floor": 1405,
+    "within": false,
+    "laterFloors": {
+     "n": 1,
+     "min": 1405,
+     "median": 1405,
+     "max": 1405
+    }
+   },
+   "hash": {
+    "a": "8eafa08d12960f80",
+    "b": "160705c901d365cd",
+    "c": "614fce2e2f8391ee",
+    "d": "1d6d9c170e6f977c"
+   },
+   "stateSeen": {
+    "faithful": {
+     "splash": "done",
+     "live": false,
+     "variant": "faithful",
+     "scrollAnims": 0,
+     "exitOpacity": "0.5",
+     "scrollY": 440
+    },
+    "arm": {
+     "splash": "done",
+     "live": true,
+     "variant": "threaded",
+     "scrollAnims": 13,
+     "exitOpacity": "1",
+     "scrollY": 440
+    },
+    "control": {
+     "splash": "done",
+     "live": false,
+     "variant": "faithful",
+     "scrollAnims": 0,
+     "exitOpacity": "0.5",
+     "scrollY": 440
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "x0.75",
+   "kind": "scroll",
+   "m": null,
+   "y": 660,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "Q",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 6258,
+     "maxDelta": 204
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 2722,
+     "b2_3": 1492,
+     "b4_15": 1382,
+     "b16_255": 662
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 6258,
+      "maxDelta": 204
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 6258,
+      "maxDelta": 204
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 6258,
+      "maxDelta": 204
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 6258,
+      "maxDelta": 204
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 6258,
+      "maxDelta": 204
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 0,
+      "maxDelta": 0
+     }
+    ],
+    "nearest": 0,
+    "laterNearest": 0,
+    "spread": 6258,
+    "floor": 0,
+    "within": true,
+    "laterFloors": {
+     "n": 1,
+     "min": 0,
+     "median": 0,
+     "max": 0
+    }
+   },
+   "hash": {
+    "a": "8ba95873db828638",
+    "b": "4b5f4fb1a6d1af73",
+    "c": "4b5f4fb1a6d1af73",
+    "d": "4b5f4fb1a6d1af73"
+   },
+   "stateSeen": {
+    "faithful": {
+     "splash": "done",
+     "live": false,
+     "variant": "faithful",
+     "scrollAnims": 0,
+     "exitOpacity": "0.25",
+     "scrollY": 660
+    },
+    "arm": {
+     "splash": "done",
+     "live": true,
+     "variant": "threaded",
+     "scrollAnims": 13,
+     "exitOpacity": "1",
+     "scrollY": 660
+    },
+    "control": {
+     "splash": "done",
+     "live": false,
+     "variant": "faithful",
+     "scrollAnims": 0,
+     "exitOpacity": "0.25",
+     "scrollY": 660
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  }
+ ]
+}

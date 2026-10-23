@@ -23,10 +23,11 @@ export function reduceArm({ cap, arm, shotsDir, run }) {
     const [c0, c1] = C.files.map((f) => load(shotsDir, f));
     const D = cap.arms.base3?.states.find((s) => s.id === st.id);
     const d0 = D ? load(shotsDir, D.files[0]) : null;
-    const box = st.mask === 'nav' ? unionBox(A.state.rect, B.state.rect) : null;
+    const more = Object.keys(cap.arms).filter((k) => /^base([4-9])$/.test(k)).sort().map((k) => load(shotsDir, cap.arms[k].states.find((s) => s.id === st.id).files[0]));
+    const box = st.mask === 'nav' || st.mask === 'box' ? unionBox(A.state.rect, B.state.rect) : null;
     const m = maskOf(st.mask, session.dpr, a0.w, a0.h, box);
     const own = st.mask === 'nav' ? maskOf('nav', session.dpr, a0.w, a0.h, A.state.rect) : null;
-    const r = pixelCell({ run, engine: 'webkit', dpr: session.dpr, a0, a1, b0, b1, c0, c1, d0, m, box, own });
+    const r = pixelCell({ run, engine: 'webkit', dpr: session.dpr, a0, a1, b0, b1, c0, c1, d0, more, m, box, own });
     return {
       id: st.id, kind: st.kind, m: st.m ?? null, y: st.y ?? null, mask: m, maskKind: st.mask,
       grade: r.grade, premises: r.premises,

@@ -1,0 +1,117 @@
+{
+ "schema": "fw.gpu-safari-armpair/1",
+ "lane": "macos-safari",
+ "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+ "zone": "morph",
+ "session": {
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+  "dpr": 2,
+  "vw": 430,
+  "vh": 880,
+  "maxY": 5229,
+  "device": "macOS Safari (safaridriver)",
+  "timing": "cadence only: the Lean quiet rule refuses a loaded Mac",
+  "pinnedClock": false
+ },
+ "rows": [
+  {
+   "state": "m0.25",
+   "a": "morph-panel-threaded",
+   "b": "morph-panel-threaded-fade",
+   "hashA": "7d26a51f6fe93a3b",
+   "hashB": "e7c6cfcc942160a0",
+   "changed": 10155,
+   "maxDelta": 2,
+   "bbox": [
+    13,
+    30,
+    803,
+    516
+   ],
+   "inside": {
+    "platform": 10155,
+    "nav": 10155
+   },
+   "boxes": {
+    "platform": [
+     0,
+     826,
+     -1947.96875,
+     1760.78125
+    ],
+    "nav": [
+     13,
+     813,
+     30,
+     536
+    ]
+   }
+  },
+  {
+   "state": "m0.5",
+   "a": "morph-panel-threaded",
+   "b": "morph-panel-threaded-fade",
+   "hashA": "336c952c6fd7bf6f",
+   "hashB": "c02a814c92af5cf6",
+   "changed": 44275,
+   "maxDelta": 17,
+   "bbox": [
+    11,
+    28,
+    814,
+    912
+   ],
+   "inside": {
+    "platform": 44275,
+    "nav": 44275
+   },
+   "boxes": {
+    "platform": [
+     0,
+     826,
+     -1947.96875,
+     1760.78125
+    ],
+    "nav": [
+     11,
+     815,
+     28,
+     936
+    ]
+   }
+  },
+  {
+   "state": "m0.75",
+   "a": "morph-panel-threaded",
+   "b": "morph-panel-threaded-fade",
+   "hashA": "ad3a769928ed03c6",
+   "hashB": "626f7241cf16c121",
+   "changed": 6662,
+   "maxDelta": 187,
+   "bbox": [
+    9,
+    29,
+    816,
+    1330
+   ],
+   "inside": {
+    "platform": 6662,
+    "nav": 6662
+   },
+   "boxes": {
+    "platform": [
+     0,
+     826,
+     -1947.96875,
+     1760.78125
+    ],
+    "nav": [
+     9,
+     817,
+     26,
+     1336
+    ]
+   }
+  }
+ ]
+}
