@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim } from '../src/pathpix-exit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -47,4 +48,21 @@ test('count reduction equals the Lean golden', () => {
     assert.deepEqual(rawOf(r.pixels), r.raw);
     assert.equal(rawOk(r.raw), r.ok);
   }
+});
+
+test('the cell decision against the floor equals the Lean golden', () => {
+  for (const r of of('rel')) {
+    assert.equal(gradeRel(r.cell, r.floor, r.live), r.grade, r.name);
+    assert.equal(whyL(r.cell, r.floor, r.live), r.why, r.name);
+    assert.equal(gradeRel({ ...r.cell, stripsAccepted: true }, r.floor, r.live), r.ifAccepted, r.name);
+  }
+});
+
+test('regions of a pixel equal the Lean golden', () => {
+  for (const g of of('region')) assert.equal(region(g.masks, g.masks[g.mine] ?? [0, 0, 0, 0], g.x, g.y), g.region, JSON.stringify(g));
+});
+
+test('exit offsets and claims equal the Lean golden', () => {
+  for (const o of of('exitOffsets')) assert.deepEqual(exitOffsets(o.T, o.n), o.offsets, `T ${o.T} n ${o.n}`);
+  for (const c of of('exitClaim')) assert.deepEqual(exitClaim(c.layer, c.le600), c.claim, `${c.layer} ${c.le600}`);
 });
