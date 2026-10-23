@@ -1,14 +1,5 @@
 import Fw.Gate.TrajectoryGpu
 
-/-!
-# `TrajectoryGpuGolden.lean --raw <file>...`: grade the committed raw fixtures with the Lean cells
-
-The fixtures under `packages/contracts/fixtures/trajectory-gpu/` are trimmed CI artifacts (`cells-gpu-cli.mjs trim`).
-This mode reads each one and prints one line per unit, the text `cells-gpu-cli.mjs raw` prints from the JS twin;
-`lean/scripts/check.sh` requires the two outputs to be equal. The grading is `Fw.Gate.TrajectoryGpu` (`matchedGrade`,
-`panelCell`, `carouselCell`, `painCell`, `worst`); what is written here only picks fields out of the JSON and
-assembles the cells in the order `cellsOfRaw` does.
--/
 namespace TrajectoryGpuRaw
 open Lean Fw.Gate.TrajectoryGpu
 open Fw.Gate.PathPix (Grade)
@@ -18,13 +9,11 @@ def elems (j : Option Json) : Option (List Json) := (j.bind fun x => x.getArr?.t
 def listOf (j : Option Json) : List Json := (elems j).getD []
 def intOf (j : Option Json) : Option Int := j.bind fun x => x.getInt?.toOption
 
-/-- The first element of an array when it is a number (the twin's `num`). -/
 def firstInt (j : Option Json) : Option Int :=
   match elems j with
   | some (Json.num n :: _) => (Json.num n).getInt?.toOption
   | _ => none
 
-/-- The index of `prop` in the layout of `node`. -/
 def idx (layout : Json) (node prop : String) : Option Nat :=
   ((field layout node).bind fun n => field n prop).bind fun i => i.getNat?.toOption
 
@@ -72,7 +61,6 @@ def MIN_COVERED : Nat := 8
 def tok (g : Option Grade) : String := (g.map Grade.name).getD "null"
 def toks (gs : List (Option Grade)) : String := ",".intercalate (gs.map tok)
 
-/-- The reps of one morph phase: nav grade, panel grade and panel lag per candidate rep. -/
 def morphCells (width : Nat) (base cand layout : Json) (phase : String) :
     List (Option Grade) × List (Option Grade) × List (Option Rat) :=
   let rowsOf (arm : Json) := listOf ((field arm "morph").bind fun m => (field m "phases").bind fun p => field p phase)

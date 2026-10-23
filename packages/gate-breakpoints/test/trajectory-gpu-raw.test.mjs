@@ -4,8 +4,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { rawLines, trimRaw } from '../src/trajectory/cells-gpu-cli.mjs';
 
-// The committed raws are trimmed Chromium A/A artifacts. lean/scripts/check.sh compares rawLines of each with the lines
-// `lake env lean --run scripts/TrajectoryGpuGolden.lean --raw` prints; these tests pin the fixtures and the JS side.
 const dir = fileURLToPath(new URL('../../contracts/fixtures/trajectory-gpu/', import.meta.url));
 const names = readdirSync(dir).filter((f) => /^raw-\d+\.json$/.test(f)).sort();
 const load = (n) => JSON.parse(readFileSync(dir + n, 'utf8'));

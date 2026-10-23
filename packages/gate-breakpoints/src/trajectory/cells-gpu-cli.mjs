@@ -22,8 +22,6 @@ export function reduceCells(raw) {
 
 const ints = (x) => (typeof x === 'number' ? Number.isInteger(x) : Array.isArray(x) ? x.every(ints) : x !== null && typeof x === 'object' ? Object.values(x).every(ints) : true);
 
-/** The fields cellsOfRaw reads from a CI artifact and nothing else: per run the role and width, the morph rows' m, rep and
- *  nodes, the pain rows' layer and cls, the carousel rows' v. Every number must be an integer (the Lean reader takes no other). */
 export function trimRaw(raw) {
   const keep = (rows, f) => (rows ?? []).map(f);
   const runs = raw.runs.map((u) => ({
@@ -39,7 +37,6 @@ export function trimRaw(raw) {
 
 const gradeTok = (g) => g ?? 'null';
 
-/** One line per unit, the text the Lean reader (TrajectoryGpuGolden.lean --raw) prints too; check.sh compares the two. */
 export function rawLines(label, raw) {
   return cellsOfRaw(raw).map((u) => {
     const extra = u.cell === 'panel-effect' ? ` lag=${u.lag.map(gradeTok).join(',')}`
