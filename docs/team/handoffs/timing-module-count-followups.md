@@ -1,9 +1,9 @@
 branch: worktree-wf_96b56729-703-1
 worktree: .claude/worktrees/wf_96b56729-703-1
-last commit: 56211b4a4 (merge of main over code commit 5a533238d); this handoff is committed after it
+last commit: 74332a514 (code, after the merge of main); this handoff is committed after it
 CI runs: none (accepted limit: no CI run for this task)
 verified: lean/scripts/check.sh green; `@fw/runner` test 102 files / 3208 tests; `@fw/contracts` test; scripts/ci-paths.test.mjs; plan lint 0 errors
-open: dry land and review gate are in the lead's report; TS glue outside the task writes is listed there
+open: land needs `--allow apps/runner/src/next.ts --allow apps/runner/src/watch-collect.ts --allow apps/runner/src/watch.ts` (scope refuses them; with them `VERDICT dry` passes)
 
 What changed
 - lean/Fw/Obs/Timing.lean: `Code.unkeyed` and `judgeQ` (mixed, then unkeyed, then `judgeW`). `unkeyedLate hist s`: a sample with no
