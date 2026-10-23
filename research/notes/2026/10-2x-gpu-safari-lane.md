@@ -151,9 +151,7 @@ macOS Safari, same rule, two readings (MEASURED). The first, `results/gpu-safari
 nothing about other agents. Corrected (task gpu-safari-mac-followups): `lane/quiet-refusal.mjs --n 8 --every 4 --mine <own token>` with the lane's
 own lease excluded passes the Lean rule 8 of 8 quiet in each of 5 attempts (`results/gpu-safari/mac-quiet-s1.json` to `-s5.json`, 2026-10-23T14:44Z to
 14:56Z): load 2.54 to 5.22 against a floor-maximum of 8.00, baseline floor 260 to 470 centi, available memory 1064 to 2368 MB. So the Mac was quiet
-by the rule. The timing itself is still not taken: macOS Safari through
-safaridriver has no Composite or render-server timing instrument (the Simulator figures cited above came from CI), so the quiet window
-cannot be spent on it. Follow-up: Instruments (a trace of the Safari GPU process) under the measure lease. The lane records cadence only.
+by the rule. The timing itself is still not taken (INFERRED): the lane drives macOS Safari only through safaridriver (WebDriver), which exposes no Inspector Timeline; the Simulator Composite figures come from the Inspector Timeline stream (`packages/measure-webkit/src/scrollrun.mjs:57`), which is not wired to macOS Safari. So the quiet window was not spent. Follow-up: Inspector Timeline attach to macOS Safari, or Instruments (a trace of the Safari GPU process), under the measure lease. The lane records cadence only.
 
 ## macOS Safari arms (real Apple GPU, measured 2026-10-23, task gpu-safari-mac)
 
@@ -188,8 +186,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   8.0k / 44.0k / 87.2k at m0.75. Against the pair set the threaded nearest load is at or under the smallest floor at m0.25 and m0.5 (within) and
   between the smallest and largest at m0.75; bundled is within at m0.25 and between at m0.5 and m0.75. The cell where session s1 read "1.5x above" (m0.5) reads
   "within" here at 12.8k, so the one cell that looked above does not repeat. More loads did not shrink the floor, they showed it spans 8k to 87k px.
-  Where the floor lives: faithful loads 2 and 3 of this session differ by 20,278 / 29,273 / 38,228 px at m0.25 / 0.5 / 0.75, all of them inside the
-  platform box and the nav box, max delta 4 / 17 / 182 (`lane/armpair.mjs`; MEASURED for the counts, the cause, GPU-rasterised blur varying between loads, is INFERRED).
+  Where the floor lives: faithful loads 2 and 3 of this session differ by 20,278 / 29,273 / 38,228 px at m0.25 / 0.5 / 0.75, max delta 4 / 17 / 182 (pairs 1,2 of `mac-morph-panel-threaded.s2.json`; MEASURED for the counts, the cause, GPU-rasterised blur varying between loads, is INFERRED).
   Verdict: INCONCLUSIVE on the Mac, with a measured reason: the arm's difference (tens of thousands of px, under 5% of 1.5M) is the size of the
   platform and nav blur drift between two loads of the same page, so the Mac cannot separate them. The Simulator rows (2.4x, 77x, 27x above floor) stay the
   clearer ones.
@@ -218,14 +215,14 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   card lands at the same rect (544.11, 316 / 262 / 148, 320 x 373.9). The arm equals both earlier faithful loads with 0 changed px at all three states (the
   same frame hash). At f40 the third faithful load (order probe) alone differs, 1.34M px over the whole frame, so the floor there is that one load and
   the arm's reading is "within". MEASURED: translate gives the faithful pixels on the real GPU.
-- people.carousel:crop (1280 px window, scroll to the carousel, mid-swap at 55 / 110 / 165 ms of the 220 ms swap; task gpu-safari-mac-followups,
+- people.carousel:crop (430 px window, viewport 430x880, DPR 2, scroll to the carousel, mid-swap at 55 / 110 / 165 ms of the 220 ms swap; task gpu-safari-mac-followups,
   zone `carousel`, `CAROUSEL_ARM` in `mac-capture.mjs`). The swap is timer-driven (a 220 ms swap in a 1020 ms cycle), so the page's `setInterval` is wrapped
   before load: a parked page runs no timer callback, a MutationObserver stops at the first swap row with 5 avatars, pauses its animations at 0 and the lane then
   sets `currentTime` to 55 / 110 / 165 ms. Read back per state: the swap row is parked, faithful has 2 paused animations (`avatarsExit`, `avatarsPop`), the arm 6 (the
-  six compositor effects), both arms show the same five avatar images, and opacity and transform are equal at every state. Two committed sessions
+  six compositor effects), the arm and the later faithful loads show the same five avatar images (in s2 the first faithful load parked one swap later, a different avatar row), and opacity and transform are equal at every state. Two committed sessions
   (`mac-people-carousel-crop.json` run 14-44-59, `.s2.json` run 14-57-16), changed px inside the mask (the avatar box padded 4 css px, about 18k px) of the arm against the nearest
   later faithful load: t55 8,694 then 8,663 (max delta 108), t110 7,201 then 7,187 (32), t165 8,000 then 7,979 (53); the three faithful loads are pixel-identical
-  inside the mask in s1, and loads 2 and 3 in s2 (load 1 differs, finding 1), so the floor is 0 and every cell is above it. Grade "invalid" in both sessions, because the whole
+  inside the mask in s1, and loads 2 and 3 in s2 (load 1 parked on the next swap row, swapRow.at 3989 against 2965 ms, so it shows other avatars), so the floor is 0 and every cell is above it. Grade "invalid" in both sessions, because the whole
   frame is not frozen (s1, outside the mask, arm against faithful 32k to 37k px against 21k to 27k for the A/A control; s2 has max delta 251 on its first-load pair
   only). Cause, MEASURED from the style readback: at t55 the leaving avatar in faithful has `width` 13.5 px and `margin-right` -3.38 px; in the arm it keeps 32 px
   and -8 px (the arm drops the width and margin animation, keeps only opacity and transform). So the neighbours in the arm stay put while the faithful row closes
@@ -252,7 +249,7 @@ A byte hash flips on one pixel, so "the hashes differ" says nothing about size. 
 146,135, max delta 2 to 3 levels. The two arms therefore differ from each other by at most 128 px at m0.5 (and the bundled arm's own two
 shots differ there, so that row is unstable) and by 1 px at m0.75, of 1.5M. Direct Mac diff of the two arms' frames in one session
 (`results/gpu-safari/mac-bundled-vs-threaded-pixels.s2.json`, `lane/armpair.mjs`, run `gpu-safari-mac-2026-10-23T14-52-26-600Z`): 10,155 / 44,275 /
-6,662 px at m0.25 / 0.5 / 0.75, max delta 2 / 17 / 187, every changed px inside the platform box and the nav box (inside counts equal the totals). Those three
+6,662 px at m0.25 / 0.5 / 0.75, max delta 2 / 17 / 187, every changed px inside the platform box and the nav box (inside counts equal the totals) (the platform box covers 96% of the frame, so this places the pixels only loosely). Those three
 counts sit under the median later-load floor of the same session (20.3k / 62.1k / 44.0k) and the changed px lie where the floor lives (above). Reading: the third effect, the
 animated platform layer, gives the same computed opacity and blur (probe above) but is a separately composited layer, so its edges are resampled
 and blended by the compositor instead of rastered inside the parent. That moves a few pixels of the platform edge by 1 to 3 levels (Simulator) and
