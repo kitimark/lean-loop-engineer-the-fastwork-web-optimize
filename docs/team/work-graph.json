@@ -19228,6 +19228,24 @@
     "docs/team/handoffs/polish-strays-sound.md"
    ],
    "title": "polish-wtname-wire review follow-ups (2026-10-24): (1) a soundness theorem for the stray-edit filter: over resolved paths (no . or .. segment), inWtAt root name p implies p lies under root/.claude/worktrees/name; a fwcore op that takes a raw path and the main root and decides (resolve, reject dot segments, root-pin) with golden rows including <main>/.claude/worktrees/<n>/../../apps/x.ts; (2) the general form of other_checkout_passes_name_only over any distinct roots, with an explicit unused uniqueness premise; (3) write the exact build-review.js strays-filter replacement line in the handoff (base directory stated) for the lead."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gc-landed-identity",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "packages/contracts/golden/ops/disk-gc*.jsonl",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc*.test.ts",
+    "docs/team/incidents/ledger.json",
+    "docs/team/handoffs/gc-landed-identity.md"
+   ],
+   "title": "Incident 2026-10-24 (inc-gc-landed-ff): fw watch's disk-gc reaped a live builder's worktree (polish-strays-sound, wf_1f18354c-dfd-1) mid-task. Its branch was created at 17087c97f and fast-forwarded onto an unlanded dependency branch (worktree-wf_efb32ee2-da5-1); when that dependency landed, landedOf (disk-gc.ts:179: tip moved since creation and tip is an ancestor of main) returned true, and the landed class removed the worktree. Fix by identity, not inference: in Lean DiskGc, a worktree is landed only when main carries a land commit naming its own branch ('land <branch>') or landedTasks holds the task that owns the worktree, AND no live agent (liveAgents) has it as cwd; ancestry alone never selects it. Theorems: a fast-forward to another landed branch never selects; a live agent's worktree never selects. Golden rows for both; TS gathers facts only. Record the incident in docs/team/incidents/ledger.json (lead lesson: start a dependent only after its dependency is on main)."
   }
  ],
  "deadline": {
