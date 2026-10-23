@@ -4406,6 +4406,44 @@
    "leanReason": "The path rule (an admitted edit path lies under the worktree) is a pure prefix rule provable in Fw.Plan.Polish; that an agent actually edited the files it names is checked empirically against git status.",
    "empiricalCheck": "fw polish commit compares the main checkout's git status with the plan's files and refuses on a match.",
    "hardening": "polish-hunk-scope"
+  },
+  {
+   "id": "inc-graph-writes-closure",
+   "at": "2026-10-23T15:50+07:00",
+   "title": "Lead-written task writes miss the files a new Lean golden check always touches, so three builds in one day ended VERDICT scope instead of VERDICT dry",
+   "symptom": "counts-font-fidelity (7 CI-table files), footprint-classname-operands (ClassPos.lean, lean/Fw.lean, check.sh, Trigger.lean, triggers.jsonl, package.json) and morph-cost-sums-golden (Trigger.lean, check.sh, triggers.jsonl) each printed VERDICT scope at the dry land; each cost a lead graph edit and a resume or a re-land.",
+   "cause": "CONFIRMED (graph r322, r323, r325, r328): the lead lists the task's own module paths but not the closure a new golden implies: a check.sh job line, the lean.yml row in lean/Fw/Ci/Trigger.lean (ci-paths requires every check.sh read to be a lean.yml input), its regenerated golden packages/contracts/golden/ci/triggers.jsonl, and the lean/Fw.lean import of a new module.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "31bf66d51",
+     "note": "r322 widening for counts-font-fidelity"
+    },
+    {
+     "kind": "commit",
+     "ref": "132cfa8e1",
+     "note": "r323 widening for footprint-classname-operands"
+    },
+    {
+     "kind": "commit",
+     "ref": "6d61219e9",
+     "note": "r325 Trigger row after the lint refusal"
+    },
+    {
+     "kind": "file",
+     "ref": "scripts/ci-paths.mjs",
+     "note": "refuses a check.sh read that is not a lean.yml input"
+    }
+   ],
+   "repro": "Add a task whose writes name a new golden under packages/contracts/golden/** and a Lean module, without lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean: the builder's dry land prints VERDICT scope.",
+   "fix": {
+    "task": "graph-writes-closure"
+   },
+   "regression": "Planned in graph-writes-closure: fw plan lint derives the closure from the writes (a new golden or Lean module implies the four files) and refuses a task that lacks it.",
+   "leanVerdict": "provable",
+   "leanReason": "The closure is a pure function from a write list to required paths; it can be stated and proved in Lean (Fw.Plan) with goldens.",
+   "empiricalCheck": "fw land --dry scope check (existing) catches it late; the lint catches it at graph edit.",
+   "hardening": "graph-writes-closure"
   }
  ]
 }
