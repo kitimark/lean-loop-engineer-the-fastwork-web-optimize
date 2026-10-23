@@ -32,6 +32,7 @@ async function main() {
     const files = v.files.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
     const named = v.jobs?.split(',').map(Number);
     if (named && named.length !== files.length) throw new Error('--jobs needs one matrix job index per file');
+    if (named && !named.every((n) => Number.isInteger(n) && n > 0)) throw new Error('--jobs takes positive integers');
     const a = analyze(named ? files.map((f, i) => ({ ...f, jobIndex: named[i] })) : files);
     console.log(macMd(a));
     if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(a, null, 1)}\n`);

@@ -116,6 +116,8 @@ inductive Refusal where
   | noPush
   | fewWheels
   | settled
+  | atEnd
+  | stalled
   deriving DecidableEq, Repr
 
 def Refusal.name : Refusal → String
@@ -131,6 +133,8 @@ def Refusal.name : Refusal → String
   | .noPush => "noPush"
   | .fewWheels => "fewWheels"
   | .settled => "settled"
+  | .atEnd => "atEnd"
+  | .stalled => "stalled"
 
 inductive Outcome where
   | ok (idle open_ close : Nat)
@@ -406,6 +410,145 @@ theorem acceptMomentum_spec {o : Outcome} {s y m : Int} {scrolls : List Nat} {p 
           obtain ⟨rfl, rfl, rfl⟩ := h
           exact ⟨hs, by omega, q, rfl, by simpa using h2⟩
 
+/-! ## A page pulled off the scroll lock while the morph is open
+
+The site holds the scroll while the morph is open: it prevents every wheel and puts the scroll position back after every scroll event, so a wheel
+cannot move the page then. The pull drive moves the page itself once a frame; a scroll listener that runs before the site's records the position
+the event carries, and a frame in which that position is not the lock position (the position when the push arrived) is a frame in which the page
+was off the lock. -/
+
+/-- Frames after an open-phase frame in which a record off the lock still counts for that frame (the scroll event of a pull arrives in the frame after it). -/
+def pullLook : Nat := 2
+
+/-- The frame numbers, counted from `k`, of the per-frame positions `ys` that are not the lock position `lock`. -/
+def offFrames (lock : Int) : Nat → List Int → List Nat
+  | _, [] => []
+  | k, y :: rest => (if y ≠ lock then [k] else []) ++ offFrames lock (k + 1) rest
+
+theorem offFrames_lock (lock : Int) (k : Nat) (ys : List Int) (h : ∀ y ∈ ys, y = lock) : offFrames lock k ys = [] := by
+  induction ys generalizing k with
+  | nil => rfl
+  | cons y rest ih =>
+    have hy : y = lock := h y (by simp)
+    simp [offFrames, hy, ih (k + 1) (fun z hz => h z (by simp [hz]))]
+
+theorem offFrames_off (lock : Int) (k : Nat) (ys : List Int) (h : ∀ y ∈ ys, y ≠ lock) :
+    offFrames lock k ys = List.range' k ys.length := by
+  induction ys generalizing k with
+  | nil => rfl
+  | cons y rest ih =>
+    have hy : y ≠ lock := h y (by simp)
+    simp [offFrames, hy, ih (k + 1) (fun z hz => h z (by simp [hz])), List.range'_succ]
+
+theorem offFrames_mem {lock : Int} {k f : Nat} {ys : List Int} (h : f ∈ offFrames lock k ys) : k ≤ f ∧ f < k + ys.length := by
+  induction ys generalizing k with
+  | nil => simp [offFrames] at h
+  | cons y rest ih =>
+    simp only [offFrames, List.mem_append] at h
+    rcases h with h | h
+    · split at h <;> simp at h <;> simp [h]
+    · have := ih h
+      simp only [List.length_cons]
+      omega
+
+/-- Open-phase frame `p + i` is covered when a moved sample came in that frame or within `pullLook` frames after it. -/
+def pullCovered (ds : List Nat) (p i : Nat) : Bool := ds.any fun f => decide (p + i ≤ f ∧ f ≤ p + i + pullLook)
+
+/-- How many of the `n` open-phase frames from the push frame `p` on are covered. -/
+def pullFrames (ds : List Nat) (p n : Nat) : Nat := ((List.range n).filter fun i => pullCovered ds p i).length
+
+theorem pullCovered_event {ds : List Nat} {f p i : Nat} (h : f ∈ ds) (h1 : p + i ≤ f) (h2 : f ≤ p + i + pullLook) :
+    pullCovered ds p i = true := by
+  simp only [pullCovered, List.any_eq_true, decide_eq_true_eq]
+  exact ⟨f, h, h1, h2⟩
+
+theorem pullCovered_silent {ds : List Nat} {p i : Nat} (h : ∀ f ∈ ds, f < p + i ∨ p + i + pullLook < f) :
+    pullCovered ds p i = false := by
+  rw [Bool.eq_false_iff]
+  intro hb
+  simp only [pullCovered, List.any_eq_true, decide_eq_true_eq] at hb
+  obtain ⟨f, hf, h1, h2⟩ := hb
+  rcases h f hf with h3 | h3 <;> omega
+
+theorem pullFrames_le (ds : List Nat) (p n : Nat) : pullFrames ds p n ≤ n := by
+  have := List.length_filter_le (fun i => pullCovered ds p i) (List.range n)
+  simpa [pullFrames] using this
+
+theorem pullFrames_full {ds : List Nat} {p n : Nat} (h : ∀ i, i < n → pullCovered ds p i = true) :
+    pullFrames ds p n = n := by
+  unfold pullFrames
+  rw [List.filter_eq_self.mpr (fun i hi => by simpa using h i (List.mem_range.mp hi))]
+  simp
+
+theorem pullFrames_lt {ds : List Nat} {p n i : Nat} (hi : i < n) (h : pullCovered ds p i = false) :
+    pullFrames ds p n < n := by
+  unfold pullFrames
+  have := (List.length_filter_lt_length_iff_exists (l := List.range n) (p := fun i => pullCovered ds p i)).mpr
+    ⟨i, List.mem_range.mpr hi, by simp [h]⟩
+  simpa using this
+
+theorem pullFrames_nil (p : Nat) {n : Nat} (hn : 0 < n) : pullFrames [] p n < n :=
+  pullFrames_lt hn (pullCovered_silent (fun f hf => by simp at hf))
+
+/-- A page that stays on the lock leaves no open-phase frame covered. -/
+theorem pullFrames_lock (lock : Int) (ys : List Int) (p : Nat) {n : Nat} (hn : 0 < n) (h : ∀ y ∈ ys, y = lock) :
+    pullFrames (offFrames lock 0 ys) p n < n := by
+  rw [offFrames_lock lock 0 ys h]
+  exact pullFrames_nil p hn
+
+/-- The run that pulls the page while the morph is open is used only if the scroll-in rule holds, a push was seen, the page was not already at the end `maxY` when the push arrived (`pushEvY` is the position its event reported), and the page was off the lock position `pushEvY` in every open-phase frame (`ys` are the per-frame positions). -/
+def acceptPull (o : Outcome) (startY pushY morphMilli maxY pushEvY : Int) (p : Option Nat) (ys : List Int) : Outcome :=
+  match acceptScrollIn o startY pushY morphMilli with
+  | .refused r => .refused r
+  | .ok a b c =>
+    match p with
+    | none => .refused .noPush
+    | some p =>
+      if maxY ≤ pushEvY then .refused .atEnd
+      else if pullFrames (offFrames pushEvY 0 ys) p b < b then .refused .stalled
+      else .ok a b c
+
+theorem acceptPull_scrollIn {o : Outcome} {r : Refusal} {s y m : Int} (h : acceptScrollIn o s y m = .refused r)
+    (maxY e : Int) (p : Option Nat) (ys : List Int) : acceptPull o s y m maxY e p ys = .refused r := by
+  simp [acceptPull, h]
+
+theorem acceptPull_noPush {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    (maxY e : Int) (ys : List Int) : acceptPull o s y m maxY e none ys = .refused .noPush := by
+  simp [acceptPull, h]
+
+theorem acceptPull_atEnd {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    {maxY e : Int} (he : maxY ≤ e) (p : Nat) (ys : List Int) :
+    acceptPull o s y m maxY e (some p) ys = .refused .atEnd := by
+  simp [acceptPull, h, he]
+
+theorem acceptPull_stalled {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    {maxY e : Int} (he : e < maxY) {p : Nat} {ys : List Int} (hs : pullFrames (offFrames e 0 ys) p b < b) :
+    acceptPull o s y m maxY e (some p) ys = .refused .stalled := by
+  simp [acceptPull, h, Int.not_le.mpr he, hs]
+
+theorem acceptPull_ok {o : Outcome} {s y m : Int} {a b c : Nat} (h : acceptScrollIn o s y m = .ok a b c)
+    {maxY e : Int} (he : e < maxY) {p : Nat} {ys : List Int} (hs : ¬ pullFrames (offFrames e 0 ys) p b < b) :
+    acceptPull o s y m maxY e (some p) ys = .ok a b c := by
+  simp [acceptPull, h, Int.not_le.mpr he, hs]
+
+theorem acceptPull_spec {o : Outcome} {s y m maxY e : Int} {p : Option Nat} {ys : List Int} {a b c : Nat}
+    (h : acceptPull o s y m maxY e p ys = .ok a b c) :
+    acceptScrollIn o s y m = .ok a b c ∧ e < maxY ∧ ∃ q, p = some q ∧ pullFrames (offFrames e 0 ys) q b = b := by
+  unfold acceptPull at h
+  split at h
+  · cases h
+  · rename_i a' b' c' hs
+    cases p with
+    | none => simp at h
+    | some q =>
+      by_cases h1 : maxY ≤ e
+      · simp [h1] at h
+      · by_cases h2 : pullFrames (offFrames e 0 ys) q b' < b'
+        · simp [h1, h2] at h
+        · simp only [h1, h2, ite_false] at h
+          obtain ⟨rfl, rfl, rfl⟩ := h
+          exact ⟨hs, by omega, q, rfl, Nat.le_antisymm (pullFrames_le _ _ _) (by omega)⟩
+
 /-- The label of a job in a table: the matrix index when the run file names it, else `this job` for a lone file or the position (from 1) among several. -/
 def jobLabel (idx : Option Nat) (pos n : Nat) : String :=
   match idx with
@@ -503,6 +646,44 @@ private def momentumLine (c : List Int × Option Int × Option Int × Int × Int
      ("morphMilli", toJson mm), ("scrolls", toJson sc), ("push", oj (p.map (fun x => (x : Int))))]
   (Json.mkObj (base ++ rest)).compress
 
+/-- `n` per-frame positions on the lock `lock`, 2 below it at every frame `k` for which `off k` holds. -/
+private def ySeries (lock : Int) (n : Nat) (off : Nat → Bool) : List Int :=
+  (List.range n).map fun k => if off k then lock - 2 else lock
+
+private def pullCases (_ : Unit) :
+    List (List Int × Option Int × Option Int × Int × Int × Int × Int × Int × Option Nat × List Int) :=
+  let m := fixedMarks 130
+  let ok := ySeries 5098 130 fun k => decide (11 ≤ k)
+  [(m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ok),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ySeries 5098 130 fun k => decide (10 ≤ k ∧ (k - 10) % 3 = 0)),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ySeries 5098 130 fun k => decide (10 ≤ k ∧ (k - 10) % 4 = 0)),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ySeries 5098 130 fun _ => false),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ySeries 5098 130 fun k => decide (11 ≤ k ∧ k < 41)),
+   (m, some 19, some 139, 4802, 5102, 1000, 5102, 5102, some 10, ySeries 5102 130 fun k => decide (11 ≤ k)),
+   (m, some 19, some 139, 4802, 5103, 1000, 5102, 5103, some 10, ySeries 5103 130 fun k => decide (11 ≤ k)),
+   (m, some 19, some 139, 4802, 5101, 1000, 5102, 5101, some 10, ySeries 5101 130 fun k => decide (11 ≤ k)),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, none, ok),
+   (m, some 19, some 139, 5098, 5098, 1000, 5102, 5098, some 10, ok),
+   (m, some 19, some 139, 4802, 5098, 899, 5102, 5098, some 10, ok),
+   (m, some 19, none, 4802, 5098, 1000, 5102, 5098, some 10, ok),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ySeries 5098 130 fun k => decide (11 ≤ k ∧ k % 2 = 1)),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, ySeries 5098 130 fun k => decide (13 ≤ k)),
+   (m, some 19, some 139, 4802, 5098, 1000, 5102, 5098, some 10, []),
+   (fixedMarks 40, some 9, some 41, 4802, 5098, 1000, 5102, 5098, some 10, ok)]
+
+private def pullLine (c : List Int × Option Int × Option Int × Int × Int × Int × Int × Int × Option Nat × List Int) : String :=
+  let (ms, d, u, s, y, mm, mx, e, p, ys) := c
+  let out := acceptPull (classify ms d u) s y mm mx e p ys
+  let rest : List (String × Json) :=
+    match out with
+    | .ok a b c => [("outcome", "ok"), ("idle", a), ("open", b), ("close", c)]
+    | .refused r => [("outcome", r.name)]
+  let base : List (String × Json) :=
+    [("kind", "pull"), ("marks", mj ms), ("down", oj d), ("up", oj u), ("startY", toJson s), ("pushY", toJson y),
+     ("morphMilli", toJson mm), ("maxY", toJson mx), ("pushEvY", toJson e), ("push", oj (p.map (fun x => (x : Int)))),
+     ("ys", toJson ys), ("off", toJson (offFrames e 0 ys))]
+  (Json.mkObj (base ++ rest)).compress
+
 private def labelCases : List (Option Nat × Nat × Nat) :=
   [(some 2, 0, 1), (some 3, 1, 3), (none, 0, 1), (none, 0, 3), (none, 2, 3), (none, 0, 2)]
 
@@ -525,6 +706,8 @@ def phaseGoldenLines (_ : Unit) : List String :=
     ++ flightCases.map flightLine
     ++ splitCases.map splitLine
     ++ (momentumCases ()).map momentumLine
+    ++ [(Json.mkObj [("kind", "pullConst"), ("pullLook", pullLook)]).compress]
+    ++ (pullCases ()).map pullLine
     ++ labelCases.map labelLine
 
 end Fw.Measure.WebKitLagPhase

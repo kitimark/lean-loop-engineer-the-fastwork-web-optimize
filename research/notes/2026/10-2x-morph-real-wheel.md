@@ -76,12 +76,13 @@ wheel events (`splitPush`: the scroll wheels are the events before the first one
 
 | question | answer | tag |
 |---|---|---|
-| Did the push land with a scroll in flight? | Mean frames from the last scroll wheel to the push: 2.3 to 2.8 (momentum) against 7.5 to 9.8 (scrollin), every job and arm. Push inside the 2-frame hold in 2 to 4 of 6 runs per cell (orig 4, 4, 3; rewrite 3, 3, 2); the other runs are refused `settled` (push 3 to 5 frames after the last scroll) | MEASURED |
+| Did the push land with a scroll in flight? | Only by the 2-frame wheel label: the push came 2 frames after the last scroll wheel in 2 to 4 of 6 runs per cell (orig 4, 4, 3; rewrite 3, 3, 2), and 3 to 5 frames after it in the rest (refused settled); the page had stopped at maxY in all 36 runs, so no scroll was moving at the push. Mean frames from the last scroll wheel to the push: 2.3 to 2.8 (momentum) against 7.5 to 9.8 (scrollin), every job and arm | MEASURED |
 | Is there scroll momentum to overlap? | No: the page was already at the end (`scrollY` = `maxY`) at the push event in 36 of 36 momentum runs and 36 of 36 scrollin runs, 1 to 5 frames after the last scroll wheel. The trusted wheel's scroll is applied at once, so the "scroll in flight" of a run is the wheel stream, not a continued scroll motion (INFERRED from `scrollY` at the push event; the Playwright wheel carries no momentum phase) | MEASURED + INFERRED |
 | Open-phase frames with a scroll in flight | 0.33 to 0.67 of about 61 per run (at most 3 by the rule), so any difference in the open phase is not an effect of 60 frames of scrolling | MEASURED |
 | Open phase, orig, momentum vs synthetic (jobs 1 / 2 / 3) | Layout overlap / overlap / lower; RecalculateStyles overlap / lower / lower; Paint overlap / overlap / higher; paintArea overlap / higher / higher; Composite, RenderingFrame, FireAnimationFrame overlap in all three | MEASURED |
 | Open phase, rewrite, momentum vs synthetic | overlap in all 7 counters in all 3 jobs | MEASURED |
-| Close phase | overlap in all 7 counters, both arms, all 3 jobs | MEASURED |
+| Open phase, momentum, rewrite vs original (jobs 1 / 2 / 3) | Layout overlap / overlap / higher; Paint overlap / overlap / lower; FireAnimationFrame overlap / overlap / higher; paintArea overlap / overlap / higher; RecalculateStyles, Composite, RenderingFrame overlap | MEASURED |
+| Close phase | drive vs synthetic: overlap in all 7 counters, both arms, all 3 jobs; rewrite vs original: Layout higher in job 3, rest overlap | MEASURED |
 | Runs behind the verdicts | accepted runs per cell (jobs 1 / 2 / 3): orig 4 / 4 / 3, rewrite 3 / 3 / 2 of 6; verdicts need separated per-run ranges, so with 2 to 4 runs a "overlap" is weaker than in the other drives | MEASURED |
 
 The Paint and paintArea "higher" cells for orig lie in the same direction as the scrollin drive's non-significant 27 to 35 percent (above) and appear in jobs 2 and 3 only; the Layout and RecalculateStyles

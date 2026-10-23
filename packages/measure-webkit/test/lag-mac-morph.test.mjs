@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAC_PAGE_JS, MAC_SCHEDULE, MOMENTUM, runRecord } from '../src/lag/macmorph.mjs';
-import { analyze, macMd, rangesOfRun, METRICS, DRIVES, FLIGHT_HOLD, MIN_WHEELS, inFlight, flightFrames, splitPush, acceptMomentum, jobLabel } from '../src/lag/macreport.mjs';
+import { MAC_PAGE_JS, MAC_SCHEDULE, PULL, RUN_DRIVES, runRecord } from '../src/lag/macmorph.mjs';
+import { analyze, macMd, rangesOfRun, METRICS, DRIVES, FLIGHT_HOLD, MIN_WHEELS, inFlight, flightFrames, splitPush, acceptMomentum, jobLabel, PULL_LOOK, offFrames, pullFrames, acceptPull } from '../src/lag/macreport.mjs';
 import { classify } from '../src/lag/phase.mjs';
 import { COUNT_TYPES } from '../src/reduce.mjs';
 
@@ -43,12 +45,16 @@ test('a missing up push or missing step marks refuse the run', () => {
 });
 
 function stubPage() {
-  const marks = [], rafs = [], listeners = [];
+  const marks = [], rafs = [], listeners = [], scrollers = [], pulls = [];
   const nav = { style: { getPropertyValue: () => '0.5' } };
   const sandbox = {
     performance: { mark: (m) => marks.push(m) },
     document: { querySelector: () => nav, body: { dispatchEvent: (e) => listeners.forEach((l) => l(e)) } },
-    addEventListener: (t, fn, o) => { if (t === 'wheel') { assert.equal(o.capture, true); assert.equal(o.passive, true); listeners.push(fn); } },
+    addEventListener: (t, fn, o) => {
+      if (t === 'wheel') { assert.equal(o.capture, true); assert.equal(o.passive, true); listeners.push(fn); }
+      if (t === 'scroll') { assert.equal(o.passive, true); assert.equal(o.capture, true); scrollers.push(fn); }
+    },
+    scrollBy: (o) => { assert.equal(o.behavior, 'instant'); pulls.push(o.top); sandbox.scrollY += o.top; scrollers.forEach((f) => f()); },
     requestAnimationFrame: (fn) => rafs.push(fn),
     WheelEvent: class { constructor(t, o) { Object.assign(this, o, { isTrusted: false, defaultPrevented: false }); } },
     scrollY: 100,
@@ -57,7 +63,7 @@ function stubPage() {
   vm.runInNewContext(MAC_PAGE_JS, sandbox);
   const S = sandbox.__wkm;
   const frame = () => rafs.splice(0).forEach((f) => f());
-  return { S, marks, frame, sandbox };
+  return { S, marks, frame, sandbox, pulls };
 }
 
 test('the page script marks frames and the first push in each direction, and keeps what the event was', async () => {
@@ -86,12 +92,16 @@ function file(reps, layout, { scrollin = true } = {}) {
   const runs = [];
   for (let rep = 0; rep < reps; rep++) for (const arm of ['orig', 'rewrite']) for (const drive of DRIVES) {
     const r = runRecord(records({ layouts: (k) => (k >= 10 && k < 70 ? layout(arm, drive, rep) : 0) }), 130);
-    const scrolls = drive === 'scrollin' || drive === 'momentum';
+    const scrolls = drive === 'scrollin' || drive === 'momentum' || drive === 'pull';
     const startY = scrolls ? (scrollin ? 4800 : 5102) : 5102;
-    const events = drive === 'momentum'
+    const pulled = drive === 'pull';
+    const events = pulled
+      ? [{ f: 4, m: false }, { f: 7, m: false }, { f: 10, m: true }, { f: 70, m: true }].map((e) => ({ ...e, y: e.f === 10 ? 5098 : 5100, dy: 120, trusted: true, cancelable: true, prevented: e.m }))
+      : drive === 'momentum'
       ? [{ f: 5, m: false }, { f: 7, m: false }, { f: 9, m: false }, { f: 10, m: true }, { f: 70, m: true }].map((e) => ({ ...e, y: 5102, dy: 120, trusted: true, cancelable: true, prevented: false }))
       : [{ f: 10, dy: 120, trusted: drive !== 'synthetic', cancelable: true, prevented: false, m: true }];
-    runs.push({ rep, arm, drive, ...r, startY, pushY: 5102, wheels: scrolls ? 3 : 0, info: { maxY: 5102 }, fin: { frames: 130, y: 5102, events, at: [{ label: 'open', f: 70, morph: drive === 'synthetic' ? 0.5 : 1, y: 5102 }] } });
+    const ys = pulled ? Array.from({ length: 130 }, (_, k) => (k > 10 ? 5096 : 5098)) : [];
+    runs.push({ rep, arm, drive, ...r, startY, pushY: pulled ? 5098 : 5102, wheels: scrolls ? 3 : 0, info: { maxY: 5102 }, fin: { frames: 130, y: 5102, events, ys, scrolls: pulled ? Array.from({ length: 60 }, (_, i) => 11 + i) : [], at: [{ label: 'open', f: 70, morph: drive === 'synthetic' ? 0.5 : 1, y: 5102 }] } });
   }
   return { runs };
 }
@@ -202,22 +212,26 @@ test('job labels name the matrix job when the file knows it, else this job or th
   assert.ok(macMd(analyze([f])).includes('| this job | orig | trusted |'));
 });
 
-test('the page script skips the armed push on request, so the last scroll wheel is told from the push by order', async () => {
-  const { S, marks, frame } = stubPage();
+test('the page script pulls the page once a frame from the armed push to the armed up push, and keeps the position of every frame', async () => {
+  const { S, frame, pulls, sandbox } = stubPage();
   S.start(); frame();
-  S.arm('none'); S.push(120); S.push(120);
-  frame();
-  S.arm('down', 1); S.push(120);
-  frame();
-  S.push(120);
-  frame();
+  S.arm('none'); S.pullStep = PULL.step;
+  S.push(120); frame(); frame();
+  assert.deepEqual(pulls, []);
+  S.arm('down'); S.push(120);
+  frame(); frame(); frame();
+  assert.deepEqual(pulls, [PULL.step, PULL.step, PULL.step]);
+  S.arm('up'); S.push(-120);
+  frame(); frame();
+  assert.equal(pulls.length, 3);
   const fin = S.finish();
   frame();
   const r = await fin;
-  assert.deepEqual(marks.filter((m) => m === 'wk:down'), ['wk:down']);
-  assert.deepEqual([...r.events.map((e) => e.m)], [false, false, false, true]);
-  assert.equal(splitPush(r.events).scrolls.length, 3);
-  assert.equal(MOMENTUM.before, 1);
+  assert.deepEqual([...r.events.map((e) => e.m)], [false, true, true]);
+  assert.equal(r.ys.length, r.frames);
+  assert.equal(r.scrolls.length, 3);
+  assert.deepEqual([...r.ys], [100, 100, 100, 100 + PULL.step, 100 + 2 * PULL.step, 100 + 3 * PULL.step, 100 + 3 * PULL.step, 100 + 3 * PULL.step, 100 + 3 * PULL.step]);
+  assert.equal(sandbox.scrollY, 100 + 3 * PULL.step);
 });
 
 test('a momentum run whose push lands after the scroll settled, or with one wheel, or with no push, is refused for that reason', () => {
@@ -228,4 +242,53 @@ test('a momentum run whose push lands after the scroll settled, or with one whee
   assert.equal(rangesOfRun(ev([[5, false], [7, false], [9, false], [13, true]])), null);
   const a = analyze([{ runs: [ev([[5, false], [7, false], [9, false], [13, true]]), ev([[9, false], [10, true]]), ev([[5, false], [7, false]]), base] }]);
   assert.deepEqual(a.refused[0]['orig|momentum'].map((r) => r.outcome), ['settled', 'fewWheels', 'noPush']);
+});
+
+test('the pull acceptance and its parts agree with every Lean golden case', () => {
+  assert.equal(PULL_LOOK, of('pullConst')[0].pullLook);
+  const pu = of('pull');
+  assert.ok(pu.length >= 14);
+  for (const g of pu) {
+    assert.deepEqual(offFrames(g.pushEvY, g.ys), g.off, JSON.stringify(g.ys.slice(0, 14)));
+    const o = acceptPull(classify(g.marks, g.down, g.up), g.startY, g.pushY, g.morphMilli, g.maxY, g.pushEvY, g.push, g.ys);
+    assert.equal(o.outcome, g.outcome, JSON.stringify([g.push, g.pushEvY, g.startY, g.pushY, g.morphMilli, g.off.length]));
+    if (g.outcome === 'ok') {
+      assert.deepEqual([o.idle, o.open, o.close], [g.idle, g.open, g.close]);
+      assert.equal(pullFrames(g.off, g.push, g.open), g.open);
+    }
+  }
+  for (const o of ['ok', 'atEnd', 'stalled', 'noPush', 'noScroll', 'noOpen', 'noUp', 'openShort']) assert.ok(pu.some((g) => g.outcome === o), o);
+});
+
+test('a pull run whose push met the end, or whose position stops or never moves, is refused for that reason and counted', () => {
+  const f = file(2, () => 1);
+  const base = f.runs.find((r) => r.drive === 'pull');
+  assert.deepEqual(rangesOfRun(base), { idle: [0, 10], open: [10, 70], close: [70, 130] });
+  const withEvents = (events) => ({ ...base, fin: { ...base.fin, events } });
+  const ev = (y) => base.fin.events.map((e) => (e.f === 10 ? { ...e, y } : e));
+  const stop = { ...base, fin: { ...base.fin, ys: base.fin.ys.map((y, k) => (k > 40 ? 5098 : y)) } };
+  const onLock = { ...base, fin: { ...base.fin, ys: base.fin.ys.map(() => 5098) } };
+  const a = analyze([{ runs: [withEvents(ev(5102)), stop, onLock, base] }]);
+  assert.deepEqual(a.refused[0]['orig|pull'].map((r) => r.outcome), ['atEnd', 'stalled', 'stalled']);
+  assert.equal(a.facts[0]['orig|pull'].atEnd, 1);
+  assert.deepEqual(a.facts[0]['orig|pull'].pullOpen, [60, 31, 0, 60]);
+  assert.deepEqual(a.facts[0]['orig|pull'].scrollOpen, [59, 59, 59, 59]);
+  assert.ok(macMd(analyze([f])).includes('Pull drive'));
+  assert.deepEqual(analyze([{ runs: f.runs.filter((r) => r.drive === 'synthetic' || r.drive === 'pull') }]).drives, ['synthetic', 'pull']);
+  assert.ok(!RUN_DRIVES.includes('momentum') && RUN_DRIVES.includes('pull') && DRIVES.includes('momentum'));
+});
+
+test('report --jobs takes one positive integer per file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mac-cli-'));
+  const file1 = join(dir, 'a.json');
+  writeFileSync(file1, JSON.stringify({ runs: [] }));
+  const cli = join(here, '../src/lag/mac-cli.mjs');
+  const run = (jobs) => spawnSync(process.execPath, [cli, 'report', '--files', file1, `--jobs=${jobs}`], { encoding: 'utf8' });
+  for (const bad of ['1.5', '0', 'x', '-2', '']) {
+    const r = run(bad);
+    assert.notEqual(r.status, 0, bad);
+    assert.match(r.stderr, /positive integers/, bad);
+  }
+  assert.match(run('1,2').stderr, /one matrix job index per file/);
+  assert.equal(run('3').status, 0);
 });

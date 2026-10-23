@@ -5,7 +5,7 @@ import { classify as phaseClass, rangesOf, acceptScrollIn, morphMilli } from './
 export const METRICS = Object.freeze(['Layout', 'RecalculateStyles', 'Paint', 'Composite', 'RenderingFrame', 'FireAnimationFrame', 'paintArea']);
 export const PHASES = Object.freeze(['idle', 'open', 'close']);
 export const ARMS = Object.freeze(['orig', 'rewrite']);
-export const DRIVES = Object.freeze(['trusted', 'synthetic', 'scrollin', 'momentum']);
+export const DRIVES = Object.freeze(['trusted', 'synthetic', 'scrollin', 'momentum', 'pull']);
 export const BASE_DRIVE = 'synthetic';
 
 export const FLIGHT_HOLD = 2;
@@ -34,6 +34,33 @@ export function acceptMomentum(o, startY, pushY, morph, scrolls, push) {
   return a;
 }
 
+export const PULL_LOOK = 2;
+
+export function offFrames(lock, ys) {
+  const out = [];
+  for (let i = 0; i < ys.length; i++) if (ys[i] !== lock) out.push(i);
+  return out;
+}
+
+export const pullCovered = (ds, p, i) => ds.some((f) => p + i <= f && f <= p + i + PULL_LOOK);
+
+export function pullFrames(ds, p, n) {
+  let c = 0;
+  for (let i = 0; i < n; i++) if (pullCovered(ds, p, i)) c++;
+  return c;
+}
+
+export function acceptPull(o, startY, pushY, morph, maxY, pushEvY, push, ys) {
+  const a = acceptScrollIn(o, startY, pushY, morph);
+  if (a.outcome !== 'ok') return a;
+  if (push === null || push === undefined) return { outcome: 'noPush' };
+  if (maxY <= pushEvY) return { outcome: 'atEnd' };
+  if (pullFrames(offFrames(pushEvY, ys), push, a.open) < a.open) return { outcome: 'stalled' };
+  return a;
+}
+
+export const pushEventY = (events) => events.find((e) => e.m)?.y;
+
 export const jobLabel = (idx, pos, n) => (typeof idx === 'number' ? `job ${idx}` : n <= 1 ? 'this job' : `job ${pos + 1}`);
 
 const col = (name) => COUNT_TYPES.indexOf(name);
@@ -44,7 +71,8 @@ export function judge(r) {
   const at = r.fin?.at ?? [];
   const sp = splitPush(r.fin?.events ?? []);
   const o = r.drive === 'scrollin' ? acceptScrollIn(c, r.startY, r.pushY, morphMilli(at))
-    : r.drive === 'momentum' ? acceptMomentum(c, r.startY, r.pushY, morphMilli(at), sp.scrolls, sp.push) : c;
+    : r.drive === 'momentum' ? acceptMomentum(c, r.startY, r.pushY, morphMilli(at), sp.scrolls, sp.push)
+    : r.drive === 'pull' ? acceptPull(c, r.startY, r.pushY, morphMilli(at), r.info?.maxY, pushEventY(r.fin?.events ?? []), sp.push, r.fin?.ys ?? []) : c;
   return { outcome: o.outcome, ranges: o.outcome === 'ok' ? rangesOf(o) : null };
 }
 
@@ -85,7 +113,7 @@ export function pushFacts(file) {
   for (const r of file.runs) {
     if (!r.fin) continue;
     const key = `${r.arm}|${r.drive}`;
-    const o = out.get(key) ?? { runs: 0, events: 0, trusted: 0, prevented: 0, cancelable: 0, morphMax: 0, scrolledIn: 0, wheels: 0, scrollEvents: 0, pushSeen: 0, inFlight: 0, atEnd: 0, gapFrames: [], flightOpen: [] };
+    const o = out.get(key) ?? { runs: 0, events: 0, trusted: 0, prevented: 0, cancelable: 0, morphMax: 0, scrolledIn: 0, wheels: 0, scrollEvents: 0, pushSeen: 0, inFlight: 0, atEnd: 0, gapFrames: [], flightOpen: [], pullOpen: [], scrollOpen: [] };
     o.runs++;
     const sp = splitPush(r.fin.events);
     o.scrollEvents += sp.scrolls.length;
@@ -93,9 +121,11 @@ export function pushFacts(file) {
       o.pushSeen++;
       if (inFlight(sp.scrolls, sp.push)) o.inFlight++;
       const pe = r.fin.events.find((e) => e.m);
-      if (pe && typeof pe.y === 'number' && typeof r.info?.maxY === 'number' && pe.y >= r.info.maxY - 1) o.atEnd++;
+      if (pe && typeof pe.y === 'number' && typeof r.info?.maxY === 'number' && pe.y >= r.info.maxY) o.atEnd++;
       if (sp.scrolls.length) o.gapFrames.push(sp.push - Math.max(...sp.scrolls));
       o.flightOpen.push(flightFrames(sp.scrolls, sp.push, r.open ?? 0));
+      if (r.drive === 'pull') o.scrollOpen.push((r.fin.scrolls ?? []).filter((f) => f >= sp.push && f < sp.push + (r.open ?? 0)).length);
+      if (r.drive === 'pull') o.pullOpen.push(pullFrames(offFrames(pushEventY(r.fin.events), r.fin.ys ?? []), sp.push, r.open ?? 0));
     }
     for (const e of r.fin.events) { o.events++; o.trusted += e.trusted ? 1 : 0; o.prevented += e.prevented ? 1 : 0; o.cancelable += e.cancelable ? 1 : 0; }
     o.morphMax = Math.max(o.morphMax, morphMilli(r.fin.at) / 1000);
@@ -110,8 +140,9 @@ export function analyze(files, { labels } = {}) {
   const per = files.map(jobCells);
   const get = (j, arm, drive, ph) => per[j].cells.get(`${arm}|${drive}|${ph}`) ?? [];
   const jobs = files.map((_, j) => j);
+  const drives = DRIVES.filter((d) => files.some((f) => f.runs.some((r) => r.drive === d)));
   const stat = {}, drive = {}, arm = {}, cls = {};
-  for (const a of ARMS) for (const d of DRIVES) for (const ph of PHASES) {
+  for (const a of ARMS) for (const d of drives) for (const ph of PHASES) {
     const k = `${a}|${d}|${ph}`;
     stat[k] = jobs.map((j) => { const rows = get(j, a, d, ph); return { n: rows.length, frames: mean(rows.map((r) => r.frames)), mean: Object.fromEntries(METRICS.map((m) => [m, mean(rows.map((r) => num(r.perFrame[m])))])) }; });
     cls[k] = jobs.map((j) => { const rows = get(j, a, d, ph); return rows.length >= 2 ? Object.fromEntries(METRICS.map((m) => [m, classOf(rows.map((r) => [r.sums[m]]), m === 'paintArea' ? TOL.paint : TOL.total).cls])) : null; });
@@ -120,10 +151,10 @@ export function analyze(files, { labels } = {}) {
     const verdicts = jobVerdicts(jobs.map((j) => { const [x, y] = pairsOf(j); return { a: x.map((r) => r.perFrame[m]), b: y.map((r) => r.perFrame[m]) }; }));
     return [m, { verdicts, tally: tally(verdicts) }];
   }));
-  for (const a of ARMS) for (const d of DRIVES) if (d !== BASE_DRIVE) for (const ph of PHASES) drive[`${a}|${d}|${ph}`] = decide((j) => [get(j, a, BASE_DRIVE, ph), get(j, a, d, ph)]);
-  for (const d of DRIVES) for (const ph of PHASES) arm[`${d}|${ph}`] = decide((j) => [get(j, 'orig', d, ph), get(j, 'rewrite', d, ph)]);
+  for (const a of ARMS) for (const d of drives) if (d !== BASE_DRIVE) for (const ph of PHASES) drive[`${a}|${d}|${ph}`] = decide((j) => [get(j, a, BASE_DRIVE, ph), get(j, a, d, ph)]);
+  for (const d of drives) for (const ph of PHASES) arm[`${d}|${ph}`] = decide((j) => [get(j, 'orig', d, ph), get(j, 'rewrite', d, ph)]);
   return {
-    jobs: files.length, labels: labels ?? files.map((f, i) => jobLabel(f.jobIndex, i, files.length)), stat, drive, arm, cls,
+    jobs: files.length, drives, labels: labels ?? files.map((f, i) => jobLabel(f.jobIndex, i, files.length)), stat, drive, arm, cls,
     refused: per.map((p) => Object.fromEntries(p.refused)), facts: files.map((f) => Object.fromEntries(pushFacts(f))),
   };
 }
@@ -140,21 +171,28 @@ export function macMd(a) {
   for (const j of J) for (const [k, o] of Object.entries(a.facts[j])) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${o.runs} | ${o.events} | ${o.trusted} | ${o.cancelable} | ${o.prevented} | ${f2(o.morphMax)} | ${o.scrolledIn} | ${o.wheels} |`);
   L.push('', `### Scroll in flight at the push (a scroll wheel at frame s is in flight for frames s to s + ${FLIGHT_HOLD}; Lean inFlight, flightFrames)`, '', '| job | arm | drive | runs | push seen | scroll wheels before the push (mean) | push with a scroll in flight | page already at the end when the push arrived | last scroll to push, frames (mean) | open-phase frames in flight (mean) |', '|---|---|---|---|---|---|---|---|---|---|');
   for (const j of J) for (const [k, o] of Object.entries(a.facts[j])) if (o.scrollEvents > 0) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${o.runs} | ${o.pushSeen} | ${f2(o.scrollEvents / o.runs)} | ${o.inFlight} | ${o.atEnd} | ${f2(mean(o.gapFrames))} | ${f2(mean(o.flightOpen))} |`);
+  if (a.drives.includes('pull')) {
+    L.push('', `### Pull drive: the page is pulled once a frame during the open phase (Lean offFrames, pullFrames; an open-phase frame is covered when the position read right after the pull is not the lock position, which is the position at the push, in that frame or the next ${PULL_LOOK}; the site puts the page back before the frame is drawn, so this shows the pull took effect, and the scroll events show the page's own scroll work)`, '', '| job | arm | runs | push seen | push already at the end | open frames off the lock (mean) | scroll events in the open phase (mean) | open frames (mean) |', '|---|---|---|---|---|---|---|---|');
+    for (const j of J) for (const arm of ARMS) {
+      const o = a.facts[j][`${arm}|pull`];
+      if (o) L.push(`| ${a.labels[j]} | ${arm} | ${o.runs} | ${o.pushSeen} | ${o.atEnd} | ${f2(mean(o.pullOpen))} | ${f2(mean(o.scrollOpen))} | ${f2(a.stat[`${arm}|pull|open`][j].frames)} |`);
+    }
+  }
   if (a.refused.some((r) => Object.keys(r).length)) {
     L.push('', '### Runs the phase rule or the capture refused', '', '| job | arm | drive | refused | reasons |', '|---|---|---|---|---|');
     for (const j of J) for (const [k, rows] of Object.entries(a.refused[j])) L.push(`| ${a.labels[j]} | ${k.replace('|', ' | ')} | ${rows.length} | ${[...new Set(rows.map((r) => r.outcome))].join(', ')} |`);
   }
   for (const ph of PHASES) {
     L.push('', `### ${ph} phase, mean per frame`, '', `| job | arm | drive | n | frames | ${METRICS.join(' | ')} |`, `|---|---|---|---|---|${METRICS.map(() => '---').join('|')}|`);
-    for (const j of J) for (const arm of ARMS) for (const d of DRIVES) {
+    for (const j of J) for (const arm of ARMS) for (const d of a.drives) {
       const s = a.stat[`${arm}|${d}|${ph}`][j];
       L.push(`| ${a.labels[j]} | ${arm} | ${d} | ${s.n} | ${f2(s.frames)} | ${METRICS.map((m) => f2(s.mean[m])).join(' | ')} |`);
     }
     L.push('', `| ${ph}: verdict per job | ${METRICS.join(' | ')} |`, `|---|${METRICS.map(() => '---').join('|')}|`);
-    for (const arm of ARMS) for (const d of DRIVES) if (d !== BASE_DRIVE) L.push(`| ${arm}: ${d} vs ${BASE_DRIVE} | ${METRICS.map((m) => perJob(a.drive[`${arm}|${d}|${ph}`][m].verdicts)).join(' | ')} |`);
-    for (const d of DRIVES) L.push(`| ${d}: original vs rewrite | ${METRICS.map((m) => perJob(a.arm[`${d}|${ph}`][m].verdicts)).join(' | ')} |`);
+    for (const arm of ARMS) for (const d of a.drives) if (d !== BASE_DRIVE) L.push(`| ${arm}: ${d} vs ${BASE_DRIVE} | ${METRICS.map((m) => perJob(a.drive[`${arm}|${d}|${ph}`][m].verdicts)).join(' | ')} |`);
+    for (const d of a.drives) L.push(`| ${d}: original vs rewrite | ${METRICS.map((m) => perJob(a.arm[`${d}|${ph}`][m].verdicts)).join(' | ')} |`);
     L.push('', `| ${ph}: class of the phase totals over runs, per job | ${METRICS.join(' | ')} |`, `|---|${METRICS.map(() => '---').join('|')}|`);
-    for (const arm of ARMS) for (const d of DRIVES) for (const j of J) {
+    for (const arm of ARMS) for (const d of a.drives) for (const j of J) {
       const c = a.cls[`${arm}|${d}|${ph}`][j];
       L.push(`| ${arm} ${d} ${a.labels[j]} | ${METRICS.map((m) => c?.[m] ?? 'n/a').join(' | ')} |`);
     }
