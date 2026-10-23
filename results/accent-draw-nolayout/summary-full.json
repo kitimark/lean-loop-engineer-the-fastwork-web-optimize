@@ -1,19 +1,56 @@
 {
-  "run": "40010826238",
-  "commit": "3c1ab9970",
-  "lane": "webkit-sim swap lane, iPhone 430x775 Simulator, arm hero.accent:draw-nolayout-full (named crop in the report tables) against faithful-a and faithful-b of the same page",
-  "jobs": {"r1": "success", "r2": "success", "r3": "cancelled (did not finish)"},
-  "report": "full-swap-report.md, built from the r1 and r2 artifacts (the report jobs were skipped by the cancelled r3)",
-  "restWindows": {
-    "layoutAtLeast24": {"faithful-a": "18 of 28", "faithful-b": "19 of 28", "arm": "0 of 56"},
-    "layoutRowsPerCapture": {"faithful-a": 225.0, "faithful-b": 232.8, "arm": 19.4},
-    "median": {"faithful-a": 45, "faithful-b": 45, "arm": 2}
+ "schema": "fw.webkit.lag.swap.summary/1",
+ "label": "hero.accent:draw-nolayout-full",
+ "sources": [
+  "run 40010826238 commit 3c1ab9970 jobs r1 r2"
+ ],
+ "passes": 4,
+ "pooled": {
+  "rest": {
+   "faithful-a": {
+    "rows": 28,
+    "captures": 4,
+    "busyWindows": 18,
+    "tenthsPerCapture": 2250,
+    "median2": 90
+   },
+   "faithful-b": {
+    "rows": 28,
+    "captures": 4,
+    "busyWindows": 19,
+    "tenthsPerCapture": 2328,
+    "median2": 90
+   },
+   "arm": {
+    "rows": 56,
+    "captures": 8,
+    "busyWindows": 0,
+    "tenthsPerCapture": 194,
+    "median2": 4
+   }
   },
-  "swapWindows": {
-    "layoutMedian": {"faithful-a": 14, "faithful-b": 14, "arm": 13},
-    "layoutRowsPerCapture": {"faithful-a": 107.8, "faithful-b": 109.8, "arm": 96.5},
-    "perWindowVerdict": "unresolved:overlap in all windows"
-  },
-  "heroExit": "not delivered",
-  "pixel": "not measured"
+  "swap": {
+   "faithful-a": {
+    "rows": 32,
+    "captures": 4,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1078,
+    "median2": 28
+   },
+   "faithful-b": {
+    "rows": 32,
+    "captures": 4,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1098,
+    "median2": 28
+   },
+   "arm": {
+    "rows": 64,
+    "captures": 8,
+    "busyWindows": 0,
+    "tenthsPerCapture": 965,
+    "median2": 26
+   }
+  }
+ }
 }

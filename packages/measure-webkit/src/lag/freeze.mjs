@@ -17,7 +17,7 @@ export const FREEZE_CSS = [
   `${ROOT} path { stroke-dashoffset: 0 !important; }`,
 ].join('\n');
 
-export const DRAW_ANIMS = '^(stroke|clip)(In|Out)$';
+export const DRAW_ANIMS = '(stroke|clip)(In|Out)(?![a-z])';
 
 export const FREEZE_DRAW_CSS = [
   `${ROOT} path { animation: none !important; stroke-dasharray: none !important; stroke-dashoffset: 0 !important; }`,

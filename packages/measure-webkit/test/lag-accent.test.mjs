@@ -107,9 +107,10 @@ test('the draw-only freeze adopts its style sheet, keeps the other animations, a
   assert.equal(r.accentAnims, 2, 'the idle boil is still there: the draw freeze does not demand zero');
   const c = clientOf(sandbox);
   assert.deepEqual(await freezeDrawRead(c, { on: true, mode: 'draw' }), { animations: 0, transitions: 0 });
-  fire('animationstart', { animationName: 'strokeIn' });
-  fire('animationstart', { animationName: 'idle0' });
-  fire('animationstart', { animationName: 'clipOut' });
+  fire('animationstart', { animationName: '_strokeIn_x7fa2' });
+  fire('animationstart', { animationName: '_idle0_x7fa2' });
+  fire('animationstart', { animationName: 'accent-module__clipOut___3kd9' });
+  fire('animationstart', { animationName: 'clipInset' });
   fire('transitionrun', { propertyName: 'width' });
   fire('transitionrun', { propertyName: 'opacity' });
   assert.deepEqual(await freezeDrawRead(c, { on: true, mode: 'draw' }), { animations: 2, transitions: 1 });

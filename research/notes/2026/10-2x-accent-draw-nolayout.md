@@ -153,3 +153,22 @@ samples against frozen samples.
 number, hero-exit zone captures aligned (slot a) and natural (slot b), one draw-frozen faithful pass. Lane budget 24 min (Lean `laneBudgetMin`); a unit
 that no longer fits is listed as skipped, never silently dropped. Layout per scroll frame is `perFrameMilli` (rows over frames, thousandths).
 `accent-report` prints per-window verdicts against the faithful A/A floor, the frozen comparison, the pooled numbers and the zone verdicts per pair.
+
+## Result, run 40030735082 (MEASURED, commit 7e3e5fc96, webkit-sim, 430x775, jobs r1 r2 r3 all success, 13 units each, none failed or skipped)
+Report: `results/accent-draw-nolayout/accent-report-40030735082.md` (and `.json`). Zone = hero-exit scroll region A, 32 frames per capture, 3 aligned + 3 natural captures per state.
+
+| state | Layout rows per scroll frame | Layout median per capture (min..max) | width transitions started |
+|---|---:|---|---:|
+| faithful | 2.385 | 81.5 (56..85) | 28 in 6 captures |
+| draw-nolayout | 1.807 | 58 (51..65) | 11 |
+| draw-nolayout-full | 1.807 | 55.5 (53..71) | 0 |
+| faithful, draw-only freeze | 1.990 | 61 (53..78) | 0 |
+
+- Zone verdicts (Lean `zoneVerdict`, ranges separated): all 6+6 captures overlap for every pair; the aligned group (scroll starts inside a draw, 3+3) separates:
+  faithful against draw-nolayout lower, 32% of the median; against draw-nolayout-full lower, 36%; against the draw-frozen faithful lower, 31%. Natural group: overlap.
+  Paint: overlap for the arms; the draw-frozen faithful is lower than faithful in the aligned group (7%).
+- `transition: none` removes the width transition in every capture (0 of 6 captures start one; faithful 28), the measured side of the premise above.
+- Rest windows (pooled over 3 jobs): busy windows (at least 24 Layout rows) faithful 27 of 42, draw-nolayout 6 of 21, full 0 of 21, draw-frozen 0 of 21;
+  Layout rows per capture 218.5, 109.0, 19.7, 21.0; medians 43, 5, 2, 3. Per-window verdicts against the A/A floor: nolayout Layout wins 3 of 7 rest windows, full 5 of 7; all 8 swap windows unresolved:overlap.
+- Unfrozen busy samples against frozen samples (Lean `busyFrozen`): rest windows 1 and 4 (the busy ones) `removed` by the freeze; swap windows overlap or have no busy sample.
+- Harness defect found: the draw-start counter matched animation names exactly (`strokeIn`), the built site hashes keyframe names, so it counted 0 animation starts in every arm (the width transition counter is not affected). Fixed in the next commit (`DRAW_ANIMS` without the start anchor); the next run repeats the lane.
