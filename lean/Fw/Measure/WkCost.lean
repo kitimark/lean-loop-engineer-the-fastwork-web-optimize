@@ -696,4 +696,45 @@ def run (args : List String) : IO UInt32 := do
     IO.print (goldenText ())
     return 0
 
+/-- The two recorded WebKit morph-cost run pairs, each as `"baseRunId,flagRunId"` with the per-pass sums of both arms. -/
+def recordedRuns : List (String × List PassSums × List PassSums) :=
+  [("39903977820,39903974246", runBase, runFlag), ("39915136431,39915146774", runBase6, runFlag6)]
+
+theorem recordedRuns_overlap : recordedRuns.all (fun r => outcome (cells r.2.1 r.2.2) == Outcome.overlap) = true := by
+  decide +kernel
+
+/-- What differs between `wkcost-sums.jsonl` and `recordedRuns`: one message per run line that is unreadable, unknown, or
+unequal to its literals, and per recorded run with no line. Empty when the file is the reduction of the artifacts that the
+literals were copied from. -/
+def sumsMismatches (text : String) : List String :=
+  let ls := (text.splitOn "\n").filter (· != "")
+  let parsed := ls.map Json.parse
+  let bad := (parsed.filterMap fun r => match r with | .error e => some s!"unreadable line: {e}" | .ok _ => none)
+  let js := parsed.filterMap fun r => match r with | .ok j => some j | .error _ => none
+  let runOf (j : Json) : String := ((j.getObjVal? "run").bind Json.getStr?).toOption.getD ""
+  let unknown := (js.map runOf).filter fun r => !(recordedRuns.any fun (id, _, _) => id == r)
+  let perRun := recordedRuns.flatMap fun (id, bs, fs) =>
+    match js.filter fun j => runOf j == id with
+    | [j] =>
+      let arm (k : String) (ps : List PassSums) : List String :=
+        if (j.getObjVal? k).toOption == some (Json.arr (ps.map passJ).toArray) then [] else [s!"run {id}: {k} sums differ from the Lean literals"]
+      arm "base" bs ++ arm "flag" fs
+    | [] => [s!"run {id}: no line in the sums file"]
+    | _ => [s!"run {id}: more than one line"]
+  bad ++ unknown.map (s!"unknown run " ++ ·) ++ perRun
+
+/-- With `--check <file>`: exit 1 listing every mismatch between the committed reduced sums and `recordedRuns`. -/
+def runSums (args : List String) : IO UInt32 := do
+  match args with
+  | "--check" :: path :: _ =>
+    let ms := sumsMismatches (← IO.FS.readFile path)
+    if ms.isEmpty then
+      IO.eprintln s!"wkcost sums: {path} equals the Lean literals of {recordedRuns.length} runs"
+      return 0
+    ms.forM IO.eprintln
+    return 1
+  | _ =>
+    IO.eprintln "usage: --check <wkcost-sums.jsonl>"
+    return 2
+
 end Fw.Measure.WkCost

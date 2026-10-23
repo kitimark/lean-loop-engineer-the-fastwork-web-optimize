@@ -35,8 +35,14 @@ export function outcome(cs) {
   return 'overlap';
 }
 
+const sumsArr = (s) => [s.frames, s.paintUs, s.compUs, s.bound];
+export const passJson = (p) => ({ zones: p.zones.map(([z, s]) => [z, sumsArr(s)]), calm: sumsArr(p.calm) });
+
 export const armsOutcome = (basePasses, flagPasses) => {
   const b = basePasses.map((p) => passSums(p.cost)), f = flagPasses.map((p) => passSums(p.cost));
   const rows = cellRows(b, f);
-  return { rows, outcome: outcome(rows.map((r) => r[4])) };
+  return { rows, outcome: outcome(rows.map((r) => r[4])), base: b.map(passJson), flag: f.map(passJson) };
 };
+
+/** One line of `wkcost-sums.jsonl`: the reduced per-pass sums of two runs, numbers only (Lean checks it in `Fw.Measure.WkCost`). */
+export const sumsLine = (run, res) => JSON.stringify({ kind: 'morphRunSums', run, base: res.base, flag: res.flag });
