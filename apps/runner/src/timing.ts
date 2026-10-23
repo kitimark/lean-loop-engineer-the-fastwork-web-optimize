@@ -16,7 +16,9 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   runIds?: number[]; phases?: Record<string, number | string | boolean>;
   slot?: { width: number; jobs: number };
   /** `fw polish commit` spans only: the checkmap commands of the commit (count and kinds). */
-  checks?: { n: number; kinds: string[] } };
+  checks?: { n: number; kinds: string[] };
+  /** `fw polish commit` spans that ran lake build and `fw land dry lake` spans: the modules lake built. */
+  lake?: { built: number } };
 
 export function slotWork(slot: unknown): { work?: Record<string, string> } {
   const w = (slot as { width?: unknown } | null | undefined)?.width;
@@ -35,9 +37,35 @@ export function checksWork(checks: unknown): { work?: Record<string, string> } {
   return { work: { checks: heavy.length ? heavy.join("+") : "light" } };
 }
 
-/** Lean `Fw.Obs.Timing.spanWork`: the checks class and the slot width of a span line. */
-export function spanWork(o: { slot?: unknown; checks?: unknown }): { work?: Record<string, string> } {
-  const work = { ...checksWork(o.checks).work, ...slotWork(o.slot).work };
+/** Lean `Fw.Obs.Timing.modsLow`: 0, else the largest power of 4 at most `n`. */
+export function modsLow(n: number): number {
+  if (n === 0) return 0;
+  let lo = 1;
+  while (lo * 4 <= n) lo *= 4;
+  return lo;
+}
+
+/** Lean `Fw.Obs.Timing.modsWork`: the class of a `lake` member's built count; none without an integer count. */
+export function lakeWork(lake: unknown): { work?: Record<string, string> } {
+  const b = (lake as { built?: unknown } | null | undefined)?.built;
+  return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { work: { mods: String(modsLow(b)) } } : {};
+}
+
+/** Lean `Fw.Obs.Timing.builtLine`. */
+export function builtLine(l: string): boolean {
+  const parts = l.split("] Built ");
+  if (parts.length !== 2) return false;
+  const progress = parts[0]!.split("[").at(-1)!.split("/");
+  const name = parts[1]!.split(" ")[0]!;
+  return progress.length === 2 && progress.every((x) => /^[0-9]+$/.test(x)) && name !== "" && !name.includes(":");
+}
+
+/** Lean `Fw.Obs.Timing.builtModules`: the modules a lake run built, from its output. */
+export const builtModules = (out: string): number => out.split("\n").filter(builtLine).length;
+
+/** Lean `Fw.Obs.Timing.spanWork`: the checks class, the rebuilt-module class and the slot width of a span line. */
+export function spanWork(o: { slot?: unknown; checks?: unknown; lake?: unknown }): { work?: Record<string, string> } {
+  const work = { ...checksWork(o.checks).work, ...lakeWork(o.lake).work, ...slotWork(o.slot).work };
   return Object.keys(work).length ? { work } : {};
 }
 
