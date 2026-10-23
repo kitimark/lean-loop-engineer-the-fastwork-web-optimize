@@ -18676,7 +18676,8 @@
     "research/notes/2026/10-2x-ci-setup-lean-slow.md",
     "docs/team/handoffs/ci-lake-cache-fresh.md"
    ],
-   "title": "ci-setup-lean-slow follow-ups (2026-10-23): (1) prune step in lean.yml job lean after the build (find \"$LAKE_CACHE_DIR\" -type f -links 1 -delete) so the saved blob shrinks; prove with one lean.yml run printing link counts and blob size before/after; (2) land legs on ci/land-* can restore only main's lake entry, refreshed only when main is pushed (it was up to 2.5 h old, so fwcore build rebuilt 78-81 modules, about 90 s per leg): measure fwcore build time vs entry age over the next lands now that the lead pushes main after each land, and state whether a per-land main push is enough or the lean job should also save a cache from ci/land-* under a key main can restore; (3) cache storage at 9.48 of 10 GB (8.97 GB lake entries): list which ci/* lake entries are never restored and propose an eviction rule (deleting caches needs the user's OK). Workflow trigger changes go to open."
+   "title": "ci-setup-lean-slow follow-ups (2026-10-23): (1) prune step in lean.yml job lean after the build (find \"$LAKE_CACHE_DIR\" -type f -links 1 -delete) so the saved blob shrinks; prove with one lean.yml run printing link counts and blob size before/after; (2) land legs on ci/land-* can restore only main's lake entry, refreshed only when main is pushed (it was up to 2.5 h old, so fwcore build rebuilt 78-81 modules, about 90 s per leg): measure fwcore build time vs entry age over the next lands now that the lead pushes main after each land, and state whether a per-land main push is enough or the lean job should also save a cache from ci/land-* under a key main can restore; (3) cache storage at 9.48 of 10 GB (8.97 GB lake entries): list which ci/* lake entries are never restored and propose an eviction rule (deleting caches needs the user's OK). Workflow trigger changes go to open.",
+   "evidence": "ae3e9eb"
   },
   {
    "devices": [
