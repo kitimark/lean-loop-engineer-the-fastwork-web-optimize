@@ -36,8 +36,11 @@ test('outcome of a list of cell verdicts', () => {
 });
 
 test('the recorded cost run is unresolved, and a slower runner alone is not a loss', () => {
-  const [real, win, loss, confound, mixed] = of('morphCells');
+  const [real, real6, win, loss, confound, mixed] = of('morphCells');
+  assert.deepEqual([real.base.length, real6.base.length, real6.flag.length], [2, 6, 6]);
+  assert.ok(real6.cells.every((r) => r[4] === 'overlap'), 'six passes per arm: no cell separates the arms');
   assert.equal(real.outcome, 'overlap');
+  assert.equal(real6.outcome, 'overlap');
   assert.deepEqual([win.outcome, loss.outcome, confound.outcome, mixed.outcome], ['win', 'loss', 'overlap', 'mixed']);
   assert.ok(confound.cells.every((r) => r[2] === 'higher' && r[3] === 'overlap' && r[4] === 'overlap'), 'raw reads higher, normalized does not');
 });

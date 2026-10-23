@@ -49,12 +49,48 @@ LayerTree reads in the zone (pass 0 / pass 1).
   deterministic in both passes.
 - Paint and Composite per frame: no win shown. The flag arm reads higher, but the runner's frame rate differed (frames in the zone: base 78 and
   36, flag 29 and 28) and one arm varies up to 3x between its own two passes (base idle composite 15875 vs 48705), so the sign of the delta is
-  not resolvable from these runs. Verdict: layers down, per-frame Paint and Composite unresolved (no win shown; the flag reads higher in 11 of 12 Paint/Composite cells, confounded by frame rate, so a loss is not ruled out).
+  not resolvable from these two-pass runs. The follow-up below (task morph-idle-followups) settles the method and the verdict.
 - Why (INFERRED): the Lean model `tracks_layers_drop` counts layers only; it proves 5 layers -> 1 with the tracks not animated and says nothing
   about per-frame cost. Unsourced guess: WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
   not the 16 layers freed at rest.
 - Run 39903974246 shows failed: the Determinism sessions step hit its 35-minute timeout (2106 s, after two 120 s inspector retries) 4 s after the CLI wrote r1-lag.json and exited 0. align, merge and lag-report were skipped. The uploaded artifact holds both passes (cost ok, failed []).
-- Reduction: scratch script over `webkit-sim-r1/r1-lag.json` (costs are [zone, paintUs, compUs]; snaps are [zone, layers]).
+- Reduction of the layer reads: scratch script over `webkit-sim-r1/r1-lag.json` (snaps are [zone, layers]). The Paint / Composite
+  reduction is now committed (next section).
+
+## Per-frame Paint and Composite: the committed reducer and the verdict (task morph-idle-followups)
+
+Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms"; JS twin `packages/measure-webkit/src/lag/morphcost.mjs`
+(`pnpm --filter @fw/measure-webkit exec node src/lag/cli.mjs morph-verdict --original a.json,b.json --rewrite c.json,d.json`); goldens
+`packages/contracts/golden/measure/wkcost.jsonl`, kinds `morphNorm`, `morphCells`, `morphOutcome` (`test/lag-morphcost.test.mjs`).
+
+- Two views per cell (zone x Paint or Composite) and pass: raw = mean microseconds per frame; normalized = that mean over the mean per frame of
+  calm scroll (`scroll-calm`) of the same pass, the same runner and the same minute. `normPF_scale`: a runner `k` times as slow leaves the
+  normalized view unchanged; `rawPF_not_scale`: the raw view moves with the runner.
+- A cell states a difference only when the per-pass ranges of the arms are separated (`WebKitLag.verdict`) in both views the same way
+  (`cellVerdict_agree`); views that disagree, or one overlapping, give overlap (`cellVerdict_disagree`).
+- Outcome over the 8 cells (4 zones x 2 metrics): win only if every cell is lower (`outcome_win`), loss only if every cell is higher
+  (`outcome_loss`), mixed when both occur (`outcome_mixed`), otherwise overlap (`outcome_overlap`); win and loss never hold together.
+- Result, MEASURED: the two-pass runs 39903977820 / 39903974246 give overlap in all 8 cells (`run_39903977820_overlap`). New runs 39915136431
+  (base) and 39915146774 (`morph.columns:idle-none`), webkit-sim rewrite lag=true cost=only, 3 VMs x 2 passes = 6 passes per arm
+  (`run_39915136431_overlap`: all 8 cells overlap; `run_39915136431_outcome`: overlap). Verdict: UNRESOLVED, no win and no loss on
+  per-frame Paint and Composite. Layers stay down (deterministic, idle 128 -> 112).
+- Why it stays unresolved: the CI Simulator composites on the CPU, so Composite per frame is about the frame interval and the same idle page
+  reads 21-41 ms (base) and 21-70 ms (flag) between passes; zone frame counts differ between passes (rest: base 27-56, flag 8-61), which moves
+  the raw view; the normalization does not remove the pass-to-pass spread of the calm baseline (calm Composite 1.4-2.9 s per 86 frames).
+  Ranges over the six passes, ms per frame (raw) / ratio to calm (norm):
+
+| cell | base raw | flag raw | base norm | flag norm |
+|---|---|---|---|---|
+| Paint idle | 0.92-1.33 | 0.73-1.26 | 0.79-1.23 | 0.79-1.48 |
+| Paint open | 3.46-9.08 | 5.65-20.25 | 3.17-8.50 | 7.45-19.09 |
+| Paint rest | 1.05-4.58 | 0.95-18.44 | 0.90-3.76 | 1.16-20.15 |
+| Composite idle | 20.6-41.3 | 21.3-70.4 | 0.65-1.44 | 1.23-3.33 |
+| Composite open | 120-224 | 110-1026 | 5.79-9.84 | 6.95-47.9 |
+| Composite close | 103-197 | 106-309 | 3.27-11.2 | 5.96-14.6 |
+
+- Accepted limit: the CI Simulator is not the phone. A phone arm (the real GPU compositor) is the way to resolve the sign; it is not part of this task.
+- Item 4 (Chromium base 28107 layer-frames on the font image): not re-measured. counts-font-fidelity has not landed, so its
+  image is not the one to measure on; the base-vs-flag delta (-3440) stays valid because both arms ran on one image. Open, waits on counts-font-fidelity.
 
 ## Costs and limits
 
@@ -64,7 +100,11 @@ LayerTree reads in the zone (pass 0 / pass 1).
   and y=5231 is deterministic).
 - counts-lane-fonts changed the Chromium image after these runs. No Chromium rerun was made; the 28107 base and the
   base-vs-flag delta come from one image (both arms at 540130e9f), so the delta stays valid; whether the base now differs is not measured.
-- TS stand-in: the DOM glue (`IdleHold`, keep and restore of `currentTime`) is not checked against a golden; `idleRemoved` and `idleStep` equal `morph-idle-none.jsonl` (`idle.golden.test.ts`).
+- The glue is now checked: `IdleHold` (keep and restore of `currentTime`) runs the Lean model `Fw.Measure.IdleHold` golden (`wkcost.jsonl`, kind
+  `idleHold`; `idle.hold.golden.test.ts`; theorems `restoreOne_hit`, `restoreOne_miss`, `keepOne_noTarget`, `keepOne_noTime`, `restore_twice`,
+  `hold_returns_orig_clock` link the kept time to `origClock`). The scene threshold is checked in the attribute writer: `createPanelWriter(...).apply(mm / 1000)`
+  writes `paused` exactly where `morph-idle-none.jsonl` says the removal holds (`morph.panel/scene.golden.test.ts`, `idle.golden.test.ts`).
+  Still a TS stand-in: the MutationObserver wiring in `index.tsx`, and `IdleHold`'s `Map` keyed by element (the model keys by id).
 
 ## Runs (sha 540130e9f on ci/morph-idle-none)
 
@@ -73,6 +113,7 @@ LayerTree reads in the zone (pass 0 / pass 1).
 | chromium-counts swipe-v1 x3 | 39897804079 | 39897818039 |
 | webkit-sim | 39897814980 | 39897807511 |
 | webkit-sim cost=on lag=true | 39903977820 | 39903974246 |
+| webkit-sim cost=only lag=true, 3 VMs (morph-idle-followups, ci/morph-idle-followups) | 39915136431 | 39915146774 |
 | breakpoint-gate both engines | | 39897800920 (merge job re-run once: ECONNRESET in download-artifact; all 7 shards succeeded) |
 
 Numbers: `results/morph-idle-none/report.json`.

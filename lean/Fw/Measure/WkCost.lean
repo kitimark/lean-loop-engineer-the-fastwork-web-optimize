@@ -578,6 +578,32 @@ def runFlag : List PassSums :=
 theorem run_39903977820_overlap : outcome (cells runBase runFlag) = .overlap := by
   decide +kernel
 
+/-- The base arm of the recorded cost run `39915136431`: three VMs, two passes each. -/
+def runBase6 : List PassSums :=
+  [⟨[("idle", ⟨9, 8559, 217633, 9⟩), ("open", ⟨4, 18600, 480936, 4⟩), ("rest", ⟨56, 60157, 1747742, 55⟩), ("close", ⟨4, 11870, 572529, 4⟩)], ⟨88, 77125, 1477729, 88⟩⟩,
+   ⟨[("idle", ⟨10, 9189, 233154, 10⟩), ("open", ⟨3, 19937, 530121, 3⟩), ("rest", ⟨56, 63825, 1702398, 55⟩), ("close", ⟨5, 11172, 584519, 5⟩)], ⟨86, 68969, 1544301, 86⟩⟩,
+   ⟨[("idle", ⟨9, 11963, 372041, 9⟩), ("open", ⟨3, 12300, 534756, 3⟩), ("rest", ⟨27, 123792, 1742396, 26⟩), ("close", ⟨3, 9936, 583521, 3⟩)], ⟨88, 107317, 2706889, 88⟩⟩,
+   ⟨[("idle", ⟨10, 9930, 313377, 10⟩), ("open", ⟨2, 18156, 448855, 2⟩), ("rest", ⟨43, 72000, 1856383, 42⟩), ("close", ⟨3, 10964, 449523, 3⟩)], ⟨86, 91877, 2859512, 86⟩⟩,
+   ⟨[("idle", ⟨10, 9486, 205776, 10⟩), ("open", ⟨3, 11480, 659090, 3⟩), ("rest", ⟨56, 60813, 1633330, 55⟩), ("close", ⟨5, 12318, 514209, 5⟩)], ⟨86, 103717, 2706675, 86⟩⟩,
+   ⟨[("idle", ⟨9, 8623, 188351, 9⟩), ("open", ⟨5, 17286, 833815, 5⟩), ("rest", ⟨28, 29528, 1673672, 27⟩), ("close", ⟨3, 5415, 591436, 3⟩)], ⟨86, 66943, 1510983, 86⟩⟩]
+
+/-- The `morph.columns:idle-none` arm of the recorded cost run `39915146774`: three VMs, two passes each. -/
+def runFlag6 : List PassSums :=
+  [⟨[("idle", ⟨10, 12588, 704174, 10⟩), ("open", ⟨1, 8675, 895820, 1⟩), ("rest", ⟨8, 147532, 1841111, 7⟩), ("close", ⟨1, 6322, 309093, 1⟩)], ⟨86, 78708, 1818716, 86⟩⟩,
+   ⟨[("idle", ⟨9, 9710, 199217, 9⟩), ("open", ⟨4, 30862, 539476, 4⟩), ("rest", ⟨61, 58839, 1672625, 60⟩), ("close", ⟨5, 10989, 564825, 5⟩)], ⟨88, 73244, 1540870, 88⟩⟩,
+   ⟨[("idle", ⟨9, 8508, 195813, 9⟩), ("open", ⟨4, 26819, 545723, 4⟩), ("rest", ⟨58, 55099, 1682451, 57⟩), ("close", ⟨5, 11921, 528201, 5⟩)], ⟨88, 69964, 1560059, 88⟩⟩,
+   ⟨[("idle", ⟨9, 10122, 191217, 9⟩), ("open", ⟨5, 28234, 552380, 5⟩), ("rest", ⟨61, 57813, 1659218, 60⟩), ("close", ⟨5, 11061, 539285, 5⟩)], ⟨88, 66727, 1398092, 88⟩⟩,
+   ⟨[("idle", ⟨10, 11918, 412926, 10⟩), ("open", ⟨1, 20250, 1025618, 1⟩), ("rest", ⟨20, 131213, 1605555, 19⟩), ("close", ⟨1, 4428, 262846, 1⟩)], ⟨88, 93340, 2943832, 88⟩⟩,
+   ⟨[("idle", ⟨10, 7257, 330036, 10⟩), ("open", ⟨1, 7150, 965274, 1⟩), ("rest", ⟨30, 51044, 1542472, 29⟩), ("close", ⟨3, 9331, 535095, 3⟩)], ⟨86, 79465, 1734663, 86⟩⟩]
+
+/-- On six passes per arm no cell separates the arms: the per-frame cost of the flag on the morph zone is unresolved. -/
+theorem run_39915136431_overlap : cells runBase6 runFlag6 = List.replicate 8 Verdict.overlap := by
+  decide +kernel
+
+/-- The unit of decision: on the recorded runs the flag is neither a win nor a loss on per-frame Paint and Composite. -/
+theorem run_39915136431_outcome : outcome (cells runBase6 runFlag6) = .overlap := by
+  decide +kernel
+
 /-! ## Golden vectors -/
 
 private def fj (f : Frame) : Json := Json.arr #[toJson f.t, toJson f.zone]
@@ -639,7 +665,7 @@ private def uniform (s c : Sums) : PassSums := ⟨morphZoneNames.map fun z => (z
 private def calmA : Sums := ⟨10, 1000, 1000, 10⟩
 
 private def cellRun : List (List PassSums × List PassSums) :=
-  [(runBase, runFlag),
+  [(runBase, runFlag), (runBase6, runFlag6),
    ([uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1100, 2200, 10⟩ calmA], [uniform ⟨10, 100, 200, 10⟩ calmA, uniform ⟨10, 110, 220, 10⟩ calmA]),
    ([uniform ⟨10, 100, 200, 10⟩ calmA, uniform ⟨10, 110, 220, 10⟩ calmA], [uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1100, 2200, 10⟩ calmA]),
    ([uniform ⟨10, 1000, 2000, 10⟩ calmA, uniform ⟨10, 1000, 2000, 10⟩ calmA],
