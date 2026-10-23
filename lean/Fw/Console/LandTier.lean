@@ -428,6 +428,8 @@ def composeReads : List String :=
 
 def overflowWidthsId : String := "runner:overflow-widths"
 
+/-- The data files the width planner .github/scripts/gate-jobs.mjs reads (gate-jobs.mjs:27,28,36,62). Its code imports spec.mjs and
+serve.mjs (gate-jobs.mjs:43) are not listed yet (follow-up). -/
 def plannerFiles : List String :=
   ["packages/contracts/golden/gate/schedule.jsonl", "packages/contracts/golden/gate/shards.jsonl", "apps/site/src/breakpoints.gen.json",
    "packages/gate-breakpoints/src/anchors.json"]

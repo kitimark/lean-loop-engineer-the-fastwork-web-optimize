@@ -37,7 +37,7 @@ describe("the width check on the path-pix 4 -> 6 case", () => {
 describe("every input the width planner reads selects the width test", () => {
   const PLANNER_INPUTS = ["packages/contracts/golden/gate/schedule.jsonl", "packages/contracts/golden/gate/shards.jsonl", "apps/site/src/breakpoints.gen.json",
     "packages/gate-breakpoints/src/anchors.json"];
-  it("the planner reads exactly these files (gate-jobs.mjs)", () => {
+  it("gate-jobs.mjs names each of these data files", () => {
     const src = readFileSync(join(root, ".github/scripts/gate-jobs.mjs"), "utf8");
     for (const p of PLANNER_INPUTS) expect(src, p).toContain(p.replace("packages/contracts/golden/gate/", "").replace("apps/site/src/", "").replace("packages/gate-breakpoints/src/", ""));
   });
