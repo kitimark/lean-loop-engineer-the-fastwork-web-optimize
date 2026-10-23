@@ -14213,8 +14213,19 @@
     "packages/measure-chromium/src/smooth/**",
     "packages/measure-webkit/src/smooth/**",
     "packages/measure-webkit/src/lag/probe.mjs",
-    "docs/team/handoffs/smooth-miss-counts.md"
-   ]
+    "docs/team/handoffs/smooth-miss-counts.md",
+    ".github/workflows/smoothness.yml",
+    "packages/gate-breakpoints/src/smooth/**",
+    "packages/gate-breakpoints/test/smooth.test.mjs",
+    "packages/measure-webkit/src/profile/**",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/driver/UITests/PushServer.swift",
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/test/profile-report.test.mjs",
+    "packages/measure-webkit/test/touch-push.test.mjs",
+    "research/notes/2026/10-23-smooth-miss-counts.md"
+   ],
+   "evidence": "7c78f37"
   },
   {
    "devices": [
@@ -17832,7 +17843,16 @@
     "lean/Fw/Measure/Profile.lean",
     "packages/contracts/golden/measure/**",
     "research/notes/2026/10-2x-counts-font-fidelity.md",
-    "docs/team/handoffs/counts-font-fidelity.md"
+    "docs/team/handoffs/counts-font-fidelity.md",
+    ".github/workflows/font-fidelity.yml",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "scripts/ci-paths.test.mjs",
+    "packages/contracts/golden/ci/**",
+    "lean/Fw/Ops/LakeJobsGen.lean"
    ],
    "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
   },
@@ -17856,7 +17876,8 @@
     "research/notes/2026/10-2x-people-carousel-crop.md",
     "docs/team/handoffs/carousel-crop-followups.md"
    ],
-   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement."
+   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement.",
+   "evidence": "1c639a8"
   },
   {
    "devices": [
@@ -17875,9 +17896,190 @@
     "apps/site/src/parts/morph.columns/idle*",
     "apps/site/src/parts/morph.panel/**",
     "research/notes/2026/10-20-morph-idle-none.md",
-    "docs/team/handoffs/morph-idle-followups.md"
+    "docs/team/handoffs/morph-idle-followups.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Measure/IdleHold.lean",
+    "apps/site/src/parts/morph.columns/**"
    ],
-   "title": "Follow-ups of morph-idle-none (landed 011bf99e7): (1) WebKit Paint/Composite per frame on the morph zone reads higher with the flag in 11 of 12 cells, confounded by the simulator frame rate (3x between passes): resolve it with a pinned frame rate or per-frame normalization, Lean-specified, and decide win/loss on WebKit; (2) a committed Lean reducer with goldens for fw.webkit.lag.cost.morph/1 (the per-zone means came from a scratch script); (3) the scene threshold (mm > 1 -> active) is checked against Lean only inside idle.golden.test.ts, not in morph.panel's attribute writer, and IdleHold has no golden; (4) re-measure the Chromium base 28107 layer-frames on the font image (counts-font-fidelity) and restate the delta."
+   "title": "Follow-ups of morph-idle-none (landed 011bf99e7): (1) WebKit Paint/Composite per frame on the morph zone reads higher with the flag in 11 of 12 cells, confounded by the simulator frame rate (3x between passes): resolve it with a pinned frame rate or per-frame normalization, Lean-specified, and decide win/loss on WebKit; (2) a committed Lean reducer with goldens for fw.webkit.lag.cost.morph/1 (the per-zone means came from a scratch script); (3) the scene threshold (mm > 1 -> active) is checked against Lean only inside idle.golden.test.ts, not in morph.panel's attribute writer, and IdleHold has no golden; (4) re-measure the Chromium base 28107 layer-frames on the font image (counts-font-fidelity) and restate the delta.",
+   "evidence": "b160314"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "footprint-classname-operands",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "carousel-crop-followups"
+   ],
+   "writes": [
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint*.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "docs/team/handoffs/footprint-classname-operands.md",
+    "apps/site/package.json",
+    "lean/Fw/Parts/ClassPos.lean",
+    "lean/Fw.lean",
+    "lean/scripts/ClassPosGolden.lean",
+    "packages/contracts/golden/parts/footprint*.jsonl",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them).",
+   "evidence": "a3a15db"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-swap-webkit-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "carousel-crop-followups"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "results/carousel-swap-webkit/**",
+    "research/notes/2026/10-2x-carousel-swap-webkit.md",
+    "docs/team/handoffs/carousel-swap-webkit-lane.md"
+   ],
+   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "classpos-model-align",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "footprint-classname-operands"
+   ],
+   "writes": [
+    "lean/Fw/Parts/ClassPos.lean",
+    "lean/scripts/ClassPosGolden.lean",
+    "packages/contracts/golden/parts/footprint.classpos.jsonl",
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint.classpos.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "docs/team/handoffs/classpos-model-align.md"
+   ],
+   "title": "footprint-classname-operands review follow-up: the JS extractor accepts more than the Lean ClassPos model (CLASS_HELPERS has 'classnames'; any .join(sep) / .filter(f) vs Lean .joined = .filter(Boolean).join(' ') only; no member-class setModuleClass golden case; string + concatenation and object-form clsx({a: b}) are non-class positions, so a real class written that way drops silently). Align: one canonical rule in Lean (add concat and member-class cases, keep the separator), JS narrowed or extended to match, golden covers every JS branch; an unmodelled class position fails the extractor loudly instead of dropping. Note the position theorems are rfl restatements (accepted)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-cost-sums-golden",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-idle-followups"
+   ],
+   "writes": [
+    "lean/Fw/Measure/WkCost.lean",
+    "lean/scripts/*WkCost*.lean",
+    "packages/contracts/golden/measure/wkcost*.jsonl",
+    "packages/measure-webkit/src/lag/morphcost.mjs",
+    "packages/measure-webkit/src/lag/cli.mjs",
+    "packages/measure-webkit/test/lag-morphcost.test.mjs",
+    "results/morph-idle-none/**",
+    "docs/team/handoffs/morph-cost-sums-golden.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "lean/scripts/WkCostSums.lean"
+   ],
+   "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted.",
+   "evidence": "60d6f6d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-idle-chromium-rebaseline",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-idle-followups",
+    "counts-font-fidelity"
+   ],
+   "writes": [
+    "results/morph-idle-none/**",
+    "research/notes/2026/10-20-morph-idle-none.md",
+    "docs/team/handoffs/morph-idle-chromium-rebaseline.md"
+   ],
+   "title": "Re-measure morph.columns:idle-none Chromium swipe layer-frames (base 28107 -> flag 24667, -12.2%, measured on the font-less image) on the font image from counts-font-fidelity: base and flag on one image, 3 runs; report the new base, flag and delta with run ids."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-real-wheel",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "smooth-miss-counts"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    "lean/Fw/Measure/WebKitLag*.lean",
+    "packages/contracts/golden/measure/lag*.jsonl",
+    "research/notes/2026/10-2x-morph-real-wheel.md",
+    "docs/team/handoffs/morph-real-wheel.md"
+   ],
+   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-reliable",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "smooth-miss-counts"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/src/throttle/driver/UITests/PushServer.swift",
+    "packages/measure-webkit/test/touch-push.test.mjs",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "docs/team/handoffs/sim-touch-reliable.md"
+   ],
+   "title": "smooth-miss-counts follow-up: real finger swipes in the CI Simulator (XCUITest PushServer) take 50-130 s per push and Timeline.stop times out (run 39901005729: first touch end window 3 of 3 jobs, later ones fail; run 39909042070 with a 240 s stop wait: sim jobs 1 and 3 cancelled at the 50-min step limit, job 2 kept 0 of 15). Find the cause from source (XCUITest synthesis, WebKit Inspector Timeline stop path) before any new dispatch; make one push finish within a stated bound, or record why the Simulator cannot do it."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "graph-writes-closure",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/WritesClosure.lean",
+    "lean/Fw.lean",
+    "lean/scripts/WritesClosureGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    "apps/runner/src/plan*.ts",
+    "apps/runner/test/plan*.test.ts",
+    "docs/team/handoffs/graph-writes-closure.md"
+   ],
+   "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328)."
   }
  ],
  "deadline": {

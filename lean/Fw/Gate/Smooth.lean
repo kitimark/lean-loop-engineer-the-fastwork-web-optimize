@@ -1,4 +1,5 @@
 import Lean.Data.Json
+import Fw.Device.Stats
 /-! # Fw.Gate.Smooth: motion continuity along one push and a bad-frame verdict -/
 
 namespace Fw.Gate.Smooth
@@ -571,6 +572,97 @@ theorem hitchVerdict_swap (a b aa1 aa2 : List Nat) : hitchVerdict b a aa1 aa2 = 
     have h' : okN a b aa1 aa2 = false := by simpa using h
     simp [hitchVerdict, h', hb, Verdict.swap]
 
+/-- 25 ms in tenths of a millisecond: 1.5 intervals of the 60 Hz page rate. -/
+def missTenths : Nat := 250
+
+/-- 50 ms in tenths of a millisecond. -/
+def failTenths : Nat := 500
+
+/-- The intervals (tenths of a millisecond) longer than `th`. -/
+def overTenths (th : Nat) (ivs : List Nat) : Nat := ivs.countP fun i => decide (th < i)
+
+def over25 (ivs : List Nat) : Nat := overTenths missTenths ivs
+
+def over34 (ivs : List Nat) : Nat := overTenths badTenths ivs
+
+def over50 (ivs : List Nat) : Nat := overTenths failTenths ivs
+
+theorem overTenths_mono {a b : Nat} (h : a ≤ b) (ivs : List Nat) : overTenths b ivs ≤ overTenths a ivs := by
+  apply List.countP_mono_left
+  intro i _ hi
+  simp only [decide_eq_true_eq] at hi ⊢
+  omega
+
+theorem over50_le_over34 (ivs : List Nat) : over50 ivs ≤ over34 ivs := overTenths_mono (by decide) ivs
+
+theorem over34_le_over25 (ivs : List Nat) : over34 ivs ≤ over25 ivs := overTenths_mono (by decide) ivs
+
+theorem over25_le_length (ivs : List Nat) : over25 ivs ≤ ivs.length := List.countP_le_length
+
+theorem over34_eq_bad (ivs : List Nat) : over34 ivs = (Rep.ofIntervals ivs).bad := rfl
+
+theorem hitches_le_over50 (ivs : List Nat) : hitches ivs ≤ over50 ivs := overTenths_mono (by decide) ivs
+
+/-- The recorded rAF times (hundredths of a millisecond) as the phone's frames, so the slot rule is `Fw.Device.Stats`'s. -/
+def timeFrames (ts : List Int) : List Fw.Device.Stats.Frame := ts.map fun t => ⟨t, 0, []⟩
+
+/-- Skipped slots: intervals that advance the 60 Hz slot count (rounded half up from the first frame) by more than 1. -/
+def skips (ts : List Int) : Nat := Fw.Device.Stats.cnt Fw.Device.Stats.skip (Fw.Device.Stats.ivs (timeFrames ts))
+
+/-- Intervals over two slots (33.3 ms). -/
+def longGaps (ts : List Int) : Nat := Fw.Device.Stats.cnt Fw.Device.Stats.twoSlots (Fw.Device.Stats.ivs (timeFrames ts))
+
+theorem timeFrames_length (ts : List Int) : (timeFrames ts).length = ts.length := List.length_map _
+
+theorem skips_le_pairs (ts : List Int) : skips ts ≤ ts.length - 1 := by
+  unfold skips Fw.Device.Stats.cnt
+  have := Fw.Device.Stats.ivs_length (timeFrames ts)
+  rw [timeFrames_length] at this
+  exact Nat.le_trans List.countP_le_length (Nat.le_of_eq this)
+
+theorem longGaps_le_skips (ts : List Int) : longGaps ts ≤ skips ts :=
+  Fw.Device.Stats.twoSlots_le_skips (fun _ hv => hv)
+
+theorem slot_no_skip_of_short (t0 a b : Int) (h : (b - a) * 6 ≤ 10000) :
+    Fw.Device.Stats.slotOf t0 b - Fw.Device.Stats.slotOf t0 a ≤ 1 := by
+  unfold Fw.Device.Stats.slotOf
+  omega
+
+theorem over25_without_skip :
+    ∃ v ∈ Fw.Device.Stats.ivs (timeFrames [0, 850, 3400]), Fw.Device.Stats.miss < v.dt ∧ Fw.Device.Stats.skip v = false :=
+  by decide
+
+/-- One window's counts: intervals, the three over-lines and the skipped slots. -/
+structure Counts where
+  frames : Nat
+  over25 : Nat
+  over34 : Nat
+  over50 : Nat
+  skips : Nat
+deriving Repr, BEq
+
+def countsOf (ivs : List Nat) (ts : List Int) : Counts := ⟨ivs.length, over25 ivs, over34 ivs, over50 ivs, skips ts⟩
+
+def Counts.add (a b : Counts) : Counts :=
+  ⟨a.frames + b.frames, a.over25 + b.over25, a.over34 + b.over34, a.over50 + b.over50, a.skips + b.skips⟩
+
+/-- `over50 ≤ over34 ≤ over25 ≤ frames`. -/
+def Counts.Ordered (c : Counts) : Prop := c.over50 ≤ c.over34 ∧ c.over34 ≤ c.over25 ∧ c.over25 ≤ c.frames
+
+theorem countsOf_ordered (ivs : List Nat) (ts : List Int) : (countsOf ivs ts).Ordered :=
+  ⟨over50_le_over34 ivs, over34_le_over25 ivs, over25_le_length ivs⟩
+
+theorem Counts.add_ordered {a b : Counts} (ha : a.Ordered) (hb : b.Ordered) : (a.add b).Ordered := by
+  unfold Counts.Ordered Counts.add at *
+  simp only at *
+  omega
+
+theorem countsOf_skips_le_frames (ivs : List Nat) (ts : List Int) (h : ts.length = ivs.length + 1) :
+    (countsOf ivs ts).skips ≤ (countsOf ivs ts).frames := by
+  have := skips_le_pairs ts
+  simp only [countsOf]
+  omega
+
 def minSamples : Nat := 3
 
 def agreeNeeded (n : Nat) : Nat := (2 * n + 2) / 3
@@ -796,6 +888,22 @@ def acrossDecisiveCases : List (List Verdict) := [
   [.insufficient, .insufficient, .insufficient],
   []]
 
+def overCases : List (List Nat) := [[], [249, 250, 251], [250, 251, 340, 341, 500, 501, 600, 601], [167, 167, 166], [255], [833, 167, 167, 167, 2000]]
+
+def timeCases : List (List Int) := [
+  [], [0], (List.range 8).map (fun i => ((1667 * i : Nat) : Int)), [0, 1667, 3334, 5001, 6668],
+  [0, 850, 3400], [0, 3400], [0, 3333], [0, 3334], [0, 1000, 3333, 5000, 6667], [0, 1667, 3333, 5000, 8333, 10000],
+  [0, 1667, 3334, 5001, 6668, 8335, 10002, 11669, 13336, 15003, 16670, 18337]]
+
+def tenthsOf : List Int → List Nat
+  | a :: b :: rest => ((b - a + 5) / 10).toNat :: tenthsOf (b :: rest)
+  | _ => []
+
+open Lean in
+def countsJson (c : Counts) : Json :=
+  Json.mkObj [("frames", Lean.toJson c.frames), ("over25", Lean.toJson c.over25), ("over34", Lean.toJson c.over34),
+    ("over50", Lean.toJson c.over50), ("skips", Lean.toJson c.skips)]
+
 open Lean in
 private def frameJson (f : Frame) : Json := Json.arr #[Lean.toJson f.t, Lean.toJson f.want, Lean.toJson f.shown]
 open Lean in
@@ -840,7 +948,21 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("decisive", Lean.toJson (decisive xs)), ("k", Lean.toJson (agreeNeeded (decisive xs))),
       ("out", Json.str (acrossDecisive xs).name)]).compress
   let ag := agreeCases.map fun n => (Json.mkObj [("op", "agreeNeeded"), ("n", Lean.toJson n), ("out", Lean.toJson (agreeNeeded n))]).compress
-  [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs ++ hs ++ hv ++ ac ++ ad ++ ag
+  let mc := (Json.mkObj [("op", "missConstants"), ("missTenths", Lean.toJson missTenths), ("failTenths", Lean.toJson failTenths)]).compress
+  let ov := overCases.map fun ivs =>
+    (Json.mkObj [("op", "over"), ("ivs", Lean.toJson ivs),
+      ("out", Json.mkObj [("frames", Lean.toJson ivs.length), ("over25", Lean.toJson (over25 ivs)), ("over34", Lean.toJson (over34 ivs)),
+        ("over50", Lean.toJson (over50 ivs)), ("hitches", Lean.toJson (hitches ivs))])]).compress
+  let sk := timeCases.map fun ts =>
+    (Json.mkObj [("op", "skips"), ("ts", Lean.toJson ts),
+      ("out", Json.mkObj [("pairs", Lean.toJson (ts.length - 1)), ("skips", Lean.toJson (skips ts)), ("longGaps", Lean.toJson (longGaps ts))])]).compress
+  let cn := timeCases.map fun ts =>
+    (Json.mkObj [("op", "counts"), ("ivs", Lean.toJson (tenthsOf ts)), ("ts", Lean.toJson ts),
+      ("out", countsJson (countsOf (tenthsOf ts) ts))]).compress
+  let ca := (timeCases.zip timeCases.tail).map fun (a, b) =>
+    (Json.mkObj [("op", "countsAdd"), ("a", countsJson (countsOf (tenthsOf a) a)), ("b", countsJson (countsOf (tenthsOf b) b)),
+      ("out", countsJson ((countsOf (tenthsOf a) a).add (countsOf (tenthsOf b) b)))]).compress
+  [consts] ++ ms ++ ls ++ ws ++ qs ++ [med, med0] ++ reps ++ rs ++ vs ++ hs ++ hv ++ ac ++ ad ++ ag ++ [mc] ++ ov ++ sk ++ cn ++ ca
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -865,7 +987,7 @@ def run (args : List String) : IO UInt32 := do
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).stalls == 5
 #guard (metrics (ramp 1000 10 [0, 0, 0, 0, 0, 0, 600, 700, 800, 900, 1000])).jumps == 1
 #guard (metrics (frames [(0, 0, 0), (160, 400, 400), (320, 800, 800), (480, 1000, 1000), (640, 1000, 1030), (800, 1000, 1050), (960, 1000, 1050)])).tailSteps == 2
-#guard goldenLines.length == 61 + 6 + 9 + 13 + 8 + 6
+#guard goldenLines.length == 61 + 6 + 9 + 13 + 8 + 6 + 1 + 6 + 11 + 11 + 10
 #guard (verdict (armOf 5 [1, 2, 1]) (armOf 5 [9, 11, 10]) (armOf 5 [3, 4, 3]) (armOf 5 [3, 3, 4])) == .first
 #guard (verdict (armOf 4 [1]) (armOf 5 [9]) (armOf 5 [3]) (armOf 5 [3])) == .insufficient
 #guard hitches [167, 600, 601, 1000] == 2
@@ -880,5 +1002,14 @@ def run (args : List String) : IO UInt32 := do
 #guard acrossDecisive [.second, .second, .same, .insufficient] == .second
 #guard acrossDecisive [.first, .same, .same, .insufficient] == .same
 #guard acrossDecisive [.first, .first, .insufficient] == .insufficient
+
+#guard over25 [249, 250, 251] == 1
+#guard over34 [339, 340, 341] == 1
+#guard over50 [499, 500, 501] == 1
+#guard skips [] == 0 && skips [0] == 0
+#guard skips ((List.range 40).map (fun i => ((1667 * i : Nat) : Int))) == 0
+#guard skips [0, 3333] == 1 && longGaps [0, 3333] == 0
+#guard skips [0, 3334] == 1 && longGaps [0, 3334] == 1
+#guard skips [0, 850, 3400] == 0 && over25 (tenthsOf [0, 850, 3400]) == 1
 
 end Fw.Gate.Smooth

@@ -160,7 +160,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
     "scripts/ci-telemetry/**",
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
-  "apps/site": ["lean/Fw/Console/BuildsOpen.lean", "packages/contracts/golden/console/layer-opts.jsonl", "packages/contracts/golden/console/layers-search.jsonl", "lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "lean/Fw/Parts/HeroAccentOpt.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**",
+  "apps/site": ["lean/Fw/Console/BuildsOpen.lean", "packages/contracts/golden/console/layer-opts.jsonl", "packages/contracts/golden/console/layers-search.jsonl", "lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "lean/Fw/Parts/HeroAccentOpt.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**", "packages/contracts/golden/measure/wkcost.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
   "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs"],

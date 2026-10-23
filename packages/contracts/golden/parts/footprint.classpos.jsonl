@@ -1,0 +1,19 @@
+{"classes":["a","b"],"src":"'a b'"}
+{"classes":["on","off"],"src":"((role === 'exit') ? 'on' : 'off')"}
+{"classes":["on"],"src":"(x ? 'on' : y)"}
+{"classes":["is-open"],"src":"(open && 'is-open')"}
+{"classes":["kept"],"src":"('gate' && 'kept')"}
+{"classes":["fallback"],"src":"('fallback' || x)"}
+{"classes":["fallback"],"src":"(x || 'fallback')"}
+{"classes":["dflt"],"src":"(x ?? 'dflt')"}
+{"classes":["first","second"],"src":"('first' ?? 'second')"}
+{"classes":[],"src":"('x' === 'y')"}
+{"classes":["row","tail","flip"],"src":"`row ${(f ? 'flip' : '')} tail`"}
+{"classes":["a"],"src":"`a ${(r === 'exit')}`"}
+{"classes":["p","q-on"],"src":"['p', (q && 'q-on'), (r === 'no')]"}
+{"classes":["rowFlip","yes"],"src":"cx(css.row, (flip && 'rowFlip'), ((k === 'no') ? 'yes' : ''))"}
+{"classes":["a"],"src":"clsx('a', (r === 'exit'))"}
+{"classes":["o","is-a","is-b"],"src":"['o', (a && 'is-a'), ((b === 'z') && 'is-b')].filter(Boolean).join(' ')"}
+{"classes":["tab","isActive"],"src":"cls('tab', ((id === 'act') && 'isActive'))"}
+{"classes":[],"src":"other('ignored')"}
+{"classes":["deep","deeper"],"src":"((r === 'exit') && (z ? 'deep' : (w && 'deeper')))"}

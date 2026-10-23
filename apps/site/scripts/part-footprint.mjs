@@ -962,6 +962,38 @@ function exprIsProps(e, scope) {
   visit(e);
   return ok;
 }
+const CLASS_HELPERS = new Set(['cx', 'cls', 'clsx', 'classNames', 'classnames']);
+function classChildren(x) {
+  switch (x.type) {
+    case 'ConditionalExpression': return [x.consequent, x.alternate];
+    case 'LogicalExpression': return x.operator === '&&' ? [x.right] : [x.left, x.right];
+    case 'TemplateLiteral': return x.expressions;
+    case 'ArrayExpression': return x.elements;
+    case 'CallExpression': {
+      const c = strip(x.callee);
+      if (c.type === 'Identifier') return CLASS_HELPERS.has(c.name) ? x.arguments : [];
+      if (c.type !== 'MemberExpression' || c.computed || c.property.name !== 'join') return [];
+      let a = strip(c.object);
+      const f = a.type === 'CallExpression' ? strip(a.callee) : null;
+      if (f && f.type === 'MemberExpression' && !f.computed && f.property.name === 'filter') a = strip(f.object);
+      return a.type === 'ArrayExpression' ? a.elements : [];
+    }
+    default: return [];
+  }
+}
+export function collectClassTokens(expr, memberClass) {
+  const toks = [];
+  const visit = (x) => {
+    x = strip(x);
+    if (!x) return;
+    if (x.type === 'MemberExpression') { const m = memberClass(x); if (m) toks.push({ op: 'setModuleClass', name: m }); return; }
+    if (x.type === 'Literal' && typeof x.value === 'string') { x.value.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ op: 'setClass', name: t })); return; }
+    if (x.type === 'TemplateLiteral') x.quasis.forEach((q) => q.value.cooked.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ op: 'setClass', name: t })));
+    for (const c of classChildren(x)) visit(c);
+  };
+  visit(expr);
+  return toks;
+}
 function walkJsx(n, scope, ctxTag) {
   const tag = jsxName(n.name);
   if (!(/^[a-z]/.test(tag) || tag === 'Box')) return;
@@ -973,16 +1005,7 @@ function walkJsx(n, scope, ctxTag) {
     if (v.lit !== undefined || an === 'ref' || an === 'key' || an.startsWith('on') || an === 'children' || an === 'dangerouslySetInnerHTML') continue;
     const tagCtx = exprIsProps(v.expr, scope) ? 'props' : ctxTag;
     if (an === 'className') {
-      const toks = [];
-      const visit = (x) => {
-        x = strip(x);
-        if (!x) return;
-        if (x.type === 'MemberExpression') { const cv = valueOf(x, scope); if (cv.k === 'cls') { toks.push({ op: 'setModuleClass', name: `${rel(cv.file)}#${cv.local}` }); return; } }
-        if (x.type === 'Literal' && typeof x.value === 'string') { x.value.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ op: 'setClass', name: t })); return; }
-        if (x.type === 'TemplateLiteral') { x.quasis.forEach((q) => q.value.cooked.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ op: 'setClass', name: t }))); }
-        for (const c of children(x)) visit(c);
-      };
-      visit(v.expr);
+      const toks = collectClassTokens(v.expr, (x) => { const cv = valueOf(x, scope); return cv.k === 'cls' ? `${rel(cv.file)}#${cv.local}` : null; });
       const dynamic = !(strip(v.expr).type === 'MemberExpression') && !(strip(v.expr).type === 'TemplateLiteral' && strip(v.expr).expressions.every((x) => strip(x).type === 'MemberExpression'));
       if (!dynamic) continue;
       for (const t of toks) emitOn(a, t.op, t.name, owner, tagCtx);
@@ -1248,8 +1271,9 @@ end Fw.Parts.FootprintData
 }
 
 const mode = process.argv[2] ?? '--print';
-const { text, lean } = render();
-if (mode === '--print') process.stdout.write(text);
+const isMain = process.argv[1] !== undefined && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url));
+const { text, lean } = isMain ? render() : { text: '', lean: '' };
+if (!isMain) {} else if (mode === '--print') process.stdout.write(text);
 else if (mode === '--write') {
   fs.writeFileSync(goldenPath, text);
   fs.writeFileSync(leanPath, lean);
