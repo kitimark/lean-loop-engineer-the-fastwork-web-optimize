@@ -1,5 +1,10 @@
 branch: worktree-wf_cad36a29-020-1
 worktree: .claude/worktrees/wf_cad36a29-020-1 (repo-relative)
+round 3: trajectory-probe runs on ci/nav-fixed-followups-tj1 (lead dispatch), all success: clip-box 39887328839, bar-fixed 39887331854, logo-3d 39887335005. nav-clip cell per flag: E 4, Q 0, L 0 (results/nav-fixed-size/nav-clip-cell/). Ledger rows updated in research/notes/2026/10-2x-nav-fixed-size.md. Main merged. Open: dry land verdict (see report).
+
+--- round 2 below ---
+branch: worktree-wf_cad36a29-020-1
+worktree: .claude/worktrees/wf_cad36a29-020-1 (repo-relative)
 last commit: c71a0cf9b (round 2; see git log)
 Round 2 CI: trajectory-probe pushes ci/nav-fixed-followups-tj1 (clip-box, b0d8cdd91), -tj2 (bar-fixed, 86b9bbc82), -tj3 (logo-3d, c71a0cf9b): tj1 39874658206, tj2 39874669031, tj3 39874677939 all complete but the guard SKIPPED every job (no trajectory-probe input differs from main after the merge; the cells step never ran, so no per-flag cell grade). Needs a dispatch: gh workflow run trajectory-probe.yml --ref ci/nav-fixed-followups-tj1 -f fw=nav:clip-box (likewise bar-fixed, logo-3d). chromium-counts reduced: all three arms equal in every zone (results/nav-fixed-size/chromium-counts-zones-default-clip-bar.txt). Lead dispatches: webkit-sim lag+cost 39872562267 clip-box, 39872566438 bar-fixed, 39872570182 logo-3d; chromium-counts clip-box 39872606664, bar-fixed 39873283200.
 Round 2 results: webkit-sim 39872570182 logo-3d success; 39872562267 clip-box and 39872566438 bar-fixed red on simulator infra (partial sessions used); lag/cost hero-exit numbers in results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; ledger rows and note updated. Open (lead): dispatch trajectory-probe.yml per flag (fw=nav:clip-box|bar-fixed|logo-3d) to read the nav-clip cell grade.
