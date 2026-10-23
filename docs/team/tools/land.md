@@ -257,7 +257,7 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
   The read set is one Lean list, `overflowWidthsReads`; it holds the planner inputs `plannerFiles`
   (gate `schedule.jsonl` and `shards.jsonl`, `breakpoints.gen.json`, `anchors.json`, and the planner code `spec.mjs` and `serve.mjs`; theorem `plannerFiles_select`). `land.ts` reads the list
   from the golden (`overflowWidthsReadsFromGolden`), no hand copy. Tests: `land-widths-fixture.test.ts` (6-job path-pix fixture against a row
-  of 4 fails; both width tests share `checkRow` in `test/workflow-widths.ts`). Lean-change cost: a Lean change that moves the `fwcore`
+  of 4 fails; shares `checkRow` in `test/workflow-widths.ts`). Lean-change cost: a Lean change that moves the `fwcore`
   binary (its digest differs; `binMoved`, `LandSpeed.lean:352`) also selects `runner:overflow-widths`: about 11 s (MEASURED 10.96 s vitest, 22.4 s wall). A new planner input is added to `plannerFiles`, then the
   golden is regenerated.
 - Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
