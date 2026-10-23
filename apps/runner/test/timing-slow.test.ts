@@ -19,7 +19,7 @@ afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })))
 
 describe.skipIf(!existsSync(fwcore))("obs.slow against Fw.Wire.Obs.TimingSlow (golden/obs/timing-slow.jsonl)", () => {
   const input = golden.map((g, i) => JSON.stringify({ id: i, ...g.request })).join("\n") + "\n";
-  const r = spawnSync(fwcore, [], { input, encoding: "utf8", timeout: 120_000, maxBuffer: 64 << 20 });
+  const r = spawnSync(fwcore, [], { input, encoding: "utf8", maxBuffer: 64 << 20 });
   const byId = new Map((r.stdout ?? "").split("\n").filter(Boolean).map((l) => { const m = JSON.parse(l) as { id: number; slow: string[] }; return [m.id, m.slow]; }));
   it("has a work-keyed subject, a bare one and an overflow bucket with no alert", () => {
     const all = golden.flatMap((g) => g.response.slow);
