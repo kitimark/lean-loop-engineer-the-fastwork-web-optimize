@@ -10,6 +10,7 @@ import { analyzeArm, reportMd } from './report.mjs';
 import { fillBlock } from './note.mjs';
 import { collectArm, costMd } from './costreport.mjs';
 import { parseCost } from './costmode.mjs';
+import { armsOutcome, sumsLine } from './morphcost.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -19,7 +20,7 @@ const { values: v } = parseArgs({
     site: { type: 'string' }, search: { type: 'string', default: '' }, out: { type: 'string' }, keep: { type: 'boolean', default: true },
     passes: { type: 'string', default: '2' }, step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' },
     settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, vendors: { type: 'string', default: 'off' },
-    cost: { type: 'string', default: 'off' }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, note: { type: 'string' },
+    cost: { type: 'string', default: 'off' }, original: { type: 'string' }, rewrite: { type: 'string' }, preset: { type: 'string' }, faithful: { type: 'string' }, json: { type: 'string' }, sums: { type: 'string' }, run: { type: 'string' }, note: { type: 'string' },
   },
   allowNegative: true,
 });
@@ -58,8 +59,18 @@ async function main() {
       if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(Object.fromEntries(arms), null, 1)}\n`);
       break;
     }
+    case 'morph-verdict': {
+      if (!v.original || !v.rewrite) throw new Error('usage: morph-verdict --original a.json,b.json --rewrite c.json,d.json [--json file] [--sums file --run baseId,flagId]');
+      if (v.sums && !v.run) throw new Error('--sums needs --run baseId,flagId');
+      const res = armsOutcome(read(v.original).flatMap((d) => d.passes), read(v.rewrite).flatMap((d) => d.passes));
+      for (const r of res.rows) console.log(r.join('\t'));
+      console.log(`outcome\t${res.outcome}`);
+      if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(res, null, 1)}\n`);
+      if (v.sums) writeFileSync(resolve(v.sums), `${sumsLine(v.run, res)}\n`);
+      break;
+    }
     default:
-      console.error('usage: run|report|cost-report');
+      console.error('usage: run|report|cost-report|morph-verdict');
       process.exitCode = 2;
   }
 }

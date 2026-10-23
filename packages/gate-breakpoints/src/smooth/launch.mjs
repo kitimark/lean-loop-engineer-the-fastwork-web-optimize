@@ -11,6 +11,9 @@ const POINTER = { none: 1, coarse: 2, fine: 4 };
 /** The trace categories that carry frame production and presentation (devtools timeline frame events and the pipeline reporter). */
 export const TRACE_CATEGORIES = ['benchmark', 'cc', 'viz', 'devtools.timeline', 'disabled-by-default-devtools.timeline.frame'];
 
+/** Histogram names read through the browser's DevTools target: scroll jank, smoothness and checkerboarding (Chromium cc/metrics). */
+export const HISTOGRAM_QUERIES = ['ScrollJank', 'Smoothness', 'Checkerboarding'];
+
 const metrics = (env) => ({
   width: Math.ceil(env.width), height: env.height, deviceScaleFactor: env.dpr, mobile: false,
   screenWidth: Math.round(env.deviceWidth), screenHeight: Math.round(env.deviceHeight),
@@ -28,6 +31,19 @@ export async function launchCadence({ chromePath = process.env.CHROME_PATH ?? CH
       '--force-color-profile=srgb',
     ],
   });
+  const browserCdp = await browser.newBrowserCDPSession().catch(() => null);
+  /** The histograms that changed since the last call (CDP `Browser.getHistograms`, delta), or null when the target refuses them. */
+  const histograms = async () => {
+    if (!browserCdp) return null;
+    try {
+      const out = [];
+      for (const query of HISTOGRAM_QUERIES) {
+        const r = await browserCdp.send('Browser.getHistograms', { query, delta: true });
+        for (const h of r.histograms ?? []) out.push({ name: h.name, count: h.count, sum: h.sum, buckets: (h.buckets ?? []).map((b) => [b.low, b.high, b.count]) });
+      }
+      return out;
+    } catch { return null; }
+  };
   return {
     version: () => browser.version(),
     async open({ origin, path, init }) {
@@ -58,6 +74,7 @@ export async function launchCadence({ chromePath = process.env.CHROME_PATH ?? CH
         },
         /** CDP Emulation.setCPUThrottlingRate: 1 = none, n = the main thread runs n times slower (the cheap proxy of a slow phone CPU). */
         setCpuThrottle: (rate) => cdp.send('Emulation.setCPUThrottlingRate', { rate }),
+        histograms,
         startTrace: () => browser.startTracing(page, { categories: TRACE_CATEGORIES, screenshots: false }),
         stopTrace: () => browser.stopTracing(),
         async close() { await context.close(); },

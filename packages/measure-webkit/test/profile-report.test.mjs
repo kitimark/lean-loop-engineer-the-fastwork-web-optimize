@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
 import { medianNat } from '../src/profile/reduce.mjs';
 import { writeRaws } from '../src/profile/raw.mjs';
-import { jobCell, poolCell, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -190,9 +190,44 @@ test('cadenceTable: p50 and p95 are quantiles over all intervals of all jobs\' r
   const job = (label, ivs, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: Array.from({ length: n }, (_, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs, hitches: ivs.filter((x) => x > 600).length })) } });
   const leg = legSummary([job('a', [100, 100, 100, 100], 5), job('b', [900, 900, 900, 900], 1)], () => ({}));
   const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| hero | on | base'));
-  assert.match(row, /\| 6 \(5\+1\) \| 0 \| 10\.0 \| 90\.0 \| 90\.0 \|/);
+  assert.match(row, /\| 6 \(5\+1\) \| 0 \| - \| - \| - \| - \| - \| 10\.0 \| 90\.0 \| 90\.0 \|/);
   const few = legSummary([job('a', [100], 4)], () => ({}));
-  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| (- \| ){5}insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+});
+
+test('cadenceTable: miss counts are totals over all reps of a pooled cell, skipped slots come from the frame times', () => {
+  const th = [0, 1667, 3333, 5000, 6667, 10000];
+  const ivs = [167, 167, 167, 167, 333];
+  const rep = (n) => Array.from({ length: n }, (_, i) => ({ arm: 'base', window: 'end', rep: i, mode: 'events', ok: true, ivs, th, hitches: 0 }));
+  const job = (label, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: rep(n) } });
+  const leg = legSummary([job('a', 3), job('b', 3)], () => ({}));
+  assert.deepEqual(leg.cadence['end|events'].pool.base.counts, { frames: 30, over25: 6, over34: 0, over50: 0, skips: 6 });
+  const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| end | on | base'));
+  assert.match(row, /\| 6 \(3\+3\) \| 0 \| 6 \| 0 \| 0 \| 6 \| 30 \|/);
+});
+
+test('legSummary: an end window pushed by touch is its own window, the synthetic wheel ones stay in end', () => {
+  const th = [0, 167, 333, 500, 667, 1000];
+  const ivs = [167, 167, 167, 167, 333];
+  const r = (rep, push) => ({ arm: 'base', window: 'end', rep, mode: 'events', ok: true, ivs, th, hitches: 0, push });
+  const job = { label: 'a', leg: 'sim', file: { leg: 'sim', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: [r(0, 'touch'), r(1, 'synthetic'), r(2, 'synthetic')] } };
+  const leg = legSummary([job], () => ({}));
+  assert.equal(leg.cadence['end touch|events'].pool.base.reps, 1);
+  assert.equal(leg.cadence['end|events'].pool.base.reps, 2);
+  assert.match(cadenceTable(leg), /\| end touch \| on \| base/);
+});
+
+test('runTable: the end push column counts the touch end windows and why a Simulator job fell back to the synthetic wheel', () => {
+  const end = (push) => ({ mode: 'events', window: 'end', ok: true, push });
+  const f = (leg, push, rows = []) => ({ label: leg, file: { leg, engine: 'e', arms: ['base'], plan: { dropped: [] }, rows, ...(push ? { push } : {}) } });
+  const table = runTable([
+    f('mac'),
+    f('sim', { driver: true, touch: true, why: null }, [end('touch'), end('touch')]),
+    f('sim', { driver: true, touch: false, why: 'the page did not answer; driver log tail: x\n y' }, [end('touch'), end('synthetic')]),
+    f('sim'),
+  ]);
+  const cells = table.split('\n').slice(2).map((l) => l.split(' | ').at(-2));
+  assert.deepEqual(cells, ['wheel', 'touch 2 of 2 end windows', 'touch 1 of 2 end windows; then synthetic wheel: the page did not answer', 'synthetic wheel']);
 });
 
 test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s is 16, not the 15 of the 0.1-minute display', () => {

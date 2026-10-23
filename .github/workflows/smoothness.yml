@@ -10,7 +10,7 @@ name: smoothness
 # traced repeats, by Chromium's frame trace. WebKit is not run on Linux (about 150 ms frames in software: the runner's cadence, not
 # Safari's). Task smoothness-webkit-cadence adds two macOS jobs, run only when the head commit carries `[webkit-cadence]` (the Chromium
 # `cadence` job is then skipped): `webkit-mac` (Playwright WebKit on macos-26, a real wheel) and `webkit-sim` (Mobile Safari in the iOS
-# Simulator on xcode-27, scripted scroll). Each runs every arm in one job and records the WebKit Timeline per frame and zone
+# Simulator on xcode-27, scripted hero scroll, end push by real touches). Each runs every arm in one job and records the WebKit Timeline per frame and zone
 # (lean/Fw/Measure/WebKitProfile.lean, twin packages/measure-webkit/src/profile/reduce.mjs); both have a cap row in Fw.Ci.Pool.Caps.
 # A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
 # the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
@@ -411,12 +411,12 @@ jobs:
         with:
           mode: start
           label: webkit-sim
-      - name: ios_webkit_debug_proxy
+      - name: Tools (ios_webkit_debug_proxy, xcodegen)
         run: |
           set -euo pipefail
-          brew install ios-webkit-debug-proxy
-          command -v ios_webkit_debug_proxy
-          brew list --versions ios-webkit-debug-proxy
+          brew install ios-webkit-debug-proxy xcodegen
+          command -v ios_webkit_debug_proxy xcodegen
+          brew list --versions ios-webkit-debug-proxy xcodegen
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site-dist
@@ -430,8 +430,17 @@ jobs:
             sw_vers
             xcodebuild -version
             xcrun simctl list runtimes
-            brew list --versions ios-webkit-debug-proxy
+            brew list --versions ios-webkit-debug-proxy xcodegen
           } | tee "$RUNNER_TEMP/result/tools.txt"
+      # The end-of-page push is a real swipe (the XCUITest driver of the toolbar-throttle probe), built before the Simulator boots like
+      # there. A failed build is not fatal: the sim leg then pushes with the synthetic wheel and its sim.json says so.
+      - name: Build the touch driver (no Simulator booted)
+        continue-on-error: true
+        working-directory: packages/measure-webkit
+        run: |
+          set -euo pipefail
+          node src/throttle/cli.mjs build-driver --dir "$RUNNER_TEMP/touch-driver"
+          uptime
       - name: Boot the Simulator (kept booted for the whole job)
         run: |
           set -euo pipefail
@@ -455,7 +464,7 @@ jobs:
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
-          node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
       - name: Keep host state
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 3
