@@ -77,7 +77,9 @@ export function acrossJobs(perJob) {
   }));
 }
 
-const cadRows = (file, arm, win, mode) => file.rows.filter((r) => r.arm === arm && r.window === win && r.mode === mode && r.ivs).sort((a, b) => a.rep - b.rep);
+// an end window pushed by real touches is its own window: it is not the same measurement as the synthetic wheel
+const winOf = (r) => (r.window === 'end' && r.push === 'touch' ? 'end touch' : r.window);
+const cadRows = (file, arm, win, mode) => file.rows.filter((r) => r.arm === arm && winOf(r) === win && r.mode === mode && r.ivs).sort((a, b) => a.rep - b.rep);
 
 const countsOfRows = (rs) => (rs.length && rs.every((r) => r.th) ? sumCounts(rs.map((r) => countsOf(r.ivs, r.th))) : null);
 
@@ -117,7 +119,7 @@ export function legSummary(jobs, classify) {
     zones[z] = { pool, cells, verdicts: acrossJobs(perJobV), perJob: perJobV.map((v, i) => ({ job: jobs[i].label, ...v })), classes };
   }
   const cadence = {};
-  for (const win of ['hero', 'end']) for (const mode of ['events', 'cadence']) {
+  for (const win of ['hero', 'end', 'end touch']) for (const mode of ['events', 'cadence']) {
     const per = jobs.map((j) => ({ job: j.label, ...jobCadence(j.file, win, mode) })).filter((c) => Object.values(c.arms).some((a) => a.reps > 0));
     if (per.length) cadence[`${win}|${mode}`] = { jobs: per, pool: poolCadence(jobs, arms, win, mode), verdicts: acrossJobs(per.map((c) => c.verdicts)) };
   }
@@ -232,7 +234,15 @@ export function cadenceVerdictTable(leg) {
   return out.join('\n');
 }
 
-const pushOf = (f) => (f.leg === 'mac' ? 'wheel' : f.push?.touch ? 'touch' : f.push ? `synthetic wheel (${f.push.why})` : 'synthetic wheel');
+const shortWhy = (w) => String(w ?? '').split('; driver log tail')[0];
+const pushOf = (f) => {
+  if (f.leg === 'mac') return 'wheel';
+  const ends = f.rows.filter((r) => r.mode === 'events' && r.window === 'end');
+  const touched = ends.filter((r) => r.push === 'touch').length;
+  if (touched === 0 && !f.push) return 'synthetic wheel';
+  const why = touched < ends.length && f.push?.why ? `; then synthetic wheel: ${shortWhy(f.push.why)}` : '';
+  return `touch ${touched} of ${ends.length} end windows${why}`;
+};
 
 export function runTable(jobs) {
   const out = [head(['job', 'leg', 'engine', 'version / runtime', 'arms', 'dropped by flags', 'windows', 'kept', 'refused (reason)', 'end push', 'wall s'])];

@@ -206,11 +206,28 @@ test('cadenceTable: miss counts are totals over all reps of a pooled cell, skipp
   assert.match(row, /\| 6 \(3\+3\) \| 0 \| 6 \| 0 \| 0 \| 6 \| 30 \|/);
 });
 
-test('runTable: the end push column names the push of each leg and why a Simulator job fell back to the synthetic wheel', () => {
-  const f = (leg, push) => ({ label: leg, file: { leg, engine: 'e', arms: ['base'], plan: { dropped: [] }, rows: [], ...(push ? { push } : {}) } });
-  const table = runTable([f('mac'), f('sim', { driver: true, touch: true, why: null }), f('sim', { driver: true, touch: false, why: 'warm-up driver exit 65' }), f('sim')]);
+test('legSummary: an end window pushed by touch is its own window, the synthetic wheel ones stay in end', () => {
+  const th = [0, 167, 333, 500, 667, 1000];
+  const ivs = [167, 167, 167, 167, 333];
+  const r = (rep, push) => ({ arm: 'base', window: 'end', rep, mode: 'events', ok: true, ivs, th, hitches: 0, push });
+  const job = { label: 'a', leg: 'sim', file: { leg: 'sim', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: [r(0, 'touch'), r(1, 'synthetic'), r(2, 'synthetic')] } };
+  const leg = legSummary([job], () => ({}));
+  assert.equal(leg.cadence['end touch|events'].pool.base.reps, 1);
+  assert.equal(leg.cadence['end|events'].pool.base.reps, 2);
+  assert.match(cadenceTable(leg), /\| end touch \| on \| base/);
+});
+
+test('runTable: the end push column counts the touch end windows and why a Simulator job fell back to the synthetic wheel', () => {
+  const end = (push) => ({ mode: 'events', window: 'end', ok: true, push });
+  const f = (leg, push, rows = []) => ({ label: leg, file: { leg, engine: 'e', arms: ['base'], plan: { dropped: [] }, rows, ...(push ? { push } : {}) } });
+  const table = runTable([
+    f('mac'),
+    f('sim', { driver: true, touch: true, why: null }, [end('touch'), end('touch')]),
+    f('sim', { driver: true, touch: false, why: 'the page did not answer; driver log tail: x\n y' }, [end('touch'), end('synthetic')]),
+    f('sim'),
+  ]);
   const cells = table.split('\n').slice(2).map((l) => l.split(' | ').at(-2));
-  assert.deepEqual(cells, ['wheel', 'touch', 'synthetic wheel (warm-up driver exit 65)', 'synthetic wheel']);
+  assert.deepEqual(cells, ['wheel', 'touch 2 of 2 end windows', 'touch 1 of 2 end windows; then synthetic wheel: the page did not answer', 'synthetic wheel']);
 });
 
 test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s is 16, not the 15 of the 0.1-minute display', () => {
