@@ -7,7 +7,7 @@ state: Lean lemmas, golden, TS twin, report and probes tested; note regenerated 
 Verified
 - Lean `lean/Fw/Gate/PathPix.lean`: `RowLayer`, `countedBy`, `receiver_counts`, `hero_yields_to_receiver`, `yielded_counted_by_receiver`, `inside_some_mask_counted`; generic `foreignReason`; golden kind `yield` (8 rows).
 - TS: `splitUnion` receivers, cell `sharedTo`, `where.outProbes`, page `EXIT_PROBES`; report prints receiving cells' grade and a probe table. TS stand-in: `probesHit` (box overlap) has no Lean twin.
-- Item 3: nav-lang `button.switch` box at scrollY 813 = device x 655.8..874.8, y 72..180 (probe table, run 40007968162); x 873 is its right edge; the 2-1 did not recur; webkit-3 shows an A/A 4478-2 at nav-earn (887..1218) instead.
+- Item 3: nav-lang `button.switch` box at scrollY 813 = device x 655.8..874.8, y 72..180 (manifest samples at scrollY 813, run 40007968162); x 873 is its right edge; the 2-1 did not recur; webkit-3 shows an A/A 4478-2 at nav-earn (887..1218) instead.
 - Item 4: sourced negative in the note (y 0 row): no page or capture input differs; render-server variation INFERRED.
 - New: webkit-3 offset 5 hero_copy P 192513-20 inside on the red deck-card artwork, 1 of 3 jobs, no receiver graded at that offset.
 
