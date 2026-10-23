@@ -1,6 +1,6 @@
 # trajectory-stable-followups
 
-- Branch `worktree-wf_e50be261-576-1`, worktree `.claude/worktrees/wf_e50be261-576-1`; round 2 commit b8040523c, main merged at 5b9e8b673.
+- Branch `worktree-wf_e50be261-576-1`, worktree `.claude/worktrees/wf_e50be261-576-1`; round 3 commit f0746172b, main merged at f476a4229.
 - Checks at c9b0b6831: gate-breakpoints test 706/706, lean check.sh green (145 s), ci-paths 56, land-inputs 56; dry land `VERDICT dry trajectory-stable-followups`; review ready `review`.
 - gate-breakpoints test re-run at 443a4def4 (polish cut comments only): 706/706.
 - No CI run made: every claim reads existing runs or re-reduces run 39926829451 offline (dev check).
