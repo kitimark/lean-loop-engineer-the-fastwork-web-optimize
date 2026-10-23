@@ -156,23 +156,24 @@ def values : List Rat := [0, 1 / 100, 1 / 10, 1 / 4, 2 / 5, 1 / 2, 3 / 4, 9 / 10
 def ratJson (q : Rat) : Lean.Json :=
   Lean.Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-def lines : List String :=
+/-- A function of `Unit` so no constant is evaluated when `fwcore` starts (`Fw.Lint.InitCost`). -/
+def lines (_ : Unit) : List String :=
   values.map fun m =>
     (Lean.Json.mkObj [("fn", .str "elapsedMilli"), ("in", Lean.Json.mkObj [("m", ratJson m)]),
       ("out", .num (.fromNat (elapsedMilli m)))]).compress
 
-def goldenText : String := String.join (lines.map (· ++ "\n"))
+def goldenText (_ : Unit) : String := String.join ((lines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == goldenText then
-      IO.eprintln s!"gpu-elapsed golden: {path} is up to date ({lines.length} lines)"
+    if (← IO.FS.readFile path) == goldenText () then
+      IO.eprintln s!"gpu-elapsed golden: {path} is up to date ({(lines ()).length} lines)"
       return 0
     IO.eprintln s!"gpu-elapsed golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print goldenText
+    IO.print (goldenText ())
     return 0
 
 end Fw.Measure.GpuElapsed
