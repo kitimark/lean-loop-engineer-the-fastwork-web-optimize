@@ -19179,6 +19179,28 @@
     "docs/team/handoffs/polish-wtname-wire.md"
    ],
    "title": "polish-plan-path-redaction review follow-ups (2026-10-24): (1) the TS wtName in apps/runner/src/polish.ts is a stand-in: add the wire op plan.wtName (lean/Fw/Wire/Plan.lean) and golden rows in golden/plan/polish.jsonl (trailing slash, name with a space, ~ prefix, relative path), and have TS call fwcore or replay the golden; (2) the stray-edit filter proposed for build-review.js accepts a same-named worktree in another checkout: state in Lean whether name uniqueness (wf_ ids) is enough or the filter must also check the main checkout."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-wait-state-interval",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-poll-interval-observed"
+   ],
+   "writes": [
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/test/wait*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-wait-state-interval.md"
+   ],
+   "title": "timing-poll-interval-observed review follow-ups (2026-10-24): (1) noteDecided in packages/gh-budget/src/wait.ts records the Budget.interval of the deciding tick's own state plus any failure backoff on the span (today timing-ci.ts re-reads the state file at span write); (2) cap the observed gap tickMs - prevTickMs at that recorded interval plus backoff, so a poller stall between the two ticks is own time again (today it nets to 0), with a theorem and a golden row for a stalled gap."
   }
  ],
  "deadline": {
