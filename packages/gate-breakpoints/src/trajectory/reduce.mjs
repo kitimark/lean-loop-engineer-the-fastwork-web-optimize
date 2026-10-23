@@ -502,6 +502,23 @@ export function byMId(ph, p, kind, d, oSeg, wSeg, conv) {
 export const byMRule = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   (id ? byMId(ph, p, kind, d, oSeg, wSeg, conv) : byMStart(ph, p, kind, d, e, oSeg, wSeg));
 
+/** Lean `openPh`: the index of the open push among the phases of the morph path. */
+export const OPEN_PH = 0;
+
+/** Lean `firstFrame`: bucket 1 of the open push. */
+export const firstFrame = (ph, p, b) => ph === 'push' && p === OPEN_PH && b === 1;
+
+/** Lean `hasBucket`: the path has a sample of phase `p` in bucket `b`. */
+export const hasBucket = (seg, p, b) => seg.some((s) => s.ph === p && bucket(s.m) === b);
+
+/** Lean `firstVerdict`: an empty first frame of the rewrite is `skip:origEmpty` when the original has no sample there either; else the verdict stands. */
+export const firstVerdict = (ph, p, b, oSeg, wSeg, v) =>
+  firstFrame(ph, p, b) && !hasBucket(oSeg, p, b) && !hasBucket(wSeg, p, b) && v === fail('coverage') ? skip('origEmpty') : v;
+
+/** Lean `byMFirst`: `byMRule` with the first-frame rule, the judge of a morph unit. */
+export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
+  byMRule(ph, p, kind, d, e, id, oSeg, wSeg, conv).map(([b, v]) => [b, firstVerdict(ph, p, b, oSeg, wSeg, v)]);
+
 /** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
@@ -556,7 +573,7 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const verdicts = byMRule(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
+          const verdicts = byMFirst(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
             pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi), colourFromV1);
           push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
         });
@@ -655,10 +672,12 @@ export function reduceRaw(raw, registries) {
   }
   const rels = { ok: 0, both: 0, cleared: 0, new: 0, unmeasured: 0 };
   for (const u of units) rels[u.rel]++;
-  const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0 };
+  const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0, origEmpty: 0, baseOrigEmpty: 0 };
   for (const u of units) {
     totals[u.verdict === pass ? 'pass' : isFail(u.verdict) ? 'fail' : 'skip']++;
     if (u.verdict === fail('coverage')) { totals.coverageFail++; if (u.rel === 'new') totals.coverageNew++; }
+    if (u.verdict === skip('origEmpty')) totals.origEmpty++;
+    if (u.base === skip('origEmpty')) totals.baseOrigEmpty++;
   }
   return { refused: false, detail: '', arms, units, groups: [...groups.values()], totals, rels, notes, fails: laneFails(units.map((u) => u.verdict)), red: laneRed(units.map((u) => u.rel)), timing };
 }
@@ -672,6 +691,7 @@ export function verdictLines(engine, search, red) {
     lines.push(`VERDICT trajectory ${engine} w=${g.width} ${g.path} ${g.node}.${g.prop} NEW ${g.newSteps.length}/${g.pass + g.fail + g.skip} units: ${g.newSteps.slice(0, 6).join(' ')}${g.newSteps.length > 6 ? ' ...' : ''}`);
   }
   lines.push(`VERDICT trajectory ${engine} search=${s} ${red.red ? 'RED' : 'CLEAN'} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
+  lines.push(`FIRSTFRAME trajectory ${engine} search=${s} skip:origEmpty (the original has no sample of open@1 either) units: candidate ${red.totals.origEmpty}, faithful ${red.totals.baseOrigEmpty}`);
   for (const t of red.timing) lines.push(`TIMING trajectory ${engine} ${t.role} ${t.phase} n=${t.n} read p50=${t.readP50} p90=${t.readP90} ms gap p50=${t.gapP50 ?? '-'} p90=${t.gapP90 ?? '-'} ms${t.dominate ? ' READS-DOMINATE' : ''}`);
   return lines;
 }

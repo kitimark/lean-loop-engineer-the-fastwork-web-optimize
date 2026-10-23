@@ -61,9 +61,10 @@ inductive Why where
   deriving DecidableEq, Repr
 
 /-- Why a unit is not compared: no sample of the rewrite fell on a unit that needs none (a hold, a bucket outside 1 to 9,
-a hero step the rewrite did not record). -/
+a hero step the rewrite did not record), or neither arm has a sample of the first frame of the open push (`origEmpty`). -/
 inductive Skip where
   | noSample
+  | origEmpty
   deriving DecidableEq, Repr
 
 /-- The verdict of one unit. -/
@@ -4319,6 +4320,131 @@ theorem byMId_read_late : (navAt idSeg lateReadRew).lookup 0 = (byM .push 2 .col
 
 end CloseIdentity
 
+-- The first frame against the original --------------------------------------------------------------------------------
+
+section FirstFrame
+
+/-- The index of the open push among the phases of the morph path (open, open-hold, close, close-hold). -/
+def openPh : Nat := 0
+
+/-- The first frame: bucket 1 of the open push, the bucket a tween that jumps from 0 straight past 0.15 never lands in. -/
+def firstFrame (ph : Phase) (p b : Nat) : Bool := ph == .push && p == openPh && b == 1
+
+/-- The path has a sample of phase `p` in bucket `b`. -/
+def hasBucket (seg : List Samp) (p b : Nat) : Bool := seg.any fun s => s.ph == p && bucket s.m == b
+
+/-- One bucket's verdict with the first-frame rule.
+
+An empty first frame of the rewrite is `fail coverage` in `byMRule`. When the original has no sample there either, the
+rewrite matches the original, and the unit is `skip origEmpty`. Every other verdict is kept. -/
+def firstVerdict (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict) : Verdict :=
+  if firstFrame ph p b && !hasBucket oSeg p b && !hasBucket wSeg p b && v == .fail .coverage
+  then .skip .origEmpty else v
+
+/-- `byMRule` with the first-frame rule: the judge of a morph unit that `reduceWidth` calls. -/
+def byMFirst (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule) (id : Bool)
+    (oSeg wSeg : List Samp) : List (Nat × Verdict) :=
+  (byMRule ph p k d e id oSeg wSeg).map fun (b, v) => (b, firstVerdict ph p b oSeg wSeg v)
+
+/-- Branch neither arm sampled the first frame: the rewrite's empty bucket matches the original's, a skip. -/
+theorem firstVerdict_both_empty (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (hf : firstFrame ph p b = true)
+    (ho : hasBucket oSeg p b = false) (hw : hasBucket wSeg p b = false) :
+    firstVerdict ph p b oSeg wSeg (.fail .coverage) = .skip .origEmpty := by
+  simp [firstVerdict, hf, ho, hw]
+
+/-- Branch the original sampled the first frame and the rewrite did not: still `fail coverage`. -/
+theorem firstVerdict_orig_sampled (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (ho : hasBucket oSeg p b = true) : firstVerdict ph p b oSeg wSeg v = v := by
+  simp [firstVerdict, ho]
+
+/-- Branch the rewrite sampled the first frame: its verdict is kept, whatever the original did. -/
+theorem firstVerdict_rew_sampled (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (hw : hasBucket wSeg p b = true) : firstVerdict ph p b oSeg wSeg v = v := by
+  simp [firstVerdict, hw]
+
+/-- Branch any other bucket or phase: the verdict is kept, so an empty bucket 2 to 9 of a push is still `fail coverage`. -/
+theorem firstVerdict_not_first (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (hf : firstFrame ph p b = false) : firstVerdict ph p b oSeg wSeg v = v := by
+  simp [firstVerdict, hf]
+
+/-- Branch a verdict that is no coverage failure: kept. A content failure of the first frame is never excused. -/
+theorem firstVerdict_content (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (hv : v ≠ .fail .coverage) : firstVerdict ph p b oSeg wSeg v = v := by
+  have h : (v == Verdict.fail .coverage) = false := by simpa using hv
+  simp [firstVerdict, h]
+
+/-- The rule only turns `fail coverage` into `skip origEmpty`, and only at the first frame of the open push. -/
+theorem firstVerdict_cases (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict) :
+    firstVerdict ph p b oSeg wSeg v = v ∨
+      (firstFrame ph p b = true ∧ v = .fail .coverage ∧ firstVerdict ph p b oSeg wSeg v = .skip .origEmpty) := by
+  unfold firstVerdict
+  split
+  · rename_i h
+    right
+    simp only [Bool.and_eq_true, beq_iff_eq] at h
+    obtain ⟨⟨⟨hf, _⟩, _⟩, hv⟩ := h
+    exact ⟨hf, hv, rfl⟩
+  · left; rfl
+
+/-- The units of `byMFirst` are the units of `byMRule`, bucket for bucket, each through `firstVerdict`. -/
+theorem byMFirst_mem (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule) (id : Bool)
+    (oSeg wSeg : List Samp) (x : Nat × Verdict) (hx : x ∈ byMFirst ph p k d e id oSeg wSeg) :
+    ∃ y ∈ byMRule ph p k d e id oSeg wSeg, x = (y.1, firstVerdict ph p y.1 oSeg wSeg y.2) := by
+  unfold byMFirst at hx
+  obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hx
+  exact ⟨y, hy, rfl⟩
+
+/-- A skip is no failure, so against any baseline a first frame skipped as `origEmpty` is never `new`. -/
+theorem rel_origEmpty_not_new (base : Verdict) : rel (.skip .origEmpty) base ≠ .new := by
+  intro h
+  have := (rel_new_iff _ _).1 h
+  simp [isFail] at this
+
+/-- Case hero:scene-pause: the flag matches the original (no first frame), the faithful arm sampled it and passed. Before the
+rule the unit was `new`; now it is `ok`. -/
+theorem rel_first_frame_before_after :
+    rel (.fail .coverage) .pass = .new ∧ rel (.skip .origEmpty) .pass = .ok := by decide
+
+/-- The lane does not go red on a first frame the original lacks. -/
+theorem laneRed_origEmpty : laneRed [rel (.skip .origEmpty) .pass, rel (.skip .origEmpty) (.fail .coverage)] = false := by
+  decide
+
+/-- The original's samples with bucket `b` left out, one per tenth, in pass 0, reading their own value. -/
+def rampSans (b : Nat) : List Samp :=
+  ((List.range 11).filter (· != b)).map fun i => sm ((i * 1000 : Nat) : Int) [.num [((i * 1000 : Nat) : Int)]]
+
+/-- The verdicts of the open push of a geometry property, with no earn rule and no identity. -/
+def firstAt (p : Nat) (o w : List Samp) : List (Nat × Verdict) := byMFirst .push p .geometry atRest none false o w
+
+/-- Case neither arm has bucket 1: its unit is `skip origEmpty`, the other buckets pass. -/
+theorem first_neither : (firstAt 0 (rampSans 1) (rampSans 1)).lookup 1 = some (.skip .origEmpty) ∧
+    (firstAt 0 (rampSans 1) (rampSans 1)).lookup 5 = some .pass := by decide +kernel
+
+/-- Case the original has bucket 1, the rewrite does not: `fail coverage`. -/
+theorem first_orig_only : (firstAt 0 (rampSans 99) (rampSans 1)).lookup 1 = some (.fail .coverage) := by decide +kernel
+
+/-- Case the rewrite has bucket 1, the original does not: judged by the window of its neighbours. -/
+theorem first_rew_only : (firstAt 0 (rampSans 1) (rampSans 99)).lookup 1 = some .pass := by decide +kernel
+
+/-- Case both have it: judged as before. -/
+theorem first_both : (firstAt 0 (rampSans 99) (rampSans 99)).lookup 1 = some .pass := by decide +kernel
+
+/-- Case bucket 2 is empty in both: still `fail coverage`; the rule is for the first frame alone. -/
+theorem second_neither : (firstAt 0 (rampSans 2) (rampSans 2)).lookup 2 = some (.fail .coverage) ∧
+    (firstAt 0 (rampSans 2) (rampSans 2)).lookup 1 = some .pass := by decide +kernel
+
+/-- Case a rewrite that never moves: only bucket 1 is excused, bucket 5 still fails. -/
+theorem first_stuck : (firstAt 0 (rampSans 1) []).lookup 1 = some (.skip .origEmpty) ∧
+    (firstAt 0 (rampSans 1) []).lookup 5 = some (.fail .coverage) := by decide +kernel
+
+/-- Case the close push: its bucket 1 is not the first frame, so an empty one is still `fail coverage`. -/
+theorem close_neither :
+    (firstAt 2 ((rampSans 1).map ({ · with ph := 2 })) ((rampSans 1).map ({ · with ph := 2 }))).lookup 1 =
+      some (.fail .coverage) := by decide +kernel
+
+end FirstFrame
+
+
 
 -- Golden ------------------------------------------------------------------------------------------------------------
 
@@ -4333,6 +4459,7 @@ def Verdict.name : Verdict → String
   | .fail .shape => "fail:shape" | .fail .differs => "fail:differs" | .fail .apart => "fail:apart"
   | .fail .coverage => "fail:coverage"
   | .skip .noSample => "skip:noSample"
+  | .skip .origEmpty => "skip:origEmpty"
 
 /-- The name of a phase in the golden file. -/
 def Phase.name : Phase → String
@@ -4424,6 +4551,7 @@ inductive Case where
   | idRule (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
   | idAt (name : String) (width : Nat) (q : Option Samp) (r : Samp)
   | idConst
+  | first (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
 
 /-- The golden cases of the window judgement (`judgeEls` per kind and per branch). Two constants, not one, so that each stays
 under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
@@ -4891,8 +5019,24 @@ def idRows : List (Int × Int × Int) :=
     (20, fRed 20 + 501, fAlpha 20 - 501), (138, 226520, 29760), (138, 227010, 29760), (138, 226030, 29760),
     (10000, 19500, 255500), (10000, 19501, 255501), (10000, 18500, 254500), (10000, 18499, 254499)]
 
+/-- The golden cases of the first frame against the original: a geometry property of the earn button, and the nav background. -/
+def casesFirst : List Case :=
+  let earn := fun (ph : Phase) (p : Nat) (n : String) (o w : List Samp) =>
+    Case.first n ph p .geometry "earn" "max-width" 390 o w
+  [earn .push 0 "first frame, neither arm" (rampSans 1) (rampSans 1),
+    earn .push 0 "first frame, original only" (rampSans 99) (rampSans 1),
+    earn .push 0 "first frame, rewrite only" (rampSans 1) (rampSans 99),
+    earn .push 0 "first frame, both" (rampSans 99) (rampSans 99),
+    earn .push 0 "first frame, rewrite wrong" (rampSans 1) (sm 1000 [.num [9000]] :: rampSans 99),
+    earn .push 0 "second bucket, neither arm" (rampSans 2) (rampSans 2),
+    earn .push 0 "first frame, stuck rewrite" (rampSans 1) [],
+    earn .push 2 "close push, neither arm" ((rampSans 1).map ({ · with ph := 2 })) ((rampSans 1).map ({ · with ph := 2 })),
+    earn .hold 1 "hold, neither arm" ((rampSans 1).map ({ · with ph := 1 })) ((rampSans 1).map ({ · with ph := 1 })),
+    .first "nav background, neither arm" .push 0 .colour "nav" "background-color" 390 (rampSans 1) (rampSans 1)]
+
 /-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId
+def cases : List Case :=
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst
 
 /-- A widths pick as JSON. -/
 def Widths.json : Widths → Json
@@ -5004,6 +5148,12 @@ def Case.line : Case → Json
       ("node", node), ("prop", prop), ("width", toJson w), ("id", Json.bool (idOn node prop)),
       ("oSeg", Json.arr (o.map Samp.json).toArray), ("wSeg", Json.arr (s.map Samp.json).toArray),
       ("verdicts", Json.arr ((byMRule ph p k (durOf node prop w) (startFor node prop w) (idOn node prop) o s).map
+        fun (_, v) => Json.str v.name).toArray)]
+  | .first n ph p k node prop w o s =>
+    Json.mkObj [("op", "byMFirst"), ("name", n), ("phase", ph.name), ("p", toJson p), ("kind", k.name),
+      ("node", node), ("prop", prop), ("width", toJson w), ("id", Json.bool (idOn node prop)),
+      ("oSeg", Json.arr (o.map Samp.json).toArray), ("wSeg", Json.arr (s.map Samp.json).toArray),
+      ("verdicts", Json.arr ((byMFirst ph p k (durOf node prop w) (startFor node prop w) (idOn node prop) o s).map
         fun (_, v) => Json.str v.name).toArray)]
   | .idAt n w q r =>
     Json.mkObj [("op", "idCheck"), ("name", n), ("width", toJson w),
