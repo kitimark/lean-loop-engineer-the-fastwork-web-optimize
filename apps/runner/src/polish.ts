@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { UsageError, parseFlags } from "./lib.ts";
@@ -10,11 +10,11 @@ import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 export const POLISH_USAGE =
   "usage: fw polish plan --branch <b> --task <id>                     (classes and scopes of the branch diff against main)\n" +
   "       fw polish cuts --branch <b> --task <id> --cuts <file|-> [--apply yes]   (cuts: {cuts:[{path,old,new}]} or [...])\n" +
-  "       fw polish commit --branch <b> --task <id> [--message <m>]     (commit kept edits; restore edits outside the branch's hunks; refuse when the main checkout is dirty in the plan's files)\n" +
+  "       fw polish commit --branch <b> --task <id> [--message <m>]     (commit kept edits; restore edits outside the branch's hunks; refuse when the main checkout is dirty in the plan's files; always end with a clean worktree: leftover edits restored, untracked files created since plan deleted)\n" +
   "       fw polish --staged [--cuts <file|-> [--apply yes]]            (the staged files of this checkout, for the lead's commits)";
 
 type Cls = { path: string; class: string; mark: string | null };
-type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; prose: string[] }; keep: string[]; restore: string[] };
+type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; prose: string[] }; keep: string[]; restore: string[]; left?: string[] };
 type CutOut = { path: string; old: string; verdict: string; missing: string[] };
 type DocOut = { path: string; text: string; changed: boolean };
 
@@ -27,6 +27,7 @@ export interface Deps {
   write?: (path: string, text: string) => void;
   gen?: (root: string) => Promise<string[]>;
   worktree?: (cwd: string, branch: string) => string | null;
+  remove?: (path: string) => void;
   run?: (cwd: string, argv: string[]) => string;
 }
 
@@ -161,6 +162,81 @@ export async function stagedSpan(dir: string, git: (cwd: string, args: string[])
   return { checks: checksOf(cmds), lake: { built: builtModules(run(join(dir, lake.cwd as string), lake.argv as string[])) } };
 }
 
+const BASELINE = "fw-polish-untracked";
+const DIRTY_BASELINE = "fw-polish-dirty";
+type Git = NonNullable<Deps["git"]>;
+
+const untrackedOf = (dir: string, git: Git) => lines(git(dir, ["-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard"]));
+const dirtyOf = (dir: string, git: Git) => lines(git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", "HEAD"]));
+
+/** Writes the untracked files and the tracked dirty paths present before the polish stage (read by `settleTree` and the commit step). TS glue. */
+function saveBaseline(dir: string, git: Git, write: NonNullable<Deps["write"]>, dirty: string[]): void {
+  const gd = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
+  write(join(gd, BASELINE), untrackedOf(dir, git).join("\n") + "\n");
+  write(join(gd, DIRTY_BASELINE), dirty.join("\n") + "\n");
+}
+
+/** One `-U0` hunk of the polish edits for `walkHunks`: the TS stand-in of Lean `Fw.Plan.Polish.WHunk`, replayed against the `plan.polishWalk` goldens. */
+export type WHunk = { target: number; oldLen: number; new: string[]; keep: boolean };
+
+/** HEAD lines with exactly the kept hunks applied (Lean `Fw.Plan.Polish.walk`: `walk_restored`, `walk_skip_restored`). TS stand-in. */
+export function walkHunks(head: string[], hunks: WHunk[]): string[] {
+  const out: string[] = [];
+  let at = 0;
+  for (const h of hunks) {
+    const skip = Math.max(h.target - at, 0);
+    out.push(...head.slice(at, at + skip));
+    out.push(...(h.keep ? h.new : head.slice(at + skip, at + skip + h.oldLen)));
+    at += skip + h.oldLen;
+  }
+  out.push(...head.slice(at));
+  return out;
+}
+
+/** The file text after the kept hunks of `file` are applied to its HEAD text; null when a hunk has a no-newline marker (the caller restores the whole file). */
+export function keptText(headText: string, file: FileDiff, kept: boolean[]): string | null {
+  const hunks: WHunk[] = [];
+  for (const [i, h] of file.hunks.entries()) {
+    const body = h.text.split("\n").slice(1);
+    if (body.some((l) => l.startsWith("\\"))) return null;
+    hunks.push({ target: h.oldLen === 0 ? h.oldStart : h.oldStart - 1, oldLen: h.oldLen, new: body.filter((l) => l.startsWith("+")).map((l) => l.slice(1)), keep: kept[i] === true });
+  }
+  return walkHunks(headText.split("\n"), hunks).join("\n");
+}
+
+/** Leaves the polish worktree as the builder left it at plan time, whatever the commit step did: only paths outside the
+ *  `fw polish plan` baseline are touched (tracked dirty ones restored from HEAD, new untracked ones deleted), then both
+ *  baseline files are deleted. Which paths is Lean `Fw.Plan.Polish.settle`; with fwcore down, the non-baseline dirty paths
+ *  are restored and nothing is deleted (TS stand-in); without a dirty baseline nothing is restored (fail closed). Returns one report line. */
+export async function settleTree(dir: string, git: Git, call: CoreCall | null, read: NonNullable<Deps["read"]>, remove: (p: string) => void): Promise<string> {
+  const gd = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
+  const base = read(join(gd, BASELINE));
+  const dirtyBase = read(join(gd, DIRTY_BASELINE));
+  const dirty = dirtyOf(dir, git);
+  const untracked = untrackedOf(dir, git);
+  const before = base === null ? untracked : lines(base);
+  let restore = dirtyBase === null ? [] : dirty.filter((p) => !lines(dirtyBase).includes(p));
+  let rm: string[] = [];
+  let note = dirtyBase !== null && restore.length < dirty.length ? `; ${dirty.length - restore.length} path(s) were dirty before plan and kept` : "";
+  note += base === null ? "; no baseline from fw polish plan, untracked files kept" : "";
+  try {
+    if (!call) throw new Error("no fwcore");
+    const r = await call({ op: "plan.polishSettle", before, dirtyBefore: dirtyBase === null ? [] : lines(dirtyBase), dirty, untracked });
+    if (!Array.isArray(r.restore) || !Array.isArray(r.remove)) throw new Error("no settle verdict");
+    restore = dirtyBase === null ? [] : r.restore as string[]; rm = base === null ? [] : r.remove as string[];
+  } catch (e) { note += `; Lean settle unavailable (${e instanceof Error ? e.message : e}), restored the non-baseline dirty paths`; }
+  if (restore.length) git(dir, ["checkout", "HEAD", "--", ...restore]);
+  for (const p of rm) remove(join(dir, p));
+  remove(join(gd, BASELINE));
+  remove(join(gd, DIRTY_BASELINE));
+  const left = dirtyOf(dir, git).length + untrackedOf(dir, git).filter((p) => !before.includes(p)).length;
+  return `cleanup: restored ${restore.length}${restore.length ? ` (${restore.join(" ")})` : ""}, removed ${rm.length}${rm.length ? ` (${rm.join(" ")})` : ""}, worktree ${left === 0 ? "clean" : `NOT clean (${left} paths)`}${note}`;
+}
+
+function coreSafe(cwd: string, deps: Deps, git: Git): CoreCall | null {
+  try { return coreOf(cwd, deps, git); } catch { return null; }
+}
+
 export const POLISH_VERBS = ["plan", "cuts", "commit", "staged"] as const;
 
 export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {
@@ -168,6 +244,9 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
   const git = deps.git ?? realGit;
   const read = deps.read ?? realRead;
   const write = deps.write ?? ((p: string, t: string) => writeFileSync(p, t));
+  const remove = deps.remove ?? ((p: string) => rmSync(p, { force: true }));
+  let settleDir: string | null = null;
+  let settled: (d: string) => Promise<void> = async () => {};
   const [verb0, ...rest] = argv;
   const verb = verb0 === "--staged" ? "staged" : verb0;
   if (!(POLISH_VERBS as readonly string[]).includes(verb ?? "")) throw new UsageError(POLISH_USAGE);
@@ -181,12 +260,26 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     const root = git(cwd, ["rev-parse", "--show-toplevel"]).trim();
     const dir = staged ? root : (deps.worktree ?? worktreeOf)(cwd, flags.branch!);
     if (!dir) throw new Error(`no worktree has branch ${flags.branch}`);
+    let dirtyBefore: string[] = [];
+    if (verb === "commit") {
+      const gd0 = git(dir, ["rev-parse", "--absolute-git-dir"]).trim();
+      const dtext = read(join(gd0, DIRTY_BASELINE));
+      if (dtext === null || read(join(gd0, BASELINE)) === null) {
+        out("no baseline from fw polish plan");
+        out(`VERDICT polish-commit ${task} refused`);
+        return 1;
+      }
+      dirtyBefore = lines(dtext);
+      settleDir = dir;
+    } else if (!staged && kind === "polish-plan") dirtyBefore = dirtyOf(dir, git);
+    else if (!staged) dirtyBefore = lines(read(join(git(dir, ["rev-parse", "--absolute-git-dir"]).trim(), DIRTY_BASELINE)) ?? "");
     const paths = lines(staged ? git(dir, ["-c", "core.quotePath=false", "diff", "--cached", "--name-only"]) : git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", `main...${flags.branch}`]));
     const heads = paths.map((p) => ({ path: p, head: (read(join(dir, p)) ?? "").split("\n", 1)[0]!.slice(0, 300) }));
     const gen = await genOwned(deps.gen ?? genOutputs, root, dir);
     const call = coreOf(cwd, deps, git);
+    settled = async (d: string) => out(await settleTree(d, git, call, read, remove));
     const edited = verb === "commit" ? lines(git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", "HEAD"])) : [];
-    const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited })) as unknown as Plan;
+    const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited, dirtyBefore })) as unknown as Plan;
     if (!Array.isArray(plan.classes)) throw new Error(`fwcore: no plan (${JSON.stringify(plan).slice(0, 200)})`);
     const diffArgs = staged ? ["-c", "core.quotePath=false", "diff", "--cached", "-U0", "--no-color", "--no-ext-diff"] : ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--no-ext-diff", `main...${flags.branch}`];
     const branchDiff = parseDiff(git(dir, diffArgs));
@@ -198,9 +291,11 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     if (verb === "commit") {
       if (hk.blocked.length) {
         out(`the main checkout has uncommitted edits in the plan's files: ${hk.blocked.join(" ")}`);
+        await settled(dir);
         out(`VERDICT polish-commit ${task} refused`);
         return 1;
       }
+      for (const p of plan.left ?? []) out(`left ${p} (dirty before fw polish plan, not the polish stage's)`);
       if (plan.restore.length) { git(dir, ["checkout", "HEAD", "--", ...plan.restore]); out(`restored ${plan.restore.join(" ")}`); }
       const clsOf = new Map(plan.classes.map((c) => [c.path, c.class]));
       const keep: string[] = [];
@@ -211,23 +306,28 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
         if (!ed || !file) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (no edit record)`); continue; }
         const bad = file.hunks.map((h, i) => ({ h, i })).filter(({ i }) => !ed.pathOk || ed.kept[i] !== true);
         if (!file.hunks.length || bad.length === file.hunks.length) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (outside the branch's hunks)`); continue; }
-        for (const { h } of [...bad].sort((a, b) => b.h.newStart - a.h.newStart)) {
-          git(dir, ["apply", "-R", "--unidiff-zero", "-"], `${file.header}\n${h.text}\n`);
-          out(`restored ${path}:${h.oldStart}-${h.oldStart + Math.max(h.oldLen, 1) - 1} (outside the branch's hunks)`);
+        if (bad.length) {
+          const text = keptText(git(dir, ["show", `HEAD:${path}`]), file, file.hunks.map((_, i) => !bad.some((b) => b.i === i)));
+          if (text === null) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (a hunk has a no-newline marker)`); continue; }
+          write(join(dir, path), text);
+          for (const { h } of bad) out(`restored ${path}:${h.oldStart}-${h.oldStart + Math.max(h.oldLen, 1) - 1} (outside the branch's hunks)`);
         }
         keep.push(path);
       }
-      if (!keep.length) { out(`VERDICT polish-commit ${task} nothing`); return 0; }
+      if (!keep.length) { await settled(dir); out(`VERDICT polish-commit ${task} nothing`); return 0; }
       git(dir, ["add", "--", ...keep]);
       const fields = await stagedSpan(dir, git, call, deps.run ?? realRun);
       if (fields) noteSpan("fw", "polish commit", fields);
-      git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`]);
+      git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`, "--", ...keep]);
       out(`kept ${keep.join(" ")}`);
+      await settled(dir);
       out(`VERDICT polish-commit ${task} committed`);
       return 0;
     }
     if (kind === "polish-plan") {
+      if (!staged) saveBaseline(dir, git, write, dirtyBefore);
       out(`worktree ${dir}`);
+      for (const p of paths.filter((q) => dirtyBefore.includes(q))) out(`skip ${p} (dirty before plan)`);
       for (const c of plan.classes) out(`class ${c.class} ${c.mark ?? "-"} ${c.path}`);
       const rangeOf = (p: string) => (hk.ranges.find((r) => r.path === p)?.ranges ?? []).map((r) => `${r.lo}-${r.hi}`).join(",") || "none";
       for (const c of plan.classes.filter((c) => plan.scopes.comments.includes(c.path))) out(`comments ${c.mark ?? "-"} ${c.path} lines ${rangeOf(c.path)}`);
@@ -256,6 +356,10 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
   } catch (e) {
     if (e instanceof UsageError) throw e;
     out(`  ${e instanceof Error ? e.message : String(e)}`);
+    if (settleDir) {
+      try { out(await settleTree(settleDir, git, coreSafe(cwd, deps, git), read, remove)); }
+      catch (e2) { out(`cleanup failed: ${e2 instanceof Error ? e2.message : String(e2)}; the lead restores the worktree ${settleDir}`); }
+    }
     out(`VERDICT ${kind} ${task} error`);
     return 1;
   }

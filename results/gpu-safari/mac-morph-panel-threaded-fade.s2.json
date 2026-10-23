@@ -1,0 +1,1006 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "macos-safari",
+ "run": "gpu-safari-mac-2026-10-23T14-52-26-600Z",
+ "zone": "morph",
+ "session": {
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+  "dpr": 2,
+  "vw": 430,
+  "vh": 880,
+  "maxY": 5229,
+  "device": "macOS Safari (safaridriver)",
+  "timing": "cadence only: the Lean quiet rule refuses a loaded Mac",
+  "pinnedClock": false
+ },
+ "flip": null,
+ "ci": {
+  "gate": "39846842455",
+  "webkitSim": [
+   "39846948148"
+  ],
+  "trajectory": [
+   "39846814254",
+   "39855506403"
+  ],
+  "counts": [
+   "39851674587"
+  ]
+ },
+ "arm": "morph-panel-threaded-fade",
+ "search": "?fw=morph.panel:threaded,platform:fade-threaded",
+ "states": [
+  {
+   "id": "m0.25",
+   "kind": "morph",
+   "m": 0.25,
+   "y": null,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 32700,
+     "maxDelta": 4
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 30332,
+     "b2_3": 2331,
+     "b4_15": 37,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 32700,
+      "maxDelta": 4
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 25687,
+      "maxDelta": 3
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 32700,
+      "maxDelta": 4
+     },
+     {
+      "changed": 15797,
+      "maxDelta": 4
+     },
+     {
+      "changed": 15135,
+      "maxDelta": 4
+     },
+     {
+      "changed": 15206,
+      "maxDelta": 3
+     },
+     {
+      "changed": 20430,
+      "maxDelta": 4
+     },
+     {
+      "changed": 21912,
+      "maxDelta": 4
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 25687,
+      "maxDelta": 3
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 36525,
+      "maxDelta": 4
+     },
+     {
+      "i": 0,
+      "j": 3,
+      "changed": 35527,
+      "maxDelta": 3
+     },
+     {
+      "i": 0,
+      "j": 4,
+      "changed": 34940,
+      "maxDelta": 4
+     },
+     {
+      "i": 0,
+      "j": 5,
+      "changed": 34545,
+      "maxDelta": 4
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 20278,
+      "maxDelta": 4
+     },
+     {
+      "i": 1,
+      "j": 3,
+      "changed": 17260,
+      "maxDelta": 3
+     },
+     {
+      "i": 1,
+      "j": 4,
+      "changed": 25961,
+      "maxDelta": 4
+     },
+     {
+      "i": 1,
+      "j": 5,
+      "changed": 22492,
+      "maxDelta": 4
+     },
+     {
+      "i": 2,
+      "j": 3,
+      "changed": 19517,
+      "maxDelta": 3
+     },
+     {
+      "i": 2,
+      "j": 4,
+      "changed": 17917,
+      "maxDelta": 6
+     },
+     {
+      "i": 2,
+      "j": 5,
+      "changed": 27380,
+      "maxDelta": 5
+     },
+     {
+      "i": 3,
+      "j": 4,
+      "changed": 16361,
+      "maxDelta": 4
+     },
+     {
+      "i": 3,
+      "j": 5,
+      "changed": 18407,
+      "maxDelta": 5
+     },
+     {
+      "i": 4,
+      "j": 5,
+      "changed": 24148,
+      "maxDelta": 3
+     }
+    ],
+    "nearest": 15135,
+    "laterNearest": 15135,
+    "spread": 36525,
+    "floor": 20278,
+    "within": true,
+    "laterFloors": {
+     "n": 10,
+     "min": 16361,
+     "median": 20278,
+     "max": 27380
+    }
+   },
+   "hash": {
+    "a": "106f8afb5073ea46",
+    "b": "e7c6cfcc942160a0",
+    "c": "98130ac95fc2f12f",
+    "d": "46ce46c51e1a2458"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.2500000056919188,
+     "corrections": 1,
+     "startLag": 1.0000000000000853,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.2500000056919188,
+     "corrections": 0,
+     "startLag": 8.526512829121202e-14,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "platform",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.2500000056919188,
+     "corrections": 0,
+     "startLag": 8.526512829121202e-14,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.5",
+   "kind": "morph",
+   "m": 0.5,
+   "y": null,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 116889,
+     "maxDelta": 21
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 90019,
+     "b2_3": 20069,
+     "b4_15": 6280,
+     "b16_255": 521
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 116889,
+      "maxDelta": 21
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 122016,
+      "maxDelta": 24
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 116889,
+      "maxDelta": 21
+     },
+     {
+      "changed": 43304,
+      "maxDelta": 27
+     },
+     {
+      "changed": 52343,
+      "maxDelta": 16
+     },
+     {
+      "changed": 75585,
+      "maxDelta": 23
+     },
+     {
+      "changed": 46302,
+      "maxDelta": 23
+     },
+     {
+      "changed": 54535,
+      "maxDelta": 28
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 122016,
+      "maxDelta": 24
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 124708,
+      "maxDelta": 20
+     },
+     {
+      "i": 0,
+      "j": 3,
+      "changed": 129242,
+      "maxDelta": 23
+     },
+     {
+      "i": 0,
+      "j": 4,
+      "changed": 122370,
+      "maxDelta": 21
+     },
+     {
+      "i": 0,
+      "j": 5,
+      "changed": 107531,
+      "maxDelta": 27
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 29273,
+      "maxDelta": 17
+     },
+     {
+      "i": 1,
+      "j": 3,
+      "changed": 62061,
+      "maxDelta": 13
+     },
+     {
+      "i": 1,
+      "j": 4,
+      "changed": 18362,
+      "maxDelta": 14
+     },
+     {
+      "i": 1,
+      "j": 5,
+      "changed": 65508,
+      "maxDelta": 11
+     },
+     {
+      "i": 2,
+      "j": 3,
+      "changed": 53288,
+      "maxDelta": 16
+     },
+     {
+      "i": 2,
+      "j": 4,
+      "changed": 31999,
+      "maxDelta": 13
+     },
+     {
+      "i": 2,
+      "j": 5,
+      "changed": 70922,
+      "maxDelta": 19
+     },
+     {
+      "i": 3,
+      "j": 4,
+      "changed": 56344,
+      "maxDelta": 15
+     },
+     {
+      "i": 3,
+      "j": 5,
+      "changed": 85794,
+      "maxDelta": 15
+     },
+     {
+      "i": 4,
+      "j": 5,
+      "changed": 65635,
+      "maxDelta": 14
+     }
+    ],
+    "nearest": 43304,
+    "laterNearest": 43304,
+    "spread": 129242,
+    "floor": 29273,
+    "within": false,
+    "laterFloors": {
+     "n": 10,
+     "min": 18362,
+     "median": 62061,
+     "max": 85794
+    }
+   },
+   "hash": {
+    "a": "40915d5343e05e97",
+    "b": "c02a814c92af5cf6",
+    "c": "48fb64488c44485e",
+    "d": "7c41873e24e262b1"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.5000009940470003,
+     "corrections": 1,
+     "startLag": 1.0000000000001137,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.5000009940470003,
+     "corrections": 0,
+     "startLag": 1.1368683772161603e-13,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "platform",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.5000009940470003,
+     "corrections": 0,
+     "startLag": 1.1368683772161603e-13,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.75",
+   "kind": "morph",
+   "m": 0.75,
+   "y": null,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 130000,
+     "maxDelta": 195
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 103911,
+     "b2_3": 18275,
+     "b4_15": 5387,
+     "b16_255": 2427
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 130000,
+      "maxDelta": 195
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 143745,
+      "maxDelta": 195
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 130000,
+      "maxDelta": 195
+     },
+     {
+      "changed": 65301,
+      "maxDelta": 189
+     },
+     {
+      "changed": 50320,
+      "maxDelta": 186
+     },
+     {
+      "changed": 46862,
+      "maxDelta": 182
+     },
+     {
+      "changed": 51075,
+      "maxDelta": 195
+     },
+     {
+      "changed": 55143,
+      "maxDelta": 189
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 143745,
+      "maxDelta": 195
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 139265,
+      "maxDelta": 189
+     },
+     {
+      "i": 0,
+      "j": 3,
+      "changed": 138580,
+      "maxDelta": 193
+     },
+     {
+      "i": 0,
+      "j": 4,
+      "changed": 139361,
+      "maxDelta": 197
+     },
+     {
+      "i": 0,
+      "j": 5,
+      "changed": 120691,
+      "maxDelta": 188
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 38228,
+      "maxDelta": 182
+     },
+     {
+      "i": 1,
+      "j": 3,
+      "changed": 44013,
+      "maxDelta": 184
+     },
+     {
+      "i": 1,
+      "j": 4,
+      "changed": 38289,
+      "maxDelta": 186
+     },
+     {
+      "i": 1,
+      "j": 5,
+      "changed": 87224,
+      "maxDelta": 182
+     },
+     {
+      "i": 2,
+      "j": 3,
+      "changed": 13528,
+      "maxDelta": 184
+     },
+     {
+      "i": 2,
+      "j": 4,
+      "changed": 8020,
+      "maxDelta": 189
+     },
+     {
+      "i": 2,
+      "j": 5,
+      "changed": 75984,
+      "maxDelta": 173
+     },
+     {
+      "i": 3,
+      "j": 4,
+      "changed": 14941,
+      "maxDelta": 178
+     },
+     {
+      "i": 3,
+      "j": 5,
+      "changed": 74054,
+      "maxDelta": 189
+     },
+     {
+      "i": 4,
+      "j": 5,
+      "changed": 76558,
+      "maxDelta": 175
+     }
+    ],
+    "nearest": 46862,
+    "laterNearest": 46862,
+    "spread": 143745,
+    "floor": 38228,
+    "within": false,
+    "laterFloors": {
+     "n": 10,
+     "min": 8020,
+     "median": 44013,
+     "max": 87224
+    }
+   },
+   "hash": {
+    "a": "a6884f03d943c332",
+    "b": "626f7241cf16c121",
+    "c": "ea406e19d5346682",
+    "d": "4975561aa10c7041"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "platform": [
+      0,
+      -973984375,
+      413000000,
+      1854375000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.7500002748144872,
+     "corrections": 1,
+     "startLag": 0.9999999999999432,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.7500002748144872,
+     "corrections": 0,
+     "startLag": -5.684341886080802e-14,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "platform",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.7500002748144872,
+     "corrections": 0,
+     "startLag": -5.684341886080802e-14,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  }
+ ]
+}
