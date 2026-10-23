@@ -777,6 +777,8 @@ theorem dispatch_limits_lighter : dispatchLockWaitMs < oldLockWaitMs ∧ dispatc
 
 theorem watch_limits_lighter : watchLockWaitMs < oldLockWaitMs ∧ watchCallTimeoutMs < oldCallTimeoutMs := by decide
 
+/-- Two dispatch calls at their 20 s timeout fit inside one 60 s dispatch lock wait (arithmetic on these bounds only; other gh-budget
+callers keep the 60 s default timeout and can still fill the whole wait). -/
 theorem three_dispatches_fit : 2 * dispatchCallTimeoutMs ≤ dispatchLockWaitMs := by decide
 
 theorem watch_gh_block_bound : watchLockWaitMs + watchCallTimeoutMs = 13000 := by decide

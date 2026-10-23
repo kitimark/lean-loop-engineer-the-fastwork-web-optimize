@@ -62,7 +62,7 @@ function chargedLocked(env: Env, decide: Decide, buildArgs: (reply: Json) => str
     const stderr = String(out.stderr ?? ""); // the trace: filtered below, then dropped
     const lines = traceLines(stderr);
     const timedOut = (out as { error?: NodeJS.ErrnoException }).error?.code === "ETIMEDOUT";
-    const error = out.status === 0 ? undefined : timedOut ? `gh timed out after ${timeoutMs / 1000} s and was killed` : errorSummary(stderr, out.status);
+    const error = out.status === 0 ? undefined : timedOut ? `gh timed out after ${timeoutMs / 1000} s and was killed; the request may still have reached GitHub, check gh run list before running it again` : errorSummary(stderr, out.status);
     const o = env.core({ op: "ci.budget.observe", now: env.now(), state: r.state, lines });
     saveState(env.dir, o.state as Json);
     const h = o.headers as { status?: number | null } | undefined;

@@ -106,5 +106,5 @@ test("a hung gh is killed at timeoutMs and the failure is named", async () => {
   writeFileSync(hang, "#!/bin/sh\nsleep 30\n");
   chmodSync(hang, 0o755);
   const r = await ghCharged({ ...w.env, gh: hang }, ["workflow", "run", "x.yml"], { cost: 2, timeoutMs: 300 });
-  assert.ok(r.ran && r.code === null && r.error === "gh timed out after 0.3 s and was killed", JSON.stringify(r));
+  assert.ok(r.ran && r.code === null && r.error === "gh timed out after 0.3 s and was killed; the request may still have reached GitHub, check gh run list before running it again", JSON.stringify(r));
 });
