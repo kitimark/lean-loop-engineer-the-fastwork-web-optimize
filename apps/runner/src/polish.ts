@@ -147,7 +147,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     const diffArgs = staged ? ["-c", "core.quotePath=false", "diff", "--cached", "-U0", "--no-color", "--no-ext-diff"] : ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--no-ext-diff", `main...${flags.branch}`];
     const branchDiff = parseDiff(git(dir, diffArgs));
     const mainDir = staged ? dir : join(git(dir, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim(), "..");
-    const dirty = verb === "commit" && mainDir !== dir ? porcelainPaths(git(mainDir, ["status", "--porcelain", "--", ...paths])) : [];
+    const dirty = verb === "commit" && mainDir !== dir ? porcelainPaths(git(mainDir, ["-c", "core.quotePath=false", "--literal-pathspecs", "status", "--porcelain", "--", ...paths])) : [];
     const editDiff = verb === "commit" ? parseDiff(git(dir, ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"])) : [];
     const hk = (await call({ op: "plan.polishHunks", diff: spansOf(branchDiff, "new"), edits: spansOf(editDiff, "old"), main: dirty })) as unknown as HunkOut;
     if (!Array.isArray(hk.ranges)) throw new Error(`fwcore: no hunk verdicts (${JSON.stringify(hk).slice(0, 200)})`);

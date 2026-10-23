@@ -1,6 +1,6 @@
 branch: worktree-wf_f7e61c92-f16-1
 worktree: .claude/worktrees/wf_f7e61c92-f16-1 (under the main checkout)
-last commit: `git log -1` on the branch (round 2 work)
+last commit: 96faedea2 (merge of main) on 0c3959206; lead fixes after it (quotePath and literal pathspecs in the main-checkout check, relOk wording)
 CI runs: none (no CI push; local lanes through fw slot)
 
 State (round 2)

@@ -335,6 +335,28 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 
+  it("refuses when the main checkout has an uncommitted edit in a non-ASCII plan file, naming it", async () => {
+    const base = mkdtempSync(join(tmpdir(), "polish-fx-"));
+    const main = join(base, "main"); const wt = join(base, "wt");
+    const n = "lean/scripts/café.sh";
+    try {
+      mkdirSync(join(main, "lean/scripts"), { recursive: true });
+      g(main, "init", "-q", "-b", "main");
+      writeFileSync(join(main, n), body.join("\n") + "\n");
+      g(main, "add", "."); g(main, "commit", "-q", "-m", "base");
+      g(main, "worktree", "add", "-q", "-b", "feat", wt);
+      const tip = body.slice(); tip[59] = "echo changed 60";
+      writeFileSync(join(wt, n), tip.join("\n") + "\n");
+      g(wt, "commit", "-qam", "builder");
+      const t = tip.slice(); t[61] = "# near"; writeFileSync(join(wt, n), t.join("\n") + "\n");
+      writeFileSync(join(main, n), "# someone else's edit\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines[0]).toBe(`the main checkout has uncommitted edits in the plan's files: ${n}`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t refused");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
   it("restores a file whose edits all lie outside the hunks and commits nothing", async () => {
     const { base, wt, tip } = fixture();
     try {

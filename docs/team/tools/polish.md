@@ -52,7 +52,7 @@ Errors print `VERDICT <kind> <id> error` and exit 1; a usage error exits 64.
 - Hunk rule (`admitted`, op `plan.polishHunks`): an edit hunk is kept iff some branch hunk `h` has
   `h.start - 3 <= e.start` and `e.hi <= h.hi + 3`, that is, the edit lies inside the hunk plus the 3-line margin
   (containment, not overlap: `admitted_iff`, `admitted_inside`, `restored_far_above`, `restored_far_below`). Path rule
-  (`relOk`, `editKept`): the path is non-empty, relative and has no `..` segment; `blocked_mem` names the dirty main-checkout files.
+  (`relOk`, `editKept`): the path is non-empty, does not start with `/`, and no `..` climbs above the worktree root (`a/../b` passes, `../a` and `a/../../b` do not); `blocked_mem` names the dirty main-checkout files.
   Prose files are kept whole (their cuts are judged by `cutSafe`).
 
 ## Goldens
