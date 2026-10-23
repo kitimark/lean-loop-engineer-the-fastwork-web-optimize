@@ -757,11 +757,16 @@ def runSteps : List String :=
 def passSteps : List String :=
   ["watch pass", "watch pass gh lock", "watch pass gh reserve", "watch pass gh call", "watch pass gh backoff", "watch pass other"]
 
-/-- The spans of `fw ci state`: the whole command, then lock wait, state read (`load`), fwcore reserve, gh call, backoff and the rest (`reduce`). -/
+/-- The spans of `fw ci state`: the whole command, then lock wait, fwcore reserve, gh call, backoff and the rest (`reduce`). -/
 def ciStateSteps : List String :=
-  ["ci state", "ci state gh lock", "ci state gh load", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
+  ["ci state", "ci state gh lock", "ci state gh reserve", "ci state gh call", "ci state gh backoff", "ci state reduce"]
+
+/-- The state-file read inside the lock, timed apart from the lock wait; written by `fw ci state` only, after the lock span. -/
+def ciStateLoadStep : String := "ci state gh load"
 
 theorem ciStateSteps_nodup : ciStateSteps.Nodup := by decide
+
+theorem ciStateLoadStep_new : ciStateLoadStep ∉ ciStateSteps := by decide
 
 theorem runSteps_nodup : runSteps.Nodup := by decide
 

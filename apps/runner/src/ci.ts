@@ -157,6 +157,25 @@ export async function ciCli(argv: string[], cwd: string, env: Record<string, str
   return ciMain(args, { call: fwcoreCall(cwd), gh: chargedGh(realEnv(cwd)), store: args.store ?? storeDir(consoleDir), tmp: join(consoleDir, "tmp"), log: (l) => console.log(l) });
 }
 
+/** Sums the time between `loadStart` and `loadEnd` (the state-file read inside the gh-budget lock). I/O glue, no decision. */
+export class LoadTimer {
+  ms = 0;
+  private at: number | null = null;
+  constructor(private readonly clock: () => number = () => performance.now()) {}
+  on(e: "loadStart" | "loadEnd"): void {
+    if (e === "loadStart") this.at = this.clock();
+    else if (this.at !== null) { this.ms += this.clock() - this.at; this.at = null; }
+  }
+}
+
+/** Adds `ci state gh load` (Lean `ciStateLoadStep`) after the lock part and takes the same time out of the lock part, which includes it. */
+export function withLoadPart(parts: { step: string; durMs: number }[], loadMs: number): { step: string; durMs: number }[] {
+  const i = parts.findIndex((p) => p.step === "ci state gh lock");
+  if (i < 0) return parts;
+  const load = Math.min(Math.round(loadMs), parts[i]!.durMs);
+  return [...parts.slice(0, i), { step: "ci state gh lock", durMs: parts[i]!.durMs - load }, { step: "ci state gh load", durMs: load }, ...parts.slice(i + 1)];
+}
+
 /** One span per part of `fw ci state`, each carrying the command's real exit (0 found, 2 not found, 1 a throw). */
 export function recordStateParts(parts: { step: string; durMs: number }[], startMs: number, exit: number, rec: (s: StateSpan) => void): void {
   for (const p of parts) rec({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit });
@@ -173,7 +192,8 @@ export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
     o[f === "--branch" ? "branch" : "workflow"] = v;
   }
   const clock = new GhClock();
-  const gh = chargedGh(phasedEnv(realEnv(cwd), (e) => clock.on(e)));
+  const load = new LoadTimer();
+  const gh = chargedGh({ ...phasedEnv(realEnv(cwd), (e) => clock.on(e)), mark: (e) => load.on(e) });
   const t0 = performance.now(), startMs = Date.now();
   const timed: Gh = async (a, op) => { clock.start(); try { return await gh(a, op); } finally { clock.end(); } };
   let exit = 1; // a throw is a failure; the real exit of the command goes into every part span
@@ -181,6 +201,6 @@ export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
     exit = await ciState(id, { gh: timed, log: (l) => console.log(l), ...o });
     return exit;
   } finally {
-    recordStateParts(ciStateParts(clock, performance.now() - t0), startMs, exit, (sp) => record(sp, cwd));
+    recordStateParts(withLoadPart(ciStateParts(clock, performance.now() - t0), load.ms), startMs, exit, (sp) => record(sp, cwd));
   }
 }

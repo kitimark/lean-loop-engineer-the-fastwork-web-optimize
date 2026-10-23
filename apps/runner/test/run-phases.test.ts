@@ -137,7 +137,7 @@ describe("the gh call bounds come from Lean", () => {
   });
   it("fw ci state parts: lock, reserve, call, backoff only when non-zero, and the rest as reduce", () => {
     expect(ciStateParts({ ms: { lock: 3, reserve: 1123, call: 37586, backoff: 0 }, calls: 3 }, 38892)).toEqual([
-      { step: "ci state gh lock", durMs: 3 }, { step: "ci state gh load", durMs: 0 }, { step: "ci state gh reserve", durMs: 1123 }, { step: "ci state gh call", durMs: 37586 },
+      { step: "ci state gh lock", durMs: 3 }, { step: "ci state gh reserve", durMs: 1123 }, { step: "ci state gh call", durMs: 37586 },
       { step: "ci state reduce", durMs: 180 }]);
     expect(ciStateParts({ ms: { lock: 0, reserve: 0, call: 0, backoff: 0 }, calls: 0 }, 50)).toEqual([]);
   });

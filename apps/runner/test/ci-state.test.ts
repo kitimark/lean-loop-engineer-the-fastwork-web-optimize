@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GH_BOUNDS } from "@fw/gh-budget";
 import { describe, expect, it } from "vitest";
-import { recordStateParts, stateStep } from "../src/ci.ts";
+import { LoadTimer, recordStateParts, stateStep, withLoadPart } from "../src/ci.ts";
 import { GhClock, ciStateParts } from "../src/run-phases.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -23,16 +23,20 @@ describe("fw ci state spans", () => {
   it("the state read inside the lock is its own part, carved out of the lock wait", () => {
     let t = 0;
     const c = new GhClock(undefined, () => t);
+    const l = new LoadTimer(() => t);
     c.start();
-    t = 50; c.on("loadStart");
-    t = 58; c.on("loadEnd");
+    t = 50; l.on("loadStart");
+    t = 58; l.on("loadEnd");
     t = 60; c.on("reserve");
     t = 70; c.on("issue");
     t = 170; c.on("ghEnd");
-    expect(c.loadMs).toBe(8);
-    expect(c.ms).toEqual({ lock: 52, reserve: 10, call: 100, backoff: 0 });
-    expect(ciStateParts(c, 175).map((p) => [p.step, p.durMs])).toEqual([
+    expect(l.ms).toBe(8);
+    expect(withLoadPart(ciStateParts(c, 175), l.ms).map((p) => [p.step, p.durMs])).toEqual([
       ["ci state gh lock", 52], ["ci state gh load", 8], ["ci state gh reserve", 10], ["ci state gh call", 100], ["ci state reduce", 5]]);
+    expect(withLoadPart([], 3)).toEqual([]);
+  });
+  it("the load step name is the Lean ciStateLoadStep", () => {
+    expect(readFileSync(join(root, "lean/Fw/Obs/Timing.lean"), "utf8")).toContain('def ciStateLoadStep : String := "ci state gh load"');
   });
   it("every part span carries the real exit of the command, 2 included", () => {
     const seen: (number | null)[] = [];
