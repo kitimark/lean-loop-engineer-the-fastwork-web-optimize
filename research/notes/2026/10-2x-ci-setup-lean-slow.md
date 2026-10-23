@@ -169,9 +169,35 @@ Answer to the 2026-10-23 open point: with the lead's push after every land a `ci
 
 Main lean run durations (createdAt to updatedAt): 2:50, 2:45, 3:27, 2:45, 3:42, 4:50, 3:15 (runs 39987250348, 39990786493, 39992907653, 39995021894, 39997512873, 39998749994, 39999887346). Gap from a main push to the next land run creation: 1.7 min (39995021894 to 39995255573), 1.6 min (39997512873 to 39997746052), 6 to 20 min otherwise.
 
-| land | wait for the in-flight main run | wall saved per leg (upper bound) | leg time saved |
-|---|---|---|---|
-| 39995255573 | 17:27:47Z (land created) to 17:28:49Z = 62 s | 2 files cost 11-12 s (39989742276, 39994191829 changed exactly them): 12 s | at most 4 legs x 12 s = 48 s |
-| 39997746052 | 17:45:53Z to 17:47:56Z = 123 s | 72 s step minus about 12 s for the own 2 files: 60 s | at most 2 legs x 60 s = 120 s |
+| land | wait for the in-flight main run | leg restore to main save | wall saved per leg (upper bound) | leg time saved |
+|---|---|---|---|---|
+| 39995255573 | 17:27:47Z (land created) to 17:28:49Z = 62 s | 36 s | 58 s step minus about 12 s for the own 2 files (39989742276, 39994191829 changed exactly 2): 46 s | at most 4 legs x 46 s = 184 s |
+| 39997746052 | 17:45:53Z to 17:47:56Z = 123 s | 91 s | 72 s step minus about 12 s for the own 2 files: 60 s | at most 2 legs x 60 s = 120 s |
 
-Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 60 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 168 s over 7 lands) are on free runners. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
+Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 60 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 304 s over 7 lands) are on free runners. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
+
+Correction 2026-10-24 (task lake-prune-verify): the first row of the table above gave 12 s as the wall saved; that is the 12 s of the own change, so the saved upper bound is 58 - 12 = 46 s (the rule holds: 46 < 62). `Fw.Ops.LakeCache.gateRows` and `no_gate_pays` now hold both rows with the gaps.
+
+## Follow-up 2026-10-24 (task lake-prune-verify): the pruned main entry, restored
+
+Status: item 1 MEASURED from existing runs (no run dispatched); item 2 decided; the behind-main case has no run (INFERRED only). Rules and measured inputs: `Fw.Ops.LakeCache` (`keeps`, `verdict`, `legs_ok`, `exe_pruned`), golden `packages/contracts/golden/ops/lake-cache.jsonl`.
+
+### 1. First restores of a pruned main entry (MEASURED from job logs)
+
+Main's first pruned save: lean run 40009814844 (7926425d5), blob 299 193 260 B (the entry before it was 1 886 179 142 B, run 40005295967). Later main saves: 312 257 527 B (run 40011143247, c1fdb5684), 306 150 625 B (run 40012913395). Entry = the newest main entry before the leg's restore; files = Lean files of the key's hash set that differ between the entry's commit and the leg's head; setup-lean = that step's seconds.
+
+| run (job) | what | entry restored | files | Built lines of jobs | setup-lean | verdict |
+|---|---|---|---|---|---|---|
+| 40010696608 (120610140089) | ci/accent-drawin-width-nolayout, first leg | 7926425d5 | 2 | 48 of 849 | 19 s | ok |
+| 40010826449 (120610621304) | same branch, next push | 7926425d5 | 2 | 48 of 849 | 24 s | ok |
+| 40011143247 (120611676101) | main lean | 7926425d5 | 1 (LandTier) | 51 of 849 | 19 s | ok |
+| 40011600530 (5 legs) | land legs | c1fdb5684 | 3 | 43-44 of 826 | 17-20 s | ok |
+| 40011600647 (120613247310) | ci lean | c1fdb5684 | 3 | 44 of 849 | 18 s | ok |
+| 40012913395 (120617723600) | main lean | c1fdb5684 | 3 | 44 of 849 | 18 s | ok |
+
+Reading: all 10 legs hit the restore-key and none rebuilt hundreds of modules (largest 51 Built lines; the rule `Fw.Ops.LakeCache.revertLines`: 200 or more reverts the prune). The prune step stays. With the unpruned entry (section 2 above) 3 changed files gave 56-76 Built lines; here the same count gave 43-44, so the pruned entry costs no extra rebuild. setup-lean fell to 17-24 s (41-88 s before) because the blob is 299-312 MB, not 1.35-1.8 GB; the restore rate was 87-212 MB/s. The Built modules are the dependents of the changed files plus `:c.o` lines plus a few more modules the diff does not name (6 of 39 for the 3-file legs, e.g. Fw.Ci.Trigger; INFERRED from the import graph at the current tree, not at each head).
+Branches behind main: no run in this window restored a pruned entry onto a branch whose Lean files lie behind the entry (the merge base of every branch with the entry's commit was the entry's commit). INFERRED: the old 8 GB entry held artifacts of older versions of each module, so a branch behind main by k Lean files now also rebuilds the dependents of those k files; the first behind branch will show it in this table. No run was dispatched (accepted limit unused).
+
+### 2. The fwcore executable (decision: stay pruned)
+
+The executable never has two links (`scripts/fwcore-build.sh` strips with `-o` and renames, which breaks the hard link), so the prune deletes it and each restoring job relinks it: `Built fwcore:exe` took 630-683 ms in the legs above. The stripped executable is 97 182 976 B (34 117 988 B zipped, artifact `fwcore-linux-arm64` of run 40012913395); keeping it would add about that to a 299-312 MB blob: 0.34 s at 100 MB/s, 1.4 s at the slowest rate seen (25 MB/s). The gain is at most the relink (0.68 s), below the 1 s the Lean rule asks (`exe_pruned`: a relink under `minGainMs` never keeps it), and stripping in place would change what the build record hashes. `scripts/fwcore-build.sh` and `lean.yml` stay unchanged.

@@ -1,0 +1,17 @@
+{"artifact":false,"keeps":true,"kind":"prune","links":1}
+{"artifact":true,"keeps":false,"kind":"prune","links":1}
+{"artifact":true,"keeps":true,"kind":"prune","links":2}
+{"artifact":true,"keeps":true,"kind":"prune","links":7}
+{"builtLines":48,"filesChanged":2,"hit":true,"job":120610140089,"jobs":849,"kind":"leg","run":40010696608,"setupS":19,"verdict":"ok"}
+{"builtLines":48,"filesChanged":2,"hit":true,"job":120610621304,"jobs":849,"kind":"leg","run":40010826449,"setupS":24,"verdict":"ok"}
+{"builtLines":51,"filesChanged":1,"hit":true,"job":120611676101,"jobs":849,"kind":"leg","run":40011143247,"setupS":19,"verdict":"ok"}
+{"builtLines":44,"filesChanged":3,"hit":true,"job":120613238438,"jobs":826,"kind":"leg","run":40011600530,"setupS":18,"verdict":"ok"}
+{"builtLines":43,"filesChanged":3,"hit":true,"job":120613238475,"jobs":826,"kind":"leg","run":40011600530,"setupS":17,"verdict":"ok"}
+{"builtLines":43,"filesChanged":3,"hit":true,"job":120613238494,"jobs":826,"kind":"leg","run":40011600530,"setupS":18,"verdict":"ok"}
+{"builtLines":43,"filesChanged":3,"hit":true,"job":120613238669,"jobs":826,"kind":"leg","run":40011600530,"setupS":20,"verdict":"ok"}
+{"builtLines":43,"filesChanged":3,"hit":true,"job":120613238767,"jobs":826,"kind":"leg","run":40011600530,"setupS":20,"verdict":"ok"}
+{"builtLines":44,"filesChanged":3,"hit":true,"job":120613247310,"jobs":849,"kind":"leg","run":40011600647,"setupS":18,"verdict":"ok"}
+{"builtLines":44,"filesChanged":3,"hit":true,"job":120617723600,"jobs":849,"kind":"leg","run":40012913395,"setupS":18,"verdict":"ok"}
+{"gapS":36,"kind":"gate","legBuildS":58,"ownS":12,"pays":false,"run":39995255573,"savedS":46,"waitS":62}
+{"gapS":91,"kind":"gate","legBuildS":72,"ownS":12,"pays":false,"run":39997746052,"savedS":60,"waitS":123}
+{"blobB":34117988,"gainMs":342,"keep":false,"kind":"exe","rateBps":100000000,"relinkMs":683}
