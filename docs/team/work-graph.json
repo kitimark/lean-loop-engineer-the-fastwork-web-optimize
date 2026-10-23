@@ -18951,7 +18951,8 @@
     "scripts/fwcore-build.sh",
     "docs/team/handoffs/lake-prune-verify.md"
    ],
-   "title": "ci-lake-prune-artifacts review follow-ups (2026-10-24): (1) cross-runner proof: the first land legs and ci/* runs that restore a PRUNED main entry: Built lines vs Lean files changed (revert the prune step if a leg rebuilds hundreds of modules); branches behind main lose the history hits of the old 8 GB entry, measure that too; (2) the fwcore exe always has links=1 (scripts/fwcore-build.sh:16-19 strip -o + rename breaks the hard link), so it is pruned and every restoring job relinks fwcore:exe: record the first shipped main save's blob size and decide whether to keep the exe (or strip in place); (3) item 3 table: add the leg-restore-after-save gaps (36 s, 91 s) next to the waits; (4) Lean first: the prune selection (artifacts with links=1, keep outputs/) and the do-not-gate rule as decisions in Fw.Ops.LakeCache with the measured inputs as a verdict and golden."
+   "title": "ci-lake-prune-artifacts review follow-ups (2026-10-24): (1) cross-runner proof: the first land legs and ci/* runs that restore a PRUNED main entry: Built lines vs Lean files changed (revert the prune step if a leg rebuilds hundreds of modules); branches behind main lose the history hits of the old 8 GB entry, measure that too; (2) the fwcore exe always has links=1 (scripts/fwcore-build.sh:16-19 strip -o + rename breaks the hard link), so it is pruned and every restoring job relinks fwcore:exe: record the first shipped main save's blob size and decide whether to keep the exe (or strip in place); (3) item 3 table: add the leg-restore-after-save gaps (36 s, 91 s) next to the waits; (4) Lean first: the prune selection (artifacts with links=1, keep outputs/) and the do-not-gate rule as decisions in Fw.Ops.LakeCache with the measured inputs as a verdict and golden.",
+   "evidence": "a1d40c6"
   },
   {
    "devices": [
@@ -19093,6 +19094,25 @@
     "lean/Fw/Plan/Polish.lean"
    ],
    "title": "build-review polish stage fails when the runner agent shortens the worktree line to ~/... (2026-10-24, overflow-widths-reads-code: 'polish-plan printed no worktree path'); fw itself printed the absolute path. Make the worktree identity survive redaction without trusting the runner's copy of an absolute path: e.g. fw polish plan also prints `worktree-name <wf_...>` and the workflow resolves the absolute dir from an identity it already holds, or the polish agents resolve it with `git worktree list` from the branch. Decide the rule in Lean if it is a decision; write the .claude/workflows/build-review.js change as exact text in the handoff (the lead applies .claude/ edits with the user present); test in polish tests. Also polish-protected-from-settings review follow-ups: (a) its handoff: add 'subagent worktrees: INFERRED same anchor' for isolation:worktree builders, and reword 'maps /x/** to x/x/y.md' as 'maps /<dir>/** to <dir>/x/y.md and /<file> to <file>'; (b) polish.test.ts sample(): check each /dir/** rule with a second sample dir/z.md so a narrower protectedDirs entry fails."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-prune-followups",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "lake-prune-verify"
+   ],
+   "writes": [
+    "lean/scripts/check.sh",
+    "lean/Fw/Ops/LakeCache.lean",
+    "packages/contracts/golden/ops/lake-cache.jsonl",
+    "research/notes/2026/10-2x-ci-setup-lean-slow.md",
+    "docs/team/handoffs/lake-prune-followups.md"
+   ],
+   "title": "lake-prune-verify review follow-ups (2026-10-24): (1) add the lake-cache golden check job to lean/scripts/check.sh (line in docs/team/handoffs/lake-prune-verify.md) so golden/ops/lake-cache.jsonl drift fails the check; (2) the first ci/* or land leg whose Lean tree is behind the restored pruned main entry: add its row to Fw.Ops.LakeCache.legs and the golden (today INFERRED only; every inspected branch had the entry commit as merge base); (3) note section 2: 'stripping in place would change what the build record hashes' gets a status (INFERRED) or a Lake source file:line@commit."
   }
  ],
  "deadline": {
