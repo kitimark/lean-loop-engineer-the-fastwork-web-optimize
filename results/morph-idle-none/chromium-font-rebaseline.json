@@ -5,6 +5,7 @@
   "target": "rewrite",
   "sha": "f3248e95435cc3217e4eca1fb4890940de8b028a",
   "fontLessReference": {
+    "range": "rest..tail (zones end at y04500), tail included",
     "layersBase": 28107,
     "layersFlag": 24667,
     "delta": -3440,
@@ -97,7 +98,7 @@
       "crossCheckBase": {
         "run": "39916914389",
         "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab",
-        "layers503": [
+        "layers545": [
           74370,
           74367,
           74365
@@ -163,7 +164,7 @@
   "crossCheckBase": {
     "run": "39916914389",
     "image": "sha256:47b1dcbe078b36109adcb0ae9cbf079a6cba733381a00be013ab0116b37d72ab",
-    "layers503": [
+    "layers545": [
       74370,
       74367,
       74365

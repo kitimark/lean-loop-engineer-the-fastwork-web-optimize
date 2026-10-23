@@ -140,8 +140,7 @@ Primary pair, one image id: both arms dispatched with `image_run=39914488176` (t
 - Sign and size hold: the flag has fewer layer-frames in 3 of 3 shards, delta -3329 to -3332. The earlier separate-image pair gave -3331 / -3330 /
   -3325, so the two pairs agree within 7 layer-frames per shard (0.2 % of the delta).
 - With the tail zone (575 frames) the delta is -3593, -3592, -3590. Drawing layers move by the same amount (-3330, -3331, -3330).
-- The base is about 2.65 times the font-less base (74368 against 28107; the font-less figure was recorded over 503 frames, so per frame about 136
-  against 56 layers). The relative win falls from -12.2 % to -4.5 %. The cause of the larger base stays INFERRED: the font-less lane laid the page
+- The base is about 2.65 times the font-less base (74368 against 28107; the font-less figure covers rest..tail, 503 frames, tail included, since its zones end at y04500; like for like with the tail: 78950 against 28107, per frame about 137 against 56, delta -3593 = -4.55 % against -12.2 %). The relative win falls from -12.2 % to about -4.5 %. The cause of the larger base stays INFERRED: the font-less lane laid the page
   out with fallback or missing text, so fewer boxes got layers; not measured here.
 - Correction: the first version of this section called the rest..y05000 range 503 frames; the sums were right (they match the zone sums), the
   frame count is 545.
