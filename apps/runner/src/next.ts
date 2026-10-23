@@ -258,8 +258,8 @@ export function formatNext(reply: NextReply): string[] {
  *  investigate + improve + prove task). */
 export const slowNextLines = (slow: string[]): string[] => slow.map((s) => `NEXT investigate step=${s}`);
 /** The `timing.slow` alerts of `fw watch`: one per slow step of fwcore's `obs.slow` (subject = `<tool>/<step>`). */
-export const slowAlerts = (slow: string[]): { code: string; subject: string; detail: string }[] =>
-  slow.map((s) => ({ code: "timing.slow", subject: s, detail: "latest sample is slow (Fw.Obs.Timing verdict); NEXT investigate step=" + s }));
+export const slowAlerts = (slow: string[], details: string[] = []): { code: string; subject: string; detail: string }[] =>
+  slow.map((s, i) => ({ code: "timing.slow", subject: s, detail: (details[i] ? details[i] + "; " : "latest sample is slow (Fw.Obs.Timing verdict); ") + "NEXT investigate step=" + s }));
 
 /** Alerts for `fw watch`: a kill proposal = agent.held, a land/route proposal = agent.unlanded (subject = agent id). */
 export function nextAlerts(reply: NextReply): { code: string; subject: string; detail: string }[] {

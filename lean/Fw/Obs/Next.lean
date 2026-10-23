@@ -1650,7 +1650,7 @@ def cases : List (String × Params × List Sample) :=
    ("slot run with a command key: the same durations alert", {}, bucketRun "slot run check sh lean/scripts/check.sh"),
    ("slot width: a 200 s width-1 group alerts under its width", {}, groupMix ++ [group (some 1) 2 200000])]
 
-def slowOf (p : Params) (ss : List Sample) : List String := Fw.Obs.Next.slowSteps (timingVerdicts p ss)
+def slowOf (p : Params) (ss : List Sample) : List String := Fw.Obs.Next.slowSteps (verdictsOf p ss)
 
 #guard cases.map (fun (_, p, ss) => slowOf p ss) ==
   [["fw/polish commit [checks=lakeBuild]"], ["fw/polish commit"], ["fw/polish commit [checks=lakeBuild]"], [], [],

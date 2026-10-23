@@ -28,12 +28,14 @@ export interface Deps {
   gen?: (root: string) => Promise<string[]>;
   worktree?: (cwd: string, branch: string) => string | null;
   remove?: (path: string) => void;
-  run?: (cwd: string, argv: string[]) => string;
+  run?: (cwd: string, argv: string[]) => string | null;
 }
 
-const realRun = (cwd: string, argv: string[]): string => {
+/** Runs `argv` in `cwd`; its output, or null when it did not exit 0 (a failed build made only some modules, so its count
+ *  is no work class for the span). */
+export const realRun = (cwd: string, argv: string[]): string | null => {
   const r = spawnSync(argv[0]!, argv.slice(1), { cwd, encoding: "utf8", maxBuffer: 64 << 20 });
-  return `${r.stdout ?? ""}${r.stderr ?? ""}`;
+  return r.status === 0 ? `${r.stdout ?? ""}${r.stderr ?? ""}` : null;
 };
 
 const realGit = (cwd: string, args: string[], input?: string) =>
@@ -154,12 +156,13 @@ export async function stagedChecks(dir: string, git: (cwd: string, args: string[
 /** The fields of the `fw polish commit` span: the staged checks and, when they include lake build, the modules the
  *  build made in `dir` (run here before `git commit`, so the hook's own lake build finds them built). */
 export async function stagedSpan(dir: string, git: (cwd: string, args: string[]) => string, call: CoreCall,
-  run: (cwd: string, argv: string[]) => string): Promise<{ checks: Checks; lake?: { built: number } } | null> {
+  run: (cwd: string, argv: string[]) => string | null): Promise<{ checks: Checks; lake?: { built: number } } | null> {
   const cmds = await stagedCmds(dir, git, call);
   if (!cmds) return null;
   const lake = cmds.find((c) => c.check === "lakeBuild" && typeof c.cwd === "string" && Array.isArray(c.argv) && c.argv.length > 0);
   if (!lake) return { checks: checksOf(cmds) };
-  return { checks: checksOf(cmds), lake: { built: builtModules(run(join(dir, lake.cwd as string), lake.argv as string[])) } };
+  const out = run(join(dir, lake.cwd as string), lake.argv as string[]);
+  return out === null ? { checks: checksOf(cmds) } : { checks: checksOf(cmds), lake: { built: builtModules(out) } };
 }
 
 const BASELINE = "fw-polish-untracked";

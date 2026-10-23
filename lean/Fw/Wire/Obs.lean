@@ -1009,7 +1009,8 @@ def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
          kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false,
-         waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j, work := ← workOf j }
+         waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j, work := ← workOf j,
+         ownMs := (opt j "ownMs").bind fun v => (v.getNat?).toOption }
 
 /-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
@@ -1038,13 +1039,26 @@ def reqOf (j : Json) : Except String (Fw.Obs.Timing.Params × List Fw.Obs.Timing
 /-- `obs.timing`: one verdict per full sample (`Fw.Obs.Timing.fullRun`), then the structural verdicts (`Fw.Obs.Timing.timingVerdicts`). -/
 def opTiming (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
-  pure [("verdicts", .arr ((Fw.Obs.Timing.timingVerdicts p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
+  pure [("verdicts", .arr ((Fw.Obs.Timing.verdictsOf p ss).map Fw.Wire.Obs.Timing.verdictJson).toArray)]
+
+/-- The line for an alert subject: the detail of the latest slow sample verdict of that subject (which sample, which baseline). -/
+def detailOf (vs : List Fw.Obs.Timing.Verdict) (s : String) : String :=
+  match (vs.filterMap fun
+      | .sample v => if v.code == .slow && Fw.Obs.Next.stepName v == s then some v.detail else none
+      | .structural _ => none).getLast? with
+  | some d => d
+  | none => ""
 
 /-- `obs.slow`: the alert subjects `<tool>/<step>[#<kind>][ [k=v,…]]` (`Fw.Obs.Next.subject`) of the ok to slow transitions (`Fw.Obs.Next.slowSteps` of the
 verdicts). -/
 def opSlow (req : Json) : Except String Reply := do
   let (p, ss) ← reqOf req
-  pure [("slow", .arr ((Fw.Obs.Next.slowSteps (Fw.Obs.Timing.timingVerdicts p ss)).toArray.map .str))]
+  let vs := Fw.Obs.Timing.verdictsOf p ss
+  let slow := Fw.Obs.Next.slowSteps vs
+  let base := [("slow", Json.arr (slow.toArray.map .str))]
+  match req.getObjVal? "detail" with
+  | .ok (.bool true) => pure (base ++ [("details", Json.arr (slow.toArray.map fun s => .str (detailOf vs s)))])
+  | _ => pure base
 
 end Timing
 
@@ -1152,6 +1166,8 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[\"t/s [width=2]\"]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"work\":3}]}" == "error: field work: expected an object"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
+#eval run "obs.slow" "{\"detail\":true,\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"}]}"
+#eval 0
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"exit\":null},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":16},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true}]}" ==
   "{\"slow\":[\"t/s\"]}"
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"ci\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2500,\"host\":\"ci\",\"exit\":0}]}" ==
