@@ -1162,8 +1162,7 @@ def run (op : String) (r : String) : String :=
   "{\"slow\":[\"t/s [width=2]\"]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"work\":3}]}" == "error: field work: expected an object"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
-#eval run "obs.slow" "{\"detail\":true,\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"}]}"
-#eval 0
+#guard run "obs.slow" "{\"detail\":true,\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"}]}" == "{\"details\":[\"sample #1 took 5000 ms, against baseline 100 ms (p50 of the 1 earlier samples of the same tool, step, host, run kind and work), budget 1000 ms\"],\"slow\":[\"t/s\"]}"
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"exit\":null},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":16},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true}]}" ==
   "{\"slow\":[\"t/s\"]}"
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"ci\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2500,\"host\":\"ci\",\"exit\":0}]}" ==
