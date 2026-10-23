@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { slowAlerts } from "../src/next.ts";
-import { stagedChecks, stagedSpan } from "../src/polish.ts";
+import { realRun, stagedChecks, stagedSpan } from "../src/polish.ts";
 import { begin, noteSpan } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
@@ -81,6 +81,16 @@ describe("stagedChecks: the checks of the staged files, asked of ops.checkMap", 
     expect(await stagedSpan(dir, git, async () => ({ cmds: [{ check: "shParse", cwd: ".", argv: ["sh", "-n"] }] }), run))
       .toEqual({ checks: { n: 1, kinds: ["shParse"] } });
     expect(await stagedSpan(dir, git, async () => ({ error: "x" }), run)).toBeNull();
+  });
+  it("stagedSpan records no lake member when the build run did not exit 0 (a failed build made only some modules)", async () => {
+    const call = async () => ({ cmds: [{ check: "lakeBuild", cwd: "lean", argv: ["lake", "build"] }] });
+    expect(await stagedSpan(dir, git, call, () => null)).toEqual({ checks: { n: 1, kinds: ["lakeBuild"] } });
+    expect(await stagedSpan(dir, git, call, () => "✔ [1/3] Built Fw.A (1s)\n")).toEqual({ checks: { n: 1, kinds: ["lakeBuild"] }, lake: { built: 1 } });
+  });
+  it("realRun gives the output of a command that exits 0 and null for one that fails, however much it printed", () => {
+    expect(realRun(dir, ["sh", "-c", "echo '[1/2] Built Fw.A (1s)'"])).toBe("[1/2] Built Fw.A (1s)\n");
+    expect(realRun(dir, ["sh", "-c", "echo '[1/2] Built Fw.A (1s)'; exit 1"])).toBeNull();
+    expect(realRun(dir, ["fw-no-such-command-x"])).toBeNull();
   });
   it.skipIf(!existsSync(fwcore))("with fwcore: a staged Lean module runs lake build", async () => {
     const call = async (req: Record<string, unknown>) => {

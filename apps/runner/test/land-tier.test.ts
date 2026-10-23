@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { candidateChecks, checksWithReads, LOCAL_TESTS, selectChecks } from "../src/land.ts";
+import { candidateChecks, checksWithReads, FWCORE_USERS, LOCAL_TESTS, selectChecks } from "../src/land.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 type Row = { name: string; request: { changed: string[]; tests: { id: string; reads: string[] }[] }; response: { select: string[] } };
@@ -29,5 +29,16 @@ describe("fw land selects compose.test", () => {
   });
   it("it is a candidate check", () => {
     expect(candidateChecks(root).some((x) => x.id === "console-api:compose")).toBe(true);
+  });
+});
+
+describe("a workflow change selects the overflow width test locally (incident 2026-10-24, task checkmap-workflow-widths-local)", () => {
+  const ID = "runner:overflow-widths";
+  it("every workflow file in the tree selects it; it is a fwcore user whose argv names the test file", () => {
+    const workflows = readdirSync(join(root, ".github/workflows")).filter((f) => /\.ya?ml$/.test(f));
+    expect(workflows).toContain("path-pix.yml");
+    for (const f of workflows) expect(checksWithReads(root, [`.github/workflows/${f}`]).map((c) => c.id), f).toContain(ID);
+    expect(candidateChecks(root).find((x) => x.id === ID)!.argv.at(-1)).toBe("test/land-overflow-widths.test.ts");
+    expect(FWCORE_USERS).toContain(ID);
   });
 });
