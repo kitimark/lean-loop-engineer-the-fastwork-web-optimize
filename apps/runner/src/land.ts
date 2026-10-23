@@ -5,7 +5,7 @@ import { availableParallelism, loadavg } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin as rawBegin, record as rawRecord, span as rawSpan } from "./timing.ts";
+import { begin as rawBegin, builtModules, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
 
 let stepPrefix = "";
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
@@ -682,6 +682,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     process.stderr.write(`${l}\n`);
   };
   let badKind: Kind = "checks";
+  let built = 0;
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
     badKind = "checks";
     mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
@@ -716,6 +717,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const bad: string[] = [], failedChecks: { reads: boolean; stages: string[] }[] = [];
     list.forEach((argv, i) => {
       const r = results[i]!;
+      built += builtModules(r.out);
       appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
       if (r.status !== 0) {
         failedChecks.push({ reads: READS_FAIL_RE.test(r.out), stages: failedStages(r.out) });
@@ -771,7 +773,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       if (outcomeKind(oc) !== "dry") return fail(detail || `dry land refused: ${outcomeKind(oc)}`, "unknown", oc);
       lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);
       return { ok: true, lines, kind: "dry", outcome: oc };
-    } finally { slot.free(); }
+    } finally {
+      slot.free();
+      if (dryStep?.endsWith("lake")) noteSpan("fw", "land dry", { lake: { built } });
+    }
   }
   const checks = o.checks ?? checksFor(mainDir, changed);
 
