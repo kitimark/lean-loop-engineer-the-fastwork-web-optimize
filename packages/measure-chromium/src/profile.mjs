@@ -1,7 +1,6 @@
 // The pure half of the profile loader (run.mjs reads the file, this checks it). Twin of Fw.Device.Session replayOk / strokeOk /
 // ordered / endFrame: test/profile.test.mjs checks it against the "loader" lines of packages/contracts/golden/device/session.jsonl.
-// Positions inside a replay are tenth CSS px (integers) in the checks and CSS px in the file. The kind, dropFlags, css and
-// user-agent half is the twin of Fw.Measure.Profile, checked against packages/contracts/golden/measure/profile.jsonl.
+// Positions inside a replay are tenth CSS px (integers) in the checks and CSS px in the file.
 
 const NEEDS = ['id', 'hz', 'viewport', 'pinnedDate', 'timezone', 'locale', 'seed', 'load', 'segments'];
 
@@ -31,24 +30,18 @@ export const HARD_CAP = 12000;
 
 const tenth = (v) => Math.round(v * 10);
 
-/** Lean `pinned`: harness flags no drop entry may remove. */
 export const PINNED = ['--remote-debugging-port=', '--user-data-dir=', '--enable-begin-frame-control', '--run-all-compositor-stages-before-draw'];
 
-/** Lean `Kind.dir`: the directory under packages/measure-chromium/ that holds the files of a kind. */
 export const DIRS = { counts: 'profiles', probe: 'probes' };
 
-/** Lean `parseKind`: absent is "counts", an unknown name is null. */
 export const parseKind = (k) => (k === undefined || k === null ? 'counts' : k === 'counts' || k === 'probe' ? k : null);
 
 const pre = (d, a) => a.startsWith(d);
 
-/** Lean `dropOk`: `--` and one more character, comparable by prefix with no pinned flag. */
 export const dropOk = (d) => d.length > 2 && pre('--', d) && PINNED.every((p) => !pre(d, p) && !pre(p, d));
 
-/** Lean `keep`: every argument that starts with no drop entry, in order. */
 export const keep = (args, drops) => args.filter((a) => !drops.some((d) => pre(d, a)));
 
-/** Lean `problem`: the first refusal of a wire record, null when the loader accepts it. */
 export function problem(w) {
   if (w.kind === 'counts' && w.dropFlags.length > 0) return 'dropInCounts';
   if (w.kind === 'counts' && w.variants !== 0) return 'variantsInCounts';
@@ -56,12 +49,10 @@ export function problem(w) {
   return w.css === '' ? 'emptyCss' : null;
 }
 
-/** Lean `userAgent`: Chrome 156's reduced user agent, Android for a mobile profile, Linux desktop otherwise. */
 export const userAgent = (mobile) => (mobile
   ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36'
   : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');
 
-/** The wire record of a profile file: `css` is null when absent, `variants` the length of `probe.variants`. */
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
   dropFlags: profile.dropFlags ?? [], variants: profile.probe?.variants?.length ?? 0,

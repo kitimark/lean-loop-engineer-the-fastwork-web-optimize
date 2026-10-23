@@ -34,9 +34,6 @@ const SEARCH = args.search && args.search !== true ? args.search : '';
 const TARGET = args.target ?? 'original';
 const POS = scrollRead(SEARCH) === 'scrollTop' ? 'document.scrollingElement.scrollTop' : 'scrollY';
 const srv = await startServer(ROOT);
-// Probes only (probes/balance-repro.json): FW_REPRO=<key> loads the minimal page profile.repro[key] instead of the target, and
-// FW_STOCK=cft:<version>|shell starts the browser as a user would (no BeginFrameControl, no emulation, none of the harness flags)
-// and reports whether the renderer survives the load. A counts run sets neither.
 const REPRO = process.env.FW_REPRO ? await startRepro(process.env.FW_REPRO) : null;
 if (process.env.FW_STOCK) await stockRun(process.env.FW_STOCK);
 

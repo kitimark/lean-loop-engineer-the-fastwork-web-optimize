@@ -6,30 +6,25 @@ Twin: `packages/measure-chromium/src/profile.mjs`, checked against `packages/con
 namespace Fw.Measure.Profile
 open Lean
 
-/-- What a profile file is for: `counts` runs record counts, a `probe` is a diagnostic that may crash by design. -/
 inductive Kind where
   | counts
   | probe
   deriving DecidableEq, Repr
 
-/-- The wire name of a kind. -/
 def Kind.name : Kind → String
   | .counts => "counts"
   | .probe => "probe"
 
-/-- The directory under `packages/measure-chromium/` that holds the files of a kind. -/
 def Kind.dir : Kind → String
   | .counts => "profiles"
   | .probe => "probes"
 
-/-- The `kind` field: absent is `counts`, an unknown name is refused (`none`). -/
 def parseKind : Option String → Option Kind
   | none => some .counts
   | some "counts" => some .counts
   | some "probe" => some .probe
   | some _ => none
 
-/-- The fields of a profile file decided here; `variants` is the length of `probe.variants` (0 when absent). -/
 structure Wire where
   kind : Kind
   mobile : Bool
@@ -38,22 +33,17 @@ structure Wire where
   variants : Nat
   deriving Repr
 
-/-- Harness flags a run cannot work without; no drop entry may remove them. -/
 def pinned : List String :=
   ["--remote-debugging-port=", "--user-data-dir=", "--enable-begin-frame-control", "--run-all-compositor-stages-before-draw"]
 
-/-- `pre d a`: `a` starts with `d` (JavaScript `a.startsWith(d)`). -/
 def pre (d a : String) : Bool := d.toList.isPrefixOf a.toList
 
-/-- A drop entry names a flag (`--` and one more character) and is comparable by prefix with no pinned flag. -/
 def dropOk (d : String) : Bool :=
   d.length > 2 && pre "--" d && pinned.all (fun p => !pre d p && !pre p d)
 
-/-- The harness arguments a run keeps: every argument that starts with no drop entry, in order. -/
 def keep (args drops : List String) : List String :=
   args.filter (fun a => !drops.any (fun d => pre d a))
 
-/-- Why a profile file is refused. -/
 inductive Problem where
   | badKind
   | dropInCounts
@@ -62,7 +52,6 @@ inductive Problem where
   | emptyCss
   deriving DecidableEq, Repr
 
-/-- The wire name of a problem. -/
 def Problem.name : Problem → String
   | .badKind => "badKind"
   | .dropInCounts => "dropInCounts"
@@ -70,7 +59,6 @@ def Problem.name : Problem → String
   | .badDrop _ => "badDrop"
   | .emptyCss => "emptyCss"
 
-/-- The first problem of a wire record, `none` when the loader accepts it. -/
 def problem (w : Wire) : Option Problem :=
   if w.kind = .counts ∧ w.dropFlags ≠ [] then some .dropInCounts
   else if w.kind = .counts ∧ w.variants ≠ 0 then some .variantsInCounts
@@ -78,7 +66,6 @@ def problem (w : Wire) : Option Problem :=
     | some d => some (.badDrop d)
     | none => if w.css = some "" then some .emptyCss else none
 
-/-- Chrome 156's reduced user agent: Android for a mobile profile, Linux desktop otherwise. -/
 def userAgent (mobile : Bool) : String :=
   if mobile then "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
   else "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
@@ -100,7 +87,6 @@ theorem mem_keep (args drops : List String) (a : String) :
     a ∈ keep args drops ↔ a ∈ args ∧ ∀ d ∈ drops, pre d a = false := by
   simp [keep]
 
-/-- A pinned flag survives every list of well-formed drop entries. -/
 theorem pinned_kept (args drops : List String) (a p : String) (hd : ∀ d ∈ drops, dropOk d = true)
     (ha : a ∈ args) (hp : p ∈ pinned) (hpa : pre p a = true) : a ∈ keep args drops := by
   refine (mem_keep args drops a).2 ⟨ha, fun d hm => ?_⟩
@@ -148,7 +134,6 @@ theorem problem_emptyCss (w : Wire) (hc : w.css = some "") (hk : w.kind = .probe
     · exact fun h => h.2 hv
   rw [problem_rest w h1 h2, (find_none_iff _).2 hd]; simp only [hc, ↓reduceIte]
 
-/-- The loader accepts a record exactly when no rule refuses it. -/
 theorem problem_eq_none (w : Wire) : problem w = none ↔
     (w.kind = .counts → w.dropFlags = [] ∧ w.variants = 0) ∧ (∀ d ∈ w.dropFlags, dropOk d = true) ∧ w.css ≠ some "" := by
   constructor
@@ -174,8 +159,6 @@ theorem problem_eq_none (w : Wire) : problem w = none ↔
 theorem userAgent_mobile : userAgent true = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36" := rfl
 theorem userAgent_desktop : userAgent false = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36" := rfl
 
-/-! ## Golden -/
-
 private def keepCases : List (List String × List String) :=
   let a := ["--remote-debugging-port=9222", "--no-sandbox", "--disable-gpu", "--user-data-dir=/tmp/p", "--enable-begin-frame-control",
     "--run-all-compositor-stages-before-draw", "--font-render-hinting=none", "--lang=en-US", "about:blank"]
@@ -195,7 +178,6 @@ private def wireCases : List Wire :=
 
 private def kindCases : List (Option String) := [none, some "counts", some "probe", some "Probe", some ""]
 
-/-- The lines of `packages/contracts/golden/measure/profile.jsonl`. -/
 def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("pinned", toJson pinned), ("ua", Json.mkObj [("mobile", userAgent true), ("desktop", userAgent false)]),
      ("dirs", Json.mkObj [("counts", Kind.counts.dir), ("probe", Kind.probe.dir)])]).compress] ++
@@ -206,10 +188,8 @@ def goldenLines (_ : Unit) : List String :=
   (wireCases.map fun w => (Json.mkObj [("kind", "wire"), ("wire", wireJson w),
      ("problem", match problem w with | some p => Json.str p.name | none => Json.null), ("dir", w.kind.dir), ("ua", userAgent w.mobile)]).compress)
 
-/-- The bytes of the golden. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
-/-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | "--check" :: path :: _ =>

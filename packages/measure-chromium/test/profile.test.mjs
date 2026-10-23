@@ -1,6 +1,5 @@
-// The profile loader's pure half (src/profile.mjs): every committed profile and probe loads in the directory of its kind, the
-// replay check agrees with the Lean golden (Fw.Device.Session replayOk, packages/contracts/golden/device/session.jsonl "loader"
-// lines), and the kind, dropFlags, css and user-agent rules agree with Fw.Measure.Profile (golden/measure/profile.jsonl).
+// The profile loader's pure half (src/profile.mjs): every committed profile loads, and the replay check agrees with the Lean
+// golden (Fw.Device.Session replayOk, packages/contracts/golden/device/session.jsonl "loader" lines).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
