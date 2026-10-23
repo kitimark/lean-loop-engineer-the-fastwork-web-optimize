@@ -259,13 +259,13 @@ theorem cell_blind {s : LookSeen} (c : LookCell) (h : s.midFloor < s.midChanged)
 
 /-- nav:clip-box, Simulator run gpu-safari-sim-2026-10-23T00-46-14-744Z at m0.5; CI morph trajectory run 39887328839. -/
 def clipBoxSeen : LookSeen :=
-  { restGate := true, cell := .e, midChanged := 1020729, midFloor := 0, morphRed := true }
+  { restGate := true, cell := .e, midChanged := 1012015, midFloor := 0, morphRed := true }
 /-- nav:bar-fixed at m0.5; CI morph trajectory run 39887331854. -/
 def barFixedSeen : LookSeen :=
-  { restGate := true, cell := .e, midChanged := 1021369, midFloor := 0, morphRed := true }
+  { restGate := true, cell := .e, midChanged := 1012655, midFloor := 0, morphRed := true }
 /-- nav:logo-3d at m0.5; CI morph trajectory run 39887335005. -/
 def logo3dSeen : LookSeen :=
-  { restGate := true, cell := .e, midChanged := 1021646, midFloor := 0, morphRed := true }
+  { restGate := true, cell := .e, midChanged := 1012932, midFloor := 0, morphRed := true }
 
 theorem clipBox_look : isLookChange clipBoxSeen = true := look_of_px (by decide)
 theorem barFixed_look : isLookChange barFixedSeen = true := look_of_px (by decide)

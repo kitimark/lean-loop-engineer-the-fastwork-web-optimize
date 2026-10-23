@@ -1,6 +1,6 @@
 branch: `worktree-wf_92a5f1de-e33-1`
 worktree: `.claude/worktrees/wf_92a5f1de-e33-1`
-last commit: see `git log -1` (single work commit on top of main deb64c934)
+last commit: a45207f89 (work commits ed38909c8, 29b30f24c; main 399d4823b merged)
 CI runs: none pushed (no new measurement; accepted limit). Evidence cited: gpu-safari local Simulator run gpu-safari-sim-2026-10-23T00-46-14-744Z (results/gpu-safari/nav-*.json), trajectory-probe runs 39887328839 clip-box, 39887331854 bar-fixed, 39887335005 logo-3d (morph path RED on both engines; nav-clip cell E 4 each).
 verified: `lake build Fw.Parts.Footprint`; Gen.run regenerated the preset goldens; check.sh and land dry see the report.
 open: user look review (keep or drop the three arms); macOS Safari evidence waits for the Mac unlock (gpu-safari-mac); registry-vs-rule agreement is by hand (Gen does not read the evidence): follow-up.
