@@ -117,6 +117,18 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   531 frames for 4626 px), a quarter of the 2000 that ran out, so a shortage of frames is not the arithmetic reason for the failure; a stall (the
   swipe stops advancing, for example a touch target at the stroke's start point that takes the vertical pan) fits 2000 frames at 0.41 s each. The
   error now names scrollY, the page's scroll range, the highest scrollY and the touch events sent, so a third failure shows which it is.
+- MEASURED, swipe-touch-v1 run 39920521620 (image_run=39914488176, maxFrames 2378) failed in all six jobs alike: scrollY highest 5342 of 5346, 2263 moves
+  (29 strokes, though 7 strokes of 780 px cover the page), 2322 touch events. So it is a stall 4 px short of the limit, not a frame shortage. INFERRED
+  cause: the compositor's scroll bound for a touch gesture is a few px below the main-thread bound (`scrollTo` reaches 5346). The old end condition
+  `yNow >= docHeight - realInnerHeight - 0.5` never held. swipe-v1 passed because it is `scrollTo` mode: its plan is fixed by frame count and the
+  engine clamps, so it never waits for a scroll position (575 frames, highest scrollY 5346 in run 39916914389). The error's `scrollY null` was the last
+  recorded frame, whose scrollY is filled one frame later; the message now prints the current reading.
+- Fix (Lean `Swipe.ended`, `Swipe.band` = dy, `Swipe.idleFrames` = 2 strokes; theorems `swipe_ended_limit`, `swipe_ended_stall`, `swipe_not_ended_far`,
+  `swipe_not_ended_moving`, `swipe_budget_idle`; golden rows `touchEnd`; twin `swipeEnded` in `profile.mjs`): the limit is the scroller's own
+  `scrollHeight - clientHeight` read once on the settled page; a touch or wheel swipe ends when scrollY reaches it, or when scrollY is within one move
+  of it and 164 frames (two strokes) gained nothing. A stall farther than one move from the limit is never accepted (it still fails at maxFrames).
+  The result records `input.scrollLimitPx`, `input.endReason` (limit or stalled) and `input.endGapPx`, so the next three runs show the gap. The wheel
+  profile maps to a one-move stroke (Swipe dy 0 dy 0 0). Not proved: the cause of the 4 px gap (a stall beyond one move would still fail).
 - Dispatch for the lead (the three swipe-touch-v1 runs must use image_run=39914488176, the image of the swipe-v1 runs, because the freeze refuses two image ids):
   `gh workflow run chromium-counts.yml --ref ci/counts-font-fidelity -f profile=swipe-touch-v1 -f target=both -f image_run=39914488176` three times; then
   `gh run download <id> --dir runs/<id> --pattern 'chromium-c*'` for the six runs and
