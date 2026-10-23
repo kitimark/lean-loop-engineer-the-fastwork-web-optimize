@@ -18206,6 +18206,28 @@
     "docs/team/handoffs/pathpix-accent-pin.md"
    ],
    "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-work-dims",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-slot-width"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/*Timing*Golden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "scripts/checkmap*.mjs",
+    "docs/team/handoffs/timing-work-dims.md"
+   ],
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples)."
   }
  ],
  "deadline": {
