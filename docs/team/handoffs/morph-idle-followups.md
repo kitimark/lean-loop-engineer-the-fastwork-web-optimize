@@ -6,7 +6,7 @@ Verdict (MEASURED, Lean-proved on the recorded sums): per-frame WebKit Paint/Com
 both views); layers down 128 -> 112 stays. Theorems run_39903977820_overlap, run_39915136431_overlap/_outcome in lean/Fw/Measure/WkCost.lean.
 Verified: lean/scripts/check.sh green; @fw/measure-webkit (407), @fw/site (6523 + typecheck), @fw/runner, scripts/ci-paths.test.mjs pass.
 Delivered: reducer (Lean + packages/measure-webkit/src/lag/morphcost.mjs + CLI morph-verdict), goldens in wkcost.jsonl (morphNorm, morphCells,
-morphOutcome, idleHold), IdleHold model lean/Fw/Measure/IdleHold.lean (here only because of the writes scope), site tests
+morphOutcome, idleHold), IdleHold model lean/Fw/Measure/IdleHold.lean, site tests
 morph.panel/scene.golden.test.ts, morph.columns/idle.golden.test.ts (writer -> attribute -> removal), idle.hold.golden.test.ts.
 Outside the writes: apps/runner/src/land.ts (one declared read of wkcost.jsonl for apps/site, required by land-inputs.test.ts).
 Open: item 4 Chromium base 28107 re-baseline on the font image waits for counts-font-fidelity (not landed). A phone arm would settle the sign.

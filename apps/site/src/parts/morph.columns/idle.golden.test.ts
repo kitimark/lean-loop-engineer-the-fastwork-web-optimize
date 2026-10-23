@@ -5,7 +5,6 @@ import { idleRemoved, idleStep, type IdleState } from './idle';
 
 const golden = readGolden('morph-idle-none', 'main');
 
-/** The attribute the panel's writer leaves for a milli-morph value: the same path the page takes to the removal. */
 function sceneAttr(mm: number): string | null {
   let scene: string | null = null;
   const panel = {

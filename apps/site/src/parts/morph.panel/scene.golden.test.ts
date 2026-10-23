@@ -4,7 +4,6 @@ import { createPanelWriter } from './driver';
 
 const rows = readGolden('morph-idle-none', 'main').filter((g) => g.fn === 'removed');
 
-/** The value the writer puts on `data-start-selling-scene` when it is driven with `morph`, null when it writes none. */
 function sceneWritten(morph: number): string | null {
   let scene: string | null = null;
   const panel = {

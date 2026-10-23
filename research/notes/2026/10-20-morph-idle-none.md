@@ -54,8 +54,7 @@ LayerTree reads in the zone (pass 0 / pass 1).
   about per-frame cost. Unsourced guess: WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
   not the 16 layers freed at rest.
 - Run 39903974246 shows failed: the Determinism sessions step hit its 35-minute timeout (2106 s, after two 120 s inspector retries) 4 s after the CLI wrote r1-lag.json and exited 0. align, merge and lag-report were skipped. The uploaded artifact holds both passes (cost ok, failed []).
-- Reduction of the layer reads: scratch script over `webkit-sim-r1/r1-lag.json` (snaps are [zone, layers]). The Paint / Composite
-  reduction is now committed (next section).
+- Reduction of the layer reads: scratch script over `webkit-sim-r1/r1-lag.json` (snaps are [zone, layers]).
 
 ## Per-frame Paint and Composite: the committed reducer and the verdict (task morph-idle-followups)
 
@@ -99,7 +98,7 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
 - Touch and WebKit attribution stay INFERRED (WebKit census is one session, layerCount spread 4-7 between passes; backing memory at y=3000
   and y=5231 is deterministic).
 - counts-lane-fonts changed the Chromium image after these runs. No Chromium rerun was made; the 28107 base and the
-  base-vs-flag delta come from one image (both arms at 540130e9f), so the delta stays valid; whether the base now differs is not measured.
+  delta come from one image (both arms at 540130e9f); whether the base now differs is not measured.
 - The glue is now checked: `IdleHold` (keep and restore of `currentTime`) runs the Lean model `Fw.Measure.IdleHold` golden (`wkcost.jsonl`, kind
   `idleHold`; `idle.hold.golden.test.ts`; theorems `restoreOne_hit`, `restoreOne_miss`, `keepOne_noTarget`, `keepOne_noTime`, `restore_twice`,
   `hold_returns_orig_clock` link the kept time to `origClock`). The scene threshold is checked in the attribute writer: `createPanelWriter(...).apply(mm / 1000)`

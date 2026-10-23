@@ -1,4 +1,3 @@
-// The per-frame cost reducer of the two morph arms agrees with the Lean golden (Fw.Measure.WkCost, golden/measure/wkcost.jsonl).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

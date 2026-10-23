@@ -10,7 +10,6 @@ const url = new URL('../../../../../packages/contracts/golden/measure/wkcost.jso
 const lines = readFileSync(url, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l) as HoldLine);
 const cases = lines.filter((l) => l.kind === 'idleHold');
 
-/** An animation with an element id as its target, as `IdleHold` reads one (`effect.target`, `currentTime`). */
 function fake(els: Map<number, object>, [target, time]: Anim) {
   let el: object | null = null;
   if (target !== null) {
