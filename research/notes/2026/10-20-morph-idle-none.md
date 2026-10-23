@@ -49,7 +49,7 @@ LayerTree reads in the zone (pass 0 / pass 1).
   deterministic in both passes.
 - Paint and Composite per frame: no win shown. The flag arm reads higher, but the runner's frame rate differed (frames in the zone: base 78 and
   36, flag 29 and 28) and one arm varies up to 3x between its own two passes (base idle composite 15875 vs 48705), so the sign of the delta is
-  not resolvable from these two-pass runs. The follow-up below (task morph-idle-followups) settles the method and the verdict.
+  not resolvable from these two-pass runs. The follow-up below settles the method and the verdict.
 - Why (INFERRED): the Lean model `tracks_layers_drop` counts layers only; it proves 5 layers -> 1 with the tracks not animated and says nothing
   about per-frame cost. Unsourced guess: WebKit composites the whole tree each frame that something animates (the tween), so cost follows the tree being redrawn,
   not the 16 layers freed at rest.
@@ -91,7 +91,8 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
 
 - Accepted limit: the CI Simulator is not the phone. A phone arm (the real GPU compositor) is the way to resolve the sign; it is not part of this task.
 - Item 4 (Chromium base 28107 layer-frames on the font image): not re-measured. counts-font-fidelity has not landed, so its
-  image is not the one to measure on; the base-vs-flag delta (-3440) stays valid because both arms ran on one image. Open, waits on counts-font-fidelity.
+  image is not the one to measure on; the base-vs-flag delta (-3440) stays valid because both arms ran on one image. Closed by the section
+  "Chromium re-baseline on the font image" below.
 
 ## Costs and limits
 
@@ -118,3 +119,34 @@ Reducer: `Fw.Measure.WkCost`, section "Morph zones: cost per frame of two arms";
 | breakpoint-gate both engines | | 39897800920 (merge job re-run once: ECONNRESET in download-artifact; all 7 shards succeeded) |
 
 Numbers: `results/morph-idle-none/report.json`.
+
+## Chromium re-baseline on the font image (task morph-idle-chromium-rebaseline)
+
+Item 4 above is closed: counts-font-fidelity landed (fonts-liberation pinned), so the Chromium lane now lays out with fonts. Lane:
+chromium-counts, swipe-v1, rewrite target, 3 VMs per arm. Unit: `census.layers` summed over the frames of zones rest..y05000 (545 frames: 10 +
+49 + 9 x 50 + 36; the 30-frame tail zone is left out), one sum per VM shard, from the `zones.json` each CI shard stores (zone sums by fwcore
+`measure.zoneSums`). Numbers: `results/morph-idle-none/chromium-font-rebaseline.json` (MEASURED).
+
+Primary pair, one image id: both arms dispatched with `image_run=39914488176` (the frozen font image), so all six shards report image
+`47b1dcbe`. Base run 39940682332 (no flag), flag run 39940686591 (`fw=morph.columns:idle-none`).
+
+| shard | base | flag | delta | % |
+|---|---|---|---|---|
+| r1 | 74368 | 71036 | -3332 | -4.48 |
+| r2 | 74365 | 71034 | -3331 | -4.48 |
+| r3 | 74366 | 71037 | -3329 | -4.48 |
+| font-less (earlier) | 28107 | 24667 | -3440 | -12.2 |
+
+- Sign and size hold: the flag has fewer layer-frames in 3 of 3 shards, delta -3329 to -3332. The earlier separate-image pair gave -3331 / -3330 /
+  -3325, so the two pairs agree within 7 layer-frames per shard (0.2 % of the delta).
+- With the tail zone (575 frames) the delta is -3593, -3592, -3590. Drawing layers move by the same amount (-3330, -3331, -3330).
+- The base is about 2.65 times the font-less base (74368 against 28107; the font-less figure covers rest..tail, 503 frames, tail included, since its zones end at y04500; like for like with the tail: 78950 against 28107, per frame about 137 against 56, delta -3593 = -4.55 % against -12.2 %). The relative win falls from -12.2 % to about -4.5 %. The cause of the larger base stays INFERRED: the font-less lane laid the page
+  out with fallback or missing text, so fewer boxes got layers; not measured here.
+- Correction: the first version of this section called the rest..y05000 range 503 frames; the sums were right (they match the zone sums), the
+  frame count is 545.
+
+Supporting pair, separate images: base run 39936881473 (image a49c0675) and flag run 39937184249 (image 4782bc54), dispatched with `fw run`
+(sha f3248e9, no `image_run`): base 74368 / 74365 / 74365, flag 71037 / 71035 / 71040, delta -3331 / -3330 / -3325 (-4.5 %). Base counts also agree
+with the frozen font baseline run 39916914389 (74370 / 74367 / 74365), so the rebuilds count alike.
+
+Chromium only. WebKit stays unresolved (see morph-idle-followups).
