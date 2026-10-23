@@ -18466,7 +18466,8 @@
     "research/notes/2026/10-2x-carousel-swap-webkit.md",
     "docs/team/handoffs/carousel-swap-followups.md"
    ],
-   "title": "carousel-swap-webkit-lane follow-ups (end-of-page lag zone): (1) the crop's every-third swap window (swap 1, 4, 7) shows Layout medians 14.5-15 vs 3.5-5.5 and Paint 20-20.5 vs 7-11 in the others: find the cause from the part's timing constants and WebKit source (which swap, which element relayouts), and say whether faithful shows the same pattern; (2) SwapWindow cell: add a minimum-n reason (unresolved:fewSamples when a faithful slot has < 3 samples) with theorem + golden, since single-job replays gave false wins; (3) swapreport prints the measured crop minimum next to the model line 'the crop none' (measured floor 3 Layout rows per window); (4) one [swap-lane] webkit-sim run with 3 completed jobs at one commit so the cells come from one run. Also from the round-2 review: (5) the [swap-lane] -> SWAP=--swap -> cli --swap path has never run on CI: the run in (4) must confirm swap captures still appear; (6) store a job id per sample in the swap cells JSON so per-run claims (e.g. 39937838325 alone gives the same Paint wins) are reproducible without assuming array order."
+   "title": "carousel-swap-webkit-lane follow-ups (end-of-page lag zone): (1) the crop's every-third swap window (swap 1, 4, 7) shows Layout medians 14.5-15 vs 3.5-5.5 and Paint 20-20.5 vs 7-11 in the others: find the cause from the part's timing constants and WebKit source (which swap, which element relayouts), and say whether faithful shows the same pattern; (2) SwapWindow cell: add a minimum-n reason (unresolved:fewSamples when a faithful slot has < 3 samples) with theorem + golden, since single-job replays gave false wins; (3) swapreport prints the measured crop minimum next to the model line 'the crop none' (measured floor 3 Layout rows per window); (4) one [swap-lane] webkit-sim run with 3 completed jobs at one commit so the cells come from one run. Also from the round-2 review: (5) the [swap-lane] -> SWAP=--swap -> cli --swap path has never run on CI: the run in (4) must confirm swap captures still appear; (6) store a job id per sample in the swap cells JSON so per-run claims (e.g. 39937838325 alone gives the same Paint wins) are reproducible without assuming array order.",
+   "evidence": "39451e8"
   },
   {
    "devices": [
@@ -18717,6 +18718,54 @@
     "docs/team/handoffs/ci-lake-prune-artifacts.md"
    ],
    "title": "ci-lake-cache-fresh follow-ups (2026-10-23): (1) the naive prune (find -links 1 -delete) broke restore (MEASURED, run 39985377389: 837 rebuilt, 423 s); before spending a run on an artifacts-only prune (find \"$LAKE_CACHE_DIR/artifacts\" -type f -links 1 -delete, keep outputs/), read lean4@eb6cafb Lake (Cache.lean outputsFile/artifactPath readers and the build fetch path) and cite file:line for whether a missing artifact under an existing outputs mapping is a miss (rebuild) or an error; only then one lean.yml run with blob size and a working restore; (2) collect more land legs after per-land main pushes with the Lean-files-changed column before concluding a ci/land-* save is not needed."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-accent-frozen-confirm",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "carousel-swap-followups"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "packages/measure-webkit/test/lag-*.test.mjs",
+    ".github/workflows/webkit-sim.yml",
+    "results/carousel-swap-webkit/**",
+    "research/notes/2026/10-2x-carousel-swap-webkit.md",
+    "docs/team/handoffs/hero-accent-frozen-confirm.md"
+   ],
+   "title": "carousel-swap-followups finding (2026-10-24): the every-third-window Layout/Paint pattern in the end-of-page swap windows matches the hero.accent draw cycle (1250+900+900 = 3050 ms vs 3 carousel periods of 3060 ms; stroke-dashoffset animations on both 900 ms draws require layout each frame, WebKit StyleDifference.cpp:161 via :399 @862f17d; width transition on draw-in, :404). Confirm it: one [swap-lane] run with hero.accent frozen from the harness (injected style setting animation: none and transition: none on the accent's elements, or emulated prefers-reduced-motion; no site edit) for the crop AND the faithful arm (diagnostic capture on both), 3 jobs at one commit; the busy runs must vanish and every swap window's Layout median drop to the idle level. Also report the hero.exit zone's Layout/Paint with and without the frozen accent, so the share of hero-exit work that is the accent is MEASURED. Follow-ups folded in: the capture slot (a/b) in the job key and FW_JOB_ID in webkit-sim.yml so each sample has a numeric job id."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-accent-draw-nolayout",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "hero-copy-floor-sources"
+   ],
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/flags/**",
+    "lean/Fw/Parts/HeroAccentOpt.lean",
+    "lean/Fw/Engine/StyleDiff*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/AccentNoLayoutGolden.lean",
+    "packages/contracts/golden/parts/hero.accent*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "research/notes/2026/10-2x-accent-draw-nolayout.md",
+    "results/accent-draw-nolayout/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hero-accent-draw-nolayout.md"
+   ],
+   "title": "Optimization (user goal: smoother hero exit and end-of-page in WebKit): the hero.accent draw animates stroke-dashoffset on the visible copy, and in WebKit every strokeDashOffset change requires layout (StyleDifference.cpp:161 svgDataChangeRequiresLayout via changeRequiresLayout :399 @862f17d), so the page relayouts on every frame of both 900 ms draws, page-wide (the end-of-page swap windows pay it: carousel-swap-followups). accent-draw-one (landed) removed the hidden copies' draws and found no win; this task removes the layout itself. Read WebKit source (StyleDifference.cpp, RenderSVGShape/RenderSVGPath layout and repaint, LegacyRenderSVG vs LBSE on the pinned commit) for each candidate: a mask or clip reveal driven by transform or clip-path, a pre-split dash with opacity, an SVG mask rect with transform, and Chromium's equivalent (blink style diff for stroke-dashoffset). Lean first: model the StyleDifference decision for the candidate properties from the cited source lines (one canonical table, theorem: the chosen arm's per-frame changes need no layout in both engines), goldens. Register flag hero.accent:draw-nolayout; visual sameness measured with path-pix against faithful across the draw (if not pixel-identical, class look-change for the user's visual review); one webkit-sim count run (swap lane and hero exit zone) with run id. Negative result is a finding with its Lean why."
   }
  ],
  "deadline": {

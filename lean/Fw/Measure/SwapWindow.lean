@@ -348,6 +348,7 @@ theorem predicted_crop_lt : predictedLayout 0 < predictedLayout 1 := by
 inductive Reason where
   | drift
   | noSamples
+  | fewSamples
   | floorBroken
   | overlap
   deriving Repr, DecidableEq
@@ -363,13 +364,17 @@ def Cell.name : Cell → String
   | .loss => "loss"
   | .unresolved .drift => "unresolved:drift"
   | .unresolved .noSamples => "unresolved:noSamples"
+  | .unresolved .fewSamples => "unresolved:fewSamples"
   | .unresolved .floorBroken => "unresolved:floorBroken"
   | .unresolved .overlap => "unresolved:overlap"
 
 def asRat (xs : List Int) : List Rat := xs.map fun x => Int.cast x
 
+def minFaithful : Nat := 3
+
 def cell (a1 a2 c : List Int) (dropped : Nat) : Cell :=
   if a1.isEmpty || a2.isEmpty || c.isEmpty then (if 0 < dropped then .unresolved .drift else .unresolved .noSamples)
+  else if a1.length < minFaithful || a2.length < minFaithful then .unresolved .fewSamples
   else if verdict (asRat a1) (asRat a2) != .overlap then .unresolved .floorBroken
   else match verdict (asRat (a1 ++ a2)) (asRat c) with
     | .lower => .win
@@ -384,28 +389,128 @@ theorem cell_noSamples (a1 a2 c : List Int) (h : a1 = [] ∨ a2 = [] ∨ c = [])
     cell a1 a2 c 0 = .unresolved .noSamples := by
   rcases h with rfl | rfl | rfl <;> simp [cell]
 
+theorem cell_fewSamples_a1 (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 ≠ []) (h3 : c ≠ [])
+    (hn : a1.length < minFaithful) : cell a1 a2 c d = .unresolved .fewSamples := by
+  simp [cell, h1, h2, h3, hn]
+
+theorem cell_fewSamples_a2 (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 ≠ []) (h3 : c ≠ [])
+    (hn : a2.length < minFaithful) : cell a1 a2 c d = .unresolved .fewSamples := by
+  simp [cell, h1, h2, h3, hn]
+
+theorem cell_two_samples_undecided (a1 a2 c : List Int) (d : Nat) (h1 : a1.length = 2) (h2 : a2 ≠ []) (h3 : c ≠ []) :
+    cell a1 a2 c d ≠ .win ∧ cell a1 a2 c d ≠ .loss := by
+  have h1' : a1 ≠ [] := by intro h; simp [h] at h1
+  have := cell_fewSamples_a1 a1 a2 c d h1' h2 h3 (by simp [minFaithful, h1])
+  simp [this]
+
 theorem cell_floorBroken (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 ≠ []) (h3 : c ≠ [])
+    (hn1 : minFaithful ≤ a1.length) (hn2 : minFaithful ≤ a2.length)
     (hf : verdict (asRat a1) (asRat a2) ≠ .overlap) : cell a1 a2 c d = .unresolved .floorBroken := by
-  simp [cell, h1, h2, h3, hf]
+  simp [cell, h1, h2, h3, hf, Nat.not_lt.mpr hn1, Nat.not_lt.mpr hn2]
 
 theorem cell_win (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 ≠ []) (h3 : c ≠ [])
+    (hn1 : minFaithful ≤ a1.length) (hn2 : minFaithful ≤ a2.length)
     (hf : verdict (asRat a1) (asRat a2) = .overlap) (hs : sepBelow (asRat c) (asRat (a1 ++ a2)) = true) :
     cell a1 a2 c d = .win := by
   have hne : asRat (a1 ++ a2) ≠ [] := by simp [asRat, h1]
   have hc : asRat c ≠ [] := by simp [asRat, h3]
-  simp [cell, h1, h2, h3, hf, verdict_lower hne hc hs]
+  simp [cell, h1, h2, h3, hf, verdict_lower hne hc hs, Nat.not_lt.mpr hn1, Nat.not_lt.mpr hn2]
 
 theorem cell_loss (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 ≠ []) (h3 : c ≠ [])
+    (hn1 : minFaithful ≤ a1.length) (hn2 : minFaithful ≤ a2.length)
     (hf : verdict (asRat a1) (asRat a2) = .overlap) (hs : sepBelow (asRat (a1 ++ a2)) (asRat c) = true) :
     cell a1 a2 c d = .loss := by
   have hne : asRat (a1 ++ a2) ≠ [] := by simp [asRat, h1]
   have hc : asRat c ≠ [] := by simp [asRat, h3]
-  simp [cell, h1, h2, h3, hf, verdict_higher hne hc hs]
+  simp [cell, h1, h2, h3, hf, verdict_higher hne hc hs, Nat.not_lt.mpr hn1, Nat.not_lt.mpr hn2]
 
 theorem cell_overlap (a1 a2 c : List Int) (d : Nat) (h1 : a1 ≠ []) (h2 : a2 ≠ []) (h3 : c ≠ [])
+    (hn1 : minFaithful ≤ a1.length) (hn2 : minFaithful ≤ a2.length)
     (hf : verdict (asRat a1) (asRat a2) = .overlap) (hs : sepBelow (asRat c) (asRat (a1 ++ a2)) = false)
     (ht : sepBelow (asRat (a1 ++ a2)) (asRat c) = false) : cell a1 a2 c d = .unresolved .overlap := by
-  simp [cell, h1, h2, h3, hf, verdict_overlap hs ht]
+  simp [cell, h1, h2, h3, hf, verdict_overlap hs ht, Nat.not_lt.mpr hn1, Nat.not_lt.mpr hn2]
+
+def restFrames60 : Nat := Int.toNat (restUs * 60 / 1000000)
+
+theorem restFrames60_eq : restFrames60 = 48 := by decide
+
+def busyMin : Nat := restFrames60 / 2
+
+theorem busyMin_eq : busyMin = 24 := by decide
+
+inductive Bg where
+  | idle
+  | busy
+  | mixed
+  | unknown
+  deriving Repr, DecidableEq
+
+def Bg.name : Bg → String
+  | .idle => "idle"
+  | .busy => "busy"
+  | .mixed => "mixed"
+  | .unknown => "unknown"
+
+def bgOf (ns : List Nat) : Bg :=
+  if ns.isEmpty then .unknown
+  else if ns.all (fun n => busyMin ≤ n) then .busy
+  else if ns.all (fun n => n < busyMin) then .idle
+  else .mixed
+
+theorem bgOf_unknown : bgOf [] = .unknown := by simp [bgOf]
+
+theorem bgOf_busy (ns : List Nat) (hne : ns ≠ []) (h : ∀ n ∈ ns, busyMin ≤ n) : bgOf ns = .busy := by
+  have h1 : ns.isEmpty = false := by simpa [List.isEmpty_iff] using hne
+  have h2 : ns.all (fun n => busyMin ≤ n) = true := by simpa [List.all_eq_true] using h
+  simp [bgOf, h1, h2]
+
+theorem bgOf_idle (ns : List Nat) (hne : ns ≠ []) (h : ∀ n ∈ ns, n < busyMin) : bgOf ns = .idle := by
+  have h1 : ns.isEmpty = false := by simpa [List.isEmpty_iff] using hne
+  have h2 : ns.all (fun n => busyMin ≤ n) = false := by
+    obtain ⟨a, ha⟩ := List.exists_mem_of_ne_nil ns hne
+    have hlt := h a ha
+    cases hall : ns.all (fun n => busyMin ≤ n)
+    · rfl
+    · have := (List.all_eq_true.mp hall) a ha
+      simp at this; omega
+  have h3 : ns.all (fun n => n < busyMin) = true := by simpa [List.all_eq_true] using h
+  simp [bgOf, h1, h2, h3]
+
+theorem bgOf_mixed (ns : List Nat) (a b : Nat) (ha : a ∈ ns) (hb : b ∈ ns) (hao : busyMin ≤ a) (hbo : b < busyMin) :
+    bgOf ns = .mixed := by
+  have h1 : ns.isEmpty = false := by
+    cases ns with
+    | nil => simp at ha
+    | cons x xs => rfl
+  have h2 : ns.all (fun n => busyMin ≤ n) = false := by
+    cases hall : ns.all (fun n => busyMin ≤ n)
+    · rfl
+    · have := (List.all_eq_true.mp hall) b hb
+      simp at this; omega
+  have h3 : ns.all (fun n => n < busyMin) = false := by
+    cases hall : ns.all (fun n => n < busyMin)
+    · rfl
+    · have := (List.all_eq_true.mp hall) a ha
+      simp at this; omega
+  simp [bgOf, h1, h2, h3]
+
+theorem bgOf_floor : bgOf [5, 5] = .idle := by decide
+
+theorem bgOf_full : bgOf [restFrames60, restFrames60] = .busy := by decide
+
+def swapNeighbours (k n : Nat) : List Nat := (if 0 < k then [k - 1] else []) ++ (if k + 1 < n then [k] else [])
+
+theorem swapNeighbours_first (n : Nat) (h : 1 < n) : swapNeighbours 0 n = [0] := by
+  simp [swapNeighbours]; omega
+
+theorem swapNeighbours_last (n : Nat) (h : 1 < n) : swapNeighbours (n - 1) n = [n - 2] := by
+  have h1 : 0 < n - 1 := by omega
+  have h2 : ¬ (n - 1 + 1 < n) := by omega
+  have h3 : n - 1 - 1 = n - 2 := by omega
+  simp [swapNeighbours, h1, h2, h3]
+
+theorem swapNeighbours_mid (k n : Nat) (h0 : 0 < k) (h1 : k + 1 < n) : swapNeighbours k n = [k - 1, k] := by
+  simp [swapNeighbours, h0, h1]
 
 private def phaseJ (p : Phase) : Json := toJson (match p with | .swap k => s!"swap:{k}" | .rest k => s!"rest:{k}" | .outside => "outside")
 
@@ -432,20 +537,31 @@ private def recCases : List (List Win × List Rec) :=
    ([], [⟨"Layout", 1⟩])]
 
 private def cellCases : List (List Int × List Int × List Int × Nat) :=
-  [([13, 13], [13, 12], [0, 0], 0), ([13, 13], [13, 12], [0, 12], 0), ([13, 13], [13, 12], [20, 21], 0), ([13, 13], [30, 30], [0, 0], 0),
+  [([13, 13, 14], [13, 12, 13], [0, 0], 0), ([13, 13, 14], [13, 12, 13], [0, 12], 0), ([13, 13, 14], [13, 12, 13], [20, 21], 0),
+   ([13, 13, 14], [30, 30, 31], [0, 0], 0),
+   ([13, 13], [13, 12, 13], [0, 0], 0), ([13, 13, 14], [13, 12], [0, 0], 0), ([13, 13], [13, 12], [20, 21], 0), ([13], [13], [0], 0),
    ([], [13], [0], 0), ([], [13], [0], 2), ([13], [], [0], 0), ([13], [13], [], 1),
-   ([2, 3], [2, 3], [2, 3], 0), ([5], [5], [5], 0), ([5], [5], [4], 0), ([5], [5], [6], 0)]
+   ([2, 3, 3], [2, 3, 2], [2, 3], 0), ([5, 5, 5], [5, 5, 5], [5], 0), ([5, 5, 5], [5, 5, 5], [4], 0), ([5, 5, 5], [5, 5, 5], [6], 0),
+   ([5, 5, 6], [5, 6, 6], [1, 2], 0)]
 
-private def goldenLines : List String :=
+private def bgCases : List (List Nat) :=
+  [[], [5], [47], [5, 5], [47, 49], [5, 47], [23, 23], [24, 24], [24, 23], [28, 49], [42, 5], [50, 50]]
+
+private def nbCases : List (Nat × Nat) := [(0, 8), (1, 8), (6, 8), (7, 8), (0, 1), (0, 2), (1, 2)]
+
+private def goldenLinesA : List String :=
   [(Json.mkObj [("kind", "swapConst"), ("restUs", restUs), ("swapUs", swapUs), ("periodUs", periodUs), ("periods", periods),
-    ("tolUs", tolUs), ("deadlineUs", deadlineUs periods), ("frames60", windowFrames60)]).compress] ++
+    ("tolUs", tolUs), ("deadlineUs", deadlineUs periods), ("frames60", windowFrames60),
+    ("minFaithful", minFaithful), ("busyMin", busyMin)]).compress] ++
   (nomCases.map fun (s0, n) =>
     (Json.mkObj [("kind", "swapNominal"), ("s0", s0), ("n", n), ("wins", Json.arr ((nominal s0 n).map winJ).toArray),
       ("valid", Json.arr ((List.range n).map fun k => toJson (validAt (nominal s0 n) k)).toArray)]).compress) ++
   (([wsNominal, wsDrift, wsOne, []]).map fun ws =>
     (Json.mkObj [("kind", "swapPhase"), ("wins", Json.arr (ws.map winJ).toArray), ("ts", toJson (phaseTimes ws)),
       ("phases", Json.arr ((phaseTimes ws).map fun t => phaseJ (phaseOf ws t)).toArray),
-      ("valid", Json.arr ((List.range (ws.length + 1)).map fun k => toJson (validAt ws k)).toArray)]).compress) ++
+      ("valid", Json.arr ((List.range (ws.length + 1)).map fun k => toJson (validAt ws k)).toArray)]).compress)
+
+private def goldenLinesB : List String :=
   (recCases.map fun (ws, rs) =>
     (Json.mkObj [("kind", "swapCount"), ("wins", Json.arr (ws.map winJ).toArray), ("recs", Json.arr (rs.map recJ).toArray),
       ("cells", Json.arr (((List.range ws.length).flatMap fun k =>
@@ -455,8 +571,12 @@ private def goldenLines : List String :=
   (cellCases.map fun (a1, a2, c, d) =>
     (Json.mkObj [("kind", "swapCell"), ("a1", toJson a1), ("a2", toJson a2), ("crop", toJson c), ("dropped", d),
       ("cell", (cell a1 a2 c d).name)]).compress) ++
+  (bgCases.map fun ns =>
+    (Json.mkObj [("kind", "swapBg"), ("rows", toJson ns), ("bg", (bgOf ns).name)]).compress) ++
+  (nbCases.map fun (k, n) =>
+    (Json.mkObj [("kind", "swapNeighbours"), ("k", k), ("n", n), ("rests", toJson (swapNeighbours k n))]).compress) ++
   [(Json.mkObj [("kind", "swapPredict"), ("faithful", predictedLayout 1), ("crop", predictedLayout 0)]).compress]
 
-def swapGoldenLines : List String := goldenLines
+def swapGoldenLines : List String := goldenLinesA ++ goldenLinesB
 
 end Fw.Measure.SwapWindow
