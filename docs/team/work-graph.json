@@ -19077,7 +19077,8 @@
     "apps/runner/test/land-overflow-widths.test.ts",
     "docs/team/handoffs/overflow-widths-scope-data.md"
    ],
-   "title": "overflow-widths-reads-code review follow-up (2026-10-24): gate-jobs.mjs --parts reads packages/gate-breakpoints/src/scope.gen.json through spec.scopeFor -> loadScope (spec.mjs:38-42), but plannerFiles omits it, so a scope.gen.json-only change does not select runner:overflow-widths. Add it to plannerFiles, extend plannerFiles_select by one case, regenerate the golden, one test row."
+   "title": "overflow-widths-reads-code review follow-up (2026-10-24): gate-jobs.mjs --parts reads packages/gate-breakpoints/src/scope.gen.json through spec.scopeFor -> loadScope (spec.mjs:38-42), but plannerFiles omits it, so a scope.gen.json-only change does not select runner:overflow-widths. Add it to plannerFiles, extend plannerFiles_select by one case, regenerate the golden, one test row.",
+   "evidence": "b61aebc"
   },
   {
    "devices": [
