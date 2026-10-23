@@ -266,7 +266,7 @@ theorem error_iff (tr : List String) (gs : List Gap) (t : Task) :
     exact ⟨_, List.mem_append_left _ (List.mem_map_of_mem hp), rfl⟩
 
 def jsSpace (c : Char) : Bool :=
-  "\t\n\x0b\x0c\r       　﻿".contains c || (' ' ≤ c && c ≤ ' ')
+  "\t\n\x0b\x0c\r \u00a0\u1680\u2028\u2029\u202f\u205f\u3000\uFEFF".contains c || ('\u2000' ≤ c && c ≤ '\u200a')
 
 def readStop (c : Char) : Bool := jsSpace c || "'\"`;)|&<>".contains c
 
@@ -298,6 +298,39 @@ def ghGlob : List Char → List Char → Bool
 def ghMatches (globs : List String) (p : String) : Bool :=
   globs.foldl (fun hit g => if g.startsWith "!" then hit && !ghGlob (g.toList.drop 1) p.toList
     else hit || ghGlob g.toList p.toList) false
+
+def rowGlobChar (c : Char) : Bool := c.isAlphanum || ['.', '_', '-', '/', '*'].contains c
+
+def globBody : List Char → List Char
+  | '!' :: r => r
+  | r => r
+
+def rowGlob (g : String) : Bool := !(globBody g.toList).isEmpty && (globBody g.toList).all rowGlobChar
+
+theorem rowGlob_iff (g : String) :
+    rowGlob g = true ↔ globBody g.toList ≠ [] ∧ ∀ c ∈ globBody g.toList, rowGlobChar c = true := by
+  simp [rowGlob]
+
+theorem rowGlob_empty_refused (g : String) (h : globBody g.toList = []) : rowGlob g = false := by
+  simp [rowGlob, h]
+
+theorem rowGlob_char_refused (g : String) (c : Char) (hc : c ∈ globBody g.toList) (hr : rowGlobChar c = false) :
+    rowGlob g = false := by
+  cases hg : rowGlob g
+  · rfl
+  · exact absurd ((rowGlob_iff g).mp hg |>.2 c hc) (by simp [hr])
+
+theorem mem_globBody (l : List Char) (c : Char) (h : c ∈ l) : c = '!' ∨ c ∈ globBody l := by
+  match l, h with
+  | '!' :: r, h => simpa [globBody] using h
+  | [], h => simp at h
+  | a :: r, h => by_cases ha : a = '!' <;> simp_all [globBody]
+
+theorem rowGlob_meta_refused (g : String) (c : Char) (hc : c ∈ g.toList) (hm : c = '?' ∨ c = '+' ∨ c = '[') :
+    rowGlob g = false := by
+  rcases mem_globBody _ c hc with rfl | hb
+  · rcases hm with h | h | h <;> exact absurd h (by decide)
+  · exact rowGlob_char_refused g c hb (by rcases hm with rfl | rfl | rfl <;> decide)
 
 structure Read where
   script : String
@@ -366,6 +399,10 @@ theorem trigger_only_by_unmatched_read (tr ws : List String) (ss : List (String 
 #guard !ghMatches ["lean/Fw"] "lean/Fw/X.lean" && ghMatches ["a/**/c.json"] "a/c.json"
 #guard ghMatches ["**", "!x/**", "x/y"] "x/y" && !ghMatches ["x/y", "!x/**"] "x/y"
 #guard normRead "a//b/./c.json" == "a/b/c.json"
+#guard normRead "a/../b" == "a/../b"
+#guard jsSpace '\u00a0' && jsSpace '\u2005' && jsSpace '\uFEFF' && !jsSpace '\u200b' && !jsSpace 'a'
+#guard rowGlob "lean/**" && rowGlob "!lean/Fw/A_b-c.lean" && !rowGlob "" && !rowGlob "!" && !rowGlob "!!a"
+#guard !rowGlob "lean/?.lean" && !rowGlob "a+" && !rowGlob "lean/[ab].lean" && !rowGlob "@fwcore"
 #guard inputGaps [("s", "../a ../b ../$c")] ["a"] == [⟨"s", some "b"⟩, ⟨"s", none⟩]
 #guard gapsOf [("s", "../a ../b ../$c")] ["a"] == [⟨"s", "b"⟩]
 
@@ -504,7 +541,7 @@ def otherScripts : List (String × String) := [(checkSh, readText otherGap.path)
 
 def mainScripts : List (String × String) := [(checkSh, readText "packages/contracts/golden/parts/footprint.gen.json")]
 
-#guard gapsOf mainScripts leanRow == []
+#guard gapsOf mainScripts leanRow == [] && leanRow.all rowGlob
 #guard gapsOf classposScripts leanRow == [classposGap]
 #guard gapsOf sumsScripts leanRow == [sumsGap]
 #guard gapsOf otherScripts leanRow == [otherGap]
@@ -654,6 +691,12 @@ def globVectors : List (List String × String) := [
 def globRow (gs : List String) (p : String) : Json :=
   Json.mkObj [("type", "glob"), ("globs", strs gs), ("path", p), ("match", ghMatches gs p)]
 
+def rowGlobVectors : List String :=
+  leanRow ++ ["lean/Fw/A_b-c.lean", "!lean/a.lean", "", "!", "!!a", "lean/?.lean", "a+", "lean/[ab].lean", "lean/[!a]",
+    "a b", "a{b,c}", "@fwcore", "lean/\u00e9.lean", "lean/a\\b"]
+
+def rowGlobRow (g : String) : Json := Json.mkObj [("type", "rowGlob"), ("glob", g), ("ok", rowGlob g)]
+
 def gapVectors : List (List (String × String) × List String) := [
   ([("lean/scripts/check.sh", "job a x --check ../packages/a.jsonl ../packages/b.jsonl ../lean/Fw/X.lean ../$V\n"),
     ("lean/scripts/other.sh", "node ../packages/c.json\n")], ["lean/**", "packages/a.jsonl"]),
@@ -698,6 +741,7 @@ def pathVectors : List (List String × String) := [
 def goldenText (_ : Unit) : String :=
   String.join ((pathVectors.map fun (tr, w) => (pathRow tr w).compress ++ "\n") ++
     (cases.map fun c => (caseRow c).compress ++ "\n") ++ (globVectors.map fun (gs, p) => (globRow gs p).compress ++ "\n") ++
+    (rowGlobVectors.map fun g => (rowGlobRow g).compress ++ "\n") ++
     (gapVectors.map fun (ss, gs) => (gapRow ss gs).compress ++ "\n") ++
     syncVectors.map fun (b, a) => (syncRow b a).compress ++ "\n")
 

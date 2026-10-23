@@ -843,16 +843,25 @@ export function leanScriptPaths(text) {
   return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
+/** Twin of Lean `normRead`: drops empty and `.` segments and keeps `..`, so `a/../b` is matched as written, not as `b`. */
 export const normRead = (p) => p.split('/').filter((x) => x !== '' && x !== '.').join('/');
+
+/** Twin of Lean `rowGlob`: a lean.yml row glob is, after one optional leading `!`, a non-empty run of ASCII letters,
+ *  digits and `._-/*`, the subset on which `matches` and Lean `ghMatches` agree. */
+export const rowGlob = (g) => /^[A-Za-z0-9._\-/*]+$/.test(g.startsWith('!') ? g.slice(1) : g);
 
 export function gapsFrom(scripts, globs) {
   return scripts.flatMap(({ script, text }) => leanScriptPaths(text).map((p) => ({ script, path: p === null ? null : normRead(p) })))
     .filter((r) => r.path === null || !matches(globs, r.path));
 }
 
-export function leanInputGaps(root, table) {
+export function leanRowGlobs(root, table) {
   const row = table.workflows.find((w) => w.file === 'lean.yml');
-  const globs = row ? expand(setMapFor(root, table), row.inputs) : [];
+  return row ? expand(setMapFor(root, table), row.inputs) : [];
+}
+
+export function leanInputGaps(root, table) {
+  const globs = leanRowGlobs(root, table);
   const dir = join(root, 'lean', 'scripts');
   const scripts = readdirSync(dir).filter((x) => x.endsWith('.sh')).sort().map((f) => ({ script: `lean/scripts/${f}`, text: readFileSync(join(dir, f), 'utf8') }));
   return gapsFrom(scripts, globs);
@@ -860,6 +869,9 @@ export function leanInputGaps(root, table) {
 
 export function leanInputProblems(root, table) {
   if (!table.workflows.some((w) => w.file === 'lean.yml')) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
+  const bad = leanRowGlobs(root, table).filter((g) => !rowGlob(g))
+    .map((g) => `lean.yml: row glob ${JSON.stringify(g)} is outside the plain subset (Lean Fw.Plan.WritesClosure.rowGlob: letters, digits, ._-/*), where the writes-closure matcher and GitHub agree`);
+  if (bad.length) return bad;
   return leanInputGaps(root, table).map(({ script, path }) => path === null
     ? `${script}: reads a ../ path that is not a literal file path (write it out, so the lean row can name it)`
     : `${script}: reads ../${path}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
