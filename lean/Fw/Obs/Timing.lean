@@ -12,8 +12,7 @@ agent to investigate and improve (task `timing-alert` wires the op and the alert
 
 Definitions (all durations in whole ms, `Nat`):
 * A sample is `(tool, step, d, h, λ, kind, work)` with host `h ∈ {local, ci}`,
-  `λ` the floor of the 1-min load average when it ran and `work` its work dimensions (`slotWork`: the granted Lake slot
-  width, none for a span written without one). Its key is `(tool, step, h, kind, work)`.
+  `λ` the floor of the 1-min load average when it ran and `work` its work dimensions. Its key is `(tool, step, h, kind, work)`.
 * A local sample with `λ > L` is **contended** (`L = contendedLoad = 8`, the CPUs of the local Mac): the machine ran more
   runnable tasks than CPUs, so its duration says how busy the machine was, not how the step changed. It gets the verdict
   `contended` (never `slow`) and never enters a window. A CI sample is never contended.
@@ -808,8 +807,6 @@ theorem filter_key_work (hist : List Sample) (s : Sample) :
     simp [h, hw]
   · simp [h]
 
-/-- The verdict of a sample depends only on the samples with its work dimensions: two histories with the same such
-samples, in the same order, give the same verdict, whatever samples of other widths they hold. -/
 theorem judgeQ_same_work (p : Params) (hist hist' : List Sample) (i : Nat) (s : Sample)
     (h : hist.filter (fun x => decide (x.work = s.work)) = hist'.filter (fun x => decide (x.work = s.work))) :
     judgeQ p hist i s = judgeQ p hist' i s := by
@@ -822,7 +819,6 @@ theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s 
   rw [List.filter_append, List.append_right_eq_self]
   exact List.filter_eq_nil_iff.2 (fun x hx => by simpa using h x hx)
 
-/-- A window over samples without work dimensions, for a key without them, is the window of the four-field key. -/
 theorem windowOf_unworked (p : Params) (hist : List Sample) (k : Key) (hk : k.work = [])
     (hh : ∀ x ∈ hist, x.work = []) :
     windowOf p hist k = lastN p.window ((hist.filter (fun s =>
@@ -1889,8 +1885,6 @@ def group (w : Option Nat) (load d : Nat) : Sample :=
   { tool := "lean/check", step := "parallel group", durMs := d, host := .«local», load, exit := some 0,
     work := slotWork w none }
 
-/-- The `lean/check` parallel groups `fw watch` judged at 3d0d68a on 2026-10-23 (its last 3000 spans): duration, load
-floor and the width inferred from the job spans (their summed duration over the group's wall time, 1.00 or 1.99). -/
 def groupView : List (Nat × Nat × Nat) :=
   [(116691, 3, 1), (49291, 4, 2), (46962, 3, 2), (92010, 2, 1), (47565, 2, 2), (97284, 2, 1), (94807, 1, 1),
    (49426, 5, 2), (94437, 2, 1)]
@@ -2080,7 +2074,6 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
-/-- A `lean/check` span line as `scripts/span.sh` writes it, with the `slot` member when the width and job count are known. -/
 def spanJson (d : Nat) (slot : Option (Nat × Nat)) : Json :=
   Json.mkObj ([("tool", .str "lean/check"), ("step", .str "parallel group"), ("startMs", toJson (1792745374550 : Nat)),
     ("durMs", toJson d), ("exit", toJson (0 : Nat)), ("commit", .str "3d0d68a"), ("load", toJson (2 : Nat)),

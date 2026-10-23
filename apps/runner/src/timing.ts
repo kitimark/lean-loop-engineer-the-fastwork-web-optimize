@@ -14,10 +14,8 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
   runIds?: number[]; phases?: Record<string, number | string | boolean>;
-  /** the granted Lake slot width and the job count of a parallel group (`lean/scripts/check.sh`) */
   slot?: { width: number; jobs: number } };
 
-/** `Fw.Obs.Timing.slotWork`: the work dimensions of a span's `slot` member, the width only; none without an integer width. */
 export function slotWork(slot: unknown): { work?: Record<string, string> } {
   const w = (slot as { width?: unknown } | null | undefined)?.width;
   return typeof w === "number" && Number.isInteger(w) && w >= 0 ? { work: { width: String(w) } } : {};

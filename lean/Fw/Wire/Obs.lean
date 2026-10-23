@@ -973,7 +973,6 @@ def hostOf (k : String) (j : Json) : Except String Fw.Obs.Timing.Host := do
   | "ci" => pure .ci
   | h => throw s!"field {k}: unknown host {h}"
 
-/-- Decode the work dimensions (`work`, an object; a non-string value is kept as its JSON text). -/
 def workOf (j : Json) : Except String (List (String × String)) :=
   match opt j "work" with
   | none => .ok []
