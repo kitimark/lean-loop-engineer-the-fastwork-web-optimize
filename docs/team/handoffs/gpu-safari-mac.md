@@ -8,7 +8,7 @@ Verified (MEASURED, macOS Safari 27.0.1 through safaridriver, measure slot, Mac 
   pairing with Simulator rows: `results/gpu-safari/mac-vs-sim.json` (`node results/gpu-safari/lane/pairs.mjs --write`).
 - Nav above the later-load floor at every state (4x to 326x); pain 0 px at all five states; people-o 0 px at f10/f20/f40; morph inconclusive on the Mac
   (noise as large as the arm); hero above the floor at x0.25 and x0.5 in two sessions (size at x0.5 not repeated), identical at x0.75.
-- Item 2: `probe-fade.mjs` / `mac-bundled-vs-threaded.json`: the bundled arm's computed opacity and blur equal the CSS path (platform 47.5% in frame), so the fade tie is style equality.
+- Item 2: `probe-fade.mjs` / `mac-bundled-vs-threaded.json`: the bundled arm's computed opacity and blur equal the CSS path (platform 47.5% in frame), style equal at all three states; pixel-identical in the Simulator at m0.25 only.
 - Item 3: Lean `Fw.Measure.GpuElapsed` (both-side proofs), golden `results/gpu-safari/lane/elapsed.golden.jsonl`, checked in `lean/scripts/check.sh` and `lane.test.mjs` (14 tests pass).
 - Quiet rule refuses timing on macOS too (`mac-quiet-refusal.json`, 12 of 12 refused, load 2.8 to 3.7).
 

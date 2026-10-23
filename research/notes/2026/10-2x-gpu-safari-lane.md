@@ -169,14 +169,14 @@ later faithful load, set against the later-load A/A floor (pair i=1, j=2), exact
 Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the platform's blur is rasterised by the GPU and varies between loads.
 
 - Nav (clip-box, bar-fixed, logo-3d), nearest later load / floor: m0.1 176.6k / 0.7k, m0.25 166.3k / 9.3k, m0.5 102.4k / 12.4k,
-  m0.75 12.4k / 2.9k, m0.9 748k / 2.3k for clip-box; bar-fixed and logo-3d are within 3% of it at every state. Every state sits above the
-  floor, by 4.2x to 326x, the same direction as the Simulator (8x to 363288x; its floors were 0 at m0.25 to m0.75). The three arms differ from each other by about 3% only, as on the Simulator, so what separates them from faithful on both lanes is one
+  m0.75 12.4k / 2.9k, m0.9 748k / 2.3k for clip-box; bar-fixed is within 3% of it at every state; logo-3d is within 2% except m0.5 (+6%) and m0.75 (15.5k, +25%). Every state sits above the
+  floor, by 4.2x to 327x, the same direction as the Simulator (8x to 363669x; its floors were 0 at m0.25 to m0.75). The three arms differ from each other by 3% or less except logo-3d at m0.5 and m0.75, as on the Simulator, so what separates them from faithful on both lanes is one
   shared change of the morph frame (a look-change candidate, for the user's visual review). Glass median delta is 0 (m0.1: -1, 0, 0), like A/A,
   so the frosted bar itself does not move. Status: MEASURED.
 - Morph, real push, effects counted (faithful 0, threaded 2, bundled 3): nearest / floor at m0.25, m0.5, m0.75. Threaded 13.0k / 26.4k (within),
   63.8k / 41.3k (1.5x above), 29.5k / 69.6k (within). Bundled 13.5k / 26.4k (within), 77.8k / 41.3k (1.9x above), 56.1k / 69.6k (within).
   The repeat run: threaded 9.7k / 17.9k, 45.3k / 68.4k, 53.6k / 61.2k (all within); bundled 23.5k / 17.9k (1.3x above), 81.4k / 68.4k
-  (1.2x above), 59.6k / 61.2k (within). Max pixel delta 3 levels at m0.25 and m0.5, about 190 to 200 at m0.75 (text edges). Verdict: INCONCLUSIVE on the Mac. Two sessions
+  (1.2x above), 59.6k / 61.2k (within). Max pixel delta 2 to 4 levels at m0.25, 20 to 23 at m0.5, about 190 to 200 at m0.75 (text edges). Verdict: INCONCLUSIVE on the Mac. Two sessions
   agree that the morph panel is no more than a few tens of thousands of px from faithful (under 1% of 1.5M px at DPR 2), the same order as the
   A/A control (25k to 130k px), so a small change would hide inside the Mac floor. The Simulator rows (2.4x, 77x, 27x above floor)
   are the clearer ones; the Mac cannot separate the arm from load-to-load blur drift.
@@ -204,8 +204,8 @@ no pixel, or (b) the platform lies outside the frame, so its fade does not show.
 platform: its box is 413 x 1854 at top -974 and 47.5% of it lies in the viewport at the bottom of the page, which rules (b) out. At m0.25
 faithful and threaded have `--morph-fade` 0.5454545, computed opacity 0.545455 and `blur(5.454545px)`. The bundled arm has three effects, the CSS
 variable stays 1, and the computed opacity is still 0.545455 with `blur(5.454545px)`, the same pair that the CSS variable produces. The same holds at m0.5 (0.090907,
-blur(10.909113px)) and m0.75 (0, blur(12px)). So (a): the threaded fade computes the same opacity and blur as the CSS path (INFERRED to be by design: `createThreadedFade` takes its keyframes from Lean `PlatformFade`), and the bundled arm differs from threaded only in where the work runs, not in pixels. CONFIRMED by the probe on both the opacity and the
-filter; it reads the computed style, not pixels, so it proves the style equality and the pixel equality follows (INFERRED) for the Simulator rows.
+blur(10.909113px)) and m0.75 (0, blur(12px)). So (a): the threaded fade computes the same opacity and blur as the CSS path (INFERRED to be by design: `createThreadedFade` takes its keyframes from Lean `PlatformFade`), so the fade adds no style difference at any of the three states. CONFIRMED by the probe on both the opacity and the
+filter; it reads the computed style, not pixels, so it proves style equality only. Pixels were identical in the Simulator at m0.25 alone; at m0.5 and m0.75 the two arms' frames differ (hashes differ; at m0.75 both stable, platform opacity 0), so the remaining pixel difference comes from outside the platform's computed style and is not explained here (INFERRED: raster/compositing path or load noise).
 
 ### The elapsedAt golden (item 3)
 
