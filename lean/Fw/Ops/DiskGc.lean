@@ -238,7 +238,7 @@ def landCommit (cfg : Config) (x : Cand) : Bool :=
   | none => false
   | some l => l.contains ("land " ++ x.branch)
 
-/-- The task that owns the worktree's run is in `landedTasks`. -/
+/-- The worktree's run is in `landedRuns`: every task the run labelled is done. -/
 def landedByTask (cfg : Config) (x : Cand) : Bool :=
   match cfg.landedRuns with
   | none => false
@@ -251,7 +251,7 @@ def usedByLive (cfg : Config) (x : Cand) : Bool :=
   | some l => l.any (runOwns · x.path)
 
 def ruleLanded (cfg : Config) (x : Cand) : Bool :=
-  x.dir && x.branch != "" && (landCommit cfg x || landedByTask cfg x) && !usedByLive cfg x && x.dirty == some false
+  x.dir && x.branch != "" && (landCommit cfg x || landedByTask cfg x) && x.merged == some true && !usedByLive cfg x && x.dirty == some false
 
 def ruleIdle (cfg : Config) (x : Cand) : Bool :=
   x.dir && x.branch != "" && x.merged == some false && olderThan cfg x (cfg.idleH * 3600)
@@ -363,10 +363,13 @@ def exConsole (rel : String) : Cand :=
 #guard !chosen { exCfg with liveRuns := some ["wf_1f-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
 #guard chosen { exCfg with liveRuns := some ["wf_2a-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
 #guard !chosen { exCfg with liveRuns := none } (exWt .landed "w1" true .free)
-#guard chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-dfd"] } (exWt .landed "wf_1f-dfd-1" false .free)
+#guard chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
 #guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-dfd"], liveRuns := some ["wf_1f-dfd"] }
-  (exWt .landed "wf_1f-dfd-1" false .free)
-#guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-df"] } (exWt .landed "wf_1f-dfd-1" false .free)
+  (exWt .landed "wf_1f-dfd-1" true .free)
+#guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-df"] } (exWt .landed "wf_1f-dfd-1" true .free)
+-- a reopened branch (land commit on main, tip not on main) is kept
+#guard !chosen exCfg (exWt .landed "w1" false .free)
+#guard !chosen { exCfg with landSubjects := some ["land open"] } (exWt .landed "w1" false .free)
 #guard chosen exCfg (exWt .idle "w1/lean/.lake" false .free)
 #guard chosen exCfg (exWt .idle "w1/apps/site/node_modules" false .free)
 #guard !chosen exCfg (exWt .idle "w1/lean" false .free)
@@ -565,11 +568,11 @@ theorem rule_lake (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select c
 
 theorem rule_landed (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
     x.dir = true ∧ x.branch ≠ "" ∧ (landCommit cfg x = true ∨ landedByTask cfg x = true) ∧
-      usedByLive cfg x = false ∧ x.dirty = some false := by
+      x.merged = some true ∧ usedByLive cfg x = false ∧ x.dirty = some false := by
   have hr := selected_rule cfg xs x h
   simp only [rule, hc, ruleLanded, Bool.and_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true',
     beq_iff_eq] at hr
-  exact ⟨hr.1.1.1.1, hr.1.1.1.2, hr.1.1.2, hr.1.2, hr.2⟩
+  exact ⟨hr.1.1.1.1.1, hr.1.1.1.1.2, hr.1.1.1.2, hr.1.1.2, hr.1.2, hr.2⟩
 
 /-- Branch a land commit on main names: the landed class selects it by that identity. -/
 theorem landed_by_identity (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
@@ -590,7 +593,7 @@ theorem landed_by_identity (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈
 /-- A worktree a live agent's run owns is never selected as landed. -/
 theorem landed_never_live (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
     ∃ l, cfg.liveRuns = some l ∧ ∀ r ∈ l, runOwns r x.path = false := by
-  have h1 := (rule_landed cfg xs x h hc).2.2.2.1
+  have h1 := (rule_landed cfg xs x h hc).2.2.2.2.1
   unfold usedByLive at h1
   cases hs : cfg.liveRuns with
   | none => simp [hs] at h1
@@ -612,9 +615,16 @@ theorem fast_forward_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls
 /-- A branch whose land commit is on main, clean, unused by a live run and passing the guard is selected. -/
 theorem land_commit_selects (cfg : Config) (x : Cand) (hcl : x.cls ∈ cfg.classes) (hc : x.cls = .landed)
     (hg : guard cfg x = true) (hd : x.dir = true) (hb : x.branch ≠ "") (hl : landCommit cfg x = true)
-    (hu : usedByLive cfg x = false) (hy : x.dirty = some false) : chosen cfg x = true := by
-  simp [chosen, hg, rule, hc, ruleLanded, hd, hb, hl, hu, hy] at *
+    (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false) :
+    chosen cfg x = true := by
+  simp [chosen, hg, rule, hc, ruleLanded, hd, hb, hl, hm, hu, hy] at *
   exact hcl
+
+/-- A reopened branch (its land commit is on main, its tip is not) is never selected as landed. -/
+theorem reopened_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
+    (hm : x.merged ≠ some true) : x ∉ select cfg xs := by
+  intro h
+  exact hm (rule_landed cfg xs x h hc).2.2.2.1
 
 theorem rule_idle (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .idle) :
     x.dir = true ∧ x.branch ≠ "" ∧ x.merged = some false ∧ x.newest + cfg.idleH * 3600 ≤ cfg.now := by
@@ -805,9 +815,10 @@ def running (es : List Ev) (a : String) : Bool :=
 def liveRuns (es : List Ev) : List String :=
   (((agentsOf es).filter (running es)).filterMap (runOf es)).eraseDups
 
-/-- Runs that labelled an agent with the name of a landed task. -/
+/-- Runs whose every labelled task is done: one task not done keeps the run's worktrees. -/
 def landedRuns (es : List Ev) : List String :=
-  (((labelled es).filter fun e => (landedTasks es).contains e.name).filterMap fun e => runOfLabel e.key).eraseDups
+  (((labelled es).filterMap fun e => runOfLabel e.key).eraseDups).filter fun r =>
+    (labelled es).all fun e => runOfLabel e.key != some r || (landedTasks es).contains e.name
 
 def liveAgents (es : List Ev) : List String :=
   (((agentsOf es).filter (running es)).flatMap (namesOf es)).eraseDups
@@ -869,15 +880,25 @@ theorem liveRuns_spec (es : List Ev) (r : String) (h : r ∈ liveRuns es) :
   exact this
 
 theorem landedRuns_spec (es : List Ev) (r : String) (h : r ∈ landedRuns es) :
-    ∃ e ∈ es, e.type = "agent.label" ∧ e.name ∈ landedTasks es ∧ runOfLabel e.key = some r := by
+    (∃ e ∈ labelled es, runOfLabel e.key = some r) ∧
+      ∀ e ∈ labelled es, runOfLabel e.key = some r → e.name ∈ landedTasks es := by
   unfold landedRuns at h
-  rw [List.mem_eraseDups, List.mem_filterMap] at h
-  obtain ⟨e, he, hr⟩ := h
-  rw [List.mem_filter] at he
-  have h1 := he.1
-  unfold labelled at h1
-  rw [List.mem_filter] at h1
-  exact ⟨e, h1.1, by simp at h1; exact h1.2.1.1, List.contains_iff_mem.mp he.2, hr⟩
+  rw [List.mem_filter, List.mem_eraseDups, List.mem_filterMap] at h
+  obtain ⟨⟨e, he, hr⟩, hall⟩ := h
+  refine ⟨⟨e, he, hr⟩, fun e' he' hr' => ?_⟩
+  have := (List.all_eq_true.mp hall) e' he'
+  simpa [hr', List.contains_iff_mem] using this
+
+/-- One labelled task of the run not done keeps the run out of `landedRuns`. -/
+theorem landedRuns_undone (es : List Ev) (r : String) (e : Ev) (he : e ∈ labelled es)
+    (hr : runOfLabel e.key = some r) (hn : e.name ∉ landedTasks es) : r ∉ landedRuns es :=
+  fun h => hn ((landedRuns_spec es r h).2 e he hr)
+
+#guard landedRuns [⟨1, "agent.label", "wfid-label:wf_x:a:t1", "a", "t1", ""⟩,
+  ⟨2, "agent.label", "wfid-label:wf_x:b:t2", "b", "t2", ""⟩, ⟨3, "task.done", "", "", "", "t1"⟩] == []
+#guard landedRuns [⟨1, "agent.label", "wfid-label:wf_x:a:t1", "a", "t1", ""⟩,
+  ⟨2, "agent.label", "wfid-label:wf_x:b:t2", "b", "t2", ""⟩, ⟨3, "task.done", "", "", "", "t1"⟩,
+  ⟨4, "task.done", "", "", "", "t2"⟩] == ["wf_x"]
 
 theorem finishedRuns_spec (es : List Ev) (r : String) (h : r ∈ finishedRuns es) :
     ∃ e ∈ es, e.type = "agent.stop" ∧ runOfEnd e.key = some r := by

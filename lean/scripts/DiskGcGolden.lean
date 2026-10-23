@@ -86,10 +86,17 @@ def gcCases : List (String × String × Json) := [
     req [("liveRuns", .arr #[.str "wf_1f18354c-dfd"])] [wt 2 "wf_1f18354c-dfd-1" 0 true false, wt 2 "w1" 0 true false]),
   ("class 2 (inc-gc-landed-ff): a live agent's run owns it, the landed-task identity is kept too", "ops.diskGc",
     req [("landSubjects", .arr #[]), ("landedRuns", .arr #[.str "wf_1f18354c-dfd"]), ("liveRuns", .arr #[.str "wf_1f18354c-dfd"])]
-      [wt 2 "wf_1f18354c-dfd-1" 0 false false]),
-  ("class 2 (inc-gc-landed-ff): the landed task owning the worktree selects it once no agent runs", "ops.diskGc",
-    req [("landSubjects", .arr #[]), ("landedRuns", .arr #[.str "wf_1f18354c-dfd"])]
-      [wt 2 "wf_1f18354c-dfd-1" 0 false false, wt 2 "wf_1f18354c-df-1" 0 false false]),
+      [wt 2 "wf_1f18354c-dfd-1" 0 true false]),
+  ("class 2 (inc-gc-landed-ff): every task of the owning run done and the tip on main selects it once no agent runs",
+    "ops.diskGc", req [("landSubjects", .arr #[]), ("landedRuns", .arr #[.str "wf_1f18354c-dfd"])]
+      [wt 2 "wf_1f18354c-dfd-1" 0 true false, wt 2 "wf_1f18354c-df-1" 0 true false]),
+  ("class 2 (inc-gc-landed-ff): a landed run with the tip not on main (parked, wf_df082d5f-ac9-3 shape) is kept",
+    "ops.diskGc", req [("landSubjects", .arr #[]), ("landedRuns", .arr #[.str "wf_df082d5f-ac9"])]
+      [wt 2 "wf_df082d5f-ac9-3" 0 false false]),
+  ("class 2 (inc-gc-landed-ff): a reopened branch, land commit on main but the tip not, is kept", "ops.diskGc",
+    req [("landSubjects", .arr #[.str "land worktree-open"])] [wt 2 "wf_a1-b-1" 0 false false "worktree-open"]),
+  ("class 2 (inc-gc-landed-ff): a land commit with the tip on main selects it", "ops.diskGc",
+    req [("landSubjects", .arr #[.str "land worktree-wf_a1-b-1"])] [wt 2 "wf_a1-b-1" 0 true false "worktree-wf_a1-b-1"]),
   ("class 2 (inc-gc-landed-ff): unread land subjects keep it", "ops.diskGc",
     req [("landSubjects", .null)] [wt 2 "w1" 0 true false]),
   ("class 2 (inc-gc-landed-ff): live runs not gathered keep it", "ops.diskGc",
@@ -205,6 +212,11 @@ def gcCases : List (String × String × Json) := [
     facts [ev 1 "agent.label" [("agent", "a"), ("name", "t1"), ("key", "wfid-label:wf_12345678-abc:a:t1")],
       ev 2 "agent.label" [("agent", "b"), ("name", "t2"), ("key", "wfid-label:wf_87654321-def:b:t2")],
       ev 3 "agent.stop" [("agent", "b")], ev 4 "task.done" [("task", "t2")], ev 5 "task.done" [("task", "t1")]]),
+  ("facts: a run with a labelled task not done is not landed, one with every task done is", "ops.diskGcFacts",
+    facts [ev 1 "agent.label" [("agent", "a"), ("name", "t1"), ("key", "wfid-label:wf_12345678-abc:a:t1")],
+      ev 2 "agent.label" [("agent", "b"), ("name", "t2"), ("key", "wfid-label:wf_12345678-abc:b:t2")],
+      ev 3 "agent.label" [("agent", "c"), ("name", "t3"), ("key", "wfid-label:wf_87654321-def:c:t3")],
+      ev 4 "task.done" [("task", "t1")], ev 5 "task.done" [("task", "t3")]]),
   ("facts: a label without an agent or a name is ignored", "ops.diskGcFacts",
     facts [ev 1 "agent.label" [("name", "x")], ev 2 "agent.label" [("agent", "a")]]),
   ("facts: an event without a seq is refused", "ops.diskGcFacts",

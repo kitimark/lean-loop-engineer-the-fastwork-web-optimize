@@ -154,6 +154,12 @@ describe("fw disk-gc on a temp tree", () => {
     file(join(x.wt, "wf_live-bbb-1", "c.txt"), "c", false);
     g(join(x.wt, "wf_live-bbb-1"), "add", "-A"); g(join(x.wt, "wf_live-bbb-1"), "commit", "-q", "-m", "c");
     g(x.repo, "merge", "-q", "--no-ff", "-m", "land live-b", "live-b");
+    g(x.repo, "worktree", "add", "-q", "-b", "re-b", join(x.wt, "wf_re-ccc-1"), "main");
+    file(join(x.wt, "wf_re-ccc-1", "d.txt"), "d", false);
+    g(join(x.wt, "wf_re-ccc-1"), "add", "-A"); g(join(x.wt, "wf_re-ccc-1"), "commit", "-q", "-m", "d");
+    g(x.repo, "merge", "-q", "--no-ff", "-m", "land re-b", "re-b");
+    file(join(x.wt, "wf_re-ccc-1", "e.txt"), "e", false);
+    g(join(x.wt, "wf_re-ccc-1"), "add", "-A"); g(join(x.wt, "wf_re-ccc-1"), "commit", "-q", "-m", "reopened");
     const paths = () => diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2"]), call, io: x.io, roots: x.roots, uid })
       .reply.items.map((i) => i.path.slice(x.wt.length + 1)).sort();
     writeFileSync(join(x.croot, "events.jsonl"), JSON.stringify({ seq: 1, type: "agent.label", agent: "a1", name: "t", key: "wfid-label:wf_live-bbb:a1:t" }) + "\n");
