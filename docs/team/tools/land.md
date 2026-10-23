@@ -254,6 +254,12 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
   `runner:overflow-widths` runs `test/land-overflow-widths.test.ts` (the Lean width table against the workflow files). Theorem
   `workflow_selects_overflowWidths`: every path under `.github/workflows/` selects it; `overflowWidths_local`, `overflowWidths_core_user`
   (a Lean-source or binary change rebuilds `fwcore` first). Cost: its run time is added to a dry land that touches a workflow.
+  Task overflow-widths-reads: the read set is one Lean list, `overflowWidthsReads`; it holds the planner inputs `plannerFiles`
+  (gate `schedule.jsonl` and `shards.jsonl`, `breakpoints.gen.json`, `anchors.json`; theorem `plannerFiles_select`). `land.ts` reads the list
+  from the golden (`overflowWidthsReadsFromGolden`), no hand copy. Tests: `land-widths-fixture.test.ts` (6-job path-pix fixture against a row
+  of 4 fails). Lean-change cost: any Lean change moves the `fwcore` binary, which is in the read set, so it also selects
+  `runner:overflow-widths`: about 11 s (MEASURED 10.96 s vitest, 22.4 s wall). A new planner input is added to `plannerFiles`, then the
+  golden is regenerated.
 - Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
   TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).
 

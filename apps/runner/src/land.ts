@@ -235,9 +235,15 @@ export const withScan = (cs: Check[]): Check[] =>
 
 export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/registry/**", "research/findings/ledger.json", "apps/console-api/src/**",
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
-export const OVERFLOW_WIDTHS_READS = [".github/workflows/**", ".github/scripts/**", "packages/gate-breakpoints/src/trajectory/**", "packages/visual-diff/src/shards.mjs",
-  "lean/Fw/Ci/Overflow.lean", "lean/land-legs.txt", "apps/runner/test/land-overflow-widths.test.ts", "apps/runner/test/workflow-widths.ts",
-  "apps/runner/src/run.ts", "lean/.lake/build/bin/fwcore"];
+/** The read set of `runner:overflow-widths`: the one list is Lean `overflowWidthsReads`, read here from its golden (not copied). */
+export const LAND_TIER_LOCAL_GOLDEN = "packages/contracts/golden/console/land-tier-local.jsonl";
+export function overflowWidthsReadsFromGolden(goldenPath = join(new URL(import.meta.url).pathname, "../../../../", LAND_TIER_LOCAL_GOLDEN)): string[] {
+  const row = JSON.parse(readFileSync(goldenPath, "utf8").split("\n")[0]!) as { request: { tests: { id: string; reads: string[] }[] } };
+  const t = row.request.tests.find((x) => x.id === "runner:overflow-widths");
+  if (!t) throw new Error(`${goldenPath}: no runner:overflow-widths test`);
+  return t.reads;
+}
+export const OVERFLOW_WIDTHS_READS = overflowWidthsReadsFromGolden();
 export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
   { id: "runner:overflow-widths", argv: ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-overflow-widths.test.ts"], reads: OVERFLOW_WIDTHS_READS },
