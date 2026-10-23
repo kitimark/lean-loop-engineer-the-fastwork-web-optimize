@@ -1,7 +1,8 @@
 # writes-closure-doc-touchups
 
 - Branch: worktree-wf_82824cd6-a4b-1 (worktree .claude/worktrees/wf_82824cd6-a4b-1)
-- Commits: c9399478f (work), 0fa410576 (main merged), then the move of the generator into ci-paths.mjs (see git log)
+- Commits: c9399478f (work), 30c111dad (generator moved into ci-paths.mjs), ba946f773 (main merged)
+- Dry land: `VERDICT dry writes-closure-doc-touchups`; review gate: `VERDICT review-ready ... review`
 - CI runs: none (all checks are local: check.sh, vitest, node tests)
 - Verified: check.sh green; runner 3178/3178 and tsc ok; contracts 11/11; ci-paths 56/56;
   `node scripts/ci-paths.mjs --check` and `--plan-time --check` ok; `fw plan lint` on main's graph: 0 errors
