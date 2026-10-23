@@ -149,11 +149,13 @@ describe("fw polish CLI", () => {
     const gitCalls: string[][] = [];
     const written: Record<string, string> = {};
     const lines: string[] = [];
-    const git = (_cwd: string, args: string[]) => {
+    const git = (_cwd: string, raw: string[]) => {
+      const args = raw[0] === "-c" ? raw.slice(2) : raw;
       gitCalls.push(args);
       if (args[0] === "rev-parse") return "/root\n";
       if (args[0] === "status") return status;
-      if (args.includes("-U0")) return args.includes("HEAD") ? "" : hunk;
+      const lineOne = (ps: string[]) => ps.map((q) => `diff --git a/${q} b/${q}\n--- a/${q}\n+++ b/${q}\n@@ -1 +1 @@\n-x\n+y\n`).join("");
+      if (args.includes("-U0")) return args.includes("HEAD") ? lineOne(edited) : hunk || lineOne(diff);
       if (args[0] === "diff" && args[1] === "--cached") return staged.join("\n");
       if (args[0] === "diff" && args.includes("HEAD")) return edited.join("\n");
       if (args[0] === "diff") return diff.join("\n");
@@ -297,14 +299,15 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
     const { base, wt, tip } = fixture();
     try {
       const t = tip.slice();
-      for (let n = 63; n <= 113; n++) t[n - 1] = `# run ${n}`;
+      for (let n = 64; n <= 114; n++) t[n - 1] = `# run ${n}`;
       t[61] = "# comment 62 reworded";
       writeFileSync(join(wt, file), t.join("\n") + "\n");
       const lines: string[] = [];
       expect(await run(wt, lines)).toBe(0);
-      expect(lines).toContain(`restored ${file}:62-113 (outside the branch's hunks)`);
-      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
-      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+      expect(lines).toContain(`restored ${file}:64-114 (outside the branch's hunks)`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t committed");
+      const now = readFileSync(join(wt, file), "utf8").split("\n");
+      expect([now[61], now[63], now[113]]).toEqual(["# comment 62 reworded", "# comment 64", "# comment 114"]);
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 
