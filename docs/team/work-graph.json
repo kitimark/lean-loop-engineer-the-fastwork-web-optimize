@@ -12728,7 +12728,8 @@
     "packages/gate-breakpoints/src/trajectory/reduce.mjs",
     "packages/gate-breakpoints/src/trajectory/run.mjs",
     "packages/gate-breakpoints/test/trajectory*.test.mjs",
-    "docs/team/handoffs/hero-probe-original.md"
+    "docs/team/handoffs/hero-probe-original.md",
+    "docs/team/tools/trajectory-probe.md"
    ]
   },
   {
@@ -18104,6 +18105,27 @@
     "docs/team/handoffs/timing-slot-width.md"
    ],
    "title": "fw watch opened timing.slow for lean/check 'parallel group' (2026-10-23): the group takes ~48 s at effective parallelism 2.0 and ~95 s at 1.0 (commits 046ff5f vs 3d0d68a; per-job durations equal), because the adaptive Lake build slot granted width 1 under load. The span does not record the granted width, so Fw.Obs.Timing judges a by-design narrow slot as slow. Record the granted slot width (and job count) in the span, and make the Timing slow verdict compare samples of the same width (Lean rule with theorems + golden; the TS reader checked against it). Then the alert only fires when a same-width sample is slow."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "trajectory-first-coverage",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [
+    "hero-probe-original"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/scripts/TrajectoryGolden.lean",
+    "packages/contracts/golden/gate/trajectory*.jsonl",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/test/trajectory*.test.mjs",
+    "docs/team/tools/trajectory-probe.md",
+    "docs/team/handoffs/trajectory-first-coverage.md"
+   ],
+   "title": "hero-probe-original review follow-up: run 39926829451 is CLEAN only by open@1 sampling jitter (width 640: original 0/5, flag 0/5 -> origEmpty; 641: faithful 0/5 vs original 1/5). A coverage model for bucket 1 in Lean: from the frame cadence (17 ms) and the bucket width, the probability that a pass samples open@1, and from the pass count the chance an arm samples it in none of n passes; judge open@1 coverage by that model (a verdict that does not flip when the original lands one more sample), theorems + golden, JS twin checked; re-reduce hero:scene-pause raw of 39926829451 and 39557718020 offline and report; then the ledger row hero.scenePause can move (lead)."
   }
  ],
  "deadline": {
