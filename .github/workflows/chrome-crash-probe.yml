@@ -90,6 +90,7 @@ jobs:
       - name: 'tip re-check'
         id: tip
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -99,6 +100,7 @@ jobs:
       - name: 'stale: a newer push is the branch tip'
         id: stale
         if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
         run: exit 1
       - name: Keep line endings (the page is measured byte for byte)
         run: git config --global core.autocrlf false
