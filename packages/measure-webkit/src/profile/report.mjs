@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path';
 import { KINDS, ZONES, medianNat, zoneVerdict, profileFromRaw } from './reduce.mjs';
 import { readRaws } from './raw.mjs';
-import { acrossDecisive, agreeNeeded, decisive, hitchVerdict, armRate, repOf, quantile, enoughN } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
+import { acrossDecisive, agreeNeeded, decisive, hitchVerdict, armRate, repOf, quantile, enoughN, countsOf, sumCounts } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2'], ['base', 'bound']];
 export const KEY_KINDS = ['RecalculateStyles', 'Layout', 'Paint', 'Composite', 'FunctionCall', 'FireAnimationFrame'];
@@ -79,13 +79,15 @@ export function acrossJobs(perJob) {
 
 const cadRows = (file, arm, win, mode) => file.rows.filter((r) => r.arm === arm && r.window === win && r.mode === mode && r.ivs).sort((a, b) => a.rep - b.rep);
 
+const countsOfRows = (rs) => (rs.length && rs.every((r) => r.th) ? sumCounts(rs.map((r) => countsOf(r.ivs, r.th))) : null);
+
 export function jobCadence(file, win, mode) {
   const hs = (arm) => cadRows(file, arm, win, mode).map((r) => r.hitches);
   const arms = Object.fromEntries(file.arms.map((a) => {
     const rs = cadRows(file, a, win, mode);
     const ivs = rs.flatMap((r) => r.ivs);
     const reps = rs.map((r) => repOf(r.ivs));
-    return [a, { reps: rs.length, hitches: hs(a), rate: armRate(reps), p50: quantile(ivs, 50), p95: quantile(ivs, 95), max: ivs.length ? Math.max(...ivs) : null }];
+    return [a, { reps: rs.length, hitches: hs(a), counts: countsOfRows(rs), rate: armRate(reps), p50: quantile(ivs, 50), p95: quantile(ivs, 95), max: ivs.length ? Math.max(...ivs) : null }];
   }));
   const verdicts = Object.fromEntries(PAIRS.filter(([a, b]) => [a, b].every((x) => file.arms.includes(x))).map(([a, b]) => [`${a}|${b}`, hitchVerdict(hs(a), hs(b), hs('base'), hs('aa'))]));
   return { arms, verdicts };
@@ -96,7 +98,7 @@ export function poolCadence(jobs, arms, win, mode) {
     const per = jobs.map((j) => cadRows(j.file, a, win, mode));
     const rs = per.flat();
     const ivs = rs.flatMap((r) => r.ivs);
-    return [a, { reps: rs.length, split: per.map((r) => r.length), hitches: rs.map((r) => r.hitches), p50: quantile(ivs, 50), p95: quantile(ivs, 95), max: ivs.length ? Math.max(...ivs) : null }];
+    return [a, { reps: rs.length, split: per.map((r) => r.length), hitches: rs.map((r) => r.hitches), counts: countsOfRows(rs), p50: quantile(ivs, 50), p95: quantile(ivs, 95), max: ivs.length ? Math.max(...ivs) : null }];
   }));
 }
 
@@ -206,14 +208,16 @@ export function classTable(leg) {
   return out.join('\n');
 }
 
+const COUNT_COLS = ['over25', 'over34', 'over50', 'skips', 'frames'];
+
 export function cadenceTable(leg) {
-  const out = [head(['window', 'timeline', 'arm', 'reps n (per job)', 'hitches per rep (median)', 'p50 ms', 'p95 ms', 'max ms'])];
+  const out = [head(['window', 'timeline', 'arm', 'reps n (per job)', 'hitches per rep (median)', 'over 25 ms', 'over 34 ms', 'over 50 ms', 'skipped slots', 'frames', 'p50 ms', 'p95 ms', 'max ms'])];
   for (const [key, c] of Object.entries(leg.cadence)) {
     const [win, mode] = key.split('|');
     for (const a of leg.arms) {
       const p = c.pool[a];
       if (!p || !p.reps) continue;
-      out.push(row([win, mode === 'events' ? 'on' : 'off', a, nOf(p), cellOr(p, (x) => med(x.hitches)), cellOr(p, (x) => x.p50, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.p95, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.max, (v) => (v / 10).toFixed(1))]));
+      out.push(row([win, mode === 'events' ? 'on' : 'off', a, nOf(p), cellOr(p, (x) => med(x.hitches)), ...COUNT_COLS.map((f) => fmt(p.counts?.[f])), cellOr(p, (x) => x.p50, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.p95, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.max, (v) => (v / 10).toFixed(1))]));
     }
   }
   return out.join('\n');

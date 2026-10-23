@@ -190,9 +190,20 @@ test('cadenceTable: p50 and p95 are quantiles over all intervals of all jobs\' r
   const job = (label, ivs, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: Array.from({ length: n }, (_, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs, hitches: ivs.filter((x) => x > 600).length })) } });
   const leg = legSummary([job('a', [100, 100, 100, 100], 5), job('b', [900, 900, 900, 900], 1)], () => ({}));
   const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| hero | on | base'));
-  assert.match(row, /\| 6 \(5\+1\) \| 0 \| 10\.0 \| 90\.0 \| 90\.0 \|/);
+  assert.match(row, /\| 6 \(5\+1\) \| 0 \| - \| - \| - \| - \| - \| 10\.0 \| 90\.0 \| 90\.0 \|/);
   const few = legSummary([job('a', [100], 4)], () => ({}));
-  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| (- \| ){5}insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+});
+
+test('cadenceTable: miss counts are totals over all reps of a pooled cell, skipped slots come from the frame times', () => {
+  const th = [0, 1667, 3333, 5000, 6667, 10000];
+  const ivs = [167, 167, 167, 167, 333];
+  const rep = (n) => Array.from({ length: n }, (_, i) => ({ arm: 'base', window: 'end', rep: i, mode: 'events', ok: true, ivs, th, hitches: 0 }));
+  const job = (label, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: rep(n) } });
+  const leg = legSummary([job('a', 3), job('b', 3)], () => ({}));
+  assert.deepEqual(leg.cadence['end|events'].pool.base.counts, { frames: 30, over25: 6, over34: 0, over50: 0, skips: 6 });
+  const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| end | on | base'));
+  assert.match(row, /\| 6 \(3\+3\) \| 0 \| 6 \| 0 \| 0 \| 6 \| 30 \|/);
 });
 
 test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s is 16, not the 15 of the 0.1-minute display', () => {

@@ -9,7 +9,7 @@ import { RECORDER_SRC, TO_END_JS, heroJs, endJs, pageOf, intervalsOf } from './r
 import { profileWindow, toHundredths } from './reduce.mjs';
 import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
-import { hitches } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
+import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
 
 export function simArms(plan, siteDir, lookSearch, only) {
@@ -66,7 +66,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
     await tl.stop();
     const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
-    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
+    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
   };
 
   try {
