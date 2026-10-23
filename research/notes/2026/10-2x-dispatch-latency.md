@@ -110,10 +110,10 @@ Rule: Lean `Fw.Ci.StateList.step` (theorems per branch, golden `golden/ci/state-
 | Case | Before: gh call ms (wall s) | After: whole span ms (gh call) |
 |---|---|---|
 | recent id | 2857 (3.1) | 2970 (2841) |
-| old id, no branch | 11619 (11.95), found in the 400 list | 2675 (2553), exit 2 `older`, one list |
-| old id, with its branch | about 4.9 wall, found in the first filtered list | 2784 (2655), exit 0, one list |
+| old id, no branch | 11619 (11.95), found in the 400 list | 2675 (2553), exit 2: no longer found (caller must pass --branch) |
+| old id, with its branch | about 4.9 wall; `ci state gh call` span not measured with spans; the old code also read one filtered list | 2784 (2655), exit 0, one list |
 | id in no list | 31516 (32.0), three lists | 2625 (2506), exit 2, one list |
 
 - The lock part is 1-2 ms and the new `ci state gh load` part (state-file read inside the lock) 0-1 ms; the time is the gh call.
-- Cost of the stop rule: an unfiltered id older than the newest 100 is no longer found; callers pass `--branch`. The gate agent in `.claude/workflows/build-review.js` still calls `fw ci state <id>` without a branch (follow-up, outside the task writes).
-- `fwcoreCall` in `packages/gh-budget/src/core.ts` sets no timeout, so `lockMarginMs = 2 * fwcoreCallMs` (Lean) assumes the console client default of 10 s; `land.ts` sets `FW_CORE_CALL_MS=60000` only for child processes (INFERRED), and `loaded_core_margin_too_big` shows that value would not fit.
+- Cost of the stop rule: an unfiltered id older than the newest 100 is no longer found; callers pass `--branch`. The gate agent in `.claude/workflows/build-review.js` now passes `--branch` (its RUN schema carries the branch).
+- `fwcoreCall` now sets `timeout: GH_BOUNDS.fwcoreCallMs` (Lean `fwcoreCallMs`, 10 s), the value `lockMarginMs = 2 * fwcoreCallMs` assumes.

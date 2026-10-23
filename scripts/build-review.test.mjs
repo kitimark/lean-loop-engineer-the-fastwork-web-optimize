@@ -122,3 +122,9 @@ test('polish: an edit outside the worktree stops before the polish commit', asyn
   assert.ok(!calls.some((c) => c.label.startsWith('polish-commit')))
   assert.deepEqual(out[0].polish.strays, ['/r/lean/Fw/A.lean'])
 })
+
+test('gate agent reads a run state with the run branch; the RUN schema carries branch', () => {
+  assert.match(src, /const RUN = \{[^\n]*branch: \{ type: 'string' \}/)
+  assert.match(src, /\{id, branch, state: running\|complete\|failed\} \(branch = the ci\/\* branch the run is on\)/)
+  assert.match(src, /pnpm -s fw ci state <run id> --branch <its runs\[\]\.branch>/)
+})

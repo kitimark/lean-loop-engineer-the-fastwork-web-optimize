@@ -67,9 +67,9 @@ def cases : List (String × Bool × Nat × Nat × List Nat × Step) := [
   ("short list ends", false, 100, 5, [9, 8, 7], .ended),
   ("short filtered list ends", true, 100, 5, [9, 8, 7], .ended),
   ("unfiltered, id older than the oldest of a full list", false, 3, 5, [9, 8, 7], .older),
-  ("filtered, id older than the oldest, grow 100 to 400", true, 100, 5, List.range' 7 100, .grow 400),
-  ("filtered, id older, grow 400 to 1000", true, 400, 5, List.range' 7 400, .grow 1000),
-  ("filtered, id older at last limit", true, 1000, 5, List.range' 7 1000, .exhausted),
+  ("filtered, id older than the oldest, grow 100 to 400", true, 100, 5, (List.range' 7 100).reverse, .grow 400),
+  ("filtered, id older, grow 400 to 1000", true, 400, 5, (List.range' 7 400).reverse, .grow 1000),
+  ("filtered, id older at last limit", true, 1000, 5, (List.range' 7 1000).reverse, .exhausted),
   ("id newer than the newest row", false, 3, 99, [9, 8, 7], .absent),
   ("id inside the range but absent", true, 3, 8, [9, 7, 6], .absent),
   ("empty short list ends", false, 100, 5, [], .ended)]

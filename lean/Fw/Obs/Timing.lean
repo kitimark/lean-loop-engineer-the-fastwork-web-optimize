@@ -1960,7 +1960,7 @@ def boundsText (_ : Unit := ()) : String :=
   "export const GH_BOUNDS = {\n" ++
   String.join ([("dispatchLockWaitMs", dispatchLockWaitMs), ("dispatchCallTimeoutMs", dispatchCallTimeoutMs),
     ("watchLockWaitMs", watchLockWaitMs), ("watchCallTimeoutMs", watchCallTimeoutMs),
-    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("landCallTimeoutMs", landCallTimeoutMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
+    ("defaultCallTimeoutMs", defaultCallTimeoutMs), ("landCallTimeoutMs", landCallTimeoutMs), ("fwcoreCallMs", fwcoreCallMs), ("pollLockWaitMs", pollLockWaitMs), ("busyRetryS", busyRetryS)].map
       fun (n, v) => "  " ++ n ++ ": " ++ toString v ++ ",\n") ++
   "} as const;\n"
 

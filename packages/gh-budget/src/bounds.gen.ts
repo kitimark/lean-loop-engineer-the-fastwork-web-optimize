@@ -6,6 +6,7 @@ export const GH_BOUNDS = {
   watchCallTimeoutMs: 10000,
   defaultCallTimeoutMs: 40000,
   landCallTimeoutMs: 20000,
+  fwcoreCallMs: 10000,
   pollLockWaitMs: 10000,
   busyRetryS: 2,
 } as const;
