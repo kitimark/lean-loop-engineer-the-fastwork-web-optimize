@@ -17835,6 +17835,49 @@
     "docs/team/handoffs/counts-font-fidelity.md"
    ],
    "title": "Follow-ups of counts-lane-fonts (MEASURED: with fonts-liberation the swipe page is 720 px taller, 575 vs 503 frames, so every earlier Chromium baseline was taken on a font-less page). (1) Fidelity first: Liberation has no Thai or emoji coverage and fastwork.com is a Thai page; compare document scrollHeight and the text boxes of each part at 430 and 1280 between the old image, the new image, Playwright WebKit (macOS runner) and the iOS Simulator lane, and count .notdef glyphs on the new image; choose the font set (for example add a pinned Noto Sans Thai) that matches the WebKit/phone layout, with the reason and run ids; (2) then re-measure the frozen classes (classes.frozen.json) and the swipe-v1 / swipe-touch-v1 baselines on the chosen image, and name every ledger row whose Chromium figure came from the font-less image (base and flag in the same run stay comparable with each other; absolute figures and cross-run comparisons do not); (3) path-pix.yml and engine-premises.yml build the same image: their pixel and premise baselines move too, re-baseline them; (4) record the people-o-hover class tallies (base 36/24/9 -> 26/27/16, flag 26/31/12 -> 36/18/15)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-crop-followups",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "people-carousel-crop"
+   ],
+   "writes": [
+    "apps/site/src/parts/people.carousel/**",
+    "apps/site/scripts/part-footprint.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "results/people-carousel-crop/**",
+    "research/notes/2026/10-2x-people-carousel-crop.md",
+    "docs/team/handoffs/carousel-crop-followups.md"
+   ],
+   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-idle-followups",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-idle-none"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "lean/Fw/Measure/**",
+    "packages/contracts/golden/measure/**",
+    "apps/site/src/parts/morph.columns/idle*",
+    "apps/site/src/parts/morph.panel/**",
+    "research/notes/2026/10-20-morph-idle-none.md",
+    "docs/team/handoffs/morph-idle-followups.md"
+   ],
+   "title": "Follow-ups of morph-idle-none (landed 011bf99e7): (1) WebKit Paint/Composite per frame on the morph zone reads higher with the flag in 11 of 12 cells, confounded by the simulator frame rate (3x between passes): resolve it with a pinned frame rate or per-frame normalization, Lean-specified, and decide win/loss on WebKit; (2) a committed Lean reducer with goldens for fw.webkit.lag.cost.morph/1 (the per-zone means came from a scratch script); (3) the scene threshold (mm > 1 -> active) is checked against Lean only inside idle.golden.test.ts, not in morph.panel's attribute writer, and IdleHold has no golden; (4) re-measure the Chromium base 28107 layer-frames on the font image (counts-font-fidelity) and restate the delta."
   }
  ],
  "deadline": {
