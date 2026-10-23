@@ -1,6 +1,6 @@
 branch: worktree-wf_379d0376-a33-1 (CI branch ci/carousel-swap-webkit-lane)
 worktree: .claude/worktrees/wf_379d0376-a33-1
-last commit: see git log -1 on the branch (round-2 fixes: --swap opt-in, SWAP env in webkit-sim.yml); last CI push commit: 8dc944f90 on ci/carousel-swap-webkit-lane (tokens [ci:webkit-sim] [swap-lane]); no CI run this round
+last commit: e53d201d7 (main merged; round-2 fixes in the commit before it); last CI push commit: 8dc944f90 on ci/carousel-swap-webkit-lane; no CI run this round
 CI runs:
 - 39932917436 webkit-sim at 48142c753: ci state complete, 0 swap windows (probe scrolled to page end); superseded
 - 39937838325 webkit-sim at 58b1df271 (scroll search): ci state failed (r3 cancelled at the job limit, no log); r1, r2 success (8 windows per capture, 16 captures)
@@ -20,3 +20,4 @@ Conventions
 - Cell verdict per (window, kind): win/loss/unresolved(drift|noSamples|floorBroken|overlap); never pooled.
 - Read first: lean/Fw/Measure/SwapWindow.lean, packages/measure-webkit/src/lag/swapprobe.mjs.
 - No local Simulator run was made.
+Round 2: --swap opt-in (cli.mjs via costmode.swapSetup, test lag-swap-optin), SWAP env in webkit-sim.yml, note Question line, run states from fw ci state. Dry land says VERDICT scope until the graph writes add .github/workflows/webkit-sim.yml, lean/Fw/Measure/SwapWindow.lean, lean/Fw/Measure/WkCost.lean (and golden/test globs).
