@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
+import { splitUnion } from '../src/pathpix-exit.mjs';
 import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON } from '../src/pathpix-exit.mjs';
 import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
@@ -12,7 +13,7 @@ const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.json
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign', 'yield']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -145,4 +146,29 @@ test('the capture opens every exit arm with the site hook set, keeping the arm q
   }
   assert.ok(of('hook').some((g) => g.search === '?fwpin=accent' && g.hook === true));
   assert.ok(of('hook').some((g) => g.search === '?fw=hero.exit:threaded&fwpin=accent' && g.hook === true));
+});
+
+test('the yield rule equals the Lean golden: hero_copy hands a pixel to the cells of other graded layers and they count it, A/A and P changes alike', () => {
+  const ys = of('yield');
+  assert.ok(ys.some((y) => y.heroCounts.length && y.heroCounts.every((c) => c === false) && y.countedBy.length > 0), 'a yielded pixel is counted by a receiver');
+  assert.ok(ys.some((y) => y.countedBy.length === 0), 'a pixel in no mask is counted by none');
+  for (const y of ys) {
+    const masks = y.layers.map((l) => l.mask);
+    const foreign = y.layers.map((l, n) => foreignMasks(l.layer, masks.filter((_, o) => y.layers[o].layer !== l.layer)));
+    for (const d of [1, 13]) {
+      const del = new Uint8Array(200 * 200);
+      del[y.y * 200 + y.x] = d;
+      const sp = splitUnion(del, 200, 200, masks, foreign);
+      const counting = y.layers.filter((_, n) => sp.inside[n].raw.changed === 1).map((l) => l.key);
+      assert.deepEqual(counting, y.countedBy, `${y.name}, delta ${d}`);
+      y.layers.forEach((l, n) => {
+        if (l.layer === 'hero_copy') assert.deepEqual(sp.inside[n].raw.changed === 1, y.heroCounts[0], y.name);
+        const inOwn = masks[n][0] <= y.x && y.x < masks[n][1] && masks[n][2] <= y.y && y.y < masks[n][3];
+        const yielded = inOwn && sp.inside[n].raw.changed === 0;
+        assert.deepEqual(sp.receivers[n].map((o) => y.layers[o].key).every((k) => y.countedBy.includes(k)), true, y.name);
+        assert.equal(sp.shared[n].changed, yielded ? 1 : 0, y.name);
+        assert.equal(sp.receivers[n].length > 0, yielded, y.name);
+      });
+    }
+  }
 });

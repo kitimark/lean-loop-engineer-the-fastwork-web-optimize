@@ -147,14 +147,14 @@ test('the live witnesses', () => {
   assert.equal(liveA({ live: true, variant: 'threaded' }), false);
 });
 
-function fakeExitLane(dir, { boxes: boxes0, pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts }) {
+function fakeExitLane(dir, { boxes: boxes0, pEdit, pLive, a2Edit, still = false, clear = false, accentOf = () => ({ n: 1, sig: 'ssr' }), scrollOf = () => 0, coverOf = () => undefined, maxY, dateOf = () => 1000, parts, probes }) {
   mkdirSync(join(dir, 'shots'), { recursive: true });
   const base = () => ({ w: 100, h: 100, rgba: new Uint8Array(100 * 100 * 4).fill(255) });
   const put = (name, edit) => { const i = base(); if (edit) edit(i); for (let r = 0; r < 2; r++) writeFileSync(join(dir, 'shots', `${name}_${r}.png`), encodePng(i)); };
   put('A_0'); put('A2_0', a2Edit); put('P_0', pEdit);
   const boxes = boxes0 ?? { hero_copy: [10e6, 10e6, 20e6, 20e6], 'hero.deck_article#1': [50e6, 50e6, 20e6, 20e6] };
   const accent = (arm) => { const a = accentOf(arm); return a && { shotStart: a, shotEnd: a }; };
-  const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: scrollOf(arm), dateNow: dateOf(arm), cover: coverOf(arm), parts: parts, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
+  const row = (arm, live) => ({ accent: accent(arm), i: 0, y: 0, scrollY: scrollOf(arm), dateNow: dateOf(arm), cover: coverOf(arm), parts: parts, probes, boxes, alpha: clear ? { hero_copy: 0, 'hero.deck_article#1': 1 } : undefined, live, files: [`shots/${arm}_0_0.png`, `shots/${arm}_0_1.png`], dprMilli: 1000, layers: [], layerCount: 0 });
   const faithful = { live: false, variant: 'faithful', supported: true, nonDoc: 0 };
   const moved = { i: 1, y: 50, scrollY: 50, boxes: { ...boxes, hero_copy: [10e6, still ? 10e6 : 5e6, 20e6, 20e6] }, live: faithful, files: [], dprMilli: 1000, layers: [], layerCount: 0 };
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
@@ -256,9 +256,9 @@ test('exit analysis: a misplaced row is invalid, an occluded layer is skipped wi
     fakeExitLane(dir, { ...edits, parts: { hero_copy: [['button.cta', 14, 14, 3, 3], ['p.far', 25, 25, 4, 4]] } });
     const where = analyzeExit(dir, { strips: 'none' });
     const w = (kind, key) => where.cells.find((c) => c.kind === kind && c.key === key).where;
-    assert.deepEqual(w('P', 'hero_copy'), { bbox: [15, 15, 16, 17], parts: ['button.cta'], outBbox: [80, 80, 81, 81] });
-    assert.deepEqual(w('A/A', 'hero_copy'), { bbox: [15, 15, 16, 16], parts: ['button.cta'], outBbox: null });
-    assert.deepEqual(w('P', 'hero.deck_article#1'), { bbox: null, parts: [], outBbox: [80, 80, 81, 81] });
+    assert.deepEqual(w('P', 'hero_copy'), { bbox: [15, 15, 16, 17], parts: ['button.cta'], outBbox: [80, 80, 81, 81], outProbes: [] });
+    assert.deepEqual(w('A/A', 'hero_copy'), { bbox: [15, 15, 16, 16], parts: ['button.cta'], outBbox: null, outProbes: [] });
+    assert.deepEqual(w('P', 'hero.deck_article#1'), { bbox: null, parts: [], outBbox: [80, 80, 81, 81], outProbes: [] });
 
     assert.deepEqual(where.clock, { values: [1000], constant: true });
     fakeExitLane(dir, { ...edits, dateOf: (arm) => (arm === 'P' ? 2000 : 1000) });
@@ -266,6 +266,23 @@ test('exit analysis: a misplaced row is invalid, an occluded layer is skipped wi
     assert.deepEqual(moving.clock, { values: [1000, 2000], constant: false });
     assert.match(exitTable(moving), /Date\.now in every row: moves/);
     assert.match(exitTable(where), /Date\.now in every row: constant \(1000\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('exit analysis: a change outside every mask names the probe element whose box it touches', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-probe-'));
+  try {
+    const probes = { 'nav-lang button': [70e6, 5e6, 20e6, 15e6], 'nav-earn': [90e6, 5e6, 8e6, 15e6] };
+    fakeExitLane(dir, { a2Edit: null, pEdit: setPx(88, 10), pLive: liveOk, probes });
+    const res = analyzeExit(dir, { strips: 'none' });
+    const p = res.cells.find((c) => c.kind === 'P' && c.key === 'hero_copy');
+    assert.deepEqual(p.where.outBbox, [88, 10, 89, 11]);
+    assert.deepEqual(p.where.outProbes, [['nav-lang button', 70, 5, 90, 20]]);
+    assert.deepEqual(res.cells.find((c) => c.kind === 'A/A' && c.key === 'hero_copy').where.outProbes, []);
+    fakeExitLane(dir, { a2Edit: null, pEdit: setPx(88, 10), pLive: liveOk });
+    assert.deepEqual(analyzeExit(dir, { strips: 'none' }).cells.find((c) => c.kind === 'P' && c.key === 'hero_copy').where.outProbes, [], 'no probes recorded: none named');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -282,6 +299,9 @@ test('exit analysis: a pixel inside both hero_copy and a deck card is the card c
     assert.deepEqual(cell('A/A', 'hero_copy').cell.inside, { changed: 0, maxDelta: 0 });
     assert.deepEqual(cell('A/A', 'hero_copy').shared, { changed: 1, maxDelta: 5 });
     assert.equal(cell('A/A', 'hero_copy').sharedWith, 1);
+    assert.deepEqual(cell('A/A', 'hero_copy').sharedTo, ['hero.deck_article#1'], 'the receiving layer is named');
+    assert.deepEqual(cell('P', 'hero_copy').sharedTo, ['hero.deck_article#1'], 'a P pixel in the card is yielded the same way');
+    assert.deepEqual(cell('A/A', 'hero.deck_article#1').sharedTo, [], 'a layer that yields nothing names no receiver');
     assert.deepEqual(cell('A/A', 'hero.deck_article#1').cell.inside, { changed: 1, maxDelta: 5 }, 'the card layer counts it');
     assert.equal(cell('A/A', 'hero.deck_article#1').sharedWith, 0);
     assert.deepEqual(cell('P', 'hero_copy').cell.inside, { changed: 1, maxDelta: 5 }, 'only the pixel that is not in the card mask');
@@ -295,6 +315,7 @@ test('exit analysis: a pixel inside both hero_copy and a deck card is the card c
     assert.ok(open.cells.every((c) => c.key !== 'hero.deck_article#1'), 'the card is skipped as occluded');
     assert.deepEqual(open.cells.find((c) => c.kind === 'A/A' && c.key === 'hero_copy').cell.inside, { changed: 1, maxDelta: 5 }, 'no graded card, so hero_copy keeps the pixel');
     assert.equal(open.cells.find((c) => c.kind === 'A/A' && c.key === 'hero_copy').sharedWith, 0);
+    assert.deepEqual(open.cells.find((c) => c.kind === 'A/A' && c.key === 'hero_copy').sharedTo, []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
