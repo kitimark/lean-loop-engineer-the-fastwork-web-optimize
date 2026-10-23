@@ -3123,7 +3123,7 @@
    "missingWhy": [
     "Counts carry the text-wrap workaround premise (no text balancing) and are desktop Chromium only; WebKit counts are not measured (Safari on a Mac is task gpu-safari-lane)",
     "From scroll frame 15 base has 2 Layout per frame and flag 1: a second Layout source (not the card) starts there and is not diagnosed",
-    "In the base rewrite the card rect moves 6 px per frame while the face and the inline top move 3 px: the card sits at an offset from top that changes with the scroll; no transformed ancestor in the probe list; not diagnosed",
+    "In both arms the card rect moves 6 px per frame while the face moves 3 px. INFERRED cause: its ancestor div.card-module_card has will-change on transform or translate (probe containing list, runs 39881189724 and 39881193403), which makes it the containing block of the fixed card, so top and translate add to the scroll. The Lean model takes the card as viewport-fixed. Not confirmed from Chromium source.",
     "Flag run 3 differs from the other five runs in card pixels from the first hover frame (card left 0.92 px off); 3 runs per arm cannot say whether the flag has a part in it",
     "The card having its own layer is INFERRED from RenderLayerCompositor.cpp:4097-4150@862f17d; without it WebKit still lays out on transform",
     "Desktop only, so no iPhone felt gain"

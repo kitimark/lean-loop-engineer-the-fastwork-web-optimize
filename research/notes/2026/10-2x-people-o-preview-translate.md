@@ -83,10 +83,10 @@ offsets (fractional zoom); there the variant does not rely on it: `keep` require
   cannot show it). So the look claim: rect identical in 3 of 3 pairs, pixels identical in 2 of 3 pairs, the third unexplained. The viewport
   PNG hash is noise (50 differing frames base vs flag and 49 base vs base); the card-region hash is deterministic
   (base r1 = r2 = r3).
-- The base card rect moves 6 px per frame in the scroll phase while the face moves 3 px and the inline `top` moves 3 px: the card sits at an
-  offset from `top` that itself changes with the scroll. The `containing` list (ancestors with transform, filter, contain) holds only the
-  card with `will-change`; the cause is not diagnosed (follow-up). It is the same in both arms.
-- Load diagnostics of run.mjs (Target.setDiscoverTargets, lifecycle, console, exception, dialog and target listeners) are behind
+- In both arms the card rect moves 6 px per frame while the face moves 3 px. INFERRED cause: its ancestor `div.card-module_card` has
+  `will-change` on transform or translate (probe `containing` list, runs 39881189724 and 39881193403), which makes it the containing block of
+  the fixed card, so `top` and translate add to the scroll. The Lean model takes the card as viewport-fixed. Not confirmed from Chromium source.
+- Load diagnostics of run.mjs (Target.setDiscoverTargets, lifecycle, console, exception and target listeners) are behind
   `FW_LOAD_TRACE` (host.mjs passes it through); the crash exit (`Inspector.targetCrashed`, exit 76) and the hang watchdog stay on. Test:
   packages/measure-chromium/test/profile.test.mjs.
 - The `snapDev rows` case of preview.golden.test.ts called no site code (snapDev is the browser's device-pixel rounding); the case is

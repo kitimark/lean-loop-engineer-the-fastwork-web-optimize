@@ -75,6 +75,7 @@ const ev = async (expression) => {
   if (r.exceptionDetails) throw new Error('evaluate failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
   return r.result.value;
 };
+c.on('Page.javascriptDialogOpening', () => { c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); }); // not a diagnostic: an open dialog would block the page
 if (process.env.FW_LOAD_TRACE) {
   let logged = 0;
   const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
@@ -86,7 +87,6 @@ if (process.env.FW_LOAD_TRACE) {
   bs.on('Target.targetDestroyed', (e) => say('target destroyed', e.targetId));
   c.on('Page.frameNavigated', (e) => say('navigated', e.frame.url.slice(0, 60)));
   c.on('Page.lifecycleEvent', (e) => say('lifecycle', e.name));
-  c.on('Page.javascriptDialogOpening', (e) => { say('DIALOG', e.type, JSON.stringify(e.message).slice(0, 200)); c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); });
   c.on('Runtime.exceptionThrown', (e) => say('EXCEPTION', (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text ?? '').slice(0, 300)));
   c.on('Runtime.consoleAPICalled', (e) => { if (e.type === 'error' || e.type === 'warning' || e.type === 'assert') say(e.type, e.args.map((x) => x.value ?? x.description ?? '').join(' ').slice(0, 300)); });
 }
