@@ -21,6 +21,15 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
     `idleSec` (1200 s = 20 min) old (`quiet`).
   D is the one branch that takes a row in a live checkout. `never_live_mcp_parent`: a D selection is a quiet row with an
   MCP root in its chain of the same worktree id, no lean-lsp-mcp started in that worktree and no live lock on it.
+- E (`pickE`, task reap-watch-one-rule): an `until [ -s <path> ]` loop shell (kind `orphanLoop`) in this repo whose tool
+  call has ended (parent is init), at least `orphanMinSec` (60 s) old, and that no live `fw ci wait` of the same worktree id
+  writes (its stdout file is the awaited path, its pid and start are in the table). `live_writer_kept`, `call_live_kept`,
+  `orphan_selected`. The watch alert `agent.held` is `ops.reapHeld` on the same facts (`held_in_plan`: every alerted identity
+  is a TERM target of `ops.reapPlan`), so `fw reap --stop` applies what the alert names; the tick stops it.
+- F (`pickF`): a Simulator device process of ours (`fw-` name) that started before the last sim slot release (`simIdleSince` of
+  the slot `state.json`), with no sim slot held and `simGraceSec` (15 s) passed (kind `simBooted`). `sim_selected`,
+  `sim_held_kept`, `sim_after_release_kept`, `sim_grace_kept`.
+  Goldens: `packages/contracts/golden/ops/reap-one.jsonl` (generator `lean/scripts/ReapGolden.lean`), test `apps/runner/test/reap-one.test.ts`.
 - Serena: a row with a serena process in its chain (itself included) is never selected, by any branch (`serena_row`).
   reap.ts classifies argv with a `serena` word or a `/.serena/` path as `serena`; the serena-lean `lean --server` is kept
   through its serena parent.

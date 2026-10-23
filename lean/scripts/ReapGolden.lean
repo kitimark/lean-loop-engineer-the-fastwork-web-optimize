@@ -272,6 +272,85 @@ def idleCases : List (String × String × Json) := [
   ("ops.reapIdle", "baselines: a reused pid (another start) gets a new baseline",
     idleReq (stack) [mcpW 400 none] [bse 500 1000 10 (start := 8), bse 501 1000 600, bse 502 1000 900, bse 503 1000 100])]
 
+/-- A row with the facts of branches E and F: worktree id, awaited path of an `until` loop, whether its tool call still runs. -/
+def rowE (pid ppid pgid start : Nat) (kind : String) (wt : Option String) (awaits : Option String := none)
+    (callLive : Bool := false) : Json :=
+  match rowW pid ppid pgid start (some 5) kind wt with
+  | .obj kvs => .obj ((kvs.insert "awaits" (match awaits with | some a => .str a | none => .null)).insert "callLive" (.bool callLive))
+  | j => j
+
+/-- A live `fw ci wait`: identity, the agent's worktree id and the path it writes. -/
+def waiterJ (pid start : Nat) (wt writes : String) : Json :=
+  Json.mkObj [("pid", toJson pid), ("start", toJson start), ("wt", .str wt), ("writes", .str writes)]
+
+/-- The loop fact (`loops` of the request) of a row built by `rowE`, and the row without the helper keys. -/
+def loopFact (r : Json) : Option Json :=
+  match r.getObjVal? "awaits", r.getObjVal? "pid", r.getObjVal? "start", r.getObjVal? "callLive" with
+  | .ok (.str a), .ok pid, .ok st, .ok cl => some (Json.mkObj [("pid", pid), ("start", st), ("awaits", .str a), ("callLive", cl)])
+  | _, _, _, _ => none
+
+/-- A row of the request: without the helper keys of `rowE`. -/
+def plainRow : Json → Json
+  | .obj kvs => .obj ((kvs.erase "awaits").erase "callLive")
+  | j => j
+
+/-- A request of branches E and F: rows (the `until` loops among them give the `loops` facts), waiters, the second now, the last
+sim slot release and the sim slots held. -/
+def reqE (rows waiters : List Json) (now : Nat) (simIdleSince : Option Nat := none) (simHolders : Nat := 0) : Json :=
+  match reqW (rows.map plainRow) [1] [] [] ["agent"] with
+  | .obj kvs =>
+    .obj (((((kvs.insert "loops" (.arr (rows.filterMap loopFact).toArray)).insert "waiters" (.arr waiters.toArray)).insert "now"
+      (toJson now)).insert "simIdleSince" (match simIdleSince with | some t => toJson t | none => .null)).insert "simHolders"
+      (toJson simHolders))
+  | j => j
+
+/-- The awaited path of the 2026-10-24 loops. -/
+def mwm : String := "/tmp/mwm-wait.log"
+
+/-- The three cases of task `reap-watch-one-rule`, and the keeps next to each: `(op, name, request)`. -/
+def oneCases : List (String × String × Json) :=
+  let loop (pid : Nat) := rowE pid 1 pid 1000 "untilLoop" (some "agent") (some mwm)
+  let ciWait := rowE 23868 1 23868 1100 "other" (some "agent")
+  let sim := rowE 3100 1 3100 1000 "simDevice" none
+  [("ops.lspReap", "E case 1: an until-loop (pid 2846) that outlived its tool call, no live writer, is selected with pid and start",
+    reqE [loop 2846] [] 1720),
+  ("ops.reapHeld", "E case 1: the watch alert names the same loop (pid 2846, start 1000)", reqE [loop 2846] [] 1720),
+  ("ops.reapPlan", "E case 1: the stop plan TERMs the identity the alert names (pid 2846, start 1000)", reqE [loop 2846] [] 1720),
+  ("ops.lspReap", "E case 2: the same loop (pid 40204) while a live fw ci wait of the same agent writes the awaited path is kept",
+    reqE [loop 40204, ciWait] [waiterJ 23868 1100 "agent" mwm] 1720),
+  ("ops.reapHeld", "E case 2: the watch alert names nothing for it", reqE [loop 40204, ciWait] [waiterJ 23868 1100 "agent" mwm] 1720),
+  ("ops.lspReap", "E: a waiter whose pid was reused (another start) is no writer, the loop is selected",
+    reqE [loop 40204, rowE 23868 1 23868 1500 "other" (some "agent")] [waiterJ 23868 1100 "agent" mwm] 1720),
+  ("ops.lspReap", "E: a live waiter of another agent is no writer, the loop is selected",
+    reqE [loop 40204, rowE 23868 1 23868 1100 "other" (some "other")] [waiterJ 23868 1100 "other" mwm] 1720),
+  ("ops.lspReap", "E: a live waiter of the same agent that writes another path is no writer, the loop is selected",
+    reqE [loop 40204, ciWait] [waiterJ 23868 1100 "agent" "/tmp/other.log"] 1720),
+  ("ops.lspReap", "E: a loop whose tool call is still running is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some mwm) (callLive := true)] [] 1720),
+  ("ops.lspReap", "E: a loop younger than orphanMinSec is kept", reqE [loop 2846] [] 1059),
+  ("ops.lspReap", "E: a loop that awaits no path is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent")] [] 1720),
+  ("ops.lspReap", "F case 3: a Simulator started before the sim slot release, no slot held, grace passed, is selected with pid and start",
+    reqE [sim] [] 1300 (simIdleSince := some 1200)),
+  ("ops.reapPlan", "F case 3: the stop plan TERMs the Simulator identity (pid 3100, start 1000)",
+    reqE [sim] [] 1300 (simIdleSince := some 1200)),
+  ("ops.lspReap", "F: a Simulator is kept while a sim slot is held", reqE [sim] [] 1300 (simIdleSince := some 1200) (simHolders := 1)),
+  ("ops.lspReap", "F: a Simulator booted after the last release is kept", reqE [sim] [] 1300 (simIdleSince := some 900)),
+  ("ops.lspReap", "F: a Simulator is kept before the grace has passed", reqE [sim] [] 1214 (simIdleSince := some 1200)),
+  ("ops.lspReap", "F: with no recorded release nothing is selected", reqE [sim] [] 1300),
+  ("ops.lspReap", "all three cases at once: the orphan loop of agent2 and the Simulator are selected, the loop of agent with a live writer is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent2") (some mwm), loop 40204, ciWait, sim] [waiterJ 23868 1100 "agent" mwm] 1720
+      (simIdleSince := some 1200)),
+  ("ops.lspReap", "E: a protected pid (the stopper's chain) is kept",
+    match reqE [loop 2846] [] 1720 with
+    | .obj kvs => .obj (kvs.insert "protect" (toJson [2846]))
+    | j => j)]
+
+/-- The golden text of `reap-one.jsonl`. -/
+def oneText : String :=
+  String.join (oneCases.map fun (op, name, r) =>
+    (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
+
 /-- The golden text of `lspreap.jsonl`. -/
 def text : String :=
   String.join (reapCases.map fun (name, r) =>
@@ -293,7 +372,7 @@ def main (args : List String) : IO UInt32 := do
   let dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
   let files : List (String × String × Nat) :=
     [("lspreap.jsonl", text, reapCases.length), ("reap.jsonl", stopText, stopCases.length),
-      ("reap-idle.jsonl", idleText, idleCases.length)]
+      ("reap-idle.jsonl", idleText, idleCases.length), ("reap-one.jsonl", oneText, oneCases.length)]
   if args.contains "--check" then
     let mut bad := false
     for (f, t, n) in files do

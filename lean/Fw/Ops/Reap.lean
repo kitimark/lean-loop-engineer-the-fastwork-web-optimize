@@ -27,6 +27,8 @@ inductive Kind where
   | removed
   | descendant
   | mcpIdle
+  | orphanLoop
+  | simBooted
 deriving Repr, DecidableEq
 
 /-- The kind named by the glue's argv classification for branch A. -/
@@ -42,6 +44,8 @@ def Kind.name : Kind → String
   | .removed => "removed"
   | .descendant => "descendant"
   | .mcpIdle => "mcpIdle"
+  | .orphanLoop => "orphanLoop"
+  | .simBooted => "simBooted"
 
 /-- The argv kinds that branches B and C may select: a tool process (lean, lake, fwcore, node, vitest, a playwright browser)
 or a `lake serve` (also when its parent is gone). A tool is never selected by its name, only through its cwd (B) or an
@@ -103,6 +107,23 @@ structure Input where
   protect : List Nat := []
 deriving Repr
 
+/-- The facts of one `until` loop row, by identity (pid, start): the path it awaits and whether the tool call that started it
+still runs. -/
+structure LoopFact where
+  pid : Nat
+  start : Nat
+  awaits : String
+  callLive : Bool
+deriving Repr
+
+/-- A live `fw ci wait` process: identity (pid, start), the worktree id of the agent that runs it and the path it writes. -/
+structure Waiter where
+  pid : Nat
+  start : Nat
+  wt : String
+  writes : String
+deriving Repr
+
 /-- The inputs of every branch, D included: those of A, B and C, the current second `now`, the CPU time each read row used,
 the CPU baselines of the previous run, the worktree locks and `mcpWt`, the worktree id each lean-lsp-mcp process (by pid)
 was started in (no entry: elsewhere, the main checkout included). -/
@@ -112,6 +133,10 @@ structure InputD extends Input where
   bases : List Base := []
   locks : List Lock := []
   mcpWt : List (Nat × String) := []
+  loops : List LoopFact := []
+  waiters : List Waiter := []
+  simIdleSince : Option Nat := none
+  simHolders : Nat := 0
 deriving Repr
 
 instance : Coe InputD Input := ⟨InputD.toInput⟩
@@ -588,6 +613,8 @@ def Kind.reason : Kind → String
   | .removed => "tool whose cwd is in a removed worktree"
   | .descendant => "tool below a selected process"
   | .mcpIdle => "lean-lsp-mcp server stack idle (CPU quiet) in a worktree with no live agent"
+  | .orphanLoop => "until-loop shell that outlived its tool call, no live writer of the awaited file"
+  | .simBooted => "Simulator booted by a sim slot run that has released, no sim slot held"
 
 /-! ## The stop plan -/
 
@@ -1211,6 +1238,355 @@ private def gIn : InputD :=
 #guard rebase { gIn with bases := [] } == [⟨500, 9, 5000, 10⟩, ⟨501, 9, 5000, 600⟩, ⟨502, 9, 5000, 900⟩]
 #guard sessionLive { gIn with locks := [⟨"w", some 500⟩] } "w" && !sessionLive gIn "w"
 
+
+/-! ## Branches E and F: an orphan until-loop and a released Simulator (task `reap-watch-one-rule`)
+One rule that `fw reap --list`, `fw reap --stop`, the watch tick and the watch alert all read.
+E: a shell whose argv is an `until [ -s <path> ]` loop (`kind = "untilLoop"` with a `LoopFact` of the same pid and start) in this repo, whose tool
+call has ended (`callLive = false`), that is at least `orphanMinSec` old, and that no live `fw ci wait` of the same agent (the
+same worktree id) writes: a waiter writes the awaited path only while its (pid, start) is in the table.
+F: a Simulator device process (`kind = "simDevice"`) that started before the last sim slot release (`simIdleSince`), while no
+sim slot is held (`simHolders = 0`) and `simGraceSec` have passed since that release.
+Both refuse a pid <= 1, a row of a shielded chain and a row with a serena process in its chain. -/
+
+/-- A loop must be this old (seconds) before it is selected: a fresh loop is a wait that has just begun. -/
+def orphanMinSec : Nat := 60
+
+/-- Seconds after a sim slot release before its Simulator is selected: the release's own shutdown check goes first. -/
+def simGraceSec : Nat := 15
+
+/-- The waiter is a live process: a row of the table has its pid and start. -/
+def waiterLive (i : InputD) (w : Waiter) : Bool := i.rows.any fun r => r.pid == w.pid && r.start == w.start
+
+/-- The loop facts of a row, by identity (a reused pid has another start and no fact). -/
+def loopOf (i : InputD) (r : Row) : Option LoopFact := i.loops.find? fun l => l.pid == r.pid && l.start == r.start
+
+/-- A live waiter of the loop's agent writes the loop's awaited path. -/
+def writerLive (i : InputD) (r : Row) (l : LoopFact) : Bool :=
+  match r.wt with
+  | some a => i.waiters.any fun w => w.wt == a && w.writes == l.awaits && waiterLive i w
+  | none => false
+
+/-- Branch E: the kind an orphan until-loop is selected as, or `none`. -/
+def pickE (i : InputD) (r : Row) : Option Kind :=
+  match r.cwd, r.wt, loopOf i r with
+  | some _, some _, some l =>
+    if r.kind == "untilLoop" && r.inRepo && !l.callLive && !writerLive i r l && decide (r.start + orphanMinSec ≤ i.now) &&
+        decide (1 < r.pid) && shielded i r
+    then some .orphanLoop else none
+  | _, _, _ => none
+
+/-- Branch F: the kind a Simulator booted by a released sim slot run is selected as, or `none`. -/
+def pickF (i : InputD) (r : Row) : Option Kind :=
+  match i.simIdleSince with
+  | some s =>
+    if r.kind == "simDevice" && i.simHolders == 0 && decide (r.start ≤ s) && decide (s + simGraceSec ≤ i.now) &&
+        decide (1 < r.pid) && shielded i r
+    then some .simBooted else none
+  | none => none
+
+/-- The kind E or F selects, never for a row with a serena process in its chain. -/
+def pickW (i : InputD) (r : Row) : Option Kind :=
+  if serenaFree i r then
+    match pickE i r with
+    | some k => some k
+    | none => pickF i r
+  else none
+
+/-- The kind a row is selected as by any branch: A, B, C or D first, else E or F. -/
+def pickOne (i : InputD) (r : Row) : Option Kind :=
+  match pickAll i r with
+  | some k => some k
+  | none => pickW i r
+
+/-- The rows to stop by every branch, with a group flag that is set only for a group leader. -/
+def reapOne (i : InputD) : List Sel :=
+  i.rows.filterMap fun r => (pickOne i r).map fun k => ⟨r.pid, r.start, k, r.pgid == r.pid⟩
+
+/-- The TERM targets of every branch: one per selected row. -/
+def planOne (i : InputD) : List Target :=
+  (reapOne i).map fun s => ⟨s.pid, s.start, groupSafe i (reapOne i) s⟩
+
+/-- What the watch alert names: the selected orphan loops. The mitigation is the stop plan's. -/
+def held (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .orphanLoop
+
+theorem pickE_some {i : InputD} {r : Row} {k : Kind} (h : pickE i r = some k) :
+    k = .orphanLoop ∧ (∃ c, r.cwd = some c) ∧ (∃ a, r.wt = some a) ∧
+      (∃ l, loopOf i r = some l ∧ r.kind = "untilLoop" ∧ r.inRepo = true ∧ l.callLive = false ∧ writerLive i r l = false) ∧
+      r.start + orphanMinSec ≤ i.now ∧ 1 < r.pid ∧ shielded i r = true := by
+  unfold pickE at h
+  split at h
+  · rename_i c a l hc ha hp
+    split at h
+    · rename_i hb
+      cases h
+      simp only [Bool.and_eq_true, Bool.not_eq_true', beq_iff_eq, decide_eq_true_eq] at hb
+      obtain ⟨⟨⟨⟨⟨⟨hk, hin⟩, hcl⟩, hw⟩, hn⟩, h1⟩, hs⟩ := hb
+      exact ⟨rfl, ⟨c, hc⟩, ⟨a, ha⟩, ⟨l, hp, hk, hin, hcl, hw⟩, hn, h1, hs⟩
+    · cases h
+  · cases h
+
+theorem pickF_some {i : InputD} {r : Row} {k : Kind} (h : pickF i r = some k) :
+    k = .simBooted ∧ r.kind = "simDevice" ∧ i.simHolders = 0 ∧
+      (∃ s, i.simIdleSince = some s ∧ r.start ≤ s ∧ s + simGraceSec ≤ i.now) ∧ 1 < r.pid ∧ shielded i r = true := by
+  unfold pickF at h
+  split at h
+  · rename_i s hs
+    split at h
+    · rename_i hb
+      cases h
+      simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hb
+      obtain ⟨⟨⟨⟨⟨hk, hh⟩, hst⟩, hg⟩, h1⟩, hsh⟩ := hb
+      exact ⟨rfl, hk, hh, ⟨s, hs, hst, hg⟩, h1, hsh⟩
+    · cases h
+  · cases h
+
+/-- Case 2 (E, kept): an until-loop whose awaited path a live `fw ci wait` of the same agent writes is a wait. -/
+theorem live_writer_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : writerLive i r l = true) :
+    pickE i r = none := by
+  unfold pickE
+  rw [hl]
+  split
+  · rename_i heq
+    cases heq
+    simp [h]
+  · rfl
+
+/-- Case 2, by identity: a live writer is a waiter of the loop's agent with the awaited path whose (pid, start) is in the table
+(a reused pid with another start is no writer). -/
+theorem writer_identity {i : InputD} {r : Row} {l : LoopFact} (h : writerLive i r l = true) :
+    ∃ w ∈ i.waiters, r.wt = some w.wt ∧ l.awaits = w.writes ∧ ∃ x ∈ i.rows, x.pid = w.pid ∧ x.start = w.start := by
+  unfold writerLive at h
+  split at h
+  · rename_i a hw
+    simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq, waiterLive] at h
+    obtain ⟨w, hw', ⟨hwa, hwp⟩, x, hx, hxp⟩ := h
+    exact ⟨w, hw', by rw [hw, hwa], hwp.symm, x, hx, hxp.1, hxp.2⟩
+  · cases h
+
+/-- E, kept: a loop whose tool call is still running is a wait. -/
+theorem call_live_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : l.callLive = true) :
+    pickE i r = none := by
+  unfold pickE
+  rw [hl]
+  split
+  · rename_i heq
+    cases heq
+    simp [h]
+  · rfl
+
+/-- E, kept: a loop younger than `orphanMinSec`. -/
+theorem young_loop_kept {i : InputD} {r : Row} (h : i.now < r.start + orphanMinSec) : pickE i r = none := by
+  unfold pickE
+  split
+  · simp; omega
+  · rfl
+
+/-- E, kept: a row that is not an until-loop. -/
+theorem not_loop_kept {i : InputD} {r : Row} (h : r.kind ≠ "untilLoop") : pickE i r = none := by
+  unfold pickE
+  split <;> simp [h]
+
+/-- Case 1 (E, selected): an old until-loop in this repo with an ended tool call and no live writer. -/
+theorem orphan_selected {i : InputD} {r : Row} {c : Nat} {a : String} {l : LoopFact} (hc : r.cwd = some c) (ha : r.wt = some a)
+    (hl : loopOf i r = some l) (hk : r.kind = "untilLoop") (hin : r.inRepo = true) (hcl : l.callLive = false)
+    (hw : writerLive i r l = false) (hn : r.start + orphanMinSec ≤ i.now) (h1 : 1 < r.pid) (hs : shielded i r = true) :
+    pickE i r = some .orphanLoop := by
+  unfold pickE
+  rw [hc, ha, hl]
+  simp [hk, hin, hcl, hw, hn, h1, hs]
+
+/-- Case 3 (F, selected): a Simulator that started before the last sim slot release, with no slot held and the grace passed. -/
+theorem sim_selected {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (hk : r.kind = "simDevice")
+    (hh : i.simHolders = 0) (hb : r.start ≤ s) (hg : s + simGraceSec ≤ i.now) (h1 : 1 < r.pid) (hsh : shielded i r = true) :
+    pickF i r = some .simBooted := by
+  unfold pickF
+  rw [hs]
+  simp [hk, hh, hb, hg, h1, hsh]
+
+/-- F, kept: while a sim slot is held, its Simulator is in use. -/
+theorem sim_held_kept {i : InputD} {r : Row} (h : i.simHolders ≠ 0) : pickF i r = none := by
+  unfold pickF
+  split
+  · simp [h]
+  · rfl
+
+/-- F, kept: a Simulator booted after the last release (by a run that has not released) is not selected. -/
+theorem sim_after_release_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (h : s < r.start) :
+    pickF i r = none := by
+  unfold pickF
+  rw [hs]
+  simp
+  omega
+
+/-- F, kept: without a recorded release nothing is selected. -/
+theorem sim_no_release_kept {i : InputD} {r : Row} (h : i.simIdleSince = none) : pickF i r = none := by
+  unfold pickF
+  rw [h]
+
+/-- F, kept: before the grace has passed since the release. -/
+theorem sim_grace_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (h : i.now < s + simGraceSec) :
+    pickF i r = none := by
+  unfold pickF
+  rw [hs]
+  simp
+  omega
+
+/-- Branches A, B and C never name the kinds of E and F. -/
+theorem pickAny_ne_w {i : Input} {r : Row} {k : Kind} (h : pickAny i r = some k) : k ≠ .orphanLoop ∧ k ≠ .simBooted := by
+  unfold pickAny pickAB at h
+  cases hp : pick i r with
+  | some k' =>
+    rw [hp] at h
+    obtain ⟨hk, -⟩ := pick_some hp
+    simp only [Option.some.injEq] at h
+    subst h
+    simp [kindOf] at hk
+    split at hk <;> (cases hk; try exact ⟨by decide, by decide⟩)
+  | none =>
+    rw [hp] at h
+    cases hb : pickB i r with
+    | some k' =>
+      rw [hb] at h
+      obtain ⟨hk, -⟩ := pickB_some hb
+      simp only [Option.some.injEq] at h
+      subst h
+      rw [hk]
+      exact ⟨by decide, by decide⟩
+    | none =>
+      rw [hb] at h
+      obtain ⟨hk, -⟩ := pickC_some h
+      subst hk
+      exact ⟨by decide, by decide⟩
+
+/-- Branches A to D never name the kinds of E and F. -/
+theorem all_ne_w {i : InputD} {r : Row} {k : Kind} (h : pickAll i r = some k) : k ≠ .orphanLoop ∧ k ≠ .simBooted := by
+  rcases all_some h with ⟨-, hp⟩ | ⟨hk, -⟩
+  · exact pickAny_ne_w hp
+  · subst hk
+    exact ⟨by decide, by decide⟩
+
+/-- A selection of any branch is one of A-D or one of E-F. -/
+theorem one_some {i : InputD} {r : Row} {k : Kind} (h : pickOne i r = some k) :
+    pickAll i r = some k ∨ (pickAll i r = none ∧ pickW i r = some k) := by
+  unfold pickOne at h
+  cases hp : pickAll i r with
+  | some k' => rw [hp] at h; cases h; exact Or.inl rfl
+  | none => rw [hp] at h; exact Or.inr ⟨rfl, h⟩
+
+theorem pickW_some {i : InputD} {r : Row} {k : Kind} (h : pickW i r = some k) :
+    serenaFree i r = true ∧ (pickE i r = some k ∨ (pickE i r = none ∧ pickF i r = some k)) := by
+  unfold pickW at h
+  split at h
+  · rename_i hs
+    refine ⟨hs, ?_⟩
+    cases hp : pickE i r with
+    | some k' => rw [hp] at h; cases h; exact Or.inl rfl
+    | none => rw [hp] at h; exact Or.inr ⟨rfl, h⟩
+  · cases h
+
+/-- What every selection of E or F has: pid > 1, a shielded chain and no serena process in the chain. -/
+theorem w_safe {i : InputD} {r : Row} {k : Kind} (h : pickW i r = some k) :
+    1 < r.pid ∧ shielded i r = true ∧ serenaFree i r = true := by
+  obtain ⟨hs, hp | ⟨-, hp⟩⟩ := pickW_some h
+  · obtain ⟨-, -, -, -, -, h1, hsh⟩ := pickE_some hp
+    exact ⟨h1, hsh, hs⟩
+  · obtain ⟨-, -, -, -, h1, hsh⟩ := pickF_some hp
+    exact ⟨h1, hsh, hs⟩
+
+/-- What every selection of every branch has: pid > 1 and a shielded chain. -/
+theorem one_safe {i : InputD} {r : Row} {k : Kind} (h : pickOne i r = some k) : 1 < r.pid ∧ shielded i r = true := by
+  rcases one_some h with hp | ⟨-, hp⟩
+  · obtain ⟨-, h1, hs, -⟩ := all_safe hp
+    exact ⟨h1, hs⟩
+  · obtain ⟨h1, hs, -⟩ := w_safe hp
+    exact ⟨h1, hs⟩
+
+theorem reapOne_mem {i : InputD} {s : Sel} (h : s ∈ reapOne i) :
+    ∃ r ∈ i.rows, pickOne i r = some s.kind ∧ r.pid = s.pid ∧ r.start = s.start ∧ s.group = (r.pgid == r.pid) := by
+  unfold reapOne at h
+  rw [List.mem_filterMap] at h
+  obtain ⟨r, hr, hs⟩ := h
+  cases hp : pickOne i r with
+  | none => simp [hp] at hs
+  | some k =>
+    simp [hp] at hs
+    subst hs
+    exact ⟨r, hr, hp, rfl, rfl, rfl⟩
+
+/-- Neither init nor pid 0 is ever selected, by any branch. -/
+theorem one_not_init {i : InputD} {s : Sel} (h : s ∈ reapOne i) : 1 < s.pid := by
+  obtain ⟨r, -, hp, hpid, -⟩ := reapOne_mem h
+  have := (one_safe hp).1
+  omega
+
+/-- The recorded console, everything below it and the stopper's own chain are never selected, by any branch. -/
+theorem one_shielded {i : InputD} {s : Sel} (h : s ∈ reapOne i) : ∃ r ∈ i.rows, r.pid = s.pid ∧ shielded i r = true := by
+  obtain ⟨r, hr, hp, hpid, -⟩ := reapOne_mem h
+  exact ⟨r, hr, hpid, (one_safe hp).2⟩
+
+/-- A selection of E is an old until-loop of this repo with an ended tool call and no live writer. -/
+theorem orphan_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind = .orphanLoop) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.kind = "untilLoop" ∧ r.inRepo = true ∧
+      ∃ l, loopOf i r = some l ∧ l.callLive = false ∧ writerLive i r l = false := by
+  obtain ⟨r, hr, hp, hpid, hst, -⟩ := reapOne_mem h
+  rw [hk] at hp
+  rcases one_some hp with hp | ⟨-, hp⟩
+  · exact absurd rfl (all_ne_w hp).1
+  · obtain ⟨-, hp | ⟨-, hp⟩⟩ := pickW_some hp
+    · obtain ⟨-, -, -, ⟨l, hl, hk', hin, hcl, hw⟩, -⟩ := pickE_some hp
+      exact ⟨r, hr, hpid, hst, hk', hin, l, hl, hcl, hw⟩
+    · obtain ⟨hk', -⟩ := pickF_some hp
+      cases hk'
+
+/-- A selection of F is a Simulator process that started before the last sim slot release, with no sim slot held. -/
+theorem sim_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind = .simBooted) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.kind = "simDevice" ∧ i.simHolders = 0 ∧
+      ∃ t, i.simIdleSince = some t ∧ r.start ≤ t ∧ t + simGraceSec ≤ i.now := by
+  obtain ⟨r, hr, hp, hpid, hst, -⟩ := reapOne_mem h
+  rw [hk] at hp
+  rcases one_some hp with hp | ⟨-, hp⟩
+  · exact absurd rfl (all_ne_w hp).2
+  · obtain ⟨-, hp | ⟨-, hp⟩⟩ := pickW_some hp
+    · obtain ⟨hk', -⟩ := pickE_some hp
+      cases hk'
+    · obtain ⟨-, hkind, hh, ht, -⟩ := pickF_some hp
+      exact ⟨r, hr, hpid, hst, hkind, hh, ht⟩
+
+/-- Every TERM target of every branch is a selected identity. -/
+theorem planOne_sel {i : InputD} {t : Target} (h : t ∈ planOne i) :
+    ∃ s ∈ reapOne i, s.pid = t.pid ∧ s.start = t.start := by
+  unfold planOne at h
+  rw [List.mem_map] at h
+  obtain ⟨s, hs, rfl⟩ := h
+  exact ⟨s, hs, rfl, rfl⟩
+
+/-- A TERM group signal of every branch reaches only selected rows. -/
+theorem planOne_group_inside {i : InputD} {t : Target} (h : t ∈ planOne i) (hg : t.group = true) :
+    ∀ r ∈ i.rows, r.pgid = t.pid → ∃ s ∈ reapOne i, s.pid = r.pid ∧ s.start = r.start := by
+  unfold planOne at h
+  rw [List.mem_map] at h
+  obtain ⟨s, hs, rfl⟩ := h
+  intro r hr hpg
+  simp only [groupSafe, Bool.and_eq_true, List.all_eq_true] at hg
+  have := hg.2 r hr
+  simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, inSel, List.any_eq_true, Bool.and_eq_true, beq_iff_eq] at this
+  rcases this with h1 | ⟨s', hs', h2, h3⟩
+  · exact absurd hpg h1
+  · exact ⟨s', hs', h2, h3⟩
+
+/-- **One rule.** Every orphan loop the watch alert names is a TERM target of the stop plan with the same identity. -/
+theorem held_in_plan {i : InputD} {s : Sel} (h : s ∈ held i) : ∃ t ∈ planOne i, t.pid = s.pid ∧ t.start = s.start := by
+  unfold held at h
+  rw [List.mem_filter] at h
+  unfold planOne
+  exact ⟨_, List.mem_map.2 ⟨s, h.1, rfl⟩, rfl, rfl⟩
+
+/-- The alert names only orphan loops. -/
+theorem held_kind {i : InputD} {s : Sel} (h : s ∈ held i) : s.kind = .orphanLoop := by
+  unfold held at h
+  rw [List.mem_filter] at h
+  simpa using h.2
+
 end Fw.Ops.Reap
 
 namespace Fw.Wire.Reap
@@ -1218,7 +1594,15 @@ open Lean Fw.Ops.Reap Fw.Wire.Ops
 
 /-- One row from JSON: `pid`, `ppid`, `pgid`, `start`, `cwd`? (inode or null), `kind`, `wt`? (worktree id or null), `inRepo`? (bool). -/
 def rowOf (j : Json) : Except String Row := do
-  pure ⟨← nat j "pid", ← nat j "ppid", ← nat j "pgid", ← nat j "start", ← optN j "cwd", ← str j "kind", ← optS j "wt", ← boolD j "inRepo" false⟩
+  let pid ← nat j "pid"
+  let ppid ← nat j "ppid"
+  let pgid ← nat j "pgid"
+  let start ← nat j "start"
+  let cwd ← optN j "cwd"
+  let kind ← str j "kind"
+  let wt ← optS j "wt"
+  let inRepo ← boolD j "inRepo" false
+  pure { pid, ppid, pgid, start, cwd, kind, wt, inRepo }
 
 /-- The CPU time of a JSON row (`cpu`?, centiseconds or null), `none` when unread. -/
 def useOf (j : Json) : Except String (Option Use) := do
@@ -1248,7 +1632,13 @@ def inputOf (req : Json) : Except String InputD := do
   let protect ← (← arrD req "protect").mapM (asNat "protect")
   let bases ← (← arrD req "bases").mapM baseOfJson
   let locks ← (← arrD req "locks").mapM fun j => do pure (Lock.mk (← str j "id") (← optN j "holder"))
-  pure { rows, live, mcps, keep, liveIds, protect, now := ← natD req "now" 0, uses, bases, locks, mcpWt }
+  let waiters ← (← arrD req "waiters").mapM fun j => do pure (Waiter.mk (← nat j "pid") (← nat j "start") (← str j "wt") (← str j "writes"))
+  let loops ← (← arrD req "loops").mapM fun j => do
+    pure (LoopFact.mk (← nat j "pid") (← nat j "start") (← str j "awaits") (← boolD j "callLive" false))
+  let now ← natD req "now" 0
+  let simIdleSince ← optN req "simIdleSince"
+  let simHolders ← natD req "simHolders" 0
+  pure { rows, live, mcps, keep, liveIds, protect, now, uses, bases, locks, mcpWt, loops, waiters, simIdleSince, simHolders }
 
 /-- A selected row as JSON. -/
 def selJson (s : Sel) : Json :=
@@ -1267,16 +1657,16 @@ def targetOf (j : Json) : Except String Target := do
 [pid], `now`? (second), `bases`? [{pid, start, since, cpu}], `locks`? [{id, holder?}] → `selected` [{pid, start, kind, group,
 reason}] of every branch, `count`. -/
 def opLspReap (req : Json) : Except String Reply := do
-  let sel := reapAll (← inputOf req)
+  let sel := reapOne (← inputOf req)
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson))]
 
 /-- `ops.reapPlan`: the request of `ops.lspReap` → `count`, `selected`, `targets` [{pid, start, group}] (the TERM
 targets), `graceMs`, `killWaitMs`, `script` [stage name]. -/
 def opReapPlan (req : Json) : Except String Reply := do
   let i ← inputOf req
-  let sel := reapAll i
+  let sel := reapOne i
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson)),
-    ("targets", .arr ((planAll i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
+    ("targets", .arr ((planOne i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
     ("script", .arr (script.toArray.map fun s => .str s.name))]
 
 /-- `ops.reapIdle`: the request of `ops.lspReap` → `bases` [{pid, start, since, cpu}] (the baselines to store for the next
@@ -1284,6 +1674,12 @@ run), `idleSec`, `cpuTolCs`. -/
 def opReapIdle (req : Json) : Except String Reply := do
   let i ← inputOf req
   pure [("bases", .arr ((rebase i).toArray.map baseJson)), ("idleSec", toJson idleSec), ("cpuTolCs", toJson cpuTolCs)]
+
+/-- `ops.reapHeld`: the request of `ops.lspReap` → `held` [{pid, start, kind, group, reason}] (the orphan loops the watch alert
+names; each is a TERM target of `ops.reapPlan`), `count`. -/
+def opReapHeld (req : Json) : Except String Reply := do
+  let sel := held (← inputOf req)
+  pure [("count", toJson sel.length), ("held", .arr (sel.toArray.map selJson))]
 
 /-- `ops.reapKill`: `planned` [{pid, start, group}], `rows` [row] (the fresh read) → `kill` [{pid, start, group}]. -/
 def opReapKill (req : Json) : Except String Reply := do
@@ -1313,7 +1709,7 @@ def opReapGuard (req : Json) : Except String Reply := do
 
 /-- The ops of this module. -/
 def ops : List String :=
-  ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle"]
+  ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle", "ops.reapHeld"]
 
 /-- Dispatch (`none` when the op is not one of this module's). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -1325,6 +1721,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.reapTerm" => some (opReapTerm req)
   | "ops.reapGuard" => some (opReapGuard req)
   | "ops.reapIdle" => some (opReapIdle req)
+  | "ops.reapHeld" => some (opReapHeld req)
   | _ => none
 
 #guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[]), ("scope", .arr #[]), ("target", Json.mkObj [("pid", toJson 2), ("start", toJson 0)])])).isSome

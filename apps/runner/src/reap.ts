@@ -16,6 +16,11 @@ export type ReapRow = {
   /** CPU time used so far, centiseconds; absent or null when unread */
   cpu?: number | null;
 };
+/** The facts of one `until [ -s <path> ]` loop row, by identity: the awaited path and whether its parent is not init (the tool
+ *  call that started it still runs). */
+export type LoopFact = { pid: number; start: number; awaits: string; callLive: boolean };
+/** A live `fw ci wait`: identity, the worktree id of the agent running it and the file its stdout is redirected to. */
+export type Waiter = { pid: number; start: number; wt: string; writes: string };
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
 export type Target = { pid: number; start: number; group: boolean };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
@@ -28,6 +33,8 @@ export type Facts = {
   liveIds?: string[]; protect?: number[];
   /** the current second, the previous run's CPU baselines and the worktree locks (branch D); absent: nothing is idle */
   now?: number; bases?: Base[]; locks?: Lock[];
+  /** branches E and F: the live `fw ci wait` processes, the second of the last sim slot release (null: none) and the live sim slots */
+  loops?: LoopFact[]; waiters?: Waiter[]; simIdleSince?: number | null; simHolders?: number;
   /** where the baselines Lean returns are stored for the next run; absent: not stored */
   idleFile?: string;
 };
@@ -39,15 +46,61 @@ export const isSerena = (args: string): boolean => /(^|[\s/])serena(\s|$)/.test(
 /** The argv kind the Lean op expects: `serena` (never selected, nor anything below it), `lspServe` (a `lake serve`),
  *  `console` (console-api main), `tool` (lean, lake, fwcore, node, a playwright browser: selected only through a removed
  *  worktree, a dead ancestor or an idle lean-lsp-mcp stack, never by this name), else `other`. */
-export function classify(args: string): "serena" | "lspServe" | "console" | "tool" | "other" {
+export function classify(args: string): "serena" | "lspServe" | "console" | "tool" | "untilLoop" | "simDevice" | "other" {
   const w = args.trim().split(/\s+/);
   const base = w[0]?.split("/").pop() ?? "";
   if (isSerena(args)) return "serena";
+  if (["zsh", "bash", "sh"].includes(base) && awaitedPath(args) !== null) return "untilLoop";
+  if (base === "launchd_sim" && simUdidOf(args) !== null) return "simDevice";
   if (base === "lake" && w[1] === "serve") return "lspServe";
   if (/(^|\/)node$/.test(w[0] ?? "") && w.some((x) => /apps\/console-api\/src\/main\.ts$/.test(x))) return "console";
   if (["lean", "lake", "fwcore", "node", "esbuild"].includes(base)) return "tool";
   if (/\/ms-playwright\//.test(args.split(" --")[0] ?? "")) return "tool";
   return "other";
+}
+
+/** The path an `until [ -s|-f|-e <path> ]` loop in this command line waits for (quotes dropped); null: no such loop. */
+export function awaitedPath(args: string): string | null {
+  const m = /\buntil\s+\[\s+-[sfe]\s+["']?([^\s"'\]]+)["']?\s+\]/.exec(args);
+  return m ? m[1]! : null;
+}
+
+/** The device id in a `launchd_sim .../CoreSimulator/Devices/<udid>/...` command line; null: none. */
+export function simUdidOf(args: string): string | null {
+  const m = /CoreSimulator\/Devices\/([0-9A-Fa-f-]{36})\//.exec(args);
+  return m ? m[1]!.toUpperCase() : null;
+}
+
+/** True for a `fw ci wait` command line (the pnpm wrapper and the node child). */
+export const isCiWait = (args: string): boolean => /(^|[\s/])fw(\.mjs|\.ts)?\s+ci\s+wait(\s|$)/.test(args) || /\bfw\b.*\bci\s+wait(\s|$)/.test(args);
+
+/** `lsof -d 1,2 -Fpn` output to pid -> the regular file its stdout or stderr is redirected to (first one); no entry: none. */
+export function parseLsofOut(out: string): Map<number, string> {
+  const m = new Map<number, string>();
+  let pid = -1;
+  for (const l of out.split("\n")) {
+    if (l.startsWith("p")) pid = Number(l.slice(1));
+    else if (l.startsWith("n/") && !l.startsWith("n/dev/") && pid >= 0 && !m.has(pid)) m.set(pid, l.slice(1));
+  }
+  return m;
+}
+
+/** Device ids of the Simulators this project boots (`fw-` names), from `xcrun simctl list devices -j`; null when it fails. */
+export function ownSimUdids(): Set<string> | null {
+  const r = spawnSync("xcrun", ["simctl", "list", "devices", "-j"], { encoding: "utf8", maxBuffer: 1 << 26, timeout: 10_000 });
+  if (r.error || r.status !== 0) return null;
+  try {
+    const j = JSON.parse(r.stdout) as { devices?: Record<string, { udid: string; name: string }[]> };
+    return new Set(Object.values(j.devices ?? {}).flat().filter((d) => d.name.startsWith("fw-")).map((d) => d.udid.toUpperCase()));
+  } catch { return null; }
+}
+
+/** The second of the last sim slot release and the number of live sim slots, from the slot `state.json`; null/0 when unread. */
+export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simHolders: number } {
+  try {
+    const st = JSON.parse(readFileSync(join(dir, "state.json"), "utf8")) as { simIdleSince?: number; holders?: { kind: string; till: number }[] };
+    return { simIdleSince: st.simIdleSince ? st.simIdleSince : null, simHolders: (st.holders ?? []).filter((h) => h.kind === "sim" && now < h.till).length };
+  } catch { return { simIdleSince: null, simHolders: 0 }; }
 }
 
 /** A process of the lean-lsp-mcp server (its launcher or the Python it runs): the parents a `lake serve` may have. */
@@ -285,9 +338,14 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const repo = repoIdOf(base);
   if (repo === null) return null;
   const cpu = cpuTable();
+  const own = t.rows.some((r) => r.kind === "simDevice") ? ownSimUdids() : null;
+  const argsOf = new Map(t.ps.map((p) => [p.pid, p.args]));
+  // a Simulator that is not one of ours (or whose device list is unreadable) is no candidate
+  for (const r of t.rows) if (r.kind === "simDevice" && !own?.has(simUdidOf(argsOf.get(r.pid) ?? "") ?? "")) r.kind = "other";
   const cand = t.rows.filter((r) => r.kind !== "other" && r.kind !== "serena");
   const mcpPs = t.ps.filter((p) => isMcp(p.args));
-  const cwd = readCwds([...cand, ...mcpPs].map((p) => p.pid));
+  const waitPs = t.ps.filter((p) => isCiWait(p.args));
+  const cwd = readCwds([...cand, ...mcpPs, ...waitPs].map((p) => p.pid));
   if (cwd === null) return null;
   const live = new Set(liveRoots(dirs));
   const liveIds = liveWtIds(base, dirs, repo);
@@ -297,6 +355,20 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const isLive = (pid: number, c: Cwd) => { const id = where.get(pid)?.wt ?? null; return (id === null || liveIds.includes(id)) && insideLive(c, dirs); };
   for (const [pid, c] of cwd) if (isLive(pid, c)) live.add(c.ino);
   const idleFile = join(consoleDirOf(env, top), "reap-idle.json");
+  const out = waitPs.length ? spawnSync("lsof", ["-a", "-d", "1,2", "-Fpn", "-p", waitPs.map((p) => p.pid).join(",")], { encoding: "utf8", maxBuffer: 1 << 24 }) : null;
+  const writes = parseLsofOut(out?.stdout ?? "");
+  const waiters: Waiter[] = [];
+  for (const p of waitPs) {
+    const wt = where.get(p.pid)?.wt ?? null, w = writes.get(p.pid);
+    if (wt !== null && w !== undefined) waiters.push({ pid: p.pid, start: p.start, wt, writes: w });
+  }
+  const loops: LoopFact[] = [];
+  for (const r of cand) {
+    const a = r.kind === "untilLoop" ? awaitedPath(argsOf.get(r.pid) ?? "") : null;
+    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: a, callLive: r.ppid > 1 });
+  }
+  const now = secs(Date.now());
+  const sim = simSlotFacts(env.FW_SLOT_DIR ?? join(consoleDirOf(env, top), "slot"), now);
   return {
     rows: t.rows.map((r) => {
       const c = cwd.get(r.pid);
@@ -309,7 +381,8 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
     keep: recordedConsoles(top),
     liveIds,
     protect: selfChain(t.ps),
-    now: secs(Date.now()),
+    now,
+    loops, waiters, ...sim,
     bases: loadBases(idleFile),
     locks: parseLocks(porcelain, (p) => wtIdOf(p, repo)),
     idleFile,
@@ -318,8 +391,16 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
 
 const request = (op: string, f: Facts) => ({
   op, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
-  now: f.now ?? 0, bases: f.bases ?? [], locks: f.locks ?? [],
+  now: f.now ?? 0, bases: f.bases ?? [], locks: f.locks ?? [], loops: f.loops ?? [], waiters: f.waiters ?? [], simIdleSince: f.simIdleSince ?? null,
+  simHolders: f.simHolders ?? 0,
 });
+
+/** The orphan loops the watch alert names: Lean's `ops.reapHeld` on the same facts `fw reap` reads, each a TERM target of
+ *  `ops.reapPlan`. `subject` is the agent's worktree id (the loop's own), else `pid-<pid>`. */
+export function heldLoops(f: Facts, call: Call): { pid: number; start: number; subject: string; reason: string }[] {
+  const held = (call({ ...request("ops.reapHeld", f) }) as { held: Selected[] }).held;
+  return held.map((h) => ({ pid: h.pid, start: h.start, subject: f.rows.find((r) => r.pid === h.pid)?.wt ?? `pid-${h.pid}`, reason: h.reason }));
+}
 
 /** Store the baselines Lean returns for these facts (`ops.reapIdle`) in `f.idleFile`, when set. Best effort: a failed write
  *  only delays branch D (a stack with no baseline is kept). */
