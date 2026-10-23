@@ -118,7 +118,11 @@ async function stockRun(spec) {
   await cs.send('Page.enable');
   if (profile.css) await cs.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
   const loaded = new Promise((r) => cs.once('Page.loadEventFired', r));
-  await cs.send('Page.navigate', { url });
+  try { await cs.send('Page.navigate', { url }); } catch (e) {
+    console.error(`FW_STOCK_NAV_ERROR ${String(e).slice(0, 200)}`);
+    console.error(`FW_STOCK_LOG_TAIL ${readFileSync(log, 'utf8').slice(-1200).replace(/\n/g, ' / ')}`);
+    process.exit(1);
+  }
   await Promise.race([loaded, sleep(20000)]);
   const evs = async (expression) => (await cs.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
   try {

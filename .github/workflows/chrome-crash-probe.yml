@@ -5,7 +5,7 @@ name: chrome-crash-probe
 # runner that unpacks Chrome for Testing for its own platform, starts it as a user would (no harness flags, no BeginFrameControl, no
 # emulation), loads the minimal repro and the original snapshot page at 1280 and 860 and reports the exit state per variant.
 # Probe: packages/measure-chromium/probes/balance-platforms.json, run by src/crash-probe.mjs (the same code as the container lane).
-# Legs: linux x86_64 headless and headed (under xvfb), macOS arm64 headless and headed, macOS x86_64 headless, Windows x86_64
+# Legs: linux x86_64 headless and headed (under xvfb), linux arm64 headless (the control: it crashes there), macOS arm64 headless and headed, macOS x86_64 headless, Windows x86_64
 # headless and headed. Free runners only. Nothing here is phone time.
 on:
   push:
@@ -71,6 +71,9 @@ jobs:
           - leg: linux-x64-xvfb
             os: ubuntu-latest
             headed: '1'
+          - leg: linux-arm64-control
+            os: ubuntu-24.04-arm
+            headed: ''
           - leg: macos-arm64
             os: macos-latest
             headed: ''
