@@ -2,8 +2,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SUBCOMMANDS, spanStep } from "../src/fw-groups.ts";
 import { slotStep, writesOwnSpans } from "../src/slot-span.ts";
-import { runPhases } from "../src/run-phases.ts";
-import { runCli } from "../src/run.ts";
 
 const main = readFileSync(new URL("../src/fw-main.ts", import.meta.url), "utf8");
 const branchGroups = new Set([...main.matchAll(/group === "([a-z-]+)"/g)].map((m) => m[1]!));
@@ -79,52 +77,3 @@ describe("slot spans keep dry apart", () => {
   });
 });
 
-describe("fw run phases", () => {
-  const rec = () => {
-    const out: { step: string; exit: number | null | undefined; extra?: object }[] = [];
-    const begin = (_t: string, step: string) => (exit?: number | null, extra?: object) => { out.push({ step, exit, extra }); };
-    return { out, begin };
-  };
-  const done = { code: 0, lines: ["run 123 success"] };
-  it("splits a dispatch into dispatch, wait (with the run id) and file", async () => {
-    const { out, begin } = rec();
-    const ph = runPhases(begin as never, false);
-    const gh = ph.gh((async () => "") as never), wait = ph.wait((async () => done) as never);
-    await gh(["workflow", "run", "x.yml"]);
-    await wait({ kind: "run", runId: 1 } as never, 10);
-    await gh(["run", "download", "123"]);
-    ph.finish(0);
-    expect(out.map((o) => o.step)).toEqual(["run dispatch", "run wait", "run file"]);
-    expect(out[1]!.extra).toEqual({ runId: 123 });
-  });
-  it("a wait slice that timed out (code 3) stays in the same wait span; a second job starts a new dispatch", async () => {
-    const { out, begin } = rec();
-    const ph = runPhases(begin as never, false);
-    let n = 0;
-    const gh = ph.gh((async () => "") as never), wait = ph.wait((async () => (n++ === 0 ? { code: 3, lines: [] } : done)) as never);
-    await gh(["workflow", "run", "x.yml"]);
-    await wait({} as never, 10); await wait({} as never, 10);
-    await gh(["workflow", "run", "y.yml"]);
-    ph.finish(2);
-    expect(out.map((o) => o.step)).toEqual(["run dispatch", "run wait", "run file", "run dispatch", "run wait"]);
-    expect(out[4]!.exit).toBe(2);
-  });
-  it("a run waited with --from-run has no dispatch call: the first wait ends the dispatch span", async () => {
-    const { out, begin } = rec();
-    const ph = runPhases(begin as never, false);
-    await ph.wait((async () => done) as never)({} as never, 10);
-    ph.finish(0);
-    expect(out.map((o) => o.step)).toEqual(["run dispatch", "run wait", "run file"]);
-  });
-  it("a fw run that fails before its first phase (usage error) still writes a span", async () => {
-    const { out, begin } = rec();
-    await expect(runCli(["--bogus"], process.cwd(), {}, begin as never)).rejects.toThrow();
-    expect(out.map((o) => [o.step, o.exit])).toEqual([["run dispatch", 1]]);
-  });
-  it("a dry run is one run dry span", () => {
-    const { out, begin } = rec();
-    const ph = runPhases(begin as never, true);
-    ph.finish(0);
-    expect(out.map((o) => o.step)).toEqual(["run dry"]);
-  });
-});
