@@ -62,6 +62,17 @@
   .accent[data-fw-draw='one']:is(.drawingIn, .drawingOut) .idleFrame:not(.frame0) .path {
     animation: none;
   }
+  .accent[data-fw-draw='nolayout']:is(.drawingIn, .drawingOut) .path {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .accent[data-fw-draw='nolayout'].drawingIn .frame0 {
+    animation: 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards clipIn;
+  }
+  .accent[data-fw-draw='nolayout'].drawingOut .frame0 {
+    animation: 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards clipOut;
+  }
   .idle .frame0 {
     animation: 0.6s step-end infinite idle0;
   }
@@ -98,6 +109,22 @@
     }
     to {
       stroke-dashoffset: 1px;
+    }
+  }
+  @keyframes clipIn {
+    0% {
+      clip-path: inset(-20% 120% -20% -20%);
+    }
+    to {
+      clip-path: inset(-20% -20% -20% -20%);
+    }
+  }
+  @keyframes clipOut {
+    0% {
+      clip-path: inset(-20% -20% -20% -20%);
+    }
+    to {
+      clip-path: inset(-20% 120% -20% -20%);
     }
   }
   @keyframes idle0 {

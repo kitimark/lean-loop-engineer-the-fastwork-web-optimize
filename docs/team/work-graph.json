@@ -18782,7 +18782,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
-   "title": "Optimization (user goal: smoother hero exit and end-of-page in WebKit): the hero.accent draw animates stroke-dashoffset on the visible copy, and in WebKit every strokeDashOffset change requires layout (StyleDifference.cpp:161 svgDataChangeRequiresLayout via changeRequiresLayout :399 @862f17d), so the page relayouts on every frame of both 900 ms draws, page-wide (the end-of-page swap windows pay it: carousel-swap-followups). accent-draw-one (landed) removed the hidden copies' draws and found no win; this task removes the layout itself. Read WebKit source (StyleDifference.cpp, RenderSVGShape/RenderSVGPath layout and repaint, LegacyRenderSVG vs LBSE on the pinned commit) for each candidate: a mask or clip reveal driven by transform or clip-path, a pre-split dash with opacity, an SVG mask rect with transform, and Chromium's equivalent (blink style diff for stroke-dashoffset). Lean first: model the StyleDifference decision for the candidate properties from the cited source lines (one canonical table, theorem: the chosen arm's per-frame changes need no layout in both engines), goldens. Register flag hero.accent:draw-nolayout; visual sameness measured with path-pix against faithful across the draw (if not pixel-identical, class look-change for the user's visual review); one webkit-sim count run (swap lane and hero exit zone) with run id. Negative result is a finding with its Lean why."
+   "title": "Optimization (user goal: smoother hero exit and end-of-page in WebKit): the hero.accent draw animates stroke-dashoffset on the visible copy, and in WebKit every strokeDashOffset change requires layout (StyleDifference.cpp:161 svgDataChangeRequiresLayout via changeRequiresLayout :399 @862f17d), so the page relayouts on every frame of both 900 ms draws, page-wide (the end-of-page swap windows pay it: carousel-swap-followups). accent-draw-one (landed) removed the hidden copies' draws and found no win; this task removes the layout itself. Read WebKit source (StyleDifference.cpp, RenderSVGShape/RenderSVGPath layout and repaint, LegacyRenderSVG vs LBSE on the pinned commit) for each candidate: a mask or clip reveal driven by transform or clip-path, a pre-split dash with opacity, an SVG mask rect with transform, and Chromium's equivalent (blink style diff for stroke-dashoffset). Lean first: model the StyleDifference decision for the candidate properties from the cited source lines (one canonical table, theorem: the chosen arm's per-frame changes need no layout in both engines), goldens. Register flag hero.accent:draw-nolayout; visual sameness measured with path-pix against faithful across the draw (if not pixel-identical, class look-change for the user's visual review); one webkit-sim count run (swap lane and hero exit zone) with run id. Negative result is a finding with its Lean why.",
+   "evidence": "bd114c9"
   },
   {
    "devices": [
@@ -18886,7 +18887,8 @@
     "apps/runner/src/polish.ts",
     "apps/runner/test/timing*.test.ts",
     "apps/runner/test/land-dry.test.ts",
-    "docs/team/handoffs/timing-verdict-polish.md"
+    "docs/team/handoffs/timing-verdict-polish.md",
+    "apps/runner/src/watch-collect.ts"
    ],
    "title": "timing-module-count-followups review follow-ups (2026-10-24): (1) ownOf in timing.ts:54-63 decides which fw ci wait spans get an own time (how=done, end minus phases.updMs, none when negative): move it into Lean (decode phases in Fw.Wire.Obs sampleOf) with #guard/golden; (2) unkeyed fw/polish commit spans are still written (polish.ts 'nothing' return; stagedSpan null when fwcore gives no command list) and would now get no verdict silently: key those paths or narrow the rule and docstring; (3) detailOf matches on stepName and the latest slow verdict across hosts and names the sample by a shifting index: match the full key, print host and startMs/commit; (4) state the ci-wait whole-output theorem (no slow verdict from a ci wait within budget) and update Next.lean docstrings to verdictsOf; (5) land-dry.test.ts lake-note case: rmSync in finally, end the span through the fw-main exit path."
   },
@@ -18908,7 +18910,8 @@
     "docs/team/tools/land.md",
     "docs/team/handoffs/overflow-widths-reads.md"
    ],
-   "title": "checkmap-workflow-widths-local review follow-ups (2026-10-24): (1) overflowWidthsReads (Lean) and OVERFLOW_WIDTHS_READS (TS) miss inputs the planner .github/scripts/gate-jobs.mjs reads via workflow-widths.ts: packages/contracts/golden/gate/schedule.jsonl, packages/contracts/golden/gate/shards.jsonl, apps/site/src/breakpoints.gen.json, packages/gate-breakpoints/src/anchors.json; add them (one canonical list: TS reads the Lean golden instead of a hand copy) and regenerate the golden; (2) a real test: workflow-widths.ts width(parseWorkflow(...)) on a 6-job path-pix fixture against a table row of 4 fails (the current dry-land test swaps the argv); (3) land.md: any Lean change (fwcore binary moves) also selects runner:overflow-widths, about 11 s (MEASURED 10.96 s vitest, 22.4 s wall)."
+   "title": "checkmap-workflow-widths-local review follow-ups (2026-10-24): (1) overflowWidthsReads (Lean) and OVERFLOW_WIDTHS_READS (TS) miss inputs the planner .github/scripts/gate-jobs.mjs reads via workflow-widths.ts: packages/contracts/golden/gate/schedule.jsonl, packages/contracts/golden/gate/shards.jsonl, apps/site/src/breakpoints.gen.json, packages/gate-breakpoints/src/anchors.json; add them (one canonical list: TS reads the Lean golden instead of a hand copy) and regenerate the golden; (2) a real test: workflow-widths.ts width(parseWorkflow(...)) on a 6-job path-pix fixture against a table row of 4 fails (the current dry-land test swaps the argv); (3) land.md: any Lean change (fwcore binary moves) also selects runner:overflow-widths, about 11 s (MEASURED 10.96 s vitest, 22.4 s wall).",
+   "evidence": "0012147"
   },
   {
    "devices": [
@@ -18953,7 +18956,7 @@
     "results/accent-draw-nolayout/**",
     "docs/team/handoffs/accent-nolayout-measure.md"
    ],
-   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator)."
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator)."
   },
   {
    "devices": [
@@ -18972,9 +18975,41 @@
     "lean/scripts/AccentNoLayoutGolden.lean",
     "research/notes/2026/10-2x-accent-draw-nolayout.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/accent-drawin-width-nolayout.md"
+    "docs/team/handoffs/accent-drawin-width-nolayout.md",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "results/accent-draw-nolayout/**",
+    "results/accent-drawin-width-nolayout/**",
+    "research/notes/2026/10-2x-accent-drawin-width-nolayout.md"
    ],
    "title": "hero-accent-draw-nolayout finding: the arm removes the draw-out layout but draw-in frames still need layout through the original's width transition (accent.module.css:13 transition: width 0.9s on .drawingIn; WebKit StyleDifference.cpp:404), so layout phases per cycle drop only 2 -> 1. Find a same-look replacement for the width growth that needs no layout (transform scaleX on a composited wrapper with counter-scaled text, or a fixed-width box with clip), proved in Lean with StyleDiffAccent (theorem: draw-in frames need no layout in both engines), behind a flag variant, class look-change if not pixel-identical; one webkit-sim swap-lane run."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "overflow-widths-reads-code",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "overflow-widths-reads"
+   ],
+   "writes": [
+    "lean/Fw/Console/LandTier.lean",
+    "packages/contracts/golden/console/land-tier-local.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/workflow-widths.ts",
+    "apps/runner/test/land-*.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/overflow-widths-reads-code.md"
+   ],
+   "title": "overflow-widths-reads review follow-ups (2026-10-24): (1) add the planner code inputs packages/gate-breakpoints/src/spec.mjs and serve.mjs (gate-jobs.mjs:43, spec.mjs:7) to the read set and plannerFiles_select, regenerate the golden; write overflowWidthsReads with ++ plannerFiles instead of repeating the strings; (2) land.md: 'a Lean change that moves the fwcore binary (digest differs) also selects runner:overflow-widths' (binMoved, LandSpeed.lean:352); (3) one exported table-check function in workflow-widths.ts used by land-overflow-widths.test.ts and land-widths-fixture.test.ts; (4) land.ts:241-242 fileURLToPath and row lookup by name; (5) land-widths-fixture.test.ts removes its mkdtemp dirs in afterAll."
   }
  ],
  "deadline": {
