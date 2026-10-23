@@ -132,7 +132,6 @@ theorem slotWork_width_ne (w w' : Nat) (j j' : Option Nat) (h : w ≠ w') : slot
 
 def checksDim : String := "checks"
 
-/-- The wire names of the checkmap checks that start lake (`Fw.Ops.CheckMap.heavy`), in checkmap order. -/
 def heavyChecks : List String :=
   (Fw.Ops.CheckMap.order.filter Fw.Ops.CheckMap.heavy).map Fw.Wire.CheckMap.checkName
 
@@ -149,12 +148,10 @@ def checksWork (kinds : List String) : List (String × String) :=
 
 def modsDim : String := "mods"
 
-/-- The size class of a count of rebuilt Lean modules: 0, else the largest power of 4 at most the count. -/
 def modsLow (n : Nat) : Nat := if n = 0 then 0 else 4 ^ (n.log2 / 2)
 
 def modsWork (n : Nat) : List (String × String) := [(modsDim, toString (modsLow n))]
 
-/-- Whether a line of lake output reports a built module: `<mark> [i/n] Built <name>`, the name without `:`. -/
 def builtLine (l : String) : Bool :=
   match l.splitOn "] Built " with
   | [pre, post] =>
@@ -166,11 +163,8 @@ def builtLine (l : String) : Bool :=
     progress && !name.isEmpty && !name.contains ':'
   | _ => false
 
-/-- The number of modules a lake run built, from its output. -/
 def builtModules (out : String) : Nat := (out.splitOn "\n").countP builtLine
 
-/-- The work dimensions of a span: its polish checks class, its rebuilt-module class, then its slot width (the key
-order of a JSON object). -/
 def spanWork (width jobs : Option Nat) (checks : Option (List String)) (built : Option Nat := none) :
     List (String × String) :=
   (checks.map checksWork).getD [] ++ (built.map modsWork).getD [] ++ slotWork width jobs
@@ -248,7 +242,6 @@ theorem modsWork_eq_iff (a b : Nat) : modsWork a = modsWork b ↔ modsLow a = mo
   · intro e
     simp [modsWork, e]
 
-/-- Two nonzero counts of one class are within a factor of 4 of each other. -/
 theorem mods_same_lt (a b : Nat) (h : modsLow a = modsLow b) (ha : a ≠ 0) : a < 4 * b :=
   Nat.lt_of_lt_of_le (lt_modsLow a ha) (by rw [h]; exact Nat.mul_le_mul_left 4 (modsLow_le b))
 
@@ -268,7 +261,6 @@ theorem spanWork_built_ne_unbuilt (w j : Option Nat) (c : Option (List String)) 
   have := congrArg List.length e
   simp [spanWork, modsWork] at this
 
-/-- One job of a parallel stage: a name and its keys (the matrix legs of one job, or a single key). -/
 structure Group where
   name : String
   keys : List Key
@@ -2187,20 +2179,12 @@ def polishData : List (Nat × Nat × List String) :=
 
 def polishRun : List Sample := polishData.map fun (d, l, k) => polish k l d
 
-/-- The modules lake rebuilt for each span of `polishRun`, INFERRED: the changed Lean modules of its commit and every
-module of the lake targets that imports one of them.
--/
 def polishMods : List Nat := [1, 29, 32, 31, 1, 26, 7, 7, 0, 1, 2, 1, 50, 0, 37, 14, 50, 0, 1, 0, 40]
 
-/-- `polishRun` with the rebuilt-module class on the spans that ran lake build. -/
 def polishRunMods : List Sample :=
   (polishData.zip polishMods).map fun ((d, l, k), m) =>
     { polish k l d with work := spanWork none none (some k) (if k.contains "lakeBuild" then some m else none) }
 
-/-- The 43.5 s `land dry lake` span of 2026-10-23T12:39:36Z (commit 17cb8b6) and the 46 spans of that step before it
-since 06:25Z whose land log survives, as (ms, load, exit, modules lake built), the count MEASURED from the log's
-`Built` lines.
--/
 def landDryData : List (Nat × Nat × Nat × Nat) :=
   [(51554, 3, 0, 24), (34947, 3, 0, 0), (29624, 2, 0, 0), (28979, 1, 0, 0), (23900, 1, 17, 0), (23930, 2, 0, 0),
     (25719, 2, 0, 0), (46188, 3, 0, 24), (34806, 3, 0, 6), (25331, 2, 0, 0), (23709, 3, 0, 0), (24166, 2, 17, 0),
@@ -2435,9 +2419,6 @@ def goldenText (_ : Unit := ()) : String :=
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/obs/timing.jsonl"
 
-/-- A span line: a `polish commit` span when it has a `checks` member (command count and kinds), else a
-`land dry lake` span when it has a `lake` member (modules built), else a `parallel group` span.
--/
 def spanJson (d : Nat) (slot : Option (Nat × Nat)) (checks : Option (Nat × List String)) (lake : Option Nat := none) :
     Json :=
   Json.mkObj ([("tool", .str (if checks.isSome || lake.isSome then "fw" else "lean/check")),
@@ -2467,7 +2448,6 @@ def workCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × Lis
 
 #guard heavyChecks.all fun h => workCases.any fun (_, _, _, c) => (c.map (·.2.contains h)).getD false
 
-/-- Span lines with a `lake` member: (name, ms, slot, checks, modules built). -/
 def lakeWorkCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × List String) × Nat) :=
   [("land dry lake that built no module: class 0", 24675, none, none, 0),
    ("land dry lake that built 6 modules: class 4", 32419, none, none, 6),
@@ -2489,7 +2469,6 @@ def workGoldenText (_ : Unit := ()) : String :=
 
 def workGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-work.jsonl"
 
-/-- Lake outputs and the modules `builtModules` counts in each: (name, output). -/
 def lakeCases : List (String × String) :=
   [("no build: lake prints no Built line", "Build completed successfully (843 jobs).\n"),
    ("two modules, a warning mark, the exe and a C object of a facet",
@@ -2508,7 +2487,6 @@ def lakeGoldenText (_ : Unit := ()) : String :=
 
 def lakeGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-lake.jsonl"
 
-/-- `packages/gh-budget/src/bounds.gen.ts`: the gh bounds of `Fw.Obs.Timing` as TS constants, so no TS file keeps its own copy. -/
 def boundsText (_ : Unit := ()) : String :=
   "// Generated from lean/Fw/Obs/Timing.lean by lean/scripts/TimingGolden.lean; do not edit.\n" ++
   "export const GH_BOUNDS = {\n" ++

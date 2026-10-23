@@ -180,7 +180,6 @@ def order : List Check :=
   [.lakeBuild, .leanElab, .nodeCheck, .tsStrip, .tscProject, .jsonParse, .jsonlParse, .yamlParse, .shParse, .pyParse,
     .swiftParse, .graphCheck, .presetCheck, .workflowParse]
 
-/-- Whether a check starts lake (`lake build`, `lake env lean`, the preset generator under `lake env`). -/
 def heavy : Check → Bool
   | .lakeBuild | .leanElab | .presetCheck => true
   | .nodeCheck | .tsStrip | .tscProject | .jsonParse | .jsonlParse | .yamlParse | .shParse | .pyParse | .swiftParse
