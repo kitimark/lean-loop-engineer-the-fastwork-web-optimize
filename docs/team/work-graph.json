@@ -18654,6 +18654,24 @@
     "docs/team/handoffs/build-review-worktree-path.md"
    ],
    "title": "Fable advice on polish-commit-failsafe (2026-10-23): the round-2 Polish stage errored because the run1 wrapper agent returned the worktree path shortened to ~ (build-review.js:108 asks for absolute, :124 refuses). Close it by identity at the point of use: comment-sicko verifies git -C <wt> rev-parse --abbrev-ref HEAD equals the branch before its first edit; a ~ path fails that check and the stage stops clean. Test in scripts/build-review.test.mjs."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-lake-cache-fresh",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "ci-setup-lean-slow"
+   ],
+   "writes": [
+    ".github/workflows/lean.yml",
+    ".github/actions/setup-lean/**",
+    "research/notes/2026/10-2x-ci-setup-lean-slow.md",
+    "docs/team/handoffs/ci-lake-cache-fresh.md"
+   ],
+   "title": "ci-setup-lean-slow follow-ups (2026-10-23): (1) prune step in lean.yml job lean after the build (find \"$LAKE_CACHE_DIR\" -type f -links 1 -delete) so the saved blob shrinks; prove with one lean.yml run printing link counts and blob size before/after; (2) land legs on ci/land-* can restore only main's lake entry, refreshed only when main is pushed (it was up to 2.5 h old, so fwcore build rebuilt 78-81 modules, about 90 s per leg): measure fwcore build time vs entry age over the next lands now that the lead pushes main after each land, and state whether a per-land main push is enough or the lean job should also save a cache from ci/land-* under a key main can restore; (3) cache storage at 9.48 of 10 GB (8.97 GB lake entries): list which ci/* lake entries are never restored and propose an eviction rule (deleting caches needs the user's OK). Workflow trigger changes go to open."
   }
  ],
  "deadline": {
