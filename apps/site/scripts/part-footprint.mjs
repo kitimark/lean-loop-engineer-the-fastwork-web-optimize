@@ -963,9 +963,6 @@ function exprIsProps(e, scope) {
   return ok;
 }
 const CLASS_HELPERS = new Set(['cx', 'cls', 'clsx', 'classNames', 'classnames']);
-// Class-value positions (Lean Fw.Parts.ClassPos.classes, golden footprint.classpos.jsonl): the expression itself, both
-// conditional branches (never the test), the right of && (never the left), both sides of || and ??, template quasis and
-// expressions, array elements, arguments of a class helper. Comparisons and other calls hold no class.
 function classChildren(x) {
   switch (x.type) {
     case 'ConditionalExpression': return [x.consequent, x.alternate];
@@ -1276,7 +1273,7 @@ end Fw.Parts.FootprintData
 const mode = process.argv[2] ?? '--print';
 const isMain = process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 const { text, lean } = isMain ? render() : { text: '', lean: '' };
-if (!isMain) { /* imported by a test */ } else if (mode === '--print') process.stdout.write(text);
+if (!isMain) {} else if (mode === '--print') process.stdout.write(text);
 else if (mode === '--write') {
   fs.writeFileSync(goldenPath, text);
   fs.writeFileSync(leanPath, lean);

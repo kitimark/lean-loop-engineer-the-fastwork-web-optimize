@@ -1,6 +1,3 @@
-// Run: node --test scripts/part-footprint.classpos.test.mjs (from apps/site). The extractor's class-value positions
-// (collectClassTokens) replay every Lean case of packages/contracts/golden/parts/footprint.classpos.jsonl
-// (Fw.Parts.ClassPos.classes): a literal in a test or comparison is never a class.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
