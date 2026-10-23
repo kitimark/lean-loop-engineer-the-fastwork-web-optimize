@@ -22,7 +22,6 @@ export const MIN_WALK_MINUTES = 2;
 
 export const WINDOW_RESERVE_MS = 30000;
 
-/** Resolves 'done' when `p` settles first, 'deadline' when the clock reaches `dl` first; a later rejection of `p` is swallowed. */
 export async function untilDeadline(p, dl, now = Date.now) {
   let timer;
   const gone = new Promise((resolve) => { timer = setTimeout(() => resolve('deadline'), remaining(dl, now())); });
@@ -30,7 +29,6 @@ export async function untilDeadline(p, dl, now = Date.now) {
   try { return await Promise.race([p.then(() => 'done'), gone]); } finally { clearTimeout(timer); }
 }
 
-/** Outputs of the "Walk budget" workflow step, in ms since the epoch, from the job start the first step recorded. */
 export function planWalk({ jobStartMs, nowMs, capMin }, j = JOB) {
   const elapsed = nowMs - jobStartMs;
   const dl = cappedDeadline(j, elapsed, capMin == null ? null : capMin * MINUTE_MS);

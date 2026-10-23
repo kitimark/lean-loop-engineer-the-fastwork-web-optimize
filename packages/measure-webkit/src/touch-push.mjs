@@ -84,12 +84,6 @@ export async function stopServer(server) {
   rmSync(server.dir, { recursive: true, force: true });
 }
 
-/**
- * One touch window. `obs` is what the harness saw of it, in the Lean `TouchPush` shape: beginAt and doneAt in ms from the go file,
- * swipeAt in ms from the first touchstart to the last touchend; null is a point never reached.
- * Every awaited inspector call in the window is raced against the window deadlines, so the window ends within windowCap(budget) + pollMs
- * plus the doneMs wait, whatever the page or the proxy does.
- */
 export async function touchWindow(c, { server, pageJs, variant = 'springboard', budget = TOUCH_BUDGET, pollMs = 500 }) {
   const timers = [];
   const after = (ms, value) => new Promise((resolve) => { timers.push(setTimeout(() => resolve(value), ms)); });

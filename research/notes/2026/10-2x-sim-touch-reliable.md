@@ -28,7 +28,7 @@ the 50-minute step limit) kept real-touch end windows in only the first 1 to 3 w
   set its timeout.
 - **On a quiet Mac the same push takes 4.6 s (MEASURED locally, debug evidence only, not a result).** Per press: pre-event wait
   0.02 s, interrupt check 0.2 s, five `Find the Window` snapshots inside `Synthesize event`, 2.0 s of finger (0.1 s press,
-  0.5 s drag, 1 s hold), post-event wait 0.03 s. Earlier note `10-2x-toolbar-throttle.md:91-102` already saw 60 to 185 s per
+  0.5 s drag, 1 s hold), post-event wait 0.03 s. `10-2x-toolbar-throttle.md:91-102` saw 60 to 185 s per
   pass on the runner against about 50 s on a Mac.
 - **Timeline.stop timed out because a touch window recorded minutes of Timeline (INFERRED mechanism, CONFIRMED volume).**
   `InspectorTimelineAgent::stop` is cheap (`InspectorTimelineAgent.cpp:112-120`, `internalStop` 186-199: no work
@@ -96,8 +96,7 @@ the failed push), so record volume is not the only cause of stop timeouts; the i
 - `timelinePlan_touch` / `timelinePlan_other`: touch window records none, any other window stops its Timeline within the stated wait.
 
 The bound says the harness stops waiting; it does not make XCUITest finish a push when the runner is starved. One
-failing push per job is the worst case, after which the job continues with the synthetic wheel (as before, but within 3 minutes, not
-within the step limit).
+failing push per job is the worst case, after which the job continues with the synthetic wheel (within 3 minutes, not the step limit).
 
 ## Harness changes
 
@@ -110,7 +109,7 @@ within the step limit).
   screen point from SpringBoard, so the pre- and post-event waits are on SpringBoard, which is idle while Safari is in front. The
   local log shows the touch still reaches the page (46 to 48 moves, begin 0.3 s, swipe 3.6 s) and still shows one nested
   `Wait for com.apple.mobilesafari to idle` inside the interrupt check before the event (0.09 s on a quiet Mac). So the variant removes the
-  post-event wait that stuck in the CI log, not every Safari wait (INFERRED benefit; the CI run decides). `FW_TOUCH_VARIANTS=safari,springboard`
+  post-event wait that stuck in the CI log, not every Safari wait (INFERRED; the CI run decides). `FW_TOUCH_VARIANTS=safari,springboard`
   alternates by push index; `FW_TOUCH_KEEP_LOG=<file>` keeps the XCUITest log.
 - `sim-cadence.mjs`: touch end windows start no Timeline, rows keep `mode:'events'` with `records:0`, `timeline:false`,
   `ok:false` (`marks-missing`, as the reducer sees an empty record list), `push:'touch'`, and `touched` carries variant, outcome,
@@ -123,7 +122,7 @@ within the step limit).
 
 ## Open
 
-- Phone not measured. Control arm (`FW_TOUCH_VARIANTS=safari`, same commit) would separate the two changes; it needs the workflow to pass the variable (`smoothness.yml`, owned by smoothness-cpu-throttle).
+- Phone not measured. Control arm (`FW_TOUCH_VARIANTS=safari`, same commit) needs the workflow to pass the variable (`smoothness.yml`, owned by smoothness-cpu-throttle).
 - `report.mjs` labels the Timeline column from `mode`, so touch rows read "on"; a `timeline:false` label is a follow-up (outside this task's writes).
 - Simulator hero windows are starved on the runner (2 to 40 frames in 7 s, runs above); not touched here.
 - Lengthening the stop wait (60 s to 240 s) made the job slower and kept fewer windows.
@@ -155,8 +154,7 @@ ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
   ended its walk 8.5 min after the start with `walk deadline: abandoned a window in flight after 4 windows` and uploaded `sim.json`, `sim.log`,
   `walk-budget.txt` (the dynamic `timeout-minutes` expression is accepted). Job 2 finished (20.5 min). Job 3: deadline 17:00:40Z, step timeout 17:02:05Z,
   but the walk step ended at 17:06:29Z (failure), Keep host state failed at 17:10:51Z (4.1 min on a 3-min limit), the shutdown and the upload were cancelled
-  by the job timeout at 17:12:38Z, no artifact. So (1) the harness did not stop itself at the deadline: its event loop was blocked, and
-  the blocking is in our code: `simctl` runs through `spawnSync` with `T(90000)` = 720 s timeouts, three tries with `Atomics.wait`
+  by the job timeout at 17:12:38Z, no artifact. So (1) the harness did not stop itself at the deadline: its event loop was blocked in our code: `simctl` runs through `spawnSync` with `T(90000)` = 720 s timeouts, three tries with `Atomics.wait`
   (`sim.mjs:38-52,104-105`), none of which a timer can interrupt; (2) the runner enforced the step timeout 4.4 min late and the
   post steps ran 2 to 4 times slower than their limits (host starved, as in the runs above).
 - **Round 3b.** A process-group hard stop 45 s after the deadline (`hardStopMs`, `hardStop_inside_step`: it falls inside the walk

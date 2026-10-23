@@ -99,14 +99,14 @@ run_group() {
   job "codemagic golden check" lake env lean --run scripts/CodemagicGolden.lean --check  # golden/ci/codemagic.jsonl (Fw.Ci.Codemagic)
   job "overflow golden check" lake env lean --run scripts/OverflowGolden.lean --check  # golden/ci/overflow.jsonl (Fw.Ci.Overflow: which land legs overflow from GitHub to CircleCI)
   job "faithful golden check" lake env lean --run scripts/FaithfulGolden.lean --check  # golden/faithful/faithful.{verdict,comparable}.jsonl (Fw.Faithful)
-  job "stage-mode golden check" lake env lean --run scripts/StageModeGolden.lean --check ../packages/contracts/golden/parts/stage-mode.jsonl  # the part-page plan, accept and read decisions the Chromium driver is checked against (Fw.Site.StageMode)
-  job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check  # golden/ops/checkmap.jsonl (Fw.Ops.CheckMap)
+  job "stage-mode golden check" lake env lean --run scripts/StageModeGolden.lean --check ../packages/contracts/golden/parts/stage-mode.jsonl
+  job "checkmap golden check" lake env lean --run scripts/CheckMapGolden.lean --check
   job "workflow-lint golden check" lake env lean --run scripts/WorkflowLintGolden.lean --check
-  job "touchpush golden check" lake env lean --run scripts/TouchPushGolden.lean --check ../packages/contracts/golden/measure/touch-push.jsonl  # the touch-push budget vectors touch-push.mjs is checked against (Fw.Measure.TouchPush)
-  job "walkbudget golden check" lake env lean --run scripts/WalkBudgetGolden.lean --check ../packages/contracts/golden/measure/walk-budget.jsonl  # the job wall-budget vectors walk-budget.mjs is checked against (Fw.Measure.WalkBudget)
-  job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl  # the continuity and cadence vectors packages/gate-breakpoints/src/smooth is checked against (Fw.Gate.Smooth)
-  job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl  # the exit verdict vectors cli.mjs is checked against (Fw.Gate.Exit)
-  job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"  # regenerates the v2-proved preset files from the findings ledger and the parts; any byte difference fails (Fw.Preset.Gen.run)
+  job "touchpush golden check" lake env lean --run scripts/TouchPushGolden.lean --check ../packages/contracts/golden/measure/touch-push.jsonl
+  job "walkbudget golden check" lake env lean --run scripts/WalkBudgetGolden.lean --check ../packages/contracts/golden/measure/walk-budget.jsonl
+  job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl
+  job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl
+  job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"
   job "ci telemetry golden check" lake env lean --run scripts/TelemetryGolden.lean --check  # golden/ci/telemetry.jsonl (Fw.Ci.Telemetry)
   job "mac telemetry golden check" lake env lean --run scripts/MacTelemetryGolden.lean --check  # golden/obs/mactelemetry.jsonl and the reduced week (Fw.Obs.MacTelemetry)
   job "webkit-screen golden check" lake env lean --run scripts/WebkitScreenGolden.lean --check ../packages/contracts/golden/gate/webkit-screen.jsonl  # the WebKit live-resize screen vectors engines.mjs is checked against (Fw.Gate.WebkitScreen)

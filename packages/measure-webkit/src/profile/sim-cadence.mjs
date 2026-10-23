@@ -35,15 +35,10 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
-/**
- * The row's keep verdict. A window run without a Timeline (the real-touch end window) has no marks to align: it is kept with the reason
- * 'timeline-off' and no profiles, never refused as 'marks-missing', so consumers that keep only `ok` rows keep the real-touch lane.
- */
 export function windowVerdict(pw, timelineOn) {
   return timelineOn ? { ok: pw.ok, reason: pw.reason ?? null } : { ok: true, reason: 'timeline-off' };
 }
 
-/** The end window's push: real touches when a built driver is given and works, else the synthetic wheel (the row says which). */
 export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, blockAfterMs = null, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
@@ -118,7 +113,6 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   try {
     const walk = withSession(async (ctx) => {
       if (touch.on) {
-        // one XCUITest run for the whole job; its start relaunches Safari (toolbar-throttle cli.mjs), so the page is loaded after it
         try {
           touch.server = await startServer(touch.driver, { udid: device.udid, log });
           await reconnect(ctx, { log });

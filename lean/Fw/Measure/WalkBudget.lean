@@ -4,7 +4,6 @@ import Lean.Data.Json
 -/
 namespace Fw.Measure.WalkBudget
 
-/-- Milliseconds from the job start: the job timeout, the sum of the post step timeouts, the harness teardown after its deadline, and slack. -/
 structure Job where
   timeoutMs : Nat
   postMs : Nat
@@ -12,32 +11,24 @@ structure Job where
   slackMs : Nat
 deriving Repr, BEq
 
-/-- 45 min as in smoothness.yml; post steps: upload, host state, host upload, shutdown, telemetry, 2 min each; grace 2 min; slack 1 min. -/
 def job : Job := ⟨2700000, 600000, 120000, 60000⟩
 
-/-- A process-group kill after the deadline for a harness blocked in a synchronous call (run 39981414973 job 3: its walk step ended 4.4 min after its timeout). -/
 def hardStopMs : Nat := 45000
 
 def minuteMs : Nat := 60000
 
-/-- Latest moment the walk may still run, in ms from the job start. -/
 def deadlineAt (j : Job) : Nat := j.timeoutMs - j.postMs - j.graceMs - j.slackMs
 
-/-- The deadline under an optional cap in ms counted from the walk start at `elapsed`. -/
 def cappedDeadline (j : Job) (elapsed : Nat) : Option Nat → Nat
   | none => deadlineAt j
   | some cap => min (deadlineAt j) (elapsed + cap)
 
-/-- The walk step's timeout in whole minutes when it starts at `elapsed`; 0 means the walk is skipped. -/
 def stepMinutes (j : Job) (elapsed dl : Nat) : Nat := (dl + j.graceMs - elapsed) / minuteMs
 
-/-- Run the walk step only when at least `needMin` minutes of it remain. -/
 def runsWalk (j : Job) (elapsed dl needMin : Nat) : Bool := decide (needMin ≤ stepMinutes j elapsed dl)
 
-/-- Start a window only if it can still finish before the deadline, given the shortest time a window needs. -/
 def startsWindow (dl now reserve : Nat) : Bool := decide (now + reserve ≤ dl)
 
-/-- Time an in-flight window may still take before it is abandoned. -/
 def remaining (dl now : Nat) : Nat := dl - now
 
 def Job.fits (j : Job) : Prop := j.postMs + j.graceMs + j.slackMs ≤ j.timeoutMs
@@ -57,7 +48,6 @@ theorem stepEnd_le (j : Job) (elapsed dl : Nat) (h : elapsed ≤ dl + j.graceMs)
   have := Nat.div_mul_le_self (dl + j.graceMs - elapsed) minuteMs
   omega
 
-/-- Job level: a walk step started at `elapsed` and capped by its timeout ends, with the post steps, inside the job timeout. -/
 theorem job_ends_inside (j : Job) (h : j.fits) (elapsed cap : Nat) (hc : elapsed ≤ cappedDeadline j elapsed cap + j.graceMs) :
     elapsed + stepMinutes j elapsed (cappedDeadline j elapsed cap) * minuteMs + j.postMs + j.slackMs ≤ j.timeoutMs := by
   have h1 := stepEnd_le j elapsed (cappedDeadline j elapsed cap) hc
@@ -77,7 +67,6 @@ theorem stepEnd_gt (j : Job) (elapsed dl : Nat) (h : elapsed ≤ dl + j.graceMs)
   have := Nat.lt_div_mul_add (a := dl + j.graceMs - elapsed) (b := minuteMs) (by decide)
   omega
 
-/-- The hard stop falls inside the walk step's own timeout, so the step is never killed by the runner before it. -/
 theorem hardStop_inside_step (j : Job) (elapsed dl : Nat) (hg : minuteMs + hardStopMs ≤ j.graceMs) (h : elapsed ≤ dl + j.graceMs) :
     dl + hardStopMs < elapsed + stepMinutes j elapsed dl * minuteMs := by
   have := stepEnd_gt j elapsed dl h
@@ -103,7 +92,6 @@ theorem runsWalk_false (j : Job) (elapsed dl needMin : Nat) (h : stepMinutes j e
 theorem runsWalk_true (j : Job) (elapsed dl needMin : Nat) (h : needMin ≤ stepMinutes j elapsed dl) : runsWalk j elapsed dl needMin = true := by
   simp [runsWalk, h]
 
-/-- A fixed sum of per-window bounds cannot be the rule: 18 touch windows at the 145,600 ms bound already exceed the deadline (run 39957772249 job 1). -/
 theorem static_sum_exceeds : deadlineAt job < 18 * 145600 := by decide
 
 theorem deadline_value : deadlineAt job = 1920000 := by decide
