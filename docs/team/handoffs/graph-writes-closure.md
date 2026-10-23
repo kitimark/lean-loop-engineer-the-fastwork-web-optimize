@@ -1,26 +1,30 @@
 # Writes closure lint
 
-- Branch `worktree-wf_29c7f846-55b-1`, worktree `.claude/worktrees/wf_29c7f846-55b-1`, base main f3248e954.
-- Last code commit 7ba9e279b; no CI runs (check.sh, runner tests, ci-paths, dry land all pass locally).
+- Branch `worktree-wf_29c7f846-55b-1`, worktree `.claude/worktrees/wf_29c7f846-55b-1`, main merged at 578e80911.
+- Round 2 code commit e3dacea76; no CI runs (check.sh green in 1m37s, runner tests 2967/2967, ci-paths 54/54).
 
-## What exists
-- `lean/Fw/Plan/WritesClosure.lean`: `kindOf` (golden / script / module / workflow / other), `freshOf` (new / existing /
-  open against tracked files, matched with `Fw.Ops.PathCheck`), `implied`, `required` (new artefacts), `mayNeed` (open
-  globs), `missing` / `missingOpen` = `violations (landScope ...)`, `findings` (`writesClosure` error,
-  `writesClosureOpen` warn). Theorems: per-kind iffs, `required_eq_nil_iff`, `required_{golden,script,module,workflow}`,
-  `mem_missing_iff`, `missing_nil_iff_land_ok` (lint passes exactly when `landVerdict` of the closure is `.ok`), `one_call`,
-  `done_silent`, `error_iff`. `#guard`s replay graph rows r322, r323, r325, r328, r330, r331, r334 before/after.
-- Golden `packages/contracts/golden/plan/writes-closure.jsonl` (`lake env lean --run scripts/WritesClosureGolden.lean
-  [--check]`), check.sh job, lean.yml input row in `Fw.Ci.Trigger`, triggers.jsonl regenerated.
-- `apps/runner/src/plan-closure.ts`: TS mirror of kind/fresh/implied (replayed against the golden in
-  `test/plan-closure.test.ts`); fwcore `console.landScope` answers the scope check, one process per lint.
-- `fw plan lint` merges the closure findings; errors exit 1.
+## Rule (lean/Fw/Plan/WritesClosure.lean)
+- `Gap` = a literal `../<path>` read of a `lean/scripts/*.sh` that the lean.yml row lacks, the exact `leanInputProblems`
+  refusal (scripts/ci-paths.mjs:846-859). `gapsOf` (plan-closure.ts) computes them with ci-paths' own functions.
+- Trigger.lean + triggers.jsonl are required only when the row names a gap's path or script (`trigger_only_by_read`),
+  or it adds a workflow (`trigger_required_iff`). A new workflow requires Trigger.lean, Intent.lean, Overflow.lean
+  and their goldens (ci-paths.mjs:1076-1078, land-overflow-widths.test.ts). A new module requires lean/Fw.lean.
+- Not derived: Pool/Caps.lean, scripts/ci-paths.test.mjs (only a macOS job; 6dbd68b6b), apps/runner/src/land.ts (no
+  per-workflow table), check.sh for a golden (no check enforces it).
+- `#guard`s: soundness (every error is in the case's `added`), completeness per kind (workflow, module, gap), and no
+  Trigger error without a gap or a new workflow.
 
 ## Verified
-- Live graph at f3248e954: 38 `writesClosure` errors on 33 open rows (mostly `lean/Fw/Ci/Trigger.lean` for a new
-  golden; `ci-offload-checks`, `touch-first-scroll-probe`, `safari-macos-ci` miss CI tables), 81 open-glob warnings.
-- Accepted limits: tool docs (r331 `docs/team/tools/*.md`) and existing files later named (r330, r334) are not derived.
+- Per real pre-build row: r325 error on Trigger.lean when the lint reads the build branch f4743ef8a (check.sh reads
+  the classpos golden, the lean row lacks it); r328 the same on its build branch 5599b944d; at their graph state on
+  main r322, r323, r325, r328, r330, r331, r334 give no finding (main's check.sh reads are all lean inputs). A closure
+  of the writes cannot flag artefacts a row does not name. Differs from finding (1)'s text: design (3) removes the
+  open-glob Trigger warnings and makes r328's branch an error too.
+- Main graph 578e80911: 5 errors on 2 rows, each confirmed `outOfScope` by fwcore `console.landScope`:
+  ci-offload-checks (Intent.lean, Overflow.lean for agent-checks.yml), touch-first-scroll-probe (Trigger, Intent,
+  Overflow for webkit-lag-probe.yml). Was 38.
 
 ## Open
-- Lead: widen the 33 flagged rows, or accept them; `fw plan sync` does not run the lint (fw-main.ts outside writes).
-- Read first: the case table at the end of `WritesClosure.lean`, then `plan-closure.ts`.
+- `fw plan sync` does not run the lint (fw-main.ts outside writes).
+- safari-macos-ci writes `lean/Fw/Pool/Caps.lean`; the file is `lean/Fw/Ci/Pool/Caps.lean` (lead graph fix).
+- Read first: the case table at the end of WritesClosure.lean, then `gapsOf` in plan-closure.ts.
