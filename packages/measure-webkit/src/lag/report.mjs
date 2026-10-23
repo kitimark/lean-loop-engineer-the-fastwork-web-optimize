@@ -1,9 +1,8 @@
 // The ranked attribution of the lag probe: raw `fw.webkit.lag/1` sessions in, per region a counter ranking by a unit-free
 // ratio, a paint attribution to parts, the top steps, the filter layers and the layer census out, for both arms with the
-// arm difference decided on per-pass ranges. Every decision is reduce.mjs (twin of Fw.Measure.WebKitLag); this file joins
 import { COUNT_TYPES, bucketBySteps } from '../reduce.mjs';
 import { MORPH_FRAMES, scanSteps } from './probe.mjs';
-import { phaseRanges } from './phase.mjs';
+import { phaseRanges, geometryIndex } from './phase.mjs';
 import {
   Q, regionOf, regionLedger, stepArea, topPart, rollup, rankWindows, colRatio, colSum, frac, fracLt, verdict, topK,
   filterTotals, byKey, RARE_MIN, flagged, ratioVerdict,
@@ -179,17 +178,17 @@ function analyzeMorphItems(arm, scrollOf) {
   const fps = scrollOf.length ? scrollOf[0].fps : 2;
   const calm = runs.map((r) => scrollOf.find((it) => it.p === r.p)).map((it) => (it ? regionRows(it, 'calm') : []));
   const slice = (r, ph) => r.rows.slice(...r.ph[ph]);
-  const frameStep = (r, phase, i) => ({ y: 0, boxes: r.s.geometry.morph.samples[MORPH_PHASES[phase][0] + i]?.boxes ?? [], clips: r.clips[r.ph[phase][0] + i] ?? [] });
+  const sampleAt = (r, phase, i) => { const g = r.s.geometry.morph.samples; return g[geometryIndex(r.ph[phase][0], i, g.length)]; };
+  const frameStep = (r, phase, i) => ({ y: 0, boxes: sampleAt(r, phase, i)?.boxes ?? [], clips: r.clips[r.ph[phase][0] + i] ?? [] });
   for (const phase of ['open', 'close']) {
     const wins = runs.map((r) => slice(r, phase)), idle = runs.map((r) => slice(r, 'idle'));
-    const [a, b] = MORPH_PHASES[phase];
     const ledgers = runs.map((r) => byKey(Array.from({ length: len(r, phase) }, (_, i) => frameStep(r, phase, i)).flatMap(stepArea)));
     const pool = runs.flatMap((r) => Array.from({ length: len(r, phase) }, (_, i) => ({ tag: r.tag, y: i, row: r.rows[r.ph[phase][0] + i], part: topPart(frameStep(r, phase, i)) })));
     const active = runs.map((r) => {
       const g = r.s.geometry.morph, nav = (smp) => JSON.stringify(smp?.boxes.find((x) => x.name === 'nav')?.rect ?? null);
-      return g.samples.slice(a, b).filter((smp) => nav(smp) !== nav(g.samples[0])).length;
+      return g.samples.slice(...r.ph[phase]).filter((smp) => nav(smp) !== nav(g.samples[0])).length;
     });
-    const filt = runs.flatMap((r) => r.s.geometry.morph.samples.slice(a, b).map((smp) => filterTotals([0, 0, Math.round(r.m.info.vw * Q), Math.round(r.m.info.vh * Q)], smp.filters)));
+    const filt = runs.flatMap((r) => r.s.geometry.morph.samples.slice(...r.ph[phase]).map((smp) => filterTotals([0, 0, Math.round(r.m.info.vw * Q), Math.round(r.m.info.vh * Q)], smp.filters)));
     out.phases[phase] = {
       frames: mean(runs.map((r) => len(r, phase))), table: counterTable(wins, calm, 1, fps), tableIdle: counterTable(wins, idle, 1, 1), parts: partTable(ledgers), leaves: leafTable(ledgers),
       top: topOf(pool), activeFrames: mean(active),

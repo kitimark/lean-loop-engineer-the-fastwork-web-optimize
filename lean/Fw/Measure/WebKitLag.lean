@@ -700,9 +700,64 @@ theorem verdict_ne_rareBaseline (o f : List Rat) : verdict o f ≠ .rareBaseline
     · simp
     · split <;> simp
 
-/-! ## Top steps of a region -/
+/-- The verdict of each job from that job's own per-run values `(a, b)` of the two cells compared; no run is shared across jobs. -/
+def jobVerdicts (jobs : List (List Rat × List Rat)) : List Verdict := jobs.map fun j => verdict j.1 j.2
 
-/-- The key of the head is the largest in a list sorted by a key, highest first. -/
+/-- How many jobs said `lower`, `higher` and `overlap`. -/
+def tally (vs : List Verdict) : Nat × Nat × Nat := (vs.count .lower, vs.count .higher, vs.count .overlap)
+
+theorem jobVerdicts_length (jobs : List (List Rat × List Rat)) : (jobVerdicts jobs).length = jobs.length := by
+  simp [jobVerdicts]
+
+theorem jobVerdicts_get (jobs : List (List Rat × List Rat)) (i : Nat) :
+    (jobVerdicts jobs)[i]? = (jobs[i]?).map fun j => verdict j.1 j.2 := by
+  simp [jobVerdicts]
+
+theorem jobVerdicts_congr {jobs jobs' : List (List Rat × List Rat)} {i : Nat} (h : jobs[i]? = jobs'[i]?) :
+    (jobVerdicts jobs)[i]? = (jobVerdicts jobs')[i]? := by
+  rw [jobVerdicts_get, jobVerdicts_get, h]
+
+theorem verdict_lower_sep {o f : List Rat} (h : verdict o f = .lower) : sepBelow f o = true := by
+  unfold verdict at h
+  split at h
+  · cases h
+  · split at h
+    · assumption
+    · split at h <;> cases h
+
+theorem verdict_higher_sep {o f : List Rat} (h : verdict o f = .higher) : sepBelow o f = true := by
+  unfold verdict at h
+  split at h
+  · cases h
+  · split at h
+    · cases h
+    · split at h
+      · assumption
+      · cases h
+
+theorem jobVerdicts_overlap {o f : List Rat} (h1 : sepBelow f o = false) (h2 : sepBelow o f = false) :
+    jobVerdicts [(o, f)] = [.overlap] := by
+  simp [jobVerdicts, verdict_overlap h1 h2]
+
+theorem tally_total (jobs : List (List Rat × List Rat)) :
+    (tally (jobVerdicts jobs)).1 + (tally (jobVerdicts jobs)).2.1 + (tally (jobVerdicts jobs)).2.2 = jobs.length := by
+  induction jobs with
+  | nil => simp [tally, jobVerdicts]
+  | cons j js ih =>
+    have hne := verdict_ne_rareBaseline j.1 j.2
+    simp only [tally, jobVerdicts, List.map_cons, List.count_cons, List.length_cons] at ih ⊢
+    cases hv : verdict j.1 j.2 <;> simp_all <;> omega
+
+theorem pooled_lower {o1 f1 o2 f2 : List Rat} (h1 : o1 ≠ []) (h2 : f1 ≠ []) (h3 : o2 ≠ []) (h4 : f2 ≠ [])
+    (h : verdict (o1 ++ o2) (f1 ++ f2) = .lower) : verdict o1 f1 = .lower ∧ verdict o2 f2 = .lower := by
+  have hs := verdict_lower_sep h
+  simp only [sepBelow, List.all_append, Bool.and_eq_true] at hs
+  exact ⟨verdict_lower h1 h2 (by simp only [sepBelow]; simp_all), verdict_lower h3 h4 (by simp only [sepBelow]; simp_all)⟩
+
+theorem pooling_hides :
+    jobVerdicts [([10], [5]), ([3], [1])] = [.lower, .lower] ∧ verdict ([10] ++ [3]) ([5] ++ [1]) = .overlap := by
+  decide
+
 theorem sorted_head_max {α : Type} (key : α → Int) {l : List α} {h : α} {t : List α}
     (e : l = h :: t) (hs : l.Pairwise fun a b => key b ≤ key a) : ∀ p ∈ l, key p ≤ key h := by
   subst e
@@ -829,6 +884,13 @@ private def rareCases : List (String × String × List Int × List Int × List R
    ("scroll", "paintArea", [0], [0], [Q 1 1], [Q 1 1]),
    ("scroll", "Layout", [], [], [], [])]
 
+private def jobCases : List (List (List Rat × List Rat)) :=
+  [[([Q 5 1, Q 6 1], [Q 1 1, Q 2 1]), ([Q 5 1, Q 7 1], [Q 1 1, Q 3 1]), ([Q 4 1], [Q 1 1])],
+   [([Q 1 1, Q 2 1], [Q 5 1, Q 6 1]), ([Q 1 1, Q 4 1], [Q 3 1, Q 6 1]), ([Q 3 2], [Q 3 2])],
+   [([Q 10 1], [Q 5 1]), ([Q 3 1], [Q 1 1])],
+   [([], [Q 1 1]), ([Q 1 1], [])],
+   []]
+
 private def topCases : List (Nat × List (Int × Int)) :=
   [(3, [(0, 5), (50, 9), (100, 9), (150, 1), (200, 7)]), (2, [(10, 4)]), (0, [(10, 4)]), (4, [])]
 
@@ -866,6 +928,12 @@ private def goldenLines (_ : Unit) : List String :=
   (verdictCases.map fun (o, f) =>
     (Json.mkObj [("kind", "verdict"), ("orig", Json.arr (o.map qj).toArray), ("faith", Json.arr (f.map qj).toArray),
       ("verdict", (verdict o f).name)]).compress) ++
+  (jobCases.map fun js =>
+    let vs := jobVerdicts js
+    let (lo, hi, ov) := tally vs
+    (Json.mkObj [("kind", "jobVerdicts"),
+      ("jobs", Json.arr (js.map fun (o, f) => Json.mkObj [("a", Json.arr (o.map qj).toArray), ("b", Json.arr (f.map qj).toArray)]).toArray),
+      ("verdicts", toJson (vs.map Verdict.name)), ("lower", lo), ("higher", hi), ("overlap", ov)]).compress) ++
   [(Json.mkObj [("kind", "rareConst"), ("rareMin", rareMin), ("countColumns", toJson countColumns)]).compress] ++
   (rareCases.map fun (ctx, name, so, sf, ro, rf) =>
     (Json.mkObj [("kind", "rareCell"), ("ctx", ctx), ("name", name), ("origSums", toJson so), ("faithSums", toJson sf),
