@@ -107,22 +107,55 @@ runs the probe with the inputs of one message line:
    when every member says `new`, the whole original's relation when no member says `new` or `undecided`, else `undecided`.
    The lane never moves between RED and CLEAN when one original pass is added, for any unit verdict
    (`laneOf_stable_extra`: it holds whenever the old original is a member of the new family, `mem_family_extra`;
-   `stableOf_new`, `stableOf_clean`). Hero and approach units carry no pass number (one pass, `family_one`). The JS twin
+   `stableOf_new`, `stableOf_clean`). Scope: `mem_family_extra` gives that membership when the old original has samples
+   and every sample of the extra pass carries one pass number the old original does not use. A first pass on an empty
+   original is outside (the new original has one pass, so its family is itself alone: `nil_not_mem_family`), and so is
+   an extra pass that reuses a pass number. Hero and approach units carry no pass number (one pass, `family_one`). The JS twin
    (`family`, `stableRel`, `unitRel`, `byMFam`) is checked by the golden `stable` rows; `units-<engine>.json` keeps `fam`
-   where the relation moved, and the summary prints `undecided (leave-one-out N)`. Cost: each original pass adds one
-   re-reduction of the morph path (run 39926829451: 8.7 s to about 40 s offline). Offline re-reduction (dev check): run
+   where the relation moved, and the summary prints `undecided (leave-one-out N)`. Cost: `byMFam` judges the whole family in
+   one walk. `annotate`, `headOf`, `windowOne`, `flightWindow` and `endOf` each read one pass, so a rewrite sample's window
+   and envelope are its per-pass pieces joined in pass order; each piece is computed once and the member without pass q
+   joins the other pieces. `byMFamEach` (one `byMFirst` per member) is the definition; test `byMFam equals byMFamEach`
+   checks the two on every golden segment, in all four phases, and with the original doubled into one more pass (928
+   cases). MEASURED offline (dev check, this Mac) on the merged raw of run 39926829451: 39.8 s one member at a time,
+   9.5 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix 7940268bea3474da). Offline re-reduction (dev check): run
    39926829451 CLEAN (new 0, undecided 0, leave-one-out 0, cleared 1, 14416 units); run 39557718020 CLEAN (3604 units,
    all ok).
    **WebKit cadence.** `firstCover`, `laneOf_extra` and `laneOf_stable_extra` count passes and hold at any cadence; only
-   the timing link (`slots_cadence`, `sampled_iff`, `lateRate_delays`) assumes 17 ms. Linux WebKit's open gap p50 is 141
-   to 170 ms on the existing `trajectory-playwright-webkit` rows, so no new workflow is needed to read it: at 141 ms frames
-   on multiples of the gap never reach bucket 1 and 24 of 141 phases do (`slow_cadence_phases`). There a missed open@1 is
-   the vsync phase, not lateness, so the late-rate reading of `firstCover` is Chromium's only; the WebKit push cells stay
-   "no verdict: coverage" as above.
+   the timing link (`slots_cadence`, `sampled_iff`, `lateRate_delays`) assumes 17 ms. MEASURED: Linux WebKit's open gap
+   p50 is 120 to 183 ms (median 148) over the 30 arm rows of these 10 runs, whose `trajectory-playwright-webkit` artifacts
+   walked the morph path before task trajectory-probe-speed cut Linux WebKit to hero only:
+
+   | run | original | faithful | candidate |
+   |---|---|---|---|
+   | 39405218882 | 128 | 127 | 145 |
+   | 39407166794 | 139 | 135 | 175 |
+   | 39409003529 | 183 | 153 | 152 |
+   | 39412301221 | 181 | 142 | 120 |
+   | 39415671864 | 168 | 150 | 144 |
+   | 39419128841 | 158 | 142 | 158 |
+   | 39442517769 | 183 | 146 | 155 |
+   | 39448209903 | 145 | 155 | 151 |
+   | 39449092483 | 154 | 137 | 132 |
+   | 39452631146 | 168 | 147 | 132 |
+
+   The macOS WebKit witness (`trajectory-apple`) reads 18 to 24 ms on the same phase (runs 39453181962, 39455284967,
+   39887328839, 39887331854, 39887335005). At a 141 ms gap, inside the Linux range, frames on multiples of the gap never
+   reach bucket 1 and 24 of 141 phases do (`slow_cadence_phases`). There a missed open@1 is the vsync phase, not
+   lateness, so the late-rate reading of `firstCover` is Chromium's only; the WebKit push cells stay "no verdict:
+   coverage" as above.
+   **WebKit Simulator rows.** The `webkit-sim` lag passes record frame times but no lane sample. The timed morph pass marks
+   each rAF of the push (`performance.mark`, read from the Web Inspector timeline): MEASURED open push gap p50 30.0 and
+   31.4 ms, p90 54.7 and 60.4 ms (run 39511908073, artifact `webkit-sim-v1`, passes 0 and 1). It reads no morph value and
+   no probe property, and the untimed geometry pass reads part boxes without times, so no row has the `m`, `els` and `t0`
+   of one frame that a unit needs. A Simulator lane needs a timed pass that reads them per frame, a new `webkit-sim` mode:
+   not built here.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
    red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate).
-   Exit codes (`laneExit`): refused 2; without `--strict` 0; with `--strict` RED 1, UNDECIDED 3, CLEAN 0. UNDECIDED is
+   Exit codes (`laneExit`): refused 2; without `--strict` 0; with `--strict` RED 1, UNDECIDED 3, CLEAN 0. Refused also
+   covers the inputs: a widths, paths, reads or reps value outside its allowlist, `summary` without a raw file, `merge`
+   without legs or with legs that disagree, and an unknown command all exit 2, so 1 is only ever a strict RED. UNDECIDED is
    neither a pass nor a regression, so it gets its own code: a caller can rerun with more passes instead of reading it as
    RED or CLEAN. No caller passes `--strict` today. `summary` over several engines exits the worst, refused before RED
    before UNDECIDED (`exitJoin`). The summary splits the

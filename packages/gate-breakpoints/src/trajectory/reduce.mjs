@@ -561,13 +561,7 @@ export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
 /** `byMFirst` of each member of the original's `family`, one member at a time. */
 export const byMFamEach = (ph, p, kind, d, e, id, oSeg, wSeg, conv) => family(oSeg).map((o) => byMFirst(ph, p, kind, d, e, id, o, wSeg, conv));
 
-/**
- * `byMFamEach`, computed once for the whole family. `annotate`, `headOf`, `windowOne`, `flightWindow` and `endOf` each
- * read one pass, so the window and envelope of a rewrite sample are concatenations of per-pass pieces, and the member
- * without pass q takes the pieces of the other passes in the same order. The rewrite side, the start and settle checks
- * and the identity check do not depend on the member. Test `byMFam equals byMFamEach` checks the two on every golden
- * segment and on the fixture runs.
- */
+/** `byMFamEach`, with each rewrite sample's per-pass windows and envelopes computed once for all members (test `byMFam equals byMFamEach`). */
 export function byMFam(ph, p, kind, d0, e, id, oSeg, wSeg, conv) {
   const durs = new Map();
   const d = (cls) => { const k = JSON.stringify(cls); if (!durs.has(k)) durs.set(k, d0(cls)); return durs.get(k); };
