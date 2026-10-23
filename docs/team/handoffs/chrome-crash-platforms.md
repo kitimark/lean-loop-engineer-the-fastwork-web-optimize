@@ -1,9 +1,9 @@
 branch: worktree-wf_3bba9083-6b9-1 (CI branch ci/chrome-crash-platforms)
 worktree: .claude/worktrees/wf_3bba9083-6b9-1 (inside the main checkout)
-last commit: 57613fb3c (3 pushes used; push 4 adds platform fonts of the title, then 2 dispatches of the same code)
-CI runs: 39889986847 (push 1), 39890929696 (push 2), 39892378128 (push 3, 57613fb3c): all complete. Result: with the runner system fonts no native leg crashes (linux x64 headless/xvfb, arm64 control, windows, macOS stable+canary); with the container empty fonts.conf linux x64 headless, x64 xvfb and arm64 crash (SIGSEGV 0x84) on min and page at 1280, ok at 860 and with text-wrap wrap. macOS: only the first CfT build per job loads (later ones stall at Page.navigate)
-verified: local tests only (ci-paths 54 pass, land-inputs + land-overflow-widths 62 pass, profile.test 9 pass); no platform result yet
-open: platform rows (linux x64 headless/xvfb, macOS arm64/x64, Windows), note, dry land, review ready
+last commit: a4eaaafe0 (4 pushes + 2 dispatches = 6 used; note and final commit pending)
+CI runs (all complete, all at a4eaaafe0 except the first three): 39889986847, 39890929696, 39892378128, 39893655746 (push 4), 39894690177 and 39894741675 (dispatches). Result: no crash with system fonts on any native leg (linux x64 headless/xvfb, arm64 control, windows, macOS canary/stable); empty fonts.conf: linux x64 headless, x64 xvfb and arm64 crash SIGSEGV 0x84 on min and page 4/4, ok at 860 and wrap; macOS later CfT builds stall at Page.navigate (harness, not a crash)
+verified: ci-paths 54, runner land tests 62, measure-chromium 70, lean check.sh green at 969ad734e (re-run at final commit pending), actionlint clean
+open: final commit, merge main check, dry land, review ready, user step: file the Chromium bug (now: only without system fonts)
 
 What this task adds
 - Lean `Fw.Measure.Profile`: Mode, runnable (a probe is refused in counts mode), readOk (probes/ vs profiles/), cftPlatform/cftUrl (CfT platform map); JS twins in packages/measure-chromium/src/profile.mjs; golden profile.jsonl.
