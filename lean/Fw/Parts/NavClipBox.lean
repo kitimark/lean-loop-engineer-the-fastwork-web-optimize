@@ -74,27 +74,27 @@ def minW (v : Vp) : Rat := panelW v
 
 def usedW (v : Vp) : Rat := max (declW v) (minW v)
 
-def restW (v : Vp) (m : Rat) : Rat := navWidth v false m
+def restW (v : Vp) (h : Bool) (m : Rat) : Rat := navWidth v h m
 
 theorem usedW_eq_unionW (v : Vp) : usedW v = unionW v := by
   have h := panel_ge_pill v
   unfold usedW declW minW unionW
   grind
 
-theorem decl_eq_rest_zero (v : Vp) : declW v = restW v 0 := by
+theorem decl_eq_rest_zero (v : Vp) (h : Bool) : declW v = restW v h 0 := by
   unfold declW restW navWidth
   grind
 
-theorem decl_close_rest (v : Vp) (m : Rat) (h0 : 0 ≤ m) (h : m ≤ morphingCut) :
-    0 ≤ restW v m - declW v ∧ restW v m - declW v ≤ morphingCut * (panelW v - pillW v) := by
+theorem decl_close_rest (v : Vp) (h : Bool) (m : Rat) (h0 : 0 ≤ m) (hm : m ≤ morphingCut) :
+    0 ≤ restW v h m - declW v ∧ restW v h m - declW v ≤ morphingCut * (panelW v - pillW v) := by
   have hp := panel_ge_pill v
   have a := Rat.mul_nonneg (show 0 ≤ panelW v - pillW v by grind) h0
   have b : (panelW v - pillW v) * m ≤ (panelW v - pillW v) * morphingCut :=
-    Rat.mul_le_mul_of_nonneg_left h (by grind)
+    Rat.mul_le_mul_of_nonneg_left hm (by grind)
   unfold restW declW navWidth
   refine ⟨by grind, by grind⟩
 
-theorem used_eq_rest_one (v : Vp) : usedW v = restW v 1 := by
+theorem used_eq_rest_one (v : Vp) (h : Bool) : usedW v = restW v h 1 := by
   rw [usedW_eq_unionW]
   unfold unionW restW navWidth
   grind
