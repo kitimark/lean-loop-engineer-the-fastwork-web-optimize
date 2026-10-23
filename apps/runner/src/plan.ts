@@ -98,8 +98,6 @@ export function mainCommits(cwd: string, ref = "main"): { sha: string; body: str
   });
 }
 
-/** `fw plan lint <work-graph.json>`: exit code 1 when fwcore finds errors or an open row misses a path of its writes
- *  closure (`Fw.Plan.WritesClosure`, checked against the tracked files). */
 export async function lintCli(args: string[], cwd: string, core?: CoreCall, commits?: { sha: string; body: string }[], onMain?: OnMain,
   closure?: { tracked: string[]; batch: ScopeBatch }): Promise<number> {
   if (!args[0]) throw new UsageError("usage: fw plan lint <work-graph.json>");

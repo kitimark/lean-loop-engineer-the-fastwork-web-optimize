@@ -1,14 +1,9 @@
 import Lean.Data.Json
 import Fw.Console.Land
-/-!
-# The writes closure of a task: the files its new golden, Lean module or workflow also changes
-Incident `inc-graph-writes-closure`; a path is missing exactly when `Fw.Console.Land.landScope` refuses it.
--/
 
 namespace Fw.Plan.WritesClosure
 open Fw.Ops.PathCheck Fw.Console.Land
 
-/-- What a written path adds when it is new. -/
 inductive Kind | golden | script | module | workflow | other
 deriving DecidableEq, Repr
 
@@ -28,7 +23,6 @@ def leanFile (w : String) : Bool := (lastSeg w).endsWith ".lean" || wild (lastSe
 def ymlFile (w : String) : Bool :=
   (lastSeg w).endsWith ".yml" || (lastSeg w).endsWith ".yaml" || wild (lastSeg w)
 
-/-- The kind of a write path or glob, from its directory and file name. -/
 def kindOf (w : String) : Kind :=
   if w.startsWith ciGoldenDir then .other
   else if w.startsWith goldenDir then .golden
@@ -42,22 +36,18 @@ def triggerLean : String := "lean/Fw/Ci/Trigger.lean"
 def triggersGolden : String := "packages/contracts/golden/ci/triggers.jsonl"
 def fwRoot : String := "lean/Fw.lean"
 
-/-- A golden check: its `check.sh` job line, the `lean.yml` input row and the regenerated trigger golden. -/
 def goldenCheck : List String := [checkSh, triggerLean, triggersGolden]
 
-/-- The CI tables every workflow file has a row in, with their goldens. -/
 def ciTables : List String :=
   [triggerLean, "lean/Fw/Ci/Intent.lean", "lean/Fw/Ci/Overflow.lean", "lean/Fw/Ci/Pool/Caps.lean", triggersGolden,
     "packages/contracts/golden/ci/intent.jsonl", "packages/contracts/golden/ci/pool-caps.jsonl"]
 
-/-- The paths a new artefact of a kind implies. -/
 def implied : Kind → List String
   | .golden | .script => goldenCheck
   | .module => [fwRoot]
   | .workflow => ciTables
   | .other => []
 
-/-- `new`: the write matches no tracked file; `existing`: a plain path that does; `open`: a glob that does. -/
 inductive Fresh | new | existing | «open»
 deriving DecidableEq, Repr
 
@@ -66,22 +56,17 @@ def Fresh.name : Fresh → String
 
 def isGlob (w : String) : Bool := w.toList.contains '*'
 
-/-- The freshness of write `w` against the tracked files, matched as the land matches a path. -/
 def freshOf (tracked : List String) (w : String) : Fresh :=
   if tracked.any (inScope (parseScope [w])) then (if isGlob w then .open else .existing) else .new
 
-/-- The implied paths of the writes of freshness `f`, each once. -/
 def needs (tracked writes : List String) (f : Fresh) : List String :=
   ((writes.filter (freshOf tracked · == f)).flatMap (implied ∘ kindOf)).eraseDups
 
-/-- The closure of the new artefacts. -/
 def required (tracked writes : List String) : List String := needs tracked writes .new
 
-/-- The closure a glob would need if it adds a file, without the paths already required. -/
 def mayNeed (tracked writes : List String) : List String :=
   (needs tracked writes .open).filter (!(required tracked writes).contains ·)
 
-/-- A work-graph row as the closure reads it; `done` is a row with evidence or cut. -/
 structure Task where
   id : String
   owner : String
@@ -90,21 +75,17 @@ structure Task where
   done : Bool
 deriving Repr
 
-/-- The scope `fw land` gives the task. -/
 def scopeOf (t : Task) : List String := landScope t.writes [t.id, t.owner] [] t.id t.stream
 
-/-- The required paths the land would refuse. -/
 def missing (tracked : List String) (t : Task) : List String :=
   if t.done then [] else violations (scopeOf t) (required tracked t.writes)
 
-/-- The paths an open glob would need that the land would refuse. -/
 def missingOpen (tracked : List String) (t : Task) : List String :=
   if t.done then [] else violations (scopeOf t) (mayNeed tracked t.writes)
 
 def source (tracked writes : List String) (f : Fresh) (p : String) : String :=
   ((writes.filter (freshOf tracked · == f)).find? fun w => (implied (kindOf w)).contains p).getD ""
 
-/-- A lint finding, as `Fw.Plan.Lint.Finding`. -/
 structure Finding where
   task : String
   code : String
@@ -112,7 +93,6 @@ structure Finding where
   detail : String
 deriving Repr, BEq
 
-/-- `writesClosure` errors for missing paths, then `writesClosureOpen` warnings. -/
 def findings (tracked : List String) (t : Task) : List Finding :=
   (missing tracked t).map (fun p =>
       ⟨t.id, "writesClosure", "error", p ++ " for " ++ source tracked t.writes .new p⟩) ++
@@ -252,7 +232,6 @@ theorem error_iff (tr : List String) (t : Task) :
     obtain ⟨p, hp⟩ := List.exists_mem_of_ne_nil _ h
     exact ⟨_, List.mem_append_left _ (List.mem_map_of_mem hp), rfl⟩
 
-/-- A work-graph row at graph commit `graph`, and the paths later graph commits added to it. -/
 structure Case where
   name : String
   graph : String
@@ -340,7 +319,6 @@ def selfTracked : List String :=
 
 def mk (id owner stream : String) (writes : List String) : Task := ⟨id, owner, stream, writes, false⟩
 
-/-- The rows of graph r322 to r334, each as it stood before and after its widening. -/
 def cases : List Case := [
   ⟨"r322 before: counts-font-fidelity", "31bf66d51^", mk "counts-font-fidelity" "measure-engineer" "measure" fontPre,
     fontTracked, [".github/workflows/font-fidelity.yml"] ++ fontTables⟩,
@@ -448,7 +426,6 @@ def goldenText (_ : Unit) : String :=
 
 def goldenPath : String := "../packages/contracts/golden/plan/writes-closure.jsonl"
 
-/-- Writes the golden; `--check` compares it instead and fails when it is stale. -/
 def run (args : List String) : IO UInt32 := do
   if args.contains "--check" then
     let cur ← try IO.FS.readFile goldenPath catch _ => pure ""

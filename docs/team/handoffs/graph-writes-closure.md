@@ -1,4 +1,4 @@
-# graph-writes-closure (lean-prover)
+# Writes closure lint
 
 - Branch `worktree-wf_29c7f846-55b-1`, worktree `.claude/worktrees/wf_29c7f846-55b-1`, base main f3248e954.
 - Last code commit 7ba9e279b; no CI runs (check.sh, runner tests, ci-paths, dry land all pass locally).
@@ -8,7 +8,7 @@
   open against tracked files, matched with `Fw.Ops.PathCheck`), `implied`, `required` (new artefacts), `mayNeed` (open
   globs), `missing` / `missingOpen` = `violations (landScope ...)`, `findings` (`writesClosure` error,
   `writesClosureOpen` warn). Theorems: per-kind iffs, `required_eq_nil_iff`, `required_{golden,script,module,workflow}`,
-  `mem_missing_iff`, `missing_nil_iff_land_ok` (lint passes iff `landVerdict` of the closure is `.ok`), `one_call`,
+  `mem_missing_iff`, `missing_nil_iff_land_ok` (lint passes exactly when `landVerdict` of the closure is `.ok`), `one_call`,
   `done_silent`, `error_iff`. `#guard`s replay graph rows r322, r323, r325, r328, r330, r331, r334 before/after.
 - Golden `packages/contracts/golden/plan/writes-closure.jsonl` (`lake env lean --run scripts/WritesClosureGolden.lean
   [--check]`), check.sh job, lean.yml input row in `Fw.Ci.Trigger`, triggers.jsonl regenerated.

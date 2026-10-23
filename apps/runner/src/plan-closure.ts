@@ -1,5 +1,3 @@
-/** The writes closure `fw plan lint` adds: a mirror of `Fw.Plan.WritesClosure`, replayed against its golden
- *  (`packages/contracts/golden/plan/writes-closure.jsonl`); the scope check itself is fwcore `console.landScope`. */
 import { execFileSync } from "node:child_process";
 import type { LintFinding } from "./plan.ts";
 
@@ -16,7 +14,6 @@ const globMatch = (g: string[], p: string[]): boolean =>
   g.length === 0 ? p.length === 0 : g[0] === "**" ? globMatch(g.slice(1), p) || (p.length > 0 && globMatch(g, p.slice(1))) : p.length > 0 && segMatch(g[0]!, p[0]!) && globMatch(g.slice(1), p.slice(1));
 const matchesPath = (g: string[], p: string[]) => p.some((_, k) => globMatch(g, p.slice(0, k + 1)));
 
-/** `inScope (parseScope [w]) f`. */
 export function inOne(w: string, f: string | string[]): boolean {
   if (w.startsWith("!")) return false;
   const p = typeof f === "string" ? segs(f) : f, g = segs(w);
@@ -73,7 +70,6 @@ export function mayNeed(tracked: string[], writes: string[]): string[] {
 const source = (tracked: string[], writes: string[], f: Fresh, p: string) =>
   writes.find((w) => implied(kindOf(w)).includes(p) && freshOf(tracked, w) === f) ?? "";
 
-/** `findings`, given the land's violations of `required ++ mayNeed` (theorem `one_call`). */
 export function closureFindings(tracked: string[], t: ClosureTask, violations: string[]): LintFinding[] {
   if (t.done) return [];
   const req = required(tracked, t.writes), may = mayNeed(tracked, t.writes);
@@ -82,7 +78,6 @@ export function closureFindings(tracked: string[], t: ClosureTask, violations: s
     ...violations.filter((p) => may.includes(p)).map(f("writesClosureOpen", "warn", "open"))];
 }
 
-/** One fwcore process answers every request, one JSON line each. */
 export function scopeBatch(bins: string[]): ScopeBatch {
   return async (reqs) => {
     if (reqs.length === 0) return [];
@@ -101,7 +96,6 @@ export function scopeBatch(bins: string[]): ScopeBatch {
   };
 }
 
-/** The closure findings of every open row that names a golden, script, module or workflow. */
 export async function lintClosure(tasks: ClosureTask[], tracked: string[], batch: ScopeBatch): Promise<LintFinding[]> {
   const open = tasks.map((t) => ({ t, paths: [...required(tracked, t.writes), ...mayNeed(tracked, t.writes)] }))
     .filter((x) => !x.t.done && x.paths.length > 0);
