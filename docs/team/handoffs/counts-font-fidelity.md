@@ -1,19 +1,16 @@
 branch: worktree-wf_9e4882e0-ebf-1 (CI branch ci/counts-font-fidelity)
 worktree: .claude/worktrees/wf_9e4882e0-ebf-1
-last commit: see git log (swipe-touch-v1 maxFrames from Lean, after merging main)
-CI runs: 39906869467 font-fidelity failed (rows dir, fixed); 39907447564 font-fidelity success; path-pix 39909931032 success, engine-premises 39909930901 success (push 3783b391d, pick image); chromium-counts swipe-v1 image run 39914488176 success; swipe-touch-v1 39914492010 failed (every counts job: maxFrames); reuse runs swipe-v1 39916914389 and 39916917890 (image_run=39914488176) queued at 07:18Z
-verified: pick = liberation (fontPick over 5 font sets; Playwright WebKit macOS reference); Simulator doc height 6042 at 430x775 equals the phone (results/phone/2026-10-17-s1); Lean golden + TS twins; ci-paths tests 54 pass; measure-chromium tests 73 pass
-open: refreeze of classes.frozen.json and zone baselines needs 3 workflow runs of one image id per profile (image_run); fw run does not send image_run and gh workflow run is refused in the sandbox, so the lead dispatches them (see note); path-pix / engine-premises re-run on the image; research note; merge main after counts-lane-fonts lands
+last commit: see git log (main merged 586d04705, then this handoff)
+CI runs (ci/counts-font-fidelity unless noted): font-fidelity 39906869467 failed (rows dir, fixed), 39907447564 success; path-pix 39909931032 success; engine-premises 39909930901 success, 39912692117 success (ci/counts-font-fidelity-nofont); chromium-counts swipe-v1 39914488176 success (builds image), 39916914389 success, 39916917890 success (image_run=39914488176); swipe-touch-v1 39914492010 failed (maxFrames); lean 39917882274 (push run)
+verified: pick = liberation; swipe-v1 on font image 3 runs, 575 frames, docHeight 6278, same image digest (original det/stable/quar 30/16/24, rewrite 23/22/25 of 70); swipe-touch-v1 maxFrames 2378 from Lean (Swipe section, golden touchPage/touchBudget); lean check, measure-chromium 74, runner 2914, ci-paths 54 pass; dry land with --allow for the 7 out-of-scope files = VERDICT dry
+open: (1) dry without --allow = VERDICT scope: font-fidelity.yml, land.ts, lean/Fw/Ci/{Intent,Overflow,Pool/Caps,Trigger}.lean, scripts/ci-paths.test.mjs are outside the task writes (lead widens writes or lands with --allow); (2) refreeze not committed: classes.frozen.json and zone baselines stay as before because freeze.mjs rewrites both profiles; (3) swipe-touch-v1 dispatches below
 
-State
-- Lean: lean/Fw/Measure/Profile.lean fontSets (6 candidate sets), fontDist, fontPick, notdefCount; twins in packages/measure-chromium/src/profile.mjs; golden profile.jsonl.
-- Measurement code packages/measure-chromium/src/fidelity*.mjs (page function, views m430/p430/d1280, container driver, host orchestrator, Playwright WebKit driver, Simulator driver, comparison writing fidelity-summary.md and fidelity-choice.json).
-- Workflow .github/workflows/font-fidelity.yml (guard, chromium, webkit-mac, sim, report); Lean rows in Trigger.lean, Overflow.lean, Pool/Caps.lean, Intent.lean; goldens under packages/contracts/golden/ci; scripts/ci-paths.test.mjs; apps/runner/src/land.ts reads.
-- Result: every font-bearing set lays out like WebKit (dist 3 of 6277 px); the font-less image drew 0 lines for web-face text (page 720 px short on mobile, crash at 1280). Lane image keeps fonts-liberation only; no Dockerfile or Lean font constant change.
+Touch dispatches (lead; each reuses the swipe-v1 image):
+  3x gh workflow run chromium-counts.yml --ref ci/counts-font-fidelity -f profile=swipe-touch-v1 -f target=both -f image_run=39914488176
+Then download chromium-c* of the six runs (swipe-v1 three + touch three) and run
+  node packages/measure-chromium/src/freeze.mjs <six run dirs> --built-by 39914488176 --out packages/measure-chromium/classes.frozen.json
+  zone stores: pnpm -s fw ci <run> --branch ci/counts-font-fidelity, zone-baseline.mjs --store <store> --target original|rewrite --profile <p> --run <id> --out results/baselines/chromium per profile and arm, then zone-baseline.mjs baseline --out results/baselines/chromium
+Warning: the touch failure may be a stall (target at stroke start takes the vertical pan), not a frame shortage; the new error message in run.mjs names scrollY, range, moves, events.
 
-Next
-1. Read path-pix / engine-premises results on the image; write research/notes/2026/10-2x-counts-font-fidelity.md.
-2. Lead: refreeze (3 dispatches per profile with image_run, then freeze.mjs and zone-baseline.mjs) as the note lists.
-3. Merge main, dry land (VERDICT dry counts-font-fidelity), fw review ready.
-
-Conventions: only ci/counts-font-fidelity* pushes; commit message token starts a lane; at most 8 dispatches (0 used); counts-lane-fonts branch (worktree-wf_c886ec11-19e-1) merged locally, not on main at last check.
+Findings: path-pix Chromium A/A no longer reproducible between jobs on the font image (22-28 E of 28); engine-premises differs from font-less in one row (Chromium paint/raster main set, 129/130, margin@own set); WebKit rows hold. Ledger: 37 entries stay INFERRED per entry (table in the note); entries 19 and 54 also cite older runs, not on the list.
+Read first: research/notes/2026/10-2x-counts-font-fidelity.md
