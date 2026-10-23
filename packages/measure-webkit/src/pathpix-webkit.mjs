@@ -35,7 +35,7 @@ export function magentaBox(img) {
   return x1 < 0 ? null : [x0, y0, x1 - x0 + 1, y1 - y0 + 1];
 }
 
-async function navigateHeld(c, url, log) {
+export async function navigateHeld(c, url, log) {
   await c.evaluate(`window.__fwNav = 1; queueMicrotask(() => { location.href = ${JSON.stringify(url)}; }); 'nav'`);
   await c.close();
   return attachFresh({
@@ -47,13 +47,13 @@ async function navigateHeld(c, url, log) {
   });
 }
 
-function screenshot(udid, file) {
+export function screenshot(udid, file) {
   const r = simctl(['io', udid, 'screenshot', '--type=png', file], { timeoutMs: 60000 });
   if (r.status !== 0) throw new Error(`simctl screenshot failed: ${(r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | ')}`);
   return readFileSync(file);
 }
 
-function pinStatusBar(udid, log) {
+export function pinStatusBar(udid, log) {
   const r = simctl(['status_bar', udid, 'override', '--time', '9:41', '--batteryState', 'charged', '--batteryLevel', '100', '--cellularBars', '4', '--wifiBars', '3']);
   if (r.status !== 0) log(`status_bar override failed (the crop leaves the bar out): ${(r.stderr || '').trim().slice(0, 120)}`);
 }
