@@ -1,7 +1,7 @@
 branch: worktree-wf_4a8ad90b-552-1 (CI branch ci/hero-exit-threaded-pix)
 worktree: .claude/worktrees/wf_4a8ad90b-552-1
-last commit: set after the first push (see git log)
-CI runs: none dispatched yet (the push of ci/hero-exit-threaded-pix with [ci:path-pix] starts the first)
+last commit: 75d148072 (pushed to ci/hero-exit-threaded-pix)
+CI runs (dispatch 1 of 3): 39920801675 path-pix on ci/hero-exit-threaded-pix, in progress
 verified: Lean check green, golden up to date, measure-webkit 409 and measure-chromium 72 tests, ci-paths 54, runner land-inputs 56
 verified: one local 3-offset Simulator debug run (not a result): P hand-over live, pipeline to cells.json works
 open: CI cells (webkit vm1/vm2, chromium 1/2), note, slim cell JSON, dry land, review gate
