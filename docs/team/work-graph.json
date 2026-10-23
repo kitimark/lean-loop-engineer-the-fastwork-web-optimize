@@ -18904,6 +18904,26 @@
     "docs/team/handoffs/overflow-widths-reads.md"
    ],
    "title": "checkmap-workflow-widths-local review follow-ups (2026-10-24): (1) overflowWidthsReads (Lean) and OVERFLOW_WIDTHS_READS (TS) miss inputs the planner .github/scripts/gate-jobs.mjs reads via workflow-widths.ts: packages/contracts/golden/gate/schedule.jsonl, packages/contracts/golden/gate/shards.jsonl, apps/site/src/breakpoints.gen.json, packages/gate-breakpoints/src/anchors.json; add them (one canonical list: TS reads the Lean golden instead of a hand copy) and regenerate the golden; (2) a real test: workflow-widths.ts width(parseWorkflow(...)) on a 6-job path-pix fixture against a table row of 4 fails (the current dry-land test swaps the argv); (3) land.md: any Lean change (fwcore binary moves) also selects runner:overflow-widths, about 11 s (MEASURED 10.96 s vitest, 22.4 s wall)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-prune-verify",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "ci-lake-prune-artifacts"
+   ],
+   "writes": [
+    "lean/Fw/Ops/LakeCache.lean",
+    "packages/contracts/golden/ops/lake-cache*.jsonl",
+    "research/notes/2026/10-2x-ci-setup-lean-slow.md",
+    ".github/workflows/lean.yml",
+    "scripts/fwcore-build.sh",
+    "docs/team/handoffs/lake-prune-verify.md"
+   ],
+   "title": "ci-lake-prune-artifacts review follow-ups (2026-10-24): (1) cross-runner proof: the first land legs and ci/* runs that restore a PRUNED main entry: Built lines vs Lean files changed (revert the prune step if a leg rebuilds hundreds of modules); branches behind main lose the history hits of the old 8 GB entry, measure that too; (2) the fwcore exe always has links=1 (scripts/fwcore-build.sh:16-19 strip -o + rename breaks the hard link), so it is pruned and every restoring job relinks fwcore:exe: record the first shipped main save's blob size and decide whether to keep the exe (or strip in place); (3) item 3 table: add the leg-restore-after-save gaps (36 s, 91 s) next to the waits; (4) Lean first: the prune selection (artifacts with links=1, keep outputs/) and the do-not-gate rule as decisions in Fw.Ops.LakeCache with the measured inputs as a verdict and golden."
   }
  ],
  "deadline": {
