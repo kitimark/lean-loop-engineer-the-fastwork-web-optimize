@@ -7,13 +7,13 @@ and the phone. **PROXY**: a Linux Chrome Headless Shell on a shared CI runner, s
 ## Answer
 
 - **6x makes every window lag in Chromium, and it lags every arm alike.** MEASURED. Bad-frame rate (gap above 34 ms between rAF callbacks), median over 3 job samples, round b:
-  390 hero 0.6 % to 26 %, 390 end 0.7 % to 29 % (orig, base), 1280 hero 4 to 5 % to 22 to 25 %, 1280 end 18 to 19 % to 41 to 48 %. Hitches (frames over 60 ms) per repeat go from 0 or 1 to 8 to 15.
+  390 hero 0.6 % to 26 %, 390 end 0.7 % to 29 % (orig, base), 1280 hero 4 to 5 % to 22 to 25 %, 1280 end 16 to 19 % to 41 to 48 %. Hitches (frames over 60 ms) per repeat go from 0 or 1 to 8 to 15.
   At 1x only 1280 end lags already (16 to 19 %, 3 to 4 hitches per repeat): the same software-rendering floor the probe found.
 - **The arms are not told apart at 6x.** MEASURED. Every Lean pair verdict (rate rule and hitch rule, over the 3 samples) is "not told apart" in all four windows. The A/A spread (base against aa, in points) grows
-  from 0.0 to 7.8 at 1x (7.8 only at 1280 end; 0.0 to 1.7 at 390) to 6.6 to 14.8 at 6x, larger than any gap between arms (largest pair difference 6.4 points, 1280 end orig against base, spread 10.0). One 390 hero sample ranged from 11.7 % to 41.6 %
+  from 0.0 to 7.8 at 1x (7.8 only at 1280 end; 0.0 to 1.7 at 390) to 6.6 to 14.8 at 6x, larger than any gap between arms (largest pair difference 7.9 points, 390 end base against cand, spread 14.8; at 1280 end 6.4 points, orig against base, spread 10.0). One 390 hero sample ranged from 11.7 % to 41.6 %
   between jobs for the same arm, so job noise at 6x is large. A hitch-rule sample said "second smoother" once (390 end, orig against cand) and the rule over three samples stayed "not told apart".
 - **The ranking does not match WebKit in the hero window.** MEASURED against the WebKit cadence (run 39634194664, width 390). macOS WebKit hero: 43 hitches per repeat for the original against 4 to 5 for the rewrite and the
-  look arm; the phone session 2026-10-21 hero: 372 hitch ms per second (original) against 47 (rewrite) and 55 (look). Chromium 6x hero: 26.4 % (orig), 25.7 % (base), 27.6 % (aa), 26.3 % (cand), 9 hitches per repeat in each.
+  look arm (timeline on; timeline off: hero 24 against 6 to 11, end 11/8/8/9); the phone session 2026-10-21 hero: 372 hitch ms per second (original) against 47 (rewrite) and 55 (look). Chromium 6x hero: 26.4 % (orig), 25.7 % (base), 27.6 % (aa), 26.3 % (cand), 9 hitches per repeat in each.
   Chromium 1x hero even has the original slightly smoother (0 against 1 hitch per repeat; the rewrite's one 83 ms frame at scroll 672 px, probe finding). So the throttle does not recreate the WebKit original-versus-rewrite gap.
 - **End of page: direction agrees with the phone only weakly.** 390 end at 6x: orig 28.9 %, base 32.0 %, aa 26.5 %, cand (look) 24.1 %; look lowest, as on the phone finish zone (look 96 hitch ms per second against 213 rewrite and 219 original),
   but the 7.9 points between base and cand are inside the 14.8 point A/A spread. macOS WebKit end hitches per repeat 7 / 10 / 9 / 9 (orig / base / aa / look) do not separate the arms either.
@@ -84,7 +84,7 @@ Rate rule `Fw.Gate.Smooth.verdict`, hitch rule `hitchVerdict`, over samples `acr
 | --- | --- | --- | --- |
 | Chromium 6x (PROXY) | 39927184622 | all four arms tied (26 to 28 %, 9 hitches/rep) | cand 24.1 < aa 26.5 < orig 28.9 < base 32.0 %, inside the spread |
 | Chromium 1x (PROXY) | 39927164863 | orig 0 < rewrite 1 hitch/rep (rewrite's 83 ms frame) | all tied (0.7 %) |
-| macOS WebKit cadence | 39634194664 | orig 43 hitches/rep against 4 to 5 | 7 / 10 / 9 / 9 (orig / base / aa / look), not separated |
+| macOS WebKit cadence | 39634194664 | orig 43 hitches/rep against 4 to 5 (timeline on; timeline off: hero 24 against 6 to 11, end 11/8/8/9) | 7 / 10 / 9 / 9 (orig / base / aa / look), not separated |
 | iOS Simulator cadence | 39634194664 | orig 1 (no frames in the zone) against 4 / 5 / 6 | 4 / 5 / 4 / 5, not separated |
 | iPhone session, 2026-10-21 | `results/phone/2026-10-21/summary-v2.md` | hitch ms/s orig 372 and 281 against rewrite 47, look 55 | hitch ms/s orig 219 and 195, rewrite 213, look 96 |
 

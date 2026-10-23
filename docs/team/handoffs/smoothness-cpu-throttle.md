@@ -1,6 +1,6 @@
 Branch: worktree-wf_92f26323-31b-1 (CI branches ci/smoothness-cpu-throttle-1x, ci/smoothness-cpu-throttle-6x)
 Worktree: .claude/worktrees/wf_92f26323-31b-1 (under the repo root)
-CI tips 7ec80d5dc (6x) and b65f29dc5 (1x)
+Last commit: a0809bc5b (branch worktree-wf_92f26323-31b-1); CI tips 7ec80d5dc (6x) and b65f29dc5 (1x)
 
 CI runs (workflow smoothness, 3 jobs per width, widths 390 and 1280), all complete, 4 of 4 runs used
 - 39927164863 ci/smoothness-cpu-throttle-1x, round b, 1x, cand = look flags `morph.tween:scroll-lock,nav:earn-no-transition` (main result)
