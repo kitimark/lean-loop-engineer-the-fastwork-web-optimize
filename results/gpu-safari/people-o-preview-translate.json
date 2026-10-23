@@ -1,0 +1,14 @@
+{
+  "schema": "fw.gpu-safari-refusal/1",
+  "arm": "people-o-preview-translate",
+  "status": "not-measurable",
+  "lanes": {
+    "ios-simulator-on-mac": "The hover scroll only exists at a window wider than 860 px; the Simulator iPhone viewport is 430 px wide, so the arm cannot be driven there.",
+    "macos-safari": "The Mac screen is locked (IOConsoleLocked true): document.visibilityState is hidden, requestAnimationFrame runs 0 frames in 600 ms and WebDriver screenshots are all black, so no hover cadence or pixels can be read. Re-run after an unlock: node results/gpu-safari/lane/run.mjs mac all (the arm has no zone in plan.mjs yet; adding one is a follow-up)."
+  },
+  "ci": {
+    "gate": "39850908365",
+    "counts": null,
+    "note": "CI chromium-desktop-crash blocks the people-o counts; there is no CI Simulator row to pair"
+  }
+}

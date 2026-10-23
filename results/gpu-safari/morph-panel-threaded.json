@@ -1,0 +1,1067 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "ios-simulator-on-mac",
+ "run": "gpu-safari-sim-2026-10-23T01-50-53-878Z",
+ "zone": "morph",
+ "session": {
+  "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1",
+  "dpr": 3,
+  "vw": 430,
+  "vh": 775,
+  "maxY": 5267,
+  "frame": {
+   "w": 1290,
+   "h": 2325
+  },
+  "content": [
+   0,
+   177,
+   1290,
+   2325
+  ],
+  "device": "fw-iphone-27",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+ },
+ "flip": null,
+ "ci": {
+  "gate": "39846842455",
+  "webkitSim": [
+   "39846909558",
+   "39846941236"
+  ],
+  "trajectory": [
+   "39846814254",
+   "39855506403"
+  ],
+  "counts": [
+   "39851664186"
+  ]
+ },
+ "arm": "morph-panel-threaded",
+ "search": "?fw=morph.panel:threaded",
+ "states": [
+  {
+   "id": "m0.25",
+   "kind": "morph",
+   "m": 0.25,
+   "y": null,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "L",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 29272,
+     "maxDelta": 2
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 27406,
+     "b2_3": 1866,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 29272,
+      "maxDelta": 2
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 29272,
+      "maxDelta": 2
+     },
+     {
+      "changed": 29272,
+      "maxDelta": 2
+     },
+     {
+      "changed": 20664,
+      "maxDelta": 2
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 8620,
+      "maxDelta": 1
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 8620,
+      "maxDelta": 1
+     }
+    ],
+    "nearest": 20664,
+    "laterNearest": 20664,
+    "spread": 8620,
+    "floor": 8620,
+    "within": false
+   },
+   "hash": {
+    "a": "675fce7fcb58c83f",
+    "b": "10b567f38b40ade5",
+    "c": "675fce7fcb58c83f",
+    "d": "2235c976699cc79e"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      15000000,
+      15000000,
+      400000000,
+      236734375
+     ],
+     "scrollY": 5267
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      15000000,
+      15000000,
+      400000000,
+      236734375
+     ],
+     "scrollY": 5267
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      15000000,
+      15000000,
+      400000000,
+      236734375
+     ],
+     "scrollY": 5267
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.2500000056919188,
+     "corrections": 1,
+     "startLag": 1.0000000000000853,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.2500000056919188,
+     "corrections": 0,
+     "startLag": 8.526512829121202e-14,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.2500000056919188,
+     "corrections": 1,
+     "startLag": 1.0000000000000853,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": {
+     "layerCount": 209,
+     "memoryBytes": 110217338,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 169,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    },
+    "arm": {
+     "layerCount": 209,
+     "memoryBytes": 105263641,
+     "reasonCounts": {
+      "animation": 9,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 2,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 169,
+      "transformWithCompositedDescendants": 8,
+      "willChange": 173
+     }
+    },
+    "control": {
+     "layerCount": 209,
+     "memoryBytes": 105258916,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 6,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 169,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    },
+    "order": {
+     "layerCount": 209,
+     "memoryBytes": 105258916,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 295593574,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 141
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 294754714,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 140
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 291399270,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 149
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 305450189,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 147
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  },
+  {
+   "id": "m0.5",
+   "kind": "morph",
+   "m": 0.5,
+   "y": null,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 121715,
+     "maxDelta": 3
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 102739,
+     "b2_3": 18976,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 121715,
+      "maxDelta": 3
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 121715,
+      "maxDelta": 3
+     },
+     {
+      "changed": 121715,
+      "maxDelta": 3
+     },
+     {
+      "changed": 120148,
+      "maxDelta": 3
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 0,
+      "maxDelta": 0
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 1567,
+      "maxDelta": 1
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 1567,
+      "maxDelta": 1
+     }
+    ],
+    "nearest": 120148,
+    "laterNearest": 120148,
+    "spread": 1567,
+    "floor": 1567,
+    "within": false
+   },
+   "hash": {
+    "a": "4be0278c79ed7b4a",
+    "b": "42a85b1ff6a248ce",
+    "c": "4be0278c79ed7b4a",
+    "d": "65b44fc8b785abb8"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      14000000,
+      14000000,
+      402000000,
+      421484375
+     ],
+     "scrollY": 5267
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      14000000,
+      14000000,
+      402000000,
+      421484375
+     ],
+     "scrollY": 5267
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      14000000,
+      14000000,
+      402000000,
+      421484375
+     ],
+     "scrollY": 5267
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.5000009940469989,
+     "corrections": 1,
+     "startLag": 0.9999999999996589,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.5000009940469989,
+     "corrections": 0,
+     "startLag": -3.410605131648481e-13,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.5000009940469989,
+     "corrections": 1,
+     "startLag": 0.9999999999996589,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": {
+     "layerCount": 209,
+     "memoryBytes": 120740050,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    },
+    "arm": {
+     "layerCount": 209,
+     "memoryBytes": 115781628,
+     "reasonCounts": {
+      "animation": 9,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 8,
+      "willChange": 173
+     }
+    },
+    "control": {
+     "layerCount": 209,
+     "memoryBytes": 115781628,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    },
+    "order": {
+     "layerCount": 209,
+     "memoryBytes": 115781628,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 304716186,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 70044877,
+      "regions": 215
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 304087040,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 40475034,
+      "regions": 218
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 295698432,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 215
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 312999936,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 218
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  },
+  {
+   "id": "m0.75",
+   "kind": "morph",
+   "m": 0.75,
+   "y": null,
+   "mask": [
+    0,
+    1290,
+    0,
+    2325
+   ],
+   "maskKind": "frame",
+   "grade": "L",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 146134,
+     "maxDelta": 3
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 144584,
+     "b2_3": 1550,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 146134,
+      "maxDelta": 3
+     }
+    },
+    "control": {
+     "same": true,
+     "raw": {
+      "changed": 19,
+      "maxDelta": 1
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": true,
+    "control": true
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 146134,
+      "maxDelta": 3
+     },
+     {
+      "changed": 146128,
+      "maxDelta": 3
+     },
+     {
+      "changed": 147024,
+      "maxDelta": 3
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 19,
+      "maxDelta": 1
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 5334,
+      "maxDelta": 2
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 5315,
+      "maxDelta": 2
+     }
+    ],
+    "nearest": 146128,
+    "laterNearest": 146128,
+    "spread": 5334,
+    "floor": 5315,
+    "within": false
+   },
+   "hash": {
+    "a": "703f75eebcc6ab35",
+    "b": "0682a744767e9c24",
+    "c": "f08c9d6e563b24b3",
+    "d": "8a386351297f39ef"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      13000000,
+      13000000,
+      404000000,
+      606250000
+     ],
+     "scrollY": 5267
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      13000000,
+      13000000,
+      404000000,
+      606250000
+     ],
+     "scrollY": 5267
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      13000000,
+      13000000,
+      404000000,
+      606250000
+     ],
+     "scrollY": 5267
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.7500002748144879,
+     "corrections": 1,
+     "startLag": 1.000000000000398,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.7500002748144879,
+     "corrections": 0,
+     "startLag": 3.979039320256561e-13,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.7500002748144879,
+     "corrections": 1,
+     "startLag": 1.000000000000398,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": {
+     "layerCount": 209,
+     "memoryBytes": 119964019,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    },
+    "arm": {
+     "layerCount": 209,
+     "memoryBytes": 115010373,
+     "reasonCounts": {
+      "animation": 9,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 1,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 2,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 8,
+      "willChange": 173
+     }
+    },
+    "control": {
+     "layerCount": 209,
+     "memoryBytes": 115005597,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    },
+    "order": {
+     "layerCount": 209,
+     "memoryBytes": 115005597,
+     "reasonCounts": {
+      "animation": 8,
+      "clipsCompositingDescendants": 6,
+      "filterWithCompositedDescendants": 2,
+      "filters": 2,
+      "maskWithCompositedDescendants": 1,
+      "opacityWithCompositedDescendants": 3,
+      "overflowScrollingTouch": 2,
+      "overlap": 7,
+      "positionFixed": 1,
+      "positionSticky": 1,
+      "root": 1,
+      "stacking": 168,
+      "transformWithCompositedDescendants": 9,
+      "willChange": 173
+     }
+    }
+   },
+   "iosurface": {
+    "faithful": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 297795584,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 81893786,
+      "regions": 206
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "arm": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 286575821,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 39321600,
+      "regions": 209
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "control": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 274307482,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 201
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    },
+    "order": {
+     "gpu": {
+      "pid": 23077,
+      "virtualBytes": 285212672,
+      "residentBytes": 0,
+      "dirtyBytes": 0,
+      "swappedBytes": 0,
+      "emptyBytes": 0,
+      "regions": 202
+     },
+     "content": {
+      "pid": 24051,
+      "regions": 0,
+      "virtualBytes": 0
+     }
+    }
+   }
+  }
+ ]
+}
