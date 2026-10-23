@@ -17998,7 +17998,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/WkCostSums.lean"
    ],
-   "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted."
+   "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted.",
+   "evidence": "60d6f6d"
   },
   {
    "devices": [
