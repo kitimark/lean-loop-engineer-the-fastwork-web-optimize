@@ -1,12 +1,13 @@
 # smooth-miss-counts handoff
 
-Branch: `worktree-wf_052bd076-8ce-1`. Worktree: `.claude/worktrees/wf_052bd076-8ce-1`. Last commit: d4dd26410 (push server); code commits 93dc4c514, b7e1e6c2c, 1b6f69d86, d4dd26410.
-CI branches (push form `git branch -f ci/<x> HEAD`, `git push origin ci/<x>`): ci/smooth-miss-counts (1b6f69d86), ci/smooth-miss-counts-wk (2231f63a6), ci/smooth-miss-counts-wk2 (d4dd26410). Dispatches used: 3 of 6.
+Branch: `worktree-wf_052bd076-8ce-1`. Worktree: `.claude/worktrees/wf_052bd076-8ce-1`. Last commit: c2229af20; code commits 93dc4c514, b7e1e6c2c, 1b6f69d86, d4dd26410, 5406286ac, c2229af20 (main merged at cde707e97).
+CI branches (push form `git branch -f ci/<x> HEAD`, `git push origin ci/<x>`): ci/smooth-miss-counts (1b6f69d86), ci/smooth-miss-counts-wk (2231f63a6), ci/smooth-miss-counts-wk2 (d4dd26410), ci/smooth-miss-counts-wk3 (5406286ac). Dispatches used: 4 of 6.
 
 CI runs (workflow smoothness)
 - 39897279523 Chromium cadence, 6 jobs (390/1280 x 3 sets): complete, success. Counts and histograms read from it.
 - 39897310152 WebKit mac x3 success; sim job 1 INCOMPLETE (touch push: one xcodebuild per window took 90 s, Timeline.stop timed out, then driver exit 64); sim jobs 2, 3 pending/failing the same way.
-- wk2 run (id not yet seen): sim end window through one long XCUITest `PushServer` (go-n/done-n files); mac again.
+- 39901005729 (wk2) success: mac x3 fine; sim x3: PushServer ready (51-198 s), first touch end window worked in every job (orig rep 0, 251-353 frames, touch moves seen), later ones hit Timeline.stop timeout at 60 s (job 1 two windows worked, then fallback to synthetic; jobs 2, 3 INCOMPLETE).
+- 39909042070 (wk3): same code, Timeline.stop wait 240 s for touch end windows. Read it next.
 
 Verified (local, debug only)
 - Lean `Fw.Gate.Smooth` builds (over25/34/50, skips, longGaps, Counts, ordering theorems); golden `smooth.jsonl` `--check` up to date.
