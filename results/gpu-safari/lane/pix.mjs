@@ -86,7 +86,7 @@ export function pixelCell({ run, engine, dpr, a0, a1, b0, b1, c0, c1, d0 = null,
   let ownPart = null;
   if (own) {
     const o = split(del, w, own), oc = split(deltas(a0, c0), w, own);
-    ownPart = { mask: own, inside: o.inside, hist: o.hist, ring: ringSplit(del, w, own), control: oc.inside, controlHist: oc.hist, glass: { faithful: glassOf(a0, own), arm: glassOf(b0, own), control: glassOf(c0, own) } };
+    ownPart = { mask: own, inside: o.inside, hist: o.hist, ring: ringSplit(del, w, own), control: oc.inside, controlHist: oc.hist, controlRing: ringSplit(deltas(a0, c0), w, own), glass: { faithful: glassOf(a0, own), arm: glassOf(b0, own), control: glassOf(c0, own) } };
     ownPart.glass.armDelta = glassDelta(ownPart.glass.faithful, ownPart.glass.arm);
     ownPart.glass.controlDelta = glassDelta(ownPart.glass.faithful, ownPart.glass.control);
   }
