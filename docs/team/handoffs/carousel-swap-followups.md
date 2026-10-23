@@ -5,7 +5,7 @@ token, skipped), 39968644601 (r1, r2 ok, r3 cancelled at the job limit).
 read first: research/notes/2026/10-2x-carousel-swap-webkit.md, results/carousel-swap-webkit/people-carousel-crop.md
 
 done:
-- Cause of the every-third-window Layout/Paint pattern: the hero.accent width transition (900 ms, cycle 1250+900+900 = 3050 ms against 3 carousel
+- Cause of the every-third-window Layout/Paint pattern: the hero.accent draw cycle (stroke-dashoffset animations on both 900 ms draws, StyleDifference.cpp:161; width transition on draw-in, :404; cycle 1250+900+900 = 3050 ms against 3 carousel
   periods of 3060 ms). MEASURED timing match in 3 of 3 diagnostic captures; causal link INFERRED, confirmed by a capture with hero.accent frozen.
   WebKit: StyleDifference.cpp:404 and LocalFrameViewLayoutContext.cpp:223,335 at 862f17d. Faithful shows it in the rest windows, masked in swap windows.
 - Lean SwapWindow: fewSamples (minFaithful 3), Bg/bgOf (busyMin 24), swapNeighbours, theorems and goldens; golden split in two constants (init-cost bound).

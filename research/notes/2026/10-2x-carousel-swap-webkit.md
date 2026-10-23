@@ -64,14 +64,14 @@ rows in a swap window over 96 samples, median 5.5 (idle background only: 13 samp
 MEASURED (report, background tables). The crop's swap windows come in two groups. With a busy background (both rest windows next to it
 have at least 24 Layout rows) the crop's Layout median is 11.5 to 15 and its Paint median 19 to 34; with a mixed or idle background it
 is 3 to 6.5 Layout and 8 to 13 Paint. Rest windows are two-state too: the crop's rest:0 to rest:6 ranges run 4..50 (a floor of 4 or 5 rows and a busy top of 47 to 50).
-Per capture the busy swap windows are every third (the grid is the crop `cropBg` and counts of the JSON, in window order 0..7):
+In 10 of 12 crop captures the busy swap windows are every third; two captures (r1/p2 first, r3/p2 first) are high in 5 to 6 of 8 windows, also on mixed or idle backgrounds (bgOf reads only the rest-window edges). The grid is the crop `cropBg` and counts of the JSON, in window order 0..7:
 
 | job/pass | background (B busy, m mixed, i idle) | Layout rows |
 |---|---|---|
-| r1/p1 | imBmmBmi | 6 3 15 6 3 15 5 3 |
-| r1/p2 | BmmBmmBB | 13 16 4 14 14 3 15 12 |
-| r2/p1 | BBmmBmmB | 3 16 4 4 16 2 4 15 |
-| r3/p2 | imBmmBmi | 14 3 14 12 3 14 11 3 |
+| r1/p1 (crop 1 of 2) | imBmmBmi | 6 3 15 6 3 15 5 3 |
+| r1/p2 (crop 1 of 2) | BmmBmmBB | 13 16 4 14 14 3 15 12 |
+| r2/p1 (crop 1 of 2) | BBmmBmmB | 3 16 4 4 16 2 4 15 |
+| r3/p2 (crop 1 of 2) | imBmmBmi | 14 3 14 12 3 14 11 3 |
 
 So the windows are not fixed: it is windows 2 and 5 in r1/p1, r3/p1 and r3/p2, windows 0, 3, 6 (and 7) in r1/p2 and r2/p2, windows 1, 4
 and 7 in r2/p1 (the old run showed 1, 4, 7 because its jobs had that phase). The period is three swap periods and the phase is the
@@ -90,15 +90,13 @@ periods are 3 x (800 + 220) = 3060 ms (`people.carousel` REST_MS, SWAP_MS), so t
 bucket in a 7 s capture; the one-bucket gaps inside r3's busy runs are not explained). The busy run (1.8 s) is the two 900 ms draws, the idle run (1.2 s)
 is the 1250 ms wait.
 
-CONFIRMED (WebKit source @862f17d) why a width transition costs a Layout row on every frame: a `width` change makes the style difference
-require layout (`Source/WebCore/style/StyleDifference.cpp:404`, `changeRequiresLayout` compares `boxData->width`), and one Layout row of
+CONFIRMED (WebKit source @862f17d) why both draws cost a Layout row on every frame: the strokeOut and strokeIn animations change stroke-dashoffset each frame, and a strokeDashOffset change requires layout (`Source/WebCore/style/StyleDifference.cpp:161`, svgDataChangeRequiresLayout via :399); during draw-in the `width` transition adds a box-width change (`:404`); one Layout row of
 the Timeline is one `LocalFrameViewLayoutContext::performLayout` (`Source/WebCore/page/LocalFrameViewLayoutContext.cpp:223`
 `InspectorInstrumentation::willLayout`, `:335` `didLayout`).
 
-Status: the timing match is MEASURED in 3 of 3 jobs; the causal link (the `hero.accent` width transition makes the Layout and Paint
+Status: the timing match is MEASURED in 3 of 3 jobs; the causal link (the `hero.accent` draw animations (stroke-dashoffset on both draws, width on draw-in) make the Layout and Paint
 rows of the busy windows) is INFERRED from that match and the source. The test that would confirm it: the same pass with the
-`hero.accent` transition off (the reduced-motion rule `accent.module.css:140` sets `transition: none`; or a capture of the arm with the
-part frozen) must show no busy runs and the crop Layout median in every swap window at the idle level. No fix is made in the crop
+`hero.accent` frozen (its reduced-motion block, accent.module.css:138-152, sets transition: none and animation: none; turning off only the transition leaves the draw-out busy) must show no busy runs and the crop Layout median in every swap window at the idle level. No fix is made in the crop
 part: the carousel is not the source, so the follow-up is a measurement change (freeze `hero.accent` in the lane), not a one-line
 constant of the crop.
 
