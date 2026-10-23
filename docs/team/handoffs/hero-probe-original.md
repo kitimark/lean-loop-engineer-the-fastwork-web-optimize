@@ -1,7 +1,4 @@
-branch: worktree-wf_21345e1b-595-1 (CI branch ci/hero-probe-original)
-worktree: .claude/worktrees/wf_21345e1b-595-1 (under the repo root)
-last commit: see `git log -1` (the commit carrying [ci:trajectory-probe])
-CI runs: 39926829451 (ci/hero-probe-original, sha f733e2083, trajectory-probe push run, fw=hero:scene-pause engines=chromium, all widths): success, CLEAN
+branch worktree-wf_21345e1b-595-1, CI branch ci/hero-probe-original, run 39926829451 (sha f733e2083, success, CLEAN)
 # hero-probe-original handoff
 
 ## State
@@ -22,8 +19,9 @@ CI runs: 39926829451 (ci/hero-probe-original, sha f733e2083, trajectory-probe pu
 - Same raw-chromium.json re-reduced offline with main's old reduce.mjs: RED, new=42, all fail:coverage at width 640 open@1
   (a dev check, not a result). Open@1 sampled passes of 5 (orig/base/cand): 390 1/1/1, 640 0/1/0, 641 1/0/2, 1280 5/5/4.
 ## Open
-- Ledger row hero.scenePause (docs/report/v2-report.md L43/L45 area) is the lead's; it can leave partly-proved.
-- Other arms' verdict changes are listed, not re-run (accepted limit).
+- Ledger row hero.scenePause stays partly-proved (lead): CLEAN in run 39926829451 rests on open@1 sampling jitter at 640/641; follow-up trajectory-first-coverage.
+- Outside the task writes: docs/team/tools/trajectory-probe.md (First frame paragraph); land with --allow docs/team/tools/trajectory-probe.md.
+- Other arms not re-reduced: which arms' open@1 units turn from fail:coverage to skip:origEmpty is unknown until each arm's trajectory raw is re-reduced with byMFirst (accepted limit).
 - Rule excuses only open@1; close@1 and other buckets keep fail:coverage. An original with one sampled pass keeps the rule off.
 - No workflow trigger or CI table change needed (`node --test scripts/ci-paths.test.mjs` passes).
 ## Read first
