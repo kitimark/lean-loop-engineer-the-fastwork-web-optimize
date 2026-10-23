@@ -187,7 +187,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   the arm is live (`data-exit-live`, 13 scroll animations). x0.25 7.7k / 5.2k (1.5x above), x0.5 20.8k / 2.5k (8.2x above), x0.75 0 / 5.2k
   (identical, grade E). Repeat: x0.25 8.3k / 2.6k (3.1x above), x0.5 5.2k / 3.9k (1.3x above), x0.75 0 / 0 (identical). Max delta 167 and 111 at x0.25 and x0.5 in
   both runs. The direction repeats; the size at x0.5 does not (20.8k then 5.2k). Verdict: a candidate look difference in the middle of the
-  exit; it needs a third session and a CI Simulator row before it counts (the existing Simulator rows, ci-pairs `hero-exit-threaded`, are CI counts of other kinds). Status: MEASURED, not settled.
+  exit; it needs a third session before it counts. The CI path-pixel cells of the same arm on the Simulator (runs 39920801675, 39924527942, 39929556147, `results/hero-exit-threaded-pix/`; note `10-2x-hero-exit-threaded-pix`) grade no P cell E or Q and call the differences L (text hold or change outside the masks), INFERRED to be the same class as the Mac readings (max deltas of 167 and 111 levels); a Simulator hero row of this lane (`run.mjs sim hero`) was not taken. Status: MEASURED, not settled.
 - people.o:preview-translate (1280 px window, hover on the first face, scroll 3 px per frame for 10, 20, 40 frames; the card must open, the
   lane refuses otherwise): the arm sets `translate: 0px -27px / -54px / -111px` with `top` fixed at 256 px, faithful moves `top` 229 / 202 / 145 px, and the
   card lands at the same rect (544.11, 316 / 262 / 148, 320 x 373.9). The arm equals both earlier faithful loads with 0 changed px at all three states (the
