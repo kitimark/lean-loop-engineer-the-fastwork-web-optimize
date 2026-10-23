@@ -13385,7 +13385,8 @@
     "results/smoothness-throttle/**",
     "research/notes/2026/10-2x-smoothness-throttle.md",
     "docs/team/handoffs/smoothness-cpu-throttle.md"
-   ]
+   ],
+   "evidence": "584c36b"
   },
   {
    "devices": [
