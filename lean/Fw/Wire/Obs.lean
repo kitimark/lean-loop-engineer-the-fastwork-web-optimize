@@ -973,10 +973,16 @@ def hostOf (k : String) (j : Json) : Except String Fw.Obs.Timing.Host := do
   | "ci" => pure .ci
   | h => throw s!"field {k}: unknown host {h}"
 
+def workOf (j : Json) : Except String (List (String × String)) :=
+  match opt j "work" with
+  | none => .ok []
+  | some (.obj kvs) => .ok (kvs.toList.map fun (k, v) => (k, match v with | .str t => t | v => v.compress))
+  | some _ => .error "field work: expected an object"
+
 /-- Decode a history key. -/
 def keyOf (j : Json) : Except String Fw.Obs.Timing.Key := do
   pure { tool := ← str j "tool", step := ← str j "step", host := ← hostOf "host" (← field j "host"),
-         kind := ← Fw.Wire.Ops.strD j "runKind" "" }
+         kind := ← Fw.Wire.Ops.strD j "runKind" "", work := ← workOf j }
 
 def optI (j : Json) (k : String) : Except String (Option Int) :=
   match opt j k with
@@ -994,7 +1000,7 @@ def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
          host := ← hostOf "host" (← field j "host"), load := ← natD j "load" 0,
          kind := ← Fw.Wire.Ops.strD j "runKind" "", exit := ← optI j "exit", skipped := ← boolD j "skipped" false,
-         waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j }
+         waitMs := ← natD j "waitMs" 0, waits := ← waitsOf j, work := ← workOf j }
 
 /-- Decode a group. -/
 def groupOf (j : Json) : Except String Fw.Obs.Timing.Group := do
@@ -1130,6 +1136,10 @@ def run (op : String) (r : String) : String :=
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\"},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\"}]}" ==
   "{\"slow\":[]}"
 #guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"mars\"}]}" == "error: field host: unknown host mars"
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"local\",\"work\":{\"width\":2}},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"work\":{\"width\":\"1\"}}]}" == "{\"slow\":[]}"
+#guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":2000,\"host\":\"local\",\"work\":{\"width\":2}},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"work\":{\"width\":\"2\"}}]}" ==
+  "{\"slow\":[\"t/s\"]}"
+#guard run "obs.slow" "{\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":1,\"host\":\"ci\",\"work\":3}]}" == "error: field work: expected an object"
 #guard run "obs.slow" "{}" == "{\"slow\":[]}"
 #guard run "obs.slow" "{\"params\":{\"nMin\":1,\"budgetMs\":1000},\"samples\":[{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":0},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":5000,\"host\":\"local\",\"exit\":null},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":100,\"host\":\"local\",\"exit\":16},{\"tool\":\"t\",\"step\":\"s\",\"durMs\":0,\"host\":\"ci\",\"exit\":0,\"skipped\":true}]}" ==
   "{\"slow\":[\"t/s\"]}"

@@ -2542,7 +2542,9 @@ theorem laneFails_none : laneFails [.pass, .skip .noSample] = false := by decide
 `new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared`
 fails only there; `ok` fails in neither. `unmeasured`: the candidate fails on content (a difference) where the faithful arm
 fails on coverage, so the faithful arm was not measured there and the unit has no verdict either way. `undecided`: the
-candidate's open@1 is `skip firstOpen` where the faithful arm does not fail, or the faithful arm's is `skip firstOpen` where the candidate fails. -/
+candidate's open@1 is `skip firstOpen` where the faithful arm does not fail, or the faithful arm's is `skip firstOpen` where
+the candidate fails; `stableRel` also gives it to a unit that is new against one member of its `family` and not new
+against another. -/
 inductive Rel where
   | ok
   | both
@@ -4379,6 +4381,11 @@ theorem slots_cadence : slots cadence = 2 := by decide
 theorem phase_covers :
     (List.range cadence).all (fun φ => (List.range 3).any fun j => inFirst (φ + j * cadence)) = true := by decide
 
+/-- At a 141 ms frame gap, frames on multiples of the gap never reach bucket 1, and 24 of the 141 phases reach it. -/
+theorem slow_cadence_phases :
+    slots 141 = 0 ∧ ((List.range 141).filter fun φ => (List.range 3).any fun j => inFirst (φ + j * 141)).length = 24 := by
+  decide
+
 def sampledFrom (c d : Nat) : Bool := (List.range 37).any fun j => inFirst ((1 + d + j) * c)
 
 theorem sampled_iff (d : Nat) : sampledFrom cadence d = true ↔ d < slots cadence := by
@@ -4817,6 +4824,161 @@ def openLane (o cand base : List Samp) : Lane := laneOf [rel (openAt o cand) (op
 
 end FirstFrame
 
+section Stable
+
+def dropPass (seg : List Samp) (q : Nat) : List Samp := seg.filter (·.rep != q)
+
+/-- The original and, when it has two passes or more, the original without each one of them. -/
+def family (seg : List Samp) : List (List Samp) :=
+  seg :: if (repsOf seg).length < 2 then [] else (repsOf seg).map (dropPass seg)
+
+def cleanRel (r : Rel) : Bool := r != .new && r != .undecided
+
+/-- `new` when every member of the family is new, the whole original's relation when every member is neither new nor
+undecided, else `undecided`. -/
+def stableRel (rs : List Rel) : Rel :=
+  if rs.all (· == .new) then .new else if rs.all cleanRel then rs.headD .ok else .undecided
+
+def stableOf (f : List Samp → Rel) (seg : List Samp) : Rel := stableRel ((family seg).map f)
+
+#guard stableRel [.new, .new, .new] == .new
+#guard stableRel [.cleared, .ok, .both] == .cleared
+#guard stableRel [.ok, .new, .ok] == .undecided
+#guard stableRel [.new, .ok] == .undecided
+#guard stableRel [.ok, .undecided] == .undecided
+#guard stableRel [.unmeasured] == .unmeasured
+
+theorem self_mem_family (seg : List Samp) : seg ∈ family seg := List.mem_cons_self
+
+theorem family_one (seg : List Samp) (h : (repsOf seg).length < 2) : family seg = [seg] := by simp [family, h]
+
+theorem stableOf_new {f : List Samp → Rel} {seg : List Samp} (h : stableOf f seg = .new) :
+    ∀ s ∈ family seg, f s = .new := by
+  intro s hs
+  unfold stableOf stableRel at h
+  split at h
+  · rename_i ha
+    simpa using (List.all_eq_true.1 ha) (f s) (List.mem_map_of_mem hs)
+  · split at h
+    · rename_i _ hc
+      have hm : f seg ∈ (family seg).map f := List.mem_map_of_mem (self_mem_family seg)
+      have := (List.all_eq_true.1 hc) _ hm
+      simp only [family, List.map_cons, List.headD_cons] at h
+      simp [cleanRel, h] at this
+    · cases h
+
+theorem stableOf_clean {f : List Samp → Rel} {seg : List Samp} (h : cleanRel (stableOf f seg) = true) :
+    ∀ s ∈ family seg, cleanRel (f s) = true := by
+  intro s hs
+  unfold stableOf stableRel at h
+  split at h
+  · simp [cleanRel] at h
+  · split at h
+    · rename_i _ hc
+      exact (List.all_eq_true.1 hc) (f s) (List.mem_map_of_mem hs)
+    · simp [cleanRel] at h
+
+theorem laneOf_stable_extra (us : List ((List Samp → Rel) × List Samp × List Samp))
+    (h : ∀ u ∈ us, u.2.1 ∈ family u.2.2) :
+    ¬ (laneOf (us.map fun u => stableOf u.1 u.2.1) = .red ∧ laneOf (us.map fun u => stableOf u.1 u.2.2) = .clean) ∧
+      ¬ (laneOf (us.map fun u => stableOf u.1 u.2.1) = .clean ∧
+        laneOf (us.map fun u => stableOf u.1 u.2.2) = .red) := by
+  rw [laneOf_red_iff, laneOf_clean_iff, laneOf_clean_iff, laneOf_red_iff]
+  refine ⟨fun ⟨hr, hn, hu⟩ => ?_, fun ⟨⟨hn, hu⟩, hr⟩ => ?_⟩
+  · obtain ⟨u, hx, e⟩ := List.mem_map.1 hr
+    have a : stableOf u.1 u.2.2 ≠ .new := fun e' => hn (List.mem_map.2 ⟨u, hx, e'⟩)
+    have b : stableOf u.1 u.2.2 ≠ .undecided := fun e' => hu (List.mem_map.2 ⟨u, hx, e'⟩)
+    have hc := stableOf_clean (f := u.1) (seg := u.2.2) (by simp [cleanRel, a, b]) u.2.1 (h u hx)
+    have := stableOf_new e u.2.1 (self_mem_family _)
+    simp [cleanRel, this] at hc
+  · obtain ⟨u, hx, e⟩ := List.mem_map.1 hr
+    have a : stableOf u.1 u.2.1 ≠ .new := fun e' => hn (List.mem_map.2 ⟨u, hx, e'⟩)
+    have b : stableOf u.1 u.2.1 ≠ .undecided := fun e' => hu (List.mem_map.2 ⟨u, hx, e'⟩)
+    have hc := stableOf_clean (f := u.1) (seg := u.2.1) (by simp [cleanRel, a, b]) u.2.1 (self_mem_family _)
+    have := stableOf_new e u.2.1 (h u hx)
+    simp [cleanRel, this] at hc
+
+theorem two_le_length {l : List Nat} {a b : Nat} (ha : a ∈ l) (hb : b ∈ l) (hab : a ≠ b) : 2 ≤ l.length := by
+  match l, ha, hb with
+  | [_], ha, hb => simp at ha hb; omega
+  | _ :: _ :: _, _, _ => simp
+
+theorem mem_family_extra (seg x : List Samp) (q : Nat) (hx : ∀ s ∈ x, s.rep = q) (hq : ∀ s ∈ seg, s.rep ≠ q)
+    (hs : seg ≠ []) (hx' : x ≠ []) : seg ∈ family (seg ++ x) := by
+  obtain ⟨s0, hs0⟩ := List.exists_mem_of_ne_nil seg hs
+  obtain ⟨x0, hx0⟩ := List.exists_mem_of_ne_nil x hx'
+  have hqm : q ∈ repsOf (seg ++ x) := by
+    simp only [repsOf, List.mem_eraseDups, List.mem_map, List.mem_append]
+    exact ⟨x0, Or.inr hx0, hx x0 hx0⟩
+  have hsm : s0.rep ∈ repsOf (seg ++ x) := by
+    simp only [repsOf, List.mem_eraseDups, List.mem_map, List.mem_append]
+    exact ⟨s0, Or.inl hs0, rfl⟩
+  have hl := two_le_length hsm hqm (hq s0 hs0)
+  have hd : dropPass (seg ++ x) q = seg := by
+    simp only [dropPass, List.filter_append]
+    rw [List.filter_eq_self.2 (fun s hs => by simpa using hq s hs), List.filter_eq_nil_iff.2 (fun s hs => by simpa using hx s hs)]
+    simp
+  simp only [family, show ¬ (repsOf (seg ++ x)).length < 2 by omega, ite_false]
+  exact List.mem_cons_of_mem _ (List.mem_map.2 ⟨q, hqm, hd⟩)
+
+def bumpPass (q : Nat) (v : Int) : List Samp :=
+  (rampPass q true).map fun s => if s.m == some 5000 then { s with els := [.num [v]] } else s
+
+def contentAt (o w : List Samp) : Verdict := ((byMFirst .push 0 .geometry atRest none false o w).lookup 5).getD .pass
+
+def contentRel (cand base : List Samp) (o : List Samp) : Rel := rel (contentAt o cand) (contentAt o base)
+
+#guard contentAt (passesWith 3 3) (bumpPass 0 8500) == .fail .apart
+#guard contentAt (passesWith 3 3 ++ bumpPass 3 8500) (bumpPass 0 8500) == .pass
+#guard laneOf [contentRel (bumpPass 0 8500) (passesWith 1 1) (passesWith 3 3)] == .red
+#guard laneOf [contentRel (bumpPass 0 8500) (passesWith 1 1) (passesWith 3 3 ++ bumpPass 3 8500)] == .clean
+#guard laneOf [stableOf (contentRel (bumpPass 0 8500) (passesWith 1 1)) (passesWith 3 3)] == .red
+#guard laneOf [stableOf (contentRel (bumpPass 0 8500) (passesWith 1 1)) (passesWith 3 3 ++ bumpPass 3 8500)] == .undecided
+#guard laneOf [contentRel (bumpPass 0 11000) (bumpPass 0 8500) (passesWith 3 3)] == .clean
+#guard laneOf [contentRel (bumpPass 0 11000) (bumpPass 0 8500) (passesWith 3 3 ++ bumpPass 3 8500)] == .red
+#guard laneOf [stableOf (contentRel (bumpPass 0 11000) (bumpPass 0 8500)) (passesWith 3 3)] == .clean
+#guard laneOf [stableOf (contentRel (bumpPass 0 11000) (bumpPass 0 8500)) (passesWith 3 3 ++ bumpPass 3 8500)] ==
+  .undecided
+
+def laneExit (refused strict : Bool) (l : Lane) : Nat :=
+  if refused then 2 else if !strict then 0 else match l with
+    | .red => 1
+    | .undecided => 3
+    | .clean => 0
+
+#guard laneExit true true .clean == 2
+#guard laneExit false false .red == 0
+#guard laneExit false true .red == 1
+#guard laneExit false true .undecided == 3
+#guard laneExit false true .clean == 0
+
+theorem laneExit_refused (strict : Bool) (l : Lane) : laneExit true strict l = 2 := rfl
+
+theorem laneExit_plain (l : Lane) : laneExit false false l = 0 := rfl
+
+theorem laneExit_red : laneExit false true .red = 1 := rfl
+
+theorem laneExit_undecided : laneExit false true .undecided = 3 := rfl
+
+theorem laneExit_clean : laneExit false true .clean = 0 := rfl
+
+/-- The exit over several engines: refused, then RED, then UNDECIDED, then CLEAN. -/
+def exitJoin (a b : Nat) : Nat :=
+  if a == 2 || b == 2 then 2 else if a == 1 || b == 1 then 1 else if a == 3 || b == 3 then 3 else 0
+
+#guard exitJoin 3 2 == 2
+#guard exitJoin 3 1 == 1
+#guard exitJoin 0 3 == 3
+#guard exitJoin 0 0 == 0
+
+theorem exitJoin_refused (b : Nat) : exitJoin 2 b = 2 ∧ exitJoin b 2 = 2 := by
+  simp [exitJoin]
+
+theorem exitJoin_comm (a b : Nat) : exitJoin a b = exitJoin b a := by
+  simp only [exitJoin, Bool.or_comm]
+
+end Stable
+
 
 
 /-- The name of a kind in the golden file. -/
@@ -4930,6 +5092,8 @@ inductive Case where
   | cover
   | lane (name : String) (rs : List Rel)
   | laneStep (name : String) (o o' cand base : List Samp)
+  | stable (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width b : Nat) (o cand base : List Samp)
+  | exits
 
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -5430,8 +5594,23 @@ def casesFirst : List Case :=
     .laneStep "original 4 of 5, faithful sampled, one more hit" (passesWith 5 4) (passesWith 5 4 ++ rampPass 5 true)
       (passesWith 5 0) (passesWith 5 5)]
 
+def casesStable : List Case :=
+  let earn := fun (n : String) (b : Nat) (o c w : List Samp) => Case.stable n .push 0 .geometry "earn" "max-width" 390 b o c w
+  [earn "content new in every leave-one-out" 5 (passesWith 3 3) (bumpPass 0 8500) (passesWith 1 1),
+    earn "content new, one extra original pass widens the band" 5 (passesWith 3 3 ++ bumpPass 3 8500) (bumpPass 0 8500)
+      (passesWith 1 1),
+    earn "content both in every leave-one-out" 5 (passesWith 3 3) (bumpPass 0 11000) (bumpPass 0 8500),
+    earn "content both, one extra original pass clears the faithful arm" 5 (passesWith 3 3 ++ bumpPass 3 8500)
+      (bumpPass 0 11000) (bumpPass 0 8500),
+    earn "one original pass, the family is the original" 5 (passesWith 1 1) (bumpPass 0 8500) (passesWith 1 1),
+    earn "faithful arm fails in one leave-one-out only, the candidate in none" 5 (passesWith 2 2 ++ bumpPass 2 8500) (passesWith 1 1)
+      (bumpPass 0 8500),
+    earn "first frame, original 3 of 5, faithful 4 passes" 1 (passesWith 5 3) (passesWith 5 0) (passesWith 4 0),
+    earn "first frame, original every pass, faithful sampled" 1 (passesWith 5 5) (passesWith 5 0) (passesWith 5 5),
+    .exits]
+
 def cases : List Case :=
-  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable
 
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
@@ -5573,6 +5752,24 @@ def Case.line : Case → Json
       ("open", Json.arr #[Json.str (openAt o c).name, Json.str (openAt o b).name, Json.str (openAt o' c).name,
         Json.str (openAt o' b).name]),
       ("lanes", Json.arr #[Json.str (openLane o c b).name, Json.str (openLane o' c b).name])]
+
+  | .stable n ph p k node prop w b o c base =>
+    let segs := fun (l : List Samp) => Json.arr (l.map Samp.json).toArray
+    let f := fun (o : List Samp) =>
+      let vAt := fun (s : List Samp) =>
+        ((byMFirst ph p k (durOf node prop w) (startFor node prop w) (idOn node prop) o s).lookup b).getD .pass
+      rel (vAt c) (vAt base)
+    Json.mkObj [("op", "stable"), ("name", n), ("phase", ph.name), ("p", toJson p), ("kind", k.name),
+      ("node", node), ("prop", prop), ("width", toJson w), ("id", Json.bool (idOn node prop)), ("b", toJson b),
+      ("oSeg", segs o), ("cand", segs c), ("base", segs base),
+      ("rels", Json.arr ((family o).map fun x => Json.str (f x).name).toArray), ("rel", Json.str (stableOf f o).name)]
+  | .exits =>
+    Json.mkObj [("op", "exit"), ("name", "table"),
+      ("rows", Json.arr ([true, false].flatMap fun r => [true, false].flatMap fun st =>
+        [Lane.red, .undecided, .clean].map fun l =>
+          Json.arr #[Json.bool r, Json.bool st, Json.str l.name, toJson (laneExit r st l)]).toArray),
+      ("join", Json.arr ([0, 1, 2, 3].flatMap fun a => [0, 1, 2, 3].map fun b =>
+        Json.arr #[toJson a, toJson b, toJson (exitJoin a b)]).toArray)]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
