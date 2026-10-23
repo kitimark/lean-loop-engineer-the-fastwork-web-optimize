@@ -1014,7 +1014,7 @@ def ownOfJson (j : Json) : Except String (Option Nat) := do
         | some (.str h) => h
         | _ => ""
       let n (k : String) : Option Nat := (opt ph k).bind fun v => (v.getNat?).toOption
-      Fw.Obs.Timing.ownOfPhases start dur how (n "updMs") (n "tickMs") (n "pollS")
+      Fw.Obs.Timing.ownOfPhases start dur how (n "updMs") (n "tickMs") (n "prevTickMs") (n "pollS")
 
 def sampleOf (j : Json) : Except String Fw.Obs.Timing.Sample := do
   pure { tool := ← str j "tool", step := ← str j "step", durMs := ← nat j "durMs",
@@ -1086,6 +1086,10 @@ private def ciWaitJson (how : String) (upd : Nat) (poll : List (String × Json) 
 #guard (sampleOf (ciWaitJson "done" (1000 + 900000 - 27294))).toOption.map (·.ownMs) == some (some 23294)
 #guard (sampleOf (ciWaitJson "done" (1000 + 900000 - 27294) [])).toOption.map (·.ownMs) == some none
 #guard (sampleOf (ciWaitJson "done" (1000 + 900000 - 27294) [("pollS", "10")])).toOption.map (·.ownMs) == some none
+#guard (sampleOf (ciWaitJson "done" (1000 + 900000 - 27294) [("prevTickMs", toJson (1000 + 900000 - 27294 - 60000))])).toOption.map
+  (·.ownMs) == some (some 23294)
+#guard (sampleOf (ciWaitJson "done" (1000 + 900000 - 27294) [("prevTickMs", toJson (1000 + 900000 - 27294 + 1000))])).toOption.map
+  (·.ownMs) == some (some 24294)
 #guard (sampleOf (ciWaitJson "timeout" 5)).toOption.map (·.ownMs) == some none
 #guard (sampleOf (ciWaitJson "done" 901001)).toOption.map (·.ownMs) == some none
 #guard (sampleOf (Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("durMs", toJson (9 : Nat)), ("host", "local")])).toOption.map

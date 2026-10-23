@@ -47,14 +47,11 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
 }
 
 // ---- wait lag (task ci-wait-lag): the phases of a `fw ci wait` span and how the lag splits ---------------------------
-// The split is Lean `Fw.Ci.Lag.parts`; lagParts replays golden ci-budget/lag.jsonl (apps/runner/test/timing-lag.test.ts).
-// TS stand-ins: lagView, waitSpanExtra (formatting). Whether a lag is "too long" stays Lean's (timing-lean).
 
-/** The poller's tick interval in s (Lean `Fw.Ci.Budget.interval` via fwcore `ci.budget.status`); undefined when unread. */
-export function pollIntervalS(cwd: string): number | undefined {
+export function pollIntervalS(cwd: string, atS?: number): number | undefined {
   try {
     const env = realEnv(cwd);
-    const v = env.core({ op: "ci.budget.status", now: env.now(), state: readJson(paths(env.dir).state) }).interval;
+    const v = env.core({ op: "ci.budget.status", now: atS ?? env.now(), state: readJson(paths(env.dir).state) }).interval;
     return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : undefined;
   } catch {
     return undefined;
@@ -62,14 +59,14 @@ export function pollIntervalS(cwd: string): number | undefined {
 }
 
 export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number,
-  pollS: () => number | undefined = () => pollIntervalS(process.cwd())): Pick<Span, "runIds" | "phases"> {
+  pollS: (atS: number | undefined) => number | undefined = (atS) => pollIntervalS(process.cwd(), atS)): Pick<Span, "runIds" | "phases"> {
   if (!p) return {};
   const { runIds, ...rest } = p;
   const phases: Record<string, number | string | boolean> = {};
   for (const [k, v] of Object.entries(rest)) if (v !== undefined) phases[k] = v as number | string | boolean;
   phases.ingestStartMs = ingestStartMs;
   phases.ingestEndMs = ingestEndMs;
-  const poll = p.how === "done" ? pollS() : undefined;
+  const poll = p.how === "done" ? pollS(p.tickMs === undefined ? undefined : Math.floor(p.tickMs / 1000)) : undefined;
   if (poll !== undefined) phases.pollS = poll;
   return { runIds, phases };
 }

@@ -41,7 +41,11 @@ describe("wait span extras", () => {
     expect(Object.keys(e.phases!)).not.toContain("prevTickMs");
   });
   it("a done wait carries the poll interval; other waits do not ask for it", () => {
-    expect(waitSpanExtra(ph(), 1, 2, () => 10).phases).toMatchObject({ how: "done", pollS: 10 });
+    expect(waitSpanExtra(ph(), 1, 2, () => 10).phases).toMatchObject({ how: "done", pollS: 10, prevTickMs: 9_000, tickMs: 40_000 });
+    const at: (number | undefined)[] = [];
+    waitSpanExtra(ph(), 1, 2, (s) => { at.push(s); return 10; });
+    waitSpanExtra(ph({ tickMs: undefined }), 1, 2, (s) => { at.push(s); return 10; });
+    expect(at).toEqual([40, undefined]);
     expect(Object.keys(waitSpanExtra(ph(), 1, 2, noPoll).phases!)).not.toContain("pollS");
     let asked = 0;
     const e = waitSpanExtra(ph({ how: "timeout" }), 1, 2, () => { asked++; return 10; });
