@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { UsageError, parseFlags } from "./lib.ts";
 import { worktreeOf } from "./land.ts";
+import { noteSpan } from "./timing.ts";
 import { coreCandidates, coreCaller, type CoreCall } from "./watch.ts";
 
 export const POLISH_USAGE =
@@ -117,6 +118,24 @@ function readJson(src: string, deps: Deps): unknown {
   try { return JSON.parse(text); } catch (e) { throw new UsageError(`--cuts: not JSON (${e instanceof Error ? e.message : e})`); }
 }
 
+export type Checks = { n: number; kinds: string[] };
+
+/** The checkmap commands the pre-commit hook runs on the index of `dir` (`scripts/checkmap.mjs --staged`, asked of
+ *  `ops.checkMap`): their count and sorted kinds; null when fwcore gives no command list. */
+export async function stagedChecks(dir: string, git: (cwd: string, args: string[]) => string, call: CoreCall): Promise<Checks | null> {
+  const z = (t: string) => t.split("\0").filter(Boolean);
+  const listed = z(git(dir, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--diff-filter=ACMR"]));
+  const deleted = z(git(dir, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--diff-filter=D"]));
+  const paths = listed.filter((f) => existsSync(join(dir, f)));
+  const gone = listed.filter((f) => !existsSync(join(dir, f)));
+  try {
+    const m = await call({ op: "ops.checkMap", paths, deleted: [...deleted, ...gone] });
+    if (!Array.isArray(m.cmds)) return null;
+    const cmds = m.cmds as { check?: unknown }[];
+    return { n: cmds.length, kinds: [...new Set(cmds.map((c) => c.check).filter((k): k is string => typeof k === "string"))].sort() };
+  } catch { return null; }
+}
+
 export const POLISH_VERBS = ["plan", "cuts", "commit", "staged"] as const;
 
 export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): Promise<number> {
@@ -175,6 +194,8 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
       }
       if (!keep.length) { out(`VERDICT polish-commit ${task} nothing`); return 0; }
       git(dir, ["add", "--", ...keep]);
+      const checks = await stagedChecks(dir, git, call);
+      if (checks) noteSpan("fw", "polish commit", { checks });
       git(dir, ["commit", "-q", "-m", flags.message ?? `polish ${task}: comment and prose cuts (fw polish)`]);
       out(`kept ${keep.join(" ")}`);
       out(`VERDICT polish-commit ${task} committed`);

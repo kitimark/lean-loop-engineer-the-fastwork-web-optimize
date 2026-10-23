@@ -18278,7 +18278,8 @@
     "apps/runner/test/watch*.test.ts",
     "apps/runner/test/polish*.test.ts"
    ],
-   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too. Also from timing-slot-width review: groupView re-judge uses INFERRED widths (summed job time / group wall time): say so in its docstring and add a golden case from recorded widths once spans carry them; TS slotWork drops non-integer widths while Lean workOf keeps any JSON value: restrict workOf to string values or add a golden row for a non-string work value."
+   "title": "fw watch timing.slow on 'fw/polish commit' (2026-10-23): the step runs git commit, whose checkmap hook runs the checks mapped to the edited files, so it takes 0.9 s with no edits and 23-43 s when the cuts touch Lean files (commits fcff84b, f3b6a47, f3248e9). Like timing-slot-width, the span lacks the work dimension. Record the checkmap command count (and which kinds) in the polish commit span, and judge slowness per work class in Fw.Obs.Timing (same Lean mechanism as timing-slot-width, golden cases from these samples). Also (2026-10-23 18:40): fw watch opened timing.slow on the bare 'fw/slot run check' step: its spans drop the command, so samples from different check commands (0.5 s to 38 s, commits b59c89e, 3633971, 7e8d89c) share one key. The bare key is by design the overflow bucket of apps/runner/src/slot-span.ts runStep (capKey: command key unparsed or past kindCap), so it holds mixed work: either exclude bare overflow keys from the slow verdict in Lean (theorem: no slow verdict on a mixed bucket) or key them by checkmap kind. Also from timing-slot-width review: Fw.Obs.Next.sameKey (lean/Fw/Obs/Next.lean ~1347) ignores the work key, so a later sample of another width hides an earlier slow one in obs.slow; key it on work too. Also from timing-slot-width review: groupView re-judge uses INFERRED widths (summed job time / group wall time): say so in its docstring and add a golden case from recorded widths once spans carry them; TS slotWork drops non-integer widths while Lean workOf keeps any JSON value: restrict workOf to string values or add a golden row for a non-string work value.",
+   "evidence": "10f7e09"
   },
   {
    "devices": [
@@ -18481,6 +18482,68 @@
    ],
    "title": "writes-closure-followups review follow-ups: (1) handoff: drop the build-review.test.mjs clause and write 'merge of main (642babc15, main at 17cb8b6dc)'; (2) WritesClosure.lean jsSpace: write the invisible Unicode characters as \\u escapes; (3) ci-paths refuses lean.yml row globs with ?, + or [ (JS matches agrees with Lean ghMatches only without them), or model them in ghGlob; (4) fw plan sync now needs a built fwcore and lints two graphs: time it and name the dependency in docs/team/tools; (5) normRead keeps '..' segments (safe side, matches Lean): say so in its comment.",
    "evidence": "94c7e9b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-commit-failsafe",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish*.jsonl",
+    "apps/runner/src/polish*.ts",
+    "apps/runner/test/polish*.test.ts",
+    ".claude/workflows/build-review.js",
+    "scripts/build-review.test.mjs",
+    ".claude/agents/comment-sicko.md",
+    "docs/team/handoffs/polish-commit-failsafe.md"
+   ],
+   "title": "The build-review Polish stage twice today (trajectory-noflip-followups 2026-10-23, timing-work-dims) ended with commit=error and left the worktree dirty: staged comment cuts (some deleting Lean docstrings and a handoff title) plus a stray `<file>-e` backup (BSD `sed -i -e` on macOS). The lead had to find and discard them by hand before landing. Fix: (1) Lean rule in Fw.Plan.Polish: after the polish commit step the worktree is clean (commit succeeded, or every polish edit is restored), never partial; golden; fw polish commit restores the index and working tree of the polish edits on any failure and reports why; (2) refuse untracked files created during the polish stage (e.g. `*-e`, `*.orig`) and remove only those it created; (3) comment-sicko edits with the Edit tool only, never `sed -i` (state it in .claude/agents/comment-sicko.md); (4) build-review.js reports polish commit=error with the reason and the cleanup result; test in scripts/build-review.test.mjs."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-module-count",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-work-dims"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "lean/scripts/TimingGolden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/polish.ts",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "lean/Fw/Ops/CheckMap.lean",
+    "docs/team/handoffs/timing-module-count.md"
+   ],
+   "title": "timing-work-dims (landed 765f1ad03) review follow-ups: (1) the rebuilt Lean module count drives the remaining false alarms (polish commit lakeBuild 1.9-42.9 s; land dry lake 43 s at 17cb8b6 has no work field): record the number of Lean modules lake rebuilt (or the changed-module count) in the polish commit and land dry lake spans, and key or normalise the Timing verdict on it (Lean theorem + golden); (2) heavyChecks derived from the Fw.Ops.CheckMap Check type ([Check.lakeBuild, .leanElab, .presetCheck].map checkName) instead of a hand-written string list, TS HEAVY_CHECKS checked against it; decide where tscProject belongs (it runs for seconds)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "writes-closure-doc-touchups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "docs/team/tools/plan.md",
+    "scripts/ci-paths.mjs",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    "lean/Fw/Plan/WritesClosure.lean",
+    "apps/runner/test/plan-closure.test.ts",
+    "docs/team/handoffs/writes-closure-doc-touchups.md"
+   ],
+   "title": "writes-closure-polish (landed 2d9d55153) review follow-ups: (1) docs/team/tools/plan.md time table: n=2, p50 642 ms, max 811 ms, 'about 0.4-0.6 s'; (2) the claim that JS matches and Lean ghMatches agree on rowGlob-valid globs: add golden vectors comparing matches with ghMatches over rowGlob-valid globs (**, ***, **/ and prefixes) and replay them, or mark it INFERRED; (3) normRead keeps '..', so a '**' row glob also matches 'lean/../x': refuse '..' segments in reads or state the limit."
   }
  ],
  "deadline": {
