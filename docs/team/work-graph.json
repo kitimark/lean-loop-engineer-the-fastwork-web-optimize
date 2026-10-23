@@ -17856,7 +17856,8 @@
     "research/notes/2026/10-2x-people-carousel-crop.md",
     "docs/team/handoffs/carousel-crop-followups.md"
    ],
-   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement."
+   "title": "Follow-ups of people-carousel-crop (landed aaf8c8b79): (1) the regenerated footprint lost the faithful variant's setModuleClass writes #isExit and #isEnter and records none of the crop classes, because they are built inside the swapClass closure that part-footprint.mjs does not follow: inline the role ternary in className or teach part-footprint.mjs local arrow-function returns, regenerate and check; (2) crop.golden.test.ts asserts the crop rules use cubic-bezier with both y in [0, 1] and each crop @keyframes has exactly 2 stops (the Lean premise WkAnim.clean); (3) confirm the new RED unit 1280 morph nav.background-color of trajectory run 39896845339 is a flake (another arm's history or a faithful rerun); (4) a WebKit lane that samples inside the 220 ms swap windows so the Lean prediction (layout per frame 0) gets a WebKit measurement.",
+   "evidence": "1c639a8"
   },
   {
    "devices": [
@@ -17878,6 +17879,44 @@
     "docs/team/handoffs/morph-idle-followups.md"
    ],
    "title": "Follow-ups of morph-idle-none (landed 011bf99e7): (1) WebKit Paint/Composite per frame on the morph zone reads higher with the flag in 11 of 12 cells, confounded by the simulator frame rate (3x between passes): resolve it with a pinned frame rate or per-frame normalization, Lean-specified, and decide win/loss on WebKit; (2) a committed Lean reducer with goldens for fw.webkit.lag.cost.morph/1 (the per-zone means came from a scratch script); (3) the scene threshold (mm > 1 -> active) is checked against Lean only inside idle.golden.test.ts, not in morph.panel's attribute writer, and IdleHold has no golden; (4) re-measure the Chromium base 28107 layer-frames on the font image (counts-font-fidelity) and restate the delta."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "footprint-classname-operands",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "carousel-crop-followups"
+   ],
+   "writes": [
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint*.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.json",
+    "docs/team/handoffs/footprint-classname-operands.md"
+   ],
+   "title": "carousel-crop-followups review: part-footprint.mjs visit() walks into ConditionalExpression tests and BinaryExpression operands inside className, so `role === 'exit'` became a false `setClass exit` row (and line 170 turned it into a runtime element). Make the extractor record only the result branches of a className expression (consequent/alternate, template quasis and expressions that are class values), never test or comparison operands; the rule (which AST positions are class values) is stated in Lean with golden cases and the extractor is checked against them. Regenerate the footprint chain; the diff must be empty on main except removed false rows (list them)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "carousel-swap-webkit-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "carousel-crop-followups"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/lag/**",
+    "results/carousel-swap-webkit/**",
+    "research/notes/2026/10-2x-carousel-swap-webkit.md",
+    "docs/team/handoffs/carousel-swap-webkit-lane.md"
+   ],
+   "title": "End-of-page goal: the WebKit lane cannot sample inside the 220 ms people.carousel swap window, so people.carousel:crop shows no separated WebKit difference. Build the swap-window sampling from the design note (research/notes/2026/10-2x-people-carousel-crop.md Follow-ups 4): trigger the swap at a known time, sample layer/paint/composite events inside the window on the Simulator lane, A/A floor in the same run; report crop vs faithful per window with run ids. Sampling schedule is Lean (window bounds from the part's timing constants) with goldens."
   }
  ],
  "deadline": {

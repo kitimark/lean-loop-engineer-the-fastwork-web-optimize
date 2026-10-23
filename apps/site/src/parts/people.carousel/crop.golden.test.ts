@@ -50,6 +50,25 @@ describe('people.carousel crop (Lean Fw.Parts.PeopleCarouselCrop)', () => {
     expect(keyframes('avatarsCropExit')).toContain('opacity');
     expect(keyframes('avatarsCropExit')).toContain('transform');
   });
+  it('the WkAnim.clean premise: each crop rule has a cubic-bezier with both y in [0, 1], each crop keyframes has 2 stops', () => {
+    for (const cls of ['cropExit', 'cropShift', 'cropEnter']) {
+      const at = css.indexOf(`.avatar.${cls} {`);
+      expect(at).toBeGreaterThanOrEqual(0);
+      const rule = css.slice(css.indexOf('{', at), css.indexOf('}', at));
+      const beziers = [...rule.matchAll(/cubic-bezier\(([^)]*)\)/g)];
+      expect(beziers.length).toBeGreaterThan(0);
+      for (const m of beziers) {
+        const [, y1, , y2] = m[1]!.split(',').map(Number);
+        for (const y of [y1!, y2!]) {
+          expect(y).toBeGreaterThanOrEqual(0);
+          expect(y).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+    for (const name of ['avatarsCropExit', 'avatarsShift', 'avatarsPop']) {
+      expect(keyframes(name).match(/(^|\s)(\d+%|from|to)\s*\{/g)).toHaveLength(2);
+    }
+  });
   it('the leaver slot stays 32 px in the crop and collapses in the original', () => {
     for (const r of rows) {
       expect(r.leaverCrop).toBe(32);
