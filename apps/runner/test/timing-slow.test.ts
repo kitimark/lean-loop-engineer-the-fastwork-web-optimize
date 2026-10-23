@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { slowAlerts } from "../src/next.ts";
-import { stagedChecks } from "../src/polish.ts";
+import { stagedChecks, stagedSpan } from "../src/polish.ts";
 import { begin, noteSpan } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
@@ -69,6 +69,19 @@ describe("stagedChecks: the checks of the staged files, asked of ops.checkMap", 
     expect(await stagedChecks(dir, git, async () => { throw new Error("no fwcore"); })).toBeNull();
     expect(await stagedChecks(dir, git, async () => ({ error: "x" }))).toBeNull();
   });
+  it("stagedSpan runs the lake build command in its cwd and counts the modules it built", async () => {
+    const ran: [string, string[]][] = [];
+    const run = (cwd: string, argv: string[]) => { ran.push([cwd, argv]); return "✔ [1/3] Built Fw.A (1s)\n✔ [2/3] Built fwcore:exe (1s)\n✔ [3/3] Built Fw.B (2s)\n"; };
+    const call = async () => ({ cmds: [{ check: "shParse", cwd: ".", argv: ["sh", "-n"] }, { check: "lakeBuild", cwd: "lean", argv: ["lake", "build"] }] });
+    expect(await stagedSpan(dir, git, call, run)).toEqual({ checks: { n: 2, kinds: ["lakeBuild", "shParse"] }, lake: { built: 2 } });
+    expect(ran).toEqual([[join(dir, "lean"), ["lake", "build"]]]);
+  });
+  it("stagedSpan runs nothing and records no lake member without a lake build command", async () => {
+    const run = () => { throw new Error("ran"); };
+    expect(await stagedSpan(dir, git, async () => ({ cmds: [{ check: "shParse", cwd: ".", argv: ["sh", "-n"] }] }), run))
+      .toEqual({ checks: { n: 1, kinds: ["shParse"] } });
+    expect(await stagedSpan(dir, git, async () => ({ error: "x" }), run)).toBeNull();
+  });
   it.skipIf(!existsSync(fwcore))("with fwcore: a staged Lean module runs lake build", async () => {
     const call = async (req: Record<string, unknown>) => {
       const r = spawnSync(fwcore, [], { input: JSON.stringify({ id: 1, ...req }) + "\n", encoding: "utf8" });
@@ -86,12 +99,14 @@ describe("noteSpan: the checks member reaches the line of its own span only", ()
     process.env.FW_TIMINGS_FILE = file;
     try {
       const commit = begin("fw", "polish commit", dir), other = begin("fw", "polish check", dir);
-      noteSpan("fw", "polish commit", { checks: { n: 2, kinds: ["lakeBuild", "shParse"] } });
+      noteSpan("fw", "polish commit", { checks: { n: 2, kinds: ["lakeBuild", "shParse"] }, lake: { built: 24 } });
       commit(0); other(0);
     } finally {
       if (prev === undefined) delete process.env.FW_TIMINGS_FILE; else process.env.FW_TIMINGS_FILE = prev;
     }
-    const lines = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
-    expect(lines.map((l) => [l.step, l.checks])).toEqual([["polish commit", { n: 2, kinds: ["lakeBuild", "shParse"] }], ["polish check", undefined]]);
+    const text = readFileSync(file, "utf8");
+    const lines = text.trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(lines.map((l) => [l.step, l.checks, l.lake])).toEqual([["polish commit", { n: 2, kinds: ["lakeBuild", "shParse"] }, { built: 24 }], ["polish check", undefined, undefined]]);
+    expect(parseSamples(text).map((s) => s.work)).toEqual([{ checks: "lakeBuild", mods: "16" }, undefined]);
   });
 });

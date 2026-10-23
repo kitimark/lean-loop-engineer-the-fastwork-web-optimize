@@ -44,7 +44,7 @@ Proved (main results; helper lemmas below): `slow_iff`, `ceilingBreach_iff`, `la
 `site_regression_slow`, `site_repeat_slow`, `stable_never_slow`, `contended_not_slow`, `slow_at_normal_load`,
 `ceiling_at_normal_load`, `windowOf_append_contended`, `code_append_contended`, `slow_through_contention`,
 `lean_check_regression_through_contention`, `ci_not_contended`, `noBaseline_iff`, `noBaseline_below_nmin`,
-`judgeQ_same_work`, `judgeQ_other_work`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
+`judgeQ_same_work`, `judgeQ_other_work`, `judgeQ_other_mods`, `judgeQ_unbuilt`, `mods_same_lt`, `mods_same_zero`, `windowOf_unworked`, `judgeQ_unworked`, `ord_spec`, `ord_le_iff`, `ord_mono`, `ord_interlace`, `ord_between`, `cnt_split`, `p50_le_of_few_above`,
 `le_p50_of_few_below`, `outlier_between`, `outlier_bound`, `outlier_shift`, `structural_iff`, `noise_iff`,
 `calls_total`, `calls_given_stages`, `mem_structural`, `deterministic`, `timingVerdicts_total`.
 
@@ -2464,6 +2464,8 @@ def workCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × Lis
    ("polish commit with a Lean script elaborated and lake build", 11008, none,
       some (4, ["leanElab", "lakeBuild", "leanElab", "jsonParse"])),
    ("checks and slot width together", 30000, some (2, 30), some (1, ["leanElab"]))]
+
+#guard heavyChecks.all fun h => workCases.any fun (_, _, _, c) => (c.map (·.2.contains h)).getD false
 
 /-- Span lines with a `lake` member: (name, ms, slot, checks, modules built). -/
 def lakeWorkCases : List (String × Nat × Option (Nat × Nat) × Option (Nat × List String) × Nat) :=
