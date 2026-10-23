@@ -92,8 +92,6 @@ def Sample.ciWait (s : Sample) : Bool := s.tool == "fw" && s.step == "ci wait"
 
 def Sample.remote (s : Sample) : Bool := s.remoteQueue || s.ciWait
 
-/-- Where the interval netted off a `done` wait's detection comes from: the gap between its deciding tick and the tick
-before it, when that earlier tick was seen, else the poller state's interval. -/
 inductive NetSrc where
   | observed
   | state
