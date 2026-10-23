@@ -11,7 +11,7 @@ import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeSta
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt,event,displayTitle";
 const PAGE = 100;
 
-/** The runs-status file as a tick writes it: `interval` is `Fw.Ci.Budget.interval` of the state after the tick, `retryUntil` the
+/** The runs-status file as a tick writes it: `interval` is `Fw.Ci.Budget.interval` of the state before the tick's listed/pages events, `retryUntil` the
  *  state's retryUntil when fwcore issued the tick. Absent in files written before they were recorded. */
 export type TickStatus = Status & { interval?: number; retryUntil?: number };
 
