@@ -19208,7 +19208,8 @@
     "apps/runner/test/timing*.test.ts",
     "docs/team/handoffs/timing-wait-state-interval.md"
    ],
-   "title": "timing-poll-interval-observed review follow-ups (2026-10-24): (1) noteDecided in packages/gh-budget/src/wait.ts records the Budget.interval of the deciding tick's own state plus any failure backoff on the span (today timing-ci.ts re-reads the state file at span write); (2) cap the observed gap tickMs - prevTickMs at that recorded interval plus backoff, so a poller stall between the two ticks is own time again (today it nets to 0), with a theorem and a golden row for a stalled gap."
+   "title": "timing-poll-interval-observed review follow-ups (2026-10-24): (1) noteDecided in packages/gh-budget/src/wait.ts records the Budget.interval of the deciding tick's own state plus any failure backoff on the span (today timing-ci.ts re-reads the state file at span write); (2) cap the observed gap tickMs - prevTickMs at that recorded interval plus backoff, so a poller stall between the two ticks is own time again (today it nets to 0), with a theorem and a golden row for a stalled gap.",
+   "evidence": "898076f"
   },
   {
    "devices": [
@@ -19286,6 +19287,49 @@
     "docs/team/handoffs/pathpix-consensus-followups.md"
    ],
    "title": "pathpix-consensus-capture review follow-ups (2026-10-24, run 40026419647): (1) lookList and heroCopySummary show the consensus verdict next to the grade and leave varied cells out of the 'L cells with a strip' list, so the user's look review does not count render-server variation as an arm change; (2) a per-zone grade in Lean that drops varied zones in mixed cells (one counted, one varied); (3) the Chromium A3 arm (one entry in packages/measure-chromium/src/pathpix.mjs); (4) a majority reference or a second run to class the hero_copy 192513-20 raster (varied in webkit-1, counted in webkit-2) and the nav-earn 4478-2 A/A change; (5) accent-nolayout-measure item 2 moved here: a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) giving pixel numbers for hero.accent:draw-nolayout and draw-nolayout-full vs faithful for the user's look review. One path-pix run, >= 3 jobs per engine."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-poller-snapshot",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-wait-state-interval"
+   ],
+   "writes": [
+    "packages/gh-budget/src/poller.ts",
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/test/*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-poller-snapshot.md"
+   ],
+   "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-watch-one-rule",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "gc-landed-identity"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "apps/runner/src/reap.ts",
+    "apps/runner/test/reap*.test.ts",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/watch*.ts",
+    "docs/team/handoffs/reap-watch-one-rule.md"
+   ],
+   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases)."
   }
  ],
  "deadline": {
