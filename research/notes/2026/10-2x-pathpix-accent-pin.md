@@ -94,7 +94,7 @@ Grades as recorded by the runs, before the per-row accent rule. Under that rule 
 Same units. P = the threaded arm against arm A. `floor` = the A/A cell of the same offset. `why` = reason of the
 absolute grade L. `if strips accepted` = the grade the cell would get if the strips were reviewed and accepted
 (`stripsAccepted` is false for every cell here: nobody has accepted the strips). `L from`: `above floor` = P differs from
-A by more than the floor, so L stays even with strips accepted (the exit motion itself, the P arm is the experiment);
+A by more than the floor, so L stays even with strips accepted;
 `strips not accepted` = P is within the floor, and the cell is L only because a text claim needs accepted strips
 (`textHold`: premise C1 and no accepted strips).
 

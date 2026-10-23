@@ -1,6 +1,6 @@
 branch: worktree-wf_6d52745a-a7b-1 (CI branch ci/pathpix-accent-pin)
 worktree: .claude/worktrees/wf_6d52745a-a7b-1
-last commit: round 3 (final design round) text fixes 1-5 on top of 56407936e, then main merge; see git log
+last commit: round 3 text fixes 1-5 on top of 56407936e, then main merge
 CI runs: 39943789128 (path-pix, 32d2316b3, pin once per arm): complete, success. 39947605395 (path-pix, 968f4a27b, re-pin before every freeze): complete, success. No new run in round 2.
 status: CLOSED AS A FINDING (round 2). Pinning the accent does NOT bring the hero_copy A/A floor to 0. Remaining sources go to graph task hero-copy-floor-sources (r342).
 verified: Lean check green; measure-webkit 427, measure-chromium 75, ci-paths 54, runner land-inputs 56 green.
