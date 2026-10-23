@@ -1,9 +1,3 @@
-// Font fidelity, Chromium side (task counts-font-fidelity). Runs inside the lane container (docker run --entrypoint node,
-// driver mounted at /driver, snapshot at /snapshot, rows at /exprs/rows.json, outputs at /out) with the lane's own
-// chrome-headless-shell and the fonts.conf mounted for one font-set variant. For each view it loads the original page,
-// runs fidelityInPage, asks the engine which platform fonts drew the uncovered text (CSS.getPlatformFontsForNode) and
-// writes fidelity-<variant>.json. A renderer crash is a result (crash: true), not an error: the font-less variant crashes
-// at 1280 (research note 10-2x-counts-lane-fonts). The score and the pick are Lean's (profile.mjs twins, fidelity-compare.mjs).
 import { spawn } from 'node:child_process';
 import { mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
@@ -78,7 +72,6 @@ async function main() {
   result.browser = version.Browser;
   for (const view of VIEWS) {
     if (only && !only.includes(view.id)) continue;
-    // A crashed renderer takes the browser's page with it; one browser connection per view keeps the next view clean.
     const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222', defaultViewport: null, protocolTimeout: 150000 });
     result.views[view.id] = await measureView(browser, view);
     console.error(`FIDELITY ${VARIANT} ${view.id} docH=${result.views[view.id].docH ?? '-'} crash=${result.views[view.id].crash} error=${result.views[view.id].error ?? '-'}`);

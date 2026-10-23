@@ -316,9 +316,7 @@ def run (diff merged : List String) : List String :=
 #guard run ["lean/Fw/Site/Breakpoints.lean"] [] == ["breakpoint-gate.yml", "chromium-counts.yml", "gate-gaps.yml", "land.yml", "lean.yml", "path-pix.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml"]
 #guard run ["packages/contracts/golden/gate/pixel.jsonl"] [] == ["land.yml", "visual-diff.yml"]
 #guard run ["docs/team/handoffs/x.md"] [] == []
--- a change of the Node pin starts every lane that sets up Node (task node-pin)
 #guard run [".node-version"] [] == ["breakpoint-gate.yml", "chrome-crash-probe.yml", "chromium-counts.yml", "device-replay.yml", "difftest.yml", "engine-premises.yml", "font-fidelity.yml", "gate-gaps.yml", "land.yml", "lean-math.yml", "lean.yml", "linux-webkit-probe.yml", "mutants.yml", "path-pix.yml", "premise-tests.yml", "preview-e2e.yml", "sim-speed.yml", "smoothness.yml", "snapshot-extract.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "visual-diff.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
--- a merge of main changes lean/ and apps/site but starts nothing
 #guard run ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] ["lean/Fw/Wire.lean", "apps/site/src/a.ts"] == []
 #guard run ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"] ["lean/Fw/Wire.lean"] == ["engine-premises.yml", "land.yml", "wktr-fixtures.yml", "wktr.yml"]
 -- a fixture page starts both wktr lanes; the fixture workflow file starts only itself
@@ -460,7 +458,6 @@ theorem table_onKeys : ∀ w ∈ table, w.onKeys = ["push", "workflow_dispatch"]
 theorem branches_split : ∀ w ∈ table, w.branches = ciPart w.branches ++ (if w.onMain then ["main"] else []) := by
   decide
 
-/-- The `ci/**` triggers, unchanged by task `ci-main-triggers`. -/
 theorem ci_triggers : table.map (fun w => (w.file, ciPart w.branches)) = [
     ("breakpoint-gate.yml", ["ci/**"]), ("chrome-crash-probe.yml", ["ci/**"]), ("chromium-counts.yml", ["ci/**"]), ("device-replay.yml", ["ci/device-replay"]), ("difftest.yml", ["ci/**"]),
     ("engine-premises.yml", ["ci/**"]), ("font-fidelity.yml", ["ci/**"]), ("gate-gaps.yml", ["ci/**"]), ("land.yml", ["ci/land-*"]), ("lean-math.yml", ["ci/**"]),

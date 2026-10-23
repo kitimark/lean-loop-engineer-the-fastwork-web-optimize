@@ -155,7 +155,6 @@ structure Lane where
 def macosFiles : List String :=
   ["engine-premises.yml", "font-fidelity.yml", "path-pix.yml", "sim-speed.yml", "smoothness.yml", "toolbar-throttle.yml", "trajectory-probe.yml", "webkit-sim.yml", "wktr-fixtures.yml", "wktr.yml"]
 
-/-- The default lanes, which start on a push with no intent: only the Lean proofs, on ubuntu. -/
 def defaultFiles : List String := ["lean.yml"]
 
 /-- The lane name of a workflow file: the file name without `.yml`. -/

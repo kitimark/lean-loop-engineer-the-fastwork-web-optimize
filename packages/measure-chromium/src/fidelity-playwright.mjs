@@ -1,7 +1,3 @@
-// Font fidelity, Playwright side (task counts-font-fidelity): the reference layout on a macOS runner, where WebKit takes
-// the system fonts of the OS (the engine and fonts of the phone's family). Runs the same fidelityInPage as the Chromium
-// container driver over the same views and writes fidelity-<variant>.json. Nothing here is phone time.
-// usage: node fidelity-playwright.mjs --root=<snapshot/site> --rows=<rows.json> --out=<dir> [--variant=webkit-mac] [--views=m430,d1280]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { devices, webkit } from 'playwright-core';
 import { startServer } from './server.mjs';

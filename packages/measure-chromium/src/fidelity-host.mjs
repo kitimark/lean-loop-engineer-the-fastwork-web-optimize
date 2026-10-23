@@ -1,14 +1,3 @@
-// Font fidelity, runner side of the Chromium arm (task counts-font-fidelity). On a Linux runner with Docker and the lane
-// image already built (docker build packages/measure-chromium), for each candidate font set of the Lean table (golden line
-// "fontSets", Fw.Measure.Profile.fontSets):
-//   1. fetch the set's Debian packages inside the image (its snapshot.debian.org bookworm mirror, `apt-get install
-//      --download-only`, dependencies included) and unpack them into <work>/<set>/x, nothing is installed;
-//   2. write the set's fonts.conf (the image's liberation directory when the set lists fonts-liberation, the unpacked
-//      directory, no other directory) and run fidelity.mjs in the image with that conf mounted over the lane's;
-//   3. list which uncovered code points the set's fonts hold (fc-list on the host with the same directories), the input of
-//      Lean's notdefCount.
-// Files: <out>/fidelity-<set>-r<rep>.json (the in-page facts plus `systemCovered` per view) and <out>/packages-<set>.txt.
-// usage: node fidelity-host.mjs --site=<snapshot/site> --rows=<rows.json> --out=<dir> --work=<dir> [--reps=2] [--sets=a,b] [--image=fw-measure-chromium:1]
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -33,7 +22,6 @@ mkdirSync(work, { recursive: true });
 const sh = (cmd, argv, opts = {}) => spawnSync(cmd, argv, { encoding: 'utf8', maxBuffer: 1 << 28, ...opts });
 const confOf = (dirs) => `<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n${dirs.map((d) => `  <dir>${d}</dir>\n`).join('')}  <cachedir>/tmp/fontconfig-cache</cachedir>\n</fontconfig>\n`;
 
-// The image's own liberation directory, copied out once so the host's fc-list sees the same files.
 const libHost = join(work, 'liberation');
 if (!existsSync(libHost)) {
   mkdirSync(libHost, { recursive: true });

@@ -1,12 +1,3 @@
-// Font fidelity, page side (task counts-font-fidelity, research/notes/2026/10-2x-counts-font-fidelity.md).
-// One self-contained function that Chromium (CDP Runtime.evaluate through fidelity.mjs) and Playwright WebKit
-// (fidelity-playwright.mjs) both run on the same page, so every engine reports the same facts: the document height, the
-// box of the first element of each section row, every text leaf with its owning section, computed first family and line
-// count, the FontFace states, and the code points that no loaded web face covers. It decides nothing; the choice among
-// font sets is Lean's `fontPick` (Fw.Measure.Profile), run by fidelity-compare.mjs through its twin in profile.mjs.
-// Native scrolling and requestAnimationFrame only; no animation is sought.
-
-/** Date pinned like the gate (2026-10-01T00:00:00+07:00) so the countdown text is the same in every run. */
 export const PIN_DATE_SRC = `(() => {
   const FIXED = Date.parse('2026-10-01T00:00:00+07:00');
   const RealDate = Date;
@@ -48,7 +39,7 @@ export async function fidelityInPage({ rows, readySel = null, capMs = 20000, set
     ready = document.querySelector(readySel) !== null;
     if (!ready) await sleepP(100);
   }
-  try { await Promise.race([document.fonts.ready, sleepP(2000)]); } catch { /* the faces report their status */ }
+  try { await Promise.race([document.fonts.ready, sleepP(2000)]); } catch {}
 
   const step = Math.max(200, window.innerHeight);
   for (let y = 0, i = 0; i < 300; i++, y += step) {

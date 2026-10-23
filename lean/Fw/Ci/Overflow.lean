@@ -39,7 +39,6 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - device-replay 1: `replay` (device-replay.yml, one VM)
 - difftest 2: `fixed`, `rotating` (difftest.yml:99,158)
 - engine-premises 7: `chromium` 6 (engine-premises.yml:174, :110) and `webkit` 1 (:243)
-- font-fidelity 3: `chromium` 1 (font-fidelity.yml), `webkit-mac` 1 and `sim` 1, all after the guard; `report` runs after them
 - gate-gaps 29: `collect-linux` 2 (gate-gaps.yml:122), `collect-macos` 1 (:185), `images-audit` 8 (:264), `images-pages` 18 (:336)
 - land 5: `land` (land.yml:95)
 - lean-math 1, lean 1: one job after the guard

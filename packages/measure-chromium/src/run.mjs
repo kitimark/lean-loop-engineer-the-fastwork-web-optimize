@@ -304,7 +304,6 @@ if (!viewportGate(profileSize, frame0)) {
 }
 const gate = gateSize(frame0);
 const maxScroll = geo.docH - gate.h;
-// the scroller's own range on the settled page: the end of a touch or wheel swipe is judged against it (Lean Swipe.ended)
 const scrollLimit = Math.max(0, Math.round(await ev(`(() => { const e = document.scrollingElement || document.documentElement; return e.scrollHeight - e.clientHeight; })()`)));
 if (process.env.FW_PROBE === '1') {
   await ev(`window.__probe = {}; for (const t of ['touchstart','touchmove','touchend','pointerdown','pointermove','pointerup','pointercancel','scroll','mousemove','click','wheel']) addEventListener(t, (e) => { __probe[t] = (__probe[t]||0)+1; }, { capture: true, passive: true }); 0`);
@@ -392,7 +391,6 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
   const inp = profile.input;
   const touchNext = inputMode === 'wheel' ? (yNow, ended) => (ended ? null : { phase: 'swipe', touch: { type: 'wheel', y: inp.y } }) : touchPlanner(inp);
   let last = null, yCur = 0, idle = 0, n = 0, swipeFrames = 0, ended = false, finished = false;
-  // a wheel event per frame is a one-move stroke (Lean Swipe ⟨dy, 0, dy, 0, 0⟩)
   const endInp = inputMode === 'wheel' ? { startY: inp.dyPerFrame, minY: 0, dyPerFrame: inp.dyPerFrame, holdFrames: 0, gapFrames: 0 } : inp;
   const runFrame = async (choose) => {
     let step = null;

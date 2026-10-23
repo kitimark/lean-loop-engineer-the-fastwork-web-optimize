@@ -77,36 +77,24 @@ export const fontsOk = (found) => FONT_FAMILIES.every((f) => found.includes(f));
 
 const absDiff = (a, b) => (a <= b ? b - a : a - b);
 
-/** Layout distance from the reference: document-height gap plus the part-height gaps (`pairs` = [reference, got]). Twin of Lean `fontDist`. */
 export const fontDist = (refDoc, gotDoc, pairs) => absDiff(refDoc, gotDoc) + pairs.reduce((n, [a, b]) => n + absDiff(a, b), 0);
 
-/** `a` is strictly better than `b`: nearer, then fewer .notdef, then fewer packages, then earlier. Twin of Lean `fontBefore`. */
 export const fontBefore = (a, b) => a.dist < b.dist || (a.dist === b.dist && (a.notdef < b.notdef || (a.notdef === b.notdef && (a.pkgs < b.pkgs || (a.pkgs === b.pkgs && a.idx < b.idx)))));
 
-/** The best score under `fontBefore`, or null for an empty list. Twin of Lean `fontPick`. */
 export const fontPick = (scores) => scores.reduceRight((best, s) => (best === null || fontBefore(s, best) ? s : best), null);
 
-/** Occurrences of code points ([cp, n] pairs) that no installed font covers. `covered` is a Set or array of code points. Twin of Lean `notdefIn`. */
 export const notdefCount = (covered, cps) => {
   const has = covered instanceof Set ? (c) => covered.has(c) : (c) => covered.includes(c);
   return cps.reduce((n, [c, k]) => n + (has(c) ? 0 : k), 0);
 };
 
-/** `touchMove` count of one stroke. Twin of Lean `Swipe.moves`; `w` is a profile's `input` block. */
 export const swipeMoves = (w) => Math.floor((w.startY - w.minY) / w.dyPerFrame);
-/** Frames of one stroke. Twin of Lean `Swipe.stroke`. */
 export const swipeStroke = (w) => swipeMoves(w) + w.holdFrames + w.gapFrames + 2;
-/** Scroll one stroke's finger path carries, in CSS px. Twin of Lean `Swipe.reach`. */
 export const swipeReach = (w) => swipeMoves(w) * w.dyPerFrame;
-/** Strokes that scroll `scroll` px at full reach. Twin of Lean `Swipe.strokes`. */
 export const swipeStrokes = (w, scroll) => Math.floor((scroll + swipeReach(w) - 1) / swipeReach(w));
-/** Frame allowance of a touch swipe over a page that scrolls `scroll` px. Twin of Lean `Swipe.budget`. */
 export const swipeBudget = (w, scroll) => (4 * swipeStrokes(w, scroll) + 1) * swipeStroke(w);
-/** Gap to the scroll limit that a swipe cannot tell from the page end. Twin of Lean `Swipe.band`. */
 export const swipeBand = (w) => w.dyPerFrame;
-/** Frames without gain that make a stall. Twin of Lean `Swipe.idleFrames`. */
 export const swipeIdleFrames = (w) => 2 * swipeStroke(w);
-/** Whether a swipe is over at rounded scroll position `y` with `idle` frames without gain. Twin of Lean `Swipe.ended`. */
 export const swipeEnded = (w, limit, y, idle) => limit <= y || (limit <= y + swipeBand(w) && swipeIdleFrames(w) <= idle);
 
 export const wireOf = (profile, kind) => ({

@@ -24,10 +24,10 @@ The script recomputes every shard's zone sums with fwcore from `counts.json` and
 What the data shows (MEASURED, this run): zone ids, frame counts and scrolled px are identical in the 3 shards. Of 12 zones x 70 types, the cells that differ between shards are 18 of stable types and 25 of quarantined types by the run's own classes; none of a deterministic type.
 
 NOT in this directory, with the reason:
-- **Count vectors per part.** The Chromium counts have frame and zone dimensions only; the original snapshot has no part attribution (nothing in `counts.json` is keyed by part).
-- **The frozen table `packages/measure-chromium/classes.frozen.json` does not cover 8 of the 70 types** (n0.*, trace.HitTest.overlayAdDetector, trace.N1.*; the run classifies them deterministic) and has trace.HitTest quarantined where the split harness gives stable (k 2). The `refreeze` task regenerates it; until then the frozen table is stale for these.
+- Count vectors per part. The Chromium counts have frame and zone dimensions only; the original snapshot has no part attribution (nothing in `counts.json` is keyed by part).
+- The frozen table `packages/measure-chromium/classes.frozen.json` does not cover 8 of the 70 types (n0.*, trace.HitTest.overlayAdDetector, trace.N1.*; the run classifies them deterministic) and has trace.HitTest quarantined where the split harness gives stable (k 2). The `refreeze` task regenerates it; until then the frozen table is stale for these.
 
-## Part 2: all four (profile, arm) baselines (task zone-baselines-chromium, part 2)
+## Part 2: all four (profile, arm) baselines
 
 Each baseline is 3 shards (separate VMs) of ONE workflow run, same zone structure and frame counts in all 3 (Lean refuses otherwise).
 All four files are `fwcore measure.zoneBaseline` over the profile's arm table in `classes.frozen.json` (schema 2). No new CI run was needed.
@@ -46,7 +46,7 @@ All four files are `fwcore measure.zoneBaseline` over the profile's arm table in
 - Zones are scroll bands (`rest`, `settle`, `yNNNNN`, `tail`), not parts. The rewrite page is shorter, so its last bands differ (touch rewrite stops at y03000; swipe-v1 rewrite at y03000 with 454 px); compare arms per zone id and per whole-run `totals`.
 - `detDrift` and `detDriftTotals` are empty in all four (MEASURED). Cells that differ between shards (profile/arm: stable cells, quarantined cells): swipe-v1 original 16 of 309, 27 of 107; touch original 13 of 401, 34 of 174; both rewrite baselines 0 (rewrite is deterministic/stable-only: 365+55 and 464+1 cells with no difference). Largest whole-run spans are pixel-area types (census.drawingAreaPx ~2.0e6, raster.invalidationAreaPx ~2.9e6 of ~1.9e8 in touch original).
 
-## Part 3: re-measured on the font image (task counts-font-fidelity)
+## Part 3: re-measured on the font image
 
 Parts 1 and 2 above were measured on the font-less lane image (text not drawn, page 720 px short); the files in this directory now come from the
 font image `sha256:47b1dcbe...` (fonts-liberation, page 6278 px at 430x932), so the Part 2 table and the 8-types-unlisted remarks are history.

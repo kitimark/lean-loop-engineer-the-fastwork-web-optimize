@@ -1,8 +1,3 @@
-// Font fidelity, iOS Simulator side (task counts-font-fidelity). On the macOS runner with the lane's Simulator (iPhone 15 Pro
-// Max, Safari, the inspector through ios_webkit_debug_proxy) it serves the snapshot read-only, loads the original page with the
-// pinned clock and runs the same fidelityInPage as the other arms. Writes fidelity-sim.json (one view, key `sim`, at the width
-// and height Safari gives the tab). Nothing here is phone time: a Simulator is a Mac process with the Mac's fonts.
-// usage: FW_SNAPSHOT_SITE=<snapshot/site> node fidelity-sim.mjs --rows=<rows.json> --out=<dir> [--variant=sim]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { withSession } from '../../measure-webkit/src/session.mjs';
 import { loadFresh, pageInfo } from '../../measure-webkit/src/page.mjs';

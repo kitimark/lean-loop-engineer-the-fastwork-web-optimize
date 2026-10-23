@@ -104,7 +104,7 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   height 6278 px in every job. Frozen classes over the three runs (kMax 4, tMax 24; `freeze.mjs`, Lean `Fw.Measure.Freeze`), deterministic/stable/quarantined
   of 70 types: original 30/16/24, rewrite 23/22/25. The font-less image gave original 36/25/9 (503 frames, frozen snapshot 499).
   The quarantined share is the cross-run worst class: one run alone gave 34/26/10 (39900399252).
-- (Superseded by the refreeze below, now committed.) Earlier state: `classes.frozen.json` and the zone baselines were not committed. `freeze.mjs --out` writes the whole file from the runs it is given, and the
+- Superseded by the refreeze below. `classes.frozen.json` and the zone baselines were not committed then. `freeze.mjs --out` writes the whole file from the runs it is given, and the
   file holds one image id for all profiles and arms ("image digest across profiles and arms" refuses a mix). A file from the three swipe-v1 runs alone
   loses the swipe-touch-v1 table and fails 7 tests of `pnpm --filter @fw/measure-chromium test` (the four baseline checks and three faithful comparisons);
   with the old file all 76 pass. So the refreeze is one step over both profiles, after the touch runs below exist.
@@ -116,7 +116,7 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   checks the number against the golden. **INFERRED, and doubtful as a cure:** a swipe over 5346 px needs about 7 x 82 = 574 frames (the old page needed
   531 frames for 4626 px), a quarter of the 2000 that ran out, so a shortage of frames is not the arithmetic reason for the failure; a stall (the
   swipe stops advancing, for example a touch target at the stroke's start point that takes the vertical pan) fits 2000 frames at 0.41 s each. The
-  error now names scrollY, the page's scroll range, the highest scrollY and the touch events sent, so a third failure shows which it is.
+  error now names scrollY, the page's scroll range, the highest scrollY and the touch events sent.
 - MEASURED, swipe-touch-v1 run 39920521620 (image_run=39914488176, maxFrames 2378) failed in all six jobs alike: scrollY highest 5342 of 5346, 2263 moves
   (29 strokes, though 7 strokes of 780 px cover the page), 2322 touch events. So it is a stall 4 px short of the limit, not a frame shortage. INFERRED
   cause: the compositor's scroll bound for a touch gesture is a few px below the main-thread bound (`scrollTo` reaches 5346). The old end condition
@@ -127,7 +127,7 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   `swipe_not_ended_moving`, `swipe_budget_idle`; golden rows `touchEnd`; twin `swipeEnded` in `profile.mjs`): the limit is the scroller's own
   `scrollHeight - clientHeight` read once on the settled page; a touch or wheel swipe ends when scrollY reaches it, or when scrollY is within one move
   of it and 164 frames (two strokes) gained nothing. A stall farther than one move from the limit is never accepted (it still fails at maxFrames).
-  The result records `input.scrollLimitPx`, `input.endReason` (limit or stalled) and `input.endGapPx`, so the next three runs show the gap. The wheel
+  The result records `input.scrollLimitPx`, `input.endReason` (limit or stalled) and `input.endGapPx`. The wheel
   profile maps to a one-move stroke (Swipe dy 0 dy 0 0). Not proved: the cause of the 4 px gap (a stall beyond one move would still fail).
 - Dispatch for the lead (the three swipe-touch-v1 runs must use image_run=39914488176, the image of the swipe-v1 runs, because the freeze refuses two image ids):
   `gh workflow run chromium-counts.yml --ref ci/counts-font-fidelity -f profile=swipe-touch-v1 -f target=both -f image_run=39914488176` three times; then

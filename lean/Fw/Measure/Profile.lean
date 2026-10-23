@@ -269,13 +269,6 @@ theorem fontDir_system : fontDir.startsWith "/usr/share/fonts/" = true := by dec
 
 theorem fontDir_not_snapshot : fontDir.startsWith "/snapshot" = false := by decide +kernel
 
-/-! ### Font fidelity
-
-The lane image must lay the page out like WebKit does. A candidate font set is installed beside the web fonts; its layout
-is measured (document height and part heights) and compared with the reference engine. `fontPick` chooses among the
-scored candidates: nearest layout, then fewest `.notdef` glyphs, then fewest packages, then the earlier candidate. -/
-
-/-- A candidate: a name and the Debian packages installed on top of the lane's base. -/
 structure FontSet where
   name : String
   pkgs : List String
@@ -287,7 +280,6 @@ def fontSets : List FontSet :=
 
 theorem fontSets_names_nodup : (fontSets.map (·.name)).Nodup := by decide
 
-/-- One candidate's score: `dist` from `fontDist`, `notdef` from `notdefCount`, `pkgs` its package count, `idx` its list position. -/
 structure SetScore where
   name : String
   idx : Nat
@@ -297,7 +289,6 @@ structure SetScore where
 
 def absDiff (a b : Nat) : Nat := if a ≤ b then b - a else a - b
 
-/-- Layout distance from the reference: the document-height gap plus the sum of the part-height gaps (`pairs` = reference, got). -/
 def fontDist (refDoc gotDoc : Nat) (pairs : List (Nat × Nat)) : Nat :=
   absDiff refDoc gotDoc + (pairs.map fun p => absDiff p.1 p.2).sum
 
@@ -325,16 +316,13 @@ theorem fontDist_zero_iff (refDoc gotDoc : Nat) (pairs : List (Nat × Nat)) :
       have := h1.2 b
       omega
 
-/-- `a` is strictly better than `b`: nearer the reference, then fewer `.notdef`, then fewer packages, then earlier in the list. -/
 def fontBefore (a b : SetScore) : Bool :=
   a.dist < b.dist || (a.dist == b.dist && (a.notdef < b.notdef || (a.notdef == b.notdef && (a.pkgs < b.pkgs || (a.pkgs == b.pkgs && a.idx < b.idx)))))
 
-/-- Keep the better of `s` and the pick of the rest. -/
 def fontStep (s : SetScore) : Option SetScore → SetScore
   | none => s
   | some q => if fontBefore s q then s else q
 
-/-- The chosen set: the best of the scores under `fontBefore`. -/
 def fontPick : List SetScore → Option SetScore
   | [] => none
   | s :: t => some (fontStep s (fontPick t))
@@ -364,7 +352,6 @@ theorem fontPick_mem : ∀ (l : List SetScore) (p : SetScore), fontPick l = some
 theorem fontPick_isSome (l : List SetScore) : (fontPick l).isSome = true ↔ l ≠ [] := by
   cases l <;> simp [fontPick]
 
-/-- Nothing in the list is strictly before the pick. -/
 theorem fontPick_min : ∀ (l : List SetScore) (p : SetScore), fontPick l = some p → ∀ s ∈ l, fontBefore s p = false
   | [], p, h => by simp [fontPick] at h
   | s :: t, p, h => by
@@ -397,14 +384,12 @@ theorem fontPick_min : ∀ (l : List SetScore) (p : SetScore), fontPick l = some
         · simpa using hb
         · exact ih x hx
 
-/-- Occurrences of code points (code point, count) that no installed font covers: each renders as `.notdef`. -/
 def notdefCount (installed : Nat → Bool) : List (Nat × Nat) → Nat
   | [] => 0
   | p :: t => (if installed p.1 then 0 else p.2) + notdefCount installed t
 
 theorem notdefCount_nil (i : Nat → Bool) : notdefCount i [] = 0 := rfl
 
-/-- Installing more fonts never raises the `.notdef` count. -/
 theorem notdefCount_mono (i j : Nat → Bool) (h : ∀ c, i c = true → j c = true) :
     ∀ l, notdefCount j l ≤ notdefCount i l
   | [] => Nat.le_refl _
@@ -425,17 +410,8 @@ theorem notdefCount_none (l : List (Nat × Nat)) : notdefCount (fun _ => false) 
   | nil => rfl
   | cons p t ih => simp [notdefCount, ih]
 
-/-- `notdefCount` with the covered code points given as a list. -/
 def notdefIn (covered : List Nat) (l : List (Nat × Nat)) : Nat := notdefCount (fun c => covered.contains c) l
 
-/-! ### Touch swipe budget
-
-`swipe-touch-v1` sends strokes of touch moves until the page end is reached; `run.mjs` stops with "did not finish within
-maxFrames" when a swipe needs more frames than the profile allows. The allowance follows from the page's scroll range, not
-from a hand-picked number. -/
-
-/-- The touch input of a swipe profile (`input` in `profiles/<id>.json`; `dy` is `dyPerFrame`): finger start and floor in CSS px, one move's
-step, the frames the finger rests before lifting, and the frames between two strokes. -/
 structure Swipe where
   startY : Nat
   minY : Nat
@@ -443,27 +419,18 @@ structure Swipe where
   holdFrames : Nat
   gapFrames : Nat
 
-/-- `touchMove` count of one stroke: the finger rises `dy` per frame while it stays at or below `minY`. -/
 def Swipe.moves (s : Swipe) : Nat := (s.startY - s.minY) / s.dy
 
-/-- Frames of one stroke: `touchStart`, the moves, the holds, `touchEnd`, the gap. -/
 def Swipe.stroke (s : Swipe) : Nat := s.moves + s.holdFrames + s.gapFrames + 2
 
-/-- Scroll the finger path of one stroke can carry, in CSS px. -/
 def Swipe.reach (s : Swipe) : Nat := s.moves * s.dy
 
-/-- Strokes needed to scroll `scroll` px when every stroke carries its whole path. -/
 def Swipe.strokes (s : Swipe) (scroll : Nat) : Nat := (scroll + s.reach - 1) / s.reach
 
-/-- The frame allowance for a page that scrolls `scroll` px: a stroke may carry only a quarter of its path, and one more
-stroke shows that the end was reached. -/
 def Swipe.budget (s : Swipe) (scroll : Nat) : Nat := (4 * s.strokes scroll + 1) * s.stroke
 
-/-- `swipe-touch-v1`'s input. -/
 def swipeTouchV1 : Swipe := ⟨880, 100, 10, 0, 2⟩
 
-/-- Scroll range of the original page at 430x932 on the lane image: document height 6278 px less the viewport 932 px
-(MEASURED, font-fidelity run 39907447564, `fonts-liberation`). -/
 def fontPageMaxScroll : Nat := 6278 - 932
 
 theorem swipe_strokes_cover (s : Swipe) (scroll : Nat) (h : 0 < s.reach) : scroll ≤ s.strokes scroll * s.reach := by
@@ -473,19 +440,14 @@ theorem swipe_strokes_cover (s : Swipe) (scroll : Nat) (h : 0 < s.reach) : scrol
   rw [Nat.mul_comm] at h1
   omega
 
-/-- The allowance covers a swipe whose strokes carry their whole path. -/
 theorem swipe_budget_ideal (s : Swipe) (scroll : Nat) : s.strokes scroll * s.stroke ≤ s.budget scroll := by
   unfold Swipe.budget
   exact Nat.mul_le_mul_right _ (by omega)
 
-/-- A taller page never gets a smaller allowance. -/
 theorem swipe_budget_mono (s : Swipe) (a b : Nat) (h : a ≤ b) : s.budget a ≤ s.budget b := by
   unfold Swipe.budget Swipe.strokes
   exact Nat.mul_le_mul_right _ (by have := Nat.div_le_div_right (c := s.reach) (show a + s.reach - 1 ≤ b + s.reach - 1 by omega); omega)
 
-/-- The allowance covers a slow swipe: if every stroke carries at least `p` px with `reach ≤ 4 p`, then the `n` strokes
-that scroll `scroll` px (`n - 1` strokes fall short) fit in the allowance. A profile whose finger path is empty (`reach = 0`)
-never scrolls and is outside the claim. -/
 theorem swipe_budget_quarter (s : Swipe) (scroll p n : Nat) (hreach : 0 < s.reach) (hr : s.reach ≤ 4 * p) (hn : (n - 1) * p < scroll) :
     n * s.stroke ≤ s.budget scroll := by
   have hc := swipe_strokes_cover s scroll hreach
@@ -498,46 +460,31 @@ theorem swipe_budget_quarter (s : Swipe) (scroll p n : Nat) (hreach : 0 < s.reac
   unfold Swipe.budget
   exact Nat.mul_le_mul_right _ (by omega)
 
-/-! ### Touch swipe end
-
-The compositor can stop a touch swipe a few px short of the document's scroll limit (MEASURED, run 39920521620: highest
-scrollY 5342 of 5346 in all six jobs, 29 strokes). A swipe therefore ends when the scroll limit is reached, or when the
-position is within one move of the limit and two whole strokes have gained nothing. -/
-
-/-- Gap to the scroll limit that the swipe cannot tell from the page end: one move's step. -/
 def Swipe.band (s : Swipe) : Nat := s.dy
 
-/-- Frames without gain that make a stall: two strokes, so one whole stroke lies inside them. -/
 def Swipe.idleFrames (s : Swipe) : Nat := 2 * s.stroke
 
-/-- The swipe is over at scroll position `y` (rounded CSS px) when `limit` is reached, or when `y` is within `band` of it
-and `idle` frames passed without gain. -/
 def Swipe.ended (s : Swipe) (limit y idle : Nat) : Bool :=
   decide (limit ≤ y) || (decide (limit ≤ y + s.band) && decide (s.idleFrames ≤ idle))
 
-/-- Reaching the limit ends the swipe at once. -/
 theorem swipe_ended_limit (s : Swipe) (limit y idle : Nat) (h : limit ≤ y) : s.ended limit y idle = true := by
   simp [Swipe.ended, h]
 
-/-- A stall within one move of the limit ends the swipe. -/
 theorem swipe_ended_stall (s : Swipe) (limit y idle : Nat) (hb : limit ≤ y + s.band) (hi : s.idleFrames ≤ idle) :
     s.ended limit y idle = true := by
   simp [Swipe.ended, hb, hi]
 
-/-- Further than one move from the limit never ends the swipe, however long it idles (a stall there is a failure). -/
 theorem swipe_not_ended_far (s : Swipe) (limit y idle : Nat) (h : y + s.band < limit) : s.ended limit y idle = false := by
   have h1 : ¬ limit ≤ y := by omega
   have h2 : ¬ limit ≤ y + s.band := by omega
   simp [Swipe.ended, h1, h2]
 
-/-- Short of the limit and gaining within the last two strokes never ends the swipe. -/
 theorem swipe_not_ended_moving (s : Swipe) (limit y idle : Nat) (h : y < limit) (hi : idle < s.idleFrames) :
     s.ended limit y idle = false := by
   have h1 : ¬ limit ≤ y := by omega
   have h2 : ¬ s.idleFrames ≤ idle := by omega
   simp [Swipe.ended, h1, h2]
 
-/-- The frame allowance holds the stall window whenever the page scrolls at all. -/
 theorem swipe_budget_idle (s : Swipe) (scroll : Nat) (hreach : 0 < s.reach) (hs : 0 < scroll) : s.idleFrames ≤ s.budget scroll := by
   have hc := swipe_strokes_cover s scroll hreach
   have h1 : 0 < s.strokes scroll := by
@@ -596,7 +543,6 @@ private def swipeCases : List (Swipe × Nat) :=
   [(swipeTouchV1, 0), (swipeTouchV1, 1), (swipeTouchV1, 780), (swipeTouchV1, 781), (swipeTouchV1, 4626), (swipeTouchV1, fontPageMaxScroll),
    (⟨880, 100, 10, 2, 3⟩, 5346), (⟨500, 100, 25, 0, 0⟩, 3000)]
 
-/-- (swipe, limit, y, idle) rows of the end rule, one per branch and edge; the last four are the wheel profile's single-move stroke. -/
 private def endCases : List (Swipe × Nat × Nat × Nat) :=
   [(swipeTouchV1, 5346, 5346, 0), (swipeTouchV1, 5346, 5400, 0), (swipeTouchV1, 5346, 5345, 0), (swipeTouchV1, 5346, 5342, 164),
    (swipeTouchV1, 5346, 5342, 163), (swipeTouchV1, 5346, 5335, 164), (swipeTouchV1, 5346, 5336, 164), (swipeTouchV1, 5346, 5335, 9999),

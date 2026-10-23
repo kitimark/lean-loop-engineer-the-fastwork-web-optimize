@@ -1,9 +1,3 @@
-// Font fidelity, the comparison (task counts-font-fidelity). Reads every fidelity-*.json under --dir (the Chromium container
-// variants fidelity-<set>-r<rep>.json from fidelity-host.mjs, the reference engine fidelity-<ref>.json from
-// fidelity-playwright.mjs, optionally a Simulator file fidelity-sim*.json), scores each candidate font set against the
-// reference and picks one by Lean's rule: profile.mjs fontDist / notdefCount / fontPick are the twins of Fw.Measure.Profile
-// (checked against packages/contracts/golden/measure/profile.jsonl). This file only reads, tabulates and calls them.
-// usage: node fidelity-compare.mjs --dir=<dir> [--ref=webkit-mac] [--pick-views=m430,d1280] [--phone-doc=6042] [--out=<dir>]
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fontDist, fontPick, notdefCount } from './profile.mjs';
