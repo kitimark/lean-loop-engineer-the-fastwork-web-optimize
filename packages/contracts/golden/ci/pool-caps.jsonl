@@ -9,6 +9,7 @@
 {"file":"path-pix.yml","kind":"excluded","task":"path-pix-lanes"}
 {"file":"toolbar-throttle.yml","kind":"excluded","task":"toolbar-throttle-probe"}
 {"file":"webkit-sim.yml","kind":"excluded","task":"webkit-sim-failfast"}
+{"file":"chrome-crash-probe.yml","kind":"excluded","task":"chrome-crash-platforms"}
 {"capMin":0,"kind":"vector","p90dm":0}
 {"capMin":1,"kind":"vector","p90dm":1}
 {"capMin":8,"kind":"vector","p90dm":56}

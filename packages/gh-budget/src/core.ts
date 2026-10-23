@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { GH_BOUNDS } from "./bounds.gen.ts";
 
 export type Json = Record<string, unknown>;
 export type FwCall = (req: Json) => Json;
@@ -23,7 +24,7 @@ export function fwcoreBin(cwd: string): string {
 export function fwcoreCall(cwd: string): FwCall {
   const bin = fwcoreBin(cwd);
   return (req) => {
-    const r = spawnSync(bin, [], { input: JSON.stringify({ ...req, id: 0 }) + "\n", env: { ...process.env, LEAN_ABORT_ON_PANIC: "1" }, maxBuffer: 1 << 28 });
+    const r = spawnSync(bin, [], { input: JSON.stringify({ ...req, id: 0 }) + "\n", env: { ...process.env, LEAN_ABORT_ON_PANIC: "1" }, maxBuffer: 1 << 28, timeout: Number(process.env.FW_CORE_CALL_MS) || GH_BOUNDS.fwcoreCallMs });
     if (r.status !== 0) throw new Error(`fwcore exited with ${r.status ?? r.signal}: ${String(r.stderr).slice(0, 200)}`);
     const { id: _id, ...rest } = JSON.parse(r.stdout.toString().trim().split("\n")[0]!) as Json;
     if (typeof rest.error === "string") throw new Error(`fwcore ${String(req.op)}: ${rest.error}`);
@@ -46,6 +47,7 @@ export type Env = {
    *  in-process instead (a fake server; the spawn of a node process costs ~0.1 s and is all a replay of thousands of
    *  calls would spend). Production never sets it. */
   exec?: GhExec;
+  mark?: (e: "loadStart" | "loadEnd") => void;
   /** Epoch seconds. */
   now(): number;
   /** Resolve at epoch second `t`, or earlier (callers re-check). */
