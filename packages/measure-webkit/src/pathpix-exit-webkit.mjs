@@ -9,8 +9,8 @@ import { takeCensus } from './census.mjs';
 import { findDevice, sleep } from './sim.mjs';
 import { decodePng, encodePng, cropImage, sameImage } from './pathpix-png.mjs';
 import { FREEZE_EXPR, HOLD_EXPR, NEAR_IMAGES_EXPR, VIDEO_EXPR, MARK_ON, MARK_OFF } from './pathpix-page.mjs';
-import { PIN_ACCENT_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from './pathpix-exit-page.mjs';
-import { exitOffsets, armPin, pinAt } from './pathpix-exit.mjs';
+import { ACCENT_SERVED_EXPR, ACCENT_SIG_EXPR, EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR, EXIT_WAIT_EXPR } from './pathpix-exit-page.mjs';
+import { exitOffsets, armPin, hookSearch } from './pathpix-exit.mjs';
 import { magentaBox, navigateHeld, screenshot, pinStatusBar } from './pathpix-webkit.mjs';
 
 export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = null, settleMs = 6000, holdMs = 800, log: log0 = (s) => console.error(s) }) {
@@ -19,24 +19,24 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
   const tmp = mkdtempSync(join(tmpdir(), 'fw-pathpix-exit-'));
   mkdirSync(join(out, 'shots'), { recursive: true });
   const dev = findDevice();
-  const searchP = `?fw=${flag}`;
+  const searchA = '', searchP = `?fw=${flag}`;
   try {
     return await withSession(async (ctx) => {
       pinStatusBar(dev.udid, log);
       const handover = {};
       const loadArm = async (arm) => {
-        const search = arm === 'P' ? searchP : '';
+        const search = hookSearch(arm === 'P' ? searchP : searchA);
         ctx.setArm(arm === 'P' ? 'P' : 'A');
         const url = `${ctx.base}/${search}`;
         ctx.setClient(await navigateHeld(ctx.c, url, log));
         ctx.url = url;
         await loadFresh(ctx.c, { clock: 'pinned', settleMs, timers: 'hold' });
         log(`  timers held ${await ctx.c.runAsync(HOLD_EXPR)}`);
-        if (armPin(arm) === 'ssr-accent') {
-          const pin = JSON.parse(await ctx.c.evaluate(PIN_ACCENT_EXPR));
-          if (!pin.pinned || !pin.same) throw new Error(`accent pin failed for arm ${arm}: ${JSON.stringify(pin)}`);
+        if (armPin(arm) === 'accent-hook') {
+          const pin = JSON.parse(await ctx.c.evaluate(ACCENT_SERVED_EXPR));
+          if (!pin.hooked || !pin.same) throw new Error(`accent hook not in effect for arm ${arm}: ${JSON.stringify(pin)}`);
           handover.pin = { ...handover.pin, [arm]: pin };
-          log(`  accent pinned (live ${pin.before}, served ${pin.ssr})`);
+          log(`  accent held by the site hook (live ${pin.live}, served ${pin.ssr})`);
         }
         await ctx.c.evaluate(FREEZE_EXPR);
         if (arm === 'P') {
@@ -82,7 +82,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
         const manifest = {
           schema: 'fw.path-pix/1', mode: 'exit', flag, engine: 'webkit', lane: 'ios-simulator', run, lossless: true, compositing: 'gpu-simulator (no real GPU)',
           ua: info.ua, dpr: info.dpr, vw: info.vw, vh: info.vh, frame, content, maxY: info.maxY, exit, offsets: offs, cut, handover,
-          arms: arms.map((arm) => ({ arm, search: arm === 'P' ? searchP : '' })), samples,
+          arms: arms.map((arm) => ({ arm, search: hookSearch(arm === 'P' ? searchP : searchA) })), samples,
         };
         writeFileSync(join(out, 'manifest.json'), JSON.stringify(manifest) + '\n');
         return manifest;
@@ -94,11 +94,6 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
           await scrollHold(ctx.c, offs[k], { holdMs });
           await ctx.c.runAsync(NEAR_IMAGES_EXPR);
           const video = await ctx.c.runAsync(VIDEO_EXPR);
-          let pinRow = null;
-          if (pinAt(arm, k) === 'ssr-accent') {
-            pinRow = JSON.parse(await ctx.c.evaluate(PIN_ACCENT_EXPR));
-            if (!pinRow.pinned || !pinRow.same) throw new Error(`accent pin failed for arm ${arm} at offset ${k}: ${JSON.stringify(pinRow)}`);
-          }
           await ctx.c.evaluate(FREEZE_EXPR);
           await sleep(400);
           await ctx.c.evaluate(FREEZE_EXPR);
@@ -125,8 +120,8 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
           }
           const accentAfter = JSON.parse(await ctx.c.evaluate(ACCENT_SIG_EXPR));
           rows[k] = {
-            accent: { drift: pinRow && { before: pinRow.before, wasPinned: pinRow.wasPinned, n: pinRow.n }, shotStart: accentBefore, shotEnd: accentAfter },
-            i: k, y: offs[k], scrollY: here.scrollY, boxes: here.boxes, alpha: here.alpha, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
+            accent: { shotStart: accentBefore, shotEnd: accentAfter },
+            i: k, y: offs[k], scrollY: here.scrollY, dateNow: here.dateNow, boxes: here.boxes, alpha: here.alpha, cover: here.cover, parts: here.parts, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
             layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: l.compositedBounds, memory: l.memory, reasons: l.reasons })),
             layerCount: census.layerCount,
           };
@@ -160,7 +155,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
       return writeManifest();
     }, {
       keep: true, log,
-      arms: { A: { dir: siteDir, search: '' }, P: { dir: siteDir, search: searchP } },
+      arms: { A: { dir: siteDir, search: searchA }, P: { dir: siteDir, search: searchP } },
     });
   } finally {
     rmSync(tmp, { recursive: true, force: true });

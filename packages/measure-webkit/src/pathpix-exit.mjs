@@ -14,22 +14,39 @@ export function exitClaim(layer, le600) {
   return null;
 }
 
-export const armPin = () => 'ssr-accent';
+export const armPin = () => 'accent-hook';
+export const hookSearch = (search) => (search ? `${search}&fwpin=accent` : '?fwpin=accent');
 export const pinAt = (arm, _i) => armPin(arm);
-export const shownAccent = (pin, live) => (pin === 'ssr-accent' ? { cursor: -1, phase: 'idle' } : live);
+export const shownAccent = (pin, live) => (pin === 'accent-hook' ? { cursor: -1, phase: 'idle' } : live);
 export const pinMasks = (_pin, ms) => ms;
 
 export const accentPinned = (served, start, stop, n) => n === 1 && start === served && stop === served;
 export const accentRowOf = (row) => {
   const a = row?.accent;
-  if (!a?.shotStart || !a?.shotEnd) return { n: 0, start: null, stop: null };
+  const at = { y: Number.isFinite(row?.y) ? row.y : -1, scrollY: Number.isFinite(row?.scrollY) ? row.scrollY : -1 };
+  if (!a?.shotStart || !a?.shotEnd) return { n: 0, start: null, stop: null, ...at };
   const sig = (x) => (typeof x === 'string' && x ? x : null);
-  return { n: a.shotStart.n === a.shotEnd.n ? a.shotStart.n : 0, start: sig(a.shotStart.sig), stop: sig(a.shotEnd.sig) };
+  return { n: a.shotStart.n === a.shotEnd.n ? a.shotStart.n : 0, start: sig(a.shotStart.sig), stop: sig(a.shotEnd.sig), ...at };
 };
 export const rowsPinned = (served, rows) => rows.every((r) => accentPinned(served, r.start, r.stop, r.n));
-export const gradePinned = (served, rows, c, f, live) => (rowsPinned(served, rows) ? gradeRel(c, f, live) : 'invalid');
-export const unpinnedWhy = (served, rows) => (rowsPinned(served, rows) ? null : 'accent-unpinned');
-export const floorPinned = (served, rows, f) => ({ ...f, valid: f.valid && rowsPinned(served, rows) });
+export const rowPlaced = (maxY, r) => r.scrollY === Math.min(r.y, maxY);
+export const rowsPlaced = (maxY, rows) => rows.every((r) => rowPlaced(maxY, r));
+export const rowsOk = (served, maxY, rows) => rowsPinned(served, rows) && rowsPlaced(maxY, rows);
+export const checkedRows = (rows, floorRows, f) => (f ? [...rows, ...floorRows] : rows);
+export const gradePinned = (served, maxY, rows, floorRows, c, f, live) => (rowsOk(served, maxY, checkedRows(rows, floorRows, f)) ? gradeRel(c, f, live) : 'invalid');
+export const unpinnedWhy = (served, maxY, rows, floorRows, f) => {
+  const rs = checkedRows(rows, floorRows, f);
+  return rowsPinned(served, rs) ? (rowsPlaced(maxY, rs) ? null : 'misplaced') : 'accent-unpinned';
+};
+export const floorPinned = (served, maxY, rows, f) => ({ ...f, valid: f.valid && rowsOk(served, maxY, rows) });
+
+export const coverAll = (c) => !!c && c.n > 0 && c.k === c.n;
+export const occludedBoth = (a, b) => coverAll(a) && coverAll(b);
+
+export const FOREIGN_REASON = "pixels inside another graded layer's mask are counted by that layer: hero_copy's mask is the union of its element boxes, hidden countdown faces included, and spans the top corners of the deck cards";
+export const yieldsShared = (layer) => layer === 'hero_copy';
+export const foreignMasks = (layer, others) => (yieldsShared(layer) ? others : []);
+export const countedIn = (foreign, m, x, y) => inMask(m, x, y) && !foreign.some((k) => inMask(k, x, y));
 
 export const rawLe = (a, b) => a.changed <= b.changed && a.maxDelta <= b.maxDelta;
 export const floorOf = (c) => ({ valid: cellValid(c), out: c.out, inside: c.inside });
@@ -51,19 +68,33 @@ export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k)
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
 
-export function splitUnion(del, w, h, masks) {
+export function splitUnion(del, w, h, masks, foreign = masks.map(() => [])) {
   const cover = new Uint8Array(w * h);
   for (const m of masks) for (let y = m[2]; y < m[3]; y++) cover.fill(1, y * w + m[0], y * w + m[1]);
-  let oc = 0, om = 0;
-  for (let i = 0; i < del.length; i++) if (!cover[i]) { const d = del[i]; if (d) { oc++; if (d > om) om = d; } }
-  const inside = masks.map((m) => {
-    let changed = 0, maxDelta = 0;
+  let oc = 0, om = 0, ox0 = Infinity, oy0 = Infinity, ox1 = -1, oy1 = -1;
+  for (let i = 0; i < del.length; i++) if (!cover[i]) {
+    const d = del[i];
+    if (d) { oc++; if (d > om) om = d; const x = i % w, y = (i - x) / w; if (x < ox0) ox0 = x; if (x > ox1) ox1 = x; if (y < oy0) oy0 = y; if (y > oy1) oy1 = y; }
+  }
+  const shared = [];
+  const inside = masks.map((m, n) => {
+    let changed = 0, maxDelta = 0, sc = 0, sm = 0;
     const hist = { b1: 0, b2_3: 0, b4_15: 0, b16_255: 0 };
-    for (let y = m[2]; y < m[3]; y++) for (let x = m[0]; x < m[1]; x++) { const d = del[y * w + x]; if (d) { changed++; if (d > maxDelta) maxDelta = d; hist[bucket(d)]++; } }
-    return { raw: { changed, maxDelta }, hist };
+    let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+    const fo = foreign[n] ?? [];
+    for (let y = m[2]; y < m[3]; y++) for (let x = m[0]; x < m[1]; x++) {
+      const d = del[y * w + x];
+      if (!d) continue;
+      if (fo.length && !countedIn(fo, m, x, y)) { sc++; if (d > sm) sm = d; continue; }
+      changed++; if (d > maxDelta) maxDelta = d; hist[bucket(d)]++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    shared.push({ changed: sc, maxDelta: sm });
+    return { raw: { changed, maxDelta }, hist, bbox: changed ? [x0, y0, x1 + 1, y1 + 1] : null };
   });
-  return { out: { changed: oc, maxDelta: om }, inside };
+  return { out: { changed: oc, maxDelta: om }, outBbox: oc ? [ox0, oy0, ox1 + 1, oy1 + 1] : null, inside, shared };
 }
+
+export const partsHit = (parts, bbox, dpr) => (!bbox || !parts ? [] : parts.filter(([, x, y, w, h]) => x * dpr < bbox[2] && (x + w) * dpr > bbox[0] && y * dpr < bbox[3] && (y + h) * dpr > bbox[1]).map((p) => p[0]));
 
 const baseLayer = (key) => key.replace(/#\d+$/, '');
 const recs = (s, layer) => (s.layers ?? []).filter((l) => l.layer === layer);
@@ -92,6 +123,8 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   const moved = driverMoved(S.A, man.exit);
   const floors = new Map();
   const served = typeof man.handover?.pin?.A?.ssr === 'string' && man.handover.pin.A.ssr ? man.handover.pin.A.ssr : undefined;
+  const maxY = Number.isFinite(man.maxY) ? man.maxY : Number.MAX_SAFE_INTEGER;
+  const clockSeen = new Set();
   const firstStrip = new Set();
   const cache = new Map();
   const load = (f) => { if (!cache.has(f)) cache.set(f, decodePng(readFileSync(join(dir, f)))); return cache.get(f); };
@@ -99,6 +132,7 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
     cache.clear();
     const rowA = S.A[i];
     if (!rowA) { skipped.push({ i, kind: 'all', why: 'arm A not captured at this offset' }); continue; }
+    for (const r of [rowA, S.A2[i], S.P?.[i]]) if (r && Number.isFinite(r.dateNow)) clockSeen.add(r.dateNow);
     const keys = [], masks = [];
     for (const k of Object.keys(rowA.boxes ?? {}).sort()) {
       const m = mask(dpr, frame.w, frame.h, rowA.boxes[k]);
@@ -115,13 +149,21 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
       if (kind === 'P' && strips !== 'none' && fd.changed) emit(`strips/FRAME_P_${i}.png`, encodePng(thumb(a0, b0, del)));
       const live = moved && (kind === 'P' ? liveP(row.live) : liveA(rowA.live) && liveA(row.live));
       const accentRows = [accentRowOf(rowA), accentRowOf(row)];
-      const pinned = rowsPinned(served, accentRows);
+      const pinned = rowsOk(served, maxY, accentRows);
       liveness.push({ arm: armB, i, y: row.scrollY, live: row.live ?? null, accepted: live, accentPinned: pinned });
-      const sp = splitUnion(del, frame.w, frame.h, masks);
+      const skipWhy = (key) => {
+        if (!exitClaim(baseLayer(key), le600)) return 'not an exit consumer';
+        if ((rowA.alpha?.[key] ?? 1) < 1 / 255 && (row.alpha?.[key] ?? 1) < 1 / 255) return 'transparent in both arms';
+        if (occludedBoth(rowA.cover?.[key], row.cover?.[key])) return 'occluded by opaque foreign content in both arms';
+        return null;
+      };
+      const graded = keys.map((k) => skipWhy(k) === null);
+      const foreign = keys.map((key, n) => foreignMasks(baseLayer(key), masks.filter((_, o) => graded[o] && baseLayer(keys[o]) !== baseLayer(key))));
+      const sp = splitUnion(del, frame.w, frame.h, masks, foreign);
       keys.forEach((key, n) => {
         const box = rowA.boxes[key], layer = baseLayer(key), claim0 = exitClaim(layer, le600);
-        if (!claim0) { skipped.push({ key, i, kind, why: 'not an exit consumer' }); return; }
-        if ((rowA.alpha?.[key] ?? 1) < 1 / 255 && (row.alpha?.[key] ?? 1) < 1 / 255) { skipped.push({ key, i, kind, why: 'transparent in both arms' }); return; }
+        const why0 = skipWhy(key);
+        if (why0) { skipped.push({ key, i, kind, why: why0 }); return; }
         const compA = recs(rowA, layer).length > 0, compB = recs(row, layer).length > 0;
         const p1 = compA && compB && sigOf(rowA, layer) === sigOf(row, layer);
         const cell = {
@@ -131,13 +173,18 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
           origin: [microRat(box[0]), microRat(box[1])], dpr, t1: null, stripsAccepted: false,
         };
         const fkey = `${key}@${i}`;
-        const floor = kind === 'P' ? floors.get(fkey) ?? null : null;
-        if (kind === 'A/A') floors.set(fkey, floorPinned(served, accentRows, floorOf(cell)));
+        const floorEntry = kind === 'P' ? floors.get(fkey) ?? null : null;
+        const floor = floorEntry && floorEntry.floor;
+        const floorRows = floorEntry ? floorEntry.rows : [];
+        if (kind === 'A/A') floors.set(fkey, { floor: floorPinned(served, maxY, accentRows, floorOf(cell)), rows: accentRows });
+        const checked = checkedRows(accentRows, floorRows, floor);
+        const ok = rowsOk(served, maxY, checked);
         const rec = {
           key, layer, i, y: rowA.scrollY, kind, mask: masks[n], boxSame: JSON.stringify(row.boxes?.[key] ?? null) === JSON.stringify(box), live,
-          cell, floor, accentPinned: pinned, invalidWhy: unpinnedWhy(served, accentRows), grade: gradePinned(served, accentRows, cell, floor, live), absGrade: pinned ? grade(cell) : 'invalid',
-          why: pinned ? whyL(cell, floor, live) : null,
-          ifAccepted: gradePinned(served, accentRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist,
+          cell, floor, accentPinned: ok, invalidWhy: unpinnedWhy(served, maxY, accentRows, floorRows, floor), grade: gradePinned(served, maxY, accentRows, floorRows, cell, floor, live), absGrade: ok ? grade(cell) : 'invalid',
+          why: ok ? whyL(cell, floor, live) : null,
+          where: { bbox: sp.inside[n].bbox, parts: partsHit(rowA.parts?.[key], sp.inside[n].bbox, dpr), outBbox: sp.outBbox },
+          ifAccepted: gradePinned(served, maxY, accentRows, floorRows, { ...cell, stripsAccepted: true }, floor, live), premises: premises(engine, cell.claim), s1: cellS1(cell), hist: sp.inside[n].hist, shared: sp.shared[n], sharedWith: foreign[n].length,
         };
         const changed = cell.inside.changed + cell.out.changed > 0;
         const sk = `${kind}:${key}`;
@@ -152,7 +199,7 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
   }
   return {
     schema: 'fw.path-pix.exit/1', engine, run: man.run, lane: man.lane, compositing: man.compositing, flag: man.flag, dpr, vw: man.vw, frame,
-    exit: man.exit, offsets: man.offsets, driverMoved: moved, cells, skipped, frames, liveness, armsRun: Object.keys(S), cut: man.cut ?? [], fonts: man.fonts ?? null,
+    exit: man.exit, offsets: man.offsets, maxY: Number.isFinite(man.maxY) ? man.maxY : null, clock: { values: [...clockSeen].sort((a, b) => a - b), constant: clockSeen.size <= 1 }, driverMoved: moved, cells, skipped, frames, liveness, armsRun: Object.keys(S), cut: man.cut ?? [], fonts: man.fonts ?? null,
   };
 }
 
@@ -176,7 +223,8 @@ export function exitTable(res) {
     out.push(`| ${c.key} | ${c.i} | ${c.y} | ${c.grade}${c.why ? ` (${c.why})` : ''} | ${c.ifAccepted} | ${sumRaw(c.cell.inside)} | ${sumRaw(c.cell.out)} | ${f ? f.grade : '-'} | ${f ? sumRaw(f.cell.inside) : '-'} | ${f ? sumRaw(f.cell.out) : '-'} | ${c.live} | ${c.strip ?? ''} |`);
   }
   out.push('', `faithful driver moved the consumers in arm A: ${res.driverMoved}`);
-  out.push('', `cells marked invalid with reason accent-unpinned: ${res.cells.filter((c) => c.invalidWhy === 'accent-unpinned').length} of ${res.cells.length}`);
+  out.push('', `cells marked invalid with reason accent-unpinned: ${res.cells.filter((c) => c.invalidWhy === 'accent-unpinned').length} of ${res.cells.length}; misplaced (scrollY is not the offset): ${res.cells.filter((c) => c.invalidWhy === 'misplaced').length}`);
+  if (res.clock) out.push(`page Date.now in every row: ${res.clock.constant ? 'constant' : 'moves'} (${res.clock.values.join(', ') || 'not recorded'})`);
   const notLive = res.liveness.filter((l) => l.arm === 'P' && !l.accepted);
   out.push('', `P rows not live: ${notLive.length} of ${res.liveness.filter((l) => l.arm === 'P').length}`);
   if (res.cut?.length) out.push(`arms cut short: ${res.cut.join('; ')}`);

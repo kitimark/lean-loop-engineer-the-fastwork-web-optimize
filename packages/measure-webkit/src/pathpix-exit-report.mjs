@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { FOREIGN_REASON } from './pathpix-exit.mjs';
 
 export function slimCell(c) {
   return {
     key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live, accentPinned: c.accentPinned, invalidWhy: c.invalidWhy,
-    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null,
+    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null, where: c.where ?? null, shared: c.shared ?? null, sharedWith: c.sharedWith ?? 0,
   };
 }
 
 export function slimLane(label, artifact, cells, man) {
   return {
     schema: 'fw.path-pix.exit.cells/1', label, artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
-    ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, handover: man.handover ?? null, fonts: man.fonts ?? null,
+    ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, maxY: cells.maxY ?? null, clock: cells.clock ?? null, handover: man.handover ?? null, fonts: man.fonts ?? null,
     cut: cells.cut, armsRun: cells.armsRun, driverMoved: cells.driverMoved ?? null, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, accentPinned: l.accentPinned, live: l.live })),
     skipped: cells.skipped, frames: cells.frames.map((f) => ({ arm: f.arm, i: f.i, sameA: f.sameA, sameB: f.sameB, changed: f.changed, maxDelta: f.maxDelta })),
     cells: cells.cells.map(slimCell),
@@ -43,6 +44,72 @@ export function engineTable(engine, lanes) {
   return out.join('\n');
 }
 
+const HERO = 'hero_copy';
+const raw = (x) => `${x.changed}-${x.maxDelta}`;
+
+export const lSource = (p) => (p.grade !== 'L' ? null : p.ifAccepted !== 'L' ? 'strips not accepted' : p.out.changed > 0 ? 'outside the mask' : 'inside, above the floor');
+
+const cellAt = (l, key, i, kind) => l.cells.find((c) => c.key === key && c.i === i && c.kind === kind);
+const skipAt = (l, key, i, kind) => l.skipped.find((x) => (x.key === key || x.key === undefined) && x.i === i && (x.kind === kind || x.kind === 'all'))?.why ?? null;
+
+export function heroCopyTable(engine, lanes, key = HERO) {
+  const offsets = lanes[0]?.offsets ?? [];
+  const out = [`#### ${engine}: ${key} per job and offset`, '', `| offset | ask y | ${lanes.map((l) => `${l.label} A/A in/out | ${l.label} P in/out | ${l.label} P grade (source) [if strips accepted]`).join(' | ')} |`, `|---|---|${lanes.map(() => '---|---|---').join('|')}|`];
+  offsets.forEach((y, i) => {
+    const cols = lanes.flatMap((l) => {
+      const f = cellAt(l, key, i, 'A/A'), p = cellAt(l, key, i, 'P');
+      const sk = (kind) => skipAt(l, key, i, kind);
+      const aa = f ? `${raw(f.inside)}/${raw(f.out)}${f.grade === 'invalid' ? ` (invalid: ${f.invalidWhy})` : ''}` : `skipped: ${sk('A/A') ?? 'no cell'}`;
+      if (!p) return [aa, `skipped: ${sk('P') ?? 'no cell'}`, '-'];
+      const src = lSource(p);
+      return [aa, `${raw(p.inside)}/${raw(p.out)}`, `${p.grade}${p.grade === 'invalid' ? ` (${p.invalidWhy ?? 'not live'})` : src ? ` (${src})` : ''} [${p.ifAccepted}]`];
+    });
+    out.push(`| ${i} | ${y} | ${cols.join(' | ')} |`);
+  });
+  return out.join('\n');
+}
+
+export function heroCopySummary(engine, lanes, key = HERO) {
+  const ps = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'P'));
+  const fs = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'A/A'));
+  const g = (x) => count(ps, (c) => c.grade === x), src = (x) => count(ps, (c) => lSource(c) === x);
+  const skips = lanes.flatMap((l) => l.skipped.filter((x) => x.key === key));
+  const reasons = [...new Set(skips.map((x) => x.why))].map((w) => `${w} x${count(skips, (x) => x.why === w)}`);
+  return [`#### ${engine}: ${key} summary over ${lanes.length} jobs`, '',
+    '| P cells | E | E1 | Q | L | invalid | L: strips not accepted | L: inside, above the floor | L: outside the mask | A/A cells | A/A with a change inside | A/A with a change outside | skipped (reason) |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('inside, above the floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
+}
+
+export function heroCopyShared(lanes, key = HERO) {
+  const out = [`Reason: ${FOREIGN_REASON}`, '', '| job | offset | kind | changed pixels left to other layers (chg-max) | other layers graded in this row | changes outside every mask: box (device px) |', '|---|---|---|---|---|---|'];
+  for (const l of lanes) for (const c of l.cells) {
+    if (c.key !== key || !c.shared || (c.shared.changed === 0 && !(c.where && c.where.outBbox))) continue;
+    out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.shared)} | ${c.sharedWith} | ${c.where?.outBbox ? `${raw(c.out)} at ${c.where.outBbox.join(',')}` : '-'} |`);
+  }
+  return out.join('\n');
+}
+
+const partList = (parts) => {
+  const n = new Map();
+  for (const p of parts) n.set(p, (n.get(p) ?? 0) + 1);
+  return [...n].map(([p, k]) => (k > 1 ? `${p} x${k}` : p)).join(', ') || 'none named';
+};
+
+export function heroCopyWhere(lanes, key = HERO) {
+  const out = ['| job | offset | kind | inside chg-max | box (device px) | parts the box touches |', '|---|---|---|---|---|---|'];
+  for (const l of lanes) for (const c of l.cells) if (c.key === key && c.inside.changed > 0 && c.where) out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.inside)} | ${c.where.bbox ? c.where.bbox.join(',') : '-'} | ${partList(c.where.parts)} |`);
+  return out.join('\n');
+}
+
+export function pinTable(lanes) {
+  const out = ['| job | run | Date.now in every row | cells | accent-unpinned | misplaced | occluded skips |', '|---|---|---|---|---|---|---|'];
+  for (const l of lanes) {
+    const cs = l.cells;
+    out.push(`| ${l.label} | ${l.run} | ${l.clock ? (l.clock.constant ? `constant (${l.clock.values.join(',')})` : `moves (${l.clock.values.join(',')})`) : 'not recorded'} | ${cs.length} | ${count(cs, (c) => c.invalidWhy === 'accent-unpinned')} | ${count(cs, (c) => c.invalidWhy === 'misplaced')} | ${count(l.skipped, (x) => /^occluded/.test(x.why))} |`);
+  }
+  return out.join('\n');
+}
+
 export function lookList(lanes) {
   const out = ['| replicate | artifact | strip | consumer | offset | why |', '|---|---|---|---|---|---|'];
   for (const l of lanes) for (const c of l.cells) if (c.kind === 'P' && c.grade === 'L' && c.strip) out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.why} |`);
@@ -65,6 +132,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.arg
     return lane;
   });
   const engines = [...new Set(lanes.map((l) => l.engine))];
-  const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', '#### L cells with a strip', '', lookList(lanes)].join('\n');
+  const hero = engines.flatMap((e) => { const ls = lanes.filter((l) => l.engine === e); return [heroCopySummary(e, ls), '', heroCopyTable(e, ls), '', `#### ${e}: ${HERO} changes inside the mask`, '', heroCopyWhere(ls), '', `#### ${e}: ${HERO} pixels counted by another layer`, '', heroCopyShared(ls), '']; });
+  const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', ...hero, '#### Page clock, accent pin and row placement per job', '', pinTable(lanes), '', '#### L cells with a strip', '', lookList(lanes)].join('\n');
   console.log(md);
 }
