@@ -2844,7 +2844,7 @@ def ownCases : List (String × Nat × Nat × String × Option Nat × Option Nat 
       1792784208219, 6921, "done", some 1792784005000, some 1792784212000, some 120),
    ("c1fdb56: the same wait as recorded, without the interval: no own time, no verdict",
       1792784208219, 6921, "done", some 1792784005000, some 1792784212000, none),
-   ("c1fdb56: the first wait of the run, which finished during it: 11 s of detection, 10 s of it netted at a 10 s interval",
+   ("c1fdb56: the run's first wait, which saw it finish: 11 s of detection, 10 s netted at a 10 s interval",
       1792783668155, 405554, "done", some 1792784005000, some 1792784016000, some 10),
    ("a 207 s detection at a 10 s interval: the poller stalled, 197 s count as own time",
       0, 300000, "done", some 50000, some 257000, some 10),
@@ -2855,7 +2855,8 @@ def ownCases : List (String × Nat × Nat × String × Option Nat × Option Nat 
 def ownSpanJson (s d : Nat) (how : String) (u t p : Option Nat) : Json :=
   let opt (k : String) (x : Option Nat) : List (String × Json) := (x.map fun n => [(k, toJson n)]).getD []
   Json.mkObj [("tool", "fw"), ("step", "ci wait"), ("startMs", toJson s), ("durMs", toJson d), ("host", "local"),
-    ("exit", toJson (0 : Nat)), ("phases", Json.mkObj ([("how", .str how)] ++ opt "updMs" u ++ opt "tickMs" t ++ opt "pollS" p))]
+    ("exit", toJson (0 : Nat)),
+    ("phases", Json.mkObj ([("how", .str how)] ++ opt "updMs" u ++ opt "tickMs" t ++ opt "pollS" p))]
 
 def ownGoldenText (_ : Unit := ()) : String :=
   String.join (ownCases.map fun (n, s, d, how, u, t, p) =>

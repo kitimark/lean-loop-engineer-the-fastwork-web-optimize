@@ -1,7 +1,7 @@
 // CI spans (timing-spans): fetch a finished run's jobs ONCE through the gh-budget charged call and write one span per job
 // and per step. Deduped by run id (timing.ts seenRuns), so a second call for the same run costs no gh request.
 import { readFileSync } from "node:fs";
-import { ghCharged, realEnv, type WaitPhases } from "@fw/gh-budget";
+import { ghCharged, paths, readJson, realEnv, type WaitPhases } from "@fw/gh-budget";
 import { ghCost } from "./run.ts";
 import { CI_VIEW_FIELDS, fmtMs, parseTimings, quantile, recordCiRun, seenRuns, timingsFile, type GhRun, type Span } from "./timing.ts";
 
@@ -52,14 +52,29 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
 // The split is Lean `Fw.Ci.Lag.parts`; lagParts replays golden ci-budget/lag.jsonl (apps/runner/test/timing-lag.test.ts).
 // TS stand-ins: lagView, waitSpanExtra (formatting). Whether a lag is "too long" stays Lean's (timing-lean).
 
-/** The `runIds` and `phases` fields of the `fw ci wait` span: the wait's phases plus the span writer's ingest window. */
-export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number): Pick<Span, "runIds" | "phases"> {
+/** The poller's tick interval in s (Lean `Fw.Ci.Budget.interval` via fwcore `ci.budget.status`); undefined when unread. */
+export function pollIntervalS(cwd: string): number | undefined {
+  try {
+    const env = realEnv(cwd);
+    const v = env.core({ op: "ci.budget.status", now: env.now(), state: readJson(paths(env.dir).state) }).interval;
+    return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The `runIds` and `phases` fields of the `fw ci wait` span: the wait's phases, the span writer's ingest window and,
+ *  on a `done` wait, the poll interval `pollS` that Lean `Fw.Obs.Timing.ownOfPhases` nets off. */
+export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number,
+  pollS: () => number | undefined = () => pollIntervalS(process.cwd())): Pick<Span, "runIds" | "phases"> {
   if (!p) return {};
   const { runIds, ...rest } = p;
   const phases: Record<string, number | string | boolean> = {};
   for (const [k, v] of Object.entries(rest)) if (v !== undefined) phases[k] = v as number | string | boolean;
   phases.ingestStartMs = ingestStartMs;
   phases.ingestEndMs = ingestEndMs;
+  const poll = p.how === "done" ? pollS() : undefined;
+  if (poll !== undefined) phases.pollS = poll;
   return { runIds, phases };
 }
 

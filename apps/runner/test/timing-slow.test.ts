@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { slowAlerts } from "../src/next.ts";
-import { NO_CHECKS, realRun, stagedChecks, stagedSpan } from "../src/polish.ts";
+import { NO_CHECKS, polishCli, realRun, stagedChecks, stagedSpan } from "../src/polish.ts";
 import { begin, noteSpan, spanWork } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
@@ -104,6 +104,35 @@ describe("stagedChecks: the checks of the staged files, asked of ops.checkMap", 
 describe("a polish commit that keeps nothing", () => {
   it("is keyed checks=light, so Lean judges it against the light commits, not as an unkeyed span", () => {
     expect(spanWork({ checks: NO_CHECKS })).toEqual({ work: { checks: "light" } });
+  });
+  it("polishCli writes checks {n:0,kinds:[]} on its `fw`/`polish commit` line", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-polish-nothing-")); dirs.push(dir);
+    const file = join(dir, "timings.jsonl");
+    const git = (_cwd: string, raw: string[]) => {
+      const args = raw[0] === "-c" ? raw.slice(2) : raw;
+      if (args[0] === "rev-parse") return args.includes("--absolute-git-dir") ? "/wt/.git\n" : "/wt\n";
+      return "";
+    };
+    const answers: Record<string, Record<string, unknown>> = {
+      "plan.polishPlan": { classes: [], keep: [], restore: [] },
+      "plan.polishHunks": { ranges: [], blocked: [], edits: [] },
+      "plan.polishSettle": { restore: [], remove: [] },
+    };
+    const seeded: Record<string, string> = { "/wt/.git/fw-polish-untracked": "", "/wt/.git/fw-polish-dirty": "" };
+    const log: string[] = [];
+    const deps = { core: async (q: Record<string, unknown>) => answers[String(q.op)] ?? { error: String(q.op) }, log: (l: string) => log.push(l), git,
+      read: (p: string) => seeded[p] ?? null, write: () => {}, remove: () => {}, gen: async () => [], worktree: () => "/wt" };
+    const prev = process.env.FW_TIMINGS_FILE;
+    process.env.FW_TIMINGS_FILE = file;
+    try {
+      const end = begin("fw", "polish commit", dir);
+      end(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", deps));
+    } finally {
+      if (prev === undefined) delete process.env.FW_TIMINGS_FILE; else process.env.FW_TIMINGS_FILE = prev;
+    }
+    expect(log.at(-1)).toBe("VERDICT polish-commit t nothing");
+    const [line] = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect([line!.step, line!.exit, line!.checks]).toEqual(["polish commit", 0, { n: 0, kinds: [] }]);
   });
 });
 

@@ -1,4 +1,5 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +21,9 @@ const wait = (startMs: number, durMs: number, phases: Record<string, unknown> | 
 describe("rawOf: the raw facts forwarded to Lean, which decides the own time (Fw.Obs.Timing.ownOfPhases)", () => {
   it("forwards startMs, a hex commit and well-formed phases", () => {
     expect(rawOf({ ...wait(1000, 5, { how: "done", updMs: 7 }), commit: "3d0d68a" })).toEqual({ startMs: 1000, commit: "3d0d68a", phases: { how: "done", updMs: 7 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: 9, pollS: 10, readMs: 11 })))
+      .toEqual({ startMs: 1000, phases: { how: "done", updMs: 7, tickMs: 9, pollS: 10 } });
+    expect(rawOf(wait(1000, 5, { how: "done", updMs: 7, tickMs: -1, pollS: "10" }))).toEqual({ startMs: 1000, phases: { how: "done", updMs: 7 } });
   });
   it("drops malformed numbers and phases, so one bad line cannot make fwcore refuse the request", () => {
     expect(rawOf(wait(1.5, 5, { how: "done", updMs: -1 }))).toEqual({});
@@ -56,6 +60,22 @@ const landSpans = (n: number) => LAND.slice(0, n).map(([d, m, l], i) => ({
   tool: "fw", step: "land dry lake", startMs: 1000 * (i + 1), durMs: d, host: "local", load: l, exit: 0, ...(m === null ? {} : { lake: { built: m } }),
 }));
 
+// Golden timing-own.jsonl is Lean `Fw.Obs.Timing.ownCases`: the own time of a `fw ci wait` span net of the poll interval.
+describe.skipIf(!haveCore)("the own time of a wait replays the Lean golden through fwcore obs.timing", () => {
+  const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing-own.jsonl"), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; ownMs: number | null });
+  const params = { budgetMs: 1, budgets: [], ceilings: [], kDen: 1, kNum: 1, loadMax: 1000, nMin: 1, stages: [] };
+  const input = golden.map((g, id) => JSON.stringify({ id, op: "obs.timing", params, samples: parseSamples(JSON.stringify(g.span)) })).join("\n") + "\n";
+  const out = spawnSync(fwcore, [], { input, encoding: "utf8", timeout: 120_000, maxBuffer: 64 << 20 }).stdout ?? "";
+  const byId = new Map(out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { id: number; verdicts?: { kind: string; durMs: number }[] })
+    .map((r) => [r.id, r] as const));
+  it("has the Lean cases", () => expect(golden.length).toBe(8));
+  golden.forEach((g, id) => it(g.name, () => {
+    const v = byId.get(id)?.verdicts?.filter((x) => x.kind === "sample") ?? [];
+    expect(v[0]?.durMs ?? null).toBe(g.ownMs);
+  }));
+});
+
 describe.skipIf(!haveCore)("obs.slow with detail against fwcore", () => {
   const run = async (spans: object[]) => {
     const dir = mkdtempSync(join(tmpdir(), "fw-own-")); dirs.push(dir);
@@ -74,7 +94,7 @@ describe.skipIf(!haveCore)("obs.slow with detail against fwcore", () => {
   });
   it("a 23 min fw ci wait is judged by its 27.3 s of our time: no alert; without phases it is not judged", async () => {
     const ws = [[316141, 20570], [440814, 16696], [179419, 26169], [335984, 25290], [387370, 27352], [293198, 12245], [1377258, 27294]]
-      .map(([d, o], i) => wait(1_000_000 * (i + 1), d!, { how: "done", updMs: 1_000_000 * (i + 1) + d! - o! }));
+      .map(([d, o], i) => { const u = 1_000_000 * (i + 1) + d! - o!; return wait(1_000_000 * (i + 1), d!, { how: "done", updMs: u, tickMs: u, pollS: 10 }); });
     expect((await run(ws)).slow).toEqual([]);
     expect((await run([...ws.slice(0, 6), wait(9_000_000, 1377258, undefined)])).slow).toEqual([]);
     expect((await run([...ws.slice(0, 6), wait(9_000_000, 1377258, { how: "timeout", updMs: 9_000_000 })])).slow).toEqual([]);
