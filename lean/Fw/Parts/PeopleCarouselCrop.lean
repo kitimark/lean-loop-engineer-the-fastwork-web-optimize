@@ -135,6 +135,14 @@ theorem wk_crop_all_comp (m : WkMode) :
     wkThread m (wkAnim cropExit) = .comp ∧ wkThread m (wkAnim cropShift) = .comp ∧ wkThread m (wkAnim popProps) = .comp :=
   ⟨crop_comp m _ (Or.inl rfl), crop_comp m _ (Or.inr (Or.inl rfl)), crop_comp m _ (Or.inr (Or.inr rfl))⟩
 
+theorem wk_crop_pieces (m : WkMode) :
+    ∀ g ∈ [cropExit, cropShift, cropShift, cropShift, popProps, cropShift],
+      animFrame m (wkAnim g) (g.map fun q => ⟨0, q.wkChange, .own⟩) = compFrame 1 := by
+  intro g hg
+  simp only [List.mem_cons, List.mem_nil_iff, or_false] at hg
+  have hc := wk_crop_all_comp m
+  rcases hg with rfl | rfl | rfl | rfl | rfl | rfl <;> simp [animFrame, hc.1, hc.2.1, hc.2.2]
+
 theorem wk_crop_zero (m : WkMode) (s : Stage) (hs : s ≠ .comp) :
     (frameWork (webkitAt m) wkCrop).passes s = 0 ∧ (frameWork (webkitAt m) wkCrop).units s = 0 :=
   compFrame_zero m 6 s hs

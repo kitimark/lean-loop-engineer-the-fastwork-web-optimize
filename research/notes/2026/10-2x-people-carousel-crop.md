@@ -1,6 +1,6 @@
 # people.carousel:crop (GPU route, look class L)
 
-Status: Lean proved, variant built, CI runs pending (see Runs). Ledger row `people.carousel.crop`; part.json variant `crop`
+Status: Lean proved, variant built, CI runs done (see Runs; WebKit cost shows no separated difference, not a no-win proof). Ledger row `people.carousel.crop`; part.json variant `crop`
 (kind proposal, visClass L); Lean `lean/Fw/Parts/PeopleCarouselCrop.lean`; golden `packages/contracts/golden/parts/people-carousel-crop.jsonl`.
 
 ## What changes per frame (CONFIRMED by the Lean statements, premises named)
