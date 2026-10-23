@@ -121,7 +121,7 @@ export async function runWebkitExitLane({ siteDir, out, run, flag, offsetIdx = n
           const accentAfter = JSON.parse(await ctx.c.evaluate(ACCENT_SIG_EXPR));
           rows[k] = {
             accent: { shotStart: accentBefore, shotEnd: accentAfter },
-            i: k, y: offs[k], scrollY: here.scrollY, dateNow: here.dateNow, boxes: here.boxes, alpha: here.alpha, cover: here.cover, parts: here.parts, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
+            i: k, y: offs[k], scrollY: here.scrollY, dateNow: here.dateNow, boxes: here.boxes, alpha: here.alpha, cover: here.cover, parts: here.parts, probes: here.probes ?? {}, live, files, tries, video: typeof video === 'string' ? JSON.parse(video) : video, dprMilli: census.dprMilli,
             layers: census.layers.filter((l) => l.layer).map((l) => ({ layer: l.layer, boundsU: l.boundsU, compositedBounds: l.compositedBounds, memory: l.memory, reasons: l.reasons })),
             layerCount: census.layerCount,
           };
