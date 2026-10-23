@@ -42,6 +42,15 @@ test('builder preamble: dry exactly as printed without --allow; out-of-list file
   assert.match(prompt, /list every file outside the task's writes in `open`/)
 })
 
+test('builder preamble: plan lint on the build tree before the dry land; writesClosure errors in open', async () => {
+  let prompt = ''
+  await run(async (p) => { prompt = p; return null }, { task })
+  const lint = prompt.indexOf('run `pnpm -s fw plan lint docs/team/work-graph.json` in your worktree')
+  assert.ok(lint > 0)
+  assert.ok(lint < prompt.indexOf('Hand back only after merging main and running'))
+  assert.match(prompt, /list every writesClosure error line it prints in `open`/)
+})
+
 const report = { branch: 'b1', commit: 'c1', summary: 's', files: ['f'], dry: 'VERDICT dry demo-task (with --allow x)', items: [], runs: [] }
 const resumeTask = { ...task, worktree: '/w/x', report: '/w/x/report.json' }
 
