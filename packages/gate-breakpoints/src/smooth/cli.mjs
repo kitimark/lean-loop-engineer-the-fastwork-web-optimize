@@ -48,6 +48,11 @@ if (cmd === 'continuity') {
 } else if (cmd === 'cadence') {
   const { cadenceMain } = await import('./cadence-table.mjs');
   await cadenceMain(flag('--runs'), flag('--out'));
+} else if (cmd === 'throttle') {
+  const { throttleMain } = await import('./throttle-table.mjs');
+  const md = throttleMain(flag('--a'), flag('--b'));
+  if (flag('--out')) writeFileSync(flag('--out'), `${md}\n`);
+  else console.log(md);
 } else {
   console.error('usage: cli.mjs continuity|run|cadence --runs <dir> --out <dir>');
   process.exit(2);

@@ -1,0 +1,4907 @@
+{
+ "skipped": [],
+ "cells": [
+  {
+   "run": "39927164863:leg",
+   "width": 1280,
+   "window": "hero",
+   "cpuThrottle": 1,
+   "search": "?fw=morph.tween:scroll-lock,nav:earn-no-transition",
+   "hash": "205fc308455f455f",
+   "baseHash": "ede2c7641aacf2d2",
+   "version": "156.0.8078.4",
+   "spread": 65,
+   "arms": {
+    "orig": {
+     "reps": 7,
+     "frames": 1085,
+     "rate": 396,
+     "range": 132,
+     "p50": 167,
+     "p95": 334,
+     "p99": 500,
+     "max": 501
+    },
+    "base": {
+     "reps": 7,
+     "frames": 1085,
+     "rate": 460,
+     "range": 65,
+     "p50": 167,
+     "p95": 334,
+     "p99": 500,
+     "max": 501
+    },
+    "aa": {
+     "reps": 7,
+     "frames": 1085,
+     "rate": 488,
+     "range": 65,
+     "p50": 167,
+     "p95": 334,
+     "p99": 501,
+     "max": 834
+    },
+    "cand": {
+     "reps": 7,
+     "frames": 1086,
+     "rate": 497,
+     "range": 125,
+     "p50": 167,
+     "p95": 335,
+     "p99": 501,
+     "max": 834
+    }
+   },
+   "verdicts": {
+    "orig|base": "same",
+    "base|cand": "same",
+    "orig|cand": "first"
+   },
+   "hitchReps": {
+    "orig": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "base": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "aa": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0
+    ],
+    "cand": [
+     1,
+     1,
+     0,
+     1,
+     1,
+     0,
+     0
+    ]
+   },
+   "hitchVerdicts": {
+    "orig|base": "same",
+    "base|cand": "same",
+    "orig|cand": "same"
+   },
+   "traces": [
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "hero",
+     "rep": 0,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4326,
+       "layerTree": 2
+      },
+      "BeginFrame": 198,
+      "DrawFrame": 158,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 155,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 116,
+        "sum": 6506,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 429,
+        "nLong": 0,
+        "max": 24,
+        "sum": 607,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 376,
+        "nLong": 0,
+        "max": 42,
+        "sum": 1970,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 6,
+        "sum": 198,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 37,
+        "nLong": 0,
+        "max": 108,
+        "sum": 613,
+        "long": []
+       }
+      ],
+      "reporters": 349,
+      "states": {
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 280,
+       "STATE_NO_UPDATE_DESIRED": 1
+      },
+      "frames": 197,
+      "presented": 152,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 231,
+      "reporterP95": 769,
+      "presentedP50": 276,
+      "presentedP95": 813,
+      "presentedMax": 1446
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "hero",
+     "rep": 0,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4362,
+       "layerTree": 2
+      },
+      "BeginFrame": 195,
+      "DrawFrame": 157,
+      "DroppedFrame": 47,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 152,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 117,
+        "sum": 6175,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 432,
+        "nLong": 0,
+        "max": 24,
+        "sum": 575,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 377,
+        "nLong": 0,
+        "max": 49,
+        "sum": 2538,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 101,
+        "nLong": 0,
+        "max": 3,
+        "sum": 195,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 48,
+        "nLong": 0,
+        "max": 116,
+        "sum": 695,
+        "long": []
+       }
+      ],
+      "reporters": 347,
+      "states": {
+       "STATE_DROPPED": 43,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 277,
+       "STATE_NO_UPDATE_DESIRED": 4
+      },
+      "frames": 195,
+      "presented": 152,
+      "dropped": 43,
+      "droppedAll": 41,
+      "noUpdate": 0,
+      "reporterP50": 262,
+      "reporterP95": 734,
+      "presentedP50": 279,
+      "presentedP95": 768,
+      "presentedMax": 1044
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "hero",
+     "rep": 0,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4395,
+       "layerTree": 2
+      },
+      "BeginFrame": 197,
+      "DrawFrame": 157,
+      "DroppedFrame": 47,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 153,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 124,
+        "sum": 6682,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 430,
+        "nLong": 0,
+        "max": 26,
+        "sum": 638,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 40,
+        "sum": 2090,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 99,
+        "nLong": 0,
+        "max": 7,
+        "sum": 202,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 37,
+        "nLong": 0,
+        "max": 112,
+        "sum": 648,
+        "long": []
+       }
+      ],
+      "reporters": 348,
+      "states": {
+       "STATE_PRESENTED_ALL": 279,
+       "STATE_DROPPED": 44,
+       "STATE_PRESENTED_PARTIAL": 22,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 196,
+      "presented": 152,
+      "dropped": 44,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 230,
+      "reporterP95": 662,
+      "presentedP50": 275,
+      "presentedP95": 730,
+      "presentedMax": 1061
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "hero",
+     "rep": 0,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4429,
+       "layerTree": 2
+      },
+      "BeginFrame": 196,
+      "DrawFrame": 157,
+      "DroppedFrame": 47,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 153,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 123,
+        "sum": 6550,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 428,
+        "nLong": 0,
+        "max": 25,
+        "sum": 631,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 40,
+        "sum": 2055,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 97,
+        "nLong": 0,
+        "max": 9,
+        "sum": 211,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 35,
+        "nLong": 0,
+        "max": 108,
+        "sum": 599,
+        "long": []
+       }
+      ],
+      "reporters": 347,
+      "states": {
+       "STATE_DROPPED": 44,
+       "STATE_PRESENTED_PARTIAL": 22,
+       "STATE_PRESENTED_ALL": 278,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 195,
+      "presented": 151,
+      "dropped": 44,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 232,
+      "reporterP95": 647,
+      "presentedP50": 277,
+      "presentedP95": 676,
+      "presentedMax": 1033
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "hero",
+     "rep": 1,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4457,
+       "layerTree": 2
+      },
+      "BeginFrame": 198,
+      "DrawFrame": 158,
+      "DroppedFrame": 50,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 155,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 118,
+        "sum": 6385,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 435,
+        "nLong": 0,
+        "max": 24,
+        "sum": 584,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 376,
+        "nLong": 0,
+        "max": 56,
+        "sum": 2583,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 3,
+        "sum": 193,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 46,
+        "nLong": 0,
+        "max": 135,
+        "sum": 710,
+        "long": []
+       }
+      ],
+      "reporters": 350,
+      "states": {
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_PARTIAL": 24,
+       "STATE_PRESENTED_ALL": 280,
+       "STATE_NO_UPDATE_DESIRED": 1
+      },
+      "frames": 198,
+      "presented": 153,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 233,
+      "reporterP95": 768,
+      "presentedP50": 278,
+      "presentedP95": 790,
+      "presentedMax": 1051
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "hero",
+     "rep": 1,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4487,
+       "layerTree": 2
+      },
+      "BeginFrame": 199,
+      "DrawFrame": 159,
+      "DroppedFrame": 50,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 152,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 123,
+        "sum": 6534,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 431,
+        "nLong": 0,
+        "max": 25,
+        "sum": 618,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 374,
+        "nLong": 0,
+        "max": 41,
+        "sum": 2009,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 100,
+        "nLong": 0,
+        "max": 6,
+        "sum": 197,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 34,
+        "nLong": 0,
+        "max": 118,
+        "sum": 633,
+        "long": []
+       }
+      ],
+      "reporters": 351,
+      "states": {
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_ALL": 278,
+       "STATE_PRESENTED_PARTIAL": 24,
+       "STATE_NO_UPDATE_DESIRED": 4
+      },
+      "frames": 199,
+      "presented": 154,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 232,
+      "reporterP95": 930,
+      "presentedP50": 278,
+      "presentedP95": 943,
+      "presentedMax": 1479
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "hero",
+     "rep": 1,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4515,
+       "layerTree": 2
+      },
+      "BeginFrame": 195,
+      "DrawFrame": 157,
+      "DroppedFrame": 46,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 152,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 115,
+        "sum": 6433,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 429,
+        "nLong": 0,
+        "max": 25,
+        "sum": 618,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 374,
+        "nLong": 0,
+        "max": 41,
+        "sum": 2031,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 99,
+        "nLong": 0,
+        "max": 6,
+        "sum": 199,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 38,
+        "nLong": 0,
+        "max": 106,
+        "sum": 608,
+        "long": []
+       }
+      ],
+      "reporters": 347,
+      "states": {
+       "STATE_DROPPED": 43,
+       "STATE_PRESENTED_ALL": 278,
+       "STATE_PRESENTED_PARTIAL": 22,
+       "STATE_NO_UPDATE_DESIRED": 4
+      },
+      "frames": 195,
+      "presented": 152,
+      "dropped": 43,
+      "droppedAll": 41,
+      "noUpdate": 0,
+      "reporterP50": 230,
+      "reporterP95": 644,
+      "presentedP50": 276,
+      "presentedP95": 664,
+      "presentedMax": 1048
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "hero",
+     "rep": 1,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4542,
+       "layerTree": 2
+      },
+      "BeginFrame": 197,
+      "DrawFrame": 158,
+      "DroppedFrame": 46,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 153,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 114,
+        "sum": 6578,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 429,
+        "nLong": 0,
+        "max": 25,
+        "sum": 605,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 40,
+        "sum": 2067,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 7,
+        "sum": 202,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 31,
+        "nLong": 0,
+        "max": 113,
+        "sum": 619,
+        "long": []
+       }
+      ],
+      "reporters": 348,
+      "states": {
+       "STATE_DROPPED": 43,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 279,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 196,
+      "presented": 153,
+      "dropped": 43,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 229,
+      "reporterP95": 688,
+      "presentedP50": 276,
+      "presentedP95": 743,
+      "presentedMax": 1025
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "hero",
+     "rep": 2,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4573,
+       "layerTree": 2
+      },
+      "BeginFrame": 199,
+      "DrawFrame": 160,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 156,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 139,
+        "sum": 6953,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 434,
+        "nLong": 0,
+        "max": 27,
+        "sum": 651,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 46,
+        "sum": 2139,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 97,
+        "nLong": 0,
+        "max": 7,
+        "sum": 202,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 34,
+        "nLong": 0,
+        "max": 116,
+        "sum": 672,
+        "long": []
+       }
+      ],
+      "reporters": 350,
+      "states": {
+       "STATE_DROPPED": 44,
+       "STATE_PRESENTED_PARTIAL": 24,
+       "STATE_PRESENTED_ALL": 282
+      },
+      "frames": 198,
+      "presented": 154,
+      "dropped": 44,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 236,
+      "reporterP95": 912,
+      "presentedP50": 277,
+      "presentedP95": 955,
+      "presentedMax": 1539
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "hero",
+     "rep": 2,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4600,
+       "layerTree": 2
+      },
+      "BeginFrame": 197,
+      "DrawFrame": 158,
+      "DroppedFrame": 48,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 154,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 117,
+        "sum": 6624,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 433,
+        "nLong": 0,
+        "max": 25,
+        "sum": 619,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 41,
+        "sum": 2060,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 99,
+        "nLong": 0,
+        "max": 7,
+        "sum": 210,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 34,
+        "nLong": 0,
+        "max": 108,
+        "sum": 603,
+        "long": []
+       }
+      ],
+      "reporters": 348,
+      "states": {
+       "STATE_DROPPED": 44,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 279,
+       "STATE_NO_UPDATE_DESIRED": 2
+      },
+      "frames": 196,
+      "presented": 152,
+      "dropped": 44,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 231,
+      "reporterP95": 753,
+      "presentedP50": 276,
+      "presentedP95": 778,
+      "presentedMax": 1030
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "hero",
+     "rep": 2,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4627,
+       "layerTree": 2
+      },
+      "BeginFrame": 197,
+      "DrawFrame": 157,
+      "DroppedFrame": 48,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 154,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 123,
+        "sum": 6535,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 429,
+        "nLong": 0,
+        "max": 24,
+        "sum": 620,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 376,
+        "nLong": 0,
+        "max": 41,
+        "sum": 1977,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 97,
+        "nLong": 0,
+        "max": 6,
+        "sum": 195,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 37,
+        "nLong": 0,
+        "max": 109,
+        "sum": 617,
+        "long": []
+       }
+      ],
+      "reporters": 349,
+      "states": {
+       "STATE_PRESENTED_ALL": 280,
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_PARTIAL": 22,
+       "STATE_NO_UPDATE_DESIRED": 2
+      },
+      "frames": 197,
+      "presented": 152,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 282,
+      "reporterP95": 824,
+      "presentedP50": 307,
+      "presentedP95": 885,
+      "presentedMax": 1427
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "hero",
+     "rep": 2,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4654,
+       "layerTree": 2
+      },
+      "BeginFrame": 197,
+      "DrawFrame": 157,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 154,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 119,
+        "sum": 6331,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 431,
+        "nLong": 0,
+        "max": 24,
+        "sum": 581,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 376,
+        "nLong": 0,
+        "max": 50,
+        "sum": 2582,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 3,
+        "sum": 194,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 44,
+        "nLong": 0,
+        "max": 104,
+        "sum": 688,
+        "long": []
+       }
+      ],
+      "reporters": 349,
+      "states": {
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 279,
+       "STATE_NO_UPDATE_DESIRED": 2
+      },
+      "frames": 197,
+      "presented": 152,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 231,
+      "reporterP95": 720,
+      "presentedP50": 277,
+      "presentedP95": 737,
+      "presentedMax": 1056
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "hero",
+     "rep": 3,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4683,
+       "layerTree": 2
+      },
+      "BeginFrame": 198,
+      "DrawFrame": 160,
+      "DroppedFrame": 47,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 154,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 120,
+        "sum": 6657,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 429,
+        "nLong": 0,
+        "max": 25,
+        "sum": 619,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 40,
+        "sum": 2069,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 6,
+        "sum": 204,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 37,
+        "nLong": 0,
+        "max": 109,
+        "sum": 611,
+        "long": []
+       }
+      ],
+      "reporters": 348,
+      "states": {
+       "STATE_DROPPED": 42,
+       "STATE_PRESENTED_ALL": 280,
+       "STATE_PRESENTED_PARTIAL": 24,
+       "STATE_NO_UPDATE_DESIRED": 2
+      },
+      "frames": 197,
+      "presented": 155,
+      "dropped": 42,
+      "droppedAll": 41,
+      "noUpdate": 0,
+      "reporterP50": 325,
+      "reporterP95": 788,
+      "presentedP50": 388,
+      "presentedP95": 797,
+      "presentedMax": 1059
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "hero",
+     "rep": 3,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4711,
+       "layerTree": 2
+      },
+      "BeginFrame": 198,
+      "DrawFrame": 158,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 154,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 119,
+        "sum": 6740,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 428,
+        "nLong": 0,
+        "max": 25,
+        "sum": 642,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 40,
+        "sum": 2111,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 7,
+        "sum": 212,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 34,
+        "nLong": 0,
+        "max": 111,
+        "sum": 622,
+        "long": []
+       }
+      ],
+      "reporters": 350,
+      "states": {
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_ALL": 280,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_NO_UPDATE_DESIRED": 2
+      },
+      "frames": 198,
+      "presented": 153,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 233,
+      "reporterP95": 647,
+      "presentedP50": 278,
+      "presentedP95": 710,
+      "presentedMax": 1035
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "hero",
+     "rep": 3,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4738,
+       "layerTree": 2
+      },
+      "BeginFrame": 197,
+      "DrawFrame": 156,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 154,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 121,
+        "sum": 6162,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 432,
+        "nLong": 0,
+        "max": 25,
+        "sum": 569,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 53,
+        "sum": 2435,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 99,
+        "nLong": 0,
+        "max": 3,
+        "sum": 185,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 43,
+        "nLong": 0,
+        "max": 109,
+        "sum": 687,
+        "long": []
+       }
+      ],
+      "reporters": 349,
+      "states": {
+       "STATE_DROPPED": 46,
+       "STATE_PRESENTED_PARTIAL": 22,
+       "STATE_PRESENTED_ALL": 279,
+       "STATE_NO_UPDATE_DESIRED": 2
+      },
+      "frames": 197,
+      "presented": 151,
+      "dropped": 46,
+      "droppedAll": 44,
+      "noUpdate": 0,
+      "reporterP50": 280,
+      "reporterP95": 720,
+      "presentedP50": 307,
+      "presentedP95": 809,
+      "presentedMax": 1343
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "hero",
+     "rep": 3,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4768,
+       "layerTree": 2
+      },
+      "BeginFrame": 199,
+      "DrawFrame": 158,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 156,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 124,
+        "sum": 6764,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 433,
+        "nLong": 0,
+        "max": 25,
+        "sum": 634,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 41,
+        "sum": 2127,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 99,
+        "nLong": 0,
+        "max": 6,
+        "sum": 212,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 37,
+        "nLong": 0,
+        "max": 108,
+        "sum": 644,
+        "long": []
+       }
+      ],
+      "reporters": 350,
+      "states": {
+       "STATE_DROPPED": 46,
+       "STATE_PRESENTED_PARTIAL": 22,
+       "STATE_PRESENTED_ALL": 282
+      },
+      "frames": 198,
+      "presented": 152,
+      "dropped": 46,
+      "droppedAll": 44,
+      "noUpdate": 0,
+      "reporterP50": 233,
+      "reporterP95": 702,
+      "presentedP50": 279,
+      "presentedP95": 771,
+      "presentedMax": 1014
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "hero",
+     "rep": 4,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4795,
+       "layerTree": 2
+      },
+      "BeginFrame": 201,
+      "DrawFrame": 160,
+      "DroppedFrame": 50,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 156,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 123,
+        "sum": 6978,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 436,
+        "nLong": 0,
+        "max": 25,
+        "sum": 650,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 376,
+        "nLong": 0,
+        "max": 42,
+        "sum": 2150,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 7,
+        "sum": 220,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 37,
+        "nLong": 0,
+        "max": 108,
+        "sum": 609,
+        "long": []
+       }
+      ],
+      "reporters": 352,
+      "states": {
+       "STATE_PRESENTED_ALL": 283,
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_PARTIAL": 24
+      },
+      "frames": 200,
+      "presented": 155,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 232,
+      "reporterP95": 909,
+      "presentedP50": 277,
+      "presentedP95": 926,
+      "presentedMax": 1412
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "hero",
+     "rep": 4,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4822,
+       "layerTree": 2
+      },
+      "BeginFrame": 196,
+      "DrawFrame": 157,
+      "DroppedFrame": 48,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 153,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 126,
+        "sum": 6444,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 435,
+        "nLong": 0,
+        "max": 25,
+        "sum": 598,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 377,
+        "nLong": 0,
+        "max": 56,
+        "sum": 2615,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 98,
+        "nLong": 0,
+        "max": 3,
+        "sum": 194,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 44,
+        "nLong": 1,
+        "max": 167,
+        "sum": 758,
+        "long": [
+         167
+        ]
+       }
+      ],
+      "reporters": 348,
+      "states": {
+       "STATE_DROPPED": 44,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 278,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 196,
+      "presented": 152,
+      "dropped": 44,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 235,
+      "reporterP95": 786,
+      "presentedP50": 279,
+      "presentedP95": 791,
+      "presentedMax": 1054
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "hero",
+     "rep": 4,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4851,
+       "layerTree": 2
+      },
+      "BeginFrame": 198,
+      "DrawFrame": 159,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 155,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 126,
+        "sum": 6546,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 435,
+        "nLong": 0,
+        "max": 25,
+        "sum": 610,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 374,
+        "nLong": 0,
+        "max": 42,
+        "sum": 1981,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 97,
+        "nLong": 0,
+        "max": 3,
+        "sum": 189,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 31,
+        "nLong": 0,
+        "max": 108,
+        "sum": 638,
+        "long": []
+       }
+      ],
+      "reporters": 348,
+      "states": {
+       "STATE_PRESENTED_ALL": 280,
+       "STATE_DROPPED": 44,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_NO_UPDATE_DESIRED": 1
+      },
+      "frames": 197,
+      "presented": 153,
+      "dropped": 44,
+      "droppedAll": 42,
+      "noUpdate": 0,
+      "reporterP50": 382,
+      "reporterP95": 775,
+      "presentedP50": 389,
+      "presentedP95": 815,
+      "presentedMax": 1349
+     },
+     "frames": 155
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "hero",
+     "rep": 4,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4886,
+       "layerTree": 2
+      },
+      "BeginFrame": 199,
+      "DrawFrame": 159,
+      "DroppedFrame": 49,
+      "BeginMainThreadFrame": 156,
+      "ActivateLayerTree": 156,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 156,
+        "nLong": 0,
+        "max": 120,
+        "sum": 6804,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 431,
+        "nLong": 0,
+        "max": 25,
+        "sum": 634,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 375,
+        "nLong": 0,
+        "max": 45,
+        "sum": 2121,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 97,
+        "nLong": 0,
+        "max": 3,
+        "sum": 199,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 34,
+        "nLong": 0,
+        "max": 111,
+        "sum": 613,
+        "long": []
+       }
+      ],
+      "reporters": 350,
+      "states": {
+       "STATE_DROPPED": 45,
+       "STATE_PRESENTED_PARTIAL": 23,
+       "STATE_PRESENTED_ALL": 282
+      },
+      "frames": 198,
+      "presented": 153,
+      "dropped": 45,
+      "droppedAll": 43,
+      "noUpdate": 0,
+      "reporterP50": 231,
+      "reporterP95": 744,
+      "presentedP50": 278,
+      "presentedP95": 788,
+      "presentedMax": 1246
+     },
+     "frames": 155
+    }
+   ],
+   "hitches": {
+    "orig": [],
+    "base": [],
+    "aa": [
+     {
+      "rep": 5,
+      "i": 38,
+      "ms": 83.4,
+      "y": 798,
+      "loaf": true
+     }
+    ],
+    "cand": [
+     {
+      "rep": 0,
+      "i": 47,
+      "ms": 66.6,
+      "y": 1008,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 46,
+      "ms": 83.3,
+      "y": 966,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 49,
+      "ms": 83.4,
+      "y": 1050,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 47,
+      "ms": 66.6,
+      "y": 1008,
+      "loaf": true
+     }
+    ]
+   }
+  },
+  {
+   "run": "39927164863:leg",
+   "width": 1280,
+   "window": "end",
+   "cpuThrottle": 1,
+   "search": "?fw=morph.tween:scroll-lock,nav:earn-no-transition",
+   "hash": "205fc308455f455f",
+   "baseHash": "ede2c7641aacf2d2",
+   "version": "156.0.8078.4",
+   "spread": 585,
+   "arms": {
+    "orig": {
+     "reps": 7,
+     "frames": 494,
+     "rate": 1761,
+     "range": 711,
+     "p50": 333,
+     "p95": 501,
+     "p99": 667,
+     "max": 1167
+    },
+    "base": {
+     "reps": 7,
+     "frames": 501,
+     "rate": 1776,
+     "range": 585,
+     "p50": 333,
+     "p95": 666,
+     "p99": 833,
+     "max": 1000
+    },
+    "aa": {
+     "reps": 7,
+     "frames": 504,
+     "rate": 1944,
+     "range": 573,
+     "p50": 333,
+     "p95": 501,
+     "p99": 667,
+     "max": 1167
+    },
+    "cand": {
+     "reps": 7,
+     "frames": 511,
+     "rate": 1624,
+     "range": 485,
+     "p50": 333,
+     "p95": 501,
+     "p99": 667,
+     "max": 1166
+    }
+   },
+   "verdicts": {
+    "orig|base": "same",
+    "base|cand": "same",
+    "orig|cand": "same"
+   },
+   "hitchReps": {
+    "orig": [
+     3,
+     4,
+     4,
+     3,
+     1,
+     1,
+     7
+    ],
+    "base": [
+     5,
+     4,
+     4,
+     4,
+     4,
+     3,
+     3
+    ],
+    "aa": [
+     3,
+     4,
+     3,
+     2,
+     3,
+     3,
+     2
+    ],
+    "cand": [
+     3,
+     3,
+     2,
+     3,
+     3,
+     3,
+     3
+    ]
+   },
+   "hitchVerdicts": {
+    "orig|base": "same",
+    "base|cand": "same",
+    "orig|cand": "same"
+   },
+   "traces": [
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "end",
+     "rep": 0,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4347,
+       "layerTree": 2
+      },
+      "BeginFrame": 131,
+      "DrawFrame": 74,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 73,
+      "ActivateLayerTree": 72,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 73,
+        "nLong": 3,
+        "max": 459,
+        "sum": 4997,
+        "long": [
+         152,
+         459,
+         151
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 855,
+        "nLong": 0,
+        "max": 45,
+        "sum": 1322,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 113,
+        "nLong": 0,
+        "max": 66,
+        "sum": 1342,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 56,
+        "nLong": 0,
+        "max": 9,
+        "sum": 158,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 520,
+        "nLong": 0,
+        "max": 129,
+        "sum": 3426,
+        "long": []
+       }
+      ],
+      "reporters": 202,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 73,
+       "STATE_PRESENTED_ALL": 72,
+       "STATE_DROPPED": 57
+      },
+      "frames": 130,
+      "presented": 73,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 364,
+      "reporterP95": 1331,
+      "presentedP50": 535,
+      "presentedP95": 1544,
+      "presentedMax": 2544
+     },
+     "frames": 72
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "end",
+     "rep": 0,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4377,
+       "layerTree": 2
+      },
+      "BeginFrame": 129,
+      "DrawFrame": 73,
+      "DroppedFrame": 58,
+      "BeginMainThreadFrame": 72,
+      "ActivateLayerTree": 60,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 71,
+        "nLong": 2,
+        "max": 191,
+        "sum": 4331,
+        "long": [
+         191,
+         157
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 881,
+        "nLong": 0,
+        "max": 32,
+        "sum": 1149,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 110,
+        "nLong": 0,
+        "max": 66,
+        "sum": 1642,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 80,
+        "nLong": 0,
+        "max": 4,
+        "sum": 184,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 500,
+        "nLong": 0,
+        "max": 133,
+        "sum": 3609,
+        "long": []
+       }
+      ],
+      "reporters": 192,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 60,
+       "STATE_PRESENTED_ALL": 71,
+       "STATE_DROPPED": 56,
+       "STATE_NO_UPDATE_DESIRED": 5
+      },
+      "frames": 128,
+      "presented": 72,
+      "dropped": 56,
+      "droppedAll": 56,
+      "noUpdate": 0,
+      "reporterP50": 414,
+      "reporterP95": 1600,
+      "presentedP50": 582,
+      "presentedP95": 1738,
+      "presentedMax": 2346
+     },
+     "frames": 70
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "end",
+     "rep": 0,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4408,
+       "layerTree": 2
+      },
+      "BeginFrame": 130,
+      "DrawFrame": 74,
+      "DroppedFrame": 57,
+      "BeginMainThreadFrame": 74,
+      "ActivateLayerTree": 73,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 74,
+        "nLong": 1,
+        "max": 235,
+        "sum": 4872,
+        "long": [
+         235
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 910,
+        "nLong": 0,
+        "max": 33,
+        "sum": 1324,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 114,
+        "nLong": 0,
+        "max": 52,
+        "sum": 1267,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 81,
+        "nLong": 0,
+        "max": 8,
+        "sum": 195,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 519,
+        "nLong": 0,
+        "max": 92,
+        "sum": 3278,
+        "long": []
+       }
+      ],
+      "reporters": 202,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 73,
+       "STATE_PRESENTED_ALL": 73,
+       "STATE_DROPPED": 56
+      },
+      "frames": 129,
+      "presented": 73,
+      "dropped": 56,
+      "droppedAll": 56,
+      "noUpdate": 0,
+      "reporterP50": 362,
+      "reporterP95": 1074,
+      "presentedP50": 507,
+      "presentedP95": 1174,
+      "presentedMax": 2250
+     },
+     "frames": 72
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "end",
+     "rep": 0,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4441,
+       "layerTree": 2
+      },
+      "BeginFrame": 133,
+      "DrawFrame": 77,
+      "DroppedFrame": 58,
+      "BeginMainThreadFrame": 73,
+      "ActivateLayerTree": 75,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 73,
+        "nLong": 8,
+        "max": 527,
+        "sum": 5775,
+        "long": [
+         197,
+         207,
+         192,
+         160,
+         163,
+         181,
+         170,
+         527
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 878,
+        "nLong": 0,
+        "max": 34,
+        "sum": 1228,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 112,
+        "nLong": 0,
+        "max": 66,
+        "sum": 1427,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 79,
+        "nLong": 0,
+        "max": 10,
+        "sum": 194,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 520,
+        "nLong": 0,
+        "max": 98,
+        "sum": 3424,
+        "long": []
+       }
+      ],
+      "reporters": 210,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 79,
+       "STATE_PRESENTED_ALL": 75,
+       "STATE_DROPPED": 56
+      },
+      "frames": 135,
+      "presented": 79,
+      "dropped": 56,
+      "droppedAll": 56,
+      "noUpdate": 0,
+      "reporterP50": 456,
+      "reporterP95": 1666,
+      "presentedP50": 667,
+      "presentedP95": 1956,
+      "presentedMax": 2460
+     },
+     "frames": 72
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "end",
+     "rep": 1,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4472,
+       "layerTree": 2
+      },
+      "BeginFrame": 131,
+      "DrawFrame": 74,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 74,
+      "ActivateLayerTree": 60,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 74,
+        "nLong": 0,
+        "max": 131,
+        "sum": 4303,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 893,
+        "nLong": 0,
+        "max": 33,
+        "sum": 1199,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 114,
+        "nLong": 0,
+        "max": 77,
+        "sum": 1719,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 82,
+        "nLong": 0,
+        "max": 4,
+        "sum": 183,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 493,
+        "nLong": 0,
+        "max": 149,
+        "sum": 3367,
+        "long": []
+       }
+      ],
+      "reporters": 198,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 60,
+       "STATE_PRESENTED_ALL": 74,
+       "STATE_DROPPED": 57,
+       "STATE_NO_UPDATE_DESIRED": 7
+      },
+      "frames": 131,
+      "presented": 74,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 333,
+      "reporterP95": 1348,
+      "presentedP50": 553,
+      "presentedP95": 1567,
+      "presentedMax": 1851
+     },
+     "frames": 73
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "end",
+     "rep": 1,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4501,
+       "layerTree": 2
+      },
+      "BeginFrame": 129,
+      "DrawFrame": 72,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 71,
+      "ActivateLayerTree": 70,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 71,
+        "nLong": 1,
+        "max": 203,
+        "sum": 4745,
+        "long": [
+         203
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 906,
+        "nLong": 0,
+        "max": 35,
+        "sum": 1267,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 111,
+        "nLong": 0,
+        "max": 52,
+        "sum": 1295,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 83,
+        "nLong": 0,
+        "max": 8,
+        "sum": 194,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 546,
+        "nLong": 0,
+        "max": 98,
+        "sum": 3274,
+        "long": []
+       }
+      ],
+      "reporters": 198,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 71,
+       "STATE_PRESENTED_ALL": 70,
+       "STATE_DROPPED": 57
+      },
+      "frames": 128,
+      "presented": 71,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 395,
+      "reporterP95": 1363,
+      "presentedP50": 574,
+      "presentedP95": 1414,
+      "presentedMax": 1882
+     },
+     "frames": 70
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "end",
+     "rep": 1,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4528,
+       "layerTree": 2
+      },
+      "BeginFrame": 129,
+      "DrawFrame": 73,
+      "DroppedFrame": 57,
+      "BeginMainThreadFrame": 72,
+      "ActivateLayerTree": 72,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 72,
+        "nLong": 2,
+        "max": 195,
+        "sum": 4731,
+        "long": [
+         155,
+         195
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 891,
+        "nLong": 0,
+        "max": 34,
+        "sum": 1301,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 112,
+        "nLong": 0,
+        "max": 55,
+        "sum": 1260,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 79,
+        "nLong": 0,
+        "max": 9,
+        "sum": 192,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 535,
+        "nLong": 0,
+        "max": 97,
+        "sum": 3644,
+        "long": []
+       }
+      ],
+      "reporters": 201,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 73,
+       "STATE_PRESENTED_ALL": 72,
+       "STATE_DROPPED": 56
+      },
+      "frames": 129,
+      "presented": 73,
+      "dropped": 56,
+      "droppedAll": 56,
+      "noUpdate": 0,
+      "reporterP50": 391,
+      "reporterP95": 1044,
+      "presentedP50": 511,
+      "presentedP95": 1401,
+      "presentedMax": 1783
+     },
+     "frames": 71
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "end",
+     "rep": 1,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4557,
+       "layerTree": 2
+      },
+      "BeginFrame": 132,
+      "DrawFrame": 77,
+      "DroppedFrame": 55,
+      "BeginMainThreadFrame": 76,
+      "ActivateLayerTree": 77,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 76,
+        "nLong": 0,
+        "max": 150,
+        "sum": 4777,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 892,
+        "nLong": 0,
+        "max": 33,
+        "sum": 1368,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 116,
+        "nLong": 0,
+        "max": 58,
+        "sum": 1406,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 58,
+        "nLong": 0,
+        "max": 9,
+        "sum": 184,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 531,
+        "nLong": 0,
+        "max": 115,
+        "sum": 3656,
+        "long": []
+       }
+      ],
+      "reporters": 208,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 77,
+       "STATE_PRESENTED_ALL": 76,
+       "STATE_DROPPED": 55
+      },
+      "frames": 132,
+      "presented": 77,
+      "dropped": 55,
+      "droppedAll": 55,
+      "noUpdate": 0,
+      "reporterP50": 391,
+      "reporterP95": 1318,
+      "presentedP50": 519,
+      "presentedP95": 1510,
+      "presentedMax": 1883
+     },
+     "frames": 75
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "end",
+     "rep": 2,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4586,
+       "layerTree": 2
+      },
+      "BeginFrame": 133,
+      "DrawFrame": 75,
+      "DroppedFrame": 60,
+      "BeginMainThreadFrame": 73,
+      "ActivateLayerTree": 73,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 73,
+        "nLong": 2,
+        "max": 512,
+        "sum": 5257,
+        "long": [
+         159,
+         512
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 891,
+        "nLong": 0,
+        "max": 35,
+        "sum": 1271,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 111,
+        "nLong": 0,
+        "max": 55,
+        "sum": 1327,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 75,
+        "nLong": 0,
+        "max": 9,
+        "sum": 189,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 531,
+        "nLong": 0,
+        "max": 94,
+        "sum": 3452,
+        "long": []
+       }
+      ],
+      "reporters": 204,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 74,
+       "STATE_PRESENTED_ALL": 72,
+       "STATE_DROPPED": 58
+      },
+      "frames": 132,
+      "presented": 74,
+      "dropped": 58,
+      "droppedAll": 58,
+      "noUpdate": 0,
+      "reporterP50": 393,
+      "reporterP95": 1632,
+      "presentedP50": 662,
+      "presentedP95": 2158,
+      "presentedMax": 2929
+     },
+     "frames": 72
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "end",
+     "rep": 2,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4613,
+       "layerTree": 2
+      },
+      "BeginFrame": 129,
+      "DrawFrame": 71,
+      "DroppedFrame": 61,
+      "BeginMainThreadFrame": 70,
+      "ActivateLayerTree": 68,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 70,
+        "nLong": 3,
+        "max": 592,
+        "sum": 5408,
+        "long": [
+         157,
+         592,
+         165
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 884,
+        "nLong": 0,
+        "max": 36,
+        "sum": 1262,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 108,
+        "nLong": 0,
+        "max": 64,
+        "sum": 1419,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 77,
+        "nLong": 0,
+        "max": 8,
+        "sum": 191,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 537,
+        "nLong": 0,
+        "max": 87,
+        "sum": 3513,
+        "long": []
+       }
+      ],
+      "reporters": 195,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 69,
+       "STATE_PRESENTED_ALL": 68,
+       "STATE_DROPPED": 58
+      },
+      "frames": 127,
+      "presented": 69,
+      "dropped": 58,
+      "droppedAll": 58,
+      "noUpdate": 0,
+      "reporterP50": 427,
+      "reporterP95": 1338,
+      "presentedP50": 543,
+      "presentedP95": 2197,
+      "presentedMax": 2847
+     },
+     "frames": 69
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "end",
+     "rep": 2,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4639,
+       "layerTree": 2
+      },
+      "BeginFrame": 131,
+      "DrawFrame": 74,
+      "DroppedFrame": 60,
+      "BeginMainThreadFrame": 71,
+      "ActivateLayerTree": 71,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 71,
+        "nLong": 1,
+        "max": 502,
+        "sum": 4812,
+        "long": [
+         502
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 852,
+        "nLong": 0,
+        "max": 35,
+        "sum": 1258,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 109,
+        "nLong": 0,
+        "max": 67,
+        "sum": 1274,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 54,
+        "nLong": 0,
+        "max": 9,
+        "sum": 163,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 530,
+        "nLong": 0,
+        "max": 118,
+        "sum": 3741,
+        "long": []
+       }
+      ],
+      "reporters": 202,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 74,
+       "STATE_PRESENTED_ALL": 71,
+       "STATE_DROPPED": 57
+      },
+      "frames": 131,
+      "presented": 74,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 449,
+      "reporterP95": 1543,
+      "presentedP50": 568,
+      "presentedP95": 1574,
+      "presentedMax": 2416
+     },
+     "frames": 69
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "end",
+     "rep": 2,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4667,
+       "layerTree": 2
+      },
+      "BeginFrame": 128,
+      "DrawFrame": 71,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 71,
+      "ActivateLayerTree": 58,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 71,
+        "nLong": 0,
+        "max": 139,
+        "sum": 4182,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 879,
+        "nLong": 0,
+        "max": 33,
+        "sum": 1208,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 111,
+        "nLong": 0,
+        "max": 65,
+        "sum": 1544,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 81,
+        "nLong": 0,
+        "max": 4,
+        "sum": 182,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 532,
+        "nLong": 0,
+        "max": 85,
+        "sum": 3514,
+        "long": []
+       }
+      ],
+      "reporters": 188,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 58,
+       "STATE_PRESENTED_ALL": 70,
+       "STATE_DROPPED": 57,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 127,
+      "presented": 70,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 347,
+      "reporterP95": 922,
+      "presentedP50": 485,
+      "presentedP95": 1126,
+      "presentedMax": 1728
+     },
+     "frames": 70
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "end",
+     "rep": 3,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4697,
+       "layerTree": 2
+      },
+      "BeginFrame": 132,
+      "DrawFrame": 73,
+      "DroppedFrame": 62,
+      "BeginMainThreadFrame": 71,
+      "ActivateLayerTree": 70,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 71,
+        "nLong": 2,
+        "max": 478,
+        "sum": 5234,
+        "long": [
+         154,
+         478
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 873,
+        "nLong": 0,
+        "max": 36,
+        "sum": 1271,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 109,
+        "nLong": 0,
+        "max": 67,
+        "sum": 1377,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 78,
+        "nLong": 0,
+        "max": 25,
+        "sum": 220,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 548,
+        "nLong": 0,
+        "max": 86,
+        "sum": 3814,
+        "long": []
+       }
+      ],
+      "reporters": 201,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 72,
+       "STATE_PRESENTED_ALL": 70,
+       "STATE_DROPPED": 59
+      },
+      "frames": 131,
+      "presented": 72,
+      "dropped": 59,
+      "droppedAll": 59,
+      "noUpdate": 0,
+      "reporterP50": 499,
+      "reporterP95": 1555,
+      "presentedP50": 681,
+      "presentedP95": 1606,
+      "presentedMax": 2526
+     },
+     "frames": 70
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "end",
+     "rep": 3,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4723,
+       "layerTree": 2
+      },
+      "BeginFrame": 133,
+      "DrawFrame": 75,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 72,
+      "ActivateLayerTree": 74,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 72,
+        "nLong": 5,
+        "max": 216,
+        "sum": 5236,
+        "long": [
+         216,
+         210,
+         188,
+         182,
+         150
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 861,
+        "nLong": 0,
+        "max": 36,
+        "sum": 1329,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 109,
+        "nLong": 0,
+        "max": 58,
+        "sum": 1318,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 55,
+        "nLong": 0,
+        "max": 8,
+        "sum": 151,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 469,
+        "nLong": 0,
+        "max": 87,
+        "sum": 3340,
+        "long": []
+       }
+      ],
+      "reporters": 209,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 77,
+       "STATE_PRESENTED_ALL": 74,
+       "STATE_DROPPED": 58
+      },
+      "frames": 135,
+      "presented": 77,
+      "dropped": 58,
+      "droppedAll": 58,
+      "noUpdate": 0,
+      "reporterP50": 404,
+      "reporterP95": 1641,
+      "presentedP50": 557,
+      "presentedP95": 1825,
+      "presentedMax": 2325
+     },
+     "frames": 71
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "end",
+     "rep": 3,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4752,
+       "layerTree": 2
+      },
+      "BeginFrame": 127,
+      "DrawFrame": 71,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 69,
+      "ActivateLayerTree": 57,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 69,
+        "nLong": 0,
+        "max": 143,
+        "sum": 4383,
+        "long": []
+       },
+       {
+        "name": "Paint",
+        "n": 888,
+        "nLong": 0,
+        "max": 34,
+        "sum": 1226,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 107,
+        "nLong": 0,
+        "max": 74,
+        "sum": 1780,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 79,
+        "nLong": 0,
+        "max": 4,
+        "sum": 202,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 482,
+        "nLong": 1,
+        "max": 195,
+        "sum": 3467,
+        "long": [
+         195
+        ]
+       }
+      ],
+      "reporters": 185,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 58,
+       "STATE_PRESENTED_ALL": 68,
+       "STATE_DROPPED": 56,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 126,
+      "presented": 70,
+      "dropped": 56,
+      "droppedAll": 56,
+      "noUpdate": 0,
+      "reporterP50": 362,
+      "reporterP95": 1144,
+      "presentedP50": 494,
+      "presentedP95": 1428,
+      "presentedMax": 1932
+     },
+     "frames": 68
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "end",
+     "rep": 3,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4780,
+       "layerTree": 2
+      },
+      "BeginFrame": 131,
+      "DrawFrame": 73,
+      "DroppedFrame": 59,
+      "BeginMainThreadFrame": 71,
+      "ActivateLayerTree": 71,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 71,
+        "nLong": 4,
+        "max": 288,
+        "sum": 5206,
+        "long": [
+         155,
+         177,
+         288,
+         164
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 876,
+        "nLong": 0,
+        "max": 46,
+        "sum": 1364,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 110,
+        "nLong": 0,
+        "max": 90,
+        "sum": 1509,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 76,
+        "nLong": 0,
+        "max": 9,
+        "sum": 199,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 532,
+        "nLong": 0,
+        "max": 95,
+        "sum": 3513,
+        "long": []
+       }
+      ],
+      "reporters": 201,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 73,
+       "STATE_PRESENTED_ALL": 71,
+       "STATE_DROPPED": 57
+      },
+      "frames": 130,
+      "presented": 73,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 407,
+      "reporterP95": 1524,
+      "presentedP50": 594,
+      "presentedP95": 1700,
+      "presentedMax": 2762
+     },
+     "frames": 70
+    },
+    {
+     "width": 1280,
+     "arm": "cand",
+     "window": "end",
+     "rep": 4,
+     "config": "205fc308455f455f",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4808,
+       "layerTree": 2
+      },
+      "BeginFrame": 131,
+      "DrawFrame": 72,
+      "DroppedFrame": 62,
+      "BeginMainThreadFrame": 70,
+      "ActivateLayerTree": 69,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 70,
+        "nLong": 2,
+        "max": 211,
+        "sum": 4706,
+        "long": [
+         155,
+         211
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 840,
+        "nLong": 0,
+        "max": 39,
+        "sum": 1230,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 108,
+        "nLong": 0,
+        "max": 60,
+        "sum": 1290,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 53,
+        "nLong": 0,
+        "max": 9,
+        "sum": 158,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 470,
+        "nLong": 0,
+        "max": 142,
+        "sum": 3376,
+        "long": []
+       }
+      ],
+      "reporters": 199,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 71,
+       "STATE_PRESENTED_ALL": 69,
+       "STATE_DROPPED": 59
+      },
+      "frames": 130,
+      "presented": 71,
+      "dropped": 59,
+      "droppedAll": 59,
+      "noUpdate": 0,
+      "reporterP50": 391,
+      "reporterP95": 1817,
+      "presentedP50": 607,
+      "presentedP95": 2108,
+      "presentedMax": 2450
+     },
+     "frames": 69
+    },
+    {
+     "width": 1280,
+     "arm": "orig",
+     "window": "end",
+     "rep": 4,
+     "config": null,
+     "mode": null,
+     "trace": {
+      "sink": {
+       "pid": 4836,
+       "layerTree": 2
+      },
+      "BeginFrame": 130,
+      "DrawFrame": 73,
+      "DroppedFrame": 60,
+      "BeginMainThreadFrame": 72,
+      "ActivateLayerTree": 60,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 72,
+        "nLong": 1,
+        "max": 184,
+        "sum": 4548,
+        "long": [
+         184
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 876,
+        "nLong": 0,
+        "max": 34,
+        "sum": 1232,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 112,
+        "nLong": 0,
+        "max": 111,
+        "sum": 1799,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 82,
+        "nLong": 0,
+        "max": 18,
+        "sum": 216,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 532,
+        "nLong": 0,
+        "max": 113,
+        "sum": 3471,
+        "long": []
+       }
+      ],
+      "reporters": 191,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 60,
+       "STATE_PRESENTED_ALL": 71,
+       "STATE_DROPPED": 57,
+       "STATE_NO_UPDATE_DESIRED": 3
+      },
+      "frames": 129,
+      "presented": 72,
+      "dropped": 57,
+      "droppedAll": 57,
+      "noUpdate": 0,
+      "reporterP50": 395,
+      "reporterP95": 1057,
+      "presentedP50": 515,
+      "presentedP95": 1337,
+      "presentedMax": 2234
+     },
+     "frames": 71
+    },
+    {
+     "width": 1280,
+     "arm": "base",
+     "window": "end",
+     "rep": 4,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4867,
+       "layerTree": 2
+      },
+      "BeginFrame": 133,
+      "DrawFrame": 73,
+      "DroppedFrame": 60,
+      "BeginMainThreadFrame": 72,
+      "ActivateLayerTree": 72,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 72,
+        "nLong": 2,
+        "max": 192,
+        "sum": 4968,
+        "long": [
+         157,
+         192
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 880,
+        "nLong": 0,
+        "max": 36,
+        "sum": 1292,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 109,
+        "nLong": 0,
+        "max": 80,
+        "sum": 1354,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 76,
+        "nLong": 0,
+        "max": 8,
+        "sum": 199,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 517,
+        "nLong": 0,
+        "max": 96,
+        "sum": 3507,
+        "long": []
+       }
+      ],
+      "reporters": 204,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 73,
+       "STATE_PRESENTED_ALL": 72,
+       "STATE_DROPPED": 59
+      },
+      "frames": 132,
+      "presented": 73,
+      "dropped": 59,
+      "droppedAll": 59,
+      "noUpdate": 0,
+      "reporterP50": 386,
+      "reporterP95": 1608,
+      "presentedP50": 603,
+      "presentedP95": 1797,
+      "presentedMax": 2403
+     },
+     "frames": 71
+    },
+    {
+     "width": 1280,
+     "arm": "aa",
+     "window": "end",
+     "rep": 4,
+     "config": "ede2c7641aacf2d2",
+     "mode": "hydrate",
+     "trace": {
+      "sink": {
+       "pid": 4898,
+       "layerTree": 2
+      },
+      "BeginFrame": 133,
+      "DrawFrame": 75,
+      "DroppedFrame": 60,
+      "BeginMainThreadFrame": 73,
+      "ActivateLayerTree": 73,
+      "slow": [
+       {
+        "name": "BeginMainFrame",
+        "n": 72,
+        "nLong": 3,
+        "max": 163,
+        "sum": 5018,
+        "long": [
+         163,
+         150,
+         155
+        ]
+       },
+       {
+        "name": "Paint",
+        "n": 891,
+        "nLong": 0,
+        "max": 34,
+        "sum": 1318,
+        "long": []
+       },
+       {
+        "name": "UpdateLayoutTree",
+        "n": 113,
+        "nLong": 0,
+        "max": 78,
+        "sum": 1493,
+        "long": []
+       },
+       {
+        "name": "Layout",
+        "n": 79,
+        "nLong": 0,
+        "max": 9,
+        "sum": 198,
+        "long": []
+       },
+       {
+        "name": "image decode task",
+        "n": 512,
+        "nLong": 1,
+        "max": 154,
+        "sum": 3635,
+        "long": [
+         154
+        ]
+       }
+      ],
+      "reporters": 206,
+      "states": {
+       "STATE_PRESENTED_PARTIAL": 75,
+       "STATE_PRESENTED_ALL": 73,
+       "STATE_DROPPED": 58
+      },
+      "frames": 133,
+      "presented": 75,
+      "dropped": 58,
+      "droppedAll": 58,
+      "noUpdate": 0,
+      "reporterP50": 451,
+      "reporterP95": 1630,
+      "presentedP50": 698,
+      "presentedP95": 1847,
+      "presentedMax": 2245
+     },
+     "frames": 71
+    }
+   ],
+   "hitches": {
+    "orig": [
+     {
+      "rep": 0,
+      "i": 8,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 45,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 46,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 12,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 44,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 45,
+      "ms": 116.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 12,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 45,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 46,
+      "ms": 116.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 12,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 47,
+      "ms": 100,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 44,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 43,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 10,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 12,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 17,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 42,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 43,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 44,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 45,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     }
+    ],
+    "base": [
+     {
+      "rep": 0,
+      "i": 10,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 12,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 16,
+      "ms": 83.3,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 49,
+      "ms": 100,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 46,
+      "ms": 83.4,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 47,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 49,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 8,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 45,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 46,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 47,
+      "ms": 66.8,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 8,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 9,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 43,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 46,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 13,
+      "ms": 66.8,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 17,
+      "ms": 83.4,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 47,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 50,
+      "ms": 100,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 12,
+      "ms": 100,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 44,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 8,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 9,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 44,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     }
+    ],
+    "aa": [
+     {
+      "rep": 0,
+      "i": 48,
+      "ms": 116.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 49,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 51,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 12,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 47,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 49,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 10,
+      "ms": 66.8,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 45,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 48,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 14,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 48,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 11,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 42,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 47,
+      "ms": 116.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 11,
+      "ms": 116.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 48,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 9,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 44,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     }
+    ],
+    "cand": [
+     {
+      "rep": 0,
+      "i": 11,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 0,
+      "i": 47,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 9,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 46,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 1,
+      "i": 48,
+      "ms": 66.8,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 8,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 2,
+      "i": 49,
+      "ms": 66.8,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 10,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 12,
+      "ms": 83.3,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 3,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 10,
+      "ms": 100,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 4,
+      "i": 47,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 43,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 45,
+      "ms": 66.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 5,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 11,
+      "ms": 116.6,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 46,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     },
+     {
+      "rep": 6,
+      "i": 48,
+      "ms": 66.7,
+      "y": 8269,
+      "loaf": true
+     }
+    ]
+   }
+  }
+ ],
+ "summary": [
+  {
+   "width": 1280,
+   "window": "end",
+   "first": "orig",
+   "second": "base",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "counts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "hitchCounts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "verdicts": [
+    "same"
+   ],
+   "hitchVerdicts": [
+    "same"
+   ],
+   "diffs": [
+    15
+   ],
+   "spreads": [
+    585
+   ],
+   "n": 1,
+   "needRate": 1,
+   "needHitch": 1,
+   "medianDiff": 15,
+   "medianSpread": 585,
+   "acrossRate": "insufficient",
+   "acrossHitch": "insufficient"
+  },
+  {
+   "width": 1280,
+   "window": "end",
+   "first": "base",
+   "second": "cand",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "counts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "hitchCounts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "verdicts": [
+    "same"
+   ],
+   "hitchVerdicts": [
+    "same"
+   ],
+   "diffs": [
+    -152
+   ],
+   "spreads": [
+    585
+   ],
+   "n": 1,
+   "needRate": 1,
+   "needHitch": 1,
+   "medianDiff": -152,
+   "medianSpread": 585,
+   "acrossRate": "insufficient",
+   "acrossHitch": "insufficient"
+  },
+  {
+   "width": 1280,
+   "window": "end",
+   "first": "orig",
+   "second": "cand",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "counts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "hitchCounts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "verdicts": [
+    "same"
+   ],
+   "hitchVerdicts": [
+    "same"
+   ],
+   "diffs": [
+    -137
+   ],
+   "spreads": [
+    585
+   ],
+   "n": 1,
+   "needRate": 1,
+   "needHitch": 1,
+   "medianDiff": -137,
+   "medianSpread": 585,
+   "acrossRate": "insufficient",
+   "acrossHitch": "insufficient"
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "first": "orig",
+   "second": "base",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "counts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "hitchCounts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "verdicts": [
+    "same"
+   ],
+   "hitchVerdicts": [
+    "same"
+   ],
+   "diffs": [
+    64
+   ],
+   "spreads": [
+    65
+   ],
+   "n": 1,
+   "needRate": 1,
+   "needHitch": 1,
+   "medianDiff": 64,
+   "medianSpread": 65,
+   "acrossRate": "insufficient",
+   "acrossHitch": "insufficient"
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "first": "base",
+   "second": "cand",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "counts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "hitchCounts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "verdicts": [
+    "same"
+   ],
+   "hitchVerdicts": [
+    "same"
+   ],
+   "diffs": [
+    37
+   ],
+   "spreads": [
+    65
+   ],
+   "n": 1,
+   "needRate": 1,
+   "needHitch": 1,
+   "medianDiff": 37,
+   "medianSpread": 65,
+   "acrossRate": "insufficient",
+   "acrossHitch": "insufficient"
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "first": "orig",
+   "second": "cand",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "counts": {
+    "first": 1,
+    "second": 0,
+    "same": 0,
+    "insufficient": 0
+   },
+   "hitchCounts": {
+    "first": 0,
+    "second": 0,
+    "same": 1,
+    "insufficient": 0
+   },
+   "verdicts": [
+    "first"
+   ],
+   "hitchVerdicts": [
+    "same"
+   ],
+   "diffs": [
+    101
+   ],
+   "spreads": [
+    65
+   ],
+   "n": 1,
+   "needRate": 1,
+   "needHitch": 1,
+   "medianDiff": 101,
+   "medianSpread": 65,
+   "acrossRate": "insufficient",
+   "acrossHitch": "insufficient"
+  }
+ ],
+ "traceTotals": [
+  {
+   "width": 1280,
+   "window": "end",
+   "arm": "orig",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 641,
+   "presented": 358,
+   "dropped": 283,
+   "droppedAll": 283,
+   "noUpdate": 0,
+   "presentedP95": [
+    1738,
+    1567,
+    1126,
+    1428,
+    1337
+   ],
+   "rafFrames": 352,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 357,
+     "nLong": 3,
+     "max": 191,
+     "sum": 21747,
+     "long": [
+      191,
+      157,
+      184
+     ]
+    },
+    {
+     "name": "Paint",
+     "n": 4417,
+     "nLong": 0,
+     "max": 34,
+     "sum": 6014,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 554,
+     "nLong": 0,
+     "max": 111,
+     "sum": 8484,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 404,
+     "nLong": 0,
+     "max": 18,
+     "sum": 967,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 2539,
+     "nLong": 1,
+     "max": 195,
+     "sum": 17428,
+     "long": [
+      195
+     ]
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "end",
+   "arm": "base",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 651,
+   "presented": 364,
+   "dropped": 287,
+   "droppedAll": 287,
+   "noUpdate": 0,
+   "presentedP95": [
+    1174,
+    1414,
+    2158,
+    1700,
+    1797
+   ],
+   "rafFrames": 355,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 361,
+     "nLong": 10,
+     "max": 512,
+     "sum": 25048,
+     "long": [
+      235,
+      203,
+      159,
+      512,
+      155,
+      177,
+      288,
+      164,
+      157,
+      192
+     ]
+    },
+    {
+     "name": "Paint",
+     "n": 4463,
+     "nLong": 0,
+     "max": 46,
+     "sum": 6518,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 555,
+     "nLong": 0,
+     "max": 90,
+     "sum": 6752,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 391,
+     "nLong": 0,
+     "max": 9,
+     "sum": 976,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 2645,
+     "nLong": 0,
+     "max": 98,
+     "sum": 17024,
+     "long": []
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "end",
+   "arm": "aa",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 655,
+   "presented": 368,
+   "dropped": 287,
+   "droppedAll": 287,
+   "noUpdate": 0,
+   "presentedP95": [
+    1956,
+    1401,
+    2197,
+    1606,
+    1847
+   ],
+   "rafFrames": 353,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 358,
+     "nLong": 18,
+     "max": 592,
+     "sum": 26166,
+     "long": [
+      197,
+      207,
+      192,
+      160,
+      163,
+      181,
+      170,
+      527,
+      155,
+      195,
+      157,
+      592,
+      165,
+      154,
+      478,
+      163,
+      150,
+      155
+     ]
+    },
+    {
+     "name": "Paint",
+     "n": 4417,
+     "nLong": 0,
+     "max": 36,
+     "sum": 6380,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 554,
+     "nLong": 0,
+     "max": 78,
+     "sum": 6976,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 392,
+     "nLong": 0,
+     "max": 25,
+     "sum": 995,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 2652,
+     "nLong": 1,
+     "max": 154,
+     "sum": 18030,
+     "long": [
+      154
+     ]
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "end",
+   "arm": "cand",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 658,
+   "presented": 372,
+   "dropped": 286,
+   "droppedAll": 286,
+   "noUpdate": 0,
+   "presentedP95": [
+    1544,
+    1510,
+    1574,
+    1825,
+    2108
+   ],
+   "rafFrames": 356,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 362,
+     "nLong": 11,
+     "max": 502,
+     "sum": 24528,
+     "long": [
+      152,
+      459,
+      151,
+      502,
+      216,
+      210,
+      188,
+      182,
+      150,
+      155,
+      211
+     ]
+    },
+    {
+     "name": "Paint",
+     "n": 4300,
+     "nLong": 0,
+     "max": 45,
+     "sum": 6507,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 555,
+     "nLong": 0,
+     "max": 67,
+     "sum": 6630,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 276,
+     "nLong": 0,
+     "max": 9,
+     "sum": 814,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 2520,
+     "nLong": 0,
+     "max": 142,
+     "sum": 17539,
+     "long": []
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "arm": "orig",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 983,
+   "presented": 760,
+   "dropped": 223,
+   "droppedAll": 213,
+   "noUpdate": 0,
+   "presentedP95": [
+    768,
+    790,
+    737,
+    809,
+    791
+   ],
+   "rafFrames": 775,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 780,
+     "nLong": 0,
+     "max": 126,
+     "sum": 31497,
+     "long": []
+    },
+    {
+     "name": "Paint",
+     "n": 2165,
+     "nLong": 0,
+     "max": 25,
+     "sum": 2907,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 1881,
+     "nLong": 0,
+     "max": 56,
+     "sum": 12753,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 494,
+     "nLong": 0,
+     "max": 3,
+     "sum": 961,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 225,
+     "nLong": 1,
+     "max": 167,
+     "sum": 3538,
+     "long": [
+      167
+     ]
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "arm": "base",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 988,
+   "presented": 765,
+   "dropped": 223,
+   "droppedAll": 213,
+   "noUpdate": 0,
+   "presentedP95": [
+    730,
+    943,
+    955,
+    771,
+    815
+   ],
+   "rafFrames": 775,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 780,
+     "nLong": 0,
+     "max": 139,
+     "sum": 33479,
+     "long": []
+    },
+    {
+     "name": "Paint",
+     "n": 2163,
+     "nLong": 0,
+     "max": 27,
+     "sum": 3151,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 1873,
+     "nLong": 0,
+     "max": 46,
+     "sum": 10346,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 492,
+     "nLong": 0,
+     "max": 7,
+     "sum": 1002,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 173,
+     "nLong": 0,
+     "max": 118,
+     "sum": 3235,
+     "long": []
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "arm": "aa",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 981,
+   "presented": 763,
+   "dropped": 218,
+   "droppedAll": 209,
+   "noUpdate": 0,
+   "presentedP95": [
+    676,
+    664,
+    778,
+    797,
+    788
+   ],
+   "rafFrames": 775,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 780,
+     "nLong": 0,
+     "max": 123,
+     "sum": 33068,
+     "long": []
+    },
+    {
+     "name": "Paint",
+     "n": 2150,
+     "nLong": 0,
+     "max": 25,
+     "sum": 3121,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 1874,
+     "nLong": 0,
+     "max": 45,
+     "sum": 10336,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 490,
+     "nLong": 0,
+     "max": 9,
+     "sum": 1023,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 178,
+     "nLong": 0,
+     "max": 111,
+     "sum": 3034,
+     "long": []
+    }
+   ]
+  },
+  {
+   "width": 1280,
+   "window": "hero",
+   "arm": "cand",
+   "runs": [
+    "39927164863:leg"
+   ],
+   "reps": 5,
+   "frames": 988,
+   "presented": 765,
+   "dropped": 223,
+   "droppedAll": 214,
+   "noUpdate": 0,
+   "presentedP95": [
+    813,
+    743,
+    885,
+    710,
+    926
+   ],
+   "rafFrames": 775,
+   "slow": [
+    {
+     "name": "BeginMainFrame",
+     "n": 780,
+     "nLong": 0,
+     "max": 123,
+     "sum": 33337,
+     "long": []
+    },
+    {
+     "name": "Paint",
+     "n": 2151,
+     "nLong": 0,
+     "max": 25,
+     "sum": 3124,
+     "long": []
+    },
+    {
+     "name": "UpdateLayoutTree",
+     "n": 1878,
+     "nLong": 0,
+     "max": 42,
+     "sum": 10275,
+     "long": []
+    },
+    {
+     "name": "Layout",
+     "n": 489,
+     "nLong": 0,
+     "max": 7,
+     "sum": 1027,
+     "long": []
+    },
+    {
+     "name": "image decode task",
+     "n": 176,
+     "nLong": 0,
+     "max": 113,
+     "sum": 3080,
+     "long": []
+    }
+   ]
+  }
+ ]
+}
