@@ -1,7 +1,9 @@
 branch: worktree-wf_f1b87bb1-9b8-1
 worktree: .claude/worktrees/wf_f1b87bb1-9b8-1
-last commit: see `git log -1` on the branch (work commit 986f847b9, handoff commit after it)
-CI runs: none (no ci/* push; the check is local tier)
+last commit: 3883bdaf4 (pushed to ci/land-workflow-syntax-gate; land.yml triggers on ci/land-*, not ci/<task>)
+CI runs: 39889327928 land (push 3883bdaf4) success: install prints 1.7.12, suites-a TIMING apps/runner 135s skipped=0
+verified: main merged (check.sh = main + workflow-lint golden job); CircleCI land-actionlint leg (arm64, same sha); land.md; golden case regenerated
+open: CircleCI legs shown by reading only; shellcheck warnings accepted
 
 ## State
 - Lean `lean/Fw/Ci/WorkflowLint.lean`: selection (`select`, theorems `yml_selects`, `yaml_selects`, `script_selects`, `select_iff`) and verdict
