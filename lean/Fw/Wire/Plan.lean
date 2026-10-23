@@ -365,6 +365,7 @@ def wtSegs (name : String) : List String := [".claude", "worktrees", name]
 
 def inWtAny (name : String) (p : List String) : Prop := ∃ a b, p = a ++ wtSegs name ++ b ∧ b ≠ []
 
+/-- Pinning the root is necessary, not sufficient: `inWtAt` reads raw segments, so the workflow must first resolve each edited path (path.resolve against the main checkout, then fs.realpathSync) and reject any path with a . or .. segment; `<main>/.claude/worktrees/<name>/../../apps/x.ts` passes `inWtAt` unresolved. -/
 def inWtAt (root : List String) (name : String) (p : List String) : Prop := ∃ b, p = root ++ wtSegs name ++ b ∧ b ≠ []
 
 theorem inWtAt_inWtAny (root : List String) (name : String) (p : List String) (h : inWtAt root name p) : inWtAny name p :=
