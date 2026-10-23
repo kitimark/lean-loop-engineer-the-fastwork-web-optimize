@@ -18078,7 +18078,8 @@
     ".github/workflows/smoothness.yml",
     "packages/contracts/golden/measure/webkit-lag.jsonl"
    ],
-   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA."
+   "title": "Split from smooth-miss-counts (lead, review round 1 blocker): drive the WebKit lag probe's morph (packages/measure-webkit/src/lag/probe.mjs:67 morphRun, today a synthetic WheelEvent dispatched on document.body) through a trusted scroll path: Playwright page.mouse.wheel on the mac leg, the PushServer touch on the Simulator leg where it works. lag/report.mjs takes phases (idle/open/close) from performance marks instead of fixed frame counts; the phase rule is Lean with goldens. One CI run id per leg; compare against the synthetic run on the same SHA.",
+   "evidence": "bae2431"
   },
   {
    "devices": [

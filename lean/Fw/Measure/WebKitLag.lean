@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Measure.WebKit
+import Fw.Measure.WebKitLagPhase
 /-!
 # Where the Simulator lag comes from (`packages/measure-webkit/src/lag/reduce.mjs`)
 The pure reductions of the webkit-lag-probe: scroll regions (through the zones of `Fw.Measure.WebKit`), paint attribution
@@ -878,7 +879,8 @@ private def goldenLines (_ : Unit) : List String :=
     let (n, a, ar) := filterTotals vp items
     (Json.mkObj [("kind", "filter"), ("viewport", rj vp),
       ("items", Json.arr (items.map fun f => Json.mkObj [("radius", f.radius), ("rect", rj f.r)]).toArray),
-      ("count", n), ("area", a), ("areaRadius", ar)]).compress)
+      ("count", n), ("area", a), ("areaRadius", ar)]).compress) ++
+  Fw.Measure.WebKitLagPhase.phaseGoldenLines ()
 
 /-- The bytes of `packages/contracts/golden/measure/webkit-lag.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
