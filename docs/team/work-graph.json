@@ -16987,7 +16987,14 @@
     "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
     "packages/gate-breakpoints/test/trajectory-gpu-raw.test.mjs",
     "lean/scripts/check.sh",
-    "docs/team/handoffs/gpu-cells-raw-fixture.md"
+    "docs/team/handoffs/gpu-cells-raw-fixture.md",
+    "lean/Fw/Gate/TrajectoryGpu.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "apps/runner/src/land.ts"
    ],
    "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l."
   },
@@ -17581,6 +17588,62 @@
     "docs/team/handoffs/checkmap-workflow-scripts.md"
    ],
    "title": "The pre-commit checkmap runs `node --check` on .claude/workflows/*.js, which are workflow bodies (top-level return and await), not modules: node 24.14 accepts build-review.js and node 24.22 refuses it ('Illegal return statement' at line 83), so the commit verdict depends on which node is first on PATH. Give workflow scripts their own kind in Lean Fw.Ops.CheckMap (classify `.claude/workflows/*.js`), checked by parsing the body as an AsyncFunction after stripping `export const meta = ` (the way scripts/build-review.test.mjs loads it), with goldens; test on both node versions."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "commission-gate-followups-2",
+   "owner": "lean-prover",
+   "stream": "proof",
+   "deps": [
+    "commission-band-followups"
+   ],
+   "writes": [
+    "refs/upstream/sources.lock.yaml",
+    "research/notes/2026/10-2x-commission-band-gate.md",
+    "apps/site/src/parts/commission/bandgate.test.ts",
+    "docs/team/handoffs/commission-gate-followups-2.md"
+   ],
+   "title": "Follow-ups of commission-band-followups (landed 7a545c05d): (1) add third_party/blink/renderer/core/css/media_query_list.cc and media_query_matcher.cc to the chromium sparse paths in refs/upstream/sources.lock.yaml (the note cites them @f842f52); (2) the note's 'That recalc follows the rAF callbacks' becomes 'That recalc runs inside the rAF callbacks at the earliest (forced by the body's getBoundingClientRect) or after them, so MediaFeaturesChanged queues ...'; (3) the Chromium clock step of BodyAfterSkip (the requested rAF runs in the next painted frame) from the cc scheduler and page_animator source for throttled frames, CONFIRMED or kept INFERRED with the reason; (4) bandgate.test.ts runTicks asserts ticks[0].media === null && ticks[0].body !== null, or replays tick 0 like the others."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gpu-cells-mutants",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "gpu-cells-raw-fixture"
+   ],
+   "writes": [
+    "lean/scripts/TrajectoryGpuGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/gate-breakpoints/src/trajectory/cells-gpu*.mjs",
+    "packages/gate-breakpoints/src/trajectory/mutants*.mjs",
+    "packages/gate-breakpoints/test/trajectory-gpu-raw.test.mjs",
+    "packages/contracts/fixtures/trajectory-gpu/**",
+    "docs/team/handoffs/gpu-cells-mutants.md"
+   ],
+   "title": "Follow-ups of gpu-cells-raw-fixture: (1) all 36 fixture lines grade E, so commit a mutant generator (blur zeroed, panel held back a frame, nav moved, pain flipped, carousel cut, nav dropped in one rep, scale raised, rows reversed, carousel v jittered) and add its output to the check.sh Lean-vs-node cmp so L, Q and null grades are compared on every run; (2) generate dpr per width and MIN_COVERED from Lean into cells-gpu.mjs instead of copying them into the Lean reader; add a fixture or mutant with a non-null pain layer so the rounding is compared; (3) WebKit raws (the accepted limit) from the same A/A runs if their artifacts exist."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "workflow-lint-followups",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "workflow-syntax-gate"
+   ],
+   "writes": [
+    "scripts/check-workflows.sh",
+    "apps/runner/test/land-workflow.test.ts",
+    "docs/team/handoffs/workflow-lint-followups.md"
+   ],
+   "title": "Follow-up of workflow-syntax-gate: scripts/check-workflows.sh fails open when the node step prints no verdict (vrc 0, exit 0 with a TAP summary). Capture the node output and exit 3 with 'REFUSED workflow-lint: no verdict line' unless it holds a line starting 'workflow-lint: '; a test with a stub that prints nothing."
   }
  ],
  "deadline": {
