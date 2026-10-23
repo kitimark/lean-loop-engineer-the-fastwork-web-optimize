@@ -52,7 +52,7 @@ for (const v of variants) {
   const row = {
     id: v.id, status, wallMs: Date.now() - t0, signal: sig ? `${sig[1]} ${sig[2]} ${sig[3]}` : null, frameCount: frames.length, frames: frames.slice(0, 12),
     browser: launch ? launch[2] : null, mode: launch ? launch[3] : null, host: launch ? launch[4] : null,
-    innerWidth: facts?.innerWidth ?? null, fonts: facts?.fonts ?? null, titleHeight: facts?.titleHeight ?? null,
+    innerWidth: facts?.innerWidth ?? null, fonts: facts?.fonts ?? null, platformFonts: facts?.platformFonts ?? null, titleHeight: facts?.titleHeight ?? null,
     crash: /FW_RENDERER_CRASH: ([^\n]*)/.exec(err)?.[1] ?? null,
     tail: status === 'ok' ? null : err.split('\n').filter((l) => l && !/^\s*#\d+ 0x/.test(l)).slice(-6).join(' | ').slice(0, 1600),
   };

@@ -133,7 +133,8 @@ async function stockRun(spec) {
     const facts = await evs(`(() => { const h = document.getElementById('future-heading') ?? document.querySelector('h2'); const st = h ? getComputedStyle(h) : null;
       return { innerWidth, ua: navigator.userAgent, fonts: document.fonts.status, title: h ? h.textContent.trim().slice(0, 60) : null,
         textWrapStyle: st ? st.textWrapStyle : null, textWrapMode: st ? st.textWrapMode : null, titleHeight: h ? h.getBoundingClientRect().height : null }; })()`);
-    console.error(`FW_STOCK_RESULT ${JSON.stringify({ spec, browser: ver.Browser, ...facts })}`);
+    const platformFonts = await (async () => { try { await cs.send('DOM.enable'); await cs.send('CSS.enable'); const { root } = await cs.send('DOM.getDocument', { depth: 0 }); const { nodeId } = await cs.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#future-heading, h2' }); const r = await cs.send('CSS.getPlatformFontsForNode', { nodeId }); return r.fonts.map((f) => `${f.familyName}:${f.isCustomFont ? 'web' : 'system'}:${f.glyphCount}`); } catch (e) { return String(e).slice(0, 80); } })();
+    console.error(`FW_STOCK_RESULT ${JSON.stringify({ spec, browser: ver.Browser, ...facts, platformFonts })}`);
   } catch (e) {
     await sleep(6000);
     console.error(`FW_STOCK_ERROR ${String(e).slice(0, 300)}`);

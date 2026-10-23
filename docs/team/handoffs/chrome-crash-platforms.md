@@ -1,7 +1,7 @@
 branch: worktree-wf_3bba9083-6b9-1 (CI branch ci/chrome-crash-platforms)
 worktree: .claude/worktrees/wf_3bba9083-6b9-1 (inside the main checkout)
-last commit: e47762c2b (push 2 of at most 6; push 3 next: no-system-fonts legs)
-CI runs: 39889986847 (push 1, complete); 39890929696 (push 2, e47762c2b, complete): no crash on any native leg incl. linux arm64 control, where the container lane crashed; hypothesis: the container has no system fonts (docker/fonts.conf empty); push 3 adds legs with FONTCONFIG_FILE set to it; macOS stalls at Page.navigate after 2-4 loads per job (not version-bound)
+last commit: 57613fb3c (3 pushes used; push 4 adds platform fonts of the title, then 2 dispatches of the same code)
+CI runs: 39889986847 (push 1), 39890929696 (push 2), 39892378128 (push 3, 57613fb3c): all complete. Result: with the runner system fonts no native leg crashes (linux x64 headless/xvfb, arm64 control, windows, macOS stable+canary); with the container empty fonts.conf linux x64 headless, x64 xvfb and arm64 crash (SIGSEGV 0x84) on min and page at 1280, ok at 860 and with text-wrap wrap. macOS: only the first CfT build per job loads (later ones stall at Page.navigate)
 verified: local tests only (ci-paths 54 pass, land-inputs + land-overflow-widths 62 pass, profile.test 9 pass); no platform result yet
 open: platform rows (linux x64 headless/xvfb, macOS arm64/x64, Windows), note, dry land, review ready
 
