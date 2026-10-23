@@ -4,6 +4,7 @@ import { createSceneClock } from '../engine.scene/logic';
 import { watchHidden } from '../engine.scene/observe';
 import '../engine.scene/scene.module.css';
 import { COLUMNS } from './data';
+import { IdleHold, idleRemoved } from './idle';
 import css from './morph.module.css';
 
 export interface MorphColumnsProps {
@@ -24,12 +25,12 @@ const SCENE_ATTR = 'data-start-selling-scene';
  * tracks (nothing removed); on the way back the tracks are seeked to `origClock` (the clock of an animation that ran
  * only while the scene was active), in the observer callback, before paint. The scene state is the panel's
  * `data-start-selling-scene` attribute, followed by a MutationObserver (it changes at one value of the morph only).
- * `faithful` is unchanged.
  */
 export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const clockRef = useRef<ReturnType<typeof createSceneClock> | null>(null);
   const hiddenPause = variant === 'hidden-pause';
+  const idleNone = variant === 'idle-none';
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -65,6 +66,33 @@ export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
       }
     });
   }, [hiddenPause]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    const panel = stage?.closest<HTMLElement>(`[${SCENE_ATTR}]`);
+    if (!idleNone || !stage || !panel) return;
+    const hold = new IdleHold();
+    let removed = false;
+    const sync = () => {
+      const want = idleRemoved(panel.getAttribute(SCENE_ATTR));
+      if (want === removed) return;
+      removed = want;
+      if (want) {
+        hold.keep(stage.getAnimations({ subtree: true }));
+        stage.setAttribute('data-fw-idle', '');
+      } else {
+        stage.removeAttribute('data-fw-idle');
+        hold.restore(stage.getAnimations({ subtree: true }));
+      }
+    };
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(panel, { attributes: true, attributeFilter: [SCENE_ATTR] });
+    return () => {
+      mo.disconnect();
+      stage.removeAttribute('data-fw-idle');
+    };
+  }, [idleNone]);
 
   return (
     <div ref={stageRef} className={css.stage} data-fw="morph-columns" data-fw-variant={variant} data-fw-dormant={dormant ? '' : undefined}>

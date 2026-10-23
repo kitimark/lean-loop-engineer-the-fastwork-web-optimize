@@ -1,0 +1,12 @@
+{"fn":"removed","in":{"mm":0},"out":true}
+{"fn":"removed","in":{"mm":1},"out":true}
+{"fn":"removed","in":{"mm":2},"out":false}
+{"fn":"removed","in":{"mm":80},"out":false}
+{"fn":"removed","in":{"mm":81},"out":false}
+{"fn":"removed","in":{"mm":500},"out":false}
+{"fn":"removed","in":{"mm":1000},"out":false}
+{"fn":"run","in":{"frames":[[16,0],[16,0],[16,5]]},"out":[{"clock":0,"present":false},{"clock":0,"present":false},{"clock":16,"present":true}]}
+{"fn":"run","in":{"frames":[[16,500],[16,1],[16,0],[16,2],[16,1000]]},"out":[{"clock":16,"present":true},{"clock":16,"present":false},{"clock":16,"present":false},{"clock":32,"present":true},{"clock":48,"present":true}]}
+{"fn":"run","in":{"frames":[[16,2],[16,1],[16,1],[16,80],[16,1]]},"out":[{"clock":16,"present":true},{"clock":16,"present":false},{"clock":16,"present":false},{"clock":32,"present":true},{"clock":32,"present":false}]}
+{"fn":"run","in":{"frames":[[16,1000],[16,1000]]},"out":[{"clock":16,"present":true},{"clock":32,"present":true}]}
+{"fn":"run","in":{"frames":[[16,0],[16,0]]},"out":[{"clock":0,"present":false},{"clock":0,"present":false}]}

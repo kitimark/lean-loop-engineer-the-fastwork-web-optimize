@@ -65,6 +65,7 @@ import Fw.Parts.MorphPanelOpt
 import Fw.Parts.PeopleDeckOpt
 import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PeopleOPreview
+import Fw.Parts.MorphIdleNone
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
@@ -76,6 +77,7 @@ import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork
+import Fw.Parts.PeopleCarouselCrop
 import Fw.Parts.PainDarkScroll
 import Fw.Parts.HeroAccentOpt
 import Fw.Measure.Zones

@@ -11,7 +11,7 @@
     will-change: auto !important;
     animation-play-state: paused !important;
   }
-  .stage[data-fw-dormant] .track {
+  .stage:is([data-fw-dormant], [data-fw-idle]) .track {
     animation-name: none !important;
   }
   .col {
