@@ -69,7 +69,7 @@ runs the probe with the inputs of one message line:
    rewrite passed; incident `inc-trajectory-pooled-window`.) Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
    construction there (see the research note): report a Linux WebKit push cell as "no verdict: coverage" on the units where the
    faithful arm fails coverage, and read its hero rows as usable.
-   **First frame (task hero-probe-original).** The original never lands a sample in bucket 1 of the open push on a 17 ms
+   **First frame.** The original never lands a sample in bucket 1 of the open push on a 17 ms
    Chromium frame (MEASURED, control run 39557718020, width 390: 0 of 5 passes; the faithful arm 3 of 5), so the look
    reference has no first frame there. An empty open@1 of the rewrite is then `skip:origEmpty`, not `fail:coverage` (Lean
    `byMFirst`, `firstVerdict_both_empty`); every arm gets the rule, the faithful arm too. Kept as before: an open@1 the

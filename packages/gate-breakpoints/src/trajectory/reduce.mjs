@@ -502,24 +502,18 @@ export function byMId(ph, p, kind, d, oSeg, wSeg, conv) {
 export const byMRule = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   (id ? byMId(ph, p, kind, d, oSeg, wSeg, conv) : byMStart(ph, p, kind, d, e, oSeg, wSeg));
 
-/** Lean `openPh`: the index of the open push among the phases of the morph path. */
 export const OPEN_PH = 0;
 
-/** Lean `firstFrame`: bucket 1 of the open push. */
 export const firstFrame = (ph, p, b) => ph === 'push' && p === OPEN_PH && b === 1;
 
-/** Lean `hasBucket`: the path has a sample of phase `p` in bucket `b`. */
 export const hasBucket = (seg, p, b) => seg.some((s) => s.ph === p && bucket(s.m) === b);
 
-/** Lean `firstVerdict`: an empty first frame of the rewrite is `skip:origEmpty` when the original has no sample there either; else the verdict stands. */
 export const firstVerdict = (ph, p, b, oSeg, wSeg, v) =>
   firstFrame(ph, p, b) && !hasBucket(oSeg, p, b) && !hasBucket(wSeg, p, b) && v === fail('coverage') ? skip('origEmpty') : v;
 
-/** Lean `byMFirst`: `byMRule` with the first-frame rule, the judge of a morph unit. */
 export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   byMRule(ph, p, kind, d, e, id, oSeg, wSeg, conv).map(([b, v]) => [b, firstVerdict(ph, p, b, oSeg, wSeg, v)]);
 
-/** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
 /** A property is read in every frame of a push with the lean read set when the registry marks it `lean` (the discrete ones and the logo rectangle). */
@@ -682,13 +676,13 @@ export function reduceRaw(raw, registries) {
   return { refused: false, detail: '', arms, units, groups: [...groups.values()], totals, rels, notes, fails: laneFails(units.map((u) => u.verdict)), red: laneRed(units.map((u) => u.rel)), timing };
 }
 
-/** VERDICT lines: refusal; else one per group with a new failure, then the total, then the timing rows. */
 export function verdictLines(engine, search, red) {
   const s = search || '(default)';
   if (red.refused) return [`VERDICT trajectory ${engine} search=${s} REFUSED config: ${red.detail}`];
   const lines = [];
   for (const g of red.groups.filter((x) => x.newSteps.length > 0)) {
     lines.push(`VERDICT trajectory ${engine} w=${g.width} ${g.path} ${g.node}.${g.prop} NEW ${g.newSteps.length}/${g.pass + g.fail + g.skip} units: ${g.newSteps.slice(0, 6).join(' ')}${g.newSteps.length > 6 ? ' ...' : ''}`);
+/** VERDICT lines: refusal; else one per group with a new failure, then the total, then the timing rows. */
   }
   lines.push(`VERDICT trajectory ${engine} search=${s} ${red.red ? 'RED' : 'CLEAN'} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
   lines.push(`FIRSTFRAME trajectory ${engine} search=${s} skip:origEmpty (the original has no sample of open@1 either) units: candidate ${red.totals.origEmpty}, faithful ${red.totals.baseOrigEmpty}`);
