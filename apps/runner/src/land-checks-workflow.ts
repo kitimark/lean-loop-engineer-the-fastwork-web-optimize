@@ -1,7 +1,3 @@
-// The `workflow-lint` land check (task workflow-syntax-gate, incident inc-workflow-dup-key): `actionlint` on the workflow files.
-// Selection and verdict are the Lean Fw.Ci.WorkflowLint; golden packages/contracts/golden/ci/workflow-lint.jsonl pins this file to it.
-// `node land-checks-workflow.ts` reads actionlint's `-format '{{json .}}'` output on stdin (scripts/check-workflows.sh pipes it)
-// and exits with the Lean verdict code. TS stand-in until fwcore exposes the verdict: `workflowVerdict` mirrors the Lean `verdict`.
 import { readFileSync } from "node:fs";
 
 export const WORKFLOW_LINT_ID = "workflow-lint";
@@ -25,7 +21,6 @@ export function workflowVerdict(installed: boolean, fs: Finding[]): WorkflowVerd
   return s.length === 0 ? "pass" : "warn";
 }
 
-/** Parse actionlint's json output (`[]` or a list of {kind, filepath, line, message}); anything else throws. */
 export function parseFindings(raw: string): Finding[] {
   const j = JSON.parse(raw.trim() || "null") as { kind: string; filepath: string; line?: number; message: string }[] | null;
   if (j !== null && !Array.isArray(j)) throw new Error("actionlint output is not a list");

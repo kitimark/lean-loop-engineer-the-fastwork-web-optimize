@@ -239,7 +239,6 @@ export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
 ];
 
-/** The workflow lint (Lean Fw.Ci.WorkflowLint; golden ci/workflow-lint.jsonl, test land-workflow.test.ts): runs where the land runs (local tier), needs no fwcore. */
 export const WORKFLOW_LINT: Check = { id: WORKFLOW_LINT_ID, argv: WORKFLOW_LINT_ARGV, reads: WORKFLOW_LINT_READS };
 export const LOCAL_GATES: Check[] = [...LOCAL_TESTS, WORKFLOW_LINT];
 

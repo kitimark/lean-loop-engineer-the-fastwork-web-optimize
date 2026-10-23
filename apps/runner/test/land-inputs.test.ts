@@ -263,7 +263,6 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
   it("every PACKAGE_EXTRA_READS entry is exercised: it matches a tracked file or is a deliberate directory", () => {
     const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
     // the fwcore binary is a build output, never tracked
-    // the workflow lint also reads `.yaml` workflow files, which GitHub accepts; none is tracked today, and a future one must be linted
     const untrackedOk = [FWCORE_BIN, ".github/workflows/*.yaml"];
     for (const c of candidateChecks(root)) for (const g of c.reads.filter((x) => !untrackedOk.includes(x))) expect(tracked.some((f) => inScope([g], f)), `${c.id}: ${g}`).toBe(true);
   });

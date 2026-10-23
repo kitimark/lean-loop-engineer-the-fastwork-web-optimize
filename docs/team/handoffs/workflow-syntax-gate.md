@@ -1,5 +1,5 @@
 branch: worktree-wf_f1b87bb1-9b8-1
-worktree: .claude/worktrees/wf_f1b87bb1-9b8-1 (under the repo root)
+worktree: .claude/worktrees/wf_f1b87bb1-9b8-1
 last commit: see `git log -1` on the branch (work commit 986f847b9, handoff commit after it)
 CI runs: none (no ci/* push; the check is local tier)
 
@@ -13,7 +13,7 @@ CI runs: none (no ci/* push; the check is local tier)
 - Test `apps/runner/test/land-workflow.test.ts` (29 tests): golden replay, selection, script on dup key / expression / shellcheck / missing
   actionlint, and `runTier` refusing the land on a duplicated env key.
 - webkit-sim.yml `''` option finding: accepted, file+message scoped (reason in Lean `accepted` and docs/team/tools/land.md).
-- Tier: local (not in `remoteIds`); GitHub runners not known to carry actionlint, stated in land.md.
+- Tier: local (not in `remoteIds`); reason in land.md.
 
 ## Open
 - Outside the task writes: `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/scripts/WorkflowLintGolden.lean` (golden wiring, same as the other Ci goldens).

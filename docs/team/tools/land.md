@@ -255,11 +255,10 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
 
 The CLI prints a dry land through `dryLandReport` (`land.ts`, Lean `dryRun` plus `exitCode`): a failed dry install shows the stage lines up to `dry: conflict ok` and then `VERDICT install` (no special branch), and the real land's exit is `landExit(res)`. A reused land worktree is cleaned once (after checkout, before prep); a new one once after prep.
 
-## Workflow lint (task workflow-syntax-gate)
+## Workflow lint
 
-Incident `inc-workflow-dup-key`: the conflict resolution of a merge kept the key `SEARCH` twice in one `env` block of
-`.github/workflows/trajectory-probe.yml`; GitHub refused the file and every trajectory-probe push failed after the land, because no land
-check read the workflow files.
+Incident `inc-workflow-dup-key`: a merge kept the key `SEARCH` twice in one `env` block of
+`.github/workflows/trajectory-probe.yml`, and GitHub refused the file because no land check read workflow files.
 
 - Check `workflow-lint` (`sh scripts/check-workflows.sh`) runs `actionlint`. Selected when a changed path is `.github/workflows/*.yml`,
   `.github/workflows/*.yaml` or `scripts/check-workflows.sh` (Lean `Fw.Ci.WorkflowLint.select`, theorems `yml_selects`, `yaml_selects`,
@@ -272,5 +271,5 @@ check read the workflow files.
 - Accepted finding: `webkit-sim.yml` lists `''` as a `choice` option of the fault input, GitHub accepts it and actionlint says "string
   should not be empty". Changing the option would change the dispatch contract, so the finding is accepted for that file and message only
   (`accepted`, `accepted_is_file_scoped`).
-- Tier: local (not on the remote allowlist `remoteIds`). The GitHub-hosted runners are not known to carry `actionlint`; the check
-  therefore runs where `fw land` runs and says so. Moving it to the remote tier needs a runner install step first.
+- Tier: local (not on the remote allowlist `remoteIds`). The GitHub-hosted runners are not known to carry `actionlint`, so the check
+  runs where `fw land` runs. The remote tier needs a runner install step first.
