@@ -14,7 +14,7 @@ export const POLISH_USAGE =
   "       fw polish --staged [--cuts <file|-> [--apply yes]]            (the staged files of this checkout, for the lead's commits)";
 
 type Cls = { path: string; class: string; mark: string | null };
-type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; prose: string[] }; keep: string[]; restore: string[]; left?: string[] };
+type Plan = { classes: Cls[]; stages: string[]; scopes: { comments: string[]; prose: string[] }; keep: string[]; restore: string[]; left?: string[]; protected?: string[] };
 type CutOut = { path: string; old: string; verdict: string; missing: string[] };
 type DocOut = { path: string; text: string; changed: boolean };
 
@@ -328,6 +328,7 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
       if (!staged) saveBaseline(dir, git, write, dirtyBefore);
       out(`worktree ${dir}`);
       for (const p of paths.filter((q) => dirtyBefore.includes(q))) out(`skip ${p} (dirty before plan)`);
+      for (const p of plan.protected ?? []) out(`skip ${p} (protected)`);
       for (const c of plan.classes) out(`class ${c.class} ${c.mark ?? "-"} ${c.path}`);
       const rangeOf = (p: string) => (hk.ranges.find((r) => r.path === p)?.ranges ?? []).map((r) => `${r.lo}-${r.hi}`).join(",") || "none";
       for (const c of plan.classes.filter((c) => plan.scopes.comments.includes(c.path))) out(`comments ${c.mark ?? "-"} ${c.path} lines ${rangeOf(c.path)}`);
