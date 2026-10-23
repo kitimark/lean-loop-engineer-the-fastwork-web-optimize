@@ -52,7 +52,7 @@ while (attempts < MAX_ATTEMPTS) {
   attempts++;
   r = spawnSync('docker', [
   'run', '--rm', '--init', '--shm-size=1g', ...(process.env.FW_DOCKER_CPUS ? ['--cpus', process.env.FW_DOCKER_CPUS] : []),
-  ...Object.entries(process.env).filter(([k]) => /^FW_(DROP_FLAGS|NO_LAYERS|BARRIER_MIN_MS|CHROME_EXTRA|EXTRA_CATEGORIES|PROBE|BF_TIMEOUT_MS|BARRIER_MS|NOTOUCH|DEBUG|TOUCH_ACK_MS|TOUCH_SETTLE_MS)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${target === 'original' ? snapshotId ?? '' : ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
+  ...Object.entries(process.env).filter(([k]) => /^FW_(DROP_FLAGS|NO_LAYERS|BARRIER_MIN_MS|CHROME_EXTRA|EXTRA_CATEGORIES|PROBE|LOAD_TRACE|BF_TIMEOUT_MS|BARRIER_MS|NOTOUCH|DEBUG|TOUCH_ACK_MS|TOUCH_SETTLE_MS)$/.test(k)).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '-e', `FW_IMAGE_ID=${imageId}`, '-e', `FW_SNAPSHOT_ID=${target === 'original' ? snapshotId ?? '' : ''}`, ...(flag('debug') ? ['-e', 'FW_DEBUG=1'] : []),
   '-v', `${join(PKG, 'src')}:/driver:ro`, '-v', `${join(PKG, 'profiles')}:/profiles:ro`,
   '-v', `${snapshot}:/snapshot/site:ro`, '-v', `${out}:/out`,
   '--entrypoint', 'node', IMAGE, ...inner,

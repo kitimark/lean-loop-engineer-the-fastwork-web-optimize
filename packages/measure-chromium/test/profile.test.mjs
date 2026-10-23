@@ -52,3 +52,25 @@ test('a replay profile that cannot be replayed is refused with a reason', () => 
   assert.throws(() => parseProfile(edit((p) => { p.input.mode = 'touch'; })), /needs input\.mode "replay"/);
   assert.throws(() => parseProfile(edit((p) => { delete p.viewport; })), /viewport/);
 });
+
+test('the load diagnostics of run.mjs sit behind FW_LOAD_TRACE, the crash exit does not', () => {
+  const src = readFileSync(join(here, '../src/run.mjs'), 'utf8');
+  const open = src.indexOf('if (process.env.FW_LOAD_TRACE) {');
+  assert.ok(open > 0, 'the FW_LOAD_TRACE block exists');
+  let depth = 0, close = open;
+  for (let i = src.indexOf('{', open); i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    if (src[i] === '}' && --depth === 0) { close = i; break; }
+  }
+  for (const marker of ['Target.setDiscoverTargets', 'Page.lifecycleEvent', 'Runtime.exceptionThrown', 'Runtime.consoleAPICalled', 'Page.frameNavigated', 'Target.targetInfoChanged']) {
+    const at = [...src.matchAll(new RegExp(`'${marker.replace('.', '\\.')}'`, 'g'))].map((m) => m.index);
+    assert.ok(at.length > 0 && at.every((i) => i > open && i < close), `${marker} only inside the FW_LOAD_TRACE block`);
+  }
+  assert.ok(src.indexOf('FW_RENDERER_CRASH') < open, 'the renderer-crash exit is outside the flag block');
+});
+
+test('profile people-o-hover carries the text-wrap workaround and the open-card probe', () => {
+  const p = parseProfile(read('people-o-hover.json')).profile;
+  assert.equal(p.css, read('desktop-1280.json').css);
+  assert.equal(p.probe.selector, '[role="tooltip"]');
+});
