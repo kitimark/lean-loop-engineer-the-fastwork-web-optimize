@@ -14765,7 +14765,14 @@
    "writes": [
     "research/notes/2026/10-2x-hero-exit-threaded-pix.md",
     "results/hero-exit-threaded-pix/**",
-    "docs/team/handoffs/hero-exit-threaded-pix.md"
+    "docs/team/handoffs/hero-exit-threaded-pix.md",
+    ".github/workflows/path-pix.yml",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-webkit/test/pathpix*.test.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-chromium/test/pathpix*.test.mjs"
    ]
   },
   {
@@ -18178,6 +18185,27 @@
     "docs/team/handoffs/faithful-control-oos.md"
    ],
    "title": "counts-font-fidelity review follow-ups: (1) the faithful control A' comes from one of the three freeze runs (39916917890 / 39924639452), so A'/A passing is partly true by construction: one 4th target=both run per profile on image_run=39914488176 as an out-of-sample R and A' (lead dispatches), verdicts regenerated; (2) faithful.mjs lean emits per-zone control theorems ((zoneVerdict tbl A C z).pass = true), not only swipeV1_control_comparable; (3) test/fidelity-compare.test.mjs is run by no script: add it to packages/measure-chromium test:run."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-accent-pin",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-threaded-pix"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/pathpix*.mjs",
+    "packages/measure-chromium/src/pathpix*.mjs",
+    "packages/measure-*/test/pathpix*.test.mjs",
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "research/notes/2026/10-2x-pathpix-accent-pin.md",
+    "docs/team/handoffs/pathpix-accent-pin.md"
+   ],
+   "title": "hero-exit-threaded-pix follow-up: the hero accent-word chain cycles during path-pix captures, so the hero_copy A/A floor is non-zero (run 39929556147 webkit-4 y 427: A vs A2 29982 px at delta 106, one accent word; 4 invalid cells) and the hero_copy cells at y 0/1 may carry accent noise. Pin the accent chain to one word in both arms (a page hook the lanes set before capture, identical in A, A2 and P), state the pin in Lean (the masked region excludes nothing new), then one path-pix run shows the hero_copy A/A floor at 0."
   }
  ],
  "deadline": {
