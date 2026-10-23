@@ -20,6 +20,34 @@ export function reduceCells(raw) {
   return { units, lines, md };
 }
 
+const ints = (x) => (typeof x === 'number' ? Number.isInteger(x) : Array.isArray(x) ? x.every(ints) : x !== null && typeof x === 'object' ? Object.values(x).every(ints) : true);
+
+export function trimRaw(raw) {
+  const keep = (rows, f) => (rows ?? []).map(f);
+  const runs = raw.runs.map((u) => ({
+    width: u.width, role: u.role ?? (u.site === 'orig' ? 'orig' : 'cand'),
+    ...(u.morph ? { morph: { phases: Object.fromEntries(['open', 'close'].map((ph) => [ph, keep(u.morph.phases?.[ph], (r) => ({ m: r.m, rep: r.rep ?? 0, nodes: { nav: r.nodes?.nav, panel: r.nodes?.panel } }))])) } } : {}),
+    ...(u.pain ? { pain: Object.fromEntries(['up', 'down'].map((d) => [d, keep(u.pain[d], (r) => ({ layer: r.layer, cls: r.cls }))])) } : {}),
+    ...(u.carousel ? { carousel: keep(u.carousel, (r) => ({ v: r.v })) } : {}),
+  }));
+  const out = { engine: raw.engine, version: raw.version, search: raw.search, hash: raw.hash, baseHash: raw.baseHash, reps: raw.reps, layout: raw.layout, runs };
+  if (!ints(runs)) throw new Error('trimRaw: a non-integer number in the rows');
+  return out;
+}
+
+const gradeTok = (g) => g ?? 'null';
+
+export function rawLines(label, raw) {
+  return cellsOfRaw(raw).map((u) => {
+    const extra = u.cell === 'panel-effect' ? ` lag=${u.lag.map(gradeTok).join(',')}`
+      : u.cell === 'carousel' ? ` swaps=${u.swaps.join(',')} holds=${u.holds.map((h) => h.join(',')).join('/')}` : '';
+    return `${label} ${u.width} ${u.cell} ${u.part} ${gradeTok(u.grade)} ${u.reps.map(gradeTok).join(',')}${extra}`;
+  });
+}
+
+const fixtureFiles = (input) => (statSync(input).isDirectory() ? readdirSync(input).filter((f) => /^raw-.+\.json$/.test(f)).sort().map((f) => join(input, f)) : [input]);
+const labelOf = (f) => f.replace(/^.*\//, '').replace(/^raw-/, '').replace(/\.json$/, '');
+
 function report(raw, out) {
   const { units, lines, md } = reduceCells(raw);
   if (out !== '') {
@@ -41,6 +69,18 @@ export async function main(argv) {
     for (const f of rawFiles(input)) report(JSON.parse(readFileSync(f, 'utf8')), out);
     return 0;
   }
+  if (cmd === 'trim') {
+    const input = arg(argv, '--in');
+    if (input === '' || out === '') { console.error('cells-gpu: trim needs --in <raw json> --out <file>'); return 1; }
+    writeFileSync(out, JSON.stringify(trimRaw(JSON.parse(readFileSync(input, 'utf8')))) + '\n');
+    return 0;
+  }
+  if (cmd === 'raw') {
+    const inputs = argv.slice(1);
+    if (inputs.length === 0) { console.error('cells-gpu: raw needs <fixture json or dir>...'); return 1; }
+    for (const f of inputs.flatMap(fixtureFiles)) for (const l of rawLines(labelOf(f), JSON.parse(readFileSync(f, 'utf8')))) console.log(l);
+    return 0;
+  }
   if (cmd === 'run') {
     const widths = arg(argv, '--widths', '390,640').split(',').map(Number);
     if (widths.some((w) => ![390, 640, 641, 1280].includes(w))) { console.error('cells-gpu: widths must come from 390, 640, 641, 1280'); return 1; }
@@ -54,7 +94,7 @@ export async function main(argv) {
     report(raw, dir);
     return 0;
   }
-  console.error('usage: cells-gpu-cli.mjs summary --in <raw json or dir> [--out <dir>] | run --engine <e> --out <dir> [--widths ...] [--search ...] [--reps n]');
+  console.error('usage: cells-gpu-cli.mjs summary --in <raw json or dir> [--out <dir>] | trim --in <raw json> --out <file> | raw <fixture json or dir>... | run --engine <e> --out <dir> [--widths ...] [--search ...] [--reps n]');
   return 1;
 }
 

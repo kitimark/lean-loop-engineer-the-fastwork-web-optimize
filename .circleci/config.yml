@@ -261,6 +261,9 @@ jobs:
           command: sh .circleci/job.sh land-fwcore
           no_output_timeout: 30m
       - run:
+          name: actionlint (pinned, sha256-checked)
+          command: sh .circleci/job.sh land-actionlint
+      - run:
           name: suites (the remote tier of the Lean-selected checks)
           command: sh .circleci/job.sh land-suites << parameters.leg >>
           no_output_timeout: 30m
