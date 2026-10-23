@@ -17998,7 +17998,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/WkCostSums.lean"
    ],
-   "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted."
+   "title": "morph-idle-followups review follow-up: the per-pass sums of runs 39915136431 / 39915146774 (runBase/runFlag/runBase6/runFlag6 in lean/Fw/Measure/WkCost.lean) are hand-copied; make `morph-verdict --json` emit the PassSums from the r*-lag.json artifacts into a committed reduced-sums golden that Lean reads (or a check that the Lean literals equal the reduced artifacts), so transcription is checked, not trusted.",
+   "evidence": "60d6f6d"
   },
   {
    "devices": [
@@ -18079,6 +18080,27 @@
     "docs/team/handoffs/graph-writes-closure.md"
    ],
    "title": "Incident inc-graph-writes-closure: three builds on 2026-10-23 ended VERDICT scope because the lead's task writes lacked the closure of a new Lean golden check. Specify in Lean (Fw.Plan.WritesClosure) the closure rule: writes naming a new golden under packages/contracts/golden/** read by check.sh, or a new Lean module, imply lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean (and a new workflow file implies the CI table files counts-font-fidelity needed); theorems + golden. `fw plan lint` (and plan sync) refuse a task that lacks its closure, with the missing paths named; the plan test replays the golden. Verify against today's three cases (graph r322, r323, r325, r328)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-slot-width",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/scripts/check.sh",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/*Timing*Golden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/handoffs/timing-slot-width.md"
+   ],
+   "title": "fw watch opened timing.slow for lean/check 'parallel group' (2026-10-23): the group takes ~48 s at effective parallelism 2.0 and ~95 s at 1.0 (commits 046ff5f vs 3d0d68a; per-job durations equal), because the adaptive Lake build slot granted width 1 under load. The span does not record the granted width, so Fw.Obs.Timing judges a by-design narrow slot as slow. Record the granted slot width (and job count) in the span, and make the Timing slow verdict compare samples of the same width (Lean rule with theorems + golden; the TS reader checked against it). Then the alert only fires when a same-width sample is slow."
   }
  ],
  "deadline": {
