@@ -16996,7 +16996,8 @@
     "packages/contracts/golden/console/land-speed.jsonl",
     "apps/runner/src/land.ts"
    ],
-   "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l."
+   "title": "Follow-up of gpu-trajectory-cells round 3 (Fable + check, lead scratch gtc-final-spec.md): golden inputs are Lean-authored, so Lean and the JS cells meet only on hand-written shapes (rounds 1-2 were refused on shapes the goldens skipped: falling keys, dropped components). Commit a trimmed raw fixture from the Chromium A/A runs 39823047557, 39823476824, 39824100493 (one unit per phase per width), add a --raw mode to lean/scripts/TrajectoryGpuGolden.lean and to cells-gpu-cli that grade it, and compare the two grade lists in check.sh, so Lean and JS agree on CI-produced shapes. Also the panelCell-level theorem composing shiftedGrade_ne_e with panelGrade_no_match_l.",
+   "evidence": "09a0f27"
   },
   {
    "devices": [
