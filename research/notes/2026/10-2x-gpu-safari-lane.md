@@ -151,7 +151,7 @@ macOS Safari, same rule, two readings (MEASURED). The first, `results/gpu-safari
 nothing about other agents. Corrected (task gpu-safari-mac-followups): `lane/quiet-refusal.mjs --n 8 --every 4 --mine <own token>` with the lane's
 own lease excluded passes the Lean rule 8 of 8 quiet in each of 5 attempts (`results/gpu-safari/mac-quiet-s1.json` to `-s5.json`, 2026-10-23T14:44Z to
 14:56Z): load 2.54 to 5.22 against a floor-maximum of 8.00, baseline floor 260 to 470 centi, available memory 1064 to 2368 MB. So the Mac was quiet
-by the rule, and the earlier sentence that other agents' builds held it is withdrawn. The timing itself is still not taken: macOS Safari through
+by the rule. The timing itself is still not taken: macOS Safari through
 safaridriver has no Composite or render-server timing instrument (the Simulator figures cited above came from CI), so the quiet window
 cannot be spent on it. Follow-up: Instruments (a trace of the Safari GPU process) under the measure lease. The lane records cadence only.
 
@@ -182,8 +182,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   (`mac-morph-panel-threaded.json`, `.s2.json`; table by `lane/sessions.mjs`, `mac-sessions.json`). Threaded s1 13.0k / 26.4k (within), 63.8k / 41.3k
   (1.5x above), 29.5k / 69.6k (within); s2 14.4k / 20.3k (within), 12.8k / 29.3k (within), 43.9k / 38.2k (1.1x above). Bundled s1 13.5k / 26.4k (within),
   77.8k / 41.3k (1.9x above), 56.1k / 69.6k (within); s2 15.1k / 20.3k (within), 43.3k / 29.3k (1.5x above), 46.9k / 38.2k (1.2x above).
-  Max pixel delta 3 to 4 levels at m0.25, 20 to 23 at m0.5, 195 to 200 at m0.75. The earlier text quoted a "repeat" session (run 10-27-49) whose
-  reduction was never committed and whose shots are gone; its numbers are withdrawn and the committed s2 replaces it.
+  Max pixel delta 3 to 4 levels at m0.25, 20 to 23 at m0.5, 195 to 200 at m0.75. The "repeat" session (run 10-27-49) was never committed and is withdrawn; committed s2 replaces it.
   Floor session (task gpu-safari-mac-followups, s2, `--loads 6`, run `gpu-safari-mac-2026-10-23T14-52-26-600Z`): six faithful loads give ten
   later-load pairs. The floor is not one number: pair floors (min / median / max) are 16.4k / 20.3k / 27.4k at m0.25, 18.4k / 62.1k / 85.8k at m0.5 and
   8.0k / 44.0k / 87.2k at m0.75. Against the pair set the threaded nearest load is at or under the smallest floor at m0.25 and m0.5 (within) and
@@ -191,7 +190,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
   "within" here at 12.8k, so the one cell that looked above does not repeat. More loads did not shrink the floor, they showed it spans 8k to 87k px.
   Where the floor lives: faithful loads 2 and 3 of this session differ by 20,278 / 29,273 / 38,228 px at m0.25 / 0.5 / 0.75, all of them inside the
   platform box and the nav box, max delta 4 / 17 / 182 (`lane/armpair.mjs`; MEASURED for the counts, the cause, GPU-rasterised blur varying between loads, is INFERRED).
-  Verdict: INCONCLUSIVE on the Mac, and now with a measured reason: the arm's difference (tens of thousands of px, under 5% of 1.5M) is the size of the
+  Verdict: INCONCLUSIVE on the Mac, with a measured reason: the arm's difference (tens of thousands of px, under 5% of 1.5M) is the size of the
   platform and nav blur drift between two loads of the same page, so the Mac cannot separate them. The Simulator rows (2.4x, 77x, 27x above floor) stay the
   clearer ones.
 - Pain (dark-scroll), five states y-16..y+16: 0 changed px against the later loads at every state, floor 0 (identical on the real GPU;
@@ -209,8 +208,7 @@ Simulator's in the morph zone (26k to 70k px against 1.5k to 8.6k) because the p
 
   x0.25 and x0.5 are above the floor in all three sessions (1.5x to 8.2x); max delta 167 and 111 levels in every session. The size at x0.5
   varies from 5.2k to 20.8k px, so the direction repeats and the size does not. x0.75 is mixed: identical twice and a 5,187 px region once,
-  the same region size as the s1 floor, so it is load dependent (INFERRED). The old "repeat" session (run 10-29-30) was never committed; its numbers
-  are withdrawn. Verdict: a repeating look difference in the first half of the exit (x0.25, x0.5), size 5k to 21k px of 1.5M, not settled in size;
+  the same region size as the s1 floor, so it is load dependent (INFERRED). The "repeat" session (run 10-29-30) was never committed and is withdrawn. Verdict: a repeating look difference in the first half of the exit (x0.25, x0.5), size 5k to 21k px of 1.5M, not settled in size;
   a candidate for the user's visual review. The CI path-pixel cells of the same arm on the Simulator (runs 39920801675, 39924527942, 39929556147,
   `results/hero-exit-threaded-pix/`; note `10-2x-hero-exit-threaded-pix`) grade no P cell E or Q and call the differences L (text hold or change outside the masks),
   INFERRED to be the same class as the Mac readings (max deltas of 167 and 111 levels). A Simulator hero row of this lane (`run.mjs sim hero`) is not taken
@@ -270,7 +268,7 @@ grid step later passes `m`, unless the time is already 680 ms), over `Rat`, with
 `lane.test.mjs` checks the TS `elapsedAt` against it to the millisecond grid. `elapsedAt` is therefore no longer a TS stand-in.
 The wording "largest time on the grid" is now a theorem too, `elapsed_largest` (`lean/Fw/Measure/GpuElapsed.lean`): for `0 <= m`, every grid
 step `k` above `elapsedMilli m` (up to the 680 ms end) already passes `m`, i.e. `m < ease (k / steps)`. Together with `elapsed_not_past` the value is the greatest
-grid time that does not pass `m`. Axioms: propext, Classical.choice, Quot.sound only. The golden is unchanged.
+grid time that does not pass `m`. Axioms: propext, Classical.choice, Quot.sound only.
 
 ## The "connection closed by this tool" error of round 1
 
