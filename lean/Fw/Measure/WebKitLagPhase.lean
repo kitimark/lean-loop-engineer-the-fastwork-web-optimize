@@ -413,9 +413,9 @@ theorem acceptMomentum_spec {o : Outcome} {s y m : Int} {scrolls : List Nat} {p 
 /-! ## A page pulled off the scroll lock while the morph is open
 
 The site holds the scroll while the morph is open: it prevents every wheel and puts the scroll position back after every scroll event, so a wheel
-cannot move the page then. The pull drive moves the page itself once a frame; a scroll listener that runs before the site's records the position
-the event carries, and a frame in which that position is not the lock position (the position when the push arrived) is a frame in which the page
-was off the lock. -/
+cannot move the page then. The pull drive moves the page itself once a frame; the page reads the position right after its own pull, before the site
+puts it back, and a frame in which that reading is not the lock position (the position when the push arrived) is a frame in which the pull took
+effect; the frame is still drawn at the lock. -/
 
 /-- Frames after an open-phase frame in which a record off the lock still counts for that frame (the scroll event of a pull arrives in the frame after it). -/
 def pullLook : Nat := 2
@@ -496,7 +496,7 @@ theorem pullFrames_lock (lock : Int) (ys : List Int) (p : Nat) {n : Nat} (hn : 0
   rw [offFrames_lock lock 0 ys h]
   exact pullFrames_nil p hn
 
-/-- The run that pulls the page while the morph is open is used only if the scroll-in rule holds, a push was seen, the page was not already at the end `maxY` when the push arrived (`pushEvY` is the position its event reported), and the page was off the lock position `pushEvY` in every open-phase frame (`ys` are the per-frame positions). -/
+/-- The run that pulls the page while the morph is open is used only if the scroll-in rule holds, a push was seen, the page was not already at the end `maxY` when the push arrived (`pushEvY` is the position its event reported), and every open-phase frame has, within `pullLook` frames after it, a reading off the lock position `pushEvY` (`ys` are the per-frame positions). -/
 def acceptPull (o : Outcome) (startY pushY morphMilli maxY pushEvY : Int) (p : Option Nat) (ys : List Int) : Outcome :=
   match acceptScrollIn o startY pushY morphMilli with
   | .refused r => .refused r
