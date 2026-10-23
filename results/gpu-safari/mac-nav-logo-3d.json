@@ -1,0 +1,1700 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "macos-safari",
+ "run": "gpu-safari-mac-2026-10-23T10-13-13-503Z",
+ "zone": "nav",
+ "session": {
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+  "dpr": 2,
+  "vw": 430,
+  "vh": 880,
+  "maxY": 5229,
+  "device": "macOS Safari (safaridriver)",
+  "timing": "cadence only: the Lean quiet rule refuses a loaded Mac",
+  "pinnedClock": false
+ },
+ "flip": null,
+ "ci": {
+  "gate": "39848853982",
+  "trajectory": [
+   "39842581192"
+  ],
+  "webkitSim": [
+   "39872570182"
+  ]
+ },
+ "arm": "nav-logo-3d",
+ "search": "?fw=nav:logo-3d",
+ "states": [
+  {
+   "id": "m0.1",
+   "kind": "morph",
+   "m": 0.1,
+   "y": null,
+   "mask": [
+    6,
+    820,
+    23,
+    1737
+   ],
+   "maskKind": "nav",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 177218,
+     "maxDelta": 64
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 90514,
+     "b2_3": 54739,
+     "b4_15": 30204,
+     "b16_255": 1761
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 177218,
+      "maxDelta": 64
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 232,
+      "maxDelta": 79
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": true,
+    "arm": false,
+    "control": false
+   },
+   "glass": {
+    "faithful": {
+     "n": 1335100,
+     "mean": [
+      159.84,
+      163.41,
+      170.12
+     ],
+     "median": [
+      210,
+      217,
+      226
+     ]
+    },
+    "arm": {
+     "n": 1335100,
+     "mean": [
+      159.71,
+      163.25,
+      169.96
+     ],
+     "median": [
+      209,
+      217,
+      226
+     ]
+    },
+    "control": {
+     "n": 1335100,
+     "mean": [
+      159.84,
+      163.41,
+      170.11
+     ],
+     "median": [
+      210,
+      217,
+      226
+     ]
+    },
+    "armDelta": {
+     "mean": [
+      -0.13,
+      -0.16,
+      -0.16
+     ],
+     "median": [
+      -1,
+      0,
+      0
+     ]
+    },
+    "controlDelta": {
+     "mean": [
+      0,
+      0,
+      -0.01
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "own": {
+    "mask": [
+     13,
+     813,
+     30,
+     297
+    ],
+    "inside": {
+     "changed": 176953,
+     "maxDelta": 61
+    },
+    "hist": {
+     "b1": 90509,
+     "b2_3": 54729,
+     "b4_15": 30122,
+     "b16_255": 1593
+    },
+    "ring": {
+     "edge": {
+      "changed": 3482,
+      "maxDelta": 32
+     },
+     "interior": {
+      "changed": 173471,
+      "maxDelta": 61
+     }
+    },
+    "control": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "controlHist": {
+     "b1": 0,
+     "b2_3": 0,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "controlRing": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 0,
+      "maxDelta": 0
+     }
+    },
+    "glass": {
+     "faithful": {
+      "n": 188568,
+      "mean": [
+       154.85,
+       162.94,
+       171.82
+      ],
+      "median": [
+       175,
+       186,
+       196
+      ]
+     },
+     "arm": {
+      "n": 188568,
+      "mean": [
+       154.11,
+       162.02,
+       170.97
+      ],
+      "median": [
+       175,
+       185,
+       196
+      ]
+     },
+     "control": {
+      "n": 188568,
+      "mean": [
+       154.85,
+       162.94,
+       171.82
+      ],
+      "median": [
+       175,
+       186,
+       196
+      ]
+     },
+     "armDelta": {
+      "mean": [
+       -0.74,
+       -0.92,
+       -0.85
+      ],
+      "median": [
+       0,
+       -1,
+       0
+      ]
+     },
+     "controlDelta": {
+      "mean": [
+       0,
+       0,
+       0
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "loads": {
+    "arm": [
+     {
+      "changed": 177218,
+      "maxDelta": 64
+     },
+     {
+      "changed": 177217,
+      "maxDelta": 61
+     },
+     {
+      "changed": 177192,
+      "maxDelta": 61
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 232,
+      "maxDelta": 79
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 697,
+      "maxDelta": 78
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 666,
+      "maxDelta": 2
+     }
+    ],
+    "nearest": 177192,
+    "laterNearest": 177192,
+    "spread": 697,
+    "floor": 666,
+    "within": false
+   },
+   "hash": {
+    "a": "277d2f83d29f6f2c",
+    "b": "e6547cb014cec5d2",
+    "c": "0f2eef51e9e0cd4e",
+    "d": "87c04074b2c6c470"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.1",
+     "rect": [
+      7000000,
+      15593750,
+      398796875,
+      132390625
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in box-module_boxClip_P8v6fJ box-module_boxBar_r3WV3R box-module_box3d_JzJFwY is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.1",
+     "rect": [
+      3500000,
+      12000000,
+      406000000,
+      856000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.1",
+     "rect": [
+      7000000,
+      15593750,
+      398796875,
+      132390625
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.25",
+   "kind": "morph",
+   "m": 0.25,
+   "y": null,
+   "mask": [
+    6,
+    820,
+    23,
+    1737
+   ],
+   "maskKind": "nav",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 167506,
+     "maxDelta": 42
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 116000,
+     "b2_3": 25343,
+     "b4_15": 25876,
+     "b16_255": 287
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 167506,
+      "maxDelta": 42
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 11288,
+      "maxDelta": 3
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": {
+    "faithful": {
+     "n": 1335100,
+     "mean": [
+      143.87,
+      146.81,
+      153.29
+     ],
+     "median": [
+      145,
+      150,
+      157
+     ]
+    },
+    "arm": {
+     "n": 1335100,
+     "mean": [
+      143.75,
+      146.68,
+      153.16
+     ],
+     "median": [
+      145,
+      150,
+      157
+     ]
+    },
+    "control": {
+     "n": 1335100,
+     "mean": [
+      143.87,
+      146.81,
+      153.28
+     ],
+     "median": [
+      145,
+      150,
+      157
+     ]
+    },
+    "armDelta": {
+     "mean": [
+      -0.12,
+      -0.13,
+      -0.13
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    },
+    "controlDelta": {
+     "mean": [
+      0,
+      0,
+      -0.01
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "own": {
+    "mask": [
+     12,
+     814,
+     29,
+     537
+    ],
+    "inside": {
+     "changed": 167506,
+     "maxDelta": 42
+    },
+    "hist": {
+     "b1": 116000,
+     "b2_3": 25343,
+     "b4_15": 25876,
+     "b16_255": 287
+    },
+    "ring": {
+     "edge": {
+      "changed": 3372,
+      "maxDelta": 24
+     },
+     "interior": {
+      "changed": 164134,
+      "maxDelta": 42
+     }
+    },
+    "control": {
+     "changed": 11288,
+     "maxDelta": 3
+    },
+    "controlHist": {
+     "b1": 9631,
+     "b2_3": 1657,
+     "b4_15": 0,
+     "b16_255": 0
+    },
+    "controlRing": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 11288,
+      "maxDelta": 3
+     }
+    },
+    "glass": {
+     "faithful": {
+      "n": 376552,
+      "mean": [
+       125.25,
+       131.09,
+       138.9
+      ],
+      "median": [
+       136,
+       143,
+       153
+      ]
+     },
+     "arm": {
+      "n": 376552,
+      "mean": [
+       124.89,
+       130.73,
+       138.54
+      ],
+      "median": [
+       136,
+       143,
+       153
+      ]
+     },
+     "control": {
+      "n": 376552,
+      "mean": [
+       125.25,
+       131.09,
+       138.9
+      ],
+      "median": [
+       136,
+       143,
+       153
+      ]
+     },
+     "armDelta": {
+      "mean": [
+       -0.36,
+       -0.36,
+       -0.36
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     },
+     "controlDelta": {
+      "mean": [
+       0,
+       0,
+       0
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "loads": {
+    "arm": [
+     {
+      "changed": 167506,
+      "maxDelta": 42
+     },
+     {
+      "changed": 168928,
+      "maxDelta": 42
+     },
+     {
+      "changed": 167036,
+      "maxDelta": 42
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 11288,
+      "maxDelta": 3
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 11544,
+      "maxDelta": 3
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 9315,
+      "maxDelta": 4
+     }
+    ],
+    "nearest": 167036,
+    "laterNearest": 167036,
+    "spread": 11544,
+    "floor": 9315,
+    "within": false
+   },
+   "hash": {
+    "a": "515594f41257e424",
+    "b": "221f1535dfb68a73",
+    "c": "1e7e2571c7e8346e",
+    "d": "ff7ad0821c20fe6b"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in box-module_boxClip_P8v6fJ box-module_boxBar_r3WV3R box-module_box3d_JzJFwY is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      3500000,
+      12000000,
+      406000000,
+      856000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.5",
+   "kind": "morph",
+   "m": 0.5,
+   "y": null,
+   "mask": [
+    6,
+    820,
+    23,
+    1737
+   ],
+   "maskKind": "nav",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 110794,
+     "maxDelta": 44
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 66773,
+     "b2_3": 16028,
+     "b4_15": 16886,
+     "b16_255": 11107
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 110794,
+      "maxDelta": 44
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 13440,
+      "maxDelta": 30
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": {
+    "faithful": {
+     "n": 1335100,
+     "mean": [
+      115.28,
+      117.53,
+      123.77
+     ],
+     "median": [
+      70,
+      75,
+      83
+     ]
+    },
+    "arm": {
+     "n": 1335100,
+     "mean": [
+      115.5,
+      117.72,
+      123.96
+     ],
+     "median": [
+      70,
+      75,
+      83
+     ]
+    },
+    "control": {
+     "n": 1335100,
+     "mean": [
+      115.28,
+      117.53,
+      123.77
+     ],
+     "median": [
+      70,
+      75,
+      83
+     ]
+    },
+    "armDelta": {
+     "mean": [
+      0.22,
+      0.19,
+      0.19
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    },
+    "controlDelta": {
+     "mean": [
+      0,
+      0,
+      0
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "own": {
+    "mask": [
+     10,
+     816,
+     27,
+     937
+    ],
+    "inside": {
+     "changed": 110794,
+     "maxDelta": 44
+    },
+    "hist": {
+     "b1": 66773,
+     "b2_3": 16028,
+     "b4_15": 16886,
+     "b16_255": 11107
+    },
+    "ring": {
+     "edge": {
+      "changed": 4107,
+      "maxDelta": 40
+     },
+     "interior": {
+      "changed": 106687,
+      "maxDelta": 44
+     }
+    },
+    "control": {
+     "changed": 13440,
+     "maxDelta": 30
+    },
+    "controlHist": {
+     "b1": 4029,
+     "b2_3": 3593,
+     "b4_15": 4911,
+     "b16_255": 907
+    },
+    "controlRing": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 13440,
+      "maxDelta": 30
+     }
+    },
+    "glass": {
+     "faithful": {
+      "n": 692852,
+      "mean": [
+       62.43,
+       66.71,
+       74.59
+      ],
+      "median": [
+       64,
+       69,
+       77
+      ]
+     },
+     "arm": {
+      "n": 692852,
+      "mean": [
+       62.54,
+       66.8,
+       74.68
+      ],
+      "median": [
+       64,
+       69,
+       77
+      ]
+     },
+     "control": {
+      "n": 692852,
+      "mean": [
+       62.43,
+       66.71,
+       74.59
+      ],
+      "median": [
+       64,
+       69,
+       77
+      ]
+     },
+     "armDelta": {
+      "mean": [
+       0.11,
+       0.09,
+       0.09
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     },
+     "controlDelta": {
+      "mean": [
+       0,
+       0,
+       0
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "loads": {
+    "arm": [
+     {
+      "changed": 110794,
+      "maxDelta": 44
+     },
+     {
+      "changed": 108475,
+      "maxDelta": 44
+     },
+     {
+      "changed": 108870,
+      "maxDelta": 44
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 13440,
+      "maxDelta": 30
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 14140,
+      "maxDelta": 44
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 12354,
+      "maxDelta": 28
+     }
+    ],
+    "nearest": 108475,
+    "laterNearest": 108475,
+    "spread": 14140,
+    "floor": 12354,
+    "within": false
+   },
+   "hash": {
+    "a": "499c4826edf44fe1",
+    "b": "932809094a3bb29d",
+    "c": "e376e61c3f23dc1b",
+    "d": "08dc334cac0a38d1"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in box-module_boxClip_P8v6fJ box-module_boxBar_r3WV3R box-module_box3d_JzJFwY is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      3500000,
+      12000000,
+      406000000,
+      856000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.75",
+   "kind": "morph",
+   "m": 0.75,
+   "y": null,
+   "mask": [
+    6,
+    820,
+    23,
+    1737
+   ],
+   "maskKind": "nav",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 14017,
+     "maxDelta": 187
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 9357,
+     "b2_3": 1434,
+     "b4_15": 1624,
+     "b16_255": 1602
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 14017,
+      "maxDelta": 187
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 3937,
+      "maxDelta": 188
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": {
+    "faithful": {
+     "n": 1335100,
+     "mean": [
+      60.96,
+      64.41,
+      71.66
+     ],
+     "median": [
+      29,
+      32,
+      39
+     ]
+    },
+    "arm": {
+     "n": 1335100,
+     "mean": [
+      60.94,
+      64.4,
+      71.65
+     ],
+     "median": [
+      29,
+      32,
+      39
+     ]
+    },
+    "control": {
+     "n": 1335100,
+     "mean": [
+      60.97,
+      64.42,
+      71.67
+     ],
+     "median": [
+      29,
+      32,
+      39
+     ]
+    },
+    "armDelta": {
+     "mean": [
+      -0.02,
+      -0.01,
+      -0.01
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    },
+    "controlDelta": {
+     "mean": [
+      0.01,
+      0.01,
+      0.01
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "own": {
+    "mask": [
+     8,
+     818,
+     25,
+     1337
+    ],
+    "inside": {
+     "changed": 14017,
+     "maxDelta": 187
+    },
+    "hist": {
+     "b1": 9357,
+     "b2_3": 1434,
+     "b4_15": 1624,
+     "b16_255": 1602
+    },
+    "ring": {
+     "edge": {
+      "changed": 1235,
+      "maxDelta": 42
+     },
+     "interior": {
+      "changed": 12782,
+      "maxDelta": 187
+     }
+    },
+    "control": {
+     "changed": 3937,
+     "maxDelta": 188
+    },
+    "controlHist": {
+     "b1": 539,
+     "b2_3": 468,
+     "b4_15": 910,
+     "b16_255": 2020
+    },
+    "controlRing": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 3937,
+      "maxDelta": 188
+     }
+    },
+    "glass": {
+     "faithful": {
+      "n": 1012368,
+      "mean": [
+       42.77,
+       46.21,
+       53.39
+      ],
+      "median": [
+       29,
+       32,
+       39
+      ]
+     },
+     "arm": {
+      "n": 1012368,
+      "mean": [
+       42.75,
+       46.19,
+       53.37
+      ],
+      "median": [
+       29,
+       32,
+       39
+      ]
+     },
+     "control": {
+      "n": 1012368,
+      "mean": [
+       42.79,
+       46.23,
+       53.4
+      ],
+      "median": [
+       29,
+       32,
+       39
+      ]
+     },
+     "armDelta": {
+      "mean": [
+       -0.02,
+       -0.02,
+       -0.02
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     },
+     "controlDelta": {
+      "mean": [
+       0.02,
+       0.02,
+       0.01
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "loads": {
+    "arm": [
+     {
+      "changed": 14017,
+      "maxDelta": 187
+     },
+     {
+      "changed": 15480,
+      "maxDelta": 189
+     },
+     {
+      "changed": 15487,
+      "maxDelta": 188
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 3937,
+      "maxDelta": 188
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 4136,
+      "maxDelta": 189
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 2930,
+      "maxDelta": 195
+     }
+    ],
+    "nearest": 14017,
+    "laterNearest": 15480,
+    "spread": 4136,
+    "floor": 2930,
+    "within": false
+   },
+   "hash": {
+    "a": "04b5f41ff97e96e7",
+    "b": "06def2ea105f6d96",
+    "c": "c95796247100053f",
+    "d": "b117ddefda6bf7f1"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in box-module_boxClip_P8v6fJ box-module_boxBar_r3WV3R box-module_box3d_JzJFwY is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      3500000,
+      12000000,
+      406000000,
+      856000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.9",
+   "kind": "morph",
+   "m": 0.9,
+   "y": null,
+   "mask": [
+    6,
+    820,
+    23,
+    1737
+   ],
+   "maskKind": "nav",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 750324,
+     "maxDelta": 228
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 690693,
+     "b2_3": 40962,
+     "b4_15": 6355,
+     "b16_255": 12314
+    },
+    "ring": {
+     "edge": {
+      "changed": 5121,
+      "maxDelta": 30
+     },
+     "interior": {
+      "changed": 745203,
+      "maxDelta": 228
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 2134,
+      "maxDelta": 223
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": {
+    "faithful": {
+     "n": 1335100,
+     "mean": [
+      38.11,
+      41.31,
+      48.5
+     ],
+     "median": [
+      21,
+      25,
+      34
+     ]
+    },
+    "arm": {
+     "n": 1335100,
+     "mean": [
+      38.13,
+      41.35,
+      48.53
+     ],
+     "median": [
+      21,
+      25,
+      34
+     ]
+    },
+    "control": {
+     "n": 1335100,
+     "mean": [
+      38.15,
+      41.35,
+      48.54
+     ],
+     "median": [
+      21,
+      25,
+      34
+     ]
+    },
+    "armDelta": {
+     "mean": [
+      0.02,
+      0.04,
+      0.03
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    },
+    "controlDelta": {
+     "mean": [
+      0.04,
+      0.04,
+      0.04
+     ],
+     "median": [
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "own": {
+    "mask": [
+     7,
+     820,
+     23,
+     1577
+    ],
+    "inside": {
+     "changed": 750324,
+     "maxDelta": 228
+    },
+    "hist": {
+     "b1": 690693,
+     "b2_3": 40962,
+     "b4_15": 6355,
+     "b16_255": 12314
+    },
+    "ring": {
+     "edge": {
+      "changed": 6519,
+      "maxDelta": 30
+     },
+     "interior": {
+      "changed": 743805,
+      "maxDelta": 228
+     }
+    },
+    "control": {
+     "changed": 2134,
+     "maxDelta": 223
+    },
+    "controlHist": {
+     "b1": 76,
+     "b2_3": 137,
+     "b4_15": 328,
+     "b16_255": 1593
+    },
+    "controlRing": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 2134,
+      "maxDelta": 223
+     }
+    },
+    "glass": {
+     "faithful": {
+      "n": 1207170,
+      "mean": [
+       38.56,
+       41.77,
+       48.81
+      ],
+      "median": [
+       22,
+       26,
+       34
+      ]
+     },
+     "arm": {
+      "n": 1207170,
+      "mean": [
+       38.58,
+       41.82,
+       48.84
+      ],
+      "median": [
+       22,
+       26,
+       34
+      ]
+     },
+     "control": {
+      "n": 1207170,
+      "mean": [
+       38.6,
+       41.81,
+       48.85
+      ],
+      "median": [
+       22,
+       26,
+       34
+      ]
+     },
+     "armDelta": {
+      "mean": [
+       0.02,
+       0.05,
+       0.03
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     },
+     "controlDelta": {
+      "mean": [
+       0.04,
+       0.04,
+       0.04
+      ],
+      "median": [
+       0,
+       0,
+       0
+      ]
+     }
+    }
+   },
+   "loads": {
+    "arm": [
+     {
+      "changed": 750324,
+      "maxDelta": 228
+     },
+     {
+      "changed": 750796,
+      "maxDelta": 228
+     },
+     {
+      "changed": 750423,
+      "maxDelta": 228
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 2134,
+      "maxDelta": 223
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 2330,
+      "maxDelta": 223
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 2292,
+      "maxDelta": 223
+     }
+    ],
+    "nearest": 750324,
+    "laterNearest": 750423,
+    "spread": 2330,
+    "floor": 2292,
+    "within": false
+   },
+   "hash": {
+    "a": "e962bbb159e9888a",
+    "b": "2d47aa16d5773e2e",
+    "c": "77603e2fffbe77c6",
+    "d": "e7771212d295089c"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.9",
+     "rect": [
+      4000000,
+      12390625,
+      405187500,
+      775593750
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in box-module_boxClip_P8v6fJ box-module_boxBar_r3WV3R box-module_box3d_JzJFwY is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.9",
+     "rect": [
+      3500000,
+      12000000,
+      406000000,
+      856000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.9",
+     "rect": [
+      4000000,
+      12390625,
+      405187500,
+      775593750
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": null,
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  }
+ ]
+}
