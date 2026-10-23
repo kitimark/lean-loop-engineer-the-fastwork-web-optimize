@@ -81,7 +81,7 @@ export interface SystemSnap {
    *  threads and raises `review.feedback` for a flag with an open comment (Lean `Fw.Obs.FeedbackAlert`) */
   feedback?: FeedbackEv[];
   /** GitHub Actions, Pages and Webhooks states and the open incidents (watch-gh.ts); fwcore raises sys.ghDegraded */
-  gh?: GhSnap;
+  gh?: GhSnap & { /** age in ms of the run list in `ci` (0 or absent: read this pass; Fw.Obs.GhStatus.ciAgeNote) */ ciAgeMs?: number };
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];

@@ -20,8 +20,6 @@ export interface GhIncident {
  *  pass left Actions flagged (Fw.Obs.GhStatus.ghOpenB keeps that on unknown). */
 export interface GhSnap {
   actions: string; pages: string; webhooks: string; prevDegraded: boolean; incidents: GhIncident[];
-  /** age in ms of the run list the CI facts come from; 0 or absent when this pass read it (Fw.Obs.GhStatus.ciAgeNote) */
-  ciAgeMs?: number;
 }
 export const GH_UNKNOWN: Omit<GhSnap, "prevDegraded"> = { actions: "unknown", pages: "unknown", webhooks: "unknown", incidents: [] };
 
