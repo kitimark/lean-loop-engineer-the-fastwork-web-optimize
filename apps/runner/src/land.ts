@@ -21,6 +21,7 @@ import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwc
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
+import { WORKFLOW_LINT_ARGV, WORKFLOW_LINT_ID, WORKFLOW_LINT_READS } from "./land-checks-workflow.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, realEnv, type Env } from "@fw/gh-budget";
 
@@ -238,6 +239,10 @@ export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
 ];
 
+/** The workflow lint (Lean Fw.Ci.WorkflowLint; golden ci/workflow-lint.jsonl, test land-workflow.test.ts): runs where the land runs (local tier), needs no fwcore. */
+export const WORKFLOW_LINT: Check = { id: WORKFLOW_LINT_ID, argv: WORKFLOW_LINT_ARGV, reads: WORKFLOW_LINT_READS };
+export const LOCAL_GATES: Check[] = [...LOCAL_TESTS, WORKFLOW_LINT];
+
 export function candidateChecks(root: string): Check[] {
   const out: Check[] = [
     { id: "install", argv: ["pnpm", "install", "--frozen-lockfile"], reads: INSTALL_READS },
@@ -255,7 +260,7 @@ export function candidateChecks(root: string): Check[] {
       } catch { }
     }
   }
-  return withScan([...out, ...LOCAL_TESTS]);
+  return withScan([...out, ...LOCAL_GATES]);
 }
 
 export function checksWithReads(root: string, changed: string[], d0: Digest = null, d1: Digest = null, select: typeof selectTwoPhase = selectTwoPhase): Check[] {
@@ -753,9 +758,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         }
       } else lines.push("dry: lints skipped (reads refused first)");
       if (reads && lints) {
-        const local = (o.dryLocal ?? LOCAL_TESTS).filter((t) => selectChecks([t], changed).length > 0);
+        const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const needsBuild = !o.dryLocal && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
+          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
           dryStep = dryTotalStep(o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
           const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);
