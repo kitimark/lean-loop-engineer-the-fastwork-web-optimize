@@ -17348,7 +17348,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/people-o-followups.md"
    ],
-   "title": "Review follow-ups of people-o-preview-translate (landed ec3009a22): (1) after chromium-desktop-crash is fixed, re-run the people-o-hover desktop Chromium counts (base vs flag, Layout per frame) and set the ledger row n 53 chromium verdict; add a position or pixel probe of the open card, since gate run 39850908365 never hovers and the open card rests on Lean step_faithful; (2) put the load diagnostics in run.mjs:78-93 (Target.setDiscoverTargets, lifecycle, console and exception listeners) behind FW_LOAD_TRACE, or show that determinism is unchanged on an existing profile; (3) the 'snapDev rows' case in preview.golden.test.ts checks the golden against Math.floor and calls no site code: export snapDev from preview.ts and compare it, or drop the case."
+   "title": "Review follow-ups of people-o-preview-translate (landed ec3009a22): (1) after chromium-desktop-crash is fixed, re-run the people-o-hover desktop Chromium counts (base vs flag, Layout per frame) and set the ledger row n 53 chromium verdict; add a position or pixel probe of the open card, since gate run 39850908365 never hovers and the open card rests on Lean step_faithful; (2) put the load diagnostics in run.mjs:78-93 (Target.setDiscoverTargets, lifecycle, console and exception listeners) behind FW_LOAD_TRACE, or show that determinism is unchanged on an existing profile; (3) the 'snapDev rows' case in preview.golden.test.ts checks the golden against Math.floor and calls no site code: export snapDev from preview.ts and compare it, or drop the case.",
+   "evidence": "415ec06"
   },
   {
    "devices": [
