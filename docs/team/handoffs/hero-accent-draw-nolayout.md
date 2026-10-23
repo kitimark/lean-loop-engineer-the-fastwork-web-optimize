@@ -1,9 +1,10 @@
 branch: worktree-wf_94944339-2ae-1 (CI branch ci/hero-accent-draw-nolayout)
 worktree: .claude/worktrees/wf_94944339-2ae-1
-last commit: 08e6bcdf0 (empty token commit on top of main merge f4d177efe and work 3449c6efd)
-CI runs: webkit-sim 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout], arm hero.accent:draw-nolayout): running. 1 of 2 dispatches used.
-verified: Lean StyleDiffAccent builds (all theorems by decide), golden regenerated, site hero.accent tests + tsc green, ci-paths 56 green, lake test green.
-open: run result (Layout per swap window and hero-exit frame, arm vs faithful); note + ledger row; check.sh; dry land; pixel sameness not measurable in path-pix (accent pinned, PP_FLAG is a hero.exit flag).
-design: arm = clip-path inset() wipe on the visible copy (frame0), path dash static; look change (wipe is not the stroke trace). Draw-out frames need no layout (Lean arm_drawOut_nolayout), draw-in keeps the original's width transition (layout, arm_drawIn_layout_only_width). Chromium faithful draw-out already has no layout (faithful_drawOut).
-writes outside graph: .github/workflows/webkit-sim.yml (FW token [swap-fw:accent-nolayout]), lean/Fw/Ci/Trigger.lean + golden/ci/triggers.jsonl, packages/contracts/golden/preset/v2-proved.decisions.jsonl.
-read first: lean/Fw/Engine/StyleDiffAccent.lean
+last commit: see git log (note + ledger commit 7b44ef6b3, then main merge, handoff)
+CI runs: webkit-sim 39999057900 (push 08e6bcdf0, [swap-lane] [swap-fw:accent-nolayout]): complete; r1 r2 success, r3 failed at Simulator boot. 1 of 2 dispatches used.
+verified: Lean StyleDiffAccent (all by decide), check.sh green (slot), site tests + tsc, runner tests, ci-paths 56.
+result: rest windows with >=24 Layout rows 17/64 (arm) vs 20/32 and 18/32 (faithful a, b); swap windows unchanged (median 14); hero exit: cadence/Paint/Composite overlap, no Layout count in the lane.
+open: pixel sameness not measured (path-pix pins the accent; class look-change, user review); Layout per hero-exit frame not delivered.
+design: arm = clip-path inset() wipe of frame0, static path; draw-out frames layout-free (arm_drawOut_nolayout), draw-in keeps width transition (layout).
+writes outside graph: .github/workflows/webkit-sim.yml (FW token), lean/Fw/Ci/Trigger.lean + golden/ci/triggers.jsonl, golden/preset/v2-proved.decisions.jsonl.
+read first: research/notes/2026/10-2x-accent-draw-nolayout.md, lean/Fw/Engine/StyleDiffAccent.lean
