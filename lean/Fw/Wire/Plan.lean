@@ -51,6 +51,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.reviewReady` | `items` [{id, status, evidence}], `runs` [{id, state}] (missing = `[]`), `task` (the task id, missing = blank), `dry` (the `VERDICT` line of `fw land --dry`, missing = blank) (task `review-flow-v2`, `Fw.Plan.ReviewReady`) | `ready` (`review`, `dispatch`, `wait`, `returnToBuilder`) |
 | `plan.reviewVerdict` | `severities` [word] (`blocker`, `fix-before-land`, `follow-up`; any other word is a blocker), `audited`? [bool: the medium-only audit is done] | `verdict` (`accept`, `refuse`), `recheck` [bool: the verdict used is accept and a `fix-before-land` finding is present, so the checker re-checks], `blockers`, `fixes` [counts] |
 | `plan.polishPlan` | `gen`, `paths`, `edited` [paths] (missing = `[]`), `heads`? [{path, head}] (first lines; a generator stamp makes the path skip) (`Fw.Plan.Polish`) | `classes` [{path, class, mark}], `stages`, `scopes` {comments, prose}, `keep`, `restore` |
+| `plan.polishHunks` | `diff` [{path, spans [{start, len}]}] (new-side hunks of the branch diff, merge-base to head, `-U0`), `edits` [{path, spans}] (old-side hunks of the uncommitted edits against head), `main` [paths dirty in the main checkout] (`Fw.Plan.Polish.admitted`, `relOk`, `blocked`) | `ranges` [{path, ranges [{lo, hi}]}], `edits` [{path, pathOk, kept [bool per span]}], `blocked` |
 | `plan.polishCuts` | `gen` [paths], `heads`?, `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
 | `plan.roster` | (none) | `roles` [{name, runsAs, edits}]: `Fw.Ops.SpawnGuard.prodRoles` |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
@@ -291,6 +292,21 @@ def opPolishCuts (req : Json) : Except String Reply := do
         ("docs", .arr (per.toArray.map fun (p, _, d, vs) => Json.mkObj [("path", .str p), ("text", .str d),
           ("changed", .bool (vs.any (· == .apply)))]))]
 
+open Fw.Plan.Polish in
+/-- `plan.polishHunks`: per diff path the line ranges `comment-sicko` may edit, per edit hunk whether it is kept, and the planned paths the main checkout has dirty. -/
+def opPolishHunks (req : Json) : Except String Reply := do
+  let spans (d : Json) : Except String (List Span) := do
+    (← arr d "spans").toList.mapM fun s => do pure ({ start := ← natD s "start" 0, len := ← natD s "len" 1 } : Span)
+  let diff ← (← arr req "diff").toList.mapM fun d => do pure (← str d "path", ← spans d)
+  let edits ← (← arr req "edits").toList.mapM fun d => do pure (← str d "path", ← spans d)
+  let dirty ← strsD req "main"
+  let hs (p : String) : List Span := (diff.filter (·.1 == p)).flatMap (·.2)
+  pure [("ranges", .arr (diff.toArray.map fun (p, ss) => Json.mkObj [("path", .str p),
+          ("ranges", .arr (ss.toArray.map fun s => Json.mkObj [("lo", toJson s.reach.1), ("hi", toJson s.reach.2)]))])),
+        ("edits", .arr (edits.toArray.map fun (p, ss) => Json.mkObj [("path", .str p), ("pathOk", .bool (relOk p)),
+          ("kept", .arr (ss.toArray.map fun s => .bool (editKept (hs p) p s)))])),
+        ("blocked", strsJson (blocked dirty (diff.map (·.1))))]
+
 open Fw.Ops.SpawnGuard in
 /-- `plan.roster`: `Fw.Ops.SpawnGuard.prodRoles`, the roles the spawn guard knows. -/
 def opRoster : Reply :=
@@ -301,7 +317,7 @@ def opRoster : Reply :=
 /-- The stateless ops of this module. -/
 def ops : List String :=
   ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts",
-   "plan.roster"]
+   "plan.polishHunks", "plan.roster"]
 
 /-- Dispatch one of these ops (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
@@ -312,6 +328,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "plan.reviewVerdict" => some (opReviewVerdict req)
   | "plan.polishPlan" => some (opPolishPlan req)
   | "plan.polishCuts" => some (opPolishCuts req)
+  | "plan.polishHunks" => some (opPolishHunks req)
   | "plan.roster" => some (pure opRoster)
   | _ => none
 
