@@ -17807,7 +17807,8 @@
     "packages/contracts/golden/obs/**",
     "docs/team/handoffs/proc-startedat-negative.md"
    ],
-   "title": "The ci-state-fast land failed once on CircleCI (pipeline c28bc7fe, job 408, suites-a): apps/runner test/next.test.ts 'end to end with a real child process > a loop on a finished task's output file' threw 'fwcore obs.health failed: field startedAt: expected a non-negative integer'; it passes on this Mac and on GitHub. Find how the collector computes a process startedAt on Linux (ps etime/lstart, /proc stat, container clock or boot time) and why it can go negative on the CircleCI machine image; fix at the source (the proc reading), and state in Lean what the wire accepts (a negative or unknown start is reported as unknown, not a decoder failure), with goldens and a test that feeds the CircleCI shape. Record the flake rate from land history."
+   "title": "The ci-state-fast land failed once on CircleCI (pipeline c28bc7fe, job 408, suites-a): apps/runner test/next.test.ts 'end to end with a real child process > a loop on a finished task's output file' threw 'fwcore obs.health failed: field startedAt: expected a non-negative integer'; it passes on this Mac and on GitHub. Find how the collector computes a process startedAt on Linux (ps etime/lstart, /proc stat, container clock or boot time) and why it can go negative on the CircleCI machine image; fix at the source (the proc reading), and state in Lean what the wire accepts (a negative or unknown start is reported as unknown, not a decoder failure), with goldens and a test that feeds the CircleCI shape. Record the flake rate from land history.",
+   "evidence": "a142e36"
   },
   {
    "devices": [
