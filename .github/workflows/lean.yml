@@ -116,9 +116,9 @@ jobs:
         run: sh lean/scripts/start-timing.sh lean/.lake/build/bin/fwcore 50 > fwcore-start.json && cat fwcore-start.json
 
       # Prune the Lake cache before the post step saves it (task ci-lake-prune-artifacts; run 40000273174: blob 1806 MB restored, 350 MB saved,
-      # a rebuild without .lake/build hit the cache in 1 s). Only artifacts/: Lake reads
-      # outputs/<scope>/<hash>.json first and treats an unreadable artifact as a miss (lean4@eb6cafb Lake/Build/Common.lean:521-534,
-      # 579-614), and restoreAllArtifacts = true hard-links every artifact of a used module into .lake/build (Module.lean:821-831), so a
+      # a rebuild without .lake/build hit the cache in 1 s). Only artifacts/: Lake resolves a module from its
+      # .lake/build trace or else outputs/<scope>/<hash>.json and treats an unreadable artifact as a miss (lean4@eb6cafb
+      # Lake/Build/Common.lean:545-560, 521-534, 567-574, 579-614), and restoreAllArtifacts = true hard-links every artifact of a used module into .lake/build (Module.lean:821-831), so a
       # file with one link belongs to no module of this build. Sizes before and after go in the log.
       - name: prune the Lake cache (artifacts with links 1 = not used by this build)
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
