@@ -7,7 +7,7 @@ created: 2026-10-23
 topics: [webkit, carousel, swap-window, measure]
 ---
 
-# People carousel swap windows, WebKit Simulator (task carousel-swap-webkit-lane)
+# People carousel swap windows, WebKit Simulator
 
 Question: inside the swap windows of the people carousel (5 avatars on, 4 off), does the crop arm (`?fw=people.carousel:crop`)
 show fewer Layout, Paint, Composite and RecalculateStyles Timeline rows than the faithful arm, beyond the A/A floor of the same passes (faithful-a and faithful-b are captured in each pass; the cells pool 39937838325 r1, r2 and 39947916723 r3, whose probe code is identical, 58b1df271..8dc944f90 changes only the handoff; 39937838325 alone gives the same two Paint wins)?
@@ -71,11 +71,9 @@ Layout rows per swap window (12 captures per arm, sorted):
 
 Paint rows per swap window: faithful 8..49 (medians 31..38), crop 6..22 (medians 7..21), one crop outlier of 54 in swap:0.
 
-What the table shows:
-
 - MEASURED: the crop has about 3 to 7 Layout rows in most swap windows where the faithful arm has about 14, but in windows 1, 4 and 7
   (every third) its median is 14.5 to 15, the same as the faithful arm. The cause of the every-third pattern is not found (open).
-- MEASURED: the faithful floor is wide (4 to 16 in a window). The 4 to 6 values occur in some captures only (9 of 96 faithful window samples), and they are enough to make the crop range overlap, so the rule leaves the cell unresolved.
+- MEASURED: the faithful floor is wide (4 to 16 in a window). Values of 4 to 6 occur in only 9 of 96 faithful window samples, yet they make the crop range overlap, so the rule leaves the cell unresolved.
 - MEASURED: Paint is lower in the crop in every window (medians 7..21 against 31..38), but only swap:1 and swap:5, where the faithful
   minimum is highest (28 and 30), clear the rule.
 - The Lean model line "faithful 13 Layout rows, crop none" (INFERRED from the part model) is contradicted for the crop: the crop never
@@ -87,7 +85,7 @@ What the table shows:
 - A window starts at the DOM change (MutationObserver callback), not at the first painted frame; the page-side mark to window mapping is
   I/O glue with no proof, tested only against a stand-in carousel (`packages/measure-webkit/test/lag-swap-probe.test.mjs`).
 - Rest window 7 is undefined (the last swap has no following rest); the original arm is not in this lane, only crop against faithful of one build.
-- 3 jobs completed; the other 3 of the two runs failed in the cost step or at the job limit; this is a Simulator inspector problem, not a swap-lane result.
+- 3 jobs completed; the other 3 failed in the cost step or at the job limit (a Simulator inspector problem, not a swap-lane result).
 - Not a trigger-path change: `lean/Fw/Ci/Trigger.lean` is untouched (held by counts-font-fidelity); the `[swap-lane]` token is read in
   the workflow only.
 
