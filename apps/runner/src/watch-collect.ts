@@ -56,8 +56,6 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
-  /** when the run list in `ci` was read (ms); an older value than the pass time means `gh run list` failed and the list
-   *  was carried forward. `collectSnapshot` turns it into `gh.ciAgeMs` (Fw.Obs.ciAgeNote). */
   ciAt?: number;
   ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
@@ -81,7 +79,7 @@ export interface SystemSnap {
    *  threads and raises `review.feedback` for a flag with an open comment (Lean `Fw.Obs.FeedbackAlert`) */
   feedback?: FeedbackEv[];
   /** GitHub Actions, Pages and Webhooks states and the open incidents (watch-gh.ts); fwcore raises sys.ghDegraded */
-  gh?: GhSnap & { /** age in ms of the run list in `ci` (0 or absent: read this pass; Fw.Obs.GhStatus.ciAgeNote) */ ciAgeMs?: number };
+  gh?: GhSnap & { ciAgeMs?: number };
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];

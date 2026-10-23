@@ -1097,9 +1097,6 @@ theorem ciSlowAlert_plain (o : Obs) (r : CiRun) (h : o.system.gh.incident = none
     (ciSlowAlert o r).detail = s!"{r.status} for {mins (o.now - r.startedAt)} min" := by
   simp [ciSlowAlert, Gh.suffix_none _ h, Gh.ciNote, ciAgeNote_fresh _ hf]
 
-/-- **A stale run list is named** (`ciSlowAlert_ages`): when the list is older than `ciFreshMs`, the `ci.slow` detail
-ends with its age in minutes. This is the fix for a finished run that still reads as running.
--/
 theorem ciSlowAlert_ages (o : Obs) (r : CiRun) (h : ciFreshMs < o.system.gh.ciAgeMs) :
     ∃ a, (ciSlowAlert o r).detail = a ++ " (CI data " ++ toString (o.system.gh.ciAgeMs / 60000) ++ " min old)" := by
   refine ⟨s!"{r.status} for {mins (o.now - r.startedAt)} min" ++ o.system.gh.suffix, ?_⟩

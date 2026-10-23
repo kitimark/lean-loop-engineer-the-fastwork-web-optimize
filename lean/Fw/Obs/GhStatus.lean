@@ -111,27 +111,20 @@ theorem Gh.suffix_names (g : Gh) (i : GhIncident) (h : g.incident = some i) :
   refine ⟨" (GitHub incident \"", "\" since " ++ hhmm i.createdAt ++ " UTC)", ?_⟩
   simp [Gh.suffix, h, String.append_assoc]
 
-/-- How old a run list may be before an alert says so: two watch passes of 120 s. -/
 def ciFreshMs : Nat := 240000
 
-/-- The text a `ci.slow` detail gets when its run list is older than `ciFreshMs`: the age in whole minutes. A failed
-`gh run list` makes the collector carry the previous list forward, so a run that has finished since still reads as
-running; the note tells the reader how old that reading is.
--/
+/-- The `ci.slow` detail suffix naming a run list older than `ciFreshMs`. -/
 def ciAgeNote (ageMs : Nat) : String :=
   if ageMs ≤ ciFreshMs then "" else " (CI data " ++ toString (ageMs / 60000) ++ " min old)"
 
-/-- A run list read this pass or within `ciFreshMs` adds no note. -/
 theorem ciAgeNote_fresh (a : Nat) (h : a ≤ ciFreshMs) : ciAgeNote a = "" := by
   simp [ciAgeNote, h]
 
-/-- An older run list adds a note with its age in minutes. -/
 theorem ciAgeNote_old (a : Nat) (h : ciFreshMs < a) :
     ciAgeNote a = " (CI data " ++ toString (a / 60000) ++ " min old)" := by
   have : ¬ a ≤ ciFreshMs := Nat.not_le.2 h
   simp [ciAgeNote, this]
 
-/-- The note of this reading's run list. -/
 def Gh.ciNote (g : Gh) : String := ciAgeNote g.ciAgeMs
 
 /-- The detail of the `sys.ghDegraded` alert: the Actions state and, when one is open, the incident. -/
