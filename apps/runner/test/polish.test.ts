@@ -49,6 +49,8 @@ const cases: [string, Record<string, unknown>][] = [
   ["hunks: an edit in the hunk or within the margin is kept, one 50 lines away is not",
     hunks({ diff: [{ path: "lean/scripts/check.sh", spans: [{ start: 60, len: 2 }] }],
       edits: [{ path: "lean/scripts/check.sh", spans: [{ start: 61, len: 1 }, { start: 64, len: 1 }, { start: 65, len: 1 }, { start: 57, len: 1 }, { start: 56, len: 1 }, { start: 10, len: 3 }] }] })],
+  ["hunks: an edit that starts in the margin and runs past it is not contained", hunks({ diff: [{ path: "a.ts", spans: [{ start: 60, len: 2 }] }],
+    edits: [{ path: "a.ts", spans: [{ start: 62, len: 59 }, { start: 62, len: 3 }] }] })],
   ["hunks: a point hunk (pure deletion) and a point edit", hunks({ diff: [{ path: "a.ts", spans: [{ start: 20, len: 0 }] }], edits: [{ path: "a.ts", spans: [{ start: 23, len: 0 }, { start: 24, len: 2 }] }] })],
   ["hunks: a file with no branch hunk keeps nothing", hunks({ diff: [{ path: "a.ts", spans: [{ start: 5, len: 1 }] }], edits: [{ path: "b.ts", spans: [{ start: 5, len: 1 }] }] })],
   ["hunks: several branch hunks of one file, the edit between them is far from both", hunks({ diff: [{ path: "a.ts", spans: [{ start: 5, len: 1 }, { start: 100, len: 4 }] }],
@@ -113,6 +115,7 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
   it("hunk verdicts: margin edge, point hunks, no hunk, far above and below, bad paths, blocked", () => {
     const kept = (prefix: string) => (res(prefix).edits as { kept: boolean[] }[]).map((e) => e.kept);
     expect(kept("hunks: an edit in the hunk")).toEqual([[true, true, false, true, false, false]]);
+    expect(kept("hunks: an edit that starts")).toEqual([[false, true]]);
     expect(kept("hunks: a point hunk")).toEqual([[true, false]]);
     expect(kept("hunks: a file with no branch hunk")).toEqual([[false]]);
     expect(kept("hunks: several branch hunks")).toEqual([[false, true, false]]);
@@ -287,6 +290,45 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       expect(now[61]).toBe("# comment 62 reworded");
       expect(g(wt, "status", "--porcelain").trim()).toBe("");
       expect(g(wt, "show", "--stat", "--format=", "HEAD")).toContain("1 file changed, 1 insertion(+), 1 deletion(-)");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("restores an edit hunk that starts in the margin and runs 50 lines past it, and names it", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      const t = tip.slice();
+      for (let n = 63; n <= 113; n++) t[n - 1] = `# run ${n}`;
+      t[61] = "# comment 62 reworded";
+      writeFileSync(join(wt, file), t.join("\n") + "\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`restored ${file}:62-113 (outside the branch's hunks)`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a path with a space or a non-ASCII character is judged by its hunks, not kept by default", async () => {
+    const base = mkdtempSync(join(tmpdir(), "polish-fx-"));
+    const main = join(base, "main"); const wt = join(base, "wt");
+    const names = ["lean/scripts/a b.sh", "lean/scripts/caf\u00e9.sh"];
+    try {
+      mkdirSync(join(main, "lean/scripts"), { recursive: true });
+      g(main, "init", "-q", "-b", "main");
+      for (const n of names) writeFileSync(join(main, n), body.join("\n") + "\n");
+      g(main, "add", "."); g(main, "commit", "-q", "-m", "base");
+      g(main, "worktree", "add", "-q", "-b", "feat", wt);
+      const tip = body.slice(); tip[59] = "echo changed 60";
+      for (const n of names) writeFileSync(join(wt, n), tip.join("\n") + "\n");
+      g(wt, "commit", "-qam", "builder");
+      for (const n of names) { const t = tip.slice(); t[61] = "# near"; t[9] = "# far"; writeFileSync(join(wt, n), t.join("\n") + "\n"); }
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      for (const n of names) {
+        expect(lines).toContain(`restored ${n}:10-10 (outside the branch's hunks)`);
+        const now = readFileSync(join(wt, n), "utf8").split("\n");
+        expect([now[9], now[61]]).toEqual(["# comment 10", "# near"]);
+      }
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 

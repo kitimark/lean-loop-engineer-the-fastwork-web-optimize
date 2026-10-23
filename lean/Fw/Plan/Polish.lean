@@ -328,13 +328,13 @@ def margin : Nat := 3
 
 /-- `hs`: the branch's hunks of one file (merge-base to head); `e`: one edit hunk against head. -/
 def admitted (hs : List Span) (e : Span) : Bool :=
-  hs.any fun h => decide (h.start - margin ≤ e.hi ∧ e.start ≤ h.hi + margin)
+  hs.any fun h => decide (h.start - margin ≤ e.start ∧ e.hi ≤ h.hi + margin)
 
 theorem Span.start_le_hi (s : Span) : s.start ≤ s.hi := by
   unfold Span.hi; omega
 
 theorem admitted_iff (hs : List Span) (e : Span) :
-    admitted hs e = true ↔ ∃ h ∈ hs, h.start - margin ≤ e.hi ∧ e.start ≤ h.hi + margin := by
+    admitted hs e = true ↔ ∃ h ∈ hs, h.start - margin ≤ e.start ∧ e.hi ≤ h.hi + margin := by
   simp [admitted]
 
 theorem admitted_nil (e : Span) : admitted [] e = false := rfl
@@ -351,14 +351,14 @@ theorem restored_far_above (hs : List Span) (e : Span) (far : ∀ h ∈ hs, h.hi
   cases hb : admitted hs e
   · rfl
   · obtain ⟨h, hm, _, h2⟩ := (admitted_iff hs e).1 hb
-    have := far h hm; omega
+    have := far h hm; have := e.start_le_hi; omega
 
 theorem restored_far_below (hs : List Span) (e : Span) (far : ∀ h ∈ hs, e.hi + margin < h.start) :
     admitted hs e = false := by
   cases hb : admitted hs e
   · rfl
   · obtain ⟨h, hm, h1, _⟩ := (admitted_iff hs e).1 hb
-    have := far h hm; omega
+    have := far h hm; have := e.start_le_hi; omega
 
 /-- The lines `comment-sicko` may edit for a hunk: the hunk plus the margin, first line 1. -/
 def Span.reach (s : Span) : Nat × Nat := (max 1 (s.start - margin), s.hi + margin)
@@ -399,14 +399,14 @@ theorem relOk_plain (p : String) (hne : p.isEmpty = false) (hab : p.startsWith "
     (h : ∀ s ∈ segs p, s ≠ "..") : relOk p = true := by
   simp [relOk, hne, hab, depthOk_plain _ h]
 
-/-- An edit hunk of `p` is kept iff `p` is a relative path inside the worktree and the hunk is near a branch hunk. -/
+/-- An edit hunk of `p` is kept iff `p` is a relative path inside the worktree and the hunk lies inside a branch hunk plus the margin. -/
 def editKept (hs : List Span) (p : String) (e : Span) : Bool := relOk p && admitted hs e
 
 theorem editKept_rel (hs : List Span) (p : String) (e : Span) (h : editKept hs p e = true) : relOk p = true := by
   simp only [editKept, Bool.and_eq_true] at h; exact h.1
 
 theorem editKept_near (hs : List Span) (p : String) (e : Span) (h : editKept hs p e = true) :
-    ∃ x ∈ hs, x.start - margin ≤ e.hi ∧ e.start ≤ x.hi + margin := by
+    ∃ x ∈ hs, x.start - margin ≤ e.start ∧ e.hi ≤ x.hi + margin := by
   simp only [editKept, Bool.and_eq_true] at h; exact (admitted_iff hs e).1 h.2
 
 /-! ## The main checkout stays untouched -/
@@ -472,6 +472,7 @@ def jevCounts : Cut := ⟨"docs/team/handoffs/jev-datasets.md",
 #guard judge [] "a" ⟨"a.ts", "a", ""⟩ = .notProse
 #guard applyAll [] "one two three" [⟨"a.md", "two ", ""⟩, ⟨"a.md", "two", "2"⟩] = ("one three", [.apply, .notFound])
 
+#guard !admitted [⟨60, 2⟩] ⟨62, 59⟩
 #guard admitted [⟨10, 2⟩] ⟨12, 1⟩ && admitted [⟨10, 2⟩] ⟨14, 1⟩ && !admitted [⟨10, 2⟩] ⟨15, 1⟩
 #guard !admitted [⟨10, 2⟩] ⟨60, 2⟩ && !admitted [] ⟨1, 1⟩ && admitted [⟨10, 2⟩] ⟨7, 1⟩ && !admitted [⟨10, 2⟩] ⟨6, 1⟩
 #guard (Span.mk 10 0).hi = 10 && (Span.mk 10 3).hi = 12 && (Span.mk 1 2).reach = (1, 5)

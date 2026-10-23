@@ -34,6 +34,25 @@ const realGit = (cwd: string, args: string[], input?: string) =>
 type Hunk = { oldStart: number; oldLen: number; newStart: number; newLen: number; text: string };
 type FileDiff = { path: string; header: string; hunks: Hunk[] };
 
+const UNQUOTE: Record<string, string> = { n: "\n", t: "\t", "\"": "\"", "\\": "\\" };
+/** The path of a `--- a/x` or `+++ b/x` side: unquoted when git quoted it, minus the trailing tab git adds after a path with a space; `/dev/null` gives null. */
+function headerPath(raw: string): string | null {
+  let s = raw.replace(/\t.*$/, "");
+  if (s === "/dev/null") return null;
+  if (s.startsWith('"') && s.endsWith('"')) {
+    const bytes: number[] = [];
+    const inner = s.slice(1, -1);
+    for (let i = 0; i < inner.length; i++) {
+      const c = inner[i]!;
+      if (c !== "\\") { bytes.push(...Buffer.from(c)); continue; }
+      const n = inner[++i]!;
+      if (/[0-7]/.test(n)) { bytes.push(parseInt(inner.slice(i, i + 3), 8)); i += 2; } else bytes.push(...Buffer.from(UNQUOTE[n] ?? n));
+    }
+    s = Buffer.from(bytes).toString("utf8");
+  }
+  return s.replace(/^[ab]\//, "");
+}
+
 /** Reads `git diff -U0` text into files and hunks. TS glue: the rule that decides which hunk stays is Lean `Fw.Plan.Polish.admitted`. */
 export function parseDiff(text: string): FileDiff[] {
   const files: FileDiff[] = [];
@@ -49,12 +68,18 @@ export function parseDiff(text: string): FileDiff[] {
   for (const l of text.split("\n")) {
     if (l.startsWith("diff --git ")) {
       flush();
-      const m = /^diff --git a\/(.*) b\/(.*)$/.exec(l);
-      cur = { path: m ? m[2]! : l, header: l, hunks: [] };
+      cur = { path: l, header: l, hunks: [] };
       files.push(cur);
     } else if (l.startsWith("@@") && cur) { flush(); hunk = [l]; }
     else if (hunk) hunk.push(l);
-    else if (cur) cur.header += `\n${l}`;
+    else if (cur) {
+      cur.header += `\n${l}`;
+      const side = /^(\+\+\+|---) (.*)$/.exec(l);
+      if (side && (side[1] === "+++" || cur.path.startsWith("diff --git "))) {
+        const p = headerPath(side[2]!);
+        if (p !== null) cur.path = p;
+      }
+    }
   }
   flush();
   return files.map((f) => ({ ...f, hunks: f.hunks.map((h) => ({ ...h, text: h.text.replace(/\n+$/, "") })) }));
@@ -112,18 +137,18 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
     const root = git(cwd, ["rev-parse", "--show-toplevel"]).trim();
     const dir = staged ? root : (deps.worktree ?? worktreeOf)(cwd, flags.branch!);
     if (!dir) throw new Error(`no worktree has branch ${flags.branch}`);
-    const paths = lines(staged ? git(dir, ["diff", "--cached", "--name-only"]) : git(dir, ["diff", "--name-only", `main...${flags.branch}`]));
+    const paths = lines(staged ? git(dir, ["-c", "core.quotePath=false", "diff", "--cached", "--name-only"]) : git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", `main...${flags.branch}`]));
     const heads = paths.map((p) => ({ path: p, head: (read(join(dir, p)) ?? "").split("\n", 1)[0]!.slice(0, 300) }));
     const gen = await genOwned(deps.gen ?? genOutputs, root, dir);
     const call = coreOf(cwd, deps, git);
-    const edited = verb === "commit" ? lines(git(dir, ["diff", "--name-only", "HEAD"])) : [];
+    const edited = verb === "commit" ? lines(git(dir, ["-c", "core.quotePath=false", "diff", "--name-only", "HEAD"])) : [];
     const plan = (await call({ op: "plan.polishPlan", gen, heads, paths, edited })) as unknown as Plan;
     if (!Array.isArray(plan.classes)) throw new Error(`fwcore: no plan (${JSON.stringify(plan).slice(0, 200)})`);
-    const diffArgs = staged ? ["diff", "--cached", "-U0", "--no-color", "--no-ext-diff"] : ["diff", "-U0", "--no-color", "--no-ext-diff", `main...${flags.branch}`];
+    const diffArgs = staged ? ["-c", "core.quotePath=false", "diff", "--cached", "-U0", "--no-color", "--no-ext-diff"] : ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--no-ext-diff", `main...${flags.branch}`];
     const branchDiff = parseDiff(git(dir, diffArgs));
     const mainDir = staged ? dir : join(git(dir, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim(), "..");
     const dirty = verb === "commit" && mainDir !== dir ? porcelainPaths(git(mainDir, ["status", "--porcelain", "--", ...paths])) : [];
-    const editDiff = verb === "commit" ? parseDiff(git(dir, ["diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"])) : [];
+    const editDiff = verb === "commit" ? parseDiff(git(dir, ["-c", "core.quotePath=false", "diff", "-U0", "--no-color", "--no-ext-diff", "HEAD"])) : [];
     const hk = (await call({ op: "plan.polishHunks", diff: spansOf(branchDiff, "new"), edits: spansOf(editDiff, "old"), main: dirty })) as unknown as HunkOut;
     if (!Array.isArray(hk.ranges)) throw new Error(`fwcore: no hunk verdicts (${JSON.stringify(hk).slice(0, 200)})`);
     if (verb === "commit") {
@@ -138,7 +163,8 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
       for (const path of plan.keep) {
         const ed = hk.edits.find((e) => e.path === path);
         const file = editDiff.find((f) => f.path === path);
-        if (!ed || !file || clsOf.get(path) === "prose") { keep.push(path); continue; }
+        if (clsOf.get(path) === "prose") { keep.push(path); continue; }
+        if (!ed || !file) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (no edit record)`); continue; }
         const bad = file.hunks.map((h, i) => ({ h, i })).filter(({ i }) => !ed.pathOk || ed.kept[i] !== true);
         if (!file.hunks.length || bad.length === file.hunks.length) { git(dir, ["checkout", "HEAD", "--", path]); out(`restored ${path} (outside the branch's hunks)`); continue; }
         for (const { h } of [...bad].sort((a, b) => b.h.newStart - a.h.newStart)) {
