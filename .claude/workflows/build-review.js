@@ -132,7 +132,7 @@ const comments = outLines.filter((l) => l.startsWith('comments ')).map((l) => {
   return [mark, relOf((at < 0 ? rest : rest.slice(0, at)).join(' ')), at < 0 ? 'none' : rest.slice(at + 1).join('')]
 }).filter(([, r]) => r).map(([mark, r, lines]) => `${wt}/${r} (comment mark ${mark}; edit only comments on lines ${lines}; any edit outside those lines is reverted)`)
 const prose = outLines.filter((l) => l.startsWith('prose ')).map((l) => relOf(l.slice(6))).filter(Boolean).map((r) => `${wt}/${r}`)
-const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}) in the worktree ${wt}. Edit comments only, in these files and these line ranges only (the lines the builder changed, plus a margin), each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nNever edit a file outside ${wt} (the main checkout above all). Apply .claude/agents/comment-sicko.md. Never commit, never run git commands that write. Return the absolute paths you edited.`,
+const sicko = comments.length ? await agent(`Comment review of task ${t.id} (branch ${b.branch}) in the worktree ${wt}. Edit comments only, in these files and these line ranges only (the lines the builder changed, plus a margin), each with the comment mark its language uses (a shell or YAML file is never Lean or TS):\n${comments.join('\n')}\nNever edit a file outside ${wt} (the main checkout above all). Apply .claude/agents/comment-sicko.md. Edit with the Edit tool only, never sed -i or any command that writes a file. Never commit, never run git commands that write. Return the absolute paths you edited.`,
   { label: `comment-sicko:${t.id}`, phase: 'Polish', agentType: 'comment-sicko', schema: EDITS }) : null
 const strays = sicko && sicko.edited ? sicko.edited.filter((p) => !p.startsWith(`${wt}/`)) : []
 if (strays.length) return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko.edited, strays, commit: 'not run: comment-sicko edited files outside the worktree; the lead restores them' } }]
@@ -143,4 +143,8 @@ const commit = await run1('polish-commit', `pnpm -s fw polish commit --branch ${
 const committed = verdictWord(commit, 'polish-commit')
 // the polish commit lands only through the same dry land as the build; a failing line goes back to the lead with the result
 const dry = committed === 'committed' ? await run1('polish-dry', `pnpm -s fw slot run --kind land --cache -- pnpm -s fw land ${b.branch} --task ${t.id} --dry`) : null
-return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko ? sicko.edited : [], cuts: cuts ? cuts.line : null, commit: committed, dry: dry ? dry.line : null } }]
+// a failed commit is reported with its reason and the `cleanup:` line fw polish commit prints (the worktree is clean again, Lean Fw.Plan.Polish.settle)
+const failed = committed === 'error' || committed === 'refused'
+const outTail = failed && commit && typeof commit.out === 'string' ? commit.out.split('\n').filter((l) => l.trim()).slice(-12).join('\n') : null
+const cleanup = outTail ? (outTail.split('\n').filter((l) => l.startsWith('cleanup')).pop() || 'cleanup: none printed; the lead checks the worktree') : null
+return [{ task: t.id, build: b, gate: ready, adv, polish: { stages, edited: sicko ? sicko.edited : [], cuts: cuts ? cuts.line : null, commit: committed, ...(failed ? { reason: outTail, cleanup } : {}), dry: dry ? dry.line : null } }]

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { WATCH_JS, FIND_JS, ORDER, FLIPPED } from '../src/lag/swapprobe.mjs';
+import { WATCH_JS, FIND_JS, DIAG_JS, ORDER, FLIPPED, bucketRows, jobMeta } from '../src/lag/swapprobe.mjs';
 
 async function watch(periods, children, script, deadlineMs = 50) {
   const marks = [];
@@ -61,4 +61,38 @@ test('the scroll search reports a carousel that never comes into view, and reduc
   const r = await find(500, { reduced: true, docTop: 3000 });
   assert.match(r.error, /never/);
   assert.equal(r.reduced, true);
+});
+
+test('Timeline rows are counted per bucket from the page mark, rows outside the span are dropped', () => {
+  const rows = [['Layout', 10.0], ['Layout', 10.05], ['Layout', 10.12], ['Paint', 10.12], ['Layout', 9.9], ['Layout', 10.4], ['Layout', 'x']];
+  assert.deepEqual(bucketRows(rows, 'Layout', 10, 100, 3), [2, 1, 0]);
+  assert.deepEqual(bucketRows(rows, 'Paint', 10, 100, 3), [0, 1, 0]);
+});
+
+test('a sample knows its CI job from the default GitHub variables and the matrix cell', () => {
+  assert.deepEqual(jobMeta({ GITHUB_RUN_ID: '9', GITHUB_RUN_ATTEMPT: '1', GITHUB_JOB: 'sim', VM: 'r2', GITHUB_SHA: 'abc' }),
+    { run: '9', attempt: '1', job: 'sim', vm: 'r2', jobId: null, sha: 'abc' });
+  assert.equal(jobMeta({ FW_JOB_ID: '123' }).jobId, '123');
+});
+
+test('the diagnostic watch counts mutations per owner and bucket and lists the running animations', async () => {
+  let callback = null, now = 0;
+  const owned = (name) => ({ nodeType: 1, closest: () => ({ getAttribute: () => name }), tagName: 'DIV' });
+  const anim = { animationName: 'spin', constructor: { name: 'CSSAnimation' }, playState: 'running', effect: { target: owned('deck'), getKeyframes: () => [{ offset: 0, transform: 'a' }, { offset: 1, transform: 'b' }], getComputedTiming: () => ({ duration: 4000, iterations: Infinity }) } };
+  const marks = [];
+  const sandbox = {
+    document: { documentElement: {}, getAnimations: () => [anim, anim] },
+    MutationObserver: class { constructor(cb) { callback = cb; } observe() {} disconnect() { callback = null; } },
+    performance: { mark: (m) => marks.push(m), now: () => now },
+    setTimeout: (f, ms) => setTimeout(f, 20),
+  };
+  const done = vm.runInNewContext(DIAG_JS(300, 100), sandbox);
+  await new Promise((r) => setImmediate(r));
+  now = 150;
+  callback([{ target: owned('pain'), type: 'attributes', attributeName: 'style' }, { target: owned('pain'), type: 'attributes', attributeName: 'style' }, { target: owned('people-carousel'), type: 'childList' }]);
+  const res = JSON.parse(JSON.stringify(await done));
+  assert.deepEqual(marks, ['wk:dbegin', 'wk:dend']);
+  assert.deepEqual(res.owners, { 'pain:style': [0, 2, 0], 'people-carousel:childList': [0, 1, 0] });
+  assert.deepEqual(res.before, { 'deck|spin|CSSAnimation|running|4000|Infinity|transform': 2 });
+  assert.equal(res.buckets, 3);
 });

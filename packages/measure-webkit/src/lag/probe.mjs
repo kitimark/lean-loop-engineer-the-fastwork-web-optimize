@@ -179,8 +179,8 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
     }
     let costs = null;
     if (cost || costOnly) {
+      costs = {};
       try {
-        costs = await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log);
         if (swap) {
           const home = swap.home;
           costs.swap = await swapPass(ctx, {
@@ -189,7 +189,12 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
             restore: async () => { ctx.setArm(home.id); await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + home.search)}); 1`); },
           });
         }
-      } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`); out.push({ scroll, morph }); break; }
+        Object.assign(costs, await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log));
+      } catch (e) {
+        targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`);
+        out.push({ scroll, morph, ...(costs.swap ? { cost: costs } : {}) });
+        break;
+      }
       log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph', ...(swap ? ['swap'] : [])].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
     }
     out.push({ ...(scroll ? { scroll, morph } : {}), ...(costs ? { cost: costs } : {}) });
