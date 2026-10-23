@@ -10,6 +10,8 @@ import { randomBytes } from "node:crypto";
 type Held = { pid: number; token: string };
 export type Lock = { release(): void };
 
+export class LockBusy extends Error {}
+
 const alive = (pid: number): boolean => {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
 };
@@ -85,7 +87,7 @@ export function lockSync(path: string, waitMs: number): Lock {
   for (;;) {
     const l = tryLock(path);
     if (l) return l;
-    if (Date.now() - t0 >= waitMs) throw new Error(`lock ${path} held by a live process for ${waitMs} ms`);
+    if (Date.now() - t0 >= waitMs) throw new LockBusy(`lock ${path} held by a live process for ${waitMs} ms`);
     nap(25);
   }
 }

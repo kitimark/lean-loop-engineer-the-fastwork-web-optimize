@@ -17127,7 +17127,8 @@
     "packages/contracts/golden/obs/timing.jsonl",
     "docs/team/tools/timings.md"
    ],
-   "title": "fw watch opens timing.slow for `fw run dispatch` repeatedly (2026-10-23): most dispatches take 2.5-13 s, but 20:25:47 took 35.2 s and 20:51:27 took 31.5 s, and up to 3 dispatches start in the same second from parallel builders. Find which part of the dispatch phase (run-phases.ts: workflow_dispatch call, the nonce run lookup, the gh rate-limit backoff, or a shared lock) takes the time, split the span so the verdict judges each part, and make the slow part lighter (e.g. one shared nonce lookup per poll for concurrent dispatches) within the gh rate-limit rules (poll >= 120 s for waits, no retry on 403). Report the split timings before and after."
+   "title": "fw watch opens timing.slow for `fw run dispatch` repeatedly (2026-10-23): most dispatches take 2.5-13 s, but 20:25:47 took 35.2 s and 20:51:27 took 31.5 s, and up to 3 dispatches start in the same second from parallel builders. Find which part of the dispatch phase (run-phases.ts: workflow_dispatch call, the nonce run lookup, the gh rate-limit backoff, or a shared lock) takes the time, split the span so the verdict judges each part, and make the slow part lighter (e.g. one shared nonce lookup per poll for concurrent dispatches) within the gh rate-limit rules (poll >= 120 s for waits, no retry on 403). Report the split timings before and after.",
+   "evidence": "9b64810"
   },
   {
    "devices": [
