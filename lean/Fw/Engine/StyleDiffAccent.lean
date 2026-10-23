@@ -98,6 +98,84 @@ theorem layoutPhases_values : wkLayoutPhases faithfulFrame = 2 ∧ wkLayoutPhase
 theorem arm_phase_subset : ∀ p ∈ [Phase.drawOut, .drawIn], wkFrameLayout (armFrame p) = true → wkFrameLayout (faithfulFrame p) = true := by
   decide
 
+inductive Slot where
+  | out | inFirst | inRest
+deriving Repr, DecidableEq
+
+inductive Arm where
+  | faithful | nolayout | full
+deriving Repr, DecidableEq
+
+def slotChanges : Arm → Slot → List Cand
+  | .faithful, .out => faithfulFrame .drawOut
+  | .faithful, _ => faithfulFrame .drawIn
+  | .nolayout, .out => armFrame .drawOut
+  | .nolayout, _ => armFrame .drawIn
+  | .full, .out => armFrame .drawOut
+  | .full, .inFirst => armFrame .drawIn
+  | .full, .inRest => [.clipInset]
+
+def cycle (a : Arm) (n : Nat) : List (List Cand) :=
+  List.replicate n (slotChanges a .out) ++
+    (match n with
+     | 0 => []
+     | k + 1 => slotChanges a .inFirst :: List.replicate k (slotChanges a .inRest))
+
+def wkLayoutFrames (a : Arm) (n : Nat) : Nat := ((cycle a n).filter wkFrameLayout).length
+
+def crLayoutFrames (a : Arm) (n : Nat) : Nat := ((cycle a n).filter crFrameLayout).length
+
+theorem full_inRest_nolayout :
+    wkFrameLayout (slotChanges .full .inRest) = false ∧ crFrameLayout (slotChanges .full .inRest) = false := by decide
+
+theorem full_out_nolayout :
+    wkFrameLayout (slotChanges .full .out) = false ∧ crFrameLayout (slotChanges .full .out) = false := by decide
+
+/-- Among the modelled draw candidates, the one frame with layout is the width set (the word swap in the same frame is not modelled). -/
+theorem full_inFirst_layout_only_width :
+    (∀ c ∈ slotChanges .full .inFirst, (c.wkL = true ∨ c.crL = true) → c = .width) ∧
+      wkFrameLayout (slotChanges .full .inFirst) = true ∧ crFrameLayout (slotChanges .full .inFirst) = true := by decide
+
+private theorem len_filter_replicate (p : List Cand → Bool) (n : Nat) (x : List Cand) :
+    ((List.replicate n x).filter p).length = if p x then n else 0 := by
+  cases h : p x <;> simp [h]
+
+private theorem layoutFrames_cycle (p : List Cand → Bool) (a : Arm) (n : Nat) :
+    ((cycle a (n + 1)).filter p).length =
+      (if p (slotChanges a .out) then n + 1 else 0) + (if p (slotChanges a .inFirst) then 1 else 0) +
+        (if p (slotChanges a .inRest) then n else 0) := by
+  simp only [cycle, List.filter_append, List.length_append, List.filter_cons]
+  rw [len_filter_replicate]
+  cases p (slotChanges a .inFirst) <;> simp [len_filter_replicate] <;> omega
+
+theorem wkLayoutFrames_values (n : Nat) :
+    wkLayoutFrames .faithful (n + 1) = 2 * (n + 1) ∧ wkLayoutFrames .nolayout (n + 1) = n + 1 ∧
+      wkLayoutFrames .full (n + 1) = 1 := by
+  have e : wkFrameLayout (slotChanges .faithful .out) = true ∧ wkFrameLayout (slotChanges .faithful .inFirst) = true ∧
+      wkFrameLayout (slotChanges .faithful .inRest) = true ∧ wkFrameLayout (slotChanges .nolayout .out) = false ∧
+      wkFrameLayout (slotChanges .nolayout .inFirst) = true ∧ wkFrameLayout (slotChanges .nolayout .inRest) = true ∧
+      wkFrameLayout (slotChanges .full .out) = false ∧ wkFrameLayout (slotChanges .full .inFirst) = true ∧
+      wkFrameLayout (slotChanges .full .inRest) = false := by decide
+  obtain ⟨e1, e2, e3, e4, e5, e6, e7, e8, e9⟩ := e
+  simp only [wkLayoutFrames, layoutFrames_cycle, e1, e2, e3, e4, e5, e6, e7, e8, e9]
+  simp; omega
+
+theorem crLayoutFrames_values (n : Nat) :
+    crLayoutFrames .faithful (n + 1) = n + 1 ∧ crLayoutFrames .nolayout (n + 1) = n + 1 ∧
+      crLayoutFrames .full (n + 1) = 1 := by
+  have e : crFrameLayout (slotChanges .faithful .out) = false ∧ crFrameLayout (slotChanges .faithful .inFirst) = true ∧
+      crFrameLayout (slotChanges .faithful .inRest) = true ∧ crFrameLayout (slotChanges .nolayout .out) = false ∧
+      crFrameLayout (slotChanges .nolayout .inFirst) = true ∧ crFrameLayout (slotChanges .nolayout .inRest) = true ∧
+      crFrameLayout (slotChanges .full .out) = false ∧ crFrameLayout (slotChanges .full .inFirst) = true ∧
+      crFrameLayout (slotChanges .full .inRest) = false := by decide
+  obtain ⟨e1, e2, e3, e4, e5, e6, e7, e8, e9⟩ := e
+  simp only [crLayoutFrames, layoutFrames_cycle, e1, e2, e3, e4, e5, e6, e7, e8, e9]
+  simp; omega
+
+theorem wkLayoutFrames_54 : wkLayoutFrames .faithful 54 = 108 ∧ wkLayoutFrames .nolayout 54 = 54 ∧ wkLayoutFrames .full 54 = 1 := by
+  decide
+
+
 def hiddenRight : Int := 120
 def shownRight : Int := -20
 def edgeOut : Int := -20
@@ -111,9 +189,11 @@ theorem clip_endpoints :
 def insetStr (r : Int) : String := s!"inset({edgeOut}% {r}% {edgeOut}% {edgeOut}%)"
 
 def attrOf (variant : String) : Option String :=
-  if variant = "draw-nolayout" then some "nolayout" else if variant = "draw-one" then some "one" else none
+  if variant = "draw-nolayout" then some "nolayout" else if variant = "draw-nolayout-full" then some "nolayout-full"
+  else if variant = "draw-one" then some "one" else none
 
 #guard attrOf "draw-nolayout" == some "nolayout" && attrOf "faithful" == none
+#guard attrOf "draw-nolayout-full" == some "nolayout-full"
 #guard insetStr hiddenRight == "inset(-20% 120% -20% -20%)"
 
 private def diffName : WebKit.Diff → String
@@ -137,12 +217,29 @@ private def frameRow (arm : Bool) (p : Phase) : Lean.Json :=
     [("arm", if arm then "draw-nolayout" else "faithful"), ("changes", cs.length), ("crLayout", crFrameLayout cs),
      ("kind", "frame"), ("phase", phaseName p), ("wkLayout", wkFrameLayout cs)]
 
+private def slotName : Slot → String
+  | .out => "draw-out" | .inFirst => "draw-in-first" | .inRest => "draw-in-rest"
+
+private def armName : Arm → String
+  | .faithful => "faithful" | .nolayout => "draw-nolayout" | .full => "draw-nolayout-full"
+
+private def slotRow (a : Arm) (s : Slot) : Lean.Json :=
+  let cs := slotChanges a s
+  Lean.Json.mkObj
+    [("arm", armName a), ("changes", cs.length), ("crLayout", crFrameLayout cs), ("kind", "slot"),
+     ("slot", slotName s), ("wkLayout", wkFrameLayout cs)]
+
+private def cycleRow (a : Arm) : Lean.Json :=
+  Lean.Json.mkObj
+    [("arm", armName a), ("crLayoutFrames", crLayoutFrames a 54), ("framesPerPhase", 54), ("kind", "cycle"),
+     ("wkLayoutFrames", wkLayoutFrames a 54)]
+
 private def keyframeRows : List Lean.Json :=
   [Lean.Json.mkObj [("from", insetStr hiddenRight), ("kind", "keyframe"), ("name", "clipIn"), ("to", insetStr shownRight)],
    Lean.Json.mkObj [("from", insetStr shownRight), ("kind", "keyframe"), ("name", "clipOut"), ("to", insetStr hiddenRight)]]
 
 private def attrRows : List Lean.Json :=
-  ["faithful", "steps", "draw-one", "draw-nolayout"].map fun v =>
+  ["faithful", "steps", "draw-one", "draw-nolayout", "draw-nolayout-full"].map fun v =>
     Lean.Json.mkObj [("attr", match attrOf v with | some a => Lean.Json.str a | none => Lean.Json.null),
       ("kind", "attr"), ("variant", v)]
 
@@ -150,7 +247,9 @@ def goldenText : String :=
   String.join
     ((Cand.all.map candRow ++
       ([false, true].flatMap fun a => [Phase.drawOut, .drawIn].map fun p => frameRow a p) ++
-      keyframeRows ++ attrRows).map fun r => r.compress ++ "\n")
+      keyframeRows ++ attrRows ++
+      ([Arm.faithful, .nolayout, .full].flatMap fun a => [Slot.out, .inFirst, .inRest].map (slotRow a)) ++
+      [Arm.faithful, .nolayout, .full].map cycleRow).map fun r => r.compress ++ "\n")
 
 /-- Prints the golden text, or with `--check <path>` compares it with the file. -/
 def run (args : List String) : IO UInt32 := do

@@ -19014,7 +19014,8 @@
     "results/accent-drawin-width-nolayout/**",
     "research/notes/2026/10-2x-accent-drawin-width-nolayout.md"
    ],
-   "title": "hero-accent-draw-nolayout finding: the arm removes the draw-out layout but draw-in frames still need layout through the original's width transition (accent.module.css:13 transition: width 0.9s on .drawingIn; WebKit StyleDifference.cpp:404), so layout phases per cycle drop only 2 -> 1. Find a same-look replacement for the width growth that needs no layout (transform scaleX on a composited wrapper with counter-scaled text, or a fixed-width box with clip), proved in Lean with StyleDiffAccent (theorem: draw-in frames need no layout in both engines), behind a flag variant, class look-change if not pixel-identical; one webkit-sim swap-lane run."
+   "title": "hero-accent-draw-nolayout finding: the arm removes the draw-out layout but draw-in frames still need layout through the original's width transition (accent.module.css:13 transition: width 0.9s on .drawingIn; WebKit StyleDifference.cpp:404), so layout phases per cycle drop only 2 -> 1. Find a same-look replacement for the width growth that needs no layout (transform scaleX on a composited wrapper with counter-scaled text, or a fixed-width box with clip), proved in Lean with StyleDiffAccent (theorem: draw-in frames need no layout in both engines), behind a flag variant, class look-change if not pixel-identical; one webkit-sim swap-lane run.",
+   "evidence": "f3ce894"
   },
   {
    "devices": [
