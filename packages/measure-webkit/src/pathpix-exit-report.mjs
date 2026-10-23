@@ -5,14 +5,14 @@ import { join, resolve } from 'node:path';
 export function slimCell(c) {
   return {
     key: c.key, i: c.i, y: c.y, kind: c.kind, grade: c.grade, why: c.why, ifAccepted: c.ifAccepted, absGrade: c.absGrade, live: c.live, accentPinned: c.accentPinned, invalidWhy: c.invalidWhy,
-    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null,
+    inside: c.cell.inside, out: c.cell.out, floor: c.floor, p1: c.cell.p1, compA: c.cell.claim.compA, compB: c.cell.claim.compB, strip: c.strip ?? null, where: c.where ?? null,
   };
 }
 
 export function slimLane(label, artifact, cells, man) {
   return {
     schema: 'fw.path-pix.exit.cells/1', label, artifact, run: cells.run, engine: cells.engine, lane: cells.lane, flag: cells.flag, compositing: cells.compositing,
-    ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, handover: man.handover ?? null, fonts: man.fonts ?? null,
+    ua: man.ua ?? null, browser: man.browser ?? null, vw: cells.vw, dpr: cells.dpr, exit: cells.exit, offsets: cells.offsets, maxY: cells.maxY ?? null, clock: cells.clock ?? null, handover: man.handover ?? null, fonts: man.fonts ?? null,
     cut: cells.cut, armsRun: cells.armsRun, driverMoved: cells.driverMoved ?? null, liveness: cells.liveness.map((l) => ({ arm: l.arm, i: l.i, y: l.y, accepted: l.accepted, accentPinned: l.accentPinned, live: l.live })),
     skipped: cells.skipped, frames: cells.frames.map((f) => ({ arm: f.arm, i: f.i, sameA: f.sameA, sameB: f.sameB, changed: f.changed, maxDelta: f.maxDelta })),
     cells: cells.cells.map(slimCell),
@@ -43,6 +43,63 @@ export function engineTable(engine, lanes) {
   return out.join('\n');
 }
 
+const HERO = 'hero_copy';
+const raw = (x) => `${x.changed}-${x.maxDelta}`;
+
+// Where an L on a P cell comes from: change outside the layer's mask, the text rule (strips not accepted), or an inside
+// change above the A/A floor (Lean `whyL`: outside, then text, then inside). Null when the cell is not L.
+export const lSource = (p) => (p.grade !== 'L' ? null : p.why === 'text' ? 'strips not accepted' : p.why === 'inside' ? 'floor' : p.why === 'outside' ? 'outside the mask' : '?');
+
+const cellAt = (l, key, i, kind) => l.cells.find((c) => c.key === key && c.i === i && c.kind === kind);
+const skipAt = (l, key, i, kind) => l.skipped.find((x) => (x.key === key || x.kind === 'all') && x.i === i && (x.kind === kind || x.kind === 'all'))?.why ?? null;
+
+/** hero_copy at every offset in every job: the A/A floor and the P cell side by side (no number typed by hand). */
+export function heroCopyTable(engine, lanes, key = HERO) {
+  const offsets = lanes[0]?.offsets ?? [];
+  const out = [`#### ${engine}: ${key} per job and offset`, '', `| offset | ask y | ${lanes.map((l) => `${l.label} A/A in/out | ${l.label} P in/out | ${l.label} P grade (source) [if strips accepted]`).join(' | ')} |`, `|---|---|${lanes.map(() => '---|---|---').join('|')}|`];
+  offsets.forEach((y, i) => {
+    const cols = lanes.flatMap((l) => {
+      const f = cellAt(l, key, i, 'A/A'), p = cellAt(l, key, i, 'P');
+      const sk = (kind) => skipAt(l, key, i, kind);
+      const aa = f ? `${raw(f.inside)}/${raw(f.out)}${f.grade === 'invalid' ? ` (invalid: ${f.invalidWhy})` : ''}` : `skipped: ${sk('A/A') ?? 'no cell'}`;
+      if (!p) return [aa, `skipped: ${sk('P') ?? 'no cell'}`, '-'];
+      const src = lSource(p);
+      return [aa, `${raw(p.inside)}/${raw(p.out)}`, `${p.grade}${p.grade === 'invalid' ? ` (${p.invalidWhy ?? 'not live'})` : src ? ` (${src})` : ''} [${p.ifAccepted}]`];
+    });
+    out.push(`| ${i} | ${y} | ${cols.join(' | ')} |`);
+  });
+  return out.join('\n');
+}
+
+/** Per engine: how many hero_copy P cells fall in each grade across the jobs, and where the L cells come from. */
+export function heroCopySummary(engine, lanes, key = HERO) {
+  const ps = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'P'));
+  const fs = lanes.flatMap((l) => l.cells.filter((c) => c.key === key && c.kind === 'A/A'));
+  const g = (x) => count(ps, (c) => c.grade === x), src = (x) => count(ps, (c) => lSource(c) === x);
+  const skips = lanes.flatMap((l) => l.skipped.filter((x) => x.key === key));
+  const reasons = [...new Set(skips.map((x) => x.why))].map((w) => `${w} x${count(skips, (x) => x.why === w)}`);
+  return [`#### ${engine}: ${key} summary over ${lanes.length} jobs`, '',
+    '| P cells | E | E1 | Q | L | invalid | L: strips not accepted | L: floor | L: outside the mask | A/A cells | A/A with a change inside | A/A with a change outside | skipped (reason) |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    `| ${ps.length} | ${g('E')} | ${g('E1')} | ${g('Q')} | ${g('L')} | ${g('invalid')} | ${src('strips not accepted')} | ${src('floor')} | ${src('outside the mask')} | ${fs.length} | ${count(fs, (c) => c.inside.changed > 0)} | ${count(fs, (c) => c.out.changed > 0)} | ${reasons.join('; ') || 'none'} |`].join('\n');
+}
+
+/** The pixels an A/A cell changed inside the layer's mask, as a box (device px), with the parts of the layer that box touches. */
+export function heroCopyWhere(lanes, key = HERO) {
+  const out = ['| job | offset | kind | inside chg-max | box (device px) | parts the box touches |', '|---|---|---|---|---|---|'];
+  for (const l of lanes) for (const c of l.cells) if (c.key === key && c.inside.changed > 0 && c.where) out.push(`| ${l.label} | ${c.i} | ${c.kind} | ${raw(c.inside)} | ${c.where.bbox ? c.where.bbox.join(',') : '-'} | ${c.where.parts.join(', ') || 'none named'} |`);
+  return out.join('\n');
+}
+
+/** Per job: whether the page clock stood still, how many cells the accent pin and the row placement left valid. */
+export function pinTable(lanes) {
+  const out = ['| job | run | Date.now in every row | cells | accent-unpinned | misplaced | occluded skips |', '|---|---|---|---|---|---|---|'];
+  for (const l of lanes) {
+    const cs = l.cells;
+    out.push(`| ${l.label} | ${l.run} | ${l.clock ? (l.clock.constant ? `constant (${l.clock.values.join(',')})` : `moves (${l.clock.values.join(',')})`) : 'not recorded'} | ${cs.length} | ${count(cs, (c) => c.invalidWhy === 'accent-unpinned')} | ${count(cs, (c) => c.invalidWhy === 'misplaced')} | ${count(l.skipped, (x) => /^occluded/.test(x.why))} |`);
+  }
+  return out.join('\n');
+}
+
 export function lookList(lanes) {
   const out = ['| replicate | artifact | strip | consumer | offset | why |', '|---|---|---|---|---|---|'];
   for (const l of lanes) for (const c of l.cells) if (c.kind === 'P' && c.grade === 'L' && c.strip) out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.why} |`);
@@ -65,6 +122,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.arg
     return lane;
   });
   const engines = [...new Set(lanes.map((l) => l.engine))];
-  const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', '#### L cells with a strip', '', lookList(lanes)].join('\n');
+  const hero = engines.flatMap((e) => { const ls = lanes.filter((l) => l.engine === e); return [heroCopySummary(e, ls), '', heroCopyTable(e, ls), '', `#### ${e}: ${HERO} changes inside the mask`, '', heroCopyWhere(ls), '']; });
+  const md = [...engines.map((e) => engineTable(e, lanes.filter((l) => l.engine === e))), '', ...hero, '#### Page clock, accent pin and row placement per job', '', pinTable(lanes), '', '#### L cells with a strip', '', lookList(lanes)].join('\n');
   console.log(md);
 }
