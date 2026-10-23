@@ -18,7 +18,8 @@
   `rawOf` forwards `retryUntilS`.
 
 ## Verified
-- See the report: `lean/scripts/check.sh`, @fw/gh-budget and @fw/runner tests, ci-paths, land-inputs.
+- `lean/scripts/check.sh` green; @fw/gh-budget 79 tests, @fw/runner 3264 (golden replay through fwcore,
+  land-inputs), @fw/contracts 11, ci-paths 56; dry land `VERDICT dry timing-wait-state-interval`.
 
 ## Open
 - The cap counts only interval and retryUntil; floor-guard and share waits (`charge` `.floor`/`.hour`/`.minute`) are
