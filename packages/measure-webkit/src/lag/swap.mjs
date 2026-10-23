@@ -126,7 +126,6 @@ export const laneUnits = (shift) => {
   ];
 };
 
-/** The pooled numbers of per-window counts over some captures. */
 export const pooled = (rows, captures) => ({
   rows: rows.length, captures, busyWindows: busyWindows(rows),
   tenthsPerCapture: perCaptureTenths(rows.reduce((a, b) => a + b, 0), captures), median2: median2(rows),

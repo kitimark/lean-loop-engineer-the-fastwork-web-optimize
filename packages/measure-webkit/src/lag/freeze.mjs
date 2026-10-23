@@ -50,10 +50,8 @@ export const FREEZE_JS = (on, mode = 'all') => `(async () => {
   return { on: ${on ? 'true' : 'false'}, ${mode === 'draw' ? "mode: 'draw', " : ''}matched: els.length, sheets: document.adoptedStyleSheets.length, accentAnims: own.length, otherAnims: all.length - own.length };
 })()`;
 
-/** The draw starts counted by the draw-mode probe since it was installed; null when it was not installed. */
 export const DRAW_READ_JS = '(async () => (window.__fwDraw ? { animations: window.__fwDraw.animations, transitions: window.__fwDraw.transitions } : null))()';
 
-/** Install the freeze in the loaded page; throws when it did not take (no accent found, or its animations still exist). */
 export async function freezeApply(c, mode = 'all') {
   const r = await c.runAsync(FREEZE_JS(true, mode), { pollMs: 200 });
   if (r.matched < 1) throw new Error('freeze: no hero-accent element in the page');
@@ -61,11 +59,8 @@ export async function freezeApply(c, mode = 'all') {
   return r;
 }
 
-/** The same reading without the style sheet (the unfrozen twin of a frozen capture). */
 export const freezeProbe = (c, mode = 'all') => c.runAsync(FREEZE_JS(false, mode), { pollMs: 200 });
 
-/** Apply or probe, by the capture's freeze option: `null` calls nothing. */
 export const freezeStep = (c, freeze) => (freeze === null || freeze === undefined ? null : freeze.on ? freezeApply(c, freeze.mode) : freezeProbe(c, freeze.mode));
 
-/** The draw starts of a draw-mode capture, read at its end; null for any other freeze. */
 export const freezeDrawRead = async (c, freeze) => (freeze?.mode === 'draw' ? c.runAsync(DRAW_READ_JS, { pollMs: 200 }) : null);

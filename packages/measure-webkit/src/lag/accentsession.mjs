@@ -7,18 +7,12 @@ import { laneUnits, unitFits } from './swap.mjs';
 export const ESTIMATE_MS = 180000;
 const DRAW = (on) => ({ on, mode: 'draw' });
 
-/** `swap:faithful-frozen-a` -> { kind: 'swap', arm: 'faithful', frozen: true, slot: 'a', name: 'faithful-frozen-a' }. */
 export function parseUnit(unit) {
   const m = /^(swap|zone):(faithful|nolayout|full)(-frozen)?-([ab])$/.exec(unit);
   if (!m) throw new Error(`unknown lane unit ${JSON.stringify(unit)}`);
   return { kind: m[1], arm: m[2], frozen: !!m[3], slot: m[4], name: unit.slice(m[1].length + 1) };
 }
 
-/**
- * One pass per job over `laneUnits(shift)` (Lean `Fw.Measure.SwapWindow.laneUnits`): a swap capture or a hero-exit zone capture
- * of one arm in one state. Before each unit `unitFits` (Lean) checks the lane budget; the units left after the first that does
- * not fit are listed in `skipped` and the step still ends green. The result is saved after every unit.
- */
 export async function accentSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, accent, save }, deps = {}) {
   const { swapCapture: swap = swapCapture, zoneCapture: zone = zoneCapture, retrying: retry = retrying, shift = vmShift(), now = Date.now, estimateMs = ESTIMATE_MS } = deps;
   if (!accent) throw new Error('the accent session needs the accent setup (--accent --cost on|only with --site)');

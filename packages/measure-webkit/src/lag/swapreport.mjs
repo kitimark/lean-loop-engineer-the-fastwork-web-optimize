@@ -89,7 +89,6 @@ function busyWindows(cells) {
   });
 }
 
-/** The arm column name: the FW flag of the run's search (`?fw=people.carousel:crop` -> `people.carousel:crop`), else `arm`. */
 export function armLabel(docs, override = null) {
   if (override) return override;
   for (const d of docs) {
@@ -101,7 +100,6 @@ export function armLabel(docs, override = null) {
 
 const POOL_GROUPS = [['faithful-a', ['faithful-a']], ['faithful-b', ['faithful-b']], ['arm', ['crop-a', 'crop-b']]];
 
-/** The pooled Layout numbers per group and window kind (Lean busyWindows, perCaptureTenths, median2): windows with at least BUSY_MIN rows, rows per capture, median. */
 export function pooledSummary(passes, periods = PERIODS) {
   const out = {};
   for (const [phase, count] of [['rest', periods - 1], ['swap', periods]]) {

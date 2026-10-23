@@ -7,10 +7,8 @@ export const FLAG_OF = Object.freeze({ faithful: 'default', nolayout: 'hero.acce
 
 export const recordsOf = (docs) => docs.flatMap((d) => d.passes.map((p) => p.cost?.accent).filter(Boolean));
 
-/** The capture names of a state: both faithful slots, or the one slot an arm has. */
 const capsOf = (state) => (state === 'faithful' ? ['faithful-a', 'faithful-b'] : [`${state}-a`]);
 
-/** Samples [rows, background, key] of one capture name over the records, plus the count of windows dropped as invalid. */
 export function samples(recs, names, ty, phase, k) {
   const out = [];
   let dropped = 0;
@@ -29,7 +27,6 @@ export function samples(recs, names, ty, phase, k) {
 const windowsOf = (phase) => Array.from({ length: phase === 'swap' ? PERIODS : PERIODS - 1 }, (_, k) => k);
 const med = (xs) => (xs.length ? median(xs) : null);
 
-/** Every window and kind: the two faithful slots and the arm, decided by Lean `cell`. */
 export function armWindows(recs, arm) {
   const out = [];
   for (const phase of ['swap', 'rest']) {
@@ -44,7 +41,6 @@ export function armWindows(recs, arm) {
   return out;
 }
 
-/** Every window of the faithful arm: the unfrozen busy samples (all samples in a rest window) against the draw-frozen ones. */
 export function frozenWindows(recs) {
   const out = [];
   for (const phase of ['swap', 'rest']) {
@@ -59,7 +55,6 @@ export function frozenWindows(recs) {
   return out;
 }
 
-/** The pooled numbers of a state: Layout rows of every valid window of its captures (Lean busyWindows, perCaptureTenths, median2). */
 export function pooledOf(recs, state) {
   const res = {};
   for (const phase of ['rest', 'swap']) {
@@ -85,7 +80,6 @@ export function zonesOfState(recs, state) {
   return recs.flatMap((r) => ['a', 'b'].map((s) => r.zones[`${state}-${s}`]).filter(Boolean));
 }
 
-/** Hero-exit zone captures per state and group: rows, rows per scroll frame (Lean perFrameMilli), draw starts seen. */
 export function zoneStats(recs) {
   const out = {};
   for (const state of STATES) {
@@ -109,7 +103,6 @@ export function zoneStats(recs) {
 
 const PAIRS = [['faithful', 'nolayout'], ['faithful', 'full'], ['nolayout', 'full'], ['faithful', 'faithful-frozen']];
 
-/** Per group and kind, Lean zoneVerdict of the first state's captures against the second's (lower = the second is lower, ranges separated). */
 export function zoneVerdicts(stats) {
   const out = [];
   for (const [name] of [['all'], ...zoneGroups]) {

@@ -699,7 +699,6 @@ def BusyFrozen.name : BusyFrozen → String
   | .raised => "raised"
   | .overlap => "overlap"
 
-/-- A window's unfrozen busy samples against its frozen samples: `removed` when every frozen sample is below every busy one. -/
 def busyFrozen (busy frozen : List Int) : BusyFrozen :=
   if busy.isEmpty then .noBusy
   else if frozen.isEmpty then .noFrozen
@@ -731,7 +730,6 @@ theorem busyFrozen_overlap (busy frozen : List Int) (hb : busy ≠ []) (hf : fro
     busyFrozen busy frozen = .overlap := by
   simp [busyFrozen, hb, hf, zoneVerdict, verdict_overlap h1 h2]
 
-/-- Windows with at least `busyMin` Layout rows. -/
 def busyWindows (ns : List Nat) : Nat := (ns.filter fun n => busyMin ≤ n).length
 
 theorem busyWindows_le (ns : List Nat) : busyWindows ns ≤ ns.length := List.length_filter_le _ _
@@ -744,7 +742,6 @@ theorem busyWindows_all (ns : List Nat) (h : ∀ n ∈ ns, busyMin ≤ n) : busy
   have : ns.filter (fun n => decide (busyMin ≤ n)) = ns := List.filter_eq_self.mpr (by simpa using h)
   simp [busyWindows, this]
 
-/-- Layout rows per capture in tenths, rounded half up; no capture prints 0. -/
 def perCaptureTenths (rows captures : Nat) : Nat :=
   if captures = 0 then 0 else (rows * 20 + captures) / (2 * captures)
 
@@ -759,7 +756,6 @@ theorem perCaptureTenths_exact (k c : Nat) (hc : 0 < c) : perCaptureTenths (k * 
   rw [Nat.mul_div_mul_left _ _ hc]
   omega
 
-/-- Layout rows per scroll frame in thousandths, rounded half up; no frame has no rate. -/
 def perFrameMilli (rows frames : Nat) : Option Nat :=
   if frames = 0 then none else some ((rows * 2000 + frames) / (2 * frames))
 
@@ -778,12 +774,10 @@ theorem perFrameMilli_exact (k f : Nat) (hf : 0 < f) : perFrameMilli (k * f) f =
 theorem perFrameMilli_zero (f : Nat) (hf : 0 < f) : perFrameMilli 0 f = some 0 := by
   simpa using perFrameMilli_exact 0 f hf
 
-/-- Minutes the accent lane keeps for its units: the step bound less 11 minutes for a slow last unit and the retries. -/
 def laneBudgetMin : Nat := Fw.Measure.SimBound.perSessionMin - 11
 
 theorem laneBudget_below_step : laneBudgetMin < Fw.Measure.SimBound.perSessionMin := by decide
 
-/-- A unit starts when its estimate still ends within the lane budget. -/
 def unitFits (elapsedMs estimateMs : Nat) : Bool := decide (elapsedMs + estimateMs ≤ laneBudgetMin * 60000)
 
 theorem unitFits_fresh (est : Nat) (h : est ≤ laneBudgetMin * 60000) : unitFits 0 est = true := by
@@ -795,14 +789,12 @@ theorem unitFits_late (elapsed est : Nat) (h : laneBudgetMin * 60000 < elapsed) 
 theorem unitFits_mono (e1 e2 est : Nat) (h : e1 ≤ e2) (hf : unitFits e2 est = true) : unitFits e1 est = true := by
   simp only [unitFits, decide_eq_true_eq] at hf ⊢; omega
 
-/-- The arm order of a job: the VM number's remainder picks the start (arms: faithful, nolayout, full). -/
 def armOrder (shift : Nat) : List String :=
   match shift % 3 with
   | 1 => ["nolayout", "full", "faithful"]
   | 2 => ["full", "faithful", "nolayout"]
   | _ => ["faithful", "nolayout", "full"]
 
-/-- The units of one job in the order they run. -/
 def laneUnits (shift : Nat) : List String :=
   (armOrder shift).map (fun a => "swap:" ++ a ++ "-a") ++ (armOrder shift).map (fun a => "zone:" ++ a ++ "-a") ++
   ["swap:faithful-frozen-a", "zone:faithful-frozen-a", "swap:faithful-b", "zone:faithful-b"] ++

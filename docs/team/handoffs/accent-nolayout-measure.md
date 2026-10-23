@@ -1,6 +1,6 @@
 branch: worktree-wf_a3f3d112-fbe-1 (ci branch ci/accent-nolayout-measure, tip a3bb8cd67)
 worktree: .claude/worktrees/wf_a3f3d112-fbe-1
-last commit: see `git log -1` (final handoff after both runs and the dry land)
+last commit: see `git log -1`
 CI runs (both dispatches used, from `fw ci state`):
 - webkit-sim 40030735082 at 7e3e5fc96: complete, success, 3 jobs, 13 units each. Report results/accent-draw-nolayout/accent-report-40030735082.md
 - webkit-sim 40035116432 at a3bb8cd67: complete, success, 3 jobs, 13 units each (draw counter fixed for hashed keyframe names). Report accent-report-40035116432.md
