@@ -9,6 +9,7 @@ import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
 import { parseProfile, replayEvents } from './profile.mjs';
 import { collectCensus } from './census.mjs';
+import { pngRegionHash } from './png-region.mjs';
 
 const N0_ON = !process.env.FW_NO_N0;
 
@@ -74,9 +75,8 @@ const ev = async (expression) => {
   if (r.exceptionDetails) throw new Error('evaluate failed: ' + JSON.stringify(r.exceptionDetails).slice(0, 400));
   return r.result.value;
 };
-// Network.enable makes BeginFrame hang at navigation commit (observed), so in-flight requests are counted by the
-// static server instead (every request that can succeed goes through it; external hosts are unresolvable by design).
-{
+c.on('Page.javascriptDialogOpening', () => { c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); }); // not a diagnostic: an open dialog would block the page
+if (process.env.FW_LOAD_TRACE) {
   let logged = 0;
   const say = (...a) => { if (logged++ < 40) console.error('page:', ...a); };
   c.on('Inspector.targetCrashed', () => say('TARGET CRASHED'));
@@ -87,7 +87,6 @@ const ev = async (expression) => {
   bs.on('Target.targetDestroyed', (e) => say('target destroyed', e.targetId));
   c.on('Page.frameNavigated', (e) => say('navigated', e.frame.url.slice(0, 60)));
   c.on('Page.lifecycleEvent', (e) => say('lifecycle', e.name));
-  c.on('Page.javascriptDialogOpening', (e) => { say('DIALOG', e.type, JSON.stringify(e.message).slice(0, 200)); c.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); });
   c.on('Runtime.exceptionThrown', (e) => say('EXCEPTION', (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text ?? '').slice(0, 300)));
   c.on('Runtime.consoleAPICalled', (e) => { if (e.type === 'error' || e.type === 'warning' || e.type === 'assert') say(e.type, e.args.map((x) => x.value ?? x.description ?? '').join(' ').slice(0, 300)); });
 }
@@ -143,8 +142,8 @@ async function hangProfile(frameNo) {
   console.error(`hang trace names:\n  ${names.join('\n  ')}`);
   throw new Error(`load hang at frame ${frameNo}: ${events.length} trace events\n top samples:\n  ${top.join('\n  ') || '(none)'}\n long tasks:\n  ${longs.join('\n  ') || '(none)'}`);
 }
-let loaded = false; // set once the page is loaded: from then on an unanswered BeginFrame is a hang, not a navigation commit
-async function frame(vtMs, pre = '', mid = null) {
+let loaded = false;
+async function frame(vtMs, pre = '', mid = null, shot = false) {
   touch.frames++;
   const sent0 = touch.sent;
   const r0 = srv.requests();
@@ -153,7 +152,7 @@ async function frame(vtMs, pre = '', mid = null) {
   if (DEBUG) console.error('frame', vtMs.toFixed(1));
   let bf = null;
   for (let attempt = 0; attempt < 20 && !bf; attempt++) {
-    bf = await Promise.race([c.send('HeadlessExperimental.beginFrame', { frameTimeTicks: T0 + vtMs, interval: dt }), sleep(+(process.env.FW_BF_TIMEOUT_MS ?? (loaded ? 5000 : 1500))).then(() => null)]);
+    bf = await Promise.race([c.send('HeadlessExperimental.beginFrame', { frameTimeTicks: T0 + vtMs, interval: dt, ...(shot ? { screenshot: { format: 'png' } } : {}) }), sleep(+(process.env.FW_BF_TIMEOUT_MS ?? (loaded ? 5000 : 1500))).then(() => null)]);
     if (!bf && DEBUG) { console.error('beginFrame retry', attempt); console.error('main thread alive?', await Promise.race([ev('performance.now()').then((v) => 'yes ' + v, (e) => 'error ' + e), sleep(3000).then(() => 'NO (no answer in 3 s)')])); }
     if (!bf && DEBUG && process.env.FW_EXTRA_CATEGORIES) { const done = new Promise((res) => c.once('Tracing.tracingComplete', res)); await c.send('Tracing.end'); const { stream } = await done; let tx = ''; for (;;) { const r = await c.send('IO.read', { handle: stream, size: 1 << 20 }); tx += r.data; if (r.eof) break; } writeFileSync(`${OUT}/hang-trace.json`, tx); console.error('hang trace written'); process.exit(3); }
     if (!bf && loaded) { console.error(`FW_BEGINFRAME_HANG: no answer to beginFrame at vt ${vtMs} (touch events unacknowledged: ${touch.unacked}); the container is no good, run it again`); process.exit(75); }
@@ -162,7 +161,7 @@ async function frame(vtMs, pre = '', mid = null) {
   if (touch.unacked > 0) { const t = Date.now(); await Promise.race([touch.settled(), sleep(TOUCH_ACK_MS)]); if (DEBUG) console.error('touch unacked', touch.unacked, 'after', Date.now() - t, 'ms'); }
   if (touch.sent > sent0) await sleep(TOUCH_POST_ACK_MS);
   await networkBarrier(r0);
-  return { out, hasDamage: !!bf.hasDamage };
+  return { out, hasDamage: !!bf.hasDamage, screenshot: bf.screenshotData ?? null };
 }
 
 const navRes = await c.send('Page.navigate', { url: `http://127.0.0.1:${srv.port}/${SEARCH}` });
@@ -268,7 +267,6 @@ const warmN = inputMode === 'page' ? plan.filter((x) => x.phase === 'warm').leng
 if (inputMode === 'scrollTo' || inputMode === 'page') {
   for (let n = 0; n < plan.length; n++, vt += dt) {
     const { phase, y, run } = plan[n];
-    // "page" (engine premise fixtures): the page itself acts once per frame, from its own step table (window.__fwStep(n)), inside the frame's mark window.
     const pre = inputMode === 'page'
       ? `console.timeStamp('F${n}'); ${phase === 'warm' ? `window.__fwWarm(${n})` : `window.__fwStep(${n - warmN})`}; var __fwStepResult = ${POS};`
       : `console.timeStamp('F${n}'); ${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`;
@@ -339,6 +337,30 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
+let probe = null;
+if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try {
+  const { selector, faceSelector } = profile.cardProbe;
+  const read = `(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const q = (n) => { const r = n.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 1000) / 1000); };
+    const f = ${faceSelector ? `document.querySelector(${JSON.stringify(faceSelector)})` : 'null'};
+    const cb = []; for (let n = e.parentElement; n; n = n.parentElement) { const cs = getComputedStyle(n); const why = [cs.transform !== 'none' && 'transform', cs.translate !== 'none' && 'translate', cs.filter !== 'none' && 'filter', cs.perspective !== 'none' && 'perspective', cs.contain !== 'none' && 'contain:' + cs.contain, /transform|translate/.test(cs.willChange) && 'will-change', cs.backdropFilter !== 'none' && 'backdrop-filter'].filter(Boolean); if (why.length) cb.push(n.tagName.toLowerCase() + '.' + String(n.className).slice(0, 40) + ' ' + why.join(',')); }
+    return { rect: q(e), face: f ? q(f) : null, top: e.style.top, left: e.style.left, translate: e.style.translate, cb }; })()`;
+  const rows = [];
+  let prevPng = '', prevCard = null, containing = null;
+  for (let n = 0; n < plan.length; n++, vt += dt) {
+    const { phase, y, run } = plan[n];
+    const r = await frame(vt, `${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`, null, true);
+    const v = await ev(read);
+    const { cb, ...rest } = v ?? {};
+    if (v && containing === null) containing = cb;
+    if (r.screenshot) {
+      prevPng = createHash('sha256').update(r.screenshot).digest('hex').slice(0, 16);
+      prevCard = v ? pngRegionHash(r.screenshot, v.rect[0] - 60, v.rect[1] - 60, v.rect[0] + v.rect[2] + 60, v.rect[1] + v.rect[3] + 60) : null;
+    } else if (!v) prevCard = null;
+    rows.push({ n, phase, y: r.out, png: prevPng, cardPng: v ? prevCard : null, found: v !== null, ...rest });
+  }
+  probe = { selector, containing, frames: rows };
+} catch (e) { probe = { selector: profile.cardProbe.selector, error: String(e.message ?? e).slice(0, 300) }; } // the counts stay valid: the probe runs after them
+
 const censusPump = async () => {
   vt += dt;
   await ev(`__fwclock.advanceTo(${vt})`);
@@ -366,6 +388,7 @@ const result = {
   },
   frames,
   runLevel,
+  ...(probe ? { cardProbe: probe } : {}),
 };
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/counts.json`, JSON.stringify(result, null, 1) + '\n');

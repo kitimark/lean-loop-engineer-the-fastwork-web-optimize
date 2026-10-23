@@ -3103,10 +3103,10 @@
    "flags": [
     "people.o:preview-translate"
    ],
-   "chromium": "unknown",
+   "chromium": "win",
    "webkit": "unknown",
-   "visual": "E-s: WebKit scroll offsets are integral (ScrollTypes.h:47-49, LocalDOMWindow.cpp:1466@862f17d), so the shown top and left equal the faithful ones (snap_noFlip, step_faithful); a fractional Chromium offset falls back to a rewrite (frac_counter)",
-   "mechanism": "PROVED (Fw.Parts.PeopleOPreview): the faithful card costs 1 layout pass per scroll frame (faithful_layout); the variant costs 0 on a kept frame and 1 on a flip frame, both engines, given the card has its own layer (translate_layout_kept, translate_layout_flip, translate_work_lt); layer budget 0 by definition (residentOf is the same for both variants; INFERRED: the variant adds no will-change and no 3D transform; layer_budget_zero records it). Counts not measured: the desktop Chromium load crashes the renderer (task chromium-desktop-crash).",
+   "visual": "E-s: WebKit scroll offsets are integral (ScrollTypes.h:47-49, LocalDOMWindow.cpp:1466@862f17d), so the shown top and left equal the faithful ones (snap_noFlip, step_faithful); a fractional Chromium offset falls back to a rewrite (frac_counter). MEASURED on Chromium (open-card probe, runs 39881189724 and 39881193403): the card rect is identical in all 40 scroll frames in 3 of 3 base/flag pairs (max delta 0 px); the card-region pixels are identical in 2 of 3 pairs; in the third, flag run 3 differs from the five other runs from the first hover frame on (card left 0.92 px off before any scroll frame, INFERRED not the flag).",
+   "mechanism": "PROVED (Fw.Parts.PeopleOPreview): the faithful card costs 1 layout pass per scroll frame (faithful_layout); the variant costs 0 on a kept frame and 1 on a flip frame, both engines, given the card has its own layer (translate_layout_kept, translate_layout_flip, translate_work_lt); layer budget 0 by definition (residentOf is the same for both variants; INFERRED: the variant adds no will-change and no 3D transform; layer_budget_zero records it). MEASURED (Chromium desktop 1280, profile people-o-hover v2, 3 runs per arm on separate CI jobs, base run 39881189724, flag run 39881193403, premise: text-wrap:wrap workaround): over the 40 scroll frames trace.Layout 67 base vs 28 flag (dirtyObjects 2139 vs 969; frames with a Layout 40 vs 26); trace.UpdateLayoutTree 191, PrePaint 120, UpdateLayer 1070 and invalidation area 308551 are equal; the flag took the translate path on 49 probe frames. Classes (kMax 4, tMax 24): base trace.Layout deterministic; flag trace.Layout stable (k2). The first scenario (runs 39879309834, 39879313255: hover 12 frames, 10 px per frame) counted 55 Layout in both arms because the flag never took its keep path (face still sliding in x, card closed after 10 scroll frames): a non-engagement, not a result.",
    "leanFor": [
     "Fw.Parts.PeopleOPreview.snap_noFlip",
     "Fw.Parts.PeopleOPreview.step_faithful",
@@ -3121,7 +3121,10 @@
     "Fw.Parts.PeopleOPreview.frac_counter"
    ],
    "missingWhy": [
-    "Layout-count delta per scroll frame not measured: every desktop-width Chromium counts run fails at the first load frame (renderer SIGSEGV), base and flag alike",
+    "Counts carry the text-wrap workaround premise (no text balancing) and are desktop Chromium only; WebKit counts are not measured (Safari on a Mac is task gpu-safari-lane)",
+    "From scroll frame 15 base has 2 Layout per frame and flag 1: a second Layout source (not the card) starts there and is not diagnosed",
+    "In both arms the card rect moves 6 px per frame while the face moves 3 px. INFERRED cause: its ancestor div.card-module_card has will-change on transform or translate (probe containing list, runs 39881189724 and 39881193403), which makes it the containing block of the fixed card, so top and translate add to the scroll. The Lean model takes the card as viewport-fixed. Not confirmed from Chromium source.",
+    "Flag run 3 differs from the other five runs in card pixels from the first hover frame (card left 0.92 px off); 3 runs per arm cannot say whether the flag has a part in it",
     "The card having its own layer is INFERRED from RenderLayerCompositor.cpp:4097-4150@862f17d; without it WebKit still lays out on transform",
     "Desktop only, so no iPhone felt gain"
    ],
@@ -3131,9 +3134,9 @@
     "CONFIRMED: WebKit main-frame scroll offsets are IntPoint"
    ],
    "v1Evidence": "",
-   "lesson": "A per-frame position write of a fixed box is a layout pass; a translate by the scroll delta removes it only while the box is its own layer and the delta is whole device pixels. Check the engine can load the measuring page before building the profile: a renderer crash at load blocked the count for every arm.",
-   "next": "Re-run the people-o-hover counts after chromium-desktop-crash is fixed; then decide status.",
-   "evidence": "CI gate run 39850908365 (both engines pass); counts runs blocked by the renderer crash: 39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861; research/notes/2026/10-2x-people-o-preview-translate.md"
+   "lesson": "A per-frame position write of a fixed box is a layout pass; a translate by the scroll delta removes it only while the box is its own layer and the delta is whole device pixels. Check the engine can load the measuring page before building the profile: a renderer crash at load blocked the count for every arm. A count of a keep path needs a probe that shows the path was taken (v1 counted 55 in both arms without engaging the flag), and a whole-viewport pixel hash is noise between runs of one arm; hash the card region.",
+   "next": "Decide status from the Chromium counts; WebKit counts and the iPhone feel belong to gpu-safari-lane; diagnose the second Layout source from scroll frame 15 and the 6 px per frame card rect.",
+   "evidence": "Chromium counts MEASURED: base run 39881189724, flag run 39881193403 (scenario v2); scenario v1 (non-engagement): 39879309834, 39879313255; failed on the profile key probe: 39878167282, 39878174234; results/people-o-preview-translate/followups.json; CI gate run 39850908365 (both engines pass); counts runs blocked by the renderer crash before the fix:39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861; research/notes/2026/10-2x-people-o-preview-translate.md"
   }
  ],
  "notes": [
