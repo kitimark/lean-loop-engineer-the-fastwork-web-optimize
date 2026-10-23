@@ -1,0 +1,31 @@
+{"dirs":{"counts":"profiles","probe":"probes"},"kind":"consts","pinned":["--remote-debugging-port=","--user-data-dir=","--enable-begin-frame-control","--run-all-compositor-stages-before-draw"],"ua":{"desktop":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","mobile":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"}}
+{"in":null,"kind":"parseKind","out":"counts"}
+{"in":"counts","kind":"parseKind","out":"counts"}
+{"in":"probe","kind":"parseKind","out":"probe"}
+{"in":"Probe","kind":"parseKind","out":null}
+{"in":"","kind":"parseKind","out":null}
+{"drop":"--disable-gpu","kind":"dropOk","ok":true}
+{"drop":"--lang","kind":"dropOk","ok":true}
+{"drop":"--","kind":"dropOk","ok":false}
+{"drop":"-x","kind":"dropOk","ok":false}
+{"drop":"--x","kind":"dropOk","ok":true}
+{"drop":"--remote","kind":"dropOk","ok":false}
+{"drop":"--user-data-dir=/x","kind":"dropOk","ok":false}
+{"drop":"--enable-begin-frame-control","kind":"dropOk","ok":false}
+{"drop":"--run-all","kind":"dropOk","ok":false}
+{"drop":"--enable","kind":"dropOk","ok":false}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":[],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--disable-gpu"],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--font-render-hinting","--lang"],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--no"],"kind":"keep","out":["--remote-debugging-port=9222","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--x"],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":[],"drops":["--lang"],"kind":"keep","out":[]}
+{"dir":"profiles","kind":"wire","problem":null,"ua":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36","wire":{"css":null,"dropFlags":[],"kind":"counts","mobile":true,"variants":0}}
+{"dir":"profiles","kind":"wire","problem":null,"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":"*{text-wrap:wrap!important}","dropFlags":[],"kind":"counts","mobile":false,"variants":0}}
+{"dir":"profiles","kind":"wire","problem":"dropInCounts","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":["--lang"],"kind":"counts","mobile":false,"variants":0}}
+{"dir":"profiles","kind":"wire","problem":"variantsInCounts","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":[],"kind":"counts","mobile":false,"variants":3}}
+{"dir":"probes","kind":"wire","problem":null,"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":["--lang","--disable-gpu"],"kind":"probe","mobile":false,"variants":4}}
+{"dir":"probes","kind":"wire","problem":"badDrop","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":["--remote"],"kind":"probe","mobile":false,"variants":0}}
+{"dir":"probes","kind":"wire","problem":"emptyCss","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":"","dropFlags":[],"kind":"probe","mobile":false,"variants":2}}
+{"dir":"profiles","kind":"wire","problem":"emptyCss","ua":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36","wire":{"css":"","dropFlags":[],"kind":"counts","mobile":true,"variants":0}}
+{"dir":"probes","kind":"wire","problem":null,"ua":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36","wire":{"css":"h2{color:red}","dropFlags":[],"kind":"probe","mobile":true,"variants":0}}
