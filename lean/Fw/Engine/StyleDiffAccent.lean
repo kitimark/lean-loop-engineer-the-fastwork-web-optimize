@@ -131,6 +131,7 @@ theorem full_inRest_nolayout :
 theorem full_out_nolayout :
     wkFrameLayout (slotChanges .full .out) = false ∧ crFrameLayout (slotChanges .full .out) = false := by decide
 
+/-- Among the modelled draw candidates, the one frame with layout is the width set (the word swap in the same frame is not modelled). -/
 theorem full_inFirst_layout_only_width :
     (∀ c ∈ slotChanges .full .inFirst, (c.wkL = true ∨ c.crL = true) → c = .width) ∧
       wkFrameLayout (slotChanges .full .inFirst) = true ∧ crFrameLayout (slotChanges .full .inFirst) = true := by decide

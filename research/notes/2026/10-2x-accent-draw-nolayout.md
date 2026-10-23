@@ -87,7 +87,7 @@ property, it is the existing `width` row (`WC/style/StyleDifference.cpp:404`, `B
 ## Why not a transform
 The text after the word sits in normal flow and follows the word box. Any smooth glide of that text is itself a width or position change that the
 engines lay out in every frame. A `transform: scaleX` on a wrapper moves only the wrapper; the text stays where layout put it. So no same-look,
-layout-free replacement exists (CONFIRMED by the table: `width_layout`, `transformSvgChild_wk_layout`). The arm gives the glide up.
+layout-free replacement exists (INFERRED: in-flow text follows the word box; `width_layout` proves the width row lays out, and no layout-free row in the table moves in-flow text). The arm gives the glide up.
 
 ## Arm
 `.accent[data-fw-draw='nolayout-full'].drawingIn { transition: none }` on top of the draw-nolayout rules (those now select
@@ -96,7 +96,7 @@ class, so the width changes once. Faithful and draw-nolayout are unchanged (the 
 
 ## Proof (Lean `Fw.Engine.StyleDiffAccent`, no sorry; `wkLayoutFrames_values` and `crLayoutFrames_values` hold for every n)
 - `full_out_nolayout`, `full_inRest_nolayout`: every frame except the width set needs no layout in WebKit or Chromium.
-- `full_inFirst_layout_only_width`: the one frame with layout gets it only through `width`.
+- `full_inFirst_layout_only_width`: among the modelled draw candidates, the one frame with layout gets it only through `width`; the same frame also swaps the word (path d, viewBox, paint insets in onCursor), which lays out in every arm and is not modelled.
 - Layout frames in a cycle of n+1 frames per phase: WebKit 2(n+1) faithful, n+1 draw-nolayout, 1 full; Chromium n+1, n+1, 1.
   At 54 frames (900 ms at 60 Hz): 108, 54, 1 (`wkLayoutFrames_54`). Golden rows `slot` and `cycle` in `hero.accent.nolayout.jsonl`.
 
