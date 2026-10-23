@@ -1,6 +1,6 @@
 # sim-touch-reliable handoff
 
-- Branch `worktree-wf_b60a7b2e-e1c-1`, worktree `.claude/worktrees/wf_b60a7b2e-e1c-1`, last commit see `git log -1` (merge of main at `d55d737bc`; code last changed at `ace249c13`).
+- Branch `worktree-wf_b60a7b2e-e1c-1`, worktree `.claude/worktrees/wf_b60a7b2e-e1c-1`, last commit see `git log -1` (round 2 code at `e2b2b290a` merged with main; dry land `VERDICT dry sim-touch-reliable`; green: lean check, measure-webkit 429, ci-paths 54, runner 2967).
 - CI: pushed `ci/sim-touch-reliable` at `610d43d70` (smoothness, `[webkit-cadence] [earn-bound] [sim-only]`, default variant springboard); run `39934951574` complete (success, 3 sim jobs; 52 of 53 pushes ok, one swipeLate)
   (`pnpm -s fw ci wait --branch ci/sim-touch-reliable --workflow smoothness`; fetch `pnpm -s fw ci 39934951574`). Evidence read-only: runs `39901005729` and `39909042070`.
 - Verified: Lean `Fw.Measure.TouchPush` compiles with its theorems and golden (`packages/contracts/golden/measure/touch-push.jsonl`);
