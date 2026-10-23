@@ -116,3 +116,62 @@ Rule proposed (a cache delete needs the user's OK; none was made): (a) delete ev
 is on main or the branch is older than 1 h, since no other ref can restore it (GitHub Actions dependency-caching reference, "Restrictions for accessing a cache": a ref restores caches from its own ref and from the default branch only; evidence: the lake entries on ci/* refs 9410862728, 9410705393 and 9409980662 have lastAccessedAt equal to createdAt); (b) keep the newest 2
 `lake-*` entries on main; (c) delete `gate-*` entries of a `ci/land-*` branch after its land. Effect on the 16:29Z list: 8.87 GB freed, leaving about 3 GB.
 Command (to run by the user or with OK): `gh cache delete <id>` per entry from `gh cache list --json id,ref,key,createdAt,lastAccessedAt`.
+
+## Follow-up 2026-10-24 (task ci-lake-prune-artifacts)
+
+Status: item 1 CONFIRMED from Lake source and MEASURED in one run; item 2 MEASURED from land legs; item 3 is a rule derived from them (INFERRED where marked).
+
+### 1. Missing artifact under an existing outputs mapping is a miss, not an error (CONFIRMED, lean4@eb6cafb)
+
+- `getArtifactsUsingCache?` (src/lake/Lake/Build/Common.lean:521-534) reads `outputs/<scope>/<hash>.json` and resolves each artifact. Any error is caught
+  (`catch e` at :526), logged only at verbose level (:533) and returns `none`: the module is rebuilt.
+- The error itself is `resolveArtifact`, :579-614: `getMTime path` fails with `noFileOrDirectory` (:588), no cache service is configured, so it ends in
+  `error s!"artifact not found in cache"` (:612). The trace route (`getArtifactsUsingTrace?`, :545-560) catches the same error (`dropLogFrom e`, :559).
+- A module needs all its artifacts: `ModuleOutputDescrs.resolve` resolves olean, ilean, c and the optional ones (src/lake/Lake/Build/Module.lean:731-751), so one missing file is a miss for that module.
+- The module that is used in a build has every artifact hard-linked into `.lake/build`: `lakefile.toml:15` sets `restoreAllArtifacts = true`, and
+  `Module.restoreAllArtifacts` (Module.lean:821-831) links olean, ilean, ir, c, bc, ltar. So an artifact with one link belongs to no module of this build (INFERRED: this holds while the cache and `.lake/build` share a file system, which `setup-lean` ensures).
+- Why the naive prune failed (run 39985377389): it also deleted `outputs/` (mapping files have one link), and without a mapping Lake finds nothing to look up.
+
+### Run 40000273174 (lean.yml on ci/ci-lake-prune-artifacts, job 120574411361, commit 5dae271a7): artifacts-only prune (MEASURED)
+
+| quantity | value | source |
+|---|---|---|
+| restored entry (restore-key hit) | 1 806 502 375 B (main entry 9415355768) | setup-lean step, "Cache Size" |
+| cache dir before prune | 8 036 395 020 B | prune step, `total bytes` |
+| artifacts links=1 (deleted) | 1453 files, 6 664 800 449 B | prune step |
+| artifacts links>=2 (kept) | 1698 files, 1 371 198 757 B | prune step |
+| outputs (kept) | 2779 files, 395 814 B | prune step |
+| cache dir after prune | 1 371 594 571 B | prune step, `total bytes` |
+| `rm -rf lean/.lake/build; lake build` | 847 jobs, 1 s, 1 built line (`fwcore:exe`, 663 ms) | TEMP rebuild step |
+| saved blob (compressed) | 349 958 215 B (entry 9415450987), 80.6% below the restored 1 806 502 375 B | post step "Sent 349958215", `gh cache list` |
+
+Against the naive prune (837 lines rebuilt, 423 s): 846 of 847 jobs were served from the pruned cache. The cache dir grew to 1 530 206 571 B during that rebuild (+158 MB; cause not read, probably the fwcore executable and relinked outputs; the blob size above was taken after it).
+Limit: the rebuild ran on the same runner after the prune, so it proves the pruned cache serves a build, not that the saved blob unpacks to the same (hard links are kept by tar; INFERRED). The first cross-run proof is the next main `lean` run that restores a pruned entry: a restore with a rebuild of hundreds of modules would show here. The TEMP rebuild step and TEMP key suffix are reverted; the prune step stays in `lean.yml` (job `lean`, the one writer).
+
+### 2. Land legs after per-land main pushes (MEASURED; main pushes by the lead from 2026-10-23 16:20Z)
+
+Entry = the newest main lean entry created before the leg's restore (main lean runs that saved: 39987250348 b10251ccb 16:32:38Z, 39990786493 069aa37ce 16:58:07Z, 39992907653 11d8948c1 17:14:01Z, 39995021894 414e3fef7 17:28:49Z, 39997512873 840a81bdf 17:47:56Z; 39988665339 and 39984683144 saved nothing, 20 s). "Lean files changed" = `git diff --name-only <entry commit> <land branch head>` over the key's hashFiles set (includes the land's own changes). Legs = jobs that ran the `fwcore build` step; step time and Built lines from job check-sh.
+
+| land run (check-sh job) | leg restore | entry commit | Lean files changed | Built lines | fwcore build step (check-sh) | legs ran, sum of steps |
+|---|---|---|---|---|---|---|
+| 39986375659 (120526664354) | 16:24:06Z | 3041b6a71 | 1 | 9 | 7 s | 5, 38 s |
+| 39989742276 (120538239743) | 16:48:18Z | b10251ccb | 2 | 15 | 12 s | 1, 12 s |
+| 39991986432 (120545915646) | 17:04:26Z | 069aa37ce | 1 | 11 | 10 s | 5, 48 s |
+| 39994191829 (120553456004) | 17:20:29Z | 11d8948c1 | 2 | 16 | 11 s | 5, 55 s |
+| 39995255573 (120557111502) | 17:28:13Z | 11d8948c1 (414e3fef7 finished 36 s later) | 4 | 56 | 58 s | 4, 236 s |
+| 39996646025 (120561955708) | 17:38:27Z | 414e3fef7 | 3 | 57 | 68 s | 2, 129 s |
+| 39997746052 (120565741053) | 17:46:25Z | 414e3fef7 (840a81bdf finished 91 s later) | 5 | 76 | 72 s | 2, 143 s |
+
+Reading: Built lines follow the Lean files changed (1-2 files: 9-16 Built lines, 7-12 s; 3-5 files: 56-76 lines, 58-72 s), the same as the 2026-10-23 table. Two of seven legs (39995255573, 39997746052) restored an entry that was one push behind because a main lean run was in flight; the other five restored the entry of the previous push. For those two, the files the fresh entry would add: 2 (Polish.lean, Wire/Plan.lean) and 3 (Ci/Overflow.lean, Gate/PathPix.lean, Parts/FootprintData.lean); the rest of the changed files are the land's own and no main push can supply them (39996646025 with the same 3 files as its own change built 57 lines, 68 s on a fresh entry).
+Answer to the 2026-10-23 open point: with the lead's push after every land a `ci/land-*` cache save is still not needed; the leg is slow only when the land itself changes 3 or more Lean files.
+
+### 3. Rule: gate a land on main's lean run? (MEASURED inputs, rule INFERRED)
+
+Main lean run durations (createdAt to updatedAt): 2:50, 2:45, 3:27, 2:45, 3:42, 4:50, 3:15 (runs 39987250348, 39990786493, 39992907653, 39995021894, 39997512873, 39998749994, 39999887346). Gap from a main push to the next land run creation: 1.7 min (39995021894 to 39995255573), 1.6 min (39997512873 to 39997746052), 6 to 20 min otherwise.
+
+| land | wait for the in-flight main run | wall saved per leg (upper bound) | leg time saved |
+|---|---|---|---|
+| 39995255573 | 17:27:47Z (land created) to 17:28:49Z = 62 s | 2 files cost 11-12 s (39989742276, 39994191829 changed exactly them): 12 s | at most 4 legs x 12 s = 48 s |
+| 39997746052 | 17:45:53Z to 17:47:56Z = 123 s | 72 s step minus about 12 s for the own 2 files: 60 s | at most 2 legs x 60 s = 120 s |
+
+Rule: do not gate. The legs run in parallel, so the wall time a gate can save is one leg's fwcore build (at most 60 s here), while the wait costs 62 to 123 s when it applies (2 of 7 lands) and 0 otherwise; the leg seconds it saves (at most 168 s over 7 lands) are on free runners. Gating loses on lead wall time in both cases and gains little elsewhere. The wall estimate of the own-change cost (12 s for 2 files) is INFERRED from the two lands with that exact count. A gate would pay only if one leg fwcore build exceeded the remaining main run time; the largest step seen is 72 s against 62 to 123 s of wait.
