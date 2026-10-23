@@ -1271,7 +1271,7 @@ end Fw.Parts.FootprintData
 }
 
 const mode = process.argv[2] ?? '--print';
-const isMain = process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = process.argv[1] !== undefined && fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url));
 const { text, lean } = isMain ? render() : { text: '', lean: '' };
 if (!isMain) {} else if (mode === '--print') process.stdout.write(text);
 else if (mode === '--write') {
