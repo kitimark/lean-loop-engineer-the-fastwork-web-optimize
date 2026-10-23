@@ -1,0 +1,182 @@
+{
+ "id": "balance-repro",
+ "kind": "probe",
+ "about": "Task chrome-balance-repro: does a browser started as a user would (Chrome for Testing, new headless, no BeginFrameControl, no emulation, no harness flags) crash on the people title (text-wrap: balance on an h2 whose line holds an inline-flex word with an inline-grid o)? repro.title is that title alone in the site font; the page variants load the target page. Variants name the browser: cft4 = Chrome 156.0.8078.4 (the lane version), cft47 = Stable 156.0.8078.47, cft157 = Beta, cft158 = Canary, shell = the lane Headless Shell without BeginFrameControl, harness = the counts harness (BeginFrameControl). Diagnostic, records no counts.",
+ "hz": 60,
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1,
+  "mobile": false,
+  "touch": false
+ },
+ "pinnedDate": "2026-10-01T00:00:00+07:00",
+ "timezone": "Asia/Bangkok",
+ "locale": "en-US",
+ "seed": 1592661556,
+ "load": {
+  "quietFrames": 30,
+  "maxFrames": 900,
+  "prerollFrames": 60
+ },
+ "zoneHeightPx": 500,
+ "segments": [
+  {
+   "name": "rest",
+   "dyPerFrame": 0,
+   "frames": 10
+  },
+  {
+   "name": "scroll",
+   "dyPerFrame": 10,
+   "frames": 40
+  },
+  {
+   "name": "tail",
+   "dyPerFrame": 0,
+   "frames": 10
+  }
+ ],
+ "repro": {
+  "title": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>balance repro</title><style>\n@font-face{font-family:\"Google Sans\";src:url(/font.woff2) format(\"woff2\");font-weight:400 700}\nbody{margin:0;font-family:\"Google Sans\",sans-serif;color:#2b313b}\n.c{display:flex;flex-direction:column;align-items:center;text-align:center;padding:80px 56px}\nh2{margin:0;font-size:48px;font-weight:500;line-height:1.15;letter-spacing:-0.02em;text-wrap:balance}\n.w{white-space:nowrap;display:inline-flex;flex-wrap:nowrap;align-items:flex-start}\n.o{vertical-align:baseline;flex-shrink:0;display:inline-grid;grid-template-columns:minmax(0,0.6042em);min-width:0;height:1.0417em;position:relative;overflow:hidden}\n.s{grid-column:1;width:100%;min-width:0;height:100%;position:relative}\n</style></head><body><div class=\"c\"><h2 id=\"future-heading\"><span>People still need</span> <span class=\"w\">pe<span class=\"o\"><span class=\"s\"></span></span>ple</span></h2></div></body></html>"
+ },
+ "probe": {
+  "timeoutMs": 240000,
+  "variants": [
+   {
+    "id": "cft4-min",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "cft4-page",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    }
+   },
+   {
+    "id": "cft4-page-860",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4"
+    },
+    "width": 860
+   },
+   {
+    "id": "cft4-min-wrap",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": "h2{text-wrap:wrap!important}"
+   },
+   {
+    "id": "cft4-min-nowrap",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": "h2{white-space:nowrap!important}"
+   },
+   {
+    "id": "cft4-min-tw-nowrap",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": "h2{text-wrap:nowrap!important}"
+   },
+   {
+    "id": "cft4-min-block",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": ".c{display:block!important}"
+   },
+   {
+    "id": "cft4-min-o-iblock",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": ".o{display:inline-block!important}"
+   },
+   {
+    "id": "cft4-min-w-inline",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": ".w{display:inline!important}"
+   },
+   {
+    "id": "cft4-min-o-empty",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.4",
+     "FW_REPRO": "title"
+    },
+    "css": ".s{display:none!important}"
+   },
+   {
+    "id": "cft47-min",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "cft47-page",
+    "env": {
+     "FW_STOCK": "cft:156.0.8078.47"
+    }
+   },
+   {
+    "id": "cft157-min",
+    "env": {
+     "FW_STOCK": "cft:157.0.8103.15",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "cft157-page",
+    "env": {
+     "FW_STOCK": "cft:157.0.8103.15"
+    }
+   },
+   {
+    "id": "cft158-min",
+    "env": {
+     "FW_STOCK": "cft:158.0.8118.0",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "cft158-page",
+    "env": {
+     "FW_STOCK": "cft:158.0.8118.0"
+    }
+   },
+   {
+    "id": "shell-min",
+    "env": {
+     "FW_STOCK": "shell",
+     "FW_REPRO": "title"
+    }
+   },
+   {
+    "id": "shell-page",
+    "env": {
+     "FW_STOCK": "shell"
+    }
+   },
+   {
+    "id": "harness-min",
+    "env": {
+     "FW_REPRO": "title"
+    }
+   }
+  ]
+ }
+}

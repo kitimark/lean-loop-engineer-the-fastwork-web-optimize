@@ -17420,7 +17420,8 @@
     "packages/measure-chromium/src/profile.mjs",
     "packages/measure-chromium/test/profile.test.mjs"
    ],
-   "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now)."
+   "title": "Follow-ups of chromium-desktop-crash: (1) a minimal repro page (an h2 with text-wrap: balance holding an inline-grid element, as the people title) run once in full Chrome 156 (new headless or headed, no BeginFrameControl) on CI: if stock Chrome crashes, real desktop users of the page crash, so report it to the lead at once; cite or describe the crbug (search needs no sign-in for the public tracker list; else state it); explain why the h2-nowrap probe still crashed; (2) desktop-1280 sends the Android 'Mobile Safari' UA: use a desktop UA or state the premise that the site does not branch on UA; (3) move the diagnostic crash-* profiles to packages/measure-chromium/probes/ (they crash by design) and add the profile fields css and dropFlags to the Lean profile wire format with goldens (they are TS-only rules now).",
+   "evidence": "8df3c57"
   },
   {
    "devices": [
