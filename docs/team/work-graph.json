@@ -19121,7 +19121,8 @@
     "research/notes/2026/10-2x-ci-setup-lean-slow.md",
     "docs/team/handoffs/lake-prune-followups.md"
    ],
-   "title": "lake-prune-verify review follow-ups (2026-10-24): (1) add the lake-cache golden check job to lean/scripts/check.sh (line in docs/team/handoffs/lake-prune-verify.md) so golden/ops/lake-cache.jsonl drift fails the check; (2) the first ci/* or land leg whose Lean tree is behind the restored pruned main entry: add its row to Fw.Ops.LakeCache.legs and the golden (today INFERRED only; every inspected branch had the entry commit as merge base); (3) note section 2: 'stripping in place would change what the build record hashes' gets a status (INFERRED) or a Lake source file:line@commit."
+   "title": "lake-prune-verify review follow-ups (2026-10-24): (1) add the lake-cache golden check job to lean/scripts/check.sh (line in docs/team/handoffs/lake-prune-verify.md) so golden/ops/lake-cache.jsonl drift fails the check; (2) the first ci/* or land leg whose Lean tree is behind the restored pruned main entry: add its row to Fw.Ops.LakeCache.legs and the golden (today INFERRED only; every inspected branch had the entry commit as merge base); (3) note section 2: 'stripping in place would change what the build record hashes' gets a status (INFERRED) or a Lake source file:line@commit.",
+   "evidence": "b727a09"
   },
   {
    "devices": [
