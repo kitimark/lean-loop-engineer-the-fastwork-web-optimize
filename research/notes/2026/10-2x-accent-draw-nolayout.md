@@ -122,5 +122,5 @@ The report tables call the arm `crop`.
 ## Limits
 - The CI Simulator is not the phone; 2 jobs, 4 passes; the A/A faithful slots differ by about 8 rows per capture in the rest windows.
 - The text jump is the look change; the user judges it. draw-nolayout keeps the glide.
-- The pushed commit wrote the selector as `[data-fw-draw^='nolayout']`; the later commit writes `:is()` of the two values (same elements; the hero.exit
+- The pushed commit wrote `[data-fw-draw^='nolayout']`; the later commit writes `:is()` of the two values (same elements; the hero.exit
   cascade test does not parse `^=`).

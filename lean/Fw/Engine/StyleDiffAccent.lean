@@ -98,8 +98,6 @@ theorem layoutPhases_values : wkLayoutPhases faithfulFrame = 2 ∧ wkLayoutPhase
 theorem arm_phase_subset : ∀ p ∈ [Phase.drawOut, .drawIn], wkFrameLayout (armFrame p) = true → wkFrameLayout (faithfulFrame p) = true := by
   decide
 
-/-- Frames of one draw cycle. `inFirst` is the frame where the word changes and the host `width` is set; `inRest` are the
-later draw-in frames. Without the width transition the width is a single set, not a per-frame change. -/
 inductive Slot where
   | out | inFirst | inRest
 deriving Repr, DecidableEq
@@ -108,8 +106,6 @@ inductive Arm where
   | faithful | nolayout | full
 deriving Repr, DecidableEq
 
-/-- Style changes of one frame. `full` drops the original's `width: 0.9s` transition (`accent.module.css:13`), so the
-width changes once, in `inFirst`; `nolayout` keeps the transition, so `width` changes in every draw-in frame. -/
 def slotChanges : Arm → Slot → List Cand
   | .faithful, .out => faithfulFrame .drawOut
   | .faithful, _ => faithfulFrame .drawIn
@@ -119,7 +115,6 @@ def slotChanges : Arm → Slot → List Cand
   | .full, .inFirst => armFrame .drawIn
   | .full, .inRest => [.clipInset]
 
-/-- The frames of a cycle with `n` frames per phase (900 ms at 60 Hz: n = 54), in order. -/
 def cycle (a : Arm) (n : Nat) : List (List Cand) :=
   List.replicate n (slotChanges a .out) ++
     (match n with
@@ -130,14 +125,12 @@ def wkLayoutFrames (a : Arm) (n : Nat) : Nat := ((cycle a n).filter wkFrameLayou
 
 def crLayoutFrames (a : Arm) (n : Nat) : Nat := ((cycle a n).filter crFrameLayout).length
 
-/-- Draw-in frames after the width set need no layout in WebKit or Chromium. -/
 theorem full_inRest_nolayout :
     wkFrameLayout (slotChanges .full .inRest) = false ∧ crFrameLayout (slotChanges .full .inRest) = false := by decide
 
 theorem full_out_nolayout :
     wkFrameLayout (slotChanges .full .out) = false ∧ crFrameLayout (slotChanges .full .out) = false := by decide
 
-/-- The one frame with layout is the width set. -/
 theorem full_inFirst_layout_only_width :
     (∀ c ∈ slotChanges .full .inFirst, (c.wkL = true ∨ c.crL = true) → c = .width) ∧
       wkFrameLayout (slotChanges .full .inFirst) = true ∧ crFrameLayout (slotChanges .full .inFirst) = true := by decide
@@ -154,7 +147,6 @@ private theorem layoutFrames_cycle (p : List Cand → Bool) (a : Arm) (n : Nat) 
   rw [len_filter_replicate]
   cases p (slotChanges a .inFirst) <;> simp [len_filter_replicate] <;> omega
 
-/-- Per cycle of `n + 1` frames per phase, WebKit lays out `2(n+1)`, `n+1` and `1` frames. -/
 theorem wkLayoutFrames_values (n : Nat) :
     wkLayoutFrames .faithful (n + 1) = 2 * (n + 1) ∧ wkLayoutFrames .nolayout (n + 1) = n + 1 ∧
       wkLayoutFrames .full (n + 1) = 1 := by
@@ -167,7 +159,6 @@ theorem wkLayoutFrames_values (n : Nat) :
   simp only [wkLayoutFrames, layoutFrames_cycle, e1, e2, e3, e4, e5, e6, e7, e8, e9]
   simp; omega
 
-/-- Chromium lays out the draw-in only through the width: `n+1`, `n+1` and `1` frames. -/
 theorem crLayoutFrames_values (n : Nat) :
     crLayoutFrames .faithful (n + 1) = n + 1 ∧ crLayoutFrames .nolayout (n + 1) = n + 1 ∧
       crLayoutFrames .full (n + 1) = 1 := by

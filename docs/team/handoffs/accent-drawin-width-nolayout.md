@@ -1,6 +1,6 @@
 branch: worktree-wf_11e76b9c-61d-1 (CI branch ci/accent-drawin-width-nolayout)
 worktree: .claude/worktrees/wf_11e76b9c-61d-1
-last commit: see git log (CI-pushed commit 3c1ab9970; later commits: :is() selector, results, ledger, note, this handoff)
+last commit: CI-pushed 3c1ab9970; later commits: :is() selector, results, ledger, note, this handoff
 CI runs: 40010696479 (fa6c56c6a, skipped by the guard: no [ci:webkit-sim] token; not a dispatch); 40010826238 (3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]): r1 r2 success, r3 cancelled (never finished), report jobs skipped. 1 dispatch of 2 used.
 verified: Lean StyleDiffAccent (full_inRest_nolayout, wkLayoutFrames_values and crLayoutFrames_values for all n, no sorry), check.sh green (slot), site tests 6559 pass, golden regenerated from Lean.
 result: rest windows >=24 Layout rows 0/56 (arm) vs 18/28 and 19/28 (faithful a, b); rows per capture 19.4 vs 225.0 and 232.8 (draw-nolayout: 122.3). Swap windows median 13 vs 14, 96.5 vs 107.8 and 109.8 rows per capture, unresolved:overlap.
