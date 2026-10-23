@@ -23,6 +23,15 @@
 {"found":["Liberation Mono","Liberation Sans","Liberation Sans Narrow","Liberation Serif"],"kind":"fontsOk","ok":true}
 {"found":["DejaVu Sans","Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fontsOk","ok":true}
 {"found":["Liberation Mono","Liberation Serif"],"kind":"fontsOk","ok":false}
+{"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchPage","maxFrames":2378,"maxScroll":5346}
+{"budget":82,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":0,"stroke":82,"strokes":0}
+{"budget":410,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":1,"stroke":82,"strokes":1}
+{"budget":410,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":780,"stroke":82,"strokes":1}
+{"budget":738,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":781,"stroke":82,"strokes":2}
+{"budget":2050,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":4626,"stroke":82,"strokes":6}
+{"budget":2378,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":5346,"stroke":82,"strokes":7}
+{"budget":2465,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":5346,"stroke":85,"strokes":7}
+{"budget":594,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"kind":"touchBudget","moves":16,"reach":400,"scroll":3000,"stroke":18,"strokes":8}
 {"in":null,"kind":"parseKind","out":"counts"}
 {"in":"counts","kind":"parseKind","out":"counts"}
 {"in":"probe","kind":"parseKind","out":"probe"}

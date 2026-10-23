@@ -419,7 +419,7 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
         return st;
       });
       if (stop) finished = true;
-      if (guard > inp.maxFrames) throw new Error('touch swipe did not finish within maxFrames');
+      if (guard > inp.maxFrames) throw new Error(`touch swipe did not finish within maxFrames (${inp.maxFrames}): scrollY ${last?.scrollY} of ${Math.round(maxScroll)}, highest ${yMax}, ${swipeFrames} moves, ${touch.sent} touch events`);
       if (swipeFrames === 40 && yMax < 1) throw new Error('touch input did not scroll the page after 40 moves');
     }
   }

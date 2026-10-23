@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES, fontDist, fontPick, notdefCount } from '../src/profile.mjs';
+import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES, fontDist, fontPick, notdefCount, swipeMoves, swipeStroke, swipeReach, swipeStrokes, swipeBudget } from '../src/profile.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = join(here, '../profiles');
@@ -163,4 +163,20 @@ test('font fidelity twins agree with the Lean golden: fontDist, fontPick, notdef
 
 test('the desktop counts profiles run the page as served', () => {
   for (const f of ['desktop-1280.json', 'people-o-hover.json']) assert.equal(read(f).css, undefined, f);
+});
+
+test('touch swipe budget twins agree with the Lean golden, and swipe-touch-v1 holds the Lean allowance for the font page', () => {
+  let n = 0;
+  for (const g of wire) {
+    if (g.kind !== 'touchBudget') continue;
+    assert.deepEqual([swipeMoves(g.input), swipeStroke(g.input), swipeReach(g.input), swipeStrokes(g.input, g.scroll), swipeBudget(g.input, g.scroll)],
+      [g.moves, g.stroke, g.reach, g.strokes, g.budget], JSON.stringify(g));
+    n++;
+  }
+  assert.ok(n >= 8, `touchBudget rows: ${n}`);
+  const page = wire.find((l) => l.kind === 'touchPage');
+  const inp = read('swipe-touch-v1.json').input;
+  assert.equal(inp.maxFrames, page.maxFrames);
+  assert.equal(inp.maxFrames, swipeBudget(inp, page.maxScroll));
+  for (const k of ['startY', 'minY', 'dyPerFrame', 'holdFrames', 'gapFrames']) assert.equal(inp[k], page.input[k], k);
 });

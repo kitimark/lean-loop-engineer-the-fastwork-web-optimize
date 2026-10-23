@@ -428,6 +428,80 @@ theorem notdefCount_none (l : List (Nat × Nat)) : notdefCount (fun _ => false) 
 /-- `notdefCount` with the covered code points given as a list. -/
 def notdefIn (covered : List Nat) (l : List (Nat × Nat)) : Nat := notdefCount (fun c => covered.contains c) l
 
+/-! ### Touch swipe budget
+
+`swipe-touch-v1` sends strokes of touch moves until the page end is reached; `run.mjs` stops with "did not finish within
+maxFrames" when a swipe needs more frames than the profile allows. The allowance follows from the page's scroll range, not
+from a hand-picked number. -/
+
+/-- The touch input of a swipe profile (`input` in `profiles/<id>.json`; `dy` is `dyPerFrame`): finger start and floor in CSS px, one move's
+step, the frames the finger rests before lifting, and the frames between two strokes. -/
+structure Swipe where
+  startY : Nat
+  minY : Nat
+  dy : Nat
+  holdFrames : Nat
+  gapFrames : Nat
+
+/-- `touchMove` count of one stroke: the finger rises `dy` per frame while it stays at or below `minY`. -/
+def Swipe.moves (s : Swipe) : Nat := (s.startY - s.minY) / s.dy
+
+/-- Frames of one stroke: `touchStart`, the moves, the holds, `touchEnd`, the gap. -/
+def Swipe.stroke (s : Swipe) : Nat := s.moves + s.holdFrames + s.gapFrames + 2
+
+/-- Scroll the finger path of one stroke can carry, in CSS px. -/
+def Swipe.reach (s : Swipe) : Nat := s.moves * s.dy
+
+/-- Strokes needed to scroll `scroll` px when every stroke carries its whole path. -/
+def Swipe.strokes (s : Swipe) (scroll : Nat) : Nat := (scroll + s.reach - 1) / s.reach
+
+/-- The frame allowance for a page that scrolls `scroll` px: a stroke may carry only a quarter of its path, and one more
+stroke shows that the end was reached. -/
+def Swipe.budget (s : Swipe) (scroll : Nat) : Nat := (4 * s.strokes scroll + 1) * s.stroke
+
+/-- `swipe-touch-v1`'s input. -/
+def swipeTouchV1 : Swipe := ⟨880, 100, 10, 0, 2⟩
+
+/-- Scroll range of the original page at 430x932 on the lane image: document height 6278 px less the viewport 932 px
+(MEASURED, font-fidelity run 39907447564, `fonts-liberation`). -/
+def fontPageMaxScroll : Nat := 6278 - 932
+
+theorem swipe_strokes_cover (s : Swipe) (scroll : Nat) (h : 0 < s.reach) : scroll ≤ s.strokes scroll * s.reach := by
+  unfold Swipe.strokes
+  have h1 := Nat.div_add_mod (scroll + s.reach - 1) s.reach
+  have h2 := Nat.mod_lt (scroll + s.reach - 1) h
+  rw [Nat.mul_comm] at h1
+  omega
+
+/-- The allowance covers a swipe whose strokes carry their whole path. -/
+theorem swipe_budget_ideal (s : Swipe) (scroll : Nat) : s.strokes scroll * s.stroke ≤ s.budget scroll := by
+  unfold Swipe.budget
+  exact Nat.mul_le_mul_right _ (by omega)
+
+/-- A taller page never gets a smaller allowance. -/
+theorem swipe_budget_mono (s : Swipe) (a b : Nat) (h : a ≤ b) : s.budget a ≤ s.budget b := by
+  unfold Swipe.budget Swipe.strokes
+  exact Nat.mul_le_mul_right _ (by have := Nat.div_le_div_right (c := s.reach) (show a + s.reach - 1 ≤ b + s.reach - 1 by omega); omega)
+
+/-- The allowance covers a slow swipe: if every stroke carries at least `p` px with `reach ≤ 4 p`, then the `n` strokes
+that scroll `scroll` px (`n - 1` strokes fall short) fit in the allowance. A profile whose finger path is empty (`reach = 0`)
+never scrolls and is outside the claim. -/
+theorem swipe_budget_quarter (s : Swipe) (scroll p n : Nat) (hreach : 0 < s.reach) (hr : s.reach ≤ 4 * p) (hn : (n - 1) * p < scroll) :
+    n * s.stroke ≤ s.budget scroll := by
+  have hc := swipe_strokes_cover s scroll hreach
+  have h3 : (n - 1) * p < (4 * s.strokes scroll) * p := by
+    calc (n - 1) * p < scroll := hn
+      _ ≤ s.strokes scroll * s.reach := hc
+      _ ≤ s.strokes scroll * (4 * p) := Nat.mul_le_mul_left _ hr
+      _ = (4 * s.strokes scroll) * p := by rw [← Nat.mul_assoc, Nat.mul_comm (s.strokes scroll) 4]
+  have h4 := Nat.lt_of_mul_lt_mul_right h3
+  unfold Swipe.budget
+  exact Nat.mul_le_mul_right _ (by omega)
+
+theorem swipeTouchV1_shape : swipeTouchV1.moves = 78 ∧ swipeTouchV1.stroke = 82 ∧ swipeTouchV1.reach = 780 := by decide
+
+theorem swipeTouchV1_budget : swipeTouchV1.budget fontPageMaxScroll = 2378 := by decide
+
 private def distCases : List (Nat × Nat × List (Nat × Nat)) :=
   [(6000, 6000, []), (6000, 5300, []), (4600, 5300, [(100, 120), (80, 80)]), (5300, 5300, [(10, 10), (20, 20)]), (0, 0, [(5, 0)])]
 
@@ -465,6 +539,13 @@ private def wireCases : List Wire :=
 private def cftCases : List (String × String) :=
   [("linux", "x64"), ("linux", "arm64"), ("darwin", "arm64"), ("darwin", "x64"), ("win32", "x64"), ("win32", "arm64"), ("freebsd", "x64"), ("linux", "ia32")]
 
+private def swipeCases : List (Swipe × Nat) :=
+  [(swipeTouchV1, 0), (swipeTouchV1, 1), (swipeTouchV1, 780), (swipeTouchV1, 781), (swipeTouchV1, 4626), (swipeTouchV1, fontPageMaxScroll),
+   (⟨880, 100, 10, 2, 3⟩, 5346), (⟨500, 100, 25, 0, 0⟩, 3000)]
+
+private def swipeJson (s : Swipe) : Json :=
+  Json.mkObj [("startY", s.startY), ("minY", s.minY), ("dyPerFrame", s.dy), ("holdFrames", s.holdFrames), ("gapFrames", s.gapFrames)]
+
 private def kindCases : List (Option String) := [none, some "counts", some "probe", some "Probe", some ""]
 
 def goldenLines (_ : Unit) : List String :=
@@ -480,6 +561,9 @@ def goldenLines (_ : Unit) : List String :=
   (notdefCases.map fun (cov, l) => (Json.mkObj [("kind", "notdef"), ("covered", toJson cov), ("cps", toJson (l.map fun p => [p.1, p.2])),
      ("count", notdefIn cov l)]).compress) ++
   (fontsCases.map fun found => (Json.mkObj [("kind", "fontsOk"), ("found", toJson found), ("ok", toJson (fontsOk found))]).compress) ++
+  [(Json.mkObj [("kind", "touchPage"), ("maxScroll", fontPageMaxScroll), ("input", swipeJson swipeTouchV1), ("maxFrames", swipeTouchV1.budget fontPageMaxScroll)]).compress] ++
+  (swipeCases.map fun (w, sc) => (Json.mkObj [("kind", "touchBudget"), ("input", swipeJson w), ("scroll", sc), ("moves", w.moves), ("stroke", w.stroke),
+     ("reach", w.reach), ("strokes", w.strokes sc), ("budget", w.budget sc)]).compress) ++
   (kindCases.map fun k => (Json.mkObj [("kind", "parseKind"), ("in", match k with | some s => Json.str s | none => Json.null),
      ("out", match parseKind k with | some x => Json.str x.name | none => Json.null)]).compress) ++
   (dropCases.map fun (d : String) => (Json.mkObj [("kind", "dropOk"), ("drop", Json.str d), ("ok", toJson (dropOk d))]).compress) ++

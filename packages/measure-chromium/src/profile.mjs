@@ -92,6 +92,17 @@ export const notdefCount = (covered, cps) => {
   return cps.reduce((n, [c, k]) => n + (has(c) ? 0 : k), 0);
 };
 
+/** `touchMove` count of one stroke. Twin of Lean `Swipe.moves`; `w` is a profile's `input` block. */
+export const swipeMoves = (w) => Math.floor((w.startY - w.minY) / w.dyPerFrame);
+/** Frames of one stroke. Twin of Lean `Swipe.stroke`. */
+export const swipeStroke = (w) => swipeMoves(w) + w.holdFrames + w.gapFrames + 2;
+/** Scroll one stroke's finger path carries, in CSS px. Twin of Lean `Swipe.reach`. */
+export const swipeReach = (w) => swipeMoves(w) * w.dyPerFrame;
+/** Strokes that scroll `scroll` px at full reach. Twin of Lean `Swipe.strokes`. */
+export const swipeStrokes = (w, scroll) => Math.floor((scroll + swipeReach(w) - 1) / swipeReach(w));
+/** Frame allowance of a touch swipe over a page that scrolls `scroll` px. Twin of Lean `Swipe.budget`. */
+export const swipeBudget = (w, scroll) => (4 * swipeStrokes(w, scroll) + 1) * swipeStroke(w);
+
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
   dropFlags: profile.dropFlags ?? [], variants: profile.probe?.variants?.length ?? 0,
