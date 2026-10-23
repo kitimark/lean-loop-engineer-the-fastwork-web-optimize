@@ -55,26 +55,32 @@ describe('the hook is inert when unset (the faithful page is unchanged)', () => 
     act(() => r.render(createElement(HeroAccent, { variant: 'faithful' })));
     return r;
   };
-  const ssr = renderToString(createElement(HeroAccent, { variant: 'faithful' }));
+  // The server markup parsed by the same DOM, so style serialisation matches the mounted tree.
+  const served = (pin: boolean) => {
+    const ref = document.createElement('div');
+    ref.innerHTML = renderToString(createElement(HeroAccent, { variant: 'faithful' }));
+    if (pin) ref.querySelector('em')!.setAttribute('data-fw-pin', 'accent');
+    return ref.innerHTML;
+  };
 
   it('unset: the chain starts once and the DOM is the server markup', () => {
     mount('');
     expect(started).toHaveBeenCalledTimes(1);
-    expect(host.innerHTML).toBe(ssr);
+    expect(host.innerHTML).toBe(served(false));
     expect(host.querySelector('[data-fw-pin]')).toBeNull();
   });
 
   it('other parameters (a flag) leave it unset', () => {
     mount('?fw=hero.exit:threaded');
     expect(started).toHaveBeenCalledTimes(1);
-    expect(host.innerHTML).toBe(ssr);
+    expect(host.innerHTML).toBe(served(false));
   });
 
   it('set: no chain, and the only DOM difference is the pin attribute', () => {
     mount('?fwpin=accent');
     expect(started).not.toHaveBeenCalled();
     expect(host.querySelector('[data-fw-pin]')?.getAttribute('data-fw-pin')).toBe('accent');
-    expect(host.innerHTML.replace(' data-fw-pin="accent"', '')).toBe(ssr);
+    expect(host.innerHTML).toBe(served(true));
   });
 
   it('set together with a flag: still no chain', () => {
