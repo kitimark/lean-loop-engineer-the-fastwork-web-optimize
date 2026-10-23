@@ -498,9 +498,62 @@ theorem swipe_budget_quarter (s : Swipe) (scroll p n : Nat) (hreach : 0 < s.reac
   unfold Swipe.budget
   exact Nat.mul_le_mul_right _ (by omega)
 
+/-! ### Touch swipe end
+
+The compositor can stop a touch swipe a few px short of the document's scroll limit (MEASURED, run 39920521620: highest
+scrollY 5342 of 5346 in all six jobs, 29 strokes). A swipe therefore ends when the scroll limit is reached, or when the
+position is within one move of the limit and two whole strokes have gained nothing. -/
+
+/-- Gap to the scroll limit that the swipe cannot tell from the page end: one move's step. -/
+def Swipe.band (s : Swipe) : Nat := s.dy
+
+/-- Frames without gain that make a stall: two strokes, so one whole stroke lies inside them. -/
+def Swipe.idleFrames (s : Swipe) : Nat := 2 * s.stroke
+
+/-- The swipe is over at scroll position `y` (rounded CSS px) when `limit` is reached, or when `y` is within `band` of it
+and `idle` frames passed without gain. -/
+def Swipe.ended (s : Swipe) (limit y idle : Nat) : Bool :=
+  decide (limit ≤ y) || (decide (limit ≤ y + s.band) && decide (s.idleFrames ≤ idle))
+
+/-- Reaching the limit ends the swipe at once. -/
+theorem swipe_ended_limit (s : Swipe) (limit y idle : Nat) (h : limit ≤ y) : s.ended limit y idle = true := by
+  simp [Swipe.ended, h]
+
+/-- A stall within one move of the limit ends the swipe. -/
+theorem swipe_ended_stall (s : Swipe) (limit y idle : Nat) (hb : limit ≤ y + s.band) (hi : s.idleFrames ≤ idle) :
+    s.ended limit y idle = true := by
+  simp [Swipe.ended, hb, hi]
+
+/-- Further than one move from the limit never ends the swipe, however long it idles (a stall there is a failure). -/
+theorem swipe_not_ended_far (s : Swipe) (limit y idle : Nat) (h : y + s.band < limit) : s.ended limit y idle = false := by
+  have h1 : ¬ limit ≤ y := by omega
+  have h2 : ¬ limit ≤ y + s.band := by omega
+  simp [Swipe.ended, h1, h2]
+
+/-- Short of the limit and gaining within the last two strokes never ends the swipe. -/
+theorem swipe_not_ended_moving (s : Swipe) (limit y idle : Nat) (h : y < limit) (hi : idle < s.idleFrames) :
+    s.ended limit y idle = false := by
+  have h1 : ¬ limit ≤ y := by omega
+  have h2 : ¬ s.idleFrames ≤ idle := by omega
+  simp [Swipe.ended, h1, h2]
+
+/-- The frame allowance holds the stall window whenever the page scrolls at all. -/
+theorem swipe_budget_idle (s : Swipe) (scroll : Nat) (hreach : 0 < s.reach) (hs : 0 < scroll) : s.idleFrames ≤ s.budget scroll := by
+  have hc := swipe_strokes_cover s scroll hreach
+  have h1 : 0 < s.strokes scroll := by
+    rcases Nat.eq_zero_or_pos (s.strokes scroll) with h | h
+    · rw [h] at hc; omega
+    · exact h
+  unfold Swipe.idleFrames Swipe.budget
+  have : 2 ≤ 4 * s.strokes scroll + 1 := by omega
+  calc 2 * s.stroke ≤ (4 * s.strokes scroll + 1) * s.stroke := Nat.mul_le_mul_right _ this
+
 theorem swipeTouchV1_shape : swipeTouchV1.moves = 78 ∧ swipeTouchV1.stroke = 82 ∧ swipeTouchV1.reach = 780 := by decide
 
 theorem swipeTouchV1_budget : swipeTouchV1.budget fontPageMaxScroll = 2378 := by decide
+
+theorem swipeTouchV1_end : swipeTouchV1.band = 10 ∧ swipeTouchV1.idleFrames = 164 ∧ swipeTouchV1.ended 5346 5342 164 = true ∧
+    swipeTouchV1.ended 5346 5342 163 = false := by decide
 
 private def distCases : List (Nat × Nat × List (Nat × Nat)) :=
   [(6000, 6000, []), (6000, 5300, []), (4600, 5300, [(100, 120), (80, 80)]), (5300, 5300, [(10, 10), (20, 20)]), (0, 0, [(5, 0)])]
@@ -543,6 +596,13 @@ private def swipeCases : List (Swipe × Nat) :=
   [(swipeTouchV1, 0), (swipeTouchV1, 1), (swipeTouchV1, 780), (swipeTouchV1, 781), (swipeTouchV1, 4626), (swipeTouchV1, fontPageMaxScroll),
    (⟨880, 100, 10, 2, 3⟩, 5346), (⟨500, 100, 25, 0, 0⟩, 3000)]
 
+/-- (swipe, limit, y, idle) rows of the end rule, one per branch and edge; the last four are the wheel profile's single-move stroke. -/
+private def endCases : List (Swipe × Nat × Nat × Nat) :=
+  [(swipeTouchV1, 5346, 5346, 0), (swipeTouchV1, 5346, 5400, 0), (swipeTouchV1, 5346, 5345, 0), (swipeTouchV1, 5346, 5342, 164),
+   (swipeTouchV1, 5346, 5342, 163), (swipeTouchV1, 5346, 5335, 164), (swipeTouchV1, 5346, 5336, 164), (swipeTouchV1, 5346, 5335, 9999),
+   (swipeTouchV1, 5346, 0, 0), (swipeTouchV1, 0, 0, 0),
+   (⟨10, 0, 10, 0, 0⟩, 5346, 5342, 6), (⟨10, 0, 10, 0, 0⟩, 5346, 5342, 5), (⟨10, 0, 10, 0, 0⟩, 5346, 5330, 99), (⟨10, 0, 10, 0, 0⟩, 5346, 5346, 0)]
+
 private def swipeJson (s : Swipe) : Json :=
   Json.mkObj [("startY", s.startY), ("minY", s.minY), ("dyPerFrame", s.dy), ("holdFrames", s.holdFrames), ("gapFrames", s.gapFrames)]
 
@@ -564,6 +624,8 @@ def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "touchPage"), ("maxScroll", fontPageMaxScroll), ("input", swipeJson swipeTouchV1), ("maxFrames", swipeTouchV1.budget fontPageMaxScroll)]).compress] ++
   (swipeCases.map fun (w, sc) => (Json.mkObj [("kind", "touchBudget"), ("input", swipeJson w), ("scroll", sc), ("moves", w.moves), ("stroke", w.stroke),
      ("reach", w.reach), ("strokes", w.strokes sc), ("budget", w.budget sc)]).compress) ++
+  (endCases.map fun (w, limit, y, idle) => (Json.mkObj [("kind", "touchEnd"), ("input", swipeJson w), ("limit", limit), ("y", y), ("idle", idle),
+     ("band", w.band), ("idleFrames", w.idleFrames), ("ended", toJson (w.ended limit y idle))]).compress) ++
   (kindCases.map fun k => (Json.mkObj [("kind", "parseKind"), ("in", match k with | some s => Json.str s | none => Json.null),
      ("out", match parseKind k with | some x => Json.str x.name | none => Json.null)]).compress) ++
   (dropCases.map fun (d : String) => (Json.mkObj [("kind", "dropOk"), ("drop", Json.str d), ("ok", toJson (dropOk d))]).compress) ++

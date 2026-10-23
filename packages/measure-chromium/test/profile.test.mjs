@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES, fontDist, fontPick, notdefCount, swipeMoves, swipeStroke, swipeReach, swipeStrokes, swipeBudget } from '../src/profile.mjs';
+import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl, fontsOk, FONT_FAMILIES, fontDist, fontPick, notdefCount, swipeMoves, swipeStroke, swipeReach, swipeStrokes, swipeBudget, swipeBand, swipeIdleFrames, swipeEnded } from '../src/profile.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = join(here, '../profiles');
@@ -179,4 +179,15 @@ test('touch swipe budget twins agree with the Lean golden, and swipe-touch-v1 ho
   assert.equal(inp.maxFrames, page.maxFrames);
   assert.equal(inp.maxFrames, swipeBudget(inp, page.maxScroll));
   for (const k of ['startY', 'minY', 'dyPerFrame', 'holdFrames', 'gapFrames']) assert.equal(inp[k], page.input[k], k);
+});
+
+test('touch swipe end twins agree with the Lean golden', () => {
+  let n = 0;
+  for (const g of wire) {
+    if (g.kind !== 'touchEnd') continue;
+    assert.deepEqual([swipeBand(g.input), swipeIdleFrames(g.input), swipeEnded(g.input, g.limit, g.y, g.idle)], [g.band, g.idleFrames, g.ended], JSON.stringify(g));
+    n++;
+  }
+  assert.ok(n >= 10, `touchEnd rows: ${n}`);
+  assert.ok(wire.some((g) => g.kind === 'touchEnd' && g.ended) && wire.some((g) => g.kind === 'touchEnd' && !g.ended));
 });

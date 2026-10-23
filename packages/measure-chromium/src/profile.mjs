@@ -102,6 +102,12 @@ export const swipeReach = (w) => swipeMoves(w) * w.dyPerFrame;
 export const swipeStrokes = (w, scroll) => Math.floor((scroll + swipeReach(w) - 1) / swipeReach(w));
 /** Frame allowance of a touch swipe over a page that scrolls `scroll` px. Twin of Lean `Swipe.budget`. */
 export const swipeBudget = (w, scroll) => (4 * swipeStrokes(w, scroll) + 1) * swipeStroke(w);
+/** Gap to the scroll limit that a swipe cannot tell from the page end. Twin of Lean `Swipe.band`. */
+export const swipeBand = (w) => w.dyPerFrame;
+/** Frames without gain that make a stall. Twin of Lean `Swipe.idleFrames`. */
+export const swipeIdleFrames = (w) => 2 * swipeStroke(w);
+/** Whether a swipe is over at rounded scroll position `y` with `idle` frames without gain. Twin of Lean `Swipe.ended`. */
+export const swipeEnded = (w, limit, y, idle) => limit <= y || (limit <= y + swipeBand(w) && swipeIdleFrames(w) <= idle);
 
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
