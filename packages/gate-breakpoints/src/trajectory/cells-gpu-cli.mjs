@@ -79,9 +79,9 @@ export async function main(argv) {
     return 0;
   }
   if (cmd === 'raw') {
-    const input = arg(argv, '--in');
-    if (input === '') { console.error('cells-gpu: raw needs --in <fixture dir or json>'); return 1; }
-    for (const f of fixtureFiles(input)) for (const l of rawLines(labelOf(f), JSON.parse(readFileSync(f, 'utf8')))) console.log(l);
+    const inputs = argv.slice(1);
+    if (inputs.length === 0) { console.error('cells-gpu: raw needs <fixture json or dir>...'); return 1; }
+    for (const f of inputs.flatMap(fixtureFiles)) for (const l of rawLines(labelOf(f), JSON.parse(readFileSync(f, 'utf8')))) console.log(l);
     return 0;
   }
   if (cmd === 'run') {
@@ -97,7 +97,7 @@ export async function main(argv) {
     report(raw, dir);
     return 0;
   }
-  console.error('usage: cells-gpu-cli.mjs summary --in <raw json or dir> [--out <dir>] | trim --in <raw json> --out <file> | raw --in <fixture dir or json> | run --engine <e> --out <dir> [--widths ...] [--search ...] [--reps n]');
+  console.error('usage: cells-gpu-cli.mjs summary --in <raw json or dir> [--out <dir>] | trim --in <raw json> --out <file> | raw <fixture json or dir>... | run --engine <e> --out <dir> [--widths ...] [--search ...] [--reps n]');
   return 1;
 }
 

@@ -134,9 +134,9 @@ run_group() {
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
   job "trajectory golden check" lake env lean --run scripts/TrajectoryGolden.lean --check  # the trajectory-probe verdict vectors reduce.mjs is checked against (Fw.Gate.Trajectory)
   job "trajectory-gpu golden check" lake env lean --run scripts/TrajectoryGpuGolden.lean --check ../packages/contracts/golden/gate/trajectory-gpu.jsonl
-  job "trajectory-gpu raw cells" sh -c 'f=../packages/contracts/fixtures/trajectory-gpu; d=$(mktemp -d "${TMPDIR:-/tmp}/gpuraw.XXXXXX") && trap "rm -rf $d" EXIT &&
-    lake env lean --run scripts/TrajectoryGpuGolden.lean --raw $f/raw-*.json > $d/lean.txt &&
-    node ../packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs raw --in $f > $d/js.txt &&
+  job "trajectory-gpu raw cells" sh -c 'd=$(mktemp -d "${TMPDIR:-/tmp}/gpuraw.XXXXXX") && trap "rm -rf $d" EXIT &&
+    lake env lean --run scripts/TrajectoryGpuGolden.lean --raw ../packages/contracts/fixtures/trajectory-gpu/raw-39823047557.json ../packages/contracts/fixtures/trajectory-gpu/raw-39852684450.json ../packages/contracts/fixtures/trajectory-gpu/raw-39861846900.json > $d/lean.txt &&
+    node ../packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs raw ../packages/contracts/fixtures/trajectory-gpu/raw-39823047557.json ../packages/contracts/fixtures/trajectory-gpu/raw-39852684450.json ../packages/contracts/fixtures/trajectory-gpu/raw-39861846900.json > $d/js.txt &&
     test -s $d/lean.txt && cmp $d/lean.txt $d/js.txt'  # the trimmed CI raws under packages/contracts/fixtures/trajectory-gpu graded by Lean (Fw.Gate.TrajectoryGpu) and by cells-gpu.mjs: equal grade lists
   job "trajectory-dispatch golden check" lake env lean --run scripts/TrajectoryDispatchGolden.lean --check  # the dispatch scope vectors run-pick.ts is checked against (Fw.Gate.Trajectory.Dispatch)
   job "trajectory-colour golden check" lake env lean --run scripts/ColourGolden.lean --check ../packages/contracts/golden/gate/trajectory-colour.jsonl  # the colour readings kit.mjs is checked against (Fw.Gate.Colour)
