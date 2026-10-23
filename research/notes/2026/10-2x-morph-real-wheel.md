@@ -14,7 +14,7 @@ here), CONFIRMED (source cited), INFERRED (reasoned, not seen).
 | Phase rule | Lean `Fw.Measure.WebKitLagPhase` with golden `webkit-lag.jsonl`; 72 of 72 runs accepted, 0 refused | MEASURED + Lean |
 | Simulator leg | Not done: sim-touch-reliable (worktree-wf_b60a7b2e) is not on main | follow-up |
 
-The one separated cell (orig FireAnimationFrame, trusted higher) is in the idle phase, which ends at the first push: the trusted drive reaches its push 3 frames
+The one separated cell (orig FireAnimationFrame, trusted higher) is in the idle phase, which ends at the first push. The trusted drive reaches its push 3 frames
 later (13.89 vs 10.83 idle frames for `orig`), so the idle window is longer for it, and the cell is not a morph effect (INFERRED).
 In the open and close phases, where the morph runs, no counter separates (every cell "overlap").
 

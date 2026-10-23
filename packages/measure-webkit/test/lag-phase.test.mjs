@@ -1,4 +1,3 @@
-// The morph phase rule agrees with the Lean golden (Fw.Measure.WebKitLagPhase, golden/measure/webkit-lag.jsonl) and the report uses it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -52,7 +51,6 @@ test('phaseRanges: marks and pushes decide, a run without phase marks keeps the 
 
 const quad = (x0, y0, x1, y1) => [x0, y0, x1, y0, x1, y1, x0, y1];
 
-/** A 130-frame morph run (frames 1 s apart) whose pushes fall after `idle` frames and `idle + open` frames; Layout rows only in the open phase. */
 function morphOf(idle, open) {
   const n = MORPH_FRAMES.idle + MORPH_FRAMES.open + MORPH_FRAMES.close, rows = [], marks = [];
   for (let k = 0; k < n; k++) {

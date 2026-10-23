@@ -1,6 +1,3 @@
-// The end-of-page morph on Playwright WebKit (macOS), driven by a trusted wheel (`page.mouse.wheel`, a native wheel through the UI process:
-// playwright-core Mouse.wheel -> Input.dispatchWheelEvent) and by a synthetic WheelEvent on document.body, both at the same frame schedule on the
-// same page. Phases come from `wk:down` / `wk:up` marks under the Lean rule (phase.mjs). Glue only: playwright-core is passed in by the caller.
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { serveTree } from '../serve.mjs';
@@ -14,11 +11,6 @@ export const ARMS = Object.freeze(['orig', 'rewrite']);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Installed in the page once the end of the page is reached: a rAF loop marking `wk:s<k>` per frame, a capture wheel listener that marks the first push
- * in each direction (`wk:down`, `wk:up`) and keeps what the event was, and `until(k, label)` / `finish()` for the Node side. `--morph` is read from the
- * inline style of the nav (no style recalc) at the boundaries only.
- */
 export const MAC_PAGE_JS = `(() => {
   const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
   const S = window.__wkm = { k: 0, on: false, events: [], pending: [], seen: { down: false, up: false }, at: [], waiters: [] };
@@ -47,7 +39,6 @@ export const MAC_PAGE_JS = `(() => {
   return true;
 })()`;
 
-/** The protocol session of a Playwright WebKit page (the same internals gate-breakpoints/src/smooth/webkit-cadence.mjs uses). */
 export function sessionOf(page) {
   const sess = page._connection?.toImpl?.(page)?.delegate?._session;
   if (!sess || typeof sess.send !== 'function' || typeof sess.on !== 'function') throw new Error('the WebKit protocol session of the page is not reachable (playwright-core internals changed)');
@@ -73,7 +64,6 @@ async function startTimeline(page) {
   };
 }
 
-/** Counts per step of one captured run: the marks, pushes and per-step record tallies (rows are not kept). */
 export function runRecord(records, frames) {
   const rows = flattenRecords(records);
   const marks = markTimes(rows, 'wk:s', frames);
@@ -85,7 +75,6 @@ export function runRecord(records, frames) {
   return { outcome: c.outcome, idle: c.idle ?? null, open: c.open ?? null, close: c.close ?? null, marks, endTime, down, up, countTypes: COUNT_TYPES, perStep: red.perStep, paintArea: red.perStepPaintArea };
 }
 
-/** One run: a fresh context at the 390 wide phone size, the page at its end, the schedule, the Timeline. */
 async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs = 4000, schedule = MAC_SCHEDULE }) {
   const context = await browser.newContext({
     viewport: { width, height }, deviceScaleFactor: 2, hasTouch: true, colorScheme: 'light', reducedMotion: 'no-preference',
@@ -120,7 +109,6 @@ async function oneRun(browser, a, drive, { width = 390, height = 844, settleMs =
   } finally { await context.close().catch(() => {}); }
 }
 
-/** The served arms: `orig` the read-only snapshot, `rewrite` the prerendered build at `search`. */
 export async function serveArms({ snapshotDir, siteDir, search = '' }) {
   const orig = await serveTree(resolve(snapshotDir));
   const root = resolve(siteDir);

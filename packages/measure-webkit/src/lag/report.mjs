@@ -1,7 +1,6 @@
 // The ranked attribution of the lag probe: raw `fw.webkit.lag/1` sessions in, per region a counter ranking by a unit-free
 // ratio, a paint attribution to parts, the top steps, the filter layers and the layer census out, for both arms with the
 // arm difference decided on per-pass ranges. Every decision is reduce.mjs (twin of Fw.Measure.WebKitLag); this file joins
-// records to boxes and formats. Every number in the Markdown is generated here from the raw sessions.
 import { COUNT_TYPES, bucketBySteps } from '../reduce.mjs';
 import { MORPH_FRAMES, scanSteps } from './probe.mjs';
 import { phaseRanges } from './phase.mjs';
@@ -67,7 +66,6 @@ export function scrollSteps(session, pass) {
   return pass.scroll.ys.map((y, k) => ({ y, boxes: g.scroll[nearest(y)].boxes, clips: clips[k] }));
 }
 
-/** Fixed phases of the synthetic schedule (runs recorded before the phase marks, and the geometry pass): idle (the idle page tail), open (after the push down), close (after the push up), as step index ranges. */
 export const MORPH_PHASES = Object.freeze({
   idle: [0, MORPH_FRAMES.idle],
   open: [MORPH_FRAMES.idle, MORPH_FRAMES.idle + MORPH_FRAMES.open],
@@ -173,7 +171,6 @@ function analyzeScrollItems(items, arm) {
   return out;
 }
 
-/** Morph phases of one arm: the open and close phases against the scroll calm baseline and against the idle page tail. */
 function analyzeMorphItems(arm, scrollOf) {
   const all = withPart(arm, 'morph').flatMap((s, si) => s.passes.map((p, pi) => ({ s, p, tag: `s${si + 1}p${pi + 1}`, m: p.morph, ph: phaseRanges(p.morph, MORPH_PHASES), rows: stepRows(p.morph), clips: clipsPerStep(p.morph, p.morph.before?.y ?? 0) })));
   const runs = all.filter((r) => r.ph);
@@ -199,7 +196,6 @@ function analyzeMorphItems(arm, scrollOf) {
       filter: { count: mean(filt.map((f) => f.count)), area: mean(filt.map((f) => f.area)) / PX2, areaRadius: mean(filt.map((f) => f.areaRadius)) / PX2 },
     };
   }
-  // the idle page tail: what is repainted every frame while nothing moves
   const idleLedgers = runs.map((r) => byKey(Array.from({ length: len(r, 'idle') }, (_, i) => frameStep(r, 'idle', i)).flatMap(stepArea)));
   out.idle = {
     frames: mean(runs.map((r) => len(r, 'idle'))),

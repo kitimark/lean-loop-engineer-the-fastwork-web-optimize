@@ -1,4 +1,3 @@
-// The Playwright WebKit morph runs: records to a per-run phase record, the page script, and the tables over several jobs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +7,6 @@ import { COUNT_TYPES } from '../src/reduce.mjs';
 
 const stamp = (t, message) => ({ type: 'TimeStamp', startTime: t, data: { message } });
 
-/** Protocol records of a run: frames 2 ms apart, pushes after `idle` and `idle + open` frames, `layouts(k)` Layout records inside frame k. */
 function records({ frames = 130, idle = 10, open = 60, layouts = () => 0, noUp = false } = {}) {
   const out = [];
   for (let k = 0; k < frames; k++) {
@@ -36,7 +34,6 @@ test('a missing up push or missing step marks refuse the run', () => {
   assert.equal(runRecord(records({ idle: 3 }), 130).outcome, 'idleShort');
 });
 
-/** The page script run against a stub page: a manual rAF queue, a mark log and a capture wheel listener. */
 function stubPage() {
   const marks = [], rafs = [], listeners = [];
   const nav = { style: { getPropertyValue: () => '0.5' } };
@@ -77,7 +74,6 @@ test('the page script marks frames and the first push in each direction, and kee
   assert.deepEqual({ ...MAC_SCHEDULE }, { idle: 10, open: 60, close: 60, dy: 120 });
 });
 
-/** A run file: per arm x drive, `reps` runs; `layout(arm, drive, rep)` Layout records per open frame. */
 function file(reps, layout) {
   const runs = [];
   for (let rep = 0; rep < reps; rep++) for (const arm of ['orig', 'rewrite']) for (const drive of ['trusted', 'synthetic']) {

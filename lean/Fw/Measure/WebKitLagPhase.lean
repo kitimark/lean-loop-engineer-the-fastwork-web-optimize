@@ -1,7 +1,6 @@
 import Lean.Data.Json
 /-!
 # Morph phases from performance marks (`packages/measure-webkit/src/lag/phase.mjs`)
-A morph run marks every frame, the first push down and the first push up; a frame belongs to the phase its mark time falls in.
 -/
 namespace Fw.Measure.WebKitLagPhase
 open Lean
@@ -17,7 +16,6 @@ def Phase.name : Phase → String
   | .open_ => "open"
   | .close => "close"
 
-/-- The phase of a frame whose mark is at `t`, given the times of the first push down and the first push up. -/
 def phaseOf (down up t : Int) : Phase :=
   if t < down then .idle else if t < up then .open_ else .close
 
@@ -41,7 +39,6 @@ theorem phaseOf_close {down up t : Int} (h1 : down ≤ t) (h2 : up ≤ t) : phas
 theorem framePhases_length (marks : List Int) (down up : Int) : (framePhases marks down up).length = marks.length := by
   simp [framePhases]
 
-/-- Every frame lands in exactly one phase. -/
 theorem counts_sum (marks : List Int) (down up : Int) :
     nIdle marks down up + nOpen marks down up + nClose marks down up = marks.length := by
   induction marks with
@@ -82,7 +79,6 @@ theorem nClose_cons (m : Int) (ms : List Int) (down up : Int) :
   simp only [nClose, framePhases, List.map_cons, List.count_cons]
   simp
 
-/-- A sorted run reads as three runs of frames, so a phase is a step-index range. -/
 theorem framePhases_blocks {marks : List Int} (hs : marks.Pairwise (· ≤ ·)) {down up : Int} :
     framePhases marks down up =
       List.replicate (nIdle marks down up) .idle ++ List.replicate (nOpen marks down up) .open_ ++
@@ -139,7 +135,6 @@ def minClose : Nat := 30
 
 def sortedB (marks : List Int) : Bool := decide (marks.Pairwise (· ≤ ·))
 
-/-- Frame counts per phase of one morph run, or the first reason the run is not used. -/
 def classify (marks : List Int) (down up : Option Int) : Outcome :=
   if sortedB marks = false then .refused .unsorted
   else match down, up with
@@ -187,7 +182,6 @@ theorem classify_ok {marks : List Int} (h : sortedB marks = true) {d u : Int} (h
     classify marks (some d) (some u) = .ok (nIdle marks d u) (nOpen marks d u) (nClose marks d u) := by
   simp [classify, h, hl, hi, ho, hc]
 
-/-- A used run has every frame in a phase and at least the minimum in each. -/
 theorem classify_ok_spec {marks : List Int} {down up : Option Int} {a b c : Nat}
     (h : classify marks down up = .ok a b c) :
     a + b + c = marks.length ∧ minIdle ≤ a ∧ minOpen ≤ b ∧ minClose ≤ c := by
@@ -213,7 +207,6 @@ theorem classify_ok_spec {marks : List Int} {down up : Option Int} {a b c : Nat}
               cases h
               exact ⟨counts_sum marks d u, by omega, by omega, by omega⟩
 
-/-- The marks of the fixed schedule of the synthetic drive: frame `k` at time `2k`. -/
 def fixedMarks (n : Nat) : List Int := (List.range n).map fun (k : Nat) => (2 * k : Int)
 
 theorem sortedB_fixedMarks (n : Nat) : sortedB (fixedMarks n) = true := by
@@ -224,7 +217,6 @@ theorem sortedB_fixedMarks (n : Nat) : sortedB (fixedMarks n) = true := by
   omega
 
 set_option maxRecDepth 8000 in
-/-- The fixed 10 / 60 / 60 frame schedule (`MORPH_FRAMES`) is the special case with the pushes between frames 9 and 10, and 69 and 70. -/
 theorem classify_fixed : classify (fixedMarks 130) (some 19) (some 139) = .ok 10 60 60 := by
   have h := sortedB_fixedMarks 130
   rw [classify_ok h (by decide) (by decide) (by decide) (by decide)]

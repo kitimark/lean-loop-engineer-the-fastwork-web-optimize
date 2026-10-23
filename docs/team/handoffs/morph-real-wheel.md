@@ -1,6 +1,6 @@
 branch: worktree-wf_df87b280-602-1 (CI branch ci/morph-real-wheel)
 worktree: .claude/worktrees/wf_df87b280-602-1 (in the repo checkout)
-measured sha: 9cdcefc41 (pushed to ci/morph-real-wheel; later commits only add notes and this file)
+measured sha: 9cdcefc41 (pushed to ci/morph-real-wheel)
 CI runs (smoothness.yml, jobs webkit-mac 1..3, macos-26, head commit tags [ci:smoothness] [webkit-cadence] [morph-wheel]):
 - 39971123168 smoothness: success; webkit-mac 1..3 each 24 of 24 runs accepted by the phase rule, 0 refused (MEASURED)
 - Result: trusted wheel reaches the page (isTrusted 72 of 72), morph 0 -> 1 -> 0; trusted vs synthetic per-frame counts overlap in 41 of 42 cells (only idle orig FireAnimationFrame, trusted higher; the trusted idle phase is ~3 frames longer)

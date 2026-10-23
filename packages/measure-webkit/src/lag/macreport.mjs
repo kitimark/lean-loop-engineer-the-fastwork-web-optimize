@@ -1,6 +1,3 @@
-// Tables of the Playwright WebKit morph runs (macmorph.mjs): per arm x drive x phase, the mean per-frame record counts over the runs the phase rule
-// (phase.mjs) accepts, the trusted-vs-synthetic and original-vs-rewrite verdicts (reduce.mjs `verdict`, Fw.Measure.WebKitLag), and the run-to-run class of
-// each count (reduce.mjs `classify`, the policy of Fw/Measure/Classes). Computation only; no I/O.
 import { COUNT_TYPES, TOL, classify as classOf } from '../reduce.mjs';
 import { frac, verdict } from './reduce.mjs';
 import { classify as phaseClass, rangesOf } from './phase.mjs';
@@ -10,14 +7,12 @@ export const PHASES = Object.freeze(['idle', 'open', 'close']);
 
 const col = (name) => COUNT_TYPES.indexOf(name);
 
-/** The phase ranges of a recorded run under the Lean rule, or null when it is refused. */
 export function rangesOfRun(r) {
   if (!r.marks || !r.perStep) return null;
   const c = phaseClass(r.marks, r.down, r.up);
   return c.outcome === 'ok' ? rangesOf(c) : null;
 }
 
-/** Sum of every metric over the frames [a, b) of a run. */
 export function phaseSums(r, [a, b]) {
   const out = {};
   for (const m of METRICS) {
@@ -30,7 +25,6 @@ export function phaseSums(r, [a, b]) {
 const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 const num = ([n, d]) => n / d;
 
-/** Per-run values of every arm x drive x phase: frames, sums, per-frame fractions. */
 export function cellRuns(files) {
   const cells = new Map();
   const refused = new Map();
@@ -51,7 +45,6 @@ export function cellRuns(files) {
   return { cells, refused };
 }
 
-/** What the pushes did: the events seen by the page and the largest `--morph` at the boundaries, per arm x drive. */
 export function pushFacts(files) {
   const out = new Map();
   for (const f of files) {

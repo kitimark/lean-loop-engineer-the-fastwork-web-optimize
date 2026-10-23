@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// run: the trusted-wheel and synthetic morph runs on Playwright WebKit (playwright-core of the current directory's package, macOS).
-// report: the tables over the run files of several CI jobs.
 import { parseArgs } from 'node:util';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
