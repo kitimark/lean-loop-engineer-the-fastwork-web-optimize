@@ -152,11 +152,13 @@ export const laggedKey = (l, prev, cur) => sub(cur, mul(l, sub(cur, prev)));
 export const EDGE = rat(1, 100);
 export const keptInterior = (k) => lt(EDGE, k) && lt(k, sub(ONE, EDGE));
 export const laggedSeries = (l, fs) => fs.slice(1).map((c, i) => ({ k: laggedKey(l, fs[i].k, c.k), v: c.v })).filter((p) => keptInterior(p.k));
-export const shiftedGrade = (tols, minCovered, ref, l, fs) => matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(laggedSeries(l, fs)));
+export const residual = (s) => s.map(({ k, v }) => { const e = effectAt(k); return { k, v: Array.from({ length: Math.min(v.length, e.length) }, (_, i) => sub(v[i], e[i])) }; });
+export const modelGrade = (tols, minCovered, ref, cand) => matchedGrade(tols, [], ONE, minCovered, residual(ref), residual(cand));
+export const shiftedGrade = (tols, minCovered, ref, l, fs) => modelGrade(tols, minCovered, ref, seriesOf(laggedSeries(l, fs)));
 export const panelGrade = (series, lag, shifted) => (series === null ? null : series === 'E' ? 'E'
   : lag === null ? null : le(lag, add(ONE, LAG_SLACK)) && shifted === 'E' ? 'Q' : 'L');
 export function panelCell(tols, minCovered, ref, fs) {
-  const series = matchedGrade(tols, [], ONE, minCovered, ref, seriesOf(fs.filter((p) => keptInterior(p.k))));
+  const series = modelGrade(tols, minCovered, ref, seriesOf(fs.filter((p) => keptInterior(p.k))));
   const lag = lagFrames(fs.map((f) => ({ nav: f.k, op: f.v[0] })));
   return { grade: panelGrade(series, lag, lag === null ? null : shiftedGrade(tols, minCovered, ref, lag, fs)), lag };
 }
@@ -175,7 +177,7 @@ export function painGrade(b, c) {
   return changes(b) === changes(c) && idx.every((i) => same(i) || slip(i)) ? 'Q' : 'L';
 }
 
-const RANK = { E: 0, Q: 1, L: 2 };
+const RANK = { E: 0, E1: 1, Q: 2, L: 3, invalid: 0 };
 export const worst = (gs) => (gs.length === 0 || gs.includes(null) ? null : gs.reduce((w, g) => (RANK[g] > RANK[w] ? g : w)));
 
 export const MIN_COVERED = 8;
@@ -261,11 +263,21 @@ export function swapSpans(rows, still = 6) {
   return spans;
 }
 
-export function swapSeries(rows, { from, to }) {
+export function spanSeries(rows, { from, to }) {
   const vs = rows.slice(from, Math.min(rows.length, to + 2)).map((r) => r?.v ?? []);
   const full = vs.reduce((m, v) => Math.max(m, v.length), 0);
   return vs.map((v, j) => ({ k: mul(rat(BigInt(j)), FRAME_MS), v })).filter((p) => p.v.length === full).map((p) => ({ k: p.k, v: p.v.map(ratQ) }));
 }
+
+const sameRatVec = (a, b) => a.length === b.length && a.every((x, i) => eq(x, b[i]));
+export function dropHold(s) {
+  let i = 0;
+  while (i + 1 < s.length && sameRatVec(s[i].v, s[i + 1].v)) i++;
+  return s.slice(i);
+}
+export const rebase = (s) => (s.length === 0 ? s : [{ k: ZERO, v: s[0].v }, ...s.slice(1).map(({ k, v }) => ({ k: sub(k, s[0].k), v }))]);
+export const swapSeries = (rows, sp) => rebase(dropHold(spanSeries(rows, sp)));
+export const holdFrames = (rows, sp) => spanSeries(rows, sp).length - dropHold(spanSeries(rows, sp)).length;
 
 export const swapsOf = (rows, still = 6) => swapSpans(rows, still).map((sp) => swapSeries(rows, sp));
 
@@ -273,10 +285,43 @@ export const swapGrade = (dpr, b, c) => matchedGrade(Array(b[0]?.v.length ?? 0).
 
 export const carouselGrade = (nb, nc, reps) => (nb === nc ? worst(reps) : 'L');
 
+export const HOLD_TOL = 1;
+export const holdGrade = (hb, hc) => (hb <= hc + HOLD_TOL && hc <= hb + HOLD_TOL ? 'E' : 'L');
+export const repGrade = (motion, hb, hc) => (motion === null ? null : worst([motion, holdGrade(hb, hc)]));
+
+export const holdsOf = (rows, still = 6) => swapSpans(rows ?? [], still).map((sp) => holdFrames(rows, sp));
+
 export function carouselCellAt(dpr, base, cand) {
   const bs = swapsOf(base ?? []), cs = swapsOf(cand ?? []);
-  const grades = bs.slice(0, Math.min(bs.length, cs.length)).map((b, i) => swapGrade(dpr, b, cs[i]));
+  const hbs = holdsOf(base), hcs = holdsOf(cand);
+  const grades = bs.slice(0, Math.min(bs.length, cs.length)).map((b, i) => repGrade(swapGrade(dpr, b, cs[i]), hbs[i], hcs[i]));
   return { swaps: [bs.length, cs.length], grades, grade: carouselGrade(bs.length, cs.length, grades) };
+}
+
+export const STILL_FRAMES = 6;
+export const SETTLE_CAP_MS = rat(2200);
+export const TAIL_CAP_MS = rat(1500);
+
+const sameInts = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+export function settleRun(still, cap, s0, prev, frames) {
+  let st = { prev, moved: false, quiet: 0 }, now = s0, n = 0;
+  for (const { t, v } of frames) {
+    if (le(add(s0, cap), now)) return { consumed: n, quiet: false };
+    st = sameInts(st.prev, v) ? { prev: v, moved: st.moved, quiet: st.moved ? st.quiet + 1 : st.quiet } : { prev: v, moved: true, quiet: 0 };
+    n++; now = t;
+    if (st.moved && still <= st.quiet) return { consumed: n, quiet: true };
+  }
+  return { consumed: n, quiet: false };
+}
+
+export function tailRun(ms, still, frames) {
+  let prev = null, tail = 0, n = 0;
+  for (const { t, v } of frames) {
+    tail = prev !== null && sameInts(prev, v) ? tail + 1 : 0;
+    prev = v; n++;
+    if (le(add(ms, TAIL_CAP_MS), t) || (le(ms, t) && still <= tail)) return { rows: n, quiet: lt(t, add(ms, TAIL_CAP_MS)) };
+  }
+  return { rows: n, quiet: false };
 }
 
 export const carouselCell = (width, base, cand) => carouselCellAt(rat(envFor(width).dpr), base, cand);
@@ -303,7 +348,7 @@ export function cellsOfRaw(raw, nodes = MORPH_NODES) {
     if (base.pain && cand.pain) units.push({ width, cell: 'pain-dark', part: 'scroll', grade: worst(painCell(base.pain, cand.pain)), reps: painCell(base.pain, cand.pain) });
     if (base.carousel && cand.carousel) {
       const c = carouselCell(width, base.carousel, cand.carousel);
-      units.push({ width, cell: 'carousel', part: 'swap', grade: c.grade, reps: c.grades, swaps: c.swaps, atRest: [restedBefore(base.carousel, 1), restedBefore(cand.carousel, 1)] });
+      units.push({ width, cell: 'carousel', part: 'swap', grade: c.grade, reps: c.grades, swaps: c.swaps, holds: [holdsOf(base.carousel), holdsOf(cand.carousel)], atRest: [restedBefore(base.carousel, 1), restedBefore(cand.carousel, 1)] });
     }
   }
   return units;

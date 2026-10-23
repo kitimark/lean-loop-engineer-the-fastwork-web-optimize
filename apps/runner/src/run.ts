@@ -149,11 +149,14 @@ export function ghCost(args: string[]): number {
   return 1;
 }
 
+export const DISPATCH_LIMITS = { timeoutMs: 20_000, lockWaitMs: 60_000 } as const;
+
 export function chargedGh(env: Env): Gh {
   return async (args, o) => {
     const what = args.slice(0, 3).join(" ");
     if (o?.signal?.aborted) throw new Error(`gh ${what} not made: aborted`);
-    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}) });
+    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}), ...(args[0] === "workflow" && args[1] === "run" ? DISPATCH_LIMITS : {}) });
+    if (!res.ran && res.decision === "busy") throw new Error(`gh ${what} not made: ${res.reason}; nothing was dispatched, run it again`);
     if (!res.ran) throw new Error(`gh ${what} not made: the request budget says ${res.decision} (${res.reason}); see \`fw ci budget\``);
     if (res.code !== 0) throw new Error(`gh ${what} failed: ${res.error ?? "unknown"}`);
     return res.stdout;
@@ -398,7 +401,7 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
   const genv = args.dry ? null : realEnv(cwd);
   const unused = (): never => { throw new Error("no gh call in --dry"); };
   code = await runMain(args, {
-    call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(genv)) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
+    call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(ph.env(genv))) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
     refSha: (r) => vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || undefined,

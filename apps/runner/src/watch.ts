@@ -1,4 +1,4 @@
-import { begin } from "./timing.ts";
+import { begin, record } from "./timing.ts";
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -9,8 +9,9 @@ import { reapTick } from "./reap.ts";
 import { startPush } from "./watch-push.ts";
 import { CLASSES, diskGcTick } from "./disk-gc.ts";
 import { fwcoreCall } from "./run.ts";
+import { passParts } from "./run-phases.ts";
 import {
-  collectSnapshot, exe, parseStartRows, pathsFor, PS_START, readKeep, readSamples, writeKeep, type AgentSnap, type KeepDecide, type KeepEntry, type Paths,
+  collectSnapshot, exe, parseStartRows, watchGh, pathsFor, PS_START, readKeep, readSamples, writeKeep, type AgentSnap, type KeepDecide, type KeepEntry, type Paths,
   type Prev, type Snapshot, type StartRow,
 } from "./watch-collect.ts";
 
@@ -307,6 +308,8 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
 export const DISK_LOW = "sys.diskLow";
 
 async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: CoreCall, decide: KeepDecide) {
+  const startMs = Date.now(), t0 = performance.now();
+  watchGh.reset();
   const endPass = begin("fw", "watch pass", main);
   const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap, undefined, decide);
   const h = await check(snap, call);
@@ -316,6 +319,7 @@ async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: Cor
   h.alerts.push(...slowAlerts(slow));
   appendLog(paths, snap, h);
   endPass(0);
+  for (const p of passParts(watchGh, performance.now() - t0)) record({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit: 0 }, main);
   return { snap, h, nx, slow };
 }
 
