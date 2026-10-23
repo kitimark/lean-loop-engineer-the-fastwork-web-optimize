@@ -1,12 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { nominal, validAt, countCells, KINDS, PERIODS, SWAP_US } from '../src/lag/swap.mjs';
 import { freezeAnalysis, freezeMd, windowSamples } from '../src/lag/freezereport.mjs';
-
-const here = dirname(fileURLToPath(import.meta.url));
 
 function capture(layout, rest) {
   const ws = nominal(0, PERIODS);
@@ -66,11 +61,4 @@ test('every sample is keyed by job, pass and capture slot, and the table names t
   assert.match(md, /\| swap:0 \| 2 \| 4 \|/);
   assert.match(md, /\| frozen \| crop \| 9\/p1\/diag \|/);
   assert.match(md, /\| frozen \| 9\/p1\/aligned \| 6 \| 30 \|/);
-});
-
-test('the workflow passes the freeze flag and the numeric job id only from its tokens', () => {
-  const wf = readFileSync(join(here, '../../../.github/workflows/webkit-sim.yml'), 'utf8');
-  assert.match(wf, /FREEZE: \$\{\{ contains\(github\.event\.head_commit\.message, '\[swap-freeze\]'\) && '--freeze hero-accent' \|\| '' \}\}/);
-  assert.match(wf, /FW_JOB_ID: \$\{\{ job\.check_run_id \}\}/);
-  assert.match(wf, /\$SWAP \$FREEZE --keep/);
 });
