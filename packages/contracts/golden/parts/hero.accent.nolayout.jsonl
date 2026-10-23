@@ -1,0 +1,17 @@
+{"cite":"WC/style/StyleDifference.cpp:161,399; B/css/css_properties.json5:6120; B/style/computed_style.cc:998-1006","crLayout":false,"crLevel":"paint","kind":"cand","name":"stroke-dashoffset","wkDiff":"layout","wkLayout":true}
+{"cite":"WC/style/StyleDifference.cpp:779-780; WC/rendering/RenderElement.cpp:321-326; B/css/css_properties.json5:3112","crLayout":false,"crLevel":"paint","kind":"cand","name":"clip-path inset()","wkDiff":"repaint","wkLayout":false}
+{"cite":"WC/rendering/RenderElement.cpp:300-312; WC/style/StyleDifference.cpp:199-205","crLayout":false,"crLevel":"raster","kind":"cand","name":"transform of an SVG child","wkDiff":"layout","wkLayout":true}
+{"cite":"WC/rendering/RenderElement.cpp:300-312; B/style/computed_style.cc:879-890","crLayout":false,"crLevel":"direct","kind":"cand","name":"transform on a composited box","wkDiff":"recomposite","wkLayout":false}
+{"cite":"WC/style/StyleDifference.cpp:571-578; WC/rendering/RenderElement.cpp:314-319","crLayout":false,"crLevel":"raster","kind":"cand","name":"opacity inside (0,1)","wkDiff":"repaint","wkLayout":false}
+{"cite":"WC/style/StyleDifference.cpp:208-214","crLayout":false,"crLevel":"raster","kind":"cand","name":"opacity reaching 1","wkDiff":"layout","wkLayout":true}
+{"cite":"WC/style/StyleDifference.cpp:404; B/css/css_properties.json5:8286","crLayout":true,"crLevel":"layoutFull","kind":"cand","name":"width","wkDiff":"layout","wkLayout":true}
+{"arm":"faithful","changes":3,"crLayout":false,"kind":"frame","phase":"draw-out","wkLayout":true}
+{"arm":"faithful","changes":4,"crLayout":true,"kind":"frame","phase":"draw-in","wkLayout":true}
+{"arm":"draw-nolayout","changes":1,"crLayout":false,"kind":"frame","phase":"draw-out","wkLayout":false}
+{"arm":"draw-nolayout","changes":2,"crLayout":true,"kind":"frame","phase":"draw-in","wkLayout":true}
+{"from":"inset(-20% 120% -20% -20%)","kind":"keyframe","name":"clipIn","to":"inset(-20% -20% -20% -20%)"}
+{"from":"inset(-20% -20% -20% -20%)","kind":"keyframe","name":"clipOut","to":"inset(-20% 120% -20% -20%)"}
+{"attr":null,"kind":"attr","variant":"faithful"}
+{"attr":null,"kind":"attr","variant":"steps"}
+{"attr":"one","kind":"attr","variant":"draw-one"}
+{"attr":"nolayout","kind":"attr","variant":"draw-nolayout"}

@@ -51,16 +51,17 @@ export function lakeWork(lake: unknown): { work?: Record<string, string> } {
   return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { work: { mods: String(modsLow(b)) } } : {};
 }
 
-export function ownOf(o: unknown): { ownMs?: number } {
-  const s = o as { tool?: unknown; step?: unknown; startMs?: unknown; durMs?: unknown; phases?: { how?: unknown; updMs?: unknown } | null } | null | undefined;
-  if (s?.tool !== "fw" || s.step !== "ci wait" || s.phases?.how !== "done") return {};
-  const { startMs, durMs } = s, upd = s.phases.updMs;
-  if (typeof startMs !== "number" || typeof durMs !== "number" || typeof upd !== "number" || !Number.isFinite(startMs + durMs + upd)) return {};
-  const own = startMs + durMs - upd;
-  return own >= 0 ? { ownMs: Math.round(own) } : {};
+export function rawOf(o: unknown): { startMs?: number; commit?: string; phases?: { how: string; updMs: number } } {
+  const s = o as { startMs?: unknown; commit?: unknown; phases?: { how?: unknown; updMs?: unknown } | null } | null | undefined;
+  const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+  const ph = s?.phases;
+  return {
+    ...(nat(s?.startMs) ? { startMs: s.startMs } : {}),
+    ...(typeof s?.commit === "string" && /^[0-9a-f]{0,40}$/.test(s.commit) && s.commit !== "" ? { commit: s.commit } : {}),
+    ...(typeof ph?.how === "string" && nat(ph.updMs) ? { phases: { how: ph.how, updMs: ph.updMs } } : {}),
+  };
 }
 
-/** Lean `Fw.Obs.Timing.builtLine`. */
 export function builtLine(l: string): boolean {
   const parts = l.split("] Built ");
   if (parts.length !== 2) return false;

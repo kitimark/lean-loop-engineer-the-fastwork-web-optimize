@@ -7,8 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { slowAlerts } from "../src/next.ts";
-import { realRun, stagedChecks, stagedSpan } from "../src/polish.ts";
-import { begin, noteSpan } from "../src/timing.ts";
+import { NO_CHECKS, realRun, stagedChecks, stagedSpan } from "../src/polish.ts";
+import { begin, noteSpan, spanWork } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -98,6 +98,12 @@ describe("stagedChecks: the checks of the staged files, asked of ops.checkMap", 
       return JSON.parse(r.stdout.split("\n")[0]!) as Record<string, unknown>;
     };
     expect((await stagedChecks(dir, git, call))?.kinds).toContain("lakeBuild");
+  });
+});
+
+describe("a polish commit that keeps nothing", () => {
+  it("is keyed checks=light, so Lean judges it against the light commits, not as an unkeyed span", () => {
+    expect(spanWork({ checks: NO_CHECKS })).toEqual({ work: { checks: "light" } });
   });
 });
 

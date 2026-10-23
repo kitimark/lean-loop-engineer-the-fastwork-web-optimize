@@ -8,7 +8,8 @@
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3501-3730; assets/2.gBuqKVzi.css:1221-1400" } },
     "steps": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "n=15" } },
-    "draw-one": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "accent-draw-one", "limit": "the two copies at opacity 0 in the draw window get no stroke animation (Lean drawOne_visSame, drawOne_still_iff); saves 2 of 3 animated paths per draw frame (animatedCount_values), the visible copy still lays out per frame" } }
+    "draw-one": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "accent-draw-one", "limit": "the two copies at opacity 0 in the draw window get no stroke animation (Lean drawOne_visSame, drawOne_still_iff); saves 2 of 3 animated paths per draw frame (animatedCount_values), the visible copy still lays out per frame" } },
+    "draw-nolayout": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Engine.StyleDiffAccent", "ledger": "accent-draw-nolayout", "limit": "look change: the draw is a clip-path wipe of the visible copy instead of a stroke trace: look-change, for the user's visual review; no layout in the draw-out frames (arm_drawOut_nolayout); the draw-in keeps the original's width transition, which lays out (arm_drawIn_layout_only_width)" } }
   },
   "requires": {},
   "conflicts": {}
