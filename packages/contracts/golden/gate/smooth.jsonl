@@ -87,6 +87,14 @@
 {"k":4,"op":"across","out":"insufficient","vs":["first","same","insufficient","insufficient","insufficient"]}
 {"k":3,"op":"across","out":"first","vs":["first","first","first","insufficient","insufficient"]}
 {"k":4,"op":"across","out":"same","vs":["first","first","same","insufficient","insufficient"]}
+{"decisive":3,"k":2,"op":"acrossDecisive","out":"first","vs":["first","first","first","insufficient","insufficient"]}
+{"decisive":3,"k":2,"op":"acrossDecisive","out":"second","vs":["second","second","same","insufficient","insufficient","insufficient"]}
+{"decisive":3,"k":2,"op":"acrossDecisive","out":"same","vs":["first","same","same","insufficient","insufficient"]}
+{"decisive":2,"k":2,"op":"acrossDecisive","out":"insufficient","vs":["first","first","insufficient","insufficient","insufficient"]}
+{"decisive":5,"k":4,"op":"acrossDecisive","out":"same","vs":["first","first","first","first","second","insufficient"]}
+{"decisive":7,"k":5,"op":"acrossDecisive","out":"first","vs":["first","first","first","first","first","same","same"]}
+{"decisive":0,"k":0,"op":"acrossDecisive","out":"insufficient","vs":["insufficient","insufficient","insufficient"]}
+{"decisive":0,"k":0,"op":"acrossDecisive","out":"insufficient","vs":[]}
 {"n":0,"op":"agreeNeeded","out":0}
 {"n":1,"op":"agreeNeeded","out":1}
 {"n":3,"op":"agreeNeeded","out":2}

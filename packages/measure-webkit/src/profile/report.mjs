@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path';
 import { KINDS, ZONES, medianNat, zoneVerdict, profileFromRaw } from './reduce.mjs';
 import { readRaws } from './raw.mjs';
-import { across, agreeNeeded, hitchVerdict, armRate, repOf, quantile, enoughN } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
+import { acrossDecisive, agreeNeeded, decisive, hitchVerdict, armRate, repOf, quantile, enoughN } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2'], ['base', 'bound']];
 export const KEY_KINDS = ['RecalculateStyles', 'Layout', 'Paint', 'Composite', 'FunctionCall', 'FireAnimationFrame'];
@@ -73,7 +73,7 @@ export function acrossJobs(perJob) {
   const pairs = [...new Set(perJob.flatMap((v) => Object.keys(v)))];
   return Object.fromEntries(pairs.map((p) => {
     const vs = perJob.map((v) => v[p]).filter((x) => x !== undefined);
-    return [p, { jobs: vs.length, first: vs.filter((x) => x === 'first').length, second: vs.filter((x) => x === 'second').length, same: vs.filter((x) => x === 'same').length, insufficient: vs.filter((x) => x === 'insufficient').length, verdict: across(agreeNeeded(vs.length), vs) }];
+    return [p, { jobs: vs.length, first: vs.filter((x) => x === 'first').length, second: vs.filter((x) => x === 'second').length, same: vs.filter((x) => x === 'same').length, insufficient: vs.filter((x) => x === 'insufficient').length, need: agreeNeeded(decisive(vs)), verdict: acrossDecisive(vs) }];
   }));
 }
 

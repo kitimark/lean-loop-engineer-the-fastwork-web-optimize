@@ -301,10 +301,10 @@ windows, insufficient), with the Lean `across` verdict `same` for the pair `base
   small is INFERRED from the table; the measured fact is only that it sits inside the repeat-to-repeat spread.
 - **Lean why (CONFIRMED, `lean/Fw/Gate/Smooth.lean`, `Fw.Measure.WebKitProfile.zoneVerdict` = `hitchVerdict`).** By the definition of hitchJudge, a job
   says `second` exactly when every repeat of base has more render work per frame than every repeat of bound
-  (`hitchJudge_second` :597, `above`), and only if the A/A pair is not itself told apart; otherwise it says `same`
-  (`hitchJudge_same` :602 when the two ranges overlap, `hitchVerdict_noisy` :652 when the A/A pair separates). The jobs
-  then go through `across k` with `k = agreeNeeded 3 = 2` (:697): a verdict over 3 jobs needs 2 of them to say
-  `second` and none `first`; with 0 `second` the branch is `across_same` (:735). Per-frame render work per repeat (the verdict input) overlaps between base and bound in every job (us, base/bound: macOS 6523-9304/5922-11277, 6939-9678/7065-8155, 6350-11230/6695-7499; Simulator 3125-9374/2794-8342, 2932-7615/2886-6965, 2848-12713/2923-12120). base and aa also overlap in every job, so the A/A check passes and hitchJudge_same (:602) is the branch that fired in all six jobs; hitchVerdict_noisy did not fire. MEASURED (summary.json zones.finish.cells, reviewer re-reduction of runs 39729682403 and 39754568950). The theorems say why a `second` needs separated ranges, not why the earn
+  (`hitchJudge_second` :493, `above`), and only if the A/A pair is not itself told apart; otherwise it says `same`
+  (`hitchJudge_same` :497 when the two ranges overlap, `hitchVerdict_noisy` :540 when the A/A pair separates). The jobs
+  then go through `across k` with `k = agreeNeeded 3 = 2` (:577): a verdict over 3 jobs needs 2 of them to say
+  `second` and none `first`; with 0 `second` the branch is `across_same` (:623). Per-frame render work per repeat (the verdict input) overlaps between base and bound in every job (us, base/bound: macOS 6523-9304/5922-11277, 6939-9678/7065-8155, 6350-11230/6695-7499; Simulator 3125-9374/2794-8342, 2932-7615/2886-6965, 2848-12713/2923-12120). base and aa also overlap in every job, so the A/A check passes and hitchJudge_same (:497) is the branch that fired in all six jobs; hitchVerdict_noisy did not fire. MEASURED (summary.json zones.finish.cells, reviewer re-reduction of runs 39729682403 and 39754568950). The theorems say why a `second` needs separated ranges, not why the earn
   work is small; that is the mechanism above.
 - **Lesson.** Measure the bound of a candidate (all of its work removed) before building it: a candidate cannot win
   more than its bound. A bound that stays inside the A/A spread ends the candidate on that metric and host, and the
@@ -318,6 +318,40 @@ Report: `results/earn-bound/report.json` is valid. `fwcore` `console.report` ans
 task's writes, so the lead adds one `notes` row (entry = that finding's `candidate` text, task `earn-bound-arm`, field
 `mechanism`) carrying the three bullets above: runs 39729682403, 39754568950, 39744983394; `across` `same` in 3 of 3
 jobs per leg; `hitchJudge_second`, `hitchVerdict_noisy`, `across_same`; the lesson.
+
+## The agreement threshold counts decisive jobs (across-k-decisive)
+
+Decision (CONFIRMED, `lean/Fw/Gate/Smooth.lean`; line numbers in this note are at the across-k-decisive commit): the
+verdict over jobs is `acrossDecisive` (:646), which is `across` with `k = agreeNeeded` of the decisive jobs (first,
+second or same), not of all jobs. An `insufficient` job counts as absent.
+
+- Why: an `insufficient` job says nothing about first or second. With `k` over all jobs it still raised the bar, so
+  missing data read as disagreement: 3 `first` and 2 `insufficient` gave `k = agreeNeeded 5 = 4` and `same`; with the
+  decisive count `k = agreeNeeded 3 = 2` and the verdict is `first` (`acrossDecisive_ne_all_jobs` :711).
+  `acrossDecisive_filter` (:694): dropping the `insufficient` jobs never changes the verdict, so a matrix with a failed
+  job reads like one that never ran it.
+- What still guards it: fewer than `minSamples = 3` decisive jobs give `insufficient` (`acrossDecisive_insufficient`
+  :652). A `first` needs at least 3 decisive jobs, at least two thirds of them `first` and no `second`
+  (`acrossDecisive_first_two_thirds` :673; `second` mirrored in :680), so never fewer than 2 agreeing jobs. The
+  branch theorems are `acrossDecisive_first` / `_second` / `_split` / `_same` (:656-671); `acrossDecisive_swap` :700. The title's example (no `second` from fewer than `minSamples` seconds) does not hold: 2 of 3
+  decisive seconds give `second`, as before with 3 jobs.
+- Goldens: op `acrossDecisive` in `packages/contracts/golden/gate/smooth.jsonl` (8 cases, all four outcomes). Twins:
+  `acrossDecisive` in `packages/gate-breakpoints/src/smooth/reduce.mjs`, used by `acrossJobs` in
+  `packages/measure-webkit/src/profile/report.mjs` (new field `need`) and by `summary` in
+  `packages/gate-breakpoints/src/smooth/cadence-table.mjs` (`need` split into `needRate` and `needHitch`).
+
+Re-reduction under the new rule, offline, no new dispatch (MEASURED):
+
+| input | across verdicts | with an insufficient job | changed |
+|---|---|---|---|
+| artifacts of runs 39729682403 (mac 1..3, sim 1..2), 39744983394 (sim 1..3), 39754568950 (sim 1..3), 11 jobs, `cli.mjs report` | 12 | 5 | 0 |
+| `results/smoothness-webkit/summary.json` (run 39634194664, from the per-pair counts) | 36 | 15 | 0 |
+| `results/smoothness-probe/cadence.table.json` (runs 39580977630, 39583122954, 39585007706, 39589237987) | 24 | 0 | 0 |
+
+The pair `base|bound` keeps its verdicts: macOS `same` (0/0/3/0, `k` 2) in every zone; Simulator finish over its eight
+jobs `same` (0/0/5/3, `k` 4 where the old rule used 6); Simulator hero and rest `insufficient` (0/0/0/8). Every
+verdict with an `insufficient` job either has fewer than 3 decisive jobs or no `first` and `second` at all, so no
+recorded verdict or ledger entry changes. INFERRED: the rule matters once a leg loses a job and the rest agree.
 
 ## What this changes in the plan
 

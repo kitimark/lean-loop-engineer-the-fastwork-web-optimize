@@ -6,7 +6,7 @@ import { mediaCondition } from '../../breakpoints';
 import { layerOwnsFlip, RANGE_LEN, RANGE_VAR, rangeStart, SUPPORTS, translateY, WINDOW } from './darkScroll';
 
 type Rgb = [number, number, number];
-type Row = { kind: 'flip' | 'pixel'; [k: string]: number | string | Rgb };
+type Row = { kind: 'flip' | 'pixel' | 'owns'; [k: string]: number | string | boolean | Rgb };
 const rows = readFileSync(resolve(__dirname, '../../../../../packages/contracts/golden/parts/pain-dark-scroll.jsonl'), 'utf8')
   .split('\n')
   .filter((l) => l.trim() !== '')
@@ -100,7 +100,9 @@ describe('pain dark-scroll CSS', () => {
     expect(decl(layer, 'animation-range-end')).toBe(`calc(var(${RANGE_VAR}, 100000000px) + ${RANGE_LEN}px)`);
   });
   it('exists only inside the band and the @supports, as pseudo-elements (no child is added)', () => {
-    expect(css.match(/\](?: \.sticky)?::before/g)?.length).toBe(4);
+    const pseudo = /\](?: \.sticky)?::before/g;
+    expect(css.match(pseudo)?.length).toBe(8);
+    expect(narrow.match(pseudo)?.length).toBe(8);
     expect(decl(layer, 'content')).toBe("''");
     expect(supports).toContain(".pain[data-fw-variant='dark-scroll']::before");
     expect(supports).toContain(".pain[data-fw-variant='dark-scroll'] .sticky::before");
@@ -115,10 +117,18 @@ describe('pain dark-scroll glue', () => {
     expect(translateY('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 7, 0, 1)')).toBe(7);
     expect(translateY('')).toBe(0);
   });
-  it('hands the flip to the layer only for the variant in an engine that runs it', () => {
-    expect(layerOwnsFlip('dark-scroll', true)).toBe(true);
-    expect(layerOwnsFlip('dark-scroll', false)).toBe(false);
-    expect(layerOwnsFlip('faithful', true)).toBe(false);
-    expect(layerOwnsFlip(null, true)).toBe(false);
+  it('hands the flip over exactly as the Lean ownsFlip rows say', () => {
+    const owns = rows.filter((r) => r.kind === 'owns');
+    expect(owns).toHaveLength(8);
+    for (const r of owns) {
+      expect(layerOwnsFlip(r.variant === '' ? null : (r.variant as string), r.supports as boolean)).toBe(r.owns);
+    }
+  });
+  it('dark-static paints the two layers dark from the start and animates nothing', () => {
+    const stat = block(narrow, "dark-static']::before,");
+    expect(decl(stat, 'background')).toBe('#131922');
+    expect(stat).not.toContain('animation');
+    expect(stat).not.toContain('opacity');
+    expect(supports).not.toContain('dark-static');
   });
 });

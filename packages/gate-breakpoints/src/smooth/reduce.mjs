@@ -110,10 +110,13 @@ export const hitchVerdict = (a, b, aa1, aa2) =>
 
 export const agreeNeeded = (n) => Math.floor((2 * n + 2) / 3);
 
+export const decisive = (vs) => vs.filter((v) => v === 'first' || v === 'second' || v === 'same').length;
+
 export function across(k, vs) {
   const f = vs.filter((v) => v === 'first').length;
   const s = vs.filter((v) => v === 'second').length;
-  const same = vs.filter((v) => v === 'same').length;
-  if (f + s + same < MIN_SAMPLES || k === 0) return 'insufficient';
+  if (decisive(vs) < MIN_SAMPLES || k === 0) return 'insufficient';
   return k <= f && s === 0 ? 'first' : k <= s && f === 0 ? 'second' : 'same';
 }
+
+export const acrossDecisive = (vs) => across(agreeNeeded(decisive(vs)), vs);
