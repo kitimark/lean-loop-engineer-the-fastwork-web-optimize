@@ -1,6 +1,6 @@
 branch: worktree-wf_54d3eb3f-c6d-1 (CI branch ci/hero-copy-floor-sources)
 worktree: .claude/worktrees/wf_54d3eb3f-c6d-1
-last pushed sha: see git log (round-1 findings commit, tag [ci:path-pix])
+last commit sha: 49f34ca20 (main merged; CI run pushed at f16ee6ff6); dry land VERDICT dry hero-copy-floor-sources; review ready: review
 CI runs: path-pix 39971881582 (complete, success, round 0); path-pix 39985824264 (complete, success, round 1, sha f16ee6ff6, 3 sim + 3 chromium jobs)
 second run budget: spent (2 of 2 runs used)
 note: research/notes/2026/10-2x-hero-copy-floor.md regenerated from run 39985824264 (pathpix-exit-report.mjs); tests and check.sh green
