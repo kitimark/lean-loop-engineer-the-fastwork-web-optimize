@@ -3303,6 +3303,50 @@
    "lesson": "A per-frame layout cannot be moved off the layout path when the thing that changes is in flow: the headline text follows the word box, so a smooth text glide costs a layout per frame in both engines. What can be given up is the glide itself: one layout at the start of the draw-in replaces 54, and the quiet windows between swaps lose the accent layout entirely.",
    "next": "User look review of the text jump. If rejected, draw-nolayout (glide kept, half the layout phases) stays the safer arm. Layout per hero-exit frame and pixel numbers: accent-nolayout-measure.",
    "evidence": "webkit-sim run 40010826238 (push 3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]; r3 cancelled); research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/full-swap-report.md"
+  },
+  {
+   "id": "premise.webkit.wheel-momentum",
+   "n": 57,
+   "part": "premise",
+   "candidate": "premise: a Playwright WebKit trusted wheel carries a momentum phase (morph-wheel-momentum)",
+   "status": "refuted",
+   "flags": [],
+   "chromium": "not-tried",
+   "webkit": "premise-false",
+   "visual": "n/a (a harness premise, not an optimization)",
+   "mechanism": "CONFIRMED (source): Playwright 1.64.1 RawMouseImpl.wheel sends Input.dispatchWheelEvent with x, y, deltaX, deltaY and modifiers only; the WebKit patch builds the WebWheelEvent with the six-argument constructor, whose phase and momentum phase start as Phase::None (WebWheelEvent.h:102-103 @56453fdfe0b0, identical at 862f17d); the only synthetic momentum code runs on momentumPhase() == Phase::Began (WebPageProxy.cpp:4988 and :5012 @56453fdfe0b0), which never happens. Scope: the Playwright WebKit wheel lane on CI macOS. The phone's momentum is not tested.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Read the harness input path to its event constructor before building a drive that assumes a phase the harness never sends.",
+   "evidence": "research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
+   "next": "The phone's momentum stays the phone's (real-device replay). Note follow-up 3 of research/notes/2026/10-2x-morph-real-wheel.md holds the sources."
+  },
+  {
+   "id": "morph.wheel.lock-no-moving-scroll",
+   "n": 58,
+   "part": "morph.tween",
+   "candidate": "morph-wheel-momentum: overlap a moving drawn scroll with the open morph on the CI macOS Playwright WebKit wheel lane (pull drive)",
+   "status": "refuted",
+   "flags": [],
+   "chromium": "not-tried",
+   "webkit": "premise-false (this lane only)",
+   "visual": "n/a (a measurement drive, not a look change)",
+   "mechanism": "On the CI macOS Playwright WebKit wheel lane no drive a user produces can overlap a moving drawn scroll with the open morph: the site prevents every wheel while the morph is open and L restores scrollY after each scroll event; the pull drive adds a scroll event and a pull-and-restore per frame, drawn at the lock; strictly changing scrollY was not delivered. MEASURED (run 40032804511, 3 mac jobs): the push arrived at scrollY 5098 against maxY 5102 in 36 of 36 pull runs (0 atEnd, 0 stalled, 0 refused); scroll events in the open phase 60.2 to 62.7 per run. INFERRED: each frame is drawn at the lock because the site restore runs in a rAF after the page rAF (Page.cpp:2295 and :2330 @862f17d); no paint-position reading was taken. The rewrite's open-phase counts still overlap the original's with scroll work in every frame. Lean: Fw.Measure.WebKitLagPhase acceptPull (atEnd and stalled refusals, golden checked); acceptPull in macreport.mjs is a TS stand-in checked against that golden. Not claimed for iOS touch: a pan that began before the morph opened cannot be cancelled by touchmove there (WKContentViewInteraction.mm:4239-4245 @862f17d, INFERRED).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Whether UIKit's deceleration and the site's restore fight at the page end on iOS touch (task touch-lock-page-end)."
+   ],
+   "premises": [
+    "Drawn at the lock is INFERRED from rAF order, not read from a paint position."
+   ],
+   "v1Evidence": "none",
+   "lesson": "A site that restores the position after every scroll event cannot be driven into a moving drawn scroll by a page script; a drive that pulls and restores adds the event work but not the movement.",
+   "evidence": "mac run 40032804511; research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
+   "next": "touch-lock-page-end (the iOS touch lock fight at the page end). Note research/notes/2026/10-2x-morph-real-wheel.md."
   }
  ],
  "notes": [
