@@ -49,6 +49,24 @@ export function problem(w) {
   return w.css === '' ? 'emptyCss' : null;
 }
 
+export const MODE_KIND = { counts: 'counts', load: 'probe' };
+
+export const runnable = (kind, mode) => MODE_KIND[mode] === kind;
+
+export const resolve = (inProfiles, inProbes) => (inProfiles && !inProbes ? 'counts' : !inProfiles && inProbes ? 'probe' : null);
+
+export const readOk = (inProfiles, inProbes, declared) => resolve(inProfiles, inProbes) === declared;
+
+const CFT = { 'linux:x64': 'linux64', 'linux:arm64': 'linux-arm64', 'darwin:arm64': 'mac-arm64', 'darwin:x64': 'mac-x64', 'win32:x64': 'win64' };
+
+export const cftPlatform = (os, arch) => CFT[`${os}:${arch}`] ?? null;
+
+export const cftExe = (plat) => (plat.startsWith('mac-')
+  ? `chrome-${plat}/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`
+  : plat === 'win64' ? `chrome-${plat}/chrome.exe` : `chrome-${plat}/chrome`);
+
+export const cftUrl = (version, plat) => `https://storage.googleapis.com/chrome-for-testing-public/${version}/${plat}/chrome-${plat}.zip`;
+
 export const userAgent = (mobile) => (mobile
   ? 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36'
   : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36');

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent } from '../src/profile.mjs';
+import { parseProfile, replayOk, replayEvents, HARD_CAP, PINNED, DIRS, parseKind, dropOk, keep, problem, userAgent, runnable, readOk, cftPlatform, cftExe, cftUrl } from '../src/profile.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = join(here, '../profiles');
@@ -35,7 +35,7 @@ test('kind, dropFlags, css and user agent agree with the Lean golden', () => {
   assert.deepEqual(PINNED, c.pinned);
   assert.deepEqual(DIRS, c.dirs);
   assert.deepEqual([userAgent(true), userAgent(false)], [c.ua.mobile, c.ua.desktop]);
-  const n = { parseKind: 0, dropOk: 0, keep: 0, wire: 0 };
+  const n = { parseKind: 0, dropOk: 0, keep: 0, wire: 0, runnable: 0, readOk: 0, cft: 0 };
   for (const g of wire) {
     if (g.kind === 'parseKind') assert.equal(parseKind(g.in), g.out, JSON.stringify(g));
     if (g.kind === 'dropOk') assert.equal(dropOk(g.drop), g.ok, JSON.stringify(g));
@@ -45,9 +45,17 @@ test('kind, dropFlags, css and user agent agree with the Lean golden', () => {
       assert.equal(DIRS[g.wire.kind], g.dir);
       assert.equal(userAgent(g.wire.mobile), g.ua);
     }
+    if (g.kind === 'runnable') assert.equal(runnable(g.profile, g.mode), g.ok, JSON.stringify(g));
+    if (g.kind === 'readOk') assert.equal(readOk(g.inProfiles, g.inProbes, g.declared), g.ok, JSON.stringify(g));
+    if (g.kind === 'cft') {
+      const p = cftPlatform(g.os, g.arch);
+      assert.equal(p, g.platform, JSON.stringify(g));
+      assert.equal(p === null ? null : cftExe(p), g.exe);
+      assert.equal(p === null ? null : cftUrl('156.0.8078.47', p), g.url);
+    }
     if (g.kind in n) n[g.kind]++;
   }
-  assert.ok(n.parseKind >= 5 && n.dropOk >= 10 && n.keep >= 6 && n.wire >= 9, JSON.stringify(n));
+  assert.ok(n.parseKind >= 5 && n.dropOk >= 10 && n.keep >= 6 && n.wire >= 9 && n.runnable === 4 && n.readOk === 8 && n.cft >= 8, JSON.stringify(n));
 });
 
 test('the loader refuses what Lean refuses', () => {
