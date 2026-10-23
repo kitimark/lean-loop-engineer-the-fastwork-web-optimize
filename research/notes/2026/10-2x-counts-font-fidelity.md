@@ -49,22 +49,90 @@ font (4354 of 4354 occurrences covered at 430, 3776 at 1280; .notdef 0), so a bi
   original) and `results/baselines/chromium/*` (earlier image `ebefaf34`) were measured on a page whose text did not render. Every
   absolute Chromium count, frame count and class taken from them is of that page. Differences inside one run (base arm against flag
   arm, A against P) are comparable because both arms ran on one image.
-- Ledger (`research/findings/ledger.json`): 37 of its 53 entries cite a CI run older than the first fonts run (39900399252), so their Chromium
-  counts figures come from the font-less image unless they are WebKit, gate or pixel results. Entries: 2, 4, 6, 8, 9, 11, 12, 14, 21,
-  26 to 53 (26 to 53 all). INFERRED: I did not read each entry's run to tell Chromium counts from other lanes; read an entry's
-  `evidence` run ids before relying on its Chromium number, and prefer its WebKit verdict.
+- Ledger (`research/findings/ledger.json`): 37 of its 53 numbered entries (n = 2, 4, 6, 8, 9, 11, 12, 14, 21, 26 to 53) cite only CI runs older than
+  the first fonts run (39900399252), so their Chromium counts figures come from the font-less image unless they are WebKit, gate or pixel results.
+  INFERRED per entry: the table lists, per entry, the runs its text cites (a regex over the entry's JSON, MEASURED as a list of ids); that an entry's
+  Chromium figure comes from a counts job rather than a gate, WebKit or pixel job is INFERRED from the date alone, because no entry's run was opened.
+  Read an entry's `evidence` run ids before relying on its Chromium number, and prefer its WebKit verdict. Entries 19 (4 of its 5 cited runs older)
+  and 54 (5 of 7) also cite older runs and are not on the list as written; checking them is a follow-up.
+
+| entry n | part | rows | runs cited | newest run cited (all older than 39900399252, the first fonts run) | status |
+|---|---|---|---|---|---|
+| 2 | engine.scroll | 1 | 1 | 39048702153 | INFERRED |
+| 4 | nav.hitTest | 1 | 1 | 39048702153 | INFERRED |
+| 6 | hero.exit | 4 | 26 | 39516092834 | INFERRED |
+| 8 | hero.countdown | 4 | 6 | 39367037943 | INFERRED |
+| 9 | morph.tween | 6 | 20 | 39505203727 | INFERRED |
+| 11 | morph.panel | 5 | 2 | 39106547260 | INFERRED |
+| 12 | morph.mount | 3 | 8 | 39325741608 | INFERRED |
+| 14 | morph.columns | 2 | 3 | 39527779967 | INFERRED |
+| 21 | pain.notes | 3 | 7 | 39343967737 | INFERRED |
+| 26 | premise | 1 | 5 | 39102911529 | INFERRED |
+| 27 | premise | 1 | 5 | 39102911529 | INFERRED |
+| 28 | gate.page-root | 1 | 1 | 39130842058 | INFERRED |
+| 29 | nav.morph | 1 | 1 | 39292323514 | INFERRED |
+| 30 | premise | 1 | 8 | 39340222228 | INFERRED |
+| 31 | premise | 1 | 3 | 39354644363 | INFERRED |
+| 32 | gate.margin | 1 | 4 | 39362804966 | INFERRED |
+| 33 | premise | 1 | 4 | 39370632229 | INFERRED |
+| 34 | load.bundle | 1 | 2 | 39352403687 | INFERRED |
+| 35 | tooling.land | 1 | 3 | 39370530353 | INFERRED |
+| 36 | tooling.land | 1 | 4 | 39345070296 | INFERRED |
+| 37 | tooling.fwcore | 1 | 2 | 39324877968 | INFERRED |
+| 38 | tooling.ci | 1 | 1 | 39332408753 | INFERRED |
+| 39 | nav | 1 | 6 | 39530106935 | INFERRED |
+| 40 | hero | 1 | 7 | 39557718020 | INFERRED |
+| 41 | engine.scroll | 1 | 3 | 39667548341 | INFERRED |
+| 42 | platform | 1 | 4 | 39685930205 | INFERRED |
+| 43 | hero.accent | 1 | 5 | 39699740380 | INFERRED |
+| 44 | platform | 1 | 3 | 39731104953 | INFERRED |
+| 45 | morph.panel | 1 | 6 | 39760667274 | INFERRED |
+| 46 | morph.mount | 1 | 4 | 39781320030 | INFERRED |
+| 47 | pain | 1 | 15 | 39856789295 | INFERRED |
+| 48 | commission | 1 | 7 | 39843567401 | INFERRED |
+| 49 | nav | 1 | 13 | 39887331854 | INFERRED |
+| 50 | nav | 1 | 13 | 39887335005 | INFERRED |
+| 51 | morph.panel | 1 | 8 | 39855506403 | INFERRED |
+| 52 | nav | 1 | 13 | 39887328839 | INFERRED |
+| 53 | people.o | 1 | 22 | 39881193403 | INFERRED |
 
 ## Re-measure on the pick image
 
 - Pick image = the lane image of counts-lane-fonts (`fonts-liberation 1:1.07.4-11`), unchanged by this task.
-- NOT DELIVERED here: the refreeze of `classes.frozen.json` and the zone baselines. Lean's freeze needs >= 3 workflow runs that used one image
-  id (`Fw.Measure.Freeze.freezeTables`, `minRuns` 3, "mixed image digests" refuses). The workflow pins one image across runs through the
-  dispatch input `image_run`; `fw run` does not send it (`Fw.Store.Layout.dispatchInputs`: "`image_run` keeps its default") and
-  `gh workflow run` is refused in the agent sandbox, so a push or `fw run` would build a new image per run. The lead dispatches:
-  for each profile (`swipe-v1`, `swipe-touch-v1`) one run with target both (first run builds the image), then two with `image_run=<first run>`, then
-  `gh run download <id> --dir runs/<id> --pattern 'chromium-c*'`, `node packages/measure-chromium/src/freeze.mjs runs/<three ids> --built-by <first run> --out packages/measure-chromium/classes.frozen.json`,
-  and `node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium`
-  (`pnpm --filter @fw/measure-chromium test` fails until both are regenerated).
+- MEASURED, swipe-v1 on the pick image, three workflow runs of one image: 39914488176 (built the image), 39916914389 and 39916917890 (both
+  `image_run=39914488176`), all branch ci/counts-font-fidelity, sha 3783b391d, image `sha256:47b1dcbe...` in all 18 jobs, 575 frames and document
+  height 6278 px in every job. Frozen classes over the three runs (kMax 4, tMax 24; `freeze.mjs`, Lean `Fw.Measure.Freeze`), deterministic/stable/quarantined
+  of 70 types: original 30/16/24, rewrite 23/22/25. The font-less image gave original 36/25/9 (503 frames, frozen snapshot 499).
+  The quarantined share is the cross-run worst class: one run alone gave 34/26/10 (39900399252).
+- NOT committed here: `classes.frozen.json` and the zone baselines. `freeze.mjs --out` writes the whole file from the runs it is given, and the
+  file holds one image id for all profiles and arms ("image digest across profiles and arms" refuses a mix). A file from the three swipe-v1 runs alone
+  loses the swipe-touch-v1 table and fails 7 tests of `pnpm --filter @fw/measure-chromium test` (the four baseline checks and three faithful comparisons);
+  with the old file all 76 pass. So the refreeze is one step over both profiles, after the touch runs below exist.
+- swipe-touch-v1 run 39914492010 failed in every counts job: `touch swipe did not finish within maxFrames` after 2000 swipe frames (827 s per job).
+  Lean now derives the allowance: `Fw.Measure.Profile.Swipe.budget` = (4 x strokes + 1) x frames per stroke, strokes = ceil(scroll range / finger path),
+  for the font page's scroll range 6278 - 932 = 5346 px, 7 strokes of 82 frames: 2378 (the old page, 4626 px, gives 2050). Theorems: the budget is at least
+  the ideal swipe, monotone in the scroll range, and covers a swipe whose strokes carry only a quarter of their path. Golden rows `touchPage` and
+  `touchBudget` in `packages/contracts/golden/measure/profile.jsonl`; the twin `swipeBudget` in `profile.mjs`; the profile holds 2378 and its test
+  checks the number against the golden. **INFERRED, and doubtful as a cure:** a swipe over 5346 px needs about 7 x 82 = 574 frames (the old page needed
+  531 frames for 4626 px), a quarter of the 2000 that ran out, so a shortage of frames is not the arithmetic reason for the failure; a stall (the
+  swipe stops advancing, for example a touch target at the stroke's start point that takes the vertical pan) fits 2000 frames at 0.41 s each. The
+  error now names scrollY, the page's scroll range, the highest scrollY and the touch events sent, so a third failure shows which it is.
+- Dispatch for the lead (the three swipe-touch-v1 runs must use image_run=39914488176, the image of the swipe-v1 runs, because the freeze refuses two image ids):
+  `gh workflow run chromium-counts.yml --ref ci/counts-font-fidelity -f profile=swipe-touch-v1 -f target=both -f image_run=39914488176` three times; then
+  `gh run download <id> --dir runs/<id> --pattern 'chromium-c*'` for the six runs and
+  `node packages/measure-chromium/src/freeze.mjs runs/39914488176 runs/39916914389 runs/39916917890 runs/<t1> runs/<t2> runs/<t3> --built-by 39914488176 --out packages/measure-chromium/classes.frozen.json`,
+  the zone stores (`pnpm -s fw ci <run> --branch ci/counts-font-fidelity`, then `zone-baseline.mjs --store <store> --target original|rewrite --profile <p> --run <id> --out results/baselines/chromium` per profile and arm),
+  `node packages/measure-chromium/src/zone-baseline.mjs baseline --out results/baselines/chromium`.
+- MEASURED, engine-premises (A/B on the font and font-less images): font image run 39909930901 (sha 3783b391d) against the font-less tree run 39912692117
+  (branch ci/counts-font-fidelity-nofont). Every row reads the same except Chromium `paint` and `raster` of the main step set: font-less 130 of 130 agree
+  (both rows hold), font image 129 of 130 (both rows fail) at step 118, case `margin@own`, act `set`: the model says Paint and RasterTask are absent, all
+  three passes observed them. The extra set (paint 13 of 14, raster 12 of 14) fails the same on both images, and WebKit rows all hold. INFERRED cause: with text
+  drawn, a moved box repaints its glyphs, which the font-less page did not have; the premise rows were written on the font-less page.
+- MEASURED, path-pix on the font image (run 39909931032): Chromium begin-frame, A/A (two loads of one page, must be equal) 28 of 28 E in job 1 and 22 E
+  plus 6 L in job 2; P cells 19 E, 9 L (job 1) and 21 E, 7 L (job 2). The font-less lane gave 29 of 29 E and P 28 E, 1 L in all 8 jobs
+  (research/notes/2026/10-2x-path-pix.md). The Chromium lane is therefore no longer reproducible between jobs on the font image. Simulator: A/A 0 E,
+  19 to 20 L, 6 invalid of 27 in both jobs, P 1 E; same as before (0 E, 21 L, 6 invalid). INFERRED: the 6 L A/A cells of job 2 are text anti-aliasing or a
+  timing difference between loads; no repeat was run, so whether job 1 or job 2 is the typical one is open.
 
 ## Accepted limits
 
