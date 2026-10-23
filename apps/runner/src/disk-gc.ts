@@ -223,7 +223,6 @@ export function gatherNamed(repo: string): string[] | null {
 
 export type EventFacts = { liveAgents: string[]; landedTasks: string[]; finishedRuns: string[]; liveRuns: string[]; landedRuns: string[] };
 
-/** Subjects of main's commits that start with "land " (a fact only; Lean matches "land <branch>"). */
 export function landSubjects(repo: string): string[] | null {
   const r = git(repo, ["log", "refs/heads/main", "--format=%s"]);
   if (r.status !== 0) return null;

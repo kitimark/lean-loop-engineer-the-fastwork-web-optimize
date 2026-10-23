@@ -229,22 +229,18 @@ def ruleLake (cfg : Config) (x : Cand) : Bool :=
   | some lc, some f => lc.root == cfg.roots.lake && x.path == LakeGc.pathOf lc.root f.name && LakeGc.ok lc f
   | _, _ => false
 
-/-- Run `r` owns the worktree directory `path`: its last segment is `r` and a counter, as in `wf_1f18354c-dfd-1`. -/
 def runOwns (r path : String) : Bool := (lastSeg path).startsWith (r ++ "-")
 
-/-- Main carries a land commit naming the worktree's own branch (subject `land <branch>`). -/
 def landCommit (cfg : Config) (x : Cand) : Bool :=
   match cfg.landSubjects with
   | none => false
   | some l => l.contains ("land " ++ x.branch)
 
-/-- The worktree's run is in `landedRuns`: every task the run labelled is done. -/
 def landedByTask (cfg : Config) (x : Cand) : Bool :=
   match cfg.landedRuns with
   | none => false
   | some l => l.any (runOwns · x.path)
 
-/-- A live agent's run owns the worktree; unknown facts count as live. -/
 def usedByLive (cfg : Config) (x : Cand) : Bool :=
   match cfg.liveRuns with
   | none => true
@@ -357,7 +353,6 @@ def exConsole (rel : String) : Cand :=
 #guard !chosen { exCfg with queued := some ["b"] } (exWt .landed "w1" true .free)
 #guard chosen exCfg (exWt .landed "w1" true (.held 7 "Mon Oct  9 1"))
 #guard !chosen { exCfg with procs := some [⟨7, "Mon Oct 9 1"⟩] } (exWt .landed "w1" true (.held 7 "Mon Oct  9 1"))
--- incident inc-gc-landed-ff: a fast-forward onto a landed branch (no land commit of its own) is kept
 #guard !chosen { exCfg with landSubjects := some ["land other"] } (exWt .landed "wf_1f-dfd-1" true .free)
 #guard !chosen { exCfg with landSubjects := none } (exWt .landed "w1" true .free)
 #guard !chosen { exCfg with liveRuns := some ["wf_1f-dfd"] } (exWt .landed "wf_1f-dfd-1" true .free)
@@ -367,7 +362,6 @@ def exConsole (rel : String) : Cand :=
 #guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-dfd"], liveRuns := some ["wf_1f-dfd"] }
   (exWt .landed "wf_1f-dfd-1" true .free)
 #guard !chosen { exCfg with landSubjects := some [], landedRuns := some ["wf_1f-df"] } (exWt .landed "wf_1f-dfd-1" true .free)
--- a reopened branch (land commit on main, tip not on main) is kept
 #guard !chosen exCfg (exWt .landed "w1" false .free)
 #guard !chosen { exCfg with landSubjects := some ["land open"] } (exWt .landed "w1" false .free)
 #guard chosen exCfg (exWt .idle "w1/lean/.lake" false .free)
@@ -574,7 +568,6 @@ theorem rule_landed (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select
     beq_iff_eq] at hr
   exact ⟨hr.1.1.1.1.1, hr.1.1.1.1.2, hr.1.1.1.2, hr.1.1.2, hr.1.2, hr.2⟩
 
-/-- Branch a land commit on main names: the landed class selects it by that identity. -/
 theorem landed_by_identity (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
     (∃ l, cfg.landSubjects = some l ∧ ("land " ++ x.branch) ∈ l) ∨
     (∃ l, cfg.landedRuns = some l ∧ ∃ r ∈ l, runOwns r x.path = true) := by
@@ -590,7 +583,6 @@ theorem landed_by_identity (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈
     | none => simp [hs] at h1
     | some l => rw [hs] at h1; exact ⟨l, rfl, by simpa using h1⟩
 
-/-- A worktree a live agent's run owns is never selected as landed. -/
 theorem landed_never_live (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
     ∃ l, cfg.liveRuns = some l ∧ ∀ r ∈ l, runOwns r x.path = false := by
   have h1 := (rule_landed cfg xs x h hc).2.2.2.2.1
@@ -604,15 +596,12 @@ theorem landed_never_live (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ 
     · rfl
     · simp at h1; exact absurd hb (by simp [h1 r hr])
 
-/-- A fast-forward onto another landed branch gives no identity: when main has no land commit naming the
-worktree's branch and no landed task owns it, the worktree is not selected. -/
 theorem fast_forward_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
     (hl : landCommit cfg x = false) (ht : landedByTask cfg x = false) : x ∉ select cfg xs := by
   intro h
   have := (rule_landed cfg xs x h hc).2.2.1
   simp [hl, ht] at this
 
-/-- A branch whose land commit is on main, clean, unused by a live run and passing the guard is selected. -/
 theorem land_commit_selects (cfg : Config) (x : Cand) (hcl : x.cls ∈ cfg.classes) (hc : x.cls = .landed)
     (hg : guard cfg x = true) (hd : x.dir = true) (hb : x.branch ≠ "") (hl : landCommit cfg x = true)
     (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false) :
@@ -620,7 +609,6 @@ theorem land_commit_selects (cfg : Config) (x : Cand) (hcl : x.cls ∈ cfg.class
   simp [chosen, hg, rule, hc, ruleLanded, hd, hb, hl, hm, hu, hy] at *
   exact hcl
 
-/-- A reopened branch (its land commit is on main, its tip is not) is never selected as landed. -/
 theorem reopened_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
     (hm : x.merged ≠ some true) : x ∉ select cfg xs := by
   intro h
@@ -811,11 +799,9 @@ def namesOf (es : List Ev) (a : String) : List String :=
 def running (es : List Ev) (a : String) : Bool :=
   !stopped es a && !((runOf es a).any fun r => (finishedRuns es).contains r)
 
-/-- Runs of agents that are still running. -/
 def liveRuns (es : List Ev) : List String :=
   (((agentsOf es).filter (running es)).filterMap (runOf es)).eraseDups
 
-/-- Runs whose every labelled task is done: one task not done keeps the run's worktrees. -/
 def landedRuns (es : List Ev) : List String :=
   (((labelled es).filterMap fun e => runOfLabel e.key).eraseDups).filter fun r =>
     (labelled es).all fun e => runOfLabel e.key != some r || (landedTasks es).contains e.name
@@ -889,7 +875,6 @@ theorem landedRuns_spec (es : List Ev) (r : String) (h : r ∈ landedRuns es) :
   have := (List.all_eq_true.mp hall) e' he'
   simpa [hr', List.contains_iff_mem] using this
 
-/-- One labelled task of the run not done keeps the run out of `landedRuns`. -/
 theorem landedRuns_undone (es : List Ev) (r : String) (e : Ev) (he : e ∈ labelled es)
     (hr : runOfLabel e.key = some r) (hn : e.name ∉ landedTasks es) : r ∉ landedRuns es :=
   fun h => hn ((landedRuns_spec es r h).2 e he hr)

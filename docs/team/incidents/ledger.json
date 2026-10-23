@@ -4483,7 +4483,7 @@
    "at": "2026-10-24T05:02+07:00",
    "title": "fw watch disk-gc removed a live builder's worktree after a fast-forward onto a branch that landed",
    "symptom": "Worktree wf_1f18354c-dfd-1 (builder polish-strays-sound) was removed mid-task right after worktree-wf_efb32ee2-da5-1 landed (b1145f326).",
-   "cause": "CONFIRMED (reflog; apps/runner/src/disk-gc.ts landedOf at 284b4b75c): the branch was created at 17087c97f and fast-forwarded onto the unlanded dependency branch at 05:02:40; when that branch landed, landedOf (tip moved since creation and tip is an ancestor of main) returned true, so the landed class selected a worktree whose own work was not on main. Ancestry was inferred as landing; no identity (a land commit naming the branch, or the owning task done) and no live-agent check was involved.",
+   "cause": "CONFIRMED (reflog; apps/runner/src/disk-gc.ts landedOf at 284b4b75c): the branch was created at 17087c97f and fast-forwarded onto the unlanded dependency branch at 05:02:40; when that branch landed, landedOf (tip moved since creation and tip is an ancestor of main) returned true, so the landed class selected a worktree whose own work was not on main. Ancestry alone counted as landing, with no identity check (land commit naming the branch, or owning task done) and no live-agent check.",
    "evidence": [
     {
      "kind": "commit",
