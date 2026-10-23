@@ -24,7 +24,7 @@ Every 1.02 s the swap row shows for 220 ms (13 frames at 60 Hz, `swapFrames_60`)
 Any split of the `avatars-exit` properties into effects leaves a piece that holds `width`. That piece is not accelerated on
 either engine (WebKit: `layout_not_accelerated`, `piece_main`; Chromium: bit 13), so it ticks on main every frame and
 its frame runs a layout pass, in every mode and on every layer state. Layout can only go by changing what is animated,
-which changes the look. This is the finding for the same-look preset: nothing to ship there.
+which changes the look. The same-look preset has nothing to ship.
 
 ## Deviation from the ledger's first design
 
@@ -52,7 +52,7 @@ CI has no real GPU; the felt-lag check on the phone is the user's. A no-win on a
 | lane | run | result |
 |---|---|---|
 | trajectory-probe, fw=people.carousel:crop, both engines, all widths (inputs read back from the step name: commit-line) | 39896845339 | success. Chromium hero and morph units RED as in the faithful arm (42 fail in both) plus one new unit nav.background-color 1280 close@0, not this part; Linux WebKit CLEAN (hero path) |
-| GPU carousel cell, people zone (avatar rects per frame, Chromium, 390 and 640) | same run, artifact cells-gpu-chromium | grade L at both widths, 4 reps each, swaps 4 against 4: the rects differ because the leaver keeps its box (Lean `leaver_box_differs`), as class L says |
+| GPU carousel cell, people zone (avatar rects per frame, Chromium, 390 and 640) | same run, artifact cells-gpu-chromium | grade L at both widths, 4 reps each, swaps 4 against 4: the rects differ because the leaver keeps its box (Lean `leaver_box_differs`) |
 | breakpoint gate, both engines, fw=people.carousel:crop | 39898995879 | pass |
 | webkit-sim lag+cost, rewrite, 430x775, vms 3, base | 39899015125 | r1 and r2 gave lag json (r3 cancelled after r2 failed) |
 | webkit-sim lag+cost, same, fw=people.carousel:crop | 39899018175 | failed, no data (Safari lost in every VM) |
@@ -63,7 +63,7 @@ Dispatches used: 4 of 6 (gate 1, webkit-sim 3).
 WebKit cost (end of page = scroll B, the people zone; base 3 passes, flag 6 passes): no counter and no frame-cadence value differs
 beyond overlapping ranges (Paint, Composite, Layout, RecalculateStyles, skipped slots, over 25 ms, over 50 ms). This is
 not a no-win proof. The lane scrolls in steps through the page and does not sample inside the 220 ms swap windows, which hold 13
-layout frames of every 61, and the Simulator is noisy (wide ranges). What the lane does show, and the Lean layer budget predicts:
+layout frames of every 61, and the Simulator is noisy (wide ranges). The lane does show, as the Lean layer budget predicts, a
 layer census at the end-of-page state 124 layers against 128 (+4) and compositing reason `animation` 5 against 8.
 Follow-up outside the unit: a lane that samples inside the swap windows (the time-driven swap), and the felt-lag check on the phone.
 
