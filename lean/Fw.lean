@@ -160,6 +160,7 @@ import Fw.Plan.Incident
 import Fw.Plan.Overlap
 import Fw.Plan.ReviewReady
 import Fw.Plan.Workflow
+import Fw.Plan.WritesClosure
 import Fw.Obs.Timing
 import Fw.Obs.Backoff
 import Fw.Ci.Trigger

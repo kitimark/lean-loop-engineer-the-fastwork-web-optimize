@@ -215,7 +215,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl",
     "packages/contracts/golden/gate/image-arm.jsonl", "packages/contracts/golden/parts/hero.accent.drawone.jsonl", "packages/contracts/golden/parts/footprint.classpos.jsonl", "packages/contracts/golden/parts/people-o-preview.jsonl", "packages/contracts/golden/parts/morph-idle-none.jsonl",
     "packages/contracts/golden/ops/rebuild-facts.jsonl",
-    "packages/contracts/golden/ops/rebuild.jsonl",
+    "packages/contracts/golden/ops/rebuild.jsonl", "packages/contracts/golden/plan/writes-closure.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
     ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "lean.yml", ".node-version"], []⟩,
   ⟨"linux-webkit-probe.yml", ["ci/linux-webkit-probe"], [
