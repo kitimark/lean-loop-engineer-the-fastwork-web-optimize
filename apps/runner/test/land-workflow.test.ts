@@ -11,8 +11,6 @@ import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const script = join(root, "scripts/check-workflows.sh");
-// The check runs in the local tier only; runners without actionlint (the GitHub land lane) skip the cases that need it.
-const hasActionlint = spawnSync("actionlint", ["-version"]).status === 0;
 type Row =
   | { kind: "select"; name: string; request: { changed: string[]; reads: string[] }; response: { select: string[] } }
   | { kind: "verdict"; name: string; request: { installed: boolean; findings: Finding[] }; response: { verdict: string; exit: number } };
@@ -64,24 +62,24 @@ const noActionlintPath = () => {
 const run = (args: string[], env: NodeJS.ProcessEnv = process.env) => spawnSync("/bin/sh", [script, ...args], { cwd: root, encoding: "utf8", env });
 
 describe("scripts/check-workflows.sh", () => {
-  it.skipIf(!hasActionlint)("a clean workflow passes", () => {
+  it("a clean workflow passes", () => {
     const r = run([put("ok.yml", wf("          A: 1\n"))]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("workflow-lint: pass");
   });
-  it.skipIf(!hasActionlint)("a duplicated env key fails with actionlint's reason (inc-workflow-dup-key)", () => {
+  it("a duplicated env key fails with actionlint's reason (inc-workflow-dup-key)", () => {
     const r = run([put("dup.yml", wf("          SEARCH: a\n          SEARCH: b\n"))]);
     expect(r.status).toBe(1);
     expect(r.stdout).toContain("[syntax-check]");
     expect(r.stdout).toContain("SEARCH");
     expect(r.stdout).toContain("duplicated");
   });
-  it.skipIf(!hasActionlint)("an unknown expression property fails", () => {
+  it("an unknown expression property fails", () => {
     const r = run([put("expr.yml", wf("          A: ${{ github.nope }}\n"))]);
     expect(r.status).toBe(1);
     expect(r.stdout).toContain("[expression]");
   });
-  it.skipIf(!hasActionlint)("a shellcheck finding alone is a warning", () => {
+  it("a shellcheck finding alone is a warning", () => {
     const r = run([put("sc.yml", `on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $HOME_X\n`)]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("warning [shellcheck]");
@@ -92,7 +90,7 @@ describe("scripts/check-workflows.sh", () => {
     expect(r.status).toBe(3);
     expect(r.stdout).toContain("REFUSED workflow-lint: actionlint is not installed");
   });
-  it.skipIf(!hasActionlint)("the repo's workflow files pass today", () => {
+  it("the repo's workflow files pass today", () => {
     const r = run([]);
     expect(r.stdout).toContain("workflow-lint:");
     expect(r.status).toBe(0);
@@ -106,7 +104,7 @@ describe("the land refuses", () => {
     const code = await runTier([c], root, fwcoreCall(root), spawnRunner, (s) => log.push(s));
     return { code, text: log.join("\n") };
   };
-  it.skipIf(!hasActionlint)("a duplicated env key refuses the land", async () => {
+  it("a duplicated env key refuses the land", async () => {
     const r = await land(check(put("dup.yml", wf("          SEARCH: a\n          SEARCH: b\n"))));
     expect(r.code).toBe(1);
     expect(r.text).toContain("VERDICT fail workflow-lint");
@@ -116,7 +114,7 @@ describe("the land refuses", () => {
     expect(r.code).toBe(1);
     expect(r.text).toContain("REFUSED workflow-lint: actionlint is not installed");
   });
-  it.skipIf(!hasActionlint)("a clean workflow passes the land", async () => {
+  it("a clean workflow passes the land", async () => {
     const r = await land(check(put("ok.yml", wf("          A: 1\n"))));
     expect(r.code).toBe(0);
   });
