@@ -16,20 +16,142 @@ The writes-closure rule and its proofs are in `lean/Fw/Plan/WritesClosure.lean`.
 differs (`previousGraph`, from `git log --first-parent`). It refuses only the writesClosure errors the new graph adds
 (Lean `newErrors`). Each lint sends its scope requests in one batch to fwcore (`scopeBatch`). It tries, in order,
 `FW_CORE_BIN` and `lean/.lake/build/bin/fwcore` in the current checkout, the main checkout and each worktree
-(`coreCandidates`). With none built, sync sends nothing and throws `plan lint: writes closure: fwcore not built: sh scripts/fwcore-build.sh`.
+(`coreCandidates`). With none built, sync throws `plan lint: writes closure: fwcore not built: sh scripts/fwcore-build.sh`.
 
 The gaps both lints use come from `scripts/ci-paths.mjs` `leanInputGaps`: every `../` path a `lean/scripts/*.sh` reads
-that the lean.yml row globs miss. `node scripts/ci-paths.mjs --check` refuses a row glob outside Lean `rowGlob`
-(letters, digits, `._-/*`, one leading `!`), the subset on which the JS matcher and Lean `ghMatches` agree.
+that the lean.yml row globs miss. A read with a `..` segment counts as a non-literal read and is refused (Lean
+`readPath`, `dotdot_gap`), so a `**` row glob cannot cover `lean/../x`. `node scripts/ci-paths.mjs --check` refuses a row
+glob outside Lean `rowGlob` (letters, digits, `._-/*`, one leading `!`). MEASURED: on that subset the JS `matches` and
+Lean `ghMatches` agree on the golden `agree` rows of `packages/contracts/golden/plan/writes-closure.jsonl` (globs built
+from `**`, `***`, `**/` and the prefixes of longer patterns, each alone and as `**` minus it, over a path list), replayed by
+`apps/runner/test/plan-closure.test.ts`. INFERRED beyond those rows. Limit: a path with a line terminator (`\n`, `\r`,
+U+2028, U+2029) can differ, since the JS `.*` stops at it and Lean `**` does not; `git ls-files` lists none.
 
 ## Time
 
-MEASURED (`.fw-console/timings.jsonl`, tool `fw`, step `plan sync`, exit 0; `pnpm fw timings --tool fw`):
+<!-- plan-time begin: node scripts/ci-paths.mjs --plan-time -->
+MEASURED (the samples below, 2026-10-17 to 2026-10-23: every exit-0 `plan sync` span of the tool `fw` in the main checkout's
+`.fw-console/timings.jsonl`, any load; a run is "with it" when its commit contains 9a09d8066):
 
-| Window | n | p50 | p90 |
-|---|---|---|---|
-| last 30 runs before the closure check | 30 | 180 ms | 197 ms |
-| first run with it | 1 | 642 ms | 642 ms |
+| Window | n | p50 | p90 | max |
+|---|---|---|---|---|
+| last 30 runs before the closure check | 30 | 180 ms | 197 ms | 4177 ms |
+| every run with it | 7 | 618 ms | 811 ms | 811 ms |
 
-MEASURED: `syncClosureRefusal` alone on the live graph, in a worktree, load average 5: 374-404 ms over 5 calls.
-INFERRED: the closure check adds about 0.4 s to each sync.
+INFERRED: the closure check adds about 438 ms to a sync (p50 with it minus p50 before).
+
+<details><summary>Samples (node scripts/ci-paths.mjs --plan-time --refresh &lt;timings.jsonl&gt;)</summary>
+
+```jsonl
+{"commit":"33a43f1","startMs":1792272400190,"durMs":134,"load":13.92,"closure":false}
+{"commit":"15ea289","startMs":1792272465257,"durMs":225,"load":12.34,"closure":false}
+{"commit":"f658e90","startMs":1792339141836,"durMs":3011,"load":33.68,"closure":false}
+{"commit":"3600b28","startMs":1792341636083,"durMs":5059,"load":14.28,"closure":false}
+{"commit":"175b220","startMs":1792341861590,"durMs":24231,"load":24.85,"closure":false}
+{"commit":"bb96849","startMs":1792341927066,"durMs":2784,"load":32.42,"closure":false}
+{"commit":"bb96849","startMs":1792341952651,"durMs":3343,"load":25.8,"closure":false}
+{"commit":"9e09d31","startMs":1792343149109,"durMs":2909,"load":14.4,"closure":false}
+{"commit":"6d936ec","startMs":1792344231200,"durMs":6673,"load":37.99,"closure":false}
+{"commit":"c2cadc6","startMs":1792344951020,"durMs":2529,"load":6.18,"closure":false}
+{"commit":"16207af","startMs":1792346054082,"durMs":3120,"load":20.49,"closure":false}
+{"commit":"b14ccfd","startMs":1792372498976,"durMs":4769,"load":47.08,"closure":false}
+{"commit":"cc692c5","startMs":1792374590126,"durMs":5495,"load":20.02,"closure":false}
+{"commit":"d278451","startMs":1792375603373,"durMs":2648,"load":42.25,"closure":false}
+{"commit":"ce472ed","startMs":1792381252784,"durMs":4159,"load":11.57,"closure":false}
+{"commit":"e492775","startMs":1792383723072,"durMs":6477,"load":140.14,"closure":false}
+{"commit":"046320e","startMs":1792386870102,"durMs":2826,"load":39.92,"closure":false}
+{"commit":"84e6937","startMs":1792389125524,"durMs":3513,"load":23.28,"closure":false}
+{"commit":"cd4f73d","startMs":1792394833429,"durMs":3161,"load":9.86,"closure":false}
+{"commit":"fcc1ca2","startMs":1792401916371,"durMs":35454,"load":125.46,"closure":false}
+{"commit":"cd4c6e7","startMs":1792407212394,"durMs":5085,"load":179.44,"closure":false}
+{"commit":"473b49c","startMs":1792413014932,"durMs":9374,"load":53.09,"closure":false}
+{"commit":"a7bd022","startMs":1792416363009,"durMs":103750,"load":9.42,"closure":false}
+{"commit":"ceb8bcb","startMs":1792419093785,"durMs":149,"load":46.78,"closure":false}
+{"commit":"3d6dca3","startMs":1792423985359,"durMs":371,"load":7.82,"closure":false}
+{"commit":"1e6ac92","startMs":1792424405428,"durMs":535,"load":9.19,"closure":false}
+{"commit":"836bbba","startMs":1792425033397,"durMs":153,"load":9.82,"closure":false}
+{"commit":"78649ae","startMs":1792425204751,"durMs":366,"load":28.19,"closure":false}
+{"commit":"dcd3e13","startMs":1792427516844,"durMs":511,"load":11.88,"closure":false}
+{"commit":"e25e6f9","startMs":1792428308740,"durMs":139,"load":38.78,"closure":false}
+{"commit":"98ff922","startMs":1792436033962,"durMs":4418,"load":12.68,"closure":false}
+{"commit":"5d31990","startMs":1792436057913,"durMs":162,"load":10.08,"closure":false}
+{"commit":"5b808ca","startMs":1792436847741,"durMs":383,"load":32.2,"closure":false}
+{"commit":"92403f8","startMs":1792437299854,"durMs":1098,"load":27.25,"closure":false}
+{"commit":"84d779c","startMs":1792438195346,"durMs":845,"load":16.6,"closure":false}
+{"commit":"bcf9c7e","startMs":1792438538994,"durMs":1022,"load":21.08,"closure":false}
+{"commit":"9fcd232","startMs":1792439696426,"durMs":4479,"load":110.92,"closure":false}
+{"commit":"0d637d8","startMs":1792441071340,"durMs":62058,"load":65.92,"closure":false}
+{"commit":"0e50f16","startMs":1792442075182,"durMs":46229,"load":78.6,"closure":false}
+{"commit":"89a3930","startMs":1792442950838,"durMs":95766,"load":108.22,"closure":false}
+{"commit":"596968a","startMs":1792444945123,"durMs":163042,"load":53.1,"closure":false}
+{"commit":"8dbb207","startMs":1792571978921,"durMs":196,"load":8.6,"closure":false}
+{"commit":"4ad520b","startMs":1792595302198,"durMs":163,"load":7.38,"closure":false}
+{"commit":"81389a7","startMs":1792606989237,"durMs":723,"load":21.27,"closure":false}
+{"commit":"9824f53","startMs":1792684922266,"durMs":215,"load":4.23,"closure":false}
+{"commit":"b31fb9f","startMs":1792695281485,"durMs":165,"load":2.45,"closure":false}
+{"commit":"469c06f","startMs":1792698619133,"durMs":165,"load":4.94,"closure":false}
+{"commit":"9cab0de","startMs":1792700883952,"durMs":165,"load":4.77,"closure":false}
+{"commit":"a9df3f3","startMs":1792701869147,"durMs":305,"load":2.51,"closure":false}
+{"commit":"21d649e","startMs":1792702250008,"durMs":162,"load":4.23,"closure":false}
+{"commit":"39ca012","startMs":1792703031283,"durMs":159,"load":4.44,"closure":false}
+{"commit":"c860dd6","startMs":1792704059345,"durMs":183,"load":2.85,"closure":false}
+{"commit":"d006881","startMs":1792704466538,"durMs":178,"load":2.66,"closure":false}
+{"commit":"34afa67","startMs":1792705958553,"durMs":160,"load":2.65,"closure":false}
+{"commit":"27a6632","startMs":1792706021177,"durMs":160,"load":2.41,"closure":false}
+{"commit":"7530602","startMs":1792707860222,"durMs":392,"load":2.79,"closure":false}
+{"commit":"39dc603","startMs":1792708060553,"durMs":183,"load":4.39,"closure":false}
+{"commit":"9e8a9ea","startMs":1792708978401,"durMs":165,"load":2.58,"closure":false}
+{"commit":"462fe29","startMs":1792709657223,"durMs":174,"load":2.95,"closure":false}
+{"commit":"b83d8f2","startMs":1792710843556,"durMs":179,"load":3.09,"closure":false}
+{"commit":"5aa0372","startMs":1792711812656,"durMs":182,"load":2.95,"closure":false}
+{"commit":"68a9fbc","startMs":1792712880970,"durMs":284,"load":73.44,"closure":false}
+{"commit":"e5c3d52","startMs":1792717785977,"durMs":243,"load":7.06,"closure":false}
+{"commit":"6a88a54","startMs":1792720206462,"durMs":203,"load":50,"closure":false}
+{"commit":"737ba02","startMs":1792721520480,"durMs":187,"load":4.9,"closure":false}
+{"commit":"b26c005","startMs":1792721771530,"durMs":204,"load":4.81,"closure":false}
+{"commit":"29421eb","startMs":1792722147587,"durMs":176,"load":3.08,"closure":false}
+{"commit":"3929e80","startMs":1792722912937,"durMs":194,"load":3.22,"closure":false}
+{"commit":"deb64c9","startMs":1792723780845,"durMs":170,"load":4.29,"closure":false}
+{"commit":"7b6d7e0","startMs":1792726408777,"durMs":191,"load":4.18,"closure":false}
+{"commit":"2128ead","startMs":1792728689023,"durMs":178,"load":2.21,"closure":false}
+{"commit":"ef20aa1","startMs":1792729205683,"durMs":184,"load":3.27,"closure":false}
+{"commit":"cdced2f","startMs":1792731245182,"durMs":173,"load":4.89,"closure":false}
+{"commit":"0e98218","startMs":1792732028586,"durMs":212,"load":2.19,"closure":false}
+{"commit":"7cfa859","startMs":1792732408613,"durMs":160,"load":2.14,"closure":false}
+{"commit":"a085f6e","startMs":1792736649884,"durMs":173,"load":4.61,"closure":false}
+{"commit":"a89c4e9","startMs":1792738432432,"durMs":174,"load":2.43,"closure":false}
+{"commit":"bbb0177","startMs":1792741105306,"durMs":177,"load":3.57,"closure":false}
+{"commit":"31bf66d","startMs":1792741881932,"durMs":175,"load":3.38,"closure":false}
+{"commit":"132cfa8","startMs":1792742024646,"durMs":174,"load":2.43,"closure":false}
+{"commit":"d412bdb","startMs":1792742497855,"durMs":179,"load":2.86,"closure":false}
+{"commit":"6d61219","startMs":1792742606368,"durMs":166,"load":3.25,"closure":false}
+{"commit":"804383d","startMs":1792743727711,"durMs":180,"load":2.88,"closure":false}
+{"commit":"fb29f12","startMs":1792744779989,"durMs":190,"load":5.01,"closure":false}
+{"commit":"8902787","startMs":1792745157769,"durMs":185,"load":2.19,"closure":false}
+{"commit":"ba7e246","startMs":1792746430771,"durMs":176,"load":3.36,"closure":false}
+{"commit":"b3f6f21","startMs":1792746939034,"durMs":181,"load":2.87,"closure":false}
+{"commit":"1baf5a8","startMs":1792746987256,"durMs":4177,"load":40.02,"closure":false}
+{"commit":"b5701fd","startMs":1792748123589,"durMs":614,"load":7.76,"closure":false}
+{"commit":"d330737","startMs":1792749409729,"durMs":192,"load":8.14,"closure":false}
+{"commit":"f3248e9","startMs":1792749947512,"durMs":189,"load":3.09,"closure":false}
+{"commit":"9509fe7","startMs":1792750639556,"durMs":175,"load":3.4,"closure":false}
+{"commit":"4a5b76c","startMs":1792751706949,"durMs":197,"load":4.04,"closure":false}
+{"commit":"578e809","startMs":1792753278647,"durMs":178,"load":5.12,"closure":false}
+{"commit":"5ceb4c4","startMs":1792755578109,"durMs":191,"load":5.37,"closure":false}
+{"commit":"8960fd0","startMs":1792755761828,"durMs":186,"load":3.91,"closure":false}
+{"commit":"c1562f3","startMs":1792757416232,"durMs":189,"load":3.51,"closure":false}
+{"commit":"fdcc444","startMs":1792758303937,"durMs":180,"load":2.9,"closure":false}
+{"commit":"6147a58","startMs":1792758580217,"durMs":174,"load":1.73,"closure":false}
+{"commit":"832ccd0","startMs":1792759677181,"durMs":188,"load":2.86,"closure":false}
+{"commit":"e655a02","startMs":1792759703646,"durMs":181,"load":2.82,"closure":false}
+{"commit":"7e4722c","startMs":1792761441910,"durMs":642,"load":4.41,"closure":true}
+{"commit":"0c14dc9","startMs":1792762439888,"durMs":811,"load":5.5,"closure":true}
+{"commit":"56da218","startMs":1792764799844,"durMs":598,"load":2.38,"closure":true}
+{"commit":"8c7bddc","startMs":1792765348099,"durMs":618,"load":2.86,"closure":true}
+{"commit":"f5403a0","startMs":1792766298302,"durMs":698,"load":12.43,"closure":true}
+{"commit":"3c0a438","startMs":1792769065616,"durMs":611,"load":3.21,"closure":true}
+{"commit":"9b9c49c","startMs":1792769922222,"durMs":592,"load":5.41,"closure":true}
+```
+
+</details>
+<!-- plan-time end -->

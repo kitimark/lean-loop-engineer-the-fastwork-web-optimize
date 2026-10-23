@@ -18554,7 +18554,8 @@
     "apps/runner/test/plan-closure.test.ts",
     "docs/team/handoffs/writes-closure-doc-touchups.md"
    ],
-   "title": "writes-closure-polish (landed 2d9d55153) review follow-ups: (1) docs/team/tools/plan.md time table: n=2, p50 642 ms, max 811 ms, 'about 0.4-0.6 s'; (2) the claim that JS matches and Lean ghMatches agree on rowGlob-valid globs: add golden vectors comparing matches with ghMatches over rowGlob-valid globs (**, ***, **/ and prefixes) and replay them, or mark it INFERRED; (3) normRead keeps '..', so a '**' row glob also matches 'lean/../x': refuse '..' segments in reads or state the limit."
+   "title": "writes-closure-polish (landed 2d9d55153) review follow-ups: (1) docs/team/tools/plan.md time table: n=2, p50 642 ms, max 811 ms, 'about 0.4-0.6 s'; (2) the claim that JS matches and Lean ghMatches agree on rowGlob-valid globs: add golden vectors comparing matches with ghMatches over rowGlob-valid globs (**, ***, **/ and prefixes) and replay them, or mark it INFERRED; (3) normRead keeps '..', so a '**' row glob also matches 'lean/../x': refuse '..' segments in reads or state the limit.",
+   "evidence": "a7a959b"
   },
   {
    "devices": [
@@ -18635,7 +18636,7 @@
     "apps/runner/src/timing*.ts",
     "apps/runner/test/timing*.test.ts"
    ],
-   "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test. (3) 2026-10-23 alert timing.slow 'fw/land dry lake': a 51 s sample (commit ffb7792) without a lake field, written by a worktree on pre-key fw code, was judged against the unkeyed baseline; once a step has keyed samples, an unkeyed sample gets no verdict (Lean rule in Fw.Obs.Timing with golden), and the alert closes."
+   "title": "timing-module-count review follow-ups: (1) a land.test case for the land dry lake note (module count recorded on the timing sample); (2) polish.ts realRun sets the lake field only when the run's status === 0, with a test. (3) 2026-10-23 alert timing.slow 'fw/land dry lake': a 51 s sample (commit ffb7792) without a lake field, written by a worktree on pre-key fw code, was judged against the unkeyed baseline; once a step has keyed samples, an unkeyed sample gets no verdict (Lean rule in Fw.Obs.Timing with golden), and the alert closes. (4) the alert stayed OPEN after keyed samples at commit 19dd16e (lake built 0: 26.4 s, 25.3 s, 26.5 s; d08e461 built 0: 30.0 s): find which sample and baseline the verdict compares (print them in the alert detail), fix the rule if it compares across module counts or hosts, with a golden row from these samples."
   },
   {
    "devices": [
@@ -18672,6 +18673,26 @@
     "docs/team/handoffs/ci-lake-cache-fresh.md"
    ],
    "title": "ci-setup-lean-slow follow-ups (2026-10-23): (1) prune step in lean.yml job lean after the build (find \"$LAKE_CACHE_DIR\" -type f -links 1 -delete) so the saved blob shrinks; prove with one lean.yml run printing link counts and blob size before/after; (2) land legs on ci/land-* can restore only main's lake entry, refreshed only when main is pushed (it was up to 2.5 h old, so fwcore build rebuilt 78-81 modules, about 90 s per leg): measure fwcore build time vs entry age over the next lands now that the lead pushes main after each land, and state whether a per-land main push is enough or the lean job should also save a cache from ci/land-* under a key main can restore; (3) cache storage at 9.48 of 10 GB (8.97 GB lake entries): list which ci/* lake entries are never restored and propose an eviction rule (deleting caches needs the user's OK). Workflow trigger changes go to open."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "writes-closure-readsof-boundary",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "writes-closure-doc-touchups"
+   ],
+   "writes": [
+    "lean/Fw/Plan/WritesClosure.lean",
+    "packages/contracts/golden/plan/writes-closure.jsonl",
+    "scripts/ci-paths.mjs",
+    "apps/runner/test/plan-closure.test.ts",
+    "docs/team/tools/plan.md",
+    "docs/team/handoffs/writes-closure-readsof-boundary.md"
+   ],
+   "title": "writes-closure-doc-touchups review follow-ups (2026-10-23): (1) Lean readsOf treats any '../' substring as a read start, so 'x/../y' in a script yields the read 'y' instead of being refused for its '..' segment: require a word boundary before '../' (theorem + golden + JS twin + test); (2) the plan.md time table pools samples at any load (before window has 614 ms and 4177 ms runs; 10-17/18 at load 10-140): compute it over a calm-load window (Fw.Obs.Timing contended/calmLoad) and --refresh from main's timings.jsonl; (3) scripts/ci-paths.mjs header 'Run:' line: add '--plan-time [--refresh <timings.jsonl>] [--check]'."
   }
  ],
  "deadline": {
