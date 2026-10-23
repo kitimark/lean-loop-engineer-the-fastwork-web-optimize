@@ -298,13 +298,13 @@ export const laneFails = (vs) => vs.some(isFail);
  */
 export function rel(cand, base) {
   const c = isFail(cand), b = base !== undefined && isFail(base);
-  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : 'new';
-  return b ? 'cleared' : 'ok';
+  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : base === skip('firstOpen') ? 'undecided' : 'new';
+  if (b) return 'cleared';
+  return cand === skip('firstOpen') ? 'undecided' : 'ok';
 }
-/** Lean `laneRed`: the candidate is red when some unit is new. */
 export const laneRed = (rels) => rels.includes('new');
+export const laneOf = (rels) => (laneRed(rels) ? 'red' : rels.includes('undecided') ? 'undecided' : 'clean');
 
-// ---- which arm was measured (Lean `armCheck`, `runCheck`) ---------------------------------------------------------------------
 
 /** Lean `armCheck`: 'ok' or 'refused:config'. An arm is { site, want, config, mode }, each of the last three a string or null. */
 export function armCheck(a) {
@@ -502,7 +502,36 @@ export function byMId(ph, p, kind, d, oSeg, wSeg, conv) {
 export const byMRule = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   (id ? byMId(ph, p, kind, d, oSeg, wSeg, conv) : byMStart(ph, p, kind, d, e, oSeg, wSeg));
 
-/** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
+export const OPEN_PH = 0;
+
+export const firstFrame = (ph, p, b) => ph === 'push' && p === OPEN_PH && b === 1;
+
+export const hasBucket = (seg, p, b) => seg.some((s) => s.ph === p && bucket(s.m) === b);
+
+export const ALPHA = [1n, 20n];
+
+const chanceCmp = (no, j, nw) => {
+  if (no === 0) return nw === 0 ? 1 : -1;
+  const lhs = ALPHA[1] * BigInt(Math.max(0, no - j)) ** BigInt(nw), rhs = ALPHA[0] * BigInt(no) ** BigInt(nw);
+  return lhs > rhs ? 1 : lhs < rhs ? -1 : 0;
+};
+
+export const firstCover = (no, k, nw) =>
+  (k >= 1 && chanceCmp(no, k - 1, nw) <= 0 ? 'missing' : chanceCmp(no, k + 1, nw) > 0 ? 'late' : 'undecided');
+
+export const coverVerdict = (c) => (c === 'missing' ? fail('coverage') : c === 'late' ? skip('firstLate') : skip('firstOpen'));
+
+export const passes = (seg, p) => new Set(seg.filter((s) => s.ph === p).map((s) => s.rep ?? 0)).size;
+
+export const passesIn = (seg, p, b) => new Set(seg.filter((s) => s.ph === p && bucket(s.m) === b).map((s) => s.rep ?? 0)).size;
+
+export const firstVerdict = (ph, p, b, oSeg, wSeg, v) =>
+  firstFrame(ph, p, b) && !hasBucket(wSeg, p, b) && v === fail('coverage')
+    ? coverVerdict(firstCover(passes(oSeg, p), passesIn(oSeg, p, b), passes(wSeg, p))) : v;
+
+export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
+  byMRule(ph, p, kind, d, e, id, oSeg, wSeg, conv).map(([b, v]) => [b, firstVerdict(ph, p, b, oSeg, wSeg, v)]);
+
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
 /** A property is read in every frame of a push with the lean read set when the registry marks it `lean` (the discrete ones and the logo rectangle). */
@@ -556,7 +585,7 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const verdicts = byMRule(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
+          const verdicts = byMFirst(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
             pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi), colourFromV1);
           push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
         });
@@ -653,17 +682,21 @@ export function reduceRaw(raw, registries) {
     if (u.rel === 'new') g.newSteps.push(`${u.step}=${u.verdict.slice(5)}`);
     groups.set(key, g);
   }
-  const rels = { ok: 0, both: 0, cleared: 0, new: 0, unmeasured: 0 };
+  const rels = { ok: 0, both: 0, cleared: 0, new: 0, unmeasured: 0, undecided: 0 };
   for (const u of units) rels[u.rel]++;
-  const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0 };
+  const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0, firstLate: 0, firstOpen: 0, baseFirstLate: 0, baseFirstOpen: 0 };
   for (const u of units) {
     totals[u.verdict === pass ? 'pass' : isFail(u.verdict) ? 'fail' : 'skip']++;
     if (u.verdict === fail('coverage')) { totals.coverageFail++; if (u.rel === 'new') totals.coverageNew++; }
+    if (u.verdict === skip('firstLate')) totals.firstLate++;
+    if (u.verdict === skip('firstOpen')) totals.firstOpen++;
+    if (u.base === skip('firstLate')) totals.baseFirstLate++;
+    if (u.base === skip('firstOpen')) totals.baseFirstOpen++;
   }
-  return { refused: false, detail: '', arms, units, groups: [...groups.values()], totals, rels, notes, fails: laneFails(units.map((u) => u.verdict)), red: laneRed(units.map((u) => u.rel)), timing };
+  const relList = units.map((u) => u.rel);
+  return { refused: false, detail: '', arms, units, groups: [...groups.values()], totals, rels, notes, fails: laneFails(units.map((u) => u.verdict)), red: laneRed(relList), lane: laneOf(relList), timing };
 }
 
-/** VERDICT lines: refusal; else one per group with a new failure, then the total, then the timing rows. */
 export function verdictLines(engine, search, red) {
   const s = search || '(default)';
   if (red.refused) return [`VERDICT trajectory ${engine} search=${s} REFUSED config: ${red.detail}`];
@@ -671,7 +704,8 @@ export function verdictLines(engine, search, red) {
   for (const g of red.groups.filter((x) => x.newSteps.length > 0)) {
     lines.push(`VERDICT trajectory ${engine} w=${g.width} ${g.path} ${g.node}.${g.prop} NEW ${g.newSteps.length}/${g.pass + g.fail + g.skip} units: ${g.newSteps.slice(0, 6).join(' ')}${g.newSteps.length > 6 ? ' ...' : ''}`);
   }
-  lines.push(`VERDICT trajectory ${engine} search=${s} ${red.red ? 'RED' : 'CLEAN'} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
+  lines.push(`VERDICT trajectory ${engine} search=${s} ${red.lane.toUpperCase()} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} undecided=${red.rels.undecided} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
+  lines.push(`FIRSTFRAME trajectory ${engine} search=${s} open@1 without a rewrite sample: skip:firstLate candidate ${red.totals.firstLate} faithful ${red.totals.baseFirstLate}, skip:firstOpen candidate ${red.totals.firstOpen} faithful ${red.totals.baseFirstOpen}`);
   for (const t of red.timing) lines.push(`TIMING trajectory ${engine} ${t.role} ${t.phase} n=${t.n} read p50=${t.readP50} p90=${t.readP90} ms gap p50=${t.gapP50 ?? '-'} p90=${t.gapP90 ?? '-'} ms${t.dominate ? ' READS-DOMINATE' : ''}`);
   return lines;
 }

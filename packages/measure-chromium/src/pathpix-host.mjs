@@ -5,15 +5,16 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { BOX_EXPR, FREEZE_EXPR, IMAGES_READY_EXPR } from '../../measure-webkit/src/pathpix-page.mjs';
-import { analyzeLane, table } from '../../measure-webkit/src/pathpix-analyze.mjs';
+import { EXIT_BOX_EXPR, EXIT_GEOM_EXPR, EXIT_LIVE_EXPR, EXIT_NUDGE_EXPR } from '../../measure-webkit/src/pathpix-exit-page.mjs';
+import { analyzeDir } from '../../measure-webkit/src/pathpix-exit.mjs';
 
 const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMAGE = 'fw-measure-chromium:1';
 const { values: v } = parseArgs({
   args: process.argv.slice(2).filter((a) => a !== '--'),
-  options: { site: { type: 'string' }, out: { type: 'string' }, layers: { type: 'string' }, offsets: { type: 'string' }, run: { type: 'string' }, strips: { type: 'string', default: 'changed' }, rebuild: { type: 'boolean', default: false }, 'analyze-only': { type: 'boolean', default: false } },
+  options: { site: { type: 'string' }, out: { type: 'string' }, layers: { type: 'string' }, offsets: { type: 'string' }, run: { type: 'string' }, strips: { type: 'string', default: 'changed' }, mode: { type: 'string', default: 'layers' }, flag: { type: 'string' }, rebuild: { type: 'boolean', default: false }, 'analyze-only': { type: 'boolean', default: false } },
 });
-if (!v.out) { console.error('usage: pathpix-host.mjs --site <dist/aot> --out <dir> [--layers a,b] [--offsets 0,4,8] [--run ID] [--strips all|changed|none] [--rebuild] | --analyze-only --out <dir>'); process.exit(2); }
+if (!v.out) { console.error('usage: pathpix-host.mjs --site <dist/aot> --out <dir> [--layers a,b] [--offsets 0,4,8] [--run ID] [--strips all|changed|none] [--mode exit --flag <id:variant>] [--rebuild] | --analyze-only --out <dir>'); process.exit(2); }
 const out = resolve(v.out);
 
 if (!v['analyze-only']) {
@@ -29,9 +30,9 @@ if (!v['analyze-only']) {
   rmSync(out, { recursive: true, force: true });
   mkdirSync(join(out, 'shots'), { recursive: true });
   const exprDir = mkdtempSync(join(tmpdir(), 'fw-pathpix-exprs-'));
-  writeFileSync(join(exprDir, 'page.json'), JSON.stringify({ boxes: BOX_EXPR, freeze: FREEZE_EXPR, imagesReady: IMAGES_READY_EXPR }));
+  writeFileSync(join(exprDir, 'page.json'), JSON.stringify({ boxes: BOX_EXPR, freeze: FREEZE_EXPR, imagesReady: IMAGES_READY_EXPR, exitBoxes: EXIT_BOX_EXPR, exitGeom: EXIT_GEOM_EXPR, exitLive: EXIT_LIVE_EXPR, exitNudge: EXIT_NUDGE_EXPR }));
   const run = v.run ?? process.env.GITHUB_RUN_ID ?? 'local';
-  const inner = ['/driver/pathpix.mjs', `--run=${run}`, ...(v.layers ? [`--layers=${v.layers}`] : []), ...(v.offsets ? [`--offsets=${v.offsets}`] : [])];
+  const inner = ['/driver/pathpix.mjs', `--run=${run}`, `--mode=${v.mode}`, ...(v.flag ? [`--flag=${v.flag}`] : []), ...(v.layers ? [`--layers=${v.layers}`] : []), ...(v.offsets ? [`--offsets=${v.offsets}`] : [])];
   let r;
   for (let attempt = 1; attempt <= 3; attempt++) {
     r = spawnSync('docker', [
@@ -46,8 +47,7 @@ if (!v['analyze-only']) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 mkdirSync(join(out, 'strips'), { recursive: true });
-const res = analyzeLane(out, { strips: v.strips, emit: (name, png) => writeFileSync(join(out, name), png) });
+const { res, md } = analyzeDir(out, { strips: v.strips, emit: (name, png) => writeFileSync(join(out, name), png) });
 writeFileSync(join(out, 'cells.json'), JSON.stringify(res) + '\n');
-const md = table(res);
 writeFileSync(join(out, 'summary.md'), md + '\n');
 console.log(md);

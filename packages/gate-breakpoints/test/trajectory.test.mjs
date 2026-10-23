@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { alphaOk, annotate, armCheck, byM, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { ALPHA, alphaOk, annotate, armCheck, byM, byMFirst, firstCover, laneOf, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
+import { summaryMd } from '../src/trajectory/cli.mjs';
 import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
 
@@ -117,7 +118,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'idCheck', 'identity'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -221,13 +222,26 @@ for (const g of golden) {
       const d = (cls) => durOf(g.node, g.prop, g.width, cls);
       assert.equal(idOn(g.node, g.prop), g.id);
       assert.deepEqual(byMRule(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.id, g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
+    } else if (g.op === 'byMFirst') {
+      const d = (cls) => durOf(g.node, g.prop, g.width, cls);
+      assert.equal(idOn(g.node, g.prop), g.id);
+      assert.deepEqual(byMFirst(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.id, g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
     } else if (g.op === 'idCheck') assert.equal(idCheck((cls) => durOf('nav', 'background-color', g.width, cls), g.q, g.r), g.check);
     else if (g.op === 'identity') {
       assert.equal(CUT_M, g.cut);
       assert.deepEqual(qJson(qInt(CUT_M)), g.cutRat);
       assert.deepEqual([MIX_FROM, MIX_TO], [g.from, g.to]);
       for (const [m, x, a, r, al] of g.rows) assert.deepEqual([redOk(m, x), alphaOk(m, a)], [r, al], `m ${m} red ${x} alpha ${a}`);
-    } else assert.fail(`unknown op ${g.op}`);
+    } else if (g.op === 'firstCover') {
+      assert.deepEqual({ num: String(ALPHA[0]), den: String(ALPHA[1]) }, g.alpha);
+      for (const [no, k, nw, c] of g.rows) assert.equal(firstCover(no, k, nw), c, `no ${no} k ${k} nw ${nw}`);
+    } else if (g.op === 'lane') assert.equal(laneOf(g.rels), g.lane);
+    else if (g.op === 'laneStep') {
+      const at = (o, w) => byMFirst('push', 0, 'geometry', () => null, null, false, o, w).find((x) => x[0] === 1)?.[1] ?? 'pass';
+      assert.deepEqual([at(g.oSeg, g.cand), at(g.oSeg, g.base), at(g.oSeg2, g.cand), at(g.oSeg2, g.base)], g.open);
+      assert.deepEqual([laneOf([rel(at(g.oSeg, g.cand), at(g.oSeg, g.base))]), laneOf([rel(at(g.oSeg2, g.cand), at(g.oSeg2, g.base))])], g.lanes);
+    }
+    else assert.fail(`unknown op ${g.op}`);
   });
 }
 
@@ -404,6 +418,73 @@ test('reduceWidth: an empty bucket 1..9 in a push is fail:coverage, in a hold a 
   assert.deepEqual([by['open@3'], by['open@4'], by['open@5'], by['open@6'], by['open@7']], Array(5).fill('fail:coverage'));
   assert.equal(by['open@1'], 'pass');
   assert.equal(by['open@11'], 'skip:noSample');
+});
+
+const NO_FIRST = [0, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+const cellOf = (units, prop, step) => units.find((x) => x.node === 'nav' && x.prop === prop && x.phase === 'open' && x.step === step);
+
+/** `n` passes of the open phase; the first `k` sample open@1. */
+const passesWith = (n, k) => Array.from({ length: n }, (_, q) => phaseRows(q < k ? EVERY : NO_FIRST, () => 'off', { rep: q })).flat();
+const openAt1 = (o, w) => cellOf(reduceWidth({ width: 390, orig: { morph: morphOf(o, NO_FW) }, rewrite: { morph: morphOf(w, OK_REWRITE) }, registries }), 'cls.is-expanded', 'open@1').verdict;
+
+test('reduceWidth: open@1 empty in the rewrite is judged by Lean firstCover over the original passes (5 rewrite passes)', () => {
+  const got = [0, 1, 2, 3, 4, 5].map((k) => openAt1(passesWith(5, k), passesWith(5, 0)));
+  assert.deepEqual(got, ['skip:firstLate', 'skip:firstLate', 'skip:firstOpen', 'skip:firstOpen', 'fail:coverage', 'fail:coverage']);
+  assert.equal(openAt1(passesWith(5, 0), passesWith(5, 1)), 'pass');
+});
+
+test('reduceWidth: one extra original pass never turns skip:firstLate into fail:coverage or back', () => {
+  for (let k = 0; k <= 5; k++) {
+    const before = openAt1(passesWith(5, k), passesWith(5, 0));
+    for (const hit of [0, 1]) {
+      const after = openAt1(passesWith(6, k + hit), passesWith(5, 0));
+      assert.ok(!(before === 'skip:firstLate' && after === 'fail:coverage') && !(before === 'fail:coverage' && after === 'skip:firstLate'), `k ${k} hit ${hit}: ${before} -> ${after}`);
+    }
+  }
+});
+
+test('reduceWidth: one pass each cannot decide open@1, and only open@1 is judged this way', () => {
+  const u = reduceWidth({ width: 390, orig: { morph: morphOf(phaseRows(NO_FIRST, () => 'off'), NO_FW) }, rewrite: { morph: morphOf(phaseRows(NO_FIRST, () => 'off'), OK_REWRITE) }, registries });
+  assert.equal(cellOf(u, 'cls.is-expanded', 'open@1').verdict, 'skip:firstOpen');
+  assert.equal(cellOf(u, 'cls.is-expanded', 'open@2').verdict, 'pass');
+  assert.equal(openAt1(phaseRows(EVERY, () => 'off'), phaseRows(NO_FIRST, () => 'off')), 'skip:firstOpen');
+  assert.equal(u.filter((x) => x.phase !== 'open').some((x) => x.verdict.startsWith('skip:first')), false);
+});
+
+test('reduceWidth: an empty open@2 stays fail:coverage when the original has no open@2 either', () => {
+  const none2 = [0, 1000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+  const orig = { morph: morphOf(phaseRows(none2, () => 'off'), NO_FW) };
+  const rewrite = { morph: morphOf(phaseRows(none2, () => 'off'), OK_REWRITE) };
+  assert.equal(cellOf(reduceWidth({ width: 390, orig, rewrite, registries }), 'cls.is-expanded', 'open@2').verdict, 'fail:coverage');
+});
+
+test('reduceRaw: the flag that matches the original at open@1 is not red where the faithful arm sampled it (hero:scene-pause shape)', () => {
+  const raw = (candRows) => ({
+    engine: 'chromium', search: '?fw=hero:scene-pause', reps: 1, paths: ['morph'], runs: [
+      { ...runOf('orig', morphOf(phaseRows(NO_FIRST, () => 'off'), NO_FW)) },
+      { ...runOf('base', morphOf(phaseRows(EVERY, () => 'off'), OK_REWRITE)) },
+      { ...runOf('cand', morphOf(phaseRows(candRows, () => 'off'), OK_REWRITE)) }] });
+  const regs = { hero: [], morph: registries.morph, page: [] };
+  const flag = reduceRaw(raw(NO_FIRST), regs), plain = reduceRaw(raw(EVERY), regs);
+  assert.equal(flag.refused, false);
+  assert.equal(flag.red, false);
+  assert.equal(flag.lane, 'undecided');
+  assert.ok(flag.totals.firstOpen > 0);
+  const lines = verdictLines('chromium', '?fw=hero:scene-pause', flag);
+  assert.ok(lines.some((l) => l.startsWith('FIRSTFRAME ')));
+  assert.ok(lines.some((l) => / UNDECIDED new=0 /.test(l)));
+  const md = summaryMd(raw(NO_FIRST), flag);
+  assert.match(md.split('\n')[0], / UNDECIDED$/);
+  assert.match(md, new RegExp(`\\| undecided \\(.*\\) \\| ${flag.rels.undecided} \\|`));
+  assert.match(summaryMd(raw(EVERY), plain).split('\n')[0], / CLEAN$/);
+  assert.equal(plain.red, false);
+  assert.equal(plain.lane, 'clean');
+  const raw5 = { engine: 'chromium', search: '?fw=hero:scene-pause', reps: 5, paths: ['morph'], runs: [
+    runOf('orig', morphOf(passesWith(5, 0), NO_FW)), runOf('base', morphOf(passesWith(5, 5), OK_REWRITE)),
+    runOf('cand', morphOf(passesWith(5, 0), OK_REWRITE))] };
+  const flag5 = reduceRaw(raw5, regs);
+  assert.equal(flag5.lane, 'clean');
+  assert.ok(flag5.totals.firstLate > 0);
 });
 
 test('reduceWidth: a push sample without a morph value is fail:coverage', () => {

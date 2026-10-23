@@ -60,13 +60,12 @@ inductive Why where
   | coverage
   deriving DecidableEq, Repr
 
-/-- Why a unit is not compared: no sample of the rewrite fell on a unit that needs none (a hold, a bucket outside 1 to 9,
-a hero step the rewrite did not record). -/
 inductive Skip where
   | noSample
+  | firstLate
+  | firstOpen
   deriving DecidableEq, Repr
 
-/-- The verdict of one unit. -/
 inductive Verdict where
   | pass
   | fail (w : Why)
@@ -2542,32 +2541,28 @@ theorem laneFails_none : laneFails [.pass, .skip .noSample] = false := by decide
 
 `new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared`
 fails only there; `ok` fails in neither. `unmeasured`: the candidate fails on content (a difference) where the faithful arm
-fails on coverage, so the faithful arm was not measured there and the unit has no verdict either way. -/
+fails on coverage, so the faithful arm was not measured there and the unit has no verdict either way. `undecided`: the
+candidate's open@1 is `skip firstOpen` where the faithful arm does not fail, or the faithful arm's is `skip firstOpen` where the candidate fails. -/
 inductive Rel where
   | ok
   | both
   | cleared
   | new
   | unmeasured
+  | undecided
   deriving DecidableEq, Repr
 
-/-- The failure is a coverage failure (nothing to compare with), not a difference between the arms. -/
 def isCoverage : Verdict → Bool
   | .fail .coverage => true
   | _ => false
 
-/-- One unit against the same unit of the baseline. A unit the baseline does not have is a skip there, so a failure is `new`.
-
-Both fail: `unmeasured` when the candidate's failure is a difference and the baseline's is coverage (the faithful arm has no
-sample to compare, so the candidate's difference is not shown to be shared); else `both`. -/
 def rel (cand base : Verdict) : Rel :=
   match isFail cand, isFail base with
   | true, true => if isCoverage base && !isCoverage cand then .unmeasured else .both
-  | true, false => .new
+  | true, false => if base == .skip .firstOpen then .undecided else .new
   | false, true => .cleared
-  | false, false => .ok
+  | false, false => if cand == .skip .firstOpen then .undecided else .ok
 
-/-- The candidate is red when any unit is `new`. -/
 def laneRed (rs : List Rel) : Bool := rs.any (· == .new)
 
 /-- Branch fails here, passes there: new. -/
@@ -2597,13 +2592,20 @@ theorem rel_cleared : rel .pass (.fail .apart) = .cleared := by decide
 /-- Branch a skip against a failing baseline is cleared, never `new`. -/
 theorem rel_skip_cleared : rel (.skip .noSample) (.fail .differs) = .cleared := by decide
 
-/-- Branch passes in both: ok. -/
 theorem rel_ok : rel .pass .pass = .ok ∧ rel (.skip .noSample) .pass = .ok := by decide
 
-/-- A unit is new exactly when it fails in the candidate and not in the baseline. -/
-theorem rel_new_iff (c b : Verdict) : rel c b = .new ↔ isFail c = true ∧ isFail b = false := by
+theorem rel_undecided : rel (.skip .firstOpen) .pass = .undecided ∧ rel (.skip .firstOpen) (.skip .noSample) = .undecided :=
+  by decide
+
+theorem rel_undecided_both : rel (.skip .firstOpen) (.skip .firstOpen) = .undecided := by decide
+
+theorem rel_undecided_base : rel (.fail .coverage) (.skip .firstOpen) = .undecided ∧
+    rel (.fail .apart) (.skip .firstOpen) = .undecided := by decide
+
+theorem rel_new_iff (c b : Verdict) :
+    rel c b = .new ↔ isFail c = true ∧ isFail b = false ∧ b ≠ .skip .firstOpen := by
   unfold rel
-  cases hc : isFail c <;> cases hb : isFail b <;> simp <;> split <;> simp
+  cases hc : isFail c <;> cases hb : isFail b <;> simp <;> split <;> simp_all
 
 /-- The candidate is red exactly when some unit is new. -/
 theorem laneRed_iff (rs : List Rel) : laneRed rs = true ↔ Rel.new ∈ rs := by
@@ -4319,8 +4321,503 @@ theorem byMId_read_late : (navAt idSeg lateReadRew).lookup 0 = (byM .push 2 .col
 
 end CloseIdentity
 
+section FirstFrame
 
--- Golden ------------------------------------------------------------------------------------------------------------
+def openPh : Nat := 0
+
+def firstFrame (ph : Phase) (p b : Nat) : Bool := ph == .push && p == openPh && b == 1
+
+def hasBucket (seg : List Samp) (p b : Nat) : Bool := seg.any fun s => s.ph == p && bucket s.m == b
+
+def cadence : Nat := 17
+
+def mAt (e : Nat) : Int :=
+  (Fw.Parts.MorphTween.ease ((e : Rat) / Fw.Parts.MorphTween.duration) * 10000 + 1 / 2).floor
+
+theorem mAt_mono {e f : Nat} (h : e ≤ f) : mAt e ≤ mAt f := by
+  unfold mAt
+  apply Rat.floor_monotone
+  have hd : ((e : Rat) / Fw.Parts.MorphTween.duration) ≤ (f : Rat) / Fw.Parts.MorphTween.duration := by
+    rw [Fw.Parts.MorphTween.div_dur, Fw.Parts.MorphTween.div_dur]
+    have : (e : Rat) ≤ f := by exact_mod_cast h
+    grind
+  have := Fw.Parts.MorphTween.ease_mono _ _ hd
+  grind
+
+theorem mAt_edges : mAt 11 = 477 ∧ mAt 12 = 520 ∧ mAt 35 = 1466 ∧ mAt 36 = 1506 := by decide +kernel
+
+theorem bucket_one_iff (m : Int) : bucket (some m) = 1 ↔ 500 ≤ m ∧ m < 1500 := by
+  simp only [bucket]
+  omega
+
+def inFirst (e : Nat) : Bool := 12 ≤ e && e < 36
+
+theorem mAt_first_iff (e : Nat) : bucket (some (mAt e)) = 1 ↔ inFirst e = true := by
+  rw [bucket_one_iff]
+  simp only [inFirst, Bool.and_eq_true, decide_eq_true_eq]
+  obtain ⟨h11, h12, h35, h36⟩ := mAt_edges
+  constructor
+  · rintro ⟨h1, h2⟩
+    refine ⟨?_, ?_⟩
+    · apply Classical.byContradiction
+      intro hn
+      have := mAt_mono (show e ≤ 11 by omega)
+      omega
+    · apply Classical.byContradiction
+      intro hn
+      have := mAt_mono (show 36 ≤ e by omega)
+      omega
+  · rintro ⟨h1, h2⟩
+    have a := mAt_mono (show 12 ≤ e by omega)
+    have b := mAt_mono (show e ≤ 35 by omega)
+    omega
+
+def slots (c : Nat) : Nat := ((List.range 37).filter fun k => 1 ≤ k && inFirst (k * c)).length
+
+theorem slots_cadence : slots cadence = 2 := by decide
+
+theorem phase_covers :
+    (List.range cadence).all (fun φ => (List.range 3).any fun j => inFirst (φ + j * cadence)) = true := by decide
+
+def sampledFrom (c d : Nat) : Bool := (List.range 37).any fun j => inFirst ((1 + d + j) * c)
+
+theorem sampled_iff (d : Nat) : sampledFrom cadence d = true ↔ d < slots cadence := by
+  rw [slots_cadence]
+  simp only [sampledFrom, cadence, List.any_eq_true, List.mem_range, inFirst, Bool.and_eq_true]
+  constructor
+  · rintro ⟨j, _, h1, h2⟩
+    have a := of_decide_eq_true h1
+    have b := of_decide_eq_true h2
+    omega
+  · intro h
+    exact ⟨0, by omega, decide_eq_true (by omega), decide_eq_true (by omega)⟩
+
+def noneChance (q : Rat) (n : Nat) : Rat := q ^ n
+
+def lateRate (no k : Nat) : Rat := ((no - k : Nat) : Rat) / no
+
+def missChance (no k nw : Nat) : Rat := noneChance (lateRate no k) nw
+
+def alpha : Rat := 1 / 20
+
+inductive Cover where
+  | missing
+  | late
+  | undecided
+  deriving DecidableEq, Repr
+
+def firstCover (no k nw : Nat) : Cover :=
+  if 1 ≤ k ∧ missChance no (k - 1) nw ≤ alpha then .missing
+  else if alpha < missChance no (k + 1) nw then .late
+  else .undecided
+
+#guard firstCover 5 0 5 == .late
+#guard firstCover 5 1 5 == .late
+#guard firstCover 5 2 5 == .undecided
+#guard firstCover 5 4 5 == .missing
+#guard firstCover 0 0 0 == .late
+#guard firstCover 1 1 1 == .undecided
+
+theorem late_count (ds : List Nat) :
+    ds.length - ds.countP (sampledFrom cadence) = ds.countP fun d => decide (slots cadence ≤ d) := by
+  have h := List.length_eq_countP_add_countP (sampledFrom cadence) (l := ds)
+  have e : ds.countP (fun d => decide ¬sampledFrom cadence d = true) =
+      ds.countP fun d => decide (slots cadence ≤ d) := by
+    apply List.countP_congr
+    intro d _
+    by_cases hs : sampledFrom cadence d = true
+    · have := (sampled_iff d).1 hs
+      simp [hs]
+      omega
+    · have : ¬ d < slots cadence := fun h => hs ((sampled_iff d).2 h)
+      simp [hs]
+      omega
+  omega
+
+theorem lateRate_delays (ds : List Nat) :
+    lateRate ds.length (ds.countP (sampledFrom cadence)) =
+      ((ds.countP fun d => decide (slots cadence ≤ d) : Nat) : Rat) / ds.length := by
+  unfold lateRate
+  rw [late_count]
+
+theorem firstCover_missing {no k nw : Nat} (h : firstCover no k nw = .missing) :
+    1 ≤ k ∧ missChance no (k - 1) nw ≤ alpha := by
+  unfold firstCover at h
+  split at h
+  · assumption
+  · split at h <;> cases h
+
+theorem firstCover_late {no k nw : Nat} (h : firstCover no k nw = .late) : alpha < missChance no (k + 1) nw := by
+  unfold firstCover at h
+  split at h
+  · cases h
+  · split at h
+    · assumption
+    · cases h
+
+theorem div_le_div_of {a b m n : Rat} (hm : 0 < m) (hn : 0 < n) (h : a * n ≤ b * m) : a / m ≤ b / n := by
+  apply Rat.not_lt.1
+  intro hl
+  rw [Rat.lt_div_iff hm] at hl
+  have e : b / n * m = (b * m) / n := by grind
+  rw [e, Rat.div_lt_iff hn] at hl
+  exact absurd h (Rat.not_le.2 hl)
+
+theorem pow_le_pow_base {a b : Rat} (h0 : 0 ≤ a) (h : a ≤ b) (n : Nat) : a ^ n ≤ b ^ n := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [Rat.pow_succ, Rat.pow_succ]
+    have ha : 0 ≤ a ^ n := Rat.pow_nonneg h0
+    have h1 := Rat.mul_le_mul_of_nonneg_right ih h0
+    have h2 := Rat.mul_le_mul_of_nonneg_left h (Rat.le_trans ha ih)
+    exact Rat.le_trans h1 h2
+
+theorem inv_nat_nonneg (n : Nat) : 0 ≤ ((n : Rat))⁻¹ := by
+  rcases Nat.eq_zero_or_pos n with h | h
+  · subst h; simp
+  · exact Rat.le_of_lt (Rat.inv_pos.2 (by exact_mod_cast h))
+
+theorem lateRate_nonneg (no k : Nat) : 0 ≤ lateRate no k := by
+  unfold lateRate
+  rw [Rat.div_def]
+  exact Rat.mul_nonneg (by exact_mod_cast Nat.zero_le _) (inv_nat_nonneg no)
+
+theorem lateRate_le {no no' l l' : Nat} (hno : 0 < no) (h : (no' - l') * no ≤ (no - l) * no') :
+    lateRate no' l' ≤ lateRate no l := by
+  rcases Nat.eq_zero_or_pos no' with h0 | h0
+  · subst h0
+    have e : lateRate 0 l' = 0 := by simp [lateRate, Rat.div_def]
+    rw [e]
+    exact lateRate_nonneg no l
+  · unfold lateRate
+    exact div_le_div_of (by exact_mod_cast h0) (by exact_mod_cast hno) (by exact_mod_cast h)
+
+theorem lateRate_anti (no : Nat) {k l : Nat} (h : k ≤ l) : lateRate no l ≤ lateRate no k := by
+  unfold lateRate
+  have : ((no - l : Nat) : Rat) ≤ ((no - k : Nat) : Rat) := by exact_mod_cast (by omega : no - l ≤ no - k)
+  rw [Rat.div_def, Rat.div_def]
+  exact Rat.mul_le_mul_of_nonneg_right this (inv_nat_nonneg no)
+
+theorem missChance_anti (no nw : Nat) {k l : Nat} (h : k ≤ l) : missChance no l nw ≤ missChance no k nw :=
+  pow_le_pow_base (lateRate_nonneg no l) (lateRate_anti no h) nw
+
+theorem cover_apart {no k no' k' nw : Nat} (hm : firstCover no k nw = .missing) (hl : firstCover no' k' nw = .late) :
+    lateRate no (k - 1) < lateRate no' (k' + 1) := by
+  apply Rat.not_le.1
+  intro h
+  have := Rat.le_trans (pow_le_pow_base (lateRate_nonneg _ _) h nw) (firstCover_missing hm).2
+  exact absurd this (Rat.not_le.2 (firstCover_late hl))
+
+theorem rat_lt_le {a b c : Rat} (h1 : a < b) (h2 : b ≤ c) : a < c :=
+  Rat.not_le.1 fun h => absurd (Rat.le_trans h2 h) (Rat.not_le.2 h1)
+
+theorem firstCover_more (no k nw : Nat) (h : firstCover no k nw = .missing) : firstCover no (k + 1) nw = .missing := by
+  obtain ⟨_, hm⟩ := firstCover_missing h
+  unfold firstCover
+  split
+  · rfl
+  · rename_i hn
+    exact absurd ⟨by omega, Rat.le_trans (missChance_anti no nw (by omega)) hm⟩ hn
+
+theorem firstCover_fewer (no k nw : Nat) (h : firstCover no (k + 1) nw = .late) : firstCover no k nw = .late := by
+  cases hk : firstCover no k nw with
+  | late => rfl
+  | missing => rw [firstCover_more no k nw hk] at h; cases h
+  | undecided =>
+    have hl := firstCover_late h
+    unfold firstCover at hk
+    split at hk
+    · cases hk
+    · split at hk
+      · cases hk
+      · rename_i hn
+        exact absurd (rat_lt_le hl (missChance_anti no nw (by omega))) hn
+
+theorem firstCover_step (no k nw : Nat) :
+    ¬ (firstCover no k nw = .missing ∧ firstCover no (k + 1) nw = .late) ∧
+      ¬ (firstCover no k nw = .late ∧ firstCover no (k + 1) nw = .missing) := by
+  refine ⟨fun ⟨hm, hl⟩ => ?_, fun ⟨hl, hm⟩ => ?_⟩
+  · exact absurd (lateRate_anti no (by omega : k - 1 ≤ k + 1 + 1)) (Rat.not_le.2 (cover_apart hm hl))
+  · exact absurd (lateRate_anti no (by omega : k + 1 - 1 ≤ k + 1)) (Rat.not_le.2 (cover_apart hm hl))
+
+theorem rate_slack (no k j : Nat) (hj : 2 ≤ j) : (no - (k + 1)) * (no + 1) ≤ (no + j - (k + 1)) * no := by
+  rcases Nat.lt_or_ge no (k + 1) with h | h
+  · rw [show no - (k + 1) = 0 by omega]; simp
+  · rw [show no + j - (k + 1) = no - (k + 1) + j by omega, Nat.mul_succ, Nat.add_mul]
+    have : no - (k + 1) ≤ j * no := Nat.le_trans (by omega) (Nat.le_mul_of_pos_left no (by omega))
+    omega
+
+theorem firstCover_extra (no k k' nw : Nat) (hk : k ≤ no) (hk' : k' = k ∨ k' = k + 1) :
+    ¬ (firstCover no k nw = .missing ∧ firstCover (no + 1) k' nw = .late) ∧
+      ¬ (firstCover no k nw = .late ∧ firstCover (no + 1) k' nw = .missing) := by
+  refine ⟨fun ⟨hm, hl⟩ => ?_, fun ⟨hl, hm⟩ => ?_⟩
+  · have h1 := (firstCover_missing hm).1
+    have hr : lateRate (no + 1) (k' + 1) ≤ lateRate no (k - 1) :=
+      lateRate_le (by omega) (Nat.mul_le_mul (by omega) (by omega))
+    exact absurd hr (Rat.not_le.2 (cover_apart hm hl))
+  · have h1 := (firstCover_missing hm).1
+    have hs : (no - (k + 1)) * (no + 1) ≤ (no + 1 - (k' - 1)) * no := by
+      rcases hk' with rfl | rfl
+      · have := rate_slack no k' 3 (by omega)
+        rwa [show no + 3 - (k' + 1) = no + 1 - (k' - 1) by omega] at this
+      · have := rate_slack no k 2 (by omega)
+        rwa [show no + 2 - (k + 1) = no + 1 - (k + 1 - 1) by omega] at this
+    have hr : lateRate no (k + 1) ≤ lateRate (no + 1) (k' - 1) := lateRate_le (by omega) hs
+    exact absurd hr (Rat.not_le.2 (cover_apart hm hl))
+
+theorem cover_five : (List.range 6).map (fun k => firstCover 5 k 5) =
+    [.late, .late, .undecided, .undecided, .missing, .missing] := by decide +kernel
+
+def coverVerdict : Cover → Verdict
+  | .missing => .fail .coverage
+  | .late => .skip .firstLate
+  | .undecided => .skip .firstOpen
+
+theorem coverVerdict_fail (c : Cover) : isFail (coverVerdict c) = true ↔ c = .missing := by
+  cases c <;> decide
+
+def passes (seg : List Samp) (p : Nat) : Nat := ((seg.filter (·.ph == p)).map (·.rep)).eraseDups.length
+
+def passesIn (seg : List Samp) (p b : Nat) : Nat :=
+  ((seg.filter fun s => s.ph == p && bucket s.m == b).map (·.rep)).eraseDups.length
+
+def firstVerdict (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict) : Verdict :=
+  if firstFrame ph p b && !hasBucket wSeg p b && v == .fail .coverage
+  then coverVerdict (firstCover (passes oSeg p) (passesIn oSeg p b) (passes wSeg p)) else v
+
+def byMFirst (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule) (id : Bool)
+    (oSeg wSeg : List Samp) : List (Nat × Verdict) :=
+  (byMRule ph p k d e id oSeg wSeg).map fun (b, v) => (b, firstVerdict ph p b oSeg wSeg v)
+
+theorem firstVerdict_empty (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (hf : firstFrame ph p b = true)
+    (hw : hasBucket wSeg p b = false) :
+    firstVerdict ph p b oSeg wSeg (.fail .coverage) =
+      coverVerdict (firstCover (passes oSeg p) (passesIn oSeg p b) (passes wSeg p)) := by
+  simp [firstVerdict, hf, hw]
+
+theorem firstVerdict_rew_sampled (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (hw : hasBucket wSeg p b = true) : firstVerdict ph p b oSeg wSeg v = v := by
+  simp [firstVerdict, hw]
+
+theorem firstVerdict_not_first (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (hf : firstFrame ph p b = false) : firstVerdict ph p b oSeg wSeg v = v := by
+  simp [firstVerdict, hf]
+
+theorem firstVerdict_content (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict)
+    (hv : v ≠ .fail .coverage) : firstVerdict ph p b oSeg wSeg v = v := by
+  have h : (v == Verdict.fail .coverage) = false := by simpa using hv
+  simp [firstVerdict, h]
+
+theorem firstVerdict_cases (ph : Phase) (p b : Nat) (oSeg wSeg : List Samp) (v : Verdict) :
+    firstVerdict ph p b oSeg wSeg v = v ∨
+      (firstFrame ph p b = true ∧ v = .fail .coverage ∧ ∃ c, firstVerdict ph p b oSeg wSeg v = coverVerdict c) := by
+  unfold firstVerdict
+  split
+  · rename_i h
+    right
+    simp only [Bool.and_eq_true, beq_iff_eq] at h
+    obtain ⟨⟨hf, _⟩, hv⟩ := h
+    exact ⟨hf, hv, _, rfl⟩
+  · left; rfl
+
+theorem byMFirst_mem (ph : Phase) (p : Nat) (k : Kind) (d : List String → Option Nat) (e : Option EarnRule) (id : Bool)
+    (oSeg wSeg : List Samp) (x : Nat × Verdict) (hx : x ∈ byMFirst ph p k d e id oSeg wSeg) :
+    ∃ y ∈ byMRule ph p k d e id oSeg wSeg, x = (y.1, firstVerdict ph p y.1 oSeg wSeg y.2) := by
+  unfold byMFirst at hx
+  obtain ⟨y, hy, rfl⟩ := List.mem_map.1 hx
+  exact ⟨y, hy, rfl⟩
+
+theorem rel_cover_new (c : Cover) (base : Verdict) :
+    rel (coverVerdict c) base = .new ↔ c = .missing ∧ isFail base = false ∧ base ≠ .skip .firstOpen := by
+  rw [rel_new_iff, coverVerdict_fail]
+
+theorem rel_first_skip_not_new (base : Verdict) :
+    rel (.skip .firstLate) base ≠ .new ∧ rel (.skip .firstOpen) base ≠ .new := by
+  constructor <;> intro h <;> have := (rel_new_iff _ _).1 h <;> simp [isFail] at this
+
+inductive Lane where
+  | red
+  | undecided
+  | clean
+  deriving DecidableEq, Repr
+
+def laneOf (rs : List Rel) : Lane :=
+  if laneRed rs then .red else if rs.contains .undecided then .undecided else .clean
+
+#guard laneOf [.ok, .cleared, .both] == .clean
+#guard laneOf [.ok, .undecided, .cleared] == .undecided
+#guard laneOf [.undecided, .new] == .red
+#guard laneOf [] == .clean
+
+theorem laneOf_red (rs : List Rel) (h : laneRed rs = true) : laneOf rs = .red := by simp [laneOf, h]
+
+theorem laneOf_undecided (rs : List Rel) (h : laneRed rs = false) (hu : rs.contains .undecided = true) :
+    laneOf rs = .undecided := by unfold laneOf; rw [h, hu]; rfl
+
+theorem laneOf_clean (rs : List Rel) (h : laneRed rs = false) (hu : rs.contains .undecided = false) :
+    laneOf rs = .clean := by unfold laneOf; rw [h, hu]; rfl
+
+theorem laneOf_red_iff (rs : List Rel) : laneOf rs = .red ↔ Rel.new ∈ rs := by
+  rw [← laneRed_iff]
+  unfold laneOf
+  cases laneRed rs <;> simp <;> split <;> simp
+
+theorem laneOf_clean_iff (rs : List Rel) : laneOf rs = .clean ↔ Rel.new ∉ rs ∧ Rel.undecided ∉ rs := by
+  rw [← laneRed_iff]
+  unfold laneOf
+  cases h : laneRed rs <;> simp
+
+def jump (c c' : Cover) : Bool := (c == .missing && c' == .late) || (c == .late && c' == .missing)
+
+theorem jump_extra (no k nw : Nat) (hk : k ≤ no) (hit : Bool) :
+    jump (firstCover no k nw) (firstCover (no + 1) (k + if hit then 1 else 0) nw) = false := by
+  have h := firstCover_extra no k (k + if hit then 1 else 0) nw hk (by cases hit <;> simp)
+  revert h
+  cases firstCover no k nw <;> cases firstCover (no + 1) (k + if hit then 1 else 0) nw <;> simp [jump]
+
+def unitFlip (r r' : Rel) : Bool :=
+  (r == .new && r' != .new && r' != .undecided) || (r != .new && r != .undecided && r' == .new)
+
+def coverAll : List Cover := [.missing, .late, .undecided]
+
+theorem mem_covers (c : Cover) : c ∈ coverAll := by cases c <;> decide
+
+def verdicts : List Verdict :=
+  .pass :: ([.count, .missing, .type, .shape, .differs, .apart, .coverage].map .fail) ++
+    [.noSample, .firstLate, .firstOpen].map .skip
+
+theorem mem_verdicts (v : Verdict) : v ∈ verdicts := by
+  cases v with
+  | pass => decide
+  | fail w => cases w <;> decide
+  | skip s => cases s <;> decide
+
+theorem flip_both : (coverAll.all fun c => coverAll.all fun c' => coverAll.all fun d => coverAll.all fun d' =>
+    jump c c' || jump d d' ||
+      !unitFlip (rel (coverVerdict c) (coverVerdict d)) (rel (coverVerdict c') (coverVerdict d'))) = true := by decide
+
+theorem flip_base : (verdicts.all fun v => coverAll.all fun d => coverAll.all fun d' =>
+    jump d d' || !unitFlip (rel v (coverVerdict d)) (rel v (coverVerdict d'))) = true := by decide
+
+theorem flip_cand : (verdicts.all fun v => coverAll.all fun c => coverAll.all fun c' =>
+    jump c c' || !unitFlip (rel (coverVerdict c) v) (rel (coverVerdict c') v)) = true := by decide
+
+inductive Arm where
+  | fixed (v : Verdict)
+  | cover (nw : Nat)
+  deriving DecidableEq, Repr
+
+def Arm.at : Arm → Nat → Nat → Verdict
+  | .fixed v, _, _ => v
+  | .cover nw, no, k => coverVerdict (firstCover no k nw)
+
+structure FirstUnit where
+  cand : Arm
+  base : Arm
+  no : Nat
+  k : Nat
+  deriving DecidableEq, Repr
+
+def FirstUnit.relOf (u : FirstUnit) : Rel := rel (u.cand.at u.no u.k) (u.base.at u.no u.k)
+
+def FirstUnit.extra (u : FirstUnit) (hit : Bool) : FirstUnit := { u with no := u.no + 1, k := u.k + if hit then 1 else 0 }
+
+theorem unit_extra (u : FirstUnit) (hk : u.k ≤ u.no) (hit : Bool) : unitFlip u.relOf (u.extra hit).relOf = false := by
+  have all3 := fun {c c' d d' : Cover} => (List.all_eq_true.1 ((List.all_eq_true.1 ((List.all_eq_true.1
+    ((List.all_eq_true.1 flip_both) c (mem_covers c))) c' (mem_covers c'))) d (mem_covers d))) d' (mem_covers d')
+  obtain ⟨cand, base, no, k⟩ := u
+  simp only [FirstUnit.relOf, FirstUnit.extra] at hk ⊢
+  cases cand with
+  | fixed v =>
+    cases base with
+    | fixed w => simp [Arm.at, unitFlip]; cases rel v w <;> simp
+    | cover nw =>
+      have := (List.all_eq_true.1 ((List.all_eq_true.1 ((List.all_eq_true.1 flip_base) v (mem_verdicts v)))
+        _ (mem_covers (firstCover no k nw)))) _ (mem_covers (firstCover (no + 1) (k + if hit then 1 else 0) nw))
+      simpa [Arm.at, jump_extra no k nw hk hit] using this
+  | cover nc =>
+    cases base with
+    | fixed w =>
+      have := (List.all_eq_true.1 ((List.all_eq_true.1 ((List.all_eq_true.1 flip_cand) w (mem_verdicts w)))
+        _ (mem_covers (firstCover no k nc)))) _ (mem_covers (firstCover (no + 1) (k + if hit then 1 else 0) nc))
+      simpa [Arm.at, jump_extra no k nc hk hit] using this
+    | cover nw =>
+      have := all3 (c := firstCover no k nc) (c' := firstCover (no + 1) (k + if hit then 1 else 0) nc)
+        (d := firstCover no k nw) (d' := firstCover (no + 1) (k + if hit then 1 else 0) nw)
+      simpa [Arm.at, jump_extra no k nc hk hit, jump_extra no k nw hk hit] using this
+
+theorem laneOf_extra (us : List (FirstUnit × Bool)) (hk : ∀ x ∈ us, x.1.k ≤ x.1.no) :
+    ¬ (laneOf (us.map (·.1.relOf)) = .red ∧ laneOf (us.map fun x => (x.1.extra x.2).relOf) = .clean) ∧
+      ¬ (laneOf (us.map (·.1.relOf)) = .clean ∧ laneOf (us.map fun x => (x.1.extra x.2).relOf) = .red) := by
+  rw [laneOf_red_iff, laneOf_clean_iff, laneOf_clean_iff, laneOf_red_iff]
+  refine ⟨fun ⟨hr, hn, hu⟩ => ?_, fun ⟨⟨hn, hu⟩, hr⟩ => ?_⟩
+  · obtain ⟨x, hx, e⟩ := List.mem_map.1 hr
+    have h := unit_extra x.1 (hk x hx) x.2
+    have a : (x.1.extra x.2).relOf ≠ .new := fun e' => hn (List.mem_map.2 ⟨x, hx, e'⟩)
+    have b : (x.1.extra x.2).relOf ≠ .undecided := fun e' => hu (List.mem_map.2 ⟨x, hx, e'⟩)
+    rw [e] at h
+    revert a b h
+    cases (x.1.extra x.2).relOf <;> simp [unitFlip]
+  · obtain ⟨x, hx, e⟩ := List.mem_map.1 hr
+    have h := unit_extra x.1 (hk x hx) x.2
+    have a : x.1.relOf ≠ .new := fun e' => hn (List.mem_map.2 ⟨x, hx, e'⟩)
+    have b : x.1.relOf ≠ .undecided := fun e' => hu (List.mem_map.2 ⟨x, hx, e'⟩)
+    rw [e] at h
+    revert a b h
+    cases x.1.relOf <;> simp [unitFlip]
+
+def rampPass (q : Nat) (hit : Bool) : List Samp :=
+  ((List.range 11).filter fun i => hit || i != 1).map fun i =>
+    smr q ((i * 1000 : Nat) : Int) [.num [((i * 1000 : Nat) : Int)]]
+
+def fiveWith (k : Nat) : List Samp := (List.range 5).flatMap fun q => rampPass q (decide (q < k))
+
+def firstAt (p : Nat) (o w : List Samp) : List (Nat × Verdict) := byMFirst .push p .geometry atRest none false o w
+
+theorem first_five : (List.range 6).map (fun k => (firstAt 0 (fiveWith k) (fiveWith 0)).lookup 1) =
+    [some (.skip .firstLate), some (.skip .firstLate), some (.skip .firstOpen), some (.skip .firstOpen),
+      some (.fail .coverage), some (.fail .coverage)] := by decide +kernel
+
+def flips (v v' : Option Verdict) : Bool :=
+  (v == some (.fail .coverage) && v' == some (.skip .firstLate)) ||
+    (v == some (.skip .firstLate) && v' == some (.fail .coverage))
+
+theorem first_extra_pass : ((List.range 6).all fun k => [true, false].all fun hit =>
+    !flips ((firstAt 0 (fiveWith k) (fiveWith 0)).lookup 1)
+      ((firstAt 0 (fiveWith k ++ rampPass 5 hit) (fiveWith 0)).lookup 1)) = true := by decide +kernel
+
+theorem first_rew_sampled : (firstAt 0 (fiveWith 0) (fiveWith 2)).lookup 1 = some .pass ∧
+    (firstAt 0 (fiveWith 5) (fiveWith 5)).lookup 1 = some .pass := by decide +kernel
+
+theorem first_stuck : (firstAt 0 (fiveWith 5) []).lookup 1 = some (.skip .firstLate) ∧
+    (firstAt 0 (fiveWith 5) []).lookup 5 = some (.fail .coverage) := by decide +kernel
+
+theorem second_empty :
+    (firstAt 0 ((fiveWith 5).filter (bucket ·.m != 2)) ((fiveWith 5).filter (bucket ·.m != 2))).lookup 2 =
+      some (.fail .coverage) := by decide +kernel
+
+theorem close_empty :
+    (firstAt 2 ((fiveWith 0).map ({ · with ph := 2 })) ((fiveWith 0).map ({ · with ph := 2 }))).lookup 1 =
+      some (.fail .coverage) := by decide +kernel
+
+def passesWith (n k : Nat) : List Samp := (List.range n).flatMap fun q => rampPass q (decide (q < k))
+
+def openAt (o w : List Samp) : Verdict := ((byMFirst .push 0 .geometry atRest none false o w).lookup 1).getD .pass
+
+def openLane (o cand base : List Samp) : Lane := laneOf [rel (openAt o cand) (openAt o base)]
+
+#guard openAt (passesWith 5 3) (passesWith 5 0) == .skip .firstOpen
+#guard openAt (passesWith 5 3) (passesWith 4 0) == .skip .firstOpen
+#guard openAt (passesWith 5 3 ++ rampPass 5 true) (passesWith 5 0) == .fail .coverage
+#guard openAt (passesWith 5 3 ++ rampPass 5 true) (passesWith 4 0) == .skip .firstOpen
+#guard openLane (passesWith 5 3) (passesWith 5 0) (passesWith 4 0) == .undecided
+#guard openLane (passesWith 5 3 ++ rampPass 5 true) (passesWith 5 0) (passesWith 4 0) == .undecided
+#guard openLane (passesWith 5 3 ++ rampPass 5 false) (passesWith 5 0) (passesWith 4 0) == .undecided
+
+end FirstFrame
+
+
 
 /-- The name of a kind in the golden file. -/
 def Kind.name : Kind → String
@@ -4333,17 +4830,22 @@ def Verdict.name : Verdict → String
   | .fail .shape => "fail:shape" | .fail .differs => "fail:differs" | .fail .apart => "fail:apart"
   | .fail .coverage => "fail:coverage"
   | .skip .noSample => "skip:noSample"
+  | .skip .firstLate => "skip:firstLate"
+  | .skip .firstOpen => "skip:firstOpen"
 
-/-- The name of a phase in the golden file. -/
 def Phase.name : Phase → String
   | .push => "push" | .hold => "hold"
 
-/-- The name of a relative verdict in the golden file. -/
 def Rel.name : Rel → String
   | .ok => "ok" | .both => "both" | .cleared => "cleared" | .new => "new"
-  | .unmeasured => "unmeasured"
+  | .unmeasured => "unmeasured" | .undecided => "undecided"
 
-/-- The name of an arm verdict in the golden file. -/
+def Cover.name : Cover → String
+  | .missing => "missing" | .late => "late" | .undecided => "undecided"
+
+def Lane.name : Lane → String
+  | .red => "red" | .undecided => "undecided" | .clean => "clean"
+
 def ArmVerdict.name : ArmVerdict → String
   | .ok => "ok" | .refusedConfig => "refused:config"
 
@@ -4424,9 +4926,11 @@ inductive Case where
   | idRule (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
   | idAt (name : String) (width : Nat) (q : Option Samp) (r : Samp)
   | idConst
+  | first (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width : Nat) (oSeg wSeg : List Samp)
+  | cover
+  | lane (name : String) (rs : List Rel)
+  | laneStep (name : String) (o o' cand base : List Samp)
 
-/-- The golden cases of the window judgement (`judgeEls` per kind and per branch). Two constants, not one, so that each stays
-under the start-cost bound (`Fw.Lint.InitCost.bound`). -/
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
   .judge "absent both" .discrete [s0 [.absent]] (s0 [.absent]),
@@ -4515,6 +5019,11 @@ def casesRest : List Case := [
   .versus "both cand coverage" (.fail .coverage) (.fail .apart), .versus "unmeasured" (.fail .apart) (.fail .coverage),
   .versus "cleared" .pass (.fail .apart), .versus "skip cleared" (.skip .noSample) (.fail .differs), .versus "ok" .pass .pass,
   .versus "ok skip" (.skip .noSample) .pass, .versus "coverage new" (.fail .coverage) .pass,
+  .versus "first late" (.skip .firstLate) .pass, .versus "first open" (.skip .firstOpen) .pass,
+  .versus "first open both" (.skip .firstOpen) (.skip .firstOpen), .versus "first open late" (.skip .firstOpen) (.skip .firstLate),
+  .versus "first open cleared" (.skip .firstOpen) (.fail .coverage), .versus "first late new" (.fail .coverage) (.skip .firstLate),
+  .versus "first open base coverage" (.fail .coverage) (.skip .firstOpen),
+  .versus "first open base content" (.fail .apart) (.skip .firstOpen),
   .armOf "rewrite ok" ⟨.rewrite, some "ab12", some "ab12", some "hydrate"⟩,
   .armOf "flags off" ⟨.rewrite, some "ab12", some "cd34", some "client-render"⟩,
   .armOf "client render" ⟨.rewrite, some "ab12", some "ab12", some "client-render"⟩,
@@ -4891,10 +5400,39 @@ def idRows : List (Int × Int × Int) :=
     (20, fRed 20 + 501, fAlpha 20 - 501), (138, 226520, 29760), (138, 227010, 29760), (138, 226030, 29760),
     (10000, 19500, 255500), (10000, 19501, 255501), (10000, 18500, 254500), (10000, 18499, 254499)]
 
-/-- The golden cases: every branch above, per kind where the kind matters. -/
-def cases : List Case := casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId
+def casesFirst : List Case :=
+  let earn := fun (ph : Phase) (p : Nat) (n : String) (o w : List Samp) =>
+    Case.first n ph p .geometry "earn" "max-width" 390 o w
+  let inPh := fun (q : Nat) (l : List Samp) => l.map ({ · with ph := q })
+  let sans2 := (fiveWith 5).filter (bucket ·.m != 2)
+  [earn .push 0 "first frame, neither arm" (fiveWith 0) (fiveWith 0),
+    earn .push 0 "first frame, original 1 of 5" (fiveWith 1) (fiveWith 0),
+    earn .push 0 "first frame, original 2 of 5" (fiveWith 2) (fiveWith 0),
+    earn .push 0 "first frame, original 3 of 5" (fiveWith 3) (fiveWith 0),
+    earn .push 0 "first frame, original 4 of 5" (fiveWith 4) (fiveWith 0),
+    earn .push 0 "first frame, original every pass" (fiveWith 5) (fiveWith 0),
+    earn .push 0 "first frame, one extra original pass" (fiveWith 1 ++ rampPass 5 true) (fiveWith 0),
+    earn .push 0 "first frame, one extra rewrite pass" (fiveWith 4) (fiveWith 0 ++ rampPass 5 false),
+    earn .push 0 "first frame, rewrite only" (fiveWith 0) (fiveWith 1),
+    earn .push 0 "first frame, both" (fiveWith 5) (fiveWith 5),
+    earn .push 0 "first frame, rewrite wrong" (fiveWith 0) (smr 0 1000 [.num [9000]] :: fiveWith 5),
+    earn .push 0 "second bucket, neither arm" sans2 sans2,
+    earn .push 0 "first frame, stuck rewrite" (fiveWith 5) [],
+    earn .push 2 "close push, neither arm" (inPh 2 (fiveWith 0)) (inPh 2 (fiveWith 0)),
+    earn .hold 1 "hold, neither arm" (inPh 1 (fiveWith 0)) (inPh 1 (fiveWith 0)),
+    .first "nav background, neither arm" .push 0 .colour "nav" "background-color" 390 (fiveWith 0) (fiveWith 0),
+    .cover, .lane "clean" [.ok, .cleared, .both], .lane "undecided" [.ok, .undecided], .lane "red" [.undecided, .new],
+    .lane "empty" [],
+    .laneStep "original 5 passes 3 hits, faithful 4 passes, one more hit" (passesWith 5 3) (passesWith 5 3 ++ rampPass 5 true)
+      (passesWith 5 0) (passesWith 4 0),
+    .laneStep "original 5 passes 3 hits, faithful 4 passes, one more miss" (passesWith 5 3)
+      (passesWith 5 3 ++ rampPass 5 false) (passesWith 5 0) (passesWith 4 0),
+    .laneStep "original 4 of 5, faithful sampled, one more hit" (passesWith 5 4) (passesWith 5 4 ++ rampPass 5 true)
+      (passesWith 5 0) (passesWith 5 5)]
 
-/-- A widths pick as JSON. -/
+def cases : List Case :=
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst
+
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
   | .refused => Json.mkObj [("ok", Json.bool false)]
@@ -5005,6 +5543,12 @@ def Case.line : Case → Json
       ("oSeg", Json.arr (o.map Samp.json).toArray), ("wSeg", Json.arr (s.map Samp.json).toArray),
       ("verdicts", Json.arr ((byMRule ph p k (durOf node prop w) (startFor node prop w) (idOn node prop) o s).map
         fun (_, v) => Json.str v.name).toArray)]
+  | .first n ph p k node prop w o s =>
+    Json.mkObj [("op", "byMFirst"), ("name", n), ("phase", ph.name), ("p", toJson p), ("kind", k.name),
+      ("node", node), ("prop", prop), ("width", toJson w), ("id", Json.bool (idOn node prop)),
+      ("oSeg", Json.arr (o.map Samp.json).toArray), ("wSeg", Json.arr (s.map Samp.json).toArray),
+      ("verdicts", Json.arr ((byMFirst ph p k (durOf node prop w) (startFor node prop w) (idOn node prop) o s).map
+        fun (_, v) => Json.str v.name).toArray)]
   | .idAt n w q r =>
     Json.mkObj [("op", "idCheck"), ("name", n), ("width", toJson w),
       ("q", match q with | none => Json.null | some q => q.json), ("r", r.json),
@@ -5016,7 +5560,20 @@ def Case.line : Case → Json
       ("rows", Json.arr (idRows.map fun (m, x, a) =>
         Json.arr #[toJson m, toJson x, toJson a, Json.bool (redOk m x), Json.bool (alphaOk m a)]).toArray)]
 
-/-- Where the golden lives, relative to `lean/`. -/
+  | .cover =>
+    Json.mkObj [("op", "firstCover"), ("name", "table"), ("alpha", ratJson alpha),
+      ("rows", Json.arr ((List.range 7).flatMap fun no => (List.range 8).flatMap fun k => (List.range 7).map fun nw =>
+        Json.arr #[toJson no, toJson k, toJson nw, Json.str (firstCover no k nw).name]).toArray)]
+  | .lane n rs =>
+    Json.mkObj [("op", "lane"), ("name", n), ("rels", Json.arr (rs.map fun r => Json.str r.name).toArray),
+      ("lane", Json.str (laneOf rs).name)]
+  | .laneStep n o o' c b =>
+    let segs := fun (l : List Samp) => Json.arr (l.map Samp.json).toArray
+    Json.mkObj [("op", "laneStep"), ("name", n), ("oSeg", segs o), ("oSeg2", segs o'), ("cand", segs c), ("base", segs b),
+      ("open", Json.arr #[Json.str (openAt o c).name, Json.str (openAt o b).name, Json.str (openAt o' c).name,
+        Json.str (openAt o' b).name]),
+      ("lanes", Json.arr #[Json.str (openLane o c b).name, Json.str (openLane o' c b).name])]
+
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
 /-- Write, or with `--check` verify, the golden file.

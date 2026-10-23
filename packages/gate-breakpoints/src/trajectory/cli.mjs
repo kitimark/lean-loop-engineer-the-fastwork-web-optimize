@@ -24,12 +24,13 @@ const arg = (argv, name, dflt = '') => { const i = argv.indexOf(name); return i 
 export function summaryMd(raw, red) {
   const head = `## trajectory ${raw.engine} (${raw.version ?? '?'}) search=${raw.search || '(default)'} reads=${raw.reads ?? 'full'} paths=${(raw.paths ?? ['hero', 'morph']).join('+')} reps=${raw.reps ?? 1}`;
   if (red.refused) return [`${head} REFUSED config`, '', `The run was not measured as asked, so it has no verdict: ${red.detail}`, ''].join('\n');
-  const out = [`${head} ${red.red ? 'RED' : 'CLEAN'}`, '',
+  const out = [`${head} ${red.lane.toUpperCase()}`, '',
     `arms: ${red.arms.length}, all with the config hash of their search and fwMode hydrate (rewrite) or no window.__fw (original)`, '',
     `units ${red.totals.units}: pass ${red.totals.pass}, fail ${red.totals.fail}, skip ${red.totals.skip}; coverage failures ${red.totals.coverageFail}`, '',
     '| against the faithful arm | units |', '|---|---|',
     `| new (fails here, not in the faithful arm) | ${red.rels.new} (content ${red.rels.new - red.totals.coverageNew}, coverage ${red.totals.coverageNew}) |`, `| both (fails in both: baseline red) | ${red.rels.both} |`,
     `| unmeasured (fails on content here, on coverage in the faithful arm: no verdict) | ${red.rels.unmeasured} |`,
+    `| undecided (open@1 has no rewrite sample and the original's hit rate cannot tell late from missing) | ${red.rels.undecided} |`,
     `| cleared (fails only in the faithful arm) | ${red.rels.cleared} |`, `| ok | ${red.rels.ok} |`, ''];
   for (const n of red.notes) out.push(`- note: ${n}`);
   const news = red.groups.filter((g) => g.newSteps.length > 0);
