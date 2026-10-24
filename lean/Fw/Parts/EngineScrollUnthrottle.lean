@@ -4,7 +4,6 @@ import Fw.Engine.Visual
 /-!
 # engine.scroll:unthrottle
 WebKit @862f17d: WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266.
-The guard `(pointer: coarse)`: WebPageIOS.mm:4243-4246, MediaQueryFeatures.cpp:527-538, Quirks.cpp:3194-3203.
 -/
 namespace Fw.Parts.EngineScrollUnthrottle
 
@@ -33,7 +32,7 @@ def accState (ps : List PropKind) : AccState :=
 
 def completelyAccelerated (ps : List PropKind) : Bool := accState ps == .all
 
-/-- One entry of `timeline->relevantAnimations()`: the set `m_animations` (AnimationTimeline.h:59, filled at AnimationTimeline.cpp:62) of every animation attached to the timeline. It carries no play state, so an attached animation counts whatever its phase. -/
+/-- One entry of `timeline->relevantAnimations()` (AnimationTimeline.h:59, `m_animations` filled at AnimationTimeline.cpp:62): any attached animation, whatever its play state. -/
 structure Anim where
   progressBased : Bool
   props : List PropKind
@@ -138,7 +137,7 @@ theorem lift_effect (e : Engine) (p : Page) (hs : p.timelineSupported = true) :
     throttledOn e true p.withLift = false := by
   cases e <;> simp [throttledOn, Engine.throttles, lifted_when_supported p hs]
 
-/-- The `position` of the element. Both out-of-flow values take no layout space. -/
+/-- The `position` of the element. -/
 inductive Position where
   | static
   | fixed
@@ -208,11 +207,9 @@ theorem flag_value_unread : flag.readByStyle = false := rfl
 
 theorem flag_is_liftAnim : (⟨true, flag.animated⟩ : Anim) = liftAnim := rfl
 
-/-- The lifting animation is fixed by the animated properties alone; the position never enters it. -/
 theorem lift_anim_position_free (f : FlagStyle) (h : f.animated = [.custom]) : (⟨true, f.animated⟩ : Anim) = liftAnim := by
   simp [h, liftAnim]
 
-/-- A flag of either out-of-flow position adds no in-flow box, hit target or accessible content. -/
 theorem same_layout_out_of_flow (f : FlagStyle) (ho : f.position.outOfFlow = true) (hp : f.pointerEventsNone = true)
     (ha : f.ariaHidden = true) (es : List El) :
     flowOf (es ++ [⟨!f.position.outOfFlow, !f.pointerEventsNone, !f.ariaHidden⟩]) = flowOf es ∧
@@ -222,18 +219,14 @@ theorem same_layout_out_of_flow (f : FlagStyle) (ho : f.position.outOfFlow = tru
 
 theorem fixed_same_look : Position.outOfFlow .fixed = Position.outOfFlow .absolute := rfl
 
-/-! ## The `(pointer: coarse)` guard
-
-The element runs only where the primary pointing device is coarse. Mobile Safari reports `coarse` for every iPhone
-(WebPageIOS.mm:4243-4246: the primary device is the mouse only on Mac Catalyst; the media feature MediaQueryFeatures.cpp:527-538
-hides it only for a site named in Quirks.cpp:3194-3203, not this one). Desktops report `fine`. -/
+/-! ## The `(pointer: coarse)` guard -/
 
 structure Env where
   engine : Engine
   coarse : Bool
 deriving Repr, DecidableEq
 
-/-- Mobile Safari on an iPhone always reports a coarse primary pointer (premise from the source above). -/
+/-- An iPhone reports a coarse primary pointer: WebPageIOS.mm:4243-4246, MediaQueryFeatures.cpp:527-538; only the sites of Quirks.cpp:3194-3203 hide it. -/
 def Env.valid (e : Env) : Bool := e.engine != .webkitIos || e.coarse
 
 def Env.iphone : Env := ⟨.webkitIos, true⟩
@@ -246,7 +239,6 @@ def Env.pageOf (e : Env) (p : Page) : Page := p.withLiftOn e.coarse
 
 def Env.throttled (e : Env) (i : Bool) (p : Page) : Bool := throttledOn e.engine i (e.pageOf p)
 
-/-- On the iPhone path the guard changes nothing: the guarded page is the unguarded lifted page. -/
 theorem guard_keeps_ios (e : Env) (hv : e.valid = true) (hi : e.engine = .webkitIos) (p : Page) :
     e.pageOf p = p.withLift := by
   have hc : e.coarse = true := by simpa [Env.valid, hi] using hv
@@ -256,13 +248,11 @@ theorem guard_keeps_ios_throttle (e : Env) (hv : e.valid = true) (hi : e.engine 
     e.throttled i p = throttledOn .webkitIos i p.withLift := by
   rw [Env.throttled, guard_keeps_ios e hv hi p, hi]
 
-/-- On the iPhone with `animation-timeline` supported the toolbar throttle is lifted, as without the guard. -/
 theorem guard_lifts_ios (e : Env) (hv : e.valid = true) (hi : e.engine = .webkitIos) (p : Page)
     (hs : p.timelineSupported = true) : e.throttled true p = false := by
   rw [guard_keeps_ios_throttle e hv hi]
   exact lift_effect .webkitIos p hs
 
-/-- With a fine pointer the page is the page without the element, whatever the engine. -/
 theorem guard_fine_noop (e : Env) (hf : e.coarse = false) (p : Page) : e.pageOf p = p := by
   simp [Env.pageOf, Page.withLiftOn, hf]
 
@@ -276,7 +266,7 @@ def laidOut (f : FlagStyle) (reflowed : Nat) : Nat := if f.readByStyle then refl
 
 theorem restyled_flag (subtree : Nat) : restyled flag subtree = 1 := rfl
 
-/-- Elements the element restyles per scroll frame in an environment: none unless the pointer is coarse. -/
+/-- Elements restyled per scroll frame: none unless the pointer is coarse. -/
 def Env.restyled (e : Env) (subtree : Nat) : Nat :=
   if e.coarse then _root_.Fw.Parts.EngineScrollUnthrottle.restyled flag subtree else 0
 
