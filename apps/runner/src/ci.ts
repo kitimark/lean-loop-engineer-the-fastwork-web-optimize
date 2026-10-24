@@ -75,10 +75,8 @@ export const STATE_LIMITS = [100, 400, 1000] as const;
 
 export type StateStep = { step: "found" | "ended" | "older" | "absent" | "exhausted" } | { step: "grow"; next: number };
 
-/** Lean `Fw.Ci.State.burst`: how far a later-listed run id may exceed an earlier-listed one. */
 export const STATE_BURST = 1000;
 
-/** Twin of Lean `Fw.Ci.State.step` (golden ci/ci-state.jsonl): a full page lacking `id` is `absent` only when some listed id is more than STATE_BURST below it. */
 export function stateStep(narrowed: boolean, limit: number, id: number, ids: number[]): StateStep {
   if (ids.includes(id)) return { step: "found" };
   if (ids.length < limit) return { step: "ended" };

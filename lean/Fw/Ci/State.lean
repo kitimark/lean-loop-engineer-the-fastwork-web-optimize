@@ -1,22 +1,9 @@
 import Lean.Data.Json
 namespace Fw.Ci.State
-/-!
-# `fw ci state`: reading the run list until the run shows up (task `ci-state-burst`)
+/-! `fw ci state`: read the run list, growing the limit, until the run shows up. -/
 
-`gh run list --limit n` returns the newest `n` runs, but not in id order: one push starts about 20 workflow runs
-whose ids interleave, so a run can sit after a listed run with a smaller id. The old rule called a run `absent` as soon
-as a full page held an id below it, and run 40100783726 (entry 106 of the branch list, page min 40100783603 at limit
-100) was reported unknown.
-
-Model, with `burst` the most a later-listed id may exceed an earlier-listed one (`Bounded`): a full page that lacks
-`id` can still hide it iff `id ≤ x + burst` for every id `x` on the page. Only when some listed id is more than
-`burst` below `id` is the run `absent`.
--/
-
-/-- Bound on how far a later-listed run id may exceed an earlier-listed one (CONFIRMED max 345 on ci/earn-webkit-smooth, 400 rows). -/
 def burst : Nat := 1000
 
-/-- The list limits `fw ci state` tries in turn. -/
 def limits : List Nat := [100, 400, 1000]
 
 inductive Step where
@@ -33,7 +20,6 @@ def nextLimit : Nat → Option Nat
   | 400 => some 1000
   | _ => none
 
-/-- A full page lacking `id` may still hide it. -/
 def mayHide (id : Nat) (ids : List Nat) : Bool := ids.all (fun x => decide (id ≤ x + burst))
 
 def step (narrowed : Bool) (limit id : Nat) (ids : List Nat) : Step :=
@@ -43,7 +29,6 @@ def step (narrowed : Bool) (limit id : Nat) (ids : List Nat) : Step :=
     if narrowed then (match nextLimit limit with | some n => .grow n | none => .exhausted) else .older
   else .absent
 
-/-- The list is ordered up to `burst`: an entry listed later exceeds an earlier one by at most `burst`. -/
 def Bounded (L : List Nat) : Prop := L.Pairwise (fun a b => b ≤ a + burst)
 
 theorem step_found (n : Bool) (l id : Nat) (ids : List Nat) (h : id ∈ ids) : step n l id ids = .found := by
@@ -69,7 +54,6 @@ theorem step_absent (n : Bool) (l id : Nat) (ids : List Nat) (h : id ∉ ids) (h
     (ha : ¬ mayHide id ids = true) : step n l id ids = .absent := by
   simp [step, h, hl, ha]
 
-/-- Absent only with a witness: a listed id more than `burst` below the target. -/
 theorem absent_witness (n : Bool) (l id : Nat) (ids : List Nat) (h : step n l id ids = .absent) :
     ∃ x ∈ ids, x + burst < id := by
   refine Classical.byContradiction fun hc => ?_
@@ -86,7 +70,6 @@ theorem absent_witness (n : Bool) (l id : Nat) (ids : List Nat) (h : step n l id
   simp only [h1, h2, hm] at h
   cases n <;> simp at h <;> split at h <;> simp at h
 
-/-- Absent never fires when the target is within `burst` above every listed id. -/
 theorem absent_never_in_burst (n : Bool) (l id : Nat) (ids : List Nat) (h : ∀ x ∈ ids, id ≤ x + burst) :
     step n l id ids ≠ .absent := by
   intro ha
@@ -119,7 +102,6 @@ theorem grow_inv (n : Bool) (l id m : Nat) (ids : List Nat) (h : step n l id ids
       split at h <;> simp_all
   · simp [h1, h2, h3] at h
 
-/-- The loop with a fuel count; `page l` is the list `gh` returns for limit `l`. `none` is out of fuel. -/
 def go : Nat → Bool → Nat → Nat → (Nat → List Nat) → Option Step
   | 0, _, _, _, _ => none
   | f + 1, n, l, id, p =>
@@ -127,7 +109,6 @@ def go : Nat → Bool → Nat → Nat → (Nat → List Nat) → Option Step
     | .grow m => go f n m id p
     | s => some s
 
-/-- The loop starts at the first limit and three reads are enough: it always ends with a verdict. -/
 theorem go_terminates (n : Bool) (id : Nat) (p : Nat → List Nat) : (go 3 n 100 id p).isSome = true := by
   have h1 : ∀ m, step n 100 id (p 100) = .grow m → m = 400 := fun m h => by
     have := grow_inv _ _ _ _ _ h; simpa [nextLimit] using this.symm
@@ -166,7 +147,6 @@ private theorem miss_not_ended (L : List Nat) (id l : Nat) (hid : id ∈ L) (hn 
   have : L.take l = L := List.take_of_length_le (by simp [List.length_take] at h; omega)
   exact hn (by rw [this]; exact hid)
 
-/-- A present run within the largest limit is found, on any list ordered up to `burst`. -/
 theorem present_found (L : List Nat) (hb : Bounded L) (id : Nat) (hid : id ∈ L.take 1000) :
     go 3 true 100 id (fun l => L.take l) = some .found := by
   have hL : id ∈ L := List.mem_of_mem_take hid
@@ -178,7 +158,6 @@ theorem present_found (L : List Nat) (hb : Bounded L) (id : Nat) (hid : id ∈ L
     · simp [go, key 100 a 400 rfl, step_found _ _ _ _ b]
     · simp [go, key 100 a 400 rfl, key 400 b 1000 rfl, step_found _ _ _ _ hid]
 
-/-- Run 40100783726 on ci/earn-webkit-smooth: entries 0-89 stand for the newer pushes (ids far above), 90-107 are the real tail. -/
 def realHead : List Nat := (List.range' 40113000000 90).reverse
 def realPage100 : List Nat := realHead ++ [40100783690, 40100783607, 40100783673, 40100783629, 40100783703, 40100783603, 40100783865, 40100783783, 40100783657, 40100783643]
 def realPage400 : List Nat := realPage100 ++ [40100783732, 40100783604, 40100783625, 40100783587, 40100783590, 40100783678, 40100783726, 40100783656]
@@ -215,7 +194,6 @@ def stepJson : Step → Json
   | .exhausted => Json.mkObj [("step", "exhausted")]
 
 open Lean in
-/-- The golden file: one line per case, `{name, narrowed, limit, id, ids, response}`. -/
 def goldenText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, nr, l, id, ids, e) =>
     (Json.mkObj [("name", n), ("narrowed", nr), ("limit", l), ("id", id), ("ids", Json.arr (ids.map fun x => Json.num (JsonNumber.fromNat x)).toArray),

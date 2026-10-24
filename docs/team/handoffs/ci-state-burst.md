@@ -8,5 +8,5 @@ check.sh job "ci-state golden check"; Trigger.lean lean.yml row + triggers.jsonl
 (STATE_BURST); ci-state.test.ts replays the golden incl. run 40100783726 cases.
 Verified: `pnpm -s fw ci state 40100783726 --branch ci/earn-webkit-smooth` prints `complete`; ci-paths --check ok.
 Open: Fw.Ci.StateList + lean/scripts/StateListGolden.lean + golden/ci/state-list.jsonl are superseded (not replayed);
-remove in a follow-up (outside this task's writes). burst=1000 is an assumption (observed max 345).
+remove in a follow-up. burst=1000 is an assumption (observed max 345).
 Read first: research/notes/2026/10-2x-ci-state-burst.md.
