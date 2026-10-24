@@ -122,6 +122,37 @@ theorem faithful_webkit_never_starts_padding (d : Dir) (c : CssProp → Bool) :
   cases d <;> simp [wkStarts, wkBits, wkMatches, hasWrapper, CssProp.isLogical, CssProp.phys, Entry.longhands,
     faithfulHero, faithfulBase, earnHeroPill, earnBase, earnItems, entries]
 
+/-- The transition list an earn rule leaves on the button: under `prefers-reduced-motion: reduce` the original's rule sets
+`transition: none` for both arms, so the list is empty whatever the arm's own list is. -/
+def underMotion (reduced : Bool) (l : List Item) : List Item := if reduced then [] else l
+
+/-- The computed `transition-*` values of an empty list: `none`, `0s`, `ease`, `0s`, `normal`. -/
+def computedNone : List String := ["none", "0s", "ease", "0s", "normal"]
+
+/-- The computed values of a list: the faithful `none` values when it is empty, else its entries (only the property
+names, as the gate compares them after its normalization). -/
+def computed (l : List Item) : List String := if l.isEmpty then computedNone else l.map (·.entry.css)
+
+/-- **Reduced motion, started set:** both arms start nothing on either engine, in either direction, for every change set
+(the variant keeps the original's `transition: none`). -/
+theorem reduced_started_empty (e : Eng) (d : Dir) (c : CssProp → Bool) (l : List Item) :
+    startedSet e d (underMotion true l) c = [] := by
+  simp [underMotion, startedSet, entries]
+  intro p _
+  cases e <;> simp [starts, crStarts, wkStarts]
+
+/-- **Reduced motion, computed list:** the variant's list equals the faithful one, on the entry rule and the exit rule. -/
+theorem reduced_computed_faithful :
+    computed (underMotion true variantHero) = computed (underMotion true faithfulHero) ∧
+    computed (underMotion true variantBase) = computed (underMotion true faithfulBase) ∧
+    computed (underMotion true variantHero) = computedNone := by
+  decide
+
+/-- Without reduced motion the variant's list is its own (the padding longhands show), so the guard above is what the
+media condition adds. -/
+theorem motion_computed_differs :
+    computed (underMotion false variantHero) ≠ computed (underMotion false faithfulHero) := by decide
+
 open Lean in
 private def numJ (mant : Nat) (exp : Nat) : Json := Json.num ⟨mant, exp⟩
 
@@ -158,6 +189,10 @@ def lines (_ : Unit) : List String :=
         ("paddingLeftTiming", match (if starts e d (entries l) flipChanged .paddingLeft then timing e d l .paddingLeft else none) with
           | some (du, de) => Json.arr #[Json.num du, Json.num de]
           | none => Json.null)]))
+  ++ ([Eng.chromium, .webkit].flatMap fun e => [Dir.ltr, .rtl].flatMap fun d => arms.map fun (arm, rule, l) =>
+    line "reduced" [("engine", Json.str e.name), ("dir", Json.str d.name), ("arm", Json.str arm), ("rule", Json.str rule)]
+      (Json.mkObj [("starts", names (startedSet e d (underMotion true l) flipChanged)),
+        ("computed", Json.arr ((computed (underMotion true l)).map Json.str).toArray)]))
 
 def goldenText (_ : Unit) : String := String.join ((lines ()).map (· ++ "\n"))
 

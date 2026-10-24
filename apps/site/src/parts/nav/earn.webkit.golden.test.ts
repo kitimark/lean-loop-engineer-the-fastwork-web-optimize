@@ -18,8 +18,8 @@ interface Item {
 const RULES: Record<string, string> = {
   'faithful/hero': '  .nav:global(.is-hero-pill) .btn.earn',
   'faithful/base': '  .btn.earn',
-  'variant/hero': '  .nav:global(.is-earn-logical.is-hero-pill) .btn.earn',
-  'variant/base': '  .nav:global(.is-earn-logical):not(:global(.is-hero-pill)) .btn.earn',
+  'variant/hero': '    .nav:global(.is-earn-logical.is-hero-pill):not(:global(.is-earn-still)) .btn.earn',
+  'variant/base': '    .nav:global(.is-earn-logical):not(:global(.is-hero-pill), :global(.is-earn-still)) .btn.earn',
 };
 
 function body(selector: string): string {
@@ -71,7 +71,7 @@ function timing(engine: Eng, dir: string, items: Item[], prop: string): [number,
 
 describe('nav:earn-logical golden', () => {
   it('every golden fn is covered', () => {
-    expect(new Set(golden.map((g) => g.fn))).toEqual(new Set(['list', 'started']));
+    expect(new Set(golden.map((g) => g.fn))).toEqual(new Set(['list', 'started', 'reduced']));
   });
 
   it('the variant name and class are the ones the part registers', () => {
@@ -105,6 +105,27 @@ describe('nav:earn-logical golden', () => {
   it('the variant rules win the cascade over every faithful earn transition rule they replace', () => {
     for (const rule of ['hero', 'base']) {
       for (const f of ['faithful/hero', 'faithful/base']) expect(weight(RULES[`variant/${rule}`])).toBeGreaterThan(weight(RULES[f]));
+    }
+  });
+
+  it('the variant rules sit inside the no-preference media block, so reduce keeps the original transition: none', () => {
+    const open = css.indexOf('@media (prefers-reduced-motion: no-preference) {');
+    const close = css.indexOf('\n  }\n', open);
+    expect(open).toBeGreaterThan(0);
+    for (const k of ['variant/hero', 'variant/base']) {
+      const at = css.indexOf(`\n${RULES[k]} {`);
+      expect(at, k).toBeGreaterThan(open);
+      expect(at, k).toBeLessThan(close);
+    }
+    const reduce = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce) {'));
+    expect(/\.btn\.earn\s*\{[^}]*transition:\s*none/.test(reduce)).toBe(true);
+  });
+
+  it('reduced motion: nothing starts and the computed list is the faithful none list, both arms, engines and directions', () => {
+    const rows = golden.filter((g) => g.fn === 'reduced');
+    expect(rows).toHaveLength(16);
+    for (const g of rows) {
+      expect(g.out, JSON.stringify(g.in)).toEqual({ starts: [], computed: ['none', '0s', 'ease', '0s', 'normal'] });
     }
   });
 

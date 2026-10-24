@@ -1,8 +1,7 @@
-Branch: worktree-wf_bbd9b85f-6e4-1 (CI branch ci/earn-webkit-smooth, pushed at 82f51f04b). Worktree: .claude/worktrees/wf_bbd9b85f-6e4-1. Last sha: `git log -1`.
-CI runs: 40100235090 trajectory-probe FAILED (fixed); 40100235131 lean failed (fixed); 40100783726 trajectory-probe success; 40100783656 breakpoint-gate success (default page); 40100783678 lean success; 40102193302 trajectory-probe success; 40102193331 lean success;
-40106804693 breakpoint-gate with fw=nav:earn-logical FAILED (transition lists: padding-inline vs logical longhands); push 82f51f04b (continue round) runs pending, ids unknown yet.
-Continue round (this commit): Lean/Fw/Gate/TransitionList.lean (normalize, idempotent, identity without shorthands, earn_equal), golden gate/transition-list.jsonl, packages/gate-breakpoints/src/transition-list.mjs used by verdict.mjs armReq (both arms), test transition-list.test.mjs, check.sh job, Trigger.lean row, Fw.lean import.
-Extra files outside the earlier writes (lead adds): lean/Fw/Gate/TransitionList.lean, lean/scripts/TransitionListGolden.lean, lean/scripts/check.sh, lean/Fw.lean, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl, packages/contracts/golden/gate/transition-list.jsonl, packages/gate-breakpoints/src/verdict.mjs, src/transition-list.mjs, test/transition-list.test.mjs, packages/contracts/golden/parts/footprint-diff.gen.json.
+Branch: worktree-wf_bbd9b85f-6e4-1 (CI branch ci/earn-webkit-smooth). Worktree: .claude/worktrees/wf_bbd9b85f-6e4-1. Last sha: `git log -1`.
+CI runs: 40100235090 trajectory-probe FAILED (fixed); 40100235131 lean failed (fixed); 40100783726 trajectory-probe ok; 40100783656 breakpoint-gate ok (default page); 40100783678 lean ok; 40102193302 trajectory-probe ok; 40102193331 lean ok;
+40106804693 gate with variant FAILED (raw lists, fixed by normalization); 40111361865 gate with variant FAILED (reduced-motion: the variant's earn rules outranked the original's transition: none). Run after the reduced-motion fix: not yet dispatched.
+Reduced-motion round: Lean NavEarnWebkit.reduced_started_empty / reduced_computed_faithful, golden rows `reduced`, site test earn.webkit.golden.test.ts; nav.module.css variant rules moved into the no-preference block with :not(.is-earn-still); trajectory table/golden/reduce.mjs/test updated for the new lines.
 Lead dispatch: gh workflow run breakpoint-gate.yml --ref ci/earn-webkit-smooth -f engines=both -f fw=nav:earn-logical
-TS stand-in: splitList/joinList (paren-aware comma split of computed strings).
-Open: user Safari/iPhone review (ledger n=73); third macOS job follow-up. Older notes: see git history of this file; read research/notes/2026/10-2x-earn-webkit-smooth.md first.
+Open: user Safari/iPhone review (ledger n=73); third macOS job follow-up; WebKit result of run 40111361865 not read by me (lead to read: gh run view 40111361865).
+Read first: research/notes/2026/10-2x-earn-webkit-smooth.md.
