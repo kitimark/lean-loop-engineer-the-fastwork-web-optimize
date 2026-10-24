@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Console.LandSpeed
 import Fw.Ops.PathCheck
+import Fw.Ops.GateEngineTiming
 import Fw.Gate.Trajectory
 import Fw.Gate.Trajectory.Dispatch
 /-!
@@ -372,6 +373,67 @@ def seededCaches : List String :=
 /-- The (workflow, job) pairs a `main` push runs besides the workflow's `guard`: they save the caches main seeded
 before this task (`mainBefore`); `wktr-zip` is excluded. -/
 def seeders : List (String × String) := [("lean.yml", "lean"), ("premise-tests.yml", "engine")]
+
+/-! ## Cache saves keyed on the ref (task `gate-engine-cache-followups`)
+
+A branch restores its own caches and `main`'s only. The gate-engine action saves on every ref except `ci/land-*`
+(`Fw.Ops.GateEngineTiming.shouldSave`), so the land workflow lists its gate writers in `cacheWriters` but saves nothing
+on its own branches. -/
+
+/-- The caches the gate-engine action saves, named by the last segment of their `path:`. -/
+def gateCaches : List String := ["gate-apt", "ms-playwright", "hs-zip"]
+
+/-- Writer `w` saves on a run of ref `ref`: a gate-engine cache follows the ref rule of the action, every other cache
+saves on every ref. -/
+def savesOn (ref : String) (w : String × String × String) : Bool :=
+  !gateCaches.contains w.2.2 || Fw.Ops.GateEngineTiming.shouldSave ref
+
+/-- A run of ref `reader` restores an entry saved on ref `saved` iff it is `main`'s or its own branch's. -/
+def readableFrom (saved reader : String) : Bool := saved == "main" || saved == reader
+
+/-- No gate-engine writer of the land workflow saves on a land branch. -/
+theorem land_saves_no_gate (rest : String) :
+    ∀ w ∈ cacheWriters, w.1 = "land.yml" → gateCaches.contains w.2.2 = true →
+      savesOn ("ci/land-" ++ rest) w = false := by
+  intro w _ _ hg
+  have hm : w.2.2 ∈ gateCaches := List.contains_iff_mem.mp hg
+  simp [savesOn, hm, Fw.Ops.GateEngineTiming.land_prefix_no_save]
+
+/-- The land workflow's writers are the three gate caches. -/
+theorem land_writers_gate :
+    (cacheWriters.filter (·.1 == "land.yml")).map (·.2.2) = gateCaches := by decide
+
+/-- Every gate writer saves on `main`. -/
+theorem gate_saves_main : ∀ w ∈ cacheWriters, savesOn "main" w = true := by decide
+
+/-- An entry saved on a branch other than `main` is read by no other branch. -/
+theorem branch_entry_unread (saved reader : String) (hm : saved ≠ "main") (hr : reader ≠ saved) :
+    readableFrom saved reader = false := by
+  simp [readableFrom, hm, Ne.symm hr]
+
+/-- The gate-engine writers that upload entries only their own `ci/<task>` branch reads: not the land workflow (it
+saves nothing), not a seeder (`main` reads those). -/
+def branchOnlyWriters : List (String × String × String) :=
+  cacheWriters.filter fun w => gateCaches.contains w.2.2 && w.1 != "land.yml" && !seeders.contains (w.1, w.2.1)
+
+/-- The workflows with a branch-only gate writer. -/
+theorem branchOnly_files : (branchOnlyWriters.map (·.1)).eraseDups =
+    ["breakpoint-gate.yml", "preview-e2e.yml", "smoothness.yml", "snapshot-extract.yml", "trajectory-probe.yml",
+     "visual-diff.yml"] := by decide
+
+/-- No branch-only writer is a seeder. -/
+theorem branchOnly_unseeded : ∀ w ∈ branchOnlyWriters, (w.1, w.2.1) ∉ seeders := by decide
+
+/-- Size on `main` of one gate entry in MB (MEASURED, `gh cache list`, 2026-10-24): the apt packages of an engine, the
+Playwright browsers, the headless-shell zip. -/
+def entryMB : String → Nat
+  | "gate-apt-webkit" => 108 | "ms-playwright" => 96 | "gate-apt-chromium" => 27 | "hs-zip" => 125 | _ => 0
+
+/-- One uploading branch writes 204 MB for the webkit leg and 152 MB for the chromium leg, 356 MB for both. -/
+theorem entry_legs :
+    entryMB "gate-apt-webkit" + entryMB "ms-playwright" = 204 ∧
+    entryMB "gate-apt-chromium" + entryMB "hs-zip" = 152 ∧
+    204 + 152 = 356 := by decide
 
 /-- The job `if:` conjunct that skips a job on a `main` push and keeps it on every other event. -/
 def notMainPush : String := "github.event_name != 'push' || github.ref != 'refs/heads/main'"
@@ -893,6 +955,9 @@ def tableLine (_ : Unit := ()) : Json :=
     ("seeders", .arr (seeders.map fun (f, j) => Json.mkObj [("file", .str f), ("job", .str j)]).toArray),
     ("notMainPush", .str notMainPush),
     ("cacheWriters", .arr (cacheWriters.map fun (f, j, c) =>
+      Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray),
+    ("gateCaches", strs gateCaches),
+    ("branchOnly", .arr (branchOnlyWriters.map fun (f, j, c) =>
       Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray)]
 
 /-- A string or `null`. -/
