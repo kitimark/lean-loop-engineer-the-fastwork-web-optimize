@@ -3,7 +3,7 @@
 - Branch `worktree-wf_112a77b1-8ca-1`, worktree `.claude/worktrees/wf_112a77b1-8ca-1`, CI branch `ci/mount-arm-late`; last commit = `git log -1`.
 - CI runs: `40092331051` trajectory-probe success (inputs read back: `fw=morph.mount:arm-late widths=390,1280 engines=both
   diagnostic`; Chromium 0 new fails, 1 baseline-red, 1 undecided open@1 coverage; playwright-webkit 2000 pass 0 fail).
-  `40093577005` breakpoint-gate success (default config, no flag). `40092331031`, `40093577014` lean: fail by design, the
+  `40093577005` breakpoint-gate success (default config, no flag). `40095661200` breakpoint-gate WITH the flag `morph.mount:arm-late`: success (lead dispatch). `40092331031`, `40093577014` lean: fail by design, the
   import check wants `lean/Fw.lean` wired (lead).
 - Verified: `lean/scripts/check.sh` green with the two imports added locally (axiom check included); site test and
   typecheck green; `part-footprint.mjs --check` green; `fw plan lint` has no writesClosure error for this task.
@@ -27,3 +27,5 @@
 
 - CI cannot drive the WebKit touch gate (INFERRED): touch-start to first scroll frame is a phone step.
 - Listener-armed frames per zone in a browser: the flag counts scroll frames per mode in `window.__fwArmLate.frames`; no lane reads it.
+
+- Final round: main merged; ledger row is n 72 (67-71 taken, 73 held); `lean/Fw.lean` imports MorphMountArmLate and MorphMountArmLateGolden; footprint, rows and diff regenerated and `--check` green.
