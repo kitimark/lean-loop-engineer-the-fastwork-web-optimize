@@ -33,7 +33,7 @@ export function client(base) {
 async function walkPage(c, arm, mode, width) {
   const sel = selectorsFor(arm.site);
   await c.goto('about:blank');
-  await c.goto(`${arm.origin}/`);
+  await c.goto(`${arm.origin}/${arm.search ?? ''}`);
   for (let k = 0; k < 40; k++) {
     if (await c.sync('return document.readyState === "complete" && !!document.querySelector(arguments[0])', [sel.nav]).catch(() => false)) break;
     await sleep(250);
@@ -91,7 +91,7 @@ export async function captureSafari({ port, width, reps, out, variants = [], sea
     const e = envFor(width);
     await c.rect({ x: 0, y: 0, width, height: e.height + 120 });
     const arms = [{ site: 'orig', role: 'orig', origin: orig.origin }, { site: 'rewrite', role: 'faithful', origin: rewrite.origin },
-      ...(flagged ? [{ site: 'rewrite', role: 'flag', origin: flagged.origin }] : []),
+      ...(flagged ? [{ site: 'rewrite', role: 'flag', origin: flagged.origin, search }] : []),
       ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, variant: v }))];
     for (const arm of arms) {
       const modes = arm.variant ? ['full', 'full'] : [...Array.from({ length: reps }, () => 'full'), 'light'];

@@ -107,7 +107,7 @@ export function styleInit(css) {
 
 async function walkPage(engine, env, arm, mode, morph) {
   const sel = selectorsFor(arm.site);
-  const s = await engine.open(env, { origin: arm.origin, path: '/', init: `${INIT_KIT}\n${REC}\n${styleInit(variantCss(arm.variant, sel.earn))}`, frozen: false });
+  const s = await engine.open(env, { origin: arm.origin, path: '/' + (arm.search ?? ''), init: `${INIT_KIT}\n${REC}\n${styleInit(variantCss(arm.variant, sel.earn))}`, frozen: false });
   try {
     const ready = await s.evaluate(waitReady, { site: arm.site, capMs: 20000 });
     const self = await s.evaluate(() => (window.__fw ? { config: window.__fw.configHash ?? null, mode: window.__fw.mode ?? null } : { config: null, mode: null }));
@@ -159,7 +159,7 @@ export async function capture({ engineName, widths, reps, out, morph = true, var
   const arms = [
     { site: 'orig', role: 'orig', origin: orig.origin, want: null },
     { site: 'rewrite', role: 'faithful', origin: rewrite.origin, want: configs.bySearch[''] },
-    ...(flagged ? [{ site: 'rewrite', role: 'flag', origin: flagged.origin, want: flag.hash ?? null }] : []),
+    ...(flagged ? [{ site: 'rewrite', role: 'flag', origin: flagged.origin, want: flag.hash ?? null, search }] : []),
     ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, want: configs.bySearch[''], variant: v })),
   ];
   const runs = [];
