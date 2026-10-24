@@ -106,7 +106,7 @@ the lead's dispatches if wanted.
 Answer: the flag halves EventDispatch and cuts FunctionCall by a third on the iPhone Simulator scroll walk.
 Lane: `webkit-sim.yml`, target rewrite, 430x775 at dpr 3, one macOS VM (job r1) with 2 passes per run, 50 px steps
 (106 steps). Base run 40134016822, flag run 40134234199 (`engine.events:quiet`), both on `ci/react-root-quiet-events-gate`
-at 2898fb298. The runs gave 1 VM, not 3; the spread below is across the 2 passes. Summary: `results/react-root-quiet-events/sim-summary.json`.
+at 2898fb298. Each run gave 1 VM x 2 passes (`fw run --runs 3` did not reach VMs), so the counts are n=2 passes per arm, MEASURED; the spread below is across those 2 passes. Summary: `results/react-root-quiet-events/sim-summary.json`.
 
 | count (walk total) | base pass 1 | base pass 2 | flag pass 1 | flag pass 2 | change |
 |---|---|---|---|---|---|
