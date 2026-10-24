@@ -20962,7 +20962,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
-   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review)."
+   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review).",
+   "evidence": "ab11620"
   },
   {
    "devices": [
