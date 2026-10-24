@@ -1,0 +1,44 @@
+{
+  "id": "commission-rect-v1",
+  "about": "Task commission-band-mech: swipe-v1 (430x932, dpr 3, 10 px per frame) plus the section and card rect per frame, recorded in a replay after the counted pass (cardProbe, no screenshots). The rect gives the commission section top and height in the scroll, from which the follower window is derived (Fw.Parts.CommissionOptWindow).",
+  "hz": 60,
+  "viewport": {
+    "width": 430,
+    "height": 932,
+    "dpr": 3,
+    "mobile": true,
+    "touch": true
+  },
+  "cardProbe": {
+    "selector": "[data-fw=\"commission\"]",
+    "faceSelector": "[data-fw=\"commission-card\"]",
+    "screenshots": false
+  },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": {
+    "quietFrames": 30,
+    "maxFrames": 900,
+    "prerollFrames": 60
+  },
+  "zoneHeightPx": 500,
+  "segments": [
+    {
+      "name": "rest",
+      "dyPerFrame": 0,
+      "frames": 10
+    },
+    {
+      "name": "swipe",
+      "dyPerFrame": 10,
+      "until": "end"
+    },
+    {
+      "name": "tail",
+      "dyPerFrame": 0,
+      "frames": 30
+    }
+  ]
+}

@@ -21038,7 +21038,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
-   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
+   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands.",
+   "evidence": "e972148"
   },
   {
    "devices": [
