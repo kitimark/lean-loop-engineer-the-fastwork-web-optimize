@@ -13,7 +13,10 @@ if (cmd === 'run') {
   mkdirSync(out, { recursive: true });
   const write = (r) => writeFileSync(join(out, 'touch-lock.json'), `${JSON.stringify(r)}\n`);
   const { runTouchLock } = await import('./touchlock-run.mjs');
+  const { PAN } = await import('./touchlock.mjs');
+  const push = { dragPt: Number(flag('--drag-pt') ?? PAN.dragPt), velocity: Number(flag('--velocity') ?? PAN.velocity), holdMs: Number(flag('--hold-ms') ?? PAN.holdMs) };
   const res = await runTouchLock({
+    push,
     siteDir: resolve(site), reps: Number(flag('--reps') ?? 6), settleMs: Number(flag('--settle') ?? 2500), touchDriver: resolve(flag('--touch-driver')),
     deadlineMs: flag('--deadline-ms') ? Number(flag('--deadline-ms')) : null, onProgress: write,
   });

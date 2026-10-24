@@ -69,7 +69,7 @@ export const ARMS = Object.freeze(['orig', 'base', 'lock']);
 
 export const LOCK_CSS = 'html.fw-lock{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important}';
 
-export const FLICK = Object.freeze({ dragPt: 500, velocity: 1800, holdMs: 0 });
+export const PAN = Object.freeze({ dragPt: 500, velocity: 500, holdMs: 0 });
 
 export const START_GAP_PX = 250;
 

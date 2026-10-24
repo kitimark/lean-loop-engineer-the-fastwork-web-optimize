@@ -1,5 +1,5 @@
 // The touch-lock walk (glue): for each rep and arm, load the page, put it START_GAP_PX above its end, and flick it into the end with the
-// push server's real touches (a fast swipe up, then one back down). Counts come from touchlock.mjs.
+// push server's real touches (a slow pan up that carries the page into its end, then one back down). Counts come from touchlock.mjs.
 import { withSession } from './session.mjs';
 import { loadFresh, pageInfo } from './page.mjs';
 import { findDevice, sleep } from './sim.mjs';
@@ -9,7 +9,7 @@ import { openDriver, startServer, stopServer, touchWindow, touchCountJs, TOUCH_B
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { orderFor } from '../../gate-breakpoints/src/smooth/schedule.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS } from './walk-budget.mjs';
-import { ARMS, FLICK, START_GAP_PX, TAIL_MS, summarize } from './touchlock.mjs';
+import { ARMS, PAN, START_GAP_PX, TAIL_MS, summarize } from './touchlock.mjs';
 import { installJs, nearEndJs, windowJs } from './touchlock-page.mjs';
 
 export const BUDGET = Object.freeze({ ...TOUCH_BUDGET, tailMs: TAIL_MS });
@@ -22,7 +22,7 @@ export function armTrees(siteDir) {
   };
 }
 
-export async function runTouchLock({ siteDir, reps = 6, settleMs = 2500, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, log = (s) => console.error(s) }) {
+export async function runTouchLock({ siteDir, push = PAN, reps = 6, settleMs = 2500, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, log = (s) => console.error(s) }) {
   const device = findDevice();
   const started = Date.now();
   const rows = [];
@@ -31,7 +31,7 @@ export async function runTouchLock({ siteDir, reps = 6, settleMs = 2500, touchDr
   const opened = openDriver(touchDriver);
   const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
   const snapshot = (incomplete) => {
-    const out = { leg: 'sim-touch-lock', runtime: device.runtime, device: device.name, ua, reps, arms: ARMS, flick: FLICK, startGapPx: START_GAP_PX, tailMs: TAIL_MS,
+    const out = { leg: 'sim-touch-lock', runtime: device.runtime, device: device.name, ua, reps, arms: ARMS, push, startGapPx: START_GAP_PX, tailMs: TAIL_MS,
       touch: { on: touch.on, why: touch.on ? null : touch.why }, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows };
     return { ...out, summary: summarize(rows) };
   };
@@ -72,7 +72,7 @@ export async function runTouchLock({ siteDir, reps = 6, settleMs = 2500, touchDr
   try {
     const walk = withSession(async (ctx) => {
       if (!touch.on) throw new Error(`no touch driver: ${touch.why}`);
-      touch.server = await startServer(touch.driver, { udid: device.udid, log, push: FLICK });
+      touch.server = await startServer(touch.driver, { udid: device.udid, log, push });
       await reconnect(ctx, { log });
       walk: for (let rep = 0; rep < reps; rep++) {
         for (const id of orderFor(ARMS.map((a) => ({ id: a })), rep).map((a) => a.id)) {
