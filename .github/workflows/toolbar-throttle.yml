@@ -11,7 +11,7 @@ name: toolbar-throttle
 # end and real drags past the end open the morph panel; the counts are Lean's lean/Fw/Device/FinishRuns.lean, twin throttle/finish.mjs.
 # A commit message with [throttle:morph-end] (task morph-end-measure) runs the finish drags on six arms: the faithful rewrite, each morph end brick
 # alone (morph.end.clamp, .flip, .release), all three (preset morph-end-all) and all three with engine.scroll:unthrottle (throttle/morph-end.mjs);
-# six jobs, one pass per arm each, the arm order rotated by the job number. Its table is throttle/morph-end-report.mjs.
+# six jobs of four arms each (the faithful rewrite and three of the other five), the order rotated by the job number. Its table is throttle/morph-end-report.mjs.
 # Each VM is its own job (an independent sample) and uploads `toolbar-throttle-<vm>`; the report job builds the table from them.
 on:
   push:
@@ -125,7 +125,7 @@ jobs:
     timeout-minutes: 75
     strategy:
       fail-fast: false
-      max-parallel: 5
+      max-parallel: 3
       matrix:
         vm: ${{ fromJSON(contains(github.event.head_commit.message, '[throttle:morph-end]') && '[1,2,3,4,5,6]' || '[1,2,3]') }}
     env:
@@ -220,22 +220,26 @@ jobs:
           VM: ${{ matrix.vm }}
           # The head commit message picks the drags: [throttle:finish] drags past the page end (task sim-finish-throttle), else the hero exit.
           MODE: ${{ (contains(github.event.head_commit.message, '[throttle:finish]') || contains(github.event.head_commit.message, '[throttle:morph-end]')) && 'finish' || 'drags' }}
-          # [throttle:morph-end]: the six morph end arms, one round per job (two rounds would not fit the job), the order rotated by the job number; two drag cycles and a 480 s
+          # [throttle:morph-end]: the faithful rewrite and three other morph end arms, one round per job (two rounds would not fit the job), the order rotated by the job number; two drag cycles and a 480 s
           # touch limit (dispatch 1 with four cycles and 300 s lost 12 of 18 attempts to the limit)
           MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
           # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
           # (counts do not depend on waits), and a load step may retry twice after a reconnect.
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
-          FW_WK_STALL_MS: '300000'
+          FW_WK_STALL_MS: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '720000' || '300000' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
           mkdir -p out
-          if [ -n "$MORPH_END" ]; then arms=rewrite,clamp,flip,release,all,all-unthrottle; rounds=1; offset=$((VM - 1)); cycles=2; timeout=480
-          elif [ "$MODE" = finish ]; then arms=rewrite,lift,original; rounds=2; offset=0; cycles=4; timeout=300
-          else arms=rewrite,unthrottle,original; rounds=2; offset=0; cycles=4; timeout=300; fi
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --offset "$offset" --cycles "$cycles" --timeout "$timeout" --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          if [ -n "$MORPH_END" ]; then
+            # the faithful rewrite and three of the five other compositions in every job (job n takes the others n*3-3 .. n*3-1 round the list), the order rotated by the job number
+            others=(clamp flip release all all-unthrottle); arms=rewrite
+            for i in 0 1 2; do arms="$arms,${others[$(( ((VM - 1) * 3 + i) % 5 ))]}"; done
+            rounds=1; offset=$((VM - 1)); cycles=2; timeout=480; reset=--reset
+          elif [ "$MODE" = finish ]; then arms=rewrite,lift,original; rounds=2; offset=0; cycles=4; timeout=300; reset=
+          else arms=rewrite,unthrottle,original; rounds=2; offset=0; cycles=4; timeout=300; reset=; fi
+          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --offset "$offset" --cycles "$cycles" --timeout "$timeout" $reset --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded

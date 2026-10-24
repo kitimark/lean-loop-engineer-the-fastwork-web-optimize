@@ -15,7 +15,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
-import { findDevice } from '../sim.mjs';
+import { findDevice, shutdownDevice } from '../sim.mjs';
 import { loadavg } from 'node:os';
 import { buildDriver, cleanup, dragPass, findDriver, stop } from './driver.mjs';
 import { armPass } from './probe.mjs';
@@ -32,7 +32,7 @@ const { values: v } = parseArgs({
   args: rest,
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
-    cycles: { type: 'string', default: '4' }, timeout: { type: 'string', default: '300' }, offset: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
+    cycles: { type: 'string', default: '4' }, timeout: { type: 'string', default: '300' }, reset: { type: 'boolean', default: false }, offset: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
     target: { type: 'string', default: 'springboard' }, hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
     out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
@@ -86,6 +86,8 @@ async function main() {
           for (const arm of rotate(arms, round + Number(v.offset))) {
             // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm
             for (let attempt = 1; attempt <= 2; attempt++) {
+              // --reset: a timed-out touch run leaves the Simulator wedged (the next session stalled in 3 of 4 CI jobs): boot it afresh for the retry
+              if (attempt === 2 && v.reset) { try { shutdownDevice(udid, { log }); } catch (e) { log(`reset: ${e.message}`); } }
               // the attempt is in the tag: xcodebuild refuses a -resultBundlePath that exists, so a retry under the first tag failed at once
               const tag = `${arm}-r${round + 1}-a${attempt}`;
               try {
