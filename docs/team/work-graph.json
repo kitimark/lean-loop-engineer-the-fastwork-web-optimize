@@ -20075,7 +20075,12 @@
     "packages/measure-webkit/test/paintclip*.test.mjs",
     "research/notes/2026/10-2x-invisible-paint.md",
     "results/invisible-paint/**",
-    "docs/team/handoffs/invisible-paint.md"
+    "docs/team/handoffs/invisible-paint.md",
+    "lean/Fw/Ops/LakeJobsGen.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land."
   },
@@ -20162,7 +20167,9 @@
     "apps/runner/src/slot*.ts",
     "apps/runner/test/slot*.test.ts",
     "docs/team/tools/slot.md",
-    "docs/team/handoffs/sim-release-shutdown.md"
+    "docs/team/handoffs/sim-release-shutdown.md",
+    "lean/Fw.lean",
+    "apps/runner/test/reap-slot.test.ts"
    ],
    "title": "Incident 2026-10-24 14:40: a sim lease was released after about 4.5 min but the Simulator device it booted stayed booted (load 72-148, 190 MB free) until the lead shut it down. Lean first: a released sim lease implies the device the lease booted is shut down (or handed to the next queued sim holder); fw slot release of kind sim runs simctl shutdown for the booted UDID it recorded at acquire; theorem + golden; slot.ts follows."
   },
@@ -20322,6 +20329,25 @@
     "docs/team/handoffs/unthrottle-parts-measure.md"
    ],
    "title": "HIGHEST PRIORITY. Measure the unthrottle-parts-lean predictions on the CI Simulator (toolbar-throttle lane, hero drag mode and sim-finish-throttle's finish mode): per part, still runs while moving for original, rewrite, rewrite + engine.scroll:throttle-lift and rewrite + engine.scroll:unthrottle (the shipped text), verdict per part from the Lean golden; compare with the phone per-part series from results/phone/2026-10-24*; the parts that gain become the follow-up list."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-idle-pressure2",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/test/slot.test.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-idle-pressure2.md"
+   ],
+   "title": "Incident 2026-10-24 ~10:00: the slot queue stalled for 29+ min with 0 holders and 12 tickets (a land among them) at kernel pressure level 2 with 0 swap-outs and 0 compression per minute; memory was held by programs outside the queue (Arc ~2.5 GB, Finder, WindowServer). idleHead admits only at pressure level 1, so the queue could never progress. Lean first: idleHead also admits at level 2 when there is no thrash and no swapActive (no holder live); theorems: progress (with no holder, no thrash and no swap activity, some ticket is admitted on every sample), idle_head_at_most_one still holds, level 2 with thrash or swap activity still waits; goldens incl. this sample (103 MB available, pressure 2, compressing 0, swapping 0); slot-core.ts follows."
   }
  ],
  "deadline": {
