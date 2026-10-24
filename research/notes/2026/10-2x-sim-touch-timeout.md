@@ -16,15 +16,25 @@ unthrottle-parts-measure `finish` run `40101695202` (lifted arms lost) and `rest
 
 Claim (re-scoped by the lead): the touch-driver and simctl timeouts that killed whole jobs came from a 300 s wait that was shorter than a
 loaded pass, a retry that reused the first try's result bundle, and blocking `simctl` calls that starved the stall guard (CONFIRMED from logs and
-source, see Cause). With a readiness probe, a progress-based stall watch and at most one Simulator restart per pass, no job was lost any more:
-every job of both CI runs ended, and every arm completed except the lift arm of the finish mode, whose start-up stall (0 marks at 304 s) has an
-open cause and is an accepted limit, split to task `sim-lift-stall`. Hero drags: 18 of 18 passes. Finish: 15 of 18, sim 2 all 6.
+source, see Cause). A readiness probe, a progress-based stall watch and at most one Simulator restart per pass, driven by the Lean machine,
+ended every job and completed every non-lift arm of the hero-drag runs (18 of 18) and most of the finish runs (15 of 18, sim 2 all 6) when the
+lane ran `cli.mjs` (runs `40121254572`, `40128742749`). The lift arm's start-up stall (0 marks at 304 s) has an open cause and is an accepted
+limit, split to task `sim-lift-stall`.
+
+**Not delivered on the merged code.** After main was merged, the lane runs `parts-cli.mjs` (landed by unthrottle-parts-measure), whose own
+pass loop never used the machine. The third push (run `40134212357`, finish, merged code) therefore showed the old failure again: sim 2 kept
+6 of 8 passes (2 lost to `simctl list devices` ETIMEDOUT in both tries), sim 1 kept 1 of 8 (a start-up stall on `rewrite-r1`, then
+`simctl launch` ETIMEDOUT (3 tries each) in 4 passes in a row and exit 130 `stalled: no output for 312 s`), sim 3 was cancelled at the 110 min job limit
+(no log kept). After that run the machine was moved into a shared `pass-run.mjs` used by both `cli.mjs` and `parts-cli.mjs`; that code has
+not run in CI (3 of 3 pushes used). One local debug run on a Mac (1 cycle, one arm, `FW_TOUCH_FIRST_CAP_S=15`) walked the whole restart path
+through `parts-cli.mjs` (cap, shutdown, boot, warm-up, retry done); it is a debug run, not a result.
 
 | Run (mode) | Jobs ended | Passes ok | Named failures | Job time |
 |---|---|---|---|---|
 | morph-end `40105567688` (finish), before | 0 of 6 | 3 of 36 | 6 jobs failed or cancelled | 60 min job limit |
 | `40121254572` (finish), after | 3 of 3 | 15 of 18 (job 2: 6 of 6) | 3 (lift arm, start-up stall) | 75 min each |
 | `40128742749` (hero drags), after | 3 of 3 | 18 of 18 | 0 | 18, 22, 28 min |
+| `40134212357` (finish, merged lane `parts-cli.mjs`, no machine) | 1 ended ok, 1 died (exit 130), 1 cancelled | sim 2: 6 of 8, sim 1: 1 of 8, sim 3: unknown | 4 pass losses in sim 1 and 2 by `simctl` ETIMEDOUT | 63, 77, 115 min |
 
 - MEASURED: one finish job (sim 2) and all three hero-drag jobs completed every arm; the restart path ran in CI 6 times: 5 after touch-driver failures (all finish; 2 of the 5 recovered the pass) and 1 after a recorder failure that followed clean touches (drags, recovered). The code now treats that last case as clean touches (no restart, the pass gets its one extra run).
 - MEASURED: the heavy tail is the XCUITest start-up (45 to 249 s seen, 6 of 30 finish touch runs never started in 300 s, 0 of 23 in drags), and 5 of those 6 were the lift arm. The cause of the lift-arm stalls is open.
@@ -86,7 +96,7 @@ open cause and is an accepted limit, split to task `sim-lift-stall`. Hero drags:
   Every call has its own `.xcresult` and log (`<tag>`, `<tag>-t2`): no more exit 64.
 - **Readiness probe before touches.** Up to 6 probes 10 s apart: the Simulator is `Booted`, the Safari page answers (`document.readyState`), the driver build exists.
   Not ready after 6 probes: `NotReadyError`, no `xcodebuild` is started.
-- **Watchdog and restart (`cli.mjs`).** A failed probe or touch run shuts the Simulator down (INFERRED that this ends the stuck XCUITest runner: `simctl help shutdown` only says "Shutdown a device"; the
+- **Watchdog and restart (`pass-run.mjs`, used by `cli.mjs` and `parts-cli.mjs`).** A failed probe or touch run shuts the Simulator down (INFERRED that this ends the stuck XCUITest runner: `simctl help shutdown` only says "Shutdown a device"; the
   runner lives inside the device, and a run after the restart did start clean in 3 of 6 CI restarts, MEASURED), boots it in a new session,
   runs a one-cycle warm-up and retries the pass once; a second failure ends the pass as a named failure (`failed:touchesFailed`, `failed:notReady`,
   `failed:restartFailed`). A record that is unusable for another reason (page lost, or a recorder failure after clean touches) still gets one more machine run, outside the machine, only
@@ -126,6 +136,10 @@ Per job (MEASURED, artifacts of the runs; "ok" = `xcodebuild` code 0 and the pag
 - The 709 s restart (lift r2, job 1) passed the Lean 600 s restart budget, so the pass ended as `restartFailed` as the machine says.
 
 ## Limits
+
+- The machine is wired into the lane the workflow runs (`parts-cli.mjs`) only after the last CI push; there is no CI run of that code. To show it: a
+  fourth push of `ci/sim-touch-timeout` (head commit message with `[ci:toolbar-throttle] [throttle:finish]`), then `pnpm -s fw ci wait --branch ci/sim-touch-timeout --workflow toolbar-throttle`.
+  Pass bookkeeping is tested with fake sessions (`sim-touch-runner.test.mjs`); the Simulator calls are the TS stand-in.
 
 - Free GitHub macOS runners only, shared with morph-end-measure and unthrottle-follow (queue time is named in the table, not removed).
 - The Simulator stands in for the iPhone; nothing here is phone time. The local debug run (1 cycle, one arm, a Mac) walked the progress marks only; it is not a result.

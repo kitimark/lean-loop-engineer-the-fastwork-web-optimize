@@ -9,14 +9,13 @@
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
-import { withSession } from '../session.mjs';
+import { resolve, dirname } from 'node:path';
 import { watch } from '../watchdog.mjs';
-import { findDevice, shutdownDevice } from '../sim.mjs';
+import { findDevice } from '../sim.mjs';
 import { loadavg } from 'node:os';
-import { buildDriver, cleanup, dragPass, findDriver, stop, initPass, step, terminal, setTouchHooks, lastTouch, resetTouch, SIM_TOUCH } from './driver.mjs';
+import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
+import { makePassRunner } from './pass-run.mjs';
 import { armPass } from './probe.mjs';
-import { loadFresh } from '../page.mjs';
 import { excludeReason, reportMd, ARMS, SHIPPED_ARM, FOLLOW_ARM } from './report.mjs';
 import { movingMd } from './follow-report.mjs';
 import { finishPass } from './finish-probe.mjs';
@@ -62,80 +61,8 @@ async function main() {
       mkdirSync(outDir, { recursive: true });
       // written after every pass: a stalled job still reports the passes it finished
       const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed, machine }) + '\n');
-      const scrub = (t) => t.replace(/[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}/gi, '<id>').replace(/\/Users\/[^/\s]+/g, '<home>');
-      const summary = (t) => { const { logFile, ...rest } = t; return rest; };
-      // the driver's log tail and its mark timeline of every touch run, as out/<vm>-driver-<tag>.log (the lane keeps out/<vm>-*)
-      const persist = (t) => {
-        try {
-          let tail = '';
-          try { tail = scrub(readFileSync(t.logFile, 'utf8').slice(-4000)); } catch { /* no log written */ }
-          writeFileSync(join(outDir, `${v.vm}-driver-${t.tag}.log`), `${JSON.stringify(summary(t))}\n${tail}\n`);
-        } catch (e) { log(`driver log not kept: ${e.message}`); }
-      };
-      const pageUp = (c) => async () => { const s = await c.evaluate('document.readyState'); return s === 'complete' || s === 'interactive'; };
-      const firstCap = Number(process.env.FW_TOUCH_FIRST_CAP_S); // debug only: stop the first measured touch run after this many s, to walk the restart path
-      if (Number.isFinite(firstCap) && firstCap > 0) setTouchHooks({ capOnceS: firstCap });
-      // one session that loads the page and runs one touch cycle, unrecorded; true when the session came up and the driver ran
-      const warmUp = async (why) => {
-        let ok = false;
-        try {
-          await withSession(async (ctx) => {
-            await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 });
-            setTouchHooks({ page: pageUp(ctx.c) });
-            try {
-              const r = await dragPass(driver, { udid, tag: 'warm-up', log, ...drag, cycles: 1 });
-              log(`${why}: touches ${r.code === 0 ? 'done' : `failed (code ${r.code}${r.killedBy ? `, ${r.killedBy}` : ''})`}`);
-            } finally { if (lastTouch()) persist(lastTouch()); }
-            ok = true;
-          }, { keep: v.keep, site: siteOf(arms.find((a) => a !== 'original') ?? 'original') });
-        } catch (e) { log(`${why} failed: ${e.message}`); } finally { setTouchHooks({ page: null }); }
-        return ok;
-      };
-      // The Lean restart step (Fw.Device.SimTouch): shut the Simulator down (it kills the stuck XCUITest runner with it), boot it in a new
-      // session and run the warm-up again; ok when that came up within restartS.
-      const restart = async (tag) => {
-        const t0 = Date.now();
-        log(`${tag}: restarting the Simulator`);
-        let ok = false;
-        try { ok = shutdownDevice(udid, { log }); } catch (e) { log(`${tag}: shutdown failed: ${e.message}`); }
-        if (ok) ok = await warmUp(`${tag}: restart warm-up`);
-        const s = Math.round((Date.now() - t0) / 1000);
-        log(`${tag}: restart ${ok && s <= SIM_TOUCH.restartS ? 'ok' : 'failed'} in ${s} s`);
-        return ok && s <= SIM_TOUCH.restartS;
-      };
-      // One pass of an arm, driven by the Lean machine: probe, touches, and on a failure one Simulator restart and one more try.
-      // A record that is unusable for another reason (the page was lost) gets one more machine run, outside the machine, only when
-      // the first run used no restart, so a pass never restarts the Simulator more than once.
-      const runArm = async (arm, round) => {
-        const tag = `${arm}-r${round + 1}`;
-        let st = initPass(), rec = null, last = null, extra = 0;
-        const events = [];
-        const feed = (e) => { events.push(e); st = step(st, e); log(`${tag}: ${e} -> ${st.phase} (attempt ${st.attempt}, restarts ${st.restarts})`); };
-        for (;;) {
-          while (!terminal(st)) {
-            if (st.phase === 'restarting') { feed((await restart(tag)) ? 'restartOk' : 'restartFail'); continue; }
-            rec = null; resetTouch();
-            try {
-              rec = await withSession((ctx) => { setTouchHooks({ page: pageUp(ctx.c) }); return passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }); },
-                { keep: v.keep, site: siteOf(arm) });
-              feed('readyYes'); feed(rec.drag.code === 0 ? 'touchesOk' : 'touchesFail');
-            } catch (e) {
-              log(`${tag} failed: ${e.message}`);
-              const t = lastTouch();
-              if (t?.code === 0) { feed('readyYes'); feed('touchesOk'); } // the touches were clean, a later step failed (the recorder): not a driver fault
-              else if (t?.ready?.ready) { feed('readyYes'); feed('touchesFail'); } else feed('readyNo');
-            } finally { setTouchHooks({ page: null }); if (lastTouch()) { last = summary(lastTouch()); persist(lastTouch()); } }
-          }
-          const bad = st.phase === 'done' ? reasonOf({ arm, round: round + 1, vm: v.vm, ...rec }) : null;
-          if (bad && extra < 1 && st.restarts === 0) { extra++; log(`${tag} not usable (${bad}); trying once more`); st = initPass(); continue; }
-          break;
-        }
-        machine.push({ tag, phase: st.phase, attempt: st.attempt, restarts: st.restarts, extra, events });
-        if (rec) passes.push({ arm, round: round + 1, vm: v.vm, attempt: st.attempt + extra, ...rec, touch: last });
-        if (st.phase !== 'done') failed.push(`${tag}: ${st.phase}`);
-        else if (!rec) failed.push(`${tag}: done without a record`);
-        save();
-      };
+      const { warmUp, runArm } = makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
+        firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf, reasonOf, state: { passes, failed, machine }, save });
       try {
         // The first session on a fresh Simulator drops its openurl and asks again, and the first XCUITest run relaunches Safari: both
         // reload the page after the recorder started (the first measured pass was lost that way in 4 of 6 CI jobs). One warm-up
