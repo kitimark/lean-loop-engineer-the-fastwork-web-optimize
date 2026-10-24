@@ -20145,7 +20145,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-end-bricks.md"
    ],
-   "title": "Site side of morph-end-lean: three composer bricks (parts morph.end.clamp, morph.end.flip, morph.end.release, each faithful|on) wired into the morph.tween driver, look-change class (behaviour change, user review), TS checked against the morph-end-lean goldens, all 8 combinations valid in the registry and shown in the console Compose tab with a preview link, breakpoint gate unchanged outside the end zone (run id), ledger rows look-change pending the user's phone review."
+   "title": "Site side of morph-end-lean: three composer bricks (parts morph.end.clamp, morph.end.flip, morph.end.release, each faithful|on) wired into the morph.tween driver, look-change class (behaviour change, user review), TS checked against the morph-end-lean goldens, all 8 combinations valid in the registry and shown in the console Compose tab with a preview link, breakpoint gate unchanged outside the end zone (run id), ledger rows look-change pending the user's phone review.",
+   "evidence": "1e7ee78"
   },
   {
    "devices": [

@@ -1,0 +1,1 @@
+{ "name": "morph-end-all", "extends": "original", "fw": { "morph.end.clamp": "on", "morph.end.flip": "on", "morph.end.release": "on" } }
