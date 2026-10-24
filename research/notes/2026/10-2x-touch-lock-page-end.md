@@ -51,6 +51,11 @@ replaying the golden in `test/touchlock.test.mjs`.
   (`cmp_lower`, `cmp_higher`, `cmp_overlap`, `cmp_empty_*`). `look` is `same` iff both arms have zero displaced frames
   (`look_same`, `look_change_faith`, `look_change_cand`).
 
+- Round 2 (stall-proof order): `repOrder` runs `base`, `lock`, then `orig` on even reps and `lock`, `base`, `orig` on odd reps, so
+  a stall hits the original first (`repOrder_orig_last`, `repOrder_once`). `afterWindow` restarts a stalled push server up to
+  `maxRestarts = 2` times before the lane ends (`afterWindow_keep`, `afterWindow_restart`, `afterWindow_stop`). Golden ops
+  `order` and `lane`, replayed in the twin test.
+
 ## Engine facts (WebKit@862f17d, `.cache/upstream`)
 
 - **Script scrollTo does not stop a user deceleration (CONFIRMED, source).**

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { cmp, look, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, openPhase, ARMS } from '../src/touchlock.mjs';
+import { cmp, look, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, ARMS } from '../src/touchlock.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -13,6 +13,7 @@ const runOf = (g) => ({ frames: g.frames, events: g.events });
 
 test('constants match the golden', () => {
   assert.equal(ops('constants')[0].minOpenFrames, MIN_OPEN_FRAMES);
+  assert.equal(ops('constants')[0].maxRestarts, MAX_RESTARTS);
 });
 
 test('run cases: refusal and reduction replay the golden', () => {
@@ -69,4 +70,19 @@ test('nearEndJs is invoked: it yields a promise of the end position', async () =
   const run = new Function('window', 'document', 'setTimeout', `return ${nearEndJs(250)}`);
   const got = await run(win, doc, (f) => f());
   assert.deepEqual(got, { maxY: 4200, y: 3950, vh: 800 });
+});
+
+test('window order and lane decisions replay the golden', () => {
+  assert.equal(ops('order').length, 4);
+  for (const g of ops('order')) assert.deepEqual(repOrder(g.rep), g.arms, `rep ${g.rep}`);
+  assert.equal(ops('lane').length, 5);
+  for (const g of ops('lane')) assert.equal(afterWindow(g.used, g.stalled), g.out, `${g.used} ${g.stalled}`);
+});
+
+test('every rep runs the original last, so a stall cannot erase the faithful or candidate window', () => {
+  for (let rep = 0; rep < 6; rep++) {
+    const o = repOrder(rep);
+    assert.equal(o[2], 'orig');
+    assert.deepEqual([...o].sort(), [...ARMS].sort());
+  }
 });

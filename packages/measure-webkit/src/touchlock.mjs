@@ -69,6 +69,12 @@ export const ARMS = Object.freeze(['orig', 'base', 'lock']);
 
 export const LOCK_CSS = 'html.fw-lock{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important}';
 
+export const MAX_RESTARTS = 2;
+
+export const repOrder = (rep) => (rep % 2 === 0 ? ['base', 'lock', 'orig'] : ['lock', 'base', 'orig']);
+
+export const afterWindow = (used, stalled) => (!stalled ? 'keep' : used < MAX_RESTARTS ? 'restart' : 'stop');
+
 export const PAN = Object.freeze({ dragPt: 500, velocity: 500, holdMs: 0 });
 
 export const START_GAP_PX = 250;

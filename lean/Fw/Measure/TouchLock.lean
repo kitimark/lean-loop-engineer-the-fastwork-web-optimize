@@ -232,6 +232,55 @@ theorem tally_le (rs : List Run) : (tally rs).2 ≤ (tally rs).1 := by
   simp only [tally]
   exact List.length_filter_le _ _
 
+inductive Arm where
+  | orig | base | lock
+deriving Repr, BEq, DecidableEq
+
+def Arm.name : Arm → String
+  | .orig => "orig"
+  | .base => "base"
+  | .lock => "lock"
+
+/-- Window order of one rep: the faithful rewrite and the candidate run before the original and swap places on odd reps. -/
+def repOrder (rep : Nat) : List Arm :=
+  if rep % 2 = 0 then [.base, .lock, .orig] else [.lock, .base, .orig]
+
+theorem repOrder_orig_last (rep : Nat) : (repOrder rep).getLast? = some .orig := by
+  unfold repOrder; split <;> rfl
+
+theorem repOrder_once (rep : Nat) (a : Arm) : (repOrder rep).count a = 1 := by
+  unfold repOrder; split <;> cases a <;> decide
+
+theorem repOrder_even (rep : Nat) (h : rep % 2 = 0) : (repOrder rep).head? = some .base := by
+  simp [repOrder, h]
+
+theorem repOrder_odd (rep : Nat) (h : rep % 2 = 1) : (repOrder rep).head? = some .lock := by
+  simp [repOrder, h]
+
+/-- Driver restarts one walk may spend on stalled windows. -/
+def maxRestarts : Nat := 2
+
+inductive Lane where
+  | keep | restart | stop
+deriving Repr, BEq, DecidableEq
+
+def Lane.name : Lane → String
+  | .keep => "keep"
+  | .restart => "restart"
+  | .stop => "stop"
+
+/-- What the walk does with the push driver after a window: a stalled driver is restarted while restarts remain, then the lane ends. -/
+def afterWindow (used : Nat) (stalled : Bool) : Lane :=
+  if stalled then (if used < maxRestarts then .restart else .stop) else .keep
+
+theorem afterWindow_keep (used : Nat) : afterWindow used false = .keep := rfl
+
+theorem afterWindow_restart (used : Nat) (h : used < maxRestarts) : afterWindow used true = .restart := by
+  simp [afterWindow, h]
+
+theorem afterWindow_stop (used : Nat) (h : maxRestarts ≤ used) : afterWindow used true = .stop := by
+  simp [afterWindow, Nat.not_lt.mpr h]
+
 def mk (l : List (Int × Bool)) : List Sample := l.map fun (y, o) => ⟨y, o⟩
 
 def steadyFrames : List Sample := mk (List.replicate 3 (0, false) ++ List.replicate 12 (5000, true))
@@ -292,7 +341,7 @@ def resultJson (r : Result) : Json :=
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
-  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames)]).compress
+  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts)]).compress
   let rs := runCases.map fun (name, r) =>
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("frames", samplesJson r.frames), ("events", samplesJson r.events),
       ("refusal", match refusal r with | some f => Json.str f.name | none => Json.null),
@@ -307,7 +356,12 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("op", "tally"), ("case", Json.str name), ("runs", Json.arr (l.map fun r =>
       Json.mkObj [("frames", samplesJson r.frames), ("events", samplesJson r.events)]).toArray),
       ("accepted", toJson (tally l).1), ("jitter", toJson (tally l).2)]).compress
-  [consts] ++ rs ++ cs ++ ls ++ ts
+  let os := (List.range 4).map fun rep =>
+    (Json.mkObj [("op", "order"), ("rep", toJson rep), ("arms", toJson ((repOrder rep).map Arm.name))]).compress
+  let ws := [(0, false), (0, true), (1, true), (2, true), (3, false)].map fun (used, stalled) =>
+    (Json.mkObj [("op", "lane"), ("used", toJson used), ("stalled", toJson stalled),
+      ("out", Json.str (afterWindow used stalled).name)]).compress
+  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
