@@ -34,6 +34,38 @@ export function planOf(enginesIn, widthsIn) {
   return es.flatMap((engine) => legsOf(engine, ws).map((widths) => ({ engine, widths, walks: walksOf(engine) })));
 }
 
+/** Whether the probe's emulated primary pointer is coarse at a width: the touch environment up to 640 CSS px (Lean `probeCoarse`). */
+export const probeCoarse = (w) => w <= 640;
+
+/** The flags whose whole style rule sits behind `(pointer: coarse)` (Lean `coarseOnly`). */
+export const COARSE_ONLY = ['engine.scroll:unthrottle'];
+
+/** Whether a run is proved inactive at a width: it names flags, all coarse-only, and the width emulates a fine pointer (Lean `inactiveAt`). */
+export const inactiveAt = (flags, w) => flags.length > 0 && flags.every((f) => COARSE_ONLY.includes(f)) && !probeCoarse(w);
+
+/** What a width of a run rests on: its readings, or the proof that it equals its faithful arm there (Lean `basisAt`). */
+export const basisAt = (flags, w) => (inactiveAt(flags, w) ? 'same-by-proof' : 'measured');
+
+/** A group repeats when its new units fall at two or more widths (Lean `repeats`). */
+export const repeats = (ws) => new Set(ws).size >= 2;
+
+/** Whether the engine decides the path: Linux WebKit's morph pushes cannot be decided (Lean `covers`). */
+export const covers = (engine, walk) => !(engine === 'linux-webkit' && walk === 'morph');
+
+/**
+ * The verdict of a stored run (Lean `outcome`): `unjudged:coverage` when the engine cannot decide the path, `unjudged:widths`
+ * when a lane width was not walked, `fail` on a content repeat, `unjudged:coverage` on a coverage repeat, else `pass`. The units at
+ * widths that rest on proof count nothing.
+ */
+export function cellOutcome(s) {
+  if (!covers(s.engine, s.walk)) return 'unjudged:coverage';
+  if (!ALLOWED_WIDTHS.every((w) => s.widths.includes(w))) return 'unjudged:widths';
+  const counted = (ws) => ws.filter((w) => basisAt(s.flags, w) === 'measured');
+  if (s.groups.some((g) => repeats(counted(g.content)))) return 'fail';
+  if (s.groups.some((g) => repeats(counted(g.coverage)))) return 'unjudged:coverage';
+  return 'pass';
+}
+
 /**
  * The matrix of a job: its include rows for the legs of the engines `pick` accepts. `engine` is the CLI engine name
  * (chromium or playwright-webkit), `leg` the artifact suffix, `widths` and `paths` the `cli.mjs run` arguments.

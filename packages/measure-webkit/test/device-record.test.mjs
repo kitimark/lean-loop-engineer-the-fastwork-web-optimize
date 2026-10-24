@@ -341,9 +341,9 @@ test('page recorder: pagehide names the navigation; the poll names a page that i
 
 // ---- which pages the session visits: the preset is resolved at record time
 
-test('device-arms: v2-proved on main has no flags, so its arm is dropped; a distinct look arm stays', () => {
+test('device-arms: the v2 arm is dropped exactly when v2-proved has no flags; a distinct look arm stays', () => {
   assert.deepEqual(resolveFlags(''), []);
-  assert.deepEqual(resolveFlags('?preset=v2-proved'), resolveFlags('?preset=original'));
+  assert.deepEqual(resolveFlags('?preset=original'), []);
   const look = '?fw=hero.exit:scoped';
   assert.deepEqual(resolveFlags(look), ['hero.exit:scoped']);
   assert.deepEqual(resolveFlags('?fw=hero.exit:faithful'), [], 'a default variant is no flag');
@@ -354,8 +354,11 @@ test('device-arms: v2-proved on main has no flags, so its arm is dropped; a dist
     assert.deepEqual(sp.kept, ['rewrite', 'look']);
     assert.deepEqual(sp.plan.map((p) => p.arm), ['original', 'rewrite', 'look', 'original']);
     assert.deepEqual(sp.dropped.map((d) => [d.arm, d.sameAs]), [['v2', 'rewrite']]);
+  } else {
+    assert.deepEqual(sp.kept, ['rewrite', 'v2', 'look']);
   }
-  assert.deepEqual(sessionPlan('?fw=hero.exit:faithful').kept, ['rewrite'], 'a look arm without flags is the rewrite again');
+  const v2kept = resolveFlags('?preset=v2-proved').length === 0 ? ['rewrite'] : ['rewrite', 'v2'];
+  assert.deepEqual(sessionPlan('?fw=hero.exit:faithful').kept, v2kept, 'a look arm without flags is the rewrite again');
   assert.throws(() => sessionPlan(''), /needs --search/);
 });
 
