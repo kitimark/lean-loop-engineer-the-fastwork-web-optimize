@@ -1,7 +1,7 @@
 ---
 id: 2026-10-2x-unthrottle-parts-measure
 kind: note
-title: "unthrottle-parts on the CI Simulator: hero confirmed over 3 jobs (both flags lift it), commission a candidate, the other four parts not exercised"
+title: "unthrottle-parts on the CI Simulator: hero confirmed over 3 jobs (both flags lift it), commission gains but is not the predicted pulses, platform never exercised"
 status: review
 created: 2026-10-24
 topics: [lag, webkit, ios-toolbar, scroll-driven, engine.scroll, measure, phone]
@@ -20,15 +20,19 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 - **`engine.scroll:throttle-lift` and `engine.scroll:unthrottle` give the same hero result.** MEASURED: 6 band runs in
   3585 and 3596 mid-moving frames (hero value strictly between 0 and 1000 while the toolbar moved; 1.7 per 1000), against
   37.4 for the rewrite; per 1000 moving frames 1.4 against 32.4. Verdict `lifted` for both.
-- **Only hero is claimable.** The other four parts are no-data or a single job. Finish (run 40101695202) and rest (run
-  40101702393) each have one VM with data, below the 3-job rule. Three dispatches were used; no rerun.
-- **Commission is the only other part with a visible gain: 10 band runs per 349 frames (rewrite) to 0 and 1 (lift,
-  unthrottle).** MEASURED on 1 job, 2 passes per arm. It is a follow-up candidate, not a result.
-- **One prediction disagrees, borderline.** Commission is predicted `pulses` (chase), so a throttled arm should show
-  fewer than 10 band runs. The rewrite shows exactly 10; original shows 6. The limit is the reducer's threshold
-  (`MIN_BASE` 10), so one run decides it. INFERRED: this is noise at n=2 passes, not a refutation.
-- **Platform never showed a mid value.** MEASURED: `--platform-shrink` was never strictly between 0.02 and 0.98 in any
-  arm (original included) in a full-page scan on the iPhone-sized page. Cause unknown; follow-up.
+- **Commission gains from the lift, but Lean predicted the wrong pattern for it.** MEASURED, rest run 40101702393, 3 jobs:
+  the rewrite shows 23 band runs in 753 mid-moving frames (30.5 per 1000) where Lean (`pulses`, a chase) predicts fewer
+  than 10; lift shows 0 in 729 and unthrottle 1 in 985, both verdict `lifted`. The Lean part verdict is `disagree`
+  (rewrite and original arms). Per job the rewrite has 10, 13 and 0 band runs; the third job's rewrite passes recorded
+  only 50 mid-moving frames, so two jobs carry the result (named, not a 3-job claim).
+- **People agrees on the rewrite and both lifted arms, disagrees on the original arm.** MEASURED, rest, 3 jobs: 0 band
+  runs in 1741, 1639 and 1641 mid-moving frames. The original arm has 18 in 1467 (12.3 per 1000); per job 4, 8 and 6, so
+  it crosses 10 only in the pool (the threshold is on the pooled sum). The original runs different code from the modeled
+  part, so this is a reference reading, not a refutation of the rewrite (INFERRED).
+- **Platform has no data.** Drag and finish modes never showed a mid value; in rest mode the platform anchor was not found
+  on any of the 3 jobs, so its 3 passes per arm were skipped. Cause unknown; follow-up.
+- **Finish mode gave nothing but capture reversal counts.** Hero, people, commission and platform are exited or not yet
+  reached in the finish zone; the fade shows 4 frames per pass. No arm has 3 jobs (named, not claimable).
 - **CI and phone agree on the direction of hero still runs and max step, not on stall counts.** See the phone section.
 
 ## Method
@@ -53,7 +57,8 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
   `judge_none_boundary`). Commission is predicted pulses; its rewrite arm at exactly 10 therefore falls on disagree.
 - Modes: `drags` (hero drag mode, the toolbar-throttle lane), `finish` (sim-finish-throttle's finish mode), `rest`
   (my addition: the page is placed 60 px above the first ramp the page finds, anchors people, commissionEnter, platform
-  by round, 3 rounds) so that the rest-zone parts are exercised.
+  by round, 3 rounds) so that the rest-zone parts are exercised. The lane yml on this branch reproduces all three runs
+  (`parts-cli.mjs`, four arms, `[throttle:rest]`, `ROUNDS`, timeouts 75 and 58 minutes).
 
 ## Hero, drag mode (run 40098348176, 3 jobs, 6/6 usable passes per arm)
 
@@ -74,49 +79,66 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 
 ## Per part, all modes
 
-| part (series) | Lean predicts | drags | finish | rest | verdict |
+| part (series) | Lean predicts | drags | finish | rest | verdict (Lean `partVerdict`) |
 |---|---|---|---|---|---|
-| hero.exit (hero) | stills throttled, none lifted | 4 arms measured, 3 jobs | no mid values | not exercised | agree, MEASURED |
-| people.card (people) | pulses throttled, none lifted | no mid values | no mid values | 4/485, 0/572, 0/512, 0/558 (1 job) | agree (few band runs everywhere), 1 job |
-| commission (commissionEnter, commission) | pulses throttled, none lifted | no mid values | no mid values | 6/324, 10/349, 0/342, 1/332 (1 job) | disagree at exactly 10 for rewrite; both lifted arms `lifted` |
-| platform.shrink (platform) | stills throttled, none lifted | no mid values | no mid values | never mid in any arm | no-data |
-| morph.panel (fade) | none (time based, not hit) | series never found | 0/4 and 0/4 band runs (original, rewrite) | not exercised | agree, 4 frames only, not claimable |
+| hero.exit (hero) | stills throttled, none lifted | 4 arms measured, 3 jobs | no mid values | no mid values | agree, MEASURED |
+| people.card (people) | pulses throttled, none lifted | no mid values | no mid values | 18/1467, 0/1741, 0/1639, 0/1641 (3 jobs) | disagree on the original arm only; rewrite and both lifted arms agree |
+| commission (commissionEnter, commission) | pulses throttled, none lifted | no mid values | no mid values | 14/883, 23/753, 0/729, 1/985 (3 jobs, 2 with frames) | disagree (rewrite and original show stills); both lifted arms `lifted` |
+| platform.shrink (platform) | stills throttled, none lifted | no mid values | no mid values | anchor not found, passes skipped | no-data |
+| morph.panel (fade) | none (time based, not hit) | series never found | 0 band runs in 4 frames per pass (4 passes) | series never found | agree (partial), not claimable |
 
-Rest-mode columns are band runs / mid-moving frames per arm in the order original, rewrite, lift, unthrottle. Finish
-mode: run 40101695202; rest mode: run 40101702393, 2 usable passes per arm, all from one job.
+Rest-mode cells are band runs / mid-moving frames per arm in the order original, rewrite, lift, unthrottle.
+Finish mode: run 40101695202 (attempt 1 summary and the rerun summary). Rest mode: run 40101702393.
 
-Rest-mode detail (run 40101702393, MEASURED, 1 job):
+**Threshold boundary (Lean `judge`, decided at exactly 10 band runs).** A stills part agrees at 10 or more band runs
+(`10 <= runs`); a pulses or no-stills part agrees below 10 (`runs < 10`). So exactly 10 agrees for a stills part and
+disagrees for a pulses part: `judge_stills_throttled_agree` and `judge_none_boundary`. The commission rewrite arm
+sat at exactly 10 in the first reading (job 1 only, 2 passes); Lean puts that on disagree. The 3-job pool is 23, off the line.
+
+Rest-mode detail (run 40101702393, MEASURED, 3 jobs, 6 usable passes per arm; 3 platform passes per arm skipped):
 
 | series | arm | band runs / mid-moving frames | per 1000 mid-moving | stalls per 1000 pairs | max step | verdict |
 |---|---|---|---|---|---|---|
-| people | original | 4 / 485 | 8.2 | 6.0 | 134 | reference |
-| people | rewrite | 0 / 572 | 0 | 4.5 | 70 | reference |
-| people | lift | 0 / 512 | 0 | 4.2 | 64 | no-data (base below 10) |
-| people | unthrottle | 0 / 558 | 0 | 3.5 | 34 | no-data (base below 10) |
-| commission | original | 6 / 324 | 18.5 | 59.1 | 169 | reference |
-| commission | rewrite | 10 / 349 | 28.7 | 7.2 | 152 | reference |
-| commission | lift | 0 / 342 | 0 | 16.3 | 44 | lifted |
-| commission | unthrottle | 1 / 332 | 3.0 | 25.1 | 75 | lifted |
+| people | original | 18 / 1467 | 12.3 | 6.8 | 134 | reference |
+| people | rewrite | 0 / 1741 | 0 | 4.5 | 70 | reference |
+| people | lift | 0 / 1639 | 0 | 4.4 | 83 | no-data (base below 10) |
+| people | unthrottle | 0 / 1641 | 0 | 3.7 | 96 | no-data (base below 10) |
+| commission | original | 14 / 883 | 15.9 | 60.4 | 189 | reference |
+| commission | rewrite | 23 / 753 | 30.5 | 4.9 | 152 | reference |
+| commission | lift | 0 / 729 | 0 | 9.3 | 53 | lifted |
+| commission | unthrottle | 1 / 985 | 1.0 | 18.8 | 115 | lifted |
 
-- People has too few band runs in any arm for a verdict (the rewrite base is 0, below the 10 that `lifted` needs).
-  This matches the Lean class (pulses: a chase, no 5-frame stills) and the phone's "few frames" read. The rows agree
-  with the prediction; they do not show a gain.
+Commission per job (band runs / mid-moving frames): rewrite 10/349, 13/354, 0/50; lift 0/342, 0/348, 0/39; unthrottle
+1/332, 0/367, 0/286; original 6/324, 4/298, 4/261.
+
+- People has no band runs in the rewrite, so the lifted arms are `no-data` for the verdict; they match the prediction
+  (none). The original's 18 are the only people reading above the line.
 - `commissionEnter` and `commission` are the same rows: the two custom properties move together in the recording.
+- The commission rewrite has band stills where people (also a chase in Lean) has none. INFERRED: commission's writer
+  is not a pure chase on the toolbar-moving range, so its Lean class (`chase`, predicted `pulses`) should be revisited
+  (follow-up, not changed here).
+
+Finish mode (run 40101695202, MEASURED): attempt 1 gave one original and one rewrite pass from job 1; the rerun
+(attempt 2) gave one original pass (job 2) and one lift pass (job 3); job 1 stalled at start in the rerun, job 2's
+rewrite pass timed out, job 3's original and rewrite failed (`simctl list devices` ETIMEDOUT) and its unthrottle touch driver timed out. No unthrottle pass delivered data.
+The only series with frames is the fade (4 frames per pass, 0 band runs). Capture reversals while the morph is open:
+original 4 and 4, rewrite 6, lift 6.
 
 ## Phone comparison
 
 Source: `results/phone/2026-10-24-throttle-lift/summary.json` (read, not re-measured). The phone counts stalls over
-the whole pass; CI counts per 1000 frame pairs of the drag, so only the order across arms is compared.
+the whole pass; CI counts per 1000 frame pairs (consecutive frames) of the drag, so only the order across arms is compared.
 
-| arm | phone hero stalls | phone hero max step | CI hero stalls per 1000 | CI hero max step |
+| arm | phone hero stalls (per pass) | phone hero max step | CI hero stalls per 1000 frame pairs | CI hero max step |
 |---|---|---|---|---|
 | original | 115 and 109 | 587 and 683 | 192.3 | 175 |
 | rewrite | 122 | 338 | 133.4 | 67 |
 | lift | 64 (look pass) | 204 | 154.9 | 42 |
 | unthrottle | not on the phone pass list | | 146.6 | 50 |
 
-- Hero band runs per exit frame, phone: original 29/717 and 27/812 (about 33-40 per 1000), rewrite 90/1200 and
-  28/280 (75-100 per 1000), lift 0-6 per 263-1415 frames (about 0-4 per 1000). CI: 13.5, 37.4, 1.7. Same order and
+- Hero band runs per exit frame on the phone (the phone summary's exit frames), against band runs per mid-moving frame on
+  CI (same kind of count, restricted to the toolbar-moving class; the classes are not identical, INFERRED). Phone: original 29/717 and 27/812 (about 33-40 per 1000), rewrite 90/1200 and
+  28/280 (75-100 per 1000), lift 0-6 per 263-1415 frames (about 0-4 per 1000). CI per 1000 mid-moving: 13.5, 37.4, 1.7. Same order and
   same verdict (`lifted`); the CI rates are about 2.5-3x lower. MEASURED on both.
 - Max step shrinks original, rewrite, lift on both. Agree.
 - **Stall counts do not agree.** The phone lift pass halves hero stalls (122 to 64); on CI the lifted arms keep
@@ -126,37 +148,41 @@ the whole pass; CI counts per 1000 frame pairs of the drag, so only the order ac
   the stall count is not.
 - Fade on the phone: 0 stalls, max step 1000 in every pass, 0 band runs. CI fade: 0 band runs (4 frames). Both agree
   with the Lean class (time based, not hit).
-- People on the phone: 25, 21, 23, 14 stalls, max step 219, 172, 161, 217. CI rest: max step 134, 70, 64, 34.
+- People on the phone: 25, 21, 23, 14 stalls, max step 219, 172, 161, 217. CI rest: max step 134, 70, 83, 96.
   Directionally the same order, different scale; the phone pass is a long scroll, the CI pass a short anchor.
 
 ## Follow-up list: parts that gain
 
 1. **hero.exit**: gains from both `throttle-lift` and `unthrottle` (rate down by a factor of 22). Already the shipped
    target; nothing more to do for the engine flag.
-2. **commission**: candidate gain (10 to 0 and 1 band runs). Needs at least 3 jobs of rest mode to claim.
-3. **platform.shrink**: Lean predicts a gain, but the series was never mid on this page in any arm. Find why the
-   writer's ramp is never strictly between 0.02 and 0.98 in the scan (the writer is gated only for variant `mq`,
-   not the default; a short ramp, a coarse scan step of 40 px, or a position beyond maxY 5267 are candidates), then
-   measure.
-4. **people.card**: no gain visible and none predicted (pulses); keep for the phone.
+2. **commission**: gains (23 to 0 and 1 band runs per about 750 to 985 frames; verdict `lifted` for both flags). Its Lean
+   class predicted `pulses`; reclassify (follow-up) and measure on a third job with frames.
+3. **platform.shrink**: Lean predicts a gain, but the series was never mid in drag or finish mode, and the rest-mode
+   anchor was not found. Find why (the writer is gated only for variant `mq`, not the default; the anchor search or the
+   40 px scan step; a position beyond maxY 5267), then measure.
+4. **people.card**: no gain visible on the rewrite and none predicted; the original arm's 18 band runs are a reference
+   reading. Keep for the phone.
+5. A part verdict that ignores the original arm (the original is not the modeled code) would turn people.card to agree;
+   a Lean change to `partVerdict`, not made here.
 
 No-data parts (named, by reason; the recorder does not store them): the harmless and not-hit parts of the golden with
 shapes `step-look`, `step-idle`, `no-read`, `capture` (morph.mount, morph.tween) and the threaded sources
 (hero.exit threaded variant). Capture parts have a supplementary reading only: scrollY reversals while the morph is
-open, finish mode, 1 pass per arm: original 4, rewrite 6. Not a verdict.
+open, finish mode: original 4 and 4, rewrite 6, lift 6. Not a verdict.
 
 ## Limits and lost passes
 
-- Finish mode: VM 1 gave original and rewrite (1 pass each). Lift and unthrottle timed out in the touch driver in both
-  attempts (300 s). VM 2 original timed out in both attempts. VM 3 failed at start (`simctl list devices`,
-  ETIMEDOUT). So finish has no lifted arms. The finish passes run near 28 fps on CI (33-38 ms gaps), outside the 5-6
-  band's domain; the cadence-aware band is used and named.
-- Rest mode: VM 2 and VM 3 stalled in warm-up (runner load 562, no Safari tab). Four platform passes were skipped
-  (anchor not found). 8 usable passes, all VM 1.
+- Finish mode: see the finish paragraph above. The reruns (`gh run rerun --failed`, no dispatch) added jobs 2 and 3; job 1
+  stalled at start again. Finish passes run near 28 fps on CI (33-38 ms gaps), outside the 5-6 band's domain; the
+  cadence-aware band [K, K+1] with `bandFor` is used and named. Finish has no arm with 3 jobs: not claimable.
+- Rest mode: after the rerun all 3 jobs delivered 6 usable passes per arm (job 1 from attempt 1). The 3 platform passes
+  per arm were skipped on every job (anchor not found). Job 3's commission passes recorded few mid-moving frames
+  (50, 39 and 286 of rewrite, lift, unthrottle).
 - Hero finish mode has no mid values: hero is exited by the time the finish zone starts. Expected.
-- Three dispatches were the cap. `gh run rerun --failed` on the two failed runs would add jobs without a dispatch;
-  not done (lead decides).
-- The phone is not re-measured. Touch-driver retries (suffix `-a2`) may have lost passes; they are listed in each
-  summary table's lost-reasons block.
+- Three dispatches were the cap and were used; the reruns of failed jobs are not dispatches.
+- The pooled threshold: the 10-run line is on the sum over a pool, so a larger pool crosses it more easily (people
+  original: 4, 8, 6 per job, 18 pooled). Named; the Lean `judge` is not per-job.
+- The phone is not re-measured. Touch-driver retries (suffix `-a2`) and warm-up stalls may lose passes; they are listed
+  in each summary table's lost-reasons block.
 - TS stand-ins (no Lean golden, reporting only, no verdict): the no-data reasons (`noDataReason`), the capture reversal
   count (`captureRow`). `judge`, `partVerdict` and `bandFor` are Lean-defined and replayed from the golden.

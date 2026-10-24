@@ -1,7 +1,7 @@
 {
  "mode": "rest",
  "runId": "40101702393",
- "jobs": 1,
+ "jobs": 3,
  "series": [
   {
    "key": "hero",
@@ -22,19 +22,19 @@
    },
    "arms": {
     "original": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 2337,
-     "moving": 1055,
+     "frames": 6631,
+     "moving": 3102,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 2335,
+     "pairs": 6625,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
@@ -42,64 +42,64 @@
      "medianGapMs": 59
     },
     "rewrite": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 2906,
-     "moving": 1266,
+     "frames": 9414,
+     "moving": 3427,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 2904,
+     "pairs": 9408,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
      "per1000Mid": null,
-     "medianGapMs": 27
+     "medianGapMs": 23
     },
     "lift": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 2831,
-     "moving": 1140,
+     "frames": 9707,
+     "moving": 3336,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 2829,
+     "pairs": 9701,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
      "per1000Mid": null,
-     "medianGapMs": 30
+     "medianGapMs": 23
     },
     "unthrottle": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 3185,
-     "moving": 1185,
+     "frames": 9623,
+     "moving": 3512,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 3183,
+     "pairs": 9617,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
      "per1000Mid": null,
-     "medianGapMs": 26
+     "medianGapMs": 20
     }
    },
    "verdicts": {
@@ -127,6 +127,56 @@
    "jobs": [
     {
      "vm": "1",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "2",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "3",
      "arms": {
       "original": {
        "band": 0,
@@ -170,84 +220,84 @@
    },
    "arms": {
     "original": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2337,
-     "moving": 1055,
-     "mid": 741,
-     "midMoving": 485,
-     "band": 4,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 6631,
+     "moving": 3102,
+     "mid": 1928,
+     "midMoving": 1467,
+     "band": 18,
      "band56": 0,
-     "short": 4,
-     "stalls": 14,
-     "pairs": 2335,
+     "short": 18,
+     "stalls": 45,
+     "pairs": 6625,
      "maxStep": 134,
-     "per1000Moving": 3.8,
-     "stallsPer1000": 6,
-     "per1000Mid": 8.2,
+     "per1000Moving": 5.8,
+     "stallsPer1000": 6.8,
+     "per1000Mid": 12.3,
      "medianGapMs": 59
     },
     "rewrite": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2906,
-     "moving": 1266,
-     "mid": 1129,
-     "midMoving": 572,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9414,
+     "moving": 3427,
+     "mid": 3835,
+     "midMoving": 1741,
      "band": 0,
      "band56": 0,
-     "short": 0,
-     "stalls": 13,
-     "pairs": 2904,
+     "short": 2,
+     "stalls": 42,
+     "pairs": 9408,
      "maxStep": 70,
      "per1000Moving": 0,
      "stallsPer1000": 4.5,
      "per1000Mid": 0,
-     "medianGapMs": 27
+     "medianGapMs": 23
     },
     "lift": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2831,
-     "moving": 1140,
-     "mid": 974,
-     "midMoving": 512,
-     "band": 0,
-     "band56": 0,
-     "short": 0,
-     "stalls": 12,
-     "pairs": 2829,
-     "maxStep": 64,
-     "per1000Moving": 0,
-     "stallsPer1000": 4.2,
-     "per1000Mid": 0,
-     "medianGapMs": 30
-    },
-    "unthrottle": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 3185,
-     "moving": 1185,
-     "mid": 1204,
-     "midMoving": 558,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9707,
+     "moving": 3336,
+     "mid": 3655,
+     "midMoving": 1639,
      "band": 0,
      "band56": 0,
      "short": 1,
-     "stalls": 11,
-     "pairs": 3183,
-     "maxStep": 34,
+     "stalls": 43,
+     "pairs": 9701,
+     "maxStep": 83,
      "per1000Moving": 0,
-     "stallsPer1000": 3.5,
+     "stallsPer1000": 4.4,
      "per1000Mid": 0,
-     "medianGapMs": 26
+     "medianGapMs": 23
+    },
+    "unthrottle": {
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9623,
+     "moving": 3512,
+     "mid": 4045,
+     "midMoving": 1641,
+     "band": 0,
+     "band56": 0,
+     "short": 2,
+     "stalls": 36,
+     "pairs": 9617,
+     "maxStep": 96,
+     "per1000Moving": 0,
+     "stallsPer1000": 3.7,
+     "per1000Mid": 0,
+     "medianGapMs": 20
     }
    },
    "verdicts": {
@@ -256,8 +306,8 @@
    },
    "match": {
     "original": {
-     "match": "agree",
-     "why": "4 band runs, fewer than 10"
+     "match": "disagree",
+     "why": "18 band runs, at least 10"
     },
     "rewrite": {
      "match": "agree",
@@ -297,6 +347,56 @@
        "usable": 2
       }
      }
+    },
+    {
+     "vm": "2",
+     "arms": {
+      "original": {
+       "band": 8,
+       "midMoving": 489,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 588,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 573,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 525,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "3",
+     "arms": {
+      "original": {
+       "band": 6,
+       "midMoving": 493,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 581,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 554,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 558,
+       "usable": 2
+      }
+     }
     }
    ]
   },
@@ -318,84 +418,84 @@
    },
    "arms": {
     "original": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2337,
-     "moving": 1055,
-     "mid": 766,
-     "midMoving": 324,
-     "band": 6,
-     "band56": 6,
-     "short": 28,
-     "stalls": 138,
-     "pairs": 2335,
-     "maxStep": 169,
-     "per1000Moving": 5.7,
-     "stallsPer1000": 59.1,
-     "per1000Mid": 18.5,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 6631,
+     "moving": 3102,
+     "mid": 2167,
+     "midMoving": 883,
+     "band": 14,
+     "band56": 14,
+     "short": 73,
+     "stalls": 400,
+     "pairs": 6625,
+     "maxStep": 189,
+     "per1000Moving": 4.5,
+     "stallsPer1000": 60.4,
+     "per1000Mid": 15.9,
      "medianGapMs": 59
     },
     "rewrite": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2906,
-     "moving": 1266,
-     "mid": 847,
-     "midMoving": 349,
-     "band": 10,
-     "band56": 10,
-     "short": 42,
-     "stalls": 21,
-     "pairs": 2904,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9414,
+     "moving": 3427,
+     "mid": 1800,
+     "midMoving": 753,
+     "band": 23,
+     "band56": 23,
+     "short": 74,
+     "stalls": 46,
+     "pairs": 9408,
      "maxStep": 152,
-     "per1000Moving": 7.9,
-     "stallsPer1000": 7.2,
-     "per1000Mid": 28.7,
-     "medianGapMs": 27
+     "per1000Moving": 6.7,
+     "stallsPer1000": 4.9,
+     "per1000Mid": 30.5,
+     "medianGapMs": 23
     },
     "lift": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2831,
-     "moving": 1140,
-     "mid": 894,
-     "midMoving": 342,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9707,
+     "moving": 3336,
+     "mid": 1893,
+     "midMoving": 729,
      "band": 0,
      "band56": 0,
-     "short": 48,
-     "stalls": 46,
-     "pairs": 2829,
-     "maxStep": 44,
+     "short": 97,
+     "stalls": 90,
+     "pairs": 9701,
+     "maxStep": 53,
      "per1000Moving": 0,
-     "stallsPer1000": 16.3,
+     "stallsPer1000": 9.3,
      "per1000Mid": 0,
-     "medianGapMs": 30
+     "medianGapMs": 23
     },
     "unthrottle": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 3185,
-     "moving": 1185,
-     "mid": 841,
-     "midMoving": 332,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9623,
+     "moving": 3512,
+     "mid": 2549,
+     "midMoving": 985,
      "band": 1,
      "band56": 1,
-     "short": 46,
-     "stalls": 80,
-     "pairs": 3183,
-     "maxStep": 75,
-     "per1000Moving": 0.8,
-     "stallsPer1000": 25.1,
-     "per1000Mid": 3,
-     "medianGapMs": 26
+     "short": 132,
+     "stalls": 181,
+     "pairs": 9617,
+     "maxStep": 115,
+     "per1000Moving": 0.3,
+     "stallsPer1000": 18.8,
+     "per1000Mid": 1,
+     "medianGapMs": 20
     }
    },
    "verdicts": {
@@ -404,12 +504,12 @@
    },
    "match": {
     "original": {
-     "match": "agree",
-     "why": "6 band runs, fewer than 10"
+     "match": "disagree",
+     "why": "14 band runs, at least 10"
     },
     "rewrite": {
      "match": "disagree",
-     "why": "10 band runs, at least 10"
+     "why": "23 band runs, at least 10"
     },
     "lift": {
      "match": "agree",
@@ -445,6 +545,56 @@
        "usable": 2
       }
      }
+    },
+    {
+     "vm": "2",
+     "arms": {
+      "original": {
+       "band": 4,
+       "midMoving": 298,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 13,
+       "midMoving": 354,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 348,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 367,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "3",
+     "arms": {
+      "original": {
+       "band": 4,
+       "midMoving": 261,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 50,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 39,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 286,
+       "usable": 2
+      }
+     }
     }
    ]
   },
@@ -466,84 +616,84 @@
    },
    "arms": {
     "original": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2337,
-     "moving": 1055,
-     "mid": 766,
-     "midMoving": 324,
-     "band": 6,
-     "band56": 6,
-     "short": 28,
-     "stalls": 138,
-     "pairs": 2335,
-     "maxStep": 169,
-     "per1000Moving": 5.7,
-     "stallsPer1000": 59.1,
-     "per1000Mid": 18.5,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 6631,
+     "moving": 3102,
+     "mid": 2167,
+     "midMoving": 883,
+     "band": 14,
+     "band56": 14,
+     "short": 73,
+     "stalls": 400,
+     "pairs": 6625,
+     "maxStep": 189,
+     "per1000Moving": 4.5,
+     "stallsPer1000": 60.4,
+     "per1000Mid": 15.9,
      "medianGapMs": 59
     },
     "rewrite": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2906,
-     "moving": 1266,
-     "mid": 847,
-     "midMoving": 349,
-     "band": 10,
-     "band56": 10,
-     "short": 42,
-     "stalls": 21,
-     "pairs": 2904,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9414,
+     "moving": 3427,
+     "mid": 1800,
+     "midMoving": 753,
+     "band": 23,
+     "band56": 23,
+     "short": 74,
+     "stalls": 46,
+     "pairs": 9408,
      "maxStep": 152,
-     "per1000Moving": 7.9,
-     "stallsPer1000": 7.2,
-     "per1000Mid": 28.7,
-     "medianGapMs": 27
+     "per1000Moving": 6.7,
+     "stallsPer1000": 4.9,
+     "per1000Mid": 30.5,
+     "medianGapMs": 23
     },
     "lift": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 2831,
-     "moving": 1140,
-     "mid": 894,
-     "midMoving": 342,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9707,
+     "moving": 3336,
+     "mid": 1893,
+     "midMoving": 729,
      "band": 0,
      "band56": 0,
-     "short": 48,
-     "stalls": 46,
-     "pairs": 2829,
-     "maxStep": 44,
+     "short": 97,
+     "stalls": 90,
+     "pairs": 9701,
+     "maxStep": 53,
      "per1000Moving": 0,
-     "stallsPer1000": 16.3,
+     "stallsPer1000": 9.3,
      "per1000Mid": 0,
-     "medianGapMs": 30
+     "medianGapMs": 23
     },
     "unthrottle": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
-     "exercised": 1,
-     "frames": 3185,
-     "moving": 1185,
-     "mid": 841,
-     "midMoving": 332,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
+     "exercised": 3,
+     "frames": 9623,
+     "moving": 3512,
+     "mid": 2549,
+     "midMoving": 985,
      "band": 1,
      "band56": 1,
-     "short": 46,
-     "stalls": 80,
-     "pairs": 3183,
-     "maxStep": 75,
-     "per1000Moving": 0.8,
-     "stallsPer1000": 25.1,
-     "per1000Mid": 3,
-     "medianGapMs": 26
+     "short": 132,
+     "stalls": 181,
+     "pairs": 9617,
+     "maxStep": 115,
+     "per1000Moving": 0.3,
+     "stallsPer1000": 18.8,
+     "per1000Mid": 1,
+     "medianGapMs": 20
     }
    },
    "verdicts": {
@@ -552,12 +702,12 @@
    },
    "match": {
     "original": {
-     "match": "agree",
-     "why": "6 band runs, fewer than 10"
+     "match": "disagree",
+     "why": "14 band runs, at least 10"
     },
     "rewrite": {
      "match": "disagree",
-     "why": "10 band runs, at least 10"
+     "why": "23 band runs, at least 10"
     },
     "lift": {
      "match": "agree",
@@ -590,6 +740,56 @@
       "unthrottle": {
        "band": 1,
        "midMoving": 332,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "2",
+     "arms": {
+      "original": {
+       "band": 4,
+       "midMoving": 298,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 13,
+       "midMoving": 354,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 348,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 367,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "3",
+     "arms": {
+      "original": {
+       "band": 4,
+       "midMoving": 261,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 50,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 39,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 286,
        "usable": 2
       }
      }
@@ -615,19 +815,19 @@
    },
    "arms": {
     "original": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 2337,
-     "moving": 1055,
+     "frames": 6631,
+     "moving": 3102,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 2335,
+     "pairs": 6625,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
@@ -635,64 +835,64 @@
      "medianGapMs": 59
     },
     "rewrite": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 2906,
-     "moving": 1266,
+     "frames": 9414,
+     "moving": 3427,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 2904,
+     "pairs": 9408,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
      "per1000Mid": null,
-     "medianGapMs": 27
+     "medianGapMs": 23
     },
     "lift": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 2831,
-     "moving": 1140,
+     "frames": 9707,
+     "moving": 3336,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 2829,
+     "pairs": 9701,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
      "per1000Mid": null,
-     "medianGapMs": 30
+     "medianGapMs": 23
     },
     "unthrottle": {
-     "passes": 3,
-     "usable": 2,
-     "found": 2,
+     "passes": 9,
+     "usable": 6,
+     "found": 6,
      "exercised": 0,
-     "frames": 3185,
-     "moving": 1185,
+     "frames": 9623,
+     "moving": 3512,
      "mid": 0,
      "midMoving": 0,
      "band": 0,
      "band56": 0,
      "short": 0,
      "stalls": 0,
-     "pairs": 3183,
+     "pairs": 9617,
      "maxStep": 0,
      "per1000Moving": 0,
      "stallsPer1000": 0,
      "per1000Mid": null,
-     "medianGapMs": 26
+     "medianGapMs": 20
     }
    },
    "verdicts": {
@@ -720,6 +920,56 @@
    "jobs": [
     {
      "vm": "1",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "2",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "3",
      "arms": {
       "original": {
        "band": 0,
@@ -763,8 +1013,8 @@
    },
    "arms": {
     "original": {
-     "passes": 3,
-     "usable": 2,
+     "passes": 9,
+     "usable": 6,
      "found": 0,
      "exercised": 0,
      "frames": 0,
@@ -783,8 +1033,8 @@
      "medianGapMs": null
     },
     "rewrite": {
-     "passes": 3,
-     "usable": 2,
+     "passes": 9,
+     "usable": 6,
      "found": 0,
      "exercised": 0,
      "frames": 0,
@@ -803,8 +1053,8 @@
      "medianGapMs": null
     },
     "lift": {
-     "passes": 3,
-     "usable": 2,
+     "passes": 9,
+     "usable": 6,
      "found": 0,
      "exercised": 0,
      "frames": 0,
@@ -823,8 +1073,8 @@
      "medianGapMs": null
     },
     "unthrottle": {
-     "passes": 3,
-     "usable": 2,
+     "passes": 9,
+     "usable": 6,
      "found": 0,
      "exercised": 0,
      "frames": 0,
@@ -890,6 +1140,56 @@
        "usable": 2
       }
      }
+    },
+    {
+     "vm": "2",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    },
+    {
+     "vm": "3",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
     }
    ]
   }
@@ -901,7 +1201,7 @@
   },
   {
    "id": "people.card",
-   "verdict": "agree"
+   "verdict": "disagree"
   },
   {
    "id": "commission",
@@ -918,28 +1218,28 @@
  ],
  "captures": {
   "original": {
-   "passes": 3,
+   "passes": 9,
    "usable": 0,
    "reversals": 0,
    "perPass": [],
    "late": []
   },
   "rewrite": {
-   "passes": 3,
+   "passes": 9,
    "usable": 0,
    "reversals": 0,
    "perPass": [],
    "late": []
   },
   "lift": {
-   "passes": 3,
+   "passes": 9,
    "usable": 0,
    "reversals": 0,
    "perPass": [],
    "late": []
   },
   "unthrottle": {
-   "passes": 3,
+   "passes": 9,
    "usable": 0,
    "reversals": 0,
    "perPass": [],
@@ -949,33 +1249,41 @@
  "lost": [
   {
    "arm": "original",
-   "passes": 3,
-   "usable": 2,
+   "passes": 9,
+   "usable": 6,
    "reasons": [
+    "anchor platform not found",
+    "anchor platform not found",
     "anchor platform not found"
    ]
   },
   {
    "arm": "rewrite",
-   "passes": 3,
-   "usable": 2,
+   "passes": 9,
+   "usable": 6,
    "reasons": [
+    "anchor platform not found",
+    "anchor platform not found",
     "anchor platform not found"
    ]
   },
   {
    "arm": "lift",
-   "passes": 3,
-   "usable": 2,
+   "passes": 9,
+   "usable": 6,
    "reasons": [
+    "anchor platform not found",
+    "anchor platform not found",
     "anchor platform not found"
    ]
   },
   {
    "arm": "unthrottle",
-   "passes": 3,
-   "usable": 2,
+   "passes": 9,
+   "usable": 6,
    "reasons": [
+    "anchor platform not found",
+    "anchor platform not found",
     "anchor platform not found"
    ]
   }
