@@ -8,13 +8,15 @@ export const USER_FLAGS = [
 
 const q = (flags) => (flags.length === 0 ? '' : `?fw=${flags.join(',')}`);
 
-const without = (f) => USER_FLAGS.filter((x) => x !== f);
+const without = (...fs) => USER_FLAGS.filter((x) => !fs.includes(x));
 const END3 = ['morph.end.clamp:on', 'morph.end.flip:on', 'morph.end.release:on'];
 
 export const BISECT = [
   { name: 'default', search: '' },
   { name: 'user', search: q(USER_FLAGS) },
-  ...USER_FLAGS.map((f) => ({ name: `user-minus-${f.split(':')[0]}`, search: q(without(f)) })),
+  // morph.countdown:strip requires hero.countdown:strip, so hero.countdown is dropped together with it
+  ...USER_FLAGS.filter((f) => f !== 'hero.countdown:strip').map((f) => ({ name: `user-minus-${f.split(':')[0]}`, search: q(without(f)) })),
+  { name: 'user-minus-countdown-pair', search: q(without('hero.countdown:strip', 'morph.countdown:strip')) },
   { name: 'end3', search: q(END3) },
   { name: 'clamp', search: q(['morph.end.clamp:on']) },
   { name: 'flip', search: q(['morph.end.flip:on']) },

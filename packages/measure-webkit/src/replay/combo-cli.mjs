@@ -18,10 +18,10 @@ const { values: v } = parseArgs({
 const log = (s) => console.error(s);
 
 export function table(run) {
-  const rows = ['| profile | arm | rep | frames | reversals no finger | jumps >= 20 px (max px) | script writes (finger down / free) | px written (down / free) |', '| --- | --- | --- | --- | --- | --- | --- | --- |'];
+  const rows = ['| profile | arm | rep | frames | reversals no finger | jumps >= 20 px (max px) | script jumps >= 20 px (max px) | script writes (finger down / free) | px written (down / free) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'];
   for (const p of run.passes) {
     const m = p.metrics;
-    rows.push(`| ${p.profile} | ${p.armName} | ${p.rep} | ${m.frames} | ${m.reversalsNoFinger} | ${m.jumps.n} (${m.jumps.max}) | ${m.writes.n} (${m.writes.down} / ${m.writes.free}) | ${Math.round(m.writes.pxDown)} / ${Math.round(m.writes.pxFree)} |`);
+    rows.push(`| ${p.profile} | ${p.armName} | ${p.rep} | ${m.frames} | ${m.reversalsNoFinger} | ${m.jumps.n} (${m.jumps.max}) | ${m.scriptJumps.n} (${m.scriptJumps.max}) | ${m.writes.n} (${m.writes.down} / ${m.writes.free}) | ${Math.round(m.writes.pxDown)} / ${Math.round(m.writes.pxFree)} |`);
   }
   return `${rows.join('\n')}\n`;
 }
@@ -53,7 +53,7 @@ async function main() {
             const { rec, ...rest2 } = r;
             passes.push({ profile: profile.id, armName: arm.name, search: arm.search, rep, ...rest2, ...(v.frames ? { rec } : {}) });
             const m = r.metrics;
-            log(`${profile.id} ${arm.name} rep ${rep}: reversals ${m.reversalsNoFinger}, jumps ${m.jumps.n} (max ${m.jumps.max}), writes ${m.writes.n} (down ${m.writes.down}, free ${m.writes.free})`);
+            log(`${profile.id} ${arm.name} rep ${rep}: reversals ${m.reversalsNoFinger}, jumps ${m.jumps.n} (max ${m.jumps.max}), script jumps ${m.scriptJumps.n} (max ${m.scriptJumps.max}), writes ${m.writes.n} (down ${m.writes.down}, free ${m.writes.free})`);
           }
         } finally { await srv.close(); }
       }

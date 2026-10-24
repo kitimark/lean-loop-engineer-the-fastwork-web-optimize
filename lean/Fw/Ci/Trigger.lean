@@ -174,7 +174,8 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/measure-webkit/src/replay/**", "packages/measure-webkit/src/device-replay*.mjs", "packages/measure-webkit/src/device-record.mjs",
     "packages/measure-webkit/src/device-session.mjs", "packages/measure-webkit/src/linux/serve.mjs", "packages/measure-webkit/src/linux/run.mjs",
     "packages/measure-webkit/test/replay-*.test.mjs", "packages/contracts/golden/device/**", "packages/measure-chromium/profiles/user-fixture.json",
-    "packages/measure-chromium/src/profile.mjs", "packages/gate-breakpoints/package.json", "snapshot/**", "snapshot.lock.json",
+    "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/profiles/user-bug-1025*.json", "packages/gate-breakpoints/package.json",
+    "packages/gate-breakpoints/src/serve.mjs", "packages/contracts/src/flag-key.mjs", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
     ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "device-replay.yml"], []⟩,
   ⟨"difftest.yml", ciAll, [
@@ -213,7 +214,7 @@ def table (_ : Unit := ()) : List Wf := [
     "apps/site/src/registry/layer-opts.gen.ts", "packages/contracts/golden/console/layer-opts.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
-    "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl", "packages/contracts/golden/parts/morph.end.jsonl", "packages/contracts/golden/parts/platform-glint-pause.jsonl",
+    "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl", "packages/contracts/golden/parts/morph.end.jsonl", "packages/contracts/golden/parts/combo-scroll.jsonl", "packages/contracts/golden/parts/platform-glint-pause.jsonl",
     "results/gpu-safari/lane/elapsed.golden.jsonl", "packages/contracts/golden/gate/image-arm.jsonl", "packages/contracts/golden/parts/hero.accent.drawone.jsonl", "packages/contracts/golden/parts/hero.accent.nolayout.jsonl", "packages/contracts/golden/parts/footprint.classpos.jsonl", "packages/contracts/golden/parts/people-o-preview.jsonl", "packages/contracts/golden/parts/morph-idle-none.jsonl",
     "packages/contracts/golden/ops/rebuild-facts.jsonl",
     "packages/contracts/golden/ops/rebuild.jsonl", "packages/contracts/golden/plan/writes-closure.jsonl",

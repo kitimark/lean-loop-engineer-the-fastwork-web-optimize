@@ -80,7 +80,7 @@ export async function comboPass({ browser, origin, search = '', profile, throttl
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     const rec = await page.evaluate('JSON.stringify({ t: __combo.t, y: __combo.y, m: __combo.m, d: __combo.d, writes: __combo.writes, moves: __combo.moves })');
     const r = JSON.parse(rec);
-    return { maxY, variants: JSON.parse(variants), events: events.length, lateMax: Math.max(...late), rec: r, metrics: metrics({ ys: r.y, down: r.d, writes: r.writes }) };
+    return { maxY, variants: JSON.parse(variants), events: events.length, lateMax: Math.max(...late), rec: r, metrics: metrics({ ts: r.t, ys: r.y, down: r.d, writes: r.writes }) };
   } finally {
     await context.close();
   }

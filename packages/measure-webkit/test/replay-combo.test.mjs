@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { reversalsNoFinger, jumps, writeStats, metrics, JUMP_PX } from '../src/replay/combo-metrics.mjs';
+import { reversalsNoFinger, jumps, scriptJumps, writeStats, metrics, JUMP_PX } from '../src/replay/combo-metrics.mjs';
 import { eventsOf } from '../src/replay/combo-replay.mjs';
 import { SCENARIOS, profileOf, render } from '../src/replay/combo-profile.mjs';
 import { BISECT, FIX, USER_FLAGS, armsArg } from '../src/replay/combo-arms.mjs';
@@ -38,7 +38,7 @@ test('a jump needs both legs at the bound', () => {
 test('write stats split by finger and ignore writes that did not move the page', () => {
   const w = [[1, 100, 100, 0], [2, 100, 130, 1], [3, 100, 90, 0]];
   assert.deepEqual(writeStats(w), { n: 2, down: 1, free: 1, pxDown: 30, pxFree: 10 });
-  assert.equal(metrics({ ys: [0, 1], down: [0, 0], writes: w }).frames, 2);
+  assert.equal(metrics({ ts: [0, 16], ys: [0, 1], down: [0, 0], writes: w }).frames, 2);
 });
 
 test('events of a profile: a start, the moves, an end one frame later, in time order', () => {
@@ -71,8 +71,21 @@ test('arm sets: the user set is eight flags, the bisect drops each once, names a
   assert.equal(USER_FLAGS.length, 8);
   const names = BISECT.map((a) => a.name);
   assert.equal(new Set(names).size, names.length);
-  assert.equal(BISECT.filter((a) => a.name.startsWith('user-minus-')).length, 8);
-  for (const a of BISECT.filter((x) => x.name.startsWith('user-minus-'))) assert.equal(a.search.split(',').length, 7);
+  const drops = BISECT.filter((a) => a.name.startsWith('user-minus-'));
+  assert.equal(drops.length, 8);
+  assert.deepEqual(drops.map((a) => a.search.split(',').length).sort(), [6, 7, 7, 7, 7, 7, 7, 7]);
+  // morph.countdown:strip needs hero.countdown:strip: no arm holds the first without the second
+  for (const a of BISECT) assert.ok(!a.search.includes('morph.countdown:strip') || a.search.includes('hero.countdown:strip'));
   assert.ok(FIX.every((a) => BISECT.includes(a)));
   assert.ok(armsArg('fix').split(';').length === FIX.length);
+});
+
+test('a script jump needs a page write inside the pair; a finger that turns round is not one', () => {
+  const ts = [0, 16, 32, 48];
+  const ys = [100, 140, 100, 100];
+  assert.equal(jumps(ys).n, 1);
+  assert.deepEqual(scriptJumps(ts, ys, []), { n: 0, max: 0 });
+  assert.deepEqual(scriptJumps(ts, ys, [[20, 100, 140, 0]]), { n: 1, max: 40 });
+  assert.deepEqual(scriptJumps(ts, ys, [[20, 140, 140, 0]]), { n: 0, max: 0 });
+  assert.deepEqual(scriptJumps(ts, ys, [[60, 100, 140, 0]]), { n: 0, max: 0 });
 });

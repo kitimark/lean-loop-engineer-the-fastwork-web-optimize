@@ -15,6 +15,8 @@ export interface Read {
   readonly arm: boolean;
   readonly now: number;
   readonly reduced: boolean;
+  /** `Event.cancelable` of the move; absent means true (Lean `Fw.Parts.ComboScroll`, the cancelable bit of `wstep`). */
+  readonly cancelable?: boolean;
 }
 
 export interface EndState {
@@ -24,6 +26,8 @@ export interface EndState {
   ctr: number;
   fresh: boolean;
   rel: boolean;
+  /** Lean `ComboScroll.W.held`: the last move was prevented and the browser let that stand; only then may the frame writer write. */
+  held: boolean;
 }
 
 export interface Out {
@@ -42,7 +46,7 @@ export type EndEv =
   | { ev: 'scroll' | 'resize'; y: number; maxY: number }
   | { ev: 'tick'; now: number };
 
-export const initEnd = (pin: number, tw: St): EndState => ({ tw, touchY: 0, pin, ctr: 0, fresh: false, rel: false });
+export const initEnd = (pin: number, tw: St): EndState => ({ tw, touchY: 0, pin, ctr: 0, fresh: false, rel: false, held: true });
 
 const isActive = (tw: St): boolean => active({ target: tw.target, value: tw.value });
 const away = (target: number, d: number): number => (target === 1 ? -d : d);
@@ -53,7 +57,8 @@ const pinAfter = (h: Hooks, s: EndState, r: Read): number => (isActive(s.tw) && 
 const blocked = (h: Hooks, s: EndState, d: number, g: number): boolean =>
   (s.tw.target === g && s.tw.to === g) || (isActive(s.tw) && !h.allow(s.fresh, ctrAfter(s, d)));
 
-export function moveStep(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
+/** The inner step of a move (Lean `MorphEnd.moveStep`). */
+function innerMove(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
   if (!taken({ active: isActive(s.tw), delta: d, armed: r.arm })) return [{ ...s, ctr: ctrAfter(s, d) }, NONE];
   const g = dir({ delta: d });
   if (g === null || blocked(h, s, d, g)) {
@@ -66,8 +71,19 @@ export function moveStep(h: Hooks, s: EndState, d: number, r: Read): [EndState, 
   ];
 }
 
+/**
+ * A move (Lean `ComboScroll.wstep`, move case). With `release` a move holds the page only when it is prevented and
+ * cancelable; a move that brings the hold back re-pins where the page is. Without `release` nothing changes.
+ */
+export function moveStep(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
+  const [next, out] = innerMove(h, s, d, r);
+  if (!h.release) return [next, out];
+  const holds = out.prevent && r.cancelable !== false;
+  return [{ ...next, held: holds, pin: holds && !s.held ? r.scrollY : next.pin }, out];
+}
+
 export function frameOut(h: Hooks, s: EndState, y: number, maxY: () => number): number | null {
-  if (!isActive(s.tw) || (h.release && s.rel)) return null;
+  if (!isActive(s.tw) || (h.release && (s.rel || !s.held))) return null;
   const t = h.target(s.pin, maxY);
   return y !== t ? t : null;
 }

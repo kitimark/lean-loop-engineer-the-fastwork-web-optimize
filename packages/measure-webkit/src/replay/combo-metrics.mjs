@@ -38,6 +38,25 @@ export function jumps(ys, bound = JUMP_PX) {
   return { n, max, at };
 }
 
+/**
+ * Script jumps: the jump pairs of `jumps` with a page `scrollTo` between the first frame of the pair and its last, so the reversal is not the
+ * finger's own (a finger that turns round also turns the scroll). `ts[k]` is the frame time, `writes[i][0]` the time of a call, both in ms of the page clock.
+ */
+export function scriptJumps(ts, ys, writes, bound = JUMP_PX) {
+  let n = 0;
+  let max = 0;
+  const moved = writes.filter((w) => Math.abs(w[1] - w[2]) >= 0.5);
+  for (let k = 2; k < ys.length; k++) {
+    const a = ys[k - 1] - ys[k - 2];
+    const b = ys[k] - ys[k - 1];
+    if (!(a * b < 0 && Math.min(Math.abs(a), Math.abs(b)) >= bound)) continue;
+    if (!moved.some((w) => w[0] >= ts[k - 2] && w[0] <= ts[k])) continue;
+    n++;
+    max = Math.max(max, Math.abs(a), Math.abs(b));
+  }
+  return { n, max };
+}
+
 /** Script writes that moved the page: counts while a finger is down and after it lifted, and the px they moved. */
 export function writeStats(writes) {
   const out = { n: 0, down: 0, free: 0, pxDown: 0, pxFree: 0 };
@@ -50,6 +69,6 @@ export function writeStats(writes) {
   return out;
 }
 
-export function metrics({ ys, down, writes }) {
-  return { frames: ys.length, reversalsNoFinger: reversalsNoFinger(ys, down), jumps: jumps(ys), writes: writeStats(writes) };
+export function metrics({ ts, ys, down, writes }) {
+  return { frames: ys.length, reversalsNoFinger: reversalsNoFinger(ys, down), jumps: jumps(ys), scriptJumps: scriptJumps(ts, ys, writes), writes: writeStats(writes) };
 }
