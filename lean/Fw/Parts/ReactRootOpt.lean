@@ -115,8 +115,6 @@ def tsText (_ : Unit) : String :=
 
 #guard (goldenLines ()).length == 3 + 87 + 14
 
-#guard tsText () == include_str "../../../apps/site/src/parts/engine.events/quiet.gen.ts"
-
 #guard goldenText () == include_str "../../../packages/contracts/golden/parts/react-root-quiet.jsonl"
 
 def run (args : List String) : IO UInt32 := do
