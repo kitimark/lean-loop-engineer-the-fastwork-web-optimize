@@ -12,7 +12,7 @@ inductive Variant where
   | strip
 deriving Repr, DecidableEq
 
-/-- One digit slot of `createCountdownDriver` (apps/site/src/parts/hero.countdown/driver.ts:26-33). -/
+/-- One digit slot of `createCountdownDriver` (apps/site/src/parts/hero.countdown/driver.ts:25-32). -/
 structure Slot where
   spring : Spring
   target : Nat
