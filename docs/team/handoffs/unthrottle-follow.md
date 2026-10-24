@@ -4,7 +4,8 @@ Branch: worktree-wf_4682f586-db0-1 (CI branch ci/unthrottle-follow). Worktree: .
 Last commit: see `git log -1` (code at c4d6d6f18; later commits are handoff/notes only).
 
 CI runs (ci/unthrottle-follow, sha cf29b0739, tip commit tagged [ci:toolbar-throttle] [throttle:follow]):
-- 40109924058 toolbar-throttle push (dispatch 0 of 3 used): running
+- 40109924058 toolbar-throttle push (dispatch 0 of 3 used): running; guard and site jobs success; sim (1-3) queued on xcode-27 since 16:06Z (macOS queue)
+Verified so far (all at code c4d6d6f18 + footprint regen): lean check.sh green (slot), site tests, site typecheck, measure-webkit tests (637), runner tests (3437), ci-paths test (56), plan lint (no writesClosure line for this task); main merged (3c43feb3b).
 Wait with: pnpm -s fw ci wait --branch ci/unthrottle-follow --workflow toolbar-throttle (poll >= 120 s).
 
 Built: Lean model lean/Fw/Parts/EngineScrollFollow.lean (step, drive, theorems: frames_bounded, stops_after_still, idle_zero, drive_idle, moving_runs_every_update, follow_gt_event, follow_reads_newest, follow_same_look, plateau_survives, fine_never_requests), golden
