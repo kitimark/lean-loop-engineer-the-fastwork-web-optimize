@@ -125,7 +125,7 @@ jobs:
           mode: finish
           label: replay
 
-  # Task combo-scroll-fight (note research/notes/2026/10-2x-combo-scroll-fight.md): the rewrite page with the user's flags and their
+  # Task combo-scroll-fight (note research/notes/2026/10-2x-combo-scroll-fight.md), re-run by combo-held-identity (note research/notes/2026/10-2x-combo-held-identity.md: the `+passive` arms run the page with every touchmove and wheel listener passive and one blocking no-op listener, so the event stays cancelable while preventDefault is ignored; `before` replays only the delta arms): the rewrite page with the user's flags and their
   # bisect sets, replayed with scripted close-then-reopen finger paths and the recorded path; the page records scrollY on every frame, the
   # finger, the morph value and every `scrollTo` call. One leg per profile. Chromium, CPU throttled 6x (the Linux proxy, never the phone).
   # Legs run one after the other after `replay` (the Lean width table, Fw.Ci.Overflow.widths, holds one job for this workflow).
@@ -173,7 +173,7 @@ jobs:
       - name: Build the rewrite twice with the flag sets (after = this commit, before = apps/site/src of BEFORE), one prerendered page per set
         working-directory: apps/site
         env:
-          BEFORE: 45efb0d5a43a95227823d6c1304131da8059f9df
+          BEFORE: 13f319e2ae1b7e87604e4b2a55213a3669e99fc2
         run: |
           set -euo pipefail
           args=()
@@ -189,7 +189,7 @@ jobs:
         timeout-minutes: 30
         env:
           LEG: ${{ matrix.leg }}
-          REPS: ${{ inputs.reps || '3' }}
+          REPS: ${{ inputs.reps || '2' }}
         run: |
           set -euo pipefail
           mkdir -p out/combo
@@ -198,7 +198,9 @@ jobs:
           set=bisect
           if [ "$LEG" = recorded ]; then prof=packages/measure-chromium/profiles/user-bug-1025.json; reps=1; set=fix; fi
           for build in before after; do
-            node packages/measure-webkit/src/replay/combo-cli.mjs run --dist apps/site/dist/$build --profile "$prof" --arms "$(node packages/measure-webkit/src/replay/combo-arms.mjs arms "$set")" --reps "$reps" --throttle 6 --frames --out out/combo/$build 2>&1 | tee out/combo/$build.log.txt
+            s=$set
+            if [ "$build" = before ]; then s=delta; fi
+            node packages/measure-webkit/src/replay/combo-cli.mjs run --dist apps/site/dist/$build --profile "$prof" --arms "$(node packages/measure-webkit/src/replay/combo-arms.mjs arms "$s")" --reps "$reps" --throttle 6 --frames --out out/combo/$build 2>&1 | tee out/combo/$build.log.txt
           done
       - name: Tables of this leg (the step summary; the artifact is the record)
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { reversalsNoFinger, jumps, scriptJumps, writeStats, metrics, cycles, ranScripted, JUMP_PX } from '../src/replay/combo-metrics.mjs';
+import { reversalsNoFinger, jumps, scriptJumps, writeStats, nativeWrites, metrics, cycles, ranScripted, JUMP_PX } from '../src/replay/combo-metrics.mjs';
 import { eventsOf } from '../src/replay/combo-replay.mjs';
 import { SCENARIOS, profileOf, render } from '../src/replay/combo-profile.mjs';
-import { BISECT, FIX, USER_FLAGS, armsArg } from '../src/replay/combo-arms.mjs';
+import { BISECT, DELTA, FIX, USER_FLAGS, armsArg, isPassive } from '../src/replay/combo-arms.mjs';
 
 test('a smooth fling has no reversal and no jump', () => {
   const ys = [0, 10, 25, 45, 60, 70, 76, 79, 80];
@@ -97,8 +97,26 @@ test('morph cycles count the crossings of one half; a scripted pass ran with two
 
 test('the per-arm summary counts passes with a script write or jump', async () => {
   const { summary } = await import('../src/replay/combo-cli.mjs');
-  const pass = (armName, writes, sj) => ({ armName, metrics: { morph: { opens: 2, closes: 1 }, reversalsNoFinger: 0, scriptJumps: { n: sj, max: sj * 50 }, writes: { n: writes, down: writes, free: 0 } } });
+  const pass = (armName, writes, sj, nat = 0) => ({ armName, metrics: { morph: { opens: 2, closes: 1 }, native: { n: nat, px: 0 }, reversalsNoFinger: 0, scriptJumps: { n: sj, max: sj * 50 }, writes: { n: writes, down: writes, free: 0 } } });
   const text = summary({ passes: [pass('a', 0, 0), pass('a', 3, 1), pass('b', 0, 0)] });
-  assert.match(text, /\| a \| 2 \| 2 \| 1 \| 0 \| 1 \(50\) \| 3 \/ 0 \|/);
-  assert.match(text, /\| b \| 1 \| 1 \| 0 \| 0 \| 0 \(0\) \| 0 \/ 0 \|/);
+  assert.match(text, /\| a \| 2 \| 2 \| 1 \| 0 \| 1 \(50\) \| 3 \/ 0 \| 0 \|/);
+  assert.match(text, /\| b \| 1 \| 1 \| 0 \| 0 \| 0 \(0\) \| 0 \/ 0 \| 0 \|/);
+});
+
+test('a write is against a native scroll when the latest touchmove before it was not default-prevented', () => {
+  const moves = [[10, 1, 1, 100], [30, 1, 0, 100], [50, 0, 1, 100]];
+  assert.deepEqual(nativeWrites([[20, 100, 140, 0]], moves), { n: 0, px: 0 });
+  assert.deepEqual(nativeWrites([[40, 100, 140, 0]], moves), { n: 1, px: 40 });
+  assert.deepEqual(nativeWrites([[60, 100, 140, 0]], moves), { n: 0, px: 0 });
+  assert.deepEqual(nativeWrites([[40, 140, 140, 0]], moves), { n: 0, px: 0 });
+  assert.deepEqual(nativeWrites([[5, 100, 140, 0]], moves), { n: 0, px: 0 });
+  assert.equal(metrics({ ts: [0, 16], ys: [0, 1], down: [0, 0], writes: [[40, 100, 140, 0]], moves }).native.n, 1);
+});
+
+test('passive arms reuse a prerendered search and the delta set holds the user and release arms with and without them', () => {
+  const passive = BISECT.filter((a) => isPassive(a.name));
+  assert.deepEqual(passive.map((a) => a.name).sort(), ['release+passive', 'user+passive']);
+  for (const a of passive) assert.ok(BISECT.some((b) => !isPassive(b.name) && b.search === a.search));
+  assert.deepEqual(DELTA.map((a) => a.name).sort(), ['release', 'release+passive', 'user', 'user+passive']);
+  assert.ok(FIX.some((a) => a.name === 'user+passive'));
 });
