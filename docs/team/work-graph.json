@@ -19527,7 +19527,8 @@
     "docs/team/handoffs/gate-engine-cache-followups.md",
     ".github/workflows/lean.yml"
    ],
-   "title": "Review follow-ups of ci-gate-engine-webkit-slow: (1) after its land, confirm the main premise-tests run seeded gate-apt-debs-969c76e on refs/heads/main and the next land leg shows 'Cache restored' and Post <= 1 s (run ids); (2) a Lean class missingRestore or a seeding rule (main holds no gate-* entry when engine is skipped; nothing re-seeds after a 7-day eviction); (3) check.sh job for the gate-engine-timing golden plus a test that runs the action's shell case on the golden ref rows; (4) Trigger.lean cacheWriters keyed on the ref rule (land.yml no longer saves on ci/land-*); list other ci/<task> workflows that upload entries only their own branch reads (visual-diff, smoothness, preview-e2e, trajectory-probe) with sizes."
+   "title": "Review follow-ups of ci-gate-engine-webkit-slow: (1) after its land, confirm the main premise-tests run seeded gate-apt-debs-969c76e on refs/heads/main and the next land leg shows 'Cache restored' and Post <= 1 s (run ids); (2) a Lean class missingRestore or a seeding rule (main holds no gate-* entry when engine is skipped; nothing re-seeds after a 7-day eviction); (3) check.sh job for the gate-engine-timing golden plus a test that runs the action's shell case on the golden ref rows; (4) Trigger.lean cacheWriters keyed on the ref rule (land.yml no longer saves on ci/land-*); list other ci/<task> workflows that upload entries only their own branch reads (visual-diff, smoothness, preview-e2e, trajectory-probe) with sizes.",
+   "evidence": "e3cd6a7"
   },
   {
    "devices": [

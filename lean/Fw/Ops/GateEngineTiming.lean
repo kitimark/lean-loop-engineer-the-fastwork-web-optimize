@@ -78,12 +78,100 @@ theorem no_other : samples.all (fun s => stepClass s != .other) = true := by dec
 
 theorem fixed_land_has_no_save : ∀ rest, shouldSave ("ci/land-" ++ rest) = false := land_prefix_no_save
 
+
+def evictDays : Nat := 7
+
+def evicted (idleDays : Nat) : Bool := evictDays ≤ idleDays
+
+def seedsMain (engineRan holds : Bool) : Bool := holds || engineRan
+
+def mainHolds (holds : Bool) (idleDays : Nat) : Bool := holds && !evicted idleDays
+
+def needsReseed (holds : Bool) (idleDays : Nat) : Bool := !mainHolds holds idleDays
+
+inductive RestoreClass
+  | restored | firstSave | missingRestore | keyMiss
+deriving Repr, DecidableEq
+
+def RestoreClass.name : RestoreClass → String
+  | .restored => "restored" | .firstSave => "firstSave"
+  | .missingRestore => "missingRestore" | .keyMiss => "keyMiss"
+
+def restoreClass (ref : String) (hit holds : Bool) : RestoreClass :=
+  if hit then .restored
+  else if shouldSave ref then .firstSave
+  else if holds then .keyMiss else .missingRestore
+
+theorem restoreClass_hit (ref : String) (holds : Bool) : restoreClass ref true holds = .restored := by
+  simp [restoreClass]
+
+theorem restoreClass_first (ref : String) (holds : Bool) (h : shouldSave ref = true) :
+    restoreClass ref false holds = .firstSave := by
+  simp [restoreClass, h]
+
+theorem restoreClass_missing (rest : String) :
+    restoreClass ("ci/land-" ++ rest) false false = .missingRestore := by
+  simp [restoreClass, land_prefix_no_save]
+
+theorem restoreClass_keyMiss (rest : String) :
+    restoreClass ("ci/land-" ++ rest) false true = .keyMiss := by
+  simp [restoreClass, land_prefix_no_save]
+
+theorem skipped_keeps (holds : Bool) : seedsMain false holds = holds := by simp [seedsMain]
+
+theorem ran_seeds (holds : Bool) : seedsMain true holds = true := by simp [seedsMain]
+
+theorem unseeded_stays : seedsMain false false = false := by decide
+
+theorem evicted_reseed (holds : Bool) : needsReseed holds evictDays = true := by
+  simp [needsReseed, mainHolds, evicted]
+
+theorem fresh_no_reseed : needsReseed true 6 = false := by decide
+
+theorem unseeded_reseed (d : Nat) : needsReseed false d = true := by simp [needsReseed, mainHolds]
+
+theorem weekly_restore_keeps (gap : Nat) (h : gap < evictDays) : needsReseed true gap = false := by
+  simp [needsReseed, mainHolds, evicted]; omega
+
+structure Leg where
+  run : Nat
+  engine : String
+  ref : String
+  hit : Bool
+  holds : Bool
+deriving Repr, DecidableEq
+
+def legs : List Leg := [
+  ⟨40024272661, "webkit", "ci/land-hero-copy-floor-followups-cd65384", false, false⟩,
+  ⟨40031018930, "webkit", "ci/land-polish-wtname-wire-b1145f3", false, false⟩,
+  ⟨40037942688, "webkit", "ci/land-gc-landed-identity-1c3a381", false, false⟩,
+  ⟨40045796969, "webkit", "main", false, false⟩,
+  ⟨40045796969, "chromium", "main", false, false⟩]
+
+theorem legs_classes : legs.map (fun l => restoreClass l.ref l.hit l.holds) =
+    [.missingRestore, .missingRestore, .missingRestore, .firstSave, .firstSave] := by decide
+
+def restoreCases : List (String × Bool × Bool) :=
+  ["main", "ci/land-x-1234567"].flatMap fun r => [false, true].flatMap fun h => [false, true].map fun m => (r, h, m)
+
+theorem restoreCases_classes : restoreCases.map (fun c => (restoreClass c.1 c.2.1 c.2.2).name) =
+    ["firstSave", "firstSave", "restored", "restored", "missingRestore", "keyMiss", "restored", "restored"] := by decide
+
 def goldenLines : List Json :=
   (samples.map fun s => Json.mkObj [("kind", "sample"), ("run", toJson s.run), ("job", toJson s.job),
       ("engine", Json.str s.engine), ("totalS", toJson s.totalS), ("aptS", toJson s.aptS),
       ("fetchS", toJson s.fetchS), ("postS", toJson s.postS), ("hit", toJson s.hit), ("key", Json.str s.key),
       ("step", Json.str (stepClass s).name), ("post", Json.str (postClass s).name)]) ++
-  (refCases.map fun r => Json.mkObj [("kind", "ref"), ("ref", Json.str r), ("save", toJson (shouldSave r))])
+  (refCases.map fun r => Json.mkObj [("kind", "ref"), ("ref", Json.str r), ("save", toJson (shouldSave r))]) ++
+  (legs.map fun l => Json.mkObj [("kind", "leg"), ("run", toJson l.run), ("engine", Json.str l.engine),
+      ("ref", Json.str l.ref), ("hit", toJson l.hit), ("mainHolds", toJson l.holds),
+      ("class", Json.str (restoreClass l.ref l.hit l.holds).name)]) ++
+  (restoreCases.map fun (r, h, m) => Json.mkObj [("kind", "restoreCase"), ("ref", Json.str r), ("hit", toJson h),
+      ("mainHolds", toJson m), ("class", Json.str (restoreClass r h m).name)]) ++
+  ([(true, false), (false, false), (false, true), (true, true)].map fun (e, h) => Json.mkObj [("kind", "seed"),
+      ("engineRan", toJson e), ("holds", toJson h), ("after", toJson (seedsMain e h))]) ++
+  ([0, 6, 7, 8].flatMap fun d => [false, true].map fun h => Json.mkObj [("kind", "evict"), ("idleDays", toJson d),
+      ("holds", toJson h), ("needsReseed", toJson (needsReseed h d))])
 
 def goldenText : String := "\n".intercalate (goldenLines.map Json.compress) ++ "\n"
 
