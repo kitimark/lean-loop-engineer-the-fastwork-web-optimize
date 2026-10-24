@@ -664,29 +664,10 @@ def calmLoad : Nat := 4
 /-- The closing load is below the opening load, so the alert has a band to hold in. -/
 theorem calmLoad_lt : calmLoad < contendedLoad := by decide
 
-/-- **The load above which a local dry land sample is contended** (task `land-dry-contention`). A dry land alone puts the
-machine at a 1-min load of 3 to 4 (its vitest, lake and workflow checks side by side), so a floor above 4 is above what
-the land itself makes. MEASURED 2026-10-24 over the 495 local `fw land` `dry total lake` samples of
-`.fw-console/timings.jsonl` (exit 0), median duration by the floor of the load: `λ = 1` 24.4 s, 2 26.1 s, 3 31.2 s, 4 33.4 s,
-5 37.8 s, 6 39.0 s, 7 39.4 s (`λ = 3, 4` hold 278 of the 495 samples). The three `timing.slow` alerts of that day (66.6 s,
-62.5 s, 53.5 s against baselines of 43.1 s, 40.6 s, 35.0 s) ran at `λ` 6, 5 and 5, below `contendedLoad`. Other work is
-shown for one of them: `8f040f0` had a Simulator process group (290 processes) and five `lake serve` running before and
-during the land. For `bf9aa85` and `c4f662a` no span, lock or supervisor sample shows a co-runner and the load rose
-(3.1 to 6.0, 2.7 to 5.6) during the land itself, so their contended verdict rests on the load floor alone. What grew in
-the land's own work: `land-inputs` vitest 30 s against a calm 21 s, the lake step 9 to 19 s against 3.3 s. The test file
-(21 tests in 291 lines) is the same and tracked files grew 6 to 7 percent; `8f040f0` rebuilt 7 Lean modules (the `Fw`
-root alone 7.3 s), `bf9aa85` and `c4f662a` rebuilt none by their logs; the rest is unexplained (the
-`land-overflow-widths` vitest did not grow). INFERRED: the cut at the land's own load (4); a regression that raises the dry land's own load above
-4 is judged contended (accepted limit). -/
-def landDryLoad : Nat := 4
-
-/-- A dry land sample is judged below `contendedLoad`, which is a lower limit. -/
-theorem landDryLoad_lt : landDryLoad < contendedLoad := by decide
-
 /-- The parameters: `n_min` (`nMin`), the window length `N` (`window`), the multiplier `k = k_n / k_d`
 (`kNum`, `kDen`), the default budget `B_0` in ms (`budgetMs`), per-tool budget overrides (`budgets`, first match
 wins), per-step ceilings (`ceilings`, first match wins), the load limit `L` (`loadMax`, compared with the floor of the 1-min load average; the default is `contendedLoad`, the 8 CPUs
-of the local Mac), the lower load limit of a dry land sample (`dryLandMax`, `landDryLoad`), and the parallel stages (`stages`).
+of the local Mac), and the parallel stages (`stages`).
 -/
 structure Params where
   nMin     : Nat := 5
@@ -698,7 +679,6 @@ structure Params where
   waitBudgetMs : Nat := 1800000
   ceilings : List (String × String × Nat) := []
   loadMax  : Nat := contendedLoad
-  dryLandMax : Nat := landDryLoad
   stages   : List Stage := []
 deriving Repr
 
@@ -742,13 +722,8 @@ def p50 (xs : List Nat) : Nat := ord xs (rank50 xs.length - 1)
 
 /-! ## The verdict of one sample -/
 
-/-- A sample of a dry land: tool `fw land`, a step whose name starts with `dry`. -/
-def Sample.dryLand (s : Sample) : Bool := decide (s.tool = "fw land") && s.step.startsWith "dry"
-
-/-- A sample is contended when it ran locally at a load above the limit, or, for a dry land sample, above the lower limit
-`dryLandMax` (CI samples never are). -/
-def contended (p : Params) (s : Sample) : Bool :=
-  decide (s.host = .«local») && (decide (p.loadMax < s.load) || (s.dryLand && decide (p.dryLandMax < s.load)))
+/-- A sample is contended when it ran locally at a load above the limit (CI samples never are). -/
+def contended (p : Params) (s : Sample) : Bool := decide (s.host = .«local») && decide (p.loadMax < s.load)
 
 /-- The last `n` elements of a list (all of it when it is shorter). -/
 def lastN (n : Nat) (xs : List Nat) : List Nat := xs.drop (xs.length - n)
@@ -2147,55 +2122,26 @@ theorem ci_not_contended (p : Params) (s : Sample) (h : s.host = .ci) : contende
   simp [contended, h]
 
 /-- A local sample at or below the load limit is not contended. -/
-theorem not_contended_of_load_le (p : Params) (s : Sample) (h : s.load ≤ p.loadMax)
-    (hd : s.dryLand = true → s.load ≤ p.dryLandMax) : contended p s = false := by
-  simp only [contended, Bool.and_eq_false_iff, Bool.or_eq_false_iff, decide_eq_false_iff_not]
-  refine Or.inr ⟨Nat.not_lt.2 h, ?_⟩
-  cases hq : s.dryLand
-  · exact Or.inl rfl
-  · exact Or.inr (Nat.not_lt.2 (hd hq))
-
-/-- **First branch: the load limit.** A local sample above `loadMax` is contended, a dry land or not. -/
-theorem contended_of_load (p : Params) (s : Sample) (hh : s.host = .«local») (h : p.loadMax < s.load) :
-    contended p s = true := by
-  simp [contended, hh, h]
-
-/-- **Second branch: a dry land above its lower limit.** A local dry land sample above `dryLandMax` is contended, even at
-or below `loadMax`: the three samples of 2026-10-24 (floors 6, 5, 5, against 8). -/
-theorem contended_of_dryLand (p : Params) (s : Sample) (hh : s.host = .«local») (hd : s.dryLand = true)
-    (h : p.dryLandMax < s.load) : contended p s = true := by
-  simp [contended, hh, hd, h]
-
-/-- A contended sample took one of the two branches. -/
-theorem contended_cases (p : Params) (s : Sample) (h : contended p s = true) :
-    s.host = .«local» ∧ (p.loadMax < s.load ∨ (s.dryLand = true ∧ p.dryLandMax < s.load)) := by
-  simp only [contended, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq] at h
-  exact h
-
-/-- A dry land sample is contended at a lower load than another step: at load `l` with `dryLandMax < l ≤ loadMax`, exactly
-the dry land samples are contended. -/
-theorem contended_between (p : Params) (s : Sample) (hh : s.host = .«local») (h1 : p.dryLandMax < s.load)
-    (h2 : s.load ≤ p.loadMax) : contended p s = s.dryLand := by
-  cases hq : s.dryLand <;> simp [contended, hh, hq, Nat.not_lt.2 h2, h1]
+theorem not_contended_of_load_le (p : Params) (s : Sample) (h : s.load ≤ p.loadMax) : contended p s = false := by
+  simp only [contended, Bool.and_eq_false_iff, decide_eq_false_iff_not]
+  exact Or.inr (Nat.not_lt.2 h)
 
 /-- **A slow sample at normal load still alerts.** A sample at or below the load limit (so also every CI sample) whose
 window has at least `n_min` values and whose duration exceeds the budget and `k` times the baseline is `slow`, whatever
 the contended samples around it: this is `slow_iff` read at normal load.
 -/
 theorem slow_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : Sample)
-    (hl : s.load ≤ p.loadMax) (hd : s.dryLand = true → s.load ≤ p.dryLandMax)
-    (hn : p.nMin ≤ (windowOf p hist s.key).length) (hB : budgetOf p s.tool < s.durMs)
+    (hl : s.load ≤ p.loadMax) (hn : p.nMin ≤ (windowOf p hist s.key).length) (hB : budgetOf p s.tool < s.durMs)
     (hk : p.kNum * p50 (windowOf p hist s.key) < p.kDen * s.durMs) : (judge p hist i s).code = .slow :=
-  (slow_iff p hist i s).2 (Or.inr ⟨hn, not_contended_of_load_le p s hl hd, hB, hk⟩)
+  (slow_iff p hist i s).2 (Or.inr ⟨hn, not_contended_of_load_le p s hl, hB, hk⟩)
 
 /-- **A ceiling breach at normal load still alerts**, with no history: the sample is at or below the load limit, its
 step has the ceiling `c` and it took longer than `c`.
 -/
 theorem ceiling_at_normal_load (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (c : Nat)
-    (hl : s.load ≤ p.loadMax) (hq : s.dryLand = true → s.load ≤ p.dryLandMax)
-    (hc : ceilingOf p s.tool s.step = some c) (hd : c < s.durMs) :
+    (hl : s.load ≤ p.loadMax) (hc : ceilingOf p s.tool s.step = some c) (hd : c < s.durMs) :
     (judge p hist i s).code = .slow :=
-  (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl hq⟩))
+  (slow_iff p hist i s).2 (Or.inl ((ceilingBreach_iff p s).2 ⟨c, hc, hd, not_contended_of_load_le p s hl⟩))
 
 theorem queued_not_slow (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (hq : queuedWithin s = true)
     (hr : (judge p hist i s.rest).code ≠ .slow) : (judgeW p hist i s).code ≠ .slow := by
@@ -2674,7 +2620,7 @@ def paramsJson (p : Params) : Json :=
     ("budgets", .arr (p.budgets.map (fun (t, b) => Json.mkObj [("tool", .str t), ("ms", toJson b)])).toArray),
     ("ceilings", .arr (p.ceilings.map (fun (t, s, c) =>
       Json.mkObj [("tool", .str t), ("step", .str s), ("ms", toJson c)])).toArray),
-    ("loadMax", toJson p.loadMax), ("dryLandMax", toJson p.dryLandMax),
+    ("loadMax", toJson p.loadMax),
     ("stages", .arr (p.stages.map (fun st => Json.mkObj [("id", .str st.id),
       ("groups", .arr (st.groups.map (fun g => Json.mkObj [("name", .str g.name),
         ("keys", .arr (g.keys.map keyJson).toArray)])).toArray)])).toArray)]
@@ -2856,11 +2802,6 @@ def bucketRun (step : String) : List Sample :=
     (13855, some 1), (38629, some 0), (12607, some 0), (516, some 0), (8, some 1), (7824, some 0), (854, some 0),
     (38315, some 0)].map fun (d, e) => (d, e, false))
 
-/-- The `dry total lake` span of a local `fw land` of `ms` ms at load `l`, after five calm runs of `base` ms at load 4
-(the dry land alone). -/
-def loadedDryRun (base ms l : Nat) : List Sample :=
-  run "fw land" "dry total lake" .«local» 4 (List.replicate 5 base) ++ run "fw land" "dry total lake" .«local» l [ms]
-
 def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
   [("breakpoint-gate run 39067656223: sweeps (345 s) is structural in stage {gate, sweeps} (gate shards <= 147 s), gate is noise, both merges are noise; one run, so every sample is noBaseline",
       gateParams, gateRun),
@@ -3021,36 +2962,12 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
    ("fw land remote queue: the 36.0 s runner queue wait is judged as 0 ms of our time: ok",
       {}, remoteQueueRun),
    ("fw ci wait of an old span without phases: no own time, no verdict (the last verdict is the sixth wait's)",
-      {}, ciWaitRun.take 6 ++ [{ tool := "fw", step := "ci wait", durMs := 900000, host := .«local», load := 3, exit := some 0 }]),
-   ("dry land bf9aa85 (2026-10-24): 66643 ms against a 43056 ms baseline at load 6 (below the 8 limit): contended, not slow",
-      {}, loadedDryRun 43056 66643 6),
-   ("dry land 8f040f0 (2026-10-24): 62485 ms against a 40604 ms baseline at load 5: contended, not slow",
-      {}, loadedDryRun 40604 62485 5),
-   ("dry land c4f662a (2026-10-24): 53534 ms against a 35047 ms baseline at load 5: contended, not slow",
-      {}, loadedDryRun 35047 53534 5),
-   ("dry land at its own load (4): the same 66643 ms against 43056 ms is slow: a regression that leaves the load at or below 4 still alerts",
-      {}, loadedDryRun 43056 66643 4),
-   ("a step that is not a dry land (fw land, step `land`) at load 6: slow as before, the lower limit is for dry lands only",
-      {}, run "fw land" "land" .«local» 4 (List.replicate 5 43056) ++ run "fw land" "land" .«local» 6 [66643]),
-   ("dry land bf9aa85 with the request field dryLandMax 6: load 6 is not above it, so the sample is slow",
-      { dryLandMax := 6 }, loadedDryRun 43056 66643 6)]
+      {}, ciWaitRun.take 6 ++ [{ tool := "fw", step := "ci wait", durMs := 900000, host := .«local», load := 3, exit := some 0 }])]
 
 #guard ((cases ()).filter fun c => c.1.startsWith "run split:").length == 6
 
 def lastCode (p : Params) (ss : List Sample) : Option Code :=
   ((fullVerdicts p (ss.map Sample.norm)).getLast?).map (·.code)
-
-/-- The three dry land samples of 2026-10-24 as (baseline, span duration, load floor). -/
-def landDrySamples : List (Nat × Nat × Nat) := [(43056, 66643, 6), (40604, 62485, 5), (35047, 53534, 5)]
-
-/-- Each of the three is `contended` with the defaults (load below `contendedLoad`, above `landDryLoad`), and the same
-duration at the land's own load (4) is `slow` (`3 · b < 2 · d` and `d` over the 30 s budget): a regression that leaves
-the load at or below 4 still alerts; one that raises the dry land's own load above 4 is judged contended (accepted
-limit). -/
-theorem landDry_three_contended :
-    landDrySamples.all (fun (b, d, l) =>
-      (lastCode {} (loadedDryRun b d l) == some .contended) && (lastCode {} (loadedDryRun b d 4) == some .slow)) = true := by
-  decide +kernel
 
 #guard (structuralVerdicts gateParams gateRun).map (fun v => (v.stage, v.group, v.call, v.baseline, v.siblingMax)) ==
   [("breakpoint-gate:test", "gate", .noise, 147000, 345000), ("breakpoint-gate:test", "sweeps", .structural, 345000, 147000),
@@ -3067,8 +2984,7 @@ theorem landDry_three_contended :
    some .slow, some .noBaseline, some .slow, some .ok, some .slow,
    some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
    some .mixed, some .mixed, some .slow,
-   some .unkeyed, some .ok, some .ok, some .ok, some .ok,
-   some .contended, some .contended, some .contended, some .slow, some .slow, some .slow]
+   some .unkeyed, some .ok, some .ok, some .ok, some .ok]
 #guard ((landKeyedRun 14)[13]?).map (fun s => (judgeW {} ((landKeyedRun 14).take 13) 13 s).code) == some .slow
 #guard ((sampleVerdicts {} (landKeyedRun 14))[13]?).map (·.code) == some .unkeyed
 #guard ((landKeyedRun 14)[13]?).map (unkeyedLate ((landKeyedRun 14).take 13)) == some true

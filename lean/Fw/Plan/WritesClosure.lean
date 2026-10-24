@@ -829,7 +829,7 @@ def calm (durMs load : Nat) : Bool :=
   !Fw.Obs.Timing.contended { loadMax := Fw.Obs.Timing.calmLoad } (syncSample durMs load)
 
 theorem calm_iff (d l : Nat) : calm d l = true ↔ l ≤ Fw.Obs.Timing.calmLoad := by
-  simp only [calm, Fw.Obs.Timing.contended, syncSample, Fw.Obs.Timing.Sample.dryLand]
+  simp only [calm, Fw.Obs.Timing.contended, syncSample]
   by_cases h : Fw.Obs.Timing.calmLoad < l <;> simp [h] <;> omega
 
 def calmDurs (xs : List (Nat × Nat)) : List Nat := (xs.filter fun (d, l) => calm d l).map (·.1)
