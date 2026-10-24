@@ -78,6 +78,8 @@ export const mzoneSeen = (m) => (zoneViaRef(m) ? (m.p2 === null ? 'varied' : m.p
 export const mzoneEff = (m) => (mzoneSeen(m) === 'varied' ? NONE : zoneViaRef(m) ? m.p2 ?? m.z.p : m.z.p);
 export const zonedOf = (g, gEff, mo, mi) => (g === 'invalid' ? 'invalid' : joinSeen(mzoneSeen(mo), mzoneSeen(mi)) === 'varied' ? 'varied' : gEff);
 export const zonedCell = (c, mo, mi) => ({ ...c, out: mzoneEff(mo), inside: mzoneEff(mi) });
+export const zonedPinned = (served, maxY, rows, floorRows, c, f, live, mo, mi) =>
+  zonedOf(gradePinned(served, maxY, rows, floorRows, c, f, live), gradePinned(served, maxY, rows, floorRows, zonedCell(c, mo, mi), f, live), mo, mi);
 export const listedVerdict = (v) => v === 'L';
 
 export const DRAW_MS = 900;
@@ -85,6 +87,10 @@ export const DRAW_STEP_MS = 150;
 export const drawTimes = () => Array.from({ length: DRAW_MS / DRAW_STEP_MS + 1 }, (_, k) => k * DRAW_STEP_MS);
 export const drawOf = (aa, arm) => (arm.changed === 0 ? 'same' : rawLe(arm, aa) ? 'floor' : 'above');
 export const drawWorst = (xs) => (xs.includes('above') ? 'above' : xs.includes('floor') ? 'floor' : 'same');
+export const DRAW_FRAMES = 2 * drawTimes().length;
+export const DRAW_IDLE = [0, drawTimes().length - 1, DRAW_FRAMES - 1];
+export const drawBase = (xs) => (xs.length === DRAW_FRAMES && DRAW_IDLE.every((i) => xs[i] === xs[0]) && xs.every((x) => xs[0] <= x) ? xs[0] : null);
+export const aboveBase = (xs) => { const b = drawBase(xs); return b === null ? null : xs.map((x) => x - b); };
 
 export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k) => inMask(k, x, y)) ? 'other' : 'out');
 
@@ -232,7 +238,7 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
           const mo = { z: zo, p2: spP2 ? spP2.out : null, a23: sp23 ? sp23.out : null };
           const mi = { z: zi, p2: spP2 ? spP2.inside[n].raw : null, a23: sp23 ? sp23.inside[n].raw : null };
           const eff = zonedCell(cell, mo, mi);
-          const verdict = zonedOf(rec.grade, gradePinned(served, maxY, accentRows, floorRows, eff, floor, live), mo, mi);
+          const verdict = zonedPinned(served, maxY, accentRows, floorRows, cell, floor, live, mo, mi);
           rec.consensus = {
             a2, a3, p2: spP2 ? aaOf(spP2) : null, a23: sp23 ? aaOf(sp23) : null,
             out: mzoneSeen(mo), inside: mzoneSeen(mi), seen: joinSeen(mzoneSeen(mo), mzoneSeen(mi)), verdict,
