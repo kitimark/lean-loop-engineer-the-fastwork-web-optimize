@@ -2,10 +2,6 @@ import Lean.Data.Json
 import Fw.Parts.PlatformSweepPause
 /-!
 # Golden vectors for `platform.sweep:offscreen-pause`
-
-Frame traces replayed by `apps/site/src/parts/platform.sweep/pause.test.ts`
-(`packages/contracts/golden/parts/platform-sweep-pause.jsonl`): per frame the animation time and phase after the observer's
-callbacks, whether the animation ticks, and whether it is paused.
 -/
 namespace Fw.Parts.PlatformSweepPauseGolden
 open Lean Fw.Parts.PlatformSweepPause
@@ -17,7 +13,6 @@ def numJ (q : Rat) : Json := if q.den = 1 then .num q.num else ratWire q
 
 def frameJ (f : Step) : Json := Json.mkObj [("d", numJ f.1), ("vis", .bool f.2.1), ("rep", .bool f.2.2)]
 
-/-- The per-frame outputs of the variant over a trace: time after callbacks, phase, ticks, paused. -/
 def outs (o : Rat) (tr : List Step) : List Json :=
   let rec go (s : St) : List Step → List Json
     | [] => []
@@ -36,16 +31,13 @@ def origLine (o : Rat) (tr : List Step) : String :=
   (Json.mkObj [("fn", "orig"), ("in", Json.mkObj [("off", numJ o), ("frames", .arr (tr.map frameJ).toArray)]),
     ("out", numJ (orig o tr))]).compress
 
-/-- Leave, stay away over a whole period and a bit, return. -/
 def leaveReturn : Rat × List Step :=
   (0, [(16, true, false), (16, true, false), (16, false, false), (1000, false, true), (3000, false, true),
     (500, false, true), (16, true, false), (16, true, false)])
 
-/-- Mounted offscreen (first report pauses at the start), enters later; offset from a late-created animation. -/
 def mountedOff : Rat × List Step :=
   (1234, [(16, false, true), (2000, false, true), (16, true, false), (16, true, false)])
 
-/-- Flicker: leaving and returning on adjacent frames, plus the leave frame still ticking (observer lag). -/
 def flicker : Rat × List Step :=
   (777, [(16, true, false), (16, false, false), (16, false, true), (16, true, false), (16, false, false),
     (16, false, true), (16, false, true), (4000, false, true), (16, true, false)])
@@ -63,7 +55,6 @@ def lines (_ : Unit := ()) : List String :=
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
-/-- Every visible frame of every case shows the original's time (the executable twin of `visible_same`). -/
 def sameOnVisible (o : Rat) (tr : List Step) : Bool :=
   (List.range tr.length).all fun k =>
     let f := tr.getD k (0, true, false)

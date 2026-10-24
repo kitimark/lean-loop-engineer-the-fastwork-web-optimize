@@ -3,8 +3,7 @@ import Fw.Parts.Contract
 
 /-!
 # Bridge from the contract rows to the Lego swap, and page passes never increase
-`Indep` of `Fw.Engine.Compose` becomes `Flow` (no non-`quiet` path); the 11 isolated `codeParts` rows swap alone; the
-literal `Independent → Indep` fails on the listed pairs; a strict part pass saving never raises page passes (S3).
+`Indep` of `Fw.Engine.Compose` becomes `Flow`; the isolated `codeParts` rows swap alone.
 -/
 
 namespace Fw.Parts.Bridge
@@ -489,9 +488,6 @@ theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
     reach_of_mem_reachList mem_codeAdj p 6 q⟩
   exact List.all_eq_true.mp closed_code p (List.mem_range.mpr hp)
 
-/-- **The isolated code rows.** Exactly 11 positions of `codeParts` are quiet towards every other position.
-
-These are the parts `lego_swap_sound_flow` applies to. -/
 theorem isolated_code :
     (List.range 34).filter (isolated codeParts) = [1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32] ∧
       ([1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32].filterMap fun i => codeParts[i]?.map (·.id)) =

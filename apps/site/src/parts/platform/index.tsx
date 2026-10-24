@@ -12,7 +12,6 @@ import st from './stage.module.css';
 import { Ask, Invoice, Profile, Secure, type Subs } from './Visuals';
 import { VARIANT as SWEEP_PAUSE, watchSweepPause } from '../platform.sweep/pause';
 
-/** Variants of the sub-parts; anything but `faithful` switches that effect off (the hook for optimized variants). */
 export interface PlatformSubVariants {
   sweep?: string;
   glint?: string;
