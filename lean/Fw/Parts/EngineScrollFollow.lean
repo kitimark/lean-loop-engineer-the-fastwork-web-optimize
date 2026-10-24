@@ -209,6 +209,22 @@ theorem follow_gt_event (p n : Nat) (hp : 2 ≤ p) (hn : 2 ≤ n) : eventFrames 
   have h2 : n * (q + 2) = n * q + 2 * n := by rw [Nat.mul_add]; omega
   omega
 
+/-- With no delay (`p = 1`) the engine already runs a frame per update. -/
+theorem eventFrames_one (n : Nat) : eventFrames 1 n = n := by simp [eventFrames]
+
+/-- **The loop gains frames exactly when the event is delayed.** Over two or more moving updates it beats the engine iff the window is two updates or more. -/
+theorem gain_iff (p n : Nat) (hp : 1 ≤ p) (hn : 2 ≤ n) : eventFrames p n < n ↔ 2 ≤ p := by
+  constructor
+  · intro h
+    by_cases h2 : 2 ≤ p
+    · exact h2
+    · have : p = 1 := by omega
+      subst this
+      rw [eventFrames_one] at h
+      omega
+  · intro h2
+    exact follow_gt_event p n h2 hn
+
 /-- **Each frame reads the newest scrollY.** A loop frame at update `t` reads `u t`, which is what an unthrottled engine reads. -/
 theorem follow_reads_newest (p : Nat) (u : Nat → Int) (t : Nat) : u t = seen .lifted p u t := rfl
 

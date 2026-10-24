@@ -40,3 +40,12 @@ test('an unusable pass is not counted and the table has a row per arm', () => {
   assert.match(md, /\| job 1 \| rewrite \| 1 \(0\) \|/);
   assert.match(md, /\| all jobs \| unthrottle-follow \| 1 \(1\) \|/);
 });
+
+test('scroll events are counted over moving frames when the record has them, and left out when it has none', () => {
+  const rec = record({ period: 6, moves: 40 });
+  const withEv = { ...rec, ev: rec.y.map((_, i) => Math.floor(i / 6) + 1) };
+  const r = movingRow([pass('rewrite', withEv)]);
+  assert.ok(r.evFrames > 0 && r.evFrames <= r.moving);
+  assert.equal(r.evTotal, r.evFrames);
+  assert.equal(movingRow([pass('rewrite', rec)]).evTotal, null);
+});
