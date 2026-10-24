@@ -15,7 +15,7 @@ Built: Lean model lean/Fw/Parts/EngineScrollFollow.lean (step, drive, theorems: 
 packages/contracts/golden/parts/engine-scroll-follow.jsonl (EngineScrollFollowGolden.lean, check.sh job "unthrottle-follow golden check"),
 site apps/site/src/parts/engine.scroll/follow.ts + follow.test.ts, variant engine.scroll:unthrottle-follow in part.json, mounted by index.tsx
 (unthrottle css + follow loop), ScrollEngine.request() added in apps/site/src/engine/scroll.ts.
-Lane (at cf29b0739/dc1c93383 only; main's toolbar-throttle.yml now runs parts-cli.mjs with fixed arms and was taken whole in the last merge, so [throttle:follow] no longer exists on this branch): message tag = drags with arms rewrite,unthrottle,unthrottle-follow,original, 1 round x 8 cycles, arm order rotated by VM;
+Lane (at cf29b0739/dc1c93383 only; main's toolbar-throttle.yml now runs parts-cli.mjs with fixed arms, so [throttle:follow] no longer exists here): message tag = drags with arms rewrite,unthrottle,unthrottle-follow,original, 1 round x 8 cycles, arm order rotated by VM;
 cli.mjs --rotate, SEARCH entry; follow-report.mjs adds the moving-frame table (moving / mid-moving denominators, max step).
 
 Open: lead dispatches the breakpoint gate: pnpm -s fw run --gate --engines both --fw engine.scroll:unthrottle-follow --ref ci/unthrottle-follow; trajectory probe/morph cell for v2-proved; look check of chasing parts.

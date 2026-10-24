@@ -1,9 +1,7 @@
-// The moving-frame table of the unthrottle-follow comparison: denominators, ratios and the max step on a built record.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { movingRow, movingMd } from '../src/throttle/follow-report.mjs';
 
-/** A scroll that advances 10 tenths-px once every `period` frames, hero value 400 per mille, toolbar collapsing (+40 px) from the middle on. */
 function record({ period, moves, height = 7750 }) {
   const y = [], v = [], t = [], ih = [], vh = [];
   for (let m = 0; m < moves; m++) {

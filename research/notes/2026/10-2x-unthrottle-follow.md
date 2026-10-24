@@ -15,7 +15,7 @@ Inputs: `10-2x-webkit-throttles.md` (rank 1), `10-2x-unthrottle-preset.md`, `10-
 
 ## Answer first
 
-- **There is a gain over unthrottle, in what the part shows, not in what the page reads.** Hero value (the part output) still runs per 1000
+- **Gain over unthrottle in the part output, not in the page read.** Hero value (the part output) still runs per 1000
   mid-moving frames: unthrottle 174.5, follow 103.0 (-41 percent); run 1 173.1 vs 115.2, run 2 175.8 vs 90.5. Follow is lower in all 6 of 6 job
   comparisons (MEASURED, runs 40109924058 and 40116376544, one iOS 27 Simulator pass per arm per job, 6 passes per arm). The scrollY series
   the page reads does not need the loop and shows no steady gain: per 1000 moving frames unthrottle 111.2 vs follow 84.3 in run 2, 109.1 vs
@@ -78,7 +78,7 @@ rewrite 236.4, original 146.7, unthrottle 424.1, follow 421.5.
 - **The part-output lens was chosen after run 1.** The pinned lens (scrollY still runs) cannot move with the loop, since the loop only changes
   when the engine runs; the part lens (`ThrottleParts.rowsOf`: the shown value as its own series) is the one the Lean model predicts. Run 2
   repeated it with 3 of 3 jobs in the same direction. INFERRED as the right lens; the declared lens shows no steady gain.
-- **Plainly: the hero-value still-runs lens (174.5 vs 103.0 per 1000 mid-moving frames) was chosen after seeing the data (INFERRED).** On the
+- **The hero-value still-runs lens (174.5 vs 103.0 per 1000 mid-moving frames) was chosen after seeing the data (INFERRED).** On the
   pinned lens, scrollY, there is no steady gain over unthrottle (109.1 vs 108.1 in run 1, 111.2 vs 84.3 in run 2, mixed). The verdict follows the
   pinned unit (scrollY): no gain on it; the part-output gain is a finding on a lens picked after the fact, not a new verdict lens.
 - One pass per arm per job, 6 per arm; the Simulator is not the phone (phone feel is the user's step); the part columns were reduced locally from the CI

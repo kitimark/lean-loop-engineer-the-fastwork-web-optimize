@@ -17,7 +17,6 @@ export function wakeState(y: number): FollowState {
   return { last: y, still: 0, frames: 1, on: true };
 }
 
-/** Lean Fw.Parts.EngineScrollFollow.step. */
 export function followStep(s: FollowState, y: number, ended: boolean): FollowState {
   if (s.on) {
     const still = y === s.last ? s.still + 1 : 0;
@@ -27,12 +26,10 @@ export function followStep(s: FollowState, y: number, ended: boolean): FollowSta
   return y === s.last ? s : wakeState(y);
 }
 
-/** Lean Fw.Parts.EngineScrollFollow.stepG. */
 export function followStepG(coarse: boolean, s: FollowState, y: number, ended: boolean): FollowState {
   return coarse ? followStep(s, y, ended) : s;
 }
 
-/** Lean Fw.Parts.EngineScrollFollow.drive. */
 export function followDrive(s: FollowState, ys: readonly number[]): { state: FollowState; frames: number } {
   let frames = 0;
   for (const y of ys) {
@@ -54,7 +51,6 @@ export interface FollowEnv {
   onScrollEnd(fn: () => void): () => void;
 }
 
-/** Registers the loop on the scroll engine: each frame feeds `followStepG` and asks for the next while it is on. */
 export function installFollow(engine: FollowEngine, env: FollowEnv): () => void {
   let s = idleState(env.readY());
   let ended = false;

@@ -12,7 +12,6 @@ open Fw.Parts.EngineScrollUnthrottle (Env)
 def stJson (s : St) : Json :=
   Json.mkObj [("last", toJson s.last), ("still", s.still), ("frames", s.frames), ("on", s.on)]
 
-/-- A position series named by its shape, as the site test rebuilds it. -/
 inductive Shape where
   | moving (start : Int) (n : Nat)
   | hold (y : Int) (n : Nat)

@@ -3,7 +3,6 @@
 //   Real touches on Mobile Safari in the booted Simulator (XCUITest driver) while the page records frames; one pass per arm and round, the
 //   order rotated each round. original = the read-only snapshot; rewrite = the default prerendered build (--site); lift = the rewrite with
 //   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow
-//   (runs 40109924058 and 40116376544 ran this CLI; the workflow on main now calls parts-cli.mjs).
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
@@ -78,7 +77,6 @@ async function main() {
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round + Number(v.rotate))) {
             const tag = `${arm}-r${round + 1}`;
-            // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm
             for (let attempt = 1; attempt <= 2; attempt++) {
               try {
                 const rec = await withSession((ctx) => passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
