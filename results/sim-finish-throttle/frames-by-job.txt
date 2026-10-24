@@ -1,0 +1,19 @@
+run1 job1 lift passes 2 frames 2061 short/1000 2.4 slow>50/100 31.8 p50 41
+run1 job1 original passes 2 frames 2123 short/1000 31.6 slow>50/100 34.6 p50 43
+run1 job1 rewrite passes 1 frames 1248 short/1000 36.1 slow>50/100 21.0 p50 38
+run1 job2 rewrite passes 2 frames 3189 short/1000 28.8 slow>50/100 11.6 p50 32
+run1 job2 original passes 2 frames 2655 short/1000 29.4 slow>50/100 24.4 p50 38
+run1 job2 lift passes 1 frames 1151 short/1000 2.6 slow>50/100 33.6 p50 44
+run1 job3 original passes 2 frames 2935 short/1000 27.6 slow>50/100 17.4 p50 34
+run1 job3 rewrite passes 1 frames 1474 short/1000 31.9 slow>50/100 14.5 p50 34
+run2 job1 rewrite passes 1 frames 1739 short/1000 29.3 slow>50/100 7.4 p50 31
+run2 job1 lift passes 2 frames 2964 short/1000 2.0 slow>50/100 13.8 p50 32
+run2 job2 rewrite passes 2 frames 3109 short/1000 27.7 slow>50/100 14.5 p50 33
+run2 job2 lift passes 2 frames 2722 short/1000 2.6 slow>50/100 20.5 p50 35
+run2 job2 original passes 2 frames 2491 short/1000 23.3 slow>50/100 38.9 p50 45
+run2 job3 rewrite passes 2 frames 3651 short/1000 27.1 slow>50/100 12.4 p50 32
+run2 job3 lift passes 1 frames 2067 short/1000 1.9 slow>50/100 14.1 p50 31
+run2 job3 original passes 2 frames 3001 short/1000 27.3 slow>50/100 18.0 p50 33
+ALL lift passes 8 frames 10965 short 25 short/1000 2.3 slow>50/100 21.0 p50 35 p99 355
+ALL original passes 10 frames 13205 short 366 short/1000 27.7 slow>50/100 25.8 p50 38 p99 389
+ALL rewrite passes 9 frames 14410 short 420 short/1000 29.1 slow>50/100 13.0 p50 33 p99 302
