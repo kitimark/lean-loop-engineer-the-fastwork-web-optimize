@@ -1,12 +1,12 @@
-Sources: run 40010826238 r1 r2
+Sources: run 40010826238 commit 3c1ab9970 jobs r1 r2
 
-Model (INFERRED from the Lean part model): a faithful swap shows 13 Layout frames at 60 Hz, the crop none.
-Measured (the crop, Layout rows in a swap window, 64 samples): minimum 2, median 13; idle background only (64 samples): minimum 2, median 13.
+Arm column: hero.accent:draw-nolayout-full.
+Measured (the hero.accent:draw-nolayout-full, Layout rows in a swap window, 64 samples): minimum 2, median 13; idle background only (64 samples): minimum 2, median 13.
 Jobs counted (2): 40010826238.1/r1, 40010826238.1/r2. Cells need at least 3 samples in each faithful slot (unresolved:fewSamples otherwise).
 
 ### Layout
 
-| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |
+| window | faithful a | faithful b (A/A floor) | hero.accent:draw-nolayout-full | dropped | verdict |
 |---|---|---|---|---|---|
 | swap:0 | 11-15 (n=4) | 11-15 (n=4) | 6-16 (n=8) | 0 | unresolved:overlap |
 | swap:1 | 13-15 (n=4) | 12-14 (n=4) | 10-16 (n=8) | 0 | unresolved:overlap |
@@ -26,7 +26,7 @@ Jobs counted (2): 40010826238.1/r1, 40010826238.1/r2. Cells need at least 3 samp
 
 ### Paint
 
-| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |
+| window | faithful a | faithful b (A/A floor) | hero.accent:draw-nolayout-full | dropped | verdict |
 |---|---|---|---|---|---|
 | swap:0 | 26-70 (n=4) | 29-46 (n=4) | 13-38 (n=8) | 0 | unresolved:overlap |
 | swap:1 | 30-45 (n=4) | 29-47 (n=4) | 24-50 (n=8) | 0 | unresolved:overlap |
@@ -46,7 +46,7 @@ Jobs counted (2): 40010826238.1/r1, 40010826238.1/r2. Cells need at least 3 samp
 
 ### Composite
 
-| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |
+| window | faithful a | faithful b (A/A floor) | hero.accent:draw-nolayout-full | dropped | verdict |
 |---|---|---|---|---|---|
 | swap:0 | 11-13 (n=4) | 9-13 (n=4) | 4-14 (n=8) | 0 | unresolved:overlap |
 | swap:1 | 11-13 (n=4) | 10-12 (n=4) | 10-14 (n=8) | 0 | unresolved:overlap |
@@ -66,7 +66,7 @@ Jobs counted (2): 40010826238.1/r1, 40010826238.1/r2. Cells need at least 3 samp
 
 ### RecalculateStyles
 
-| window | faithful a | faithful b (A/A floor) | crop | dropped | verdict |
+| window | faithful a | faithful b (A/A floor) | hero.accent:draw-nolayout-full | dropped | verdict |
 |---|---|---|---|---|---|
 | swap:0 | 12-15 (n=4) | 11-15 (n=4) | 6-16 (n=8) | 0 | unresolved:overlap |
 | swap:1 | 13-15 (n=4) | 12-14 (n=4) | 11-16 (n=8) | 0 | unresolved:overlap |
@@ -93,7 +93,7 @@ Swap windows decided one by one (win / loss / unresolved of 8 per kind):
 | Composite | 0 | 0 | 8 |
 | RecalculateStyles | 0 | 0 | 8 |
 
-### Background of each swap window in the crop captures
+### Background of each swap window in the hero.accent:draw-nolayout-full captures
 
 | window | busy | idle | mixed | unknown |
 |---|---|---|---|---|
@@ -108,7 +108,7 @@ Swap windows decided one by one (win / loss / unresolved of 8 per kind):
 
 ### Layout rows of a swap window by background (rest windows next to it: busy = at least 24 Layout rows)
 
-| window | crop idle | crop busy | crop mixed | faithful idle | faithful busy |
+| window | hero.accent:draw-nolayout-full idle | hero.accent:draw-nolayout-full busy | hero.accent:draw-nolayout-full mixed | faithful idle | faithful busy |
 |---|---|---|---|---|---|
 | swap:0 | 11.5 (n=8) | - | - | 11 (n=3) | 14 (n=5) |
 | swap:1 | 13 (n=8) | - | - | - | 13.5 (n=4) |
@@ -121,7 +121,7 @@ Swap windows decided one by one (win / loss / unresolved of 8 per kind):
 
 ### Paint rows of a swap window by background (rest windows next to it: busy = at least 24 Layout rows)
 
-| window | crop idle | crop busy | crop mixed | faithful idle | faithful busy |
+| window | hero.accent:draw-nolayout-full idle | hero.accent:draw-nolayout-full busy | hero.accent:draw-nolayout-full mixed | faithful idle | faithful busy |
 |---|---|---|---|---|---|
 | swap:0 | 30 (n=8) | - | - | 37 (n=3) | 32 (n=5) |
 | swap:1 | 39.5 (n=8) | - | - | - | 41.5 (n=4) |
@@ -136,31 +136,42 @@ Swap windows decided one by one (win / loss / unresolved of 8 per kind):
 
 | window | Layout | Paint |
 |---|---|---|
-| swap:0 | unresolved:fewSamples (faithful n=2+1, crop n=8) | unresolved:fewSamples |
-| swap:1 | unresolved:noSamples (faithful n=0+0, crop n=8) | unresolved:noSamples |
-| swap:2 | unresolved:noSamples (faithful n=0+0, crop n=8) | unresolved:noSamples |
-| swap:3 | unresolved:noSamples (faithful n=0+0, crop n=8) | unresolved:noSamples |
-| swap:4 | unresolved:noSamples (faithful n=0+0, crop n=8) | unresolved:noSamples |
-| swap:5 | unresolved:noSamples (faithful n=0+0, crop n=8) | unresolved:noSamples |
-| swap:6 | unresolved:noSamples (faithful n=0+0, crop n=8) | unresolved:noSamples |
-| swap:7 | unresolved:fewSamples (faithful n=2+1, crop n=8) | unresolved:fewSamples |
+| swap:0 | unresolved:fewSamples (faithful n=2+1, hero.accent:draw-nolayout-full n=8) | unresolved:fewSamples |
+| swap:1 | unresolved:noSamples (faithful n=0+0, hero.accent:draw-nolayout-full n=8) | unresolved:noSamples |
+| swap:2 | unresolved:noSamples (faithful n=0+0, hero.accent:draw-nolayout-full n=8) | unresolved:noSamples |
+| swap:3 | unresolved:noSamples (faithful n=0+0, hero.accent:draw-nolayout-full n=8) | unresolved:noSamples |
+| swap:4 | unresolved:noSamples (faithful n=0+0, hero.accent:draw-nolayout-full n=8) | unresolved:noSamples |
+| swap:5 | unresolved:noSamples (faithful n=0+0, hero.accent:draw-nolayout-full n=8) | unresolved:noSamples |
+| swap:6 | unresolved:noSamples (faithful n=0+0, hero.accent:draw-nolayout-full n=8) | unresolved:noSamples |
+| swap:7 | unresolved:fewSamples (faithful n=2+1, hero.accent:draw-nolayout-full n=8) | unresolved:fewSamples |
 
 ### Cells on busy-background samples only (each window and kind decided on its own)
 
 | window | Layout | Paint |
 |---|---|---|
-| swap:0 | unresolved:noSamples (faithful n=2+3, crop n=0) | unresolved:noSamples |
-| swap:1 | unresolved:noSamples (faithful n=2+2, crop n=0) | unresolved:noSamples |
-| swap:2 | unresolved:noSamples (faithful n=2+1, crop n=0) | unresolved:noSamples |
-| swap:3 | unresolved:noSamples (faithful n=0+1, crop n=0) | unresolved:noSamples |
-| swap:4 | unresolved:noSamples (faithful n=2+2, crop n=0) | unresolved:noSamples |
-| swap:5 | unresolved:noSamples (faithful n=2+1, crop n=0) | unresolved:noSamples |
-| swap:6 | unresolved:noSamples (faithful n=0+1, crop n=0) | unresolved:noSamples |
-| swap:7 | unresolved:noSamples (faithful n=2+3, crop n=0) | unresolved:noSamples |
+| swap:0 | unresolved:noSamples (faithful n=2+3, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:1 | unresolved:noSamples (faithful n=2+2, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:2 | unresolved:noSamples (faithful n=2+1, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:3 | unresolved:noSamples (faithful n=0+1, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:4 | unresolved:noSamples (faithful n=2+2, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:5 | unresolved:noSamples (faithful n=2+1, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:6 | unresolved:noSamples (faithful n=0+1, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
+| swap:7 | unresolved:noSamples (faithful n=2+3, hero.accent:draw-nolayout-full n=0) | unresolved:noSamples |
 
-### Diagnostic captures (crop arm, no swap marks, 100 ms buckets)
+### Pooled Layout rows (a window with at least 24 rows is busy; rows per capture and median over the pooled windows)
 
-Job 40010826238.1/r1/p1: 70 buckets; scale 1-9 of the bucket maximum (Layout max 7), '.' = 0
+| windows | group | captures | windows | busy windows | rows per capture | median |
+|---|---|---|---|---|---|---|
+| rest | faithful-a | 4 | 28 | 18 of 28 | 225.0 | 45 |
+| rest | faithful-b | 4 | 28 | 19 of 28 | 232.8 | 45 |
+| rest | hero.accent:draw-nolayout-full | 8 | 56 | 0 of 56 | 19.4 | 2 |
+| swap | faithful-a | 4 | 32 | 0 of 32 | 107.8 | 14 |
+| swap | faithful-b | 4 | 32 | 0 of 32 | 109.8 | 14 |
+| swap | hero.accent:draw-nolayout-full | 8 | 64 | 0 of 64 | 96.5 | 13 |
+
+### Diagnostic captures (hero.accent:draw-nolayout-full arm, no swap marks, 100 ms buckets)
+
+Job 40010826238.1/r1/p1/diag: 70 buckets; scale 1-9 of the bucket maximum (Layout max 7), '.' = 0
 
 ```
 Layout    .2872.2.2.22893.......994.......4862.2.2.23883......3893.......886.2.2
@@ -190,7 +201,7 @@ Running animations (owner | name | kind | state | duration ms | iterations | pro
 - people-sticky|deck-module_vinylSpin_k1msN-|CSSAnimation|running|4000|Infinity|transform: 1 / 1
 - platform|sweep-module_sweepDoc_zGc1tE|CSSAnimation|paused|4000|Infinity|backgroundPositionX,backgroundPositionY: 4 / 4
 
-Job 40010826238.1/r2/p1: 70 buckets; scale 1-9 of the bucket maximum (Layout max 7), '.' = 0
+Job 40010826238.1/r2/p1/diag: 70 buckets; scale 1-9 of the bucket maximum (Layout max 7), '.' = 0
 
 ```
 Layout    22893.......773......2468.2.2.2.4892.......974......26662.2.2.2369....
