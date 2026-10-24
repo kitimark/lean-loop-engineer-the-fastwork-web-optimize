@@ -92,6 +92,7 @@ structure Row where
   measMs : Nat
 deriving Repr
 
+/-- The Lean values are rounded from the bench: spawnUs 8000 (bench 8.8-9.4 ms), pairOldNs 335 (331), pairNewNs 20 (19), hashUs 45 (43); the rounding is INFERRED (chosen, not read off), so the real cached row agreeing within 0.3 percent is not a check either. -/
 def rates : Rates := { spawnUs := 8000, pairOldNs := 335, pairNewNs := 20, hashUs := 45, fixedUs := 0 }
 
 def fixtureRates : Rates := { rates with hashUs := 20, fixedUs := 240 }

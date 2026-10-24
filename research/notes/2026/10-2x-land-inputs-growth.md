@@ -69,7 +69,7 @@ Micro bench (best of 3, this Mac, load 3-7), real root and 97-file fixture:
 
 Rates: old 331 ns per pair, new 19 ns, hash 43 us (real) and 20 us (fixture) per file, spawn 8-9 ms: MEASURED.
 `fixedUs = 240` is INFERRED, fitted to the cached fixture row (1573 ms measured, 1580 predicted); no bench measures it,
-so the two cached rows agreeing is a fit, not a check. Golden regeneration: `lean/scripts/LandInputsCostGolden.lean`
+so the two cached rows agreeing is a fit, not a check. The Lean values are rounded from the bench: spawnUs 8000 (bench 8.8-9.4 ms), pairOldNs 335 (331), pairNewNs 20 (19), hashUs 45 (43); the rounding is INFERRED (chosen, not read off), so the real cached row agreeing within 0.3 percent is not a check either. Golden regeneration: `lean/scripts/LandInputsCostGolden.lean`
 (`--check` is a row of `lean/scripts/check.sh`); `rows_predMs` pins the six predictions in Lean.
 
 ## Follow-ups
