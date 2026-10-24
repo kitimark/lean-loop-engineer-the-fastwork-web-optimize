@@ -5,6 +5,7 @@
 //   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
+//   --rotate n rotates the first round's arm order by n (the workflow passes the job number - 1, so jobs start on different arms).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
 import { parseArgs } from 'node:util';
@@ -12,7 +13,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
-import { findDevice } from '../sim.mjs';
+import { findDevice, shutdownDevice } from '../sim.mjs';
 import { loadavg } from 'node:os';
 import { buildDriver, cleanup, dragPass, findDriver, stop } from './driver.mjs';
 import { armPass } from './probe.mjs';
@@ -21,6 +22,8 @@ import { excludeReason, reportMd, ARMS, SHIPPED_ARM, FOLLOW_ARM } from './report
 import { movingMd } from './follow-report.mjs';
 import { finishPass } from './finish-probe.mjs';
 import { excludeReason as finishExclude, reportMd as finishMd } from './finish-report.mjs';
+import { COMPOSITIONS } from './morph-end.mjs';
+import { reportMd as morphEndMd } from './morph-end-report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -28,14 +31,16 @@ const { values: v } = parseArgs({
   args: rest,
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
-    cycles: { type: 'string', default: '4' }, rotate: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
+    cycles: { type: 'string', default: '4' }, timeout: { type: 'string', default: '300' }, reset: { type: 'boolean', default: false }, rotate: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
     target: { type: 'string', default: 'springboard' }, hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
     out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
   allowNegative: true,
 });
 const log = (s) => console.error(s);
-const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle', 'unthrottle-follow': '?fw=engine.scroll:unthrottle-follow' };
+const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle', 'unthrottle-follow': '?fw=engine.scroll:unthrottle-follow', ...COMPOSITIONS };
+const KNOWN_ARMS = new Set(['original', ...Object.keys(SEARCH)]);
+const MORPH_END_ARMS = new Set(Object.keys(COMPOSITIONS).filter((a) => a !== 'rewrite'));
 const siteOf = (arm) => {
   if (arm === 'original') return null;
   if (!v.site) throw new Error(`arm ${arm} needs --site (the prerendered build)`);
@@ -47,13 +52,15 @@ async function main() {
   switch (cmd) {
     case 'run': {
       const arms = v.arms.split(',');
+      const unknown = arms.filter((a) => !KNOWN_ARMS.has(a));
+      if (unknown.length) throw new Error(`unknown arm ${unknown.join(', ')}; one of ${[...KNOWN_ARMS].join(', ')}`);
       const udid = findDevice().udid;
       const driver = v.driver ? findDriver(resolve(v.driver)) : await buildDriver({ udid, log });
       log(`load ${loadavg()[0].toFixed(0)} before the first pass`);
       if (!['drags', 'finish'].includes(v.mode)) throw new Error(`unknown --mode ${v.mode}; drags or finish`);
       const finish = v.mode === 'finish';
       const drag = { cycles: Number(v.cycles), dragPt: Number(v.drag ?? (finish ? 480 : 360)), velocity: Number(v.velocity ?? (finish ? 150 : 120)),
-        holdMs: Number(v.hold), mode: v.mode, target: v.target };
+        holdMs: Number(v.hold), mode: v.mode, target: v.target, timeoutMs: Number(v.timeout) * 1000 };
       const passOf = finish ? finishPass : armPass;
       const reasonOf = finish ? finishExclude : excludeReason;
       const passes = [], failed = [];
@@ -76,8 +83,9 @@ async function main() {
         }
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round + Number(v.rotate))) {
-            const tag = `${arm}-r${round + 1}`;
             for (let attempt = 1; attempt <= 2; attempt++) {
+              if (attempt === 2 && v.reset) { try { shutdownDevice(udid, { log }); } catch (e) { log(`reset: ${e.message}`); } }
+              const tag = `${arm}-r${round + 1}-a${attempt}`;
               try {
                 const rec = await withSession((ctx) => passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
                   { keep: v.keep, site: siteOf(arm) });
@@ -110,8 +118,9 @@ async function main() {
       const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
       const vms = jobs.map((j, i) => ({ vm: `job ${j.vm ?? i + 1}`, passes: j.passes }));
       const isFinish = jobs.some((j) => j.drag?.mode === 'finish');
+      const morphEnd = jobs.some((j) => j.passes.some((p) => MORPH_END_ARMS.has(p.arm)));
       const present = [...Object.values(ARMS), SHIPPED_ARM, FOLLOW_ARM].filter((a) => vms.some((x) => x.passes.some((p) => p.arm === a)));
-      const md = (isFinish ? finishMd : reportMd)(vms) + (isFinish ? '' : movingMd(vms, present));
+      const md = morphEnd ? morphEndMd(vms) : (isFinish ? finishMd : reportMd)(vms) + (isFinish ? '' : movingMd(vms, present));
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }
