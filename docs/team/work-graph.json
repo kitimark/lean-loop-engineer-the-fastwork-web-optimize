@@ -9574,7 +9574,13 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "apps/site/src/registry/index.ts",
+    "apps/site/src/debug/root-events.ts",
+    "apps/site/src/debug/root-events.test.ts",
+    "packages/gate-breakpoints/src/trajectory/debug.mjs",
+    "packages/gate-breakpoints/test/debug.test.mjs",
+    ".github/scripts/trajectory-line.mjs"
    ]
   },
   {
