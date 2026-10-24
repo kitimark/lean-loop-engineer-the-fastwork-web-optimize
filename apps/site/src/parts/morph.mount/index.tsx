@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { registerScroll } from '../../engine/scroll';
 import { isBand } from './listen.logic';
 import { touchHub } from './listen';
+import { armStats, createArm, inBand, isArmLate } from './armLate';
 import { action, armed, IO_ROOT_MARGIN, isShift, mountNext, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
 
 export interface MorphMountHandle {
@@ -69,9 +70,30 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       take(e, d);
     };
     const hub = isBand(variant) ? touchHub() : undefined;
+    const late = isArmLate(variant)
+      ? createArm(
+          {
+            add: (type, fn, passive) => window.addEventListener(type, fn as EventListener, { passive, capture: true }),
+            remove: (type, fn) => window.removeEventListener(type, fn as EventListener, true),
+          },
+          { touchstart: onTouchStart, wheel: onWheel, touchmove: onTouchMove },
+        )
+      : undefined;
+    let band = false;
+    const readBand = () => {
+      const el = document.querySelector<HTMLElement>(targetSelector);
+      if (!el) return false;
+      return inBand(viewportHeight(window.visualViewport?.height ?? null, window.innerHeight), el.getBoundingClientRect().bottom);
+    };
     const client = { touchstart: onTouchStart, touchmove: onTouchMove, active: isActive };
     const unband = hub && target ? hub.observe(target) : undefined;
     const refresh = () => {
+      if (late) {
+        const act = isActive();
+        band = near || act ? readBand() : false;
+        late.set(near, band, act);
+        return;
+      }
       const a = action(attached, wanted(near, isActive()));
       if (a === 'attach') {
         attached = true;
@@ -108,6 +130,13 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       if (!repin(isActive(), window.scrollY, pin)) return;
       return () => window.scrollTo({ top: pin, behavior: 'instant' });
     });
+    const stats = late ? armStats() : undefined;
+    const offLate = late
+      ? registerScroll('morph.mount.arm', MOUNT_PIN_ORDER - 0.5, () => {
+          stats!.frames[late.mode()]++;
+          if ((near || isActive()) && readBand() !== band) refresh();
+        })
+      : undefined;
     let warmTimer: number | undefined;
     const onScrollMotion = () => {
       lastMotion = performance.now();
@@ -134,6 +163,7 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       near = false;
       refresh();
       unband?.();
+      offLate?.();
       off();
       onReady?.(null);
     };
