@@ -1,0 +1,29 @@
+{
+  "id": "morph.end.clamp",
+  "slot": "morph",
+  "anchors": [
+    "morph-end-clamp"
+  ],
+  "experiment": true,
+  "impls": [],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": {
+        "original": "_app/immutable/nodes/2.DyWL8TcE.js:13017-13090"
+      }
+    },
+    "on": {
+      "kind": "proposal",
+      "visClass": "L",
+      "provenance": {
+        "lean": "Fw.Parts.MorphEnd clamp_le, clamp_le_trace, clamp_rest, faithful_fight, clamp_only_writes, clamp_same_below, order_free, all_combinations, bricks_no_rules",
+        "limit": "look change (L), brick A: the pin is restored to min(pin, real maxY) each frame, so the page stops writing the overscroll position back against the rubber band at the end of the page; effect: at the end of the page the pin follows the real end, not the overscroll the finger started in; the page no longer snaps back to the overscroll position; phone review pending; covers the createTweenDriver path only (waapi and waapi-scoped ignore it); flipN = 16 is a placeholder until morph-end-measure"
+      }
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}
