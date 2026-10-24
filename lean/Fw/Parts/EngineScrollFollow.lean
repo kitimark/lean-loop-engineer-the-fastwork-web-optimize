@@ -228,6 +228,16 @@ theorem gain_iff (p n : Nat) (hp : 1 ≤ p) (hn : 2 ≤ n) : eventFrames p n < n
 /-- **Each frame reads the newest scrollY.** A loop frame at update `t` reads `u t`, which is what an unthrottled engine reads. -/
 theorem follow_reads_newest (p : Nat) (u : Nat → Int) (t : Nat) : u t = seen .lifted p u t := rfl
 
+/-- **With the loop, a part that is strictly monotone in scrollY has no still run.** Every update reads the newest position. -/
+theorem follow_part_no_stills (p N : Nat) (u : Nat → Int) (f : Int → Int) (h : Distinct (fun t => f (u t)) N) :
+    stills .mainThread .lifted p u f N = [] := curve_lifted p N u f h
+
+/-- **Without it, a part read once per delayed window shows `throttleK d` equal frames per move.** The delayed event samples scrollY as the visible-rect throttle does. -/
+theorem event_part_stills (d n : Nat) (h1 : 1429 ≤ d) (h2 : d < 2000) (u : Nat → Int) (f : Int → Int)
+    (h : Distinct (fun t => f (u t)) (period d * n)) (hmid : ∀ t, t < period d * n → mid (f (u t)) = true) :
+    (stills .mainThread .throttled (period d) u f (period d * n)).map (·.k) = List.replicate (n - 1) (throttleK d) :=
+  (hit_throttled d n h1 h2 u f h hmid).1
+
 /-- A throttled event reads a position up to `p - 1` updates old. -/
 theorem event_read_age_lt (p t : Nat) (hp : 0 < p) : t - p * (t / p) < p := by
   have := Nat.mod_lt t hp
