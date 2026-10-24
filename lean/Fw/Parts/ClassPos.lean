@@ -358,7 +358,7 @@ def row (e : E) : Lean.Json :=
 def head : Lean.Json :=
   Lean.Json.mkObj [("helpers", strs helpers), ("separators", strs ([' ', '\t', '\n', Char.ofNat 12, '\r'].map toString))]
 
-def goldenText : String := String.join ((head :: cases.map row).map fun j => j.compress ++ "\n")
+def goldenText (_ : Unit := ()) : String := String.join ((head :: cases.map row).map fun j => j.compress ++ "\n")
 
 #guard toks (s "a b") == [⟨.cls, "a"⟩, ⟨.cls, "b"⟩]
 #guard toks (.tmpl ["row ", " tail"] [.cond (v "f") (s "flip") (s "")]) == [⟨.cls, "row"⟩, ⟨.cls, "flip"⟩, ⟨.cls, "tail"⟩]
@@ -385,13 +385,13 @@ def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
     let cur ← IO.FS.readFile path
-    if cur == goldenText then
+    if cur == goldenText () then
       IO.eprintln s!"footprint classpos golden: {path} is up to date ({cases.length + 1} lines)"
       return 0
     IO.eprintln s!"footprint classpos golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print goldenText
+    IO.print (goldenText ())
     return 0
 
 end Fw.Parts.ClassPos
