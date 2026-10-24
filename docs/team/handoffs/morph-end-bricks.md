@@ -2,8 +2,9 @@
 
 - Branch `worktree-wf_5d113863-122-1` (CI branch `ci/morph-end-bricks`), worktree
   `.claude/worktrees/wf_5d113863-122-1`, last commit 7cb0b642c (+ this handoff).
-- CI runs: breakpoint-gate dispatch 40097672383 (fw=morph.end.clamp:on,morph.end.flip:on,morph.end.release:on, engines
-  both) running; dispatches used 1 of 2.
+- CI runs (2 of 2 dispatches used): 40097672383 failed (fw= list: a three-flag page is not prerendered, only presets
+  and single variants are; infra, not code); 40098851697 breakpoint-gate preset=morph-end-all, engines both, at
+  cb958a00d (preset added in registry/presets/morph-end-all.json), running.
 - Verified: `lean/scripts/check.sh` green (slot); `@fw/site` test 6604 pass (incl. `end.golden.test.ts` replaying all
   24 lines of `morph.end.jsonl`, and `registry/morph-end.test.ts` resolving all 8 picks); tsc clean;
   `part-footprint.mjs --check` ok.
