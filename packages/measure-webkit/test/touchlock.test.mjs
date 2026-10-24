@@ -62,3 +62,11 @@ test('summarize: no fights anywhere is overlap and the same look', () => {
 test('page scripts parse', () => {
   for (const src of [installJs(false), installJs(true), nearEndJs(250), windowJs]) assert.doesNotThrow(() => new Function(`return ${src}`));
 });
+
+test('nearEndJs is invoked: it yields a promise of the end position', async () => {
+  const win = { innerHeight: 800, scrollY: 0, scrollTo: ({ top }) => { win.scrollY = top; } };
+  const doc = { documentElement: { scrollHeight: 5000 } };
+  const run = new Function('window', 'document', 'setTimeout', `return ${nearEndJs(250)}`);
+  const got = await run(win, doc, (f) => f());
+  assert.deepEqual(got, { maxY: 4200, y: 3950, vh: 800 });
+});

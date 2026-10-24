@@ -1,7 +1,7 @@
 branch: worktree-wf_9543f835-e44-1 (CI branch ci/touch-lock-page-end)
 worktree: .claude/worktrees/wf_9543f835-e44-1
-last commit: 0a6af7f0e (work); the handoff commit after it carries the CI tags
-CI runs: none finished yet (first push in flight; the run id is added after `fw ci` lists it)
+last commit: 06552b950 (CI head); 0a6af7f0e is the work commit
+CI runs: smoothness 40059669688 (sha 06552b950, running); lean 40059669748 success
 verified: Lean module and golden check, measure-webkit test (590 pass), ci-paths test (56), runner land-inputs test (56)
 open: reversal counts per arm (needs the run), note, dry land, review gate
 

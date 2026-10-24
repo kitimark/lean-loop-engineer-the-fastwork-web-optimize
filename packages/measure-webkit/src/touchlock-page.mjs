@@ -23,7 +23,7 @@ export const nearEndJs = (gapPx) => `(() => new Promise((resolve) => {
   const maxY = document.documentElement.scrollHeight - window.innerHeight;
   window.scrollTo({ top: Math.max(0, maxY - ${gapPx}), behavior: 'instant' });
   setTimeout(() => resolve({ maxY, y: window.scrollY, vh: window.innerHeight }), 1800);
-})())`;
+}))()`;
 
 /** Records from the first touchstart until the Node side sets `window.__fwTouchStop`. */
 export const windowJs = `(async () => {
