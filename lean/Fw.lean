@@ -27,6 +27,7 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
 import Fw.Parts.NavHitTestElements
 import Fw.Parts.NavEarnOpt
+import Fw.Parts.NavEarnWebkit
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain

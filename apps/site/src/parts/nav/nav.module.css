@@ -198,6 +198,20 @@
   .nav:global(.is-expanded) .btn.earn {
     pointer-events: none;
   }
+  .nav:global(.is-earn-logical):not(:global(.is-hero-pill)) .btn.earn {
+    transition:
+      max-width 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+      opacity 0.32s cubic-bezier(0.33, 0, 0.2, 1) 0.12s,
+      padding-inline-start 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+      padding-inline-end 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  .nav:global(.is-earn-logical.is-hero-pill) .btn.earn {
+    transition:
+      max-width 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+      opacity 0.2s cubic-bezier(0.33, 0, 0.2, 1),
+      padding-inline-start 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+      padding-inline-end 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+  }
   .nav:global(.is-earn-still) .btn.earn {
     transition: none;
   }

@@ -3577,6 +3577,45 @@
    "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1; 40078781031 (Chromium counts, absolute plus guard), 40078755847 (toolbar-throttle lane), 40078755889 and 40080296257 (trajectory probe), 40083527306 (breakpoint gate, shipped text); branch worktree-wf_582d1cc2-be7-1",
    "next": "WebKit morph trajectory cell (the probe cannot decide Mac WebKit morph for any flag); a phone pass of the shipped text.",
    "flag": "engine.scroll:unthrottle"
+  },
+  {
+   "id": "nav.earn.logicalPadding",
+   "n": 67,
+   "part": "nav",
+   "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
+   "status": "look-change",
+   "flags": [
+    "nav:earn-logical"
+   ],
+   "chromium": "unchanged (same started set and timing, Lean variant_chromium_set and variant_chromium_timing; breakpoint gate: see evidence)",
+   "webkit": "padding eases on WebKit like Chromium (macOS per-frame lane, see evidence); iPhone INFERRED from shared WebKit source",
+   "visual": "engine parity look change (L): on WebKit the earn side padding eases over 680 ms instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. Pending the user's Safari (macOS) and iPhone review; runs pending",
+   "mechanism": "CONFIRMED (source, from earn-webkit-parity): WebKit keeps the logical longhands of the padding-inline shorthand in the transition list and they have no animation wrapper (Styleable.cpp:553-566, process-css-properties.py:~5956@862f17d), so no padding transition starts; a listed logical longhand is resolved to physical (Styleable.cpp:563-564) and then has a wrapper, so it starts (Lean wk_inlineLonghands_ltr, variant_webkit_padding). Chromium maps both to physical already (css_animations.cc:2993-3007@f842f52).",
+   "leanFor": [
+    "Fw.Parts.NavEarnWebkit.variant_entry_webkit",
+    "Fw.Parts.NavEarnWebkit.variant_exit_webkit",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_padding",
+    "Fw.Parts.NavEarnWebkit.variant_firstFrame",
+    "Fw.Parts.NavEarnWebkit.variant_chromium_set",
+    "Fw.Parts.NavEarnWebkit.variant_chromium_timing",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_set_eq_chromium_faithful",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_timing_eq_chromium_faithful",
+    "Fw.Parts.NavEarnWebkit.hero_exit_chromium",
+    "Fw.Parts.NavEarnWebkit.hero_exit_webkit"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)"
+   ],
+   "missingWhy": [
+    "felt smoothness on Safari and iPhone: the user's review",
+    "iPhone is inferred from shared WebKit source, not measured"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
+   "next": "User visual review on Safari (macOS) and the iPhone; it stays out of v2-proved while it is a look change (class L).",
+   "flag": "nav:earn-logical",
+   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; runs pending"
   }
  ],
  "notes": [
