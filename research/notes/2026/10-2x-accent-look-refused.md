@@ -15,7 +15,7 @@
   artifacts `webkit-sim-r1`, `webkit-sim-r2`, `webkit-sim-r3`, kept 30 days (`.github/workflows/webkit-sim.yml:491`),
   expire 2026-11-22. Chromium material: `pending`, because no Chromium run exists.
 - "Refused" is written as `rejected`: the look verdict words are `kept`, `rejected` and `accepted`
-  (`Gen.LookVerdict`, `lean/Fw/Wire/Review.lean:23`). No new word was added.
+  (`Gen.LookVerdict`, `lean/Fw/Preset/Gen.lean:193`; parsed by `Fw.Wire.Review.verdictOf`, `lean/Fw/Wire/Review.lean:21-23`). No new word was added.
 - Ledger `research/findings/ledger.json`, row `accent.drawin-width-nolayout`: status `refuted`, `userDecision` with
   date, reason, source (chat) and the material above. `Fw.Console.Compose.classBy` puts any row with status `refuted`
   in the class whose text reads "refused".
