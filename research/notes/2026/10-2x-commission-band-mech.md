@@ -73,7 +73,9 @@ document tops 2880-5876 px. No single scroll window serves all breakpoints, and 
 non-compact rows are listed in the golden but the variant never skips there (`no_skip_ungated`).
 
 In-session check of the rect (MEASURED, push 1, runs 40139371262 r1 and r2, profile `commission-rect-v1` = swipe-v1 plus
-`cardProbe` on the section and the card, replay pass after the counted pass): at 430x932 the section top is 3193.859375 and its
+`cardProbe` on the section and the card, replay pass after the counted pass; the run used the file from
+`packages/measure-chromium/profiles` at `ci/commission-band-mech-1` @1b71d5581, kept here as
+`results/commission-band-mech/commission-rect-v1.profile.json`): at 430x932 the section top is 3193.859375 and its
 height 1202.953125 in all 575 frames of both runs, the card equals the section. The gate's first read (3193.859375, 1202.953125)
 is the same to the last digit, so a rect read at rest is the rect of the scroll in this layout.
 
