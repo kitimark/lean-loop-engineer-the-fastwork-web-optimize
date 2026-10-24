@@ -338,6 +338,27 @@ describe("the compiled scope test (land-inputs.ts) equals the original recursive
       expect(inputKey(fx.dir, reads)).toBe(k0);
     } finally { fx.done(); }
   });
+  it("the cost model's golden rows (Lean Fw.Obs.LandInputsCost): TS mirror predicts them, each within its band, and later modes are cheaper", () => {
+    type Row = { test: string; mode: "orig" | "globs" | "cached"; calls: number; pairs: number; hashed: number; measMs: number; predMs: number; band: number; inBand: boolean };
+    const rows = readFileSync(join(root, "packages/contracts/golden/obs/land-inputs-cost.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Row);
+    expect(rows.length).toBe(6);
+    const pred = (r: Row) => {
+      const fx = r.test === "fixture";
+      const spawns = r.mode === "cached" ? (r.calls === 0 ? 0 : 1) : r.calls;
+      const us = spawns * 8000 + Math.floor((r.pairs * (r.mode === "orig" ? 335 : 20)) / 1000) + r.hashed * (fx ? 20 : 45) + r.calls * (fx ? 240 : 0);
+      return Math.floor(us / 1000);
+    };
+    for (const r of rows) {
+      expect(pred(r), `${r.test} ${r.mode}`).toBe(r.predMs);
+      expect(r.inBand).toBe(100 * Math.abs(r.predMs - r.measMs) <= r.band * r.measMs);
+      expect(r.inBand).toBe(true);
+    }
+    for (const t of ["fixture", "real"]) {
+      const m = (mode: string) => rows.find((r) => r.test === t && r.mode === mode)!;
+      expect(m("cached").measMs).toBeLessThan(m("globs").measMs);
+      expect(m("globs").measMs).toBeLessThan(m("orig").measMs);
+    }
+  });
   it("small glob and path alphabets, exhaustively", () => {
     const toks = ["a", "b", "*", "**", "a*", "*b", "a*b", "!a", "!**", "", "."];
     const globLists: string[][] = [];
