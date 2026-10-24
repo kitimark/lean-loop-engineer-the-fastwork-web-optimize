@@ -20282,7 +20282,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
+   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches).",
+   "evidence": "932edbe"
   },
   {
    "devices": [
@@ -20339,7 +20340,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land."
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land.",
+   "evidence": "d08f4b2"
   },
   {
    "devices": [
@@ -20500,7 +20502,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
-    "lean/scripts/MorphMountArmLateGolden.lean"
+    "lean/scripts/MorphMountArmLateGolden.lean",
+    "apps/site/src/parts/morph.mount/armLate.component.test.ts"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
   },

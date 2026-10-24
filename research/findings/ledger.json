@@ -3909,6 +3909,12 @@
    "task": "accent-same-look",
    "field": "lesson",
    "text": "Lean Fw.Engine.StyleDiffAccent.jump_differs: while the original glides (w(t) differs from the final width wf), the first and last headline words sit (wf - w)/2 away from the original, so the jump is a different picture on every glide frame before the end. Fw.Engine.StyleDiffAccent.glide_same: holding the accent at wf and translating the neighbours by +-(wf - w)/2 puts them where the original has them, so the in-flow premise of this lesson is not forced; that candidate is accent.same.glide (pixels MEASURED-pending)."
+  },
+  {
+   "entry": "elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
+   "task": "hittest-elements-proof",
+   "field": "chromium",
+   "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
   }
  ]
 }
