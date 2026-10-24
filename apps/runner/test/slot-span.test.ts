@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,13 +102,21 @@ describe.skipIf(!existsSync(fwcore))("queue waits are not judged by the 30 s bud
   it("a wait over the wait budget (30 min) is slow", () => expect(lastCode([...hist, synthetic("slot wait check", 1800001, "fw wait")])).toBe("slow"));
 });
 
+function heldDeps(dir: string): never {
+  const slot = join(dir, "slot");
+  mkdirSync(slot, { recursive: true });
+  writeFileSync(join(slot, "state.json"), JSON.stringify({ ctl: { n: 4, lastChange: 0, prev: null }, queue: [], simIdleSince: 0,
+    holders: [{ owner: "o", token: "T1", kind: "check", since: 1, till: Math.floor(Date.now() / 1000) + 600, foot: 0, leaseS: 600 }] }));
+  return { dir: slot, owner: "o", env: { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1", PATH: process.env.PATH }, out: () => {}, err: () => {} } as never;
+}
+
 describe("slot run writes the run span under the command key", () => {
   it("a run inside a held slot records `slot run <kind>` (here no key: the argument has a space) with its exit", async () => {
     const dir = mkdtempSync(join(tmpdir(), "slot-span-"));
     const file = join(dir, "timings.jsonl");
     process.env.FW_TIMINGS_FILE = file;
     try {
-      const d = { env: { FW_SLOT_HELD: "1", PATH: process.env.PATH }, out: () => {}, err: () => {} } as never;
+      const d = heldDeps(dir);
       expect(await run(d, "check", ["sh", "-c", "exit 3"], false)).toBe(3);
       const rows = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { step: string; exit: number });
       expect(rows.map((r) => [r.step, r.exit])).toEqual([["slot run check", 3]]);
@@ -123,7 +131,7 @@ describe("slot run writes the run span under the command key", () => {
     const file = join(dir, "timings.jsonl");
     process.env.FW_TIMINGS_FILE = file;
     try {
-      const d = { env: { FW_SLOT_HELD: "1", PATH: process.env.PATH }, out: () => {}, err: () => {} } as never;
+      const d = heldDeps(dir);
       await expect(run(d, "check", ["sh\0x"], false)).rejects.toThrow();
       const rows = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { step: string; exit: number });
       expect(rows.map((r) => [r.step, r.exit])).toEqual([["slot run check", EXIT_ERROR]]);

@@ -83,6 +83,12 @@ start) ran over the land that held the slot from +543.5 to +613.5 s, with no loc
 alerted runs overlapped another dry land span. The 2e54fbe rerun at +96.5 s (lake 2.4 s, land-inputs 38.0 s) overlapped
 d2c1f1c, so it is no calm control.
 
+Callers (task slot-held-identity, docs/team/tools/slot.md): MEASURED by time match, since spans carry no caller field: 114 of
+the 133 unlocked spans started within 60 s of a lead Bash call `FW_SLOT_HELD=1 sh .../land-rNNN.sh`, 122 within 10 min.
+INFERRED: the other 11 to 19 came from other callers (long lead scripts may account for some). Since that task landed, a
+nested run skips acquire only under a live held token of the same kind (`Fw.Sup.Nested.nestedSkips`), and the lead
+starts land scripts without `FW_SLOT_HELD` (incident inc-slot-held-env).
+
 The fourth alert, 2e54fbe at 1792805178693: 77474 ms against a baseline of 42513, key `fw`/`slot run land pnpm fw land
 dry`, load floor 6 (6.85). Its locks show only its own land hold (wait 0) and lake acquires at +34.4 and +62.3 s (waits
 8 and 22 ms). No work span from another process overlaps it (only d2c1f1c's `slot wait land`, +37.1 to +78.4 s). sup-samples show a load of 5.2-5.8 before the start, carried in

@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Sup.Adapt
+import Fw.Sup.Nested
 import Fw.Sup.MeasureWindow
 
 /-! Golden vectors of `Fw.Sup.Adapt` (`packages/contracts/golden/sup/adapt.jsonl`), replayed by apps/runner/test/slot.test.ts. -/
@@ -521,12 +522,34 @@ def windowLines (_ : Unit := ()) : List String :=
     line "deadline passed: no lease" "window.capLease" [("window", windowJson wA), ("now", toJson 7000), ("lease", toJson 600)]
       (Json.mkObj [("leaseS", toJson (capLease wA 7000 600))]) ]
 
+def nestedLines : List String :=
+  let en (o t : String) (k : Kind) (till : Nat) : Entry := { owner := o, token := t, kind := k, since := 100, till := till }
+  let nm (o t : String) : Option (String × String) := some (o, t)
+  let namedJson : Option (String × String) → Json
+    | none => .null
+    | some (o, t) => Json.mkObj [("owner", .str o), ("token", .str t)]
+  let nl (name : String) (now : Nat) (k : Kind) (named : Option (String × String)) (held : List Entry) : String :=
+    line name "adapt.nested" [("now", toJson now), ("kind", .str k.name), ("named", namedJson named), ("held", entriesJson held)]
+      (Json.mkObj [("skip", .bool (nestedSkips now k named held))])
+  [nl "named live land token, land request: skip" 200 .land (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "FW_SLOT_HELD alone, no token named: acquire" 200 .land none [en "w" "T1" .land 300],
+    nl "no token named and nothing held: acquire" 200 .land none [],
+    nl "held test slot, nested land request: acquire" 200 .land (nm "w" "T1") [en "w" "T1" .test 300],
+    nl "held land slot, nested test request: acquire" 200 .test (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "named token expired (till = now): acquire" 300 .land (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "named token released (not in state): acquire" 200 .land (nm "w" "T1") [en "w" "T2" .land 300],
+    nl "token of another owner: acquire" 200 .land (nm "w" "T1") [en "x" "T1" .land 300],
+    nl "live land entry of another holder, own token unknown: acquire" 200 .land (nm "w" "T9") [en "x" "T1" .land 300, en "y" "T2" .land 300],
+    nl "several holders, the named one live and of the kind: skip" 200 .check (nm "w" "T2")
+      [en "x" "T1" .land 300, en "w" "T2" .check 250, en "y" "T3" .test 300],
+    nl "expired twin and live entry of one token: skip" 200 .land (nm "w" "T1") [en "w" "T1" .land 150, en "w" "T1" .land 300]]
+
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
   [line "default parameters" "adapt.params" [] (paramsJson {}),
     line "reason names (WhyTag.all): the closed parse list of the timing spans" "adapt.whyTags" []
       (Json.mkObj [("names", .arr (WhyTag.all.map (fun t => Json.str t.name)).toArray)])] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
-    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines ()
+    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines () ++ nestedLines
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 
