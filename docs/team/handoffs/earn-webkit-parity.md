@@ -18,9 +18,12 @@ Lean Fw.Engine.TransitionStart builds, golden transition-start.jsonl (588 rows) 
 gate-breakpoints tests, ci-paths 56 pass, actionlint clean. Final gate results are in the task report.
 
 ## Open / for the lead (not edited by me)
-- `import Fw.Engine.TransitionStart` in lean/Fw.lean; job line in lean/scripts/check.sh:
-  `job "transition-start golden check" lake env lean --run scripts/TransitionStartGolden.lean --check ../packages/contracts/golden/engine/transition-start.jsonl`.
-- Outside writes made: lean/scripts/EngineGoldens.lean (row + import), lean/Fw/Ops/Premise.lean (engineFiles entry).
+- Wiring done in the continue round: `import Fw.Engine.TransitionStart` in lean/Fw.lean. No separate check.sh job: the
+  `engine goldens check` job already compares transition-start.jsonl, and a job that reads
+  ../packages/contracts/golden/engine/transition-start.jsonl fails ci-paths --check and adds 5 writesClosure errors to plan lint
+  (needs a Trigger.lean lean.yml row entry `packages/contracts/golden/engine/transition-start.jsonl`, lead only).
+- goldenLines/goldenJsonl take `Unit`: as constants they cost 30398 start allocations (init cost lint bound 10000).
+- Outside writes made: lean/scripts/EngineGoldens.lean (row + import), lean/Fw/Ops/Premise.lean (engineFiles entry), lean/Fw.lean, lean/scripts/check.sh (unchanged vs main).
 - TS stand-ins: reduction in transitions.mjs, transitions-combine.mjs.
 - Limits: candidates 1 job; no iPhone; morph sequences not in CI (15 min cap, `--morph 0`); Chromium 20-30 fps on runner; Safari 1280 only.
 
