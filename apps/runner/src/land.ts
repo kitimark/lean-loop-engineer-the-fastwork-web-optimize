@@ -145,13 +145,13 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/scrub.mjs", "scripts/test-scrub.mjs", "scripts/scrub.test.mjs", "scripts/scrub-allow.json",
     "scripts/ci-telemetry/**",
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
-  "apps/site": ["lean/Fw/Console/BuildsOpen.lean", "packages/contracts/golden/console/layer-opts.jsonl", "packages/contracts/golden/console/layers-search.jsonl", "lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "lean/Fw/Parts/HeroAccentOpt.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**", "packages/contracts/golden/measure/wkcost.jsonl",
+  "apps/site": ["packages/contracts/src/flag-key.mjs", "packages/contracts/golden/wire/flag-key.jsonl", "lean/Fw/Console/BuildsOpen.lean", "packages/contracts/golden/console/layer-opts.jsonl", "packages/contracts/golden/console/layers-search.jsonl", "lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "lean/Fw/Parts/HeroAccentOpt.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**", "packages/contracts/golden/measure/wkcost.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
-  "packages/measure-wktr": ["packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs", "packages/measure-webkit/src/paintclip.mjs"],
-  "packages/measure-chromium": ["lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**",
+  "packages/measure-wktr": ["packages/contracts/src/flag-key.mjs", "packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs", "packages/measure-webkit/src/paintclip.mjs"],
+  "packages/measure-chromium": ["packages/contracts/src/flag-key.mjs", "lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**",
     "packages/contracts/golden/device/**", "packages/measure-webkit/src/pathpix*.mjs", "scripts/port/fonts.mjs", "packages/measure-webkit/src/session.mjs", "packages/measure-webkit/src/page.mjs"],
-  "packages/gate-breakpoints": ["lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
+  "packages/gate-breakpoints": ["packages/contracts/src/flag-key.mjs", "lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**", "packages/contracts/fixtures/trajectory-gpu/**",
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
     "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
@@ -160,7 +160,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
-  "packages/measure-webkit": ["results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
+  "packages/measure-webkit": ["packages/contracts/src/flag-key.mjs", "results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
     "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/src/census.mjs", "packages/measure-chromium/profiles/**",
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     "research/notes/2026/10-21-webkit-lag-probe.md",
@@ -169,7 +169,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/gate-breakpoints/src/trajectory/reduce.mjs", "packages/gate-breakpoints/src/page.mjs",
     "packages/measure-chromium/src/pathpix*.mjs", "packages/contracts/golden/gate/path-pix.jsonl"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
-  "packages/visual-diff": ["packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
+  "packages/visual-diff": ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
 
 function workspaceDeps(root: string, pkg: any): string[] {
@@ -497,6 +497,35 @@ export function dryLintArgv(dir: string, changed: string[]): string[][] {
     existsSync(join(dir, "apps/site/scripts/part-footprint.mjs")));
 }
 
+export type LakeKey = { lean: string; golden: string };
+export type LakeRec = { key: LakeKey; src: "dryLint" | "checkSh"; pass: boolean };
+export const LAKE_GOLDEN_DIR = "packages/contracts/golden";
+const CHECK_SH_ARGV = ["sh", "lean/scripts/check.sh"];
+const sameLakeKey = (a: LakeKey, b: LakeKey): boolean => a.lean === b.lean && a.golden === b.golden;
+export const lakeHit = (rs: LakeRec[], k: LakeKey): boolean => rs.some((r) => r.pass && sameLakeKey(r.key, k));
+export const runLake = (touchesLean: boolean, rs: LakeRec[], k: LakeKey): boolean => touchesLean && !lakeHit(rs, k);
+export function lakeKeyOf(cwd: string, rev: string): LakeKey | null {
+  try { return { lean: git(cwd, ["rev-parse", `${rev}:lean`]), golden: git(cwd, ["rev-parse", `${rev}:${LAKE_GOLDEN_DIR}`]) }; } catch { return null; }
+}
+export const lakePassFile = (conDir: string, k: LakeKey): string => join(conDir, "review-cache", "land-lake", `${k.lean}-${k.golden}`);
+export const checkShRecordFile = (conDir: string, tree: string): string =>
+  join(conDir, "review-cache", "slot", `${createHash("sha256").update(JSON.stringify({ kind: "check", argv: CHECK_SH_ARGV, tree, base: "" })).digest("hex").slice(0, 32)}.json`);
+export function lakeRecords(conDir: string, cwd: string, revs: string[], k: LakeKey): LakeRec[] {
+  const out: LakeRec[] = [];
+  if (existsSync(lakePassFile(conDir, k))) out.push({ key: k, src: "dryLint", pass: true });
+  for (const rev of revs) {
+    try {
+      const tree = git(cwd, ["rev-parse", `${rev}^{tree}`]);
+      const rec = JSON.parse(readFileSync(checkShRecordFile(conDir, tree), "utf8")) as { key?: { tree?: string }; exit?: number };
+      const key = lakeKeyOf(cwd, rev);
+      if (rec.exit === 0 && rec.key?.tree === tree && key) out.push({ key, src: "checkSh", pass: true });
+    } catch { }
+  }
+  return out;
+}
+export const isLakeLint = (a: string[]): boolean => a.join("\0") === LINT_ARGV.axioms.join("\0");
+export const withoutLake = (plan: string[][]): string[][] => plan.filter((a) => !isLakeLint(a));
+
 export type DryBase = "contains" | "clean" | "conflict";
 export const dryBase = (behind: boolean, mergeClean: boolean): DryBase => !behind ? "contains" : mergeClean ? "clean" : "conflict";
 export function dryOutcome(base: DryBase, f: { own: boolean; scope: boolean; merges: boolean; reads: boolean; lints: boolean }): Outcome {
@@ -762,6 +791,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const { main0, tree } = dm;
     const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
     const slot = claimLandWt(mainDir, c);
+    let lakeKey: LakeKey | null = null, lakeSkipped = false, dryPlan: string[][] | null = null;
     try {
       const instDry = checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt(o.installExec, o.installFs));
       if (instDry) return fail(instDry, "install", outcome({ installs: false }));
@@ -781,18 +811,35 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const reads = !selected || test;
       let lints = true;
       if (reads) {
-        const lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
+        let lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
+        if (!o.dryLints && process.env.FW_LAND_LAKE_CACHE !== "off" && lintArgv.some(isLakeLint)) {
+          lakeKey = lakeKeyOf(mainDir, tree);
+          if (lakeKey) {
+            const revs = git(mainDir, ["rev-list", "--first-parent", "-n", "12", `${main}..${sha}`]).split("\n").filter(Boolean);
+            if (!runLake(true, lakeRecords(join(mainDir, ".fw-console"), mainDir, revs, lakeKey), lakeKey)) {
+              lintArgv = withoutLake(lintArgv);
+              lakeSkipped = true;
+              lines.push(`dry: lake build and axiom check skipped (a pass is on record for the lean/ tree ${lakeKey.lean.slice(0, 12)} and the golden tree ${lakeKey.golden.slice(0, 12)})`);
+            }
+          }
+        }
+        dryPlan = lintArgv;
         dryStep = dryTotalStep(lintArgv, false);
         if (lintArgv.length) {
           const bad = await runChecks(slot.dir, lintArgv);
           lints = bad === null; detail = bad ?? "";
+          if (lints && lakeKey && !lakeSkipped && lintArgv.some(isLakeLint)) {
+            const f = lakePassFile(join(mainDir, ".fw-console"), lakeKey);
+            mkdirSync(dirname(f), { recursive: true });
+            writeFileSync(f, `${new Date().toISOString()}\n`);
+          }
         }
       } else lines.push("dry: lints skipped (reads refused first)");
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
-          dryStep = dryTotalStep(o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
+          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || lakeSkipped || !existsSync(join(slot.dir, FWCORE_BIN)));
+          dryStep = dryTotalStep(dryPlan ?? o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
           const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);
           lints = bad === null; detail = bad ?? "";

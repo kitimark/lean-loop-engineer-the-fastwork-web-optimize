@@ -3,10 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serveTree } from '../../measure-webkit/src/serve.mjs';
 import { injectHarness } from './server.mjs';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 export async function serveBuilt(distDir, search, harnessJs) {
   const cfg = JSON.parse(readFileSync(join(distDir, 'configs.json'), 'utf8'));
-  const hash = cfg.bySearch[search];
+  const hash = cfg.bySearch[canonSearch(search)];
   if (!hash) throw new Error(`search "${search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
   const dir = mkdtempSync(join(tmpdir(), 'fw-wktr-built-'));
   writeFileSync(join(dir, 'harness.js'), harnessJs);

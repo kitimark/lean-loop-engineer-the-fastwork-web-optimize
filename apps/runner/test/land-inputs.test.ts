@@ -4,7 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LOCAL_GATES, LOCAL_TESTS, binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check } from "../src/land.ts";
+import { LOCAL_GATES, LOCAL_TESTS, binMoved, candidateChecks, CHECK_SH_READS, FWCORE_BIN, FWCORE_USERS, checksFor, selectTwoPhase, checksWithReads, inScope, inputKey, READS_SCAN_ARGV, READS_SCAN_ID, selectChecks, withScan, type Check, checkShRecordFile, lakeHit, lakeKeyOf, lakePassFile, lakeRecords, LAKE_GOLDEN_DIR, runLake } from "../src/land.ts";
+import { DEFAULT_PARAMS, DEFAULT_WPARAMS } from "../src/slot-core.ts";
+import { slotCli, type Deps } from "../src/slot.ts";
 
 const root = join(dirname(new URL(import.meta.url).pathname), "../../..");
 
@@ -365,5 +367,76 @@ describe("the compiled scope test (land-inputs.ts) equals the original recursive
     for (const x of toks) { globLists.push([x], [`${x}/b`], [`a/${x}`], [`${x}/**`], [`${x}/*/b`]); for (const y of toks) globLists.push([x, y]); }
     const paths = ["a", "b", "ab", "a/b", "a/a/b", "a/b/b", "b/a", "ab/b", "a/ab", "a/b/c/d", "a/../b", "", "./a", "aab"];
     for (const gl of globLists) for (const p of paths) if (inScope(gl, p) !== oldInScope(gl, p)) throw new Error(`${JSON.stringify(gl)}: ${p}`);
+  });
+});
+
+describe("the dry land's lake skip equals the Lean decision (Fw.Ops.LandCache)", () => {
+  type LRow = { recs: { golden: string; lean: string; pass: boolean; src: "dryLint" | "checkSh" }[]; golden: string; lean: string; touches: boolean; hit: boolean; run: boolean };
+  const rows = readFileSync(join(root, "packages/contracts/golden/ops/land-cache.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as LRow);
+  it("has the rows", () => expect(rows.length).toBeGreaterThanOrEqual(9));
+  for (const [i, r] of rows.entries()) {
+    it(`golden row ${i}`, () => {
+      const recs = r.recs.map((x) => ({ key: { lean: x.lean, golden: x.golden }, src: x.src as "dryLint" | "checkSh", pass: x.pass }));
+      expect(lakeHit(recs, { lean: r.lean, golden: r.golden })).toBe(r.hit);
+      expect(runLake(r.touches, recs, { lean: r.lean, golden: r.golden })).toBe(r.run);
+    });
+  }
+  it("the premise: lake build reads outside lean/ only the golden directory through include_str", () => {
+    const walk = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => e.name === ".lake" ? [] : e.isDirectory() ? walk(join(d, e.name)) : e.name.endsWith(".lean") ? [join(d, e.name)] : []);
+    const outside: string[] = [];
+    for (const f of walk(join(root, "lean"))) {
+      for (const m of readFileSync(f, "utf8").matchAll(/include_str\s+"([^"]+)"/g)) {
+        const target = relative(root, resolve(dirname(f), m[1]!));
+        if (!target.startsWith("lean/") && !target.startsWith(`${LAKE_GOLDEN_DIR}/`)) outside.push(`${relative(root, f)}: ${m[1]}`);
+      }
+    }
+    expect(outside).toEqual([]);
+  });
+  it("the check.sh record file is the file the slot replays from", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-lake-"));
+    try {
+      const cacheDir = join(dir, "review-cache", "slot");
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(checkShRecordFile(dir, "t9"), JSON.stringify({ key: { kind: "check", argv: ["sh", "lean/scripts/check.sh"], tree: "t9", base: "" }, exit: 0, stdout: "SENTINEL\n", stderr: "", at: 1 }));
+      const out: string[] = [];
+      const m = { freeMB: 12000, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 };
+      const d: Deps = {
+        dir: join(dir, "slot"), cacheDir, eventsFile: join(dir, "locks.jsonl"), legacySimLock: join(dir, "sim"), owner: "lake-test", env: { PATH: process.env.PATH },
+        params: DEFAULT_PARAMS, wparams: DEFAULT_WPARAMS, history: () => [], pollMs: 1,
+        probe: () => ({ time: Math.floor(Date.now() / 1000), loadCenti: 100, mem: m, ramMB: 16384, compressorMB: 0, cores: 8 }),
+        git: () => ({ tree: "t9", clean: true, mainSha: "m" }), simctl: { booted: () => [], shutdown: () => { } },
+        health: () => ({ time: Math.floor(Date.now() / 1000), live: 3 }), out: (s) => { out.push(s); }, err: () => { },
+      };
+      expect(await slotCli(["run", "--kind", "check", "--cache", "--", "sh", "lean/scripts/check.sh"], d)).toBe(0);
+      expect(out.join("")).toBe("SENTINEL\n");
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it("lakeRecords reads a check.sh pass of an earlier branch commit and the dry land's own pass; a failed record says nothing", () => {
+    const repo = mkdtempSync(join(tmpdir(), "fw-lake-repo-"));
+    try {
+      const g = (...a: string[]) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...a], { cwd: repo, encoding: "utf8" }).trim();
+      g("init", "-q"); mkdirSync(join(repo, "lean")); mkdirSync(join(repo, LAKE_GOLDEN_DIR), { recursive: true });
+      writeFileSync(join(repo, "lean/a.lean"), "1"); writeFileSync(join(repo, LAKE_GOLDEN_DIR, "x"), "1"); g("add", "."); g("commit", "-qm", "one");
+      const c1 = g("rev-parse", "HEAD");
+      writeFileSync(join(repo, "other"), "1"); g("add", "."); g("commit", "-qm", "two");
+      const c2 = g("rev-parse", "HEAD");
+      const con = join(repo, ".fw-console");
+      mkdirSync(join(con, "review-cache", "slot"), { recursive: true });
+      const key = lakeKeyOf(repo, c2)!;
+      expect(key).toEqual(lakeKeyOf(repo, c1));
+      expect(lakeRecords(con, repo, [c2, c1], key)).toEqual([]);
+      const rec = (rev: string, exit: number) => writeFileSync(checkShRecordFile(con, g("rev-parse", `${rev}^{tree}`)), JSON.stringify({ key: { tree: g("rev-parse", `${rev}^{tree}`) }, exit }));
+      rec(c1, 1);
+      expect(lakeRecords(con, repo, [c2, c1], key)).toEqual([]);
+      rec(c1, 0);
+      expect(lakeRecords(con, repo, [c2, c1], key)).toEqual([{ key, src: "checkSh", pass: true }]);
+      expect(lakeRecords(con, repo, [c2], key)).toEqual([]);
+      mkdirSync(join(con, "review-cache", "land-lake"), { recursive: true });
+      writeFileSync(lakePassFile(con, key), "x");
+      expect(lakeRecords(con, repo, [c2], key)).toEqual([{ key, src: "dryLint", pass: true }]);
+      expect(lakeRecords(con, repo, [c2], { ...key, golden: "other" })).toEqual([]);
+      writeFileSync(join(repo, "lean/a.lean"), "2"); g("add", "."); g("commit", "-qm", "three");
+      expect(lakeKeyOf(repo, "HEAD")).not.toEqual(key);
+    } finally { rmSync(repo, { recursive: true, force: true }); }
   });
 });

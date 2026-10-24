@@ -8,6 +8,7 @@ import { RECORDER_SRC, TO_END_JS, heroJs, endJs, intervalsOf } from './profile/r
 import { HERO_BURST, END_PUSH } from '../../gate-breakpoints/src/smooth/schedule.mjs';
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { cadenceOf, runCells } from './safari-local-run.mjs';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -47,7 +48,7 @@ export async function armServer(arms) {
     if (!a.tree.dir) return [a.id, { root: snapshotRoot(), rewrite: null, hash: null }];
     const root = resolve(a.tree.dir);
     const cfg = JSON.parse(readFileSync(join(root, 'configs.json'), 'utf8'));
-    const hash = cfg.bySearch[a.tree.search ?? ''];
+    const hash = cfg.bySearch[canonSearch(a.tree.search ?? '')];
     if (!hash) throw new Error(`arm ${a.id}: search "${a.tree.search}" is not prerendered`);
     return [a.id, { root, rewrite: (p) => (p === '/' || p === '/index.html' ? '/' + cfg.byHash[hash] : null), hash }];
   }));

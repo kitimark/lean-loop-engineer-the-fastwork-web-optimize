@@ -57,7 +57,7 @@ async function holdPorts(n, { max = 65535, host = "127.0.0.1" } = {}) {
   const release = () => Promise.all(held.map(closeSrv));
   try {
     for (let tries = 0; held.length < n; tries++) {
-      if (tries > 400) throw new Error(`no ${n} free ports at or below ${max}`);
+      if (tries > 400 + 65535 - max) throw new Error(`no ${n} free ports at or below ${max}`);
       const s = await listenOn(0, host);
       held.push(s);
       if (s.address().port > max) { held.pop(); await closeSrv(s); }
