@@ -56,6 +56,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.wtName` | `dir` (a worktree directory) (`Fw.Plan.Polish.wtName`, `wtName_relative`, `wtName_safe`, `wtName_not_dots`) | `name` [the last segment of an absolute `.../.claude/worktrees/<name>`; `null` for a relative, `~`, trailing-slash or odd-named path] |
 | `plan.inWt` | `main` (the main checkout root, absolute), `name` (the worktree name), `path` (an edited path; relative = under `main`), optional `resolved` (default true; false = no ancestor of the path has a real path) (`Fw.Plan.Polish.ownFact`, `ownEdit_sound`) | `verdict` (`own`, `badMain`, `badName`, `notPlain`, `outside`, `unresolved`), `own` [bool] |
 | `plan.polishWalk` | `head` [lines of the HEAD file], `hunks` [{target, oldLen, new [lines], keep}] in ascending order (`Fw.Plan.Polish.walk`) | `lines` [the file: HEAD with exactly the kept hunks applied] |
+| `plan.polishLines` | `path`, `old` (the text before the cut), `new` (the text after) (`Fw.Plan.Polish.pathVerdict`, `refused_iff`, `joined_fewer`) | `verdict` (`ok`, `joined`, `split`, `changed`, `unchecked`), `refused` [bool] |
 | `plan.polishCuts` | `gen` [paths], `heads`?, `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
 | `plan.roster` | (none) | `roles` [{name, runsAs, edits}]: `Fw.Ops.SpawnGuard.prodRoles` |
 | `plan.overlap` | `rows` [{id, writes}] (work graph), `running` [task ids], `candidate`? [task id], `override`? [reason] (task `spawn-write-overlap`, `Fw.Plan.Overlap`) | `verdict` (`clear`, `refused`, `overridden`, `unknown`), `conflicts` [{a, b, ga, gb}], `unknown` [ids] |
@@ -332,6 +333,12 @@ def opPolishWalk (req : Json) : Except String Reply := do
   pure [("lines", strsJson (walk head 0 hs))]
 
 open Fw.Plan.Polish in
+/-- `plan.polishLines`: whether a comment cut keeps every code line of the original as a line (`pathVerdict`, `refused_iff`). -/
+def opPolishLines (req : Json) : Except String Reply := do
+  let v := pathVerdict (← str req "path") (← str req "old") (← str req "new")
+  pure [("verdict", .str v.name), ("refused", .bool v.refused)]
+
+open Fw.Plan.Polish in
 def opWtName (req : Json) : Except String Reply := do
   pure [("name", match wtName (← Fw.Wire.str req "dir") with | some n => .str n | none => .null)]
 
@@ -348,7 +355,7 @@ def opRoster : Reply :=
 
 def ops : List String :=
   ["plan.incidentLint", "plan.overlap", "plan.reviewReady", "plan.reviewVerdict", "plan.polishPlan", "plan.polishCuts",
-   "plan.polishHunks", "plan.polishSettle", "plan.polishWalk", "plan.wtName", "plan.inWt", "plan.roster"]
+   "plan.polishHunks", "plan.polishSettle", "plan.polishWalk", "plan.polishLines", "plan.wtName", "plan.inWt", "plan.roster"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
@@ -361,6 +368,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "plan.polishHunks" => some (opPolishHunks req)
   | "plan.polishSettle" => some (opPolishSettle req)
   | "plan.polishWalk" => some (opPolishWalk req)
+  | "plan.polishLines" => some (opPolishLines req)
   | "plan.wtName" => some (opWtName req)
   | "plan.inWt" => some (opInWt req)
   | "plan.roster" => some (pure opRoster)

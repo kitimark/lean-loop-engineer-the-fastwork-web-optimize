@@ -23,6 +23,7 @@ const cutsReq = (docs: { path: string; text: string }[], cuts: { path: string; o
   ({ op: "plan.polishCuts", gen: [LAKE_GEN], docs, cuts });
 
 type Sp = { path: string; spans: { start: number; len: number }[] };
+const linesReq = (path: string, old: string, nw: string) => ({ op: "plan.polishLines", path, old, new: nw });
 const hunks = (o: { diff?: Sp[]; edits?: Sp[]; main?: string[] }) => ({ op: "plan.polishHunks", diff: o.diff ?? [], edits: o.edits ?? [], main: o.main ?? [] });
 
 const settle = (o: { before: string[]; dirty: string[]; untracked: string[]; dirtyBefore?: string[] }) => ({ op: "plan.polishSettle", ...o });
@@ -131,6 +132,22 @@ const cases: [string, Record<string, unknown>][] = [
     [{ path: "docs/team/incidents/ledger.json", old: "b c\"", new: "b\"" }])],
   ["cuts: cuts apply in order, the second sees the first's text", cutsReq([{ path: md, text: "a very long b. a c.\n" }],
     [{ path: md, old: "a very long b.", new: "a b." }, { path: md, old: "a b.", new: "b." }])],
+  ["lines: a trailing # comment cut, newline kept (sh)", linesReq("lean/scripts/check.sh", "cmd a  # note\ncmd b\n", "cmd a\ncmd b\n")],
+  ["lines: a trailing # comment cut with its newline joins two jobs (sh)", linesReq("lean/scripts/check.sh", "cmd a  # note\ncmd b\n", "cmd a  cmd b\n")],
+  ["lines: a whole-line # comment deleted (yaml)", linesReq("a.yml", "a: 1\n# why\nb: 2\n", "a: 1\nb: 2\n")],
+  ["lines: a trailing // comment cut with its newline joins (ts)", linesReq("a.ts", "a(); // x\nb();\n", "a(); b();\n")],
+  ["lines: a block comment deleted on its own lines (ts)", linesReq("a.ts", "a();\n/* x\n y */\nb();\n", "a();\nb();\n")],
+  ["lines: a block comment cut that pulls code up joins (ts)", linesReq("a.ts", "a(); /* x\n y */ b();\n", "a(); b();\n")],
+  ["lines: a trailing -- comment cut with its newline joins (lean)", linesReq("a.lean", "def a := 1 -- x\ndef b := 2\n", "def a := 1 def b := 2\n")],
+  ["lines: a nested block comment deleted (lean)", linesReq("a.lean", "/- a\n /- b -/ c -/\ndef b := 2\n", "def b := 2\n")],
+  ["lines: a cut at the end of the file (sh)", linesReq("a.sh", "cmd a\n# end\n", "cmd a\n")],
+  ["lines: a trailing comment at the end of the file without a newline (sh)", linesReq("a.sh", "cmd a  # end", "cmd a")],
+  ["lines: code changed (sh)", linesReq("a.sh", "cmd a\n", "cmd b\n")],
+  ["lines: a line split in two (sh)", linesReq("a.sh", "cmd a b\n", "cmd a\nb\n")],
+  ["lines: a file type with no syntax is unchecked", linesReq("a.md", "x\n", "y\n")],
+  ["lines: join shape of 162a694 (its parent line was already joined; the lint catches that)", linesReq("lean/scripts/check.sh", "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n", "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n")],
+  ["lines: real join 35f3727 mac-safari-measure", linesReq("lean/scripts/check.sh", "job \"sup-measure\" x  # s\njob \"node-budget\" y\n", "job \"sup-measure\" x  job \"node-budget\" y\n")],
+  ["lines: real join 4d0c107 hero-accent-draw-nolayout", linesReq("lean/scripts/check.sh", "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n", "job \"hero-scene-pause\" x  job \"nav-earn\" y\n")],
 ];
 
 function fwcore(reqs: Record<string, unknown>[]): Record<string, unknown>[] {
@@ -533,6 +550,32 @@ describe("fw polish commit on a real fixture branch (incidents inc-polish-file-s
       expect(lines.at(-2)).toBe(`cleanup: restored 1 (${file}), removed 1 (${file}-e), worktree clean`);
       expect(g(wt, "status", "--porcelain").trim()).toBe("?? mine.txt");
       expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("refuses a comment cut that joins two code lines (inc-polish-line-join) and keeps one that does not", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      const withNote = tip.slice(); withNote[59] = "echo changed 60  # note";
+      writeFileSync(join(wt, file), withNote.join("\n") + "\n");
+      g(wt, "commit", "-qam", "builder note");
+      const planLines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, planLines))).toBe(0);
+      const joined = withNote.slice(); joined.splice(59, 2, "echo changed 60  echo changed 61");
+      writeFileSync(join(wt, file), joined.join("\n") + "\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`VERDICT polish-cuts t refused-join ${file}`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(withNote.join("\n") + "\n");
+      const okLines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, okLines))).toBe(0);
+      const kept = withNote.slice(); kept[59] = "echo changed 60";
+      writeFileSync(join(wt, file), kept.join("\n") + "\n");
+      const fine: string[] = [];
+      expect(await run(wt, fine)).toBe(0);
+      expect(fine.some((l) => l.includes("refused-join"))).toBe(false);
+      expect(fine.at(-1)).toBe("VERDICT polish-commit t committed");
     } finally { rmSync(base, { recursive: true, force: true }); }
   });
 

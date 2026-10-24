@@ -901,4 +901,191 @@ private def head10 : List String := ["a", "b", "c", "d", "e", "f", "g", "h", "i"
 #guard walk head10 0 [⟨3, 0, ["x"], true⟩] = ["a", "b", "c", "x", "d", "e", "f", "g", "h", "i", "j"]
 #guard walk head10 0 [⟨1, 1, ["B"], false⟩, ⟨8, 2, ["Y"], true⟩] = ["a", "b", "c", "d", "e", "f", "g", "h", "Y"]
 
+/-! ## Line preservation: a comment cut keeps every code line (incident inc-polish-line-join) -/
+
+/-- The comment syntax of a file type. `lineMark` starts a comment to the end of the line (`needWs`: only at the line start or after
+a space, as in sh and yaml, where `$#` is code); `bopen`/`bclose` bracket a block comment (`nest`: blocks nest, as in Lean). -/
+structure Syn where
+  lineMark : List Char
+  bopen : List Char
+  bclose : List Char
+  nest : Bool
+  needWs : Bool
+  deriving DecidableEq
+
+def synHash : Syn := ⟨['#'], [], [], false, true⟩
+def synSlash : Syn := ⟨['/', '/'], ['/', '*'], ['*', '/'], false, false⟩
+def synLean : Syn := ⟨['-', '-'], ['/', '-'], ['-', '/'], true, false⟩
+
+/-- The comment syntax of a path; `none` for a file type this rule does not check (sh/yaml `#`, ts/js `//` `/* */`, lean `--` `/- -/`). -/
+def synOf (p : String) : Option Syn :=
+  let e := extOf p
+  if shellExts.contains e || e == "yml" || e == "yaml" then some synHash
+  else if ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"].contains e then some synSlash
+  else if e == "lean" then some synLean
+  else none
+
+/-- One line scanned: `d` open block comments carried in, `q` the open quote, `ws` whether the last char is a space or the
+line start. Returns the depth carried out and the kept code characters (reversed). Fuel is the character count: each step eats one. -/
+def scan (sy : Syn) : Nat → List Char → Nat → Option Char → Bool → List Char → Nat × List Char
+  | 0, _, d, _, _, acc => (d, acc)
+  | _, [], d, _, _, acc => (d, acc)
+  | n + 1, c :: cs, d, q, ws, acc =>
+    if d > 0 then
+      if !sy.bclose.isEmpty && (c :: cs).take sy.bclose.length == sy.bclose then
+        scan sy n (cs.drop (sy.bclose.length - 1)) (d - 1) q true acc
+      else if sy.nest && !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
+        scan sy n (cs.drop (sy.bopen.length - 1)) (d + 1) q true acc
+      else scan sy n cs d q true acc
+    else match q with
+      | some k => scan sy n cs 0 (if c == k then none else q) false (c :: acc)
+      | none =>
+        if (c :: cs).take sy.lineMark.length == sy.lineMark && (ws || !sy.needWs) then (0, acc)
+        else if !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
+          scan sy n (cs.drop (sy.bopen.length - 1)) 1 none true (' ' :: acc)
+        else if c == '"' || (c == '\'' && sy.needWs) || (c == '`' && !sy.needWs && !sy.nest) then
+          scan sy n cs 0 (some c) false (c :: acc)
+        else scan sy n cs 0 none (c == ' ' || c == '\t') (c :: acc)
+
+/-- A line with its comments removed and white space collapsed; the block depth carried to the next line. -/
+def stripLine (sy : Syn) (d : Nat) (l : String) : Nat × String :=
+  let r := scan sy (l.length + 1) l.toList d none true []
+  (r.1, " ".intercalate (((String.ofList (r.2.reverse.map fun c => if c == '\t' then ' ' else c)).splitOn " ").filter (· ≠ "")))
+
+/-- The lines of a text with comments removed, one per original line (a comment-only line becomes empty). -/
+def stripAll (sy : Syn) (d : Nat) : List String → List String
+  | [] => []
+  | l :: ls => let r := stripLine sy d l; r.2 :: stripAll sy r.1 ls
+
+/-- The code lines of a text: the non-empty stripped lines. A cut that keeps them keeps every code line as a line. -/
+def codeLines (sy : Syn) (t : String) : List String := (stripAll sy 0 (t.splitOn "\n")).filter (· ≠ "")
+
+inductive LineV where
+  | ok | joined | split | changed | unchecked
+  deriving DecidableEq
+
+def LineV.name : LineV → String
+  | .ok => "ok" | .joined => "joined" | .split => "split" | .changed => "changed" | .unchecked => "unchecked"
+
+/-- The verdict of a cut over the original text `o` and the cut text `c` for syntax `sy`: `ok` when the code lines are equal;
+`joined` when the cut has fewer code lines, `split` when more, `changed` when the same number differ. -/
+def lineVerdict (sy : Syn) (o c : String) : LineV :=
+  if codeLines sy o = codeLines sy c then .ok
+  else if (codeLines sy c).length < (codeLines sy o).length then .joined
+  else if (codeLines sy o).length < (codeLines sy c).length then .split
+  else .changed
+
+/-- The verdict for a path: a type with no known syntax stays `unchecked`. -/
+def pathVerdict (p o c : String) : LineV :=
+  match synOf p with
+  | none => .unchecked
+  | some sy => lineVerdict sy o c
+
+/-- A cut is refused when it is not `ok` or `unchecked`. -/
+def LineV.refused : LineV → Bool
+  | .ok | .unchecked => false
+  | _ => true
+
+theorem lineVerdict_refl (sy : Syn) (t : String) : lineVerdict sy t t = .ok := by simp [lineVerdict]
+
+theorem lineVerdict_ne_unchecked (sy : Syn) (o c : String) : lineVerdict sy o c ≠ .unchecked := by
+  unfold lineVerdict
+  by_cases a : codeLines sy o = codeLines sy c <;> simp only [a, ite_true, ite_false]
+  · simp
+  by_cases b : (codeLines sy c).length < (codeLines sy o).length <;> simp only [b, ite_true, ite_false]
+  · simp
+  by_cases d : (codeLines sy o).length < (codeLines sy c).length <;> simp only [d, ite_true, ite_false] <;> simp
+
+theorem lineVerdict_ok_iff (sy : Syn) (o c : String) : lineVerdict sy o c = .ok ↔ codeLines sy o = codeLines sy c := by
+  unfold lineVerdict
+  by_cases h : codeLines sy o = codeLines sy c
+  · simp [h]
+  · simp only [h, ite_false]
+    by_cases b : (codeLines sy c).length < (codeLines sy o).length <;> simp only [b, ite_true, ite_false]
+    · simp
+    by_cases d : (codeLines sy o).length < (codeLines sy c).length <;> simp only [d, ite_true, ite_false] <;> simp
+
+/-- The join branch: a cut with `joined` has fewer code lines than the original. -/
+theorem joined_fewer (sy : Syn) (o c : String) (h : lineVerdict sy o c = .joined) :
+    (codeLines sy c).length < (codeLines sy o).length := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · split at h
+    · assumption
+    · split at h <;> cases h
+
+/-- The split branch: a cut with `split` has more code lines than the original. -/
+theorem split_more (sy : Syn) (o c : String) (h : lineVerdict sy o c = .split) :
+    (codeLines sy o).length < (codeLines sy c).length := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · split at h
+    · cases h
+    · split at h
+      · assumption
+      · cases h
+
+/-- The changed branch: same number of code lines, different text. -/
+theorem changed_same_count (sy : Syn) (o c : String) (h : lineVerdict sy o c = .changed) :
+    (codeLines sy o).length = (codeLines sy c).length ∧ codeLines sy o ≠ codeLines sy c := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · rename_i h1
+    split at h
+    · cases h
+    · rename_i h2
+      split at h
+      · cases h
+      · rename_i h3
+        exact ⟨by omega, h1⟩
+
+/-- A refused cut for a known syntax is exactly one whose code lines differ. -/
+theorem refused_iff (p o c : String) (sy : Syn) (hs : synOf p = some sy) :
+    (pathVerdict p o c).refused = true ↔ codeLines sy o ≠ codeLines sy c := by
+  simp only [pathVerdict, hs]
+  constructor
+  · intro h hh
+    have := (lineVerdict_ok_iff sy o c).2 hh
+    rw [this] at h
+    simp [LineV.refused] at h
+  · intro h
+    have : lineVerdict sy o c ≠ .ok := fun e => h ((lineVerdict_ok_iff sy o c).1 e)
+    have hu := lineVerdict_ne_unchecked sy o c
+    revert this hu
+    cases lineVerdict sy o c <;> simp [LineV.refused]
+
+/-- A file type with no known syntax is never refused (listed as unchecked). -/
+theorem unchecked_never_refused (p o c : String) (h : synOf p = none) : (pathVerdict p o c).refused = false := by
+  simp [pathVerdict, h, LineV.refused]
+
+/-! ### Goldens for the line rule: trailing comment, whole-line comment, block comment, end of file, the 3 real joins -/
+
+private def vd (p o c : String) : String := (pathVerdict p o c).name
+
+-- a trailing comment removed with its text only (newline kept): ok
+#guard vd "a.sh" "cmd a  # note\ncmd b\n" "cmd a\ncmd b\n" = "ok"
+-- the incident: the trailing comment removed together with its newline
+#guard vd "a.sh" "cmd a  # note\ncmd b\n" "cmd a  cmd b\n" = "joined"
+-- a whole-line comment deleted with its line: ok
+#guard vd "a.yml" "a: 1\n# why\nb: 2\n" "a: 1\nb: 2\n" = "ok"
+#guard vd "a.ts" "a(); // x\nb();\n" "a(); b();\n" = "joined"
+#guard vd "a.ts" "a(); /* x\n y */ b();\n" "a(); b();\n" = "joined"
+#guard vd "a.ts" "a();\n/* x\n y */\nb();\n" "a();\nb();\n" = "ok"
+#guard vd "a.lean" "def a := 1 -- x\ndef b := 2\n" "def a := 1 def b := 2\n" = "joined"
+#guard vd "a.lean" "/- a\n /- b -/ c -/\ndef b := 2\n" "def b := 2\n" = "ok"
+-- a cut at the end of the file: the last comment line and its newline
+#guard vd "a.sh" "cmd a\n# end\n" "cmd a\n" = "ok" && vd "a.sh" "cmd a  # end" "cmd a" = "ok"
+-- code touched, split, unknown type
+#guard vd "a.sh" "cmd a\n" "cmd b\n" = "changed" && vd "a.sh" "cmd a b\n" "cmd a\nb\n" = "split"
+#guard vd "a.md" "x\n" "y\n" = "unchecked"
+-- a `#` in a quote or `$#` is code, not a comment
+#guard codeLines synHash "echo $# \"a # b\" # c" = ["echo $# \"a # b\""]
+-- the three real joins (162a694, 35f3727, 4d0c107): a job line with a trailing comment and the next job line
+#guard vd "lean/scripts/check.sh" "job \"sup-measure\" x  # sup\njob \"node-budget\" y\n" "job \"sup-measure\" x  job \"node-budget\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"hero-scene-pause\" x  # a\njob \"nav-earn\" y\n" "job \"hero-scene-pause\" x  job \"nav-earn\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n" "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n" = "joined"
+
 end Fw.Plan.Polish
