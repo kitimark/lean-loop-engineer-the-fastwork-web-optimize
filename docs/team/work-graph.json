@@ -20459,7 +20459,8 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
-   "title": "engine.scroll:unthrottle-follow (research/notes/2026/10-2x-webkit-throttles.md rank 1): unthrottle plus a rAF loop that keeps requesting frames while scrollY moves, stopping after k still frames or scrollend, so parts read the newest scrollY per rendering update even under WebKit's eventThrottlingDelay (WebPageIOS.mm:2240-2256), which unthrottle does not lift. Lean first: the stop rule terminates; each frame's y is the latest scrollY at that update, never older than the event-driven y; outputs stay functions of scrollY (same look). Lego brick: composes with engine.scroll:unthrottle. Measure on CI WKTR with eventThrottlingBehaviorOverride = unresponsive: stalled runs per 1000 moving frames, faithful vs unthrottle vs follow."
+   "title": "engine.scroll:unthrottle-follow (research/notes/2026/10-2x-webkit-throttles.md rank 1): unthrottle plus a rAF loop that keeps requesting frames while scrollY moves, stopping after k still frames or scrollend, so parts read the newest scrollY per rendering update even under WebKit's eventThrottlingDelay (WebPageIOS.mm:2240-2256), which unthrottle does not lift. Lean first: the stop rule terminates; each frame's y is the latest scrollY at that update, never older than the event-driven y; outputs stay functions of scrollY (same look). Lego brick: composes with engine.scroll:unthrottle. Measure on CI WKTR with eventThrottlingBehaviorOverride = unresponsive: stalled runs per 1000 moving frames, faithful vs unthrottle vs follow.",
+   "evidence": "1f6dbef"
   },
   {
    "devices": [
