@@ -1,3 +1,5 @@
+{"flag":"hero.accent:draw-nolayout","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
+{"flag":"hero.accent:draw-nolayout-full","kind":"proposal","member":false,"userDecision":{"date":"2026-10-25","decision":"rejected","material":{"chromium":{"state":"pending"},"webkit":{"artifact":"webkit-sim-r1, webkit-sim-r2, webkit-sim-r3","expires":"2026-11-22","run":"40030735082, 40035116432","state":"ready","task":"accent-nolayout-measure"}},"review":"done"},"visClass":"L"}
 {"flag":"morph.end.clamp:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.end.flip:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.end.release:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}

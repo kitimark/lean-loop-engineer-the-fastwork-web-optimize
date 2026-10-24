@@ -82,8 +82,10 @@ describe('draw-nolayout-full against the Lean golden', () => {
     expect(renderToString(createElement(HeroAccent, { variant: 'draw-nolayout-full' }))).toContain(
       'data-fw-draw="nolayout-full"',
     );
-    const v = (part.variants as Record<string, { kind: string; provenance: { limit?: string } }>)['draw-nolayout-full'];
-    expect(v!.kind).toBe('optimized');
+    const v = (part.variants as Record<string, { kind: string; visClass?: string; provenance: { limit?: string } }>)[
+      'draw-nolayout-full'
+    ];
+    expect(v).toMatchObject({ kind: 'proposal', visClass: 'L' });
     expect(v!.provenance.limit!.startsWith('look change')).toBe(true);
   });
 });
@@ -93,11 +95,11 @@ describe('component and registry', () => {
     expect(renderToString(createElement(HeroAccent, { variant: 'draw-nolayout' }))).toContain('data-fw-draw="nolayout"');
     expect(renderToString(createElement(HeroAccent, { variant: 'faithful' }))).not.toContain('data-fw-draw');
   });
-  it('is registered as an optimized T0 look-change variant', () => {
-    const v = (part.variants as Record<string, { kind: string; tier: string; provenance: { limit?: string } }>)[
+  it('is registered as a T0 look-change proposal (class L)', () => {
+    const v = (part.variants as Record<string, { kind: string; tier: string; visClass?: string; provenance: { limit?: string } }>)[
       'draw-nolayout'
     ];
-    expect(v).toMatchObject({ kind: 'optimized', tier: 'T0' });
+    expect(v).toMatchObject({ kind: 'proposal', tier: 'T0', visClass: 'L' });
     expect(v!.provenance.limit!.startsWith('look change')).toBe(true);
   });
 });
