@@ -47,7 +47,7 @@ export const inactiveAt = (flags, w) => flags.length > 0 && flags.every((f) => C
 export const basisAt = (flags, w) => (inactiveAt(flags, w) ? 'same-by-proof' : 'measured');
 
 /** The most passes the candidate's morph walk takes beyond its first ones (Lean `extraCap`). */
-export const EXTRA_CAP = 15;
+export const EXTRA_CAP = 8;
 
 /** Whether a reading (the morph values of the rows of one push, every pass pooled) has a row in bucket `k` (Lean `hit`). */
 export const hitIn = (ms, k) => ms.some((m) => bucket(m) === k);

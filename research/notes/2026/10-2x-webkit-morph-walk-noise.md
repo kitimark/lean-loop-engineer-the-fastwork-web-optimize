@@ -10,7 +10,7 @@ Task `webkit-morph-walk-noise` (split from `webkit-morph-cell`). Branch `ci/webk
   control `hero.exit:faithful`) misses in all 5 reps; the reducer then gives `fail:coverage`, `rel = new`, at the same
   step on every width, and two widths make "no verdict: coverage". It is noise in the walk, not the flag.
 - **Fix:** a per-width retry decided in Lean. After its 5 reps the candidate walks extra fresh pages while some interior
-  bucket of the open or close push has rows in orig and base but none in the candidate, at most 15 extra (`extraCap`).
+  bucket of the open or close push has rows in orig and base but none in the candidate, at most 8 extra (`extraCap`).
 - **Lean:** the retry loop terminates within the cap, ends with no gap or at the cap, and a page whose hits do not change
   gives the same coverage on repeat. The decision reads recorded facts (which buckets have rows) only.
 - **CI:** see "CI result" below.
@@ -48,18 +48,20 @@ Lean (`lean/Fw/Gate/Trajectory.lean`, section "settle"):
 - Golden: 14 `casesSettle` lines (`retry`, `settle`, `settleConst`) in `packages/contracts/golden/gate/trajectory.jsonl`
   (383 lines, written by Lean); `trajectory.test.mjs` replays them against `plan.mjs` (423 pass).
 
-Why a cap of 15 (INFERRED, Monte Carlo `mc.mjs` from the hit table above, 20000 trials):
+Why a cap of 8 (INFERRED, Monte Carlo `mc.mjs` from the hit table above, 20000 trials):
 
 | extra cap | P(cell does not repeat at 2 or more widths) | mean extra passes per width |
 |---|---|---|
 | 0 | 0.33 | 0 |
-| 5 | 0.86 | 1.7 |
-| 10 | 0.98 | 2.3 |
-| 15 | 0.994 | 2.6 |
-| 20 | 0.999 | 2.7 |
+| 5 | 0.85 | 1.7 |
+| 8 | 0.95 | 2.1 |
+| 15 | 0.995 | 2.6 |
 
-Worst case +15 passes (about 4.25 min) per width, so the apple job `timeout-minutes` goes from 15 to 40
-(`.github/workflows/trajectory-probe.yml`, outside the task writes, listed in the report).
+The apple job has a 15 min `timeout-minutes` that Lean decides (pool caps, `ci-paths.test.mjs` "pool caps"), and a leg of two
+widths already takes about 11 min (MEASURED, run 40099056290). One pass is about 17 s, so the cap is 8 (worst case about 2.3 min
+per width, mean about 36 s): a cap of 15 would give a larger pass chance but a worst case past the job cap, and a timeout
+loses the whole leg. The first push (run 40122382227) ran the cap-15 code with the job timeout raised to 40 min; the final
+code has cap 8 and the original 15 min timeout.
 
 ## Limits
 

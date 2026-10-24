@@ -3193,8 +3193,8 @@ def gapsIn (o b c : Reading) : List Nat :=
 /-- The gaps of both pushes. -/
 def gaps (o b c : Push) : Nat := (gapsIn o.opening b.opening c.opening).length + (gapsIn o.closing b.closing c.closing).length
 
-/-- The most passes the candidate walks beyond its first ones. -/
-def extraCap : Nat := 15
+/-- The most passes the candidate walks beyond its first ones (8 keeps a Mac leg inside its 15 min cap). -/
+def extraCap : Nat := 8
 
 /-- The candidate walks another pass when it has walked fewer than `extraCap` extra ones and has a gap. -/
 def more (extra : Nat) (o b c : Push) : Bool := decide (extra < extraCap) && decide (gaps o b c ≠ 0)
