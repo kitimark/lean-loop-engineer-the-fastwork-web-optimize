@@ -18,7 +18,8 @@
   (the later events keep it). Test `wait.test.ts` "a tick whose full list raised the pages ..." (fails on the old code
   with prevPollS 10 for a 12 s gap).
 ## Verified
-- See the report: check.sh, @fw/gh-budget tests, plan lint, dry land.
+- `lean/scripts/check.sh` green (axioms ok); @fw/gh-budget 86 tests, @fw/contracts 11, ci-paths 56; plan lint 0
+  errors; dry land result in the report.
 ## Open (follow-ups)
 - `gapCapMs` keeps `max q w`: with post-event intervals `w` alone schedules the gap, so `q > w` (the deciding tick grew
   the interval) over-nets by `q - w`.
