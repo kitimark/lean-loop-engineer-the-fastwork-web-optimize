@@ -3602,7 +3602,7 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (needs a lead dispatch)",
+    "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (moves to task offscreen-count-lane)",
     "Breakpoint gate with the flag not run (negative result, flag not offered)",
     "Size of the commit window in frames, not measured"
    ],
