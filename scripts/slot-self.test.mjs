@@ -101,7 +101,6 @@ test("fw.ts slot: usage error exits 64 with the usage text, like fw-main.ts", ()
   assert.match(r.stderr, /usage: fw slot run/);
 });
 
-// The guard line of lean/scripts/check.sh, run in a scratch tree whose script body only prints "ran".
 const guardTree = () => {
   const line = readFileSync(join(top, "lean", "scripts", "check.sh"), "utf8").split("\n").find((l) => l.includes("slot-self.mjs check"));
   assert.ok(line, "check.sh has the slot-self guard line");

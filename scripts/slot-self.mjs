@@ -7,8 +7,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const KINDS = new Set(["check", "test"]);
 const SLOT_MAIN = join(here, "..", "apps", "runner", "src", "slot-main.ts");
 
-// `nested` is the token rule's answer (nestedHeld in apps/runner/src/slot.ts, from nestedSkips in lean/Fw/Sup/Nested.lean):
-// true only when FW_SLOT_TOKEN names a live held entry of this owner. FW_SLOT_HELD alone decides nothing.
 export function plan(env, args, nested = false) {
   const [kind, sep, ...cmd] = args;
   if (!KINDS.has(kind) || sep !== "--" || cmd.length === 0) return { error: "usage: slot-self.mjs <check|test> -- <cmd...>" };

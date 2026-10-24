@@ -48,7 +48,7 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   (xnu osfmk/vm/vm_page.h:1528@f6217f8, osfmk/vm/vm_pageout.c:4732-4738@f6217f8), so in the lead's busy window
   (MEASURED) the old probe read 9994-11141 MB free while 217-2005 MB were available. The pageout daemon reclaims
   file pages only down to `vm_page_filecache_min` and then compresses process memory (vm_pageout.c:2211-2230,
-  2620-2623@f6217f8), so file cache below the minimum adds nothing.
+  2620-2623@f6217f8).
 - **Memory low.** `memLow` holds when available memory is under the 1 GB floor, the kernel pressure level is not
   normal (1), pages leave for swap at 64 MB a minute or more (`swapActive`), or the compressor takes in at least
   1500 MB a minute (`thrash`). Both rates come from the `Compressions` and `Swapouts` counters and a mark in

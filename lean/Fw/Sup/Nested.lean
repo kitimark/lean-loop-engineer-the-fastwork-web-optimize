@@ -3,7 +3,7 @@ import Fw.Sup.Adapt
 /-! A `fw slot run` started inside another slot's command: when it may skip the queue (docs/team/tools/slot.md). -/
 namespace Fw.Sup.Adapt
 
-/-- A nested request skips the queue iff its parent names a live held entry of the same owner and token and either the kinds are equal or the request is neither `sim` nor `measure` (it then runs under the parent's lease; refusing it would break `fw land`, which runs check.sh and package tests inside its land slot). A `sim` or `measure` request always goes through admission, so the exclusive Simulator and measure slots stay exclusive. Live means now < till (the parent's run renews it every leaseS/3); the owner's pid and start time are not checked (follow-up: Entry has no pid). -/
+/-- A nested request skips the queue iff a live held entry has its owner and token and the same kind, or the request is neither `sim` nor `measure`. -/
 def nestedSkips (now : Nat) (kind : Kind) (named : Option (String × String)) (held : List Entry) : Bool :=
   match named with
   | none => false
@@ -22,23 +22,19 @@ theorem nestedSkips_iff (now : Nat) (kind : Kind) (owner token : String) (held :
 
 theorem nestedSkips_none (now : Nat) (kind : Kind) (held : List Entry) : nestedSkips now kind none held = false := rfl
 
-/-- Nothing held: a nested request never skips. -/
 theorem nestedSkips_empty (now : Nat) (kind : Kind) (named : Option (String × String)) :
     nestedSkips now kind named [] = false := by
   cases named <;> simp [nestedSkips]
 
-/-- Same kind under a live parent: skip (the OR-branch "same kind"). -/
 theorem nestedSkips_same_kind {now : Nat} {held : List Entry} {e : Entry} (he : e ∈ held) (hl : now < e.till) :
     nestedSkips now e.kind (some (e.owner, e.token)) held = true :=
   (nestedSkips_iff now e.kind e.owner e.token held).2 ⟨e, he, hl, rfl, rfl, Or.inl rfl⟩
 
-/-- A request of a kind other than `sim` and `measure` under a live parent of any kind skips (no wait on the own ancestor at limit 1). -/
 theorem nestedSkips_other_kind {now : Nat} {held : List Entry} {e : Entry} {k : Kind} (he : e ∈ held)
     (hl : now < e.till) (hs : k ≠ .sim) (hm : k ≠ .measure) :
     nestedSkips now k (some (e.owner, e.token)) held = true :=
   (nestedSkips_iff now k e.owner e.token held).2 ⟨e, he, hl, rfl, rfl, Or.inr ⟨hs, hm⟩⟩
 
-/-- A `sim` request under a live parent of another kind never skips: it goes through admission. -/
 theorem nestedSkips_sim_admission {now : Nat} {held : List Entry} {owner token : String}
     (h : ∀ e ∈ held, e.kind ≠ .sim) : nestedSkips now .sim (some (owner, token)) held = false := by
   cases hc : nestedSkips now .sim (some (owner, token)) held
@@ -48,7 +44,6 @@ theorem nestedSkips_sim_admission {now : Nat} {held : List Entry} {owner token :
     · exact absurd h4 (h e he)
     · exact absurd rfl h4.1
 
-/-- A `measure` request under a live parent of another kind never skips either. -/
 theorem nestedSkips_measure_admission {now : Nat} {held : List Entry} {owner token : String}
     (h : ∀ e ∈ held, e.kind ≠ .measure) : nestedSkips now .measure (some (owner, token)) held = false := by
   cases hc : nestedSkips now .measure (some (owner, token)) held
@@ -58,7 +53,6 @@ theorem nestedSkips_measure_admission {now : Nat} {held : List Entry} {owner tok
     · exact absurd h4 (h e he)
     · exact absurd rfl h4.2
 
-/-- A `sim` request admitted with a single live non-sim holder (its parent) is not held back by that parent: neither `simBusy` nor `drain`. -/
 theorem sim_under_parent_not_blocked (p : Params) (n : Nat) (s : Sample) (e : Entry) (q : List Entry) (me : Entry) (w : Nat)
     (hk : me.kind = .sim) (he : e.kind ≠ .sim) {why : Why} {r : Verdict}
     (hv : verdict p n s [e] q me w = r) (hr : r = .wait why ∨ r = .timeout why) :
