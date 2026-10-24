@@ -72,6 +72,7 @@ import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
 import Fw.Parts.MorphConstBounds
+import Fw.Parts.Gpu
 import Fw.Parts.MorphPanelThreaded
 import Fw.Parts.MorphPanelThreadedRun
 import Fw.Parts.MorphPanelThreadedGolden
