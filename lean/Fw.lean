@@ -230,6 +230,7 @@ import Fw.Gate.Colour
 import Fw.Gate.RunPerm
 import Fw.Gate.Frames
 import Fw.Gate.PathPix
+import Fw.Gate.PathPixWire
 import Fw.Gate.Smooth
 import Fw.Wire.ShardGolden
 import Fw.Measure.WktrLayout

@@ -19798,7 +19798,8 @@
     "lean/Fw/Wire.lean",
     "lean/Fw.lean"
    ],
-   "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
+   "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md).",
+   "evidence": "ebace64"
   },
   {
    "devices": [
@@ -19893,6 +19894,28 @@
     "docs/team/handoffs/accent-same-look.md"
    ],
    "title": "User 2026-10-24 (phone session results/phone/2026-10-24): hero.accent:draw-nolayout-full 'looks different from the original'; draw-nolayout shares the clip-path wipe, so both look-change accent arms are REJECTED by the user (record userDecision rejected in research/findings/ledger.json rows accent-draw-nolayout and accent-drawin-width-nolayout). Find a same-look way to cut the accent's WebKit Layout: keep the pen-trace stroke and the 0.9 s width glide pixel-identical (path-pix draw-window zones, task pathpix-drawbase-wire) while removing per-frame layout, e.g. stroke trace pre-rendered as frames of a composited mask or a canvas/CSS paint, width glide as a transform on a fixed-width box with identical text position; each candidate decided in Lean from WebKit StyleDifference source (cite file:line@commit) and proved same-look or dropped as a negative finding with its why."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "throttle-lift-ship",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/engine.scroll/**",
+    "lean/Fw/Parts/EngineScrollUnthrottle.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/parts/engine.scroll*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "research/notes/2026/10-2x-throttle-lift-ship.md",
+    "research/notes/2026/10-2x-toolbar-throttle.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/throttle-lift-ship.md"
+   ],
+   "title": "User 2026-10-24 on the real iPhone (felt, one person, preview): ?fw=engine.scroll:throttle-lift 'looks the same and hero-exit is a lot of improve, no laggy on hero exit'; CI Simulator run 39667548341: frozen bands 163 -> 0 (3 of 3 jobs lifted). The flag is a diagnostic (one invisible fixed 1px element running a main-thread scroll-driven @property animation, so WebKit reports main-thread scroll-driven animations and WKWebViewIOS.mm:3256-3268@862f17d stops throttling visible-rect updates to 100 ms while the toolbar collapses). Promote it to a shippable optimized variant (e.g. engine.scroll:unthrottle) Lean first: (1) the WebKit condition chain from source (WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, WKWebViewIOS.mm:3256-3268 @862f17d) as a Lean decision with theorems (lifted iff a non-compositable scroll-driven animation is active; no effect without animation-timeline support); (2) same look: the element paints nothing (opacity 0, 1x1, pointer-events none, aria-hidden, no layout effect on siblings: fixed) proved from the visual model, plus the breakpoint gate on both engines; (3) its own cost: Chromium and WebKit counts per frame (one style recalc of one element per scroll frame) measured on CI (chromium-counts, webkit-sim) against faithful, with a Lean bound; (4) record the user's device observation in research/notes/2026/10-2x-toolbar-throttle.md (Phone pass) and the findings ledger; (5) propose the v2-proved preset entry only after (1)-(3) pass. Engine docs: read the WebKit bug/commit that added the 100 ms throttle and its exemption."
   }
  ],
  "deadline": {
