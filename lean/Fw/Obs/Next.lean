@@ -74,6 +74,7 @@ or done agent).
 -/
 structure Child where
   pid            : Nat
+  start          : Option Nat := none
   chain          : List Nat := []
   kind           : ChildKind
   startedAt      : Nat
@@ -197,7 +198,9 @@ def heldB (f : AgentFacts) (h : Held) : Bool :=
   | some w => h.wt == some w
   | none => false
 
-def killPidB (f : AgentFacts) (q : Nat) : Bool := f.reapHeld.any fun h => heldB f h && h.pid == q
+/-- A held entry of the agent's worktree names this child: same pid and same start (a child without a known start matches none). -/
+def killChildB (f : AgentFacts) (c : Child) : Bool :=
+  f.reapHeld.any fun h => heldB f h && h.pid == c.pid && c.start == some h.start
 
 def overdueB (now : Nat) (c : Child) : Bool :=
   match c.kind with
@@ -267,7 +270,7 @@ def cleans (f : AgentFacts) : List Action :=
   opt (f.worktree.isSome && landedB f && f.children.isEmpty && (handedBack f || endedS f.state)) .cleanupWorktree
 
 def probes (now : Nat) (f : AgentFacts) : List Action :=
-  opt ((stuckB f || handedBack f) && f.children.any (fun c => !killPidB f c.pid)) (.investigate .heldByChild) ++
+  opt ((stuckB f || handedBack f) && f.children.any (fun c => !killChildB f c)) (.investigate .heldByChild) ++
   opt (f.children.any (overdueB now)) (.investigate .ciWaitOverdue) ++
   opt (f.children.any (foreignB f)) (.investigate .foreignLoop) ++
   opt (lockDeadB f) (.investigate .lockDead)
@@ -301,6 +304,25 @@ theorem mem_orNone (l : List Action) (x : Action) (hx : x ≠ .none) : x ∈ orN
   cases l with
   | nil => simp [hx]
   | cons _ _ => simp
+
+/-- A held entry suppresses a child only by pid and start together. -/
+theorem killChild_iff (f : AgentFacts) (c : Child) :
+    killChildB f c = true ↔ ∃ h ∈ f.reapHeld, heldB f h = true ∧ h.pid = c.pid ∧ c.start = some h.start := by
+  unfold killChildB
+  simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
+  constructor
+  · rintro ⟨h, hm, ⟨hb, hp⟩, hs⟩
+    exact ⟨h, hm, hb, hp, hs⟩
+  · rintro ⟨h, hm, hb, hp, hs⟩
+    exact ⟨h, hm, ⟨hb, hp⟩, hs⟩
+
+/-- A child whose start is unknown is never suppressed by a held entry. -/
+theorem killChild_unknown (f : AgentFacts) (c : Child) (hs : c.start = none) : killChildB f c = false := by
+  cases h : killChildB f c
+  · rfl
+  · obtain ⟨h', -, -, -, h2⟩ := (killChild_iff f c).1 h
+    rw [hs] at h2
+    cases h2
 
 theorem mem_kills (f : AgentFacts) (x : Action) :
     x ∈ kills f ↔ ∃ h ∈ f.reapHeld, heldB f h = true ∧ x = .killOrphan h.pid h.start := by
@@ -1060,7 +1082,7 @@ def ghb (hs : List Held) : AgentFacts :=
   { ex "ghb-runner" .done with
     handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false },
     worktree := some { id := some "wt-ghb" }, reapHeld := hs,
-    children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22, watchedAt := some (ago 20) }] }
+    children := [{ pid := 555, start := some 1759998680, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22, watchedAt := some (ago 20) }] }
 
 #guard next {} t0 (ghb [⟨555, 1759998680, some "wt-ghb"⟩]) == [.killOrphan 555 1759998680]
 #guard next {} t0 (ghb []) == [.investigate .heldByChild]
@@ -1068,6 +1090,11 @@ def ghb (hs : List Held) : AgentFacts :=
 #guard next {} t0 (ghb [⟨555, 1759998680, none⟩]) == [.investigate .heldByChild]
 #guard next {} t0 { ghb [⟨555, 1759998680, some "wt-ghb"⟩] with worktree := some {} } == [.investigate .heldByChild]
 #guard next {} t0 (ghb [⟨777, 1759998000, some "wt-ghb"⟩]) == [.killOrphan 777 1759998000, .investigate .heldByChild]
+-- the same pid with another start is another process (pid reuse): the held entry does not suppress the child
+#guard next {} t0 (ghb [⟨555, 1759998681, some "wt-ghb"⟩]) == [.killOrphan 555 1759998681, .investigate .heldByChild]
+#guard next {} t0 { ghb [⟨555, 1759998680, some "wt-ghb"⟩] with
+    children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22, watchedAt := some (ago 20) }] }
+  == [.killOrphan 555 1759998680, .investigate .heldByChild]
 #guard next {} t0
     { ex "ghb-runner" .done with
       handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false }, worktree := some {} }

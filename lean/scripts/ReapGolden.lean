@@ -407,6 +407,76 @@ def exitText : String :=
   String.join (exitCases.map fun (op, name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
 
+/-- A `reap.held` row (`at` in milliseconds, as the runner writes it). -/
+def heldRow (atMs : Nat) (kind : String) (pid start : Nat) : Json :=
+  Json.mkObj [("type", .str "reap.held"), ("at", toJson atMs), ("kind", .str kind), ("pid", toJson pid), ("start", toJson start)]
+
+/-- A `reap.stopped` row; `targets` are (pid, start) pairs, none for an old row with pids only. -/
+def stoppedRow (atMs : Nat) (kind : String) (targets : List (Nat × Nat)) (old : Bool := false) : Json :=
+  let base := [("type", Json.str "reap.stopped"), ("at", toJson atMs), ("kind", .str kind),
+    ("pids", toJson (targets.map (·.1))), ("freedKb", toJson 0)]
+  Json.mkObj (if old then base else base ++ [("targets", .arr (targets.map fun (p, s) => Json.mkObj [("pid", toJson p), ("start", toJson s)]).toArray)])
+
+/-- A `reap.tick` row listing the E and F processes selected then. -/
+def tickRow (atMs : Nat) (live : List (String × Nat × Nat)) : Json :=
+  Json.mkObj [("type", .str "reap.tick"), ("at", toJson atMs),
+    ("live", .arr (live.map fun (k, p, s) => Json.mkObj [("kind", .str k), ("pid", toJson p), ("start", toJson s)]).toArray)]
+
+/-- Ticks every `step` seconds from `lo` to `hi` (seconds), each listing `live`. -/
+def ticksBetween (step lo hi : Nat) (live : List (String × Nat × Nat)) : List Json :=
+  (List.range ((hi - lo) / step + 1)).map fun k => tickRow ((lo + k * step) * 1000) live
+
+def foldReq (now : Nat) (recs : List Json) : Json :=
+  Json.mkObj [("now", toJson now), ("recs", .arr recs.toArray)]
+
+def logReq (recs : List Json) (selected : List (String × Nat × Nat)) : Json :=
+  Json.mkObj [("recs", .arr recs.toArray),
+    ("selected", .arr (selected.map fun (k, p, s) => Json.mkObj [("kind", .str k), ("pid", toJson p), ("start", toJson s)]).toArray)]
+
+def foldCases : List (String × String × Json) :=
+  let wk : Nat := 7 * 86400
+  let t0 : Nat := 1000000
+  let e : List (String × Nat × Nat) := [("orphanLoop", 10, 100)]
+  let full := ticksBetween 300 t0 (t0 + wk) e
+  [("ops.reapFold", "seven days of ticks every 300 s, the loop stopped once and never ended by itself: E is promoted",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "orphanLoop" 10 100] ++ full ++ [stoppedRow ((t0 + wk) * 1000) "orphanLoop" [(10, 100)]])),
+  ("ops.reapFold", "the same log with the stop recorded as pids only (no start): no true orphan, E stays advice",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "orphanLoop" 10 100] ++ full ++ [stoppedRow ((t0 + wk) * 1000) "orphanLoop" [(10, 100)] (old := true)])),
+  ("ops.reapFold", "a log of one day: not yet 7 days of coverage",
+    foldReq (t0 + 86400) ([heldRow (t0 * 1000) "orphanLoop" 10 100] ++ ticksBetween 300 t0 (t0 + 86400) e ++ [stoppedRow ((t0 + 86400) * 1000) "orphanLoop" [(10, 100)]])),
+  ("ops.reapFold", "seven days old but a tick gap of a day in the middle: coverage refused",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "orphanLoop" 10 100] ++ ticksBetween 300 t0 (t0 + 3 * 86400) e ++
+      ticksBetween 300 (t0 + 4 * 86400) (t0 + wk) e ++ [stoppedRow ((t0 + wk) * 1000) "orphanLoop" [(10, 100)]])),
+  ("ops.reapFold", "seven days of ticks but the first tick comes one hour late: coverage refused",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "orphanLoop" 10 100] ++ ticksBetween 300 (t0 + 3600) (t0 + wk) e ++
+      [stoppedRow ((t0 + wk) * 1000) "orphanLoop" [(10, 100)]])),
+  ("ops.reapFold", "a loop that left the selection without a stop (a tick after its first sight without it) is ended: E stays advice",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "orphanLoop" 10 100, heldRow ((t0 + 600) * 1000) "orphanLoop" 11 100] ++ full ++
+      [tickRow ((t0 + 900) * 1000) [("orphanLoop", 10, 100)], stoppedRow ((t0 + wk) * 1000) "orphanLoop" [(10, 100)]])),
+  ("ops.reapFold", "F has its own sightings: a stopped Simulator and covered days promote F, E has no orphan",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "simBooted" 30 5] ++ ticksBetween 300 t0 (t0 + wk) [("simBooted", 30, 5)] ++
+      [stoppedRow ((t0 + wk) * 1000) "simBooted" [(30, 5)]])),
+  ("ops.reapFold", "rows of other kinds and other types are not folded",
+    foldReq (t0 + wk) ([heldRow (t0 * 1000) "removed" 7 7, stoppedRow (t0 * 1000) "lspServe" [(8, 8)],
+      Json.mkObj [("type", .str "reap.note"), ("at", toJson 1)]] ++ full)),
+  ("ops.reapFold", "an empty log", foldReq (t0 + wk) []),
+  ("ops.reapLog", "a first sight is written once: the known identity (pid 10) is not written again, pid 12 is, twice listed once",
+    logReq [heldRow (t0 * 1000) "orphanLoop" 10 100]
+      [("orphanLoop", 10, 100), ("orphanLoop", 12, 100), ("orphanLoop", 12, 100), ("removed", 13, 1)]),
+  ("ops.reapLog", "the same pid with another start is another identity",
+    logReq [heldRow (t0 * 1000) "orphanLoop" 10 100] [("orphanLoop", 10, 101)]),
+  ("ops.reapLog", "an identity known only from a stop record is known", logReq [stoppedRow (t0 * 1000) "simBooted" [(30, 5)]] [("simBooted", 30, 5)]),
+  ("ops.reapLog", "no selection: nothing to write", logReq [] []),
+  ("ops.reapSimNew", "the Simulator booted after the acquire is the run's; the one already booted is not",
+    Json.mkObj [("before", toJson ["aaaa-1111"]), ("after", toJson ["AAAA-1111", "bbbb-2222"])]),
+  ("ops.reapSimNew", "nothing booted at acquire: every booted device at release is new (upper-cased)",
+    Json.mkObj [("before", toJson ([] : List String)), ("after", toJson ["x-1"])]),
+  ("ops.reapSimNew", "the same set at both ends: none", Json.mkObj [("before", toJson ["a", "b"]), ("after", toJson ["B", "A"])])]
+
+def foldText : String :=
+  String.join (foldCases.map fun (op, name, r) =>
+    (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
+
 def oneText : String :=
   String.join (oneCases.map fun (op, name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
@@ -432,7 +502,7 @@ def main (args : List String) : IO UInt32 := do
   let files : List (String × String × Nat) :=
     [("lspreap.jsonl", text, reapCases.length), ("reap.jsonl", stopText, stopCases.length),
       ("reap-idle.jsonl", idleText, idleCases.length), ("reap-one.jsonl", oneText, oneCases.length),
-      ("reap-exit.jsonl", exitText, exitCases.length)]
+      ("reap-exit.jsonl", exitText, exitCases.length), ("reap-fold.jsonl", foldText, foldCases.length)]
   if args.contains "--check" then
     let mut bad := false
     for (f, t, n) in files do

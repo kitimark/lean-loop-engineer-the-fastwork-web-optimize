@@ -47,6 +47,15 @@ def Kind.name : Kind → String
   | .orphanLoop => "orphanLoop"
   | .simBooted => "simBooted"
 
+/-- Every kind. -/
+def allKinds : List Kind := [.lspServe, .console, .removed, .descendant, .mcpIdle, .orphanLoop, .simBooted]
+
+/-- A kind from its wire name. -/
+def kindByName (n : String) : Option Kind := allKinds.find? fun k => k.name == n
+
+theorem kindByName_name (k : Kind) : kindByName k.name = some k := by
+  cases k <;> decide
+
 /-- The argv kinds that branches B and C may select: a tool process (lean, lake, fwcore, node, vitest, a playwright browser)
 or a `lake serve` (also when its parent is gone). A tool is never selected by its name, only through its cwd (B) or an
 ancestor (C). -/
@@ -137,6 +146,7 @@ structure InputD extends Input where
   simHolders : Nat := 0
   legacyHeld : Bool := true
   auto : Bool := false
+  promote : List Kind := []
 deriving Repr
 
 instance : Coe InputD Input := ⟨InputD.toInput⟩
@@ -1294,9 +1304,14 @@ def pickOne (i : InputD) (r : Row) : Option Kind :=
 def reapOne(i : InputD) : List Sel :=
   i.rows.filterMap fun r => (pickOne i r).map fun k => ⟨r.pid, r.start, k, r.pgid == r.pid⟩
 
+def exitKinds : List Kind := [.orphanLoop, .simBooted]
+
 def autoKinds : List Kind := [.lspServe, .console, .removed, .descendant, .mcpIdle]
 
-def planSel (i : InputD) : List Sel := (reapOne i).filter fun s => !i.auto || decide (s.kind ∈ autoKinds)
+/-- The kinds the automatic plan may stop: `autoKinds`, plus the kinds `ops.reapFold` promoted (only E and F can be). -/
+def autoSet (i : InputD) : List Kind := autoKinds ++ i.promote.filter fun k => decide (k ∈ exitKinds)
+
+def planSel (i : InputD) : List Sel := (reapOne i).filter fun s => !i.auto || decide (s.kind ∈ autoSet i)
 
 def planOne (i : InputD) : List Target :=
   (planSel i).map fun s => ⟨s.pid, s.start, groupSafe i (planSel i) s⟩
@@ -1640,7 +1655,7 @@ theorem planSel_explicit {i : InputD} (h : i.auto = false) : planSel i = reapOne
   unfold planSel
   simp [h]
 
-theorem planSel_auto {i : InputD} {s : Sel} (h : i.auto = true) (hs : s ∈ planSel i) : s.kind ∈ autoKinds := by
+theorem planSel_auto {i : InputD} {s : Sel} (h : i.auto = true) (hs : s ∈ planSel i) : s.kind ∈ autoSet i := by
   unfold planSel at hs
   rw [List.mem_filter] at hs
   simpa [h] using hs.2
@@ -1652,11 +1667,27 @@ theorem planOne_sel {i : InputD} {t : Target} (h : t ∈ planOne i) :
   obtain ⟨s, hs, rfl⟩ := h
   exact ⟨s, hs, rfl, rfl⟩
 
-theorem auto_plan_no_loop_sim {i : InputD} {t : Target} (ha : i.auto = true) (h : t ∈ planOne i) :
+theorem autoSet_default {i : InputD} (h : i.promote = []) : autoSet i = autoKinds := by
+  simp [autoSet, h]
+
+/-- E and F join the automatic plan only when `ops.reapFold` promoted them: with no promoted kind the plan holds neither. -/
+theorem auto_plan_no_loop_sim {i : InputD} {t : Target} (ha : i.auto = true) (hn : i.promote = []) (h : t ∈ planOne i) :
     ∃ s ∈ reapOne i, s.pid = t.pid ∧ s.start = t.start ∧ s.kind ≠ .orphanLoop ∧ s.kind ≠ .simBooted := by
   obtain ⟨s, hs, hp, hst⟩ := planOne_sel h
   have hk := planSel_auto ha hs
+  rw [autoSet_default hn] at hk
   refine ⟨s, planSel_sub hs, hp, hst, ?_, ?_⟩ <;> intro he <;> rw [he] at hk <;> simp [autoKinds] at hk
+
+/-- Every kind of the automatic plan is an `autoKinds` kind or a promoted one of E and F. -/
+theorem auto_plan_promoted {i : InputD} {t : Target} (ha : i.auto = true) (h : t ∈ planOne i) :
+    ∃ s ∈ reapOne i, s.pid = t.pid ∧ s.start = t.start ∧ (s.kind ∈ autoKinds ∨ (s.kind ∈ i.promote ∧ s.kind ∈ exitKinds)) := by
+  obtain ⟨s, hs, hp, hst⟩ := planOne_sel h
+  have hk := planSel_auto ha hs
+  refine ⟨s, planSel_sub hs, hp, hst, ?_⟩
+  simp only [autoSet, List.mem_append, List.mem_filter, decide_eq_true_eq] at hk
+  rcases hk with hk | ⟨hk, hk'⟩
+  · exact Or.inl hk
+  · exact Or.inr ⟨hk, hk'⟩
 
 theorem planOne_group_inside {i : InputD} {t : Target} (h : t ∈ planOne i) (hg : t.group = true) :
     ∀ r ∈ i.rows, r.pgid = t.pid → ∃ s ∈ planSel i, s.pid = r.pid ∧ s.start = r.start := by
@@ -1710,8 +1741,6 @@ structure Seen where
 deriving Repr
 
 def exitSec : Nat := 7 * 86400
-
-def exitKinds : List Kind := [.orphanLoop, .simBooted]
 
 def exitRule (now : Nat) (seen : List Seen) (k : Kind) : Bool :=
   let ks := seen.filter fun s => s.kind == k
@@ -1770,6 +1799,404 @@ private def sOld (o : Outcome) : Seen := ⟨.orphanLoop, 10, 100, 1000, o⟩
 #guard promoted (1000 + exitSec) [sOld .stopped, ⟨.simBooted, 12, 100, 2000, .ended⟩] == [.orphanLoop]
 #guard promoted (1000 + exitSec) [⟨.removed, 10, 100, 1000, .stopped⟩] == []
 
+/-- A process identity in the log: kind, pid, start. -/
+abbrev Ident := Kind × Nat × Nat
+
+/-- Append `x` unless it is already there. -/
+def addId (acc : List Ident) (x : Ident) : List Ident := if x ∈ acc then acc else acc ++ [x]
+
+/-- The list without repeats, first occurrence kept. -/
+def dedupe (l : List Ident) : List Ident := l.foldl addId []
+
+theorem mem_foldl_addId (l : List Ident) : ∀ (acc : List Ident) (x : Ident), x ∈ l.foldl addId acc ↔ x ∈ acc ∨ x ∈ l := by
+  induction l with
+  | nil => intro acc x; simp
+  | cons y l ih =>
+    intro acc x
+    simp only [List.foldl_cons, ih, addId]
+    by_cases h : y ∈ acc
+    · simp only [h, ite_true, List.mem_cons]
+      constructor
+      · rintro (h1 | h1)
+        · exact Or.inl h1
+        · exact Or.inr (Or.inr h1)
+      · rintro (h1 | rfl | h1)
+        · exact Or.inl h1
+        · exact Or.inl h
+        · exact Or.inr h1
+    · simp only [h, ite_false, List.mem_append, List.mem_cons, List.not_mem_nil, or_false]
+      constructor
+      · rintro ((h1 | h1) | h1)
+        · exact Or.inl h1
+        · exact Or.inr (Or.inl h1)
+        · exact Or.inr (Or.inr h1)
+      · rintro (h1 | h1 | h1)
+        · exact Or.inl (Or.inl h1)
+        · exact Or.inl (Or.inr h1)
+        · exact Or.inr h1
+
+theorem nodup_foldl_addId (l : List Ident) : ∀ (acc : List Ident), acc.Nodup → (l.foldl addId acc).Nodup := by
+  induction l with
+  | nil => intro acc h; simpa using h
+  | cons y l ih =>
+    intro acc h
+    simp only [List.foldl_cons]
+    apply ih
+    unfold addId
+    split
+    · exact h
+    · rename_i hy
+      rw [List.nodup_append]
+      refine ⟨h, by simp, ?_⟩
+      intro a ha b hb
+      simp only [List.mem_singleton] at hb
+      subst hb
+      rintro rfl
+      exact hy ha
+
+theorem mem_dedupe {l : List Ident} {x : Ident} : x ∈ dedupe l ↔ x ∈ l := by
+  unfold dedupe
+  rw [mem_foldl_addId]
+  simp
+
+theorem nodup_dedupe (l : List Ident) : (dedupe l).Nodup := nodup_foldl_addId l [] List.nodup_nil
+
+
+/-- A record of `reap.jsonl`, times in seconds: `held` (first sight of a selected E or F process), `stopped` (the
+`(pid, start)` targets stopped for one kind), `tick` (one watch tick and the E and F processes selected then). -/
+inductive Rec where
+  | held (time : Nat) (x : Ident)
+  | stopped (time : Nat) (kind : Kind) (targets : List (Nat × Nat))
+  | tick (time : Nat) (live : List Ident)
+deriving Repr
+
+/-- The sightings a record carries: (time, identity). -/
+def Rec.sights : Rec → List (Nat × Ident)
+  | .held t x => [(t, x)]
+  | .stopped t k ts => ts.map fun (p, s) => (t, (k, p, s))
+  | .tick _ _ => []
+
+/-- Every sighting of an E or F process in the log (other kinds are not folded). -/
+def sights (rs : List Rec) : List (Nat × Ident) := (rs.flatMap Rec.sights).filter fun (_, x) => decide (x.1 ∈ exitKinds)
+
+/-- The E and F identities of the log, each once. -/
+def idsOf (rs : List Rec) : List Ident := dedupe ((sights rs).map (·.2))
+
+/-- The first time an identity was sighted. -/
+def firstAtOf (rs : List Rec) (x : Ident) : Option Nat := (((sights rs).filter fun (_, y) => y == x).map (·.1)).min?
+
+/-- Some `stopped` record names this identity as a target. -/
+def stoppedB (rs : List Rec) (x : Ident) : Bool :=
+  rs.any fun
+    | .stopped _ k ts => k == x.1 && decide ((x.2.1, x.2.2) ∈ ts)
+    | _ => false
+
+/-- A tick after its first sight did not select the identity any more. -/
+def goneB (rs : List Rec) (x : Ident) (f : Nat) : Bool :=
+  rs.any fun
+    | .tick t live => decide (f < t) && !decide (x ∈ live)
+    | _ => false
+
+/-- Stopped by the reaper, else gone by itself, else still selected. -/
+def outcomeOf (rs : List Rec) (x : Ident) (f : Nat) : Outcome :=
+  if stoppedB rs x then .stopped else if goneB rs x f then .ended else .alive
+
+/-- The `Seen` records of the log: one per E or F identity. -/
+def foldSeen (rs : List Rec) : List Seen :=
+  (idsOf rs).filterMap fun x => (firstAtOf rs x).map fun f => ⟨x.1, x.2.1, x.2.2, f, outcomeOf rs x f⟩
+
+/-- The tick times of the log. -/
+def tickTimes (rs : List Rec) : List Nat := rs.filterMap fun
+  | .tick t _ => some t
+  | _ => none
+
+theorem idsOf_nodup (rs : List Rec) : (idsOf rs).Nodup := nodup_dedupe _
+
+theorem mem_idsOf {rs : List Rec} {x : Ident} : x ∈ idsOf rs ↔ ∃ t, (t, x) ∈ sights rs := by
+  unfold idsOf
+  rw [mem_dedupe, List.mem_map]
+  constructor
+  · rintro ⟨⟨t, y⟩, h, rfl⟩
+    exact ⟨t, h⟩
+  · rintro ⟨t, h⟩
+    exact ⟨(t, x), h, rfl⟩
+
+theorem sights_kind {rs : List Rec} {t : Nat} {x : Ident} (h : (t, x) ∈ sights rs) : x.1 ∈ exitKinds := by
+  unfold sights at h
+  simpa using (List.mem_filter.1 h).2
+
+theorem foldSeen_kind {rs : List Rec} {s : Seen} (h : s ∈ foldSeen rs) : s.kind ∈ exitKinds := by
+  unfold foldSeen at h
+  rw [List.mem_filterMap] at h
+  obtain ⟨x, hx, hs⟩ := h
+  obtain ⟨t, ht⟩ := mem_idsOf.1 hx
+  cases hf : firstAtOf rs x with
+  | none => simp [hf] at hs
+  | some f =>
+    simp only [hf, Option.map_some] at hs
+    cases hs
+    exact sights_kind ht
+
+/-- A first sight is no later than any other sighting of the same identity. -/
+theorem firstAtOf_le {rs : List Rec} {t : Nat} {x : Ident} (h : (t, x) ∈ sights rs) :
+    ∃ f, firstAtOf rs x = some f ∧ f ≤ t := by
+  have hm : t ∈ ((sights rs).filter fun (_, y) => y == x).map (·.1) :=
+    List.mem_map.2 ⟨(t, x), List.mem_filter.2 ⟨h, by simp⟩, rfl⟩
+  unfold firstAtOf
+  cases hmin : (((sights rs).filter fun (_, y) => y == x).map (·.1)).min? with
+  | none => rw [List.min?_eq_none_iff.1 hmin] at hm; exact absurd hm (by simp)
+  | some f => exact ⟨f, rfl, ((List.min?_eq_some_iff.1 hmin).2 t hm)⟩
+
+/-- Every E or F process the log names has one `Seen`, with its first sighting. -/
+theorem foldSeen_complete {rs : List Rec} {t : Nat} {x : Ident} (h : (t, x) ∈ sights rs) :
+    ∃ s ∈ foldSeen rs, s.kind = x.1 ∧ s.pid = x.2.1 ∧ s.start = x.2.2 ∧ s.firstAt ≤ t := by
+  obtain ⟨f, hf, hle⟩ := firstAtOf_le h
+  refine ⟨⟨x.1, x.2.1, x.2.2, f, outcomeOf rs x f⟩, ?_, rfl, rfl, rfl, hle⟩
+  unfold foldSeen
+  rw [List.mem_filterMap]
+  exact ⟨x, mem_idsOf.2 ⟨t, h⟩, by simp [hf]⟩
+
+theorem outcome_stopped {rs : List Rec} {x : Ident} {f : Nat} : outcomeOf rs x f = .stopped ↔ stoppedB rs x = true := by
+  unfold outcomeOf
+  split <;> rename_i h
+  · simp [h]
+  · split <;> simp [h]
+
+theorem outcome_ended {rs : List Rec} {x : Ident} {f : Nat} :
+    outcomeOf rs x f = .ended ↔ stoppedB rs x = false ∧ goneB rs x f = true := by
+  unfold outcomeOf
+  split <;> rename_i h
+  · simp [h]
+  · split <;> rename_i h2 <;> simp_all
+
+theorem outcome_alive {rs : List Rec} {x : Ident} {f : Nat} :
+    outcomeOf rs x f = .alive ↔ stoppedB rs x = false ∧ goneB rs x f = false := by
+  unfold outcomeOf
+  split <;> rename_i h
+  · simp [h]
+  · split <;> rename_i h2 <;> simp_all
+
+/-- A `stopped` record of an E or F kind makes its targets true orphans in the fold. -/
+theorem stopped_seen {rs : List Rec} {tm : Nat} {k : Kind} {ts : List (Nat × Nat)} {p s : Nat}
+    (hr : Rec.stopped tm k ts ∈ rs) (hk : k ∈ exitKinds) (hp : (p, s) ∈ ts) :
+    ∃ q ∈ foldSeen rs, q.kind = k ∧ q.pid = p ∧ q.start = s ∧ q.outcome = .stopped := by
+  have hs : (tm, (k, p, s)) ∈ sights rs := by
+    unfold sights
+    refine List.mem_filter.2 ⟨List.mem_flatMap.2 ⟨_, hr, ?_⟩, by simpa using hk⟩
+    exact List.mem_map.2 ⟨(p, s), hp, rfl⟩
+  obtain ⟨f, hf, -⟩ := firstAtOf_le hs
+  refine ⟨⟨k, p, s, f, outcomeOf rs (k, p, s) f⟩, ?_, rfl, rfl, rfl, ?_⟩
+  · unfold foldSeen
+    rw [List.mem_filterMap]
+    exact ⟨(k, p, s), mem_idsOf.2 ⟨tm, hs⟩, by simp [hf]⟩
+  · apply outcome_stopped.2
+    simp only [stoppedB, List.any_eq_true]
+    exact ⟨_, hr, by simp [hp]⟩
+
+
+/-! ### Coverage: the seven days must have been watched -/
+
+/-- Length of one coverage slot (seconds): the log must hold a tick in each slot of the seven days, so no gap between
+two ticks of the window exceeds `2 * slotSec`. -/
+def slotSec : Nat := 1800
+
+/-- Slots in the seven days. -/
+def slots : Nat := exitSec / slotSec
+
+/-- The seven days before `now` hold a tick in every slot. -/
+def covered (now : Nat) (ts : List Nat) : Bool :=
+  decide (exitSec ≤ now) && (List.range slots).all fun k =>
+    ts.any fun t => decide (now - exitSec + k * slotSec ≤ t) && decide (t < now - exitSec + (k + 1) * slotSec)
+
+theorem covered_young {now : Nat} {ts : List Nat} (h : now < exitSec) : covered now ts = false := by
+  unfold covered
+  simp [Nat.not_le.2 h]
+
+theorem covered_empty (now : Nat) : covered now [] = false := by
+  unfold covered
+  have : slots ≠ 0 := by decide
+  cases hs : slots with
+  | zero => exact absurd hs this
+  | succ n =>
+    simp [List.range_succ]
+
+/-- A covered window has a tick in every slot. -/
+theorem covered_slot {now : Nat} {ts : List Nat} (h : covered now ts = true) {k : Nat} (hk : k < slots) :
+    ∃ t ∈ ts, now - exitSec + k * slotSec ≤ t ∧ t < now - exitSec + (k + 1) * slotSec := by
+  unfold covered at h
+  simp only [Bool.and_eq_true, List.all_eq_true, List.mem_range, List.any_eq_true, decide_eq_true_eq] at h
+  obtain ⟨t, ht, h1, h2⟩ := h.2 k hk
+  exact ⟨t, ht, h1, h2⟩
+
+/-- A slot without a tick refuses the coverage. -/
+theorem covered_gap {now : Nat} {ts : List Nat} {k : Nat} (hk : k < slots)
+    (h : ∀ t ∈ ts, t < now - exitSec + k * slotSec ∨ now - exitSec + (k + 1) * slotSec ≤ t) : covered now ts = false := by
+  cases hc : covered now ts
+  · rfl
+  · obtain ⟨t, ht, h1, h2⟩ := covered_slot hc hk
+    rcases h t ht with h3 | h3 <;> omega
+
+/-- E and F may join the automatic plan: the exit rule holds and the seven days are covered. -/
+def exitGo (now : Nat) (ticks : List Nat) (seen : List Seen) (k : Kind) : Bool := covered now ticks && exitRule now seen k
+
+def promotedGo (now : Nat) (ticks : List Nat) (seen : List Seen) : List Kind := exitKinds.filter (exitGo now ticks seen)
+
+theorem promotedGo_covered {now : Nat} {ticks : List Nat} {seen : List Seen} {k : Kind} (h : k ∈ promotedGo now ticks seen) :
+    covered now ticks = true ∧ k ∈ promoted now seen := by
+  unfold promotedGo at h
+  rw [List.mem_filter] at h
+  unfold exitGo at h
+  simp only [Bool.and_eq_true] at h
+  exact ⟨h.2.1, List.mem_filter.2 ⟨h.1, h.2.2⟩⟩
+
+theorem promotedGo_uncovered {now : Nat} {ticks : List Nat} {seen : List Seen} (h : covered now ticks = false) :
+    promotedGo now ticks seen = [] := by
+  unfold promotedGo
+  rw [List.filter_eq_nil_iff]
+  intro k _
+  simp [exitGo, h]
+
+theorem promotedGo_covered_eq {now : Nat} {ticks : List Nat} {seen : List Seen} (h : covered now ticks = true) :
+    promotedGo now ticks seen = promoted now seen := by
+  unfold promotedGo promoted
+  congr 1
+  funext k
+  simp [exitGo, h]
+
+/-- The verdict text of a fold. -/
+def verdictOf (now : Nat) (ticks : List Nat) (seen : List Seen) : String :=
+  if covered now ticks then
+    match promotedGo now ticks seen with
+    | [] => "seven days covered: E and F stay advice"
+    | ks => "seven days covered: promote " ++ ", ".intercalate (ks.map Kind.name)
+  else "not yet 7 days of coverage"
+
+theorem verdict_uncovered {now : Nat} {ticks : List Nat} {seen : List Seen} (h : covered now ticks = false) :
+    verdictOf now ticks seen = "not yet 7 days of coverage" := by
+  simp [verdictOf, h]
+
+/-! ### What one tick writes, and the stop plan's held list -/
+
+/-- The identity of a selected process. -/
+def idOfSel (s : Sel) : Ident := (s.kind, s.pid, s.start)
+
+/-- The E and F identities of a selection, each once. -/
+def liveOf (sel : List Sel) : List Ident := dedupe ((sel.filter fun s => decide (s.kind ∈ exitKinds)).map idOfSel)
+
+/-- The E and F identities of a selection the log does not know yet: the `reap.held` rows to append (once per identity). -/
+def newHeld (rs : List Rec) (sel : List Sel) : List Ident := (liveOf sel).filter fun x => decide (x ∉ idsOf rs)
+
+theorem mem_liveOf {sel : List Sel} {x : Ident} : x ∈ liveOf sel ↔ ∃ s ∈ sel, s.kind ∈ exitKinds ∧ idOfSel s = x := by
+  unfold liveOf
+  rw [mem_dedupe, List.mem_map]
+  constructor
+  · rintro ⟨s, hs, rfl⟩
+    exact ⟨s, (List.mem_filter.1 hs).1, by simpa using (List.mem_filter.1 hs).2, rfl⟩
+  · rintro ⟨s, hs, hk, rfl⟩
+    exact ⟨s, List.mem_filter.2 ⟨hs, by simpa using hk⟩, rfl⟩
+
+theorem mem_newHeld {rs : List Rec} {sel : List Sel} {x : Ident} :
+    x ∈ newHeld rs sel ↔ (∃ s ∈ sel, s.kind ∈ exitKinds ∧ idOfSel s = x) ∧ x ∉ idsOf rs := by
+  unfold newHeld
+  rw [List.mem_filter, mem_liveOf]
+  simp
+
+/-- Each new identity is written once. -/
+theorem newHeld_nodup (rs : List Rec) (sel : List Sel) : (newHeld rs sel).Nodup :=
+  List.Pairwise.filter _ (nodup_dedupe _)
+
+/-- A known identity is not written again. -/
+theorem newHeld_known {rs : List Rec} {sel : List Sel} {x : Ident} (h : x ∈ idsOf rs) : x ∉ newHeld rs sel := by
+  rw [mem_newHeld]
+  exact fun hh => hh.2 h
+
+/-- The selected targets of a plan are not held. -/
+def heldOf (sel : List Sel) (ts : List Target) : List Sel := sel.filter fun s => !ts.any fun t => t.pid == s.pid && t.start == s.start
+
+theorem heldOf_mem {sel : List Sel} {ts : List Target} {s : Sel} :
+    s ∈ heldOf sel ts ↔ s ∈ sel ∧ ∀ t ∈ ts, ¬(t.pid = s.pid ∧ t.start = s.start) := by
+  unfold heldOf
+  simp [List.mem_filter]
+
+/-- Every selected process is either a target or held, never both. -/
+theorem heldOf_partition {sel : List Sel} {ts : List Target} {s : Sel} (h : s ∈ sel) :
+    s ∈ heldOf sel ts ∨ ∃ t ∈ ts, t.pid = s.pid ∧ t.start = s.start := by
+  by_cases hh : ∃ t ∈ ts, t.pid = s.pid ∧ t.start = s.start
+  · exact Or.inr hh
+  · refine Or.inl (heldOf_mem.2 ⟨h, ?_⟩)
+    intro t ht hc
+    exact hh ⟨t, ht, hc⟩
+
+/-- The worktree id of the row with a selected identity. -/
+def wtOf (i : InputD) (s : Sel) : Option String := (i.rows.find? fun r => r.pid == s.pid && r.start == s.start).bind (·.wt)
+
+theorem wtOf_row {i : InputD} {s : Sel} {w : String} (h : wtOf i s = some w) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.wt = some w := by
+  unfold wtOf at h
+  cases hf : i.rows.find? fun r => r.pid == s.pid && r.start == s.start with
+  | none => simp [hf] at h
+  | some r =>
+    simp only [hf, Option.bind_some] at h
+    have hm := List.mem_of_find?_eq_some hf
+    have hp := List.find?_some hf
+    simp only [Bool.and_eq_true, beq_iff_eq] at hp
+    exact ⟨r, hm, hp.1, hp.2, h⟩
+
+/-! ### Simulators of one sim run -/
+
+/-- The Simulators a sim run booted: those booted at release that were not booted at acquire (UDIDs upper-cased). -/
+def simNew (before after : List String) : List String :=
+  (after.map String.toUpper).filter fun u => decide (u ∉ before.map String.toUpper)
+
+theorem mem_simNew {before after : List String} {u : String} :
+    u ∈ simNew before after ↔ (∃ a ∈ after, a.toUpper = u) ∧ ∀ b ∈ before, b.toUpper ≠ u := by
+  unfold simNew
+  simp [List.mem_filter, List.mem_map]
+
+theorem simNew_none_before (after : List String) : simNew [] after = after.map String.toUpper := by
+  simp [simNew]
+
+theorem simNew_same (l : List String) : simNew l l = [] := by
+  unfold simNew
+  rw [List.filter_eq_nil_iff]
+  intro u hu
+  simp only [List.mem_map] at hu
+  simp [hu]
+
+private def wk : Nat := exitSec
+
+private def logA : List Rec :=
+  [.held 1000 (.orphanLoop, 10, 100), .tick 1000 [(.orphanLoop, 10, 100)], .stopped 5000 .orphanLoop [(10, 100)],
+   .held 2000 (.orphanLoop, 11, 100), .tick 2000 [(.orphanLoop, 11, 100)], .tick 3000 []]
+
+#guard (foldSeen logA).map (fun s => (s.pid, s.firstAt, s.outcome == .stopped, s.outcome == .ended)) ==
+  [(10, 1000, true, false), (11, 2000, false, true)]
+#guard (idsOf [.held 1 (.removed, 1, 1), .stopped 2 .lspServe [(2, 2)]]).isEmpty
+#guard (foldSeen [.stopped 7 .simBooted [(30, 5)]]).map (·.outcome == .stopped) == [true]
+#guard (newHeld logA [⟨10, 100, .orphanLoop, true⟩, ⟨12, 100, .orphanLoop, true⟩, ⟨12, 100, .orphanLoop, true⟩, ⟨13, 1, .removed, true⟩]).map (·.2.1) == [12]
+#guard (liveOf [⟨12, 100, .simBooted, false⟩, ⟨12, 100, .simBooted, false⟩]).length == 1
+
+private def tickEvery (n from_ to : Nat) : List Nat := (List.range ((to - from_) / n + 1)).map fun k => from_ + k * n
+
+#guard covered (3 * wk) (tickEvery 300 0 (3 * wk)) == true
+#guard covered (3 * wk) (tickEvery 300 (3 * wk - wk + 100) (3 * wk)) == true
+#guard covered (3 * wk) (tickEvery 300 (3 * wk - wk + 4000) (3 * wk)) == false
+#guard covered (3 * wk) ((tickEvery 300 0 (2 * wk + 1000)) ++ tickEvery 300 (2 * wk + 9000) (3 * wk)) == false
+#guard covered wk (tickEvery 300 0 (wk - 1)) == true
+#guard covered (wk - 1) (tickEvery 300 0 (wk - 1)) == false
+#guard covered 1000 [1000] == false
+#guard promotedGo (1000 + wk) (tickEvery 300 1000 (1000 + wk)) [sOld .stopped] == [.orphanLoop]
+#guard promotedGo (1000 + wk) (tickEvery 300 1000 (1000 + wk - 3600)) [sOld .stopped] == []
+#guard verdictOf (1000 + wk) [] [sOld .stopped] == "not yet 7 days of coverage"
+#guard verdictOf (1000 + wk) (tickEvery 300 1000 (1000 + wk)) [sOld .stopped] == "seven days covered: promote orphanLoop"
+#guard verdictOf (1000 + wk) (tickEvery 300 1000 (1000 + wk)) [sOld .alive] == "seven days covered: E and F stay advice"
+#guard (heldOf [⟨1, 1, .orphanLoop, true⟩, ⟨2, 1, .lspServe, true⟩] [⟨2, 1, true⟩]).map (·.pid) == [1]
+#guard (heldOf [⟨2, 2, .lspServe, true⟩] [⟨2, 1, true⟩]).map (·.pid) == [2]
+#guard simNew ["aa"] ["AA", "bb", "BB"] == ["BB", "BB"]
+#guard simNew [] ["x-1"] == ["X-1"]
+#guard wtOf { gE with rows := [⟨2846, 1, 2846, 1000, some 5, "untilLoop", some "w", true⟩] } ⟨2846, 1000, .orphanLoop, true⟩ == some "w"
+#guard wtOf { gE with rows := [⟨2846, 1, 2846, 1000, some 5, "untilLoop", some "w", true⟩] } ⟨2846, 1001, .orphanLoop, true⟩ == none
+
 end Fw.Ops.Reap
 
 namespace Fw.Wire.Reap
@@ -1823,9 +2250,14 @@ def inputOf (req : Json) : Except String InputD := do
   let simHolders ← natD req "simHolders" 0
   let legacyHeld ← boolD req "legacyHeld" true
   let auto ← boolD req "auto" false
+  let promote ← (← arrD req "promote").mapM fun j => do
+    let n ← asStr "promote" j
+    match kindByName n with
+    | some k => pure k
+    | none => throw s!"promote: unknown kind {n}"
   let i : InputD :=
     { rows, live, mcps, keep, liveIds, protect, now, uses, bases, locks, mcpWt, loops, waiters, simIdleSince, simAcquired, ownSims, simHolders }
-  pure { i with legacyHeld, auto }
+  pure { i with legacyHeld, auto, promote }
 
 def selJson (s : Sel) : Json :=
   Json.mkObj [("pid", toJson s.pid), ("start", toJson s.start), ("kind", .str s.kind.name), ("group", .bool s.group),
@@ -1847,12 +2279,13 @@ def opLspReap (req : Json) : Except String Reply := do
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson))]
 
 /-- `ops.reapPlan`: the request of `ops.lspReap` → `count`, `selected`, `targets` [{pid, start, group}] (the TERM
-targets), `graceMs`, `killWaitMs`, `script` [stage name]. -/
+targets), `held` (`heldOf`: selected minus targets), `graceMs`, `killWaitMs`, `script` [stage name]. -/
 def opReapPlan (req : Json) : Except String Reply := do
   let i ← inputOf req
   let sel := reapOne i
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson)),
-    ("targets", .arr ((planOne i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
+    ("targets", .arr ((planOne i).toArray.map targetJson)), ("held", .arr ((heldOf sel (planOne i)).toArray.map selJson)),
+    ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
     ("script", .arr (script.toArray.map fun s => .str s.name))]
 
 /-- `ops.reapIdle`: the request of `ops.lspReap` → `bases` [{pid, start, since, cpu}] (the baselines to store for the next
@@ -1861,11 +2294,19 @@ def opReapIdle (req : Json) : Except String Reply := do
   let i ← inputOf req
   pure [("bases", .arr ((rebase i).toArray.map baseJson)), ("idleSec", toJson idleSec), ("cpuTolCs", toJson cpuTolCs)]
 
-/-- `ops.reapHeld`: the request of `ops.lspReap` → `held` [{pid, start, kind, group, reason}] (orphan loops), `heldSim` (booted Simulators), `count`. -/
+/-- A selection with the worktree id of its row. -/
+def heldJson (i : InputD) (s : Sel) : Json :=
+  match selJson s with
+  | .obj kvs => .obj (kvs.insert "wt" (match wtOf i s with | some w => .str w | none => .null))
+  | j => j
+
+/-- `ops.reapHeld`: the request of `ops.lspReap` → `held` [{pid, start, kind, group, reason, wt}] (orphan loops), `heldSim`
+(booted Simulators, same shape), `count`. -/
 def opReapHeld (req : Json) : Except String Reply := do
-  let sel := held (← inputOf req)
-  let sims := heldSim (← inputOf req)
-  pure [("count", toJson sel.length), ("held", .arr (sel.toArray.map selJson)), ("heldSim", .arr (sims.toArray.map selJson))]
+  let i ← inputOf req
+  let sel := held i
+  pure [("count", toJson sel.length), ("held", .arr (sel.toArray.map (heldJson i))),
+    ("heldSim", .arr ((heldSim i).toArray.map (heldJson i)))]
 
 /-- `ops.reapKill`: `planned` [{pid, start, group}], `rows` [row] (the fresh read) → `kill` [{pid, start, group}]. -/
 def opReapKill (req : Json) : Except String Reply := do
@@ -1911,8 +2352,69 @@ def opReapExit (req : Json) : Except String Reply := do
   let seen ← (← arrD req "seen").mapM seenOf
   pure [("promote", .arr ((promoted now seen).toArray.map fun k => .str k.name)), ("exitSec", toJson exitSec)]
 
+def identJson (x : Fw.Ops.Reap.Ident) : Json :=
+  Json.mkObj [("kind", .str x.1.name), ("pid", toJson x.2.1), ("start", toJson x.2.2)]
+
+def identOf (j : Json) : Except String (Option Fw.Ops.Reap.Ident) := do
+  match kindByName (← str j "kind") with
+  | some k => pure (some (k, ← nat j "pid", ← nat j "start"))
+  | none => pure none
+
+/-- A `reap.jsonl` row: `reap.held` {at, kind, pid, start}, `reap.stopped` {at, kind, targets? [{pid, start}]},
+`reap.tick` {at, live [{kind, pid, start}]}; `at` in milliseconds. Other types and unknown kinds are not folded. -/
+def recOf (j : Json) : Except String (Option Rec) := do
+  match ← optS j "type" with
+  | some "reap.held" =>
+    match ← identOf j with
+    | some x => pure (some (.held ((← nat j "at") / 1000) x))
+    | none => pure none
+  | some "reap.stopped" =>
+    match kindByName (← str j "kind") with
+    | some k =>
+      let ts ← (← arrD j "targets").mapM fun t => do pure ((← nat t "pid"), (← nat t "start"))
+      pure (some (.stopped ((← nat j "at") / 1000) k ts))
+    | none => pure none
+  | some "reap.tick" =>
+    let live ← (← arrD j "live").mapM identOf
+    pure (some (.tick ((← nat j "at") / 1000) (live.filterMap id)))
+  | _ => pure none
+
+def recsOf (req : Json) : Except String (List Rec) := do
+  pure ((← (← arrD req "recs").mapM recOf).filterMap id)
+
+/-- `ops.reapFold`: `now` (second), `recs` [`reap.jsonl` rows] → `seen` [{kind, pid, start, firstAt, outcome}], `ticks`
+(count), `covered`, `promote` [kind name], `verdict`, `exitSec`, `slotSec`. -/
+def opReapFold (req : Json) : Except String Reply := do
+  let now ← nat req "now"
+  let rs ← recsOf req
+  let seen := foldSeen rs
+  let ts := tickTimes rs
+  let outcome : Outcome → String := fun | .alive => "alive" | .stopped => "stopped" | .ended => "ended"
+  pure [("seen", .arr (seen.toArray.map fun s => Json.mkObj [("kind", .str s.kind.name), ("pid", toJson s.pid),
+      ("start", toJson s.start), ("firstAt", toJson s.firstAt), ("outcome", .str (outcome s.outcome))])),
+    ("ticks", toJson ts.length), ("covered", .bool (covered now ts)),
+    ("promote", .arr ((promotedGo now ts seen).toArray.map fun k => .str k.name)), ("verdict", .str (verdictOf now ts seen)),
+    ("exitSec", toJson exitSec), ("slotSec", toJson slotSec)]
+
+/-- `ops.reapLog`: `recs`, `selected` [{pid, start, kind}] → `held` [{kind, pid, start}] (E and F identities the log does not
+know: append one `reap.held` row each), `live` (the E and F identities of the selection: the `reap.tick` row). -/
+def opReapLog (req : Json) : Except String Reply := do
+  let rs ← recsOf req
+  let sel ← (← arrD req "selected").mapM fun j => do
+    match kindByName (← str j "kind") with
+    | some k => pure (some (Sel.mk (← nat j "pid") (← nat j "start") k false))
+    | none => throw "selected: unknown kind"
+  let sel := sel.filterMap id
+  pure [("held", .arr ((newHeld rs sel).toArray.map identJson)), ("live", .arr ((liveOf sel).toArray.map identJson))]
+
+/-- `ops.reapSimNew`: `before`, `after` [udid] → `udids` (`simNew`). -/
+def opReapSimNew (req : Json) : Except String Reply := do
+  let b ← (← arrD req "before").mapM (asStr "before")
+  let a ← (← arrD req "after").mapM (asStr "after")
+  pure [("udids", .arr ((simNew b a).toArray.map fun u => .str u))]
+
 def ops : List String :=
-  ["ops.reapExit", "ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle", "ops.reapHeld"]
+  ["ops.reapFold", "ops.reapLog", "ops.reapSimNew", "ops.reapExit", "ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle", "ops.reapHeld"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
@@ -1925,6 +2427,9 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.reapIdle" => some (opReapIdle req)
   | "ops.reapHeld" => some (opReapHeld req)
   | "ops.reapExit" => some (opReapExit req)
+  | "ops.reapFold" => some (opReapFold req)
+  | "ops.reapLog" => some (opReapLog req)
+  | "ops.reapSimNew" => some (opReapSimNew req)
   | _ => none
 
 #guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[]), ("scope", .arr #[]), ("target", Json.mkObj [("pid", toJson 2), ("start", toJson 0)])])).isSome
