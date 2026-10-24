@@ -1373,12 +1373,12 @@ theorem writer_identity {i : InputD} {r : Row} {l : LoopFact} (h : writerLive i 
 /-- A waiter that holds the awaited file open under another name (a symlinked directory, a hard link) is a writer: the
 inodes decide when both are known. -/
 theorem writer_inode_match {i : InputD} {r : Row} {l : LoopFact} {w : Waiter} (hw : w ∈ i.waiters) (a : String)
-    (hwt : r.wt = some a) (hwa : w.wt = a) (hlive : waiterLive i w = true) (hl : hasInode l.inode = true)
+    (hwt : r.wt = some a) (hwa : w.wt = a) (hlive : waiterLive i w = true)
     (hi : hasInode w.inode = true) (heq : l.inode = w.inode) : writerLive i r l = true := by
   unfold writerLive
   rw [hwt]
   simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
-  exact ⟨w, hw, ⟨hwa, by simp [sameFile, hl, hi, heq]⟩, hlive⟩
+  exact ⟨w, hw, ⟨hwa, by simp [sameFile, hi, heq]⟩, hlive⟩
 
 /-- Two known inodes that differ are two files: equal path strings do not make a writer (the file was replaced). -/
 theorem sameFile_inode_differs {l : LoopFact} {w : Waiter} (hl : hasInode l.inode = true) (hi : hasInode w.inode = true)
