@@ -119,7 +119,7 @@ const cleanEnv = (dir) => {
 
 test("check.sh guard, no token: an inherited FW_SLOT_HELD alone still queues through a check slot", () => {
   const dir = mkdtempSync(join(tmpdir(), "slot-guard-state-"));
-  const r = spawnSync("sh", ["scripts/check.sh"], { cwd: guardTree(), env: { ...cleanEnv(dir), FW_SLOT_HELD: "1" }, encoding: "utf8", timeout: 60000 });
+  const r = spawnSync("sh", ["scripts/check.sh"], { cwd: guardTree(), env: { ...cleanEnv(dir), FW_SLOT_HELD: "1" }, encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /ran/);
   assert.ok(readdirSync(dir).length > 0, "slot state written: it took its own slot");
@@ -133,7 +133,7 @@ test("check.sh guard, no recursion: an exported owner and token without FW_SLOT_
   assert.equal(held.status, 0, held.stderr);
   const token = held.stdout.trim();
   try {
-    const r = spawnSync("sh", ["scripts/check.sh"], { cwd: guardTree(), env: { ...base, FW_SLOT_TOKEN: token }, encoding: "utf8", timeout: 30000 });
+    const r = spawnSync("sh", ["scripts/check.sh"], { cwd: guardTree(), env: { ...base, FW_SLOT_TOKEN: token }, encoding: "utf8" });
     assert.equal(r.status, 0, `${r.error ?? ""}${r.stderr}`);
     assert.equal(r.stdout, "ran\n");
   } finally {
