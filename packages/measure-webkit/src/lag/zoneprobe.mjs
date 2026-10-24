@@ -2,10 +2,10 @@ import { RAF_HELPER } from '../page.mjs';
 import { schedule } from '../scrollrun.mjs';
 import { startTimeline } from '../timeline.mjs';
 import { sleep } from '../sim.mjs';
-import { markTimes, markTime, reduceSteps } from '../reduce.mjs';
+import { markTimes, markTime, reduceSteps, COUNT_TYPES } from '../reduce.mjs';
 import { regionOf } from './reduce.mjs';
 import { loadArm } from './swapprobe.mjs';
-import { freezeStep } from './freeze.mjs';
+import { freezeStep, freezeDrawRead } from './freeze.mjs';
 
 export const ALIGN_WAIT_MS = 4000;
 
@@ -54,9 +54,12 @@ export async function zoneCapture(ctx, arm, { clock, settleMs, step, framesPerSt
   const records = await tl.stop();
   const marks = markTimes(records, 'wk:s', ys.length), endTime = markTime(records, 'wk:end');
   if (marks.some((t) => t === null) || endTime === null) throw new Error('zone step marks missing from the Timeline');
-  const t = reduceSteps(records, marks, endTime).total;
+  const red = reduceSteps(records, marks, endTime);
+  const t = red.total;
+  const li = COUNT_TYPES.indexOf('Layout');
+  const draws = await freezeDrawRead(ctx.c, freeze);
   return {
-    schema: 'fw.webkit.lag.freeze.zone/1', arm: arm.id, zone: 'scroll-A', align, ...(accent ? { accent } : {}), steps: ys.length, framesPerStep,
+    schema: 'fw.webkit.lag.freeze.zone/1', arm: arm.id, zone: 'scroll-A', align, ...(accent ? { accent } : {}), ...(draws ? { draws } : {}), steps: ys.length, framesPerStep, frames: ys.length * framesPerStep, layoutSteps: red.perStep.map((row) => row[li]),
     layout: t.Layout, paint: t.Paint, composite: t.Composite, style: t.RecalculateStyles,
     accentStart: res.start, accentChanges: res.changes.length, drew: res.start === 'in' || res.start === 'out' || res.changes.length > 0,
   };
