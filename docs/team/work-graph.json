@@ -19269,7 +19269,8 @@
     ".github/actions/gate-engine/**",
     "docs/team/handoffs/ci-gate-engine-webkit-slow.md"
    ],
-   "title": "timing.slow alerts 2026-10-24 on land legs: 'Run ./.github/actions/gate-engine' (playwright-webkit) 66 s vs 39 s baseline (commit 32c4fd4), 87 s vs 54 s (9bdab20), and its Post step 43 s vs 5 s (910dacd); chromium gate-engine 42 s vs 25 s. Find where the time goes per sub-step from existing land runs (gh run view --log, poll >= 120 s, no gh api): Playwright browser cache restore/save, WebKit install, deps, or the gate itself; decide in Lean whether it is download variance (no action) or a fixable cost (cache key churn, save on every run, missing restore), with golden rows per run; fix the fixable part in the action and measure on the next land legs."
+   "title": "timing.slow alerts 2026-10-24 on land legs: 'Run ./.github/actions/gate-engine' (playwright-webkit) 66 s vs 39 s baseline (commit 32c4fd4), 87 s vs 54 s (9bdab20), and its Post step 43 s vs 5 s (910dacd); chromium gate-engine 42 s vs 25 s. Find where the time goes per sub-step from existing land runs (gh run view --log, poll >= 120 s, no gh api): Playwright browser cache restore/save, WebKit install, deps, or the gate itself; decide in Lean whether it is download variance (no action) or a fixable cost (cache key churn, save on every run, missing restore), with golden rows per run; fix the fixable part in the action and measure on the next land legs.",
+   "evidence": "58c2525"
   },
   {
    "devices": [
