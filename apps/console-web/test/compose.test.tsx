@@ -35,6 +35,17 @@ describe("Compose page render", () => {
     for (const w of ["original", "measured", "refuted", "the site as shipped", "refuted by finding morph.tween"]) expect(html).toContain(w);
     expect(byRegion(data().parts).map((g) => [g.region, g.parts.length])).toEqual([["hero", 1], ["morph", 1]]);
   });
+  it("a GPU variant shows the GPU pill and its mechanism as text; a non-GPU one does not", () => {
+    const d = data();
+    d.parts[0]!.variants[1] = { ...d.parts[0]!.variants[1]!, gpu: "one strip per digit: 80 composited layers become 8", gpuEngines: "WebKit only" };
+    const gpu = renderToStaticMarkup(<PartCard part={d.parts[0]!} chosen="strip" rows={d.rows} rules={d.rules} onPick={() => undefined} />);
+    expect(gpu.match(/data-testid="gpu-pill"/g)?.length).toBe(1);
+    expect(gpu).toContain(">GPU<");
+    expect(gpu).toContain("GPU (WebKit only): one strip per digit: 80 composited layers become 8");
+    const plain = renderToStaticMarkup(<PartCard part={data().parts[1]!} chosen="waapi" rows={d.rows} rules={d.rules} onPick={() => undefined} />);
+    expect(plain).not.toContain("gpu-pill");
+    expect(plain).not.toContain("GPU");
+  });
   it("presets are one-click starts: default, v2-proved; a refused preset is disabled with its reason", () => {
     const html = panel(data());
     expect(html).toContain("Default (faithful)");
