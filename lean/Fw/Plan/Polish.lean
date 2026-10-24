@@ -901,4 +901,170 @@ private def head10 : List String := ["a", "b", "c", "d", "e", "f", "g", "h", "i"
 #guard walk head10 0 [⟨3, 0, ["x"], true⟩] = ["a", "b", "c", "x", "d", "e", "f", "g", "h", "i", "j"]
 #guard walk head10 0 [⟨1, 1, ["B"], false⟩, ⟨8, 2, ["Y"], true⟩] = ["a", "b", "c", "d", "e", "f", "g", "h", "Y"]
 
+structure Syn where
+  lineMark : List Char
+  bopen : List Char
+  bclose : List Char
+  nest : Bool
+  needWs : Bool
+  deriving DecidableEq
+
+def synHash : Syn := ⟨['#'], [], [], false, true⟩
+def synSlash : Syn := ⟨['/', '/'], ['/', '*'], ['*', '/'], false, false⟩
+def synLean : Syn := ⟨['-', '-'], ['/', '-'], ['-', '/'], true, false⟩
+
+def synOf (p : String) : Option Syn :=
+  let e := extOf p
+  if shellExts.contains e || e == "yml" || e == "yaml" then some synHash
+  else if ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"].contains e then some synSlash
+  else if e == "lean" then some synLean
+  else none
+
+def scan (sy : Syn) : Nat → List Char → Nat → Option Char → Bool → List Char → Nat × List Char
+  | 0, _, d, _, _, acc => (d, acc)
+  | _, [], d, _, _, acc => (d, acc)
+  | n + 1, c :: cs, d, q, ws, acc =>
+    if d > 0 then
+      if !sy.bclose.isEmpty && (c :: cs).take sy.bclose.length == sy.bclose then
+        scan sy n (cs.drop (sy.bclose.length - 1)) (d - 1) q true acc
+      else if sy.nest && !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
+        scan sy n (cs.drop (sy.bopen.length - 1)) (d + 1) q true acc
+      else scan sy n cs d q true acc
+    else match q with
+      | some k =>
+        if c == '\\' && !(k == '\'' && sy.needWs) then
+          match cs with
+          | [] => (0, c :: acc)
+          | e :: cs' => scan sy n cs' 0 q false (e :: c :: acc)
+        else scan sy n cs 0 (if c == k then none else q) false (c :: acc)
+      | none =>
+        if (c :: cs).take sy.lineMark.length == sy.lineMark && (ws || !sy.needWs) then (0, acc)
+        else if !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
+          scan sy n (cs.drop (sy.bopen.length - 1)) 1 none true (' ' :: acc)
+        else if c == '"' || (c == '\'' && !sy.nest) || (c == '`' && !sy.needWs && !sy.nest) then
+          scan sy n cs 0 (some c) false (c :: acc)
+        else scan sy n cs 0 none (c == ' ' || c == '\t') (c :: acc)
+
+def stripLine (sy : Syn) (d : Nat) (l : String) : Nat × String :=
+  let r := scan sy (l.length + 1) l.toList d none true []
+  (r.1, " ".intercalate (((String.ofList (r.2.reverse.map fun c => if c == '\t' then ' ' else c)).splitOn " ").filter (· ≠ "")))
+
+def stripAll (sy : Syn) (d : Nat) : List String → List String
+  | [] => []
+  | l :: ls => let r := stripLine sy d l; r.2 :: stripAll sy r.1 ls
+
+def codeLines (sy : Syn) (t : String) : List String := (stripAll sy 0 (t.splitOn "\n")).filter (· ≠ "")
+
+inductive LineV where
+  | ok | joined | split | changed | unchecked
+  deriving DecidableEq
+
+def LineV.name : LineV → String
+  | .ok => "ok" | .joined => "joined" | .split => "split" | .changed => "changed" | .unchecked => "unchecked"
+
+def lineVerdict (sy : Syn) (o c : String) : LineV :=
+  if codeLines sy o = codeLines sy c then .ok
+  else if (codeLines sy c).length < (codeLines sy o).length then .joined
+  else if (codeLines sy o).length < (codeLines sy c).length then .split
+  else .changed
+
+def pathVerdict (p o c : String) : LineV :=
+  match synOf p with
+  | none => .unchecked
+  | some sy => lineVerdict sy o c
+
+def LineV.refused : LineV → Bool
+  | .ok | .unchecked => false
+  | _ => true
+
+theorem lineVerdict_refl (sy : Syn) (t : String) : lineVerdict sy t t = .ok := by simp [lineVerdict]
+
+theorem lineVerdict_ne_unchecked (sy : Syn) (o c : String) : lineVerdict sy o c ≠ .unchecked := by
+  unfold lineVerdict
+  by_cases a : codeLines sy o = codeLines sy c <;> simp only [a, ite_true, ite_false]
+  · simp
+  by_cases b : (codeLines sy c).length < (codeLines sy o).length <;> simp only [b, ite_true, ite_false]
+  · simp
+  by_cases d : (codeLines sy o).length < (codeLines sy c).length <;> simp only [d, ite_true, ite_false] <;> simp
+
+theorem lineVerdict_ok_iff (sy : Syn) (o c : String) : lineVerdict sy o c = .ok ↔ codeLines sy o = codeLines sy c := by
+  unfold lineVerdict
+  by_cases h : codeLines sy o = codeLines sy c
+  · simp [h]
+  · simp only [h, ite_false]
+    by_cases b : (codeLines sy c).length < (codeLines sy o).length <;> simp only [b, ite_true, ite_false]
+    · simp
+    by_cases d : (codeLines sy o).length < (codeLines sy c).length <;> simp only [d, ite_true, ite_false] <;> simp
+
+theorem joined_fewer (sy : Syn) (o c : String) (h : lineVerdict sy o c = .joined) :
+    (codeLines sy c).length < (codeLines sy o).length := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · split at h
+    · assumption
+    · split at h <;> cases h
+
+theorem split_more (sy : Syn) (o c : String) (h : lineVerdict sy o c = .split) :
+    (codeLines sy o).length < (codeLines sy c).length := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · split at h
+    · cases h
+    · split at h
+      · assumption
+      · cases h
+
+theorem changed_same_count (sy : Syn) (o c : String) (h : lineVerdict sy o c = .changed) :
+    (codeLines sy o).length = (codeLines sy c).length ∧ codeLines sy o ≠ codeLines sy c := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · rename_i h1
+    split at h
+    · cases h
+    · rename_i h2
+      split at h
+      · cases h
+      · rename_i h3
+        exact ⟨by omega, h1⟩
+
+theorem refused_iff (p o c : String) (sy : Syn) (hs : synOf p = some sy) :
+    (pathVerdict p o c).refused = true ↔ codeLines sy o ≠ codeLines sy c := by
+  simp only [pathVerdict, hs]
+  constructor
+  · intro h hh
+    have := (lineVerdict_ok_iff sy o c).2 hh
+    rw [this] at h
+    simp [LineV.refused] at h
+  · intro h
+    have : lineVerdict sy o c ≠ .ok := fun e => h ((lineVerdict_ok_iff sy o c).1 e)
+    have hu := lineVerdict_ne_unchecked sy o c
+    revert this hu
+    cases lineVerdict sy o c <;> simp [LineV.refused]
+
+theorem unchecked_never_refused (p o c : String) (h : synOf p = none) : (pathVerdict p o c).refused = false := by
+  simp [pathVerdict, h, LineV.refused]
+
+private def vd (p o c : String) : String := (pathVerdict p o c).name
+
+#guard vd "a.sh" "cmd a  # note\ncmd b\n" "cmd a\ncmd b\n" = "ok"
+#guard vd "a.sh" "cmd a  # note\ncmd b\n" "cmd a  cmd b\n" = "joined"
+#guard vd "a.yml" "a: 1\n# why\nb: 2\n" "a: 1\nb: 2\n" = "ok"
+#guard vd "a.ts" "a(); // x\nb();\n" "a(); b();\n" = "joined"
+#guard vd "a.ts" "a(); /* x\n y */ b();\n" "a(); b();\n" = "joined"
+#guard vd "a.ts" "a();\n/* x\n y */\nb();\n" "a();\nb();\n" = "ok"
+#guard vd "a.lean" "def a := 1 -- x\ndef b := 2\n" "def a := 1 def b := 2\n" = "joined"
+#guard vd "a.lean" "/- a\n /- b -/ c -/\ndef b := 2\n" "def b := 2\n" = "ok"
+#guard vd "a.sh" "cmd a\n# end\n" "cmd a\n" = "ok" && vd "a.sh" "cmd a  # end" "cmd a" = "ok"
+#guard vd "a.sh" "cmd a\n" "cmd b\n" = "changed" && vd "a.sh" "cmd a b\n" "cmd a\nb\n" = "split"
+#guard vd "a.md" "x\n" "y\n" = "unchecked"
+#guard codeLines synHash "echo $# \"a # b\" # c" = ["echo $# \"a # b\""]
+#guard vd "lean/scripts/check.sh" "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n" "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"sup-measure\" x  # s\njob \"node-budget\" y\n" "job \"sup-measure\" x  job \"node-budget\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n" "job \"hero-scene-pause\" x  job \"nav-earn\" y\n" = "joined"
+#guard vd "a.mjs" "const b = ['ci/**'];\nfoo(); // why\nbar();\n" "const b = ['ci/**'];\nfoo(); bar();\n" = "joined"
+#guard vd "a.ts" "const b = \"a\\\"/*\";\nfoo(); // why\nbar();\n" "const b = \"a\\\"/*\";\nfoo(); bar();\n" = "joined"
+
 end Fw.Plan.Polish
