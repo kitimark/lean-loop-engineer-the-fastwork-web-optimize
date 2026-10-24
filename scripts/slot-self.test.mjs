@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,4 +99,50 @@ test("fw.ts slot: usage error exits 64 with the usage text, like fw-main.ts", ()
   const r = spawnSync(process.execPath, [fw, "slot", "run", "--kind", "test"], { encoding: "utf8", cwd: top, env: { ...process.env, FW_LOCK_EVENTS: "off" } });
   assert.equal(r.status, 64);
   assert.match(r.stderr, /usage: fw slot run/);
+});
+
+// The guard line of lean/scripts/check.sh, run in a scratch tree whose script body only prints "ran".
+const guardTree = () => {
+  const line = readFileSync(join(top, "lean", "scripts", "check.sh"), "utf8").split("\n").find((l) => l.includes("slot-self.mjs check"));
+  assert.ok(line, "check.sh has the slot-self guard line");
+  const root = mkdtempSync(join(tmpdir(), "slot-guard-"));
+  mkdirSync(join(root, "lean", "scripts"), { recursive: true });
+  symlinkSync(here, join(root, "scripts"));
+  writeFileSync(join(root, "lean", "scripts", "check.sh"), `${line}\necho ran\n`);
+  return join(root, "lean");
+};
+const cleanEnv = (dir) => {
+  const e = { ...process.env, FW_SLOT_DIR: dir, FW_LOCK_EVENTS: "off", FW_SLOT_OWNER: "guard-test" };
+  for (const k of ["CI", "FW_SLOT_SELF", "FW_SLOT_SELF_IN", "FW_SLOT_HELD", "FW_SLOT_TOKEN"]) delete e[k];
+  return e;
+};
+
+test("check.sh guard, no token: an inherited FW_SLOT_HELD alone still queues through a check slot", () => {
+  const dir = mkdtempSync(join(tmpdir(), "slot-guard-state-"));
+  const r = spawnSync("sh", ["scripts/check.sh"], { cwd: guardTree(), env: { ...cleanEnv(dir), FW_SLOT_HELD: "1" }, encoding: "utf8", timeout: 60000 });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /ran/);
+  assert.ok(readdirSync(dir).length > 0, "slot state written: it took its own slot");
+});
+
+test("check.sh guard, no recursion: an exported owner and token without FW_SLOT_HELD runs the script once", () => {
+  const dir = mkdtempSync(join(tmpdir(), "slot-guard-state-"));
+  const base = cleanEnv(dir);
+  const fw = join(top, "apps", "runner", "src", "fw.ts");
+  const held = spawnSync(process.execPath, [fw, "slot", "acquire", "--kind", "sim", "--lease", "120"], { env: base, encoding: "utf8", cwd: top });
+  assert.equal(held.status, 0, held.stderr);
+  const token = held.stdout.trim();
+  try {
+    const r = spawnSync("sh", ["scripts/check.sh"], { cwd: guardTree(), env: { ...base, FW_SLOT_TOKEN: token }, encoding: "utf8", timeout: 30000 });
+    assert.equal(r.status, 0, `${r.error ?? ""}${r.stderr}`);
+    assert.equal(r.stdout, "ran\n");
+  } finally {
+    spawnSync(process.execPath, [fw, "slot", "release", "--token", token], { env: base, cwd: top });
+  }
+});
+
+test("slot-self direct path sets FW_SLOT_SELF_IN for the child", () => {
+  const r = spawnSync(process.execPath, [helper, "check", "--", process.execPath, "-e", "console.log(process.env.FW_SLOT_SELF_IN)"],
+    { env: { ...cleanEnv(mkdtempSync(join(tmpdir(), "slot-direct-"))), FW_SLOT_SELF: "off" }, encoding: "utf8", cwd: top });
+  assert.equal(r.stdout.trim(), "1");
 });

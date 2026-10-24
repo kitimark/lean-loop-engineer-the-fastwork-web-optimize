@@ -18,7 +18,7 @@
 set -u
 # heavy-job lock (Lean Fw.Sched.Heavy; scripts/heavy-lock.mjs): wait for a free slot, then run this script again inside it
 cd "$(dirname "$0")/.."
-[ -z "${FW_SLOT_HELD:-}" ] && [ -z "${CI:-}" ] && [ "${FW_SLOT_SELF:-}" != off ] && exec node ../scripts/slot-self.mjs check -- sh scripts/check.sh "$@"
+[ -z "${FW_SLOT_SELF_IN:-}" ] && [ -z "${CI:-}" ] && [ "${FW_SLOT_SELF:-}" != off ] && exec node ../scripts/slot-self.mjs check -- sh scripts/check.sh "$@"
 [ -z "${FW_HEAVY_HELD:-}" ] && [ "${FW_HEAVY_LOCK:-}" != off ] && exec node ../scripts/heavy-lock.mjs run --kind check -- sh scripts/check.sh "$@"
 . ../scripts/lake-slot-lib.sh
 . ../scripts/span.sh  # span <tool> <step> <cmd...>: one timing line per stage in .fw-console/timings.jsonl (docs/team/tools/timings.md)

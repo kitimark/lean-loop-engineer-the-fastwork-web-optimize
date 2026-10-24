@@ -54,7 +54,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
     case "adapt.agentsSeen": return { agents: agentsSeen(p, r.now as number, r.reading as { time: number; live: number } | null) };
     case "adapt.simQueued": return { queued: simQueued(r.now as number, r.queue as Entry[]) };
     case "adapt.withLegacy": return { holders: withLegacy(r.now as number, r.legacy as boolean, r.holders as Entry[]) };
-    case "adapt.nested": return { skip: nestedSkips(r.now as number, r.named as { owner: string; token: string } | null, r.held as Entry[]) };
+    case "adapt.nested": return { skip: nestedSkips(r.now as number, r.kind as Entry["kind"], r.named as { owner: string; token: string } | null, r.held as Entry[]) };
     case "adapt.heldOf": return { held: heldOf(r.now as number, r.holders as Entry[], r.kind as Entry["kind"]) };
     case "adapt.stop": return { action: stopAct(p, r.alive as boolean, r.sameStart as boolean, r.termAt as number | null, r.nowMs as number) };
     case "adapt.cacheKey": return { key: keyOf(r.kind as CacheKey["kind"], r.argv as string[], r.tree as string, r.mainSha as string, r.clean as boolean) };
@@ -324,6 +324,12 @@ describe("fw slot run", () => {
     expect(r.code).toBe(0);
     expect(r.out).toBe("T1\n");
     expect(r.holders).toHaveLength(1);
+  });
+
+  it("a nested sim request under a held land slot goes through admission and takes its own sim entry", async () => {
+    const r = await nested("sim", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() + 600]);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("T1\n");
   });
 
   it("an expired named token does not cover the run", async () => {

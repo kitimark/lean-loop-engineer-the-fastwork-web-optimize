@@ -136,10 +136,10 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   span it held) and `lateMs` (how long after its lease end the poll dropped it).
 - Nested runs: `run` sets `FW_SLOT_HELD=1`, `FW_SLOT_TOKEN=<its token>` and `FW_SLOT_OWNER` for its child. A `fw slot run`
   inside it skips the queue (runs under the parent's lease) only when the state holds an entry that is live and carries that
-  owner and token, whatever the kinds (`nestedSkips` in `lean/Fw/Sup/Nested.lean`; `nestedSkips_iff`, `nestedSkips_none`,
-  `nestedSkips_live`, `nestedSkips_of_live`, `nestedSkips_other_kind`, `nestedSkips_empty`; TS twin `nestedSkips` in `slot-core.ts`, facts read by
+  owner and token and the kinds allow it: the same kind, or a requested kind other than `sim` and `measure` (those two always go through admission, so the exclusive slots stay exclusive; `nestedSkips` in `lean/Fw/Sup/Nested.lean`; `nestedSkips_iff`, `nestedSkips_none`,
+  `nestedSkips_same_kind`, `nestedSkips_other_kind`, `nestedSkips_sim_admission`, `nestedSkips_measure_admission`, `nestedSkips_empty`, and `sim_under_parent_not_blocked`: a sim request with the parent as its only live holder is not held by `simBusy` or `drain` because of it; TS twin `nestedSkips` in `slot-core.ts`, facts read by
   `nestedHeld` in `slot.ts`, goldens `adapt.nested` in `adapt.jsonl`). Identity, not env presence: `FW_SLOT_HELD=1` with
-  no token (a script started with the flag by hand), an expired or released token and another owner's token all take their own slot. Live means the lease has not expired (`live`, now < till; the parent's run renews it every leaseS/3); the owner's pid and start time are not checked, so a dead parent's token covers a child until its lease lapses. Decision (task slot-nested-kind): a nested request of another kind runs under the parent's lease instead of being refused (no `VERDICT slot nested-kind`), because `fw land` runs check.sh and package tests inside its own land slot and a refusal would break dry lands; so a nested request never waits on its own ancestor (`nestedSkips_other_kind`). Its footprint is not counted extra (accepted limit). Owner pid+start check on the parent token: follow-up, `Entry` carries no pid.
+  no token (a script started with the flag by hand), an expired or released token and another owner's token all take their own slot. Live means the lease has not expired (`live`, now < till; the parent's run renews it every leaseS/3); the owner's pid and start time are not checked, so a dead parent's token covers a child until its lease lapses. Decision (task slot-nested-kind): a nested request of another kind runs under the parent's lease instead of being refused (no `VERDICT slot nested-kind`), because `fw land` runs check.sh and package tests inside its own land slot and a refusal would break dry lands; so a nested request of such a kind never waits on its own ancestor (`nestedSkips_other_kind`); a nested `sim` or `measure` request is admitted as usual. Its footprint is not counted extra (accepted limit). Owner pid+start check on the parent token: follow-up, `Entry` carries no pid.
   - Cause (incident `inc-slot-held-env`): the old rule skipped on any `FW_SLOT_HELD`. Of the 760 local `slot run land
     pnpm fw land dry` spans to cutoff 1792808775650 (timings.jsonl), 133 have no `slot` land `acquire` in locks.jsonl
     within 3 s of their start. MEASURED (time match: spans carry no caller): 114 of the 133 started within 60 s
@@ -170,11 +170,11 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   The package scripts keep their old body as `test:run`.
 - Not held: the helper itself runs `slot run --kind <kind> -- <cmd>` (apps/runner/src/slot-main.ts, in its own process) and waits in the queue.
 - Held (`FW_SLOT_TOKEN` names a live held entry of this owner: the token rule above, `FW_SLOT_HELD` alone queues), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
-  directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
+  directly with `FW_SLOT_SELF_IN=1` in its env (check.sh's guard tests that marker, not `FW_SLOT_HELD`, so the direct run does not re-enter), so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
 - Tests: `node --test scripts/slot-self.test.mjs`.
 - Not covered: one-off `lake build <target>`,
   `lake env lean --run/--stdin`, `npx vitest`.
-- A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: a self-routing script (check.sh, a package `test`) run there queues behind its own slot; set `FW_SLOT_OWNER=<owner>` and `FW_SLOT_TOKEN=<its token>` to run under it.
+- A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: a self-routing script (check.sh, a package `test`) run there queues behind its own slot; export `FW_SLOT_OWNER=<owner>` and `FW_SLOT_TOKEN=<its token>` to run under it (a `sim` or `measure` kind still takes admission).
 
 ## Light waiter
 

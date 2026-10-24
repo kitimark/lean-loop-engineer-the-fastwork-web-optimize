@@ -23,7 +23,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { enforceNodePin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "node-guard.ts")).href);
     enforceNodePin();
     const { nestedHeld, realDeps } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "slot.ts")).href);
-    nested = nestedHeld(realDeps(process.cwd()));
+    nested = nestedHeld(realDeps(process.cwd()), process.argv[2]);
   }
   const p = plan(process.env, process.argv.slice(2), nested);
   if (p.error) { process.stderr.write(`${p.error}\n`); process.exit(2); }
@@ -40,7 +40,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }
     process.exitCode = await slotMain(p.slot, process.cwd());
   } else {
-    const child = spawn(p.argv[0], p.argv.slice(1), { stdio: "inherit" });
+    const child = spawn(p.argv[0], p.argv.slice(1), { stdio: "inherit", env: { ...process.env, FW_SLOT_SELF_IN: "1" } });
     for (const s of ["SIGINT", "SIGTERM"]) process.on(s, () => child.kill(s));
     child.on("error", (e) => { process.stderr.write(`slot-self: ${e.message}\n`); process.exit(127); });
     child.on("close", (code, sig) => process.exit(code ?? (sig ? 128 + 15 : 1)));
