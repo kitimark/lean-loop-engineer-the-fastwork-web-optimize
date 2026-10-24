@@ -55,3 +55,21 @@ artifact and path.
 - Screencast times: Playwright WebKit fixes a clock offset per page at its first delivered frame (coreBundle.js `_onScreencastFrame`). Each arm is its own page, so the two rows carry different unknown offsets. In run 39530106935 the labels trail the in-page recorder by about 150 to 450 ms. Screencast columns are not time-aligned between rows. Use the screenshot strips to compare timing, and the screencast strips only for the frame sequence within one row. (Chromium screencast times are the compositor's swap time.)
 - The wheel time is the node wall clock after the mouse moved to the wheel point, before the wheel call; its latency to the page is not subtracted.
 - No flag or site change: the strips show the flag as built.
+
+## The transitions recording (earn and language buttons, per frame)
+
+`[transitions:earn]` next to a `[frames:...]` flag token (the flag token keeps the mark-rule exemption and the walk skipped; its frames steps
+are skipped by `[transitions:`) turns the macOS leg into a per-frame recording of the "Join waitlist" and language buttons:
+
+    [ci:trajectory-probe] [frames:nav:earn-no-transition] [transitions:earn]
+    [trajectory engines=playwright-webkit widths=390,1280]
+
+Per width leg (macos-26, timeout 40 min): Playwright Chromium and Playwright WebKit on the same runner, the original (`snapshot/site`) and the
+faithful rewrite, each with 3 full repeats and one light page (`src/trajectory/transitions.mjs capture`). A row per rendered frame (native
+requestAnimationFrame, no seeking): the rects of earn, language wrap, actions and nav flags, and in full mode the computed padding-left/right,
+max-width, opacity, `--nav-expand`, `--earn-out`, `--earn-layout`, `column-gap` and the live CSSTransition list. The light page reads rects only,
+so the cost of style reads is bounded. Sequences: hero-exit and hero-entry (a scripted scroll ramp, 2 viewport heights in 600 ms), morph-open and
+morph-close (wheel pushes). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
+effort, `safari-status.txt` says ok, skipped or failed and why). `transitions.mjs summary` reduces every recording (`index.json`,
+`*.summary.json`, `*.summary.txt` with the per-frame table). Artifact `transitions-apple-<leg>`. Why the cause is in Lean: `Fw.Engine.TransitionStart`
+(golden `packages/contracts/golden/engine/transition-start.jsonl`); the reduction in `transitions.mjs` is a TS stand-in.
