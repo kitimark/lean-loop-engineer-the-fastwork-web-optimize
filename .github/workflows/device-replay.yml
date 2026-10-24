@@ -203,7 +203,7 @@ jobs:
         run: |
           set -euo pipefail
           for build in before after; do
-            if [ -f out/combo/$build/run.json ]; then { echo "### $build"; node packages/measure-webkit/src/replay/combo-cli.mjs table --in out/combo/$build/run.json; } >> "$GITHUB_STEP_SUMMARY"; fi
+            if [ -f out/combo/$build/run.json ]; then { echo "### $build (per arm)"; node packages/measure-webkit/src/replay/combo-cli.mjs summary --in out/combo/$build/run.json; echo "### $build (per pass)"; node packages/measure-webkit/src/replay/combo-cli.mjs table --in out/combo/$build/run.json; } >> "$GITHUB_STEP_SUMMARY"; fi
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}

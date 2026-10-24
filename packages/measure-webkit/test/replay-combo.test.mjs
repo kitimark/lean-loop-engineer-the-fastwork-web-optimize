@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { reversalsNoFinger, jumps, scriptJumps, writeStats, metrics, JUMP_PX } from '../src/replay/combo-metrics.mjs';
+import { reversalsNoFinger, jumps, scriptJumps, writeStats, metrics, cycles, ranScripted, JUMP_PX } from '../src/replay/combo-metrics.mjs';
 import { eventsOf } from '../src/replay/combo-replay.mjs';
 import { SCENARIOS, profileOf, render } from '../src/replay/combo-profile.mjs';
 import { BISECT, FIX, USER_FLAGS, armsArg } from '../src/replay/combo-arms.mjs';
@@ -86,4 +86,19 @@ test('a script jump needs a page write inside the pair; a finger that turns roun
   assert.deepEqual(scriptJumps(ts, ys, [[20, 100, 140, 0]]), { n: 1, max: 40 });
   assert.deepEqual(scriptJumps(ts, ys, [[20, 140, 140, 0]]), { n: 0, max: 0 });
   assert.deepEqual(scriptJumps(ts, ys, [[60, 100, 140, 0]]), { n: 0, max: 0 });
+});
+
+test('morph cycles count the crossings of one half; a scripted pass ran with two opens and a close', () => {
+  assert.deepEqual(cycles([0, 0.2, 0.7, 1, 0.6, 0.3, 0.1, 0.6, 1]), { opens: 2, closes: 1 });
+  assert.equal(ranScripted({ opens: 2, closes: 1 }), true);
+  assert.equal(ranScripted({ opens: 1, closes: 0 }), false);
+  assert.deepEqual(metrics({ ts: [0, 16], ys: [0, 1], down: [0, 0], writes: [], ms: [0, 1] }).morph, { opens: 1, closes: 0 });
+});
+
+test('the per-arm summary counts passes with a script write or jump', async () => {
+  const { summary } = await import('../src/replay/combo-cli.mjs');
+  const pass = (armName, writes, sj) => ({ armName, metrics: { morph: { opens: 2, closes: 1 }, reversalsNoFinger: 0, scriptJumps: { n: sj, max: sj * 50 }, writes: { n: writes, down: writes, free: 0 } } });
+  const text = summary({ passes: [pass('a', 0, 0), pass('a', 3, 1), pass('b', 0, 0)] });
+  assert.match(text, /\| a \| 2 \| 2 \| 1 \| 0 \| 1 \(50\) \| 3 \/ 0 \|/);
+  assert.match(text, /\| b \| 1 \| 1 \| 0 \| 0 \| 0 \(0\) \| 0 \/ 0 \|/);
 });

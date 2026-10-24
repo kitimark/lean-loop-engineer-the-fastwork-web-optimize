@@ -46,7 +46,7 @@ export const START_JS = (start) => `(() => {
     const p = document.querySelector('.start-selling-platform, [data-fw="platform"]');
     if (p) y = Math.min(max, Math.round(p.getBoundingClientRect().bottom + se.scrollTop - innerHeight));
   }
-  se.scrollTop = y;
+  window.scrollTo({ top: y, behavior: 'instant' });
   return y;
 })()`;
 
@@ -63,6 +63,7 @@ export async function comboPass({ browser, origin, search = '', profile, throttl
     const maxY = await page.evaluate('document.documentElement.scrollHeight - innerHeight');
     const at = await page.evaluate(START_JS(profile.input.start ?? 'top'));
     log(`start ${profile.input.start ?? 'top'}: scrollY ${at}`);
+    for (let i = 0; i < 40 && Math.abs((await page.evaluate('window.scrollY')) - at) > 1; i++) await sleep(100);
     await sleep(600);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
     await page.evaluate('window.__combo.on = true; 1');
@@ -74,7 +75,7 @@ export async function comboPass({ browser, origin, search = '', profile, throttl
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     const rec = await page.evaluate('JSON.stringify({ t: __combo.t, y: __combo.y, m: __combo.m, d: __combo.d, writes: __combo.writes, moves: __combo.moves })');
     const r = JSON.parse(rec);
-    return { maxY, variants: JSON.parse(variants), events: events.length, lateMax: Math.max(...late), rec: r, metrics: metrics({ ts: r.t, ys: r.y, down: r.d, writes: r.writes }) };
+    return { maxY, variants: JSON.parse(variants), events: events.length, lateMax: Math.max(...late), rec: r, metrics: metrics({ ts: r.t, ys: r.y, down: r.d, writes: r.writes, ms: r.m }) };
   } finally {
     await context.close();
   }

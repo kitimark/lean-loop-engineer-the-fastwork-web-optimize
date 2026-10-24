@@ -6,6 +6,7 @@ import { loadPlaywright, playwrightVersion } from '../linux/run.mjs';
 import { startServer } from './combo-serve.mjs';
 import { canonSearch } from '../../../contracts/src/flag-key.mjs';
 import { comboPass } from './combo-replay.mjs';
+import { ranScripted } from './combo-metrics.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -16,16 +17,33 @@ const { values: v } = parseArgs({
 const log = (s) => console.error(s);
 
 export function table(run) {
-  const rows = ['| profile | arm | rep | frames | reversals no finger | jumps >= 20 px (max px) | script jumps >= 20 px (max px) | script writes (finger down / free) | px written (down / free) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'];
+  const rows = ['| profile | arm | rep | frames | morph opens/closes | reversals no finger | jumps >= 20 px (max px) | script jumps >= 20 px (max px) | script writes (finger down / free) | px written (down / free) |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |'];
   for (const p of run.passes) {
     const m = p.metrics;
-    rows.push(`| ${p.profile} | ${p.armName} | ${p.rep} | ${m.frames} | ${m.reversalsNoFinger} | ${m.jumps.n} (${m.jumps.max}) | ${m.scriptJumps.n} (${m.scriptJumps.max}) | ${m.writes.n} (${m.writes.down} / ${m.writes.free}) | ${Math.round(m.writes.pxDown)} / ${Math.round(m.writes.pxFree)} |`);
+    rows.push(`| ${p.profile} | ${p.armName} | ${p.rep} | ${m.frames} | ${m.morph.opens}/${m.morph.closes} | ${m.reversalsNoFinger} | ${m.jumps.n} (${m.jumps.max}) | ${m.scriptJumps.n} (${m.scriptJumps.max}) | ${m.writes.n} (${m.writes.down} / ${m.writes.free}) | ${Math.round(m.writes.pxDown)} / ${Math.round(m.writes.pxFree)} |`);
   }
+  return `${rows.join('\n')}\n`;
+}
+
+export function summary(run) {
+  const by = new Map();
+  for (const p of run.passes) {
+    const m = p.metrics;
+    const a = by.get(p.armName) ?? { passes: 0, ran: 0, fight: 0, rev: 0, sj: 0, sjMax: 0, wd: 0, wf: 0 };
+    a.passes++;
+    if (ranScripted(m.morph)) a.ran++;
+    if (m.reversalsNoFinger > 0 || m.scriptJumps.n > 0 || m.writes.n > 0) a.fight++;
+    a.rev += m.reversalsNoFinger; a.sj += m.scriptJumps.n; a.sjMax = Math.max(a.sjMax, m.scriptJumps.max); a.wd += m.writes.down; a.wf += m.writes.free;
+    by.set(p.armName, a);
+  }
+  const rows = ['| arm | passes | morph ran (2 opens, 1 close) | passes with a script write or jump | reversals no finger | script jumps >= 20 px (max px) | script writes (finger down / free) |', '| --- | --- | --- | --- | --- | --- | --- |'];
+  for (const [k, a] of by) rows.push(`| ${k} | ${a.passes} | ${a.ran} | ${a.fight} | ${a.rev} | ${a.sj} (${a.sjMax}) | ${a.wd} / ${a.wf} |`);
   return `${rows.join('\n')}\n`;
 }
 
 async function main() {
   if (cmd === 'table') { process.stdout.write(table(JSON.parse(readFileSync(resolve(v.in), 'utf8')))); return; }
+  if (cmd === 'summary') { process.stdout.write(summary(JSON.parse(readFileSync(resolve(v.in), 'utf8')))); return; }
   if (cmd !== 'run' || !v.dist || !v.profile?.length || !v.arms) { console.error('usage: run --dist <site dist> --profile <p.json>... --arms "<name>=<search>;..." | table --in run.json'); process.exitCode = 2; return; }
   const root = resolve(v.dist);
   const cfg = JSON.parse(readFileSync(join(root, 'configs.json'), 'utf8'));

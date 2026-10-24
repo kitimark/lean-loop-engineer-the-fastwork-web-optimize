@@ -57,6 +57,18 @@ export function writeStats(writes) {
   return out;
 }
 
-export function metrics({ ts, ys, down, writes }) {
-  return { frames: ys.length, reversalsNoFinger: reversalsNoFinger(ys, down), jumps: jumps(ys), scriptJumps: scriptJumps(ts, ys, writes), writes: writeStats(writes) };
+export function cycles(ms) {
+  let opens = 0;
+  let closes = 0;
+  for (let k = 1; k < ms.length; k++) {
+    if (ms[k] > 0.5 && ms[k - 1] <= 0.5) opens++;
+    if (ms[k] < 0.5 && ms[k - 1] >= 0.5) closes++;
+  }
+  return { opens, closes };
+}
+
+export const ranScripted = (c) => c.opens >= 2 && c.closes >= 1;
+
+export function metrics({ ts, ys, down, writes, ms = [] }) {
+  return { frames: ys.length, reversalsNoFinger: reversalsNoFinger(ys, down), jumps: jumps(ys), scriptJumps: scriptJumps(ts, ys, writes), writes: writeStats(writes), morph: cycles(ms) };
 }
