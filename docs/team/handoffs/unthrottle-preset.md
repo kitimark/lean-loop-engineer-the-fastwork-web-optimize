@@ -9,10 +9,10 @@ CI runs (ci/unthrottle-preset), all at c113d5eca:
 - 40078755847 toolbar-throttle push: success, pooled verdict lifted for unthrottle (0 band runs in 6330 exit frames vs 19 in 1600 rewrite, one usable rewrite pass)
 - 40078781031 chromium-counts dispatch 1 of 3: absolute plus guard, +0 layers in 575/573/572 of 575 frames; decision absolute
 - 40078755885 lean push: success
-- 40083527306 breakpoint-gate dispatch 3 of 3 (fw=engine.scroll:unthrottle, both engines; v2-proved is empty so --fw): see update below
+- 40083527306 breakpoint-gate dispatch 3 of 3 (fw=engine.scroll:unthrottle, both engines; v2-proved is empty so --fw): success, failing-items table empty on both engines
 
 Verified: Lean EngineScrollUnthrottle.lean (position, guard theorems, relevantAnimations named); check.sh green at d8b937498; ledger row proved;
 Gen.run: flag is not a member (WebKit morph cell pending; no flag has passed it).
-Open: gate result; merge main; plan lint; dry land; review ready. Power cost of leaving the throttle not measured.
+Open: final check.sh, tests, dry land, review ready (main merged). Power cost of leaving the throttle not measured.
 Writes outside the task: .github/workflows/toolbar-throttle.yml, packages/measure-webkit/src/throttle/{cli,report}.mjs, packages/measure-webkit/test/throttle-report.test.mjs.
 Read first: research/notes/2026/10-2x-throttle-lift-ship.md section 6.

@@ -3359,45 +3359,6 @@
    "next": "touch-lock-page-end (the iOS touch lock fight at the page end). Note research/notes/2026/10-2x-morph-real-wheel.md."
   },
   {
-   "id": "engine.scroll.unthrottle",
-   "n": 59,
-   "part": "engine.scroll",
-   "candidate": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
-   "status": "proved",
-   "flags": [
-    "engine.scroll:unthrottle"
-   ],
-   "chromium": "no-win",
-   "webkit": "win",
-   "visual": "E (visible_withFlag: the visible scene with the element equals the page's own; same_layout_hit_a11y: no flow box, hit target or accessible content). Breakpoint gate run 40068858697, Chromium and Playwright WebKit, no failing item.",
-   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266 @862f17d; WebKit bugs 307463 and 319523) and PROVED in Lean (reported_iff, lifted_when_supported, no_effect_without_support, chromium_never_throttled). Effect on the Simulator: throttle-lift took 163 band runs to 0 (run 39667548341); the shipped text is not itself measured for still runs. Guard and position PROVED in Lean (guard_keeps_ios, guard_lifts_ios, guard_fine_noop, guard_fine_cost, lift_anim_position_free, same_layout_out_of_flow; iPhone primary pointer is coarse by WebPageIOS.mm:4243-4246). Cost MEASURED: with position fixed (text of the first version, flag run 40068851412 vs push run 40068835905) +2 compositor layers; with position absolute and the guard (flag run 40078781031, 3 x 575 swipe frames vs the same push run 40068835905, older sha) +0 layers in 575, 573, 572 frames, +1 element restyled in 532, 514, 531 frames, no extra layout or style-recalc event. WebKit Simulator touch lane (run 40078755847, rewrite vs unthrottle on the shipped text): 19 band runs in 1600 exit frames (one usable rewrite pass) against 0 in 6330 (4 passes), Lean verdict lifted.",
-   "leanFor": [
-    "Fw.Parts.EngineScrollUnthrottle.reported_iff",
-    "Fw.Parts.EngineScrollUnthrottle.lifted_when_supported",
-    "Fw.Parts.EngineScrollUnthrottle.no_effect_without_support",
-    "Fw.Parts.EngineScrollUnthrottle.chromium_never_throttled",
-    "Fw.Parts.EngineScrollUnthrottle.visible_withFlag",
-    "Fw.Parts.EngineScrollUnthrottle.same_layout_hit_a11y",
-    "Fw.Parts.EngineScrollUnthrottle.restyled_flag",
-    "Fw.Parts.EngineScrollUnthrottle.extraRecalc_le"
-   ],
-   "leanAgainst": [],
-   "missingWhy": [
-    "Shipped text not yet felt on the phone (the Simulator lane shows the lift; the phone session covered the diagnostic text)",
-    "WebKit morph trajectory cell undecided: Mac WebKit morph coverage new units at 641 and 1280 (widths where the flag is inactive, a fine pointer), runs 40078755889 and 40080296257",
-    "Power cost of leaving the 100 ms throttle (WebKit: up to 2 percent) not measured"
-   ],
-   "premises": [
-    "The phone behaves like the Simulator for this throttle: INFERRED, the user's felt pass agrees",
-    "Chromium has no equivalent throttle: INFERRED from the absence of the handshake; the Chromium counts show no change in style or layout events"
-   ],
-   "v1Evidence": "",
-   "lesson": "A platform throttle can be lifted by a page-side condition the platform itself names; prove the condition from the engine source, then prove the lifter invisible and count what it costs: here the one-element restyle matched the bound and the unmodelled cost was a Chromium layer.",
-   "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
-   "next": "WebKit morph trajectory cell (the probe cannot decide Mac WebKit morph for any flag); a phone pass of the shipped text.",
-   "flag": "engine.scroll:unthrottle"
-  },
-  {
    "id": "accent.same.dasharray",
    "n": 66,
    "part": "hero.accent",
@@ -3570,6 +3531,45 @@
    "candidate": "hero.accent same-look: keep the accent at its final width from the draw-in start and translate the first and last words by +-(wf - w(t))/2 with the same 0.9 s easing",
    "status": "partly-proved",
    "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "engine.scroll.unthrottle",
+   "n": 59,
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "status": "proved",
+   "flags": [
+    "engine.scroll:unthrottle"
+   ],
+   "chromium": "no-win",
+   "webkit": "win",
+   "visual": "E (visible_withFlag: the visible scene with the element equals the page's own; same_layout_hit_a11y: no flow box, hit target or accessible content). Breakpoint gate on the shipped text (absolute, pointer-coarse guard) run 40083527306 at c113d5eca, Chromium and Playwright WebKit, empty failing-items table on both (earlier text: run 40068858697).",
+   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266 @862f17d; WebKit bugs 307463 and 319523) and PROVED in Lean (reported_iff, lifted_when_supported, no_effect_without_support, chromium_never_throttled). Effect on the Simulator: throttle-lift took 163 band runs to 0 (run 39667548341); the shipped text is not itself measured for still runs. Guard and position PROVED in Lean (guard_keeps_ios, guard_lifts_ios, guard_fine_noop, guard_fine_cost, lift_anim_position_free, same_layout_out_of_flow; iPhone primary pointer is coarse by WebPageIOS.mm:4243-4246). Cost MEASURED: with position fixed (text of the first version, flag run 40068851412 vs push run 40068835905) +2 compositor layers; with position absolute and the guard (flag run 40078781031, 3 x 575 swipe frames vs the same push run 40068835905, older sha) +0 layers in 575, 573, 572 frames, +1 element restyled in 532, 514, 531 frames, no extra layout or style-recalc event. WebKit Simulator touch lane (run 40078755847, rewrite vs unthrottle on the shipped text): 19 band runs in 1600 exit frames (one usable rewrite pass) against 0 in 6330 (4 passes), Lean verdict lifted.",
+   "leanFor": [
+    "Fw.Parts.EngineScrollUnthrottle.reported_iff",
+    "Fw.Parts.EngineScrollUnthrottle.lifted_when_supported",
+    "Fw.Parts.EngineScrollUnthrottle.no_effect_without_support",
+    "Fw.Parts.EngineScrollUnthrottle.chromium_never_throttled",
+    "Fw.Parts.EngineScrollUnthrottle.visible_withFlag",
+    "Fw.Parts.EngineScrollUnthrottle.same_layout_hit_a11y",
+    "Fw.Parts.EngineScrollUnthrottle.restyled_flag",
+    "Fw.Parts.EngineScrollUnthrottle.extraRecalc_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Shipped text not yet felt on the phone (the Simulator lane shows the lift; the phone session covered the diagnostic text)",
+    "WebKit morph trajectory cell undecided: Mac WebKit morph coverage new units at 641 and 1280 (widths where the flag is inactive, a fine pointer), runs 40078755889 and 40080296257",
+    "Power cost of leaving the 100 ms throttle (WebKit: up to 2 percent) not measured"
+   ],
+   "premises": [
+    "The phone behaves like the Simulator for this throttle: INFERRED, the user's felt pass agrees",
+    "Chromium has no equivalent throttle: INFERRED from the absence of the handshake; the Chromium counts show no change in style or layout events"
+   ],
+   "v1Evidence": "",
+   "lesson": "A platform throttle can be lifted by a page-side condition the platform itself names; prove the condition from the engine source, then prove the lifter invisible and count what it costs: here the one-element restyle matched the bound and the unmodelled cost was a Chromium layer.",
+   "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
+   "next": "WebKit morph trajectory cell (the probe cannot decide Mac WebKit morph for any flag); a phone pass of the shipped text.",
+   "flag": "engine.scroll:unthrottle"
   }
  ],
  "notes": [

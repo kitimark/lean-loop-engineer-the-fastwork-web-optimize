@@ -741,7 +741,7 @@ absolute 1 px, transparent element that animates a registered custom property on
 | Chromium counts, 3 x 575 swipe frames, absolute plus guard | +0 compositor layers in 575, 573, 572 frames (position fixed gave +2); +1 element restyled in 532, 514, 531 frames; no extra layout or style recalc | MEASURED, run 40078781031 against push run 40068835905 (older sha) |
 | Trajectory probe, Chromium hero and morph; WebKit hero | pass | MEASURED, runs 40078755889 and 40080296257 |
 | Trajectory probe, WebKit morph | no verdict (Mac WebKit coverage units at the two desktop widths, where the element is inactive) | MEASURED, run 40080296257; cause INFERRED |
-| Breakpoint gate on the shipped text | see the ledger row `engine.scroll.unthrottle`, field `visual` | MEASURED |
+| Breakpoint gate on the shipped text, `fw=engine.scroll:unthrottle` (the preset has no member) | Chromium and Playwright WebKit, failing-items table empty on both | MEASURED, run 40083527306 |
 | Power cost of leaving the throttle (WebKit measured up to 2 percent) | not measured | open |
 
 Result: the ledger row is `proved`; `v2-proved` stays empty because its WebKit morph trajectory cell has no verdict for any
