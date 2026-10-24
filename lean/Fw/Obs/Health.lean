@@ -1550,13 +1550,15 @@ theorem sysContended_between (p : Params) (o : Obs) (h1 : Fw.Obs.Timing.calmLoad
 
 /-- **The signal and the timing verdict are one test.** `sys.contended` fires exactly when a local timing sample taken
 at the observation's load (with the default limit, `contendedLoad`) is `contended`: while the machine is contended
-every step's timing is judged `contended` and the one `sys.contended` carries it; at normal load neither does.
+every step's timing is judged `contended` and the one `sys.contended` carries it; at normal load neither does. A dry
+land sample (`Sample.dryLand`) has the lower limit `landDryLoad` and is outside this statement.
 -/
 theorem sysContended_iff_sample (p : Params) (o : Obs) (s : Fw.Obs.Timing.Sample)
-    (hh : s.host = .«local») (hl : s.load = o.system.loadFloor) (hp : o.system.load.prevContended = false) :
+    (hh : s.host = .«local») (hd : s.dryLand = false) (hl : s.load = o.system.loadFloor)
+    (hp : o.system.load.prevContended = false) :
     (∃ x ∈ (health p o).alerts, x.code = .sysContended) ↔ Fw.Obs.Timing.contended {} s = true := by
   rw [sysContended_iff]
-  simp [Fw.Obs.Timing.contended, hh, hl, hp]
+  simp [Fw.Obs.Timing.contended, hh, hd, hl, hp]
 
 /-- A run waiting or running for more than the workflow's limit `s_p(wf(r))` minutes raises `ci.slow` with subject `workflow@branch`. -/
 theorem ciSlow_raised (p : Params) (o : Obs) (r : CiRun) (hr : r ∈ o.system.ci) (h : ciSlowB p o.now r = true) :
