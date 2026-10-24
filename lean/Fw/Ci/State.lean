@@ -179,7 +179,7 @@ def cases : List (String × Bool × Nat × Nat × List Nat × Step) := [
   ("id exactly page min plus burst still may hide", true, 100, 1006, 6 :: (List.range' 7 99).reverse, .grow 400),
   ("id one past page min plus burst is absent", true, 100, 1007, 6 :: (List.range' 7 99).reverse, .absent),
   ("run 40100783726, limit 100: page min 40100783603 is below it, still grows", true, 100, 40100783726, realPage100, .grow 400),
-  ("run 40100783726, limit 400: listed at entry 106 when captured, found", true, 400, 40100783726, realPage400, .found),
+  ("run 40100783726, limit 400: listed at entry 106, found", true, 400, 40100783726, realPage400, .found),
   ("run 40100783726 unfiltered, limit 100: older, not absent", false, 100, 40100783726, realPage100, .older),
   ("a run well above the real page min is absent", true, 100, 40100790000, realPage100, .absent)]
 
