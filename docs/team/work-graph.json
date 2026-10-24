@@ -20090,9 +20090,13 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/measure/paint-visible.jsonl"
    ],
-   "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land."
+   "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land.",
+   "evidence": "a723bd5"
   },
   {
    "devices": [
@@ -20522,6 +20526,24 @@
     "docs/team/handoffs/land-inputs-speed.md"
    ],
    "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-flag-order",
+   "owner": "part-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/site/src/entry-server.tsx",
+    "lean/Fw/Wire/Store.lean",
+    "lean/Fw/Wire/FlagKey.lean",
+    "packages/contracts/golden/wire/flag-key.jsonl",
+    "apps/site/test/prerender-keys.test.ts",
+    "docs/team/handoffs/gate-flag-order.md"
+   ],
+   "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain."
   }
  ],
  "deadline": {
