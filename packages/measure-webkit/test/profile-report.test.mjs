@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
 import { medianNat } from '../src/profile/reduce.mjs';
 import { writeRaws } from '../src/profile/raw.mjs';
-import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, touchTable, isControl, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -234,4 +234,28 @@ test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s i
   const m = minutesOf({ 1: { jobs: [{ name: 'webkit mac (x)', conclusion: 'cancelled', startedAt: '2026-10-21T10:00:00Z', completedAt: '2026-10-21T10:15:01Z' }, { name: 'webkit mac (y)', conclusion: 'success', startedAt: '2026-10-21T10:00:00Z', completedAt: '2026-10-21T10:10:00Z' }] } });
   assert.deepEqual(m.map((r) => [r.minutes, r.billed]), [[15, 16], [10, 10]]);
   assert.match(minutesTable(m), /\| all jobs billed \| mac \|  \| n=2 \|  \| 26 \|/);
+});
+
+test('cadenceTable: the Timeline column reads the row (timeline:false), not the mode; mixed rows say mixed', () => {
+  const th = [0, 167, 333, 500, 667, 1000];
+  const ivs = [167, 167, 167, 167, 333];
+  const r = (rep, timeline) => ({ arm: 'base', window: 'end', rep, mode: 'events', ok: false, ivs, th, hitches: 0, push: 'touch', ...(timeline === undefined ? {} : { timeline }) });
+  const job = (rows) => ({ label: 'a', leg: 'sim', file: { leg: 'sim', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows } });
+  assert.match(cadenceTable(legSummary([job([r(0, false), r(1, false)])], () => ({}))), /\| end touch \| off \| base/);
+  assert.match(cadenceTable(legSummary([job([r(0), r(1)])], () => ({}))), /\| end touch \| on \| base/);
+  assert.match(cadenceTable(legSummary([job([r(0, false), r(1)])], () => ({}))), /\| end touch \| mixed \| base/);
+  const cad = { arm: 'base', window: 'end', rep: 0, mode: 'cadence', ok: true, ivs, th, hitches: 0 };
+  assert.match(cadenceTable(legSummary([job([cad])], () => ({}))), /\| end \| off \| base/);
+});
+
+test('touchTable and isControl: the control job (Safari coordinates) is told apart and its pushes are counted per outcome', () => {
+  const t = (variant, outcome, beginAt, swipeAt, doneAt, moves) => ({ arm: 'base', window: 'end', mode: 'events', timeline: false, push: 'touch', touched: { variant, outcome, obs: { beginAt, swipeAt, doneAt, moves } } });
+  const test = { label: '1', file: { rows: [t('springboard', 'ok', 2000, 5000, 11000, 36), t('springboard', 'ok', 4000, 6000, 12000, 30), t('springboard', 'swipeLate', 4000, 25000, 60000, 6)] } };
+  const control = { label: '4', file: { rows: [t('safari', 'ok', 3000, 4000, 20000, 40)] } };
+  assert.equal(isControl(test.file), false);
+  assert.equal(isControl(control.file), true);
+  assert.equal(isControl({ rows: [] }), false);
+  const lines = touchTable([test, control]).split('\n').slice(2);
+  assert.equal(lines[0], '| 1 | springboard | off | 3 | 2 | swipeLate 1 | 4000 | 6000 | 12000 | 30 |');
+  assert.equal(lines[1], '| 4 | safari | off | 1 | 1 | - | 3000 | 4000 | 20000 | 40 |');
 });

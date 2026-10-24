@@ -95,6 +95,12 @@ export function jobCadence(file, win, mode) {
   return { arms, verdicts };
 }
 
+export function timelineOf(jobs, win, mode) {
+  const rs = jobs.flatMap((j) => j.file.arms.flatMap((a) => cadRows(j.file, a, win, mode)));
+  const on = rs.filter((r) => r.mode === 'events' && r.timeline !== false).length;
+  return on === 0 ? 'off' : on === rs.length ? 'on' : 'mixed';
+}
+
 export function poolCadence(jobs, arms, win, mode) {
   return Object.fromEntries(arms.map((a) => {
     const per = jobs.map((j) => cadRows(j.file, a, win, mode));
@@ -121,7 +127,7 @@ export function legSummary(jobs, classify) {
   const cadence = {};
   for (const win of ['hero', 'end', 'end touch']) for (const mode of ['events', 'cadence']) {
     const per = jobs.map((j) => ({ job: j.label, ...jobCadence(j.file, win, mode) })).filter((c) => Object.values(c.arms).some((a) => a.reps > 0));
-    if (per.length) cadence[`${win}|${mode}`] = { jobs: per, pool: poolCadence(jobs, arms, win, mode), verdicts: acrossJobs(per.map((c) => c.verdicts)) };
+    if (per.length) cadence[`${win}|${mode}`] = { timeline: timelineOf(jobs, win, mode), jobs: per, pool: poolCadence(jobs, arms, win, mode), verdicts: acrossJobs(per.map((c) => c.verdicts)) };
   }
   return { arms, zones, cadence };
 }
@@ -215,11 +221,11 @@ const COUNT_COLS = ['over25', 'over34', 'over50', 'skips', 'frames'];
 export function cadenceTable(leg) {
   const out = [head(['window', 'timeline', 'arm', 'reps n (per job)', 'hitches per rep (median)', 'over 25 ms', 'over 34 ms', 'over 50 ms', 'skipped slots', 'frames', 'p50 ms', 'p95 ms', 'max ms'])];
   for (const [key, c] of Object.entries(leg.cadence)) {
-    const [win, mode] = key.split('|');
+    const win = key.split('|')[0];
     for (const a of leg.arms) {
       const p = c.pool[a];
       if (!p || !p.reps) continue;
-      out.push(row([win, mode === 'events' ? 'on' : 'off', a, nOf(p), cellOr(p, (x) => med(x.hitches)), ...COUNT_COLS.map((f) => fmt(p.counts?.[f])), cellOr(p, (x) => x.p50, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.p95, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.max, (v) => (v / 10).toFixed(1))]));
+      out.push(row([win, c.timeline, a, nOf(p), cellOr(p, (x) => med(x.hitches)), ...COUNT_COLS.map((f) => fmt(p.counts?.[f])), cellOr(p, (x) => x.p50, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.p95, (v) => (v / 10).toFixed(1)), cellOr(p, (x) => x.max, (v) => (v / 10).toFixed(1))]));
     }
   }
   return out.join('\n');
@@ -228,8 +234,8 @@ export function cadenceTable(leg) {
 export function cadenceVerdictTable(leg) {
   const out = [head(['window', 'timeline', 'pair (first, second)', 'jobs', 'first', 'second', 'same', 'insufficient', 'verdict over jobs'])];
   for (const [key, c] of Object.entries(leg.cadence)) {
-    const [win, mode] = key.split('|');
-    for (const [p, v] of Object.entries(c.verdicts)) out.push(row([win, mode === 'events' ? 'on' : 'off', p.replace('|', ', '), v.jobs, v.first, v.second, v.same, v.insufficient, v.verdict]));
+    const win = key.split('|')[0];
+    for (const [p, v] of Object.entries(c.verdicts)) out.push(row([win, c.timeline, p.replace('|', ', '), v.jobs, v.first, v.second, v.same, v.insufficient, v.verdict]));
   }
   return out.join('\n');
 }
@@ -243,6 +249,22 @@ const pushOf = (f) => {
   const why = touched < ends.length && f.push?.why ? `; then synthetic wheel: ${shortWhy(f.push.why)}` : '';
   return `touch ${touched} of ${ends.length} end windows${why}`;
 };
+
+const touchedRows = (f) => f.rows.filter((r) => r.touched?.variant);
+
+export const isControl = (f) => { const t = touchedRows(f); return t.length > 0 && t.every((r) => r.touched.variant === 'safari'); };
+
+export function touchTable(jobs) {
+  const out = [head(['job', 'coordinates', 'timeline in touch windows', 'pushes', 'ok', 'other outcomes', 'begin ms (median)', 'swipe ms (median)', 'done ms (median)', 'moves (median)'])];
+  for (const j of jobs) {
+    const t = touchedRows(j.file);
+    if (!t.length) continue;
+    const obs = (k) => med(t.map((r) => r.touched.obs?.[k]).filter((x) => Number.isFinite(x)));
+    const others = Object.entries(t.reduce((m, r) => ({ ...m, [r.touched.outcome]: (m[r.touched.outcome] ?? 0) + 1 }), {})).filter(([k]) => k !== 'ok').map(([k, n]) => `${k} ${n}`).join(', ');
+    out.push(row([j.label, [...new Set(t.map((r) => r.touched.variant))].join(', '), t.every((r) => r.timeline === false) ? 'off' : 'on', t.length, t.filter((r) => r.touched.outcome === 'ok').length, others || '-', fmt(obs('beginAt')), fmt(obs('swipeAt')), fmt(obs('doneAt')), fmt(obs('moves'))]));
+  }
+  return out.join('\n');
+}
 
 export function runTable(jobs) {
   const out = [head(['job', 'leg', 'engine', 'version / runtime', 'arms', 'dropped by flags', 'windows', 'kept', 'refused (reason)', 'end push', 'wall s'])];
@@ -268,7 +290,7 @@ export function fillBlocks(text, blocks) {
 }
 
 export function blocksOf(summary, jobs, minutes) {
-  const b = { runs: runTable(jobs) };
+  const b = { runs: runTable(jobs), 'sim-touch': touchTable(jobs) };
   for (const leg of ['mac', 'sim']) {
     const s = summary[leg];
     if (!s) continue;
@@ -316,7 +338,7 @@ export async function reportMain({ runs, out, note, jobsDir, classify }) {
   const { files, skipped } = loadRuns(runs);
   const summary = {};
   for (const leg of ['mac', 'sim']) {
-    const jobs = files.filter((f) => f.leg === leg);
+    const jobs = files.filter((f) => f.leg === leg && !isControl(f.file));
     if (jobs.length) summary[leg] = legSummary(jobs, classify);
   }
   let minutes = null;
