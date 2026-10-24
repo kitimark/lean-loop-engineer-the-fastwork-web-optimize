@@ -18008,7 +18008,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Parts/FootprintRows.lean",
     "packages/contracts/golden/parts/footprint*.json",
-    "docs/team/handoffs/classpos-model-align.md"
+    "docs/team/handoffs/classpos-model-align.md",
+    "lean/Fw/Parts/Bridge.lean"
    ],
    "title": "footprint-classname-operands review follow-up: the JS extractor accepts more than the Lean ClassPos model (CLASS_HELPERS has 'classnames'; any .join(sep) / .filter(f) vs Lean .joined = .filter(Boolean).join(' ') only; no member-class setModuleClass golden case; string + concatenation and object-form clsx({a: b}) are non-class positions, so a real class written that way drops silently). Align: one canonical rule in Lean (add concat and member-class cases, keep the separator), JS narrowed or extended to match, golden covers every JS branch; an unmodelled class position fails the extractor loudly instead of dropping. Note the position theorems are rfl restatements (accepted)."
   },
@@ -19372,7 +19373,8 @@
     "docs/team/handoffs/polish-strays-followups.md",
     "lean/Fw/Wire/Plan.lean"
    ],
-   "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays."
+   "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays.",
+   "evidence": "2d8ffd2"
   },
   {
    "devices": [
@@ -19504,7 +19506,12 @@
     "apps/runner/src/slot*.ts",
     "apps/runner/test/reap*.test.ts",
     "docs/team/tools/reap.md",
-    "docs/team/handoffs/reap-ef-auto.md"
+    "docs/team/handoffs/reap-ef-auto.md",
+    "apps/runner/src/watch-reap.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/test/watch-reap*.test.ts",
+    "lean/scripts/ReapGolden.lean",
+    "packages/contracts/golden/ops/reap-exit.jsonl"
    ],
    "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick. Plus reap-watch-one-rule round-3 review follow-ups: (a) awaitOk and canonAwait become a character allowlist ([A-Za-z0-9._/-] only; backticks, *, ?, [ ], ~ keep the loop), golden row '/tmp/`x`.log' kept; (b) stopSelected guard scope = plan.targets pids, not plan.selected; (c) reapStopLines counts N from the plan targets (or prints advice rows on their own line); (d) a TS test of a mixed auto plan (A-D target in the same process group as an orphan loop: the loop gets no signal, the group falls back to per-pid)."
   },
@@ -19550,7 +19557,8 @@
     "scripts/gate-engine-ref.test.mjs",
     "docs/team/handoffs/gate-engine-restore-observe.md"
    ],
-   "title": "gate-engine-cache-followups review follow-ups: (1) read the first land.yml run after the seed (run 40045796969, refs/heads/main) whose jobs include land (chromium) or land (playwright-webkit): 'Cache restored from key gate-apt-debs-969c76e' and Post <= 1 s, add its legs as golden rows (restored) with run ids; (2) scripts/gate-engine-ref.test.mjs:11 uses the literal .github path; (3) the restore-class JS test reads the action output or is dropped (it only checks the golden against itself). No dispatched run: use the next land that has engine legs."
+   "title": "gate-engine-cache-followups review follow-ups: (1) read the first land.yml run after the seed (run 40045796969, refs/heads/main) whose jobs include land (chromium) or land (playwright-webkit): 'Cache restored from key gate-apt-debs-969c76e' and Post <= 1 s, add its legs as golden rows (restored) with run ids; (2) scripts/gate-engine-ref.test.mjs:11 uses the literal .github path; (3) the restore-class JS test reads the action output or is dropped (it only checks the golden against itself). No dispatched run: use the next land that has engine legs.",
+   "evidence": "12bb356"
   },
   {
    "devices": [
@@ -19590,9 +19598,11 @@
     "apps/site/scripts/part-footprint.classpos.test.mjs",
     "lean/Fw/Parts/FootprintData.lean",
     "packages/contracts/golden/parts/footprint*.gen.json",
-    "docs/team/handoffs/classpos-followups.md"
+    "docs/team/handoffs/classpos-followups.md",
+    "lean/Fw/Parts/Bridge.lean",
+    "docs/report/v2-report.md"
    ],
-   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions."
+   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length)."
   },
   {
    "devices": [
@@ -19622,6 +19632,28 @@
     "docs/team/handoffs/sim-touch-verdict-jobs.md"
    ],
    "title": "Re-plan of sim-touch-followups item 4 (closed as a CONFIRMED finding 2026-10-24: with 3 SpringBoard jobs one starved job removes the across-job verdict, since acrossDecisive needs minSamples 3 decisive jobs, reduce.mjs:99 / Smooth.lean:666; and touch end windows carry no Timeline, so the finish zone gets 0 reps). Lean: jobsNeeded with a theorem that an ok plan gives >= minSamples decisive jobs with a starvation margin (e.g. 4-5 SpringBoard jobs within the free macOS concurrency 5), the window budget from a tail quantile (tails 285-744 s) instead of the 45 s mean, the plan's clock started after Simulator boot, touch driver start and Safari launch (not before findDevice), the push server readyMs 240 s exceeded at host load; touch end windows keep Timeline zones (or a stated zone source); arms of 4+ split over jobs; FW_MATRIX_JOB on the morph step (sim-touch-followups title item 7). Proof: one CI run (at most 2 dispatches) whose across-jobs 'end touch' verdict is not insufficient."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-exit-fold",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "reap-ef-auto"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "lean/scripts/ReapGolden.lean",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/reap*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/reap*.test.ts",
+    "docs/team/tools/reap.md",
+    "docs/team/handoffs/reap-exit-fold.md"
+   ],
+   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino."
   }
  ],
  "deadline": {

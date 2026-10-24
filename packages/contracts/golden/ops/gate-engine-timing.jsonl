@@ -5,6 +5,8 @@
 {"aptS":48,"engine":"webkit","fetchS":27,"hit":false,"job":120701995647,"key":"969c76e","kind":"sample","post":"ok","postS":7,"run":40037942688,"step":"aptVariance","totalS":53}
 {"aptS":37,"engine":"chromium","fetchS":6,"hit":false,"job":120656499820,"key":"1a85621","kind":"sample","post":"ok","postS":5,"run":40024272661,"step":"aptVariance","totalS":42}
 {"aptS":19,"engine":"chromium","fetchS":4,"hit":false,"job":120672380862,"key":"1a85621","kind":"sample","post":"ok","postS":4,"run":40028997665,"step":"ok","totalS":23}
+{"aptS":33,"engine":"webkit","fetchS":5,"hit":true,"job":120732159815,"key":"969c76e","kind":"sample","post":"ok","postS":0,"run":40047376675,"step":"ok","totalS":39}
+{"aptS":13,"engine":"chromium","fetchS":1,"hit":true,"job":120732159810,"key":"1a85621","kind":"sample","post":"ok","postS":0,"run":40047376675,"step":"ok","totalS":19}
 {"kind":"ref","ref":"main","save":true}
 {"kind":"ref","ref":"ci/land-timing-poller-snapshot-727ac77","save":false}
 {"kind":"ref","ref":"ci/gate-fix","save":true}
@@ -16,6 +18,8 @@
 {"class":"missingRestore","engine":"webkit","hit":false,"kind":"leg","mainHolds":false,"ref":"ci/land-gc-landed-identity-1c3a381","run":40037942688}
 {"class":"firstSave","engine":"webkit","hit":false,"kind":"leg","mainHolds":false,"ref":"main","run":40045796969}
 {"class":"firstSave","engine":"chromium","hit":false,"kind":"leg","mainHolds":false,"ref":"main","run":40045796969}
+{"class":"restored","engine":"webkit","hit":true,"kind":"leg","mainHolds":true,"ref":"ci/land-gc-live-agent-cwd-b081d56","run":40047376675}
+{"class":"restored","engine":"chromium","hit":true,"kind":"leg","mainHolds":true,"ref":"ci/land-gc-live-agent-cwd-b081d56","run":40047376675}
 {"class":"firstSave","hit":false,"kind":"restoreCase","mainHolds":false,"ref":"main"}
 {"class":"firstSave","hit":false,"kind":"restoreCase","mainHolds":true,"ref":"main"}
 {"class":"restored","hit":true,"kind":"restoreCase","mainHolds":false,"ref":"main"}
