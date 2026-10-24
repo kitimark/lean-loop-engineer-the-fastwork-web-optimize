@@ -1,5 +1,6 @@
 import createEmotionServer from '@emotion/server/create-instance';
 import { renderToString } from 'react-dom/server';
+import { canonSearch, keyOf } from '../../../packages/contracts/src/flag-key.mjs';
 import { App } from './App';
 import { Census } from './Census';
 import { createServerCache } from './emotion';
@@ -21,7 +22,7 @@ export function enumerateSearches(kinds: ('presets' | 'single')[]): string[] {
     for (const p of parts)
       for (const v of Object.keys(p.variants)) {
         const key = `${p.id}:${v}`;
-        out.push(`?fw=${[key, ...(p.requires[key] ?? [])].join(',')}`); // a variant that requires another part's variant is requested with it
+        out.push(`?fw=${keyOf([key, ...(p.requires[key] ?? [])])}`); // a variant is requested with what it requires, under the canonical key
       }
   return out;
 }
@@ -47,7 +48,8 @@ export interface PrerenderResult {
 
 /** Runs once at build time, in Node. */
 export function prerender(searches: string[] = ['']): PrerenderResult {
-  const list = searches.includes('') ? searches : ['', ...searches];
+  // Every page is stored under the canonical key of its flag set (lean/Fw/Wire/FlagKey.lean), whatever order the caller typed.
+  const list = [...new Set((searches.includes('') ? searches : ['', ...searches]).map(canonSearch))];
 
   const cache = createServerCache();
   // Sets `cache.compat = true`: Emotion then collects rules instead of rendering inline `<style>` tags.

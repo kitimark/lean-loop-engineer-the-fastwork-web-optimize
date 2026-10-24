@@ -13,6 +13,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize, relative, resolve, sep } from "node:path";
 import { choose, picker } from "./picker.ts";
 import { cachePolicy, etagMatches, etagOf, manifestNames, pickEncoding, Variants } from "./cache-policy.ts";
+import { canonSearch } from "../../../../packages/contracts/src/flag-key.mjs";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
@@ -118,12 +119,12 @@ export function handler(o: Opts) {
     if (u.pathname === "/analytics.js") return send(res, req, 200, "text/javascript", ""); // the GTM loader never reaches the network
     if (o.compare && u.pathname === "/__fw/compare") {
       const keys = configs ? Object.keys(configs.bySearch) : [];
-      return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp, picker(keys), choose(keys, u.search)));
+      return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp, picker(keys), choose(keys, canonSearch(u.search))));
     }
     // "/" with a search: the prerendered page of that search (as the gate does), else index.html (the page client-renders)
     let path = u.pathname;
     if (configs && (path === "/" || path === "/index.html")) {
-      const hash = configs.bySearch[u.search];
+      const hash = configs.bySearch[canonSearch(u.search)];
       const rel = hash ? configs.byHash[hash] : undefined;
       if (rel) path = "/" + rel;
     }
