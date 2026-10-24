@@ -14,7 +14,18 @@ unthrottle-parts-measure `finish` run `40101695202` (lifted arms lost) and `rest
 
 ## Answer
 
-RESULTS_PLACEHOLDER
+The touch passes timed out because the 300 s wait was shorter than a loaded pass, and each timeout then poisoned the Simulator and the
+retry. With a readiness probe, a progress-based stall watch and one Simulator restart per pass, no sim job was lost any more:
+
+| Run (mode) | Jobs ended | Passes ok | Named failures | Job time |
+|---|---|---|---|---|
+| morph-end `40105567688` (finish), before | 0 of 6 | 3 of 36 | 6 jobs failed or cancelled | 60 min job limit |
+| `40121254572` (finish), after | 3 of 3 | 15 of 18 (job 2: 6 of 6) | 3 (lift arm, start-up stall) | 75 min each |
+| `40128742749` (hero drags), after | 3 of 3 | 18 of 18 | 0 | 18, 22, 28 min |
+
+- MEASURED: one finish job (sim 2) and all three hero-drag jobs completed every arm; the Lean-machine restart path ran in CI 6 times (5 finish, 1 drags).
+- MEASURED: the heavy tail is the XCUITest start-up (45 to 249 s seen, 6 of 30 finish touch runs never started in 300 s, 0 of 23 in drags), and 5 of those 6 were the lift arm. The cause of the lift-arm stalls is open.
+- Restarts took 203 to 709 s each; 3 of 6 recovered the pass.
 
 ## Cause
 
@@ -74,7 +85,32 @@ RESULTS_PLACEHOLDER
 
 ## Before and after
 
-BEFORE_AFTER_PLACEHOLDER
+Per job (MEASURED, artifacts of the runs; "ok" = `xcodebuild` code 0 and the page record kept; a pass is one arm in one round; 6 per job):
+
+| Run | Job | Passes ok | Machine ends | Restarts (recovered) | Longest ok pass |
+|---|---|---|---|---|---|
+| `40105567688` before (finish) | 1 | 1 of 3 run | flip 2nd try timed out, clamp 2nd try exit 70 | none | not read |
+| | 4 | 0 | stalled, no output 604 s, exit 130 | none | none |
+| | 6 | 2 of 2 run | job lost afterwards | none | not read |
+| | 2, 3, 5 | 0 | runner lost or step timeout or cancelled | none | none |
+| `40121254572` after (finish) | 1 | 4 of 6 | lift r1 `touchesFailed`, lift r2 `restartFailed` | 2 (0) | 338 s |
+| | 2 | 6 of 6 | all done | 1 (1) | 353 s |
+| | 3 | 5 of 6 | lift r2 `touchesFailed` | 2 (1) | 343 s |
+| `40128742749` after (drags) | 1 | 6 of 6 | all done | 1 (1, "recorder not started" after clean touches) | 215 s |
+| | 2 | 6 of 6 | all done | 0 | 220 s |
+| | 3 | 6 of 6 | all done | 0 | 105 s |
+
+- MEASURED: 5 of the 15 finish passes that completed ran 307 to 353 s; the old 300 s limit would have stopped each of them. The Lean cap for 12 presses is 840 s.
+- MEASURED: no `simctl` call ended a job. The finish run logged 5 `openurl` timeouts and 1 `list` timeout, all retried (2 to 4 s apart) and passed.
+- MEASURED: the finish jobs took 75 min (touch step), more than the old 45 min step limit; the new 90 min step and 110 min job limits were not reached.
+- The unthrottle-parts `finish` run `40101695202` (lifted arms lost; `simctl list devices` ETIMEDOUT 4 times in one job, step limit 58 min) and the `rest` run `40101702393` are not re-reduced.
+- Counts for every run are the three CI jobs of each run on separate runners; the runs share the runner pool with morph-end-measure and unthrottle-follow, and the hero-drag run waited 4 min in the queue and one job started 22 min after the others (queueing, not measurement).
+
+## What is left
+
+- INFERRED: the lift arm starts slower or never starts under load. 5 of 6 start-up stalls and all 3 failed finish passes are lift; hero drags use the unthrottle arm instead and had no stall. Next: a start-up mark from inside the Swift test (`setUp`) to separate `xcodebuild` from the runner launch, and a persistent push server to pay the start-up once per job.
+- INFERRED: a 300 s start-up cap is on the heavy tail (maximum 249 s seen when it started); a larger cap would only help if the stalled starts eventually succeed, which these runs cannot show.
+- The 709 s restart (lift r2, job 1) passed the Lean 600 s restart budget, so the pass ended as `restartFailed` as the machine says.
 
 ## Limits
 
