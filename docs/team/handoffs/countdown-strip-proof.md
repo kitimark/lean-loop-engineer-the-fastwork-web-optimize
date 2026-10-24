@@ -1,7 +1,7 @@
 # countdown-strip-proof handoff
 
-- Branch `worktree-wf_193723c6-362-1`, worktree `.claude/worktrees/wf_193723c6-362-1`; work through 085bb458
-  (variant role, Fw root import), note, ledger and this file in the commit after it.
+- Branch `worktree-wf_193723c6-362-1`, worktree `.claude/worktrees/wf_193723c6-362-1`; work through 7e99c132
+  (variant role, Fw root import, init cost fix); this file in the commit after it.
 - CI runs:
   - webkit-sim 40081936555 (bbd203c7f, fw hero.countdown:strip,morph.countdown:strip): pass; 80 face layers become
     8 strip layers in every zone, finish zone 128/124 to 56/56 (note has the table).
@@ -12,7 +12,8 @@
   unchanged since).
 
 ## Verified
-- `lean/scripts/check.sh` green; `Fw.Parts.MorphCountdownStrip` is imported by `lean/Fw.lean`.
+- `lean/scripts/check.sh` green at 7e99c132; `Fw.Parts.MorphCountdownStrip` is imported by `lean/Fw.lean`, and
+  `goldenLines`/`jsonl` take `Unit` so fwcore does not build the golden at start (init cost lint).
 - `pnpm --filter gate-breakpoints test` green with the morph.countdown strip variant role.
 - Axioms of `same_face_px`, `phase_same`: propext, Classical.choice, Quot.sound; layer theorems none or propext.
 - Golden `packages/contracts/golden/parts/morph.countdown.strip.jsonl` is checked by `#guard jsonl == include_str`.
