@@ -1,11 +1,13 @@
 import Lean.Data.Json
 import Fw.Parts.CommissionOpt
 import Fw.Parts.CommissionGolden
+import Fw.Parts.CommissionOptWindow
 /-!
 Golden vectors for commission:band-gate (`commission-gate.jsonl`).
 -/
 namespace Fw.Parts.CommissionOptGolden
 open Lean Fw.Parts.Commission Fw.Parts.CommissionOpt Fw.Parts.CommissionGolden Fw.Site.Breakpoints
+open Fw.Parts.CommissionOptLayout Fw.Parts.CommissionOptWindow
 
 def jn (n : Int) : Json := .num ⟨n, 0⟩
 
@@ -60,6 +62,60 @@ def mergedLine (tr : List (Tick × Bool)) : String :=
        ("variantLook", Json.arr (ks.map fun k => lookWire (look (env k) (mV ts (k + 1)).inl)).toArray),
        ("origLook", Json.arr (ks.map fun k => lookWire (look (env k) (mO ts (k + 1)).inl)).toArray)])
 
+def rowWidth (r : Row) : Rat := (r.width : Rat) + (if r.widthHalf then 1 / 2 else 0)
+
+def touchOf (r : Row) : Bool := r.hover == .none && r.pointer == .coarse
+
+def rowBottom (r : Row) : Rat := r.sectionTop + r.sectionH
+
+def layoutLine (r : Row) : String :=
+  let b := rowBands r
+  line "layoutRow"
+    [("id", .str r.id), ("width", ratWire (rowWidth r)), ("deviceWidth", jn r.deviceWidth), ("touch", .bool (touchOf r)),
+     ("cardTop", ratWire r.cardTop), ("bottom", ratWire (rowBottom r)), ("vh", jn r.height)]
+    (Json.mkObj
+      [("compact", .bool (c1000.eval r.env)), ("enterFrom", ratWire b.1), ("enterTo", ratWire b.2.1),
+       ("exitFrom", ratWire b.2.2.1), ("exitTo", ratWire b.2.2.2)])
+
+def bandSamples (b : Rat × Rat × Rat × Rat) : List Rat :=
+  [b.1 - 1, b.1, b.1 + 1, (b.1 + b.2.1) / 2, b.2.1 - 1, b.2.1, b.2.1 + 1, b.2.2.1 - 1, b.2.2.1, b.2.2.1 + 1,
+   (b.2.2.1 + b.2.2.2) / 2, b.2.2.2 - 1, b.2.2.2, b.2.2.2 + 1]
+
+def sampleRows : List String := ["height-probes-430x775", "dark-430x932", "desk-1280", "touch-1200"]
+
+def inBandLines : List String :=
+  (rows.filter fun r => sampleRows.contains r.id).flatMap fun r =>
+    (bandSamples (rowBands r)).map fun y =>
+      line "inBand"
+        [("cardTop", ratWire r.cardTop), ("bottom", ratWire (rowBottom r)), ("vh", jn r.height), ("y", ratWire y)]
+        (.bool (decide (inBand r.cardTop (rowBottom r) r.height y)))
+
+def scrollRows : List String := ["height-probes-430x775", "dark-430x932"]
+
+def scrollYs (r : Row) : List Rat :=
+  let lo : Nat := ((enterFrom r.cardTop r.height - 400) / 50).floor.toNat * 50
+  let hi : Nat := (rowBottom r + r.height - 100).floor.toNat
+  (List.range ((hi - lo) / 50 + 1)).flatMap fun i => let y : Rat := (lo + 50 * i : Nat); [y, y]
+
+def scrollLine (r : Row) : String :=
+  let ys := scrollYs r
+  let ev : Nat → Ev := scrollEv r.cardTop (rowBottom r) r.height fun k => ys.getD k 0
+  let ks := List.range ys.length
+  let skipped (k : Nat) : Bool := !writeNow (ev k).gate ((ev k).frame (stO ev k)).more
+  line "scrollTrace"
+    [("cardTop", ratWire r.cardTop), ("bottom", ratWire (rowBottom r)), ("vh", jn r.height),
+     ("ys", Json.arr (ys.map ratWire).toArray)]
+    (Json.mkObj
+      [("variantWrites", Json.arr (ks.map fun k => jn (stV ev (k + 1)).writes).toArray),
+       ("origWrites", Json.arr (ks.map fun k => jn (stO ev (k + 1)).writes).toArray),
+       ("skipped", Json.arr (ks.map fun k => Json.bool (skipped k)).toArray),
+       ("band", Json.arr (ks.map fun k => Json.bool (decide (inBand r.cardTop (rowBottom r) r.height (ys.getD k 0)))).toArray)])
+
+def settleLine : String := line "settleEvents" [] (jn 29)
+
+def windowLines : List String :=
+  [settleLine] ++ rows.map layoutLine ++ inBandLines ++ (rows.filter fun r => scrollRows.contains r.id).map scrollLine
+
 def gateLines (_ : Unit := ()) : List String :=
   (([false, true] : List Bool).flatMap fun g => ([false, true] : List Bool).map fun m =>
     line "planWrite" [("gated", .bool g), ("moving", .bool m)] (.bool (writeNow g m))) ++
@@ -77,7 +133,7 @@ def gateLines (_ : Unit := ()) : List String :=
         ("enter", rin p.1), ("shrink", rin p.2)]
         (Json.mkObj [("scale", ratWire (look env p).1), ("radius", ratWire (look env p).2)])) ++
   traces.map traceLine ++
-  merged.map mergedLine
+  merged.map mergedLine ++ windowLines
 
 def files (_ : Unit := ()) : List (String × List String) := [("commission-gate.jsonl", gateLines ())]
 
