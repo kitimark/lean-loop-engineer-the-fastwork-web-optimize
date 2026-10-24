@@ -1,10 +1,10 @@
-branch: worktree-wf_ff267e33-928-1 (CI branch ci/sim-touch-timeout, pushes used 2 of 3, third not needed)
+branch: worktree-wf_ff267e33-928-1 (CI branch ci/sim-touch-timeout, pushes used 3 of 3)
 worktree: .claude/worktrees/wf_ff267e33-928-1
-last commit: the head of this branch
-CI runs: 40121254572 toolbar-throttle finish mode success (3 of 3 jobs ended, 15 of 18 passes ok, sim 2 all 6, about 75 min per job); 40128742749 toolbar-throttle hero drags success (18 of 18 passes, 18 to 28 min per job); 40121254514 lean success
-verified: Lean SimTouch + golden replay, package tests 644, ci-paths 56, apps/runner 3463 (incl. land-inputs), lean check.sh green; restart path walked live 6 times in CI (3 recovered the pass)
-open: 3 named finish failures (lift arm start-up stall, 6 of 30 finish touch runs never started in 300 s); persistent push server; final review ready gate; note is written (research/notes/2026/10-2x-sim-touch-timeout.md)
-read first: research/notes/2026/10-2x-sim-touch-timeout.md, lean/Fw/Device/SimTouch.lean, packages/measure-webkit/src/throttle/driver.mjs (twin, dragPass, probeLoop), cli.mjs (runArm, restart, warmUp)
+last commit: 11cf529ea (round 2 fixes, pushed as the third CI push)
+CI runs: 40134212357 toolbar-throttle finish on the merged round-2 code (running); 40134212384 lean (running); earlier: 40121254572 finish (15 of 18), 40128742749 hero drags (18 of 18)
+verified: round 2 findings 2 to 6 coded; Lean SimTouch builds, golden regenerated from Lean (59 lines) and replayed (10 tests pass); full package tests and check.sh pending
+open: round 2 finish run result; lift-arm start-up stall is an accepted limit (task sim-lift-stall); persistent push server; review ready gate
+read first: research/notes/2026/10-2x-sim-touch-timeout.md, lean/Fw/Device/SimTouch.lean, packages/measure-webkit/src/throttle/driver.mjs, cli.mjs (runArm)
 
 State and conventions
 - Machine: probing -> touching -> done; one restart (shutdown + new session + warm-up) per pass; attempt 2 only after restartOk; ends within 5 events.
