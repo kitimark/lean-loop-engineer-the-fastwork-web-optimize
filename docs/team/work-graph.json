@@ -19991,6 +19991,60 @@
     "docs/team/handoffs/recorder-viewport-per-frame.md"
    ],
    "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "unthrottle-preset",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "throttle-lift-ship"
+   ],
+   "writes": [
+    "apps/site/src/parts/engine.scroll/**",
+    "lean/Fw/Parts/EngineScrollUnthrottle.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/parts/engine.scroll*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-throttle-lift-ship.md",
+    "docs/report/v2-report.md",
+    "docs/team/handoffs/unthrottle-preset.md"
+   ],
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-finish-throttle",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/throttle/driver/**",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/cli.mjs",
+    "packages/measure-webkit/src/throttle/probe.mjs",
+    "packages/measure-webkit/src/throttle/report.mjs",
+    "packages/measure-webkit/src/throttle/recorder.mjs",
+    "packages/measure-webkit/src/throttle/finish*.mjs",
+    "packages/measure-webkit/test/throttle-finish*.test.mjs",
+    "packages/measure-webkit/test/throttle-report.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Device/FinishRuns.lean",
+    "lean/scripts/FinishRunsGolden.lean",
+    "packages/contracts/golden/device/finishruns.jsonl",
+    "research/notes/2026/10-2x-sim-finish-throttle.md",
+    "results/sim-finish-throttle/**",
+    "docs/team/handoffs/sim-finish-throttle.md"
+   ],
+   "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks)."
   }
  ],
  "deadline": {
