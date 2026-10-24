@@ -19505,7 +19505,12 @@
     "apps/runner/src/slot*.ts",
     "apps/runner/test/reap*.test.ts",
     "docs/team/tools/reap.md",
-    "docs/team/handoffs/reap-ef-auto.md"
+    "docs/team/handoffs/reap-ef-auto.md",
+    "apps/runner/src/watch-reap.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/test/watch-reap*.test.ts",
+    "lean/scripts/ReapGolden.lean",
+    "packages/contracts/golden/ops/reap-exit.jsonl"
    ],
    "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick. Plus reap-watch-one-rule round-3 review follow-ups: (a) awaitOk and canonAwait become a character allowlist ([A-Za-z0-9._/-] only; backticks, *, ?, [ ], ~ keep the loop), golden row '/tmp/`x`.log' kept; (b) stopSelected guard scope = plan.targets pids, not plan.selected; (c) reapStopLines counts N from the plan targets (or prints advice rows on their own line); (d) a TS test of a mixed auto plan (A-D target in the same process group as an orphan loop: the loop gets no signal, the group falls back to per-pid)."
   },
@@ -19624,6 +19629,28 @@
     "docs/team/handoffs/sim-touch-verdict-jobs.md"
    ],
    "title": "Re-plan of sim-touch-followups item 4 (closed as a CONFIRMED finding 2026-10-24: with 3 SpringBoard jobs one starved job removes the across-job verdict, since acrossDecisive needs minSamples 3 decisive jobs, reduce.mjs:99 / Smooth.lean:666; and touch end windows carry no Timeline, so the finish zone gets 0 reps). Lean: jobsNeeded with a theorem that an ok plan gives >= minSamples decisive jobs with a starvation margin (e.g. 4-5 SpringBoard jobs within the free macOS concurrency 5), the window budget from a tail quantile (tails 285-744 s) instead of the 45 s mean, the plan's clock started after Simulator boot, touch driver start and Safari launch (not before findDevice), the push server readyMs 240 s exceeded at host load; touch end windows keep Timeline zones (or a stated zone source); arms of 4+ split over jobs; FW_MATRIX_JOB on the morph step (sim-touch-followups title item 7). Proof: one CI run (at most 2 dispatches) whose across-jobs 'end touch' verdict is not insufficient."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-exit-fold",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "reap-ef-auto"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "lean/scripts/ReapGolden.lean",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/reap*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/reap*.test.ts",
+    "docs/team/tools/reap.md",
+    "docs/team/handoffs/reap-exit-fold.md"
+   ],
+   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino."
   }
  ],
  "deadline": {
