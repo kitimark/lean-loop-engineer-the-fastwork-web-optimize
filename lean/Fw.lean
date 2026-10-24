@@ -205,6 +205,7 @@ import Fw.Ci.Cancel
 import Fw.Ci.Provider
 import Fw.Ci.Overflow
 import Fw.Ci.Telemetry
+import Fw.Ci.State
 import Fw.Obs.MacTelemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Gate.Exit
