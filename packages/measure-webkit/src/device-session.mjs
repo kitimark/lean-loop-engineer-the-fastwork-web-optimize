@@ -210,20 +210,74 @@ export function compareZones(reports) {
   }));
 }
 
-/** The page units of a record (ms, px) <-> the integer form (hundredths of a ms, tenth px). */
+export const CLASS_CONST = Object.freeze(GOLDEN.find((l) => l.kind === 'class.consts'));
+export const CLASSES = Object.freeze(['moving', 'still']);
+
+const jumpAt = (vh, k) => k < vh.length && Math.abs(vh[k] - vh[Math.max(0, k - 1)]) >= CLASS_CONST.moveMin;
+
+export function movingAt(vh, i) {
+  for (let k = Math.max(0, i + 1 - CLASS_CONST.moveWin); k <= i + CLASS_CONST.moveWin; k++) if (jumpAt(vh, k)) return true;
+  return false;
+}
+
+export const classes = (vh) => vh.map((_, i) => (movingAt(vh, i) ? 'moving' : 'still'));
+
+export const hasField = (r) => Array.isArray(r.vh) && r.vh.length > 0 && r.vh.length === r.t.length;
+export const classesOf = (r) => (hasField(r) ? classes(r.vh) : r.t.map(() => 'still'));
+
+export function movingRowsC(frames) {
+  const rows = [];
+  for (let i = 1; i < frames.length; i++) {
+    if (frames[i][1] !== frames[i - 1][1]) rows.push({ cls: frames[i][2], row: { dt: frames[i][0] - frames[i - 1][0], y: frames[i][1] } });
+  }
+  return rows;
+}
+
+export function reduceClass(r, c) {
+  const cs = classesOf(r);
+  const n = Math.min(r.t.length, r.y.length, cs.length);
+  const fs = Array.from({ length: n }, (_, i) => [r.t[i], r.y[i], cs[i]]);
+  const vh10 = r.h * 10;
+  const rows = movingRowsC(fs).filter((x) => x.cls === c).map((x) => x.row);
+  return {
+    total: stat(rows),
+    zones: Object.fromEntries(ZONES.map((z) => [z, stat(inZone(vh10, r.maxY10, z, rows))])),
+    frames: fs.filter((f) => f[2] === c).length,
+  };
+}
+
+export const reduceByClass = (r) => ({ moving: reduceClass(r, 'moving'), still: reduceClass(r, 'still') });
+
+export const classVals = (z, rs) => rs.filter((r) => r.frames !== 0).map((r) => (z === null ? r.total : r.zones[z] ?? { per50: 0 }).per50);
+
+export const compareClass = (z, orig, arm) => verdict(classVals(z, orig), classVals(z, arm));
+
+export function compareClasses(reports) {
+  const arms = [...new Set(reports.map((x) => x.arm))];
+  return CLASSES.flatMap((c) => ['total', ...ZONES].map((k) => {
+    const z = k === 'total' ? null : k;
+    const per = (arm) => classVals(z, reports.filter((x) => x.arm === arm).map((x) => x[c]));
+    return {
+      class: c, zone: k, original: per('original'),
+      arms: arms.filter((a) => a !== 'original').map((a) => ({ arm: a, vals: per(a), verdict: verdict(per('original'), per(a)) })),
+    };
+  }));
+}
+
 export function normalize(rec) {
   const c = (v, k) => Math.round(v * k);
   return {
     schema: 'fw.phone.record.int/1', arm: rec.arm, pass: rec.pass, w: rec.viewport.w, h: rec.viewport.h, maxY10: c(rec.maxY, 10),
     t: rec.frames.t.map((v) => c(v, 100)), y: rec.frames.y.map((v) => c(v, 10)), p: rec.frames.p,
     touches: rec.touches.map(([t, ph, x, y, n]) => [c(t, 100), ph, c(x, 10), c(y, 10), n]),
+    ...(rec.frames.vh ? { vh: rec.frames.vh.map((v) => c(v, 10)) } : {}),
   };
 }
 
 export function denormalize(r) {
   return {
     schema: 'fw.phone.record/1', arm: r.arm, pass: r.pass, viewport: { w: r.w, h: r.h, dpr: 3 }, maxY: r.maxY10 / 10,
-    frames: { t: r.t.map((v) => v / 100), y: r.y.map((v) => v / 10), p: r.p },
+    frames: { t: r.t.map((v) => v / 100), y: r.y.map((v) => v / 10), p: r.p, ...(r.vh ? { vh: r.vh.map((v) => v / 10) } : {}) },
     touches: r.touches.map(([t, ph, x, y, n]) => [t / 100, ph, x / 10, y / 10, n]),
   };
 }

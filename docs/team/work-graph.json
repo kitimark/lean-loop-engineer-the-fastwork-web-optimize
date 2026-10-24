@@ -19852,7 +19852,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-nested-kind.md"
    ],
-   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit)."
+   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit).",
+   "evidence": "1eb3c54"
   },
   {
    "devices": [
@@ -19898,7 +19899,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/accent-same-look.md"
    ],
-   "title": "User 2026-10-24 (phone session results/phone/2026-10-24): hero.accent:draw-nolayout-full 'looks different from the original'; draw-nolayout shares the clip-path wipe, so both look-change accent arms are REJECTED by the user (record userDecision rejected in research/findings/ledger.json rows accent-draw-nolayout and accent-drawin-width-nolayout). Find a same-look way to cut the accent's WebKit Layout: keep the pen-trace stroke and the 0.9 s width glide pixel-identical (path-pix draw-window zones, task pathpix-drawbase-wire) while removing per-frame layout, e.g. stroke trace pre-rendered as frames of a composited mask or a canvas/CSS paint, width glide as a transform on a fixed-width box with identical text position; each candidate decided in Lean from WebKit StyleDifference source (cite file:line@commit) and proved same-look or dropped as a negative finding with its why."
+   "title": "User 2026-10-24 (phone session results/phone/2026-10-24): hero.accent:draw-nolayout-full 'looks different from the original'; draw-nolayout shares the clip-path wipe, so both look-change accent arms are REJECTED by the user (record userDecision rejected in research/findings/ledger.json rows accent-draw-nolayout and accent-drawin-width-nolayout). Find a same-look way to cut the accent's WebKit Layout: keep the pen-trace stroke and the 0.9 s width glide pixel-identical (path-pix draw-window zones, task pathpix-drawbase-wire) while removing per-frame layout, e.g. stroke trace pre-rendered as frames of a composited mask or a canvas/CSS paint, width glide as a transform on a fixed-width box with identical text position; each candidate decided in Lean from WebKit StyleDifference source (cite file:line@commit) and proved same-look or dropped as a negative finding with its why.",
+   "evidence": "6742c07"
   },
   {
    "devices": [
@@ -19949,7 +19951,8 @@
     "results/touch-lock-page-end/**",
     "docs/team/handoffs/touch-lock-windows.md"
    ],
-   "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review."
+   "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review.",
+   "evidence": "ccd59f7"
   },
   {
    "devices": [
@@ -19992,7 +19995,8 @@
     "docs/team/tools/device-lag-recorder.md",
     "docs/team/handoffs/recorder-viewport-per-frame.md"
    ],
-   "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict."
+   "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict.",
+   "evidence": "14f12e3"
   },
   {
    "devices": [
@@ -20089,7 +20093,11 @@
     "lean/scripts/MorphEndGolden.lean",
     "packages/contracts/golden/parts/morph.end*.jsonl",
     "research/notes/2026/10-2x-morph-end-bricks.md",
-    "docs/team/handoffs/morph-end-lean.md"
+    "docs/team/handoffs/morph-end-lean.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "User 2026-10-24 picked all three end-of-page behaviour changes from research/notes/2026/10-2x-morph-reopen.md: A clamp the pin to the real end (scrollHeight - vh), B flip hysteresis (N px in one direction or a new touch), C release the pin when a close starts; 'try the experiment it all, and it should follow the lego, that i can pick the composition'. Lean first: model the faithful end-of-page state machine (morph.tween driver + logic, original N2:13017-13090) as a reducer over touch/wheel/scroll/resize events; each change is an independent brick (its own part with variants faithful|<change>, one variant per part per Compose search_entries_inj); prove for each brick on its own: faithful variant equals the original reducer; the change's claim (A: no restore write targets scrollY > maxY, so no spring-back fight; B: no flip on moves smaller than N, unchanged otherwise; C: no restore write after a close starts, open path unchanged); and that all 8 combinations compose (each pair commutes on the state it changes, no requires/conflicts needed) and compose with engine.scroll:unthrottle. N and the brick names are named constants. Goldens for the TS twin of the next task. Lead adds the Fw.lean import and the check.sh job at land."
   },
@@ -20157,6 +20165,163 @@
     "docs/team/handoffs/sim-release-shutdown.md"
    ],
    "title": "Incident 2026-10-24 14:40: a sim lease was released after about 4.5 min but the Simulator device it booted stayed booted (load 72-148, 190 MB free) until the lead shut it down. Lean first: a released sim lease implies the device the lease booted is shut down (or handed to the next queued sim holder); fw slot release of kind sim runs simctl shutdown for the booted UDID it recorded at acquire; theorem + golden; slot.ts follows."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-webkit-parity",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/src/trajectory/frames*.mjs",
+    "packages/gate-breakpoints/test/frames*.test.mjs",
+    "packages/gate-breakpoints/src/trajectory/transitions*.mjs",
+    "packages/gate-breakpoints/test/transitions*.test.mjs",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-frames.md",
+    "lean/Fw/Engine/TransitionStart.lean",
+    "lean/scripts/TransitionStartGolden.lean",
+    "packages/contracts/golden/engine/transition-start.jsonl",
+    "research/notes/2026/10-2x-earn-webkit-parity.md",
+    "results/earn-webkit-parity/**",
+    "docs/team/handoffs/earn-webkit-parity.md"
+   ],
+   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-webkit-smooth",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "earn-webkit-parity"
+   ],
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "lean/Fw/Parts/NavEarnWebkit.lean",
+    "packages/contracts/golden/parts/nav.earn*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-earn-webkit-smooth.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/earn-webkit-smooth.md"
+   ],
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "columns-final-scale",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "unthrottle-preset"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "lean/Fw/Parts/MorphColumnsScale.lean",
+    "packages/contracts/golden/parts/morph.columns*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-columns-final-scale.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/columns-final-scale.md"
+   ],
+   "title": "End-of-page GPU candidate 1 (research/notes/2026/10-2x-end-gpu-map.md): morph.columns:final-scale, a composer brick (look-change class): lay the 5 column tracks out once at the final panel width and scale each by a per-column transform during the morph, removing the per-frame re-layout of 21 images and the new track surfaces. Lean first: equal column edges per frame, a bound on the look change (gap, radius and drift scale by s, s >= 0.97 at 390 px INFERRED), then Chromium Layout counts and Simulator backing MB/Composite per finish zone (run ids), then the user's look review."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hittest-elements-proof",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/NavHitTestElements.lean",
+    "packages/contracts/golden/parts/nav.hitTest*.jsonl",
+    "research/notes/2026/10-2x-hittest-elements-proof.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hittest-elements-proof.md"
+   ],
+   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-strip-proof",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphCountdownStrip.lean",
+    "packages/contracts/golden/parts/morph.countdown*.jsonl",
+    "research/notes/2026/10-2x-countdown-strip-proof.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/countdown-strip-proof.md"
+   ],
+   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-scoped-webkit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-waapi-scoped-webkit.md",
+    "results/waapi-scoped-webkit/**",
+    "docs/team/handoffs/waapi-scoped-webkit.md"
+   ],
+   "title": "End-of-page GPU candidate 3: morph.tween:waapi-scoped (Lean MorphTweenOpt; Chromium -6.8 % restyled elements) was refuted on real devices because it shares the waapi driver that leaves the nav classes stale. Measure WebKit Simulator RecalculateStyles/Layout per finish zone (run id), and check whether the stale-class failure reproduces in the Simulator frames; verdict: worth a fixed driver or closed as a negative finding."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "unthrottle-parts-lean",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Device/ThrottleParts.lean",
+    "lean/scripts/ThrottlePartsGolden.lean",
+    "packages/contracts/golden/device/throttle-parts.jsonl",
+    "research/notes/2026/10-2x-unthrottle-parts.md",
+    "docs/team/handoffs/unthrottle-parts-lean.md"
+   ],
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "unthrottle-parts-measure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "unthrottle-parts-lean",
+    "sim-finish-throttle",
+    "unthrottle-preset"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/throttle/parts*.mjs",
+    "packages/measure-webkit/test/throttle-parts*.test.mjs",
+    "research/notes/2026/10-2x-unthrottle-parts-measure.md",
+    "results/unthrottle-parts/**",
+    "docs/team/handoffs/unthrottle-parts-measure.md"
+   ],
+   "title": "HIGHEST PRIORITY. Measure the unthrottle-parts-lean predictions on the CI Simulator (toolbar-throttle lane, hero drag mode and sim-finish-throttle's finish mode): per part, still runs while moving for original, rewrite, rewrite + engine.scroll:throttle-lift and rewrite + engine.scroll:unthrottle (the shipped text), verdict per part from the Lean golden; compare with the phone per-part series from results/phone/2026-10-24*; the parts that gain become the follow-up list."
   }
  ],
  "deadline": {
