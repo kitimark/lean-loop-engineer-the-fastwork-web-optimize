@@ -29,6 +29,11 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
   runs in 1741, 1639 and 1641 mid-moving frames. The original arm has 18 in 1467 (12.3 per 1000); per job 4, 8 and 6, so
   it crosses 10 only in the pool (the threshold is on the pooled sum). The original runs different code from the modeled
   part, so this is a reference reading, not a refutation of the rewrite (INFERRED).
+  The original arm's people passes ran slowly: the arm's median frame gap is 59 ms (about 17 fps, upper median over its 6
+  usable passes, people- and commission-anchored pooled), and all 18 band runs fall outside the fixed 5-6 band (band56 0,
+  short 18). They are therefore the cadence band `bandFor` 5900 = [1, 2], 1-2 frame holds, which is also what a dropped
+  frame looks like at that cadence. INFERRED from band = short = 18 with band56 0; the reducer keeps no per-pass gap. A
+  reference reading outside the band's 60 Hz domain, not a throttle signature and not claimable.
 - **Platform has no data.** Drag and finish modes never showed a mid value; in rest mode the platform anchor was not found
   on any of the 3 jobs, so its 3 passes per arm were skipped. Cause unknown; follow-up.
 - **Finish mode gave nothing but capture reversal counts.** Hero, people, commission and platform are exited or not yet
@@ -79,10 +84,10 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 
 ## Per part, all modes
 
-| part (series) | Lean predicts | drags | finish | rest | verdict (Lean `partVerdict`) |
+| part (series) | Lean predicts | drags | finish | rest | verdict (Lean `partVerdict`, per mode with data) |
 |---|---|---|---|---|---|
-| hero.exit (hero) | stills throttled, none lifted | 4 arms measured, 3 jobs | no mid values | no mid values | agree, MEASURED |
-| people.card (people) | pulses throttled, none lifted | no mid values | no mid values | 18/1467, 0/1741, 0/1639, 0/1641 (3 jobs) | disagree on the original arm only; rewrite and both lifted arms agree |
+| hero.exit (hero) | stills throttled, none lifted | 4 arms measured, 3 jobs | no mid values | no mid values | agree (drags), MEASURED; no-data in finish and rest |
+| people.card (people) | pulses throttled, none lifted | no mid values | no mid values | 18/1467, 0/1741, 0/1639, 0/1641 (3 jobs) | disagree (rest; original arm only, at a 59 ms gap, band [1, 2], not claimable; rewrite and both lifted arms agree) |
 | commission (commissionEnter, commission) | pulses throttled, none lifted | no mid values | no mid values | 14/883, 23/753, 0/729, 1/985 (3 jobs, 2 with frames) | disagree (rewrite and original show stills); both lifted arms `lifted` |
 | platform.shrink (platform) | stills throttled, none lifted | no mid values | no mid values | anchor not found, passes skipped | no-data |
 | morph.panel (fade) | none (time based, not hit) | series never found | 0 band runs in 4 frames per pass (4 passes) | series never found | agree (partial), not claimable |
@@ -109,7 +114,8 @@ Commission per job (band runs / mid-moving frames): rewrite 10/349, 13/354, 0/50
 1/332, 0/367, 0/286; original 6/324, 4/298, 4/261.
 
 - People has no band runs in the rewrite, so the lifted arms are `no-data` for the verdict; they match the prediction
-  (none). The original's 18 are the only people reading above the line.
+  (none). The original's 18 are the only people reading above the line (original arm at a 59 ms gap, band [1, 2]; not
+  claimable).
 - `commissionEnter` and `commission` are the same rows: the two custom properties move together in the recording.
 - The commission rewrite has band stills where people (also a chase in Lean) has none. INFERRED: commission's writer
   is not a pure chase on the toolbar-moving range, so its Lean class (`chase`, predicted `pulses`) should be revisited
@@ -160,6 +166,10 @@ the whole pass; CI counts per 1000 frame pairs (consecutive frames) of the drag,
    reading. Keep for the phone.
 5. A part verdict that ignores the original arm (the original is not the modeled code) would turn people.card to agree;
    a Lean change to `partVerdict`, not made here.
+6. **Lean `judge` cadence domain**: `judge` takes no cadence, so its minBase test runs at any K. A guard must set its
+   own lower bound on K (a K < bandLo guard would also void every rest arm at K = 4, including the commission disagree)
+   and must state whether K is per pass or pooled. It needs new golden vectors and a TS judge replay.
+7. **Reducer**: emit `medianGapMs` over exercised passes only (midMoving > 0).
 
 No-data parts (named, by reason; the recorder does not store them): the harmless and not-hit parts of the golden with
 shapes `step-look`, `step-idle`, `no-read`, `capture` (morph.mount, morph.tween) and the threaded sources
@@ -168,8 +178,14 @@ open, finish mode: original 4 and 4, rewrite 6, lift 6. Not a verdict.
 
 ## Limits and lost passes
 
-- Finish mode: the reruns (`gh run rerun --failed`, no dispatch) added jobs 2 and 3; job 1 stalled at start again. Finish passes run near 28 fps on CI (33-38 ms gaps), outside the 5-6 band's domain; the
+- Finish mode: the reruns (`gh run rerun --failed`, no dispatch) added jobs 2 and 3; job 1 stalled at start again. Finish passes run near 28 fps on CI (33-39 ms gaps: fade medianGapMs 35 and 35 in attempt 1; 39 original and 33 lift in the rerun; `bandFor` [2, 3] at 35 and 39 ms, [3, 4] at 33 ms), outside the 5-6 band's domain; the
   cadence-aware band [K, K+1] with `bandFor` is used and named. Finish has no arm with 3 jobs: not claimable.
+- Rest mode runs below 60 Hz in every arm (parts json `medianGapMs`, MEASURED; band by `throttleK`, CONFIRMED):
+  original 59 ms, rewrite and lift 23 ms -> [4, 5], unthrottle 20 ms -> [4, 5]. The 60 Hz band [5, 6] holds only for
+  14.29-19.99 ms gaps (`throttleK_mem_band`), so it does not cover any rest arm. The printed gap is the upper median
+  over all usable passes of the arm, while K is set per pass. The commission original arm also shows 59 ms, but its 14
+  runs equal its band56 14, so its own passes were not at K = 1 (INFERRED). Commission rewrite has band 23 = band56 23,
+  so the commission disagree holds under both the cadence band and the fixed 5-6 band.
 - Rest mode: after the rerun all 3 jobs delivered 6 usable passes per arm (job 1 from attempt 1). The 3 platform passes
   per arm were skipped on every job (anchor not found). Job 3's commission passes recorded few mid-moving frames
   (50, 39 and 286 of rewrite, lift, unthrottle).
