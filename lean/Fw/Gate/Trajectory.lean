@@ -3174,7 +3174,242 @@ theorem inactive_unthrottle_same (w : Nat) (h : inactiveAt ["engine.scroll:unthr
     fun e he n => Fw.Parts.EngineScrollUnthrottle.guard_fine_cost e (he.trans hf) n,
     fun vp s x y wd => visible_idle vp s x y wd⟩
 
-/-- A unit of `units-<engine>.json` as the recorder reads it; `coverage` is verdict `fail:coverage`, `isNew` is rel `new`. -/
+abbrev Reading := List (Option Int)
+
+structure Push where
+  opening : Reading
+  closing : Reading
+  deriving DecidableEq, Repr
+
+def hit (ms : Reading) (k : Nat) : Bool := ms.any fun m => bucket m == k
+
+def gapsIn (b c : Reading) : List Nat :=
+  (List.range 11).filter fun k => needsSample k && hit b k && !hit c k
+
+def gaps (b c : Push) : Nat := (gapsIn b.opening c.opening).length + (gapsIn b.closing c.closing).length
+
+/-- 8: one capped width keeps a two-width Mac leg under its 15 min cap (run 40127042262, 13.9 min); two capped widths in
+one leg (about 16.5 min) go over it, so the probe-apple cap needs re-deriving (lead follow-up). -/
+def extraCap : Nat := 8
+
+def more (extra : Nat) (b c : Push) : Bool := decide (extra < extraCap) && decide (gaps b c ≠ 0)
+
+def Push.pool (a b : Push) : Push := ⟨a.opening ++ b.opening, a.closing ++ b.closing⟩
+
+def settle (b : Push) (walk : Nat → Push) : Nat → Nat → Push → Nat × Push
+  | 0, extra, c => (extra, c)
+  | fuel + 1, extra, c => if more extra b c then settle b walk fuel (extra + 1) (c.pool (walk extra)) else (extra, c)
+
+def settleWalk (b c : Push) (walk : Nat → Push) : Nat × Push := settle b walk extraCap 0 c
+
+theorem hit_append (a b : Reading) (k : Nat) : hit (a ++ b) k = (hit a k || hit b k) := by
+  simp [hit, List.any_append]
+
+theorem hit_self (a : Reading) (k : Nat) : hit (a ++ a) k = hit a k := by
+  simp [hit_append]
+
+theorem hit_of_mem (a : Reading) (m : Option Int) (h : m ∈ a) : hit a (bucket m) = true := by
+  simp only [hit, List.any_eq_true]; exact ⟨m, h, by simp⟩
+
+
+theorem mem_gapsIn (b c : Reading) (k : Nat) :
+    k ∈ gapsIn b c ↔ k < 11 ∧ needsSample k = true ∧ hit b k = true ∧ hit c k = false := by
+  simp only [gapsIn, List.mem_filter, List.mem_range, Bool.and_eq_true, Bool.not_eq_true']
+  constructor
+  · rintro ⟨h1, ⟨h2, h3⟩, h4⟩; exact ⟨h1, h2, h3, h4⟩
+  · rintro ⟨h1, h2, h3, h4⟩; exact ⟨h1, ⟨h2, h3⟩, h4⟩
+
+theorem gapsIn_congr (b c c' : Reading) (h : ∀ k, hit c k = hit c' k) : gapsIn b c = gapsIn b c' := by
+  simp [gapsIn, h]
+
+theorem gapsIn_append_sub (b c d : Reading) : (gapsIn b (c ++ d)).Sublist (gapsIn b c) := by
+  have e : gapsIn b (c ++ d) = (gapsIn b c).filter fun k => !hit d k := by
+    simp only [gapsIn, List.filter_filter]
+    apply List.filter_congr
+    intro k _
+    simp only [hit_append]
+    cases hit b k <;> cases hit c k <;> cases hit d k <;> cases needsSample k <;> simp
+  rw [e]
+  exact List.filter_sublist
+
+def Push.sameHits (p q : Push) : Prop := ∀ k, hit p.opening k = hit q.opening k ∧ hit p.closing k = hit q.closing k
+
+theorem gaps_congr (b c c' : Push) (h : c.sameHits c') : gaps b c = gaps b c' := by
+  simp only [gaps, gapsIn_congr b.opening c.opening c'.opening (fun k => (h k).1),
+    gapsIn_congr b.closing c.closing c'.closing (fun k => (h k).2)]
+
+theorem gaps_pool_le (b c d : Push) : gaps b (c.pool d) ≤ gaps b c := by
+  have h1 := (gapsIn_append_sub b.opening c.opening d.opening).length_le
+  have h2 := (gapsIn_append_sub b.closing c.closing d.closing).length_le
+  simp only [gaps, Push.pool]
+  omega
+
+theorem more_no_gap (extra : Nat) (b c : Push) (h : gaps b c = 0) : more extra b c = false := by
+  simp [more, h]
+
+theorem more_cap (b c : Push) : more extraCap b c = false := by
+  simp [more]
+
+theorem settle_le (b : Push) (w : Nat → Push) :
+    ∀ fuel extra c, (settle b w fuel extra c).1 ≤ extra + fuel := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra c; simp [settle]
+  | succ n ih =>
+    intro extra c
+    unfold settle
+    split
+    · have := ih (extra + 1) (c.pool (w extra)); omega
+    · omega
+
+theorem settleWalk_le (b c : Push) (w : Nat → Push) : (settleWalk b c w).1 ≤ extraCap := by
+  have := settle_le b w extraCap 0 c
+  simpa [settleWalk] using this
+
+theorem settle_stop (b : Push) (w : Nat → Push) :
+    ∀ fuel extra c, extraCap ≤ extra + fuel →
+      more (settle b w fuel extra c).1 b (settle b w fuel extra c).2 = false := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro extra c h
+    simp only [settle]
+    simp [more]; omega
+  | succ n ih =>
+    intro extra c h
+    unfold settle
+    split
+    · exact ih (extra + 1) (c.pool (w extra)) (by omega)
+    · rename_i hm; simpa using hm
+
+theorem settleWalk_stop (b c : Push) (w : Nat → Push) :
+    gaps b (settleWalk b c w).2 = 0 ∨ (settleWalk b c w).1 = extraCap := by
+  have h := settle_stop b w extraCap 0 c (by omega)
+  have hl := settleWalk_le b c w
+  simp only [settleWalk] at h hl ⊢
+  by_cases hg : gaps b (settle b w extraCap 0 c).2 = 0
+  · exact Or.inl hg
+  · right
+    simp [more, hg] at h
+    omega
+
+theorem more_congr (extra : Nat) (b c c' : Push) (h : c.sameHits c') : more extra b c = more extra b c' := by
+  simp [more, gaps_congr b c c' h]
+
+theorem settleWalk_no_gap (b c : Push) (w : Nat → Push) (h : gaps b c = 0) : settleWalk b c w = (0, c) := by
+  simp [settleWalk, extraCap, settle, more_no_gap 0 b c h]
+
+theorem settle_hit_mono (b : Push) (w : Nat → Push) :
+    ∀ fuel extra c k, (hit c.opening k = true → hit (settle b w fuel extra c).2.opening k = true) ∧
+      (hit c.closing k = true → hit (settle b w fuel extra c).2.closing k = true) := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra c k; simp [settle]
+  | succ n ih =>
+    intro extra c k
+    unfold settle
+    split
+    · refine ⟨fun h => (ih (extra + 1) (c.pool (w extra)) k).1 ?_, fun h => (ih (extra + 1) (c.pool (w extra)) k).2 ?_⟩
+      · simp [Push.pool, hit_append, h]
+      · simp [Push.pool, hit_append, h]
+    · exact ⟨id, id⟩
+
+theorem settleWalk_hit_mono (b c : Push) (w : Nat → Push) (k : Nat) :
+    (hit c.opening k = true → hit (settleWalk b c w).2.opening k = true) ∧
+    (hit c.closing k = true → hit (settleWalk b c w).2.closing k = true) :=
+  settle_hit_mono b w extraCap 0 c k
+
+theorem sameHits_pool_self (c : Push) : (c.pool c).sameHits c := by
+  intro k; simp [Push.pool, hit_self]
+
+theorem settle_const (b : Push) (c : Push) :
+    ∀ fuel extra, ∀ p : Push, p.sameHits c →
+      (settle b (fun _ => c) fuel extra p).2.sameHits c ∧
+      (gaps b c ≠ 0 → extra + fuel ≤ extraCap → (settle b (fun _ => c) fuel extra p).1 = extra + fuel) := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra p hp; exact ⟨by simpa [settle] using hp, by simp [settle]⟩
+  | succ n ih =>
+    intro extra p hp
+    have hpp : (p.pool c).sameHits c := by
+      intro k
+      have := hp k
+      simp [Push.pool, hit_append, this.1, this.2]
+    unfold settle
+    by_cases hm : more extra b p = true
+    · simp only [hm, ite_true]
+      obtain ⟨h1, h2⟩ := ih (extra + 1) (p.pool c) hpp
+      exact ⟨h1, fun hg hl => by have := h2 hg (by omega); omega⟩
+    · simp only [hm]
+      refine ⟨hp, fun hg hl => ?_⟩
+      exfalso
+      have hgp : gaps b p ≠ 0 := by rw [gaps_congr b p c hp]; exact hg
+      simp [more, hgp] at hm
+      omega
+
+theorem settleWalk_deterministic (b c : Push) :
+    (settleWalk b c (fun _ => c)).2.sameHits c ∧ gaps b (settleWalk b c (fun _ => c)).2 = gaps b c := by
+  have h := (settle_const b c extraCap 0 c (fun k => ⟨rfl, rfl⟩)).1
+  exact ⟨h, gaps_congr b _ c h⟩
+
+theorem settleWalk_deterministic_capped (b c : Push) (hg : gaps b c ≠ 0) :
+    (settleWalk b c (fun _ => c)).1 = extraCap := by
+  have := (settle_const b c extraCap 0 c (fun k => ⟨rfl, rfl⟩)).2 hg (by omega)
+  simpa [settleWalk] using this
+
+def readingOf (rs : List Samp) : Reading := rs.map (·.m)
+
+theorem hit_readingOf (rs : List Samp) (k : Nat) : hit (readingOf rs) k = true ↔ ∃ r ∈ rs, bucket r.m = k := by
+  simp [hit, readingOf, List.any_eq_true]
+
+theorem gap_is_coverage_fail (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat)
+    (bs : Reading) (h : b ∈ gapsIn bs (readingOf rew)) : bucketVerdict .push k d seg orig rew b = .fail .coverage := by
+  rw [mem_gapsIn] at h
+  obtain ⟨_, hb, _, hc⟩ := h
+  apply bucketVerdict_push_empty k d seg orig rew b hb
+  intro r hr he
+  have : hit (readingOf rew) b = true := (hit_readingOf rew b).2 ⟨r, hr, he⟩
+  simp [this] at hc
+
+theorem no_gap_sampled (bs : Reading) (rew : List Samp) (h : gapsIn bs (readingOf rew) = []) (b : Nat)
+    (hb : needsSample b = true) (hlt : b < 11) (hbs : hit bs b = true) :
+    ∃ r ∈ rew, bucket r.m = b := by
+  refine Classical.byContradiction fun hc => ?_
+  have hn : hit (readingOf rew) b = false := by
+    cases hh : hit (readingOf rew) b
+    · rfl
+    · exact absurd ((hit_readingOf rew b).1 hh) hc
+  have : b ∈ gapsIn bs (readingOf rew) := (mem_gapsIn _ _ _).2 ⟨hlt, hb, hbs, hn⟩
+  simp [h] at this
+
+
+def pushOf (op cl : List Int) : Push := ⟨op.map some, cl.map some⟩
+
+def fullPush : Push := pushOf [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]
+
+def gapPush : Push := pushOf [1000, 2000, 3000, 4000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 9000]
+
+theorem gaps_run_shape : gaps fullPush gapPush = 2 := by decide
+
+theorem more_run_shape : more 0 fullPush gapPush = true := by decide
+
+theorem more_full : more 0 fullPush fullPush = false := by decide
+
+theorem more_base_gap : more 0 gapPush gapPush = false := by decide
+
+theorem gaps_ends : gaps (pushOf [0, 10000] []) (pushOf [] []) = 0 := by decide
+
+theorem settle_fills : (settleWalk fullPush gapPush fun _ => pushOf [5000] [8000]).1 = 1 ∧
+    gaps fullPush (settleWalk fullPush gapPush fun _ => pushOf [5000] [8000]).2 = 0 := by decide
+
+theorem settle_capped : (settleWalk fullPush gapPush fun _ => pushOf [1000] [1000]).1 = extraCap ∧
+    gaps fullPush (settleWalk fullPush gapPush fun _ => pushOf [1000] [1000]).2 = 2 := by decide
+
+/-- A Mac morph cell of a flag active at every width with no node-property group passes (outcome reads only the groups). -/
+theorem outcome_active_flag_settled :
+    outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
+  decide
+
 structure UnitRow where
   width : Nat
   walk : String
@@ -5249,6 +5484,9 @@ inductive Case where
   | exits
   | cellEnv
   | cell (name : String) (s : Stored)
+  | retry (name : String) (b c : Push)
+  | settleRun (name : String) (b c : Push) (passes : List Push)
+  | settleConst
 
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -5792,8 +6030,25 @@ def casesCell : List Case :=
     .cell "a run that names no flag" (cellRun [] .macWebkit .morph allowedWidths [g [] [641, 1280]]),
     .cell "the hero path, units at the fine widths" (cellRun un .macWebkit .hero allowedWidths [g [641, 1280] []])]
 
+def casesSettle : List Case :=
+  let full := fullPush
+  let nine := fun (xs : List Int) => pushOf xs xs
+  [.settleConst,
+    .retry "no gap: the candidate has every bucket" full full,
+    .retry "two gaps (run 40099056290, 390)" full gapPush,
+    .retry "the faithful arm lacks the bucket too" gapPush gapPush,
+    .retry "end buckets only" (nine [0, 10000]) (pushOf [] []),
+    .retry "one gap in the open push only" full (pushOf [1000, 2000, 3000, 4000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]),
+    .retry "rows without a morph value count in no bucket" full ⟨[none, some 1000], [none]⟩,
+    .settleRun "no gap, no pass" full full [],
+    .settleRun "one pass fills both gaps" full gapPush [pushOf [5000] [8000]],
+    .settleRun "the third pass fills the open gap" full gapPush [pushOf [1000] [1000], pushOf [2000] [8000], pushOf [5000] []],
+    .settleRun "the page never visits the bucket" full gapPush [],
+    .settleRun "a pass that repeats the first passes' rows" full gapPush [gapPush, gapPush],
+    .settleRun "the faithful arm lacks the bucket" gapPush gapPush []]
+
 def cases : List Case :=
-  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable ++ casesCell
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable ++ casesCell ++ casesSettle
 
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
@@ -5834,6 +6089,11 @@ def optNat : Option Nat → Json
 
 /-- A rational as JSON: its numerator and denominator as decimal strings. -/
 def ratJson (q : Rat) : Json := Json.mkObj [("num", toString q.num), ("den", toString q.den)]
+
+def Reading.json (r : Reading) : Json :=
+  Json.arr (r.map fun m => match m with | none => Json.null | some v => toJson v).toArray
+
+def Push.json (p : Push) : Json := Json.mkObj [("opening", p.opening.json), ("closing", p.closing.json)]
 
 /-- One golden line. -/
 def Case.line : Case → Json
@@ -5977,6 +6237,17 @@ def Case.line : Case → Json
         ("coverage", Json.arr (g.coverage.map fun w => toJson w).toArray)]).toArray),
       ("basis", Json.arr (allowedWidths.map fun w => Json.str (basisAt s.flags w).word).toArray),
       ("outcome", Json.str (outcome s).word)]
+  | .retry n b c =>
+    Json.mkObj [("op", "retry"), ("name", n), ("b", b.json), ("c", c.json),
+      ("gapsOpening", Json.arr ((gapsIn b.opening c.opening).map fun k => toJson k).toArray),
+      ("gapsClosing", Json.arr ((gapsIn b.closing c.closing).map fun k => toJson k).toArray),
+      ("gaps", toJson (gaps b c)), ("more", Json.bool (more 0 b c)), ("moreCap", Json.bool (more extraCap b c))]
+  | .settleRun n b c ps =>
+    let r := settleWalk b c fun i => ps.getD i ⟨[], []⟩
+    Json.mkObj [("op", "settle"), ("name", n), ("b", b.json), ("c", c.json),
+      ("passes", Json.arr (ps.map Push.json).toArray), ("extra", toJson r.1), ("gaps", toJson (gaps b r.2)),
+      ("pool", r.2.json)]
+  | .settleConst => Json.mkObj [("op", "settleConst"), ("name", "table"), ("extraCap", toJson extraCap)]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 

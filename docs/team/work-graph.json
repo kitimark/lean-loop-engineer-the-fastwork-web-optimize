@@ -20740,7 +20740,8 @@
     "research/notes/2026/10-2x-webkit-morph-walk-noise.md",
     "docs/team/handoffs/webkit-morph-walk-noise.md"
    ],
-   "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI."
+   "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI.",
+   "evidence": "c4cc938"
   },
   {
    "devices": [
