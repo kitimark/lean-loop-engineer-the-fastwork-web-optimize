@@ -94,12 +94,9 @@ export function earnTransitionOn({ flag, morphing }: { flag: boolean; morphing: 
   return !(flag && morphing);
 }
 
-/** The nav variant that lists the earn button's side paddings as logical longhands (lean/Fw/Parts/NavEarnWebkit.lean). */
 export const EARN_LOGICAL_VARIANT = 'earn-logical';
-/** The class that switches the earn button to the longhand transition lists; set once at render, never toggled. */
 export const EARN_LOGICAL_CLASS = 'is-earn-logical';
 
-/** The state classes the driver owns, as the original's class names. `onDark` is nav.hitTest's. */
 export const CLASS_OF: Readonly<Record<Exclude<keyof View, 'onDark'>, string[]>> = {
   heroPill: ['is-hero-pill'],
   ready: ['is-hero-chrome-ready'],

@@ -1,5 +1,3 @@
-// Replays the Lean golden vectors of Fw.Gate.TransitionList (packages/contracts/golden/gate/transition-list.jsonl;
-// regenerate: cd lean && lake env lean --run scripts/TransitionListGolden.lean) against the JS twin.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

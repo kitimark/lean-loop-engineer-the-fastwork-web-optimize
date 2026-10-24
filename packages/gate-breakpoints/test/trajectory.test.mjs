@@ -100,7 +100,7 @@ function rulesOfCss(css) {
         const w = m.match(/^@media \(width>(\d+)px\)$/);
         if (w) minW = Number(w[1]);
         else if (m === '@media (prefers-reduced-motion: reduce)') reduce = true;
-        else if (m === '@media (prefers-reduced-motion: no-preference)') continue; // the probe runs with no preference: its rules always apply
+        else if (m === '@media (prefers-reduced-motion: no-preference)') continue;
         else assert.fail(`a transition under an unmodelled media query: ${m}`);
       }
       const set = 'transition' in decls ? transitionOf(decls.transition) : null;

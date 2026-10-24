@@ -116,7 +116,6 @@ export const RULES = [
   { line: 312, node: 'earn', on: [], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
 ];
 
-/** Lean `cssOf`: the CSS properties whose transitions move a probe property. */
 export const cssOf = (node, prop) => ({
   'nav|visibility': ['visibility'], 'nav|rect': ['width', 'transform'], 'nav|background-color': ['background', 'background-color'],
   'nav|opacity': ['opacity'], 'nav|transform.lin': ['transform'], 'nav|transform.shift': ['transform'], 'logo|color': ['color'],

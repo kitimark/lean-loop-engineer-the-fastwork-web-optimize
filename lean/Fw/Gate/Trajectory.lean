@@ -257,10 +257,6 @@ structure Rule where
   delay : Option Nat
   deriving DecidableEq, Repr
 
-/-- The rules of `apps/site/src/parts/nav/nav.module.css` that set a transition, in source order.
-
-`trajectory.test.mjs` parses the CSS file and requires this list exactly. The rules at lines 311 and 312 are the two
-selectors of one rule, each at its own line. The rules at 235 and 242 are the `nav:earn-logical` variant's, inside the no-preference block (Fw.Parts.NavEarnWebkit). -/
 def rules : List Rule := [
   ⟨6, "nav", [], [], none, false, 1, some [("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
   ⟨41, "nav", [], ["is-morphing"], none, false, 2,

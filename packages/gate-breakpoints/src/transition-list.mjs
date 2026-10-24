@@ -1,7 +1,3 @@
-// The JS twin of Fw.Gate.TransitionList (lean/Fw/Gate/TransitionList.lean; golden contracts/golden/gate/transition-list.jsonl):
-// expands the listed shorthands of a computed transition-property list so a logical longhand pair equals its shorthand.
-// TS stand-in (not in the golden): splitList/joinList, the paren-aware comma split of the computed strings.
-
 export const TABLE = new Map([
   ['padding-inline', ['padding-inline-start', 'padding-inline-end']],
   ['padding-block', ['padding-block-start', 'padding-block-end']],
@@ -19,7 +15,6 @@ const KEYS = [['props', 'transition-property'], ['durs', 'transition-duration'],
 
 const expand = (p) => TABLE.get(p) ?? [p];
 
-/** Lean `normalize`: t = {props, durs, timings, delays, behaviors} (arrays of strings). Returns a new object, or t itself when unchanged. */
 export function normalize(t) {
   const filled = t.durs.length > 0 && t.timings.length > 0 && t.delays.length > 0 && t.behaviors.length > 0;
   if (!(t.props.some((p) => TABLE.has(p)) && filled)) return t;
@@ -33,7 +28,6 @@ export function normalize(t) {
   return out;
 }
 
-/** Splits a computed list at the commas outside parentheses. */
 export function splitList(s) {
   const out = []; let depth = 0, cur = '';
   for (const c of s) {
@@ -46,7 +40,6 @@ export function splitList(s) {
 
 export const joinList = (l) => l.join(', ');
 
-/** A style map with its five transition lists normalized (the map itself when it lacks one of them or nothing expands). */
 export function normalizeStyle(style) {
   if (!style || KEYS.some(([, k]) => typeof style[k] !== 'string')) return style;
   const t = Object.fromEntries(KEYS.map(([f, k]) => [f, splitList(style[k])]));
@@ -57,7 +50,6 @@ export function normalizeStyle(style) {
   return out;
 }
 
-/** Parts with every item's transition lists normalized (both arms, so the comparison sees the same normal form). Nothing is mutated. */
 export function normalizeParts(parts) {
   if (!parts) return parts;
   const out = {};

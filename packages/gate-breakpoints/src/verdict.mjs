@@ -43,8 +43,6 @@ export function call(requests) {
 // Request shapes
 // ---------------------------------------------------------------------------------------------------------------
 
-/** One arm of a raw record ({truth, truthLegacy, neutral, observed, viewport, parts}, or {raw: ...}), trimmed to the
- *  covered parts. The matchMedia maps travel as [key, value] entries so their order is kept. */
 import { canonParts } from './align-equiv.mjs';
 import { normalizeParts } from './transition-list.mjs';
 const canonArm = (o, r) => { const rr = r.raw ?? r, oo = o.raw ?? o; return { ...rr, parts: canonParts(oo.parts, rr.parts) }; };
@@ -53,7 +51,7 @@ const armReq = (x, parts) => {
   return {
     viewport: r.viewport, observed: r.observed,
     truth: Object.entries(r.truth ?? {}), truthLegacy: Object.entries(r.truthLegacy ?? {}), neutral: Object.entries(r.neutral ?? {}),
-    parts: partsReq(normalizeParts(r.parts), parts), // both arms: transition lists compared in the Lean normal form (Fw.Gate.TransitionList)
+    parts: partsReq(normalizeParts(r.parts), parts),
   };
 };
 const partsReq = (rawParts, parts) => Object.fromEntries(parts.filter((p) => rawParts?.[p] !== undefined).map((p) => [p, rawParts[p]]));

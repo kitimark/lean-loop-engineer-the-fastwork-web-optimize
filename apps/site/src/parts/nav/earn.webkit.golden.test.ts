@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { readGolden } from '../../engine/golden.testutil';
 import { EARN_LOGICAL_CLASS, EARN_LOGICAL_VARIANT } from './logic';
 
-/** The `nav:earn-logical` variant against packages/contracts/golden/parts/nav.earn.webkit.jsonl (Fw.Parts.NavEarnWebkit). */
 const golden = readGolden('nav.earn.webkit', 'main');
 const css = readFileSync(resolve(__dirname, 'nav.module.css'), 'utf8');
 
@@ -28,7 +27,6 @@ function body(selector: string): string {
   return css.slice(css.indexOf('{', at) + 1, css.indexOf('}', at));
 }
 
-/** The `transition` list of a rule body, in order. */
 function list(selector: string): Item[] {
   const decl = /transition:\s*([^;]+);/.exec(body(selector))?.[1] ?? '';
   return decl.split(/,(?![^(]*\))/).map((part) => {
@@ -38,14 +36,12 @@ function list(selector: string): Item[] {
   });
 }
 
-/** Class-selector count of a selector (arguments of :global and :not included): the cascade weight that matters here. */
 const weight = (selector: string): number => (selector.match(/\.[\w-]+/g) ?? []).length;
 
 type Eng = 'chromium' | 'webkit';
 const ALL = ['max-width', 'opacity', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left'];
 const CHANGED = new Set(['max-width', 'opacity', 'padding-left', 'padding-right']);
 
-/** The physical property a list entry names under `dir` (ltr or rtl), for the entries the earn rules use. */
 function physical(entry: string, dir: string): string[] {
   if (entry === 'padding-inline') return dir === 'ltr' ? ['padding-left', 'padding-right'] : ['padding-right', 'padding-left'];
   if (entry === 'padding-inline-start') return [dir === 'ltr' ? 'padding-left' : 'padding-right'];
@@ -53,8 +49,6 @@ function physical(entry: string, dir: string): string[] {
   return [entry];
 }
 
-/** TS stand-in of Fw.Engine.TransitionStart.startedSet for these entries: WebKit drops the logical longhands of the
- * `padding-inline` shorthand (no animation wrapper), every other entry is made physical first. */
 function started(engine: Eng, dir: string, items: Item[]): string[] {
   const keys = new Set(
     items.flatMap((it) => (engine === 'webkit' && it.property === 'padding-inline' ? [] : physical(it.property, dir))),
@@ -62,7 +56,6 @@ function started(engine: Eng, dir: string, items: Item[]): string[] {
   return ALL.filter((p) => keys.has(p) && CHANGED.has(p));
 }
 
-/** The duration and delay of the last entry that names `prop` (WebKit: not through `padding-inline`). */
 function timing(engine: Eng, dir: string, items: Item[], prop: string): [number, number] | null {
   const hit = items.filter((it) => (engine === 'webkit' && it.property === 'padding-inline' ? false : physical(it.property, dir).includes(prop)));
   const last = hit[hit.length - 1];

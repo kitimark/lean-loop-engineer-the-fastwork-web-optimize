@@ -2,17 +2,17 @@
 
 ## Answer
 
-- **MEASURED (macOS CI, 2 valid runs) and proved in Lean:** listing `padding-inline-start, padding-inline-end` in place of `padding-inline` in
+- MEASURED (macOS CI, 2 valid runs) and proved in Lean: listing `padding-inline-start, padding-inline-end` in place of `padding-inline` in
   both earn transition rules makes WebKit start the side-padding transition at every hero-pill flip, entry and exit. The padding no longer
   jumps from 24 px (16 px at 640 px and below) to 0 in the flip frame; it eases over about 520 to 540 ms, as Chromium does.
   The earn width and the language button then move smoothly: at 1280 px the largest one-frame jump of the language button falls from
   48 px to 18 px on exit and 33 px on entry (the remaining jump is the one dropped frame at the flip plus the ease itself).
-- **Chromium is unchanged:** same started set and same duration and delay for every property (Lean `variant_chromium_set`,
+- Chromium is unchanged: same started set and same duration and delay for every property (Lean `variant_chromium_set`,
   `variant_chromium_timing`). On the measured runs Chromium with the variant eases like Chromium without it.
-- **Look-change class L, "engine parity":** on WebKit the look changes (the faithful rule snaps); Chromium and settled frames do not.
+- Look-change class L, "engine parity": on WebKit the look changes (the faithful rule snaps); Chromium and settled frames do not.
   Ledger row n=73 `nav.earn.logicalPadding`, review pending: the user's Safari (macOS) and iPhone check. The iPhone is INFERRED from
   shared WebKit source.
-- **Not delivered here:** the breakpoint gate with the variant needs a `fw` input, which only a dispatch carries (see Limits).
+- Not delivered here: the breakpoint gate with the variant needs a `fw` input, which only a dispatch carries (see Limits).
 
 ## The variant
 
@@ -101,4 +101,4 @@ Breakpoint gate run 40106804693 failed only on the five `transition-*` lists of 
 
 ## Gate with the variant on both engines: run 40114684690
 
-Dispatched by the lead on head 27020e909 (`engines=both`, `fw=nav:earn-logical`): conclusion success, every job, both engines. CONFIRMED (run:40114684690). This closes item gate-variant-both-engines; the reduced-motion failure of run 40111361865 is fixed by the faithful `none` list.
+Dispatched by the lead on head 27020e909 (`engines=both`, `fw=nav:earn-logical`): conclusion success, every job, both engines. CONFIRMED (run:40114684690). This closes item gate-variant-both-engines and the reduced-motion failure of run 40111361865.

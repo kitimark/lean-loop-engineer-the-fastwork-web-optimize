@@ -1,8 +1,7 @@
 # trajectory-frames: side-by-side nav frames for a person's visual review of a look change
 
 The probe and the gate decide numbers. A look change (class L, for example `nav:earn-no-transition`) needs a person to see the
-frames. This lane captures the nav band of the faithful rewrite and of one flagged rewrite through the same wheel pushes and puts
-the two rows one above the other. It decides nothing. Code: `packages/gate-breakpoints/src/trajectory/frames.mjs`
+frames. This lane captures the nav band of the faithful and one flagged rewrite through the same wheel pushes, one row above the other. It decides nothing. Code: `packages/gate-breakpoints/src/trajectory/frames.mjs`
 (capture and strips), `engines.mjs` (`shot`, `screencast`). Workflow: `.github/workflows/trajectory-probe.yml`.
 
 ## Run it (a push, no dispatch)
@@ -39,9 +38,7 @@ own times, so columns line up by time, not by frame number.
 - `--source screencast`: `page.screencast.start({onFrame})` (playwright-core 1.64.1), the JPEG frames the engine composites; the interval is
   from the frame's swap time to the next frame's. The frame in effect at the wheel event is shot 0, from 0. Not `recordVideo` (ffmpeg resamples to 25 fps).
 - `--reps N`: the capture repeats each push N times per arm and pools the shots of the repeats, ordered by ms after the wheel event
-  (`pooled` in `frames.mjs`); the label carries the repeat (`#i rK from-to ms`). The `probe-apple` frames step uses `--reps 3`. Why: run
-  39529343997 (one repeat) gave 4 to 10 shots per push on macOS (130 to 300 ms per screenshot on the runner), none usable; run
-  39530106935 (3 repeats) gave 18 to 35 per arm, all 8 strips usable, identity ok.
+  (`pooled` in `frames.mjs`); the label carries the repeat (`#i rK from-to ms`). The `probe-apple` frames step uses `--reps 3`: run 39529343997 (one repeat) gave 4 to 10 shots per push (130 to 300 ms per screenshot), none usable; run 39530106935 (3 repeats) gave 18 to 35 per arm, all 8 strips usable, identity ok.
 - `usable` = min(shots.faithful, shots.flag) >= 10 (Lean `Fw.Gate.Frames.usable`, TS stand-in `usable` in `frames.mjs`, same cases in
   `test/frames.test.mjs`). Decided per strip.
 
@@ -52,7 +49,7 @@ artifact and path.
 
 - macOS Playwright WebKit is not Safari on a phone. Linux WebKit (WebKitGTK/WPE) screenshots land 1 to 10 shots per push.
 - Pooled repeats mix the timing jitter of separate pushes: a column shows shots of different repeats at about the same ms, not one continuous run.
-- Screencast times: Playwright WebKit fixes a clock offset per page at its first delivered frame (coreBundle.js `_onScreencastFrame`). Each arm is its own page, so the two rows carry different unknown offsets. In run 39530106935 the labels trail the in-page recorder by about 150 to 450 ms. Screencast columns are not time-aligned between rows. Use the screenshot strips to compare timing, and the screencast strips only for the frame sequence within one row. (Chromium screencast times are the compositor's swap time.)
+- Screencast times: Playwright WebKit fixes a clock offset per page at its first delivered frame (coreBundle.js `_onScreencastFrame`). Each arm is its own page, so the two rows carry different unknown offsets. In run 39530106935 the labels trail the in-page recorder by about 150 to 450 ms. Screencast columns are not time-aligned between rows. Compare timing on the screenshot strips; use the screencast strips only for the frame sequence within one row. (Chromium screencast times are the compositor's swap time.)
 - The wheel time is the node wall clock after the mouse moved to the wheel point, before the wheel call; its latency to the page is not subtracted.
 - No flag or site change: the strips show the flag as built.
 
@@ -67,11 +64,9 @@ are skipped by `[transitions:`) turns the macOS leg into a per-frame recording o
 Per width leg (macos-26, the Lean cap of 15 min): Playwright Chromium and Playwright WebKit on the same runner, the original (`snapshot/site`) and the
 faithful rewrite, each with 3 full repeats and one light page (`src/trajectory/transitions.mjs capture`). A row per rendered frame (native
 requestAnimationFrame, no seeking): the rects of earn, language wrap, actions and nav flags, and in full mode the computed padding-left/right,
-max-width, opacity, `--nav-expand`, `--earn-out`, `--earn-layout`, `column-gap` and the live CSSTransition list. The light page reads rects only,
-so the cost of style reads is bounded. Sequences: hero-exit and hero-entry (a scripted scroll ramp, 2 viewport heights in 600 ms), morph-open and
+max-width, opacity, `--nav-expand`, `--earn-out`, `--earn-layout`, `column-gap` and the live CSSTransition list. The light page reads rects only. Sequences: hero-exit and hero-entry (a scripted scroll ramp, 2 viewport heights in 600 ms), morph-open and
 morph-close (wheel pushes; the CI step passes `--morph 0`, so the 15 min cap holds: hero sequences only). `--variants logical,physical,padding` adds candidate arms (`faithful+<variant>`, 2 full repeats): the faithful rewrite plus one `!important`
 rule that swaps `padding-inline` in the earn button's `transition-property` for the logical longhands, the physical ones or the `padding`
-shorthand (`variantCss`; durations and curves stay the site's). With a `[frames:<part:variant>]` token the recording adds a `flag` arm: the same page as `?fw=<part:variant>` (`--search`, `rewriteFor`), 3 full repeats and one light page, in Chromium, Playwright WebKit and Safari (task earn-webkit-smooth, flag `nav:earn-logical`). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
-effort, `safari-status.txt` says ok, skipped or failed and why). `transitions.mjs summary` reduces every recording (`index.json`,
+shorthand (`variantCss`; durations and curves stay the site's). With a `[frames:<part:variant>]` token the recording adds a `flag` arm: the same page as `?fw=<part:variant>` (`--search`, `rewriteFor`), 3 full repeats and one light page, in Chromium, Playwright WebKit and Safari (task earn-webkit-smooth, flag `nav:earn-logical`). Safari itself runs through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best effort; `safari-status.txt` says ok, skipped or failed and why). `transitions.mjs summary` reduces every recording (`index.json`,
 `*.summary.json`, `*.summary.txt` with the per-frame table). Artifact `transitions-apple-<leg>`. Cause proof: `Fw.Engine.TransitionStart`
 (golden `packages/contracts/golden/engine/transition-start.jsonl`); the reduction in `transitions.mjs` is a TS stand-in.
