@@ -2,7 +2,7 @@
 
 Status: MEASURED (per-test durations, local runs through `fw slot`, load 3.6-7); the growth history is INFERRED.
 Unit: the land-inputs step (`apps/runner/test/land-inputs.test.ts`) alone. Local-machine timings; the effect on
-the alert rate is read on later dry lands. The timing verdict rule is unchanged.
+the alert rate is read on later dry lands.
 
 ## Before: where the 35 s go
 
@@ -34,7 +34,7 @@ path and twice per glob of every check, so the calls grow with checks x globs. E
 
 - `apps/runner/src/land-inputs.ts`: `scopeOf(globs)` splits the globs once per list (kept by list content) and
   matches by index; `trackedFiles(root)` runs `git ls-files` once per state of the index (stat identity of the index
-  file, which git rewrites by rename). `inputKey` and `inScope` in `land.ts` use them. Meaning unchanged: the test file
+  file, which git rewrites by rename). `inputKey` and `inScope` in `land.ts` use them. The test file
   holds the original recursion as an oracle and compares every tracked path x every check's globs, plus an exhaustive
   small alphabet; a second test shows an added or removed file is seen.
 

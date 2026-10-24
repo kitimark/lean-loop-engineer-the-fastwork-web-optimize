@@ -1,14 +1,9 @@
-// The glob scope test of the land's input key. The meaning is unchanged: a path is in scope when some prefix of
-// its segments matches an include glob and no prefix matches an exclude glob (`!`-prefixed). Only the cost changed:
-// globs are split once per glob list (not once per path) and matched by index, with no slices.
-// Cost model: lean/Fw/Obs/LandInputsCost.lean (scan cost = files x globs x per-pair cost).
 import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const segs = (s: string): string[] => s.split("/").filter((x) => x !== "" && x !== ".");
 
-/** `*` matches any run of characters inside one segment; every other character matches itself. */
 export function segMatch(g: string, s: string): boolean {
   let gi = 0, si = 0, star = -1, mark = 0;
   while (si < s.length) {
@@ -21,7 +16,6 @@ export function segMatch(g: string, s: string): boolean {
   return gi === g.length;
 }
 
-/** Does the glob `g` (from index `gi`) match a prefix of `p` (from index `pi`)? `**` matches any run of segments. */
 function prefixMatch(g: string[], gi: number, p: string[], pi: number): boolean {
   if (gi === g.length) return true;
   if (g[gi] === "**") return prefixMatch(g, gi + 1, p, pi) || (pi < p.length && prefixMatch(g, gi, p, pi + 1));
@@ -30,7 +24,6 @@ function prefixMatch(g: string[], gi: number, p: string[], pi: number): boolean 
 
 export type Scope = (path: string) => boolean;
 
-/** Splits the globs once and returns the scope test. */
 export function compileScope(globs: string[]): Scope {
   const incl = globs.filter((g) => !g.startsWith("!")).map(segs).filter((g) => g.length > 0);
   const excl = globs.filter((g) => g.startsWith("!")).map((g) => segs(g.slice(1))).filter((g) => g.length > 0);
@@ -41,7 +34,6 @@ export function compileScope(globs: string[]): Scope {
 }
 
 const compiled = new Map<string, Scope>();
-/** `compileScope`, remembered by the glob list's content (so a changed list is never served stale). */
 export function scopeOf(globs: string[]): Scope {
   const key = globs.join("\0");
   let s = compiled.get(key);
@@ -60,7 +52,6 @@ export function inScope(globs: string[], path: string): boolean {
 const listings = new Map<string, { sig: string; files: string[] }>();
 const indexPaths = new Map<string, string | null>();
 
-/** The stat identity of the index of `root`: the index is rewritten by rename, so a changed index has a new inode. */
 function indexSig(root: string): string | null {
   if (process.env.GIT_INDEX_FILE) return null;
   let p = indexPaths.get(root);
@@ -72,7 +63,6 @@ function indexSig(root: string): string | null {
   try { const s = statSync(p, { bigint: true }); return `${s.ino}:${s.size}:${s.mtimeNs}`; } catch { return null; }
 }
 
-/** The tracked files of `root`, listed once per state of its index instead of once per key. */
 export function trackedFiles(root: string): string[] {
   const sig = indexSig(root);
   const hit = sig === null ? undefined : listings.get(root);
