@@ -23,7 +23,7 @@ text generated from Lean and guarded by `@supports (animation-timeline: scroll()
 - **Same look (PROVED in the visual model; MEASURED by the gate).** The element paints nothing, takes no layout, no hit and no
   accessibility content (Lean). The breakpoint gate passes on Chromium and Playwright WebKit with the flag, every cell, no
   failing item (run `40068858697`).
-- **Its cost (PROVED bound; MEASURED on Chromium; WEBKIT_ROW).** One element restyled per scroll frame and no layout. Chromium
+- **Its cost (PROVED bound; MEASURED on Chromium and the Simulator).** One element restyled per scroll frame and no layout. Chromium
   counts, 535 swipe frames in each of 3 runs: +1 element restyled in 95.5 %, 98.1 % and 99.1 % of the frames, no extra
   layout, no extra style-recalc event in at least 532 of 535 frames. It also adds 2 compositor layers (one drawing layer)
   in about 530 frames: the bound does not cover this, it is the measured price (below).
@@ -113,7 +113,25 @@ composites the fixed 1 px element, 2 layers more in every scroll frame. They are
 in the Lean bound. `position: absolute` would likely avoid the layer, but it is not the element the user tested; it is a
 follow-up (a dispatch for it would be a fourth).
 
-WebKit Simulator (MEASURED): WEBKIT_BLOCK
+WebKit Simulator (MEASURED): the dispatch `40068853873` (`webkit-sim`, target rewrite, `fw=engine.scroll:unthrottle`, iPhone 430x775, 107-step scroll,
+2 passes) against four earlier flag-free rewrite runs of the same lane (8 passes: `39897814980`, `39864122924`, `39856782689`,
+`39775866606`, at other shas: the push run of this branch was skipped as unchanged, so no same-sha baseline exists). The
+lane counts timeline events, not elements, so the "one element" half of the bound cannot be read; the event counts can:
+
+| events over the scroll | flag, pass 1 | flag, pass 2 | 8 baseline passes (min to max) |
+|---|---|---|---|
+| RecalculateStyles | 676 | 678 | 645 to 693 |
+| Layout | 634 | 619 | 604 to 661 |
+| Composite | 213 | 211 | 213 (all 8) |
+| Paint | 1261 | 1414 | 1224 to 1400 |
+| FireAnimationFrame | 679 | 671 | 671 to 681 |
+| layers with reason positionFixed, every state | 1 | 1 | 1 |
+
+The flag's counts sit inside the spread of the baseline passes (the slow baseline passes, wall 10 to 19 s, reach 693 style
+recalcs), so no extra style or layout event shows. The fixed element gets no layer of its own on WebKit (`positionFixed` is 1
+in every state with and without the flag; layer totals 108 to 143 are within the baseline spread of up to 6): the 2 extra layers
+are Chromium's. Limit: a one-event effect cannot be told from the lane's noise; this is "no resolvable cost", not "zero".
+Pass 1 of the flag run was slow (wall 11.7 s; slow baseline passes of 10 to 19 s exist too).
 
 ## 4. The device observation
 
