@@ -13,8 +13,11 @@ Task `webkit-morph-walk-noise` (split from `webkit-morph-cell`). Branch `ci/webk
   bucket of the open or close push has a row in the faithful arm and none in the candidate, at most 8 extra (`extraCap`).
 - **Lean:** the retry loop terminates within the cap, ends with no gap or at the cap, and a page whose hits do not change
   gives the same coverage on repeat. The decision reads recorded facts (which buckets have rows) only.
-- **CI (MEASURED):** `engine.scroll:batched`, active at every width, passes the Mac morph cell in run 40122382227
-  (outcome `pass`: no node property fails at two or more widths). That run had the first version of the rule (see "Run 1").
+- **CI (MEASURED):** `engine.scroll:batched`, active at every width, passes the Mac morph cell (outcome `pass`: no node
+  property new at two or more widths) in run 40127042262 (final rule) and in run 40122382227 (first rule). Run 40125557073
+  (final rule) has no coverage unit new at any width but fails on a content group at 640 and 641 (below): a second noise,
+  of the colour transition in flight at the end of the close push, not of the coverage walk. So no coverage group repeats at two widths in
+  3 of 3 runs; the cell passes in 2 of 3 and the third is the content noise, a follow-up.
 
 ## Cause
 
@@ -82,6 +85,21 @@ only on single-width units. The retry fired at 641 (2 extra passes). It did not 
 open bucket 3 (the first rule required it) while the faithful arm had one, and the reducer fails the candidate there all the
 same: that was the defect of the first rule. The final rule drops the original. This run also carries the page recorder
 (`debug=nav-transition`, on base and cand, not on orig), so it is a witness for the cell, not a clean run.
+
+## Runs 2 and 3 (final rule, MEASURED)
+
+Same line, final code (faithful arm only, cap 8, apple job at 15 min). `trajectory-apple`, Mac morph:
+
+| run | width: candidate extra passes | coverage new | content new | outcome |
+|---|---|---|---|---|
+| 40125557073 | 390: 0, 640: 0, 641: 0, 1280: 1 | 0 | `nav.background-color` 640 close-hold@0 and 641 close@0 (`fail:apart`) | fail (content group at 2 widths) |
+| 40127042262 | 390: 0, 640: 0, 641: 8 (cap), 1280: 3 | 42 at 641 close@8 (the cap ran out) | `nav.background-color` 1280 close@0 | pass |
+
+The content units are the colour transition of the nav still running at the end of the close push: rows at `m` 0 to 70 have
+`since` 24 to 60 ms after the class change, and their colour depends on the frame (run 40125557073, 641, orig vs cand rows).
+It shows in all three runs at close@0 or close-hold@0 (`logo.color`, `nav.background-color`) at one to two widths; it repeats
+at two widths by chance. Not a coverage failure, not touched here (follow-up: a retry or a window for the end of the close).
+Queueing: the macOS runners are shared; the second Mac leg of run 1 sat queued for a while, each run took several 540 s waits.
 
 ## Limits
 
