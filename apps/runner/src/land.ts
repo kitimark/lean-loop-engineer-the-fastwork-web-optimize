@@ -116,24 +116,8 @@ const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catc
 
 export type Check = { id: string; argv: string[]; reads: string[] };
 
-const segs = (s: string) => s.split("/").filter((x) => x !== "" && x !== ".");
-const segMatch = (g: string, s: string): boolean => {
-  if (g === "") return s === "";
-  if (g[0] === "*") return segMatch(g.slice(1), s) || (s !== "" && segMatch(g, s.slice(1)));
-  return s !== "" && g[0] === s[0] && segMatch(g.slice(1), s.slice(1));
-};
-const globMatch = (g: string[], p: string[]): boolean => {
-  if (g.length === 0) return p.length === 0;
-  if (g[0] === "**") return globMatch(g.slice(1), p) || (p.length > 0 && globMatch(g, p.slice(1)));
-  return p.length > 0 && segMatch(g[0]!, p[0]!) && globMatch(g.slice(1), p.slice(1));
-};
-const matchesPath = (g: string[], p: string[]) => p.some((_, k) => globMatch(g, p.slice(0, k + 1)));
-export function inScope(globs: string[], path: string): boolean {
-  const p = segs(path);
-  const incl = globs.filter((g) => !g.startsWith("!")).map(segs);
-  const excl = globs.filter((g) => g.startsWith("!")).map((g) => segs(g.slice(1)));
-  return p.length > 0 && !p.includes("..") && incl.some((g) => matchesPath(g, p)) && !excl.some((g) => matchesPath(g, p));
-}
+import { inScope, scopeOf, trackedFiles } from "./land-inputs.ts";
+export { inScope };
 export const selectChecks = (ds: { id: string; reads: string[] }[], changed: string[]) =>
   ds.filter((d) => changed.some((c) => inScope(d.reads, c))).map((d) => d.id);
 
@@ -282,7 +266,8 @@ export function checksWithReads(root: string, changed: string[], d0: Digest = nu
 }
 
 export function inputKey(root: string, reads: string[]): string {
-  const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter((f) => f && inScope(reads, f)).sort();
+  const scope = scopeOf(reads);
+  const files = trackedFiles(root).filter((f) => scope(f)).sort();
   const h = createHash("sha256");
   for (const f of files) {
     let c: Buffer | string = "";
