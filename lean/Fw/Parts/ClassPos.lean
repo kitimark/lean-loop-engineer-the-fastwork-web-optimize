@@ -222,7 +222,6 @@ def Kind.plainOpen : Kind → Bool
   | .lost | .glued => true
   | .cls | .mod | .modLost => false
 
-/-- An element is open to plain class selectors iff one of its class tokens may be any plain class. -/
 def elemOpen (ts : List Tok) : Bool := ts.any (·.kind.plainOpen)
 
 def writes (ts : List Tok) : List (String × String) :=

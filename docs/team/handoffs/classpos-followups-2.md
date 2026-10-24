@@ -8,7 +8,7 @@
 
 ## Round 2 changes
 - Finding 1: `union()` in `part-footprint.mjs:87` takes the class branch before the two unknown early returns, so a
-  class union with an unknown side keeps the unknown side (Lean `union_unknown_open`, `unknown_union_open`).
+  class union keeps its unknown side (Lean `union_unknown_open`, `unknown_union_open`).
   `classListOf` (`part-footprint.mjs:791`) is the production classList path (valueOf, classValue, classListReport);
   the test `classList.add(cond ? css.a : x) keeps the unknown side open` runs it on both branch orders.
 - Finding 2: `Strength.weak` sits between `.dynamic` and `.spread`; `strength` maps a weak match to `.weak` unless
@@ -16,7 +16,7 @@
 - MEASURED: the regenerated footprint is byte-identical (accesses 1890, findings 93, `chainPairs_code_length` 298).
   The union fix fires 99 times, but no classList call in the site receives the resulting value; JSX className goes
   through `collectClassTokens`. No selector has dynamic and weak candidates without a literal one, so the new tier
-  changes no owner. The 127 weak rows the reviewer counted come from selectors whose only candidates are weak ones
+  changes no owner. The 127 weak rows come from selectors whose only candidates are weak
   (`frameCls[k]`, component className props).
 
 ## Follow-ups
