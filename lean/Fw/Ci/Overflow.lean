@@ -49,7 +49,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - sim-speed 5: `probe` (sim-speed.yml:121; any number of arms, so the 5 macOS slots bound it)
 - smoothness 14: `cadence` 12 (smoothness.yml:146,155; up to 4 widths x 3 sets, the widths a push line allows in `trajectory-line.mjs:44`), `webkit-mac` 1 (max-parallel 1) and `webkit-sim` 1
 - snapshot-extract 7: `tests` 1 (snapshot-extract.yml:96) and `extract` 6 (:137)
-- toolbar-throttle 3: `sim` (toolbar-throttle.yml, vms 1 to 3, max-parallel 3); `report` runs after it
+- toolbar-throttle 5: `sim` (toolbar-throttle.yml, vms 1 to 3, or 1 to 6 with [throttle:morph-end] in the commit message; max-parallel 5); `report` runs after it
 - trajectory-probe 12: `probe` 8 (trajectory-probe.yml:259; `plan.mjs`), `frames` 2 (:356), `probe-apple` 2 (:496)
 - visual-diff 39: `shoot` 32 (visual-diff.yml:274; 2 engines x 16 shards), `port` 1, `port-fonts` 2, `navscroll` 2, `people-layout` 2
 - webkit-sim 3: `merge`, `align`, `lag-report` after `sim` (webkit-sim.yml:446,517,592; `sim` is 2, max-parallel :274)
@@ -58,7 +58,7 @@ A row can exceed the 20 slots (visual-diff 39): the free count then saturates at
 def widths : List (String × Nat) := [
   ("breakpoint-gate", 10), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("font-fidelity", 3), ("gate-gaps", 29), ("land", 5),
   ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 9), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
-  ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 3)]
+  ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 5), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 3)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
 def defaultWidth : Nat := 4
