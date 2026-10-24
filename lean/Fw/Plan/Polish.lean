@@ -232,17 +232,33 @@ def absPlain (p : String) : Bool :=
 def anchor (main raw : String) : String := if raw.startsWith "/" then raw else main ++ "/" ++ raw
 
 inductive Own where
-  | own | badMain | badName | notPlain | outside
+  | own | badMain | badName | notPlain | outside | unresolved
 deriving Repr, DecidableEq
 
 def Own.name : Own → String
-  | .own => "own" | .badMain => "badMain" | .badName => "badName" | .notPlain => "notPlain" | .outside => "outside"
+  | .own => "own" | .badMain => "badMain" | .badName => "badName" | .notPlain => "notPlain" | .outside => "outside" | .unresolved => "unresolved"
 
 def ownEdit (main name raw : String) : Own :=
   if !absPlain main then .badMain
   else if !nameOk name then .badName
   else if !absPlain (anchor main raw) then .notPlain
   else if inWtB (segs main) name (segs (anchor main raw)) then .own else .outside
+
+/-- The verdict when the caller could or could not resolve the path: `resolved` is false when no ancestor of the
+path has a real path (the caller found nothing to follow), and then the path is never own (fail closed). -/
+def ownFact (main name raw : String) (resolved : Bool) : Own :=
+  if resolved then ownEdit main name raw else .unresolved
+
+theorem ownFact_unresolved (main name raw : String) : ownFact main name raw false = .unresolved := rfl
+
+theorem ownFact_resolved (main name raw : String) : ownFact main name raw true = ownEdit main name raw := rfl
+
+theorem ownFact_unresolved_not_own (main name raw : String) : ownFact main name raw false ≠ .own := by
+  simp [ownFact]
+
+theorem ownFact_own_iff (main name raw : String) (r : Bool) :
+    ownFact main name raw r = .own ↔ r = true ∧ ownEdit main name raw = .own := by
+  cases r <;> simp [ownFact]
 
 theorem ownEdit_badMain (main name raw : String) (h : absPlain main = false) : ownEdit main name raw = .badMain := by
   simp [ownEdit, h]
@@ -325,8 +341,9 @@ example : inWtAny "wf_a" (["other"] ++ wtSegs "wf_a" ++ ["x.ts"]) ∧ ¬ inWtAt 
     (by rintro ⟨t, ht⟩; simp at ht)
 
 theorem nested_checkout_inside (main : List String) (name f : String) :
-    main <+: main ++ wtSegs name ++ ["sub"] ∧ inWtAt main name ((main ++ wtSegs name ++ ["sub"]) ++ wtSegs name ++ [f]) :=
-  ⟨⟨wtSegs name ++ ["sub"], by simp⟩, ⟨["sub"] ++ wtSegs name ++ [f], by simp, by simp⟩⟩
+    main <+: main ++ wtSegs name ++ ["sub"] ∧ main ≠ main ++ wtSegs name ++ ["sub"] ∧ inWtAt main name ((main ++ wtSegs name ++ ["sub"]) ++ wtSegs name ++ [f]) :=
+  ⟨⟨wtSegs name ++ ["sub"], by simp⟩,
+    fun h => by simpa using congrArg List.length h, ⟨["sub"] ++ wtSegs name ++ [f], by simp, by simp⟩⟩
 
 #guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a/apps/x.ts" == .own
 #guard ownEdit "/m" "wf_a" ".claude/worktrees/wf_a/apps/x.ts" == .own
@@ -336,6 +353,8 @@ theorem nested_checkout_inside (main : List String) (name f : String) :
 #guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a" == .outside
 #guard ownEdit "/m/" "wf_a" "/m/.claude/worktrees/wf_a/x" == .badMain
 #guard ownEdit "/m" ".." "/m/.claude/worktrees/../x" == .badName
+#guard ownFact "/m" "wf_a" "/m/.claude/worktrees/wf_a/x" true == .own
+#guard ownFact "/m" "wf_a" "/m/.claude/worktrees/wf_a/x" false == .unresolved
 #guard resolveSegs (segs "/m/.claude/worktrees/wf_a/../../apps/x.ts") == ["m", ".claude", "apps", "x.ts"]
 
 theorem gen_skip (gen : List String) (p : String) (h : p ∈ gen) : classify gen p = .skip :=
