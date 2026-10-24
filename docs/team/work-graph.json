@@ -20912,7 +20912,30 @@
     "research/notes/2026/10-2x-ci-state-burst.md",
     "docs/team/handoffs/ci-state-burst.md"
    ],
-   "title": "fw ci state prints 'unknown' for valid older runs, so build-review gates mark them failed (seen for runs 40100783726 on ci/earn-webkit-smooth and 40125463870): stateStep (apps/runner/src/ci.ts:77) returns 'absent' when the page is full and holds a smaller id, but one push starts about 20 workflow runs whose ids are not in the order gh run list returns them, so a page boundary inside a burst hides the run (CONFIRMED: at --limit 100 the page min is 40100783603 < 40100783726; at --limit 400 the run is entry 106). Do, Lean first: model the lookup step in lean/Fw/Ci/State.lean (found, ended, older, grow, exhausted; absent only when a full page's ids are all newer than the target by more than a stated burst margin, or never), with theorems (a run present within the largest limit is found; the step terminates; absent never fires inside a burst), a golden replayed by ci-state.test.ts (this run's real id pattern as a case), and ci.ts made a twin of it. Show fw ci state 40100783726 --branch ci/earn-webkit-smooth prints complete."
+   "title": "fw ci state prints 'unknown' for valid older runs, so build-review gates mark them failed (seen for runs 40100783726 on ci/earn-webkit-smooth and 40125463870): stateStep (apps/runner/src/ci.ts:77) returns 'absent' when the page is full and holds a smaller id, but one push starts about 20 workflow runs whose ids are not in the order gh run list returns them, so a page boundary inside a burst hides the run (CONFIRMED: at --limit 100 the page min is 40100783603 < 40100783726; at --limit 400 the run is entry 106). Do, Lean first: model the lookup step in lean/Fw/Ci/State.lean (found, ended, older, grow, exhausted; absent only when a full page's ids are all newer than the target by more than a stated burst margin, or never), with theorems (a run present within the largest limit is found; the step terminates; absent never fires inside a burst), a golden replayed by ci-state.test.ts (this run's real id pattern as a case), and ci.ts made a twin of it. Show fw ci state 40100783726 --branch ci/earn-webkit-smooth prints complete.",
+   "evidence": "5ed10d0"
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "sim-lift-stall",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/sim-touch.test.mjs",
+    "lean/Fw/Device/SimTouch.lean",
+    "lean/scripts/SimTouchGolden.lean",
+    "packages/contracts/golden/device/sim-touch.jsonl",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-sim-lift-stall.md",
+    "docs/team/handoffs/sim-lift-stall.md"
+   ],
+   "title": "Finish-mode Simulator passes on the lift arm stall at start-up: 6 of 30 finish touch runs in run 40121254572 had 0 marks at 304 s (5 lift, 1 original), so 3 of 6 lift passes were lost while hero drags complete 18 of 18 (run 40128742749). Split from sim-touch-timeout after review round 1. Do: separate the start-up stall from the xcodebuild launch with a 'launched' mark written in setUp() before safari.activate(); check whether the lift page keeps XCUITest's idle wait open (animations or timers that never quiesce: cite Apple XCTest docs on app idle and the lift arm's page source); find the cause CONFIRMED; fix it (Lean-first if the machine changes: SimTouch.lean, golden); show a [throttle:finish] run where all 3 jobs complete every arm, lift included (run id)."
   }
  ],
  "deadline": {
