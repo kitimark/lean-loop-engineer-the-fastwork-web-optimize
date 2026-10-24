@@ -29,9 +29,6 @@ runs:
         arch="$(uname -m)"
         key="$GITHUB_WORKSPACE/.github/scripts/cache-key.mjs"
         golden="$GITHUB_WORKSPACE/packages/contracts/golden/ops/cache.jsonl"
-        # Save rule (Fw.Ops.GateEngineTiming.shouldSave; golden gate-engine-timing.jsonl, kind ref): a ci/land-* branch
-        # is fresh per land and GitHub lets a branch read only its own caches and the default branch's, so a save
-        # there is never read. Every other ref saves.
         case "${GITHUB_REF_NAME:-}" in ci/land-*) save=false ;; *) save=true ;; esac
         {
           echo "save=$save"
@@ -86,7 +83,6 @@ runs:
           chromium) pnpm exec playwright-core install-deps chromium-headless-shell ;;
           playwright-webkit) pnpm exec playwright-core install-deps webkit ;;
         esac
-        # Stage the .deb files for the save step below only on a miss (and only where that step will save).
         if [ "$APT_HIT" != "true" ] && [ "$SAVE" = "true" ]; then
           cp /var/cache/apt/archives/*.deb "$debs"/ 2>/dev/null || echo "no .deb files to cache"
           du -sh "$debs" || true
@@ -122,8 +118,6 @@ runs:
         set -euo pipefail
         pnpm exec playwright-core install webkit
 
-    # Saves run here, after the install, only on a miss and only where a later run can read the entry (the keys step).
-    # They were the Post step of actions/cache before: 4 to 43 s on a land leg for an entry nothing read.
     - name: Save the apt packages
       if: ${{ steps.keys.outputs.save == 'true' && steps.apt.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

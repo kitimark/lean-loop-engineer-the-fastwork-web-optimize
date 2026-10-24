@@ -18,10 +18,10 @@ Task `ci-gate-engine-webkit-slow`. Sources: job logs of existing land runs (`gh 
 | 40024272661 | chromium | 42 | 37 | 6 | 5 | aptVariance |
 | 40028997665 baseline | chromium | 23 | 19 | 4 | 4 | ok |
 
-apt fetch is the sum of the "Fetched ... in Ns" lines. Run 1 shows apt time beyond the fetch (index processing 20 s, dpkg 25 s): runner-side apt work, also variance.
+apt fetch is the sum of the "Fetched ... in Ns" lines. Run 1 shows apt time beyond the fetch (index processing 20 s, dpkg 25 s), also variance.
 
 ## Fix (action, `.github/actions/gate-engine/action.yml`)
-- Save rule (Lean `shouldSave`, theorem `land_prefix_no_save`): no save on `ci/land-*`; every other ref saves. The saves are separate `actions/cache/save` steps (same pinned SHA) that run after the install, only on a miss. The rule in the action is a shell `case` (TS-like stand-in; its six golden `ref` rows were replayed against it, 0 mismatches).
+- Save rule (Lean `shouldSave`, theorem `land_prefix_no_save`): no save on `ci/land-*`; every other ref saves. The saves are separate `actions/cache/save` steps (same pinned SHA) that run after the install, only on a miss. The action implements the rule as a shell `case`; its six golden `ref` rows were replayed against it, 0 mismatches.
 - Effect: the land-leg Post step drops to about 0 s (4-43 s removed) and 356 MB per leg is no longer uploaded.
 - Not fixable in the action: the apt time itself. It becomes cheaper only when the debs cache hits (fetch 8-43 s gone). It hits when `main` holds the entry: `premise-tests.yml` job `engine` seeds it on a `main` push, and that job runs when `.github/actions/gate-engine/**` changes, so landing this change seeds `main`.
 
