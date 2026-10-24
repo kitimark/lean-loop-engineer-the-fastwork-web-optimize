@@ -9,7 +9,7 @@ topics: [lag, webkit, ios-toolbar, scroll-driven, engine.scroll, measure]
 
 # Rest mode, judged per pass and per arm
 
-Task `unthrottle-parts-rest`, the split of `unthrottle-parts-measure` after its third refusal on rest cadence claims.
+Task `unthrottle-parts-rest`, split from `unthrottle-parts-measure`.
 Earlier note: `10-2x-unthrottle-parts-measure.md`. Data: run 40101702393 (3 jobs, existing artifacts, no new CI run),
 re-reduced into `results/unthrottle-parts/rest-40101702393.{json,md}`. Lean: `Fw.Device.ThrottleParts`; golden
 `packages/contracts/golden/device/throttle-parts.jsonl`; reducer `packages/measure-webkit/src/throttle/parts.mjs`.
@@ -53,9 +53,8 @@ re-reduced into `results/unthrottle-parts/rest-40101702393.{json,md}`. Lean: `Fw
 | lift | 1-3 | 1 | 30, 25, 23 | 3, 3, 4 | 3-4, 3-4, 4-5 | 0, 0, 0 | 512, 573, 554 | yes |
 | unthrottle | 1-3 | 1 | 26, 20, 25 | 3, 4, 3 | 3-4, 4-5, 3-4 | 0, 0, 0 | 558, 525, 558 | yes |
 
-The original arm is the only slow one: the same page, the same driver, but 2.5 times the gap. Why is not known; the
-accepted limit is that touch-driver losses and the Simulator's load stay as recorded (INFERRED: a slower frame clock on
-that job). Every verdict for the arm is no-data, and the lifted arms compare against the rewrite, whose pool is in
+The original arm is the only slow one, at 2.5 times the gap on the same page and driver (INFERRED: a slower frame clock
+on that job). The cause is not known. Every verdict for the arm is no-data, and the lifted arms compare against the rewrite, whose pool is in
 domain.
 
 ## commission per pass (MEASURED)

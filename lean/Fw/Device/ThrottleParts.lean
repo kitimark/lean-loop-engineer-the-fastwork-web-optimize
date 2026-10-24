@@ -446,7 +446,6 @@ theorem predicted_snap : predicted .throttled .mainThread .snap = .stills 5 := b
 section Snap
 open Fw.Parts.Commission (Pair frame target enterRaw)
 
-/-- The commission enter follower writes its target in a frame where the target is at or above it: a step up is not eased. -/
 theorem commission_snaps_up (s : Pair) (top bottom h : Rat) (rm c : Bool) (hs : s.n ≤ target rm (enterRaw top h)) :
     (frame s top bottom h rm c).n = target rm (enterRaw top h) := by
   unfold Fw.Parts.Commission.frame Fw.Parts.Commission.gainOf
@@ -463,12 +462,10 @@ theorem commission_snaps_up (s : Pair) (top bottom h : Rat) (rm c : Bool) (hs : 
     have h5 : s.n - (s.n + 0) = 0 := by grind
     simp [hl, h1, h5, h0]
 
-/-- The enter value over a stream of tops from `n0`. -/
 def enterFollow (h : Rat) (rm : Bool) (tops : Nat → Rat) (n0 : Rat) : Nat → Rat
   | 0 => (frame ⟨n0, 0⟩ (tops 0) 0 h rm false).n
   | t + 1 => (frame ⟨enterFollow h rm tops n0 t, 0⟩ (tops (t + 1)) 0 h rm false).n
 
-/-- On a rising target the follower is the target itself, so a throttled read of the target steps like a curve. -/
 theorem enterFollow_rising (h : Rat) (rm : Bool) (tops : Nat → Rat) (n0 : Rat)
     (hm : ∀ t, target rm (enterRaw (tops t) h) ≤ target rm (enterRaw (tops (t + 1)) h))
     (h0 : n0 ≤ target rm (enterRaw (tops 0) h)) :
@@ -542,10 +539,8 @@ theorem judgeCounts_none_boundary (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : 
   | pulses => cases m <;> simp [judgeCounts, hf, this]
   | noStills => cases m <;> simp [judgeCounts, hf, this]
 
-/-- The lowest K a pass is judged at: the band `[K, K+1]` starts above the 1 to 2 frame hold of one dropped frame. -/
 def minK : Nat := 3
 
-/-- One pass of an arm: its own K, the runs in `[K, K+1]` and the frames of the series strictly inside its range while the toolbar moved. -/
 structure Pass where
   k : Nat
   runs : Nat
@@ -554,11 +549,9 @@ structure Pass where
 
 def Pass.inDomain (q : Pass) : Bool := decide (minK ≤ q.k)
 
-/-- The summed counts of the passes whose K is inside the domain. -/
 def pool (ps : List Pass) : Arm :=
   ⟨((ps.filter Pass.inDomain).map (·.runs)).sum, ((ps.filter Pass.inDomain).map (·.frames)).sum⟩
 
-/-- The match of an arm's passes with the prediction; a pass whose K is below `minK` counts for nothing, K is per pass. -/
 def judge (p : Pred) (m : Mode) (base arm : List Pass) : Match := judgeCounts p m (pool base) (pool arm)
 
 theorem pool_nil : pool [] = ⟨0, 0⟩ := rfl
@@ -617,7 +610,6 @@ theorem judge_none_boundary (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) 
     (h : minBase ≤ (pool arm).runs) : judge p m base arm = .disagree :=
   judgeCounts_none_boundary p hp m _ _ hf h
 
-/-- The domain in gaps: K reaches `minK` exactly for frame intervals of 33.33 ms or less. -/
 theorem minK_iff (d : Nat) : minK ≤ throttleK d ↔ 0 < d ∧ d ≤ 3333 := by
   unfold minK throttleK
   constructor
@@ -633,7 +625,6 @@ theorem minK_iff (d : Nat) : minK ≤ throttleK d ↔ 0 < d ∧ d ≤ 3333 := by
     have a : 4 ≤ (10000 + d - 1) / d := (Nat.le_div_iff_mul_le hd).2 (by omega)
     omega
 
-/-- **The converse of `throttleK_mem_band`.** K inside the fixed band 5 to 6 holds only for intervals of 14.29 to 19.99 ms. -/
 theorem throttleK_band_iff (d : Nat) : (bandLo ≤ throttleK d ∧ throttleK d ≤ bandHi) ↔ 1429 ≤ d ∧ d < 2000 := by
   constructor
   · rintro ⟨h1, h2⟩
@@ -655,7 +646,6 @@ theorem bandFor_5900 : bandFor 5900 = (1, 2) := by decide
 
 theorem bandFor_rest : bandFor 2300 = (4, 5) ∧ bandFor 2000 = (4, 5) := by decide
 
-/-- One dropped frame holds a value for one frame and lands in the band of a 59 ms pass. -/
 theorem drop_in_band_low : count 1 2 (rowsOf [10, 20, 20, 30]) = 1 := by decide
 
 theorem drop_out_of_band (k : Nat) (h : minK ≤ k) : count k (k + 1) (rowsOf [10, 20, 20, 30]) = 0 := by
@@ -664,7 +654,6 @@ theorem drop_out_of_band (k : Nat) (h : minK ≤ k) : count k (k + 1) (rowsOf [1
   have : ¬ k ≤ 1 := by unfold minK at h; omega
   simp [this]
 
-/-- A throttled curve read at any cadence with K at least 1 puts one run of K frames per update in the band `[K, K+1]`. -/
 theorem curve_throttled_count (q n lo hi : Nat) (hl : lo ≤ q + 1) (hh : q + 1 ≤ hi) (u : Nat → Int) (f : Int → Int)
     (h : Distinct (fun t => f (u t)) ((q + 2) * n)) (hmid : ∀ t, t < (q + 2) * n → mid (f (u t)) = true) :
     count lo hi (rowsOf (series .mainThread .throttled (q + 2) u f ((q + 2) * n))) = n - 1 := by

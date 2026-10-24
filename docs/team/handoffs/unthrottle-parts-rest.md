@@ -1,5 +1,5 @@
 Branch: worktree-wf_b72af43c-e06-1
-Worktree: .claude/worktrees/wf_b72af43c-e06-1 (under the repo root)
+Worktree: .claude/worktrees/wf_b72af43c-e06-1
 Last commit: 87a4e4b3c (work); this handoff is the next commit
 CI runs: none dispatched (task reads run 40101702393 from its downloaded artifacts; no new CI dispatch allowed)
 Verified: ThrottleParts.lean builds; golden regenerated (794 lines) and --check up to date; test/throttle-parts.test.mjs 35 pass. Slot check/test, ci-paths, land-inputs, plan lint and dry land: see the report.
