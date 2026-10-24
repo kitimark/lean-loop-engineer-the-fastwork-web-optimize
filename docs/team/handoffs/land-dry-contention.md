@@ -1,6 +1,6 @@
 # land-dry-contention handoff
 
-- Branch `worktree-wf_ce64bd7a-546-1`, worktree `.claude/worktrees/wf_ce64bd7a-546-1`; main merged (up to date at start).
+- Branch `worktree-wf_ce64bd7a-546-1`, worktree `.claude/worktrees/wf_ce64bd7a-546-1`; round 2 (findings applied), main merged.
 - CI runs: none (accepted limit "no CI run").
 
 ## State
@@ -13,6 +13,10 @@
 - Evidence and decision: `research/notes/2026/10-2x-land-dry-contention.md`. Finding: the extra load was outside the
   slot (locks.jsonl shows only the land's own hold), so serialization would not help; the improvement is the contended verdict.
 - No TS verdict logic exists (fwcore decides), so no TS stand-in.
+
+## Round 2
+- Note: per-sample co-runner table (only 8f040f0 has a named co-runner; bf9aa85 and c4f662a rest on the load floor; cause unexplained), calm median definition, replay old 44 -> new 41 slow of 520 exit-0 rows.
+- Lean: landDryLoad doc, theorem/case names no longer claim 'hides no regression', `dryLandMax` in params encoder and Wire paramsOf (golden row pins it), Health headline.
 
 ## Verified
 - `lean/scripts/check.sh` green; @fw/runner 3291 tests, @fw/contracts 11, ci-paths 56; plan lint: no writesClosure error for this task.

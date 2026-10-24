@@ -665,15 +665,19 @@ def calmLoad : Nat := 4
 theorem calmLoad_lt : calmLoad < contendedLoad := by decide
 
 /-- **The load above which a local dry land sample is contended** (task `land-dry-contention`). A dry land alone puts the
-machine at a 1-min load of 3 to 4 (its vitest, lake and workflow checks side by side), so a floor above 4 means other
-heavy work ran too, outside the slot: builder vitest or lake runs, a Simulator boot. MEASURED 2026-10-24 over the 495
-local `fw land` `dry total lake` samples of `.fw-console/timings.jsonl` (exit 0), median duration by the floor of the load:
-`λ = 1` 24.4 s, 2 26.1 s, 3 31.2 s, 4 33.4 s, 5 37.8 s, 6 39.0 s, 7 39.4 s (`λ = 3, 4` hold 278 of the 495 samples).
-The three `timing.slow` alerts of that day (66.6 s, 62.5 s, 53.5 s against baselines of 43.1 s, 40.6 s, 35.0 s) ran at
-`λ` 6, 5 and 5, below `contendedLoad`, with no other slot hold in `.fw-console/locks.jsonl` (only waiters): the extra work
-was not slotted. The sub-steps that grew against the calm median (`λ ≤ 3`): `land-inputs` vitest 30 s against 21 s, the
-lake step 9 to 19 s against 2.8 s; the `land-overflow-widths` vitest (12.4 to 12.8 s) did not. INFERRED: the cut at the
-land's own load (4); the slot cannot serialize the unslotted work, so the sample is marked, not the machine stopped. -/
+machine at a 1-min load of 3 to 4 (its vitest, lake and workflow checks side by side), so a floor above 4 is above what
+the land itself makes. MEASURED 2026-10-24 over the 495 local `fw land` `dry total lake` samples of
+`.fw-console/timings.jsonl` (exit 0), median duration by the floor of the load: `λ = 1` 24.4 s, 2 26.1 s, 3 31.2 s, 4 33.4 s,
+5 37.8 s, 6 39.0 s, 7 39.4 s (`λ = 3, 4` hold 278 of the 495 samples). The three `timing.slow` alerts of that day (66.6 s,
+62.5 s, 53.5 s against baselines of 43.1 s, 40.6 s, 35.0 s) ran at `λ` 6, 5 and 5, below `contendedLoad`. Other work is
+shown for one of them: `8f040f0` had a Simulator process group (290 processes) and five `lake serve` running before and
+during the land. For `bf9aa85` and `c4f662a` no span, lock or supervisor sample shows a co-runner and the load rose
+(3.1 to 6.0, 2.7 to 5.6) during the land itself, so their contended verdict rests on the load floor alone. What grew in
+the land's own work: `land-inputs` vitest 30 s against a calm 21 s, the lake step 9 to 19 s against 3.3 s. The test file
+(21 tests in 291 lines) is the same and tracked files grew 6 to 7 percent; `8f040f0` rebuilt 7 Lean modules (the `Fw`
+root alone 7.3 s), `bf9aa85` and `c4f662a` rebuilt none by their logs; the rest is unexplained (the
+`land-overflow-widths` vitest did not grow). INFERRED: the cut at the land's own load (4); a regression that raises the dry land's own load above
+4 is judged contended (accepted limit). -/
 def landDryLoad : Nat := 4
 
 /-- A dry land sample is judged below `contendedLoad`, which is a lower limit. -/
@@ -2670,7 +2674,7 @@ def paramsJson (p : Params) : Json :=
     ("budgets", .arr (p.budgets.map (fun (t, b) => Json.mkObj [("tool", .str t), ("ms", toJson b)])).toArray),
     ("ceilings", .arr (p.ceilings.map (fun (t, s, c) =>
       Json.mkObj [("tool", .str t), ("step", .str s), ("ms", toJson c)])).toArray),
-    ("loadMax", toJson p.loadMax),
+    ("loadMax", toJson p.loadMax), ("dryLandMax", toJson p.dryLandMax),
     ("stages", .arr (p.stages.map (fun st => Json.mkObj [("id", .str st.id),
       ("groups", .arr (st.groups.map (fun g => Json.mkObj [("name", .str g.name),
         ("keys", .arr (g.keys.map keyJson).toArray)])).toArray)])).toArray)]
@@ -3018,16 +3022,18 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, remoteQueueRun),
    ("fw ci wait of an old span without phases: no own time, no verdict (the last verdict is the sixth wait's)",
       {}, ciWaitRun.take 6 ++ [{ tool := "fw", step := "ci wait", durMs := 900000, host := .«local», load := 3, exit := some 0 }]),
-   ("dry land bf9aa85 (2026-10-24): 66643 ms against a 43056 ms baseline at load 6 (below the 8 limit; no other slot hold): contended, not slow",
+   ("dry land bf9aa85 (2026-10-24): 66643 ms against a 43056 ms baseline at load 6 (below the 8 limit): contended, not slow",
       {}, loadedDryRun 43056 66643 6),
    ("dry land 8f040f0 (2026-10-24): 62485 ms against a 40604 ms baseline at load 5: contended, not slow",
       {}, loadedDryRun 40604 62485 5),
-   ("dry land c4f662a (2026-10-24): 53534 ms against a 35047 ms baseline at load 5, builders running outside the slot: contended, not slow",
+   ("dry land c4f662a (2026-10-24): 53534 ms against a 35047 ms baseline at load 5: contended, not slow",
       {}, loadedDryRun 35047 53534 5),
-   ("dry land at its own load (4): the same 66643 ms against 43056 ms is slow, the rule hides no regression",
+   ("dry land at its own load (4): the same 66643 ms against 43056 ms is slow: a regression that leaves the load at or below 4 still alerts",
       {}, loadedDryRun 43056 66643 4),
    ("a step that is not a dry land (fw land, step `land`) at load 6: slow as before, the lower limit is for dry lands only",
-      {}, run "fw land" "land" .«local» 4 (List.replicate 5 43056) ++ run "fw land" "land" .«local» 6 [66643])]
+      {}, run "fw land" "land" .«local» 4 (List.replicate 5 43056) ++ run "fw land" "land" .«local» 6 [66643]),
+   ("dry land bf9aa85 with the request field dryLandMax 6: load 6 is not above it, so the sample is slow",
+      { dryLandMax := 6 }, loadedDryRun 43056 66643 6)]
 
 #guard ((cases ()).filter fun c => c.1.startsWith "run split:").length == 6
 
@@ -3038,8 +3044,9 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
 def landDrySamples : List (Nat × Nat × Nat) := [(43056, 66643, 6), (40604, 62485, 5), (35047, 53534, 5)]
 
 /-- Each of the three is `contended` with the defaults (load below `contendedLoad`, above `landDryLoad`), and the same
-duration at the land's own load (4) is `slow` (`3 · b < 2 · d` and `d` over the 30 s budget): the rule hides no
-regression. -/
+duration at the land's own load (4) is `slow` (`3 · b < 2 · d` and `d` over the 30 s budget): a regression that leaves
+the load at or below 4 still alerts; one that raises the dry land's own load above 4 is judged contended (accepted
+limit). -/
 theorem landDry_three_contended :
     landDrySamples.all (fun (b, d, l) =>
       (lastCode {} (loadedDryRun b d l) == some .contended) && (lastCode {} (loadedDryRun b d 4) == some .slow)) = true := by
@@ -3061,7 +3068,7 @@ theorem landDry_three_contended :
    some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
    some .mixed, some .mixed, some .slow,
    some .unkeyed, some .ok, some .ok, some .ok, some .ok,
-   some .contended, some .contended, some .contended, some .slow, some .slow]
+   some .contended, some .contended, some .contended, some .slow, some .slow, some .slow]
 #guard ((landKeyedRun 14)[13]?).map (fun s => (judgeW {} ((landKeyedRun 14).take 13) 13 s).code) == some .slow
 #guard ((sampleVerdicts {} (landKeyedRun 14))[13]?).map (·.code) == some .unkeyed
 #guard ((landKeyedRun 14)[13]?).map (unkeyedLate ((landKeyedRun 14).take 13)) == some true

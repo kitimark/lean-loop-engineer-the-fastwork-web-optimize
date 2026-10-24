@@ -1548,7 +1548,7 @@ theorem sysContended_between (p : Params) (o : Obs) (h1 : Fw.Obs.Timing.calmLoad
   rw [sysContended_iff]
   cases hp : o.system.load.prevContended <;> simp <;> omega
 
-/-- **The signal and the timing verdict are one test.** `sys.contended` fires exactly when a local timing sample taken
+/-- **For samples that are not dry lands, the signal and the timing verdict are one test.** `sys.contended` fires exactly when a local timing sample taken
 at the observation's load (with the default limit, `contendedLoad`) is `contended`: while the machine is contended
 every step's timing is judged `contended` and the one `sys.contended` carries it; at normal load neither does. A dry
 land sample (`Sample.dryLand`) has the lower limit `landDryLoad` and is outside this statement.
