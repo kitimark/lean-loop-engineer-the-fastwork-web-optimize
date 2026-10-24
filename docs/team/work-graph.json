@@ -19570,6 +19570,28 @@
     "docs/team/handoffs/pathpix-zoned-pinned.md"
    ],
    "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "classpos-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "classpos-model-align"
+   ],
+   "writes": [
+    "lean/Fw/Parts/ClassPos.lean",
+    "lean/scripts/ClassPosGolden.lean",
+    "packages/contracts/golden/parts/footprint.classpos.jsonl",
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint.classpos.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "docs/team/handoffs/classpos-followups.md"
+   ],
+   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions."
   }
  ],
  "deadline": {
