@@ -5,8 +5,6 @@ import Lean.Data.Json
 namespace Fw.Parts.ClassPos
 
 mutual
-/-- A className expression, one constructor per AST branch of `collectClassTokens`; `mod l` is a CSS-module class and
-`spread e` is `...e` in an array or call argument list. -/
 inductive E where
   | str (s : String)
   | id (n : String)
@@ -47,7 +45,6 @@ structure Tok where
 
 def Tok.lose (t : Tok) : Tok := { t with kind := .lost }
 
-/-- The site-level marker of an unmodelled position: a lost token named after the form, kept whatever its operands. -/
 def marker (form : String) (ts : List Tok) : List Tok := ⟨.lost, form⟩ :: ts.map Tok.lose
 
 inductive Piece where
@@ -58,7 +55,6 @@ inductive Atom where
   | chars (s : String)
   | hole (ts : List Tok)
 
-/-- ASCII whitespace, the class separator of the HTML ordered-set parser. -/
 def isSep (c : Char) : Bool := c == ' ' || c == '\t' || c == '\n' || c == Char.ofNat 12 || c == '\r'
 
 def segs (s : String) : List String := (s.split isSep).toList.map toString
@@ -89,7 +85,6 @@ def Atom.toks : Atom → List Tok
   | .chars c => [⟨.cls, c⟩]
   | .hole ts => ts
 
-/-- A whitespace-delimited word keeps the tokens of its parts; a word of two or more parts is also reported. -/
 def wordToks : List Atom → List Tok
   | [] => []
   | [a] => a.toks
@@ -97,7 +92,6 @@ def wordToks : List Atom → List Tok
 
 def words (ps : List Piece) : List Tok := (wordsOf ps [] []).flatMap wordToks
 
-/-- The class helpers whose arguments are class positions. -/
 def helpers : List String := ["cx", "cls", "clsx", "classNames", "classnames"]
 
 def sepOk : List E → Bool
@@ -114,7 +108,6 @@ def methodToks (n : String) (elems : Option (List Tok)) (recv argToks : List Tok
 def hole (ts : List Tok) : List Tok × List Piece := (ts, [.hole ts])
 
 mutual
-/-- The tokens of an expression and its string pieces, the pieces read only by an enclosing template or `+`. -/
 def go : E → List Tok × List Piece
   | .str s => ((tokens s).map (Tok.mk .cls), [.text s])
   | .id _ => hole []
@@ -161,8 +154,6 @@ def Kind.opens : Kind → Bool
   | .lost | .glued => true
   | .cls | .mod => false
 
-/-- The accesses a className site emits: each class and module class, and one `setClass ?` when a token is lost or
-glued. -/
 def writes (ts : List Tok) : List (String × String) :=
   ts.filterMap (fun t => match t.kind with
     | .cls => some ("setClass", t.name)
@@ -170,7 +161,6 @@ def writes (ts : List Tok) : List (String × String) :=
     | .lost | .glued => none) ++
   (if ts.any (·.kind.opens) then [("setClass", "?")] else [])
 
-/-- The findings of a className site: `unmodelled-class` per lost token, `glued-class` per glued word. -/
 def findings (ts : List Tok) : List (String × String) :=
   ts.filterMap fun t => match t.kind with
     | .lost => some ("unmodelled-class", t.name)

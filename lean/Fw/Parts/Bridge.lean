@@ -593,15 +593,9 @@ theorem chainPairs_code_iff (p q : Nat) :
     have hp : p < 34 := hlen ▸ (List.getElem?_eq_some_iff.mp hP).1
     exact ⟨p, hp, q, ⟨(reach_code_iff hp q).mp hr, fun h => hne h.symm, (indepAt_iff _ _ _).mpr hind⟩, rfl, rfl⟩
 
-/-- There are 322 such pairs.
-
-Each is an ordered pair of code positions. -/
 theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 322 := by decide +kernel
 
 
-/-- The 322 pairs grouped by source: entry `p` lists, in search order, every `q` with `(p,q)` in the failing pairs.
-
-Sources with an empty entry (1, 6, 8, 12, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33) satisfy the literal bridge. -/
 theorem chainTargets_code :
     (List.range 34).map (fun p => ((chainPairs codeParts codeAdj 6).filter (·.1 == p)).map (·.2)) =
        [[4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 24, 25, 27, 29, 30, 33, 31, 32],

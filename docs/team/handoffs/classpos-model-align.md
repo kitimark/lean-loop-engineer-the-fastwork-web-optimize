@@ -1,6 +1,6 @@
 branch: worktree-wf_e1ce08cb-1bf-1
 worktree: .claude/worktrees/wf_e1ce08cb-1bf-1
-last commit: see git log (round 2: site-level markers, glue opens the site)
+last commit: see git log (round 2)
 CI runs: none (accepted limit: no CI run)
 State: one class-position rule in Lean, mirrored by the extractor branch for branch.
 - Rule: lean/Fw/Parts/ClassPos.lean `go`, `marker` (site-level lost token named after the form, kept whatever the
