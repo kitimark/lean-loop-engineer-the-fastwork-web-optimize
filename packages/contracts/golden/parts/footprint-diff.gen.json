@@ -32,9 +32,9 @@
 {"id":"platform.glint","inputs":{"missing":[],"extra":["className:data-fw-hidden/platform","rect:platform.glint"]},"outputs":{"missing":[],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":["platform.glint"]},"order":{"row":null,"code":[]}},
 {"id":"platform.marquee","inputs":{"missing":[],"extra":["className:data-fw-hidden/platform"]},"outputs":{"missing":[],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":[]},"order":{"row":null,"code":[]}},
 {"id":"platform.stageBg","inputs":{"missing":[],"extra":["className:data-fw-hidden/platform"]},"outputs":{"missing":[],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":[]},"order":{"row":null,"code":[]}},
-{"id":"platform.sweep","inputs":{"missing":[],"extra":["className:data-fw-hidden/platform","rect:platform.sweep"]},"outputs":{"missing":[],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":["platform.sweep"]},"order":{"row":null,"code":[]}}
+{"id":"platform.sweep","inputs":{"missing":["clock"],"extra":["className:data-fw-hidden/platform","rect:platform.sweep"]},"outputs":{"missing":["cssVar:?/?"],"extra":[]},"onEvent":{"missing":[],"extra":[]},"targets":{"missing":[],"extra":["platform.sweep"]},"order":{"row":null,"code":[]}}
 ],
-"findings":93,
+"findings":97,
 "codeGroups":[
 ["commission","commission.typing","engine.scene","hero","hero.accent","hero.countdown","hero.cue","hero.deck","hero.exit","hero.orbit","morph.columns","morph.countdown","morph.panel","nav","nav.hitTest","nav.langMenu","overlays.signup","pain","pain.notes","people.card","people.o","platform","platform.entries","platform.glint","platform.marquee","platform.stageBg","platform.sweep"],
 ["overlays.drawer"],
