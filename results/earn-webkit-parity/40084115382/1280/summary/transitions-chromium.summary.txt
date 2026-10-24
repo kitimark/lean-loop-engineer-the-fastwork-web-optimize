@@ -1,0 +1,310 @@
+# chromium (156.0.8078.4), 3 full repeats + 1 light page per arm and width
+
+## width 1280 orig hero-exit (identity ok, 3 full, 1 light)
+  earnW  change 137.59 (134.94..137.59); max one-frame jump 43.2 (31.14..124.19); arrives 650 ms; frames between 12
+  earnX  change -137.59 (-137.59..-134.94); max one-frame jump 43.2 (31.14..124.19); arrives 650 ms; frames between 12
+  langX  change -145.59 (-145.59..-142.48); max one-frame jump 45.17 (32.57..131.25); arrives 650 ms; frames between 12
+  padL   change 24 (22.68..24); max one-frame jump 5.89 (4.25..21.21); arrives 583 ms; frames between 11
+  padR   change 24 (22.68..24); max one-frame jump 5.89 (4.25..21.21); arrives 583 ms; frames between 11
+  maxW   change 176 (166.3..176); max one-frame jump 43.21 (31.15..155.54); arrives 650 ms; frames between 12
+  op     change 1 (1..1); max one-frame jump 0.38 (0.35..1); arrives 483 ms; frames between 6
+  gap    change 8 (7.56..8); max one-frame jump 1.96 (1.42..7.07); arrives 517 ms; frames between 9
+  transitions: nav:background-color x3/3 (animations 1, frames 14); actions:column-gap x3/3 (animations 1, frames 13); actions:row-gap x3/3 (animations 1, frames 13); earn:max-width x3/3 (animations 1, frames 13); earn:opacity x3/3 (animations 1, frames 12); earn:padding-left x3/3 (animations 1, frames 13); earn:padding-right x3/3 (animations 1, frames 13)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+    -333     0     0      0     0      0   1124   1043  
+     -67     0     0      0     0      0   1124   1043  
+       0     0     0      0     0      0   1124   1043  max-width#4,opacity#5,padding-left#6,padding-right#7
+      50  0.47  0.47   3.44     0   3.44 1120.56 1039.41  max-width#4,opacity#5,padding-left#6,padding-right#7
+      83  1.47  1.47  10.76     0  10.75 1113.25 1031.77  max-width#4,opacity#5,padding-left#6,padding-right#7
+     483 22.68 22.68  166.3     1 134.94 989.06 900.52  max-width#4,padding-left#6,padding-right#7
+
+## width 1280 orig hero-entry (identity ok, 3 full, 1 light)
+  earnW  change -137.59 (-137.59..-137.59); max one-frame jump 39.98 (25.51..73.71); arrives 667 ms; frames between 15
+  earnX  change 137.59 (137.59..137.59); max one-frame jump 39.98 (25.51..73.7); arrives 667 ms; frames between 15
+  langX  change 145.59 (145.59..145.59); max one-frame jump 41.79 (27.01..77.06); arrives 667 ms; frames between 15
+  padL   change -24 (-24..-24); max one-frame jump 5.45 (4.52..10.05); arrives 583 ms; frames between 13
+  padR   change -24 (-24..-24); max one-frame jump 5.45 (4.52..10.05); arrives 583 ms; frames between 13
+  maxW   change -176 (-176..-176); max one-frame jump 39.98 (33.12..73.7); arrives 667 ms; frames between 15
+  op     change -1 (-1..-1); max one-frame jump 0.55 (0.52..0.67); arrives 183 ms; frames between 3
+  gap    change -8 (-8..-8); max one-frame jump 1.82 (1.51..3.35); arrives 517 ms; frames between 9
+  transitions: nav:background-color x3/3 (animations 1, frames 17); actions:column-gap x3/3 (animations 1, frames 17); actions:row-gap x3/3 (animations 1, frames 17); earn:max-width x3/3 (animations 1, frames 17); earn:opacity x3/3 (animations 1, frames 6); earn:padding-left x3/3 (animations 1, frames 17); earn:padding-right x3/3 (animations 1, frames 17); nav:opacity x2/3 (animations 2, frames 9.5); nav:transform x2/3 (animations 2, frames 11); nav:visibility x2/3 (animations 1, frames 4)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+    -550    24    24    176     1 137.59 986.41 897.41  
+    -400    24    24    176     1 137.59 986.41 897.41  
+       0    24    24    176     1 137.59 986.41 897.41  max-width#11,opacity#12,padding-left#13,padding-right#14
+      67 23.11 23.11  169.5  0.48 135.81 988.19 899.48  max-width#11,opacity#12,padding-left#13,padding-right#14
+     133 19.59 19.59 143.63  0.08 128.75 995.25 907.73  max-width#11,opacity#12,padding-left#13,padding-right#14
+     150 18.23 18.23 133.66  0.04 126.03 997.97 910.91  max-width#11,opacity#12,padding-left#13,padding-right#14
+     167 16.74 16.74 122.75  0.02 122.73 1001.27 914.69  max-width#11,opacity#12,padding-left#13,padding-right#14
+     183 15.21 15.21 111.51     0  111.5 1012.5 926.44  max-width#11,opacity#12,padding-left#13,padding-right#14
+     250  9.75  9.75  71.53     0  71.52 1052.48 968.23  max-width#11,padding-left#13,padding-right#14
+     300  6.79  6.79   49.8     0   49.8 1074.2 990.95  max-width#11,padding-left#13,padding-right#14
+     367  4.04  4.04  29.66     0  29.66 1094.34   1012  max-width#11,padding-left#13,padding-right#14
+     383  3.52  3.52  25.79     0  25.78 1098.22 1016.05  max-width#11,padding-left#13,padding-right#14
+     450   1.9   1.9   13.9     0  13.89 1110.11 1028.48  max-width#11,padding-left#13,padding-right#14
+     483  1.32  1.32   9.68     0   9.67 1114.33 1032.89  max-width#11,padding-left#13,padding-right#14
+     517  0.87  0.87   6.38     0   6.38 1117.63 1036.34  max-width#11,padding-left#13,padding-right#14
+     533  0.69  0.69   5.03     0   5.03 1118.97 1037.75  max-width#11,padding-left#13,padding-right#14
+     567  0.39  0.39   2.88     0   2.88 1121.13   1040  max-width#11,padding-left#13,padding-right#14
+
+## width 1280 orig morph-open (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 orig morph-close (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful hero-exit (identity ok, 3 full, 1 light)
+  earnW  change 137.59 (137.59..137.59); max one-frame jump 40.83 (32.69..87.14); arrives 650 ms; frames between 13
+  earnX  change -137.59 (-137.59..-137.59); max one-frame jump 40.83 (32.69..87.14); arrives 650 ms; frames between 13
+  langX  change -145.59 (-145.59..-145.59); max one-frame jump 42.68 (34.18..91.86); arrives 650 ms; frames between 13
+  padL   change 24 (24..24); max one-frame jump 5.57 (4.46..14.18); arrives 583 ms; frames between 12
+  padR   change 24 (24..24); max one-frame jump 5.57 (4.46..14.18); arrives 583 ms; frames between 12
+  maxW   change 176 (176..176); max one-frame jump 40.82 (32.68..103.98); arrives 650 ms; frames between 13
+  op     change 1 (1..1); max one-frame jump 0.38 (0.36..0.93); arrives 433 ms; frames between 6
+  gap    change 8 (8..8); max one-frame jump 1.86 (1.49..4.73); arrives 483 ms; frames between 10
+  transitions: nav:background-color x3/3 (animations 1, frames 17); actions:column-gap x3/3 (animations 1, frames 16); actions:row-gap x3/3 (animations 1, frames 16); earn:max-width x3/3 (animations 1, frames 16); earn:opacity x3/3 (animations 1, frames 10); earn:padding-left x3/3 (animations 1, frames 16); earn:padding-right x3/3 (animations 1, frames 16)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+    -150     0     0      0     0      0   1124   1043  
+     -83     0     0      0     0      0   1124   1043  
+       0     0     0      0     0      0   1124   1043  max-width#4,opacity#5,padding-left#6,padding-right#7
+      17  0.05  0.05   0.34     0   0.33 1123.67 1042.67  max-width#4,opacity#5,padding-left#6,padding-right#7
+      83  1.47  1.47  10.76     0  10.75 1113.25 1031.77  max-width#4,opacity#5,padding-left#6,padding-right#7
+     150  5.77  5.77  42.34  0.03  42.33 1081.67 998.75  max-width#4,opacity#5,padding-left#6,padding-right#7
+     367 19.95 19.95 146.32  0.97 129.47 994.53 906.89  max-width#4,opacity#5,padding-left#6,padding-right#7
+     433 21.76 21.76 159.57     1 133.09 990.91 902.66  max-width#4,opacity#5,padding-left#6,padding-right#7
+     450  22.1  22.1 162.08     1 133.78 990.22 901.86  max-width#4,padding-left#6,padding-right#7
+     467 22.41 22.41 164.31     1 134.38 989.63 901.17  max-width#4,padding-left#6,padding-right#7
+     483 22.68 22.68  166.3     1 134.94 989.06 900.52  max-width#4,padding-left#6,padding-right#7
+     500 22.92 22.92 168.07     1 135.41 988.59 899.97  max-width#4,padding-left#6,padding-right#7
+     517 23.13 23.13 169.61     1 135.84 988.16 899.45  max-width#4,padding-left#6,padding-right#7
+     583 23.72 23.72 173.94     1 137.03 986.97 898.06  max-width#4,padding-left#6,padding-right#7
+     650 23.97 23.97 175.82     1 137.53 986.47 897.48  max-width#4,padding-left#6,padding-right#7
+     683    24    24    176     1 137.59 986.41 897.41  
+     733    24    24    176     1 137.59 986.41 897.41  
+
+## width 1280 faithful hero-entry (identity ok, 3 full, 1 light)
+  earnW  change -137.59 (-137.59..-137.59); max one-frame jump 27.58 (21.45..45.64); arrives 667 ms; frames between 21
+  earnX  change 137.59 (137.59..137.59); max one-frame jump 27.58 (21.45..45.64); arrives 667 ms; frames between 21
+  langX  change 145.59 (145.59..145.59); max one-frame jump 28.83 (22.42..48.06); arrives 667 ms; frames between 21
+  padL   change -24 (-24..-24); max one-frame jump 4.38 (3.76..7.27); arrives 583 ms; frames between 18
+  padR   change -24 (-24..-24); max one-frame jump 4.38 (3.76..7.27); arrives 583 ms; frames between 18
+  maxW   change -176 (-176..-176); max one-frame jump 32.11 (27.58..53.29); arrives 667 ms; frames between 22
+  op     change -1 (-1..-1); max one-frame jump 0.55 (0.52..0.65); arrives 183 ms; frames between 5
+  gap    change -8 (-8..-8); max one-frame jump 1.46 (1.25..2.42); arrives 500 ms; frames between 14
+  transitions: nav:opacity x3/3 (animations 2, frames 12); nav:transform x3/3 (animations 2, frames 13); nav:visibility x3/3 (animations 1, frames 4); nav:background-color x3/3 (animations 1, frames 26); actions:column-gap x3/3 (animations 1, frames 25); actions:row-gap x3/3 (animations 1, frames 25); earn:max-width x3/3 (animations 1, frames 25); earn:opacity x3/3 (animations 1, frames 7); earn:padding-left x3/3 (animations 1, frames 25); earn:padding-right x3/3 (animations 1, frames 25)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+    -117    24    24    176     1 137.59 986.41 897.41  
+     -50    24    24    176     1 137.59 986.41 897.41  
+       0    24    24    176     1 137.59 986.41 897.41  max-width#16,opacity#17,padding-left#18,padding-right#19
+      17 23.95 23.95 175.66  0.97  137.5  986.5 897.52  max-width#16,opacity#17,padding-left#18,padding-right#19
+      83 22.53 22.53 165.25  0.32 134.66 989.34 900.84  max-width#16,opacity#17,padding-left#18,padding-right#19
+     133 19.59 19.59 143.65  0.08 128.75 995.25 907.73  max-width#16,opacity#17,padding-left#18,padding-right#19
+     150 18.23 18.23 133.68  0.04 126.03 997.97 910.91  max-width#16,opacity#17,padding-left#18,padding-right#19
+     233 10.96 10.96   80.4     0  80.39 1043.61 958.97  max-width#16,padding-left#18,padding-right#19
+     250  9.76  9.76   71.6     0  71.59 1052.41 968.16  max-width#16,padding-left#18,padding-right#19
+     317     6     6  43.98     0  43.97 1080.03 997.05  max-width#16,padding-left#18,padding-right#19
+     367  4.05  4.05  29.69     0  29.69 1094.31 1011.97  max-width#16,padding-left#18,padding-right#19
+     383  3.52  3.52   25.8     0   25.8 1098.2 1016.03  max-width#16,padding-left#18,padding-right#19
+     450   1.9   1.9  13.92     0  13.91 1110.09 1028.47  max-width#16,padding-left#18,padding-right#19
+     500  1.08  1.08   7.93     0   7.92 1116.08 1034.72  max-width#16,padding-left#18,padding-right#19
+     517  0.87  0.87   6.39     0   6.38 1117.63 1036.34  max-width#16,padding-left#18,padding-right#19
+     583  0.28  0.28   2.06     0   2.05 1121.95 1040.88  max-width#16,padding-left#18,padding-right#19
+     600  0.19  0.19   1.38     0   1.38 1122.63 1041.56  max-width#16,padding-left#18,padding-right#19
+
+## width 1280 faithful morph-open (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful morph-close (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful+logical hero-exit (identity ok, 2 full, 0 light)
+  earnW  change 137.59 (137.59..137.59); max one-frame jump 32.335 (22.28..42.39); arrives 608.5 ms; frames between 17
+  earnX  change -137.59 (-137.59..-137.59); max one-frame jump 32.335 (22.28..42.39); arrives 608.5 ms; frames between 17
+  langX  change -145.59 (-145.59..-145.59); max one-frame jump 33.81 (23.29..44.33); arrives 608.5 ms; frames between 17
+  padL   change 24 (24..24); max one-frame jump 4.41 (3.04..5.78); arrives 591.5 ms; frames between 16
+  padR   change 24 (24..24); max one-frame jump 4.41 (3.04..5.78); arrives 591.5 ms; frames between 16
+  maxW   change 176 (176..176); max one-frame jump 32.33 (22.28..42.38); arrives 641.5 ms; frames between 18.5
+  op     change 1 (1..1); max one-frame jump 0.345 (0.22..0.47); arrives 391.5 ms; frames between 8
+  gap    change 8 (8..8); max one-frame jump 1.47 (1.01..1.93); arrives 508.5 ms; frames between 13
+  transitions: nav:background-color x2/2 (animations 1, frames 23.5); actions:column-gap x2/2 (animations 1, frames 22); actions:row-gap x2/2 (animations 1, frames 22); earn:max-width x2/2 (animations 1, frames 22); earn:opacity x2/2 (animations 1, frames 15.5); earn:padding-left x2/2 (animations 1, frames 22); earn:padding-right x2/2 (animations 1, frames 22)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+     -50     0     0      0     0      0   1124   1043  
+     -17     0     0      0     0      0   1124   1043  
+       0     0     0      0     0      0   1124   1043  max-width#4,opacity#5,padding-left#6,padding-right#7
+      17     0     0      0     0      0   1124   1043  max-width#4,opacity#5,padding-left#6,padding-right#7
+     117  2.24  2.24  16.45     0  16.44 1107.56 1025.83  max-width#4,opacity#5,padding-left#6,padding-right#7
+     133  3.23  3.23  23.65     0  23.64 1100.36 1018.3  max-width#4,opacity#5,padding-left#6,padding-right#7
+     167  5.77  5.77  42.34  0.03  42.33 1081.67 998.75  max-width#4,opacity#5,padding-left#6,padding-right#7
+     183  7.25  7.25  53.18  0.09  53.17 1070.83 987.42  max-width#4,opacity#5,padding-left#6,padding-right#7
+     250 13.03 13.03  95.57  0.57  95.56 1028.44 943.09  max-width#4,opacity#5,padding-left#6,padding-right#7
+     283 15.33 15.33 112.44  0.74 112.44 1011.56 925.45  max-width#4,opacity#5,padding-left#6,padding-right#7
+     317  17.2  17.2 126.16  0.85    124   1000 913.27  max-width#4,opacity#5,padding-left#6,padding-right#7
+     350 18.73 18.73 137.32  0.92 127.03 996.97 909.73  max-width#4,opacity#5,padding-left#6,padding-right#7
+     383 19.96 19.96 146.34  0.97  129.5  994.5 906.86  max-width#4,opacity#5,padding-left#6,padding-right#7
+     400 20.48 20.48 150.18  0.98 130.53 993.47 905.66  max-width#4,opacity#5,padding-left#6,padding-right#7
+     417 20.95 20.95 153.64  0.99 131.47 992.53 904.56  max-width#4,opacity#5,padding-left#6,padding-right#7
+     483 22.41 22.41 164.32     1 134.41 989.59 901.13  max-width#4,padding-left#6,padding-right#7
+     500 22.68 22.68 166.32     1 134.94 989.06 900.52  max-width#4,padding-left#6,padding-right#7
+
+## width 1280 faithful+logical hero-entry (identity ok, 2 full, 0 light)
+  earnW  change -137.59 (-137.59..-137.59); max one-frame jump 24.549999999999997 (20.13..28.97); arrives 633 ms; frames between 16
+  earnX  change 137.59 (137.59..137.59); max one-frame jump 24.549999999999997 (20.13..28.97); arrives 633 ms; frames between 16
+  langX  change 145.59 (145.59..145.59); max one-frame jump 25.655 (21.03..30.28); arrives 633 ms; frames between 16
+  padL   change -24 (-24..-24); max one-frame jump 3.52 (2.74..4.3); arrives 600 ms; frames between 14.5
+  padR   change -24 (-24..-24); max one-frame jump 3.52 (2.74..4.3); arrives 600 ms; frames between 14.5
+  maxW   change -176 (-176..-176); max one-frame jump 25.84 (20.11..31.57); arrives 633 ms; frames between 16
+  op     change -1 (-1..-1); max one-frame jump 0.43 (0.36..0.5); arrives 167 ms; frames between 4.5
+  gap    change -8 (-8..-8); max one-frame jump 1.17 (0.91..1.43); arrives 517 ms; frames between 11.5
+  transitions: nav:opacity x2/2 (animations 2, frames 12.5); nav:transform x2/2 (animations 2, frames 14); nav:visibility x2/2 (animations 1, frames 5.5); nav:background-color x2/2 (animations 1, frames 19.5); actions:column-gap x2/2 (animations 1, frames 19); actions:row-gap x2/2 (animations 1, frames 19); earn:max-width x2/2 (animations 1, frames 19); earn:opacity x2/2 (animations 1, frames 8); earn:padding-left x2/2 (animations 1, frames 19); earn:padding-right x2/2 (animations 1, frames 19)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+     -50    24    24    176     1 137.59 986.41 897.41  
+     -17    24    24    176     1 137.59 986.41 897.41  
+       0    24    24    176     1 137.59 986.41 897.41  max-width#16,opacity#17,padding-left#18,padding-right#19
+      50 23.53 23.53 172.55  0.68 136.63 987.38 898.55  max-width#16,opacity#17,padding-left#18,padding-right#19
+      83 22.53 22.53 165.23  0.32 134.63 989.38 900.88  max-width#16,opacity#17,padding-left#18,padding-right#19
+     117 20.77 20.77 152.33  0.13 131.13 992.88 904.95  max-width#16,opacity#17,padding-left#18,padding-right#19
+     133 19.59 19.59 143.67  0.08 128.75 995.25 907.73  max-width#16,opacity#17,padding-left#18,padding-right#19
+     150 18.22 18.22 133.64  0.04 126.03 997.97 910.91  max-width#16,opacity#17,padding-left#18,padding-right#19
+     167 16.74 16.74 122.79  0.02 122.78 1001.22 914.64  max-width#16,opacity#17,padding-left#18,padding-right#19
+     183 15.21 15.21 111.55     0 111.55 1012.45 926.39  max-width#16,opacity#17,padding-left#18,padding-right#19
+     200 13.72 13.72 100.58     0 100.58 1023.42 937.86  max-width#16,opacity#17,padding-left#18,padding-right#19
+     233 10.97 10.97  80.47     0  80.45 1043.55 958.89  max-width#16,padding-left#18,padding-right#19
+     267  8.66  8.66  63.54     0  63.53 1060.47 976.59  max-width#16,padding-left#18,padding-right#19
+     300  6.79  6.79  49.83     0  49.81 1074.19 990.94  max-width#16,padding-left#18,padding-right#19
+     350  4.63  4.63  33.94     0  33.92 1090.08 1007.55  max-width#16,padding-left#18,padding-right#19
+     383  3.52  3.52  25.83     0  25.83 1098.17   1016  max-width#16,padding-left#18,padding-right#19
+     433  2.24  2.24  16.42     0  16.41 1107.59 1025.86  max-width#16,padding-left#18,padding-right#19
+
+## width 1280 faithful+logical morph-open (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful+logical morph-close (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful+physical hero-exit (identity ok, 2 full, 0 light)
+  earnW  change 137.59 (137.59..137.59); max one-frame jump 39.635000000000005 (36.88..42.39); arrives 616.5 ms; frames between 15.5
+  earnX  change -137.59 (-137.59..-137.59); max one-frame jump 39.629999999999995 (36.87..42.39); arrives 616.5 ms; frames between 15.5
+  langX  change -145.59 (-145.59..-145.59); max one-frame jump 41.44 (38.55..44.33); arrives 616.5 ms; frames between 15.5
+  padL   change 24 (24..24); max one-frame jump 5.405 (5.03..5.78); arrives 567 ms; frames between 12
+  padR   change 24 (24..24); max one-frame jump 5.405 (5.03..5.78); arrives 567 ms; frames between 12
+  maxW   change 176 (176..176); max one-frame jump 39.63 (36.88..42.38); arrives 650 ms; frames between 16
+  op     change 1 (1..1); max one-frame jump 0.44499999999999995 (0.42..0.47); arrives 408.5 ms; frames between 6
+  gap    change 8 (8..8); max one-frame jump 1.805 (1.68..1.93); arrives 491.5 ms; frames between 9
+  transitions: nav:background-color x2/2 (animations 1, frames 19.5); actions:column-gap x2/2 (animations 1, frames 18.5); actions:row-gap x2/2 (animations 1, frames 18.5); earn:max-width x2/2 (animations 1, frames 18.5); earn:opacity x2/2 (animations 1, frames 12.5); earn:padding-left x2/2 (animations 1, frames 18.5); earn:padding-right x2/2 (animations 1, frames 18.5)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+    -117     0     0      0     0      0   1124   1043  
+     -50     0     0      0     0      0   1124   1043  
+       0     0     0      0     0      0   1124   1043  max-width#4,opacity#5,padding-left#6,padding-right#7
+      33   0.2   0.2   1.44     0   1.44 1122.56 1041.5  max-width#4,opacity#5,padding-left#6,padding-right#7
+     100  2.24  2.24  16.44     0  16.42 1107.58 1025.84  max-width#4,opacity#5,padding-left#6,padding-right#7
+     117  3.22  3.22  23.64     0  23.63 1100.38 1018.31  max-width#4,opacity#5,padding-left#6,padding-right#7
+     167  7.26  7.26  53.23  0.09  53.22 1070.78 987.38  max-width#4,opacity#5,padding-left#6,padding-right#7
+     183  8.79  8.79  64.47  0.19  64.47 1059.53 975.61  max-width#4,opacity#5,padding-left#6,padding-right#7
+     200  10.3  10.3  75.51  0.32   75.5 1048.5 964.08  max-width#4,opacity#5,padding-left#6,padding-right#7
+     267 15.33 15.33 112.38  0.74 112.38 1011.63 925.53  max-width#4,opacity#5,padding-left#6,padding-right#7
+     333 18.72 18.72 137.31  0.92 127.03 996.97 909.73  max-width#4,opacity#5,padding-left#6,padding-right#7
+     350 19.37 19.37 142.07  0.95 128.31 995.69 908.23  max-width#4,opacity#5,padding-left#6,padding-right#7
+     417 21.38 21.38 156.78     1 132.34 991.66 903.53  max-width#4,opacity#5,padding-left#6,padding-right#7
+     433 21.76 21.76 159.58     1 133.09 990.91 902.66  max-width#4,opacity#5,padding-left#6,padding-right#7
+     500 22.92 22.92 168.06     1 135.41 988.59 899.97  max-width#4,padding-left#6,padding-right#7
+     517 23.13 23.13 169.61     1 135.84 988.16 899.45  max-width#4,padding-left#6,padding-right#7
+     567 23.61 23.61 173.11     1 136.78 987.22 898.36  max-width#4,padding-left#6,padding-right#7
+
+## width 1280 faithful+physical hero-entry (identity ok, 2 full, 0 light)
+  earnW  change -137.59 (-137.59..-137.59); max one-frame jump 41.25 (31.14..51.36); arrives 650 ms; frames between 14.5
+  earnX  change 137.59 (137.59..137.59); max one-frame jump 41.25 (31.14..51.36); arrives 650 ms; frames between 14.5
+  langX  change 145.59 (145.59..145.59); max one-frame jump 43.135000000000005 (32.56..53.71); arrives 650 ms; frames between 14.5
+  padL   change -24 (-24..-24); max one-frame jump 5.65 (4.3..7); arrives 583.5 ms; frames between 12.5
+  padR   change -24 (-24..-24); max one-frame jump 5.65 (4.3..7); arrives 583.5 ms; frames between 12.5
+  maxW   change -176 (-176..-176); max one-frame jump 41.455 (31.55..51.36); arrives 650 ms; frames between 14.5
+  op     change -1 (-1..-1); max one-frame jump 0.505 (0.36..0.65); arrives 167 ms; frames between 4
+  gap    change -8 (-8..-8); max one-frame jump 1.88 (1.43..2.33); arrives 483 ms; frames between 9.5
+  transitions: nav:opacity x2/2 (animations 2, frames 14); nav:transform x2/2 (animations 2, frames 15); nav:visibility x2/2 (animations 1, frames 5); nav:background-color x2/2 (animations 1, frames 18.5); actions:column-gap x2/2 (animations 1, frames 17.5); actions:row-gap x2/2 (animations 1, frames 17.5); earn:max-width x2/2 (animations 1, frames 17.5); earn:opacity x2/2 (animations 1, frames 7); earn:padding-left x2/2 (animations 1, frames 17.5); earn:padding-right x2/2 (animations 1, frames 17.5)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+     -50    24    24    176     1 137.59 986.41 897.41  
+     -17    24    24    176     1 137.59 986.41 897.41  
+       0    24    24    176     1 137.59 986.41 897.41  max-width#16,opacity#17,padding-left#18,padding-right#19
+      17 23.95 23.95 175.66  0.97  137.5  986.5 897.52  max-width#16,opacity#17,padding-left#18,padding-right#19
+      83 22.53 22.53  165.2  0.32 134.63 989.38 900.88  max-width#16,opacity#17,padding-left#18,padding-right#19
+     150 18.23 18.23 133.65  0.04 126.03 997.97 910.91  max-width#16,opacity#17,padding-left#18,padding-right#19
+     167 16.74 16.74 122.74  0.02 122.73 1001.27 914.69  max-width#16,opacity#17,padding-left#18,padding-right#19
+     183 15.21 15.21 111.57     0 111.56 1012.44 926.38  max-width#16,opacity#17,padding-left#18,padding-right#19
+     233 10.97 10.97  80.43     0  80.42 1043.58 958.94  max-width#16,padding-left#18,padding-right#19
+     267  8.67  8.67  63.55     0  63.55 1060.45 976.58  max-width#16,padding-left#18,padding-right#19
+     317     6     6     44     0  43.98 1080.02 997.03  max-width#16,padding-left#18,padding-right#19
+     333  5.28  5.28  38.71     0   38.7 1085.3 1002.55  max-width#16,padding-left#18,padding-right#19
+     400  3.05  3.05  22.36     0  22.34 1101.66 1019.64  max-width#16,padding-left#18,padding-right#19
+     467  1.59  1.59  11.69     0  11.67 1112.33 1030.81  max-width#16,padding-left#18,padding-right#19
+     483  1.32  1.32   9.69     0   9.69 1114.31 1032.88  max-width#16,padding-left#18,padding-right#19
+     517  0.87  0.87   6.39     0   6.39 1117.61 1036.33  max-width#16,padding-left#18,padding-right#19
+     600  0.19  0.19   1.39     0   1.38 1122.63 1041.56  max-width#16,padding-left#18,padding-right#19
+
+## width 1280 faithful+physical morph-open (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful+physical morph-close (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful+padding hero-exit (identity ok, 2 full, 0 light)
+  earnW  change 137.59 (137.59..137.59); max one-frame jump 34.995000000000005 (26.53..43.46); arrives 600 ms; frames between 12
+  earnX  change -137.59 (-137.59..-137.59); max one-frame jump 35 (26.53..43.47); arrives 600 ms; frames between 12
+  langX  change -145.59 (-145.59..-145.59); max one-frame jump 36.58 (27.73..45.43); arrives 600 ms; frames between 12
+  padL   change 24 (24..24); max one-frame jump 4.775 (3.62..5.93); arrives 600 ms; frames between 11.5
+  padR   change 24 (24..24); max one-frame jump 4.775 (3.62..5.93); arrives 600 ms; frames between 11.5
+  maxW   change 176 (176..176); max one-frame jump 35 (26.53..43.47); arrives 658 ms; frames between 13.5
+  op     change 1 (1..1); max one-frame jump 0.35 (0.29..0.41); arrives 400 ms; frames between 5
+  gap    change 8 (8..8); max one-frame jump 1.595 (1.21..1.98); arrives 500 ms; frames between 8.5
+  transitions: nav:background-color x2/2 (animations 1, frames 17); actions:column-gap x2/2 (animations 1, frames 15.5); actions:row-gap x2/2 (animations 1, frames 15.5); earn:max-width x2/2 (animations 1, frames 15.5); earn:opacity x2/2 (animations 1, frames 10.5); earn:padding-left x2/2 (animations 1, frames 15.5); earn:padding-right x2/2 (animations 1, frames 15.5)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+    -117     0     0      0     0      0   1124   1043  
+     -50     0     0      0     0      0   1124   1043  
+       0     0     0      0     0      0   1124   1043  max-width#4,opacity#5,padding-left#6,padding-right#7
+      17  0.05  0.05   0.34     0   0.33 1123.67 1042.67  max-width#4,opacity#5,padding-left#6,padding-right#7
+      67  0.89  0.89    6.5     0   6.48 1117.52 1036.23  max-width#4,opacity#5,padding-left#6,padding-right#7
+      83  1.47  1.47  10.78     0  10.78 1113.22 1031.73  max-width#4,opacity#5,padding-left#6,padding-right#7
+     100  2.25  2.25  16.47     0  16.47 1107.53 1025.8  max-width#4,opacity#5,padding-left#6,padding-right#7
+     133  4.41  4.41  32.35  0.01  32.34 1091.66 1009.19  max-width#4,opacity#5,padding-left#6,padding-right#7
+     150  5.78  5.78  42.38  0.03  42.38 1081.63  998.7  max-width#4,opacity#5,padding-left#6,padding-right#7
+     217 11.71 11.71  85.85  0.45  85.84 1038.16 953.27  max-width#4,opacity#5,padding-left#6,padding-right#7
+     283 16.31 16.31 119.62   0.8 119.61 1004.39 917.97  max-width#4,opacity#5,padding-left#6,padding-right#7
+     333 18.72 18.72 137.28  0.92 127.03 996.97 909.73  max-width#4,opacity#5,padding-left#6,padding-right#7
+     350 19.37 19.37 142.04  0.95 128.31 995.69 908.23  max-width#4,opacity#5,padding-left#6,padding-right#7
+     417 21.38 21.38 156.78     1 132.34 991.66 903.53  max-width#4,opacity#5,padding-left#6,padding-right#7
+     467 22.41 22.41 164.32     1 134.41 989.59 901.13  max-width#4,padding-left#6,padding-right#7
+     483 22.68 22.68  166.3     1 134.94 989.06 900.52  max-width#4,padding-left#6,padding-right#7
+     550 23.47 23.47 172.13     1 136.53 987.47 898.66  max-width#4,padding-left#6,padding-right#7
+
+## width 1280 faithful+padding hero-entry (identity ok, 2 full, 0 light)
+  earnW  change -137.59 (-137.59..-137.59); max one-frame jump 30.415 (28.2..32.63); arrives 641.5 ms; frames between 15
+  earnX  change 137.59 (137.59..137.59); max one-frame jump 30.415 (28.2..32.63); arrives 641.5 ms; frames between 15
+  langX  change 145.59 (145.59..145.59); max one-frame jump 32.135 (30.16..34.11); arrives 641.5 ms; frames between 15
+  padL   change -24 (-24..-24); max one-frame jump 5.165 (4.45..5.88); arrives 600 ms; frames between 14
+  padR   change -24 (-24..-24); max one-frame jump 5.165 (4.45..5.88); arrives 600 ms; frames between 14
+  maxW   change -176 (-176..-176); max one-frame jump 37.855000000000004 (32.62..43.09); arrives 641.5 ms; frames between 15.5
+  op     change -1 (-1..-1); max one-frame jump 0.45 (0.4..0.5); arrives 183.5 ms; frames between 4
+  gap    change -8 (-8..-8); max one-frame jump 1.72 (1.48..1.96); arrives 500 ms; frames between 10.5
+  transitions: nav:opacity x2/2 (animations 2, frames 11); nav:transform x2/2 (animations 2, frames 12); nav:visibility x2/2 (animations 1, frames 4); nav:background-color x2/2 (animations 1, frames 19.5); actions:column-gap x2/2 (animations 1, frames 18.5); actions:row-gap x2/2 (animations 1, frames 18.5); earn:max-width x2/2 (animations 1, frames 18.5); earn:opacity x2/2 (animations 1, frames 6); earn:padding-left x2/2 (animations 1, frames 18.5); earn:padding-right x2/2 (animations 1, frames 18.5)
+    dt_ms  padL  padR  maxW   opac  earnW  earnX  langX  anims
+     -67    24    24    176     1 137.59 986.41 897.41  
+     -17    24    24    176     1 137.59 986.41 897.41  
+       0    24    24    176     1 137.59 986.41 897.41  max-width#16,opacity#17,padding-left#18,padding-right#19
+      17 23.95 23.95 175.66  0.97  137.5  986.5 897.52  max-width#16,opacity#17,padding-left#18,padding-right#19
+      67 23.12 23.12 169.51  0.48 135.81 988.19 899.48  max-width#16,opacity#17,padding-left#18,padding-right#19
+     133 19.59 19.59 143.66  0.08 128.75 995.25 907.73  max-width#16,opacity#17,padding-left#18,padding-right#19
+     150 18.22 18.22 133.64  0.04 126.03 997.97 910.91  max-width#16,opacity#17,padding-left#18,padding-right#19
+     167 16.73 16.73 122.72  0.02 122.72 1001.28  914.7  max-width#16,opacity#17,padding-left#18,padding-right#19
+     217 12.29 12.29  90.11     0  90.09 1033.91 948.81  max-width#16,padding-left#18,padding-right#19
+     233 10.97 10.97  80.41     0  80.41 1043.59 958.95  max-width#16,padding-left#18,padding-right#19
+     250  9.76  9.76  71.56     0  71.55 1052.45  968.2  max-width#16,padding-left#18,padding-right#19
+     317     6     6  43.99     0  43.98 1080.02 997.03  max-width#16,padding-left#18,padding-right#19
+     333  5.28  5.28  38.73     0  38.72 1085.28 1002.53  max-width#16,padding-left#18,padding-right#19
+     400  3.05  3.05  22.35     0  22.34 1101.66 1019.64  max-width#16,padding-left#18,padding-right#19
+     433  2.24  2.24  16.44     0  16.42 1107.58 1025.84  max-width#16,padding-left#18,padding-right#19
+     450   1.9   1.9  13.92     0  13.92 1110.08 1028.45  max-width#16,padding-left#18,padding-right#19
+     483  1.32  1.32   9.69     0   9.69 1114.31 1032.88  max-width#16,padding-left#18,padding-right#19
+
+## width 1280 faithful+padding morph-open (identity ok, 0 full, 0 light)
+  transitions: none seen
+
+## width 1280 faithful+padding morph-close (identity ok, 0 full, 0 light)
+  transitions: none seen

@@ -3679,6 +3679,48 @@
    "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
    "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
    "userDecision": "pending"
+  },
+  {
+   "id": "morph.countdown.strip",
+   "n": 7,
+   "part": "morph.countdown (+ hero.countdown)",
+   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "status": "proved",
+   "flags": [
+    "morph.countdown:strip",
+    "hero.countdown:strip"
+   ],
+   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
+   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
+   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "leanFor": [
+    "Fw.Parts.MorphCountdownStrip.same_face_px",
+    "Fw.Parts.MorphCountdownStrip.phase_same",
+    "Fw.Parts.MorphCountdownStrip.dom_same",
+    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
+    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
+    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphCountdownStrip.layers_conservative",
+    "Fw.Parts.MorphCountdownStrip.layers_paused",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
+   ],
+   "missingWhy": [
+    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
+    "UIView creation time at morph start on the phone"
+   ],
+   "premises": [
+    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
+    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
+    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
+    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
+   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
   }
  ],
  "notes": [
@@ -4011,6 +4053,12 @@
    "task": "accent-same-look",
    "field": "lesson",
    "text": "Lean Fw.Engine.StyleDiffAccent.jump_differs: while the original glides (w(t) differs from the final width wf), the first and last headline words sit (wf - w)/2 away from the original, so the jump is a different picture on every glide frame before the end. Fw.Engine.StyleDiffAccent.glide_same: holding the accent at wf and translating the neighbours by +-(wf - w)/2 puts them where the original has them, so the in-flow premise of this lesson is not forced; that candidate is accent.same.glide (pixels MEASURED-pending)."
+  },
+  {
+   "entry": "elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
+   "task": "hittest-elements-proof",
+   "field": "chromium",
+   "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
   }
  ]
 }

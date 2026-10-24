@@ -20216,7 +20216,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
+   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth).",
+   "evidence": "0cabc1e"
   },
   {
    "devices": [
@@ -20282,7 +20283,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
+   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches).",
+   "evidence": "932edbe"
   },
   {
    "devices": [
@@ -20303,7 +20305,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
+   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches).",
+   "evidence": "b4ff523"
   },
   {
    "devices": [
@@ -20339,7 +20342,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land."
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land.",
+   "evidence": "d08f4b2"
   },
   {
    "devices": [
@@ -20500,7 +20504,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
-    "lean/scripts/MorphMountArmLateGolden.lean"
+    "lean/scripts/MorphMountArmLateGolden.lean",
+    "apps/site/src/parts/morph.mount/armLate.component.test.ts"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
   },
