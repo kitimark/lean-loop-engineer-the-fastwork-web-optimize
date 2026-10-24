@@ -65,12 +65,11 @@ rows carry `targets [{pid,start}]` (the identities the stop TERMed). The glue re
 first line and torn rows are dropped). The F alert is the watch's `agent.held`.
 Lean's `foldSeen` turns the rows into one `Seen` per identity (first sight, outcome stopped by a `reap.stopped` target /
 ended = a later tick no longer selects it / alive). `fw reap --exit` prints the verdict and signals none.
-Coverage (Lean `covered`, `slotSec` 1800 = 6 ticks of 300 s): the log must reach back 7 days and have no gap of more than 1800 s between
-consecutive ticks (and from the last tick to now); until then the verdict is `not yet 7 days of coverage` and nothing is
+Coverage (Lean `covered`, `slotSec` 1800 = 6 ticks of 300 s): the log must reach back 7 days and hold a tick in every 1800 s slot of the 7 days (`covered_slot`, `covered_gap`): two consecutive ticks are less than 3600 s apart, and the last tick is less than 1800 s before now; until then the verdict is `not yet 7 days of coverage` and nothing is
 promoted. Today this is a MEASURED verdict. With 7 days covered, E and F are promoted
 by `exitRule` into `InputD.promote`, `autoSet = autoKinds ++ promote` (E/F only), and `reapTick` sends the promoted kinds in
 the auto plan (`auto_plan_promoted`); `promote = []` keeps `auto_plan_no_loop_sim`.
-An explicit `fw reap --stop` of an E or F process counts as a true orphan stop, so it is evidence for promotion; a `kill` outside `fw reap` is not logged and counts for nothing.
+An explicit `fw reap --stop` of an E or F process counts as a true orphan stop, so it is evidence for promotion; a `kill` outside `fw reap` is not logged as a stop: the next tick no longer selects the process, so the fold marks it `ended`, which keeps its kind out of the automatic plan.
 
 Exit rule (Lean `exitRule`, `promoted`, op `ops.reapExit`, golden `reap-exit.jsonl`): a kind joins `autoKinds` only when it
 is E or F, its log goes back at least 7 days, it has at least one identity `stopped` by an explicit `fw reap --stop` (a true

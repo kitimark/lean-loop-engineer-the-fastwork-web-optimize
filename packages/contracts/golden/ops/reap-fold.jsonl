@@ -14,3 +14,4 @@
 {"name":"the Simulator booted after the acquire is the run's; the one already booted is not","request":{"after":["AAAA-1111","bbbb-2222"],"before":["aaaa-1111"],"op":"ops.reapSimNew"},"response":{"udids":["BBBB-2222"]}}
 {"name":"nothing booted at acquire: every booted device at release is new (upper-cased)","request":{"after":["x-1"],"before":[],"op":"ops.reapSimNew"},"response":{"udids":["X-1"]}}
 {"name":"the same set at both ends: none","request":{"after":["B","A"],"before":["a","b"],"op":"ops.reapSimNew"},"response":{"udids":[]}}
+{"name":"a device listed twice at release stays twice (no dedupe)","request":{"after":["AA","bb","BB"],"before":["aa"],"op":"ops.reapSimNew"},"response":{"udids":["BB","BB"]}}

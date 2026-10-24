@@ -467,7 +467,8 @@ def foldCases : List (String × String × Json) :=
     Json.mkObj [("before", toJson ["aaaa-1111"]), ("after", toJson ["AAAA-1111", "bbbb-2222"])]),
   ("ops.reapSimNew", "nothing booted at acquire: every booted device at release is new (upper-cased)",
     Json.mkObj [("before", toJson ([] : List String)), ("after", toJson ["x-1"])]),
-  ("ops.reapSimNew", "the same set at both ends: none", Json.mkObj [("before", toJson ["a", "b"]), ("after", toJson ["B", "A"])])]
+  ("ops.reapSimNew", "the same set at both ends: none", Json.mkObj [("before", toJson ["a", "b"]), ("after", toJson ["B", "A"])]),
+  ("ops.reapSimNew", "a device listed twice at release stays twice (no dedupe)", Json.mkObj [("before", toJson ["aa"]), ("after", toJson ["AA", "bb", "BB"])])]
 
 def foldText : String :=
   String.join (foldCases.map fun (op, name, r) =>
