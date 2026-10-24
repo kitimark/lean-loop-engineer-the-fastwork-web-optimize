@@ -10,7 +10,7 @@ import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type PassVerdict, type Row,
   type Sample, type Verdict, type VmMark, type WParams, type Window, KINDS, admitBuild, agentsSeen, avail, beginPass, cacheHit, cacheable, capLease,
   current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, nestedSkips, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
-  simDue, simHeld, simIdleNext, simQueued, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict, simNew,
+  simDue, simHandover, simHeld, simIdleNext, simQueued, simRecord, simSettle, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict, simNew,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
@@ -344,6 +344,13 @@ function bootedUdids(d: Deps): string[] {
 
 const acquiredOf = (gone: Entry[]): number => Math.min(...gone.filter((h) => h.kind === "sim").map((h) => h.since));
 
+function simReleaseShutdown(d: Deps, st: State, now: number): void {
+  if (st.simBefore === undefined || st.holders.some((h) => h.kind === "sim" && now < h.till)) return;
+  const { shut, record } = simSettle(st.simBefore, bootedUdids(d), simHandover(now, st.queue));
+  for (const u of shut) { d.simctl.shutdown(u); d.err(`slot: shut down the Simulator device ${u} that the released sim lease booted\n`); }
+  st.simBefore = record ?? undefined;
+}
+
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
   const gone = expired(s.time, st.holders);
@@ -353,6 +360,7 @@ function tick(d: Deps, st: State, s: Sample): void {
   }
   st.holders = prune(s.time, st.holders);
   st.queue = prune(s.time, st.queue);
+  simReleaseShutdown(d, st, s.time);
   st.window = current(s.time, st.holders, st.window ?? null);
 }
 
@@ -422,7 +430,7 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       const opened = v.verdict === "admit" && kind === "measure" ? openAt(d.wparams, d.owner, token, s.time, gapS) : null;
       const held = grant(d.params, me, s.time, opened === null ? leaseS : capLease(opened, s.time, leaseS), v.verdict === "admit" ? v.footMB : 0);
       if (v.verdict === "admit") st.holders.push(held);
-      if (v.verdict === "admit" && kind === "sim" && !st.holders.some((h) => h !== held && h.kind === "sim")) st.simBefore = bootedUdids(d);
+      if (v.verdict === "admit" && kind === "sim" && !st.holders.some((h) => h !== held && h.kind === "sim")) st.simBefore = simRecord(st.simBefore ?? null, bootedUdids(d));
       if (opened !== null) st.window = opened;
       return { token, owner: d.owner, kind, till: held.till, verdict: v };
     });
@@ -466,6 +474,7 @@ export function releaseToken(d: Deps, token: string): boolean {
     if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); st.simUdids = simNew(st.simBefore ?? [], bootedUdids(d)); }
     st.holders = release(d.owner, token, st.holders);
     st.queue = release(d.owner, token, st.queue);
+    simReleaseShutdown(d, st, nowS());
     if (st.window?.token === token && st.window.owner === d.owner) st.window = null;
     for (const h of gone) event(d, "release", h.kind, { holdMs: (nowS() - h.since) * 1000 });
     return gone.length > 0;
