@@ -293,6 +293,31 @@ export function ciLines(ref: string, cwd: string = process.cwd(), env?: Env): st
   } catch { return ["unavailable"]; }
 }
 
+export const LEDGER_FILE = "research/findings/ledger.json";
+
+export function allocN(mainNs: readonly number[], rows: readonly (number | null)[]): number[] {
+  let next = Math.max(0, ...mainNs, ...rows.filter((n): n is number => n !== null)) + 1;
+  return rows.map((n) => (n !== null ? n : next++));
+}
+
+const rowN = (r: { n?: unknown }): number | null => (typeof r.n === "number" ? r.n : null);
+
+export function allocLedger(dir: string, mainRef: string): "written" | "none" | "failed" {
+  const f = join(dir, LEDGER_FILE);
+  let raw: string;
+  try { raw = readFileSync(f, "utf8"); } catch { return "none"; }
+  try {
+    const d = JSON.parse(raw) as { findings: Record<string, unknown>[] };
+    if (!d.findings.some((r) => rowN(r) === null)) return "none";
+    const main = JSON.parse(git(dir, ["show", `${mainRef}:${LEDGER_FILE}`])) as { findings: { n?: unknown }[] };
+    const mainNs = main.findings.map(rowN).filter((n): n is number => n !== null);
+    const ns = allocN(mainNs, d.findings.map(rowN));
+    d.findings = d.findings.map((r, i) => (rowN(r) !== null ? r : (({ n: _n, ...rest }) => ({ n: ns[i]!, ...rest }))(r)));
+    writeFileSync(f, JSON.stringify(d, null, 1) + (raw.endsWith("\n") ? "\n" : ""));
+    return tryGit(dir, ["add", "--", LEDGER_FILE]) ? "written" : "failed";
+  } catch { return "failed"; }
+}
+
 export function writeEvidence(dir: string, task: string, evidence: string): "written" | "present" | "none" | "failed" {
   const f = join(dir, "docs/team/work-graph.json");
   let raw: string;
@@ -796,6 +821,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const instDry = checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt(o.installExec, o.installFs));
       if (instDry) return fail(instDry, "install", outcome({ installs: false }));
       if (writeEvidence(slot.dir, o.task!, sha.slice(0, 7)) === "failed") return fail("could not write the evidence into docs/team/work-graph.json");
+      if (allocLedger(slot.dir, main0) === "failed") return fail(`could not assign numbers to the new rows of ${LEDGER_FILE}`);
       let marks = "";
       try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { }
       if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict", outcome({ merges: false }));
@@ -876,6 +902,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         const ev = writeEvidence(slot.dir, o.task!, sha.slice(0, 7));
         if (ev === "failed") return { kind: "refuse", msg: "could not write the evidence into docs/team/work-graph.json" };
         if (ev === "written") { c = mk(git(slot.dir, ["write-tree"])); if (attempt === 0) lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`); }
+        const al = allocLedger(slot.dir, main0);
+        if (al === "failed") return { kind: "refuse", msg: `could not assign numbers to the new rows of ${LEDGER_FILE}` };
+        if (al === "written") { c = mk(git(slot.dir, ["write-tree"])); if (attempt === 0) lines.push(`${LEDGER_FILE}: new rows numbered at the land (in the merge commit)`); }
         let marks = "";
         try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { }
         if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, k: "conflict" };
@@ -984,6 +1013,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
       if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
       if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);
+      const al = allocLedger(mainDir, "HEAD");
+      if (al === "failed") return abort(`could not assign numbers to the new rows of ${LEDGER_FILE}`);
+      if (al === "written") lines.push(`${LEDGER_FILE}: new rows numbered at the land (in the merge commit)`);
       const bad = await runChecks(mainDir, checks);
       if (bad) return abort(bad, badKind);
       let e: string | null;

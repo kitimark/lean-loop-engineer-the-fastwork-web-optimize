@@ -1,0 +1,10 @@
+{"main":[],"name":"empty","ok":true,"out":[],"rows":[]}
+{"main":[26,27,72],"name":"one-new","ok":true,"out":[73],"rows":[null]}
+{"main":[70,72,71],"name":"two-new-order","ok":true,"out":[73,74],"rows":[null,null]}
+{"main":[26,27],"name":"keeps-existing","ok":true,"out":[26,27,28],"rows":[26,27,null]}
+{"main":[30,31,32],"name":"mixed","ok":true,"out":[30,33,31,34,32],"rows":[30,null,31,null,32]}
+{"main":[30],"name":"explicit-above-main","ok":true,"out":[35,36,37],"rows":[35,null,null]}
+{"main":[6,6,9,26],"name":"legacy-repeat","ok":true,"out":[6,6,27],"rows":[6,6,null]}
+{"main":[],"name":"main-empty","ok":true,"out":[1,2,3],"rows":[null,null,null]}
+{"main":[66,69],"name":"incident-67","ok":true,"out":[66,70,71],"rows":[66,null,null]}
+{"main":[40,41],"name":"explicit-dup","ok":false,"out":[41,41,42],"rows":[41,41,null]}

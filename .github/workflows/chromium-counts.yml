@@ -105,6 +105,8 @@ jobs:
       targets: ${{ steps.m.outputs.targets }}
       rewrite: ${{ steps.m.outputs.rewrite }}
       search: ${{ steps.m.outputs.search }}
+      searches: ${{ steps.m.outputs.searches }}
+      armmap: ${{ steps.m.outputs.armmap }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -139,8 +141,19 @@ jobs:
           PRESET: ${{ inputs.preset || 'original' }}
           FW: ${{ inputs.fw || '' }}
           ONLY: ${{ inputs.only || '' }}
+          ARMS: ''
+          EVENT: ${{ github.event_name }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
+          # A push has no inputs: the head commit message may carry `[counts profile=.. runs=.. target=.. arms=..]`
+          # (packages/measure-chromium/src/offscreen.mjs line; keys and value characters are checked there).
+          if [ "$EVENT" = push ]; then
+            printf '%s' "$HEAD_MSG" > "$RUNNER_TEMP/head-msg.txt"
+            while IFS='=' read -r k v; do
+              case "$k" in profile) PROFILE=$v ;; runs) RUNS=$v ;; target) TARGET=$v ;; arms) ARMS=$v ;; preset) PRESET=$v ;; fw) FW=$v ;; esac
+            done < <(node packages/measure-chromium/src/offscreen.mjs line "$RUNNER_TEMP/head-msg.txt")
+          fi
           case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
           case "$RUNS" in ''|*[!0-9]*) echo "runs must be a number" >&2; exit 1 ;; esac
           if [ "$RUNS" -lt 2 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 2..10" >&2; exit 1; fi
@@ -157,6 +170,7 @@ jobs:
           case "$PRESET" in ''|*[!a-z0-9-]*) echo "bad preset name" >&2; exit 1 ;; esac
           case "$FW" in *[!A-Za-z0-9.:@,_-]*) echo "bad fw flag set" >&2; exit 1 ;; esac
           case "$ONLY" in *[!A-Za-z0-9.]*|.*|*.) echo "bad only id" >&2; exit 1 ;; esac
+          case "$ARMS" in *[!A-Za-z0-9.:@,_|-]*) echo "bad arms" >&2; exit 1 ;; esac
           search=""
           if [ "$PRESET" != original ]; then search="?preset=$PRESET"; fi
           if [ -n "$FW" ]; then
@@ -173,16 +187,29 @@ jobs:
           if [ -n "$search" ] && [ "$TARGET" = original ]; then echo "preset/fw apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
           echo "search=$search" >> "$GITHUB_OUTPUT"
           case "$TARGET" in
-            both) targets='["original","rewrite"]' ;;
-            original) targets='["original"]' ;;
-            rewrite) targets='["rewrite"]' ;;
+            both|original|rewrite) ;;
             *) echo "bad target" >&2; exit 1 ;;
           esac
-          # One job per (target, run): every job is its own VM, original and rewrite alike.
-          matrix=$(seq 1 "$RUNS" | jq -R -s -c --argjson t "$targets" '(split("\n") | map(select(length > 0)) | map("r" + .)) as $r | {include: [$t[] as $x | $r[] | {target: $x, run: .}]}')
+          # Extra arms: each is its own flag set on top of the rewrite config, labelled f1, f2, ...
+          armlist=$(jq -n -c --arg a "$ARMS" '$a | split("|") | map(select(length > 0))')
+          n=$(echo "$armlist" | jq 'length')
+          if [ "$n" -gt 4 ]; then echo "at most 4 arms" >&2; exit 1; fi
+          if [ "$n" -gt 0 ] && [ "$TARGET" = original ]; then echo "arms apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
+          if [ "$n" -gt 0 ] && [ -n "$ONLY" ]; then echo "arms and only do not combine" >&2; exit 1; fi
+          searches=$(jq -n -c --argjson l "$armlist" --arg preset "$PRESET" --arg fw "$FW" '$l | map((if $preset != "original" then "?preset=" + $preset + "&fw=" else "?fw=" end) + (if $fw == "" then "" else $fw + "," end) + .)')
+          armmap=$(jq -n -c --argjson l "$armlist" '$l | to_entries | map({key: ("f" + ((.key + 1) | tostring)), value: .value}) | from_entries')
+          # One job per (arm, run): every job is its own VM, original, rewrite and extra arms alike. An arm is {target, label, search}.
+          matrix=$(jq -n -c --argjson runs "$RUNS" --arg target "$TARGET" --arg search "$search" --argjson as "$searches" '
+            ([range(1; $runs + 1)] | map("r" + tostring)) as $r
+            | ((if $target != "rewrite" then [{target: "original", label: "original", search: ""}] else [] end)
+               + (if $target != "original" then [{target: "rewrite", label: "rewrite", search: $search}] + ($as | to_entries | map({target: "rewrite", label: ("f" + ((.key + 1) | tostring)), search: .value})) else [] end)) as $arms
+            | {include: [$arms[] as $x | $r[] | $x + {run: .}]}')
+          targets=$(echo "$matrix" | jq -c '[.include[].label] | unique')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "searches=$searches" >> "$GITHUB_OUTPUT"
+          echo "armmap=$armmap" >> "$GITHUB_OUTPUT"
           if [ "$TARGET" = original ]; then echo "rewrite=false" >> "$GITHUB_OUTPUT"; else echo "rewrite=true" >> "$GITHUB_OUTPUT"; fi
           echo "matrix: $matrix"
 
@@ -267,14 +294,19 @@ jobs:
       - name: Build the rewrite (default prerendered config)
         env:
           SEARCH: ${{ needs.plan.outputs.search }}
+          ARM_SEARCHES: ${{ needs.plan.outputs.searches }}
         run: |
           set -euo pipefail
           # An empty search is the default config, which every build prerenders; any other query is added as a page.
           # A part page (?only=) is not prerendered: its shell is the home page and the client renders the stage.
+          # Each extra arm of the offscreen lane is added as a page too.
+          cfg=()
           case "$SEARCH" in
-            ''|*only=*) pnpm --filter @fw/site build ;;
-            *) pnpm --filter @fw/site build --config "$SEARCH" ;;
+            ''|*only=*) ;;
+            *) cfg+=(--config "$SEARCH") ;;
           esac
+          while IFS= read -r a; do cfg+=(--config "$a"); done < <(echo "$ARM_SEARCHES" | jq -r '.[]')
+          pnpm --filter @fw/site build "${cfg[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist
@@ -378,7 +410,7 @@ jobs:
     needs: [plan, fwcore, image, site]
     # site is skipped when only the original is measured; anything else that did not succeed stops the counts.
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.fwcore.result == 'success' && needs.image.result == 'success' && (needs.site.result == 'success' || needs.site.result == 'skipped') }}
-    name: counts (${{ matrix.target }}, ${{ matrix.run }})
+    name: counts (${{ matrix.label }}, ${{ matrix.run }})
     concurrency:
       group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:counts:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -411,7 +443,7 @@ jobs:
       - uses: ./.github/actions/telemetry
         with:
           mode: start
-          label: counts-${{ matrix.target }}-${{ matrix.run }}
+          label: counts-${{ matrix.label }}-${{ matrix.run }}
 
       # First step that touches data: the snapshot in git must equal snapshot.lock.json.
       - name: Verify the snapshot against snapshot.lock.json
@@ -459,7 +491,7 @@ jobs:
           PROFILE: ${{ needs.plan.outputs.profile }}
           LABEL: ${{ matrix.run }}
           TARGET: ${{ matrix.target }}
-          SEARCH: ${{ needs.plan.outputs.search }}
+          SEARCH: ${{ matrix.search }}
           FW_SNAPSHOT_DIR: ${{ github.workspace }}/snapshot/site
           FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
           # Read by the harness once it learns it (harness change H2, see .github/README.md); a no-op until then.
@@ -468,33 +500,51 @@ jobs:
           set -euo pipefail
           args=(--profile "$PROFILE" --label "$LABEL" --target "$TARGET")
           if [ "$TARGET" = rewrite ] && [ -n "$SEARCH" ]; then args+=(--search "$SEARCH"); fi
+          # The offscreen lane keeps the trace: its extra counters are reduced from it (offscreen.mjs), without the layer snapshots.
+          case "$PROFILE" in offscreen*) args+=(--dump-trace); export FW_NO_LAYERS=1 ;; esac
           node packages/measure-chromium/src/host.mjs "${args[@]}"
 
       - name: Collect the result
         env:
           PROFILE: ${{ needs.plan.outputs.profile }}
           LABEL: ${{ matrix.run }}
+          ARM: ${{ matrix.label }}
           WANT_ID: ${{ needs.image.outputs.image-id }}
         run: |
           set -euo pipefail
           res="$RUNNER_TEMP/result"
+          out="packages/measure-chromium/out/$PROFILE/$LABEL"
           mkdir -p "$res"
-          cp "packages/measure-chromium/out/$PROFILE/$LABEL/counts.json" "packages/measure-chromium/out/$PROFILE/$LABEL/zones.json" "packages/measure-chromium/out/$PROFILE/$LABEL/host.json" "$res/"
+          cp "$out/counts.json" "$out/zones.json" "$out/host.json" "$res/"
+          case "$PROFILE" in
+            offscreen*)
+              # Window sums of the steady offscreen frames (Fw.Measure.Offscreen). A failed reduce keeps the raw trace for an offline retry.
+              node packages/measure-chromium/src/offscreen.mjs reduce "$out/counts.json" --trace "$out/trace.json" --label "$ARM" --run "$LABEL" --out "$res/offscreen.json" || echo "::warning::offscreen reduce failed for $ARM $LABEL"
+              mkdir -p "$RUNNER_TEMP/trace"
+              zstd -T0 -10 -q -o "$RUNNER_TEMP/trace/trace.json.zst" "$out/trace.json" ;;
+          esac
           cp "$RUNNER_TEMP/runner.json" "$res/runner.json"
           printf '%s\n' "$WANT_ID" > "$res/image-id.txt"
           (cd "$res" && sha256sum counts.json zones.json | tee sha256.txt)
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: chromium-counts-${{ matrix.target }}-${{ matrix.run }}
+          name: chromium-counts-${{ matrix.label }}-${{ matrix.run }}
           path: ${{ runner.temp }}/result
           if-no-files-found: error
           retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ startsWith(needs.plan.outputs.profile, 'offscreen') }}
+        with:
+          name: offscreen-trace-${{ matrix.label }}-${{ matrix.run }}
+          path: ${{ runner.temp }}/trace
+          if-no-files-found: warn
+          retention-days: 14
       - uses: ./.github/actions/telemetry
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:
           mode: finish
-          label: counts-${{ matrix.target }}-${{ matrix.run }}
+          label: counts-${{ matrix.label }}-${{ matrix.run }}
 
   # Classes over all runs, decided by fwcore (the same classify the local lane uses), plus the byte comparison.
   classify:
@@ -594,5 +644,59 @@ jobs:
         with:
           name: chromium-classes
           path: ${{ runner.temp }}/classes
+          if-no-files-found: error
+          retention-days: 30
+
+  # Offscreen lane (profile offscreen-v1, task offscreen-count-lane): per arm, the window sums of the steady offscreen frames of
+  # each run and the verdict of every extra arm against the rewrite base (Lean Fw.Measure.Offscreen, offscreen.mjs summarize).
+  offscreen:
+    needs: [plan, counts]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.counts.result == 'success' || needs.counts.result == 'failure') && startsWith(needs.plan.outputs.profile, 'offscreen') }}
+    concurrency:
+      group: ci-lane:chromium-counts:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:offscreen:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            packages/measure-chromium/src
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: chromium-counts-*
+          path: ${{ runner.temp }}/runs
+      - name: Summarize the arms
+        env:
+          ARMMAP: ${{ needs.plan.outputs.armmap }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/offscreen-summary"
+          mkdir -p "$out"
+          echo "arm labels: original, rewrite, $ARMMAP" > "$out/arms.txt"
+          node packages/measure-chromium/src/offscreen.mjs summarize "$RUNNER_TEMP/runs" --armmap "$ARMMAP" --json "$out/summary.json" --md "$out/summary.md" > /dev/null
+          { echo '### offscreen-count-lane'; echo "arms: $ARMMAP"; cat "$out/summary.md"; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: offscreen-summary
+          path: ${{ runner.temp }}/offscreen-summary
           if-no-files-found: error
           retention-days: 30

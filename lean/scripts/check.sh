@@ -105,6 +105,7 @@ run_group() {
   job "workflow-lint golden check" lake env lean --run scripts/WorkflowLintGolden.lean --check
   job "touchpush golden check" lake env lean --run scripts/TouchPushGolden.lean --check ../packages/contracts/golden/measure/touch-push.jsonl
   job "walkbudget golden check" lake env lean --run scripts/WalkBudgetGolden.lean --check ../packages/contracts/golden/measure/walk-budget.jsonl
+  job "offscreen golden check" lake env lean --run scripts/OffscreenGolden.lean --check ../packages/contracts/golden/measure/offscreen.jsonl
   job "touchlock golden check" lake env lean --run scripts/TouchLockGolden.lean --check ../packages/contracts/golden/measure/touch-lock.jsonl
   job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl
