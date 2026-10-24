@@ -1,26 +1,14 @@
-import { fwcoreCall } from "./run.ts";
-import { gather, heldLoops, heldSims, type Call, type Facts } from "./reap.ts";
+import { type HeldEntry, type ReapPass } from "./reap.ts";
 
 export type HeldAlert = { code: string; subject: string; detail: string };
 
-export function reapHeldAlerts(top: string, env: Record<string, string | undefined> = process.env,
-  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): HeldAlert[] {
-  if (env.FW_WATCH_REAP === "0") return [];
-  try {
-    const f = gatherFn(top);
-    if (f === null) return [];
-    const c = call();
-    return [
-      ...heldLoops(f, c).map((h) => ({
-        code: "agent.held", subject: h.subject,
-        detail: `killOrphan pid=${h.pid} start=${h.start}: ${h.reason}; pnpm -s fw reap --stop applies it`,
-      })),
-      ...heldSims(f, c).map((h) => ({
-        code: "agent.held", subject: `sim ${h.pid}`,
-        detail: `simBooted pid=${h.pid} start=${h.start}: ${h.reason}; pnpm -s fw reap --stop applies it`,
-      })),
-    ];
-  } catch {
-    return [];
-  }
+const subjectOf = (h: HeldEntry, sim: boolean): string => sim ? `sim ${h.pid}` : (h.wt ?? `pid-${h.pid}`);
+
+export function reapHeldAlerts(pass: ReapPass | null): HeldAlert[] {
+  if (pass === null) return [];
+  const one = (h: HeldEntry, sim: boolean, what: string): HeldAlert => ({
+    code: "agent.held", subject: subjectOf(h, sim),
+    detail: `${what} pid=${h.pid} start=${h.start}: ${h.reason}; pnpm -s fw reap --stop applies it`,
+  });
+  return [...pass.held.map((h) => one(h, false, "killOrphan")), ...pass.heldSim.map((h) => one(h, true, "simBooted"))];
 }

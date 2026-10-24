@@ -142,7 +142,7 @@ describe("reap-auto-stop glue with a stubbed process table", () => {
     const lines = reapTick(root, { FW_CONSOLE_DIR: dir }, io, () => facts, () => call);
     expect(sent).toEqual(["SIGTERM -800"]);
     expect(lines).toEqual(["REAP stopped removed 1 process(es) [800] freed 2.0 MiB"]);
-    expect(JSON.parse(readFileSync(join(dir, "reap.jsonl"), "utf8"))).toMatchObject({ type: "reap.stopped", kind: "removed", pids: [800], freedKb: 2048 });
+    expect(readFileSync(join(dir, "reap.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { type: string }).find((r) => r.type === "reap.stopped")).toMatchObject({ type: "reap.stopped", kind: "removed", pids: [800], freedKb: 2048 });
     rmSync(dir, { recursive: true, force: true });
   });
   it("a target that survives the grace is KILLed after the TERM, and one that survives KILL is reported", () => {
