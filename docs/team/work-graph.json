@@ -20059,7 +20059,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks)."
+   "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks).",
+   "evidence": "c30ac87"
   },
   {
    "devices": [

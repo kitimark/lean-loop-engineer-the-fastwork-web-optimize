@@ -60,16 +60,20 @@ export async function buildDriver({ udid, dir: given, log = () => {}, timeoutMs 
   return findDriver(dir);
 }
 
-/** One pass of touches: cycles of a slow drag up and down. Resolves {code, timedOut, logFile}. */
-export async function dragPass(driver, { udid, cycles = 4, dragPt = 360, velocity = 120, holdMs = 600, timeoutMs = 300000, tag = 'pass', log = () => {} }) {
+/** The XCUITest method of each drag mode in DragTests.swift: the hero exit drags, or the drags past the page end. */
+export const DRAG_TESTS = Object.freeze({ drags: 'testDrags', finish: 'testFinish' });
+
+/** One pass of touches: cycles of a slow drag up and down. Resolves {code, timedOut, logFile}. Mode `finish` drags past the page end. */
+export async function dragPass(driver, { udid, cycles = 4, dragPt = 360, velocity = 120, holdMs = 600, mode = 'drags', target = 'springboard', timeoutMs = 300000, tag = 'pass', log = () => {} }) {
+  if (!DRAG_TESTS[mode]) throw new Error(`unknown drag mode ${mode}`);
   const env = { ...process.env, TEST_RUNNER_FW_CYCLES: String(cycles), TEST_RUNNER_FW_DRAG_PT: String(dragPt),
-    TEST_RUNNER_FW_VELOCITY: String(velocity), TEST_RUNNER_FW_HOLD_MS: String(holdMs) };
+    TEST_RUNNER_FW_VELOCITY: String(velocity), TEST_RUNNER_FW_HOLD_MS: String(holdMs), TEST_RUNNER_FW_TARGET: target };
   const logFile = join(driver.dir, `${tag}.log`);
   // the driver's output goes to its log file, so this line is what the stall watchdog sees while the touches run
   const t0 = Date.now();
   const beat = setInterval(() => log(`${tag}: touches running, ${Math.round((Date.now() - t0) / 1000)} s`), 30000);
   const r = await runGroup('xcodebuild', ['test-without-building', '-xctestrun', driver.xctestrun, '-destination', `id=${udid}`,
-    '-only-testing:DriverUITests/DragTests/testDrags', '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs, logFile }).finally(() => clearInterval(beat));
+    `-only-testing:DriverUITests/DragTests/${DRAG_TESTS[mode]}`, '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs, logFile }).finally(() => clearInterval(beat));
   return { ...r, logFile };
 }
 
