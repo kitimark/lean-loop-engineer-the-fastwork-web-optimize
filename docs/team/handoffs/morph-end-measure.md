@@ -1,6 +1,6 @@
 branch: worktree-wf_c0f9c38f-77f-1 (CI branch ci/morph-end-measure)
 worktree: .claude/worktrees/wf_c0f9c38f-77f-1
-last commit: CI ran 450596c9a as ci/morph-end-measure; later commits only add the note, results and this handoff
+last commit: CI ran 450596c9a as ci/morph-end-measure; merge 2dc647f73 re-resolved toolbar-throttle.yml and cli.mjs (--offset -> --rotate) after it, so the merged [throttle:morph-end] path has not run on CI.
 CI runs (3 of 3 dispatches used, all complete):
 - 40105567688 (f7a520d09; 4 cycles, 300 s touch limit) failure overall: jobs 1 and 6 gave partial json (rewrite 2, all-unthrottle 1 usable); 12 of 18 attempts timed out; job 5 lost, job 2 cancelled at 80 min.
 - 40112979355 (fcb8edf2c; 2 cycles, 480 s) failure: 0 usable passes; 4 runners frozen 60 to 80 min.
