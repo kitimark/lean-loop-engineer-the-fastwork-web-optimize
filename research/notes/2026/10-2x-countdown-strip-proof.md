@@ -16,12 +16,14 @@ Task `countdown-strip-proof`, candidate 4 of `research/notes/2026/10-2x-end-gpu-
 - **Simulator census, MEASURED** (webkit-sim 40081936555 at bbd203c with both flags, against 39897814980 at 540130e9
   with none; the countdown code did not change between the two shas): every zone has 80 `hero-module_face` layers
   before and 8 `hero-module_strip` layers after; no other layer is added or removed in the finish zone.
-- **Gate: no verdict.** Runs 40081933958 and 40089874311 (sha 085bb458, with the morph.countdown strip variant role)
-  both stopped in the smoke step: `?fw=hero.countdown:strip,morph.countdown:strip` is not prerendered; the
-  prerendered key is `?fw=morph.countdown:strip,hero.countdown:strip`. The cause is the dispatch, not the order
-  typed: `store.gate` sorts the flags (`sortFlags`, lean/Fw/Wire/Store.lean:45, used at :111), and the build
-  prerenders a variant followed by the variants it requires (apps/site/src/entry-server.tsx:23), so `fw run --gate`
-  cannot request a variant whose required flag sorts before it. The dispatch budget is spent.
+- **Gate: pass on both engines, MEASURED** (breakpoint-gate 40094445810, dispatched by the lead with
+  `-f engines=both -f fw=morph.countdown:strip,hero.countdown:strip`, the prerendered order; config 24380691598523ec
+  read from the loaded page). Every cell passes on Chromium 156 and Playwright WebKit 27.2, the failing-items table
+  is empty and no arm ended unsettled; on WebKit the hover-pointer-cross and fractional-gaps cells are UNREACHABLE
+  under the Lean reach rule (primary-pair, whole-width). The two earlier runs
+  40081933958 and 40089874311 stopped in the smoke step because `fw run --gate` sorts the flags (`sortFlags`,
+  lean/Fw/Wire/Store.lean:45, used at :111) while the build prerenders a variant followed by the variants it requires
+  (apps/site/src/entry-server.tsx:23); that bug is task gate-flag-order.
 
 ## Census per zone (pass 1 / pass 2)
 
@@ -70,15 +72,11 @@ in both variants (tolerance 1e-9 relative) and checks the CSS premises of the la
 ## Limits
 
 - One digit per proof; digits share no state in the driver, so a clock is the per-digit statement repeated.
-- Strip subpixel sampling against the faithful faces is left to the gate's pixel tolerance; no gate verdict yet.
+- Strip subpixel sampling against the faithful faces is decided by the gate's pixel tolerance (run 40094445810: pass).
 - UIView creation time on the phone is not measured.
 - Platform layer counts (160, 16) are from source; the census sees backings only.
 
 ## Open
 
-- Gate verdict: one dispatch that keeps the prerendered order, which `fw run --gate` cannot make (it sorts):
-  `gh workflow run breakpoint-gate.yml --ref ci/countdown-strip-proof -f engines=both -f fw=morph.countdown:strip,hero.countdown:strip`.
-  The morph.countdown strip variant role is in `packages/gate-breakpoints/src/anchors.json` since 085bb458.
-- Flag order: either the build also prerenders the sorted key of each variant with `requires`, or the gate smoke
-  and page lookup sort the requested flags before the lookup. Both lie outside this task's writes.
+- Flag order: `fw run --gate` cannot request a variant whose required flag sorts before it; task gate-flag-order.
 - Strip backing 3.9 times the faces per digit at y 0; the 12 vs 10 cell model does not explain it.

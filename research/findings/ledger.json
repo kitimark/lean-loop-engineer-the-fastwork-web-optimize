@@ -3583,14 +3583,14 @@
    "n": 7,
    "part": "morph.countdown (+ hero.countdown)",
    "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
-   "status": "partly-proved",
+   "status": "proved",
    "flags": [
     "morph.countdown:strip",
     "hero.countdown:strip"
    ],
    "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
    "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
-   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance; gate runs 40081933958 and 40089874311 gave no verdict: fw run --gate sorts the flags (lean/Fw/Wire/Store.lean:45) and the build prerenders only the variant-first order.",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
    "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
    "leanFor": [
     "Fw.Parts.MorphCountdownStrip.same_face_px",
@@ -3606,7 +3606,6 @@
     "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
    ],
    "missingWhy": [
-    "Breakpoint gate verdict on ?fw=morph.countdown:strip,hero.countdown:strip (the prerendered order)",
     "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
     "UIView creation time at morph start on the phone"
    ],
@@ -3618,8 +3617,8 @@
    ],
    "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
    "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
-   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
-   "next": "Dispatch the gate keeping the prerendered order (gh workflow run breakpoint-gate.yml --ref ci/countdown-strip-proof -f engines=both -f fw=morph.countdown:strip,hero.countdown:strip; the morph.countdown strip variant role is in anchors.json), and make the build or the page lookup accept the sorted flag order."
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
   }
  ],
  "notes": [
