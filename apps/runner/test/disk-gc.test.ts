@@ -102,6 +102,7 @@ function tree(events = true) {
   const deleted: string[] = [];
   const io: Io = {
     opens: () => [join(pad, "busy", "f.txt"), "/elsewhere/x"],
+    cwds: () => [],
     procs: () => [],
     lakeProcs: () => [],
     devices: () => [{ udid: UDID, name: "fw-old", state: "Shutdown" }, { udid: "1a1b2c3d-0000-1111-2222-333344445555", name: "iPhone", state: "Shutdown" }],
@@ -171,6 +172,25 @@ describe("fw disk-gc on a temp tree", () => {
     expect(paths()).toEqual(["w1", "wf_live-bbb-1"]);
     rmSync(join(x.croot, "events.jsonl"));
     expect(paths()).toEqual([]);
+  });
+
+  it("a live process's cwd keeps its worktree, and a remote land subject is matched to the run by task id (gc-live-agent-cwd)", () => {
+    const x = tree();
+    g(x.repo, "worktree", "add", "-q", "-b", "rem-b", join(x.wt, "wf_rem-ddd-1"), "main");
+    file(join(x.wt, "wf_rem-ddd-1", "r.txt"), "r", false);
+    g(join(x.wt, "wf_rem-ddd-1"), "add", "-A"); g(join(x.wt, "wf_rem-ddd-1"), "commit", "-q", "-m", "r");
+    g(x.repo, "merge", "-q", "--no-ff", "-m", "land task-r abc1234", "rem-b");
+    const paths = (io = x.io) => diskGc({ repo: x.repo, args: parseArgs(["--list", "--class", "2"]), call, io, roots: x.roots, uid })
+      .reply.items.map((i) => i.path.slice(x.wt.length + 1)).sort();
+    expect(paths()).toEqual(["w1"]);
+    writeFileSync(join(x.croot, "events.jsonl"), [
+      { seq: 1, type: "agent.label", agent: "a1", name: "task-r", key: "wfid-label:wf_rem-ddd:a1:t" },
+      { seq: 2, type: "agent.stop", agent: "a1", key: "wfr-end:wf_rem-ddd" },
+    ].map((e) => JSON.stringify(e)).join("\n") + "\n");
+    expect(paths()).toEqual(["w1", "wf_rem-ddd-1"]);
+    expect(paths({ ...x.io, cwds: () => [join(x.wt, "wf_rem-ddd-1", "apps")] })).toEqual(["w1"]);
+    expect(paths({ ...x.io, cwds: () => ["/"] })).toEqual(["w1", "wf_rem-ddd-1"]);
+    expect(paths({ ...x.io, cwds: () => null })).toEqual([]);
   });
 
   it("--delete removes the list, keeps everything else, and records one event", () => {
@@ -246,7 +266,7 @@ describe("fw disk-gc on a temp tree", () => {
       { seq: 3, type: "task.done", task: "t1", key: "td:t1" },
       { seq: 4, type: "agent.stop", agent: "a3", key: "wfr-end:wf_1" },
     ].map((e) => JSON.stringify(e)).join("\n") + "\n");
-    expect(gatherEventFacts(x.repo, call)).toEqual({ liveAgents: [], landedTasks: ["t1"], finishedRuns: ["wf_1"], liveRuns: [], landedRuns: [] });
+    expect(gatherEventFacts(x.repo, call)).toEqual({ liveAgents: [], landedTasks: ["t1"], finishedRuns: ["wf_1"], liveRuns: [], landedRuns: [], taskRuns: [] });
     expect(num(["--list", "--class", "4"])).toEqual(["old", "owned"]);
   });
 

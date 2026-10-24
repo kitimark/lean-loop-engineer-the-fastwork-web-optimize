@@ -18439,7 +18439,8 @@
     "packages/contracts/golden/measure/walk-budget.jsonl",
     "packages/measure-webkit/src/walk-budget.mjs",
     "packages/measure-webkit/test/walk-budget.test.mjs",
-    "packages/measure-webkit/src/profile/cli.mjs"
+    "packages/measure-webkit/src/profile/cli.mjs",
+    "apps/runner/test/land-overflow-widths.test.ts"
    ],
    "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands. (7) morph-wheel-momentum review: pass FW_MATRIX_JOB: ${{ matrix.job }} on the smoothness.yml morph step so in-job reports read job N."
   },
@@ -18868,7 +18869,8 @@
     "research/findings/ledger.json",
     "docs/team/incidents/ledger.json"
    ],
-   "title": "morph-real-wheel-followups review follow-ups (2026-10-24): (1) the scroll settles before the push (run 39989441570 job 1 run 1: last scroll at frame 23, push at frame 28), so no open phase has a scroll in flight: add a drive that sends the push during the scroll (momentum overlapping the morph); (2) macreport.mjs labels every job's rows 'job 1': pass the matrix job index; (3) the Simulator leg with the PushServer touch (morph-real-wheel-followups item 3) once sim-touch-reliable lands; (4) probe.mjs header: keep one short pointer ('pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs')."
+   "title": "morph-real-wheel-followups review follow-ups (2026-10-24): (1) the scroll settles before the push (run 39989441570 job 1 run 1: last scroll at frame 23, push at frame 28), so no open phase has a scroll in flight: add a drive that sends the push during the scroll (momentum overlapping the morph); (2) macreport.mjs labels every job's rows 'job 1': pass the matrix job index; (3) the Simulator leg with the PushServer touch (morph-real-wheel-followups item 3) once sim-touch-reliable lands; (4) probe.mjs header: keep one short pointer ('pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs').",
+   "evidence": "5be82cd"
   },
   {
    "devices": [
@@ -18988,7 +18990,8 @@
     "results/carousel-swap-webkit/**",
     "research/notes/2026/10-2x-carousel-swap-webkit.md"
    ],
-   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates). accent-drawin-width-nolayout review follow-ups (run 40010826238, arm hero.accent:draw-nolayout-full): (9) cite WebKit Styleable updateCSSTransitions and Chromium css_animations.cc CalculateTransitionUpdate (file:line@sha) for the premise that transition: none in the after-change style makes the width one change (slotChanges .full .inRest = [.clipInset]); (10) swap-report prints the pooled numbers (windows with >= 24 Layout rows, rows per capture, medians) so summary-full.json is generated, not derived by hand; (11) a 3-job repeat with the full arm in the same run as faithful and draw-nolayout (r3 of 40010826238 was cancelled, n=4 per faithful slot, every window unresolved:overlap); measure items 1, 2 for both nolayout arms."
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates). accent-drawin-width-nolayout review follow-ups (run 40010826238, arm hero.accent:draw-nolayout-full): (9) cite WebKit Styleable updateCSSTransitions and Chromium css_animations.cc CalculateTransitionUpdate (file:line@sha) for the premise that transition: none in the after-change style makes the width one change (slotChanges .full .inRest = [.clipInset]); (10) swap-report prints the pooled numbers (windows with >= 24 Layout rows, rows per capture, medians) so summary-full.json is generated, not derived by hand; (11) a 3-job repeat with the full arm in the same run as faithful and draw-nolayout (r3 of 40010826238 was cancelled, n=4 per faithful slot, every window unresolved:overlap); measure items 1, 2 for both nolayout arms.",
+   "evidence": "1f89050"
   },
   {
    "devices": [
@@ -19268,7 +19271,8 @@
     ".github/actions/gate-engine/**",
     "docs/team/handoffs/ci-gate-engine-webkit-slow.md"
    ],
-   "title": "timing.slow alerts 2026-10-24 on land legs: 'Run ./.github/actions/gate-engine' (playwright-webkit) 66 s vs 39 s baseline (commit 32c4fd4), 87 s vs 54 s (9bdab20), and its Post step 43 s vs 5 s (910dacd); chromium gate-engine 42 s vs 25 s. Find where the time goes per sub-step from existing land runs (gh run view --log, poll >= 120 s, no gh api): Playwright browser cache restore/save, WebKit install, deps, or the gate itself; decide in Lean whether it is download variance (no action) or a fixable cost (cache key churn, save on every run, missing restore), with golden rows per run; fix the fixable part in the action and measure on the next land legs."
+   "title": "timing.slow alerts 2026-10-24 on land legs: 'Run ./.github/actions/gate-engine' (playwright-webkit) 66 s vs 39 s baseline (commit 32c4fd4), 87 s vs 54 s (9bdab20), and its Post step 43 s vs 5 s (910dacd); chromium gate-engine 42 s vs 25 s. Find where the time goes per sub-step from existing land runs (gh run view --log, poll >= 120 s, no gh api): Playwright browser cache restore/save, WebKit install, deps, or the gate itself; decide in Lean whether it is download variance (no action) or a fixable cost (cache key churn, save on every run, missing restore), with golden rows per run; fix the fixable part in the action and measure on the next land legs.",
+   "evidence": "58c2525"
   },
   {
    "devices": [
@@ -19288,9 +19292,13 @@
     "packages/measure-chromium/src/pathpix*.mjs",
     ".github/workflows/path-pix.yml",
     "research/notes/2026/10-2x-hero-copy-floor.md",
-    "docs/team/handoffs/pathpix-consensus-followups.md"
+    "docs/team/handoffs/pathpix-consensus-followups.md",
+    "lean/Fw/Ci/Overflow.lean",
+    "results/accent-draw-nolayout-pixels/**",
+    "packages/measure-webkit/src/pathpix-cli.mjs"
    ],
-   "title": "pathpix-consensus-capture review follow-ups (2026-10-24, run 40026419647): (1) lookList and heroCopySummary show the consensus verdict next to the grade and leave varied cells out of the 'L cells with a strip' list, so the user's look review does not count render-server variation as an arm change; (2) a per-zone grade in Lean that drops varied zones in mixed cells (one counted, one varied); (3) the Chromium A3 arm (one entry in packages/measure-chromium/src/pathpix.mjs); (4) a majority reference or a second run to class the hero_copy 192513-20 raster (varied in webkit-1, counted in webkit-2) and the nav-earn 4478-2 A/A change; (5) accent-nolayout-measure item 2 moved here: a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) giving pixel numbers for hero.accent:draw-nolayout and draw-nolayout-full vs faithful for the user's look review. One path-pix run, >= 3 jobs per engine."
+   "title": "pathpix-consensus-capture review follow-ups (2026-10-24, run 40026419647): (1) lookList and heroCopySummary show the consensus verdict next to the grade and leave varied cells out of the 'L cells with a strip' list, so the user's look review does not count render-server variation as an arm change; (2) a per-zone grade in Lean that drops varied zones in mixed cells (one counted, one varied); (3) the Chromium A3 arm (one entry in packages/measure-chromium/src/pathpix.mjs); (4) a majority reference or a second run to class the hero_copy 192513-20 raster (varied in webkit-1, counted in webkit-2) and the nav-earn 4478-2 A/A change; (5) accent-nolayout-measure item 2 moved here: a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) giving pixel numbers for hero.accent:draw-nolayout and draw-nolayout-full vs faithful for the user's look review. One path-pix run, >= 3 jobs per engine.",
+   "evidence": "2d92229"
   },
   {
    "devices": [
@@ -19313,7 +19321,8 @@
     "apps/runner/test/timing*.test.ts",
     "docs/team/handoffs/timing-poller-snapshot.md"
    ],
-   "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time."
+   "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time.",
+   "evidence": "5633689"
   },
   {
    "devices": [
@@ -19331,9 +19340,18 @@
     "apps/runner/test/reap*.test.ts",
     "packages/contracts/golden/ops/reap*.jsonl",
     "apps/runner/src/watch*.ts",
-    "docs/team/handoffs/reap-watch-one-rule.md"
+    "docs/team/handoffs/reap-watch-one-rule.md",
+    "apps/runner/src/next.ts",
+    "lean/Fw/Obs/Next.lean",
+    "apps/runner/test/next.test.ts",
+    "lean/scripts/ReapGolden.lean",
+    "apps/runner/src/slot.ts",
+    "apps/runner/test/slot*.test.ts",
+    "lean/Fw/Ops/Slot*.lean",
+    "docs/team/tools/reap.md"
    ],
-   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases). Third item 2026-10-24: a builder's local sim-slot debug run (197 s, fw slot kind sim) left the Simulator fw-iphone-27 booted after the slot release (load average 70 over 8 CPUs during boot); fw reap and disk-gc --class sim select nothing: a Lean rule that a sim slot release shuts down the Simulator its run booted (pid + boot time checked), golden row."
+   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases). Third item 2026-10-24: a builder's local sim-slot debug run (197 s, fw slot kind sim) left the Simulator fw-iphone-27 booted after the slot release (load average 70 over 8 CPUs during boot); fw reap and disk-gc --class sim select nothing: a Lean rule that a sim slot release shuts down the Simulator its run booted (pid + boot time checked), golden row.",
+   "evidence": "1009d85"
   },
   {
    "devices": [
@@ -19351,7 +19369,8 @@
     "apps/runner/test/polish*.test.ts",
     "lean/Fw/Plan/Polish.lean",
     "packages/contracts/golden/plan/polish*.jsonl",
-    "docs/team/handoffs/polish-strays-followups.md"
+    "docs/team/handoffs/polish-strays-followups.md",
+    "lean/Fw/Wire/Plan.lean"
    ],
    "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays."
   },
@@ -19373,7 +19392,8 @@
     "apps/runner/test/disk-gc.test.ts",
     "docs/team/handoffs/gc-live-agent-cwd.md"
    ],
-   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects."
+   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects.",
+   "evidence": "acdc644"
   },
   {
    "devices": [
@@ -19401,6 +19421,207 @@
     "docs/team/handoffs/touch-lock-page-end.md"
    ],
    "title": "End-of-page lag candidate from the morph-wheel-momentum Fable review (2026-10-24; spec in that task's closing round): the morph (avatar deck) opens only at scrollY >= maxY-7; while .start-selling-platform is within a 200% root margin or the morph is open, the site installs non-passive touchmove and wheel listeners and restores scrollY after each scroll event (L, instant scrollTo). Q1 (lock fight, the phone's felt jitter): a touch pan that began before the morph opened, or momentum after release, cannot be cancelled by touchmove (WKContentViewInteraction.mm:4239-4245 @862f17d) and WebKit does not stop a user deceleration on a script scrollTo (WKWebViewIOS.mm:1515-1548, ScrollingTreeScrollingNodeDelegateIOS.mm:494-510 @862f17d); whether UIKit's setContentOffset stops it is UNKNOWN: measure on the CI Simulator with the PushServer touch: a pan from > 2 viewports above the end into the end, released with velocity, arms original and rewrite; per run count restores (scroll events with y != s while open), sign reversals of the per-frame scrollY delta in the open phase, and drawn-offset reversals from simctl io recordVideo. Q2 (touch deferral): only the first touchmove (and touchstart) of a gesture inside the zone defers the native pan until the main thread answers (WebPageProxy.cpp:5253, :5291-5292, :5199-5201 @862f17d): measure touchstart to first scroll event against main-thread long frames. Lean first: unit one gesture run, verdict jitter iff the open phase has a reversal with a restore to s; golden from the reducer. At most 2 dispatches."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-capnets-link",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-poller-snapshot"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "packages/gh-budget/src/poller.ts",
+    "packages/gh-budget/test/*.test.ts",
+    "docs/team/handoffs/timing-capnets-link.md"
+   ],
+   "title": "timing-poller-snapshot review follow-ups (2026-10-24): (1) capNets (floor/hour/minute waits are own time) is used by nothing: prove a theorem tying it to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap, so the excess of a floor or share wait counts as own time), golden row; (2) poller.ts records interval before the tick's listed/pages events, so a pages change is missing: compute it after the pages event, or prove in Lean that the max over the two ticks already covers it."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-dry-contention",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "apps/runner/test/slot*.test.ts",
+    "lean/Fw/Sup/*.lean",
+    "packages/contracts/golden/sup/*.jsonl",
+    "research/notes/2026/10-2x-land-dry-contention.md",
+    "docs/team/handoffs/land-dry-contention.md",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Plan/WritesClosure.lean"
+   ],
+   "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "next-killorphan-reap",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "reap-watch-one-rule"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/*.jsonl",
+    "apps/runner/src/next*.ts",
+    "apps/runner/test/next*.test.ts",
+    "docs/team/handoffs/next-killorphan-reap.md"
+   ],
+   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-ef-auto",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "reap-watch-one-rule"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "lean/Fw/Wire/Ops.lean",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/reap*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/reap*.test.ts",
+    "docs/team/tools/reap.md",
+    "docs/team/handoffs/reap-ef-auto.md"
+   ],
+   "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick. Plus reap-watch-one-rule round-3 review follow-ups: (a) awaitOk and canonAwait become a character allowlist ([A-Za-z0-9._/-] only; backticks, *, ?, [ ], ~ keep the loop), golden row '/tmp/`x`.log' kept; (b) stopSelected guard scope = plan.targets pids, not plan.selected; (c) reapStopLines counts N from the plan targets (or prints advice rows on their own line); (d) a TS test of a mixed auto plan (A-D target in the same process group as an orphan loop: the loop gets no signal, the group falls back to per-pid)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-engine-cache-followups",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "ci-gate-engine-webkit-slow"
+   ],
+   "writes": [
+    "lean/Fw/Ops/GateEngineTiming.lean",
+    "packages/contracts/golden/ops/gate-engine-timing.jsonl",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/actions/gate-engine/action.yml",
+    "scripts/gate-engine-ref*.test.mjs",
+    "research/notes/2026/10-2x-ci-gate-engine-webkit-slow.md",
+    "docs/team/handoffs/gate-engine-cache-followups.md",
+    ".github/workflows/lean.yml"
+   ],
+   "title": "Review follow-ups of ci-gate-engine-webkit-slow: (1) after its land, confirm the main premise-tests run seeded gate-apt-debs-969c76e on refs/heads/main and the next land leg shows 'Cache restored' and Post <= 1 s (run ids); (2) a Lean class missingRestore or a seeding rule (main holds no gate-* entry when engine is skipped; nothing re-seeds after a 7-day eviction); (3) check.sh job for the gate-engine-timing golden plus a test that runs the action's shell case on the golden ref rows; (4) Trigger.lean cacheWriters keyed on the ref rule (land.yml no longer saves on ci/land-*); list other ci/<task> workflows that upload entries only their own branch reads (visual-diff, smoothness, preview-e2e, trajectory-probe) with sizes.",
+   "evidence": "e3cd6a7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-engine-restore-observe",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "gate-engine-cache-followups"
+   ],
+   "writes": [
+    "research/notes/2026/10-2x-ci-gate-engine-webkit-slow.md",
+    "packages/contracts/golden/ops/gate-engine-timing.jsonl",
+    "lean/Fw/Ops/GateEngineTiming.lean",
+    "scripts/gate-engine-ref.test.mjs",
+    "docs/team/handoffs/gate-engine-restore-observe.md"
+   ],
+   "title": "gate-engine-cache-followups review follow-ups: (1) read the first land.yml run after the seed (run 40045796969, refs/heads/main) whose jobs include land (chromium) or land (playwright-webkit): 'Cache restored from key gate-apt-debs-969c76e' and Post <= 1 s, add its legs as golden rows (restored) with run ids; (2) scripts/gate-engine-ref.test.mjs:11 uses the literal .github path; (3) the restore-class JS test reads the action output or is dropped (it only checks the golden against itself). No dispatched run: use the next land that has engine legs."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-zoned-pinned",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "pathpix-consensus-followups"
+   ],
+   "writes": [
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix-exit.mjs",
+    "packages/measure-webkit/test/pathpix.test.mjs",
+    "research/notes/2026/10-2x-hero-copy-floor.md",
+    "docs/team/handoffs/pathpix-zoned-pinned.md"
+   ],
+   "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "classpos-followups",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "classpos-model-align"
+   ],
+   "writes": [
+    "lean/Fw/Parts/ClassPos.lean",
+    "lean/scripts/ClassPosGolden.lean",
+    "packages/contracts/golden/parts/footprint.classpos.jsonl",
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint.classpos.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "docs/team/handoffs/classpos-followups.md"
+   ],
+   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-verdict-jobs",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-followups",
+    "touch-lock-page-end"
+   ],
+   "writes": [
+    "lean/Fw/Measure/WalkBudget.lean",
+    "packages/contracts/golden/measure/walk-budget.jsonl",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/walk-budget.test.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/src/profile/report*.mjs",
+    "packages/measure-webkit/test/profile-*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "apps/runner/test/land-overflow-widths.test.ts",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "docs/team/handoffs/sim-touch-verdict-jobs.md"
+   ],
+   "title": "Re-plan of sim-touch-followups item 4 (closed as a CONFIRMED finding 2026-10-24: with 3 SpringBoard jobs one starved job removes the across-job verdict, since acrossDecisive needs minSamples 3 decisive jobs, reduce.mjs:99 / Smooth.lean:666; and touch end windows carry no Timeline, so the finish zone gets 0 reps). Lean: jobsNeeded with a theorem that an ok plan gives >= minSamples decisive jobs with a starvation margin (e.g. 4-5 SpringBoard jobs within the free macOS concurrency 5), the window budget from a tail quantile (tails 285-744 s) instead of the 45 s mean, the plan's clock started after Simulator boot, touch driver start and Safari launch (not before findDevice), the push server readyMs 240 s exceeded at host load; touch end windows keep Timeline zones (or a stated zone source); arms of 4+ split over jobs; FW_MATRIX_JOB on the morph step (sim-touch-followups title item 7). Proof: one CI run (at most 2 dispatches) whose across-jobs 'end touch' verdict is not insufficient."
   }
  ],
  "deadline": {

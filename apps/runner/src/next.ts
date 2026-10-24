@@ -260,12 +260,10 @@ export const slowNextLines = (slow: string[]): string[] => slow.map((s) => `NEXT
 export const slowAlerts = (slow: string[], details: string[] = []): { code: string; subject: string; detail: string }[] =>
   slow.map((s, i) => ({ code: "timing.slow", subject: s, detail: (details[i] ? details[i] + "; " : "latest sample is slow (Fw.Obs.Timing verdict); ") + "NEXT investigate step=" + s }));
 
-/** Alerts for `fw watch`: a kill proposal = agent.held, a land/route proposal = agent.unlanded (subject = agent id). */
 export function nextAlerts(reply: NextReply): { code: string; subject: string; detail: string }[] {
   const out: { code: string; subject: string; detail: string }[] = [];
   for (const a of reply.agents ?? []) for (const x of a.actions) {
-    if (x.action === "killOrphan") out.push({ code: "agent.held", subject: a.id, detail: `killOrphan pid=${x.pid}: its own wait loop keeps it held` });
-    else if (x.action === "land" || x.action === "routeIntegrator")
+    if (x.action === "land" || x.action === "routeIntegrator")
       out.push({ code: "agent.unlanded", subject: a.id, detail: `${x.action} branch=${x.branch}: handed back, branch not on main` });
   }
   return out;

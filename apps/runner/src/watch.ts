@@ -6,6 +6,7 @@ import { UsageError } from "./lib.ts";
 import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type NextReply } from "./next.ts";
 import { contendedFlagged, ghFlagged } from "./watch-gh.ts";
 import { reapTick } from "./reap.ts";
+import { reapHeldAlerts } from "./watch-reap.ts";
 import { startPush } from "./watch-push.ts";
 import { CLASSES, diskGcTick } from "./disk-gc.ts";
 import { fwcoreCall } from "./run.ts";
@@ -319,6 +320,7 @@ async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: Cor
   const h = await check(snap, call);
   const nx = await nextFor(paths, main, snap, h, call);
   if (nx) h.alerts.push(...nextAlerts(nx));
+  h.alerts.push(...reapHeldAlerts(main));
   const { slow, details } = await slowWith(paths, call);
   h.alerts.push(...slowAlerts(slow, details));
   appendLog(paths, snap, h);

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { runWebkitLane } from './pathpix-webkit.mjs';
 import { runWebkitExitLane } from './pathpix-exit-webkit.mjs';
 import { analyzeDir } from './pathpix-exit.mjs';
+import { runWebkitDrawLane } from './pathpix-exit-draw-webkit.mjs';
+import { analyzeDraw, drawTable } from './pathpix-exit-draw.mjs';
 
 const { values: v } = parseArgs({
   args: process.argv.slice(2).filter((a) => a !== '--'),
@@ -22,7 +24,9 @@ const out = resolve(v.out);
 mkdirSync(out, { recursive: true });
 if (!v['analyze-only']) {
   if (!v.site) { console.error('--site is required'); process.exit(2); }
-  if (v.mode === 'exit') {
+  if (v.mode === 'draw') {
+    await runWebkitDrawLane({ siteDir: resolve(v.site), out, run: v.run ?? process.env.GITHUB_RUN_ID ?? 'local' });
+  } else if (v.mode === 'exit') {
     if (!v.flag) { console.error('--mode exit needs --flag'); process.exit(2); }
     await runWebkitExitLane({ siteDir: resolve(v.site), out, run: v.run ?? process.env.GITHUB_RUN_ID ?? 'local', flag: v.flag, offsetIdx: v.offsets ? v.offsets.split(',').map(Number) : null, settleMs: Number(v.settle), holdMs: Number(v.hold) });
   } else await runWebkitLane({
@@ -33,7 +37,11 @@ if (!v['analyze-only']) {
   });
 }
 mkdirSync(join(out, 'strips'), { recursive: true });
-const { res, md } = analyzeDir(out, { strips: v.strips, emit: (name, png) => writeFileSync(join(out, name), png) });
+const emit = (name, png) => writeFileSync(join(out, name), png);
+const drawn = JSON.parse(readFileSync(join(out, 'manifest.json'), 'utf8')).mode === 'draw';
+const { res, md } = drawn
+  ? (() => { const r = analyzeDraw(out, { strips: v.strips, emit }); return { res: r, md: drawTable(r) }; })()
+  : analyzeDir(out, { strips: v.strips, emit });
 writeFileSync(join(out, 'cells.json'), JSON.stringify(res) + '\n');
 writeFileSync(join(out, 'summary.md'), md + '\n');
 console.log(md);

@@ -6,6 +6,8 @@ import { join } from "node:path";
 import test, { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { critIndex, waitFor, waitKind } from "../src/wait.ts";
+import type { TickStatus } from "../src/poller.ts";
+import { readStatus } from "../src/state.ts";
 import { messageOf, parseWait } from "../src/cli.ts";
 import { drive, goldenDir, mkWorld, repoRoot } from "./util.ts";
 
@@ -264,12 +266,13 @@ test("waitKind and critIndex replay golden ci-budget/lag-kind.jsonl", () => {
   }
 });
 
-async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600, cfg: Record<string, unknown> = {}) {
+async function phased(N: number, runs: Record<string, unknown>[], target: Parameters<typeof waitFor>[1], timeoutS = 3600, cfg: Record<string, unknown> = {}, others: Parameters<typeof waitFor>[1][] = []) {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs, ...cfg });
   const got: import("../src/wait.ts").WaitPhases[] = [];
-  const res = await drive(w.sim, Array.from({ length: N }, () => waitFor(w.env, target, { timeoutS, phases: (p) => got.push(p) })));
-  return { res, got, calls: w.calls() };
+  const targets = [...Array.from({ length: N - others.length }, () => target), ...others];
+  const res = await drive(w.sim, targets.map((x) => waitFor(w.env, x, { timeoutS, phases: (p) => got.push(p) })));
+  return { res, got, calls: w.calls(), w };
 }
 
 test("phases: a wait on a running run records run, update, tick, read, view, verdict and return in order", async () => {
@@ -312,12 +315,17 @@ test("phases: the tick before the finish is the previous tick (the list still sh
   assert.ok(p.tickMs! > p.prevTickMs!);
 });
 
-test("phases: the deciding tick's own budget state gives the interval and retryUntil the own-time cap reads", async () => {
+test("phases: the interval and retryUntil each tick wrote into the status give pollS, retryUntilS and prevPollS", async () => {
   const r = await phased(1, [run(75, { completeAt: T0 + 100 })], { kind: "run", runId: 75 });
   const p = r.got[0]!;
   assert.equal(p.how, "done");
   assert.equal(p.pollS, 10, "Budget.interval of the default limits on a fresh state");
   assert.equal(p.retryUntilS, 0, "no failure backoff");
+  assert.equal(p.prevPollS, 10, "the earlier tick's interval");
+  const st = readStatus(r.w.stateDir) as TickStatus;
+  assert.equal(st.tickAt, p.tickMs! / 1000);
+  assert.equal(st.interval, 10);
+  assert.equal(st.retryUntil, 0);
   const a = await phased(1, [run(76, { completeAt: T0 - 1 })], { kind: "run", runId: 76 });
   assert.equal(a.got[0]!.pollS, undefined, "an already finished run has no deciding tick");
 });
@@ -330,6 +338,26 @@ test("phases: a failed tick between the two ticks shows as a retryUntil past the
   assert.ok(p.retryUntilS * 1000 > p.prevTickMs, `backoff past the earlier tick: ${JSON.stringify(p)}`);
   assert.ok(p.tickMs! - p.prevTickMs > p.pollS * 1000, "the backoff spaced the ticks wider than the interval");
   assert.ok(p.tickMs! - p.prevTickMs <= p.pollS * 1000 + (p.retryUntilS * 1000 - p.prevTickMs), "the gap fits interval plus backoff");
+});
+
+test("phases: a failed call after the deciding tick raises the state's retryUntil, not the retryUntilS a later reader records", async () => {
+  const ok = ["HTTP/2.0 200 OK", "X-Ratelimit-Remaining: 4900", `X-Ratelimit-Reset: ${T0 + 3600}`, "X-Ratelimit-Resource: core"];
+  const r = await phased(2, [run(78, { completeAt: T0 + 100 }), run(79, { completeAt: T0 + 100 })], { kind: "run", runId: 78 }, 3600,
+    { overrides: [{ at: T0 + 100, lines: ok }, { at: T0 + 100, lines: ["HTTP/2.0 403 Forbidden", "Retry-After: 600"] }] }, [{ kind: "run", runId: 79 }]);
+  const late = r.got.find((p) => !p.holder)!;
+  assert.ok(late.readMs! > late.tickMs!, `the reader came after the deciding tick: ${JSON.stringify(late)}`);
+  assert.equal(r.calls.find((c) => c.t === T0 + 100 && c.args[1] === "view")?.refused, true, "the holder's view after the tick was refused");
+  assert.equal(late.retryUntilS, 0, "the retryUntil when the deciding tick was issued");
+  assert.equal(late.how, "done");
+});
+
+test("phases: an interval that shrank between the two ticks is recorded at both, and the gap fits the larger one", async () => {
+  const r = await phased(1, [run(80, { completeAt: T0 + 100 })], { kind: "run", runId: 80 }, 3600, { start: T0 - 3300, drains: [{ at: T0 + 45, remaining: 504 }] });
+  const p = r.got[0]!;
+  assert.equal(p.how, "done");
+  assert.deepEqual([p.prevTickMs, p.tickMs, p.prevPollS, p.pollS, p.retryUntilS], [(T0 + 50) * 1000, (T0 + 300) * 1000, 250, 10, 0]);
+  assert.ok(p.tickMs! - p.prevTickMs! > p.pollS! * 1000, "the deciding tick's interval alone would cap the gap");
+  assert.ok(p.tickMs! - p.prevTickMs! <= Math.max(p.pollS!, p.prevPollS!) * 1000, "the earlier tick's interval explains it");
 });
 
 // ---- real processes, real clock ----------------------------------------------------------------------------------------
