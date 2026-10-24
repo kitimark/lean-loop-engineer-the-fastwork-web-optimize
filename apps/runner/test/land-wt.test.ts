@@ -1,5 +1,3 @@
-// Which land worktree a dry land claims (task land-wt-lake-rebuilds). TS stand-in for Fw.Console.LandWt.pick, checked
-// against packages/contracts/golden/console/land-wt.jsonl (generated from Lean).
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";

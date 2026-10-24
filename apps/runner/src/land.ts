@@ -343,7 +343,6 @@ export const rerunAlone = (passed: boolean, loadFailure: boolean): boolean =>
 export const LOAD_FAILURE_RE = /timed out in \d+\s*ms|ETIMEDOUT|Hook timed out|Test timed out/;
 
 export type WtSlot = { idx: number; dist: number | null };
-/** TS stand-in for `Fw.Console.LandWt.pick` (golden/console/land-wt.jsonl): the free worktree whose last checkout is nearest the commit. */
 export function pickLandWt(slots: WtSlot[]): number | null {
   const before = (a: WtSlot, b: WtSlot): boolean =>
     a.dist !== null && b.dist !== null ? a.dist < b.dist || (a.dist === b.dist && a.idx < b.idx) : a.dist !== null ? true : b.dist !== null ? false : a.idx < b.idx;
@@ -352,7 +351,6 @@ export function pickLandWt(slots: WtSlot[]): number | null {
   return best === undefined ? null : best.idx;
 }
 export const LAND_WT_INPUT_RE = /\.lean$|(^|\/)lakefile|(^|\/)lean-toolchain$|(^|\/)lake-manifest/;
-/** Lean build inputs that differ between the worktree's HEAD and the commit; null when the worktree has no lake state or does not know the commit. */
 export function landWtDist(dir: string, commit: string): number | null {
   if (!existsSync(join(dir, "lean", ".lake"))) return null;
   try {

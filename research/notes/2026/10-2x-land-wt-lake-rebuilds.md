@@ -16,8 +16,7 @@ Dry-land `fw`/`land dry lake` spans that carry `lake.built` (212):
 
 Commit 2e54fbe built 24, 0 and 24 modules in three dry lands (27.7, 2.4, 23.5 s). Each dry land checks out its merge
 commit in the first free `.claude/land-wt/<n>` (`claimLandWt`), and each worktree keeps its own `.lake`. The second
-2e54fbe land ran in worktree 1, which the first had just built; the third took worktree 0, which had since moved to
-another commit.
+land ran in worktree 1, which the first had just built; the third took worktree 0, which had moved to another commit.
 
 ## Rule (Lean, `lean/Fw/Console/LandWt.lean`)
 
@@ -27,8 +26,8 @@ is last; ties go to the lower number. Theorems: `pickAux_best` (no free worktree
 worktree already at the commit is taken), `pick_none_only`, `pick_dist_le`, `pick_tie`, `pick_le_firstFree`
 (never farther than today's first free number). Golden: `packages/contracts/golden/console/land-wt.jsonl`, eight rows,
 three replayed from the spans above; TS `pickLandWt` is a stand-in checked against it (`apps/runner/test/land-wt.test.ts`).
-`claimLandWt` asks the rule for each claim, retries on a lost claim race, and the dry land passes its merge commit.
-The real land (second `claimLandWt` call) passes none and keeps the first free number.
+`claimLandWt` asks the rule for each claim and retries on a lost claim race. The dry land passes its merge commit; the
+real land (second `claimLandWt` call) passes none and keeps the first free number.
 
 ## Replay (INFERRED)
 
@@ -43,10 +42,10 @@ worktrees are free: with two worktrees busy at most, the rule chooses between tw
 ## Limits
 
 - Local-machine timings; c4f662a's 9.0 s at 0 built stays unexplained.
-- The effect is read on later dry lands (`lake.built` of `land dry lake` spans after this lands), not claimed here.
+- The effect is not claimed here; read `lake.built` of `land dry lake` spans after this lands.
 - Main moving ahead between dry lands rebuilds in every worktree; no pool choice avoids that.
 
 ## First dry land with the rule
 
-d493e2c (this branch, span `land dry lake`, 39.8 s whole land): lake.built 6. One row is not an effect; the effect is
-the table above recomputed over the dry lands after this lands (0-built share and the medians per bucket).
+d493e2c (span `land dry lake`, 39.8 s whole land): lake.built 6. One row is not an effect; recompute the table above
+over the dry lands after this lands (0-built share and the medians per bucket).
