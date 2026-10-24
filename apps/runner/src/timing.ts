@@ -51,19 +51,19 @@ export function lakeWork(lake: unknown): { work?: Record<string, string> } {
   return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { work: { mods: String(modsLow(b)) } } : {};
 }
 
-export type RawPhases = { how: string; updMs: number; tickMs?: number; prevTickMs?: number; pollS?: number; retryUntilS?: number };
+export type RawPhases = { how: string; updMs: number; tickMs?: number; prevTickMs?: number; pollS?: number; retryUntilS?: number; prevPollS?: number };
 
 export function rawOf(o: unknown): { startMs?: number; commit?: string; phases?: RawPhases } {
-  type In = { how?: unknown; updMs?: unknown; tickMs?: unknown; prevTickMs?: unknown; pollS?: unknown; retryUntilS?: unknown };
+  type In = { how?: unknown; updMs?: unknown; tickMs?: unknown; prevTickMs?: unknown; pollS?: unknown; retryUntilS?: unknown; prevPollS?: unknown };
   const s = o as { startMs?: unknown; commit?: unknown; phases?: In | null } | null | undefined;
   const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
   const ph = s?.phases;
-  const opt = (k: "tickMs" | "prevTickMs" | "pollS" | "retryUntilS") => (nat(ph?.[k]) ? { [k]: ph[k] } : {});
+  const opt = (k: "tickMs" | "prevTickMs" | "pollS" | "retryUntilS" | "prevPollS") => (nat(ph?.[k]) ? { [k]: ph[k] } : {});
   return {
     ...(nat(s?.startMs) ? { startMs: s.startMs } : {}),
     ...(typeof s?.commit === "string" && /^[0-9a-f]{0,40}$/.test(s.commit) && s.commit !== "" ? { commit: s.commit } : {}),
     ...(typeof ph?.how === "string" && nat(ph.updMs)
-      ? { phases: { how: ph.how, updMs: ph.updMs, ...opt("tickMs"), ...opt("prevTickMs"), ...opt("pollS"), ...opt("retryUntilS") } }
+      ? { phases: { how: ph.how, updMs: ph.updMs, ...opt("tickMs"), ...opt("prevTickMs"), ...opt("pollS"), ...opt("retryUntilS"), ...opt("prevPollS") } }
       : {}),
   };
 }
