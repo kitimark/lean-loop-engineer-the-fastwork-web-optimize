@@ -19,3 +19,6 @@ Review ready: returnToBuilder only for the undelivered item (v2-proved membershi
 Open: (1) WebKit morph trajectory cell: Mac morph gives no verdict for any flag, so v2-proved stays empty; a follow-up must decide that cell (vacuity of a flag proved inactive at the probe's fine-pointer widths is one option); (2) phone pass of the shipped text; (3) power cost of leaving the throttle. Power cost of leaving the throttle not measured.
 Writes outside the task: .github/workflows/toolbar-throttle.yml, packages/measure-webkit/src/throttle/{cli,report}.mjs, packages/measure-webkit/test/throttle-report.test.mjs.
 Read first: research/notes/2026/10-2x-throttle-lift-ship.md section 6.
+
+Continue round (graph r423): main merged; v2-proved membership is followUp (task webkit-morph-cell); four lane files are now in the task writes.
+Reran: apps/runner tests (3437 pass), lean check.sh green. No new CI dispatch.
