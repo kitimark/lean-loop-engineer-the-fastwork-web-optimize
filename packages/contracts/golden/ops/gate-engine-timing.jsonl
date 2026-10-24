@@ -1,0 +1,13 @@
+{"aptS":60,"engine":"webkit","fetchS":11,"hit":false,"job":120656499722,"key":"969c76e","kind":"sample","post":"ok","postS":6,"run":40024272661,"step":"aptVariance","totalS":66}
+{"aptS":82,"engine":"webkit","fetchS":34,"hit":false,"job":120679099577,"key":"969c76e","kind":"sample","post":"ok","postS":9,"run":40031018930,"step":"aptVariance","totalS":87}
+{"aptS":65,"engine":"webkit","fetchS":43,"hit":false,"job":120663290040,"key":"969c76e","kind":"sample","post":"fixableSave","postS":43,"run":40026269429,"step":"aptVariance","totalS":70}
+{"aptS":28,"engine":"webkit","fetchS":8,"hit":false,"job":120672380897,"key":"969c76e","kind":"sample","post":"ok","postS":8,"run":40028997665,"step":"ok","totalS":33}
+{"aptS":48,"engine":"webkit","fetchS":27,"hit":false,"job":120701995647,"key":"969c76e","kind":"sample","post":"ok","postS":7,"run":40037942688,"step":"aptVariance","totalS":53}
+{"aptS":37,"engine":"chromium","fetchS":6,"hit":false,"job":120656499820,"key":"1a85621","kind":"sample","post":"ok","postS":5,"run":40024272661,"step":"aptVariance","totalS":42}
+{"aptS":19,"engine":"chromium","fetchS":4,"hit":false,"job":120672380862,"key":"1a85621","kind":"sample","post":"ok","postS":4,"run":40028997665,"step":"ok","totalS":23}
+{"kind":"ref","ref":"main","save":true}
+{"kind":"ref","ref":"ci/land-timing-poller-snapshot-727ac77","save":false}
+{"kind":"ref","ref":"ci/gate-fix","save":true}
+{"kind":"ref","ref":"ci/landing","save":true}
+{"kind":"ref","ref":"ci/land-","save":false}
+{"kind":"ref","ref":"feature/land-x","save":true}
