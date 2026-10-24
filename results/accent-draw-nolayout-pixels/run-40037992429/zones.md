@@ -20,3 +20,21 @@
 | in | 600 | 0 | 0 | 0 | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 100 | 1965 | 17 | 37843 | 2193 | 2192 |
 | in | 750 | 0 | 0 | 0 | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 100 | 1965 | 17 | 35751 | 101 | 100 |
 | in | 900 | 0 | 0 | 0 | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 0 (max 0) | 100 | 1965 | 17 | 35751 | 101 | 100 |
+
+| outside the band | d1 N | d2 N | d3 N | d1 F | d2 F | d3 F |
+|---|---|---|---|---|---|---|
+| baseline | 100 | 1965 | 17 | 35751 | 101 | 100 |
+| above baseline, out 0 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, out 150 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, out 300 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, out 450 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, out 600 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, out 750 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, out 900 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, in 0 ms | 0 | 0 | 0 | 17622 | 17622 | 17622 |
+| above baseline, in 150 ms | 0 | 0 | 0 | 16871 | 16871 | 16871 |
+| above baseline, in 300 ms | 0 | 0 | 0 | 12709 | 12709 | 12709 |
+| above baseline, in 450 ms | 0 | 0 | 0 | 8584 | 8584 | 8584 |
+| above baseline, in 600 ms | 0 | 0 | 0 | 2092 | 2092 | 2092 |
+| above baseline, in 750 ms | 0 | 0 | 0 | 0 | 0 | 0 |
+| above baseline, in 900 ms | 0 | 0 | 0 | 0 | 0 | 0 |

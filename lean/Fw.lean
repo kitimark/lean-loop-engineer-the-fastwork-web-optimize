@@ -167,6 +167,7 @@ import Fw.Plan.Workflow
 import Fw.Plan.WritesClosure
 import Fw.Obs.Timing
 import Fw.Obs.Backoff
+import Fw.Obs.LandInputsCost
 import Fw.Ci.Trigger
 import Fw.Ci.Intent
 import Fw.Ci.Verdict
@@ -229,6 +230,7 @@ import Fw.Gate.Colour
 import Fw.Gate.RunPerm
 import Fw.Gate.Frames
 import Fw.Gate.PathPix
+import Fw.Gate.PathPixWire
 import Fw.Gate.Smooth
 import Fw.Wire.ShardGolden
 import Fw.Measure.WktrLayout

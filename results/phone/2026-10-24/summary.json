@@ -1,0 +1,1101 @@
+{
+ "schema": "fw.phone.session/1",
+ "date": "2026-10-24",
+ "plan": [
+  {
+   "step": 1,
+   "arm": "original",
+   "seconds": 90
+  },
+  {
+   "step": 2,
+   "arm": "rewrite",
+   "seconds": 90
+  },
+  {
+   "step": 3,
+   "arm": "v2",
+   "seconds": 90
+  },
+  {
+   "step": 4,
+   "arm": "look",
+   "seconds": 90
+  },
+  {
+   "step": 5,
+   "arm": "original",
+   "seconds": 90
+  }
+ ],
+ "thresholdsMs": {
+  "slow": 34,
+  "bad": 50
+ },
+ "passes": [
+  {
+   "arm": "original",
+   "pass": 1,
+   "viewport": {
+    "w": 430,
+    "h": 815
+   },
+   "frames": 4781,
+   "report": {
+    "total": {
+     "n": 1081,
+     "over34": 157,
+     "over50": 51,
+     "per34": 1452,
+     "per50": 471,
+     "longest": 17400,
+     "median": 1700
+    },
+    "zones": {
+     "hero": {
+      "n": 1075,
+      "over34": 151,
+      "over50": 46,
+      "per34": 1404,
+      "per50": 427,
+      "longest": 8300,
+      "median": 1700
+     },
+     "finish": {
+      "n": 0,
+      "over34": 0,
+      "over50": 0,
+      "per34": 0,
+      "per50": 0,
+      "longest": 0,
+      "median": 0
+     },
+     "rest": {
+      "n": 6,
+      "over34": 6,
+      "over50": 5,
+      "per34": 10000,
+      "per50": 8333,
+      "longest": 17400,
+      "median": 6600
+     }
+    },
+    "taps": 47,
+    "parts": {
+     "hero": {
+      "maxStep": 566,
+      "stalls": 339
+     },
+     "people": {
+      "maxStep": 115,
+      "stalls": 3
+     },
+     "fade": {
+      "maxStep": 0,
+      "stalls": 0
+     }
+    },
+    "felt": [
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 21,
+       "over34": 1,
+       "over50": 1,
+       "per34": 476,
+       "per50": 476,
+       "longest": 6400,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 34,
+       "over34": 1,
+       "over50": 1,
+       "per34": 294,
+       "per50": 294,
+       "longest": 5600,
+       "median": 1700
+      }
+     },
+     {
+      "y": 166,
+      "zone": "hero",
+      "stat": {
+       "n": 4,
+       "over34": 1,
+       "over50": 0,
+       "per34": 2500,
+       "per50": 0,
+       "longest": 3500,
+       "median": 2200
+      }
+     },
+     {
+      "y": 781,
+      "zone": "hero",
+      "stat": {
+       "n": 29,
+       "over34": 9,
+       "over50": 1,
+       "per34": 3103,
+       "per50": 344,
+       "longest": 5100,
+       "median": 2200
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 48,
+       "over34": 3,
+       "over50": 2,
+       "per34": 625,
+       "per50": 416,
+       "longest": 6300,
+       "median": 2300
+      }
+     },
+     {
+      "y": 160,
+      "zone": "hero",
+      "stat": {
+       "n": 23,
+       "over34": 4,
+       "over50": 0,
+       "per34": 1739,
+       "per50": 0,
+       "longest": 5000,
+       "median": 1900
+      }
+     },
+     {
+      "y": 173,
+      "zone": "hero",
+      "stat": {
+       "n": 27,
+       "over34": 2,
+       "over50": 0,
+       "per34": 740,
+       "per50": 0,
+       "longest": 4400,
+       "median": 2200
+      }
+     },
+     {
+      "y": 351,
+      "zone": "hero",
+      "stat": {
+       "n": 57,
+       "over34": 1,
+       "over50": 0,
+       "per34": 175,
+       "per50": 0,
+       "longest": 3800,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 35,
+       "over34": 3,
+       "over50": 1,
+       "per34": 857,
+       "per50": 285,
+       "longest": 5900,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 26,
+       "over34": 5,
+       "over50": 0,
+       "per34": 1923,
+       "per50": 0,
+       "longest": 5000,
+       "median": 2100
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 2,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 1700,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 19,
+       "over34": 7,
+       "over50": 5,
+       "per34": 3684,
+       "per50": 2631,
+       "longest": 8300,
+       "median": 3000
+      }
+     }
+    ]
+   }
+  },
+  {
+   "arm": "rewrite",
+   "pass": 1,
+   "viewport": {
+    "w": 430,
+    "h": 815
+   },
+   "frames": 5165,
+   "report": {
+    "total": {
+     "n": 1896,
+     "over34": 33,
+     "over50": 12,
+     "per34": 174,
+     "per50": 63,
+     "longest": 7300,
+     "median": 1700
+    },
+    "zones": {
+     "hero": {
+      "n": 1123,
+      "over34": 10,
+      "over50": 2,
+      "per34": 89,
+      "per50": 17,
+      "longest": 5600,
+      "median": 1700
+     },
+     "finish": {
+      "n": 251,
+      "over34": 18,
+      "over50": 7,
+      "per34": 717,
+      "per50": 278,
+      "longest": 6100,
+      "median": 1700
+     },
+     "rest": {
+      "n": 522,
+      "over34": 5,
+      "over50": 3,
+      "per34": 95,
+      "per50": 57,
+      "longest": 7300,
+      "median": 1700
+     }
+    },
+    "taps": 55,
+    "parts": {
+     "hero": {
+      "maxStep": 426,
+      "stalls": 178
+     },
+     "people": {
+      "maxStep": 171,
+      "stalls": 21
+     },
+     "fade": {
+      "maxStep": 1000,
+      "stalls": 0
+     }
+    },
+    "felt": [
+     {
+      "y": 5239,
+      "zone": "finish",
+      "stat": {
+       "n": 9,
+       "over34": 3,
+       "over50": 1,
+       "per34": 3333,
+       "per50": 1111,
+       "longest": 6100,
+       "median": 2500
+      }
+     },
+     {
+      "y": 5233,
+      "zone": "finish",
+      "stat": {
+       "n": 21,
+       "over34": 2,
+       "over50": 1,
+       "per34": 952,
+       "per50": 476,
+       "longest": 6000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 355,
+      "zone": "hero",
+      "stat": {
+       "n": 12,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2900,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5234,
+      "zone": "finish",
+      "stat": {
+       "n": 17,
+       "over34": 3,
+       "over50": 1,
+       "per34": 1764,
+       "per50": 588,
+       "longest": 5600,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5267,
+      "zone": "finish",
+      "stat": {
+       "n": 8,
+       "over34": 3,
+       "over50": 2,
+       "per34": 3750,
+       "per50": 2500,
+       "longest": 6000,
+       "median": 3400
+      }
+     },
+     {
+      "y": 45,
+      "zone": "hero",
+      "stat": {
+       "n": 17,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2400,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5230,
+      "zone": "finish",
+      "stat": {
+       "n": 21,
+       "over34": 3,
+       "over50": 1,
+       "per34": 1428,
+       "per50": 476,
+       "longest": 5800,
+       "median": 1700
+      }
+     },
+     {
+      "y": 146,
+      "zone": "hero",
+      "stat": {
+       "n": 11,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2500,
+       "median": 1700
+      }
+     },
+     {
+      "y": 14,
+      "zone": "hero",
+      "stat": {
+       "n": 12,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2300,
+       "median": 1700
+      }
+     },
+     {
+      "y": 594,
+      "zone": "hero",
+      "stat": {
+       "n": 53,
+       "over34": 1,
+       "over50": 0,
+       "per34": 188,
+       "per50": 0,
+       "longest": 3500,
+       "median": 1700
+      }
+     },
+     {
+      "y": 113,
+      "zone": "hero",
+      "stat": {
+       "n": 9,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2400,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 38,
+       "over34": 1,
+       "over50": 0,
+       "per34": 263,
+       "per50": 0,
+       "longest": 4000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 225,
+      "zone": "hero",
+      "stat": {
+       "n": 9,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2500,
+       "median": 1700
+      }
+     }
+    ]
+   }
+  },
+  {
+   "arm": "look",
+   "pass": 1,
+   "viewport": {
+    "w": 430,
+    "h": 775
+   },
+   "frames": 5212,
+   "report": {
+    "total": {
+     "n": 1540,
+     "over34": 21,
+     "over50": 3,
+     "per34": 136,
+     "per50": 19,
+     "longest": 6500,
+     "median": 1700
+    },
+    "zones": {
+     "hero": {
+      "n": 806,
+      "over34": 5,
+      "over50": 0,
+      "per34": 62,
+      "per50": 0,
+      "longest": 4800,
+      "median": 1700
+     },
+     "finish": {
+      "n": 164,
+      "over34": 10,
+      "over50": 2,
+      "per34": 609,
+      "per50": 121,
+      "longest": 5600,
+      "median": 1700
+     },
+     "rest": {
+      "n": 570,
+      "over34": 6,
+      "over50": 1,
+      "per34": 105,
+      "per50": 17,
+      "longest": 6500,
+      "median": 1700
+     }
+    },
+    "taps": 37,
+    "parts": {
+     "hero": {
+      "maxStep": 325,
+      "stalls": 109
+     },
+     "people": {
+      "maxStep": 121,
+      "stalls": 17
+     },
+     "fade": {
+      "maxStep": 1000,
+      "stalls": 0
+     }
+    },
+    "felt": [
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 28,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 3000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 13,
+       "over34": 3,
+       "over50": 1,
+       "per34": 2307,
+       "per50": 769,
+       "longest": 5600,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 0,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 0,
+       "median": 0
+      }
+     },
+     {
+      "y": 160,
+      "zone": "hero",
+      "stat": {
+       "n": 24,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2600,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5300,
+      "zone": "finish",
+      "stat": {
+       "n": 14,
+       "over34": 1,
+       "over50": 0,
+       "per34": 714,
+       "per50": 0,
+       "longest": 4400,
+       "median": 1800
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 19,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 31,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 3000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 23,
+       "over34": 3,
+       "over50": 0,
+       "per34": 1304,
+       "per50": 0,
+       "longest": 4400,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 58,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2500,
+       "median": 1700
+      }
+     }
+    ]
+   }
+  },
+  {
+   "arm": "original",
+   "pass": 2,
+   "viewport": {
+    "w": 430,
+    "h": 775
+   },
+   "frames": 4224,
+   "report": {
+    "total": {
+     "n": 1223,
+     "over34": 240,
+     "over50": 92,
+     "per34": 1962,
+     "per50": 752,
+     "longest": 13300,
+     "median": 2000
+    },
+    "zones": {
+     "hero": {
+      "n": 412,
+      "over34": 121,
+      "over50": 51,
+      "per34": 2936,
+      "per50": 1237,
+      "longest": 13300,
+      "median": 2500
+     },
+     "finish": {
+      "n": 215,
+      "over34": 8,
+      "over50": 3,
+      "per34": 372,
+      "per50": 139,
+      "longest": 6200,
+      "median": 1700
+     },
+     "rest": {
+      "n": 596,
+      "over34": 111,
+      "over50": 38,
+      "per34": 1862,
+      "per50": 637,
+      "longest": 9900,
+      "median": 2100
+     }
+    },
+    "taps": 85,
+    "parts": {
+     "hero": {
+      "maxStep": 775,
+      "stalls": 96
+     },
+     "people": {
+      "maxStep": 214,
+      "stalls": 28
+     },
+     "fade": {
+      "maxStep": 1000,
+      "stalls": 0
+     }
+    },
+    "felt": [
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 3,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 3000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 0,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 0,
+       "median": 0
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 29,
+       "over34": 10,
+       "over50": 7,
+       "per34": 3448,
+       "per50": 2413,
+       "longest": 9000,
+       "median": 3200
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 31,
+       "over34": 3,
+       "over50": 0,
+       "per34": 967,
+       "per50": 0,
+       "longest": 4600,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5277,
+      "zone": "finish",
+      "stat": {
+       "n": 0,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 0,
+       "median": 0
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 26,
+       "over34": 14,
+       "over50": 8,
+       "per34": 5384,
+       "per50": 3076,
+       "longest": 8900,
+       "median": 4700
+      }
+     },
+     {
+      "y": 49,
+      "zone": "hero",
+      "stat": {
+       "n": 24,
+       "over34": 2,
+       "over50": 0,
+       "per34": 833,
+       "per50": 0,
+       "longest": 4100,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 24,
+       "over34": 2,
+       "over50": 1,
+       "per34": 833,
+       "per50": 416,
+       "longest": 6200,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 0,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 0,
+       "median": 0
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 30,
+       "over34": 1,
+       "over50": 1,
+       "per34": 333,
+       "per50": 333,
+       "longest": 5500,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 34,
+       "over34": 4,
+       "over50": 0,
+       "per34": 1176,
+       "per50": 0,
+       "longest": 5000,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 19,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2700,
+       "median": 1700
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 1,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 2500,
+       "median": 2500
+      }
+     },
+     {
+      "y": 5267,
+      "zone": "finish",
+      "stat": {
+       "n": 8,
+       "over34": 1,
+       "over50": 1,
+       "per34": 1250,
+       "per50": 1250,
+       "longest": 5400,
+       "median": 2000
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 26,
+       "over34": 12,
+       "over50": 4,
+       "per34": 4615,
+       "per50": 1538,
+       "longest": 7800,
+       "median": 3200
+      }
+     },
+     {
+      "y": 777,
+      "zone": "hero",
+      "stat": {
+       "n": 0,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 0,
+       "median": 0
+      }
+     },
+     {
+      "y": 1565,
+      "zone": "rest",
+      "stat": {
+       "n": 6,
+       "over34": 4,
+       "over50": 2,
+       "per34": 6666,
+       "per50": 3333,
+       "longest": 9300,
+       "median": 4500
+      }
+     },
+     {
+      "y": 5227,
+      "zone": "finish",
+      "stat": {
+       "n": 9,
+       "over34": 2,
+       "over50": 1,
+       "per34": 2222,
+       "per50": 1111,
+       "longest": 5100,
+       "median": 1700
+      }
+     },
+     {
+      "y": 5263,
+      "zone": "finish",
+      "stat": {
+       "n": 1,
+       "over34": 0,
+       "over50": 0,
+       "per34": 0,
+       "per50": 0,
+       "longest": 1600,
+       "median": 1600
+      }
+     },
+     {
+      "y": 0,
+      "zone": "hero",
+      "stat": {
+       "n": 18,
+       "over34": 4,
+       "over50": 2,
+       "per34": 2222,
+       "per50": 1111,
+       "longest": 5400,
+       "median": 1800
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "compare": [
+  {
+   "zone": "total",
+   "original": [
+    471,
+    752
+   ],
+   "spread": 281,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "per50": [
+      63
+     ],
+     "verdict": "beats"
+    },
+    {
+     "arm": "look",
+     "per50": [
+      19
+     ],
+     "verdict": "beats"
+    }
+   ]
+  },
+  {
+   "zone": "hero",
+   "original": [
+    427,
+    1237
+   ],
+   "spread": 810,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "per50": [
+      17
+     ],
+     "verdict": "same"
+    },
+    {
+     "arm": "look",
+     "per50": [
+      0
+     ],
+     "verdict": "same"
+    }
+   ]
+  },
+  {
+   "zone": "finish",
+   "original": [
+    0,
+    139
+   ],
+   "spread": 139,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "per50": [
+      278
+     ],
+     "verdict": "same"
+    },
+    {
+     "arm": "look",
+     "per50": [
+      121
+     ],
+     "verdict": "same"
+    }
+   ]
+  },
+  {
+   "zone": "rest",
+   "original": [
+    8333,
+    637
+   ],
+   "spread": 7696,
+   "arms": [
+    {
+     "arm": "rewrite",
+     "per50": [
+      57
+     ],
+     "verdict": "same"
+    },
+    {
+     "arm": "look",
+     "per50": [
+      17
+     ],
+     "verdict": "same"
+    }
+   ]
+  }
+ ]
+}

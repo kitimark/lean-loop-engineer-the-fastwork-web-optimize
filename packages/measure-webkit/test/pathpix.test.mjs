@@ -6,6 +6,8 @@ import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
 import { splitUnion } from '../src/pathpix-exit.mjs';
 import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON, zoneAgree, zoneSeen, joinSeen, verdictOf, consensusOf, probeHit, probesHit, zoneOdd, mzoneSeen, mzoneEff, zonedOf, zonedCell, zonedPinned, rowsOk, listedVerdict, drawTimes, drawOf, drawWorst, drawBase, aboveBase, DRAW_MS, DRAW_FRAMES } from '../src/pathpix-exit.mjs';
+import { outsideLane, withAbove, aboveTable, zoneTable } from '../src/pathpix-exit-draw-zones.mjs';
+import { fwcoreBin } from '../src/handoff.mjs';
 import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -236,6 +238,51 @@ test('the outside-band baseline of a draw lane equals the Lean golden; the three
   const f = bs.filter((b) => b.name.startsWith('run ') && b.name.endsWith(' F')).map((b) => JSON.stringify(b.above));
   assert.equal(f.length, 3);
   assert.equal(new Set(f).size, 1);
+});
+
+const RUN = join(here, '../../../results/accent-draw-nolayout-pixels/run-40037992429');
+const artifactJobs = [1, 2, 3].map((n) => ({ label: `d${n}`, n, cells: JSON.parse(readFileSync(join(RUN, `job-${n}`, 'cells.json'), 'utf8')) }));
+const hasFwcore = (() => { try { fwcoreBin(); return true; } catch { return false; } })();
+
+test('each of the six committed lanes of run 40037992429 (outside-band changed counts) equals its Lean drawBase golden row', () => {
+  const bs = of('drawBase');
+  let seen = 0;
+  for (const j of artifactJobs) {
+    for (const n of ['N', 'F']) {
+      const name = `run 40037992429 job-${j.n} ${n}`;
+      const row = bs.find((b) => b.name === name);
+      assert.ok(row, name);
+      const lane = outsideLane(j, n);
+      assert.equal(lane.length, DRAW_FRAMES, name);
+      assert.deepEqual(lane, row.lane, name);
+      assert.equal(drawBase(lane), row.base, name);
+      assert.notEqual(row.base, null, name);
+      assert.deepEqual(aboveBase(lane), row.above, name);
+      seen++;
+    }
+  }
+  assert.equal(seen, 6);
+});
+
+test('fwcore gate.pathpixDrawBase gives the golden base and above of the six committed lanes and null for the golden negatives', { skip: !hasFwcore && 'fwcore binary not built' }, async () => {
+  const jobs = await withAbove(artifactJobs);
+  const bs = of('drawBase');
+  for (const j of jobs) {
+    for (const n of ['N', 'F']) {
+      const row = bs.find((b) => b.name === `run 40037992429 job-${j.n} ${n}`);
+      assert.deepEqual(j.above[n], { base: row.base, above: row.above }, `${j.label} ${n}`);
+    }
+  }
+  const bad = bs.filter((b) => !b.name.startsWith('run '));
+  const rep = await withAbove(bad.map((b) => ({ label: b.name, cells: { frames: b.lane.map((x) => ({ arms: { N: { rest: { changed: x } }, F: { rest: { changed: x } } } })) } })));
+  bad.forEach((b, i) => assert.deepEqual(rep[i].above.N, { base: b.base, above: b.above }, b.name));
+});
+
+test('zones.md carries the above-baseline table that fwcore computed for the committed run', { skip: !hasFwcore && 'fwcore binary not built' }, async () => {
+  const jobs = await withAbove(artifactJobs);
+  assert.equal(readFileSync(join(RUN, 'zones.md'), 'utf8'), `${zoneTable(jobs)}\n`);
+  assert.match(aboveTable(jobs), /\| baseline \| 100 \| 1965 \| 17 \| 35751 \| 101 \| 100 \|/);
+  assert.match(aboveTable(jobs), /\| above baseline, in 0 ms \| 0 \| 0 \| 0 \| 17622 \| 17622 \| 17622 \|/);
 });
 
 test('the draw-window rule equals the Lean golden: frame times, same/floor/above per frame, the worst frame', () => {
