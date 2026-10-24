@@ -19291,7 +19291,10 @@
     "packages/measure-chromium/src/pathpix*.mjs",
     ".github/workflows/path-pix.yml",
     "research/notes/2026/10-2x-hero-copy-floor.md",
-    "docs/team/handoffs/pathpix-consensus-followups.md"
+    "docs/team/handoffs/pathpix-consensus-followups.md",
+    "lean/Fw/Ci/Overflow.lean",
+    "results/accent-draw-nolayout-pixels/**",
+    "packages/measure-webkit/src/pathpix-cli.mjs"
    ],
    "title": "pathpix-consensus-capture review follow-ups (2026-10-24, run 40026419647): (1) lookList and heroCopySummary show the consensus verdict next to the grade and leave varied cells out of the 'L cells with a strip' list, so the user's look review does not count render-server variation as an arm change; (2) a per-zone grade in Lean that drops varied zones in mixed cells (one counted, one varied); (3) the Chromium A3 arm (one entry in packages/measure-chromium/src/pathpix.mjs); (4) a majority reference or a second run to class the hero_copy 192513-20 raster (varied in webkit-1, counted in webkit-2) and the nav-earn 4478-2 A/A change; (5) accent-nolayout-measure item 2 moved here: a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) giving pixel numbers for hero.accent:draw-nolayout and draw-nolayout-full vs faithful for the user's look review. One path-pix run, >= 3 jobs per engine."
   },
@@ -19385,7 +19388,8 @@
     "apps/runner/test/disk-gc.test.ts",
     "docs/team/handoffs/gc-live-agent-cwd.md"
    ],
-   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects."
+   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects.",
+   "evidence": "acdc644"
   },
   {
    "devices": [
@@ -19452,7 +19456,9 @@
     "lean/Fw/Sup/*.lean",
     "packages/contracts/golden/sup/*.jsonl",
     "research/notes/2026/10-2x-land-dry-contention.md",
-    "docs/team/handoffs/land-dry-contention.md"
+    "docs/team/handoffs/land-dry-contention.md",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Plan/WritesClosure.lean"
    ],
    "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands."
   },
