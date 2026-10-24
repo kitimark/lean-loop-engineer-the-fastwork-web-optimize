@@ -12,7 +12,7 @@
   - also `chromium_unchanged`, `variant_monotone`, `variant_between`, `settle_680`, `faithful_webkit_snaps`, `num_slack` (the
     tolerance bound).
 - MEASURED (`results/earn-logical-proof/summary.json`):
-  - 120 full traces pass their own Lean model.
+  - 120 full traces (faithful and flag arms; the 60 orig-arm traces of the unmodified Fastwork snapshot are outside the model and not checked) pass their own Lean model.
   - every variant trace (Chromium, Playwright WebKit, Safari 1280) passes the shared curve.
   - the faithful WebKit and Safari traces fail it by the snap (16 or 24 px).
   - 40 light-mode traces are skipped: they record geometry only.

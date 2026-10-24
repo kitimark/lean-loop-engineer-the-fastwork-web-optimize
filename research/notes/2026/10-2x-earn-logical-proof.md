@@ -7,7 +7,8 @@
   monotonically from its start value to its end value (`variant_monotone`, `variant_between`) and is exactly at the end value from
   680 ms on (`settle_680`). Chromium is unchanged by the variant (`chromium_unchanged`). The faithful rule on WebKit holds the end value
   from the flip on (`faithful_webkit_snaps`), which is the look the variant changes.
-- **MEASURED** (macOS CI runs 40100783726 and 40102193302, no new dispatch): all 120 full traces stay within the Lean tolerance of
+- **MEASURED** (macOS CI runs 40100783726 and 40102193302, no new dispatch): all 120 full traces (faithful and flag arms; the 60 orig-arm traces of the unmodified Fastwork snapshot are outside the
+  model and not checked) stay within the Lean tolerance of
   their own arm's Lean padding. Every variant trace, on Chromium, Playwright WebKit and Safari 1280, stays within the tolerance of the
   shared curve. The faithful WebKit and Safari traces miss the curve by the full 16 or 24 px, which is the negative control.
 - **INFERRED**: the iPhone, from the shared WebKit source. Playwright WebKit on macOS and Safari at 1280 px stand in for Safari.
@@ -56,7 +57,9 @@ the per-engine solver error `E`: 1000 µs for WebKit and 1 µs for Chromium.
   `currentTime = 0` and are left out of `S`.
 - The tolerance per trace is `tolMicro = slack(delta, J + E, dur) + grid gap + 50 µpx` (computed style is read to 6 significant
   digits). It comes from the recorded jitter and the Lean bounds, not from tuning. The golden `tol` rows pin the formula, and the
-  site test and the reducer test replay them.
+  site test and the reducer test replay them. Proved in Lean: `num_slack` and `yBar_step`. INFERRED (argued, not
+  proved): the engines' real curve lies within one grid step of the Lean grid value, because x and y are monotone on [0,1],
+  and the three terms add up to a bound on |measured - model|.
 - The light mode (40 traces) records geometry only, with no computed-style read and no hero-flip flag, so it has nothing to check.
   The reducer lists these traces as skipped.
 
