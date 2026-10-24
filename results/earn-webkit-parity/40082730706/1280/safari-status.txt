@@ -1,0 +1,1 @@
+ok: safaridriver, 1280 px (run 1: the runner had macOS reduced motion on, the page switched its motion off; summary dropped, see 40083514606)
