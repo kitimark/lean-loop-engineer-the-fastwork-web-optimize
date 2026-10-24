@@ -100,3 +100,23 @@ the lead's dispatches if wanted.
   check that it holds (dispatch).
 - Counts are engine work, not felt smoothness; the phone is the user's step.
 - The flag covers the root container. A portal into another container registers the types again.
+
+## WebKit Simulator before/after (MEASURED)
+
+Answer: the flag halves EventDispatch and cuts FunctionCall by a third on the iPhone Simulator scroll walk.
+Lane: `webkit-sim.yml`, target rewrite, 430x775 at dpr 3, one macOS VM (job r1) with 2 passes per run, 50 px steps
+(106 steps). Base run 40134016822, flag run 40134234199 (`engine.events:quiet`), both on `ci/react-root-quiet-events-gate`
+at 2898fb298. The runs gave 1 VM, not 3; the spread below is across the 2 passes. Summary: `results/react-root-quiet-events/sim-summary.json`.
+
+| count (walk total) | base pass 1 | base pass 2 | flag pass 1 | flag pass 2 | change |
+|---|---|---|---|---|---|
+| EventDispatch | 1132 | 1099 | 529 | 527 | -53% |
+| FunctionCall | 1646 | 1623 | 1045 | 1042 | -36% |
+
+Per 500 px zone (11 zones, pass 1 / pass 2): every zone is lower with the flag; the largest base zone 0 goes
+160/175 to 69/47 EventDispatch, zone 7 132/136 to 56/44, zone 10 40/48 to 18/18. The flag's two passes differ by at most 2
+in the total, the base's by 33, so the drop (about 570 to 600 dispatches) is far beyond the pass spread.
+The FunctionCall drop (about 600) equals the EventDispatch drop: each removed dispatch took its one listener call with it,
+as `parentPairs` "EventDispatch>FunctionCall" predicts. The remaining EventDispatch (about 528) is the page's own
+input and animation-frame listeners. Per-zone cells are quarantined by the Simulator determinism classes; the totals are
+"stable". Gate with the flag on both engines: run 40128098292 passed.
