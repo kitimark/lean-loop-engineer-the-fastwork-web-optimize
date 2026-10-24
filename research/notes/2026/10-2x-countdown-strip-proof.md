@@ -15,7 +15,7 @@ Task `countdown-strip-proof`, candidate 4 of `research/notes/2026/10-2x-end-gpu-
   `layers_conservative`, `layers_paused`: 0 in both variants.
 - **Simulator census, MEASURED** (webkit-sim 40081936555 at bbd203c with both flags, against 39897814980 at 540130e9
   with none; the countdown code did not change between the two shas): every zone has 80 `hero-module_face` layers
-  before and 8 `hero-module_strip` layers after, nothing else moves in the finish zone.
+  before and 8 `hero-module_strip` layers after; no other layer is added or removed in the finish zone.
 - **Gate: no verdict.** Run 40081933958 stopped in the smoke step: `?fw=hero.countdown:strip,morph.countdown:strip`
   is not prerendered; the prerendered key is `?fw=morph.countdown:strip,hero.countdown:strip`. Both dispatches of
   the budget are spent.
