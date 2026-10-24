@@ -327,14 +327,14 @@ def layersRow (n : Nat) (pol : WebKit.Policy) (active : Bool) : Json :=
     ("faithful", Json.mkObj [("census", Json.num ⟨(l .faithful).census, 0⟩), ("platform", Json.num ⟨(l .faithful).platform, 0⟩)]),
     ("strip", Json.mkObj [("census", Json.num ⟨(l .strip).census, 0⟩), ("platform", Json.num ⟨(l .strip).platform, 0⟩)])]
 
-def goldenLines : List String :=
+def goldenLines (_ : Unit) : List String :=
   (springs.flatMap fun a => cells.map fun c => (offsetRow a c).compress) ++
   scenarios.map (fun sc => (driveRow sc).compress) ++
   ([(8, .normal, true), (7, .normal, true), (8, .normal, false), (8, .conservative, true)] : List (Nat × WebKit.Policy × Bool)).map
     fun r => (layersRow r.1 r.2.1 r.2.2).compress
 
-def jsonl : String := String.join (goldenLines.map (· ++ "\n"))
+def jsonl (_ : Unit) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 
-#guard jsonl == include_str "../../../packages/contracts/golden/parts/morph.countdown.strip.jsonl"
+#guard jsonl () == include_str "../../../packages/contracts/golden/parts/morph.countdown.strip.jsonl"
 
 end Fw.Parts.MorphCountdownStrip
