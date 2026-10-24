@@ -3,7 +3,7 @@
 {"capMin":17,"file":"sim-speed.yml","job":"probe","kind":"cap","lane":"sim-speed","n":20,"p90dm":124,"source":"research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":false}
 {"capMin":8,"file":"engine-premises.yml","job":"webkit","kind":"cap","lane":"engine-premises","n":15,"p90dm":56,"source":"research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":false}
 {"capMin":26,"file":"gate-gaps.yml","job":"collect-macos","kind":"cap","lane":"gate-gaps","n":3,"p90dm":198,"source":"research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
-{"capMin":15,"file":"trajectory-probe.yml","job":"probe-apple","kind":"cap","lane":"trajectory-probe","n":4,"p90dm":112,"source":"runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
+{"capMin":18,"file":"trajectory-probe.yml","job":"probe-apple","kind":"cap","lane":"trajectory-probe","n":6,"p90dm":132,"source":"runs 40122382227, 40125557073 and 40127042262 (task probe-apple-cap): the six probe-apple width legs of the settle-retry era, successes only, linear p90 rounded up to 0.1 min","status":"MEASURED","thin":true}
 {"capMin":15,"file":"smoothness.yml","job":"webkit-mac","kind":"cap","lane":"smoothness-webkit-mac","n":3,"p90dm":111,"source":"runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)","status":"MEASURED","thin":true}
 {"capMin":45,"file":"smoothness.yml","job":"webkit-sim","kind":"cap","lane":"smoothness-webkit-sim","n":3,"p90dm":342,"source":"runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)","status":"MEASURED","thin":true}
 {"file":"path-pix.yml","kind":"excluded","task":"path-pix-lanes"}
@@ -19,6 +19,7 @@
 {"capMin":15,"kind":"vector","p90dm":112}
 {"capMin":16,"kind":"vector","p90dm":119}
 {"capMin":17,"kind":"vector","p90dm":124}
+{"capMin":18,"kind":"vector","p90dm":132}
 {"capMin":21,"kind":"vector","p90dm":161}
 {"capMin":26,"kind":"vector","p90dm":198}
 {"capMin":38,"kind":"vector","p90dm":289}

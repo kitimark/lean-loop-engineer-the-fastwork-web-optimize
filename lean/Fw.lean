@@ -86,6 +86,8 @@ import Fw.Parts.MorphPanelThreadedRun
 import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
+import Fw.Parts.ComboScroll
+import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
 import Fw.Parts.PlatformSweepPause
@@ -204,6 +206,7 @@ import Fw.Ci.Cancel
 import Fw.Ci.Provider
 import Fw.Ci.Overflow
 import Fw.Ci.Telemetry
+import Fw.Ci.State
 import Fw.Obs.MacTelemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Gate.Exit

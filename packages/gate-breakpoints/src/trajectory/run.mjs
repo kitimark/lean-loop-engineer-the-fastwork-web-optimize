@@ -9,7 +9,7 @@ import { HERO_NODES, HERO_STEPS, MORPH_NODES, PAGE_PROPS, envFor, resolveNodes }
 import { debugFor, fieldOf, readDebug, withDebug } from './debug.mjs';
 import { installKit } from './kit.mjs';
 import { runCheck } from './reduce.mjs';
-import { settleReps } from './plan.mjs';
+import { pooledReps, retriesRole, settleReps } from './plan.mjs';
 
 const INIT = `${PIN_SRC}\n(${installKit.toString()})();`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -79,6 +79,7 @@ export async function morphPath(engine, env, origin, site, search = '', reads = 
       return pushReading((await walk(reps + i)).phases);
     });
     out.extra = extra;
+    out.reps = pooledReps(reps, extra);
   }
   // The recorder's rows of every rep (null rows: the page did not install it), next to the readings; the reducer never reads them.
   if (debug !== '') out.debugReps = debugReps;
@@ -149,7 +150,7 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         if (paths.includes('morph')) {
           log(`trajectory ${engineName} ${width} ${a.role}: morph`);
           const peer = (role) => runs.find((r) => r.width === width && r.role === role)?.morph;
-          const against = a.role === 'cand' && peer('base') ? { base: pushReading(peer('base').phases) } : null;
+          const against = retriesRole(a.role, peer('base') != null) ? { base: pushReading(peer('base').phases) } : null;
           run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : '', against);
         }
         runs.push(run);

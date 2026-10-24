@@ -9580,7 +9580,8 @@
     "apps/site/src/debug/root-events.test.ts",
     "packages/gate-breakpoints/src/trajectory/debug.mjs",
     "packages/gate-breakpoints/test/debug.test.mjs",
-    ".github/scripts/trajectory-line.mjs"
+    ".github/scripts/trajectory-line.mjs",
+    "research/findings/ledger.json"
    ]
   },
   {
@@ -20169,9 +20170,12 @@
    "writes": [
     "research/notes/2026/10-2x-morph-end-measure.md",
     "results/morph-end-measure/**",
-    "docs/team/handoffs/morph-end-measure.md"
+    "docs/team/handoffs/morph-end-measure.md",
+    ".github/workflows/toolbar-throttle.yml",
+    "apps/runner/test/land-overflow-widths.test.ts"
    ],
-   "title": "Measure the morph end bricks on CI: Simulator real-touch finish mode (sim-finish-throttle) and touch-push lanes per composition (faithful, each brick alone, all three, all three + engine.scroll:unthrottle): reversals, spring-back fights, re-opens, finish still runs, Lean verdicts per arm; then the lead posts the user's phone review step with the composer links."
+   "title": "Measure the morph end bricks on CI: Simulator real-touch finish mode (sim-finish-throttle) and touch-push lanes per composition (faithful, each brick alone, all three, all three + engine.scroll:unthrottle): reversals, spring-back fights, re-opens, finish still runs, Lean verdicts per arm; then the lead posts the user's phone review step with the composer links.",
+   "evidence": "6c2b357"
   },
   {
    "devices": [
@@ -20864,7 +20868,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User bug 2026-10-25 (reproduced by the user on iPhone Safari, Mac Safari and Chromium): with ?fw=nav:earn-logical,hero.countdown:strip,morph.countdown:strip,morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,morph.mount:arm-late,engine.scroll:unthrottle the scroll position fights the finger: single-frame jumps (+70 then -132 px, +100 then -147 px) and up to 27 direction reversals with no finger down in the 1.5 s before a felt mark; 13 marks in one 90 s phone pass, mostly at 65-85% of maxY (morph zone, y 3400-4500) and three at y ~1859 with the toolbar height changing. Hypothesis (INFERRED): morph.end.clamp writes the pin restore position per frame while morph.mount:arm-late keeps listeners passive outside the band and engine.scroll:unthrottle changes when scroll is read, so a script write fights native scroll. Each morph.end brick was proved and gated alone and as morph-end-all, never with arm-late or unthrottle. Do: replay the recorded finger path (profile from the phone record, device-replay tooling) on CI Chromium (and Playwright WebKit if the lane allows), reproduce the reversals, bisect by dropping one flag at a time on the same replay, find the cause CONFIRMED from the code and the replay, fix it with the flags' composition modeled and proved in Lean (no script scroll write against an active native scroll; the bricks' theorems still hold with arm-late and unthrottle on), golden replayed by a site test, and show the same replay with zero no-finger reversals and no single-frame jumps over a stated bound."
+   "title": "User bug 2026-10-25 (reproduced by the user on iPhone Safari, Mac Safari and Chromium): with ?fw=nav:earn-logical,hero.countdown:strip,morph.countdown:strip,morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,morph.mount:arm-late,engine.scroll:unthrottle the scroll position fights the finger: single-frame jumps (+70 then -132 px, +100 then -147 px) and up to 27 direction reversals with no finger down in the 1.5 s before a felt mark; 13 marks in one 90 s phone pass, mostly at 65-85% of maxY (morph zone, y 3400-4500) and three at y ~1859 with the toolbar height changing. Hypothesis (INFERRED): morph.end.clamp writes the pin restore position per frame while morph.mount:arm-late keeps listeners passive outside the band and engine.scroll:unthrottle changes when scroll is read, so a script write fights native scroll. Each morph.end brick was proved and gated alone and as morph-end-all, never with arm-late or unthrottle. Do: replay the recorded finger path (profile from the phone record, device-replay tooling) on CI Chromium (and Playwright WebKit if the lane allows), reproduce the reversals, bisect by dropping one flag at a time on the same replay, find the cause CONFIRMED from the code and the replay, fix it with the flags' composition modeled and proved in Lean (no script scroll write against an active native scroll; the bricks' theorems still hold with arm-late and unthrottle on), golden replayed by a site test, and show the same replay with zero no-finger reversals and no single-frame jumps over a stated bound.",
+   "evidence": "9f59cf8"
   },
   {
    "devices": [
@@ -20889,7 +20894,8 @@
     "research/notes/2026/10-2x-probe-apple-cap.md",
     "docs/team/handoffs/probe-apple-cap.md"
    ],
-   "title": "The Mac trajectory-probe leg can overrun its 15 min timeout since webkit-morph-walk-noise added the per-width settle retry (extraCap 8, about 19 s per extra pass): two capped widths in one leg come to about 16.5 min, and a timeout loses the whole leg (MEASURED walls 11.35 min with 0 extra, 12.3 with 1, 13.9 with 8 at 641; runs 40125557073, 40127042262). The cap in Fw/Ci/Pool/Caps.lean (probeSource) comes from the pre-retry p90 of 11.2 min, n=4. Do, Lean first: either re-derive the probe-apple cap from retry-era legs (state the sample and its p90 plus the worst-case retry bound) or bound the extra passes per leg (a per-leg budget in settle/settleWalk with theorems: total extra per leg <= budget; the leg's worst-case wall stays under the cap given the measured pass time), pick one with the reason, regenerate the goldens, update trajectory-probe.yml timeout and scripts/ci-paths.test.mjs pool caps to the Lean value, and show one Mac probe run (engine.scroll:batched, no debug recorder) with every leg inside its cap. Also move the retry-role choice (only cand retries, only with a base peer at that width) from run.mjs into Lean with a golden line, and make out.reps report the candidate's pooled passes."
+   "title": "The Mac trajectory-probe leg can overrun its 15 min timeout since webkit-morph-walk-noise added the per-width settle retry (extraCap 8, about 19 s per extra pass): two capped widths in one leg come to about 16.5 min, and a timeout loses the whole leg (MEASURED walls 11.35 min with 0 extra, 12.3 with 1, 13.9 with 8 at 641; runs 40125557073, 40127042262). The cap in Fw/Ci/Pool/Caps.lean (probeSource) comes from the pre-retry p90 of 11.2 min, n=4. Do, Lean first: either re-derive the probe-apple cap from retry-era legs (state the sample and its p90 plus the worst-case retry bound) or bound the extra passes per leg (a per-leg budget in settle/settleWalk with theorems: total extra per leg <= budget; the leg's worst-case wall stays under the cap given the measured pass time), pick one with the reason, regenerate the goldens, update trajectory-probe.yml timeout and scripts/ci-paths.test.mjs pool caps to the Lean value, and show one Mac probe run (engine.scroll:batched, no debug recorder) with every leg inside its cap. Also move the retry-role choice (only cand retries, only with a base peer at that width) from run.mjs into Lean with a golden line, and make out.reps report the candidate's pooled passes.",
+   "evidence": "0320b2d"
   },
   {
    "devices": [
@@ -20912,7 +20918,231 @@
     "research/notes/2026/10-2x-ci-state-burst.md",
     "docs/team/handoffs/ci-state-burst.md"
    ],
-   "title": "fw ci state prints 'unknown' for valid older runs, so build-review gates mark them failed (seen for runs 40100783726 on ci/earn-webkit-smooth and 40125463870): stateStep (apps/runner/src/ci.ts:77) returns 'absent' when the page is full and holds a smaller id, but one push starts about 20 workflow runs whose ids are not in the order gh run list returns them, so a page boundary inside a burst hides the run (CONFIRMED: at --limit 100 the page min is 40100783603 < 40100783726; at --limit 400 the run is entry 106). Do, Lean first: model the lookup step in lean/Fw/Ci/State.lean (found, ended, older, grow, exhausted; absent only when a full page's ids are all newer than the target by more than a stated burst margin, or never), with theorems (a run present within the largest limit is found; the step terminates; absent never fires inside a burst), a golden replayed by ci-state.test.ts (this run's real id pattern as a case), and ci.ts made a twin of it. Show fw ci state 40100783726 --branch ci/earn-webkit-smooth prints complete."
+   "title": "fw ci state prints 'unknown' for valid older runs, so build-review gates mark them failed (seen for runs 40100783726 on ci/earn-webkit-smooth and 40125463870): stateStep (apps/runner/src/ci.ts:77) returns 'absent' when the page is full and holds a smaller id, but one push starts about 20 workflow runs whose ids are not in the order gh run list returns them, so a page boundary inside a burst hides the run (CONFIRMED: at --limit 100 the page min is 40100783603 < 40100783726; at --limit 400 the run is entry 106). Do, Lean first: model the lookup step in lean/Fw/Ci/State.lean (found, ended, older, grow, exhausted; absent only when a full page's ids are all newer than the target by more than a stated burst margin, or never), with theorems (a run present within the largest limit is found; the step terminates; absent never fires inside a burst), a golden replayed by ci-state.test.ts (this run's real id pattern as a case), and ci.ts made a twin of it. Show fw ci state 40100783726 --branch ci/earn-webkit-smooth prints complete.",
+   "evidence": "5ed10d0"
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "sim-lift-stall",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/sim-touch.test.mjs",
+    "lean/Fw/Device/SimTouch.lean",
+    "lean/scripts/SimTouchGolden.lean",
+    "packages/contracts/golden/device/sim-touch.jsonl",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-sim-lift-stall.md",
+    "docs/team/handoffs/sim-lift-stall.md"
+   ],
+   "title": "Finish-mode Simulator passes on the lift arm stall at start-up: 6 of 30 finish touch runs in run 40121254572 had 0 marks at 304 s (5 lift, 1 original), so 3 of 6 lift passes were lost while hero drags complete 18 of 18 (run 40128742749). Split from sim-touch-timeout after review round 1. Do: separate the start-up stall from the xcodebuild launch with a 'launched' mark written in setUp() before safari.activate(); check whether the lift page keeps XCUITest's idle wait open (animations or timers that never quiesce: cite Apple XCTest docs on app idle and the lift arm's page source); find the cause CONFIRMED; fix it (Lean-first if the machine changes: SimTouch.lean, golden); show a [throttle:finish] run where all 3 jobs complete every arm, lift included (run id)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-look-refused",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-accent-look-refused.md",
+    "docs/team/handoffs/accent-look-refused.md",
+    "results/accent-look-refused/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review).",
+   "evidence": "ab11620"
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "scene-pause-kcopy",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/HeroScenePause*.lean",
+    "lean/scripts/HeroScenePause*.lean",
+    "packages/contracts/golden/parts/hero-scene-pause.jsonl",
+    "apps/site/src/parts/hero/**",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-scene-pause-kcopy.md",
+    "docs/team/handoffs/scene-pause-kcopy.md",
+    "results/scene-pause-kcopy/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "one-chain-webkit",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownOneChain*.lean",
+    "lean/scripts/CountdownOneChainGolden.lean",
+    "packages/contracts/golden/parts/hero.countdown.onechain.jsonl",
+    "apps/site/src/parts/hero.countdown/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-one-chain-webkit.md",
+    "docs/team/handoffs/one-chain-webkit.md",
+    "results/one-chain-webkit/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of hero.countdown:one-chain (ledger hero.countdown.oneChain, partly-proved, WebKit unknown): find the cause of the +1 forced style recalc and +10 elements in Chromium swipe-touch-v1 frame 499 (OPEN) from the counts trace and the part source, CONFIRMED, with a Lean why (or a fix in the variant with its theorem kept); measure WebKit counts base vs flag on the CI WebKit Simulator lane, 3 runs (run ids); breakpoint gate both engines with the flag (lead dispatches); verdict win, trade or no-win per engine."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "commission-band-mech",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/CommissionOpt*.lean",
+    "packages/contracts/golden/parts/commission-gate.jsonl",
+    "packages/contracts/golden/parts/commission.jsonl",
+    "apps/site/src/parts/commission/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-commission-band-mech.md",
+    "docs/team/handoffs/commission-band-mech.md",
+    "results/commission-band-mech/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "morph-end-remeasure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-end-measure",
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    ".github/workflows/toolbar-throttle.yml",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    "lean/Fw/Measure/MorphEndCount*.lean",
+    "lean/scripts/MorphEndCount*.lean",
+    "packages/contracts/golden/device/morph-end-count.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-morph-end-remeasure.md",
+    "results/morph-end-remeasure/**",
+    "docs/team/handoffs/morph-end-remeasure.md"
+   ],
+   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "combo-held-identity",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "combo-scroll-fight"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/registry/combo-scroll.test.ts",
+    "lean/Fw/Parts/ComboScroll.lean",
+    "lean/Fw/Parts/MorphEndComboGolden.lean",
+    "lean/scripts/ComboScrollGolden.lean",
+    "packages/contracts/golden/parts/combo-scroll.jsonl",
+    "packages/measure-webkit/src/replay/combo-*.mjs",
+    "packages/measure-webkit/test/replay-combo.test.mjs",
+    ".github/workflows/device-replay.yml",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-combo-held-identity.md",
+    "docs/team/handoffs/combo-held-identity.md"
+   ],
+   "title": "Follow-up of combo-scroll-fight (the user's scroll-back bug): the hold bit in morph.tween/driver.ts:121-138 reads e.cancelable, but a passive listener (the band hub's passive mode, morph.mount:arm-late outside the band) keeps cancelable true while preventDefault is ignored, so the frame writer could still pin against a native scroll there. Do: base held on e.defaultPrevented after the handler's call (identity over inference), model it in Lean Fw.Parts.ComboScroll (held iff the move was actually prevented; the fix theorem and brick theorems kept, including with arm-late passive), regenerate the golden from Lean and replay it in combo-scroll.test.ts; apply the same hold rule to the waapi and waapi-scoped pin writers (waapi.driver.ts:234-235) or prove they cannot run with release; re-run the device-replay combo job (its needs/max-parallel shape has never run) on the user-bug-1025 profiles with the user's 8 flags plus an arm-late-passive case: zero script writes against a native scroll, zero no-finger reversals (run ids)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-span-mods",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "scripts/span.sh",
+    "scripts/lake-slot-lib.sh",
+    "scripts/fwcore-build.sh",
+    "lean/scripts/check.sh",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/timing-slow.test.ts",
+    "apps/runner/test/timing-alert.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "research/notes/2026/10-2x-lake-span-mods.md",
+    "docs/team/handoffs/lake-span-mods.md"
+   ],
+   "title": "timing.slow raises false alarms on real Lean rebuilds: 'lean/check/lake build' took 51 s against a p50 of 0.78 s and the dry land's 'lake_slot .. lake build && axiom-check' 37 s against 3.2 s, both right after a branch merged main (new Lean modules), because these two spans carry no mods work dimension, so a rebuild is judged against cached no-op samples. Lean Fw.Obs.Timing already has modsDim/modsWork (modsLow buckets) and Sample.unkeyed, and apps/runner/src/timing.ts lakeWork reads lake.built, but the emitters never record the built count. Do: make fwcore-build.sh / the check.sh lake span and the land dry lake step record lake.built (the number of modules lake built, from its output), so their samples are keyed by mods; prove in Lean that a sample with a different mods class is never judged against another class's baseline, and that the two recorded incident samples (51053 ms at mods >= 1 vs 780 ms at mods 0) are not slow; golden replayed by the timing tests."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-vms",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Store/Layout.lean",
+    "lean/Fw/Store/Golden.lean",
+    "lean/Fw/Wire/Store.lean",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.test.ts",
+    "docs/team/tools/fw-run.md",
+    "research/notes/2026/10-2x-fw-run-vms.md",
+    "docs/team/handoffs/fw-run-vms.md"
+   ],
+   "title": "fw run --runs N never reaches the WebKit Simulator lane: Fw.Store.Layout.dispatchInputs .webkit (lean/Fw/Store/Layout.lean:472) sends only target, preset and fw, so webkit-sim.yml falls back to VMS=1 (webkit-sim.yml:198) and every lead WebKit count dispatch today ran 1 VM instead of 3 (react-root runs 40134016822/40134234199, one-chain 40139526492/40139511311). Do, Lean first: send ('vms', toString q.runs) for webkit (and check every webkitSim input name against Layout's input list :428), a theorem that the webkit dispatch carries the request's run count (like dispatch_target), regenerate the store goldens from Lean and replay them in the runner test; check the cache key still separates 1-VM and 3-VM runs; one dry fw run --target rewrite --engines webkit --runs 3 shows vms=3 in its inputs line."
   }
  ],
  "deadline": {

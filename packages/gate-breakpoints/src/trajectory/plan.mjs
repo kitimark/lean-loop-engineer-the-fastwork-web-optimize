@@ -56,6 +56,10 @@ export const gapCount = (b, c) => gapsIn(b.opening, c.opening).length + gapsIn(b
 
 export const moreReps = (extra, b, c) => extra < EXTRA_CAP && gapCount(b, c) !== 0;
 
+export const retriesRole = (role, hasBase) => role === 'cand' && hasBase;
+
+export const pooledReps = (reps, extra) => reps + extra;
+
 export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closing: a.closing.concat(b.closing) });
 
 export async function settleReps(b, c0, walk) {

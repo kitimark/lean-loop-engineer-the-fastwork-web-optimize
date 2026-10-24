@@ -538,7 +538,7 @@ jobs:
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 18
     name: probe apple (playwright-webkit, macos-26) ${{ matrix.leg }}
     strategy:
       max-parallel: 2

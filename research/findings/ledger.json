@@ -3263,7 +3263,7 @@
    ],
    "v1Evidence": "",
    "lesson": "A per-frame layout can be cut property by property, but only the property that dirties layout moves: here the original also transitions the box width during the draw-in, so half of the layout phases remain, and the phase cut shows in the quiet windows between the carousel swaps, not in the swap windows, which pay their own layout.",
-   "next": "User look review of the wipe. If accepted, the next layout cost is the width transition of the draw-in (it moves the headline text), which is the original behaviour and a separate, look-changing candidate.",
+   "next": "The user's own look decision on this flag: it was not shown on its own (the 2026-10-24 userDecision is carried over from draw-nolayout-full). Verdict: a look change of the accent text, with the same wipe the user refused on draw-nolayout-full on 2026-10-25; the headline glide is the faithful one (research/notes/2026/10-2x-accent-look-refused.md). Its part.json entry is still kind optimized without visClass L; with status look-change and no link it stays out of v2-proved.",
    "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/",
    "userDecision": {
     "date": "2026-10-24",
@@ -3276,14 +3276,14 @@
    "n": 56,
    "part": "hero.accent",
    "candidate": "hero.accent:draw-nolayout-full: draw-nolayout plus no width transition on the host (transition: none on .drawingIn), so the word box takes its new width in one frame at the start of the draw-in and every other draw frame changes only clip-path",
-   "status": "look-change",
+   "status": "refuted",
    "flag": "hero.accent:draw-nolayout-full",
    "flags": [
     "hero.accent:draw-nolayout-full"
    ],
    "chromium": "win by construction, not run: the faithful draw-in lays out in Chromium in every frame through the width transition (width_layout, crLayoutFrames_values: n+1 of n+1 draw-in frames); the full arm lays out once (crLayoutFrames_values, full_inRest_nolayout). No Chromium run.",
    "webkit": "win (MEASURED, webkit-sim swap lane, 430x775, run 40010826238, jobs r1 r2, 2 passes each; r3 did not finish and the run was cancelled, so the merged report jobs were skipped and the report was built from the r1 and r2 artifacts with swap-report): rest windows (800 ms between swaps) with at least 24 Layout rows: 0 of 56 for the arm against 18 of 28 (faithful-a) and 19 of 28 (faithful-b); Layout rows per capture over the 7 rest windows 19.4 against 225.0 and 232.8; median per window 2 against 45 and 45. Swap windows (220 ms): median 13 for the arm and 14 for both faithful slots; per capture 96.5 against 107.8 and 109.8, no per-window verdict resolved (unresolved:overlap for every window). Against the draw-nolayout arm (run 39999057900, other session): rest 17 of 56, 122.3 rows per capture. Hero exit: not measured (the lane records no Layout count per scroll frame).",
-   "visual": "not equal (class look-change): the wipe of draw-nolayout, plus the headline text after the word jumps to the new width at the start of the draw-in instead of gliding over 0.9 s. Endpoints equal (Lean clip_endpoints; the width after 0.9 s is the same). Pixel numbers not measured. For the user look review.",
+   "visual": "REFUSED by the user in chat on 2026-10-25: it changes how the accent text renders. Not equal (class look-change): the wipe of draw-nolayout, plus the headline text after the word jumps to the new width at the start of the draw-in instead of gliding over 0.9 s. Endpoints equal (Lean clip_endpoints; the width after 0.9 s is the same); the frames inside the draw differ (clip_coverage_differs for the wipe, jump_differs for the text). Pixel numbers not measured (no path-pix draw-window artifact exists).",
    "mechanism": "PROVED (Fw.Engine.StyleDiffAccent, same engine lines as accent.draw-nolayout): a cycle is n draw-out frames and n draw-in frames; the width set is one style change in the first draw-in frame (full_inFirst_layout_only_width: among the modelled draw candidates, layout in both engines only through width; the word swap in the same frame lays out in every arm and is not modelled); every other frame of the full arm changes only clip-path and needs no layout in WebKit or Chromium (full_out_nolayout, full_inRest_nolayout). Layout frames per cycle of n+1 frames per phase in WebKit: 2(n+1) faithful, n+1 draw-nolayout, 1 full (wkLayoutFrames_values, for every n); Chromium n+1, n+1, 1 (crLayoutFrames_values); at 54 frames per phase 108, 54, 1 (wkLayoutFrames_54). MEASURED: the busy rest windows vanish. The width cannot be replaced by a transform without a layout per frame: the text after the word is in normal flow, so any smooth glide of the text is itself a layout per frame; the only same-look replacement does not exist, the full arm gives the glide up.",
    "leanFor": [
     "Fw.Engine.StyleDiffAccent.full_inRest_nolayout",
@@ -3306,12 +3306,12 @@
    ],
    "v1Evidence": "",
    "lesson": "A per-frame layout cannot be moved off the layout path when the thing that changes is in flow: the headline text follows the word box, so a smooth text glide costs a layout per frame in both engines. What can be given up is the glide itself: one layout at the start of the draw-in replaces 54, and the quiet windows between swaps lose the accent layout entirely.",
-   "next": "User look review of the text jump. If rejected, draw-nolayout (glide kept, half the layout phases) stays the safer arm. Layout per hero-exit frame and pixel numbers: accent-nolayout-measure.",
+   "next": "none for this flag: refused, so it stays out of v2-proved (ledger status refuted, Gen.lookDecisions rejected). draw-nolayout uses the same wipe and is a look change too (research/notes/2026/10-2x-accent-look-refused.md); a layout-free same-look draw is the open search of accent-same-look (sprite, canvas, glide pending).",
    "evidence": "webkit-sim run 40010826238 (push 3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]; r3 cancelled); research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/full-swap-report.md",
    "userDecision": {
-    "date": "2026-10-24",
-    "decision": "rejected 2026-10-24: the draw looks different from the original",
-    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full"
+    "date": "2026-10-25",
+    "decision": "rejected 2026-10-25: the user refused hero.accent:draw-nolayout-full in chat because it changes how the accent text renders (source: chat); the user first rejected it on the real iPhone on 2026-10-24",
+    "review": "runs 40030735082, 40035116432 (webkit-sim, task accent-nolayout-measure) artifacts webkit-sim-r1, webkit-sim-r2, webkit-sim-r3 (expire 2026-11-22), reports results/accent-draw-nolayout/accent-report-40030735082.md and accent-report-40035116432.md; no Chromium run; real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full"
    }
   },
   {
@@ -4265,6 +4265,12 @@
    "task": "hittest-elements-proof",
    "field": "chromium",
    "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
+  },
+  {
+   "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "task": "combo-scroll-fight",
+   "field": "mechanism",
+   "text": "combo-scroll-fight: CONFIRMED a bug of release alone, not of its composition with arm-late or unthrottle. A close start is not prevented, so the page scrolls natively and every later touchmove of that touch is not cancelable; a reopen in such a move pins the page at the scroll position it reads and the frame writer then writes that pin against the finger and the fling. MEASURED on CI Chromium (run 40130709244, build before the fix): release alone fought in 13 of 16 replays, clamp alone, flip alone and the user's flags minus release in 0 of 15, the user's flags minus arm-late or minus unthrottle in 12 of 15. PROVED in Lean (Fw.Parts.ComboScroll: native_quiet, wrap_all_hold, wstep_off, wtrace_decisions): a hold bit (last move prevented and cancelable) gates the one frame writer; every brick theorem holds with it. After the fix the same replays: 0 script writes, 0 no-finger reversals, 0 script jumps of 20 px or more in 15-16 of 15-16 replays per release arm. Note research/notes/2026/10-2x-combo-scroll-fight.md. Look: look change added to release: a reopen in a move the page cannot cancel opens the morph and leaves the page to the finger; the pin returns at the next prevented, cancelable move, so an open morph can sit over a page that scrolled away from the end until the next touch. The user's phone review decides. Next: phone re-check by the user. Follow-ups: the waapi drivers pin without the bit; the toolbar-resize fight at y about 1859 (held pin written while the viewport height changes, INFERRED, not reproducible without a toolbar); the faithful page keeps the original's pin against a fling at the page end (default arm, recorded path)."
   }
  ]
 }
