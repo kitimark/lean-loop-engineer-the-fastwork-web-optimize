@@ -1,7 +1,7 @@
 branch: worktree-wf_ff267e33-928-1 (CI branch ci/sim-touch-timeout, pushes used 1 of 3)
 worktree: .claude/worktrees/wf_ff267e33-928-1
 last commit: 81cf50fce (pushed to ci/sim-touch-timeout)
-CI runs: 40121254572 toolbar-throttle (finish mode, sim 1-3) running; 40121254514 lean running
+CI runs: 40121254572 toolbar-throttle (finish mode, sim 1-3) running at 21 min; 40121254514 lean SUCCESS (golden check in CI green)
 verified: Lean SimTouch builds and its golden check is wired (check.sh job, Trigger rows, triggers.jsonl); node tests sim-touch + throttle-* pass (60); ci-paths test 56 pass; one local debug run (drags, 1 cycle, original arm): marks started/press-n appear, pass done, no restart (cap 20 s not reached)
 open: restart path not walked live (needs a failing touch run; CI shows it if a pass stalls); CI finish evidence; hero-drag run (push 2); before/after table; note research/notes/2026/10-2x-sim-touch-timeout.md; full package test, lean check, land-inputs test, dry land, review ready, plan lint
 read first: lean/Fw/Device/SimTouch.lean (machine + proofs), packages/measure-webkit/src/throttle/driver.mjs (twin, dragPass, probeLoop), cli.mjs (runArm, restart, warmUp)
