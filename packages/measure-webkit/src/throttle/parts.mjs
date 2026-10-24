@@ -9,7 +9,7 @@
 // band [K, K+1] with K = throttleK of the pass's median frame gap) are decisions Lean does not state yet.
 import { readFileSync } from 'node:fs';
 import { countC, exitFramesC, throttleK, verdict, MIN_BASE, BAND_LO, BAND_HI } from './stillruns.mjs';
-import { classes, maxStep } from '../device-session.mjs';
+import { classes, maxStep, stalls, partSeries } from '../device-session.mjs';
 import { SERIES } from './parts-recorder.mjs';
 import { framesOf } from './finish-report.mjs';
 import { reduce as finishReduce } from './finish.mjs';
@@ -97,7 +97,7 @@ export function seriesCounts(parts, key) {
   const found = parts.found?.[key] === true && vs.length > 0;
   const d = medianGap(parts.t ?? []);
   const [lo, hi] = bandFor(d);
-  const empty = { found, d, lo, hi, frames: vs.length, moving: 0, mid: 0, midMoving: 0, band: 0, band56: 0, short: 0, maxStep: 0 };
+  const empty = { found, d, lo, hi, frames: vs.length, moving: 0, mid: 0, midMoving: 0, band: 0, band56: 0, short: 0, maxStep: 0, stalls: 0, pairs: 0 };
   if (!found) return empty;
   const cs = classes(parts.vh);
   const rows = vs.map((v, i) => [v, v, cs[i]]);
@@ -108,7 +108,7 @@ export function seriesCounts(parts, key) {
     band: countC('moving', lo, hi, rows),
     band56: countC('moving', BAND_LO, BAND_HI, rows),
     short: countC('moving', 1, 9, rows),
-    maxStep: maxStep(rows) };
+    maxStep: maxStep(rows), stalls: stalls(partSeries(parts.y, vs)), pairs: Math.max(0, vs.length - 1) };
 }
 
 // ---- one arm -----------------------------------------------------------------------------------------------------------------------------
@@ -123,10 +123,11 @@ export function armSeries(passes, key) {
   const t = (f) => sum(have.map(f));
   const row = { passes: passes.length, usable: usable.length, found: have.length, exercised: have.filter((c) => c.midMoving > 0).length,
     frames: t((c) => c.frames), moving: t((c) => c.moving), mid: t((c) => c.mid), midMoving: t((c) => c.midMoving),
-    band: t((c) => c.band), band56: t((c) => c.band56), short: t((c) => c.short), maxStep: have.reduce((m, c) => Math.max(m, c.maxStep), 0),
+    band: t((c) => c.band), band56: t((c) => c.band56), short: t((c) => c.short), stalls: t((c) => c.stalls), pairs: t((c) => c.pairs), maxStep: have.reduce((m, c) => Math.max(m, c.maxStep), 0),
     gaps: have.map((c) => c.d) };
   return { ...row,
     per1000Moving: row.moving ? Math.round((row.band * 10000) / row.moving) / 10 : null,
+    stallsPer1000: row.pairs ? Math.round((row.stalls * 10000) / row.pairs) / 10 : null,
     per1000Mid: row.midMoving ? Math.round((row.band * 10000) / row.midMoving) / 10 : null };
 }
 
@@ -253,13 +254,13 @@ export function summarize(mode, jobs, runId = null) {
 export function summaryMd(sm) {
   const L = [`### ${sm.mode} (run ${sm.runId ?? 'n/a'}, ${sm.jobs} jobs)`, '',
     'Band runs / frames of the series strictly between 0 and 1000 while the toolbar moved (per 1000 of those), verdict against the rewrite (lifted arms), match with the Lean prediction of the arm mode.', '',
-    '| series (part) | arm | passes usable/run | band runs / mid-moving frames | per 1000 | band 5-6 | short 1-9 | verdict | predicted | match |',
-    '|---|---|---|---|---|---|---|---|---|---|'];
+    '| series (part) | arm | passes usable/run | band runs / mid-moving frames | per 1000 | band 5-6 | short 1-9 | stalls per 1000 | max step | verdict | predicted | match |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|'];
   for (const s of sm.series) {
     for (const a of ARMS) {
       const r = s.arms[a];
       const m = s.match[a];
-      L.push(`| ${s.key} (${s.part}) | ${a} | ${r.usable}/${r.passes} | ${r.band} / ${r.midMoving} | ${fmt(r.per1000Mid)} | ${r.band56} | ${r.short} | ${s.verdicts[a] ?? 'reference'} | ${s.predicted[modeOfArm(a)].pattern} | ${m.match}: ${m.why} |`);
+      L.push(`| ${s.key} (${s.part}) | ${a} | ${r.usable}/${r.passes} | ${r.band} / ${r.midMoving} | ${fmt(r.per1000Mid)} | ${r.band56} | ${r.short} | ${fmt(r.stallsPer1000)} | ${r.maxStep} | ${s.verdicts[a] ?? 'reference'} | ${s.predicted[modeOfArm(a)].pattern} | ${m.match}: ${m.why} |`);
     }
   }
   L.push('', '| part | verdict |', '|---|---|', ...sm.parts.map((p) => `| ${p.id} | ${p.verdict} |`), '',

@@ -135,6 +135,15 @@ test('a series that holds its value for 6 frames has one band run per hold; the 
   assert.equal(seriesCounts(partsRecord(300, {}), 'hero').found, false);
 });
 
+test('stalls are frame pairs in which the page moved and the mid-transition value stood still (the phone summary count)', () => {
+  const c = seriesCounts(partsRecord(300, { hero: stairs(6) }), 'hero');
+  assert.equal(c.pairs, 299);
+  assert.equal(c.stalls, 299 - 49 - 1);
+  assert.equal(seriesCounts(partsRecord(300, { hero: stairs(1) }), 'hero').stalls, 0);
+  const a = armSeries([pass('rewrite', partsRecord(300, { hero: stairs(6) }))], 'hero');
+  assert.equal(a.stallsPer1000, 832.8);
+});
+
 test('values at 0 or 1000 are not runs of the mid-transition, and a still toolbar is not moving', () => {
   const flat = seriesCounts(partsRecord(300, { hero: (i) => (i < 150 ? 0 : 1000) }), 'hero');
   assert.equal(flat.band, 0);
