@@ -108,8 +108,10 @@ hero exit. Verbatim: "looks the same and hero-exit is a lot of improve, no laggy
 
 - **What it shows (felt, one person, one preview session):** the page looks the same with the flag, and the hero-exit lag
   the user felt without it is gone. This matches the Simulator count (163 band runs to 0).
-- **What it does not show:** no recorded `scrollY` series from the phone, so no still-run count on the device; one
-  person; no blind A/B. A recorded phone session is a separate lead step (`docs/team/tools/device-replay.md`).
+- **What the felt pass does not show:** no `scrollY` series, no blind A/B, one person. The lead's recorded session of the same
+  day (`results/phone/2026-10-24-throttle-lift/summary.md`) is the count: at viewport height 775 the hero exit has 90 band
+  runs in 1200 exit frames (faithful rewrite) and 2 in 1318 (flag); verdict `lifted`; the original 29 and 27. One person, one
+  session (MEASURED on the device).
 - **Consequence:** the shippable form is `engine.scroll:unthrottle` (task `throttle-lift-ship`, note
   `10-2x-throttle-lift-ship.md`); `throttle-lift` stays the diagnostic. The earlier line "If the flag helps on the phone,
   the shipped candidate is the threaded scroll-driven exit" is superseded: the flag helped.

@@ -136,8 +136,12 @@ Pass 1 of the flag run was slow (wall 11.7 s; slow baseline passes of 10 to 19 s
 ## 4. The device observation
 
 Written in `10-2x-toolbar-throttle.md` (section "Phone pass") and in the ledger rows `engine.scroll.throttleLift` (updated)
-and `engine.scroll.unthrottle` (new). Felt, one person, preview, the diagnostic flag; it says nothing about the shipped
-text, which differs by `@supports` and the custom property name.
+and `engine.scroll.unthrottle` (new). The felt pass is one person, preview, the diagnostic flag. The lead's recorded phone
+session of the same day (`results/phone/2026-10-24-throttle-lift/summary.md`, MEASURED on the real iPhone, one person, one
+session, landed on main after this task's CI runs) counts the same stepping on the device: at viewport height 775, hero-exit
+band runs of 5 to 6 frames are 90 in 1200 exit frames for the faithful rewrite and 2 in 1318 for the diagnostic flag (Lean verdict
+`lifted`); the original has 29 and 27. Neither says anything about the shipped text, which differs by `@supports` and the
+custom property name: its still runs are not measured on any device.
 
 ## 5. Preset proposal
 
@@ -158,7 +162,7 @@ the preset waits for items 1 to 3 to pass, and the trajectory cells are a push t
 
 ## Limits and stand-ins
 
-- Phone evidence is one person's felt preview of the diagnostic; the CI Simulator is not the phone.
+- Phone evidence is one person: a felt preview and one recorded session, both of the diagnostic; the CI Simulator is not the phone.
 - Chromium baseline and flag ran at the same sha; the WebKit baseline did not (the push run was skipped as unchanged), see section 3.
 - TS stand-ins: `installUnthrottle` (DOM glue, no decision logic). The style text is Lean-generated and golden-checked.
 - The 100 ms throttle saves power (up to 2 % on WebKit's benchmark); the variant gives that up while scrolling.

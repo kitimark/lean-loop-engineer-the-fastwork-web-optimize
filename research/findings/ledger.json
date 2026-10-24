@@ -2691,7 +2691,7 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Phone pass is felt only (one person, preview, 2026-10-24); a recorded phone session is a lead step",
+    "Phone: the felt pass (one person, preview) and the recorded session results/phone/2026-10-24-throttle-lift (90 band runs in 1200 exit frames without the flag, 2 in 1318 with it, same viewport, one person, one session) agree; no second person",
     "Runs 39659502492 and 39652336316 failed and are not pooled"
    ],
    "premises": [
@@ -2699,7 +2699,7 @@
    ],
    "v1Evidence": "",
    "lesson": "A felt lag can be a platform throttle, not page work; count still runs before optimizing page cost.",
-   "next": "Shippable form is engine.scroll:unthrottle (row engine.scroll.unthrottle). Recorded phone session with and without the flag: lead step.",
+   "next": "Shippable form is engine.scroll:unthrottle (row engine.scroll.unthrottle).",
    "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md; user phone pass 2026-10-24 (research/notes/2026/10-2x-toolbar-throttle.md, section Phone pass)"
   },
   {
@@ -3385,7 +3385,7 @@
    "v1Evidence": "",
    "lesson": "A platform throttle can be lifted by a page-side condition the platform itself names; prove the condition from the engine source, then prove the lifter invisible and count what it costs: here the one-element restyle matched the bound and the unmodelled cost was a Chromium layer.",
    "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
-   "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; recorded phone session; then set proved and regenerate the v2-proved preset.",
+   "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; a phone pass of the shipped text; then set proved and regenerate the v2-proved preset.",
    "flag": "engine.scroll:unthrottle"
   }
  ],
