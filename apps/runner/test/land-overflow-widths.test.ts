@@ -48,6 +48,7 @@ function dynamicMax(): Record<string, () => number> {
     "sim-speed/probe": () => 1e9,
     "smoothness/cadence": () => widthsMax() * setsOf(wf("smoothness.yml")),
     "smoothness/webkit-sim": () => 4,
+    "toolbar-throttle/sim": () => 6,
     "trajectory-probe/probe": () => traj().linux,
     "trajectory-probe/probe-apple": () => traj().apple,
     "trajectory-probe/merge": () => engines2,
