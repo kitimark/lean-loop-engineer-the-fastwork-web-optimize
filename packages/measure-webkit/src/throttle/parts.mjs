@@ -22,7 +22,7 @@ export const modeOfArm = (arm) => MODE_OF_ARM[arm];
 export function reach(source, shape) {
   if (source !== 'main-thread') return 'not-hit';
   switch (shape) {
-    case 'curve': case 'chase': case 'capture': case 'step-look': return 'hit';
+    case 'curve': case 'chase': case 'snap': case 'capture': case 'step-look': return 'hit';
     case 'step-idle': case 'constant': return 'harmless';
     case 'no-read': return 'not-hit';
     default: throw new Error(`unknown shape ${shape}`);
@@ -30,7 +30,7 @@ export function reach(source, shape) {
 }
 
 export function predicted(mode, source, shape) {
-  if (mode === 'throttled' && source === 'main-thread' && shape === 'curve') return { pattern: 'stills', runFrames: throttleK(CONSTS.d60) };
+  if (mode === 'throttled' && source === 'main-thread' && (shape === 'curve' || shape === 'snap')) return { pattern: 'stills', runFrames: throttleK(CONSTS.d60) };
   if (mode === 'throttled' && source === 'main-thread' && shape === 'chase') return { pattern: 'pulses' };
   return { pattern: 'no-stills' };
 }
@@ -89,22 +89,38 @@ export function seriesCounts(parts, key) {
 
 const sum = (l) => l.reduce((a, b) => a + b, 0);
 
+export const MIN_K = CONSTS.minK;
+export const inDomain = (k) => k >= MIN_K;
+
+export function poolOf(passList) {
+  const inside = passList.filter((q) => inDomain(q.k));
+  return { runs: sum(inside.map((q) => q.runs)), frames: sum(inside.map((q) => q.frames)) };
+}
+
 export function armSeries(passes, key) {
   const usable = passes.filter((p) => excludeReason(p) === null);
-  const per = usable.map((p) => seriesCounts(p.rec.parts, key));
-  const have = per.filter((c) => c.found);
+  const per = usable.map((p) => ({ p, c: seriesCounts(p.rec.parts, key) }));
+  const found = per.filter(({ c }) => c.found);
+  const have = found.map(({ c }) => c);
+  const exercised = found.filter(({ c }) => c.midMoving > 0);
+  const passList = have.map((c) => ({ k: c.lo, runs: c.band, frames: c.midMoving }));
+  const dom = poolOf(passList);
   const t = (f) => sum(have.map(f));
-  const row = { passes: passes.length, usable: usable.length, found: have.length, exercised: have.filter((c) => c.midMoving > 0).length,
+  const row = { passes: passes.length, usable: usable.length, found: have.length, exercised: exercised.length,
+    passList, domain: { passes: exercised.filter(({ c }) => inDomain(c.lo)).length, band: dom.runs, midMoving: dom.frames },
+    detail: exercised.map(({ p, c }) => ({ vm: p.vm ?? null, round: p.round ?? null, arm: p.arm ?? null, gapMs: c.d / 100, k: c.lo, bandFrames: [c.lo, c.hi],
+      bandRuns: c.band, band56: c.band56, midMoving: c.midMoving, inDomain: inDomain(c.lo) })),
     frames: t((c) => c.frames), moving: t((c) => c.moving), mid: t((c) => c.mid), midMoving: t((c) => c.midMoving),
     band: t((c) => c.band), band56: t((c) => c.band56), short: t((c) => c.short), stalls: t((c) => c.stalls), pairs: t((c) => c.pairs), maxStep: have.reduce((m, c) => Math.max(m, c.maxStep), 0),
-    gaps: have.map((c) => c.d) };
+    gaps: exercised.map(({ c }) => c.d) };
   return { ...row,
+    domain: { ...row.domain, per1000Mid: row.domain.midMoving ? Math.round((row.domain.band * 10000) / row.domain.midMoving) / 10 : null },
     per1000Moving: row.moving ? Math.round((row.band * 10000) / row.moving) / 10 : null,
     stallsPer1000: row.pairs ? Math.round((row.stalls * 10000) / row.pairs) / 10 : null,
     per1000Mid: row.midMoving ? Math.round((row.band * 10000) / row.midMoving) / 10 : null };
 }
 
-export function judge(pred, mode, base, arm) {
+export function judgeCounts(pred, mode, base, arm) {
   if (arm.frames === 0) return 'no-data';
   if (pred.pattern === 'stills') {
     if (mode === 'throttled') return arm.runs >= MIN_BASE ? 'agree' : 'disagree';
@@ -113,6 +129,8 @@ export function judge(pred, mode, base, arm) {
   }
   return arm.runs < MIN_BASE ? 'agree' : 'disagree';
 }
+
+export const judge = (pred, mode, basePasses, armPasses) => judgeCounts(pred, mode, poolOf(basePasses), poolOf(armPasses));
 
 export function partVerdict(matches) {
   if (matches.includes('disagree')) return 'disagree';
@@ -124,14 +142,20 @@ export const partOf = (seriesOfPart) => partVerdict(seriesOfPart.flatMap((s) => 
 
 export function judgeArm(pred, arm, row, base) {
   const mode = modeOfArm(arm);
-  const b = { runs: base.band, frames: base.midMoving };
-  const a = { runs: row.band, frames: row.midMoving };
-  const match = judge(pred, mode, b, a);
+  const b = poolOf(base.passList);
+  const a = poolOf(row.passList);
+  const match = judge(pred, mode, base.passList, row.passList);
   let why;
-  if (match === 'no-data') why = a.frames === 0 ? (row.found === 0 ? 'series never found' : 'value never strictly between 0 and 1000 while the toolbar moved') : `the rewrite had ${base.band} band runs, fewer than ${MIN_BASE}, or no frames`;
-  else if (pred.pattern === 'stills' && mode === 'lifted') why = match === 'agree' ? 'rate at most a fifth of the rewrite' : `rate above a fifth of the rewrite (${row.band} runs in ${row.midMoving} frames)`;
-  else if (pred.pattern === 'stills') why = match === 'agree' ? `${row.band} band runs` : `${row.band} band runs, fewer than ${MIN_BASE}`;
-  else why = match === 'agree' ? `${row.band} band runs, fewer than ${MIN_BASE}` : `${row.band} band runs, at least ${MIN_BASE}`;
+  if (match === 'no-data') {
+    if (a.frames > 0) why = `the rewrite had ${b.runs} band runs in its passes at K ${MIN_K} or more, fewer than ${MIN_BASE}, or no frames`;
+    else if (row.found === 0) why = 'series never found';
+    else if (row.exercised === 0) why = 'value never strictly between 0 and 1000 while the toolbar moved';
+    else why = `all ${row.exercised} exercised passes ran at K below ${MIN_K} (gaps ${row.detail.map((d) => d.gapMs).join(' ')} ms)`;
+  } else if (pred.pattern === 'stills' && mode === 'lifted') why = match === 'agree' ? 'rate at most a fifth of the rewrite' : `rate above a fifth of the rewrite (${a.runs} runs in ${a.frames} frames)`;
+  else if (pred.pattern === 'stills') why = match === 'agree' ? `${a.runs} band runs` : `${a.runs} band runs, fewer than ${MIN_BASE}`;
+  else why = match === 'agree' ? `${a.runs} band runs, fewer than ${MIN_BASE}` : `${a.runs} band runs, at least ${MIN_BASE}`;
+  const out = row.exercised - row.domain.passes;
+  if (out > 0 && match !== 'no-data') why += ` (${out} of ${row.exercised} exercised passes at K below ${MIN_K} do not count)`;
   return { match, why };
 }
 
@@ -153,7 +177,7 @@ export function reduceMode(passes) {
     for (const a of ARMS) rows[a] = armSeries(passes.filter((p) => p.arm === a), s.key);
     const base = rows.rewrite;
     const verdicts = {};
-    for (const a of ['lift', 'unthrottle']) verdicts[a] = verdict([], { runs: base.band, frames: base.midMoving }, { runs: rows[a].band, frames: rows[a].midMoving });
+    for (const a of ['lift', 'unthrottle']) verdicts[a] = verdict([], poolOf(base.passList), poolOf(rows[a].passList));
     const match = {};
     for (const a of ARMS) match[a] = judgeArm(m.throttled, a, rows[a], base);
     const perJob = [...new Set(passes.map((p) => p.vm))].map((vm) => ({
@@ -193,7 +217,7 @@ export function captureRow(passes) {
 const med = (l) => (l.length === 0 ? null : [...l].sort((a, b) => a - b)[Math.floor(l.length / 2)]);
 const fmt = (x) => (x === null || x === undefined ? 'n/a' : String(x));
 
-const slim = (r) => { const { gaps, ...rest } = r; return { ...rest, medianGapMs: med(gaps) === null ? null : med(gaps) / 100 }; };
+const slim = (r) => { const { gaps, passList, detail, ...rest } = r; return { ...rest, medianGapMs: med(gaps) === null ? null : med(gaps) / 100, exercisedPasses: detail }; };
 
 export function summarize(mode, jobs, runId = null) {
   const passes = jobs.flatMap((j) => j.passes.map((p) => ({ ...p, vm: p.vm ?? j.vm })));
@@ -212,15 +236,21 @@ export function summarize(mode, jobs, runId = null) {
 
 export function summaryMd(sm) {
   const L = [`### ${sm.mode} (run ${sm.runId ?? 'n/a'}, ${sm.jobs} jobs)`, '',
-    'Band runs / frames of the series strictly between 0 and 1000 while the toolbar moved (per 1000 of those), verdict against the rewrite (lifted arms), match with the Lean prediction of the arm mode.', '',
-    '| series (part) | arm | passes usable/run | band runs / mid-moving frames | per 1000 | band 5-6 | short 1-9 | stalls per 1000 | max step | verdict | predicted | match |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|'];
+    'Band runs / frames of the series strictly between 0 and 1000 while the toolbar moved, in the band [K, K+1] of each pass (K from that pass\'s median frame gap). The reference columns pool every pass; the in-domain columns pool the passes with K at least ' + `${MIN_K}` + ', which are the only ones the verdict (against the rewrite for lifted arms) and the match with the Lean prediction use. The gap is the upper median over exercised passes.', '',
+    '| series (part) | arm | passes usable/run | exercised (in domain) | median gap ms | band runs / mid-moving frames (all) | in-domain band runs / frames | per 1000 in domain | band 5-6 | short 1-9 | stalls per 1000 | max step | verdict | predicted | match |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|'];
   for (const s of sm.series) {
     for (const a of ARMS) {
       const r = s.arms[a];
       const m = s.match[a];
-      L.push(`| ${s.key} (${s.part}) | ${a} | ${r.usable}/${r.passes} | ${r.band} / ${r.midMoving} | ${fmt(r.per1000Mid)} | ${r.band56} | ${r.short} | ${fmt(r.stallsPer1000)} | ${r.maxStep} | ${s.verdicts[a] ?? 'reference'} | ${s.predicted[modeOfArm(a)].pattern} | ${m.match}: ${m.why} |`);
+      L.push(`| ${s.key} (${s.part}) | ${a} | ${r.usable}/${r.passes} | ${r.exercised} (${r.domain.passes}) | ${fmt(r.medianGapMs)} | ${r.band} / ${r.midMoving} | ${r.domain.band} / ${r.domain.midMoving} | ${fmt(r.domain.per1000Mid)} | ${r.band56} | ${r.short} | ${fmt(r.stallsPer1000)} | ${r.maxStep} | ${s.verdicts[a] ?? 'reference'} | ${s.predicted[modeOfArm(a)].pattern} | ${m.match}: ${m.why} |`);
     }
+  }
+  const exercisedRows = sm.series.flatMap((s) => ARMS.flatMap((a) => s.arms[a].exercisedPasses.map((d) => ({ s, a, d }))));
+  if (exercisedRows.length) {
+    L.push('', 'Exercised passes (mid-moving frames above 0), one row per pass: its own gap, K and band.', '',
+      '| series | arm | job | round | gap ms | K | band frames | band runs | band 5-6 | mid-moving frames | in domain |', '|---|---|---|---|---|---|---|---|---|---|---|',
+      ...exercisedRows.map(({ s, a, d }) => `| ${s.key} | ${a} | ${d.vm} | ${d.round} | ${d.gapMs} | ${d.k} | ${d.bandFrames[0]}-${d.bandFrames[1]} | ${d.bandRuns} | ${d.band56} | ${d.midMoving} | ${d.inDomain ? 'yes' : 'no'} |`));
   }
   L.push('', '| part | verdict |', '|---|---|', ...sm.parts.map((p) => `| ${p.id} | ${p.verdict} |`), '',
     '| arm | passes | usable | lost reasons |', '|---|---|---|---|', ...sm.lost.map((l) => `| ${l.arm} | ${l.passes} | ${l.usable} | ${[...new Set(l.reasons)].join('; ') || 'none'} |`));
