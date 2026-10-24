@@ -1,6 +1,6 @@
 branch: worktree-wf_98d6c3e4-107-1 (CI pushes go to ci/device-replay: the workflow only triggers on that name)
 worktree: .claude/worktrees/wf_98d6c3e4-107-1 (under the main checkout)
-last commit: see git log; push 4 (the last) follows this commit
+last commit: see git log (dry land VERDICT dry combo-scroll-fight at 25f5372bc; later commits are handoff and test-title only); all 4 pushes used
 CI runs: 40128362520 failed (build: morph.countdown:strip needs hero.countdown:strip); 40129128571 device-replay success (push 3: before/after, 6 legs, artifacts combo-<leg>); push 4: device-replay 40130709244 success at b557cd0a0 (artifacts combo-<leg>: before/after), lean 40130709158
 state: cause CONFIRMED (a reopen in a move the page cannot cancel pins at the scroll position and the frame writer then fights the native scroll; needs morph.end.release); fix = hold bit (Lean Fw.Parts.ComboScroll wstep, TS morph.tween/end.logic.ts moveStep/frameOut); golden packages/contracts/golden/parts/combo-scroll.jsonl replayed by apps/site/src/registry/combo-scroll.test.ts.
 verified: run 40130709244 (instant start): user's flags 11 of 16 replays fought before, 0 of 16 after; release alone 13 of 16 before; release-less arms 0; all release arms 0 after. Final checks: see the report.

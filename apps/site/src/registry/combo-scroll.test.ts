@@ -152,7 +152,7 @@ describe('combo-scroll through the driver', () => {
     expect(r.prevented).toBe(false);
     expect(r.state.target).toBe(1);
   });
-  it('the same moves without the fix hook (release off) still write the pin against the scroll', () => {
+  it('with release off the hold rule is inactive: the same moves write the pin as the original does', () => {
     expect(drive({ clamp: true, flip: true, release: false }, false).writes.length).toBeGreaterThan(0);
   });
   it('a reopen the page can cancel is prevented and pinned where the page is', () => {
