@@ -19898,7 +19898,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/accent-same-look.md"
    ],
-   "title": "User 2026-10-24 (phone session results/phone/2026-10-24): hero.accent:draw-nolayout-full 'looks different from the original'; draw-nolayout shares the clip-path wipe, so both look-change accent arms are REJECTED by the user (record userDecision rejected in research/findings/ledger.json rows accent-draw-nolayout and accent-drawin-width-nolayout). Find a same-look way to cut the accent's WebKit Layout: keep the pen-trace stroke and the 0.9 s width glide pixel-identical (path-pix draw-window zones, task pathpix-drawbase-wire) while removing per-frame layout, e.g. stroke trace pre-rendered as frames of a composited mask or a canvas/CSS paint, width glide as a transform on a fixed-width box with identical text position; each candidate decided in Lean from WebKit StyleDifference source (cite file:line@commit) and proved same-look or dropped as a negative finding with its why."
+   "title": "User 2026-10-24 (phone session results/phone/2026-10-24): hero.accent:draw-nolayout-full 'looks different from the original'; draw-nolayout shares the clip-path wipe, so both look-change accent arms are REJECTED by the user (record userDecision rejected in research/findings/ledger.json rows accent-draw-nolayout and accent-drawin-width-nolayout). Find a same-look way to cut the accent's WebKit Layout: keep the pen-trace stroke and the 0.9 s width glide pixel-identical (path-pix draw-window zones, task pathpix-drawbase-wire) while removing per-frame layout, e.g. stroke trace pre-rendered as frames of a composited mask or a canvas/CSS paint, width glide as a transform on a fixed-width box with identical text position; each candidate decided in Lean from WebKit StyleDifference source (cite file:line@commit) and proved same-look or dropped as a negative finding with its why.",
+   "evidence": "6742c07"
   },
   {
    "devices": [
