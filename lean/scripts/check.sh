@@ -95,6 +95,7 @@ run_group() {
   job "oracle golden check" lake env lean --run scripts/OracleGolden.lean --check  # golden/oracle/wire.jsonl and fixtures.jsonl (Fw.Wire.Oracle.Golden)
   job "lane inputs check" lake env lean --run scripts/LaneInputs.lean --check  # Fw.Store.Lane.inputs equal the workflow_dispatch inputs of chromium-counts, webkit-sim, breakpoint-gate
   job "engine goldens check" lake env lean --run scripts/EngineGoldens.lean  # golden/engine/*.jsonl equal the Lean generators, one generator per file
+  job "transition-start golden check" lake env lean --run scripts/TransitionStartGolden.lean --check ../packages/contracts/golden/engine/transition-start.jsonl  # golden/engine/transition-start.jsonl (Fw.Engine.TransitionStart)
   job "provider golden check" lake env lean --run scripts/ProviderGolden.lean --check  # golden/ci/provider.jsonl (Fw.Ci.Provider)
   job "codemagic golden check" lake env lean --run scripts/CodemagicGolden.lean --check  # golden/ci/codemagic.jsonl (Fw.Ci.Codemagic)
   job "overflow golden check" lake env lean --run scripts/OverflowGolden.lean --check  # golden/ci/overflow.jsonl (Fw.Ci.Overflow: which land legs overflow from GitHub to CircleCI)
