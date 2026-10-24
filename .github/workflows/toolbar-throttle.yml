@@ -3,10 +3,12 @@ name: toolbar-throttle
 # The toolbar-throttle probe (task toolbar-throttle-probe): does WebKit's 100 ms throttle of visible-rect updates while Safari's toolbar
 # collapses (WKWebViewIOS.mm:3256-3268@862f17d) cause the still runs of the hero exit? Real touches (an XCUITest driver swipes Mobile Safari
 # in the iOS Simulator; no synthetic WheelEvent) while the page records every frame; three arms, rotated per round: the default rewrite,
-# the rewrite with the diagnostic flag ?fw=engine.scroll:throttle-lift (one main-thread scroll-driven animation, which lifts the throttle),
+# the rewrite with the shipped flag ?fw=engine.scroll:unthrottle (one guarded main-thread scroll-driven animation, which lifts the throttle; the diagnostic arm lift is `--arms ...,lift,...`),
 # and the original snapshot as the reference. The counts and the verdict are Lean's (lean/Fw/Device/StillRuns.lean, golden
 # packages/contracts/golden/device/stillruns.jsonl, twin packages/measure-webkit/src/throttle/stillruns.mjs). Counts only: nothing measured
 # here is phone time, and the Simulator's toolbar may behave unlike the phone's.
+# A commit message with [throttle:finish] runs the finish drags instead (task sim-finish-throttle): the page is scrolled to 300 px above its
+# end and real drags past the end open the morph panel; the counts are Lean's lean/Fw/Device/FinishRuns.lean, twin throttle/finish.mjs.
 # Each VM is its own job (an independent sample) and uploads `toolbar-throttle-<vm>`; the report job builds the table from them.
 on:
   push:
@@ -205,6 +207,8 @@ jobs:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SITE_DIR: ${{ runner.temp }}/site
           VM: ${{ matrix.vm }}
+          # The head commit message picks the drags: [throttle:finish] drags past the page end (task sim-finish-throttle), else the hero exit.
+          MODE: ${{ contains(github.event.head_commit.message, '[throttle:finish]') && 'finish' || 'drags' }}
           # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
           # (counts do not depend on waits), and a load step may retry twice after a reconnect.
           FW_WK_TIMEOUT_SCALE: '8'
@@ -214,7 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms rewrite,lift,original --rounds 2 --cycles 4 --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$([ "$MODE" = finish ] && echo rewrite,lift,original || echo rewrite,unthrottle,original)" --rounds 2 --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded
