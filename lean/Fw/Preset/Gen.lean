@@ -29,6 +29,10 @@ def linkTable : List (Flag × List Key) :=
     "arm the 3 s rotation interval only while visible (armed = inView and not narrow and not covered)")
   let k16 : Key := ("people.card",
     "MQ-gated shrink (KD#3): skip the --future-shrink write and the rAF re-request in the c860 band")
+  let kut : Key := ("engine.scroll",
+    "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven \
+      animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding \
+      visible-rect updates to 100 ms while the toolbar collapses")
   let k6i : Key := ("hero.exit",
     "hero.exit:scoped with inline reader writes (task exit-scoped-inline): the writer sets --exit-opacity and \
       --exit-scatter inline on each of the 16 readers in the frame it writes the stage")
@@ -44,7 +48,8 @@ def linkTable : List (Flag × List Key) :=
    (⟨"morph.tween", "waapi"⟩, [k9]),
    (⟨"pain.notes", "visible"⟩, [k21]),
    (⟨"people.card", "mq"⟩, [k16]),
-   (⟨"hero.exit", "scoped"⟩, [k6i])]
+   (⟨"hero.exit", "scoped"⟩, [k6i]),
+   (⟨"engine.scroll", "unthrottle"⟩, [kut])]
 
 def curated : List (Flag × String) :=
   [(⟨"hero.accent", "steps"⟩,
@@ -529,7 +534,7 @@ def record (args : List String) : IO Unit := do
 #guard (reasonOf ⟨"hero.countdown", "hidden-pause"⟩).isNone
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
   "hero.countdown:strip", "morph.countdown:strip", "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
-  "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped"]
+  "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped", "engine.scroll:unthrottle"]
 #guard ((verdictJson [] ⟨"hero.accent", "steps"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"

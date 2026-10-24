@@ -4,10 +4,12 @@ Branch: worktree-wf_582d1cc2-be7-1 (CI branch ci/unthrottle-preset). Worktree: .
 Last pushed commit: c113d5eca (code d8b937498 + empty request commit).
 
 CI runs (ci/unthrottle-preset):
-- 40078755889 trajectory-probe push (fw=engine.scroll:unthrottle, both engines): running
+- 40078755889 trajectory-probe push (fw=engine.scroll:unthrottle, both engines): complete; recorded: chromium hero+morph pass, linux-webkit hero pass; linux-webkit morph needs mac-webkit (dispatch 2)
 - 40078755847 toolbar-throttle push (arms rewrite, unthrottle, original): running
-- 40078755885 lean push: running
-- 40078781031 chromium-counts dispatch fw=engine.scroll:unthrottle swipe-v1 x3 (dispatch 1 of 3; layers with position absolute + guard): running
+- 40078755885 lean push: success
+- 40078781031 chromium-counts dispatch fw=engine.scroll:unthrottle swipe-v1 x3 (dispatch 1 of 3): complete; absolute: census.layers +0 in 575/575, 573/575, 572/575 frames (fixed gave +2); element restyle +1 in 532, 514, 531 of 575 -> decision absolute
+- trajectory-probe dispatch (dispatch 2 of 3, mac-webkit morph leg): started, id in the next update
+- third dispatch reserved: breakpoint-gate preset=v2-proved after Gen.run
 
 Verified: Lean EngineScrollUnthrottle.lean (position field, `(pointer: coarse)` guard theorems guard_keeps_ios, guard_lifts_ios, guard_fine_noop,
 guard_fine_cost; relevantAnimations named on `Anim`); check.sh green at d8b937498; vitest src/parts/engine.scroll pass; measure-webkit throttle tests pass.
