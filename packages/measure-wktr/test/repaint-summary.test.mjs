@@ -1,4 +1,3 @@
-// The summary of the invisible-paint jobs: grouping, per-100-frames rows, markdown.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';

@@ -1,9 +1,3 @@
-// Invisible-paint WKTR lane driver.
-//   node src/repaint-cli.mjs run --root <extracted archive dir> --site <snapshot/site> --dist <apps/site/dist/aot> --out <dir> [options]
-// Per arm and pass (a fresh WebKitTestRunnerApp process each): load the page with repaint-page.mjs, replay the swipe schedule with
-// native requestAnimationFrame, read the repaint rects of every frame, classify them (Lean rule, twin in measure-webkit paintclip.mjs)
-// and write <out>/counts-<arm>-<zone>-<pass>.json (frames for the class policy), <out>/table-<arm>-<pass>.json (part x zone x class)
-// and <out>/raw-<arm>-<pass>.txt.gz. Untimed: this lane counts rects, it never times anything.
 import { parseArgs } from 'node:util';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';

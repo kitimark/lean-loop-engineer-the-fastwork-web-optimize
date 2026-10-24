@@ -1,8 +1,3 @@
-// Invisible-paint lane, summary of the jobs' artifacts.
-//   node src/repaint-summary.mjs <dir with wktr-j*/ subdirectories> [--out <dir>]
-// Reads table-<arm>-<pass>.json and counts-<arm>-<zone>-<pass>.json of every job, sums the part x zone tables per arm, writes the
-// per-100-frames numbers (Lean `per100`, twin in measure-webkit paintclip.mjs) as summary.md / summary.json, and decides the
-// determinism class of every count type per arm and zone over the jobs with the Lean core (kMax 4, tMax 24). Nothing is decided here.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,7 +7,6 @@ import { sumTables, ZONES, PARTS, ARMS } from './repaint.mjs';
 
 const top = (o, n = 2) => Object.entries(o).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, n).map(([k, v]) => `${k} (${v})`).join('; ');
 
-/** Tables of all jobs: { arm: { tables: [table...], frames: {zone: n}, runs: n } } from table files [{ arm, ...file }]. */
 export function groupByArm(files) {
   const out = {};
   for (const f of files) {
@@ -25,7 +19,6 @@ export function groupByArm(files) {
   return out;
 }
 
-/** Rows of one arm: per zone and part, per-100-frames paints, invisible paints by class, wasted area, causes, re-raster. */
 export function armRows(arm) {
   const sum = sumTables(arm.tables);
   const rows = [];
@@ -49,7 +42,6 @@ export function armRows(arm) {
 }
 
 const f = (n) => String(n);
-/** A markdown table of the rows of one arm. */
 export function toMarkdown(arm, name, classes) {
   const lines = [`### ${name} (${arm.runs} runs, frames ${ZONES.map((z) => `${z} ${arm.frames[z]}`).join(', ')})`, '',
     '| zone | part | paints/100f | invisible/100f | waste px/100f | zero-area | hidden | clipped | beyond | prepaint | re-raster layers/100f | re-raster px/100f | causes (non-visible) | elements (non-visible) |',
@@ -73,7 +65,6 @@ export function toMarkdown(arm, name, classes) {
   return lines.join('\n');
 }
 
-/** Read every job dir under `dir`: table files and the counts files per arm and zone. */
 export function readJobs(dir) {
   const tables = [];
   const counts = {};

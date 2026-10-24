@@ -1,14 +1,6 @@
-// Invisible-paint lane, pure part: the parser of WebKit's layerTreeAsText with repaint rects, the swipe schedule, and the
-// reduction of the per-frame facts to classes. No I/O. The class rule is Lean's (Fw.Engine.PaintVisible), replayed by the
-// twin in ../../measure-webkit/src/paintclip.mjs; nothing here decides a class.
 import { classify, CLASSES, classKey, seenArea, wasteArea, rerasterArea, addDirty } from '../../measure-webkit/src/paintclip.mjs';
 
-/**
- * Parse `internals.layerTreeAsText(document, flags)` (flags visible rects, tile caches, repaint rects, clipping) into the
- * main-frame view's tracked repaint rects (printed first, in viewport pixels) and the flattened layer tree (pre-order).
- * Format: Source/WebCore/platform/graphics/GraphicsLayer.cpp:939-1112 and ca/GraphicsLayerCA.cpp:4759-4785 @862f17d.
- * SELF-CONTAINED: the page script embeds this function through toString(), so it may not use anything outside it.
- */
+// Format: Source/WebCore/platform/graphics/GraphicsLayer.cpp:939-1112 and ca/GraphicsLayerCA.cpp:4759-4785 @862f17d.
 export function parseLayers(text) {
   const view = [];
   const nodes = [];
@@ -56,12 +48,10 @@ export function parseLayers(text) {
     else if ((m = /^\(intersects coverage rect ([01])\)$/.exec(line))) n.icov = +m[1];
     else if ((m = new RegExp('^\\(contentsScale ' + N + '\\)$').exec(line))) n.scale = +m[1];
   }
-  // hidden by the layer tree alone: this layer or an ancestor has opacity 0 or does not show its contents
   for (const n of nodes) n.h = (n.op === 0 || n.cv === 0 || (n.p >= 0 && nodes[n.p].h)) ? 1 : 0;
   return { view, nodes };
 }
 
-/** The scroll offsets, one per frame, of profiles/swipe-touch-v1.json replayed with scrollTo: rest, strokes of 78 moves of 10 px with 2 gap frames, tail. */
 export function swipeSchedule(maxY, { rest = 10, tail = 30, dy = 10, moves = 78, gap = 2 } = {}) {
   const ys = [];
   for (let i = 0; i < rest; i++) ys.push(0);
@@ -74,12 +64,10 @@ export function swipeSchedule(maxY, { rest = 10, tail = 30, dy = 10, moves = 78,
   return ys;
 }
 
-/** The zone of a scroll offset (Lean WebKitProfile.zoneOf): hero in the first two viewports, finish in the last, else rest. */
 export const zoneOf = (vh, maxY, y) => (y < 2 * vh ? 'hero' : maxY - y < vh ? 'finish' : 'rest');
 
 export const ZONES = Object.freeze(['hero', 'rest', 'finish']);
 
-/** The arms: the snapshot (original), the rewrite at its default config, the rewrite with the v2-proved preset. */
 export const ARMS = Object.freeze({
   orig: Object.freeze({ tree: 'snapshot', search: '' }),
   rewrite: Object.freeze({ tree: 'built', search: '' }),
@@ -92,10 +80,6 @@ const toRect = (a) => {
   return { x, y, w: Math.max(0, Math.ceil(a[0] + a[2]) - x), h: Math.max(0, Math.ceil(a[1] + a[3]) - y) };
 };
 
-/**
- * The calls of one layer in one frame (items { rect, ... }) to the items the engine keeps as dirty rects (Lean `dirty`, twin
- * `addDirty`): a call whose rect a kept rect holds is dropped; past 32 kept rects a call merges into the first, which keeps its item.
- */
 export function keepDirty(items) {
   let ds = [];
   const owner = new Map();
@@ -108,11 +92,6 @@ export function keepDirty(items) {
   return ds.map((r) => ({ ...owner.get(r), rect: r }));
 }
 
-/**
- * One frame record from the page (schema in repaint-page.mjs) to its classified rects and its resize events.
- * rects: the paints, the dirty rects the engine keeps per layer [{ part, cause, el, cls, area, seen, waste, src }];
- * calls: the tracked repaint rects before the engine drops repeats; resizes: [{ el, part, old, new, tiled, area }].
- */
 export function frameFacts(fr, meta) {
   const rects = [];
   let calls = 0;
@@ -135,7 +114,6 @@ export function frameFacts(fr, meta) {
       rects.push({ part: e?.p ?? 'other', cause: L.k ?? null, el: e?.d ?? null, cls: classify(fact), area: rect.w * rect.h, seen: seenArea(fact), waste: wasteArea(fact), src: 'layer' });
     }
   }
-  // layer bounds are fractional (108.5 x 77.5): sizes are rounded to whole pixels for the Lean area rule
   const resizes = (fr.rs ?? []).map(([i, ow, oh, nw, nh, tiled, e]) => {
     const o = [Math.round(ow), Math.round(oh)], n = [Math.round(nw), Math.round(nh)];
     return { i, el: el(e)?.d ?? null, part: el(e)?.p ?? 'other', old: o, new: n, tiled: !!tiled, area: rerasterArea(!!tiled, o, n) };
@@ -143,7 +121,6 @@ export function frameFacts(fr, meta) {
   return { rects, calls, resizes };
 }
 
-/** Per-frame counts for the class policy (integers): rects and area by class, wasted area, re-raster. */
 export function frameCounts(facts) {
   const c = { paintRects: facts.rects.length, trackedCalls: facts.calls ?? facts.rects.length, paintArea: 0, wasteArea: 0, resizedLayers: 0, reRasterArea: 0 };
   for (const k of CLASSES) c[`rects_${classKey(k)}`] = 0;
@@ -154,11 +131,6 @@ export function frameCounts(facts) {
 
 const bump = (o, k, n = 1) => { o[k] = (o[k] ?? 0) + n; };
 
-/**
- * A whole run to the artifacts: frames per zone in the `fw.wktr.scroll/1` shape (counts for the class policy) and the
- * part x zone table (rects and area by class, causes, elements, re-raster).
- * @param {{meta: object, frames: object[]}} run
- */
 export function reduceRun(run) {
   const { meta } = run;
   const byZone = Object.fromEntries(ZONES.map((z) => [z, []]));
@@ -192,7 +164,6 @@ export function reduceRun(run) {
   return { byZone, frames, calls, table: Object.values(table) };
 }
 
-/** Parse the `FWWKTR <tag> <json>` console lines of a repaint run (WKTR stdout) into { meta, frames, probe, els, error, done }. */
 export function parseRepaint(text) {
   const got = { meta: null, probe: null, els: [], frames: [], error: null, done: false, params: null };
   for (const line of text.split('\n')) {
@@ -210,7 +181,6 @@ export function parseRepaint(text) {
   return got;
 }
 
-/** A parsed output to the run `reduceRun` takes. Throws on an incomplete run. */
 export function buildRepaintRun(parsed) {
   if (parsed.error) throw new Error(`page reported an error: ${JSON.stringify(parsed.error)}`);
   if (!parsed.done || !parsed.meta) throw new Error('incomplete page output (no done/meta line)');
@@ -219,7 +189,6 @@ export function buildRepaintRun(parsed) {
   return { meta: { ...parsed.meta, els: parsed.els, probe: parsed.probe }, frames: parsed.frames };
 }
 
-/** Merge part x zone tables of several runs (same arm) by summing; `runs` is the number of runs summed. */
 export function sumTables(tables) {
   const out = {};
   for (const t of tables) for (const c of t) {

@@ -1,17 +1,9 @@
-// Serves a prerendered build of apps/site (dist/aot) with the repaint script as the first child of <head>, like server.mjs does
-// for the snapshot. "/" is answered with the HTML of the config hash of `search` (configs.json); nothing is written to the build.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serveTree } from '../../measure-webkit/src/serve.mjs';
 import { injectHarness } from './server.mjs';
 
-/**
- * @param {string} distDir apps/site/dist/aot
- * @param {string} search the query of the arm ('' or '?preset=v2-proved'); must be prerendered
- * @param {string} harnessJs the script text
- * @returns {Promise<{port:number, url:string, hash:string, requests:string[], close:()=>Promise<void>}>}
- */
 export async function serveBuilt(distDir, search, harnessJs) {
   const cfg = JSON.parse(readFileSync(join(distDir, 'configs.json'), 'utf8'));
   const hash = cfg.bySearch[search];

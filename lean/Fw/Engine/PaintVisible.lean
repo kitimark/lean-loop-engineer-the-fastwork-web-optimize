@@ -1,13 +1,6 @@
 import Lean.Data.Json
-/-!
-# Which painted rects the user cannot see
-Proof note: research/notes/2026/10-2x-invisible-paint.md.
--/
 namespace Fw.Engine.PaintVisible
 
-/-! ## Rects -/
-
-/-- An integer-pixel rect: top-left corner and size. -/
 structure Rect where
   x : Int
   y : Int
@@ -15,16 +8,13 @@ structure Rect where
   h : Nat
   deriving Repr, DecidableEq
 
-/-- Pixels in the rect. -/
 def Rect.area (r : Rect) : Nat := r.w * r.h
 
-/-- The overlap of two rects; zero-sized when they do not meet. -/
 def Rect.inter (a b : Rect) : Rect :=
   { x := max a.x b.x, y := max a.y b.y,
     w := (min (a.x + a.w) (b.x + b.w) - max a.x b.x).toNat,
     h := (min (a.y + a.h) (b.y + b.h) - max a.y b.y).toNat }
 
-/-- `c` holds all of `v`. -/
 def Rect.Sub (v c : Rect) : Prop :=
   c.x ≤ v.x ∧ v.x + v.w ≤ c.x + c.w ∧ c.y ≤ v.y ∧ v.y + v.h ≤ c.y + c.h
 
@@ -38,16 +28,11 @@ theorem inter_area_mono (r v c : Rect) (h : v.Sub c) : (r.inter v).area ≤ (r.i
   obtain ⟨h1, h2, h3, h4⟩ := h
   apply Nat.mul_le_mul <;> simp only [Rect.inter] <;> omega
 
-/-- Split every `if` of the goal. -/
 macro "splitAll" : tactic => `(tactic| repeat' split)
 
-/-! ## The classes -/
-
-/-- Pixel evidence for one rect: not compared, equal before and after, or different. -/
 inductive Pix | unknown | same | changed
   deriving DecidableEq, Repr
 
-/-- Everything known about one painted rect (all rects in one space, the viewport's). -/
 structure Fact where
   rect : Rect
   visible : Rect
@@ -57,20 +42,16 @@ structure Fact where
   clipped : Bool
   pix : Pix
 
-/-- Why a paint is or is not seen, in the order the rule asks. -/
 inductive Class | zeroArea | hidden | clippedOut | covered | beyondMargin | prepaintMargin | noop | visible
   deriving DecidableEq, Repr
 
-/-- Every class, in report order. -/
 def classes : List Class :=
   [.zeroArea, .hidden, .clippedOut, .covered, .beyondMargin, .prepaintMargin, .noop, .visible]
 
-/-- The name written in reports and the golden. -/
 def Class.name : Class → String
   | .zeroArea => "zero-area" | .hidden => "hidden" | .clippedOut => "clipped-out" | .covered => "covered"
   | .beyondMargin => "beyond-margin" | .prepaintMargin => "prepaint-margin" | .noop => "noop" | .visible => "visible"
 
-/-- The class of one painted rect. -/
 def classify (f : Fact) : Class :=
   if f.rect.area = 0 then .zeroArea
   else if f.hidden then .hidden
@@ -94,7 +75,6 @@ theorem covered_iff (f : Fact) :
     classify f = .covered ↔ f.rect.area ≠ 0 ∧ f.hidden = false ∧ f.clipped = false ∧ f.covered = true := by
   unfold classify; splitAll <;> simp_all
 
-/-- Rects that reach the screen at all: not empty, shown, not clipped away, not under an opaque layer. -/
 def Reaches (f : Fact) : Prop :=
   f.rect.area ≠ 0 ∧ f.hidden = false ∧ f.clipped = false ∧ f.covered = false
 
@@ -116,16 +96,11 @@ theorem visible_iff (f : Fact) :
     classify f = .visible ↔ Reaches f ∧ 0 < (f.rect.inter f.visible).area ∧ f.pix ≠ .same := by
   unfold classify Reaches; splitAll <;> simp_all
 
-/-- A rect with no pixel evidence is never called a no-op. -/
 theorem not_noop_of_unknown (f : Fact) (h : f.pix = .unknown) : classify f ≠ .noop := by
   rw [Ne, noop_iff]; simp [h]
 
-/-! ## Counts and area -/
-
-/-- Pixels of the rect that the user sees: the overlap with the viewport when the paint is `visible`, else none. -/
 def seenArea (f : Fact) : Nat := if classify f = .visible then (f.rect.inter f.visible).area else 0
 
-/-- Pixels painted that the user does not see. -/
 def wasteArea (f : Fact) : Nat := f.rect.area - seenArea f
 
 theorem seenArea_le (f : Fact) : seenArea f ≤ f.rect.area := by
@@ -139,7 +114,6 @@ theorem seen_add_waste (f : Fact) : seenArea f + wasteArea f = f.rect.area := by
 theorem waste_full_of_ne_visible (f : Fact) (h : classify f ≠ .visible) : wasteArea f = f.rect.area := by
   simp [wasteArea, seenArea, h]
 
-/-- How many rects have class `c`. -/
 def tally (fs : List Fact) (c : Class) : Nat := (fs.map classify).count c
 
 theorem tally_sum (fs : List Fact) : (classes.map (tally fs)).sum = fs.length := by
@@ -152,7 +126,6 @@ theorem tally_sum (fs : List Fact) : (classes.map (tally fs)).sum = fs.length :=
     simp only [e]
     cases classify f <;> simp <;> omega
 
-/-- Rects per 100 frames, rounded down; none for an empty window. -/
 def per100 (total frames : Nat) : Nat := if frames = 0 then 0 else total * 100 / frames
 
 theorem per100_zero (total : Nat) : per100 total 0 = 0 := by simp [per100]
@@ -162,15 +135,8 @@ theorem per100_mono (a b frames : Nat) (h : a ≤ b) : per100 a frames ≤ per10
   · exact Nat.le_refl _
   · exact Nat.div_le_div_right (Nat.mul_le_mul_right 100 h)
 
-/-! ## Where the tiles reach -/
-
-/-- The tile margin in layer pixels: 512 over the contents scale (`TileController.cpp` `kDefaultTileSize`). -/
 def margin (scale : Nat) : Nat := 512 / scale
 
-/--
-The vertical tile coverage of a viewport `v` in a layer `contentH` tall, moving `dir` (positive down), margin `m`:
-one margin ahead of the motion, half a margin each side when still, shifted back inside the layer, never above 0.
--/
 def coverage (v : Rect) (dir : Int) (m contentH : Nat) : Rect :=
   let h' : Nat := v.h + m
   let y0 : Int := if dir < 0 then v.y - m else if dir = 0 then v.y - (m / 2 : Nat) else v.y
@@ -182,9 +148,6 @@ theorem coverage_sub (v : Rect) (dir : Int) (m contentH : Nat) (h0 : 0 ≤ v.y) 
   unfold coverage Rect.Sub
   refine ⟨Int.le_refl _, by simp, ?_, ?_⟩ <;> simp only [] <;> splitAll <;> omega
 
-/-! ## A layer that changes size -/
-
-/-- Pixels re-rastered when a layer's size goes from `old` to `new`: a non-tiled layer that changes size is painted whole. -/
 def rerasterArea (tiled : Bool) (old new : Nat × Nat) : Nat :=
   if tiled || old == new then 0 else new.1 * new.2
 
@@ -195,27 +158,17 @@ theorem reraster_same (t : Bool) (s : Nat × Nat) : rerasterArea t s s = 0 := by
 theorem reraster_resized (old new : Nat × Nat) (h : old ≠ new) : rerasterArea false old new = new.1 * new.2 := by
   simp [rerasterArea, h]
 
-/-! ## The dirty rects of a layer
-
-`GraphicsLayerCA::setNeedsDisplayInRect` records every call in the tracked repaint list, then keeps a rect only when no
-kept rect holds it, and merges into the first kept rect once 32 are kept (`GraphicsLayerCA.cpp:1031-1043`@862f17d). The
-paints of one frame are the kept list, so the tracked list over-counts by the calls the engine drops.
--/
-
-/-- `c` holds all of `r`. -/
+-- GraphicsLayerCA.cpp:1031-1043@862f17d: a call is dropped when a kept rect holds it; once 32 are kept it merges into the first.
 def Rect.holds (c r : Rect) : Bool :=
   decide (c.x ≤ r.x ∧ r.x + r.w ≤ c.x + c.w ∧ c.y ≤ r.y ∧ r.y + r.h ≤ c.y + c.h)
 
-/-- The smallest rect that holds both. -/
 def Rect.unite (a b : Rect) : Rect :=
   { x := min a.x b.x, y := min a.y b.y,
     w := (max (a.x + a.w) (b.x + b.w) - min a.x b.x).toNat,
     h := (max (a.y + a.h) (b.y + b.h) - min a.y b.y).toNat }
 
-/-- How many dirty rects a layer keeps (`maxDirtyRects`). -/
 def dirtyCap : Nat := 32
 
-/-- One `setNeedsDisplayInRect` call on the kept rects `ds`. -/
 def addDirty (ds : List Rect) (r : Rect) : List Rect :=
   if ds.any (·.holds r) then ds
   else if ds.length < dirtyCap then ds ++ [r]
@@ -223,7 +176,6 @@ def addDirty (ds : List Rect) (r : Rect) : List Rect :=
     | [] => [r]
     | d :: t => d.unite r :: t
 
-/-- The kept rects after the calls `rs`, in order. -/
 def dirty (rs : List Rect) : List Rect := rs.foldl addDirty []
 
 theorem addDirty_held (ds : List Rect) (r : Rect) (h : ds.any (·.holds r) = true) : addDirty ds r = ds := by
@@ -275,10 +227,8 @@ private theorem foldl_len_le (rs ds : List Rect) : (rs.foldl addDirty ds).length
     simp only [List.foldl_cons, List.length_cons]
     omega
 
-/-- A layer keeps at most 32 dirty rects however many calls come. -/
 theorem dirty_len_le_cap (rs : List Rect) : (dirty rs).length ≤ dirtyCap := foldl_len rs [] (by simp)
 
-/-- The kept rects are no more than the calls. -/
 theorem dirty_len_le (rs : List Rect) : (dirty rs).length ≤ rs.length := by
   have := foldl_len_le rs []
   simpa [dirty] using this
@@ -293,7 +243,6 @@ theorem holds_self (r : Rect) : r.holds r = true := by
   simp only [Rect.holds, decide_eq_true_eq]
   omega
 
-/-- After a call, some kept rect holds the rect. -/
 theorem addDirty_holds (ds : List Rect) (r : Rect) : (addDirty ds r).any (·.holds r) = true := by
   by_cases h : ds.any (·.holds r) = true
   · rw [addDirty_held ds r h]; exact h
@@ -304,11 +253,8 @@ theorem addDirty_holds (ds : List Rect) (r : Rect) : (addDirty ds r).any (·.hol
       · simp [dirtyCap] at hl
       · rw [addDirty_merge d t r h' hl]; simp [holds_unite_right]
 
-/-- The same call twice in a row keeps the same rects: the engine drops the repeat. -/
 theorem addDirty_twice (ds : List Rect) (r : Rect) : addDirty (addDirty ds r) r = addDirty ds r :=
   addDirty_held _ _ (addDirty_holds ds r)
-
-/-! ## Golden lines -/
 
 private def rj (r : Rect) : Lean.Json := .arr #[.num r.x, .num r.y, .num r.w, .num r.h]
 
@@ -319,7 +265,6 @@ private def cov : Rect := ⟨0, 0, 430, 1700⟩
 
 private def mkFact (r : Rect) (hi cv cl : Bool) (p : Pix) : Fact := ⟨r, vp, cov, hi, cv, cl, p⟩
 
-/-- The facts the golden classifies. -/
 def sampleFacts : List Fact :=
   [ mkFact ⟨0, 200, 100, 0⟩ false false false .unknown,
     mkFact ⟨0, 200, 100, 50⟩ true false false .changed,
@@ -364,7 +309,6 @@ private def dirtyCases : List (List Rect) :=
     (List.range 34).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect),
     ((List.range 34).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect)) ++ [⟨0, 0, 100, 1⟩, ⟨66, 0, 1, 1⟩] ]
 
-/-- The golden lines `packages/contracts/golden/measure/paint-visible.jsonl`. -/
 def lines : List String :=
   sampleFacts.map (fun f =>
     line "classify"
@@ -386,10 +330,8 @@ def lines : List String :=
   dirtyCases.map fun rs =>
     line "dirty" [("calls", .arr (rs.map rj).toArray)] (.arr ((dirty rs).map rj).toArray)
 
-/-- The golden text. -/
 def goldenText : String := String.join (lines.map (· ++ "\n"))
 
-/-- Print the golden text, or with `--check <file>` compare it; exit 1 on a difference. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>

@@ -1,4 +1,3 @@
-// The paint-rect class rule (src/paintclip.mjs) against the Lean golden (lean/Fw/Engine/PaintVisible.lean).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

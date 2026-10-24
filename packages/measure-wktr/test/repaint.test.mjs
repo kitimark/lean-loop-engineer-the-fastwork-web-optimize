@@ -1,4 +1,3 @@
-// The pure part of the invisible-paint lane: layer-tree text parser, swipe schedule, frame facts and the reduction.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { keepDirty, parseLayers, swipeSchedule, zoneOf, frameFacts, frameCounts, reduceRun, sumTables, parseRepaint, buildRepaintRun, ZONES, ARMS } from '../src/repaint.mjs';
