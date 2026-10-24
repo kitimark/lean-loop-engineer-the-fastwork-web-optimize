@@ -3625,13 +3625,13 @@
    "n": 73,
    "part": "nav",
    "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
-   "status": "look-change",
+   "status": "proved",
    "flags": [
     "nav:earn-logical"
    ],
    "chromium": "unchanged (same started set and timing, Lean variant_chromium_set and variant_chromium_timing; breakpoint gate: see evidence)",
-   "webkit": "padding eases on WebKit like Chromium (macOS per-frame lane, see evidence); iPhone INFERRED from shared WebKit source",
-   "visual": "engine parity look change (L): on WebKit the earn side padding eases over 680 ms instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. Pending the user's Safari (macOS) and iPhone review; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
+   "webkit": "padding eases on WebKit along the Chromium faithful curve: Lean curve_identity (the padding at every time t is the Chromium faithful padding), settle_680, variant_monotone; MEASURED on macOS (runs 40100783726 and 40102193302, all 36 variant traces of Playwright WebKit (24) and Safari 1280 (12) within the Lean tolerance of the curve, results/earn-logical-proof/summary.json); iPhone INFERRED from shared WebKit source",
+   "visual": "engine parity look change (L), accepted by the user 2026-10-25: on WebKit the earn side padding eases over 680 ms along the Chromium curve instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. It stays out of v2-proved as class L (Lean V2Proved.look_not_mem, Gen.lookCandidates_not_mem). macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
    "mechanism": "CONFIRMED (source, from earn-webkit-parity): WebKit keeps the logical longhands of the padding-inline shorthand in the transition list and they have no animation wrapper (Styleable.cpp:553-566, process-css-properties.py:~5956@862f17d), so no padding transition starts; a listed logical longhand is resolved to physical (Styleable.cpp:563-564) and then has a wrapper, so it starts (Lean wk_inlineLonghands_ltr, variant_webkit_padding). Chromium maps both to physical already (css_animations.cc:2993-3007@f842f52).",
    "leanFor": [
     "Fw.Parts.NavEarnWebkit.variant_entry_webkit",
@@ -3643,21 +3643,35 @@
     "Fw.Parts.NavEarnWebkit.variant_webkit_set_eq_chromium_faithful",
     "Fw.Parts.NavEarnWebkit.variant_webkit_timing_eq_chromium_faithful",
     "Fw.Parts.NavEarnWebkit.hero_exit_chromium",
-    "Fw.Parts.NavEarnWebkit.hero_exit_webkit"
+    "Fw.Parts.NavEarnWebkit.hero_exit_webkit",
+    "Fw.Parts.NavEarnCurve.curve_identity",
+    "Fw.Parts.NavEarnCurve.run_identity",
+    "Fw.Parts.NavEarnCurve.chromium_unchanged",
+    "Fw.Parts.NavEarnCurve.variant_runs",
+    "Fw.Parts.NavEarnCurve.settle_680",
+    "Fw.Parts.NavEarnCurve.variant_monotone",
+    "Fw.Parts.NavEarnCurve.variant_between",
+    "Fw.Parts.NavEarnCurve.num_slack"
    ],
    "leanAgainst": [
-    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)"
+    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)",
+    "Fw.Parts.NavEarnCurve.faithful_webkit_snaps (the faithful rule holds the end padding from the flip on WebKit; the measured faithful WebKit and Safari traces fail the curve, the negative control)"
    ],
    "missingWhy": [
-    "felt smoothness on Safari and iPhone: the user's review",
-    "iPhone is inferred from shared WebKit source, not measured"
+    "iPhone is inferred from shared WebKit source, not measured",
+    "paint and compositing of the eased padding are outside the proof"
    ],
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
-   "next": "User visual review on Safari (macOS) and the iPhone; it stays out of v2-proved while it is a look change (class L).",
+   "next": "none: accepted 2026-10-25 and proved; it stays out of v2-proved while it is a look change (class L).",
    "flag": "nav:earn-logical",
-   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)"
+   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; research/notes/2026/10-2x-earn-logical-proof.md; results/earn-logical-proof/summary.json; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
+   "userDecision": {
+    "date": "2026-10-25",
+    "decision": "accepted 2026-10-25: the user found nav:earn-logical good and asked for its proof (source: chat)",
+    "review": "runs 40100783726, 40102193302 artifacts transitions-apple-390, transitions-apple-1280 (expire 2026-11-23); task earn-logical-proof"
+   }
   },
   {
    "id": "morph.end.clamp",
