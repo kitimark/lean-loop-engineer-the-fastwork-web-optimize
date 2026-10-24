@@ -1,7 +1,7 @@
 branch: worktree-wf_8d277336-310-1 (CI branch ci/webkit-morph-walk-noise)
 worktree: .claude/worktrees/wf_8d277336-310-1
 last commit: dd1b906ed (code); handoff commit follows
-CI runs: none finished yet (push 1 of 3 in flight; run id added below once the push run exists)
+CI runs: trajectory-probe 40122382227 (push 1 of 3, sha a8c25507, fw=engine.scroll:batched engines=playwright-webkit debug=nav-transition) in_progress
 
 Verified (local, not a result): Lean `lake build Fw.Gate.Trajectory` green; golden regenerated from Lean (383 lines);
 `node --test test/trajectory.test.mjs` 423 pass; one local Playwright WebKit debug run at 390 showed the cand walk adds an extra rep.
