@@ -78,12 +78,15 @@ rewrite 236.4, original 146.7, unthrottle 424.1, follow 421.5.
 - **The part-output lens was chosen after run 1.** The pinned lens (scrollY still runs) cannot move with the loop, since the loop only changes
   when the engine runs; the part lens (`ThrottleParts.rowsOf`: the shown value as its own series) is the one the Lean model predicts. Run 2
   repeated it with 3 of 3 jobs in the same direction. INFERRED as the right lens; the declared lens shows no steady gain.
+- **Plainly: the hero-value still-runs lens (174.5 vs 103.0 per 1000 mid-moving frames) was chosen after seeing the data (INFERRED).** On the
+  pinned lens, scrollY, there is no steady gain over unthrottle (109.1 vs 108.1 in run 1, 111.2 vs 84.3 in run 2, mixed). The verdict follows the
+  pinned unit (scrollY): no gain on it; the part-output gain is a finding on a lens picked after the fact, not a new verdict lens.
 - One pass per arm per job, 6 per arm; the Simulator is not the phone (phone feel is the user's step); the part columns were reduced locally from the CI
   artifacts by `follow-report.mjs` (TS stand-in; the CI report job of those runs prints the scrollY columns and the verdict lines only).
 - Finish mode (the page end) is a follow-up if the user wants it. Not measured: Low Power Mode, power, the phone.
 
 ## Follow-ups
 
-- Breakpoint gate for the flag (lead): `pnpm -s fw run --gate --engines both --fw engine.scroll:unthrottle-follow --ref ci/unthrottle-follow`.
+- Breakpoint gate for the flag, both engines: PASSED, run 40125463870 on head 8cb61aace (CONFIRMED, lead). Command: `pnpm -s fw run --gate --engines both --fw engine.scroll:unthrottle-follow --ref ci/unthrottle-follow`.
 - Trajectory probe and morph cell before the flag can join `v2-proved` (`Fw.Preset.Gen` lists it as registered, not a member).
 - Look check of chasing parts on wide viewports under the loop (look-change class).
