@@ -8,7 +8,7 @@ import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Row, type Sample, type VmMark,
   type WParams, type Window, beginPass, capLease, current, openAt, passStart, predict, stopPass, want, wverdict,
   admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, nestedSkips, prune, release, renew, signal, simAction, simBoot,
-  simDue, simIdleNext, simQueued, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
+  simDue, simHandover, simIdleNext, simQueued, simRecord, simSettle, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
 import { WHY_TAGS, noteQueue, queueExtra } from "../src/slot-queue.ts";
 import {
@@ -43,6 +43,9 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
     case "adapt.simAction":
       return { action: simAction(p, r.now as number, r.holders as Entry[], r.booted as boolean, r.legacyHeld as boolean, r.idleSince as number | null) };
     case "adapt.simIdleNext": return { idleSince: simIdleNext(r.now as number, r.held as boolean, r.booted as boolean, r.prev as number | null) };
+    case "adapt.simSettle": return simSettle(r.before as string[], r.booted as string[], r.handover as boolean) as never;
+    case "adapt.simHandover": return { handover: simHandover(r.now as number, r.queue as Entry[]) };
+    case "adapt.simRecord": return { record: simRecord(r.inherited as string[] | null, r.booted as string[]) };
     case "adapt.simDue": return { due: simDue(p, r.now as number, r.last as number) };
     case "adapt.admitBuild": return admitBuild(p, r.simWaits as boolean, r.availMB as number, r.agents as number | null);
     case "adapt.memLow": {
@@ -79,7 +82,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(34);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(37);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
