@@ -99,12 +99,25 @@ export function passRows(p) {
   return partSeries(p.ys, p.vs).map(([y, v], i) => [y, v, cs[i]]);
 }
 
-/** Lean `Pass.heights`: the heights a pass offers the verdict of a class (the moving class compares counts only). */
-export function passHeights(c, p) {
-  if (c === 'moving') return [];
+/** Lean `Pass.stillHeights`: the viewport height of every still frame of a pass, or its one height when it has no field. */
+export function passStillHeights(p) {
   if (!hasField(p)) return [p.h];
   const cs = passClasses(p);
   return p.vh.filter((_, i) => cs[i] === 'still');
+}
+
+/** Lean `Pass.csAt`: the classes of a pass in the group of height g; `still` only where the toolbar is still and the height is g, every
+ *  other frame is `moving` (outside the group). A pass without the field is in the group of its one height as a whole. */
+export function passClassesAt(g, p) {
+  if (!hasField(p)) return p.ys.map(() => (p.h === g ? 'still' : 'moving'));
+  const cs = passClasses(p);
+  return p.vh.map((v, i) => (cs[i] === 'still' && v === g ? 'still' : 'moving'));
+}
+
+/** Lean `Pass.rowsAt`: the part series of a pass with the group classes. */
+export function passRowsAt(g, p) {
+  const cs = passClassesAt(g, p);
+  return partSeries(p.ys, p.vs).map(([y, v], i) => [y, v, cs[i]]);
 }
 
 /** Lean `armOf`: the counts of one class over the passes of an arm. */
@@ -121,10 +134,37 @@ export function armOf(c, passes) {
 /** Lean `verdictToday`: one height per pass, the counts of the whole pass. */
 export const verdictToday = (base, lift) => verdict([...base, ...lift].map((p) => p.h), armCounts(base), armCounts(lift));
 
-/** Lean `verdictClass`: the like-for-like comparison of the frames of one toolbar class. */
-export const verdictClass = (c, base, lift) => verdict([...base, ...lift].flatMap((p) => passHeights(c, p)), armOf(c, base), armOf(c, lift));
+/** Lean `armAt`: the counts of the group of height g over the passes of an arm. */
+export function armAt(g, passes) {
+  let r = 0, f = 0;
+  for (const p of passes) {
+    const rows = passRowsAt(g, p);
+    r += countC('still', BAND_LO, BAND_HI, rows);
+    f += exitFramesC('still', rows);
+  }
+  return { runs: r, frames: f };
+}
 
-/** The verdict of both classes and today's. */
+/** Lean `verdictMoving`: the moving class compares counts only (its heights differ by definition). */
+export const verdictMoving = (base, lift) => verdict([], armOf('moving', base), armOf('moving', lift));
+
+/** Lean `present`: some pass of the arm has a still frame at height g. */
+export const present = (g, passes) => passes.some((p) => passStillHeights(p).includes(g));
+
+/** Lean `groupHeights`: the heights with a still frame in either arm, each once, in order of first appearance. */
+export const groupHeights = (base, lift) => [...new Set([...base, ...lift].flatMap(passStillHeights))];
+
+/** Lean `verdictAt`: the verdict of the frames still at height g (equal heights by construction). */
+export const verdictAt = (g, base, lift) => verdict([g], armAt(g, base), armAt(g, lift));
+
+/** Lean `groupOf` (name): the verdict of a height both arms have, else `not-comparable`. */
+export const groupOf = (g, base, lift) => (present(g, base) && present(g, lift) ? verdictAt(g, base, lift) : 'not-comparable');
+
+/** Lean `verdictByHeight`: one group per height with a still frame in either arm, {h, base, lift, result}. */
+export const verdictByHeight = (base, lift) =>
+  groupHeights(base, lift).map((g) => ({ h: g, base: armAt(g, base), lift: armAt(g, lift), result: groupOf(g, base, lift) }));
+
+/** The moving class, the still class by height, and today's verdict. */
 export const verdictByClass = (base, lift) => ({
-  moving: verdictClass('moving', base, lift), still: verdictClass('still', base, lift), today: verdictToday(base, lift),
+  moving: verdictMoving(base, lift), groups: verdictByHeight(base, lift), today: verdictToday(base, lift),
 });

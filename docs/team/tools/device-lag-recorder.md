@@ -29,7 +29,7 @@ Known effects:
    carry on.
 2. The recorder's own rAF callback and three inline style reads run every frame (inline style reads do not flush layout). The
    `visualViewport` reads do: `scale`, `height` and `offsetTop` each call `updateFrameLayout` (WebKit `VisualViewport.cpp:72-76`,
-   `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0. The callback writes no DOM and `scale` and `scrollY`
+   `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0 (`LocalDOMWindow.cpp:1476-1480` @ 862f17d). The callback writes no DOM and `scale` and `scrollY`
    were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work (the idea that
    these reads were free of layout was wrong; they are free here only because of that order). It runs before
    the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
@@ -65,20 +65,32 @@ expanded; with one height per pass the still-run verdict was `confounded`. Now e
   (`reduceClass_total_split`, `_zone_split`, `_frames_split`).
 - The comparison within a class (`compareClass`): the verdict rule above over the passes that hold at least one frame of the class (a pass
   without any is not a score). It is never mixed across classes, so a pass that started collapsed is compared on its still frames.
-- The still-run verdict by class (`verdictClass`): runs and exit frames of each class are counted separately (a run is `moving` when any of
-  its frames, up to the one that ends it, is moving; `countC_split`); the still class asks for equal heights among its still frames only, so
-  the collapsed start of one pass no longer makes it `confounded`; the moving class compares counts only (its heights differ by
-  definition).
-- Old recordings (no `vh` per frame, or a list of the wrong length) are still at every frame: `classesOf_noField`,
-  `reduceClass_noField`, `compareClass_noField` and `verdictClass_noField` prove the still class is today's reduction and verdict, and
-  `verdictClass_const` proves the same for a pass whose height never changes. The TS twins (`reduceClass`, `compareClass`,
-  `compareClasses`, `verdictClass`) are replayed on the golden lines `class.*` (session) and `cruns`, `cverdict` (stillruns).
+- The still-run counts by class (`armOf`): runs and exit frames of each class are counted separately (a run is `moving` when any of its
+  frames, up to the one that ends it, is moving; `countC_split`). The moving class compares counts only (`verdictMoving`; its heights
+  differ by definition).
+- The still-run verdict by height (`verdictByHeight`): the still class is split by the viewport height of its frames (`Pass.csAt`: a frame
+  is in the group of height `g` when it is toolbar-still and at `g`; `Pass.csAt_still_iff`), and each height present in both arms gets its
+  own verdict on only those frames (`verdictAt`, never `confounded`: `verdictAt_ne_confounded`, `verdictByHeight_ne_confounded`). A height
+  that only one arm has is reported `not-comparable`, not judged. So a collapsed start shorter than `moveWin` frames no longer makes
+  the pass `confounded`, and a pass whose toolbar was held collapsed longer than `moveWin` frames (still frames at 815 and at 775) is
+  judged at 775 and at 815 separately instead of being `confounded` as a whole. The golden lines `cverdict` hold a 31-frame and a
+  60-frame collapse against a lift at 775 (815 `not-comparable`, 775 `lifted`, today `confounded`) and both arms toggling 775/815
+  mid-pass (both heights `lifted`).
+- Old recordings (no `vh` per frame, or a list of the wrong length) are still at every frame, in the group of their one height:
+  `classesOf_noField`, `reduceClass_noField` and `compareClass_noField` prove the still class is today's reduction, and
+  `verdictByHeight_noField` and `verdictByHeight_const` prove that when every pass has one height `g` (no field, or a height that never
+  changes) the still class is the single group `g` and its verdict is `verdictToday`, which is unchanged and printed beside the groups.
+  The TS twins (`reduceClass`, `compareClass`, `compareClasses`, `verdictByHeight`) are replayed on the golden lines `class.*`
+  (session) and `cruns`, `cverdict` (stillruns).
 
-Limits (accepted): still frames at two different heights stay `confounded` (a toolbar that settled at 775 after 3 s at 815 is not one
-page); `vt` is recorded but not used by the class; the moving class is reported, not judged against the original. Follow-ups:
-a `device-cli` subcommand that prints the per-class table (`device-cli.mjs` is not part of this change), a phone pass to see the classes
-on a real session, and feeding `verdictByClass` into the throttle probe report. TS stand-ins: `classes`, `reduceClass`, `compareClasses`,
-`runsC`, `armOf`, `verdictByClass` run in TS, checked against the Lean goldens; they move into `fwcore` with the other reductions.
+Limits (accepted): a height present in only one arm is `not-comparable`, not judged (a base that sat at 815 all pass has no partner in a
+lift at 775); `vt` is recorded but not used by the class; the moving class is reported, not judged against the original; the zone
+boundaries of `reduceClass` still use the pass's starting height, and `compareClass`'s still-class zone verdict still pools the still
+frames of all heights (the still-run verdict above does not). Follow-ups: the zone verdict by height (`reduceClass` and
+`compareClass` by height group, with `zoneOf` from the group's height), a `device-cli` subcommand that prints the per-class table
+(`device-cli.mjs` is not part of this change), a phone pass to see the classes on a real session, and feeding `verdictByClass` into the
+throttle probe report. TS stand-ins: `classes`, `reduceClass`, `compareClasses`, `runsC`, `armOf`, `armAt`, `verdictByHeight`,
+`verdictByClass` run in TS, checked against the Lean goldens; they move into `fwcore` with the other reductions.
 
 ## Session steps (the lead relays these one at a time; each is a short instruction to the user)
 

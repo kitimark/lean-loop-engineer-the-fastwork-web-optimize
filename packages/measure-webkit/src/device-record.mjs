@@ -11,8 +11,8 @@
 // `vv.height` (`vh`) and `vv.offsetTop` (`vt`) in 0.1 px (innerHeight when there is no visualViewport); Lean (`classes`) splits the frames
 // into toolbar-moving and toolbar-still and the verdicts compare like with like per class. These reads DO flush layout in WebKit
 // (VisualViewport.cpp:72-76 updateFrameLayout, used by offsetTop 87-94, height 123-130 and scale 132-141 @ WebKit 862f17d), but the
-// callback writes no DOM and already reads `vv.scale` and `scrollY` every frame, so the layout is already up to date and the two new reads
-// add no layout work.
+// callback writes no DOM and already reads `vv.scale` and `scrollY` every frame (`scrollY` flushes layout when it is not 0,
+// LocalDOMWindow.cpp:1476-1480 @ 862f17d), so the layout is already up to date and the two new reads add no layout work.
 // A touch ON a moving page stops its native fling; the person's tap therefore changes the scroll it marks. Say so in the session steps.
 // The felt mark must not change the page: the step text names an empty area; a tap that still hits a link ends the page, which the
 // pagehide listener (and, after the navigation, the missing liveness flag the poll looks for) names as the failure. A pinch or
