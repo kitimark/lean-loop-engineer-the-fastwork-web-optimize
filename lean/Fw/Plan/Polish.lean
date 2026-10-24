@@ -1062,8 +1062,8 @@ private def vd (p o c : String) : String := (pathVerdict p o c).name
 #guard vd "a.md" "x\n" "y\n" = "unchecked"
 #guard codeLines synHash "echo $# \"a # b\" # c" = ["echo $# \"a # b\""]
 #guard vd "lean/scripts/check.sh" "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n" "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n" = "joined"
-#guard vd "lean/scripts/check.sh" "job \"sup-measure\" x  # sup\njob \"node-budget\" y\n" "job \"sup-measure\" x  job \"node-budget\" y\n" = "joined"
-#guard vd "lean/scripts/check.sh" "job \"hero-scene-pause\" x  # a\njob \"nav-earn\" y\n" "job \"hero-scene-pause\" x  job \"nav-earn\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"sup-measure\" x  # s\njob \"node-budget\" y\n" "job \"sup-measure\" x  job \"node-budget\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n" "job \"hero-scene-pause\" x  job \"nav-earn\" y\n" = "joined"
 #guard vd "a.mjs" "const b = ['ci/**'];\nfoo(); // why\nbar();\n" "const b = ['ci/**'];\nfoo(); bar();\n" = "joined"
 #guard vd "a.ts" "const b = \"a\\\"/*\";\nfoo(); // why\nbar();\n" "const b = \"a\\\"/*\";\nfoo(); bar();\n" = "joined"
 

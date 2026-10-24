@@ -15,5 +15,5 @@ Verified
 
 Open
 - Other file types (md is handled by prose rules; json, svg) stay unchecked; past polish commits on other files not audited.
-- Limit (false accept): heredocs and regex literals are not parsed by `scan`; one holding `/*` or a quote can hide later lines, so a join there is accepted. Single quotes (ts/js/sh/yaml) and backslash escapes in quotes are handled.
+- Limit (false accept): heredocs, regex literals and multi-line strings (template literals, quotes spanning lines) are not parsed by `scan`; one holding `/*` or a quote can hide later lines, so a join there is accepted. Single quotes (ts/js/sh/yaml) and backslash escapes in quotes are handled.
 - Read first: the Lean section and `polishCli` commit loop.
