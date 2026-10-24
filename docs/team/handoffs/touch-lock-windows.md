@@ -1,7 +1,8 @@
 branch: worktree-wf_31e4b9d2-d88-1 (CI branch ci/touch-lock-windows)
 worktree: .claude/worktrees/wf_31e4b9d2-d88-1
 last commit: bec2feaf9 (CI head of dispatch 1; later commits are notes only)
-CI runs: smoothness 40071802991 success (dispatch 1 of 2, head bec2feaf9): 12 windows, all three arms counted (base 2 open, lock 3, orig 3; 4 noOpen), restart of the push server FAILED with "no ready file after 276 s" (not the old xcresult name error), lane ended after window 12; dispatch 2 on ci/touch-lock-windows-2 (see below)
+CI runs: smoothness 40071802991 success (dispatch 1 of 2, head bec2feaf9): 12 windows, all three arms counted (base 2 open, lock 3, orig 3; 4 noOpen), restart of the push server FAILED with "no ready file after 276 s" (not the old xcresult name error), lane ended after window 12
+  smoothness 40074062290 (dispatch 2 of 2, branch ci/touch-lock-windows-2, head fbe5e9861): running
 results: results/touch-lock-page-end/run-40071802991/ (touch-lock.json, touch-lock.md)
 verified: lean/scripts/check.sh green at 45e615849; measure-webkit touchlock test 18 pass; golden 40 lines
 open: dispatch 1 result; lock and orig windows; restart fix measured only if a restart happens
