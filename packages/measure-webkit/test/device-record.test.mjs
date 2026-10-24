@@ -22,7 +22,73 @@ const [session] = of('session');
 const pairs = (p) => p.map((q) => [q[0], q[1]]);
 
 test('every golden kind has lines', () => {
-  for (const k of ['consts', 'plan', 'dedup', 'series', 'zone', 'stat', 'verdict', 'part', 'marks', 'stream', 'loader', 'session']) assert.ok(of(k).length > 0, k);
+  for (const k of ['consts', 'plan', 'dedup', 'series', 'zone', 'stat', 'verdict', 'part', 'marks', 'stream', 'loader', 'session', 'class.consts', 'class', 'class.report', 'class.compare']) assert.ok(of(k).length > 0, k);
+});
+
+const classStr = (cs) => cs.map((c) => c[0]).join('');
+const toReport = ([frames, total, hero, finish, rest]) => ({ frames, total: { per50: total }, zones: { hero: { per50: hero }, finish: { per50: finish }, rest: { per50: rest } } });
+
+test('toolbar class: constants and the class of every frame agree with Lean', () => {
+  const [c] = of('class.consts');
+  assert.deepEqual([S.CLASS_CONST.moveWin, S.CLASS_CONST.moveMin], [c.moveWin, c.moveMin]);
+  for (const g of of('class')) {
+    assert.equal(classStr(S.classes(g.vh)), g.classes, JSON.stringify(g.vh.slice(0, 5)));
+    assert.equal(g.classes.length, g.vh.length);
+  }
+});
+
+test('toolbar class: the split is a partition of the frames, and a constant height is all still', () => {
+  for (const g of of('class')) {
+    const cs = S.classes(g.vh);
+    assert.equal(cs.filter((c) => c === 'moving').length + cs.filter((c) => c === 'still').length, g.vh.length);
+    if (g.vh.every((h) => h === g.vh[0])) assert.ok(cs.every((c) => c === 'still'));
+  }
+});
+
+test('toolbar class: a pass reduced by class agrees with Lean and the classes add up to today\'s counts', () => {
+  const [g] = of('class.report');
+  const rec = g.record;
+  assert.equal(classStr(S.classesOf(rec)), g.classes);
+  const whole = S.reducePass(rec);
+  assert.deepEqual(whole.total, g.whole.total);
+  assert.deepEqual(S.reduceClass(rec, 'moving'), g.moving);
+  assert.deepEqual(S.reduceClass(rec, 'still'), g.still);
+  assert.equal(g.moving.total.n + g.still.total.n, whole.total.n);
+  assert.equal(g.moving.frames + g.still.frames, rec.t.length);
+  assert.ok(g.moving.frames > 0 && g.still.frames > 0, 'the fixture has both classes');
+  const old = { ...rec, vh: undefined };
+  assert.equal(classStr(S.classesOf(old)), g.noFieldClasses);
+  assert.deepEqual(S.reduceClass(old, 'moving'), g.noFieldMoving);
+  assert.deepEqual(S.reduceClass(old, 'still'), g.noFieldStill);
+  assert.deepEqual(S.reduceClass(old, 'still').total, whole.total, 'a recording without the field keeps today\'s counts');
+  assert.deepEqual(S.reduceClass(old, 'still').zones, whole.zones);
+  assert.equal(S.reduceClass(old, 'moving').frames, 0);
+});
+
+test('toolbar class: a fixture record without the field keeps today\'s reduction and verdict', () => {
+  const rec = session.record;
+  assert.equal(rec.vh, undefined);
+  assert.deepEqual(S.reduceClass(rec, 'still').total, session.report.total);
+  const reports = ['original', 'original', 'rewrite', 'rewrite'].map((arm) => ({ arm, report: session.report, ...S.reduceByClass(rec) }));
+  const today = S.compareZones(reports);
+  const byClass = S.compareClasses(reports).filter((x) => x.class === 'still');
+  assert.deepEqual(byClass.map((x) => x.zone), today.map((x) => x.zone));
+  for (const [i, x] of byClass.entries()) {
+    assert.deepEqual(x.original, today[i].original);
+    assert.deepEqual(x.arms.map((a) => a.verdict), today[i].arms.map((a) => a.verdict));
+  }
+  assert.ok(S.compareClasses(reports).filter((x) => x.class === 'moving').every((x) => x.original.length === 0 && x.arms.every((a) => a.verdict === 'unresolved')));
+});
+
+test('toolbar class: per-class per-pass values and verdicts agree with Lean', () => {
+  for (const g of of('class.compare')) {
+    const [o, a] = [g.orig.map(toReport), g.arm.map(toReport)];
+    for (const [k, z] of [['total', null], ['hero', 'hero'], ['finish', 'finish'], ['rest', 'rest']]) {
+      assert.deepEqual(S.classVals(z, o), g[k].orig, k);
+      assert.deepEqual(S.classVals(z, a), g[k].arm, k);
+      assert.equal(S.compareClass(z, o, a), g[k].verdict, `${k} ${JSON.stringify(g.orig)}`);
+    }
+  }
 });
 
 test('zones', () => {
@@ -127,6 +193,11 @@ test('fixture session: page-unit record round-trips to the integer form', () => 
   const page = S.denormalize(session.record);
   assert.equal(page.schema, 'fw.phone.record/1');
   assert.deepEqual(S.normalize(page), session.record);
+  assert.equal('vh' in page.frames, false, 'a record without the field gains none');
+  const [g] = of('class.report');
+  const withVh = S.denormalize(g.record);
+  assert.deepEqual(withVh.frames.vh, g.record.vh.map((v) => v / 10));
+  assert.deepEqual(S.normalize(withVh), g.record, 'the viewport height of every frame survives the page-unit round trip');
 });
 
 test('fixture session: replay strokes and the felt-mark frames agree with Lean', () => {
@@ -206,7 +277,7 @@ test('page recorder: frames, parts and touches; listeners passive; no preventDef
         return { isConnected: true, style: { getPropertyValue: (n) => (n === prop ? props[prop] : '') } };
       },
     },
-    visualViewport: { scale: 1 },
+    visualViewport: { scale: 1, height: 775.33, offsetTop: 0 },
     addEventListener: (k, f, o) => { listeners.set(k, f); opts.push([k, o]); },
     removeEventListener: (k) => { listeners.delete(k); },
     requestAnimationFrame: (f) => { queue.push(f); },
@@ -219,6 +290,7 @@ test('page recorder: frames, parts and touches; listeners passive; no preventDef
     now += 16.67; sandbox.scrollY += 12.34; props['--exit-opacity'] = String(Math.max(0, 1 - k / 10));
     if (k === 3) sandbox.visualViewport.scale = 1.4;
     if (k === 5) sandbox.visualViewport.scale = 1;
+    if (k >= 4) { sandbox.visualViewport.height = 815; sandbox.visualViewport.offsetTop = 40.04; }
     if (k === 2) listeners.get('touchstart')(ev('touchstart', 215.55, 700, 1));
     if (k === 3) listeners.get('touchmove')(ev('touchmove', 215.55, 690, 1));
     if (k === 4) listeners.get('touchend')(ev('touchend', 215.55, 690, 0));
@@ -240,6 +312,13 @@ test('page recorder: frames, parts and touches; listeners passive; no preventDef
   assert.ok(opts.some(([k]) => k === 'pagehide'), 'a passive pagehide listener names a navigation');
   assert.equal(rec.zoom.frames, 2, 'frames at a visual viewport scale other than 1 are counted');
   assert.equal(rec.zoom.max, 1.4);
+  assert.equal(rec.frames.vh.length, rec.frames.t.length, 'one viewport height per frame');
+  assert.equal(rec.frames.vt.length, rec.frames.t.length, 'one viewport offset per frame');
+  assert.deepEqual([rec.frames.vh[0], rec.frames.vt[0]], [775.3, 0]);
+  assert.deepEqual([rec.frames.vh.at(-1), rec.frames.vt.at(-1)], [815, 40], 'rounded to 0.1 px, as in the int form');
+  const recInt = S.normalize({ ...rec, arm: 'original', pass: 1 });
+  assert.equal(recInt.vh.length, recInt.t.length);
+  assert.ok(S.classesOf(recInt).every((c) => c === 'moving'), 'a toolbar change within the window of every frame of this short pass makes all of it moving');
   assert.equal(prevented, 0);
   assert.equal(listeners.size, 0, 'listeners are removed at the end');
   assert.doesNotThrow(() => S.reducePass(S.normalize({ ...rec, arm: 'original', pass: 1 })));
