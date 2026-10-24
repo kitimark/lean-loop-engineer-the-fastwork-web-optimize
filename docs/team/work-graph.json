@@ -20864,6 +20864,31 @@
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "User bug 2026-10-25 (reproduced by the user on iPhone Safari, Mac Safari and Chromium): with ?fw=nav:earn-logical,hero.countdown:strip,morph.countdown:strip,morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,morph.mount:arm-late,engine.scroll:unthrottle the scroll position fights the finger: single-frame jumps (+70 then -132 px, +100 then -147 px) and up to 27 direction reversals with no finger down in the 1.5 s before a felt mark; 13 marks in one 90 s phone pass, mostly at 65-85% of maxY (morph zone, y 3400-4500) and three at y ~1859 with the toolbar height changing. Hypothesis (INFERRED): morph.end.clamp writes the pin restore position per frame while morph.mount:arm-late keeps listeners passive outside the band and engine.scroll:unthrottle changes when scroll is read, so a script write fights native scroll. Each morph.end brick was proved and gated alone and as morph-end-all, never with arm-late or unthrottle. Do: replay the recorded finger path (profile from the phone record, device-replay tooling) on CI Chromium (and Playwright WebKit if the lane allows), reproduce the reversals, bisect by dropping one flag at a time on the same replay, find the cause CONFIRMED from the code and the replay, fix it with the flags' composition modeled and proved in Lean (no script scroll write against an active native scroll; the bricks' theorems still hold with arm-late and unthrottle on), golden replayed by a site test, and show the same replay with zero no-finger reversals and no single-frame jumps over a stated bound."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "probe-apple-cap",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-morph-walk-noise"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/contracts/golden/ci/**",
+    ".github/workflows/trajectory-probe.yml",
+    "scripts/ci-paths.test.mjs",
+    "scripts/ci-paths.mjs",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "research/notes/2026/10-2x-probe-apple-cap.md",
+    "docs/team/handoffs/probe-apple-cap.md"
+   ],
+   "title": "The Mac trajectory-probe leg can overrun its 15 min timeout since webkit-morph-walk-noise added the per-width settle retry (extraCap 8, about 19 s per extra pass): two capped widths in one leg come to about 16.5 min, and a timeout loses the whole leg (MEASURED walls 11.35 min with 0 extra, 12.3 with 1, 13.9 with 8 at 641; runs 40125557073, 40127042262). The cap in Fw/Ci/Pool/Caps.lean (probeSource) comes from the pre-retry p90 of 11.2 min, n=4. Do, Lean first: either re-derive the probe-apple cap from retry-era legs (state the sample and its p90 plus the worst-case retry bound) or bound the extra passes per leg (a per-leg budget in settle/settleWalk with theorems: total extra per leg <= budget; the leg's worst-case wall stays under the cap given the measured pass time), pick one with the reason, regenerate the goldens, update trajectory-probe.yml timeout and scripts/ci-paths.test.mjs pool caps to the Lean value, and show one Mac probe run (engine.scroll:batched, no debug recorder) with every leg inside its cap. Also move the retry-role choice (only cand retries, only with a base peer at that width) from run.mjs into Lean with a golden line, and make out.reps report the candidate's pooled passes."
   }
  ],
  "deadline": {
