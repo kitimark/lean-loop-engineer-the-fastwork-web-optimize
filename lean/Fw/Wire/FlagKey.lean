@@ -1,4 +1,3 @@
-import Lean.Data.Json
 /-!
 # The canonical flag-set key
 
@@ -9,7 +8,6 @@ the typed list into the same key before it looks. Golden: `packages/contracts/go
 replayed by `apps/site/test/prerender-keys.test.ts`.
 -/
 namespace Fw.Wire.FlagKey
-open Lean
 
 /-- A flag as `(part, variant)`. -/
 abbrev Flag := String × String
@@ -168,21 +166,5 @@ theorem enumerated_one_page {reg : Reg} (hc : Closed reg) {c c' : List Flag} (hm
     Valid reg c' ∧ (pages (enumerated reg)).count (canon c') = 1 :=
   ⟨(valid_of_same_set h).mpr (enumerated_valid hc c hm), exactly_one_page hm h⟩
 
-
-/-- Typed lists and their keys (`null` = refused). -/
-def cases : List (List String) :=
-  [[], ["morph.countdown:strip", "hero.countdown:strip"], ["hero.countdown:strip", "morph.countdown:strip"],
-   ["a:x", "a:x"], ["a:x", "a.b:y"], ["a.b:y", "a:x"], ["a:y", "a:x"], ["p:v@mui", "o:w"],
-   ["nocolon"], ["a:b:c", "d:e"]]
-
-def row (fw : List String) : String :=
-  (Json.mkObj [("in", Json.arr (fw.map Json.str).toArray),
-    ("key", match keyOf fw with | none => Json.null | some k => Json.str k)]).compress
-
-def goldenLines (_ : Unit) : List String := cases.map row
-
-def jsonl (_ : Unit) : String := String.join ((goldenLines ()).map (· ++ "\n"))
-
-#guard jsonl () == include_str "../../../packages/contracts/golden/wire/flag-key.jsonl"
 
 end Fw.Wire.FlagKey
