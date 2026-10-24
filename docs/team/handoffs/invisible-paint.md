@@ -6,6 +6,9 @@ Lead adds at land: lean/Fw.lean `import Fw.Engine.PaintVisible`; lean/scripts/ch
 Open: Inspector Paint data.clip lane (needs xcode job in webkit-sim.yml, outside writes); name the unnamed "other" layers (fix candidate 1 depends on it); covered/noop pixel-diff sample.
 Read first: the note.
 
+Round 3 changes outside the graph writes (add to writes before land, dry land needs --allow for the first two): apps/runner/src/land.ts (measure-wktr reads paintclip.mjs), lean/Fw/Ci/Overflow.lean (wktr width 2 to 3 for the 3-job repaint lane), golden moved to packages/contracts/golden/measure/paint-visible.jsonl (golden/engine is cite-linted by check.sh and needs a generator row; the check.sh job path must use golden/measure).
+Verified at the final commit: check.sh green, runner/measure-wktr/measure-webkit tests pass, ci-paths test 56 pass, dry land `VERDICT dry invisible-paint` with --allow of the two files.
+
 ---- earlier state (rounds 1-2) ----
 branch: worktree-wf_2035e8c8-453-1 (CI branch ci/invisible-paint)
 worktree: .claude/worktrees/wf_2035e8c8-453-1 (run `sh scripts/wt-prep.sh` and `pnpm install --offline --frozen-lockfile` first)
