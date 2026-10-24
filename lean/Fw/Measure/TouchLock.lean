@@ -4,24 +4,20 @@ import Lean.Data.Json
 -/
 namespace Fw.Measure.TouchLock
 
-/-- One scroll position (tenths of a CSS px) and whether the morph was open when it was read. -/
 structure Sample where
   y : Int
   isOpen : Bool
 deriving Repr, BEq
 
-/-- Samples from the first open one to the end of that open stretch. -/
 def openPhase (xs : List Sample) : List Sample :=
   (xs.dropWhile (fun s => !s.isOpen)).takeWhile (fun s => s.isOpen)
 
-/-- The lock position: the first open sample. -/
 def lockOf (xs : List Sample) : Option Int := (openPhase xs).head?.map (·.y)
 
 def dedupFrom (prev : Int) : List Int → List Int
   | [] => []
   | x :: xs => if x = prev then dedupFrom prev xs else x :: dedupFrom x xs
 
-/-- A position list with runs of equal neighbours collapsed. -/
 def dedup : List Int → List Int
   | [] => []
   | x :: xs => x :: dedupFrom x xs
@@ -30,20 +26,16 @@ def turnsFrom (p : Int → Bool) (a b : Int) : List Int → Nat
   | [] => 0
   | c :: rest => (if (b - a) * (c - b) < 0 && p c then 1 else 0) + turnsFrom p b c rest
 
-/-- Direction reversals at a middle position whose next position satisfies `p`. -/
 def turns (p : Int → Bool) : List Int → Nat
   | a :: b :: rest => turnsFrom p a b rest
   | _ => 0
 
 def positions (xs : List Sample) : List Int := dedup ((openPhase xs).map (·.y))
 
-/-- Direction reversals of the open phase. -/
 def reversals (xs : List Sample) : Nat := turns (fun _ => true) (positions xs)
 
-/-- Reversals whose next position is the lock `s`: a restore that undoes a displacement. -/
 def fights (s : Int) (xs : List Sample) : Nat := turns (fun c => decide (c = s)) (positions xs)
 
-/-- Open-phase samples away from the lock `s`. -/
 def displaced (s : Int) (xs : List Sample) : Nat := ((openPhase xs).filter (fun x => decide (x.y ≠ s))).length
 
 structure Run where
@@ -51,7 +43,6 @@ structure Run where
   events : List Sample
 deriving Repr, BEq
 
-/-- Fewer open frames than this carry no verdict. -/
 def minOpenFrames : Nat := 10
 
 inductive Refusal where
@@ -97,7 +88,6 @@ def Cmp.name : Cmp → String
 def maxOf (xs : List Nat) : Nat := xs.foldl max 0
 def minOf (xs : List Nat) : Nat := xs.foldl min (xs.foldl max 0)
 
-/-- Candidate against faithful on per-run counts: a difference is stated only when the two ranges are separated. -/
 def cmp (faith cand : List Nat) : Cmp :=
   if faith.isEmpty || cand.isEmpty then .overlap
   else if maxOf cand < minOf faith then .lower
@@ -112,11 +102,9 @@ def Look.name : Look → String
   | .same => "same"
   | .change => "change"
 
-/-- Same look iff neither arm drew a displaced open-phase frame in any accepted run; else the candidate goes to the look-change class. -/
 def look (faith cand : List Nat) : Look :=
   if faith.all (· = 0) && cand.all (· = 0) then .same else .change
 
-/-- Accepted runs per arm: (accepted, jitter runs). -/
 def tally (rs : List Run) : Nat × Nat :=
   let ok := rs.filter (fun r => (refusal r).isNone)
   (ok.length, (ok.filter (fun r => (reduce r).jitter)).length)
@@ -241,7 +229,6 @@ def Arm.name : Arm → String
   | .base => "base"
   | .lock => "lock"
 
-/-- Window order of one rep: the faithful rewrite and the candidate run before the original and swap places on odd reps. -/
 def repOrder (rep : Nat) : List Arm :=
   if rep % 2 = 0 then [.base, .lock, .orig] else [.lock, .base, .orig]
 
@@ -257,7 +244,6 @@ theorem repOrder_even (rep : Nat) (h : rep % 2 = 0) : (repOrder rep).head? = som
 theorem repOrder_odd (rep : Nat) (h : rep % 2 = 1) : (repOrder rep).head? = some .lock := by
   simp [repOrder, h]
 
-/-- Driver restarts one walk may spend on stalled windows. -/
 def maxRestarts : Nat := 2
 
 inductive Lane where
@@ -269,7 +255,6 @@ def Lane.name : Lane → String
   | .restart => "restart"
   | .stop => "stop"
 
-/-- What the walk does with the push driver after a window: a stalled driver is restarted while restarts remain, then the lane ends. -/
 def afterWindow (used : Nat) (stalled : Bool) : Lane :=
   if stalled then (if used < maxRestarts then .restart else .stop) else .keep
 

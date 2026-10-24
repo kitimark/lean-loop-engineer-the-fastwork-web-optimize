@@ -32,8 +32,7 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
   faithful window survived the stall. The lock window's page went silent (`pageLost`, done at 89 s), the walk restarted the push
   server once (`afterWindow`), and the restart failed: `xcodebuild: error: Existing file at -resultBundlePath .../serve.xcresult`
   (driver exit 64), because the restarted server reused the first server's result bundle name. Fix after the run, not measured:
-  `startServer` takes a `tag`, the restart passes `serve-r<n>` (`touch-push.mjs`, `touchlock-run.mjs`). The page stall itself
-  (second page load after a push) is the same stall as in run `40060600880`; it is not cured here.
+  `startServer` takes a `tag`, the restart passes `serve-r<n>` (`touch-push.mjs`, `touchlock-run.mjs`). The page stall (second page load after a push) is the same as in run `40060600880` and is not cured.
 - **Candidate look class (INFERRED, no candidate window delivered): look change**, as decided for the review: the CSS lock removes
   the rubber band and the native pan. The only displaced-frame evidence is in `base` (72 displaced open frames), so Lean `look`
   is `change` for any pair that includes it. Goes to the user's visual review.
@@ -53,11 +52,7 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
 - **Second blocker.** The walk's lane ended after the third window: the lock window's driver finished at 209 s (bound 125 s;
   the inspector probe logged `page missing` in the same window) and `laneAfter` closed the touch lane. That is the load
   stall already studied in `2026-10-2x-sim-touch-reliable`, not a model result.
-- **Look class of the candidate (INFERRED, no run data).** Lean `look` says "same look" only if neither arm shows displaced
-  open frames. The faithful site restores scrollY by design, so displaced frames are expected in `base`; the candidate (CSS
-  `overflow:hidden; overscroll-behavior:none; touch-action:none` on `html` while the morph is open) removes the rubber band and
-  the native pan, which changes what the finger does, so it goes to the look-change class for the user's review. The local
-  debug run agreed in direction (`lock` showed fewer restores) and is the only evidence.
+- **Look class of the candidate (INFERRED, no run data).** The CSS `overflow:hidden; overscroll-behavior:none; touch-action:none` on `html` while the morph is open changes what the finger does, so it goes to the look-change class for the user's review. The local debug run agreed in direction (`lock` showed fewer restores).
 
 ## Model
 

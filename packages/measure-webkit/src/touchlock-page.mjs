@@ -1,4 +1,3 @@
-// In-page pieces of the touch-lock probe (glue; no decision). The recorder only observes; `lock` arms the candidate's CSS lock.
 import { LOCK_CSS } from './touchlock.mjs';
 
 /** Installed once per load. Frame samples are read at the start of the rAF list, before the site's own rAF restore. */

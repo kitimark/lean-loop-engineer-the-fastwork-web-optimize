@@ -1,5 +1,3 @@
-// Twin of lean/Fw/Measure/TouchLock.lean (golden packages/contracts/golden/measure/touch-lock.jsonl, replayed in test/touchlock.test.mjs).
-// A sample is [y in tenths of a CSS px, 1 if the morph was open else 0].
 
 export const MIN_OPEN_FRAMES = 10;
 

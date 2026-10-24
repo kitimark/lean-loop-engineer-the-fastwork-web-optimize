@@ -1,5 +1,3 @@
-// The touch-lock walk (glue): for each rep and arm, load the page, put it START_GAP_PX above its end, and flick it into the end with the
-// push server's real touches (a slow pan up that carries the page into its end, then one back down). Counts come from touchlock.mjs.
 import { withSession } from './session.mjs';
 import { loadFresh, pageInfo } from './page.mjs';
 import { findDevice, sleep } from './sim.mjs';
