@@ -19656,7 +19656,7 @@
     "docs/team/tools/reap.md",
     "docs/team/handoffs/reap-exit-fold.md"
    ],
-   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino."
+   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino. Plus reap-ef-auto round-2 review follow-ups: (5) reapHeldAlerts calls ops.reapHeld twice per tick and opReapHeld runs inputOf twice: one call returning {held, heldSim}, inputOf bound once in Lean; (6) recordHeld still prints 'REAP advice simBooted' next to the agent.held alert: drop the say() push, keep the reap.jsonl row; (7) slot.ts bootedAll JSON.parse(r.stdout) inside state.lock: try/catch returning []."
   },
   {
    "devices": [
@@ -19753,6 +19753,24 @@
     "docs/team/handoffs/timing-nest-and-logs.md"
    ],
    "title": "land-dry-contention closing follow-ups: (1) one dry land writes three nested spans within 500 ms of each other (slot run, land dry lake, dry total lake), so one slow run can raise up to three alert keys. Alert on one canonical key per nest. (2) land-logs/<task>-<commit>.log is overwritten by later runs of the same task and commit (bf9aa85's dry log was replaced 5 min later). Keep one log per run, or record the run start in the span, so a span's log can be found by identity."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-drawbase-wire",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "pathpix-zoned-pinned"
+   ],
+   "writes": [
+    "packages/measure-webkit/test/pathpix.test.mjs",
+    "packages/measure-webkit/src/pathpix-exit-draw-zones.mjs",
+    "results/accent-draw-nolayout-pixels/run-40037992429/zones.md",
+    "docs/team/handoffs/pathpix-drawbase-wire.md"
+   ],
+   "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
   }
  ],
  "deadline": {
