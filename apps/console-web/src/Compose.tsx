@@ -6,9 +6,7 @@ import { previewBase, refusedText } from "./TaskDetail";
 import { copyText } from "./buildsOpen";
 import { answersNow, copyKnown, newestWins, openSearch, pickQuery, type Picks } from "./composeOpen";
 
-// Rendering only. The classes, the why-lines, the allowed combinations and the generated search are Lean `console.compose` (console-api
-// `GET /api/compose`); the explanations are the findings ledger's own words, attached by row index. Opening goes through the Builds open path.
-export type CVar = { name: string; kind: string; isDefault: boolean; class: string; why: string; rows: number[]; refusal: string | null };
+export type CVar = { name: string; kind: string; isDefault: boolean; class: string; why: string; rows: number[]; refusal: string | null; gpu?: string | null; gpuEngines?: string | null };
 export type CPart = { id: string; slot: string; group: string; pageLevel: boolean; variants: CVar[]; other: number[] };
 export type CRow = {
   index: number; candidate: string; status: string; chromium: string; webkit: string; visual: string; mechanism: string;
@@ -25,7 +23,6 @@ const BADGE: Record<string, "default" | "secondary" | "destructive" | "outline">
   original: "outline", proved: "default", "look-change": "secondary", "ledger-proved": "secondary", measured: "secondary", refuted: "destructive", unrated: "outline",
 };
 
-/** Parts grouped by page region, in the order Lean returned them (page order). */
 export function byRegion(parts: CPart[]): { region: string; parts: CPart[] }[] {
   const out: { region: string; parts: CPart[] }[] = [];
   for (const p of parts) {
@@ -40,7 +37,6 @@ function Lines({ label, items }: { label: string; items: string[] }) {
   return <div><dt className="font-medium">{label}</dt>{items.map((t) => <dd key={t} className="break-words">{t}</dd>)}</div>;
 }
 
-/** The ledger's words for one row. */
 export function Explain({ row }: { row: CRow }) {
   return (
     <div className="space-y-1 rounded border p-2 text-xs" data-testid="explain-row">
@@ -61,7 +57,6 @@ export function Explain({ row }: { row: CRow }) {
   );
 }
 
-/** One part: its variants as a radio list (class badge, why-line) and the ledger rows that speak of the chosen variant. */
 export function PartCard({ part, chosen, rows, rules, onPick, reviewPending = [] }: { part: CPart; chosen: string; rows: Record<string, CRow>; rules: Record<string, string>; onPick: (v: string) => void; reviewPending?: string[] }) {
   const [open, setOpen] = useState(false);
   const cur = part.variants.find((v) => v.name === chosen) ?? part.variants[0]!;
@@ -81,14 +76,18 @@ export function PartCard({ part, chosen, rows, rules, onPick, reviewPending = []
             <span className="flex flex-wrap items-center gap-2">
               <span className="font-mono">{v.name}</span>
               <Badge variant={BADGE[v.class] ?? "outline"}>{v.class}</Badge>
+              {v.gpu ? <Badge variant="secondary" data-testid="gpu-pill">GPU</Badge> : null}
               {reviewPending.includes(`${part.id}:${v.name}`) ? <Badge variant="secondary" data-testid="review-pending">look change, review pending</Badge> : null}
               {v.isDefault ? <span className="text-muted-foreground">default</span> : null}
             </span>
-            <span className="min-w-0 break-words text-muted-foreground">{v.refusal ?? v.why}</span>
+            <span className="min-w-0 break-words text-muted-foreground">
+              {v.refusal ?? v.why}
+              {v.gpu ? <span className="block" data-testid="gpu-mechanism">GPU{v.gpuEngines ? ` (${v.gpuEngines})` : ""}: {v.gpu}</span> : null}
+            </span>
           </button>
         ))}
       </div>
-      <p className="break-words text-xs" data-testid="why">{rules[cur.class] ?? cur.why}</p>
+      <p className="break-words text-xs" data-testid="why">{rules[cur.class] ?? cur.why}{cur.gpu ? ` GPU${cur.gpuEngines ? ` (${cur.gpuEngines})` : ""}: ${cur.gpu}` : ""}</p>
       {shown.length > 0 ? (
         <div>
           <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide the explanation" : "Show the explanation"}</Button>
@@ -105,8 +104,6 @@ export function PartCard({ part, chosen, rows, rules, onPick, reviewPending = []
 }
 
 export function ComposeView({ reviewPending = [] }: { reviewPending?: string[] } = {}) {
-  // `ans` is the reply and the query it answers. A reply of an older request is dropped, and the page treats a reply for another
-  // query as stale (actions off) until the current one arrives.
   const [ans, setAns] = useState<{ d: CData; q: string } | null>(null);
   const [picks, setPicks] = useState<Picks>({});
   const [msg, setMsg] = useState<string | null>(null);
@@ -142,7 +139,6 @@ export function ComposeView({ reviewPending = [] }: { reviewPending?: string[] }
       setOpened({ url: r.url, q: asked });
     } catch (e) { w?.close(); setMsg((e as Error).message); } finally { setBusy(false); }
   }
-  // A separate step: it copies the link that is already known, straight from the tap (as the Builds tab does).
   function copy() {
     if (!opened || opened.q !== q) return;
     void copyKnown(opened.url, copyText).then((r) => { setCopied(r.copied); setCopyMsg(r.message); });
@@ -158,7 +154,6 @@ export type PanelProps = {
   opened: string | null; copied: boolean; copyMsg?: string | null; onOpen: (arm: "r" | "compare") => void; onCopy?: () => void; reviewPending?: string[];
 };
 
-/** The page: presets, cards by region, and the bar with the generated search, the reasons and the Open actions. */
 export function ComposePanel({ d, stale = false, picks, setPicks, busy, msg, reasons, opened, copied, copyMsg = null, onOpen, onCopy, reviewPending = [] }: PanelProps) {
   const dflt = (p: CPart) => p.variants.find((v) => v.isDefault)?.name ?? "faithful";
   const set = (p: CPart, v: string) => setPicks((cur) => { const n = { ...cur }; if (v === dflt(p)) delete n[p.id]; else n[p.id] = v; return n; });
