@@ -19852,7 +19852,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-nested-kind.md"
    ],
-   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit)."
+   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit).",
+   "evidence": "1eb3c54"
   },
   {
    "devices": [
