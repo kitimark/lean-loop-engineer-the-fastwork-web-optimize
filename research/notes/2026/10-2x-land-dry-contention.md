@@ -34,7 +34,6 @@ Rows below come from a local scratch script (not committed) over the three files
 | sup-samples kinds (sup-samples.jsonl) | leanBuild 2 at -27, -7, +12 s, then 0; simulator 0; node 24-29 | simulator 290-291 and leanServe 5 at -29..+70 s; leanBuild 2 at -29, -9 | leanBuild 2 at -26, -6 (own lake from +31); simulator 0; node 19-22 |
 | load before / during / after (sup) | 3.1 / 3.6, 4.7 / 5.9 | 6.1 / 6.0, 5.2 / 5.9 | 2.8, 2.7 / 3.5, 5.4 / 5.6 |
 | co-runner found | a `leanBuild` pair for the first 12 s (no lock row, no span); cause unnamed | yes: a Simulator process group (290 processes) and 5 `lake serve`, running before and through the land | none; the load rose 2.7 to 5.6 during the land |
-| contended verdict rests on | the load floor, with a short unslotted lake build at the start | the load floor, with a named co-runner | the load floor alone |
 
 What grew in the land's own work (land-inputs 56 tests passed in all three logs; `land-logs/*.log`):
 

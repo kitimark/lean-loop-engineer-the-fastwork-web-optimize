@@ -1,31 +1,25 @@
 # land-dry-contention handoff
 
-- Branch `worktree-wf_ce64bd7a-546-1`, worktree `.claude/worktrees/wf_ce64bd7a-546-1`; round 2 (findings applied), main merged.
+- Branch `worktree-wf_ce64bd7a-546-1`, worktree `.claude/worktrees/wf_ce64bd7a-546-1`; closing round 3, main merged.
 - CI runs: none (accepted limit "no CI run").
 
 ## State
-- Lean `Fw.Obs.Timing`: `landDryLoad = 4`, `Params.dryLandMax`, `Sample.dryLand` (tool `fw land`, step `dry*`),
-  `contended` has two branches, each a theorem: `contended_of_load`, `contended_of_dryLand`; also `contended_cases`,
-  `contended_between`, `landDry_three_contended` (the three 2026-10-24 samples: contended; same durations at load 4: slow).
-  `not_contended_of_load_le`, `slow_at_normal_load`, `ceiling_at_normal_load` take `dryLand = true -> load <= dryLandMax`.
-- Golden `packages/contracts/golden/obs/timing.jsonl`: 5 new rows (3 samples, load-4 contrast, non-dry `fw land` step),
-  regenerated with `scripts/TimingGolden.lean`.
-- Evidence and decision: `research/notes/2026/10-2x-land-dry-contention.md`. Finding: the extra load was outside the
-  slot (locks.jsonl shows only the land's own hold), so serialization would not help; the improvement is the contended verdict.
-- No TS verdict logic exists (fwcore decides), so no TS stand-in.
+- The task closed as a finding. The round 1-2 code (Timing/Health/Obs/WritesClosure Lean, timing goldens) was reverted
+  to main in one revert commit (bb035aecd); it stays in branch history. `git diff main...HEAD --stat` lists only the
+  note and this handoff.
+- Finding: `research/notes/2026/10-2x-land-dry-contention.md` (cutoff 1792808775650). Three of four alerts had no
+  co-runner; the dry land's own land-inputs vitest and lake rebuilds grew; 133 of 760 local dry-land spans (first count
+  186 of 808) ran with no land-slot acquire, because `slot.ts:556-561` skips acquire when `FW_SLOT_HELD` is set.
+- Mechanisms are INFERRED; c4f662a's 9.0 s at 0 built modules is unexplained.
+- No TS verdict logic, no TS stand-in.
 
-## Round 2
-- Note: per-sample co-runner table (only 8f040f0 has a named co-runner; bf9aa85 and c4f662a rest on the load floor; cause unexplained), calm median definition, replay old 44 -> new 41 slow of 520 exit-0 rows.
-- Lean: landDryLoad doc, theorem/case names no longer claim 'hides no regression', `dryLandMax` in params encoder and Wire paramsOf (golden row pins it), Health headline.
-
-## Verified
-- `lean/scripts/check.sh` green; @fw/runner 3300 tests, @fw/contracts 11, ci-paths 56; dry land VERDICT dry land-dry-contention; plan lint: no writesClosure error for this task.
+## Re-plan (lead adds to work-graph.json)
+land-inputs-growth, land-wt-lake-rebuilds, slot-held-identity, timing-contended-identity (optional, after the other three).
+Follow-ups: one canonical alert key per dry-land nest; one land log per run.
 
 ## Open
-- Writes outside the task: `lean/Fw/Obs/Health.lean` (`sysContended_iff_sample` gains `s.dryLand = false`),
-  `lean/Fw/Plan/WritesClosure.lean` (`calm_iff` simp set). Both followed from changing `contended`.
-- Effect (100 of 495 dry samples, 20 percent, leave the windows) is checked on later dry lands.
-- The load cut 4 is INFERRED (the land's own load); revisit with more samples.
+- The note's counts re-derive with the pinned cutoff from timings.jsonl and locks.jsonl; they differ slightly from the
+  lead's first counts (760/133/40 against 808/186/47; lake table 104/49/56 against 100/48/56).
 
 ## Read first
-- `lean/Fw/Obs/Timing.lean` `landDryLoad`, `contended`; the research note.
+- The note.
