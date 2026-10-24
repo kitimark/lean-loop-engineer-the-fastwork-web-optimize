@@ -52,7 +52,7 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
 | 2 | lock (candidate) | refused: push failed, `pageLost` (page silent 89 s, 0 moves) | none | none | none | none | none |
 | 3 | orig | never started (touch lane ended) | none | none | none | none | none |
 
-  Table in `results/touch-lock-page-end/run-40065281372/touch-lock.md`. Reading the base window: the first open sample is the
+  Table in `results/touch-lock-page-end/run-40065281372/touch-lock.md`. In the base window the first open sample is the
   rubber-band overscroll (scrollY 5346.0), after which scrollY alternates 5236.0 and 5227.0 (the end) four times. So 8 direction
   reversals while the morph was open, but Lean counts a fight only when a reversal ends at the lock position (`s` = 5346.0, the
   overscroll value), so `frameFights` is 0 and the run is not jitter by the Lean verdict. The oscillation itself is about 0.9 CSS

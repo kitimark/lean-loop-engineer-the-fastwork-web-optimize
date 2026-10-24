@@ -19,7 +19,6 @@ export function armTrees(siteDir) {
   };
 }
 
-/** Counts the restart and starts the server under a result-bundle tag no earlier server used. */
 export async function restartServer(touch, { udid, log, push, start = startServer }) {
   touch.restarts++;
   try { touch.server = await start(touch.driver, { udid, log, push, tag: serveTag(touch.restarts) }); } catch (e) { touch.on = false; touch.why = `restart failed: ${e.message}`; }

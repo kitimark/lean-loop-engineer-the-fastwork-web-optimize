@@ -12,20 +12,16 @@ deriving Repr, BEq
 def openPhase (xs : List Sample) : List Sample :=
   (xs.dropWhile (fun s => !s.isOpen)).takeWhile (fun s => s.isOpen)
 
-/-- A window's samples: drawn frames, scroll events and the site's own scrollTo calls (target, morph open at the call), all in tenths of a CSS px. -/
 structure Run where
   frames : List Sample
   events : List Sample
   calls : List Sample
 deriving Repr, BEq
 
-/-- The lock the site stored: the target of its first restore call made while the morph was open. -/
 def storedLock (calls : List Sample) : Option Int := (calls.find? (·.isOpen)).map (·.y)
 
-/-- The lock position of a window, read from the site's restore calls and never from a drawn sample. -/
 def lockOf (r : Run) : Option Int := storedLock r.calls
 
-/-- Every open restore call aims at the one stored lock. -/
 def lockSteady (r : Run) : Bool :=
   match lockOf r with
   | none => true
@@ -55,10 +51,8 @@ def fights (s : Int) (xs : List Sample) : Nat := turns (fun c => decide (c = s))
 
 def displaced (s : Int) (xs : List Sample) : Nat := ((openPhase xs).filter (fun x => decide (x.y ≠ s))).length
 
-/-- Fights against the stored lock; a window whose site never restored has none. -/
 def fightsAt (s : Option Int) (xs : List Sample) : Nat := s.elim 0 (fights · xs)
 
-/-- Displaced open samples against the stored lock; a window whose site never restored has none. -/
 def displacedAt (s : Option Int) (xs : List Sample) : Nat := s.elim 0 (displaced · xs)
 
 def minOpenFrames : Nat := 10
@@ -312,7 +306,6 @@ theorem repOrder_odd (rep : Nat) (h : rep % 2 = 1) : (repOrder rep).head? = some
 
 def maxRestarts : Nat := 2
 
-/-- The result-bundle tag of the push server after `restarts` restarts; xcodebuild refuses a bundle name it has already written. -/
 def serveTag (restarts : Nat) : String := if restarts = 0 then "serve" else "serve-r" ++ toString restarts
 
 theorem serveTag_zero : serveTag 0 = "serve" := rfl

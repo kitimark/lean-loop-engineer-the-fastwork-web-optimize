@@ -97,7 +97,6 @@ const runOf = (row) => ({
 
 const reasonOf = (status) => String(status ?? 'unknown').replace(/^(push|refused):/, '');
 
-/** One line per window: open with its counts, refused by the model with its reason, or the push failure reason. */
 export function windowsOf(rows) {
   return rows.map((r, i) => {
     const base = { n: i + 1, arm: r.arm, rep: r.rep ?? null };
@@ -110,7 +109,6 @@ export function windowsOf(rows) {
   });
 }
 
-/** One entry per arm from the walk's rows; rows without a run (a failed push, a refused config) count as windows only. */
 export function summarize(rows) {
   const arms = {};
   for (const id of ARMS) {
