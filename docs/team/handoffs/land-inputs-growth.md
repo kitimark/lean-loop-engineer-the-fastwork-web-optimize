@@ -1,6 +1,6 @@
 # land-inputs-growth handoff
 
-Branch worktree-wf_d436ffb0-499-1, worktree .claude/worktrees/wf_d436ffb0-499-1 under the repo root.
+Branch worktree-wf_d436ffb0-499-1, worktree .claude/worktrees/wf_d436ffb0-499-1.
 Last commit: see `git log -1` (merge of main f632aa354 plus this handoff). CI runs: none pushed (local-machine task, no CI lane).
 
 ## State

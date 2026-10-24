@@ -1,7 +1,5 @@
 import Fw.Obs.LandInputsCost
 
-/-- Write (or with `--check`, verify) `packages/contracts/golden/obs/land-inputs-cost.jsonl`. Run from `lean/`:
-`lake env lean --run scripts/LandInputsCostGolden.lean [--check]`. -/
 def main (args : List String) : IO UInt32 := do
   if args.contains "--check" then
     if ← Fw.Obs.LandInputsCost.checkGolden then

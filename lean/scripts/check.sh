@@ -84,13 +84,13 @@ run_group() {
   job "rebuild golden check" lake env lean --run scripts/RebuildGolden.lean --check  # golden/ops/rebuild.jsonl: the Lake-graph rebuild set of each sampled land equals what CI built (Fw.Ops.Rebuild)
   job "lspreap golden check" lake env lean --run scripts/ReapGolden.lean --check  # golden/ops/lspreap.jsonl (Fw.Ops.Reap)
   job "pool-caps golden check" lake env lean --run scripts/PoolCapsGolden.lean --check  # golden/ci/pool-caps.jsonl (Fw.Ci.Pool.Caps), read by scripts/ci-paths.mjs
-  job "pool-key golden check" lake env lean --run scripts/PoolKeyGolden.lean --check  # golden/ci/pool-key.jsonl (Fw.Ci.Pool.Key)
-  job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check  # golden/ci/pool-fallback.jsonl (Fw.Ci.Pool.Fallback: the macOS fallback route)
+  job "pool-key golden check" lake env lean --run scripts/PoolKeyGolden.lean --check
+  job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check
   job "pool-tier golden check" lake env lean --run scripts/PoolGolden.lean --check
-  job "land-inputs-cost golden check" lake env lean --run scripts/LandInputsCostGolden.lean --check  # golden/obs/land-inputs-cost.jsonl (Fw.Obs.LandInputsCost)
-  job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
-  job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check  # golden/obs/sup-health.jsonl (Fw.Obs.Health.Res), read by apps/runner/src/watch-collect.ts
-  job "sup wire golden check" sh -c "printf 'import Fw.Wire.Sup\\n#eval Fw.Wire.Sup.Golden.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/wire.jsonl, each line replayed through Json.parse, decode and encode (Fw.Wire.Sup)
+  job "land-inputs-cost golden check" lake env lean --run scripts/LandInputsCostGolden.lean --check
+  job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check
+  job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check
+  job "sup wire golden check" sh -c "printf 'import Fw.Wire.Sup\\n#eval Fw.Wire.Sup.Golden.gen [\"--check\"]\\n' | lake env lean --stdin"
   job "land-speed golden check" sh -c 'printf "import Fw.Console.LandSpeed\ndef main : IO UInt32 := do\n  if (← Fw.Console.LandSpeed.checkGolden) then return 0\n  IO.eprintln \042land-speed.jsonl differs from Fw.Console.LandSpeed.goldenText (regenerate with writeGolden)\042\n  return 1\n" > "$1/LandSpeedCheck.lean" && lake env lean --run "$1/LandSpeedCheck.lean"' _ "$tmp"
   job "ops golden check" lake env lean --run scripts/OpsGolden.lean --check  # golden/ops/*.jsonl incl. the obs life cases (Fw.Ops.Obs)
   job "oracle golden check" lake env lean --run scripts/OracleGolden.lean --check  # golden/oracle/wire.jsonl and fixtures.jsonl (Fw.Wire.Oracle.Golden)

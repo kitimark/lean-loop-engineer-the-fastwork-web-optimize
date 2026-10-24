@@ -1,8 +1,7 @@
 # land-inputs vitest grew with no co-runner: cause, model, fix
 
 Status: MEASURED (per-test durations, local runs through `fw slot`, load 3.6-7); the growth history is INFERRED.
-Unit: the land-inputs step (`apps/runner/test/land-inputs.test.ts`) alone. Local-machine timings; the effect on
-the alert rate is read on later dry lands.
+Unit: the land-inputs step (`apps/runner/test/land-inputs.test.ts`) alone. Local-machine timings.
 
 ## Before: where the 35 s go
 
@@ -47,7 +46,7 @@ path and twice per glob of every check, so the calls grow with checks x globs. E
 | superset | 3905 / 3998 | - | 2826 | 2694 |
 | file | 37057 / 34728 | 22668 | 7444 | 7202 |
 
-The step falls 36 s -> 7.3 s (-80 percent). Remaining: the superset test (reads each package.json per path, 2.7 s),
+The step falls from 36 s to 7.3 s (-80 percent). Remaining: the superset test (reads each package.json per path, 2.7 s),
 hashing 21 k real files twice (1.0 s), the walks of `escapes`.
 
 ## Lean model
@@ -68,7 +67,7 @@ Micro bench (best of 3, this Mac, load 3-7), real root and 97-file fixture:
 | real | 4250 | 23 | 736 | 3128000 | 9.4 | 1036 | 59.5 | 10689 | 456 |
 | fixture | 97 | 9 | 226 | 21922 | 8.8 | 6.8 | 0.73 | 259 | 5.1 |
 
-Rates read off: old 331 ns per pair, new 19 ns, hash 43 us (real) and 20 us (fixture) per file, spawn 8-9 ms: MEASURED.
+Rates: old 331 ns per pair, new 19 ns, hash 43 us (real) and 20 us (fixture) per file, spawn 8-9 ms: MEASURED.
 `fixedUs = 240` is INFERRED, fitted to the cached fixture row (1573 ms measured, 1580 predicted); no bench measures it,
 so the two cached rows agreeing is a fit, not a check. Golden regeneration: `lean/scripts/LandInputsCostGolden.lean`
 (`--check` is a row of `lean/scripts/check.sh`); `rows_predMs` pins the six predictions in Lean.
