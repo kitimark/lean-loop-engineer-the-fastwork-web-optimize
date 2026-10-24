@@ -4210,6 +4210,24 @@
    "task": "hittest-elements-proof",
    "field": "chromium",
    "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
+  },
+  {
+   "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "task": "combo-scroll-fight",
+   "field": "mechanism",
+   "text": "combo-scroll-fight: CONFIRMED a bug of release alone, not of its composition with arm-late or unthrottle. A close start is not prevented, so the page scrolls natively and every later touchmove of that touch is not cancelable; a reopen in such a move pins the page at the scroll position it reads and the frame writer then writes that pin against the finger and the fling. MEASURED on CI Chromium (run 40130709244, build before the fix): release alone fought in 13 of 16 replays, clamp alone, flip alone and the user's flags minus release in 0 of 15, the user's flags minus arm-late or minus unthrottle in 12 of 15. PROVED in Lean (Fw.Parts.ComboScroll: native_quiet, wrap_all_hold, wstep_off, wtrace_decisions): a hold bit (last move prevented and cancelable) gates the one frame writer; every brick theorem holds with it. After the fix the same replays: 0 script writes, 0 no-finger reversals, 0 script jumps of 20 px or more in 15-16 of 15-16 replays per release arm. Note research/notes/2026/10-2x-combo-scroll-fight.md."
+  },
+  {
+   "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "task": "combo-scroll-fight",
+   "field": "visual",
+   "text": "combo-scroll-fight: look change added to release: a reopen in a move the page cannot cancel opens the morph and leaves the page to the finger; the pin returns at the next prevented, cancelable move, so an open morph can sit over a page that scrolled away from the end until the next touch. The user's phone review decides."
+  },
+  {
+   "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "task": "combo-scroll-fight",
+   "field": "next",
+   "text": "combo-scroll-fight: phone re-check by the user. Follow-ups: the waapi drivers pin without the bit; the toolbar-resize fight at y about 1859 (held pin written while the viewport height changes, INFERRED, not reproducible without a toolbar); the faithful page keeps the original's pin against a fling at the page end (default arm, recorded path)."
   }
  ]
 }
