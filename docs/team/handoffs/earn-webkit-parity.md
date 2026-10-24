@@ -30,3 +30,5 @@ gate-breakpoints tests, ci-paths 56 pass, actionlint clean. Final gate results a
 ## Conventions
 Workflow gate: commit message needs `[ci:trajectory-probe] [frames:...] [transitions:earn]`. Runner has Reduce Motion on; the Safari
 step writes it off first. Next task earn-webkit-smooth: apply the CSS swap in nav.module.css (both earn rules), repeat candidates on 3 jobs.
+
+Continue round: main merged cleanly (no conflicts), trigger golden regenerated with no diff, dry land and review ready verdicts green.
