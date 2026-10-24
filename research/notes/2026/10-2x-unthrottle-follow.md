@@ -1,7 +1,7 @@
 ---
 id: 2026-10-2x-unthrottle-follow
 kind: note
-title: "engine.scroll:unthrottle-follow: a frame loop that reads the newest scrollY each update; 33 to 49 percent fewer still runs of the hero value than unthrottle in the Simulator, proved in Fw.Parts.EngineScrollFollow"
+title: "engine.scroll:unthrottle-follow: no steady gain over unthrottle on scrollY still runs in the Simulator; the hero value shows 41 percent fewer still runs on a lens chosen after the data (INFERRED); loop proved in Fw.Parts.EngineScrollFollow"
 status: review
 created: 2026-10-25
 topics: [lag, webkit, ios-toolbar, scroll-events, engine.scroll, lean, phone]
@@ -15,8 +15,9 @@ Inputs: `10-2x-webkit-throttles.md` (rank 1), `10-2x-unthrottle-preset.md`, `10-
 
 ## Answer first
 
-- **Gain over unthrottle in the part output, not in the page read.** Hero value (the part output) still runs per 1000
-  mid-moving frames: unthrottle 174.5, follow 103.0 (-41 percent); run 1 173.1 vs 115.2, run 2 175.8 vs 90.5. Follow is lower in all 6 of 6 job
+- **Verdict (pinned unit): no steady gain over unthrottle.** scrollY still runs per 1000 moving frames: unthrottle 110.2,
+  follow 96.5 pooled; 109.1 vs 108.1 in run 1, 111.2 vs 84.3 in run 2 (MEASURED; mixed). Post-hoc finding, lens chosen
+  after run 1 (INFERRED): hero value (the part output) still runs per 1000 mid-moving frames: unthrottle 174.5, follow 103.0 (-41 percent); run 1 173.1 vs 115.2, run 2 175.8 vs 90.5. Follow is lower in all 6 of 6 job
   comparisons (MEASURED, runs 40109924058 and 40116376544, one iOS 27 Simulator pass per arm per job, 6 passes per arm). The scrollY series
   the page reads does not need the loop and shows no steady gain: per 1000 moving frames unthrottle 111.2 vs follow 84.3 in run 2, 109.1 vs
   108.1 in run 1 (MEASURED; mixed, so no claim).
@@ -75,8 +76,8 @@ rewrite 236.4, original 146.7, unthrottle 424.1, follow 421.5.
 
 ## Limits
 
-- **The part-output lens was chosen after run 1.** The pinned lens (scrollY still runs) cannot move with the loop, since the loop only changes
-  when the engine runs; the part lens (`ThrottleParts.rowsOf`: the shown value as its own series) is the one the Lean model predicts. Run 2
+- **The part-output lens was chosen after run 1.** The pinned lens (scrollY still runs) is not expected to move with the loop, since the loop changes
+  only when the engine runs, not where WebKit puts scrollY (INFERRED; no Lean theorem yet, follow-up); the part lens (`ThrottleParts.rowsOf`: the shown value as its own series) is the one the Lean model predicts. Run 2
   repeated it with 3 of 3 jobs in the same direction. INFERRED as the right lens; the declared lens shows no steady gain.
 - **The hero-value still-runs lens (174.5 vs 103.0 per 1000 mid-moving frames) was chosen after seeing the data (INFERRED).** On the
   pinned lens, scrollY, there is no steady gain over unthrottle (109.1 vs 108.1 in run 1, 111.2 vs 84.3 in run 2, mixed). The verdict follows the
@@ -87,6 +88,8 @@ rewrite 236.4, original 146.7, unthrottle 424.1, follow 421.5.
 
 ## Follow-ups
 
-- Breakpoint gate for the flag, both engines: PASSED, run 40125463870 on head 8cb61aace (CONFIRMED, lead). Command: `pnpm -s fw run --gate --engines both --fw engine.scroll:unthrottle-follow --ref ci/unthrottle-follow`.
+- Breakpoint gate for the flag, both engines: PASSED, run 40125463870 on head 8cb61aace (CONFIRMED, lead). Command: `pnpm -s fw run --gate --engines both --fw engine.scroll:unthrottle-follow --ref ci/unthrottle-follow-gate`.
 - Trajectory probe and morph cell before the flag can join `v2-proved` (`Fw.Preset.Gen` lists it as registered, not a member).
 - Look check of chasing parts on wide viewports under the loop (look-change class).
+- Lean why for no gain on scrollY: a theorem that the recorder's scrollY series is u in both arms, so its still runs are equal.
+- Tie the newest-scrollY theorem to `drive`: the list of y read by `drive s ys` equals `ys` while every update moves (follow_reads_newest is about the lifted mode only).
