@@ -10,8 +10,8 @@ Task `react-root-quiet-events`. Answer first.
   listener); with no listener, none. Events are enqueued and dispatched whether or not a listener exists.
 - Variant `engine.events:quiet`: the root registers 0 of the 14 (MEASURED, same run: `registered` is `{}` in all 10 cand
   walks per engine and width), every other listener stays (Lean `quiet_keeps`, replayed against the real react-dom).
-- NOT DELIVERED here, needs the lead: the WebKit Simulator EventDispatch and FunctionCall counts before and after over 3 runs
-  and the breakpoint gate with the flag (commands in the report). Until then the count drop is INFERRED: `records_orig`
+- MEASURED (section "WebKit Simulator before/after", runs 40134016822 and 40134234199, 1 VM x 2 passes): EventDispatch -53%, FunctionCall -36%;
+  gate with the flag passed (run 40128098292). The earlier inference: `records_orig`
   gives 2 per event, so about 2 x 700 = 1400 of the 1500 excess; the Simulator pass has 1403 `EventDispatch>FunctionCall`
   pairs (run 39309416016).
 
