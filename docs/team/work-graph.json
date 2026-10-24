@@ -19730,7 +19730,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-held-identity.md"
    ],
-   "title": "(S) slot run skips the slot whenever FW_SLOT_HELD is set, whatever kind is held (apps/runner/src/slot.ts:556-561): 186 of 808 local slot run land pnpm fw land dry spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (36acd37 at 1792805763753): decide in Lean when a nested slot run may skip acquire (a live held token of the same kind: identity, not env presence), golden rows, TS reads the verdict, effect counted as overlapping dry lands on later rows Unit of decision: one slot run request. Accepted limit: callers outside fw slot are not covered. Lead note (inc-slot-held-env): the lead's land scripts ran with FW_SLOT_HELD=1 set on the outer call, so their fw slot run --kind land skipped the slot; count how many of the 186 unlocked spans those are."
+   "title": "(S) slot run skips the slot whenever FW_SLOT_HELD is set, whatever kind is held (apps/runner/src/slot.ts:556-561): 186 of 808 local slot run land pnpm fw land dry spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (36acd37 at 1792805763753): decide in Lean when a nested slot run may skip acquire (a live held token of the same kind: identity, not env presence), golden rows, TS reads the verdict, effect counted as overlapping dry lands on later rows Unit of decision: one slot run request. Accepted limit: callers outside fw slot are not covered. Lead note (inc-slot-held-env): the lead's land scripts ran with FW_SLOT_HELD=1 set on the outer call, so their fw slot run --kind land skipped the slot; count how many of the 186 unlocked spans those are.",
+   "evidence": "acee943"
   },
   {
    "devices": [
