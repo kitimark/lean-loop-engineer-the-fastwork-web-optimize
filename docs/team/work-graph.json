@@ -20160,6 +20160,53 @@
     "docs/team/handoffs/sim-release-shutdown.md"
    ],
    "title": "Incident 2026-10-24 14:40: a sim lease was released after about 4.5 min but the Simulator device it booted stayed booted (load 72-148, 190 MB free) until the lead shut it down. Lean first: a released sim lease implies the device the lease booted is shut down (or handed to the next queued sim holder); fw slot release of kind sim runs simctl shutdown for the booted UDID it recorded at acquire; theorem + golden; slot.ts follows."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-webkit-parity",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/src/trajectory/frames*.mjs",
+    "packages/gate-breakpoints/test/frames*.test.mjs",
+    "packages/gate-breakpoints/src/trajectory/transitions*.mjs",
+    "packages/gate-breakpoints/test/transitions*.test.mjs",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-frames.md",
+    "lean/Fw/Engine/TransitionStart.lean",
+    "lean/scripts/TransitionStartGolden.lean",
+    "packages/contracts/golden/engine/transition-start.jsonl",
+    "research/notes/2026/10-2x-earn-webkit-parity.md",
+    "results/earn-webkit-parity/**",
+    "docs/team/handoffs/earn-webkit-parity.md"
+   ],
+   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-webkit-smooth",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "earn-webkit-parity"
+   ],
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "lean/Fw/Parts/NavEarnWebkit.lean",
+    "packages/contracts/golden/parts/nav.earn*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-earn-webkit-smooth.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/earn-webkit-smooth.md"
+   ],
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
   }
  ],
  "deadline": {
