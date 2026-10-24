@@ -13,6 +13,7 @@
   The old tables are unchanged; the new one has baselines 100/1965/17 (N) and 35751/101/100 (F), and the F column 0 x7, 17622, 16871, 12709, 8584, 2092, 0, 0.
 
 ## Writes outside the task (needed: fwcore had no op for drawBase)
+- `apps/runner/src/land.ts`: one read glob (`results/accent-draw-nolayout-pixels/run-40037992429/**`) for packages/measure-webkit, asked by land-inputs.
 - New `lean/Fw/Gate/PathPixWire.lean` (op `gate.pathpixDrawBase`, theorems `laneJson_pinned`, `laneJson_unpinned`), registered in
   `lean/Fw/Wire.lean` (import, `ops`, dispatch) and `lean/Fw.lean` (import).
 
