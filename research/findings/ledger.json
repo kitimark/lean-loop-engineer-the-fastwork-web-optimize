@@ -3583,7 +3583,7 @@
    "n": 66,
    "part": "platform.glint",
    "candidate": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
-   "status": "partly-proved",
+   "status": "negative result: mount only while visible, gain = commit window",
    "flags": [
     "platform.glint:offscreen-pause"
    ],
@@ -3603,7 +3603,7 @@
    "leanAgainst": [],
    "missingWhy": [
     "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (needs a lead dispatch)",
-    "Breakpoint gate with the flag not run (needs a dispatch with fw)",
+    "Breakpoint gate with the flag not run (negative result, flag not offered)",
     "Size of the commit window in frames, not measured"
    ],
    "premises": [
@@ -3615,7 +3615,7 @@
    "v1Evidence": "",
    "lesson": "Read what the faithful arm already unmounts before pausing it: the glint's play flag removes the animations whenever the stage is under 35 percent visible, so a pause adds a clock seek (setElapsed resets every scheduled animation) for a saving limited to one commit window. Prove the baseline's offscreen work is zero first (faithful_no_ticks_away) and the candidate is a no-op by construction.",
    "evidence": "40092155958 (platform.glint:offscreen-pause) trajectory probe, flag, engines both, all widths",
-   "next": "Lead dispatch of the gate and the offscreen count with fw=platform.glint:offscreen-pause; if the commit window shows no ticks, set the row to refuted and drop the flag",
+   "next": "Not offered: no gain beyond the commit window (window_gain), so the gate with the flag is not run. Offscreen counts move to task offscreen-count-lane. Drop the flag if it stays unused.",
    "flag": "platform.glint:offscreen-pause"
   }
  ],
