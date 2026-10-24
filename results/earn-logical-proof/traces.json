@@ -1,0 +1,6002 @@
+[
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 86,
+   "flip": 21,
+   "startMs": 782.9000000000001,
+   "live": 17,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 24,
+    "t": 899.6,
+    "tauMs": 116.7,
+    "prop": "padding-right",
+    "measuredPx": 20.7752,
+    "modelPx": 20.774935817000003,
+    "diffMicro": 264
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 86,
+   "flip": 21,
+   "startMs": 782.9000000000001,
+   "live": 17,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 24,
+    "t": 899.6,
+    "tauMs": 116.7,
+    "prop": "padding-right",
+    "measuredPx": 20.7752,
+    "modelPx": 20.774935817000003,
+    "diffMicro": 264
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 90,
+   "flip": 12,
+   "startMs": 599.7,
+   "live": 13,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 16,
+    "t": 733,
+    "tauMs": 133.3,
+    "prop": "padding-right",
+    "measuredPx": 4.40791,
+    "modelPx": 4.406335963999999,
+    "diffMicro": 1574
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 90,
+   "flip": 12,
+   "startMs": 599.7,
+   "live": 13,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 16,
+    "t": 733,
+    "tauMs": 133.3,
+    "prop": "padding-right",
+    "measuredPx": 4.40791,
+    "modelPx": 4.406335963999999,
+    "diffMicro": 1574
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 98,
+   "flip": 23,
+   "startMs": 779,
+   "live": 18,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 28,
+    "t": 962.3,
+    "tauMs": 183.3,
+    "prop": "padding-left",
+    "measuredPx": 15.2123,
+    "modelPx": 15.215509627000001,
+    "diffMicro": 3210
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 98,
+   "flip": 23,
+   "startMs": 779,
+   "live": 18,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 28,
+    "t": 962.3,
+    "tauMs": 183.3,
+    "prop": "padding-left",
+    "measuredPx": 15.2123,
+    "modelPx": 15.215509627000001,
+    "diffMicro": 3210
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 100,
+   "flip": 16,
+   "startMs": 631.3,
+   "live": 21,
+   "jitterUs": 1000,
+   "eUs": 1,
+   "tolMicro": 95678,
+   "worst": {
+    "i": 21,
+    "t": 814.7,
+    "tauMs": 183.4,
+    "prop": "padding-right",
+    "measuredPx": 8.78482,
+    "modelPx": 8.793525031,
+    "diffMicro": 8705
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 100,
+   "flip": 16,
+   "startMs": 631.3,
+   "live": 21,
+   "jitterUs": 1000,
+   "eUs": 1,
+   "tolMicro": 95678,
+   "worst": {
+    "i": 21,
+    "t": 814.7,
+    "tauMs": 183.4,
+    "prop": "padding-right",
+    "measuredPx": 8.78482,
+    "modelPx": 8.793525031,
+    "diffMicro": 8705
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 104,
+   "flip": 21,
+   "startMs": 737.2,
+   "live": 22,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 27,
+    "t": 937.2,
+    "tauMs": 200,
+    "prop": "padding-right",
+    "measuredPx": 13.7151,
+    "modelPx": 13.709776623,
+    "diffMicro": 5323
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 104,
+   "flip": 21,
+   "startMs": 737.2,
+   "live": 22,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 27,
+    "t": 937.2,
+    "tauMs": 200,
+    "prop": "padding-right",
+    "measuredPx": 13.7151,
+    "modelPx": 13.709776623,
+    "diffMicro": 5323
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 104,
+   "flip": 15,
+   "startMs": 546.95,
+   "live": 18,
+   "jitterUs": 851,
+   "eUs": 1,
+   "tolMicro": 81953,
+   "worst": {
+    "i": 20,
+    "t": 730.3,
+    "tauMs": 183.35,
+    "prop": "padding-right",
+    "measuredPx": 8.78482,
+    "modelPx": 8.789273209000001,
+    "diffMicro": 4453
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 104,
+   "flip": 15,
+   "startMs": 546.95,
+   "live": 18,
+   "jitterUs": 851,
+   "eUs": 1,
+   "tolMicro": 81953,
+   "worst": {
+    "i": 20,
+    "t": 730.3,
+    "tauMs": 183.35,
+    "prop": "padding-right",
+    "measuredPx": 8.78482,
+    "modelPx": 8.789273209000001,
+    "diffMicro": 4453
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 80,
+   "flip": 26,
+   "startMs": 703.4499999999999,
+   "live": 14,
+   "jitterUs": 951,
+   "eUs": 1,
+   "tolMicro": 91164,
+   "worst": {
+    "i": 30,
+    "t": 903.6,
+    "tauMs": 200.15,
+    "prop": "padding-right",
+    "measuredPx": 13.7072,
+    "modelPx": 13.696711786,
+    "diffMicro": 10488
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 80,
+   "flip": 26,
+   "startMs": 703.4499999999999,
+   "live": 14,
+   "jitterUs": 951,
+   "eUs": 1,
+   "tolMicro": 91164,
+   "worst": {
+    "i": 30,
+    "t": 903.6,
+    "tauMs": 200.15,
+    "prop": "padding-right",
+    "measuredPx": 13.7072,
+    "modelPx": 13.696711786,
+    "diffMicro": 10488
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 130,
+   "flip": 14,
+   "startMs": 598.1,
+   "live": 22,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 22,
+    "t": 764.8,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 7.25755,
+    "modelPx": 7.261337148,
+    "diffMicro": 3787
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 130,
+   "flip": 14,
+   "startMs": 598.1,
+   "live": 22,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 22,
+    "t": 764.8,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 7.25755,
+    "modelPx": 7.261337148,
+    "diffMicro": 3787
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 96,
+   "flip": 24,
+   "startMs": 724.7,
+   "live": 19,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 30,
+    "t": 924.6,
+    "tauMs": 199.9,
+    "prop": "padding-left",
+    "measuredPx": 13.7158,
+    "modelPx": 13.719029769999999,
+    "diffMicro": 3230
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 96,
+   "flip": 24,
+   "startMs": 724.7,
+   "live": 19,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 30,
+    "t": 924.6,
+    "tauMs": 199.9,
+    "prop": "padding-left",
+    "measuredPx": 13.7158,
+    "modelPx": 13.719029769999999,
+    "diffMicro": 3230
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 16,
+   "startMs": 554.2,
+   "live": 19,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 24,
+    "t": 804.2,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.2393,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 478
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 16,
+   "startMs": 554.2,
+   "live": 19,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 24,
+    "t": 804.2,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.2393,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 478
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 100,
+   "flip": 25,
+   "startMs": 722,
+   "live": 21,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 31,
+    "t": 905.3,
+    "tauMs": 183.3,
+    "prop": "padding-left",
+    "measuredPx": 15.2144,
+    "modelPx": 15.215509627000001,
+    "diffMicro": 1110
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 100,
+   "flip": 25,
+   "startMs": 722,
+   "live": 21,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 31,
+    "t": 905.3,
+    "tauMs": 183.3,
+    "prop": "padding-left",
+    "measuredPx": 15.2144,
+    "modelPx": 15.215509627000001,
+    "diffMicro": 1110
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 114,
+   "flip": 15,
+   "startMs": 590.1,
+   "live": 21,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 24,
+    "t": 840.1,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.2393,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 478
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 114,
+   "flip": 15,
+   "startMs": 590.1,
+   "live": 21,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 24,
+    "t": 840.1,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.2393,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 478
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 170,
+   "flip": 37,
+   "startMs": 753,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 37,
+    "t": 753,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 170,
+   "flip": 37,
+   "startMs": 753,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 37,
+    "t": 753,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 144,
+   "flip": 32,
+   "startMs": 626,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 626,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 144,
+   "flip": 32,
+   "startMs": 626,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 32,
+    "t": 626,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 40,
+   "startMs": 719,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 40,
+    "t": 719,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 194,
+   "flip": 40,
+   "startMs": 719,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 719,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 206,
+   "flip": 31,
+   "startMs": 566,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 566,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 206,
+   "flip": 31,
+   "startMs": 566,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 31,
+    "t": 566,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 190,
+   "flip": 40,
+   "startMs": 728,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 40,
+    "t": 728,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 190,
+   "flip": 40,
+   "startMs": 728,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 728,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 204,
+   "flip": 31,
+   "startMs": 609,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 609,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 204,
+   "flip": 31,
+   "startMs": 609,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 31,
+    "t": 609,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 168,
+   "flip": 42,
+   "startMs": 703,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 44,
+    "t": 958,
+    "tauMs": 255,
+    "prop": "padding-right",
+    "measuredPx": 9.421533,
+    "modelPx": 9.421931082,
+    "diffMicro": 398
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 168,
+   "flip": 42,
+   "startMs": 703,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 44,
+    "t": 958,
+    "tauMs": 255,
+    "prop": "padding-right",
+    "measuredPx": 9.421533,
+    "modelPx": 9.421931082,
+    "diffMicro": 398
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 202,
+   "flip": 28,
+   "startMs": 521,
+   "live": 27,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 36,
+    "t": 868,
+    "tauMs": 347,
+    "prop": "padding-left",
+    "measuredPx": 19.259218,
+    "modelPx": 19.258820194,
+    "diffMicro": 398
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 202,
+   "flip": 28,
+   "startMs": 521,
+   "live": 27,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 36,
+    "t": 868,
+    "tauMs": 347,
+    "prop": "padding-left",
+    "measuredPx": 19.259218,
+    "modelPx": 19.258820194,
+    "diffMicro": 398
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 180,
+   "flip": 41,
+   "startMs": 703,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 47,
+    "t": 1070,
+    "tauMs": 367,
+    "prop": "padding-left",
+    "measuredPx": 4.034083,
+    "modelPx": 4.034396697,
+    "diffMicro": 314
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 180,
+   "flip": 41,
+   "startMs": 703,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 47,
+    "t": 1070,
+    "tauMs": 367,
+    "prop": "padding-left",
+    "measuredPx": 4.034083,
+    "modelPx": 4.034396697,
+    "diffMicro": 314
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 212,
+   "flip": 31,
+   "startMs": 546,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 796,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.239337,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 515
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 212,
+   "flip": 31,
+   "startMs": 546,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 796,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.239337,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 515
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 196,
+   "flip": 42,
+   "startMs": 701,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 50,
+    "t": 936,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 10.839832,
+    "modelPx": 10.840356194,
+    "diffMicro": 524
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 196,
+   "flip": 42,
+   "startMs": 701,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 50,
+    "t": 936,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 10.839832,
+    "modelPx": 10.840356194,
+    "diffMicro": 524
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 208,
+   "flip": 23,
+   "startMs": 535,
+   "live": 36,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 32,
+    "t": 770,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 13.160168,
+    "modelPx": 13.159643805,
+    "diffMicro": 524
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 208,
+   "flip": 23,
+   "startMs": 535,
+   "live": 36,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 32,
+    "t": 770,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 13.160168,
+    "modelPx": 13.159643805,
+    "diffMicro": 524
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 184,
+   "flip": 43,
+   "startMs": 751,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 43,
+    "t": 751,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 184,
+   "flip": 43,
+   "startMs": 751,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 751,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 214,
+   "flip": 28,
+   "startMs": 587,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 28,
+    "t": 587,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 214,
+   "flip": 28,
+   "startMs": 587,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 28,
+    "t": 587,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 43,
+   "startMs": 762,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 43,
+    "t": 762,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 194,
+   "flip": 43,
+   "startMs": 762,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 762,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 270,
+   "flip": 31,
+   "startMs": 572,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 572,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 270,
+   "flip": 31,
+   "startMs": 572,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 31,
+    "t": 572,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 42,
+   "startMs": 728,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 42,
+    "t": 728,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 194,
+   "flip": 42,
+   "startMs": 728,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 728,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 212,
+   "flip": 30,
+   "startMs": 573,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 30,
+    "t": 573,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 212,
+   "flip": 30,
+   "startMs": 573,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 30,
+    "t": 573,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 43,
+   "startMs": 707,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 49,
+    "t": 908,
+    "tauMs": 201,
+    "prop": "padding-left",
+    "measuredPx": 13.621616,
+    "modelPx": 13.622098806,
+    "diffMicro": 483
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 43,
+   "startMs": 707,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 49,
+    "t": 908,
+    "tauMs": 201,
+    "prop": "padding-left",
+    "measuredPx": 13.621616,
+    "modelPx": 13.622098806,
+    "diffMicro": 483
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 30,
+   "startMs": 536,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 771,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 13.160168,
+    "modelPx": 13.159643805,
+    "diffMicro": 524
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 30,
+   "startMs": 536,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 771,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 13.160168,
+    "modelPx": 13.159643805,
+    "diffMicro": 524
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 190,
+   "flip": 41,
+   "startMs": 695,
+   "live": 32,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 46,
+    "t": 896,
+    "tauMs": 201,
+    "prop": "padding-left",
+    "measuredPx": 13.621616,
+    "modelPx": 13.622098806,
+    "diffMicro": 483
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 190,
+   "flip": 41,
+   "startMs": 695,
+   "live": 32,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 46,
+    "t": 896,
+    "tauMs": 201,
+    "prop": "padding-left",
+    "measuredPx": 13.621616,
+    "modelPx": 13.622098806,
+    "diffMicro": 483
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 222,
+   "flip": 31,
+   "startMs": 532,
+   "live": 38,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 782,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.239337,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 515
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 222,
+   "flip": 31,
+   "startMs": 532,
+   "live": 38,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 782,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.239337,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 515
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 184,
+   "flip": 41,
+   "startMs": 715,
+   "live": 29,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 45,
+    "t": 929,
+    "tauMs": 214,
+    "prop": "padding-left",
+    "measuredPx": 12.506337,
+    "modelPx": 12.506884949,
+    "diffMicro": 548
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 184,
+   "flip": 41,
+   "startMs": 715,
+   "live": 29,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 45,
+    "t": 929,
+    "tauMs": 214,
+    "prop": "padding-left",
+    "measuredPx": 12.506337,
+    "modelPx": 12.506884949,
+    "diffMicro": 548
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 210,
+   "flip": 32,
+   "startMs": 542,
+   "live": 36,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 778,
+    "tauMs": 236,
+    "prop": "padding-left",
+    "measuredPx": 13.235023,
+    "modelPx": 13.234566193,
+    "diffMicro": 457
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 210,
+   "flip": 32,
+   "startMs": 542,
+   "live": 36,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 778,
+    "tauMs": 236,
+    "prop": "padding-left",
+    "measuredPx": 13.235023,
+    "modelPx": 13.234566193,
+    "diffMicro": 457
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 68,
+   "flip": 17,
+   "startMs": 790,
+   "live": 12,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 22,
+    "t": 956.7,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 11.1607,
+    "modelPx": 11.159108567,
+    "diffMicro": 1591
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 68,
+   "flip": 17,
+   "startMs": 790,
+   "live": 12,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 22,
+    "t": 956.7,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 11.1607,
+    "modelPx": 11.159108567,
+    "diffMicro": 1591
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 82,
+   "flip": 16,
+   "startMs": 561.5,
+   "live": 9,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 20,
+    "t": 861.5,
+    "tauMs": 300,
+    "prop": "padding-left",
+    "measuredPx": 11.4691,
+    "modelPx": 11.468856204,
+    "diffMicro": 244
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 82,
+   "flip": 16,
+   "startMs": 561.5,
+   "live": 9,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 20,
+    "t": 861.5,
+    "tauMs": 300,
+    "prop": "padding-left",
+    "measuredPx": 11.4691,
+    "modelPx": 11.468856204,
+    "diffMicro": 244
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 58,
+   "flip": 15,
+   "startMs": 775.5999999999999,
+   "live": 11,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 18,
+    "t": 925.6,
+    "tauMs": 150,
+    "prop": "padding-left",
+    "measuredPx": 12.1486,
+    "modelPx": 12.151060578,
+    "diffMicro": 2461
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 58,
+   "flip": 15,
+   "startMs": 775.5999999999999,
+   "live": 11,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 18,
+    "t": 925.6,
+    "tauMs": 150,
+    "prop": "padding-left",
+    "measuredPx": 12.1486,
+    "modelPx": 12.151060578,
+    "diffMicro": 2461
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 70,
+   "flip": 11,
+   "startMs": 614.9000000000001,
+   "live": 15,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 15,
+    "t": 831.6,
+    "tauMs": 216.7,
+    "prop": "padding-right",
+    "measuredPx": 7.80826,
+    "modelPx": 7.811783016,
+    "diffMicro": 3523
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 70,
+   "flip": 11,
+   "startMs": 614.9000000000001,
+   "live": 15,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 15,
+    "t": 831.6,
+    "tauMs": 216.7,
+    "prop": "padding-right",
+    "measuredPx": 7.80826,
+    "modelPx": 7.811783016,
+    "diffMicro": 3523
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 96,
+   "flip": 20,
+   "startMs": 718.9000000000001,
+   "live": 20,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 26,
+    "t": 935.6,
+    "tauMs": 216.7,
+    "prop": "padding-right",
+    "measuredPx": 8.19015,
+    "modelPx": 8.188216983,
+    "diffMicro": 1933
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 96,
+   "flip": 20,
+   "startMs": 718.9000000000001,
+   "live": 20,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 26,
+    "t": 935.6,
+    "tauMs": 216.7,
+    "prop": "padding-right",
+    "measuredPx": 8.19015,
+    "modelPx": 8.188216983,
+    "diffMicro": 1933
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 82,
+   "flip": 10,
+   "startMs": 541.5,
+   "live": 13,
+   "jitterUs": 1000,
+   "eUs": 1,
+   "tolMicro": 63803,
+   "worst": {
+    "i": 18,
+    "t": 924.8,
+    "tauMs": 383.3,
+    "prop": "padding-left",
+    "measuredPx": 13.6531,
+    "modelPx": 13.652841078,
+    "diffMicro": 259
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 82,
+   "flip": 10,
+   "startMs": 541.5,
+   "live": 13,
+   "jitterUs": 1000,
+   "eUs": 1,
+   "tolMicro": 63803,
+   "worst": {
+    "i": 18,
+    "t": 924.8,
+    "tauMs": 383.3,
+    "prop": "padding-left",
+    "measuredPx": 13.6531,
+    "modelPx": 13.652841078,
+    "diffMicro": 259
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 62,
+   "flip": 11,
+   "startMs": 813.4000000000001,
+   "live": 12,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 15,
+    "t": 1013.4,
+    "tauMs": 200,
+    "prop": "padding-left",
+    "measuredPx": 9.1429,
+    "modelPx": 9.139851082,
+    "diffMicro": 3049
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 62,
+   "flip": 11,
+   "startMs": 813.4000000000001,
+   "live": 12,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 15,
+    "t": 1013.4,
+    "tauMs": 200,
+    "prop": "padding-left",
+    "measuredPx": 9.1429,
+    "modelPx": 9.139851082,
+    "diffMicro": 3049
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 70,
+   "flip": 12,
+   "startMs": 662.3,
+   "live": 15,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 17,
+    "t": 895.6,
+    "tauMs": 233.3,
+    "prop": "padding-left",
+    "measuredPx": 8.68797,
+    "modelPx": 8.68772115,
+    "diffMicro": 249
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 70,
+   "flip": 12,
+   "startMs": 662.3,
+   "live": 15,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 17,
+    "t": 895.6,
+    "tauMs": 233.3,
+    "prop": "padding-left",
+    "measuredPx": 8.68797,
+    "modelPx": 8.68772115,
+    "diffMicro": 249
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 80,
+   "flip": 15,
+   "startMs": 770.8,
+   "live": 15,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 20,
+    "t": 987.5,
+    "tauMs": 216.7,
+    "prop": "padding-right",
+    "measuredPx": 8.19031,
+    "modelPx": 8.188216983,
+    "diffMicro": 2093
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 80,
+   "flip": 15,
+   "startMs": 770.8,
+   "live": 15,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 20,
+    "t": 987.5,
+    "tauMs": 216.7,
+    "prop": "padding-right",
+    "measuredPx": 8.19031,
+    "modelPx": 8.188216983,
+    "diffMicro": 2093
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 82,
+   "flip": 11,
+   "startMs": 589.3,
+   "live": 16,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 17,
+    "t": 756,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 4.84037,
+    "modelPx": 4.840891432,
+    "diffMicro": 521
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 82,
+   "flip": 11,
+   "startMs": 589.3,
+   "live": 16,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 17,
+    "t": 756,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 4.84037,
+    "modelPx": 4.840891432,
+    "diffMicro": 521
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 64,
+   "flip": 13,
+   "startMs": 729.5,
+   "live": 13,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 16,
+    "t": 912.8,
+    "tauMs": 183.3,
+    "prop": "padding-right",
+    "measuredPx": 10.1425,
+    "modelPx": 10.143673084000001,
+    "diffMicro": 1173
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 64,
+   "flip": 13,
+   "startMs": 729.5,
+   "live": 13,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 16,
+    "t": 912.8,
+    "tauMs": 183.3,
+    "prop": "padding-right",
+    "measuredPx": 10.1425,
+    "modelPx": 10.143673084000001,
+    "diffMicro": 1173
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 78,
+   "flip": 13,
+   "startMs": 627.7,
+   "live": 15,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 17,
+    "t": 811,
+    "tauMs": 183.3,
+    "prop": "padding-right",
+    "measuredPx": 5.8574,
+    "modelPx": 5.856326915,
+    "diffMicro": 1073
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 78,
+   "flip": 13,
+   "startMs": 627.7,
+   "live": 15,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 17,
+    "t": 811,
+    "tauMs": 183.3,
+    "prop": "padding-right",
+    "measuredPx": 5.8574,
+    "modelPx": 5.856326915,
+    "diffMicro": 1073
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 190,
+   "flip": 39,
+   "startMs": 746,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 39,
+    "t": 746,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 190,
+   "flip": 39,
+   "startMs": 746,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 39,
+    "t": 746,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 16,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 178,
+   "flip": 32,
+   "startMs": 576,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 576,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 16,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 178,
+   "flip": 32,
+   "startMs": 576,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 32,
+    "t": 576,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 0,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 192,
+   "flip": 37,
+   "startMs": 733,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 37,
+    "t": 733,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 192,
+   "flip": 37,
+   "startMs": 733,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 37,
+    "t": 733,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 16,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 176,
+   "flip": 32,
+   "startMs": 615,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 615,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 16,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 176,
+   "flip": 32,
+   "startMs": 615,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 32,
+    "t": 615,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 0,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 190,
+   "flip": 38,
+   "startMs": 724,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 38,
+    "t": 724,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 190,
+   "flip": 38,
+   "startMs": 724,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 38,
+    "t": 724,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 16,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 202,
+   "flip": 32,
+   "startMs": 571,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 571,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 16,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 202,
+   "flip": 32,
+   "startMs": 571,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 32,
+    "t": 571,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 0,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 204,
+   "flip": 43,
+   "startMs": 703,
+   "live": 40,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 55,
+    "t": 930,
+    "tauMs": 227,
+    "prop": "padding-left",
+    "measuredPx": 7.635747,
+    "modelPx": 7.636097980000001,
+    "diffMicro": 351
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 204,
+   "flip": 43,
+   "startMs": 703,
+   "live": 40,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 55,
+    "t": 930,
+    "tauMs": 227,
+    "prop": "padding-left",
+    "measuredPx": 7.635747,
+    "modelPx": 7.636097980000001,
+    "diffMicro": 351
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 202,
+   "flip": 33,
+   "startMs": 545,
+   "live": 22,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 41,
+    "t": 796,
+    "tauMs": 251,
+    "prop": "padding-right",
+    "measuredPx": 9.538651,
+    "modelPx": 9.538306951,
+    "diffMicro": 344
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 202,
+   "flip": 33,
+   "startMs": 545,
+   "live": 22,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 41,
+    "t": 796,
+    "tauMs": 251,
+    "prop": "padding-right",
+    "measuredPx": 9.538651,
+    "modelPx": 9.538306951,
+    "diffMicro": 344
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 200,
+   "flip": 44,
+   "startMs": 702,
+   "live": 37,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 55,
+    "t": 952,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 6.507109,
+    "modelPx": 6.507452012,
+    "diffMicro": 343
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 200,
+   "flip": 44,
+   "startMs": 702,
+   "live": 37,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 55,
+    "t": 952,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 6.507109,
+    "modelPx": 6.507452012,
+    "diffMicro": 343
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 208,
+   "flip": 32,
+   "startMs": 529,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 38,
+    "t": 731,
+    "tauMs": 202,
+    "prop": "padding-left",
+    "measuredPx": 6.977428,
+    "modelPx": 6.9771050279999995,
+    "diffMicro": 323
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 208,
+   "flip": 32,
+   "startMs": 529,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 38,
+    "t": 731,
+    "tauMs": 202,
+    "prop": "padding-left",
+    "measuredPx": 6.977428,
+    "modelPx": 6.9771050279999995,
+    "diffMicro": 323
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 188,
+   "flip": 38,
+   "startMs": 697,
+   "live": 33,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 44,
+    "t": 932,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 7.226554,
+    "modelPx": 7.226904128999999,
+    "diffMicro": 350
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 188,
+   "flip": 38,
+   "startMs": 697,
+   "live": 33,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 44,
+    "t": 932,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 7.226554,
+    "modelPx": 7.226904128999999,
+    "diffMicro": 350
+   }
+  }
+ },
+ {
+  "run": "40100783726",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 192,
+   "flip": 31,
+   "startMs": 522,
+   "live": 17,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 40,
+    "t": 860,
+    "tauMs": 338,
+    "prop": "padding-left",
+    "measuredPx": 12.607392,
+    "modelPx": 12.60711729,
+    "diffMicro": 275
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 192,
+   "flip": 31,
+   "startMs": 522,
+   "live": 17,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 40,
+    "t": 860,
+    "tauMs": 338,
+    "prop": "padding-left",
+    "measuredPx": 12.607392,
+    "modelPx": 12.60711729,
+    "diffMicro": 275
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 96,
+   "flip": 22,
+   "startMs": 727.0999999999999,
+   "live": 16,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 32,
+    "t": 1177.1,
+    "tauMs": 450,
+    "prop": "padding-right",
+    "measuredPx": 1.89771,
+    "modelPx": 1.897963071,
+    "diffMicro": 253
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 96,
+   "flip": 22,
+   "startMs": 727.0999999999999,
+   "live": 16,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 32,
+    "t": 1177.1,
+    "tauMs": 450,
+    "prop": "padding-right",
+    "measuredPx": 1.89771,
+    "modelPx": 1.897963071,
+    "diffMicro": 253
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 98,
+   "flip": 17,
+   "startMs": 615.1500000000001,
+   "live": 14,
+   "jitterUs": 851,
+   "eUs": 1,
+   "tolMicro": 81953,
+   "worst": {
+    "i": 21,
+    "t": 998.5,
+    "tauMs": 383.35,
+    "prop": "padding-left",
+    "measuredPx": 20.4813,
+    "modelPx": 20.480871027,
+    "diffMicro": 429
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 98,
+   "flip": 17,
+   "startMs": 615.1500000000001,
+   "live": 14,
+   "jitterUs": 851,
+   "eUs": 1,
+   "tolMicro": 81953,
+   "worst": {
+    "i": 21,
+    "t": 998.5,
+    "tauMs": 383.35,
+    "prop": "padding-left",
+    "measuredPx": 20.4813,
+    "modelPx": 20.480871027,
+    "diffMicro": 429
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 80,
+   "flip": 15,
+   "startMs": 780.0999999999999,
+   "live": 14,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 20,
+    "t": 963.5,
+    "tauMs": 183.4,
+    "prop": "padding-right",
+    "measuredPx": 15.208,
+    "modelPx": 15.206474968,
+    "diffMicro": 1525
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 80,
+   "flip": 15,
+   "startMs": 780.0999999999999,
+   "live": 14,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 20,
+    "t": 963.5,
+    "tauMs": 183.4,
+    "prop": "padding-right",
+    "measuredPx": 15.208,
+    "modelPx": 15.206474968,
+    "diffMicro": 1525
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 80,
+   "flip": 11,
+   "startMs": 776.3,
+   "live": 22,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 19,
+    "t": 1026.3,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.24,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 1178
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 80,
+   "flip": 11,
+   "startMs": 776.3,
+   "live": 22,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 19,
+    "t": 1026.3,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 14.24,
+    "modelPx": 14.238821981000001,
+    "diffMicro": 1178
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 90,
+   "flip": 17,
+   "startMs": 727.5,
+   "live": 18,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 22,
+    "t": 927.5,
+    "tauMs": 200,
+    "prop": "padding-right",
+    "measuredPx": 13.7149,
+    "modelPx": 13.709776623,
+    "diffMicro": 5123
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 90,
+   "flip": 17,
+   "startMs": 727.5,
+   "live": 18,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 22,
+    "t": 927.5,
+    "tauMs": 200,
+    "prop": "padding-right",
+    "measuredPx": 13.7149,
+    "modelPx": 13.709776623,
+    "diffMicro": 5123
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 15,
+   "startMs": 589,
+   "live": 22,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 26,
+    "t": 889,
+    "tauMs": 300,
+    "prop": "padding-left",
+    "measuredPx": 17.2037,
+    "modelPx": 17.203284306,
+    "diffMicro": 416
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 15,
+   "startMs": 589,
+   "live": 22,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 26,
+    "t": 889,
+    "tauMs": 300,
+    "prop": "padding-left",
+    "measuredPx": 17.2037,
+    "modelPx": 17.203284306,
+    "diffMicro": 416
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 94,
+   "flip": 20,
+   "startMs": 705.5500000000001,
+   "live": 18,
+   "jitterUs": 1050,
+   "eUs": 1,
+   "tolMicro": 100284,
+   "worst": {
+    "i": 25,
+    "t": 872.4,
+    "tauMs": 166.85,
+    "prop": "padding-right",
+    "measuredPx": 16.7424,
+    "modelPx": 16.72490768,
+    "diffMicro": 17492
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 94,
+   "flip": 20,
+   "startMs": 705.5500000000001,
+   "live": 18,
+   "jitterUs": 1050,
+   "eUs": 1,
+   "tolMicro": 100284,
+   "worst": {
+    "i": 25,
+    "t": 872.4,
+    "tauMs": 166.85,
+    "prop": "padding-right",
+    "measuredPx": 16.7424,
+    "modelPx": 16.72490768,
+    "diffMicro": 17492
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 15,
+   "startMs": 641.4,
+   "live": 19,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 23,
+    "t": 858.1,
+    "tauMs": 216.7,
+    "prop": "padding-left",
+    "measuredPx": 11.7167,
+    "modelPx": 11.717674524,
+    "diffMicro": 975
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 15,
+   "startMs": 641.4,
+   "live": 19,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 23,
+    "t": 858.1,
+    "tauMs": 216.7,
+    "prop": "padding-left",
+    "measuredPx": 11.7167,
+    "modelPx": 11.717674524,
+    "diffMicro": 975
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 86,
+   "flip": 25,
+   "startMs": 747.7,
+   "live": 17,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 29,
+    "t": 914.4,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 16.7434,
+    "modelPx": 16.738662851,
+    "diffMicro": 4737
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 86,
+   "flip": 25,
+   "startMs": 747.7,
+   "live": 17,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 86466,
+   "worst": {
+    "i": 29,
+    "t": 914.4,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 16.7434,
+    "modelPx": 16.738662851,
+    "diffMicro": 4737
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 98,
+   "flip": 16,
+   "startMs": 578.8,
+   "live": 18,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 22,
+    "t": 762.2,
+    "tauMs": 183.4,
+    "prop": "padding-left",
+    "measuredPx": 8.79398,
+    "modelPx": 8.793525031,
+    "diffMicro": 455
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 98,
+   "flip": 16,
+   "startMs": 578.8,
+   "live": 18,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 22,
+    "t": 762.2,
+    "tauMs": 183.4,
+    "prop": "padding-left",
+    "measuredPx": 8.79398,
+    "modelPx": 8.793525031,
+    "diffMicro": 455
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 100,
+   "flip": 21,
+   "startMs": 719.3499999999999,
+   "live": 18,
+   "jitterUs": 951,
+   "eUs": 1,
+   "tolMicro": 91164,
+   "worst": {
+    "i": 26,
+    "t": 869.4,
+    "tauMs": 150.05,
+    "prop": "padding-left",
+    "measuredPx": 18.2269,
+    "modelPx": 18.222293296999997,
+    "diffMicro": 4607
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 100,
+   "flip": 21,
+   "startMs": 719.3499999999999,
+   "live": 18,
+   "jitterUs": 951,
+   "eUs": 1,
+   "tolMicro": 91164,
+   "worst": {
+    "i": 26,
+    "t": 869.4,
+    "tauMs": 150.05,
+    "prop": "padding-left",
+    "measuredPx": 18.2269,
+    "modelPx": 18.222293296999997,
+    "diffMicro": 4607
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 14,
+   "startMs": 550.2,
+   "live": 19,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 22,
+    "t": 750.2,
+    "tauMs": 200,
+    "prop": "padding-right",
+    "measuredPx": 10.2892,
+    "modelPx": 10.290223376,
+    "diffMicro": 1023
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 108,
+   "flip": 14,
+   "startMs": 550.2,
+   "live": 19,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 86559,
+   "worst": {
+    "i": 22,
+    "t": 750.2,
+    "tauMs": 200,
+    "prop": "padding-right",
+    "measuredPx": 10.2892,
+    "modelPx": 10.290223376,
+    "diffMicro": 1023
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 200,
+   "flip": 42,
+   "startMs": 710,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 42,
+    "t": 710,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 200,
+   "flip": 42,
+   "startMs": 710,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 710,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 208,
+   "flip": 31,
+   "startMs": 612,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 612,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 208,
+   "flip": 31,
+   "startMs": 612,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 31,
+    "t": 612,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 196,
+   "flip": 42,
+   "startMs": 723,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 42,
+    "t": 723,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 196,
+   "flip": 42,
+   "startMs": 723,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 723,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 31,
+   "startMs": 574,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 574,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 216,
+   "flip": 31,
+   "startMs": 574,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 31,
+    "t": 574,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 190,
+   "flip": 42,
+   "startMs": 741,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 42,
+    "t": 741,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 190,
+   "flip": 42,
+   "startMs": 741,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 741,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 212,
+   "flip": 32,
+   "startMs": 586,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 586,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 212,
+   "flip": 32,
+   "startMs": 586,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 32,
+    "t": 586,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 200,
+   "flip": 42,
+   "startMs": 695,
+   "live": 37,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 51,
+    "t": 896,
+    "tauMs": 201,
+    "prop": "padding-left",
+    "measuredPx": 13.621616,
+    "modelPx": 13.622098806,
+    "diffMicro": 483
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 200,
+   "flip": 42,
+   "startMs": 695,
+   "live": 37,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 51,
+    "t": 896,
+    "tauMs": 201,
+    "prop": "padding-left",
+    "measuredPx": 13.621616,
+    "modelPx": 13.622098806,
+    "diffMicro": 483
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 32,
+   "startMs": 537,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 38,
+    "t": 743,
+    "tauMs": 206,
+    "prop": "padding-left",
+    "measuredPx": 10.814071,
+    "modelPx": 10.813554335000001,
+    "diffMicro": 517
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 32,
+   "startMs": 537,
+   "live": 35,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 38,
+    "t": 743,
+    "tauMs": 206,
+    "prop": "padding-left",
+    "measuredPx": 10.814071,
+    "modelPx": 10.813554335000001,
+    "diffMicro": 517
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 196,
+   "flip": 43,
+   "startMs": 691,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 51,
+    "t": 937,
+    "tauMs": 246,
+    "prop": "padding-right",
+    "measuredPx": 10.039326,
+    "modelPx": 10.039643392999999,
+    "diffMicro": 317
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 196,
+   "flip": 43,
+   "startMs": 691,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 51,
+    "t": 937,
+    "tauMs": 246,
+    "prop": "padding-right",
+    "measuredPx": 10.039326,
+    "modelPx": 10.039643392999999,
+    "diffMicro": 317
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 31,
+   "startMs": 557,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 792,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 13.160168,
+    "modelPx": 13.159643805,
+    "diffMicro": 524
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 216,
+   "flip": 31,
+   "startMs": 557,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 792,
+    "tauMs": 235,
+    "prop": "padding-right",
+    "measuredPx": 13.160168,
+    "modelPx": 13.159643805,
+    "diffMicro": 524
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 41,
+   "startMs": 705,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 50,
+    "t": 988,
+    "tauMs": 283,
+    "prop": "padding-right",
+    "measuredPx": 7.70264,
+    "modelPx": 7.7031133689999995,
+    "diffMicro": 473
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 41,
+   "startMs": 705,
+   "live": 34,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 50,
+    "t": 988,
+    "tauMs": 283,
+    "prop": "padding-right",
+    "measuredPx": 7.70264,
+    "modelPx": 7.7031133689999995,
+    "diffMicro": 473
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 220,
+   "flip": 32,
+   "startMs": 531,
+   "live": 38,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 756,
+    "tauMs": 225,
+    "prop": "padding-left",
+    "measuredPx": 12.388813,
+    "modelPx": 12.388306434,
+    "diffMicro": 507
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 220,
+   "flip": 32,
+   "startMs": 531,
+   "live": 38,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 756,
+    "tauMs": 225,
+    "prop": "padding-left",
+    "measuredPx": 12.388813,
+    "modelPx": 12.388306434,
+    "diffMicro": 507
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 178,
+   "flip": 43,
+   "startMs": 741,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 43,
+    "t": 741,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 178,
+   "flip": 43,
+   "startMs": 741,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 43,
+    "t": 741,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 202,
+   "flip": 29,
+   "startMs": 578,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 29,
+    "t": 578,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 202,
+   "flip": 29,
+   "startMs": 578,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 29,
+    "t": 578,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 178,
+   "flip": 42,
+   "startMs": 756,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 42,
+    "t": 756,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 178,
+   "flip": 42,
+   "startMs": 756,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 42,
+    "t": 756,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 218,
+   "flip": 31,
+   "startMs": 573,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 573,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 218,
+   "flip": 31,
+   "startMs": 573,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 31,
+    "t": 573,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 184,
+   "flip": 40,
+   "startMs": 776,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 40,
+    "t": 776,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 184,
+   "flip": 40,
+   "startMs": 776,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 40,
+    "t": 776,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 24,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 212,
+   "flip": 27,
+   "startMs": 605,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 27,
+    "t": 605,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 24,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 1280,
+   "frames": 212,
+   "flip": 27,
+   "startMs": 605,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 27,
+    "t": 605,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 24,
+    "modelPx": 0,
+    "diffMicro": 24000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 43,
+   "startMs": 706,
+   "live": 33,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 49,
+    "t": 912,
+    "tauMs": 206,
+    "prop": "padding-left",
+    "measuredPx": 13.185929,
+    "modelPx": 13.186445664,
+    "diffMicro": 517
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 43,
+   "startMs": 706,
+   "live": 33,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 49,
+    "t": 912,
+    "tauMs": 206,
+    "prop": "padding-left",
+    "measuredPx": 13.185929,
+    "modelPx": 13.186445664,
+    "diffMicro": 517
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 29,
+   "startMs": 540,
+   "live": 27,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 34,
+    "t": 742,
+    "tauMs": 202,
+    "prop": "padding-right",
+    "measuredPx": 10.466142,
+    "modelPx": 10.465657541999999,
+    "diffMicro": 484
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 194,
+   "flip": 29,
+   "startMs": 540,
+   "live": 27,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 34,
+    "t": 742,
+    "tauMs": 202,
+    "prop": "padding-right",
+    "measuredPx": 10.466142,
+    "modelPx": 10.465657541999999,
+    "diffMicro": 484
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 190,
+   "flip": 42,
+   "startMs": 714,
+   "live": 31,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 52,
+    "t": 1051,
+    "tauMs": 337,
+    "prop": "padding-left",
+    "measuredPx": 5.128818,
+    "modelPx": 5.129277541,
+    "diffMicro": 460
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 190,
+   "flip": 42,
+   "startMs": 714,
+   "live": 31,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 52,
+    "t": 1051,
+    "tauMs": 337,
+    "prop": "padding-left",
+    "measuredPx": 5.128818,
+    "modelPx": 5.129277541,
+    "diffMicro": 460
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 206,
+   "flip": 30,
+   "startMs": 531,
+   "live": 31,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 38,
+    "t": 716,
+    "tauMs": 185,
+    "prop": "padding-right",
+    "measuredPx": 8.940358,
+    "modelPx": 8.939912810000001,
+    "diffMicro": 445
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 206,
+   "flip": 30,
+   "startMs": 531,
+   "live": 31,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 38,
+    "t": 716,
+    "tauMs": 185,
+    "prop": "padding-right",
+    "measuredPx": 8.940358,
+    "modelPx": 8.939912810000001,
+    "diffMicro": 445
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 188,
+   "flip": 42,
+   "startMs": 706,
+   "live": 31,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 50,
+    "t": 1015,
+    "tauMs": 309,
+    "prop": "padding-left",
+    "measuredPx": 6.354359,
+    "modelPx": 6.354789673000001,
+    "diffMicro": 431
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 188,
+   "flip": 42,
+   "startMs": 706,
+   "live": 31,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 50,
+    "t": 1015,
+    "tauMs": 309,
+    "prop": "padding-left",
+    "measuredPx": 6.354359,
+    "modelPx": 6.354789673000001,
+    "diffMicro": 431
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-1280",
+  "browser": "safari-1280",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 1280,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 1280,
+   "frames": 188,
+   "flip": 32,
+   "startMs": 540,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 37,
+    "t": 742,
+    "tauMs": 202,
+    "prop": "padding-right",
+    "measuredPx": 10.466142,
+    "modelPx": 10.465657541999999,
+    "diffMicro": 484
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 1280,
+   "frames": 188,
+   "flip": 32,
+   "startMs": 540,
+   "live": 25,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 141645,
+   "worst": {
+    "i": 37,
+    "t": 742,
+    "tauMs": 202,
+    "prop": "padding-right",
+    "measuredPx": 10.466142,
+    "modelPx": 10.465657541999999,
+    "diffMicro": 484
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 76,
+   "flip": 18,
+   "startMs": 709,
+   "live": 11,
+   "jitterUs": 1201,
+   "eUs": 1,
+   "tolMicro": 76146,
+   "worst": {
+    "i": 23,
+    "t": 826,
+    "tauMs": 117,
+    "prop": "padding-right",
+    "measuredPx": 13.8499,
+    "modelPx": 13.836970513,
+    "diffMicro": 12929
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 76,
+   "flip": 18,
+   "startMs": 709,
+   "live": 11,
+   "jitterUs": 1201,
+   "eUs": 1,
+   "tolMicro": 76146,
+   "worst": {
+    "i": 23,
+    "t": 826,
+    "tauMs": 117,
+    "prop": "padding-right",
+    "measuredPx": 13.8499,
+    "modelPx": 13.836970513,
+    "diffMicro": 12929
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 46,
+   "flip": 10,
+   "startMs": 578.75,
+   "live": 4,
+   "jitterUs": 750,
+   "eUs": 1,
+   "tolMicro": 48450,
+   "worst": {
+    "i": 13,
+    "t": 978.6,
+    "tauMs": 399.85,
+    "prop": "padding-left",
+    "measuredPx": 13.9703,
+    "modelPx": 13.966231194,
+    "diffMicro": 4069
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 46,
+   "flip": 10,
+   "startMs": 578.75,
+   "live": 4,
+   "jitterUs": 750,
+   "eUs": 1,
+   "tolMicro": 48450,
+   "worst": {
+    "i": 13,
+    "t": 978.6,
+    "tauMs": 399.85,
+    "prop": "padding-left",
+    "measuredPx": 13.9703,
+    "modelPx": 13.966231194,
+    "diffMicro": 4069
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 62,
+   "flip": 17,
+   "startMs": 828.75,
+   "live": 12,
+   "jitterUs": 851,
+   "eUs": 1,
+   "tolMicro": 54652,
+   "worst": {
+    "i": 22,
+    "t": 1095.4,
+    "tauMs": 266.65,
+    "prop": "padding-right",
+    "measuredPx": 5.77982,
+    "modelPx": 5.780254139999999,
+    "diffMicro": 434
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 62,
+   "flip": 17,
+   "startMs": 828.75,
+   "live": 12,
+   "jitterUs": 851,
+   "eUs": 1,
+   "tolMicro": 54652,
+   "worst": {
+    "i": 22,
+    "t": 1095.4,
+    "tauMs": 266.65,
+    "prop": "padding-right",
+    "measuredPx": 5.77982,
+    "modelPx": 5.780254139999999,
+    "diffMicro": 434
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 98,
+   "flip": 10,
+   "startMs": 641.8,
+   "live": 16,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 14,
+    "t": 808.5,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 4.83788,
+    "modelPx": 4.840891432,
+    "diffMicro": 3011
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 98,
+   "flip": 10,
+   "startMs": 641.8,
+   "live": 16,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 14,
+    "t": 808.5,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 4.83788,
+    "modelPx": 4.840891432,
+    "diffMicro": 3011
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 54,
+   "flip": 12,
+   "startMs": 774.8,
+   "live": 13,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 16,
+    "t": 974.7,
+    "tauMs": 199.9,
+    "prop": "padding-left",
+    "measuredPx": 9.14466,
+    "modelPx": 9.146019847,
+    "diffMicro": 1360
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 54,
+   "flip": 12,
+   "startMs": 774.8,
+   "live": 13,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 16,
+    "t": 974.7,
+    "tauMs": 199.9,
+    "prop": "padding-left",
+    "measuredPx": 9.14466,
+    "modelPx": 9.146019847,
+    "diffMicro": 1360
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 70,
+   "flip": 10,
+   "startMs": 670,
+   "live": 15,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 16,
+    "t": 836.7,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 4.8377,
+    "modelPx": 4.840891432,
+    "diffMicro": 3191
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 70,
+   "flip": 10,
+   "startMs": 670,
+   "live": 15,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 16,
+    "t": 836.7,
+    "tauMs": 166.7,
+    "prop": "padding-right",
+    "measuredPx": 4.8377,
+    "modelPx": 4.840891432,
+    "diffMicro": 3191
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 86,
+   "flip": 16,
+   "startMs": 760.4000000000001,
+   "live": 16,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 22,
+    "t": 960.4,
+    "tauMs": 200,
+    "prop": "padding-left",
+    "measuredPx": 9.14154,
+    "modelPx": 9.139851082,
+    "diffMicro": 1689
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 86,
+   "flip": 16,
+   "startMs": 760.4000000000001,
+   "live": 16,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 22,
+    "t": 960.4,
+    "tauMs": 200,
+    "prop": "padding-left",
+    "measuredPx": 9.14154,
+    "modelPx": 9.139851082,
+    "diffMicro": 1689
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 78,
+   "flip": 14,
+   "startMs": 555.2,
+   "live": 16,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 19,
+    "t": 722,
+    "tauMs": 166.8,
+    "prop": "padding-right",
+    "measuredPx": 4.84104,
+    "modelPx": 4.847004353,
+    "diffMicro": 5964
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 78,
+   "flip": 14,
+   "startMs": 555.2,
+   "live": 16,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 19,
+    "t": 722,
+    "tauMs": 166.8,
+    "prop": "padding-right",
+    "measuredPx": 4.84104,
+    "modelPx": 4.847004353,
+    "diffMicro": 5964
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 48,
+   "flip": 13,
+   "startMs": 734.65,
+   "live": 8,
+   "jitterUs": 1051,
+   "eUs": 1,
+   "tolMicro": 66935,
+   "worst": {
+    "i": 16,
+    "t": 951.5,
+    "tauMs": 216.85,
+    "prop": "padding-left",
+    "measuredPx": 8.19048,
+    "modelPx": 8.180162241,
+    "diffMicro": 10318
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 48,
+   "flip": 13,
+   "startMs": 734.65,
+   "live": 8,
+   "jitterUs": 1051,
+   "eUs": 1,
+   "tolMicro": 66935,
+   "worst": {
+    "i": 16,
+    "t": 951.5,
+    "tauMs": 216.85,
+    "prop": "padding-left",
+    "measuredPx": 8.19048,
+    "modelPx": 8.180162241,
+    "diffMicro": 10318
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 80,
+   "flip": 13,
+   "startMs": 608.2,
+   "live": 17,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 18,
+    "t": 775,
+    "tauMs": 166.8,
+    "prop": "padding-right",
+    "measuredPx": 4.84104,
+    "modelPx": 4.847004353,
+    "diffMicro": 5964
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 80,
+   "flip": 13,
+   "startMs": 608.2,
+   "live": 17,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 18,
+    "t": 775,
+    "tauMs": 166.8,
+    "prop": "padding-right",
+    "measuredPx": 4.84104,
+    "modelPx": 4.847004353,
+    "diffMicro": 5964
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 78,
+   "flip": 18,
+   "startMs": 844.9000000000001,
+   "live": 17,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 22,
+    "t": 1044.9,
+    "tauMs": 200,
+    "prop": "padding-left",
+    "measuredPx": 9.14154,
+    "modelPx": 9.139851082,
+    "diffMicro": 1689
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 78,
+   "flip": 18,
+   "startMs": 844.9000000000001,
+   "live": 17,
+   "jitterUs": 900,
+   "eUs": 1,
+   "tolMicro": 57661,
+   "worst": {
+    "i": 22,
+    "t": 1044.9,
+    "tauMs": 200,
+    "prop": "padding-left",
+    "measuredPx": 9.14154,
+    "modelPx": 9.139851082,
+    "diffMicro": 1689
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "chromium",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 94,
+   "flip": 8,
+   "startMs": 541.5,
+   "live": 19,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 19,
+    "t": 791.5,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 9.49289,
+    "modelPx": 9.492547987,
+    "diffMicro": 342
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 94,
+   "flip": 8,
+   "startMs": 541.5,
+   "live": 19,
+   "jitterUs": 901,
+   "eUs": 1,
+   "tolMicro": 57723,
+   "worst": {
+    "i": 19,
+    "t": 791.5,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 9.49289,
+    "modelPx": 9.492547987,
+    "diffMicro": 342
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 178,
+   "flip": 36,
+   "startMs": 745,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 36,
+    "t": 745,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 178,
+   "flip": 36,
+   "startMs": 745,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 36,
+    "t": 745,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 16,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 142,
+   "flip": 32,
+   "startMs": 622,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 622,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 16,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 142,
+   "flip": 32,
+   "startMs": 622,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 32,
+    "t": 622,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 0,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 174,
+   "flip": 35,
+   "startMs": 725,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 35,
+    "t": 725,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 174,
+   "flip": 35,
+   "startMs": 725,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 35,
+    "t": 725,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 16,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 178,
+   "flip": 31,
+   "startMs": 628,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 31,
+    "t": 628,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 16,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 178,
+   "flip": 31,
+   "startMs": 628,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 31,
+    "t": 628,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 0,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 184,
+   "flip": 32,
+   "startMs": 741,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 32,
+    "t": 741,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 0,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 184,
+   "flip": 32,
+   "startMs": 741,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 32,
+    "t": 741,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 0,
+    "modelPx": 16,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "faithful",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 178,
+   "flip": 33,
+   "startMs": 600,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 50,
+   "worst": {
+    "i": 33,
+    "t": 600,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 16,
+    "diffMicro": 0
+   }
+  },
+  "curve": {
+   "pass": false,
+   "width": 390,
+   "frames": 178,
+   "flip": 33,
+   "startMs": 600,
+   "live": 0,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 33,
+    "t": 600,
+    "tauMs": 0,
+    "prop": "padding-left",
+    "measuredPx": 16,
+    "modelPx": 0,
+    "diffMicro": 16000000
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 186,
+   "flip": 32,
+   "startMs": 702,
+   "live": 30,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 36,
+    "t": 885,
+    "tauMs": 183,
+    "prop": "padding-right",
+    "measuredPx": 10.161776,
+    "modelPx": 10.162089446000001,
+    "diffMicro": 313
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 186,
+   "flip": 32,
+   "startMs": 702,
+   "live": 30,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 36,
+    "t": 885,
+    "tauMs": 183,
+    "prop": "padding-right",
+    "measuredPx": 10.161776,
+    "modelPx": 10.162089446000001,
+    "diffMicro": 313
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 0,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 188,
+   "flip": 32,
+   "startMs": 528,
+   "live": 14,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 37,
+    "t": 843,
+    "tauMs": 315,
+    "prop": "padding-right",
+    "measuredPx": 11.951138,
+    "modelPx": 11.950893673000001,
+    "diffMicro": 244
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 188,
+   "flip": 32,
+   "startMs": 528,
+   "live": 14,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 37,
+    "t": 843,
+    "tauMs": 315,
+    "prop": "padding-right",
+    "measuredPx": 11.951138,
+    "modelPx": 11.950893673000001,
+    "diffMicro": 244
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 184,
+   "flip": 32,
+   "startMs": 694,
+   "live": 29,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 39,
+    "t": 976,
+    "tauMs": 282,
+    "prop": "padding-left",
+    "measuredPx": 5.172681,
+    "modelPx": 5.172990735999999,
+    "diffMicro": 310
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 184,
+   "flip": 32,
+   "startMs": 694,
+   "live": 29,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 39,
+    "t": 976,
+    "tauMs": 282,
+    "prop": "padding-left",
+    "measuredPx": 5.172681,
+    "modelPx": 5.172990735999999,
+    "diffMicro": 310
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 1,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 162,
+   "flip": 31,
+   "startMs": 535,
+   "live": 7,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 33,
+    "t": 806,
+    "tauMs": 271,
+    "prop": "padding-right",
+    "measuredPx": 10.397985,
+    "modelPx": 10.397655883999999,
+    "diffMicro": 329
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 162,
+   "flip": 31,
+   "startMs": 535,
+   "live": 7,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 33,
+    "t": 806,
+    "tauMs": 271,
+    "prop": "padding-right",
+    "measuredPx": 10.397985,
+    "modelPx": 10.397655883999999,
+    "diffMicro": 329
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "entry",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 188,
+   "flip": 33,
+   "startMs": 711,
+   "live": 32,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 37,
+    "t": 881,
+    "tauMs": 170,
+    "prop": "padding-right",
+    "measuredPx": 10.957788,
+    "modelPx": 10.958089282,
+    "diffMicro": 301
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 188,
+   "flip": 33,
+   "startMs": 711,
+   "live": 32,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 37,
+    "t": 881,
+    "tauMs": 170,
+    "prop": "padding-right",
+    "measuredPx": 10.957788,
+    "modelPx": 10.958089282,
+    "diffMicro": 301
+   }
+  }
+ },
+ {
+  "run": "40102193302",
+  "artifact": "transitions-apple-390",
+  "browser": "playwright-webkit",
+  "arm": "variant",
+  "mode": "full",
+  "rep": 2,
+  "width": 390,
+  "seq": "exit",
+  "own": {
+   "pass": true,
+   "width": 390,
+   "frames": 184,
+   "flip": 31,
+   "startMs": 537,
+   "live": 15,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 36,
+    "t": 787,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 9.492891,
+    "modelPx": 9.492547987,
+    "diffMicro": 343
+   }
+  },
+  "curve": {
+   "pass": true,
+   "width": 390,
+   "frames": 184,
+   "flip": 31,
+   "startMs": 537,
+   "live": 15,
+   "jitterUs": 500,
+   "eUs": 1000,
+   "tolMicro": 94447,
+   "worst": {
+    "i": 36,
+    "t": 787,
+    "tauMs": 250,
+    "prop": "padding-right",
+    "measuredPx": 9.492891,
+    "modelPx": 9.492547987,
+    "diffMicro": 343
+   }
+  }
+ }
+]
