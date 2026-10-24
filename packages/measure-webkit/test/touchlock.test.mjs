@@ -146,6 +146,14 @@ test('the scrollTo hook records the instant restore targets while recording and 
   assert.equal(calls.length, 4);
 });
 
+test('the hook reports false when the scrollTo assignment is ignored', () => {
+  const win = { scrollY: 0 };
+  Object.defineProperty(win, 'scrollTo', { value: () => {}, writable: false });
+  const doc = { querySelector: () => null, documentElement: { classList: { toggle() {} } }, createElement: () => ({}), head: { appendChild() {} } };
+  const fn = new Function('window', 'document', 'addEventListener', 'requestAnimationFrame', 'performance', `return ${installJs(false)}`);
+  assert.equal(fn(win, doc, () => {}, () => 0, { now: () => 0 }).hook, false);
+});
+
 test('markdown carries the push failure reason and one line per window with its state', () => {
   const rows = [rowOf('base', fight), { arm: 'lock', rep: 0, status: 'push:pageLost' }, { arm: 'orig', rep: 0, status: 'refused:config' },
     { arm: 'lock', rep: 1, frames: [[1, 0, 0]], events: [], calls: [] }];

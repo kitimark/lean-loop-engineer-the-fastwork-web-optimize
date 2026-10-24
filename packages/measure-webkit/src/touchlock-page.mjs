@@ -8,6 +8,7 @@ export const installJs = (lock) => `(() => {
   const open = () => (nav && Number(nav.style.getPropertyValue('--morph')) > 0.001 ? 1 : 0);
   const y10 = () => Math.round(window.scrollY * 10);
   if (st.lock) { const s = document.createElement('style'); s.textContent = ${JSON.stringify(LOCK_CSS)}; document.head.appendChild(s); }
+  const orig = window.scrollTo;
   const scrollTo = window.scrollTo.bind(window);
   window.scrollTo = function (...a) {
     const o = a[0];
@@ -21,7 +22,7 @@ export const installJs = (lock) => `(() => {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-  return { nav: !!nav, lock: st.lock, hook: window.scrollTo !== scrollTo };
+  return { nav: !!nav, lock: st.lock, hook: window.scrollTo !== orig };
 })()`;
 
 export const nearEndJs = (gapPx) => `(() => new Promise((resolve) => {

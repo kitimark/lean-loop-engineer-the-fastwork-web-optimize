@@ -25,8 +25,7 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
 
   (Each cell is run 40071802991 + run 40074062290; run 1 has 4 windows per arm, run 2 has 6.) Per-window lines (state, reason,
   open frames, reversals, fights, displaced, restores, stored lock) are in `results/touch-lock-page-end/run-<id>/touch-lock.md`.
-  No window was lost to a push failure (push failure reasons `{}` in both runs); 11 of 30 windows had no open phase (refused `noOpen`:
-  the morph never opened), none `tooShort` or `lockMoved`. Verdicts
+  No window was lost to a push failure (push failure reasons `{}` in both runs); 11 of 30 windows were refused `noOpen`: 9 have samples and the morph never opened (each ends with maxY10 52670 and finalY10 4563.0 to 4643.0, so the page left the end); 2 (run 40074062290, lock windows 2 and 4) recorded no frame and no event although 75 and 53 moves were delivered, so their morph state is not measured. None were `tooShort` or `lockMoved`. Verdicts
   by `cmp` per job: lock vs base fights `overlap`, restores `overlap`; base vs orig `overlap`; look class `change`. The lock arm is
   not reliably lower than base: 4 of its 5 accepted windows still have a fight. The across-job verdict is `sim-touch-verdict-jobs`.
 - **Lock from the site (MEASURED).** The hook wraps `window.scrollTo` and records the site's instant calls while recording;
@@ -37,8 +36,7 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
   keeps firing: the displaced counts are the open frames spent below the stored value, not oscillation around it.
 - **Restart fix (MEASURED in run `40071802991`, INFERRED cause).** The orig window of rep 3 stalled (done at 160 s), the walk restarted
   the push server as `serve-r1`; the restart did not fail with the old `Existing file at -resultBundlePath` (driver exit 64), it waited
-  `no ready file after 276 s` with the driver alive. The Simulator page was gone at that moment (`inspector probe failed: socket
-  up, proxy down, page missing`), so the restart could not recover. Run `40074062290` had no stall and no restart. Unit test: a
+  `no ready file after 276 s` with the driver alive. The probe at 07:12:23 still listed the page; page missing was first logged at 07:17:16, after the 276 s wait had failed. Why the restarted server never wrote its ready file is UNKNOWN. Run `40074062290` had no stall and no restart. Unit test: a
   restart gets `serve-r<n>`, each tag differs (`test/touchlock.test.mjs`, Lean `serveTag_new_each_restart`).
 - **Candidate look class (INFERRED): look change**, as decided for the review: the CSS lock removes the rubber band and the native
   pan; base and orig have displaced frames in every accepted window. Goes to the user's visual review.
