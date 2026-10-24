@@ -19827,7 +19827,8 @@
     "docs/report/v2-report.md",
     "docs/team/handoffs/classpos-followups-2.md"
    ],
-   "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report). Plus classpos-followups review follow-ups: (5) split helpers into listHelpers [clsx, classNames, classnames] (list context) and joinHelpers [cx, cls] (the site's own (...c) => c.filter(Boolean).join(' '): arrays and objects there are lost), golden row cx(['a']); (6) a numeric literal (className={0}, cx(n && 1)) gets marker 'number', and the left side of && is reported unless it is cmp/not, golden rows; (7) an element whose class set has any lost token is marked open in collectElements, and selector matches against it are weak."
+   "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report). Plus classpos-followups review follow-ups: (5) split helpers into listHelpers [clsx, classNames, classnames] (list context) and joinHelpers [cx, cls] (the site's own (...c) => c.filter(Boolean).join(' '): arrays and objects there are lost), golden row cx(['a']); (6) a numeric literal (className={0}, cx(n && 1)) gets marker 'number', and the left side of && is reported unless it is cmp/not, golden rows; (7) an element whose class set has any lost token is marked open in collectElements, and selector matches against it are weak.",
+   "evidence": "4338740"
   },
   {
    "devices": [
@@ -19877,7 +19878,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "lean/Fw/Wire/Plan.lean"
    ],
-   "title": "Incident inc-polish-line-join (2026-10-24): fw polish comment cuts deleted a trailing `# ...` comment together with its newline and joined two check.sh job lines in 3 polish commits (162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, plus 65c6ec5 on the land-wt-lake-rebuilds branch), so the second job ran as arguments of the first (node-budget, nav-earn, gate-engine-timing goldens unrun on their own). Lean rule: a comment cut keeps every code line of the original as a line (the cut file's code lines, comments stripped, equal the original's line for line), theorem + golden rows (trailing comment, whole-line comment, block comment, a cut at end of file); fw polish refuses (reverts that file, VERDICT polish-cuts ... refused-join) any edit that breaks it, checked by a TS test over the golden. Plus a cheap lint: one `job \"` per check.sh line (CI and check.sh run it)."
+   "title": "Incident inc-polish-line-join (2026-10-24): fw polish comment cuts deleted a trailing `# ...` comment together with its newline and joined two check.sh job lines in 3 polish commits (162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, plus 65c6ec5 on the land-wt-lake-rebuilds branch), so the second job ran as arguments of the first (node-budget, nav-earn, gate-engine-timing goldens unrun on their own). Lean rule: a comment cut keeps every code line of the original as a line (the cut file's code lines, comments stripped, equal the original's line for line), theorem + golden rows (trailing comment, whole-line comment, block comment, a cut at end of file); fw polish refuses (reverts that file, VERDICT polish-cuts ... refused-join) any edit that breaks it, checked by a TS test over the golden. Plus a cheap lint: one `job \"` per check.sh line (CI and check.sh run it).",
+   "evidence": "488ca02"
   },
   {
    "devices": [
@@ -19916,7 +19918,11 @@
     "research/notes/2026/10-2x-throttle-lift-ship.md",
     "research/notes/2026/10-2x-toolbar-throttle.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/throttle-lift-ship.md"
+    "docs/team/handoffs/throttle-lift-ship.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
    "title": "User 2026-10-24 on the real iPhone (felt, one person, preview): ?fw=engine.scroll:throttle-lift 'looks the same and hero-exit is a lot of improve, no laggy on hero exit'; CI Simulator run 39667548341: frozen bands 163 -> 0 (3 of 3 jobs lifted). The flag is a diagnostic (one invisible fixed 1px element running a main-thread scroll-driven @property animation, so WebKit reports main-thread scroll-driven animations and WKWebViewIOS.mm:3256-3268@862f17d stops throttling visible-rect updates to 100 ms while the toolbar collapses). Promote it to a shippable optimized variant (e.g. engine.scroll:unthrottle) Lean first: (1) the WebKit condition chain from source (WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, WKWebViewIOS.mm:3256-3268 @862f17d) as a Lean decision with theorems (lifted iff a non-compositable scroll-driven animation is active; no effect without animation-timeline support); (2) same look: the element paints nothing (opacity 0, 1x1, pointer-events none, aria-hidden, no layout effect on siblings: fixed) proved from the visual model, plus the breakpoint gate on both engines; (3) its own cost: Chromium and WebKit counts per frame (one style recalc of one element per scroll frame) measured on CI (chromium-counts, webkit-sim) against faithful, with a Lean bound; (4) record the user's device observation in research/notes/2026/10-2x-toolbar-throttle.md (Phone pass) and the findings ledger; (5) propose the v2-proved preset entry only after (1)-(3) pass. Engine docs: read the WebKit bug/commit that added the 100 ms throttle and its exemption."
   },
@@ -19943,6 +19949,130 @@
     "docs/team/handoffs/touch-lock-windows.md"
    ],
    "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "look-decisions-1024",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "throttle-lift-ship",
+    "accent-same-look"
+   ],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "docs/report/v2-report.md",
+    "docs/team/handoffs/look-decisions-1024.md"
+   ],
+   "title": "Record the user's phone review of 2026-10-24 (results/phone/2026-10-24*, user words: 'both of the ?fw=hero.exit:threaded and ?fw=engine.scroll:throttle-lift looks the same as the original'; accent: 'the animation looks difference from the original'): Lean LookDecision rows in Fw.Preset.Gen (hero.exit:threaded accepted as same look on the iPhone; hero.accent:draw-nolayout and draw-nolayout-full rejected), ledger userDecision fields agreeing (ledgerDisagreements empty), goldens regenerated; then decide in Lean whether hero.exit:threaded may enter v2-proved (its proofs, gate rows and the one-frame-lag question q6 'same scroll offset' from the pixel-proof review) and report the preset delta in v2-report.md with the phone numbers (hero felt marks 12 -> 0 for both flags; throttle-lift band runs 90 -> 2)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "recorder-viewport-per-frame",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/device-record.mjs",
+    "packages/measure-webkit/src/device-session.mjs",
+    "packages/measure-webkit/src/throttle/stillruns.mjs",
+    "packages/measure-webkit/test/device-record.test.mjs",
+    "packages/measure-webkit/test/stillruns*.test.mjs",
+    "lean/Fw/Device/Session.lean",
+    "lean/Fw/Device/StillRuns.lean",
+    "packages/contracts/golden/device/session.jsonl",
+    "packages/contracts/golden/device/stillruns.jsonl",
+    "docs/team/tools/device-lag-recorder.md",
+    "docs/team/handoffs/recorder-viewport-per-frame.md"
+   ],
+   "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "unthrottle-preset",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "throttle-lift-ship"
+   ],
+   "writes": [
+    "apps/site/src/parts/engine.scroll/**",
+    "lean/Fw/Parts/EngineScrollUnthrottle.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/parts/engine.scroll*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-throttle-lift-ship.md",
+    "docs/report/v2-report.md",
+    "docs/team/handoffs/unthrottle-preset.md"
+   ],
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-finish-throttle",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/throttle/driver/**",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/cli.mjs",
+    "packages/measure-webkit/src/throttle/probe.mjs",
+    "packages/measure-webkit/src/throttle/report.mjs",
+    "packages/measure-webkit/src/throttle/recorder.mjs",
+    "packages/measure-webkit/src/throttle/finish*.mjs",
+    "packages/measure-webkit/test/throttle-finish*.test.mjs",
+    "packages/measure-webkit/test/throttle-report.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Device/FinishRuns.lean",
+    "lean/scripts/FinishRunsGolden.lean",
+    "packages/contracts/golden/device/finishruns.jsonl",
+    "research/notes/2026/10-2x-sim-finish-throttle.md",
+    "results/sim-finish-throttle/**",
+    "docs/team/handoffs/sim-finish-throttle.md"
+   ],
+   "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "invisible-paint",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/PaintVisible.lean",
+    "lean/scripts/PaintVisibleGolden.lean",
+    "packages/contracts/golden/engine/paint-visible.jsonl",
+    "packages/measure-wktr/src/repaint*.mjs",
+    "packages/measure-wktr/src/harness.mjs",
+    "packages/measure-wktr/src/cli.mjs",
+    "packages/measure-wktr/src/reduce.mjs",
+    "packages/measure-wktr/test/repaint*.test.mjs",
+    ".github/workflows/wktr.yml",
+    "packages/measure-webkit/src/paintclip*.mjs",
+    "packages/measure-webkit/src/timeline.mjs",
+    "packages/measure-webkit/test/paintclip*.test.mjs",
+    "research/notes/2026/10-2x-invisible-paint.md",
+    "results/invisible-paint/**",
+    "docs/team/handoffs/invisible-paint.md"
+   ],
+   "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land."
   }
  ],
  "deadline": {

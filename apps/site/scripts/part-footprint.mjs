@@ -84,10 +84,12 @@ function union(a, b) {
   if (a.k === 'el' && b.k === 'el') return el([...a.owners, ...b.owners], a.sel ?? b.sel);
   if (a.k === 'str' && b.k === 'str') return { k: 'str', vs: [...new Set([...a.vs, ...b.vs])] };
   if (a.k === 'anim' && b.k === 'anim') return { k: 'anim', owners: [...new Set([...a.owners, ...b.owners])].sort() };
+  if (CLASS_KINDS.has(a.k) || CLASS_KINDS.has(b.k)) return { k: 'calt', v: classUnion(classValue(a), classValue(b)) };
   if (a.k === 'unknown') return b;
   if (b.k === 'unknown') return a;
   return a;
 }
+const CLASS_KINDS = new Set(['cls', 'calt']);
 
 const elements = [];
 function jsxAttrValue(a) {
@@ -111,7 +113,14 @@ const propOverrides = new Map();
 const nestedJsx = new Set();
 function collectElements(file) {
   const owner = folderOf(file.abs);
-  const visit = (n, inJsx) => {
+  const visit = (n, inJsx, scope) => {
+    if (isFn(n)) {
+      scope = new Scope(scope, file);
+      for (const p of n.params) bindPattern(scope, p, () => UNKNOWN, 'param');
+    } else if (n.type === 'BlockStatement') {
+      scope = new Scope(scope, file);
+      hoist(n.body, scope);
+    }
     if (n.type === 'JSXElement' && inJsx) nestedJsx.add(n.openingElement);
     if (n.type === 'JSXOpeningElement') {
       const tag = jsxName(n.name);
@@ -119,13 +128,18 @@ function collectElements(file) {
         const attrs = new Map();
         const classes = new Set();
         let spread = false;
+        let open = false;
         for (const a of n.attributes) {
           if (a.type !== 'JSXAttribute') { spread = true; continue; }
           const name = jsxName(a.name);
           const v = jsxAttrValue(a);
           if (name === 'className') {
             if (v.lit !== undefined) literalClasses(v.lit).forEach((c) => classes.add(c));
-            else collectClassTokens(v.expr, () => null).forEach((c) => c.op === 'setClass' && classes.add(c.name));
+            else {
+              const ts = collectClassTokens(v.expr, classEnv(scope, staticMemberClass));
+              ts.forEach((c) => c.op === 'setClass' && classes.add(c.name));
+              open ||= isOpenElement(ts);
+            }
           } else attrs.set(name, v.lit !== undefined ? v.lit : null);
           const target = /^[A-Z]/.test(tag) && v.lit !== undefined ? componentFolder(tag, file) : null;
           if (target) {
@@ -133,13 +147,13 @@ function collectElements(file) {
             propOverrides.set(key, [...new Set([...(propOverrides.get(key) ?? []), v.lit])]);
           }
         }
-        elements.push({ owner, file: rel(file.abs), line: lineOf(file, n.start), tag: tag === 'Box' ? 'div' : tag, attrs, classes, spread });
+        elements.push({ owner, file: rel(file.abs), line: lineOf(file, n.start), tag: tag === 'Box' ? 'div' : tag, attrs, classes, spread, open });
       }
     }
     const jsxNow = inJsx || n.type === 'JSXElement' || n.type === 'JSXFragment';
-    for (const c of children(n)) visit(c, jsxNow);
+    for (const c of children(n)) visit(c, jsxNow, scope);
   };
-  visit(file.program, false);
+  visit(file.program, false, topScope(file));
 }
 const runtimeKeys = new Set();
 function addRuntimeElements(acc) {
@@ -208,10 +222,14 @@ function valueMatches(pattern, v) {
   const re = new RegExp(`^${pattern.split(HOLE).map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
   return re.test(v);
 }
+function classMatchOf(sel, e) {
+  const has = (c) => e.classes.has(c) || (c.includes(HOLE) && [...e.classes].some((x) => valueMatches(c, x)));
+  return classMatch(has, sel.classes, Boolean(e.open));
+}
 function matchElement(sel, e) {
   if (sel.tag && e.tag !== '*' && sel.tag !== e.tag) return false;
   if (sel.id && !(e.spread && !e.attrs.has('id')) && !(e.attrs.has('id') && (e.attrs.get('id') === null || valueMatches(sel.id, e.attrs.get('id'))))) return false;
-  for (const c of sel.classes) if (!e.classes.has(c) && !(c.includes(HOLE) && [...e.classes].some((x) => valueMatches(c, x)))) return false;
+  if (classMatchOf(sel, e) === 'none') return false;
   for (const a of sel.attrs) {
     if (!e.attrs.has(a.name)) { if (e.spread) continue; return false; }
     const v = e.attrs.get(a.name);
@@ -225,10 +243,9 @@ function literalMatch(sel, e) {
 }
 function matchOwners(compound, within) {
   const pool = within ? elements.filter((e) => within.includes(e.owner)) : elements;
-  const all = pool.filter((e) => matchElement(compound, e));
-  const tiers = [all.filter((e) => !e.spread && literalMatch(compound, e)), all.filter((e) => !e.spread), all];
-  const hit = (tiers.find((t) => t.length) ?? []).map((e) => e.owner);
-  matchOwners.weak = tiers[0].length === 0 && hit.length > 0;
+  const cands = pool.filter((e) => matchElement(compound, e)).map((e) => [e.owner, classStrength(Boolean(e.spread), literalMatch(compound, e), classMatchOf(compound, e))]);
+  const { owners: hit, weak } = pickOwners(cands);
+  matchOwners.weak = weak;
   return hit.length || !within ? hit : matchOwners(compound, null);
 }
 function resolveSelector(s, site) {
@@ -288,7 +305,7 @@ function emitOn(node, op, name, v, ctxTag) {
   }
 }
 
-class Scope {
+export class Scope {
   constructor(parent, file) { this.parent = parent; this.file = file; this.vars = new Map(); }
   lookup(name) {
     for (let s = this; s; s = s.parent) if (s.vars.has(name)) return { scope: s, b: s.vars.get(name) };
@@ -329,14 +346,17 @@ function hoist(stmts, scope) {
     if (st.type === 'ExportNamedDeclaration' || st.type === 'ExportDefaultDeclaration') st = st.declaration ?? st;
     if (!st) continue;
     if (st.type === 'VariableDeclaration') {
-      for (const d of st.declarations) bindPattern(scope, d.id, memo(() => (d.init ? valueOf(d.init, scope) : UNKNOWN)), st.kind);
+      for (const d of st.declarations) {
+        bindPattern(scope, d.id, memo(() => (d.init ? valueOf(d.init, scope) : UNKNOWN)), st.kind);
+        if (st.kind === 'const' && d.id.type === 'Identifier' && d.init) scope.vars.get(d.id.name).init = d.init;
+      }
     } else if (st.type === 'FunctionDeclaration' && st.id) {
       scope.vars.set(st.id.name, { thunk: () => ({ k: 'fn', node: st, scope }), kind: 'fn' });
     } else if (st.type === 'ImportDeclaration') {
       const target = resolveImport(scope.file.abs, st.source.value);
       for (const sp of st.specifiers) {
         const local = sp.local.name;
-        if (target && target.endsWith('.css')) { scope.vars.set(local, { thunk: () => ({ k: 'cssmod', file: target }), kind: 'import' }); continue; }
+        if (target && target.endsWith('.css')) { scope.vars.set(local, { thunk: () => ({ k: 'cssmod', file: target }), kind: 'import', css: target }); continue; }
         if (!target || !inParts(target) && target !== appFile) {
           const src = st.source.value;
           scope.vars.set(local, { thunk: () => ({ k: 'ext', name: sp.imported?.name ?? local, src }), kind: 'import' });
@@ -768,15 +788,33 @@ function walk(n, scope, ctxTag, fnVal) {
 function analyzeLater(f, tag, args, scope, elemArg) {
   pending.push(() => analyzeFn(f, tag, args, scope, elemArg));
 }
+export const classListOf = (method, args, scope) => classListReport(method, args.map((a) => classValue(valueOf(a, scope))));
 function classValue(v) {
   if (v.k === 'cls') return v.local == null ? { modKey: rel(v.file) } : { mod: `${rel(v.file)}#${v.local}` };
   if (v.k === 'str') return { str: v.vs };
+  if (v.k === 'calt') return v.v;
   return {};
 }
 function memberClassOf(x, scope) {
   const cv = valueOf(x, scope);
   if (cv.k !== 'cls') return null;
   return cv.local == null || (x.computed && propName(x) === null) ? { key: rel(cv.file) } : { mod: `${rel(cv.file)}#${cv.local}` };
+}
+function staticMemberClass(x, scope) {
+  const o = strip(x.object);
+  const r = o.type === 'Identifier' ? scope.lookup(o.name) : null;
+  if (!r || !r.b.css) return null;
+  const local = propName(x);
+  return local === null ? { key: rel(r.b.css) } : { mod: `${rel(r.b.css)}#${local}` };
+}
+function classEnv(scope, memberClass = memberClassOf) {
+  return {
+    memberClass: (x) => memberClass(x, scope),
+    constInit: (name) => {
+      const r = scope.lookup(name);
+      return r && r.b.kind === 'const' && r.b.init ? { init: r.b.init, env: classEnv(r.scope, memberClass) } : null;
+    },
+  };
 }
 function walkCall(n, scope, ctxTag, fnVal) {
   const c = strip(n.callee);
@@ -810,7 +848,7 @@ function walkCall(n, scope, ctxTag, fnVal) {
     } else if (sub === 'style' && name === 'getPropertyValue') {
       emitOn(n, 'styleRead', '', subOwner, ctxTag);
     } else if (sub === 'classList' && CLASS_LIST_METHODS.includes(name)) {
-      const { writes, findings: found } = classListReport(name, n.arguments.map((a) => classValue(valueOf(a, scope))));
+      const { writes, findings: found } = classListOf(name, n.arguments, scope);
       for (const [kind, d] of found) finding(site(n), kind, d);
       for (const [op, cn] of writes) emitOn(n, op, cn, subOwner, ctxTag);
     } else if (['setAttribute', 'removeAttribute', 'toggleAttribute'].includes(name)) {
@@ -889,7 +927,7 @@ function walkAssign(n, scope, ctxTag) {
     return;
   }
   const t = valueOf(o, scope);
-  if (p === 'className') emitOn(n, 'setClass', '*', t, ctxTag);
+  if (p === 'className') for (const [op, name] of n.operator === '=' ? classAssign(collectClassTokens(n.right, classEnv(scope), 'text')) : [['setClass', '*']]) emitOn(n, op, name, t, ctxTag);
   else if (p === 'scrollTop' || p === 'scrollLeft') emitOn(n, 'scroll', p, t, ctxTag);
   else if (CONTENT_PROPS.has(p)) emitOn(n, 'setContent', p, t, ctxTag);
   else if (REFLECTED.has(p)) emitOn(n, 'setAttr', REFLECTED.get(p), t, ctxTag);
@@ -944,12 +982,14 @@ function exprIsProps(e, scope) {
   visit(e);
   return ok;
 }
-export const CLASS_HELPERS = ['cx', 'cls', 'clsx', 'classNames', 'classnames'];
+export const LIST_HELPERS = ['clsx', 'classNames', 'classnames'];
+export const JOIN_HELPERS = ['cx', 'cls'];
 export const CLASS_SEPARATORS = [' ', '\t', '\n', '\f', '\r'];
 const SEP = /[ \t\n\f\r]/;
 const classTokensOf = (s) => s.split(SEP).filter(Boolean).map((name) => ({ op: 'setClass', name }));
 const lose = (t) => ({ op: 'lost', name: t.name });
 const marker = (form, toks) => [{ op: 'lost', name: form }, ...toks.map(lose)];
+const modKeyToks = (m) => [{ op: 'modLost', name: `module key ${m}` }];
 function classPush(w, a) {
   if (a.chars === undefined) return [...w, a];
   if (a.chars === '') return w;
@@ -977,61 +1017,108 @@ function classSepOk(args) {
   const a = strip(args[0]);
   return a.type === 'Literal' && typeof a.value === 'string' && a.value.length > 0 && a.value.split(SEP).every((x) => x === '');
 }
-const listOr = (l, form, toks) => (l ? toks : marker(form, toks));
-export function collectClassTokens(expr, memberClass) {
+const CMP_OPS = new Set(['===', '!==', '==', '!=', '<', '<=', '>', '>=', 'in', 'instanceof']);
+const NUM_UNARY = new Set(['-', '+', '~']);
+const drops = (c) => c === 'list' || c === 'join';
+const clsTok = (name) => ({ op: 'setClass', name });
+function boolToks(c, b) {
+  if (c === 'text' || c === 'elem') return [clsTok(String(b))];
+  return c === 'join' && b ? [clsTok('true')] : [];
+}
+const testToks = (c) => [...boolToks(c, true), ...boolToks(c, false)];
+const nullToks = (c, n) => (c === 'text' ? [clsTok(n)] : []);
+const isTest = (x) => (x.type === 'BinaryExpression' && CMP_OPS.has(x.operator)) || (x.type === 'UnaryExpression' && x.operator === '!') || (x.type === 'Literal' && typeof x.value === 'boolean');
+const isStr = (x) => x.type === 'Literal' && typeof x.value === 'string';
+const calleeCtx = (n) => (LIST_HELPERS.includes(n) ? 'list' : JOIN_HELPERS.includes(n) ? 'join' : null);
+function filterCtx(args) {
+  const a = args.length === 1 ? strip(args[0]) : null;
+  return a && a.type === 'Identifier' && a.name === 'Boolean' ? 'join' : 'elem';
+}
+export const NO_CLASS_ENV = { memberClass: () => null, constInit: () => null };
+export function collectClassTokens(expr, env = NO_CLASS_ENV, ctx = 'attr') {
+  const busy = new Set();
   const hole = (toks) => ({ toks, ps: [{ toks }] });
-  const list = (xs, l = false) => xs.flatMap((x) => (x ? go(x, l).toks : []));
+  const list = (xs, c, en) => xs.flatMap((x) => (x ? go(x, c, en).toks : []));
   const elems = (r) => {
-    if (r.type === 'ArrayExpression') return r.elements;
+    if (r.type === 'ArrayExpression') return { es: r.elements, c: 'elem' };
     const f = r.type === 'CallExpression' ? strip(r.callee) : null;
-    if (f && f.type === 'MemberExpression' && !f.computed && f.property.type === 'Identifier' && f.property.name === 'filter' && strip(f.object).type === 'ArrayExpression') return strip(f.object).elements;
+    if (f && f.type === 'MemberExpression' && !f.computed && f.property.type === 'Identifier' && f.property.name === 'filter' && strip(f.object).type === 'ArrayExpression') return { es: strip(f.object).elements, c: filterCtx(r.arguments) };
     return null;
   };
-  const prop = (p) => {
-    if (p.type !== 'Property') return marker('spread', go(p.argument, true).toks);
-    if (p.computed) return go(p.key).toks;
+  const prop = (p, en) => {
+    if (p.type !== 'Property') return marker('spread', go(p.argument, 'list', en).toks);
+    if (p.computed) return go(p.key, 'text', en).toks;
     return classTokensOf(p.key.type === 'Identifier' ? p.key.name : String(p.key.value));
   };
-  const go = (x, l = false) => {
+  const other = (x, en) => hole(marker('other', list(children(x), 'attr', en)));
+  const go = (x, c, en) => {
     x = strip(x);
     switch (x.type) {
-      case 'Literal': return typeof x.value === 'string' ? { toks: classTokensOf(x.value), ps: [{ text: x.value }] } : hole([]);
-      case 'Identifier': return hole(x.name === 'undefined' ? [] : marker(`id ${x.name}`, []));
+      case 'Literal':
+        if (typeof x.value === 'string') return { toks: classTokensOf(x.value), ps: [{ text: x.value }] };
+        if (typeof x.value === 'number' || typeof x.value === 'bigint') return hole(marker('number', []));
+        if (typeof x.value === 'boolean') return hole(boolToks(c, x.value));
+        if (x.value === null && !x.regex) return hole(nullToks(c, 'null'));
+        return other(x, en);
+      case 'Identifier': {
+        if (x.name === 'undefined') return hole(nullToks(c, 'undefined'));
+        const k = en.constInit(x.name);
+        if (!k || busy.has(k.init)) return hole(marker(`id ${x.name}`, []));
+        busy.add(k.init);
+        try { return go(k.init, c, k.env); } finally { busy.delete(k.init); }
+      }
       case 'MemberExpression': {
-        const m = memberClass(x);
+        const m = en.memberClass(x);
         if (!m) return hole(marker('member', []));
-        return hole(m.key !== undefined ? marker(`module key ${m.key}`, []) : [{ op: 'setModuleClass', name: m.mod }]);
+        return hole(m.key !== undefined ? modKeyToks(m.key) : [{ op: 'setModuleClass', name: m.mod }]);
       }
-      case 'UnaryExpression': return hole([]);
+      case 'UnaryExpression':
+        if (x.operator === '!') return hole(testToks(c));
+        if (NUM_UNARY.has(x.operator)) return hole(marker('number', []));
+        return other(x, en);
       case 'BinaryExpression': {
-        if (x.operator !== '+') return hole([]);
-        const ps = [...go(x.left).ps, ...go(x.right).ps];
+        if (CMP_OPS.has(x.operator)) return hole(testToks(c));
+        if (x.operator !== '+') return hole(marker('number', []));
+        const ps = [...go(x.left, 'text', en).ps, ...go(x.right, 'text', en).ps];
         return { toks: classWords(ps), ps };
       }
-      case 'ConditionalExpression': return hole([...go(x.consequent, l).toks, ...go(x.alternate, l).toks]);
-      case 'LogicalExpression': return hole(x.operator === '&&' ? go(x.right, l).toks : [...go(x.left, l).toks, ...go(x.right, l).toks]);
+      case 'ConditionalExpression': return hole([...go(x.consequent, c, en).toks, ...go(x.alternate, c, en).toks]);
+      case 'LogicalExpression': {
+        if (x.operator !== '&&') return hole([...go(x.left, c, en).toks, ...go(x.right, c, en).toks]);
+        const l = strip(x.left);
+        const left = drops(c) || isStr(l) ? [] : isTest(l) ? boolToks(c, false) : go(l, c, en).toks;
+        return hole([...left, ...go(x.right, c, en).toks]);
+      }
       case 'TemplateLiteral': {
-        const ps = x.quasis.flatMap((q, i) => [{ text: q.value.cooked ?? '' }, ...(i < x.expressions.length ? go(x.expressions[i]).ps : [])]);
+        const ps = x.quasis.flatMap((q, i) => [{ text: q.value.cooked ?? '' }, ...(i < x.expressions.length ? go(x.expressions[i], 'text', en).ps : [])]);
         return { toks: classWords(ps), ps };
       }
-      case 'ArrayExpression': return hole(listOr(l, 'array', list(x.elements, l)));
-      case 'ObjectExpression': return hole(listOr(l, 'object', x.properties.flatMap(prop)));
-      case 'CallExpression': {
-        const c = strip(x.callee);
-        if (c.type === 'Identifier') return hole(CLASS_HELPERS.includes(c.name) ? list(x.arguments, true) : marker(`call ${c.name}`, list(x.arguments)));
-        if (c.type === 'MemberExpression' && !c.computed && c.property.type === 'Identifier') {
-          const es = c.property.name === 'join' ? elems(strip(c.object)) : null;
-          if (es) return hole(classSepOk(x.arguments) ? list(es) : marker('join separator', list(es)));
-          return hole(marker(`method ${c.property.name}`, [...go(c.object).toks, ...list(x.arguments)]));
-        }
-        return hole(marker('other', list(children(x))));
+      case 'ArrayExpression': return hole(c === 'list' ? list(x.elements, c, en) : marker('array', list(x.elements, 'elem', en)));
+      case 'ObjectExpression': {
+        const ts = x.properties.flatMap((p) => prop(p, en));
+        return hole(c === 'list' ? ts : marker('object', ts));
       }
-      case 'SpreadElement': return hole(marker('spread', go(x.argument, l).toks));
-      default: return hole(marker('other', list(children(x))));
+      case 'CallExpression': {
+        const f = strip(x.callee);
+        if (f.type === 'Identifier') {
+          const k = calleeCtx(f.name);
+          return hole(k ? list(x.arguments, k, en) : marker(`call ${f.name}`, list(x.arguments, 'attr', en)));
+        }
+        if (f.type === 'MemberExpression' && !f.computed && f.property.type === 'Identifier') {
+          const es = f.property.name === 'join' ? elems(strip(f.object)) : null;
+          if (es) return hole(classSepOk(x.arguments) ? list(es.es, es.c, en) : marker('join separator', list(es.es, es.c, en)));
+          return hole(marker(`method ${f.property.name}`, [...go(f.object, 'attr', en).toks, ...list(x.arguments, 'attr', en)]));
+        }
+        return other(x, en);
+      }
+      case 'SpreadElement': return hole(marker('spread', go(x.argument, c, en).toks));
+      default: return other(x, en);
     }
   };
-  return go(expr).toks;
+  return go(expr, ctx, env).toks;
 }
+export const isOpenClass = (toks) => toks.some((t) => t.op === 'lost' || t.op === 'modLost' || t.op === 'glued');
+export const isOpenElement = (toks) => toks.some((t) => t.op === 'lost' || t.op === 'glued');
 export const literalClasses = (s) => classTokensOf(s).map((t) => t.name);
 export const CLASS_LIST_METHODS = ['add', 'remove', 'toggle', 'replace', 'contains'];
 const HOLE_RE = new RegExp(HOLE, 'g');
@@ -1043,19 +1130,42 @@ function tokenToks(w) {
 function valueToks(v) {
   if (v.str) return v.str.flatMap(tokenToks);
   if (v.mod !== undefined) return [{ op: 'setModuleClass', name: v.mod }];
-  if (v.modKey !== undefined) return marker(`module key ${v.modKey}`, []);
+  if (v.modKey !== undefined) return modKeyToks(v.modKey);
+  if (v.alt) return v.alt.flatMap(valueToks);
   return marker('unresolved', []);
 }
+const valueAlts = (v) => (v.alt ? v.alt : [v]);
+export const classUnion = (a, b) => ({ alt: [...valueAlts(a), ...valueAlts(b)] });
 export function classListReport(method, values) {
   const args = method === 'toggle' || method === 'contains' ? values.slice(0, 1) : values;
   const { writes, findings } = classReport(args.flatMap(valueToks));
   return { writes: method === 'contains' ? writes.map(([, n]) => ['classRead', n]) : writes, findings };
 }
-const CLASS_FINDING = { lost: 'unmodelled-class', glued: 'glued-class' };
+const CLASS_FINDING = { lost: 'unmodelled-class', modLost: 'unmodelled-class', glued: 'glued-class' };
 export function classReport(toks) {
   const writes = toks.filter((t) => !CLASS_FINDING[t.op]).map((t) => [t.op, t.name]);
   const findings = toks.filter((t) => CLASS_FINDING[t.op]).map((t) => [CLASS_FINDING[t.op], t.name]);
-  return { writes: findings.length > 0 ? [...writes, ['setClass', '?']] : writes, findings };
+  return { writes: isOpenClass(toks) ? [...writes, ['setClass', '?']] : writes, findings };
+}
+export const classAssign = (toks) => (isOpenClass(toks) ? [['setClass', '*']] : classReport(toks).writes);
+export function classMatch(has, sel, open) {
+  if (sel.every(has)) return 'strong';
+  return open ? 'weak' : 'none';
+}
+export function classStrength(spread, literalAttrs, m) {
+  if (m === 'none') return null;
+  if (spread) return 'spread';
+  if (m === 'weak') return 'weak';
+  return literalAttrs ? 'literal' : 'dynamic';
+}
+export function pickOwners(cands) {
+  const lit = cands.filter(([, k]) => k === 'literal');
+  const dyn = cands.filter(([, k]) => k === 'dynamic');
+  const weak = cands.filter(([, k]) => k === 'weak');
+  if (lit.length) return { owners: lit.map(([o]) => o), weak: false };
+  if (dyn.length) return { owners: dyn.map(([o]) => o), weak: true };
+  if (weak.length) return { owners: weak.map(([o]) => o), weak: true };
+  return { owners: cands.map(([o]) => o), weak: cands.length > 0 };
 }
 function walkJsx(n, scope, ctxTag) {
   const tag = jsxName(n.name);
@@ -1068,7 +1178,7 @@ function walkJsx(n, scope, ctxTag) {
     if (v.lit !== undefined || an === 'ref' || an === 'key' || an.startsWith('on') || an === 'children' || an === 'dangerouslySetInnerHTML') continue;
     const tagCtx = exprIsProps(v.expr, scope) ? 'props' : ctxTag;
     if (an === 'className') {
-      const toks = collectClassTokens(v.expr, (x) => memberClassOf(x, scope));
+      const toks = collectClassTokens(v.expr, classEnv(scope));
       const { writes, findings: found } = classReport(toks);
       const dynamic = !(strip(v.expr).type === 'MemberExpression') && !(strip(v.expr).type === 'TemplateLiteral' && strip(v.expr).expressions.every((x) => strip(x).type === 'MemberExpression'));
       if (!dynamic && found.length === 0) continue;
