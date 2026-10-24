@@ -1,7 +1,7 @@
 # unthrottle-follow handoff
 
 Branch: worktree-wf_4682f586-db0-1 (CI branch ci/unthrottle-follow). Worktree: .claude/worktrees/wf_4682f586-db0-1
-Last commit: see `git log -1` (code at c4d6d6f18; later commits are handoff/notes only).
+Last commit: see `git log -1` (main merged last at 7b5d388f5; checks green at that tree: check.sh, site 7310 tests + typecheck, measure-webkit 669, runner 3463, ci-paths 56).
 
 CI runs (ci/unthrottle-follow):
 - 40109924058 (sha cf29b0739, dispatch 1 of 3) toolbar-throttle push: success (sim 1-3 + report). Arms rewrite, unthrottle, unthrottle-follow, original; 3 usable passes per arm; band runs 161 / 0 / 0 / 91; still runs per 1000 moving frames 123.7 (rewrite), 109.1 (unthrottle), 108.1 (follow), 117.8 (original). Follow = unthrottle (no gain).
@@ -19,5 +19,5 @@ Lane (at cf29b0739/dc1c93383 only; main's toolbar-throttle.yml now runs parts-cl
 cli.mjs --rotate, SEARCH entry; follow-report.mjs adds the moving-frame table (moving / mid-moving denominators, max step).
 
 Open: lead dispatches the breakpoint gate: pnpm -s fw run --gate --engines both --fw engine.scroll:unthrottle-follow --ref ci/unthrottle-follow; trajectory probe/morph cell for v2-proved; look check of chasing parts.
-Writes outside the graph task: toolbar-throttle.yml, engine/scroll.ts (ScrollEngine.request), engine.scroll/index.tsx, throttle/{cli,report,recorder,follow-report}.mjs, measure-webkit test, lean/Fw.lean, check.sh, FootprintData/FootprintRows, footprint(.diff).gen.json, v2-proved.decisions.jsonl.
+Writes outside the graph task (dry without --allow: VERDICT scope; with --allow for them: VERDICT dry): apps/site/src/engine/scroll.ts (ScrollEngine.request), engine.scroll/index.tsx, throttle/{cli,report,recorder,follow-report}.mjs, measure-webkit test throttle-follow-report, FootprintData/FootprintRows, research/findings/ledger.json (row without n: lead assigns n); also lean/Fw.lean, check.sh, footprint(.diff).gen.json, v2-proved.decisions.jsonl (generated or wiring).
 TS stand-ins: follow-report.mjs totals/ratios/max step; installFollow/windowFollowEnv glue (no decision logic).
