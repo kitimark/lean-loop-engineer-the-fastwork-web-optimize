@@ -366,7 +366,6 @@ def oneText : String :=
   String.join (oneCases.map fun (op, name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
 
-/-- The golden text of `lspreap.jsonl`. -/
 def text : String :=
   String.join (reapCases.map fun (name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp "ops.lspReap" r), ("response", respond "ops.lspReap" r)]).compress

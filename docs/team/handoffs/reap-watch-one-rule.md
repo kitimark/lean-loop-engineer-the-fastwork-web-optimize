@@ -1,5 +1,5 @@
 # reap-watch-one-rule handoff (round 3, final design round)
-Branch worktree-wf_e07fe309-bfe-1, worktree .claude/worktrees/wf_e07fe309-bfe-1, r3 commit d3b1d32ea + merge of main (see `git log -1`).
+Branch worktree-wf_e07fe309-bfe-1, worktree .claude/worktrees/wf_e07fe309-bfe-1, commit d3b1d32ea plus merge of main.
 CI runs: none (accepted limit).
 Rule (lean/Fw/Ops/Reap.lean, branches E and F): pickE = until-loop, tool call ended, >= 60 s, absolute $-free awaited
 path (`awaitOk`), no live writer of the same worktree id. pickF = own fw- Simulator (ownSims), simAcquired <= start <=

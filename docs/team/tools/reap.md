@@ -28,13 +28,11 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
   `orphan_selected`). Path allowlist: only an absolute awaited path without `$` can select (`awaitOk`;
   `relative_await_kept`, `dollar_await_kept`): `out.log` or `$HOME/x` keeps the loop. The glue canonicalises only such a
   path (`canonAwait`: `canonPath`, realpath of the directory + basename, raw if it fails; the lsof path always) so
-  `/private/tmp/x` and `/tmp/x` match; a relative path stays raw and so stays relative. The watch's `agent.held` for a wait
+  `/private/tmp/x` and `/tmp/x` match. The watch's `agent.held` for a wait
   loop is `ops.reapHeld` (the E selections) and nothing else: a TERM target of the explicit `ops.reapPlan` (`auto` false)
-  with the same pid and start (`held_in_plan`). The old `killOrphan` agent.held alert of `nextAlerts` is gone; the
-  `NEXT <id> killOrphan` advice line of `Fw.Obs.Next` stays until task next-killorphan-reap.
+  with the same pid and start (`held_in_plan`). The `NEXT <id> killOrphan` advice line of `Fw.Obs.Next` stays until task next-killorphan-reap.
 - F (`pickF`), kind `simBooted`: a Simulator device process (`launchd_sim`, device id in argv) that this project boots
-  (`ownSims`: the row's (pid, start) is in the list the glue built from `simctl` names starting `fw-`; Lean decides on that
-  fact), that started between the acquire second of the released sim slot run (`simAcquired`, kept in the slot
+  (`ownSims`: the row's (pid, start) is in the glue's list of `simctl` names starting `fw-`), that started between the acquire second of the released sim slot run (`simAcquired`, kept in the slot
   `state.json` on release and expiry) and the release (`simIdleSince`), while `Fw.Sup.Adapt.simAction` (the slot's own
   rule, default `simIdleS` 600 s, `simVerdict`) says `shutdown` for the sim slots still held and for `legacyHeld`, whether
   the legacy `scripts/sim-lock.sh` lock `.local/locks/sim` is live (`legacyLive` of slot.ts; a missing fact counts as
@@ -84,10 +82,9 @@ only while `client.alive` (:168), else closes it and calls `_start_client` (:187
 (process returncode is None); CONFIRMED). Serena and serena-lean are
 out of scope until the user approves them. Idle is INFERRED from CPU time (a stack waiting on a request without CPU looks
 idle). A lock holder is checked by pid only, so a reused pid keeps the stack; a teammate session whose
-worktree is not locked counts as live only through a lean-lsp-mcp started there. Unselected processes still need the user; the console does not yet display `reap.stopped`.
+worktree is not locked counts as live only through a lean-lsp-mcp started there. The console does not yet display `reap.stopped`.
 C may select a tool whose cwd is a deleted directory anywhere in this repo when its ancestor is selected by A or B.
-A process a group member forks after the pre-signal table read is in the group and gets the group signal (it is a child
-of a selected process).
+A process a group member forks after the pre-signal table read gets the group signal.
 Tests: `apps/runner/test/reap-stop.test.ts` (real process trees), `reap-safety.test.ts` (a console-like process of another
 repo), `reap.test.ts` (golden replay of `lspreap.jsonl` and `reap.jsonl`, stubbed table), `reap-idle.test.ts` (golden replay of
 `reap-idle.jsonl`, the CPU-time and lock parsers, serena classification, `--list` with MB; stubbed facts, no signal).

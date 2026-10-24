@@ -614,7 +614,6 @@ def Kind.reason : Kind → String
   | .orphanLoop => "until-loop shell that outlived its tool call, no live writer of the awaited file"
   | .simBooted => "Simulator booted by a sim slot run that has released, no sim slot held"
 
-/-- One process to signal: identity (pid, start second) and whether the whole group is signalled. -/
 structure Target where
   pid : Nat
   start : Nat

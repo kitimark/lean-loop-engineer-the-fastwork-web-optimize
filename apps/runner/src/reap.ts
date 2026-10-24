@@ -1,7 +1,5 @@
 // fw reap (tasks orphan-guard, reap-auto-stop): lists (--list) or stops (--stop) the leftover processes Lean selects
 // (ops.lspReap / ops.reapPlan / ops.reapKill / ops.reapVerify / ops.reapIdle, lean/Fw/Ops/Reap.lean, goldens
-// packages/contracts/golden/ops/{lspreap,reap,reap-idle}.jsonl). This file gathers facts, sends the signals Lean names and
-// prints; every decision (who, group or pid, who survives the grace, who is KILLed, which CPU baselines to keep) is Lean's.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -455,7 +453,6 @@ export type Io = {
 
 export const sleepSync = (ms: number) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 
-/** RSS in KiB per pid (`ps -o rss=`); pids that are gone are absent. */
 export function rssOf(pids: number[]): Map<number, number> {
   const m = new Map<number, number>();
   if (pids.length === 0) return m;
@@ -609,8 +606,6 @@ export function reapCli(argv: string[], top: string, call: Call, print: (s: stri
   return 0;
 }
 
-/** One watch tick: stop Lean's automatic plan and return the lines to print (`REAP stopped <kind> ...`), recording each kind in
- *  `reap.jsonl`. `FW_WATCH_REAP=0` turns it off. Never throws: a failed read or stop is a quiet tick. */
 export function reapTick(top: string, env: Record<string, string | undefined> = process.env, io: Io = realIo,
   gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top), scope?: number[]): string[] {
   if (env.FW_WATCH_REAP === "0") return [];
