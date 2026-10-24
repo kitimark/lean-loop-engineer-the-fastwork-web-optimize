@@ -20027,7 +20027,8 @@
     "packages/measure-webkit/src/throttle/report.mjs",
     "packages/measure-webkit/test/throttle-report.test.mjs"
    ],
-   "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only."
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only.",
+   "evidence": "9a6cd03"
   },
   {
    "devices": [
@@ -20090,9 +20091,13 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Overflow.lean",
+    "packages/contracts/golden/measure/paint-visible.jsonl"
    ],
-   "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land."
+   "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land.",
+   "evidence": "a723bd5"
   },
   {
    "devices": [
@@ -20415,7 +20420,20 @@
     "apps/site/src/parts/platform.sweep/pause.ts",
     "apps/site/src/parts/platform.sweep/pause.test.ts",
     "apps/site/src/parts/platform.sweep/part.json",
-    "docs/team/handoffs/sweep-offscreen-pause.md"
+    "docs/team/handoffs/sweep-offscreen-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/PlatformSweepPauseGolden.lean"
    ],
    "title": "platform.sweep:offscreen-pause (10-2x-webkit-throttles.md rank 3): an IntersectionObserver pauses the sweep animation offscreen and seeks it to the document timeline on resume (engine.scene pattern). Lean first: phase on resume equals the uninterrupted phase (reuse the engine.scene and morph.columns seek proofs). Lego brick, own flag. Measure on CI: rendering updates and main-thread time while the platform scene is offscreen, both engines; breakpoint gate."
   },
@@ -20434,7 +20452,21 @@
     "apps/site/src/parts/platform.glint/pause.ts",
     "apps/site/src/parts/platform.glint/pause.test.ts",
     "apps/site/src/parts/platform.glint/part.json",
-    "docs/team/handoffs/glint-offscreen-pause.md"
+    "docs/team/handoffs/glint-offscreen-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/PlatformGlintPauseGolden.lean",
+    "apps/site/src/parts/platform/Visuals.tsx"
    ],
    "title": "platform.glint:offscreen-pause (10-2x-webkit-throttles.md rank 4): pauseAnimations() on the SMIL glint while offscreen, setCurrentTime from the document clock on resume; WebKit ticks SMIL every 1/30 s even when nothing visible changes. Lean first: phase on resume equals the uninterrupted phase (SMIL clock). Lego brick, own flag. Measure as sweep-offscreen-pause, both engines; breakpoint gate."
   },
@@ -20455,7 +20487,20 @@
     "apps/site/src/parts/morph.mount/armLate.ts",
     "apps/site/src/parts/morph.mount/armLate.test.ts",
     "apps/site/src/parts/morph.mount/part.json",
-    "docs/team/handoffs/mount-arm-late.md"
+    "docs/team/handoffs/mount-arm-late.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/morph.mount/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/MorphMountArmLateGolden.lean"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
   },
@@ -20522,6 +20567,44 @@
     "docs/team/handoffs/land-inputs-speed.md"
    ],
    "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-flag-order",
+   "owner": "part-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/site/src/entry-server.tsx",
+    "lean/Fw/Wire/Store.lean",
+    "lean/Fw/Wire/FlagKey.lean",
+    "packages/contracts/golden/wire/flag-key.jsonl",
+    "apps/site/test/prerender-keys.test.ts",
+    "docs/team/handoffs/gate-flag-order.md"
+   ],
+   "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "offscreen-count-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-chromium/src/offscreen.mjs",
+    "packages/measure-chromium/test/offscreen.test.mjs",
+    "lean/Fw/Measure/Offscreen.lean",
+    "lean/Fw/Measure/OffscreenGolden.lean",
+    "packages/contracts/golden/measure/offscreen.jsonl",
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/tools/offscreen-counts.md",
+    "docs/team/handoffs/offscreen-count-lane.md"
+   ],
+   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids)."
   }
  ],
  "deadline": {

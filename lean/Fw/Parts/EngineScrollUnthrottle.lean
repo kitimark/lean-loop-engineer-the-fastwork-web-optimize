@@ -136,8 +136,23 @@ theorem lift_effect (e : Engine) (p : Page) (hs : p.timelineSupported = true) :
     throttledOn e true p.withLift = false := by
   cases e <;> simp [throttledOn, Engine.throttles, lifted_when_supported p hs]
 
+inductive Position where
+  | static
+  | fixed
+  | absolute
+deriving Repr, DecidableEq
+
+def Position.outOfFlow : Position → Bool
+  | .static => false
+  | _ => true
+
+def Position.css : Position → String
+  | .static => "static"
+  | .fixed => "fixed"
+  | .absolute => "absolute"
+
 structure FlagStyle where
-  fixedPosition : Bool
+  position : Position
   widthPx : Nat
   heightPx : Nat
   opacity0 : Bool
@@ -149,7 +164,7 @@ structure FlagStyle where
 deriving Repr, DecidableEq
 
 def flag : FlagStyle :=
-  ⟨true, 1, 1, true, true, true, false, [.custom], false⟩
+  ⟨.absolute, 1, 1, true, true, true, false, [.custom], false⟩
 
 def flagBox : BoxVis :=
   ⟨⟨0, 0, flag.widthPx, flag.heightPx⟩, ⟨0, 0, flag.widthPx, flag.heightPx⟩, [], ⟨1, 0, 0, 1, 0, 0⟩,
@@ -172,7 +187,7 @@ structure El where
   exposed : Bool
 deriving Repr, DecidableEq
 
-def flagEl : El := ⟨!flag.fixedPosition, !flag.pointerEventsNone, !flag.ariaHidden⟩
+def flagEl : El := ⟨!flag.position.outOfFlow, !flag.pointerEventsNone, !flag.ariaHidden⟩
 
 def flowOf (es : List El) : List El := es.filter (·.inFlow)
 
@@ -182,7 +197,7 @@ def a11yOf (es : List El) : List El := es.filter (·.exposed)
 
 theorem same_layout_hit_a11y (es : List El) :
     flowOf (es ++ [flagEl]) = flowOf es ∧ hitOf (es ++ [flagEl]) = hitOf es ∧ a11yOf (es ++ [flagEl]) = a11yOf es := by
-  simp [flowOf, hitOf, a11yOf, flagEl, flag, List.filter_append]
+  simp [flowOf, hitOf, a11yOf, flagEl, flag, Position.outOfFlow, List.filter_append]
 
 theorem flag_animates_custom_only : flag.animated.all (fun p => p == .custom) = true := rfl
 
@@ -190,11 +205,70 @@ theorem flag_value_unread : flag.readByStyle = false := rfl
 
 theorem flag_is_liftAnim : (⟨true, flag.animated⟩ : Anim) = liftAnim := rfl
 
+theorem lift_anim_position_free (f : FlagStyle) (h : f.animated = [.custom]) : (⟨true, f.animated⟩ : Anim) = liftAnim := by
+  simp [h, liftAnim]
+
+theorem same_layout_out_of_flow (f : FlagStyle) (ho : f.position.outOfFlow = true) (hp : f.pointerEventsNone = true)
+    (ha : f.ariaHidden = true) (es : List El) :
+    flowOf (es ++ [⟨!f.position.outOfFlow, !f.pointerEventsNone, !f.ariaHidden⟩]) = flowOf es ∧
+    hitOf (es ++ [⟨!f.position.outOfFlow, !f.pointerEventsNone, !f.ariaHidden⟩]) = hitOf es ∧
+    a11yOf (es ++ [⟨!f.position.outOfFlow, !f.pointerEventsNone, !f.ariaHidden⟩]) = a11yOf es := by
+  simp [flowOf, hitOf, a11yOf, List.filter_append, ho, hp, ha]
+
+theorem fixed_same_look : Position.outOfFlow .fixed = Position.outOfFlow .absolute := rfl
+
+structure Env where
+  engine : Engine
+  coarse : Bool
+deriving Repr, DecidableEq
+
+def Env.valid (e : Env) : Bool := e.engine != .webkitIos || e.coarse
+
+def Env.iphone : Env := ⟨.webkitIos, true⟩
+
+theorem iphone_valid : Env.iphone.valid = true := rfl
+
+def Page.withLiftOn (coarse : Bool) (p : Page) : Page := if coarse then p.withLift else p
+
+def Env.pageOf (e : Env) (p : Page) : Page := p.withLiftOn e.coarse
+
+def Env.throttled (e : Env) (i : Bool) (p : Page) : Bool := throttledOn e.engine i (e.pageOf p)
+
+theorem guard_keeps_ios (e : Env) (hv : e.valid = true) (hi : e.engine = .webkitIos) (p : Page) :
+    e.pageOf p = p.withLift := by
+  have hc : e.coarse = true := by simpa [Env.valid, hi] using hv
+  simp [Env.pageOf, Page.withLiftOn, hc]
+
+theorem guard_keeps_ios_throttle (e : Env) (hv : e.valid = true) (hi : e.engine = .webkitIos) (i : Bool) (p : Page) :
+    e.throttled i p = throttledOn .webkitIos i p.withLift := by
+  rw [Env.throttled, guard_keeps_ios e hv hi p, hi]
+
+theorem guard_lifts_ios (e : Env) (hv : e.valid = true) (hi : e.engine = .webkitIos) (p : Page)
+    (hs : p.timelineSupported = true) : e.throttled true p = false := by
+  rw [guard_keeps_ios_throttle e hv hi]
+  exact lift_effect .webkitIos p hs
+
+theorem guard_fine_noop (e : Env) (hf : e.coarse = false) (p : Page) : e.pageOf p = p := by
+  simp [Env.pageOf, Page.withLiftOn, hf]
+
+theorem guard_fine_throttle (e : Env) (hf : e.coarse = false) (i : Bool) (p : Page) :
+    e.throttled i p = throttledOn e.engine i p := by
+  rw [Env.throttled, guard_fine_noop e hf]
+
 def restyled (f : FlagStyle) (subtree : Nat) : Nat := 1 + if f.inherits then subtree else 0
 
 def laidOut (f : FlagStyle) (reflowed : Nat) : Nat := if f.readByStyle then reflowed else 0
 
 theorem restyled_flag (subtree : Nat) : restyled flag subtree = 1 := rfl
+
+def Env.restyled (e : Env) (subtree : Nat) : Nat :=
+  if e.coarse then _root_.Fw.Parts.EngineScrollUnthrottle.restyled flag subtree else 0
+
+theorem guard_fine_cost (e : Env) (hf : e.coarse = false) (subtree : Nat) : e.restyled subtree = 0 := by
+  simp [Env.restyled, hf]
+
+theorem guard_coarse_cost (e : Env) (hc : e.coarse = true) (subtree : Nat) : e.restyled subtree = 1 := by
+  simp [Env.restyled, hc, restyled_flag]
 
 theorem laidOut_flag (reflowed : Nat) : laidOut flag reflowed = 0 := rfl
 
@@ -215,8 +289,10 @@ def css : String :=
     ["@property --fw-ut { syntax: \"<number>\"; inherits: " ++ (if flag.inherits then "true" else "false") ++ "; initial-value: 0; }",
      "@keyframes fw-ut { from { --fw-ut: 0; } to { --fw-ut: 1; } }",
      "@supports (animation-timeline: scroll()) {",
-     s!"[{attr}] \{ position: {if flag.fixedPosition then "fixed" else "static"}; left: 0; top: 0; width: {flag.widthPx}px; height: {flag.heightPx}px; opacity: {if flag.opacity0 then "0" else "1"}; pointer-events: {if flag.pointerEventsNone then "none" else "auto"};",
+     "@media (pointer: coarse) {",
+     s!"[{attr}] \{ position: {flag.position.css}; left: 0; top: 0; width: {flag.widthPx}px; height: {flag.heightPx}px; opacity: {if flag.opacity0 then "0" else "1"}; pointer-events: {if flag.pointerEventsNone then "none" else "auto"};",
      " animation: fw-ut 1s linear both; animation-duration: auto; animation-timeline: scroll(root block); }",
+     "}",
      "}"]
 
 def attrs : List (String × String) :=
@@ -237,10 +313,15 @@ def goldenLines (_ : Unit) : List String :=
         (Json.mkObj [("fn", "throttled"), ("in", Json.mkObj [("timelineSupported", s), ("progressBased", pr),
           ("accelerated", ac), ("lift", lift), ("interactiveInsets", ins)]),
           ("out", throttled ins (pageOf s pr ac lift))]).compress
+  let guard := ([true, false] : List Bool).flatMap fun (coarse : Bool) =>
+    ([true, false] : List Bool).map fun (ins : Bool) =>
+      (Json.mkObj [("fn", "guarded"), ("in", Json.mkObj [("coarse", coarse), ("interactiveInsets", ins)]),
+        ("out", Json.mkObj [("throttledIos", (Env.mk .webkitIos coarse).throttled ins (pageOf true false false false)),
+          ("restyled", (Env.mk .webkitIos coarse).restyled 1000)])]).compress
   [(Json.mkObj [("fn", "css"), ("out", css)]).compress,
    (Json.mkObj [("fn", "attrs"), ("out", Json.mkObj (attrs.map fun (k, v) => (k, Json.str v)))]).compress,
    (Json.mkObj [("fn", "cost"), ("out", Json.mkObj [("restyled", restyled flag 1000), ("laidOut", laidOut flag 1000),
-     ("paintsNothing", flagBox.alpha == 0)])]).compress] ++ decision
+     ("paintsNothing", flagBox.alpha == 0)])]).compress] ++ decision ++ guard
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
