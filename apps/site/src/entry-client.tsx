@@ -4,7 +4,7 @@ import { installRootEventsDebug, rootEventsDebugOn } from './debug/root-events';
 import { createClientCache } from './emotion';
 import { ErrorPage } from './ErrorPage';
 import { installFw } from './fw';
-import { QUIET_VARIANT, quietContainer } from './parts/engine.events/quiet';
+import { QUIET_VARIANT, quietContainer } from './parts/engine.events/quiet.gen';
 import { resolveSearch } from './registry';
 import { installLayerStyle } from './registry/layer-opts';
 import { parseOnly } from './registry/only';

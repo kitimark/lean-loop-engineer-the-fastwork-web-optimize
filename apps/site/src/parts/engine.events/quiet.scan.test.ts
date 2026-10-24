@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { quietTypes } from './quiet.gen';
+import { createRoot } from 'react-dom/client';
+import { goldenConformance } from '../../engine/golden.testutil';
+import { admit, quietContainer, quietTypes } from './quiet.gen';
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -61,4 +63,29 @@ describe('engine.events:quiet premises, scanned over the files entry-client.tsx 
   it('the quiet list is the 7 animation and transition types React registers', () => {
     expect([...quietTypes].sort()).toEqual(['animationend', 'animationiteration', 'animationstart', 'transitioncancel', 'transitionend', 'transitionrun', 'transitionstart']);
   });
+});
+
+/** A container that records what React registers on it; the real react-dom 19.3.1 builds the root. */
+function register(variant: 'faithful' | 'quiet'): string[] {
+  const log: string[] = [];
+  const doc = { nodeType: 9, ownerDocument: null, addEventListener: () => {} };
+  const container = {
+    nodeType: 1,
+    nodeName: 'DIV',
+    ownerDocument: doc,
+    addEventListener(type: string, _fn: unknown, options?: boolean | { capture?: boolean }) {
+      const capture = options === true || (typeof options === 'object' && options.capture === true);
+      log.push(`${type}:${capture ? 'c' : 'b'}`);
+    },
+  };
+  if (variant === 'quiet') quietContainer(container as unknown as EventTarget);
+  createRoot(container as unknown as Element);
+  return log;
+}
+
+goldenConformance('react-root-quiet', {
+  quiet: () => [...quietTypes],
+  registered: (i) => register(i.variant as 'faithful' | 'quiet'),
+  admit: (i) => admit(i.type as string),
+  records: (i) => register(i.variant as 'faithful' | 'quiet').filter((r) => r.startsWith(`${i.type as string}:`)).length,
 });
