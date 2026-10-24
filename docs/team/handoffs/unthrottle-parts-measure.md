@@ -1,20 +1,18 @@
 Branch: worktree-wf_3b6992a9-795-1
 Worktree: .claude/worktrees/wf_3b6992a9-795-1 (under the repo root)
-Last commit: see git log (note, results and handoff committed together; the reducer is at 8d9f7dbfa)
-CI runs (toolbar-throttle lane, ci-only commit bd492dcf3 = yml edit, not on this branch):
-- 40098348176 on ci/unthrottle-parts-measure-drags (drags, dispatch 1 of 3): success, 6/6 usable passes per arm, hero verdict lifted
-- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): failure; VM 1 gave original and rewrite, lift/unthrottle touch driver timeout, VM 2 original timeout, VM 3 failed at start
-- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): failure; VM 1 gave 8 usable passes, VM 2 and 3 stalled in warm-up
-Verified: reducer checked against the Lean golden in test/throttle-parts.test.mjs; package tests pass through the slot, ci-paths and runner land-inputs tests pass (see final report).
-Open: finish and rest are below 3 jobs; platform series never mid; commission rewrite borderline at exactly 10; permanent yml change (lead); optional gh run rerun --failed.
+Last commit: ea1ece49c (round 2: Lean judge, partVerdict, bandFor + golden replay at 81bd93cc2; lane yml at the commit after it; note denominators at ea1ece49c)
+CI runs (toolbar-throttle lane, ci-only commit bd492dcf3 = yml edit, now also on this branch):
+- 40098348176 on ci/unthrottle-parts-measure-drags (dispatch 1 of 3): success, 6/6 usable passes per arm, hero verdict lifted
+- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): attempt 1 failed (VM 1 original+rewrite only); attempt 2 (gh run rerun --failed by the lead): sim jobs queued/in_progress at 2026-10-24 ~16:20 UTC
+- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): attempt 1 failed (VM 1 gave 8 usable passes); attempt 2 (rerun --failed): VM 2 and 3 queued
+Verified: Lean check.sh green at ea1ece49c; @fw/measure-webkit test 665 pass; ci-paths test 56 pass; ci-paths --check ok; throttle-parts golden --check ok (319 lines).
+Open: reruns of finish and rest not finished (data not yet in the tables); apps/runner land-inputs test; fw plan lint; dry land; fw review ready.
 
 ## State
-- src/throttle/parts.mjs reducer (twins reach/predicted; TS stand-ins: judge, bandFor cadence band, noData reasons, capture reversals).
-- src/throttle/parts-recorder.mjs (page side, six series), parts-probe.mjs (modes drags|finish|rest), parts-cli.mjs (run|build-driver|report).
-- The lane yml still runs throttle/cli.mjs with three arms. The CI branches carry an extra ci-only commit that points the run step at
-  parts-cli.mjs with arms original,rewrite,lift,unthrottle, adds [throttle:rest] (3 rounds), longer timeouts, report via parts-cli.
-- A ci branch commit message must contain [ci:toolbar-throttle] and, for finish, [throttle:finish]; for rest, [throttle:rest].
-- results/unthrottle-parts/ holds the three summaries re-reduced with the current reducer (stalls columns).
+- Lean: ThrottleParts.lean has Match, judge, PartVerdict, partVerdict, bandFor with one theorem per branch; golden has 240 judge, 40 partVerdict, 6 bandFor lines.
+- src/throttle/parts.mjs: judge/partVerdict/bandFor are twins replayed on the golden; judgeArm/partOf/why texts/noDataReason/captureRow are TS reporting.
+- Lane yml now reproduces the runs (parts-cli, four arms, [throttle:rest], ROUNDS, timeouts 75/58).
+- results/unthrottle-parts/ holds the three summaries from the first attempts; rerun data is added when the runs finish.
 
 ## Read first
 research/notes/2026/10-2x-unthrottle-parts-measure.md (answer, tables), then 10-2x-unthrottle-parts.md (Lean predictions).
