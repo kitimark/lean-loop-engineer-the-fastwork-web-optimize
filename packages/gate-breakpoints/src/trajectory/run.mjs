@@ -150,7 +150,7 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         if (paths.includes('morph')) {
           log(`trajectory ${engineName} ${width} ${a.role}: morph`);
           const peer = (role) => runs.find((r) => r.width === width && r.role === role)?.morph;
-          const against = retriesRole(a.role, peer('base') !== undefined) ? { base: pushReading(peer('base').phases) } : null;
+          const against = retriesRole(a.role, peer('base') != null) ? { base: pushReading(peer('base').phases) } : null;
           run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : '', against);
         }
         runs.push(run);

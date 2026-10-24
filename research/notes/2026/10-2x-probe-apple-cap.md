@@ -26,8 +26,9 @@ Branch `ci/probe-apple-cap`.
 | probe apple 390_641 | 819 | 1080 | 261 |
 | merge apple | 28 | | |
 
-- Both walls are within the sampled range (681 to 833 s) and each is at most base + extra x 19 s: 726 s is 718 + 8 (no extra pass
-  needed), 819 s is 718 + 101, about 5 extra passes (INFERRED; the extra count is not read here). Under the 15 min cap (900 s) both would
+- Both walls are within the sampled range (681 to 833 s) and each is at most base + extra x 19 s (MEASURED extra counts, job log
+  lines "extra rep"): 640_1280 ran 1 extra pass (726 s, less 19 s is 707 s) and 390_641 ran 8 (819 s, less 152 s is 667 s), both
+  under the 718 s base. Under the 15 min cap (900 s) both would
   also have passed; the old cap's overrun risk is the Lean worst case (`probe_worst_under_cap`), not a measured timeout.
 - n is now 8 legs; the lane stays thin until 10 successes (Lean `probeWalls` is not extended here: the sample is the pinned 6).
 
