@@ -160,7 +160,7 @@ inductive Outcome where
   | budgetShort
 deriving Repr, BEq, DecidableEq
 
-/-- Whether the planned reps give every arm `minKept` end windows; the life bound is decided first, it does not depend on the clock. -/
+/-- Whether one job's planned reps give every arm `minKept` end windows (a per-job plan only, never a lane verdict: the across-job verdict needs `Fw.Gate.Smooth.minSamples` decisive jobs, which `outcome` does not count); the life bound is decided first, it does not depend on the clock. -/
 def outcome (dl now arms : Nat) : Outcome :=
   if repsLife arms < minKept then .lifeShort else if repsFit dl now arms < minKept then .budgetShort else .ok
 

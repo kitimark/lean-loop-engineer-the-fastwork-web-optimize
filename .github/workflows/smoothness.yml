@@ -20,7 +20,7 @@ name: smoothness
 # arm to decide (`Fw.Gate.Smooth.minReps`), which holds for up to 3 arms and fails for 4 (`lifeShort`) or a walk that starts late (`budgetShort`); `sim.json` records `repPlan`.
 # `[sim-touch-control]` adds a 4th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 3 take them from SpringBoard. Both skip the Timeline in touch
 # windows, so job 4 against jobs 1 to 3 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
-# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
+# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3, or 1 to 4 with [sim-touch-control]; job 4 is the control and is left out of the sim pool).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
 # The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
