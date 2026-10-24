@@ -337,10 +337,14 @@ def goldenLines (_ : Unit) : List String :=
 /-- The golden file text. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
-/-- Print the golden, or with `--check <file>` fail unless the file equals it. -/
+/-- The golden file, relative to `lean/`. -/
+def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "parts" / "engine.scroll.unthrottle.jsonl"
+
+/-- Print the golden, or with `--check` fail unless `goldenPath` equals it. -/
 def run (args : List String) : IO Unit := do
   match args with
-  | "--check" :: path :: _ =>
+  | "--check" :: _ =>
+    let path := goldenPath
     let cur ← IO.FS.readBinFile path
     if cur.data == (goldenText ()).toUTF8.data then
       IO.eprintln s!"engine.scroll unthrottle golden: {path} is up to date ({(goldenLines ()).length} lines)"
