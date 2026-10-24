@@ -2,7 +2,7 @@
 
 - Branch `worktree-wf_e22d700e-552-1`, worktree `.claude/worktrees/wf_e22d700e-552-1`; last commit: see `git log -1` (work done at d0b941f11 plus note and handoff commits).
 - CI runs (push 1 = `ci/commission-band-mech-1` @1b71d5581: chromium-counts run 40139371262 success, lean run 40139371309 success).
-  Push 2 (final tree, default lean lane) is listed in the report `runs`; at most 3 pushes, 1 left after push 2.
+  Push 2 = `ci/commission-band-mech-2` @2f11654fd: lean run 40141777767 success. 2 of 3 pushes used.
 
 ## State
 - Answer (note `research/notes/2026/10-2x-commission-band-mech.md`): the WebKit saving at y 3500-4500 is the follower's exit band
