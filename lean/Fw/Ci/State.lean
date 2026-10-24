@@ -2,6 +2,8 @@ import Lean.Data.Json
 namespace Fw.Ci.State
 /-! `fw ci state`: read the run list, growing the limit, until the run shows up. -/
 
+/-- Assumed bound on how far a later-listed run id may exceed an earlier-listed one (INFERRED; MEASURED max 345 over the 129
+rows of ci/earn-webkit-smooth at --limit 400). -/
 def burst : Nat := 1000
 
 def limits : List Nat := [100, 400, 1000]
@@ -177,7 +179,7 @@ def cases : List (String × Bool × Nat × Nat × List Nat × Step) := [
   ("id exactly page min plus burst still may hide", true, 100, 1006, 6 :: (List.range' 7 99).reverse, .grow 400),
   ("id one past page min plus burst is absent", true, 100, 1007, 6 :: (List.range' 7 99).reverse, .absent),
   ("run 40100783726, limit 100: page min 40100783603 is below it, still grows", true, 100, 40100783726, realPage100, .grow 400),
-  ("run 40100783726, limit 400: listed at entry 106, found", true, 400, 40100783726, realPage400, .found),
+  ("run 40100783726, limit 400: listed at entry 106 when captured, found", true, 400, 40100783726, realPage400, .found),
   ("run 40100783726 unfiltered, limit 100: older, not absent", false, 100, 40100783726, realPage100, .older),
   ("a run well above the real page min is absent", true, 100, 40100790000, realPage100, .absent)]
 
