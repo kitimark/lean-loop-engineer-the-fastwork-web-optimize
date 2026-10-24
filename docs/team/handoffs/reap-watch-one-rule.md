@@ -12,7 +12,8 @@ F stop: stopSelected -> io.simStop -> slot.ts simctlShutdown(udid); never TERM/K
 Goldens: packages/contracts/golden/ops/reap-one.jsonl (29 rows; regenerate: cd lean && lake env lean --run scripts/ReapGolden.lean).
 Glue (unproved): callLive := ppid > 1; canonAwait (canonPath only for an absolute $-free path); fw- name filter via simctl;
 legacyLive of the main checkout's .local/locks/sim.
-Verified: see the report of this round (check.sh, runner tests, dry land).
+Verified after the merge of main: lean/scripts/check.sh green; @fw/runner test (tsc + vitest, 3328) green; ci-paths
+test green; plan lint: no writesClosure line; fw land --dry: VERDICT dry reap-watch-one-rule.
 Open follow-ups: next-killorphan-reap (Next.lean `NEXT <id> killOrphan` advice), reap-ef-auto (log E/F per tick,
 exit criterion, inode writer evidence, udid at slot release, F alert).
 Read first: Reap.lean E/F section and planSel, docs/team/tools/reap.md "Action class".
