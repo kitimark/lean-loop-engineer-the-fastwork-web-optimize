@@ -35,7 +35,7 @@ path and twice per glob of every check, so the calls grow with checks x globs. E
 - `apps/runner/src/land-inputs.ts`: `scopeOf(globs)` splits the globs once per list (kept by list content) and
   matches by index; `trackedFiles(root)` runs `git ls-files` once per state of the index (stat identity of the index
   file, which git rewrites by rename). `inputKey` and `inScope` in `land.ts` use them. The test file
-  holds the original recursion as an oracle and compares every tracked path x every check's globs, plus an exhaustive
+  holds the original recursion as an oracle and compares every fifth tracked path x every check's globs, plus an exhaustive
   small alphabet; a second test shows an added or removed file is seen.
 
 ## After (same runs, alternating)
@@ -59,9 +59,21 @@ rows are within 35 percent (`rows_in_band`). Golden: `packages/contracts/golden/
 by the test file. The orig fixture row is under-predicted by 29 percent: plain node runs the same loop in 19.1 s,
 vitest in 24-26 s (INFERRED: vitest's transform and instrumentation, not isolated).
 
+## Rates: bench outputs
+
+Micro bench (best of 3, this Mac, load 3-7), real root and 97-file fixture:
+
+| | files | checks | globs | pairs | spawn ms | old filter ms | new filter ms | hashed files | hash ms |
+|---|---|---|---|---|---|---|---|---|---|
+| real | 4250 | 23 | 736 | 3128000 | 9.4 | 1036 | 59.5 | 10689 | 456 |
+| fixture | 97 | 9 | 226 | 21922 | 8.8 | 6.8 | 0.73 | 259 | 5.1 |
+
+Rates read off: old 331 ns per pair, new 19 ns, hash 43 us (real) and 20 us (fixture) per file, spawn 8-9 ms: MEASURED.
+`fixedUs = 240` is INFERRED, fitted to the cached fixture row (1573 ms measured, 1580 predicted); no bench measures it,
+so the two cached rows agreeing is a fit, not a check. Golden regeneration: `lean/scripts/LandInputsCostGolden.lean`
+(`--check` is a row of `lean/scripts/check.sh`); `rows_predMs` pins the six predictions in Lean.
+
 ## Follow-ups
 
-- Golden generation has no script row in `lean/scripts/check.sh` (outside this task's writes): the rows were rendered
-  with a scratch `main` over `rowJson`; add `LandInputsCostGolden.lean --check`.
 - Superset test: read each package.json once, not per path.
 - Read the effect on later dry lands: land-inputs vitest p50 in `.fw-console/timings.jsonl` after this lands.

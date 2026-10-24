@@ -87,6 +87,7 @@ run_group() {
   job "pool-key golden check" lake env lean --run scripts/PoolKeyGolden.lean --check  # golden/ci/pool-key.jsonl (Fw.Ci.Pool.Key)
   job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check  # golden/ci/pool-fallback.jsonl (Fw.Ci.Pool.Fallback: the macOS fallback route)
   job "pool-tier golden check" lake env lean --run scripts/PoolGolden.lean --check
+  job "land-inputs-cost golden check" lake env lean --run scripts/LandInputsCostGolden.lean --check  # golden/obs/land-inputs-cost.jsonl (Fw.Obs.LandInputsCost)
   job "obs golden check" lake env lean --run scripts/ObsGolden.lean --check  # golden/obs/health.jsonl and backoff.jsonl (Fw.Obs)
   job "sup-health golden check" lake env lean --run scripts/SupHealthGolden.lean --check  # golden/obs/sup-health.jsonl (Fw.Obs.Health.Res), read by apps/runner/src/watch-collect.ts
   job "sup wire golden check" sh -c "printf 'import Fw.Wire.Sup\\n#eval Fw.Wire.Sup.Golden.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/wire.jsonl, each line replayed through Json.parse, decode and encode (Fw.Wire.Sup)

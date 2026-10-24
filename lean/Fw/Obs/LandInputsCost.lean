@@ -1,6 +1,13 @@
 import Lean.Data.Json
 /-!
 # `Fw.Obs.LandInputsCost`: cost model of `inputKey` in the land-inputs test
+
+Rates. `spawnUs`, `pairOldNs`, `pairNewNs` and `hashUs` are MEASURED by a micro bench of the real root (4250 files,
+736 globs, 3.128 M pairs) and the 97-file fixture: spawn 9.4 / 8.8 ms, old filter 1036 ms (331 ns per pair), new
+filter 59.5 ms (19 ns), hashing 456 ms for 10689 files (43 us) and 5.1 ms for 259 files (20 us); the bench outputs
+are in `research/notes/2026/10-2x-land-inputs-growth.md`. `fixedUs = 240` (writes and test overhead per fixture call)
+is INFERRED: fitted to the cached fixture row, not measured by any bench. The row fit is therefore not independent
+evidence for the fixture rows.
 -/
 namespace Fw.Obs.LandInputsCost
 
@@ -97,6 +104,7 @@ deriving Repr
 
 def rates : Rates := { spawnUs := 8000, pairOldNs := 335, pairNewNs := 20, hashUs := 45, fixedUs := 0 }
 
+/-- `fixedUs` is INFERRED (fitted to the cached fixture row); the other fields are MEASURED. -/
 def fixtureRates : Rates := { rates with hashUs := 20, fixedUs := 240 }
 
 def fixtureWork : Work := ⟨1867, 4588650, 51639⟩
@@ -117,6 +125,8 @@ def inBand (r : Row) : Bool := 100 * (max (predMs r) r.measMs - min (predMs r) r
 
 theorem rows_in_band : rows.all inBand = true := by decide
 
+theorem rows_predMs : rows.map predMs = [17954, 16508, 1580, 3411, 1450, 1090] := by decide
+
 theorem rows_calls_within_bound :
     fixtureWork.calls ≤ callsBound 9 226 ∧ realWork.calls ≤ 2 * callsBound 23 736 := by decide
 
@@ -124,5 +134,13 @@ def rowJson (r : Row) : Lean.Json :=
   Lean.Json.mkObj [("test", r.test), ("mode", match r.mode with | .orig => "orig" | .globs => "globs" | .cached => "cached"),
     ("calls", r.work.calls), ("pairs", r.work.pairs), ("hashed", r.work.hashed), ("measMs", r.measMs),
     ("predMs", predMs r), ("band", band), ("inBand", inBand r)]
+
+def goldenPath : System.FilePath := "../packages/contracts/golden/obs/land-inputs-cost.jsonl"
+
+def goldenText : String := String.join (rows.map fun r => (rowJson r).compress ++ "\n")
+
+def writeGolden : IO Unit := IO.FS.writeFile goldenPath goldenText
+
+def checkGolden : IO Bool := return (← IO.FS.readFile goldenPath) == goldenText
 
 end Fw.Obs.LandInputsCost

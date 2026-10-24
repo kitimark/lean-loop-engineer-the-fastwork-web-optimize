@@ -309,7 +309,7 @@ const oldInScope = (globs: string[], path: string): boolean => {
 };
 
 describe("the compiled scope test (land-inputs.ts) equals the original recursive one (cost model: lean/Fw/Obs/LandInputsCost.lean)", () => {
-  it("every tracked path x every check's globs, and the paths with a wildcard dropped in", () => {
+  it("every fifth tracked path x every check's globs, and the paths with a wildcard dropped in", () => {
     const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
     const checks = candidateChecks(root);
     const paths = [...tracked.filter((_, i) => i % 5 === 0), "", ".", "a/../b", "./apps/runner/src/land.ts", "apps//runner/x", "apps"];
