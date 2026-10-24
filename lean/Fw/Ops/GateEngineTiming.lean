@@ -61,9 +61,14 @@ def samples : List Sample := [
   ⟨40028997665, 120672380897, "webkit", 33, 28, 8, 8, false, "969c76e"⟩,
   ⟨40037942688, 120701995647, "webkit", 53, 48, 27, 7, false, "969c76e"⟩,
   ⟨40024272661, 120656499820, "chromium", 42, 37, 6, 5, false, "1a85621"⟩,
-  ⟨40028997665, 120672380862, "chromium", 23, 19, 4, 4, false, "1a85621"⟩]
+  ⟨40028997665, 120672380862, "chromium", 23, 19, 4, 4, false, "1a85621"⟩,
+  ⟨40047376675, 120732159815, "webkit", 39, 33, 5, 0, true, "969c76e"⟩,
+  ⟨40047376675, 120732159810, "chromium", 19, 13, 1, 0, true, "1a85621"⟩]
 
-theorem all_miss : samples.all (fun s => !s.hit) = true := by decide
+theorem miss_before_restore : (samples.take 7).all (fun s => !s.hit) = true := by decide
+
+theorem restored_legs_fast : (samples.drop 7).all (fun s => s.hit && s.postS ≤ 1 && stepClass s == .ok
+    && postClass s == .ok) = true := by decide
 
 theorem key_stable : (samples.filter (·.engine == "webkit")).all (·.key == "969c76e") = true ∧
     (samples.filter (·.engine == "chromium")).all (·.key == "1a85621") = true := by decide
@@ -72,7 +77,7 @@ theorem alerted_webkit :
     (samples.take 3).map stepClass = [.aptVariance, .aptVariance, .aptVariance] ∧
     (samples.take 3).map postClass = [.ok, .ok, .fixableSave] := by decide
 
-theorem alerted_chromium : (samples.drop 5).map stepClass = [.aptVariance, .ok] := by decide
+theorem alerted_chromium : ((samples.drop 5).take 2).map stepClass = [.aptVariance, .ok] := by decide
 
 theorem no_other : samples.all (fun s => stepClass s != .other) = true := by decide
 
@@ -146,10 +151,12 @@ def legs : List Leg := [
   ⟨40031018930, "webkit", "ci/land-polish-wtname-wire-b1145f3", false, false⟩,
   ⟨40037942688, "webkit", "ci/land-gc-landed-identity-1c3a381", false, false⟩,
   ⟨40045796969, "webkit", "main", false, false⟩,
-  ⟨40045796969, "chromium", "main", false, false⟩]
+  ⟨40045796969, "chromium", "main", false, false⟩,
+  ⟨40047376675, "webkit", "ci/land-gc-live-agent-cwd-b081d56", true, true⟩,
+  ⟨40047376675, "chromium", "ci/land-gc-live-agent-cwd-b081d56", true, true⟩]
 
 theorem legs_classes : legs.map (fun l => restoreClass l.ref l.hit l.holds) =
-    [.missingRestore, .missingRestore, .missingRestore, .firstSave, .firstSave] := by decide
+    [.missingRestore, .missingRestore, .missingRestore, .firstSave, .firstSave, .restored, .restored] := by decide
 
 def restoreCases : List (String × Bool × Bool) :=
   ["main", "ci/land-x-1234567"].flatMap fun r => [false, true].flatMap fun h => [false, true].map fun m => (r, h, m)
