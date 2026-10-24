@@ -29,7 +29,12 @@ runs:
         arch="$(uname -m)"
         key="$GITHUB_WORKSPACE/.github/scripts/cache-key.mjs"
         golden="$GITHUB_WORKSPACE/packages/contracts/golden/ops/cache.jsonl"
+        # Save rule (Fw.Ops.GateEngineTiming.shouldSave; golden gate-engine-timing.jsonl, kind ref): a ci/land-* branch
+        # is fresh per land and GitHub lets a branch read only its own caches and the default branch's, so a save
+        # there is never read. Every other ref saves.
+        case "${GITHUB_REF_NAME:-}" in ci/land-*) save=false ;; *) save=true ;; esac
         {
+          echo "save=$save"
           echo "apt=$(node "$key" --golden "$golden" --cache apt-debs --set playwright="$pw" --set os="$os" --set arch="$arch" --set engine="$ENGINE")"
           echo "browsers=$(node "$key" --golden "$golden" --cache browsers --set playwright="$pw" --set os="$os" --set arch="$arch" --set engine="$ENGINE")"
           echo "hs=$(node "$key" --golden "$golden" --cache hs-zip --set hsVersion="$HS_VERSION" --set hsSha256="$HS_SHA256" --set arch="$arch")"
@@ -38,7 +43,7 @@ runs:
 
     - name: Restore the apt packages
       id: apt
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}/gate-apt
         key: ${{ steps.keys.outputs.apt }}
@@ -46,7 +51,7 @@ runs:
     - name: Restore the Playwright browsers
       id: browsers
       if: ${{ inputs.engine == 'playwright-webkit' }}
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
         key: ${{ steps.keys.outputs.browsers }}
@@ -54,7 +59,7 @@ runs:
     - name: Restore the Chrome Headless Shell zip
       id: hs
       if: ${{ inputs.engine == 'chromium' }}
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}/hs-zip
         key: ${{ steps.keys.outputs.hs }}
@@ -65,6 +70,7 @@ runs:
       env:
         ENGINE: ${{ inputs.engine }}
         APT_HIT: ${{ steps.apt.outputs.cache-hit }}
+        SAVE: ${{ steps.keys.outputs.save }}
       run: |
         set -euo pipefail
         debs="$RUNNER_TEMP/gate-apt"
@@ -80,8 +86,8 @@ runs:
           chromium) pnpm exec playwright-core install-deps chromium-headless-shell ;;
           playwright-webkit) pnpm exec playwright-core install-deps webkit ;;
         esac
-        # Save for the next run only on a miss (actions/cache saves a path in its post step when the key was not found).
-        if [ "$APT_HIT" != "true" ]; then
+        # Stage the .deb files for the save step below only on a miss (and only where that step will save).
+        if [ "$APT_HIT" != "true" ] && [ "$SAVE" = "true" ]; then
           cp /var/cache/apt/archives/*.deb "$debs"/ 2>/dev/null || echo "no .deb files to cache"
           du -sh "$debs" || true
         fi
@@ -115,3 +121,26 @@ runs:
       run: |
         set -euo pipefail
         pnpm exec playwright-core install webkit
+
+    # Saves run here, after the install, only on a miss and only where a later run can read the entry (the keys step).
+    # They were the Post step of actions/cache before: 4 to 43 s on a land leg for an entry nothing read.
+    - name: Save the apt packages
+      if: ${{ steps.keys.outputs.save == 'true' && steps.apt.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/gate-apt
+        key: ${{ steps.keys.outputs.apt }}
+
+    - name: Save the Playwright browsers
+      if: ${{ inputs.engine == 'playwright-webkit' && steps.keys.outputs.save == 'true' && steps.browsers.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.keys.outputs.browsers }}
+
+    - name: Save the Chrome Headless Shell zip
+      if: ${{ inputs.engine == 'chromium' && steps.keys.outputs.save == 'true' && steps.hs.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/hs-zip
+        key: ${{ steps.keys.outputs.hs }}
