@@ -14,8 +14,8 @@ Last commit: see `git log -1` (merge of main f632aa354 plus this handoff). CI ru
 - Verified: runner package test 105 files / 3370 tests green; ci-paths test 56 green; plan lint has no writesClosure line for this task.
 
 ## Open
-- Writes outside the graph: `apps/runner/src/land.ts` (inScope moved out, inputKey uses the cache).
-- No `lean/scripts` golden `--check` row for the new golden (outside writes); follow-up.
+- Round 2 done: oracle title says every fifth path; bench outputs and INFERRED fixedUs in note + Lean docstring; `rows_predMs`; `lean/scripts/LandInputsCostGolden.lean` + check.sh row. check.sh green, runner test 106 files/3402 green, plain dry land VERDICT dry.
+- Findings 6-8 stay follow-ups.
 - Superset test (2.7 s) reads package.json per path; follow-up.
 - Effect on alerts: read on later dry lands (land-inputs vitest p50 after landing).
 
