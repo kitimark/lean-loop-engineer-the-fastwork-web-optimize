@@ -47,8 +47,8 @@ list rows and recomputes the started sets with a small stand-in of `startedSet`:
 Workflow `trajectory-probe`, flag `[transitions:earn]` with `[frames:nav:earn-logical]`; one free macOS 26 job per width, Chromium,
 Playwright WebKit and Safari (safaridriver, 1280 px only) in the same job; arms `orig`, `faithful`, `flag` (= `?fw=nav:earn-logical`),
 3 full repeats and one light page each. Valid runs: 40100783726 and 40102193302 (the first push, run 40100235090, failed before WebKit
-because the flag arm opened `/` without its search; fixed). Summaries: `results/earn-webkit-smooth/<run>/<width>/summary`,
-`across-runs.txt` (median [min..max] over the 2 runs). Hero exit and hero entry are the scroll ramps of the lane (flip frame at the class
+because the flag arm opened `/` without its search; fixed). Summaries: artifacts `transitions-apple-390` and `transitions-apple-1280` of those runs (`gh run download <run> -n transitions-apple-1280`; 30 days),
+reduced across runs by `transitions-combine.mjs` (median over the 2 runs; the table below is its output). Hero exit and hero entry are the scroll ramps of the lane (flip frame at the class
 change). Padding-left, one-frame jump in px, and the time to settle:
 
 | Width | Engine | Arm | Exit: padL jump | Exit: settles (ms) | Entry: padL jump | Entry: settles (ms) | Language x jump, exit / entry |

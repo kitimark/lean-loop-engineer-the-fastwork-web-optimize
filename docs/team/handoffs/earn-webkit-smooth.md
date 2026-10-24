@@ -2,7 +2,7 @@
 Branch: worktree-wf_bbd9b85f-6e4-1 (CI branch ci/earn-webkit-smooth). Worktree: .claude/worktrees/wf_bbd9b85f-6e4-1. Last sha: `git log -1`.
 CI runs (3 of 3 pushes used): 40100235090 trajectory-probe FAILED (flag arm opened '/' without its search; fixed), 40100235131 lean failed (footprint-diff stale; fixed);
 push 2: trajectory-probe 40100783726 success, breakpoint-gate 40100783656 success (default page), lean 40100783678 success;
-push 3 (main merged): trajectory-probe 40102193302 success, lean 40102193331 success. Data: results/earn-webkit-smooth/<run>/<width>/summary, across-runs.txt.
+push 3 (main merged): trajectory-probe 40102193302 success, lean 40102193331 success. Data: artifacts transitions-apple-<width> of the two trajectory-probe runs (30 days); the reduced table is in the note (results/ is outside the task's writes).
 
 ## Verified
 Lean `Fw.Parts.NavEarnWebkit` (theorems in the note) and `lean/scripts/check.sh` green; golden nav.earn.webkit.jsonl replayed by
