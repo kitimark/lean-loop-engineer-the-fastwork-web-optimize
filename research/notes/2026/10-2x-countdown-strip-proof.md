@@ -75,7 +75,8 @@ in both variants (tolerance 1e-9 relative) and checks the CSS premises of the la
 
 - Gate verdict: one dispatch with the prerendered flag order,
   `pnpm -s fw run --gate --engines both --fw morph.countdown:strip,hero.countdown:strip --ref ci/countdown-strip-proof`.
-  The gate has a strip role for hero.countdown (gate-variant-roles); morph.countdown has none, so its face count may
-  read as differ.
+  `packages/gate-breakpoints/src/anchors.json` has a strip variant role for hero.countdown and none for
+  morph.countdown, whose `face` role (`[data-fw="morph-countdown-clock"] [data-face]`) finds no node under strip.
+  The morph.countdown entry needs the same variant role (outside this task's writes) before the gate can pass.
 - `fw run --gate` dispatched a flag string the build had not prerendered; a canonical order check before dispatch
   would have refused it locally.

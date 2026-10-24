@@ -3613,7 +3613,7 @@
    "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
    "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
    "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40081933958 (breakpoint gate, smoke refused the flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
-   "next": "Dispatch the gate with the prerendered flag order; add a morph.countdown strip role to the gate if its face count reads as differ."
+   "next": "Add a morph.countdown strip variant role to packages/gate-breakpoints/src/anchors.json (hero.countdown has one), then dispatch the gate with the prerendered flag order ?fw=morph.countdown:strip,hero.countdown:strip."
   }
  ],
  "notes": [
