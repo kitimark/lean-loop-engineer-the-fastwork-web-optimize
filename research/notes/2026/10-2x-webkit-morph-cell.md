@@ -77,4 +77,20 @@ The golden `packages/contracts/golden/gate/trajectory.jsonl` gains ops `cellEnv`
 
 ## Results
 
-Filled in with the CI runs below.
+All runs `?preset=v2-proved` (the preset holds `engine.scroll:unthrottle` only), recorded in
+`packages/contracts/golden/preset/v2-proved.trajectory.jsonl`.
+
+| run | engines | cells |
+|---|---|---|
+| `40097658094` (push) | Chromium, Linux WebKit | Chromium hero pass, Chromium morph pass, Linux WebKit hero pass |
+| `40099056290` (dispatch) | Linux WebKit, macOS WebKit | Linux hero pass, Mac hero pass, Mac morph pass |
+| `40080296257` (earlier, `fw=` alone) | all | Mac morph was "no verdict: coverage"; now pass |
+
+- The Mac morph walk of `40099056290` again shows 42 coverage groups at 390, 641 and 1280 (MEASURED, units file
+  `trajectory-apple`). Pooled, that is a coverage repeat (the old rule: no verdict). Counted over the measured widths (390 and
+  640) it is one width, so the verdict is pass. The 390 group is the walk noise named above, not the flag.
+- All four cells of `engine.scroll:unthrottle` pass: `Fw.Preset.Gen.run` writes it as the only member of v2-proved.
+- Two Mac morph runs are stored (`40080296257`, `40099056290`), both pass. This is a verdict cell, not a class count; no count over
+  3 separate CI jobs is claimed.
+- The breakpoint gate on `preset=v2-proved` for both engines is dispatched by the lead (not delivered by this task):
+  `pnpm -s fw run --gate --engines both --preset v2-proved --ref ci/webkit-morph-cell`.
