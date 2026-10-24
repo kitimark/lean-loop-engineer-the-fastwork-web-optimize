@@ -9,7 +9,7 @@
     pass in every cell, empty failing table; WebKit hover-pointer-cross and fractional-gaps UNREACHABLE (reach rule).
   - breakpoint-gate 40081933958 (bbd203c7f) and 40089874311 (085bb458): both failed in smoke. `fw run --gate`
     sorts the flags (lean/Fw/Wire/Store.lean:45, :111) to `hero.countdown:strip,morph.countdown:strip`; the build
-    prerenders only `morph.countdown:strip,hero.countdown:strip` (apps/site/src/entry-server.tsx:23). Cause is now task gate-flag-order.
+    prerenders only `morph.countdown:strip,hero.countdown:strip` (apps/site/src/entry-server.tsx:23).
 - Faithful baseline for the census: webkit-sim 39897814980 (target rewrite, no flags, sha 540130e9; countdown code
   unchanged since).
 

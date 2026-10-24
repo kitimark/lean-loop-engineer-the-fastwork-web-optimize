@@ -12,7 +12,6 @@ inductive Variant where
   | strip
 deriving Repr, DecidableEq
 
-/-- One digit slot of `createCountdownDriver` (apps/site/src/parts/hero.countdown/driver.ts:25-32). -/
 structure Slot where
   spring : Spring
   target : Nat
@@ -24,7 +23,6 @@ deriving Repr, DecidableEq
 
 def Slot.init : Slot := ⟨⟨0, 0⟩, 0, 0, false, 0, false⟩
 
-/-- A driver call on one digit: a refresh whose second changed, a spring frame, or a new spacer height. -/
 inductive Ev where
   | refresh (secs : Nat) (now : Rat) (reduced : Bool)
   | frame (now : Rat)
@@ -43,7 +41,6 @@ def stepSlot (s : Slot) (now : Rat) : Slot :=
   let r := springStep s.spring s.target (now - s.lastT)
   { s with lastT := now, spring := r.state, animating := if r.done then false else s.animating }
 
-/-- The variant-free part of the driver: the new slot and whether the call ends in `write(s)`. -/
 def upd (s : Slot) : Ev → Slot × Bool
   | .refresh secs now red => retarget s (digitOf secs) now red
   | .frame now => (stepSlot s now, true)
@@ -53,14 +50,12 @@ def nodes : Variant → Nat
   | .faithful => 10
   | .strip => 1
 
-/-- The transforms `write(s)` sets, px: ten faces (driver.ts:66-68) or one strip (driver.ts:64). -/
 def renderAt : Variant → Rat → Rat → List Rat
   | .faithful, a, c => (List.range 10).map fun (f : Nat) => faceOffsetPx f a c
   | .strip, a, c => [stripOffsetCells a * c]
 
 def render (v : Variant) (s : Slot) : List Rat := renderAt v s.spring.value s.cell
 
-/-- The `translateY` of each node, `none` while never written. -/
 abbrev Dom := List (Option Rat)
 
 def write (v : Variant) (s : Slot) (d : Dom) : Dom := if 0 < s.cell then (render v s).map some else d
@@ -71,7 +66,6 @@ def drive (v : Variant) (x : Slot × Dom) (e : Ev) : Slot × Dom :=
 
 def init (v : Variant) : Slot × Dom := (Slot.init, List.replicate (nodes v) none)
 
-/-- The state after each prefix of the calls, the start included. -/
 def runFrom (v : Variant) : Slot × Dom → List Ev → List (Slot × Dom)
   | x, [] => [x]
   | x, e :: es => x :: runFrom v (drive v x e) es
@@ -142,7 +136,6 @@ theorem inv_runFrom (v : Variant) (evs : List Ev) :
 
 def pxAt (d : Dom) (k : Nat) : Rat := (d.getD k none).getD 0
 
-/-- The digit's glyphs: face `k` moved by its own transform, or every strip entry moved by the one strip transform. -/
 def domScene : Variant → DigitGeo → Dom → Scene
   | .faithful, g, d => (List.range 10).map fun (k : Nat) => (glyphId g k, glyph g k (pxAt d k / g.c))
   | .strip, g, d => (List.range 10).flatMap fun (k : Nat) =>
@@ -168,7 +161,6 @@ theorem strip_scene (g : DigitGeo) (s : Slot) (hc : s.cell = g.c) (h0 : g.c ≠ 
   simp only [pxAt, List.map_cons, List.map_nil, List.getD, List.getElem?_cons_zero, Option.getD_some, hc]
   rw [Rat.mul_div_cancel h0]
 
-/-- Same face pixels: with the cell known, the visible glyphs of the strip DOM equal those of the faithful DOM. -/
 theorem dom_same (vp : Rect) (g : DigitGeo) (x y : Slot × Dom) (hx : Inv .faithful x) (hy : Inv .strip y)
     (hs : x.1 = y.1) (hc : 0 < x.1.cell) (hg : g.c = x.1.cell) :
     visible vp (domScene .strip g y.2) = visible vp (domScene .faithful g x.2) := by
@@ -176,7 +168,6 @@ theorem dom_same (vp : Rect) (g : DigitGeo) (x y : Slot × Dom) (hx : Inv .faith
   rw [hx hc, hy (hs ▸ hc), faithful_scene g x.1 hg.symm h0, strip_scene g y.1 (hs ▸ hg.symm) h0, hs]
   exact strip_digit_same vp g y.1.spring.value
 
-/-- Paired call by call, both runs hold one slot and, once the cell is known, the same visible face pixels. -/
 theorem same_face_px (evs : List Ev) :
     ∀ p ∈ (run .faithful evs).zip (run .strip evs), p.1.1 = p.2.1 ∧
       (0 < p.1.1.cell → ∀ vp g, g.c = p.1.1.cell →
@@ -191,7 +182,6 @@ theorem same_face_px (evs : List Ev) :
 WebCore/rendering/RenderLayerCompositor.cpp:3997-4018@862f17d). -/
 def composited (pol : WebKit.Policy) (active : Bool) : Bool := active && WebKit.composites pol .willChange
 
-/-- A RenderLayer between a composited layer and its compositing ancestor, read on the containing-block chain. -/
 inductive Anc where
   | plain
   | clip
@@ -214,7 +204,6 @@ def clipStack (as : List Anc) : List Bool := clipStackGo false as
 (`ensureClippingStackLayers`, WebCore/rendering/RenderLayerBacking.cpp:2444-2457@862f17d). -/
 def stackLayers (es : List Bool) : Nat := (es.map fun b => if b then 2 else 1).sum
 
-/-- The `.digit` (overflow hidden), `.value` (overflow hidden) and morph.panel `.center` (overflow hidden) chain. -/
 def countdownChain : List Anc := [.clip, .plain, .clip, .plain, .plain, .clip]
 
 #guard clipStack countdownChain == [false]
@@ -238,13 +227,11 @@ theorem layers_ratio (pol : WebKit.Policy) (active : Bool) (n : Nat) (as : List 
   unfold clockLayers nodes
   split <;> constructor <;> simp [Nat.mul_assoc]
 
-/-- Eight active digits under Normal: 80 composited faces (160 platform layers) become 8 strips (16). -/
 theorem layers_80_to_16 :
     clockLayers .faithful .normal true 8 countdownChain = ⟨80, 160⟩ ∧
       clockLayers .strip .normal true 8 countdownChain = ⟨8, 16⟩ := by
   decide
 
-/-- Nine days or fewer to the target: seven digits per clock. -/
 theorem layers_7_digits :
     clockLayers .faithful .normal true 7 countdownChain = ⟨70, 140⟩ ∧
       clockLayers .strip .normal true 7 countdownChain = ⟨7, 14⟩ := by
@@ -264,7 +251,6 @@ def ratJ (q : Rat) : Json := .str (toString q)
 
 def domJ (d : Dom) : Json := Json.arr (d.map fun o => match o with | some q => ratJ q | none => .null).toArray
 
-/-- Visible glyphs `(digit, offset px)` of a DOM, offsets inside the open window `(-c, c)`, ordered by digit. -/
 def shown (v : Variant) (c : Rat) (d : Dom) : List (Nat × Rat) :=
   match v with
   | .faithful => ((List.range 10).map fun k => (k, pxAt d k)).filter fun p => -c < p.2 && p.2 < c
