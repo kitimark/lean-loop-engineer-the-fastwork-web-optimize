@@ -49,14 +49,13 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
   A local debug run (not a result, one window per arm, no numbers kept) with `{dragPt 500, velocity 500, holdMs 0}` opened the
   morph in all three arms and showed the site's restore scrolls, so the default pan is now `PAN = {500, 500, 0}`
   (`packages/measure-webkit/src/touchlock.mjs`, flags `--drag-pt --velocity --hold-ms`). Run `40065281372` then opened the morph on CI with this pan (base arm).
-- **Second blocker.** The walk's lane ended after the third window: the lock window's driver finished at 209 s (bound 125 s;
+- **Second blocker.** Run 40060600880 (round 1): its lane ended after the third window: the lock window's driver finished at 209 s (bound 125 s;
   the inspector probe logged `page missing` in the same window) and `laneAfter` closed the touch lane. That is the load
   stall already studied in `2026-10-2x-sim-touch-reliable`, not a model result.
-- **Look class of the candidate (INFERRED, no run data).** The CSS `overflow:hidden; overscroll-behavior:none; touch-action:none` on `html` while the morph is open changes what the finger does, so it goes to the look-change class for the user's review. The local debug run agreed in direction (`lock` showed fewer restores).
 
 ## Model
 
-`lean/Fw/Measure/TouchLock.lean`, golden `packages/contracts/golden/measure/touch-lock.jsonl` (22 rows, generated with
+`lean/Fw/Measure/TouchLock.lean`, golden `packages/contracts/golden/measure/touch-lock.jsonl` (31 rows, generated with
 `lake env lean --run scripts/TouchLockGolden.lean`, checked by `lean/scripts/check.sh`), JS twin `packages/measure-webkit/src/touchlock.mjs`
 replaying the golden in `test/touchlock.test.mjs`.
 
@@ -72,7 +71,7 @@ replaying the golden in `test/touchlock.test.mjs`.
   (`look_same`, `look_change_faith`, `look_change_cand`).
 
 - Round 2 (stall-proof order): `repOrder` runs `base`, `lock`, then `orig` on even reps and `lock`, `base`, `orig` on odd reps, so
-  a stall hits the original first (`repOrder_orig_last`, `repOrder_once`). `afterWindow` restarts a stalled push server up to
+  the original always runs last in a rep and a stall can only cut the windows after it (`repOrder_orig_last`, `repOrder_once`). `afterWindow` restarts a stalled push server up to
   `maxRestarts = 2` times before the lane ends (`afterWindow_keep`, `afterWindow_restart`, `afterWindow_stop`). Golden ops
   `order` and `lane`, replayed in the twin test.
 
