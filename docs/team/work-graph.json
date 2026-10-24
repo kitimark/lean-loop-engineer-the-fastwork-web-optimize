@@ -20890,6 +20890,29 @@
     "docs/team/handoffs/probe-apple-cap.md"
    ],
    "title": "The Mac trajectory-probe leg can overrun its 15 min timeout since webkit-morph-walk-noise added the per-width settle retry (extraCap 8, about 19 s per extra pass): two capped widths in one leg come to about 16.5 min, and a timeout loses the whole leg (MEASURED walls 11.35 min with 0 extra, 12.3 with 1, 13.9 with 8 at 641; runs 40125557073, 40127042262). The cap in Fw/Ci/Pool/Caps.lean (probeSource) comes from the pre-retry p90 of 11.2 min, n=4. Do, Lean first: either re-derive the probe-apple cap from retry-era legs (state the sample and its p90 plus the worst-case retry bound) or bound the extra passes per leg (a per-leg budget in settle/settleWalk with theorems: total extra per leg <= budget; the leg's worst-case wall stays under the cap given the measured pass time), pick one with the reason, regenerate the goldens, update trajectory-probe.yml timeout and scripts/ci-paths.test.mjs pool caps to the Lean value, and show one Mac probe run (engine.scroll:batched, no debug recorder) with every leg inside its cap. Also move the retry-role choice (only cand retries, only with a base peer at that width) from run.mjs into Lean with a golden line, and make out.reps report the candidate's pooled passes."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "ci-state-burst",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci-state.test.ts",
+    "lean/Fw/Ci/State.lean",
+    "lean/scripts/CiStateGolden.lean",
+    "packages/contracts/golden/ci/ci-state.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-ci-state-burst.md",
+    "docs/team/handoffs/ci-state-burst.md"
+   ],
+   "title": "fw ci state prints 'unknown' for valid older runs, so build-review gates mark them failed (seen for runs 40100783726 on ci/earn-webkit-smooth and 40125463870): stateStep (apps/runner/src/ci.ts:77) returns 'absent' when the page is full and holds a smaller id, but one push starts about 20 workflow runs whose ids are not in the order gh run list returns them, so a page boundary inside a burst hides the run (CONFIRMED: at --limit 100 the page min is 40100783603 < 40100783726; at --limit 400 the run is entry 106). Do, Lean first: model the lookup step in lean/Fw/Ci/State.lean (found, ended, older, grow, exhausted; absent only when a full page's ids are all newer than the target by more than a stated burst margin, or never), with theorems (a run present within the largest limit is found; the step terminates; absent never fires inside a burst), a golden replayed by ci-state.test.ts (this run's real id pattern as a case), and ci.ts made a twin of it. Show fw ci state 40100783726 --branch ci/earn-webkit-smooth prints complete."
   }
  ],
  "deadline": {
