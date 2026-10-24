@@ -21037,6 +21037,34 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
    "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "morph-end-remeasure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-end-measure",
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    ".github/workflows/toolbar-throttle.yml",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    "lean/Fw/Measure/MorphEndCount*.lean",
+    "lean/scripts/MorphEndCount*.lean",
+    "packages/contracts/golden/device/morph-end-count.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-morph-end-remeasure.md",
+    "results/morph-end-remeasure/**",
+    "docs/team/handoffs/morph-end-remeasure.md"
+   ],
+   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids."
   }
  ],
  "deadline": {
