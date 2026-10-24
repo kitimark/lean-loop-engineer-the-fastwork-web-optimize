@@ -39,7 +39,7 @@ def rows : List Row := [
   ⟨"platform.glint", [("clock", "")], [], [], [], []⟩,
   ⟨"platform.marquee", [], [], [], [], []⟩,
   ⟨"platform.stageBg", [], [], [], [], []⟩,
-  ⟨"platform.sweep", [("clock", "")], [("cssVar", "?/?")], [], [], []⟩]
+  ⟨"platform.sweep", [], [("cssVar", "?/?")], [], [], []⟩]
 
 /-- Groups (`Fw.Parts.Contract.components`) of the table widened by `rows`; page-level parts are in none. -/
 def groups : List (List String) := [
