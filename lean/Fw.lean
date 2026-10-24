@@ -102,6 +102,7 @@ import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
 import Fw.Measure.Compose
 import Fw.Measure.ImageArm
+import Fw.Measure.TouchLock
 import Fw.Measure.TouchPush
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
@@ -167,6 +168,7 @@ import Fw.Plan.Workflow
 import Fw.Plan.WritesClosure
 import Fw.Obs.Timing
 import Fw.Obs.Backoff
+import Fw.Obs.LandInputsCost
 import Fw.Ci.Trigger
 import Fw.Ci.Intent
 import Fw.Ci.Verdict

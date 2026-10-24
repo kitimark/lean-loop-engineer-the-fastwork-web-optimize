@@ -37,7 +37,7 @@ e.g. `load1`, `consolePids`, `stale`, is ignored). `prevAt` is the time of the p
 
 `obs.next` shapes. Params: the Health params plus `loopCapMin [30]` (minutes). AgentFacts:
 `{id, task, state ["active"|"idle"|"parked"|"stalled"|"gone"|"done"], session, handbackAt?, branch? {name, ahead,
-landed, queued? [false], mergesClean? [true], deps? [[]]}, handoff? [false], worktree? {lockPid?, lockAlive? [false], id?}, ctxTokens? [0], children? [{pid, chain? [[]],
+landed, queued? [false], mergesClean? [true], deps? [[]]}, handoff? [false], worktree? {lockPid?, lockAlive? [false], id?}, ctxTokens? [0], children? [{pid, start? (the process start in seconds; a held entry suppresses a child only with the same pid and start), chain? [[]],
 kind ["sleepLoop"|"ciWait"|"build"|"other"|"stdinWait"], run and timeoutMin (ciWait only), startedAt, watchedAt?,
 producerExited? [false], watch? {kind ["task"|"agent"], id}}], ci? {id, workflow, branch, status, conclusion?,
 startedAt, endedAt?}, board? {id, done, agent?}, signals? SigFacts, reapHeld? [{pid, start, wt?}]}` (`reapHeld`: the
@@ -697,7 +697,8 @@ def childJson (c : Child) : Json :=
     | .build => [("kind", .str "build")]
     | .other => [("kind", .str "other")]
     | .stdinWait => [("kind", .str "stdinWait")]
-  Json.mkObj ([("pid", toJson c.pid), ("chain", natsJson c.chain)] ++ k ++
+  Json.mkObj ([("pid", toJson c.pid)] ++ (match c.start with | some s => [("start", toJson s)] | none => []) ++
+    [("chain", natsJson c.chain)] ++ k ++
     [("startedAt", toJson c.startedAt), ("watchedAt", onat c.watchedAt), ("producerExited", .bool c.producerExited)] ++
     match c.watch with
     | some v => [("watch", watchJson v)]
@@ -713,10 +714,8 @@ def childKindOf (j : Json) : Except String ChildKind := do
   | "stdinWait" => pure .stdinWait
   | s => throw s!"field kind: unknown value {s}"
 
-/-- Decode a child process (`chain` optional, default empty; `watchedAt` optional; `producerExited` default false;
-`watch` optional). -/
 def childOf (j : Json) : Except String Child := do
-  pure { pid := ← nat j "pid", chain := ← (← arrD j "chain").mapM (asNat "chain"), kind := ← childKindOf j,
+  pure { pid := ← nat j "pid", start := ← optN j "start", chain := ← (← arrD j "chain").mapM (asNat "chain"), kind := ← childKindOf j,
          startedAt := ← startOf j "startedAt", watchedAt := ← optN j "watchedAt",
          producerExited := ← boolD j "producerExited" false,
          watch := ← match opt j "watch" with
@@ -1242,11 +1241,9 @@ both sides of every threshold edge; `gaps` checks that every action and every re
 namespace NextGolden
 open Fw.Obs.Next (t0 ago ex)
 
-/-- A sleep loop under session 100 started at `s`, watching a file last changed at `w`. -/
-def lp (pid s : Nat) (w : Option Nat := none) (x : Bool := false) : Child :=
-  { pid, chain := [100, 1], kind := .sleepLoop, startedAt := s, watchedAt := w, producerExited := x }
+def lp (pid s : Nat) (w : Option Nat := none) (x : Bool := false) (st : Option Nat := none) : Child :=
+  { pid, start := st, chain := [100, 1], kind := .sleepLoop, startedAt := s, watchedAt := w, producerExited := x }
 
-/-- A child of kind `k` under session 100 started at `s`. -/
 def ch (pid : Nat) (k : ChildKind) (s : Nat) : Child := { pid, chain := [100, 1], kind := k, startedAt := s }
 
 /-- A running CI run of `ci/<t>` with id `r`. -/
@@ -1286,6 +1283,8 @@ def typed : List Typed := [
     fs := [{ ghb with reapHeld := [⟨555, 1759998680, none⟩] }] },
   { name := "case 2g an agent worktree without an id matches no held entry -> no kill, investigate heldByChild"
     fs := [{ ghb with worktree := some {}, reapHeld := [⟨555, 1759998680, some "wt-ghb-runner"⟩] }] },
+  { name := "case 2i a held entry with the pid of the child but another start -> killOrphan, and the child still holds the agent (investigate heldByChild)"
+    fs := [{ ghb with reapHeld := [⟨555, 1759998681, some "wt-ghb-runner"⟩] }] },
   { name := "case 2h two held entries in this worktree -> two killOrphan actions in plan order"
     fs := [{ ghb with reapHeld := [⟨555, 1759998680, some "wt-ghb-runner"⟩, ⟨556, 1759998700, some "wt-ghb-runner"⟩] }] },
   { name := "case 2b ghb-runner after the kill: landed, no live child -> cleanupWorktree"
@@ -1314,7 +1313,7 @@ def typed : List Typed := [
     fs := [{ ex "integrate-ports" .active with children := [lp 701 (ago 35) (some (ago 3)) true] }] },
   { name := "case 6b active, the Reap plan holds a loop in this worktree -> killOrphan and nudgeHandoff"
     fs := [{ ex "integrate-ports" .active with
-      worktree := some { id := some "wt-integrate-ports" }, children := [lp 701 (ago 35) (some (ago 3)) true],
+      worktree := some { id := some "wt-integrate-ports" }, children := [lp 701 (ago 35) (some (ago 3)) true (some 1759997900)],
       reapHeld := [⟨701, 1759997900, some "wt-integrate-ports"⟩] }] },
   { name := "case 7 obs-next-lean at 03:05: live, its task reached the board after the spawn-time claim, unbound and not done -> claimTask"
     fs := [{ ex "obs-next-lean" .active with board := some { id := "obs-next-lean", done := false } }] },

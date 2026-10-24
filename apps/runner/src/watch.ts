@@ -7,6 +7,7 @@ import { collectFacts, formatNext, nextAlerts, slowAlerts, slowNextLines, type N
 import { contendedFlagged, ghFlagged } from "./watch-gh.ts";
 import { reapTick } from "./reap.ts";
 import { reapHeldAlerts } from "./watch-reap.ts";
+import { heldPass, type ReapPass } from "./reap.ts";
 import { startPush } from "./watch-push.ts";
 import { CLASSES, diskGcTick } from "./disk-gc.ts";
 import { fwcoreCall } from "./run.ts";
@@ -64,9 +65,9 @@ export async function check(snap: Snapshot, core: CoreCall): Promise<Health> {
   return r as unknown as Health;
 }
 
-export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Health, core: CoreCall): Promise<NextReply | null> {
+export async function nextFor(paths: Paths, main: string, snap: Snapshot, h: Health, core: CoreCall, reap: ReapPass | null = heldPass(main)): Promise<NextReply | null> {
   try {
-    const facts = await collectFacts(paths, main, snap, h);
+    const facts = await collectFacts(paths, main, snap, h, reap);
     return (await core({ op: "obs.next", now: snap.now, agents: facts })) as NextReply;
   } catch { return null; }
 }
@@ -318,9 +319,10 @@ async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: Cor
   const endPass = begin("fw", "watch pass", main);
   const snap = await collectSnapshot(paths, Date.now(), undefined, prevSnap, undefined, decide);
   const h = await check(snap, call);
-  const nx = await nextFor(paths, main, snap, h, call);
+  const rp = heldPass(main);
+  const nx = await nextFor(paths, main, snap, h, call, rp);
   if (nx) h.alerts.push(...nextAlerts(nx));
-  h.alerts.push(...reapHeldAlerts(main));
+  h.alerts.push(...reapHeldAlerts(rp));
   const { slow, details } = await slowWith(paths, call);
   h.alerts.push(...slowAlerts(slow, details));
   appendLog(paths, snap, h);

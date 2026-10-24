@@ -1,0 +1,31 @@
+{"maxRestarts":2,"minOpenFrames":10,"op":"constants"}
+{"case":"steady open phase","events":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":0,"eventReversals":0,"frameFights":0,"frameReversals":0,"jitter":false,"openFrames":12,"restores":0}}
+{"case":"restore after a displaced frame","events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":2,"eventFights":2,"eventReversals":3,"frameFights":2,"frameReversals":3,"jitter":true,"openFrames":12,"restores":2}}
+{"case":"frames steady, events fight","events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":2,"eventReversals":3,"frameFights":0,"frameReversals":0,"jitter":false,"openFrames":12,"restores":2}}
+{"case":"one way drift is not a fight","events":[[4990,0],[4995,0],[5000,1],[5040,1],[5080,1],[5120,1],[5160,1],[5200,1],[5240,1],[5280,1],[5320,1],[5360,1],[5400,1],[5440,1]],"frames":[[4990,0],[4995,0],[5000,1],[5040,1],[5080,1],[5120,1],[5160,1],[5200,1],[5240,1],[5280,1],[5320,1],[5360,1],[5400,1],[5440,1]],"op":"run","refusal":null,"result":{"displacedFrames":11,"eventFights":0,"eventReversals":0,"frameFights":0,"frameReversals":0,"jitter":false,"openFrames":12,"restores":11}}
+{"case":"bounce back to the lock","events":[[5000,1],[5090,1],[5150,1],[5100,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[5000,1],[5090,1],[5150,1],[5100,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":3,"eventFights":0,"eventReversals":1,"frameFights":0,"frameReversals":1,"jitter":false,"openFrames":12,"restores":3}}
+{"case":"never open","events":[],"frames":[[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0]],"op":"run","refusal":"noOpen","result":{"displacedFrames":0,"eventFights":0,"eventReversals":0,"frameFights":0,"frameReversals":0,"jitter":false,"openFrames":0,"restores":0}}
+{"case":"open for 4 frames","events":[],"frames":[[5000,1],[5000,1],[5040,1],[5000,1]],"op":"run","refusal":"tooShort","result":{"displacedFrames":1,"eventFights":0,"eventReversals":0,"frameFights":1,"frameReversals":1,"jitter":true,"openFrames":4,"restores":0}}
+{"case":"closed, open, closed","events":[],"frames":[[1,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[1,0],[1,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":0,"eventReversals":0,"frameFights":0,"frameReversals":0,"jitter":false,"openFrames":10,"restores":0}}
+{"cand":[0,0,1],"case":"candidate below","faith":[2,3,5],"op":"cmp","out":"lower"}
+{"cand":[3,4],"case":"candidate above","faith":[0,1],"op":"cmp","out":"higher"}
+{"cand":[1,2],"case":"ranges overlap","faith":[0,4],"op":"cmp","out":"overlap"}
+{"cand":[0,0,0],"case":"both zero","faith":[0,0,0],"op":"cmp","out":"overlap"}
+{"cand":[1,2],"case":"touching ranges","faith":[2,3],"op":"cmp","out":"overlap"}
+{"cand":[1],"case":"no faithful run","faith":[],"op":"cmp","out":"overlap"}
+{"cand":[],"case":"no candidate run","faith":[1],"op":"cmp","out":"overlap"}
+{"cand":[0,0,0],"case":"both steady","faith":[0,0],"op":"look","out":"same"}
+{"cand":[0,0],"case":"faithful displaced","faith":[0,2],"op":"look","out":"change"}
+{"cand":[1],"case":"candidate displaced","faith":[0,0],"op":"look","out":"change"}
+{"cand":[4],"case":"both displaced","faith":[3],"op":"look","out":"change"}
+{"cand":[],"case":"nothing measured","faith":[],"op":"look","out":"same"}
+{"accepted":2,"case":"two arms","jitter":1,"op":"tally","runs":[{"events":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]]},{"events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]]},{"events":[],"frames":[[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0],[4000,0]]},{"events":[],"frames":[[5000,1],[5000,1],[5040,1],[5000,1]]}]}
+{"arms":["base","lock","orig"],"op":"order","rep":0}
+{"arms":["lock","base","orig"],"op":"order","rep":1}
+{"arms":["base","lock","orig"],"op":"order","rep":2}
+{"arms":["lock","base","orig"],"op":"order","rep":3}
+{"op":"lane","out":"keep","stalled":false,"used":0}
+{"op":"lane","out":"restart","stalled":true,"used":0}
+{"op":"lane","out":"restart","stalled":true,"used":1}
+{"op":"lane","out":"stop","stalled":true,"used":2}
+{"op":"lane","out":"keep","stalled":false,"used":3}
