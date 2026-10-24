@@ -14,6 +14,7 @@ const quiet = (): Sample => ({
   mem: { freeMB: 12000, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 },
 });
 
+const shutOf: string[] = [];
 function deps(booted: () => { udid: string; name: string }[]): Deps {
   const dir = mkdtempSync(join(tmpdir(), "reap-slot-"));
   tmps.push(dir);
@@ -21,7 +22,7 @@ function deps(booted: () => { udid: string; name: string }[]): Deps {
     dir: join(dir, "slot"), cacheDir: join(dir, "cache"), eventsFile: join(dir, "locks.jsonl"), legacySimLock: join(dir, "sim"),
     owner: "wt-a", env: { PATH: process.env.PATH }, params: DEFAULT_PARAMS, wparams: DEFAULT_WPARAMS, history: () => [], pollMs: 1, probe: quiet,
     git: () => ({ tree: "t1", clean: true, mainSha: "m1" }),
-    simctl: { booted, shutdown: () => { throw new Error("no shutdown in a test"); } },
+    simctl: { booted, shutdown: (u) => { shutOf.push(u); } },
     health: () => ({ time: Math.floor(Date.now() / 1000), live: 3 }),
     out: () => {}, err: () => {},
   };
@@ -37,6 +38,7 @@ describe("a sim slot release records the booted udids", () => {
     expect(releaseToken(d, g!.token)).toBe(true);
     const st = JSON.parse(readFileSync(join(d.dir, "state.json"), "utf8")) as { simUdids?: string[]; simAcquired?: number };
     expect(st.simUdids).toEqual(["AAAA-1", "BBBB-2"]);
+    expect(shutOf).toEqual(["AAAA-1", "BBBB-2"]);
     expect(simSlotFacts(d.dir, Math.floor(Date.now() / 1000)).simUdids).toEqual(["AAAA-1", "BBBB-2"]);
   });
   it("a failing simctl records no udid and the release still works", async () => {

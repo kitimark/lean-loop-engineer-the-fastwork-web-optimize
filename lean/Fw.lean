@@ -270,6 +270,7 @@ import Fw.Parts.NavOofRoot
 import Fw.Ci.Pool
 import Fw.Sup.Props
 import Fw.Sup.Adapt
+import Fw.Sup.SimRelease
 import Fw.Sup.AdaptGolden
 import Fw.Sup.MeasureWindow
 import Fw.Wire.Sup
