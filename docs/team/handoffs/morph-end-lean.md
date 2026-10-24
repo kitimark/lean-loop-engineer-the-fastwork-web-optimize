@@ -22,6 +22,6 @@
 ## Open
 
 - `flipN` = 16 is a placeholder; morph-end-measure tunes it from the recorded passes.
-- C stops `preventDefault` mid-drag; whether WebKit honours that mid-sequence is unchecked (INFERRED risk).
+- C stops `preventDefault` mid-drag; WebKit may ignore that mid-sequence (INFERRED, unchecked).
 - The bricks cover the `createTweenDriver` path only; `morph.tween` waapi / scroll-lock / band drivers are a follow-up.
 - Registry rows for the three parts and the TS bricks belong to morph-end-bricks (checked against this golden).

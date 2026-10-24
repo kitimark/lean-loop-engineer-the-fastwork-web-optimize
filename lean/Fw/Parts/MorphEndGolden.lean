@@ -5,10 +5,8 @@ import Fw.Parts.MorphEnd
 namespace Fw.Parts.MorphEndGolden
 open Lean Fw.Parts.MorphEnd
 
-/-- The `Rat` wire form. -/
 def ratWire (q : Rat) : Json := Json.mkObj [("num", .str (toString q.num)), ("den", .str (toString q.den))]
 
-/-- An integral `Rat` as a JSON integer, any other in the wire form. -/
 def numJ (q : Rat) : Json := if q.den = 1 then .num q.num else ratWire q
 
 def optJ : Option Rat → Json
@@ -26,32 +24,26 @@ def evJ : Ev → Json
   | .resize y m => Json.mkObj [("ev", "resize"), ("y", numJ y), ("maxY", numJ m)]
   | .tick now => Json.mkObj [("ev", "tick"), ("now", numJ now)]
 
-/-- What one event did, and the morph after it. -/
 def outJ (o : Out) (s : S) : Json :=
   Json.mkObj [("prevent", .bool o.prevent), ("goal", optJ o.goal), ("flip", .bool o.flip), ("write", optJ o.write),
     ("active", .bool s.tw.isActive), ("value", ratWire s.tw.value), ("pin", numJ s.pin)]
 
-/-- Each event of a trace with what it did and the state after it. -/
 def run (h : Hooks) : S → List Ev → List (Ev × Out × S)
   | _, [] => []
   | s, e :: t => (e, (step h s e).2, (step h s e).1) :: run h (step h s e).1 t
 
 def cfgJ (c : Cfg) : Json := Json.mkObj [("clamp", .bool c.clamp), ("flip", .bool c.flip), ("release", .bool c.release)]
 
-/-- A touch move at page scrollY `y`, armed, motion allowed. -/
 def mv (finger y now : Rat) : Ev := .touchmove (some finger) (rd y now)
 
-/-- The page springs back from an overscroll pin at 5292 to the real end 5227, then the toolbar moves the end to 5267. -/
 def springBack : Rat × List Ev :=
   (5200, [.touchstart (some 600), mv 560 5292 0, .scroll 5292 5227, .tick 100, .scroll 5250 5227, .tick 440,
     .scroll 5227 5227, .tick 780, .scroll 5292 5227, .resize 5227 5267])
 
-/-- A finger that opens the morph at the real end, wiggles by 1 px, then pulls back 20 px. -/
 def wiggle : Rat × List Ev :=
   (5227, [.touchstart (some 600), mv 560 5227 0, .tick 50, mv 561 5227 60, .scroll 5226 5227, mv 560 5227 70,
     mv 561 5227 80, .scroll 5226 5227, mv 560 5227 90, .tick 120, mv 580 5227 130, .scroll 5210 5227, .tick 400])
 
-/-- An open with an overscroll pin at 5250, then a new touch drags back up, hesitates and pushes down again. -/
 def dragBack : Rat × List Ev :=
   (5100, [.touchstart (some 600), mv 550 5250 0, .tick 400, .tick 1000, .scroll 5227 5227, .touchstart (some 400),
     mv 430 5227 1100, mv 470 5227 1110, .scroll 5200 5227, mv 460 5200 1120, mv 440 5200 1130, .scroll 5180 5227,
@@ -70,7 +62,6 @@ def constLine : String :=
     ("out", Json.mkObj [("flipN", numJ flipN), ("ids", .arr #[.str clampId, .str flipId, .str releaseId]),
       ("off", .str faithfulV), ("on", .str onV)])]).compress
 
-/-- The 25 golden lines: the constants, then each case under each of the 8 picks in `Cfg.all` order. -/
 def lines : List String :=
   constLine :: cases.flatMap fun (n, y, t) => Cfg.all.map (caseLine n y t)
 
@@ -101,7 +92,6 @@ def outs (c : Cfg) (cs : Rat × List Ev) : List Out := (trace c.hooks (init cs.1
 
 def text : String := String.intercalate "\n" lines ++ "\n"
 
-/-- Print the golden, or with `--check <file>` compare it; exit 1 on a difference. -/
 def runGolden (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>

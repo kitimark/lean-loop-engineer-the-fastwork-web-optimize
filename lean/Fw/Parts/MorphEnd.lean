@@ -7,20 +7,13 @@ namespace Fw.Parts.MorphEnd
 
 open Fw.Parts.MorphTween (St rest dir taken push)
 
-/-- Part id of brick A, the pin clamped to the real end. -/
 def clampId : String := "morph.end.clamp"
-/-- Part id of brick B, the flip hysteresis. -/
 def flipId : String := "morph.end.flip"
-/-- Part id of brick C, the pin released when a close starts. -/
 def releaseId : String := "morph.end.release"
-/-- Variant name of a brick that is off. -/
 def faithfulV : String := "faithful"
-/-- Variant name of a brick that is on. -/
 def onV : String := "on"
-/-- Brick B: px of net finger travel against the current goal that a flip needs within one touch. -/
 def flipN : Rat := 16
 
-/-- What a move handler reads from the page in the same event. -/
 structure Read where
   scrollY : Rat
   arm : Bool
@@ -28,7 +21,6 @@ structure Read where
   reduced : Bool
 deriving Repr, BEq, DecidableEq
 
-/-- A browser event that reaches the morph; `scroll` and `resize` are one engine frame with its readings. -/
 inductive Ev where
   | touchstart (y : Option Rat)
   | touchmove (y : Option Rat) (r : Read)
@@ -38,7 +30,6 @@ inductive Ev where
   | tick (now : Rat)
 deriving Repr, BEq, DecidableEq
 
-/-- What one event does: `preventDefault`, a push toward `goal` (a `flip` when the morph was active), a `scrollTo`. -/
 structure Out where
   prevent : Bool := false
   goal : Option Rat := none
@@ -46,7 +37,6 @@ structure Out where
   write : Option Rat := none
 deriving Repr, BEq, DecidableEq
 
-/-- Reducer state: the tween, the last touch y, the pin, brick B's counter and new-touch mark, brick C's mark. -/
 structure S where
   tw : St
   touchY : Rat
@@ -56,35 +46,27 @@ structure S where
   rel : Bool
 deriving Repr, BEq, DecidableEq
 
-/-- The state at mount: at rest, pinned at the page's scrollY. -/
 def init (y : Rat) : S := ⟨rest, 0, y, 0, false, false⟩
 
-/-- The three places a brick changes the step: the restore target, whether a flip may happen, whether a close releases. -/
 structure Hooks where
   target : Rat → Rat → Rat
   allow : Bool → Rat → Bool
   release : Bool
 
-/-- The hooks of the original. -/
 def base : Hooks := ⟨fun p _ => p, fun _ _ => true, false⟩
 
 def absR (d : Rat) : Rat := if 0 ≤ d then d else -d
 
-/-- A delta's travel against the current goal: up the page while open, down the page while closed. -/
 def away (target d : Rat) : Rat := if target = 1 then -d else d
 
 #guard away 1 (-20) == 20 && away 0 20 == 20 && away 1 5 == -5
 
-/-- Brick B's counter after a delta: net travel against the goal, never below 0. -/
 def ctrAfter (s : S) (d : Rat) : Rat := max 0 (s.ctr + away s.tw.target d)
 
-/-- Brick C holds: a close has started and no open since. -/
 def free (h : Hooks) (s : S) : Bool := h.release && s.rel
 
-/-- The pin after a taken move: kept while active and held, else the page's scrollY. -/
 def pinAfter (h : Hooks) (s : S) (r : Read) : Rat := if s.tw.isActive && !free h s then s.pin else r.scrollY
 
-/-- A push toward `g` changes nothing: already heading there, or a flip brick B refuses. -/
 def blocked (h : Hooks) (s : S) (d g : Rat) : Bool :=
   decide (s.tw.target = g ∧ s.tw.t = g) || (s.tw.isActive && !h.allow s.fresh (ctrAfter s d))
 
@@ -95,7 +77,6 @@ def applied (h : Hooks) (s : S) (r : Read) (g : Rat) : S × Out :=
   ({ s with tw := push s.tw g r.reduced r.now, pin := pinAfter h s r, ctr := 0, fresh := false, rel := decide (g = 0) },
     { prevent := !(h.release && decide (g = 0)), goal := some g, flip := s.tw.isActive })
 
-/-- One touchmove or wheel delta (N2 `A`, `M`, `k`, `D`, `E`). -/
 def moveStep (h : Hooks) (s : S) (d : Rat) (r : Read) : S × Out :=
   if taken s.tw.isActive d r.arm then
     match dir d with
@@ -119,12 +100,10 @@ theorem moveStep_cases (h : Hooks) (s : S) (d : Rat) (r : Read) :
       · exact Or.inr (Or.inr ⟨g, rfl, rfl, hb, by simp [hb]⟩)
       · exact Or.inr (Or.inl ⟨rfl, by simpa using hb, by simp [hb]⟩)
 
-/-- One scroll or resize frame (N2 `L`): while active and not released, put the page back on the target. -/
 def frameOut (h : Hooks) (s : S) (y m : Rat) : Out :=
   let tgt := h.target s.pin m
   { write := if s.tw.isActive && !(h.release && s.rel) && decide (y ≠ tgt) then some tgt else none }
 
-/-- One event. -/
 def step (h : Hooks) (s : S) : Ev → S × Out
   | .touchstart y => ({ s with touchY := y.getD 0, ctr := 0, fresh := true }, {})
   | .touchmove y r =>
@@ -135,12 +114,10 @@ def step (h : Hooks) (s : S) : Ev → S × Out
   | .resize y m => (s, frameOut h s y m)
   | .tick now => (if s.tw.pending then { s with tw := Fw.Parts.MorphTween.frame s.tw now } else s, {})
 
-/-- The state after a trace. -/
 def final (h : Hooks) : S → List Ev → S
   | s, [] => s
   | s, e :: t => final h (step h s e).1 t
 
-/-- Each event of a trace with what it did. -/
 def trace (h : Hooks) : S → List Ev → List (Ev × Out)
   | _, [] => []
   | s, e :: t => (e, (step h s e).2) :: trace h (step h s e).1 t
@@ -161,14 +138,12 @@ def rd (y : Rat) (now : Rat) : Read := ⟨y, true, now, false⟩
 
 namespace Orig
 
-/-- The original's state: tween, touch y `c`, pin `s`. -/
 structure S where
   tw : St
   touchY : Rat
   pin : Rat
 deriving Repr, BEq, DecidableEq
 
-/-- N2 `A`/`M`: a taken push pins (from rest), prevents, and pushes toward its direction. -/
 def move (s : S) (d : Rat) (r : Read) : S × Out :=
   let act := s.tw.isActive
   if taken act d r.arm then
@@ -180,7 +155,6 @@ def move (s : S) (d : Rat) (r : Read) : S × Out :=
       else ({ s with tw := push s.tw g r.reduced r.now }, { prevent := true, goal := some g, flip := act })
   else (s, {})
 
-/-- N2 `j`, `M`, `A`, `L`, `T`. -/
 def step (s : S) : Ev → S × Out
   | .touchstart y => ({ s with touchY := y.getD 0 }, {})
   | .touchmove y r =>
@@ -226,7 +200,6 @@ theorem orig_step (s : S) (e : Ev) :
   | scroll y m => refine ⟨rfl, ?_⟩; simp only [step, Orig.step, S.orig, frameOut, base]; by_cases ha : s.tw.isActive <;> by_cases hy : y = s.pin <;> simp [ha, hy]
   | resize y m => refine ⟨rfl, ?_⟩; simp only [step, Orig.step, S.orig, frameOut, base]; by_cases ha : s.tw.isActive <;> by_cases hy : y = s.pin <;> simp [ha, hy]
 
-/-- With every brick at `faithful` the reducer is the original, event by event. -/
 theorem faithful_eq_orig (s : S) (t : List Ev) :
     (final base s t).orig = Orig.final s.orig t ∧ trace base s t = Orig.trace s.orig t := by
   induction t generalizing s with
@@ -240,20 +213,17 @@ theorem faithful_eq_orig (s : S) (t : List Ev) :
 
 /-! ## Bricks and their composition -/
 
-/-- The three bricks. -/
 inductive Brick where
   | clamp
   | flip
   | release
 deriving Repr, DecidableEq
 
-/-- The part id of a brick. -/
 def Brick.id : Brick → String
   | .clamp => clampId
   | .flip => flipId
   | .release => releaseId
 
-/-- What a brick does to the hooks: A clamps the target, B gates flips, C releases. -/
 def Brick.apply : Brick → Hooks → Hooks
   | .clamp, h => { h with target := fun p m => min (h.target p m) m }
   | .flip, h => { h with allow := fun f c => h.allow f c && (f || decide (flipN ≤ c)) }
@@ -271,7 +241,6 @@ theorem applyAll_perm {l l' : List Brick} (p : l.Perm l') (h : Hooks) : applyAll
   | swap x y l => exact apply_comm y x _
   | trans _ _ ih1 ih2 => exact ih1.trans ih2
 
-/-- A pick of each brick part: `true` is the variant `on`. -/
 structure Cfg where
   clamp : Bool
   flip : Bool
@@ -281,18 +250,15 @@ deriving Repr, BEq, DecidableEq
 def Cfg.bricks (c : Cfg) : List Brick :=
   (if c.clamp then [.clamp] else []) ++ (if c.flip then [.flip] else []) ++ (if c.release then [.release] else [])
 
-/-- The hooks of a pick. -/
 def Cfg.hooks (c : Cfg) : Hooks := applyAll c.bricks base
 
 def Cfg.faithful : Cfg := ⟨false, false, false⟩
 
-/-- All 8 picks. -/
 def Cfg.all : List Cfg :=
   [false, true].flatMap fun a => [false, true].flatMap fun b => [false, true].map fun r => ⟨a, b, r⟩
 
 def vname (on : Bool) : String := if on then onV else faithfulV
 
-/-- The pick as `part:variant` entries. -/
 def Cfg.picks (c : Cfg) : List (String × String) :=
   [(clampId, vname c.clamp), (flipId, vname c.flip), (releaseId, vname c.release)]
 
@@ -316,7 +282,6 @@ theorem ofPicks_picks (c : Cfg) : Cfg.ofPicks c.picks = c := by
 
 theorem faithful_hooks : Cfg.faithful.hooks = base := rfl
 
-/-- Any order of the picked bricks gives the same hooks. -/
 theorem order_free (c : Cfg) (l : List Brick) (p : l.Perm c.bricks) : applyAll l base = c.hooks :=
   applyAll_perm p base
 
@@ -331,13 +296,11 @@ theorem hooks_release (c : Cfg) : c.hooks.release = c.release := by
   cases c with | mk a b r => cases a <;> cases b <;> cases r <;> rfl
 
 open Fw.Console.BuildsOpen in
-/-- The registry facts of the three brick parts: two variants, no requires, no conflicts. -/
 def brickParts : List PartFact :=
   [clampId, flipId, releaseId].map fun i =>
     { id := i, variants := [faithfulV, onV], impls := [], requires := [], conflicts := [] }
 
 open Fw.Console.BuildsOpen in
-/-- The bricks add no refusal to any selection of any registry, `engine.scroll:unthrottle` included. -/
 theorem bricks_no_rules (ps : List PartFact) (sel : List (String × String)) :
     ruleErrors (ps ++ brickParts) sel = ruleErrors ps sel := by
   simp [ruleErrors, brickParts, partErrors, List.lookup]
@@ -361,7 +324,6 @@ def Ev.isFrame : Ev → Bool
 theorem step_frame (h : Hooks) (s : S) (e : Ev) (he : e.isFrame = true) : (step h s e).1 = s := by
   cases e <;> simp_all [Ev.isFrame, step]
 
-/-- Frames change no decision: dropping or adding scroll and resize frames leaves the state. -/
 theorem cadence_final (h : Hooks) (s : S) (t : List Ev) : final h s t = final h s (t.filter (!·.isFrame)) := by
   induction t generalizing s with
   | nil => rfl
@@ -370,7 +332,6 @@ theorem cadence_final (h : Hooks) (s : S) (t : List Ev) : final h s t = final h 
     · simp only [final, List.filter, he, Bool.not_true]; rw [step_frame h s e he]; exact ih s
     · simp only [final, List.filter, he, Bool.not_false]; exact ih _
 
-/-- Frames change no decision: every other event does the same at any frame cadence. -/
 theorem cadence_trace (h : Hooks) (s : S) (t : List Ev) :
     (trace h s t).filter (!·.1.isFrame) = trace h s (t.filter (!·.isFrame)) := by
   induction t generalizing s with
@@ -420,7 +381,6 @@ theorem write_frame (h : Hooks) (s : S) (e : Ev) (w : Rat) (hw : (step h s e).2.
 
 /-! ## Brick A: the clamp -/
 
-/-- A: no restore write targets a scrollY above the frame's maxY. -/
 theorem clamp_le (c : Cfg) (hc : c.clamp = true) (s : S) (e : Ev) (w : Rat) (hw : (step c.hooks s e).2.write = some w) :
     ∃ y m, (e = .scroll y m ∨ e = .resize y m) ∧ w ≤ m := by
   obtain ⟨y, m, he, ho⟩ := write_frame _ _ _ _ hw
@@ -436,13 +396,11 @@ theorem clamp_le_trace (c : Cfg) (hc : c.clamp = true) (s : S) (t : List Ev) (e 
   obtain ⟨s', rfl⟩ := mem_trace _ _ _ _ _ hm
   exact clamp_le c hc s' e w hw
 
-/-- A: once the page rests at the real end below an overscroll pin, nothing is written. -/
 theorem clamp_rest (c : Cfg) (hc : c.clamp = true) (s : S) (m : Rat) (hp : m ≤ s.pin) :
     (step c.hooks s (.scroll m m)).2.write = none := by
   have hm : min s.pin m = m := by grind
   simp [step, frameOut, hooks_target, hc, hm]
 
-/-- Without A the same frame writes the overscroll pin back: the spring-back fight. -/
 theorem faithful_fight (c : Cfg) (hc : c.clamp = false) (s : S) (m : Rat) (ha : s.tw.isActive = true)
     (hf : (c.release && s.rel) = false) (hp : m < s.pin) : (step c.hooks s (.scroll m m)).2.write = some s.pin := by
   have : m ≠ s.pin := fun h => by rw [h] at hp; exact Rat.lt_irrefl hp
@@ -455,7 +413,6 @@ theorem clamp_hooks (c : Cfg) :
   · funext f a; simp [hooks_allow]
   · simp [hooks_release]
 
-/-- A changes no state and no event other than a frame's write. -/
 theorem clamp_only_writes (c : Cfg) (s : S) (t : List Ev) :
     final { c with clamp := true }.hooks s t = final { c with clamp := false }.hooks s t ∧
       (trace { c with clamp := true }.hooks s t).filter (!·.1.isFrame) =
@@ -477,7 +434,6 @@ theorem clamp_only_writes (c : Cfg) (s : S) (t : List Ev) :
         | wheel d r => simp only [step]; rw [moveStep_congr _ _ ha hr]
         | _ => simp_all [Ev.isFrame, step]
 
-/-- A writes what the original writes whenever the pin is at or below the frame's maxY. -/
 theorem clamp_same_below (c : Cfg) (s : S) (y m : Rat) (hp : s.pin ≤ m) :
     frameOut { c with clamp := true }.hooks s y m = frameOut { c with clamp := false }.hooks s y m := by
   have hm : min s.pin m = s.pin := by grind
@@ -485,7 +441,6 @@ theorem clamp_same_below (c : Cfg) (s : S) (y m : Rat) (hp : s.pin ≤ m) :
 
 /-! ## Brick B: the flip hysteresis -/
 
-/-- Shape of every reachable state: the goal is 0 or 1, the tween aims at it, the counter is not negative. -/
 def Inv (s : S) : Prop := (s.tw.target = 0 ∨ s.tw.target = 1) ∧ s.tw.t = s.tw.target ∧ 0 ≤ s.ctr
 
 theorem inv_init (y : Rat) : Inv (init y) := by
@@ -525,7 +480,6 @@ theorem inv_final (h : Hooks) (s : S) (t : List Ev) (hi : Inv s) : Inv (final h 
   | nil => exact hi
   | cons e t ih => exact ih _ (inv_step h s e hi)
 
-/-- B: a flip under B needs a new touch since the last push, or the counter at `flipN`. -/
 theorem flip_needs (c : Cfg) (hc : c.flip = true) (s : S) (d : Rat) (r : Read)
     (hf : (moveStep c.hooks s d r).2.flip = true) : s.fresh = true ∨ flipN ≤ ctrAfter s d := by
   rcases moveStep_cases c.hooks s d r with ⟨-, he⟩ | ⟨-, -, he⟩ | ⟨g, -, -, hb, he⟩ <;> rw [he] at hf
@@ -557,7 +511,6 @@ theorem dir_small (d : Rat) (h : absR d < 1) : dir d = none := by
   unfold absR at h
   simp [h]
 
-/-- A flip's travel against the goal is the size of its delta. -/
 theorem away_flip (s : S) (d g : Rat) (hi : Inv s) (hd : dir d = some g) (hn : ¬ (s.tw.target = g ∧ s.tw.t = g)) :
     away s.tw.target d = absR d := by
   obtain ⟨h1, h2, -⟩ := hi
@@ -594,7 +547,6 @@ theorem flip_same_move (c : Cfg) (s : S) (d : Rat) (r : Read) (hi : Inv s) (hd :
     | some g => simp only [hb g hdir]
   · rfl
 
-/-- The delta a move event carries in a given state. -/
 def moveDelta (s : S) : Ev → Option Rat
   | .touchmove y _ => some (s.touchY - y.getD s.touchY)
   | .wheel d _ => some d
@@ -610,12 +562,10 @@ theorem flip_same_step (c : Cfg) (s : S) (e : Ev) (hi : Inv s)
   | wheel d r => exact flip_same_move c _ _ r hi (hd _ rfl)
   | _ => simp [step, frameOut, hooks_target, hooks_release]
 
-/-- Every move of the trace, in the state it meets, is below the dead zone or at least `flipN`. -/
 def AllBig (h : Hooks) : S → List Ev → Prop
   | _, [] => True
   | s, e :: t => (∀ d, moveDelta s e = some d → absR d < 1 ∨ flipN ≤ absR d) ∧ AllBig h (step h s e).1 t
 
-/-- B: when every move is below the dead zone or at least `flipN`, B decides exactly as without it. -/
 theorem flip_same (c : Cfg) (s : S) (t : List Ev) (hi : Inv s) (hb : AllBig { c with flip := false }.hooks s t) :
     trace { c with flip := true }.hooks s t = trace { c with flip := false }.hooks s t ∧
       final { c with flip := true }.hooks s t = final { c with flip := false }.hooks s t := by
@@ -629,10 +579,8 @@ theorem flip_same (c : Cfg) (s : S) (t : List Ev) (hi : Inv s) (hb : AllBig { c 
     · simp only [trace]; rw [he, i1]
     · simp only [final]; rw [he, i2]
 
-/-- The counter's bound for a finger inside `[lo, hi]`: the room left against the current goal. -/
 def room (lo hi : Rat) (s : S) : Rat := if s.tw.target = 1 then s.touchY - lo else hi - s.touchY
 
-/-- A touch-only trace whose finger stays in `[lo, hi]`: moves, frames and tween frames, no new touch. -/
 def InBand (lo hi : Rat) : Ev → Prop
   | .touchmove y _ => ∀ v, y = some v → lo ≤ v ∧ v ≤ hi
   | .scroll .. | .resize .. | .tick _ => True
@@ -673,7 +621,6 @@ theorem band_move (c : Cfg) (hc : c.flip = true) (lo hi : Rat) (hw : hi - lo < f
       intro s' hv; unfold room; split <;> grind
     exact ⟨by simp [applied, hact], ⟨hy'.1, hy'.2, h0 _ rfl, rfl⟩⟩
 
-/-- B: a finger that wiggles inside a band narrower than `flipN`, with no new touch, never flips the goal. -/
 theorem flip_band (c : Cfg) (hc : c.flip = true) (lo hi : Rat) (hw : hi - lo < flipN) (s : S) (t : List Ev)
     (hb : Band lo hi s) (ht : ∀ e ∈ t, InBand lo hi e) : ∀ p ∈ trace c.hooks s t, p.2.flip = false := by
   induction t generalizing s with
@@ -701,7 +648,6 @@ theorem flip_band (c : Cfg) (hc : c.flip = true) (lo hi : Rat) (hw : hi - lo < f
     · exact hstep.1
     · exact ih _ hstep.2 hrest p hp
 
-/-- Right after any push the counter is 0 and no touch is new, so a band trace from there never flips. -/
 theorem band_after_push (lo hi : Rat) (s : S) (h1 : lo ≤ s.touchY) (h2 : s.touchY ≤ hi) (hc : s.ctr = 0)
     (hf : s.fresh = false) : Band lo hi s := by
   refine ⟨h1, h2, ?_, hf⟩
@@ -725,7 +671,6 @@ theorem release_rel (h : Hooks) (s : S) (e : Ev) (hr : s.rel = true) (hg : (step
   | tick now => simp only [step]; split <;> exact hr
   | _ => exact hr
 
-/-- C: a close start releases the pin. -/
 theorem release_starts (h : Hooks) (s : S) (e : Ev) (hg : (step h s e).2.goal = some 0) : (step h s e).1.rel = true := by
   have hm : ∀ s' : S, ∀ d r, (moveStep h s' d r).2.goal = some 0 → (moveStep h s' d r).1.rel = true := by
     intro s' d r hg'
@@ -741,7 +686,6 @@ theorem release_starts (h : Hooks) (s : S) (e : Ev) (hg : (step h s e).2.goal = 
   | scroll => simp [step, frameOut] at hg
   | resize => simp [step, frameOut] at hg
 
-/-- C: the close start itself and every later move until a re-open leave the page free to scroll. -/
 theorem release_close_free (c : Cfg) (hc : c.release = true) (s : S) (e : Ev) (hg : (step c.hooks s e).2.goal = some 0) :
     (step c.hooks s e).2.prevent = false := by
   have hm : ∀ s' : S, ∀ d r, (moveStep c.hooks s' d r).2.goal = some 0 → (moveStep c.hooks s' d r).2.prevent = false := by
@@ -756,7 +700,6 @@ theorem release_close_free (c : Cfg) (hc : c.release = true) (s : S) (e : Ev) (h
   | scroll => simp [step, frameOut] at hg
   | resize => simp [step, frameOut] at hg
 
-/-- C: once released, no restore write until the next open. -/
 theorem release_quiet (c : Cfg) (hc : c.release = true) (s : S) (t : List Ev) (hr : s.rel = true)
     (hno : ∀ p ∈ trace c.hooks s t, p.2.goal ≠ some 1) : ∀ p ∈ trace c.hooks s t, p.2.write = none := by
   induction t generalizing s with
@@ -777,7 +720,6 @@ theorem release_quiet (c : Cfg) (hc : c.release = true) (s : S) (t : List Ev) (h
     · exact hw
     · exact ih _ hr' (fun q hq => hno q (by simp only [trace, List.mem_cons]; exact Or.inr hq)) p hp
 
-/-- C: after a close starts, no restore write until the next open. -/
 theorem release_after_close (c : Cfg) (hc : c.release = true) (s : S) (e : Ev) (t : List Ev)
     (hg : (step c.hooks s e).2.goal = some 0) (hno : ∀ p ∈ trace c.hooks (step c.hooks s e).1 t, p.2.goal ≠ some 1) :
     ∀ p ∈ trace c.hooks (step c.hooks s e).1 t, p.2.write = none :=
@@ -825,7 +767,6 @@ theorem release_same_step (c : Cfg) (s : S) (e : Ev) (hr : s.rel = false)
   | touchstart => exact ⟨rfl, hr⟩
   | tick now => refine ⟨rfl, ?_⟩; simp only [step]; split <;> exact hr
 
-/-- C: a trace with no close start decides exactly as without C (the open path is unchanged). -/
 theorem release_open_same (c : Cfg) (s : S) (t : List Ev) (hr : s.rel = false)
     (hno : ∀ p ∈ trace { c with release := false }.hooks s t, p.2.goal ≠ some 0) :
     trace { c with release := true }.hooks s t = trace { c with release := false }.hooks s t ∧
@@ -842,7 +783,6 @@ theorem release_open_same (c : Cfg) (s : S) (t : List Ev) (hr : s.rel = false)
 
 /-! ## Every combination -/
 
-/-- The 8 picks, each brick's claim holds whatever the other two are, and all are valid in the registry. -/
 theorem all_combinations (c : Cfg) :
     c ∈ Cfg.all ∧
       (∀ l : List Brick, l.Perm c.bricks → applyAll l base = c.hooks) ∧

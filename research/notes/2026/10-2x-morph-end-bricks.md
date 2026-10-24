@@ -24,7 +24,7 @@ topics: [morph, end-of-page, touch, scroll, pin, rubber-band, lean, bricks]
 ## The model
 
 N2 is the original's `nodes/2.DyWL8TcE.js`; the reducer restates lines 13017-13090 and the rewrite's
-`apps/site/src/parts/morph.tween/driver.ts` (same logic). Events: `touchstart`, `touchmove` (finger y plus the page's
+`apps/site/src/parts/morph.tween/driver.ts`. Events: `touchstart`, `touchmove` (finger y plus the page's
 scrollY and the armed rect test read in the same handler), `wheel`, `scroll` and `resize` (one frame, with scrollY and
 the real maxY), `tick` (a tween frame). Each event returns `preventDefault`, a push goal and whether it flipped an active
 morph, and a `scrollTo` target. The tween is `Fw.Parts.MorphTween` unchanged.
@@ -58,7 +58,7 @@ Each case runs under all 8 picks; every line lists the events and, per event, `p
 - The near/far IntersectionObserver attach is not modelled; every trace starts with the listeners attached.
 - The second scroll listener of `morph.mount` is not modelled.
 - C stops `preventDefault` mid-drag. WebKit may keep a touch sequence non-scrollable once its first move was prevented
-  (INFERRED); the measure task checks it on the phone.
+  (INFERRED); the measure task checks it.
 - `flipN` = 16 is a named constant; the measure task tunes it from the recorded passes.
 - Only the `createTweenDriver` path is covered; the `waapi`, `waapi-scoped`, `scroll-lock` and `band` variants of
   `morph.tween` use their own drivers (follow-up).
