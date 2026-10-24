@@ -7,6 +7,12 @@
 // callback runs before the page's own callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from
 // scrollY of frame i, not from the scrollY read next to it. Lean `partSeries` pairs each value with that earlier position; the stall
 // rule compares those pairs.
+// The Safari toolbar changes the visual viewport height (collapsed 815 vs 775 px) while the person swipes, so every frame also stores
+// `vv.height` (`vh`) and `vv.offsetTop` (`vt`) in 0.1 px (innerHeight when there is no visualViewport); Lean (`classes`) splits the frames
+// into toolbar-moving and toolbar-still and the verdicts compare like with like per class. These reads DO flush layout in WebKit
+// (VisualViewport.cpp:72-76 updateFrameLayout, used by offsetTop 87-94, height 123-130 and scale 132-141 @ WebKit 862f17d), but the
+// callback writes no DOM and already reads `vv.scale` and `scrollY` every frame, so the layout is already up to date and the two new reads
+// add no layout work.
 // A touch ON a moving page stops its native fling; the person's tap therefore changes the scroll it marks. Say so in the session steps.
 // The felt mark must not change the page: the step text names an empty area; a tap that still hits a link ends the page, which the
 // pagehide listener (and, after the navigation, the missing liveness flag the poll looks for) names as the failure. A pinch or
@@ -22,7 +28,7 @@ export const PART_PROPS = Object.freeze({ hero: '--exit-opacity', people: '--fut
 export const RECORD_JS = (seconds) => `(async () => {
   const PROPS = ${JSON.stringify(PART_PROPS)};
   const maxY = document.documentElement.scrollHeight - innerHeight;
-  const t = [], y = [], p = { hero: [], people: [], fade: [] }, touches = [];
+  const t = [], y = [], vh = [], vt = [], p = { hero: [], people: [], fade: [] }, touches = [];
   const els = {}, last = { hero: 0, people: 0, fade: 0 };
   const read = (name) => {
     let el = els[name];
@@ -52,13 +58,14 @@ export const RECORD_JS = (seconds) => `(async () => {
       for (const n of Object.keys(p)) p[n].push(read(n));
       const sc = vv ? vv.scale : 1;
       if (Math.abs(sc - 1) > 0.001) { zoom.frames++; zoom.min = Math.min(zoom.min, sc); zoom.max = Math.max(zoom.max, sc); }
+      vh.push(Math.round((vv ? vv.height : innerHeight) * 10) / 10); vt.push(Math.round((vv ? vv.offsetTop : 0) * 10) / 10);
       if (performance.now() - t0 < ${Number(seconds) * 1000}) requestAnimationFrame(f); else done();
     };
     requestAnimationFrame(f);
   });
   for (const k of Object.keys(code)) removeEventListener(k, onTouch, opt);
   removeEventListener('pagehide', onHide, opt);
-  return { zoom, maxY: Math.round(maxY * 10) / 10, viewport: { w: innerWidth, h: innerHeight, dpr: devicePixelRatio }, frames: { t, y, p }, touches };
+  return { zoom, maxY: Math.round(maxY * 10) / 10, viewport: { w: innerWidth, h: innerHeight, dpr: devicePixelRatio }, frames: { t, y, vh, vt, p }, touches };
 })()`;
 
 /** The arm of step `k` (1-based) from a plan Lean wrote (`planFor`), with its banner text. */
