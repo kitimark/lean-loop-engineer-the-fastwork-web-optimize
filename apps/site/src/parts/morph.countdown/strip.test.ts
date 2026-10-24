@@ -38,8 +38,7 @@ const px = (w: Writable): number | null => {
   return m ? Number(m[1]) : NaN;
 };
 
-/** One seconds digit (unit 3, place 1) driven by the golden's events. */
-const replay = (variant: 'faithful' | 'strip', events: Ev[]) => {
+const replaySecondsOnes = (variant: 'faithful' | 'strip', events: Ev[]) => {
   const nodes: Writable[] = Array.from({ length: variant === 'strip' ? 1 : 10 }, () => ({ style: { transform: '' } }));
   let secs = 0;
   let reduced = false;
@@ -82,7 +81,7 @@ describe('morph.countdown strip golden (Lean Fw.Parts.MorphCountdownStrip)', () 
   for (const r of drives) {
     for (const variant of ['faithful', 'strip'] as const) {
       it(`${r.scenario}: createCountdownDriver ${variant} writes the golden transforms`, () => {
-        const got = replay(variant, r.events);
+        const got = replaySecondsOnes(variant, r.events);
         expect(got.length).toBe(r.after.length);
         got.forEach((g, i) => {
           const want = r.after[i]!;

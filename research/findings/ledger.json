@@ -3571,6 +3571,49 @@
    "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
    "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; a phone pass of the shipped text; then set proved and regenerate the v2-proved preset.",
    "flag": "engine.scroll:unthrottle"
+  },
+  {
+   "id": "morph.countdown.strip",
+   "n": 7,
+   "part": "morph.countdown (+ hero.countdown)",
+   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "status": "partly-proved",
+   "flags": [
+    "morph.countdown:strip",
+    "hero.countdown:strip"
+   ],
+   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
+   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance; gate run 40081933958 gave no verdict (flag string not prerendered).",
+   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "leanFor": [
+    "Fw.Parts.MorphCountdownStrip.same_face_px",
+    "Fw.Parts.MorphCountdownStrip.phase_same",
+    "Fw.Parts.MorphCountdownStrip.dom_same",
+    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
+    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
+    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphCountdownStrip.layers_conservative",
+    "Fw.Parts.MorphCountdownStrip.layers_paused",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
+   ],
+   "missingWhy": [
+    "Breakpoint gate verdict on ?fw=morph.countdown:strip,hero.countdown:strip (the prerendered order)",
+    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
+    "UIView creation time at morph start on the phone"
+   ],
+   "premises": [
+    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
+    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
+    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
+    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
+   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40081933958 (breakpoint gate, smoke refused the flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Dispatch the gate with the prerendered flag order; add a morph.countdown strip role to the gate if its face count reads as differ."
   }
  ],
  "notes": [

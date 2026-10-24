@@ -78,8 +78,6 @@ def runFrom (v : Variant) : Slot × Dom → List Ev → List (Slot × Dom)
 
 def run (v : Variant) (evs : List Ev) : List (Slot × Dom) := runFrom v (init v) evs
 
-/-! ## Phase: spring, target and timing do not read the variant -/
-
 theorem drive_fst (v : Variant) (x : Slot × Dom) (e : Ev) : (drive v x e).1 = (upd x.1 e).1 := rfl
 
 theorem runFrom_fst (v w : Variant) (evs : List Ev) :
@@ -114,8 +112,6 @@ theorem upd_noWrite (s : Slot) (e : Ev) (h : (upd s e).2 = false) :
   | frame _ => simp [upd] at h
   | cell _ => simp [upd] at h
 
-/-! ## The DOM holds the current slot's transforms -/
-
 def Inv (v : Variant) (x : Slot × Dom) : Prop := 0 < x.1.cell → x.2 = (render v x.1).map some
 
 theorem inv_init (v : Variant) : Inv v (init v) := by
@@ -143,8 +139,6 @@ theorem inv_runFrom (v : Variant) (evs : List Ev) :
     rcases hy with rfl | hy
     · exact hx
     · exact ih _ (inv_drive v x e hx) y hy
-
-/-! ## The picture the DOM shows -/
 
 def pxAt (d : Dom) (k : Nat) : Rat := (d.getD k none).getD 0
 
@@ -182,8 +176,7 @@ theorem dom_same (vp : Rect) (g : DigitGeo) (x y : Slot × Dom) (hx : Inv .faith
   rw [hx hc, hy (hs ▸ hc), faithful_scene g x.1 hg.symm h0, strip_scene g y.1 (hs ▸ hg.symm) h0, hs]
   exact strip_digit_same vp g y.1.spring.value
 
-/-- **Per frame and digit.** Pairing the two runs call by call, the slots are equal and, once the cell is known,
-the visible face pixels are equal. -/
+/-- Paired call by call, both runs hold one slot and, once the cell is known, the same visible face pixels. -/
 theorem same_face_px (evs : List Ev) :
     ∀ p ∈ (run .faithful evs).zip (run .strip evs), p.1.1 = p.2.1 ∧
       (0 < p.1.1.cell → ∀ vp g, g.c = p.1.1.cell →
@@ -194,11 +187,8 @@ theorem same_face_px (evs : List Ev) :
   have heq := zip_fst .faithful .strip evs (init .faithful) (init .strip) rfl p hp
   exact ⟨heq, fun hc vp g hg => dom_same vp g p.1 p.2 hf hs heq hc hg⟩
 
-/-! ## Layers on WebKit
-
-`requiresCompositingForWillChange` (WebCore/rendering/RenderLayerCompositor.cpp:3997-4018@862f17d) composites a
-RenderBox with `will-change: transform` unless the policy is Conservative off Mac. -/
-
+/-- A `will-change: transform` RenderBox composites unless Conservative off Mac (`requiresCompositingForWillChange`,
+WebCore/rendering/RenderLayerCompositor.cpp:3997-4018@862f17d). -/
 def composited (pol : WebKit.Policy) (active : Bool) : Bool := active && WebKit.composites pol .willChange
 
 /-- A RenderLayer between a composited layer and its compositing ancestor, read on the containing-block chain. -/
@@ -248,8 +238,7 @@ theorem layers_ratio (pol : WebKit.Policy) (active : Bool) (n : Nat) (as : List 
   unfold clockLayers nodes
   split <;> constructor <;> simp [Nat.mul_assoc]
 
-/-- **80 -> 16.** Eight digits under the Normal policy with the scene active: 80 composited faces (160 platform
-layers with their clipping layers) become 8 strips, 16 platform layers in all. -/
+/-- Eight active digits under Normal: 80 composited faces (160 platform layers) become 8 strips (16). -/
 theorem layers_80_to_16 :
     clockLayers .faithful .normal true 8 countdownChain = ⟨80, 160⟩ ∧
       clockLayers .strip .normal true 8 countdownChain = ⟨8, 16⟩ := by
@@ -268,8 +257,6 @@ theorem layers_conservative (v : Variant) (active : Bool) (n : Nat) (as : List A
 theorem layers_paused (v : Variant) (pol : WebKit.Policy) (n : Nat) (as : List Anc) :
     clockLayers v pol false n as = ⟨0, 0⟩ := by
   simp [clockLayers, composited]
-
-/-! ## Golden rows -/
 
 open Lean
 
@@ -309,7 +296,6 @@ def evJ : Ev → Json
 def frames (t0 : Rat) (dts : List Rat) : List Ev :=
   (dts.foldl (fun (acc : Rat × List Ev) dt => (acc.1 + dt, acc.2 ++ [.frame (acc.1 + dt)])) (t0, [])).2
 
-/-- Scenarios: a ones roll, a 0 to 9 roll, a reduced jump, no cell yet, a restart mid-roll, uneven frame gaps. -/
 def scenarios : List (String × List Ev) :=
   [("ones", [.refresh 125 0 false, .cell 52, .refresh 124 1000 false] ++ frames 1000 (List.replicate 8 16)),
    ("wrap", [.refresh 120 0 false, .cell 31, .refresh 119 1000 false] ++ frames 1000 (List.replicate 6 16)),
