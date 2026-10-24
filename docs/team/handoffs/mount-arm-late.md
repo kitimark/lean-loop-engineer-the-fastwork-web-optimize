@@ -3,8 +3,8 @@
 - Branch `worktree-wf_112a77b1-8ca-1`, worktree `.claude/worktrees/wf_112a77b1-8ca-1`, CI branch `ci/mount-arm-late`; last commit = `git log -1`.
 - CI runs: `40092331051` trajectory-probe success (inputs read back: `fw=morph.mount:arm-late widths=390,1280 engines=both
   diagnostic`; Chromium 0 new fails, 1 baseline-red, 1 undecided open@1 coverage; playwright-webkit 2000 pass 0 fail).
-  `40093577005` breakpoint-gate success (default config, no flag). `40095661200` breakpoint-gate WITH the flag `morph.mount:arm-late`: success (lead dispatch). `40092331031`, `40093577014` lean: fail by design, the
-  import check wants `lean/Fw.lean` wired (lead).
+  `40093577005` breakpoint-gate success (default config, no flag). `40095661200` breakpoint-gate WITH the flag `morph.mount:arm-late`: success (lead dispatch). lean runs `40092331031`, `40093577014` failed before
+  `lean/Fw.lean` was wired (now wired; lake build green in the dry land).
 - Verified: `lean/scripts/check.sh` green with the two imports added locally (axiom check included); site test and
   typecheck green; `part-footprint.mjs --check` green; `fw plan lint` has no writesClosure error for this task.
 - Read first: `lean/Fw/Parts/MorphMountArmLate.lean`: `prevent_needs`, `covers`, `stepW_inv`, `late_same`, `ops_reach`.
@@ -17,11 +17,8 @@
 
 ## Lead wiring and dispatches
 
-- `lean/Fw.lean`: add `import Fw.Parts.MorphMountArmLate` and `import Fw.Parts.MorphMountArmLateGolden`; no check.sh job needed
-  (golden is a `#guard`). Optional driver for `--check`: `Fw.Parts.MorphMountArmLateGolden.runGolden`.
-- Writes outside the task row: `apps/site/src/parts/morph.mount/index.tsx` (the flag wiring), `armLate.component.test.ts`,
-  `lean/Fw/Parts/FootprintData.lean` (from `part-footprint --write`); the dry land refuses on these three.
-- Gate with the flag: `gh workflow run breakpoint-gate --ref ci/mount-arm-late -f fw=morph.mount:arm-late`.
+- Wired: `lean/Fw.lean` imports both modules (lines 59-60); `index.tsx`, `armLate.component.test.ts`, `FootprintData.lean`
+  are in the task writes (work graph r427).
 
 ## Open
 

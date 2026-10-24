@@ -3610,7 +3610,7 @@
    ],
    "v1Evidence": "none",
    "lesson": "A blocking listener can be demoted to passive wherever the lock decision cannot ask for preventDefault; the proof is a band that covers the arm test plus a state invariant for the active morph.",
-   "next": "Dispatch the breakpoint gate with the flag, then a booked phone session for touch-start to first scroll frame; wire lean/Fw.lean.",
+   "next": "A booked phone session for touch-start to first scroll frame near the page end; a lane that reads window.__fwArmLate.frames.",
    "evidence": "Lean Fw.Parts.MorphMountArmLate.late_same (golden packages/contracts/golden/parts/morph-mount-arm-late.jsonl); trajectory probe 40092331051 (morph.mount:arm-late); breakpoint gate 40093577005 (A/A); breakpoint gate with the flag 40095661200"
   },
   {
