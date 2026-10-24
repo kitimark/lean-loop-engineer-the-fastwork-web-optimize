@@ -28,10 +28,12 @@ function deps(booted: () => { udid: string; name: string }[]): Deps {
 }
 
 describe("a sim slot release records the booted udids", () => {
-  it("state.json keeps the upper-case udids of the devices booted at the release; fw reap reads them (no name prefix)", async () => {
-    const d = deps(() => [{ udid: "aaaa-1", name: "iPhone 17e" }, { udid: "bbbb-2", name: "other" }]);
+  it("state.json keeps the upper-case udids of the devices booted since the acquire (a device booted before it is not the run's); fw reap reads them (no name prefix)", async () => {
+    let up = false;
+    const d = deps(() => (up ? [{ udid: "aaaa-1", name: "iPhone 17e" }, { udid: "bbbb-2", name: "other" }, { udid: "cccc-3", name: "was up" }] : [{ udid: "cccc-3", name: "was up" }]));
     const g = await acquire(d, "sim", 900, null);
     expect(g).not.toBeNull();
+    up = true;
     expect(releaseToken(d, g!.token)).toBe(true);
     const st = JSON.parse(readFileSync(join(d.dir, "state.json"), "utf8")) as { simUdids?: string[]; simAcquired?: number };
     expect(st.simUdids).toEqual(["AAAA-1", "BBBB-2"]);
