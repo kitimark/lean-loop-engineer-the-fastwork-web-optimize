@@ -1,18 +1,14 @@
 branch: worktree-wf_6d63a3b2-2b5-1 (CI branch ci/one-chain-webkit)
-worktree: .claude/worktrees/wf_6d63a3b2-2b5-1 (under the main checkout)
-last commit: see `git log -1` (code commit f72a78731, note and handoff after it)
-CI runs: none started by me (the counts and gate lanes need workflow inputs, so the lead dispatches them; see the note)
+worktree: .claude/worktrees/wf_6d63a3b2-2b5-1
+last commit: see `git log -1`
+CI runs (all on ci/one-chain-webkit at 9623493da): gate 40139523821 success; Chromium counts base 40139538524 success,
+flag 40139529440 success; WebKit sim flag 40139526492 success (n=1), base 40139511311 failed (VM timeout, n=0).
 
 State
-- Cause found: the first build ran the digits at their shared subscriber, before the scroll tick; the tick's first
-  `window.scrollY` flushed the 10 face writes (2 updates, 330 elements, against 1 and 320). Lean `frameCost`,
-  `frame499_faithful`, `frame499_atSubscriber`, `frame499_last`, `orderLast_eq_faithful` reproduce the counts exactly.
-- Fix: `oneChainClock` (apps/site/src/parts/hero.countdown/driver.ts) re-queues its shared subscriber to the end of the
-  shared set on the first visit of a frame and runs the chains on the second visit.
-- Golden row `order499` regenerated from Lean; `oneChain.test.ts` replays it (276 hero.countdown tests pass).
-
-Verified: lake build of the module, golden --check, vitest hero.countdown.
-Open: WebKit counts base vs flag (3 runs each), Chromium swipe-touch-v1 base vs flag after the fix, breakpoint gate
-both engines; commands in research/notes/2026/10-2x-one-chain-webkit.md. The scroll tick as the reader is INFERRED.
-Read first: research/notes/2026/10-2x-one-chain-webkit.md, lean/Fw/Parts/HeroCountdownOneChain.lean (section "Where in
-the frame the digits run").
+- Fix (digits last) is in; Lean frameCost theorems stand; golden order499 replays.
+- Chromium post-fix: flag +1 update in 157/771 swipe frames (3/3 runs), FireAnimationFrame -314. Verdict trade.
+  The profile changed, so frame 499 is not comparable; the causal check is not delivered.
+- WebKit: base has no usable VM; verdict open. Re-dispatch the base (lead):
+  pnpm -s fw run --target rewrite --engines webkit --runs 3 --ref ci/one-chain-webkit
+Read first: research/notes/2026/10-2x-one-chain-webkit.md (section Post-fix runs).
+Follow-up: choose the digits' order per frame kind from a trace, or revert to the subscribe position.

@@ -22,8 +22,31 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
   (`orderLast_eq_faithful`, `frame499_last`). Steps, writes and rAF callback counts are untouched, so every earlier
   theorem stands. The golden got the row `order499` (regenerated from Lean), and `oneChain.test.ts` replays it through
   the real shared loop for the three orders.
-- **Verdicts.** Chromium: win on script work (MEASURED before: FireAnimationFrame -243 and -252); the frame-499 fix is
-  not yet measured. WebKit: not yet measured. The lead sets win, trade or no-win per engine after the dispatches below.
+- **Verdicts (after the runs, below).** Chromium: trade. The fix does not hold: it removes the frame-499 anomaly's
+  cause by construction but adds one empty style update in 157 of 771 frames (MEASURED, 3 of 3 runs). WebKit: not
+  decided, the base arm has no usable VM.
+
+## Post-fix runs (MEASURED, sha 9623493da, ci/one-chain-webkit)
+
+- Chromium counts, swipe-touch-v1, 3 runs per arm: base run 40139538524, flag run 40139529440. The profile file
+  changed since the old runs (sha 3e038fd6 against 616ca6ab; 771 frames against 531), so "frame 499" is a different
+  frame now and the causal check "frame 499 back at 1 update and 320 elements" cannot be read. At index 499 base and
+  flag are equal (4 updates, 67 elements). The cause stays CONFIRMED by source and Lean, not causally by this run.
+- What the runs show instead: flag minus base is +1 UpdateLayoutTree and +1 ScheduleStyleRecalculation in 157, 157 and
+  159 frames (r1, r2, r3), starting at frame 13 (frames 13-34 are all +1 with equal element counts), elements -46 over
+  the run, FireAnimationFrame -314 (2572 to 2258), RequestAnimationFrame -315. Before the fix, on the same first
+  frames (old flag run 39313842964 against old base 39313910496) frames 13-34 were equal to base. So running the
+  digits last adds an update that the original does not have in those frames, while it removes the one in frame 499.
+  The one-dirty-bit model fits frame 499 only; the original's order is not "last" in every frame (INFERRED: in frames
+  13-34 the original's face writes ride the scroll tick's flush, that is they run before the tick).
+- WebKit Simulator counts (webkit-sim.yml, rewrite, 430): flag run 40139526492 gave 1 usable VM (n=1; passes style
+  665 and 680, layout 605 and 639). Base run 40139511311: its only VM (r1) timed out in the Simulator (no Safari
+  tab for minutes, warm-up retried) and produced no artifact json (n=0); its job log shows one pass of style 699,
+  layout 663 from a degraded session. That is not a comparison. Re-dispatch the base:
+  `pnpm -s fw run --target rewrite --engines webkit --runs 3 --ref ci/one-chain-webkit`.
+- Breakpoint gate, both engines, flag on: run 40139523821 success (chromium j0-j2, playwright-webkit j0-j3, merge).
+- Next step (follow-up): an order that is right in both frame kinds needs the original's callback order, read from a
+  trace, or the variant goes back to the subscribe position (net recalc +1, not +157).
 
 ## Source (CONFIRMED)
 
