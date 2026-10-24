@@ -8,8 +8,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFamEach, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { main, summaryMd } from '../src/trajectory/cli.mjs';
-import { mergeRaws, planOf } from '../src/trajectory/plan.mjs';
-import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS } from '../src/trajectory/registry.mjs';
+import { basisAt, cellOutcome, COARSE_ONLY, mergeRaws, planOf, probeCoarse } from '../src/trajectory/plan.mjs';
+import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS, envFor } from '../src/trajectory/registry.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory.jsonl', import.meta.url)), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
@@ -119,7 +119,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit', 'cell', 'cellEnv'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -204,7 +204,19 @@ for (const g of golden) {
       const got = pickWidths(g.input);
       assert.deepEqual(got === null ? { ok: false } : { ok: true, widths: got }, g.pick);
     } else if (g.op === 'plan') assert.deepEqual(planOf(g.engines, g.widths), g.legs);
-    else if (g.op === 'byMStart') {
+    else if (g.op === 'cellEnv') {
+      assert.deepEqual(g.rows, WIDTHS.map((w) => [w, probeCoarse(w)]));
+      assert.deepEqual(g.coarseOnly, COARSE_ONLY);
+      for (const [w, coarse] of g.rows) {
+        const e = envFor(w);
+        assert.equal(e.pointer === 'coarse', coarse, `pointer at ${w}`);
+        assert.equal(e.hover === 'none', coarse, `hover at ${w}`);
+      }
+    } else if (g.op === 'cell') {
+      const s = { engine: g.engine, walk: g.walk, flags: g.flags, widths: g.widths, groups: g.groups };
+      assert.deepEqual(WIDTHS.map((w) => basisAt(g.flags, w)), g.basis, g.name);
+      assert.equal(cellOutcome(s), g.outcome, g.name);
+    } else if (g.op === 'byMStart') {
       const d = (cls) => durOf(g.node, g.prop, g.width, cls);
       assert.deepEqual(byMStart(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);
     } else if (g.op === 'start') {

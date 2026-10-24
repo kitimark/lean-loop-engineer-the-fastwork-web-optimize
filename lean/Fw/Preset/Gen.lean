@@ -6,7 +6,7 @@ Run from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--che
 -/
 namespace Fw.Preset.Gen
 open Lean Fw.Preset
-open Fw.Gate.Trajectory (Stored Engine Walk Family Group Outcome Unjudged UnitRow outcome groupsOf widthsOf)
+open Fw.Gate.Trajectory (Stored Engine Walk Family Group Outcome Unjudged UnitRow outcome basisAt groupsOf widthsOf)
 
 def linkTable : List (Flag × List Key) :=
   let k1 : Key := ("engine.scroll", "batched (all reads, then all returned writes, one pass per frame)")
@@ -370,7 +370,8 @@ def trajJson (st : List Stored) (f : Flag) : Json :=
     Json.mkObj [("family", .str (familyWord fam)), ("path", .str (walkWord w)), ("cell", .str (tcellWord (tcell st f fam w))),
       ("runs", .arr ((runsFor st f fam w).map fun s => Json.mkObj [("run", .str s.run),
         ("engine", .str (engineWord s.engine)), ("alone", .bool (s.flags == [f.key])),
-        ("outcome", .str (outcomeWord (outcome s)))]).toArray)]
+        ("outcome", .str (outcomeWord (outcome s))),
+        ("sameByProof", toJson (s.widths.filter fun w => basisAt s.flags w == .sameByProof))]).toArray)]
   Json.mkObj [("verdict", .str (twhyWord (trajWhy st f))),
     ("cells", .arr (families.flatMap fun fam => walks.map (cell fam)).toArray)]
 
