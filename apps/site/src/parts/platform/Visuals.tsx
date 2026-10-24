@@ -5,6 +5,7 @@ import { createAskDriver, createCountUp, observeVisible } from '../platform.entr
 import type { View } from '../platform.entries/logic';
 import { PROFILE_TARGET } from '../platform.entries/logic';
 import { createGlintDriver } from '../platform.glint/driver';
+import { createPause } from '../platform.glint/pause';
 import { X1, X2 } from '../platform.glint/logic';
 import { ASK_TITLE, FLAGS, NETWORK, ORDERS, PROFILE, QUOTE, REVIEWS, TOPICS, UK_LAYERS, type Service } from './content';
 import { matchList } from './media';
@@ -14,6 +15,7 @@ import v from './visuals.module.css';
 export interface Subs {
   entries: boolean;
   glint: boolean;
+  glintPause?: boolean;
   marquee: boolean;
 }
 
@@ -321,12 +323,16 @@ export function Secure({ subs }: { subs: Subs }) {
           onState: (s) => setPlaying(s.v),
         })
       : null;
+    const pause = subs.glintPause
+      ? createPause(() => Array.from(el.querySelectorAll<SVGSVGElement>('[data-fw-dash] svg')), () => performance.now())
+      : null;
     let ratio = 0;
     const io = new IntersectionObserver(
       ([e]) => {
         ratio = e?.isIntersecting ? e.intersectionRatio : 0;
         const visible = ratio >= 0.35;
         toggle(el, v.isPlay!, visible && !(reduce?.matches ?? false));
+        pause?.ratio(ratio);
         glint?.ratio(ratio);
       },
       { threshold: [0, 0.35, 0.6] },
@@ -343,7 +349,7 @@ export function Secure({ subs }: { subs: Subs }) {
       reduce?.removeEventListener('change', onReduce);
       glint?.dispose();
     };
-  }, [subs.entries, subs.glint]);
+  }, [subs.entries, subs.glint, subs.glintPause]);
   return (
     <div ref={root} className={v.secure} data-fw-visual="secure" aria-hidden="true">
       <img className={v.rings} loading="lazy" decoding="async" src={`${NETWORK}/hex-rings.svg`} alt="" width="542" height="600" draggable={false} />
