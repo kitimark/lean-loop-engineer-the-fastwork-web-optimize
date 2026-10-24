@@ -352,6 +352,8 @@ def oneCases : List (String × String × Json) :=
   ("ops.reapPlan", "E case 1, watch tick (auto): the plan has no target, the loop stays selected as advice",
     reqE [loop 2846] [] 1720 (auto := true)),
   ("ops.reapHeld", "E case 1, watch tick (auto): the alert still names pid 2846 start 1000", reqE [loop 2846] [] 1720 (auto := true)),
+  ("ops.reapHeld", "F case 3, watch tick (auto): heldSim names the booted Simulator (pid 3100, start 1000) and held names no loop",
+    reqE [sim] [] 1800 (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own) (auto := true)),
   ("ops.reapPlan", "F case 3, watch tick (auto): the plan has no target, the Simulator stays selected as advice",
     reqE [sim] [] 1800 (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own) (auto := true)),
   ("ops.lspReap", "F: a Simulator is kept while the legacy sim-lock (.local/locks/sim) is held",

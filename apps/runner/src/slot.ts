@@ -182,8 +182,8 @@ export function gitFacts(cwd: string): GitFacts {
 export function simctlShutdown(udid: string): void { spawnSync("xcrun", ["simctl", "shutdown", udid], { stdio: "ignore" }); }
 
 function bootedAll(): SimDevice[] {
-  const r = spawnSync("xcrun", ["simctl", "list", "devices", "booted", "-j"], { encoding: "utf8" });
-  if (r.status !== 0) return [];
+  const r = spawnSync("xcrun", ["simctl", "list", "devices", "booted", "-j"], { encoding: "utf8", timeout: 10_000 });
+  if (r.error || r.status !== 0) return [];
   const j = JSON.parse(r.stdout) as { devices: Record<string, { udid: string; name: string; state: string }[]> };
   return Object.values(j.devices).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
 }

@@ -184,7 +184,9 @@ describe("the watch alert and fw reap read one rule", () => {
   });
   it("reapHeldAlerts raises agent.held with the identity and the command that applies it; FW_WATCH_REAP=0 silences it", () => {
     const a = reapHeldAlerts(root, {}, facts, () => call);
-    expect(a).toHaveLength(1);
+    expect(a).toHaveLength(2);
+    expect(a[1]).toMatchObject({ code: "agent.held", subject: "sim 3100" });
+    expect(a[1]!.detail).toContain("simBooted pid=3100 start=1000");
     expect(a[0]).toMatchObject({ code: "agent.held", subject: "w2" });
     expect(a[0]!.detail).toContain("killOrphan pid=2846 start=1000");
     expect(a[0]!.detail).toContain("fw reap --stop");

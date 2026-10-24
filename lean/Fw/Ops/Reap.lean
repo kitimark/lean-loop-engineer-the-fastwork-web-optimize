@@ -1303,6 +1303,9 @@ def planOne (i : InputD) : List Target :=
 
 def held (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .orphanLoop
 
+/-- The booted Simulators of ended sim slots the watch names as advice. -/
+def heldSim (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .simBooted
+
 private def gE : InputD :=
   { rows := [⟨2846, 1, 2846, 1000, some 5, "untilLoop", some "w", true⟩, ⟨3100, 1, 3100, 1000, some 5, "simDevice", none, false⟩],
     live := [1], mcps := [], keep := [], liveIds := ["w"], now := 1800,
@@ -1313,6 +1316,7 @@ private def gE : InputD :=
 #guard (planOne gE).map (·.pid) == [2846, 3100]
 #guard (planOne { gE with auto := true }).isEmpty
 #guard (held { gE with auto := true }).map (·.pid) == [2846]
+#guard (heldSim { gE with auto := true }).map (·.pid) == [3100]
 #guard (reapOne { gE with legacyHeld := true }).map (·.pid) == [2846]
 #guard (reapOne { gE with loops := [⟨2846, 1000, "out.log", false, ""⟩] }).map (·.pid) == [3100]
 #guard (reapOne { gE with loops := [⟨2846, 1000, "$HOME/x", false, ""⟩] }).map (·.pid) == [3100]
@@ -1686,6 +1690,15 @@ theorem held_kind {i : InputD} {s : Sel} (h : s ∈ held i) : s.kind = .orphanLo
   rw [List.mem_filter] at h
   simpa using h.2
 
+theorem heldSim_kind {i : InputD} {s : Sel} (h : s ∈ heldSim i) : s.kind = .simBooted := by
+  unfold heldSim at h
+  rw [List.mem_filter] at h
+  simpa using h.2
+
+theorem heldSim_in_reap {i : InputD} {s : Sel} (h : s ∈ heldSim i) : s ∈ reapOne i := by
+  unfold heldSim at h
+  exact (List.mem_filter.1 h).1
+
 /-! ### Exit rule: when E or F may join `autoKinds`
 The watch logs every E/F selection per tick to `reap.jsonl`. A reader folds that log into one `Seen` per identity (pid and
 start) and the process table's later answer. `exitRule` says whether a kind has earned automatic stopping. -/
@@ -1865,10 +1878,11 @@ def opReapIdle (req : Json) : Except String Reply := do
   let i ← inputOf req
   pure [("bases", .arr ((rebase i).toArray.map baseJson)), ("idleSec", toJson idleSec), ("cpuTolCs", toJson cpuTolCs)]
 
-/-- `ops.reapHeld`: the request of `ops.lspReap` → `held` [{pid, start, kind, group, reason}], `count`. -/
+/-- `ops.reapHeld`: the request of `ops.lspReap` → `held` [{pid, start, kind, group, reason}] (orphan loops), `heldSim` (booted Simulators), `count`. -/
 def opReapHeld (req : Json) : Except String Reply := do
   let sel := held (← inputOf req)
-  pure [("count", toJson sel.length), ("held", .arr (sel.toArray.map selJson))]
+  let sims := heldSim (← inputOf req)
+  pure [("count", toJson sel.length), ("held", .arr (sel.toArray.map selJson)), ("heldSim", .arr (sims.toArray.map selJson))]
 
 /-- `ops.reapKill`: `planned` [{pid, start, group}], `rows` [row] (the fresh read) → `kill` [{pid, start, group}]. -/
 def opReapKill (req : Json) : Except String Reply := do

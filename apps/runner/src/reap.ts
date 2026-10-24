@@ -401,6 +401,12 @@ export function heldLoops(f: Facts, call: Call): { pid: number; start: number; s
   return held.map((h) => ({ pid: h.pid, start: h.start, subject: f.rows.find((r) => r.pid === h.pid)?.wt ?? `pid-${h.pid}`, reason: h.reason }));
 }
 
+/** The booted Simulators Lean names as advice (`heldSim` of ops.reapHeld). */
+export function heldSims(f: Facts, call: Call): { pid: number; start: number; reason: string }[] {
+  const held = (call({ ...request("ops.reapHeld", f) }) as { heldSim?: Selected[] }).heldSim ?? [];
+  return held.map((h) => ({ pid: h.pid, start: h.start, reason: h.reason }));
+}
+
 export function saveIdle(f: Facts, call: Call): void {
   if (!f.idleFile) return;
   try {
