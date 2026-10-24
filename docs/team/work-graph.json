@@ -19949,7 +19949,8 @@
     "results/touch-lock-page-end/**",
     "docs/team/handoffs/touch-lock-windows.md"
    ],
-   "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review."
+   "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review.",
+   "evidence": "ccd59f7"
   },
   {
    "devices": [
