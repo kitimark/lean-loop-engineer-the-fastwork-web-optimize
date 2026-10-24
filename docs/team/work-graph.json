@@ -19611,7 +19611,8 @@
     "lean/Fw/Parts/FootprintRows.lean",
     "lean/Fw/Parts/Contract.lean"
    ],
-   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length)."
+   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length).",
+   "evidence": "b529411"
   },
   {
    "devices": [
@@ -19813,6 +19814,30 @@
     "docs/team/handoffs/classpos-followups-2.md"
    ],
    "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report). Plus classpos-followups review follow-ups: (5) split helpers into listHelpers [clsx, classNames, classnames] (list context) and joinHelpers [cx, cls] (the site's own (...c) => c.filter(Boolean).join(' '): arrays and objects there are lost), golden row cx(['a']); (6) a numeric literal (className={0}, cx(n && 1)) gets marker 'number', and the left side of && is reported unless it is cmp/not, golden rows; (7) an element whose class set has any lost token is marked open in collectElements, and selector matches against it are weak."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-nested-kind",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-held-identity",
+    "reap-exit-fold"
+   ],
+   "writes": [
+    "lean/Fw/Sup/Nested.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/slot*.test.ts",
+    "scripts/slot-self.mjs",
+    "scripts/slot-self.test.mjs",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-nested-kind.md"
+   ],
+   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit)."
   }
  ],
  "deadline": {
