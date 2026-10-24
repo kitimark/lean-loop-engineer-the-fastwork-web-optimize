@@ -19919,6 +19919,30 @@
     "docs/team/handoffs/throttle-lift-ship.md"
    ],
    "title": "User 2026-10-24 on the real iPhone (felt, one person, preview): ?fw=engine.scroll:throttle-lift 'looks the same and hero-exit is a lot of improve, no laggy on hero exit'; CI Simulator run 39667548341: frozen bands 163 -> 0 (3 of 3 jobs lifted). The flag is a diagnostic (one invisible fixed 1px element running a main-thread scroll-driven @property animation, so WebKit reports main-thread scroll-driven animations and WKWebViewIOS.mm:3256-3268@862f17d stops throttling visible-rect updates to 100 ms while the toolbar collapses). Promote it to a shippable optimized variant (e.g. engine.scroll:unthrottle) Lean first: (1) the WebKit condition chain from source (WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, WKWebViewIOS.mm:3256-3268 @862f17d) as a Lean decision with theorems (lifted iff a non-compositable scroll-driven animation is active; no effect without animation-timeline support); (2) same look: the element paints nothing (opacity 0, 1x1, pointer-events none, aria-hidden, no layout effect on siblings: fixed) proved from the visual model, plus the breakpoint gate on both engines; (3) its own cost: Chromium and WebKit counts per frame (one style recalc of one element per scroll frame) measured on CI (chromium-counts, webkit-sim) against faithful, with a Lean bound; (4) record the user's device observation in research/notes/2026/10-2x-toolbar-throttle.md (Phone pass) and the findings ledger; (5) propose the v2-proved preset entry only after (1)-(3) pass. Engine docs: read the WebKit bug/commit that added the 100 ms throttle and its exemption."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-lock-windows",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "touch-lock-page-end"
+   ],
+   "writes": [
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/scripts/TouchLockGolden.lean",
+    "packages/contracts/golden/measure/touch-lock.jsonl",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/test/touchlock.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "research/notes/2026/10-2x-touch-lock-page-end.md",
+    "results/touch-lock-page-end/**",
+    "docs/team/handoffs/touch-lock-windows.md"
+   ],
+   "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review."
   }
  ],
  "deadline": {
