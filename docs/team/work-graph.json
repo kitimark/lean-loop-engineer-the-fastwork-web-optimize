@@ -19798,7 +19798,8 @@
     "lean/Fw/Wire.lean",
     "lean/Fw.lean"
    ],
-   "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
+   "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md).",
+   "evidence": "ebace64"
   },
   {
    "devices": [
