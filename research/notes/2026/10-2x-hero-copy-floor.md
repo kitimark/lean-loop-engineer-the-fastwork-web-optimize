@@ -270,8 +270,8 @@ Every job succeeded at the first attempt except draw job 3: its Safari tab took 
 failed in `place()` (infrastructure; the job log of attempt 1 has it); it was re-run once with `gh run rerun --failed` (same run id,
 attempt 2) and succeeded. The exit-lane counts are printed by `pathpix-exit-report.mjs` and the draw-lane counts by `pathpix-exit-draw-zones.mjs`
 from the artifacts of that run. The item-4 occurrence table is assembled from the notes of the runs it names, and the item-5
-column "F outside the band, above its own baseline" is F outside minus the out-0 F outside value of the same job (hand
-subtraction; the baseline pin is a follow-up).
+column "F outside the band, above its own baseline" is Lean `aboveBase` of the job's F outside lane (golden kind `drawBase`,
+section "Pinned zoned reading and draw baseline").
 
 **1. Look list with the verdict (CONFIRMED, Lean `Verdict.listed`, `varied_not_listed`, `zoned_listed_not_varied`).** The "L cells with a
 strip" table now has a `verdict` column next to the grade and ends with "left out of the list: N varied cells (a change the identical
@@ -346,7 +346,36 @@ for N in job 3. Files: `results/accent-draw-nolayout-pixels/run-40037992429/` (p
 the land render guard refuses images in git.
 
 Limits: no phone; the look review of the draw-in is the user's (class look-change); Chromium draws are not seeked, so there is no
-Chromium draw number; the outside-band baseline is not pinned.
+Chromium draw number; the outside-band baseline is pinned by Lean `drawBase` (next section).
+
+## Pinned zoned reading and draw baseline (task pathpix-zoned-pinned)
+
+No new run; the draw numbers are the committed results of run 40037992429 (`results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json`,
+`frames[].arms.{N,F}.rest.changed`).
+
+**1. Zoned reading over the pinned grade (CONFIRMED, Lean `zonedPinned`, `zonedPinned_of_ok`, `zonedPinned_of_not_ok`).** The exit
+analysis grades the cell and its effective cell through `gradePinned` and passes both into the zone reading. Lean `zonedPinned` is that
+composition: it equals `zoned` when the accent rows (the floor rows included when a floor is used) are pinned and placed, and is
+`.graded .invalid` otherwise. `pathpix-exit.mjs` computes the consensus verdict with `zonedPinned`; golden kind `zonedPinned` (the
+`zoned` cases under pinned rows, an unpinned A row, a misplaced B row and an unpinned floor row) is replayed by `test/pathpix.test.mjs`.
+
+**2. Outside-band baseline (CONFIRMED rule, MEASURED numbers; Lean `drawBase`, `aboveBase`).** The baseline of one arm's
+outside-band lane (14 frames, out phase then in phase) is the count of its out-0 frame. It is pinned only when the lane has all 14
+frames, the idle frames out-0, out-900 and in-900 have that count, and no frame is below it (`drawBase_some_iff`; each failing
+condition has its own theorem). `aboveBase` subtracts it from every frame, and adding it back gives the lane again
+(`aboveBase_restores`). Golden kind `drawBase` holds the six measured lanes: N pins 100, 1965 and 17 with 0 above in every frame;
+F pins 35751, 101 and 100, and all three F lanes give the same column, the one in the item-5 table (0 for the out phase, then 17622,
+16871, 12709, 8584, 2092, 0, 0). The rule subtracts counts, not pixel sets, so a frame's value is the number of changed pixels above
+the baseline count; that these are the layout shift's own pixels is INFERRED: the count is the same at every idle frame, but a
+count cannot show that the baseline pixels stay in place.
+
+Still open, with reasons:
+- Chromium draw frames: the Chromium lane does not seek the accent's animations, so a draw number needs native frame sampling and a
+  new CI run, and this task dispatches none.
+- A rule that names the hero_copy 192513-20 signature: the raster is one count and delta seen in 4 jobs of 3 runs (item 4 above);
+  a rule built from that one value would match only the sample it was fitted to. It needs a later run where the raster recurs.
+- The first mixed cell (one zone varied, the other counted): no run so far has one; the next path-pix run reports it from its
+  `consensus` table.
 
 ## Follow-up for the user's look review (class look-change)
 
@@ -364,5 +393,5 @@ run's artifacts). Chromium A/A is 0-0 everywhere, so these are real P difference
 - WebKit deck-card corner pixels vary between identical arms in 2 of 3 jobs of run 40007968162 (webkit-1, webkit-3; round 0: 2 of 3; run 39985824264: 1 of 3). Pinning is closed as a sourced negative (see the y 0 row): no page-side or capture-side input differs, the variation is in the Simulator render server (INFERRED). The deck cells carry it as their floor; hero_copy does not count it. The consensus capture (A, A2, A3) of run 40026419647 now separates these cells per job (section "Consensus capture").
 - Follow-up 3 is closed at box level (the language switch `button.switch`, `nav_bar` layer); the arc and the one-level cause are INFERRED, and the 2-1 did not recur, so the identification rests on the recorded box and the earlier strip.
 - hero_copy P 192513-20 inside at offset 5: classed as a floor raster in section "Follow-ups (run 40037992429)"; it did not recur there. The A/A 4478-2 nav-earn change has not recurred in runs 40026419647 and 40037992429, so it stays unclassed. Chromium has A3 since run 40037992429.
-- Draw window: Chromium has no draw frames (seeking is not done in Chromium); the outside-band baseline of the WebKit draw lane differs per arm and job (section "Follow-ups"), pinning it is open.
+- Draw window: Chromium has no draw frames (seeking is not done in Chromium); the outside-band baseline of the WebKit draw lane differs per arm and job and is pinned by Lean `drawBase` (section "Pinned zoned reading and draw baseline").
 - Strips are CI artifacts of runs 39985824264 and 40007968162; the look review is the user's. No phone.
