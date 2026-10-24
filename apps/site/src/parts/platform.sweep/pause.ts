@@ -28,31 +28,33 @@ export const orig = (off: number, ds: readonly number[]): number => off + ds.red
 
 export { PERIOD_MS, phase };
 
-const timelineNow = (): number => Number(document.timeline.currentTime ?? performance.now());
-
 export const reportAction = (paused: boolean, rep: boolean): 'pause' | 'resume' | 'none' => (rep ? (paused ? 'none' : 'pause') : paused ? 'resume' : 'none');
 
+interface ElState {
+  paused: boolean;
+  readonly anims: readonly Animation[];
+  readonly starts: Map<Animation, CSSNumberish | null>;
+}
+
 export function watchSweepPause(els: Element[]): () => void {
-  const state = new Map<Element, { paused: boolean; offs: Map<Animation, number> }>();
-  const t0 = timelineNow();
-  for (const el of els) {
-    const offs = new Map<Animation, number>();
-    for (const a of el.getAnimations()) offs.set(a, Number(a.currentTime ?? 0) - t0);
-    state.set(el, { paused: false, offs });
-  }
-  const resume = (st: { offs: Map<Animation, number> }) => {
-    const now = timelineNow();
-    for (const [a, off] of st.offs) {
-      a.currentTime = now + off;
+  const state = new Map<Element, ElState>();
+  for (const el of els) state.set(el, { paused: false, anims: el.getAnimations(), starts: new Map() });
+  const resume = (st: ElState) => {
+    for (const [a, s] of st.starts) {
       a.play();
+      if (s != null) a.startTime = s;
     }
+    st.starts.clear();
   };
   const stop = watchHidden(els, 'rect', (el, hidden) => {
     const st = state.get(el);
     if (!st) return;
     const act = reportAction(st.paused, hidden);
     if (act === 'pause') {
-      for (const a of st.offs.keys()) a.pause();
+      for (const a of st.anims) {
+        st.starts.set(a, a.startTime);
+        a.pause();
+      }
       st.paused = true;
     } else if (act === 'resume') {
       resume(st);
