@@ -37,3 +37,21 @@ exit frames = frames with the hero value strictly between 0 and 1000 per mille.
 Verdict (same viewport height, rewrite vs look repeat): `lifted`. The first look pass had a different viewport height (815,
 toolbar collapsed), so the Lean verdict for it is `confounded`; the table above uses the repeat. MEASURED on the real iPhone,
 one person, one session; felt marks are the person's triple taps.
+
+## Two more throttle-lift passes and a second rewrite pass (same session, later)
+
+Both extra throttle-lift passes and the second rewrite pass started with the toolbar collapsed (viewport h 815), so they
+pair with each other; the earlier pair is h 775.
+
+| pass | viewport h | hero band runs | hero exit frames | finish frames > 50 ms per 100 | finish felt marks |
+| --- | --- | --- | --- | --- | --- |
+| rewrite 1 | 775 | 90 | 1200 | 2.46 | 12 |
+| throttle-lift (repeat) | 775 | 2 | 1318 | 1.17 | 5 |
+| rewrite 2 | 815 | 28 | 280 | 6.56 | 14 |
+| throttle-lift extra 1 | 815 | 0 | 263 | 0.00 | 3 |
+| throttle-lift extra 2 | 815 | 1 | 354 | 0.83 | 5 |
+
+Hero exit: at each viewport height the throttle-lift passes have 0-2 band runs against 28-90 for the rewrite (Lean verdict
+`lifted` within each height). End of page: the three throttle-lift passes (0.00-1.17 slow frames per 100, 3-5 felt marks) are
+all below both rewrite passes (2.46-6.56, 12-14) and both original passes (4.19-10.09, 8-12): the ranges are separated.
+MEASURED on the real iPhone, one person, one session.
