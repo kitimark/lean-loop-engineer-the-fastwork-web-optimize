@@ -1,4 +1,4 @@
-# Dry land timing.slow alerts of 2026-10-24: three of four had no co-runner; the dry land's own land-inputs vitest and lake rebuilds grew. Locked dry lands run one at a time, but 186 of 808 ran with no land-slot row.
+# Dry land timing.slow alerts of 2026-10-24: three of four had no co-runner; the dry land's own land-inputs vitest and lake rebuilds grew. Locked dry lands run one at a time, but 133 of 760 ran with no land-slot row (to the cutoff 1792808775650).
 
 Status: MEASURED over `.fw-console/timings.jsonl`, `locks.jsonl`, `sup-samples.jsonl` and `land-logs/` (local, 2026-10-22
 to 24). Pinned cutoff: the last `startMs` of the rows used, 1792808775650 (2026-10-24); rows added later do not count. The
