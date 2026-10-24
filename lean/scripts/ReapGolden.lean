@@ -291,10 +291,10 @@ def plainRow : Json → Json
   | j => j
 
 def reqE (rows waiters : List Json) (now : Nat) (simIdleSince : Option Nat := none) (simAcquired : Option Nat := none)
-    (simHolders : Nat := 0) (ownSims : List (Nat × Nat) := []) : Json :=
+    (simHolders : Nat := 0) (ownSims : List (Nat × Nat) := []) (legacyHeld : Bool := false) (auto : Bool := false) : Json :=
   match reqW (rows.map plainRow) [1] [] [] ["agent"] with
   | .obj kvs =>
-    .obj (((((((kvs.insert "loops" (.arr (rows.filterMap loopFact).toArray)).insert "waiters" (.arr waiters.toArray)).insert "now"
+    .obj (((((((((kvs.insert "legacyHeld" (.bool legacyHeld)).insert "auto" (.bool auto)).insert "loops" (.arr (rows.filterMap loopFact).toArray)).insert "waiters" (.arr waiters.toArray)).insert "now"
       (toJson now)).insert "simIdleSince" (match simIdleSince with | some t => toJson t | none => .null)).insert "simAcquired"
       (match simAcquired with | some t => toJson t | none => .null)).insert "simHolders" (toJson simHolders)).insert "ownSims"
       (.arr (ownSims.map fun (p, s) => Json.mkObj [("pid", toJson p), ("start", toJson s)]).toArray))
@@ -347,6 +347,16 @@ def oneCases : List (String × String × Json) :=
   ("ops.lspReap", "all three cases at once: the orphan loop of agent2 and the Simulator are selected, the loop of agent with a live writer is kept",
     reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent2") (some mwm), loop 40204, ciWait, sim] [waiterJ 23868 1100 "agent" mwm] 1800
       (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own)),
+  ("ops.reapPlan", "E case 1, watch tick (auto): the plan has no target, the loop stays selected as advice",
+    reqE [loop 2846] [] 1720 (auto := true)),
+  ("ops.reapHeld", "E case 1, watch tick (auto): the alert still names pid 2846 start 1000", reqE [loop 2846] [] 1720 (auto := true)),
+  ("ops.reapPlan", "F case 3, watch tick (auto): the plan has no target, the Simulator stays selected as advice",
+    reqE [sim] [] 1800 (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own) (auto := true)),
+  ("ops.lspReap", "F: a Simulator is kept while the legacy sim-lock (.local/locks/sim) is held",
+    reqE [sim] [] 1800 (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own) (legacyHeld := true)),
+  ("ops.lspReap", "E: a loop awaiting the relative path out.log is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "out.log")] [] 1720),
+  ("ops.lspReap", "E: a loop awaiting $HOME/x is kept", reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "$HOME/x")] [] 1720),
   ("ops.lspReap", "E: a protected pid (the stopper's chain) is kept",
     match reqE [loop 2846] [] 1720 with
     | .obj kvs => .obj (kvs.insert "protect" (toJson [2846]))

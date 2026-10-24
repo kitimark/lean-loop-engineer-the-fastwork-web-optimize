@@ -8,7 +8,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { consoleDirOf } from "./lib.ts";
 import { fwcoreCall } from "./run.ts";
-import { simctlShutdown } from "./slot.ts";
+import { legacyLive, simctlShutdown } from "./slot.ts";
 
 export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason, MB of an idle lean-lsp-mcp stack; stores CPU baselines in reap-idle.json; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)";
 
@@ -30,7 +30,7 @@ export type Facts = {
   liveIds?: string[]; protect?: number[];
   now?: number; bases?: Base[]; locks?: Lock[];
   loops?: LoopFact[]; waiters?: Waiter[]; simIdleSince?: number | null; simAcquired?: number | null; simHolders?: number;
-  ownSims?: { pid: number; start: number }[];
+  ownSims?: { pid: number; start: number }[]; legacyHeld?: boolean;
   idleFile?: string;
 };
 
@@ -95,6 +95,8 @@ export function simSlotFacts(dir: string, now: number): { simIdleSince: number |
 export function canonPath(p: string): string {
   try { return join(realpathSync(dirname(p)), basename(p)); } catch { return p; }
 }
+
+export const canonAwait = (p: string): string => (p.startsWith("/") && !p.includes("$") ? canonPath(p) : p);
 
 export const isMcp = (args: string): boolean => /(^|[\s/])lean-lsp-mcp(\s|$)/.test(args);
 
@@ -356,7 +358,7 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const loops: LoopFact[] = [];
   for (const r of cand) {
     const a = r.kind === "untilLoop" ? awaitedPath(argsOf.get(r.pid) ?? "") : null;
-    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: canonPath(a), callLive: r.ppid > 1 });
+    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: canonAwait(a), callLive: r.ppid > 1 });
   }
   const now = secs(Date.now());
   const sim = simSlotFacts(env.FW_SLOT_DIR ?? join(consoleDirOf(env, top), "slot"), now);
@@ -374,14 +376,15 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
     protect: selfChain(t.ps),
     now,
     loops, waiters, ownSims, ...sim,
+    legacyHeld: legacyLive(join(base, ".local", "locks", "sim")),
     bases: loadBases(idleFile),
     locks: parseLocks(porcelain, (p) => wtIdOf(p, repo)),
     idleFile,
   };
 }
 
-const request = (op: string, f: Facts) => ({
-  op, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
+const request = (op: string, f: Facts, auto = false) => ({
+  op, auto, legacyHeld: f.legacyHeld ?? true, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
   now: f.now ?? 0, bases: f.bases ?? [], locks: f.locks ?? [], loops: f.loops ?? [], waiters: f.waiters ?? [], simIdleSince: f.simIdleSince ?? null,
   simAcquired: f.simAcquired ?? null, ownSims: f.ownSims ?? [], simHolders: f.simHolders ?? 0,
 });
@@ -488,12 +491,13 @@ const EMPTY: StopResult = { selected: [], termed: [], killed: [], left: [], free
  *  (`ops.reapTerm`), TERM, wait the grace (leaving early once Lean's verify finds none left), read again, KILL Lean's survivors
  *  of unchanged (pid, start), wait, verify. Every signal first passes Lean's `ops.reapGuard` against `scope`, the pids this run
  *  may signal: production passes none and the scope is the pids Lean selected; a test passes only the pids it started. A
- *  signal outside the scope is refused and listed in `refused`. `null` when the facts cannot be read. */
+ *  signal outside the scope is refused and listed in `refused`. `auto` (the default) asks Lean for the automatic plan, which
+ *  leaves out orphan loops and booted Simulators; `fw reap --stop` passes false. `null` when the facts cannot be read. */
 export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn: (top: string) => Facts | null = gather,
-  scope?: number[]): StopResult | null {
+  scope?: number[], auto = true): StopResult | null {
   const f = gatherFn(top);
   if (f === null) return null;
-  const plan = call(request("ops.reapPlan", f)) as { selected: Selected[]; targets: Target[]; graceMs: number; killWaitMs: number };
+  const plan = call(request("ops.reapPlan", f, auto)) as { selected: Selected[]; targets: Target[]; graceMs: number; killWaitMs: number };
   saveIdle(f, call);
   if (plan.targets.length === 0) return { ...EMPTY };
   const planned = plan.targets;
@@ -587,7 +591,7 @@ export function reapCli(argv: string[], top: string, call: Call, print: (s: stri
   gatherFn: (top: string) => Facts | null = gather, io: Io = realIo, scope?: number[]): number {
   if (argv.length !== 1 || (argv[0] !== "--list" && argv[0] !== "--stop")) throw new ReapUsage(REAP_USAGE);
   if (argv[0] === "--stop") {
-    const r = stopSelected(top, call, io, gatherFn, scope);
+    const r = stopSelected(top, call, io, gatherFn, scope, false);
     if (r === null) { print("reap: could not read the process table or the worktree list"); return 1; }
     recordStopped(top, r);
     if (r.selected.length === 0) { print("reap: nothing leftover"); return 0; }
@@ -605,13 +609,13 @@ export function reapCli(argv: string[], top: string, call: Call, print: (s: stri
   return 0;
 }
 
-/** One watch tick: stop what Lean selects and return the lines to print (`REAP stopped <kind> ...`), recording each kind in
+/** One watch tick: stop Lean's automatic plan and return the lines to print (`REAP stopped <kind> ...`), recording each kind in
  *  `reap.jsonl`. `FW_WATCH_REAP=0` turns it off. Never throws: a failed read or stop is a quiet tick. */
 export function reapTick(top: string, env: Record<string, string | undefined> = process.env, io: Io = realIo,
   gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top), scope?: number[]): string[] {
   if (env.FW_WATCH_REAP === "0") return [];
   try {
-    const r = stopSelected(top, call(), io, gatherFn, scope);
+    const r = stopSelected(top, call(), io, gatherFn, scope, true);
     if (r === null || r.byKind.length === 0) return [];
     recordStopped(top, r, Date.now(), env);
     return r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`);

@@ -25,15 +25,20 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
   gives `untilLoop`), in this repo, whose tool call ended (`callLive` false: glue sets it from `ppid > 1`, unproved), at
   least `orphanMinSec` (60 s) old, and with no live writer: a `fw ci wait` of the same worktree id whose stdout (lsof fd 1,2)
   is the awaited path and whose (pid, start) is in the table (`writerLive`; `live_writer_kept`, `writer_identity`,
-  `orphan_selected`). Both paths go through `canonPath` (realpath of the directory + basename, raw if it fails) so
-  `/private/tmp/x` and `/tmp/x` match. The watch's `agent.held` for a wait loop is `ops.reapHeld` (the
-  E selections) and nothing else: a TERM target of `ops.reapPlan` with the same pid and start (`held_in_plan`). The old
-  `killOrphan` agent.held alert of `nextAlerts` is gone.
+  `orphan_selected`). Path allowlist: only an absolute awaited path without `$` can select (`awaitOk`;
+  `relative_await_kept`, `dollar_await_kept`): `out.log` or `$HOME/x` keeps the loop. The glue canonicalises only such a
+  path (`canonAwait`: `canonPath`, realpath of the directory + basename, raw if it fails; the lsof path always) so
+  `/private/tmp/x` and `/tmp/x` match; a relative path stays raw and so stays relative. The watch's `agent.held` for a wait
+  loop is `ops.reapHeld` (the E selections) and nothing else: a TERM target of the explicit `ops.reapPlan` (`auto` false)
+  with the same pid and start (`held_in_plan`). The old `killOrphan` agent.held alert of `nextAlerts` is gone; the
+  `NEXT <id> killOrphan` advice line of `Fw.Obs.Next` stays until task next-killorphan-reap.
 - F (`pickF`), kind `simBooted`: a Simulator device process (`launchd_sim`, device id in argv) that this project boots
   (`ownSims`: the row's (pid, start) is in the list the glue built from `simctl` names starting `fw-`; Lean decides on that
   fact), that started between the acquire second of the released sim slot run (`simAcquired`, kept in the slot
   `state.json` on release and expiry) and the release (`simIdleSince`), while `Fw.Sup.Adapt.simAction` (the slot's own
-  rule, default `simIdleS` 600 s, `simVerdict`) says `shutdown` for the sim slots still held. Theorems: `sim_selected`,
+  rule, default `simIdleS` 600 s, `simVerdict`) says `shutdown` for the sim slots still held and for `legacyHeld`, whether
+  the legacy `scripts/sim-lock.sh` lock `.local/locks/sim` is live (`legacyLive` of slot.ts; a missing fact counts as
+  held, `sim_legacy_kept`). Theorems: `sim_selected`, `sim_legacy_kept`,
   `sim_held_kept`, `sim_after_release_kept`, `sim_before_acquire_kept`, `sim_not_own_kept`, `sim_idle_kept`,
   `sim_no_release_kept`, `sim_no_acquire_kept`. The stop is not a signal: `stopSelected` calls `simctlShutdown(udid)` of
   slot.ts (the call `fw slot sim` uses), never TERM or KILL of `launchd_sim`.
@@ -43,6 +48,14 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
 - Never, on every branch: cwd in a live checkout, the console recorded in `.fw-console/api.json` (of the repo and of the
   checkout the tool runs from) and everything below it (`live_console_never_selected`), pid <= 1, the stopper's own pid and
   ancestors. B and C never take MCP servers.
+
+## Action class (Lean `planSel`, `autoKinds`)
+E and F are advice: `fw reap --list` lists them, the watch raises `agent.held` for E, and only an explicit
+`fw reap --stop` stops them. The request field `auto` picks the plan: the watch tick (`reapTick`) and the land report
+(`reapStopLines`) send `auto: true` and get targets of the kinds in `autoKinds` (A to D) only
+(`auto_plan_no_loop_sim`, `planSel_auto`); `fw reap --stop` sends false and gets every selection (`planSel_explicit`).
+Exit criterion for auto-stopping E or F (task reap-ef-auto): every E/F selection of a watch tick logged for at least 7
+days, with at least one true orphan and no selection of a loop that later ended by itself.
 
 ## Stop plan (Lean `plan`, `termPlan`, `killPlan`, `guardOk`, `Stage` script)
 read table, read again and let Lean re-check each identity (`term_present`), TERM the group (only if every member of the
@@ -59,8 +72,9 @@ the row stays within `cpuTolCs` of it, else a new one at `now` (`rebase_quiet`, 
 `fw reap --list` prints the RSS of each `mcpIdle` row and a total line `mcpIdle: N process(es), X MB RSS`.
 
 ## Triggers
-- `fw reap --stop`; `fw land` stops after a worktree is removed; `fw watch` stops on each tick (and after each stream
-  diff). `FW_WATCH_REAP=0` turns the watch trigger off.
+- `fw reap --stop` (all kinds); `fw land` stops after a worktree is removed and `fw watch` stops on each tick (and after
+  each stream diff), both A to D only. `FW_WATCH_REAP=0` turns the watch trigger off. A Simulator of case F has no watch
+  alert; the slot's own `simCheck` still shuts it on the next slot command after 600 s idle.
 - Each stop appends `{type:"reap.stopped",at,kind,pids,freedKb}` to `.fw-console/reap.jsonl` and prints a `REAP stopped` line.
 
 ## Limits

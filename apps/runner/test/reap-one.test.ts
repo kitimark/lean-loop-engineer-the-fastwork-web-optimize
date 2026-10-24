@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { awaitedPath, canonPath, classify, heldLoops, isCiWait, parseLsofOut, reapCli, select, simSlotFacts, simUdidOf, stopSelected, type Facts, type Io, type ReapRow, type Target } from "../src/reap.ts";
+import { awaitedPath, canonAwait, canonPath, classify, heldLoops, isCiWait, parseLsofOut, reapCli, reapTick, select, simSlotFacts, simUdidOf, stopSelected, type Facts, type Io, type ReapRow, type Target } from "../src/reap.ts";
 import { reapHeldAlerts } from "../src/watch-reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
@@ -72,6 +72,20 @@ describe("facts of branches E and F", () => {
     expect(select(f, call).map((s) => s.pid)).toEqual([2846, 40204, 3100]);
     rmSync(d, { recursive: true, force: true });
   });
+  it("a relative or $-bearing awaited path stays raw and its loop is kept", () => {
+    expect(canonAwait("out.log")).toBe("out.log");
+    expect(canonAwait("$HOME/x")).toBe("$HOME/x");
+    for (const awaits of [canonAwait("out.log"), canonAwait("$HOME/x")]) {
+      const f = facts();
+      f.loops = [{ pid: 2846, start: 1000, awaits, callLive: false }];
+      expect(select(f, call).map((s) => s.pid)).toEqual([3100]);
+    }
+  });
+  it("a held legacy sim-lock keeps the Simulator; a missing legacyHeld fact keeps it too", () => {
+    expect(select({ ...facts(), legacyHeld: true }, call).map((s) => s.pid)).toEqual([2846]);
+    const { legacyHeld: _, ...noFact } = facts();
+    expect(select(noFact, call).map((s) => s.pid)).toEqual([2846]);
+  });
 });
 
 const row = (pid: number, start: number, kind: string, extra: Partial<ReapRow> = {}): ReapRow =>
@@ -82,6 +96,7 @@ const facts = (): Facts => ({
   live: [1], mcps: [], keep: [], liveIds: ["w", "w2"], now: 1800,
   loops: [{ pid: 2846, start: 1000, awaits: "/tmp/mwm-wait.log", callLive: false }, { pid: 40204, start: 1000, awaits: "/tmp/mwm-wait.log", callLive: false }],
   waiters: [{ pid: 23868, start: 1100, wt: "w", writes: "/tmp/mwm-wait.log" }], simIdleSince: 1200, simAcquired: 900, simHolders: 0, ownSims: [{ pid: 3100, start: 1000 }],
+  legacyHeld: false,
 });
 
 describe("the watch alert and fw reap read one rule", () => {
@@ -98,11 +113,20 @@ describe("the watch alert and fw reap read one rule", () => {
     const sims: number[] = [];
     const io: Io = { signal: (t: Target, sig) => { sent.push([t.pid, sig]); }, sleep: () => {}, table: () => facts().rows, rss: () => new Map(),
       simStop: (t: Target) => { sims.push(t.pid); } };
-    expect(stopSelected(root, call, io, facts, [2846, 3100])).not.toBeNull();
+    expect(stopSelected(root, call, io, facts, [2846, 3100], false)).not.toBeNull();
     expect(sent.filter(([, s]) => s === "SIGTERM").map(([p]) => p)).toEqual([2846]);
     expect(sims).toEqual([3100]);
     expect(sent.some(([p]) => p === 40204 || p === 3100)).toBe(false);
     expect(select(facts(), call).map((s) => s.pid)).toEqual([2846, 3100]);
+  });
+  it("the watch tick (auto plan) stops neither the orphan loop nor the Simulator while the alert still names the loop", () => {
+    const sent: number[] = [];
+    const io: Io = { signal: (t: Target) => { sent.push(t.pid); }, sleep: () => {}, table: () => facts().rows, rss: () => new Map(),
+      simStop: (t: Target) => { sent.push(t.pid); } };
+    expect(reapTick(root, {}, io, facts, () => call, [2846, 3100])).toEqual([]);
+    expect(stopSelected(root, call, io, facts, [2846, 3100])?.termed).toEqual([]);
+    expect(sent).toEqual([]);
+    expect(heldLoops(facts(), call).map((a) => [a.pid, a.start])).toEqual([[2846, 1000]]);
   });
   it("reapHeldAlerts raises agent.held with the identity and the command that applies it; FW_WATCH_REAP=0 silences it", () => {
     const a = reapHeldAlerts(root, {}, facts, () => call);
