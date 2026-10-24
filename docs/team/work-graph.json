@@ -21122,6 +21122,27 @@
     "docs/team/handoffs/lake-span-mods.md"
    ],
    "title": "timing.slow raises false alarms on real Lean rebuilds: 'lean/check/lake build' took 51 s against a p50 of 0.78 s and the dry land's 'lake_slot .. lake build && axiom-check' 37 s against 3.2 s, both right after a branch merged main (new Lean modules), because these two spans carry no mods work dimension, so a rebuild is judged against cached no-op samples. Lean Fw.Obs.Timing already has modsDim/modsWork (modsLow buckets) and Sample.unkeyed, and apps/runner/src/timing.ts lakeWork reads lake.built, but the emitters never record the built count. Do: make fwcore-build.sh / the check.sh lake span and the land dry lake step record lake.built (the number of modules lake built, from its output), so their samples are keyed by mods; prove in Lean that a sample with a different mods class is never judged against another class's baseline, and that the two recorded incident samples (51053 ms at mods >= 1 vs 780 ms at mods 0) are not slow; golden replayed by the timing tests."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-vms",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Store/Layout.lean",
+    "lean/Fw/Store/Golden.lean",
+    "lean/Fw/Wire/Store.lean",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.test.ts",
+    "docs/team/tools/fw-run.md",
+    "research/notes/2026/10-2x-fw-run-vms.md",
+    "docs/team/handoffs/fw-run-vms.md"
+   ],
+   "title": "fw run --runs N never reaches the WebKit Simulator lane: Fw.Store.Layout.dispatchInputs .webkit (lean/Fw/Store/Layout.lean:472) sends only target, preset and fw, so webkit-sim.yml falls back to VMS=1 (webkit-sim.yml:198) and every lead WebKit count dispatch today ran 1 VM instead of 3 (react-root runs 40134016822/40134234199, one-chain 40139526492/40139511311). Do, Lean first: send ('vms', toString q.runs) for webkit (and check every webkitSim input name against Layout's input list :428), a theorem that the webkit dispatch carries the request's run count (like dispatch_target), regenerate the store goldens from Lean and replay them in the runner test; check the cache key still separates 1-VM and 3-VM runs; one dry fw run --target rewrite --engines webkit --runs 3 shows vms=3 in its inputs line."
   }
  ],
  "deadline": {
