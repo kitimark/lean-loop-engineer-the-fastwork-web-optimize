@@ -13,3 +13,8 @@ Writes outside the task graph: apps/site/src/parts/platform/index.tsx (wiring), 
 packages/contracts/golden/parts/{footprint.gen,footprint-diff.gen}.json, golden/preset/v2-proved.decisions.jsonl,
 research/findings/ledger.json (row platform.sweep.offscreen-pause), lean/scripts/PlatformSweepPauseGolden.lean.
 Read first: lean/Fw/Parts/PlatformSweepPause.lean, then apps/site/src/parts/platform.sweep/pause.ts.
+
+Round r426 (continue): main merged; wiring done in 844f1df7b (Fw.lean imports, check.sh job
+'platform-sweep-pause golden check', lean.yml trigger row after stillruns, triggers.jsonl regenerated, ci-paths ok).
+Verified: lean check.sh green, @fw/site tests 6576 pass, part-footprint --check ok, ci-paths test 56 pass.
+Offscreen counts item: followUp, task offscreen-count-lane (graph r426). No new CI dispatch.
