@@ -3622,7 +3622,7 @@
   },
   {
    "id": "nav.earn.logicalPadding",
-   "n": 67,
+   "n": 73,
    "part": "nav",
    "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
    "status": "look-change",

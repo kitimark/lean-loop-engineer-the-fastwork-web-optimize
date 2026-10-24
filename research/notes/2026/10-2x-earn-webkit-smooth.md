@@ -10,7 +10,7 @@
 - **Chromium is unchanged:** same started set and same duration and delay for every property (Lean `variant_chromium_set`,
   `variant_chromium_timing`). On the measured runs Chromium with the variant eases like Chromium without it.
 - **Look-change class L, "engine parity":** on WebKit the look changes (the faithful rule snaps); Chromium and settled frames do not.
-  Ledger row n=67 `nav.earn.logicalPadding`, review pending: the user's Safari (macOS) and iPhone check. The iPhone is INFERRED from
+  Ledger row n=73 `nav.earn.logicalPadding`, review pending: the user's Safari (macOS) and iPhone check. The iPhone is INFERRED from
   shared WebKit source.
 - **Not delivered here:** the breakpoint gate with the variant needs a `fw` input, which only a dispatch carries (see Limits).
 

@@ -15,7 +15,7 @@ MEASURED on macOS CI (2 valid runs): WebKit and Safari with `nav:earn-logical` e
   packages/gate-breakpoints/src/trajectory/{reduce,transitions,transitions-safari}.mjs. Everything else passed on the earlier checks; run it with those `--allow` globs.
 - Breakpoint gate with the variant needs a dispatch with `fw` (lead): `gh workflow run breakpoint-gate.yml --ref ci/earn-webkit-smooth -f engines=chromium -f fw=nav:earn-logical`.
   A push cannot carry `fw`; the push run 40100783656 covers the default page only.
-- The user's Safari and iPhone review (ledger row n=67 nav.earn.logicalPadding, look-change, pending). iPhone inferred from shared WebKit source.
+- The user's Safari and iPhone review (ledger row n=73 nav.earn.logicalPadding, look-change, pending). iPhone inferred from shared WebKit source.
 - Two valid macOS runs, not three (one push lost to a harness bug).
 
 ## Conventions
