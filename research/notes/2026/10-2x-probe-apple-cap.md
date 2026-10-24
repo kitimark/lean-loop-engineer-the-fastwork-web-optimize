@@ -64,7 +64,7 @@ at most two widths).
 - `trajectory-probe.yml` `probe-apple` `timeout-minutes: 18`; `scripts/ci-paths.test.mjs` pool caps 18 and n 6.
 - `plan.mjs` `retriesRole`, `pooledReps` (TS twins, replayed against the golden); `run.mjs` calls `retriesRole` and sets
   `out.reps = reps + extra` for the candidate.
-- `trajectory.test.mjs`: replays `retryRole`, `legWall` (also reads the workflow timeout), `pooled`; a fake-engine test of
+- `trajectory.test.mjs`: replays `retryRole`, `legWall`, `pooled`; a fake-engine test of
   `morphPath` that checks `out.reps` is 6 after one extra pass and 5 without `against`.
 
 ## Limits

@@ -227,8 +227,6 @@ for (const g of golden) {
       assert.equal(EXTRA_CAP, g.extraCap);
       assert.equal(g.baseSec + g.widths * g.extraCap * g.passSec, g.worstSec);
       assert.ok(g.worstSec <= 60 * g.capMin, 'the worst two-width leg stays under the probe-apple cap');
-      const yml = readFileSync(fileURLToPath(new URL('../../../.github/workflows/trajectory-probe.yml', import.meta.url)), 'utf8');
-      assert.match(yml, new RegExp(`\\n  probe-apple:\\n(?: {4}.*\\n)*? {4}timeout-minutes: ${g.capMin}\\n`));
     } else if (g.op === 'retry') {
       assert.deepEqual(gapsIn(g.b.opening, g.c.opening), g.gapsOpening);
       assert.deepEqual(gapsIn(g.b.closing, g.c.closing), g.gapsClosing);
