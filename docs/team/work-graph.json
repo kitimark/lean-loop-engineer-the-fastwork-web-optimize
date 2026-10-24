@@ -19689,7 +19689,10 @@
     "lean/Fw.lean",
     "packages/contracts/golden/obs/land-inputs-cost.jsonl",
     "research/notes/2026/10-2x-land-inputs-growth.md",
-    "docs/team/handoffs/land-inputs-growth.md"
+    "docs/team/handoffs/land-inputs-growth.md",
+    "apps/runner/src/land.ts",
+    "lean/scripts/check.sh",
+    "lean/scripts/LandInputsCostGolden.lean"
    ],
    "title": "(S) land-inputs vitest in the dry land grows with no co-runner: p50 19.8 -> 20.4 -> 23.4 -> 29.1 s by quarter over 675 local dry rows to 2026-10-24 (last 20: 31.3 s) at load p50 3.5-4.7, test file unchanged (c9f2dcd), tracked files +6-7 percent: measure per-test durations and files read per test (walk/escapes apps/runner/test/land-inputs.test.ts:98-110, inputKey over the real root :287-288, fixture keys :269-281), fix the cause, Lean cost model as the why, effect measured on later dry lands (inc: timing.slow bf9aa85, 8f040f0, c4f662a, 2e54fbe) Unit of decision: the land-inputs step alone. Accepted limit: no change to the timing verdict rule."
   },
@@ -19840,6 +19843,26 @@
     "docs/team/handoffs/slot-nested-kind.md"
    ],
    "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-line-join",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "scripts/lint-check-sh.mjs",
+    "scripts/lint-check-sh.test.mjs",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/polish-line-join.md"
+   ],
+   "title": "Incident inc-polish-line-join (2026-10-24): fw polish comment cuts deleted a trailing `# ...` comment together with its newline and joined two check.sh job lines in 3 polish commits (162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, plus 65c6ec5 on the land-wt-lake-rebuilds branch), so the second job ran as arguments of the first (node-budget, nav-earn, gate-engine-timing goldens unrun on their own). Lean rule: a comment cut keeps every code line of the original as a line (the cut file's code lines, comments stripped, equal the original's line for line), theorem + golden rows (trailing comment, whole-line comment, block comment, a cut at end of file); fw polish refuses (reverts that file, VERDICT polish-cuts ... refused-join) any edit that breaks it, checked by a TS test over the golden. Plus a cheap lint: one `job \"` per check.sh line (CI and check.sh run it)."
   }
  ],
  "deadline": {
