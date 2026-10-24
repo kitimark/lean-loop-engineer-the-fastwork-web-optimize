@@ -62,7 +62,6 @@ describe("facts of branches E and F", () => {
     expect(canonPath(join(d, "link", "x.log"))).toBe(canonPath(join(real, "x.log")));
     expect(canonPath(join(d, "link", "x.log"))).toBe(join(realpathSync(real), "x.log"));
     expect(canonPath(join(d, "gone", "x.log"))).toBe(join(d, "gone", "x.log"));
-    // the loop awaits the symlink path, lsof reports the real path: Lean gets one path and keeps the loop
     const f = facts();
     f.loops = [{ pid: 2846, start: 1000, awaits: "/tmp/other.log", callLive: false },
       { pid: 40204, start: 1000, awaits: canonPath(join(d, "link", "x.log")), callLive: false }];
@@ -75,7 +74,6 @@ describe("facts of branches E and F", () => {
   });
 });
 
-// A fixture: the 2026-10-24 loops (2846 without a writer, 40204 with a live fw ci wait 23868 of the same agent) and a released Simulator.
 const row = (pid: number, start: number, kind: string, extra: Partial<ReapRow> = {}): ReapRow =>
   ({ pid, ppid: 1, pgid: pid, start, cwd: 5, kind, wt: "w", inRepo: true, ...extra });
 const facts = (): Facts => ({
@@ -101,7 +99,6 @@ describe("the watch alert and fw reap read one rule", () => {
     const io: Io = { signal: (t: Target, sig) => { sent.push([t.pid, sig]); }, sleep: () => {}, table: () => facts().rows, rss: () => new Map(),
       simStop: (t: Target) => { sims.push(t.pid); } };
     expect(stopSelected(root, call, io, facts, [2846, 3100])).not.toBeNull();
-    // the loop is TERMed; the Simulator is stopped by simctl shutdown (simStop), never signalled
     expect(sent.filter(([, s]) => s === "SIGTERM").map(([p]) => p)).toEqual([2846]);
     expect(sims).toEqual([3100]);
     expect(sent.some(([p]) => p === 40204 || p === 3100)).toBe(false);

@@ -14,13 +14,9 @@ export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean se
 
 export type ReapRow = {
   pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null; inRepo?: boolean;
-  /** CPU time used so far, centiseconds; absent or null when unread */
   cpu?: number | null;
 };
-/** The facts of one `until [ -s <path> ]` loop row, by identity: the awaited path and whether its parent is not init (the tool
- *  call that started it still runs). */
 export type LoopFact = { pid: number; start: number; awaits: string; callLive: boolean };
-/** A live `fw ci wait`: identity, the worktree id of the agent running it and the file its stdout is redirected to. */
 export type Waiter = { pid: number; start: number; wt: string; writes: string };
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
 export type Target = { pid: number; start: number; group: boolean };
@@ -32,13 +28,9 @@ export type Lock = { id: string; holder: number | null };
 export type Facts = {
   rows: ReapRow[]; live: number[]; mcps: { pid: number; cwd: number | null; wt?: string | null }[]; keep: { pid: number; at: number }[];
   liveIds?: string[]; protect?: number[];
-  /** the current second, the previous run's CPU baselines and the worktree locks (branch D); absent: nothing is idle */
   now?: number; bases?: Base[]; locks?: Lock[];
-  /** branches E and F: the live `fw ci wait` processes, the second of the last sim slot release (null: none) and the live sim slots */
   loops?: LoopFact[]; waiters?: Waiter[]; simIdleSince?: number | null; simAcquired?: number | null; simHolders?: number;
-  /** the identity of each Simulator row whose device has an `fw-` name (a fact per row; Lean's branch F decides) */
   ownSims?: { pid: number; start: number }[];
-  /** where the baselines Lean returns are stored for the next run; absent: not stored */
   idleFile?: string;
 };
 
@@ -46,9 +38,6 @@ export type Facts = {
  *  below it. */
 export const isSerena = (args: string): boolean => /(^|[\s/])serena(\s|$)/.test(args) || /\/\.serena\//.test(args);
 
-/** The argv kind the Lean op expects: `serena` (never selected, nor anything below it), `lspServe` (a `lake serve`),
- *  `console` (console-api main), `tool` (lean, lake, fwcore, node, a playwright browser: selected only through a removed
- *  worktree, a dead ancestor or an idle lean-lsp-mcp stack, never by this name), else `other`. */
 export function classify(args: string): "serena" | "lspServe" | "console" | "tool" | "untilLoop" | "simDevice" | "other" {
   const w = args.trim().split(/\s+/);
   const base = w[0]?.split("/").pop() ?? "";
@@ -62,22 +51,18 @@ export function classify(args: string): "serena" | "lspServe" | "console" | "too
   return "other";
 }
 
-/** The path an `until [ -s|-f|-e <path> ]` loop in this command line waits for (quotes dropped); null: no such loop. */
 export function awaitedPath(args: string): string | null {
   const m = /\buntil\s+\[\s+-[sfe]\s+["']?([^\s"'\]]+)["']?\s+\]/.exec(args);
   return m ? m[1]! : null;
 }
 
-/** The device id in a `launchd_sim .../CoreSimulator/Devices/<udid>/...` command line; null: none. */
 export function simUdidOf(args: string): string | null {
   const m = /CoreSimulator\/Devices\/([0-9A-Fa-f-]{36})\//.exec(args);
   return m ? m[1]!.toUpperCase() : null;
 }
 
-/** True for a `fw ci wait` command line (the pnpm wrapper and the node child). */
 export const isCiWait = (args: string): boolean => /(^|[\s/])fw(\.mjs|\.ts)?\s+ci\s+wait(\s|$)/.test(args) || /\bfw\b.*\bci\s+wait(\s|$)/.test(args);
 
-/** `lsof -d 1,2 -Fpn` output to pid -> the regular file its stdout or stderr is redirected to (first one); no entry: none. */
 export function parseLsofOut(out: string): Map<number, string> {
   const m = new Map<number, string>();
   let pid = -1;
@@ -88,7 +73,6 @@ export function parseLsofOut(out: string): Map<number, string> {
   return m;
 }
 
-/** Device ids of the Simulators this project boots (`fw-` names), from `xcrun simctl list devices -j`; null when it fails. */
 export function ownSimUdids(): Set<string> | null {
   const r = spawnSync("xcrun", ["simctl", "list", "devices", "-j"], { encoding: "utf8", maxBuffer: 1 << 26, timeout: 10_000 });
   if (r.error || r.status !== 0) return null;
@@ -98,8 +82,6 @@ export function ownSimUdids(): Set<string> | null {
   } catch { return null; }
 }
 
-/** The second of the last sim slot release, the second its run acquired the slot and the number of live sim slots, from the slot
- *  `state.json`; null/0 when unread. */
 export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simAcquired: number | null; simHolders: number } {
   try {
     const st = JSON.parse(readFileSync(join(dir, "state.json"), "utf8")) as { simIdleSince?: number; simAcquired?: number; holders?: { kind: string; till: number }[] };
@@ -110,12 +92,10 @@ export function simSlotFacts(dir: string, now: number): { simIdleSince: number |
   } catch { return { simIdleSince: null, simAcquired: null, simHolders: 0 }; }
 }
 
-/** A path with its directory resolved (`/tmp/x` and `/private/tmp/x` give one string); the raw path when the directory is gone. */
 export function canonPath(p: string): string {
   try { return join(realpathSync(dirname(p)), basename(p)); } catch { return p; }
 }
 
-/** A process of the lean-lsp-mcp server (its launcher or the Python it runs): the parents a `lake serve` may have. */
 export const isMcp = (args: string): boolean => /(^|[\s/])lean-lsp-mcp(\s|$)/.test(args);
 
 const secs = (ms: number) => Math.floor(ms / 1000);
@@ -352,7 +332,6 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const cpu = cpuTable();
   const own = t.rows.some((r) => r.kind === "simDevice") ? ownSimUdids() : null;
   const argsOf = new Map(t.ps.map((p) => [p.pid, p.args]));
-  // the own-device fact per Simulator row (an unreadable device list: none); branch F decides
   const ownSims = t.rows.filter((r) => r.kind === "simDevice" && own?.has(simUdidOf(argsOf.get(r.pid) ?? "") ?? "")).map((r) => ({ pid: r.pid, start: r.start }));
   const cand = t.rows.filter((r) => r.kind !== "other" && r.kind !== "serena");
   const mcpPs = t.ps.filter((p) => isMcp(p.args));
@@ -407,15 +386,11 @@ const request = (op: string, f: Facts) => ({
   simAcquired: f.simAcquired ?? null, ownSims: f.ownSims ?? [], simHolders: f.simHolders ?? 0,
 });
 
-/** The orphan loops the watch alert names: Lean's `ops.reapHeld` on the same facts `fw reap` reads, each a TERM target of
- *  `ops.reapPlan`. `subject` is the agent's worktree id (the loop's own), else `pid-<pid>`. */
 export function heldLoops(f: Facts, call: Call): { pid: number; start: number; subject: string; reason: string }[] {
   const held = (call({ ...request("ops.reapHeld", f) }) as { held: Selected[] }).held;
   return held.map((h) => ({ pid: h.pid, start: h.start, subject: f.rows.find((r) => r.pid === h.pid)?.wt ?? `pid-${h.pid}`, reason: h.reason }));
 }
 
-/** Store the baselines Lean returns for these facts (`ops.reapIdle`) in `f.idleFile`, when set. Best effort: a failed write
- *  only delays branch D (a stack with no baseline is kept). */
 export function saveIdle(f: Facts, call: Call): void {
   if (!f.idleFile) return;
   try {
@@ -472,11 +447,9 @@ export type Io = {
   sleep: (ms: number) => void;
   table: () => ReapRow[] | null;
   rss: (pids: number[]) => Map<number, number>;
-  /** stop a selected Simulator by `simctl shutdown` of its device id (the slot's stop); absent: nothing is sent */
   simStop?: (t: Target) => void;
 };
 
-/** Block the thread for `ms` (the stopper is a short sequential tool, not a server). */
 export const sleepSync = (ms: number) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
 
 /** RSS in KiB per pid (`ps -o rss=`); pids that are gone are absent. */

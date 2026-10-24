@@ -25,8 +25,8 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
   gives `untilLoop`), in this repo, whose tool call ended (`callLive` false: glue sets it from `ppid > 1`, unproved), at
   least `orphanMinSec` (60 s) old, and with no live writer: a `fw ci wait` of the same worktree id whose stdout (lsof fd 1,2)
   is the awaited path and whose (pid, start) is in the table (`writerLive`; `live_writer_kept`, `writer_identity`,
-  `orphan_selected`). Both paths go through `canonPath` (realpath of the directory + basename, raw if it fails) so lsof's
-  `/private/tmp/x` and the argv's `/tmp/x` are one string. The watch's `agent.held` for a wait loop is `ops.reapHeld` (the
+  `orphan_selected`). Both paths go through `canonPath` (realpath of the directory + basename, raw if it fails) so
+  `/private/tmp/x` and `/tmp/x` match. The watch's `agent.held` for a wait loop is `ops.reapHeld` (the
   E selections) and nothing else: a TERM target of `ops.reapPlan` with the same pid and start (`held_in_plan`). The old
   `killOrphan` agent.held alert of `nextAlerts` is gone.
 - F (`pickF`), kind `simBooted`: a Simulator device process (`launchd_sim`, device id in argv) that this project boots
@@ -65,12 +65,11 @@ the row stays within `cpuTolCs` of it, else a new one at `now` (`rebase_quiet`, 
 
 ## Limits
 The MCP processes themselves (the lean-lsp-mcp launcher and its Python) are not stopped; D stops only the `lake serve`
-stack below one, which lean-lsp-mcp 0.31.0 restarts on its next request to that worktree (a client whose process ended is
-replaced: lean_lsp_mcp/client_utils.py:156-187@lean-lsp-mcp 0.31.0, `_get_or_create_shared_client` returns the client
+stack below one, which lean-lsp-mcp 0.31.0 restarts on its next request to that worktree (lean_lsp_mcp/client_utils.py:156-187@lean-lsp-mcp 0.31.0, `_get_or_create_shared_client` returns the client
 only while `client.alive` (:168), else closes it and calls `_start_client` (:187); `alive` is leanclient/aio/transport.py:75
 (process returncode is None); CONFIRMED). Serena and serena-lean are
 out of scope until the user approves them. Idle is INFERRED from CPU time (a stack waiting on a request without CPU looks
-idle). A lock holder is checked by pid only, so a reused pid keeps the stack (the safe side); a teammate session whose
+idle). A lock holder is checked by pid only, so a reused pid keeps the stack; a teammate session whose
 worktree is not locked counts as live only through a lean-lsp-mcp started there. Unselected processes still need the user; the console does not yet display `reap.stopped`.
 C may select a tool whose cwd is a deleted directory anywhere in this repo when its ancestor is selected by A or B.
 A process a group member forks after the pre-signal table read is in the group and gets the group signal (it is a child

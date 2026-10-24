@@ -173,7 +173,7 @@ describe("end to end with a real child process", () => {
     if (existsSync(fwcore)) {
       const r = (await coreCaller([fwcore])({ op: "obs.next", now: Date.now(), agents: facts })) as NextReply;
       expect(formatNext(r)).toContain(`NEXT e2e killOrphan pid=${pid}`);
-      expect(nextAlerts(r).map((a) => a.code)).not.toContain("agent.held"); // agent.held is the Reap rule, not this advice
+      expect(nextAlerts(r).map((a) => a.code)).not.toContain("agent.held");
     }
   });
 });

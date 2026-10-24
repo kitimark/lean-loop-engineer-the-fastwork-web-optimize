@@ -272,30 +272,24 @@ def idleCases : List (String × String × Json) := [
   ("ops.reapIdle", "baselines: a reused pid (another start) gets a new baseline",
     idleReq (stack) [mcpW 400 none] [bse 500 1000 10 (start := 8), bse 501 1000 600, bse 502 1000 900, bse 503 1000 100])]
 
-/-- A row with the facts of branches E and F: worktree id, awaited path of an `until` loop, whether its tool call still runs. -/
 def rowE (pid ppid pgid start : Nat) (kind : String) (wt : Option String) (awaits : Option String := none)
     (callLive : Bool := false) : Json :=
   match rowW pid ppid pgid start (some 5) kind wt with
   | .obj kvs => .obj ((kvs.insert "awaits" (match awaits with | some a => .str a | none => .null)).insert "callLive" (.bool callLive))
   | j => j
 
-/-- A live `fw ci wait`: identity, the agent's worktree id and the path it writes. -/
 def waiterJ (pid start : Nat) (wt writes : String) : Json :=
   Json.mkObj [("pid", toJson pid), ("start", toJson start), ("wt", .str wt), ("writes", .str writes)]
 
-/-- The loop fact (`loops` of the request) of a row built by `rowE`, and the row without the helper keys. -/
 def loopFact (r : Json) : Option Json :=
   match r.getObjVal? "awaits", r.getObjVal? "pid", r.getObjVal? "start", r.getObjVal? "callLive" with
   | .ok (.str a), .ok pid, .ok st, .ok cl => some (Json.mkObj [("pid", pid), ("start", st), ("awaits", .str a), ("callLive", cl)])
   | _, _, _, _ => none
 
-/-- A row of the request: without the helper keys of `rowE`. -/
 def plainRow : Json → Json
   | .obj kvs => .obj ((kvs.erase "awaits").erase "callLive")
   | j => j
 
-/-- A request of branches E and F: rows (the `until` loops among them give the `loops` facts), waiters, the second now, the last
-sim slot release, the second its run acquired the slot and the sim slots held. -/
 def reqE (rows waiters : List Json) (now : Nat) (simIdleSince : Option Nat := none) (simAcquired : Option Nat := none)
     (simHolders : Nat := 0) (ownSims : List (Nat × Nat) := []) : Json :=
   match reqW (rows.map plainRow) [1] [] [] ["agent"] with
@@ -306,10 +300,8 @@ def reqE (rows waiters : List Json) (now : Nat) (simIdleSince : Option Nat := no
       (.arr (ownSims.map fun (p, s) => Json.mkObj [("pid", toJson p), ("start", toJson s)]).toArray))
   | j => j
 
-/-- The awaited path of the 2026-10-24 loops. -/
 def mwm : String := "/tmp/mwm-wait.log"
 
-/-- The three cases of task `reap-watch-one-rule`, and the keeps next to each: `(op, name, request)`. -/
 def oneCases : List (String × String × Json) :=
   let loop (pid : Nat) := rowE pid 1 pid 1000 "untilLoop" (some "agent") (some mwm)
   let ciWait := rowE 23868 1 23868 1100 "other" (some "agent")
@@ -360,7 +352,6 @@ def oneCases : List (String × String × Json) :=
     | .obj kvs => .obj (kvs.insert "protect" (toJson [2846]))
     | j => j)]
 
-/-- The golden text of `reap-one.jsonl`. -/
 def oneText : String :=
   String.join (oneCases.map fun (op, name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")

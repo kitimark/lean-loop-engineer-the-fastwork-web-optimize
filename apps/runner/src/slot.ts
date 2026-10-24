@@ -179,7 +179,6 @@ export function gitFacts(cwd: string): GitFacts {
   return { tree: gitIn(cwd, ["rev-parse", "HEAD^{tree}"]), clean: st.status === 0 && st.stdout.trim() === "", mainSha: gitIn(cwd, ["rev-parse", "refs/heads/main"]) };
 }
 
-/** Shut one Simulator down by device id: the one stop the slot check and `fw reap` (branch F) both use. */
 export function simctlShutdown(udid: string): void { spawnSync("xcrun", ["simctl", "shutdown", udid], { stdio: "ignore" }); }
 
 function bootedAll(): SimDevice[] {
@@ -334,7 +333,6 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
-/** The acquire second of the sim run that released: the earliest `since` among the sim holders that went. */
 const acquiredOf = (gone: Entry[]): number => Math.min(...gone.filter((h) => h.kind === "sim").map((h) => h.since));
 
 function tick(d: Deps, st: State, s: Sample): void {

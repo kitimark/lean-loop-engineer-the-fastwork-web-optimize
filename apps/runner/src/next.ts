@@ -260,7 +260,6 @@ export const slowNextLines = (slow: string[]): string[] => slow.map((s) => `NEXT
 export const slowAlerts = (slow: string[], details: string[] = []): { code: string; subject: string; detail: string }[] =>
   slow.map((s, i) => ({ code: "timing.slow", subject: s, detail: (details[i] ? details[i] + "; " : "latest sample is slow (Fw.Obs.Timing verdict); ") + "NEXT investigate step=" + s }));
 
-/** Alerts for `fw watch`: a land/route proposal = agent.unlanded (subject = agent id). `agent.held` comes only from Fw.Ops.Reap (watch-reap.ts); a killOrphan action is advice in NEXT lines, no alert. */
 export function nextAlerts(reply: NextReply): { code: string; subject: string; detail: string }[] {
   const out: { code: string; subject: string; detail: string }[] = [];
   for (const a of reply.agents ?? []) for (const x of a.actions) {
