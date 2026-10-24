@@ -5,7 +5,7 @@ Task `ci-gate-engine-webkit-slow`. Sources: job logs of existing land runs (`gh 
 ## Answer
 - The 66 / 87 / 70 s webkit steps (MEASURED) are the apt sub-step (`playwright-core install-deps webkit`, 60 / 82 / 65 s), not the Playwright download (WebKit + FFmpeg download in 5 s, every run). Chromium 42 s is the same (apt 37 s of 42). Class `aptVariance` (Lean `stepClass`): the part outside apt is 5-6 s on every row.
 - The Post step of 910dacd (43 s, run 40026269429) is the cache save of the apt debs (39 s upload) and the browsers (4 s). Class `fixableSave` (Lean `postClass`).
-- Both caches miss on every sampled leg (7 of 7) with one stable key per engine (webkit 969c76e, chromium 1a85621), so it is not key churn and not a missing restore. They miss because a land leg runs on a fresh `ci/land-<task>-<sha>` branch, GitHub lets a branch restore only its own and the default branch's caches (CONFIRMED, docs.github.com "Dependency caching reference", cache access restrictions), and `gh cache list` shows 24 gate-* entries, all on `ci/land-*` refs (2144 MB of the 10.8 GB used), none on `main`. Every land leg uploads ~356 MB nobody reads and adds to the quota that evicts the Lake entry.
+- Both caches miss on every sampled leg (7 of 7) with one stable key per engine (webkit 969c76e, chromium 1a85621), so it is not key churn and not a missing restore. They miss because a land leg runs on a fresh `ci/land-<task>-<sha>` branch, GitHub lets a branch restore only its own and the default branch's caches (CONFIRMED, docs.github.com "Dependency caching reference", cache access restrictions), and `gh cache list` shows 24 gate-* entries, all on `ci/land-*` refs (2144 MB of the 10.8 GB used), none on `main`. Every land uploads ~356 MB nobody reads (webkit leg 204 MB, chromium leg 152 MB) and adds to the quota that evicts the Lake entry.
 
 ## Per sub-step (seconds, MEASURED from logs)
 | run | engine | step | apt sub-step | apt fetch | Post | class |
@@ -22,7 +22,7 @@ apt fetch is the sum of the "Fetched ... in Ns" lines. Run 1 shows apt time beyo
 
 ## Fix (action, `.github/actions/gate-engine/action.yml`)
 - Save rule (Lean `shouldSave`, theorem `land_prefix_no_save`): no save on `ci/land-*`; every other ref saves. The saves are separate `actions/cache/save` steps (same pinned SHA) that run after the install, only on a miss. The action implements the rule as a shell `case`; its six golden `ref` rows were replayed against it, 0 mismatches.
-- Effect: the land-leg Post step drops to about 0 s (4-43 s removed) and 356 MB per leg is no longer uploaded.
+- Effect: the land-leg Post step drops to about 0 s (4-43 s removed) and 356 MB per land (204 MB webkit leg, 152 MB chromium leg) is no longer uploaded.
 - Not fixable in the action: the apt time itself. It becomes cheaper only when the debs cache hits (fetch 8-43 s gone). It hits when `main` holds the entry: `premise-tests.yml` job `engine` seeds it on a `main` push, and that job runs when `.github/actions/gate-engine/**` changes, so landing this change seeds `main`.
 
 ## How the next land legs show it (INFERRED until they run)
