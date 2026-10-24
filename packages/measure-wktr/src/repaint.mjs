@@ -135,7 +135,11 @@ export function frameFacts(fr, meta) {
       rects.push({ part: e?.p ?? 'other', cause: L.k ?? null, el: e?.d ?? null, cls: classify(fact), area: rect.w * rect.h, seen: seenArea(fact), waste: wasteArea(fact), src: 'layer' });
     }
   }
-  const resizes = (fr.rs ?? []).map(([i, ow, oh, nw, nh, tiled, e]) => ({ i, el: el(e)?.d ?? null, part: el(e)?.p ?? 'other', old: [ow, oh], new: [nw, nh], tiled: !!tiled, area: rerasterArea(!!tiled, [ow, oh], [nw, nh]) }));
+  // layer bounds are fractional (108.5 x 77.5): sizes are rounded to whole pixels for the Lean area rule
+  const resizes = (fr.rs ?? []).map(([i, ow, oh, nw, nh, tiled, e]) => {
+    const o = [Math.round(ow), Math.round(oh)], n = [Math.round(nw), Math.round(nh)];
+    return { i, el: el(e)?.d ?? null, part: el(e)?.p ?? 'other', old: o, new: n, tiled: !!tiled, area: rerasterArea(!!tiled, o, n) };
+  });
   return { rects, calls, resizes };
 }
 

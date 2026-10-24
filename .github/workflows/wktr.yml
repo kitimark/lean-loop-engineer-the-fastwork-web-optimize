@@ -164,7 +164,7 @@ jobs:
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:wktr:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: ${{ (inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) && 45 || 16 }}
+    timeout-minutes: 16
     strategy:
       max-parallel: 1
       fail-fast: false

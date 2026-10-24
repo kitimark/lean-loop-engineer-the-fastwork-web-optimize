@@ -139,6 +139,12 @@ test('frameFacts: the engine drops repeated rects of a layer, calls keep the cou
   assert.equal(frameCounts(f).paintRects, 2);
 });
 
+test('frameFacts: fractional layer sizes are rounded, the counts stay integers', () => {
+  const f = frameFacts({ ...FR, rs: [[4, 108.5, 77.5, 112.5, 81.5, 0, 0]] }, META);
+  assert.deepEqual(f.resizes[0].new, [113, 82]);
+  assert.ok(Object.values(frameCounts(f)).every(Number.isInteger));
+});
+
 test('frameCounts: integers per class, wasted area and re-raster', () => {
   const c = frameCounts(frameFacts(FR, META));
   assert.equal(c.paintRects, 6);
