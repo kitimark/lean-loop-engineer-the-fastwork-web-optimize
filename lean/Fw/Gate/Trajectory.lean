@@ -3188,6 +3188,8 @@ def gapsIn (b c : Reading) : List Nat :=
 
 def gaps (b c : Push) : Nat := (gapsIn b.opening c.opening).length + (gapsIn b.closing c.closing).length
 
+/-- 8: one capped width keeps a two-width Mac leg under its 15 min cap (run 40127042262, 13.9 min); two capped widths in
+one leg (about 16.5 min) go over it, so the probe-apple cap needs re-deriving (lead follow-up). -/
 def extraCap : Nat := 8
 
 def more (extra : Nat) (b c : Push) : Bool := decide (extra < extraCap) && decide (gaps b c ≠ 0)
@@ -3403,6 +3405,7 @@ theorem settle_fills : (settleWalk fullPush gapPush fun _ => pushOf [5000] [8000
 theorem settle_capped : (settleWalk fullPush gapPush fun _ => pushOf [1000] [1000]).1 = extraCap ∧
     gaps fullPush (settleWalk fullPush gapPush fun _ => pushOf [1000] [1000]).2 = 2 := by decide
 
+/-- A Mac morph cell of a flag active at every width with no node-property group passes (outcome reads only the groups). -/
 theorem outcome_active_flag_settled :
     outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
   decide

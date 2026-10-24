@@ -49,7 +49,7 @@ Lean (`lean/Fw/Gate/Trajectory.lean`, section after `Reading`):
   `settleWalk_deterministic_capped` (a bucket the page never visits stays a gap and runs to the cap).
 - Link to the verdict: `gap_is_coverage_fail`, `no_gap_sampled` (a gap is the `fail:coverage` of the reducer).
 - Concrete branches by `decide`: `gaps_run_shape`, `more_run_shape`, `more_full`, `more_base_gap`, `gaps_ends`,
-  `settle_fills`, `settle_capped`, `outcome_active_flag_settled` (an all-width flag, Mac morph: outcome pass, no groups).
+  `settle_fills`, `settle_capped`, `outcome_active_flag_settled` (an all-width flag with no node-property group, Mac morph: outcome pass; it does not mention the walk).
 - Golden: 13 `casesSettle` lines (`retry`, `settle`, `settleConst`) in `packages/contracts/golden/gate/trajectory.jsonl`
   (382 lines, written by Lean); `trajectory.test.mjs` replays them against `plan.mjs` (422 pass).
 
@@ -63,9 +63,11 @@ Why a cap of 8 (INFERRED, Monte Carlo `mc2.mjs` from the hit table above, 20000 
 | 15 | 0.98 | 3.9 |
 
 The apple job has a 15 min `timeout-minutes` that Lean decides (pool caps, `scripts/ci-paths.test.mjs` "pool caps"), and a
-leg of two widths already takes about 11 min (MEASURED, run 40099056290). One pass is about 17 s, so the cap is 8: worst
-case about 2.3 min per width, mean about 53 s. A cap of 15 would pass more often but its worst case runs past the job cap, and a
-timeout loses the whole leg. A run that still repeats is a noisy walk, not a verdict: run it again.
+leg of two widths already takes about 11 min (MEASURED, run 40099056290). One extra pass is about 19 s (job walls 11.35 min
+with 0 extra, 12.3 min with 1, 13.9 min with 8 at 641; runs 40125557073 and 40127042262). With a cap of 8, one capped width
+keeps the leg under the cap (13.9 min), but the worst case is about 2.3 min per width, 4.6 min per leg, so two capped widths in
+one leg (about 16.5 min) go over it, and a timeout loses the whole leg. The probe-apple cap (`Fw/Ci/Pool/Caps.lean`, from the
+pre-retry p90 of 11.2 min, n=4) needs re-deriving from the retry-era legs, or the extra passes need a per-leg cap (follow-up). A run that still repeats is a noisy walk, not a verdict: run it again.
 
 ## Run 1 (40122382227, MEASURED)
 
