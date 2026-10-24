@@ -52,14 +52,14 @@ export const EXTRA_CAP = 8;
 /** Whether a reading (the morph values of the rows of one push, every pass pooled) has a row in bucket `k` (Lean `hit`). */
 export const hitIn = (ms, k) => ms.some((m) => bucket(m) === k);
 
-/** The interior buckets where the original and the faithful arm have a row and the candidate none (Lean `gapsIn`). */
-export const gapsIn = (o, b, c) => Array.from({ length: 11 }, (_, k) => k).filter((k) => needsSample(k) && hitIn(o, k) && hitIn(b, k) && !hitIn(c, k));
+/** The interior buckets where the faithful arm has a row and the candidate none (Lean `gapsIn`). */
+export const gapsIn = (b, c) => Array.from({ length: 11 }, (_, k) => k).filter((k) => needsSample(k) && hitIn(b, k) && !hitIn(c, k));
 
 /** The gaps of both pushes of a morph walk: `{ opening, closing }` readings (Lean `gaps`). */
-export const gapCount = (o, b, c) => gapsIn(o.opening, b.opening, c.opening).length + gapsIn(o.closing, b.closing, c.closing).length;
+export const gapCount = (b, c) => gapsIn(b.opening, c.opening).length + gapsIn(b.closing, c.closing).length;
 
 /** Whether the candidate walks another pass after `extra` extra ones: below the cap and a gap left (Lean `more`). */
-export const moreReps = (extra, o, b, c) => extra < EXTRA_CAP && gapCount(o, b, c) !== 0;
+export const moreReps = (extra, b, c) => extra < EXTRA_CAP && gapCount(b, c) !== 0;
 
 /** Two pooled readings (Lean `Push.pool`). */
 export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closing: a.closing.concat(b.closing) });
@@ -68,10 +68,10 @@ export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closi
  * The settle loop of the candidate's morph walk (Lean `settleWalk`): while `moreReps`, `walk(extra)` reads one more pass and its
  * rows are pooled. Returns the extra passes walked and the pooled reading. Ends within `EXTRA_CAP` passes (Lean `settleWalk_le`).
  */
-export async function settleReps(o, b, c0, walk) {
+export async function settleReps(b, c0, walk) {
   let extra = 0;
   let c = c0;
-  while (moreReps(extra, o, b, c)) { c = poolPush(c, await walk(extra)); extra++; }
+  while (moreReps(extra, b, c)) { c = poolPush(c, await walk(extra)); extra++; }
   return { extra, c };
 }
 

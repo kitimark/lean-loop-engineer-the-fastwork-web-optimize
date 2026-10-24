@@ -219,16 +219,16 @@ for (const g of golden) {
       assert.equal(cellOutcome(s), g.outcome, g.name);
     } else if (g.op === 'settleConst') assert.equal(EXTRA_CAP, g.extraCap);
     else if (g.op === 'retry') {
-      assert.deepEqual(gapsIn(g.o.opening, g.b.opening, g.c.opening), g.gapsOpening);
-      assert.deepEqual(gapsIn(g.o.closing, g.b.closing, g.c.closing), g.gapsClosing);
-      assert.equal(gapCount(g.o, g.b, g.c), g.gaps);
-      assert.equal(moreReps(0, g.o, g.b, g.c), g.more);
-      assert.equal(moreReps(EXTRA_CAP, g.o, g.b, g.c), g.moreCap);
+      assert.deepEqual(gapsIn(g.b.opening, g.c.opening), g.gapsOpening);
+      assert.deepEqual(gapsIn(g.b.closing, g.c.closing), g.gapsClosing);
+      assert.equal(gapCount(g.b, g.c), g.gaps);
+      assert.equal(moreReps(0, g.b, g.c), g.more);
+      assert.equal(moreReps(EXTRA_CAP, g.b, g.c), g.moreCap);
     } else if (g.op === 'settle') {
       const none = { opening: [], closing: [] };
-      const r = await settleReps(g.o, g.b, g.c, async (i) => g.passes[i] ?? none);
+      const r = await settleReps(g.b, g.c, async (i) => g.passes[i] ?? none);
       assert.equal(r.extra, g.extra);
-      assert.equal(gapCount(g.o, g.b, r.c), g.gaps);
+      assert.equal(gapCount(g.b, r.c), g.gaps);
       assert.deepEqual(r.c, g.pool);
     } else if (g.op === 'byMStart') {
       const d = (cls) => durOf(g.node, g.prop, g.width, cls);

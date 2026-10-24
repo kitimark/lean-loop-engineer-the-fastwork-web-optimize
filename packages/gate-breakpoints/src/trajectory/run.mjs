@@ -60,8 +60,8 @@ export const pushReading = (phases) => ({ opening: (phases.open ?? []).map((r) =
  * its `rep`; the approach is the first rep's). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
  * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
  * union of the windows of the original's reps, each aligned on its own.
- * With `against` (`{ orig, base }`, the readings of the original and the faithful arm at this width) the candidate walks extra reps
- * while Lean's `more` holds: an interior bucket of a push that both have a row in and this walk has none in. Each is a `new` unit
+ * With `against` (`{ base }`, the reading of the faithful arm at this width) the candidate walks extra reps
+ * while Lean's `more` holds: an interior bucket of a push that the faithful arm has a row in and this walk has none in. Each is a `new` unit
  * that fails on coverage, noise of the slow frames. At most `EXTRA_CAP` extra reps (plan.mjs, Lean `settleWalk`); `extra` is the count.
  */
 export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1, debug = '', against = null) {
@@ -78,8 +78,8 @@ export async function morphPath(engine, env, origin, site, search = '', reads = 
   };
   for (let rep = 0; rep < reps; rep++) await walk(rep);
   if (against !== null) {
-    const { extra } = await settleReps(against.orig, against.base, pushReading(out.phases), async (i) => {
-      log(`trajectory morph: extra rep ${i + 1} (a push bucket of the original and the faithful arm has no row of this arm)`);
+    const { extra } = await settleReps(against.base, pushReading(out.phases), async (i) => {
+      log(`trajectory morph: extra rep ${i + 1} (a push bucket of the faithful arm has no row of this arm)`);
       return pushReading((await walk(reps + i)).phases);
     });
     out.extra = extra;
@@ -153,7 +153,7 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         if (paths.includes('morph')) {
           log(`trajectory ${engineName} ${width} ${a.role}: morph`);
           const peer = (role) => runs.find((r) => r.width === width && r.role === role)?.morph;
-          const against = a.role === 'cand' && peer('orig') && peer('base') ? { orig: pushReading(peer('orig').phases), base: pushReading(peer('base').phases) } : null;
+          const against = a.role === 'cand' && peer('base') ? { base: pushReading(peer('base').phases) } : null;
           run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : '', against);
         }
         runs.push(run);

@@ -6,14 +6,15 @@ Task `webkit-morph-walk-noise` (split from `webkit-morph-cell`). Branch `ci/webk
 
 - **Cause (CONFIRMED, run 40099056290, Mac morph, 5 reps per arm):** the morph is time driven, so an interior bucket
   (a tenth of the morph value) is passed in 5 to 15 ms. A Mac VM frame gap is p50 22 ms, p90 66 ms, p99 120 ms, so one
-  walk has 5 to 18 moving frames and misses a bucket at random. A bucket that base hit in some rep, the candidate (or the
+  walk has 5 to 18 moving frames and misses a bucket at random. A bucket that the faithful arm sampled, the candidate (or the
   control `hero.exit:faithful`) misses in all 5 reps; the reducer then gives `fail:coverage`, `rel = new`, at the same
   step on every width, and two widths make "no verdict: coverage". It is noise in the walk, not the flag.
 - **Fix:** a per-width retry decided in Lean. After its 5 reps the candidate walks extra fresh pages while some interior
-  bucket of the open or close push has rows in orig and base but none in the candidate, at most 8 extra (`extraCap`).
+  bucket of the open or close push has a row in the faithful arm and none in the candidate, at most 8 extra (`extraCap`).
 - **Lean:** the retry loop terminates within the cap, ends with no gap or at the cap, and a page whose hits do not change
   gives the same coverage on repeat. The decision reads recorded facts (which buckets have rows) only.
-- **CI:** see "CI result" below.
+- **CI (MEASURED):** `engine.scroll:batched`, active at every width, passes the Mac morph cell in run 40122382227
+  (outcome `pass`: no node property fails at two or more widths). That run had the first version of the rule (see "Run 1").
 
 ## Cause
 
@@ -26,15 +27,16 @@ Task `webkit-morph-walk-noise` (split from `webkit-morph-cell`). Branch `ci/webk
 | cost of one pass on the Mac | about 17 s (5 reps about 85 s); the apple leg takes about 11 min | MEASURED |
 
 Source: `run.mjs` `morphPath` (REPS fresh pages, rows pooled), `reduce.mjs` `bucket` (floor((m+500)/1000) clamped to 0..10)
-and the push coverage rule (CONFIRMED by reading). An empty interior bucket of the rewrite's pooled rows is
-`fail:coverage` (`bucketVerdict_push_empty`). Orig and base miss buckets too, but the reducer only counts a candidate
-miss as `new` when the faithful arm hit it, so a flag active at every width shows the control's repeat.
+and `bucketVerdict` (an empty interior bucket of the rewrite's pooled push rows is `fail:coverage`, whatever the original
+did; `bucketVerdict_push_empty`) (CONFIRMED by reading). The faithful arm is judged the same way, so a candidate miss is
+`new` only where the faithful arm had a row; the control `hero.exit:faithful` shows the same repeat, which is why a flag
+active at every width cannot join `v2-proved` while the walk is noisy.
 
 ## The decision
 
-Lean (`lean/Fw/Gate/Trajectory.lean`, section "settle"):
+Lean (`lean/Fw/Gate/Trajectory.lean`, section after `Reading`):
 
-- `gapsIn`/`gaps`: buckets 1..9 with rows in orig and base and none in the candidate. `more extra o b c`: `extra < extraCap`
+- `gapsIn`/`gaps`: buckets 1..9 where the faithful arm has a row and the candidate none. `more extra b c`: `extra < extraCap`
   and `gaps ≠ 0`. `settle`/`settleWalk`: fuel loop that pools one fresh walk per step.
 - Terminates: `settle_le`, `settleWalk_le` (extra <= `extraCap`), `more_cap`.
 - Stops with no gap or at the cap: `settle_stop`, `settleWalk_stop`, `settleWalk_no_gap` (no gap: no extra walk).
@@ -45,34 +47,54 @@ Lean (`lean/Fw/Gate/Trajectory.lean`, section "settle"):
 - Link to the verdict: `gap_is_coverage_fail`, `no_gap_sampled` (a gap is the `fail:coverage` of the reducer).
 - Concrete branches by `decide`: `gaps_run_shape`, `more_run_shape`, `more_full`, `more_base_gap`, `gaps_ends`,
   `settle_fills`, `settle_capped`, `outcome_active_flag_settled` (an all-width flag, Mac morph: outcome pass, no groups).
-- Golden: 14 `casesSettle` lines (`retry`, `settle`, `settleConst`) in `packages/contracts/golden/gate/trajectory.jsonl`
-  (383 lines, written by Lean); `trajectory.test.mjs` replays them against `plan.mjs` (423 pass).
+- Golden: 13 `casesSettle` lines (`retry`, `settle`, `settleConst`) in `packages/contracts/golden/gate/trajectory.jsonl`
+  (382 lines, written by Lean); `trajectory.test.mjs` replays them against `plan.mjs` (422 pass).
 
-Why a cap of 8 (INFERRED, Monte Carlo `mc.mjs` from the hit table above, 20000 trials):
+Why a cap of 8 (INFERRED, Monte Carlo `mc2.mjs` from the hit table above, 20000 trials, the base-only rule):
 
 | extra cap | P(cell does not repeat at 2 or more widths) | mean extra passes per width |
 |---|---|---|
-| 0 | 0.33 | 0 |
-| 5 | 0.85 | 1.7 |
-| 8 | 0.95 | 2.1 |
-| 15 | 0.995 | 2.6 |
+| 0 | 0.13 | 0 |
+| 5 | 0.68 | 2.4 |
+| 8 | 0.87 | 3.1 |
+| 15 | 0.98 | 3.9 |
 
-The apple job has a 15 min `timeout-minutes` that Lean decides (pool caps, `ci-paths.test.mjs` "pool caps"), and a leg of two
-widths already takes about 11 min (MEASURED, run 40099056290). One pass is about 17 s, so the cap is 8 (worst case about 2.3 min
-per width, mean about 36 s): a cap of 15 would give a larger pass chance but a worst case past the job cap, and a timeout
-loses the whole leg. The first push (run 40122382227) ran the cap-15 code with the job timeout raised to 40 min; the final
-code has cap 8 and the original 15 min timeout.
+The apple job has a 15 min `timeout-minutes` that Lean decides (pool caps, `scripts/ci-paths.test.mjs` "pool caps"), and a
+leg of two widths already takes about 11 min (MEASURED, run 40099056290). One pass is about 17 s, so the cap is 8: worst
+case about 2.3 min per width, mean about 53 s. A cap of 15 would pass more often but its worst case runs past the job cap, and a
+timeout loses the whole leg. A run that still repeats is a noisy walk, not a verdict: run it again.
+
+## Run 1 (40122382227, MEASURED)
+
+Push `a8c25507`, line `fw=engine.scroll:batched engines=playwright-webkit debug=nav-transition` (a `ci/*` push runs the
+Mac leg only with `debug=` or `[frames:`; agents cannot dispatch). It ran the first rule (original AND faithful had a row,
+cap 15, the apple job at 40 min). Mac morph, 5 reps, `trajectory-apple`:
+
+| width | new units | what | extra passes of the candidate |
+|---|---|---|---|
+| 390 | 1 | content: `logo.color` close@0 | 0 |
+| 640 | 5 | content: `nav.background-color` close-hold@0, `earn.opacity` and `earn.max-width` open@9, open@10 | 0 |
+| 641 | 0 | | 2 |
+| 1280 | 42 | coverage: open@3 (same 42 node properties) | 0 |
+
+No node property is new at two or more widths (content or coverage), so `cellOutcome` is `pass` and the lane word is RED
+only on single-width units. The retry fired at 641 (2 extra passes). It did not fire at 1280 because the original had no row in
+open bucket 3 (the first rule required it) while the faithful arm had one, and the reducer fails the candidate there all the
+same: that was the defect of the first rule. The final rule drops the original. This run also carries the page recorder
+(`debug=nav-transition`, on base and cand, not on orig), so it is a witness for the cell, not a clean run.
 
 ## Limits
 
 - A page that never visits a bucket runs to the cap and the gap stays; this is a real failure and is kept
   (`settleWalk_deterministic_capped`).
-- The retry fills only the candidate versus base asymmetry; a coverage failure caused by orig windows out of reach is not retried.
-- Only the candidate retries; orig and base are walked once, so a bucket orig or base missed is not a gap by design.
-- Playwright WebKit on macOS stands in for Safari. The phone is not measured. macOS runners are shared, so a run may queue.
+- If the faithful arm's own row in a bucket has no window (nothing of the original brackets it), it fails too and the retry
+  spends the cap for nothing; the cap bounds the cost.
+- Only the candidate retries; orig and base are walked once.
+- The content units at 390 and 640 in run 1 (`apart` at close@0, open@9/10) are a second noise, of transitions in flight, not
+  of the walk; they did not repeat across widths. Not addressed here.
+- Playwright WebKit on macOS stands in for Safari. The phone is not measured. macOS runners are shared, so a run may queue
+  (run 1: the second Mac leg queued, about 25 min from push to finish).
 - TS stand-in: `run.mjs` `pushReading` and the `against` selection (glue, no unit test; checked by one local wiring run
   that added an extra rep, which is not a result). `plan.mjs` `settleReps` is the TS twin, checked against the golden.
-
-## CI result
-
-(filled in below)
+- `debug=nav-transition` is the only way a `ci/*` push reaches the Mac leg; a clean run needs a lead dispatch:
+  `pnpm -s fw run --trajectory --ref ci/webkit-morph-walk-noise --fw engine.scroll:batched --engines playwright-webkit`.
