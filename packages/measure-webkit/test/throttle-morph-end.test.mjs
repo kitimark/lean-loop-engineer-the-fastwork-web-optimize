@@ -1,4 +1,3 @@
-// The morph end counts: events by finger direction, open stretches through the touch-lock twin, the table over compositions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { COMPOSITIONS, EXTRA_SEARCHES, events, byDirection, stretches, lockCounts, passCounts, armRow, verdicts, medianGap } from '../src/throttle/morph-end.mjs';
@@ -33,7 +32,6 @@ test('stretches of open frames', () => {
   assert.deepEqual(stretches([]), []);
 });
 
-/** An open stretch of 14 frames pinned at 5300: the rubber band pulls to 5230 and the pin writes put it back. */
 function fightRec({ pinWrites = true } = {}) {
   const y = [], o = [], ca = [];
   for (let i = 0; i < 3; i++) { y.push(5200 + i); o.push(0); }

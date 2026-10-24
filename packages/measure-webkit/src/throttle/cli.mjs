@@ -5,8 +5,6 @@
 //   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
-//   morph end arms (task morph-end-measure, finish mode): rewrite (faithful), clamp, flip, release, all (preset morph-end-all),
-//   all-unthrottle (the three bricks + engine.scroll:unthrottle; its search is built into the site with morph-end-search.mjs).
 //   --rotate n rotates the first round's arm order by n (the workflow passes the job number - 1, so jobs start on different arms).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
@@ -85,11 +83,8 @@ async function main() {
         }
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round + Number(v.rotate))) {
-            // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm
             for (let attempt = 1; attempt <= 2; attempt++) {
-              // --reset: a timed-out touch run leaves the Simulator wedged (the next session stalled in 3 of 4 CI jobs): boot it afresh for the retry
               if (attempt === 2 && v.reset) { try { shutdownDevice(udid, { log }); } catch (e) { log(`reset: ${e.message}`); } }
-              // the attempt is in the tag: xcodebuild refuses a -resultBundlePath that exists, so a retry under the first tag failed at once
               const tag = `${arm}-r${round + 1}-a${attempt}`;
               try {
                 const rec = await withSession((ctx) => passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),

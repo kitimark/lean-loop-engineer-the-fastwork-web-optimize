@@ -1,12 +1,8 @@
-// The morph end bricks in a finish pass (task morph-end-measure): which page each composition loads, and the counts per pass. Closes and
-// re-opens by finger direction are a TS stand-in (no Lean spec yet); fights, reversals and displaced frames call the twin of
-// Lean Fw.Measure.TouchLock (touchlock.mjs); still runs and the verdict call the twin of Lean Fw.Device.FinishRuns (finish.mjs).
 import { reduce as finishReduce, armOf, verdict } from './finish.mjs';
 import { reduce as lockReduce, refusal as lockRefusal } from '../touchlock.mjs';
 
 const FLAGS = 'morph.end.clamp:on,morph.end.flip:on,morph.end.release:on';
 
-/** Arm name -> the prerendered search it loads. rewrite is the faithful build (no flag). */
 export const COMPOSITIONS = Object.freeze({
   rewrite: '',
   clamp: '?fw=morph.end.clamp:on',
@@ -18,14 +14,10 @@ export const COMPOSITIONS = Object.freeze({
 
 export const ARM_ORDER = Object.freeze(Object.keys(COMPOSITIONS));
 
-/** The only search the default build does not prerender (a preset or a single flag is). */
 export const EXTRA_SEARCHES = Object.freeze(Object.values(COMPOSITIONS).filter((s) => s.startsWith('?fw=') && s.includes(',')));
 
-/** Finger direction at an event: -1 up the screen (scrolls toward the end), 1 down, 0 no move in the touch yet. */
 export const dirName = (d) => (d < 0 ? 'up' : d > 0 ? 'down' : 'none');
 
-/** Close starts and re-opens: every change of the morph value from rising to falling (close) and from falling to rising (re-open). The
- * first rise is the first open and is not an event. Each event carries the frame and the finger direction d at that frame. */
 export function events(r, d) {
   const out = [];
   let last = 0;
@@ -41,14 +33,12 @@ export function events(r, d) {
 
 const ZERO = () => ({ up: 0, down: 0, none: 0 });
 
-/** Event counts by kind and finger direction. */
 export function byDirection(evs) {
   const out = { close: ZERO(), reopen: ZERO() };
   for (const e of evs) out[e.kind][e.dir]++;
   return out;
 }
 
-/** Contiguous runs of open frames as [from, to] frame indices. */
 export function stretches(o) {
   const out = [];
   for (let i = 0; i < o.length; i++) {
@@ -61,8 +51,6 @@ export function stretches(o) {
   return out;
 }
 
-/** Every open stretch through the touch-lock twin: reversals, fights against the written pin, frames displaced from it. A stretch the twin
- * refuses (under 10 frames, or two pins) is counted by reason and adds nothing. */
 export function lockCounts(rec) {
   const total = { stretches: 0, refused: {}, reversals: 0, fights: 0, displaced: 0 };
   for (const [a, b] of stretches(rec.o)) {
@@ -87,16 +75,12 @@ const median = (xs) => {
   return s[Math.floor(s.length / 2)];
 };
 
-/** Median gap between recorded frames in ms. */
 export const medianGap = (t) => median(t.slice(1).map((x, i) => x - t[i]));
 
-/** Frames of a record as Lean reads them: [scrollY, maxY, open]. */
 export const framesOf = (rec) => rec.y.map((y, i) => [y, rec.mx[i], rec.o[i] === 1]);
 
-/** A finish record of an older recorder has none of the new reads. */
 export const hasMorphReads = (rec) => Array.isArray(rec.r) && Array.isArray(rec.d) && rec.r.length === rec.y.length;
 
-/** The counts of one usable pass. */
 export function passCounts(rec) {
   const fin = finishReduce(framesOf(rec));
   const evs = hasMorphReads(rec) ? events(rec.r, rec.d) : [];
@@ -111,7 +95,6 @@ export function passCounts(rec) {
 const sum = (l) => l.reduce((a, b) => a + b, 0);
 const sumDir = (l) => ({ up: sum(l.map((x) => x.up)), down: sum(l.map((x) => x.down)), none: sum(l.map((x) => x.none)) });
 
-/** The row of one composition over its usable passes (each a passCounts result). */
 export function armRow(counts) {
   const fin = counts.map((c) => c.finish);
   const arm = armOf(fin);
@@ -130,7 +113,6 @@ export function armRow(counts) {
   };
 }
 
-/** The Lean verdict of a composition against the faithful rewrite on the band runs, and the same formula on the runs of 1-9 frames (exploratory). */
 export function verdicts(base, comp) {
   return {
     band: verdict({ runs: base.band, frames: base.frames }, { runs: comp.band, frames: comp.frames }),

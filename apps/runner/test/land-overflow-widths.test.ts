@@ -48,7 +48,6 @@ function dynamicMax(): Record<string, () => number> {
     "sim-speed/probe": () => 1e9,
     "smoothness/cadence": () => widthsMax() * setsOf(wf("smoothness.yml")),
     "smoothness/webkit-sim": () => 4,
-    // toolbar-throttle.yml:119 vms 1..3, or 1..6 when the commit message has [throttle:morph-end] (max-parallel 3 caps it)
     "toolbar-throttle/sim": () => 6,
     "trajectory-probe/probe": () => traj().linux,
     "trajectory-probe/probe-apple": () => traj().apple,

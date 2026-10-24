@@ -33,7 +33,7 @@ Pooled over the usable passes of run 40105567688 (jobs 1, 6; 4 drag cycles) and 
 
 Run ids: faithful jobs 1 and 6 of 40105567688, job 4 of 40126807029; clamp jobs 4 and 6 of 40126807029; flip jobs 4 and 6 of 40126807029; all job 2 of 40126807029; all + unthrottle job 6 of 40105567688 and job 4 of 40126807029. Per job rows: `results/morph-end-measure/run-40105567688-table.md`, `run-40126807029-table.md`, pooled `pooled-runs-40105567688-40126807029.md`.
 
-Tags: every number is MEASURED on CI (Simulator, real XCUITest touches); the per-open-start rates are INFERRED as poolable across cycle counts (they are a rate, but the first cycle of a pass may differ).
+Every number is MEASURED on CI (Simulator, real XCUITest touches). Pooling the per-open-start rates across cycle counts is INFERRED; the first cycle of a pass may differ.
 
 ## What each brick changes
 
@@ -49,7 +49,7 @@ The finish runs at a frame gap of about 30 to 39 ms (25 to 35 fps median) on CI,
 
 ## Limits (named)
 
-- Few passes: dispatch 1 lost most attempts to 300 s touch timeouts and a wedged Simulator; dispatch 2 lost 4 runners (60 to 80 min frozen VM, no artifact); dispatch 3 (reset of the Simulator before a retry, 4 arms per job) gave jobs 2, 4, 6 and lost jobs 1, 3, 5. The three dispatches the task allowed are used. The host load average was 300 to 860 on every run (MEASURED), also on the earlier good run 40079501230.
+- Few passes: dispatch 1 lost most attempts to 300 s touch timeouts and a wedged Simulator; dispatch 2 lost 4 runners (60 to 80 min frozen VM, no artifact); dispatch 3 (reset of the Simulator before a retry, 4 arms per job) gave jobs 2, 4, 6 and lost jobs 1, 3, 5. The host load average was 300 to 860 on every run (MEASURED), also on the earlier good run 40079501230.
 - Touch-driver retries may lose passes, and a retry boots the Simulator afresh in dispatch 3 only.
 - The Simulator has no phone GPU or power state. Felt smoothness is the user's phone review.
 - The close and re-open counting by finger direction is a TS STAND-IN (`packages/measure-webkit/src/throttle/morph-end.mjs`, no Lean spec). Fights, reversals and displaced frames come from the twin of `Fw.Measure.TouchLock`; still runs and the band verdict from the twin of `Fw.Device.FinishRuns`.

@@ -1,12 +1,3 @@
-// Page-side code of the finish pass (I/O glue, no decision): scroll near the page end, then one native requestAnimationFrame callback per
-// frame stores the frame time, scrollY and the largest scrollY (tenth px), whether the end-of-page morph is open (the nav's inline --morph
-// above 0.001, as touchlock-page.mjs reads it) and the viewport heights. Recording starts at the first scroll event and the fetch returns
-// the frames up to the last frame whose scrollY, open flag or morph value changed. Lean (via finish.mjs, golden-checked) does every reduction.
-// Task morph-end-measure adds three reads per frame: the morph value r (thousandths), the finger direction d of the last touchmove of the
-// current touch (-1 finger up the screen, scrolls toward the end; 1 finger down; 0 none yet; moves under 1 px are ignored, as the driver
-// ignores them), and the pin writes (scrollTo with behavior instant, with the index of the next frame). wobble counts direction flips inside one touch.
-
-/** Scroll to `gapPx` above the page end without animation and report where the page stands. */
 export const nearEndJs = (gapPx) => `(() => {
   const maxY = document.documentElement.scrollHeight - innerHeight;
   window.scrollTo({ top: Math.max(0, maxY - ${gapPx}), behavior: 'instant' });

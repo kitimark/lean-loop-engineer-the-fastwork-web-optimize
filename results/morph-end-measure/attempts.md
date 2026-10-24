@@ -16,4 +16,4 @@ Attempts per job (MEASURED, counted from the job logs). done = a pass with a res
 | 40126807029 | 3 | 6 | 2 | 3 | 0 | release timed out twice |
 | 40126807029 | 3 | 1, 3, 5 | - | - | - | lost or cancelled, no artifact |
 
-Runner facts (MEASURED): image 20261022.0305.3, 3 vCPU, host load average 300 to 860 on every run, including the earlier good run 40079501230. Passes of that run took 172 to 290 s; the fixed XCUITest cost dominates, so the pass time does not scale with the cycle count.
+Runner facts (MEASURED): image 20261022.0305.3, 3 vCPU, host load average 300 to 860 on every run, including the earlier good run 40079501230. Passes of that run took 172 to 290 s; the pass time does not scale with the cycle count because the fixed XCUITest cost dominates.
