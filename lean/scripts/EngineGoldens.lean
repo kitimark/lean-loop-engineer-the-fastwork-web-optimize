@@ -26,7 +26,7 @@ def generators : List (String × String) :=
    ("pain-notes.jsonl", Fw.Parts.PainNotesOpt.goldenText),
    ("people-card.jsonl", Fw.Parts.PeopleCardOpt.goldenText),
    ("people-deck.jsonl", Fw.Parts.PeopleDeckOpt.goldenText),
-   ("transition-start.jsonl", Fw.Engine.TransitionStart.goldenJsonl),
+   ("transition-start.jsonl", Fw.Engine.TransitionStart.goldenJsonl ()),
    ("webkit.jsonl", Fw.Engine.WebKit.goldenJsonl)]
 
 /-- Check (or with `--write`, rewrite) `packages/contracts/golden/engine/*.jsonl` against the Lean generators. Run from
