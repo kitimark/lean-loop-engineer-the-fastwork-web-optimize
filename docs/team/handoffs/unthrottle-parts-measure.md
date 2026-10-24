@@ -3,8 +3,8 @@ Worktree: .claude/worktrees/wf_3b6992a9-795-1 (under the repo root)
 Last commit: c0c5900cc (reducer, recorder, probe, cli, tests; handoff commit follows)
 CI runs (toolbar-throttle lane, ci-only commit bd492dcf3 = yml edit, not on this branch):
 - 40098348176 on ci/unthrottle-parts-measure-drags (mode drags, dispatch 1 of 3): success (6/6 usable passes per arm; hero verdict lifted; summary in results/unthrottle-parts/drags-40098348176.*)
-- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): in_progress
-- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): queued
+- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): in_progress; job 3 failed at start (simctl list ETIMEDOUT, runner load, before any pass)
+- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): in_progress; jobs 2 and 3 failed in the warm-up (no Safari tab, stall watchdog; load 562)
 Verified: package tests 660 pass through the slot (incl. test/throttle-parts.test.mjs), scripts/ci-paths.test.mjs 56 pass, apps/runner land-inputs 60 pass.
 Open: finish and rest results; the note; dry land; review ready.
 
