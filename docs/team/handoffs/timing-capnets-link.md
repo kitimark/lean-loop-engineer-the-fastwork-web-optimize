@@ -6,9 +6,11 @@
   `netMsOf_capNets`: a gap made of netting waits (interval, retryAfter) that fit the cap `c` and other waits
   (floor, hour, minute) leaves `others - (c - netting)` of own time; `netMsOf_capNets_full` (netting waits fill the
   cap: every other ms is own time); `netMsOf_own_wait` (one interval wait `q · 1000`, no backoff, then a wait with
-  `capNets = false`); `floor_row_own` instantiates it on the new golden row, `floor_row_is_golden` pins that row.
-- Golden `timing-own.jsonl`: 21 rows; new last row: 10 s interval + 50 s floor wait, ticks 60 s apart, net 10000,
-  own 240000.
+  `capNets = false`); `floor_row_own` instantiates it on the floor golden row, `floor_row_is_golden` pins that row.
+- Golden `timing-capnets.jsonl` (new, `capNetsCases`, 3 rows: floor wait, backoff + hour wait, minute wait absorbed by
+  the cap's slack), each row checked by `CapNetsCase.holds` (the theorem's equation). `timing-own.jsonl` is unchanged:
+  `apps/runner/test/timing-own.test.ts` pins its 20 rows and is outside this task's writes. Replay test:
+  `packages/gh-budget/test/timing-capnets.test.ts` (fwcore `obs.timing` gives each row's `ownMs`).
 - (2) Picked the code fix, not the Lean max theorem: the max over the two ticks' pre-event intervals is false in
   general (`pre_pages_max_misses`: pages 1 to 2 under a leading spread gap, 100 s scheduled, recorded 50 and 12).
   `poller.ts` now sends the `pages` event before writing the status and records `ci.budget.status` of the state it

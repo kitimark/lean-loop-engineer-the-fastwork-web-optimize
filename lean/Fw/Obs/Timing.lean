@@ -3243,9 +3243,7 @@ def ownCases : List OwnCase :=
    { name := "the interval grew from 10 s at the earlier tick to 30 s at the deciding one: the deciding 30 s caps a 217 s gap",
      s := 0, d := 300000, u := some 50000, t := some 257000, p := some 40000, q := some 30, r := some 30, w := some 10 },
    { name := "a 217 s gap past the earlier tick's 60 s interval: 60 s netted, the stall counts as own time",
-     s := 0, d := 300000, u := some 50000, t := some 257000, p := some 40000, q := some 10, r := some 30, w := some 60 },
-   { name := "a 50 s floor wait after the 10 s interval spaced the ticks 60 s apart: only the 10 s cap nets, the floor wait counts as own time",
-     s := 0, d := 300000, u := some 50000, t := some 100000, p := some 40000, q := some 10, r := some 30 }]
+     s := 0, d := 300000, u := some 50000, t := some 257000, p := some 40000, q := some 10, r := some 30, w := some 60 }]
 
 def ownSpanJson (c : OwnCase) : Json :=
   let opt (k : String) (x : Option Nat) : List (String × Json) := (x.map fun n => [(k, toJson n)]).getD []
@@ -3263,24 +3261,71 @@ def ownGoldenText (_ : Unit := ()) : String :=
 
 #guard ownCases.map OwnCase.own ==
   [some 3140, some 3140, none, some 57709, some 58709, some 57709, some 200000, some 238000, some 240000, some 243000,
-   none, none, none, some 240000, some 43000, some 189000, some 205000, some 240000, some 220000, some 190000, some 240000]
+   none, none, none, some 240000, some 43000, some 189000, some 205000, some 240000, some 220000, some 190000]
 #guard ownCases.map (fun c => netSrc c.t c.p) ==
   [.state, .state, .state, .observed, .state, .observed, .observed, .observed, .state, .state, .state, .state, .state,
-   .observed, .observed, .observed, .observed, .observed, .observed, .observed, .observed]
+   .observed, .observed, .observed, .observed, .observed, .observed, .observed]
 
-theorem floor_row_is_golden : ownCases.getLast?.map (fun c => (c.t, c.p, c.q, c.r, c.w)) =
-    some (some 100000, some 40000, some 10, some 30, none) := rfl
+def capReasonStr : Fw.Ci.Budget.Reason → String
+  | .failures => "failures" | .idle => "idle" | .tooBig => "tooBig" | .retryAfter => "retryAfter"
+  | .floor => "floor" | .hour => "hour" | .minute => "minute" | .interval => "interval"
+
+structure CapNetsCase where
+  c : OwnCase
+  waits : List (Fw.Ci.Budget.Reason × Nat)
+
+def capNetsCases : List CapNetsCase :=
+  [{ c := { name := "a 50 s floor wait after the 10 s interval spaced the ticks 60 s apart: only the 10 s cap nets, the floor wait counts as own time",
+            s := 0, d := 300000, u := some 50000, t := some 100000, p := some 40000, q := some 10, r := some 30 },
+     waits := [(.interval, 10000), (.floor, 50000)] },
+   { c := { name := "a 70 s backoff and a 30 s hour-share wait after the 10 s interval: interval and backoff net, the 30 s share wait counts as own time",
+            s := 0, d := 300000, u := some 50000, t := some 150000, p := some 40000, q := some 10, r := some 110 },
+     waits := [(.interval, 10000), (.retryAfter, 70000), (.hour, 30000)] },
+   { c := { name := "a 20 s minute-share wait inside the earlier tick's 60 s interval: the cap's slack absorbs it, no own time in the gap",
+            s := 0, d := 300000, u := some 50000, t := some 70000, p := some 40000, q := some 10, r := some 30, w := some 60 },
+     waits := [(.interval, 10000), (.minute, 20000)] }]
+
+def CapNetsCase.gapOwn (k : CapNetsCase) : Option Nat :=
+  match k.c.t, k.c.p, netMsOf k.c.t k.c.p k.c.q k.c.r k.c.w with
+  | some t, some p, some n => some (t - p - n)
+  | _, _, _ => none
+
+def CapNetsCase.holds (k : CapNetsCase) : Bool :=
+  match k.c.t, k.c.p, gapCapMs k.c.p k.c.q k.c.r k.c.w with
+  | some t, some p, some c =>
+    decide (p < t) && t - p == waitsMs true k.waits + waitsMs false k.waits && decide (waitsMs true k.waits ≤ c) &&
+      k.gapOwn == some (waitsMs false k.waits - (c - waitsMs true k.waits))
+  | _, _, _ => false
+
+#guard capNetsCases.all CapNetsCase.holds
+#guard capNetsCases.map CapNetsCase.gapOwn == [some 50000, some 30000, some 0]
+#guard capNetsCases.map (·.c.own) == [some 240000, some 170000, some 230000]
+
+theorem floor_row_is_golden : capNetsCases.head?.map (fun k => (k.c.t, k.c.p, k.c.q, k.c.r, k.c.w, k.waits)) =
+    some (some 100000, some 40000, some 10, some 30, none, [(.interval, 10000), (.floor, 50000)]) := rfl
+
+def capNetsGoldenText (_ : Unit := ()) : String :=
+  String.join (capNetsCases.map fun k =>
+    (Json.mkObj [("name", .str k.c.name), ("span", ownSpanJson k.c),
+      ("waits", .arr (k.waits.map fun (why, ms) => Json.mkObj [("why", .str (capReasonStr why)), ("ms", toJson ms),
+        ("nets", toJson (capNets why))]).toArray),
+      ("capMs", ((gapCapMs k.c.p k.c.q k.c.r k.c.w).map toJson).getD .null),
+      ("netMs", ((netMsOf k.c.t k.c.p k.c.q k.c.r k.c.w).map toJson).getD .null),
+      ("gapOwnMs", (k.gapOwn.map toJson).getD .null), ("ownMs", (k.c.own.map toJson).getD .null)]).compress ++ "\n")
+
+def capNetsGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-capnets.jsonl"
 
 def ownGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-own.jsonl"
 
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
   IO.FS.writeFile lakeGoldenPath lakeGoldenText; IO.FS.writeFile ownGoldenPath ownGoldenText
+  IO.FS.writeFile capNetsGoldenPath capNetsGoldenText
 
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
     (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText &&
-    (← IO.FS.readFile ownGoldenPath) == ownGoldenText
+    (← IO.FS.readFile ownGoldenPath) == ownGoldenText && (← IO.FS.readFile capNetsGoldenPath) == capNetsGoldenText
 
 end Fw.Wire.Obs.Timing
 
