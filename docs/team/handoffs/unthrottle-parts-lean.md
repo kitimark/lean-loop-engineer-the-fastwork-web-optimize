@@ -9,7 +9,8 @@
 - Open (lead at land, Trigger.lean outside writes): in `lean/Fw/Ci/Trigger.lean` lean.yml row (line 209) append
   `"packages/contracts/golden/device/throttle-parts.jsonl",` after `".../device/stillruns.jsonl",`; then
   `cd lean && lake test -- --write-ci-trigger-golden` and `node scripts/ci-paths.mjs --write`. Until then
-  `node --test scripts/ci-paths.test.mjs` fails 2 tests and plan lint prints one writesClosure error, both this row.
+  `node --test scripts/ci-paths.test.mjs` fails 2 tests and plan lint prints one writesClosure error, both this row; `fw land --dry` (merge with main 92625bf clean, scope, reads, axioms ok)
+  ends `VERDICT lint unthrottle-parts-lean` on the same ci-paths check, so `fw review ready` returns to builder.
 - Files: `lean/Fw/Device/ThrottleParts.lean`, `lean/scripts/ThrottlePartsGolden.lean`,
   `packages/contracts/golden/device/throttle-parts.jsonl`, `research/notes/2026/10-2x-unthrottle-parts.md`,
   `lean/Fw.lean`, `lean/scripts/check.sh`.
