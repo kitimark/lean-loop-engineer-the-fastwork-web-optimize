@@ -87,3 +87,7 @@ Chromium variant against Chromium faithful differ by run noise only (it ran 30 f
 `lean/Fw/Gate/Trajectory.lean`, `packages/contracts/golden/gate/trajectory.jsonl` and `packages/gate-breakpoints/src/trajectory/reduce.mjs` (the gate's
 transition table must equal every transition rule of `nav.module.css`); `packages/gate-breakpoints/src/trajectory/transitions.mjs`,
 `transitions-safari.mjs`, `.github/workflows/trajectory-probe.yml`, `docs/team/tools/trajectory-frames.md` (a `flag` arm in the recording).
+
+## Gate comparison of the logical variant (continue round)
+
+Breakpoint gate run 40106804693 failed only on the five `transition-*` lists of nav role earn: the faithful rule lists `padding-inline`, the variant its two logical longhands, so the computed lists differ in length (`0.68s, 0.2s, 0.68s` against four entries). CONFIRMED by the merge summary of that run. Fix: `Fw.Gate.TransitionList.normalize` expands a listed shorthand to its longhands (repeating the entry's other four values; css-transitions-1 §3), proved idempotent (`normalize_idem`), the identity on lists without a listed shorthand (`normalize_of_not_hasShort`), and the two earn lists normalize equal (`earn_equal`). The gate normalizes both arms before comparing (`packages/gate-breakpoints/src/transition-list.mjs`, golden `gate/transition-list.jsonl`). Limit: the shorthand table is the nine listed names; the comma split of the computed strings is a TS stand-in.
