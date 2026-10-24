@@ -3,11 +3,7 @@ import Fw.Device.StillRuns
 import Fw.Parts.EngineScrollUnthrottle
 /-!
 # Which parts WebKit's 100 ms scroll-update throttle reaches
-A part shows a value that is a function of the web process's scrollY (main-thread readers), of the compositor's scroll
-offset (threaded scroll-driven animations) or of time. While Safari changes the toolbar insets interactively and no
-main-thread scroll-driven animation is active, the web process gets one scroll update per 100 ms
-(WKWebViewIOS.mm:3256-3268@862f17d); otherwise one per frame. Part premises cite `apps/site/src/parts/` and
-`research/notes/2026/10-2x-scroll-throttle-parts.md`.
+Per-part model and classification for WKWebViewIOS.mm:3256-3268@862f17d and engine.scroll:unthrottle.
 -/
 namespace Fw.Device.ThrottleParts
 open Lean Fw.Device.StillRuns
@@ -28,8 +24,7 @@ inductive Mode where
 /-- The frames between two updates 100 ms apart at a frame interval of `d` hundredths of a millisecond. -/
 def period (d : Nat) : Nat := throttleK d + 1
 
-/-- The web process's scrollY at frame `t`, from the compositor offset `u`: throttled, the offset of the last update frame
-`p * (t / p)`. -/
+/-- The web process's scrollY at frame `t`: throttled, the compositor offset `u` at the last update frame `p * (t / p)`. -/
 def seen : Mode → Nat → (Nat → Int) → Nat → Int
   | .throttled, p, u, t => u (p * (t / p))
   | .lifted, _, u, t => u t
@@ -60,7 +55,8 @@ def Distinct (g : Nat → Int) (N : Nat) : Prop := ∀ i j, i < j → j < N → 
 
 /-- `f` is strictly increasing or strictly decreasing on the offsets the pass visits. -/
 def StrictOn (f : Int → Int) (u : Nat → Int) (N : Nat) : Prop :=
-  (∀ i j, i < N → j < N → u i < u j → f (u i) < f (u j)) ∨ (∀ i j, i < N → j < N → u i < u j → f (u j) < f (u i))
+  (∀ i j, i < N → j < N → u i < u j → f (u i) < f (u j)) ∨
+    (∀ i j, i < N → j < N → u i < u j → f (u j) < f (u i))
 
 /-- The pass moves one way in every frame. -/
 def OneWay (u : Nat → Int) (N : Nat) : Prop :=
@@ -169,8 +165,7 @@ theorem series_throttled (p : Nat) (hp : 0 < p) (u : Nat → Int) (f : Int → I
 
 /-! ## Main-thread readers -/
 
-/-- **Throttled, a main-thread reader is a pure delay.** Its value at frame `t` is the value it would show lifted at the last
-update frame, which is at most `p - 1` frames earlier. -/
+/-- Throttled, a main-thread reader shows its lifted value of at most `p - 1` frames earlier. -/
 theorem throttled_delay (p : Nat) (hp : 0 < p) (u : Nat → Int) (f : Int → Int) (t : Nat) :
     shown .mainThread .throttled p u f t = shown .mainThread .lifted p u f (p * (t / p)) ∧
       p * (t / p) ≤ t ∧ t - p * (t / p) < p := by
@@ -189,8 +184,7 @@ theorem distinct_of_strict {f : Int → Int} {u : Nat → Int} {N : Nat} (hu : O
   · have := hf j i hj hi (hu i j hij hj); simp only at heq; omega
   · have := hf j i hj hi (hu i j hij hj); simp only at heq; omega
 
-/-- **Throttled, a monotone main-thread reader stands still for `p - 1` frames per update.** Over `p * n` frames of a pass
-whose shown value never repeats it has `n - 1` still runs, each `p - 1` frames long. -/
+/-- Throttled, a never-repeating main-thread reader has `n - 1` still runs of `p - 1` frames over `p * n` frames. -/
 theorem curve_throttled (q n : Nat) (u : Nat → Int) (f : Int → Int) (h : Distinct (fun t => f (u t)) ((q + 2) * n)) :
     (stills .mainThread .throttled (q + 2) u f ((q + 2) * n)).map (·.k) = List.replicate (n - 1) (q + 1) := by
   unfold stills
@@ -229,7 +223,7 @@ theorem curve_throttled_band (q n : Nat) (hq1 : 4 ≤ q) (hq2 : q ≤ 5) (u : Na
     rw [runs_plateaus q _ _ hm, hlen]
     simp
 
-/-- **Lifted, a monotone main-thread reader never stands still.** -/
+/-- Lifted, a never-repeating main-thread reader has no still run. -/
 theorem curve_lifted (p N : Nat) (u : Nat → Int) (f : Int → Int) (h : Distinct (fun t => f (u t)) N) :
     stills .mainThread .lifted p u f N = [] := by
   unfold stills
@@ -237,8 +231,7 @@ theorem curve_lifted (p N : Nat) (u : Nat → Int) (f : Int → Int) (h : Distin
   rw [allMove_rowsOf]
   exact moves_map_range N _ fun j hj => h j (j + 1) (by omega) hj
 
-/-- **The throttle at 50 to 70 Hz.** At a frame interval from 14.29 to 19.99 ms, a monotone main-thread reader in its range
-shows `n - 1` still runs of `throttleK d` frames each, every one in the 5-to-6 frame band. -/
+/-- At 50 to 70 Hz, a never-repeating mid-range main-thread reader has `n - 1` band runs of `throttleK d` frames. -/
 theorem hit_throttled (d n : Nat) (h1 : 1429 ≤ d) (h2 : d < 2000) (u : Nat → Int) (f : Int → Int)
     (h : Distinct (fun t => f (u t)) (period d * n)) (hmid : ∀ t, t < period d * n → mid (f (u t)) = true) :
     (stills .mainThread .throttled (period d) u f (period d * n)).map (·.k) = List.replicate (n - 1) (throttleK d) ∧
@@ -252,8 +245,7 @@ theorem hit_throttled (d n : Nat) (h1 : 1429 ≤ d) (h2 : d < 2000) (u : Nat →
   congr 1
   omega
 
-/-- **Harmless: a reader constant on the pass.** Throttled and lifted show the same value in every frame, and neither has a
-still run. -/
+/-- A reader constant on the pass shows the same frames in both modes and no still run. -/
 theorem constant_harmless (p N : Nat) (u : Nat → Int) (f : Int → Int) (c : Int) (h : ∀ t, t < N → f (u t) = c) :
     (∀ t, t < N → shown .mainThread .throttled p u f t = shown .mainThread .lifted p u f t) ∧
       stills .mainThread .throttled p u f N = [] ∧ stills .mainThread .lifted p u f N = [] := by
@@ -276,11 +268,11 @@ theorem constant_harmless (p N : Nat) (u : Nat → Int) (f : Int → Int) (c : I
 
 /-! ## Threaded and time-based parts -/
 
-/-- **Threaded parts do not see the throttle.** -/
+/-- Threaded parts show the same frames in both modes. -/
 theorem threaded_same (p : Nat) (u : Nat → Int) (f : Int → Int) (t : Nat) :
     shown .threaded .throttled p u f t = shown .threaded .lifted p u f t := rfl
 
-/-- **Time-based parts do not see the throttle.** -/
+/-- Time-based parts show the same frames in both modes. -/
 theorem time_same (p : Nat) (u : Nat → Int) (f : Int → Int) (t : Nat) :
     shown .time .throttled p u f t = shown .time .lifted p u f t := rfl
 
@@ -319,7 +311,7 @@ theorem mode_idle (e : Engine) (pg : Page) : modeOf e false pg = .lifted := by
 theorem mode_chromium (i : Bool) (pg : Page) : modeOf .chromium i pg = .lifted := by
   simp [modeOf, throttledOn, Engine.throttles]
 
-/-- **engine.scroll:unthrottle removes every main-thread reader's stills.** -/
+/-- With engine.scroll:unthrottle a never-repeating main-thread reader has no still run. -/
 theorem unthrottle_no_stills (e : Engine) (pg : Page) (hs : pg.timelineSupported = true) (p N : Nat) (u : Nat → Int)
     (f : Int → Int) (h : Distinct (fun t => f (u t)) N) :
     stills .mainThread (modeOf e true pg.withLift) p u f N = [] := by
@@ -357,8 +349,7 @@ inductive Reach where
 def Reach.name : Reach → String
   | .hit => "hit" | .harmless => "harmless" | .notHit => "not-hit"
 
-/-- A part's reach: a main-thread reader whose look moves with scroll is hit, one whose look per frame does not depend on the
-update is harmless, a part that reads no scroll on the main thread is not hit. -/
+/-- Hit when the look follows the stale scrollY, harmless when only a start or pause waits, not hit off the main thread. -/
 def reach : Source → Shape → Reach
   | .mainThread, .curve | .mainThread, .chase | .mainThread, .capture | .mainThread, .stepLook => .hit
   | .mainThread, .stepIdle | .mainThread, .constant => .harmless
@@ -400,8 +391,7 @@ def basis : Source → Shape → List String
   | .threaded, _ => ["threaded_same", "threaded_no_stills"]
   | .time, _ => ["time_same", "time_no_stills"]
 
-/-- A further fix beyond engine.scroll:unthrottle: a pure function of scroll ports to a threaded scroll timeline with the same
-look; a scroll-back restore can be replaced by a root lock, which changes the look. -/
+/-- A fix beyond engine.scroll:unthrottle: a threaded timeline (same look) or a root lock (look change). -/
 def followUp : Source → Shape → Option String
   | .mainThread, .curve => some "threaded-timeline"
   | .mainThread, .capture => some "root-lock"
@@ -449,7 +439,8 @@ def parts : List Part :=
    ⟨"morph.tween", "finish", .mainThread, .capture,
      [pp "morph.tween/driver.ts:113-136", pp "morph.tween/driver.ts:205-207"]⟩,
    ⟨"morph.panel", "finish", .time, .curve, [pp "morph.panel/driver.ts:19", pp "morph.tween/driver.ts:109"]⟩,
-   ⟨"morph.countdown", "finish", .mainThread, .stepIdle, [pp "morph.countdown/index.tsx:40", pp "morph.countdown/index.tsx:67"]⟩,
+   ⟨"morph.countdown", "finish", .mainThread, .stepIdle,
+     [pp "morph.countdown/index.tsx:40", pp "morph.countdown/index.tsx:67"]⟩,
    ⟨"morph.columns", "finish", .mainThread, .stepIdle, [pp "morph.columns/index.tsx:23-25"]⟩]
 
 def Part.reach (p : Part) : Reach := ThrottleParts.reach p.source p.shape
@@ -474,8 +465,7 @@ theorem namedNotHit_reach : namedNotHit.all (fun i => parts.any fun p => p.id ==
 
 /-! ## Predicted phone outcomes -/
 
-/-- A series key of the phone recorder (`packages/measure-webkit/src/device-record.mjs:16` PART_PROPS): the inline property it
-samples and the output that writes it. -/
+/-- A series key of the phone recorder (`packages/measure-webkit/src/device-record.mjs:16`) and its writer. -/
 structure Key where
   key : String
   prop : String
@@ -525,7 +515,7 @@ def samplePass (t : Nat) : Int := 10 * t
 /-- The sample frames: ten updates at 60 Hz. -/
 def sampleFrames : Nat := period 1667 * 10
 
-/-- An eased chase toward `target t` 45 below the target, the lag it keeps behind a target that moves 10 per frame (per mille): 22 per 100 of the gap per frame, snapping within 1. -/
+/-- An eased chase toward `target`: 22 per 100 of the gap per frame from a lag of 45, snapping within 1. -/
 def chase (target : Nat → Int) : Nat → Int
   | 0 => target 0 - 45
   | t + 1 =>
