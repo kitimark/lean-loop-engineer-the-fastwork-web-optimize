@@ -111,7 +111,8 @@ jobs:
     concurrency:
       group: ci-lane:toolbar-throttle:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 60
+    # 110 min: the touch step may take its Lean bound (90 min, Fw.Device.SimTouch.stepLimitS) plus the driver build, the boot and the artifacts.
+    timeout-minutes: 110
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -202,7 +203,7 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
 
       - name: Touch probe (three arms, rotated per round)
-        timeout-minutes: 45
+        timeout-minutes: 90
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SITE_DIR: ${{ runner.temp }}/site

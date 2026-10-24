@@ -1,6 +1,7 @@
 // The real-touch driver of the toolbar-throttle probe (I/O glue): builds the XCUITest bundle in driver/ once (xcodegen, then
 // xcodebuild build-for-testing in a temp dir; nothing is written into the repository) and runs its drag test against the booted
 // Simulator, which swipes in Mobile Safari with real touches. Every child runs in its own process group and is stopped by `stop`.
+// The readiness probe, the stall watch and the one-restart-per-pass machine are the TS twin of lean/Fw/Device/SimTouch.lean (task sim-touch-timeout).
 import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
