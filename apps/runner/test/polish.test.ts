@@ -175,7 +175,10 @@ describe("plan.wtName goldens: fwcore decides the worktree name, TS holds no cop
 
 describe("plan.inWt goldens: fwcore decides root-pinned stray edits (Fw.Plan.Polish.ownEdit)", () => {
   it("one row per case, with the verdict the case names; own exactly when the verdict is own", () => {
-    const rows = stored().filter((l) => l.request.op === "plan.inWt");
+    const all = stored().filter((l) => l.request.op === "plan.inWt");
+    const facts = all.filter((l) => "resolved" in l.request);
+    expect(facts.map((l) => l.response.verdict)).toEqual(IN_WT_FACT.map(([, , , v]) => v));
+    const rows = all.filter((l) => !("resolved" in l.request));
     expect(rows.length).toBe(IN_WT.length);
     expect(rows.map((l) => l.response.verdict)).toEqual(IN_WT.map(([, , , , v]) => v));
     for (const l of rows) expect(l.response.own).toBe(l.response.verdict === "own");
