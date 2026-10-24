@@ -1772,6 +1772,7 @@
 {"part":"morph.tween","file":"platform/fade.driver.ts","line":32,"kind":"dynamic-name","detail":"setStyle"},
 {"part":"morph.tween","file":"platform/fade.driver.ts","line":32,"kind":"unresolved-target","detail":"setStyle ?"},
 {"part":"nav","file":"nav/index.tsx","line":79,"kind":"dead-selector","detail":".hero.is-ring-splash-done"},
+{"part":"nav","file":"nav/index.tsx","line":133,"kind":"glued-class","detail":"*is-hero-pill"},
 {"part":"nav","file":"nav/media.ts","line":16,"kind":"dynamic-name","detail":"media"},
 {"part":"nav.hitTest","file":"nav.hitTest/probe.ts","line":72,"kind":"unmodelled-api","detail":"call el.contains"},
 {"part":"nav.langMenu","file":"nav.langMenu/index.tsx","line":61,"kind":"unmodelled-api","detail":"call el.contains"},

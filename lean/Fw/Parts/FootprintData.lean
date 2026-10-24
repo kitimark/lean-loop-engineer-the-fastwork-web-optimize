@@ -1782,6 +1782,7 @@ def findings : List Finding := [
   ⟨"morph.tween", "platform/fade.driver.ts", 32, "dynamic-name", "setStyle"⟩,
   ⟨"morph.tween", "platform/fade.driver.ts", 32, "unresolved-target", "setStyle ?"⟩,
   ⟨"nav", "nav/index.tsx", 79, "dead-selector", ".hero.is-ring-splash-done"⟩,
+  ⟨"nav", "nav/index.tsx", 133, "glued-class", "*is-hero-pill"⟩,
   ⟨"nav", "nav/media.ts", 16, "dynamic-name", "media"⟩,
   ⟨"nav.hitTest", "nav.hitTest/probe.ts", 72, "unmodelled-api", "call el.contains"⟩,
   ⟨"nav.langMenu", "nav.langMenu/index.tsx", 61, "unmodelled-api", "call el.contains"⟩,

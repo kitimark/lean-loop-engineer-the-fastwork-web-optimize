@@ -107,23 +107,6 @@ function jsxName(n) {
   if (n.type === 'JSXMemberExpression') return `${jsxName(n.object)}.${n.property.name}`;
   return '?';
 }
-function literalClassTokens(e) {
-  const out = [];
-  const walk = (n) => {
-    n = strip(n);
-    if (!n) return;
-    if (n.type === 'Literal' && typeof n.value === 'string') out.push(...n.value.split(/\s+/).filter(Boolean));
-    else if (n.type === 'TemplateLiteral') {
-      for (const q of n.quasis) out.push(...q.value.cooked.split(/\s+/).filter(Boolean));
-      n.expressions.forEach(walk);
-    } else if (n.type === 'ConditionalExpression') { walk(n.consequent); walk(n.alternate); }
-    else if (n.type === 'LogicalExpression' || n.type === 'BinaryExpression') { walk(n.left); walk(n.right); }
-    else if (n.type === 'ArrayExpression') n.elements.forEach((x) => x && walk(x));
-    else if (n.type === 'CallExpression') n.arguments.forEach(walk);
-  };
-  walk(e);
-  return out;
-}
 const propOverrides = new Map();
 const nestedJsx = new Set();
 function collectElements(file) {
@@ -142,7 +125,7 @@ function collectElements(file) {
           const v = jsxAttrValue(a);
           if (name === 'className') {
             if (v.lit !== undefined) v.lit.split(/\s+/).filter(Boolean).forEach((c) => classes.add(c));
-            else literalClassTokens(v.expr).forEach((c) => classes.add(c));
+            else collectClassTokens(v.expr, () => null).forEach((c) => c.op === 'setClass' && classes.add(c.name));
           } else attrs.set(name, v.lit !== undefined ? v.lit : null);
           const target = /^[A-Z]/.test(tag) && v.lit !== undefined ? componentFolder(tag, file) : null;
           if (target) {
@@ -962,37 +945,92 @@ function exprIsProps(e, scope) {
   visit(e);
   return ok;
 }
-const CLASS_HELPERS = new Set(['cx', 'cls', 'clsx', 'classNames', 'classnames']);
-function classChildren(x) {
-  switch (x.type) {
-    case 'ConditionalExpression': return [x.consequent, x.alternate];
-    case 'LogicalExpression': return x.operator === '&&' ? [x.right] : [x.left, x.right];
-    case 'TemplateLiteral': return x.expressions;
-    case 'ArrayExpression': return x.elements;
-    case 'CallExpression': {
-      const c = strip(x.callee);
-      if (c.type === 'Identifier') return CLASS_HELPERS.has(c.name) ? x.arguments : [];
-      if (c.type !== 'MemberExpression' || c.computed || c.property.name !== 'join') return [];
-      let a = strip(c.object);
-      const f = a.type === 'CallExpression' ? strip(a.callee) : null;
-      if (f && f.type === 'MemberExpression' && !f.computed && f.property.name === 'filter') a = strip(f.object);
-      return a.type === 'ArrayExpression' ? a.elements : [];
-    }
-    default: return [];
+export const CLASS_HELPERS = ['cx', 'cls', 'clsx', 'classNames', 'classnames'];
+export const CLASS_SEPARATORS = [' ', '\t', '\n', '\f', '\r'];
+const SEP = /[ \t\n\f\r]/;
+const classTokensOf = (s) => s.split(SEP).filter(Boolean).map((name) => ({ op: 'setClass', name }));
+const lose = (t) => ({ op: 'lost', name: t.name });
+function classPush(w, a) {
+  if (a.chars === undefined) return [...w, a];
+  if (a.chars === '') return w;
+  const last = w[w.length - 1];
+  return last && last.chars !== undefined ? [...w.slice(0, -1), { chars: last.chars + a.chars }] : [...w, a];
+}
+function classWords(ps) {
+  const done = [];
+  let cur = [];
+  for (const p of ps) {
+    if (p.text === undefined) { cur = classPush(cur, p); continue; }
+    const [g, ...gs] = p.text.split(SEP);
+    cur = classPush(cur, { chars: g });
+    for (const x of gs) { done.push(cur); cur = classPush([], { chars: x }); }
   }
+  done.push(cur);
+  const atomToks = (a) => (a.chars !== undefined ? [{ op: 'setClass', name: a.chars }] : a.toks);
+  return done.flatMap((w) => {
+    if (w.length < 2) return w.flatMap(atomToks);
+    return [{ op: 'glued', name: w.map((a) => a.chars ?? '*').join('') }, ...w.flatMap(atomToks)];
+  });
+}
+function classSepOk(args) {
+  if (args.length !== 1) return false;
+  const a = strip(args[0]);
+  return a.type === 'Literal' && typeof a.value === 'string' && a.value.length > 0 && a.value.split(SEP).every((x) => x === '');
 }
 export function collectClassTokens(expr, memberClass) {
-  const toks = [];
-  const visit = (x) => {
-    x = strip(x);
-    if (!x) return;
-    if (x.type === 'MemberExpression') { const m = memberClass(x); if (m) toks.push({ op: 'setModuleClass', name: m }); return; }
-    if (x.type === 'Literal' && typeof x.value === 'string') { x.value.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ op: 'setClass', name: t })); return; }
-    if (x.type === 'TemplateLiteral') x.quasis.forEach((q) => q.value.cooked.split(/\s+/).filter(Boolean).forEach((t) => toks.push({ op: 'setClass', name: t })));
-    for (const c of classChildren(x)) visit(c);
+  const hole = (toks) => ({ toks, ps: [{ toks }] });
+  const list = (xs) => xs.flatMap((x) => (x ? go(x).toks : []));
+  const elems = (r) => {
+    if (r.type === 'ArrayExpression') return r.elements;
+    const f = r.type === 'CallExpression' ? strip(r.callee) : null;
+    if (f && f.type === 'MemberExpression' && !f.computed && f.property.type === 'Identifier' && f.property.name === 'filter' && strip(f.object).type === 'ArrayExpression') return strip(f.object).elements;
+    return null;
   };
-  visit(expr);
-  return toks;
+  const prop = (p) => {
+    if (p.type !== 'Property') return go(p.argument).toks.map(lose);
+    if (p.computed) return go(p.key).toks;
+    return classTokensOf(p.key.type === 'Identifier' ? p.key.name : String(p.key.value));
+  };
+  const go = (x) => {
+    x = strip(x);
+    switch (x.type) {
+      case 'Literal': return typeof x.value === 'string' ? { toks: classTokensOf(x.value), ps: [{ text: x.value }] } : hole([]);
+      case 'Identifier': return hole([]);
+      case 'MemberExpression': { const m = memberClass(x); return hole(m ? [{ op: 'setModuleClass', name: m }] : []); }
+      case 'UnaryExpression': return hole([]);
+      case 'BinaryExpression': {
+        if (x.operator !== '+') return hole([]);
+        const ps = [...go(x.left).ps, ...go(x.right).ps];
+        return { toks: classWords(ps), ps };
+      }
+      case 'ConditionalExpression': return hole([...go(x.consequent).toks, ...go(x.alternate).toks]);
+      case 'LogicalExpression': return hole(x.operator === '&&' ? go(x.right).toks : [...go(x.left).toks, ...go(x.right).toks]);
+      case 'TemplateLiteral': {
+        const ps = x.quasis.flatMap((q, i) => [{ text: q.value.cooked ?? '' }, ...(i < x.expressions.length ? go(x.expressions[i]).ps : [])]);
+        return { toks: classWords(ps), ps };
+      }
+      case 'ArrayExpression': return hole(list(x.elements));
+      case 'ObjectExpression': return hole(x.properties.flatMap(prop));
+      case 'CallExpression': {
+        const c = strip(x.callee);
+        if (c.type === 'Identifier') return hole(CLASS_HELPERS.includes(c.name) ? list(x.arguments) : list(x.arguments).map(lose));
+        if (c.type === 'MemberExpression' && !c.computed && c.property.type === 'Identifier') {
+          const es = c.property.name === 'join' ? elems(strip(c.object)) : null;
+          if (es) return hole(classSepOk(x.arguments) ? list(es) : list(es).map(lose));
+          return hole([...go(c.object).toks, ...list(x.arguments)].map(lose));
+        }
+        return hole(list(children(x)).map(lose));
+      }
+      default: return hole(list(children(x)).map(lose));
+    }
+  };
+  return go(expr).toks;
+}
+const CLASS_FINDING = { lost: 'unmodelled-class', glued: 'glued-class' };
+export function classReport(toks) {
+  const writes = toks.filter((t) => !CLASS_FINDING[t.op]).map((t) => [t.op, t.name]);
+  const findings = toks.filter((t) => CLASS_FINDING[t.op]).map((t) => [CLASS_FINDING[t.op], t.name]);
+  return { writes: toks.some((t) => t.op === 'lost') ? [...writes, ['setClass', '?']] : writes, findings };
 }
 function walkJsx(n, scope, ctxTag) {
   const tag = jsxName(n.name);
@@ -1006,9 +1044,11 @@ function walkJsx(n, scope, ctxTag) {
     const tagCtx = exprIsProps(v.expr, scope) ? 'props' : ctxTag;
     if (an === 'className') {
       const toks = collectClassTokens(v.expr, (x) => { const cv = valueOf(x, scope); return cv.k === 'cls' ? `${rel(cv.file)}#${cv.local}` : null; });
+      const { writes, findings: found } = classReport(toks);
       const dynamic = !(strip(v.expr).type === 'MemberExpression') && !(strip(v.expr).type === 'TemplateLiteral' && strip(v.expr).expressions.every((x) => strip(x).type === 'MemberExpression'));
-      if (!dynamic) continue;
-      for (const t of toks) emitOn(a, t.op, t.name, owner, tagCtx);
+      if (!dynamic && found.length === 0) continue;
+      for (const [kind, n] of found) finding(site(a), kind, n);
+      for (const [op, name] of writes) emitOn(a, op, name, owner, tagCtx);
     } else if (an === 'style') {
       const e = strip(v.expr);
       if (e.type === 'ObjectExpression') {
