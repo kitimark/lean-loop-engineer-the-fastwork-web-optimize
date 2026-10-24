@@ -20767,6 +20767,39 @@
     "docs/team/handoffs/unthrottle-parts-rest.md"
    ],
    "title": "Split of unthrottle-parts-measure after its third review refusal (rest cadence claims). Rest mode (run 40101702393, 3 jobs) runs below 60 Hz in every arm (pooled medianGapMs original 59 ms, rewrite and lift 23 ms, unthrottle 20 ms) and the reducer keeps no per-pass gap, so each pass's still-run band (bandFor, throttleK) is INFERRED. (1) The reducer emits the gap and band per pass and medianGapMs over exercised passes only; (2) re-reduce run 40101702393 from its artifacts; (3) Lean judge gets a cadence domain (a pass outside the band's domain counts as noData, with its own lower bound on K and a statement whether K is per pass or pooled), new golden vectors replayed by the TS judge; (4) decide commission (rewrite 23 band runs vs Lean pulses; lift 0, unthrottle 1) and people.card (original 18 at about 17 fps) per arm on their own, and revisit commission's Lean class if the disagree stands; (5) optionally the converse of throttleK_mem_band. Note with per-pass tables and run ids."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-logical-proof",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "earn-webkit-smooth"
+   ],
+   "writes": [
+    "lean/Fw/Parts/NavEarnWebkit.lean",
+    "lean/Fw/Parts/NavEarnCurve.lean",
+    "lean/scripts/NavEarnCurveGolden.lean",
+    "lean/scripts/NavEarnWebkitGolden.lean",
+    "packages/contracts/golden/parts/nav.earn.curve.jsonl",
+    "packages/contracts/golden/parts/nav.earn.webkit.jsonl",
+    "apps/site/src/parts/nav/earn.curve.test.ts",
+    "packages/gate-breakpoints/src/trajectory/earn-curve.mjs",
+    "packages/gate-breakpoints/test/earn-curve.test.mjs",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "results/earn-logical-proof/**",
+    "research/notes/2026/10-2x-earn-logical-proof.md",
+    "docs/team/handoffs/earn-logical-proof.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "User 2026-10-25 in chat: 'the nav:earn-logical is good, can you prove this ?' (look verdict: keep/accept). Already proved (NavEarnWebkit.lean, TransitionList.lean): WebKit starts the side-padding transition on every hero-pill entry and exit; its started set and timing equal Chromium faithful; Chromium unchanged; reduced motion starts nothing and computes the faithful list; the gate normalization makes faithful and variant lists equal. Not yet proved: (1) curve identity: for every time t the WebKit variant's padding value equals the Chromium faithful padding value (same endpoints, cubic-bezier(0.33,0,0.2,1), 0.68 s, delay 0, per CSS Transitions interpolation), as a theorem over the shared interpolation model, plus a frame-sampled golden of expected padding px; (2) the measured macOS per-frame traces (runs 40100783726, 40102193302; WebKit variant, Safari at 1280, Chromium faithful) match the Lean curve within a stated tolerance per frame (reducer checked against the golden; the tolerance derived from frame timing jitter, not tuned to pass); (3) record the user's verdict in Lean Gen.lookDecisions (nav:earn-logical accepted 2026-10-25) and the ledger row, regenerate the preset goldens from Gen.run, and state whether the flag joins a preset under the existing look rules. iPhone stays INFERRED from shared WebKit source unless a phone session is booked."
   }
  ],
  "deadline": {
