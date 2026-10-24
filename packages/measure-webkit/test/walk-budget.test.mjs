@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { JOB, deadlineAt, cappedDeadline, stepMinutes, runsWalk, startsWindow, remaining, planWalk, untilDeadline, MIN_WALK_MINUTES, HARD_STOP_MS } from '../src/walk-budget.mjs';
+import { JOB, GAPS, MIN_KEPT, WINDOW_MS, LIFE_WINDOWS, repsFit, repsLife, planReps, outcome, endsDone, deadlineAt, cappedDeadline, stepMinutes, runsWalk, startsWindow, remaining, planWalk, untilDeadline, MIN_WALK_MINUTES, HARD_STOP_MS } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/walk-budget.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 
@@ -12,13 +12,28 @@ test('walk-budget: constants and every golden step and start line match Lean', (
   assert.equal(HARD_STOP_MS, c.hardStopMs);
   assert.deepEqual({ timeoutMs: c.timeoutMs, postMs: c.postMs, graceMs: c.graceMs, slackMs: c.slackMs }, JOB);
   assert.equal(deadlineAt(JOB), c.deadlineAt);
+  assert.deepEqual(GAPS, { clockMs: c.clockMs, driftMs: c.driftMs, completeMs: c.completeMs });
+  assert.equal(GAPS.clockMs + GAPS.driftMs + GAPS.completeMs, JOB.slackMs);
+  assert.equal(MIN_KEPT, c.minKept);
+  assert.equal(WINDOW_MS, c.windowMs);
+  assert.equal(LIFE_WINDOWS, c.lifeWindows);
   for (const g of golden.filter((x) => x.op === 'step')) {
     const dl = cappedDeadline(JOB, g.elapsedMs, g.capMs);
     assert.equal(dl, g.deadlineMs, g.case);
     assert.equal(stepMinutes(JOB, g.elapsedMs, dl), g.stepMinutes, g.case);
     assert.equal(runsWalk(JOB, g.elapsedMs, dl, MIN_WALK_MINUTES), g.runs, g.case);
-    assert.equal(dl + HARD_STOP_MS < g.elapsedMs + stepMinutes(JOB, g.elapsedMs, dl) * 60000, g.hardStopInside, g.case);
+    if (g.runs) assert.equal(dl + HARD_STOP_MS < g.elapsedMs + stepMinutes(JOB, g.elapsedMs, dl) * 60000, g.hardStopInside, g.case);
+    else assert.equal('hardStopInside' in g, false, g.case);
   }
+  for (const g of golden.filter((x) => x.op === 'plan')) {
+    const dl = cappedDeadline(JOB, g.elapsedMs, g.capMs);
+    assert.equal(dl, g.deadlineMs, g.case);
+    assert.equal(repsFit(dl, g.elapsedMs, g.arms), g.repsFit, g.case);
+    assert.equal(repsLife(g.arms), g.repsLife, g.case);
+    assert.equal(planReps(dl, g.elapsedMs, g.arms), g.reps, g.case);
+    assert.equal(outcome(dl, g.elapsedMs, g.arms), g.outcome, g.case);
+  }
+  for (const g of golden.filter((x) => x.op === 'ends')) assert.equal(endsDone(g.windows, g.arms, g.pos), g.endsDone, `${g.arms} arms, ${g.windows} windows, position ${g.pos}`);
   for (const g of golden.filter((x) => x.op === 'start')) {
     assert.equal(startsWindow(g.deadlineMs, g.nowMs, g.reserveMs), g.starts, g.case);
     assert.equal(remaining(g.deadlineMs, g.nowMs), g.remainingMs, g.case);
@@ -54,4 +69,21 @@ test('untilDeadline: a promise that never settles is abandoned at the deadline, 
   const late = new Promise((_, rej) => setTimeout(() => rej(new Error('late')), 100));
   assert.equal(await untilDeadline(late, Date.now() + 20), 'deadline');
   await new Promise((r) => setTimeout(r, 150));
+});
+
+test('rep plan: windows done in rep-major order give every arm the Lean count, and an ok plan reaches the kept minimum', () => {
+  for (const arms of [1, 2, 3, 4]) {
+    for (let n = 0; n <= 2 * arms * 6; n++) {
+      const counts = Array.from({ length: arms }, (_, pos) => endsDone(n, arms, pos));
+      const walked = Array.from({ length: arms }, () => 0);
+      for (let i = 0; i < n; i++) if (i % 2 === 1) walked[Math.floor((i % (2 * arms)) / 2)]++;
+      assert.deepEqual(counts, walked, `${arms} arms, ${n} windows`);
+      assert.ok(Math.max(...counts) - Math.min(...counts) <= 1);
+    }
+  }
+  const dl = cappedDeadline(JOB, 276000, null);
+  assert.equal(outcome(dl, 276000, 3), 'ok');
+  for (let pos = 0; pos < 3; pos++) assert.ok(endsDone(planReps(dl, 276000, 3) * 6, 3, pos) >= MIN_KEPT);
+  assert.equal(outcome(dl, 276000, 4), 'lifeShort');
+  assert.equal(outcome(dl, 600000, 3), 'budgetShort');
 });
