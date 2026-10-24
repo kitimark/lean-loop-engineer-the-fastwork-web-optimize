@@ -232,7 +232,7 @@ def scenes : List (Bool × List Box × Rat) :=
    (true, [⟨false, .root, false, false, true, false⟩], 0)]
 
 /-- The golden lines: named scenes, then every stack of at most two box kinds for both root states and three morphs. -/
-def goldenLines : List String :=
+def goldenLines (_ : Unit := ()) : List String :=
   scenes.map (fun (r, g, m) => sceneLine r g m) ++
     stacks.flatMap (fun g => [true, false].flatMap (fun r => morphs.map (fun m => sceneLine r g m)))
 
@@ -242,7 +242,7 @@ theorem stacks_premises : ∀ g ∈ stacks, Premises g := by decide
 
 def path : String := "../packages/contracts/golden/parts/nav.hitTest.elements.jsonl"
 
-def text : String := String.join (goldenLines.map (· ++ "\n"))
+def text (_ : Unit := ()) : String := String.join (goldenLines.map (· ++ "\n"))
 
 /-- Write the golden file, or with `--check` fail when it differs from `goldenLines`. -/
 def gen (args : List String) : IO Unit := do
