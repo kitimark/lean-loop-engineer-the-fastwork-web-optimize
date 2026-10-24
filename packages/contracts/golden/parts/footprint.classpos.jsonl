@@ -1,31 +1,31 @@
-{"helpers":["cx","cls","clsx","classNames","classnames"],"separators":[" ","\u0009","\n","\u000c","\r"]}
+{"helpers":["cx","cls","clsx","classNames","classnames"],"listMethods":["add","remove","toggle","replace","contains"],"separators":[" ","\u0009","\n","\u000c","\r"]}
 {"classes":["a","b"],"findings":[],"modules":[],"src":"'a b'","writes":[["setClass","a"],["setClass","b"]]}
 {"classes":["a","b","c"],"findings":[],"modules":[],"src":"'a\u0009b  c'","writes":[["setClass","a"],["setClass","b"],["setClass","c"]]}
-{"classes":[],"findings":[],"modules":[],"src":"x","writes":[]}
+{"classes":[],"findings":[["unmodelled-class","id x"]],"modules":[],"src":"x","writes":[["setClass","?"]]}
 {"classes":[],"findings":[],"modules":["css#row"],"src":"css.row","writes":[["setModuleClass","css#row"]]}
-{"classes":[],"findings":[],"modules":[],"src":"props.cls","writes":[]}
+{"classes":[],"findings":[["unmodelled-class","member"]],"modules":[],"src":"props.cls","writes":[["setClass","?"]]}
 {"classes":[],"findings":[],"modules":[],"src":"('x' === 'y')","writes":[]}
 {"classes":[],"findings":[],"modules":[],"src":"!'x'","writes":[]}
 {"classes":["on","off"],"findings":[],"modules":[],"src":"((role === 'exit') ? 'on' : 'off')","writes":[["setClass","on"],["setClass","off"]]}
-{"classes":["on"],"findings":[],"modules":[],"src":"(x ? 'on' : y)","writes":[["setClass","on"]]}
+{"classes":["on"],"findings":[["unmodelled-class","id y"]],"modules":[],"src":"(x ? 'on' : y)","writes":[["setClass","on"],["setClass","?"]]}
 {"classes":["is-open"],"findings":[],"modules":[],"src":"(open && 'is-open')","writes":[["setClass","is-open"]]}
 {"classes":["kept"],"findings":[],"modules":[],"src":"('gate' && 'kept')","writes":[["setClass","kept"]]}
-{"classes":["fallback"],"findings":[],"modules":[],"src":"('fallback' || x)","writes":[["setClass","fallback"]]}
-{"classes":["fallback"],"findings":[],"modules":[],"src":"(x || 'fallback')","writes":[["setClass","fallback"]]}
-{"classes":["dflt"],"findings":[],"modules":[],"src":"(x ?? 'dflt')","writes":[["setClass","dflt"]]}
+{"classes":["fallback"],"findings":[["unmodelled-class","id x"]],"modules":[],"src":"('fallback' || x)","writes":[["setClass","fallback"],["setClass","?"]]}
+{"classes":["fallback"],"findings":[["unmodelled-class","id x"]],"modules":[],"src":"(x || 'fallback')","writes":[["setClass","fallback"],["setClass","?"]]}
+{"classes":["dflt"],"findings":[["unmodelled-class","id x"]],"modules":[],"src":"(x ?? 'dflt')","writes":[["setClass","dflt"],["setClass","?"]]}
 {"classes":["first","second"],"findings":[],"modules":[],"src":"('first' ?? 'second')","writes":[["setClass","first"],["setClass","second"]]}
 {"classes":["row","flip","tail"],"findings":[],"modules":[],"src":"`row ${(f ? 'flip' : '')} tail`","writes":[["setClass","row"],["setClass","flip"],["setClass","tail"]]}
 {"classes":["a"],"findings":[],"modules":[],"src":"`a ${(r === 'exit')}`","writes":[["setClass","a"]]}
 {"classes":[],"findings":[],"modules":["css#a","css#b"],"src":"`${css.a} ${css.b}`","writes":[["setModuleClass","css#a"],["setModuleClass","css#b"]]}
-{"classes":["btn-"],"findings":[["glued-class","btn-*"]],"modules":[],"src":"`btn-${size}`","writes":[["setClass","btn-"],["setClass","?"]]}
+{"classes":["btn-"],"findings":[["glued-class","btn-*"],["unmodelled-class","id size"]],"modules":[],"src":"`btn-${size}`","writes":[["setClass","btn-"],["setClass","?"]]}
 {"classes":[],"findings":[["glued-class","**"]],"modules":["css#a","css#b"],"src":"`${css.a}${css.b}`","writes":[["setModuleClass","css#a"],["setModuleClass","css#b"],["setClass","?"]]}
 {"classes":["x","a","b","y"],"findings":[["glued-class","x*"]],"modules":[],"src":"`x${(c ? 'a' : 'b')} y`","writes":[["setClass","x"],["setClass","a"],["setClass","b"],["setClass","y"],["setClass","?"]]}
 {"classes":["a","on","off"],"findings":[],"modules":[],"src":"('a ' + (c ? 'on' : 'off'))","writes":[["setClass","a"],["setClass","on"],["setClass","off"]]}
-{"classes":["btn-"],"findings":[["glued-class","btn-*"]],"modules":[],"src":"('btn-' + size)","writes":[["setClass","btn-"],["setClass","?"]]}
+{"classes":["btn-"],"findings":[["glued-class","btn-*"],["unmodelled-class","id size"]],"modules":[],"src":"('btn-' + size)","writes":[["setClass","btn-"],["setClass","?"]]}
 {"classes":["ab"],"findings":[],"modules":[],"src":"('a' + 'b')","writes":[["setClass","ab"]]}
-{"classes":["x","y","w"],"findings":[],"modules":[],"src":"(('x ' + `y ${z}`) + ' w')","writes":[["setClass","x"],["setClass","y"],["setClass","w"]]}
-{"classes":["p","q-on"],"findings":[],"modules":[],"src":"['p', (q && 'q-on'), (r === 'no')]","writes":[["setClass","p"],["setClass","q-on"]]}
-{"classes":["a","c","d"],"findings":[],"modules":["css#f"],"src":"clsx({a: b, 'c d': e, [css.f]: g, [k]: h})","writes":[["setClass","a"],["setClass","c"],["setClass","d"],["setModuleClass","css#f"]]}
+{"classes":["x","y","w"],"findings":[["unmodelled-class","id z"]],"modules":[],"src":"(('x ' + `y ${z}`) + ' w')","writes":[["setClass","x"],["setClass","y"],["setClass","w"],["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","array"],["unmodelled-class","p"],["unmodelled-class","q-on"]],"modules":[],"src":"['p', (q && 'q-on'), (r === 'no')]","writes":[["setClass","?"]]}
+{"classes":["a","c","d"],"findings":[["unmodelled-class","id k"]],"modules":["css#f"],"src":"clsx({a: b, 'c d': e, [css.f]: g, [k]: h})","writes":[["setClass","a"],["setClass","c"],["setClass","d"],["setModuleClass","css#f"],["setClass","?"]]}
 {"classes":["a"],"findings":[["unmodelled-class","spread"],["unmodelled-class","k"]],"modules":[],"src":"clsx({...(on ? {k: t} : {}), a: b})","writes":[["setClass","a"],["setClass","?"]]}
 {"classes":["rowFlip","yes"],"findings":[],"modules":["css#row"],"src":"cx(css.row, (flip && 'rowFlip'), ((k === 'no') ? 'yes' : ''))","writes":[["setModuleClass","css#row"],["setClass","rowFlip"],["setClass","yes"]]}
 {"classes":["tab"],"findings":[],"modules":["css#isActive"],"src":"cls('tab', ((id === 'act') && css.isActive))","writes":[["setClass","tab"],["setModuleClass","css#isActive"]]}
@@ -40,15 +40,43 @@
 {"classes":[],"findings":[["unmodelled-class","join separator"],["unmodelled-class","a"]],"modules":[],"src":"['a'].join()","writes":[["setClass","?"]]}
 {"classes":[],"findings":[["unmodelled-class","join separator"],["unmodelled-class","a"]],"modules":[],"src":"['a'].join('')","writes":[["setClass","?"]]}
 {"classes":[],"findings":[["unmodelled-class","join separator"],["unmodelled-class","a"]],"modules":[],"src":"['a'].join(sep)","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","method join"]],"modules":[],"src":"xs.join(' ')","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","method join"],["unmodelled-class","method filter"]],"modules":[],"src":"xs.filter(Boolean).join(' ')","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","method join"],["unmodelled-class","id xs"]],"modules":[],"src":"xs.join(' ')","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","method join"],["unmodelled-class","method filter"],["unmodelled-class","id xs"],["unmodelled-class","id Boolean"]],"modules":[],"src":"xs.filter(Boolean).join(' ')","writes":[["setClass","?"]]}
 {"classes":[],"findings":[["unmodelled-class","method trim"],["unmodelled-class","a"],["unmodelled-class","b"]],"modules":[],"src":"'a b'.trim()","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","call getClass"]],"modules":[],"src":"getClass(variant)","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","method trim"]],"modules":[],"src":"cls.trim()","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","method join"],["unmodelled-class","method map"]],"modules":[],"src":"items.map(f).join(' ')","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","spread"]],"modules":[],"src":"clsx(...xs)","writes":[["setClass","?"]]}
-{"classes":["a"],"findings":[["unmodelled-class","spread"]],"modules":[],"src":"clsx('a', {...extra})","writes":[["setClass","a"],["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","join separator"]],"modules":[],"src":"[a, b].join('-')","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","call getClass"],["unmodelled-class","id variant"]],"modules":[],"src":"getClass(variant)","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","method trim"],["unmodelled-class","id cls"]],"modules":[],"src":"cls.trim()","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","method join"],["unmodelled-class","method map"],["unmodelled-class","id items"],["unmodelled-class","id f"]],"modules":[],"src":"items.map(f).join(' ')","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","spread"],["unmodelled-class","id xs"]],"modules":[],"src":"clsx(...xs)","writes":[["setClass","?"]]}
+{"classes":["a"],"findings":[["unmodelled-class","spread"],["unmodelled-class","id extra"]],"modules":[],"src":"clsx('a', {...extra})","writes":[["setClass","a"],["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","join separator"],["unmodelled-class","id a"],["unmodelled-class","id b"]],"modules":[],"src":"[a, b].join('-')","writes":[["setClass","?"]]}
 {"classes":[],"findings":[["unmodelled-class","other"],["unmodelled-class","x"],["unmodelled-class","css#y"]],"modules":[],"src":"(0, 'x', css.y)","writes":[["setClass","?"]]}
-{"classes":[],"findings":[["unmodelled-class","other"]],"modules":[],"src":"(0, x)","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","other"],["unmodelled-class","id x"]],"modules":[],"src":"(0, x)","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","array"],["unmodelled-class","a"],["unmodelled-class","b"]],"modules":[],"src":"['a', 'b']","writes":[["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","object"],["unmodelled-class","a"]],"modules":[],"src":"{a: b}","writes":[["setClass","?"]]}
+{"classes":["b"],"findings":[["unmodelled-class","array"],["unmodelled-class","a"]],"modules":[],"src":"(c ? ['a'] : 'b')","writes":[["setClass","b"],["setClass","?"]]}
+{"classes":["a","b"],"findings":[],"modules":[],"src":"cx((c ? ['a'] : 'b'))","writes":[["setClass","a"],["setClass","b"]]}
+{"classes":["a","b","c"],"findings":[],"modules":[],"src":"clsx(['a', ['b'], {c: d}])","writes":[["setClass","a"],["setClass","b"],["setClass","c"]]}
+{"classes":["x"],"findings":[["unmodelled-class","array"],["unmodelled-class","a"]],"modules":[],"src":"`x ${['a']}`","writes":[["setClass","x"],["setClass","?"]]}
+{"classes":["a"],"findings":[["unmodelled-class","array"],["unmodelled-class","b"],["unmodelled-class","object"]],"modules":[],"src":"['a', ['b'], {}].join(' ')","writes":[["setClass","a"],["setClass","?"]]}
+{"classes":["a b","c"],"findings":[],"modules":[],"src":"'a b c'","writes":[["setClass","a b"],["setClass","c"]]}
+{"classes":["a　b\u000bc","d"],"findings":[],"modules":[],"src":"'a　b\u000bc d'","writes":[["setClass","a　b\u000bc"],["setClass","d"]]}
+{"classes":[],"findings":[],"modules":[],"src":"undefined","writes":[]}
+{"classes":[],"findings":[],"modules":["css#isActive"],"src":"((t === id) ? css.isActive : undefined)","writes":[["setModuleClass","css#isActive"]]}
+{"classes":[],"findings":[["unmodelled-class","member"]],"modules":["css#svg","css#idleFrame"],"src":"`${css.svg} ${css.idleFrame} ${frameCls[k]}`","writes":[["setModuleClass","css#svg"],["setModuleClass","css#idleFrame"],["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","id className"]],"modules":["css#card","css#card"],"src":"(className ? `${css.card} ${className}` : css.card)","writes":[["setModuleClass","css#card"],["setModuleClass","css#card"],["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","module key css"]],"modules":["css#dot"],"src":"cx(css.dot, css[k])","writes":[["setModuleClass","css#dot"],["setClass","?"]]}
+{"classes":[],"findings":[["unmodelled-class","module key css"]],"modules":["css#underlineFrame"],"src":"`${css.underlineFrame} ${css[k]}`","writes":[["setModuleClass","css#underlineFrame"],["setClass","?"]]}
 {"classes":["deep","deeper"],"findings":[],"modules":[],"src":"((r === 'exit') && (z ? 'deep' : (w && 'deeper')))","writes":[["setClass","deep"],["setClass","deeper"]]}
+{"args":[{"str":["a"]}],"findings":[],"method":"add","writes":[["setClass","a"]]}
+{"args":[{"str":["a b"]}],"findings":[["unmodelled-class","invalid token"],["unmodelled-class","a b"]],"method":"add","writes":[["setClass","?"]]}
+{"args":[{"str":[""]}],"findings":[["unmodelled-class","invalid token"],["unmodelled-class",""]],"method":"add","writes":[["setClass","?"]]}
+{"args":[{"str":["a b"]}],"findings":[],"method":"add","writes":[["setClass","a b"]]}
+{"args":[{"str":["is-on"]},{"unknown":true}],"findings":[],"method":"toggle","writes":[["setClass","is-on"]]}
+{"args":[{"str":["a","b"]}],"findings":[],"method":"toggle","writes":[["setClass","a"],["setClass","b"]]}
+{"args":[{"str":["is-\u0001"]}],"findings":[["glued-class","is-*"]],"method":"toggle","writes":[["setClass","?"]]}
+{"args":[{"mod":"m.css#on"}],"findings":[],"method":"toggle","writes":[["setModuleClass","m.css#on"]]}
+{"args":[{"modKey":"m.css"}],"findings":[["unmodelled-class","module key m.css"]],"method":"toggle","writes":[["setClass","?"]]}
+{"args":[{"unknown":true}],"findings":[["unmodelled-class","unresolved"]],"method":"remove","writes":[["setClass","?"]]}
+{"args":[{"str":["a"]},{"str":["b"]}],"findings":[],"method":"replace","writes":[["setClass","a"],["setClass","b"]]}
+{"args":[{"str":["a"]},{"str":["b"]}],"findings":[],"method":"contains","writes":[["classRead","a"]]}
+{"args":[{"unknown":true}],"findings":[["unmodelled-class","unresolved"]],"method":"contains","writes":[["classRead","?"]]}
