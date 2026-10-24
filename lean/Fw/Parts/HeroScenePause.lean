@@ -421,7 +421,121 @@ theorem hero_paused_hidden_fresh {A : Type} (p : Probe) (hp : p ∈ matrix) (vw 
   have hk := kMax_pos p hp
   exact hero_paused_hidden p vw top bottom y0 0 f hn (by grind) (by grind) hb
 
-/-! ## 7. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
+/-! ## 7. After the splash: only the copy column animates -/
+
+/-- The hero box family a CSS animation moves. -/
+inductive Fam where
+  | copy
+  | card
+  deriving DecidableEq, Repr
+
+/-- One `@keyframes` rule of the hero subtree CSS: its file under `apps/site/src/parts`, its name, the family it moves,
+and each selector whose `animation` names it with the splash-end selector that sets `animation: none` on it under the
+same media (`none`: no such rule, so it runs on after the splash). -/
+structure Anim where
+  file : String
+  name : String
+  fam : Fam
+  uses : List (String × Option String)
+  deriving DecidableEq, Repr
+
+/-- The animation runs on some selector after the splash. -/
+def Anim.afterSplash (a : Anim) : Bool := a.uses.any (·.2.isNone)
+
+def threadedFile : String := "hero.exit/threaded.module.css"
+
+/-- Every `@keyframes` rule of the hero subtree's CSS modules, read from the CSS. -/
+def heroAnims : List Anim :=
+  let copyDone := some "[data-splash='done'] .copy"
+  let cueDone := some "[data-splash='done'] .cue"
+  let cardDone := some "[data-orbit][data-done] .card"
+  let hero := "[data-exit-live] [data-splash='done'] [data-fw='hero']"
+  let cue := "[data-exit-live] [data-splash='done'] [data-fw='hero-cue']"
+  let orbit := "[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id]"
+  let deck := "[data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article"
+  let nl (d : String) := s!".accent:is([data-fw-draw='nolayout'], [data-fw-draw='nolayout-full']).{d} .frame0"
+  [⟨"hero/hero.module.css", "copyFromRing", .copy, [(".copy", copyDone)]⟩,
+   ⟨"hero.accent/accent.module.css", "strokeIn", .copy, [(".drawingIn .path", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "strokeOut", .copy, [(".drawingOut .path", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "clipIn", .copy, [(nl "drawingIn", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "clipOut", .copy, [(nl "drawingOut", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "idle0", .copy, [(".idle .frame0", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "idle1", .copy, [(".idle .frame1", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "idle2", .copy, [(".idle .frame2", none)]⟩,
+   ⟨"hero.cue/cue.module.css", "copyIn", .copy, [(".cue", none)]⟩,
+   ⟨"hero.cue/cue.module.css", "copyFromRing", .copy, [(".cue", cueDone)]⟩,
+   ⟨"hero.cue/cue.module.css", "scrollFloat", .copy, [(".float", none)]⟩,
+   ⟨threadedFile, "exitFade", .copy, [(hero, none), (cue, none)]⟩,
+   ⟨threadedFile, "exitCardFade", .card, [(orbit, none), (deck, none)]⟩,
+   ⟨threadedFile, "exitCopyUp", .copy, [(hero, none)]⟩,
+   ⟨threadedFile, "exitCopyUpNarrow", .copy, [(hero, none)]⟩,
+   ⟨threadedFile, "exitCueUpNarrow", .copy, [(cue, none)]⟩,
+   ⟨threadedFile, "exitBlur", .copy, [(hero, none), (cue, none)]⟩,
+   ⟨threadedFile, "exitCardMove", .card, [(orbit, none), (deck, none)]⟩,
+   ⟨"hero.orbit/card.module.css", "cardFromRing", .card, [(".card", cardDone)]⟩,
+   ⟨"hero.orbit/card.module.css", "ringAppear", .card, [(".card", cardDone)]⟩]
+
+/-- The hero's animations without `hero.exit:threaded`, whose scroll-driven exit is a variant of its own. -/
+def baseAnims : List Anim := heroAnims.filter (·.file != threadedFile)
+
+#guard baseAnims.length == 13
+#guard (baseAnims.filter (·.afterSplash)).map (·.name) ==
+  ["strokeIn", "strokeOut", "clipIn", "clipOut", "idle0", "idle1", "idle2", "copyIn", "scrollFloat"]
+
+theorem after_splash_copy : ∀ a ∈ baseAnims, a.afterSplash = true → a.fam = .copy := by decide +kernel
+
+theorem card_stops : ∀ a ∈ baseAnims, a.fam = .card → a.afterSplash = false := by decide +kernel
+
+/-- With `hero.exit:threaded` a card family animates after the splash, so the copy-only bound does not cover it. -/
+theorem threaded_card_after_splash : ∃ a ∈ heroAnims, a.file = threadedFile ∧ a.afterSplash = true ∧ a.fam = .card := by
+  decide +kernel
+
+theorem copy_over (H : Rat) : (copyReach H).over H = copyOutset := by
+  simp only [Reach.over, copyReach, copyOutset]
+  grind
+
+theorem kCopy_eq (p : Probe) : kCopy p = vhOf p - copyOutset := by rw [kCopy, copy_over]
+
+theorem kMax_le_kCopy : ∀ p ∈ matrix, kMax p ≤ kCopy p := by decide +kernel
+
+/-- After the splash, at every probe, a paused copy-column box whose frame scrolled at most `kCopy` since the observer's
+callback does not meet the viewport. -/
+theorem hero_paused_hidden_copy {A : Type} (p : Probe) (vw top bottom y0 d : Rat) (f : A → BoxVis)
+    (hn : near top bottom (vhOf p) = false) (hst : top + d ≤ y0 ∧ y0 + stageOf p ≤ bottom + d)
+    (hd : -kCopy p ≤ d ∧ d ≤ kCopy p) (hb : ∀ a, Placed [copyReach (stageOf p)] y0 (f a)) :
+    Hidden (viewport vw (vhOf p)) f := by
+  refine stale_hidden vw (vhOf p) top bottom d (kCopy p) ((copyReach (stageOf p)).over (stageOf p)) f hn hd
+    (by unfold kCopy; grind) (fun a => ?_)
+  obtain ⟨r, hr, s, hs, h1, h2⟩ := hb a
+  rw [List.mem_singleton] at hr
+  subst hr
+  have hw := reach_within (stageOf p) s (copyReach (stageOf p)) hs ⟨Std.le_refl _, Std.le_refl _⟩
+  exact ⟨by grind, by grind⟩
+
+/-- **One stale paused frame after the splash.** Each box is still, or some animation of `baseAnims` that runs after
+the splash moves it and the boxes such an animation moves lie in the copy column; then, scrolled at most `kCopy`, the
+visible scene is the same at any two animation values. -/
+theorem hero_paused_same_after_splash {A : Type} (p : Probe) (vw top bottom y0 d : Rat) (tm : Tmpl A)
+    (moves : Anim → (A → BoxVis) → Prop)
+    (hn : near top bottom (vhOf p) = false) (hst : top + d ≤ y0 ∧ y0 + stageOf p ≤ bottom + d)
+    (hd : -kCopy p ≤ d ∧ d ≤ kCopy p)
+    (hs : ∀ e ∈ tm, Fw.Parts.HiddenPause.Still e.2 ∨ ∃ an ∈ baseAnims, an.afterSplash = true ∧ moves an e.2)
+    (hplace : ∀ an ∈ baseAnims, ∀ f, moves an f → an.fam = .copy → ∀ a, Placed [copyReach (stageOf p)] y0 (f a))
+    (a a' : A) :
+    visible (viewport vw (vhOf p)) (inst tm a) = visible (viewport vw (vhOf p)) (inst tm a') := by
+  refine hidden_pause_eq _ tm (fun e he => ?_) a a'
+  rcases hs e he with h | ⟨an, han, haf, hm⟩
+  · exact Or.inl h
+  · exact Or.inr (hero_paused_hidden_copy p vw top bottom y0 d e.2 hn hst hd
+      (hplace an han e.2 hm (after_splash_copy an han haf)))
+
+/-- The scroll speed `kCopy` allows when the attribute lags one frame of `hz` frames per second, in px/s. -/
+def copySpeed (p : Probe) (hz : Rat) : Rat := kCopy p * hz
+
+#guard (matrix.filter (·.tag == "no-preference")).map (copySpeed · 60) = [10200]
+#guard (matrix.filter (·.tag == "no-preference")).map (copySpeed · 120) = [20400]
+
+/-! ## 8. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
 
 def jn (n : Int) : Json := .num ⟨n, 0⟩
 
@@ -437,7 +551,11 @@ def lines (_ : Unit := ()) : List String :=
     line "scene" [("top", jn t), ("bottom", jn b), ("vh", jn vh)] (.str (heroScene t b vh))) ++
   [line "const" [] (Json.mkObj
     [("attr", .str "data-fw-hero-scene"), ("active", .str (attr true)), ("paused", .str (attr false)),
-     ("rootMargin", .str "100% 0px"), ("playState", .str "paused"), ("willChange", .str "auto")])]
+     ("rootMargin", .str "100% 0px"), ("playState", .str "paused"), ("willChange", .str "auto")])] ++
+  heroAnims.map fun an => line "anim" [("file", .str an.file), ("name", .str an.name)] (Json.mkObj
+    [("fam", .str (match an.fam with | .copy => "copy" | .card => "card")),
+     ("uses", .arr (an.uses.map fun (s, o) => Json.mkObj [("sel", .str s), ("off", (o.map Json.str).getD .null)]).toArray),
+     ("afterSplash", .bool an.afterSplash)])
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
