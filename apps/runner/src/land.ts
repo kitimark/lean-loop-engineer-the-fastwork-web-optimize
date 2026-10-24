@@ -295,8 +295,6 @@ export function ciLines(ref: string, cwd: string = process.cwd(), env?: Env): st
 
 export const LEDGER_FILE = "research/findings/ledger.json";
 
-/** Lean `Fw.Console.LedgerAlloc.assign` (golden packages/contracts/golden/console/ledger-alloc.jsonl): a row with a number keeps it,
- *  a row with none takes one above every number on main and every stated number, then the next one, in row order. */
 export function allocN(mainNs: readonly number[], rows: readonly (number | null)[]): number[] {
   let next = Math.max(0, ...mainNs, ...rows.filter((n): n is number => n !== null)) + 1;
   return rows.map((n) => (n !== null ? n : next++));
@@ -304,8 +302,6 @@ export function allocN(mainNs: readonly number[], rows: readonly (number | null)
 
 const rowN = (r: { n?: unknown }): number | null => (typeof r.n === "number" ? r.n : null);
 
-/** The land's ledger step on a merged tree: rows with no `n` get theirs from `allocN` (main = the ledger at `mainRef`), written
- *  and staged in `dir`. "none": no such row, the file is untouched. */
 export function allocLedger(dir: string, mainRef: string): "written" | "none" | "failed" {
   const f = join(dir, LEDGER_FILE);
   let raw: string;

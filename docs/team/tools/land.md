@@ -290,6 +290,6 @@ Incident: three `n` collisions on 2026-10-24, because builders picked the next `
 `fw land` (dry and real, all three merge paths) then numbers every row without `n` after the merge: `max(n on main, every n stated in the merge) + 1`, `+ 2`, and so on, in the order of the rows in the merged file, and puts `n` first in the row. The merge commit holds the numbers; the
 `ledger-unique` check (console-api `ledger-unique.test.ts`) runs after that, and on a branch it accepts rows without `n` (its floor comparison is false for a missing n).
 
-Rule and proofs: Lean `Fw.Console.LedgerAlloc` (`assign`; `assign_keeps`: a row that states `n` keeps it; `assign_unique`: the numbers are unique from the floor up when the stated ones are; `new_above`; `start_eq_of_top`: only main's largest `n` matters, so the result is a function of the two ledgers).
+Lean `Fw.Console.LedgerAlloc`: `assign`, `assign_keeps`, `assign_unique`, `new_above`, `start_eq_of_top`.
 Golden `packages/contracts/golden/console/ledger-alloc.jsonl` (regenerate: `cd lean && lake test -- --write-ledger-alloc-golden`), replayed by `apps/runner/test/ledger-alloc.test.ts` against `allocN` in `apps/runner/src/land.ts`.
 Limits: existing rows are not renumbered; a row with an explicit `n` still works, and the check still refuses a duplicate explicit `n`; notes written before the land that cite a new row's number are not rewritten.

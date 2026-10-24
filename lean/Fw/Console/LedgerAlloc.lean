@@ -3,22 +3,17 @@ import Fw.Console.LedgerUnique
 namespace Fw.Console.LedgerAlloc
 open Fw.Console
 
-/-- The largest number in the list, 0 for the empty list. -/
 def top (ns : List Nat) : Nat := ns.foldr max 0
 
-/-- The numbers that a branch's rows state themselves, in row order. -/
 def explicit (rows : List (Option Nat)) : List Nat := rows.filterMap id
 
-/-- Walk the rows: a row with a number keeps it, a row without one takes `next`, then `next + 1`, and so on. -/
 def go : Nat → List (Option Nat) → List Nat
   | _, [] => []
   | next, some n :: r => n :: go next r
   | next, none :: r => next :: go (next + 1) r
 
-/-- The land's rule: first fresh number is one above every number on main and every number a row states. -/
 def start (mainNs : List Nat) (rows : List (Option Nat)) : Nat := top (mainNs ++ explicit rows) + 1
 
-/-- The numbers of the merged ledger after the land, row for row. -/
 def assign (mainNs : List Nat) (rows : List (Option Nat)) : List Nat := go (start mainNs rows) rows
 
 theorem le_top {ns : List Nat} {n : Nat} (h : n ∈ ns) : n ≤ top ns := by
@@ -35,7 +30,6 @@ theorem length_go (next : Nat) (rows : List (Option Nat)) : (go next rows).lengt
   | nil => rfl
   | cons a r ih => cases a <;> simp [go, ih]
 
-/-- Every output number is a stated one or at least `next`. -/
 theorem mem_go {m next : Nat} {rows : List (Option Nat)} (h : m ∈ go next rows) : m ∈ explicit rows ∨ next ≤ m := by
   induction rows generalizing next with
   | nil => simp [go] at h
@@ -56,7 +50,6 @@ theorem mem_go {m next : Nat} {rows : List (Option Nat)} (h : m ∈ go next rows
         · left; simpa [explicit] using h
         · right; omega
 
-/-- Existing rows keep their number: the row at index `i` that states `n` ends with `n`. -/
 theorem go_keeps (next : Nat) (rows : List (Option Nat)) (i n : Nat) (h : rows[i]? = some (some n)) :
     (go next rows)[i]? = some n := by
   induction rows generalizing next i with
@@ -73,7 +66,6 @@ theorem assign_keeps (mainNs : List Nat) (rows : List (Option Nat)) (i n : Nat) 
 theorem assign_length (mainNs : List Nat) (rows : List (Option Nat)) : (assign mainNs rows).length = rows.length :=
   length_go _ _
 
-/-- With stated numbers below `next` that are unique from the floor up, `go` gives unique numbers from the floor up. -/
 theorem go_unique (rows : List (Option Nat)) (next : Nat) (hlt : ∀ n ∈ explicit rows, n < next)
     (hok : ∀ n ∈ explicit rows, LedgerUnique.floor ≤ n → (explicit rows).count n = 1) :
     ∀ m ∈ go next rows, LedgerUnique.floor ≤ m → (go next rows).count m = 1 := by
@@ -141,7 +133,6 @@ theorem go_unique (rows : List (Option Nat)) (next : Nat) (hlt : ∀ n ∈ expli
         have hnm : ¬ next = m := fun e => hmn e.symm
         simpa [List.count_cons, hnm] using ihr m hmr hf
 
-/-- After the land every number is unique (from the floor up), provided the stated numbers are. -/
 theorem assign_unique (mainNs : List Nat) (rows : List (Option Nat))
     (h : LedgerUnique.ok (explicit rows) = true) : LedgerUnique.ok (assign mainNs rows) = true := by
   rw [LedgerUnique.ok_iff] at h ⊢
@@ -150,16 +141,13 @@ theorem assign_unique (mainNs : List Nat) (rows : List (Option Nat))
   have : n ≤ top (mainNs ++ explicit rows) := le_top (List.mem_append_right _ hn)
   simp only [start]; omega
 
-/-- The new numbers are above every number on main and every stated number. -/
 theorem new_above (mainNs : List Nat) (rows : List (Option Nat)) (n : Nat) (hn : n ∈ mainNs ++ explicit rows) :
     n < start mainNs rows := by
   have := le_top hn; simp only [start]; omega
 
-/-- The branch check: stated numbers only, rows without a number are skipped. -/
 theorem branch_check_skips_none (rows : List (Option Nat)) :
     explicit (none :: rows) = explicit rows := by simp [explicit]
 
-/-- Main's order and repeats do not matter: only its largest number enters. -/
 theorem start_eq_of_top (a b : List Nat) (rows : List (Option Nat)) (h : top a = top b) :
     assign a rows = assign b rows := by
   have : ∀ l : List Nat, top (l ++ explicit rows) = max (top l) (top (explicit rows)) := by
@@ -173,7 +161,6 @@ end Fw.Console.LedgerAlloc
 namespace Fw.Wire.LedgerAlloc.Golden
 open Lean Fw.Console.LedgerAlloc
 
-/-- (name, main numbers, branch rows) -/
 def cases : List (String × List Nat × List (Option Nat)) := [
   ("empty", [], []),
   ("one-new", [26, 27, 72], [none]),

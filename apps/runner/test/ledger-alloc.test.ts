@@ -7,8 +7,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { badNs, candidateNs } from "../../console-api/src/ledger-unique.ts";
 import { allocLedger, allocN, LEDGER_FILE } from "../src/land.ts";
 
-// land.ts `allocN` against Lean Fw.Console.LedgerAlloc.assign (golden written by `lake test -- --write-ledger-alloc-golden`),
-// and `allocLedger` (the land's merge step) in a scratch repo.
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 type G = { name: string; main: number[]; rows: (number | null)[]; out: number[]; ok: boolean };
 const golden: G[] = readFileSync(join(repo, "packages/contracts/golden/console/ledger-alloc.jsonl"), "utf8")
