@@ -72,9 +72,12 @@ import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
 import Fw.Parts.PlatformFadeRun
 import Fw.Parts.MorphConstBounds
+import Fw.Parts.Gpu
 import Fw.Parts.MorphPanelThreaded
 import Fw.Parts.MorphPanelThreadedRun
 import Fw.Parts.MorphPanelThreadedGolden
+import Fw.Parts.MorphEnd
+import Fw.Parts.MorphEndGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork
@@ -93,6 +96,7 @@ import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
 import Fw.Device.StillRuns
+import Fw.Device.FinishRuns
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles

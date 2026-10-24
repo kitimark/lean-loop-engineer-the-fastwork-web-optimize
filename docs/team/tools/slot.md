@@ -57,14 +57,14 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   incident `inc-slot-stall`). The 64 MB/min and 1500 MB/min thresholds are INFERRED until replayed on sampler data. A
   ticket admitted on a sample is still admitted when only its memory reading is better (`memLow_antitone`,
   `verdict_antitone`).
-- **Idle head.** With no live holder, pressure level 1, no `thrash` and no `swapActive` (`idleHead`), the head of
+- **Idle head.** With no live holder, pressure level 1 or 2, no `thrash` and no `swapActive` (`idleHead`), the head of
   its kind is admitted even under `memLow` or a footprint that does not fit, unless an older ticket of another kind
   is starved or a sim ticket goes first (`idle_head_admitted`); waiting frees
   nothing then, since other programs hold the memory. Such an admit means no holder was live
   (`idle_head_only_when_empty`), and once it holds a slot no other ticket is admitted on the same reading
   (`idle_head_at_most_one`). With a live holder the verdict is the strict one (`verdict_unchanged_with_holder`).
-  The 2026-10-22 stall (281 MB available, file cache 4,443 MB under its 4,608 MB minimum) admits one Lean worker
-  with no holder and waits `memLow` with one (goldens).
+  The 2026-10-22 stall (281 MB available, file cache 4,443 MB under its 4,608 MB minimum) is a golden: it admits one Lean
+  worker with no holder and waits `memLow` with one.
 - **Limit.** Each poll takes one sample and steps the limit `n`. It halves on overload: 1-min load at least 16,
   `memLow`, compressor at least 40 % of RAM, or swap growing at least 512 MB a minute. It adds 1 when the load is under
   8 with 3 GB available, and otherwise holds. A change waits 30 s after the last one, and `n` stays in 1..4. The
@@ -73,15 +73,24 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   another kind has waited 300 s ahead of it and can run itself, while `n` slots are held, or while a Simulator slot is
   held and it asks for one. A Simulator ticket stuck behind a held Simulator slot never holds back other kinds
   (`verdict_not_older_of_sim_blocked`). It waits as `memLow` while memory is low, and an admitted ticket saw normal
-  pressure, no `swapActive` and no `thrash`, and either the floor or no live holder (`admit_calm`). Otherwise it waits
+  pressure (or warning, see the idle head below), no `swapActive` and no `thrash`, and either the floor or no live
+  holder (`admit_calm`). Otherwise it waits
   until the job's footprint fits above the 1 GB floor, unless it is the idle head (`admit_fits`).
   Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, measure 2800, other 1000. Holders admitted in the
   last 60 s are charged, since available memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
+- **Idle head.** With no live holder the head ticket is admitted even when memory is short, if pressure is 1 (normal)
+  or 2 (warning), the compressor is below its threshold and nothing swaps out (`idleHead_iff`). Pressure 3 or more,
+  compression, swapping, or one live holder always wait (`idleHead_waits_critical`, `idleHead_waits_thrash`,
+  `idleHead_waits_swap`, `idleHead_waits_holder`). On 2026-10-24 programs outside the queue kept
+  pressure at 2 with an empty slot and 12 tickets waited 29 min; now the head runs (`idle_head_progress`,
+  `idle_head_progress_alone`) and at most one idle head runs at a time (`idle_head_at_most_one`). A Simulator ticket
+  behind it can still make a non-Simulator head yield (`simFirst`). After a level-2 idle admit, the follower waits
+  `memLow` (`sim_not_starved` assumes pressure 1).
 - **Simulator first.** A Simulator ticket never waits as `older` (`verdict_sim_never_older`). It waits as `drain`
   while more than one holder of another kind runs. A ticket of another kind waits as `simFirst` while a Simulator slot
   is held and another kind still runs, and while a Simulator ticket is pending unless a slot and the Simulator's
   2800 MB above the floor stay free after it starts. So every admission keeps "Simulator held implies at most one other
-  holder" (`admit_keeps_simInv`). When another kind is admitted while a Simulator ticket is pending, the first
+  holder" (`admit_keeps_simInv`). When another kind is admitted while a Simulator ticket is pending at pressure level 1, the first
   Simulator ticket is still admitted on the same sample (`sim_not_starved`).
 - **Old lock.** A live `.local/locks/sim` directory (no pid yet, or a live pid) counts as one Simulator holder
   (`withLegacy`): a sim ticket waits `simBusy` (`verdict_legacy_blocks_sim`). `sim-lock.sh acquire` takes its

@@ -16348,7 +16348,8 @@
     "apps/console-web/src/**/*.test.tsx",
     "docs/team/handoffs/compose-gpu-pill.md"
    ],
-   "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text."
+   "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text.",
+   "evidence": "2dfbe5e"
   },
   {
    "devices": [
@@ -20020,7 +20021,11 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-throttle-lift-ship.md",
     "docs/report/v2-report.md",
-    "docs/team/handoffs/unthrottle-preset.md"
+    "docs/team/handoffs/unthrottle-preset.md",
+    ".github/workflows/toolbar-throttle.yml",
+    "packages/measure-webkit/src/throttle/cli.mjs",
+    "packages/measure-webkit/src/throttle/report.mjs",
+    "packages/measure-webkit/test/throttle-report.test.mjs"
    ],
    "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only."
   },
@@ -20048,9 +20053,14 @@
     "packages/contracts/golden/device/finishruns.jsonl",
     "research/notes/2026/10-2x-sim-finish-throttle.md",
     "results/sim-finish-throttle/**",
-    "docs/team/handoffs/sim-finish-throttle.md"
+    "docs/team/handoffs/sim-finish-throttle.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks)."
+   "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks).",
+   "evidence": "c30ac87"
   },
   {
    "devices": [
@@ -20104,7 +20114,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User 2026-10-24 picked all three end-of-page behaviour changes from research/notes/2026/10-2x-morph-reopen.md: A clamp the pin to the real end (scrollHeight - vh), B flip hysteresis (N px in one direction or a new touch), C release the pin when a close starts; 'try the experiment it all, and it should follow the lego, that i can pick the composition'. Lean first: model the faithful end-of-page state machine (morph.tween driver + logic, original N2:13017-13090) as a reducer over touch/wheel/scroll/resize events; each change is an independent brick (its own part with variants faithful|<change>, one variant per part per Compose search_entries_inj); prove for each brick on its own: faithful variant equals the original reducer; the change's claim (A: no restore write targets scrollY > maxY, so no spring-back fight; B: no flip on moves smaller than N, unchanged otherwise; C: no restore write after a close starts, open path unchanged); and that all 8 combinations compose (each pair commutes on the state it changes, no requires/conflicts needed) and compose with engine.scroll:unthrottle. N and the brick names are named constants. Goldens for the TS twin of the next task. Lead adds the Fw.lean import and the check.sh job at land."
+   "title": "User 2026-10-24 picked all three end-of-page behaviour changes from research/notes/2026/10-2x-morph-reopen.md: A clamp the pin to the real end (scrollHeight - vh), B flip hysteresis (N px in one direction or a new touch), C release the pin when a close starts; 'try the experiment it all, and it should follow the lego, that i can pick the composition'. Lean first: model the faithful end-of-page state machine (morph.tween driver + logic, original N2:13017-13090) as a reducer over touch/wheel/scroll/resize events; each change is an independent brick (its own part with variants faithful|<change>, one variant per part per Compose search_entries_inj); prove for each brick on its own: faithful variant equals the original reducer; the change's claim (A: no restore write targets scrollY > maxY, so no spring-back fight; B: no flip on moves smaller than N, unchanged otherwise; C: no restore write after a close starts, open path unchanged); and that all 8 combinations compose (each pair commutes on the state it changes, no requires/conflicts needed) and compose with engine.scroll:unthrottle. N and the brick names are named constants. Goldens for the TS twin of the next task. Lead adds the Fw.lean import and the check.sh job at land.",
+   "evidence": "075a5be"
   },
   {
    "devices": [
@@ -20194,7 +20205,11 @@
     "packages/contracts/golden/engine/transition-start.jsonl",
     "research/notes/2026/10-2x-earn-webkit-parity.md",
     "results/earn-webkit-parity/**",
-    "docs/team/handoffs/earn-webkit-parity.md"
+    "docs/team/handoffs/earn-webkit-parity.md",
+    "lean/scripts/EngineGoldens.lean",
+    "lean/Fw/Ops/Premise.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
   },
@@ -20257,7 +20272,10 @@
     "packages/contracts/golden/parts/nav.hitTest*.jsonl",
     "research/notes/2026/10-2x-hittest-elements-proof.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/hittest-elements-proof.md"
+    "docs/team/handoffs/hittest-elements-proof.md",
+    "apps/site/src/parts/nav.hitTest/elements.golden.test.ts",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
   },
@@ -20274,7 +20292,11 @@
     "packages/contracts/golden/parts/morph.countdown*.jsonl",
     "research/notes/2026/10-2x-countdown-strip-proof.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/countdown-strip-proof.md"
+    "docs/team/handoffs/countdown-strip-proof.md",
+    "apps/site/src/parts/morph.countdown/strip.test.ts",
+    "packages/gate-breakpoints/src/anchors.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh"
    ],
    "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
   },
@@ -20306,7 +20328,11 @@
     "lean/scripts/ThrottlePartsGolden.lean",
     "packages/contracts/golden/device/throttle-parts.jsonl",
     "research/notes/2026/10-2x-unthrottle-parts.md",
-    "docs/team/handoffs/unthrottle-parts-lean.md"
+    "docs/team/handoffs/unthrottle-parts-lean.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land."
   },
@@ -20348,7 +20374,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-idle-pressure2.md"
    ],
-   "title": "Incident 2026-10-24 ~10:00: the slot queue stalled for 29+ min with 0 holders and 12 tickets (a land among them) at kernel pressure level 2 with 0 swap-outs and 0 compression per minute; memory was held by programs outside the queue (Arc ~2.5 GB, Finder, WindowServer). idleHead admits only at pressure level 1, so the queue could never progress. Lean first: idleHead also admits at level 2 when there is no thrash and no swapActive (no holder live); theorems: progress (with no holder, no thrash and no swap activity, some ticket is admitted on every sample), idle_head_at_most_one still holds, level 2 with thrash or swap activity still waits; goldens incl. this sample (103 MB available, pressure 2, compressing 0, swapping 0); slot-core.ts follows."
+   "title": "Incident 2026-10-24 ~10:00: the slot queue stalled for 29+ min with 0 holders and 12 tickets (a land among them) at kernel pressure level 2 with 0 swap-outs and 0 compression per minute; memory was held by programs outside the queue (Arc ~2.5 GB, Finder, WindowServer). idleHead admits only at pressure level 1, so the queue could never progress. Lean first: idleHead also admits at level 2 when there is no thrash and no swapActive (no holder live); theorems: progress (with no holder, no thrash and no swap activity, some ticket is admitted on every sample), idle_head_at_most_one still holds, level 2 with thrash or swap activity still waits; goldens incl. this sample (103 MB available, pressure 2, compressing 0, swapping 0); slot-core.ts follows.",
+   "evidence": "71b13c1"
   },
   {
    "devices": [
@@ -20431,6 +20458,70 @@
     "docs/team/handoffs/mount-arm-late.md"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-sim-yield-p2",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-idle-pressure2"
+   ],
+   "writes": [
+    "lean/Fw/Sup/Adapt.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "apps/runner/src/slot-core.ts",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-sim-yield-p2.md"
+   ],
+   "title": "Follow-up of slot-idle-pressure2 review: sim_not_starved gained the hypothesis press = 1, so at pressure 2 with an empty slot a non-Simulator idle head can overtake a pending Simulator ticket. Lean first: yieldsToSim also yields when a Simulator ticket is pending and press != 1, so the Simulator becomes the idle head; restore sim_not_starved without the press hypothesis; add a queue-level progress theorem (no live holder, 1 <= press <= 2, no thrash, no swap, non-empty queue, 0 < n: some ticket of q is admitted). Goldens and slot-core.ts follow."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-morph-cell",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "unthrottle-preset"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Gate/Coverage.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/gate-breakpoints/src/trajectory/run.mjs",
+    "packages/gate-breakpoints/src/trajectory/plan.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/preset/v2-proved.trajectory.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "research/notes/2026/10-2x-webkit-morph-cell.md",
+    "docs/team/handoffs/webkit-morph-cell.md"
+   ],
+   "title": "Blocker for every v2-proved member (finding of unthrottle-preset, runs 40078755889 and 40080296257): the WebKit morph trajectory cell on the Mac lane has never given a verdict for any flag ('no verdict: coverage' or fail), so v2-proved stays empty. For engine.scroll:unthrottle the new coverage units sit at widths 641 and 1280 where a desktop reports a fine pointer and the (pointer: coarse) guard makes the flag inactive (INFERRED; the probe's pointer setting was not read). Find the cause from the probe source and one CI run: the Mac morph walk's coverage, the pointer emulation (hasTouch/isMobile) per width, or both. Lean first: a cell decision that admits a flag proved inactive at a width (Fw.Parts.EngineScrollUnthrottle.guard_fine_noop style: identical output where the guard is false) as 'same by proof' instead of 'no verdict', each width decided on its own; or the walk fixed so coverage is met. Then regenerate v2-proved from Gen.run and run the breakpoint gate on preset=v2-proved, both engines (run id)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-inputs-speed",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ops/LandCache.lean",
+    "lean/Fw/Ops/LandCacheGolden.lean",
+    "packages/contracts/golden/ops/land-cache.jsonl",
+    "research/notes/2026/10-2x-land-inputs-speed.md",
+    "docs/team/handoffs/land-inputs-speed.md"
+   ],
+   "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each)."
   }
  ],
  "deadline": {
