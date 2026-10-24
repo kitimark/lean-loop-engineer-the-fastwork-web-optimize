@@ -19385,7 +19385,8 @@
     "apps/runner/test/disk-gc.test.ts",
     "docs/team/handoffs/gc-live-agent-cwd.md"
    ],
-   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects."
+   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects.",
+   "evidence": "acdc644"
   },
   {
    "devices": [
