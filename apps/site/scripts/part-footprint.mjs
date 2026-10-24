@@ -138,7 +138,7 @@ function collectElements(file) {
             else {
               const ts = collectClassTokens(v.expr, classEnv(scope, staticMemberClass));
               ts.forEach((c) => c.op === 'setClass' && classes.add(c.name));
-              open ||= isOpenClass(ts);
+              open ||= isOpenElement(ts);
             }
           } else attrs.set(name, v.lit !== undefined ? v.lit : null);
           const target = /^[A-Z]/.test(tag) && v.lit !== undefined ? componentFolder(tag, file) : null;
@@ -988,6 +988,7 @@ const SEP = /[ \t\n\f\r]/;
 const classTokensOf = (s) => s.split(SEP).filter(Boolean).map((name) => ({ op: 'setClass', name }));
 const lose = (t) => ({ op: 'lost', name: t.name });
 const marker = (form, toks) => [{ op: 'lost', name: form }, ...toks.map(lose)];
+const modKeyToks = (m) => [{ op: 'modLost', name: `module key ${m}` }];
 function classPush(w, a) {
   if (a.chars === undefined) return [...w, a];
   if (a.chars === '') return w;
@@ -1068,7 +1069,7 @@ export function collectClassTokens(expr, env = NO_CLASS_ENV, ctx = 'attr') {
       case 'MemberExpression': {
         const m = en.memberClass(x);
         if (!m) return hole(marker('member', []));
-        return hole(m.key !== undefined ? marker(`module key ${m.key}`, []) : [{ op: 'setModuleClass', name: m.mod }]);
+        return hole(m.key !== undefined ? modKeyToks(m.key) : [{ op: 'setModuleClass', name: m.mod }]);
       }
       case 'UnaryExpression':
         if (x.operator === '!') return hole(testToks(c));
@@ -1115,7 +1116,8 @@ export function collectClassTokens(expr, env = NO_CLASS_ENV, ctx = 'attr') {
   };
   return go(expr, ctx, env).toks;
 }
-export const isOpenClass = (toks) => toks.some((t) => t.op === 'lost' || t.op === 'glued');
+export const isOpenClass = (toks) => toks.some((t) => t.op === 'lost' || t.op === 'modLost' || t.op === 'glued');
+export const isOpenElement = (toks) => toks.some((t) => t.op === 'lost' || t.op === 'glued');
 export const literalClasses = (s) => classTokensOf(s).map((t) => t.name);
 export const CLASS_LIST_METHODS = ['add', 'remove', 'toggle', 'replace', 'contains'];
 const HOLE_RE = new RegExp(HOLE, 'g');
@@ -1127,7 +1129,7 @@ function tokenToks(w) {
 function valueToks(v) {
   if (v.str) return v.str.flatMap(tokenToks);
   if (v.mod !== undefined) return [{ op: 'setModuleClass', name: v.mod }];
-  if (v.modKey !== undefined) return marker(`module key ${v.modKey}`, []);
+  if (v.modKey !== undefined) return modKeyToks(v.modKey);
   if (v.alt) return v.alt.flatMap(valueToks);
   return marker('unresolved', []);
 }
@@ -1138,7 +1140,7 @@ export function classListReport(method, values) {
   const { writes, findings } = classReport(args.flatMap(valueToks));
   return { writes: method === 'contains' ? writes.map(([, n]) => ['classRead', n]) : writes, findings };
 }
-const CLASS_FINDING = { lost: 'unmodelled-class', glued: 'glued-class' };
+const CLASS_FINDING = { lost: 'unmodelled-class', modLost: 'unmodelled-class', glued: 'glued-class' };
 export function classReport(toks) {
   const writes = toks.filter((t) => !CLASS_FINDING[t.op]).map((t) => [t.op, t.name]);
   const findings = toks.filter((t) => CLASS_FINDING[t.op]).map((t) => [CLASS_FINDING[t.op], t.name]);

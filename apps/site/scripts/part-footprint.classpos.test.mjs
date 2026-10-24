@@ -16,6 +16,7 @@ import {
   classUnion,
   collectClassTokens,
   isOpenClass,
+  isOpenElement,
   literalClasses,
   pickOwners,
 } from './part-footprint.mjs';
@@ -61,6 +62,7 @@ for (const r of rows) {
     assert.deepEqual(named(toks, 'setClass'), r.classes);
     assert.deepEqual(named(toks, 'setModuleClass'), r.modules);
     assert.equal(isOpenClass(toks), r.open);
+    assert.equal(isOpenElement(toks), r.elemOpen);
     assert.deepEqual(classReport(toks), { writes: r.writes, findings: r.findings });
     assert.deepEqual(classAssign(tokensOf(r.src, r.consts, 'text')), r.assign);
     const e = exprOf(r.src);

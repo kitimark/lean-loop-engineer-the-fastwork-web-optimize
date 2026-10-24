@@ -40,6 +40,7 @@ inductive Kind where
   | cls
   | mod
   | lost
+  | modLost
   | glued
   deriving DecidableEq, Repr
 
@@ -67,6 +68,8 @@ def Ctx.flat : Ctx → Bool
 def Tok.lose (t : Tok) : Tok := { t with kind := .lost }
 
 def marker (form : String) (ts : List Tok) : List Tok := ⟨.lost, form⟩ :: ts.map Tok.lose
+
+def modKeyToks (m : String) : List Tok := [⟨.modLost, "module key " ++ m⟩]
 
 inductive Piece where
   | text (s : String)
@@ -166,7 +169,7 @@ def go (c : Ctx) : E → List Tok × List Piece
   | .const _ i => go c i
   | .member _ => hole (marker "member" [])
   | .mod m => hole [⟨.mod, "css#" ++ m⟩]
-  | .modKey m => hole (marker ("module key " ++ m) [])
+  | .modKey m => hole (modKeyToks m)
   | .cmp _ _ => hole (testToks c)
   | .not _ => hole (testToks c)
   | .cond _ a b => hole ((go c a).1 ++ (go c b).1)
@@ -210,23 +213,30 @@ def toks (e : E) : List Tok := (go .attr e).1
 def assignToks (e : E) : List Tok := (go .text e).1
 
 def Kind.opens : Kind → Bool
-  | .lost | .glued => true
+  | .lost | .modLost | .glued => true
   | .cls | .mod => false
 
 def isOpen (ts : List Tok) : Bool := ts.any (·.kind.opens)
+
+def Kind.plainOpen : Kind → Bool
+  | .lost | .glued => true
+  | .cls | .mod | .modLost => false
+
+/-- An element is open to plain class selectors iff one of its class tokens may be any plain class. -/
+def elemOpen (ts : List Tok) : Bool := ts.any (·.kind.plainOpen)
 
 def writes (ts : List Tok) : List (String × String) :=
   ts.filterMap (fun t => match t.kind with
     | .cls => some ("setClass", t.name)
     | .mod => some ("setModuleClass", t.name)
-    | .lost | .glued => none) ++
+    | .lost | .modLost | .glued => none) ++
   (if isOpen ts then [("setClass", "?")] else [])
 
 def assignWrites (ts : List Tok) : List (String × String) := if isOpen ts then [("setClass", "*")] else writes ts
 
 def findings (ts : List Tok) : List (String × String) :=
   ts.filterMap fun t => match t.kind with
-    | .lost => some ("unmodelled-class", t.name)
+    | .lost | .modLost => some ("unmodelled-class", t.name)
     | .glued => some ("glued-class", t.name)
     | .cls | .mod => none
 
@@ -254,7 +264,7 @@ mutual
 def valueToks : V → List Tok
   | .str vs => vs.flatMap tokenToks
   | .mod n => [⟨.mod, n⟩]
-  | .modKey m => marker ("module key " ++ m) []
+  | .modKey m => modKeyToks m
   | .unknown => marker "unresolved" []
   | .alt vs => altToks vs
 
@@ -361,7 +371,7 @@ theorem member_lost (c : Ctx) (p : String) : (go c (.member p)).1 = marker "memb
 
 theorem mod_class (c : Ctx) (m : String) : (go c (.mod m)).1 = [⟨.mod, "css#" ++ m⟩] := rfl
 
-theorem modKey_lost (c : Ctx) (m : String) : (go c (.modKey m)).1 = marker ("module key " ++ m) [] := rfl
+theorem modKey_lost (c : Ctx) (m : String) : (go c (.modKey m)).1 = modKeyToks m := rfl
 
 theorem and_drops (c : Ctx) (h : c.drops = true) (l l' r : E) : go c (.and l r) = go c (.and l' r) := by
   simp [go, h]
@@ -501,6 +511,21 @@ theorem glued_open (ts : List Tok) (h : ∃ t ∈ ts, t.kind = .glued) : ("setCl
   obtain ⟨t, ht, hk⟩ := h
   exact opens_open ts ⟨t, ht, by simp [hk, Kind.opens]⟩
 
+theorem elemOpen_isOpen (ts : List Tok) (h : elemOpen ts = true) : isOpen ts = true := by
+  obtain ⟨t, ht, hk⟩ := List.any_eq_true.mp h
+  exact List.any_eq_true.mpr ⟨t, ht, by cases hc : t.kind <;> simp_all [Kind.plainOpen, Kind.opens]⟩
+
+theorem lost_elemOpen (ts : List Tok) (h : ∃ t ∈ ts, t.kind = .lost) : elemOpen ts = true := by
+  obtain ⟨t, ht, hk⟩ := h
+  exact List.any_eq_true.mpr ⟨t, ht, by simp [hk, Kind.plainOpen]⟩
+
+theorem glued_elemOpen (ts : List Tok) (h : ∃ t ∈ ts, t.kind = .glued) : elemOpen ts = true := by
+  obtain ⟨t, ht, hk⟩ := h
+  exact List.any_eq_true.mpr ⟨t, ht, by simp [hk, Kind.plainOpen]⟩
+
+theorem modKey_elem_closed (c : Ctx) (m : String) : elemOpen (go c (.modKey m)).1 = false := by
+  simp [modKey_lost, modKeyToks, elemOpen, Kind.plainOpen]
+
 theorem marker_open (form : String) (ts : List Tok) (us : List Tok) : ("setClass", "?") ∈ writes (us ++ marker form ts) :=
   lost_open _ ⟨_, List.mem_append_right _ (marker_mem form ts), rfl⟩
 
@@ -540,7 +565,7 @@ theorem member_open (p : String) : ("setClass", "?") ∈ writes (toks (.member p
   rw [toks, member_lost]; exact marker_open _ _ []
 
 theorem modKey_open (m : String) : ("setClass", "?") ∈ writes (toks (.modKey m)) := by
-  rw [toks, modKey_lost]; exact marker_open _ _ []
+  rw [toks, modKey_lost]; exact opens_open _ ⟨_, List.mem_singleton_self _, rfl⟩
 
 theorem arr_open (es : List E) : ("setClass", "?") ∈ writes (toks (.arr es)) := by
   rw [toks, arr_lost .attr rfl]; exact marker_open _ _ []
@@ -577,7 +602,7 @@ theorem value_str (vs : List String) : valueToks (.str vs) = vs.flatMap tokenTok
 
 theorem value_mod (n : String) : valueToks (.mod n) = [⟨.mod, n⟩] := by simp [valueToks]
 
-theorem value_modKey (m : String) : valueToks (.modKey m) = marker ("module key " ++ m) [] := by simp [valueToks]
+theorem value_modKey (m : String) : valueToks (.modKey m) = modKeyToks m := by simp [valueToks]
 
 theorem value_unknown : valueToks .unknown = marker "unresolved" [] := by simp [valueToks]
 
@@ -609,7 +634,7 @@ theorem token_invalid_open (w : String) (h : w.any (· == holeMark) = false) (hw
   rw [token_invalid w h hw]; exact marker_open _ _ []
 
 theorem value_modKey_open (m : String) : ("setClass", "?") ∈ writes (valueToks (.modKey m)) := by
-  rw [value_modKey]; exact marker_open _ _ []
+  rw [value_modKey]; exact opens_open _ ⟨_, List.mem_singleton_self _, rfl⟩
 
 theorem value_unknown_open : ("setClass", "?") ∈ writes (valueToks .unknown) := by
   rw [value_unknown]; exact marker_open _ _ []
@@ -919,7 +944,7 @@ def pairs (ws : List (String × String)) : Lean.Json := Lean.Json.arr (ws.map fu
 def row (e : E) : Lean.Json :=
   let ts := toks e
   Lean.Json.mkObj [("src", render e), ("consts", pairs (constsOf e)), ("classes", strs (namesOf .cls ts)),
-    ("modules", strs (namesOf .mod ts)), ("open", isOpen ts), ("findings", pairs (findings ts)),
+    ("modules", strs (namesOf .mod ts)), ("open", isOpen ts), ("elemOpen", elemOpen ts), ("findings", pairs (findings ts)),
     ("writes", pairs (writes ts)), ("assign", pairs (assignWrites (assignToks e)))]
 
 def V.json : V → Lean.Json
@@ -992,7 +1017,10 @@ def goldenText (_ : Unit := ()) : String := String.join ((goldenRows ()).map fun
 #guard names (toks (.method (.arr [s "a", .arr [s "b"]]) "join" [s " "])) == ["a", "array", "b"]
 #guard toks (v "undefined") == [] && toks (v "cls") == [⟨.lost, "id cls"⟩]
 #guard toks (.member "frameCls[k]") == [⟨.lost, "member"⟩]
-#guard toks (.modKey "v") == [⟨.lost, "module key v"⟩]
+#guard toks (.modKey "v") == [⟨.modLost, "module key v"⟩]
+#guard !elemOpen (toks (.modKey "v")) && isOpen (toks (.modKey "v"))
+#guard elemOpen (toks (.call "cx" [.modKey "v", v "w"]))
+#guard elemOpen (toks (.tmpl ["", "pill"] [v "box"]))
 #guard tokens "a b c" == ["a b", "c"] && tokens "a\x0Bb" == ["a\x0Bb"]
 #guard toks (.const "c" (s "a b")) == [⟨.cls, "a"⟩, ⟨.cls, "b"⟩]
 #guard toks (.call "cx" [.mod "word", .const "sweep" sweepInit]) == [⟨.mod, "css#word"⟩, ⟨.mod, "css#sweep"⟩]
