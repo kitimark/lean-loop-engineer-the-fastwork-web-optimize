@@ -20171,7 +20171,8 @@
     "lean/Fw.lean",
     "apps/runner/test/reap-slot.test.ts"
    ],
-   "title": "Incident 2026-10-24 14:40: a sim lease was released after about 4.5 min but the Simulator device it booted stayed booted (load 72-148, 190 MB free) until the lead shut it down. Lean first: a released sim lease implies the device the lease booted is shut down (or handed to the next queued sim holder); fw slot release of kind sim runs simctl shutdown for the booted UDID it recorded at acquire; theorem + golden; slot.ts follows."
+   "title": "Incident 2026-10-24 14:40: a sim lease was released after about 4.5 min but the Simulator device it booted stayed booted (load 72-148, 190 MB free) until the lead shut it down. Lean first: a released sim lease implies the device the lease booted is shut down (or handed to the next queued sim holder); fw slot release of kind sim runs simctl shutdown for the booted UDID it recorded at acquire; theorem + golden; slot.ts follows.",
+   "evidence": "fee2f5b"
   },
   {
    "devices": [

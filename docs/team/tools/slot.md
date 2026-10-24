@@ -116,6 +116,17 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   old lock, and clears while either holds (`simIdleNext`). Once it has run 600 s, the check shuts every booted device
   down (`sim_shutdown_idle`); it never does so under a holder (`sim_shutdown_only_unheld`) or at a first sighting
   (`sim_first_sighting_keeps`). The decision and the shutdown run under the state lock.
+- **Simulator release (task sim-release-shutdown).** The first sim holder records the booted udids at admission
+  (`simBefore`, `simRecord`). When the last live sim lease ends (release or expiry), `simSettle` decides: with no live
+  sim ticket queued (`simHandover`) it shuts down the devices booted since the acquire (`simOurs`) and clears the record;
+  with one queued, it shuts nothing down and keeps the record, so the next holder inherits the same "not ours" list.
+  Theorems (`lean/Fw/Sup/SimRelease.lean`): `simSettle_release_clean` (no handover: what stays booted was booted before
+  the lease), `simHandover_keeps_for_live_holder` (a lease-booted device stays booted only for a live queued sim ticket),
+  `simSettle_preexisting_kept` (a device booted before the lease is never shut down), `simSettle_shut_booted`,
+  `simSettle_handover`, `simRecord_inherits`. TS twin in `slot-core.ts`, replayed against `adapt.jsonl`; `slot.ts` runs
+  `xcrun simctl shutdown <udid>` only for the udids `simSettle` names (`simReleaseShutdown`); tests use a fake simctl
+  (`slot-sim-release.test.ts`). Two holders cannot boot at once (sim exclusivity, `admit_keeps_simInv`), so the diff
+  attributes each new device to one holder (INFERRED). The idle sweep above still covers devices booted outside any lease.
 - **Builder admission.** `admit --kind build` admits when no Simulator ticket is queued, the live-agent count is known
   and below 8, and available memory covers the floor plus 2100 MB (`admitBuild_iff`). The count is `--agents n`, else the last line of `<main>/.fw-console/health.jsonl` (agents neither done nor gone), unknown when older than 900 s
   (`agentsSeen`).
