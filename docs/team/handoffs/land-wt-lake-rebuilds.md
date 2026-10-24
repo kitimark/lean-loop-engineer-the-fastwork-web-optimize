@@ -1,5 +1,5 @@
 Branch: worktree-wf_aea8c6a6-e92-1
-Worktree: .claude/worktrees/wf_aea8c6a6-e92-1 (under the main checkout)
+Worktree: .claude/worktrees/wf_aea8c6a6-e92-1
 Last commit: d493e2c (merge of main); dry land VERDICT dry land-wt-lake-rebuilds; CI runs: none (local timings).
 
 State: Lean rule `Fw.Console.LandWt.pick` (nearest last checkout by Lean build inputs, none last, ties lowest number)

@@ -26,7 +26,7 @@ Among the free worktrees take the one whose last checkout differs least from the
 is last; ties go to the lower number. Theorems: `pickAux_best` (no free worktree is preferred), `pick_zero` (a
 worktree already at the commit is taken), `pick_none_only`, `pick_dist_le`, `pick_tie`, `pick_le_firstFree`
 (never farther than today's first free number). Golden: `packages/contracts/golden/console/land-wt.jsonl`, eighteen rows (ten of the input-file rule
-`isInput`, eight of `pick`; worktree numbers and distances are replay inputs, INFERRED; built counts are MEASURED); the distance's input-file rule is `isInput`/`dist` in Lean, and TS `pickLandWt` and `LAND_WT_INPUT_RE` are stand-ins checked against it (`apps/runner/test/land-wt.test.ts`).
+`isInput`, eight of `pick`; worktree numbers and distances are replay inputs, INFERRED; built counts are MEASURED); TS `pickLandWt` and `LAND_WT_INPUT_RE` are stand-ins checked against Lean `isInput`/`dist` (`apps/runner/test/land-wt.test.ts`).
 `claimLandWt` asks the rule for each claim and retries on a lost claim race. The dry land passes its merge commit; the
 real land (second `claimLandWt` call) passes none and keeps the first free number.
 

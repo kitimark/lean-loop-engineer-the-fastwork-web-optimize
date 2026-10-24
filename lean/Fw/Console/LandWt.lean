@@ -1,7 +1,4 @@
 import Lean
-/-!
-# Which land worktree a dry land starts from
--/
 namespace Fw.Console.LandWt
 open Lean
 
@@ -166,13 +163,11 @@ theorem pick_le_firstFree (x : Slot) (xs : List Slot) (f : Slot) (hf : firstFree
   subst hf
   exact pick_dist_le x xs _ (foldl_mem xs x) d hd
 
-/-- A path under `lean/` that Lean build output depends on; the distance counts these. -/
 def isInput (path : String) : Bool :=
   let comps := path.splitOn "/"
   path.endsWith ".lean" || comps.any (fun c => c.startsWith "lakefile" || c.startsWith "lake-manifest")
     || comps.getLast? == some "lean-toolchain"
 
-/-- The distance between two checkouts: how many differing paths are build inputs. -/
 def dist (diff : List String) : Nat := (diff.filter isInput).length
 
 theorem dist_nil : dist [] = 0 := rfl
@@ -189,7 +184,6 @@ def inputCases : List (String × Bool) :=
 
 def slotJson (s : Slot) : Json := Json.mkObj [("idx", toJson s.idx), ("dist", toJson s.dist)]
 
-/-- Worktree numbers and distances are replay inputs (INFERRED, replay of branch tips); built counts in names are MEASURED. -/
 def cases : List (String × List Slot) :=
   [("2e54fbe third dry land (start 1792805509801, measured 24 built): worktree 1 holds the previous 2e54fbe checkout",
       [⟨0, some 4⟩, ⟨1, some 0⟩]),
