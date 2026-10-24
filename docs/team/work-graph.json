@@ -19490,7 +19490,8 @@
     "docs/team/handoffs/next-killorphan-reap.md",
     "apps/runner/test/signals.test.ts"
    ],
-   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens."
+   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens.",
+   "evidence": "e0ca8c8"
   },
   {
    "devices": [
