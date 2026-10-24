@@ -3886,6 +3886,47 @@
    "lesson": "A blocking listener can be demoted to passive wherever the lock decision cannot ask for preventDefault; the proof is a band that covers the arm test plus a state invariant for the active morph.",
    "next": "A booked phone session for touch-start to first scroll frame near the page end; a lane that reads window.__fwArmLate.frames.",
    "evidence": "Lean Fw.Parts.MorphMountArmLate.late_same (golden packages/contracts/golden/parts/morph-mount-arm-late.jsonl); trajectory probe 40092331051 (morph.mount:arm-late); breakpoint gate 40093577005 (A/A); breakpoint gate with the flag 40095661200"
+  },
+  {
+   "n": 74,
+   "id": "engine.scroll.unthrottle-follow",
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle-follow: unthrottle plus a frame loop that keeps requesting engine frames while scrollY moves (stops after 8 still frames or scrollend, 3600 frames at most, only with a coarse pointer), so parts read the newest scrollY at every rendering update even under WebKit's scroll-event delay (WebPageIOS.mm:2240-2256)",
+   "status": "partly-proved",
+   "flags": [
+    "engine.scroll:unthrottle-follow"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E for stateless parts (follow_same_look: a part whose output is f(scrollY) shows f(u t) at every loop frame, as the lifted mode does). Chasing parts (commission, people.card, people.deck) get more frames per second while the finger moves: look-change class, INFERRED, not measured. Breakpoint gate PASSED on both engines, run 40125463870 (head 8cb61aace).",
+   "mechanism": "CONFIRMED by source (WebPageIOS.mm:2240-2256, LocalFrameView.cpp:3784-3790, Page.cpp:2294-2329 @862f17d) and PROVED in Lean (frames_bounded, stops_after_still, idle_zero, fine_never_requests, moving_runs_every_update, gain_iff, follow_part_no_stills, event_part_stills). MEASURED on the CI Simulator (runs 40109924058 and 40116376544, 6 passes per arm): hero value still runs per 1000 mid-moving frames 174.5 (unthrottle) vs 103.0 (follow), lower in 6 of 6 jobs; scroll events reach 424 of 1000 moving frames under unthrottle, so the engine ran about one frame in 2.4 moving updates. The scrollY the page reads shows no steady gain (110.2 vs 96.5 pooled, mixed by run; INFERRED that the loop does not change it).",
+   "leanFor": [
+    "Fw.Parts.EngineScrollFollow.frames_bounded",
+    "Fw.Parts.EngineScrollFollow.stops_after_still",
+    "Fw.Parts.EngineScrollFollow.idle_zero",
+    "Fw.Parts.EngineScrollFollow.fine_never_requests",
+    "Fw.Parts.EngineScrollFollow.moving_runs_every_update",
+    "Fw.Parts.EngineScrollFollow.gain_iff",
+    "Fw.Parts.EngineScrollFollow.follow_part_no_stills",
+    "Fw.Parts.EngineScrollFollow.event_part_stills",
+    "Fw.Parts.EngineScrollFollow.follow_same_look"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Phone feel not measured (the Simulator stands in)",
+    "CPU and power cost of one engine frame per moving update not measured",
+    "Look of chasing parts under the extra frames not checked",
+    "Trajectory cells pending"
+   ],
+   "premises": [
+    "The Simulator's scroll-event delay is the phone's: INFERRED; the delay is the same code (eventThrottlingDelay) but the latency estimate may differ",
+    "The part-output lens (hero value as its own series) is the right one for a loop that changes when the engine runs: INFERRED; chosen after run 1, repeated in run 2"
+   ],
+   "v1Evidence": "",
+   "lesson": "A fix for a delayed event must be judged on what the consumer shows, not on the input it reads: the loop is not expected to change scrollY, so the scrollY series shows no steady gain (110.2 vs 96.5 per 1000 moving frames pooled, mixed by run) while the part output loses a third to a half of its still runs.",
+   "next": "A look check of chasing parts; a phone pass; then the trajectory cells before v2-proved.",
+   "evidence": "CI runs 40109924058, 40116376544 (toolbar-throttle, hero drags); research/notes/2026/10-2x-unthrottle-follow.md; branch worktree-wf_4682f586-db0-1",
+   "flag": "engine.scroll:unthrottle-follow"
   }
  ],
  "notes": [

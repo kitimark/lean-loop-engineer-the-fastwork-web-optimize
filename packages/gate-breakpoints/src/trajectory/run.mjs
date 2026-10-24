@@ -9,6 +9,7 @@ import { HERO_NODES, HERO_STEPS, MORPH_NODES, PAGE_PROPS, envFor, resolveNodes }
 import { debugFor, fieldOf, readDebug, withDebug } from './debug.mjs';
 import { installKit } from './kit.mjs';
 import { runCheck } from './reduce.mjs';
+import { settleReps } from './plan.mjs';
 
 const INIT = `${PIN_SRC}\n(${installKit.toString()})();`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -48,6 +49,8 @@ export async function heroPath(engine, env, origin, site, search = '') {
   } finally { await s.close().catch(() => {}); }
 }
 
+export const pushReading = (phases) => ({ opening: (phases.open ?? []).map((r) => r.m ?? null), closing: (phases.close ?? []).map((r) => r.m ?? null) });
+
 /**
  * The end-of-page path of one arm: approach, rest, a wheel push open and a push close, each held. With `reads: 'lean'` the two
  * pushes read only the lean properties of the registry in every frame (the holds and the approach read everything).
@@ -57,16 +60,25 @@ export async function heroPath(engine, env, origin, site, search = '') {
  * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
  * union of the windows of the original's reps, each aligned on its own.
  */
-export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1, debug = '') {
+export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1, debug = '', against = null) {
   let out = null;
   const debugReps = [];
-  for (let rep = 0; rep < reps; rep++) {
+  const walk = async (rep) => {
     const { debugRows, ...one } = await morphPass(engine, env, origin, site, search, reads, debug);
     if (debug !== '') debugReps.push({ rep, name: debug, rows: debugRows });
     for (const rows of Object.values(one.phases)) for (const r of rows) r.rep = rep;
-    if (out === null) { out = { ...one, reps, extraArms: [] }; continue; }
+    if (out === null) { out = { ...one, reps, extraArms: [] }; return one; }
     out.extraArms.push(one.arm);
     for (const [ph, rows] of Object.entries(one.phases)) out.phases[ph] = (out.phases[ph] ?? []).concat(rows);
+    return one;
+  };
+  for (let rep = 0; rep < reps; rep++) await walk(rep);
+  if (against !== null) {
+    const { extra } = await settleReps(against.base, pushReading(out.phases), async (i) => {
+      log(`trajectory morph: extra rep ${i + 1} (a push bucket of the faithful arm has no row of this arm)`);
+      return pushReading((await walk(reps + i)).phases);
+    });
+    out.extra = extra;
   }
   // The recorder's rows of every rep (null rows: the page did not install it), next to the readings; the reducer never reads them.
   if (debug !== '') out.debugReps = debugReps;
@@ -134,7 +146,12 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         const t0 = Date.now();
         const run = { width, site: a.site, role: a.role, search: a.search, want: a.want };
         if (paths.includes('hero')) { log(`trajectory ${engineName} ${width} ${a.role}: hero`); run.hero = await heroPath(engine, e, a.origin, a.site, a.search); }
-        if (paths.includes('morph')) { log(`trajectory ${engineName} ${width} ${a.role}: morph`); run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : ''); }
+        if (paths.includes('morph')) {
+          log(`trajectory ${engineName} ${width} ${a.role}: morph`);
+          const peer = (role) => runs.find((r) => r.width === width && r.role === role)?.morph;
+          const against = a.role === 'cand' && peer('base') ? { base: pushReading(peer('base').phases) } : null;
+          run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : '', against);
+        }
         runs.push(run);
         log(`trajectory ${engineName} ${width} ${a.role}: done in ${Date.now() - t0} ms`);
         if (runCheck(armsOfRun(run)) !== 'ok') { refused = true; log(`trajectory ${engineName} ${width} ${a.role}: REFUSED config (${JSON.stringify(armsOfRun(run))})`); break outer; }
