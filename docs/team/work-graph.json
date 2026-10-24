@@ -20394,7 +20394,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "HIGHEST PRIORITY. Measure the unthrottle-parts-lean predictions on the CI Simulator (toolbar-throttle lane, hero drag mode and sim-finish-throttle's finish mode): per part, still runs while moving for original, rewrite, rewrite + engine.scroll:throttle-lift and rewrite + engine.scroll:unthrottle (the shipped text), verdict per part from the Lean golden; compare with the phone per-part series from results/phone/2026-10-24*; the parts that gain become the follow-up list."
+   "title": "HIGHEST PRIORITY. Measure the unthrottle-parts-lean predictions on the CI Simulator (toolbar-throttle lane, hero drag mode and sim-finish-throttle's finish mode): per part, still runs while moving for original, rewrite, rewrite + engine.scroll:throttle-lift and rewrite + engine.scroll:unthrottle (the shipped text), verdict per part from the Lean golden; compare with the phone per-part series from results/phone/2026-10-24*; the parts that gain become the follow-up list.",
+   "evidence": "14e14c8"
   },
   {
    "devices": [

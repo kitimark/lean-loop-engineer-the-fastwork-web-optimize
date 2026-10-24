@@ -111,7 +111,7 @@ jobs:
     concurrency:
       group: ci-lane:toolbar-throttle:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -202,15 +202,14 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
 
       - name: Touch probe (three arms, rotated per round)
-        timeout-minutes: 45
+        timeout-minutes: 58
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SITE_DIR: ${{ runner.temp }}/site
           VM: ${{ matrix.vm }}
           # The head commit message picks the drags: [throttle:finish] drags past the page end (task sim-finish-throttle), else the hero exit.
-          MODE: ${{ contains(github.event.head_commit.message, '[throttle:finish]') && 'finish' || 'drags' }}
-          # [throttle:follow] adds the unthrottle-follow arm to the hero drags (task unthrottle-follow).
-          FOLLOW: ${{ contains(github.event.head_commit.message, '[throttle:follow]') && 'yes' || 'no' }}
+          MODE: ${{ contains(github.event.head_commit.message, '[throttle:finish]') && 'finish' || contains(github.event.head_commit.message, '[throttle:rest]') && 'rest' || 'drags' }}
+          ROUNDS: ${{ contains(github.event.head_commit.message, '[throttle:rest]') && '3' || '2' }}
           # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
           # (counts do not depend on waits), and a load step may retry twice after a reconnect.
           FW_WK_TIMEOUT_SCALE: '8'
@@ -220,10 +219,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          arms=rewrite,unthrottle,original; rounds=2; cycles=4; rotate=0
-          if [ "$MODE" = finish ]; then arms=rewrite,lift,original
-          elif [ "$FOLLOW" = yes ]; then arms=rewrite,unthrottle,unthrottle-follow,original; rounds=1; cycles=8; rotate=$((VM - 1)); fi
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --cycles "$cycles" --rotate "$rotate" --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          node src/throttle/parts-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms original,rewrite,lift,unthrottle --rounds "$ROUNDS" --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded
@@ -301,13 +297,14 @@ jobs:
           JOBS: ${{ runner.temp }}/jobs
         run: |
           set -euo pipefail
-          node --test test/throttle-stillruns.test.mjs
+          node --test test/throttle-stillruns.test.mjs test/throttle-parts.test.mjs
           files=$(ls "$JOBS"/*/*-throttle.json | paste -sd, -)
-          node src/throttle/cli.mjs report --in "$files" --md "$RUNNER_TEMP/table.md"
-          cat "$RUNNER_TEMP/table.md" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/table"
+          node src/throttle/parts-cli.mjs report --in "$files" --run "$GITHUB_RUN_ID" --md "$RUNNER_TEMP/table/table.md" --json "$RUNNER_TEMP/table/parts.json"
+          cat "$RUNNER_TEMP/table/table.md" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: toolbar-throttle-table
-          path: ${{ runner.temp }}/table.md
+          path: ${{ runner.temp }}/table
           if-no-files-found: error
           retention-days: 30
