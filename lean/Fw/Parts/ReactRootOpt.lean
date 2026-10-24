@@ -35,7 +35,6 @@ def nonDelegated : List String :=
    "loadedmetadata", "loadstart", "pause", "play", "playing", "progress", "ratechange", "resize", "seeked", "seeking",
    "stalled", "suspend", "timeupdate", "volumechange", "waiting"]
 
-/-- The 7 types of the variant: the page has no React handler for any of them. -/
 def quiet : List String :=
   ["animationend", "animationiteration", "animationstart", "transitioncancel", "transitionend", "transitionrun", "transitionstart"]
 

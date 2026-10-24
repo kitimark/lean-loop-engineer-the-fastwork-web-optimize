@@ -1135,7 +1135,6 @@ def diagnosticWord : String := "diagnostic"
 /-- The engines input values. -/
 def probeEngines : List String := ["both", "chromium", "playwright-webkit"]
 
-/-- The page recorders a push may ask for (`apps/site/src/debug/`; the probe loads the rewrite arms with `fw-debug=<name>`). -/
 def probeDebugs : List String := ["nav-transition", "root-events"]
 
 /-- Split `key=value` at the first `=`. -/

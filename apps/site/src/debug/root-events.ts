@@ -1,17 +1,12 @@
 import { DEBUG_GLOBAL, DEBUG_PARAM } from './nav-transition';
 
-// Debug recorder of the animation and transition listeners (task react-root-quiet-events). Off unless the URL carries
-// `?fw-debug=root-events`; not a flag, not in the config or the hash. TS stand-in: no Lean spec (debug only).
-
 export const ROOT_EVENTS_DEBUG = 'root-events';
 export const ROOT_EVENTS_FIELD = 'rootEvents';
 
 export const WATCHED = ['animationstart', 'animationiteration', 'animationend', 'animationcancel', 'transitionrun', 'transitionstart', 'transitionend', 'transitioncancel'] as const;
 
 export interface RootEventsLog {
-  /** `<target>:<type>:<b|c>` -> registrations of a watched type; target is `root` (id root), `window` or `other` */
   registered: Record<string, number>;
-  /** events of a watched type that reached the window capture phase, by type */
   dispatched: Record<string, number>;
 }
 
@@ -27,7 +22,6 @@ export interface RootEventsEnv {
 
 const watched: ReadonlySet<string> = new Set(WATCHED);
 
-/** Install before the React root exists, and before a container shim, so a shim's drops are what the log shows. */
 export function installRootEventsDebug(env: RootEventsEnv): () => void {
   const log: RootEventsLog = { registered: {}, dispatched: {} };
   const bag = (env.store[DEBUG_GLOBAL] ??= {}) as Record<string, unknown>;

@@ -36,9 +36,7 @@ if (!resolved.ok || only.kind === 'err') {
     configHash: resolved.configHash,
     mode: same ? 'hydrate' : 'client-render',
   });
-  // The stage environment is pinned before the first render, so mount-time reads (layout effects of children) see it.
   const pinned = only.kind === 'ok' ? pinEnv(window, only.stage.env) : null;
-  // Before the root exists: React registers its listeners on the container when it is created.
   if (rootEventsDebugOn(location.search)) installRootEventsDebug({ proto: EventTarget.prototype, win: window, store: window as unknown as Record<string, unknown> });
   if (resolved.config.variants['engine.events'] === QUIET_VARIANT) quietContainer(rootEl);
   const cache = createClientCache(__FW_ENGINE__, ids);

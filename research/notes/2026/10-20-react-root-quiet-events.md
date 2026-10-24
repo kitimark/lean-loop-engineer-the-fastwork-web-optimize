@@ -1,6 +1,6 @@
 # react-root-quiet-events: the root listeners behind the WebKit EventDispatch excess
 
-Task `react-root-quiet-events`. Answer first.
+Task `react-root-quiet-events`.
 
 - CONFIRMED (CI runs 40122201939 and 40124553279, trajectory-probe, recorder `fw-debug=root-events`): the React root registers 14 listeners
   for the 7 animation and transition types (capture and bubble each) in every rewrite arm; all 7 types are dispatched in a
@@ -90,8 +90,7 @@ docs/team/tools/trajectory-probe.md lists the macOS witness nav reads as noisy. 
 
 ## Chromium
 
-Chromium also dispatches these events (table above), but the task is judged on WebKit. Chromium's counts are reported by
-the lead's dispatches if wanted.
+Chromium also dispatches these events (table above); the task is judged on WebKit.
 
 ## Limits
 

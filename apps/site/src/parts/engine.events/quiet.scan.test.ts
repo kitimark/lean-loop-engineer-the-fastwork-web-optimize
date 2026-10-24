@@ -34,7 +34,6 @@ const INPUT_FAMILY = /@mui\/material(?:\/(?:InputBase|Input|FilledInput|Outlined
 const PORTAL = /createPortal|@mui\/material\/(?:Portal|Modal|Popover|Popper|Menu|Drawer|Dialog|Tooltip|Snackbar)\b|@mui\/base/;
 const LISTEN = new RegExp(`addEventListener\\(\\s*['"\`](?:${quietTypes.join('|')})['"\`]`);
 
-/** Files that add a quiet type to an element or window of their own, never to the React container. */
 const OWN_TARGET = new Set(['parts/hero.exit/index.tsx', 'debug/nav-transition.ts']);
 
 describe('engine.events:quiet premises, scanned over the files entry-client.tsx reaches', () => {
@@ -65,7 +64,6 @@ describe('engine.events:quiet premises, scanned over the files entry-client.tsx 
   });
 });
 
-/** A container that records what React registers on it; the real react-dom 19.3.1 builds the root. */
 function register(variant: 'faithful' | 'quiet'): string[] {
   const log: string[] = [];
   const doc = { nodeType: 9, ownerDocument: null, addEventListener: () => {} };

@@ -1,9 +1,8 @@
 // The debug recorders of the trajectory probe (task waapi-tail-webkit). A debug run loads the rewrite arms (role base and cand, never the
 // original, which has no recorder) with `&fw-debug=<name>` and saves what the page recorded (`window.__fwDebug.<field>`) next to the
 // readings, in `runs[].morph.debugReps`. The recorder lives in the page (apps/site/src/debug/nav-transition.ts) and is off in every
-// other run. The recorder request is a TS/JS stand-in with no Lean spec (a run's identity is still decided by armCheck on the search WITHOUT the debug param).
+// other run.
 
-/** The recorders a page can run: `name` is the `fw-debug` value, `field` the key under `window.__fwDebug`. */
 export const DEBUGS = [{ name: 'nav-transition', field: 'navTransition' }, { name: 'root-events', field: 'rootEvents' }];
 
 /**

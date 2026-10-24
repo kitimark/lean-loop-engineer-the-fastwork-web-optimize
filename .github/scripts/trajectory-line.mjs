@@ -13,7 +13,6 @@ import { ALLOWED_WIDTHS, pickWidths } from '../../packages/gate-breakpoints/src/
 const KW = '[trajectory';
 const KEYS = ['fw', 'preset', 'widths', 'engines', 'debug'];
 const ENGINES = ['both', 'chromium', 'playwright-webkit'];
-/** Lean `probeDebugs`: the page recorders a push may ask for. */
 const DEBUGS = ['nav-transition', 'root-events'];
 const isWs = (c) => c === ' ' || c === '\t' || c === '\r';
 const trim = (s) => {
