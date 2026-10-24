@@ -19490,7 +19490,8 @@
     "docs/team/handoffs/next-killorphan-reap.md",
     "apps/runner/test/signals.test.ts"
    ],
-   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens."
+   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens.",
+   "evidence": "e0ca8c8"
   },
   {
    "devices": [
@@ -19811,7 +19812,7 @@
     "docs/report/v2-report.md",
     "docs/team/handoffs/classpos-followups-2.md"
    ],
-   "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report)."
+   "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report). Plus classpos-followups review follow-ups: (5) split helpers into listHelpers [clsx, classNames, classnames] (list context) and joinHelpers [cx, cls] (the site's own (...c) => c.filter(Boolean).join(' '): arrays and objects there are lost), golden row cx(['a']); (6) a numeric literal (className={0}, cx(n && 1)) gets marker 'number', and the left side of && is reported unless it is cmp/not, golden rows; (7) an element whose class set has any lost token is marked open in collectElements, and selector matches against it are weak."
   }
  ],
  "deadline": {
