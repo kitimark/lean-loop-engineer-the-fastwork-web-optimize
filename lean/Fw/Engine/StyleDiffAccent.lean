@@ -220,7 +220,6 @@ def anyWkLayout (ch : List (WebKit.WkProp × LayerState)) : Bool := ch.any fun x
 
 def anyCrLayout (ch : List (Chromium.CrKey × LayerState)) : Bool := ch.any fun x => crLayout x.1 x.2
 
-/-- The decision for one candidate: not shipped in WebKit, a WebKit layout per frame, a refuted look, or pixels pending. -/
 def verdict (s : Search) : Verdict :=
   let r := srow s
   if !r.avail then .unavailable else if anyWkLayout r.wk then .layout else if r.lookRefuted then .look else .pending
@@ -405,7 +404,6 @@ def goldenText (_ : Unit) : String :=
       [(none, none), (none, some .glide), (some .canvas, none), (some .canvas, some .glide)].map
         fun c => comboRow c.1 c.2).map fun r => r.compress ++ "\n")
 
-/-- Prints the golden text, or with `--check <path>` compares it with the file. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>

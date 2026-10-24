@@ -1,7 +1,7 @@
 # Handoff: accent-same-look (lean-prover)
 
 - Branch `worktree-wf_59cdc4a2-046-1`, worktree `.claude/worktrees/wf_59cdc4a2-046-1`.
-- Last sha: see `git log -1` on the branch (this file is in the commit it describes).
+- Last sha: `git log -1` on the branch.
 - CI runs: none dispatched (round 2 accepted limit: no CI dispatch).
 - Verified: `lake build Fw.Engine.StyleDiffAccent`; golden `--check` up to date; `sameLook.test.ts` green; axioms
   of the new theorems are propext, Classical.choice, Quot.sound only.

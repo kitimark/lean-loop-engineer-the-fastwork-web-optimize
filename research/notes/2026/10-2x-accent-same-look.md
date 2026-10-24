@@ -56,6 +56,6 @@ Ship glide only with canvas: alone it saves no WebKit layout frame.
 
 ## Lesson
 A set-level identity is not a pixel identity once two antialiased rasters multiply. A counting argument against a
-sprite needs a free start phase, and WebKit gives none: its timeline time moves in 1 ms steps. The cheap same-look
-levers in WebKit are a repaint (sprite, canvas) and a compositor translate (glide); all move the risk from layout to
+sprite needs a free start phase, and WebKit gives none: its timeline time moves in 1 ms steps. The layout-free
+options in WebKit are a repaint (sprite, canvas) and a compositor translate (glide). They move the risk from layout to
 rasterisation, which only a pixel run can settle.
