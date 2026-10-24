@@ -3278,9 +3278,9 @@ def capNetsCases : List CapNetsCase :=
   [{ c := { name := "a 50 s floor wait after the 10 s interval spaced the ticks 60 s apart: only the 10 s cap nets, the floor wait counts as own time",
             s := 0, d := 300000, u := some 50000, t := some 100000, p := some 40000, q := some 10, r := some 30 },
      waits := [(.interval, 10000), (.floor, 50000)] },
-   { c := { name := "a 70 s backoff and a 30 s hour-share wait after the 10 s interval: interval and backoff net, the 30 s share wait counts as own time",
+   { c := { name := "a backoff to 110 s and a 40 s hour-share wait after the 10 s interval: the cap adds the 70 s backoff to the 10 s interval it overlaps, so 10 s of the share wait is netted and 30 s counts as own time",
             s := 0, d := 300000, u := some 50000, t := some 150000, p := some 40000, q := some 10, r := some 110 },
-     waits := [(.interval, 10000), (.retryAfter, 70000), (.hour, 30000)] },
+     waits := [(.interval, 10000), (.retryAfter, 60000), (.hour, 40000)] },
    { c := { name := "a 20 s minute-share wait inside the earlier tick's 60 s interval: the cap's slack absorbs it, no own time in the gap",
             s := 0, d := 300000, u := some 50000, t := some 70000, p := some 40000, q := some 10, r := some 30, w := some 60 },
      waits := [(.interval, 10000), (.minute, 20000)] }]

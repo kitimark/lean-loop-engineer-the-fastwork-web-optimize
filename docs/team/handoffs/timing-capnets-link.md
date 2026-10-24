@@ -13,8 +13,9 @@
   `packages/gh-budget/test/timing-capnets.test.ts` (fwcore `obs.timing` gives each row's `ownMs`).
 - (2) Code fix, not the Lean max theorem: the max over the two ticks' pre-event intervals is false in general (`pre_pages_max_misses`: pages 1 to 2 under a leading spread gap, 100 s scheduled, recorded 50 and 12).
   `poller.ts` now sends the `pages` event before writing the status and records `ci.budget.status` of the state it
-  returns. Lean: `next_waits_interval` (that interval is the next wait), `interval_step_listed`/`_unregister`/`_register`
-  (the later events keep it). Test `wait.test.ts` "a tick whose full list raised the pages ..." (fails on the old code
+  returns. Lean: `interval` is `Fw.Ci.Budget.interval` at the tick's `now` of the state after its pages event (`next` waits
+  `lastTick + interval` of the state it is given, `next_waits_interval`; the later listed/unregister/register events keep
+  it, `interval_step_*`). Test `wait.test.ts` "a tick whose full list raised the pages ..." (fails on the old code
   with prevPollS 10 for a 12 s gap).
 ## Verified
 - `lean/scripts/check.sh` green (axioms ok); @fw/gh-budget 86 tests, @fw/contracts 11, ci-paths 56; plan lint 0
