@@ -1,0 +1,9 @@
+{"golden":"G1","hit":false,"lean":"L1","recs":[],"run":true,"touches":true}
+{"golden":"G1","hit":true,"lean":"L1","recs":[{"golden":"G1","lean":"L1","pass":true,"src":"checkSh"}],"run":false,"touches":true}
+{"golden":"G1","hit":true,"lean":"L1","recs":[{"golden":"G1","lean":"L1","pass":true,"src":"dryLint"}],"run":false,"touches":true}
+{"golden":"G1","hit":false,"lean":"L1","recs":[{"golden":"G1","lean":"L1","pass":false,"src":"checkSh"}],"run":true,"touches":true}
+{"golden":"G1","hit":false,"lean":"L1","recs":[{"golden":"G1","lean":"L2","pass":true,"src":"checkSh"}],"run":true,"touches":true}
+{"golden":"G1","hit":false,"lean":"L1","recs":[{"golden":"G2","lean":"L1","pass":true,"src":"dryLint"}],"run":true,"touches":true}
+{"golden":"G1","hit":true,"lean":"L1","recs":[{"golden":"G1","lean":"L2","pass":true,"src":"checkSh"},{"golden":"G1","lean":"L1","pass":true,"src":"dryLint"}],"run":false,"touches":true}
+{"golden":"G1","hit":true,"lean":"L1","recs":[{"golden":"G1","lean":"L1","pass":true,"src":"checkSh"}],"run":false,"touches":false}
+{"golden":"G1","hit":false,"lean":"L1","recs":[],"run":false,"touches":false}
