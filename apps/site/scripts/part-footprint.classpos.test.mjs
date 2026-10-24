@@ -36,12 +36,21 @@ for (const r of rows) {
 
 test('a class in an unmodelled call is reported and opens the site', () => {
   const { writes, findings } = classReport(tokensOf("getClass('primary', css.m)"));
-  assert.deepEqual(findings, [['unmodelled-class', 'primary'], ['unmodelled-class', 'css#m']]);
+  assert.deepEqual(findings, [['unmodelled-class', 'call getClass'], ['unmodelled-class', 'primary'], ['unmodelled-class', 'css#m']]);
   assert.deepEqual(writes, [['setClass', '?']]);
 });
 
-test('a glued class keeps its literal part and is reported', () => {
+test('an unmodelled position without literals still opens the site', () => {
+  const forms = { 'getClass(variant)': 'call getClass', 'cls.trim()': 'method trim', "items.map((i) => i.c).join(' ')": 'method join', 'clsx(...xs)': 'spread', "[a, b].join('-')": 'join separator', 'new Cls()': 'other' };
+  for (const [src, form] of Object.entries(forms)) {
+    const { writes, findings } = classReport(tokensOf(src));
+    assert.deepEqual(findings[0], ['unmodelled-class', form], src);
+    assert.deepEqual(writes, [['setClass', '?']], src);
+  }
+});
+
+test('a glued class keeps its literal part, is reported and opens the site', () => {
   const { writes, findings } = classReport(tokensOf('`${box}is-pill`'));
   assert.deepEqual(findings, [['glued-class', '*is-pill']]);
-  assert.deepEqual(writes, [['setClass', 'is-pill']]);
+  assert.deepEqual(writes, [['setClass', 'is-pill'], ['setClass', '?']]);
 });

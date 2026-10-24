@@ -5,7 +5,8 @@ import Lean.Data.Json
 namespace Fw.Parts.ClassPos
 
 mutual
-/-- A className expression, one constructor per AST branch of `collectClassTokens`; `mod l` is a CSS-module class. -/
+/-- A className expression, one constructor per AST branch of `collectClassTokens`; `mod l` is a CSS-module class and
+`spread e` is `...e` in an array or call argument list. -/
 inductive E where
   | str (s : String)
   | id (n : String)
@@ -23,6 +24,7 @@ inductive E where
   | obj (ps : List P)
   | call (name : String) (args : List E)
   | method (recv : E) (name : String) (args : List E)
+  | spread (e : E)
   | other (kids : List E)
 
 inductive P where
@@ -44,6 +46,9 @@ structure Tok where
   deriving DecidableEq, Repr
 
 def Tok.lose (t : Tok) : Tok := { t with kind := .lost }
+
+/-- The site-level marker of an unmodelled position: a lost token named after the form, kept whatever its operands. -/
+def marker (form : String) (ts : List Tok) : List Tok := ⟨.lost, form⟩ :: ts.map Tok.lose
 
 inductive Piece where
   | text (s : String)
@@ -99,12 +104,12 @@ def sepOk : List E → Bool
   | [.str s] => !s.isEmpty && s.all isSep
   | _ => false
 
-def joinToks (ts : List Tok) (args : List E) : List Tok := if sepOk args then ts else ts.map Tok.lose
+def joinToks (ts : List Tok) (args : List E) : List Tok := if sepOk args then ts else marker "join separator" ts
 
 def methodToks (n : String) (elems : Option (List Tok)) (recv argToks : List Tok) (args : List E) : List Tok :=
   match n == "join", elems with
   | true, some ts => joinToks ts args
-  | _, _ => (recv ++ argToks).map Tok.lose
+  | _, _ => marker ("method " ++ n) (recv ++ argToks)
 
 def hole (ts : List Tok) : List Tok × List Piece := (ts, [.hole ts])
 
@@ -125,9 +130,10 @@ def go : E → List Tok × List Piece
   | .concat l r => let ps := (go l).2 ++ (go r).2; (words ps, ps)
   | .arr es => hole (goList es)
   | .obj ps => hole (goProps ps)
-  | .call n args => hole (if helpers.contains n then goList args else (goList args).map Tok.lose)
+  | .call n args => hole (if helpers.contains n then goList args else marker ("call " ++ n) (goList args))
   | .method recv n args => hole (methodToks n (goElems recv) (go recv).1 (goList args) args)
-  | .other kids => hole ((goList kids).map Tok.lose)
+  | .spread e => hole (marker "spread" (go e).1)
+  | .other kids => hole (marker "other" (goList kids))
 
 def goElems : E → Option (List Tok)
   | .arr es => some (goList es)
@@ -142,7 +148,7 @@ def goProps : List P → List Tok
   | [] => []
   | .key k _ :: ps => (tokens k).map (Tok.mk .cls) ++ goProps ps
   | .comp k _ :: ps => (go k).1 ++ goProps ps
-  | .spread e :: ps => (go e).1.map Tok.lose ++ goProps ps
+  | .spread e :: ps => marker "spread" (go e).1 ++ goProps ps
 
 def goTmpl (qs : List String) : List E → List Piece
   | [] => qs.map .text
@@ -151,13 +157,18 @@ end
 
 def toks (e : E) : List Tok := (go e).1
 
-/-- The accesses a className site emits: each class and module class, and one `setClass ?` when a token is lost. -/
+def Kind.opens : Kind → Bool
+  | .lost | .glued => true
+  | .cls | .mod => false
+
+/-- The accesses a className site emits: each class and module class, and one `setClass ?` when a token is lost or
+glued. -/
 def writes (ts : List Tok) : List (String × String) :=
   ts.filterMap (fun t => match t.kind with
     | .cls => some ("setClass", t.name)
     | .mod => some ("setModuleClass", t.name)
     | .lost | .glued => none) ++
-  (if ts.any (·.kind == .lost) then [("setClass", "?")] else [])
+  (if ts.any (·.kind.opens) then [("setClass", "?")] else [])
 
 /-- The findings of a className site: `unmodelled-class` per lost token, `glued-class` per glued word. -/
 def findings (ts : List Tok) : List (String × String) :=
@@ -200,40 +211,53 @@ theorem concat_words (l r : E) : toks (.concat l r) = words ((go l).2 ++ (go r).
 
 theorem obj_keys (ps : List P) : toks (.obj ps) = goProps ps := rfl
 
-theorem spread_lost (e : E) (ps : List P) : goProps (.spread e :: ps) = (toks e).map Tok.lose ++ goProps ps := rfl
+theorem spread_lost (e : E) (ps : List P) : goProps (.spread e :: ps) = marker "spread" (toks e) ++ goProps ps := rfl
 
 theorem call_helper (n : String) (args : List E) (h : n ∈ helpers) : toks (.call n args) = goList args := by
   simp [toks, go, hole, h]
 
 theorem call_other (n : String) (args : List E) (h : n ∉ helpers) :
-    toks (.call n args) = (goList args).map Tok.lose := by
+    toks (.call n args) = marker ("call " ++ n) (goList args) := by
   simp [toks, go, hole, h]
-
-theorem call_names (n m : String) (args : List E) : names (toks (.call n args)) = names (toks (.call m args)) := by
-  simp only [toks, go, hole]
-  split <;> split <;> simp [lose_names]
 
 theorem join_ok (es args : List E) (h : sepOk args = true) : toks (.method (.arr es) "join" args) = goList es := by
   simp [toks, go, goElems, methodToks, hole, joinToks, h]
 
 theorem join_glued (es args : List E) (h : sepOk args = false) :
-    toks (.method (.arr es) "join" args) = (goList es).map Tok.lose := by
+    toks (.method (.arr es) "join" args) = marker "join separator" (goList es) := by
   simp [toks, go, goElems, methodToks, hole, joinToks, h]
 
-theorem join_names (es a b : List E) :
-    names (toks (.method (.arr es) "join" a)) = names (toks (.method (.arr es) "join" b)) := by
-  cases ha : sepOk a <;> cases hb : sepOk b <;> simp [toks, go, goElems, methodToks, hole, joinToks, ha, hb, lose_names]
+theorem join_names (es a b : List E) (ha : sepOk a = true) (hb : sepOk b = true) :
+    toks (.method (.arr es) "join" a) = toks (.method (.arr es) "join" b) := by
+  rw [join_ok es a ha, join_ok es b hb]
 
 theorem filter_irrelevant (es f args : List E) :
     toks (.method (.method (.arr es) "filter" f) "join" args) = toks (.method (.arr es) "join" args) := by
   simp [toks, go, goElems, hole, methodToks]
 
 theorem method_other (recv : E) (n : String) (args : List E) (h : n ≠ "join") :
-    toks (.method recv n args) = (toks recv ++ goList args).map Tok.lose := by
+    toks (.method recv n args) = marker ("method " ++ n) (toks recv ++ goList args) := by
   have : (n == "join") = false := by simpa using h
   simp [toks, go, hole, methodToks, this]
 
-theorem other_lost (kids : List E) : toks (.other kids) = (goList kids).map Tok.lose := rfl
+theorem join_unmodelled (recv : E) (args : List E) (h : goElems recv = none) :
+    toks (.method recv "join" args) = marker "method join" (toks recv ++ goList args) := by
+  simp [toks, go, hole, methodToks, h]
+
+theorem spread_arg (e : E) : toks (.spread e) = marker "spread" (toks e) := rfl
+
+theorem other_lost (kids : List E) : toks (.other kids) = marker "other" (goList kids) := rfl
+
+theorem marker_mem (form : String) (ts : List Tok) : ⟨.lost, form⟩ ∈ marker form ts := List.mem_cons_self
+
+theorem obj_spread_marker (ps : List P) (e : E) (h : P.spread e ∈ ps) : ⟨.lost, "spread"⟩ ∈ toks (.obj ps) := by
+  rw [obj_keys]
+  induction ps with
+  | nil => cases h
+  | cons p ps ih =>
+    rcases List.mem_cons.mp h with rfl | ht
+    · exact List.mem_append_left _ (marker_mem _ _)
+    · cases p <;> exact List.mem_append_right _ (ih ht)
 
 theorem glued_reported (a b : Atom) (w : List Atom) :
     wordToks (a :: b :: w) = ⟨.glued, String.join ((a :: b :: w).map Atom.text)⟩ :: (a :: b :: w).flatMap Atom.toks := by
@@ -248,10 +272,48 @@ theorem chars_kept (c : String) (w : List Atom) (h : Atom.chars c ∈ w) : ⟨.c
     rw [glued_reported]
     exact List.mem_cons_of_mem _ (List.mem_flatMap.mpr ⟨.chars c, h, List.mem_singleton_self _⟩)
 
+theorem opens_open (ts : List Tok) (h : ∃ t ∈ ts, t.kind.opens = true) : ("setClass", "?") ∈ writes ts := by
+  obtain ⟨t, ht, hk⟩ := h
+  have : ts.any (·.kind.opens) = true := List.any_eq_true.mpr ⟨t, ht, hk⟩
+  simp [writes, this]
+
 theorem lost_open (ts : List Tok) (h : ∃ t ∈ ts, t.kind = .lost) : ("setClass", "?") ∈ writes ts := by
   obtain ⟨t, ht, hk⟩ := h
-  have : ts.any (·.kind == .lost) = true := List.any_eq_true.mpr ⟨t, ht, by simp [hk]⟩
-  simp [writes, this]
+  exact opens_open ts ⟨t, ht, by simp [hk, Kind.opens]⟩
+
+theorem glued_open (ts : List Tok) (h : ∃ t ∈ ts, t.kind = .glued) : ("setClass", "?") ∈ writes ts := by
+  obtain ⟨t, ht, hk⟩ := h
+  exact opens_open ts ⟨t, ht, by simp [hk, Kind.opens]⟩
+
+theorem marker_open (form : String) (ts : List Tok) (us : List Tok) : ("setClass", "?") ∈ writes (us ++ marker form ts) :=
+  lost_open _ ⟨_, List.mem_append_right _ (marker_mem form ts), rfl⟩
+
+theorem call_other_open (n : String) (args : List E) (h : n ∉ helpers) : ("setClass", "?") ∈ writes (toks (.call n args)) := by
+  rw [call_other n args h]; exact marker_open _ _ []
+
+theorem method_other_open (recv : E) (n : String) (args : List E) (h : n ≠ "join") :
+    ("setClass", "?") ∈ writes (toks (.method recv n args)) := by
+  rw [method_other recv n args h]; exact marker_open _ _ []
+
+theorem join_unmodelled_open (recv : E) (args : List E) (h : goElems recv = none) :
+    ("setClass", "?") ∈ writes (toks (.method recv "join" args)) := by
+  rw [join_unmodelled recv args h]; exact marker_open _ _ []
+
+theorem join_glued_open (es args : List E) (h : sepOk args = false) :
+    ("setClass", "?") ∈ writes (toks (.method (.arr es) "join" args)) := by
+  rw [join_glued es args h]; exact marker_open _ _ []
+
+theorem spread_open (e : E) : ("setClass", "?") ∈ writes (toks (.spread e)) := by
+  rw [spread_arg]; exact marker_open _ _ []
+
+theorem obj_spread_open (ps : List P) (e : E) (h : P.spread e ∈ ps) : ("setClass", "?") ∈ writes (toks (.obj ps)) :=
+  lost_open _ ⟨_, obj_spread_marker ps e h, rfl⟩
+
+theorem other_open (kids : List E) : ("setClass", "?") ∈ writes (toks (.other kids)) := by
+  rw [other_lost]; exact marker_open _ _ []
+
+theorem glued_word_open (a b : Atom) (w : List Atom) : ("setClass", "?") ∈ writes (wordToks (a :: b :: w)) := by
+  rw [glued_reported]; exact glued_open _ ⟨_, List.mem_cons_self, rfl⟩
 
 private def s (x : String) : E := .str x
 private def v (x : String) : E := .id x
@@ -302,7 +364,14 @@ def cases : List E :=
     .method (v "xs") "join" [s " "],
     .method (.method (v "xs") "filter" [v "Boolean"]) "join" [s " "],
     .method (s "a b") "trim" [],
+    .call "getClass" [v "variant"],
+    .method (v "cls") "trim" [],
+    .method (.method (v "items") "map" [v "f"]) "join" [s " "],
+    .call "clsx" [.spread (v "xs")],
+    .call "clsx" [s "a", .obj [.spread (v "extra")]],
+    .method (.arr [v "a", v "b"]) "join" [s "-"],
     .other [s "x", .mod "y"],
+    .other [v "x"],
     .and (.cmp (v "r") (s "exit")) (.cond (v "z") (s "deep") (.and (v "w") (s "deeper")))]
 
 def isIdent (k : String) : Bool :=
@@ -328,6 +397,7 @@ def render : E → String
   | .obj ps => "{" ++ ", ".intercalate (renderProps ps) ++ "}"
   | .call n args => n ++ "(" ++ ", ".intercalate (renderList args) ++ ")"
   | .method r n args => render r ++ "." ++ n ++ "(" ++ ", ".intercalate (renderList args) ++ ")"
+  | .spread e => "..." ++ render e
   | .other kids => "(" ++ ", ".intercalate ("0" :: renderList kids) ++ ")"
 
 def renderList : List E → List String
@@ -367,14 +437,18 @@ def goldenText (_ : Unit := ()) : String := String.join ((head :: cases.map row)
 #guard toks (.concat (s "a") (s "b")) == [⟨.cls, "ab"⟩]
 #guard toks (.tmpl ["", "", ""] [.mod "a", .mod "b"]) == [⟨.glued, "**"⟩, ⟨.mod, "css#a"⟩, ⟨.mod, "css#b"⟩]
 #guard toks (.call "clsx" [.obj [.key "a" (v "b"), .comp (.mod "f") (v "g")]]) == [⟨.cls, "a"⟩, ⟨.mod, "css#f"⟩]
-#guard toks (.call "other" [s "x"]) == [⟨.lost, "x"⟩]
-#guard toks (.method (.arr [s "a", s "b"]) "join" [s "-"]) == [⟨.lost, "a"⟩, ⟨.lost, "b"⟩]
+#guard toks (.call "other" [s "x"]) == [⟨.lost, "call other"⟩, ⟨.lost, "x"⟩]
+#guard toks (.call "getClass" [v "variant"]) == [⟨.lost, "call getClass"⟩]
+#guard toks (.method (v "c") "trim" []) == [⟨.lost, "method trim"⟩]
+#guard toks (.method (.method (v "xs") "map" [v "f"]) "join" [s " "]) == [⟨.lost, "method join"⟩, ⟨.lost, "method map"⟩]
+#guard toks (.call "clsx" [.spread (v "xs")]) == [⟨.lost, "spread"⟩]
+#guard toks (.method (.arr [s "a", s "b"]) "join" [s "-"]) == [⟨.lost, "join separator"⟩, ⟨.lost, "a"⟩, ⟨.lost, "b"⟩]
 #guard toks (.method (.arr [s "a"]) "join" [s "\t"]) == [⟨.cls, "a"⟩]
 #guard sepOk [s " "] && sepOk [s " \t"] && !sepOk [s ""] && !sepOk [s "-"] && !sepOk [] && !sepOk [v "x"]
 #guard !sepOk [s " ", s " "]
 #guard writes [⟨.cls, "a"⟩, ⟨.mod, "m"⟩] == [("setClass", "a"), ("setModuleClass", "m")]
 #guard writes [⟨.lost, "a"⟩, ⟨.cls, "b"⟩, ⟨.lost, "c"⟩] == [("setClass", "b"), ("setClass", "?")]
-#guard writes [⟨.glued, "a*"⟩, ⟨.cls, "a"⟩] == [("setClass", "a")]
+#guard writes [⟨.glued, "a*"⟩, ⟨.cls, "a"⟩] == [("setClass", "a"), ("setClass", "?")]
 #guard findings [⟨.lost, "a"⟩, ⟨.cls, "b"⟩, ⟨.glued, "c*"⟩, ⟨.mod, "m"⟩] == [("unmodelled-class", "a"), ("glued-class", "c*")]
 #guard tokens "a\x0Cb\r\nc" == ["a", "b", "c"] && tokens "a b" == ["a b"]
 #guard isIdent "a" && isIdent "_b$1" && !isIdent "c d" && !isIdent "1a" && !isIdent ""

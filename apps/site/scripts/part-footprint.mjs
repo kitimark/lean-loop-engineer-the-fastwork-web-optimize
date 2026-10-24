@@ -950,6 +950,7 @@ export const CLASS_SEPARATORS = [' ', '\t', '\n', '\f', '\r'];
 const SEP = /[ \t\n\f\r]/;
 const classTokensOf = (s) => s.split(SEP).filter(Boolean).map((name) => ({ op: 'setClass', name }));
 const lose = (t) => ({ op: 'lost', name: t.name });
+const marker = (form, toks) => [{ op: 'lost', name: form }, ...toks.map(lose)];
 function classPush(w, a) {
   if (a.chars === undefined) return [...w, a];
   if (a.chars === '') return w;
@@ -987,7 +988,7 @@ export function collectClassTokens(expr, memberClass) {
     return null;
   };
   const prop = (p) => {
-    if (p.type !== 'Property') return go(p.argument).toks.map(lose);
+    if (p.type !== 'Property') return marker('spread', go(p.argument).toks);
     if (p.computed) return go(p.key).toks;
     return classTokensOf(p.key.type === 'Identifier' ? p.key.name : String(p.key.value));
   };
@@ -1013,15 +1014,16 @@ export function collectClassTokens(expr, memberClass) {
       case 'ObjectExpression': return hole(x.properties.flatMap(prop));
       case 'CallExpression': {
         const c = strip(x.callee);
-        if (c.type === 'Identifier') return hole(CLASS_HELPERS.includes(c.name) ? list(x.arguments) : list(x.arguments).map(lose));
+        if (c.type === 'Identifier') return hole(CLASS_HELPERS.includes(c.name) ? list(x.arguments) : marker(`call ${c.name}`, list(x.arguments)));
         if (c.type === 'MemberExpression' && !c.computed && c.property.type === 'Identifier') {
           const es = c.property.name === 'join' ? elems(strip(c.object)) : null;
-          if (es) return hole(classSepOk(x.arguments) ? list(es) : list(es).map(lose));
-          return hole([...go(c.object).toks, ...list(x.arguments)].map(lose));
+          if (es) return hole(classSepOk(x.arguments) ? list(es) : marker('join separator', list(es)));
+          return hole(marker(`method ${c.property.name}`, [...go(c.object).toks, ...list(x.arguments)]));
         }
-        return hole(list(children(x)).map(lose));
+        return hole(marker('other', list(children(x))));
       }
-      default: return hole(list(children(x)).map(lose));
+      case 'SpreadElement': return hole(marker('spread', go(x.argument).toks));
+      default: return hole(marker('other', list(children(x))));
     }
   };
   return go(expr).toks;
@@ -1030,7 +1032,7 @@ const CLASS_FINDING = { lost: 'unmodelled-class', glued: 'glued-class' };
 export function classReport(toks) {
   const writes = toks.filter((t) => !CLASS_FINDING[t.op]).map((t) => [t.op, t.name]);
   const findings = toks.filter((t) => CLASS_FINDING[t.op]).map((t) => [CLASS_FINDING[t.op], t.name]);
-  return { writes: toks.some((t) => t.op === 'lost') ? [...writes, ['setClass', '?']] : writes, findings };
+  return { writes: findings.length > 0 ? [...writes, ['setClass', '?']] : writes, findings };
 }
 function walkJsx(n, scope, ctxTag) {
   const tag = jsxName(n.name);
