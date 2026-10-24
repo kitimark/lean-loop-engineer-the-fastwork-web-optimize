@@ -273,21 +273,23 @@ def idleCases : List (String × String × Json) := [
     idleReq (stack) [mcpW 400 none] [bse 500 1000 10 (start := 8), bse 501 1000 600, bse 502 1000 900, bse 503 1000 100])]
 
 def rowE (pid ppid pgid start : Nat) (kind : String) (wt : Option String) (awaits : Option String := none)
-    (callLive : Bool := false) : Json :=
+    (callLive : Bool := false) (inode : String := "") : Json :=
   match rowW pid ppid pgid start (some 5) kind wt with
-  | .obj kvs => .obj ((kvs.insert "awaits" (match awaits with | some a => .str a | none => .null)).insert "callLive" (.bool callLive))
+  | .obj kvs => .obj (((kvs.insert "awaits" (match awaits with | some a => .str a | none => .null)).insert "callLive" (.bool callLive)).insert "inode" (.str inode))
   | j => j
 
-def waiterJ (pid start : Nat) (wt writes : String) : Json :=
-  Json.mkObj [("pid", toJson pid), ("start", toJson start), ("wt", .str wt), ("writes", .str writes)]
+def waiterJ (pid start : Nat) (wt writes : String) (inode : String := "") : Json :=
+  Json.mkObj [("pid", toJson pid), ("start", toJson start), ("wt", .str wt), ("writes", .str writes), ("inode", .str inode)]
 
 def loopFact (r : Json) : Option Json :=
   match r.getObjVal? "awaits", r.getObjVal? "pid", r.getObjVal? "start", r.getObjVal? "callLive" with
-  | .ok (.str a), .ok pid, .ok st, .ok cl => some (Json.mkObj [("pid", pid), ("start", st), ("awaits", .str a), ("callLive", cl)])
+  | .ok (.str a), .ok pid, .ok st, .ok cl =>
+    some (Json.mkObj [("pid", pid), ("start", st), ("awaits", .str a), ("callLive", cl),
+      ("inode", (r.getObjVal? "inode").toOption.getD (.str ""))])
   | _, _, _, _ => none
 
 def plainRow : Json → Json
-  | .obj kvs => .obj ((kvs.erase "awaits").erase "callLive")
+  | .obj kvs => .obj (((kvs.erase "awaits").erase "callLive").erase "inode")
   | j => j
 
 def reqE (rows waiters : List Json) (now : Nat) (simIdleSince : Option Nat := none) (simAcquired : Option Nat := none)
@@ -350,6 +352,8 @@ def oneCases : List (String × String × Json) :=
   ("ops.reapPlan", "E case 1, watch tick (auto): the plan has no target, the loop stays selected as advice",
     reqE [loop 2846] [] 1720 (auto := true)),
   ("ops.reapHeld", "E case 1, watch tick (auto): the alert still names pid 2846 start 1000", reqE [loop 2846] [] 1720 (auto := true)),
+  ("ops.reapHeld", "F case 3, watch tick (auto): heldSim names the booted Simulator (pid 3100, start 1000) and held names no loop",
+    reqE [sim] [] 1800 (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own) (auto := true)),
   ("ops.reapPlan", "F case 3, watch tick (auto): the plan has no target, the Simulator stays selected as advice",
     reqE [sim] [] 1800 (simIdleSince := some 1200) (simAcquired := some 900) (ownSims := own) (auto := true)),
   ("ops.lspReap", "F: a Simulator is kept while the legacy sim-lock (.local/locks/sim) is held",
@@ -357,10 +361,51 @@ def oneCases : List (String × String × Json) :=
   ("ops.lspReap", "E: a loop awaiting the relative path out.log is kept",
     reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "out.log")] [] 1720),
   ("ops.lspReap", "E: a loop awaiting $HOME/x is kept", reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "$HOME/x")] [] 1720),
+  ("ops.lspReap", "E: a loop awaiting /tmp/`x`.log (a backtick) is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "/tmp/`x`.log")] [] 1720),
+  ("ops.lspReap", "E: a loop awaiting /tmp/*.log (a glob) is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "/tmp/*.log")] [] 1720),
+  ("ops.lspReap", "E: a loop awaiting ~/x is kept", reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "~/x")] [] 1720),
+  ("ops.lspReap", "E: a loop awaiting /tmp/[a].log is kept",
+    reqE [rowE 2846 1 2846 1000 "untilLoop" (some "agent") (some "/tmp/[a].log")] [] 1720),
+  ("ops.lspReap", "E inode: the waiter writes the awaited file under another name (same inode 16777220:55) and is a writer, the loop is kept",
+    reqE [rowE 40204 1 40204 1000 "untilLoop" (some "agent") (some mwm) (inode := "16777220:55"), ciWait]
+      [waiterJ 23868 1100 "agent" "/tmp/alias.log" "16777220:55"] 1720),
+  ("ops.lspReap", "E inode: the waiter writes the same path string but another file (the file was replaced), the loop is selected",
+    reqE [rowE 40204 1 40204 1000 "untilLoop" (some "agent") (some mwm) (inode := "16777220:55"), ciWait]
+      [waiterJ 23868 1100 "agent" mwm "16777220:56"] 1720),
+  ("ops.lspReap", "E inode: the awaited file does not exist yet (no inode), the path string decides and keeps the loop",
+    reqE [rowE 40204 1 40204 1000 "untilLoop" (some "agent") (some mwm), ciWait]
+      [waiterJ 23868 1100 "agent" mwm "16777220:55"] 1720),
   ("ops.lspReap", "E: a protected pid (the stopper's chain) is kept",
     match reqE [loop 2846] [] 1720 with
     | .obj kvs => .obj (kvs.insert "protect" (toJson [2846]))
     | j => j)]
+
+def seenJ (kind : String) (pid firstAt : Nat) (outcome : String) : Json :=
+  Json.mkObj [("kind", .str kind), ("pid", toJson pid), ("start", toJson 100), ("firstAt", toJson firstAt), ("outcome", .str outcome)]
+
+def exitReq (now : Nat) (seen : List Json) : Json :=
+  Json.mkObj [("now", toJson now), ("seen", .arr seen.toArray)]
+
+def exitCases : List (String × String × Json) :=
+  let wk : Nat := 7 * 86400
+  [("ops.reapExit", "E: seven days of log, one true orphan (stopped), no loop ended by itself: promoted",
+    exitReq (1000 + wk) [seenJ "orphanLoop" 10 1000 "stopped", seenJ "orphanLoop" 11 2000 "alive"]),
+  ("ops.reapExit", "E: one second short of seven days: kept out", exitReq (1000 + wk - 1) [seenJ "orphanLoop" 10 1000 "stopped"]),
+  ("ops.reapExit", "E: seven days but no true orphan: kept out", exitReq (1000 + wk) [seenJ "orphanLoop" 10 1000 "alive"]),
+  ("ops.reapExit", "E: a selected loop later ended by itself: kept out",
+    exitReq (1000 + wk) [seenJ "orphanLoop" 10 1000 "stopped", seenJ "orphanLoop" 11 2000 "ended"]),
+  ("ops.reapExit", "F: its own log decides; an ended loop of E does not block F",
+    exitReq (1000 + wk) [seenJ "simBooted" 20 1000 "stopped", seenJ "orphanLoop" 11 2000 "ended"]),
+  ("ops.reapExit", "F: an ended Simulator blocks F, E stays promoted",
+    exitReq (1000 + wk) [seenJ "simBooted" 20 1000 "ended", seenJ "orphanLoop" 10 1000 "stopped"]),
+  ("ops.reapExit", "an empty log promotes nothing", exitReq (1000 + wk) []),
+  ("ops.reapExit", "a kind outside E and F is rejected as a log kind", exitReq (1000 + wk) [seenJ "removed" 10 1000 "stopped"])]
+
+def exitText : String :=
+  String.join (exitCases.map fun (op, name, r) =>
+    (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
 
 def oneText : String :=
   String.join (oneCases.map fun (op, name, r) =>
@@ -386,7 +431,8 @@ def main (args : List String) : IO UInt32 := do
   let dir : System.FilePath := ".." / "packages" / "contracts" / "golden" / "ops"
   let files : List (String × String × Nat) :=
     [("lspreap.jsonl", text, reapCases.length), ("reap.jsonl", stopText, stopCases.length),
-      ("reap-idle.jsonl", idleText, idleCases.length), ("reap-one.jsonl", oneText, oneCases.length)]
+      ("reap-idle.jsonl", idleText, idleCases.length), ("reap-one.jsonl", oneText, oneCases.length),
+      ("reap-exit.jsonl", exitText, exitCases.length)]
   if args.contains "--check" then
     let mut bad := false
     for (f, t, n) in files do
