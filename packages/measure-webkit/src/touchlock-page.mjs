@@ -4,10 +4,16 @@ import { LOCK_CSS } from './touchlock.mjs';
 export const installJs = (lock) => `(() => {
   const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
   const root = document.documentElement;
-  const st = window.__tl = { on: false, fr: [], ev: [], lock: ${lock ? 'true' : 'false'} };
+  const st = window.__tl = { on: false, fr: [], ev: [], ca: [], lock: ${lock ? 'true' : 'false'} };
   const open = () => (nav && Number(nav.style.getPropertyValue('--morph')) > 0.001 ? 1 : 0);
   const y10 = () => Math.round(window.scrollY * 10);
   if (st.lock) { const s = document.createElement('style'); s.textContent = ${JSON.stringify(LOCK_CSS)}; document.head.appendChild(s); }
+  const scrollTo = window.scrollTo.bind(window);
+  window.scrollTo = function (...a) {
+    const o = a[0];
+    if (st.on && o && typeof o === 'object' && typeof o.top === 'number' && o.behavior === 'instant') st.ca.push([Math.round(o.top * 10), open(), performance.now()]);
+    return scrollTo(...a);
+  };
   addEventListener('scroll', () => { if (st.on) st.ev.push([y10(), open(), performance.now()]); }, { capture: true, passive: true });
   const tick = (t) => {
     if (st.on) st.fr.push([y10(), open(), t]);
@@ -15,7 +21,7 @@ export const installJs = (lock) => `(() => {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-  return { nav: !!nav, lock: st.lock };
+  return { nav: !!nav, lock: st.lock, hook: window.scrollTo !== scrollTo };
 })()`;
 
 export const nearEndJs = (gapPx) => `(() => new Promise((resolve) => {
@@ -29,9 +35,9 @@ export const windowJs = `(async () => {
   const st = window.__tl;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let begun = false;
-  addEventListener('touchstart', () => { if (!begun) { begun = true; st.fr = []; st.ev = []; st.on = true; } }, { capture: true, passive: true });
+  addEventListener('touchstart', () => { if (!begun) { begun = true; st.fr = []; st.ev = []; st.ca = []; st.on = true; } }, { capture: true, passive: true });
   while (!window.__fwTouchStop) await sleep(40);
   st.on = false;
-  return { fr: st.fr, ev: st.ev, begun, origin: performance.timeOrigin, touch: window.__fwTouch || null,
+  return { fr: st.fr, ev: st.ev, ca: st.ca, begun, origin: performance.timeOrigin, touch: window.__fwTouch || null,
     maxY10: Math.round((document.documentElement.scrollHeight - window.innerHeight) * 10), finalY10: Math.round(window.scrollY * 10) };
 })()`;

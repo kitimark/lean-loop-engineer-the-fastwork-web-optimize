@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { cmp, look, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, ARMS } from '../src/touchlock.mjs';
+import { cmp, look, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
+import { restartServer } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const golden = readFileSync(join(HERE, '../../contracts/golden/measure/touch-lock.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const ops = (op) => golden.filter((g) => g.op === op);
-const runOf = (g) => ({ frames: g.frames, events: g.events });
+const runOf = (g) => ({ frames: g.frames, events: g.events, calls: g.calls });
 
 test('constants match the golden', () => {
   assert.equal(ops('constants')[0].minOpenFrames, MIN_OPEN_FRAMES);
@@ -39,7 +40,7 @@ test('open phase is the first open stretch only', () => {
 
 const fight = ops('run').find((g) => g.case === 'restore after a displaced frame');
 const steady = ops('run').find((g) => g.case === 'steady open phase');
-const rowOf = (arm, g) => ({ arm, frames: g.frames.map((f) => [...f, 0]), events: g.events.map((f) => [...f, 0]) });
+const rowOf = (arm, g) => ({ arm, frames: g.frames.map((f) => [...f, 0]), events: g.events.map((f) => [...f, 0]), calls: g.calls.map((f) => [...f, 0]) });
 
 test('summarize: a lock arm that never leaves the lock is lower; the look class is change while the base is displaced', () => {
   const rows = [rowOf('orig', fight), rowOf('base', fight), rowOf('base', fight), rowOf('lock', steady), rowOf('lock', steady), { arm: 'lock', status: 'push:beginLate' }];
@@ -85,4 +86,74 @@ test('every rep runs the original last, so a stall cannot erase the faithful or 
     assert.equal(o[2], 'orig');
     assert.deepEqual([...o].sort(), [...ARMS].sort());
   }
+});
+
+const run = (name) => ops('run').find((g) => g.case === name);
+
+test('the lock is the site stored value, not the first open sample', () => {
+  const end = run('overscroll first sample, lock stored at the end');
+  assert.equal(end.frames.find((f) => f[1])[0], 53460);
+  assert.equal(lockOf(runOf(end)), 52270);
+  assert.equal(reduce(runOf(end)).frameFights, 3);
+  assert.equal(reduce(runOf(run('overscroll first sample, lock stored at the other end'))).lock, 52360);
+});
+
+test('restore calls that disagree refuse the window; closed calls are ignored; no call means no lock and no fight', () => {
+  assert.equal(refusal(runOf(run('restore calls disagree'))), 'lockMoved');
+  assert.equal(lockOf(runOf(run('restore call before the morph opened'))), 5000);
+  const none = reduce(runOf(run('drift and the site never restored')));
+  assert.deepEqual([none.lock, none.frameFights, none.displacedFrames], [null, 0, 0]);
+});
+
+test('every restart gets a result-bundle tag no earlier server used', async () => {
+  for (const g of ops('tag')) assert.equal(serveTag(g.restarts), g.tag);
+  const tags = [];
+  const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null };
+  const start = async (_d, o) => { tags.push(o.tag); return { tag: o.tag }; };
+  tags.push(serveTag(0));
+  for (let i = 0; i < MAX_RESTARTS; i++) await restartServer(touch, { udid: 'u', log: () => {}, push: {}, start });
+  assert.deepEqual(tags, ['serve', 'serve-r1', 'serve-r2']);
+  assert.equal(new Set(tags).size, tags.length);
+  assert.equal(touch.server.tag, 'serve-r2');
+});
+
+test('a restart that fails ends the touch lane with its reason', async () => {
+  const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null };
+  await restartServer(touch, { udid: 'u', log: () => {}, push: {}, start: async () => { throw new Error('xcodebuild: error: Existing file'); } });
+  assert.equal(touch.on, false);
+  assert.match(touch.why, /restart failed: xcodebuild: error: Existing file/);
+});
+
+test('the driver names the result bundle after the tag', () => {
+  const src = readFileSync(join(HERE, '../src/throttle/driver.mjs'), 'utf8');
+  assert.match(src, /serve\(driver[\s\S]*?'-resultBundlePath', join\(driver\.dir, `\$\{tag\}\.xcresult`\)/);
+});
+
+test('the scrollTo hook records the instant restore targets while recording and forwards every call', () => {
+  const calls = [];
+  const nav = { style: { getPropertyValue: () => '0.5' } };
+  const win = { scrollY: 5227.04, scrollTo: (...a) => { calls.push(a); } };
+  const doc = { querySelector: () => nav, documentElement: { classList: { toggle() {} } }, createElement: () => ({}), head: { appendChild() {} } };
+  const fn = new Function('window', 'document', 'addEventListener', 'requestAnimationFrame', 'performance', `return ${installJs(false)}`);
+  const got = fn(win, doc, () => {}, () => 0, { now: () => 7 });
+  assert.equal(got.hook, true);
+  win.scrollTo({ top: 1, behavior: 'instant' });
+  win.__tl.on = true;
+  win.scrollTo({ top: 5227.04, behavior: 'instant' });
+  win.scrollTo({ top: 80, behavior: 'smooth' });
+  win.scrollTo(0, 5);
+  assert.deepEqual(win.__tl.ca, [[52270, 1, 7]]);
+  assert.equal(calls.length, 4);
+});
+
+test('markdown carries the push failure reason and one line per window with its state', () => {
+  const rows = [rowOf('base', fight), { arm: 'lock', rep: 0, status: 'push:pageLost' }, { arm: 'orig', rep: 0, status: 'refused:config' },
+    { arm: 'lock', rep: 1, frames: [[1, 0, 0]], events: [], calls: [] }];
+  const s = summarize(rows);
+  assert.deepEqual(s.arms.lock.failures, { pageLost: 1 });
+  assert.deepEqual(windowsOf(rows).map((w) => [w.arm, w.state, w.reason]), [['base', 'open', null], ['lock', 'push failed', 'pageLost'], ['orig', 'refused', 'config'], ['lock', 'refused', 'noOpen']]);
+  const md = markdown(s);
+  assert.match(md, /\| push failure reasons \|/);
+  assert.match(md, /\| 2 \| lock \| 0 \| push failed \| pageLost \|/);
+  assert.match(md, /\| 4 \| lock \| 1 \| refused \| noOpen \|/);
 });
