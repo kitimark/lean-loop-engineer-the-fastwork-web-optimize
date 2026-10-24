@@ -36,7 +36,8 @@ engine that decides the morph pushes) answered "no verdict: coverage" or failed 
   The two widths where the flag is inactive carry all 127 new units. The two widths where it is active carry none.
 - **Fix (PROVED in Lean).** Each width of a run is decided on its own: it rests on a reading (`measured`) or on a proof that
   the candidate equals its faithful arm there (`sameByProof`). Units at same-by-proof widths count nothing. The repeat
-  rule stays, over measured widths only. Chromium behaviour and every flag that is active at all widths are unchanged.
+  rule stays, over measured widths only. The rule is engine-independent: on Chromium too, the unthrottle units at 641 and
+  1280 count nothing. Every flag that is active at all widths is unchanged.
 
 ## The decision
 
@@ -70,6 +71,11 @@ The golden `packages/contracts/golden/gate/trajectory.jsonl` gains ops `cellEnv`
   the probe's scroll-height readings are the independent evidence.
 - `plan.mjs` `cellOutcome` is a TS stand-in for the Lean `outcome`, checked against the golden, until the reducer reads the
   Lean decision directly.
+- For `engine.scroll:unthrottle` the repeat rule rests on the two coarse widths (390, 640) only, so a pass needs no group to
+  repeat across those two. That is weaker evidence than the four-width rule, and it follows from the design.
+- Evidence: the cell decision is `lean/Fw/Gate/Trajectory.lean:2953-3180`; its TS twin is
+  `packages/gate-breakpoints/src/trajectory/plan.mjs:37-67`, replayed against the golden in
+  `packages/gate-breakpoints/test/trajectory.test.mjs:207-219`.
 - Playwright WebKit on macOS stands in for Safari. The phone is not measured.
 - **Split (follow-up).** Walk coverage noise on the Mac morph path for a flag that is active at every width is not fixed here:
   such a flag still shows the same coverage repeat as the control. Fixing it needs a probe change (a longer morph walk or a
