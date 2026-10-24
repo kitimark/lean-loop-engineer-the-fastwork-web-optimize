@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -107,8 +107,7 @@ const guardTree = () => {
   assert.ok(line, "check.sh has the slot-self guard line");
   const root = mkdtempSync(join(tmpdir(), "slot-guard-"));
   mkdirSync(join(root, "lean", "scripts"), { recursive: true });
-  symlinkSync(here, join(root, "scripts"));
-  writeFileSync(join(root, "lean", "scripts", "check.sh"), `${line}\necho ran\n`);
+  writeFileSync(join(root, "lean", "scripts", "check.sh"), `${line.replace("../scripts/slot-self.mjs", helper)}\necho ran\n`);
   return join(root, "lean");
 };
 const cleanEnv = (dir) => {
