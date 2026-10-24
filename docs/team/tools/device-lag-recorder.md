@@ -12,6 +12,9 @@ Code: `packages/measure-webkit/src/device-record.mjs` (page recorder, banner flo
 
 - Per native `requestAnimationFrame`: timestamp (ms), `scrollY` (px) and three part values (per mille, read from the inline custom
   properties the page writes): hero exit `--exit-opacity`, people card shrink `--future-shrink`, end-of-page morph `--morph-fade`.
+- Per frame also the visual viewport height `vh` and its `offsetTop` `vt` (0.1 px; `innerHeight` and 0 where there is no
+  `visualViewport`). The Safari toolbar collapsing or returning changes the height (815 vs 775 px) while the person swipes; the
+  per-pass `viewport.h` is read once at the start and cannot say when. Only `vh` is used by Lean today; `vt` is kept for later.
 - Every touch event: time, phase (`s` start, `m` move, `e` end, `c` cancel), x, y, fingers down. Listeners are passive and never call
   `preventDefault`, so the page behaves as without them.
 - A triple tap on an empty area is a felt-lag mark. It is not a special event: Lean finds it afterwards (three taps, each at most 300 ms
@@ -24,7 +27,11 @@ Timeline costs time on the page.
 Known effects:
 1. A touch on a moving page stops its native fling, so the person's taps change the scroll they mark; tell the person to tap and
    carry on.
-2. The recorder's own rAF callback and three inline style reads run every frame (inline reads do not flush layout). It runs before
+2. The recorder's own rAF callback and three inline style reads run every frame (inline style reads do not flush layout). The
+   `visualViewport` reads do: `scale`, `height` and `offsetTop` each call `updateFrameLayout` (WebKit `VisualViewport.cpp:72-76`,
+   `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0. The callback writes no DOM and `scale` and `scrollY`
+   were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work (the idea that
+   these reads were free of layout was wrong; they are free here only because of that order). It runs before
    the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
    i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs (the old pairing of a
    value with the position read beside it counted a false stall at every scroll start). All arms and both original passes carry the
@@ -44,6 +51,34 @@ largest step and the stalls (page moved, value held mid-transition); per felt ma
 1.5 s lookback window. The comparison: an arm beats the original in a zone only when its worst pass is below the original's best
 pass by more than the original's pass-to-pass spread (verdicts `beats | worse | same | unresolved`; one original pass or no arm
 pass is `unresolved`). This is why the plan has two original passes.
+
+### Toolbar class (Lean `Fw.Device.Session` "The toolbar class of a frame", `Fw.Device.StillRuns` "The verdict by toolbar class")
+
+A pass that starts with the Safari toolbar collapsed (viewport height 815 vs 775) is a different page layout from one that starts
+expanded; with one height per pass the still-run verdict was `confounded`. Now every frame has a height and a class:
+
+- A frame is `moving` when the viewport height changed (by at least `moveMin` = 1 tenth px) between two frames within `moveWin` = 30
+  frames of it (about half a second at 60 Hz); every other frame is `still`. Both constants are named in Lean and read by the twin from
+  the golden. The split is a partition (theorems `classes_count`, `index_partition`); a constant height is all still (`classes_const`).
+- The reduction by class (`reduceClass`): a frame interval takes the class of its later frame. For each class the same counts as the
+  whole pass (total and per zone) plus how many frames the class holds. The two classes together hold exactly today's intervals
+  (`reduceClass_total_split`, `_zone_split`, `_frames_split`).
+- The comparison within a class (`compareClass`): the verdict rule above over the passes that hold at least one frame of the class (a pass
+  without any is not a score). It is never mixed across classes, so a pass that started collapsed is compared on its still frames.
+- The still-run verdict by class (`verdictClass`): runs and exit frames of each class are counted separately (a run is `moving` when any of
+  its frames, up to the one that ends it, is moving; `countC_split`); the still class asks for equal heights among its still frames only, so
+  the collapsed start of one pass no longer makes it `confounded`; the moving class compares counts only (its heights differ by
+  definition).
+- Old recordings (no `vh` per frame, or a list of the wrong length) are still at every frame: `classesOf_noField`,
+  `reduceClass_noField`, `compareClass_noField` and `verdictClass_noField` prove the still class is today's reduction and verdict, and
+  `verdictClass_const` proves the same for a pass whose height never changes. The TS twins (`reduceClass`, `compareClass`,
+  `compareClasses`, `verdictClass`) are replayed on the golden lines `class.*` (session) and `cruns`, `cverdict` (stillruns).
+
+Limits (accepted): still frames at two different heights stay `confounded` (a toolbar that settled at 775 after 3 s at 815 is not one
+page); `vt` is recorded but not used by the class; the moving class is reported, not judged against the original. Follow-ups:
+a `device-cli` subcommand that prints the per-class table (`device-cli.mjs` is not part of this change), a phone pass to see the classes
+on a real session, and feeding `verdictByClass` into the throttle probe report. TS stand-ins: `classes`, `reduceClass`, `compareClasses`,
+`runsC`, `armOf`, `verdictByClass` run in TS, checked against the Lean goldens; they move into `fwcore` with the other reductions.
 
 ## Session steps (the lead relays these one at a time; each is a short instruction to the user)
 
