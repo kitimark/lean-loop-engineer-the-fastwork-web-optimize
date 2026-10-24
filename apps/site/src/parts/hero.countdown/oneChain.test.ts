@@ -10,10 +10,18 @@ interface Row {
   frames: { steps: number[]; faithful: number; oneChain: number }[];
 }
 const root = resolve(__dirname, '../../../../..');
-const rows: Row[] = readFileSync(resolve(root, 'packages/contracts/golden/parts/hero.countdown.onechain.jsonl'), 'utf8')
+interface OrderRow {
+  scenario: 'order499';
+  faithful: [number, number];
+  atSubscriber: [number, number];
+  last: [number, number];
+}
+const lines = readFileSync(resolve(root, 'packages/contracts/golden/parts/hero.countdown.onechain.jsonl'), 'utf8')
   .trim()
   .split('\n')
-  .map((l) => JSON.parse(l) as Row);
+  .map((l) => JSON.parse(l) as Row | OrderRow);
+const rows = lines.filter((r): r is Row => r.scenario !== 'order499');
+const order = lines.find((r): r is OrderRow => r.scenario === 'order499')!;
 
 const mkEnv = () => {
   const raf = new Map<number, (t: number) => void>();
@@ -87,6 +95,40 @@ describe('hero.countdown one-chain against the Lean golden', () => {
       expect(got.map((f) => f.oneChain)).toEqual(row.frames.map((f) => f.oneChain));
     });
   }
+  /**
+   * Frame 499 of swipe-touch-v1 through the real shared loop: the scroll tick (a shared subscriber added by the scroll
+   * event, after the digits' subscriber) reads layout, then dirties a subtree of 320 elements; the digits write 10
+   * faces. TS stand-in of Lean `fstep`/`frameCost`: a read flushes only dirty style; the frame ends with one more.
+   */
+  const frame499 = (wrap: (c: MotionClock) => MotionClock, chainShared: boolean): [number, number] => {
+    const e = mkEnv();
+    const clock = createRafClock(e.env);
+    const dirt = { faces: false, walk: false };
+    let flushes = 0;
+    let elems = 0;
+    const read = () => {
+      if (!dirt.faces && !dirt.walk) return;
+      flushes++;
+      elems += dirt.walk ? 320 : 10;
+      dirt.faces = dirt.walk = false;
+    };
+    const faces = () => void (dirt.faces = true);
+    clock.subscribe(() => {}); // another part keeps the shared loop running, so its rAF comes first in the frame
+    if (chainShared) clock.subscribe(faces);
+    else wrap(clock).subscribe(faces, { own: true });
+    clock.subscribe(() => {
+      read();
+      dirt.walk = true;
+    });
+    e.frame(16);
+    read();
+    return [flushes, elems];
+  };
+  it('frame 499: faithful, the first one-chain (digits at their subscriber) and the fixed one-chain', () => {
+    expect(frame499((c) => c, false)).toEqual(order.faithful);
+    expect(frame499((c) => c, true)).toEqual(order.atSubscriber);
+    expect(frame499(oneChainClock, false)).toEqual(order.last);
+  });
   it('one-chain passes shared subscribers and intervals through', () => {
     const e = mkEnv();
     const c = oneChainClock(createRafClock(e.env));

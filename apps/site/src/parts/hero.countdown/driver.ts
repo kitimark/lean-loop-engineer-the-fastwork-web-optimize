@@ -217,12 +217,23 @@ export function startFaithful(o: FaithfulOptions): () => void {
 /**
  * Variant `one-chain` (Lean `Fw.Parts.HeroCountdownOneChain`): `clock` with every `{ own: true }` chain run inside one
  * shared-loop subscriber, in registration order, that is subscribed only while some chain is. Hand it to
- * `startFaithful`. Golden: packages/contracts/golden/parts/hero.countdown.onechain.jsonl.
+ * `startFaithful`. The subscriber runs after every other shared subscriber of the frame, as the original's digit
+ * callbacks do (Lean `orderLast_eq_faithful`): on its first visit in a frame it moves itself to the end of the shared
+ * set (the walk visits it again there, `createRafClock`) and runs the chains on that second visit. Run at its
+ * subscribe position it flushed the face writes at the scroll tick's first layout read (Lean `frame499_atSubscriber`).
+ * Golden: packages/contracts/golden/parts/hero.countdown.onechain.jsonl.
  */
 export function oneChainClock(clock: MotionClock): MotionClock {
   const chains = new Set<{ tick: Tick }>();
   let off: (() => void) | null = null;
+  let queuedAt = Number.NaN;
   const frame = (t: number) => {
+    if (t !== queuedAt) {
+      queuedAt = t;
+      off?.();
+      off = clock.subscribe(frame);
+      return;
+    }
     for (const c of [...chains]) if (chains.has(c)) c.tick(t);
   };
   return {

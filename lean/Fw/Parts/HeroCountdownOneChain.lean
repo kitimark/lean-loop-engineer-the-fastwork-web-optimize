@@ -260,6 +260,69 @@ theorem strip_schedule_still_gt (own : Nat) : pageFaithful false own 0 < pageAlw
 theorem oneChain_le_alwaysOn (sh : Bool) (own n : Nat) : pageOneChain sh own n ≤ pageAlwaysOn sh own n := by
   simp only [pageOneChain, pageAlwaysOn]; split <;> omega
 
+/-! ## Where in the frame the digits run (swipe-touch-v1 frame 499)
+
+A layout read (`window.scrollY`) flushes the dirty style at once (Chromium `local_dom_window.cc:1877`@f842f52;
+WebKit `LocalDOMWindow.cpp:1476-1480`@862f17d, for a nonzero scroll). A flush recalculates the elements dirty at that
+moment; a subtree restyle (`walk`) visits all `m` elements below it, the `f` digit faces included. -/
+
+/-- What a shared-loop frame does to style: a layout read, a write of the digit faces, a subtree restyle. -/
+inductive FEv where
+  | read
+  | faces
+  | mutate
+
+/-- The dirty style: whether the faces are dirty, whether a subtree restyle is. -/
+structure Dirt where
+  faces : Bool
+  walk : Bool
+
+/-- Elements one flush recalculates: the whole subtree (`m`) if it is dirty, else the faces (`f`) if they are. -/
+def flushElems (f m : Nat) (d : Dirt) : Nat := if d.walk then m else if d.faces then f else 0
+
+/-- One event on (dirt, flushes, elements): a read flushes only when something is dirty. -/
+def fstep (f m : Nat) (x : Dirt × Nat × Nat) : FEv → Dirt × Nat × Nat
+  | .read => if x.1.faces || x.1.walk then (⟨false, false⟩, x.2.1 + 1, x.2.2 + flushElems f m x.1) else x
+  | .faces => ({ x.1 with faces := true }, x.2)
+  | .mutate => ({ x.1 with walk := true }, x.2)
+
+/-- (flushes, elements) of a frame's events, then the frame's own style update (one more read). -/
+def frameCost (f m : Nat) (evs : List FEv) : Nat × Nat :=
+  let r := (evs ++ [FEv.read]).foldl (fstep f m) (⟨false, false⟩, 0, 0)
+  (r.2.1, r.2.2)
+
+/-- `faithful`: the shared subscribers run, then the digits' own callbacks. -/
+def orderFaithful (shared : List FEv) : List FEv := shared ++ [FEv.faces]
+
+/-- `one-chain` as first built: the digits run at the place of their shared subscriber, `pre` before and `post` after. -/
+def orderAtSubscriber (pre post : List FEv) : List FEv := pre ++ FEv.faces :: post
+
+/-- `one-chain` fixed: the digits run after every shared subscriber of the frame. -/
+def orderLast (shared : List FEv) : List FEv := shared ++ [FEv.faces]
+
+/-- **Running the digits last is the faithful order, so it has the faithful cost.** -/
+theorem orderLast_eq_faithful (shared : List FEv) : orderLast shared = orderFaithful shared := rfl
+
+/-- The scroll engine's tick after a scroll event: a layout read, then a write that dirties a subtree of `m`. -/
+def scrollTick : List FEv := [FEv.read, FEv.mutate]
+
+/-- **Faithful frame 499: one flush of `m` elements.** The read finds nothing dirty. -/
+theorem frame499_faithful (f m : Nat) : frameCost f m (orderFaithful scrollTick) = (1, m) := by
+  simp [frameCost, orderFaithful, scrollTick, fstep, flushElems]
+
+/-- **The first `one-chain` at frame 499: one more flush and `f` more elements.** The read after the face write
+flushes the `f` faces; the later restyle visits them again. -/
+theorem frame499_atSubscriber (f m : Nat) : frameCost f m (orderAtSubscriber [] scrollTick) = (2, f + m) := by
+  simp [frameCost, orderAtSubscriber, scrollTick, fstep, flushElems]
+
+/-- **Fixed `one-chain` at frame 499: the faithful cost.** -/
+theorem frame499_last (f m : Nat) : frameCost f m (orderLast scrollTick) = (1, m) :=
+  frame499_faithful f m
+
+#guard frameCost 10 320 (orderFaithful scrollTick) == (1, 320)
+#guard frameCost 10 320 (orderAtSubscriber [] scrollTick) == (2, 330)
+#guard frameCost 10 320 (orderLast scrollTick) == (1, 320)
+
 /-! ## Golden rows (`packages/contracts/golden/parts/hero.countdown.onechain.jsonl`) -/
 
 /-- A golden event: a refresh starting digits with their remaining spring frames, or a frame at a time in ms. -/
@@ -311,7 +374,15 @@ def row (sc : String × List GEv) : Lean.Json :=
      ("frames", Lean.Json.arr ((frames sc.2).map fun x => Lean.Json.mkObj
         [("steps", Lean.toJson x.1), ("faithful", x.2.1), ("oneChain", x.2.2)]).toArray)]
 
-def goldenText : String := String.join (scenarios.map fun sc => (row sc).compress ++ "\n")
+/-- The frame-499 row: (flushes, elements) of the faithful order, the first `one-chain` and the fixed one, for `f = 10`
+faces under a subtree restyle of `m = 320` elements (the Chromium counts of frame 499). -/
+def orderRow : Lean.Json :=
+  let c := fun (o : List FEv) => let r := frameCost 10 320 o; Lean.toJson [r.1, r.2]
+  Lean.Json.mkObj
+    [("scenario", "order499"), ("faithful", c (orderFaithful scrollTick)),
+     ("atSubscriber", c (orderAtSubscriber [] scrollTick)), ("last", c (orderLast scrollTick))]
+
+def goldenText : String := String.join (scenarios.map fun sc => (row sc).compress ++ "\n") ++ orderRow.compress ++ "\n"
 
 /-- Print the golden, or with `--check <file>` exit 1 unless the file equals it byte for byte. -/
 def goldenMain (args : List String) : IO UInt32 := do
