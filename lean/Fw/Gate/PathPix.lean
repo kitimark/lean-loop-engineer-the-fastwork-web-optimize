@@ -1735,6 +1735,30 @@ theorem zoned_listed_not_varied (c : Cell) (f : Option Floor) (live : Bool) (mo 
   · rw [(zoned_varied_iff c f live mo mi).2 ⟨hg, hj⟩] at this
     cases this
 
+def zonedPinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell) (f : Option Floor)
+    (live : Bool) (mo mi : MZone) : Verdict :=
+  if gradePinned served maxY rows floorRows c f live == .invalid then .graded .invalid
+  else if (mo.seen.join mi.seen) == .varied then .varied
+  else .graded (gradePinned served maxY rows floorRows (effCell c mo mi) f live)
+
+theorem zonedPinned_of_ok (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (mo mi : MZone) (h : rowsOk served maxY (checkedRows rows floorRows f) = true) :
+    zonedPinned served maxY rows floorRows c f live mo mi = zoned c f live mo mi := by
+  simp only [zonedPinned, zoned, gradePinned_of_ok served maxY rows floorRows _ f live h]
+
+theorem zonedPinned_of_not_ok (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (mo mi : MZone) (h : rowsOk served maxY (checkedRows rows floorRows f) = false) :
+    zonedPinned served maxY rows floorRows c f live mo mi = .graded .invalid := by
+  simp [zonedPinned, gradePinned, h]
+
+theorem zonedPinned_eq (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (mo mi : MZone) :
+    zonedPinned served maxY rows floorRows c f live mo mi =
+      if rowsOk served maxY (checkedRows rows floorRows f) then zoned c f live mo mi else .graded .invalid := by
+  cases h : rowsOk served maxY (checkedRows rows floorRows f)
+  · simp [zonedPinned_of_not_ok served maxY rows floorRows c f live mo mi h]
+  · simp [zonedPinned_of_ok served maxY rows floorRows c f live mo mi h]
+
 def drawStepMs : Nat := 150
 
 def drawMs : Nat := 900
@@ -1799,6 +1823,91 @@ theorem Draw.worst_same_iff (xs : List Draw) : Draw.worst xs = .same ↔ ∀ d �
     have ha : Draw.above ∉ xs := fun hm => by simpa using h _ hm
     have hf : Draw.floor ∉ xs := fun hm => by simpa using h _ hm
     simp [ha, hf]
+
+def drawFrames : Nat := 2 * drawTimes.length
+
+def drawIdle : List Nat := [0, drawTimes.length - 1, drawFrames - 1]
+
+def drawBase (xs : List Nat) : Option Nat :=
+  match xs.head? with
+  | none => none
+  | some b =>
+    if xs.length == drawFrames && drawIdle.all (fun i => xs[i]? == some b) && xs.all (b ≤ ·) then some b else none
+
+def aboveBase (xs : List Nat) : Option (List Nat) := (drawBase xs).map fun b => xs.map (· - b)
+
+theorem drawFrames_eq : drawFrames = 14 := by decide
+
+theorem drawIdle_eq : drawIdle = [0, 6, 13] := by decide
+
+theorem drawBase_some_iff (xs : List Nat) (b : Nat) : drawBase xs = some b ↔
+    xs.head? = some b ∧ xs.length = drawFrames ∧ (∀ i ∈ drawIdle, xs[i]? = some b) ∧ ∀ x ∈ xs, b ≤ x := by
+  unfold drawBase
+  cases hh : xs.head? with
+  | none => simp
+  | some a =>
+    simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true, decide_eq_true_eq, Option.some.injEq]
+    by_cases hc : (xs.length = drawFrames ∧ ∀ i ∈ drawIdle, xs[i]? = some a) ∧ ∀ x ∈ xs, a ≤ x
+    · rw [ite_eq_left_of_eq_true _ _ (eq_true hc)]
+      constructor
+      · intro h; cases h; exact ⟨rfl, hc.1.1, hc.1.2, hc.2⟩
+      · rintro ⟨rfl, -⟩; rfl
+    · rw [ite_eq_right_of_eq_false _ _ (eq_false hc)]
+      simp only [reduceCtorEq, false_iff, not_and]
+      rintro rfl hl hi hb
+      exact hc ⟨⟨hl, hi⟩, hb⟩
+
+theorem drawBase_none_of_empty : drawBase [] = none := rfl
+
+theorem drawBase_none_of_length (xs : List Nat) (h : xs.length ≠ drawFrames) : drawBase xs = none := by
+  cases hb : drawBase xs with
+  | none => rfl
+  | some b => exact absurd ((drawBase_some_iff xs b).1 hb).2.1 h
+
+theorem drawBase_none_of_idle (xs : List Nat) (b i : Nat) (hh : xs.head? = some b) (hi : i ∈ drawIdle)
+    (h : xs[i]? ≠ some b) : drawBase xs = none := by
+  cases hb : drawBase xs with
+  | none => rfl
+  | some a =>
+    have ⟨ha, _, hid, _⟩ := (drawBase_some_iff xs a).1 hb
+    rw [hh] at ha
+    cases ha
+    exact absurd (hid i hi) h
+
+theorem drawBase_none_of_below (xs : List Nat) (b x : Nat) (hh : xs.head? = some b) (hx : x ∈ xs) (h : x < b) :
+    drawBase xs = none := by
+  cases hb : drawBase xs with
+  | none => rfl
+  | some a =>
+    have ⟨ha, _, _, hle⟩ := (drawBase_some_iff xs a).1 hb
+    rw [hh] at ha
+    cases ha
+    exact absurd (hle x hx) (Nat.not_le.2 h)
+
+theorem aboveBase_restores (xs : List Nat) (b : Nat) (h : drawBase xs = some b) :
+    (xs.map (· - b)).map (· + b) = xs := by
+  have hle := ((drawBase_some_iff xs b).1 h).2.2.2
+  rw [List.map_map]
+  conv => rhs; rw [← List.map_id xs]
+  exact List.map_congr_left fun x hx => Nat.sub_add_cancel (hle x hx)
+
+theorem aboveBase_head (xs ds : List Nat) (h : aboveBase xs = some ds) : ds.head? = some 0 := by
+  unfold aboveBase at h
+  cases hb : drawBase xs with
+  | none => simp [hb] at h
+  | some b =>
+    simp only [hb, Option.map_some, Option.some.injEq] at h
+    subst h
+    simp [((drawBase_some_iff xs b).1 hb).1]
+
+theorem aboveBase_const (b : Nat) : aboveBase (List.replicate drawFrames b) = some (List.replicate drawFrames 0) := by
+  have hb : drawBase (List.replicate drawFrames b) = some b := by
+    refine (drawBase_some_iff _ b).2 ⟨by simp [drawFrames_eq], by simp, ?_, by simp⟩
+    intro i hi
+    rw [drawIdle_eq] at hi
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+    rcases hi with rfl | rfl | rfl <;> simp [drawFrames_eq]
+  simp [aboveBase, hb]
 
 structure Probe where
   x : Int
@@ -1925,6 +2034,21 @@ def drawCases : List (String × Raw × Raw) :=
 def drawWorstCases : List (List Draw) :=
   [[], [.same, .same], [.same, .floor], [.floor, .above, .same], [.above]]
 
+def drawBaseCases : List (String × List Nat) :=
+  [("run 40037992429 job-1 N", List.replicate 14 100),
+   ("run 40037992429 job-1 F", List.replicate 7 35751 ++ [53373, 52622, 48460, 44335, 37843, 35751, 35751]),
+   ("run 40037992429 job-2 N", List.replicate 14 1965),
+   ("run 40037992429 job-2 F", List.replicate 7 101 ++ [17723, 16972, 12810, 8685, 2193, 101, 101]),
+   ("run 40037992429 job-3 N", List.replicate 14 17),
+   ("run 40037992429 job-3 F", List.replicate 7 100 ++ [17722, 16971, 12809, 8684, 2192, 100, 100]),
+   ("no frames", []),
+   ("one frame missing", List.replicate 13 100),
+   ("out phase ends off the base", List.replicate 6 100 ++ [140] ++ List.replicate 7 100),
+   ("in phase ends off the base", List.replicate 13 100 ++ [140]),
+   ("a frame below the base", List.replicate 7 100 ++ [99] ++ List.replicate 6 100)]
+
+def drawBaseNote : List Nat := [0, 0, 0, 0, 0, 0, 0, 17622, 16871, 12709, 8584, 2092, 0, 0]
+
 def probeCases : List (String × Nat × Option (Nat × Nat × Nat × Nat) × List (String × Probe)) :=
   let lang : Probe := ⟨218590000, 24000000, 73000000, 36000000⟩
   let earn : Probe := ⟨100000000, 24000000, 10000000, 36000000⟩
@@ -1994,6 +2118,11 @@ def gradeLine (name : String) (rows floorRows : List AccentRow) (c : Cell) (f : 
     ("placed", toJson (rowsPlaced pinMaxY (checkedRows rows floorRows f))),
     ("why", match unpinnedWhy "s" pinMaxY rows floorRows f with | some w => toJson w | none => Json.null),
     ("grade", toJson (gradePinned "s" pinMaxY rows floorRows c f live).name)]).compress
+
+def zonedPinRows : List (String × List AccentRow × List AccentRow) :=
+  [("rows pinned", pinnedRows, pinnedFloorRows), ("A unpinned", (accentRowSets.lookup "A unpinned").getD [], pinnedFloorRows),
+   ("B misplaced", (accentRowSets.lookup "B misplaced").getD [], pinnedFloorRows),
+   ("floor A2 unpinned", pinnedRows, (floorRowSets.lookup "floor A2 unpinned").getD [])]
 
 def goldenLines (_ : Unit := ()) : List String :=
   gradeCases.map (fun (n, c) =>
@@ -2080,7 +2209,18 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("grade", toJson (gradeRel c f live).name), ("verdict", toJson (zoned c f live mo mi).name),
       ("why", match zonedWhy c f live mo mi with | some w => toJson w.name | none => Json.null),
       ("listed", toJson (zoned c f live mo mi).listed)]).compress) ++
+  zonedPinRows.flatMap (fun (rn, rows, floorRows) => zonedCases.map (fun (n, c, f, live, mo, mi) =>
+    (Json.mkObj [("kind", "zonedPinned"), ("name", toJson (rn ++ ": " ++ n)), ("served", toJson "s"),
+      ("maxY", toJson pinMaxY), ("rows", toJson (rows.map rowJson)), ("floorRows", toJson (floorRows.map rowJson)),
+      ("cell", c.json), ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("out", mo.json), ("inside", mi.json), ("ok", toJson (rowsOk "s" pinMaxY (checkedRows rows floorRows f))),
+      ("zoned", toJson (zoned c f live mo mi).name),
+      ("verdict", toJson (zonedPinned "s" pinMaxY rows floorRows c f live mo mi).name)]).compress)) ++
   [(Json.mkObj [("kind", "drawTimes"), ("ms", toJson drawMs), ("times", toJson drawTimes)]).compress] ++
+  drawBaseCases.map (fun (n, xs) =>
+    (Json.mkObj [("kind", "drawBase"), ("name", toJson n), ("lane", toJson xs),
+      ("base", match drawBase xs with | some b => toJson b | none => Json.null),
+      ("above", match aboveBase xs with | some ds => toJson ds | none => Json.null)]).compress) ++
   drawCases.map (fun (n, aa, arm) =>
     (Json.mkObj [("kind", "draw"), ("name", toJson n), ("aa", aa.json), ("arm", arm.json),
       ("draw", toJson (drawOf aa arm).name)]).compress) ++
@@ -2151,6 +2291,13 @@ def run (args : List String) : IO UInt32 := do
 #guard drawTimes == [0, 150, 300, 450, 600, 750, 900]
 #guard (drawCases.map fun (_, aa, arm) => (drawOf aa arm).name) == ["same", "same", "above", "floor", "above", "above"]
 #guard (drawWorstCases.map Draw.worst) == [.same, .same, .floor, .above, .above]
+#guard (drawBaseCases.map fun (_, xs) => aboveBase xs) ==
+  [some (List.replicate 14 0), some drawBaseNote, some (List.replicate 14 0), some drawBaseNote,
+   some (List.replicate 14 0), some drawBaseNote, none, none, none, none, none]
+#guard (drawBaseCases.map fun (_, xs) => drawBase xs) == [some 100, some 35751, some 1965, some 101, some 17, some 100,
+  none, none, none, none, none]
+#guard (zonedPinRows.map fun (_, rows, floorRows) => zonedCases.all fun (_, c, f, live, mo, mi) =>
+  zonedPinned "s" pinMaxY rows floorRows c f live mo mi == zoned c f live mo mi) == [true, false, false, false]
 #guard (probeCases.map fun (_, dpr, b, ps) => probesHit dpr b ps) ==
   [["nav-lang button"], ["nav-lang button"], [], [], [], [], ["nav-lang button", "nav-earn"], [], ["nav-lang button"], []]
 
