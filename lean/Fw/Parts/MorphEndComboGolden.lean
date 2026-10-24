@@ -1,7 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndGolden
-/-! Golden vectors of `Fw.Parts.ComboScroll`: four traces under all 8 brick picks (`packages/contracts/golden/parts/combo-scroll.jsonl`). -/
 namespace Fw.Parts.MorphEndComboGolden
 open Lean Fw.Parts.MorphEnd Fw.Parts.ComboScroll Fw.Parts.MorphEndGolden
 

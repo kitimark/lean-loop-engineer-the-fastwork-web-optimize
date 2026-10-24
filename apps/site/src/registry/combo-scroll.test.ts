@@ -5,7 +5,6 @@ import { hooksOf, type EndCfg } from '../parts/morph.tween/end.hooks';
 import { initEnd, step, type EndEv } from '../parts/morph.tween/end.logic';
 import { active, REST } from '../parts/morph.tween/logic';
 
-// Golden of Lean Fw.Parts.ComboScroll (wstep, the hold rule): packages/contracts/golden/parts/combo-scroll.jsonl.
 type Num = number | { num: string; den: string };
 interface GoldEv {
   ev: string;

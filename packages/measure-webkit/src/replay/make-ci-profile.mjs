@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// Compile a phone recording (device-lag-recorder) into the committed CI replay profile shape (packages/measure-chromium/profiles/user-*.json).
-//   node packages/measure-webkit/src/replay/make-ci-profile.mjs --in rec.json --id user-bug-1025 --about "..." --out profile.json
-// The profile keeps the strokes of the pass (taps dropped) resampled at 60 Hz: one touch position per frame, the frame of each stroke's
-// start. No timestamps of the recording and no raw samples are kept. The recording itself stays out of git.
 import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { replayStrokes, t0Of } from '../device-session.mjs';
@@ -13,7 +9,6 @@ export const SEGMENTS = [{ name: 'rest', dyPerFrame: 0, frames: 10 }, { name: 'r
 
 const round1 = (v) => Math.round(v * 10) / 10;
 
-/** One stroke [[t, phase, x, y, n]...] as {f0, path}: positions at t0 + k / HZ, linear between samples, ends at the lift. */
 export function resample(stroke, t0) {
   const dt = 1000 / HZ;
   const a = stroke[0][0], z = stroke[stroke.length - 1][0];

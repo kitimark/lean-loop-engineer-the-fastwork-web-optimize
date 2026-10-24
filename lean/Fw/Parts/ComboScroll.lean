@@ -1,14 +1,11 @@
 import Fw.Parts.MorphEnd
 import Fw.Parts.MorphMountArmLate
 
-/-! The end-of-page morph with a touch the page cannot hold: the frame writer writes only while the last move was prevented and cancelable.
-Statements in plain words: `research/notes/2026/10-2x-combo-scroll-fight.md`. -/
 namespace Fw.Parts.ComboScroll
 
 open Fw.Parts.MorphEnd
 open Fw.Parts.MorphTween (taken dir)
 
-/-- The inner state plus `held`: the last move was prevented and the browser let that stand. -/
 structure W where
   s : S
   held : Bool
@@ -32,7 +29,6 @@ def rehold (e : Ev) (k held : Bool) (s : S) : S :=
   | some y => if k && !held then { s with pin := y } else s
   | none => s
 
-/-- One event with the cancelable bit of the browser event. -/
 def wstep (h : Hooks) (w : W) (e : Ev) (c : Bool) : W × Out :=
   let r := step h w.s e
   if h.release then
