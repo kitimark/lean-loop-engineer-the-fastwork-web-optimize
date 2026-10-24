@@ -1,13 +1,3 @@
-// The per-part reducer of the throttle measure (task unthrottle-parts-measure). The Lean model is Fw.Device.ThrottleParts (golden
-// packages/contracts/golden/device/throttle-parts.jsonl: per part its source, shape and class; per recorder key the predicted pattern
-// in each mode); the still runs are Fw.Device.StillRuns through stillruns.mjs (golden stillruns.jsonl); the toolbar-moving class is
-// Fw.Device.Session through device-session.mjs. This file maps each recorded part series (parts-recorder.mjs) to its still runs
-// while the toolbar moves, and sets the measured pattern of every arm against the Lean prediction of its mode.
-//
-// TS stand-ins (Lean twin wanted): `reach` and `predicted` repeat Lean's two total functions on the golden's strings and
-// test/throttle-parts.test.mjs checks them against every golden line; `judge`, `partVerdict` and `bandFor` are twins of Lean definitions in
-// ThrottleParts.lean and are replayed on the golden's judge, partVerdict and bandFor lines. `noDataReason`, `captureRow`, `why` texts
-// and `excludeReason` are TS reporting and decide no verdict.
 import { readFileSync } from 'node:fs';
 import { countC, exitFramesC, throttleK, verdict, MIN_BASE, BAND_LO, BAND_HI } from './stillruns.mjs';
 import { classes, maxStep, stalls, partSeries } from '../device-session.mjs';
@@ -19,21 +9,16 @@ const GOLDEN = readFileSync(new URL('../../../contracts/golden/device/throttle-p
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 const of = (kind) => GOLDEN.filter((l) => l.kind === kind);
 
-/** The constants Lean owns (band, throttle period at 60 Hz). */
 export const CONSTS = Object.freeze(of('consts')[0]);
-/** The golden parts (23) by id, in Lean's order. */
 export const PARTS = Object.freeze(of('part'));
 export const PART_BY_ID = new Map(PARTS.map((p) => [p.id, p]));
-/** The golden recorder keys (hero, people, fade) by key. */
 export const KEYS = new Map(of('key').map((k) => [k.key, k]));
 export const EXAMPLES = Object.freeze(of('example'));
 
 export const ARMS = Object.freeze(['original', 'rewrite', 'lift', 'unthrottle']);
-/** Which scroll-update mode each arm is in: the originals and the rewrite are throttled; the throttle-lift flag and unthrottle lift it. */
 export const MODE_OF_ARM = Object.freeze({ original: 'throttled', rewrite: 'throttled', lift: 'lifted', unthrottle: 'lifted' });
 export const modeOfArm = (arm) => MODE_OF_ARM[arm];
 
-/** Twin of Lean `reach`: the class of a part from its source and shape. */
 export function reach(source, shape) {
   if (source !== 'main-thread') return 'not-hit';
   switch (shape) {
@@ -44,23 +29,19 @@ export function reach(source, shape) {
   }
 }
 
-/** Twin of Lean `predicted`: the pattern a series shows in a mode. */
 export function predicted(mode, source, shape) {
   if (mode === 'throttled' && source === 'main-thread' && shape === 'curve') return { pattern: 'stills', runFrames: throttleK(CONSTS.d60) };
   if (mode === 'throttled' && source === 'main-thread' && shape === 'chase') return { pattern: 'pulses' };
   return { pattern: 'no-stills' };
 }
 
-/** The value rows of Lean `rowsOf`: each value paired with itself, so a run is a stretch of equal values. */
 export const rowsOf = (vs) => vs.map((v) => [v, v]);
 
-// ---- one pass of one series ------------------------------------------------------------------------------------------------------------
 
 const MIN_FRAMES = 60;
 const MIN_TRAVEL_TENTHS = 1000;
 const DEFAULT_GAP = 1667;
 
-/** The median frame gap in hundredths of a millisecond (60 Hz when the record has too few frames). */
 export function medianGap(ts) {
   const g = [];
   for (let i = 1; i < ts.length; i++) g.push(Math.round((ts[i] - ts[i - 1]) * 100));
@@ -70,13 +51,11 @@ export function medianGap(ts) {
   return d > 0 ? d : DEFAULT_GAP;
 }
 
-/** Twin of Lean `bandFor`: the band of still runs for a frame gap `d`, [K, K + 1] with K = throttleK d, which is 5 to 6 at 60 Hz. */
 export function bandFor(d) {
   const k = throttleK(d);
   return [k, k + 1];
 }
 
-/** Why a pass cannot count, or null when it can. A skipped pass never ran its touches. */
 export function excludeReason(p) {
   if (p.skipped) return p.skipped;
   const r = p.rec?.parts;
@@ -88,11 +67,6 @@ export function excludeReason(p) {
   return null;
 }
 
-/**
- * The counts of one series in one usable pass. Rows are the series' own values (Lean rowsOf), each with the toolbar class of its frame.
- * `band` counts runs of K to K + 1 frames (K from the pass's median gap), `band56` the fixed 5 to 6 of Lean, `short` runs of 1 to 9,
- * all among runs that touch a moving-toolbar frame and whose values are strictly between 0 and 1000.
- */
 export function seriesCounts(parts, key) {
   const vs = parts.v?.[key] ?? [];
   const found = parts.found?.[key] === true && vs.length > 0;
@@ -112,11 +86,9 @@ export function seriesCounts(parts, key) {
     maxStep: maxStep(rows), stalls: stalls(partSeries(parts.y, vs)), pairs: Math.max(0, vs.length - 1) };
 }
 
-// ---- one arm -----------------------------------------------------------------------------------------------------------------------------
 
 const sum = (l) => l.reduce((a, b) => a + b, 0);
 
-/** The counts of one series over the passes of one arm. */
 export function armSeries(passes, key) {
   const usable = passes.filter((p) => excludeReason(p) === null);
   const per = usable.map((p) => seriesCounts(p.rec.parts, key));
@@ -132,12 +104,6 @@ export function armSeries(passes, key) {
     per1000Mid: row.midMoving ? Math.round((row.band * 10000) / row.midMoving) / 10 : null };
 }
 
-/**
- * Twin of Lean `judge`: the throttled-mode prediction `pred` of a part ({pattern, runFrames?}) judged on an arm in `mode` against the
- * rewrite arm `base`; base and arm are {runs, frames} (band runs, frames strictly between 0 and 1000 while the toolbar moved). Checked
- * against every golden judge line. A throttled stills arm agrees from MIN_BASE runs; a lifted stills arm agrees when the Lean
- * verdict against the rewrite is lifted; any other arm agrees below MIN_BASE runs (so exactly MIN_BASE disagrees); no frames is no data.
- */
 export function judge(pred, mode, base, arm) {
   if (arm.frames === 0) return 'no-data';
   if (pred.pattern === 'stills') {
@@ -148,17 +114,14 @@ export function judge(pred, mode, base, arm) {
   return arm.runs < MIN_BASE ? 'agree' : 'disagree';
 }
 
-/** Twin of Lean `partVerdict`: a disagreement decides, else an agreement (partial when some arm has no data), else no-data. */
 export function partVerdict(matches) {
   if (matches.includes('disagree')) return 'disagree';
   if (matches.includes('agree')) return matches.includes('no-data') ? 'agree (partial)' : 'agree';
   return 'no-data';
 }
 
-/** The verdict of one part from its series (reporting wrapper over `partVerdict`). */
 export const partOf = (seriesOfPart) => partVerdict(seriesOfPart.flatMap((s) => Object.values(s.match).map((m) => m.match)));
 
-/** One arm of a series: the Lean `judge` decision with a reporting reason (the reason is TS and decides nothing). */
 export function judgeArm(pred, arm, row, base) {
   const mode = modeOfArm(arm);
   const b = { runs: base.band, frames: base.midMoving };
@@ -172,9 +135,7 @@ export function judgeArm(pred, arm, row, base) {
   return { match, why };
 }
 
-// ---- the series of a mode ----------------------------------------------------------------------------------------------------------------
 
-/** The part (golden line) behind a series, and the predicted patterns of both modes: from the golden key when it has one, else Lean's `predicted`. */
 export function seriesModel(s) {
   const part = PART_BY_ID.get(s.part);
   if (!part) throw new Error(`series ${s.key}: part ${s.part} is not in the golden`);
@@ -184,7 +145,6 @@ export function seriesModel(s) {
   return { part, source: gk ? gk.source : part.source, shape: gk ? gk.shape : part.shape, throttled: pat('throttled'), lifted: pat('lifted') };
 }
 
-/** Reduce the passes of one mode: per series and arm the counts, per lifted arm the Lean verdict, per arm the match with the prediction. */
 export function reduceMode(passes) {
   const out = [];
   for (const s of SERIES) {
@@ -204,9 +164,7 @@ export function reduceMode(passes) {
   return out;
 }
 
-// ---- parts without a series --------------------------------------------------------------------------------------------------------------
 
-/** Why a golden part has no still-run series: what the recorder cannot store for its shape. Each is a named no-data. */
 export function noDataReason(part) {
   if (part.id === 'hero.exit:threaded') return 'not in the default build (flag hero.exit:threaded); the recorder arms do not include it';
   switch (part.shape) {
@@ -221,12 +179,9 @@ export function noDataReason(part) {
 
 export const recordedParts = () => new Set(SERIES.map((s) => s.part));
 
-/** The golden parts without a series, with the reason. */
 export const noDataParts = () => PARTS.filter((p) => !recordedParts().has(p.id)).map((p) => ({ id: p.id, zone: p.zone, reach: p.reach, shape: p.shape, source: p.source, reason: noDataReason(p) }));
 
-// ---- capture parts: reversals while the morph is open (finish mode) -----------------------------------------------------------------------
 
-/** Per arm: usable finish passes and the scrollY reversals while the morph is open (the observable of morph.mount and morph.tween). */
 export function captureRow(passes) {
   const usable = passes.filter((p) => p.rec?.nav && !p.skipped && p.drag?.code === 0 && p.rec.frames >= MIN_FRAMES);
   const rs = usable.map((p) => finishReduce(framesOf(p.rec)));
@@ -234,15 +189,12 @@ export function captureRow(passes) {
     late: rs.map((r) => r.late) };
 }
 
-// ---- the report --------------------------------------------------------------------------------------------------------------------------
 
 const med = (l) => (l.length === 0 ? null : [...l].sort((a, b) => a - b)[Math.floor(l.length / 2)]);
 const fmt = (x) => (x === null || x === undefined ? 'n/a' : String(x));
 
-/** A row without its per-pass gap list, with the median gap in ms instead (the summary file keeps no raw frames). */
 const slim = (r) => { const { gaps, ...rest } = r; return { ...rest, medianGapMs: med(gaps) === null ? null : med(gaps) / 100 }; };
 
-/** The summary of one mode: per series and arm the counts, the Lean verdicts, the match with the prediction; per part the verdict; the lost passes. */
 export function summarize(mode, jobs, runId = null) {
   const passes = jobs.flatMap((j) => j.passes.map((p) => ({ ...p, vm: p.vm ?? j.vm })));
   const reduced = reduceMode(passes);
@@ -258,7 +210,6 @@ export function summarize(mode, jobs, runId = null) {
   return { mode, runId, jobs: jobs.length, series, parts, captures, lost, failed: jobs.flatMap((j) => j.failed ?? []) };
 }
 
-/** The markdown tables of one mode summary: one row per series and arm. */
 export function summaryMd(sm) {
   const L = [`### ${sm.mode} (run ${sm.runId ?? 'n/a'}, ${sm.jobs} jobs)`, '',
     'Band runs / frames of the series strictly between 0 and 1000 while the toolbar moved (per 1000 of those), verdict against the rewrite (lifted arms), match with the Lean prediction of the arm mode.', '',

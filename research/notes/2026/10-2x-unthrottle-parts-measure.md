@@ -90,10 +90,7 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 Rest-mode cells are band runs / mid-moving frames per arm in the order original, rewrite, lift, unthrottle.
 Finish mode: run 40101695202 (attempt 1 summary and the rerun summary). Rest mode: run 40101702393.
 
-**Threshold boundary (Lean `judge`, decided at exactly 10 band runs).** A stills part agrees at 10 or more band runs
-(`10 <= runs`); a pulses or no-stills part agrees below 10 (`runs < 10`). So exactly 10 agrees for a stills part and
-disagrees for a pulses part: `judge_stills_throttled_agree` and `judge_none_boundary`. The commission rewrite arm
-sat at exactly 10 in the first reading (job 1 only, 2 passes); Lean puts that on disagree. The 3-job pool is 23, off the line.
+Threshold boundary: see Method (`judge_stills_throttled_agree`, `judge_none_boundary`). The commission rewrite arm sat at exactly 10 in the first reading (job 1 only, 2 passes), which is disagree. The 3-job pool is 23, off the line.
 
 Rest-mode detail (run 40101702393, MEASURED, 3 jobs, 6 usable passes per arm; 3 platform passes per arm skipped):
 
@@ -153,8 +150,7 @@ the whole pass; CI counts per 1000 frame pairs (consecutive frames) of the drag,
 
 ## Follow-up list: parts that gain
 
-1. **hero.exit**: gains from both `throttle-lift` and `unthrottle` (rate down by a factor of 22). Already the shipped
-   target; nothing more to do for the engine flag.
+1. **hero.exit**: gains from both `throttle-lift` and `unthrottle` (rate down by a factor of 22). Already the shipped target.
 2. **commission**: gains (23 to 0 and 1 band runs per about 750 to 985 frames; verdict `lifted` for both flags). Its Lean
    class predicted `pulses`; reclassify (follow-up) and measure on a third job with frames.
 3. **platform.shrink**: Lean predicts a gain, but the series was never mid in drag or finish mode, and the rest-mode
@@ -172,8 +168,7 @@ open, finish mode: original 4 and 4, rewrite 6, lift 6. Not a verdict.
 
 ## Limits and lost passes
 
-- Finish mode: see the finish paragraph above. The reruns (`gh run rerun --failed`, no dispatch) added jobs 2 and 3; job 1
-  stalled at start again. Finish passes run near 28 fps on CI (33-38 ms gaps), outside the 5-6 band's domain; the
+- Finish mode: the reruns (`gh run rerun --failed`, no dispatch) added jobs 2 and 3; job 1 stalled at start again. Finish passes run near 28 fps on CI (33-38 ms gaps), outside the 5-6 band's domain; the
   cadence-aware band [K, K+1] with `bandFor` is used and named. Finish has no arm with 3 jobs: not claimable.
 - Rest mode: after the rerun all 3 jobs delivered 6 usable passes per arm (job 1 from attempt 1). The 3 platform passes
   per arm were skipped on every job (anchor not found). Job 3's commission passes recorded few mid-moving frames

@@ -435,7 +435,6 @@ theorem predicted_curve : predicted .throttled .mainThread .curve = .stills 5 :=
 
 theorem predicted_time (m : Mode) (sh : Shape) : predicted m .time sh = .noStills := by cases m <;> rfl
 
-/-- How an arm's measured pattern sits against the prediction. -/
 inductive Match where
   | agree | disagree | noData
   deriving DecidableEq, Repr
@@ -447,11 +446,9 @@ theorem bandFor_60hz : bandFor 1667 = (5, 6) := by decide
 
 theorem bandFor_120hz : bandFor 833 = (12, 13) := by decide
 
-/-- The band of a 60 Hz pass is the fixed band `bandLo` to `bandHi`. -/
 theorem bandFor_fixed : bandFor 1667 = (bandLo, bandHi) := by decide
 
-/-- The pattern of the part (`p`, its throttled prediction) judged on an arm in `m`, against the rewrite arm `base`: `arm.frames` counts
-the frames with the value strictly between 0 and 1000 while the toolbar moved. -/
+/-- Judge an arm in mode `m` against the throttled prediction `p` and the rewrite arm `base`. -/
 def judge (p : Pred) (m : Mode) (base arm : Arm) : Match :=
   if arm.frames = 0 then .noData
   else match p, m with
@@ -463,11 +460,9 @@ def judge (p : Pred) (m : Mode) (base arm : Arm) : Match :=
       | _ => .disagree
     | _, _ => if arm.runs < minBase then .agree else .disagree
 
-/-- No frames of the series in the moving class: no data, whatever the pattern and mode. -/
 theorem judge_noData_frames (p : Pred) (m : Mode) (base arm : Arm) (h : arm.frames = 0) : judge p m base arm = .noData := by
   simp [judge, h]
 
-/-- A throttled arm of a stills part agrees from `minBase` band runs: exactly `minBase` agrees. -/
 theorem judge_stills_throttled_agree (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : minBase ≤ arm.runs) :
     judge (.stills k) .throttled base arm = .agree := by
   simp [judge, hf, h]
@@ -477,12 +472,10 @@ theorem judge_stills_throttled_disagree (k : Nat) (base arm : Arm) (hf : arm.fra
   have : ¬ minBase ≤ arm.runs := by omega
   simp [judge, hf, this]
 
-/-- A lifted arm of a stills part agrees exactly when the probe verdict against the rewrite is `lifted`. -/
 theorem judge_stills_lifted_agree (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : verdict [] base arm = .lifted) :
     judge (.stills k) .lifted base arm = .agree := by
   simp [judge, hf, h]
 
-/-- A lifted arm with too thin a baseline (fewer than `minBase` rewrite runs) is no data, not a disagreement. -/
 theorem judge_stills_lifted_noData (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : base.runs < minBase) :
     judge (.stills k) .lifted base arm = .noData := by
   have : verdict [] base arm = .noData := verdict_noData_base rfl arm h
@@ -492,7 +485,6 @@ theorem judge_stills_lifted_disagree (k : Nat) (base arm : Arm) (hf : arm.frames
     judge (.stills k) .lifted base arm = .disagree := by
   simp [judge, hf, h]
 
-/-- A part predicted no stills or pulses agrees below `minBase` band runs in either mode. -/
 theorem judge_none_agree (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) (base arm : Arm) (hf : arm.frames ≠ 0)
     (h : arm.runs < minBase) : judge p m base arm = .agree := by
   cases p with
@@ -500,7 +492,6 @@ theorem judge_none_agree (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) (ba
   | pulses => cases m <;> simp [judge, hf, h]
   | noStills => cases m <;> simp [judge, hf, h]
 
-/-- Exactly `minBase` band runs is a disagreement for a part predicted none: the threshold is `<`, so ten runs show stills. -/
 theorem judge_none_boundary (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) (base arm : Arm) (hf : arm.frames ≠ 0)
     (h : minBase ≤ arm.runs) : judge p m base arm = .disagree := by
   have : ¬ arm.runs < minBase := by omega
@@ -509,7 +500,6 @@ theorem judge_none_boundary (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) 
   | pulses => cases m <;> simp [judge, hf, this]
   | noStills => cases m <;> simp [judge, hf, this]
 
-/-- What a part shows over all its series and arms. -/
 inductive PartVerdict where
   | agree | agreePartial | disagree | noData
   deriving DecidableEq, Repr
@@ -591,13 +581,10 @@ def Match.name : Match → String
 def PartVerdict.name : PartVerdict → String
   | .agree => "agree" | .agreePartial => "agree (partial)" | .disagree => "disagree" | .noData => "no-data"
 
-/-- The rewrite arms of the judge vectors: too thin (9 runs), no frames, exactly `minBase`, and a typical one. -/
 def judgeBases : List Arm := [⟨0, 0⟩, ⟨9, 1000⟩, ⟨10, 0⟩, ⟨10, 1000⟩, ⟨40, 1000⟩]
 
-/-- The arms of the judge vectors: no frames, no runs, either side of `minBase`, and either side of a fifth of a 40-run rewrite. -/
 def judgeArms : List Arm := [⟨0, 0⟩, ⟨5, 0⟩, ⟨0, 1000⟩, ⟨8, 1000⟩, ⟨9, 1000⟩, ⟨10, 1000⟩, ⟨11, 1000⟩, ⟨40, 1000⟩]
 
-/-- The match lists of the part-verdict vectors: every list of up to three matches. -/
 def matchLists : List (List Match) :=
   let ms : List Match := [.agree, .disagree, .noData]
   [[]] ++ ms.map (fun a => [a]) ++ (ms.flatMap fun a => ms.map fun b => [a, b]) ++

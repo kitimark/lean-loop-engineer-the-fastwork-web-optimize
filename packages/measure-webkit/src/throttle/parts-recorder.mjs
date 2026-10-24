@@ -1,15 +1,5 @@
-// Page-side recorder of the per-part throttle measure (I/O glue, no decision): one more native requestAnimationFrame callback per frame
-// next to the hero recorder (recorder.mjs) or the finish recorder (finish-page.mjs). It stores the frame time, scrollY and the visual
-// viewport height (tenth px) and, for every series in SERIES, the inline custom property the part writes (per mille, as device-record.mjs
-// reads it). Recording starts at the first scroll event; the fetch returns the frames up to the last frame in which scrollY or any value
-// changed. Lean (via parts.mjs, golden-checked) does every reduction afterwards.
 import { PART_PROPS } from '../device-record.mjs';
 
-/**
- * The part series the page can show as a number: the inline custom property each part writes. `part` is the id of the part in the Lean
- * golden (throttle-parts.jsonl). Parts not listed here write a class, a transform or a compositor value: the recorder stores nothing
- * for them (parts.mjs names each one no-data).
- */
 export const SERIES = Object.freeze([
   { key: 'hero', part: 'hero.exit', prop: PART_PROPS.hero, golden: 'hero' },
   { key: 'people', part: 'people.card', prop: PART_PROPS.people, golden: 'people' },
@@ -19,7 +9,6 @@ export const SERIES = Object.freeze([
   { key: 'fade', part: 'morph.panel', prop: PART_PROPS.fade, golden: 'fade' },
 ]);
 
-/** The anchor of a rest pass per round (0-based, cycling): the property whose ramp the drags are placed on. */
 export const ANCHORS = Object.freeze(['people', 'commissionEnter', 'platform']);
 
 const SERIES_JSON = JSON.stringify(SERIES.map((s) => ({ key: s.key, prop: s.prop })));
@@ -65,7 +54,6 @@ export const START_JS = `(() => {
   return 'started';
 })()`;
 
-/** Stop and return the record as a JSON string: frames [0, lastMove], the start state, which series were found. */
 export const FETCH_JS = `(() => {
   const st = window.__fwParts;
   if (!st) return JSON.stringify({ err: 'parts recorder not started' });
@@ -76,11 +64,6 @@ export const FETCH_JS = `(() => {
   return JSON.stringify({ start: st.start, found: st.found, frames: n, t: st.t.slice(0, n), y: st.y.slice(0, n), vh: st.vh.slice(0, n), v, total: st.t.length });
 })()`;
 
-/**
- * Scan the page from the top in steps of `stepPx` (instant scrolls, two frames each) and return, for every series, the first scrollY at
- * which its value is strictly between 0.02 and 0.98 (the ramp start), or null when it never is or the property is never written.
- * Runs in an async page expression (c.runAsync). It leaves the page at the top.
- */
 export const discoverJs = (stepPx = 40) => `(async () => {
   const series = ${SERIES_JSON};
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
@@ -102,9 +85,7 @@ export const discoverJs = (stepPx = 40) => `(async () => {
   return JSON.stringify({ maxY, at });
 })()`;
 
-/** Scroll to `y` without animation and report where the page stands. */
 export const scrollToJs = (y) => `(() => { window.scrollTo({ top: ${Math.max(0, Math.round(Number(y)))}, behavior: 'instant' }); return JSON.stringify({ y: scrollY }); })()`;
 
-/** The anchor scrollY of a rest pass: a margin above the ramp start, never above the top. */
 export const ANCHOR_MARGIN_PX = 60;
 export const anchorY = (rampStart) => (rampStart === null ? null : Math.max(0, rampStart - ANCHOR_MARGIN_PX));

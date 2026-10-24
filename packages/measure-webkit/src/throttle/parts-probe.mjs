@@ -1,10 +1,3 @@
-// One pass of the per-part throttle measure in an open session (I/O glue): fresh load, place the page for the mode, start the base
-// recorder (hero: recorder.mjs; finish: finish-page.mjs) and the parts recorder (parts-recorder.mjs), let the XCUITest driver touch
-// Mobile Safari, fetch both records. The base record keeps its shape (the existing report still reads the artifact); the parts
-// record is added as `rec.parts`. Nothing is decided here; parts.mjs reduces.
-//   drags  the page at the top, the hero exit drags (testDrags)
-//   finish the page 300 px above its end, drags past the end (testFinish)
-//   rest   the page placed on the ramp of one part (ANCHORS[round % 3], found by scanning the page), then the testDrags drags
 import { readFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { loadFresh, pageInfo } from '../page.mjs';
@@ -18,7 +11,6 @@ import * as parts from './parts-recorder.mjs';
 export const MODES = Object.freeze(['drags', 'finish', 'rest']);
 export const ANCHOR_SETTLE_MS = 1800;
 
-/** The last 2000 characters of the driver's log with device ids and home paths removed. */
 function logTail(file) {
   try {
     return readFileSync(file, 'utf8').slice(-2000)
@@ -26,10 +18,8 @@ function logTail(file) {
   } catch { return null; }
 }
 
-/** The series a rest pass is placed on in round `round` (1-based). */
 export const anchorOf = (round) => parts.ANCHORS[(Math.max(1, round) - 1) % parts.ANCHORS.length];
 
-/** @returns the pass record: page facts, where the page stood, the drag run's exit, the base frames with `rec.parts` added; or {skipped} when the anchor series never ramps. */
 export async function partsPass(ctx, { driver, udid, drag, mode, round = 1, settleMs = 6000, tag = 'pass' }) {
   if (!MODES.includes(mode)) throw new Error(`unknown parts mode ${mode}`);
   const { c, log } = ctx;

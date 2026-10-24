@@ -1,10 +1,5 @@
 #!/usr/bin/env node
 // node src/throttle/parts-cli.mjs run --site dir [--mode drags|finish|rest] [--arms original,rewrite,lift,unthrottle] [--rounds 2] [--cycles 4] [--vm n] [--out file]
-//   The per-part throttle measure (task unthrottle-parts-measure): real touches on Mobile Safari in the booted Simulator while the page records
-//   frames (base recorder + parts-recorder.mjs: the six custom-property series). One pass per arm and round, the order rotated each round.
-//   original = the read-only snapshot; rewrite = the prerendered build (--site); lift = rewrite + ?fw=engine.scroll:throttle-lift;
-//   unthrottle = rewrite + ?fw=engine.scroll:unthrottle. The artifact keeps the shape of throttle/cli.mjs (vm, drag, passes, failed) with `mode`
-//   added and `rec.parts` in every pass.
 // node src/throttle/parts-cli.mjs build-driver --dir d   build the touch driver once, before the Simulator boots
 // node src/throttle/parts-cli.mjs report --in a.json,b.json [--md file] [--json file] [--run id]   reduce one mode: per part x arm, verdict, match
 import { parseArgs } from 'node:util';
@@ -22,9 +17,7 @@ import { excludeReason, ARMS, summarize, summaryMd } from './parts.mjs';
 
 export const SEARCH = Object.freeze({ lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle' });
 export const rotate = (arms, r) => arms.map((_, i) => arms[(i + r) % arms.length]);
-/** The tag of an attempt: the xcodebuild result bundle is named after it, so a retry must not reuse the first attempt's tag. */
 export const tagOf = (arm, round, attempt) => `${arm}-r${round}${attempt > 1 ? `-a${attempt}` : ''}`;
-/** The touch settings of a mode (finish drags past the page end with a longer, slower drag). */
 export const dragOf = (mode, o) => ({ cycles: Number(o.cycles), dragPt: Number(o.drag ?? (mode === 'finish' ? 480 : 360)),
   velocity: Number(o.velocity ?? (mode === 'finish' ? 150 : 120)), holdMs: Number(o.hold), mode: mode === 'finish' ? 'finish' : 'drags', target: o.target });
 
@@ -60,10 +53,8 @@ async function run(v) {
   const passes = [], failed = [];
   const file = resolve(v.out ?? 'out/throttle-parts.json');
   mkdirSync(dirname(file), { recursive: true });
-  // written after every pass: a stalled job still reports the passes it finished
   const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, mode: v.mode, drag, passes, failed }) + '\n');
   try {
-    // the first session on a fresh Simulator reloads the page after the recorder started: one unrecorded warm-up session first
     if (!v['no-warmup']) {
       try {
         await withSession(async (ctx) => {
@@ -75,7 +66,6 @@ async function run(v) {
     }
     for (let round = 0; round < Number(v.rounds); round++) {
       for (const arm of rotate(arms, round)) {
-        // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm; a skipped rest pass has no retry
         for (let attempt = 1; attempt <= 2; attempt++) {
           const tag = tagOf(arm, round + 1, attempt);
           try {

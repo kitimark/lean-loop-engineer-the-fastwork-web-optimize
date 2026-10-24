@@ -1,4 +1,3 @@
-// The per-part reducer against the Lean golden (throttle-parts.jsonl), the page-side recorder in a sandbox, and the table on synthetic passes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -15,7 +14,6 @@ import { tagOf, dragOf, rotate, report } from '../src/throttle/parts-cli.mjs';
 import { runs, bandRuns, throttleK } from '../src/throttle/stillruns.mjs';
 import { maxStep } from '../src/device-session.mjs';
 
-// ---- against the golden --------------------------------------------------------------------------------------------------------------
 
 test('the constants are the golden ones', () => {
   assert.equal(throttleK(CONSTS.d60), CONSTS.throttleK60);
@@ -88,7 +86,6 @@ test('the arms: originals and the rewrite are throttled, the lifted flag and unt
   assert.deepEqual(ARMS.map(modeOfArm), ['throttled', 'throttled', 'lifted', 'lifted']);
 });
 
-// ---- the cadence band ----------------------------------------------------------------------------------------------------------------
 
 test('the band follows the frame gap: 5-6 at 60 Hz, 2-3 at a 35 ms gap', () => {
   const ts = (g, n) => Array.from({ length: n }, (_, i) => i * g);
@@ -98,9 +95,7 @@ test('the band follows the frame gap: 5-6 at 60 Hz, 2-3 at a 35 ms gap', () => {
   assert.deepEqual(bandFor(medianGap(ts(35, 50))), [2, 3]);
 });
 
-// ---- synthetic passes ----------------------------------------------------------------------------------------------------------------
 
-/** A parts record: n frames at 16.67 ms, every frame moving (the toolbar height jumps), per-key per-mille series from `f(i)`. */
 function partsRecord(n, series, gap = 16.67) {
   const t = Array.from({ length: n }, (_, i) => Math.round(i * gap * 100) / 100);
   const v = {}, found = {};
@@ -108,7 +103,6 @@ function partsRecord(n, series, gap = 16.67) {
   return { start: { vh: 8000, y: 0, scale: 1 }, found, frames: n, t, y: Array.from({ length: n }, (_, i) => i * 10), vh: Array.from({ length: n }, (_, i) => 8000 + (i % 2) * 40), v, total: n };
 }
 const pass = (arm, parts, extra = {}) => ({ arm, round: 1, vm: '1', drag: { code: 0 }, rec: { parts }, ...extra });
-/** Throttled: the value moves every `period` frames; lifted: every frame. */
 const stairs = (period, from = 100) => (i) => from + Math.floor(i / period) * 5;
 
 test('a pass counts only with touches that worked, travel, enough frames and no zoom', () => {
@@ -223,7 +217,6 @@ test('judgeArm: pulses and no-stills need fewer than 10 band runs; exactly 10 di
   assert.equal(judgeArm({ pattern: 'stills', runFrames: 5 }, 'rewrite', row(10), row(10)).match, 'agree');
 });
 
-// ---- judge, partVerdict and bandFor replay the Lean golden ---------------------------------------------------------------------------------
 
 const goldenOf = (kind) => readFileSync(new URL('../../contracts/golden/device/throttle-parts.jsonl', import.meta.url), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((l) => l.kind === kind);
@@ -270,7 +263,6 @@ test('armSeries sums the usable passes only and keeps the pass counts', () => {
   assert.equal(a.per1000Mid, 163.3);
 });
 
-// ---- the summary and the files ---------------------------------------------------------------------------------------------------------
 
 function heroJobs() {
   const mk = (arm, period) => ({ arm, round: 1, vm: '1', attempt: 1, info: {}, where: {}, drag: { code: 0 }, rec: { parts: partsRecord(300, { hero: stairs(period) }) } });
@@ -303,7 +295,6 @@ test('report reads job files and writes the md and the json', () => {
   assert.throws(() => report({ in: `${f},${join(dir, 'b.json')}` }), /different modes/);
 });
 
-// ---- the cli helpers ---------------------------------------------------------------------------------------------------------------------
 
 test('a retry never reuses the result bundle tag of the first attempt', () => {
   assert.equal(tagOf('lift', 2, 1), 'lift-r2');
@@ -319,9 +310,7 @@ test('a retry never reuses the result bundle tag of the first attempt', () => {
   assert.ok(ANCHORS.every((k) => SERIES.some((s) => s.key === k)));
 });
 
-// ---- the page-side recorder in a sandbox ---------------------------------------------------------------------------------------------
 
-/** A page with one element per property, whose values the test sets; scrollY, requestAnimationFrame and the scroll listener are driven by hand. */
 function page(values) {
   const q = [], listeners = [];
   const g = { scrollY: 0, innerHeight: 800, document: { documentElement: { scrollHeight: 1800 }, querySelector: (sel) => {
