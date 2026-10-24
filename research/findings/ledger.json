@@ -3263,7 +3263,7 @@
    ],
    "v1Evidence": "",
    "lesson": "A per-frame layout can be cut property by property, but only the property that dirties layout moves: here the original also transitions the box width during the draw-in, so half of the layout phases remain, and the phase cut shows in the quiet windows between the carousel swaps, not in the swap windows, which pay their own layout.",
-   "next": "The user's own look decision on this flag: it was not shown on its own (the 2026-10-24 userDecision is carried over from draw-nolayout-full). Verdict: a look change of the accent text, with the same wipe the user refused on draw-nolayout-full on 2026-10-25; the headline glide is the faithful one (research/notes/2026/10-2x-accent-look-refused.md). Registered as class L proposal, so it stays out of v2-proved.",
+   "next": "The user's own look decision on this flag: it was not shown on its own (the 2026-10-24 userDecision is carried over from draw-nolayout-full). Verdict: a look change of the accent text, with the same wipe the user refused on draw-nolayout-full on 2026-10-25; the headline glide is the faithful one (research/notes/2026/10-2x-accent-look-refused.md). Its part.json entry is still kind optimized without visClass L; with status look-change and no link it stays out of v2-proved.",
    "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/",
    "userDecision": {
     "date": "2026-10-24",

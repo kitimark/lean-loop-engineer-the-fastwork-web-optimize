@@ -8,8 +8,7 @@
   unchanged (INFERRED). The only difference between the two arms is the headline glide, and `draw-nolayout` keeps the
   faithful glide.
 - Recorded: the refusal of `draw-nolayout-full` is in `Gen.lookDecisions`, and ledger row `accent.drawin-width-nolayout`
-  now has status `refuted`, the console's refused class. Both wipe arms are registered as class L proposals, so the
-  preset generator keeps them out of v2-proved.
+  now has status `refuted`, the console's refused class. `Gen.run` now fails when a refused flag is in v2-proved.
 
 ## Decision recorded (CONFIRMED: the user, in chat, 2026-10-25)
 - `lean/Fw/Preset/Gen.lean:247-252`: flag `hero.accent:draw-nolayout-full`, date 2026-10-25, decision `rejected`,
@@ -21,12 +20,18 @@
 - Ledger `research/findings/ledger.json`, row `accent.drawin-width-nolayout`: status `refuted`, `userDecision` with
   date, reason, source (chat) and the material above. `Fw.Console.Compose.classBy` puts any row with status `refuted`
   in the class whose text reads "refused".
-- `apps/site/src/parts/hero.accent/part.json`: `draw-nolayout` and `draw-nolayout-full` are `kind: proposal`,
-  `visClass: L`. Before this, both were `optimized` with no class. `Gen.lookCandidates` reads only class L, so a decision
-  on an unclassed flag fails `staleDecisions`, and `parsePart` refuses an optimized L variant.
-- Goldens from `Gen.run` (never by hand): `look-change.candidates.jsonl` gains both flags, with the decision on
-  `draw-nolayout-full` and `userDecision: null` on `draw-nolayout`; `v2-proved.decisions.jsonl` drops their two rows
-  (`Gen.decided` lists optimized flags). `Gen.run --check` and the ledger agreement check (`ledgerDisagreements`) pass.
+- The registry (`apps/site/src/parts/hero.accent/part.json`, outside this task's writes) still lists both wipe arms as
+  `kind: optimized` without `visClass: L`. `Gen.lookCandidates` reads only class L, so the decision cannot rest on it.
+  `Gen.decisionKept` (`lean/Fw/Preset/Gen.lean:302`) keeps a decision when its flag is a look candidate or when it is a
+  refusal of a registered flag; `staleDecisions` names every other decision. Theorems: `decisionKept_of_candidate`,
+  `decisionKept_of_rejected`, `rejected_of_decisionKept` (a kept decision outside the look candidates is a refusal) and
+  `not_decisionKept_of_unregistered` (a decision on an unregistered flag is stale).
+- `Gen.refusedMembers` (:335) lists refused flags inside the preset, and `Gen.run` throws when the list is not empty
+  (:481-482). Today the list is empty: the flag has no link and its row is not `proved`.
+- Goldens from `Gen.run` (never by hand): every row of `v2-proved.decisions.jsonl` gains `userDecision`
+  (`Gen.decisionOf`), which is the refusal on `hero.accent:draw-nolayout-full` and `null` on rows without a decision;
+  that row's `flagRows` status is `refuted`. `look-change.candidates.jsonl` is unchanged, because the flag is not
+  class L. `Gen.run --check` and the ledger agreement check (`ledgerDisagreements`) pass.
 
 ## Why draw-nolayout is a look change (Lean `Fw.Engine.StyleDiffAccent`, lines @0a03ebb)
 | statement | where | what it says |
@@ -66,4 +71,6 @@ Source (CONFIRMED, `apps/site/src/parts/hero.accent/accent.module.css`): the str
 - `ledgerDisagreements` compares only the Chromium material with the ledger's review text. This decision has no
   Chromium material, so its WebKit runs and artifacts are written in the ledger text without a check.
 - Ledger row `accent.draw-nolayout` still holds the 2026-10-24 `userDecision` carried over from `draw-nolayout-full`.
-  The look golden shows `userDecision: null` for it, because the user has not decided on that flag.
+  `Gen.lookDecisions` has no entry for it, because the user has not decided on that flag.
+- Follow-up outside this task's writes: register `draw-nolayout` and `draw-nolayout-full` as `kind: proposal`,
+  `visClass: L` in `part.json` (and the assertions in `drawNoLayout.test.ts`), so the look-change golden lists both.

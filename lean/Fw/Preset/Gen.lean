@@ -299,18 +299,53 @@ theorem lookCandidates_not_mem {reg : List Reg} {ledger : List Row} {st : List S
     (h : f ∈ lookCandidates reg) : f ∉ preset reg links ledger st :=
   look_not_mem (isLook_of_mem_lookCandidates h)
 
-def staleDecisions (reg : List Reg) : List Flag :=
-  (lookDecisions.map (·.flag)).filter fun f => !(lookCandidates reg).contains f
+def decisionKept (reg : List Reg) (d : LookDecision) : Bool :=
+  (lookCandidates reg).contains d.flag || (d.decision == .rejected && reg.any (·.flag == d.flag))
+
+theorem decisionKept_of_candidate {reg : List Reg} {d : LookDecision} (h : d.flag ∈ lookCandidates reg) :
+    decisionKept reg d = true := by
+  simp [decisionKept, h]
+
+theorem decisionKept_of_rejected {reg : List Reg} {d : LookDecision} (hd : d.decision = .rejected)
+    (hr : ∃ r ∈ reg, r.flag = d.flag) : decisionKept reg d = true := by
+  obtain ⟨r, hm, he⟩ := hr
+  simp only [decisionKept, hd, Bool.or_eq_true, Bool.and_eq_true, beq_self_eq_true, true_and, List.any_eq_true,
+    beq_iff_eq]
+  exact .inr ⟨r, hm, he⟩
+
+theorem rejected_of_decisionKept {reg : List Reg} {d : LookDecision} (h : decisionKept reg d = true)
+    (hc : d.flag ∉ lookCandidates reg) : d.decision = .rejected := by
+  simp only [decisionKept, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, List.contains_iff_mem] at h
+  exact (h.resolve_left hc).1
+
+theorem not_decisionKept_of_unregistered {reg : List Reg} {d : LookDecision} (h : ∀ r ∈ reg, r.flag ≠ d.flag) :
+    decisionKept reg d = false := by
+  have hc : d.flag ∉ lookCandidates reg := fun hm => by
+    unfold lookCandidates at hm
+    obtain ⟨r, hr, he⟩ := List.mem_map.1 ((List.mem_mergeSort).1 hm)
+    exact h r (List.mem_filter.1 hr).1 he
+  simp only [decisionKept, Bool.or_eq_false_iff, Bool.and_eq_false_iff, List.any_eq_false, beq_iff_eq]
+  exact ⟨by simpa using hc, .inr h⟩
+
+def staleIn (reg : List Reg) (ds : List LookDecision) : List Flag :=
+  (ds.filter fun d => !decisionKept reg d).map (·.flag)
+
+def staleDecisions (reg : List Reg) : List Flag := staleIn reg lookDecisions
+
+def refusedMembers (ds : List LookDecision) (p : List Flag) : List Flag :=
+  ((ds.filter (·.decision == .rejected)).map (·.flag)).filter p.contains
+
+def decisionOf (f : Flag) : Json :=
+  match lookDecisions.find? (·.flag == f) with
+  | some d => d.json
+  | none => .null
 
 def lookJson (reg : List Reg) (p : List Flag) (f : Flag) : Json :=
   let kind : Json := match reg.find? (·.flag == f) with
     | some r => .str (kindWord r.kind)
     | none => .null
-  let dec : Json := match lookDecisions.find? (·.flag == f) with
-    | some d => d.json
-    | none => .null
   Json.mkObj [("flag", .str f.key), ("kind", kind), ("visClass", .str (visClassWord .l)),
-    ("member", .bool (p.contains f)), ("userDecision", dec)]
+    ("member", .bool (p.contains f)), ("userDecision", decisionOf f)]
 
 def lookText (reg : List Reg) (p : List Flag) : String :=
   String.join ((lookCandidates reg).map fun f => (lookJson reg p f).compress ++ "\n")
@@ -401,7 +436,8 @@ def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) 
     Json.mkObj [("part", .str k.1), ("candidate", .str k.2), ("found", .arr ((rowsOf ledger k).map rowJson).toArray)]
   Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", verdictJson ledger f),
     ("trajectory", trajJson st f), ("member", .bool (p.contains f)), ("shadowedBy", shadow),
-    ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray)]
+    ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray),
+    ("userDecision", decisionOf f)]
 
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
@@ -441,7 +477,9 @@ def run (args : List String) : IO Unit := do
   let bad := ledgerDisagreements (← readJson ledgerPath) lookDecisions
   unless bad.isEmpty do throw (IO.userError s!"the ledger text disagrees with Gen.lookDecisions: {bad}")
   unless (staleDecisions reg).isEmpty do
-    throw (IO.userError s!"look decisions name no look-change candidate: {(staleDecisions reg).map (·.key)}")
+    throw (IO.userError s!"look decisions name no look-change candidate and no refused registered flag: {(staleDecisions reg).map (·.key)}")
+  unless (refusedMembers lookDecisions p).isEmpty do
+    throw (IO.userError s!"refused flags in v2-proved: {(refusedMembers lookDecisions p).map (·.key)}")
   let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
     (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p)]
   if args.contains "--check" then
@@ -576,12 +614,21 @@ private def earnLogicalReg : Reg :=
   { flag := ⟨"nav", "earn-logical"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l }
 
 private def accentFullReg : Reg :=
-  { flag := ⟨"hero.accent", "draw-nolayout-full"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l }
+  { flag := ⟨"hero.accent", "draw-nolayout-full"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
 
 #guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩, ⟨"nav", "earn-logical"⟩, ⟨"hero.accent", "draw-nolayout-full"⟩]
 #guard staleDecisions [earnReg] == [⟨"nav", "earn-logical"⟩, ⟨"hero.accent", "draw-nolayout-full"⟩]
 #guard staleDecisions [earnReg, earnLogicalReg] == [⟨"hero.accent", "draw-nolayout-full"⟩]
 #guard staleDecisions [earnReg, earnLogicalReg, accentFullReg] == []
+#guard staleIn [{ earnReg with visClass := none }] (lookDecisions.take 1) == [⟨"nav", "earn-no-transition"⟩]
+#guard staleIn [accentFullReg] (lookDecisions.drop 2) == []
+#guard staleIn [accentFullReg] ((lookDecisions.drop 2).map fun d => { d with decision := .kept }) == [⟨"hero.accent", "draw-nolayout-full"⟩]
+#guard refusedMembers lookDecisions [] == []
+#guard refusedMembers lookDecisions [⟨"hero.accent", "draw-nolayout-full"⟩, ⟨"nav", "earn-logical"⟩] ==
+  [⟨"hero.accent", "draw-nolayout-full"⟩]
+#guard refusedMembers lookDecisions [⟨"nav", "earn-logical"⟩, ⟨"nav", "earn-no-transition"⟩] == []
+#guard decisionOf ⟨"x", "y"⟩ == .null
+#guard ((decisionOf ⟨"hero.accent", "draw-nolayout-full"⟩).getObjValAs? String "decision").toOption == some "rejected"
 #guard lookText [earnReg] [] ==
   "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"kept\",\"material\":{\"chromium\":{\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\",\"run\":\"39473950464\",\"state\":\"ready\"},\"webkit\":{\"artifact\":\"frames-apple-390, frames-apple-1280\",\"expires\":\"2026-11-20\",\"run\":\"39530106935\",\"state\":\"ready\"}},\"review\":\"pending\"},\"visClass\":\"L\"}\n"
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
@@ -601,8 +648,6 @@ private def accentFullReg : Reg :=
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "hero.accent:draw-nolayout-full"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-24"), ("decision", .str "rejected; review deferred"),
     ("review", .str "")])]])]) (lookDecisions.drop 2)).length == 2
-#guard (((lookJson [accentFullReg] [] ⟨"hero.accent", "draw-nolayout-full"⟩).getObjVal? "userDecision").toOption.bind
-    fun d => (d.getObjValAs? String "decision").toOption) == some "rejected"
 #guard ((lookJson [] [] ⟨"x", "y"⟩).getObjVal? "userDecision").toOption == some .null
 
 private def stEx : Stored :=
