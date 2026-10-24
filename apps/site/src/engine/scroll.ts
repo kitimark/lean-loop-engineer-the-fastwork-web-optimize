@@ -32,6 +32,8 @@ export interface ScrollEnv {
 
 export interface ScrollEngine {
   register(id: string, order: number, cb: ScrollCallback): () => void;
+  /** Ask for a frame, as a `scroll` event does. */
+  request(): void;
   setVariant(v: ScrollVariant): void;
   readonly variant: ScrollVariant;
 }
@@ -119,6 +121,7 @@ export function createScrollEngine(clock: MotionClock, env: ScrollEnv, initial: 
         sync();
       };
     },
+    request,
     setVariant(v) {
       variant = v;
     },
