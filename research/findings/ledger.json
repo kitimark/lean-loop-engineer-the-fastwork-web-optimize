@@ -3590,7 +3590,7 @@
    ],
    "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
    "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
-   "visual": "look change (L), behaviour change at the end of the page: at the end of the page the pin follows the real end instead of the overscroll position the push began in, so the rubber-band spring-back is no longer fought frame by frame. Lean clamp_le, clamp_le_trace, clamp_rest, faithful_fight, clamp_only_writes, clamp_same_below (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run pending.",
+   "visual": "look change (L), behaviour change at the end of the page: at the end of the page the pin follows the real end instead of the overscroll position the push began in, so the rubber-band spring-back is no longer fought frame by frame. Lean clamp_le, clamp_le_trace, clamp_rest, faithful_fight, clamp_only_writes, clamp_same_below (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
    "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
    "leanFor": [
     "Fw.Parts.MorphEnd.clamp_le",
@@ -3610,7 +3610,7 @@
    "v1Evidence": "none",
    "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
    "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
-   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run pending; lean/Fw/Parts/MorphEnd.lean",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
    "userDecision": "pending"
   },
   {
@@ -3625,7 +3625,7 @@
    ],
    "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
    "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
-   "visual": "look change (L), behaviour change at the end of the page: finger jitter inside a 16 px band no longer reverses the running morph; a pull of 16 px or more still does. Lean flip_needs, flip_band, band_after_push, flip_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run pending.",
+   "visual": "look change (L), behaviour change at the end of the page: finger jitter inside a 16 px band no longer reverses the running morph; a pull of 16 px or more still does. Lean flip_needs, flip_band, band_after_push, flip_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
    "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
    "leanFor": [
     "Fw.Parts.MorphEnd.flip_needs",
@@ -3643,7 +3643,7 @@
    "v1Evidence": "none",
    "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
    "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
-   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run pending; lean/Fw/Parts/MorphEnd.lean",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
    "userDecision": "pending"
   },
   {
@@ -3658,7 +3658,7 @@
    ],
    "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
    "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
-   "visual": "look change (L), behaviour change at the end of the page: a drag back while the morph closes moves the page under the finger instead of being held at the pin. Lean release_starts, release_close_free, release_quiet, release_after_close, release_open_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run pending.",
+   "visual": "look change (L), behaviour change at the end of the page: a drag back while the morph closes moves the page under the finger instead of being held at the pin. Lean release_starts, release_close_free, release_quiet, release_after_close, release_open_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
    "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
    "leanFor": [
     "Fw.Parts.MorphEnd.release_starts",
@@ -3677,7 +3677,7 @@
    "v1Evidence": "none",
    "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
    "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
-   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run pending; lean/Fw/Parts/MorphEnd.lean",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
    "userDecision": "pending"
   }
  ],

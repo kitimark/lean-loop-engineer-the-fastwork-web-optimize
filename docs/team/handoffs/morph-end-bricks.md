@@ -1,15 +1,15 @@
 # morph-end-bricks handoff
 
 - Branch `worktree-wf_5d113863-122-1` (CI branch `ci/morph-end-bricks`), worktree
-  `.claude/worktrees/wf_5d113863-122-1`, last commit 7cb0b642c (+ this handoff).
+  `.claude/worktrees/wf_5d113863-122-1`, see `git log`.
 - CI runs (2 of 2 dispatches used): 40097672383 failed (fw= list: a three-flag page is not prerendered, only presets
   and single variants are; infra, not code); 40098851697 breakpoint-gate preset=morph-end-all, engines both, at
-  cb958a00d (preset added in registry/presets/morph-end-all.json), running.
+  cb958a00d (preset added in registry/presets/morph-end-all.json): success (pass). Ledger rows carry this run id.
 - Verified: `lean/scripts/check.sh` green (slot); `@fw/site` test 6604 pass (incl. `end.golden.test.ts` replaying all
   24 lines of `morph.end.jsonl`, and `registry/morph-end.test.ts` resolving all 8 picks); tsc clean;
   `part-footprint.mjs --check` ok.
-- Open: gate result; ci-paths and land-inputs tests; dry land; ledger evidence run id (re-run
-  `python3 scratchpad/meb/ledger.py <runid>` is local only: edit ledger rows `visual`/`evidence` by hand).
+- ci-paths (56) and runner land-inputs (60) tests pass. Open: user phone review (ledger userDecision pending), then
+  morph-end-measure.
 
 ## Design
 - `parts/morph.tween/end.logic.ts`: TS port of Lean `MorphEnd` (`moveStep`, `frameOut`, `step`, `Hooks`, `BASE`); the
