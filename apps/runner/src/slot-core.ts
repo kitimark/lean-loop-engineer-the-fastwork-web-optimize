@@ -282,3 +282,13 @@ export function simNew(before: readonly string[], after: readonly string[]): str
   const b = new Set(before.map((u) => u.toUpperCase()));
   return after.map((u) => u.toUpperCase()).filter((u) => !b.has(u));
 }
+
+export const simOurs = (before: readonly string[], booted: readonly string[]): string[] => booted.filter((u) => !before.includes(u));
+
+export const simHandover = (now: number, queue: Entry[]): boolean => queue.some((e) => e.kind === "sim" && now < e.till);
+
+export function simSettle(before: readonly string[], booted: readonly string[], handover: boolean): { shut: string[]; record: string[] | null } {
+  return handover ? { shut: [], record: [...before] } : { shut: simOurs(before, booted), record: null };
+}
+
+export const simRecord = (inherited: readonly string[] | null, booted: readonly string[]): string[] => [...(inherited ?? booted)];
