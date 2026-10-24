@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CLASSES, classify, seenArea, wasteArea, tally, per100, margin, coverage, rerasterArea, rectOf, classKey } from '../src/paintclip.mjs';
+import { CLASSES, classify, seenArea, wasteArea, tally, per100, margin, coverage, rerasterArea, rectOf, classKey, dirty, DIRTY_CAP } from '../src/paintclip.mjs';
 
 const G = readFileSync(new URL('../../contracts/golden/engine/paint-visible.jsonl', import.meta.url), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
@@ -42,6 +42,13 @@ test('rerasterArea: a non-tiled layer that changes size is painted whole', () =>
 
 test('per100: rounded down, none for no frames', () => {
   for (const l of of('per100')) assert.equal(per100(l.in.total, l.in.frames), l.out);
+});
+
+test('dirty: the rects a layer keeps after its setNeedsDisplayInRect calls', () => {
+  assert.ok(of('dirty').length >= 6);
+  for (const l of of('dirty')) assert.deepEqual(dirty(l.in.calls.map(rectOf)), l.out.map(rectOf), JSON.stringify(l.in).slice(0, 120));
+  assert.ok(of('dirty').some((l) => l.out.length === DIRTY_CAP), 'a golden case reaches the cap');
+  assert.ok(of('dirty').every((l) => l.out.length <= DIRTY_CAP && l.out.length <= l.in.calls.length));
 });
 
 test('class keys carry no hyphen', () => {

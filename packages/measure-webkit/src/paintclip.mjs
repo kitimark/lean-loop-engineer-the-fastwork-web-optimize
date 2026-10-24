@@ -60,3 +60,25 @@ export const rerasterArea = (tiled, old, neu) => (tiled || (old[0] === neu[0] &&
 
 /** [x, y, w, h] (the golden's rect form) to { x, y, w, h }. */
 export const rectOf = (a) => ({ x: a[0], y: a[1], w: a[2], h: a[3] });
+
+/** Lean `Rect.holds`: rect `c` holds all of `r`. */
+export const holds = (c, r) => c.x <= r.x && r.x + r.w <= c.x + c.w && c.y <= r.y && r.y + r.h <= c.y + c.h;
+
+/** Lean `Rect.unite`: the smallest rect that holds both. */
+export const unite = (a, b) => {
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(Math.max(a.x + a.w, b.x + b.w) - x, 0), h: Math.max(Math.max(a.y + a.h, b.y + b.h) - y, 0) };
+};
+
+/** Lean `dirtyCap`: dirty rects a layer keeps (GraphicsLayerCA.cpp:1033 `maxDirtyRects`). */
+export const DIRTY_CAP = 32;
+
+/** Lean `addDirty`: one setNeedsDisplayInRect call on the kept rects `ds` (a new array). */
+export function addDirty(ds, r) {
+  if (ds.some((d) => holds(d, r))) return ds;
+  if (ds.length < DIRTY_CAP) return [...ds, r];
+  return [unite(ds[0], r), ...ds.slice(1)];
+}
+
+/** Lean `dirty`: the kept rects after the calls `rs` (rect objects), in order. */
+export const dirty = (rs) => rs.reduce(addDirty, []);

@@ -81,7 +81,7 @@ async function main() {
             page: { ...run.meta, els: undefined }, probe: run.meta.probe,
           };
           for (const z of ZONES) writeFileSync(join(out, `counts-${arm}-${z}-${p}.json`), JSON.stringify({ schema: 'fw.wktr.scroll/1', meta: { ...info, zone: z }, frames: red.byZone[z] }));
-          writeFileSync(join(out, `table-${arm}-${p}.json`), JSON.stringify({ schema: 'fw.paintvisible.table/1', meta: info, frames: red.frames, table: red.table, els: run.meta.els }));
+          writeFileSync(join(out, `table-${arm}-${p}.json`), JSON.stringify({ schema: 'fw.paintvisible.table/1', meta: info, frames: red.frames, calls: red.calls, table: red.table, els: run.meta.els }));
           console.log(`arm ${arm} pass ${p}: ${run.frames.length} frames (${JSON.stringify(red.frames)}), ${r.ms} ms wall (not phone time); probe ${JSON.stringify(run.meta.probe)}; viewport ${run.meta.innerWidth}x${run.meta.innerHeight} dpr ${run.meta.dpr}`);
         }
       } finally { await srv.close(); }

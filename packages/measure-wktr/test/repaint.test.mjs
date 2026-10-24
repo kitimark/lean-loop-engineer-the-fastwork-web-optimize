@@ -1,7 +1,7 @@
 // The pure part of the invisible-paint lane: layer-tree text parser, swipe schedule, frame facts and the reduction.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLayers, swipeSchedule, zoneOf, frameFacts, frameCounts, reduceRun, sumTables, parseRepaint, buildRepaintRun, ZONES, ARMS } from '../src/repaint.mjs';
+import { keepDirty, parseLayers, swipeSchedule, zoneOf, frameFacts, frameCounts, reduceRun, sumTables, parseRepaint, buildRepaintRun, ZONES, ARMS } from '../src/repaint.mjs';
 import { repaintHarnessSource } from '../src/repaint-page.mjs';
 
 // The shape GraphicsLayer::dumpLayer / dumpProperties / GraphicsLayerCA::dumpAdditionalProperties print (GraphicsLayer.cpp:910-1112, GraphicsLayerCA.cpp:4759-4785 @862f17d).
@@ -117,6 +117,26 @@ test('frameFacts: classes of view and layer rects, resizes', () => {
   assert.deepEqual(f.rects[1].cause, 'anim:pulse');
   assert.deepEqual(f.resizes.map((z) => z.area), [100 * 70, 0, 0]);
   assert.deepEqual(f.resizes[0], { i: 4, el: 'section#hero', part: 'hero', old: [100, 60], new: [100, 70], tiled: false, area: 7000 });
+});
+
+test('keepDirty: repeats and held rects are dropped, the first kept item stays on a merge', () => {
+  const R = (x, y, w, h, n) => ({ rect: { x, y, w, h }, n });
+  assert.deepEqual(keepDirty([R(0, 0, 10, 10, 'a'), R(0, 0, 10, 10, 'b'), R(2, 2, 3, 3, 'c'), R(20, 0, 5, 5, 'd')]).map((k) => k.n), ['a', 'd']);
+  assert.deepEqual(keepDirty([R(2, 2, 3, 3, 'c'), R(0, 0, 10, 10, 'a')]).map((k) => k.n), ['c', 'a']);
+  const many = Array.from({ length: 34 }, (_, i) => R(2 * i, 0, 1, 1, `r${i}`));
+  const kept = keepDirty(many);
+  assert.equal(kept.length, 32);
+  assert.equal(kept[0].n, 'r0');
+  assert.deepEqual(kept[0].rect, { x: 0, y: 0, w: 67, h: 1 });
+});
+
+test('frameFacts: the engine drops repeated rects of a layer, calls keep the count before', () => {
+  const rep = Array(5).fill([416, 452, 18, 314]);
+  const f = frameFacts({ ...FR, view: [{ r: [-1, 10, 1, 1], e: -1, h: 0, cl: 1, c: 'scroll', p: 'platform' }, { r: [-1, 10, 1, 1], e: -1, h: 0, cl: 1, c: 'scroll', p: 'platform' }], L: [{ i: 2, r: rep, v: [0, 0, 402, 820], c: [0, 0, 402, 820], b: [434, 784], h: 0, t: 0, e: 1, k: 'scroll' }], rs: [] }, META);
+  assert.equal(f.calls, 7);
+  assert.deepEqual(f.rects.map((r) => [r.src, r.cls]), [['view', 'clipped-out'], ['layer', 'beyond-margin']]);
+  assert.equal(frameCounts(f).trackedCalls, 7);
+  assert.equal(frameCounts(f).paintRects, 2);
 });
 
 test('frameCounts: integers per class, wasted area and re-raster', () => {

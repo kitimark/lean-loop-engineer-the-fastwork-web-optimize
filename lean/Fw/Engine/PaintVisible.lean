@@ -195,6 +195,119 @@ theorem reraster_same (t : Bool) (s : Nat × Nat) : rerasterArea t s s = 0 := by
 theorem reraster_resized (old new : Nat × Nat) (h : old ≠ new) : rerasterArea false old new = new.1 * new.2 := by
   simp [rerasterArea, h]
 
+/-! ## The dirty rects of a layer
+
+`GraphicsLayerCA::setNeedsDisplayInRect` records every call in the tracked repaint list, then keeps a rect only when no
+kept rect holds it, and merges into the first kept rect once 32 are kept (`GraphicsLayerCA.cpp:1031-1043`@862f17d). The
+paints of one frame are the kept list, so the tracked list over-counts by the calls the engine drops.
+-/
+
+/-- `c` holds all of `r`. -/
+def Rect.holds (c r : Rect) : Bool :=
+  decide (c.x ≤ r.x ∧ r.x + r.w ≤ c.x + c.w ∧ c.y ≤ r.y ∧ r.y + r.h ≤ c.y + c.h)
+
+/-- The smallest rect that holds both. -/
+def Rect.unite (a b : Rect) : Rect :=
+  { x := min a.x b.x, y := min a.y b.y,
+    w := (max (a.x + a.w) (b.x + b.w) - min a.x b.x).toNat,
+    h := (max (a.y + a.h) (b.y + b.h) - min a.y b.y).toNat }
+
+/-- How many dirty rects a layer keeps (`maxDirtyRects`). -/
+def dirtyCap : Nat := 32
+
+/-- One `setNeedsDisplayInRect` call on the kept rects `ds`. -/
+def addDirty (ds : List Rect) (r : Rect) : List Rect :=
+  if ds.any (·.holds r) then ds
+  else if ds.length < dirtyCap then ds ++ [r]
+  else match ds with
+    | [] => [r]
+    | d :: t => d.unite r :: t
+
+/-- The kept rects after the calls `rs`, in order. -/
+def dirty (rs : List Rect) : List Rect := rs.foldl addDirty []
+
+theorem addDirty_held (ds : List Rect) (r : Rect) (h : ds.any (·.holds r) = true) : addDirty ds r = ds := by
+  simp [addDirty, h]
+
+theorem addDirty_append (ds : List Rect) (r : Rect) (h : ds.any (·.holds r) = false) (hl : ds.length < dirtyCap) :
+    addDirty ds r = ds ++ [r] := by
+  simp [addDirty, h, hl]
+
+theorem addDirty_merge (d : Rect) (t : List Rect) (r : Rect) (h : (d :: t).any (·.holds r) = false)
+    (hl : ¬ (d :: t).length < dirtyCap) : addDirty (d :: t) r = d.unite r :: t := by
+  have hl' : ¬ (t.length + 1 < dirtyCap) := hl
+  simp [addDirty, h, hl']
+
+theorem addDirty_len (ds : List Rect) (r : Rect) (h : ds.length ≤ dirtyCap) : (addDirty ds r).length ≤ dirtyCap := by
+  unfold addDirty
+  split
+  · exact h
+  · split
+    · rename_i _ hl
+      simp only [List.length_append, List.length_singleton]
+      unfold dirtyCap at *
+      omega
+    · rcases ds with _ | ⟨d, t⟩
+      · simp [dirtyCap]
+      · simp only [List.length_cons]
+        simp only [List.length_cons] at h
+        omega
+
+theorem addDirty_len_le (ds : List Rect) (r : Rect) : (addDirty ds r).length ≤ ds.length + 1 := by
+  unfold addDirty
+  split
+  · omega
+  · split
+    · simp
+    · rcases ds with _ | ⟨d, t⟩ <;> simp
+
+private theorem foldl_len (rs ds : List Rect) (h : ds.length ≤ dirtyCap) : (rs.foldl addDirty ds).length ≤ dirtyCap := by
+  induction rs generalizing ds with
+  | nil => exact h
+  | cons r rs ih => exact ih _ (addDirty_len ds r h)
+
+private theorem foldl_len_le (rs ds : List Rect) : (rs.foldl addDirty ds).length ≤ ds.length + rs.length := by
+  induction rs generalizing ds with
+  | nil => simp
+  | cons r rs ih =>
+    have := addDirty_len_le ds r
+    have := ih (addDirty ds r)
+    simp only [List.foldl_cons, List.length_cons]
+    omega
+
+/-- A layer keeps at most 32 dirty rects however many calls come. -/
+theorem dirty_len_le_cap (rs : List Rect) : (dirty rs).length ≤ dirtyCap := foldl_len rs [] (by simp)
+
+/-- The kept rects are no more than the calls. -/
+theorem dirty_len_le (rs : List Rect) : (dirty rs).length ≤ rs.length := by
+  have := foldl_len_le rs []
+  simpa [dirty] using this
+
+theorem holds_unite_right (a r : Rect) : (a.unite r).holds r = true := by
+  unfold Rect.holds
+  rw [decide_eq_true_eq]
+  simp only [Rect.unite]
+  omega
+
+theorem holds_self (r : Rect) : r.holds r = true := by
+  simp only [Rect.holds, decide_eq_true_eq]
+  omega
+
+/-- After a call, some kept rect holds the rect. -/
+theorem addDirty_holds (ds : List Rect) (r : Rect) : (addDirty ds r).any (·.holds r) = true := by
+  by_cases h : ds.any (·.holds r) = true
+  · rw [addDirty_held ds r h]; exact h
+  · have h' : ds.any (·.holds r) = false := by simpa using h
+    by_cases hl : ds.length < dirtyCap
+    · rw [addDirty_append ds r h' hl]; simp [holds_self]
+    · rcases ds with _ | ⟨d, t⟩
+      · simp [dirtyCap] at hl
+      · rw [addDirty_merge d t r h' hl]; simp [holds_unite_right]
+
+/-- The same call twice in a row keeps the same rects: the engine drops the repeat. -/
+theorem addDirty_twice (ds : List Rect) (r : Rect) : addDirty (addDirty ds r) r = addDirty ds r :=
+  addDirty_held _ _ (addDirty_holds ds r)
+
 /-! ## Golden lines -/
 
 private def rj (r : Rect) : Lean.Json := .arr #[.num r.x, .num r.y, .num r.w, .num r.h]
@@ -233,6 +346,10 @@ def sampleFacts : List Fact :=
 #guard coverage ⟨0, 1000, 430, 932⟩ 0 512 1700 == ⟨0, 256, 430, 1444⟩
 #guard rerasterArea false (430, 60) (430, 80) == 34400
 #guard per100 7 3 == 233
+#guard (dirty [⟨0, 0, 10, 10⟩, ⟨0, 0, 10, 10⟩, ⟨0, 0, 10, 10⟩]).length == 1
+#guard dirty [⟨0, 0, 10, 10⟩, ⟨2, 2, 3, 3⟩] == [⟨0, 0, 10, 10⟩]
+#guard dirty [⟨2, 2, 3, 3⟩, ⟨0, 0, 10, 10⟩] == [⟨2, 2, 3, 3⟩, ⟨0, 0, 10, 10⟩]
+#guard (dirty ((List.range 40).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect))).length == 32
 
 private def line (fn : String) (inp : List (String × Lean.Json)) (out : Lean.Json) : String :=
   (Lean.Json.mkObj [("fn", .str fn), ("in", Lean.Json.mkObj inp), ("out", out)]).compress
@@ -240,6 +357,12 @@ private def line (fn : String) (inp : List (String × Lean.Json)) (out : Lean.Js
 private def coverageCases : List (Rect × Int × Nat × Nat) :=
   [(⟨0, 100, 430, 932⟩, 1, 3, 4000), (⟨0, 100, 430, 932⟩, -1, 3, 4000), (⟨0, 1000, 430, 932⟩, 0, 3, 1700),
    (⟨0, 768, 430, 932⟩, 1, 2, 1700), (⟨0, 0, 430, 932⟩, -1, 3, 4000), (⟨0, 0, 430, 932⟩, 0, 3, 4000)]
+
+private def dirtyCases : List (List Rect) :=
+  [ [], [⟨0, 0, 10, 10⟩, ⟨0, 0, 10, 10⟩, ⟨0, 0, 10, 10⟩], [⟨0, 0, 10, 10⟩, ⟨2, 2, 3, 3⟩], [⟨2, 2, 3, 3⟩, ⟨0, 0, 10, 10⟩],
+    [⟨0, 0, 10, 10⟩, ⟨20, 0, 10, 10⟩, ⟨0, 0, 10, 10⟩], [⟨-1, 5, 1, 1⟩, ⟨-1, 5, 1, 1⟩],
+    (List.range 34).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect),
+    ((List.range 34).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect)) ++ [⟨0, 0, 100, 1⟩, ⟨66, 0, 1, 1⟩] ]
 
 /-- The golden lines `packages/contracts/golden/engine/paint-visible.jsonl`. -/
 def lines : List String :=
@@ -258,8 +381,10 @@ def lines : List String :=
       line "rerasterArea"
         [("old", .arr #[.num o.1, .num o.2]), ("new", .arr #[.num n.1, .num n.2]), ("tiled", .bool t)]
         (.num (rerasterArea t o n))) ++
-  ([(7, 3), (7, 0), (0, 5), (1234, 650)] : List (Nat × Nat)).map fun (t, n) =>
-    line "per100" [("total", .num t), ("frames", .num n)] (.num (per100 t n))
+  ([(7, 3), (7, 0), (0, 5), (1234, 650)] : List (Nat × Nat)).map (fun (t, n) =>
+    line "per100" [("total", .num t), ("frames", .num n)] (.num (per100 t n))) ++
+  dirtyCases.map fun rs =>
+    line "dirty" [("calls", .arr (rs.map rj).toArray)] (.arr ((dirty rs).map rj).toArray)
 
 /-- The golden text. -/
 def goldenText : String := String.join (lines.map (· ++ "\n"))

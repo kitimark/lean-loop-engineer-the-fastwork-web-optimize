@@ -1,7 +1,7 @@
 // Invisible-paint lane, pure part: the parser of WebKit's layerTreeAsText with repaint rects, the swipe schedule, and the
 // reduction of the per-frame facts to classes. No I/O. The class rule is Lean's (Fw.Engine.PaintVisible), replayed by the
 // twin in ../../measure-webkit/src/paintclip.mjs; nothing here decides a class.
-import { classify, CLASSES, classKey, seenArea, wasteArea, rerasterArea } from '../../measure-webkit/src/paintclip.mjs';
+import { classify, CLASSES, classKey, seenArea, wasteArea, rerasterArea, addDirty } from '../../measure-webkit/src/paintclip.mjs';
 
 /**
  * Parse `internals.layerTreeAsText(document, flags)` (flags visible rects, tile caches, repaint rects, clipping) into the
@@ -93,37 +93,55 @@ const toRect = (a) => {
 };
 
 /**
+ * The calls of one layer in one frame (items { rect, ... }) to the items the engine keeps as dirty rects (Lean `dirty`, twin
+ * `addDirty`): a call whose rect a kept rect holds is dropped; past 32 kept rects a call merges into the first, which keeps its item.
+ */
+export function keepDirty(items) {
+  let ds = [];
+  const owner = new Map();
+  for (const it of items) {
+    owner.set(it.rect, it);
+    const next = addDirty(ds, it.rect);
+    if (ds.length && next[0] !== ds[0]) owner.set(next[0], owner.get(ds[0]));
+    ds = next;
+  }
+  return ds.map((r) => ({ ...owner.get(r), rect: r }));
+}
+
+/**
  * One frame record from the page (schema in repaint-page.mjs) to its classified rects and its resize events.
- * rects: [{ part, cause, el, cls, area, seen, waste, src }]; resizes: [{ el, part, old, new, tiled, area }].
+ * rects: the paints, the dirty rects the engine keeps per layer [{ part, cause, el, cls, area, seen, waste, src }];
+ * calls: the tracked repaint rects before the engine drops repeats; resizes: [{ el, part, old, new, tiled, area }].
  */
 export function frameFacts(fr, meta) {
   const rects = [];
+  let calls = 0;
   const vp = { x: 0, y: 0, w: meta.innerWidth, h: meta.innerHeight };
   const rootCov = fr.rootCov ? toRect([fr.rootCov[0], fr.rootCov[1] - fr.sy, fr.rootCov[2], fr.rootCov[3]]) : vp;
   const el = (i) => (i != null && i >= 0 ? meta.els[i] : null);
-  for (const v of fr.view) {
-    const e = el(v.e);
-    const rect = toRect(v.r);
-    const fact = { rect, visible: vp, coverage: rootCov, hidden: !!v.h, covered: false, clipped: false, pix: 'unknown' };
-    rects.push({ part: v.p ?? e?.p ?? 'other', cause: v.c ?? null, el: e?.d ?? null, cls: classify(fact), area: rect.w * rect.h, seen: seenArea(fact), waste: wasteArea(fact), src: 'view' });
+  calls += fr.view.length;
+  for (const v of keepDirty(fr.view.map((x) => ({ rect: toRect(x.r), v: x })))) {
+    const e = el(v.v.e);
+    const fact = { rect: v.rect, visible: vp, coverage: rootCov, hidden: !!v.v.h, covered: false, clipped: !!v.v.cl, pix: 'unknown' };
+    rects.push({ part: v.v.p ?? e?.p ?? 'other', cause: v.v.c ?? null, el: e?.d ?? null, cls: classify(fact), area: v.rect.w * v.rect.h, seen: seenArea(fact), waste: wasteArea(fact), src: 'view' });
   }
   for (const L of fr.L) {
     const e = el(L.e);
     const vis = L.v ? toRect(L.v) : { x: 0, y: 0, w: L.b?.[0] ?? 0, h: L.b?.[1] ?? 0 };
     const cov = L.c ? toRect(L.c) : vis;
-    for (const r of L.r) {
-      const rect = toRect(r);
-      const fact = { rect, visible: vis, coverage: cov, hidden: !!L.h, covered: false, clipped: false, pix: 'unknown' };
+    calls += L.r.length;
+    for (const { rect } of keepDirty(L.r.map((r) => ({ rect: toRect(r) })))) {
+      const fact = { rect, visible: vis, coverage: cov, hidden: !!L.h, covered: false, clipped: !!L.cl, pix: 'unknown' };
       rects.push({ part: e?.p ?? 'other', cause: L.k ?? null, el: e?.d ?? null, cls: classify(fact), area: rect.w * rect.h, seen: seenArea(fact), waste: wasteArea(fact), src: 'layer' });
     }
   }
   const resizes = (fr.rs ?? []).map(([i, ow, oh, nw, nh, tiled, e]) => ({ i, el: el(e)?.d ?? null, part: el(e)?.p ?? 'other', old: [ow, oh], new: [nw, nh], tiled: !!tiled, area: rerasterArea(!!tiled, [ow, oh], [nw, nh]) }));
-  return { rects, resizes };
+  return { rects, calls, resizes };
 }
 
 /** Per-frame counts for the class policy (integers): rects and area by class, wasted area, re-raster. */
 export function frameCounts(facts) {
-  const c = { paintRects: facts.rects.length, paintArea: 0, wasteArea: 0, resizedLayers: 0, reRasterArea: 0 };
+  const c = { paintRects: facts.rects.length, trackedCalls: facts.calls ?? facts.rects.length, paintArea: 0, wasteArea: 0, resizedLayers: 0, reRasterArea: 0 };
   for (const k of CLASSES) c[`rects_${classKey(k)}`] = 0;
   for (const r of facts.rects) { c.paintArea += r.area; c.wasteArea += r.waste; c[`rects_${classKey(r.cls)}`]++; }
   for (const z of facts.resizes) { if (z.area > 0) c.resizedLayers++; c.reRasterArea += z.area; }
@@ -146,11 +164,13 @@ export function reduceRun(run) {
     causes: {}, els: {}, reRaster: { layers: 0, area: 0 },
   });
   const frames = Object.fromEntries(ZONES.map((z) => [z, 0]));
+  const calls = Object.fromEntries(ZONES.map((z) => [z, 0]));
   for (const fr of run.frames) {
     const zone = zoneOf(meta.innerHeight, meta.maxY, fr.y);
     const facts = frameFacts(fr, meta);
     byZone[zone].push({ n: byZone[zone].length, phase: 'scroll', scrollY: fr.y, counts: frameCounts(facts) });
     frames[zone]++;
+    calls[zone] += facts.calls;
     for (const r of facts.rects) {
       const c = cell(zone, r.part);
       c.rects++; c.area += r.area; c.waste += r.waste;
@@ -165,7 +185,7 @@ export function reduceRun(run) {
       bump(c.els, `${z.el ?? '-'} ${z.old.join('x')}->${z.new.join('x')}`);
     }
   }
-  return { byZone, frames, table: Object.values(table) };
+  return { byZone, frames, calls, table: Object.values(table) };
 }
 
 /** Parse the `FWWKTR <tag> <json>` console lines of a repaint run (WKTR stdout) into { meta, frames, probe, els, error, done }. */

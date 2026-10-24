@@ -52,10 +52,10 @@ const RUN_SRC = `(() => {
     return s.slice(0, 70);
   };
   const partOf = (el) => { for (const [k, sel] of LANDMARKS) if (el.closest(sel)) return k; return 'other'; };
-  const idx = (el) => {
+  const idx = (el, withParent) => {
     if (!el || el.nodeType !== 1) return -1;
     let i = elIdx.get(el);
-    if (i === undefined) { i = els.length; els.push({ d: desc(el), p: partOf(el) }); elRef.push(el); elIdx.set(el, i); }
+    if (i === undefined) { i = els.length; els.push({ d: withParent && el.parentElement ? desc(el.parentElement) + ' > ' + desc(el) : desc(el), p: partOf(el) }); elRef.push(el); elIdx.set(el, i); }
     return i;
   };
   const near = (a, b) => a === b || a.contains(b) || b.contains(a);
@@ -66,15 +66,24 @@ const RUN_SRC = `(() => {
     return nodes.map((n) => { const base = n.d + ':' + (n.b ? n.b[0] + 'x' + n.b[1] : '-'); const o = seen.get(base) ?? 0; seen.set(base, o + 1); return base + '#' + o; });
   };
   const keyEl = new Map();
+  // a layer the probe did not name takes the one composited element of its size (bounds in px), when exactly one has that size
+  const sizeCand = new Map();
   const elOfNodes = (nodes, keys) => {
     const r = new Array(nodes.length);
-    for (const n of nodes) { const e = keyEl.get(keys[n.i]); r[n.i] = e !== undefined ? e : n.p >= 0 ? r[n.p] : -1; }
+    for (const n of nodes) {
+      let e = keyEl.get(keys[n.i]);
+      if (e === undefined && n.b) { const l = sizeCand.get(Math.round(n.b[0]) + 'x' + Math.round(n.b[1])); if (l && l.length === 1) e = idx(l[0]); }
+      r[n.i] = e !== undefined ? e : n.p >= 0 ? r[n.p] : -1;
+    }
     return r;
   };
 
   const hidMemo = new Map();
   const hiddenOwn = (el) => { let h = hidMemo.get(el); if (h === undefined) { const cs = getComputedStyle(el); h = (cs.opacity === '0' || cs.visibility === 'hidden' || cs.display === 'none') ? 1 : 0; hidMemo.set(el, h); } return h; };
   const hiddenDom = (el) => { for (let e = el; e; e = e.parentElement) if (hiddenOwn(e)) return 1; return 0; };
+  // clipped away by its own style: the classic visually-hidden text (clip: rect(0 0 0 0) or clip-path: inset(50%))
+  const clipOwn = (el) => { const cs = getComputedStyle(el); return (cs.clip.replace(/ |px|,/g, '') === 'rect(0000)' || cs.clipPath.startsWith('inset(50%')) ? 1 : 0; };
+  const clippedDom = (el) => { for (let e = el; e; e = e.parentElement) if (clipOwn(e)) return 1; return 0; };
 
   // ---- DOM events since the last callback
   const muts = [];
@@ -110,18 +119,30 @@ const RUN_SRC = `(() => {
     for (const [k, sel] of LANDMARKS) { const el = document.querySelector(sel); if (el) { const b = el.getBoundingClientRect(); ranges.push([k, b.top + scrollY, b.bottom + scrollY]); } }
   };
   const partAtDoc = (y) => { for (const [k, a, b] of ranges) if (y >= a && y < b) return k; return 'other'; };
+  // elements of at most 2 px each way (visually hidden text): a 1x1 repaint rect is matched to one of them by document position
+  let tiny = [];
+  const measureTiny = () => {
+    tiny = [];
+    for (const el of document.querySelectorAll('body *')) {
+      const b = el.getBoundingClientRect();
+      if (b.width <= 2 && b.height <= 2 && tiny.length < 400) tiny.push([el, b.left + scrollX, b.top + scrollY]);
+    }
+  };
+  const tinyAt = (x, y) => { for (const [el, tx, ty] of tiny) if (Math.abs(tx - x) <= 1.5 && Math.abs(ty - y) <= 1.5) return el; return null; };
 
   const run = async () => {
     await sleep(P.settleMs);
     const docH = document.documentElement.scrollHeight;
     const maxY = Math.max(0, docH - innerHeight);
     measureRanges();
+    measureTiny();
     // ---- probe: which layer is which element
     const cands = [];
     for (const el of document.querySelectorAll('body, body *')) {
       if (cands.length >= P.maxProbe) break;
       try { I.layerIDForElement(el); cands.push(el); } catch (e) { /* not composited */ }
     }
+    for (const el of cands) { const b = el.getBoundingClientRect(); const k = Math.round(b.width) + 'x' + Math.round(b.height); const l = sizeCand.get(k); if (l) l.push(el); else sizeCand.set(k, [el]); }
     let probed = 0, ambiguous = 0, unseen = 0;
     const t0 = performance.now();
     for (const el of cands) {
@@ -166,14 +187,15 @@ const RUN_SRC = `(() => {
           const cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2;
           if (cx >= 0 && cy >= 0 && cx < innerWidth && cy < innerHeight) { el = document.elementFromPoint(cx, cy); if (el) cause = causeFor(el, ev); }
         }
-        const e = el ? idx(el) : -1;
-        fr.view.push({ r, e, h: el ? hiddenDom(el) : 0, c: cause ?? 'scroll', p: el ? els[e].p : partAtDoc(vy + sy) });
+        if (!el && r[2] <= 2 && r[3] <= 2) { const t = tinyAt(r[0] + scrollX, r[1] + sy); if (t) { el = t; cause = causeFor(t, ev); } }
+        const e = el ? idx(el, r[2] <= 2 && r[3] <= 2) : -1;
+        fr.view.push({ r, e, h: el ? hiddenDom(el) : 0, cl: el ? clippedDom(el) : 0, c: cause ?? 'scroll', p: el ? els[e].p : partAtDoc(vy + sy) });
       }
       for (const n of t.nodes) {
         if (!n.rep.length) continue;
         const ei = nodeEl[n.i];
         const el = ei >= 0 ? elRef[ei] : null;
-        fr.L.push({ i: n.i, r: n.rep, v: n.vis, c: n.tcov || n.cov, b: n.b, h: n.h || (el ? hiddenDom(el) : 0), t: n.tiled, e: ei, k: el ? causeFor(el, ev) : 'scroll' });
+        fr.L.push({ i: n.i, r: n.rep, v: n.vis, c: n.tcov || n.cov, b: n.b, h: n.h || (el ? hiddenDom(el) : 0), cl: el ? clippedDom(el) : 0, t: n.tiled, e: ei, k: el ? causeFor(el, ev) : 'scroll' });
       }
       const shape = t.nodes.map((n) => n.p).join(',');
       if (prevShape === shape) {
