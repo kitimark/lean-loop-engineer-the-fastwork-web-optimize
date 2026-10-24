@@ -145,7 +145,7 @@ async function main() {
     if (!Number.isInteger(dpr) || dpr < 1 || frame.h !== Math.round(info.vh * dpr)) throw new Error(`screenshot ${frame.w}x${frame.h} does not fit the ${info.vw}x${info.vh} viewport at an integer scale (page dpr ${info.dpr})`);
     const searchA = '', searchP = `?fw=${FLAG}`;
     log(`lane chromium exit: page dpr ${info.dpr}, screenshot scale ${dpr}, viewport ${info.vw}x${info.vh}, frame ${frame.w}x${frame.h}, track T ${exit.T} h ${exit.h} n ${exit.n}, offsets ${offs.join(',')}`);
-    const arms = [['A', searchA], ['A2', searchA], ['P', searchP]];
+    const arms = [['A', searchA], ['A2', searchA], ['A3', searchA], ['P', searchP]];
     const samples = {}, handover = {};
     const liveNow = async (p) => JSON.parse(await p.ev(exprs.exitLive));
     for (let a = 0; a < arms.length; a++) {
