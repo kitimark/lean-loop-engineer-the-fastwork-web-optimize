@@ -178,6 +178,7 @@ run_group() {
   job "morph-idle-none golden check" lake env lean --run scripts/MorphIdleNoneGolden.lean --check ../packages/contracts/golden/parts/morph-idle-none.jsonl
   job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
   job "platform-sweep-pause golden check" lake env lean --run scripts/PlatformSweepPauseGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-pause.jsonl
+  job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl
   job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check
