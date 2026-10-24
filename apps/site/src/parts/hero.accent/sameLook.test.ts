@@ -15,7 +15,7 @@ describe('same-look search against the Lean golden (Fw.Engine.StyleDiffAccent)',
     expect(Object.fromEntries(of('search').map((r) => [r.cand, r.verdict]))).toEqual({
       dasharray: 'layout',
       'path-d': 'layout',
-      sprite: 'look',
+      sprite: 'pending',
       'paint-api': 'unavailable',
       'clip-final': 'look',
       canvas: 'pending',

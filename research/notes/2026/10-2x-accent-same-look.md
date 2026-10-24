@@ -3,8 +3,8 @@
 ## Decision recorded
 On 2026-10-24 the user rejected `hero.accent:draw-nolayout-full` on the real iPhone: the draw looks different from
 the original (session `results/phone/2026-10-24/summary.md`, look arm = rewrite +
-`?fw=hero.accent:draw-nolayout-full`). Ledger: `userDecision` on n=56; a notes row on n=55 (`draw-nolayout`
-uses the same clip-path wipe and was not reviewed on its own). Status of both stays `look-change`, so the preset
+`?fw=hero.accent:draw-nolayout-full`). Ledger: `userDecision` on n=55 and n=56 (`draw-nolayout` uses the same
+clip-path wipe and was not shown on its own). Status of both stays `look-change`, so the preset
 generator still leaves them out.
 
 ## Search
@@ -16,7 +16,7 @@ the engine does not ship it, then a WebKit layout per frame, then a Lean proof t
 |---|---|---|---|---|
 | stroke-dasharray trace | stroke | yes | layout | StyleDifference.cpp:160@862f17d |
 | `d` rewritten per frame | stroke | yes | layout | StyleDifference.cpp:154, StyleSVGLayoutData.h:64 |
-| sprite, stepped background-position | stroke | no | look | `frames_miss` |
+| sprite, stepped background-position | stroke | no | pending | StyleDifference.cpp:673, WebAnimation.cpp:1298-1300, Performance.cpp:73@862f17d |
 | CSS Paint API | stroke | n/a | unavailable | UnifiedWebPreferences.yaml:1314-1325 (default false) |
 | final stroke clipped to the swept region | stroke | no | look | `clip_coverage_differs` |
 | canvas 2D stroke per frame, fixed size | stroke | no | pending | HTMLCanvasElement.cpp:568-604, html_canvas_element.cc:687-711@f842f52 |
@@ -25,8 +25,10 @@ the engine does not ship it, then a WebKit layout per frame, then a Lean proof t
 
 ## The math, from the Lean statements
 - `frames_miss`: for a progress curve e that strictly increases on [a, b) and any finite list F of sprite
-  progresses, some φ in [a, b) has e(φ) not in F. The draw start is not on the display frame grid, so the
-  phase is free and a sprite misses the original on some start.
+  progresses, some φ in [a, b) has e(φ) not in F. It does not apply to the sprite in WebKit: a CSS animation starts
+  at the timeline time (WebAnimation.cpp:1298-1300@862f17d), which is the rAF timestamp reduced to 1 ms
+  (Document.cpp:10950, AnimationTimelinesController.cpp:104,129, Performance.cpp:73,174-176@862f17d). The 0.9 s draw
+  shows at most 901 progress values, all known in advance, so the phase is not free.
 - `clip_coverage_differs`: for 0 < c < 1, c·c ≠ c (an unpadded clip at a stroke side edge), and 1·1 ≠ 0 (a padded
   clip shows a later part of the same path early).
 - Headline row of width T, first word p, gaps g, accent w, last word q: left = (T − (p + 2g + w + q)) / 2.
@@ -39,18 +41,21 @@ the engine does not ship it, then a WebKit layout per frame, then a Lean proof t
 
 ## Result
 No candidate is both proved same-look and layout-free in WebKit, so no flag is added (`pending_exact`: the pending
-set is canvas and glide; `stroke_pending_only_canvas`). Both pending candidates are layout-free (`pending_nolayout`)
-but their pixels are MEASURED-pending: the canvas rasters apart from the page and uses its own Bezier and dash
-numerics (C4, `Fw.Engine.Visual.raster_path_fails_fracAlpha`); the glide moves text by fractional compositor
-translates, which layout would snap (C5, `Fw.Engine.Visual.raster_path_fails_fracXf`).
+set is sprite, canvas and glide; `stroke_pending`: the stroke ones are sprite and canvas). All three are layout-free
+(`pending_nolayout`) but their pixels are MEASURED-pending: the sprite is a bitmap scaled by the DPR at a fractional
+page offset and is unproved against the vector stroke at the 901 sampled progresses; the canvas rasters apart from
+the page and uses its own Bezier and dash numerics (C4, `Fw.Engine.Visual.raster_path_fails_fracAlpha`); the glide
+moves text by fractional compositor translates, which layout would snap (C5, `Fw.Engine.Visual.raster_path_fails_fracXf`).
 
 ## Run plan (not dispatched)
 Path-pix sim-draw lane (`.github/workflows/path-pix.yml`, `packages/measure-webkit/src/pathpix-exit-draw-webkit.mjs`,
-paused animations at fixed progress). It needs a canvas arm and a glide arm in `DRAW_FLAGS`, outside this task's
-writes, and the glide needs a write to the hero part (the neighbour spans). One dispatch per arm against faithful.
+paused animations at fixed progress). It needs a sprite arm (rendered at the device DPR), a canvas arm and a glide
+arm in `DRAW_FLAGS`, outside this task's writes, and the glide needs a write to the hero part (the neighbour spans).
+One dispatch per arm against faithful.
 Ship glide only with canvas: alone it saves no WebKit layout frame.
 
 ## Lesson
-A set-level identity is not a pixel identity once two antialiased rasters multiply, and a pre-rendered sprite cannot
-match a continuous animation at every start phase. The cheap same-look levers in WebKit are a repaint (canvas) and a
-compositor translate (glide); both move the risk from layout to rasterisation, which only a pixel run can settle.
+A set-level identity is not a pixel identity once two antialiased rasters multiply. A counting argument against a
+sprite needs a free start phase, and WebKit gives none: its timeline time moves in 1 ms steps. The cheap same-look
+levers in WebKit are a repaint (sprite, canvas) and a compositor translate (glide); all move the risk from layout to
+rasterisation, which only a pixel run can settle.

@@ -30,7 +30,7 @@
 {"arm":"draw-nolayout-full","crLayoutFrames":1,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":1}
 {"cand":"dasharray","cite":"WC/style/StyleDifference.cpp:160 (same layout branch as stroke-dashoffset at :161)","crLayout":null,"kind":"search","name":"stroke-dasharray trace","role":"stroke","verdict":"layout","wkLayout":true}
 {"cand":"path-d","cite":"WC/style/StyleDifference.cpp:154; WC/style/computed/data/StyleSVGLayoutData.h:64","crLayout":null,"kind":"search","name":"d rewritten per frame","role":"stroke","verdict":"layout","wkLayout":true}
-{"cand":"sprite","cite":"WC/style/StyleDifference.cpp:673; frames_miss","crLayout":false,"kind":"search","name":"pre-rendered sprite, stepped background-position","role":"stroke","verdict":"look","wkLayout":false}
+{"cand":"sprite","cite":"WC/style/StyleDifference.cpp:673; WC/animation/WebAnimation.cpp:1298-1300; WC/page/Performance.cpp:73","crLayout":false,"kind":"search","name":"pre-rendered sprite, stepped background-position","role":"stroke","verdict":"pending","wkLayout":false}
 {"cand":"paint-api","cite":"WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:1314-1325 (CSSPaintingAPIEnabled default false)","crLayout":null,"kind":"search","name":"CSS Paint API worklet","role":"stroke","verdict":"unavailable","wkLayout":false}
 {"cand":"clip-final","cite":"WC/style/StyleDifference.cpp:779-780; clip_coverage_differs","crLayout":false,"kind":"search","name":"final stroke clipped to the swept region","role":"stroke","verdict":"look","wkLayout":false}
 {"cand":"canvas","cite":"WC/html/HTMLCanvasElement.cpp:568-604; B/core/html/canvas/html_canvas_element.cc:687-711","crLayout":false,"kind":"search","name":"canvas 2D stroke per frame, fixed size","role":"stroke","verdict":"pending","wkLayout":false}

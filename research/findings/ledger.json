@@ -3264,7 +3264,12 @@
    "v1Evidence": "",
    "lesson": "A per-frame layout can be cut property by property, but only the property that dirties layout moves: here the original also transitions the box width during the draw-in, so half of the layout phases remain, and the phase cut shows in the quiet windows between the carousel swaps, not in the swap windows, which pay their own layout.",
    "next": "User look review of the wipe. If accepted, the next layout cost is the width transition of the draw-in (it moves the headline text), which is the original behaviour and a separate, look-changing candidate.",
-   "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/"
+   "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/",
+   "userDecision": {
+    "date": "2026-10-24",
+    "decision": "rejected 2026-10-24: same clip-path wipe as draw-nolayout-full, which the user saw on the iPhone and rejected as looking different from the original",
+    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full (draw-nolayout not shown on its own)"
+   }
   },
   {
    "id": "accent.drawin-width-nolayout",
@@ -3403,24 +3408,26 @@
    "n": 61,
    "part": "hero.accent",
    "flags": [],
-   "chromium": "layout-free (background-position is paint level, Lean Fw.Engine.Chromium.keyLevel); look refuted, not run",
-   "webkit": "layout-free (background is Repaint, WC/style/StyleDifference.cpp:673@862f17d); look refuted, not run",
-   "visual": "not equal: Fw.Engine.StyleDiffAccent.frames_miss: for any finite list of sprite images and a progress curve that strictly increases over one frame interval, some start phase shows a progress no sprite image has. The draw start is not tied to the display frame grid, so the phase is free.",
-   "mechanism": "A sprite holds finitely many progress values; the original samples a continuous curve at a phase the sprite cannot know.",
-   "leanFor": [],
-   "leanAgainst": [
-    "Fw.Engine.StyleDiffAccent.frames_miss"
+   "chromium": "layout-free (background-position is paint level, Lean Fw.Engine.Chromium.keyLevel); pixels pending, not run",
+   "webkit": "layout-free (background is Repaint, WC/style/StyleDifference.cpp:673@862f17d); pixels pending, not run",
+   "visual": "MEASURED-pending: WebKit samples the draw at 1 ms timeline steps (WebAnimation.cpp:1298-1300, Performance.cpp:73@862f17d), so a finite sprite can hold every sampled progress; frames_miss does not apply. Pixel equality of the bitmap with the vector stroke is unproved.",
+   "mechanism": "Moves the stroke trace off style and layout onto a background repaint. A CSS animation starts at the timeline time (WC/animation/WebAnimation.cpp:1298-1300@862f17d), which is the rAF timestamp reduced to 1 ms (WC/dom/Document.cpp:10950; WC/animation/AnimationTimelinesController.cpp:104,129; WC/page/Performance.cpp:73,174-176@862f17d), so the 0.9 s draw shows at most 901 progress values, all known in advance.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.pending_nolayout"
    ],
-   "missingWhy": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of a pre-rendered bitmap (DPR scale, fractional page offset) with the SVG stroke at the <=901 timeline-quantised progresses"
+   ],
    "premises": [
-    "the drawn picture is injective in progress (a longer stroke is a different picture), INFERRED",
-    "the easing strictly increases on the draw, INFERRED"
+    "WebKit timeline time is the rAF timestamp at 1 ms resolution, CONFIRMED (source lines in mechanism)",
+    "one sprite frame per 1 ms progress step fits the memory budget, INFERRED (not sized)"
    ],
    "v1Evidence": "none",
-   "lesson": "Pre-rendering a continuous animation cannot match it at every phase; it trades layout for a sampling error.",
-   "next": "none",
+   "lesson": "A continuum-of-phases argument (frames_miss) needs a free start phase; WebKit quantises timeline time to 1 ms, so a finite sprite is not refuted by counting and the question becomes pixel equality.",
+   "next": "Run plan: add a sprite arm to DRAW_FLAGS in packages/measure-webkit/src/pathpix-exit-draw-webkit.mjs (sprite rendered at the device DPR), run the path-pix sim-draw lane (.github/workflows/path-pix.yml) paused at fixed progress values against the faithful arm, 1 dispatch; build a flag only if the pixels match.",
    "candidate": "hero.accent same-look: pre-rendered sprite of the draw, stepped background-position (or mask-position)",
-   "status": "refuted",
+   "status": "partly-proved",
    "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
   },
   {
@@ -3481,7 +3488,7 @@
    "mechanism": "Moves the stroke trace off style and layout onto a canvas repaint.",
    "leanFor": [
     "Fw.Engine.StyleDiffAccent.pending_nolayout",
-    "Fw.Engine.StyleDiffAccent.stroke_pending_only_canvas",
+    "Fw.Engine.StyleDiffAccent.stroke_pending",
     "Fw.Engine.StyleDiffAccent.combo_54"
    ],
    "leanAgainst": [],

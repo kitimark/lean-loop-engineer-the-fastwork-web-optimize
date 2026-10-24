@@ -204,7 +204,8 @@ def srow : Search → SRow
   | .pathD => ⟨"d rewritten per frame", .stroke, [(.strokeDashoffset, .none)], none, true, false,
       "WC/style/StyleDifference.cpp:154; WC/style/computed/data/StyleSVGLayoutData.h:64"⟩
   | .sprite => ⟨"pre-rendered sprite, stepped background-position", .stroke, [(.background, .none)],
-      some [(.backgroundPosition, .none)], true, true, "WC/style/StyleDifference.cpp:673; frames_miss"⟩
+      some [(.backgroundPosition, .none)], true, false,
+      "WC/style/StyleDifference.cpp:673; WC/animation/WebAnimation.cpp:1298-1300; WC/page/Performance.cpp:73"⟩
   | .paintApi => ⟨"CSS Paint API worklet", .stroke, [], none, false, false,
       "WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:1314-1325 (CSSPaintingAPIEnabled default false)"⟩
   | .clipFinal => ⟨"final stroke clipped to the swept region", .stroke, [(.clipPath, .layer)],
@@ -225,8 +226,8 @@ def verdict (s : Search) : Verdict :=
   if !r.avail then .unavailable else if anyWkLayout r.wk then .layout else if r.lookRefuted then .look else .pending
 
 #guard verdict .dasharray == .layout && verdict .pathD == .layout && verdict .paintApi == .unavailable
-#guard verdict .sprite == .look && verdict .clipFinal == .look && verdict .jump == .look
-#guard verdict .canvas == .pending && verdict .glide == .pending
+#guard verdict .clipFinal == .look && verdict .jump == .look
+#guard verdict .sprite == .pending && verdict .canvas == .pending && verdict .glide == .pending
 #guard anyWkLayout [(.size, .none)] && !anyWkLayout [(.transform, .own)]
 
 theorem frames_miss (e : Rat → Rat) (F : List Rat) (a b : Rat) (hab : a < b)
@@ -296,10 +297,11 @@ theorem combo_54 :
       comboLayoutFrames (some .canvas) none 54 = 54 ∧ comboLayoutFrames (some .canvas) (some .glide) 54 = 1 := by
   decide
 
-theorem pending_exact : Search.all.filter (fun s => verdict s == .pending) = [.canvas, .glide] := by decide
+theorem pending_exact : Search.all.filter (fun s => verdict s == .pending) = [.sprite, .canvas, .glide] := by
+  decide
 
-theorem stroke_pending_only_canvas :
-    Search.all.filter (fun s => (srow s).role == .stroke && verdict s == .pending) = [.canvas] := by decide
+theorem stroke_pending :
+    Search.all.filter (fun s => (srow s).role == .stroke && verdict s == .pending) = [.sprite, .canvas] := by decide
 
 theorem pending_nolayout : ∀ s ∈ Search.all, verdict s = .pending →
     anyWkLayout (srow s).wk = false ∧ (srow s).cr.map anyCrLayout = some false := by decide
