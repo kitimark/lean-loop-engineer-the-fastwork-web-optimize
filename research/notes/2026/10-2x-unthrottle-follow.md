@@ -56,7 +56,7 @@ do not stop it (`plateau_survives`); `moving_runs_every_update`: while every upd
 
 ## Measurement (CI only)
 
-Lane: `toolbar-throttle` push, hero drag mode, commit tag `[throttle:follow]`: arms rewrite, unthrottle, unthrottle-follow, original; 1 round of
+Lane: `toolbar-throttle` push, hero drag mode, commit tag `[throttle:follow]` (workflow and `throttle/cli.mjs` as of commits `cf29b0739` and `dc1c93383`; main's workflow now runs `parts-cli.mjs` with fixed arms and has no follow arm, so a rerun needs `unthrottle-follow` added there first): arms rewrite, unthrottle, unthrottle-follow, original; 1 round of
 8 drag cycles per job, arm order rotated by job (3 jobs). iOS 27 Simulator on a macOS runner; stand-in for the iPhone. Denominators: **moving
 frames** = recorded frames with the visual-viewport (toolbar) class `moving`; **mid-moving frames** = moving frames with the hero value strictly
 between 0 and 1. Pooled over both runs (all jobs; the original lost one pass in run 2):

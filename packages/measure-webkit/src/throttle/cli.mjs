@@ -2,7 +2,8 @@
 // node src/throttle/cli.mjs run [--site dir] [--arms original,rewrite,lift,unthrottle] [--rounds 2] [--cycles 4] [--vm n] [--out file]
 //   Real touches on Mobile Safari in the booted Simulator (XCUITest driver) while the page records frames; one pass per arm and round, the
 //   order rotated each round. original = the read-only snapshot; rewrite = the default prerendered build (--site); lift = the rewrite with
-//   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow.
+//   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow
+//   (runs 40109924058 and 40116376544 ran this CLI; the workflow on main now calls parts-cli.mjs).
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
