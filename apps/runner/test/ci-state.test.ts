@@ -10,11 +10,15 @@ import { GhClock, ciStateParts } from "../src/run-phases.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
-describe("fw ci state: which list to read next (Lean Fw.Ci.StateList golden)", () => {
-  const rows = readFileSync(join(root, "packages/contracts/golden/ci/state-list.jsonl"), "utf8").split("\n").filter(Boolean)
+describe("fw ci state: which list to read next (Lean Fw.Ci.State golden)", () => {
+  const rows = readFileSync(join(root, "packages/contracts/golden/ci/ci-state.jsonl"), "utf8").split("\n").filter(Boolean)
     .map((l) => JSON.parse(l) as { name: string; narrowed: boolean; limit: number; id: number; ids: number[]; response: unknown });
   it("has a row for every outcome", () => {
     expect(new Set(rows.map((r) => (r.response as { step: string }).step))).toEqual(new Set(["found", "ended", "older", "absent", "grow", "exhausted"]));
+  });
+  it("holds the real id pattern of run 40100783726", () => {
+    expect(rows.some((r) => r.id === 40100783726 && r.limit === 100 && (r.response as { step: string }).step === "grow")).toBe(true);
+    expect(rows.some((r) => r.id === 40100783726 && r.limit === 400 && (r.response as { step: string }).step === "found")).toBe(true);
   });
   for (const r of rows) it(r.name, () => expect(stateStep(r.narrowed, r.limit, r.id, r.ids)).toEqual(r.response));
 });

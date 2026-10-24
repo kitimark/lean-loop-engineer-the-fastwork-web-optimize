@@ -151,6 +151,7 @@ run_group() {
   job "exit threaded golden check" lake env lean --run scripts/ExitThreadedGolden.lean --check ../packages/contracts/golden/parts/hero-exit.threaded.jsonl  # hero.exit:threaded keyframes, hand-over rule, sentinel (Fw.Parts.HeroExitOpt)
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
   job "state-list golden check" lake env lean --run scripts/StateListGolden.lean --check
+  job "ci-state golden check" lake env lean --run scripts/CiStateGolden.lean --check  # golden/ci/ci-state.jsonl (Fw.Ci.State), replayed by apps/runner/test/ci-state.test.ts
   job "slot-key golden check" lake env lean --run scripts/SlotKeyGolden.lean --check
   job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check  # golden/sched/heavy.jsonl (Fw.Sched.Heavy), replayed by scripts/heavy-lock.test.mjs
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
