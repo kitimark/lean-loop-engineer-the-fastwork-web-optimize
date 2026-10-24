@@ -128,17 +128,19 @@ jobs:
   # Task combo-scroll-fight (note research/notes/2026/10-2x-combo-scroll-fight.md): the rewrite page with the user's flags and their
   # bisect sets, replayed with scripted close-then-reopen finger paths and the recorded path; the page records scrollY on every frame, the
   # finger, the morph value and every `scrollTo` call. One leg per profile. Chromium, CPU throttled 6x (the Linux proxy, never the phone).
+  # Legs run one after the other after `replay` (the Lean width table, Fw.Ci.Overflow.widths, holds one job for this workflow).
   combo:
-    needs: [guard]
-    if: ${{ needs.guard.outputs.run == 'true' }}
+    needs: [guard, replay]
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' }}
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         leg: [flick-gap8, flick-gap20, flick-gap32, same-touch, same-touch-slow, recorded]
     concurrency:
       group: ci-lane:device-replay:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:combo:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - name: 'tip re-check'
         id: tip
