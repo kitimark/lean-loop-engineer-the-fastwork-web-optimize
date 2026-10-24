@@ -20938,6 +20938,102 @@
     "docs/team/handoffs/sim-lift-stall.md"
    ],
    "title": "Finish-mode Simulator passes on the lift arm stall at start-up: 6 of 30 finish touch runs in run 40121254572 had 0 marks at 304 s (5 lift, 1 original), so 3 of 6 lift passes were lost while hero drags complete 18 of 18 (run 40128742749). Split from sim-touch-timeout after review round 1. Do: separate the start-up stall from the xcodebuild launch with a 'launched' mark written in setUp() before safari.activate(); check whether the lift page keeps XCUITest's idle wait open (animations or timers that never quiesce: cite Apple XCTest docs on app idle and the lift arm's page source); find the cause CONFIRMED; fix it (Lean-first if the machine changes: SimTouch.lean, golden); show a [throttle:finish] run where all 3 jobs complete every arm, lift included (run id)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-look-refused",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-accent-look-refused.md",
+    "docs/team/handoffs/accent-look-refused.md",
+    "results/accent-look-refused/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review)."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "scene-pause-kcopy",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/HeroScenePause*.lean",
+    "lean/scripts/HeroScenePause*.lean",
+    "packages/contracts/golden/parts/hero-scene-pause.jsonl",
+    "apps/site/src/parts/hero/**",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-scene-pause-kcopy.md",
+    "docs/team/handoffs/scene-pause-kcopy.md",
+    "results/scene-pause-kcopy/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "one-chain-webkit",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownOneChain*.lean",
+    "lean/scripts/CountdownOneChainGolden.lean",
+    "packages/contracts/golden/parts/hero.countdown.onechain.jsonl",
+    "apps/site/src/parts/hero.countdown/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-one-chain-webkit.md",
+    "docs/team/handoffs/one-chain-webkit.md",
+    "results/one-chain-webkit/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of hero.countdown:one-chain (ledger hero.countdown.oneChain, partly-proved, WebKit unknown): find the cause of the +1 forced style recalc and +10 elements in Chromium swipe-touch-v1 frame 499 (OPEN) from the counts trace and the part source, CONFIRMED, with a Lean why (or a fix in the variant with its theorem kept); measure WebKit counts base vs flag on the CI WebKit Simulator lane, 3 runs (run ids); breakpoint gate both engines with the flag (lead dispatches); verdict win, trade or no-win per engine."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "commission-band-mech",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/CommissionOpt*.lean",
+    "packages/contracts/golden/parts/commission-gate.jsonl",
+    "packages/contracts/golden/parts/commission.jsonl",
+    "apps/site/src/parts/commission/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-commission-band-mech.md",
+    "docs/team/handoffs/commission-band-mech.md",
+    "results/commission-band-mech/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
   }
  ],
  "deadline": {
