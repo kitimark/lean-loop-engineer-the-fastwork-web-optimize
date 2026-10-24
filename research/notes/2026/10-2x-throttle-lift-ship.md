@@ -29,7 +29,7 @@ text generated from Lean and guarded by `@supports (animation-timeline: scroll()
   in about 530 frames: the bound does not cover this, it is the measured price (below).
 - **Phone (felt, one person, preview):** recorded in the toolbar-throttle note and the ledger. A recorded phone session
   is a separate lead step.
-- **Preset (item 5):** proposed, not a member: the generator needs trajectory cells and a `proved` ledger row; see the end.
+- **Preset (item 5):** proposed here; the follow-up task `unthrottle-preset` (section 6) set the row `proved`, ran the trajectory probe and moved the element to `position: absolute` behind `(pointer: coarse)`. Membership in `v2-proved` waits on one cell (WebKit morph).
 
 ## 1. The WebKit condition chain (Lean `Fw.Parts.EngineScrollUnthrottle`)
 
@@ -168,5 +168,66 @@ the preset waits for items 1 to 3 to pass, and the trajectory cells are a push t
 - Chromium baseline and flag ran at the same sha; the WebKit baseline did not (the push run was skipped as unchanged), see section 3.
 - TS stand-ins: `installUnthrottle` (DOM glue, no decision logic). The style text is Lean-generated and golden-checked.
 - The 100 ms throttle saves power (up to 2 % on WebKit's benchmark); the variant gives that up while scrolling.
-- `unthrottle` applies on every device, also desktop, where the element adds one restyled element per frame for no gain
-  (Chromium: no throttle). A `(pointer: coarse)` guard is a follow-up.
+- Sections 1 to 5 describe the first text (`position: fixed`, every device). Section 6 supersedes it: absolute, guarded by `(pointer: coarse)`.
+
+## 6. unthrottle-preset: guard, position, trajectory, lane (task `unthrottle-preset`, branch ci/unthrottle-preset)
+
+The shipped text now is Lean's `css`: the `@property` and `@keyframes` rules, then `@supports (animation-timeline: scroll())` holding
+`@media (pointer: coarse)` holding the element rule with `position: absolute` (golden `engine.scroll.unthrottle.jsonl`, 39 lines).
+
+**Guard (PROVED, premise CONFIRMED by source).** An iPhone reports a coarse primary pointer: `WebPageIOS.mm:4243-4246` returns `Coarse`
+unless the mouse is primary (Mac Catalyst only, `:4201-4208`); `MediaQueryFeatures.cpp:527-538` reads it; only a site named in
+`Quirks.cpp:3194-3203` (disneyplus.com) hides it. Lean `Env`, `Env.valid` (premise), `iphone_valid`: `guard_keeps_ios` (the guarded page
+is the unguarded lifted page on iOS), `guard_keeps_ios_throttle`, `guard_lifts_ios` (supported timeline: not throttled), `guard_fine_noop`
+and `guard_fine_throttle` (a fine pointer gives the page without the element), `guard_fine_cost` (0 elements restyled), `guard_coarse_cost` (1).
+So the iPhone path is unchanged by the guard and a desktop pays nothing. Limit: an iPad with a mouse reports `fine` as primary; the
+throttle stays there (it is a power saving; stays INFERRED harmless).
+
+**Position (decision: absolute; PROVED look and condition, MEASURED layers).** Lean `lift_anim_position_free` (the lifting animation
+depends on the animated properties only), `same_layout_out_of_flow` (any out-of-flow position adds no in-flow box, hit target or
+accessible content), `fixed_same_look`. Chromium counts, dispatch 1 of 3, run `40078781031`, `swipe-v1` x 3, `?fw=engine.scroll:unthrottle`, against
+push run `40068835905` (older sha `5fe2545`, the same page apart from this part; no same-sha baseline):
+
+| count over 575 frames | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| frames with the same `census.layers` (and `census.drawingLayers`) | 575 | 573 | 572 |
+| frames with +1 element restyled (`trace.UpdateLayoutTree.elementCount`) | 532 | 514 | 531 |
+| frames with the same `metric.RecalcStyleCount` | 575 | 572 | 575 |
+| frames with the same `metric.LayoutCount` | 575 | 573 | 571 |
+
+The +2 layers of `position: fixed` are gone; the element is restyled in about 93 % of frames (so the guard is on in the counts' touch
+emulation) and nothing else moves. Run 2 shows 9 frames at -9 elements and one frame at -1 layer, +2 layers: other restyles shifted by a frame, as
+in the first note.
+
+**Trajectory (MEASURED), push `40078755889` and dispatch 2 of 3 `40080296257`** at `c113d5eca` (inputs read back from artifact `trajectory-inputs`:
+`fw=engine.scroll:unthrottle`, `engines=both`, no widths, not diagnostic). Stored with the recorder:
+
+| cell | result |
+|---|---|
+| Chromium hero | pass (both runs) |
+| Chromium morph | pass (both runs) |
+| WebKit hero | pass (Linux in both runs, Mac in `40080296257`) |
+| WebKit morph | Linux no verdict (the probe cannot decide it); Mac no verdict: coverage |
+
+The Mac morph units that differ are coverage units at width 641 (steps open@4, close@8) and 1280 (open@3), 127 new units against 172 failing in both
+arms; widths 390 and 640 are clean. Those are the widths where a desktop Safari reports `pointer: fine`, so the element is inactive
+(`guard_fine_noop`): the misses are the probe's, INFERRED (the probe's pointer setting per width was not read). No flag has ever passed this cell
+(`v2-proved.decisions.jsonl`: every flag with a Mac morph run carries fail or no verdict: coverage on that cell). So `engine.scroll:unthrottle` is `proved` in the
+ledger and stays `pending: trajectory` in the preset; `v2-proved` has no member.
+
+**Toolbar-throttle lane (MEASURED), push run `40078755847`** (Simulator iPhone, viewport height 775 in every usable pass; arms rewrite,
+unthrottle, original; job 1 failed on its VM):
+
+| arm | usable passes | exit frames | band runs (5 to 6 frames) | per 1000 |
+|---|---|---|---|---|
+| rewrite | 1 of 3 (two passes: touch driver failed) | 1600 | 19 | 11.9 |
+| original | 4 | 3846 | 15 | 3.9 |
+| unthrottle (shipped text) | 4 | 6330 | 0 | 0 |
+
+Lean verdict (`Fw.Device.StillRuns`) for the pooled jobs: `lifted`; job 2 `lifted`; job 3 `no-data` (no usable rewrite pass). Limit: the base
+is one pass. Same mechanism as the recorded phone session of the diagnostic (hero band runs 90 to 2 and 28 to 0-1); the shipped text on the phone
+is INFERRED from this lane.
+
+**Gate (dispatch 3 of 3).** See the run id in the ledger row `engine.scroll.unthrottle`, field `visual`.
+
+Not measured: the power cost of leaving the 100 ms throttle (WebKit: up to 2 percent), named as open.
