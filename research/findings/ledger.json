@@ -3579,45 +3579,6 @@
    "flag": "engine.scroll:unthrottle"
   },
   {
-   "id": "nav.earn.logicalPadding",
-   "n": 67,
-   "part": "nav",
-   "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
-   "status": "look-change",
-   "flags": [
-    "nav:earn-logical"
-   ],
-   "chromium": "unchanged (same started set and timing, Lean variant_chromium_set and variant_chromium_timing; breakpoint gate: see evidence)",
-   "webkit": "padding eases on WebKit like Chromium (macOS per-frame lane, see evidence); iPhone INFERRED from shared WebKit source",
-   "visual": "engine parity look change (L): on WebKit the earn side padding eases over 680 ms instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. Pending the user's Safari (macOS) and iPhone review; runs pending",
-   "mechanism": "CONFIRMED (source, from earn-webkit-parity): WebKit keeps the logical longhands of the padding-inline shorthand in the transition list and they have no animation wrapper (Styleable.cpp:553-566, process-css-properties.py:~5956@862f17d), so no padding transition starts; a listed logical longhand is resolved to physical (Styleable.cpp:563-564) and then has a wrapper, so it starts (Lean wk_inlineLonghands_ltr, variant_webkit_padding). Chromium maps both to physical already (css_animations.cc:2993-3007@f842f52).",
-   "leanFor": [
-    "Fw.Parts.NavEarnWebkit.variant_entry_webkit",
-    "Fw.Parts.NavEarnWebkit.variant_exit_webkit",
-    "Fw.Parts.NavEarnWebkit.variant_webkit_padding",
-    "Fw.Parts.NavEarnWebkit.variant_firstFrame",
-    "Fw.Parts.NavEarnWebkit.variant_chromium_set",
-    "Fw.Parts.NavEarnWebkit.variant_chromium_timing",
-    "Fw.Parts.NavEarnWebkit.variant_webkit_set_eq_chromium_faithful",
-    "Fw.Parts.NavEarnWebkit.variant_webkit_timing_eq_chromium_faithful",
-    "Fw.Parts.NavEarnWebkit.hero_exit_chromium",
-    "Fw.Parts.NavEarnWebkit.hero_exit_webkit"
-   ],
-   "leanAgainst": [
-    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)"
-   ],
-   "missingWhy": [
-    "felt smoothness on Safari and iPhone: the user's review",
-    "iPhone is inferred from shared WebKit source, not measured"
-   ],
-   "premises": [],
-   "v1Evidence": "none",
-   "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
-   "next": "User visual review on Safari (macOS) and the iPhone; it stays out of v2-proved while it is a look change (class L).",
-   "flag": "nav:earn-logical",
-   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; runs pending"
-  },
-  {
    "id": "morph.countdown.strip",
    "n": 7,
    "part": "morph.countdown (+ hero.countdown)",
@@ -3658,6 +3619,45 @@
    "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
    "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
    "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
+  },
+  {
+   "id": "nav.earn.logicalPadding",
+   "n": 67,
+   "part": "nav",
+   "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
+   "status": "look-change",
+   "flags": [
+    "nav:earn-logical"
+   ],
+   "chromium": "unchanged (same started set and timing, Lean variant_chromium_set and variant_chromium_timing; breakpoint gate: see evidence)",
+   "webkit": "padding eases on WebKit like Chromium (macOS per-frame lane, see evidence); iPhone INFERRED from shared WebKit source",
+   "visual": "engine parity look change (L): on WebKit the earn side padding eases over 680 ms instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. Pending the user's Safari (macOS) and iPhone review; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); variant gate is a lead dispatch",
+   "mechanism": "CONFIRMED (source, from earn-webkit-parity): WebKit keeps the logical longhands of the padding-inline shorthand in the transition list and they have no animation wrapper (Styleable.cpp:553-566, process-css-properties.py:~5956@862f17d), so no padding transition starts; a listed logical longhand is resolved to physical (Styleable.cpp:563-564) and then has a wrapper, so it starts (Lean wk_inlineLonghands_ltr, variant_webkit_padding). Chromium maps both to physical already (css_animations.cc:2993-3007@f842f52).",
+   "leanFor": [
+    "Fw.Parts.NavEarnWebkit.variant_entry_webkit",
+    "Fw.Parts.NavEarnWebkit.variant_exit_webkit",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_padding",
+    "Fw.Parts.NavEarnWebkit.variant_firstFrame",
+    "Fw.Parts.NavEarnWebkit.variant_chromium_set",
+    "Fw.Parts.NavEarnWebkit.variant_chromium_timing",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_set_eq_chromium_faithful",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_timing_eq_chromium_faithful",
+    "Fw.Parts.NavEarnWebkit.hero_exit_chromium",
+    "Fw.Parts.NavEarnWebkit.hero_exit_webkit"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)"
+   ],
+   "missingWhy": [
+    "felt smoothness on Safari and iPhone: the user's review",
+    "iPhone is inferred from shared WebKit source, not measured"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
+   "next": "User visual review on Safari (macOS) and the iPhone; it stays out of v2-proved while it is a look change (class L).",
+   "flag": "nav:earn-logical",
+   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); variant gate is a lead dispatch"
   }
  ],
  "notes": [

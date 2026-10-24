@@ -1,28 +1,23 @@
 # earn-webkit-smooth handoff
-Branch: worktree-wf_bbd9b85f-6e4-1 (CI branch ci/earn-webkit-smooth). Worktree: .claude/worktrees/wf_bbd9b85f-6e4-1.
-Last sha: see `git log -1`. Dispatches used: 2 of 3.
-CI runs: 40100235090 trajectory-probe (push 1, fd711461f): FAILED, the flag arm opened '/' without its search (identity mismatch; fixed);
-40100235131 lean (push 1): failure, footprint-diff.gen.json stale (fixed in 3247a6d76).
-Push 2 (5d781cab7): trajectory-probe 40100783726, breakpoint-gate 40100783656 (default config; the variant gate is a lead dispatch, see open),
-lean 40100783678: queued. Download: `gh run download <id> -n transitions-apple-1280`.
+Branch: worktree-wf_bbd9b85f-6e4-1 (CI branch ci/earn-webkit-smooth). Worktree: .claude/worktrees/wf_bbd9b85f-6e4-1. Last sha: `git log -1`.
+CI runs (3 of 3 pushes used): 40100235090 trajectory-probe FAILED (flag arm opened '/' without its search; fixed), 40100235131 lean failed (footprint-diff stale; fixed);
+push 2: trajectory-probe 40100783726 success, breakpoint-gate 40100783656 success (default page), lean 40100783678 success;
+push 3 (main merged): trajectory-probe 40102193302 success, lean 40102193331 success. Data: results/earn-webkit-smooth/<run>/<width>/summary, across-runs.txt.
 
-## What exists
-- Variant `nav:earn-logical` (look-change class L, "engine parity"): `apps/site/src/parts/nav/` (index.tsx sets class `is-earn-logical`, nav.module.css
-  last two rules list `padding-inline-start, padding-inline-end` in place of `padding-inline`, part.json, logic.ts constants).
-- Lean `lean/Fw/Parts/NavEarnWebkit.lean` against Fw.Engine.TransitionStart: `variant_entry_webkit`, `variant_exit_webkit`, `variant_webkit_padding`,
-  `variant_firstFrame`, `variant_chromium_set`, `variant_chromium_timing`, `variant_webkit_set_eq_chromium_faithful`, `hero_exit_chromium`, `hero_exit_webkit`.
-- Golden `packages/contracts/golden/parts/nav.earn.webkit.jsonl` (generator `lean/scripts/NavEarnWebkitGolden.lean`, job in check.sh), replayed by
-  `apps/site/src/parts/nav/earn.webkit.golden.test.ts`.
-- Lane: `transitions.mjs` / `transitions-safari.mjs` gain `--search` (a `flag` arm), workflow passes it from the `[frames:...]` token.
-- Ledger row n=67 `nav.earn.logicalPadding` (look-change, review pending). Note: research/notes/2026/10-2x-earn-webkit-smooth.md.
-
-## Outside the task's writes (listed in open)
-lean/Fw.lean, lean/scripts/check.sh, lean/scripts/NavEarnWebkitGolden.lean, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl,
-packages/contracts/golden/preset/look-change.candidates.jsonl, lean/Fw/Gate/Trajectory.lean (+ golden gate/trajectory.jsonl, gate-breakpoints reduce.mjs: the
-transition table must equal nav.module.css), packages/gate-breakpoints/src/trajectory/transitions*.mjs, .github/workflows/trajectory-probe.yml,
-docs/team/tools/trajectory-frames.md.
+## Verified
+Lean `Fw.Parts.NavEarnWebkit` (theorems in the note) and `lean/scripts/check.sh` green; golden nav.earn.webkit.jsonl replayed by
+apps/site/src/parts/nav/earn.webkit.golden.test.ts; site tests, gate-breakpoints tests, ci-paths --check, part-footprint --check.
+MEASURED on macOS CI (2 valid runs): WebKit and Safari with `nav:earn-logical` ease the padding (largest step 1.5-5.5 px, settles ~520 ms) where the faithful rule snaps 24 px (16 px narrow); Chromium unchanged.
 
 ## Open
 - Breakpoint gate with the variant needs a dispatch with `fw` (lead): `gh workflow run breakpoint-gate.yml --ref ci/earn-webkit-smooth -f engines=chromium -f fw=nav:earn-logical`.
-  A push does not start the gate (head commit lacks `[ci:breakpoint-gate]`).
-- User's Safari and iPhone review of the felt result.
+  A push cannot carry `fw`; the push run 40100783656 covers the default page only.
+- The user's Safari and iPhone review (ledger row n=67 nav.earn.logicalPadding, look-change, pending). iPhone inferred from shared WebKit source.
+- Two valid macOS runs, not three (one push lost to a harness bug).
+
+## Conventions
+Variant = class `is-earn-logical` set once at render; the two rules sit last in nav.module.css; the gate's transition table (lean/Fw/Gate/Trajectory.lean `rules`,
+reduce.mjs RULES, golden gate/trajectory.jsonl) must list every transition rule of that file, with its line. After touching nav.module.css or parts: part-footprint --write,
+then `lake env lean --run scripts/ContractsGolden.lean --diff` / `--rows` outputs into footprint-diff.gen.json / FootprintRows.lean, TrajectoryGolden after a lake build.
+Transitions lane: commit message `[ci:trajectory-probe] [frames:<part:variant>] [transitions:earn]` + `[trajectory engines=playwright-webkit widths=390,1280]`; the flag arm is `flag`.
+Read first: research/notes/2026/10-2x-earn-webkit-smooth.md.
