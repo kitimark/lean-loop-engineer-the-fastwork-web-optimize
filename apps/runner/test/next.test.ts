@@ -8,8 +8,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  buildFacts, classifyTree, formatNext, handbackAtOf, nextAlerts, parseWorktrees, psCommands, statFile, watchedFileOf, worktreeOf,
-  type AgentFacts, type NextReply, type Raw, type RawPs,
+  buildFacts, classifyTree, formatNext, handbackAtOf, nextAlerts, parseWorktrees, psCommands, reapHeldFacts, statFile, watchedFileOf,
+  worktreeOf, type AgentFacts, type NextReply, type Raw, type RawPs,
 } from "../src/next.ts";
 import { coreCaller } from "../src/watch.ts";
 import { hasWorktree, parsePs as parsePsRows, startFromAge } from "../src/watch-collect.ts";
@@ -60,6 +60,7 @@ function rawOf(now: number, facts: any[]): Raw {
       worktree: f.worktree || f.branch ? { path: `/wt/agent-${f.id}`, branch: f.branch?.name ?? null, lockPid: f.worktree?.lockPid ?? null } : null,
       ahead: f.branch?.ahead ?? null, landed: f.branch?.landed ?? null,
       mergesClean: f.branch ? f.branch.mergesClean ?? true : null, branchDeps: f.branch?.deps ?? [], handoff: f.handoff ?? false,
+      wtId: f.worktree?.id ?? null,
     };
   });
   const board = new Map<string, { id: string; done: boolean; agent: string | null }>();
@@ -68,7 +69,8 @@ function rawOf(now: number, facts: any[]): Raw {
     if (f.board) board.set(f.id, { id: f.board.id, done: f.board.done, agent: f.board.agent ?? null });
     if (f.ci) ci.push({ ...f.ci, conclusion: f.ci.conclusion ?? null, endedAt: f.ci.endedAt ?? null });
   }
-  return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board };
+  return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board,
+    reapHeld: (facts[0]?.reapHeld ?? []).map((h: any) => ({ pid: h.pid, start: h.start, wt: h.wt ?? null })) };
 }
 
 describe("golden cases through the fact builder", () => {
@@ -88,15 +90,15 @@ describe("golden cases through the fact builder", () => {
 describe("output", () => {
   it("prints one NEXT line per action, key=value in order, nothing for none", () => {
     expect(formatNext({ agents: [
-      { id: "a", actions: [{ action: "killOrphan", pid: 555 }, { action: "nudgeHandoff" }] },
+      { id: "a", actions: [{ action: "killOrphan", pid: 555, start: 1759998680 }, { action: "nudgeHandoff" }] },
       { id: "b", actions: [] },
       { id: "n", actions: [{ action: "none" }] },
       { id: "c", actions: [{ action: "land", branch: "wt-c", task: "c" }] },
-    ] })).toEqual(["NEXT a killOrphan pid=555", "NEXT a nudgeHandoff", "NEXT c land branch=wt-c task=c"]);
+    ] })).toEqual(["NEXT a killOrphan pid=555 start=1759998680", "NEXT a nudgeHandoff", "NEXT c land branch=wt-c task=c"]);
   });
   it("alerts: killOrphan raises none (agent.held is the Reap rule), land/routeIntegrator -> agent.unlanded, others none", () => {
     const al = nextAlerts({ agents: [
-      { id: "a", actions: [{ action: "killOrphan", pid: 7 }, { action: "waitCi", run: 1 }] },
+      { id: "a", actions: [{ action: "killOrphan", pid: 7, start: 3 }, { action: "waitCi", run: 1 }] },
       { id: "b", actions: [{ action: "land", branch: "x", task: "b" }] },
       { id: "c", actions: [{ action: "routeIntegrator", branch: "y" }, { action: "cleanupWorktree" }] },
     ] });
@@ -142,7 +144,8 @@ describe("end to end with a real child process", () => {
       const raw: Raw = {
         now, session: process.pid, ps, alive: () => true, file: statFile, queuedText: "", ci: [], board: new Map(),
         procs: [{ pid: child.pid!, name: "sh", startedAt: now, pids: [], agent: "e2e" }],
-        agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
+        agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false,
+          worktree: { path: "/wt/wt-e2e", branch: null, lockPid: null }, wtId: "wt-e2e" }],
       };
       const facts = buildFacts(raw);
       if (facts[0]!.children.length > 0 || Date.now() > deadline) return { facts, now, pid: child.pid! };
@@ -162,7 +165,7 @@ describe("end to end with a real child process", () => {
     }
   });
 
-  it("a loop on a finished task's output file: producerExited, and fwcore proposes the kill of this pid", async () => {
+  it("a loop on a finished task's output file: producerExited, but no kill until the Reap plan holds it", async () => {
     const d = mkdtempSync(join(tmpdir(), "fwnext-")); dirs.push(d);
     mkdirSync(join(d, "tasks"));
     const f = join(d, "tasks", "t1.output");
@@ -172,9 +175,41 @@ describe("end to end with a real child process", () => {
     expect(facts[0]!.children[0]!.watchedAt).toBeGreaterThan(0);
     if (existsSync(fwcore)) {
       const r = (await coreCaller([fwcore])({ op: "obs.next", now: Date.now(), agents: facts })) as NextReply;
-      expect(formatNext(r)).toContain(`NEXT e2e killOrphan pid=${pid}`);
+      expect(formatNext(r).filter((l) => l.includes("killOrphan"))).toEqual([]);
+    }
+  });
+
+  it("a loop the Reap plan holds in this worktree: fwcore proposes the kill of that pid and start", async () => {
+    const { facts, pid } = await observe("until false; do sleep 1; done", "idle");
+    const held = [{ pid, start: 1759998680, wt: "wt-e2e" }, { pid: pid + 1, start: 1759998681, wt: "wt-other" }];
+    const f = facts.map((x) => ({ ...x, reapHeld: held }));
+    expect(facts[0]!.worktree).toEqual({ lockPid: null, lockAlive: false, id: "wt-e2e" });
+    if (existsSync(fwcore)) {
+      const r = (await coreCaller([fwcore])({ op: "obs.next", now: Date.now(), agents: f })) as NextReply;
+      expect(formatNext(r).filter((l) => l.includes("killOrphan"))).toEqual([`NEXT e2e killOrphan pid=${pid} start=1759998680`]);
       expect(nextAlerts(r).map((a) => a.code)).not.toContain("agent.held");
     }
+  });
+});
+
+describe("reapHeldFacts: the Reap plan's held loops as facts", () => {
+  const facts = { rows: [
+    { pid: 10, ppid: 1, pgid: 10, start: 500, cwd: null, kind: "loop", wt: "wt-a" },
+    { pid: 11, ppid: 1, pgid: 11, start: 600, cwd: null, kind: "loop", wt: null },
+  ], live: [], mcps: [], keep: [] } as any;
+  const reply = (held: unknown[]) => () => ((req: any) => (req.op === "ops.reapHeld" ? { held } : {})) as any;
+  it("each held entry takes the worktree id of the row with its pid and start", () => {
+    const got = reapHeldFacts("/r", {}, () => facts, reply([
+      { pid: 10, start: 500, kind: "orphanLoop", group: true, reason: "r" },
+      { pid: 11, start: 600, kind: "orphanLoop", group: true, reason: "r" },
+      { pid: 10, start: 501, kind: "orphanLoop", group: true, reason: "r" },
+    ]));
+    expect(got).toEqual([{ pid: 10, start: 500, wt: "wt-a" }, { pid: 11, start: 600, wt: null }, { pid: 10, start: 501, wt: null }]);
+  });
+  it("no facts, a failing call, or FW_WATCH_REAP=0 give no entries", () => {
+    expect(reapHeldFacts("/r", {}, () => null, reply([]))).toEqual([]);
+    expect(reapHeldFacts("/r", {}, () => facts, () => (() => { throw new Error("x"); }) as any)).toEqual([]);
+    expect(reapHeldFacts("/r", { FW_WATCH_REAP: "0" }, () => { throw new Error("not read"); }, reply([]))).toEqual([]);
   });
 });
 

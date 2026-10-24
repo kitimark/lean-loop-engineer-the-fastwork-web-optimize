@@ -35,13 +35,14 @@ id of the agent whose Bash call started the tree), services? [[]] (pids), keep? 
 e.g. `load1`, `consolePids`, `stale`, is ignored). `prevAt` is the time of the previous check (absent: first check);
 `critical` lists the task ids on the critical path. `null` counts as absent.
 
-`obs.next` shapes. Params: the Health params plus `loopCapMin [30], fileStaleMin [10]` (minutes). AgentFacts:
+`obs.next` shapes. Params: the Health params plus `loopCapMin [30]` (minutes). AgentFacts:
 `{id, task, state ["active"|"idle"|"parked"|"stalled"|"gone"|"done"], session, handbackAt?, branch? {name, ahead,
-landed, queued? [false], mergesClean? [true], deps? [[]]}, handoff? [false], worktree? {lockPid?, lockAlive? [false]}, ctxTokens? [0], children? [{pid, chain? [[]],
+landed, queued? [false], mergesClean? [true], deps? [[]]}, handoff? [false], worktree? {lockPid?, lockAlive? [false], id?}, ctxTokens? [0], children? [{pid, chain? [[]],
 kind ["sleepLoop"|"ciWait"|"build"|"other"|"stdinWait"], run and timeoutMin (ciWait only), startedAt, watchedAt?,
 producerExited? [false], watch? {kind ["task"|"agent"], id}}], ci? {id, workflow, branch, status, conclusion?,
-startedAt, endedAt?}, board? {id, done, agent?}, signals? SigFacts}`. Action: `{action}` plus `run` (waitCi), `branch`,
-`task` (land), `branch` (routeIntegrator), `pid` (killOrphan), `reason`
+startedAt, endedAt?}, board? {id, done, agent?}, signals? SigFacts, reapHeld? [{pid, start, wt?}]}` (`reapHeld`: the
+`held` reply of `ops.reapHeld` for the same snapshot, each entry with the worktree id of its row). Action: `{action}` plus `run` (waitCi), `branch`,
+`task` (land), `branch` (routeIntegrator), `pid`, `start` (killOrphan), `reason`
 ["heldByChild"|"ciWaitOverdue"|"foreignLoop"|"lockDead"|"conflict"] (investigate), `task`, `agent` (claimTask), `dep`
 (waitDeps). The reply runs `next` on the facts resolved against all agents (`Fw.Obs.Next.resolve`); an agent with
 `signals` also gets `signal {state, ids}`, `handbackAt` and `keep`. Golden vectors in
@@ -658,22 +659,16 @@ theorem opHealth_reqJson (p : Params) (o : Obs) :
   simp only [opHealth, reqOf_reqJson, ok_bind]
   rfl
 
-/-! ## The op `obs.next` (`Fw.Obs.Next`) -/
+open Fw.Obs.Next (AgentFacts Child ChildKind Branch Worktree Ci TaskRow Reason Action Held)
 
-open Fw.Obs.Next (AgentFacts Child ChildKind Branch Worktree Ci TaskRow Reason Action)
-
-/-- The `obs.next` thresholds as one flat object: every Health field plus `loopCapMin` and `fileStaleMin`. -/
 def nextParamsJson (p : Fw.Obs.Next.Params) : Json :=
   Json.mkObj (paramsFields p.health ++
-    [("loopCapMin", toJson p.loopCapMin), ("fileStaleMin", toJson p.fileStaleMin)])
+    [("loopCapMin", toJson p.loopCapMin)])
 
-/-- Decode the `obs.next` thresholds; a missing field takes its default (`loopCapMin` 30, `fileStaleMin` 10). -/
 def nextParamsOf (j : Json) : Except String Fw.Obs.Next.Params := do
   let d : Fw.Obs.Next.Params := {}
-  pure { health := ← paramsOf j, loopCapMin := ← natD j "loopCapMin" d.loopCapMin,
-         fileStaleMin := ← natD j "fileStaleMin" d.fileStaleMin }
+  pure { health := ← paramsOf j, loopCapMin := ← natD j "loopCapMin" d.loopCapMin }
 
-/-- A state from its wire name (an unknown name is refused). -/
 def stateOf : String → Except String State
   | "active" => .ok .active | "idle" => .ok .idle | "parked" => .ok .parked | "stalled" => .ok .stalled
   | "gone" => .ok .gone | "done" => .ok .done
@@ -748,10 +743,6 @@ theorem startOf_neg (k : String) (n : Nat) :
 
 theorem unknownStart_age (now : Nat) (h : now < unknownStart) : now - unknownStart = 0 := by omega
 
-theorem oldB_unknown (p : Fw.Obs.Next.Params) (now : Nat) (c : Fw.Obs.Next.Child) (h : now < unknownStart)
-    (hs : c.startedAt = unknownStart) : Fw.Obs.Next.oldB p now c = false := by
-  simp [Fw.Obs.Next.oldB, hs, unknownStart_age now h]
-
 theorem overdueB_unknown (now : Nat) (c : Fw.Obs.Next.Child) (h : now < unknownStart)
     (hs : c.startedAt = unknownStart) : Fw.Obs.Next.overdueB now c = false := by
   unfold Fw.Obs.Next.overdueB
@@ -776,14 +767,17 @@ def branchOf (j : Json) : Except String Branch := do
            | none => pure none
            | some v => some <$> asStr "landLock" v }
 
-/-- A worktree as JSON. -/
-def worktreeJson (w : Worktree) : Json := Json.mkObj [("lockPid", onat w.lockPid), ("lockAlive", .bool w.lockAlive)]
+def worktreeJson (w : Worktree) : Json :=
+  Json.mkObj [("lockPid", onat w.lockPid), ("lockAlive", .bool w.lockAlive), ("id", ostr w.id)]
 
-/-- Decode a worktree (both fields optional: not locked, not alive). -/
 def worktreeOf (j : Json) : Except String Worktree := do
-  pure { lockPid := ← optN j "lockPid", lockAlive := ← boolD j "lockAlive" false }
+  pure { lockPid := ← optN j "lockPid", lockAlive := ← boolD j "lockAlive" false, id := ← optS j "id" }
 
-/-- An agent's CI run as JSON: its id plus the `CiRun` fields. -/
+def heldJson (h : Held) : Json := Json.mkObj [("pid", toJson h.pid), ("start", toJson h.start), ("wt", ostr h.wt)]
+
+def heldOf (j : Json) : Except String Held := do
+  pure { pid := ← nat j "pid", start := ← nat j "start", wt := ← optS j "wt" }
+
 def ciNextJson (c : Ci) : Json :=
   Json.mkObj [("id", toJson c.id), ("workflow", .str c.run.workflow), ("branch", .str c.run.branch),
     ("status", .str c.run.status), ("conclusion", ostr c.run.conclusion), ("startedAt", toJson c.run.startedAt),
@@ -880,7 +874,8 @@ def factsJson (f : AgentFacts) : Json :=
     ("worktree", match f.worktree with | some w => worktreeJson w | none => .null),
     ("ctxTokens", toJson f.ctxTokens), ("children", .arr (f.children.toArray.map childJson)),
     ("ci", match f.ci with | some c => ciNextJson c | none => .null),
-    ("board", match f.board with | some r => taskRowJson r | none => .null), ("handoff", .bool f.handoff)] ++
+    ("board", match f.board with | some r => taskRowJson r | none => .null), ("handoff", .bool f.handoff),
+    ("reapHeld", .arr (f.reapHeld.toArray.map heldJson))] ++
     match f.signals with
     | some g => [("signals", sigFactsJson g)]
     | none => [])
@@ -892,9 +887,9 @@ def factsOf (j : Json) : Except String AgentFacts := do
          branch := ← optObj j "branch" branchOf, worktree := ← optObj j "worktree" worktreeOf,
          ctxTokens := ← natD j "ctxTokens" 0, children := ← (← arrD j "children").mapM childOf,
          ci := ← optObj j "ci" ciNextOf, board := ← optObj j "board" taskRowOf,
-         handoff := ← boolD j "handoff" false, signals := ← optObj j "signals" sigFactsOf }
+         handoff := ← boolD j "handoff" false, signals := ← optObj j "signals" sigFactsOf,
+         reapHeld := ← (← arrD j "reapHeld").mapM heldOf }
 
-/-- An `obs.next` request body as JSON: `now`, `params`, `agents`. -/
 def nextReqJson (p : Fw.Obs.Next.Params) (now : Nat) (fs : List AgentFacts) : Json :=
   Json.mkObj [("now", toJson now), ("params", nextParamsJson p), ("agents", .arr (fs.toArray.map factsJson))]
 
@@ -910,13 +905,12 @@ def reasonName : Reason → String
   | .heldByChild => "heldByChild" | .ciWaitOverdue => "ciWaitOverdue" | .foreignLoop => "foreignLoop"
   | .lockDead => "lockDead" | .conflict => "conflict"
 
-/-- An action as JSON: `{action}` plus its arguments (`run`, `branch`, `task`, `pid`, `reason`). -/
 def actionJson : Action → Json
   | .none => Json.mkObj [("action", .str "none")]
   | .waitCi r => Json.mkObj [("action", .str "waitCi"), ("run", toJson r)]
   | .land b k => Json.mkObj [("action", .str "land"), ("branch", .str b), ("task", .str k)]
   | .routeIntegrator b => Json.mkObj [("action", .str "routeIntegrator"), ("branch", .str b)]
-  | .killOrphan q => Json.mkObj [("action", .str "killOrphan"), ("pid", toJson q)]
+  | .killOrphan q s => Json.mkObj [("action", .str "killOrphan"), ("pid", toJson q), ("start", toJson s)]
   | .cleanupWorktree => Json.mkObj [("action", .str "cleanupWorktree")]
   | .respawnFromHandoff => Json.mkObj [("action", .str "respawnFromHandoff")]
   | .nudgeHandoff => Json.mkObj [("action", .str "nudgeHandoff")]
@@ -1180,10 +1174,13 @@ def run (op : String) (r : String) : String :=
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"active\",\"session\":1,\"board\":{\"id\":\"a\",\"done\":false}}]}" ==
   "{\"agents\":[{\"actions\":[{\"action\":\"claimTask\",\"agent\":\"a\",\"task\":\"a\"}],\"id\":\"a\"}]}"
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"active\",\"session\":1,\"children\":[{\"pid\":7,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0,\"watchedAt\":5,\"producerExited\":true}]}]}" ==
-  "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":7},{\"action\":\"nudgeHandoff\"}],\"id\":\"a\"}]}"
+  "{\"agents\":[{\"actions\":[{\"action\":\"none\"}],\"id\":\"a\"}]}"
+#guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"active\",\"session\":1,\"worktree\":{\"id\":\"w\"},\"reapHeld\":[{\"pid\":7,\"start\":3,\"wt\":\"w\"}]}]}" ==
+  "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":7,\"start\":3},{\"action\":\"nudgeHandoff\"}],\"id\":\"a\"}]}"
+#guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"active\",\"session\":1,\"reapHeld\":[{\"pid\":7,\"wt\":\"w\"}]}]}" ==
+  "error: missing field start"
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":7,\"kind\":\"ciWait\",\"startedAt\":0}]}]}" ==
   "error: missing field run"
--- obs.signals: no agents; an open turn; handed back with `b` pending; the same past the 30-min cap with a stdin proc.
 #guard run "obs.signals" "{\"now\":0}" == "{\"agents\":[]}"
 #guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"bounds\":[{\"time\":0,\"start\":true}]}]}" ==
   "{\"agents\":[{\"agent\":\"a\",\"handbackAt\":null,\"ids\":[],\"state\":\"working\"}]}"
@@ -1230,12 +1227,10 @@ def run (op : String) (r : String) : String :=
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"w\"}}]}").splitOn "\"land\"").length == 1
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"x\"}}]}").splitOn "\"land\"").length == 2
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landQueued\":true}}]}").splitOn "\"land\"").length == 1
--- obs.next with signals: the hung stdin child of an idle, handed-back agent is killed and the agent kept; a loop
--- watching task `b` sees its producer exited once another agent's signals end `b` (`killed`).
 #guard run "obs.next" "{\"now\":1800005,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":9,\"chain\":[1],\"kind\":\"stdinWait\",\"startedAt\":1}],\"signals\":{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2],\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"stdin\"}]}}]}" ==
-  "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":9}],\"handbackAt\":2,\"id\":\"a\",\"keep\":true,\"signal\":{\"ids\":[\"b\"],\"state\":\"hung\"}}]}"
+  "{\"agents\":[{\"actions\":[{\"action\":\"investigate\",\"reason\":\"heldByChild\"}],\"handbackAt\":2,\"id\":\"a\",\"keep\":true,\"signal\":{\"ids\":[\"b\"],\"state\":\"hung\"}}]}"
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":7,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0,\"watchedAt\":5,\"watch\":{\"kind\":\"task\",\"id\":\"b\"}}]},{\"id\":\"x\",\"task\":\"x\",\"state\":\"active\",\"session\":1,\"signals\":{\"agent\":\"x\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"ends\":[{\"id\":\"b\",\"time\":3,\"how\":\"killed\"}]}}]}" ==
-  "{\"agents\":[{\"actions\":[{\"action\":\"killOrphan\",\"pid\":7}],\"id\":\"a\"},{\"actions\":[{\"action\":\"none\"}],\"handbackAt\":null,\"id\":\"x\",\"keep\":false,\"signal\":{\"ids\":[],\"state\":\"idle\"}}]}"
+  "{\"agents\":[{\"actions\":[{\"action\":\"none\"}],\"id\":\"a\"},{\"actions\":[{\"action\":\"none\"}],\"handbackAt\":null,\"id\":\"x\",\"keep\":false,\"signal\":{\"ids\":[],\"state\":\"idle\"}}]}"
 
 /-! ## Golden vectors of `obs.next`
 
@@ -1258,7 +1253,11 @@ def ch (pid : Nat) (k : ChildKind) (s : Nat) : Child := { pid, chain := [100, 1]
 def ciRun (r : Nat) (t : String) : Ci :=
   ⟨r, { workflow := "ci", branch := s!"ci/{t}", status := "in_progress", startedAt := ago 5 }⟩
 
-/-- One typed case: name, params, time, agents. -/
+def ghb : AgentFacts :=
+  { ex "ghb-runner" .done with
+    handbackAt := some (ago 25), branch := some { name := "wt-ghb-runner", ahead := 0, landed := true, queued := false },
+    worktree := some { id := some "wt-ghb-runner" }, children := [lp 555 (ago 22) (some (ago 20))] }
+
 structure Typed where
   name : String
   p    : Fw.Obs.Next.Params := {}
@@ -1277,10 +1276,18 @@ def typed : List Typed := [
     fs := [{ ex "port-nav" .done with
       handbackAt := some (ago 90), branch := some { name := "wt-port-nav", ahead := 3, landed := false, queued := false }, worktree := some {},
       children := [ch 810 .build (ago 5)] }] },
-  { name := "case 2 ghb-runner: handed back and landed, an until-grep sleep loop under the session on a stale log -> killOrphan (cleanup waits for no live child)"
-    fs := [{ ex "ghb-runner" .done with
-      handbackAt := some (ago 25), branch := some { name := "wt-ghb-runner", ahead := 0, landed := true, queued := false }, worktree := some {},
-      children := [lp 555 (ago 22) (some (ago 20))] }] },
+  { name := "case 2 ghb-runner: handed back and landed, a sleep loop under the session that the Reap plan holds in this worktree -> killOrphan with its pid and start (cleanup waits for no live child)"
+    fs := [{ ghb with reapHeld := [⟨555, 1759998680, some "wt-ghb-runner"⟩] }] },
+  { name := "case 2d the same without a held entry: no kill; the loop holds the agent -> investigate heldByChild"
+    fs := [ghb] },
+  { name := "case 2e a held entry of another worktree -> no kill, investigate heldByChild"
+    fs := [{ ghb with reapHeld := [⟨555, 1759998680, some "wt-other"⟩] }] },
+  { name := "case 2f a held entry without a worktree id -> no kill, investigate heldByChild"
+    fs := [{ ghb with reapHeld := [⟨555, 1759998680, none⟩] }] },
+  { name := "case 2g an agent worktree without an id matches no held entry -> no kill, investigate heldByChild"
+    fs := [{ ghb with worktree := some {}, reapHeld := [⟨555, 1759998680, some "wt-ghb-runner"⟩] }] },
+  { name := "case 2h two held entries in this worktree -> two killOrphan actions in plan order"
+    fs := [{ ghb with reapHeld := [⟨555, 1759998680, some "wt-ghb-runner"⟩, ⟨556, 1759998700, some "wt-ghb-runner"⟩] }] },
   { name := "case 2b ghb-runner after the kill: landed, no live child -> cleanupWorktree"
     fs := [{ ex "ghb-runner" .done with
       handbackAt := some (ago 25), branch := some { name := "wt-ghb-runner", ahead := 0, landed := true, queued := false }, worktree := some {} }] },
@@ -1288,12 +1295,8 @@ def typed : List Typed := [
     fs := [{ ex "ghb-runner" .done with
       handbackAt := some (ago 25), branch := some { name := "wt-ghb-runner", ahead := 0, landed := true, queued := false }, worktree := some {},
       children := [{ lp 556 (ago 22) (some (ago 20)) with chain := [1] }] }] },
-  { name := "case 3 wktr-ci-lane: idle, until-grep loop for 2h54m on a file others keep rewriting (fresh) -> killOrphan by the loop cap"
+  { name := "case 3 wktr-ci-lane: idle, until-grep loop for 2h54m on a fresh file, not held by the Reap plan -> none"
     fs := [{ ex "wktr-ci-lane" .idle with children := [lp 900 (ago 174) (some (ago 1))] }] },
-  { name := "case 3b loop cap edge: a loop exactly loopCapMin (30 min) old is kept"
-    fs := [{ ex "wktr-ci-lane" .idle with children := [lp 901 (ago 30) (some (ago 1))] }] },
-  { name := "case 3c loop cap edge: 1 ms past loopCapMin -> killOrphan"
-    fs := [{ ex "wktr-ci-lane" .idle with children := [lp 902 (ago 30 - 1) (some (ago 1))] }] },
   { name := "case 4 port-platform: idle in waitrun.sh (timeout 10 min) on its running CI run -> waitCi"
     fs := [{ ex "port-platform" .idle with
       children := [ch 600 (.ciWait 42 10) (ago 4)], ci := some (ciRun 42 "port-platform") }] },
@@ -1307,12 +1310,12 @@ def typed : List Typed := [
     fs := [{ ex "integrate-ports" .active with ctxTokens := 260000, children := [lp 700 (ago 99) (some (ago 1))] }] },
   { name := "case 5b context exactly ctxWarn (200000) -> none"
     fs := [{ ex "integrate-ports" .active with ctxTokens := 200000 }] },
-  { name := "case 6 integrate-ports at 03:15: active, an until-grep loop on a background task's output whose producer exited -> killOrphan and nudgeHandoff"
+  { name := "case 6 integrate-ports at 03:15: active, an until-grep loop whose producer exited, not held -> none"
     fs := [{ ex "integrate-ports" .active with children := [lp 701 (ago 35) (some (ago 3)) true] }] },
-  { name := "case 6b active, producerExited without a watched file: not a dead watch -> none"
-    fs := [{ ex "integrate-ports" .active with children := [lp 702 (ago 35) none true] }] },
-  { name := "case 6c active, a loop on a file unchanged for 11 min (> fileStaleMin) -> killOrphan and nudgeHandoff"
-    fs := [{ ex "integrate-ports" .active with children := [lp 703 (ago 12) (some (ago 11))] }] },
+  { name := "case 6b active, the Reap plan holds a loop in this worktree -> killOrphan and nudgeHandoff"
+    fs := [{ ex "integrate-ports" .active with
+      worktree := some { id := some "wt-integrate-ports" }, children := [lp 701 (ago 35) (some (ago 3)) true],
+      reapHeld := [⟨701, 1759997900, some "wt-integrate-ports"⟩] }] },
   { name := "case 7 obs-next-lean at 03:05: live, its task reached the board after the spawn-time claim, unbound and not done -> claimTask"
     fs := [{ ex "obs-next-lean" .active with board := some { id := "obs-next-lean", done := false } }] },
   { name := "case 7b task already bound to an agent -> none"
@@ -1348,10 +1351,6 @@ def typed : List Typed := [
     fs := [{ ex "l" .idle with worktree := some { lockPid := some 4242, lockAlive := false } }] },
   { name := "idle with a live worktree-lock pid -> none"
     fs := [{ ex "l" .idle with worktree := some { lockPid := some 4242, lockAlive := true } }] },
-  { name := "a loop pid shared with a build child is ambiguous: no kill"
-    fs := [{ ex "a" .done with handbackAt := some (ago 5), children := [lp 950 (ago 60), ch 950 .build (ago 60)] }] },
-  { name := "a loop whose pid is the session pid is not killed"
-    fs := [{ ex "a" .done with handbackAt := some (ago 5), children := [lp 100 (ago 60)] }] },
   { name := "handed back, branch 0 ahead and unlanded -> none"
     fs := [{ ex "z" .done with handbackAt := some (ago 5), branch := some { name := "wt-z", ahead := 0, landed := false, queued := false } }] },
   { name := "inc-watch-unlanded-after-land: branch 3 ahead, not an ancestor of main, but a land commit for its task is on main -> none"
@@ -1366,13 +1365,6 @@ def typed : List Typed := [
     fs := [{ ex "z" .done with handbackAt := some (ago 5), worktree := some {} }] },
   { name := "parked with context 210000 -> nudgeHandoff"
     fs := [{ ex "q" .parked with ctxTokens := 210000 }] },
-  { name := "file-stale edge: watched file unchanged exactly fileStaleMin (10 min) -> none"
-    fs := [{ ex "w" .idle with children := [lp 960 (ago 15) (some (ago 10))] }] },
-  { name := "file-stale edge: 1 ms past fileStaleMin -> killOrphan"
-    fs := [{ ex "w" .idle with children := [lp 961 (ago 15) (some (ago 10 - 1))] }] },
-  { name := "params override: loopCapMin 5, a 6 min old loop -> killOrphan"
-    p := { loopCapMin := 5 }
-    fs := [{ ex "o" .idle with children := [lp 970 (ago 6) (some (ago 1))] }] },
   { name := "three agents: replies in input order, each decided alone"
     fs := [{ ex "x1" .stalled with ctxTokens := 0 }, ex "x2" .idle,
       { ex "x3" .active with board := some { id := "x3", done := false } }] }]
@@ -1385,8 +1377,11 @@ def literal : List (String × Json) := [
   ("minimal: only now", lit "{\"now\":0}"),
   ("nulls count as absent: handbackAt, branch, worktree, ci, board, watchedAt",
    lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"n\",\"task\":\"n\",\"state\":\"idle\",\"session\":1,\"handbackAt\":null,\"branch\":null,\"worktree\":null,\"ci\":null,\"board\":null,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"build\",\"startedAt\":0,\"watchedAt\":null}]}]}"),
-  ("child start 0 (older than the loop cap): killOrphan", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0}]}]}"),
-  ("child start negative (a ps age longer than the clock) is unknown: not old, no killOrphan", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":-1760000000001}]}]}"),
+  ("child start 0 (older than the loop cap), not held: none", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0}]}]}"),
+  ("child start negative (a ps age longer than the clock) is unknown: none", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":-1760000000001}]}]}"),
+  ("held entry in the agent's worktree: killOrphan with pid and start", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"worktree\":{\"id\":\"wt-a\"},\"reapHeld\":[{\"pid\":2,\"start\":1759990000,\"wt\":\"wt-a\"}]}]}"),
+  ("held entry with a null wt: none", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"worktree\":{\"id\":\"wt-a\"},\"reapHeld\":[{\"pid\":2,\"start\":1759990000,\"wt\":null}]}]}"),
+  ("refused: held entry without start", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"reapHeld\":[{\"pid\":2}]}]}"),
   ("refused: a fractional child start", lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":1.5}]}]}"),
   ("refused: unknown state", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"busy\",\"session\":1}]}"),
   ("refused: unknown child kind", lit "{\"now\":0,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":2,\"kind\":\"robot\",\"startedAt\":0}]}]}"),
@@ -1412,10 +1407,9 @@ def respond (req : Json) : Json :=
   | .ok f => Json.mkObj f
   | .error e => Json.mkObj [("error", .str e)]
 
-/-- An action's tag (its constructor, with the reason for `investigate`). -/
 def tag : Action → String
   | .none => "none" | .waitCi _ => "waitCi" | .land .. => "land" | .routeIntegrator _ => "routeIntegrator"
-  | .killOrphan _ => "killOrphan" | .cleanupWorktree => "cleanupWorktree"
+  | .killOrphan .. => "killOrphan" | .cleanupWorktree => "cleanupWorktree"
   | .respawnFromHandoff => "respawnFromHandoff" | .nudgeHandoff => "nudgeHandoff"
   | .investigate r => s!"investigate {reasonName r}" | .claimTask .. => "claimTask"
   | .waitDeps _ => "waitDeps"
