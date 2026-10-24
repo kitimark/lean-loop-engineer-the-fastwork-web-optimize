@@ -838,7 +838,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
-          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || !existsSync(join(slot.dir, FWCORE_BIN)));
+          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || lakeSkipped || !existsSync(join(slot.dir, FWCORE_BIN)));
           dryStep = dryTotalStep(dryPlan ?? o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
           const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);

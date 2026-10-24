@@ -44,8 +44,11 @@ Head 728ca61 merged with main 6b1e3a3, one dry land each, with the 1-min load av
 
 Before and the third row are the same work; the middle row is a warm rebuild of the same tree. One run per row, so single samples, not medians; the table fits the model above (total = 8.4-9.0 s vitest + lake step + about 1.7 s other). Span name: a skipped step ends as `dry total` instead of `dry total lake`, so its timing baseline is the other key.
 
+The third row hit through the dryLint record written by the second; the check.sh source did not fire here (main 6b1e3a3 moved lean/ after the head's check.sh). Against the warm second run the skip saves 2.1 s; the 16.1 s saving applies when the land worktree last built another tree.
+
 ## Accepted limits and follow-ups
 
-- A hit needs the branch to carry `main`'s current lean/ and golden trees, or an earlier dry on the same merge. When `main` moved lean/ after the branch's last check.sh, the lake step still runs (this happened twice during this task before the measured runs). The hit rate on later dry lands is read from the `dry: lake build ... skipped` lines and `land dry lake` spans after landing.
+- A hit needs the branch to carry `main`'s current lean/ and golden trees, or an earlier dry on the same merge. When `main` moved lean/ after the branch's last check.sh, the lake step still runs (this happened twice during this task before the measured runs). The hit rate on later dry lands is read from the `dry: lake build ... skipped` lines and `land dry lake` spans after landing. Replayed on the slow population (34 distinct commits behind the over-30 s dry lands after the cut): 8 had a check.sh pass on record for the same lean/ and golden trees within 12 first-parent commits, an upper bound for the checkSh source (INFERRED; the rule also needs the branch to contain main's lean/). Repeated dry lands on one merge add hits through the dryLint source.
+- When the lake step is skipped, the dry land rebuilds fwcore before an fwcore-using local gate, because the skipped lake lint used to rebuild it and the land worktree may hold another branch's binary.
 - The land-inputs vitest stays about 8 s per dry land.
 - `lean/scripts/check.sh` has no row for the golden (the `#guard` checks it at `lake build`); the lead may add a `gen ["--check"]` job. `lean/Fw.lean` imports `Fw.Ops.LandCacheGolden` (outside the task's writes).
