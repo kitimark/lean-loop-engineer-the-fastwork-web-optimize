@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Measure.WebKitLag
+import Fw.Measure.SimBound
 import Fw.Parts.PeopleCarouselCrop
 /-!
 # Swap-window sampling of people.carousel on the WebKit lane (`packages/measure-webkit/src/lag/swap.mjs`)
@@ -683,6 +684,134 @@ theorem zoneVerdict_nil_off (on : List Int) : zoneVerdict [] on = .overlap := by
 theorem zoneVerdict_nil_on (off : List Int) : zoneVerdict off [] = .overlap := by
   simp [zoneVerdict, asRat, verdict]
 
+inductive BusyFrozen where
+  | noBusy
+  | noFrozen
+  | removed
+  | raised
+  | overlap
+  deriving DecidableEq, Repr
+
+def BusyFrozen.name : BusyFrozen → String
+  | .noBusy => "noBusy"
+  | .noFrozen => "noFrozen"
+  | .removed => "removed"
+  | .raised => "raised"
+  | .overlap => "overlap"
+
+def busyFrozen (busy frozen : List Int) : BusyFrozen :=
+  if busy.isEmpty then .noBusy
+  else if frozen.isEmpty then .noFrozen
+  else match zoneVerdict busy frozen with
+    | .lower => .removed
+    | .higher => .raised
+    | _ => .overlap
+
+theorem busyFrozen_noBusy (frozen : List Int) : busyFrozen [] frozen = .noBusy := by
+  simp [busyFrozen]
+
+theorem busyFrozen_noFrozen (busy : List Int) (h : busy ≠ []) : busyFrozen busy [] = .noFrozen := by
+  simp [busyFrozen, h]
+
+theorem busyFrozen_removed (busy frozen : List Int) (hb : busy ≠ []) (hf : frozen ≠ [])
+    (hs : sepBelow (asRat frozen) (asRat busy) = true) : busyFrozen busy frozen = .removed := by
+  have hne : asRat busy ≠ [] := by simp [asRat, hb]
+  have hc : asRat frozen ≠ [] := by simp [asRat, hf]
+  simp [busyFrozen, hb, hf, zoneVerdict, verdict_lower hne hc hs]
+
+theorem busyFrozen_raised (busy frozen : List Int) (hb : busy ≠ []) (hf : frozen ≠ [])
+    (hs : sepBelow (asRat busy) (asRat frozen) = true) : busyFrozen busy frozen = .raised := by
+  have hne : asRat busy ≠ [] := by simp [asRat, hb]
+  have hc : asRat frozen ≠ [] := by simp [asRat, hf]
+  simp [busyFrozen, hb, hf, zoneVerdict, verdict_higher hne hc hs]
+
+theorem busyFrozen_overlap (busy frozen : List Int) (hb : busy ≠ []) (hf : frozen ≠ [])
+    (h1 : sepBelow (asRat frozen) (asRat busy) = false) (h2 : sepBelow (asRat busy) (asRat frozen) = false) :
+    busyFrozen busy frozen = .overlap := by
+  simp [busyFrozen, hb, hf, zoneVerdict, verdict_overlap h1 h2]
+
+def busyWindows (ns : List Nat) : Nat := (ns.filter fun n => busyMin ≤ n).length
+
+theorem busyWindows_le (ns : List Nat) : busyWindows ns ≤ ns.length := List.length_filter_le _ _
+
+theorem busyWindows_quiet (ns : List Nat) (h : ∀ n ∈ ns, n < busyMin) : busyWindows ns = 0 := by
+  simp only [busyWindows, List.length_eq_zero_iff, List.filter_eq_nil_iff, decide_eq_true_eq]
+  intro n hn; have := h n hn; omega
+
+theorem busyWindows_all (ns : List Nat) (h : ∀ n ∈ ns, busyMin ≤ n) : busyWindows ns = ns.length := by
+  have : ns.filter (fun n => decide (busyMin ≤ n)) = ns := List.filter_eq_self.mpr (by simpa using h)
+  simp [busyWindows, this]
+
+def perCaptureTenths (rows captures : Nat) : Nat :=
+  if captures = 0 then 0 else (rows * 20 + captures) / (2 * captures)
+
+theorem perCaptureTenths_none (rows : Nat) : perCaptureTenths rows 0 = 0 := by simp [perCaptureTenths]
+
+theorem perCaptureTenths_exact (k c : Nat) (hc : 0 < c) : perCaptureTenths (k * c) c = 10 * k := by
+  have e : k * c * 20 + c = c * (20 * k + 1) := by
+    have : k * c * 20 = c * (20 * k) := by rw [Nat.mul_comm k c, Nat.mul_assoc, Nat.mul_comm k 20]
+    rw [this, Nat.mul_add, Nat.mul_one]
+  have e2 : 2 * c = c * 2 := Nat.mul_comm 2 c
+  simp only [perCaptureTenths, Nat.pos_iff_ne_zero.mp hc, ite_false, e, e2]
+  rw [Nat.mul_div_mul_left _ _ hc]
+  omega
+
+def perFrameMilli (rows frames : Nat) : Option Nat :=
+  if frames = 0 then none else some ((rows * 2000 + frames) / (2 * frames))
+
+theorem perFrameMilli_none (rows : Nat) : perFrameMilli rows 0 = none := by simp [perFrameMilli]
+
+theorem perFrameMilli_exact (k f : Nat) (hf : 0 < f) : perFrameMilli (k * f) f = some (1000 * k) := by
+  have e : k * f * 2000 + f = f * (2000 * k + 1) := by
+    have : k * f * 2000 = f * (2000 * k) := by rw [Nat.mul_comm k f, Nat.mul_assoc, Nat.mul_comm k 2000]
+    rw [this, Nat.mul_add, Nat.mul_one]
+  have e2 : 2 * f = f * 2 := Nat.mul_comm 2 f
+  simp only [perFrameMilli, Nat.pos_iff_ne_zero.mp hf, ite_false, e, e2]
+  rw [Nat.mul_div_mul_left _ _ hf]
+  congr 1
+  omega
+
+theorem perFrameMilli_zero (f : Nat) (hf : 0 < f) : perFrameMilli 0 f = some 0 := by
+  simpa using perFrameMilli_exact 0 f hf
+
+def laneBudgetMin : Nat := Fw.Measure.SimBound.perSessionMin - 11
+
+theorem laneBudget_below_step : laneBudgetMin < Fw.Measure.SimBound.perSessionMin := by decide
+
+def unitFits (elapsedMs estimateMs : Nat) : Bool := decide (elapsedMs + estimateMs ≤ laneBudgetMin * 60000)
+
+theorem unitFits_fresh (est : Nat) (h : est ≤ laneBudgetMin * 60000) : unitFits 0 est = true := by
+  simp [unitFits, h]
+
+theorem unitFits_late (elapsed est : Nat) (h : laneBudgetMin * 60000 < elapsed) : unitFits elapsed est = false := by
+  simp only [unitFits, decide_eq_false_iff_not]; omega
+
+theorem unitFits_mono (e1 e2 est : Nat) (h : e1 ≤ e2) (hf : unitFits e2 est = true) : unitFits e1 est = true := by
+  simp only [unitFits, decide_eq_true_eq] at hf ⊢; omega
+
+def armOrder (shift : Nat) : List String :=
+  match shift % 3 with
+  | 1 => ["nolayout", "full", "faithful"]
+  | 2 => ["full", "faithful", "nolayout"]
+  | _ => ["faithful", "nolayout", "full"]
+
+def laneUnits (shift : Nat) : List String :=
+  (armOrder shift).map (fun a => "swap:" ++ a ++ "-a") ++ (armOrder shift).map (fun a => "zone:" ++ a ++ "-a") ++
+  ["swap:faithful-frozen-a", "zone:faithful-frozen-a", "swap:faithful-b", "zone:faithful-b"] ++
+  ((armOrder shift).filter (· != "faithful")).map (fun a => "zone:" ++ a ++ "-b") ++ ["zone:faithful-frozen-b"]
+
+theorem laneUnits_length (shift : Nat) : (laneUnits shift).length = 13 := by
+  have h : shift % 3 = 0 ∨ shift % 3 = 1 ∨ shift % 3 = 2 := by omega
+  rcases h with h | h | h <;> simp [laneUnits, armOrder, h]
+
+theorem laneUnits_nodup (shift : Nat) : (laneUnits shift).Nodup := by
+  have h : shift % 3 = 0 ∨ shift % 3 = 1 ∨ shift % 3 = 2 := by omega
+  rcases h with h | h | h <;> simp [laneUnits, armOrder, h] <;> decide
+
+theorem laneUnits_first (shift : Nat) : ∃ u ∈ (laneUnits shift).head?, u.startsWith "swap:" = true := by
+  have h : shift % 3 = 0 ∨ shift % 3 = 1 ∨ shift % 3 = 2 := by omega
+  rcases h with h | h | h <;> simp [laneUnits, armOrder, h]
+
 private def phaseJ (p : Phase) : Json := toJson (match p with | .swap k => s!"swap:{k}" | .rest k => s!"rest:{k}" | .outside => "outside")
 
 private def winJ (w : Win) : Json := Json.arr #[toJson w.start, toJson w.stop]
@@ -779,6 +908,31 @@ private def goldenLinesC : List String :=
   (([([15, 16, 14], [4, 5, 6]), ([4, 5, 6], [15, 16, 14]), ([4, 9], [5, 6]), ([], [4]), ([4], [])] : List (List Int × List Int)).map fun (off, on) =>
     (Json.mkObj [("kind", "swapZone"), ("off", toJson off), ("on", toJson on), ("verdict", (zoneVerdict off on).name)]).compress)
 
-def swapGoldenLines : List String := goldenLinesA ++ goldenLinesB ++ goldenLinesC
+private def pooledCases : List (List Nat × Nat) :=
+  [([], 0), ([], 2), ([24, 23, 47], 3), ([1, 2, 3, 4], 2), (List.replicate 56 2, 8), ([50, 49, 5, 2, 24, 24, 0], 1),
+   (List.replicate 28 48, 4)]
+
+private def frameCases : List (Nat × Nat) := [(0, 0), (5, 0), (0, 40), (40, 40), (47, 40), (1, 3), (2, 3), (123, 40), (900, 40)]
+
+private def fitsCases : List (Nat × Nat) :=
+  [(0, 0), (0, 120000), (laneBudgetMin * 60000 - 1, 1), (laneBudgetMin * 60000, 1), (laneBudgetMin * 60000, 0), (1200000, 300000), (1500000, 300000)]
+
+private def goldenLinesD : List String :=
+  [(Json.mkObj [("kind", "swapLaneConst"), ("budgetMin", laneBudgetMin), ("stepMin", Fw.Measure.SimBound.perSessionMin)]).compress] ++
+  (([([], [3]), ([15, 16, 14], []), ([15, 16, 14], [3, 4, 5]), ([3, 4, 5], [15, 16]), ([4, 9], [5, 6]), ([14, 14], [14]),
+      ([5], [5])] : List (List Int × List Int)).map fun (busy, frozen) =>
+    (Json.mkObj [("kind", "swapBusyFrozen"), ("busy", toJson busy), ("frozen", toJson frozen), ("cell", (busyFrozen busy frozen).name)]).compress) ++
+  (pooledCases.map fun (ns, caps) =>
+    (Json.mkObj [("kind", "swapPooled"), ("rows", toJson ns), ("captures", caps), ("windows", ns.length), ("busyWindows", busyWindows ns),
+      ("tenthsPerCapture", perCaptureTenths (ns.foldl (· + ·) 0) caps), ("median2", median2 (ns.map Int.ofNat))]).compress) ++
+  (frameCases.map fun (rows, frames) =>
+    (Json.mkObj [("kind", "swapPerFrame"), ("rows", rows), ("frames", frames),
+      ("milli", match perFrameMilli rows frames with | some m => toJson m | none => Json.null)]).compress) ++
+  (fitsCases.map fun (e, est) =>
+    (Json.mkObj [("kind", "swapUnitFits"), ("elapsedMs", e), ("estimateMs", est), ("fits", unitFits e est)]).compress) ++
+  (([0, 1, 2, 3, 4] : List Nat).map fun (sh : Nat) =>
+    (Json.mkObj [("kind", "swapLaneUnits"), ("shift", toJson sh), ("units", toJson (laneUnits sh))]).compress)
+
+def swapGoldenLines : List String := goldenLinesA ++ goldenLinesB ++ goldenLinesC ++ goldenLinesD
 
 end Fw.Measure.SwapWindow
