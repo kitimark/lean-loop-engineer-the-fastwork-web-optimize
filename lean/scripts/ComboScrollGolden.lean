@@ -1,3 +1,3 @@
-import Fw.Parts.ComboScrollGolden
+import Fw.Parts.MorphEndComboGolden
 
-def main (args : List String) : IO UInt32 := Fw.Parts.ComboScrollGolden.runGolden args
+def main (args : List String) : IO UInt32 := Fw.Parts.MorphEndComboGolden.runGolden args

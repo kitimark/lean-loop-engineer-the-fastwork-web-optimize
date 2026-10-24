@@ -2,7 +2,7 @@ import Lean.Data.Json
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndGolden
 /-! Golden vectors of `Fw.Parts.ComboScroll`: four traces under all 8 brick picks (`packages/contracts/golden/parts/combo-scroll.jsonl`). -/
-namespace Fw.Parts.ComboScrollGolden
+namespace Fw.Parts.MorphEndComboGolden
 open Lean Fw.Parts.MorphEnd Fw.Parts.ComboScroll Fw.Parts.MorphEndGolden
 
 def cevJ (p : Ev × Bool) : Json :=
@@ -88,4 +88,4 @@ def runGolden (args : List String) : IO UInt32 := do
     IO.print (text ())
     return 0
 
-end Fw.Parts.ComboScrollGolden
+end Fw.Parts.MorphEndComboGolden
