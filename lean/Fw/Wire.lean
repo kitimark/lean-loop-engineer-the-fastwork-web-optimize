@@ -21,6 +21,7 @@ import Fw.Ci.Wire
 import Fw.Ci.Telemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Faithful.Wire
+import Fw.Gate.PathPixWire
 import Fw.Ops.CheckMap
 import Fw.Oracle.Wire
 import Fw.Oracle.ReplayWire
@@ -500,6 +501,7 @@ def ops : List String :=
   ++ Fw.Wire.Reap.ops -- orphan-guard: ops.lspReap
   ++ Fw.Wire.WatchDiff.ops -- watch-stream: ops.watchDiff, ops.watchKeep
   ++ Fw.Wire.Faithful.ops -- faithful-checks: faithful.verdict
+  ++ Fw.Wire.PathPix.ops -- pathpix-drawbase-wire: gate.pathpixDrawBase
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -577,6 +579,9 @@ def handleCore (req : Json) : Except String Reply := do
     | some r => r
     | none =>
     match Fw.Wire.Faithful.handle other req with  -- faithful-checks: faithful.verdict
+    | some r => r
+    | none =>
+    match Fw.Wire.PathPix.handle other req with  -- pathpix-drawbase-wire
     | some r => r
     | none => throw s!"unknown op {other}"
 
