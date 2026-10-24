@@ -122,11 +122,12 @@ function coreOf(cwd: string, deps: Deps, git: NonNullable<Deps["git"]>): CoreCal
   return coreCaller(coreCandidates(root, join(common, "..")));
 }
 
-const realPath = (p: string): string | null => { try { return realpathSync(p); } catch { return null; } };
+const realPath = (p: string): string | null => { try { return realpathSync.native(p); } catch { return null; } };
 
 /** Facts for the stray decision: the real path of the longest existing ancestor of `abs` plus the segments below it;
  *  `resolved` is false when no ancestor resolves (fwcore then answers `unresolved`). Gathers only; fwcore decides. */
 export function resolveFacts(abs: string, real: (p: string) => string | null): { path: string; resolved: boolean } {
+  if (abs.split("/").some((s) => s === ".." || s === ".")) return { path: abs, resolved: true };
   let head = abs;
   let tail = "";
   for (;;) {

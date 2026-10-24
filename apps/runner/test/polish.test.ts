@@ -446,6 +446,13 @@ describe("fw polish CLI", () => {
       expect(r.lines).toContain("  outside /m/apps/new.ts");
     });
 
+    it("a dotted path through a symlink reaches Lean raw and is a stray (notPlain)", async () => {
+      const p = `${wtDir}/link/../y.ts`;
+      const r = await strays([p], { links: { [`${wtDir}/link`]: "/m/apps" }, existing: [wtDir] });
+      expect(r.lines).toContain(`stray ${p}`);
+      expect(r.lines.some((l) => l.startsWith("  notPlain"))).toBe(true);
+    });
+
     it("a path with no resolvable ancestor is a stray, verdict unresolved", async () => {
       const r = await strays(["/nowhere/missing/x.ts"], { existing: ["/m"] });
       expect(r.lines).toContain("  unresolved /nowhere/missing/x.ts");
