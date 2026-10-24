@@ -19452,7 +19452,9 @@
     "lean/Fw/Sup/*.lean",
     "packages/contracts/golden/sup/*.jsonl",
     "research/notes/2026/10-2x-land-dry-contention.md",
-    "docs/team/handoffs/land-dry-contention.md"
+    "docs/team/handoffs/land-dry-contention.md",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Plan/WritesClosure.lean"
    ],
    "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands."
   },
