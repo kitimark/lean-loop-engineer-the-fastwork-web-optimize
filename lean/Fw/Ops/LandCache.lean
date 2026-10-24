@@ -1,9 +1,7 @@
 import Lean
-/-! # Dry land: skip the lake step when a pass on the same inputs is on record -/
 namespace Fw.Ops.LandCache
 open Lean
 
-/-- The inputs of `lake build` and the axiom check: the `lean/` tree id and the `packages/contracts/golden/` tree id (the only paths outside `lean/` that `include_str` reads). -/
 structure Key where
   lean : String
   golden : String
@@ -23,11 +21,9 @@ deriving Repr, DecidableEq
 def hitFrom (s : Src) (rs : List Rec) (k : Key) : Bool :=
   rs.any fun r => r.src == s && r.pass && r.key == k
 
-/-- A passing record with this key exists. -/
 def hit (rs : List Rec) (k : Key) : Bool :=
   rs.any fun r => r.pass && r.key == k
 
-/-- The dry land runs the lake step iff the change touches `lean/` and no pass is on record for the merge tree's key. -/
 def runLake (touchesLean : Bool) (rs : List Rec) (k : Key) : Bool :=
   touchesLean && !hit rs k
 
@@ -72,7 +68,6 @@ theorem runLake_miss (rs : List Rec) (k : Key) (h : hit rs k = false) : runLake 
 theorem runLake_hit (rs : List Rec) (k : Key) (h : hit rs k = true) : runLake true rs k = false := by
   simp [runLake, h]
 
-/-- Same key, same verdict: if every passing record's key passes `lake build` and the axiom check, a skipped lake step loses no failure. -/
 theorem skip_sound (verdict : Key → Bool) (rs : List Rec) (k : Key)
     (prem : ∀ r ∈ rs, r.pass = true → verdict r.key = true)
     (skipped : runLake true rs k = false) : verdict k = true := by

@@ -1,6 +1,6 @@
 # After land-inputs-growth, the slow dry lands are the lake step on a merge tree nobody built; a pass on record for the same lean/ and golden trees removes it
 
-Status: MEASURED (spans in `.fw-console/timings.jsonl`, local host, exit 0), cause CONFIRMED by the split below, the hit rate INFERRED. Local timings vary with load; each sample carries its load average. CI land-lane times and the watch thresholds are out of scope and unchanged.
+Status: MEASURED (spans in `.fw-console/timings.jsonl`, local host, exit 0), cause CONFIRMED by the split below, the hit rate INFERRED. CI land-lane times and the watch thresholds are unchanged.
 
 ## Cause (CONFIRMED)
 
@@ -12,7 +12,7 @@ Cut at the landing of land-inputs-growth (commit 0fbd5719a, 1792822164000 ms). M
 | land-inputs vitest | 24.0 s (545) | 8.0 s (107) |
 | lake build + axiom check | 7.0 s (524) | 9.8 s (105) |
 
-The vitest cost is fixed since that task. The remaining spread is the lake step. The 98 dry lands after the cut, by `lake.built` of the same land's `fw`/`land dry lake` span:
+The remaining spread is the lake step. The 98 dry lands after the cut, by `lake.built` of the same land's `fw`/`land dry lake` span:
 
 | modules built | n | total | lake step | land-inputs |
 |---|---|---|---|---|
@@ -22,7 +22,7 @@ The vitest cost is fixed since that task. The remaining spread is the lake step.
 
 37 of 98 dry lands ran over 30 s; 35 of the 37 built at least one module. Land-inputs is flat (7.95-8.04 s) across the three rows, so the growth is the lake step alone. By load floor the median total is 21.9 s (load < 4), 25.0 s (4-5), 32.0 s (6+); the land-inputs median moves only 7.8 to 8.1 s.
 
-Why modules rebuild: the dry land checks out the merge of the branch with the current `main`; `lake build` in that worktree rebuilds whichever modules differ from its last build (research/notes/2026/10-2x-land-wt-lake-rebuilds.md). The builder's own `check.sh` already built and axiom-checked the branch tip, but the dry land cannot know that.
+Why modules rebuild: the dry land checks out the merge of the branch with the current `main`; `lake build` in that worktree rebuilds whichever modules differ from its last build (research/notes/2026/10-2x-land-wt-lake-rebuilds.md). The builder's `check.sh` already built and axiom-checked the branch tip, but the dry land cannot know that.
 
 ## Change
 
@@ -34,7 +34,7 @@ Sources of a record (`apps/runner/src/land.ts`, `lakeRecords`): (1) a passing `f
 
 ## Before and after, same head and same main
 
-Head 728ca61 merged with main 6b1e3a3, one dry land each, calm to medium load (1-min average at start in the table). The first is `FW_LAND_LAKE_CACHE=off`; the second ran the lake step with no record (and wrote one); the third found it.
+Head 728ca61 merged with main 6b1e3a3, one dry land each, with the 1-min load average at start in the table. The first is `FW_LAND_LAKE_CACHE=off`; the second ran the lake step with no record and wrote one; the third found it.
 
 | run | load | total | land-inputs | lake step | lake.built |
 |---|---|---|---|---|---|
@@ -42,7 +42,7 @@ Head 728ca61 merged with main 6b1e3a3, one dry land each, calm to medium load (1
 | on, no record | 3.4 | 12.2 s | 8.6 s | 2.1 s | 0 |
 | on, record found | 6.1 | 10.0 s | 8.4 s | skipped | none |
 
-Before and the third row are the same work (merge tree, plan, tests); the middle row is a warm rebuild of the same tree. One run per row: single samples, not medians; the table fits the model above (total = 8.4-9.0 s vitest + lake step + about 1.7 s other). Span name: a skipped step ends as `dry total` instead of `dry total lake`, so its timing baseline is the other key.
+Before and the third row are the same work; the middle row is a warm rebuild of the same tree. One run per row, so single samples, not medians; the table fits the model above (total = 8.4-9.0 s vitest + lake step + about 1.7 s other). Span name: a skipped step ends as `dry total` instead of `dry total lake`, so its timing baseline is the other key.
 
 ## Accepted limits and follow-ups
 
