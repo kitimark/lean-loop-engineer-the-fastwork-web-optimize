@@ -20173,7 +20173,8 @@
     ".github/workflows/toolbar-throttle.yml",
     "apps/runner/test/land-overflow-widths.test.ts"
    ],
-   "title": "Measure the morph end bricks on CI: Simulator real-touch finish mode (sim-finish-throttle) and touch-push lanes per composition (faithful, each brick alone, all three, all three + engine.scroll:unthrottle): reversals, spring-back fights, re-opens, finish still runs, Lean verdicts per arm; then the lead posts the user's phone review step with the composer links."
+   "title": "Measure the morph end bricks on CI: Simulator real-touch finish mode (sim-finish-throttle) and touch-push lanes per composition (faithful, each brick alone, all three, all three + engine.scroll:unthrottle): reversals, spring-back fights, re-opens, finish still runs, Lean verdicts per arm; then the lead posts the user's phone review step with the composer links.",
+   "evidence": "6c2b357"
   },
   {
    "devices": [
