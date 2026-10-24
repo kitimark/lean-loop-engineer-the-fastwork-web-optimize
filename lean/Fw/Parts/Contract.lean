@@ -754,7 +754,7 @@ theorem independent_antitone {P Q P' Q' : PartSpec} (hP : Widens P' P) (hQ : Wid
 
 /-- The table widened by the generated code rows.
 Same ids, order, groups and scroll-list fields as `parts`. -/
-def codeParts : List PartSpec := parts.map (widen FootprintRows.rows)
+def codeParts (_ : Unit := ()) : List PartSpec := parts.map (widen FootprintRows.rows)
 
 /-- For each part of `ps`, the other parts of `ps` it is not independent of.
 Ids in `ps` order. -/
