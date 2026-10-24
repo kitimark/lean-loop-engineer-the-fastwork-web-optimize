@@ -4,7 +4,7 @@
 {"flag":"morph.tween:scroll-lock","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"nav:bar-fixed","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"nav:clip-box","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
-{"flag":"nav:earn-logical","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
+{"flag":"nav:earn-logical","kind":"proposal","member":false,"userDecision":{"date":"2026-10-25","decision":"accepted","material":{"chromium":{"artifact":"transitions-apple-390, transitions-apple-1280","expires":"2026-11-23","run":"40100783726, 40102193302","state":"ready","task":"earn-logical-proof"},"webkit":{"artifact":"transitions-apple-390, transitions-apple-1280","expires":"2026-11-23","run":"40100783726, 40102193302","state":"ready","task":"earn-logical-proof"}},"review":"done"},"visClass":"L"}
 {"flag":"nav:earn-no-transition","kind":"proposal","member":false,"userDecision":{"date":"2026-10-21","decision":"kept","material":{"chromium":{"artifact":"frames-chromium","expires":"2026-11-19","run":"39473950464","state":"ready"},"webkit":{"artifact":"frames-apple-390, frames-apple-1280","expires":"2026-11-20","run":"39530106935","state":"ready"}},"review":"pending"},"visClass":"L"}
 {"flag":"nav:logo-3d","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"pain:dark-static","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}

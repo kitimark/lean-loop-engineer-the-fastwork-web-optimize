@@ -22,12 +22,15 @@ import Fw.Site.Reference
 import Fw.Site.LayerOpts
 import Fw.Parts.EngineScroll
 import Fw.Parts.EngineScrollUnthrottle
+import Fw.Parts.EngineScrollFollow
+import Fw.Parts.EngineScrollFollowGolden
 import Fw.Parts.Contract
 import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
 import Fw.Parts.NavHitTestElements
 import Fw.Parts.NavEarnOpt
 import Fw.Parts.NavEarnWebkit
+import Fw.Parts.NavEarnCurve
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain
