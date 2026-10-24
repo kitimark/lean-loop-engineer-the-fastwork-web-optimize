@@ -1,33 +1,29 @@
 # earn-webkit-parity handoff
 Branch: worktree-wf_f45ca365-4a6-1 (CI branch ci/earn-webkit-parity). Worktree: .claude/worktrees/wf_f45ca365-4a6-1.
-Last commit before this note: 86dde9fc4 (dispatch-1 trigger commit).
-CI runs: dispatch 1 = run 40082730706 at 86dde9fc4, success (artifacts transitions-apple-390/-1280, download with
-`gh run download <id> -n <artifact>`; `pnpm fw ci <id>` only reads chromium-counts runs). Dispatch 2 pushed at 2245a5009, running.
-Dispatch 1 result: Playwright WebKit padding 24/16 -> 0 in the flip frame (0 frames between), Chromium eases ~10-15 frames; Safari 26.6
-ran via safaridriver but its page showed no nav flip and `transition-property: none` (diagnostics added in dispatch 2).
-Chromium on the macOS runner renders at 20-30 fps (headless, no GPU); WebKit at 60. Max 3 dispatches.
-Verified: Lean `Fw.Engine.TransitionStart` builds, golden `transition-start.jsonl` --check passes (588 rows), engine-goldens
-13 files equal; gate-breakpoints tests 718 pass; ci-paths 56 pass; actionlint clean.
-Open: CI numbers for Chromium vs Playwright WebKit vs Safari (not read yet); research note; results summaries; check.sh/Fw.lean lines for lead.
+Last sha: see `git log -1` (the commit that adds this note). All 3 CI dispatches used.
+CI runs (workflow trajectory-probe, all success): 40082730706 (86dde9fc4, Safari invalid: reduced motion on),
+40083514606 (2245a5009, Safari valid), 40084115382 (840426931, adds fix-candidate arms). Download with
+`gh run download <id> -n transitions-apple-1280` (`pnpm fw ci <id>` only reads chromium-counts runs).
 
-## State
-- Cause (CONFIRMED by source, to be corroborated by CI): WebKit@862f17d Styleable.cpp:535-566 sets the `padding-inline` shorthand's
-  longhands to the logical `padding-inline-start/end`; their animation wrapper is nullptr (process-css-properties.py:5956), so
-  Style::Interpolation::equals answers true and no transition starts on the physical padding-left/right. Chromium
-  css_animations.cc:2993-3007 maps them `.ToPhysical`. Lean: theorems wk_paddingInline_never, cr_paddingInline_ltr, hero_entry_*.
-- Harness: packages/gate-breakpoints/src/trajectory/transitions.mjs (capture, summary), transitions-safari.mjs (safaridriver),
-  tests in test/transitions*.test.mjs. Workflow: probe-apple steps gated by `[transitions:` (needs `[frames:...]` flag token too).
-- The 15 min macOS cap (Lean) forces `--morph 0` (hero sequences only) in CI.
-- One local debug run is used (sim-lock, WebKit 1280, not a result).
+## Result
+Read first: research/notes/2026/10-2x-earn-webkit-parity.md. Cause CONFIRMED by source: WebKit@862f17d Styleable.cpp:553-566 sets the
+`padding-inline` shorthand's logical longhands in the transition list, they have no animation wrapper
+(process-css-properties.py:~5956), so no transition starts on padding-left/right; Chromium css_animations.cc:2993-3007 uses ToPhysical.
+MEASURED on 3 CI jobs: WebKit and Safari padding 24 (16 narrow) -> 0 in the flip frame, Chromium eases ~570-600 ms; opacity fade is
+not slower on WebKit. Best fix: `padding-inline-start, padding-inline-end` in the transition list (candidates measured in 1 job only).
+Summaries: results/earn-webkit-parity/<run>/<width>/summary, across-runs.{json,txt} (transitions-combine.mjs).
 
-## Next
-1. `pnpm -s fw ci wait --branch ci/earn-webkit-parity --workflow trajectory-probe --sha <sha>`; fetch `pnpm fw ci <runId>`;
-   artifacts transitions-apple-390 / -1280 (summary/*.summary.txt, safari-status.txt).
-2. Dispatches 2 and 3 (empty commit with the same two lines) for >= 3 separate CI jobs per width.
-3. results/earn-webkit-parity/ summaries, research/notes/2026/10-2x-earn-webkit-parity.md (answer first, per-frame tables,
-   ranked fixes: logical longhands, physical longhands, padding shorthand, others).
-4. Final gates: lean check.sh (expect missing Fw.lean import + check.sh job), merge main, fw plan lint, dry land, fw review ready.
-For lead (not edited by me): `import Fw.Engine.TransitionStart` in lean/Fw.lean; job line in lean/scripts/check.sh:
-`job "transition-start golden check" lake env lean --run scripts/TransitionStartGolden.lean --check ../packages/contracts/golden/engine/transition-start.jsonl`.
-Outside writes made: lean/scripts/EngineGoldens.lean (row + import), lean/Fw/Ops/Premise.lean (engineFiles entry).
-TS stand-in: the reduction in transitions.mjs.
+## Verified
+Lean Fw.Engine.TransitionStart builds, golden transition-start.jsonl (588 rows) --check ok, engine-goldens 13 files equal,
+gate-breakpoints tests, ci-paths 56 pass, actionlint clean. Final gate results are in the task report.
+
+## Open / for the lead (not edited by me)
+- `import Fw.Engine.TransitionStart` in lean/Fw.lean; job line in lean/scripts/check.sh:
+  `job "transition-start golden check" lake env lean --run scripts/TransitionStartGolden.lean --check ../packages/contracts/golden/engine/transition-start.jsonl`.
+- Outside writes made: lean/scripts/EngineGoldens.lean (row + import), lean/Fw/Ops/Premise.lean (engineFiles entry).
+- TS stand-ins: reduction in transitions.mjs, transitions-combine.mjs.
+- Limits: candidates 1 job; no iPhone; morph sequences not in CI (15 min cap, `--morph 0`); Chromium 20-30 fps on runner; Safari 1280 only.
+
+## Conventions
+Workflow gate: commit message needs `[ci:trajectory-probe] [frames:...] [transitions:earn]`. Runner has Reduce Motion on; the Safari
+step writes it off first. Next task earn-webkit-smooth: apply the CSS swap in nav.module.css (both earn rules), repeat candidates on 3 jobs.
