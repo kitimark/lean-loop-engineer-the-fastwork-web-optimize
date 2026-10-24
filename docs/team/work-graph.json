@@ -19791,7 +19791,11 @@
     "packages/measure-webkit/test/pathpix.test.mjs",
     "packages/measure-webkit/src/pathpix-exit-draw-zones.mjs",
     "results/accent-draw-nolayout-pixels/run-40037992429/zones.md",
-    "docs/team/handoffs/pathpix-drawbase-wire.md"
+    "docs/team/handoffs/pathpix-drawbase-wire.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Gate/PathPixWire.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean"
    ],
    "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
   },
