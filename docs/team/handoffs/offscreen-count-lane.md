@@ -1,6 +1,6 @@
 branch: worktree-wf_f26cc506-df2-1 (CI branch ci/offscreen-count-lane)
 worktree: .claude/worktrees/wf_f26cc506-df2-1
-last code commit: 02b61a255 (land.ts reads: packages/contracts/src/**); CI push 2 code was e3ea0ff79; main merged again at 410ef5ae9 (r432 writes)
+last code commit: cbeb06cd8 (land.ts edit tried in 02b61a255, taken out again: outside writes); CI push 2 code was e3ea0ff79; main merged again at 410ef5ae9 (r432 writes)
 CI runs: 40114634566 failure (push 1: ERR_MODULE_NOT_FOUND /contracts/src/flag-key.mjs, host.mjs did not mount contracts/src)
          40115582041 success (push 2, sha e3ea0ff79: original, rewrite, f1 sweep, f2 glint x r1..r3, classify, offscreen)
 
@@ -20,3 +20,6 @@ Read first: docs/team/tools/offscreen-counts.md, lean/Fw/Measure/Offscreen.lean,
 Conventions: arms come from the head commit line `[counts profile=offscreen-v1 runs=3 target=both arms=a:b|c:d]` on a ci/* push
 (no dispatch input, because Fw.Store.Lane.inputs equals the workflow inputs). host.mjs mounts packages/contracts/src (outside the
 task graph writes).
+
+Dry land: VERDICT reads offscreen-count-lane (apps/runner test land-inputs: host.mjs and offscreen.test.mjs name packages/contracts/src, undeclared).
+Fix for the lead (one line, apps/runner/src/land.ts, CHECK reads of packages/measure-chromium): replace "packages/contracts/src/flag-key.mjs" by "packages/contracts/src/**"; with it land-inputs 73/73 and runner 3450/3450 passed locally. Then the dry should end VERDICT dry.
