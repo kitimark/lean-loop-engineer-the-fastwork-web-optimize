@@ -1,8 +1,10 @@
 # earn-webkit-smooth handoff
 Branch: worktree-wf_bbd9b85f-6e4-1 (CI branch ci/earn-webkit-smooth). Worktree: .claude/worktrees/wf_bbd9b85f-6e4-1.
-Last sha: see `git log -1` (the commit that adds this note). Dispatches used: 1 of 3.
-CI runs: trajectory-probe 40100235090 (push fd711461f, running at the time of writing); lean 40100235131 (same push, failure:
-`footprint-diff.gen.json` stale, regenerated in 3247a6d76, not yet re-run on CI). Download: `gh run download <id> -n transitions-apple-1280`.
+Last sha: see `git log -1`. Dispatches used: 2 of 3.
+CI runs: 40100235090 trajectory-probe (push 1, fd711461f): FAILED, the flag arm opened '/' without its search (identity mismatch; fixed);
+40100235131 lean (push 1): failure, footprint-diff.gen.json stale (fixed in 3247a6d76).
+Push 2 (5d781cab7): trajectory-probe 40100783726, breakpoint-gate 40100783656 (default config; the variant gate is a lead dispatch, see open),
+lean 40100783678: queued. Download: `gh run download <id> -n transitions-apple-1280`.
 
 ## What exists
 - Variant `nav:earn-logical` (look-change class L, "engine parity"): `apps/site/src/parts/nav/` (index.tsx sets class `is-earn-logical`, nav.module.css
