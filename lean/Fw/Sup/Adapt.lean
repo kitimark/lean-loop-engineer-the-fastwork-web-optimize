@@ -821,8 +821,6 @@ theorem idle_head_admitted (p : Params) (n : Nat) (s : Sample) (hs q : List Entr
   apply verdict_head_admitted p n s hs q me w h1 h2 (by simp [h0]; omega) (by simp [simHeld, h0])
     (by simp [others, h0]) (.inr hi) (.inr hi) h7
 
-/-- Incident 2026-10-24: with no live holder, pressure at most 2 (warning), no thrash and no swap activity, the head of
-the queue is admitted on every sample, unless a sim ticket behind it makes it yield (`yieldsToSim`). -/
 theorem idle_head_progress (p : Params) (n : Nat) (s : Sample) (hs rest : List Entry) (me : Entry) (w : Nat)
     (h0 : prune s.time hs = []) (hn : 0 < n) (hp : s.mem.press ≤ 2) (hp1 : 1 ≤ s.mem.press)
     (ht : thrash p s.mem = false) (hw : swapActive p s.mem = false)
@@ -832,8 +830,6 @@ theorem idle_head_progress (p : Params) (n : Nat) (s : Sample) (hs rest : List E
   exact idle_head_admitted p n s hs (me :: rest) me w (by simp [aheadSame, hb])
     (by simp [starved, hb]) h0 hn ⟨hp1, hp⟩ ht hw h7
 
-/-- A queue of one ticket never yields to a sim ticket, so with no live holder and a calm machine at pressure 1 or 2 it
-is admitted on every sample. -/
 theorem idle_head_progress_alone (p : Params) (n : Nat) (s : Sample) (hs : List Entry) (me : Entry) (w : Nat)
     (h0 : prune s.time hs = []) (hn : 0 < n) (hp : s.mem.press ≤ 2) (hp1 : 1 ≤ s.mem.press)
     (ht : thrash p s.mem = false) (hw : swapActive p s.mem = false) :
@@ -841,7 +837,6 @@ theorem idle_head_progress_alone (p : Params) (n : Nat) (s : Sample) (hs : List 
   apply idle_head_progress p n s hs [] me w h0 hn hp hp1 ht hw
   cases hk : me.kind <;> simp [yieldsToSim, simPending, simHeld, h0, hk]
 
-/-- Level 2 with compression at the threshold or swapping out still waits: the idle head needs a calm machine. -/
 theorem idleHead_waits_thrash (p : Params) (s : Sample) (hs : List Entry) (h : thrash p s.mem = true) :
     idleHead p s hs = false := by
   simp [idleHead, h]
@@ -850,12 +845,10 @@ theorem idleHead_waits_swap (p : Params) (s : Sample) (hs : List Entry) (h : swa
     idleHead p s hs = false := by
   simp [idleHead, h]
 
-/-- Critical pressure (3 or more) never admits by the idle head. -/
 theorem idleHead_waits_critical (p : Params) (s : Sample) (hs : List Entry) (h : 3 ≤ s.mem.press) :
     idleHead p s hs = false := by
   simp [idleHead]; omega
 
-/-- With a live holder the idle head never fires, at any pressure level. -/
 theorem idleHead_waits_holder (p : Params) (s : Sample) (hs : List Entry) (h : prune s.time hs ≠ []) :
     idleHead p s hs = false := by
   cases hi : idleHead p s hs
