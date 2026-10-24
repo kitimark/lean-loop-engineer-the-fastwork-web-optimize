@@ -371,7 +371,6 @@ test("phases: a tick whose full list raised the pages records the interval after
   assert.equal(tick1.args[tick1.args.indexOf("--limit") + 1], "100", "the first tick read one page and came back full");
 });
 
-// ---- real processes, real clock ----------------------------------------------------------------------------------------
 function cli(w: ReturnType<typeof mkWorld>, args: string[]): Promise<{ code: number | null; out: string }> {
   return new Promise((res) => {
     const p = spawn(process.execPath, [join(repoRoot, "packages/gh-budget/src/cli.ts"), ...args], {

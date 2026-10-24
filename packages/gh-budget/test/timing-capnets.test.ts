@@ -1,5 +1,3 @@
-// Golden obs/timing-capnets.jsonl (Lean `Fw.Wire.Obs.Timing.capNetsCases`, theorem `Fw.Obs.Timing.netMsOf_capNets`):
-// each `ci wait` span replays through fwcore `obs.timing` to the own time Lean computed.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

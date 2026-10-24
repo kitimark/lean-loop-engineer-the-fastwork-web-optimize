@@ -1,6 +1,6 @@
 # timing-capnets-link handoff
 
-- Branch `worktree-wf_bfce93db-100-1`, worktree `.claude/worktrees/wf_bfce93db-100-1`; main merged. No CI runs (accepted limit).
+- Branch `worktree-wf_bfce93db-100-1`, worktree `.claude/worktrees/wf_bfce93db-100-1`; main merged. No CI runs.
 ## State
 - (1) Lean `Fw.Obs.Timing`: `waitsMs net ws` sums the waits of a gap whose reason has `capNets = net`.
   `netMsOf_capNets`: a gap made of netting waits (interval, retryAfter) that fit the cap `c` and other waits
@@ -11,8 +11,7 @@
   the cap's slack), each row checked by `CapNetsCase.holds` (the theorem's equation). `timing-own.jsonl` is unchanged:
   `apps/runner/test/timing-own.test.ts` pins its 20 rows and is outside this task's writes. Replay test:
   `packages/gh-budget/test/timing-capnets.test.ts` (fwcore `obs.timing` gives each row's `ownMs`).
-- (2) Picked the code fix, not the Lean max theorem: the max over the two ticks' pre-event intervals is false in
-  general (`pre_pages_max_misses`: pages 1 to 2 under a leading spread gap, 100 s scheduled, recorded 50 and 12).
+- (2) Code fix, not the Lean max theorem: the max over the two ticks' pre-event intervals is false in general (`pre_pages_max_misses`: pages 1 to 2 under a leading spread gap, 100 s scheduled, recorded 50 and 12).
   `poller.ts` now sends the `pages` event before writing the status and records `ci.budget.status` of the state it
   returns. Lean: `next_waits_interval` (that interval is the next wait), `interval_step_listed`/`_unregister`/`_register`
   (the later events keep it). Test `wait.test.ts` "a tick whose full list raised the pages ..." (fails on the old code
