@@ -14,8 +14,8 @@ export type ReapRow = {
   pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null; inRepo?: boolean;
   cpu?: number | null;
 };
-export type LoopFact = { pid: number; start: number; awaits: string; callLive: boolean };
-export type Waiter = { pid: number; start: number; wt: string; writes: string };
+export type LoopFact = { pid: number; start: number; awaits: string; callLive: boolean; inode?: string };
+export type Waiter = { pid: number; start: number; wt: string; writes: string; inode?: string };
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
 export type Target = { pid: number; start: number; group: boolean };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
@@ -61,40 +61,46 @@ export function simUdidOf(args: string): string | null {
 
 export const isCiWait = (args: string): boolean => /(^|[\s/])fw(\.mjs|\.ts)?\s+ci\s+wait(\s|$)/.test(args) || /\bfw\b.*\bci\s+wait(\s|$)/.test(args);
 
-export function parseLsofOut(out: string): Map<number, string> {
-  const m = new Map<number, string>();
-  let pid = -1;
+export function parseLsofFiles(out: string): Map<number, { path: string; ino: string }> {
+  const m = new Map<number, { path: string; ino: string }>();
+  let pid = -1, path: string | null = null, ino = "";
+  const flush = () => { if (path !== null && pid >= 0 && !m.has(pid)) m.set(pid, { path, ino }); path = null; ino = ""; };
   for (const l of out.split("\n")) {
-    if (l.startsWith("p")) pid = Number(l.slice(1));
-    else if (l.startsWith("n/") && !l.startsWith("n/dev/") && pid >= 0 && !m.has(pid)) m.set(pid, l.slice(1));
+    if (l.startsWith("p")) { flush(); pid = Number(l.slice(1)); }
+    else if (l.startsWith("f")) flush();
+    else if (l.startsWith("i")) ino = l.slice(1);
+    else if (l.startsWith("n/") && !l.startsWith("n/dev/")) path = l.slice(1);
   }
+  flush();
   return m;
 }
 
-export function ownSimUdids(): Set<string> | null {
-  const r = spawnSync("xcrun", ["simctl", "list", "devices", "-j"], { encoding: "utf8", maxBuffer: 1 << 26, timeout: 10_000 });
-  if (r.error || r.status !== 0) return null;
-  try {
-    const j = JSON.parse(r.stdout) as { devices?: Record<string, { udid: string; name: string }[]> };
-    return new Set(Object.values(j.devices ?? {}).flat().filter((d) => d.name.startsWith("fw-")).map((d) => d.udid.toUpperCase()));
-  } catch { return null; }
+export function parseLsofOut(out: string): Map<number, string> {
+  return new Map([...parseLsofFiles(out)].map(([pid, f]) => [pid, f.path]));
 }
 
-export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simAcquired: number | null; simHolders: number } {
+export function inodeOf(p: string): string {
+  try { return String(statSync(p).ino); } catch { return ""; }
+}
+
+export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simAcquired: number | null; simHolders: number; simUdids: string[] } {
   try {
-    const st = JSON.parse(readFileSync(join(dir, "state.json"), "utf8")) as { simIdleSince?: number; simAcquired?: number; holders?: { kind: string; till: number }[] };
+    const st = JSON.parse(readFileSync(join(dir, "state.json"), "utf8")) as { simIdleSince?: number; simAcquired?: number; simUdids?: string[]; holders?: { kind: string; till: number }[] };
     return {
       simIdleSince: st.simIdleSince ? st.simIdleSince : null, simAcquired: st.simAcquired ? st.simAcquired : null,
       simHolders: (st.holders ?? []).filter((h) => h.kind === "sim" && now < h.till).length,
+      simUdids: (st.simUdids ?? []).map((u) => u.toUpperCase()),
     };
-  } catch { return { simIdleSince: null, simAcquired: null, simHolders: 0 }; }
+  } catch { return { simIdleSince: null, simAcquired: null, simHolders: 0, simUdids: [] }; }
 }
 
 export function canonPath(p: string): string {
   try { return join(realpathSync(dirname(p)), basename(p)); } catch { return p; }
 }
 
-export const canonAwait = (p: string): string => (p.startsWith("/") && !p.includes("$") ? canonPath(p) : p);
+export const awaitAllowed = (p: string): boolean => /^\/[A-Za-z0-9._/-]*$/.test(p);
+
+export const canonAwait = (p: string): string => (awaitAllowed(p) ? canonPath(p) : p);
 
 export const isMcp = (args: string): boolean => /(^|[\s/])lean-lsp-mcp(\s|$)/.test(args);
 
@@ -330,9 +336,7 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const repo = repoIdOf(base);
   if (repo === null) return null;
   const cpu = cpuTable();
-  const own = t.rows.some((r) => r.kind === "simDevice") ? ownSimUdids() : null;
   const argsOf = new Map(t.ps.map((p) => [p.pid, p.args]));
-  const ownSims = t.rows.filter((r) => r.kind === "simDevice" && own?.has(simUdidOf(argsOf.get(r.pid) ?? "") ?? "")).map((r) => ({ pid: r.pid, start: r.start }));
   const cand = t.rows.filter((r) => r.kind !== "other" && r.kind !== "serena");
   const mcpPs = t.ps.filter((p) => isMcp(p.args));
   const waitPs = t.ps.filter((p) => isCiWait(p.args));
@@ -346,20 +350,21 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   const isLive = (pid: number, c: Cwd) => { const id = where.get(pid)?.wt ?? null; return (id === null || liveIds.includes(id)) && insideLive(c, dirs); };
   for (const [pid, c] of cwd) if (isLive(pid, c)) live.add(c.ino);
   const idleFile = join(consoleDirOf(env, top), "reap-idle.json");
-  const out = waitPs.length ? spawnSync("lsof", ["-a", "-d", "1,2", "-Fpn", "-p", waitPs.map((p) => p.pid).join(",")], { encoding: "utf8", maxBuffer: 1 << 24 }) : null;
-  const writes = parseLsofOut(out?.stdout ?? "");
+  const out = waitPs.length ? spawnSync("lsof", ["-a", "-d", "1,2", "-Fpfin", "-p", waitPs.map((p) => p.pid).join(",")], { encoding: "utf8", maxBuffer: 1 << 24 }) : null;
+  const writes = parseLsofFiles(out?.stdout ?? "");
   const waiters: Waiter[] = [];
   for (const p of waitPs) {
     const wt = where.get(p.pid)?.wt ?? null, w = writes.get(p.pid);
-    if (wt !== null && w !== undefined) waiters.push({ pid: p.pid, start: p.start, wt, writes: canonPath(w) });
+    if (wt !== null && w !== undefined) waiters.push({ pid: p.pid, start: p.start, wt, writes: canonPath(w.path), inode: w.ino });
   }
   const loops: LoopFact[] = [];
   for (const r of cand) {
     const a = r.kind === "untilLoop" ? awaitedPath(argsOf.get(r.pid) ?? "") : null;
-    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: canonAwait(a), callLive: r.ppid > 1 });
+    if (a !== null) loops.push({ pid: r.pid, start: r.start, awaits: canonAwait(a), callLive: r.ppid > 1, inode: awaitAllowed(a) ? inodeOf(a) : "" });
   }
   const now = secs(Date.now());
-  const sim = simSlotFacts(env.FW_SLOT_DIR ?? join(consoleDirOf(env, top), "slot"), now);
+  const { simUdids, ...sim } = simSlotFacts(env.FW_SLOT_DIR ?? join(consoleDirOf(env, top), "slot"), now);
+  const ownSims = t.rows.filter((r) => r.kind === "simDevice" && simUdids.includes(simUdidOf(argsOf.get(r.pid) ?? "") ?? "")).map((r) => ({ pid: r.pid, start: r.start }));
   return {
     rows: t.rows.map((r) => {
       const c = cwd.get(r.pid);
@@ -390,6 +395,11 @@ const request = (op: string, f: Facts, auto = false) => ({
 export function heldLoops(f: Facts, call: Call): { pid: number; start: number; subject: string; reason: string }[] {
   const held = (call({ ...request("ops.reapHeld", f) }) as { held: Selected[] }).held;
   return held.map((h) => ({ pid: h.pid, start: h.start, subject: f.rows.find((r) => r.pid === h.pid)?.wt ?? `pid-${h.pid}`, reason: h.reason }));
+}
+
+export function heldSims(f: Facts, call: Call): { pid: number; start: number; reason: string }[] {
+  const held = (call({ ...request("ops.reapHeld", f) }) as { heldSim?: Selected[] }).heldSim ?? [];
+  return held.map((h) => ({ pid: h.pid, start: h.start, reason: h.reason }));
 }
 
 export function saveIdle(f: Facts, call: Call): void {
@@ -478,11 +488,12 @@ export type StopResult = {
   selected: Selected[]; termed: Target[]; killed: Target[]; left: Target[]; freedKb: number;
   /** signals the scope guard refused (a pid outside the scope, pid <= 1, or a group with a member outside the scope) */
   refused: Target[];
-  /** per kind: the pids that are gone and their RSS (KiB) */
   byKind: { kind: string; pids: number[]; freedKb: number }[];
+  targets: Target[];
+  held: Selected[];
 };
 
-const EMPTY: StopResult = { selected: [], termed: [], killed: [], left: [], freedKb: 0, refused: [], byKind: [] };
+const EMPTY: StopResult = { selected: [], termed: [], killed: [], left: [], freedKb: 0, refused: [], byKind: [], targets: [], held: [] };
 
 /** Stop what Lean selects, following its script: read (done by `gatherFn`), read again and let Lean re-check each identity
  *  (`ops.reapTerm`), TERM, wait the grace (leaving early once Lean's verify finds none left), read again, KILL Lean's survivors
@@ -496,9 +507,10 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
   if (f === null) return null;
   const plan = call(request("ops.reapPlan", f, auto)) as { selected: Selected[]; targets: Target[]; graceMs: number; killWaitMs: number };
   saveIdle(f, call);
-  if (plan.targets.length === 0) return { ...EMPTY };
   const planned = plan.targets;
-  const allowed = scope ?? plan.selected.map((s) => s.pid);
+  const held = plan.selected.filter((s) => !planned.some((t) => t.pid === s.pid && t.start === s.start));
+  if (planned.length === 0) return { ...EMPTY, selected: plan.selected, held };
+  const allowed = scope ?? planned.map((t) => t.pid);
   const refused: Target[] = [];
   const isSim = (t: Target) => plan.selected.some((s) => s.pid === t.pid && s.start === t.start && s.kind === "simBooted");
   const send = (t: Target, sig: "SIGTERM" | "SIGKILL", table: ReapRow[]): boolean => {
@@ -546,7 +558,7 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
     byKind.set(k, e);
   }
   const freedKb = [...byKind.values()].reduce((a, e) => a + e.freedKb, 0);
-  return { selected: plan.selected, termed, killed, left: still, freedKb, refused, byKind: [...byKind].map(([kind, e]) => ({ kind, ...e })) };
+  return { selected: plan.selected, termed, killed, left: still, freedKb, refused, byKind: [...byKind].map(([kind, e]) => ({ kind, ...e })), targets: planned, held };
 }
 
 /** Append one `reap.stopped` record per kind to `.fw-console/reap.jsonl` of the console directory (a derived-fact log like
@@ -557,10 +569,36 @@ export function recordStopped(top: string, r: StopResult, now: number = Date.now
     const p = join(consoleDirOf(env, top), "reap.jsonl");
     mkdirSync(dirname(p), { recursive: true });
     for (const k of r.byKind) appendFileSync(p, JSON.stringify({ type: "reap.stopped", at: now, kind: k.kind, pids: k.pids, freedKb: k.freedKb }) + "\n");
-  } catch { /* the log is advisory */ }
+  } catch {}
 }
 
-/** One printed line per stopped kind, plus the survivors. */
+const LOGGED_KINDS = ["orphanLoop", "simBooted"];
+
+export function recordHeld(top: string, r: StopResult, now: number = Date.now(), env: Record<string, string | undefined> = process.env): string[] {
+  const rows = r.selected.filter((s) => LOGGED_KINDS.includes(s.kind));
+  if (rows.length === 0) return [];
+  const advice: string[] = [];
+  try {
+    const p = join(consoleDirOf(env, top), "reap.jsonl");
+    mkdirSync(dirname(p), { recursive: true });
+    const seen = new Set<string>();
+    try {
+      for (const l of readFileSync(p, "utf8").split("\n")) {
+        if (!l.includes('"reap.held"')) continue;
+        const j = JSON.parse(l) as { kind?: string; pid?: number; start?: number };
+        seen.add(`${j.kind}:${j.pid}:${j.start}`);
+      }
+    } catch {}
+    for (const s of rows) {
+      appendFileSync(p, JSON.stringify({ type: "reap.held", at: now, kind: s.kind, pid: s.pid, start: s.start }) + "\n");
+      if (s.kind === "simBooted" && !seen.has(`${s.kind}:${s.pid}:${s.start}`)) {
+        advice.push(`REAP advice simBooted ${s.pid}: a booted Simulator of an ended sim slot; pnpm -s fw reap --stop shuts it down`);
+      }
+    }
+  } catch {}
+  return advice;
+}
+
 export function renderStop(r: StopResult): string[] {
   const out = r.byKind.map((k) => `stopped ${k.kind}: ${k.pids.length} process(es) [${k.pids.join(",")}], freed ${(k.freedKb / 1024).toFixed(1)} MiB RSS`);
   if (r.killed.length) out.push(`killed after the grace: ${r.killed.map((t) => t.pid).join(",")}`);
@@ -576,7 +614,8 @@ export function reapStopLines(top: string, call: Call = fwcoreCall(top), io: Io 
     const r = stopSelected(top, call, io, gatherFn, scope);
     if (r === null) return [COULD_NOT_LIST];
     recordStopped(top, r);
-    return r.selected.length === 0 ? [] : [`leftover processes stopped: ${r.byKind.reduce((a, k) => a + k.pids.length, 0)} of ${r.selected.length}`, ...renderStop(r).map((l) => `  ${l}`)];
+    const adviceRow = r.held.length === 0 ? [] : [`not stopped (advice, fw reap --stop applies it): ${r.held.map((h) => `${h.kind} ${h.pid}`).join(", ")}`];
+    return r.targets.length === 0 ? adviceRow : [`leftover processes stopped: ${r.byKind.reduce((a, k) => a + k.pids.length, 0)} of ${r.targets.length}`, ...renderStop(r).map((l) => `  ${l}`), ...adviceRow];
   } catch {
     return [COULD_NOT_LIST];
   }
@@ -611,9 +650,11 @@ export function reapTick(top: string, env: Record<string, string | undefined> = 
   if (env.FW_WATCH_REAP === "0") return [];
   try {
     const r = stopSelected(top, call(), io, gatherFn, scope, true);
-    if (r === null || r.byKind.length === 0) return [];
+    if (r === null) return [];
+    const advice = recordHeld(top, r, Date.now(), env);
+    if (r.byKind.length === 0) return advice;
     recordStopped(top, r, Date.now(), env);
-    return r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`);
+    return [...advice, ...r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`)];
   } catch {
     return [];
   }
