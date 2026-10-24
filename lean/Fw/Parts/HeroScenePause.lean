@@ -5,6 +5,7 @@ import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroDeck
 import Fw.Parts.HeroExit
 import Fw.Site.BreakpointMatrix
+import Fw.Gate.Trajectory
 /-!
 # hero scene pause (`hero:scene-pause`): the original's paused-scene rule on the hero track
 -/
@@ -535,7 +536,59 @@ def copySpeed (p : Probe) (hz : Rat) : Rat := kCopy p * hz
 #guard (matrix.filter (·.tag == "no-preference")).map (copySpeed · 60) = [10200]
 #guard (matrix.filter (·.tag == "no-preference")).map (copySpeed · 120) = [20400]
 
-/-! ## 8. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
+/-! ## 8. The open@1 coverage of the recorded trajectory runs
+
+The probe judges open@1 against the original's first frame (`Fw.Gate.Trajectory.byMFirst`). This section replays the
+three recorded `?fw=hero:scene-pause` runs (Chromium, 390 px, path morph) through that rule.
+-/
+
+namespace Open
+open Fw.Gate.Trajectory
+
+/-- One recorded run: reps (of 5) with an open@1 sample in the original, faithful and candidate arms. -/
+structure OpenRun where
+  run : String
+  original : Nat
+  faithful : Nat
+  candidate : Nat
+  deriving DecidableEq, Repr
+
+/-- The three flagged runs of `research/notes/2026/10-20-hero-pause-rule.md` (MEASURED). -/
+def recorded : List OpenRun :=
+  [⟨"39548822269", 0, 2, 0⟩, ⟨"39553952680", 0, 1, 0⟩, ⟨"39556935431", 0, 0, 0⟩]
+
+/-- The run's lane under the current rule: the candidate and the faithful arm, each against the original. -/
+def laneNow (r : OpenRun) : Lane :=
+  openLane (passesWith 5 r.original) (passesWith 5 r.candidate) (passesWith 5 r.faithful)
+
+#guard recorded.map laneNow == [.clean, .clean, .clean]
+#guard firstCover 5 0 5 == .late
+
+/-- The original's own open@1 sample is missing in every rep, so the candidate's missing one is late, never a fail. -/
+theorem recorded_open_late : ∀ r ∈ recorded,
+    openAt (passesWith 5 r.original) (passesWith 5 r.candidate) = .skip .firstLate := by decide +kernel
+
+theorem recorded_clean : ∀ r ∈ recorded, laneNow r = .clean := by decide +kernel
+
+/-- A candidate with no open@1 sample is red only when the original has one in at least 4 of 5 reps. -/
+theorem red_needs_original : ∀ k, k < 6 → (firstCover 5 k 5 = .missing ↔ 4 ≤ k) := by decide +kernel
+
+/-- The cover verdicts of an open@1 unit whose candidate has no sample in 5 reps and the original one in `k` of 5 (the
+first `k`): all 5 original reps, then each 4-rep leave-one-out. -/
+def leaveOneOut (k : Nat) : List Verdict :=
+  coverVerdict (firstCover 5 k 5) :: (List.range 5).map fun i => coverVerdict (firstCover 4 (if i < k then k - 1 else k) 5)
+
+#guard leaveOneOut 1 == [.skip .firstLate, .skip .firstLate, .skip .firstOpen, .skip .firstOpen, .skip .firstOpen,
+  .skip .firstOpen]
+
+/-- Run 40139690556 at 640 px, path morph: one original hit gives the recorded family (2 late, 4 undecided, in some rep
+order). Every verdict is a skip, so the unit is undecided and never new. -/
+theorem run_640_family : (leaveOneOut 1).count (.skip .firstLate) = 2 ∧
+    (leaveOneOut 1).count (.skip .firstOpen) = 4 ∧ ∀ v ∈ leaveOneOut 1, isFail v = false := by decide +kernel
+
+end Open
+
+/-! ## 9. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
 
 def jn (n : Int) : Json := .num ⟨n, 0⟩
 
