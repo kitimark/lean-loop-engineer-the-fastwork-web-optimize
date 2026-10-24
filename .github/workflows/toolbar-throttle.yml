@@ -209,6 +209,8 @@ jobs:
           VM: ${{ matrix.vm }}
           # The head commit message picks the drags: [throttle:finish] drags past the page end (task sim-finish-throttle), else the hero exit.
           MODE: ${{ contains(github.event.head_commit.message, '[throttle:finish]') && 'finish' || 'drags' }}
+          # [throttle:follow] adds the unthrottle-follow arm to the hero drags (task unthrottle-follow).
+          FOLLOW: ${{ contains(github.event.head_commit.message, '[throttle:follow]') && 'yes' || 'no' }}
           # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
           # (counts do not depend on waits), and a load step may retry twice after a reconnect.
           FW_WK_TIMEOUT_SCALE: '8'
@@ -218,7 +220,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$([ "$MODE" = finish ] && echo rewrite,lift,original || echo rewrite,unthrottle,original)" --rounds 2 --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          arms=rewrite,unthrottle,original; rounds=2; cycles=4; rotate=0
+          if [ "$MODE" = finish ]; then arms=rewrite,lift,original
+          elif [ "$FOLLOW" = yes ]; then arms=rewrite,unthrottle,unthrottle-follow,original; rounds=1; cycles=8; rotate=$((VM - 1)); fi
+          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --cycles "$cycles" --rotate "$rotate" --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded
