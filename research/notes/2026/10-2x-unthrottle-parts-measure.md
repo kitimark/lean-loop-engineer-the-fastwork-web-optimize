@@ -20,6 +20,10 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 - **`engine.scroll:throttle-lift` and `engine.scroll:unthrottle` give the same hero result.** MEASURED: 6 band runs in
   3585 and 3596 mid-moving frames (hero value strictly between 0 and 1000 while the toolbar moved; 1.7 per 1000), against
   37.4 for the rewrite; per 1000 moving frames 1.4 against 32.4. Verdict `lifted` for both.
+- **Rest mode (commission, people) is split out to task `unthrottle-parts-rest`.** The rest readings below are MEASURED band
+  counts but not claimable here: rest runs below 60 Hz in every arm and the reducer keeps no per-pass gap, so each pass's
+  band is INFERRED. That task re-reduces per-pass gaps from the run 40101702393 artifacts and owns the rest-mode verdicts
+  (third review refusal on rest cadence claims; split per the review-loop rule).
 - **Commission gains from the lift, but Lean predicted the wrong pattern for it.** MEASURED, rest run 40101702393, 3 jobs:
   the rewrite shows 23 band runs in 753 mid-moving frames (30.5 per 1000) where Lean (`pulses`, a chase) predicts fewer
   than 10; lift shows 0 in 729 and unthrottle 1 in 985, both verdict `lifted`. The Lean part verdict is `disagree`
@@ -96,7 +100,8 @@ Finish mode: run 40101695202 (attempt 1 summary and the rerun summary). Rest mod
 
 Threshold boundary: see Method (`judge_stills_throttled_agree`, `judge_none_boundary`). The commission rewrite arm sat at exactly 10 in the first reading (job 1 only, 2 passes), which is disagree. The 3-job pool is 23, off the line.
 
-Rest-mode detail (run 40101702393, MEASURED, 3 jobs, 6 usable passes per arm; 3 platform passes per arm skipped):
+Rest-mode detail (run 40101702393, MEASURED, 3 jobs, 6 usable passes per arm; 3 platform passes per arm skipped). Reference
+readings, not claimable here; task `unthrottle-parts-rest` owns them:
 
 | series | arm | band runs / mid-moving frames | per 1000 mid-moving | stalls per 1000 pairs | max step | verdict |
 |---|---|---|---|---|---|---|
