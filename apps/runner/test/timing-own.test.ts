@@ -78,7 +78,7 @@ describe.skipIf(!haveCore)("the own time of a wait replays the Lean golden throu
   const byId = new Map(out.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { id: number; verdicts?: { kind: string; durMs: number }[] })
     .map((r) => [r.id, r] as const));
   it("has the Lean cases, netting the observed tick gap and the state's interval", () => {
-    expect(golden.length).toBe(20);
+    expect(golden.length).toBe(21);
     expect(new Set(golden.filter((g) => g.ownMs !== null).map((g) => g.netSrc))).toEqual(new Set(["observed", "state"]));
   });
   golden.forEach((g, id) => it(g.name, () => {
