@@ -5,10 +5,6 @@ import { goldenConformance } from '../../engine/golden.testutil';
 import { createGlintDriver } from './driver';
 import { AWAY_RATIO, createPause, pauseStep, ticks, type SvgClock } from './pause';
 
-/**
- * Test-only twin of the WebKit time container (SMILTimeContainer.cpp:94-194), driven by a manual document clock. It is a
- * TS stand-in for Lean `Cont`; its readings are checked against the Lean golden below.
- */
 class FakeSvg implements SvgClock {
   accum = 0;
   last: number;
@@ -76,7 +72,6 @@ function joint(b: number, reduced: boolean, events: JointEv[]) {
     } else if (e.kind === 'reduced') glint.reducedChanged(e.value!);
     else for (const tick of [...subs]) tick(e.t);
     const playing = glint.state.v;
-    // a visible frame reads the uninterrupted clock; an away frame fires no timer
     const running = svgs.every((s) => !s.paused && Math.abs(s.elapsedMs(e.t + 7) - (e.t + 7 - b)) < 1e-6);
     if (playing) expect(running, `playing at ${e.t} reads s - b`).toBe(true);
     if (away) expect(svgs.every((s) => ticks({ paused: s.paused, armed: true }) === 0)).toBe(true);

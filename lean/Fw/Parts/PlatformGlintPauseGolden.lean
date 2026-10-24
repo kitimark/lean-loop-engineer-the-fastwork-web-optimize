@@ -1,8 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.PlatformGlintPause
-/-! Golden vectors for `platform.glint:offscreen-pause` (`packages/contracts/golden/parts/platform-glint-pause.jsonl`):
-the policy step event by event, container readings at frames, the joint play state under observer events, the tick
-count, and the constants. -/
+/-! Golden vectors for `platform.glint:offscreen-pause` (`packages/contracts/golden/parts/platform-glint-pause.jsonl`). -/
 namespace Fw.Parts.PlatformGlintPauseGolden
 open Lean Fw.Parts.PlatformGlintPause
 
@@ -18,7 +16,6 @@ def obsT : Obs → Rat
   | .hide t => t
   | .reveal t => t
 
-/-- What the driver calls for one report: pause, unpause then seek, or nothing. -/
 def act (p : P) : Obs → String
   | .hide _ => if p.c.paused then "none" else "pause"
   | .reveal _ => if p.c.paused then "resume-seek" else "none"
@@ -37,11 +34,9 @@ def stepLine (p : P) (o : Obs) : String :=
     ("out", Json.mkObj [("act", .str (act p o)), ("seek", seekJ p o), ("paused", .bool q.c.paused),
       ("off", numJ q.off)])]).compress
 
-/-- Every step of a trace as a line. -/
 def stepLines (b : Rat) (os : List Obs) : List String :=
   (os.foldl (fun (acc : P × List String) o => (acc.1.step o, acc.2 ++ [stepLine acc.1 o])) (⟨Cont.start b, -b⟩, [])).2
 
-/-- Events with the frame times read after each. -/
 abbrev Run := List (Obs × List Rat)
 
 def runLine (name : String) (b : Rat) (r : Run) : String :=
@@ -65,8 +60,6 @@ def runB : Run := [(.hide 100, fr 100), (.reveal 101, fr 101), (.hide 60000, [60
 
 def stepTrace : List Obs :=
   [.reveal 500, .hide 1000, .hide 1200, .reveal 4000, .reveal 4100, .hide 4500, .reveal 4501]
-
-/-! The joint play state. -/
 
 def ioJ (t : Rat) : Io → Json
   | .ratio r => Json.mkObj [("kind", "ratio"), ("t", numJ t), ("ratio", numJ r)]

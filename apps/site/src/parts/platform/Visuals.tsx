@@ -15,7 +15,6 @@ import v from './visuals.module.css';
 export interface Subs {
   entries: boolean;
   glint: boolean;
-  /** `platform.glint:offscreen-pause`: the dash clocks pause while the stage is away */
   glintPause?: boolean;
   marquee: boolean;
 }
@@ -324,7 +323,6 @@ export function Secure({ subs }: { subs: Subs }) {
           onState: (s) => setPlaying(s.v),
         })
       : null;
-    // platform.glint:offscreen-pause: pause the dash clocks while the stage is not intersecting, seek them back from the document clock
     const pause = subs.glintPause
       ? createPause(() => Array.from(el.querySelectorAll<SVGSVGElement>('[data-fw-dash] svg')), () => performance.now())
       : null;
