@@ -11,7 +11,7 @@ Lean `state`, first match:
 - **gone**: not stopped but silent > `goneAfterMin` (120) min. It ended without a Stop, so it is not live (not in
   `team.overCap`, not a holder for the sim lock or docker checks, not a child that turns a long `Agent` call into a wait).
 - **parked**: a teammate with no tool in flight whose last tool was `SendMessage` or whose last `TeammateIdle` is newer
-  than its last tool (it waits for a message on purpose; no stall alert).
+  than its last tool (no stall alert).
 - **stalled**: silent >= `stallMin` with no tool in flight or a hung one.
 - **idle**, then **active**.
 
@@ -40,18 +40,18 @@ Every threshold is strict `>` except the load.
   (`sysContended_opens`, `_closes`, `_between`); the previous state rides in `system.load.prevContended`. Replay (INFERRED) of the
   local timings: 5, 32, 25, 25, 12 opens per day (10-17..10-21) before, 1, 11, 6, 14, 2 after. Accepted limit: 60-96%
   of local lean/check samples per day are still contended; CI timings are the backstop. Timed steps measured while the load is above 8 are contended samples: they never raise `timing.slow`
-  (Lean `contended_not_slow`), so the per-step burst under contention is this one signal instead.
+  (Lean `contended_not_slow`).
 - `sys.loadHigh`: the floor of the 1-min load average >= `loadMax` (150).
 - `team.permissionWait`: a Notification in the lead's spool is newer than the lead's last tool event. Hook Notifications
   carry no agent id, so this is team-level; limits: any lead tool event clears it, and Notifications also fire for idle
   input prompts, not only permission prompts.
-- `agent.held`: `killOrphan` proposed (the agent's own `until ...; do sleep` loop can never finish).
+- `agent.held`: the Reap plan holds the loop (pid+start); `NEXT killOrphan` names the same entry.
 - `agent.unlanded`: `land` or `routeIntegrator` proposed (handed back, branch ahead of `main`, not landed). False once
   main's history has a commit with the task's `Task:` trailer (`onMain`), even if the branch is gone, and while the live
   land lock names the branch (`landLock`). Proofs: `no_unlanded_once_on_main`, `alert_suppressed_iff_locked`.
 - `timing.slow <tool>/<step>` (with `NEXT investigate step=<tool>/<step>`): `fw watch` and `fw next` send the spans of
   `.fw-console/timings.jsonl` to fwcore `obs.slow` (`Fw.Obs.Next.slowSteps` over `Fw.Obs.Timing` verdicts: the latest
-  sample of a step is slow). No threshold in TS. The console Health view shows them in a Timings card. A sample taken at load above 8 is contended and is never the slow one (`slowSteps_uncontended`);
+  sample of a step is slow). No threshold in TS. A sample taken at load above 8 is contended and is never the slow one (`slowSteps_uncontended`);
   a regression that shows at normal load still raises it (`slow_through_contention`). Limit: a load that stays above 8 for a whole run hides a regression from the local alert; CI timings are the check for that.
 
 Critical path: the snapshot's `critical` is GET `/api/plan` `.criticalPath` (task ids). An agent is tied to task c when

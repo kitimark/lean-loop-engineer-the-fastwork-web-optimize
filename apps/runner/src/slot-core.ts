@@ -276,3 +276,8 @@ export function nestedSkips(now: number, kind: Kind, named: { owner: string; tok
   if (named === null) return false;
   return held.some((e) => now < e.till && e.kind === kind && e.owner === named.owner && e.token === named.token);
 }
+
+export function simNew(before: readonly string[], after: readonly string[]): string[] {
+  const b = new Set(before.map((u) => u.toUpperCase()));
+  return after.map((u) => u.toUpperCase()).filter((u) => !b.has(u));
+}
