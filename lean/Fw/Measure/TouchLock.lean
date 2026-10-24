@@ -12,7 +12,20 @@ deriving Repr, BEq
 def openPhase (xs : List Sample) : List Sample :=
   (xs.dropWhile (fun s => !s.isOpen)).takeWhile (fun s => s.isOpen)
 
-def lockOf (xs : List Sample) : Option Int := (openPhase xs).head?.map (·.y)
+structure Run where
+  frames : List Sample
+  events : List Sample
+  calls : List Sample
+deriving Repr, BEq
+
+def storedLock (calls : List Sample) : Option Int := (calls.find? (·.isOpen)).map (·.y)
+
+def lockOf (r : Run) : Option Int := storedLock r.calls
+
+def lockSteady (r : Run) : Bool :=
+  match lockOf r with
+  | none => true
+  | some s => ((r.calls.filter (·.isOpen)).all fun c => decide (c.y = s))
 
 def dedupFrom (prev : Int) : List Int → List Int
   | [] => []
@@ -38,25 +51,26 @@ def fights (s : Int) (xs : List Sample) : Nat := turns (fun c => decide (c = s))
 
 def displaced (s : Int) (xs : List Sample) : Nat := ((openPhase xs).filter (fun x => decide (x.y ≠ s))).length
 
-structure Run where
-  frames : List Sample
-  events : List Sample
-deriving Repr, BEq
+def fightsAt (s : Option Int) (xs : List Sample) : Nat := s.elim 0 (fights · xs)
+
+def displacedAt (s : Option Int) (xs : List Sample) : Nat := s.elim 0 (displaced · xs)
 
 def minOpenFrames : Nat := 10
 
 inductive Refusal where
-  | noOpen | tooShort
+  | noOpen | tooShort | lockMoved
 deriving Repr, BEq, DecidableEq
 
 def Refusal.name : Refusal → String
   | .noOpen => "noOpen"
   | .tooShort => "tooShort"
+  | .lockMoved => "lockMoved"
 
 def refusal (r : Run) : Option Refusal :=
   if (openPhase r.frames).length = 0 then some .noOpen
   else if (openPhase r.frames).length < minOpenFrames then some .tooShort
-  else none
+  else if lockSteady r then none
+  else some .lockMoved
 
 structure Result where
   openFrames : Nat
@@ -67,14 +81,15 @@ structure Result where
   eventReversals : Nat
   eventFights : Nat
   jitter : Bool
+  lock : Option Int
 deriving Repr, BEq
 
 def reduce (r : Run) : Result :=
-  let s := (lockOf r.frames).getD 0
-  { openFrames := (openPhase r.frames).length, displacedFrames := displaced s r.frames,
-    frameReversals := reversals r.frames, frameFights := fights s r.frames,
-    restores := displaced s r.events, eventReversals := reversals r.events, eventFights := fights s r.events,
-    jitter := decide (0 < fights s r.frames) }
+  let s := lockOf r
+  { openFrames := (openPhase r.frames).length, displacedFrames := displacedAt s r.frames,
+    frameReversals := reversals r.frames, frameFights := fightsAt s r.frames,
+    restores := displacedAt s r.events, eventReversals := reversals r.events, eventFights := fightsAt s r.events,
+    jitter := decide (0 < fightsAt s r.frames), lock := s }
 
 inductive Cmp where
   | lower | higher | overlap
@@ -126,9 +141,17 @@ theorem refusal_tooShort (r : Run) (h0 : (openPhase r.frames).length ≠ 0) (h1 
     refusal r = some .tooShort := by
   simp [refusal, h0, h1]
 
-theorem refusal_none_iff (r : Run) : refusal r = none ↔ minOpenFrames ≤ (openPhase r.frames).length := by
+theorem refusal_lockMoved (r : Run) (h1 : minOpenFrames ≤ (openPhase r.frames).length) (h2 : lockSteady r = false) :
+    refusal r = some .lockMoved := by
+  have h0 : (openPhase r.frames).length ≠ 0 := by unfold minOpenFrames at h1; omega
+  have h3 : ¬ (openPhase r.frames).length < minOpenFrames := by omega
+  simp [refusal, h0, h3, h2]
+
+theorem refusal_none_iff (r : Run) :
+    refusal r = none ↔ minOpenFrames ≤ (openPhase r.frames).length ∧ lockSteady r = true := by
   unfold refusal minOpenFrames
-  by_cases h0 : (openPhase r.frames).length = 0 <;> by_cases h1 : (openPhase r.frames).length < 10 <;> simp [h0, h1] <;> omega
+  by_cases h0 : (openPhase r.frames).length = 0 <;> by_cases h1 : (openPhase r.frames).length < 10 <;>
+    by_cases h2 : lockSteady r = true <;> simp [h0, h1, h2] <;> omega
 
 theorem dedupFrom_const (v : Int) (l : List Int) (h : ∀ y ∈ l, y = v) : dedupFrom v l = [] := by
   induction l with
@@ -180,9 +203,46 @@ theorem displaced_zero_iff (s : Int) (xs : List Sample) : displaced s xs = 0 ↔
 theorem jitter_iff (r : Run) : (reduce r).jitter = true ↔ 0 < (reduce r).frameFights := by
   simp [reduce]
 
-theorem jitter_false_of_steady (r : Run) (h : displaced ((lockOf r.frames).getD 0) r.frames = 0) : (reduce r).jitter = false := by
-  have := fights_zero_of_steady ((lockOf r.frames).getD 0) r.frames ((displaced_zero_iff _ _).mp h)
-  simp [reduce, this]
+theorem fightsAt_none (xs : List Sample) : fightsAt none xs = 0 := rfl
+
+theorem fightsAt_some (s : Int) (xs : List Sample) : fightsAt (some s) xs = fights s xs := rfl
+
+theorem displacedAt_none (xs : List Sample) : displacedAt none xs = 0 := rfl
+
+theorem displacedAt_some (s : Int) (xs : List Sample) : displacedAt (some s) xs = displaced s xs := rfl
+
+theorem jitter_false_of_steady (r : Run) (h : displacedAt (lockOf r) r.frames = 0) : (reduce r).jitter = false := by
+  cases hl : lockOf r with
+  | none => simp [reduce, hl, fightsAt_none]
+  | some s =>
+    rw [hl, displacedAt_some] at h
+    have := fights_zero_of_steady s r.frames ((displaced_zero_iff _ _).mp h)
+    simp [reduce, hl, fightsAt_some, this]
+
+theorem lockOf_frames_irrelevant (f f' e e' c : List Sample) : lockOf ⟨f, e, c⟩ = lockOf ⟨f', e', c⟩ := rfl
+
+theorem lockOf_none_iff (r : Run) : lockOf r = none ↔ ∀ c ∈ r.calls, c.isOpen = false := by
+  unfold lockOf storedLock
+  rw [Option.map_eq_none_iff, List.find?_eq_none]
+  simp
+
+theorem lockOf_some (r : Run) (s : Int) (h : lockOf r = some s) : ∃ c ∈ r.calls, c.isOpen = true ∧ c.y = s := by
+  unfold lockOf storedLock at h
+  obtain ⟨c, hc, rfl⟩ := Option.map_eq_some_iff.mp h
+  exact ⟨c, List.mem_of_find?_eq_some hc, by simpa using List.find?_some hc, rfl⟩
+
+theorem storedLock_closed (y : Int) (cs : List Sample) : storedLock (⟨y, false⟩ :: cs) = storedLock cs := by
+  simp [storedLock, List.find?]
+
+theorem storedLock_open (y : Int) (cs : List Sample) : storedLock (⟨y, true⟩ :: cs) = some y := by
+  simp [storedLock, List.find?]
+
+theorem fights_zero_of_unrestored (r : Run) (h : lockOf r = none) : (reduce r).frameFights = 0 := by
+  simp [reduce, h, fightsAt_none]
+
+theorem lockSteady_iff (r : Run) (s : Int) (h : lockOf r = some s) :
+    lockSteady r = true ↔ ∀ c ∈ r.calls, c.isOpen = true → c.y = s := by
+  simp only [lockSteady, h, List.all_eq_true, List.mem_filter, decide_eq_true_eq, and_imp]
 
 theorem cmp_empty_faith (cand : List Nat) : cmp [] cand = .overlap := by simp [cmp]
 
@@ -246,6 +306,14 @@ theorem repOrder_odd (rep : Nat) (h : rep % 2 = 1) : (repOrder rep).head? = some
 
 def maxRestarts : Nat := 2
 
+def serveTag (restarts : Nat) : String := if restarts = 0 then "serve" else "serve-r" ++ toString restarts
+
+theorem serveTag_zero : serveTag 0 = "serve" := rfl
+
+theorem serveTag_new_each_restart : ∀ i j : Fin (maxRestarts + 1), i ≠ j → serveTag i ≠ serveTag j := by
+  unfold maxRestarts serveTag
+  decide
+
 inductive Lane where
   | keep | restart | stop
 deriving Repr, BEq, DecidableEq
@@ -282,19 +350,39 @@ def bounceFrames : List Sample :=
   mk ([(5000, true), (5090, true), (5150, true), (5100, true), (5000, true), (5000, true), (5000, true), (5000, true),
     (5000, true), (5000, true), (5000, true), (5000, true)])
 
-def neverOpen : Run := ⟨mk (List.replicate 20 (4000, false)), mk []⟩
+def neverOpen : Run := ⟨mk (List.replicate 20 (4000, false)), mk [], mk []⟩
 
-def shortOpen : Run := ⟨mk [(5000, true), (5000, true), (5040, true), (5000, true)], mk []⟩
+def shortOpen : Run := ⟨mk [(5000, true), (5000, true), (5040, true), (5000, true)], mk [], mk []⟩
+
+def overscrollFrames : List Sample :=
+  mk ([(52270, false), (53460, true), (52360, true), (52270, true), (52360, true), (52270, true), (52360, true), (52270, true),
+    (52360, true), (52270, true), (52270, true), (52270, true)])
+
+def overscrollRun (stored : Int) : Run := ⟨overscrollFrames, overscrollFrames, mk [(stored, true), (stored, true)]⟩
+
+theorem overscroll_lock : lockOf (overscrollRun 52270) = some 52270 := rfl
+
+theorem overscroll_fights_at_stored : (reduce (overscrollRun 52270)).frameFights = 3 := by decide
+
+theorem overscroll_fights_at_first_sample : fightsAt (some 53460) overscrollFrames = 0 := by decide
+
+theorem overscroll_first_sample_hid_the_fights :
+    fightsAt (some 53460) overscrollFrames ≠ (reduce (overscrollRun 52270)).frameFights := by decide
 
 def runCases : List (String × Run) := [
-  ("steady open phase", ⟨steadyFrames, steadyFrames⟩),
-  ("restore after a displaced frame", ⟨fightFrames, fightFrames⟩),
-  ("frames steady, events fight", ⟨steadyFrames, fightFrames⟩),
-  ("one way drift is not a fight", ⟨monotoneFrames, monotoneFrames⟩),
-  ("bounce back to the lock", ⟨bounceFrames, bounceFrames⟩),
+  ("steady open phase", ⟨steadyFrames, steadyFrames, mk []⟩),
+  ("restore after a displaced frame", ⟨fightFrames, fightFrames, mk [(5000, true), (5000, true)]⟩),
+  ("frames steady, events fight", ⟨steadyFrames, fightFrames, mk [(5000, true)]⟩),
+  ("one way drift is not a fight", ⟨monotoneFrames, monotoneFrames, mk [(5000, true)]⟩),
+  ("bounce back to the lock", ⟨bounceFrames, bounceFrames, mk [(5000, true)]⟩),
   ("never open", neverOpen),
   ("open for 4 frames", shortOpen),
-  ("closed, open, closed", ⟨mk ([(1, false)] ++ List.replicate 10 (5000, true) ++ [(1, false), (1, true)]), mk []⟩)]
+  ("closed, open, closed", ⟨mk ([(1, false)] ++ List.replicate 10 (5000, true) ++ [(1, false), (1, true)]), mk [], mk []⟩),
+  ("overscroll first sample, lock stored at the end", overscrollRun 52270),
+  ("overscroll first sample, lock stored at the other end", overscrollRun 52360),
+  ("restore calls disagree", ⟨fightFrames, fightFrames, mk [(5000, true), (5040, true)]⟩),
+  ("restore call before the morph opened", ⟨fightFrames, fightFrames, mk [(4990, false), (5000, true)]⟩),
+  ("drift and the site never restored", ⟨monotoneFrames, monotoneFrames, mk []⟩)]
 
 def cmpCases : List (String × List Nat × List Nat) := [
   ("candidate below", ([2, 3, 5], [0, 0, 1])),
@@ -322,13 +410,14 @@ open Lean in
 def resultJson (r : Result) : Json :=
   Json.mkObj [("openFrames", toJson r.openFrames), ("displacedFrames", toJson r.displacedFrames),
     ("frameReversals", toJson r.frameReversals), ("frameFights", toJson r.frameFights), ("restores", toJson r.restores),
-    ("eventReversals", toJson r.eventReversals), ("eventFights", toJson r.eventFights), ("jitter", toJson r.jitter)]
+    ("eventReversals", toJson r.eventReversals), ("eventFights", toJson r.eventFights), ("jitter", toJson r.jitter),
+    ("lock", match r.lock with | some l => toJson l | none => Json.null)]
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts)]).compress
   let rs := runCases.map fun (name, r) =>
-    (Json.mkObj [("op", "run"), ("case", Json.str name), ("frames", samplesJson r.frames), ("events", samplesJson r.events),
+    (Json.mkObj [("op", "run"), ("case", Json.str name), ("frames", samplesJson r.frames), ("events", samplesJson r.events), ("calls", samplesJson r.calls),
       ("refusal", match refusal r with | some f => Json.str f.name | none => Json.null),
       ("result", resultJson (reduce r))]).compress
   let cs := cmpCases.map fun (name, f, c) =>
@@ -337,16 +426,18 @@ def goldenLines (_ : Unit := ()) : List String :=
   let ls := lookCases.map fun (name, f, c) =>
     (Json.mkObj [("op", "look"), ("case", Json.str name), ("faith", toJson f), ("cand", toJson c),
       ("out", Json.str (look f c).name)]).compress
-  let ts := [("two arms", [⟨steadyFrames, steadyFrames⟩, ⟨fightFrames, fightFrames⟩, neverOpen, shortOpen])].map fun (name, l) =>
+  let ts := [("two arms", [⟨steadyFrames, steadyFrames, mk []⟩, ⟨fightFrames, fightFrames, mk [(5000, true)]⟩, neverOpen, shortOpen])].map fun (name, l) =>
     (Json.mkObj [("op", "tally"), ("case", Json.str name), ("runs", Json.arr (l.map fun r =>
-      Json.mkObj [("frames", samplesJson r.frames), ("events", samplesJson r.events)]).toArray),
+      Json.mkObj [("frames", samplesJson r.frames), ("events", samplesJson r.events), ("calls", samplesJson r.calls)]).toArray),
       ("accepted", toJson (tally l).1), ("jitter", toJson (tally l).2)]).compress
   let os := (List.range 4).map fun rep =>
     (Json.mkObj [("op", "order"), ("rep", toJson rep), ("arms", toJson ((repOrder rep).map Arm.name))]).compress
   let ws := [(0, false), (0, true), (1, true), (2, true), (3, false)].map fun (used, stalled) =>
     (Json.mkObj [("op", "lane"), ("used", toJson used), ("stalled", toJson stalled),
       ("out", Json.str (afterWindow used stalled).name)]).compress
-  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws
+  let tg := (List.range 4).map fun n =>
+    (Json.mkObj [("op", "tag"), ("restarts", toJson n), ("tag", Json.str (serveTag n))]).compress
+  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -367,9 +458,9 @@ def run (args : List String) : IO UInt32 := do
     IO.print goldenText
     return 0
 
-#guard (reduce ⟨fightFrames, fightFrames⟩).jitter == true
-#guard (reduce ⟨steadyFrames, steadyFrames⟩).jitter == false
-#guard (reduce ⟨monotoneFrames, monotoneFrames⟩).frameReversals == 0
+#guard (reduce ⟨fightFrames, fightFrames, mk [(5000, true)]⟩).jitter == true
+#guard (reduce ⟨steadyFrames, steadyFrames, mk []⟩).jitter == false
+#guard (reduce ⟨monotoneFrames, monotoneFrames, mk []⟩).frameReversals == 0
 #guard cmp [2, 3, 5] [0, 0, 1] == .lower
 
 end Fw.Measure.TouchLock

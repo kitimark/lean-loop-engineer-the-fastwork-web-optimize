@@ -1,0 +1,266 @@
+import Lean.Data.Json
+import Fw.Engine.Visual
+
+/-!
+# engine.scroll:unthrottle
+WebKit @862f17d: WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266.
+-/
+namespace Fw.Parts.EngineScrollUnthrottle
+
+open Lean Fw.Engine
+
+inductive PropKind where
+  | accelerated
+  | layout
+  | custom
+deriving Repr, DecidableEq
+
+def PropKind.isAccelerated : PropKind → Bool
+  | .accelerated => true
+  | _ => false
+
+inductive AccState where
+  | none
+  | some
+  | all
+deriving Repr, DecidableEq
+
+def accState (ps : List PropKind) : AccState :=
+  if !(ps.any PropKind.isAccelerated) then .none
+  else if ps.any (fun p => !p.isAccelerated) then .some
+  else .all
+
+def completelyAccelerated (ps : List PropKind) : Bool := accState ps == .all
+
+structure Anim where
+  progressBased : Bool
+  props : List PropKind
+deriving Repr, DecidableEq
+
+def hasProgressBasedScrollDriven (as : List Anim) : Bool :=
+  as.any fun a => a.progressBased && !completelyAccelerated a.props
+
+structure Page where
+  timelineSupported : Bool
+  anims : List Anim
+deriving Repr, DecidableEq
+
+def Page.effective (p : Page) : List Anim :=
+  p.anims.map fun a => { a with progressBased := a.progressBased && p.timelineSupported }
+
+def Page.reported (p : Page) : Bool := hasProgressBasedScrollDriven p.effective
+
+def throttled (interactiveInsets : Bool) (p : Page) : Bool := interactiveInsets && !p.reported
+
+inductive Engine where
+  | webkitIos
+  | webkitOther
+  | chromium
+deriving Repr, DecidableEq
+
+def Engine.throttles : Engine → Bool
+  | .webkitIos => true
+  | _ => false
+
+def throttledOn (e : Engine) (interactiveInsets : Bool) (p : Page) : Bool := e.throttles && throttled interactiveInsets p
+
+def liftAnim : Anim := ⟨true, [.custom]⟩
+
+def Page.withLift (p : Page) : Page := { p with anims := liftAnim :: p.anims }
+
+theorem custom_not_accelerated : PropKind.isAccelerated .custom = false := rfl
+
+theorem custom_effect_not_complete (n : Nat) : completelyAccelerated (List.replicate n .custom) = false := by
+  induction n with
+  | zero => rfl
+  | succ n ih => simp [completelyAccelerated, accState, PropKind.isAccelerated, List.replicate_succ]
+
+theorem liftAnim_not_complete : completelyAccelerated liftAnim.props = false := rfl
+
+theorem complete_iff (ps : List PropKind) :
+    completelyAccelerated ps = true ↔ ps ≠ [] ∧ ∀ p ∈ ps, p.isAccelerated = true := by
+  unfold completelyAccelerated accState
+  constructor
+  · intro h
+    by_cases h1 : (ps.any PropKind.isAccelerated) = true
+    · by_cases h2 : (ps.any (fun p => !p.isAccelerated)) = true
+      · simp [h1, h2] at h
+      · refine ⟨?_, ?_⟩
+        · rintro rfl; simp at h1
+        · intro p hp
+          have : ¬ (ps.any (fun p => !p.isAccelerated)) = true := h2
+          simp only [List.any_eq_true, not_exists, not_and, Bool.not_eq_true'] at this
+          have := this p hp
+          simpa using this
+    · simp [h1] at h
+  · rintro ⟨hne, hall⟩
+    have h1 : (ps.any PropKind.isAccelerated) = true := by
+      cases ps with
+      | nil => exact absurd rfl hne
+      | cons p ps => simp [hall p (by simp)]
+    have h2 : (ps.any (fun p => !p.isAccelerated)) = false := by
+      simp only [List.any_eq_false]
+      intro p hp; simp [hall p hp]
+    simp [h1, h2]
+
+theorem reported_iff (p : Page) :
+    p.reported = true ↔ ∃ a ∈ p.anims, (a.progressBased = true ∧ p.timelineSupported = true) ∧ completelyAccelerated a.props = false := by
+  simp [Page.reported, hasProgressBasedScrollDriven, Page.effective, List.any_map, Function.comp_def]
+
+theorem lifted_when_supported (p : Page) (hs : p.timelineSupported = true) (i : Bool) :
+    throttled i p.withLift = false := by
+  simp [throttled, Page.reported, hasProgressBasedScrollDriven, Page.effective, Page.withLift, liftAnim, hs,
+    completelyAccelerated, accState, PropKind.isAccelerated]
+
+theorem no_effect_without_support (p : Page) (hs : p.timelineSupported = false) (i : Bool) :
+    throttled i p.withLift = throttled i p := by
+  simp [throttled, Page.reported, hasProgressBasedScrollDriven, Page.effective, Page.withLift, liftAnim, hs,
+    completelyAccelerated, accState, PropKind.isAccelerated]
+
+theorem no_throttle_when_idle (p : Page) : throttled false p = false := rfl
+
+theorem compositable_does_not_lift (p : Page)
+    (h : ∀ a ∈ p.anims, a.progressBased = false ∨ completelyAccelerated a.props = true) :
+    throttled true p = true := by
+  simp only [throttled, Page.reported, hasProgressBasedScrollDriven, Page.effective, Bool.true_and]
+  have : (p.anims.map fun a => { a with progressBased := a.progressBased && p.timelineSupported }).any
+      (fun a => a.progressBased && !completelyAccelerated a.props) = false := by
+    simp only [List.any_eq_false, List.mem_map]
+    rintro a ⟨b, hb, rfl⟩
+    rcases h b hb with h1 | h1 <;> simp [h1]
+  simp [this]
+
+theorem chromium_never_throttled (i : Bool) (p : Page) : throttledOn .chromium i p = false := rfl
+
+theorem lift_effect (e : Engine) (p : Page) (hs : p.timelineSupported = true) :
+    throttledOn e true p.withLift = false := by
+  cases e <;> simp [throttledOn, Engine.throttles, lifted_when_supported p hs]
+
+structure FlagStyle where
+  fixedPosition : Bool
+  widthPx : Nat
+  heightPx : Nat
+  opacity0 : Bool
+  pointerEventsNone : Bool
+  ariaHidden : Bool
+  inherits : Bool
+  animated : List PropKind
+  readByStyle : Bool
+deriving Repr, DecidableEq
+
+def flag : FlagStyle :=
+  ⟨true, 1, 1, true, true, true, false, [.custom], false⟩
+
+def flagBox : BoxVis :=
+  ⟨⟨0, 0, flag.widthPx, flag.heightPx⟩, ⟨0, 0, flag.widthPx, flag.heightPx⟩, [], ⟨1, 0, 0, 1, 0, 0⟩,
+    if flag.opacity0 then 0 else 1, none, [], 0⟩
+
+def withFlag (s : Scene) : Scene := s ++ [("fw-unthrottle", flagBox)]
+
+theorem visible_withFlag (vp : Rect) (s : Scene) : visible vp (withFlag s) = visible vp s := by
+  simp [visible, withFlag, List.filter_append, flagBox, flag, BoxVis.drop]
+
+theorem render_withFlag {α : Type} (R : Scene → α) (vp : Rect) (s : Scene) :
+    R (visible vp (withFlag s)) = R (visible vp s) := by rw [visible_withFlag]
+
+theorem Q_withFlag (vp : Rect) (s : Scene) : Q (visible vp (withFlag s)) (visible vp s) := by
+  rw [visible_withFlag]; exact Q_refl _
+
+structure El where
+  inFlow : Bool
+  hittable : Bool
+  exposed : Bool
+deriving Repr, DecidableEq
+
+def flagEl : El := ⟨!flag.fixedPosition, !flag.pointerEventsNone, !flag.ariaHidden⟩
+
+def flowOf (es : List El) : List El := es.filter (·.inFlow)
+
+def hitOf (es : List El) : List El := es.filter (·.hittable)
+
+def a11yOf (es : List El) : List El := es.filter (·.exposed)
+
+theorem same_layout_hit_a11y (es : List El) :
+    flowOf (es ++ [flagEl]) = flowOf es ∧ hitOf (es ++ [flagEl]) = hitOf es ∧ a11yOf (es ++ [flagEl]) = a11yOf es := by
+  simp [flowOf, hitOf, a11yOf, flagEl, flag, List.filter_append]
+
+theorem flag_animates_custom_only : flag.animated.all (fun p => p == .custom) = true := rfl
+
+theorem flag_value_unread : flag.readByStyle = false := rfl
+
+theorem flag_is_liftAnim : (⟨true, flag.animated⟩ : Anim) = liftAnim := rfl
+
+def restyled (f : FlagStyle) (subtree : Nat) : Nat := 1 + if f.inherits then subtree else 0
+
+def laidOut (f : FlagStyle) (reflowed : Nat) : Nat := if f.readByStyle then reflowed else 0
+
+theorem restyled_flag (subtree : Nat) : restyled flag subtree = 1 := rfl
+
+theorem laidOut_flag (reflowed : Nat) : laidOut flag reflowed = 0 := rfl
+
+def extraRecalc (moved : List Bool) : Nat := (moved.filter id).length
+
+theorem extraRecalc_le (moved : List Bool) : extraRecalc moved ≤ moved.length := List.length_filter_le _ _
+
+theorem extraRecalc_idle (n : Nat) : extraRecalc (List.replicate n false) = 0 := by
+  simp [extraRecalc]
+
+theorem extraRecalc_scroll (n : Nat) : extraRecalc (List.replicate n true) = n := by
+  simp [extraRecalc]
+
+def attr : String := "data-fw-unthrottle"
+
+def css : String :=
+  String.intercalate "\n"
+    ["@property --fw-ut { syntax: \"<number>\"; inherits: " ++ (if flag.inherits then "true" else "false") ++ "; initial-value: 0; }",
+     "@keyframes fw-ut { from { --fw-ut: 0; } to { --fw-ut: 1; } }",
+     "@supports (animation-timeline: scroll()) {",
+     s!"[{attr}] \{ position: {if flag.fixedPosition then "fixed" else "static"}; left: 0; top: 0; width: {flag.widthPx}px; height: {flag.heightPx}px; opacity: {if flag.opacity0 then "0" else "1"}; pointer-events: {if flag.pointerEventsNone then "none" else "auto"};",
+     " animation: fw-ut 1s linear both; animation-duration: auto; animation-timeline: scroll(root block); }",
+     "}"]
+
+def attrs : List (String × String) :=
+  [(attr, "")] ++ (if flag.ariaHidden then [("aria-hidden", "true")] else [])
+
+private def okCases : List (Bool × Bool × Bool) :=
+  [(true, true, true), (true, true, false), (true, false, true), (false, true, true), (true, false, false),
+   (false, false, true), (false, true, false), (false, false, false)]
+
+private def pageOf (supported progress accelerated : Bool) (lift : Bool) : Page :=
+  let base : Page := ⟨supported, [⟨progress, [if accelerated then .accelerated else .layout]⟩]⟩
+  if lift then base.withLift else base
+
+def goldenLines (_ : Unit) : List String :=
+  let decision := okCases.flatMap fun ((s, pr, ac) : Bool × Bool × Bool) =>
+    ([true, false] : List Bool).flatMap fun (lift : Bool) =>
+      ([true, false] : List Bool).map fun (ins : Bool) =>
+        (Json.mkObj [("fn", "throttled"), ("in", Json.mkObj [("timelineSupported", s), ("progressBased", pr),
+          ("accelerated", ac), ("lift", lift), ("interactiveInsets", ins)]),
+          ("out", throttled ins (pageOf s pr ac lift))]).compress
+  [(Json.mkObj [("fn", "css"), ("out", css)]).compress,
+   (Json.mkObj [("fn", "attrs"), ("out", Json.mkObj (attrs.map fun (k, v) => (k, Json.str v)))]).compress,
+   (Json.mkObj [("fn", "cost"), ("out", Json.mkObj [("restyled", restyled flag 1000), ("laidOut", laidOut flag 1000),
+     ("paintsNothing", flagBox.alpha == 0)])]).compress] ++ decision
+
+def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
+
+def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "parts" / "engine.scroll.unthrottle.jsonl"
+
+def run (args : List String) : IO Unit := do
+  match args with
+  | "--check" :: _ =>
+    let path := goldenPath
+    let cur ← IO.FS.readBinFile path
+    if cur.data == (goldenText ()).toUTF8.data then
+      IO.eprintln s!"engine.scroll unthrottle golden: {path} is up to date ({(goldenLines ()).length} lines)"
+    else
+      throw (IO.userError s!"{path} differs from Fw.Parts.EngineScrollUnthrottle.goldenText")
+  | _ => IO.print (goldenText ())
+
+#guard throttled true (pageOf true true true false) == true
+#guard throttled true (pageOf true true false false) == false
+#guard throttled true (pageOf true true false true) == false
+#guard throttled true (pageOf false true false true) == true
+#guard throttledOn .chromium true (pageOf true true true false) == false
+
+end Fw.Parts.EngineScrollUnthrottle
