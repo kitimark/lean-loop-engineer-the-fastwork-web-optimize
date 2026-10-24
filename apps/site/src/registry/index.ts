@@ -34,6 +34,7 @@ import platformMarquee from '../parts/platform.marquee/part.json';
 import morphEndClamp from '../parts/morph.end.clamp/part.json';
 import morphEndFlip from '../parts/morph.end.flip/part.json';
 import morphEndRelease from '../parts/morph.end.release/part.json';
+import morphEndAll from './presets/morph-end-all.json';
 import original from './presets/original.json';
 import stripDemo from './presets/strip-demo.json';
 import v2Proved from './presets/v2-proved.json';
@@ -45,6 +46,7 @@ export const presets: Record<string, PresetDef> = {
   original: original as PresetDef,
   'strip-demo': stripDemo as PresetDef,
   'v2-proved': v2Proved as PresetDef,
+  'morph-end-all': morphEndAll as PresetDef,
 };
 
 export function resolveSearch(search: string): ResolveResult {

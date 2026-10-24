@@ -19,6 +19,11 @@ describe('morph.end bricks in the registry (Lean MorphEnd.all_combinations, bric
     const r = resolveSearch('?fw=morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,engine.scroll:unthrottle');
     expect(r.ok).toBe(true);
   });
+  it('the preset morph-end-all (what the breakpoint gate prerenders) turns all three on', () => {
+    const r = resolveSearch('?preset=morph-end-all');
+    if (!r.ok) throw new Error(r.errors.join('; '));
+    expect(cfgOf(r.config.variants)).toEqual({ clamp: true, flip: true, release: true });
+  });
   it('an unlisted default is faithful', () => {
     const r = resolveSearch('');
     if (!r.ok) throw new Error(r.errors.join('; '));
