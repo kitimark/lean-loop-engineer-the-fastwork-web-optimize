@@ -1,4 +1,4 @@
-{"fn":"css","out":"@property --fw-ut { syntax: \"<number>\"; inherits: false; initial-value: 0; }\n@keyframes fw-ut { from { --fw-ut: 0; } to { --fw-ut: 1; } }\n@supports (animation-timeline: scroll()) {\n[data-fw-unthrottle] { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;\n animation: fw-ut 1s linear both; animation-duration: auto; animation-timeline: scroll(root block); }\n}"}
+{"fn":"css","out":"@property --fw-ut { syntax: \"<number>\"; inherits: false; initial-value: 0; }\n@keyframes fw-ut { from { --fw-ut: 0; } to { --fw-ut: 1; } }\n@supports (animation-timeline: scroll()) {\n@media (pointer: coarse) {\n[data-fw-unthrottle] { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;\n animation: fw-ut 1s linear both; animation-duration: auto; animation-timeline: scroll(root block); }\n}\n}"}
 {"fn":"attrs","out":{"aria-hidden":"true","data-fw-unthrottle":""}}
 {"fn":"cost","out":{"laidOut":0,"paintsNothing":true,"restyled":1}}
 {"fn":"throttled","in":{"accelerated":true,"interactiveInsets":true,"lift":true,"progressBased":true,"timelineSupported":true},"out":false}
@@ -33,3 +33,7 @@
 {"fn":"throttled","in":{"accelerated":false,"interactiveInsets":false,"lift":true,"progressBased":false,"timelineSupported":false},"out":false}
 {"fn":"throttled","in":{"accelerated":false,"interactiveInsets":true,"lift":false,"progressBased":false,"timelineSupported":false},"out":true}
 {"fn":"throttled","in":{"accelerated":false,"interactiveInsets":false,"lift":false,"progressBased":false,"timelineSupported":false},"out":false}
+{"fn":"guarded","in":{"coarse":true,"interactiveInsets":true},"out":{"restyled":1,"throttledIos":false}}
+{"fn":"guarded","in":{"coarse":true,"interactiveInsets":false},"out":{"restyled":1,"throttledIos":false}}
+{"fn":"guarded","in":{"coarse":false,"interactiveInsets":true},"out":{"restyled":0,"throttledIos":true}}
+{"fn":"guarded","in":{"coarse":false,"interactiveInsets":false},"out":{"restyled":0,"throttledIos":false}}

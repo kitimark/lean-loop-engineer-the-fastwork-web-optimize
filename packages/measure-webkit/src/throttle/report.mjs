@@ -3,6 +3,7 @@
 import { runs, bandRuns, shortRuns, exitFrames, partSeries, verdict } from './stillruns.mjs';
 
 export const ARMS = Object.freeze({ base: 'rewrite', lift: 'lift', ref: 'original' });
+export const SHIPPED_ARM = 'unthrottle';
 const MIN_FRAMES = 30;
 const MIN_TRAVEL_PX = 100;
 const MIN_TOOLBAR_TENTHS = 20;
@@ -36,10 +37,9 @@ export function armRow(passes) {
     per1000: frames ? Math.round((band * 10000) / frames) / 10 : null, heights: usable.map((p) => p.rec.start.vh) };
 }
 
-/** The verdict of a set of passes: base = the rewrite, lift = the rewrite with the flag. */
-export function verdictOf(passes) {
+export function verdictOf(passes, flagArm = ARMS.lift) {
   const base = armRow(passes.filter((p) => p.arm === ARMS.base));
-  const lift = armRow(passes.filter((p) => p.arm === ARMS.lift));
+  const lift = armRow(passes.filter((p) => p.arm === flagArm));
   const v = verdict([...base.heights, ...lift.heights], { runs: base.band, frames: base.frames }, { runs: lift.band, frames: lift.frames });
   return { verdict: v, base, lift };
 }
@@ -52,12 +52,18 @@ export function reportMd(vms) {
     const r = armRow(passes.filter((p) => p.arm === arm));
     out.push(`| ${name} | ${arm} | ${r.passes} (${r.usable}) | ${r.frames} | ${r.band} | ${r.per1000 ?? '-'} | ${r.short} | ${r.moved} |`);
   };
-  for (const { vm, passes } of vms) for (const a of Object.values(ARMS)) cell(vm, a, passes);
   const all = vms.flatMap((x) => x.passes);
-  for (const a of Object.values(ARMS)) cell('all jobs', a, all);
+  const shipped = all.some((p) => p.arm === SHIPPED_ARM);
+  const arms = shipped ? [...Object.values(ARMS), SHIPPED_ARM] : Object.values(ARMS);
+  for (const { vm, passes } of vms) for (const a of arms) cell(vm, a, passes);
+  for (const a of arms) cell('all jobs', a, all);
   out.push('');
   for (const { vm, passes } of vms) out.push(`- ${vm}: ${verdictOf(passes).verdict}`);
   out.push(`- all jobs: ${verdictOf(all).verdict}`);
+  if (shipped) {
+    for (const { vm, passes } of vms) out.push(`- ${vm} (${SHIPPED_ARM}): ${verdictOf(passes, SHIPPED_ARM).verdict}`);
+    out.push(`- all jobs (${SHIPPED_ARM}): ${verdictOf(all, SHIPPED_ARM).verdict}`);
+  }
   const why = [...new Set(all.map(excludeReason).filter(Boolean))];
   if (why.length) out.push('', `Excluded passes: ${why.join('; ')}.`);
   return out.join('\n') + '\n';
