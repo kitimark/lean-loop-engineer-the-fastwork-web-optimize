@@ -113,7 +113,7 @@ def scrollLine (r : Row) : String :=
 
 def settleLine : String := line "settleEvents" [] (jn 29)
 
-def windowLines : List String :=
+def windowLines (_ : Unit := ()) : List String :=
   [settleLine] ++ rows.map layoutLine ++ inBandLines ++ (rows.filter fun r => scrollRows.contains r.id).map scrollLine
 
 def gateLines (_ : Unit := ()) : List String :=
@@ -133,7 +133,7 @@ def gateLines (_ : Unit := ()) : List String :=
         ("enter", rin p.1), ("shrink", rin p.2)]
         (Json.mkObj [("scale", ratWire (look env p).1), ("radius", ratWire (look env p).2)])) ++
   traces.map traceLine ++
-  merged.map mergedLine ++ windowLines
+  merged.map mergedLine ++ windowLines ()
 
 def files (_ : Unit := ()) : List (String × List String) := [("commission-gate.jsonl", gateLines ())]
 
