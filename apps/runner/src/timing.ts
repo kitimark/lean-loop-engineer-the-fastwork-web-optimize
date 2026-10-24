@@ -8,12 +8,82 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "n
 import { loadavg } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number;
+export type Span = { tool: string; step: string; startMs: number; durMs: number; exit: number | null; commit: string; load: number; host: "local" | "ci"; runId?: number; queue?: { kind: string; waitMs: number; waits: { why: string; ms: number }[] };
   /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
   kind?: string;
   skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
-  runIds?: number[]; phases?: Record<string, number | string | boolean> };
+  runIds?: number[]; phases?: Record<string, number | string | boolean>;
+  slot?: { width: number; jobs: number };
+  /** `fw polish commit` spans only: the checkmap commands of the commit (count and kinds). */
+  checks?: { n: number; kinds: string[] };
+  /** `fw polish commit` spans that ran lake build and `fw land dry lake` spans: the modules lake built. */
+  lake?: { built: number } };
+
+export function slotWork(slot: unknown): { work?: Record<string, string> } {
+  const w = (slot as { width?: unknown } | null | undefined)?.width;
+  return typeof w === "number" && Number.isInteger(w) && w >= 0 ? { work: { width: String(w) } } : {};
+}
+
+/** Lean `Fw.Obs.Timing.heavyChecks`, checked against the work golden. */
+export const HEAVY_CHECKS = ["lakeBuild", "leanElab", "presetCheck"] as const;
+
+/** Lean `Fw.Obs.Timing.checksWork`: the heavy kinds of a `checks` member joined by `+`, or `light`; none without a
+ *  `kinds` array. */
+export function checksWork(checks: unknown): { work?: Record<string, string> } {
+  const k = (checks as { kinds?: unknown } | null | undefined)?.kinds;
+  if (!Array.isArray(k)) return {};
+  const heavy = HEAVY_CHECKS.filter((h) => k.includes(h));
+  return { work: { checks: heavy.length ? heavy.join("+") : "light" } };
+}
+
+/** Lean `Fw.Obs.Timing.modsLow`: 0, else the largest power of 4 at most `n`. */
+export function modsLow(n: number): number {
+  if (n === 0) return 0;
+  let lo = 1;
+  while (lo * 4 <= n) lo *= 4;
+  return lo;
+}
+
+/** Lean `Fw.Obs.Timing.modsWork`: the class of a `lake` member's built count; none without an integer count. */
+export function lakeWork(lake: unknown): { work?: Record<string, string> } {
+  const b = (lake as { built?: unknown } | null | undefined)?.built;
+  return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { work: { mods: String(modsLow(b)) } } : {};
+}
+
+export type RawPhases = { how: string; updMs: number; tickMs?: number; prevTickMs?: number; pollS?: number; retryUntilS?: number; prevPollS?: number };
+
+export function rawOf(o: unknown): { startMs?: number; commit?: string; phases?: RawPhases } {
+  type In = { how?: unknown; updMs?: unknown; tickMs?: unknown; prevTickMs?: unknown; pollS?: unknown; retryUntilS?: unknown; prevPollS?: unknown };
+  const s = o as { startMs?: unknown; commit?: unknown; phases?: In | null } | null | undefined;
+  const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+  const ph = s?.phases;
+  const opt = (k: "tickMs" | "prevTickMs" | "pollS" | "retryUntilS" | "prevPollS") => (nat(ph?.[k]) ? { [k]: ph[k] } : {});
+  return {
+    ...(nat(s?.startMs) ? { startMs: s.startMs } : {}),
+    ...(typeof s?.commit === "string" && /^[0-9a-f]{0,40}$/.test(s.commit) && s.commit !== "" ? { commit: s.commit } : {}),
+    ...(typeof ph?.how === "string" && nat(ph.updMs)
+      ? { phases: { how: ph.how, updMs: ph.updMs, ...opt("tickMs"), ...opt("prevTickMs"), ...opt("pollS"), ...opt("retryUntilS"), ...opt("prevPollS") } }
+      : {}),
+  };
+}
+
+export function builtLine(l: string): boolean {
+  const parts = l.split("] Built ");
+  if (parts.length !== 2) return false;
+  const progress = parts[0]!.split("[").at(-1)!.split("/");
+  const name = parts[1]!.split(" ")[0]!;
+  return progress.length === 2 && progress.every((x) => /^[0-9]+$/.test(x)) && name !== "" && !name.includes(":");
+}
+
+/** Lean `Fw.Obs.Timing.builtModules`: the modules a lake run built, from its output. */
+export const builtModules = (out: string): number => out.split("\n").filter(builtLine).length;
+
+/** Lean `Fw.Obs.Timing.spanWork`: the checks class, the rebuilt-module class and the slot width of a span line. */
+export function spanWork(o: { slot?: unknown; checks?: unknown; lake?: unknown }): { work?: Record<string, string> } {
+  const work = { ...checksWork(o.checks).work, ...lakeWork(o.lake).work, ...slotWork(o.slot).work };
+  return Object.keys(work).length ? { work } : {};
+}
 
 type Where = { main: string; sha: string };
 const cache = new Map<string, Where>();
@@ -69,15 +139,22 @@ export function record(s: Partial<Span> & Pick<Span, "tool" | "step" | "startMs"
   } catch { /* a timing line never fails a step */ }
 }
 
+const notes = new Map<string, Partial<Span>>();
+
+/** Add fields to the line of the `begin` span of `tool`/`step` this process ends: the `checks` of `fw polish commit`. */
+export function noteSpan(tool: string, step: string, extra: Partial<Span>): void {
+  notes.set(`${tool}/${step}`, { ...notes.get(`${tool}/${step}`), ...extra });
+}
+
 /** Start a span now; call the returned function once with the exit code when the step ends (later calls are ignored).
- *  `extra`: fields to add to the line (the phases of a `fw ci wait`). */
+ *  `extra`: fields to add to the line (the phases of a `fw ci wait`), after the fields noted for this span. */
 export function begin(tool: string, step: string, cwd: string = process.cwd()): (exit?: number | null, extra?: Partial<Span>) => void {
   const startMs = Date.now(), t0 = performance.now();
   let done = false;
   return (exit = 0, extra = {}) => {
     if (done) return;
     done = true;
-    record({ ...extra, tool, step: extra.step ?? step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
+    record({ ...notes.get(`${tool}/${step}`), ...extra, tool, step: extra.step ?? step, startMs, durMs: Math.round(performance.now() - t0), exit }, cwd);
   };
 }
 

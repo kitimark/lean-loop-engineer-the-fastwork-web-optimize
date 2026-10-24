@@ -1,0 +1,98 @@
+{"dirs":{"counts":"profiles","probe":"probes"},"kind":"consts","pinned":["--remote-debugging-port=","--user-data-dir=","--enable-begin-frame-control","--run-all-compositor-stages-before-draw"],"ua":{"desktop":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","mobile":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"}}
+{"conf":"<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n<fontconfig>\n  <dir>/usr/share/fonts/truetype/liberation</dir>\n  <cachedir>/tmp/fontconfig-cache</cachedir>\n</fontconfig>\n","dir":"/usr/share/fonts/truetype/liberation","families":["Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fonts","pkg":"fonts-liberation","version":"1:1.07.4-11"}
+{"kind":"fontSets","sets":[{"name":"none","pkgs":[]},{"name":"liberation","pkgs":["fonts-liberation"]},{"name":"liberation+dejavu","pkgs":["fonts-liberation","fonts-dejavu-core"]},{"name":"liberation+tlwg","pkgs":["fonts-liberation","fonts-thai-tlwg"]},{"name":"liberation+noto","pkgs":["fonts-liberation","fonts-noto-core"]},{"name":"liberation+noto+emoji","pkgs":["fonts-liberation","fonts-noto-core","fonts-noto-color-emoji"]}]}
+{"dist":0,"got":6000,"kind":"fontDist","pairs":[],"ref":6000}
+{"dist":700,"got":5300,"kind":"fontDist","pairs":[],"ref":6000}
+{"dist":720,"got":5300,"kind":"fontDist","pairs":[[100,120],[80,80]],"ref":4600}
+{"dist":0,"got":5300,"kind":"fontDist","pairs":[[10,10],[20,20]],"ref":5300}
+{"dist":5,"got":0,"kind":"fontDist","pairs":[[5,0]],"ref":0}
+{"kind":"fontPick","pick":null,"scores":[]}
+{"kind":"fontPick","pick":"a","scores":[{"dist":5,"idx":0,"name":"a","notdef":0,"pkgs":0}]}
+{"kind":"fontPick","pick":"b","scores":[{"dist":5,"idx":0,"name":"a","notdef":1,"pkgs":1},{"dist":5,"idx":1,"name":"b","notdef":0,"pkgs":2}]}
+{"kind":"fontPick","pick":"b","scores":[{"dist":7,"idx":0,"name":"a","notdef":0,"pkgs":0},{"dist":3,"idx":1,"name":"b","notdef":9,"pkgs":3}]}
+{"kind":"fontPick","pick":"b","scores":[{"dist":3,"idx":0,"name":"a","notdef":2,"pkgs":2},{"dist":3,"idx":1,"name":"b","notdef":2,"pkgs":1},{"dist":3,"idx":2,"name":"c","notdef":2,"pkgs":1}]}
+{"kind":"fontPick","pick":"a","scores":[{"dist":3,"idx":0,"name":"a","notdef":2,"pkgs":2},{"dist":3,"idx":1,"name":"b","notdef":2,"pkgs":2}]}
+{"count":0,"covered":[],"cps":[],"kind":"notdef"}
+{"count":5,"covered":[],"cps":[[9733,1],[65,4]],"kind":"notdef"}
+{"count":1,"covered":[65],"cps":[[9733,1],[65,4]],"kind":"notdef"}
+{"count":0,"covered":[65,9733],"cps":[[9733,1],[65,4]],"kind":"notdef"}
+{"count":1,"covered":[3585],"cps":[[3585,7],[9733,1]],"kind":"notdef"}
+{"found":[],"kind":"fontsOk","ok":false}
+{"found":["Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fontsOk","ok":true}
+{"found":["Liberation Sans"],"kind":"fontsOk","ok":false}
+{"found":["Liberation Mono","Liberation Sans","Liberation Sans Narrow","Liberation Serif"],"kind":"fontsOk","ok":true}
+{"found":["DejaVu Sans","Liberation Mono","Liberation Sans","Liberation Serif"],"kind":"fontsOk","ok":true}
+{"found":["Liberation Mono","Liberation Serif"],"kind":"fontsOk","ok":false}
+{"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchPage","maxFrames":2378,"maxScroll":5346}
+{"budget":82,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":0,"stroke":82,"strokes":0}
+{"budget":410,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":1,"stroke":82,"strokes":1}
+{"budget":410,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":780,"stroke":82,"strokes":1}
+{"budget":738,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":781,"stroke":82,"strokes":2}
+{"budget":2050,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":4626,"stroke":82,"strokes":6}
+{"budget":2378,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":5346,"stroke":82,"strokes":7}
+{"budget":2465,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"kind":"touchBudget","moves":78,"reach":780,"scroll":5346,"stroke":85,"strokes":7}
+{"budget":594,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"kind":"touchBudget","moves":16,"reach":400,"scroll":3000,"stroke":18,"strokes":8}
+{"band":10,"ended":true,"idle":0,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5346}
+{"band":10,"ended":true,"idle":0,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5400}
+{"band":10,"ended":false,"idle":0,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5345}
+{"band":10,"ended":true,"idle":164,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5342}
+{"band":10,"ended":false,"idle":163,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5342}
+{"band":10,"ended":false,"idle":164,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5335}
+{"band":10,"ended":true,"idle":164,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5336}
+{"band":10,"ended":false,"idle":9999,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":5335}
+{"band":10,"ended":false,"idle":0,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":5346,"y":0}
+{"band":10,"ended":true,"idle":0,"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"kind":"touchEnd","limit":0,"y":0}
+{"band":10,"ended":true,"idle":6,"idleFrames":6,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"kind":"touchEnd","limit":5346,"y":5342}
+{"band":10,"ended":false,"idle":5,"idleFrames":6,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"kind":"touchEnd","limit":5346,"y":5342}
+{"band":10,"ended":false,"idle":99,"idleFrames":6,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"kind":"touchEnd","limit":5346,"y":5330}
+{"band":10,"ended":true,"idle":0,"idleFrames":6,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"kind":"touchEnd","limit":5346,"y":5346}
+{"in":null,"kind":"parseKind","out":"counts"}
+{"in":"counts","kind":"parseKind","out":"counts"}
+{"in":"probe","kind":"parseKind","out":"probe"}
+{"in":"Probe","kind":"parseKind","out":null}
+{"in":"","kind":"parseKind","out":null}
+{"drop":"--disable-gpu","kind":"dropOk","ok":true}
+{"drop":"--lang","kind":"dropOk","ok":true}
+{"drop":"--","kind":"dropOk","ok":false}
+{"drop":"-x","kind":"dropOk","ok":false}
+{"drop":"--x","kind":"dropOk","ok":true}
+{"drop":"--remote","kind":"dropOk","ok":false}
+{"drop":"--user-data-dir=/x","kind":"dropOk","ok":false}
+{"drop":"--enable-begin-frame-control","kind":"dropOk","ok":false}
+{"drop":"--run-all","kind":"dropOk","ok":false}
+{"drop":"--enable","kind":"dropOk","ok":false}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":[],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--disable-gpu"],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--font-render-hinting","--lang"],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--no"],"kind":"keep","out":["--remote-debugging-port=9222","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"],"drops":["--x"],"kind":"keep","out":["--remote-debugging-port=9222","--no-sandbox","--disable-gpu","--user-data-dir=/tmp/p","--enable-begin-frame-control","--run-all-compositor-stages-before-draw","--font-render-hinting=none","--lang=en-US","about:blank"]}
+{"args":[],"drops":["--lang"],"kind":"keep","out":[]}
+{"kind":"runnable","mode":"counts","ok":true,"profile":"counts"}
+{"kind":"runnable","mode":"load","ok":false,"profile":"counts"}
+{"kind":"runnable","mode":"counts","ok":false,"profile":"probe"}
+{"kind":"runnable","mode":"load","ok":true,"profile":"probe"}
+{"declared":"counts","inProbes":false,"inProfiles":false,"kind":"readOk","ok":false}
+{"declared":"probe","inProbes":false,"inProfiles":false,"kind":"readOk","ok":false}
+{"declared":"counts","inProbes":true,"inProfiles":false,"kind":"readOk","ok":false}
+{"declared":"probe","inProbes":true,"inProfiles":false,"kind":"readOk","ok":true}
+{"declared":"counts","inProbes":false,"inProfiles":true,"kind":"readOk","ok":true}
+{"declared":"probe","inProbes":false,"inProfiles":true,"kind":"readOk","ok":false}
+{"declared":"counts","inProbes":true,"inProfiles":true,"kind":"readOk","ok":false}
+{"declared":"probe","inProbes":true,"inProfiles":true,"kind":"readOk","ok":false}
+{"arch":"x64","exe":"chrome-linux64/chrome","kind":"cft","os":"linux","platform":"linux64","url":"https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/linux64/chrome-linux64.zip"}
+{"arch":"arm64","exe":"chrome-linux-arm64/chrome","kind":"cft","os":"linux","platform":"linux-arm64","url":"https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/linux-arm64/chrome-linux-arm64.zip"}
+{"arch":"arm64","exe":"chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","kind":"cft","os":"darwin","platform":"mac-arm64","url":"https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/mac-arm64/chrome-mac-arm64.zip"}
+{"arch":"x64","exe":"chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","kind":"cft","os":"darwin","platform":"mac-x64","url":"https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/mac-x64/chrome-mac-x64.zip"}
+{"arch":"x64","exe":"chrome-win64/chrome.exe","kind":"cft","os":"win32","platform":"win64","url":"https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/win64/chrome-win64.zip"}
+{"arch":"arm64","exe":null,"kind":"cft","os":"win32","platform":null,"url":null}
+{"arch":"x64","exe":null,"kind":"cft","os":"freebsd","platform":null,"url":null}
+{"arch":"ia32","exe":null,"kind":"cft","os":"linux","platform":null,"url":null}
+{"dir":"profiles","kind":"wire","problem":null,"ua":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36","wire":{"css":null,"dropFlags":[],"kind":"counts","mobile":true,"variants":0}}
+{"dir":"profiles","kind":"wire","problem":null,"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":"*{text-wrap:wrap!important}","dropFlags":[],"kind":"counts","mobile":false,"variants":0}}
+{"dir":"profiles","kind":"wire","problem":"dropInCounts","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":["--lang"],"kind":"counts","mobile":false,"variants":0}}
+{"dir":"profiles","kind":"wire","problem":"variantsInCounts","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":[],"kind":"counts","mobile":false,"variants":3}}
+{"dir":"probes","kind":"wire","problem":null,"ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":["--lang","--disable-gpu"],"kind":"probe","mobile":false,"variants":4}}
+{"dir":"probes","kind":"wire","problem":"badDrop","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":null,"dropFlags":["--remote"],"kind":"probe","mobile":false,"variants":0}}
+{"dir":"probes","kind":"wire","problem":"emptyCss","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","wire":{"css":"","dropFlags":[],"kind":"probe","mobile":false,"variants":2}}
+{"dir":"profiles","kind":"wire","problem":"emptyCss","ua":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36","wire":{"css":"","dropFlags":[],"kind":"counts","mobile":true,"variants":0}}
+{"dir":"probes","kind":"wire","problem":null,"ua":"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36","wire":{"css":"h2{color:red}","dropFlags":[],"kind":"probe","mobile":true,"variants":0}}

@@ -37,10 +37,10 @@ on CI, near the context limit) get a next action from `fwcore` (`obs.next`, lean
 packages/contracts/golden/obs/next.jsonl). `fw watch` prints one line per non-`none` action after the table:
 
     NEXT <agent> <action> <k=v args>      e.g.  NEXT port-nav routeIntegrator branch=wt-port-nav
-                                                NEXT ghb-runner killOrphan pid=555
+                                                NEXT ghb-runner killOrphan pid=555 start=1759998680
 
 `pnpm fw next` prints the same list once, exits 0, and is read-only (no log line, no kill, no land): the lead acts.
-Actions: `killOrphan pid`, `land branch task`, `routeIntegrator branch`, `waitCi run`, `waitDeps dep`, `cleanupWorktree`,
+Actions: `killOrphan pid start`, `land branch task`, `routeIntegrator branch`, `waitCi run`, `waitDeps dep`, `cleanupWorktree`,
 `respawnFromHandoff`, `nudgeHandoff`, `claimTask task agent`, `investigate reason`. Nothing to do prints nothing
 (`fw next` prints `NEXT: none`). Without a built `fwcore` that knows `obs.next`, `fw watch` prints no NEXT lines and
 `fw next` says so. When `land` and `respawnFromHandoff` are proposed: `watch-rules.md`.

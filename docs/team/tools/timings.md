@@ -1,7 +1,7 @@
 # Timings: every automation step as a span
 
 `.fw-console/timings.jsonl` (main checkout, gitignored) holds one JSON line per timed step. Append-only; the writers
-never fail or slow the step. `pnpm fw timings` only displays; Lean (task timing-lean) decides whether a step is slow, not the TS quantiles.
+never fail or slow the step. `pnpm fw timings` only displays; Lean decides whether a step is slow, not the TS quantiles.
 
 ## Line schema
 
@@ -25,9 +25,20 @@ One name per cost, so no history pools unlike work:
   the table `SUBCOMMANDS` in `apps/runner/src/fw-groups.ts`, built only from the lists each module exports (`POLISH_VERBS`,
   `ORACLE_SUBS`, `CONSOLE_SUBS`, `SLOT_SUBS`, ...; the module's own dispatch uses the same list). `apps/runner/test/span-names.test.ts`
   parses the `usage: fw ...` text of `fw-main.ts` and fails when a group or an alternative it names is missing, or a key has no list.
-- `fw run` writes `run dispatch` (plan and the dispatch call), `run wait` (the CI wait; carries `runId`), `run file` (download
-  and ingest), or `run dry` for `--dry`; there is no `run` span (`apps/runner/src/run-phases.ts`). The first span opens before the
-  arguments are parsed, so a usage error still writes `run dispatch` (exit 1).
+- `fw run` writes `run plan` (arguments, the fwcore plan, the checks before the dispatch), then the three parts of the
+  `gh workflow run` call: `run dispatch lock` (the wait for the shared gh-budget lock plus the fwcore decision),
+  `run dispatch backoff` (the sleep after a budget wait; written only when it happened) and `run dispatch call` (the gh
+  process); then `run wait` (the CI wait; carries `runId`) and `run file` (download and ingest), or `run dry` for `--dry`; there
+  is no `run` span (`apps/runner/src/run-phases.ts`, names listed in Lean `Fw.Obs.Timing.runSteps`). The first span opens before the
+  arguments are parsed, so a usage error still writes `run plan` (exit 1).
+- `fw watch` writes `watch pass` and, when the pass made a gh call, `watch pass gh lock`, `watch pass gh call`,
+  `watch pass gh backoff` (only when non-zero) and `watch pass other` (the rest), all starting with the pass
+  (`passParts`, Lean `passSteps`). Each part is its own key, so a slow lock wait is judged against lock waits only.
+- `fw ci state` writes `ci state` and, when it made a gh call, `ci state gh lock` (the wait for the lock), `ci state gh load` (the
+  state-file read inside the lock), `ci state gh reserve` (the fwcore decision), `ci state gh call` (the gh process),
+  `ci state gh backoff` (only when non-zero) and `ci state reduce` (the rest: parse and id search); every span carries the
+  command's real exit (0 found, 2 not found) (`ciStateParts`, `recordStateParts`, Lean `ciStateSteps`). Without `--branch` or
+  `--workflow` it reads one list of 100 runs and stops (Lean `Fw.Ci.StateList.step`).
 - `fw slot` is `slot run <kind>`, `slot acquire <kind>`, `slot held <kind>`, `slot admit`, `slot status`, ... from both entries
   (`fw.ts` and `scripts/slot-self.mjs`, through `apps/runner/src/slot-span.ts`). A wrapped argv with `--dry` adds ` dry`
   (`slot run land dry`); a `--cache` replay ends as `... cached` (`slot run test cached`), apart from the real run.
@@ -60,7 +71,7 @@ p90. Job spans contain their step spans, so compare within a level. Raw lines: `
 `timing.slow` and `NEXT investigate step=<tool/step>`; replay test: apps/runner/test/timing-alert.test.ts against
 packages/contracts/golden/obs/timing.jsonl.
 
-## Full runs only (task ci-span-skipped)
+## Full runs only
 A sample is judged only when it is a full run (Lean `Fw.Obs.Timing.fullRun`): not `skipped`, and `exit` 0 or unknown
 (absent or null). Any other sample gets no verdict, never enters a window and never names a CI job of the auto stages;
 `timingVerdicts_indep` proves the output equals the output on the full samples alone (up to input index), and

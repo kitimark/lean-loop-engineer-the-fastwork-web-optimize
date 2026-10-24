@@ -228,8 +228,17 @@ def opLandLaneState (req : Json) : Except String Reply := do
   let said ← match opt req "saidFail" with | none | some .null => pure true | some _ => asBool "saidFail" (← field req "saidFail")
   let jobs ← match opt req "jobs" with
     | none | some .null => pure none
-    | some _ => some <$> (← arrD req "jobs").mapM (asBool "jobs")
-  pure [("state", .str (laneState c t (← strD req "status" "") (← strD req "conclusion" "") said jobs).name)]
+    | some _ => some <$> (← arrD req "jobs").mapM jobOf
+  let st ← strD req "status" ""
+  let co ← strD req "conclusion" ""
+  pure [("state", .str (laneState c t st co said jobs (← natD req "reads" 0)).name), ("reread", .bool (rereads c t st co jobs))]
+where
+  jobOf (j : Json) : Except String Job := do pure { status := ← strD j "status" "", conclusion := ← strD j "conclusion" "" }
+
+open Fw.Console.LandRemote in
+def opLandLegStates (req : Json) : Except String Reply := do
+  let js ← (← arrD req "jobs").mapM opLandLaneState.jobOf
+  pure [("legs", .arr (js.map fun j => Json.str (legState j).name).toArray)]
 
 open Fw.Console.LandRemote in
 def opLandDigest (req : Json) : Except String Reply := do
@@ -651,7 +660,7 @@ def opDaemon (req : Json) : Except String Reply := do
   | _ => throw "field kind: expected start, stop, restart or rotate"
 
 def ops : List String := ["console.landReadiness", "console.actor", "console.alert", "console.landScope", "console.landLock", "console.landGuard",
-  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landDigest", "console.landRenderGuard", "plan.trailers", "plan.lint",
+  "console.landCommit", "console.landPick", "console.landPool", "console.landRetry", "console.landTier", "console.landLeg", "console.landLegs", "console.landLegsVeto", "console.landLane", "console.landRemote", "console.landLaneState", "console.landLegStates", "console.landDigest", "console.landRenderGuard", "plan.trailers", "plan.lint",
   "console.previewTarget", "console.previewAdmit", "console.previewTick", "console.previewStop", "console.previewFail", "console.previewReap", "console.previewLink",
   "console.ownerLogin", "console.ownerGate", "console.previewGrant", "console.ownerAction", "console.previewArm", "console.loginReturn", "console.lanStart", "console.previewSweep", "console.previewCache", "console.builds", "console.buildsPicker", "console.buildsSearch", "console.buildsOpen", "console.compose", "console.review", "console.reviewPreview", "console.reviewFeedback", "console.report", "console.stepTopics", "console.reviewInfo", "console.reviewExcerpt", "console.daemon"]
 
@@ -674,6 +683,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "console.landLane" => some (opLandLane req)
   | "console.landRemote" => some (opLandRemote req)
   | "console.landLaneState" => some (opLandLaneState req)
+  | "console.landLegStates" => some (opLandLegStates req)
   | "console.landDigest" => some (opLandDigest req)
   | "console.landRenderGuard" => some (opLandRenderGuard req)
   | "plan.trailers" => some (opTrailers req)

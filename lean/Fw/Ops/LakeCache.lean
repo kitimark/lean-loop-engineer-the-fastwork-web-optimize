@@ -151,4 +151,127 @@ theorem lake_writers : (jobs.filter (·.saves)).map (fun j => (j.file, j.job, ".
     Fw.Ci.Trigger.cacheWriters.filter (·.2.2 == ".lake-cache") := by
   decide
 
+structure CacheFile where
+  artifact : Bool
+  links : Nat
+deriving Repr, DecidableEq
+
+def CacheFile.cases : List CacheFile := [⟨false, 1⟩, ⟨true, 1⟩, ⟨true, 2⟩, ⟨true, 7⟩]
+
+def keeps (f : CacheFile) : Bool := !(f.artifact && f.links == 1)
+
+theorem keeps_outputs (n : Nat) : keeps ⟨false, n⟩ = true := by simp [keeps]
+
+theorem keeps_linked (n : Nat) (h : 2 ≤ n) : keeps ⟨true, n⟩ = true := by
+  have : (n == 1) = false := by simp; omega
+  simp [keeps, this]
+
+theorem prunes_unlinked : keeps ⟨true, 1⟩ = false := by decide
+
+structure RestoreLeg where
+  run : Nat
+  job : Nat
+  hit : Bool
+  filesChanged : Nat
+  builtLines : Nat
+  jobs : Nat
+  setupS : Nat
+deriving Repr, DecidableEq
+
+inductive LegVerdict | ok | rebuilt | miss
+deriving Repr, DecidableEq
+
+def LegVerdict.name : LegVerdict → String
+  | .ok => "ok" | .rebuilt => "rebuilt" | .miss => "miss"
+
+def revertLines : Nat := 200
+
+def verdict (l : RestoreLeg) : LegVerdict :=
+  if !l.hit then .miss else if revertLines ≤ l.builtLines then .rebuilt else .ok
+
+theorem verdict_miss (l : RestoreLeg) (h : l.hit = false) : verdict l = .miss := by simp [verdict, h]
+
+theorem verdict_rebuilt (l : RestoreLeg) (h : l.hit = true) (n : revertLines ≤ l.builtLines) :
+    verdict l = .rebuilt := by simp [verdict, h, n]
+
+theorem verdict_ok (l : RestoreLeg) (h : l.hit = true) (n : l.builtLines < revertLines) : verdict l = .ok := by
+  have : ¬ revertLines ≤ l.builtLines := by omega
+  simp [verdict, h, this]
+
+def legs : List RestoreLeg := [
+  ⟨40010696608, 120610140089, true, 2, 48, 849, 19⟩, ⟨40010826449, 120610621304, true, 2, 48, 849, 24⟩,
+  ⟨40011143247, 120611676101, true, 1, 51, 849, 19⟩,
+  ⟨40011600530, 120613238438, true, 3, 44, 826, 18⟩, ⟨40011600530, 120613238475, true, 3, 43, 826, 17⟩,
+  ⟨40011600530, 120613238494, true, 3, 43, 826, 18⟩, ⟨40011600530, 120613238669, true, 3, 43, 826, 20⟩,
+  ⟨40011600530, 120613238767, true, 3, 43, 826, 20⟩, ⟨40011600647, 120613247310, true, 3, 44, 849, 18⟩,
+  ⟨40012913395, 120617723600, true, 3, 44, 849, 18⟩]
+
+theorem legs_ok : legs.all (fun l => verdict l == .ok) = true := by decide
+
+theorem legs_built_max : legs.all (fun l => l.builtLines < revertLines) = true := by decide
+
+structure GateRow where
+  run : Nat
+  waitS : Nat
+  legBuildS : Nat
+  ownS : Nat
+  gapS : Nat
+deriving Repr, DecidableEq
+
+def GateRow.savedS (r : GateRow) : Nat := r.legBuildS - r.ownS
+
+def GateRow.pays (r : GateRow) : Bool := r.waitS < r.savedS
+
+def gateRows : List GateRow := [⟨39995255573, 62, 63, 12, 36⟩, ⟨39997746052, 123, 72, 12, 91⟩]
+
+theorem no_gate_pays : gateRows.all (fun r => !r.pays) = true := by decide
+
+theorem gate_unpaid (r : GateRow) (h : r.legBuildS ≤ r.waitS) : r.pays = false := by
+  have : r.savedS ≤ r.waitS := by unfold GateRow.savedS; omega
+  simp only [GateRow.pays, decide_eq_false_iff_not]; omega
+
+structure ExeFacts where
+  blobB : Nat
+  rateBps : Nat
+  relinkMs : Nat
+deriving Repr, DecidableEq
+
+def ExeFacts.gainMs (e : ExeFacts) : Nat := e.relinkMs - e.blobB * 1000 / e.rateBps
+
+def minGainMs : Nat := 1000
+
+def ExeFacts.keep (e : ExeFacts) : Bool := minGainMs ≤ e.gainMs
+
+theorem exe_pruned (e : ExeFacts) (h : e.relinkMs < minGainMs) : e.keep = false := by
+  have : e.gainMs ≤ e.relinkMs := Nat.sub_le _ _
+  simp only [ExeFacts.keep, decide_eq_false_iff_not]; unfold minGainMs at *; omega
+
+def exeFacts : ExeFacts := ⟨34117988, 100000000, 683⟩
+
+theorem exe_measured : exeFacts.keep = false := by decide
+
+def goldenLines : List Json :=
+  (CacheFile.cases.map fun (f : CacheFile) => Json.mkObj [("kind", "prune"), ("artifact", toJson f.artifact),
+      ("links", toJson f.links), ("keeps", toJson (keeps f))]) ++
+  (legs.map fun l => Json.mkObj [("kind", "leg"), ("run", toJson l.run), ("job", toJson l.job), ("hit", toJson l.hit),
+      ("filesChanged", toJson l.filesChanged), ("builtLines", toJson l.builtLines), ("jobs", toJson l.jobs),
+      ("setupS", toJson l.setupS), ("verdict", Json.str (verdict l).name)]) ++
+  (gateRows.map fun r => Json.mkObj [("kind", "gate"), ("run", toJson r.run), ("waitS", toJson r.waitS),
+      ("legBuildS", toJson r.legBuildS), ("ownS", toJson r.ownS), ("gapS", toJson r.gapS),
+      ("savedS", toJson r.savedS), ("pays", toJson r.pays)]) ++
+  [Json.mkObj [("kind", "exe"), ("blobB", toJson exeFacts.blobB), ("rateBps", toJson exeFacts.rateBps),
+      ("relinkMs", toJson exeFacts.relinkMs), ("gainMs", toJson exeFacts.gainMs), ("keep", toJson exeFacts.keep)]]
+
+def goldenText : String := "\n".intercalate (goldenLines.map Json.compress) ++ "\n"
+
+def gen (args : List String) : IO Unit := do
+  let path := "../packages/contracts/golden/ops/lake-cache.jsonl"
+  if args.contains "--check" then
+    let disk ← IO.FS.readFile path
+    if disk != goldenText then throw (IO.userError s!"lake-cache: {path} is stale; regenerate with Fw.Ops.LakeCache.gen []")
+    IO.println s!"lake-cache: {path} equals the Lean output, {goldenLines.length} lines"
+  else
+    IO.FS.writeFile path goldenText
+
+
 end Fw.Ops.LakeCache

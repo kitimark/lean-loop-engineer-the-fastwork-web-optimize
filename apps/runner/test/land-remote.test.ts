@@ -1,5 +1,3 @@
-// land-wait: the provider-neutral remote land verdict. Run records are normalized from `gh run view` JSON (the fixtures below; the
-// pass shape is a recorded lane run, the others are derived from it by changing one field, and say so) and judged by fwcore.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,14 +14,12 @@ const DIGEST = remoteDigest(call, ["apps/runner", "packages/gh-budget"]);
 const want: Want = { sha: SHA, laneId: "land", laneDigest: DIGEST };
 const ctx = { marker: MARKER, want };
 
-/** Recorded shape of `gh run view <id> --json headSha,conclusion,status,createdAt,startedAt,updatedAt,jobs` for a lane run (fixtures/land-remote/*.json). */
 const recorded = (name: string): GhRunView => JSON.parse(readFileSync(join(root, "apps/runner/test/fixtures/land-remote", name), "utf8")) as GhRunView;
 const passView = (sha = SHA, digest = DIGEST): GhRunView => ({
   headSha: MARKER, conclusion: "success", status: "completed",
   createdAt: "2026-10-20T10:00:00Z", startedAt: "2026-10-20T10:00:10Z", updatedAt: "2026-10-20T10:05:10Z",
-  jobs: [{ name: "land", conclusion: "success", steps: [{ name: "suites (the remote tier of the Lean-selected checks)", conclusion: "success" }, { name: `lane: sha=${sha} digest=${digest}`, conclusion: "success" }] }],
+  jobs: [{ name: "land", status: "completed", conclusion: "success", steps: [{ name: "suites (the remote tier of the Lean-selected checks)", conclusion: "success" }, { name: `lane: sha=${sha} digest=${digest}`, conclusion: "success" }] }],
 });
-/** normalize a run the way the adapter does: the lane state is fwcore's (waiter exit + the run's own conclusion). */
 const norm = (code: number, view: GhRunView | null, c: { marker: string; want: Want }, out = "") => normalizeGithub(laneStateOf(call, code, out, view), view, c);
 const verdictOf = (runs: LaneRun[], o: Partial<{ localOk: boolean; needed: boolean; allow: ("github" | "circleci")[]; waitsLeft: number }> = {}) =>
   remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want, waitsLeft: 0, runs, ...o });
@@ -91,7 +87,6 @@ describe("normalize a GitHub land run, then ask fwcore", () => {
 });
 
 describe("a recorded lane run (live proof of task land-wait: ci/land-probe-30a307f, run 39317802669)", () => {
-  // fail.json is `gh run view` of the real lane run: its apps/runner suite failed because the test file had no fixture yet.
   const v = recorded("fail.json");
   const b = laneBind(v)!;
   const w: Want = { sha: b.sha, laneId: "land", laneDigest: b.digest };
@@ -105,7 +100,7 @@ describe("a recorded lane run (live proof of task land-wait: ci/land-probe-30a30
     expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] })).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
   });
   it("derived: the same record with conclusion success and exit 0 is accepted for its sha and not for another", () => {
-    const run = norm(0, { ...v, conclusion: "success", jobs: v.jobs?.map((j) => ({ ...j, conclusion: "success" })) }, { marker: v.headSha, want: w }); // every job passed too (a failed leg vetoes, land-legs.test.ts)
+    const run = norm(0, { ...v, conclusion: "success", jobs: v.jobs?.map((j) => ({ ...j, conclusion: "success" })) }, { marker: v.headSha, want: w });
     expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: w, waitsLeft: 0, runs: [run] }).kind).toBe("accept");
     expect(remoteVerdict(call, { localOk: true, needed: true, allow: ["github"], want: { ...w, sha: "e".repeat(40) }, waitsLeft: 0, runs: [run] }).kind).not.toBe("accept");
   });
@@ -251,8 +246,6 @@ describe("fw checks --tier remote prints the lane digest", () => {
   });
 });
 
-// Incident 2026-10-20 (preview-e2e): the land lane run completed with conclusion failure and bound the wanted sha and digest, yet the
-// land fell back to the local tier and passed, because the waiter's exit code (not 1) was read instead of the run's conclusion.
 describe("a completed bound failed lane run always refuses, whatever `fw ci wait` returned", () => {
   const failed = (): GhRunView => ({ ...passView(), conclusion: "failure" });
   const outs: Record<number, string> = { 0: "run 123 land success", 1: "run 123 land failure -> fail", 2: "wait: gh run view 123 --json jobs failed: boom", 3: "wait: no gh call for the jobs of run 123: refused (budget)", 4: "run 123 land failure -> not-run" };
@@ -263,7 +256,6 @@ describe("a completed bound failed lane run always refuses, whatever `fw ci wait
       expect(verdictOf([run])).toMatchObject({ kind: "refuse", reason: "remote-lane-failed" });
     });
   }
-  // The fake gh honours its arguments: a list or view that is not for the land workflow answers with another workflow's run first.
   type Other = { conclusion: string };
   const adapterFor = (code: number, out: string, other?: Other, land: GhRunView = failed(), cache?: (h: unknown, id?: string) => GhRunView | null) => {
     const ghCalls: string[][] = [];
@@ -328,8 +320,6 @@ describe("a completed bound failed lane run always refuses, whatever `fw ci wait
     expect(p.run.state).toBe("running");
     expect(p.note).toMatch(/land run record not read/);
   });
-  // Incident run 39338755874 (INFERRED exit 4: the guard job logged both `decision: run` and `decision: skip`, the land job exited 1 at
-  // `stale: a newer push is the branch tip`; the verdict of the waiter for such a run is not-run, exit 4).
   it("incident run 39338755874: waiter exit 4 (not-run) on a failed land run refuses", async () => {
     const { a } = adapterFor(4, "run 39338755874 land failure -> not-run");
     const { o } = await awaitWith(a);
@@ -366,6 +356,6 @@ describe("a completed bound failed lane run always refuses, whatever `fw ci wait
     expect(r.bad).toMatch(/the land lane failed/);
     expect(logs.some((l) => /^remote: verdict refuse reason=remote-lane-failed/.test(l))).toBe(true);
     expect(logs.join("\n")).not.toMatch(/on this Mac/);
-    expect(localRuns).toBe(1); // only the local tier
+    expect(localRuns).toBe(1);
   });
 });

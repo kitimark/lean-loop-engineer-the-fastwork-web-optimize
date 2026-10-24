@@ -5,13 +5,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  DEFAULT_PARAMS, type CacheKey, type Ctl, type Entry, type Mem, type Params, type Sample, type VmMark,
-  admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
+  DEFAULT_PARAMS, DEFAULT_WPARAMS, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Row, type Sample, type VmMark,
+  type WParams, type Window, beginPass, capLease, current, openAt, passStart, predict, stopPass, want, wverdict,
+  admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, nestedSkips, prune, release, renew, signal, simAction, simBoot,
   simDue, simIdleNext, simQueued, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
+import { WHY_TAGS, noteQueue, queueExtra } from "../src/slot-queue.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
-  slotCli, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
+  acquire, releaseToken, slotCli, spanRows, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
 } from "../src/slot.ts";
 
 const golden = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "sup", "adapt.jsonl");
@@ -23,6 +25,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
   const es = r.entries as Entry[];
   switch (r.op) {
     case "adapt.params": return { ...DEFAULT_PARAMS };
+    case "adapt.whyTags": return { names: [...WHY_TAGS] };
     case "adapt.step": {
       const c = r.ctl as Ctl, s = r.sample as Sample;
       return { ctl: step(p, c, s), signal: signal(p, c.prev, s) };
@@ -51,17 +54,32 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
     case "adapt.agentsSeen": return { agents: agentsSeen(p, r.now as number, r.reading as { time: number; live: number } | null) };
     case "adapt.simQueued": return { queued: simQueued(r.now as number, r.queue as Entry[]) };
     case "adapt.withLegacy": return { holders: withLegacy(r.now as number, r.legacy as boolean, r.holders as Entry[]) };
+    case "adapt.nested": return { skip: nestedSkips(r.now as number, r.kind as Entry["kind"], r.named as { owner: string; token: string } | null, r.held as Entry[]) };
     case "adapt.heldOf": return { held: heldOf(r.now as number, r.holders as Entry[], r.kind as Entry["kind"]) };
     case "adapt.stop": return { action: stopAct(p, r.alive as boolean, r.sameStart as boolean, r.termAt as number | null, r.nowMs as number) };
     case "adapt.cacheKey": return { key: keyOf(r.kind as CacheKey["kind"], r.argv as string[], r.tree as string, r.mainSha as string, r.clean as boolean) };
     case "adapt.cacheHit": return { hit: cacheHit(r.recorded as CacheKey, r.exit as number, r.key as CacheKey | null) };
+    case "window.params": return { ...DEFAULT_WPARAMS };
+    case "window.open": return { window: openAt(r.wparams as WParams, r.owner as string, r.token as string, r.now as number, r.gapS as number) };
+    case "window.current": return { window: current(r.now as number, r.holders as Entry[], r.window as Window | null) };
+    case "window.verdict":
+      return wverdict(r.wparams as WParams, r.window as Window | null, r.pred as number | null, p, r.n as number, r.sample as Sample, r.holders as Entry[],
+        r.queue as Entry[], r.me as Entry, r.waited as number);
+    case "window.passStart":
+      return passStart(r.wparams as WParams, r.window as Window | null, r.now as number, r.holders as Entry[], r.owner as string, r.token as string, r.forS as number);
+    case "window.predict": return { predS: predict(r.wparams as WParams, r.kind as Kind, r.rows as Row[]) };
+    case "window.edit": {
+      const w = r.window as Window, now = r.now as number, x = r.arg as number;
+      return { window: r.act === "begin" ? beginPass(w, x) : r.act === "want" ? want(w, now) : stopPass(w, now, x) };
+    }
+    case "window.capLease": return { leaseS: capLease(r.window as Window, r.now as number, r.lease as number) };
     default: throw new Error(`unknown op ${r.op}`);
   }
 }
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(24);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(34);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
@@ -141,7 +159,8 @@ function deps(over: Partial<Deps> = {}, git: GitFacts = { tree: "t1", clean: tru
   const shut: string[] = [];
   const d: Deps = {
     dir: join(dir, "slot"), cacheDir: join(dir, "cache"), eventsFile: join(dir, "locks.jsonl"), legacySimLock: join(dir, "sim"),
-    owner: "wt-a", env: { PATH: process.env.PATH }, params: DEFAULT_PARAMS, pollMs: 1, probe: quiet, git: () => git,
+    owner: "wt-a", env: { PATH: process.env.PATH }, params: DEFAULT_PARAMS, wparams: DEFAULT_WPARAMS, history: () => [], pollMs: 1, probe: quiet,
+    git: () => git,
     simctl: { booted: () => [{ udid: "U1", name: "fw-iphone" }, { udid: "U2", name: "iPhone 17e" }], shutdown: (u) => { shut.push(u); } },
     health: () => ({ time: Math.floor(Date.now() / 1000), live: 3 }),
     out: (s) => { out.push(s); }, err: (s) => { err.push(s); }, ...over,
@@ -273,10 +292,50 @@ describe("fw slot run", () => {
     expect(state().holders).toEqual([]);
   });
 
-  it("a nested run inside a held slot runs at once", async () => {
-    const { d, out } = deps({ env: { PATH: process.env.PATH, FW_SLOT_HELD: "1" }, probe: () => { throw new Error("no probe when held"); } });
-    expect(await slotCli(["run", "--kind", "test", "--", node, "-e", "console.log('in')"], d)).toBe(0);
-    expect(out.join("")).toBe("in\n");
+  const nowS = (): number => Math.floor(Date.now() / 1000);
+  const heldFixture = (dir: string, kind: string, token: string, till: number): void => {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "state.json"), JSON.stringify({ ctl: { n: 4, lastChange: 0, prev: null }, queue: [], simIdleSince: 0,
+      holders: [{ owner: "wt-a", token, kind, since: nowS() - 5, till, foot: 0, leaseS: 600 }] }));
+  };
+  const nested = async (kind: string, env: Record<string, string | undefined>, fixture: [string, string, number] | null, probe = true) => {
+    const { d, out, state } = deps({ env: { PATH: process.env.PATH, ...env }, ...(probe ? {} : { probe: () => { throw new Error("no probe when skipped"); } }) });
+    if (fixture) heldFixture(d.dir, fixture[0], fixture[1], fixture[2]);
+    const code = await slotCli(["run", "--kind", kind, "--", node, "-e", "console.log(process.env.FW_SLOT_TOKEN)"], d);
+    return { code, out: out.join(""), holders: state().holders };
+  };
+
+  it("a nested run under a live held token of its kind runs at once (the token is named)", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() + 600], false);
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("T1\n");
+    expect(r.holders).toHaveLength(1);
+  });
+
+  it("FW_SLOT_HELD alone names no token: the run takes its own slot", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1" }, null);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("undefined\n");
+    expect(r.out).toMatch(/^[0-9a-f-]+\n$/i);
+  });
+
+  it("a held test slot covers a nested land request: it never queues behind its own ancestor", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["test", "T1", nowS() + 600], false);
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("T1\n");
+    expect(r.holders).toHaveLength(1);
+  });
+
+  it("a nested sim request under a held land slot goes through admission and takes its own sim entry", async () => {
+    const r = await nested("sim", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() + 600]);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("T1\n");
+  });
+
+  it("an expired named token does not cover the run", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() - 1]);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("T1\n");
   });
 
   it("--cache replays a passing run on the same clean tree and argv, never a failing or dirty one", async () => {
@@ -299,6 +358,38 @@ describe("fw slot run", () => {
     expect(await slotCli(fargv, fail.d)).toBe(1);
     expect(readdirSync(fail.d.dir).includes("state.json")).toBe(true);
     expect(() => readdirSync(fail.d.cacheDir)).toThrow();
+  });
+});
+
+describe("acquire behind a live holder", () => {
+  it("waits for the sim holder, records the ms per reason on the grant and on the span extras", async () => {
+    const { d } = deps();
+    const first = await acquire(d, "sim", 900, 0);
+    expect(first.verdict.verdict).toBe("admit");
+    expect(first.queue).toBeUndefined();
+    setTimeout(() => { releaseToken(d, first.token); }, 1500);
+    const second = await acquire(d, "sim", 900, null);
+    expect(second.verdict.verdict).toBe("admit");
+    const q = second.queue!;
+    expect(q.kind).toBe("sim");
+    expect(q.waitMs).toBeGreaterThanOrEqual(1000);
+    expect(q.waits.length).toBeGreaterThan(0);
+    for (const w of q.waits) expect(WHY_TAGS).toContain(w.why);
+    expect(q.waits.some((w) => w.why === "simBusy")).toBe(true);
+    const sum = q.waits.reduce((a, w) => a + w.ms, 0);
+    expect(sum).toBeGreaterThan(0);
+    expect(sum).toBeLessThanOrEqual(q.waitMs);
+    expect(q.waitMs - sum).toBeLessThanOrEqual(d.pollMs + 2000);
+    expect(queueExtra()).toEqual({ queue: q });
+    noteQueue(null);
+  });
+  it("a refused acquire carries no queue", async () => {
+    const { d } = deps();
+    const first = await acquire(d, "sim", 900, 0);
+    expect(first.verdict.verdict).toBe("admit");
+    const second = await acquire(d, "sim", 900, 0);
+    expect(second.verdict.verdict).not.toBe("admit");
+    expect(second.queue).toBeUndefined();
   });
 });
 
@@ -341,6 +432,17 @@ describe("fw slot sim", () => {
     withState(d, (st) => { st.simIdle = Math.floor(Date.now() / 1000) - 700; st.simCheckedAt = 0; });
     expect(await slotCli(["acquire", "--kind", "test", "--wait", "0"], d)).toBe(0);
     expect(shut).toEqual(["U1", "U2"]);
+  });
+
+  it("a sim release records the second its run acquired the slot (simAcquired), which `fw reap` branch F reads", async () => {
+    const { d, out } = deps();
+    expect(await slotCli(["acquire", "--kind", "sim", "--lease", "900"], d)).toBe(0);
+    const token = out.join("").trim();
+    const since = withState(d, (st) => st.holders.find((h) => h.token === token)!.since);
+    expect(await slotCli(["release", "--token", token], d)).toBe(0);
+    const st = withState(d, (x) => ({ acquired: x.simAcquired, idle: x.simIdleSince }));
+    expect(st.acquired).toBe(since);
+    expect(st.idle).toBeGreaterThanOrEqual(since);
   });
 });
 
@@ -413,6 +515,82 @@ describe("fw slot admit --kind build", () => {
     const line = (at: number, counts: object) => `${JSON.stringify({ at, input: {}, output: { counts } })}\n`;
     writeFileSync(f, line(1000, { active: 1 }) + line(2_000_500, { active: 4, done: 45, gone: 1, idle: 1, parked: 1, stalled: 0 }));
     expect(lastHealth(f)).toEqual({ time: 2000, live: 6 });
+  });
+});
+
+describe("fw slot acquire --kind measure and its pass windows", () => {
+  const checkRuns: Row[] = [5000, 6000, 7000].map((durMs) => ({ step: "slot run check lake", durMs, exit: 0, host: "local" }));
+  const tokenOf = (out: string[]): string => out.join("").trim().split("\n").at(-1)!;
+  type WState = { window: Window | null; holders: Entry[] };
+
+  it("a live pass makes every other request wait; a gap admits a job that fits; the pass waits for it", async () => {
+    const { d, out, err, state } = deps({ history: () => checkRuns });
+    expect(await slotCli(["acquire", "--kind", "measure", "--lease", "600"], d)).toBe(0);
+    const m = tokenOf(out);
+    const w0 = (state() as unknown as WState).window!;
+    expect(w0.token).toBe(m);
+    expect(w0.deadline - w0.next).toBe(DEFAULT_WPARAMS.measureMaxS);
+    expect(await slotCli(["acquire", "--kind", "check", "--wait", "0"], d)).toBe(EXIT_REFUSED);
+    expect(err.join("")).toContain("left before the next measure pass");
+    expect(await slotCli(["pass", "stop", "--token", m, "--next", "600"], d)).toBe(0);
+    expect(await slotCli(["acquire", "--kind", "check", "--wait", "0"], d)).toBe(0);
+    const c = tokenOf(out);
+    expect(await slotCli(["pass", "start", "--token", m, "--for", "300", "--wait", "0"], d)).toBe(EXIT_REFUSED);
+    expect(out.join("")).toContain("VERDICT wait pass");
+    expect(err.join("")).toContain("1 other holder(s) still live");
+    expect(await slotCli(["acquire", "--kind", "test", "--wait", "0"], d)).toBe(EXIT_REFUSED);
+    expect(await slotCli(["release", "--token", c], d)).toBe(0);
+    expect(await slotCli(["pass", "start", "--token", m, "--for", "300", "--wait", "0"], d)).toBe(0);
+    expect(out.join("")).toMatch(/VERDICT start pass \d+/);
+    expect(await slotCli(["acquire", "--kind", "sim", "--wait", "0"], d)).toBe(EXIT_REFUSED);
+    expect(err.join("")).toContain("a measure pass is live");
+    expect(await slotCli(["acquire", "--kind", "measure", "--wait", "0"], d)).toBe(EXIT_REFUSED);
+    expect(await slotCli(["release", "--token", m], d)).toBe(0);
+    expect((state() as unknown as WState).window).toBeNull();
+    expect(await slotCli(["acquire", "--kind", "test", "--wait", "0"], d)).toBe(0);
+  });
+
+  it("a kind without recorded runs waits in a gap; status shows the window and each ticket's reason", async () => {
+    const { d, out } = deps();
+    expect(await slotCli(["acquire", "--kind", "measure", "--next", "900"], d)).toBe(0);
+    const t = Math.floor(Date.now() / 1000);
+    withState(d, (st) => { st.queue.push({ owner: "wt-b", token: "q1", kind: "test", since: t, till: t + 60, foot: 0, leaseS: 60 }); });
+    out.length = 0;
+    expect(await slotCli(["status"], d)).toBe(0);
+    const text = out.join("");
+    expect(text).toMatch(/measure window: wt-a \S+, gap, next pass in \d+s, deadline in \d+s/);
+    expect(text).toContain("q1 queued");
+    expect(text).toContain("too few recorded runs");
+  });
+
+  it("renew never extends a measure lease past the window deadline; pass calls of a foreign owner are refused", async () => {
+    const { d, out, state } = deps();
+    expect(await slotCli(["acquire", "--kind", "measure", "--lease", "600"], d)).toBe(0);
+    const m = tokenOf(out);
+    const now = Math.floor(Date.now() / 1000);
+    withState(d, (st) => { st.window = { ...st.window!, deadline: now + 100 }; });
+    expect(await slotCli(["renew", "--token", m, "--lease", "600"], d)).toBe(0);
+    expect(state().holders[0]!.till).toBeLessThanOrEqual(now + 101);
+    expect(await slotCli(["pass", "stop", "--token", m, "--owner", "wt-b"], d)).toBe(1);
+    expect(await slotCli(["pass", "start", "--token", m, "--owner", "wt-b", "--wait", "0"], d)).toBe(1);
+    withState(d, (st) => { st.window = { ...st.window!, deadline: now }; });
+    expect(await slotCli(["renew", "--token", m], d)).toBe(1);
+    await expect(slotCli(["pass", "begin", "--token", m], d)).rejects.toThrow(SlotUsage);
+  });
+
+  it("spanRows reads fw slot run spans from the tail of the timings log", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fw-spans-"));
+    tmps.push(dir);
+    const f = join(dir, "timings.jsonl");
+    expect(spanRows(f)).toEqual([]);
+    expect(spanRows(null)).toEqual([]);
+    const l = (o: object) => `${JSON.stringify(o)}\n`;
+    writeFileSync(f, l({ tool: "fw", step: "slot run check lake", durMs: 61000.4, exit: 0, host: "local" }) + "not json \"slot run x\n"
+      + l({ tool: "fw wait", step: "slot run check", durMs: 1, exit: 0, host: "local" }) + l({ tool: "fw", step: "slot run test", durMs: 9, exit: null, host: "ci" })
+      + l({ tool: "fw", step: "land dry", durMs: 9, exit: 0, host: "local" }));
+    expect(spanRows(f)).toEqual([
+      { step: "slot run check lake", durMs: 61000, exit: 0, host: "local" }, { step: "slot run test", durMs: 9, exit: null, host: "ci" },
+    ]);
   });
 });
 

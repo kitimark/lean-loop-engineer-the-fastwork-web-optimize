@@ -1,0 +1,650 @@
+{
+ "schema": "fw.gpu-safari/1",
+ "lane": "macos-safari",
+ "run": "gpu-safari-mac-2026-10-23T10-17-23-955Z",
+ "zone": "morph",
+ "session": {
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15",
+  "dpr": 2,
+  "vw": 430,
+  "vh": 880,
+  "maxY": 5229,
+  "device": "macOS Safari (safaridriver)",
+  "timing": "cadence only: the Lean quiet rule refuses a loaded Mac",
+  "pinnedClock": false
+ },
+ "flip": null,
+ "ci": {
+  "gate": "39846842455",
+  "webkitSim": [
+   "39846909558",
+   "39846941236"
+  ],
+  "trajectory": [
+   "39846814254",
+   "39855506403"
+  ],
+  "counts": [
+   "39851664186"
+  ]
+ },
+ "arm": "morph-panel-threaded",
+ "search": "?fw=morph.panel:threaded",
+ "states": [
+  {
+   "id": "m0.25",
+   "kind": "morph",
+   "m": 0.25,
+   "y": null,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 35963,
+     "maxDelta": 4
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 31851,
+     "b2_3": 4108,
+     "b4_15": 4,
+     "b16_255": 0
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 35963,
+      "maxDelta": 4
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 25068,
+      "maxDelta": 3
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 35963,
+      "maxDelta": 4
+     },
+     {
+      "changed": 26647,
+      "maxDelta": 4
+     },
+     {
+      "changed": 12985,
+      "maxDelta": 3
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 25068,
+      "maxDelta": 3
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 34262,
+      "maxDelta": 3
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 26413,
+      "maxDelta": 4
+     }
+    ],
+    "nearest": 12985,
+    "laterNearest": 12985,
+    "spread": 34262,
+    "floor": 26413,
+    "within": true
+   },
+   "hash": {
+    "a": "1591bcc22e15cdda",
+    "b": "039f12d40292de2b",
+    "c": "66a456da4e8d7d53",
+    "d": "5748acd237b5578f"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.25",
+     "rect": [
+      6500000,
+      15000000,
+      400000000,
+      253000000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.2500000056919188,
+     "corrections": 1,
+     "startLag": 1.0000000000000853,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.2500000056919188,
+     "corrections": 0,
+     "startLag": 8.526512829121202e-14,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 62.179,
+       "progress": 0.2500000056919185,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.2500000056919188,
+     "corrections": 0,
+     "startLag": 8.526512829121202e-14,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.5",
+   "kind": "morph",
+   "m": 0.5,
+   "y": null,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 128052,
+     "maxDelta": 23
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 94705,
+     "b2_3": 24333,
+     "b4_15": 8460,
+     "b16_255": 554
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 128052,
+      "maxDelta": 23
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 129538,
+      "maxDelta": 20
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 128052,
+      "maxDelta": 23
+     },
+     {
+      "changed": 63790,
+      "maxDelta": 20
+     },
+     {
+      "changed": 68635,
+      "maxDelta": 16
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 129538,
+      "maxDelta": 20
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 138512,
+      "maxDelta": 20
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 41279,
+      "maxDelta": 20
+     }
+    ],
+    "nearest": 63790,
+    "laterNearest": 63790,
+    "spread": 138512,
+    "floor": 41279,
+    "within": false
+   },
+   "hash": {
+    "a": "d2accdf36418a461",
+    "b": "ec6409ca4ad8a1c2",
+    "c": "a84e5df14869e2fb",
+    "d": "c1f51b7cc805d705"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.5",
+     "rect": [
+      5500000,
+      14000000,
+      402000000,
+      454000000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.5000009940470003,
+     "corrections": 1,
+     "startLag": 1.0000000000001137,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.5000009940470003,
+     "corrections": 0,
+     "startLag": 1.1368683772161603e-13,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 140.284,
+       "progress": 0.500000994047,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.5000009940470003,
+     "corrections": 0,
+     "startLag": 1.1368683772161603e-13,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  },
+  {
+   "id": "m0.75",
+   "kind": "morph",
+   "m": 0.75,
+   "y": null,
+   "mask": [
+    0,
+    860,
+    0,
+    1760
+   ],
+   "maskKind": "frame",
+   "grade": "invalid",
+   "premises": [
+    "P2",
+    "P3",
+    "P4"
+   ],
+   "counts": {
+    "inside": {
+     "changed": 133452,
+     "maxDelta": 200
+    },
+    "out": {
+     "changed": 0,
+     "maxDelta": 0
+    },
+    "hist": {
+     "b1": 105369,
+     "b2_3": 19015,
+     "b4_15": 5905,
+     "b16_255": 3163
+    },
+    "ring": {
+     "edge": {
+      "changed": 0,
+      "maxDelta": 0
+     },
+     "interior": {
+      "changed": 133452,
+      "maxDelta": 200
+     }
+    },
+    "control": {
+     "same": false,
+     "raw": {
+      "changed": 129337,
+      "maxDelta": 197
+     }
+    },
+    "controlOut": {
+     "changed": 0,
+     "maxDelta": 0
+    }
+   },
+   "stable": {
+    "faithful": false,
+    "arm": false,
+    "control": false
+   },
+   "glass": null,
+   "own": null,
+   "loads": {
+    "arm": [
+     {
+      "changed": 133452,
+      "maxDelta": 200
+     },
+     {
+      "changed": 29453,
+      "maxDelta": 195
+     },
+     {
+      "changed": 60231,
+      "maxDelta": 189
+     }
+    ],
+    "pairs": [
+     {
+      "i": 0,
+      "j": 1,
+      "changed": 129337,
+      "maxDelta": 197
+     },
+     {
+      "i": 0,
+      "j": 2,
+      "changed": 143818,
+      "maxDelta": 197
+     },
+     {
+      "i": 1,
+      "j": 2,
+      "changed": 69583,
+      "maxDelta": 193
+     }
+    ],
+    "nearest": 29453,
+    "laterNearest": 29453,
+    "spread": 143818,
+    "floor": 69583,
+    "within": true
+   },
+   "hash": {
+    "a": "55409bb963b5d39c",
+    "b": "62ee763befbf1cb2",
+    "c": "31210cd009b11cf9",
+    "d": "eced4d3383b12288"
+   },
+   "stateSeen": {
+    "faithful": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "scrollY": 5229
+    },
+    "arm": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "scrollY": 5229
+    },
+    "control": {
+     "cls": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark is-morphing",
+     "morph": "0.75",
+     "rect": [
+      4500000,
+      13000000,
+      404000000,
+      655000000
+     ],
+     "scrollY": 5229
+    }
+   },
+   "pushSeen": {
+    "faithful": {
+     "published": 0.7500002748144872,
+     "corrections": 1,
+     "startLag": 0.9999999999999432,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    },
+    "arm": {
+     "published": 0.7500002748144872,
+     "corrections": 0,
+     "startLag": -5.684341886080802e-14,
+     "parked": 1,
+     "anims": [
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "transform",
+        "opacity"
+       ]
+      },
+      {
+       "target": "morph-panel",
+       "playState": "paused",
+       "currentTime": 251.627,
+       "progress": 0.7500002748144873,
+       "easing": "cubic-bezier(0.333333, 1, 0.666667, 1)",
+       "props": [
+        "filter"
+       ]
+      }
+     ],
+     "taken": true
+    },
+    "control": {
+     "published": 0.7500002748144872,
+     "corrections": 0,
+     "startLag": -5.684341886080802e-14,
+     "parked": 1,
+     "anims": [],
+     "taken": true
+    }
+   },
+   "census": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   },
+   "iosurface": {
+    "faithful": null,
+    "arm": null,
+    "control": null,
+    "order": null
+   }
+  }
+ ]
+}

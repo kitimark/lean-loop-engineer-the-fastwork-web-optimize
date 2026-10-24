@@ -1,0 +1,39 @@
+base  ede2c7641aacf2d2
+ pass 0 docH 6042 maxY 5267
+   y 0 layers 112 mem 36363713 paintDelta 58 {'overlap': 2, 'transformWithCompositedDescendants': 2, 'willChange': 92}
+   y 1500 layers 112 mem 87015627 paintDelta 24 {'overlap': 3, 'transform3D': 1, 'transformWithCompositedDescendants': 1, 'willChange': 93}
+   y 3000 layers 140 mem 101255139 paintDelta 88 {'overlap': 7, 'transform3D': 2, 'transformWithCompositedDescendants': 10, 'willChange': 91}
+   y 4500 layers 145 mem 153635338 paintDelta 243 {'overlap': 8, 'transform3D': 2, 'transformWithCompositedDescendants': 12, 'willChange': 91}
+   y 5267 layers 128 mem 97868898 paintDelta 147 {'overlap': 5, 'transformWithCompositedDescendants': 9, 'willChange': 90}
+ pass 1 docH 6042 maxY 5267
+   y 0 layers 106 mem 41108447 paintDelta 64 {'overlap': 2, 'transformWithCompositedDescendants': 2, 'willChange': 92}
+   y 1500 layers 112 mem 87015627 paintDelta 21 {'overlap': 2, 'transform3D': 1, 'transformWithCompositedDescendants': 1, 'willChange': 93}
+   y 3000 layers 136 mem 101255139 paintDelta 118 {'overlap': 6, 'transform3D': 2, 'transformWithCompositedDescendants': 9, 'willChange': 91}
+   y 4500 layers 141 mem 153635338 paintDelta 327 {'overlap': 8, 'transform3D': 2, 'transformWithCompositedDescendants': 11, 'willChange': 91}
+   y 5267 layers 124 mem 97868898 paintDelta 147 {'overlap': 5, 'transformWithCompositedDescendants': 8, 'willChange': 90}
+bar ?fw=nav:bar-fixed 76de758a1ee70c1d
+ pass 0 docH 6006 maxY 5231
+   y 0 layers 108 mem 36150025 paintDelta 57 {'overlap': 2, 'transformWithCompositedDescendants': 2, 'willChange': 92}
+   y 1500 layers 118 mem 87054795 paintDelta 43 {'overlap': 3, 'transform3D': 1, 'transformWithCompositedDescendants': 1, 'willChange': 93}
+   y 3000 layers 136 mem 101255139 paintDelta 124 {'overlap': 6, 'transform3D': 2, 'transformWithCompositedDescendants': 9, 'willChange': 91}
+   y 4500 layers 141 mem 149264291 paintDelta 354 {'overlap': 8, 'transform3D': 2, 'transformWithCompositedDescendants': 11, 'willChange': 91}
+   y 5231 layers 124 mem 105794658 paintDelta 268 {'overlap': 5, 'transformWithCompositedDescendants': 8, 'willChange': 90}
+ pass 1 docH 6042 maxY 5267
+   y 0 layers 110 mem 41322135 paintDelta 51 {'overlap': 2, 'transformWithCompositedDescendants': 1, 'willChange': 92}
+   y 1500 layers 112 mem 87015627 paintDelta 26 {'overlap': 3, 'transform3D': 1, 'transformWithCompositedDescendants': 1, 'willChange': 93}
+   y 3000 layers 140 mem 101255139 paintDelta 129 {'overlap': 6, 'transform3D': 2, 'transformWithCompositedDescendants': 10, 'willChange': 91}
+   y 4500 layers 145 mem 153635338 paintDelta 388 {'overlap': 8, 'transform3D': 2, 'transformWithCompositedDescendants': 12, 'willChange': 91}
+   y 5231 layers 128 mem 105794658 paintDelta 280 {'overlap': 5, 'transformWithCompositedDescendants': 9, 'willChange': 90}
+logo ?fw=nav:logo-3d 110b1020bdf5ddd6
+ pass 0 docH 6006 maxY 5231
+   y 0 layers 106 mem 36150025 paintDelta 62 {'overlap': 2, 'transformWithCompositedDescendants': 2, 'willChange': 92}
+   y 1500 layers 112 mem 87015627 paintDelta 22 {'overlap': 3, 'transform3D': 1, 'transformWithCompositedDescendants': 1, 'willChange': 93}
+   y 3000 layers 140 mem 101255139 paintDelta 83 {'overlap': 6, 'transform3D': 2, 'transformWithCompositedDescendants': 10, 'willChange': 91}
+   y 4500 layers 145 mem 149264291 paintDelta 267 {'overlap': 8, 'transform3D': 2, 'transformWithCompositedDescendants': 12, 'willChange': 91}
+   y 5231 layers 128 mem 105794658 paintDelta 220 {'overlap': 5, 'transformWithCompositedDescendants': 9, 'willChange': 90}
+ pass 1 docH 6042 maxY 5267
+   y 0 layers 112 mem 41322135 paintDelta 64 {'overlap': 2, 'transformWithCompositedDescendants': 2, 'willChange': 92}
+   y 1500 layers 112 mem 87015627 paintDelta 37 {'overlap': 2, 'transform3D': 1, 'transformWithCompositedDescendants': 1, 'willChange': 93}
+   y 3000 layers 140 mem 101255139 paintDelta 131 {'overlap': 6, 'transform3D': 2, 'transformWithCompositedDescendants': 10, 'willChange': 91}
+   y 4500 layers 145 mem 153635338 paintDelta 401 {'overlap': 8, 'transform3D': 2, 'transformWithCompositedDescendants': 12, 'willChange': 91}
+   y 5231 layers 128 mem 105794658 paintDelta 304 {'overlap': 5, 'transformWithCompositedDescendants': 9, 'willChange': 90}

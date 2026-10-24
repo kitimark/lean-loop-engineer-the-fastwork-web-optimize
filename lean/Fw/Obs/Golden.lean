@@ -252,6 +252,12 @@ def typed : List Typed := [
                                               gh := { prevDegraded := true, incidents := [ghInc] } } } },
   { name := "gh-status: fetch failure (unknown) after a clear pass raises nothing",
     o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 30)], gh := {} } } },
+  { name := "ci data age: a run list 4 min old (the fresh limit) adds no note to the ci.slow detail",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 30)],
+                                              gh := { ciAgeMs := 240000 } } } },
+  { name := "ci data age: a run list carried 22 min (a failed gh run list) ends the ci.slow detail with its age",
+    o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "in_progress" none (ago 30)],
+                                              gh := { ciAgeMs := 22 * 60000 + 5000 } } } },
   { name := "gh-status: partial_outage and major_outage flag Actions; an incident that does not touch Actions is not named",
     o := { now := t0, system := { okSys with ci := [run0 "lean" "ci/x" "queued" none (ago 30)],
                                               gh := { actions := .partialOutage, webhooks := .majorOutage,
@@ -338,6 +344,9 @@ def literal : List (String × Json) := [
   ("params and lead omitted (defaults); ignored fields accepted: load1 (fractional), consolePids, stale, type, model, tools, errors, tokens, inflight.verb, and the retired depth and waitingPermission",
    lit "{\"now\":1760000000000,\"agents\":[{\"id\":\"a\",\"name\":null,\"task\":\"t1\",\"type\":\"lean-prover\",\"model\":\"opus\",\"depth\":1,\"startedAt\":1759999000000,\"lastAt\":1759999990000,\"stoppedAt\":null,\"tools\":12,\"errors\":1,\"errTail\":0,\"inflight\":{\"tool\":\"Bash\",\"verb\":\"lake build\",\"since\":1759999990000},\"waitingPermission\":false,\"ctxTokens\":null,\"tokens\":{\"in\":10,\"out\":20,\"cacheRead\":30,\"cacheWrite\":40}}],\"system\":{\"load1\":3.25,\"memPressure\":\"normal\",\"diskFreeGB\":120,\"simLock\":{\"holder\":null,\"since\":null},\"docker\":[],\"worktrees\":4,\"consolePids\":[123],\"stale\":[\"ci\"],\"ci\":[]}}"),
   ("minimal: only now and system.diskFreeGB", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50}}"),
+  ("proc start 0 is long-lived: proc.long", lit "{\"now\":1760000000000,\"system\":{\"diskFreeGB\":50,\"procs\":[{\"pid\":9,\"name\":\"node\",\"startedAt\":0}]}}"),
+  ("proc start negative (a ps age longer than the clock) is unknown: no proc.long", lit "{\"now\":1760000000000,\"system\":{\"diskFreeGB\":50,\"procs\":[{\"pid\":9,\"name\":\"node\",\"startedAt\":-1760000000001}]}}"),
+  ("refused: a fractional proc start", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"procs\":[{\"pid\":9,\"name\":\"node\",\"startedAt\":1.5}]}}"),
   ("refused: a fractional diskFreeGB (floor it)", lit "{\"now\":0,\"system\":{\"diskFreeGB\":20.5}}"),
   ("refused: unknown memPressure", lit "{\"now\":0,\"system\":{\"diskFreeGB\":50,\"memPressure\":\"high\"}}"),
   ("refused: system missing", lit "{\"now\":0,\"agents\":[]}"),
@@ -427,6 +436,7 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     IO.FS.writeFile p fileText
     IO.FS.writeFile (root / backoffPath) backoffText
     IO.FS.writeFile (root / Fw.Obs.Fold.goldenPath) Fw.Obs.Fold.goldenText
+    IO.FS.writeFile (root / Fw.Obs.Fold.inflightGoldenPath) Fw.Obs.Fold.inflightGoldenText
     IO.FS.writeFile (root / Fw.Wire.Obs.Push.goldenPath) Fw.Wire.Obs.Push.goldenText
   else
     let cur ← try IO.FS.readFile p catch _ => pure ""
@@ -440,6 +450,10 @@ def run (root : System.FilePath) (write : Bool) : IO Nat := do
     let curF ← try IO.FS.readFile (root / Fw.Obs.Fold.goldenPath) catch _ => pure ""
     if curF != Fw.Obs.Fold.goldenText then
       IO.println s!"obs golden: {root / Fw.Obs.Fold.goldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
+      bad := bad + 1
+    let curI ← try IO.FS.readFile (root / Fw.Obs.Fold.inflightGoldenPath) catch _ => pure ""
+    if curI != Fw.Obs.Fold.inflightGoldenText then
+      IO.println s!"obs golden: {root / Fw.Obs.Fold.inflightGoldenPath} is stale (regenerate: cd lean && lake env lean --run scripts/ObsGolden.lean)"
       bad := bad + 1
     let curP ← try IO.FS.readFile (root / Fw.Wire.Obs.Push.goldenPath) catch _ => pure ""
     if curP != Fw.Wire.Obs.Push.goldenText then

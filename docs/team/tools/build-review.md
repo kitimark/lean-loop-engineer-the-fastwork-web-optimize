@@ -10,6 +10,9 @@ in the worktree (no `--allow`) and returns the last `VERDICT dry` line verbatim.
 field; the gate and review then run as usual. Use it when only the dry line was refused (for example the lead added the
 missing writes to the graph task). The gate rule is unchanged: `dryOk` takes the exact line `VERDICT dry <id>`.
 `report` without `worktree` is ignored and the build runs.
+`report` may be the report object itself instead of a path; the script then uses it as is and the runner only runs the dry
+land (a runner echoing a 14-item report returned `items: []`, wf_8aa275ef). The resume path never builds: a round that must
+change code (review findings) uses `worktree` with `findings`, not `report` (wf_362ba514 re-reviewed an unchanged commit).
 
 ## No-result record
 A builder that ends without StructuredOutput makes `agent({schema})` throw. The script catches it and returns

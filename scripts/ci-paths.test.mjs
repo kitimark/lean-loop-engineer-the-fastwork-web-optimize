@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { decide, loadIntent, matches, preciseInputs } from '../.github/scripts/changed-inputs.mjs';
-import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputProblems, leanScriptPaths, recheckSteps, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal, runNameProblems } from './ci-paths.mjs';
+import { capProblems, coarseMap, coneOf, coneProblems, loadCaps, dispatchOnly, expand, guardIf, jobConcurrency, LAKE_GEN, leanInputGaps, leanInputProblems, leanRowGlobs, leanScriptPaths, recheckSteps, rowGlob, withConj, macosJobs, unsafeStatusIf, lakeGenProblems, lakeImportFacts, lakeJobs, lakeTargetsOf, loadGolden, portableGlob, withNotMain, notMainIf, carriesNotMain, cacheWriters, guardComment, readJobs, readLakefile, reconcile, renderPush, run, setMapFor, setupLeanJobs, unguarded, nodePinProblems, jobFacts, jobProblems, pinValueProblems, rowProblems, copyProblems, nodePinRefusal, runNameProblems } from './ci-paths.mjs';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const WF = ['.git', 'hub/workflows'].join('');
@@ -488,6 +488,7 @@ test('status functions: a job that runs after skipped needs must keep a guard co
 
 test('lean inputs: every ../ path a lean/scripts/*.sh reads is an input of the lean.yml row (round 4)', () => {
   assert.deepEqual(leanInputProblems(root, table), []);
+  assert.deepEqual(leanInputGaps(root, table), []);
   assert.deepEqual(leanScriptPaths(". ../scripts/span.sh\nsh -c 'sh ../scripts/fwcore-build.sh && x' ../a/$b ../\n"),
     ['scripts/span.sh', 'scripts/fwcore-build.sh', null, null]);
 });
@@ -501,7 +502,32 @@ test('lint: a lean script reading a file outside the lean.yml row fails the chec
     const ps = leanInputProblems(dir, t);
     assert.equal(ps.length, 1);
     assert.match(ps[0], /reads \.\.\/apps\/site\/src\/new\.gen\.json, which is not an input/);
+    assert.deepEqual(leanInputGaps(dir, t), [{ script: 'lean/scripts/check.sh', path: 'apps/site/src/new.gen.json' }]);
     assert.deepEqual(leanInputProblems(dir, { sets: {}, workflows: [] }).length, 1);
+    assert.equal(leanInputGaps(dir, { sets: {}, workflows: [] }).length, 2);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('lean row globs: rowGlob equals the Lean rowGlob golden, and the live row is inside the subset', () => {
+  const rows = readFileSync(join(root, 'packages/contracts/golden/plan/writes-closure.jsonl'), 'utf8').split('\n').filter(Boolean)
+    .map((l) => JSON.parse(l)).filter((r) => r.type === 'rowGlob');
+  assert.ok(rows.some((r) => r.ok) && rows.some((r) => !r.ok));
+  for (const r of rows) assert.equal(rowGlob(r.glob), r.ok, r.glob);
+  assert.ok(leanRowGlobs(root, table).length > 0);
+  assert.deepEqual(leanRowGlobs(root, table).filter((g) => !rowGlob(g)), []);
+});
+
+test('lint: a lean.yml row glob with ?, + or [ fails the check before any gap is computed', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ci-paths-rowglob-'));
+  try {
+    mkdirSync(join(dir, 'lean', 'scripts'), { recursive: true });
+    writeFileSync(join(dir, 'lean', 'scripts', 'check.sh'), '. ../scripts/span.sh\n');
+    for (const g of ['scripts/spa?.sh', 'scripts/span+.sh', 'scripts/[s]pan.sh', '!scripts/[s]pan.sh']) {
+      const ps = leanInputProblems(dir, { sets: {}, workflows: [{ file: 'lean.yml', inputs: ['lean/**', 'scripts/span.sh', g] }] });
+      assert.equal(ps.length, 1, g);
+      assert.match(ps[0], /^lean\.yml: row glob .* is outside the plain subset/);
+    }
+    assert.deepEqual(leanInputProblems(dir, { sets: {}, workflows: [{ file: 'lean.yml', inputs: ['lean/**', 'scripts/span.sh', '!x/**'] }] }), []);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -529,7 +555,7 @@ test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap
   assert.deepEqual([...capTable.caps], [['wktr.yml wktr', 16], ['wktr-fixtures.yml fixtures', 21], ['sim-speed.yml probe', 17],
     ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26], ['trajectory-probe.yml probe-apple', 15],
     ['smoothness.yml webkit-mac', 15], ['smoothness.yml webkit-sim', 45]]);
-  assert.deepEqual([...capTable.excluded], ['toolbar-throttle.yml', 'webkit-sim.yml']);
+  assert.deepEqual([...capTable.excluded], ['path-pix.yml', 'toolbar-throttle.yml', 'webkit-sim.yml', 'chrome-crash-probe.yml', 'font-fidelity.yml']);
   for (const [key, cap] of capTable.caps) {
     const [file, job] = key.split(' ');
     const lines = readFileSync(join(root, WF, file), 'utf8').split('\n');

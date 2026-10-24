@@ -1,9 +1,9 @@
 import { Command } from "@fw/contracts";
 import { NO_API_GROUPS, UsageError, apiBase, gitFullRef, renderBoard, send, stepCommand, taskCommand } from "./lib.ts";
 import { CARD_USAGE, cardCommand } from "./card.ts";
-import { fwcorePreflight, httpFor, land, lastDryStep, loopback, type LandResult } from "./land.ts";
+import { dryLandReport, fwcorePreflight, httpFor, land, landExit, lastDryStep, loopback, type LandResult } from "./land.ts";
 import { dryRun, exitCode, outcome, outcomeKind, verdictLine } from "./land-verdict.ts";
-import { gitOnMain, lintCli, renderPlan, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
+import { gitOnMain, lintCli, renderPlan, syncClosureRefusal, syncCommands, syncRefusal, type WorkGraph } from "./plan.ts";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -22,7 +22,7 @@ let spanExtra: ReturnType<typeof waitSpanExtra> & { step?: string } = {};
 if (group && group !== "watch" && group !== "timings" && group !== "run" && !(group === "slot" && rest[0] === "run")) { const end = begin("fw", spanStep(group, rest)); process.once("exit", (c) => end(c, spanExtra)); }
 async function postLandGc(mainDir: string): Promise<void> {
   const { diskGcTick } = await import("./disk-gc.ts");
-  const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console"], fwcoreCall(mainDir)));
+  const lines = span("fw land", "disk-gc (post-land)", () => diskGcTick(mainDir, ["lake", "landed", "console", "usertmp"], fwcoreCall(mainDir)));
   for (const l of lines) console.error(l);
 }
 try {
@@ -105,6 +105,8 @@ try {
     } else if (rest[0] === "sync" && rest[1]) {
       const refusal = syncRefusal(process.cwd());
       if (refusal) throw new Error(refusal);
+      const closure = await syncClosureRefusal(process.cwd(), rest[1]);
+      if (closure) throw new Error(closure);
       const cmds = syncCommands(JSON.parse(readFileSync(rest[1], "utf8")) as WorkGraph, "lead", gitOnMain(process.cwd()));
       const { body } = await send(base, cmds, process.argv.slice(2));
       const rs = body.replies ?? [];
@@ -167,16 +169,16 @@ try {
       const res = await land(args[0]!, landOpts(task, allow)).catch((e: unknown): LandResult => ({ ok: false, lines: [`REFUSED: ${e instanceof Error ? e.message : String(e)}`], kind: "unknown", outcome: dry ? outcome({ threw: true }) : undefined }));
       if (dry) { const s = lastDryStep(); if (s !== null) spanExtra = { ...spanExtra, step: s.replace(/^dry total/, "land dry") }; }
       if (dry) {
-        const oc = res.outcome ?? outcome({ threw: true });
-        for (const l of res.lines) console.error(l);
-        for (const l of dryRun(oc, task ?? args[0]!)) console.log(l);
-        process.exitCode = exitCode(outcomeKind(oc));
+        const rep = dryLandReport(res, task ?? args[0]!);
+        for (const l of rep.err) console.error(l);
+        for (const l of rep.out) console.log(l);
+        process.exitCode = rep.code;
       } else {
         for (const l of res.lines) (res.ok && !l.startsWith("WARNING") ? console.log : console.error)(l);
         const kind = res.kind ?? (res.ok ? "done" : "unknown");
         if (kind === "done") { const { worktreeOf } = await import("./land.ts"); const m = worktreeOf(process.cwd(), "main"); if (m) await postLandGc(m); }
         console.log(verdictLine(kind, task ?? args[0]!));
-        process.exitCode = exitCode(kind);
+        process.exitCode = landExit(res);
       }
     }
   } else if (group === "review" && (rest[0] === "ready" || rest[0] === "verdict")) {
@@ -198,7 +200,7 @@ try {
     if (body.ok) console.log(body.duplicate ? "duplicate (already applied)" : `ok seq ${body.seq}`);
     else { console.error(`refused: ${body.reason}`); process.exitCode = 2; }
   } else {
-    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw ci state <run id> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw disk-gc [--list|--json|--delete] [--class c] | fw step post|start|answer|done|cancel|topic|reply|questions ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|report|ready|verdict ... | fw polish plan|cuts|commit|--staged ... | fw send '<json>'\n${CARD_USAGE}`);
+    throw new UsageError(`usage: fw status | fw console start|stop|restart|status|logs | fw preview grant [<id>] | fw plan sync <file>|show|overlap [task] | fw watch [--json] [--interval s] [--until-alert] | fw next | fw engine-check --rows <jsonl> --run <dir> | fw ci state <run id> | fw land <branch> [--task id] [--allow glob] [--dry] | fw land --queue <branch> --task id | fw land --queue-status | fw incidents lint [ledger.json] | fw lake-gc [--list|--json|--delete] [--check] | fw reap --list|--stop | fw disk-gc [--list|--json|--delete] [--class c] | fw step post|start|answer|done|cancel|topic|reply|questions ... | fw task handback|integrate|park|unpark ... | fw review reply|feedback|report|ready|verdict ... | fw polish plan|cuts|commit|strays|--staged ... | fw send '<json>'\n${CARD_USAGE}`);
   }
 } catch (e) {
   console.error(e instanceof Error ? e.message : String(e));

@@ -1,0 +1,273 @@
+{
+ "schema": "fw.gpu-safari-quiet/1",
+ "at": "2026-10-23T01:18:49.653Z",
+ "readings": 18,
+ "quiet": 0,
+ "refused": 18,
+ "floorMaxCenti": 800,
+ "loadMarginCenti": 100,
+ "baseMinSamples": 8,
+ "baselineFloorCenti": null,
+ "loadMin": 3.13,
+ "loadMedian": 3.31,
+ "loadMax": 3.56,
+ "whyCounts": {
+  "avail": 18,
+  "compress": 1
+ },
+ "verdicts": [
+  {
+   "time": 1792718238,
+   "load": 3.45,
+   "availMB": 220,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 7,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718243,
+   "load": 3.41,
+   "availMB": 129,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 8,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718249,
+   "load": 3.38,
+   "availMB": 139,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 8,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718254,
+   "load": 3.35,
+   "availMB": 121,
+   "press": 1,
+   "comprMBPerMin": 688,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718259,
+   "load": 3.32,
+   "availMB": 121,
+   "press": 1,
+   "comprMBPerMin": 1647,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail",
+    "compress"
+   ]
+  },
+  {
+   "time": 1792718265,
+   "load": 3.21,
+   "availMB": 130,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718270,
+   "load": 3.28,
+   "availMB": 120,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718276,
+   "load": 3.17,
+   "availMB": 134,
+   "press": 1,
+   "comprMBPerMin": 87,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718281,
+   "load": 3.16,
+   "availMB": 126,
+   "press": 1,
+   "comprMBPerMin": 131,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718286,
+   "load": 3.23,
+   "availMB": 125,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718292,
+   "load": 3.13,
+   "availMB": 118,
+   "press": 1,
+   "comprMBPerMin": 404,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718297,
+   "load": 3.56,
+   "availMB": 128,
+   "press": 1,
+   "comprMBPerMin": 154,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718302,
+   "load": 3.44,
+   "availMB": 304,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718308,
+   "load": 3.32,
+   "availMB": 305,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718313,
+   "load": 3.21,
+   "availMB": 327,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718318,
+   "load": 3.28,
+   "availMB": 353,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718324,
+   "load": 3.25,
+   "availMB": 408,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  },
+  {
+   "time": 1792718329,
+   "load": 3.31,
+   "availMB": 432,
+   "press": 1,
+   "comprMBPerMin": 0,
+   "swapOutMBPerMin": 0,
+   "holders": 0,
+   "queued": 9,
+   "quiet": false,
+   "why": [
+    "avail"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,116 @@
+{
+ "id": "crash-probe-2",
+ "kind": "probe",
+ "about": "Crash bisect 2 (task chromium-desktop-crash): narrows the crash-probe-1 result (the people part, text-wrap) to the people title and its inline-grid o. Diagnostic, records no counts.",
+ "hz": 60,
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1,
+  "mobile": false,
+  "touch": false
+ },
+ "pinnedDate": "2026-10-01T00:00:00+07:00",
+ "timezone": "Asia/Bangkok",
+ "locale": "en-US",
+ "seed": 1592661556,
+ "load": {
+  "quietFrames": 30,
+  "maxFrames": 900,
+  "prerollFrames": 60
+ },
+ "zoneHeightPx": 500,
+ "segments": [
+  {
+   "name": "rest",
+   "dyPerFrame": 0,
+   "frames": 10
+  },
+  {
+   "name": "scroll",
+   "dyPerFrame": 10,
+   "frames": 40
+  },
+  {
+   "name": "tail",
+   "dyPerFrame": 0,
+   "frames": 10
+  }
+ ],
+ "probe": {
+  "timeoutMs": 150000,
+  "variants": [
+   {
+    "id": "base"
+   },
+   {
+    "id": "w860",
+    "width": 860
+   },
+   {
+    "id": "tw-all-off",
+    "css": "*,*::before,*::after{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-h2",
+    "css": "[data-fw=\"people\"] h2{text-wrap:wrap!important}"
+   },
+   {
+    "id": "tw-off-p",
+    "css": "[data-fw=\"people\"] p{text-wrap:wrap!important}"
+   },
+   {
+    "id": "h2-pretty",
+    "css": "[data-fw=\"people\"] h2{text-wrap:pretty!important}"
+   },
+   {
+    "id": "h2-stable",
+    "css": "[data-fw=\"people\"] h2{text-wrap:stable!important}"
+   },
+   {
+    "id": "p-balance",
+    "css": "[data-fw=\"people\"] h2{text-wrap:wrap!important}[data-fw=\"people\"] p{text-wrap:balance!important}"
+   },
+   {
+    "id": "hide-o",
+    "css": "[data-fw=\"people-o\"]{display:none!important}"
+   },
+   {
+    "id": "o-inline-block",
+    "css": "[data-fw=\"people-o\"]{display:inline-block!important}"
+   },
+   {
+    "id": "o-position-abs",
+    "css": "[data-fw=\"people-o\"]{position:absolute!important}"
+   },
+   {
+    "id": "words-inline",
+    "css": "[data-fw=\"people\"] h2>span:last-child{display:inline!important}"
+   },
+   {
+    "id": "words-wrap-normal",
+    "css": "[data-fw=\"people\"] h2>span:last-child{white-space:normal!important}"
+   },
+   {
+    "id": "h2-nowrap",
+    "css": "[data-fw=\"people\"] h2{white-space:nowrap!important}"
+   },
+   {
+    "id": "h2-lead-hide",
+    "css": "[data-fw=\"people\"] h2>span:first-child{display:none!important}"
+   },
+   {
+    "id": "abort-off",
+    "env": {
+     "FW_CHROME_EXTRA": "--disable-blink-features=ScoreLineBreakerAbort"
+    }
+   },
+   {
+    "id": "site-per-process-off",
+    "env": {
+     "FW_CHROME_EXTRA": "--disable-features=SitePerProcess"
+    }
+   }
+  ]
+ }
+}

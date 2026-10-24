@@ -33,14 +33,29 @@ def codeExts : List String := ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "c
 
 def proseJson : List String := ["docs/team/incidents/ledger.json", "docs/team/work-graph.json"]
 
+def protectedDirs : List String := [".claude/"]
+
+def protectedFiles : List String := ["CLAUDE.md"]
+
+def protectedPath (p : String) : Bool := protectedFiles.contains p || protectedDirs.any fun r => p.startsWith r
+
+def polishable (p : String) : Bool := !protectedPath p
+
+def nameChar (c : Char) : Bool := c.isAlphanum || c == '_' || c == '-' || c == '.'
+
+def wtName (dir : String) : Option String :=
+  if dir.startsWith "/" then
+    match (segs dir).reverse with
+    | n :: "worktrees" :: ".claude" :: _ => if n != "" && n != "." && n != ".." && n.all nameChar then some n else none
+    | _ => none
+  else none
+
 def genName (p : String) : Bool := ((baseName p).splitOn ".gen.").length > 1
 
-/-- `gen`: the paths a generator writes or compares (`fw polish` collects them). -/
 def skipped (gen : List String) (p : String) : Bool :=
-  gen.contains p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
+  gen.contains p || !polishable p || skipRoots.any (fun r => p.startsWith r) || (segs p).any skipSegs.contains || genName p ||
     lockNames.contains (baseName p) || p.startsWith "/" || p.isEmpty
 
-/-- A generator's stamp on the first line of a file it writes. -/
 def stamped (head : String) : Bool := ["-- GENERATED", "// GENERATED", "# GENERATED"].any fun m => head.startsWith m
 
 /-- `outputs`: what the generators report they write (`ci-paths`); `heads`: (path, first line) of the diff's files. -/
@@ -83,8 +98,262 @@ def stages (gen : List String) (ps : List String) : List Stage :=
 def keeps (gen diff : List String) (p : String) : Bool :=
   diff.contains p && [Stage.comments, Stage.prose].any fun st => st.admits (classify gen p)
 
+/-- The paths of `ps` that were clean at plan time. -/
+def undirty (dirtyBefore ps : List String) : List String := ps.filter fun p => !dirtyBefore.contains p
+
+/-- A path dirty at plan time is in no stage scope, is not kept and is not restored; the plan is computed from `undirty`. -/
+theorem dirty_never_scoped (gen dirtyBefore ps ed : List String) (p : String) (h : p ∈ dirtyBefore) :
+    (∀ st, p ∉ scope gen st (undirty dirtyBefore ps)) ∧ p ∉ (undirty dirtyBefore ed).filter (keeps gen (undirty dirtyBefore ps))
+      ∧ p ∉ (undirty dirtyBefore ed).filter (fun q => !keeps gen (undirty dirtyBefore ps) q) := by
+  have hn : ∀ l, p ∉ undirty dirtyBefore l := by
+    intro l hp
+    simp [undirty, List.mem_filter] at hp
+    exact hp.2 h
+  refine ⟨fun st hp => ?_, fun hp => hn _ (List.mem_filter.1 hp).1, fun hp => hn _ (List.mem_filter.1 hp).1⟩
+  simp only [scope, List.mem_eraseDups, List.mem_filter] at hp
+  exact hn _ hp.1
+
 theorem skipped_skip (gen : List String) (p : String) (h : skipped gen p = true) : classify gen p = .skip := by
   simp [classify, h]
+
+theorem protected_skip (gen : List String) (p : String) (h : protectedPath p = true) : classify gen p = .skip :=
+  skipped_skip gen p (by simp [skipped, polishable, h])
+
+theorem claude_dir_protected (s : String) : protectedPath (".claude/" ++ s) = true := by
+  simp [protectedPath, protectedDirs]
+
+theorem claude_md_protected : protectedPath "CLAUDE.md" = true := by simp [protectedPath, protectedFiles]
+
+theorem polishable_iff (p : String) : polishable p = true ↔ protectedPath p = false := by simp [polishable]
+
+theorem wtName_relative (dir : String) (h : dir.startsWith "/" = false) : wtName dir = none := by simp [wtName, h]
+
+theorem wtName_safe (dir n : String) (h : wtName dir = some n) : (n != "" && n.all nameChar) = true := by
+  unfold wtName at h
+  split at h
+  · split at h
+    · split at h
+      · simp_all
+      · cases h
+    · cases h
+  · cases h
+
+example : wtName "~/source/x/.claude/worktrees/wf_b291cc70-2f8-1" = none := wtName_relative _ (by simp)
+#guard wtName "/h/r/.claude/worktrees/wf_b291cc70-2f8-1" == some "wf_b291cc70-2f8-1"
+#guard wtName "/h/r/.claude/worktrees/wf_a/" == none
+
+theorem wtName_not_dots (dir n : String) (h : wtName dir = some n) : (n != "." && n != "..") = true := by
+  unfold wtName at h
+  split at h
+  · split at h
+    · split at h
+      · simp_all
+      · cases h
+    · cases h
+  · cases h
+
+def wtSegs (name : String) : List String := [".claude", "worktrees", name]
+
+def inWtAny (name : String) (p : List String) : Prop := ∃ a b, p = a ++ wtSegs name ++ b ∧ b ≠ []
+
+def inWtAt (root : List String) (name : String) (p : List String) : Prop := ∃ b, p = root ++ wtSegs name ++ b ∧ b ≠ []
+
+def inWtB (root : List String) (name : String) (p : List String) : Bool :=
+  (root ++ wtSegs name).isPrefixOf p && decide (root.length + 3 < p.length)
+
+theorem inWtB_iff (root : List String) (name : String) (p : List String) :
+    inWtB root name p = true ↔ inWtAt root name p := by
+  simp only [inWtB, Bool.and_eq_true, List.isPrefixOf_iff_prefix, decide_eq_true_eq, inWtAt]
+  constructor
+  · rintro ⟨⟨b, rfl⟩, hl⟩
+    refine ⟨b, rfl, ?_⟩
+    rintro rfl
+    simp [wtSegs] at hl
+  · rintro ⟨b, rfl, hb⟩
+    refine ⟨⟨b, rfl⟩, ?_⟩
+    have := List.length_pos_iff.mpr hb
+    simp [wtSegs]
+    omega
+
+theorem inWtAt_inWtAny (root : List String) (name : String) (p : List String) (h : inWtAt root name p) : inWtAny name p :=
+  match h with | ⟨b, hp, hb⟩ => ⟨root, b, hp, hb⟩
+
+theorem inWtAt_below (root : List String) (name : String) (b : List String) (hb : b ≠ []) :
+    inWtAt root name (root ++ wtSegs name ++ b) :=
+  ⟨b, rfl, hb⟩
+
+def plainSeg (s : String) : Bool := s != "" && s != "." && s != ".."
+
+def step (acc : List String) (s : String) : List String :=
+  if s == "" || s == "." then acc else if s == ".." then acc.tail else s :: acc
+
+def resolveSegs (p : List String) : List String := (p.foldl step []).reverse
+
+theorem foldl_step_plain (p acc : List String) (h : ∀ s ∈ p, plainSeg s = true) :
+    p.foldl step acc = p.reverse ++ acc := by
+  induction p generalizing acc with
+  | nil => rfl
+  | cons s r ih =>
+    have hs := h s (by simp)
+    simp only [plainSeg, Bool.and_eq_true, bne_iff_ne, ne_eq] at hs
+    simp [List.foldl, step, hs, ih _ (fun x hx => h x (by simp [hx]))]
+
+theorem resolve_plain (p : List String) (h : ∀ s ∈ p, plainSeg s = true) : resolveSegs p = p := by
+  simp [resolveSegs, foldl_step_plain p [] h]
+
+theorem inWtAt_sound (root : List String) (name : String) (p : List String) (hp : ∀ s ∈ p, plainSeg s = true)
+    (h : inWtAt root name p) : ∃ b, b ≠ [] ∧ resolveSegs p = resolveSegs (root ++ wtSegs name) ++ b := by
+  obtain ⟨b, rfl, hb⟩ := h
+  refine ⟨b, hb, ?_⟩
+  rw [resolve_plain _ hp, resolve_plain _ (fun s hs => hp s (List.mem_append_left _ hs))]
+
+def escapeTail : List String := ["..", "..", "apps", "x.ts"]
+
+theorem escape_walks_out (root : List String) (n : String) (hr : ∀ s ∈ root, plainSeg s = true)
+    (hn : plainSeg n = true) :
+    inWtAt root n (root ++ wtSegs n ++ escapeTail) ∧
+      resolveSegs (root ++ wtSegs n ++ escapeTail) = root ++ [".claude", "apps", "x.ts"] ∧
+      ¬ inWtAt root n (resolveSegs (root ++ wtSegs n ++ escapeTail)) := by
+  have hres : resolveSegs (root ++ wtSegs n ++ escapeTail) = root ++ [".claude", "apps", "x.ts"] := by
+    simp only [plainSeg, Bool.and_eq_true, bne_iff_ne, ne_eq] at hn
+    simp [resolveSegs, foldl_step_plain root [] hr, wtSegs, escapeTail, step, hn]
+  refine ⟨inWtAt_below _ _ _ (by simp [escapeTail]), hres, ?_⟩
+  rw [hres]
+  rintro ⟨b, hb, -⟩
+  simp [wtSegs] at hb
+
+def nameOk (n : String) : Bool := plainSeg n && n.all nameChar
+
+def absPlain (p : String) : Bool :=
+  match segs p with
+  | "" :: r => !r.isEmpty && r.all plainSeg
+  | _ => false
+
+def anchor (main raw : String) : String := if raw.startsWith "/" then raw else main ++ "/" ++ raw
+
+inductive Own where
+  | own | badMain | badName | notPlain | outside | unresolved
+deriving Repr, DecidableEq
+
+def Own.name : Own → String
+  | .own => "own" | .badMain => "badMain" | .badName => "badName" | .notPlain => "notPlain" | .outside => "outside" | .unresolved => "unresolved"
+
+def ownEdit (main name raw : String) : Own :=
+  if !absPlain main then .badMain
+  else if !nameOk name then .badName
+  else if !absPlain (anchor main raw) then .notPlain
+  else if inWtB (segs main) name (segs (anchor main raw)) then .own else .outside
+
+def ownFact (main name raw : String) (resolved : Bool) : Own :=
+  if resolved then ownEdit main name raw else .unresolved
+
+theorem ownFact_unresolved (main name raw : String) : ownFact main name raw false = .unresolved := rfl
+
+theorem ownFact_resolved (main name raw : String) : ownFact main name raw true = ownEdit main name raw := rfl
+
+theorem ownFact_unresolved_not_own (main name raw : String) : ownFact main name raw false ≠ .own := by
+  simp [ownFact]
+
+theorem ownFact_own_iff (main name raw : String) (r : Bool) :
+    ownFact main name raw r = .own ↔ r = true ∧ ownEdit main name raw = .own := by
+  cases r <;> simp [ownFact]
+
+theorem ownEdit_badMain (main name raw : String) (h : absPlain main = false) : ownEdit main name raw = .badMain := by
+  simp [ownEdit, h]
+
+theorem ownEdit_badName (main name raw : String) (hm : absPlain main = true) (h : nameOk name = false) :
+    ownEdit main name raw = .badName := by
+  simp [ownEdit, hm, h]
+
+theorem ownEdit_notPlain (main name raw : String) (hm : absPlain main = true) (hn : nameOk name = true)
+    (h : absPlain (anchor main raw) = false) : ownEdit main name raw = .notPlain := by
+  simp [ownEdit, hm, hn, h]
+
+theorem ownEdit_outside (main name raw : String) (hm : absPlain main = true) (hn : nameOk name = true)
+    (hp : absPlain (anchor main raw) = true) (h : ¬ inWtAt (segs main) name (segs (anchor main raw))) :
+    ownEdit main name raw = .outside := by
+  have : inWtB (segs main) name (segs (anchor main raw)) = false := by
+    cases hb : inWtB (segs main) name (segs (anchor main raw))
+    · rfl
+    · exact absurd ((inWtB_iff _ _ _).mp hb) h
+  simp [ownEdit, hm, hn, hp, this]
+
+theorem ownEdit_own_iff (main name raw : String) :
+    ownEdit main name raw = .own ↔ absPlain main = true ∧ nameOk name = true ∧ absPlain (anchor main raw) = true ∧
+      inWtAt (segs main) name (segs (anchor main raw)) := by
+  rw [← inWtB_iff]
+  unfold ownEdit
+  cases absPlain main <;> cases nameOk name <;> cases absPlain (anchor main raw) <;>
+    cases inWtB (segs main) name (segs (anchor main raw)) <;> simp
+
+theorem absPlain_segs (p : String) (h : absPlain p = true) : ∃ r, segs p = "" :: r ∧ ∀ s ∈ r, plainSeg s = true := by
+  unfold absPlain at h
+  split at h
+  · rename_i r hr
+    simp only [Bool.and_eq_true, List.all_eq_true] at h
+    exact ⟨r, hr, h.2⟩
+  · cases h
+
+theorem resolve_abs (r : List String) (h : ∀ s ∈ r, plainSeg s = true) : resolveSegs ("" :: r) = r := by
+  simp [resolveSegs, step, foldl_step_plain r [] h]
+
+theorem ownEdit_dot (main name raw : String) (h : "." ∈ segs (anchor main raw) ∨ ".." ∈ segs (anchor main raw)) :
+    ownEdit main name raw ≠ .own := by
+  intro ho
+  obtain ⟨-, -, hp, -⟩ := (ownEdit_own_iff _ _ _).mp ho
+  obtain ⟨r, hr, hpl⟩ := absPlain_segs _ hp
+  rw [hr] at h
+  rcases h with h | h <;> rcases List.mem_cons.mp h with h | h <;> simp_all [plainSeg] <;>
+    (have := hpl _ h; simp at this)
+
+theorem ownEdit_sound (main name raw : String) (h : ownEdit main name raw = .own) :
+    ∃ b, b ≠ [] ∧ (∀ s ∈ b, plainSeg s = true) ∧
+      resolveSegs (segs (anchor main raw)) = resolveSegs (segs main) ++ wtSegs name ++ b := by
+  obtain ⟨hm, -, hp, b, hb, hne⟩ := (ownEdit_own_iff _ _ _).mp h
+  obtain ⟨m, hm', hmp⟩ := absPlain_segs _ hm
+  obtain ⟨r, hr, hrp⟩ := absPlain_segs _ hp
+  rw [hm', hr] at hb
+  simp only [List.cons_append, List.cons.injEq, true_and] at hb
+  subst hb
+  refine ⟨b, hne, fun s hs => hrp s (by simp [hs]), ?_⟩
+  rw [hm', hr, resolve_abs _ hrp, resolve_abs _ hmp]
+
+theorem other_checkout_passes_name_only (main other : List String) (name f : String)
+    (wts : List (List String × String)) (_hmem : (other, name) ∈ wts) (_huniq : (wts.map Prod.snd).Nodup)
+    (hd : ¬ main <+: other) :
+    inWtAny name (other ++ wtSegs name ++ [f]) ∧ ¬ inWtAt main name (other ++ wtSegs name ++ [f]) := by
+  refine ⟨⟨other, [f], rfl, by simp⟩, ?_⟩
+  rintro ⟨b, hb, hne⟩
+  simp only [List.append_assoc] at hb
+  rcases List.append_eq_append_iff.mp hb with ⟨a', hma, ht⟩ | ⟨c', hoc, -⟩
+  · have hl := congrArg List.length ht
+    have := List.length_pos_iff.mpr hne
+    simp [wtSegs] at hl
+    have ha : a' = [] := List.eq_nil_of_length_eq_zero (by omega)
+    subst ha
+    exact hd ⟨[], by simp [hma]⟩
+  · exact hd ⟨c', hoc.symm⟩
+
+example : inWtAny "wf_a" (["other"] ++ wtSegs "wf_a" ++ ["x.ts"]) ∧ ¬ inWtAt ["main"] "wf_a" (["other"] ++ wtSegs "wf_a" ++ ["x.ts"]) :=
+  other_checkout_passes_name_only ["main"] ["other"] "wf_a" "x.ts" [(["other"], "wf_a")] (by simp) (by simp)
+    (by rintro ⟨t, ht⟩; simp at ht)
+
+theorem nested_checkout_inside (main : List String) (name f : String) :
+    main <+: main ++ wtSegs name ++ ["sub"] ∧ main ≠ main ++ wtSegs name ++ ["sub"] ∧ inWtAt main name ((main ++ wtSegs name ++ ["sub"]) ++ wtSegs name ++ [f]) :=
+  ⟨⟨wtSegs name ++ ["sub"], by simp⟩,
+    fun h => by simpa using congrArg List.length h, ⟨["sub"] ++ wtSegs name ++ [f], by simp, by simp⟩⟩
+
+#guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a/apps/x.ts" == .own
+#guard ownEdit "/m" "wf_a" ".claude/worktrees/wf_a/apps/x.ts" == .own
+#guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a/../../apps/x.ts" == .notPlain
+#guard ownEdit "/m" "wf_a" "/m/apps/x.ts" == .outside
+#guard ownEdit "/m" "wf_a" "/o/.claude/worktrees/wf_a/apps/x.ts" == .outside
+#guard ownEdit "/m" "wf_a" "/m/.claude/worktrees/wf_a" == .outside
+#guard ownEdit "/m/" "wf_a" "/m/.claude/worktrees/wf_a/x" == .badMain
+#guard ownEdit "/m" ".." "/m/.claude/worktrees/../x" == .badName
+#guard ownFact "/m" "wf_a" "/m/.claude/worktrees/wf_a/x" true == .own
+#guard ownFact "/m" "wf_a" "/m/.claude/worktrees/wf_a/x" false == .unresolved
+#guard resolveSegs (segs "/m/.claude/worktrees/wf_a/../../apps/x.ts") == ["m", ".claude", "apps", "x.ts"]
 
 theorem gen_skip (gen : List String) (p : String) (h : p ∈ gen) : classify gen p = .skip :=
   skipped_skip gen p (by simp [skipped, h])
@@ -117,6 +386,15 @@ theorem kept_not_skip (gen diff : List String) (p : String) (h : keeps gen diff 
 theorem kept_in_diff (gen diff : List String) (p : String) (h : keeps gen diff p = true) : p ∈ diff := by
   simp only [keeps, Bool.and_eq_true, List.contains_iff_mem] at h
   exact h.1
+
+theorem protected_never_scoped (gen : List String) (st : Stage) (ps : List String) (p : String)
+    (h : protectedPath p = true) : p ∉ scope gen st ps := fun hm => skip_never_edited gen st ps p hm (protected_skip gen p h)
+
+theorem protected_not_kept (gen diff : List String) (p : String) (h : protectedPath p = true) :
+    keeps gen diff p = false := by
+  cases hk : keeps gen diff p
+  · rfl
+  · exact absurd (protected_skip gen p h) (kept_not_skip gen diff p hk)
 
 theorem shell_mark (gen : List String) (p : String) (h : classify gen p = .shell) : mark p = some "#" := by
   simp only [classify] at h
@@ -312,6 +590,251 @@ def applyAll (gen : List String) (doc : String) (cs : List Cut) : String × List
     let v := judge gen d c
     (if v = .apply then d.replace c.old c.new else d, vs ++ [v])) (doc, [])
 
+/-! ## Hunks: an edit stays only near the branch's own changed lines -/
+
+/-- Lines `start .. start + len - 1` of one side of a `git diff -U0` hunk; `len = 0` is a point after line `start`. -/
+structure Span where
+  start : Nat
+  len : Nat
+deriving Repr, DecidableEq
+
+/-- The last line of a span; a point span ends where it starts. -/
+def Span.hi (s : Span) : Nat := s.start + max s.len 1 - 1
+
+/-- Lines of margin around a branch hunk inside which an edit is kept. -/
+def margin : Nat := 3
+
+/-- `hs`: the branch's hunks of one file (merge-base to head); `e`: one edit hunk against head. -/
+def admitted (hs : List Span) (e : Span) : Bool :=
+  hs.any fun h => decide (h.start - margin ≤ e.start ∧ e.hi ≤ h.hi + margin)
+
+theorem Span.start_le_hi (s : Span) : s.start ≤ s.hi := by
+  unfold Span.hi; omega
+
+theorem admitted_iff (hs : List Span) (e : Span) :
+    admitted hs e = true ↔ ∃ h ∈ hs, h.start - margin ≤ e.start ∧ e.hi ≤ h.hi + margin := by
+  simp [admitted]
+
+theorem admitted_nil (e : Span) : admitted [] e = false := rfl
+
+theorem admitted_hunk (hs : List Span) (h : Span) (hm : h ∈ hs) : admitted hs h = true :=
+  (admitted_iff hs h).2 ⟨h, hm, by have := h.start_le_hi; omega, by have := h.start_le_hi; omega⟩
+
+theorem admitted_inside (hs : List Span) (h e : Span) (hm : h ∈ hs) (a : h.start ≤ e.start) (b : e.hi ≤ h.hi) :
+    admitted hs e = true :=
+  (admitted_iff hs e).2 ⟨h, hm, by have := e.start_le_hi; omega, by have := e.start_le_hi; omega⟩
+
+theorem restored_far_above (hs : List Span) (e : Span) (far : ∀ h ∈ hs, h.hi + margin < e.start) :
+    admitted hs e = false := by
+  cases hb : admitted hs e
+  · rfl
+  · obtain ⟨h, hm, _, h2⟩ := (admitted_iff hs e).1 hb
+    have := far h hm; have := e.start_le_hi; omega
+
+theorem restored_far_below (hs : List Span) (e : Span) (far : ∀ h ∈ hs, e.hi + margin < h.start) :
+    admitted hs e = false := by
+  cases hb : admitted hs e
+  · rfl
+  · obtain ⟨h, hm, h1, _⟩ := (admitted_iff hs e).1 hb
+    have := far h hm; have := e.start_le_hi; omega
+
+/-- The lines `comment-sicko` may edit for a hunk: the hunk plus the margin, first line 1. -/
+def Span.reach (s : Span) : Nat × Nat := (max 1 (s.start - margin), s.hi + margin)
+
+theorem reach_admits (h : Span) : admitted [h] ⟨h.reach.1, 1⟩ = true :=
+  admitted_iff _ _ |>.2 ⟨h, List.mem_singleton.2 rfl, by simp [Span.reach, Span.hi, margin]; omega,
+    by simp [Span.reach, Span.hi, margin]; omega⟩
+
+/-! ## Paths: an admitted path is repo-relative and never leaves the worktree -/
+
+/-- Walk the segments with the depth below the root; `..` at depth 0 leaves the root. -/
+def depthOk : List String → Nat → Bool
+  | [], _ => true
+  | s :: r, d =>
+    if s == ".." then (match d with | 0 => false | d + 1 => depthOk r d)
+    else if s == "." || s.isEmpty then depthOk r d
+    else depthOk r (d + 1)
+
+def relOk (p : String) : Bool := !p.isEmpty && !p.startsWith "/" && depthOk (segs p) 0
+
+theorem relOk_empty (p : String) (h : p.isEmpty = true) : relOk p = false := by simp [relOk, h]
+
+theorem relOk_abs (p : String) (h : p.startsWith "/" = true) : relOk p = false := by simp [relOk, h]
+
+theorem relOk_up (p : String) (r : List String) (h : segs p = ".." :: r) : relOk p = false := by
+  simp [relOk, h, depthOk]
+
+theorem depthOk_plain (l : List String) (hl : ∀ s ∈ l, s ≠ "..") (d : Nat) : depthOk l d = true := by
+  induction l generalizing d with
+  | nil => rfl
+  | cons s r ih =>
+    have hs : (s == "..") = false := by simpa using hl s List.mem_cons_self
+    have hr := ih (fun x hx => hl x (List.mem_cons_of_mem _ hx))
+    simp only [depthOk, hs, Bool.false_eq_true, ↓reduceIte]
+    split <;> simp [hr]
+
+theorem relOk_plain (p : String) (hne : p.isEmpty = false) (hab : p.startsWith "/" = false)
+    (h : ∀ s ∈ segs p, s ≠ "..") : relOk p = true := by
+  simp [relOk, hne, hab, depthOk_plain _ h]
+
+/-- An edit hunk of `p` is kept iff `p` is a relative path inside the worktree and the hunk lies inside a branch hunk plus the margin. -/
+def editKept (hs : List Span) (p : String) (e : Span) : Bool := relOk p && admitted hs e
+
+theorem editKept_rel (hs : List Span) (p : String) (e : Span) (h : editKept hs p e = true) : relOk p = true := by
+  simp only [editKept, Bool.and_eq_true] at h; exact h.1
+
+theorem editKept_near (hs : List Span) (p : String) (e : Span) (h : editKept hs p e = true) :
+    ∃ x ∈ hs, x.start - margin ≤ e.start ∧ e.hi ≤ x.hi + margin := by
+  simp only [editKept, Bool.and_eq_true] at h; exact (admitted_iff hs e).1 h.2
+
+/-! ## The main checkout stays untouched -/
+
+/-- The dirty paths of the main checkout that the polish plan names. -/
+def blocked (dirty planned : List String) : List String := (dirty.filter planned.contains).eraseDups
+
+theorem blocked_mem (d ps : List String) (p : String) : p ∈ blocked d ps ↔ p ∈ d ∧ p ∈ ps := by
+  simp [blocked]
+
+theorem blocked_empty_of_clean (ps : List String) : blocked [] ps = [] := rfl
+
+theorem blocked_ne_nil (d ps : List String) (p : String) (hd : p ∈ d) (hp : p ∈ ps) : blocked d ps ≠ [] := by
+  intro h
+  have := (blocked_mem d ps p).2 ⟨hd, hp⟩
+  rw [h] at this; simp at this
+
+/-! ## The polish stage ends clean -/
+
+/-- What the worktree holds after the commit step: tracked paths that differ from HEAD (index or tree) and untracked paths. -/
+structure St where
+  dirty : List String
+  untracked : List String
+deriving Repr, DecidableEq
+
+/-- Paths to restore from HEAD and untracked paths to delete. -/
+structure Act where
+  restore : List String
+  remove : List String
+deriving Repr, DecidableEq
+
+def Act.run (a : Act) (s : St) : St :=
+  ⟨s.dirty.filter fun p => !a.restore.contains p, s.untracked.filter fun p => !a.remove.contains p⟩
+
+/-- Restore the dirty paths that were clean at plan time (`dirtyBefore`; a path the builder had dirty keeps its edits);
+delete the untracked paths that were not there before the polish stage. -/
+def settle (before dirtyBefore : List String) (s : St) : Act :=
+  ⟨s.dirty.filter fun p => !dirtyBefore.contains p, s.untracked.filter fun p => !before.contains p⟩
+
+/-- With a clean worktree at plan time no dirty path survives the settle. -/
+theorem settle_clean (before : List String) (s : St) : ((settle before [] s).run s).dirty = [] := by
+  simp [settle, Act.run, List.filter_eq_nil_iff]
+
+/-- A path still dirty after the settle was dirty at plan time. -/
+theorem settle_dirty_before (before dirtyBefore : List String) (s : St) (p : String)
+    (h : p ∈ ((settle before dirtyBefore s).run s).dirty) : p ∈ dirtyBefore := by
+  simp [settle, Act.run] at h
+  rcases h with ⟨h1, h2⟩
+  rcases h2 with h2 | h2
+  · exact absurd h1 h2
+  · exact h2
+
+/-- Builder work is never wiped: a path dirty at plan time keeps its edits. -/
+theorem settle_keeps_dirty_before (before dirtyBefore : List String) (s : St) (p : String)
+    (hs : p ∈ s.dirty) (hb : p ∈ dirtyBefore) : p ∈ ((settle before dirtyBefore s).run s).dirty := by
+  simp [settle, Act.run]; exact ⟨hs, Or.inr hb⟩
+
+/-- Only paths that were clean at plan time and are dirty now are restored. -/
+theorem settle_restores_clean_only (before dirtyBefore : List String) (s : St) (p : String)
+    (h : p ∈ (settle before dirtyBefore s).restore) : p ∈ s.dirty ∧ p ∉ dirtyBefore := by
+  simp [settle] at h; exact ⟨h.1, h.2⟩
+
+theorem settle_untracked_before (before dirtyBefore : List String) (s : St) (p : String)
+    (h : p ∈ ((settle before dirtyBefore s).run s).untracked) : p ∈ before := by
+  simp [settle, Act.run] at h
+  rcases h with ⟨h1, h2⟩
+  rcases h2 with h2 | h2
+  · exact absurd h1 h2
+  · exact h2
+
+theorem settle_keeps_before (before dirtyBefore : List String) (s : St) (p : String) (hs : p ∈ s.untracked) (hb : p ∈ before) :
+    p ∈ ((settle before dirtyBefore s).run s).untracked := by
+  simp [settle, Act.run]; exact ⟨hs, Or.inr hb⟩
+
+theorem settle_removes_created (before dirtyBefore : List String) (s : St) (p : String) (h : p ∈ (settle before dirtyBefore s).remove) :
+    p ∈ s.untracked ∧ p ∉ before := by
+  simp [settle] at h; exact ⟨h.1, h.2⟩
+
+theorem settle_committed (before dirtyBefore : List String) (s : St) (hd : ∀ p ∈ s.dirty, p ∈ dirtyBefore)
+    (hu : ∀ p ∈ s.untracked, p ∈ before) : settle before dirtyBefore s = ⟨[], []⟩ := by
+  simp [settle]
+  exact ⟨hd, hu⟩
+
+theorem settle_idempotent (before dirtyBefore : List String) (s : St) :
+    settle before dirtyBefore ((settle before dirtyBefore s).run s) = ⟨[], []⟩ :=
+  settle_committed before dirtyBefore _ (settle_dirty_before before dirtyBefore s) (settle_untracked_before before dirtyBefore s)
+
+/-! ## The kept hunks of one file: HEAD with exactly the kept hunks applied -/
+
+/-- One `-U0` hunk of the polish edits against HEAD: `target` HEAD lines come before it (the old start, minus one unless
+the hunk only inserts), it replaces `oldLen` HEAD lines with `new`, and `keep` says whether the hunk stays. -/
+structure WHunk where
+  target : Nat
+  oldLen : Nat
+  new : List String
+  keep : Bool
+deriving Repr, DecidableEq
+
+/-- The text of the file as lines: walk the hunks in ascending order over the HEAD lines `rest` (`done` already consumed);
+a kept hunk emits its new lines, a restored hunk emits the HEAD lines it covers. No hunk is ever reverse-applied alone, so
+a restored hunk cannot land at a shifted line. -/
+def walk : List String → Nat → List WHunk → List String
+  | rest, _, [] => rest
+  | rest, done, h :: hs =>
+    let skip := h.target - done
+    rest.take skip ++ (if h.keep then h.new else (rest.drop skip).take h.oldLen)
+      ++ walk ((rest.drop skip).drop h.oldLen) (done + skip + h.oldLen) hs
+
+theorem walk_nil (rest : List String) (done : Nat) : walk rest done [] = rest := rfl
+
+/-- With every hunk restored the walk gives back HEAD. -/
+theorem walk_restored (hs : List WHunk) (hk : ∀ h ∈ hs, h.keep = false) :
+    ∀ (rest : List String) (done : Nat), walk rest done hs = rest := by
+  induction hs with
+  | nil => intro rest done; rfl
+  | cons h hs ih =>
+    intro rest done
+    have h0 : h.keep = false := hk h (by simp)
+    have := ih (fun x hx => hk x (by simp [hx])) ((rest.drop (h.target - done)).drop h.oldLen)
+      (done + (h.target - done) + h.oldLen)
+    simp only [walk, h0, Bool.false_eq_true, ↓reduceIte, this]
+    rw [List.append_assoc, List.take_append_drop, List.take_append_drop]
+
+/-- A kept hunk emits its new lines between the HEAD lines before it and the walk of the rest. -/
+theorem walk_keep (rest : List String) (done : Nat) (h : WHunk) (hs : List WHunk) (hk : h.keep = true) :
+    walk rest done (h :: hs) = rest.take (h.target - done) ++ h.new
+      ++ walk ((rest.drop (h.target - done)).drop h.oldLen) (done + (h.target - done) + h.oldLen) hs := by
+  simp [walk, hk]
+
+/-- A restored hunk emits the HEAD lines it covers, unchanged. -/
+theorem walk_restore (rest : List String) (done : Nat) (h : WHunk) (hs : List WHunk) (hk : h.keep = false) :
+    walk rest done (h :: hs) = rest.take (h.target - done) ++ (rest.drop (h.target - done)).take h.oldLen
+      ++ walk ((rest.drop (h.target - done)).drop h.oldLen) (done + (h.target - done) + h.oldLen) hs := by
+  simp [walk, hk]
+
+/-- A restored hunk in ascending order is as if it were not there: the result is HEAD with only the kept hunks applied. -/
+theorem walk_skip_restored (rest : List String) (done : Nat) (h h2 : WHunk) (hs : List WHunk) (hk : h.keep = false)
+    (o1 : done ≤ h.target) (o2 : h.target + h.oldLen ≤ h2.target) :
+    walk rest done (h :: h2 :: hs) = walk rest done (h2 :: hs) := by
+  simp only [walk, hk, Bool.false_eq_true, ↓reduceIte]
+  have e : h2.target - done = (h.target - done) + h.oldLen + (h2.target - (done + (h.target - done) + h.oldLen)) := by omega
+  have e1 : done + (h.target - done) + h.oldLen + (h2.target - (done + (h.target - done) + h.oldLen)) = h2.target := by omega
+  generalize h.target - done = a at *
+  generalize h.oldLen = n at *
+  generalize h2.target - (done + a + n) = b at *
+  rw [e]
+  simp only [List.drop_drop, List.take_add, List.append_assoc, e1]
+  have e2 : h2.target = done + (a + n + b) := by omega
+  rw [e2]
+
 /-! ## Goldens: the three 10-22 over-cuts -/
 
 def supWire : Cut := ⟨"docs/team/handoffs/sup-wire.md",
@@ -359,5 +882,189 @@ def jevCounts : Cut := ⟨"docs/team/handoffs/jev-datasets.md",
 #guard judge [] "x a x" ⟨"a.md", "x", ""⟩ = .notUnique && judge [] "a" ⟨"a.md", "b", ""⟩ = .notFound
 #guard judge [] "a" ⟨"a.ts", "a", ""⟩ = .notProse
 #guard applyAll [] "one two three" [⟨"a.md", "two ", ""⟩, ⟨"a.md", "two", "2"⟩] = ("one three", [.apply, .notFound])
+
+#guard !admitted [⟨60, 2⟩] ⟨62, 59⟩
+#guard admitted [⟨10, 2⟩] ⟨12, 1⟩ && admitted [⟨10, 2⟩] ⟨14, 1⟩ && !admitted [⟨10, 2⟩] ⟨15, 1⟩
+#guard !admitted [⟨10, 2⟩] ⟨60, 2⟩ && !admitted [] ⟨1, 1⟩ && admitted [⟨10, 2⟩] ⟨7, 1⟩ && !admitted [⟨10, 2⟩] ⟨6, 1⟩
+#guard (Span.mk 10 0).hi = 10 && (Span.mk 10 3).hi = 12 && (Span.mk 1 2).reach = (1, 5)
+#guard relOk "lean/a.lean" && relOk "a/../b" && !relOk "../a" && !relOk "/etc/x" && !relOk "a/../../b" && !relOk ""
+#guard blocked ["a", "b", "a"] ["a", "c"] = ["a"] && blocked [] ["a"] = []
+
+#guard (settle ["keep.txt"] [] ⟨["a.ts", "b.ts"], ["keep.txt", "a.ts-e", "x.orig"]⟩) = ⟨["a.ts", "b.ts"], ["a.ts-e", "x.orig"]⟩
+#guard (settle ["k"] [] ⟨[], ["k"]⟩) = ⟨[], []⟩ && ((settle ["k"] [] ⟨["a"], ["k", "z"]⟩).run ⟨["a"], ["k", "z"]⟩) = ⟨[], ["k"]⟩
+#guard (settle [] ["mine.ts"] ⟨["a.ts", "mine.ts"], []⟩) = ⟨["a.ts"], []⟩
+
+-- the Trajectory case: a kept deletion above, a 3-line deletion below that is restored (HEAD lines a..j)
+private def head10 : List String := ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+#guard walk head10 0 [⟨1, 1, [], true⟩, ⟨6, 3, [], false⟩] = ["a", "c", "d", "e", "f", "g", "h", "i", "j"]
+#guard walk head10 0 [⟨1, 1, ["B"], true⟩, ⟨6, 3, [], true⟩] = ["a", "B", "c", "d", "e", "f", "j"]
+#guard walk head10 0 [⟨3, 0, ["x"], true⟩] = ["a", "b", "c", "x", "d", "e", "f", "g", "h", "i", "j"]
+#guard walk head10 0 [⟨1, 1, ["B"], false⟩, ⟨8, 2, ["Y"], true⟩] = ["a", "b", "c", "d", "e", "f", "g", "h", "Y"]
+
+structure Syn where
+  lineMark : List Char
+  bopen : List Char
+  bclose : List Char
+  nest : Bool
+  needWs : Bool
+  deriving DecidableEq
+
+def synHash : Syn := ⟨['#'], [], [], false, true⟩
+def synSlash : Syn := ⟨['/', '/'], ['/', '*'], ['*', '/'], false, false⟩
+def synLean : Syn := ⟨['-', '-'], ['/', '-'], ['-', '/'], true, false⟩
+
+def synOf (p : String) : Option Syn :=
+  let e := extOf p
+  if shellExts.contains e || e == "yml" || e == "yaml" then some synHash
+  else if ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"].contains e then some synSlash
+  else if e == "lean" then some synLean
+  else none
+
+def scan (sy : Syn) : Nat → List Char → Nat → Option Char → Bool → List Char → Nat × List Char
+  | 0, _, d, _, _, acc => (d, acc)
+  | _, [], d, _, _, acc => (d, acc)
+  | n + 1, c :: cs, d, q, ws, acc =>
+    if d > 0 then
+      if !sy.bclose.isEmpty && (c :: cs).take sy.bclose.length == sy.bclose then
+        scan sy n (cs.drop (sy.bclose.length - 1)) (d - 1) q true acc
+      else if sy.nest && !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
+        scan sy n (cs.drop (sy.bopen.length - 1)) (d + 1) q true acc
+      else scan sy n cs d q true acc
+    else match q with
+      | some k =>
+        if c == '\\' && !(k == '\'' && sy.needWs) then
+          match cs with
+          | [] => (0, c :: acc)
+          | e :: cs' => scan sy n cs' 0 q false (e :: c :: acc)
+        else scan sy n cs 0 (if c == k then none else q) false (c :: acc)
+      | none =>
+        if (c :: cs).take sy.lineMark.length == sy.lineMark && (ws || !sy.needWs) then (0, acc)
+        else if !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
+          scan sy n (cs.drop (sy.bopen.length - 1)) 1 none true (' ' :: acc)
+        else if c == '"' || (c == '\'' && !sy.nest) || (c == '`' && !sy.needWs && !sy.nest) then
+          scan sy n cs 0 (some c) false (c :: acc)
+        else scan sy n cs 0 none (c == ' ' || c == '\t') (c :: acc)
+
+def stripLine (sy : Syn) (d : Nat) (l : String) : Nat × String :=
+  let r := scan sy (l.length + 1) l.toList d none true []
+  (r.1, " ".intercalate (((String.ofList (r.2.reverse.map fun c => if c == '\t' then ' ' else c)).splitOn " ").filter (· ≠ "")))
+
+def stripAll (sy : Syn) (d : Nat) : List String → List String
+  | [] => []
+  | l :: ls => let r := stripLine sy d l; r.2 :: stripAll sy r.1 ls
+
+def codeLines (sy : Syn) (t : String) : List String := (stripAll sy 0 (t.splitOn "\n")).filter (· ≠ "")
+
+inductive LineV where
+  | ok | joined | split | changed | unchecked
+  deriving DecidableEq
+
+def LineV.name : LineV → String
+  | .ok => "ok" | .joined => "joined" | .split => "split" | .changed => "changed" | .unchecked => "unchecked"
+
+def lineVerdict (sy : Syn) (o c : String) : LineV :=
+  if codeLines sy o = codeLines sy c then .ok
+  else if (codeLines sy c).length < (codeLines sy o).length then .joined
+  else if (codeLines sy o).length < (codeLines sy c).length then .split
+  else .changed
+
+def pathVerdict (p o c : String) : LineV :=
+  match synOf p with
+  | none => .unchecked
+  | some sy => lineVerdict sy o c
+
+def LineV.refused : LineV → Bool
+  | .ok | .unchecked => false
+  | _ => true
+
+theorem lineVerdict_refl (sy : Syn) (t : String) : lineVerdict sy t t = .ok := by simp [lineVerdict]
+
+theorem lineVerdict_ne_unchecked (sy : Syn) (o c : String) : lineVerdict sy o c ≠ .unchecked := by
+  unfold lineVerdict
+  by_cases a : codeLines sy o = codeLines sy c <;> simp only [a, ite_true, ite_false]
+  · simp
+  by_cases b : (codeLines sy c).length < (codeLines sy o).length <;> simp only [b, ite_true, ite_false]
+  · simp
+  by_cases d : (codeLines sy o).length < (codeLines sy c).length <;> simp only [d, ite_true, ite_false] <;> simp
+
+theorem lineVerdict_ok_iff (sy : Syn) (o c : String) : lineVerdict sy o c = .ok ↔ codeLines sy o = codeLines sy c := by
+  unfold lineVerdict
+  by_cases h : codeLines sy o = codeLines sy c
+  · simp [h]
+  · simp only [h, ite_false]
+    by_cases b : (codeLines sy c).length < (codeLines sy o).length <;> simp only [b, ite_true, ite_false]
+    · simp
+    by_cases d : (codeLines sy o).length < (codeLines sy c).length <;> simp only [d, ite_true, ite_false] <;> simp
+
+theorem joined_fewer (sy : Syn) (o c : String) (h : lineVerdict sy o c = .joined) :
+    (codeLines sy c).length < (codeLines sy o).length := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · split at h
+    · assumption
+    · split at h <;> cases h
+
+theorem split_more (sy : Syn) (o c : String) (h : lineVerdict sy o c = .split) :
+    (codeLines sy o).length < (codeLines sy c).length := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · split at h
+    · cases h
+    · split at h
+      · assumption
+      · cases h
+
+theorem changed_same_count (sy : Syn) (o c : String) (h : lineVerdict sy o c = .changed) :
+    (codeLines sy o).length = (codeLines sy c).length ∧ codeLines sy o ≠ codeLines sy c := by
+  unfold lineVerdict at h
+  split at h
+  · cases h
+  · rename_i h1
+    split at h
+    · cases h
+    · rename_i h2
+      split at h
+      · cases h
+      · rename_i h3
+        exact ⟨by omega, h1⟩
+
+theorem refused_iff (p o c : String) (sy : Syn) (hs : synOf p = some sy) :
+    (pathVerdict p o c).refused = true ↔ codeLines sy o ≠ codeLines sy c := by
+  simp only [pathVerdict, hs]
+  constructor
+  · intro h hh
+    have := (lineVerdict_ok_iff sy o c).2 hh
+    rw [this] at h
+    simp [LineV.refused] at h
+  · intro h
+    have : lineVerdict sy o c ≠ .ok := fun e => h ((lineVerdict_ok_iff sy o c).1 e)
+    have hu := lineVerdict_ne_unchecked sy o c
+    revert this hu
+    cases lineVerdict sy o c <;> simp [LineV.refused]
+
+theorem unchecked_never_refused (p o c : String) (h : synOf p = none) : (pathVerdict p o c).refused = false := by
+  simp [pathVerdict, h, LineV.refused]
+
+private def vd (p o c : String) : String := (pathVerdict p o c).name
+
+#guard vd "a.sh" "cmd a  # note\ncmd b\n" "cmd a\ncmd b\n" = "ok"
+#guard vd "a.sh" "cmd a  # note\ncmd b\n" "cmd a  cmd b\n" = "joined"
+#guard vd "a.yml" "a: 1\n# why\nb: 2\n" "a: 1\nb: 2\n" = "ok"
+#guard vd "a.ts" "a(); // x\nb();\n" "a(); b();\n" = "joined"
+#guard vd "a.ts" "a(); /* x\n y */ b();\n" "a(); b();\n" = "joined"
+#guard vd "a.ts" "a();\n/* x\n y */\nb();\n" "a();\nb();\n" = "ok"
+#guard vd "a.lean" "def a := 1 -- x\ndef b := 2\n" "def a := 1 def b := 2\n" = "joined"
+#guard vd "a.lean" "/- a\n /- b -/ c -/\ndef b := 2\n" "def b := 2\n" = "ok"
+#guard vd "a.sh" "cmd a\n# end\n" "cmd a\n" = "ok" && vd "a.sh" "cmd a  # end" "cmd a" = "ok"
+#guard vd "a.sh" "cmd a\n" "cmd b\n" = "changed" && vd "a.sh" "cmd a b\n" "cmd a\nb\n" = "split"
+#guard vd "a.md" "x\n" "y\n" = "unchecked"
+#guard codeLines synHash "echo $# \"a # b\" # c" = ["echo $# \"a # b\""]
+#guard vd "lean/scripts/check.sh" "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n" "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"sup-measure\" x  # s\njob \"node-budget\" y\n" "job \"sup-measure\" x  job \"node-budget\" y\n" = "joined"
+#guard vd "lean/scripts/check.sh" "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n" "job \"hero-scene-pause\" x  job \"nav-earn\" y\n" = "joined"
+#guard vd "a.mjs" "const b = ['ci/**'];\nfoo(); // why\nbar();\n" "const b = ['ci/**'];\nfoo(); bar();\n" = "joined"
+#guard vd "a.ts" "const b = \"a\\\"/*\";\nfoo(); // why\nbar();\n" "const b = \"a\\\"/*\";\nfoo(); bar();\n" = "joined"
 
 end Fw.Plan.Polish

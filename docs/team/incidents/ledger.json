@@ -1985,7 +1985,7 @@
    "at": "2026-10-18T14:43+07:00",
    "title": "Three tasks went through 3-4 refused review rounds each, every round patching the reviewer's newest probe inside an open design",
    "symptom": "lfg-props-shape was refused 3 times, console-stale 4 times and wait-guard-enforce 3 times. Each round fixed the reviewer's latest probe (a deny-list over bash shapes; a build commit inferred from mtimes and the reflog; author-chosen registries). The lead wrote the threat model and moved to allowlist, identity or canonical-source designs only at round 4-5.",
-   "cause": "CONFIRMED (workflow run journals, local-only, verdict ready_to_land false in: lfg-props-shape runs wf_49b2933e-3c9, wf_7237e934-b3b, wf_d4784429-e5d; console-stale runs wf_ebc4ff5b-4b6, wf_ab1bec0a-ed0, wf_56a18937-3ba, wf_78d166a4-1a6; wait-guard-enforce runs wf_59731989-59c, wf_64b49155-762, wf_4586f057-5c7). INFERRED (lead's retro): with no written threat model, each round's spec was the last probe, so the design boundary stayed open. The rule is now in CLAUDE.md (Team, 'Review loops (lead)', f0e5cec).",
+   "cause": "CONFIRMED (workflow run journals, local-only, verdict ready_to_land false in: lfg-props-shape runs wf_49b2933e-3c9, wf_7237e934-b3b, wf_d4784429-e5d; console-stale runs wf_ebc4ff5b-4b6, wf_ab1bec0a-ed0, wf_56a18937-3ba, wf_78d166a4-1a6; wait-guard-enforce runs wf_59731989-59c, wf_64b49155-762, wf_4586f057-5c7). INFERRED (lead's retro): with no written threat model, each round's spec was the last probe, so the design boundary stayed open. The rule is now in CLAUDE.md (Team, 'Review loops (lead)', f0e5cec). Retro (INFERRED, morph-wheel-momentum): round 1: source reading refuted the task's premise (a momentum phase on the Playwright WebKit wheel lane), and the branch built a different drive (pull) inside the same task instead of closing the premise as a finding and re-planning; the lead closed the task as a finding without a round 3. CLAUDE.md 'Review loops (lead)' already says to close a task whose premise is refuted; the check is still prose.",
    "evidence": [
     {
      "kind": "commit",
@@ -2011,6 +2011,11 @@
      "kind": "commit",
      "ref": "80bfed2",
      "note": "work-graph: wait-guard-enforce-2, round 3 under its own id"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-2x-morph-real-wheel.md",
+     "note": "retro: morph-wheel-momentum closed as a finding (follow-up 3 holds the refuting sources)"
     }
    ],
    "repro": "Send a refused task back twice with only the reviewer's findings as the spec: round 3 is refused on a new probe of the same class.",
@@ -4159,6 +4164,408 @@
    "leanReason": "The wire shape (step.post has a non-empty description) is a Lean Wire field and golden; the lead truncating output is a process slip that only the non-zero exit makes visible.",
    "empiricalCheck": "The next user ask posted as a step shows its description under the title in the console; a refused fw call exits non-zero.",
    "hardening": "step-description"
+  },
+  {
+   "id": "inc-land-leg-unfinished",
+   "at": "2026-10-22T21:16+07:00",
+   "title": "A land was refused as a CI failure while GitHub had not yet finalised its jobs",
+   "symptom": "fw land gate-settle-scroll-timeline printed REFUSED: remote tier ... github:fail, failed legs playwright-webkit, chromium, suites-a, suites-b (run 39792901389). The run record read status completed, conclusion success; the four jobs read status in_progress, conclusion empty, and every step of them had concluded success.",
+   "cause": "CONFIRMED (apps/runner/src/land-remote.ts:65-67 legResults: a job counts when typeof conclusion is string, and an unfinished job has the empty string, so it maps to false = failed leg): the land judged legs from conclusions without checking that each job had completed.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "39792901389",
+     "note": "run completed/success with 4 jobs in_progress and empty conclusion; all steps success"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land-remote.ts",
+     "note": "legResults lines 65-67"
+    },
+    {
+     "kind": "event",
+     "ref": "sys.ghDegraded",
+     "note": "21:2x +07:00 fw watch reported Actions degraded_performance: Incident with Actions Results, the cause of the lagging job status"
+    },
+    {
+     "kind": "ci",
+     "ref": "39795088412",
+     "note": "second refusal of the same land on retry: run completed/success, 4 jobs in_progress with empty conclusion"
+    }
+   ],
+   "repro": "Land a branch while GitHub lags in finalising job status after the run completes: the land reads conclusion empty and refuses.",
+   "fix": {
+    "task": "land-leg-pending"
+   },
+   "regression": "Lean laneState: a leg without status completed is pending, never failed; golden with this record.",
+   "mistakeClass": "c-proxy-verdict",
+   "leanVerdict": "provable",
+   "leanReason": "Leg classification is pure (record -> pending|ok|fail); that no fail comes from an uncompleted leg is a theorem over it.",
+   "empiricalCheck": "The next land whose run record lags reads pending and re-reads instead of refusing.",
+   "hardening": "land-leg-pending"
+  },
+  {
+   "id": "inc-tmp-trace-leak",
+   "at": "2026-10-22T22:35+07:00",
+   "title": "The disk filled up: Instruments kernel traces and test temp dirs leaked into the macOS user temp folder, which no GC rule covers",
+   "symptom": "Free disk fell from 29 GB to 1.3 GB in about an hour; cc-storage-count, slot-measure-exclusive and land-leg-pending builders stopped on ENOSPC. The user temp folder (DARWIN_USER_TEMP_DIR) held 161 GB: about 27 instruments*.ktrace files of 5-8 GB from xctrace recordings, and about 103000 fw* temp dirs from our tests and tools (fw-land 19506, fw-run 6323, fw-hooks 6088, oracle 5702, ghb 4569 among others).",
+   "cause": "CONFIRMED (process 89865 node packages/measure-webkit/src/xctrace/probe.mjs, parent pid 1, 41 min, branch worktree-wf_f4a6ed0e-0c6-1; lean/Fw/Ops/DiskGc.lean Roots holds repo, lake, scratch and devices only): the xctrace probe of mac-safari-measure records kernel traces into the temp folder, never deletes them and kept running after its agent; test suites create mkdtemp dirs they never remove; the disk GC has no class for the user temp folder.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "89865",
+     "note": "xctrace probe orphaned, exporting fw-xctrace-Xtxwvh/mac-attach-Animation-Hitches.trace"
+    },
+    {
+     "kind": "event",
+     "ref": "sys.diskLow",
+     "note": "disk 13 GB, then 8.3, 6.4, 2.6, 1.3 GB free; 119 GB free after removing the kernel traces"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/DiskGc.lean",
+     "note": "Roots: repo, lake, scratch, devices; no temp-folder class"
+    }
+   ],
+   "repro": "Run the local xctrace probe several times, or the runner test suites repeatedly: the temp folder grows without bound.",
+   "fix": {
+    "task": "disk-gc-tmp"
+   },
+   "regression": "A disk GC class for the user temp folder (our prefixes and instruments*.ktrace, owned, not open, older than a floor); the probe deletes its traces in finally and dies with its parent; tests remove their temp dirs.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "partly",
+   "leanReason": "Which temp items are ours and deletable is a pure Lean rule (prefix allowlist, owner, age, not open); that each test removes its temp dir is a lint, not a proof.",
+   "empiricalCheck": "After a day of runs the temp folder stays under a stated bound and sys.diskLow does not open.",
+   "hardening": "disk-gc-tmp"
+  },
+  {
+   "id": "inc-orphan-tool-call",
+   "at": "2026-10-22T22:50+07:00",
+   "title": "fw watch reported a 38-minute Bash hang for an agent that was working: one tool call in its transcript has no result record",
+   "symptom": "agent.toolHang and agent.toolSlow opened for the census-load-variance builder (Bash running for 38 min) while its transcript showed a new tool call every few seconds.",
+   "cause": "CONFIRMED (workflow wf_105a3643-a4a transcript: Bash tool_use at 15:04:44Z, written twice by streaming, has no tool_result; the next assistant message is at 15:10:21Z; apps/runner/src/watch-fold.ts:90-100 keeps an id open until its tool_result and finishInfo picks the newest open id as inflight). Why the result record is missing is INFERRED: the disk was nearly full in that window (inc-tmp-trace-leak) and the agent ran lake-gc right after.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/watch-fold.ts",
+     "note": "open set cleared only by tool_result; finishInfo inflight = newest open id"
+    },
+    {
+     "kind": "event",
+     "ref": "agent.toolHang",
+     "note": "Bash running for 38 min while the agent made fresh calls"
+    }
+   ],
+   "repro": "Fold a transcript in which one tool_use has no tool_result and a later assistant message follows: inflight stays on the orphan call and toolHang opens after 30 min.",
+   "fix": {
+    "task": "watch-orphan-call"
+   },
+   "regression": "Lean rule: a call is in flight only while its assistant message is the newest; golden vectors include a transcript with a missing tool_result.",
+   "leanVerdict": "provable",
+   "leanReason": "The inflight choice is a pure function of the folded lines: a later assistant message clears every older open call, so a missing result record cannot pin inflight.",
+   "hardening": "watch-orphan-call"
+  },
+  {
+   "id": "inc-land-wt-lock-drift",
+   "at": "2026-10-23T03:40+07:00",
+   "title": "fw land refused morph-touch-band on a missing jsdom: the reused land worktree's node_modules had drifted behind main's lockfile, and the lead misattributed the cause to the swallowed offline install",
+   "symptom": "The first morph-touch-band land failed 'check FAILED: pnpm --filter ./apps/site test' (vitest: Cannot find package 'jsdom'; 37 packages missing in .claude/land-wt/1). The lead ran pnpm install --frozen-lockfile there by hand and filed land-install-fallback on the theory that land.ts:356 swallowed an offline install failure.",
+   "cause": "CONFIRMED (land-install-fallback review forensics): .claude/land-wt/1 was created 2026-10-18 (dir and node_modules birth time); jsdom entered apps/site/package.json on 2026-10-20 (5ab55d786). land-wt/1 is a registered worktree, so checkoutLandWt (apps/runner/src/land.ts:341-352) takes the known branch (git checkout only) and no install runs unless the land's own diff touches pnpm-lock.yaml or a package.json (INSTALL_READS). The offline install the lead blamed never ran. Lead error: the cause was named from the code path that looked responsible, without checking the worktree's age and the dependency's history. Lesson for the lead: name an incident cause only after forensics (timestamps, history); until then mark it INFERRED in the task title.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land.ts",
+     "note": "checkoutLandWt known branch: checkout only; install only when the land diff touches lockfile/package.json"
+    },
+    {
+     "kind": "commit",
+     "ref": "5ab55d786",
+     "note": "jsdom added to apps/site/package.json on 2026-10-20, after land-wt/1 was created"
+    }
+   ],
+   "repro": "Create a land worktree, land a change on main that adds a dependency, then land a branch whose own diff does not touch the lockfile in the reused worktree: its checks run on node_modules without the new package.",
+   "fix": {
+    "task": "land-wt-lock-drift"
+   },
+   "regression": "Lean rule over the install decision: install when the lockfile hash at the checked-out commit differs from the hash stamped at the worktree's last install (installKind extended); golden case for a reused worktree behind main's lockfile.",
+   "leanVerdict": "provable",
+   "leanReason": "Whether to install is a pure function of (worktree known, lockfile hash now, stamped hash); 'no install while hashes differ' is a stated, checkable property.",
+   "hardening": "land-wt-lock-drift"
+  },
+  {
+   "id": "inc-resume-report-echo",
+   "at": "2026-10-23T09:00+07:00",
+   "title": "Two build-review lead-resume misuses: a findings round sent through the resume path reviewed an unchanged commit, and a runner echoing a resume report dropped its 14 items",
+   "symptom": "trajectory-aa-noise round 2 (wf_362ba514) was refused for findings the builder never saw: no commits since round 1. pain-dark-followups (wf_8aa275ef) was returned by the gate with items: the report lists none, although the report file held 14 items.",
+   "cause": "CONFIRMED (.claude/workflows/build-review.js resume path): task.report with task.worktree skips the build stage, so a round meant to change code has no builder; the lead chose that path for a findings round. The resume runner (Haiku) was asked to return a large report unchanged and returned items: []. Lesson for the lead: the resume path is review-only; a findings round uses worktree + findings. A copy made by an agent is not identity: pass the canonical object.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "8e923db89",
+     "note": "report may be passed inline and is used as is; docs say the resume path never builds"
+    },
+    {
+     "kind": "file",
+     "ref": "docs/team/tools/build-review.md",
+     "note": "Lead resume path section"
+    }
+   ],
+   "repro": "Run build-review with task.report (path) and task.worktree after a refused review: no builder runs; or pass a report with many items: the runner may echo it with fewer.",
+   "fix": {
+    "task": "build-review-resume-guard"
+   },
+   "regression": "build-review takes the report object inline (no echo); a findings round on the resume path could be refused by the script (task.findings with task.report).",
+   "leanVerdict": "no",
+   "leanReason": "Workflow orchestration choice and an LLM echo; the inline report removes the echo, the path choice is a lead rule.",
+   "hardening": "build-review-resume-guard",
+   "empiricalCheck": "A build-review run with task.findings and task.report refuses before any agent runs, and a resume whose report has no items refuses with that reason (fixture test in build-review-resume-guard)."
+  },
+  {
+   "id": "inc-workflow-dup-key",
+   "at": "2026-10-23T06:45+07:00",
+   "title": "The lead resolved a trajectory-probe.yml merge conflict by keeping both sides; a duplicated SEARCH key in one env block made GitHub refuse the workflow, and every trajectory-probe push failed after the pain-dark-followups land",
+   "symptom": "Run 39873292504 (trajectory-probe on ci/land-across-k-decisive-5bdaee9) failed with \"This run likely failed because of a workflow file issue\" right after land 341e7a9c9.",
+   "cause": "CONFIRMED (actionlint: key \"SEARCH\" is duplicated in \"env\" section, trajectory-probe.yml:342): main added SEARCH to the GPU cells step in 5519b5509 and the branch added the same line; the lead merge ac6fa79a4 kept both. No land check runs actionlint, so the land passed. Lesson for the lead: after resolving a conflict in a workflow file, run actionlint on it.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "ac6fa79a4",
+     "note": "lead merge that kept both SEARCH lines"
+    },
+    {
+     "kind": "file",
+     "ref": ".github/workflows/trajectory-probe.yml",
+     "note": "GPU cells step env block"
+    }
+   ],
+   "repro": "Duplicate any key in a step env block of a workflow and push: GitHub refuses the workflow file and starts no jobs.",
+   "fix": {
+    "task": "workflow-syntax-gate"
+   },
+   "regression": "A land check runs actionlint (syntax-check and expression kinds as errors) whenever a .github/workflows file changes.",
+   "leanVerdict": "partly",
+   "leanReason": "Selecting the actionlint check when a workflow file changes is a pure check-selection rule (Lean); YAML validity itself is actionlint, not Lean.",
+   "hardening": "workflow-syntax-gate"
+  },
+  {
+   "id": "inc-polish-file-scope",
+   "at": "2026-10-23T09:40+07:00",
+   "title": "The polish stage rewrote comments across whole files of a branch diff, so two branches' polish passes cut lean/scripts/check.sh differently and workflow-syntax-gate no longer merged with main",
+   "symptom": "The reviewer's dry land of workflow-syntax-gate printed 'REFUSED: main b26c005 cannot merge worktree-wf_f1b87bb1-9b8-1 cleanly' and VERDICT conflict.",
+   "cause": "CONFIRMED (git show --stat): the builder changed 2 lines of lean/scripts/check.sh (e32e88822); its polish commit 162a69416 then rewrote 157 lines of that file's comments, while main's polish of chrome-balance-repro (81464d810) cut the same comments differently. Polish scope is the file list of the branch diff (Fw.Plan.Polish.scope), not the changed hunks, so an edit far from the task's lines enters the branch.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/scripts/check.sh",
+     "note": "branch polish commit 162a69416 (unlanded) rewrote 157 comment lines"
+    },
+    {
+     "kind": "commit",
+     "ref": "81464d810",
+     "note": "polish of chrome-balance-repro on main, check.sh"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Plan/Polish.lean",
+     "note": "scope by file"
+    }
+   ],
+   "repro": "Two branches each change a few lines of the same heavily commented file; build-review polishes both: the second to land conflicts on comment lines neither builder wrote.",
+   "fix": {
+    "task": "polish-hunk-scope"
+   },
+   "regression": "fw polish commit restores every edit outside the branch's diff hunks; a fixture test keeps an in-hunk edit and restores one 50 lines away.",
+   "leanVerdict": "provable",
+   "leanReason": "Whether an edit's line range lies inside the branch's diff hunks is a pure interval rule over the diff, provable in Fw.Plan.Polish with goldens.",
+   "hardening": "polish-hunk-scope"
+  },
+  {
+   "id": "inc-polish-main-checkout",
+   "at": "2026-10-23T09:27+07:00",
+   "title": "comment-sicko edited the main checkout instead of the task worktree: the polish-plan runner redacted the worktree prefix to <worktree>, and the dirty main tree made the next land's fwcore rebuild fail and opened svc.unknown",
+   "symptom": "After land f2247607a (watch-ci-stale): 'REFUSED: fwcore-rebuild-failed', git status on main showed lean/Fw/Parts/CommissionOpt.lean and CommissionOptGolden.lean modified (module docs deleted at 09:27), then fw watch opened svc.unknown for fwcore and console-api.",
+   "cause": "CONFIRMED (workflow journal wf_520cefe2-198): the polish-plan runner's out showed 'comments // <worktree>/apps/...' because build-review.js asked runners for stdout with 'no home path'; comment-sicko got paths with the <worktree> placeholder and resolved them against the main checkout, which holds the same files since commission-band-gate landed.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "f2247607a",
+     "note": "land whose fwcore rebuild failed on the dirty tree"
+    },
+    {
+     "kind": "file",
+     "ref": ".claude/workflows/build-review.js",
+     "note": "run1 'no home path'; polish comments list"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/polish.ts",
+     "note": "polish-plan prints absolute paths"
+    }
+   ],
+   "repro": "Polish a branch whose files also exist on main with a runner that redacts home paths: comment-sicko edits main's copies.",
+   "fix": {
+    "task": "polish-hunk-scope"
+   },
+   "regression": "build-review.js rebuilds every polish path from the worktree line and the relative class paths, stops when the worktree line is missing, and stops before the commit when comment-sicko reports an edit outside the worktree (scripts/build-review.test.mjs, 3 cases).",
+   "leanVerdict": "partly",
+   "leanReason": "The path rule (an admitted edit path lies under the worktree) is a pure prefix rule provable in Fw.Plan.Polish; that an agent actually edited the files it names is checked empirically against git status.",
+   "empiricalCheck": "fw polish commit compares the main checkout's git status with the plan's files and refuses on a match.",
+   "hardening": "polish-hunk-scope"
+  },
+  {
+   "id": "inc-graph-writes-closure",
+   "at": "2026-10-23T15:50+07:00",
+   "title": "Lead-written task writes miss the files a new Lean golden check always touches, so three builds in one day ended VERDICT scope instead of VERDICT dry",
+   "symptom": "counts-font-fidelity (7 CI-table files), footprint-classname-operands (ClassPos.lean, lean/Fw.lean, check.sh, Trigger.lean, triggers.jsonl, package.json) and morph-cost-sums-golden (Trigger.lean, check.sh, triggers.jsonl) each printed VERDICT scope at the dry land; each cost a lead graph edit and a resume or a re-land.",
+   "cause": "CONFIRMED (graph r322, r323, r325, r328): the lead lists the task's own module paths but not the closure a new golden implies: a check.sh job line, the lean.yml row in lean/Fw/Ci/Trigger.lean (ci-paths requires every check.sh read to be a lean.yml input), its regenerated golden packages/contracts/golden/ci/triggers.jsonl, and the lean/Fw.lean import of a new module.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "31bf66d51",
+     "note": "r322 widening for counts-font-fidelity"
+    },
+    {
+     "kind": "commit",
+     "ref": "132cfa8e1",
+     "note": "r323 widening for footprint-classname-operands"
+    },
+    {
+     "kind": "commit",
+     "ref": "6d61219e9",
+     "note": "r325 Trigger row after the lint refusal"
+    },
+    {
+     "kind": "file",
+     "ref": "scripts/ci-paths.mjs",
+     "note": "refuses a check.sh read that is not a lean.yml input"
+    }
+   ],
+   "repro": "Add a task whose writes name a new golden under packages/contracts/golden/** and a Lean module, without lean/scripts/check.sh, lean/Fw/Ci/Trigger.lean, packages/contracts/golden/ci/triggers.jsonl and lean/Fw.lean: the builder's dry land prints VERDICT scope.",
+   "fix": {
+    "task": "graph-writes-closure"
+   },
+   "regression": "Planned in graph-writes-closure: fw plan lint derives the closure from the writes (a new golden or Lean module implies the four files) and refuses a task that lacks it.",
+   "leanVerdict": "provable",
+   "leanReason": "The closure is a pure function from a write list to required paths; it can be stated and proved in Lean (Fw.Plan) with goldens.",
+   "empiricalCheck": "fw land --dry scope check (existing) catches it late; the lint catches it at graph edit.",
+   "hardening": "graph-writes-closure"
+  },
+  {
+   "id": "inc-workflow-widths-remote",
+   "at": "2026-10-24T12:00+07:00",
+   "title": "A workflow file change (path-pix.yml 4 -> 6 jobs) passed the dry land and failed the remote land tier, costing a remote CI round",
+   "symptom": "hero-copy-floor-sources changed .github/workflows/path-pix.yml to 3 sim + 3 chromium jobs. fw land --dry passed; the remote land tier failed (run 39995255573, land suites-a, apps/runner test/land-overflow-widths.test.ts: path-pix.yml Lean widths row (derived 6): expected 4 to be greater than or equal to 6, then fwcore counts expected 16 to be 14 until fwcore was rebuilt). The lead fixed Fw.Ci.Overflow widths and landed (840a81bdf).",
+   "cause": "CONFIRMED (lean/Fw/Console/LandTier.lean at 840a81bdf: remoteIds holds apps/runner, localTests held only console-api:compose; apps/runner/src/land.ts LOCAL_GATES held compose and workflow-lint): the width test lives in the apps/runner package suite, which is a remote-tier check, and no local check read a workflow file for its width, so the dry land (local tier plus fast lints) never ran it. A workflow change selected only workflow-lint (syntax) locally.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/land-overflow-widths.test.ts",
+     "note": "failed in run 39995255573 (land suites-a): path-pix.yml Lean widths row (derived 6): expected 4 to be greater than or equal to 6"
+    },
+    {
+     "kind": "commit",
+     "ref": "840a81bdf",
+     "note": "the lead fix of Fw.Ci.Overflow widths"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Console/LandTier.lean",
+     "note": "workflow_selects_overflowWidths and the local test row"
+    }
+   ],
+   "repro": "Change the job count of any .github/workflows/*.yml without raising its row in lean/Fw/Ci/Overflow.lean widths, then run fw land --dry: before the fix it printed VERDICT dry; now the dry land runs apps/runner test/land-overflow-widths.test.ts and refuses.",
+   "fix": {
+    "task": "checkmap-workflow-widths-local"
+   },
+   "regression": "Lean theorem workflow_selects_overflowWidths (every path under .github/workflows/ selects runner:overflow-widths in the local tier), goldens in land-tier-local.jsonl, tests in apps/runner/test/land-tier.test.ts and land-dry.test.ts (the path-pix 4 -> 6 case is refused by the dry land).",
+   "leanVerdict": "provable",
+   "leanReason": "Which checks a change selects is a pure function of the changed paths and the declared reads (Fw.Console.LandTier.selectLocal over LandSpeed.selectChecks); the selection of every workflow path is a theorem.",
+   "empiricalCheck": "fw land --dry runs the selected local test on the merge tree; the test derives the widths from the workflow files.",
+   "hardening": "checkmap-workflow-widths-local"
+  },
+  {
+   "id": "inc-gc-landed-ff",
+   "at": "2026-10-24T05:02+07:00",
+   "title": "fw watch disk-gc removed a live builder's worktree after a fast-forward onto a branch that landed",
+   "symptom": "Worktree wf_1f18354c-dfd-1 (builder polish-strays-sound) was removed mid-task right after worktree-wf_efb32ee2-da5-1 landed (b1145f326).",
+   "cause": "CONFIRMED (reflog; apps/runner/src/disk-gc.ts landedOf at 284b4b75c): the branch was created at 17087c97f and fast-forwarded onto the unlanded dependency branch at 05:02:40; when that branch landed, landedOf (tip moved since creation and tip is an ancestor of main) returned true, so the landed class selected a worktree whose own work was not on main. Ancestry alone counted as landing, with no identity check (land commit naming the branch, or owning task done) and no live-agent check.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "b1145f326",
+     "note": "land of the dependency branch the builder had fast-forwarded onto"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/disk-gc.ts",
+     "note": "landedOf, ancestry only"
+    }
+   ],
+   "repro": "Create a worktree branch, fast-forward it onto a branch that is later landed on main, run fw disk-gc --list --class 2: before the fix the worktree is listed.",
+   "fix": {
+    "task": "gc-landed-identity"
+   },
+   "regression": "Lean theorems fast_forward_kept, landed_never_live, landed_by_identity, land_commit_selects in lean/Fw/Ops/DiskGc.lean; golden rows class 2 (inc-gc-landed-ff) in packages/contracts/golden/ops/diskgc.jsonl; apps/runner/test/disk-gc.test.ts.",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "provable",
+   "leanReason": "Which worktree is landed is a pure function of main's land subjects, the landed-task runs and the live runs; the identity rule and its exclusions are theorems of Fw.Ops.DiskGc.",
+   "hardening": "gc-landed-identity"
+  },
+  {
+   "id": "inc-slot-held-env",
+   "at": "2026-10-24T09:40+07:00",
+   "title": "The lead's land scripts ran with FW_SLOT_HELD=1, so every fw slot run --kind land inside them skipped the land slot",
+   "symptom": "133 of 760 local 'fw slot run land pnpm fw land dry' spans to cutoff 1792808775650 have no land-slot acquire within 3 s and 40 started while another dry land ran (research/notes/2026/10-2x-land-dry-contention.md; the first count, 186 of 808, also matched the '... dry cached' replay spans, which take no slot).",
+   "cause": "CONFIRMED (apps/runner/src/slot.ts:556-561 run(): any FW_SLOT_HELD value skips acquire, whatever kind is held; the lead's scratch land scripts were started as 'FW_SLOT_HELD=1 sh land-rNNN.sh'). The env flag stands in for 'a slot of this kind is held by my parent' (presence inferred from an env var, not a held token's identity). How many of the 186 spans are the lead's is counted in task slot-held-identity.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/slot.ts",
+     "note": "run(): FW_SLOT_HELD set -> exec without acquire"
+    },
+    {
+     "kind": "file",
+     "ref": "docs/team/tools/slot.md",
+     "note": "nested-run rule: run sets FW_SLOT_HELD=1 for its child"
+    }
+   ],
+   "repro": "FW_SLOT_HELD=1 pnpm -s fw slot run --kind land -- pnpm -s fw land <branch> --task <t> --dry while another dry land holds the land slot: both run at once, no lock row for the second.",
+   "fix": {
+    "task": "slot-held-identity"
+   },
+   "regression": "slot-held-identity: Lean rule that a nested slot run skips acquire only under a live held token of the same kind (identity), golden rows, TS reads the verdict. Until it lands the lead starts land scripts without FW_SLOT_HELD (memory no-slot-held-on-lands).",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a slot run may skip acquire is a pure function of the held tokens (kind, owner pid+start) and the request kind.",
+   "hardening": "slot-held-identity"
+  },
+  {
+   "id": "inc-polish-line-join",
+   "at": "2026-10-24T11:55+07:00",
+   "title": "fw polish comment cuts joined two lean/scripts/check.sh job lines, so the second job ran only as arguments of the first",
+   "symptom": "check.sh on main had 2 lines holding two `job \"...\"` calls (sup-measure + node-budget, hero-scene-pause + nav-earn); the land-wt-lake-rebuilds branch had a third (land-wt + gate-engine-timing), found by its round-2 review. The second job's golden check never ran on its own; all four checks pass when run separately (lead, 2026-10-24).",
+   "cause": "CONFIRMED (git log -G on lean/scripts/check.sh: polish commits 162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, 65c6ec5 on the land-wt-lake-rebuilds branch): a comment cut removed a trailing `# ...` comment together with the newline after it. fw polish checks no line-preservation rule on comment edits, and check.sh stays green because the joined command still exits 0.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/scripts/check.sh",
+     "note": "lines 155-159 after the split in the land-wt-lake-rebuilds land"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/polish.ts",
+     "note": "comment-cut commit path: no check that code lines survive"
+    }
+   ],
+   "repro": "A comment-sicko edit that deletes `  # note\\n` from `cmd a  # note\\n  cmd b` leaves `cmd a  cmd b`; fw polish commits it.",
+   "fix": {
+    "task": "polish-line-join"
+   },
+   "regression": "polish-line-join: Lean rule that a comment cut keeps every code line of the original as a line, golden rows, fw polish reverts a file that breaks it; plus a one-job-per-line check.sh lint.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a comment cut preserved the code lines is a pure function of the two file texts and the comment syntax.",
+   "hardening": "polish-line-join"
   }
  ]
 }

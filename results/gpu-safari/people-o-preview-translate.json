@@ -1,0 +1,14 @@
+{
+  "schema": "fw.gpu-safari-refusal/1",
+  "arm": "people-o-preview-translate",
+  "status": "ios-simulator-not-measurable; macos-safari-measured",
+  "lanes": {
+    "ios-simulator-on-mac": "The hover scroll only exists at a window wider than 860 px; the Simulator iPhone viewport is 430 px wide, so the arm cannot be driven there.",
+    "macos-safari": "Measured in mac-people-o-preview-translate.json (1280x1000 window, hover on the first face, scroll of 3 px per frame for 10, 20 and 40 frames). The arm is pixel-identical to faithful at all three states against the first two loads, and the card sets translate 0px -27px / -54px / -111px where faithful moves top 229 / 202 / 145 px."
+  },
+  "ci": {
+    "gate": "39850908365",
+    "counts": null,
+    "note": "CI chromium-desktop-crash blocks the people-o counts; there is no CI Simulator row to pair"
+  }
+}

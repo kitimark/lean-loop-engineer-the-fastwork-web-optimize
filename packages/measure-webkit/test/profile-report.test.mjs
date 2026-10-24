@@ -1,5 +1,3 @@
-// The tables of the smoothness-webkit-cadence lane (src/profile/report.mjs) on synthetic leg files; the decisions under them are
-// golden-checked in profile.test.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -8,7 +6,7 @@ import { join } from 'node:path';
 import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
 import { medianNat } from '../src/profile/reduce.mjs';
 import { writeRaws } from '../src/profile/raw.mjs';
-import { jobCell, poolCell, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, touchTable, isControl, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -41,11 +39,13 @@ test('jobVerdicts: first when the first arm does less in every window, same agai
   assert.equal(jobVerdicts(few, 'hero')['orig|base'], 'insufficient');
 });
 
-test('acrossJobs: two thirds of the jobs, none against', () => {
+test('acrossJobs: two thirds of the decisive jobs, none against', () => {
   const v = acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'first' }, { 'a|b': 'same' }]);
   assert.equal(v['a|b'].verdict, 'first');
   assert.equal(acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'second' }, { 'a|b': 'first' }])['a|b'].verdict, 'same');
   assert.equal(acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'first' }])['a|b'].verdict, 'insufficient');
+  const d = acrossJobs([{ 'a|b': 'first' }, { 'a|b': 'first' }, { 'a|b': 'first' }, { 'a|b': 'insufficient' }, { 'a|b': 'insufficient' }])['a|b'];
+  assert.deepEqual([d.jobs, d.need, d.verdict], [5, 2, 'first']);
 });
 
 test('legSummary and the tables: class counts need three jobs, the headline lists every arm', () => {
@@ -130,10 +130,22 @@ test('ratioTable: computed from the pooled medians, orig over base and base over
   assert.match(ratioTable(leg), /\| Composite n \| 0 \| 0 \| 0 \| - \| - \|/);
 });
 
-// ---- pooling over jobs: every value cell is one statistic over the concatenated windows of all loaded jobs ----
+test('bound arm (task earn-bound-arm): base|bound is judged against the A/A pair; the ratio column shows only when the arm ran', () => {
+  const less = fileOf({ base: 200, aa: 200, bound: 100 });
+  assert.equal(jobVerdicts(less, 'hero')['base|bound'], 'second');
+  const noise = fileOf({ base: 200, aa: 100, bound: 100 });
+  assert.equal(jobVerdicts(noise, 'hero')['base|bound'], 'same');
+  const jobs = ['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ base: 200, aa: 200, bound: 100 }) }));
+  const leg = legSummary(jobs, () => ({}));
+  assert.equal(leg.zones.hero.verdicts['base|bound'].verdict, 'second');
+  assert.match(ratioTable(leg), /\| metric \| base \| aa \| bound \| orig \/ base \| base \/ aa \| bound \/ base \|/);
+  assert.match(ratioTable(leg), /\| render work us \/ frame \| 202 \| 202 \| 102 \| - \| 1\.0 \| 0\.5 \|/);
+  const none = legSummary(['1:a', '2:a', '3:a'].map((label) => ({ label, leg: 'mac', file: fileOf({ orig: 400, base: 100, aa: 100 }) })), () => ({}));
+  assert.doesNotMatch(ratioTable(none), /bound/);
+});
+
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/webkit-profile.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-/** A mac job file whose arm `base` has one hero window per value, the window's work per frame being that value. */
 const fileOfValues = (values) => ({
   leg: 'mac', engine: 'x', version: '1', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, wallSeconds: 1,
   rows: values.map((v, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs: [160], hitches: 0, profiles: { hero: prof(30, v, 4), rest: empty(), finish: empty() } })),
@@ -176,16 +188,74 @@ test('headlineTable, kindTable, ratioTable: a cell with 4 pooled windows prints 
 
 test('cadenceTable: p50 and p95 are quantiles over all intervals of all jobs\' repeats, not the median of per-job quantiles', () => {
   const job = (label, ivs, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: Array.from({ length: n }, (_, rep) => ({ arm: 'base', window: 'hero', rep, mode: 'events', ok: true, ivs, hitches: ivs.filter((x) => x > 600).length })) } });
-  // job a: 5 repeats of [100, 100, 100, 100]; job b: 1 repeat of [900, 900, 900, 900] -> pooled 24 intervals, 20 of 100 and 4 of 900
   const leg = legSummary([job('a', [100, 100, 100, 100], 5), job('b', [900, 900, 900, 900], 1)], () => ({}));
   const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| hero | on | base'));
-  assert.match(row, /\| 6 \(5\+1\) \| 0 \| 10\.0 \| 90\.0 \| 90\.0 \|/);
+  assert.match(row, /\| 6 \(5\+1\) \| 0 \| - \| - \| - \| - \| - \| 10\.0 \| 90\.0 \| 90\.0 \|/);
   const few = legSummary([job('a', [100], 4)], () => ({}));
-  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+  assert.match(cadenceTable(few), /\| 4 \(4\) \| insufficient \(n=4\) \| (- \| ){5}insufficient \(n=4\) \| insufficient \(n=4\) \| insufficient \(n=4\) \|/);
+});
+
+test('cadenceTable: miss counts are totals over all reps of a pooled cell, skipped slots come from the frame times', () => {
+  const th = [0, 1667, 3333, 5000, 6667, 10000];
+  const ivs = [167, 167, 167, 167, 333];
+  const rep = (n) => Array.from({ length: n }, (_, i) => ({ arm: 'base', window: 'end', rep: i, mode: 'events', ok: true, ivs, th, hitches: 0 }));
+  const job = (label, n) => ({ label, leg: 'mac', file: { leg: 'mac', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: rep(n) } });
+  const leg = legSummary([job('a', 3), job('b', 3)], () => ({}));
+  assert.deepEqual(leg.cadence['end|events'].pool.base.counts, { frames: 30, over25: 6, over34: 0, over50: 0, skips: 6 });
+  const row = cadenceTable(leg).split('\n').find((l) => l.startsWith('| end | on | base'));
+  assert.match(row, /\| 6 \(3\+3\) \| 0 \| 6 \| 0 \| 0 \| 6 \| 30 \|/);
+});
+
+test('legSummary: an end window pushed by touch is its own window, the synthetic wheel ones stay in end', () => {
+  const th = [0, 167, 333, 500, 667, 1000];
+  const ivs = [167, 167, 167, 167, 333];
+  const r = (rep, push) => ({ arm: 'base', window: 'end', rep, mode: 'events', ok: true, ivs, th, hitches: 0, push });
+  const job = { label: 'a', leg: 'sim', file: { leg: 'sim', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows: [r(0, 'touch'), r(1, 'synthetic'), r(2, 'synthetic')] } };
+  const leg = legSummary([job], () => ({}));
+  assert.equal(leg.cadence['end touch|events'].pool.base.reps, 1);
+  assert.equal(leg.cadence['end|events'].pool.base.reps, 2);
+  assert.match(cadenceTable(leg), /\| end touch \| on \| base/);
+});
+
+test('runTable: the end push column counts the touch end windows and why a Simulator job fell back to the synthetic wheel', () => {
+  const end = (push) => ({ mode: 'events', window: 'end', ok: true, push });
+  const f = (leg, push, rows = []) => ({ label: leg, file: { leg, engine: 'e', arms: ['base'], plan: { dropped: [] }, rows, ...(push ? { push } : {}) } });
+  const table = runTable([
+    f('mac'),
+    f('sim', { driver: true, touch: true, why: null }, [end('touch'), end('touch')]),
+    f('sim', { driver: true, touch: false, why: 'the page did not answer; driver log tail: x\n y' }, [end('touch'), end('synthetic')]),
+    f('sim'),
+  ]);
+  const cells = table.split('\n').slice(2).map((l) => l.split(' | ').at(-2));
+  assert.deepEqual(cells, ['wheel', 'touch 2 of 2 end windows', 'touch 1 of 2 end windows; then synthetic wheel: the page did not answer', 'synthetic wheel']);
 });
 
 test('minutesOf bills the minutes rounded up from the unrounded seconds: 901 s is 16, not the 15 of the 0.1-minute display', () => {
   const m = minutesOf({ 1: { jobs: [{ name: 'webkit mac (x)', conclusion: 'cancelled', startedAt: '2026-10-21T10:00:00Z', completedAt: '2026-10-21T10:15:01Z' }, { name: 'webkit mac (y)', conclusion: 'success', startedAt: '2026-10-21T10:00:00Z', completedAt: '2026-10-21T10:10:00Z' }] } });
   assert.deepEqual(m.map((r) => [r.minutes, r.billed]), [[15, 16], [10, 10]]);
   assert.match(minutesTable(m), /\| all jobs billed \| mac \|  \| n=2 \|  \| 26 \|/);
+});
+
+test('cadenceTable: the Timeline column reads the row (timeline:false), not the mode; mixed rows say mixed', () => {
+  const th = [0, 167, 333, 500, 667, 1000];
+  const ivs = [167, 167, 167, 167, 333];
+  const r = (rep, timeline) => ({ arm: 'base', window: 'end', rep, mode: 'events', ok: false, ivs, th, hitches: 0, push: 'touch', ...(timeline === undefined ? {} : { timeline }) });
+  const job = (rows) => ({ label: 'a', leg: 'sim', file: { leg: 'sim', arms: ['base'], plan: { kept: ['base'], dropped: [], flags: {} }, rows } });
+  assert.match(cadenceTable(legSummary([job([r(0, false), r(1, false)])], () => ({}))), /\| end touch \| off \| base/);
+  assert.match(cadenceTable(legSummary([job([r(0), r(1)])], () => ({}))), /\| end touch \| on \| base/);
+  assert.match(cadenceTable(legSummary([job([r(0, false), r(1)])], () => ({}))), /\| end touch \| mixed \| base/);
+  const cad = { arm: 'base', window: 'end', rep: 0, mode: 'cadence', ok: true, ivs, th, hitches: 0 };
+  assert.match(cadenceTable(legSummary([job([cad])], () => ({}))), /\| end \| off \| base/);
+});
+
+test('touchTable and isControl: the control job (Safari coordinates) is told apart and its pushes are counted per outcome', () => {
+  const t = (variant, outcome, beginAt, swipeAt, doneAt, moves) => ({ arm: 'base', window: 'end', mode: 'events', timeline: false, push: 'touch', touched: { variant, outcome, obs: { beginAt, swipeAt, doneAt, moves } } });
+  const test = { label: '1', file: { rows: [t('springboard', 'ok', 2000, 5000, 11000, 36), t('springboard', 'ok', 4000, 6000, 12000, 30), t('springboard', 'swipeLate', 4000, 25000, 60000, 6)] } };
+  const control = { label: '4', file: { rows: [t('safari', 'ok', 3000, 4000, 20000, 40)] } };
+  assert.equal(isControl(test.file), false);
+  assert.equal(isControl(control.file), true);
+  assert.equal(isControl({ rows: [] }), false);
+  const lines = touchTable([test, control]).split('\n').slice(2);
+  assert.equal(lines[0], '| 1 | springboard | off | 3 | 2 | swipeLate 1 | 4000 | 6000 | 12000 | 30 |');
+  assert.equal(lines[1], '| 4 | safari | off | 1 | 1 | - | 3000 | 4000 | 20000 | 40 |');
 });

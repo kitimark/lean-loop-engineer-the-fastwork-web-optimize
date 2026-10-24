@@ -8,6 +8,7 @@ export const CHECK_SH_READS: string[] = [
   "packages/gate-breakpoints/src/scope.gen.json",
   ".github/workflows/**",
   "scripts/span.sh",
+  "scripts/lint-check-sh.mjs",
   "scripts/fwcore-build.sh",
   "scripts/fwcore-record-rule.sh",
   "scripts/lake-slot.sh",
@@ -21,4 +22,8 @@ export const CHECK_SH_READS: string[] = [
   "apps/site/src/registry/layer-opts.gen.ts",
   "packages/measure-chromium/scenarios.gen.json",
   "apps/runner/src/land-reads.gen.ts",
+  "packages/contracts/fixtures/trajectory-gpu/**",
+  "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
+  "packages/gh-budget/src/bounds.gen.ts",
+  "results/gpu-safari/lane/elapsed.golden.jsonl",
 ];

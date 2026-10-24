@@ -1,12 +1,10 @@
-// fw polish: golden vectors of fwcore `plan.polishPlan` and `plan.polishCuts` (Fw.Plan.Polish) and the CLI around them. The
-// golden responses come from the fwcore binary; regenerate with
-//   FW_WRITE_POLISH_GOLDEN=1 pnpm --filter ./apps/runner exec vitest run test/polish.test.ts
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { genOutputs, polishCli } from "../src/polish.ts";
+import { genOutputs, genOwned, polishCli, walkHunks, type WHunk } from "../src/polish.ts";
 import { coreCandidates, coreCaller } from "../src/watch.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,10 +17,18 @@ const bins = coreCandidates(root, join(common, "..")).filter((b) => {
 const bin = bins[0];
 
 const LAKE_GEN = "lean/Fw/Ops/LakeJobsGen.lean";
-const plan = (paths: string[], o: { gen?: string[]; heads?: { path: string; head: string }[]; edited?: string[] } = {}) =>
-  ({ op: "plan.polishPlan", gen: o.gen ?? [LAKE_GEN], ...(o.heads ? { heads: o.heads } : {}), paths, edited: o.edited ?? [] });
+const plan = (paths: string[], o: { gen?: string[]; heads?: { path: string; head: string }[]; edited?: string[]; dirtyBefore?: string[] } = {}) =>
+  ({ op: "plan.polishPlan", gen: o.gen ?? [LAKE_GEN], ...(o.heads ? { heads: o.heads } : {}), ...(o.dirtyBefore ? { dirtyBefore: o.dirtyBefore } : {}), paths, edited: o.edited ?? [] });
 const cutsReq = (docs: { path: string; text: string }[], cuts: { path: string; old: string; new: string }[]) =>
   ({ op: "plan.polishCuts", gen: [LAKE_GEN], docs, cuts });
+
+type Sp = { path: string; spans: { start: number; len: number }[] };
+const linesReq = (path: string, old: string, nw: string) => ({ op: "plan.polishLines", path, old, new: nw });
+const hunks = (o: { diff?: Sp[]; edits?: Sp[]; main?: string[] }) => ({ op: "plan.polishHunks", diff: o.diff ?? [], edits: o.edits ?? [], main: o.main ?? [] });
+
+const settle = (o: { before: string[]; dirty: string[]; untracked: string[]; dirtyBefore?: string[] }) => ({ op: "plan.polishSettle", ...o });
+const walk = (head: string[], hunks: WHunk[]) => ({ op: "plan.polishWalk", head, hunks });
+const H10 = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
 
 const supWire = { path: "docs/team/handoffs/sup-wire.md",
   old: "`Fw.Wire.Sup.Golden.gen` (cases take the token as a parameter, so fwcore builds no start-time constant); `--check`",
@@ -34,7 +40,49 @@ const jev = { path: "docs/team/handoffs/jev-datasets.md",
 const doc = (c: { path: string; old: string }) => ({ path: c.path, text: `Intro.\n${c.old}\nEnd.\n` });
 const md = "docs/a.md";
 
+const WT_DIRS: [string, string, string | null][] = [
+  ["a valid absolute worktree", "/h/src/r/.claude/worktrees/wf_b291cc70-2f8-1", "wf_b291cc70-2f8-1"],
+  ["a trailing slash", "/h/r/.claude/worktrees/wf_a/", null],
+  ["a name with a space", "/h/.claude/worktrees/a b", null],
+  ["a ~ prefix", "~/source/.../.claude/worktrees/wf_b291cc70-2f8-1", null],
+  ["a relative path", ".claude/worktrees/wf_a", null],
+  ["the name ..", "/h/.claude/worktrees/..", null],
+  ["an empty name", "/h/.claude/worktrees/", null],
+  ["no .claude parent", "/h/r/worktrees/wf_a", null],
+  ["a deeper path", "/h/r/.claude/worktrees/wf_a/sub", null],
+];
+const IN_WT: [string, string, string, string, string][] = [
+  ["a file in the worktree", "/m", "wf_a", "/m/.claude/worktrees/wf_a/apps/x.ts", "own"],
+  ["a relative path anchored at main", "/m", "wf_a", ".claude/worktrees/wf_a/apps/x.ts", "own"],
+  ["the ../../ escape", "/m", "wf_a", "/m/.claude/worktrees/wf_a/../../apps/x.ts", "notPlain"],
+  ["a relative ../../ escape", "/m", "wf_a", ".claude/worktrees/wf_a/../../apps/x.ts", "notPlain"],
+  ["a . segment", "/m", "wf_a", "/m/.claude/worktrees/wf_a/./x.ts", "notPlain"],
+  ["a double slash", "/m", "wf_a", "/m/.claude/worktrees/wf_a//x.ts", "notPlain"],
+  ["a trailing slash", "/m", "wf_a", "/m/.claude/worktrees/wf_a/apps/", "notPlain"],
+  ["an empty path", "/m", "wf_a", "", "notPlain"],
+  ["a main checkout file", "/m", "wf_a", "/m/apps/x.ts", "outside"],
+  ["a relative main checkout file", "/m", "wf_a", "apps/x.ts", "outside"],
+  ["the same name in another checkout", "/m", "wf_a", "/o/.claude/worktrees/wf_a/apps/x.ts", "outside"],
+  ["another worktree of main", "/m", "wf_a", "/m/.claude/worktrees/wf_b/apps/x.ts", "outside"],
+  ["a name prefix", "/m", "wf_a", "/m/.claude/worktrees/wf_ab/apps/x.ts", "outside"],
+  ["the worktree directory itself", "/m", "wf_a", "/m/.claude/worktrees/wf_a", "outside"],
+  ["a checkout nested in the worktree", "/m", "wf_a", "/m/.claude/worktrees/wf_a/sub/.claude/worktrees/wf_a/x.ts", "own"],
+  ["a relative main", "m", "wf_a", "/m/.claude/worktrees/wf_a/x.ts", "badMain"],
+  ["a main with a trailing slash", "/m/", "wf_a", "/m/.claude/worktrees/wf_a/x.ts", "badMain"],
+  ["the root as main", "/", "wf_a", "/.claude/worktrees/wf_a/x.ts", "badMain"],
+  ["the name ..", "/m", "..", "/m/.claude/worktrees/../x.ts", "badName"],
+  ["a name with a slash", "/m", "wf_a/x", "/m/.claude/worktrees/wf_a/x/y.ts", "badName"],
+  ["an empty name", "/m", "", "/m/.claude/worktrees//x.ts", "badName"],
+];
+const IN_WT_FACT: [string, string, boolean, string][] = [
+  ["resolved, below the worktree", "/m/.claude/worktrees/wf_a/apps/new.ts", true, "own"],
+  ["resolved, below the main checkout", "/m/apps/new.ts", true, "outside"],
+  ["no ancestor resolves", "/m/.claude/worktrees/wf_a/apps/new.ts", false, "unresolved"],
+];
 const cases: [string, Record<string, unknown>][] = [
+  ...WT_DIRS.map(([n, dir]) => [`wtName: ${n}`, { op: "plan.wtName", dir }] as [string, Record<string, unknown>]),
+  ...IN_WT.map(([n, main, name, path]) => [`inWt: ${n}`, { op: "plan.inWt", main, name, path }] as [string, Record<string, unknown>]),
+  ...IN_WT_FACT.map(([n, path, resolved]) => [`inWtFact: ${n}`, { op: "plan.inWt", main: "/m", name: "wf_a", path, resolved }] as [string, Record<string, unknown>]),
   ["plan: one path of each class, two stages", plan(["apps/x/a.ts", "scripts/x.sh", md, "snapshot/a.css"])],
   ["plan: skip by root, segment, lock name, .gen. name and generator output",
     plan(["packages/contracts/golden/plan/x.jsonl", "apps/x/test/fixtures/a.ts", "pnpm-lock.yaml", "apps/x/src/a.gen.ts", LAKE_GEN, ".github/workflows/w.yml"], { gen: [LAKE_GEN, ".github/workflows/w.yml"] })],
@@ -45,6 +93,31 @@ const cases: [string, Record<string, unknown>][] = [
   ["plan: only skip paths, so no stage", plan(["snapshot/a.css", "pnpm-lock.yaml"])],
   ["plan: no paths, so no stage", plan([])],
   ["plan: edits kept only in the diff and outside skip", plan(["apps/x/a.ts", "snapshot/a.css", md], { edited: ["apps/x/a.ts", "snapshot/a.css", "apps/y/c.ts", md] })],
+  ["plan: a path dirty at plan time is in no scope, not kept, not restored, and named in left", plan(["apps/x/a.ts", "apps/x/b.ts"], { dirtyBefore: ["apps/x/a.ts"], edited: ["apps/x/a.ts", "apps/x/b.ts"] })],
+  ["plan: a path that needs a user permission prompt (.claude/, CLAUDE.md) is skip, in no scope, never kept, and named in protected",
+    plan([".claude/agents/a.md", ".claude/workflows/w.js", "CLAUDE.md", "docs/CLAUDE.md", "apps/x/a.ts"], { edited: [".claude/agents/a.md", "CLAUDE.md", "apps/x/a.ts"] })],
+  ["hunks: an edit in the hunk or within the margin is kept, one 50 lines away is not",
+    hunks({ diff: [{ path: "lean/scripts/check.sh", spans: [{ start: 60, len: 2 }] }],
+      edits: [{ path: "lean/scripts/check.sh", spans: [{ start: 61, len: 1 }, { start: 64, len: 1 }, { start: 65, len: 1 }, { start: 57, len: 1 }, { start: 56, len: 1 }, { start: 10, len: 3 }] }] })],
+  ["hunks: an edit that starts in the margin and runs past it is not contained", hunks({ diff: [{ path: "a.ts", spans: [{ start: 60, len: 2 }] }],
+    edits: [{ path: "a.ts", spans: [{ start: 62, len: 59 }, { start: 62, len: 3 }] }] })],
+  ["hunks: a point hunk (pure deletion) and a point edit", hunks({ diff: [{ path: "a.ts", spans: [{ start: 20, len: 0 }] }], edits: [{ path: "a.ts", spans: [{ start: 23, len: 0 }, { start: 24, len: 2 }] }] })],
+  ["hunks: a file with no branch hunk keeps nothing", hunks({ diff: [{ path: "a.ts", spans: [{ start: 5, len: 1 }] }], edits: [{ path: "b.ts", spans: [{ start: 5, len: 1 }] }] })],
+  ["hunks: several branch hunks of one file, the edit between them is far from both", hunks({ diff: [{ path: "a.ts", spans: [{ start: 5, len: 1 }, { start: 100, len: 4 }] }],
+    edits: [{ path: "a.ts", spans: [{ start: 50, len: 1 }, { start: 103, len: 3 }, { start: 1, len: 1 }] }] })],
+  ["hunks: absolute, parent and empty paths are refused even in a hunk", hunks({ diff: [{ path: "/etc/x", spans: [{ start: 1, len: 5 }] }, { path: "../x", spans: [{ start: 1, len: 5 }] }, { path: "", spans: [{ start: 1, len: 5 }] }],
+    edits: [{ path: "/etc/x", spans: [{ start: 2, len: 1 }] }, { path: "../x", spans: [{ start: 2, len: 1 }] }, { path: "", spans: [{ start: 2, len: 1 }] }, { path: "a/../b.ts", spans: [{ start: 2, len: 1 }] }] })],
+  ["hunks: a dirty main-checkout file that the plan names blocks", hunks({ diff: [{ path: "a.ts", spans: [{ start: 1, len: 1 }] }, { path: "b.ts", spans: [{ start: 1, len: 1 }] }], main: ["b.ts", "c.ts", "b.ts"] })],
+  ["hunks: a clean main checkout blocks nothing", hunks({ diff: [{ path: "a.ts", spans: [{ start: 1, len: 1 }] }], main: [] })],
+  ["settle: dirty edits are restored, only untracked files created since plan are removed", settle({ before: ["keep.txt"], dirty: ["a.ts", "b.ts"], untracked: ["keep.txt", "a.ts-e", "x.orig"] })],
+  ["settle: a clean worktree needs no action", settle({ before: ["keep.txt"], dirty: [], untracked: ["keep.txt"] })],
+  ["settle: a file that was untracked before and is gone now is not named", settle({ before: ["gone.txt"], dirty: [], untracked: [] })],
+  ["settle: a path dirty at plan time keeps the builder's edits", settle({ before: [], dirtyBefore: ["mine.ts"], dirty: ["a.ts", "mine.ts"], untracked: [] })],
+  ["walk: a kept deletion above, a restored 3-line deletion below", walk(H10, [{ target: 1, oldLen: 1, new: [], keep: true }, { target: 6, oldLen: 3, new: [], keep: false }])],
+  ["walk: both deletions kept", walk(H10, [{ target: 1, oldLen: 1, new: ["B"], keep: true }, { target: 6, oldLen: 3, new: [], keep: true }])],
+  ["walk: a pure insertion kept", walk(H10, [{ target: 3, oldLen: 0, new: ["x"], keep: true }])],
+  ["walk: first restored, second kept to the end", walk(H10, [{ target: 1, oldLen: 1, new: ["B"], keep: false }, { target: 8, oldLen: 2, new: ["Y"], keep: true }])],
+  ["walk: every hunk restored gives HEAD back", walk(H10, [{ target: 0, oldLen: 2, new: ["z"], keep: false }, { target: 5, oldLen: 0, new: ["q"], keep: false }])],
   ["cuts: apply a cut that keeps every fact", cutsReq([{ path: md, text: "See lean/Fw/A.lean:12 for the rule, which is the rule.\n" }],
     [{ path: md, old: "for the rule, which is the rule.", new: "for the rule." }])],
   ["cuts: 10-22 sup-wire over-cut leaves a space before ;", cutsReq([doc(supWire)], [supWire])],
@@ -59,6 +132,24 @@ const cases: [string, Record<string, unknown>][] = [
     [{ path: "docs/team/incidents/ledger.json", old: "b c\"", new: "b\"" }])],
   ["cuts: cuts apply in order, the second sees the first's text", cutsReq([{ path: md, text: "a very long b. a c.\n" }],
     [{ path: md, old: "a very long b.", new: "a b." }, { path: md, old: "a b.", new: "b." }])],
+  ["lines: a trailing # comment cut, newline kept (sh)", linesReq("lean/scripts/check.sh", "cmd a  # note\ncmd b\n", "cmd a\ncmd b\n")],
+  ["lines: a trailing # comment cut with its newline joins two jobs (sh)", linesReq("lean/scripts/check.sh", "cmd a  # note\ncmd b\n", "cmd a  cmd b\n")],
+  ["lines: a whole-line # comment deleted (yaml)", linesReq("a.yml", "a: 1\n# why\nb: 2\n", "a: 1\nb: 2\n")],
+  ["lines: a trailing // comment cut with its newline joins (ts)", linesReq("a.ts", "a(); // x\nb();\n", "a(); b();\n")],
+  ["lines: a block comment deleted on its own lines (ts)", linesReq("a.ts", "a();\n/* x\n y */\nb();\n", "a();\nb();\n")],
+  ["lines: a block comment cut that pulls code up joins (ts)", linesReq("a.ts", "a(); /* x\n y */ b();\n", "a(); b();\n")],
+  ["lines: a trailing -- comment cut with its newline joins (lean)", linesReq("a.lean", "def a := 1 -- x\ndef b := 2\n", "def a := 1 def b := 2\n")],
+  ["lines: a nested block comment deleted (lean)", linesReq("a.lean", "/- a\n /- b -/ c -/\ndef b := 2\n", "def b := 2\n")],
+  ["lines: a cut at the end of the file (sh)", linesReq("a.sh", "cmd a\n# end\n", "cmd a\n")],
+  ["lines: a trailing comment at the end of the file without a newline (sh)", linesReq("a.sh", "cmd a  # end", "cmd a")],
+  ["lines: code changed (sh)", linesReq("a.sh", "cmd a\n", "cmd b\n")],
+  ["lines: a line split in two (sh)", linesReq("a.sh", "cmd a b\n", "cmd a\nb\n")],
+  ["lines: a file type with no syntax is unchecked", linesReq("a.md", "x\n", "y\n")],
+  ["lines: a synthetic trailing-comment join (162a694 itself is caught by the check.sh lint, not this rule)", linesReq("lean/scripts/check.sh", "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n", "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n")],
+  ["lines: join shape of 35f3727 mac-safari-measure", linesReq("lean/scripts/check.sh", "job \"sup-measure\" x  # s\njob \"node-budget\" y\n", "job \"sup-measure\" x  job \"node-budget\" y\n")],
+  ["lines: join shape of 4d0c107 hero-accent-draw-nolayout", linesReq("lean/scripts/check.sh", "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n", "job \"hero-scene-pause\" x  job \"nav-earn\" y\n")],
+  ["lines: a single-quoted /* is not a comment (js)", linesReq("a.mjs", "const b = ['ci/**'];\nfoo(); // why\nbar();\n", "const b = ['ci/**'];\nfoo(); bar();\n")],
+  ["lines: an escaped quote then /* is not a comment (ts)", linesReq("a.ts", "const b = \"a\\\"/*\";\nfoo(); // why\nbar();\n", "const b = \"a\\\"/*\";\nfoo(); bar();\n")],
 ];
 
 function fwcore(reqs: Record<string, unknown>[]): Record<string, unknown>[] {
@@ -69,6 +160,49 @@ type Line = { name: string; request: Record<string, unknown>; response: Record<s
 const stored = () => readFileSync(goldenFile, "utf8").trim().split("\n").map((l) => JSON.parse(l)) as Line[];
 const res = (prefix: string) => stored().find((l) => l.name.startsWith(prefix))!.response as Record<string, any>;
 const verdicts = (prefix: string) => (res(prefix).cuts as { verdict: string }[]).map((c) => c.verdict);
+
+describe("settings.json Edit rules are covered by the Lean skip rule (one canonical source)", () => {
+  const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8")) as { permissions: { ask?: string[]; deny?: string[] } };
+  const rules = [...(settings.permissions.ask ?? []).map((r) => ["ask", r]), ...(settings.permissions.deny ?? []).map((r) => ["deny", r])]
+    .flatMap(([kind, r]) => { const m = /^Edit\((.*)\)$/.exec(r!); return m ? [{ kind: kind!, rule: r!, pat: m[1]! }] : []; });
+  const sample = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "x/y.md");
+  const sample2 = (pat: string) => pat.replace(/^\//, "").replace(/\*\*$/, "z.md");
+
+  it("settings.json has Edit rules to check, each anchored at the project root with / and at most a trailing /**", () => {
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules) expect(r.pat, r.rule).toMatch(/^\/[^*]+(\*\*)?$/);
+  });
+
+  it("every Edit ask/deny rule: its path is skip, and an ask rule's path is named in protected", () => {
+    const paths = rules.flatMap((r) => [sample(r.pat), sample2(r.pat)]);
+    const [r] = fwcore([plan(paths)]) as { classes: { path: string; class: string }[]; protected?: string[] }[];
+    for (const [i, rule] of rules.flatMap((x) => [x, x]).entries()) {
+      const p = paths[i]!;
+      expect(r!.classes.find((c) => c.path === p)?.class, `${rule.rule} -> ${p}`).toBe("skip");
+      if (rule.kind === "ask") expect(r!.protected ?? [], `${rule.rule} -> ${p}`).toContain(p);
+    }
+  });
+});
+
+describe("plan.wtName goldens: fwcore decides the worktree name, TS holds no copy", () => {
+  it("an absolute .claude/worktrees directory gives its name; trailing slash, space, ~, relative, odd names give none", () => {
+    const rows = stored().filter((l) => l.request.op === "plan.wtName");
+    expect(rows.length).toBe(WT_DIRS.length);
+    expect(rows.map((l) => l.response.name)).toEqual(WT_DIRS.map(([, , n]) => n));
+  });
+});
+
+describe("plan.inWt goldens: fwcore decides root-pinned stray edits (Fw.Plan.Polish.ownEdit)", () => {
+  it("one row per case, with the verdict the case names; own exactly when the verdict is own", () => {
+    const all = stored().filter((l) => l.request.op === "plan.inWt");
+    const facts = all.filter((l) => "resolved" in l.request);
+    expect(facts.map((l) => l.response.verdict)).toEqual(IN_WT_FACT.map(([, , , v]) => v));
+    const rows = all.filter((l) => !("resolved" in l.request));
+    expect(rows.length).toBe(IN_WT.length);
+    expect(rows.map((l) => l.response.verdict)).toEqual(IN_WT.map(([, , , , v]) => v));
+    for (const l of rows) expect(l.response.own).toBe(l.response.verdict === "own");
+  });
+});
 
 describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/plan/polish.jsonl)", () => {
   it("fwcore with the ops is built (cd lean && lake build)", () => expect(bin).toBeTruthy());
@@ -98,6 +232,37 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
     expect(res("plan: edits kept")).toMatchObject({ keep: ["apps/x/a.ts", md], restore: ["snapshot/a.css", "apps/y/c.ts"] });
   });
 
+  it("hunk verdicts: margin edge, point hunks, no hunk, far above and below, bad paths, blocked", () => {
+    const kept = (prefix: string) => (res(prefix).edits as { kept: boolean[] }[]).map((e) => e.kept);
+    expect(kept("hunks: an edit in the hunk")).toEqual([[true, true, false, true, false, false]]);
+    expect(kept("hunks: an edit that starts")).toEqual([[false, true]]);
+    expect(kept("hunks: a point hunk")).toEqual([[true, false]]);
+    expect(kept("hunks: a file with no branch hunk")).toEqual([[false]]);
+    expect(kept("hunks: several branch hunks")).toEqual([[false, true, false]]);
+    expect((res("hunks: absolute").edits as { pathOk: boolean; kept: boolean[] }[]).map((e) => [e.pathOk, ...e.kept])).toEqual([[false, false], [false, false], [false, false], [true, false]]);
+    expect(res("hunks: an edit in the hunk").ranges).toEqual([{ path: "lean/scripts/check.sh", ranges: [{ lo: 57, hi: 64 }] }]);
+    expect(res("hunks: a dirty main").blocked).toEqual(["b.ts"]);
+    expect(res("hunks: a clean main").blocked).toEqual([]);
+  });
+
+  it("settle verdicts: restore all dirty paths, remove only the created untracked ones", () => {
+    expect(res("settle: dirty edits")).toEqual({ restore: ["a.ts", "b.ts"], remove: ["a.ts-e", "x.orig"] });
+    expect(res("settle: a clean")).toEqual({ restore: [], remove: [] });
+    expect(res("settle: a file that was")).toEqual({ restore: [], remove: [] });
+  });
+
+  it("settle keeps the paths dirty at plan time", () => {
+    expect(res("settle: a path dirty at plan time")).toEqual({ restore: ["a.ts"], remove: [] });
+  });
+
+  it("walk goldens: the TS walkHunks gives every Lean row", () => {
+    const rows = stored().filter((l) => l.request.op === "plan.polishWalk");
+    expect(rows.length).toBe(5);
+    for (const l of rows) expect(walkHunks(l.request.head as string[], l.request.hunks as WHunk[])).toEqual(l.response.lines);
+    expect(res("walk: a kept deletion above").lines).toEqual(["a", "c", "d", "e", "f", "g", "h", "i", "j"]);
+    expect(res("walk: every hunk restored").lines).toEqual(H10);
+  });
+
   it("cut verdicts, one per branch of judge", () => {
     expect(verdicts("cuts: apply a cut")).toEqual(["apply"]);
     expect(verdicts("cuts: 10-22 sup-wire")).toEqual(["dropsFacts"]);
@@ -118,28 +283,48 @@ describe("plan.polishPlan / plan.polishCuts golden (packages/contracts/golden/pl
 describe("fw polish CLI", () => {
   const call = coreCaller(bins);
   const wt = "/wt";
-  function fake(files: Record<string, string>, diff: string[], edited: string[] = [], staged: string[] = []) {
+  function fake(files: Record<string, string>, diff: string[], edited0: string[] = [], staged: string[] = [], hunk = "", status = "", o: { failCommit?: boolean; untracked?: string[]; noBaseline?: boolean } = {}) {
+    let edited = edited0.slice();
+    let untracked = (o.untracked ?? []).slice();
+    const removed: string[] = [];
     const gitCalls: string[][] = [];
     const written: Record<string, string> = {};
+    const seeded: Record<string, string> = o.noBaseline ? {} : { "/wt/.git/fw-polish-untracked": "", "/wt/.git/fw-polish-dirty": "" };
     const lines: string[] = [];
-    const git = (_cwd: string, args: string[]) => {
+    const git = (_cwd: string, raw: string[]) => {
+      const args = raw[0] === "-c" ? raw.slice(2) : raw;
       gitCalls.push(args);
-      if (args[0] === "rev-parse") return "/root\n";
+      if (args[0] === "rev-parse") return args.includes("--absolute-git-dir") ? "/wt/.git\n" : "/root\n";
+      if (args[0] === "checkout") edited = edited.filter((p) => !args.slice(3).includes(p));
+      if (args[0] === "commit") { if (o.failCommit) throw new Error("Command failed: git commit\ncheckmap: FAIL lakeBuild"); edited = []; }
+      if (args[0] === "ls-files") return untracked.join("\n");
+      if (args[0] === "status") return status;
+      const lineOne = (ps: string[]) => ps.map((q) => `diff --git a/${q} b/${q}\n--- a/${q}\n+++ b/${q}\n@@ -1 +1 @@\n-x\n+y\n`).join("");
+      if (args.includes("-U0")) return args.includes("HEAD") ? lineOne(edited) : hunk || lineOne(diff);
       if (args[0] === "diff" && args[1] === "--cached") return staged.join("\n");
       if (args[0] === "diff" && args.includes("HEAD")) return edited.join("\n");
       if (args[0] === "diff") return diff.join("\n");
       return "";
     };
     const deps = { core: call, log: (l: string) => lines.push(l), git, gen: async () => [LAKE_GEN], worktree: () => wt,
-      read: (p: string) => files[p.replace(`${wt}/`, "").replace("/root/", "")] ?? null, write: (p: string, t: string) => { written[p] = t; } };
-    return { deps, gitCalls, written, lines };
+      read: (p: string) => files[p.replace(`${wt}/`, "").replace("/root/", "")] ?? written[p] ?? seeded[p] ?? null, write: (p: string, t: string) => { written[p] = t; },
+      remove: (p: string) => { removed.push(p); delete written[p]; delete seeded[p]; untracked = untracked.filter((u) => `${wt}/${u}` !== p); } };
+    return { deps, gitCalls, written, lines, removed };
   }
 
-  it("plan prints classes, absolute scopes with marks, and the stage line last", async () => {
-    const f = fake({ "a.sh": "#!/bin/sh\n" }, ["a.sh", md, "snapshot/x.css"]);
+  it("plan prints worktree-name as a single word after the worktree line", async () => {
+    const f = fake({}, [], [], [], "");
+    const wt = "/h/r/.claude/worktrees/wf_b291cc70-2f8-1";
+    expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", { ...f.deps, worktree: () => wt })).toBe(0);
+    expect(f.lines.slice(0, 2)).toEqual([`worktree ${wt}`, "worktree-name wf_b291cc70-2f8-1"]);
+  });
+
+  it("plan prints classes, relative scopes with marks and hunk lines, and the stage line last", async () => {
+    const hunk = "diff --git a/a.sh b/a.sh\n--- a/a.sh\n+++ b/a.sh\n@@ -1 +1 @@\n-x\n+y\n";
+    const f = fake({ "a.sh": "#!/bin/sh\n" }, ["a.sh", md, "snapshot/x.css"], [], [], hunk);
     expect(await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(0);
-    expect(f.lines).toEqual(["worktree /wt", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
-      "comments # /wt/a.sh", "prose /wt/docs/a.md", "VERDICT polish-plan t comments,prose"]);
+    expect(f.lines).toEqual(["worktree /wt", "worktree-name -", "class shell # a.sh", "class prose - docs/a.md", "class skip - snapshot/x.css",
+      "comments # a.sh lines 1-4", "prose docs/a.md", "VERDICT polish-plan t comments,prose"]);
   });
 
   it("plan with only skip paths prints none", async () => {
@@ -161,9 +346,34 @@ describe("fw polish CLI", () => {
   it("commit restores skip and out-of-diff edits, then commits the kept ones", async () => {
     const f = fake({}, ["apps/x/a.ts", "snapshot/x.css"], ["apps/x/a.ts", "snapshot/x.css", "apps/y/c.ts"]);
     expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(0);
-    expect(f.gitCalls.filter((a) => ["checkout", "add", "commit"].includes(a[0]!)).map((a) => a.slice(0, 4))).toEqual([
-      ["checkout", "HEAD", "--", "snapshot/x.css"], ["add", "--", "apps/x/a.ts"], ["commit", "-q", "-m", "polish t: comment and prose cuts (fw polish)"]]);
+    expect(f.gitCalls.filter((a) => ["checkout", "add", "commit"].includes(a[0]!)).map((a) => a.slice(0, 7))).toEqual([
+      ["checkout", "HEAD", "--", "snapshot/x.css", "apps/y/c.ts"], ["add", "--", "apps/x/a.ts"], ["commit", "-q", "-m", "polish t: comment and prose cuts (fw polish)", "--", "apps/x/a.ts"]]);
     expect(f.lines.at(-1)).toBe("VERDICT polish-commit t committed");
+  });
+
+  it("a failing commit restores every polish edit, deletes only the untracked files created since plan, and says so", async () => {
+    const f = fake({}, ["apps/x/a.ts"], ["apps/x/a.ts"], [], "", "", { failCommit: true, untracked: ["mine.txt", "apps/x/a.ts-e", "x.orig"] });
+    f.written["/wt/.git/fw-polish-untracked"] = "mine.txt\n";
+    expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(1);
+    expect(f.removed).toEqual(["/wt/apps/x/a.ts-e", "/wt/x.orig", "/wt/.git/fw-polish-untracked", "/wt/.git/fw-polish-dirty"]);
+    expect(f.gitCalls.some((a) => a[0] === "reset")).toBe(false);
+    expect(f.lines.at(-3)).toMatch(/checkmap: FAIL lakeBuild/);
+    expect(f.lines.at(-2)).toBe("cleanup: restored 1 (apps/x/a.ts), removed 2 (apps/x/a.ts-e x.orig), worktree clean");
+    expect(f.lines.at(-1)).toBe("VERDICT polish-commit t error");
+  });
+
+  it("without a plan baseline the commit step is refused and touches nothing", async () => {
+    const f = fake({}, ["apps/x/a.ts"], ["apps/x/a.ts"], [], "", "", { failCommit: true, untracked: ["x.orig"], noBaseline: true });
+    expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", f.deps)).toBe(1);
+    expect(f.removed).toEqual([]);
+    expect(f.gitCalls.filter((a) => ["checkout", "add", "commit", "reset"].includes(a[0]!))).toEqual([]);
+    expect(f.lines).toEqual(["no baseline from fw polish plan", "VERDICT polish-commit t refused"]);
+  });
+
+  it("plan saves the untracked files of the worktree as the baseline", async () => {
+    const f = fake({}, ["apps/x/a.ts"], [], [], "", "", { untracked: ["mine.txt"] });
+    await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", f.deps);
+    expect(f.written["/wt/.git/fw-polish-untracked"]).toBe("mine.txt\n");
   });
 
   it("commit with no edits prints nothing", async () => {
@@ -196,9 +406,428 @@ describe("fw polish CLI", () => {
     expect(gen.filter((p) => p.startsWith(".github/workflows/")).length).toBeGreaterThan(3);
   });
 
+  it("a workflow row only the branch adds is generator-owned: its edit is restored, the guard comment stays", async () => {
+    const wf = ".github/workflows/path-pix.yml";
+    const f = fake({}, [wf, "apps/x/a.ts"], [wf, "apps/x/a.ts"]);
+    const gen = async (r: string) => (r === wt ? [LAKE_GEN, wf] : [LAKE_GEN]);
+    expect(await polishCli(["commit", "--branch", "b", "--task", "t"], "/root", { ...f.deps, gen })).toBe(0);
+    expect(f.gitCalls.find((a) => a[0] === "checkout")).toEqual(["checkout", "HEAD", "--", wf]);
+    expect(f.gitCalls.find((a) => a[0] === "add")).toEqual(["add", "--", "apps/x/a.ts"]);
+    const p = fake({}, [wf]);
+    await polishCli(["plan", "--branch", "b", "--task", "t"], "/root", { ...p.deps, gen });
+    expect(p.lines.at(-1)).toBe("VERDICT polish-plan t none");
+  });
+
+  it("genOwned unions both tables and fails when the branch table does not load", async () => {
+    expect(await genOwned(async (r) => (r === "/wt" ? ["b"] : ["a"]), "/root", "/wt")).toEqual(["a", "b"]);
+    await expect(genOwned(async (r) => { if (r === "/wt") throw new Error("x"); return ["a"]; }, "/root", "/wt")).rejects.toThrow("x");
+  });
+
+  describe("fw polish strays", () => {
+    const wtDir = "/m/.claude/worktrees/wf_a";
+    const strays = async (paths: unknown, o: { links?: Record<string, string>; worktree?: string | null; core?: typeof call; common?: string; existing?: string[] } = {}) => {
+      const lines: string[] = [];
+      const real = (p: string) => (o.links ?? {})[p] ?? (o.existing ? ((q) => (o.existing!.some((e) => q === e || e.startsWith(`${q}/`)) ? q : null))(p.replace(/\/\.git\/\.\.$/, ""))
+        : p.includes("missing") ? null : p.replace(/\/\.git\/\.\.$/, ""));
+      const code = await polishCli(["strays", "--branch", "b", "--task", "t", "--paths", "-"], "/m", {
+        core: o.core ?? call, log: (l) => lines.push(l), stdin: () => JSON.stringify(paths), realpath: real,
+        git: (_c, a) => (a.includes("--git-common-dir") ? `${o.common ?? "/m/.git"}\n` : "/m\n"),
+        worktree: () => (o.worktree === undefined ? wtDir : o.worktree) });
+      return { code, lines };
+    };
+
+    it("edits inside the worktree are clean, absolute or relative to the main checkout", async () => {
+      const r = await strays({ paths: [`${wtDir}/apps/x.ts`, ".claude/worktrees/wf_a/lean/A.lean"] });
+      expect(r.code).toBe(0);
+      expect(r.lines).toEqual(["main /m", "worktree-name wf_a", "VERDICT polish-strays t clean"]);
+    });
+
+    it("main checkout files, the ../../ escape and another checkout's same-named worktree are strays", async () => {
+      const esc = `${wtDir}/../../apps/x.ts`;
+      const r = await strays([`/m/apps/x.ts`, `${esc}-missing`, "/o/.claude/worktrees/wf_a/x.ts", `${wtDir}/ok.ts`]);
+      expect(r.code).toBe(1);
+      expect(r.lines.filter((l) => l.startsWith("stray "))).toEqual(["stray /m/apps/x.ts", `stray ${esc}-missing`, "stray /o/.claude/worktrees/wf_a/x.ts"]);
+      expect(r.lines).toContain(`  notPlain ${esc}-missing`);
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
+    });
+
+    it("a path that resolves through a symlink is judged where it lands", async () => {
+      const link = `${wtDir}/link/x.ts`;
+      const r = await strays([link], { links: { [link]: "/m/apps/x.ts" } });
+      expect(r.lines).toContain("  outside /m/apps/x.ts");
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
+    });
+
+    it("a missing file under a symlinked parent is judged where the parent lands, not at the raw path", async () => {
+      const link = `${wtDir}/link`;
+      const r = await strays([`${link}/new.ts`, `${wtDir}/fresh/new.ts`], { links: { [link]: "/m/apps" }, existing: [wtDir] });
+      expect(r.lines.filter((l) => l.startsWith("stray "))).toEqual([`stray ${link}/new.ts`]);
+      expect(r.lines).toContain("  outside /m/apps/new.ts");
+    });
+
+    it("a dotted path through a symlink reaches Lean raw and is a stray (notPlain)", async () => {
+      const p = `${wtDir}/link/../y.ts`;
+      const r = await strays([p], { links: { [`${wtDir}/link`]: "/m/apps" }, existing: [wtDir] });
+      expect(r.lines).toContain(`stray ${p}`);
+      expect(r.lines.some((l) => l.startsWith("  notPlain"))).toBe(true);
+    });
+
+    it("a path with no resolvable ancestor is a stray, verdict unresolved", async () => {
+      const r = await strays(["/nowhere/missing/x.ts"], { existing: ["/m"] });
+      expect(r.lines).toContain("  unresolved /nowhere/missing/x.ts");
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
+    });
+
+    it("no edits are clean; a missing worktree, a non-worktree directory, bad JSON shape or a fwcore failure is error", async () => {
+      expect((await strays([])).lines.at(-1)).toBe("VERDICT polish-strays t clean");
+      expect((await strays([], { worktree: null })).lines.at(-1)).toBe("VERDICT polish-strays t error");
+      expect((await strays(["x"], { worktree: "/m/wt" })).lines.at(-1)).toBe("VERDICT polish-strays t error");
+      expect((await strays(["x"], { core: async () => ({ error: "down" }) })).lines.at(-1)).toBe("VERDICT polish-strays t error");
+      await expect(strays({ paths: [1] })).rejects.toThrow(/--paths/);
+    });
+
+    it("a main checkout that does not resolve is error", async () => {
+      const r = await strays(["x"], { common: "/missing/.git" });
+      expect(r.code).toBe(1);
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t error");
+    });
+  });
+
   it("usage errors throw", async () => {
+    await expect(polishCli(["strays", "--branch", "b", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
     await expect(polishCli(["plan", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
     await expect(polishCli(["cuts", "--branch", "b", "--task", "t"], "/root", fake({}, []).deps)).rejects.toThrow(/usage/);
   });
 
+});
+
+describe("fw polish commit on a real fixture branch (incidents inc-polish-file-scope, inc-polish-main-checkout)", () => {
+  const env = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_CONFIG_GLOBAL: "/dev/null" };
+  const g = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", env });
+  const file = "lean/scripts/check.sh";
+  const body = Array.from({ length: 120 }, (_, i) => `# comment ${i + 1}`);
+
+  function seed(wt: string) {
+    const gd = g(wt, "rev-parse", "--absolute-git-dir").trim();
+    writeFileSync(join(gd, "fw-polish-untracked"), "\n");
+    writeFileSync(join(gd, "fw-polish-dirty"), "\n");
+  }
+  function fixture() {
+    const base = mkdtempSync(join(tmpdir(), "polish-fx-"));
+    const main = join(base, "main");
+    const wt = join(base, "wt");
+    mkdirSync(join(main, "lean/scripts"), { recursive: true });
+    g(main, "init", "-q", "-b", "main");
+    writeFileSync(join(main, file), body.join("\n") + "\n");
+    g(main, "add", "."); g(main, "commit", "-q", "-m", "base");
+    g(main, "worktree", "add", "-q", "-b", "feat", wt);
+    const tip = body.slice(); tip[59] = "echo changed 60"; tip[60] = "echo changed 61";
+    writeFileSync(join(wt, file), tip.join("\n") + "\n");
+    g(wt, "commit", "-qam", "builder");
+    seed(wt);
+    return { base, main, wt, tip };
+  }
+  const deps = (wt: string, lines: string[]) => ({ core: coreCaller(bins), log: (l: string) => lines.push(l), gen: async () => [] as string[], worktree: () => wt });
+  const run = (wt: string, lines: string[]) => polishCli(["commit", "--branch", "feat", "--task", "t"], wt, deps(wt, lines));
+  const edit = (wt: string, tip: string[], at: Record<number, string>) => {
+    const t = tip.slice(); for (const [n, v] of Object.entries(at)) t[+n - 1] = v;
+    writeFileSync(join(wt, file), t.join("\n") + "\n");
+  };
+
+  it("a commit the pre-commit hook refuses leaves the worktree clean: edits restored, the stray -e file gone, files from before plan kept", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      writeFileSync(join(wt, "mine.txt"), "pre-existing\n");
+      const planLines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, planLines))).toBe(0);
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      writeFileSync(join(wt, `${file}-e`), "backup\n");
+      const hooks = join(base, "hooks");
+      mkdirSync(hooks);
+      writeFileSync(join(hooks, "pre-commit"), "#!/bin/sh\necho 'checkmap: FAIL lakeBuild'\nexit 1\n", { mode: 0o755 });
+      g(wt, "config", "core.hooksPath", hooks);
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t error");
+      expect(lines.at(-2)).toBe(`cleanup: restored 1 (${file}), removed 1 (${file}-e), worktree clean`);
+      expect(g(wt, "status", "--porcelain").trim()).toBe("?? mine.txt");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("refuses a comment cut that joins two code lines (inc-polish-line-join) and keeps one that does not", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      const withNote = tip.slice(); withNote[59] = "echo changed 60  # note";
+      writeFileSync(join(wt, file), withNote.join("\n") + "\n");
+      g(wt, "commit", "-qam", "builder note");
+      const planLines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, planLines))).toBe(0);
+      const joined = withNote.slice(); joined.splice(59, 2, "echo changed 60  echo changed 61");
+      writeFileSync(join(wt, file), joined.join("\n") + "\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`VERDICT polish-cuts t refused-join ${file}`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(withNote.join("\n") + "\n");
+      const okLines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, okLines))).toBe(0);
+      const kept = withNote.slice(); kept[59] = "echo changed 60";
+      writeFileSync(join(wt, file), kept.join("\n") + "\n");
+      const fine: string[] = [];
+      expect(await run(wt, fine)).toBe(0);
+      expect(fine.some((l) => l.includes("refused-join"))).toBe(false);
+      expect(fine.at(-1)).toBe("VERDICT polish-commit t committed");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("keeps the edit inside the hunk, restores the one 50 lines away, and names it", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 62: "# comment 62 reworded", 10: "# comment 10 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`restored ${file}:10-10 (outside the branch's hunks)`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t committed");
+      const now = readFileSync(join(wt, file), "utf8").split("\n");
+      expect(now[9]).toBe("# comment 10");
+      expect(now[61]).toBe("# comment 62 reworded");
+      expect(g(wt, "status", "--porcelain").trim()).toBe("");
+      expect(g(wt, "show", "--stat", "--format=", "HEAD")).toContain("1 file changed, 1 insertion(+), 1 deletion(-)");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("restores an edit hunk that starts in the margin and runs 50 lines past it, and names it", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      const t = tip.slice();
+      for (let n = 64; n <= 114; n++) t[n - 1] = `# run ${n}`;
+      t[61] = "# comment 62 reworded";
+      writeFileSync(join(wt, file), t.join("\n") + "\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`restored ${file}:64-114 (outside the branch's hunks)`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t committed");
+      const now = readFileSync(join(wt, file), "utf8").split("\n");
+      expect([now[61], now[63], now[113]]).toEqual(["# comment 62 reworded", "# comment 64", "# comment 114"]);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a path with a space or a non-ASCII character is judged by its hunks, not kept by default", async () => {
+    const base = mkdtempSync(join(tmpdir(), "polish-fx-"));
+    const main = join(base, "main"); const wt = join(base, "wt");
+    const names = ["lean/scripts/a b.sh", "lean/scripts/caf\u00e9.sh"];
+    try {
+      mkdirSync(join(main, "lean/scripts"), { recursive: true });
+      g(main, "init", "-q", "-b", "main");
+      for (const n of names) writeFileSync(join(main, n), body.join("\n") + "\n");
+      g(main, "add", "."); g(main, "commit", "-q", "-m", "base");
+      g(main, "worktree", "add", "-q", "-b", "feat", wt);
+      const tip = body.slice(); tip[59] = "echo changed 60";
+      for (const n of names) writeFileSync(join(wt, n), tip.join("\n") + "\n");
+      g(wt, "commit", "-qam", "builder");
+      seed(wt);
+      for (const n of names) { const t = tip.slice(); t[61] = "# near"; t[9] = "# far"; writeFileSync(join(wt, n), t.join("\n") + "\n"); }
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      for (const n of names) {
+        expect(lines).toContain(`restored ${n}:10-10 (outside the branch's hunks)`);
+        const now = readFileSync(join(wt, n), "utf8").split("\n");
+        expect([now[9], now[61]]).toEqual(["# comment 10", "# near"]);
+      }
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("refuses when the main checkout has an uncommitted edit in a non-ASCII plan file, naming it", async () => {
+    const base = mkdtempSync(join(tmpdir(), "polish-fx-"));
+    const main = join(base, "main"); const wt = join(base, "wt");
+    const n = "lean/scripts/café.sh";
+    try {
+      mkdirSync(join(main, "lean/scripts"), { recursive: true });
+      g(main, "init", "-q", "-b", "main");
+      writeFileSync(join(main, n), body.join("\n") + "\n");
+      g(main, "add", "."); g(main, "commit", "-q", "-m", "base");
+      g(main, "worktree", "add", "-q", "-b", "feat", wt);
+      const tip = body.slice(); tip[59] = "echo changed 60";
+      writeFileSync(join(wt, n), tip.join("\n") + "\n");
+      g(wt, "commit", "-qam", "builder");
+      seed(wt);
+      const t = tip.slice(); t[61] = "# near"; writeFileSync(join(wt, n), t.join("\n") + "\n");
+      writeFileSync(join(main, n), "# someone else's edit\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines[0]).toBe(`the main checkout has uncommitted edits in the plan's files: ${n}`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t refused");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("restores a file whose edits all lie outside the hunks and commits nothing", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 10: "# comment 10 reworded", 11: "# comment 11 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a kept deletion above and a restored 3-line deletion below give HEAD minus only the kept deletion (the Trajectory over-cut)", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      const t = tip.slice(); t.splice(89, 3); t.splice(61, 1);
+      writeFileSync(join(wt, file), t.join("\n") + "\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines).toContain(`restored ${file}:90-92 (outside the branch's hunks)`);
+      const want = tip.slice(); want.splice(61, 1);
+      expect(readFileSync(join(wt, file), "utf8")).toBe(want.join("\n") + "\n");
+      expect(g(wt, "show", "--stat", "--format=", "HEAD")).toContain("1 file changed, 1 deletion(-)");
+      expect(g(wt, "status", "--porcelain").trim()).toBe("");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a path the builder left dirty at plan time is neither committed nor restored by the polish stage", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 5: "# builder wip" });
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, []))).toBe(0);
+      edit(wt, tip, { 5: "# builder wip", 62: "# comment 62 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines.some((l) => l.startsWith(`left ${file} (dirty before fw polish plan`))).toBe(true);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t nothing");
+      expect(readFileSync(join(wt, file), "utf8").split("\n")[4]).toBe("# builder wip");
+      expect(g(wt, "log", "--format=%s", "-1")).toContain("builder");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  const hookRefuse = (base: string, wt: string) => {
+    const hooks = join(base, "hooks");
+    mkdirSync(hooks);
+    writeFileSync(join(hooks, "pre-commit"), "#!/bin/sh\necho 'checkmap: FAIL lakeBuild'\nexit 1\n", { mode: 0o755 });
+    g(wt, "config", "core.hooksPath", hooks);
+  };
+  const baselineFiles = (wt: string) => { const gd = g(wt, "rev-parse", "--absolute-git-dir").trim(); return [join(gd, "fw-polish-untracked"), join(gd, "fw-polish-dirty")]; };
+
+  it("the commit holds only the keep paths: a path the builder staged before plan stays staged with its content, a staged new file survives", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      writeFileSync(join(wt, "q.txt"), "q builder\n");
+      writeFileSync(join(wt, "lean/scripts/other.sh"), "# other\n");
+      g(wt, "add", "q.txt", "lean/scripts/other.sh");
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, []))).toBe(0);
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t committed");
+      expect(g(wt, "show", "--name-only", "--format=", "HEAD").trim()).toBe(file);
+      expect(g(wt, "diff", "--cached", "--name-only").trim().split("\n").sort()).toEqual(["lean/scripts/other.sh", "q.txt"]);
+      expect(readFileSync(join(wt, "q.txt"), "utf8")).toBe("q builder\n");
+      expect(g(wt, "show", ":q.txt")).toBe("q builder\n");
+      for (const f of baselineFiles(wt)) expect(existsSync(f)).toBe(false);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("a hook-refused commit leaves a staged new file present and staged, and deletes both baseline files", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      writeFileSync(join(wt, "q.txt"), "q builder\n");
+      g(wt, "add", "q.txt");
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, []))).toBe(0);
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      hookRefuse(base, wt);
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t error");
+      expect(readFileSync(join(wt, "q.txt"), "utf8")).toBe("q builder\n");
+      expect(g(wt, "diff", "--cached", "--name-only").trim()).toBe("q.txt");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+      for (const f of baselineFiles(wt)) expect(existsSync(f)).toBe(false);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("commit without a baseline is refused and touches nothing; a second commit after a stage is refused too", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      writeFileSync(join(wt, "q.txt"), "q builder\n");
+      g(wt, "add", "q.txt");
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      for (const f of baselineFiles(wt)) rmSync(f);
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines).toEqual(["no baseline from fw polish plan", "VERDICT polish-commit t refused"]);
+      expect(readFileSync(join(wt, file), "utf8").split("\n")[61]).toBe("# comment 62 reworded");
+      expect(g(wt, "diff", "--cached", "--name-only").trim()).toBe("q.txt");
+      expect(g(wt, "log", "--format=%s", "-1").trim()).toBe("builder");
+      seed(wt);
+      writeFileSync(baselineFiles(wt)[1]!, "q.txt\n");
+      expect(await run(wt, [])).toBe(0);
+      const again: string[] = [];
+      expect(await run(wt, again)).toBe(1);
+      expect(again).toEqual(["no baseline from fw polish plan", "VERDICT polish-commit t refused"]);
+      expect(g(wt, "diff", "--cached", "--name-only").trim()).toBe("q.txt");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("plan skips a path dirty at plan time: no scope line, a skip line, and the dirty baseline names it", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 5: "# builder wip" });
+      const lines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines))).toBe(0);
+      expect(lines).toEqual([`worktree ${wt}`, "worktree-name -", `skip ${file} (dirty before plan)`, "VERDICT polish-plan t none"]);
+      expect(readFileSync(baselineFiles(wt)[1]!, "utf8")).toBe(`${file}\n`);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("plan skips a protected path (.claude/, CLAUDE.md): a skip line, no scope line, for a real branch diff", async () => {
+    const { base, wt } = fixture();
+    try {
+      mkdirSync(join(wt, ".claude/agents"), { recursive: true });
+      writeFileSync(join(wt, ".claude/agents/a.md"), "x\n");
+      writeFileSync(join(wt, "CLAUDE.md"), "x\n");
+      g(wt, "add", "."); g(wt, "commit", "-qm", "protected files");
+      const lines: string[] = [];
+      expect(await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines))).toBe(0);
+      expect(lines).toContain("skip .claude/agents/a.md (protected)");
+      expect(lines).toContain("skip CLAUDE.md (protected)");
+      expect(lines.filter((l) => /^(comments|prose) /.test(l)).join("\n")).not.toMatch(/claude/i);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("restores several far hunks of one file independently", async () => {
+    const { base, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 5: "# five", 59: "# fifty-nine", 100: "# hundred" });
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(0);
+      const now = readFileSync(join(wt, file), "utf8").split("\n");
+      expect([now[4], now[58], now[99]]).toEqual(["# comment 5", "# fifty-nine", "# comment 100"]);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("refuses, naming the files, when the main checkout has uncommitted edits in the plan's files", async () => {
+    const { base, main, wt, tip } = fixture();
+    try {
+      edit(wt, tip, { 62: "# comment 62 reworded" });
+      writeFileSync(join(main, file), "# someone else's edit\n");
+      const lines: string[] = [];
+      expect(await run(wt, lines)).toBe(1);
+      expect(lines[0]).toBe(`the main checkout has uncommitted edits in the plan's files: ${file}`);
+      expect(lines.at(-1)).toBe("VERDICT polish-commit t refused");
+      expect(g(wt, "log", "--format=%s", "-1").trim()).toBe("builder");
+      expect(readFileSync(join(wt, file), "utf8")).toBe(tip.join("\n") + "\n");
+      expect(g(wt, "status", "--porcelain").trim()).toBe("");
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
+
+  it("plan prints repo-relative paths with the hunk lines and one worktree line", async () => {
+    const { base, wt } = fixture();
+    try {
+      const lines: string[] = [];
+      await polishCli(["plan", "--branch", "feat", "--task", "t"], wt, deps(wt, lines));
+      expect(lines).toEqual([`worktree ${wt}`, "worktree-name -", `class shell # ${file}`, `comments # ${file} lines 57-64`, "VERDICT polish-plan t comments"]);
+    } finally { rmSync(base, { recursive: true, force: true }); }
+  });
 });

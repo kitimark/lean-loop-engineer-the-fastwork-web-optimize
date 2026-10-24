@@ -1,10 +1,6 @@
 // webkit-lag-probe: the passes that record where the Simulator lag regions spend their work (I/O only; the reductions are
 // reduce.mjs, the Lean module Fw.Measure.WebKitLag, and report.mjs).
-//   geometry : untimed. At every scroll step (and every frame of the morph push) the part boxes and the filter /
-//              backdrop-filter elements are read in viewport coordinates, quarter CSS px; then a LayerTree census.
-//   scroll   : the timed stepped scroll of the lane (scrollrun.mjs), unchanged; its Paint clips are joined to the boxes.
-//   morph    : timed, at the end of the page: idle frames, a synthetic wheel push down, settle, a push up (the push is
-//              the only trigger of morph.tween, N2:13065-13069), one rAF per step mark.
+// Pushes marked wk:down / wk:up (phase.mjs); trusted wheel: macmorph.mjs.
 import { loadFresh, pageInfo, RAF_HELPER } from '../page.mjs';
 import { reconnect } from '../wip.mjs';
 import { TargetLostError } from '../inspector.mjs';
@@ -16,8 +12,9 @@ import { censusAt } from '../census.mjs';
 import { markTimes, markTime, reduceSteps } from '../reduce.mjs';
 import { regionOf } from './reduce.mjs';
 import { costPasses } from './costprobe.mjs';
+import { swapPass } from './swapprobe.mjs';
+import { classify } from './phase.mjs';
 
-/** Frames of the morph run: idle, after the push down, after the push up. A tween lasts 680 ms, so 60 frames cover it at >= 11.4 ms per frame. */
 export const MORPH_FRAMES = Object.freeze({ idle: 10, open: 60, close: 60 });
 
 /** In-page helpers: the parts of the page and one read of their boxes and filter elements (quarter CSS px, viewport coordinates). */
@@ -65,7 +62,7 @@ const MORPH_JS = (sampling) => `(async () => {
   const counts = { scrollTo: 0 };
   const nativeScrollTo = window.scrollTo.bind(window);
   window.scrollTo = (...a) => { counts.scrollTo++; return nativeScrollTo(...a); };
-  const push = (d) => { const e = new WheelEvent('wheel', { deltaY: d, cancelable: true, bubbles: true }); document.body.dispatchEvent(e); return e.defaultPrevented; };
+  const push = (d) => { performance.mark(d > 0 ? 'wk:down' : 'wk:up'); const e = new WheelEvent('wheel', { deltaY: d, cancelable: true, bubbles: true }); document.body.dispatchEvent(e); return e.defaultPrevented; };
   const taken = [], samples = [];
   let k = 0;
   const frames = async (n) => { for (let i = 0; i < n; i++) { performance.mark('wk:s' + k); k++; await raf(); ${sampling ? 'samples.push(sample(true));' : ''} } };
@@ -148,16 +145,18 @@ export async function morphRun(c, { clock, settleMs }) {
   const marks = markTimes(records, 'wk:s', n);
   const endTime = markTime(records, 'wk:end');
   if (marks.some((t) => t === null) || endTime === null) throw new Error(`morph step marks missing from the Timeline (${marks.filter((t) => t === null).length} of ${n})`);
+  const down = markTime(records, 'wk:down'), up = markTime(records, 'wk:up');
+  const used = classify(marks, down, up);
+  if (used.outcome !== 'ok') throw new Error(`morph run refused by the phase rule: ${used.outcome}`);
   const after = JSON.parse(await c.evaluate(MORPH_STATE_JS));
-  return { schema: 'fw.webkit.lag.morph/1', info, frames: MORPH_FRAMES, before, after, taken: res.taken, scrollTo: res.scrollTo, marks, endTime, records, reduced: reduceSteps(records, marks, endTime) };
+  return { schema: 'fw.webkit.lag.morph/1', info, frames: MORPH_FRAMES, phases: { down, up }, before, after, taken: res.taken, scrollTo: res.scrollTo, marks, endTime, records, reduced: reduceSteps(records, marks, endTime) };
 }
 
 /**
  * A session: the geometry pass once, then `passes` times a fresh-load scroll run and morph run. A run that still fails
- * after its retries ends the session; the completed runs are kept and the reason goes to `failed` (CI lost r2 and v3 of
- * the first dispatch whole to such a stall, 2026-10-21).
+ * after its retries ends the session; the completed runs are kept and the reason goes to `failed`.
  */
-export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = false, costOnly = false }) {
+export async function lagSession(ctx, { passes, clock, settleMs, step, framesPerStep, log, cost = false, costOnly = false, swap = null }) {
   const geometry = costOnly ? null : await geometryPass(ctx, { clock, settleMs, step, log });
   const out = [], failed = [];
   let targetLost = false;
@@ -180,10 +179,23 @@ export async function lagSession(ctx, { passes, clock, settleMs, step, framesPer
     }
     let costs = null;
     if (cost || costOnly) {
+      costs = {};
       try {
-        costs = await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log);
-      } catch (e) { targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`); out.push({ scroll, morph }); break; }
-      log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph'].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
+        if (swap) {
+          const home = swap.home;
+          costs.swap = await swapPass(ctx, {
+            clock, settleMs, arms: swap.arms, log, flip: i % 2 === 1,
+            retry: (name, fn) => retrying(ctx, name, log, fn),
+            restore: async () => { ctx.setArm(home.id); await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + home.search)}); 1`); },
+          });
+        }
+        Object.assign(costs, await costPasses((name, fn) => retrying(ctx, `cost ${name}`, log, () => fn(ctx.c, { clock, settleMs, step, framesPerStep })), log));
+      } catch (e) {
+        targetLost = e instanceof TargetLostError; failed.push(`pass ${i + 1} cost: ${e.message}`); log(`  ${failed.at(-1)}`);
+        out.push({ scroll, morph, ...(costs.swap ? { cost: costs } : {}) });
+        break;
+      }
+      log(`pass ${i + 1}/${passes} cost: ${['scroll', 'morph', 'layersScroll', 'layersMorph', ...(swap ? ['swap'] : [])].map((k) => `${k} ${costs[k] ? 'ok' : 'failed'}`).join(', ')}`);
     }
     out.push({ ...(scroll ? { scroll, morph } : {}), ...(costs ? { cost: costs } : {}) });
   }

@@ -10,15 +10,43 @@ name: smoothness
 # traced repeats, by Chromium's frame trace. WebKit is not run on Linux (about 150 ms frames in software: the runner's cadence, not
 # Safari's). Task smoothness-webkit-cadence adds two macOS jobs, run only when the head commit carries `[webkit-cadence]` (the Chromium
 # `cadence` job is then skipped): `webkit-mac` (Playwright WebKit on macos-26, a real wheel) and `webkit-sim` (Mobile Safari in the iOS
-# Simulator on xcode-27, scripted scroll). Each runs every arm in one job and records the WebKit Timeline per frame and zone
+# Simulator on xcode-27, scripted hero scroll, end push by real touches). Each runs every arm in one job and records the WebKit Timeline per frame and zone
 # (lean/Fw/Measure/WebKitProfile.lean, twin packages/measure-webkit/src/profile/reduce.mjs); both have a cap row in Fw.Ci.Pool.Caps.
-# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
+# A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
+# the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
+# `[morph-wheel]` (task morph-real-wheel) runs, in `webkit-mac` only, the end-of-page morph with a trusted wheel and a synthetic one (packages/measure-webkit/src/lag/mac-cli.mjs) and skips `webkit-sim`.
+# `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Reps per simulator job come from Lean `Fw.Measure.WalkBudget.planReps` (`--reps auto`): as many whole reps as the walk
+# budget (time to the deadline at 45 s a window) and the Simulator's life (36 windows, it tends to die after about 30 to 40) allow, so 6 reps of 3 arms (36 windows); a job needs 5 kept finish windows per
+# arm to decide (`Fw.Gate.Smooth.minReps`), which holds for up to 3 arms and fails for 4 (`lifeShort`) or a walk that starts late (`budgetShort`); `sim.json` records `repPlan`.
+# `[touch-lock]` (task touch-lock-page-end, with `[webkit-cadence] [sim-only]`) runs one simulator job that flicks the page into its end with real touches in the original, the faithful build and a CSS-lock candidate
+# (packages/measure-webkit/src/touchlock-cli.mjs; Lean Fw.Measure.TouchLock) and counts scroll reversals while the morph is open.
+# `[sim-touch-control]` adds a 4th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 3 take them from SpringBoard. Both skip the Timeline in touch
+# windows, so job 4 against jobs 1 to 3 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
+# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3, or 1 to 4 with [sim-touch-control]; job 4 is the control and is left out of the sim pool).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
 # The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
+# CPU throttle (task smoothness-cpu-throttle): the cadence job can run with CDP Emulation.setCPUThrottlingRate 6 (control 1, the default) on the scripted
+# scroll only. A PROXY of the lag felt on WebKit (iPhone), never WebKit evidence. A dispatch sets the `cpu_throttle` input; a ci/* push cannot take
+# inputs, so its head commit says `[cpu-throttle=6]` (no token = 1). Only 1 and 6 pass. Under a throttle no traced reps run (they never enter the verdict).
 on:
   push:
     branches: ['ci/**']
+  workflow_dispatch:
+    inputs:
+      cpu_throttle:
+        description: CPU throttle of the cadence windows (1 = control, 6 = the proxy of a slow phone CPU)
+        type: choice
+        options: ['1', '6']
+        default: '1'
+      fw:
+        description: Flag set of the candidate arm, e.g. morph.tween:scroll-lock,nav:earn-no-transition (becomes ?fw=...). Empty = the default config.
+        type: string
+        default: ''
+      widths:
+        description: Widths of the legs
+        type: string
+        default: '390,1280'
 
 permissions:
   contents: read
@@ -74,6 +102,7 @@ jobs:
     outputs:
       legs: ${{ steps.p.outputs.legs }}
       search: ${{ steps.p.outputs.search }}
+      throttle: ${{ steps.t.outputs.throttle }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -106,10 +135,25 @@ jobs:
           EVENT: ${{ github.event_name }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
           LANE: smoothness  # Lean ProbeLane: the mark rule does not bind this lane (its verdict is at 390,1280)
+          FW: ${{ inputs.fw }}  # a dispatch carries its inputs; a push reads the commit line instead
+          WIDTHS: ${{ inputs.widths }}
         run: |
           set -euo pipefail
           node --test .github/scripts/trajectory-line.test.mjs  # the line parser equals Lean pushProbe
           node .github/scripts/trajectory-line.mjs | tee -a "$GITHUB_OUTPUT"
+      - id: t
+        name: The CPU throttle (dispatch input, else the head commit's [cpu-throttle=N]; 1 or 6)
+        env:
+          THROTTLE_IN: ${{ inputs.cpu_throttle }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          t="$THROTTLE_IN"
+          if [ -z "$t" ]; then t=$(printf '%s\n' "$HEAD_MSG" | grep -oiE '\[cpu-throttle=[0-9]+\]' | head -n 1 | tr -dc '0-9' || true); fi
+          t="${t:-1}"
+          case "$t" in 1|6) ;; *) echo "smoothness: refused: the CPU throttle must be 1 or 6, got '$t'" >&2; exit 1 ;; esac
+          echo "throttle=$t" >> "$GITHUB_OUTPUT"
+          echo "smoothness: CPU throttle ${t}x (PROXY, not WebKit)" | tee -a "$GITHUB_STEP_SUMMARY"
       - id: p
         name: Plan the legs (widths) and the candidate search
         env:
@@ -133,11 +177,12 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/site...'
-      # A `[webkit-cadence]` commit builds the candidate's query as one more page (the WebKit legs serve it); other commits build the default only.
+      # A `[webkit-cadence]` commit builds the candidate's query as one more page (the WebKit legs serve it). A `[cpu-throttle=N]` commit or a dispatch
+      # with the `cpu_throttle` input does too, so a flag set that is not a prerendered preset or single flag (a real flag arm) can be the candidate; other commits build the default only.
       - name: Build the rewrite (default prerendered config)
         env:
           SEARCH: ${{ steps.p.outputs.search }}
-          WEBKIT: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') && 'yes' || 'no' }}
+          WEBKIT: ${{ (contains(github.event.head_commit.message, '[webkit-cadence]') || contains(github.event.head_commit.message, '[cpu-throttle=') || inputs.cpu_throttle != '') && 'yes' || 'no' }}
         run: |
           set -euo pipefail
           if [ "$WEBKIT" = yes ] && [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
@@ -218,11 +263,15 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          # Repeats that enter the verdict (Lean minReps is 5) and extra repeats with the frame trace on (reported apart).
+          # Repeats that enter the verdict (Lean minReps is 5) and extra repeats with the frame trace on (reported apart; none under a throttle).
           REPS: 7
-          TRACE_REPS: 5
+          CPU_THROTTLE: ${{ needs.site.outputs.throttle }}
         working-directory: packages/gate-breakpoints
-        run: node src/smooth/cli.mjs run --widths "$WIDTH" --search "$SEARCH" --reps "$REPS" --trace-reps "$TRACE_REPS" --out out/smoothness
+        run: |
+          set -euo pipefail
+          trace_reps=5
+          if [ "$CPU_THROTTLE" != 1 ]; then trace_reps=0; fi
+          node src/smooth/cli.mjs run --widths "$WIDTH" --search "$SEARCH" --reps "$REPS" --trace-reps "$trace_reps" --cpu-throttle "$CPU_THROTTLE" --out out/smoothness
       - name: Table of this leg (the verdict is the Lean twin; the step summary is a convenience, the artifact is the record)
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         env:
@@ -252,7 +301,7 @@ jobs:
   # agreement over jobs need three separate jobs; each job writes its raw windows (`mac.raw.json.gz`) beside the leg file.
   webkit-mac:
     needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') }}
+    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') && !contains(github.event.head_commit.message, '[sim-only]') }}
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-mac:${{ strategy.job-index }}
     runs-on: macos-26
@@ -294,20 +343,37 @@ jobs:
       - name: Playwright WebKit (macOS build; no system libraries to install)
         working-directory: packages/gate-breakpoints
         run: pnpm exec playwright-core install webkit
-      - name: Walk the windows (all arms, interleaved per repeat), record the Timeline, write mac.json
+      - name: Morph runs, trusted wheel and synthetic on the same page (task morph-real-wheel; head commit [morph-wheel]), write mac-morph.json
+        if: ${{ contains(github.event.head_commit.message, '[morph-wheel]') }}
         env:
-          SEARCH: ${{ needs.site.outputs.search }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
-          # Timeline-on repeats (the profile) and Timeline-off repeats (the cadence, reported apart).
-          REPS: 6
-          CADENCE_REPS: 5
         working-directory: packages/gate-breakpoints
         run: |
           set -euo pipefail
           mkdir -p out/smoothness-webkit
           { sw_vers; sysctl -n machdep.cpu.brand_string; sysctl -n hw.ncpu; } > out/smoothness-webkit/mac-tools.txt 2>&1 || true
-          node src/smooth/cli.mjs webkit --width 390 --search "$SEARCH" --reps "$REPS" --cadence-reps "$CADENCE_REPS" --out out/smoothness-webkit
+          node ../measure-webkit/src/lag/mac-cli.mjs run --site "$FW_SITE_DIST" --reps 6 --out out/smoothness-webkit/mac-morph.json
+          node ../measure-webkit/src/lag/mac-cli.mjs report --files out/smoothness-webkit/mac-morph.json --json out/smoothness-webkit/mac-morph-report.json | tee out/smoothness-webkit/mac-morph.md
+      - name: Walk the windows (all arms, interleaved per repeat), record the Timeline, write mac.json
+        if: ${{ !contains(github.event.head_commit.message, '[morph-wheel]') }}
+        env:
+          SEARCH: ${{ needs.site.outputs.search }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          # Timeline-on repeats (the profile) and Timeline-off repeats (the cadence, reported apart).
+          REPS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '8' || '6' }}
+          CADENCE_REPS: 5
+          # `[earn-bound]` (task earn-bound-arm): base, aa and the probe-only bound arm only, end-push halves held 1400 ms (no candidate search needed);
+          # two more Timeline repeats than usual so a refused window leaves the five the Lean verdict needs.
+          ARMS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && 'base,aa,bound' || '' }}
+          HOLD_MS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '1400' || '' }}
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          mkdir -p out/smoothness-webkit
+          { sw_vers; sysctl -n machdep.cpu.brand_string; sysctl -n hw.ncpu; } > out/smoothness-webkit/mac-tools.txt 2>&1 || true
+          node src/smooth/cli.mjs webkit --width 390 --search "$SEARCH" --reps "$REPS" --cadence-reps "$CADENCE_REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --out out/smoothness-webkit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
         with:
@@ -320,7 +386,7 @@ jobs:
   # schedule scripted in the page. This job installs no packages: its code imports only modules without dependencies.
   webkit-sim:
     needs: [site]
-    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') }}
+    if: ${{ contains(github.event.head_commit.message, '[webkit-cadence]') && !contains(github.event.head_commit.message, '[morph-wheel]') }}
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-sim:${{ strategy.job-index }}
     runs-on: xcode-27
@@ -330,7 +396,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        job: [1, 2, 3]
+        job: ${{ fromJSON(contains(github.event.head_commit.message, '[touch-lock]') && '[1]' || contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
@@ -351,6 +417,8 @@ jobs:
         if: ${{ steps.tip.outputs.tip == 'false' }}
         shell: bash
         run: exit 1
+      - name: Job clock
+        run: echo "FW_JOB_START_MS=$(( $(date +%s) * 1000 ))" >> "$GITHUB_ENV"
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
@@ -358,6 +426,7 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Pinned iOS runtime build, then create the device
+        timeout-minutes: 8
         run: sh .github/scripts/check-simulator.sh --create
       - name: Verify the snapshot against snapshot.lock.json
         run: node .github/scripts/verify-snapshot.mjs
@@ -365,12 +434,13 @@ jobs:
         with:
           mode: start
           label: webkit-sim
-      - name: ios_webkit_debug_proxy
+      - name: Tools (ios_webkit_debug_proxy, xcodegen)
+        timeout-minutes: 8
         run: |
           set -euo pipefail
-          brew install ios-webkit-debug-proxy
-          command -v ios_webkit_debug_proxy
-          brew list --versions ios-webkit-debug-proxy
+          brew install ios-webkit-debug-proxy xcodegen
+          command -v ios_webkit_debug_proxy xcodegen
+          brew list --versions ios-webkit-debug-proxy xcodegen
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site-dist
@@ -384,51 +454,113 @@ jobs:
             sw_vers
             xcodebuild -version
             xcrun simctl list runtimes
-            brew list --versions ios-webkit-debug-proxy
+            brew list --versions ios-webkit-debug-proxy xcodegen
           } | tee "$RUNNER_TEMP/result/tools.txt"
+      # The end-of-page push is a real swipe (the XCUITest driver of the toolbar-throttle probe), built before the Simulator boots like
+      # there. A failed build is not fatal: the sim leg then pushes with the synthetic wheel and its sim.json says so.
+      - name: Build the touch driver (no Simulator booted)
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: packages/measure-webkit
+        run: |
+          set -euo pipefail
+          node src/throttle/cli.mjs build-driver --dir "$RUNNER_TEMP/touch-driver"
+          uptime
       - name: Boot the Simulator (kept booted for the whole job)
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           xcrun simctl shutdown all || true
           udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
+      # Lean Fw.Measure.WalkBudget: the walk may run until job start + timeout - post steps - grace - slack, and its step timeout ends inside it.
+      # `[sim-walk-cap=N]` in the commit message (job 1 only) cuts the walk N minutes after it starts, to prove the cut path;
+      # `[sim-walk-hang=N]` (job 2 only) does the same and also blocks the harness's event loop 2 minutes into the walk, to prove the hard stop.
+      - name: Walk budget
+        id: budget
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          JOB: ${{ matrix.job }}
+        working-directory: packages/measure-webkit
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/result"
+          cap=$(printf '%s' "${COMMIT_MSG:-}" | sed -n 's/.*\[sim-walk-cap=\([0-9][0-9]*\)\].*/\1/p' | head -1)
+          if [ "$JOB" != 1 ]; then cap=""; fi
+          hang=$(printf '%s' "${COMMIT_MSG:-}" | sed -n 's/.*\[sim-walk-hang=\([0-9][0-9]*\)\].*/\1/p' | head -1)
+          if [ "$JOB" = 2 ] && [ -n "$hang" ]; then cap="$hang"; echo "FW_WALK_TEST_BLOCK_AFTER_MS=120000" >> "$GITHUB_ENV"; fi
+          node src/walk-budget.mjs --job-start-ms "$FW_JOB_START_MS" ${cap:+--cap-min "$cap"} | tee -a "$GITHUB_OUTPUT" | tee "$RUNNER_TEMP/result/walk-budget.txt"
       - name: Walk the windows (all arms, one session), record the Timeline, write sim.json
-        timeout-minutes: 50
+        if: ${{ steps.budget.outputs.run == 'true' }}
+        timeout-minutes: ${{ fromJSON(steps.budget.outputs.step_minutes) }}
         env:
           SEARCH: ${{ needs.site.outputs.search }}
           SITE_DIR: ${{ runner.temp }}/site
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          REPS: 5
+          FW_TOUCH_VARIANTS: ${{ matrix.job == 4 && 'safari' || 'springboard' }}
           # The runner boots Safari several times slower than a Mac: every wait in packages/measure-webkit is scaled (counts do not depend on waits).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
+          # `[earn-bound]`: see the macOS leg.
+          ARMS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && 'base,aa,bound' || '' }}
+          HOLD_MS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '1400' || '' }}
+          HARD_STOP_S: ${{ steps.budget.outputs.hard_stop_seconds }}
+          TOUCH_LOCK: ${{ contains(github.event.head_commit.message, '[touch-lock]') && '1' || '' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
-          node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          # Lean Fw.Measure.WalkBudget `hardStopMs`: the harness stops itself at the deadline, but a synchronous simctl call can block it, so its process group is killed 45 s after.
+          hard_stop() {
+            perl -e 'use POSIX qw(setsid); my ($s, @c) = @ARGV; my $p = fork(); if (!$p) { setsid(); exec @c or exit 127; }
+              $SIG{ALRM} = sub { print STDERR "walk hard stop: killing the process group\n"; kill "TERM", -$p; sleep 5; kill "KILL", -$p; waitpid($p, 0); exit 124; };
+              alarm $s; waitpid($p, 0); alarm 0; exit($? & 127 ? 128 + ($? & 127) : $? >> 8);' -- "$@"
+          }
+          if [ -n "$TOUCH_LOCK" ]; then
+            hard_stop "$HARD_STOP_S" node src/touchlock-cli.mjs run --site "$SITE_DIR" --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          else
+            hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          fi
+      # Host state first (under 1 min, every command bounded), then one upload of result/ with one retry; the post steps total 9 min.
       - name: Keep host state
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 3
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 1
+        continue-on-error: true
+        env:
+          KEEP_HANG: ${{ matrix.job == 3 && contains(github.event.head_commit.message, '[sim-keep-hang]') && '1' || '' }}
         run: |
           mkdir -p "$RUNNER_TEMP/result"
-          bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
-          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
-      - name: Shut down and delete the Simulator
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
-        timeout-minutes: 3
-        run: |
-          xcrun simctl shutdown all || true
-          xcrun simctl delete "$FW_SIM_NAME" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+          if [ -n "$KEEP_HANG" ]; then sleep 90; fi
+          bounded() { perl -e 'alarm 8; exec @ARGV' -- "$@"; }
+          { uptime; bounded xcrun simctl list devices booted; bounded ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 2
         with:
           name: smoothness-webkit-sim-${{ matrix.job }}
           path: ${{ runner.temp }}/result
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.stale.outcome == 'skipped' && steps.upload.outcome != 'success' }}
+        timeout-minutes: 2
+        with:
+          name: smoothness-webkit-sim-${{ matrix.job }}-retry
+          path: ${{ runner.temp }}/result
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Shut down and delete the Simulator
+        if: ${{ always() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 2
+        # the runner is deleted after the job; a shutdown that outlasts its 2 min on a starved host (run 40023506144 job 3, 139 s) must not turn a finished walk red
+        continue-on-error: true
+        run: |
+          xcrun simctl shutdown all || true
+          xcrun simctl delete "$FW_SIM_NAME" || true
       - uses: ./.github/actions/telemetry
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 2
         with:
           mode: finish
           label: webkit-sim

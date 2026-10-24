@@ -546,9 +546,107 @@ theorem grade_noise_mono (c : Cell) (p p' : Control) (hc : c.control = some p) (
     by_cases hx : c.exactBacked <;> by_cases hm : c.inside.within1 <;> by_cases hn : c.near1Backed <;>
     by_cases hn' : c.withinNoise <;> simp_all
 
-/-! ## Golden vectors -/
+def Raw.le (a b : Raw) : Bool := a.changed ≤ b.changed && a.maxDelta ≤ b.maxDelta
 
-/-- The CSS name of a property. -/
+theorem Raw.le_refl (a : Raw) : a.le a = true := by simp [Raw.le]
+
+theorem Raw.le_trans (a b c : Raw) (h1 : a.le b = true) (h2 : b.le c = true) : a.le c = true := by
+  simp only [Raw.le, Bool.and_eq_true, decide_eq_true_eq] at *
+  omega
+
+structure Floor where
+  valid : Bool
+  out : Raw
+  inside : Raw
+deriving DecidableEq, Repr
+
+def Cell.floor (c : Cell) : Floor := ⟨c.valid, c.out, c.inside⟩
+
+def Cell.withinFloor (c : Cell) (f : Floor) : Bool := f.valid && c.out.le f.out && c.inside.le f.inside
+
+def gradeRel (c : Cell) (f : Option Floor) (live : Bool) : Grade :=
+  if !live then .invalid
+  else match grade c with
+    | .l => if !c.textHold && f.any c.withinFloor then .q else .l
+    | g => g
+
+theorem gradeRel_not_live (c : Cell) (f : Option Floor) : gradeRel c f false = .invalid := by
+  simp [gradeRel]
+
+theorem gradeRel_no_floor (c : Cell) : gradeRel c none true = grade c := by
+  unfold gradeRel
+  cases h : grade c <;> simp
+
+theorem gradeRel_of_ne_l (c : Cell) (f : Option Floor) (h : grade c ≠ .l) : gradeRel c f true = grade c := by
+  unfold gradeRel
+  cases hg : grade c <;> simp_all
+
+theorem gradeRel_q_of_floor (c : Cell) (f : Floor) (hl : grade c = .l) (ht : c.textHold = false)
+    (hw : c.withinFloor f = true) : gradeRel c (some f) true = .q := by
+  simp [gradeRel, hl, ht, hw]
+
+theorem gradeRel_l_of_text (c : Cell) (f : Option Floor) (hl : grade c = .l) (ht : c.textHold = true) :
+    gradeRel c f true = .l := by
+  simp [gradeRel, hl, ht]
+
+theorem gradeRel_l_of_above (c : Cell) (f : Floor) (hl : grade c = .l) (hw : c.withinFloor f = false) :
+    gradeRel c (some f) true = .l := by
+  simp [gradeRel, hl, hw]
+
+theorem gradeRel_l_of_invalid_floor (c : Cell) (f : Floor) (hl : grade c = .l) (hf : f.valid = false) :
+    gradeRel c (some f) true = .l := by
+  apply gradeRel_l_of_above c f hl
+  simp [Cell.withinFloor, hf]
+
+theorem gradeRel_e_iff (c : Cell) (f : Option Floor) (live : Bool) :
+    gradeRel c f live = .e ↔ live = true ∧ grade c = .e := by
+  cases live
+  · simp [gradeRel]
+  · by_cases hl : grade c = .l
+    · by_cases hq : (!c.textHold && f.any c.withinFloor) = true <;> simp [gradeRel, hl, hq]
+    · rw [gradeRel_of_ne_l c f hl]; simp
+
+theorem gradeRel_invalid_iff (c : Cell) (f : Option Floor) (live : Bool) :
+    gradeRel c f live = .invalid ↔ live = false ∨ c.valid = false := by
+  cases live
+  · simp [gradeRel]
+  · by_cases hl : grade c = .l
+    · have hv : c.valid = true := by
+        cases h : c.valid
+        · have := (grade_invalid_iff c).2 h; rw [hl] at this; cases this
+        · rfl
+      by_cases hq : (!c.textHold && f.any c.withinFloor) = true <;> simp [gradeRel, hl, hq, hv]
+    · rw [gradeRel_of_ne_l c f hl]; simp [grade_invalid_iff]
+
+inductive Why where
+  | outside | text | inside
+deriving DecidableEq, Repr
+
+def Why.name : Why → String
+  | .outside => "outside" | .text => "text" | .inside => "inside"
+
+def whyL (c : Cell) (f : Option Floor) (live : Bool) : Option Why :=
+  if gradeRel c f live = .l then
+    if c.out.changed != 0 then some .outside else if c.textHold then some .text else some .inside
+  else none
+
+theorem whyL_isSome_iff (c : Cell) (f : Option Floor) (live : Bool) :
+    (whyL c f live).isSome = true ↔ gradeRel c f live = .l := by
+  unfold whyL
+  by_cases h : gradeRel c f live = .l <;> by_cases ho : c.out.changed = 0 <;> by_cases ht : c.textHold <;> simp_all
+
+theorem whyL_outside (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c f live = .l)
+    (ho : c.out.changed ≠ 0) : whyL c f live = some .outside := by
+  simp [whyL, hl, ho]
+
+theorem whyL_text (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c f live = .l)
+    (ho : c.out.changed = 0) (ht : c.textHold = true) : whyL c f live = some .text := by
+  simp [whyL, hl, ho, ht]
+
+theorem whyL_inside (c : Cell) (f : Option Floor) (live : Bool) (hl : gradeRel c f live = .l)
+    (ho : c.out.changed = 0) (ht : c.textHold = false) : whyL c f live = some .inside := by
+  simp [whyL, hl, ho, ht]
+
 def cssName : CssProp → String
   | .transform => "transform" | .translate => "translate" | .scale => "scale" | .rotate => "rotate"
   | .opacity => "opacity" | .filter => "filter" | .backdropFilter => "backdrop-filter" | .offset => "offset"
@@ -583,7 +681,8 @@ def Cell.json (c : Cell) : Json :=
     ("dpr", toJson c.dpr), ("t1", match c.t1 with | some r => toJson r | none => Json.null),
     ("stripsAccepted", toJson c.stripsAccepted)]
 
-/-- An opacity-only claim, on the compositor in arm B only. -/
+def Floor.json (f : Floor) : Json := Json.mkObj [("valid", toJson f.valid), ("out", f.out.json), ("inside", f.inside.json)]
+
 def opacityClaim : Claim := ⟨[.opacity], false, false, false, false, true, none⟩
 
 /-- A translate claim, on the compositor in arm B only. -/
@@ -657,7 +756,1374 @@ def premiseCases : List (String × Engine × Claim) :=
    ("backdrop-filter on WebKit, not composited", .webkit, ⟨[.backdropFilter], false, false, false, false, false, none⟩),
    ("rotate", .chromium, ⟨[.rotate], false, false, false, true, true, none⟩)]
 
-/-- The lines of `packages/contracts/golden/gate/path-pix.jsonl`. -/
+
+def relCases : List (String × Cell × Option Floor × Bool) :=
+  let z : Raw := ⟨0, 0⟩
+  let fl (v : Bool) (o i : Raw) : Option Floor := some ⟨v, o, i⟩
+  let plain := mkCell { opacityClaim with compA := true, props := [.opacity, .translate] } z z
+  let txt := mkCell { moveClaim with text := true } z ⟨30, 4⟩
+  let big := mkCell { moveClaim with compA := true } z ⟨30, 4⟩
+  [("byte-equal E stays E under a floor", ({ mkCell { opacityClaim with compA := true } z z with p1 := true }, fl true ⟨9, 9⟩ ⟨9, 9⟩, true)),
+   ("L inside the floor drops to Q", (big, fl true ⟨0, 0⟩ ⟨30, 4⟩, true)),
+   ("L with a pixel more than the floor stays L", (big, fl true ⟨0, 0⟩ ⟨29, 4⟩, true)),
+   ("L with a larger delta than the floor stays L", (big, fl true ⟨0, 0⟩ ⟨40, 3⟩, true)),
+   ("L with an invalid floor stays L", (big, fl false ⟨0, 0⟩ ⟨99, 99⟩, true)),
+   ("L without a floor stays L", (big, none, true)),
+   ("text hold stays L inside the floor", (txt, fl true ⟨0, 0⟩ ⟨99, 99⟩, true)),
+   ("outside change within the floor drops to Q", ({ big with out := ⟨5, 2⟩ }, fl true ⟨5, 2⟩ ⟨30, 4⟩, true)),
+   ("outside change above the floor stays L", ({ big with out := ⟨6, 2⟩ }, fl true ⟨5, 2⟩ ⟨30, 4⟩, true)),
+   ("Q stays Q", ({ plain with inside := ⟨10, 1⟩ }, fl true z z, true)),
+   ("invalid cell stays invalid", ({ big with sameB := false }, fl true ⟨99, 99⟩ ⟨99, 99⟩, true)),
+   ("arm not live is invalid", ({ mkCell { opacityClaim with compA := true } z z with p1 := true }, fl true ⟨9, 9⟩ ⟨9, 9⟩, false)),
+   ("L outside with text hold is outside", ({ txt with out := ⟨1, 1⟩ }, fl true ⟨0, 0⟩ ⟨99, 99⟩, true))]
+
+def regionCases : List (List ((Nat × Nat) × (Nat × Nat)) × Nat × Nat × Nat) :=
+  let a : (Nat × Nat) × (Nat × Nat) := ((10, 20), (10, 20))
+  let b : (Nat × Nat) × (Nat × Nat) := ((15, 30), (15, 30))
+  [([a, b], 0, 12, 12), ([a, b], 0, 17, 17), ([a, b], 0, 25, 25), ([a, b], 0, 40, 40), ([a, b], 1, 17, 17),
+   ([a], 0, 20, 10), ([], 0, 0, 0)]
+
+def exitCases : List (Nat × Nat) := [(0, 600), (0, 932), (300, 664), (0, 40), (12, 1688)]
+
+def exitClaimCases : List (String × Bool) :=
+  [("hero_copy", true), ("hero_copy", false), ("hero.cue_cue", true), ("hero.cue_cue", false),
+   ("hero.orbit_card", true), ("hero.orbit_card", false), ("hero.deck_article", true), ("nav_bar", true)]
+
+def offsetAt (maxY i : Nat) : Nat := i * maxY / 8
+
+def offsets (maxY : Nat) : List Nat := (List.range 9).map (offsetAt maxY)
+
+theorem offsets_length (maxY : Nat) : (offsets maxY).length = 9 := by simp [offsets]
+
+theorem offsetAt_zero (maxY : Nat) : offsetAt maxY 0 = 0 := by simp [offsetAt]
+
+theorem offsetAt_last (maxY : Nat) : offsetAt maxY 8 = maxY := by unfold offsetAt; omega
+
+theorem offsetAt_mono (maxY i j : Nat) (h : i ≤ j) : offsetAt maxY i ≤ offsetAt maxY j :=
+  Nat.div_le_div_right (Nat.mul_le_mul_right maxY h)
+
+theorem offsetAt_le (maxY i : Nat) (h : i ≤ 8) : offsetAt maxY i ≤ maxY := by
+  have := Nat.mul_le_mul_right maxY h
+  unfold offsetAt; omega
+
+def clampN (n : Nat) (v : Int) : Nat := (max 0 (min (n : Int) v)).toNat
+
+def span (dpr n : Nat) (lo : Int) (len : Nat) : Nat × Nat :=
+  (clampN n (lo * dpr / 1000000 - 1), clampN n (-((-((lo + len) * dpr)) / 1000000) + 1))
+
+def Hit (dpr : Nat) (lo : Int) (len : Nat) (d : Int) : Prop :=
+  d * 1000000 < (lo + len) * dpr ∧ lo * dpr < (d + 1) * 1000000
+
+theorem span_le (dpr n : Nat) (lo : Int) (len : Nat) : (span dpr n lo len).1 ≤ (span dpr n lo len).2 := by
+  unfold span clampN
+  have h : 0 ≤ (len : Int) * dpr := Int.mul_nonneg (by omega) (by omega)
+  have : (lo + len) * dpr = lo * dpr + len * dpr := by rw [Int.add_mul]
+  generalize lo * dpr = a at *
+  generalize (len : Int) * dpr = c at *
+  omega
+
+theorem span_le_n (dpr n : Nat) (lo : Int) (len : Nat) : (span dpr n lo len).2 ≤ n := by
+  unfold span clampN; omega
+
+theorem span_covers (dpr n : Nat) (lo : Int) (len : Nat) (c d : Nat) (hd : Hit dpr lo len d) (hc : c < n)
+    (hn : (d : Int) ≤ c + 1) (hp : (c : Int) ≤ d + 1) :
+    (span dpr n lo len).1 ≤ c ∧ c < (span dpr n lo len).2 := by
+  obtain ⟨h1, h2⟩ := hd
+  unfold span clampN
+  have : (lo + len) * dpr = lo * dpr + len * dpr := by rw [Int.add_mul]
+  generalize lo * dpr = a at *
+  generalize (len : Int) * dpr = e at *
+  generalize (lo + len) * dpr = b at *
+  omega
+
+structure Box where
+  x : Int
+  y : Int
+  w : Nat
+  h : Nat
+deriving DecidableEq, Repr
+
+def mask (dpr fw fh : Nat) (b : Box) : (Nat × Nat) × (Nat × Nat) := (span dpr fw b.x b.w, span dpr fh b.y b.h)
+
+def inMask (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
+  decide (m.1.1 ≤ c && c < m.1.2 && m.2.1 ≤ r && r < m.2.2)
+
+def rawOf (px : List Nat) : Raw := ⟨(px.filter (· != 0)).length, px.foldl max 0⟩
+
+theorem rawOf_ok (px : List Nat) (h : ∀ d ∈ px, d ≤ 255) : (rawOf px).ok = true := by
+  have hmax : ∀ (l : List Nat) (a : Nat), (∀ d ∈ l, d ≤ 255) → a ≤ 255 → l.foldl max a ≤ 255 := by
+    intro l; induction l with
+    | nil => intro a _ ha; simpa using ha
+    | cons x t ih =>
+      intro a hl ha
+      simp only [List.foldl_cons]
+      exact ih _ (fun d hd => hl d (List.mem_cons_of_mem _ hd)) (by
+        have := hl x (List.mem_cons_self ..); omega)
+  have hz : ∀ (l : List Nat) (a : Nat), l.foldl max a = 0 ↔ a = 0 ∧ ∀ d ∈ l, d = 0 := by
+    intro l; induction l with
+    | nil => intro a; simp
+    | cons x t ih =>
+      intro a
+      simp only [List.foldl_cons, ih, List.mem_cons, forall_eq_or_imp]
+      have : max a x = 0 ↔ a = 0 ∧ x = 0 := by omega
+      rw [this]; exact and_assoc
+  have hc : (px.filter (· != 0)).length = 0 ↔ ∀ d ∈ px, d = 0 := by
+    simp [List.filter_eq_nil_iff]
+  have h1 := hmax px 0 h (by omega)
+  have h2 := hz px 0
+  have e : ((px.filter (· != 0)).length == 0) = (px.foldl max 0 == 0) := by
+    apply Bool.eq_iff_iff.mpr
+    simp only [beq_iff_eq]
+    rw [hc, h2]
+    simp
+  unfold rawOf Raw.ok
+  rw [e]
+  simp [h1]
+
+def inAny (ms : List ((Nat × Nat) × (Nat × Nat))) (c r : Nat) : Bool := ms.any (inMask · c r)
+
+theorem inAny_nil (c r : Nat) : inAny [] c r = false := rfl
+
+theorem inAny_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (c r : Nat) :
+    inAny ms c r = true ↔ ∃ m ∈ ms, inMask m c r = true := by
+  simp [inAny]
+
+inductive Region where
+  | inside | other | out
+deriving DecidableEq, Repr
+
+def Region.name : Region → String
+  | .inside => "inside" | .other => "other" | .out => "out"
+
+def region (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Region :=
+  if inMask m c r then .inside else if inAny ms c r then .other else .out
+
+theorem region_inside_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) :
+    region ms m c r = .inside ↔ inMask m c r = true := by
+  unfold region
+  by_cases h : inMask m c r = true <;> by_cases h2 : inAny ms c r = true <;> simp_all
+
+theorem region_out_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) :
+    region ms m c r = .out ↔ inMask m c r = false ∧ inAny ms c r = false := by
+  unfold region
+  by_cases h : inMask m c r = true <;> by_cases h2 : inAny ms c r = true <;> simp_all
+
+theorem region_other_iff (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) :
+    region ms m c r = .other ↔ inMask m c r = false ∧ inAny ms c r = true := by
+  unfold region
+  by_cases h : inMask m c r = true <;> by_cases h2 : inAny ms c r = true <;> simp_all
+
+theorem region_out_not_in_any (ms : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat)
+    (h : region ms m c r = .out) : ∀ m' ∈ ms, inMask m' c r = false := by
+  intro m' hm'
+  have h2 := ((region_out_iff ms m c r).1 h).2
+  cases hb : inMask m' c r
+  · rfl
+  · have : inAny ms c r = true := (inAny_iff ms c r).2 ⟨m', hm', hb⟩
+    simp_all
+
+def exitOffsets (T n : Nat) : List Nat :=
+  [T, T + 1, T + n / 4, T + n / 2, T + n * 19 / 20, T + n * 19 / 20 + 1, T + n - 1, T + n, T + n + 1]
+
+theorem exitOffsets_length (T n : Nat) : (exitOffsets T n).length = 9 := rfl
+
+theorem exitOffsets_first (T n : Nat) : (exitOffsets T n).head? = some T := rfl
+
+theorem exitOffsets_last (T n : Nat) : (exitOffsets T n).getLast? = some (T + n + 1) := rfl
+
+theorem exitOffsets_in_range (T n : Nat) (hn : 1 ≤ n) : ∀ y ∈ exitOffsets T n, T ≤ y ∧ y ≤ T + n + 1 := by
+  intro y hy
+  simp only [exitOffsets, List.mem_cons, List.not_mem_nil, or_false] at hy
+  omega
+
+theorem exitOffsets_sorted (T n : Nat) (hn : 40 ≤ n) : (exitOffsets T n).Pairwise (· ≤ ·) := by
+  simp only [exitOffsets, List.pairwise_cons, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp,
+    forall_eq, List.Pairwise.nil, and_true, false_implies, implies_true]
+  omega
+
+def exitClaim (layer : String) (le600 : Bool) : Option Claim :=
+  let mk (ps : List CssProp) : Option Claim := some ⟨ps, false, true, false, false, false, none⟩
+  if layer == "hero_copy" then mk (if le600 then [.opacity, .transform] else [.opacity, .transform, .filter])
+  else if layer == "hero.cue_cue" then mk (if le600 then [.opacity, .transform, .filter] else [.opacity, .filter])
+  else if layer == "hero.orbit_card" || layer == "hero.deck_article" then mk [.opacity, .translate]
+  else none
+
+theorem exitClaim_text (layer : String) (le600 : Bool) (c : Claim) (h : exitClaim layer le600 = some c) :
+    c.text = true := by
+  unfold exitClaim at h
+  split at h <;> try (simp at h; subst h; rfl)
+  split at h <;> try (simp at h; subst h; rfl)
+  split at h <;> try (simp at h; subst h; rfl)
+  cases h
+
+theorem exitClaim_none (layer : String) (le600 : Bool) (h : exitClaim layer le600 = none) :
+    layer ≠ "hero_copy" ∧ layer ≠ "hero.cue_cue" ∧ layer ≠ "hero.orbit_card" ∧ layer ≠ "hero.deck_article" := by
+  unfold exitClaim at h
+  refine ⟨fun e => ?_, fun e => ?_, fun e => ?_, fun e => ?_⟩ <;> subst e <;> simp at h
+
+inductive Pin where
+  | none | hook
+deriving DecidableEq, Repr
+
+def Pin.name : Pin → String
+  | .none => "none" | .hook => "accent-hook"
+
+inductive Phase where
+  | idle | drawOut | drawIn
+deriving DecidableEq, Repr
+
+def Phase.name : Phase → String
+  | .idle => "idle" | .drawOut => "draw-out" | .drawIn => "draw-in"
+
+structure Accent where
+  cursor : Int
+  phase : Phase
+deriving DecidableEq, Repr
+
+def Accent.base : Accent := ⟨-1, .idle⟩
+
+def Accent.json (a : Accent) : Json := Json.mkObj [("cursor", toJson a.cursor), ("phase", toJson a.phase.name)]
+
+def pinArms : List String := ["A", "A2", "A3", "P"]
+
+def armPin (_arm : String) : Pin := .hook
+
+def shown (p : Pin) (live : Accent) : Accent := match p with | .none => live | .hook => Accent.base
+
+def pinAt (arm : String) (_i : Nat) : Pin := armPin arm
+
+def pinMasks (_ : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) := ms
+
+theorem armPin_same (a b : String) : armPin a = armPin b := rfl
+
+theorem armPin_all : ∀ a ∈ pinArms, armPin a = .hook := fun _ _ => rfl
+
+theorem pinAt_same (a b : String) (i j : Nat) : pinAt a i = pinAt b j := rfl
+
+theorem pinAt_all : ∀ a ∈ pinArms, ∀ i < 9, pinAt a i = .hook := fun _ _ _ _ => rfl
+
+theorem shown_none (live : Accent) : shown .none live = live := rfl
+
+theorem shown_hook (live : Accent) : shown .hook live = Accent.base := rfl
+
+theorem shown_arm_independent (a b : String) (la lb : Accent) : shown (armPin a) la = shown (armPin b) lb := rfl
+
+theorem pinMasks_eq (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) : pinMasks p ms = ms := rfl
+
+theorem region_pin (p : Pin) (ms : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) :
+    region (pinMasks p ms) m c r = region ms m c r := rfl
+
+structure AccentRow where
+  n : Nat
+  start : String
+  stop : String
+  y : Nat
+  scrollY : Nat
+deriving DecidableEq, Repr
+
+def accentPinned (served start stop : String) (n : Nat) : Bool := n == 1 && start == served && stop == served
+
+def AccentRow.pinned (served : String) (r : AccentRow) : Bool := accentPinned served r.start r.stop r.n
+
+def rowsPinned (served : String) (rows : List AccentRow) : Bool := rows.all (AccentRow.pinned served)
+
+def AccentRow.placed (maxY : Nat) (r : AccentRow) : Bool := r.scrollY == min r.y maxY
+
+def rowsPlaced (maxY : Nat) (rows : List AccentRow) : Bool := rows.all (AccentRow.placed maxY)
+
+def rowsOk (served : String) (maxY : Nat) (rows : List AccentRow) : Bool := rowsPinned served rows && rowsPlaced maxY rows
+
+def checkedRows (rows floorRows : List AccentRow) (f : Option Floor) : List AccentRow :=
+  rows ++ (match f with | none => [] | some _ => floorRows)
+
+def gradePinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell) (f : Option Floor)
+    (live : Bool) : Grade :=
+  if rowsOk served maxY (checkedRows rows floorRows f) then gradeRel c f live else .invalid
+
+def unpinnedWhy (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) : Option String :=
+  let rs := checkedRows rows floorRows f
+  if rowsPinned served rs then (if rowsPlaced maxY rs then none else some "misplaced") else some "accent-unpinned"
+
+def floorPinned (served : String) (maxY : Nat) (rows : List AccentRow) (f : Floor) : Floor :=
+  { f with valid := f.valid && rowsOk served maxY rows }
+
+theorem accentPinned_iff (served start stop : String) (n : Nat) :
+    accentPinned served start stop n = true ↔ n = 1 ∧ start = served ∧ stop = served := by
+  simp [accentPinned, and_assoc]
+
+theorem accentPinned_false_of_n (served start stop : String) (n : Nat) (h : n ≠ 1) :
+    accentPinned served start stop n = false := by
+  simp [accentPinned, h]
+
+theorem accentPinned_false_of_start (served start stop : String) (n : Nat) (h : start ≠ served) :
+    accentPinned served start stop n = false := by
+  simp [accentPinned, h]
+
+theorem accentPinned_false_of_stop (served start stop : String) (n : Nat) (h : stop ≠ served) :
+    accentPinned served start stop n = false := by
+  simp [accentPinned, h]
+
+theorem rowsPinned_iff (served : String) (rows : List AccentRow) :
+    rowsPinned served rows = true ↔ ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true := by
+  simp [rowsPinned, AccentRow.pinned]
+
+theorem rowsPlaced_iff (maxY : Nat) (rows : List AccentRow) :
+    rowsPlaced maxY rows = true ↔ ∀ r ∈ rows, r.scrollY = min r.y maxY := by
+  simp [rowsPlaced, AccentRow.placed]
+
+theorem rowsOk_iff (served : String) (maxY : Nat) (rows : List AccentRow) :
+    rowsOk served maxY rows = true ↔
+      ∀ r ∈ rows, accentPinned served r.start r.stop r.n = true ∧ r.scrollY = min r.y maxY := by
+  simp only [rowsOk, Bool.and_eq_true, rowsPinned_iff, rowsPlaced_iff]
+  exact ⟨fun h r hr => ⟨h.1 r hr, h.2 r hr⟩, fun h => ⟨fun r hr => (h r hr).1, fun r hr => (h r hr).2⟩⟩
+
+theorem rowsOk_false_of_unpinned (served : String) (maxY : Nat) (rows : List AccentRow) (r : AccentRow)
+    (hr : r ∈ rows) (h : accentPinned served r.start r.stop r.n = false) : rowsOk served maxY rows = false := by
+  cases hp : rowsOk served maxY rows
+  · rfl
+  · have := ((rowsOk_iff served maxY rows).1 hp r hr).1; rw [h] at this; cases this
+
+theorem rowsOk_false_of_misplaced (served : String) (maxY : Nat) (rows : List AccentRow) (r : AccentRow)
+    (hr : r ∈ rows) (h : r.scrollY ≠ min r.y maxY) : rowsOk served maxY rows = false := by
+  cases hp : rowsOk served maxY rows
+  · rfl
+  · exact absurd ((rowsOk_iff served maxY rows).1 hp r hr).2 h
+
+theorem checkedRows_none (rows floorRows : List AccentRow) : checkedRows rows floorRows none = rows := by
+  simp [checkedRows]
+
+theorem checkedRows_some (rows floorRows : List AccentRow) (fl : Floor) :
+    checkedRows rows floorRows (some fl) = rows ++ floorRows := rfl
+
+theorem gradePinned_of_ok (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (h : rowsOk served maxY (checkedRows rows floorRows f) = true) :
+    gradePinned served maxY rows floorRows c f live = gradeRel c f live := by
+  simp [gradePinned, h]
+
+theorem gradePinned_invalid_of_unpinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (r : AccentRow) (hr : r ∈ rows)
+    (h : accentPinned served r.start r.stop r.n = false) :
+    gradePinned served maxY rows floorRows c f live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows f := by
+    unfold checkedRows; exact List.mem_append_left _ hr
+  simp [gradePinned, rowsOk_false_of_unpinned served maxY _ r hm h]
+
+theorem gradePinned_invalid_of_floor_unpinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow)
+    (c : Cell) (fl : Floor) (live : Bool) (r : AccentRow) (hr : r ∈ floorRows)
+    (h : accentPinned served r.start r.stop r.n = false) :
+    gradePinned served maxY rows floorRows c (some fl) live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows (some fl) := by
+    rw [checkedRows_some]; exact List.mem_append_right _ hr
+  simp [gradePinned, rowsOk_false_of_unpinned served maxY _ r hm h]
+
+theorem gradePinned_invalid_of_misplaced (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (r : AccentRow) (hr : r ∈ rows) (h : r.scrollY ≠ min r.y maxY) :
+    gradePinned served maxY rows floorRows c f live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows f := by
+    unfold checkedRows; exact List.mem_append_left _ hr
+  simp [gradePinned, rowsOk_false_of_misplaced served maxY _ r hm h]
+
+theorem gradePinned_invalid_of_floor_misplaced (served : String) (maxY : Nat) (rows floorRows : List AccentRow)
+    (c : Cell) (fl : Floor) (live : Bool) (r : AccentRow) (hr : r ∈ floorRows) (h : r.scrollY ≠ min r.y maxY) :
+    gradePinned served maxY rows floorRows c (some fl) live = .invalid := by
+  have hm : r ∈ checkedRows rows floorRows (some fl) := by
+    rw [checkedRows_some]; exact List.mem_append_right _ hr
+  simp [gradePinned, rowsOk_false_of_misplaced served maxY _ r hm h]
+
+theorem gradePinned_no_floor (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (live : Bool) : gradePinned served maxY rows floorRows c none live = gradePinned served maxY rows [] c none live := by
+  simp [gradePinned, checkedRows]
+
+theorem gradePinned_valid_only_if (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (h : gradePinned served maxY rows floorRows c f live ≠ .invalid) :
+    ∀ r ∈ checkedRows rows floorRows f, accentPinned served r.start r.stop r.n = true ∧ r.scrollY = min r.y maxY := by
+  have hk : rowsOk served maxY (checkedRows rows floorRows f) = true := by
+    cases hk : rowsOk served maxY (checkedRows rows floorRows f)
+    · exact absurd (by simp [gradePinned, hk]) h
+    · rfl
+  exact (rowsOk_iff served maxY _).1 hk
+
+theorem gradePinned_invalid_iff (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) :
+    gradePinned served maxY rows floorRows c f live = .invalid ↔
+      rowsOk served maxY (checkedRows rows floorRows f) = false ∨ live = false ∨ c.valid = false := by
+  by_cases h : rowsOk served maxY (checkedRows rows floorRows f) = true
+  · rw [gradePinned_of_ok served maxY rows floorRows c f live h, gradeRel_invalid_iff]; simp [h]
+  · have h' : rowsOk served maxY (checkedRows rows floorRows f) = false := by simpa using h
+    simp [gradePinned, h']
+
+theorem unpinnedWhy_unpinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) :
+    unpinnedWhy served maxY rows floorRows f = some "accent-unpinned" ↔
+      rowsPinned served (checkedRows rows floorRows f) = false := by
+  unfold unpinnedWhy
+  by_cases h : rowsPinned served (checkedRows rows floorRows f) = true
+  · by_cases h2 : rowsPlaced maxY (checkedRows rows floorRows f) = true <;> simp [h, h2]
+  · have h' : rowsPinned served (checkedRows rows floorRows f) = false := by simpa using h
+    simp [h']
+
+theorem unpinnedWhy_misplaced (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) :
+    unpinnedWhy served maxY rows floorRows f = some "misplaced" ↔
+      rowsPinned served (checkedRows rows floorRows f) = true ∧ rowsPlaced maxY (checkedRows rows floorRows f) = false := by
+  unfold unpinnedWhy
+  by_cases h : rowsPinned served (checkedRows rows floorRows f) = true
+  · by_cases h2 : rowsPlaced maxY (checkedRows rows floorRows f) = true <;> simp [h, h2]
+  · have h' : rowsPinned served (checkedRows rows floorRows f) = false := by simpa using h
+    simp [h']
+
+theorem unpinnedWhy_none_iff (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (f : Option Floor) :
+    unpinnedWhy served maxY rows floorRows f = none ↔ rowsOk served maxY (checkedRows rows floorRows f) = true := by
+  unfold unpinnedWhy rowsOk
+  by_cases h : rowsPinned served (checkedRows rows floorRows f) = true <;>
+    by_cases h2 : rowsPlaced maxY (checkedRows rows floorRows f) = true <;> simp [h, h2]
+
+theorem floorPinned_valid_only_if (served : String) (maxY : Nat) (rows : List AccentRow) (f : Floor)
+    (h : (floorPinned served maxY rows f).valid = true) : rowsOk served maxY rows = true := by
+  simp [floorPinned] at h; exact h.2
+
+def hookParam : String := "fwpin"
+
+def hookValue : String := "accent"
+
+def hookPair (kv : String) : Bool :=
+  match kv.splitOn "=" with
+  | [k, v] => k == hookParam && (v.splitOn ",").contains hookValue
+  | _ => false
+
+def hookSet (search : String) : Bool :=
+  let q := if search.startsWith "?" then (search.drop 1).toString else search
+  (q.splitOn "&").any hookPair
+
+def chainStarts (reduce hook : Bool) : Bool := !reduce && !hook
+
+theorem chainStarts_unset (reduce : Bool) : chainStarts reduce false = !reduce := by
+  simp [chainStarts]
+
+theorem chainStarts_hooked (reduce : Bool) : chainStarts reduce true = false := by
+  simp [chainStarts]
+
+theorem chainStarts_iff (reduce hook : Bool) : chainStarts reduce hook = true ↔ reduce = false ∧ hook = false := by
+  cases reduce <;> cases hook <;> simp [chainStarts]
+
+#guard hookSet "" == false && hookSet "?fw=hero.exit:threaded" == false
+#guard hookSet "?fwpin=accent" == true && hookSet "?fw=hero.exit:threaded&fwpin=accent" == true
+
+theorem hookSet_arm_free (a b : String) (h : a = b) : hookSet a = hookSet b := by rw [h]
+
+def hookCases : List String :=
+  ["", "?", "?fwpin=accent", "fwpin=accent", "?fw=hero.exit:threaded", "?fw=hero.exit:threaded&fwpin=accent",
+   "?fwpin=accent&fw=hero.exit:threaded", "?fwpin=other", "?fwpin=", "?fwpin", "?xfwpin=accent", "?fwpin=accent,x",
+   "?fwpin=x,accent", "?fwpin=accentx", "?fwpin=accent=1", "?fwl=hero_copy:c&fwpin=accent"]
+
+def clockNow (pinned : Bool) (epoch vnow : Nat) : Nat := if pinned then epoch else epoch + vnow
+
+def exitClockPinned (_ : Engine) : Bool := true
+
+def secondsLeft (target now : Nat) : Nat := (target - now) / 1000
+
+theorem exitClockPinned_all (e : Engine) : exitClockPinned e = true := rfl
+
+theorem clockNow_pinned (epoch v1 v2 : Nat) : clockNow true epoch v1 = clockNow true epoch v2 := rfl
+
+theorem clockNow_unpinned (epoch vnow : Nat) : clockNow false epoch vnow = epoch + vnow := rfl
+
+theorem clockNow_unpinned_moves (epoch v1 v2 : Nat) (h : v1 ≠ v2) :
+    clockNow false epoch v1 ≠ clockNow false epoch v2 := by
+  simp only [clockNow_unpinned]; omega
+
+theorem seconds_pinned_arm_free (target epoch v1 v2 : Nat) :
+    secondsLeft target (clockNow true epoch v1) = secondsLeft target (clockNow true epoch v2) := rfl
+
+theorem seconds_unpinned_ticks (target epoch v : Nat) (h : epoch + v + 1000 ≤ target) :
+    secondsLeft target (clockNow false epoch (v + 1000)) + 1 = secondsLeft target (clockNow false epoch v) := by
+  simp only [secondsLeft, clockNow_unpinned]; omega
+
+def clockCases : List (Bool × Nat × Nat) :=
+  [(true, 100000, 0), (true, 100000, 500), (true, 100000, 1000), (true, 100000, 61000),
+   (false, 100000, 0), (false, 100000, 500), (false, 100000, 1000), (false, 100000, 61000)]
+
+def clockTarget : Nat := 3000000
+
+structure Cover where
+  n : Nat
+  k : Nat
+deriving DecidableEq, Repr
+
+def Cover.all (c : Cover) : Bool := 0 < c.n && c.k == c.n
+
+def occludedBoth (a b : Cover) : Bool := a.all && b.all
+
+theorem Cover.all_iff (c : Cover) : c.all = true ↔ 0 < c.n ∧ c.k = c.n := by
+  simp [Cover.all]
+
+theorem occludedBoth_iff (a b : Cover) : occludedBoth a b = true ↔ a.all = true ∧ b.all = true := by
+  simp [occludedBoth]
+
+theorem cover_none_not_all (c : Cover) (h : c.n = 0) : c.all = false := by
+  simp [Cover.all, h]
+
+theorem cover_partial_not_all (c : Cover) (h : c.k < c.n) : c.all = false := by
+  simp [Cover.all]; omega
+
+theorem occludedBoth_one_arm (a b : Cover) (h : a.all = false) : occludedBoth a b = false := by
+  simp [occludedBoth, h]
+
+theorem occludedBoth_other_arm (a b : Cover) (h : b.all = false) : occludedBoth a b = false := by
+  simp [occludedBoth, h]
+
+theorem occludedBoth_comm (a b : Cover) : occludedBoth a b = occludedBoth b a := by
+  simp [occludedBoth, Bool.and_comm]
+
+def coverCases : List (Cover × Cover) :=
+  [(⟨49, 49⟩, ⟨49, 49⟩), (⟨49, 49⟩, ⟨49, 48⟩), (⟨49, 48⟩, ⟨49, 49⟩), (⟨0, 0⟩, ⟨0, 0⟩), (⟨49, 0⟩, ⟨49, 0⟩),
+   (⟨1, 1⟩, ⟨1, 1⟩), (⟨25, 25⟩, ⟨49, 49⟩)]
+
+def yieldsShared (layer : String) : Bool := layer == "hero_copy"
+
+def foreignMasks (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) : List ((Nat × Nat) × (Nat × Nat)) :=
+  if yieldsShared layer then others else []
+
+def foreignReason : String :=
+  "a pixel inside another graded layer's mask is counted by that layer's cell, not by hero_copy: hero_copy's mask is the union of all its element boxes, hidden countdown faces included, and can overlap the masks of other layers"
+
+def countedIn (foreign : List ((Nat × Nat) × (Nat × Nat))) (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : Bool :=
+  inMask m c r && !inAny foreign c r
+
+theorem yieldsShared_iff (layer : String) : yieldsShared layer = true ↔ layer = "hero_copy" := by
+  simp [yieldsShared]
+
+theorem foreignMasks_yields (others : List ((Nat × Nat) × (Nat × Nat))) : foreignMasks "hero_copy" others = others := by
+  simp [foreignMasks, yieldsShared]
+
+theorem foreignMasks_other_layer (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) (h : layer ≠ "hero_copy") :
+    foreignMasks layer others = [] := by
+  simp [foreignMasks, yieldsShared, h]
+
+theorem countedIn_nil (m : (Nat × Nat) × (Nat × Nat)) (c r : Nat) : countedIn [] m c r = inMask m c r := by
+  simp [countedIn, inAny_nil]
+
+theorem countedIn_shared (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inAny foreign c r = true) :
+    countedIn foreign m c r = false := by
+  simp [countedIn, h]
+
+theorem countedIn_unshared (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inAny foreign c r = false) :
+    countedIn foreign m c r = inMask m c r := by
+  simp [countedIn, h]
+
+theorem countedIn_in_mask (foreign : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : countedIn foreign m c r = true) :
+    inMask m c r = true := by
+  simp only [countedIn, Bool.and_eq_true] at h
+  exact h.1
+
+theorem countedIn_other_layer (layer : String) (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : layer ≠ "hero_copy") :
+    countedIn (foreignMasks layer others) m c r = inMask m c r := by
+  rw [foreignMasks_other_layer layer others h, countedIn_nil]
+
+theorem shared_accounted (others : List ((Nat × Nat) × (Nat × Nat))) (m) (c r : Nat) (h : inMask m c r = true) :
+    countedIn (foreignMasks "hero_copy" others) m c r = true ∨ ∃ o ∈ others, inMask o c r = true := by
+  rw [foreignMasks_yields]
+  by_cases hs : inAny others c r = true
+  · exact Or.inr ((inAny_iff others c r).1 hs)
+  · left
+    have : inAny others c r = false := by simpa using hs
+    rw [countedIn_unshared others m c r this, h]
+
+structure RowLayer where
+  key : String
+  layer : String
+  mask : (Nat × Nat) × (Nat × Nat)
+deriving DecidableEq, Repr
+
+def othersOf (ls : List RowLayer) (layer : String) : List ((Nat × Nat) × (Nat × Nat)) :=
+  (ls.filter fun l => l.layer != layer).map (·.mask)
+
+def RowLayer.counts (ls : List RowLayer) (l : RowLayer) (c r : Nat) : Bool :=
+  countedIn (foreignMasks l.layer (othersOf ls l.layer)) l.mask c r
+
+def countedBy (ls : List RowLayer) (c r : Nat) : List String :=
+  (ls.filter fun l => l.counts ls c r).map (·.key)
+
+theorem receiver_counts (ls : List RowLayer) (o : RowLayer) (hl : o.layer ≠ "hero_copy") (c r : Nat)
+    (hin : inMask o.mask c r = true) : o.counts ls c r = true := by
+  simp only [RowLayer.counts]
+  rw [countedIn_other_layer o.layer (othersOf ls o.layer) o.mask c r hl]
+  exact hin
+
+theorem hero_yields_to_receiver (ls : List RowLayer) (h o : RowLayer) (hh : h.layer = "hero_copy") (ho : o ∈ ls)
+    (hol : o.layer ≠ "hero_copy") (c r : Nat) (hin : inMask o.mask c r = true) : h.counts ls c r = false := by
+  simp only [RowLayer.counts, hh]
+  apply countedIn_shared
+  rw [foreignMasks_yields, inAny_iff]
+  refine ⟨o.mask, ?_, hin⟩
+  simp only [othersOf, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq]
+  exact ⟨o, ⟨ho, hol⟩, rfl⟩
+
+theorem yielded_counted_by_receiver (ls : List RowLayer) (h o : RowLayer) (hh : h.layer = "hero_copy") (ho : o ∈ ls)
+    (hol : o.layer ≠ "hero_copy") (c r : Nat) (hin : inMask o.mask c r = true) :
+    h.counts ls c r = false ∧ o.key ∈ countedBy ls c r := by
+  refine ⟨hero_yields_to_receiver ls h o hh ho hol c r hin, ?_⟩
+  simp only [countedBy, List.mem_map, List.mem_filter]
+  exact ⟨o, ⟨ho, receiver_counts ls o hol c r hin⟩, rfl⟩
+
+theorem inside_some_mask_counted (ls : List RowLayer) (c r : Nat) (h : ∃ l ∈ ls, inMask l.mask c r = true) :
+    countedBy ls c r ≠ [] := by
+  obtain ⟨l, hl, hin⟩ := h
+  by_cases hx : ∃ o ∈ ls, o.layer ≠ "hero_copy" ∧ inMask o.mask c r = true
+  · obtain ⟨o, ho, hol, hino⟩ := hx
+    have hc := receiver_counts ls o hol c r hino
+    intro he
+    have : o.key ∈ countedBy ls c r := by
+      simp only [countedBy, List.mem_map, List.mem_filter]
+      exact ⟨o, ⟨ho, hc⟩, rfl⟩
+    rw [he] at this
+    simp at this
+  · have hlh : l.layer = "hero_copy" := by
+      refine Classical.byContradiction fun hne => ?_
+      exact hx ⟨l, hl, hne, hin⟩
+    have hc : l.counts ls c r = true := by
+      simp only [RowLayer.counts, hlh]
+      have hno : inAny (othersOf ls "hero_copy") c r = false := by
+        refine Bool.eq_false_iff.2 fun hy' => ?_
+        obtain ⟨m, hm, hmin⟩ := (inAny_iff _ c r).1 hy'
+        simp only [othersOf, List.mem_map, List.mem_filter, bne_iff_ne, ne_eq] at hm
+        obtain ⟨o, ⟨ho, hol⟩, rfl⟩ := hm
+        exact hx ⟨o, ho, hol, hmin⟩
+      rw [foreignMasks_yields, countedIn_unshared _ _ c r hno]
+      exact hin
+    intro he
+    have : l.key ∈ countedBy ls c r := by
+      simp only [countedBy, List.mem_map, List.mem_filter]
+      exact ⟨l, ⟨hl, hc⟩, rfl⟩
+    rw [he] at this
+    simp at this
+
+inductive Seen where
+  | quiet | varied | counted
+deriving DecidableEq, Repr
+
+def Seen.name : Seen → String
+  | .quiet => "quiet" | .varied => "varied" | .counted => "counted"
+
+structure Zone where
+  p : Raw
+  aa2 : Raw
+  aa3 : Option Raw
+deriving DecidableEq, Repr
+
+def Zone.agree (r : Zone) : Bool := r.aa2.changed == 0 && r.aa3.all (·.changed == 0)
+
+def Zone.seen (r : Zone) : Seen :=
+  if r.p.changed == 0 then .quiet else if r.agree then .counted else .varied
+
+theorem Zone.agree_iff (r : Zone) :
+    r.agree = true ↔ r.aa2.changed = 0 ∧ ∀ x ∈ r.aa3, x.changed = 0 := by
+  unfold Zone.agree
+  cases h : r.aa3 <;> simp
+
+theorem seen_quiet_iff (r : Zone) : r.seen = .quiet ↔ r.p.changed = 0 := by
+  unfold Zone.seen
+  by_cases h : r.p.changed = 0 <;> by_cases g : r.agree <;> simp_all
+
+theorem seen_counted_iff (r : Zone) : r.seen = .counted ↔ r.p.changed ≠ 0 ∧ r.agree = true := by
+  unfold Zone.seen
+  by_cases h : r.p.changed = 0 <;> by_cases g : r.agree <;> simp_all
+
+theorem seen_varied_iff (r : Zone) : r.seen = .varied ↔ r.p.changed ≠ 0 ∧ r.agree = false := by
+  unfold Zone.seen
+  by_cases h : r.p.changed = 0 <;> by_cases g : r.agree <;> simp_all
+
+theorem seen_quiet_of_p (r : Zone) (h : r.p.changed = 0) : r.seen = .quiet :=
+  (seen_quiet_iff r).2 h
+
+theorem seen_counted_of_agree (r : Zone) (hp : r.p.changed ≠ 0) (h2 : r.aa2.changed = 0)
+    (h3 : ∀ x ∈ r.aa3, x.changed = 0) : r.seen = .counted :=
+  (seen_counted_iff r).2 ⟨hp, (r.agree_iff).2 ⟨h2, h3⟩⟩
+
+theorem seen_varied_of_a2 (r : Zone) (hp : r.p.changed ≠ 0) (h2 : r.aa2.changed ≠ 0) : r.seen = .varied := by
+  refine (seen_varied_iff r).2 ⟨hp, ?_⟩
+  cases hg : r.agree
+  · rfl
+  · exact absurd ((r.agree_iff).1 hg).1 h2
+
+theorem seen_varied_of_a3 (r : Zone) (x : Raw) (hp : r.p.changed ≠ 0) (hx : r.aa3 = some x)
+    (h3 : x.changed ≠ 0) : r.seen = .varied := by
+  refine (seen_varied_iff r).2 ⟨hp, ?_⟩
+  cases hg : r.agree
+  · rfl
+  · exact absurd (((r.agree_iff).1 hg).2 x (by simp [hx])) h3
+
+theorem seen_dropping_a3 (r : Zone) (h : r.seen = .counted) : { r with aa3 := none }.seen = .counted := by
+  rw [seen_counted_iff] at h ⊢
+  refine ⟨h.1, ?_⟩
+  have := (r.agree_iff).1 h.2
+  exact ({ r with aa3 := none }.agree_iff).2 ⟨this.1, by simp⟩
+
+def Seen.join : Seen → Seen → Seen
+  | .counted, _ => .counted
+  | _, .counted => .counted
+  | .varied, _ => .varied
+  | _, .varied => .varied
+  | .quiet, .quiet => .quiet
+
+theorem join_counted_iff (a b : Seen) : a.join b = .counted ↔ a = .counted ∨ b = .counted := by
+  cases a <;> cases b <;> simp [Seen.join]
+
+theorem join_varied_iff (a b : Seen) : a.join b = .varied ↔ a ≠ .counted ∧ b ≠ .counted ∧ (a = .varied ∨ b = .varied) := by
+  cases a <;> cases b <;> simp [Seen.join]
+
+theorem join_quiet_iff (a b : Seen) : a.join b = .quiet ↔ a = .quiet ∧ b = .quiet := by
+  cases a <;> cases b <;> simp [Seen.join]
+
+inductive Verdict where
+  | graded (g : Grade)
+  | varied
+deriving DecidableEq, Repr
+
+def Verdict.name : Verdict → String
+  | .graded g => g.name
+  | .varied => "varied"
+
+def verdict (g : Grade) (out inside : Zone) : Verdict :=
+  if g == .invalid then .graded .invalid
+  else if (out.seen.join inside.seen) == .varied then .varied
+  else .graded g
+
+theorem verdict_invalid (out inside : Zone) : verdict .invalid out inside = .graded .invalid := by
+  simp [verdict]
+
+theorem verdict_varied_iff (g : Grade) (out inside : Zone) :
+    verdict g out inside = .varied ↔ g ≠ .invalid ∧ out.seen.join inside.seen = .varied := by
+  unfold verdict
+  by_cases hg : g = .invalid <;> by_cases hj : out.seen.join inside.seen = .varied <;> simp_all
+
+theorem verdict_graded_iff (g : Grade) (out inside : Zone) :
+    verdict g out inside = .graded g ↔ g = .invalid ∨ out.seen.join inside.seen ≠ .varied := by
+  unfold verdict
+  by_cases hg : g = .invalid <;> by_cases hj : out.seen.join inside.seen = .varied <;> simp_all
+
+theorem verdict_counted_out (g : Grade) (out inside : Zone) (h : out.seen = .counted) :
+    verdict g out inside = .graded g := by
+  have : out.seen.join inside.seen = .counted := (join_counted_iff _ _).2 (Or.inl h)
+  exact (verdict_graded_iff _ _ _).2 (Or.inr (by rw [this]; decide))
+
+theorem verdict_counted_inside (g : Grade) (out inside : Zone) (h : inside.seen = .counted) :
+    verdict g out inside = .graded g := by
+  have : out.seen.join inside.seen = .counted := (join_counted_iff _ _).2 (Or.inr h)
+  exact (verdict_graded_iff _ _ _).2 (Or.inr (by rw [this]; decide))
+
+theorem verdict_quiet (g : Grade) (out inside : Zone) (ho : out.seen = .quiet) (hi : inside.seen = .quiet) :
+    verdict g out inside = .graded g := by
+  exact (verdict_graded_iff _ _ _).2 (Or.inr (by simp [Seen.join, ho, hi]))
+
+theorem verdict_varied_region (g : Grade) (out inside : Zone) (h : verdict g out inside = .varied) :
+    out.seen ≠ .counted ∧ inside.seen ≠ .counted ∧ (out.seen = .varied ∨ inside.seen = .varied) :=
+  ((join_varied_iff _ _).1 ((verdict_varied_iff g out inside).1 h).2)
+
+theorem seen_ne_varied_of_agree (r : Zone) (h : r.agree = true) : r.seen ≠ .varied := by
+  rw [Ne, seen_varied_iff]
+  simp [h]
+
+structure Aa where
+  out : Raw
+  inside : Raw
+deriving DecidableEq, Repr
+
+def Cell.regions (c : Cell) (a2 : Aa) (a3 : Option Aa) : Zone × Zone :=
+  (⟨c.out, a2.out, a3.map (·.out)⟩, ⟨c.inside, a2.inside, a3.map (·.inside)⟩)
+
+def consensus (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa) : Verdict :=
+  verdict (gradeRel c f live) (c.regions a2 a3).1 (c.regions a2 a3).2
+
+theorem consensus_graded (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa) (g : Grade)
+    (h : consensus c f live a2 a3 = .graded g) : g = gradeRel c f live := by
+  unfold consensus at h
+  by_cases hg : gradeRel c f live = .invalid
+  · rw [hg, verdict_invalid] at h
+    cases h
+    exact hg.symm
+  · have hv : (c.regions a2 a3).1.seen.join (c.regions a2 a3).2.seen ≠ .varied := by
+      intro hj
+      exact absurd h (by rw [(verdict_varied_iff _ _ _).2 ⟨hg, hj⟩]; simp)
+    have := (verdict_graded_iff (gradeRel c f live) _ _).2 (Or.inr hv)
+    rw [this] at h
+    cases h
+    rfl
+
+theorem consensus_agreeing (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa) (a3 : Option Aa)
+    (ho2 : a2.out.changed = 0) (hi2 : a2.inside.changed = 0)
+    (ho3 : ∀ x ∈ a3, x.out.changed = 0) (hi3 : ∀ x ∈ a3, x.inside.changed = 0) :
+    consensus c f live a2 a3 = .graded (gradeRel c f live) := by
+  have ao : (c.regions a2 a3).1.agree = true := by
+    refine ((c.regions a2 a3).1.agree_iff).2 ⟨ho2, ?_⟩
+    intro x hx
+    simp only [Cell.regions, Option.mem_def, Option.map_eq_some_iff] at hx
+    obtain ⟨y, hy, rfl⟩ := hx
+    exact ho3 y hy
+  have ai : (c.regions a2 a3).2.agree = true := by
+    refine ((c.regions a2 a3).2.agree_iff).2 ⟨hi2, ?_⟩
+    intro x hx
+    simp only [Cell.regions, Option.mem_def, Option.map_eq_some_iff] at hx
+    obtain ⟨y, hy, rfl⟩ := hx
+    exact hi3 y hy
+  unfold consensus
+  refine (verdict_graded_iff _ _ _).2 (Or.inr fun hj => ?_)
+  rcases ((join_varied_iff _ _).1 hj).2.2 with h | h
+  · exact seen_ne_varied_of_agree _ ao h
+  · exact seen_ne_varied_of_agree _ ai h
+
+structure MZone where
+  z : Zone
+  p2 : Option Raw
+  a23 : Option Raw
+deriving DecidableEq, Repr
+
+def MZone.odd (m : MZone) : Bool :=
+  m.z.aa2.changed != 0 && m.z.aa3.any (·.changed != 0) && m.a23.any (·.changed == 0)
+
+def MZone.viaRef (m : MZone) : Bool := m.odd && m.z.p.changed != 0
+
+def MZone.seen (m : MZone) : Seen :=
+  if m.viaRef then
+    match m.p2 with
+    | some r => if r.changed == 0 then .quiet else .counted
+    | none => .varied
+  else m.z.seen
+
+def MZone.ref (m : MZone) : Raw := if m.viaRef then m.p2.getD m.z.p else m.z.p
+
+def MZone.eff (m : MZone) : Raw := if m.seen == .varied then ⟨0, 0⟩ else m.ref
+
+theorem MZone.odd_iff (m : MZone) : m.odd = true ↔
+    m.z.aa2.changed ≠ 0 ∧ (∃ x, m.z.aa3 = some x ∧ x.changed ≠ 0) ∧ ∃ y, m.a23 = some y ∧ y.changed = 0 := by
+  unfold MZone.odd
+  cases h3 : m.z.aa3 <;> cases h23 : m.a23 <;> simp [and_assoc]
+
+theorem MZone.viaRef_iff (m : MZone) : m.viaRef = true ↔ m.odd = true ∧ m.z.p.changed ≠ 0 := by
+  simp [MZone.viaRef]
+
+theorem MZone.odd_not_agree (m : MZone) (h : m.odd = true) : m.z.agree = false := by
+  have := ((MZone.odd_iff m).1 h).1
+  cases hg : m.z.agree
+  · rfl
+  · exact absurd ((m.z.agree_iff).1 hg).1 this
+
+theorem MZone.seen_plain (m : MZone) (h : m.viaRef = false) : m.seen = m.z.seen := by
+  simp [MZone.seen, h]
+
+theorem MZone.seen_quiet_of_ref (m : MZone) (r : Raw) (h : m.viaRef = true) (hr : m.p2 = some r)
+    (h0 : r.changed = 0) : m.seen = .quiet := by
+  simp [MZone.seen, h, hr, h0]
+
+theorem MZone.seen_counted_of_ref (m : MZone) (r : Raw) (h : m.viaRef = true) (hr : m.p2 = some r)
+    (h0 : r.changed ≠ 0) : m.seen = .counted := by
+  simp [MZone.seen, h, hr, h0]
+
+theorem MZone.seen_varied_of_ref (m : MZone) (h : m.viaRef = true) (hr : m.p2 = none) : m.seen = .varied := by
+  simp [MZone.seen, h, hr]
+
+theorem MZone.eff_varied (m : MZone) (h : m.seen = .varied) : m.eff = ⟨0, 0⟩ := by
+  simp [MZone.eff, h]
+
+theorem MZone.eff_plain (m : MZone) (h : m.seen ≠ .varied) (hv : m.viaRef = false) : m.eff = m.z.p := by
+  simp [MZone.eff, MZone.ref, h, hv]
+
+theorem MZone.eff_counted (m : MZone) (h : m.seen = .counted) : m.eff.changed ≠ 0 := by
+  by_cases hv : m.viaRef = true
+  · cases hr : m.p2 with
+    | none => simp [MZone.seen, hv, hr] at h
+    | some r =>
+      have hr0 : r.changed ≠ 0 := by
+        intro h0
+        simp [MZone.seen, hv, hr, h0] at h
+      simp [MZone.eff, MZone.ref, h, hv, hr, hr0]
+  · have hf : m.viaRef = false := by simpa using hv
+    rw [MZone.seen_plain m hf] at h
+    rw [MZone.eff_plain m (by rw [MZone.seen_plain m hf, h]; decide) hf]
+    exact ((seen_counted_iff m.z).1 h).1
+
+def effCell (c : Cell) (mo mi : MZone) : Cell := { c with out := mo.eff, inside := mi.eff }
+
+def zoned (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) : Verdict :=
+  if gradeRel c f live == .invalid then .graded .invalid
+  else if (mo.seen.join mi.seen) == .varied then .varied
+  else .graded (gradeRel (effCell c mo mi) f live)
+
+theorem zoned_invalid (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (h : gradeRel c f live = .invalid) : zoned c f live mo mi = .graded .invalid := by
+  simp [zoned, h]
+
+theorem zoned_varied_iff (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) :
+    zoned c f live mo mi = .varied ↔ gradeRel c f live ≠ .invalid ∧ mo.seen.join mi.seen = .varied := by
+  unfold zoned
+  by_cases hg : gradeRel c f live = .invalid <;> by_cases hj : mo.seen.join mi.seen = .varied <;> simp_all
+
+theorem zoned_graded (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (hg : gradeRel c f live ≠ .invalid) (hj : mo.seen.join mi.seen ≠ .varied) :
+    zoned c f live mo mi = .graded (gradeRel (effCell c mo mi) f live) := by
+  simp [zoned, hg, hj]
+
+theorem zoned_mixed_out (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (hg : gradeRel c f live ≠ .invalid) (ho : mo.seen = .varied) (hi : mi.seen = .counted) :
+    zoned c f live mo mi = .graded (gradeRel { c with out := ⟨0, 0⟩, inside := mi.eff } f live) := by
+  have hj : mo.seen.join mi.seen ≠ .varied := by
+    intro h
+    exact absurd ((join_counted_iff _ _).2 (Or.inr hi)) (by rw [h]; decide)
+  rw [zoned_graded c f live mo mi hg hj, effCell, mo.eff_varied ho]
+
+theorem zoned_mixed_inside (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (hg : gradeRel c f live ≠ .invalid) (ho : mo.seen = .counted) (hi : mi.seen = .varied) :
+    zoned c f live mo mi = .graded (gradeRel { c with out := mo.eff, inside := ⟨0, 0⟩ } f live) := by
+  have hj : mo.seen.join mi.seen ≠ .varied := by
+    intro h
+    exact absurd ((join_counted_iff _ _).2 (Or.inl ho)) (by rw [h]; decide)
+  rw [zoned_graded c f live mo mi hg hj, effCell, mi.eff_varied hi]
+
+theorem zoned_plain (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (lo : c.out = mo.z.p) (li : c.inside = mi.z.p) (vo : mo.viaRef = false) (vi : mi.viaRef = false)
+    (so : mo.seen ≠ .varied) (si : mi.seen ≠ .varied) :
+    zoned c f live mo mi = .graded (gradeRel c f live) := by
+  by_cases hg : gradeRel c f live = .invalid
+  · rw [zoned_invalid c f live mo mi hg, hg]
+  · have hj : mo.seen.join mi.seen ≠ .varied := fun h =>
+      match (join_varied_iff _ _).1 h with
+      | ⟨_, _, Or.inl a⟩ => so a
+      | ⟨_, _, Or.inr a⟩ => si a
+    rw [zoned_graded c f live mo mi hg hj, effCell, mo.eff_plain so vo, mi.eff_plain si vi, ← lo, ← li]
+
+theorem zoned_out_counted_l (c : Cell) (mo mi : MZone)
+    (ho : mo.seen = .counted) (hv : (effCell c mo mi).valid = true) : grade (effCell c mo mi) = .l := by
+  have h : (effCell c mo mi).out.changed ≠ 0 := mo.eff_counted ho
+  unfold grade
+  simp [hv, h]
+
+def zonedWhy (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) : Option Why :=
+  if zoned c f live mo mi == .graded .l then whyL (effCell c mo mi) f live else none
+
+theorem zoned_l_eff (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (h : zoned c f live mo mi = .graded .l) : gradeRel (effCell c mo mi) f live = .l := by
+  unfold zoned at h
+  by_cases hg : gradeRel c f live = .invalid
+  · simp [hg] at h
+  · by_cases hj : mo.seen.join mi.seen = .varied
+    · simp [hg, hj] at h
+    · simpa [hg, hj] using h
+
+theorem zonedWhy_isSome_iff (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) :
+    (zonedWhy c f live mo mi).isSome = true ↔ zoned c f live mo mi = .graded .l := by
+  unfold zonedWhy
+  by_cases h : zoned c f live mo mi = .graded .l
+  · simp [h, whyL_isSome_iff, zoned_l_eff c f live mo mi h]
+  · simp [h]
+
+def Verdict.listed : Verdict → Bool
+  | .graded .l => true
+  | _ => false
+
+theorem Verdict.listed_iff (v : Verdict) : v.listed = true ↔ v = .graded .l := by
+  cases v with
+  | graded g => cases g <;> simp [Verdict.listed]
+  | varied => simp [Verdict.listed]
+
+theorem varied_not_listed : Verdict.varied.listed = false := rfl
+
+theorem zoned_listed_not_varied (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone)
+    (h : (zoned c f live mo mi).listed = true) : mo.seen.join mi.seen ≠ .varied := by
+  intro hj
+  have := (Verdict.listed_iff _).1 h
+  by_cases hg : gradeRel c f live = .invalid
+  · rw [zoned_invalid c f live mo mi hg] at this
+    cases this
+  · rw [(zoned_varied_iff c f live mo mi).2 ⟨hg, hj⟩] at this
+    cases this
+
+def zonedPinned (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell) (f : Option Floor)
+    (live : Bool) (mo mi : MZone) : Verdict :=
+  if gradePinned served maxY rows floorRows c f live == .invalid then .graded .invalid
+  else if (mo.seen.join mi.seen) == .varied then .varied
+  else .graded (gradePinned served maxY rows floorRows (effCell c mo mi) f live)
+
+theorem zonedPinned_of_ok (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (mo mi : MZone) (h : rowsOk served maxY (checkedRows rows floorRows f) = true) :
+    zonedPinned served maxY rows floorRows c f live mo mi = zoned c f live mo mi := by
+  simp only [zonedPinned, zoned, gradePinned_of_ok served maxY rows floorRows _ f live h]
+
+theorem zonedPinned_of_not_ok (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (mo mi : MZone) (h : rowsOk served maxY (checkedRows rows floorRows f) = false) :
+    zonedPinned served maxY rows floorRows c f live mo mi = .graded .invalid := by
+  simp [zonedPinned, gradePinned, h]
+
+theorem zonedPinned_eq (served : String) (maxY : Nat) (rows floorRows : List AccentRow) (c : Cell)
+    (f : Option Floor) (live : Bool) (mo mi : MZone) :
+    zonedPinned served maxY rows floorRows c f live mo mi =
+      if rowsOk served maxY (checkedRows rows floorRows f) then zoned c f live mo mi else .graded .invalid := by
+  cases h : rowsOk served maxY (checkedRows rows floorRows f)
+  · simp [zonedPinned_of_not_ok served maxY rows floorRows c f live mo mi h]
+  · simp [zonedPinned_of_ok served maxY rows floorRows c f live mo mi h]
+
+def drawStepMs : Nat := 150
+
+def drawMs : Nat := 900
+
+/-- The seek times, in ms into one draw, at which a frame is read. -/
+def drawTimes : List Nat := (List.range 7).map (· * drawStepMs)
+
+theorem drawTimes_length : drawTimes.length = 7 := by simp [drawTimes]
+
+theorem drawTimes_first : drawTimes.head? = some 0 := by decide
+
+theorem drawTimes_last : drawTimes.getLast? = some drawMs := by decide
+
+theorem drawTimes_sorted : drawTimes.Pairwise (· < ·) := by decide
+
+inductive Draw where
+  | same | floor | above
+deriving DecidableEq, Repr
+
+def Draw.name : Draw → String
+  | .same => "same" | .floor => "floor" | .above => "above"
+
+def drawOf (aa arm : Raw) : Draw :=
+  if arm.changed == 0 then .same else if arm.le aa then .floor else .above
+
+theorem drawOf_same_iff (aa arm : Raw) : drawOf aa arm = .same ↔ arm.changed = 0 := by
+  unfold drawOf
+  by_cases h : arm.changed = 0 <;> by_cases g : arm.le aa = true <;> simp_all
+
+theorem drawOf_floor_iff (aa arm : Raw) : drawOf aa arm = .floor ↔ arm.changed ≠ 0 ∧ arm.le aa = true := by
+  unfold drawOf
+  by_cases h : arm.changed = 0 <;> by_cases g : arm.le aa = true <;> simp_all
+
+theorem drawOf_above_iff (aa arm : Raw) : drawOf aa arm = .above ↔ arm.changed ≠ 0 ∧ arm.le aa = false := by
+  unfold drawOf
+  by_cases h : arm.changed = 0 <;> by_cases g : arm.le aa = true <;> simp_all
+
+theorem drawOf_above_of_quiet_floor (aa arm : Raw) (ha : aa.changed = 0) (h : arm.changed ≠ 0) :
+    drawOf aa arm = .above := by
+  refine (drawOf_above_iff aa arm).2 ⟨h, ?_⟩
+  cases hg : arm.le aa
+  · rfl
+  · simp [Raw.le, ha] at hg
+    exact absurd hg.1 h
+
+def Draw.worst (xs : List Draw) : Draw :=
+  if xs.contains .above then .above else if xs.contains .floor then .floor else .same
+
+theorem Draw.worst_above_iff (xs : List Draw) : Draw.worst xs = .above ↔ .above ∈ xs := by
+  unfold Draw.worst
+  by_cases h : Draw.above ∈ xs <;> by_cases hf : Draw.floor ∈ xs <;> simp_all
+
+theorem Draw.worst_same_iff (xs : List Draw) : Draw.worst xs = .same ↔ ∀ d ∈ xs, d = .same := by
+  unfold Draw.worst
+  constructor
+  · intro h d hd
+    cases d
+    · rfl
+    · by_cases ha : Draw.above ∈ xs <;> simp_all
+    · by_cases ha : Draw.above ∈ xs <;> simp_all
+  · intro h
+    have ha : Draw.above ∉ xs := fun hm => by simpa using h _ hm
+    have hf : Draw.floor ∉ xs := fun hm => by simpa using h _ hm
+    simp [ha, hf]
+
+def drawFrames : Nat := 2 * drawTimes.length
+
+def drawIdle : List Nat := [0, drawTimes.length - 1, drawFrames - 1]
+
+def drawBase (xs : List Nat) : Option Nat :=
+  match xs.head? with
+  | none => none
+  | some b =>
+    if xs.length == drawFrames && drawIdle.all (fun i => xs[i]? == some b) && xs.all (b ≤ ·) then some b else none
+
+def aboveBase (xs : List Nat) : Option (List Nat) := (drawBase xs).map fun b => xs.map (· - b)
+
+theorem drawFrames_eq : drawFrames = 14 := by decide
+
+theorem drawIdle_eq : drawIdle = [0, 6, 13] := by decide
+
+theorem drawBase_some_iff (xs : List Nat) (b : Nat) : drawBase xs = some b ↔
+    xs.head? = some b ∧ xs.length = drawFrames ∧ (∀ i ∈ drawIdle, xs[i]? = some b) ∧ ∀ x ∈ xs, b ≤ x := by
+  unfold drawBase
+  cases hh : xs.head? with
+  | none => simp
+  | some a =>
+    simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true, decide_eq_true_eq, Option.some.injEq]
+    by_cases hc : (xs.length = drawFrames ∧ ∀ i ∈ drawIdle, xs[i]? = some a) ∧ ∀ x ∈ xs, a ≤ x
+    · rw [ite_eq_left_of_eq_true _ _ (eq_true hc)]
+      constructor
+      · intro h; cases h; exact ⟨rfl, hc.1.1, hc.1.2, hc.2⟩
+      · rintro ⟨rfl, -⟩; rfl
+    · rw [ite_eq_right_of_eq_false _ _ (eq_false hc)]
+      simp only [reduceCtorEq, false_iff, not_and]
+      rintro rfl hl hi hb
+      exact hc ⟨⟨hl, hi⟩, hb⟩
+
+theorem drawBase_none_of_empty : drawBase [] = none := rfl
+
+theorem drawBase_none_of_length (xs : List Nat) (h : xs.length ≠ drawFrames) : drawBase xs = none := by
+  cases hb : drawBase xs with
+  | none => rfl
+  | some b => exact absurd ((drawBase_some_iff xs b).1 hb).2.1 h
+
+theorem drawBase_none_of_idle (xs : List Nat) (b i : Nat) (hh : xs.head? = some b) (hi : i ∈ drawIdle)
+    (h : xs[i]? ≠ some b) : drawBase xs = none := by
+  cases hb : drawBase xs with
+  | none => rfl
+  | some a =>
+    have ⟨ha, _, hid, _⟩ := (drawBase_some_iff xs a).1 hb
+    rw [hh] at ha
+    cases ha
+    exact absurd (hid i hi) h
+
+theorem drawBase_none_of_below (xs : List Nat) (b x : Nat) (hh : xs.head? = some b) (hx : x ∈ xs) (h : x < b) :
+    drawBase xs = none := by
+  cases hb : drawBase xs with
+  | none => rfl
+  | some a =>
+    have ⟨ha, _, _, hle⟩ := (drawBase_some_iff xs a).1 hb
+    rw [hh] at ha
+    cases ha
+    exact absurd (hle x hx) (Nat.not_le.2 h)
+
+theorem aboveBase_restores (xs : List Nat) (b : Nat) (h : drawBase xs = some b) :
+    (xs.map (· - b)).map (· + b) = xs := by
+  have hle := ((drawBase_some_iff xs b).1 h).2.2.2
+  rw [List.map_map]
+  conv => rhs; rw [← List.map_id xs]
+  exact List.map_congr_left fun x hx => Nat.sub_add_cancel (hle x hx)
+
+theorem aboveBase_head (xs ds : List Nat) (h : aboveBase xs = some ds) : ds.head? = some 0 := by
+  unfold aboveBase at h
+  cases hb : drawBase xs with
+  | none => simp [hb] at h
+  | some b =>
+    simp only [hb, Option.map_some, Option.some.injEq] at h
+    subst h
+    simp [((drawBase_some_iff xs b).1 hb).1]
+
+theorem aboveBase_const (b : Nat) : aboveBase (List.replicate drawFrames b) = some (List.replicate drawFrames 0) := by
+  have hb : drawBase (List.replicate drawFrames b) = some b := by
+    refine (drawBase_some_iff _ b).2 ⟨by simp [drawFrames_eq], by simp, ?_, by simp⟩
+    intro i hi
+    rw [drawIdle_eq] at hi
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hi
+    rcases hi with rfl | rfl | rfl <;> simp [drawFrames_eq]
+  simp [aboveBase, hb]
+
+structure Probe where
+  x : Int
+  y : Int
+  w : Int
+  h : Int
+deriving DecidableEq, Repr
+
+def probeHit (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe) : Bool :=
+  decide (p.x * dpr < (b.2.2.1 : Int) * 1000000) && decide ((p.x + p.w) * dpr > (b.1 : Int) * 1000000) &&
+    decide (p.y * dpr < (b.2.2.2 : Int) * 1000000) && decide ((p.y + p.h) * dpr > (b.2.1 : Int) * 1000000)
+
+def probesHit (dpr : Nat) (b : Option (Nat × Nat × Nat × Nat)) (ps : List (String × Probe)) : List String :=
+  match b with
+  | none => []
+  | some bb => (ps.filter fun (_, p) => probeHit dpr bb p).map (·.1)
+
+theorem probeHit_iff (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe) :
+    probeHit dpr b p = true ↔ p.x * dpr < (b.2.2.1 : Int) * 1000000 ∧ (p.x + p.w) * dpr > (b.1 : Int) * 1000000 ∧
+      p.y * dpr < (b.2.2.2 : Int) * 1000000 ∧ (p.y + p.h) * dpr > (b.2.1 : Int) * 1000000 := by
+  simp [probeHit, and_assoc]
+
+theorem probeHit_not_right (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (b.2.2.1 : Int) * 1000000 ≤ p.x * dpr) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).1
+    omega
+
+theorem probeHit_not_left (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (p.x + p.w) * dpr ≤ (b.1 : Int) * 1000000) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).2.1
+    omega
+
+theorem probeHit_not_below (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (b.2.2.2 : Int) * 1000000 ≤ p.y * dpr) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).2.2.1
+    omega
+
+theorem probeHit_not_above (dpr : Nat) (b : Nat × Nat × Nat × Nat) (p : Probe)
+    (h : (p.y + p.h) * dpr ≤ (b.2.1 : Int) * 1000000) : probeHit dpr b p = false := by
+  cases hh : probeHit dpr b p
+  · rfl
+  · have := ((probeHit_iff dpr b p).1 hh).2.2.2
+    omega
+
+theorem probesHit_none (dpr : Nat) (ps : List (String × Probe)) : probesHit dpr none ps = [] := rfl
+
+theorem probesHit_mem (dpr : Nat) (bb : Nat × Nat × Nat × Nat) (ps : List (String × Probe)) (n : String) :
+    n ∈ probesHit dpr (some bb) ps ↔ ∃ p, (n, p) ∈ ps ∧ probeHit dpr bb p = true := by
+  simp [probesHit]
+
+def yieldCases : List (String × List RowLayer × Nat × Nat) :=
+  let hero : RowLayer := ⟨"hero_copy", "hero_copy", ((10, 40), (10, 40))⟩
+  let d0 : RowLayer := ⟨"hero.deck_article#0", "hero.deck_article", ((30, 60), (30, 60))⟩
+  let d2 : RowLayer := ⟨"hero.deck_article#2", "hero.deck_article", ((35, 70), (35, 70))⟩
+  let cue : RowLayer := ⟨"hero.cue_cue", "hero.cue", ((5, 15), (50, 70))⟩
+  [("pixel only in hero_copy", [hero, d0, d2, cue], 20, 20), ("pixel in hero_copy and one deck card", [hero, d0, d2, cue], 32, 32),
+   ("pixel in hero_copy and two deck cards", [hero, d0, d2, cue], 38, 38), ("pixel only in a deck card", [hero, d0, d2, cue], 50, 50),
+   ("pixel in no mask", [hero, d0, d2, cue], 100, 100), ("receiver not graded in this row", [hero, cue], 32, 32),
+   ("pixel in the cue only", [hero, d0, d2, cue], 8, 55), ("pixel in two deck cards, no hero_copy", [d0, d2], 38, 38)]
+
+#guard (yieldCases.map fun (_, ls, c, r) => countedBy ls c r) ==
+  [["hero_copy"], ["hero.deck_article#0"], ["hero.deck_article#0", "hero.deck_article#2"], ["hero.deck_article#0", "hero.deck_article#2"],
+   [], ["hero_copy"], ["hero.cue_cue"], ["hero.deck_article#0", "hero.deck_article#2"]]
+
+def foreignCases : List (String × String × List ((Nat × Nat) × (Nat × Nat)) × Nat × Nat) :=
+  let o : (Nat × Nat) × (Nat × Nat) := ((15, 30), (10, 14))
+  [("pixel in another mask", "hero_copy", [o], 20, 12), ("pixel outside it", "hero_copy", [o], 20, 14),
+   ("no other mask", "hero_copy", [], 20, 20), ("on the other mask's edge", "hero_copy", [o], 15, 10),
+   ("outside its own mask", "hero_copy", [o], 5, 12), ("deck card, pixel in another mask", "hero.deck_article", [o], 20, 12),
+   ("cue, pixel in another mask", "hero.cue_cue", [o], 16, 11)]
+
+def seenCases : List (String × Zone) :=
+  let z : Raw := ⟨0, 0⟩
+  [("no P change, arms agree", ⟨z, z, some z⟩), ("no P change, arms disagree", ⟨z, ⟨4478, 2⟩, some z⟩),
+   ("P change, A2 and A3 agree", ⟨⟨192513, 20⟩, z, some z⟩), ("P change, A2 differs", ⟨⟨192513, 20⟩, ⟨3, 1⟩, some z⟩),
+   ("P change, A3 differs", ⟨⟨4478, 2⟩, z, some ⟨1, 1⟩⟩),
+   ("P change, A2 and A3 differ", ⟨⟨4478, 2⟩, ⟨4478, 2⟩, some ⟨4478, 2⟩⟩),
+   ("P change, A3 not captured, A2 agrees", ⟨⟨1, 1⟩, z, none⟩),
+   ("P change, A3 not captured, A2 differs", ⟨⟨1, 1⟩, ⟨1, 1⟩, none⟩)]
+
+def armCases : List (String × Aa × Option Aa) :=
+  let z : Raw := ⟨0, 0⟩
+  [("A2 and A3 agree", ⟨z, z⟩, some ⟨z, z⟩), ("A2 differs inside", ⟨z, ⟨3, 1⟩⟩, some ⟨z, z⟩),
+   ("A3 differs outside", ⟨z, z⟩, some ⟨⟨4478, 2⟩, z⟩), ("A2 and A3 differ outside", ⟨⟨4478, 2⟩, z⟩, some ⟨⟨4478, 2⟩, z⟩),
+   ("A3 not captured, A2 agrees", ⟨z, z⟩, none), ("A3 not captured, A2 differs outside", ⟨⟨5, 2⟩, z⟩, none)]
+
+def Zone.json (r : Zone) : Json :=
+  Json.mkObj [("p", r.p.json), ("aa2", r.aa2.json), ("aa3", match r.aa3 with | some x => x.json | none => Json.null)]
+
+def MZone.json (m : MZone) : Json :=
+  Json.mkObj [("zone", m.z.json), ("p2", match m.p2 with | some x => x.json | none => Json.null),
+    ("a23", match m.a23 with | some x => x.json | none => Json.null)]
+
+def mzoneCases : List (String × MZone) :=
+  let z : Raw := ⟨0, 0⟩
+  let r : Raw := ⟨192513, 20⟩
+  [("quiet", ⟨⟨z, z, some z⟩, some z, some z⟩), ("counted", ⟨⟨r, z, some z⟩, some r, some z⟩),
+   ("varied", ⟨⟨⟨4478, 2⟩, ⟨4478, 2⟩, some ⟨4478, 2⟩⟩, some ⟨3, 1⟩, some ⟨1, 1⟩⟩),
+   ("A odd, P equals the majority", ⟨⟨r, r, some r⟩, some z, some z⟩),
+   ("A odd, P differs from the majority", ⟨⟨r, ⟨10, 1⟩, some ⟨10, 1⟩⟩, some ⟨500, 3⟩, some z⟩),
+   ("A odd, P against A2 not captured", ⟨⟨r, r, some r⟩, none, some z⟩)]
+
+def zoneFloors : List (Option Floor) := [none, some ⟨true, ⟨0, 0⟩, ⟨30, 4⟩⟩]
+
+def zonedCases : List (String × Cell × Option Floor × Bool × MZone × MZone) :=
+  let base := mkCell { moveClaim with compA := true } ⟨0, 0⟩ ⟨0, 0⟩
+  let live := mzoneCases.flatMap fun (on, mo) => mzoneCases.flatMap fun (inn, mi) => zoneFloors.map fun f =>
+    (s!"out {on}, inside {inn}, floor {f.isSome}", { base with out := mo.z.p, inside := mi.z.p }, f, true, mo, mi)
+  live ++ [("arm not live", { base with out := ⟨192513, 20⟩, inside := ⟨5, 1⟩ }, none, false,
+    ⟨⟨⟨192513, 20⟩, ⟨0, 0⟩, some ⟨0, 0⟩⟩, some ⟨192513, 20⟩, some ⟨0, 0⟩⟩,
+    ⟨⟨⟨5, 1⟩, ⟨0, 0⟩, some ⟨0, 0⟩⟩, some ⟨5, 1⟩, some ⟨0, 0⟩⟩)]
+
+def drawCases : List (String × Raw × Raw) :=
+  [("no change", ⟨0, 0⟩, ⟨0, 0⟩), ("no change, faithful floor", ⟨7, 2⟩, ⟨0, 0⟩), ("change under a zero floor", ⟨0, 0⟩, ⟨1, 1⟩),
+   ("change inside the floor", ⟨7, 2⟩, ⟨7, 2⟩), ("fewer pixels, larger delta", ⟨7, 2⟩, ⟨3, 9⟩),
+   ("more pixels", ⟨7, 2⟩, ⟨8, 1⟩)]
+
+def drawWorstCases : List (List Draw) :=
+  [[], [.same, .same], [.same, .floor], [.floor, .above, .same], [.above]]
+
+def drawBaseCases : List (String × List Nat) :=
+  [("run 40037992429 job-1 N", List.replicate 14 100),
+   ("run 40037992429 job-1 F", List.replicate 7 35751 ++ [53373, 52622, 48460, 44335, 37843, 35751, 35751]),
+   ("run 40037992429 job-2 N", List.replicate 14 1965),
+   ("run 40037992429 job-2 F", List.replicate 7 101 ++ [17723, 16972, 12810, 8685, 2193, 101, 101]),
+   ("run 40037992429 job-3 N", List.replicate 14 17),
+   ("run 40037992429 job-3 F", List.replicate 7 100 ++ [17722, 16971, 12809, 8684, 2192, 100, 100]),
+   ("no frames", []),
+   ("one frame missing", List.replicate 13 100),
+   ("out phase ends off the base", List.replicate 6 100 ++ [140] ++ List.replicate 7 100),
+   ("in phase ends off the base", List.replicate 13 100 ++ [140]),
+   ("a frame below the base", List.replicate 7 100 ++ [99] ++ List.replicate 6 100)]
+
+def drawBaseNote : List Nat := [0, 0, 0, 0, 0, 0, 0, 17622, 16871, 12709, 8584, 2092, 0, 0]
+
+def probeCases : List (String × Nat × Option (Nat × Nat × Nat × Nat) × List (String × Probe)) :=
+  let lang : Probe := ⟨218590000, 24000000, 73000000, 36000000⟩
+  let earn : Probe := ⟨100000000, 24000000, 10000000, 36000000⟩
+  [("box inside the language switch", 3, some (700, 100, 800, 150), [("nav-lang button", lang), ("nav-earn", earn)]),
+   ("box on the right edge pixel of the switch", 3, some (873, 118, 874, 134), [("nav-lang button", lang), ("nav-earn", earn)]),
+   ("box starts at the probe's right edge", 3, some (875, 118, 900, 134), [("nav-lang button", lang)]),
+   ("box ends at the probe's left edge", 3, some (600, 118, 655, 134), [("nav-lang button", lang)]),
+   ("box above the probe", 3, some (700, 0, 800, 72), [("nav-lang button", lang)]),
+   ("box below the probe", 3, some (700, 180, 800, 200), [("nav-lang button", lang)]),
+   ("box overlapping both probes", 3, some (0, 0, 1200, 300), [("nav-lang button", lang), ("nav-earn", earn)]),
+   ("no box", 3, none, [("nav-lang button", lang)]),
+   ("dpr 2", 2, some (437, 50, 438, 60), [("nav-lang button", lang)]),
+   ("probe off screen to the left", 3, some (0, 0, 100, 100), [("left", ⟨-50000000, 0, 10000000, 10000000⟩)])]
+
+def foreignMine : (Nat × Nat) × (Nat × Nat) := ((10, 40), (10, 40))
+
+def accentRowCases : List (String × String × String × Nat) :=
+  [("22a26c2a", "22a26c2a", "22a26c2a", 1), ("22a26c2a", "e1380ab3", "a7ccf8cf", 1), ("22a26c2a", "e1380ab3", "22a26c2a", 1),
+   ("22a26c2a", "22a26c2a", "a7ccf8cf", 1), ("22a26c2a", "22a26c2a", "22a26c2a", 0), ("22a26c2a", "22a26c2a", "22a26c2a", 2)]
+
+def accentRowSets : List (String × List AccentRow) :=
+  [("both pinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("A unpinned", [⟨1, "x", "y", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("B unpinned at the end", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "t", 855, 855⟩]),
+   ("two elements", [⟨1, "s", "s", 855, 855⟩, ⟨2, "s", "s", 855, 855⟩]),
+   ("no rows", []),
+   ("B misplaced", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 0⟩]),
+   ("A at the top where B stands at the offset", [⟨1, "s", "s", 855, 0⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("clamped last offset", [⟨1, "s", "s", 4001, 4000⟩, ⟨1, "s", "s", 4001, 4000⟩]),
+   ("clamped but short", [⟨1, "s", "s", 4001, 3999⟩, ⟨1, "s", "s", 4001, 4000⟩])]
+
+def floorRowSets : List (String × List AccentRow) :=
+  [("floor pinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 855⟩]),
+   ("floor A2 unpinned", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "t", 855, 855⟩]),
+   ("floor A2 misplaced", [⟨1, "s", "s", 855, 855⟩, ⟨1, "s", "s", 855, 0⟩])]
+
+def pinMaxY : Nat := 4000
+
+def liveAccentCases : List Accent := [⟨-1, .idle⟩, ⟨2, .drawIn⟩, ⟨5, .drawOut⟩]
+
+def offsetCases : List Nat := [0, 1, 7, 8, 100, 4626, 5000]
+
+def maskCases : List (String × Nat × Nat × Nat × Box) :=
+  [("interior box, dpr 3", 3, 1170, 2532, ⟨10000000, 20500000, 100000000, 40000000⟩),
+   ("box past the top and left edges", 3, 1170, 2532, ⟨-5000000, -2000000, 50000000, 30000000⟩),
+   ("box past the bottom and right edges", 3, 1170, 2532, ⟨380000000, 800000000, 100000000, 100000000⟩),
+   ("fractional edges, dpr 3", 3, 1170, 2532, ⟨100000, 333333, 1000000, 1000000⟩),
+   ("on the device grid, dpr 2", 2, 780, 1688, ⟨5000000, 5000000, 10000000, 10000000⟩),
+   ("empty box", 3, 1170, 2532, ⟨30000000, 30000000, 0, 0⟩),
+   ("box fully off screen", 3, 1170, 2532, ⟨0, 900000000, 100000000, 10000000⟩)]
+
+def rawCases : List (List Nat) := [[], [0, 0, 0], [0, 1, 0, 1], [3, 0, 255, 2], [16, 4], [0, 256]]
+
+def rowJson (r : AccentRow) : Json :=
+  Json.mkObj [("n", toJson r.n), ("start", toJson r.start), ("stop", toJson r.stop), ("y", toJson r.y), ("scrollY", toJson r.scrollY)]
+
+def pinnedRows : List AccentRow := (accentRowSets.head?.map (·.2)).getD []
+
+def pinnedFloorRows : List AccentRow := (floorRowSets.head?.map (·.2)).getD []
+
+def gradeLine (name : String) (rows floorRows : List AccentRow) (c : Cell) (f : Option Floor) (live : Bool) : String :=
+  (Json.mkObj [("kind", "accentGrade"), ("name", toJson name), ("served", toJson "s"), ("maxY", toJson pinMaxY),
+    ("rows", toJson (rows.map rowJson)), ("floorRows", toJson (floorRows.map rowJson)),
+    ("cell", c.json), ("floor", match f with | some x => x.json | none => Json.null),
+    ("floorPinned", match f with | some x => (floorPinned "s" pinMaxY floorRows x).json | none => Json.null), ("live", toJson live),
+    ("pinned", toJson (rowsPinned "s" (checkedRows rows floorRows f))),
+    ("placed", toJson (rowsPlaced pinMaxY (checkedRows rows floorRows f))),
+    ("why", match unpinnedWhy "s" pinMaxY rows floorRows f with | some w => toJson w | none => Json.null),
+    ("grade", toJson (gradePinned "s" pinMaxY rows floorRows c f live).name)]).compress
+
+def zonedPinRows : List (String × List AccentRow × List AccentRow) :=
+  [("rows pinned", pinnedRows, pinnedFloorRows), ("A unpinned", (accentRowSets.lookup "A unpinned").getD [], pinnedFloorRows),
+   ("B misplaced", (accentRowSets.lookup "B misplaced").getD [], pinnedFloorRows),
+   ("floor A2 unpinned", pinnedRows, (floorRowSets.lookup "floor A2 unpinned").getD [])]
+
 def goldenLines (_ : Unit := ()) : List String :=
   gradeCases.map (fun (n, c) =>
     (Json.mkObj [("kind", "grade"), ("name", toJson n), ("cell", c.json), ("s1", toJson c.s1),
@@ -667,12 +2133,115 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("accelerated", toJson (accelerated ps))]).compress) ++
   premiseCases.map (fun (n, e, c) =>
     (Json.mkObj [("kind", "premises"), ("name", toJson n), ("engine", toJson e.name), ("claim", c.json),
-      ("premises", toJson ((premises e c).map Premise.name))]).compress)
+      ("premises", toJson ((premises e c).map Premise.name))]).compress) ++
+  offsetCases.map (fun m =>
+    (Json.mkObj [("kind", "offsets"), ("maxY", toJson m), ("offsets", toJson (offsets m))]).compress) ++
+  relCases.map (fun (n, c, f, live) =>
+    (Json.mkObj [("kind", "rel"), ("name", toJson n), ("cell", c.json),
+      ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("grade", toJson (gradeRel c f live).name),
+      ("why", match whyL c f live with | some w => toJson w.name | none => Json.null),
+      ("ifAccepted", toJson (gradeRel { c with stripsAccepted := true } f live).name)]).compress) ++
+  regionCases.map (fun (ms, i, x, y) =>
+    let m := ms.getD i ((0, 0), (0, 0))
+    (Json.mkObj [("kind", "region"), ("masks", toJson (ms.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])), ("mine", toJson i),
+      ("x", toJson x), ("y", toJson y), ("region", toJson (region ms m x y).name)]).compress) ++
+  exitCases.map (fun (t, n) =>
+    (Json.mkObj [("kind", "exitOffsets"), ("T", toJson t), ("n", toJson n), ("offsets", toJson (exitOffsets t n))]).compress) ++
+  exitClaimCases.map (fun (l, b) =>
+    (Json.mkObj [("kind", "exitClaim"), ("layer", toJson l), ("le600", toJson b),
+      ("claim", match exitClaim l b with | some c => c.json | none => Json.null)]).compress) ++
+  pinArms.flatMap (fun arm => liveAccentCases.map (fun live =>
+    (Json.mkObj [("kind", "accentPin"), ("arm", toJson arm), ("pin", toJson (armPin arm).name), ("perOffset", toJson ((List.range 9).map fun i => (pinAt arm i).name)),
+      ("live", live.json),
+      ("shown", (shown (armPin arm) live).json)]).compress)) ++
+  accentRowCases.map (fun (served, start, stop, n) =>
+    (Json.mkObj [("kind", "accentRow"), ("served", toJson served), ("start", toJson start), ("stop", toJson stop), ("n", toJson n),
+      ("pinned", toJson (accentPinned served start stop n))]).compress) ++
+  accentRowSets.flatMap (fun (name, rows) => relCases.map (fun (cn, c, f, live) =>
+    gradeLine (name ++ ": " ++ cn) rows pinnedFloorRows c f live)) ++
+  floorRowSets.flatMap (fun (name, fr) => relCases.map (fun (cn, c, f, live) =>
+    gradeLine (name ++ ": " ++ cn) pinnedRows fr c f live)) ++
+  hookCases.map (fun q =>
+    (Json.mkObj [("kind", "hook"), ("search", toJson q), ("hook", toJson (hookSet q))]).compress) ++
+  [false, true].flatMap (fun r => [false, true].map (fun h =>
+    (Json.mkObj [("kind", "chainStarts"), ("reduce", toJson r), ("hook", toJson h), ("starts", toJson (chainStarts r h))]).compress)) ++
+  clockCases.map (fun (p, e, v) =>
+    (Json.mkObj [("kind", "clockPin"), ("pinned", toJson p), ("epoch", toJson e), ("vnow", toJson v), ("target", toJson clockTarget),
+      ("now", toJson (clockNow p e v)), ("seconds", toJson (secondsLeft clockTarget (clockNow p e v)))]).compress) ++
+  coverCases.map (fun (a, b) =>
+    (Json.mkObj [("kind", "cover"), ("a", Json.mkObj [("n", toJson a.n), ("k", toJson a.k)]),
+      ("b", Json.mkObj [("n", toJson b.n), ("k", toJson b.k)]), ("occluded", toJson (occludedBoth a b))]).compress) ++
+  regionCases.map (fun (ms, i, x, y) =>
+    let m := ms.getD i ((0, 0), (0, 0))
+    (Json.mkObj [("kind", "pinRegion"), ("pin", toJson (armPin "P").name),
+      ("masks", toJson ((pinMasks (armPin "P") ms).map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])), ("mine", toJson i),
+      ("x", toJson x), ("y", toJson y), ("region", toJson (region (pinMasks (armPin "P") ms) m x y).name)]).compress) ++
+  foreignCases.map (fun (n, layer, others, x, y) =>
+    let fm := foreignMasks layer others
+    (Json.mkObj [("kind", "foreign"), ("name", toJson n), ("layer", toJson layer),
+      ("others", toJson (others.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])),
+      ("mine", toJson [foreignMine.1.1, foreignMine.1.2, foreignMine.2.1, foreignMine.2.2]), ("x", toJson x), ("y", toJson y),
+      ("yields", toJson (yieldsShared layer)),
+      ("foreign", toJson (fm.map fun m => [m.1.1, m.1.2, m.2.1, m.2.2])),
+      ("counted", toJson (countedIn fm foreignMine x y)), ("reason", toJson foreignReason)]).compress) ++
+  yieldCases.map (fun (n, ls, x, y) =>
+    (Json.mkObj [("kind", "yield"), ("name", toJson n),
+      ("layers", toJson (ls.map fun l => Json.mkObj [("key", toJson l.key), ("layer", toJson l.layer),
+        ("mask", toJson [l.mask.1.1, l.mask.1.2, l.mask.2.1, l.mask.2.2])])),
+      ("x", toJson x), ("y", toJson y), ("countedBy", toJson (countedBy ls x y)),
+      ("heroCounts", toJson (ls.filter (·.layer == "hero_copy") |>.map fun l => l.counts ls x y))]).compress) ++
+  seenCases.map (fun (n, r) =>
+    (Json.mkObj [("kind", "seen"), ("name", toJson n),
+      ("region", Json.mkObj [("p", r.p.json), ("aa2", r.aa2.json), ("aa3", match r.aa3 with | some x => x.json | none => Json.null)]),
+      ("agree", toJson r.agree), ("seen", toJson r.seen.name)]).compress) ++
+  relCases.flatMap (fun (cn, c, f, live) => armCases.map (fun (an, a2, a3) =>
+    (Json.mkObj [("kind", "consensus"), ("name", toJson (cn ++ ": " ++ an)), ("cell", c.json),
+      ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("a2", Json.mkObj [("out", a2.out.json), ("inside", a2.inside.json)]),
+      ("a3", match a3 with | some x => Json.mkObj [("out", x.out.json), ("inside", x.inside.json)] | none => Json.null),
+      ("grade", toJson (gradeRel c f live).name), ("verdict", toJson (consensus c f live a2 a3).name)]).compress)) ++
+  zonedCases.map (fun (n, c, f, live, mo, mi) =>
+    (Json.mkObj [("kind", "zoned"), ("name", toJson n), ("cell", c.json),
+      ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("out", mo.json), ("inside", mi.json), ("odd", toJson [mo.odd, mi.odd]),
+      ("seen", toJson [mo.seen.name, mi.seen.name]), ("eff", toJson [mo.eff.json, mi.eff.json]),
+      ("grade", toJson (gradeRel c f live).name), ("verdict", toJson (zoned c f live mo mi).name),
+      ("why", match zonedWhy c f live mo mi with | some w => toJson w.name | none => Json.null),
+      ("listed", toJson (zoned c f live mo mi).listed)]).compress) ++
+  zonedPinRows.flatMap (fun (rn, rows, floorRows) => zonedCases.map (fun (n, c, f, live, mo, mi) =>
+    (Json.mkObj [("kind", "zonedPinned"), ("name", toJson (rn ++ ": " ++ n)), ("served", toJson "s"),
+      ("maxY", toJson pinMaxY), ("rows", toJson (rows.map rowJson)), ("floorRows", toJson (floorRows.map rowJson)),
+      ("cell", c.json), ("floor", match f with | some x => x.json | none => Json.null), ("live", toJson live),
+      ("out", mo.json), ("inside", mi.json), ("ok", toJson (rowsOk "s" pinMaxY (checkedRows rows floorRows f))),
+      ("zoned", toJson (zoned c f live mo mi).name),
+      ("verdict", toJson (zonedPinned "s" pinMaxY rows floorRows c f live mo mi).name)]).compress)) ++
+  [(Json.mkObj [("kind", "drawTimes"), ("ms", toJson drawMs), ("times", toJson drawTimes)]).compress] ++
+  drawBaseCases.map (fun (n, xs) =>
+    (Json.mkObj [("kind", "drawBase"), ("name", toJson n), ("lane", toJson xs),
+      ("base", match drawBase xs with | some b => toJson b | none => Json.null),
+      ("above", match aboveBase xs with | some ds => toJson ds | none => Json.null)]).compress) ++
+  drawCases.map (fun (n, aa, arm) =>
+    (Json.mkObj [("kind", "draw"), ("name", toJson n), ("aa", aa.json), ("arm", arm.json),
+      ("draw", toJson (drawOf aa arm).name)]).compress) ++
+  drawWorstCases.map (fun ds =>
+    (Json.mkObj [("kind", "drawWorst"), ("draws", toJson (ds.map Draw.name)), ("worst", toJson (Draw.worst ds).name)]).compress) ++
+  probeCases.map (fun (n, dpr, b, ps) =>
+    (Json.mkObj [("kind", "probeHit"), ("name", toJson n), ("dpr", toJson dpr),
+      ("bbox", match b with | some x => toJson [x.1, x.2.1, x.2.2.1, x.2.2.2] | none => Json.null),
+      ("probes", toJson (ps.map fun (m, p) => Json.arr #[toJson m, toJson p.x, toJson p.y, toJson p.w, toJson p.h])),
+      ("hit", toJson (probesHit dpr b ps))]).compress) ++
+  maskCases.map (fun (n, dpr, fw, fh, b) =>
+    let m := mask dpr fw fh b
+    (Json.mkObj [("kind", "mask"), ("name", toJson n), ("dpr", toJson dpr), ("fw", toJson fw), ("fh", toJson fh),
+      ("box", toJson [b.x, b.y, (b.w : Int), (b.h : Int)]),
+      ("mask", toJson [m.1.1, m.1.2, m.2.1, m.2.2])]).compress) ++
+  rawCases.map (fun px =>
+    let r := rawOf px
+    (Json.mkObj [("kind", "raw"), ("pixels", toJson px), ("raw", r.json), ("ok", toJson r.ok)]).compress)
 
-/-- The exact bytes of `packages/contracts/golden/gate/path-pix.jsonl`: the lines, each newline-terminated. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
-/-- Print the golden text, or with `--check <file>` exit 0 iff the file holds exactly these bytes. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
@@ -697,7 +2266,39 @@ def run (args : List String) : IO UInt32 := do
    ["P1", "P2", "P3", "P4", "C1", "C5"], ["P1", "P2", "P3", "P4", "S1", "T1"],
    ["P1", "P2", "P3", "P4", "S1", "T1", "C1", "C2"], ["P1", "P2", "P3", "P4", "C6"], ["P1", "P2", "P3", "P4"],
    ["P2", "P3", "P4"], ["P1", "P2", "P3", "P4", "C2"]]
+#guard (offsets 4626) == [0, 578, 1156, 1734, 2313, 2891, 3469, 4047, 4626]
+#guard (exitOffsets 0 600) == [0, 1, 150, 300, 570, 571, 599, 600, 601]
+#guard (relCases.map fun (_, c, f, live) => (gradeRel c f live).name) ==
+  ["E", "Q", "L", "L", "L", "L", "L", "Q", "L", "Q", "invalid", "invalid", "L"]
+#guard (mask 3 1170 2532 ⟨10000000, 20500000, 100000000, 40000000⟩) == ((29, 331), (60, 183))
+#guard (rawOf [3, 0, 255, 2]) == ⟨3, 255⟩ && (rawOf [0, 256]).ok == false
 #guard (accelCases.map accelerated) ==
   [true, true, true, true, false, false, false, false, false, false, false, false]
+
+#guard (pinArms.map fun a => (armPin a).name) == ["accent-hook", "accent-hook", "accent-hook", "accent-hook"]
+#guard (liveAccentCases.map fun l => (shown .hook l).cursor) == [-1, -1, -1]
+#guard (accentRowCases.map fun (a, b, c, n) => accentPinned a b c n) == [true, false, false, false, false, false]
+#guard (accentRowSets.map fun (_, rows) => rowsPinned "s" rows) == [true, false, false, false, true, true, true, true, true]
+#guard (accentRowSets.map fun (_, rows) => rowsPlaced pinMaxY rows) == [true, true, true, true, true, false, false, true, false]
+#guard (hookCases.map hookSet) == [false, false, true, true, false, true, true, false, false, false, false, true, true, false, false, true]
+#guard (clockCases.map fun (p, e, v) => secondsLeft clockTarget (clockNow p e v)) == [2900, 2900, 2900, 2900, 2900, 2899, 2899, 2839]
+#guard (coverCases.map fun (a, b) => occludedBoth a b) == [true, false, false, false, false, true, true]
+
+#guard (seenCases.map fun (_, r) => r.seen.name) ==
+  ["quiet", "quiet", "counted", "varied", "varied", "varied", "counted", "varied"]
+#guard (mzoneCases.map fun (_, m) => m.seen.name) == ["quiet", "counted", "varied", "quiet", "counted", "varied"]
+#guard (mzoneCases.map fun (_, m) => m.odd) == [false, false, false, true, true, true]
+#guard drawTimes == [0, 150, 300, 450, 600, 750, 900]
+#guard (drawCases.map fun (_, aa, arm) => (drawOf aa arm).name) == ["same", "same", "above", "floor", "above", "above"]
+#guard (drawWorstCases.map Draw.worst) == [.same, .same, .floor, .above, .above]
+#guard (drawBaseCases.map fun (_, xs) => aboveBase xs) ==
+  [some (List.replicate 14 0), some drawBaseNote, some (List.replicate 14 0), some drawBaseNote,
+   some (List.replicate 14 0), some drawBaseNote, none, none, none, none, none]
+#guard (drawBaseCases.map fun (_, xs) => drawBase xs) == [some 100, some 35751, some 1965, some 101, some 17, some 100,
+  none, none, none, none, none]
+#guard (zonedPinRows.map fun (_, rows, floorRows) => zonedCases.all fun (_, c, f, live, mo, mi) =>
+  zonedPinned "s" pinMaxY rows floorRows c f live mo mi == zoned c f live mo mi) == [true, false, false, false]
+#guard (probeCases.map fun (_, dpr, b, ps) => probesHit dpr b ps) ==
+  [["nav-lang button"], ["nav-lang button"], [], [], [], [], ["nav-lang button", "nav-earn"], [], ["nav-lang button"], []]
 
 end Fw.Gate.PathPix

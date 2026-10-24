@@ -1,0 +1,56 @@
+{
+ "schema": "fw.webkit.lag.swap.summary/1",
+ "label": "hero.accent:draw-nolayout-full",
+ "sources": [
+  "run 40010826238 commit 3c1ab9970 jobs r1 r2"
+ ],
+ "passes": 4,
+ "pooled": {
+  "rest": {
+   "faithful-a": {
+    "windows": 28,
+    "captures": 4,
+    "busyWindows": 18,
+    "tenthsPerCapture": 2250,
+    "median2": 90
+   },
+   "faithful-b": {
+    "windows": 28,
+    "captures": 4,
+    "busyWindows": 19,
+    "tenthsPerCapture": 2328,
+    "median2": 90
+   },
+   "arm": {
+    "windows": 56,
+    "captures": 8,
+    "busyWindows": 0,
+    "tenthsPerCapture": 194,
+    "median2": 4
+   }
+  },
+  "swap": {
+   "faithful-a": {
+    "windows": 32,
+    "captures": 4,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1078,
+    "median2": 28
+   },
+   "faithful-b": {
+    "windows": 32,
+    "captures": 4,
+    "busyWindows": 0,
+    "tenthsPerCapture": 1098,
+    "median2": 28
+   },
+   "arm": {
+    "windows": 64,
+    "captures": 8,
+    "busyWindows": 0,
+    "tenthsPerCapture": 965,
+    "median2": 26
+   }
+  }
+ }
+}

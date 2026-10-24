@@ -1,0 +1,597 @@
+{
+  "id": "pain-dark-scroll",
+  "proposal": "pain-dark-scroll",
+  "title": "Phone: flip the Pain dark colour by a scroll-driven opacity on two solid layers instead of the is-pain-dark class (flag pain:dark-scroll), final design",
+  "arms": [
+    {
+      "name": "base",
+      "search": ""
+    },
+    {
+      "name": "pain:dark-scroll",
+      "search": "?fw=pain:dark-scroll"
+    },
+    {
+      "name": "pain:dark-static",
+      "search": "?fw=pain:dark-static"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "Chromium counts 430x932 dpr 3, swipe-v1, toggle frame (scroll 970)",
+      "rows": [
+        {
+          "metric": "invalidated paint area in the toggle frame",
+          "unit": "px",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 3413963,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 3013203,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 3013203,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "raster tasks in the toggle frame",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 26,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 20,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 20,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "layers per frame at rest",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 19,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 22,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 19,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "style recalcs over the swipe",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 1832,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 1846,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 1831,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "invalidated paint area over the swipe",
+          "unit": "px",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 94503701,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 90741721,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 94102941,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "tiles over the swipe",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 50268,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 46972,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 50268,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "style recalcs in the toggle frame",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 4,
+              "tag": {
+                "kind": "measured",
+                "run": "39818749535"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 5,
+              "tag": {
+                "kind": "measured",
+                "run": "39828614430"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 3,
+              "tag": {
+                "kind": "measured",
+                "run": "39852245766"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "iOS Simulator 430x775, scroll pass 0 to max in 50 px steps, two passes",
+      "rows": [
+        {
+          "metric": "painted area of one scroll pass, pass 1",
+          "unit": "css px squared",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 69136482,
+              "tag": {
+                "kind": "measured",
+                "run": "39818734599"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 49560289,
+              "tag": {
+                "kind": "measured",
+                "run": "39828605244"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "painted area of one scroll pass, pass 2",
+          "unit": "css px squared",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 73740083,
+              "tag": {
+                "kind": "measured",
+                "run": "39818734599"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 48979304,
+              "tag": {
+                "kind": "measured",
+                "run": "39828605244"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "backing memory at scroll 1500, pass 1",
+          "unit": "bytes",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 102898509,
+              "tag": {
+                "kind": "measured",
+                "run": "39818734599"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 114895992,
+              "tag": {
+                "kind": "measured",
+                "run": "39828605244"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "backing memory at scroll 3000, pass 1",
+          "unit": "bytes",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 101255139,
+              "tag": {
+                "kind": "measured",
+                "run": "39818734599"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 113263023,
+              "tag": {
+                "kind": "measured",
+                "run": "39828605244"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "iOS Simulator 430x775, same ref 9597ea656 for all three arms, two passes (band = paint quads starting at document y 1500 to 3000)",
+      "rows": [
+        {
+          "metric": "painted area in the Pain pinned band, pass 1",
+          "unit": "css px squared",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 26899186,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 10112219,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 26542007,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "painted area in the Pain pinned band, pass 2",
+          "unit": "css px squared",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 24767536,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 9889948,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 25156970,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "full-stage (430x775) repaints in the band, pass 1",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 54,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 5,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 53,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "full-stage (430x775) repaints in the band, pass 2",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 49,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 5,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 50,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "painted area of one scroll pass, pass 1",
+          "unit": "css px squared",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 81545035,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 51002459,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 72352074,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "painted area of one scroll pass, pass 2",
+          "unit": "css px squared",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 85199642,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 68768508,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 70109348,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "backing memory at scroll 1500, pass 1",
+          "unit": "bytes",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 87015627,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 99013110,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 87015627,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        },
+        {
+          "metric": "backing memory at scroll 3000, pass 1",
+          "unit": "bytes",
+          "cells": [
+            {
+              "arm": "base",
+              "value": 101255139,
+              "tag": {
+                "kind": "measured",
+                "run": "39856782689"
+              }
+            },
+            {
+              "arm": "pain:dark-scroll",
+              "value": 113263023,
+              "tag": {
+                "kind": "measured",
+                "run": "39856789295"
+              }
+            },
+            {
+              "arm": "pain:dark-static",
+              "value": 101255139,
+              "tag": {
+                "kind": "measured",
+                "run": "39852256714"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Trajectory probe, fw=pain:dark-scroll, run 39852164349 (pain-dark cell, 4 px scroll steps, both directions)",
+      "rows": [
+        {
+          "metric": "pain-dark cell units graded E of 4 (Chromium 156 at 390 and 640, Linux WebKit 27.2 at 390 and 640)",
+          "unit": "n",
+          "cells": [
+            {
+              "arm": "pain:dark-scroll",
+              "value": 4,
+              "tag": {
+                "kind": "measured",
+                "run": "39852164349"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "word": "hold",
+    "why": "Follow-up pain-dark-followups. Post-flip look: the trajectory pain-dark cell is E in both scroll directions on Chromium 156 and Linux WebKit 27.2 at 390 and 640 (run 39852164349, layer engaged on both engines, flip at the same 4 px step in both arms); Safari-on-Mac stays with gpu-safari-lane and the flip-frame lag is not resolved at 4 px steps. toggle_free and ride_exceeds are model assumptions (Chromium refutes toggle_free for style: 4 to 5 recalcs, Lean chromium_style_gt). Backing: the one backing-free arrangement tried, pain:dark-static (no animated layer), has no extra backing (+0 MB, same layers as base) and keeps the Chromium toggle-frame saving (3,413,963 to 3,013,203 px, raster tasks 26 to 20, style recalcs 4 to 3) but loses the WebKit paint saving (band 1500 to 3000 paints 26.5 and 25.2 M px squared against 26.9 and 24.8 M for base and 10.1 and 9.9 M for pain:dark-scroll; 53 and 50 full-stage repaints against 54 and 49 and 5 and 5), and it changes the look: the premise Hidden fails at 390 and 640 (Pain top 370 and 843 px below the flip offset 873, 891.5 needed (Lean hidden_fails_390, hidden_fails_640)), so it is a look-change proposal, not a variant of the same look. The WebKit saving and the 12 MB backing appear together and disappear together in these three arms (INFERRED: both follow from the stage content being split off the sticky backing by the overlap promotion; why the base repaints the whole stage every step is not identified). pain:dark-scroll stays hold; breakpoint gate on pain:dark-static passes on both engines (run 39852250962)."
+  }
+}

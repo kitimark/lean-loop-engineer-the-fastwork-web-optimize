@@ -15,15 +15,17 @@ jobs it admits follows the machine's load and memory.
 | Command | Does | Exit |
 |---|---|---|
 | `fw slot run --kind <k> [--cache] -- <cmd...>` | waits for a slot, runs `<cmd>` in its own process group, releases | the command's; 75 when refused |
-| `fw slot acquire --kind <k> [--lease s] [--wait s] [--json]` | holds a slot across tool calls; prints the token | 0 admitted, 75 refused or `--wait` passed |
+| `fw slot acquire --kind <k> [--lease s] [--wait s] [--next s] [--json]` | holds a slot across tool calls; prints the token. For `measure`, also opens the measure window with its first pass due in `--next` s (default 0) | 0 admitted, 75 refused or `--wait` passed |
+| `fw slot pass start --token t [--for s] [--wait s]` | the measure holder asks for an exclusive pass of `--for` s (default 1200); waits up to `--wait` s (default 300) for other holders to finish; prints `VERDICT start pass <till>`, `VERDICT wait pass` or `VERDICT gone pass` | 0 start, 75 wait, 1 gone |
+| `fw slot pass stop --token t [--next s]` | ends the pass and opens a gap; the next pass is due in `--next` s | 1 when the lease is not yours or ended |
 | `fw slot renew --token t [--lease s]` | extends your own live slot by its granted length, or by `s` (which becomes its length) | 1 when it expired or is not yours |
 | `fw slot release --token t` | frees your slot | 0 |
-| `fw slot status [--json]` | current limit, sample, holders, queue | 0 |
+| `fw slot status [--json]` | current limit, sample, measure window, holders, queue with each ticket's wait reason | 0 |
 | `fw slot sim [--apply]` | the Simulator check now; `--apply` shuts down every booted device when it says shutdown | 0 |
 | `fw slot held --kind <k>` | whether a live slot of kind `k` exists (used by `scripts/sim-lock.sh`) | 0 held, 3 free, other: check failed |
 | `fw slot admit --kind build [--agents n]` | may the lead start one more builder or reviewer; prints `VERDICT admit build` or `VERDICT wait build`, the reason on stderr | 0 admit, 75 wait |
 
-Kinds: `check`, `test`, `land`, `sim`, `other`. `--owner o` (default `FW_SLOT_OWNER`, else the worktree's
+Kinds: `check`, `test`, `land`, `sim`, `measure`, `other`. `--owner o` (default `FW_SLOT_OWNER`, else the worktree's
 directory name) names the holder. Examples:
 
 ```sh
@@ -32,6 +34,9 @@ pnpm -s fw slot run --kind test --cache -- pnpm --filter @fw/runner test
 pnpm -s fw slot run --kind land --cache -- pnpm -s fw land <branch> --task <id> --dry
 t=$(pnpm -s fw slot acquire --kind sim --lease 1800)   # then: fw slot renew --token "$t" (1800 s again); fw slot release --token "$t"
 pnpm -s fw slot admit --kind build                       # lead, before spawning a builder
+t=$(pnpm -s fw slot acquire --kind measure --lease 3600 --next 600)
+pnpm -s fw slot pass start --token "$t" --for 900         # VERDICT start pass <till>; measure, then:
+pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; release at the end
 ```
 
 ## Decisions (Lean)
@@ -43,7 +48,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   (xnu osfmk/vm/vm_page.h:1528@f6217f8, osfmk/vm/vm_pageout.c:4732-4738@f6217f8), so in the lead's busy window
   (MEASURED) the old probe read 9994-11141 MB free while 217-2005 MB were available. The pageout daemon reclaims
   file pages only down to `vm_page_filecache_min` and then compresses process memory (vm_pageout.c:2211-2230,
-  2620-2623@f6217f8), so file cache below the minimum adds nothing.
+  2620-2623@f6217f8).
 - **Memory low.** `memLow` holds when available memory is under the 1 GB floor, the kernel pressure level is not
   normal (1), pages leave for swap at 64 MB a minute or more (`swapActive`), or the compressor takes in at least
   1500 MB a minute (`thrash`). Both rates come from the `Compressions` and `Swapouts` counters and a mark in
@@ -70,7 +75,7 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
   (`verdict_not_older_of_sim_blocked`). It waits as `memLow` while memory is low, and an admitted ticket saw normal
   pressure, no `swapActive` and no `thrash`, and either the floor or no live holder (`admit_calm`). Otherwise it waits
   until the job's footprint fits above the 1 GB floor, unless it is the idle head (`admit_fits`).
-  Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, other 1000. Holders admitted in the
+  Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, measure 2800, other 1000. Holders admitted in the
   last 60 s are charged, since available memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
 - **Simulator first.** A Simulator ticket never waits as `older` (`verdict_sim_never_older`). It waits as `drain`
   while more than one holder of another kind runs. A ticket of another kind waits as `simFirst` while a Simulator slot
@@ -85,6 +90,18 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - **Lean workers.** A check gets as many Lean workers as fit the available room, at least 1 and at most the online
   cores; an admitted check's workers fit above the floor and the warming holders (`threads_fit`).
   `run` exports them as `LEAN_NUM_THREADS` and `LAKE_SLOT_CORES`.
+- **Measure window** (`Fw.Sup.MeasureWindow`). A `measure` ticket is admitted like any other kind and opens one
+  window: its owner, token, a pass end, the next pass's due time and a deadline 5400 s after the grant
+  (`openAt_deadline`), fixed for the window's life (`deadline_fixed`). While a pass is live every other request waits
+  as `pass` (`pass_live_waits`, `pass_live_no_admit`). A pass starts only when no other holder is live
+  (`pass_start_quiet`), lasts at most 1200 s (`pass_start_bounded`), and `pass start` first sets the next due time to
+  now, so no new gap job is admitted while it waits (`want_closes_gap`). In a gap a job is admitted only when the p90
+  of its kind's last 20 local passing uncached `slot run` spans (at least 3) plus 30 s settle ends before the next
+  pass, memory fits and the base verdict admits (`gap_admit`); then it ends before the pass when it runs no longer
+  than that p90 (`gap_job_ends_before_pass`). Otherwise it waits as `gap` or, with too few spans, `unknown`. A second
+  measure ticket waits as `measureBusy` (`gap_measure_waits`). After the deadline the window gives way to the base
+  verdict (`after_deadline`), and the measure lease never runs past it (`capLease_within`). In a gap an older ticket
+  of another kind still blocks as before (`window_keeps_older`).
 - **Holders.** A holder is an owner, a token and a lease, never a process id. A live lease is never recovered as stale
   (`live_never_recovered`). Only the same owner and token renew or release it. `run` renews every 20 s.
 - **Lease length.** A holder stores its granted length, `--lease` capped at 3600 s (`grant`). `renew` without
@@ -114,10 +131,20 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - State: `<main>/.fw-console/slot/state.json`, written under a short `state.lock` directory. A lock whose writer died
   (pid and start time) is renamed to `state.lock.stale-<pid>` and then removed, so only one waiter recovers it; a lock
   that turns out live after the rename is moved back. `FW_SLOT_DIR` moves it.
-- Events: `acquire`, `refuse`, `release` and `expire` lines with `lock: "slot"` go to `<main>/.fw-console/locks.jsonl`
+- Events: `acquire`, `refuse`, `release`, `expire`, `pass-start`, `pass-refuse` and `pass-stop` lines with `lock: "slot"` go to `<main>/.fw-console/locks.jsonl`
   (`FW_LOCK_EVENTS=off` or CI turns them off). An `expire` line also carries `owner`, `token`, `leaseS`, `holdMs` (the
   span it held) and `lateMs` (how long after its lease end the poll dropped it).
-- Nested runs: `run` sets `FW_SLOT_HELD=1`, and a `fw slot run` inside it runs at once.
+- Nested runs: `run` sets `FW_SLOT_HELD=1`, `FW_SLOT_TOKEN=<its token>` and `FW_SLOT_OWNER` for its child. A `fw slot run`
+  inside it skips the queue (runs under the parent's lease) only when the state holds an entry that is live and carries that
+  owner and token and the kinds allow it: the same kind, or a requested kind other than `sim` and `measure` (those two always go through admission, so the exclusive slots stay exclusive; `nestedSkips` in `lean/Fw/Sup/Nested.lean`; `nestedSkips_iff`, `nestedSkips_none`,
+  `nestedSkips_same_kind`, `nestedSkips_other_kind`, `nestedSkips_sim_admission`, `nestedSkips_measure_admission`, `nestedSkips_empty`, and `sim_under_parent_not_blocked`: a sim request with the parent as its only live holder is not held by `simBusy` or `drain` because of it; TS twin `nestedSkips` in `slot-core.ts`, facts read by
+  `nestedHeld` in `slot.ts`, goldens `adapt.nested` in `adapt.jsonl`). Identity, not env presence: `FW_SLOT_HELD=1` with
+  no token (a script started with the flag by hand), an expired or released token and another owner's token all take their own slot. Live means the lease has not expired (`live`, now < till; the parent's run renews it every leaseS/3); the owner's pid and start time are not checked, so a dead parent's token covers a child until its lease lapses. Decision (task slot-nested-kind): a nested request of another kind runs under the parent's lease instead of being refused (no `VERDICT slot nested-kind`), because `fw land` runs check.sh and package tests inside its own land slot and a refusal would break dry lands; so a nested request of such a kind never waits on its own ancestor (`nestedSkips_other_kind`); a nested `sim` or `measure` request is admitted as usual. Its footprint is not counted extra (accepted limit). Owner pid+start check on the parent token: follow-up, `Entry` carries no pid.
+  - Cause (incident `inc-slot-held-env`): the old rule skipped on any `FW_SLOT_HELD`. Of the 760 local `slot run land
+    pnpm fw land dry` spans to cutoff 1792808775650 (timings.jsonl), 133 have no `slot` land `acquire` in locks.jsonl
+    within 3 s of their start. MEASURED (time match: spans carry no caller): 114 of the 133 started within 60 s
+    of a lead Bash call `FW_SLOT_HELD=1 sh .../land-rNNN.sh` in the lead session transcript, 122 within 10 min. INFERRED: the other 11 to 19 came from other callers (no caller field; long lead scripts may account for some), e.g. agents' own `fw slot run` inside a held `acquire` shell
+    or an env that inherited `FW_SLOT_HELD`. Not covered: callers outside `fw slot`. `scripts/slot-self.mjs` uses the same token rule (`nestedHeld`).
 - `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot; both gates apply until
   heavy-lock is retired.
 
@@ -132,19 +159,22 @@ pnpm -s fw slot admit --kind build                       # lead, before spawning
 - `admit --kind build` is run by the lead by hand; `build-review.js` does not call it yet. Its thresholds (8 agents,
   2100 MB) are from the same window.
 - The Simulator's own footprint is not reduced; sim priority only orders the other work around it.
+- Gap admission trusts the p90 of past spans (INFERRED); a job that runs longer than its prediction can still overlap
+  the pass, and the pass's own quiet check stays the guard. `acquire` holders that run no `slot run` have no spans,
+  so their kind waits as `unknown` in a gap.
+- `packages/measure-webkit/src/safari-local-lease.mjs` does not take a `measure` slot yet.
 
 ## Self-routing
 
-Heavy entry points queue themselves.
 - `lean/scripts/check.sh`, `lean:build` (root) and every package `test` script run `node scripts/slot-self.mjs <check|test> -- <cmd>`.
   The package scripts keep their old body as `test:run`.
 - Not held: the helper itself runs `slot run --kind <kind> -- <cmd>` (apps/runner/src/slot-main.ts, in its own process) and waits in the queue.
-- Held (`FW_SLOT_HELD` set, the nested rule above), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
-  directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
-- Tests: `node --test scripts/slot-self.test.mjs` (plan table, nested start, bare call goes through the slot).
+- Held (`FW_SLOT_TOKEN` names a live held entry of this owner: the token rule above, `FW_SLOT_HELD` alone queues), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
+  directly with `FW_SLOT_SELF_IN=1` in its env (check.sh's guard tests that marker, not `FW_SLOT_HELD`, so the direct run does not re-enter), so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
+- Tests: `node --test scripts/slot-self.test.mjs`.
 - Not covered: one-off `lake build <target>`,
   `lake env lean --run/--stdin`, `npx vitest`.
-- A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: export `FW_SLOT_HELD=1` before running a self-routing script (check.sh, a package `test`), or it queues behind its own slot.
+- A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: a self-routing script (check.sh, a package `test`) run there queues behind its own slot; export `FW_SLOT_OWNER=<owner>` and `FW_SLOT_TOKEN=<its token>` to run under it (a `sim` or `measure` kind still takes admission).
 
 ## Light waiter
 
@@ -158,8 +188,7 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 | after, `node fw.ts slot run` under `pnpm -s fw` | pnpm + 1 | 129 + 102 = 231 MB |
 
 - One process only via `slot-self.mjs` (check.sh, package `test`), 99 MB. The typed form `pnpm -s fw slot run` stays pnpm + node (2 processes; 3 where the pnpm shim switches to the pinned pnpm, which the lead measured as 95 + 105 + 102 MB). It gains 16 MB of node RSS (118 to 102, MEASURED).
-- `fw.ts` is now a small entry: for `fw slot ...` it loads only `slot-main.ts`, for every other group it loads `fw-main.ts` (the old fw.ts body: contracts, land, ci, plan; the 120 MB part). `package.json` `fw` still starts `apps/runner/src/fw.ts`, so the Monitor command line `node apps/runner/src/fw.ts watch --interval 300 --stream` is unchanged.
-- A typed `pnpm -s fw slot run` keeps pnpm as parent and loses only the fw-main.ts weight; `slot-self.mjs` loses the whole second process.
+- `fw.ts` is a small entry: for `fw slot ...` it loads only `slot-main.ts`, for every other group it loads `fw-main.ts` (the old fw.ts body: contracts, land, ci, plan; the 120 MB part). `package.json` `fw` still starts `apps/runner/src/fw.ts`, so the Monitor command line `node apps/runner/src/fw.ts watch --interval 300 --stream` is unchanged.
 - A bare node with TypeScript stripping is about 46 MB idle; the waiter is 99-102 MB. Not cut further (follow-up: a precompiled JS waiter). `manage-package-manager-versions=false` would remove the shim's nested pnpm and is not set here.
 - Tests: `scripts/slot-self.test.mjs` (the waiter has no child and starts the command only after the holder releases; usage exits 64).
 
@@ -168,3 +197,7 @@ A queued run waits in one node process, not a tree (slot-waiter-light, MEASURED 
 `fw slot ...` (apps/runner/src/fw.ts) and `scripts/slot-self.mjs` load `slot-main.ts` from the main checkout (the parent of the shared repo dir, see `apps/runner/src/slot.ts`), so a worktree on an older branch decides with main's slot code. They fall back to their own file when main's is missing or fails to import (for example a conflicted main checkout during a land merge). The Node pin guard and the Monitor line `node apps/runner/src/fw.ts watch --interval 300 --stream` are unchanged.
 - Limits: a run already waiting keeps the code it loaded; main's code must stay compatible with older callers' `state.json` writes; a worktree cut before slot-main-code still runs its own slot code until it merges main; a branch that changes slot code tests it through the unit tests, since `fw slot` runs main's code.
 - Test: `apps/runner/test/slot.test.ts` (fixture repo with a worktree). Incident: `inc-slot-branch-code`.
+
+## Queue waits in timings
+
+An acquire that waited writes `queue: {kind, waitMs, waits: [{why, ms}]}` on its span (`fw slot acquire`, `slot wait <kind>`); `waits` sums, per reason name, the ms between consecutive polls, using the `why` of the poll loop's own verdict (`apps/runner/src/slot-queue.ts` `addWait`; no owner, lease or tenure is read). The reason names are `Fw.Sup.Adapt.WhyTag`; `parseSamples` parses `waits` against that list and drops an unknown name (its ms stay in the judged remainder). Lean (`Fw.Obs.Timing.judgeQ`) decides: a sample with time under a holder reason (`holderWait`: every reason but `memory` and `memLow`) is judged on the remainder after that time only: `slow` when the remainder is slow, else `queued`; it never enters a window; wait time under `memory` or `memLow` stays judged. Whether a holder overstayed its lease is not judged on the waiter's span: it belongs to the expire events (task `timing-lease-overrun`). A refused acquire (`maxWaitS`, or `--wait`) carries no queue and is judged as any span, so a holder that never leaves still ends in a possible slow alert. Spans without `queue` keep their verdicts. Test: `apps/runner/test/slot-queue.test.ts`.

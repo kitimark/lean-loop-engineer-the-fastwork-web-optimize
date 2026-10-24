@@ -1,5 +1,3 @@
-// The continuity metrics and the cadence verdict are Lean's (lean/Fw/Gate/Smooth.lean). The TS twin in src/smooth/reduce.mjs is
-// checked here against the Lean-generated golden vectors in packages/contracts/golden/gate/smooth.jsonl.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -7,7 +5,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../src/smooth/reduce.mjs';
 import { pageSink, slowOf, summariseTrace } from '../src/smooth/trace.mjs';
-import { cellOf, hitchesOf, summary } from '../src/smooth/cadence-table.mjs';
+import { cellOf, countTotals, histogramsOf, histogramRows, hitchesOf, markdown as cadenceMarkdown, summary } from '../src/smooth/cadence-table.mjs';
 import { intervalsOf, orderFor } from '../src/smooth/cadence.mjs';
 import { byArm, differences, markdown } from '../src/smooth/table.mjs';
 
@@ -70,25 +68,20 @@ test('the verdict set covers first, second, same and insufficient', () => {
   assert.deepEqual([...new Set(ops('verdict').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
 });
 
-// A trace has every process: the browser draws its own UI frames (pid 1, layer tree 1), the page is the renderer (pid 2, layer tree 2),
-// a second renderer (pid 3) began fewer frames. Only pid 2 may be counted.
 const rb = (pid, id, state, ts, seq, tree) => ({ name: 'PipelineReporter', ph: 'b', pid, cat: 'cc', id2: { local: id }, ts, args: { frame_reporter: { state, frame_sequence: seq, layer_tree_host_id: tree } } });
 const re = (pid, id, ts) => ({ name: 'PipelineReporter', ph: 'e', pid, cat: 'cc', id2: { local: id }, ts, args: {} });
 const ev = (pid, name, tree) => ({ name, ph: 'I', pid, ts: 1, args: { layerTreeId: tree } });
 const twoProcess = () => [
   { name: 'process_name', ph: 'M', pid: 1, args: { name: 'Browser' } }, { name: 'process_name', ph: 'M', pid: 2, args: { name: 'Renderer' } },
-  // browser UI: 4 reporters, 3 of them dropped, on its own layer tree
   rb(1, '0x1', 'STATE_DROPPED', 100, 7, 1), re(1, '0x1', 5000), rb(1, '0x2', 'STATE_DROPPED', 6000, 8, 1), re(1, '0x2', 9000),
   rb(1, '0x3', 'STATE_DROPPED', 9100, 9, 1), re(1, '0x3', 9900), rb(1, '0x4', 'STATE_PRESENTED_ALL', 10000, 10, 1), re(1, '0x4', 12000),
   ev(1, 'BeginFrame', 1), ev(1, 'DrawFrame', 1), ev(1, 'DroppedFrame', 1),
-  // the page: frame 11 presented by two reporters, frame 12 dropped (compositor) with a presented partial update, frame 13 dropped by both, frame 14 no update
   rb(2, '0x5', 'STATE_PRESENTED_ALL', 1000, 11, 2), re(2, '0x5', 18000), rb(2, '0x6', 'STATE_PRESENTED_PARTIAL', 1000, 11, 2), re(2, '0x6', 19000),
   rb(2, '0x5', 'STATE_PRESENTED_ALL', 20000, 12, 2), re(2, '0x5', 38000), rb(2, '0x7', 'STATE_DROPPED', 20000, 12, 2), re(2, '0x7', 60000),
   rb(2, '0x5', 'STATE_DROPPED', 40000, 13, 2), re(2, '0x5', 70000), rb(2, '0x8', 'STATE_DROPPED', 40000, 13, 2), re(2, '0x8', 71000),
   rb(2, '0x5', 'STATE_NO_UPDATE_DESIRED', 80000, 14, 2), re(2, '0x5', 90000),
   ev(2, 'BeginFrame', 2), ev(2, 'BeginFrame', 2), ev(2, 'DrawFrame', 2), ev(2, 'DroppedFrame', 2), ev(2, 'DroppedFrame', 2),
   ev(2, 'BeginMainThreadFrame', 2), ev(2, 'BeginMainThreadFrame', 2), ev(2, 'BeginMainThreadFrame', 2),
-  // another renderer: one main-thread frame and one dropped reporter that must not count
   ev(3, 'BeginMainThreadFrame', 9), rb(3, '0x9', 'STATE_DROPPED', 1000, 99, 9), re(3, '0x9', 2000),
 ];
 
@@ -109,7 +102,6 @@ test('trace: counts come from the page sink only (two-process fixture)', () => {
   assert.deepEqual([t.BeginFrame, t.DrawFrame, t.DroppedFrame, t.BeginMainThreadFrame], [2, 1, 2, 3]);
   assert.equal(t.states.STATE_DROPPED, 3);
   assert.equal(t.presentedMax, 180);
-  // the same events counted over every process would give the browser's 3 dropped reporters too
   const all = twoProcess().filter((e) => e.name === 'PipelineReporter' && e.ph === 'b' && e.args.frame_reporter.state === 'STATE_DROPPED').length;
   assert.equal(all, 7);
 });
@@ -134,13 +126,15 @@ test('trace: the slow table has a fixed set of rows, none capped, absent events 
   assert.equal(slowOf([]).length, 5);
 });
 
-test('golden: hitches, hitch verdict, across and agreeNeeded equal the Lean values', () => {
+test('golden: hitches, hitch verdict, across, acrossDecisive and agreeNeeded equal the Lean values', () => {
   const c = ops('constants')[0];
   assert.deepEqual([S.HITCH_TENTHS, S.MIN_SAMPLES], [c.hitchTenths, c.minSamples]);
   for (const g of ops('hitches')) assert.equal(S.hitches(g.ivs), g.out, JSON.stringify(g.ivs));
   for (const g of ops('hitchVerdict')) assert.equal(S.hitchVerdict(g.a, g.b, g.aa1, g.aa2), g.out, JSON.stringify(g));
   for (const g of ops('across')) assert.equal(S.across(g.k, g.vs), g.out, JSON.stringify(g));
   for (const g of ops('agreeNeeded')) assert.equal(S.agreeNeeded(g.n), g.out, String(g.n));
+  for (const g of ops('acrossDecisive')) assert.deepEqual([S.decisive(g.vs), S.acrossDecisive(g.vs)], [g.decisive, g.out], JSON.stringify(g));
+  assert.deepEqual([...new Set(ops('acrossDecisive').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
   assert.deepEqual([...new Set(ops('hitchVerdict').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
   assert.deepEqual([...new Set(ops('across').map((g) => g.out))].sort(), ['first', 'insufficient', 'same', 'second']);
 });
@@ -175,8 +169,6 @@ test('cadence table: a cell takes its verdicts from the Lean-twin verdict over t
   assert.equal(few.verdicts['orig|base'], 'insufficient');
 });
 
-// Two runs of two arms; the original never moves hero.stage, the rewrite moves it in one run of two; hero.copy has 1 defect in orig runs
-// (both) and 4 then 5 in base runs.
 const rec = (run, arm, nodes) => ({ run, engine: 'chromium', width: 390, arm, ideal: 'line', window: 'hero', judgedNodes: Object.keys(nodes).length, flaggedNodes: 0, defectsPerPush: 0, tailPerPush: 0, nodes });
 const nd = (stalls, jumps, tail, peakRatio = 1000) => ({ judged: 5, flagged: 0, stalls, jumps, reversals: 0, tail, tailT: 0, peakRatio });
 
@@ -187,7 +179,7 @@ test('table: byArm keeps a median and a range per node with the run ids; differe
   ]);
   const base = rows.find((r) => r.arm === 'base');
   assert.deepEqual(base.nodes['hero.copy'].runs, ['1', '2']);
-  assert.equal(base.nodes['hero.copy'].defects, 4); // median of [4, 5] by nearest rank is the lower
+  assert.equal(base.nodes['hero.copy'].defects, 4);
   assert.deepEqual(base.nodes['hero.copy'].defectsRange, [4, 5]);
   assert.equal(base.nodes['hero.stage'].moved, 1);
   assert.equal(base.nodes['hero.stage'].ofRuns, 2);
@@ -195,4 +187,42 @@ test('table: byArm keeps a median and a range per node with the run ids; differe
   const d = differences(rows, 'orig', (a) => a === 'base');
   assert.deepEqual(d.map((x) => [x.node, x.measure, x.dir]).sort(), [['hero.copy', 'defects', 'higher'], ['hero.stage', 'moved', 'arm moving']]);
   assert.match(markdown(rows), /hero\.stage \| hero\.exit \| orig \| 0 \/ 2/);
+});
+
+test('golden: the > 25 ms, 34 ms and 50 ms counts, the skipped slots and the window counts equal the Lean values', () => {
+  const [k] = ops('missConstants');
+  assert.equal(S.MISS_TENTHS, k.missTenths);
+  assert.equal(S.FAIL_TENTHS, k.failTenths);
+  for (const g of ops('over')) {
+    assert.deepEqual({ frames: g.ivs.length, over25: S.over25(g.ivs), over34: S.over34(g.ivs), over50: S.over50(g.ivs), hitches: S.hitches(g.ivs) }, g.out, JSON.stringify(g.ivs));
+    assert.equal(S.over34(g.ivs), S.repOf(g.ivs).bad);
+    assert.ok(g.out.over50 <= g.out.over34 && g.out.over34 <= g.out.over25 && g.out.hitches <= g.out.over50);
+  }
+  for (const g of ops('skips')) {
+    assert.deepEqual({ pairs: Math.max(0, g.ts.length - 1), skips: S.skips(g.ts), longGaps: S.longGaps(g.ts) }, g.out, JSON.stringify(g.ts));
+    assert.ok(g.out.longGaps <= g.out.skips && g.out.skips <= g.out.pairs);
+  }
+  for (const g of ops('counts')) assert.deepEqual(S.countsOf(g.ivs, g.ts), g.out, JSON.stringify(g.ts));
+  for (const g of ops('countsAdd')) assert.deepEqual(S.addCounts(g.a, g.b), g.out);
+  assert.equal(ops('over').length + ops('skips').length + ops('counts').length + ops('countsAdd').length, 6 + 11 + 11 + 10);
+});
+
+test('hundredthsFrom keeps the exact times that the tenths of the intervals round away', () => {
+  assert.deepEqual(S.hundredthsFrom([100, 116.67, 133.34, 150.01]), [0, 1667, 3334, 5001]);
+  assert.equal(S.skips(S.hundredthsFrom([100, 116.67, 133.34, 150.01, 183.34])), 1);
+});
+
+test('cadence table: a cell carries window counts per arm, summed over reps and samples, and the histogram deltas', () => {
+  const th = [0, 1667, 3334, 6667, 8334];
+  const row = (arm, rep, hist) => ({ width: 390, window: 'hero', arm, rep, ivs: th.slice(1).map((t, i) => Math.round((t - th[i]) / 10)), th, ys: [], loaf: [], hist });
+  const file = { search: '', hash: 'h', baseHash: 'h', version: 'v', runs: [row('base', 0, [{ name: 'Event.ScrollJank.X', count: 2, sum: 10, buckets: [] }]), row('base', 1, null), row('aa', 0, null)] };
+  const c = cellOf('1', file, 390, 'hero');
+  assert.deepEqual(c.counts.base, { frames: 8, over25: 2, over34: 0, over50: 0, skips: 2 });
+  assert.deepEqual(c.countReps.base.map((x) => x.skips), [1, 1]);
+  assert.deepEqual(c.histograms.base, [{ name: 'Event.ScrollJank.X', windows: 1, count: 2, sum: 10 }]);
+  const t = countTotals([c, { ...c, run: '2' }]);
+  assert.deepEqual(t.find((e) => e.arm === 'base').counts, { frames: 16, over25: 4, over34: 0, over50: 0, skips: 4 });
+  assert.equal(t.find((e) => e.arm === 'base').runs.length, 2);
+  assert.match(cadenceMarkdown({ cells: [c], skipped: [] }, summary([c])), /skipped slots/);
+  assert.equal(histogramRows([{ ...c, histograms: histogramsOf([]) }]).length, 2);
 });

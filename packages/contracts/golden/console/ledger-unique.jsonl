@@ -1,0 +1,8 @@
+{"bad":[],"name":"empty","ns":[],"ok":true}
+{"bad":[],"name":"distinct","ns":[26,27,28],"ok":true}
+{"bad":[48],"name":"dup-48","ns":[46,47,48,48,49],"ok":false}
+{"bad":[],"name":"legacy-repeat","ns":[6,6,6,9,9,26],"ok":true}
+{"bad":[30],"name":"legacy-and-dup","ns":[6,6,30,31,30],"ok":false}
+{"bad":[40],"name":"triple","ns":[40,40,40],"ok":false}
+{"bad":[26],"name":"floor-edge","ns":[25,25,26,26],"ok":false}
+{"bad":[30],"name":"far-apart","ns":[30,31,32,30],"ok":false}

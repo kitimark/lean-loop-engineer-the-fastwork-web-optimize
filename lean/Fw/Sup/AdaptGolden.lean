@@ -1,5 +1,7 @@
 import Lean.Data.Json
 import Fw.Sup.Adapt
+import Fw.Sup.Nested
+import Fw.Sup.MeasureWindow
 
 /-! Golden vectors of `Fw.Sup.Adapt` (`packages/contracts/golden/sup/adapt.jsonl`), replayed by apps/runner/test/slot.test.ts. -/
 namespace Fw.Sup.Adapt
@@ -16,7 +18,7 @@ def paramsJson (p : Params) : Json :=
     ("simIdleS", toJson p.simIdleS), ("graceMs", toJson p.graceMs), ("simPollS", toJson p.simPollS),
     ("buildMB", toJson p.buildMB), ("agentsMax", toJson p.agentsMax), ("agentsAgeS", toJson p.agentsAgeS),
     ("swapOutMBPerMinMax", toJson p.swapOutMBPerMinMax), ("comprMBPerMinMax", toJson p.comprMBPerMinMax), ("rateMinS", toJson p.rateMinS),
-    ("rateMaxS", toJson p.rateMaxS)]
+    ("rateMaxS", toJson p.rateMaxS), ("measureMB", toJson p.measureMB)]
 
 def memJson (m : Mem) : Json :=
   Json.mkObj [("freeMB", toJson m.freeMB), ("specMB", toJson m.specMB), ("purgMB", toJson m.purgMB),
@@ -59,6 +61,10 @@ def whyFields : Why → List (String × Json)
   | .memory n r => [("why", "memory"), ("needMB", toJson n), ("roomMB", toJson r)]
   | .memLow a => [("why", "memLow"), ("availMB", toJson a)]
   | .simFirst => [("why", "simFirst")]
+  | .pass => [("why", "pass")]
+  | .gap n l => [("why", "gap"), ("needS", toJson n), ("leftS", toJson l)]
+  | .unknown => [("why", "unknown")]
+  | .measureBusy => [("why", "measureBusy")]
 
 def verdictJson : Verdict → Json
   | .admit t f => Json.mkObj [("verdict", "admit"), ("threads", toJson t), ("footMB", toJson f)]
@@ -407,10 +413,146 @@ def cacheLines : List String :=
     hit "land, main moved: miss" l 0 (keyOf .land l.argv "tree1" "main2" true),
     hit "land, same main: hit" l 0 (keyOf .land l.argv "tree1" "main1" true) ]
 
+open Fw.Sup.MeasureWindow in
+def wparamsJson (wp : WParams) : Json :=
+  Json.mkObj [("measureMaxS", toJson wp.measureMaxS), ("passMaxS", toJson wp.passMaxS), ("settleS", toJson wp.settleS),
+    ("histMin", toJson wp.histMin), ("histN", toJson wp.histN)]
+
+open Fw.Sup.MeasureWindow in
+def windowJson (w : Window) : Json :=
+  Json.mkObj [("owner", .str w.owner), ("token", .str w.token), ("deadline", toJson w.deadline),
+    ("passTill", optJson w.passTill), ("next", toJson w.next)]
+
+open Fw.Sup.MeasureWindow in
+def owJson : Option Window → Json
+  | none => .null
+  | some w => windowJson w
+
+open Fw.Sup.MeasureWindow in
+def passJson : PassVerdict → Json
+  | .start t => Json.mkObj [("pass", "start"), ("till", toJson t)]
+  | .wait o => Json.mkObj [("pass", "wait"), ("others", toJson o)]
+  | .gone => Json.mkObj [("pass", "gone")]
+
+open Fw.Sup.MeasureWindow in
+def rowJson (r : Row) : Json :=
+  Json.mkObj [("step", .str r.step), ("durMs", toJson r.durMs), ("exit", optJson r.exit), ("host", .str r.host)]
+
+open Fw.Sup.MeasureWindow in
+set_option compiler.extract_closed false in
+def windowLines (_ : Unit := ()) : List String :=
+  let wp : WParams := {}
+  let m := mH "m" "M" 1000 2000
+  let ck := chk "a" "1" .check 1390
+  let wv := fun (nm : String) (w : Option Window) (pred : Option Nat) (n : Nat) (s : Sample) (hs q : List Entry) (me : Entry)
+      (waited : Nat) =>
+    line nm "window.verdict" [("wparams", wparamsJson wp), ("window", owJson w), ("pred", optJson pred), ("n", toJson n),
+      ("sample", sampleJson s), ("holders", entriesJson hs), ("queue", entriesJson q), ("me", entryJson me),
+      ("waited", toJson waited)] (verdictJson (wverdict wp w pred {} n s hs q me waited))
+  let ps := fun (nm : String) (w : Option Window) (now : Nat) (hs : List Entry) (o t : String) (forS : Nat) =>
+    line nm "window.passStart" [("wparams", wparamsJson wp), ("window", owJson w), ("now", toJson now),
+      ("holders", entriesJson hs), ("owner", .str o), ("token", .str t), ("forS", toJson forS)]
+      (passJson (passStart wp w now hs o t forS))
+  let pr := fun (nm : String) (wp' : WParams) (k : Kind) (rows : List Row) =>
+    line nm "window.predict" [("wparams", wparamsJson wp'), ("kind", .str k.name), ("rows", .arr (rows.map rowJson).toArray)]
+      (Json.mkObj [("predS", optJson (predict wp' k rows))])
+  let cu := fun (nm : String) (now : Nat) (hs : List Entry) (w : Option Window) =>
+    line nm "window.current" [("now", toJson now), ("holders", entriesJson hs), ("window", owJson w)]
+      (Json.mkObj [("window", owJson (current now hs w))])
+  let ed := fun (nm : String) (w : Window) (act : String) (now x : Nat) =>
+    let r := if act == "begin" then begin w x else if act == "want" then want w now else stop w now x
+    line nm "window.edit" [("window", windowJson w), ("act", .str act), ("now", toJson now), ("arg", toJson x)]
+      (Json.mkObj [("window", windowJson r)])
+  let rows : List Row := [⟨"slot run check", 61000, some 0, "local"⟩, ⟨"slot run check lake", 1500, some 0, "local"⟩,
+    ⟨"slot run check lake cached", 10, some 0, "local"⟩, ⟨"slot run checker", 10, some 0, "local"⟩,
+    ⟨"slot run check", 99000, some 1, "local"⟩, ⟨"slot run check", 7000, some 0, "ci"⟩, ⟨"slot run check", 7000, none, "local"⟩,
+    ⟨"slot run check lake", 2001, some 0, "local"⟩, ⟨"slot run test", 40000, some 0, "local"⟩]
+  [ line "default window parameters" "window.params" [] (wparamsJson wp),
+    line "measure grant at 1000, gap 0" "window.open" [("wparams", wparamsJson wp), ("owner", .str "m"), ("token", .str "M"),
+      ("now", toJson 1000), ("gapS", toJson 0)] (Json.mkObj [("window", windowJson wA)]),
+    line "measure grant with a first gap of 300 s" "window.open" [("wparams", wparamsJson wp), ("owner", .str "m"),
+      ("token", .str "M"), ("now", toJson 1000), ("gapS", toJson 300)] (Json.mkObj [("window", windowJson (openAt wp "m" "M" 1000 300))]),
+    cu "holder live: window in force" 1100 [mH "m" "M" 1000 1200] (some wA),
+    cu "holder of another token: none" 1100 [mH "m" "X" 1000 1200] (some wA),
+    cu "holder of another owner: none" 1100 [mH "n" "M" 1000 1200] (some wA),
+    cu "deadline reached: none" 6400 [mH "m" "M" 1000 7000] (some wA),
+    cu "holder expired: none" 1300 [mH "m" "M" 1000 1200] (some wA),
+    cu "no window" 1100 [mH "m" "M" 1000 1200] none,
+    wv "pass live: a check waits" (some (begin wA 1300)) (some 10) 4 (s1 1100) [mH "m" "M" 1000 1600]
+      [chk "a" "1" .check 1090] (chk "a" "1" .check 1090) 10,
+    wv "pass live: a sim waits" (some (begin wA 1300)) (some 10) 4 (s1 1100) [mH "m" "M" 1000 1600]
+      [chk "s" "5" .sim 1090] (chk "s" "5" .sim 1090) 10,
+    wv "pass live past maxWait: refused" (some (begin wA 1300)) (some 10) 4 (s1 1100) [mH "m" "M" 1000 1600]
+      [chk "a" "1" .check 1090] (chk "a" "1" .check 1090) 1800,
+    wv "pass over at its till: gap rule" (some (begin { wA with next := 1900 } 1300)) (some 100) 4 (s1 1300) [m] [ck] ck 10,
+    wv "gap: 100 s + settle fits before the pass at 1900" (some gapA) (some 100) 4 (s1 1400) [m] [ck] ck 10,
+    wv "gap: 470 s + settle ends exactly at 1900" (some gapA) (some 470) 4 (s1 1400) [m] [ck] ck 10,
+    wv "gap: 471 s + settle overlaps the pass" (some gapA) (some 471) 4 (s1 1400) [m] [ck] ck 10,
+    wv "gap: no span history" (some gapA) none 4 (s1 1400) [m] [ck] ck 10,
+    wv "gap: another measure lease waits" (some gapA) (some 10) 4 (s1 1400) [m] [chk "b" "2" .measure 1390]
+      (chk "b" "2" .measure 1390) 10,
+    wv "gap: base waits on memory" (some gapA) (some 10) 4 ((s1 1400).withFree 1500) [m] [ck] ck 10,
+    wv "gap: base limit full" (some gapA) (some 10) 1 (s1 1400) [m] [ck] ck 10,
+    wv "gap: an aged test ticket goes first" (some gapA) (some 10) 4 (s1 1400) [m] [chk "t" "7" .test 1000, ck] ck 10,
+    wv "after the deadline: base verdict" (some gapA) (some 500) 4 (s1 6400) [mH "m" "M" 1000 7000]
+      [chk "a" "1" .check 6390] (chk "a" "1" .check 6390) 10,
+    wv "no window: base verdict" none none 4 (s1 1400) [] [ck] ck 10,
+    wv "window of a released lease: base verdict" (some gapA) none 4 (s1 1400) [] [ck] ck 10,
+    wv "first measure lease: admitted by the base" none none 4 (s1 1400) [] [chk "b" "2" .measure 1390]
+      (chk "b" "2" .measure 1390) 0,
+    ps "quiet: pass of 300 s" (some wA) 1100 [mH "m" "M" 1000 1600] "m" "M" 300,
+    ps "pass capped at passMaxS" (some wA) 1100 [mH "m" "M" 1000 1600] "m" "M" 9000,
+    ps "pass capped at the deadline" (some wA) 6300 [mH "m" "M" 1000 7000] "m" "M" 300,
+    ps "a test still runs: the pass waits" (some wA) 1100 [mH "m" "M" 1000 1600, chk "a" "1" .test 1090] "m" "M" 300,
+    ps "an expired test does not block" (some wA) 1100 [mH "m" "M" 1000 1600, chk "a" "1" .test 1000] "m" "M" 300,
+    ps "old sim lock counts as another holder" (some wA) 1100 (withLegacy 1100 true [mH "m" "M" 1000 1600]) "m" "M" 300,
+    ps "foreign owner: gone" (some wA) 1100 [mH "m" "M" 1000 1600] "x" "M" 300,
+    ps "no window: gone" none 1100 [mH "m" "M" 1000 1600] "m" "M" 300,
+    ps "deadline passed: gone" (some wA) 6400 [mH "m" "M" 1000 7000] "m" "M" 300,
+    pr "three usable spans: p90 61 s" wp .check rows, pr "test: one span, no prediction" wp .test rows,
+    pr "two spans: no prediction" wp .check (rows.take 2), pr "window of the last 2: below histMin" { histN := 2 } .check rows,
+    pr "histMin 1: test 40 s" { histMin := 1 } .test rows, pr "no rows" wp .sim [],
+    pr "rounding up: 1001 ms is 2 s" { histMin := 1 } .land [⟨"slot run land dry", 1001, some 0, "local"⟩],
+    ed "begin a pass till 1300" wA "begin" 1000 1300, ed "want at 1500 pulls next in" gapA "want" 1500 0,
+    ed "want after next keeps it" gapA "want" 2000 0, ed "stop at 1300, next pass in 600 s" (begin wA 1300) "stop" 1300 600,
+    line "lease capped at the deadline" "window.capLease" [("window", windowJson wA), ("now", toJson 6000), ("lease", toJson 600)]
+      (Json.mkObj [("leaseS", toJson (capLease wA 6000 600))]),
+    line "lease inside the window" "window.capLease" [("window", windowJson wA), ("now", toJson 1000), ("lease", toJson 600)]
+      (Json.mkObj [("leaseS", toJson (capLease wA 1000 600))]),
+    line "deadline passed: no lease" "window.capLease" [("window", windowJson wA), ("now", toJson 7000), ("lease", toJson 600)]
+      (Json.mkObj [("leaseS", toJson (capLease wA 7000 600))]) ]
+
+def nestedLines : List String :=
+  let en (o t : String) (k : Kind) (till : Nat) : Entry := { owner := o, token := t, kind := k, since := 100, till := till }
+  let nm (o t : String) : Option (String × String) := some (o, t)
+  let namedJson : Option (String × String) → Json
+    | none => .null
+    | some (o, t) => Json.mkObj [("owner", .str o), ("token", .str t)]
+  let nl (name : String) (now : Nat) (k : Kind) (named : Option (String × String)) (held : List Entry) : String :=
+    line name "adapt.nested" [("now", toJson now), ("kind", .str k.name), ("named", namedJson named), ("held", entriesJson held)]
+      (Json.mkObj [("skip", .bool (nestedSkips now k named held))])
+  [nl "named live land token, land request: skip" 200 .land (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "FW_SLOT_HELD alone, no token named: acquire" 200 .land none [en "w" "T1" .land 300],
+    nl "no token named and nothing held: acquire" 200 .land none [],
+    nl "held test slot, nested land request: skip, runs under the parent lease" 200 .land (nm "w" "T1") [en "w" "T1" .test 300],
+    nl "held land slot, nested test request: skip, runs under the parent lease" 200 .test (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "held land slot, nested sim request: acquire" 200 .sim (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "held sim slot, nested sim request: skip" 200 .sim (nm "w" "T1") [en "w" "T1" .sim 300],
+    nl "held land slot, nested measure request: acquire" 200 .measure (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "named token expired (till = now): acquire" 300 .land (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "named token released (not in state): acquire" 200 .land (nm "w" "T1") [en "w" "T2" .land 300],
+    nl "token of another owner: acquire" 200 .land (nm "w" "T1") [en "x" "T1" .land 300],
+    nl "live land entry of another holder, own token unknown: acquire" 200 .land (nm "w" "T9") [en "x" "T1" .land 300, en "y" "T2" .land 300],
+    nl "several holders, the named one live and of the kind: skip" 200 .check (nm "w" "T2")
+      [en "x" "T1" .land 300, en "w" "T2" .check 250, en "y" "T3" .test 300],
+    nl "expired twin and live entry of one token: skip" 200 .land (nm "w" "T1") [en "w" "T1" .land 150, en "w" "T1" .land 300]]
+
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
-  [line "default parameters" "adapt.params" [] (paramsJson {})] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
-    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines
+  [line "default parameters" "adapt.params" [] (paramsJson {}),
+    line "reason names (WhyTag.all): the closed parse list of the timing spans" "adapt.whyTags" []
+      (Json.mkObj [("names", .arr (WhyTag.all.map (fun t => Json.str t.name)).toArray)])] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
+    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines () ++ nestedLines
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 

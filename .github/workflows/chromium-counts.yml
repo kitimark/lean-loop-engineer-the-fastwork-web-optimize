@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       profile:
-        description: Profile file name in packages/measure-chromium/profiles (without .json)
+        description: Profile file name in packages/measure-chromium/profiles, or a probe in packages/measure-chromium/probes (without .json)
         type: string
         default: swipe-v1
       runs:
@@ -126,6 +126,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             packages/measure-chromium/profiles
+            packages/measure-chromium/probes
             packages/measure-chromium/src
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -143,7 +144,14 @@ jobs:
           case "$PROFILE" in ''|*[!a-z0-9-]*) echo "bad profile name" >&2; exit 1 ;; esac
           case "$RUNS" in ''|*[!0-9]*) echo "runs must be a number" >&2; exit 1 ;; esac
           if [ "$RUNS" -lt 2 ] || [ "$RUNS" -gt 10 ]; then echo "runs must be 2..10" >&2; exit 1; fi
-          test -f "packages/measure-chromium/profiles/$PROFILE.json"
+          # Lean Fw.Measure.Profile.resolve: a name is in exactly one of profiles/ (counts) and probes/ (probe).
+          dir=""
+          if [ -f "packages/measure-chromium/profiles/$PROFILE.json" ]; then dir=profiles; fi
+          if [ -f "packages/measure-chromium/probes/$PROFILE.json" ]; then
+            if [ -n "$dir" ]; then echo "profile $PROFILE is in both profiles/ and probes/" >&2; exit 1; fi
+            dir=probes
+          fi
+          if [ -z "$dir" ]; then echo "profile $PROFILE is in neither profiles/ nor probes/" >&2; exit 1; fi
           # The rewrite page is chosen by its query string (apps/site: ?preset=<name>&fw=<part:variant,...>). The default
           # config has the empty query. The site build prerenders exactly this query, so the measured page hydrates.
           case "$PRESET" in ''|*[!a-z0-9-]*) echo "bad preset name" >&2; exit 1 ;; esac
@@ -158,8 +166,8 @@ jobs:
             if [ "$TARGET" != rewrite ]; then echo "only applies to the rewrite: use target rewrite" >&2; exit 1; fi
             if [ -n "$search" ]; then search="$search&only=$ONLY"; else search="?only=$ONLY"; fi
             # Fw.Site.StageMode: the part page gets the profile viewport as its stage environment (the page pins innerWidth/innerHeight to it).
-            vw=$(jq -r '.viewport.width' "packages/measure-chromium/profiles/$PROFILE.json")
-            vh=$(jq -r '.viewport.height' "packages/measure-chromium/profiles/$PROFILE.json")
+            vw=$(jq -r '.viewport.width' "packages/measure-chromium/$dir/$PROFILE.json")
+            vh=$(jq -r '.viewport.height' "packages/measure-chromium/$dir/$PROFILE.json")
             search=$(node packages/measure-chromium/src/stage-mode.mjs plan "$search" "$vw" "$vh")
           fi
           if [ -n "$search" ] && [ "$TARGET" = original ]; then echo "preset/fw apply to the rewrite: use target both or rewrite" >&2; exit 1; fi
@@ -551,7 +559,7 @@ jobs:
               echo '> Part page (`?only=`): counts of one mounted part. Premise: the classes frozen on the whole page are assumed to bound it (declared-rows-unverified).' >> "$GITHUB_STEP_SUMMARY" ;;
           esac
           # The pinned inputs of the image (class-freeze records them next to the image id).
-          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/driver/package-lock.json) > "$out/image-inputs.txt"
+          (cd "$GITHUB_WORKSPACE/packages/measure-chromium" && sha256sum Dockerfile docker/apt-manifest.txt docker/fonts.conf docker/driver/package-lock.json) > "$out/image-inputs.txt"
           echo '### chromium-counts: classes over the runs' >> "$GITHUB_STEP_SUMMARY"
           # Each target goes through the same classify path (fwcore Fw.Measure.classify, kMax 4, tMax 24).
           for t in $(echo "$TARGETS" | jq -r '.[]'); do

@@ -205,34 +205,29 @@ export function matchOne(kind, win, r) {
   return vs.some((v) => !v.startsWith('fail:')) ? pass : combine(vs);
 }
 
-/** Lean `judgeColour`. */
 export const judgeColour = (core, win, r) =>
   combine([matchOne('colour', core.map((x) => chan(x.els)), chan(r.els)), judgeEls('colour', win.map((x) => alpha(x.els)), alpha(r.els))]);
 
-/** Lean `isCoreIn`. */
 export const isCoreIn = (r, o) => isCore({ ...r, rep: o.rep }, o);
 
-/** Lean `envelope`. */
 export const envelope = (seg, r) => repsOf(seg).flatMap((q) => flightWindow(seg, { ...r, rep: q }));
 
-/** Lean `judgeWith`. */
-export function judgeWith(kind, d, seg, fw, core, win, r) {
+function judgeWithBy(kind, d, settle, fw, core, win, r) {
   if (inFlight(d, r)) {
     if (fw.length === 0) return win === null ? fail('coverage') : judgeEls(kind, win.map((s) => s.els), r.els);
     return kind === 'colour' ? judgeColour(fw.filter(core), fw, r) : judgeEls(kind, fw.map((s) => s.els), r.els);
   }
   if (win === null) return fail('coverage');
-  const ref = win.map((w) => settledRef(d, seg, w)).filter((w) => w !== null);
+  const ref = win.map(settle).filter((w) => w !== null);
   return ref.length === 0 ? fail('coverage') : judgeEls(kind, ref.map((x) => x.els), r.els);
 }
 
-/** Lean `judgeUnit`. */
+export const judgeWith = (kind, d, seg, fw, core, win, r) => judgeWithBy(kind, d, (w) => settledRef(d, seg, w), fw, core, win, r);
+
 export const judgeUnit = (kind, d, seg, win, r) => judgeWith(kind, d, seg, envelope(seg, r), (o) => isCoreIn(r, o), win, r);
 
-/** Lean `judgeOwn`. */
 export const judgeOwn = (kind, d, seg, win, r) => judgeWith(kind, d, seg, flightWindow(seg, r), (o) => isCore(r, o), win, r);
 
-/** Lean `bucket`: the tenth of a morph value (floor((m + 500) / 1000), clamped to 0..10); 11 for no morph value. */
 export const bucket = (m) => (m === null || m === undefined ? 11 : Math.min(10, Math.max(0, Math.floor((m + 500) / 1000))));
 
 /** Lean `needsSample`: the interior buckets of a push. */
@@ -293,18 +288,38 @@ export const laneFails = (vs) => vs.some(isFail);
 // ---- against the faithful arm (Lean `rel`, `laneRed`) -----------------------------------------------------------------------
 
 /**
- * Lean `rel`: one unit of the candidate against the same unit of the faithful arm. A unit the baseline lacks is not a failure there.
- * `unmeasured`: the candidate fails on content where the faithful arm fails on coverage (no verdict, not `both`, not `new`).
+ * Lean `rel`: what one unit says relative to the same unit of the faithful arm (the default config against the original). A unit
+ * the baseline lacks is not a failure there.
+ *
+ * `new` fails here and passes (or is not compared) there; `both` fails in both, so the candidate did not cause it; `cleared` fails
+ * only there; `ok` fails in neither. `unmeasured`: the candidate fails on content (a difference) where the faithful arm fails on
+ * coverage, so the faithful arm was not measured there and the unit has no verdict either way. `undecided`: the candidate's open@1
+ * is `skip:firstOpen` where the faithful arm does not fail, or the faithful arm's is `skip:firstOpen` where the candidate fails;
+ * `stableRel` also gives it to a unit that is new against one member of its `family` and not new against another.
  */
 export function rel(cand, base) {
   const c = isFail(cand), b = base !== undefined && isFail(base);
-  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : 'new';
-  return b ? 'cleared' : 'ok';
+  if (c) return b ? (base === fail('coverage') && cand !== fail('coverage') ? 'unmeasured' : 'both') : base === skip('firstOpen') ? 'undecided' : 'new';
+  if (b) return 'cleared';
+  return cand === skip('firstOpen') ? 'undecided' : 'ok';
 }
-/** Lean `laneRed`: the candidate is red when some unit is new. */
 export const laneRed = (rels) => rels.includes('new');
+export const dropPass = (seg, q) => seg.filter((s) => (s.rep ?? 0) !== q);
 
-// ---- which arm was measured (Lean `armCheck`, `runCheck`) ---------------------------------------------------------------------
+export const family = (seg) => { const qs = repsOf(seg); return qs.length < 2 ? [seg] : [seg, ...qs.map((q) => dropPass(seg, q))]; };
+
+const cleanRel = (r) => r !== 'new' && r !== 'undecided';
+
+export const stableRel = (rs) => (rs.every((r) => r === 'new') ? 'new' : rs.every(cleanRel) ? rs[0] : 'undecided');
+
+/** Lean `stableOf` of one unit: `cf`, `bf` are its candidate and faithful verdicts against each member of the original's `family`. */
+export const unitRel = (cf, bf) => stableRel(cf.map((c, i) => rel(c, bf?.[i])));
+
+export const laneExit = (refused, strict, lane) => (refused ? 2 : !strict ? 0 : lane === 'red' ? 1 : lane === 'undecided' ? 3 : 0);
+/** Lean `exitJoin`: the exit over several engines, refused (2) over RED (1) over UNDECIDED (3) over CLEAN (0). */
+export const exitJoin = (a, b) => [2, 1, 3].find((c) => a === c || b === c) ?? 0;
+export const laneOf = (rels) => (laneRed(rels) ? 'red' : rels.includes('undecided') ? 'undecided' : 'clean');
+
 
 /** Lean `armCheck`: 'ok' or 'refused:config'. An arm is { site, want, config, mode }, each of the last three a string or null. */
 export function armCheck(a) {
@@ -376,15 +391,14 @@ export function triggersOf(ps) {
 
 const passOf = (seg, q) => seg.filter((s) => (s.rep ?? 0) === q);
 
-/** Lean `origFirst`. */
 export const origFirst = (seg, r) => triggersOf(passOf(seg, r.rep ?? 0).filter((s) => s.ph === r.ph))[0] ?? null;
 
-/** Lean `excess`. */
 export const excess = (lo, hi, w) => (w < lo ? lo - w : hi < w ? w - hi : 0);
 
-/** Lean `startCheck`: true, false, or null (undecided). */
-export function startCheck(kind, full, seg, prior, r) {
-  const q = triggersOf([...prior, r])[0] ?? null, o = origFirst(seg, r);
+export const startCheck = (kind, full, seg, prior, r) => startCheckAt(kind, full, origFirst(seg, r), prior, r);
+
+function startCheckAt(kind, full, o, prior, r) {
+  const q = triggersOf([...prior, r])[0] ?? null;
   if (q === null || o === null) return null;
   const s = oneNum(o.els), w = oneNum(q.els), x = oneNum(r.els);
   if (s === null || w === null || x === null) return null;
@@ -502,7 +516,101 @@ export function byMId(ph, p, kind, d, oSeg, wSeg, conv) {
 export const byMRule = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
   (id ? byMId(ph, p, kind, d, oSeg, wSeg, conv) : byMStart(ph, p, kind, d, e, oSeg, wSeg));
 
-/** The phases of the end-of-page path and whether the wheel moves the morph in them (Lean `Phase`). */
+export const OPEN_PH = 0;
+
+export const firstFrame = (ph, p, b) => ph === 'push' && p === OPEN_PH && b === 1;
+
+export const hasBucket = (seg, p, b) => seg.some((s) => s.ph === p && bucket(s.m) === b);
+
+export const ALPHA = [1n, 20n];
+
+const chanceCmp = (no, j, nw) => {
+  if (no === 0) return nw === 0 ? 1 : -1;
+  const lhs = ALPHA[1] * BigInt(Math.max(0, no - j)) ** BigInt(nw), rhs = ALPHA[0] * BigInt(no) ** BigInt(nw);
+  return lhs > rhs ? 1 : lhs < rhs ? -1 : 0;
+};
+
+export const firstCover = (no, k, nw) =>
+  (k >= 1 && chanceCmp(no, k - 1, nw) <= 0 ? 'missing' : chanceCmp(no, k + 1, nw) > 0 ? 'late' : 'undecided');
+
+export const coverVerdict = (c) => (c === 'missing' ? fail('coverage') : c === 'late' ? skip('firstLate') : skip('firstOpen'));
+
+export const passes = (seg, p) => new Set(seg.filter((s) => s.ph === p).map((s) => s.rep ?? 0)).size;
+
+export const passesIn = (seg, p, b) => new Set(seg.filter((s) => s.ph === p && bucket(s.m) === b).map((s) => s.rep ?? 0)).size;
+
+export const firstVerdict = (ph, p, b, oSeg, wSeg, v) =>
+  firstFrame(ph, p, b) && !hasBucket(wSeg, p, b) && v === fail('coverage')
+    ? coverVerdict(firstCover(passes(oSeg, p), passesIn(oSeg, p, b), passes(wSeg, p))) : v;
+
+export const byMFirst = (ph, p, kind, d, e, id, oSeg, wSeg, conv) =>
+  byMRule(ph, p, kind, d, e, id, oSeg, wSeg, conv).map(([b, v]) => [b, firstVerdict(ph, p, b, oSeg, wSeg, v)]);
+
+export const byMFamEach = (ph, p, kind, d, e, id, oSeg, wSeg, conv) => family(oSeg).map((o) => byMFirst(ph, p, kind, d, e, id, o, wSeg, conv));
+
+export function byMFam(ph, p, kind, d0, e, id, oSeg, wSeg, conv) {
+  const durs = new Map();
+  const d = (cls) => { const k = JSON.stringify(cls); if (!durs.has(k)) durs.set(k, d0(cls)); return durs.get(k); };
+  const seg = annotate(oSeg), orig = seg.filter((o) => o.ph === p);
+  const reps = repsOf(seg), origReps = repsOf(orig);
+  const drops = reps.length < 2 ? [null] : [null, ...reps];
+  const strictPass = new Map(reps.map((q) => [q, seg.filter((o) => o.rep === q)]));
+  const segPass = new Map(reps.map((q) => [q, passOf(seg, q)]));
+  const origPass = new Map(origReps.map((q) => [q, passOf(orig, q)]));
+  const epoch = (o) => JSON.stringify([o.rep, o.cls, o.ord]);
+  const ends = new Map(seg.map((o) => [epoch(o), o]));
+  const settled = new Map();
+  const settle = (w) => {
+    if (!settled.has(w)) {
+      const end = ends.get(epoch(w)) ?? null;
+      settled.set(w, !inFlight(d, w) ? w : end !== null && !inFlight(d, end) ? end : null);
+    }
+    return settled.get(w);
+  };
+  const pieces = new Map();
+  const pieceOf = (r) => {
+    if (!pieces.has(r)) {
+      pieces.set(r, {
+        env: reps.map((q) => flightWindow(strictPass.get(q), { ...r, rep: q })),
+        win: origReps.map((q) => (ph === 'push' ? windowPass(d, segPass.get(q), origPass.get(q), r, q) : windowOne(origPass.get(q), r.m))),
+      });
+    }
+    return pieces.get(r);
+  };
+  const empty = (b) => (ph === 'push' && needsSample(b) ? fail('coverage') : skip('noSample'));
+  const ws = annotate(wSeg), rew = ws.filter((r) => r.ph === p);
+  const inB = (b) => rew.filter((r) => bucket(r.m) === b);
+  const starts = e !== null && ph === 'push' && p === CLOSE_PH
+    ? rew.map((r, i) => [passOf(rew.slice(0, i), r.rep ?? 0), r]).filter(([, r]) => bucket(r.m) === 0).map(([prior, r]) => [prior, r, origFirst(seg, r)]) : null;
+  const settles = e !== null && ph === 'hold' && p === CLOSE_PH + 1
+    ? Array.from({ length: 12 }, (_, b) => inB(b).map((r) => settleCheck(kind, e, ws, r))) : null;
+  const ids = id ? withPrev(ws).filter(([, r]) => r.ph === p) : null;
+  return drops.map((q) => {
+    const keep = (x) => x !== q;
+    const winOf = (r) => { const w = pieceOf(r).win.filter((x, i) => keep(origReps[i]) && x !== null); return w.length === 0 ? null : w.flat(); };
+    const unit = (r) => judgeWithBy(kind, d, settle, pieceOf(r).env.filter((_, i) => keep(reps[i])).flat(), (o) => isCoreIn(r, o), winOf(r), r);
+    const oSegQ = q === null ? oSeg : dropPass(oSeg, q);
+    const rule = (b) => {
+      if (id) {
+        const rs = ids.filter(([, r]) => bucket(r.m) === b);
+        if (rs.length === 0) return empty(b);
+        return combine(rs.map(([prev, r]) => { const c = idCheck(d, prev, r, conv); return c === true ? pass : c === false ? fail('apart') : unit(r); }));
+      }
+      if (starts !== null && b === 0) {
+        if (starts.length === 0) return skip('noSample');
+        return combine(starts.map(([prior, r, first]) => {
+          const c = startCheckAt(kind, e.full, keep(r.rep ?? 0) ? first : null, prior, r);
+          return c === true ? pass : c === false ? fail('apart') : unit(r);
+        }));
+      }
+      const rs = inB(b);
+      const v = rs.length === 0 ? empty(b) : combine(rs.map(unit));
+      return settles !== null ? settleAnd(v, settles[b]) : v;
+    };
+    return Array.from({ length: 12 }, (_, b) => [b, firstVerdict(ph, p, b, oSegQ, wSeg, rule(b))]);
+  });
+}
+
 export const PHASES = [['open', 'push'], ['open-hold', 'hold'], ['close', 'push'], ['close-hold', 'hold']];
 
 /** A property is read in every frame of a push with the lean read set when the registry marks it `lean` (the discrete ones and the logo rectangle). */
@@ -530,7 +638,7 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
   const units = [];
   const navCls = (registries.morph.find((n) => n.id === 'nav')?.props ?? []).map((p, i) => [i, p.name, p.r]).filter(([, , r]) => r === 'cls').map(([i, name]) => [i, name]);
   const durFor = (node, prop) => (cls) => durOf(node, prop, width, cls);
-  const push = (path, phase, node, prop, kind, rows) => { for (const [step, verdict] of rows) units.push({ width, path, phase, node, prop, kind, step, verdict }); };
+  const push = (path, phase, node, prop, kind, rows) => { for (const [step, verdict, fam] of rows) units.push({ width, path, phase, node, prop, kind, step, verdict, fam: fam ?? [verdict] }); };
   const stepRows = (rows) => rows.filter((r) => r.frame === 'rest');
   const byStepOf = (path, phase, nodes, oRows, rRows) => {
     for (const n of nodes) {
@@ -556,9 +664,9 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
       for (const n of registries.morph) {
         n.props.forEach((p, pi) => {
           if (lean && !isLeanProp(p)) return;
-          const verdicts = byMRule(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
+          const fams = byMFam(ph, k, p.kind, durFor(n.id, p.id), startFor(n.id, p.id, width), idOn(n.id, p.id),
             pathOf(orig, n.id, pi), pathOf(rewrite, n.id, pi), colourFromV1);
-          push('morph', phase, n.id, p.id, p.kind, verdicts.map(([b, v]) => [`${phase}@${b}`, v]));
+          push('morph', phase, n.id, p.id, p.kind, fams[0].map(([b, v], i) => [`${phase}@${b}`, v, fams.map((vs) => vs[i][1])]));
         });
       }
     });
@@ -638,10 +746,13 @@ export function reduceRaw(raw, registries) {
       const open = (run.hero?.rows ?? []).filter((r) => r.frame === 'rest' && r.settled === false).length;
       if (open > 0) notes.push(`width ${width} ${roleOf(run)}: ${open} hero steps did not settle`);
     }
-    const baseVerdicts = new Map(base ? reduceWidth({ width, orig, rewrite: base, registries }).map((u) => [unitKey(u), u.verdict]) : []);
+    const baseUnits = base ? reduceWidth({ width, orig, rewrite: base, registries }) : [];
+    const baseVerdicts = new Map(baseUnits.map((u) => [unitKey(u), u.verdict]));
+    const baseFams = new Map(baseUnits.map((u) => [unitKey(u), u.fam]));
     for (const u of reduceWidth({ width, orig, rewrite: cand, registries })) {
       const b = baseVerdicts.get(unitKey(u));
-      units.push({ ...u, base: b ?? null, rel: rel(u.verdict, b) });
+      const bf = baseFams.get(unitKey(u));
+      units.push({ ...u, base: b ?? null, relAll: rel(u.verdict, b), rel: unitRel(u.fam, bf) });
     }
   }
   const groups = new Map();
@@ -653,17 +764,22 @@ export function reduceRaw(raw, registries) {
     if (u.rel === 'new') g.newSteps.push(`${u.step}=${u.verdict.slice(5)}`);
     groups.set(key, g);
   }
-  const rels = { ok: 0, both: 0, cleared: 0, new: 0, unmeasured: 0 };
+  const rels = { ok: 0, both: 0, cleared: 0, new: 0, unmeasured: 0, undecided: 0 };
   for (const u of units) rels[u.rel]++;
-  const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0 };
+  const totals = { units: units.length, pass: 0, fail: 0, skip: 0, coverageFail: 0, coverageNew: 0, firstLate: 0, firstOpen: 0, baseFirstLate: 0, baseFirstOpen: 0, moved: 0 };
   for (const u of units) {
     totals[u.verdict === pass ? 'pass' : isFail(u.verdict) ? 'fail' : 'skip']++;
     if (u.verdict === fail('coverage')) { totals.coverageFail++; if (u.rel === 'new') totals.coverageNew++; }
+    if (u.verdict === skip('firstLate')) totals.firstLate++;
+    if (u.verdict === skip('firstOpen')) totals.firstOpen++;
+    if (u.base === skip('firstLate')) totals.baseFirstLate++;
+    if (u.base === skip('firstOpen')) totals.baseFirstOpen++;
+    if (u.rel === 'undecided' && u.relAll !== 'undecided') totals.moved++;
   }
-  return { refused: false, detail: '', arms, units, groups: [...groups.values()], totals, rels, notes, fails: laneFails(units.map((u) => u.verdict)), red: laneRed(units.map((u) => u.rel)), timing };
+  const relList = units.map((u) => u.rel);
+  return { refused: false, detail: '', arms, units, groups: [...groups.values()], totals, rels, notes, fails: laneFails(units.map((u) => u.verdict)), red: laneRed(relList), lane: laneOf(relList), timing };
 }
 
-/** VERDICT lines: refusal; else one per group with a new failure, then the total, then the timing rows. */
 export function verdictLines(engine, search, red) {
   const s = search || '(default)';
   if (red.refused) return [`VERDICT trajectory ${engine} search=${s} REFUSED config: ${red.detail}`];
@@ -671,7 +787,8 @@ export function verdictLines(engine, search, red) {
   for (const g of red.groups.filter((x) => x.newSteps.length > 0)) {
     lines.push(`VERDICT trajectory ${engine} w=${g.width} ${g.path} ${g.node}.${g.prop} NEW ${g.newSteps.length}/${g.pass + g.fail + g.skip} units: ${g.newSteps.slice(0, 6).join(' ')}${g.newSteps.length > 6 ? ' ...' : ''}`);
   }
-  lines.push(`VERDICT trajectory ${engine} search=${s} ${red.red ? 'RED' : 'CLEAN'} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
+  lines.push(`VERDICT trajectory ${engine} search=${s} ${red.lane.toUpperCase()} new=${red.rels.new} both=${red.rels.both} unmeasured=${red.rels.unmeasured} undecided=${red.rels.undecided} cleared=${red.rels.cleared} ok=${red.rels.ok} units=${red.totals.units} fail=${red.totals.fail} coverage=${red.totals.coverageFail} coverage_new=${red.totals.coverageNew}`);
+  lines.push(`FIRSTFRAME trajectory ${engine} search=${s} open@1 without a rewrite sample: skip:firstLate candidate ${red.totals.firstLate} faithful ${red.totals.baseFirstLate}, skip:firstOpen candidate ${red.totals.firstOpen} faithful ${red.totals.baseFirstOpen}`);
   for (const t of red.timing) lines.push(`TIMING trajectory ${engine} ${t.role} ${t.phase} n=${t.n} read p50=${t.readP50} p90=${t.readP90} ms gap p50=${t.gapP50 ?? '-'} p90=${t.gapP90 ?? '-'} ms${t.dominate ? ' READS-DOMINATE' : ''}`);
   return lines;
 }

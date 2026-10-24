@@ -97,14 +97,14 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
   workflow file (the heaviest set of jobs no two of which are ancestor and descendant, each job at most its matrix size, its `max-parallel` and
   5 on macOS; a `fromJSON` matrix at the largest its planner allows) by `apps/runner/test/land-overflow-widths.test.ts`, which fails when a
   matrix, a job or a workflow grows past its row, and when a row is not the derived value. The first legs that fit stay on GitHub, in matrix order; the rest go to CircleCI
-  only if CircleCI is usable (status fresh and healthy, a checkout key, credits and storage under the reserve). Theorems: `github_first`
+  only if CircleCI is usable (status fresh and healthy, a checkout key, and the legs' credits, the credits spent, the storage overage past 2 GB-month at 420 credits per GB-month, counted with the overflow's own Lake cache save, and the reserve fit the pool: `budgetFits`). Storage alone never refuses while the budget fits (`storage_alone_never_refuses`, `reason_not_storage`; `budgetFits_iff` gives the exact room), and the wait on CircleCI legs stops only on the 1 h cap or a 10 min queue (Lean `landStops`, which holds no storage reason: `storage_not_mem_landStops`). Theorems: `github_first`
   (no overflow while GitHub has room), `overflow_only_when_full`, `never_both` (a leg is on one provider), `verdict_same` (one bound pass is
   judged alike on either provider). A degraded Actions status moves every leg (`github-degraded`). `reason` says which branch decided.
 - **Facts (`apps/runner/src/land-overflow.ts`).** The slot count is one `gh run list --limit 100` (never `gh api`), cached in the gh-budget
   directory for 120 s, no retry on a refusal (unreadable means GitHub first). It is up to 120 s old, reads **this repository only** and sees only
   **the newest 100 runs**, so a run of another repository of the account and an older run still going are not counted: the slot count can
   under-count (named limits; the account-wide use of the 20 job slots is not visible to it). The CircleCI facts are read only when the first answer moves a leg: the console's
-  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs`. The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
+  `/api/ci-status`, the key check and the credit and storage ledger of `scripts/circleci.mjs` (storage is Lean `storageNow`: saves of the last 30 days, caches and workspaces at 15 days, artifacts at 30). The test flag `FW_LAND_FORCE_FULL=1` marks GitHub full.
 - **One marker, two lanes.** Both providers use the same `ci/land-<task>-<sha7>` branch and marker commit (pushed once, `makePusher`). A
   land with legs on both says which GitHub gets in the marker message (`[legs:a,b]`); `land.yml`'s guard turns that into a matrix `exclude`.
   A land with no leg on GitHub leaves out `[ci:land]`, so GitHub starts nothing. The GitHub adapter passes a partial land only if the run has
@@ -133,11 +133,11 @@ GitHub Actions runs every leg of the land lane unless it has no free job slot fo
 
 Hand-back rule: before an agent hands a branch back it merges `main` into it and runs `pnpm fw land <branch> --task <id>
 [--allow <glob>]... --dry`, and hands back only when the last line is `VERDICT dry <id>` (exit 0). Other kinds are fixed
-first: `stale` = merge main again (or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout; the branch is fine), `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
+first: `stale` = only a REFUSED line starting with `fwcore-stale:` (a branch behind main no longer gives it): run `sh scripts/fwcore-build.sh` in the main checkout; the branch is fine, `scope` = declare the write or pass `--allow`, `reads` = declare the read in the
 premise, `conflict` = resolve. Lean `handback_pass_land_pass`: if the dry land passes and main has not moved, the real
 land's scope, merge and reads stages pass.
 
-`pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: stale base (the branch must contain main), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects the `reads-scan` check (its own cheap check, `vitest run test/land-inputs.test.ts`; selected by any change to a path any check declares as input, Lean `LandSpeed.scan_selected`). It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
+`pnpm fw land <branch> --task <id> --dry` runs the real land's cheap stages on the same merge-tree commit: a branch behind main is merged with `git merge-tree --write-tree` (no checkout; clean = checked on the merged diff, conflict = `VERDICT conflict`; Lean `LandDry.never_stale`), scope, merge and conflict markers, and the static reads test (`land-inputs.test.ts`) when the change selects the `reads-scan` check (its own cheap check, `vitest run test/land-inputs.test.ts`; selected by any change to a path any check declares as input, Lean `LandSpeed.scan_selected`). It takes no lock, writes no queue entry and never moves main; the checks run in a land worktree slot (a pid claim). Lean: `Fw.Console.LandDry` (`dry_pass_land_pass`, `dry_refusal_is_land_refusal`, `handback_pass_land_pass`).
 
 Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code per kind (Lean `Fw.Console.LandVerdict`):
 
@@ -145,8 +145,12 @@ Every `fw land` prints a last line `VERDICT <kind> <task>` and exits with a code
 |---|---|---|
 | done, dry, queued, empty | 0 | landed, dry land passes, queued, the branch has no commit of its own (nothing to land) |
 | busy 10, dirty 11 | 10, 11 | retryable: the lock or the main checkout is in the way |
-| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17, rebuild 18 | 12-18 | fix the branch (lint: a fast lint failed; stale: or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout, the branch is fine; rebuild: the queue's fwcore rebuild after the previous land failed, run `sh scripts/fwcore-build.sh` in the main checkout and re-queue, the branch is fine) |
+| scope 12, reads 13, conflict 14, checks 15, stale 16, lint 17, rebuild 18, install 19 | 12-19 | fix the branch (lint: a fast lint failed; stale: or, when the REFUSED line starts with `fwcore-stale:`, run `sh scripts/fwcore-build.sh` in the main checkout, the branch is fine; rebuild: the queue's fwcore rebuild after the previous land failed, run `sh scripts/fwcore-build.sh` in the main checkout and re-queue, the branch is fine; install: the land worktree's `pnpm install` failed offline and online, check the network and `pnpm-lock.yaml`, then re-run) |
 | unknown | 2 | anything else |
+
+A new land worktree runs `pnpm install --offline --frozen-lockfile` first; only when that fails it runs the online `pnpm install --frozen-lockfile` (one try, no retry loop). If both fail the land is refused with `VERDICT install` (exit 19, `REFUSED: install failed in <dir>: ...`) instead of continuing into checks on an incomplete `node_modules`. Lean `Fw.Console.LandVerdict.installKind` with `installKind_offline_ok`, `installKind_online_ok`, `installKind_both_fail`, `installKind_refusal`; golden op `landVerdict.install`; TS `landInstall` in `apps/runner/src/land.ts` follows `installKind` from `land-verdict.ts`. The dry land's Lean `dryRun` has an `install` stage between `conflict` and `reads` (`DStage.install`, `Outcome.installs`); a failed install ends the log after `dry: conflict ok` with `VERDICT install`.
+
+A reused land worktree (`.claude/land-wt/N`) keeps its `node_modules`, so it carries a lockfile stamp: `land.ts` clears the stamp before every install and, after a successful install, writes the sha256 of `pnpm-lock.yaml` to `node_modules/.fw-lock-stamp` (inside the worktree, outside git). Before the checks, `landInstallStamped` compares it with the lockfile at the checked-out commit and installs when the worktree is new, the stamp is missing, or the hashes differ (incident `inc-land-wt-lock-drift`: the land's own diff no longer has to touch a lockfile). Lean `installNeeded` / `installStep` with `installStep_checks_see_current_stamp` (no refusal means the stamp equals the checked-out lockfile hash), `installStep_refusal` (refusal is `install` and leaves no stamp, since a failed install may have rewritten `node_modules`), `installStep_refused_next_land_installs` (the next land installs), `installNeeded_reused_behind`, `installNeeded_reused_unstamped`, `installNeeded_new`; golden op `landVerdict.installStamp`; TS stand-in `installStep` in `apps/runner/src/land-verdict.ts`. Each install try has a 10-minute timeout and the REFUSED line ends with the stderr tail of the offline and the online try. Accepted limits: the stamp is lost with `node_modules`; the lockfile hash is the only trigger (a hand edit of `node_modules` is not seen); the timeout is fixed.
 
 Scripts read the word after `VERDICT` or the exit code, never prose. A dry run (also one that throws or is refused before any stage) prints
 exactly one `VERDICT` line, last: `fw.ts` prints the lines Lean `dryRun` returns for the seven stage outcomes that `land.ts` computes
@@ -246,5 +250,35 @@ flag variant in a `part.json` with no row in `research/findings/ledger.json` (cl
 - `apps/runner/src/land.ts`: `LOCAL_TESTS` (id `console-api:compose`, tier `onMac`, a `fwcore` user) is a candidate check, so the real
   land's local tier runs it, and the dry land runs the selected ones after the fast lints (a failure is `VERDICT lint`, the output names
   `test/compose.test.ts`). Test: `apps/runner/test/land-tier.test.ts`.
+- Second local test (task checkmap-workflow-widths-local, incident `inc-workflow-widths-remote`, 2026-10-24): `overflowWidthsId` =
+  `runner:overflow-widths` runs `test/land-overflow-widths.test.ts` (the Lean width table against the workflow files). Theorem
+  `workflow_selects_overflowWidths`: every path under `.github/workflows/` selects it; `overflowWidths_local`, `overflowWidths_core_user`
+  (a Lean-source or binary change rebuilds `fwcore` first). Cost: its run time is added to a dry land that touches a workflow.
+  The read set is one Lean list, `overflowWidthsReads`; it holds the planner inputs `plannerFiles`
+  (gate `schedule.jsonl` and `shards.jsonl`, `breakpoints.gen.json`, `anchors.json`, and the planner code `spec.mjs` and `serve.mjs`; theorem `plannerFiles_select`). `land.ts` reads the list
+  from the golden (`overflowWidthsReadsFromGolden`), no hand copy. Tests: `land-widths-fixture.test.ts` (6-job path-pix fixture against a row
+  of 4 fails; shares `checkRow` in `test/workflow-widths.ts`). Lean-change cost: a Lean change that moves the `fwcore`
+  binary (its digest differs; `binMoved`, `LandSpeed.lean:352`) also selects `runner:overflow-widths`: about 11 s (MEASURED 10.96 s vitest, 22.4 s wall). A new planner input is added to `plannerFiles`, then the
+  golden is regenerated.
 - Limits: a test with undeclared reads stays on the CI tier only; read sets are written by hand.
   TS stand-ins: the dry land's local-test step (Lean `lintPlan` does not list it; the real land reports the same failure as `checks`).
+
+The CLI prints a dry land through `dryLandReport` (`land.ts`, Lean `dryRun` plus `exitCode`): a failed dry install shows the stage lines up to `dry: conflict ok` and then `VERDICT install` (no special branch), and the real land's exit is `landExit(res)`. A reused land worktree is cleaned once (after checkout, before prep); a new one once after prep.
+
+## Workflow lint
+
+Incident `inc-workflow-dup-key`: a merge left the key `SEARCH` twice in one `env` block of
+`.github/workflows/trajectory-probe.yml`, which GitHub refused; no land check read workflow files.
+
+- Check `workflow-lint` (`sh scripts/check-workflows.sh`) runs `actionlint`. Selected when a changed path is `.github/workflows/*.yml`,
+  `.github/workflows/*.yaml` or `scripts/check-workflows.sh`, or `apps/runner/src/land-checks-workflow.ts` (Lean `Fw.Ci.WorkflowLint.select`, theorems `yml_selects`, `yaml_selects`,
+  `script_selects`, `verdict_code_selects`; golden `packages/contracts/golden/ci/workflow-lint.jsonl`, checked by `apps/runner/test/land-workflow.test.ts`).
+  The dry land runs it too (`LOCAL_GATES` in `land.ts`).
+- Verdict (Lean `verdict`, TS stand-in `workflowVerdict` in `apps/runner/src/land-checks-workflow.ts`): the kinds `syntax-check` and
+  `expression` fail (exit 1; the duplicated env key is `syntax-check`, theorem `dup_key_fails`); every other kind, `shellcheck` included,
+  is a warning printed without failing (`warnings_never_fail`). A missing `actionlint` refuses with
+  `REFUSED workflow-lint: actionlint is not installed (brew install actionlint)` and exit 3, never a pass (`missing_refuses`).
+- Accepted finding: `webkit-sim.yml` lists `''` as a `choice` option of the fault input, GitHub accepts it and actionlint says "string
+  should not be empty". Changing the option would change the dispatch contract, so the finding is accepted for that file and message only
+  (`accepted`, `accepted_is_file_scoped`).
+- Tier: local (not on the remote allowlist `remoteIds`). The land lane installs a pinned actionlint (v1.7.12 linux arm64, sha256-checked, land.yml step "actionlint (pinned, sha256-checked)") only so the apps/runner suite can run the script; moving the check to the remote tier also needs a `remoteIds` row in Lean LandTier.

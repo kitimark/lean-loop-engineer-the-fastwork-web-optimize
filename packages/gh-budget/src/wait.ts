@@ -16,7 +16,7 @@ import { randomBytes } from "node:crypto";
 import type { Env } from "./core.ts";
 import { ghCharged } from "./charged.ts";
 import { lockAsync, tryLock, type Lock } from "./lock.ts";
-import { pollOnce, LIST_FIELDS } from "./poller.ts";
+import { pollOnce, tickBudget, LIST_FIELDS } from "./poller.ts";
 import { killOk, markerText } from "./waiters.ts";
 import { dispatchOnly, selectOne, wanted, type WRun, type Want } from "./want.ts";
 import { locked, paths, readJson, readStatus, stepEvent, stepUnlocked, writeAtomic, type Row, type Status } from "./state.ts";
@@ -49,9 +49,11 @@ export type WaitPhases = {
   /** Ids of the runs the verdict covers. */
   runIds: number[];
   updMs?: number;
-  /** Tick of the list read just before the deciding one, when that list still showed the latest decisive run unfinished. */
   prevTickMs?: number;
   tickMs?: number;
+  pollS?: number;
+  retryUntilS?: number;
+  prevPollS?: number;
   readMs?: number;
   viewEndMs?: number;
   doneMs?: number;
@@ -346,7 +348,6 @@ export function critIndex(upds: number[]): number | null {
   return best;
 }
 
-/** The phases of the run whose finish decided the wait: the latest `updatedAt` among the decisive rows is the critical one. */
 function noteDecided(pr: Probe, rows: Row[], st: Status | null, prev: Status | null, readMs: number, holder: boolean, required: string[] | null): void {
   const ph = pr.ph;
   ph.runIds = rows.map((r) => r.databaseId);
@@ -356,11 +357,15 @@ function noteDecided(pr: Probe, rows: Row[], st: Status | null, prev: Status | n
   const ci = critIndex(stamped.map((r) => Date.parse(r.updatedAt!)));
   const crit = ci === null ? undefined : stamped[ci];
   if (crit) ph.updMs = Date.parse(crit.updatedAt!);
-  if (st?.tickAt !== undefined) ph.tickMs = st.tickAt * 1000;
+  if (st?.tickAt !== undefined) { ph.tickMs = st.tickAt * 1000; Object.assign(ph, tickBudget(st)); }
   const lanesMissing = required !== null && !required.every((n) => rows.some((r) => r.workflowName === n && r.status === "completed"));
   ph.how = waitKind(lanesMissing, ph.tickMs, ph.regMs);
   const before = crit ? prev?.rows.find((r) => r.databaseId === crit.databaseId) : undefined;
-  if (before && before.status !== "completed" && prev?.tickAt !== undefined) ph.prevTickMs = prev.tickAt * 1000;
+  if (before && before.status !== "completed" && prev?.tickAt !== undefined) {
+    ph.prevTickMs = prev.tickAt * 1000;
+    const q = tickBudget(prev).pollS;
+    if (q !== undefined) ph.prevPollS = q;
+  }
 }
 
 export async function waitFor(env: Env, t: Target, o: WaitOpts): Promise<Waited> {

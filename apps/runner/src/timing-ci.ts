@@ -1,5 +1,3 @@
-// CI spans (timing-spans): fetch a finished run's jobs ONCE through the gh-budget charged call and write one span per job
-// and per step. Deduped by run id (timing.ts seenRuns), so a second call for the same run costs no gh request.
 import { readFileSync } from "node:fs";
 import { ghCharged, realEnv, type WaitPhases } from "@fw/gh-budget";
 import { ghCost } from "./run.ts";
@@ -48,11 +46,6 @@ export async function backfill(args: string[], cwd: string, gh: Gh = chargedGh(c
   return `backfill: ${ids.size} runs considered, ${n} span lines written`;
 }
 
-// ---- wait lag (task ci-wait-lag): the phases of a `fw ci wait` span and how the lag splits ---------------------------
-// The split is Lean `Fw.Ci.Lag.parts`; lagParts replays golden ci-budget/lag.jsonl (apps/runner/test/timing-lag.test.ts).
-// TS stand-ins: lagView, waitSpanExtra (formatting). Whether a lag is "too long" stays Lean's (timing-lean).
-
-/** The `runIds` and `phases` fields of the `fw ci wait` span: the wait's phases plus the span writer's ingest window. */
 export function waitSpanExtra(p: WaitPhases | null, ingestStartMs: number, ingestEndMs: number): Pick<Span, "runIds" | "phases"> {
   if (!p) return {};
   const { runIds, ...rest } = p;

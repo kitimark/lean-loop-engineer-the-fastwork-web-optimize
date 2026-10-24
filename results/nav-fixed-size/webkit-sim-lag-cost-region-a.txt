@@ -1,0 +1,55 @@
+webkit-sim lag=true cost=on, 430x775, Region A = zone 0 = the hero exit (first viewport), per step values, original / faithful (rewrite with the flag).
+No default-arm lag run exists on this commit; the original arm of the same run is the control. Source: lag-report.md of each run.
+
+## nav:clip-box run 39872562267: 2 sessions of 3 (session 1 lost Safari: simctl launch Safari, run failed)
+original: 16.0 steps per pass in the region, 43.5 calm steps per pass; faithful: 16.0 steps per pass in the region, 43.3 calm steps per pass. Per-step values.
+  Paint (us)               per step 3,539 / 5,239          ratio o 2.59 (1.91-3.11)       f 2.25 (1.50-3.07)       diff of per step: no difference shown (ranges overlap)
+  Composite (us)           per step 75,210 / 105,376       ratio o 2.27 (1.95-2.48)       f 1.77 (1.34-2.37)       diff of per step: no difference shown (ranges overlap)
+  Layout (us)              per step 147,256 / 5,251        ratio o 2.16 (2.00-2.27)       f 1.65 (1.06-2.25)       diff of per step: faithful lower
+  FunctionCall (us)        per step 127,752 / 21,910       ratio o 1.91 (1.82-2.03)       f 1.22 (0.86-1.57)       diff of per step: faithful lower
+  RecalculateStyles (us)   per step 19,747 / 19,648        ratio o 1.85 (1.83-1.89)       f 1.68 (1.30-1.85)       diff of per step: no difference shown (ranges overlap)
+  Paint                    per step 19.2 / 19.0            ratio o 1.83 (1.72-1.94)       f 2.01 (1.92-2.12)       diff of per step: no difference shown (ranges overlap)
+  paintArea (px^2)         per step 1,231,755 / 972,492    ratio o 1.43 (1.30-1.59)       f 1.37 (1.21-1.62)       diff of per step: faithful lower
+  Layout                   per step 8.20 / 7.66            ratio o 1.31 (1.15-1.41)       f 1.34 (1.26-1.43)       diff of per step: no difference shown (ranges overlap)
+  Composite                per step 1.94 / 1.94            ratio o 0.97 (0.97)            f 0.97 (0.97)            diff of per step: no difference shown (ranges overlap)
+
+## nav:bar-fixed run 39872566438: original 1 session, rewrite 2 sessions (passes lost: no page target after 480 s, simctl ETIMEDOUT; run failed)
+original: 16.0 steps per pass in the region, 44.0 calm steps per pass; faithful: 16.0 steps per pass in the region, 43.5 calm steps per pass. Per-step values.
+  Composite (us)           per step 116,007 / 74,024       ratio o 2.28 (2.24-2.34)       f 1.58 (1.12-2.29)       diff of per step: no difference shown (ranges overlap)
+  Layout (us)              per step 191,106 / 4,435        ratio o 2.12 (2.03-2.17)       f 1.59 (1.33-2.13)       diff of per step: faithful lower
+  Paint (us)               per step 5,385 / 4,898          ratio o 1.98 (1.28-2.38)       f 3.11 (2.42-4.67)       diff of per step: no difference shown (ranges overlap)
+  RecalculateStyles (us)   per step 26,168 / 16,566        ratio o 1.93 (1.84-1.99)       f 1.56 (1.42-1.68)       diff of per step: faithful lower
+  FunctionCall (us)        per step 157,757 / 18,899       ratio o 1.81 (1.79-1.83)       f 1.25 (1.21-1.31)       diff of per step: faithful lower
+  Paint                    per step 17.9 / 19.7            ratio o 1.66 (1.52-1.80)       f 2.03 (1.85-2.26)       diff of per step: no difference shown (ranges overlap)
+  Layout                   per step 8.59 / 7.36            ratio o 1.36 (1.35-1.36)       f 1.25 (1.18-1.30)       diff of per step: faithful lower
+  paintArea (px^2)         per step 1,184,682 / 954,893    ratio o 1.32 (1.31-1.33)       f 1.27 (1.14-1.36)       diff of per step: faithful lower
+  Composite                per step 1.94 / 1.94            ratio o 0.97 (0.97)            f 0.97 (0.97)            diff of per step: no difference shown (ranges overlap)
+
+## nav:logo-3d run 39872570182: 3 sessions, run success
+original: 16.0 steps per pass in the region, 44.0 calm steps per pass; faithful: 16.0 steps per pass in the region, 43.3 calm steps per pass. Per-step values.
+  Layout (us)              per step 143,178 / 7,097        ratio o 2.07 (1.82-2.34)       f 1.63 (1.02-2.63)       diff of per step: faithful lower
+  Composite (us)           per step 81,389 / 128,068       ratio o 2.03 (1.47-2.40)       f 1.97 (1.49-2.96)       diff of per step: no difference shown (ranges overlap)
+  Paint (us)               per step 3,899 / 6,281          ratio o 1.84 (0.99-2.96)       f 2.62 (1.65-3.93)       diff of per step: no difference shown (ranges overlap)
+  FunctionCall (us)        per step 122,610 / 26,108       ratio o 1.80 (1.66-2.05)       f 1.23 (1.02-1.41)       diff of per step: faithful lower
+  Paint                    per step 18.8 / 18.8            ratio o 1.73 (1.55-1.83)       f 2.00 (1.59-2.20)       diff of per step: no difference shown (ranges overlap)
+  RecalculateStyles (us)   per step 19,259 / 23,778        ratio o 1.68 (1.42-1.79)       f 1.68 (1.45-1.95)       diff of per step: no difference shown (ranges overlap)
+  paintArea (px^2)         per step 1,223,610 / 1,026,105  ratio o 1.36 (1.14-1.50)       f 1.43 (1.25-1.65)       diff of per step: no difference shown (ranges overlap)
+  Layout                   per step 8.33 / 7.79            ratio o 1.28 (1.18-1.35)       f 1.31 (1.29-1.36)       diff of per step: no difference shown (ranges overlap)
+  Composite                per step 1.94 / 1.94            ratio o 0.97 (0.97)            f 0.97 (0.97)            diff of per step: no difference shown (ranges overlap)
+
+## layer census inside the lag runs (faithful arm; per-session lists at each y: layers | backing MB)
+nav:clip-box 39872562267
+  y [0, 0] layers [118, 120] mb [57.0, 52.0]
+  y [388, 388] layers [121, 123] mb [51.6, 51.6]
+  y [2616, 2634] layers [145, 143] mb [76.0, 83.7]
+  y [5231, 5267] layers [128, 128] mb [105.8, 97.9]
+nav:bar-fixed 39872566438
+  y [0, 0] layers [118, 118] mb [52.0, 52.0]
+  y [388, 388] layers [125, 123] mb [52.0, 51.6]
+  y [2634, 2616] layers [143, 143] mb [83.7, 75.8]
+  y [5267, 5231] layers [128, 128] mb [97.9, 105.8]
+nav:logo-3d 39872570182
+  y [0, 0, 0] layers [124, 122, 120] mb [52.4, 52.4, 52.0]
+  y [388, 388, 388] layers [122, 127, 121] mb [51.8, 52.0, 51.6]
+  y [2634, 2634, 2634] layers [139, 139, 143] mb [83.7, 83.7, 83.7]
+  y [5267, 5267, 5267] layers [124, 124, 128] mb [97.9, 97.9, 97.9]

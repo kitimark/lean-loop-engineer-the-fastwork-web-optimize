@@ -321,7 +321,8 @@
     "Fw.Parts.HeroCountdownOpt.strip_frame_ltE",
     "Fw.Engine.WebKit.face_reattach",
     "Fw.Engine.WebKit.strip_no_reattach",
-    "Fw.Engine.WebKit.reattachPaint_rise"
+    "Fw.Engine.WebKit.reattachPaint_rise",
+    "Fw.Parts.HeroCountdownOpt.strip_still_eq"
    ],
    "leanAgainst": [
     "strip_passes_eq",
@@ -338,7 +339,7 @@
     "will-change composites under WebKit Normal and is dropped under Conservative: CONFIRMED (Fw.Engine.WebKit willChange_dropped)",
     "full-layer backing rule (each layer backs its whole box): INFERRED",
     "face re-entry repaint caused by backing detach: INFERRED (pin detach rule CONFIRMED, repaint cause from v1 on another branch)",
-    "TS strip flag also moves the clock to a shared per-frame subscriber (index.tsx:103-108): CONFIRMED in code, OPEN in the model"
+    "Shared-loop scheduling delta: gone, the TS strip runs startFaithful (index.tsx:100, scheduling.test.ts; strip_still_eq): CONFIRMED"
    ],
    "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16, re-entry paint 53.5->21, menu-centre redraws per open 196->11; Simulator hero-clock Paint records 13->0 per 4 s; WebKit memory up because the whole strip is backed (../fastwork-com-web-optimize/research/gpu-props/README.md:286-297,396-424). v2 local Simulator debug run, not a result (packages/measure-webkit/README.md:267-290): Paint 166->154, but FireAnimationFrame 222->296 and FunctionCall 296->370, caused by the bundled subscriber.",
    "lesson": "Fewer layers is a resident win, not a per-frame win: passes stay equal and only a census can see it, and any growth in backing makes it a trade. A layer variant must not also change scheduling.",
@@ -804,14 +805,14 @@
    "n": 13,
    "part": "morph.countdown",
    "candidate": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
-   "status": "partly-proved",
+   "status": "proved",
    "flags": [
     "morph.countdown:strip"
    ],
    "chromium": "trade",
-   "webkit": "trade",
-   "visual": "E at scene level for every env/instant (strip_visSame). Pixel E is open: v1 found delta-1 pixel classes in fractional fades (Chrome 0.9, Simulator 50 %). Changing which boxes share a layer under an ancestor with opacity in (0,1) changes where 8-bit rounding happens, and Visual.PathPremises does not model that.",
-   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so the label is trade (strip_backing_gt, strip_label_fullLayer). For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
+   "webkit": "win",
+   "visual": "E at scene level for every env/instant (strip_visSame) and pixel E under every panel opacity, fractional included: faces and strips carry opacity 1, and an opacity-1 layer never changes an 8-bit pixel (strip_px_eq, stackPx_filter). Strip entries are top-aligned in their cell, so a glyph sits where the face puts it for every cell and line box (entry_start); centred entries sat 0.09-0.2 px higher at font 24/28 px (entry_center_iff), seen in a local Chromium layout check (not a result); v1's delta-1 classes (opacity-1 identity, delta only under fades) are not explained by placement under this model and are INFERRED to come from v1's different layer partition.",
+   "mechanism": "Saving is resident only. Every stage runs equally often per frame (strip_passes_eq); only transform-write units fall 10r -> r. Layers drop 80 -> 8, but backing grows 10 -> 12 cells per digit, so Core's resident label is trade (strip_backing_gt, strip_label_fullLayer); the webkit field is win by the task's measured criterion (morph-open new layers 81-83 -> 9-11 per pass, resident 128-129 -> 52-56, backing +14 %; notes row morph-strip-webkit), not by a Lean claim. For morph.countdown the closed panel forces will-change:auto, so both arms have 0 clock layers (paused_same). The gain exists only while the menu is open. CI: Chromium census.layers sees it; per-frame det counters cannot. On WebKit under the Conservative policy both arms are equal.",
    "leanFor": [
     "Fw.Parts.HeroCountdownOpt.strip_visSame",
     "Fw.Parts.HeroCountdownOpt.strip_units",
@@ -821,7 +822,11 @@
     "Fw.Engine.double_round_whole",
     "Fw.Engine.shown_eq5",
     "Fw.Parts.HeroCountdownOpt.strip_frame_leE",
-    "Fw.Parts.HeroCountdownOpt.strip_frame_ltE"
+    "Fw.Parts.HeroCountdownOpt.strip_frame_ltE",
+    "Fw.Parts.HeroCountdownOpt.strip_px_eq",
+    "Fw.Parts.HeroCountdownOpt.stackPx_filter",
+    "Fw.Parts.HeroCountdownOpt.entry_start",
+    "Fw.Parts.HeroCountdownOpt.strip_still_eq"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroCountdownOpt.strip_passes_eq",
@@ -836,13 +841,13 @@
    "missingWhy": [],
    "premises": [
     "Backing rule for small composited layers (whole border box): INFERRED",
-    "Shared-loop scheduling delta of the TS strip moves roll frames: OPEN, not modelled",
+    "Shared-loop scheduling delta: gone, the TS strip runs startFaithful (index.tsx:100, scheduling.test.ts; strip_still_eq): CONFIRMED",
     "Safari Normal compositing policy honours will-change: CONFIRMED (Fw.Engine.WebKit.composites)",
-    "Pixel parity at fractional ancestor opacity: OPEN (v1 OBSERVED delta-1)"
+    "Pixel parity at fractional ancestor opacity: proved (strip_px_eq) given that a glyph raster depends only on its device-pixel position and layer origins differ by whole device pixels (cell = whole CSS px, integer DPR); the glyph is in a composited layer in both arms or in neither (same scene-pause rule), and the panel opacity is applied once to the group in both arms (render surface / CA group opacity), backdrop blend not modelled: INFERRED"
    ],
    "v1Evidence": "../fastwork-com-web-optimize/fixes/cd-strip/README.md:6-16,499,716: re-entry digit Paint records 54 -> 21, but painted area unchanged (4.19 vs 4.09/4.21 Mpx); backing 48 -> 16 layers; the user accepted delta-1 pixel classes in fades; inline style writes off screen went up.",
-   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area.",
-   "next": "Push census.layers golden rows on a ci/ branch (rewrite base). Add the C4 layer-partition premise and its rounding counterexample to Fw.Engine.Visual."
+   "lesson": "Fewer layers with the same per-frame stages changes only resident state. If the new layers are larger, it is a trade. A drop in paint-record count does not mean less painted area. Under one layer partition, a pixel identical at opacity 1 stays identical under any group opacity (strip_px_eq); a fade-only difference points to a partition change, not to placement.",
+   "next": "Chromium C3 (UpdateLayoutTree.elementCount 11264 -> 22445) is not re-judged here; a Chromium-only exclusion needs a per-engine arm."
   },
   {
    "n": 14,
@@ -1300,6 +1305,49 @@
    "v1Evidence": "../fastwork-com-web-optimize/fixes/carousel-leaver/README.md:7-20,60-70: keep-st6 accepted with its motion differences; fixes/st6-rb2/README.md: memory equal to HC (127 layers, 115 MB).",
    "lesson": "Replacing size animation with clip plus translate removes layout but keeps per-frame paint unless the clip is compositable. It is still a look change, so prove work only.",
    "next": "Write st6_work_lt as a work-only theorem and list it with the FLIP and st6 proposals."
+  },
+  {
+   "id": "people.carousel.crop",
+   "n": 19,
+   "part": "people.carousel",
+   "candidate": "people.carousel:crop: avatars-exit animates width, flex-basis, margin-right and border-width (layout every frame in both engines); the crop variant animates opacity and transform on the leaver and the compositor translate on the followers",
+   "status": "look-change",
+   "flags": [
+    "people.carousel:crop"
+   ],
+   "chromium": "work proved: no layout, paint, raster or commit stage per frame (cr_crop_zero). Trajectory carousel cell (people zone avatar rects, Chromium, run 39896845339): grade L at 390 and 640, swaps 4/4, as a class L variant should; hero and morph units equal to the faithful arm except one nav.background-color unit at 1280 (not this part). Breakpoint gate both engines pass (run 39898995879).",
+   "webkit": "work proved: all six effects in the UI process in every mode (wk_crop_all_comp). webkit-sim lag+cost, 430x775, end of page (scroll B): no difference shown in any counter or in frame cadence (ranges overlap; base run 39899015125 sessions r1 r2, flag run 39906731945 r1-r3; first flag run 39899018175 lost Safari in every VM, no data); the step lane scrolls through the page and does not isolate the 220 ms swap, so a gain of 13 layout frames in 1.02 s is below its resolution (MEASURED no separated difference, not a no-win proof). Layer census at the end-of-page state: 124 layers against 128, compositing reason animation 5 against 8, the layer budget of the Lean statement (MEASURED).",
+   "visual": "not equal (class L, proposal): the leaver keeps its 32 px box and fades and scales under the followers, so the width collapse and the border-width shrink are gone (the differing region is the 32 px leaver slot, Lean leaver_box_differs, leaver_region); followers move by translate -24p px, equal to the original shift in exact arithmetic (shift_eq_translate) and within one device pixel of the layout position (follower_within_one; LayoutUnit rounding not modelled). part.json marks it kind proposal, visClass L, so Fw.Preset.Gen keeps it out of v2-proved.",
+   "mechanism": "CONFIRMED (source): the original exit effect lists width, flex-basis, margin-right and border-width, so it is not an accelerated effect and ticks on main every frame (WebKit KeyframeEffect.cpp:2724-2744@862f17d; Chromium compositor_animations.cc kCompositableProperties :78-83@f842f52, failure bit 13). Lean split_keeps_layout_wk and split_keeps_layout_cr: any split of the exit keyframes into effects leaves a piece with width, which ticks on main and runs a layout pass in every mode and on every layer state, so there is no same-look route. The crop variant moves the layout properties out: leaver opacity and transform, followers and entering avatar translate only (six effects, all compositor in every WebKit mode, wk_crop_all_comp, and in the lane and real Chrome, cr_crop_all_comp): no layout, paint, raster or commit stage per frame (wk_layout, cr_crop_zero) against one layout pass and four layout units per frame of the 220 ms swap, 13 frames at 60 Hz (cr_orig_layout, layoutFrames_swap). It is a trade on the compositor stage: six compositor units against one (wk_comp_trade, cr_comp_trade) and five animated layers, about 0.18 MB at dpr 3 for 220 ms of every 1.02 s (layer_budget). No clip-path is animated: a clip-path effect ticks on main in WebKit (WebKit.lean wkThread guard for transform + clipPath) and paints in Chromium (paint worklet not used), so the first design (clip-path ellipse crop) keeps per-frame paint; the crop here is the container's existing overflow clip.",
+   "leanFor": [
+    "Fw.Parts.PeopleCarouselCrop.split_keeps_layout_wk",
+    "Fw.Parts.PeopleCarouselCrop.split_keeps_layout_cr",
+    "Fw.Parts.PeopleCarouselCrop.wk_crop_all_comp",
+    "Fw.Parts.PeopleCarouselCrop.cr_crop_all_comp",
+    "Fw.Parts.PeopleCarouselCrop.wk_layout",
+    "Fw.Parts.PeopleCarouselCrop.cr_crop_zero",
+    "Fw.Parts.PeopleCarouselCrop.cr_orig_layout",
+    "Fw.Parts.PeopleCarouselCrop.shift_eq_translate",
+    "Fw.Parts.PeopleCarouselCrop.follower_within_one",
+    "Fw.Parts.PeopleCarouselCrop.layer_budget"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleCarouselCrop.wk_comp_trade",
+    "Fw.Parts.PeopleCarouselCrop.cr_comp_trade",
+    "Fw.Parts.PeopleCarouselCrop.leaver_box_differs (not VisSame)"
+   ],
+   "missingWhy": [
+    "felt lag on the phone (the user's check; CI has no real GPU)"
+   ],
+   "premises": [
+    "flex-basis and border-width take the width key in Chromium and the size class in WebKit: INFERRED (same level as width)",
+    "LayoutUnit rounding of the original follower position (1/64 CSS px) is not modelled in follower_within_one"
+   ],
+   "v1Evidence": "../fastwork-com-web-optimize/fixes/carousel-leaver/README.md:7-20,60-70: keep-st6 accepted with its motion differences",
+   "lesson": "A split of a mixed keyframe set keeps layout as long as one layout property stays animated; removing layout means changing the look, and WebKit accelerates transform, translate and opacity but not clip-path, so a crop must be made of those.",
+   "next": "User visual review of the frame strips and the felt-lag check on the phone (CI has no real GPU); a time-aligned swap lane (sampling inside the 220 ms windows) would resolve the WebKit cost.",
+   "flag": "people.carousel:crop",
+   "evidence": "trajectory-probe 39896845339 (inputs read back: fw=people.carousel:crop, engines both, commit-line); breakpoint-gate 39898995879; webkit-sim 39899015125 (base) and 39906731945 (flag); results/people-carousel-crop/; note research/notes/2026/10-2x-people-carousel-crop.md"
   },
   {
    "n": 20,
@@ -2636,14 +2684,14 @@
    "chromium": "n/a",
    "webkit": "win",
    "visual": "n/a (diagnostic ablation; not a shipped variant)",
-   "mechanism": "MEASURED (toolbar-throttle-probe, iOS 27 Simulator on CI, real touches through XCUITest, run 39667548341): still runs of 5-6 frames at the hero exit fall from 163 in 10,104 exit frames (16.1 per 1000) in the default rewrite to 0 in 9,740 with the flag; the original site has 53 in 5,290 (10 per 1000). Lifted in 3 of 3 jobs. Source: WKWebViewIOS.mm:3256-3268@862f17d.",
+   "mechanism": "MEASURED (toolbar-throttle-probe, iOS 27 Simulator on CI, real touches through XCUITest, run 39667548341): still runs of 5-6 frames at the hero exit fall from 163 in 10,104 exit frames (16.1 per 1000) in the default rewrite to 0 in 9,740 with the flag; the original site has 53 in 5,290 (10 per 1000). Lifted in 3 of 3 jobs. Source: WKWebViewIOS.mm:3256-3268@862f17d. PHONE (user, 2026-10-24, felt, one person, preview): \"looks the same and hero-exit is a lot of improve, no laggy on hero exit\".",
    "leanFor": [
     "Fw.Device.StillRuns.throttleK_60hz",
     "Fw.Device.StillRuns.throttleK_mem_band"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Phone pass not done: the Simulator toolbar may differ from the phone (INFERRED)",
+    "Phone: the felt pass (one person, preview) and the recorded session results/phone/2026-10-24-throttle-lift (90 band runs in 1200 exit frames without the flag, 2 in 1318 with it, same viewport, one person, one session) agree; no second person",
     "Runs 39659502492 and 39652336316 failed and are not pooled"
    ],
    "premises": [
@@ -2651,8 +2699,8 @@
    ],
    "v1Evidence": "",
    "lesson": "A felt lag can be a platform throttle, not page work; count still runs before optimizing page cost.",
-   "next": "Phone pass in the user session with and without ?fw=engine.scroll:throttle-lift; then decide whether a shippable variant can avoid the throttle.",
-   "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md"
+   "next": "Shippable form is engine.scroll:unthrottle (row engine.scroll.unthrottle).",
+   "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md; user phone pass 2026-10-24 (research/notes/2026/10-2x-toolbar-throttle.md, section Phone pass)"
   },
   {
    "id": "platform.mq",
@@ -2812,6 +2860,717 @@
    "lesson": "A variant that adds a wrapper element or changes the panel insets at rest fails the breakpoint gate, which counts direct children and compares insets at rest; restricting the new geometry to the morphing state and moving each child with its own inset keeps the DOM and the rest state identical.",
    "next": "Judge on a real-GPU lane (mac-safari-measure or the phone); the nav resize (C8) and the tracks are separate candidates.",
    "evidence": "CI runs 39744563175, 39747969466, 39744614747, 39744653093, 39751427150 (hung), 39760667274; research/notes/2026/10-2x-morph-constant-bounds.md; results/morph-constant-bounds/report.json"
+  },
+  {
+   "id": "commission.band-gate",
+   "n": 48,
+   "part": "commission",
+   "candidate": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "status": "partly-proved",
+   "flag": "commission:band-gate",
+   "flags": [
+    "commission:band-gate"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (commission_visSame: visible scenes equal across band changes; look_gated: the band look is independent of the pair; exit_catchup, inl_settled, media_catchup: the pair is the original's on the first ungated body, at rest and after a band change) Limit: the theorems cover the look (scale, radius). While the follower moves in the band, the custom properties' own computed values differ from the original's (getComputedStyle would show it); they are equal again at rest and on band exit, which is what the breakpoint gate compares.",
+   "mechanism": "PROVED (Fw.Parts.CommissionOpt): the original writes two properties on every body (writes_orig); the variant writes none while the gate holds and the follower moves (moving_run), never more than the original (writes_le), and the follower and class bits are unchanged (fol_cls_agree). MEASURED, CI chromium-counts swipe-v1 x3 (430x932, base run 39837044649, flag run 39843560957), window 3070 <= scrollY < 3530, half-open, 46 frames (commission bottom 0.85h..0.35h, INFERRED from the class-toggle spike): RecalcStyleCount 5.02 -> 3.09 per frame, elements recalculated 127.3 -> 60.9 per frame, in all three runs; FunctionCall 9.50, Layout 0.57, census layers 66.4, tiles 121.1 and Commit 1.00 per frame equal. MEASURED, CI webkit-sim (iOS Simulator 430x775, 50 px steps, 2 passes; base run 39837001915, flag run 39843567401), y 2500-3500: RecalculateStyles 124/127 -> 99/92, Composite 40/40 -> 40/40, Layout and Paint overlap, FunctionCall is noisy (282/299 against 379/294). Breakpoint gate both engines: run 39843552595 pass (the first design, which skipped every write, failed it: run 39836996121). Not a GPU route.",
+   "leanFor": [
+    "Fw.Parts.CommissionOpt.look_gated",
+    "Fw.Parts.CommissionOpt.look_const_iff",
+    "Fw.Parts.CommissionOpt.exit_catchup",
+    "Fw.Parts.CommissionOpt.inl_settled",
+    "Fw.Parts.CommissionOpt.media_catchup",
+    "Fw.Parts.CommissionOpt.commission_visSame",
+    "Fw.Parts.CommissionOpt.writes_le",
+    "Fw.Parts.CommissionOpt.moving_run"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "No frame-time percentiles: the count lanes record no frame times; a Simulator or phone replay of the scroll-in is a follow-up",
+    "The WebKit saving also shows at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) where the model predicts no moving follower; the mechanism there is not explained",
+    "The commission window is derived from Chromium class-toggle spikes, not from a measured section rect"
+   ],
+   "premises": [
+    "CONFIRMED: commission is not the last section (platform follows), unlike platform.mq",
+    "CONFIRMED: the two properties are read only by the shrink scale and the card radius (commission.module.css lines 9, 48), pinned by the band at 438-446 (bandgate.test.ts)",
+    "INFERRED: a changed inherited custom property restyles every descendant (elementCount delta 67 per frame)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A skip that leaves a computed value differing from the original in a state the gate compares fails the gate even when nothing shows: the first design failed on the section's custom properties at rest and on a media-change body the original does not run. Writing at settle and writing the follower's pair (not running a body) on a band change kept the saving and the gate.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a frame-time replay). Follow-up: Simulator or phone replay of the scroll-in for frame times.",
+   "evidence": "CI runs 39843527891 (lean), 39843552595 (gate), 39837044649, 39843560957 (chromium-counts), 39837001915, 39843567401 (webkit-sim); research/notes/2026/10-2x-commission-band-gate.md"
+  },
+  {
+   "id": "pain.dark-scroll",
+   "n": 47,
+   "part": "pain",
+   "candidate": "pain:dark-scroll: at most 860 px, replace the is-pain-dark class flip (section restyle and background repaint) with two empty solid layers whose opacity runs on the root scroll timeline with steps(1, jump-start), range start 256 px before the flip written once per layout; people.card stops toggling the class where the engine runs it (continues n=21)",
+   "status": "partly-proved",
+   "flag": "pain:dark-scroll",
+   "flags": [
+    "pain:dark-scroll"
+   ],
+   "chromium": "trade",
+   "webkit": "trade",
+   "visual": "E-s under Reveal and Cont (Fw.Parts.PainDarkScroll pixel_eq, opacity_eq: opacity is exactly 0 or 1, no ramp); where Reveal fails (a quick swipe beats the 0.9 s card reveal) the original is the later arm by at most 48 px of scroll (drift_window); flip-frame timing Q (the original flips in a rAF after the scroll callback, the layer in the UI process, INFERRED) The gate compares the pre-flip state only (anchors.json excludes is-pain-dark and the people flip; cells are read at scroll 0); post-flip look MEASURED (trajectory probe run 39852164349, fw=pain:dark-scroll): the pain-dark cell is E in both scroll directions on Chromium 156 and Linux WebKit 27.2 at 390 and 640, layer engaged on both, flip at the same 4 px step in both arms (flip-frame lag inside a step stays Q, not gated).",
+   "mechanism": "MEASURED (CI chromium-counts, 430x932 dpr 3, swipe-v1, 3 identical runs; base 39818749535, flag 39828614430): in the toggle frame (scroll 970) the invalidated paint area falls 3,413,963 to 3,013,203 px (one viewport) and raster tasks 26 to 20; over the swipe invalidation area falls 4.0 percent, tiles 6.6 percent; price +3 layers in every frame (two solid pseudo-elements and an INFERRED host, no tiles) and +14 style recalcs. MEASURED (CI webkit-sim, iOS Simulator 430x775, 2 passes per arm; base 39818734599, flag 39828605244): the two pseudo-element layers exist with reason animation and no backing; the painted area of a scroll pass is 28 and 34 percent lower; price +12.0 MB backing at the two scroll states showing the Pain stage, because the stage text block is promoted above the animated layer (reason overlap; cause INFERRED); the toggle-step paint spike moves between steps and is not separable from noise. Breakpoint gate both engines on the final design: run 39828600078 pass. Three designs failed first: a child div (the gate selects the sticky as first child), transparent sticky and hold (the gate compares their computed background-color; run 39818716087), and a 1 px range (WebKit accelerates only the active phase, so the layers never appeared in the census and the flip stays on the main thread; run 39822439200). Backing-free arrangement tried (pain-dark-followups): pain:dark-static (same pseudo-elements dark from the start, nothing animated, look-change proposal) has +0 MB backing and the same layers as the base, keeps the Chromium toggle-frame saving (3,413,963 to 3,013,203 px, raster tasks 26 to 20, style recalcs 4 to 3, counts run 39852245766) but not the WebKit paint saving (pinned band y 1500 to 3000 paints 26.5 and 25.2 M px squared against 26.9 and 24.8 M for the base and 10.1 and 9.9 M for pain:dark-scroll; full-stage repaints 53 and 50, 54 and 49, 5 and 5; same-ref webkit-sim runs 39852256714, 39856782689, 39856789295), and the white Pain top is in view at 390 and 640 (Hidden fails, probe run 39852164349), so it changes the look. Gate on pain:dark-static, both engines: run 39852250962 pass.",
+   "leanFor": [
+    "Fw.Parts.PainDarkScroll.pixel_eq",
+    "Fw.Parts.PainDarkScroll.opacity_eq",
+    "Fw.Parts.PainDarkScroll.layer_flip",
+    "Fw.Parts.PainDarkScroll.measure_eq",
+    "Fw.Parts.PainDarkScroll.wide_eq",
+    "Fw.Parts.PainDarkScroll.drift_window",
+    "Fw.Parts.PainDarkScroll.dark_accelerated",
+    "Fw.Parts.PainDarkScroll.no_lift",
+    "Fw.Parts.PainDarkScroll.layer_backing_zero",
+    "Fw.Parts.PainDarkScroll.chromium_paint_lt",
+    "Fw.Parts.PainDarkScroll.static_eq_base"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PainDarkScroll.reveal_needed",
+    "Fw.Parts.PainDarkScroll.cont_needed",
+    "Fw.Parts.PainDarkScroll.promoted_cost",
+    "Fw.Parts.PainDarkScroll.hold_backing",
+    "Fw.Parts.PainDarkScroll.animated_meets_costs",
+    "Fw.Parts.PainDarkScroll.cover_meets",
+    "Fw.Parts.PainDarkScroll.below_promotes",
+    "Fw.Parts.PainDarkScroll.above_hides",
+    "Fw.Parts.PainDarkScroll.chromium_style_gt",
+    "Fw.Parts.PainDarkScroll.hidden_fails_390",
+    "Fw.Parts.PainDarkScroll.hidden_fails_640"
+   ],
+   "missingWhy": [
+    "Running the flip in the UI process is INFERRED (UIProcess sources are not in the clone); the census shows the layers with reason animation, which is the precondition",
+    "Why the base repaints the whole 430x775 stage on every 50 px step in the pinned band while pain:dark-scroll does not (and pain:dark-static does, like the base) is not identified; the saving and the 12 MB backing appear together in all three arms (INFERRED: one mechanism, the stage content split off the sticky backing)",
+    "Toggle-frame duration is not measured (the counts lane has no durations; the Simulator pass is too noisy at two passes per arm)",
+    "Safari-on-Mac numbers belong to gpu-safari-lane; the pain-dark cell was read on Linux WebKit, not Safari"
+   ],
+   "premises": [
+    "MODEL ASSUMPTION ToggleUi (Lean toggle_free, INFERRED, not measured): the flip runs in the UI process, so the toggle frame adds no style or paint; Chromium refutes it for style (chromium_style_gt: 4 to 5 recalcs, run 39828614430)",
+    "MODEL ASSUMPTION RideEveryFrame (Lean ride_exceeds): each updating scroll frame adds one style unit, from the proved WebKit model Engine.WebKit.scroll_comp_ride",
+    "Reveal: the card reveal translation has finished at the flip offset. Fails for a swipe averaging over about 530 px/s between the reveal point (0.72 of the exit range) and the flip (INFERRED from REVEAL_AT, the 0.9 s transition and cubic-bezier(.16,1,.3,1))",
+    "Cont: the original class is current at the offset. INFERRED false by up to one frame (rAF after the scroll callback)",
+    "CONFIRMED: ThreadedScrollDrivenAnimationsEnabled is stable and on by default (UnifiedWebPreferences.yaml:8518-8531@862f17d); steps are allowed on the threaded branch (KeyframeEffect.cpp:2001-2004@862f17d)",
+    "CONFIRMED: a progress-based timeline lifts the scroll throttle only when an effect is not completely accelerated (AnimationTimelinesController.cpp:267-279@862f17d); this effect animates opacity only"
+   ],
+   "v1Evidence": "none (n=21 was not-tried)",
+   "lesson": "WebKit paints content above an animated layer it meets into its own backing (RenderLayerCompositor.cpp:1332-1335@862f17d), so the stage text and notes cost one stage of backing; in the measured arms that split coincides with the removal of the per-step stage repaint (cause INFERRED), and the arrangement without it (no animated layer) neither costs the backing nor saves the paint, and shows dark where the original is still white. A steps animation that is idle before its flip is not accelerated before it: the flip must lie inside the active phase (range starts earlier, the step is a keyframe). And a layer placed under content makes the content overlap-promote in WebKit, so the layer budget of \"solid, 0 MB\" must include the layers the overlap forces.",
+   "next": "Judge on the Safari lane (gpu-safari-lane); find why the base repaints the whole stage every step (a paint-record attribution by layer) before another arrangement; pain:dark-static waits for the user's visual review as a look-change proposal.",
+   "evidence": "CI runs 39817106098 (cancelled), 39818716087 (gate fail), 39822433333, 39822439200, 39828600078 (gate pass), 39828605244, 39818734599, 39828614430, 39818749535, 39852164349 (probe), 39852250962 (gate, static), 39852245766 (counts, static), 39852256714, 39856782689, 39856789295 (webkit-sim, static, base, HOLD); research/notes/2026/10-2x-pain-dark-scroll.md; results/pain-dark-scroll/report.json"
+  },
+  {
+   "id": "morph.touch-band",
+   "n": 46,
+   "part": "morph.mount",
+   "candidate": "morph.mount:band + morph.tween:band: one window touch listener for both morph parts, non-passive only while the platform section is in the band or a morph runs, passive elsewhere, so a pan far from the end of the page does not wait for the web main thread",
+   "status": "partly-proved",
+   "flag": "morph.mount:band",
+   "flags": [
+    "morph.mount:band",
+    "morph.tween:band"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: the merged listener gives each part the same events in the same order as its own listener (hub_eq_base) and prevents default exactly when a part takes the move (hub_prevented); in the band the behaviour is the per-part one (band_same); wheel is unchanged",
+   "mechanism": "PROVED (Fw.Parts.MorphListen): the merged listener equals the two per-part listeners on every event sequence (hub_eq_base) with one listener in place of two (listeners_merged_le); the listener stays non-passive while a finger is down and turns passive only after it lifts (next_down_take, next_lifted); under the band premise every move a part takes falls in the band (armed_in_band, seq_quiet). Trajectory probes: morph.tween:band 39779781978 CLEAN on both engines; morph.mount:band 39779755536 webkit CLEAN, chromium RED on 42 coverage rows at w=390 (open push 1, no rewrite sample in an interior bucket; the probe drives the morph by wheel); the rerun 39781320030 moved the same 42-row open@1 coverage miss to w=641 while the faithful arm missed it at w=640 (both=42), so it reads as a sampling miss of the first open push, not the flag (INFERRED). Not measured: the WebKit touch-to-first-scroll gain.",
+   "leanFor": [
+    "Fw.Parts.MorphListen.hub_eq_base",
+    "Fw.Parts.MorphListen.hub_prevented",
+    "Fw.Parts.MorphListen.listeners_merged_le",
+    "Fw.Parts.MorphListen.band_same",
+    "Fw.Parts.MorphListen.seq_quiet",
+    "Fw.Parts.MorphListen.armed_in_band",
+    "Fw.Parts.MorphListen.next_down_take",
+    "Fw.Parts.MorphListen.next_lifted",
+    "Fw.Parts.MorphListen.takesAny_disj"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit touch-to-first-scroll base vs flag has no lane: packages/measure-webkit needs a probe mode (passive touchstart timeStamp to the first frame with a scrollY change)",
+    "The two flags together cannot be gated or probed: the gate and probe builds prerender no multi-flag search",
+    "The band premise (every pan a part takes starts inside the band) is INFERRED from two replay profiles (swipe-touch-v1, user-fixture), not from the phone"
+   ],
+   "premises": [
+    "CONFIRMED: a window-level non-passive touchmove listener makes the WebKit pan start wait for the web main thread (research/notes/2026/10-22-webkit-render-cost.md F16: Source/WebKit/UIProcess/WebPageProxy.cpp:5049-5075)",
+    "INFERRED: no morph-taking pan starts outside the band (MorphListen premise, checked on the replay profiles in packages/contracts/golden/parts/morph-listen.profiles.jsonl)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A blocking touch listener can be scoped by an IntersectionObserver band and a finger-down hold without changing what any part sees; the cost moves to one more observer, and the win is only in WebKit pan-start latency, which the current lanes do not measure.",
+   "next": "Add a touch-to-first-scroll probe to packages/measure-webkit and multi-flag prerender to the gate build, then measure base vs both flags (>= 3 runs) and gate them together.",
+   "evidence": "CI runs 39778906252 (failed: multi-flag search not prerendered), 39779755536, 39779781978, 39781320030; docs/team/handoffs/morph-touch-band.md"
+  },
+  {
+   "id": "nav.clip-box",
+   "n": 52,
+   "part": "nav",
+   "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius on the nav; the bar and the panel are still placed by the insets, so they lay out per frame",
+   "status": "partly-proved",
+   "flag": "nav:clip-box",
+   "flags": [
+    "nav:clip-box"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39857031808; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint clipBox_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-clip-box.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,015 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887328839). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
+   "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched. Dropping .is-morphing at m = 0 starts no width transition (decl_eq_rest_zero for every hero-pill state), but for 0 < m <= cut one starts, under 0.42 px (decl_close_rest): a stated limit. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
+   "leanFor": [
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero",
+    "Fw.Parts.NavClipBox.decl_close_rest",
+    "Fw.Parts.NavClipBox.used_eq_rest_one"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "MEASURED no cost number moves: chromium-counts swipe-v1 x3 (target rewrite) vs default run 39865294590: every zone equal (hero exit scrollY<700: LayoutCount 80/80, RecalcStyle 293/293, RasterTask 125/125, invalidation area 37097834/37097834), run 39872606664, results/nav-fixed-size/chromium-counts-zones-default-clip-bar.txt; webkit-sim lag=true cost=on, 430, hero-exit zone (Region A): Layout 5,251 (original 147,256) us per step, Paint 5,239 us, Composite 105,376 us; census layers 118 to 123 at y 0 and 388, 128 at the end; results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; no default-arm lag run exists, the flags agree with each other inside their spread and the original arm of the run is the only control, so no flag-attributable gain is measurable on CI VMs (no real GPU; the felt gain belongs to gpu-safari-lane or the device). webkit-sim run 39872562267 is red on simulator infrastructure (simctl launch Safari failed, session 1 lost), 2 of 3 sessions usable; the earlier run 39865298847 failed the same way, no further dispatch. Per-flag nav-clip cell grade: not delivered: the three pushes ci/nav-fixed-followups-tj1..3 (runs 39874658206, 39874669031, 39874677939) were skipped by the guard (no trajectory-probe input differs from main after the merge), so the cells step did not run; needs the lead's dispatch.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39842609609, trajectory-probe 39842561544; follow-up gates 39857031808, trajectory-probe 39856949244; webkit-sim base 39864122924, chromium-counts base 39865294590; clip-box lag 39872562267, chromium-counts 39872606664; docs/team/handoffs/nav-fixed-followups.md"
+  },
+  {
+   "id": "nav.bar-fixed",
+   "n": 49,
+   "part": "nav",
+   "candidate": "nav:bar-fixed (includes clip-box): the bar keeps its union width and moves by translate, the logo and actions by closed-form translations, so the morph writes no layout property on the bar",
+   "status": "partly-proved",
+   "flag": "nav:bar-fixed",
+   "flags": [
+    "nav:bar-fixed"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39860402069; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint barFixed_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-bar-fixed.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,655 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887331854). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
+   "mechanism": "PROVED (Fw.Parts.NavBarFixed, NavBarFixedWork): bar width constant (barW_const) where the original grows; logo and actions translations are closed forms of the Lean rows; the union box of clip-box underlies it. Breakpoint gate on both engines with the flag: run 39846092556 PASS. Trajectory probe (verdict run) 39842569267.",
+   "leanFor": [
+    "Fw.Parts.NavBarFixed.barW_const",
+    "Fw.Parts.NavBarFixed.logoX_eq",
+    "Fw.Parts.NavBarFixed.actionsX_eq",
+    "Fw.Parts.NavBarFixed.barY_eq",
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865290039 equals the default rewrite at the same page-height variant; chromium-counts swipe-v1 x3 (target rewrite) vs default run 39865294590: every zone equal (hero exit scrollY<700: LayoutCount 80/80, RecalcStyle 293/293, RasterTask 125/125, invalidation area 37097834/37097834), run 39873283200, results/nav-fixed-size/chromium-counts-zones-default-clip-bar.txt; webkit-sim lag=true cost=on, 430, hero-exit zone (Region A): Layout 4,435 (original 191,106) us per step, Paint 4,898 us, Composite 74,024 us; census layers 118 to 125 at y 0 and 388, 128 at the end; results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; no default-arm lag run exists, the flags agree with each other inside their spread and the original arm of the run is the only control, so no flag-attributable gain is measurable on CI VMs (no real GPU; the felt gain belongs to gpu-safari-lane or the device). Run 39872566438 is red on simulator infrastructure (ETIMEDOUT, no page target), 1 original and 2 rewrite sessions usable. Per-flag nav-clip cell grade: not delivered: the three pushes ci/nav-fixed-followups-tj1..3 (runs 39874658206, 39874669031, 39874677939) were skipped by the guard (no trajectory-probe input differs from main after the merge), so the cells step did not run; needs the lead's dispatch.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39846092556, trajectory-probe 39842569267; follow-up gates 39860402069, trajectory-probe 39856971788; webkit-sim base 39864122924, chromium-counts base 39865294590; bar-fixed lag 39872566438, chromium-counts 39873283200; docs/team/handoffs/nav-fixed-followups.md"
+  },
+  {
+   "id": "nav.logo-3d",
+   "n": 50,
+   "part": "nav",
+   "candidate": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
+   "status": "partly-proved",
+   "flag": "nav:logo-3d",
+   "flags": [
+    "nav:logo-3d"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39862686589; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint logo3d_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-logo-3d.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,932 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887335005). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
+   "mechanism": "PROVED (Fw.Parts.NavBarFixed): translate3d then scale keeps the original translate-then-scale order (translate_scale_order). Breakpoint gate on both engines with the flag: run 39848853982 PASS. Trajectory probe (verdict run) 39842581192.",
+   "leanFor": [
+    "Fw.Parts.NavBarFixed.translate_scale_order",
+    "Fw.Parts.NavBarFixedWork.logo3d_layout_normal",
+    "Fw.Parts.NavBarFixed.barW_const",
+    "Fw.Parts.NavBarFixed.logoX_eq",
+    "Fw.Parts.NavBarFixed.actionsX_eq",
+    "Fw.Parts.NavBarFixed.barY_eq",
+    "Fw.Parts.NavClipBox.box_eq",
+    "Fw.Parts.NavClipBox.union_const",
+    "Fw.Parts.NavClipBox.layout_only_at_endpoints",
+    "Fw.Parts.NavClipBox.usedW_eq_unionW",
+    "Fw.Parts.NavClipBox.decl_eq_rest_zero"
+   ],
+   "leanAgainst": [],
+   "missingWhy": "MEASURED no cost number moves: webkit-sim census run 39865284565 equals the default rewrite at the same page-height variant; chromium-counts run 39865303675 against default run 39865294590: LayoutCount, RecalcStyleCount, Layout.dirtyObjects (173), RasterTask, raster invalidation area equal in every scroll zone; webkit-sim lag=true cost=on, 430, hero-exit zone (Region A): Layout 7,097 (original 143,178) us per step, Paint 6,281 us, Composite 128,068 us; census layers 120 to 127 at y 0 and 388, 124 to 128 at the end; results/nav-fixed-size/webkit-sim-lag-cost-region-a.txt; no default-arm lag run exists, the flags agree with each other inside their spread and the original arm of the run is the only control, so no flag-attributable gain is measurable on CI VMs (no real GPU; the felt gain belongs to gpu-safari-lane or the device) (run 39872570182, 3 sessions, success). No win. Per-flag nav-clip cell grade: not delivered: the three pushes ci/nav-fixed-followups-tj1..3 (runs 39874658206, 39874669031, 39874677939) were skipped by the guard (no trajectory-probe input differs from main after the merge), so the cells step did not run; needs the lead's dispatch.",
+   "premises": "The pill is drawn by clip-path on a box of constant size; the gate loads at rest, so mid-morph looks rest on the Lean rows and the trajectory probe.",
+   "v1Evidence": "",
+   "lesson": "A rule that changes a property named in a transition list must keep the list; reach the same used size through a property the list does not name (min-width) and prove the declared width equals the rest width where the class is dropped. The Chromium layout counts do not see a nav that still places its bar and panel per frame (layout_only_at_endpoints speaks of the nav box only); the cost a flag removes is only visible in a lane that counts the layout units of the bar and logo (WebKit Normal compositing, logo3d_layout_normal).",
+   "next": "Pass --search to the cells step of trajectory-probe.yml and rerun the nav-clip cell per flag; dispatch webkit-sim lag=true cost=on target both for the three flags (lead); the felt hero-exit gain needs the phone or gpu-safari-lane (CI VMs have no real GPU).",
+   "evidence": "breakpoint-gate 39848853982, trajectory-probe 39842581192; follow-up gates 39862686589, trajectory-probe 39856990203; webkit-sim base 39864122924, chromium-counts base 39865294590; logo-3d lag 39872570182; docs/team/handoffs/nav-fixed-followups.md"
+  },
+  {
+   "id": "morph.panel-threaded",
+   "n": 51,
+   "part": "morph.panel",
+   "candidate": "morph.panel:threaded: run the panel's opacity, blur and scale of a morph push as two Web Animation effects (opacity with scale, and blur alone) instead of three style writes per frame",
+   "status": "partly-proved",
+   "flag": "morph.panel:threaded",
+   "flags": [
+    "morph.panel:threaded"
+   ],
+   "chromium": "unknown",
+   "webkit": "no-win",
+   "visual": "Equal opacity, blur and scale on every frame under the WAAPI premises (interp_eq, threaded_eq, retarget_from_shown). MEASURED (Chromium trajectory, run 39846814254): 0 content differences in 152 panel steps; the 84 new units are first-frame coverage. MEASURED (GPU cells, run 39855506403): panel-effect E in 3 of 4 units, lag at most 0.013 frame; the fourth (640 close) is L in 2 of 3 reps because the cell compares with a chord across the kink at m 0.8 (both arms read within 0.0013 of the Lean model). Pixels on WebKit not measured: compositor blur is not the software blur, so Q at best",
+   "mechanism": "MEASURED (CI webkit-sim, iOS Simulator 430x775, lag and cost passes; reference const-bounds run 39846941236, flag run 39846909558, bundle with platform:fade-threaded run 39846948148): Composite per frame on the open push 236-552 ms against 151-213 ms (cost-report: higher, ranges do not overlap); close push 142-250 against 107-148 ms (overlap); Paint per frame, frames and resized layers overlap; new layers per 100 reads on the close push 100 against 0. The bundle overlaps the reference on every cell. Chromium counts (swipe-v1, runs 39851664186 and 39851674587) are equal because the profile never opens the panel. PROVED (Fw.Parts.MorphPanelThreaded): the variant's tick costs style only (variant_stages, variant_drops) and keeps the nav write (recalc_same), adds no layer when the panel is composited (layer_budget); the stage model has no Composite stage. INFERRED: the blur moves from Paint to the compositor, which runs on the CPU in the Simulator, on a panel whose box is already constant (const-bounds class), so the rise is UNKNOWN",
+   "leanFor": [
+    "Fw.Parts.MorphPanelThreaded.interp_eq",
+    "Fw.Parts.MorphPanelThreaded.chain_offs",
+    "Fw.Parts.MorphPanelThreaded.variant_drops",
+    "Fw.Parts.MorphPanelThreaded.props_accelerated",
+    "Fw.Parts.MorphPanelThreaded.layer_budget",
+    "Fw.Parts.MorphPanelThreaded.bands_equal",
+    "Fw.Parts.MorphPanelThreaded.bands_only_reduced",
+    "Fw.Parts.MorphPanelThreaded.threaded_eq",
+    "Fw.Parts.MorphPanelThreaded.frame_eq",
+    "Fw.Parts.MorphPanelThreaded.retarget_from_shown",
+    "Fw.Parts.MorphPanelThreaded.ca_accepts",
+    "Fw.Parts.MorphPanelThreaded.ease_err"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphPanelThreaded.recalc_same",
+    "Fw.Parts.MorphPanelThreaded.recalc_same_bundle"
+   ],
+   "missingWhy": [
+    "Composite cost is not in the stage model (Fw.Engine.WebKit stages end at paint), so the Composite rise on the open push has no Lean theorem; the cause is UNKNOWN",
+    "Compositor cost is not measured on a real GPU: the Simulator has none, and the open push has only 2-4 frames per pass",
+    "Chromium push not measured: the count profile never opens the panel, and Blink refuses to composite a pixel-moving filter effect (INFERRED no saving)"
+   ],
+   "premises": [
+    "CONFIRMED: GraphicsLayerCA accepts the effect (rate 1, forward, nonzero duration, two or more keyframes, no steps, curve in [0, 1]) (Source/WebCore/platform/graphics/ca/GraphicsLayerCA.cpp:1169-1196@862f17d) and supports filter animations (:289@862f17d)",
+    "CONFIRMED: Blink marks a filter effect with a pixel-moving filter as not compositable (third_party/blink/renderer/core/animation/compositor_animations.cc:408-416@f842f52)",
+    "CONFIRMED: a running effect invalidates style on every tick (Source/WebCore/animation/KeyframeEffect.cpp:2128-2130@862f17d)",
+    "WaapiPremises (Fw.Parts.MorphTweenOpt): linear number interpolation, an exact timing curve, one timeline offset for frames and start reads"
+   ],
+   "v1Evidence": "",
+   "lesson": "A stage that leaves the main thread is not a saving when its work lands in Composite on a lane without a GPU; moving the blur to the compositor cannot beat removing the resize that drives it. Price the Composite stage in the model before building a variant that moves paint work there.",
+   "next": "Hold; no port task. Re-open when measured on a lane with a real GPU (gpu-safari-lane); the cause of the open-push Composite rise is UNKNOWN.",
+   "evidence": "CI runs 39846842455, 39846814254, 39855506403, 39851664186, 39851674587, 39846941236, 39846909558, 39846948148; research/notes/2026/10-2x-morph-panel-threaded.md; results/morph-panel-threaded/report.json"
+  },
+  {
+   "id": "people.o-preview-translate",
+   "n": 53,
+   "part": "people.o",
+   "candidate": "people.o:preview-translate: move the fixed seller preview card with the translate property by the integer scroll delta instead of writing top in every scroll frame (desktop, above 860 px)",
+   "status": "partly-proved",
+   "flag": "people.o:preview-translate",
+   "flags": [
+    "people.o:preview-translate"
+   ],
+   "chromium": "win",
+   "webkit": "unknown",
+   "visual": "E-s: WebKit scroll offsets are integral (ScrollTypes.h:47-49, LocalDOMWindow.cpp:1466@862f17d), so the shown top and left equal the faithful ones (snap_noFlip, step_faithful); a fractional Chromium offset falls back to a rewrite (frac_counter). MEASURED on Chromium (open-card probe, runs 39881189724 and 39881193403): the card rect is identical in all 40 scroll frames in 3 of 3 base/flag pairs (max delta 0 px); the card-region pixels are identical in 2 of 3 pairs; in the third, flag run 3 differs from the five other runs from the first hover frame on (card left 0.92 px off before any scroll frame, INFERRED not the flag).",
+   "mechanism": "PROVED (Fw.Parts.PeopleOPreview): the faithful card costs 1 layout pass per scroll frame (faithful_layout); the variant costs 0 on a kept frame and 1 on a flip frame, both engines, given the card has its own layer (translate_layout_kept, translate_layout_flip, translate_work_lt); layer budget 0 by definition (residentOf is the same for both variants; INFERRED: the variant adds no will-change and no 3D transform; layer_budget_zero records it). MEASURED (Chromium desktop 1280, profile people-o-hover v2, 3 runs per arm on separate CI jobs, base run 39881189724, flag run 39881193403, premise: text-wrap:wrap workaround): over the 40 scroll frames trace.Layout 67 base vs 28 flag (dirtyObjects 2139 vs 969; frames with a Layout 40 vs 26); trace.UpdateLayoutTree 191, PrePaint 120, UpdateLayer 1070 and invalidation area 308551 are equal; the flag took the translate path on 49 probe frames. Classes (kMax 4, tMax 24): base trace.Layout deterministic; flag trace.Layout stable (k2). The first scenario (runs 39879309834, 39879313255: hover 12 frames, 10 px per frame) counted 55 Layout in both arms because the flag never took its keep path (face still sliding in x, card closed after 10 scroll frames): a non-engagement, not a result.",
+   "leanFor": [
+    "Fw.Parts.PeopleOPreview.snap_noFlip",
+    "Fw.Parts.PeopleOPreview.step_faithful",
+    "Fw.Parts.PeopleOPreview.keep_translate",
+    "Fw.Parts.PeopleOPreview.keep_pixel",
+    "Fw.Parts.PeopleOPreview.translate_layout_kept",
+    "Fw.Parts.PeopleOPreview.translate_layout_flip",
+    "Fw.Parts.PeopleOPreview.translate_work_lt",
+    "Fw.Parts.PeopleOPreview.layer_budget_zero"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PeopleOPreview.frac_counter"
+   ],
+   "missingWhy": [
+    "Counts carry the text-wrap workaround premise (no text balancing) and are desktop Chromium only; WebKit counts are not measured (Safari on a Mac is task gpu-safari-lane)",
+    "From scroll frame 15 base has 2 Layout per frame and flag 1: a second Layout source (not the card) starts there and is not diagnosed",
+    "In both arms the card rect moves 6 px per frame while the face moves 3 px. INFERRED cause: its ancestor div.card-module_card has will-change on transform or translate (probe containing list, runs 39881189724 and 39881193403), which makes it the containing block of the fixed card, so top and translate add to the scroll. The Lean model takes the card as viewport-fixed. Not confirmed from Chromium source.",
+    "Flag run 3 differs from the other five runs in card pixels from the first hover frame (card left 0.92 px off); 3 runs per arm cannot say whether the flag has a part in it",
+    "The card having its own layer is INFERRED from RenderLayerCompositor.cpp:4097-4150@862f17d; without it WebKit still lays out on transform",
+    "Desktop only, so no iPhone felt gain"
+   ],
+   "premises": [
+    "CONFIRMED: a top change of a fixed box is a layout change (StyleDifference.cpp:557-565@862f17d)",
+    "INFERRED: the fixed card has its own layer (RenderLayerCompositor.cpp:4097-4150@862f17d)",
+    "CONFIRMED: WebKit main-frame scroll offsets are IntPoint"
+   ],
+   "v1Evidence": "",
+   "lesson": "A per-frame position write of a fixed box is a layout pass; a translate by the scroll delta removes it only while the box is its own layer and the delta is whole device pixels. Check the engine can load the measuring page before building the profile: a renderer crash at load blocked the count for every arm. A count of a keep path needs a probe that shows the path was taken (v1 counted 55 in both arms without engaging the flag), and a whole-viewport pixel hash is noise between runs of one arm; hash the card region.",
+   "next": "Decide status from the Chromium counts; WebKit counts and the iPhone feel belong to gpu-safari-lane; diagnose the second Layout source from scroll frame 15 and the 6 px per frame card rect.",
+   "evidence": "Chromium counts MEASURED: base run 39881189724, flag run 39881193403 (scenario v2); scenario v1 (non-engagement): 39879309834, 39879313255; failed on the profile key probe: 39878167282, 39878174234; results/people-o-preview-translate/followups.json; CI gate run 39850908365 (both engines pass); counts runs blocked by the renderer crash before the fix:39850913549, 39850930778, 39852501132, 39854385797, 39855096795, 39855102093, 39855917125, 39856570778, 39857307732, 39857312848, 39857318162, 39859911878, 39860551961, 39861279374, 39862057861; research/notes/2026/10-2x-people-o-preview-translate.md"
+  },
+  {
+   "id": "morph.columns-idle-none",
+   "n": 54,
+   "part": "morph.columns",
+   "candidate": "morph.columns:idle-none: remove the marquee track animations (animation-name none) while the scene rule pauses the panel, and seek them back to their kept time on return",
+   "status": "partly-proved",
+   "flag": "morph.columns:idle-none",
+   "flags": [
+    "morph.columns:idle-none"
+   ],
+   "chromium": "win",
+   "webkit": "win",
+   "visual": "E (idleNone_visSame: the removed state is under a panel of opacity 0; after the return the animation shows the original held clock, varRun_clock). Breakpoint gate passes on both engines (run 39897800920).",
+   "mechanism": "PROVED (Fw.Parts.MorphIdleNone): varRun_clock, varRun_present, restart_shifts (removal without the kept clock changes the phase), tracks_layers_drop (5 -> 1 in the layer model, INFERRED mapping). MEASURED Chromium swipe-v1, 3 runs per arm, base 39897804079, flag 39897818039: layer-frames 28107 -> 24667 (-3440), drawing layers 24904 -> 21464, layout 318 -> 319, style recalc 1832 -> 1833. MEASURED WebKit simulator census (base 39897814980, flag 39897807511, one session): layerCount at y=3000 140/136 -> 124/128, backing memory at y=3000 101 -> 85 MB and at y=5231 106 -> 90 MB (deterministic). MEASURED WebKit morph-zone cost (cost=on lag=true, base 39903977820, flag 39903974246, two passes): layers idle 128 -> 112, open/close 209 -> 205; Paint and Composite per frame not resolvable (runner frame rate varied, one arm varies 3x between passes; flag reads higher).",
+   "leanFor": [
+    "Fw.Parts.MorphIdleNone.varRun_clock",
+    "Fw.Parts.MorphIdleNone.varRun_present",
+    "Fw.Parts.MorphIdleNone.idleNone_visSame",
+    "Fw.Parts.MorphIdleNone.restart_shifts",
+    "Fw.Parts.MorphIdleNone.tracks_layers_drop"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Per-frame Paint and Composite delta not resolvable on the CI simulator (noise 3x between passes); Lean models layers only (INFERRED that cost follows the redrawn tree)"
+   ],
+   "premises": [
+    "INFERRED: the MutationObserver callback runs before the frame style pass, so the seek lands before paint",
+    "INFERRED: the layers beyond tracks and cols (1530 of the 3440) are boxes overlapping the tracks"
+   ],
+   "v1Evidence": "",
+   "lesson": "A paused CSS animation still holds a compositing reason; removing it while the panel is transparent frees its layers, and the kept time makes the return exact.",
+   "next": "Judge per-frame cost on the real phone or with a pinned frame rate; layer drop stands.",
+   "evidence": "CI runs 39897804079, 39897818039, 39897814980, 39897807511, 39897800920, 39903977820, 39903974246; research/notes/2026/10-20-morph-idle-none.md; results/morph-idle-none/report.json"
+  },
+  {
+   "id": "accent.draw-nolayout",
+   "n": 55,
+   "part": "hero.accent",
+   "candidate": "hero.accent:draw-nolayout: the draw reveals the visible copy with a clip-path inset() wipe (kept 0.9 s, same easing) and the stroke stays whole, instead of animating stroke-dashoffset on three stacked copies",
+   "status": "look-change",
+   "flag": "hero.accent:draw-nolayout",
+   "flags": [
+    "hero.accent:draw-nolayout"
+   ],
+   "chromium": "no-win by construction: the faithful draw-out frame already needs no layout in Chromium (stroke-dashoffset is paint level, faithful_drawOut), and the draw-in keeps the width transition (layout, width_layout). No Chromium run.",
+   "webkit": "partial win (MEASURED, webkit-sim swap lane, 430x775, run 39999057900, jobs r1 r2, 2 passes each; r3 failed to boot the Simulator): rest windows (800 ms between swaps) with at least 24 Layout rows: 17 of 56 for the arm against 20 of 28 (faithful-a) and 18 of 28 (faithful-b); Layout rows per capture over the 7 rest windows 122.3 against 246.5 and 226.5. Swap windows (220 ms): median 14 Layout rows for the arm and for both faithful slots; per capture 109.4 against 112.5 and 102.5, no change. Hero exit (scroll A) frame cadence, Paint and Composite time: ranges overlap the baseline run 39983630584 (the lane records no Layout count per scroll frame).",
+   "visual": "not equal (class look-change): the draw is a left-to-right wipe of the whole word, the faithful draw a trace along the stroke. Endpoints equal (Lean clip_endpoints: hidden and shown end of the clip); mid-draw frames differ by construction. Pixel numbers not measured: path-pix pins the accent chain (?fwpin=accent) and has no draw-window mode. For the user look review.",
+   "mechanism": "PROVED (Fw.Engine.StyleDiffAccent, WebKit @862f17d and Chromium @f842f52 lines in the module doc): stroke-dashoffset needs layout in WebKit on every layer state (dashoffset_wk_layout, StyleDifference.cpp:161) and paint in Chromium (dashoffset_cr_nolayout); clip-path needs none in either engine on every layer state (clip_nolayout; StyleDifference.cpp:779-780, RenderElement.cpp:321-326, css_properties.json5:3112); the arm draw-out frame needs no layout in both engines (arm_drawOut_nolayout); the draw-in frame needs layout only through the width transition of the original (arm_drawIn_layout_only_width, width_layout); layout phases per cycle 2 to 1 (layoutPhases_values). A transform on an SVG child (a mask rectangle) needs layout in WebKit (transformSvgChild_wk_layout); a transform on a composited box needs none in either engine (transformOwn_nolayout) but needs layers; an opacity reaching 1 needs layout in WebKit (opacity_split). MEASURED: the saved phase shows as fewer busy rest windows; the swap windows keep their own 13 Layout frames from the carousel, so the accent saving does not reach them.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.arm_drawOut_nolayout",
+    "Fw.Engine.StyleDiffAccent.arm_drawIn_layout_only_width",
+    "Fw.Engine.StyleDiffAccent.clip_nolayout",
+    "Fw.Engine.StyleDiffAccent.layoutPhases_values",
+    "Fw.Engine.StyleDiffAccent.dashoffset_wk_layout",
+    "Fw.Engine.StyleDiffAccent.clip_endpoints"
+   ],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.faithful_drawOut",
+    "Fw.Engine.StyleDiffAccent.width_layout"
+   ],
+   "missingWhy": [
+    "Layout per hero-exit scroll frame: the swap lane records Paint and Composite time and cadence there, not Layout events.",
+    "Pixel numbers for the wipe against the stroke trace: a path-pix mode that samples the draw window."
+   ],
+   "premises": [
+    "The Simulator Safari uses the legacy SVG renderer (the layer-based SVG engine off): INFERRED; the layer-based path is not modelled in StyleDiffAccent",
+    "The word strokes stay inside 20 percent of the svg box on every side (the clip insets are -20 percent)."
+   ],
+   "v1Evidence": "",
+   "lesson": "A per-frame layout can be cut property by property, but only the property that dirties layout moves: here the original also transitions the box width during the draw-in, so half of the layout phases remain, and the phase cut shows in the quiet windows between the carousel swaps, not in the swap windows, which pay their own layout.",
+   "next": "User look review of the wipe. If accepted, the next layout cost is the width transition of the draw-in (it moves the headline text), which is the original behaviour and a separate, look-changing candidate.",
+   "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/",
+   "userDecision": {
+    "date": "2026-10-24",
+    "decision": "rejected 2026-10-24: same clip-path wipe as draw-nolayout-full, which the user saw on the iPhone and rejected as looking different from the original",
+    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full (draw-nolayout not shown on its own)"
+   }
+  },
+  {
+   "id": "accent.drawin-width-nolayout",
+   "n": 56,
+   "part": "hero.accent",
+   "candidate": "hero.accent:draw-nolayout-full: draw-nolayout plus no width transition on the host (transition: none on .drawingIn), so the word box takes its new width in one frame at the start of the draw-in and every other draw frame changes only clip-path",
+   "status": "look-change",
+   "flag": "hero.accent:draw-nolayout-full",
+   "flags": [
+    "hero.accent:draw-nolayout-full"
+   ],
+   "chromium": "win by construction, not run: the faithful draw-in lays out in Chromium in every frame through the width transition (width_layout, crLayoutFrames_values: n+1 of n+1 draw-in frames); the full arm lays out once (crLayoutFrames_values, full_inRest_nolayout). No Chromium run.",
+   "webkit": "win (MEASURED, webkit-sim swap lane, 430x775, run 40010826238, jobs r1 r2, 2 passes each; r3 did not finish and the run was cancelled, so the merged report jobs were skipped and the report was built from the r1 and r2 artifacts with swap-report): rest windows (800 ms between swaps) with at least 24 Layout rows: 0 of 56 for the arm against 18 of 28 (faithful-a) and 19 of 28 (faithful-b); Layout rows per capture over the 7 rest windows 19.4 against 225.0 and 232.8; median per window 2 against 45 and 45. Swap windows (220 ms): median 13 for the arm and 14 for both faithful slots; per capture 96.5 against 107.8 and 109.8, no per-window verdict resolved (unresolved:overlap for every window). Against the draw-nolayout arm (run 39999057900, other session): rest 17 of 56, 122.3 rows per capture. Hero exit: not measured (the lane records no Layout count per scroll frame).",
+   "visual": "not equal (class look-change): the wipe of draw-nolayout, plus the headline text after the word jumps to the new width at the start of the draw-in instead of gliding over 0.9 s. Endpoints equal (Lean clip_endpoints; the width after 0.9 s is the same). Pixel numbers not measured. For the user look review.",
+   "mechanism": "PROVED (Fw.Engine.StyleDiffAccent, same engine lines as accent.draw-nolayout): a cycle is n draw-out frames and n draw-in frames; the width set is one style change in the first draw-in frame (full_inFirst_layout_only_width: among the modelled draw candidates, layout in both engines only through width; the word swap in the same frame lays out in every arm and is not modelled); every other frame of the full arm changes only clip-path and needs no layout in WebKit or Chromium (full_out_nolayout, full_inRest_nolayout). Layout frames per cycle of n+1 frames per phase in WebKit: 2(n+1) faithful, n+1 draw-nolayout, 1 full (wkLayoutFrames_values, for every n); Chromium n+1, n+1, 1 (crLayoutFrames_values); at 54 frames per phase 108, 54, 1 (wkLayoutFrames_54). MEASURED: the busy rest windows vanish. The width cannot be replaced by a transform without a layout per frame: the text after the word is in normal flow, so any smooth glide of the text is itself a layout per frame; the only same-look replacement does not exist, the full arm gives the glide up.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.full_inRest_nolayout",
+    "Fw.Engine.StyleDiffAccent.full_out_nolayout",
+    "Fw.Engine.StyleDiffAccent.full_inFirst_layout_only_width",
+    "Fw.Engine.StyleDiffAccent.wkLayoutFrames_values",
+    "Fw.Engine.StyleDiffAccent.crLayoutFrames_values",
+    "Fw.Engine.StyleDiffAccent.wkLayoutFrames_54"
+   ],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.width_layout"
+   ],
+   "missingWhy": [
+    "Layout per hero-exit scroll frame: the swap lane records Paint and Composite time and cadence there, not Layout events (task accent-nolayout-measure).",
+    "Pixel numbers across the draw and the text jump: a path-pix mode that samples the draw window (task accent-nolayout-measure)."
+   ],
+   "premises": [
+    "The Simulator Safari uses the legacy SVG renderer (the layer-based SVG engine off): INFERRED; the layer-based path is not modelled in StyleDiffAccent",
+    "The word strokes stay inside 20 percent of the svg box on every side (the clip insets are -20 percent)."
+   ],
+   "v1Evidence": "",
+   "lesson": "A per-frame layout cannot be moved off the layout path when the thing that changes is in flow: the headline text follows the word box, so a smooth text glide costs a layout per frame in both engines. What can be given up is the glide itself: one layout at the start of the draw-in replaces 54, and the quiet windows between swaps lose the accent layout entirely.",
+   "next": "User look review of the text jump. If rejected, draw-nolayout (glide kept, half the layout phases) stays the safer arm. Layout per hero-exit frame and pixel numbers: accent-nolayout-measure.",
+   "evidence": "webkit-sim run 40010826238 (push 3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]; r3 cancelled); research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/full-swap-report.md",
+   "userDecision": {
+    "date": "2026-10-24",
+    "decision": "rejected 2026-10-24: the draw looks different from the original",
+    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full"
+   }
+  },
+  {
+   "id": "premise.webkit.wheel-momentum",
+   "n": 57,
+   "part": "premise",
+   "candidate": "premise: a Playwright WebKit trusted wheel carries a momentum phase (morph-wheel-momentum)",
+   "status": "refuted",
+   "flags": [],
+   "chromium": "not-tried",
+   "webkit": "premise-false",
+   "visual": "n/a (a harness premise, not an optimization)",
+   "mechanism": "CONFIRMED (source): Playwright 1.64.1 RawMouseImpl.wheel sends Input.dispatchWheelEvent with x, y, deltaX, deltaY and modifiers only; the WebKit patch builds the WebWheelEvent with the six-argument constructor, whose phase and momentum phase start as Phase::None (WebWheelEvent.h:102-103 @56453fdfe0b0, identical at 862f17d); the only synthetic momentum code runs on momentumPhase() == Phase::Began (WebPageProxy.cpp:4988 and :5012 @56453fdfe0b0), which never happens. Scope: the Playwright WebKit wheel lane on CI macOS. The phone's momentum is not tested.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Read the harness input path to its event constructor before building a drive that assumes a phase the harness never sends.",
+   "evidence": "research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
+   "next": "The phone's momentum stays the phone's (real-device replay). Note follow-up 3 of research/notes/2026/10-2x-morph-real-wheel.md holds the sources."
+  },
+  {
+   "id": "morph.wheel.lock-no-moving-scroll",
+   "n": 58,
+   "part": "morph.tween",
+   "candidate": "morph-wheel-momentum: overlap a moving drawn scroll with the open morph on the CI macOS Playwright WebKit wheel lane (pull drive)",
+   "status": "refuted",
+   "flags": [],
+   "chromium": "not-tried",
+   "webkit": "premise-false (this lane only)",
+   "visual": "n/a (a measurement drive, not a look change)",
+   "mechanism": "On the CI macOS Playwright WebKit wheel lane no drive a user produces can overlap a moving drawn scroll with the open morph: the site prevents every wheel while the morph is open and L restores scrollY after each scroll event; the pull drive adds a scroll event and a pull-and-restore per frame, drawn at the lock; strictly changing scrollY was not delivered. MEASURED (run 40032804511, 3 mac jobs): the push arrived at scrollY 5098 against maxY 5102 in 36 of 36 pull runs (0 atEnd, 0 stalled, 0 refused); scroll events in the open phase 60.2 to 62.7 per run. INFERRED: each frame is drawn at the lock because the site restore runs in a rAF after the page rAF (Page.cpp:2295 and :2330 @862f17d); no paint-position reading was taken. The rewrite's open-phase counts still overlap the original's with scroll work in every frame. Lean: Fw.Measure.WebKitLagPhase acceptPull (atEnd and stalled refusals, golden checked); acceptPull in macreport.mjs is a TS stand-in checked against that golden. Not claimed for iOS touch: a pan that began before the morph opened cannot be cancelled by touchmove there (WKContentViewInteraction.mm:4239-4245 @862f17d, INFERRED).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Whether UIKit's deceleration and the site's restore fight at the page end on iOS touch (task touch-lock-page-end)."
+   ],
+   "premises": [
+    "Drawn at the lock is INFERRED from rAF order, not read from a paint position."
+   ],
+   "v1Evidence": "none",
+   "lesson": "A site that restores the position after every scroll event cannot be driven into a moving drawn scroll by a page script; a drive that pulls and restores adds the event work but not the movement.",
+   "evidence": "mac run 40032804511; research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
+   "next": "touch-lock-page-end (the iOS touch lock fight at the page end). Note research/notes/2026/10-2x-morph-real-wheel.md."
+  },
+  {
+   "id": "accent.same.dasharray",
+   "n": 66,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "not modelled (no Lean key for stroke-dasharray)",
+   "webkit": "no-win by construction: a stroke-dasharray change takes the SVG layout-data branch of StyleDifference (WC/style/StyleDifference.cpp:160@862f17d, beside stroke-dashoffset at :161), a layout per frame like the original. CONFIRMED (source).",
+   "visual": "same by construction (a dash trace), not built",
+   "mechanism": "Same diff branch as the original stroke-dashoffset: every frame lays out the SVG renderer.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.verdict",
+    "Fw.Engine.StyleDiffAccent.pending_exact"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Swapping one SVG stroke property for another keeps the layout: WebKit treats every stroke dash value as layout data.",
+   "next": "none",
+   "candidate": "hero.accent same-look: trace the stroke by animating stroke-dasharray instead of stroke-dashoffset",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.path-d",
+   "n": 60,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "not modelled (no Lean key for d)",
+   "webkit": "no-win by construction: d lives in SVGLayoutData (WC/style/computed/data/StyleSVGLayoutData.h:64@862f17d) and a layout-data change lays out (WC/style/StyleDifference.cpp:154@862f17d). CONFIRMED (source).",
+   "visual": "same up to the cut-path numerics, not built",
+   "mechanism": "A geometry change of an SVG shape is layout in WebKit, so it trades one layout per frame for another.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.verdict"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Any per-frame SVG geometry change (d, dash values) lays out in WebKit; only paint-level or compositor changes can drop the layout.",
+   "next": "none",
+   "candidate": "hero.accent same-look: rewrite each path d per frame to the drawn part of the stroke",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.sprite",
+   "n": 61,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free (background-position is paint level, Lean Fw.Engine.Chromium.keyLevel); pixels pending, not run",
+   "webkit": "layout-free (background is Repaint, WC/style/StyleDifference.cpp:673@862f17d); pixels pending, not run",
+   "visual": "MEASURED-pending: WebKit samples the draw at 1 ms timeline steps (WebAnimation.cpp:1298-1300, Performance.cpp:73@862f17d), so a finite sprite can hold every sampled progress; frames_miss does not apply. Pixel equality of the bitmap with the vector stroke is unproved.",
+   "mechanism": "Moves the stroke trace off style and layout onto a background repaint. A CSS animation starts at the timeline time (WC/animation/WebAnimation.cpp:1298-1300@862f17d), which is the rAF timestamp reduced to 1 ms (WC/dom/Document.cpp:10950; WC/animation/AnimationTimelinesController.cpp:104,129; WC/page/Performance.cpp:73,174-176@862f17d), so the 0.9 s draw shows at most 901 progress values, all known in advance.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.pending_nolayout"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of a pre-rendered bitmap (DPR scale, fractional page offset) with the SVG stroke at the <=901 timeline-quantised progresses"
+   ],
+   "premises": [
+    "WebKit timeline time is the rAF timestamp at 1 ms resolution, CONFIRMED (source lines in mechanism)",
+    "one sprite frame per 1 ms progress step fits the memory budget, INFERRED (not sized)"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A continuum-of-phases argument (frames_miss) needs a free start phase; WebKit quantises timeline time to 1 ms, so a finite sprite is not refuted by counting and the question becomes pixel equality.",
+   "next": "Run plan: add a sprite arm to DRAW_FLAGS in packages/measure-webkit/src/pathpix-exit-draw-webkit.mjs (sprite rendered at the device DPR), run the path-pix sim-draw lane (.github/workflows/path-pix.yml) paused at fixed progress values against the faithful arm, 1 dispatch; build a flag only if the pixels match.",
+   "candidate": "hero.accent same-look: pre-rendered sprite of the draw, stepped background-position (or mask-position)",
+   "status": "partly-proved",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.paint-api",
+   "n": 62,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "not modelled",
+   "webkit": "unavailable: CSSPaintingAPIEnabled has status testable and default false (WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:1314-1325@862f17d). CONFIRMED (source).",
+   "visual": "n/a (cannot run on the target engine)",
+   "mechanism": "The engine where the lag is felt does not ship the feature.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.verdict"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Check the target engine ships a feature by default before modelling it.",
+   "next": "none",
+   "candidate": "hero.accent same-look: draw the stroke in a CSS Paint API worklet driven by a registered custom property",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.clip-final",
+   "n": 63,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free (clip-path is paint level, Lean clip_nolayout); look refuted, not run",
+   "webkit": "layout-free (clip-path on a layer, WC/style/StyleDifference.cpp:779-780@862f17d, Lean clip_nolayout); look refuted, not run",
+   "visual": "not equal at the pixel: Fw.Engine.StyleDiffAccent.clip_coverage_differs. A clip that follows the stroke outline multiplies two partial coverages at the stroke's side edges (c*c is not c for 0 < c < 1); a padded clip covers later parts of the same path that pass within the padding (coverage 1 where the original has 0). As sets, the final stroke cut to the swept region is the drawn part, so the difference is antialiasing and self-overlap.",
+   "mechanism": "A clip and a stroke are rasterised separately and their coverages multiply, which a single stroke raster does not do.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.clip_coverage_differs"
+   ],
+   "missingWhy": [],
+   "premises": [
+    "WebKit applies an antialiased clip by multiplying coverage, INFERRED",
+    "the accent paths pass within a padding width of themselves, INFERRED"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A set-level identity (A cut to B equals C) is not a pixel identity once both sides are antialiased.",
+   "next": "none",
+   "candidate": "hero.accent same-look: show the final stroke clipped to the region the pen has swept so far",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.canvas",
+   "n": 64,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free by source: a canvas draw only marks paint invalidation (B/core/html/canvas/html_canvas_element.cc:687-711@f842f52). CONFIRMED (source); not run",
+   "webkit": "layout-free by source: a canvas draw repaints the canvas renderer (WC/html/HTMLCanvasElement.cpp:568-579@862f17d); only a size change reaches canvasSizeChanged (:581-604), so the canvas keeps one size. CONFIRMED (source); not run",
+   "visual": "pixels MEASURED-pending: the canvas is rastered apart from the page (C4 double rounding, Fw.Engine.Visual.raster_path_fails_fracAlpha) and its Bezier flattening and dash numerics are not SVG's; equality is not proved.",
+   "mechanism": "Moves the stroke trace off style and layout onto a canvas repaint.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.pending_nolayout",
+    "Fw.Engine.StyleDiffAccent.stroke_pending",
+    "Fw.Engine.StyleDiffAccent.combo_54"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of the canvas stroke with the SVG stroke on WebKit"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Of the stroke candidates only a canvas leaves the trace layout-free in WebKit; whether it looks the same is a pixel question Lean cannot settle.",
+   "next": "Run plan: build the arm behind a flag only after a pixel check; the check is the path-pix sim-draw lane (.github/workflows/path-pix.yml, packages/measure-webkit/src/pathpix-exit-draw-webkit.mjs) with a canvas arm added to DRAW_FLAGS, paused at fixed progress values against the faithful arm, 1 dispatch.",
+   "candidate": "hero.accent same-look: draw the stroke per frame on a fixed-size canvas 2D (setLineDash, lineDashOffset) in requestAnimationFrame",
+   "status": "partly-proved",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.glide",
+   "n": 65,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free after the first draw-in frame (transform on an own layer, Lean transformOwn_nolayout); not run",
+   "webkit": "layout-free after the first draw-in frame (transform on a composited box recomposites, WC/rendering/RenderElement.cpp:300-312@862f17d); alone it keeps the stroke-dashoffset layout, so the WebKit layout frames per cycle stay 108 (combo_54); with canvas they drop to 1. Not run",
+   "visual": "geometry proved: Fw.Engine.StyleDiffAccent.glide_same (first and last words and the accent centre sit where the original has them for every width), Fw.Engine.StyleDiffAccent.glide_eased (the shift is (wf - w0)/2 * (1 - e), so the original easing gives it). Pixels MEASURED-pending: a fractional translate is rastered on the compositor and laid-out text is snapped (C5, Fw.Engine.Visual.raster_path_fails_fracXf).",
+   "mechanism": "Replaces an in-flow width transition by a fixed box plus compositor translates of its neighbours.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.glide_same",
+    "Fw.Engine.StyleDiffAccent.glide_eased",
+    "Fw.Engine.StyleDiffAccent.pending_nolayout",
+    "Fw.Engine.StyleDiffAccent.combo_54"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of translated text against laid-out text at fractional offsets"
+   ],
+   "premises": [
+    "the accent frame does not depend on the host width (it is set to the final width at once and centred), INFERRED from apps/site/src/parts/hero.accent/index.tsx"
+   ],
+   "v1Evidence": "none",
+   "lesson": "An in-flow glide can be rebuilt from a fixed box and compositor translates when the moving neighbours are known; the cost moves from layout to subpixel raster risk.",
+   "next": "Run plan: needs a cross-part write to hero (the neighbour spans) and a variant; pixel check in the path-pix sim-draw lane with a glide arm, 1 dispatch. Ship only together with canvas, since glide alone saves no WebKit layout frame.",
+   "candidate": "hero.accent same-look: keep the accent at its final width from the draw-in start and translate the first and last words by +-(wf - w(t))/2 with the same 0.9 s easing",
+   "status": "partly-proved",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "engine.scroll.unthrottle",
+   "n": 59,
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle: ship the throttle-lift element (one fixed 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "status": "partly-proved",
+   "flags": [
+    "engine.scroll:unthrottle"
+   ],
+   "chromium": "no-win",
+   "webkit": "win",
+   "visual": "E (visible_withFlag: the visible scene with the element equals the page's own; same_layout_hit_a11y: no flow box, hit target or accessible content). Breakpoint gate run 40068858697, Chromium and Playwright WebKit, no failing item.",
+   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266 @862f17d; WebKit bugs 307463 and 319523) and PROVED in Lean (reported_iff, lifted_when_supported, no_effect_without_support, chromium_never_throttled). Effect on the Simulator: throttle-lift took 163 band runs to 0 (run 39667548341); the shipped text is not itself measured for still runs. Cost MEASURED: Chromium counts (3 runs x 535 swipe frames, flag run 40068851412 vs push run 40068835905, same sha) +1 element restyled in 95.5 to 99.1 percent of frames, no extra layout, no extra style-recalc event, but +2 compositor layers (1 drawing layer, about 1 px). WebKit Simulator (run 40068853873): no resolvable extra style, layout or composite event, no extra positionFixed layer.",
+   "leanFor": [
+    "Fw.Parts.EngineScrollUnthrottle.reported_iff",
+    "Fw.Parts.EngineScrollUnthrottle.lifted_when_supported",
+    "Fw.Parts.EngineScrollUnthrottle.no_effect_without_support",
+    "Fw.Parts.EngineScrollUnthrottle.chromium_never_throttled",
+    "Fw.Parts.EngineScrollUnthrottle.visible_withFlag",
+    "Fw.Parts.EngineScrollUnthrottle.same_layout_hit_a11y",
+    "Fw.Parts.EngineScrollUnthrottle.restyled_flag",
+    "Fw.Parts.EngineScrollUnthrottle.extraRecalc_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Still runs of the shipped text on the Simulator or phone not measured (the diagnostic text was)",
+    "The 2 extra Chromium layers are outside the Lean bound",
+    "Trajectory cells (Chromium and WebKit, hero and morph) have no run",
+    "Power cost of leaving the 100 ms throttle (WebKit: up to 2 percent) not measured"
+   ],
+   "premises": [
+    "The phone behaves like the Simulator for this throttle: INFERRED, the user's felt pass agrees",
+    "Chromium has no equivalent throttle: INFERRED from the absence of the handshake; the Chromium counts show no change in style or layout events"
+   ],
+   "v1Evidence": "",
+   "lesson": "A platform throttle can be lifted by a page-side condition the platform itself names; prove the condition from the engine source, then prove the lifter invisible and count what it costs: here the one-element restyle matched the bound and the unmodelled cost was a Chromium layer.",
+   "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
+   "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; a phone pass of the shipped text; then set proved and regenerate the v2-proved preset.",
+   "flag": "engine.scroll:unthrottle"
   }
  ],
  "notes": [
@@ -3114,6 +3873,36 @@
    "task": "hero-exit-threaded-measure",
    "field": "mechanism",
    "text": "hero-exit-threaded-measure (WebKit cost lane, MEASURED): webkit-sim dispatches with lag=true cost=on target=rewrite vms=3 on the iOS Simulator 430x775 (no real GPU), base against ?fw=hero.exit:threaded, zone hero exit (scroll A), per scroll step: base run 39739724461 (VMs r1 and r3, 4 passes; r2 lost its page target and the Simulator shut down), flag run 39731192687 (r1 r2 r3, 6 passes). requestAnimationFrame callbacks 6.88 to 5.88 (every pass, deterministic), Layout events 7.80 to 6.51, Recalculate styles events 7.52 to 6.46, each with the per-pass ranges separated (Lean WebKitLag.verdict); adding the 2 passes of run 39731185714 to the base changes no per-step verdict. Recalculate styles time relative to each arm's calm baseline is lower with the flag: ratio 1.89 (1.78-2.02) against 1.27 (1.15-1.54), FunctionCall time 1.55 (1.30-1.67) against 1.13 (0.99-1.28), both separated (FunctionCall time overlaps with the 6 base passes); per-step InvalidateLayout 7.95 to 5.95, ScheduleStyleRecalculation 7.42 to 6.42, FireAnimationFrame 6.69 to 5.75 also separated; the calm baselines are equal (12,735 and 12,935 us) and flag r3 alone on the base's runner image gives the same verdicts. Absolute per-step Recalculate styles time, Layout time, FunctionCall, Paint, skipped display slots (78.9 against 81.8 per 100 frames), frames over 50 ms, Paint and Composite per frame, new and resized layers per read: ranges overlap, no difference shown. Backing store 51.6 against 54.5 MB at scroll state 2, layer count overlaps. Mechanism: INFERRED that the exit script and its forced track-rect layout and style pass are the removed events (the counts are MEASURED); the remaining style events (6.46 per step) equal the same arm's calm-scroll baseline (6.45), and WebKit still restyles scroll-timeline targets once per rendering update when accelerated (note wktr-p1p4), so one event out of about seven per step does not show in the absolute per-step time, where the Simulator passes spread, and shows only against the calm baseline. Result: one script callback, one layout and one style pass fewer per step and a lower style time relative to the calm scroll; absolute times and cadence do not separate in this lane; the felt effect is open (phone replay). Lesson: read a zone against the same arm's calm baseline as well as in absolute cells; a removed main-thread event is never proof of smoother frames, so judge the feel on the phone. Open: the page is 36 px longer with the flag (maxY 5231 against 5267), check it in the phone replay. Note research/notes/2026/10-2x-hero-exit-threaded-measure.md; limits: no real GPU, one width, runner images differ between arms (same-image check: flag r3), entrance not sampled (Lean entrance_same and unit tests)."
+  },
+  {
+   "entry": "strip (10 will-change faces per digit -> one 12-entry strip), reused from hero.countdown (KD#12, cd-strip)",
+   "task": "morph-strip-webkit",
+   "field": "mechanism",
+   "text": "MEASURED on WebKit (iOS Simulator, webkit-cost-counters lane, runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip); base 5 VMs / 10 passes, flag 4 VMs / 8 passes (one Simulator job per run failed)): new layer ids at morph open 81-83 (base) -> 9-11 (flag) per pass, new layers / 100 reads 2075-4050 -> 220-900 (lower); resident layers before the push 128-129 -> 52-56; paint records 0-500 ms after the open 0-165 -> 28-51 (overlap; 95-165 on the 8 base passes that recorded paints, run 39776549128 r3 recorded 0 in both passes). Frame cadence, Composite us/frame and close/rest zones overlap. The 80 new 18x38 face layers become 8 new 18x434 strip layers: clock backing 54720 -> 62496 CSS px2 (+14 %, strip_backing_gt). UI-process work at morph start is INFERRED lower: each composited layer is one UIView created on the UI main thread (research/notes/2026/10-22-webkit-render-cost.md:72); the Simulator has no real GPU, so GPU cost is INFERRED from layer counts only."
+  },
+  {
+   "entry": "strip (cd-strip, KD#12): 10 will-change faces per digit -> one 12-entry strip",
+   "task": "morph-strip-webkit",
+   "field": "mechanism",
+   "text": "MEASURED on WebKit (runs 39775174615, 39776549128 (base: default rewrite) and 39775198022, 39776554155 (flag: ?fw=hero.countdown:strip,morph.countdown:strip)): with both strips the page holds 52-56 composited layers before the morph push against 128 with faces (72 hero face layers fewer); see the n=13 strip row for the morph-open counts."
+  },
+  {
+   "entry": "nav:earn-no-transition: the earn button's max-width, padding-inline and opacity transitions are off while the nav morphs, so they follow --morph instead of retargeting every frame",
+   "task": "earn-bound-arm",
+   "field": "mechanism",
+   "text": "MEASURED NO-GO for GPU candidate B: the bound arm (all earn transitions off) against base, finish zone, Lean zoneVerdict then across (agreeNeeded 3 = 2): same in 3 of 3 jobs on macOS WebKit (run 39729682403) and on the iOS Simulator (run 39754568950); run 39744983394 insufficient (4 reps). Per-frame repeats overlap in every job (hitchJudge_same), so the earn work sits inside the A/A spread on the main thread. Lesson: measure a candidate's bound before building it. GPU/UI-process time is not measured (no real GPU on the VMs); the phone replay stays open. Note research/notes/2026/10-2x-earn-gpu.md."
+  },
+  {
+   "entry": "hero.accent:draw-nolayout: the draw reveals the visible copy with a clip-path inset() wipe (kept 0.9 s, same easing) and the stroke stays whole, instead of animating stroke-dashoffset on three stacked copies",
+   "task": "accent-same-look",
+   "field": "next",
+   "text": "Not reviewed on its own. Its draw is the same clip-path wipe as draw-nolayout-full, which the user rejected on 2026-10-24 as looking different from the original (n=56 userDecision), so the wipe is not a same-look route. The same-look search (accent.same.* rows, Lean Fw.Engine.StyleDiffAccent.verdict) found no candidate that is both proved same-look and layout-free in WebKit; note research/notes/2026/10-2x-accent-same-look.md."
+  },
+  {
+   "entry": "hero.accent:draw-nolayout-full: draw-nolayout plus no width transition on the host (transition: none on .drawingIn), so the word box takes its new width in one frame at the start of the draw-in and every other draw frame changes only clip-path",
+   "task": "accent-same-look",
+   "field": "lesson",
+   "text": "Lean Fw.Engine.StyleDiffAccent.jump_differs: while the original glides (w(t) differs from the final width wf), the first and last headline words sit (wf - w)/2 away from the original, so the jump is a different picture on every glide frame before the end. Fw.Engine.StyleDiffAccent.glide_same: holding the accent at wf and translating the neighbours by +-(wf - w)/2 puts them where the original has them, so the in-flow premise of this lesson is not forced; that candidate is accent.same.glide (pixels MEASURED-pending)."
   }
  ]
 }

@@ -1,0 +1,23 @@
+{
+ "engine": "safari",
+ "arm": "base",
+ "window": "end",
+ "round": 1,
+ "decision": "refuse",
+ "phase": "before",
+ "why": [
+  "load"
+ ],
+ "before": {
+  "time": 1792676183,
+  "load": 4.97,
+  "availMB": 1157,
+  "press": 1,
+  "comprMBPerMin": 0,
+  "swapOutMBPerMin": 0,
+  "holders": 0,
+  "queued": 0
+ },
+ "after": null,
+ "ms": 123767
+}

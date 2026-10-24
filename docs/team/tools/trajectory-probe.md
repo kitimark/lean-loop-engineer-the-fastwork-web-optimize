@@ -57,7 +57,7 @@ runs the probe with the inputs of one message line:
 1. **Arm identity (refuses the run).** Each arm records its resolved config hash and `fwMode`. Lean `armCheck` allows only:
    rewrite arm = the hash of its search (from `configs.json` `bySearch`), non-empty, and `fwMode` is `hydrate`; original arm
    = no `window.__fw`. Anything else is `refused:config`: exit 2, no verdict, never a pass. (A page loaded at `/` with no
-   search client-renders the default config; an earlier round measured that for every run. Incident
+   search client-renders the default config. Incident
    `inc-variant-gate-flags-off`.) The faithful arm (rewrite, default config) is loaded from its own server for the same reason.
 2. **Coverage is a verdict.** In a push phase (open, close) an empty bucket 1-9 (a tenth of the morph value `m`), a missing
    morph value or a `beyond` window is `fail:coverage`, never skip. Hold phases may skip an empty bucket. The tween is driven
@@ -69,9 +69,96 @@ runs the probe with the inputs of one message line:
    rewrite passed; incident `inc-trajectory-pooled-window`.) Linux WebKit renders a frame every 150 ms or more, so its push coverage fails by
    construction there (see the research note): report a Linux WebKit push cell as "no verdict: coverage" on the units where the
    faithful arm fails coverage, and read its hero rows as usable.
+   **First frame.** Bucket 1 of the open push is `m` in [500, 1500), elapsed 12 to 35 ms of the 680 ms tween
+   (`mAt_first_iff`, `mAt_edges`). At the 17 ms Chromium cadence that is 1 or 2 frame slots depending on the vsync phase, 2 when the first frame lands at 17 ms (`slots_cadence`, `phase_covers`): a pass samples it
+   iff its first frame after the push is less than 2 vsyncs late (`sampled_iff`). MEASURED (runs 39926829451 and
+   39557718020, 75 open passes): the first nonzero sample is either in bucket 1 (27 passes, gap 22.6-26 ms) or in bucket 2
+   (48 passes, gap 54.5-58.7 ms, two vsyncs late); a pass never lands one vsync late. So open@1 coverage is a property of the
+   pass count, not of the page: Lean `firstCover no k nw` (`k` of `no` original passes in bucket 1, `nw` rewrite passes,
+   none there; `alpha` = 1/20) is `missing` when even with one original hit fewer all `nw` rewrite passes would miss with
+   chance at most `alpha`, `late` when with one hit more that chance is above `alpha`, else `undecided`. An empty open@1 of
+   the rewrite becomes `fail:coverage`, `skip:firstLate` or `skip:firstOpen` (`coverVerdict`, `firstVerdict_empty`); at
+   5 and 5 passes, `k` 0-1 is late, 2-3 undecided, 4-5 missing (`cover_five`). The verdict never flips between
+   `fail:coverage` and `skip:firstLate` when one original pass is added, hit or not (`firstCover_extra`), or one
+   original miss becomes a hit (`firstCover_step`); concrete check `first_extra_pass`. A unit is `undecided` (`rel`) when
+   the candidate's open@1 is `skip:firstOpen` and the faithful arm does not fail, or when the faithful arm's is `skip:firstOpen` and the candidate fails
+   (`fail:coverage` or a content failure: the faithful arm was not measured there, as in `unmeasured`). The lane word is
+   RED, UNDECIDED or CLEAN (`laneOf`; `summary-<engine>.md` prints the same word and an `undecided` row). The lane never
+   moves between RED and CLEAN when the original arm gets one extra pass, hit or miss (`laneOf_extra`): each unit's arm is
+   either the `firstCover` fallback or a verdict the extra pass leaves unchanged (`Arm`), and every unit with `k <= no`
+   steps to `(no + 1, k)` or `(no + 1, k + 1)`. Check `openLane`: original 5 passes 3 hits, candidate 5 passes, faithful 4 passes, both arms empty at open@1,
+   is UNDECIDED before and after one more original hit (the old `rel` gave CLEAN, then RED). Timing link:
+   `lateRate_delays` proves that when pass `i` of the original is `d_i` vsyncs late, `firstCover`'s late rate
+   `(no - k) / no` is the share of passes with `d_i >= 2` (`sampled_iff`). What stays a model assumption: the rewrite's
+   passes are independent and as late as the original's (same delay distribution), so `missChance` is a probability only
+   under that assumption; `phase_covers` (some frame of the first 3 lands in bucket 1 at every vsync phase) bounds `d` but
+   does not give its distribution. Kept
+   as before: a sampled open@1 (`firstVerdict_rew_sampled`), a content failure (`firstVerdict_content`), any other bucket
+   or phase (`firstVerdict_not_first`, `close_empty`). `verdictLines` prints a `FIRSTFRAME` line with the counts.
+   Offline re-reduction (dev check): run 39926829451 stays CLEAN, its 640
+   candidate open@1 goes from `skip:origEmpty` to `skip:firstLate`, its 641 faithful open@1 from `fail:coverage` to
+   `skip:firstLate` (cleared 43 to 1, undecided 0); run 39557718020 is unchanged (CLEAN). With `laneOf_extra`: run 39926829451 CLEAN (new 0, undecided 0, cleared 1; its
+   open@1 `skip:first` units are 42 `skip:firstLate` vs pass and 42 pass vs `skip:firstLate`, no `skip:firstOpen`), run
+   39557718020 CLEAN (new 0, undecided 0).
+   **Leave-one-out band.** Content verdicts compare values with the band of the original's
+   passes, so one extra pass can move them: it widens a band (candidate `new` becomes `ok`, RED to CLEAN) or clears the faithful
+   arm (`both` becomes `new`, CLEAN to RED); checks `contentRel` with `bumpPass`. Each unit is now judged against its
+   `family`: the original and, with two passes or more, the original without each pass (`dropPass`). `stableRel` gives `new`
+   when every member says `new`, the whole original's relation when no member says `new` or `undecided`, else `undecided`.
+   The lane never moves between RED and CLEAN when one original pass is added, for any unit verdict
+   (`laneOf_stable_extra`: it holds whenever the old original is a member of the new family, `mem_family_extra`;
+   `stableOf_new`, `stableOf_clean`). Scope: `mem_family_extra` gives that membership when the old original has samples
+   and every sample of the extra pass carries one pass number the old original does not use. A first pass on an empty
+   original is outside (the new original has one pass, so its family is itself alone: `nil_not_mem_family`), and so is
+   an extra pass that reuses a pass number. Hero and approach units carry no pass number (one pass, `family_one`). The JS twin
+   (`family`, `stableRel`, `unitRel`, `byMFam`) is checked by the golden `stable` rows; `units-<engine>.json` keeps `fam`
+   where the relation moved, and the summary prints `undecided (leave-one-out N)`. Cost: `byMFam` judges the whole family in
+   one walk. `annotate`, `headOf`, `windowOne`, `flightWindow` and `endOf` each read one pass, so a rewrite sample's window
+   and envelope are its per-pass pieces joined in pass order; each piece is computed once and the member without pass q
+   joins the other pieces. `byMFamEach` (one `byMFirst` per member) is the definition; test `byMFam equals byMFamEach`
+   checks the two on every golden segment, in all four phases, with the original plus a shifted copy as one more pass
+   (values +7, `since` +50) and on a window that settles to its epoch end (936 cases); a member that keeps every pass's
+   envelope, or a settle without the epoch-end fallback, fails it. MEASURED offline (dev check) on the merged raw of run 39926829451: 40.6 s one member at a time,
+   9.9 s shared (8.7 s before leave-one-out), `units` byte-identical (sha256 prefix a15d328e00bd26de: units-chromium.json from `summary` on the artifact
+   `trajectory-chromium` raw, both ways). Offline re-reduction (dev check): run
+   39926829451 CLEAN (new 0, undecided 0, leave-one-out 0, cleared 1, 14416 units); run 39557718020 CLEAN (3604 units,
+   all ok).
+   **WebKit cadence.** `firstCover`, `laneOf_extra` and `laneOf_stable_extra` count passes and hold at any cadence; only
+   the timing link (`slots_cadence`, `sampled_iff`, `lateRate_delays`) assumes 17 ms. MEASURED: Linux WebKit's open gap
+   p50 is 120 to 183 ms (median 148.5) over the 30 arm rows of these 10 runs, whose `trajectory-playwright-webkit` artifacts
+   walked the morph path before task trajectory-probe-speed cut Linux WebKit to hero only:
+
+   | run | original | faithful | candidate |
+   |---|---|---|---|
+   | 39405218882 | 128 | 127 | 145 |
+   | 39407166794 | 139 | 135 | 175 |
+   | 39409003529 | 183 | 153 | 152 |
+   | 39412301221 | 181 | 142 | 120 |
+   | 39415671864 | 168 | 150 | 144 |
+   | 39419128841 | 158 | 142 | 158 |
+   | 39442517769 | 183 | 146 | 155 |
+   | 39448209903 | 145 | 155 | 151 |
+   | 39449092483 | 154 | 137 | 132 |
+   | 39452631146 | 168 | 147 | 132 |
+
+   The macOS WebKit witness (`trajectory-apple`) reads 18 to 24 ms on the same phase (runs 39453181962, 39455284967,
+   39887328839, 39887331854, 39887335005). At a 141 ms gap frames on multiples of the gap never
+   reach bucket 1 and 24 of 141 phases do (`slow_cadence_phases`). There a missed open@1 is the vsync phase, not
+   lateness, so the late-rate reading of `firstCover` is Chromium's only; the WebKit push cells stay "no verdict:
+   coverage" as above.
+   **WebKit Simulator rows.** The `webkit-sim` lag passes record frame times but no lane sample. The timed morph pass marks
+   each rAF of the push (`performance.mark`, read from the Web Inspector timeline): MEASURED open push gap p50 30.0 and
+   31.4 ms, p90 54.7 and 60.4 ms (artifact `webkit-sim-v1` of run 39511908073, which concluded failure; passes 0 and 1). It reads no morph value and
+   no probe property, and the untimed geometry pass reads part boxes without times, so no row has the `m`, `els` and `t0`
+   of one frame that a unit needs. A Simulator lane needs a new timed `webkit-sim` pass that reads them per frame; it is not built.
 3. **Per-unit baseline.** A unit is (width, path, phase, node, property, step), decided on its own. The faithful arm is
    judged against the original by the same Lean code, so each unit is `new` (fails here, passes faithful), `both` (baseline
-   red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate). The summary splits the
+   red), `unmeasured` (fails on content here, on coverage in the faithful arm: no verdict), `cleared` or `ok`. The lane is RED iff some unit is `new` (`laneRed`; no pooled aggregate).
+   Exit codes (`laneExit`): refused 2; without `--strict` 0; with `--strict` RED 1, UNDECIDED 3, CLEAN 0. Refused also
+   covers the inputs: a widths, paths, reads or reps value outside its allowlist, `summary` without a raw file, `merge`
+   without legs or with legs that disagree, an unknown command and a command that throws (a malformed raw file) all exit 2, so 1 is only ever a strict RED. UNDECIDED is
+   neither a pass nor a regression, so it has its own code and a caller can rerun with more passes. No caller passes `--strict` today. `summary` over several engines exits the worst, refused before RED
+   before UNDECIDED (`exitJoin`). The summary splits the
    `new` count into content (apart, differs, ...) and coverage. A coverage-only RED is sampling noise (a default-vs-default
    run turns RED from one empty bucket); the signal is the content-new groups. Reads at `close@0` (the first sample of a
    push) and `a*` (approach) taken mid-transition are judged as in Transitions in flight below. Read a group only when it

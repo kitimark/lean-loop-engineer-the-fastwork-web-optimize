@@ -88,7 +88,7 @@
     height: var(--cell, 1.3em);
     flex: none;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     display: flex;
   }
 

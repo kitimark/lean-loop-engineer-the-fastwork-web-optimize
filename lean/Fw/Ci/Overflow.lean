@@ -4,13 +4,6 @@ import Fw.Console.LandLegs
 import Fw.Console.LandRemote
 /-!
 # Land overflow: which land legs run on GitHub Actions and which on CircleCI
-
-GitHub Actions comes first. A leg goes to CircleCI only when GitHub has no free job slot for it (or Actions is degraded) and
-CircleCI is usable: healthy and fresh status, credits and storage under the stop rules, a checkout key. Task
-`land-lane-circleci`; golden `packages/contracts/golden/ci/overflow.jsonl`; ops `ci.overflow`, `ci.overflowCombine`
-(`Fw.Wire.Ci`).
-
-The plan cap, the CircleCI class and the budget numbers below are the only constants; each says where it comes from.
 -/
 namespace Fw.Ci.Overflow
 open Fw.Console.LandLegs (Leg legs)
@@ -51,6 +44,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - lean-math 1, lean 1: one job after the guard
 - linux-webkit-probe 2: `probe` (linux-webkit-probe.yml, max-parallel 2 over the VMs 1 and 2)
 - mutants 24: `shard` (mutants.yml:126; shards 1 to 24, :110)
+- path-pix 9: `sim` 3, `sim-draw` 3 (path-pix.yml, vms 1 to 3) and `chromium` 3 (runs 1 to 3), all after `site`; `report` runs after them
 - premise-tests 2: `engine` (premise-tests.yml:66); preview-e2e 2: `engine` (preview-e2e.yml:65)
 - sim-speed 5: `probe` (sim-speed.yml:121; any number of arms, so the 5 macOS slots bound it)
 - smoothness 14: `cadence` 12 (smoothness.yml:146,155; up to 4 widths x 3 sets, the widths a push line allows in `trajectory-line.mjs:44`), `webkit-mac` 1 (max-parallel 1) and `webkit-sim` 1
@@ -62,8 +56,8 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 2: `plan` and `fwcore` (wktr.yml)
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
-  ("breakpoint-gate", 10), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("gate-gaps", 29), ("land", 5),
-  ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
+  ("breakpoint-gate", 10), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("font-fidelity", 3), ("gate-gaps", 29), ("land", 5),
+  ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 9), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
   ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
@@ -98,7 +92,6 @@ structure Facts where
   now : Nat
   /-- credits the pilot spent this month -/
   spent : Nat
-  /-- cache storage in thousandths of the monthly storage allowance -/
   storage : Nat
   /-- usable checkout keys of the CircleCI project (none: the list answered 403) -/
   keys : Option Nat
@@ -128,14 +121,18 @@ def ccFits (f : Facts) (n : Nat) : Bool :=
   | none => false
   | some c => decide (c + f.spent + creditReserve ≤ Provider.poolCredits .oss)
 
-/-- The storage stop rule does not fire. -/
-def storageClear (f : Facts) : Bool := !(Provider.stops ⟨0, 0, f.storage⟩).contains .storage
+def storageCharged (f : Facts) : Nat := f.storage + Provider.ownSaveMilli
+
+def budgetFits (f : Facts) (n : Nat) : Bool :=
+  match Provider.credits ccClass (n * estLegMs) with
+  | none => false
+  | some c => decide (c + f.spent + Provider.storageCredits (storageCharged f) + creditReserve ≤ Provider.poolCredits .oss)
 
 /-- The checkout key check passes. -/
 def keyClear (f : Facts) : Bool := Provider.keyProceed ⟨f.keys, f.checkout⟩
 
 /-- CircleCI may take `n` legs. -/
-def ccReady (f : Facts) (n : Nat) : Bool := ccUp f && ccFits f n && storageClear f && keyClear f
+def ccReady (f : Facts) (n : Nat) : Bool := ccUp f && budgetFits f n && keyClear f
 
 /-! ## The split -/
 
@@ -160,7 +157,7 @@ def reason (f : Facts) : String :=
   else if goesCc f then (if ghDegraded f then "github-degraded" else "github-full")
   else if !ccUp f then "circleci-not-usable"
   else if !ccFits f (overflowSet f).length then "circleci-credits"
-  else if !storageClear f then "circleci-storage"
+  else if !budgetFits f (overflowSet f).length then "circleci-storage"
   else "circleci-key"
 
 /-- A leg is on GitHub or on CircleCI. -/
@@ -233,28 +230,60 @@ theorem overflow_needs_ready (f : Facts) (h : ccLegs f ≠ []) : ccReady f (ccLe
 
 theorem overflow_needs_up (f : Facts) (h : ccLegs f ≠ []) : ccUp f = true := by
   have := overflow_needs_ready f h
-  simp [ccReady] at this; exact this.1.1.1
+  simp [ccReady] at this; exact this.1.1
 
-/-- ... the credits fit ... -/
-theorem overflow_needs_credits (f : Facts) (h : ccLegs f ≠ []) : ccFits f (ccLegs f).length = true := by
-  have := overflow_needs_ready f h
-  simp [ccReady] at this; exact this.1.1.2
+theorem budgetFits_ccFits (f : Facts) (n : Nat) (h : budgetFits f n = true) : ccFits f n = true := by
+  unfold budgetFits at h
+  unfold ccFits
+  split at h
+  · simp at h
+  · rename_i c hc
+    simp only [decide_eq_true_eq] at h ⊢
+    omega
 
-/-- ... the storage stop rule is clear ... -/
-theorem overflow_needs_storage (f : Facts) (h : ccLegs f ≠ []) : storageClear f = true := by
+theorem overflow_needs_budget (f : Facts) (h : ccLegs f ≠ []) : budgetFits f (ccLegs f).length = true := by
   have := overflow_needs_ready f h
   simp [ccReady] at this; exact this.1.2
+
+theorem overflow_needs_credits (f : Facts) (h : ccLegs f ≠ []) : ccFits f (ccLegs f).length = true :=
+  budgetFits_ccFits f _ (overflow_needs_budget f h)
 
 /-- ... and the checkout key check passes. -/
 theorem overflow_needs_key (f : Facts) (h : ccLegs f ≠ []) : keyClear f = true := by
   have := overflow_needs_ready f h
   simp [ccReady] at this; exact this.2
 
-/-- A storage stop (the allowance is over) keeps every leg on GitHub. -/
-theorem storage_stop_keeps_github (f : Facts) (h : Provider.storageMaxMilli < f.storage) : ccLegs f = [] := by
+theorem budget_within_allow (f : Facts) (n : Nat) (h : storageCharged f ≤ Provider.storageAllowMilli) :
+    budgetFits f n = ccFits f n := by
+  unfold budgetFits ccFits
+  rw [Provider.storageCredits_within_allow _ h]
+  simp
+
+theorem storage_alone_never_refuses (f : Facts) (n : Nat) (h : budgetFits f n = true) :
+    ccReady f n = (ccUp f && keyClear f) := by
+  simp [ccReady, h]
+
+theorem reason_not_storage (f : Facts) (h : budgetFits f (overflowSet f).length = true) : reason f ≠ "circleci-storage" := by
+  unfold reason
+  repeat (first | split | simp_all)
+
+theorem storage_over_budget_keeps_github (f : Facts)
+    (h : Provider.poolCredits .oss < Provider.storageCredits (storageCharged f) + f.spent + creditReserve) : ccLegs f = [] := by
   refine Classical.byContradiction fun hne => ?_
-  have := overflow_needs_storage f hne
-  simp [storageClear, Provider.stops] at this
+  have := overflow_needs_budget f hne
+  unfold budgetFits at this
+  split at this
+  · simp at this
+  · simp only [decide_eq_true_eq] at this
+    omega
+
+theorem budgetFits_iff (f : Facts) (n c : Nat) (hc : Provider.credits ccClass (n * estLegMs) = some c) :
+    budgetFits f n = true ↔
+      c + f.spent + creditReserve ≤ Provider.poolCredits .oss ∧
+        Provider.storageCredits (storageCharged f) ≤ Provider.poolCredits .oss - (c + f.spent + creditReserve) := by
+  unfold budgetFits
+  rw [hc]
+  simp only [decide_eq_true_eq]
   omega
 
 /-- An unreadable slot count means GitHub first: every leg stays on GitHub while Actions is not degraded, whatever the count of
@@ -394,14 +423,6 @@ def classLeft (cls : String) (spent : Nat) : Nat :=
   | none => 0
   | some r => Provider.poolCredits r.pool - reserveOf r.pool - spent
 
-def storageClearAt (storage : Nat) : Bool := !(Provider.stops ⟨0, 0, storage⟩).contains .storage
-
-theorem storageClear_eq (f : Facts) : storageClear f = storageClearAt f.storage := rfl
-
-theorem storageClearAt_iff (storage : Nat) : storageClearAt storage = true ↔ storage ≤ Provider.storageMaxMilli := by
-  unfold storageClearAt Provider.stops
-  by_cases h : Provider.storageMaxMilli < storage <;> simp [h, Provider.capMs, Provider.queueMaxMs] <;> omega
-
 theorem classLeft_spec {cls : String} {spent c : Nat} (h : c ≤ classLeft cls spent) (hc : 0 < c) :
     ∃ r, Provider.rateOf cls = some r ∧ c + spent + reserveOf r.pool ≤ Provider.poolCredits r.pool := by
   unfold classLeft at h
@@ -409,8 +430,26 @@ theorem classLeft_spec {cls : String} {spent c : Nat} (h : c ≤ classLeft cls s
   | none => simp [hr] at h; omega
   | some r => simp only [hr] at h; exact ⟨r, rfl, by omega⟩
 
+def facts20261021 : Facts :=
+  { legs := legs, ghActive := some ["webkit-sim", "webkit-sim", "visual-diff", "path-pix"], ghActions := "degraded_performance",
+    ghPrev := false, ccArm := "healthy", ccReadAt := some 1792592446000, now := 1792592506000, spent := 819,
+    storage := Provider.storageNow [Provider.ledger20261021] 1792592506000, keys := some 1, checkout := none, forceFull := false }
+
+theorem overflow_20261021 : ccLegs facts20261021 = legs ∧ reason facts20261021 = "github-degraded" := by decide
+
+theorem overflow_20261021_hold30 : ccLegs { facts20261021 with storage := 1297 } = legs := by decide
+
 #guard reserveOf .oss == 80000 && reserveOf .base == 6000
 #guard classLeft "m4pro.medium" 3575 == 20425 && classLeft "m4pro.medium" 30000 == 0 && classLeft "none" 0 == 0
-#guard storageClearAt 1000 && !storageClearAt 1001
+
+#guard storageCharged { facts20261021 with storage := 0 } == Provider.ownSaveMilli
+#guard budgetFits { facts20261021 with storage := 1765 } 5 && ccFits { facts20261021 with storage := 1765 } 5
+#guard !budgetFits { facts20261021 with spent := 319550, storage := 3765 } 5 && ccFits { facts20261021 with spent := 319550, storage := 3765 } 5
+#guard reason { facts20261021 with spent := 319550, storage := 3765 } == "circleci-storage"
+#guard reason { facts20261021 with spent := 320000 } == "circleci-credits"
+#guard reason { facts20261021 with ccArm := "degraded" } == "circleci-not-usable"
+#guard reason { facts20261021 with keys := some 0 } == "circleci-key"
+#guard reason { facts20261021 with storage := 100000 } == "github-degraded"
+#guard reason { facts20261021 with storage := 1000000 } == "circleci-storage"
 
 end Fw.Ci.Overflow

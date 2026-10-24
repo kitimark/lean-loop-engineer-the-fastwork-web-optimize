@@ -1,26 +1,22 @@
-// `fw next` / the NEXT lines of `fw watch`: glue for the fwcore op `obs.next` (lean/Fw/Obs/Next.lean, wire in
-// lean/Fw/Wire/Obs.lean, golden packages/contracts/golden/obs/next.jsonl). This file only OBSERVES facts (git, ps,
-// transcripts, stat, the plan) and PRINTS fwcore's answer. No decision is made here: which action an agent needs,
-// whether a loop is orphaned or a branch must be landed is the Lean `next`. The only judgement below is how to read
-// a command line into a child kind (what the process is), which is classification of an observation, not a rule.
-// Privacy: command lines are read to classify and to find the watched file; none is kept or printed.
 import { execFile } from "node:child_process";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { lockFacts, lockFile } from "../hooks/land-guard.mjs";
 import { queuedBranches } from "./land-queue.ts";
+import { heldPass, repoIdOf, wtIdOf, type ReapPass } from "./reap.ts";
+import { fwcoreCall } from "./run.ts";
 import {
-  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, readMeta, readsStdin, signalsOf, withLeadNotes,
+  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, startFromAge, readMeta, readsStdin, signalsOf, withLeadNotes,
   type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
 } from "./watch-collect.ts";
 
 // ---- the facts (wire shape of AgentFacts) ----
-/** What a loop watches: a background task's output file, or an agent's transcript / output file. */
 export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
-  pid: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
+  pid: number; start?: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
 } & ({ kind: "sleepLoop" | "build" | "other" | "stdinWait" } | { kind: "ciWait"; run: number; timeoutMin: number });
+export interface HeldFact { pid: number; start: number; wt: string | null }
 export interface AgentFacts {
   id: string; task: string; state: string; session: number; handbackAt: number | null;
   branch: {
@@ -32,14 +28,13 @@ export interface AgentFacts {
     /** the branch is a pending entry of the land queue (`fw land --queue`, task land-queue): `locked` in the Lean facts */
     landQueued: boolean;
   } | null;
-  /** docs/team/handoffs/<name>.md exists */
   handoff: boolean;
-  worktree: { lockPid: number | null; lockAlive: boolean } | null;
+  worktree: { lockPid: number | null; lockAlive: boolean; id: string | null } | null;
   ctxTokens: number; children: ChildFact[];
   ci: { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null } | null;
   board: { id: string; done: boolean; agent: string | null } | null;
-  /** the transcript signals (Fw.Obs.Signals.Facts); fwcore resolves handbackAt and producer exits from them */
   signals?: SigFacts;
+  reapHeld: HeldFact[];
 }
 export interface NextAction { action: string; [k: string]: unknown }
 export interface NextReply {
@@ -115,8 +110,8 @@ export interface RawAgent {
   handoff: boolean;
   /** the agent's branch from its meta (`worktreeBranch`); absent: the worktree list's branch */
   branch?: string | null;
-  /** the agent's signal facts (absent: no transcript) */
   signals?: SigFacts | null;
+  wtId?: string | null;
 }
 export interface RawCi { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null }
 export interface RawPs { pid: number; ppid: number; ageMs: number; comm: string }
@@ -129,8 +124,9 @@ export interface Raw {
   landLock?: string | null;
   /** the branches of the pending entries of the land queue (`.fw-console/land-queue.jsonl`) */
   landQueue?: string[];
-  /** text of the integrator's list (a branch name in it means queued) */
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
+  reapHeld?: HeldFact[];
+  starts?: Map<number, number>;
 }
 const hasWord = (text: string, w: string) => text.split(/[^A-Za-z0-9._/-]+/).includes(w);
 
@@ -167,7 +163,8 @@ export function childrenOf(raw: Raw, agentId: string): ChildFact[] {
     const cl = classifyTree(root.comm, q.pids.map((p) => by.get(p)?.comm ?? ""));
     const f = cl.watchedFile ? raw.file(cl.watchedFile) : null;
     const w = cl.watchedFile ? watchOf(cl.watchedFile, agentIds) : null;
-    const base = { pid: q.pid, chain: chainOf(raw.ps, q.pid), startedAt: Math.floor(raw.now - root.ageMs),
+    const st = raw.starts?.get(q.pid);
+    const base = { pid: q.pid, ...(st === undefined ? {} : { start: st }), chain: chainOf(raw.ps, q.pid), startedAt: startFromAge(raw.now, root.ageMs),
       watchedAt: f ? Math.floor(f.mtimeMs) : null, producerExited: f ? producerExitedLine(f.lastLine) : false, ...(w ? { watch: w } : {}) };
     const kind = cl.kind !== "ciWait" && stdin.has(q.pid) ? "stdinWait" : cl.kind;
     out.push(kind === "ciWait" ? { ...base, kind: "ciWait", run: cl.run!, timeoutMin: cl.timeoutMin! } : { ...base, kind });
@@ -230,15 +227,15 @@ export function buildFacts(raw: Raw): AgentFacts[] {
         ? {
           name: br, ahead: a.ahead ?? 0, landed: a.landed ?? false, queued: hasWord(raw.queuedText, br),
           mergesClean: a.mergesClean ?? true, onMain: a.onMain === true, landLock: raw.landLock ?? null, landQueued: (raw.landQueue ?? []).includes(br),
-          // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
           deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
         } : null,
-      worktree: w ? { lockPid: w.lockPid, lockAlive: w.lockPid !== null && raw.alive(w.lockPid) } : null,
+      worktree: w ? { lockPid: w.lockPid, lockAlive: w.lockPid !== null && raw.alive(w.lockPid), id: a.wtId ?? null } : null,
       ctxTokens: a.ctxTokens ?? 0, children: childrenOf(raw, a.id),
       ci: ci && { ...ci },
       board: a.name ? rowOf(raw.board.get(a.name)) : null,
       handoff: a.handoff,
       ...(a.signals ? { signals: a.signals } : {}),
+      reapHeld: raw.reapHeld ?? [],
     };
   });
 }
@@ -257,16 +254,13 @@ export function formatNext(reply: NextReply): string[] {
 /** `NEXT investigate step=<tool/step>` for each slow step of fwcore's `obs.slow` (the lead turns it into an
  *  investigate + improve + prove task). */
 export const slowNextLines = (slow: string[]): string[] => slow.map((s) => `NEXT investigate step=${s}`);
-/** The `timing.slow` alerts of `fw watch`: one per slow step of fwcore's `obs.slow` (subject = `<tool>/<step>`). */
-export const slowAlerts = (slow: string[]): { code: string; subject: string; detail: string }[] =>
-  slow.map((s) => ({ code: "timing.slow", subject: s, detail: "latest sample is slow (Fw.Obs.Timing verdict); NEXT investigate step=" + s }));
+export const slowAlerts = (slow: string[], details: string[] = []): { code: string; subject: string; detail: string }[] =>
+  slow.map((s, i) => ({ code: "timing.slow", subject: s, detail: (details[i] ? details[i] + "; " : "latest sample is slow (Fw.Obs.Timing verdict); ") + "NEXT investigate step=" + s }));
 
-/** Alerts for `fw watch`: a kill proposal = agent.held, a land/route proposal = agent.unlanded (subject = agent id). */
 export function nextAlerts(reply: NextReply): { code: string; subject: string; detail: string }[] {
   const out: { code: string; subject: string; detail: string }[] = [];
   for (const a of reply.agents ?? []) for (const x of a.actions) {
-    if (x.action === "killOrphan") out.push({ code: "agent.held", subject: a.id, detail: `killOrphan pid=${x.pid}: its own wait loop keeps it held` });
-    else if (x.action === "land" || x.action === "routeIntegrator")
+    if (x.action === "land" || x.action === "routeIntegrator")
       out.push({ code: "agent.unlanded", subject: a.id, detail: `${x.action} branch=${x.branch}: handed back, branch not on main` });
   }
   return out;
@@ -351,8 +345,11 @@ export function liveLandLockBranch(root: string): string | null {
   } catch { return null; }
 }
 
-/** Collect every observation for the snapshot's agents. `health` = the obs.health reply for the same snapshot. */
-export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown): Promise<Raw> {
+export function reapHeldFacts(pass: ReapPass | null): HeldFact[] {
+  return pass === null ? [] : pass.held.map((h) => ({ pid: h.pid, start: h.start, wt: h.wt }));
+}
+
+export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown, reap: ReapPass | null = null): Promise<Raw> {
   const [wtOut, ps] = await Promise.all([exec("git", ["worktree", "list", "--porcelain"], p.root), psCommands()]);
   const wts = parseWorktrees(wtOut);
   const states = new Map(health.agents.map((a) => [a.id, a.state]));
@@ -360,6 +357,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
   const agents: RawAgent[] = [];
   const cache = new Map<string, [number | null, boolean | null]>();
   const session = sessionPid(ps, process.pid, wts.flatMap((w) => (w.lockPid ? [w.lockPid] : [])));
+  const repo = repoIdOf(main);
   for (const a of snap.agents) {
     const state = states.get(a.id);
     if (!state) continue;
@@ -397,7 +395,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
       } catch { /* unreadable */ }
     }
     agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, onMain, mergesClean,
-      branchDeps, handoff, branch, signals });
+      branchDeps, handoff, branch, signals, wtId: wt && repo ? wtIdOf(wt.path, repo) : null });
   }
   const board = new Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>();
   const tasks = (plan as { tasks?: unknown } | null)?.tasks;
@@ -420,6 +418,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     procs: snap.system.procs ?? [], ps, alive: pidAlive, file: statFile, queuedText, ci, board,
     landLock: liveLandLockBranch(p.root),
     landQueue: [...new Set([...queuedBranches(join(main, ".fw-console")), ...queuedBranches(p.consoleDir)])],
+    reapHeld: reapHeldFacts(reap), starts: reap?.starts,
   };
 }
 
@@ -430,7 +429,6 @@ export async function fetchPlan(p: Paths, env: NodeJS.ProcessEnv = process.env):
   try { const r = await fetch(`${base}/api/plan`, { signal: AbortSignal.timeout(3000) }); return r.ok ? await r.json() : null; } catch { return null; }
 }
 
-/** Facts for all agents of a snapshot, ready for the `obs.next` request. */
-export async function collectFacts(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }): Promise<AgentFacts[]> {
-  return buildFacts(await collectRaw(p, main, snap, health, await fetchPlan(p)));
+export async function collectFacts(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, reap: ReapPass | null = heldPass(main)): Promise<AgentFacts[]> {
+  return buildFacts(await collectRaw(p, main, snap, health, await fetchPlan(p), reap));
 }

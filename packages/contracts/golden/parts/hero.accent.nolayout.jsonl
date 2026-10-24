@@ -1,0 +1,42 @@
+{"cite":"WC/style/StyleDifference.cpp:161,399; B/css/css_properties.json5:6120; B/style/computed_style.cc:998-1006","crLayout":false,"crLevel":"paint","kind":"cand","name":"stroke-dashoffset","wkDiff":"layout","wkLayout":true}
+{"cite":"WC/style/StyleDifference.cpp:779-780; WC/rendering/RenderElement.cpp:321-326; B/css/css_properties.json5:3112","crLayout":false,"crLevel":"paint","kind":"cand","name":"clip-path inset()","wkDiff":"repaint","wkLayout":false}
+{"cite":"WC/rendering/RenderElement.cpp:300-312; WC/style/StyleDifference.cpp:199-205","crLayout":false,"crLevel":"raster","kind":"cand","name":"transform of an SVG child","wkDiff":"layout","wkLayout":true}
+{"cite":"WC/rendering/RenderElement.cpp:300-312; B/style/computed_style.cc:879-890","crLayout":false,"crLevel":"direct","kind":"cand","name":"transform on a composited box","wkDiff":"recomposite","wkLayout":false}
+{"cite":"WC/style/StyleDifference.cpp:571-578; WC/rendering/RenderElement.cpp:314-319","crLayout":false,"crLevel":"raster","kind":"cand","name":"opacity inside (0,1)","wkDiff":"repaint","wkLayout":false}
+{"cite":"WC/style/StyleDifference.cpp:208-214","crLayout":false,"crLevel":"raster","kind":"cand","name":"opacity reaching 1","wkDiff":"layout","wkLayout":true}
+{"cite":"WC/style/StyleDifference.cpp:404; B/css/css_properties.json5:8286","crLayout":true,"crLevel":"layoutFull","kind":"cand","name":"width","wkDiff":"layout","wkLayout":true}
+{"arm":"faithful","changes":3,"crLayout":false,"kind":"frame","phase":"draw-out","wkLayout":true}
+{"arm":"faithful","changes":4,"crLayout":true,"kind":"frame","phase":"draw-in","wkLayout":true}
+{"arm":"draw-nolayout","changes":1,"crLayout":false,"kind":"frame","phase":"draw-out","wkLayout":false}
+{"arm":"draw-nolayout","changes":2,"crLayout":true,"kind":"frame","phase":"draw-in","wkLayout":true}
+{"from":"inset(-20% 120% -20% -20%)","kind":"keyframe","name":"clipIn","to":"inset(-20% -20% -20% -20%)"}
+{"from":"inset(-20% -20% -20% -20%)","kind":"keyframe","name":"clipOut","to":"inset(-20% 120% -20% -20%)"}
+{"attr":null,"kind":"attr","variant":"faithful"}
+{"attr":null,"kind":"attr","variant":"steps"}
+{"attr":"one","kind":"attr","variant":"draw-one"}
+{"attr":"nolayout","kind":"attr","variant":"draw-nolayout"}
+{"attr":"nolayout-full","kind":"attr","variant":"draw-nolayout-full"}
+{"arm":"faithful","changes":3,"crLayout":false,"kind":"slot","slot":"draw-out","wkLayout":true}
+{"arm":"faithful","changes":4,"crLayout":true,"kind":"slot","slot":"draw-in-first","wkLayout":true}
+{"arm":"faithful","changes":4,"crLayout":true,"kind":"slot","slot":"draw-in-rest","wkLayout":true}
+{"arm":"draw-nolayout","changes":1,"crLayout":false,"kind":"slot","slot":"draw-out","wkLayout":false}
+{"arm":"draw-nolayout","changes":2,"crLayout":true,"kind":"slot","slot":"draw-in-first","wkLayout":true}
+{"arm":"draw-nolayout","changes":2,"crLayout":true,"kind":"slot","slot":"draw-in-rest","wkLayout":true}
+{"arm":"draw-nolayout-full","changes":1,"crLayout":false,"kind":"slot","slot":"draw-out","wkLayout":false}
+{"arm":"draw-nolayout-full","changes":2,"crLayout":true,"kind":"slot","slot":"draw-in-first","wkLayout":true}
+{"arm":"draw-nolayout-full","changes":1,"crLayout":false,"kind":"slot","slot":"draw-in-rest","wkLayout":false}
+{"arm":"faithful","crLayoutFrames":54,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":108}
+{"arm":"draw-nolayout","crLayoutFrames":54,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":54}
+{"arm":"draw-nolayout-full","crLayoutFrames":1,"framesPerPhase":54,"kind":"cycle","wkLayoutFrames":1}
+{"cand":"dasharray","cite":"WC/style/StyleDifference.cpp:160 (same layout branch as stroke-dashoffset at :161)","crLayout":null,"kind":"search","name":"stroke-dasharray trace","role":"stroke","verdict":"layout","wkLayout":true}
+{"cand":"path-d","cite":"WC/style/StyleDifference.cpp:154; WC/style/computed/data/StyleSVGLayoutData.h:64","crLayout":null,"kind":"search","name":"d rewritten per frame","role":"stroke","verdict":"layout","wkLayout":true}
+{"cand":"sprite","cite":"WC/style/StyleDifference.cpp:673; WC/animation/WebAnimation.cpp:1298-1300; WC/page/Performance.cpp:73","crLayout":false,"kind":"search","name":"pre-rendered sprite, stepped background-position","role":"stroke","verdict":"pending","wkLayout":false}
+{"cand":"paint-api","cite":"WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:1314-1325 (CSSPaintingAPIEnabled default false)","crLayout":null,"kind":"search","name":"CSS Paint API worklet","role":"stroke","verdict":"unavailable","wkLayout":false}
+{"cand":"clip-final","cite":"WC/style/StyleDifference.cpp:779-780; clip_coverage_differs","crLayout":false,"kind":"search","name":"final stroke clipped to the swept region","role":"stroke","verdict":"look","wkLayout":false}
+{"cand":"canvas","cite":"WC/html/HTMLCanvasElement.cpp:568-604; B/core/html/canvas/html_canvas_element.cc:687-711","crLayout":false,"kind":"search","name":"canvas 2D stroke per frame, fixed size","role":"stroke","verdict":"pending","wkLayout":false}
+{"cand":"glide","cite":"WC/rendering/RenderElement.cpp:300-312; glide_same","crLayout":false,"kind":"search","name":"accent at final width, neighbours translated","role":"width","verdict":"pending","wkLayout":false}
+{"cand":"jump","cite":"jump_differs","crLayout":false,"kind":"search","name":"accent width set once (draw-nolayout-full)","role":"width","verdict":"look","wkLayout":false}
+{"framesPerPhase":54,"kind":"combo","stroke":"dashoffset","width":"width","wkLayoutFrames":108}
+{"framesPerPhase":54,"kind":"combo","stroke":"dashoffset","width":"glide","wkLayoutFrames":108}
+{"framesPerPhase":54,"kind":"combo","stroke":"canvas","width":"width","wkLayoutFrames":54}
+{"framesPerPhase":54,"kind":"combo","stroke":"canvas","width":"glide","wkLayoutFrames":1}

@@ -1,0 +1,21 @@
+{
+  "id": "people-o-hover",
+  "about": "Desktop band (1280x800, mouse, no touch). The page is scrolled so the first face of the people 'o' sits 250 px below the viewport top, left idle until the row has opened (1420 ms of virtual time), then a synthetic mouseover on that face opens the seller preview (the stand-in for a pointer, which the headless run does not have); after 60 idle frames (1 s: the probe of run 39881189724 shows the face x constant, 516, in all 40 scroll frames) the page scrolls 3 CSS px per frame for 40 frames (120 px: the card closes when the heading is less than 35% visible, about 215 px of scroll from this start) with the card open (programmatic scrollTo, as swipe-v1). The recorded question is the Layout count per frame of the 'scroll' phase: people.o:preview-translate writes left/top once and sets translate per frame, the base writes top every frame. The page runs as served, with text-wrap: balance on the people title in force (the container has a system font, task counts-lane-fonts). Counts of runs 39881189724 and 39881193403 had text-wrap: wrap on every element and an image with no system font. After the counted pass, the plan is replayed once with a PNG hash and the rect of the open card per frame (the probe, not counted).",
+  "hz": 60,
+  "viewport": { "width": 1280, "height": 800, "dpr": 1, "mobile": false, "touch": false },
+  "cardProbe": { "selector": "[role=\"tooltip\"]", "faceSelector": "[data-selenium^=\"start-selling.people.button.preview.\"]" },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "segments": [
+    { "name": "rest", "dyPerFrame": 0, "frames": 10 },
+    { "name": "approach", "dyPerFrame": 0, "frames": 1, "anchor": { "selector": "[data-selenium^=\"start-selling.people.button.preview.\"]", "viewportTop": 250 } },
+    { "name": "open", "dyPerFrame": 0, "frames": 110 },
+    { "name": "hover", "dyPerFrame": 0, "frames": 60, "eval": "document.querySelector('[data-selenium^=\"start-selling.people.button.preview.\"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window }));" },
+    { "name": "scroll", "dyPerFrame": 3, "frames": 40 },
+    { "name": "tail", "dyPerFrame": 0, "frames": 10 }
+  ]
+}

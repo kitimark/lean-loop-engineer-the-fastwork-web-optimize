@@ -28,10 +28,8 @@
 // the seeders. The keys under `on:` are the row's Lean `onKeys` (push, workflow_dispatch; schedule only with a cron), and
 // `on.schedule` equals the row's crons (none: a schedule is a main run). The jobs that save a cache, read
 // from the workflows and their local actions, equal Lean `cacheWriters`.
-// --check also fails when the Lean macOS flag of a lane differs from its workflow (a job on `macos-*` / `xcode-*` whose
-// `if:` is not dispatch-only), and when a job's `if:` uses a status function without a conjunct that is false when the
-// guard skipped.
-// Run:  node scripts/ci-paths.mjs [--write | --check] [--root <dir>]
+// Run:  node scripts/ci-paths.mjs [--write | --check | --plan-time [--refresh <timings.jsonl>] [--check]] [--root <dir>]
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -837,29 +835,46 @@ export function portableGlob(g) {
   return !/[?+\[\]!{}]/.test(g) && !g.split('/').some((seg) => seg.includes('**') && seg !== '**') && !g.startsWith('/');
 }
 
-/** The repo paths a shell script under lean/scripts reads relative to lean/ (every `../<path>`); a path that is not a
- *  literal (empty, or with `$`, `*`, `?`, `{`) is returned as null so the lint fails closed on it. */
+const READ = /(?<![^\s'"`;)|&<>])\.\.\/([^\s'"`;)|&<>]*)|\.\.\/[^\s'"`;)|&<>]*/g;
+
+/** Lean `readsOf`: the repo paths a shell script under lean/scripts reads relative to lean/ (a `../<path>` at a word
+ *  start); a path that is not a literal (empty, or with `$`, `*`, `?`, `{`) and a `../` inside a word are null, so the
+ *  lint fails closed on them. */
 export function leanScriptPaths(text) {
-  return [...text.matchAll(/\.\.\/([^\s'"`;)|&<>]*)/g)].map((m) => (m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
+  return [...text.matchAll(READ)].map((m) => (m[1] === undefined || m[1] === '' || /[$*?{}]/.test(m[1]) ? null : m[1]));
 }
 
-/** Round 4 of task ci-own-trigger: every repo path a lean/scripts/*.sh reads (`../<path>`) must be an input of the
- *  lean row of the Lean table. Since round 5 lean never skips as `unchanged` on ci/** (Lean `lean_never_unchanged`), so
- *  this is no safety input of a branch wait; it keeps a main push that changes only such a file running lean (the
- *  coarse paths rule, Lean `main_keeps_paths_rule`). Returns the problems. */
-export function leanInputProblems(root, table) {
+export const normRead = (p) => p.split('/').filter((x) => x !== '' && x !== '.').join('/');
+
+export const readPath = (p) => (p.split('/').includes('..') ? null : normRead(p));
+
+export const rowGlob = (g) => /^[A-Za-z0-9._\-/*]+$/.test(g.startsWith('!') ? g.slice(1) : g);
+
+export function gapsFrom(scripts, globs) {
+  return scripts.flatMap(({ script, text }) => leanScriptPaths(text).map((p) => ({ script, path: p === null ? null : readPath(p) })))
+    .filter((r) => r.path === null || !matches(globs, r.path));
+}
+
+export function leanRowGlobs(root, table) {
   const row = table.workflows.find((w) => w.file === 'lean.yml');
-  if (!row) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
-  const globs = expand(setMapFor(root, table), row.inputs);
+  return row ? expand(setMapFor(root, table), row.inputs) : [];
+}
+
+export function leanInputGaps(root, table) {
+  const globs = leanRowGlobs(root, table);
   const dir = join(root, 'lean', 'scripts');
-  const out = [];
-  for (const f of readdirSync(dir).filter((x) => x.endsWith('.sh')).sort()) {
-    for (const p of leanScriptPaths(readFileSync(join(dir, f), 'utf8'))) {
-      if (p === null) out.push(`lean/scripts/${f}: reads a ../ path that is not a literal file path (write it out, so the lean row can name it)`);
-      else if (!matches(globs, normalize(p))) out.push(`lean/scripts/${f}: reads ../${p}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
-    }
-  }
-  return out;
+  const scripts = readdirSync(dir).filter((x) => x.endsWith('.sh')).sort().map((f) => ({ script: `lean/scripts/${f}`, text: readFileSync(join(dir, f), 'utf8') }));
+  return gapsFrom(scripts, globs);
+}
+
+export function leanInputProblems(root, table) {
+  if (!table.workflows.some((w) => w.file === 'lean.yml')) return ['lean.yml: no row in the Lean table (lean/Fw/Ci/Trigger.lean `table`)'];
+  const bad = leanRowGlobs(root, table).filter((g) => !rowGlob(g))
+    .map((g) => `lean.yml: row glob ${JSON.stringify(g)} is outside the plain subset (Lean Fw.Plan.WritesClosure.rowGlob: letters, digits, ._-/*), where the writes-closure matcher and GitHub agree`);
+  if (bad.length) return bad;
+  return leanInputGaps(root, table).map(({ script, path }) => path === null
+    ? `${script}: reads a ../ path that is not at a word start, is not a literal file path, or has a .. segment (write it out as its own word, so the lean row can name it)`
+    : `${script}: reads ../${path}, which is not an input of the lean.yml row (add it to lean/Fw/Ci/Trigger.lean \`table\`, then cd lean && lake test -- --write-ci-trigger-golden)`);
 }
 
 // ---- Node pin (tasks node-pin, node-pin-local) -----------------------------------------------------------------------
@@ -1091,9 +1106,114 @@ export function run(root, write) {
   return { problems, wrote };
 }
 
+export const CLOSURE_COMMIT = '9a09d8066';
+export const PLAN_DOC = 'docs/team/tools/plan.md';
+const CLOSURE_GOLDEN = 'packages/contracts/golden/plan/writes-closure.jsonl';
+const ROOT = join(dirname(new URL(import.meta.url).pathname), '..');
+const TIME_BEGIN = '<!-- plan-time begin: node scripts/ci-paths.mjs --plan-time -->';
+const TIME_END = '<!-- plan-time end -->';
+
+const ord = (xs, rank) => (rank === 0 ? 0 : [...xs].sort((a, b) => a - b)[rank - 1]);
+export const p50 = (xs) => ord(xs, Math.floor((xs.length + 1) / 2));
+export const p90 = (xs) => ord(xs, Math.floor((9 * xs.length + 9) / 10));
+const maxL = (xs) => xs.reduce((a, b) => Math.max(a, b), 0);
+const timeRow = (label, xs) => `| ${label} | ${xs.length} | ${p50(xs)} ms | ${p90(xs)} ms | ${maxL(xs)} ms |\n`;
+
+/** Lean `timeParams` row of the writes-closure golden: `calmLoad` (Fw.Obs.Timing.calmLoad) and the before `window`. */
+export function timeParams(root = ROOT) {
+  const rows = readFileSync(join(root, CLOSURE_GOLDEN), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const r = rows.find((x) => x.type === 'timeParams');
+  if (!r) throw new Error(`${CLOSURE_GOLDEN}: no timeParams row (cd lean && lake env lean --run scripts/WritesClosureGolden.lean)`);
+  return { calmLoad: r.calmLoad, window: r.window };
+}
+
+const calmDurs = (xs, calmLoad) => xs.filter(([, l]) => l <= calmLoad).map(([d]) => d);
+
+/** Lean `timeTable` over `[durMs, load floor]` pairs: only calm runs (load floor at most `calmLoad`) enter the table. */
+export function timeTable(before, after, { calmLoad, window }) {
+  const cb = calmDurs(before, calmLoad);
+  const b = cb.slice(Math.max(0, cb.length - window));
+  const a = calmDurs(after, calmLoad);
+  return `Calm runs only: load floor at most ${calmLoad} (Fw.Obs.Timing.calmLoad); ${cb.length + a.length} of ` +
+    `${before.length + after.length} samples are calm.\n\n` +
+    '| Window | n | p50 | p90 | max |\n|---|---|---|---|---|\n' + timeRow(`last ${b.length} calm runs before the closure check`, b) +
+    timeRow('every calm run with it', a) + `\nINFERRED: the closure check adds about ${p50(a) - p50(b)} ms to a calm sync (p50 with it minus p50 before).\n`;
+}
+
+const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+export const loadFloor = (load) => Math.floor(Math.max(0, load));
+
+export function planTimeBlock(samples, params = timeParams()) {
+  const dur = (closure) => samples.filter((s) => s.closure === closure).map((s) => [s.durMs, loadFloor(s.load)]);
+  const span = samples.length ? `${day(samples[0].startMs)} to ${day(samples.at(-1).startMs)}` : 'none';
+  return `${TIME_BEGIN}\nMEASURED (the samples below, ${span}: every exit-0 \`plan sync\` span of the tool \`fw\` in the main ` +
+    `checkout's\n\`.fw-console/timings.jsonl\` with a load; a run is "with it" when its commit contains ${CLOSURE_COMMIT}).\n\n` +
+    `${timeTable(dur(false), dur(true), params)}\n<details><summary>Samples (node scripts/ci-paths.mjs --plan-time --refresh &lt;timings.jsonl&gt;)</summary>\n\n` +
+    '```jsonl\n' + samples.map((s) => JSON.stringify(s) + '\n').join('') + '```\n\n</details>\n' + TIME_END;
+}
+
+function timeSpan(doc) {
+  const i = doc.indexOf(TIME_BEGIN), j = doc.indexOf(TIME_END);
+  if (i < 0 || j < i) throw new Error(`${PLAN_DOC}: no ${TIME_BEGIN} ... ${TIME_END} block`);
+  return [i, j + TIME_END.length];
+}
+
+export function planTimeSamples(doc) {
+  const [i, j] = timeSpan(doc);
+  const m = doc.slice(i, j).match(/```jsonl\n([\s\S]*?)```/);
+  return m ? m[1].split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
+}
+
+export function planTimeRender(doc, samples = planTimeSamples(doc), params = timeParams()) {
+  const [i, j] = timeSpan(doc);
+  return doc.slice(0, i) + planTimeBlock(samples, params) + doc.slice(j);
+}
+
+function hasClosure(root, commit) {
+  try { execFileSync('git', ['merge-base', '--is-ancestor', CLOSURE_COMMIT, commit], { cwd: root, stdio: 'ignore' }); return true; }
+  catch (e) { return e.status === 1 ? false : null; }
+}
+
+export function planTimeRefresh(root, timingsFile) {
+  const spans = readFileSync(timingsFile, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
+    .filter((s) => s.tool === 'fw' && s.step === 'plan sync' && s.exit === 0 && s.host === 'local' && typeof s.commit === 'string')
+    .sort((a, b) => a.startMs - b.startMs);
+  const noLoad = spans.filter((s) => !Number.isFinite(s.load)).length;
+  const known = new Map();
+  const out = [];
+  for (const s of spans) {
+    if (!Number.isFinite(s.load)) continue;
+    if (!known.has(s.commit)) known.set(s.commit, hasClosure(root, s.commit));
+    const closure = known.get(s.commit);
+    if (closure !== null) out.push({ commit: s.commit, startMs: s.startMs, durMs: s.durMs, load: s.load, closure });
+  }
+  return { samples: out, dropped: spans.length - out.length - noLoad, noLoad };
+}
+
+function planTimeMain(root, args) {
+  const file = join(root, PLAN_DOC);
+  const doc = readFileSync(file, 'utf8');
+  const r = args.indexOf('--refresh');
+  let samples = planTimeSamples(doc);
+  if (r >= 0) {
+    const got = planTimeRefresh(root, args[r + 1]);
+    samples = got.samples;
+    console.log(`ci-paths --plan-time: ${samples.length} samples, ${got.dropped} dropped (commit not in this repo), ${got.noLoad} without a load`);
+  }
+  const next = planTimeRender(doc, samples, timeParams(root));
+  if (args.includes('--check')) {
+    console.log(next === doc ? `ci-paths --plan-time: ${PLAN_DOC} is up to date` : `ci-paths --plan-time: ${PLAN_DOC} is stale (node scripts/ci-paths.mjs --plan-time)`);
+    process.exit(next === doc ? 0 : 1);
+  }
+  writeFileSync(file, next);
+  console.log(`ci-paths --plan-time: ${PLAN_DOC} written`);
+}
+
 function main() {
   const i = process.argv.indexOf('--root');
   const root = i >= 0 ? process.argv[i + 1] : join(dirname(new URL(import.meta.url).pathname), '..');
+  if (process.argv.includes('--plan-time')) return planTimeMain(root, process.argv.slice(2));
   const write = process.argv.includes('--write');
   const { problems, wrote } = run(root, write);
   if (write) {

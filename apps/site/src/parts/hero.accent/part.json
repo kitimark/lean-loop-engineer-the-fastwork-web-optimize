@@ -8,7 +8,9 @@
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:3501-3730; assets/2.gBuqKVzi.css:1221-1400" } },
     "steps": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "n=15" } },
-    "draw-one": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "accent-draw-one", "limit": "the two copies at opacity 0 in the draw window get no stroke animation (Lean drawOne_visSame, drawOne_still_iff); saves 2 of 3 animated paths per draw frame (animatedCount_values), the visible copy still lays out per frame" } }
+    "draw-one": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.HeroAccentOpt", "ledger": "accent-draw-one", "limit": "the two copies at opacity 0 in the draw window get no stroke animation (Lean drawOne_visSame, drawOne_still_iff); saves 2 of 3 animated paths per draw frame (animatedCount_values), the visible copy still lays out per frame" } },
+    "draw-nolayout": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Engine.StyleDiffAccent", "ledger": "accent-draw-nolayout", "limit": "look change: the draw is a clip-path wipe of the visible copy instead of a stroke trace: look-change, for the user's visual review; no layout in the draw-out frames (arm_drawOut_nolayout); the draw-in keeps the original's width transition, which lays out (arm_drawIn_layout_only_width)" } },
+    "draw-nolayout-full": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Engine.StyleDiffAccent", "ledger": "accent-drawin-width-nolayout", "limit": "look change: draw-nolayout plus no width transition on the host, so the headline text jumps to the new width at the start of the draw-in instead of gliding over 0.9 s; the width is set once (wkLayoutFrames_values: 1 layout frame per cycle, faithful 2 per frame), the other draw frames need no layout in WebKit or Chromium (full_inRest_nolayout): look-change, for the user's visual review" } }
   },
   "requires": {},
   "conflicts": {}

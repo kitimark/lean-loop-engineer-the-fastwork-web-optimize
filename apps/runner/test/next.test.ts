@@ -8,11 +8,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  buildFacts, classifyTree, formatNext, handbackAtOf, nextAlerts, parseWorktrees, psCommands, statFile, watchedFileOf, worktreeOf,
-  type AgentFacts, type NextReply, type Raw, type RawPs,
+  buildFacts, classifyTree, formatNext, handbackAtOf, nextAlerts, parseWorktrees, psCommands, reapHeldFacts, statFile, watchedFileOf,
+  worktreeOf, type AgentFacts, type NextReply, type Raw, type RawPs,
 } from "../src/next.ts";
 import { coreCaller } from "../src/watch.ts";
-import { hasWorktree } from "../src/watch-collect.ts";
+import { hasWorktree, parsePs as parsePsRows, startFromAge } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const fwcore = join(root, "lean/.lake/build/bin/fwcore");
@@ -38,6 +38,7 @@ function rawOf(now: number, facts: any[]): Raw {
   const files = new Map<string, { mtimeMs: number; lastLine: string }>();
   const alive = new Set<number>();
   const procs: Raw["procs"] = [];
+  const starts = new Map<number, number>();
   const addChain = (pid: number, chain: number[], ageMs: number, comm: string) => {
     ps.set(pid, { pid, ppid: chain[0] ?? 1, ageMs, comm });
     chain.forEach((c, i) => { if (!ps.has(c)) ps.set(c, { pid: c, ppid: chain[i + 1] ?? 1, ageMs: 9e9, comm: c === facts[0].session ? "/usr/local/bin/claude" : "/bin/zsh" }); });
@@ -52,6 +53,7 @@ function rawOf(now: number, facts: any[]): Raw {
         : c.kind === "ciWait" ? `/bin/zsh -c sh waitrun.sh ${c.run} ${c.timeoutMin}`
         : c.kind === "build" ? "/bin/zsh -c lake build" : "/bin/zsh -c sleep 1000";
       addChain(c.pid, c.chain, now - c.startedAt, comm);
+      if (typeof c.start === "number") starts.set(c.pid, c.start);
       procs.push({ pid: c.pid, name: "zsh", startedAt: c.startedAt, pids: [], agent: f.id });
       if (c.watchedAt != null) files.set(file, { mtimeMs: c.watchedAt, lastLine: c.producerExited ? "[exited with code 0]" : "tick" });
     }
@@ -60,6 +62,7 @@ function rawOf(now: number, facts: any[]): Raw {
       worktree: f.worktree || f.branch ? { path: `/wt/agent-${f.id}`, branch: f.branch?.name ?? null, lockPid: f.worktree?.lockPid ?? null } : null,
       ahead: f.branch?.ahead ?? null, landed: f.branch?.landed ?? null,
       mergesClean: f.branch ? f.branch.mergesClean ?? true : null, branchDeps: f.branch?.deps ?? [], handoff: f.handoff ?? false,
+      wtId: f.worktree?.id ?? null,
     };
   });
   const board = new Map<string, { id: string; done: boolean; agent: string | null }>();
@@ -68,7 +71,8 @@ function rawOf(now: number, facts: any[]): Raw {
     if (f.board) board.set(f.id, { id: f.board.id, done: f.board.done, agent: f.board.agent ?? null });
     if (f.ci) ci.push({ ...f.ci, conclusion: f.ci.conclusion ?? null, endedAt: f.ci.endedAt ?? null });
   }
-  return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board };
+  return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board, starts,
+    reapHeld: (facts[0]?.reapHeld ?? []).map((h: any) => ({ pid: h.pid, start: h.start, wt: h.wt ?? null })) };
 }
 
 describe("golden cases through the fact builder", () => {
@@ -88,19 +92,19 @@ describe("golden cases through the fact builder", () => {
 describe("output", () => {
   it("prints one NEXT line per action, key=value in order, nothing for none", () => {
     expect(formatNext({ agents: [
-      { id: "a", actions: [{ action: "killOrphan", pid: 555 }, { action: "nudgeHandoff" }] },
+      { id: "a", actions: [{ action: "killOrphan", pid: 555, start: 1759998680 }, { action: "nudgeHandoff" }] },
       { id: "b", actions: [] },
       { id: "n", actions: [{ action: "none" }] },
       { id: "c", actions: [{ action: "land", branch: "wt-c", task: "c" }] },
-    ] })).toEqual(["NEXT a killOrphan pid=555", "NEXT a nudgeHandoff", "NEXT c land branch=wt-c task=c"]);
+    ] })).toEqual(["NEXT a killOrphan pid=555 start=1759998680", "NEXT a nudgeHandoff", "NEXT c land branch=wt-c task=c"]);
   });
-  it("alerts: killOrphan -> agent.held, land/routeIntegrator -> agent.unlanded, others none", () => {
+  it("alerts: killOrphan raises none (agent.held is the Reap rule), land/routeIntegrator -> agent.unlanded, others none", () => {
     const al = nextAlerts({ agents: [
-      { id: "a", actions: [{ action: "killOrphan", pid: 7 }, { action: "waitCi", run: 1 }] },
+      { id: "a", actions: [{ action: "killOrphan", pid: 7, start: 3 }, { action: "waitCi", run: 1 }] },
       { id: "b", actions: [{ action: "land", branch: "x", task: "b" }] },
       { id: "c", actions: [{ action: "routeIntegrator", branch: "y" }, { action: "cleanupWorktree" }] },
     ] });
-    expect(al.map((x) => `${x.code} ${x.subject}`)).toEqual(["agent.held a", "agent.unlanded b", "agent.unlanded c"]);
+    expect(al.map((x) => `${x.code} ${x.subject}`)).toEqual(["agent.unlanded b", "agent.unlanded c"]);
   });
 });
 
@@ -142,7 +146,8 @@ describe("end to end with a real child process", () => {
       const raw: Raw = {
         now, session: process.pid, ps, alive: () => true, file: statFile, queuedText: "", ci: [], board: new Map(),
         procs: [{ pid: child.pid!, name: "sh", startedAt: now, pids: [], agent: "e2e" }],
-        agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
+        agents: [{ id: "e2e", name: "e2e", task: "e2e", state, ctxTokens: 0, handbackAt: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false,
+          worktree: { path: "/wt/wt-e2e", branch: null, lockPid: null }, wtId: "wt-e2e" }],
       };
       const facts = buildFacts(raw);
       if (facts[0]!.children.length > 0 || Date.now() > deadline) return { facts, now, pid: child.pid! };
@@ -162,7 +167,7 @@ describe("end to end with a real child process", () => {
     }
   });
 
-  it("a loop on a finished task's output file: producerExited, and fwcore proposes the kill of this pid", async () => {
+  it("a loop on a finished task's output file: producerExited, but no kill until the Reap plan holds it", async () => {
     const d = mkdtempSync(join(tmpdir(), "fwnext-")); dirs.push(d);
     mkdirSync(join(d, "tasks"));
     const f = join(d, "tasks", "t1.output");
@@ -172,9 +177,34 @@ describe("end to end with a real child process", () => {
     expect(facts[0]!.children[0]!.watchedAt).toBeGreaterThan(0);
     if (existsSync(fwcore)) {
       const r = (await coreCaller([fwcore])({ op: "obs.next", now: Date.now(), agents: facts })) as NextReply;
-      expect(formatNext(r)).toContain(`NEXT e2e killOrphan pid=${pid}`);
-      expect(nextAlerts(r).map((a) => a.code)).toContain("agent.held");
+      expect(formatNext(r).filter((l) => l.includes("killOrphan"))).toEqual([]);
     }
+  });
+
+  it("a loop the Reap plan holds in this worktree: fwcore proposes the kill of that pid and start", async () => {
+    const { facts, pid } = await observe("until false; do sleep 1; done", "idle");
+    const held = [{ pid, start: 1759998680, wt: "wt-e2e" }, { pid: pid + 1, start: 1759998681, wt: "wt-other" }];
+    const f = facts.map((x) => ({ ...x, reapHeld: held }));
+    expect(facts[0]!.worktree).toEqual({ lockPid: null, lockAlive: false, id: "wt-e2e" });
+    if (existsSync(fwcore)) {
+      const r = (await coreCaller([fwcore])({ op: "obs.next", now: Date.now(), agents: f })) as NextReply;
+      expect(formatNext(r).filter((l) => l.includes("killOrphan"))).toEqual([`NEXT e2e killOrphan pid=${pid} start=1759998680`]);
+      expect(nextAlerts(r).map((a) => a.code)).not.toContain("agent.held");
+    }
+  });
+});
+
+describe("reapHeldFacts: the Reap plan's held loops as facts", () => {
+  const pass = (held: unknown[]) => ({ held, heldSim: [], starts: new Map() }) as any;
+  it("each held entry carries the pid, start and worktree id Lean gave it", () => {
+    const got = reapHeldFacts(pass([
+      { pid: 10, start: 500, kind: "orphanLoop", group: true, reason: "r", wt: "wt-a" },
+      { pid: 11, start: 600, kind: "orphanLoop", group: true, reason: "r", wt: null },
+    ]));
+    expect(got).toEqual([{ pid: 10, start: 500, wt: "wt-a" }, { pid: 11, start: 600, wt: null }]);
+  });
+  it("no pass (no facts, a failing call, FW_WATCH_REAP=0) gives no entries", () => {
+    expect(reapHeldFacts(null)).toEqual([]);
   });
 });
 
@@ -210,3 +240,32 @@ describe("false-positive facts (inc-next-false-positives) and retention", () => 
 });
 
 export type { AgentFacts };
+
+// procps wraps boot_tics - start_time for a process started after the uptime sample; ps prints 441077234-00:18:40
+describe("an etime longer than the clock (the CircleCI shape)", () => {
+  const now = 1_760_000_000_000;
+  const psText = "    1     0 03:41:48 /usr/local/bin/claude\n    5     1 441077234-00:18:40 sh -c until grep -q X /t/o; do sleep 1; done\n";
+  it("startFromAge: a longer-than-clock age is unknown (-1), a normal age is the start", () => {
+    expect(startFromAge(now, 90_000)).toBe(now - 90_000);
+    expect(startFromAge(now, now)).toBe(0);
+    expect(startFromAge(now, now + 1)).toBe(-1);
+    expect(startFromAge(now, 1_728_000_000_000 * 40)).toBe(-1);
+  });
+  it("the child fact carries the unknown start and fwcore accepts it without proposing a kill for age", async () => {
+    const ps = parsePsRows(psText);
+    expect(ps.find((r) => r.pid === 5)!.ageMs).toBeGreaterThan(now);
+    const raw: Raw = {
+      now, session: 1, ps, alive: () => true, file: () => null, queuedText: "", ci: [], board: new Map(),
+      procs: [{ pid: 5, name: "sh", startedAt: -1, pids: [], agent: "e2e" }],
+      agents: [{ id: "e2e", name: "e2e", task: "e2e", state: "idle", ctxTokens: 0, handbackAt: null, worktree: null, ahead: null, landed: null, mergesClean: null, branchDeps: [], handoff: false }],
+    };
+    const facts = buildFacts(raw);
+    expect(facts[0]!.children[0]!.startedAt).toBe(-1);
+    if (existsSync(fwcore)) {
+      const r = (await coreCaller([fwcore])({ op: "obs.next", now, agents: facts })) as NextReply;
+      expect(formatNext(r).filter((l) => l.includes("killOrphan"))).toEqual([]);
+      const h = await coreCaller([fwcore])({ op: "obs.health", now, system: { diskFreeGB: 50, procs: [{ pid: 5, name: "sh", startedAt: -1 }] } });
+      expect(JSON.stringify(h)).not.toContain("proc.long");
+    }
+  });
+});

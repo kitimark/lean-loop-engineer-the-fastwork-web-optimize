@@ -3,14 +3,17 @@
 // Scoping rules that ARE here (which agents get into the snapshot): see SCOPE below.
 // Privacy: only names, counts, ids and times are read out of the files; payload text is never kept.
 import { execFile } from "node:child_process";
-import { ghCharged, realEnv, type Env } from "@fw/gh-budget";
+import { GH_BOUNDS, ghCharged, realEnv, type Env } from "@fw/gh-budget";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { homedir, loadavg, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { GhClock, phasedEnv } from "./run-phases.ts";
 import { collectGh, type GhFetch, type GhSnap } from "./watch-gh.ts";
 import { collectSvcs, type Svc } from "./watch-svc.ts";
 import { foldFile, sweepCache } from "./watch-cache.ts";
 import { BG_TEXT, finishInfo, finishSignals, foldText, initFold, parseNotifications, waitingNote } from "./watch-fold.ts";
+import { parseWaits } from "./slot-queue.ts";
+import { rawOf, spanWork } from "./timing.ts";
 export { parseNotifications, waitingNote };
 
 export interface SpoolEvent {
@@ -54,6 +57,7 @@ export interface SystemSnap {
   load1: number; memPressure: "normal" | "warn" | "critical"; diskFreeGB: number;
   simLock: { holder: string | null; since: number | null };
   docker: { id: string; name: string; startedAt: number }[]; worktrees: number; consolePids: number[];
+  ciAt?: number;
   ci: { id?: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt?: number | null; headSha?: string }[];
   /** floor of the 1-min load average (fwcore compares it with loadMax) */
   loadFloor?: number;
@@ -76,7 +80,7 @@ export interface SystemSnap {
    *  threads and raises `review.feedback` for a flag with an open comment (Lean `Fw.Obs.FeedbackAlert`) */
   feedback?: FeedbackEv[];
   /** GitHub Actions, Pages and Webhooks states and the open incidents (watch-gh.ts); fwcore raises sys.ghDegraded */
-  gh?: GhSnap;
+  gh?: GhSnap & { ciAgeMs?: number };
   /** collectors that failed this time and whose value was carried forward from the previous check
    *  ("ci", "docker", "procs", "plan") */
   stale: string[];
@@ -515,6 +519,9 @@ const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
   });
 const text = (r: RunOut): string | null => (typeof r === "string" ? r : null);
 
+export const WATCH_LOCK_WAIT_MS = GH_BOUNDS.watchLockWaitMs;
+export const WATCH_GH_TIMEOUT_MS = GH_BOUNDS.watchCallTimeoutMs;
+
 /** Wraps a Runner so every `gh` call is booked with the request budget (`ghCharged`, fwcore decides). Other programs pass
  *  through. A wait or stop from the budget, a gh failure, or an unavailable budget (no fwcore) is a failed call (`null`):
  *  the caller carries the previous value forward. The collector never blocks on the budget. `getEnv` is lazy and cached. */
@@ -522,13 +529,15 @@ export function chargedRunner(base: Runner, getEnv: () => Env): Runner {
   return async (cmd, args, timeout, cwd, anyExit) => {
     if (cmd !== "gh") return base(cmd, args, timeout, cwd, anyExit);
     try {
-      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3 });
+      watchGh.start();
+      const res = await ghCharged(getEnv(), args, { cost: args.includes("--workflow") ? 2 : 3, timeoutMs: timeout, lockWaitMs: WATCH_LOCK_WAIT_MS }).finally(() => watchGh.end());
       return res.ran && res.code === 0 ? res.stdout : null;
     } catch { return null; }
   };
 }
 let sysEnv: { cwd: string; env: Env } | null = null;
-const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: realEnv(cwd) }).env);
+export const watchGh = new GhClock();
+const systemEnv = (cwd: string): Env => (sysEnv?.cwd === cwd ? sysEnv.env : (sysEnv = { cwd, env: phasedEnv(realEnv(cwd), (e) => watchGh.on(e)) }).env);
 
 export function parseMemLevel(out: string | null): "normal" | "warn" | "critical" {
   // kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical (xnu sys/kern_memorystatus.h)
@@ -591,6 +600,10 @@ export function parseEtime(s: string): number | null {
   const [d, h, mi, se] = [m[1], m[2], m[3], m[4]].map((x) => Number(x ?? 0)) as [number, number, number, number];
   return (((d * 24 + h) * 60 + mi) * 60 + se) * 1000;
 }
+/** A process start (ms) from the clock and a `ps` age. An age longer than the clock is not a reading: unsigned
+ *  boot_tics - start_time wraps when a process starts after procps sampled uptime (pids.c:287,1494@v4.0.4), e.g. a child
+ *  spawned during the ps run. */
+export const startFromAge = (now: number, ageMs: number): number => (ageMs > now ? -1 : Math.floor(now - ageMs));
 export function parsePs(out: string | null): PsRow[] {
   const rows: PsRow[] = [];
   for (const line of (out ?? "").split("\n")) {
@@ -624,7 +637,7 @@ export function sessionProcs(rows: PsRow[], self: number, now: number): NonNulla
       if (name === null && !SHELLS.has(exe(r.comm))) name = exe(r.comm);
       q.push(...(kids.get(r.pid) ?? []));
     }
-    out.push({ pid: root.pid, name: name ?? exe(root.comm), startedAt: Math.floor(now - root.ageMs), pids });
+    out.push({ pid: root.pid, name: name ?? exe(root.comm), startedAt: startFromAge(now, root.ageMs), pids });
   }
   return out;
 }
@@ -730,7 +743,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     exec("sysctl", ["-n", "kern.memorystatus_vm_pressure_level"], 2000),
     exec("git", ["worktree", "list", "--porcelain"], 3000, p.root),
     exec("docker", ["ps", "--format", "{{.ID}}\t{{.Names}}\t{{.CreatedAt}}"], 3000),
-    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], 10000, p.root),
+    exec("gh", ["run", "list", "--limit", "20", "--json", "databaseId,workflowName,headBranch,status,conclusion,createdAt,updatedAt,headSha"], WATCH_GH_TIMEOUT_MS, p.root),
     exec("ps", ["-A", "-o", "pid=,ppid=,etime=,comm="], 3000),
     exec("env", PS_START, 3000),
   ]);
@@ -741,7 +754,8 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   let docker = parseDocker(text(dock));
   if (dock === null) { stale.push("docker"); docker = old?.docker ?? []; }
   let ciRuns = parseCi(text(ci));
-  if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; }
+  let ciAt = now;
+  if (ci === null) { stale.push("ci"); ciRuns = old?.ci ?? []; if (old) ciAt = old.ciAt ?? prev!.at; }
   const rows = parsePs(text(ps));
   let procs = sessionProcs(rows, process.pid, now);
   let keep: number[] = [];
@@ -768,7 +782,7 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
     load1: Math.round(loadavg()[0]! * 100) / 100, loadFloor: Math.floor(loadavg()[0]!),
     load: { builders: countBuilders(rows), heavyJobs: countHeavy(p.root, parseStartRows(text(psStart))), prevContended: prev?.contended === true }, memPressure: parseMemLevel(text(mem)),
     diskFreeGB: disk, simLock: collectSimLock(p.root), docker, worktrees: parseWorktreeCount(text(wt)),
-    consolePids, ci: ciRuns, procs, services: [process.pid, ...consolePids], keep, svcs, stale, feedback: collectFeedback(p),
+    consolePids, ci: ciRuns, ciAt, procs, services: [process.pid, ...consolePids], keep, svcs, stale, feedback: collectFeedback(p),
     ...(ps === null || rows.length === 0 ? {} : { alivePids: rows.map((r) => r.pid) }),
   };
 }
@@ -823,18 +837,14 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
   const agents = collectAgents(p, now, owners);
   const [system, crit, gh] = await Promise.all([collectSystem(p, prev, now, undefined, owners, keepOf), collectCritical(p, process.env, get),
     collectGh(prev?.ghDegraded === true, ghGet)]);
-  system.gh = gh;
+  system.gh = { ...gh, ciAgeMs: Math.max(0, now - (system.ciAt ?? now)) };
   ensureSampler(p);
   const { critical, stale } = carryCritical(crit, prev, now);
   if (stale) system.stale.push("plan");
   return { now, params, agents, lead: collectLead(p), system, prevAt: prev?.at ?? null, critical };
 }
 
-// ---- timing samples (timing-alert): the spans of .fw-console/timings.jsonl as the samples of `obs.slow` ----
-/** A `Fw.Obs.Timing.Sample` on the wire. */
-export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true }
-/** Spans in time order -> samples (the last `cap` ones: a bound on the input size, not a threshold; the verdict is Lean's).
- *  Lines that do not parse or lack a field are skipped. `load` is the floor of the 1-min load average; an optional span `kind` (the dispatch input digest) is the run kind of the history. */
+export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true; waitMs?: number; waits?: { why: string; ms: number }[]; work?: Record<string, string>; startMs?: number; commit?: string; phases?: { how: string; updMs: number } }
 export function parseSamples(text: string, cap = 3000): TimingSample[] {
   const rows: { at: number; s: TimingSample }[] = [];
   for (const line of text.split("\n")) {
@@ -842,10 +852,15 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
     try {
       const o = JSON.parse(line);
       if (typeof o.tool !== "string" || typeof o.step !== "string" || !Number.isFinite(o.durMs) || o.durMs < 0 || (o.host !== "local" && o.host !== "ci")) continue;
-      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}), ...(Number.isInteger(o.exit) ? { exit: o.exit } : {}), ...(o.skipped === true ? { skipped: true as const } : {}) } });
-    } catch { /* partial line */ }
+      rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}), ...(Number.isInteger(o.exit) ? { exit: o.exit } : {}), ...(o.skipped === true ? { skipped: true as const } : {}), ...queueOf(o.queue), ...spanWork(o), ...rawOf(o) } });
+    } catch {}
   }
   return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
+}
+function queueOf(q: unknown): { waitMs?: number; waits?: { why: string; ms: number }[] } {
+  const o = q as { waitMs?: unknown; waits?: unknown } | null | undefined;
+  if (o === null || typeof o !== "object" || typeof o.waitMs !== "number" || !(o.waitMs > 0)) return {};
+  return { waitMs: Math.round(o.waitMs), waits: parseWaits(o.waits) };
 }
 /** The samples of the console's timings file (empty when there is none). */
 export function readSamples(p: Paths): TimingSample[] {

@@ -1,41 +1,51 @@
-// Leg 2 of smoothness-webkit-cadence: Mobile Safari in the iOS Simulator, one session, every arm on one origin, the WebKit Timeline read
-// per frame of each window. Glue only: the zone binning and the clock-offset rule are Lean's (reduce.mjs); the arm identity check is
-// the gate's (`runCheck`); the arm list is Lean's dedup of the flags (`sessionPlan`).
-//
-// The Simulator has no wheel device, so the windows are scripted inside the page (recorder.mjs `heroJs`, `endJs`), on the same
-// schedule as the macOS leg. The Timeline is on in every window, so the cadence read here is labelled "Timeline on". The A/A arm is
-// the faithful rewrite visited a second time on the same tree (one origin per tab): that bounds revisit noise, not server noise.
-// A window that errors (a Timeline.stop that never answers) is retried from a fresh load after a reconnect; a session that still
-// fails keeps the windows read so far (`incomplete`), so the artifact is never empty.
 import { withSession } from '../session.mjs';
 import { loadFresh, pageInfo } from '../page.mjs';
 import { startTimeline } from '../timeline.mjs';
-import { findDevice } from '../sim.mjs';
+import { findDevice, sleep } from '../sim.mjs';
 import { sessionPlan } from '../device-arms.mjs';
 import { reconnect } from '../wip.mjs';
 import { attempts, T } from '../timeouts.mjs';
-import { RECORDER_SRC, TO_END_JS, heroJs, endJs, pageOf, intervalsOf } from './recorder.mjs';
+import { RECORDER_SRC, TO_END_JS, heroJs, endJs, endTouchJs, pageOf, intervalsOf } from './recorder.mjs';
+import { openDriver, startServer, stopServer, touchWindow, logTail, TOUCH_COUNT_JS, TOUCH_BUDGET, laneAfter, timelinePlan, variantFor } from '../touch-push.mjs';
 import { profileWindow, toHundredths } from './reduce.mjs';
-import { orderFor, HERO_BURST, END_PUSH } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
-import { hitches } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
+import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/schedule.mjs';
+import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
+import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, planReps, repsLife, outcome } from '../walk-budget.mjs';
 
-/** The arms of the session as `withSession` wants them, and the identity each must show (`want`: the config hash, null for the original). */
-export function simArms(plan, siteDir, lookSearch) {
+const BLOCK_MS = 15 * 60000;
+
+export function simArms(plan, siteDir, lookSearch, only) {
   const out = [
     { id: 'orig', site: 'orig', tree: { dir: null }, search: '' },
     { id: 'base', site: 'rewrite', tree: { dir: siteDir, search: '' }, search: '' },
     { id: 'aa', site: 'rewrite', tree: { dir: siteDir, search: '' }, search: '' },
   ];
+  if (only?.includes('bound')) out.push({ id: 'bound', site: 'rewrite', tree: { dir: siteDir, search: '' }, search: '' });
+  if (only) {
+    if (only.includes('look') && lookSearch) out.push({ id: 'look', site: 'rewrite', tree: { dir: siteDir, search: lookSearch }, search: lookSearch });
+    if (only.includes('v2')) out.push({ id: 'v2', site: 'rewrite', tree: { dir: siteDir, search: '?preset=v2-proved' }, search: '?preset=v2-proved' });
+    const missing = only.filter((id) => !out.some((a) => a.id === id));
+    if (missing.length) throw new Error(`arms not available: ${missing.join(', ')}`);
+    return out.filter((a) => only.includes(a.id));
+  }
   if (plan.kept.includes('look')) out.push({ id: 'look', site: 'rewrite', tree: { dir: siteDir, search: lookSearch }, search: lookSearch });
   if (plan.kept.includes('v2')) out.push({ id: 'v2', site: 'rewrite', tree: { dir: siteDir, search: '?preset=v2-proved' }, search: '?preset=v2-proved' });
   return out;
 }
 
-/** Run the leg. Returns the result object the report reads (same shape as the macOS leg's, `leg: 'sim'`). */
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, log = (s) => console.error(s) }) {
-  const plan = sessionPlan(lookSearch);
-  const arms = simArms(plan, siteDir, lookSearch);
+export function windowVerdict(pw, timelineOn) {
+  return timelineOn ? { ok: pw.ok, reason: pw.reason ?? null } : { ok: true, reason: 'timeline-off' };
+}
+
+export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto', settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, blockAfterMs = null, log = (s) => console.error(s) }) {
+  const end = endPushFor(holdMs);
+  const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
+  const arms = simArms(plan, siteDir, lookSearch, only);
+  const repPlan = deadlineMs == null ? null : { outcome: outcome(deadlineMs, now(), arms.length), reps: planReps(deadlineMs, now(), arms.length) };
+  const reps = repsArg !== 'auto' ? Number(repsArg) : repPlan ? repPlan.reps : repsLife(arms.length);
+  log(`webkit sim: ${reps} reps of ${arms.length} arms (${repsArg === 'auto' ? `rep plan ${repPlan?.outcome ?? 'without a deadline'}` : 'set by hand'})`);
   const device = findDevice();
   const started = Date.now();
   const rows = [];
@@ -43,11 +53,17 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   let refused = false;
   let error = null;
   let ua = '';
+  const opened = openDriver(touchDriver);
+  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
 
-  /** One window on one arm from a fresh load: the finished row, or `{refused: row}` when the page is not the arm asked for. */
+  const snapshot = (incomplete) => ({
+    leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, repPlan, cadenceReps: 0,
+    plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
+    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+  });
+
   const readWindow = async (ctx, a, win, rep) => {
     ctx.setArm(a.id);
-    // the page reads its configuration from location.search and the reload keeps the tab's URL and scroll position: put the arm's query on the URL and go to the top first
     await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + a.search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
@@ -58,24 +74,68 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
       log(`webkit sim ${a.id} ${win}: REFUSED config (${JSON.stringify(info.fw)})`);
       return { refused: { ...row, ok: false, reason: 'refused:config', profiles: null } };
     }
+    if (a.id === 'bound') {
+      const dur = await ctx.c.evaluate(BOUND_JS);
+      if (dur === null || !/^0s(, 0s)*$/.test(dur)) throw new Error(`bound arm: the earn button is missing or still has transitions (transition-duration ${JSON.stringify(dur)})`);
+    }
     await ctx.c.evaluate(RECORDER_SRC);
     if (win === 'end') await ctx.c.runAsync(TO_END_JS);
-    const tl = await startTimeline(ctx.c, { stopMs: T(7500) });
-    const rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(END_PUSH), { pollMs: 250 });
-    await tl.stop();
-    const pw = profileWindow(pageOf(rec, toHundredths), tl.top);
+    const plan = timelinePlan(win === 'end' && touch.on, T(7500));
+    const tl = plan.kind === 'off' ? null : await startTimeline(ctx.c, { stopMs: plan.ms });
+    let rec;
+    let push = 'synthetic';
+    let touched = null;
+    if (win === 'end' && touch.on) {
+      await ctx.c.evaluate(TOUCH_COUNT_JS);
+      const variant = variantFor(touch.pushes++);
+      const got = await touchWindow(ctx.c, { server: touch.server, pageJs: endTouchJs, variant });
+      const keep = laneAfter(TOUCH_BUDGET, true, got.obs);
+      log(`webkit sim ${a.id} touch push ${touch.pushes - 1} (${variant}): ${got.outcome}, begin ${got.obs.beginAt} ms, swipe ${got.obs.swipeAt} ms, done ${got.obs.doneAt} ms, presses ${JSON.stringify(got.presses)}, ${got.obs.moves} moves`);
+      if (!keep) {
+        touch.on = false;
+        touch.why = `${got.outcome === 'ok' ? 'the driver finished late' : got.outcome}${logTail(touch.server.run.logFile) ? `; driver log tail: ${logTail(touch.server.run.logFile)}` : ''}`;
+        await stopServer(touch.server);
+        touch.server = null;
+        if (got.outcome !== 'ok') throw new Error(`touch push failed: ${got.outcome}`);
+      }
+      rec = got.result;
+      push = 'touch';
+      touched = { ...rec.touch, morphMax: rec.morphMax, variant, outcome: got.outcome, obs: got.obs, presses: got.presses };
+    } else {
+      rec = await ctx.c.runAsync(win === 'hero' ? heroJs(HERO_BURST) : endJs(end), { pollMs: 250 });
+      await tl.stop();
+    }
+    const records = tl ? tl.top : [];
+    const pw = profileWindow(pageOf(rec, toHundredths), records);
     raws.push({ arm: a.id, window: win, rep, raw: pw.raw });
-    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), ok: pw.ok, reason: pw.reason ?? null, off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: tl.top.length } };
+    return { row: { ...row, frames: rec.ts.length, hitches: hitches(intervalsOf(rec.ts)), ivs: intervalsOf(rec.ts), th: hundredthsFrom(rec.ts), ...(win === 'end' ? { push, pushWhy: push === 'touch' ? null : touch.why, touched } : {}), ...windowVerdict(pw, !!tl), off: pw.off ?? null, offA: pw.offA ?? null, offB: pw.offB ?? null, profiles: pw.profiles, records: records.length, ...(tl ? {} : { timeline: false }) } };
   };
 
+  let cut = null;
+  let blocked = false;
   try {
-    await withSession(async (ctx) => {
-      for (let rep = 0; rep < reps && !refused; rep++) {
+    const walk = withSession(async (ctx) => {
+      if (touch.on) {
+        try {
+          touch.server = await startServer(touch.driver, { udid: device.udid, log });
+          await reconnect(ctx, { log });
+        } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
+      }
+      walk: for (let rep = 0; rep < reps && !refused; rep++) {
         for (const a of orderFor(arms, rep)) {
           for (const win of ['hero', 'end']) {
             const t0 = Date.now();
             let got = null;
             for (let attempt = 1; !got; attempt++) {
+              if (deadlineMs != null && !startsWindow(deadlineMs, now(), WINDOW_RESERVE_MS)) {
+                cut = `walk deadline: no time left to start ${a.id} ${win} rep ${rep}`;
+                break walk;
+              }
+              if (blockAfterMs != null && !blocked && Date.now() - started >= blockAfterMs) {
+                blocked = true;
+                log(`webkit sim: test hook, blocking the event loop for ${BLOCK_MS} ms before ${a.id} ${win} rep ${rep}`);
+                Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, BLOCK_MS);
+              }
               await ctx.check?.();
               try {
                 got = await readWindow(ctx, a, win, rep);
@@ -87,19 +147,21 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
             }
             if (got.refused) { refused = true; rows.push(got.refused); break; }
             rows.push(got.row);
+            onProgress?.(snapshot('walk not finished: this file was written after a window and the process may have been stopped'));
             log(`webkit sim rep ${rep} ${a.id} ${win}: ${got.row.frames} frames, ${got.row.records} records, window ${got.row.ok ? 'kept' : `refused (${got.row.reason})`} in ${Date.now() - t0} ms`);
           }
           if (refused) break;
         }
       }
     }, { keep: true, arms: Object.fromEntries(arms.map((a) => [a.id, a.tree])), log });
+    if (deadlineMs == null) await walk;
+    else if (await untilDeadline(walk, deadlineMs, now) === 'deadline') cut = `walk deadline: abandoned a window in flight after ${rows.length} windows`;
+    if (cut) { error = cut; log(`webkit sim: INCOMPLETE after ${rows.length} windows (${cut})`); }
   } catch (e) {
     error = e.message;
     log(`webkit sim: INCOMPLETE after ${rows.length} windows (${error})`);
+  } finally {
+    if (touch.server) await Promise.race([stopServer(touch.server), sleep(25000)]);
   }
-  return {
-    leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
-    plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end: END_PUSH, refused, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
-  };
+  return snapshot(error);
 }
