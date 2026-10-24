@@ -2,7 +2,7 @@
 // node src/throttle/cli.mjs run [--site dir] [--arms original,rewrite,lift,unthrottle] [--rounds 2] [--cycles 4] [--vm n] [--out file]
 //   Real touches on Mobile Safari in the booted Simulator (XCUITest driver) while the page records frames; one pass per arm and round, the
 //   order rotated each round. original = the read-only snapshot; rewrite = the default prerendered build (--site); lift = the rewrite with
-//   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle.
+//   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
@@ -17,7 +17,8 @@ import { loadavg } from 'node:os';
 import { buildDriver, cleanup, dragPass, findDriver, stop } from './driver.mjs';
 import { armPass } from './probe.mjs';
 import { loadFresh } from '../page.mjs';
-import { excludeReason, reportMd } from './report.mjs';
+import { excludeReason, reportMd, ARMS, SHIPPED_ARM, FOLLOW_ARM } from './report.mjs';
+import { movingMd } from './follow-report.mjs';
 import { finishPass } from './finish-probe.mjs';
 import { excludeReason as finishExclude, reportMd as finishMd } from './finish-report.mjs';
 
@@ -27,14 +28,14 @@ const { values: v } = parseArgs({
   args: rest,
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
-    cycles: { type: 'string', default: '4' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
+    cycles: { type: 'string', default: '4' }, rotate: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
     target: { type: 'string', default: 'springboard' }, hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
     out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
   allowNegative: true,
 });
 const log = (s) => console.error(s);
-const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle' };
+const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle', 'unthrottle-follow': '?fw=engine.scroll:unthrottle-follow' };
 const siteOf = (arm) => {
   if (arm === 'original') return null;
   if (!v.site) throw new Error(`arm ${arm} needs --site (the prerendered build)`);
@@ -74,9 +75,8 @@ async function main() {
           } catch (e) { log(`warm-up failed: ${e.message}`); }
         }
         for (let round = 0; round < Number(v.rounds); round++) {
-          for (const arm of rotate(arms, round)) {
+          for (const arm of rotate(arms, round + Number(v.rotate))) {
             const tag = `${arm}-r${round + 1}`;
-            // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm
             for (let attempt = 1; attempt <= 2; attempt++) {
               try {
                 const rec = await withSession((ctx) => passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
@@ -109,7 +109,9 @@ async function main() {
       if (!v.in) throw new Error('usage: report --in a.json,b.json [--md file]');
       const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
       const vms = jobs.map((j, i) => ({ vm: `job ${j.vm ?? i + 1}`, passes: j.passes }));
-      const md = (jobs.some((j) => j.drag?.mode === 'finish') ? finishMd : reportMd)(vms);
+      const isFinish = jobs.some((j) => j.drag?.mode === 'finish');
+      const present = [...Object.values(ARMS), SHIPPED_ARM, FOLLOW_ARM].filter((a) => vms.some((x) => x.passes.some((p) => p.arm === a)));
+      const md = (isFinish ? finishMd : reportMd)(vms) + (isFinish ? '' : movingMd(vms, present));
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }

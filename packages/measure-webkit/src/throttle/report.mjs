@@ -4,6 +4,7 @@ import { runs, bandRuns, shortRuns, exitFrames, partSeries, verdict } from './st
 
 export const ARMS = Object.freeze({ base: 'rewrite', lift: 'lift', ref: 'original' });
 export const SHIPPED_ARM = 'unthrottle';
+export const FOLLOW_ARM = 'unthrottle-follow';
 const MIN_FRAMES = 30;
 const MIN_TRAVEL_PX = 100;
 const MIN_TOOLBAR_TENTHS = 20;
@@ -54,7 +55,8 @@ export function reportMd(vms) {
   };
   const all = vms.flatMap((x) => x.passes);
   const shipped = all.some((p) => p.arm === SHIPPED_ARM);
-  const arms = shipped ? [...Object.values(ARMS), SHIPPED_ARM] : Object.values(ARMS);
+  const follow = all.some((p) => p.arm === FOLLOW_ARM);
+  const arms = [...Object.values(ARMS), ...(shipped ? [SHIPPED_ARM] : []), ...(follow ? [FOLLOW_ARM] : [])];
   for (const { vm, passes } of vms) for (const a of arms) cell(vm, a, passes);
   for (const a of arms) cell('all jobs', a, all);
   out.push('');
@@ -63,6 +65,10 @@ export function reportMd(vms) {
   if (shipped) {
     for (const { vm, passes } of vms) out.push(`- ${vm} (${SHIPPED_ARM}): ${verdictOf(passes, SHIPPED_ARM).verdict}`);
     out.push(`- all jobs (${SHIPPED_ARM}): ${verdictOf(all, SHIPPED_ARM).verdict}`);
+  }
+  if (follow) {
+    for (const { vm, passes } of vms) out.push(`- ${vm} (${FOLLOW_ARM}): ${verdictOf(passes, FOLLOW_ARM).verdict}`);
+    out.push(`- all jobs (${FOLLOW_ARM}): ${verdictOf(all, FOLLOW_ARM).verdict}`);
   }
   const why = [...new Set(all.map(excludeReason).filter(Boolean))];
   if (why.length) out.push('', `Excluded passes: ${why.join('; ')}.`);

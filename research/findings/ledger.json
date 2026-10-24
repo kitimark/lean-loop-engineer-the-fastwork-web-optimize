@@ -3625,13 +3625,13 @@
    "n": 73,
    "part": "nav",
    "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
-   "status": "look-change",
+   "status": "proved",
    "flags": [
     "nav:earn-logical"
    ],
    "chromium": "unchanged (same started set and timing, Lean variant_chromium_set and variant_chromium_timing; breakpoint gate: see evidence)",
-   "webkit": "padding eases on WebKit like Chromium (macOS per-frame lane, see evidence); iPhone INFERRED from shared WebKit source",
-   "visual": "engine parity look change (L): on WebKit the earn side padding eases over 680 ms instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. Pending the user's Safari (macOS) and iPhone review; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
+   "webkit": "padding eases on WebKit along the Chromium faithful curve: Lean curve_identity (the padding at every time t is the Chromium faithful padding), settle_680, variant_monotone; MEASURED on macOS (runs 40100783726 and 40102193302, all 36 variant traces of Playwright WebKit (24) and Safari 1280 (12) within the Lean tolerance of the curve, results/earn-logical-proof/summary.json); iPhone INFERRED from shared WebKit source",
+   "visual": "engine parity look change (L), accepted by the user 2026-10-25: on WebKit the earn side padding eases over 680 ms along the Chromium curve instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. It stays out of v2-proved as class L (Lean V2Proved.look_not_mem, Gen.lookCandidates_not_mem). macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
    "mechanism": "CONFIRMED (source, from earn-webkit-parity): WebKit keeps the logical longhands of the padding-inline shorthand in the transition list and they have no animation wrapper (Styleable.cpp:553-566, process-css-properties.py:~5956@862f17d), so no padding transition starts; a listed logical longhand is resolved to physical (Styleable.cpp:563-564) and then has a wrapper, so it starts (Lean wk_inlineLonghands_ltr, variant_webkit_padding). Chromium maps both to physical already (css_animations.cc:2993-3007@f842f52).",
    "leanFor": [
     "Fw.Parts.NavEarnWebkit.variant_entry_webkit",
@@ -3643,21 +3643,35 @@
     "Fw.Parts.NavEarnWebkit.variant_webkit_set_eq_chromium_faithful",
     "Fw.Parts.NavEarnWebkit.variant_webkit_timing_eq_chromium_faithful",
     "Fw.Parts.NavEarnWebkit.hero_exit_chromium",
-    "Fw.Parts.NavEarnWebkit.hero_exit_webkit"
+    "Fw.Parts.NavEarnWebkit.hero_exit_webkit",
+    "Fw.Parts.NavEarnCurve.curve_identity",
+    "Fw.Parts.NavEarnCurve.run_identity",
+    "Fw.Parts.NavEarnCurve.chromium_unchanged",
+    "Fw.Parts.NavEarnCurve.variant_runs",
+    "Fw.Parts.NavEarnCurve.settle_680",
+    "Fw.Parts.NavEarnCurve.variant_monotone",
+    "Fw.Parts.NavEarnCurve.variant_between",
+    "Fw.Parts.NavEarnCurve.num_slack"
    ],
    "leanAgainst": [
-    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)"
+    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)",
+    "Fw.Parts.NavEarnCurve.faithful_webkit_snaps (the faithful rule holds the end padding from the flip on WebKit; the measured faithful WebKit and Safari traces fail the curve, the negative control)"
    ],
    "missingWhy": [
-    "felt smoothness on Safari and iPhone: the user's review",
-    "iPhone is inferred from shared WebKit source, not measured"
+    "iPhone is inferred from shared WebKit source, not measured",
+    "paint and compositing of the eased padding are outside the proof"
    ],
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
-   "next": "User visual review on Safari (macOS) and the iPhone; it stays out of v2-proved while it is a look change (class L).",
+   "next": "none: accepted 2026-10-25 and proved; it stays out of v2-proved while it is a look change (class L).",
    "flag": "nav:earn-logical",
-   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)"
+   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; research/notes/2026/10-2x-earn-logical-proof.md; results/earn-logical-proof/summary.json; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
+   "userDecision": {
+    "date": "2026-10-25",
+    "decision": "accepted 2026-10-25: the user found nav:earn-logical good and asked for its proof (source: chat)",
+    "review": "runs 40100783726, 40102193302 artifacts transitions-apple-390, transitions-apple-1280 (expire 2026-11-23); task earn-logical-proof"
+   }
   },
   {
    "id": "morph.end.clamp",
@@ -3872,6 +3886,47 @@
    "lesson": "A blocking listener can be demoted to passive wherever the lock decision cannot ask for preventDefault; the proof is a band that covers the arm test plus a state invariant for the active morph.",
    "next": "A booked phone session for touch-start to first scroll frame near the page end; a lane that reads window.__fwArmLate.frames.",
    "evidence": "Lean Fw.Parts.MorphMountArmLate.late_same (golden packages/contracts/golden/parts/morph-mount-arm-late.jsonl); trajectory probe 40092331051 (morph.mount:arm-late); breakpoint gate 40093577005 (A/A); breakpoint gate with the flag 40095661200"
+  },
+  {
+   "n": 74,
+   "id": "engine.scroll.unthrottle-follow",
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle-follow: unthrottle plus a frame loop that keeps requesting engine frames while scrollY moves (stops after 8 still frames or scrollend, 3600 frames at most, only with a coarse pointer), so parts read the newest scrollY at every rendering update even under WebKit's scroll-event delay (WebPageIOS.mm:2240-2256)",
+   "status": "partly-proved",
+   "flags": [
+    "engine.scroll:unthrottle-follow"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E for stateless parts (follow_same_look: a part whose output is f(scrollY) shows f(u t) at every loop frame, as the lifted mode does). Chasing parts (commission, people.card, people.deck) get more frames per second while the finger moves: look-change class, INFERRED, not measured. Breakpoint gate PASSED on both engines, run 40125463870 (head 8cb61aace).",
+   "mechanism": "CONFIRMED by source (WebPageIOS.mm:2240-2256, LocalFrameView.cpp:3784-3790, Page.cpp:2294-2329 @862f17d) and PROVED in Lean (frames_bounded, stops_after_still, idle_zero, fine_never_requests, moving_runs_every_update, gain_iff, follow_part_no_stills, event_part_stills). MEASURED on the CI Simulator (runs 40109924058 and 40116376544, 6 passes per arm): hero value still runs per 1000 mid-moving frames 174.5 (unthrottle) vs 103.0 (follow), lower in 6 of 6 jobs; scroll events reach 424 of 1000 moving frames under unthrottle, so the engine ran about one frame in 2.4 moving updates. The scrollY the page reads shows no steady gain (110.2 vs 96.5 pooled, mixed by run; INFERRED that the loop does not change it).",
+   "leanFor": [
+    "Fw.Parts.EngineScrollFollow.frames_bounded",
+    "Fw.Parts.EngineScrollFollow.stops_after_still",
+    "Fw.Parts.EngineScrollFollow.idle_zero",
+    "Fw.Parts.EngineScrollFollow.fine_never_requests",
+    "Fw.Parts.EngineScrollFollow.moving_runs_every_update",
+    "Fw.Parts.EngineScrollFollow.gain_iff",
+    "Fw.Parts.EngineScrollFollow.follow_part_no_stills",
+    "Fw.Parts.EngineScrollFollow.event_part_stills",
+    "Fw.Parts.EngineScrollFollow.follow_same_look"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Phone feel not measured (the Simulator stands in)",
+    "CPU and power cost of one engine frame per moving update not measured",
+    "Look of chasing parts under the extra frames not checked",
+    "Trajectory cells pending"
+   ],
+   "premises": [
+    "The Simulator's scroll-event delay is the phone's: INFERRED; the delay is the same code (eventThrottlingDelay) but the latency estimate may differ",
+    "The part-output lens (hero value as its own series) is the right one for a loop that changes when the engine runs: INFERRED; chosen after run 1, repeated in run 2"
+   ],
+   "v1Evidence": "",
+   "lesson": "A fix for a delayed event must be judged on what the consumer shows, not on the input it reads: the loop is not expected to change scrollY, so the scrollY series shows no steady gain (110.2 vs 96.5 per 1000 moving frames pooled, mixed by run) while the part output loses a third to a half of its still runs.",
+   "next": "A look check of chasing parts; a phone pass; then the trajectory cells before v2-proved.",
+   "evidence": "CI runs 40109924058, 40116376544 (toolbar-throttle, hero drags); research/notes/2026/10-2x-unthrottle-follow.md; branch worktree-wf_4682f586-db0-1",
+   "flag": "engine.scroll:unthrottle-follow"
   }
  ],
  "notes": [
@@ -4210,6 +4265,12 @@
    "task": "hittest-elements-proof",
    "field": "chromium",
    "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
+  },
+  {
+   "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "task": "combo-scroll-fight",
+   "field": "mechanism",
+   "text": "combo-scroll-fight: CONFIRMED a bug of release alone, not of its composition with arm-late or unthrottle. A close start is not prevented, so the page scrolls natively and every later touchmove of that touch is not cancelable; a reopen in such a move pins the page at the scroll position it reads and the frame writer then writes that pin against the finger and the fling. MEASURED on CI Chromium (run 40130709244, build before the fix): release alone fought in 13 of 16 replays, clamp alone, flip alone and the user's flags minus release in 0 of 15, the user's flags minus arm-late or minus unthrottle in 12 of 15. PROVED in Lean (Fw.Parts.ComboScroll: native_quiet, wrap_all_hold, wstep_off, wtrace_decisions): a hold bit (last move prevented and cancelable) gates the one frame writer; every brick theorem holds with it. After the fix the same replays: 0 script writes, 0 no-finger reversals, 0 script jumps of 20 px or more in 15-16 of 15-16 replays per release arm. Note research/notes/2026/10-2x-combo-scroll-fight.md. Look: look change added to release: a reopen in a move the page cannot cancel opens the morph and leaves the page to the finger; the pin returns at the next prevented, cancelable move, so an open morph can sit over a page that scrolled away from the end until the next touch. The user's phone review decides. Next: phone re-check by the user. Follow-ups: the waapi drivers pin without the bit; the toolbar-resize fight at y about 1859 (held pin written while the viewport height changes, INFERRED, not reproducible without a toolbar); the faithful page keeps the original's pin against a fling at the page end (default arm, recorded path)."
   }
  ]
 }

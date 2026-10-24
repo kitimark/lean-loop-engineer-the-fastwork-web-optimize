@@ -9574,7 +9574,13 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "apps/site/src/registry/index.ts",
+    "apps/site/src/debug/root-events.ts",
+    "apps/site/src/debug/root-events.test.ts",
+    "packages/gate-breakpoints/src/trajectory/debug.mjs",
+    "packages/gate-breakpoints/test/debug.test.mjs",
+    ".github/scripts/trajectory-line.mjs"
    ]
   },
   {
@@ -20453,7 +20459,8 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
-   "title": "engine.scroll:unthrottle-follow (research/notes/2026/10-2x-webkit-throttles.md rank 1): unthrottle plus a rAF loop that keeps requesting frames while scrollY moves, stopping after k still frames or scrollend, so parts read the newest scrollY per rendering update even under WebKit's eventThrottlingDelay (WebPageIOS.mm:2240-2256), which unthrottle does not lift. Lean first: the stop rule terminates; each frame's y is the latest scrollY at that update, never older than the event-driven y; outputs stay functions of scrollY (same look). Lego brick: composes with engine.scroll:unthrottle. Measure on CI WKTR with eventThrottlingBehaviorOverride = unresponsive: stalled runs per 1000 moving frames, faithful vs unthrottle vs follow."
+   "title": "engine.scroll:unthrottle-follow (research/notes/2026/10-2x-webkit-throttles.md rank 1): unthrottle plus a rAF loop that keeps requesting frames while scrollY moves, stopping after k still frames or scrollend, so parts read the newest scrollY per rendering update even under WebKit's eventThrottlingDelay (WebPageIOS.mm:2240-2256), which unthrottle does not lift. Lean first: the stop rule terminates; each frame's y is the latest scrollY at that update, never older than the event-driven y; outputs stay functions of scrollY (same look). Lego brick: composes with engine.scroll:unthrottle. Measure on CI WKTR with eventThrottlingBehaviorOverride = unresponsive: stalled runs per 1000 moving frames, faithful vs unthrottle vs follow.",
+   "evidence": "1f6dbef"
   },
   {
    "devices": [
@@ -20733,7 +20740,8 @@
     "research/notes/2026/10-2x-webkit-morph-walk-noise.md",
     "docs/team/handoffs/webkit-morph-walk-noise.md"
    ],
-   "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI."
+   "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI.",
+   "evidence": "c4cc938"
   },
   {
    "devices": [
@@ -20781,7 +20789,8 @@
     "research/notes/2026/10-2x-unthrottle-parts-rest.md",
     "docs/team/handoffs/unthrottle-parts-rest.md"
    ],
-   "title": "Split of unthrottle-parts-measure after its third review refusal (rest cadence claims). Rest mode (run 40101702393, 3 jobs) runs below 60 Hz in every arm (pooled medianGapMs original 59 ms, rewrite and lift 23 ms, unthrottle 20 ms) and the reducer keeps no per-pass gap, so each pass's still-run band (bandFor, throttleK) is INFERRED. (1) The reducer emits the gap and band per pass and medianGapMs over exercised passes only; (2) re-reduce run 40101702393 from its artifacts; (3) Lean judge gets a cadence domain (a pass outside the band's domain counts as noData, with its own lower bound on K and a statement whether K is per pass or pooled), new golden vectors replayed by the TS judge; (4) decide commission (rewrite 23 band runs vs Lean pulses; lift 0, unthrottle 1) and people.card (original 18 at about 17 fps) per arm on their own, and revisit commission's Lean class if the disagree stands; (5) optionally the converse of throttleK_mem_band. Note with per-pass tables and run ids."
+   "title": "Split of unthrottle-parts-measure after its third review refusal (rest cadence claims). Rest mode (run 40101702393, 3 jobs) runs below 60 Hz in every arm (pooled medianGapMs original 59 ms, rewrite and lift 23 ms, unthrottle 20 ms) and the reducer keeps no per-pass gap, so each pass's still-run band (bandFor, throttleK) is INFERRED. (1) The reducer emits the gap and band per pass and medianGapMs over exercised passes only; (2) re-reduce run 40101702393 from its artifacts; (3) Lean judge gets a cadence domain (a pass outside the band's domain counts as noData, with its own lower bound on K and a statement whether K is per pass or pooled), new golden vectors replayed by the TS judge; (4) decide commission (rewrite 23 band runs vs Lean pulses; lift 0, unthrottle 1) and people.card (original 18 at about 17 fps) per arm on their own, and revisit commission's Lean class if the disagree stands; (5) optionally the converse of throttleK_mem_band. Note with per-pass tables and run ids.",
+   "evidence": "244d6d2"
   },
   {
    "devices": [
@@ -20814,7 +20823,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User 2026-10-25 in chat: 'the nav:earn-logical is good, can you prove this ?' (look verdict: keep/accept). Already proved (NavEarnWebkit.lean, TransitionList.lean): WebKit starts the side-padding transition on every hero-pill entry and exit; its started set and timing equal Chromium faithful; Chromium unchanged; reduced motion starts nothing and computes the faithful list; the gate normalization makes faithful and variant lists equal. Not yet proved: (1) curve identity: for every time t the WebKit variant's padding value equals the Chromium faithful padding value (same endpoints, cubic-bezier(0.33,0,0.2,1), 0.68 s, delay 0, per CSS Transitions interpolation), as a theorem over the shared interpolation model, plus a frame-sampled golden of expected padding px; (2) the measured macOS per-frame traces (runs 40100783726, 40102193302; WebKit variant, Safari at 1280, Chromium faithful) match the Lean curve within a stated tolerance per frame (reducer checked against the golden; the tolerance derived from frame timing jitter, not tuned to pass); (3) record the user's verdict in Lean Gen.lookDecisions (nav:earn-logical accepted 2026-10-25) and the ledger row, regenerate the preset goldens from Gen.run, and state whether the flag joins a preset under the existing look rules. iPhone stays INFERRED from shared WebKit source unless a phone session is booked."
+   "title": "User 2026-10-25 in chat: 'the nav:earn-logical is good, can you prove this ?' (look verdict: keep/accept). Already proved (NavEarnWebkit.lean, TransitionList.lean): WebKit starts the side-padding transition on every hero-pill entry and exit; its started set and timing equal Chromium faithful; Chromium unchanged; reduced motion starts nothing and computes the faithful list; the gate normalization makes faithful and variant lists equal. Not yet proved: (1) curve identity: for every time t the WebKit variant's padding value equals the Chromium faithful padding value (same endpoints, cubic-bezier(0.33,0,0.2,1), 0.68 s, delay 0, per CSS Transitions interpolation), as a theorem over the shared interpolation model, plus a frame-sampled golden of expected padding px; (2) the measured macOS per-frame traces (runs 40100783726, 40102193302; WebKit variant, Safari at 1280, Chromium faithful) match the Lean curve within a stated tolerance per frame (reducer checked against the golden; the tolerance derived from frame timing jitter, not tuned to pass); (3) record the user's verdict in Lean Gen.lookDecisions (nav:earn-logical accepted 2026-10-25) and the ledger row, regenerate the preset goldens from Gen.run, and state whether the flag joins a preset under the existing look rules. iPhone stays INFERRED from shared WebKit source unless a phone session is booked.",
+   "evidence": "3ef0137"
   },
   {
    "devices": [
@@ -20854,7 +20864,176 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User bug 2026-10-25 (reproduced by the user on iPhone Safari, Mac Safari and Chromium): with ?fw=nav:earn-logical,hero.countdown:strip,morph.countdown:strip,morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,morph.mount:arm-late,engine.scroll:unthrottle the scroll position fights the finger: single-frame jumps (+70 then -132 px, +100 then -147 px) and up to 27 direction reversals with no finger down in the 1.5 s before a felt mark; 13 marks in one 90 s phone pass, mostly at 65-85% of maxY (morph zone, y 3400-4500) and three at y ~1859 with the toolbar height changing. Hypothesis (INFERRED): morph.end.clamp writes the pin restore position per frame while morph.mount:arm-late keeps listeners passive outside the band and engine.scroll:unthrottle changes when scroll is read, so a script write fights native scroll. Each morph.end brick was proved and gated alone and as morph-end-all, never with arm-late or unthrottle. Do: replay the recorded finger path (profile from the phone record, device-replay tooling) on CI Chromium (and Playwright WebKit if the lane allows), reproduce the reversals, bisect by dropping one flag at a time on the same replay, find the cause CONFIRMED from the code and the replay, fix it with the flags' composition modeled and proved in Lean (no script scroll write against an active native scroll; the bricks' theorems still hold with arm-late and unthrottle on), golden replayed by a site test, and show the same replay with zero no-finger reversals and no single-frame jumps over a stated bound."
+   "title": "User bug 2026-10-25 (reproduced by the user on iPhone Safari, Mac Safari and Chromium): with ?fw=nav:earn-logical,hero.countdown:strip,morph.countdown:strip,morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,morph.mount:arm-late,engine.scroll:unthrottle the scroll position fights the finger: single-frame jumps (+70 then -132 px, +100 then -147 px) and up to 27 direction reversals with no finger down in the 1.5 s before a felt mark; 13 marks in one 90 s phone pass, mostly at 65-85% of maxY (morph zone, y 3400-4500) and three at y ~1859 with the toolbar height changing. Hypothesis (INFERRED): morph.end.clamp writes the pin restore position per frame while morph.mount:arm-late keeps listeners passive outside the band and engine.scroll:unthrottle changes when scroll is read, so a script write fights native scroll. Each morph.end brick was proved and gated alone and as morph-end-all, never with arm-late or unthrottle. Do: replay the recorded finger path (profile from the phone record, device-replay tooling) on CI Chromium (and Playwright WebKit if the lane allows), reproduce the reversals, bisect by dropping one flag at a time on the same replay, find the cause CONFIRMED from the code and the replay, fix it with the flags' composition modeled and proved in Lean (no script scroll write against an active native scroll; the bricks' theorems still hold with arm-late and unthrottle on), golden replayed by a site test, and show the same replay with zero no-finger reversals and no single-frame jumps over a stated bound.",
+   "evidence": "9f59cf8"
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "probe-apple-cap",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-morph-walk-noise"
+   ],
+   "writes": [
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "packages/contracts/golden/ci/**",
+    ".github/workflows/trajectory-probe.yml",
+    "scripts/ci-paths.test.mjs",
+    "scripts/ci-paths.mjs",
+    "packages/gate-breakpoints/src/trajectory/**",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "research/notes/2026/10-2x-probe-apple-cap.md",
+    "docs/team/handoffs/probe-apple-cap.md"
+   ],
+   "title": "The Mac trajectory-probe leg can overrun its 15 min timeout since webkit-morph-walk-noise added the per-width settle retry (extraCap 8, about 19 s per extra pass): two capped widths in one leg come to about 16.5 min, and a timeout loses the whole leg (MEASURED walls 11.35 min with 0 extra, 12.3 with 1, 13.9 with 8 at 641; runs 40125557073, 40127042262). The cap in Fw/Ci/Pool/Caps.lean (probeSource) comes from the pre-retry p90 of 11.2 min, n=4. Do, Lean first: either re-derive the probe-apple cap from retry-era legs (state the sample and its p90 plus the worst-case retry bound) or bound the extra passes per leg (a per-leg budget in settle/settleWalk with theorems: total extra per leg <= budget; the leg's worst-case wall stays under the cap given the measured pass time), pick one with the reason, regenerate the goldens, update trajectory-probe.yml timeout and scripts/ci-paths.test.mjs pool caps to the Lean value, and show one Mac probe run (engine.scroll:batched, no debug recorder) with every leg inside its cap. Also move the retry-role choice (only cand retries, only with a base peer at that width) from run.mjs into Lean with a golden line, and make out.reps report the candidate's pooled passes.",
+   "evidence": "0320b2d"
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "ci-state-burst",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci-state.test.ts",
+    "lean/Fw/Ci/State.lean",
+    "lean/scripts/CiStateGolden.lean",
+    "packages/contracts/golden/ci/ci-state.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-ci-state-burst.md",
+    "docs/team/handoffs/ci-state-burst.md"
+   ],
+   "title": "fw ci state prints 'unknown' for valid older runs, so build-review gates mark them failed (seen for runs 40100783726 on ci/earn-webkit-smooth and 40125463870): stateStep (apps/runner/src/ci.ts:77) returns 'absent' when the page is full and holds a smaller id, but one push starts about 20 workflow runs whose ids are not in the order gh run list returns them, so a page boundary inside a burst hides the run (CONFIRMED: at --limit 100 the page min is 40100783603 < 40100783726; at --limit 400 the run is entry 106). Do, Lean first: model the lookup step in lean/Fw/Ci/State.lean (found, ended, older, grow, exhausted; absent only when a full page's ids are all newer than the target by more than a stated burst margin, or never), with theorems (a run present within the largest limit is found; the step terminates; absent never fires inside a burst), a golden replayed by ci-state.test.ts (this run's real id pattern as a case), and ci.ts made a twin of it. Show fw ci state 40100783726 --branch ci/earn-webkit-smooth prints complete.",
+   "evidence": "5ed10d0"
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "sim-lift-stall",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/sim-touch.test.mjs",
+    "lean/Fw/Device/SimTouch.lean",
+    "lean/scripts/SimTouchGolden.lean",
+    "packages/contracts/golden/device/sim-touch.jsonl",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-sim-lift-stall.md",
+    "docs/team/handoffs/sim-lift-stall.md"
+   ],
+   "title": "Finish-mode Simulator passes on the lift arm stall at start-up: 6 of 30 finish touch runs in run 40121254572 had 0 marks at 304 s (5 lift, 1 original), so 3 of 6 lift passes were lost while hero drags complete 18 of 18 (run 40128742749). Split from sim-touch-timeout after review round 1. Do: separate the start-up stall from the xcodebuild launch with a 'launched' mark written in setUp() before safari.activate(); check whether the lift page keeps XCUITest's idle wait open (animations or timers that never quiesce: cite Apple XCTest docs on app idle and the lift arm's page source); find the cause CONFIRMED; fix it (Lean-first if the machine changes: SimTouch.lean, golden); show a [throttle:finish] run where all 3 jobs complete every arm, lift included (run id)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-look-refused",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-accent-look-refused.md",
+    "docs/team/handoffs/accent-look-refused.md",
+    "results/accent-look-refused/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review)."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "scene-pause-kcopy",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/HeroScenePause*.lean",
+    "lean/scripts/HeroScenePause*.lean",
+    "packages/contracts/golden/parts/hero-scene-pause.jsonl",
+    "apps/site/src/parts/hero/**",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-scene-pause-kcopy.md",
+    "docs/team/handoffs/scene-pause-kcopy.md",
+    "results/scene-pause-kcopy/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "one-chain-webkit",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/HeroCountdownOneChain*.lean",
+    "lean/scripts/CountdownOneChainGolden.lean",
+    "packages/contracts/golden/parts/hero.countdown.onechain.jsonl",
+    "apps/site/src/parts/hero.countdown/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-one-chain-webkit.md",
+    "docs/team/handoffs/one-chain-webkit.md",
+    "results/one-chain-webkit/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of hero.countdown:one-chain (ledger hero.countdown.oneChain, partly-proved, WebKit unknown): find the cause of the +1 forced style recalc and +10 elements in Chromium swipe-touch-v1 frame 499 (OPEN) from the counts trace and the part source, CONFIRMED, with a Lean why (or a fix in the variant with its theorem kept); measure WebKit counts base vs flag on the CI WebKit Simulator lane, 3 runs (run ids); breakpoint gate both engines with the flag (lead dispatches); verdict win, trade or no-win per engine."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "commission-band-mech",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/CommissionOpt*.lean",
+    "packages/contracts/golden/parts/commission-gate.jsonl",
+    "packages/contracts/golden/parts/commission.jsonl",
+    "apps/site/src/parts/commission/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-commission-band-mech.md",
+    "docs/team/handoffs/commission-band-mech.md",
+    "results/commission-band-mech/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
+   ],
+   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
   }
  ],
  "deadline": {

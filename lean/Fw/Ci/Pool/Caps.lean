@@ -39,11 +39,30 @@ def Row.thin (r : Row) : Bool := r.n < minSamples
 def source : String :=
   "research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min"
 
-/-- Where the `trajectory-probe` p90 was measured (task `trajectory-probe-speed`): the two width-leg jobs of dispatch runs
-39453181962 (9.1, 11.3 min) and 39455284967 (9.2, 10.9 min), successes only. The earlier hero-only single job (3.1 and 3.8 min)
-is another workload and is not counted. Linear p90 of 9.1, 9.2, 10.9, 11.3 is 11.18, rounded up to 11.2 min. -/
+def insertNat (x : Nat) : List Nat → List Nat
+  | [] => [x]
+  | y :: ys => if x ≤ y then x :: y :: ys else y :: insertNat x ys
+
+def sortNat (xs : List Nat) : List Nat := xs.foldr insertNat []
+
+def p90dmOfSec (xs : List Nat) : Nat :=
+  let s := sortNat xs
+  let i := 9 * (s.length - 1) / 10
+  let r := 9 * (s.length - 1) % 10
+  let lo := s.getD i 0
+  let hi := s.getD (i + 1) lo
+  (10 * lo + r * (hi - lo) + 59) / 60
+
+def probeWalls : List (Nat × Nat) := [(749, 2), (686, 0), (681, 0), (737, 1), (833, 8), (734, 3)]
+
+def probePassSec : Nat := 19
+
+def probeBaseSec : Nat := (probeWalls.map fun (w, e) => w - e * probePassSec).foldl max 0
+
+def legWorstSec (widths extraCap : Nat) : Nat := probeBaseSec + widths * extraCap * probePassSec
+
 def probeSource : String :=
-  "runs 39453181962 and 39455284967 (task trajectory-probe-speed): probe-apple width legs, successes only, linear p90 rounded up to 0.1 min"
+  "runs 40122382227, 40125557073 and 40127042262 (task probe-apple-cap): the six probe-apple width legs of the settle-retry era, successes only, linear p90 rounded up to 0.1 min"
 
 /-- Where the `smoothness-webkit-*` p90 values were measured (task `smoothness-webkit-cadence`): the one job per leg of runs 39612238445,
 39617081415 and 39624728525, successes only. The mac jobs took 9.43, 10.40 and 11.22 min, linear p90 11.056, rounded up to 11.1 min; the
@@ -58,7 +77,7 @@ def rows : List Row :=
    ⟨"sim-speed", "sim-speed.yml", "probe", 20, 124⟩,
    ⟨"engine-premises", "engine-premises.yml", "webkit", 15, 56⟩,
    ⟨"gate-gaps", "gate-gaps.yml", "collect-macos", 3, 198⟩,
-   ⟨"trajectory-probe", "trajectory-probe.yml", "probe-apple", 4, 112⟩,
+   ⟨"trajectory-probe", "trajectory-probe.yml", "probe-apple", probeWalls.length, p90dmOfSec (probeWalls.map (·.1))⟩,
    ⟨"smoothness-webkit-mac", "smoothness.yml", "webkit-mac", 3, 111⟩,
    ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", 3, 342⟩]
 
@@ -79,10 +98,28 @@ theorem thin_lanes : (rows.filter (·.thin)).map (·.lane) = ["gate-gaps", "traj
 
 theorem caps_eq : rows.map (fun r => (r.lane, r.cap)) =
     [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26),
-      ("trajectory-probe", 15), ("smoothness-webkit-mac", 15), ("smoothness-webkit-sim", 45)] := by decide
+      ("trajectory-probe", 18), ("smoothness-webkit-mac", 15), ("smoothness-webkit-sim", 45)] := by decide
+
+theorem probe_walls_n : probeWalls.length = 6 := by decide
+
+theorem probe_p90 : p90dmOfSec (probeWalls.map (·.1)) = 132 := by decide
+
+theorem probe_base : probeBaseSec = 718 := by decide
+
+theorem probe_model_covers : ∀ p ∈ probeWalls, p.1 ≤ probeBaseSec + p.2 * probePassSec := by decide
+
+theorem probe_cap : capOf "trajectory-probe.yml" "probe-apple" = some 18 := by decide
+
+theorem probe_worst_under_cap :
+    legWorstSec 2 8 = 1022 ∧ legWorstSec 2 8 ≤ 60 * ((capOf "trajectory-probe.yml" "probe-apple").getD 0) := by decide
+
+theorem legWorstSec_mono {w : Nat} {a b : Nat} (h : a ≤ b) : legWorstSec w a ≤ legWorstSec w b := by
+  unfold legWorstSec
+  have := Nat.mul_le_mul_right probePassSec (Nat.mul_le_mul_left w h)
+  omega
 
 /-- The p90 values (tenths of a minute) of the golden's `vector` rows. -/
-def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 161, 198, 289, 300, 1000]
+def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 132, 161, 198, 289, 300, 1000]
 
 private def capJson (r : Row) : Json :=
   Json.mkObj [("kind", "cap"), ("lane", r.lane), ("file", r.file), ("job", r.job), ("n", r.n), ("p90dm", r.p90dm),
@@ -102,8 +139,8 @@ def goldenText : String :=
 #guard capMin 1 == 1
 #guard capMin 76 == 10
 #guard capMin 77 == 11
-#guard [119, 161, 124, 56, 198, 112].map capMin == [16, 21, 17, 8, 26, 15]
-#guard capOf "trajectory-probe.yml" "probe-apple" == some 15
+#guard [119, 161, 124, 56, 198, 132].map capMin == [16, 21, 17, 8, 26, 18]
+#guard capOf "trajectory-probe.yml" "probe-apple" == some 18
 #guard capOf "trajectory-probe.yml" "merge-apple" == none
 #guard capOf "wktr.yml" "wktr" == some 16
 #guard capOf "gate-gaps.yml" "collect-macos" == some 26

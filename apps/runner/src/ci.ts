@@ -75,10 +75,12 @@ export const STATE_LIMITS = [100, 400, 1000] as const;
 
 export type StateStep = { step: "found" | "ended" | "older" | "absent" | "exhausted" } | { step: "grow"; next: number };
 
+export const STATE_BURST = 1000;
+
 export function stateStep(narrowed: boolean, limit: number, id: number, ids: number[]): StateStep {
   if (ids.includes(id)) return { step: "found" };
   if (ids.length < limit) return { step: "ended" };
-  if (!ids.every((x) => id < x)) return { step: "absent" };
+  if (!ids.every((x) => id <= x + STATE_BURST)) return { step: "absent" };
   if (!narrowed) return { step: "older" };
   const i = STATE_LIMITS.indexOf(limit as (typeof STATE_LIMITS)[number]);
   const next = i >= 0 ? STATE_LIMITS[i + 1] : undefined;

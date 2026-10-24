@@ -21,7 +21,7 @@ Wait with `pnpm -s fw ci wait --branch ci/<name> --workflow trajectory-probe --s
 | `frames` (engines chromium, playwright-webkit) | ubuntu arm | `frames-chromium`, `frames-playwright-webkit` | Linux Chromium and Linux WebKit strips, screenshots only |
 | `probe-apple` (one leg per width) | macos-26 | `frames-apple-390`, `frames-apple-1280` | macOS Playwright WebKit strips, screenshot and screencast |
 
-`probe-apple` is the existing macOS job (no new macOS job: Lean `Fw.Ci.Pool.Caps.rows_files_nodup`, cap 15 min). On a push whose message
+`probe-apple` is the existing macOS job (no new macOS job: Lean `Fw.Ci.Pool.Caps.rows_files_nodup`, cap 18 min). On a push whose message
 carries `[frames:` its walk, `merge-apple` and the `probe` and `merge` jobs are skipped and a frames step runs in each width leg. The
 `[trajectory ...]` line picks the legs: `widths=390,1280` is two legs (Lean `Fw.Gate.Trajectory.legs`, `plan.mjs`), `engines=playwright-webkit`
 keeps the Linux Chromium plan out of the apple matrix. `Fw.Ci.Intent.macosFiles` lists `trajectory-probe.yml` (its push run holds a macOS job),
