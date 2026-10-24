@@ -3360,7 +3360,7 @@
   },
   {
    "id": "accent.same.dasharray",
-   "n": 59,
+   "n": 66,
    "part": "hero.accent",
    "flags": [],
    "chromium": "not modelled (no Lean key for stroke-dasharray)",

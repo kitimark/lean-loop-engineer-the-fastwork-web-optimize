@@ -14,7 +14,7 @@
   `clip_coverage_differs`, `glide_same`, `glide_eased`, `jump_differs`, `combo_54`, `pending_exact`,
   `stroke_pending`, `pending_nolayout`. Golden rows `search` and `combo` in
   `packages/contracts/golden/parts/hero.accent.nolayout.jsonl`.
-- Ledger: `userDecision` (rejected 2026-10-24) on n=55 and n=56, new rows n=59..65 `accent.same.*`.
+- Ledger: `userDecision` (rejected 2026-10-24) on n=55 and n=56, new rows n=60..66 `accent.same.*` (dasharray is n=66: n=59 went to engine.scroll.unthrottle on main).
 - No new flag or variant: nothing is proved same-look and WebKit layout-free.
 
 ## Follow-ups (outside this task's writes)
