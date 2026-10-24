@@ -439,7 +439,6 @@ inductive Match where
   | agree | disagree | noData
   deriving DecidableEq, Repr
 
-/-- The band of still runs for a frame gap `d`: `throttleK d` to one more, which is 5 to 6 at 60 Hz. -/
 def bandFor (d : Nat) : Nat × Nat := (throttleK d, throttleK d + 1)
 
 theorem bandFor_60hz : bandFor 1667 = (5, 6) := by decide
@@ -448,7 +447,6 @@ theorem bandFor_120hz : bandFor 833 = (12, 13) := by decide
 
 theorem bandFor_fixed : bandFor 1667 = (bandLo, bandHi) := by decide
 
-/-- Judge an arm in mode `m` against the throttled prediction `p` and the rewrite arm `base`. -/
 def judge (p : Pred) (m : Mode) (base arm : Arm) : Match :=
   if arm.frames = 0 then .noData
   else match p, m with
@@ -504,7 +502,6 @@ inductive PartVerdict where
   | agree | agreePartial | disagree | noData
   deriving DecidableEq, Repr
 
-/-- The part verdict: a disagreement anywhere decides it; else an agreement (partial when some arm has no data); else no data. -/
 def partVerdict (ms : List Match) : PartVerdict :=
   if ms.contains .disagree then .disagree
   else if ms.contains .agree then (if ms.contains .noData then .agreePartial else .agree)

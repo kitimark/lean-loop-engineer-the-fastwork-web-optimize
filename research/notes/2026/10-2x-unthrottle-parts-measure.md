@@ -49,8 +49,7 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
   `--platform-shrink`, fade `--morph-fade`.
 - Still run: consecutive frames with the same shown value, counted while the series is strictly between 0 and 1000 and
   the toolbar was moving. Band: 5-6 frames at 60 Hz. The reducer uses a cadence-aware band [K, K+1], K from the median
-  frame gap (`throttleK`). Lean `bandFor` states it, with `bandFor_60hz : bandFor 1667 = (5, 6)`; the reducer's `bandFor`
-  replays the golden `bandFor` lines.
+  frame gap (`throttleK`). Lean `bandFor` states it, with `bandFor_60hz : bandFor 1667 = (5, 6)`; the reducer replays the golden `bandFor` lines.
 - Verdict per lifted arm: Lean `verdict` against the rewrite (`lifted` needs rewrite runs at least 10 and a rate at
   most a fifth of it).
 - Agreement rule, Lean `judge` (`Fw.Device.ThrottleParts`), replayed from the golden (240 judge lines) by `parts.mjs`:
@@ -61,7 +60,7 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
   exactly 10 band runs agrees for a stills part and disagrees for a pulses part (theorems `judge_stills_throttled_agree`,
   `judge_none_boundary`). Commission is predicted pulses; its rewrite arm at exactly 10 therefore falls on disagree.
 - Modes: `drags` (hero drag mode, the toolbar-throttle lane), `finish` (sim-finish-throttle's finish mode), `rest`
-  (my addition: the page is placed 60 px above the first ramp the page finds, anchors people, commissionEnter, platform
+  (the page is placed 60 px above the first ramp the page finds, anchors people, commissionEnter, platform
   by round, 3 rounds) so that the rest-zone parts are exercised. The lane yml on this branch reproduces all three runs
   (`parts-cli.mjs`, four arms, `[throttle:rest]`, `ROUNDS`, timeouts 75 and 58 minutes).
 

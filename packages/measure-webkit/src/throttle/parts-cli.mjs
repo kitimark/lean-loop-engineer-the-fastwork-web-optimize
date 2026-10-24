@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// node src/throttle/parts-cli.mjs run --site dir [--mode drags|finish|rest] [--arms original,rewrite,lift,unthrottle] [--rounds 2] [--cycles 4] [--vm n] [--out file]
-// node src/throttle/parts-cli.mjs build-driver --dir d   build the touch driver once, before the Simulator boots
-// node src/throttle/parts-cli.mjs report --in a.json,b.json [--md file] [--json file] [--run id]   reduce one mode: per part x arm, verdict, match
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
