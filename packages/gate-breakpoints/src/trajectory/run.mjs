@@ -9,7 +9,7 @@ import { HERO_NODES, HERO_STEPS, MORPH_NODES, PAGE_PROPS, envFor, resolveNodes }
 import { debugFor, fieldOf, readDebug, withDebug } from './debug.mjs';
 import { installKit } from './kit.mjs';
 import { runCheck } from './reduce.mjs';
-import { settleReps } from './plan.mjs';
+import { pooledReps, retriesRole, settleReps } from './plan.mjs';
 
 const INIT = `${PIN_SRC}\n(${installKit.toString()})();`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -56,7 +56,8 @@ export const pushReading = (phases) => ({ opening: (phases.open ?? []).map((r) =
  * pushes read only the lean properties of the registry in every frame (the holds and the approach read everything).
  * The tween is driven by time, so one push lands about two frames per tenth of the morph value and sometimes none. With `reps`
  * above 1 the whole path is walked on a fresh page that many times and the rows of each phase are pooled (every row carries
- * its `rep`; the approach is the first rep's). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
+ * its `rep`; the approach is the first rep's). With `against` (the candidate, Lean `retries`) the settle retry adds extra
+ * passes and `out.reps` reports every pooled pass (`reps + extra`). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
  * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
  * union of the windows of the original's reps, each aligned on its own.
  */
@@ -79,6 +80,7 @@ export async function morphPath(engine, env, origin, site, search = '', reads = 
       return pushReading((await walk(reps + i)).phases);
     });
     out.extra = extra;
+    out.reps = pooledReps(reps, extra);
   }
   // The recorder's rows of every rep (null rows: the page did not install it), next to the readings; the reducer never reads them.
   if (debug !== '') out.debugReps = debugReps;
@@ -149,7 +151,7 @@ export async function runLane({ engineName, widths, search = '', paths = ['hero'
         if (paths.includes('morph')) {
           log(`trajectory ${engineName} ${width} ${a.role}: morph`);
           const peer = (role) => runs.find((r) => r.width === width && r.role === role)?.morph;
-          const against = a.role === 'cand' && peer('base') ? { base: pushReading(peer('base').phases) } : null;
+          const against = retriesRole(a.role, peer('base') !== undefined) ? { base: pushReading(peer('base').phases) } : null;
           run.morph = await morphPath(engine, e, a.origin, a.site, a.search, reads, reps, a.site === 'rewrite' ? debug : '', against);
         }
         runs.push(run);

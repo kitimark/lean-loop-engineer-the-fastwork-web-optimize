@@ -56,6 +56,12 @@ export const gapCount = (b, c) => gapsIn(b.opening, c.opening).length + gapsIn(b
 
 export const moreReps = (extra, b, c) => extra < EXTRA_CAP && gapCount(b, c) !== 0;
 
+/** Whether an arm may walk extra passes: only the candidate, and only when the base arm of its width has been walked (Lean `retries`). */
+export const retriesRole = (role, hasBase) => role === 'cand' && hasBase;
+
+/** The candidate passes in the pool of an arm: the declared reps and its extra passes (Lean `pooledReps`). */
+export const pooledReps = (reps, extra) => reps + extra;
+
 export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closing: a.closing.concat(b.closing) });
 
 export async function settleReps(b, c0, walk) {

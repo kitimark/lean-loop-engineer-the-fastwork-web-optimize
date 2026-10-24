@@ -553,7 +553,7 @@ const capRows = readFileSync(join(root, 'packages/contracts/golden/ci/pool-caps.
 
 test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim is excluded', () => {
   assert.deepEqual([...capTable.caps], [['wktr.yml wktr', 16], ['wktr-fixtures.yml fixtures', 21], ['sim-speed.yml probe', 17],
-    ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26], ['trajectory-probe.yml probe-apple', 15],
+    ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26], ['trajectory-probe.yml probe-apple', 18],
     ['smoothness.yml webkit-mac', 15], ['smoothness.yml webkit-sim', 45]]);
   assert.deepEqual([...capTable.excluded], ['path-pix.yml', 'toolbar-throttle.yml', 'webkit-sim.yml', 'chrome-crash-probe.yml', 'font-fidelity.yml']);
   for (const [key, cap] of capTable.caps) {
@@ -571,7 +571,7 @@ test('pool caps: every cap is at least 1.3 x its p90 and the least such minute; 
     assert.ok(r.p90dm <= 10 * r.capMin);
   }
   assert.ok(capRows.some((r) => r.kind === 'vector' && r.p90dm === 289 && r.capMin === 38));
-  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3], ['trajectory-probe', 4], ['smoothness-webkit-mac', 3], ['smoothness-webkit-sim', 3]]);
+  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3], ['trajectory-probe', 6], ['smoothness-webkit-mac', 3], ['smoothness-webkit-sim', 3]]);
 });
 
 test('lint: a drifted or missing cap timeout is reported and set back by --write', () => {
