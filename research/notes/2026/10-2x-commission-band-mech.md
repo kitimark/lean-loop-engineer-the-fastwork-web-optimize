@@ -15,8 +15,9 @@ artifact read), MEASURED (CI), INFERRED.
 - The WebKit saving at y 3500-4500 (RecalculateStyles 152/154 -> 106/101) is the same mechanism as at y 2500-3500, not noise and
   not a second one. The old claim "the model predicts no moving follower there" was wrong: the model never fixed a scroll window.
   The Chromium window 3070 <= scrollY < 3530 was one phone height (932 px) read off a class-toggle spike, and the follower has
-  two bands (enter and exit), not one. At 430x775 the exit band lies at y 3424-3812 (measured section rect, below), which is the
-  3500-4500 window. MEASURED, 2 passes per arm agree step for step.
+  two bands (enter and exit), not one. On the Chromium rect at 430x775 the exit band lies at y 3424-3812 (measured section rect, below); on the WebKit page it
+  starts at about 3600 (INFERRED from a model fit to the counts, no WebKit rect read). MEASURED: base passes agree within 1 per
+  step; flag passes within 3 per step.
 - PROVED (`Fw.Parts.CommissionOptWindow.skip_in_band`): the variant skips the two writes of event k only if one of the last 29
   events (k included) lay inside a band. `quiet_run`: 29 events at one target pair settle both followers (0.78^29 < 8e-4).
 - The window is now a Lean-generated constant: `lean/Fw/Parts/CommissionOptLayout.lean` holds the commission section and card rects
@@ -75,17 +76,19 @@ non-compact rows are listed in the golden but the variant never skips there (`no
 In-session check of the rect (MEASURED, push 1, runs 40139371262 r1 and r2, profile `commission-rect-v1` = swipe-v1 plus
 `cardProbe` on the section and the card, replay pass after the counted pass; the run used the file from
 `packages/measure-chromium/profiles` at `ci/commission-band-mech-1` @1b71d5581, kept here as
-`results/commission-band-mech/commission-rect-v1.profile.json`): at 430x932 the section top is 3193.859375 and its
-height 1202.953125 in all 575 frames of both runs, the card equals the section. The gate's first read (3193.859375, 1202.953125)
-is the same to the last digit, so a rect read at rest is the rect of the scroll in this layout.
+`results/commission-band-mech/commission-rect-v1.profile.json`): at 430x932 the section document top is 3193.859 and its
+height 1202.953 (the probe rounds to 0.001 px) in all 575 frames of both runs, the card equals the section. This equals the gate
+read 3193.859375 / 1202.953125 at that precision, so a rect read at rest is the rect of the scroll in this layout.
 
 ## What the counts show against the model
 
 Chromium (HEAD build, base arm, runs 40139371262 r1 and r2, 10 px per frame, 430x932). The measured rect puts the model's moving
 frames at y 2810-3310 (enter band 2802-3138 plus its tail) and y 3620-4220 (exit band 3605-4071 plus its tail). Per frame
-RecalcStyleCount and restyled elements in the base arm: 2800 -> 3 / 42, 2810 -> 4 / 74, 2820 -> 5 / 116 (up), back to 3 / 45 at
-y 3320 (the model ends at 3310); the second run starts at 3610 (5 / 99, model 3620) and ends at 4120-4130 in the element count.
-Edges agree within one 10 px frame. The one-frame lead at 3610 is the snap: the first frame with a target change below 8e-4 writes
+RecalcStyleCount and restyled elements in the base arm: 2800 -> 3 / 42, 2810 -> 4 / 74, 2820 -> 5 / 116 (up), RecalcStyleCount
+drops 5 -> 3 at y 3220 (the model ends at 3310; 3320 is the element count's second step, 63 -> 45); the second run starts at
+3610 (5 / 99, model 3620) and ends at 4130 (RecalcStyleCount 6 -> 4, elements 133 -> 65; model 4220). Start edges agree within
+one frame (2810/2810, 3610/3620); end edges fall 90-100 px before the model (3220 vs 3310, 4130 vs 4220): the measured restyle
+tail is shorter than the model's settle tail, cause open (INFERRED). The one-frame lead at 3610 is the snap: the first frame with a target change below 8e-4 writes
 the snapped value, which the base arm sees as a changed property and the model does not call "moving".
 
 The older runs (flag 39843560957, base 39837044649, commit 2a74101) saw one contiguous run 2700-3590 and no second run. Their
@@ -94,7 +97,7 @@ for card top 3076 and section bottom 3768 (search over card top, bottom and view
 layout of that commit. The earlier window was one layout's enter tail, so it never showed the exit band.
 
 WebKit (iOS Simulator 430x775, 50 px steps, 2 frames per step, 2 passes; base run 39837001915, flag run 39843567401),
-RecalculateStyles per step, base against flag, both passes (same per step in both passes):
+RecalculateStyles per step, base against flag, both passes (base passes agree within 1 per step; flag passes within 3 per step):
 
 | y | 2700-3250 | 3600-4200 |
 |---|---|---|
@@ -102,12 +105,13 @@ RecalculateStyles per step, base against flag, both passes (same per step in bot
 | base per step | 7-10 | 8-10 |
 | flag per step | 4-6 (one step at 8) | 4-7 |
 
-Outside these two runs base and flag differ by less than 1.5 per step on the average of the two passes except three isolated steps
-(y 200, 300, 900; page top, not the commission). The model with the measured 430x775 rect (golden `scrollTrace`) skips at y 2600-4350: the observed runs lie inside it,
+Outside these two runs 22 steps differ by 1.5 or more per step (mean of 2 passes). At 19 of them the flag arm is higher
+(1600-1850 and 4500-4750 by 1.5-3). The arms differ by 15-30 RecalculateStyles per 1000 px where the flag changes nothing
+(0-2500: 296/298 base, 328/311 flag), and their pages differ by 36 px (docH 6042 base, 6006 flag). MEASURED, one session per arm. The model with the measured 430x775 rect (golden `scrollTrace`) skips at y 2600-4350: the observed runs lie inside it,
 as `skip_in_band` demands. The WebKit page is not the Chromium page: a fit of the model to the 107 WebKit steps (scratch only)
-gives card top about 2925 and section height about 1250 against the gate's 2880 and 1203, and a gap at y 3300-3550 that the
-upper bound does not show (the real tail is shorter than 28 events). The saving at y 3500-4500 is therefore the exit band, which
-starts at y 3424 on the measured rect and at about 3600 on the WebKit page.
+gives card top about 2925 and section height about 1250 against the gate's 2880 and 1203, and a gap at y 3300-3550; the exact model on the gate rect shows no gap at 3300-3550, and the WebKit gap is INFERRED to come
+from WebKit's own geometry (scratch fit, not committed). The saving at y 3500-4500 is therefore the exit band, which
+starts at y 3424 on the measured Chromium rect and at about 3600 on the WebKit page (INFERRED).
 
 ## Why a skipped write saves a style recalculation (WebKit source, WebKit-7625.1.29.10.29 @862f17d)
 
