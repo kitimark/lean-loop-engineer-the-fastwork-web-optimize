@@ -2,7 +2,7 @@
 
 Task `react-root-quiet-events`. Answer first.
 
-- CONFIRMED (CI run 40122201939, trajectory-probe, recorder `fw-debug=root-events`): the React root registers 14 listeners
+- CONFIRMED (CI runs 40122201939 and 40124553279, trajectory-probe, recorder `fw-debug=root-events`): the React root registers 14 listeners
   for the 7 animation and transition types (capture and bubble each) in every rewrite arm; all 7 types are dispatched in a
   walk of the page (WebKit on macOS 390: about 490 events, 1280: about 660; Chromium about 790 and 810). Hence
   about 2 EventDispatch and 2 FunctionCall records per event, the "batches of 2" of the Simulator pass.
@@ -52,11 +52,11 @@ with a recording container), `quietRegs` drops the 7 types. One theorem per dire
 | 14 listeners dropped | `dropped_count` |
 | records per event: 2 before, 0 after, unchanged for other types | `records_orig`, `records_quiet`, `records_other` |
 
-Golden `packages/contracts/golden/parts/react-root-quiet.jsonl` (104 lines), replayed by `quiet.golden.test.ts`: the
+Golden `packages/contracts/golden/parts/react-root-quiet.jsonl` (104 lines), replayed by `quiet.scan.test.ts`: the
 `registered` rows are compared with what the real `createRoot` registers on a recording container, with and without
-`quietContainer`. `quiet.gen.ts` is generated from Lean (`#guard` against the file bytes in the module).
+`quietContainer`. `quiet.gen.ts` (the types and the shim) is generated from Lean and checked by the check.sh job "react-root-quiet golden check".
 
-## Measurement (MEASURED, run 40122201939, diagnostic, 5 walks per arm)
+## Measurement (MEASURED, run 40122201939, diagnostic, 5 walks per arm; run 40124553279 repeats it with the same registrations: 14 and 0 in every walk)
 
 Lane: `trajectory-probe` on a `ci/` push, `[trajectory fw=engine.events:quiet widths=390,1280 engines=both debug=root-events
 diagnostic]` (read back from the artifact `trajectory-inputs`). The recorder (`apps/site/src/debug/root-events.ts`) counts
@@ -79,10 +79,11 @@ By type (WebKit macOS 390 base, median): animationiteration 151, transitionrun 7
 transitionend 60, animationend 39, transitioncancel 19. Every one of the 7 is dispatched, so there is no type to leave
 registered. The event count is the same with and without the flag (the events do not depend on the listener).
 
-The probe's rest-state verdicts are diagnostic and not the gate. The macOS legs report coverage-only differences
-between base and cand (390: 84 coverage units, 4 content units in the morph path; 1280: undecided) and Chromium 1280 one
-content unit. The flag registers nothing the page reads, so these are read as sampling noise of a slow runner; the second
-push repeats the line to see whether they recur (see the handoff). The breakpoint gate decides.
+The probe rest-state verdicts are diagnostic and not the gate. The macOS legs report differences between base and cand
+that differ from run to run: run 40122201939 has 88 new units at 390 (84 coverage, 4 content) and 0 at 1280; run 40124553279 has 42 at 390
+(coverage) and 43 at 1280 (42 coverage, 1 content). Chromium 1280 had 1 new content unit in the first run and 0 in the second.
+The flag registers nothing the page reads, so these read as the sampling noise of the macOS witness (docs/team/tools/trajectory-probe.md
+lists its nav reads as noisy). The breakpoint gate decides.
 
 ## Chromium
 
