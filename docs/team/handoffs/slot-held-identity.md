@@ -12,7 +12,7 @@ State
 - Docs: `docs/team/tools/slot.md` nested-run rule and the count.
 
 Count (MEASURED, time match): 133 of 760 unlocked; 114 within 60 s of a lead `FW_SLOT_HELD=1 sh land-rNNN.sh` call, 122
-within 10 min, so 11-19 other callers. Spans carry no caller; the match is by the lead transcript's tool-call times.
+within 10 min. INFERRED: the other 11-19 came from other callers (no caller field; long lead scripts may account for some). Spans carry no caller; the match is by the lead transcript's tool-call times.
 
 Open
 - The contention note (research/notes/2026/10-2x-land-dry-contention.md) is outside the task writes: the count is in slot.md only; a paragraph under its Serialization section is a lead follow-up.

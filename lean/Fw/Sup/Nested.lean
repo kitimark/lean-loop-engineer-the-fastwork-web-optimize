@@ -3,6 +3,7 @@ import Fw.Sup.Adapt
 /-! A `fw slot run` started inside another slot's command: when it may skip the queue (docs/team/tools/slot.md). -/
 namespace Fw.Sup.Adapt
 
+/-- A nested run skips the queue iff its parent names a live held entry of the same kind, owner and token. Live means the lease has not expired (`live`, now < till; the parent's run renews it every leaseS/3); the owner's pid and start time are not checked, so a dead parent's token covers a child until its lease lapses. -/
 def nestedSkips (now : Nat) (kind : Kind) (named : Option (String × String)) (held : List Entry) : Bool :=
   match named with
   | none => false
