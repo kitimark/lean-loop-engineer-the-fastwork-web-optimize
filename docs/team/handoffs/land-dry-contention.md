@@ -19,7 +19,7 @@
 - Lean: landDryLoad doc, theorem/case names no longer claim 'hides no regression', `dryLandMax` in params encoder and Wire paramsOf (golden row pins it), Health headline.
 
 ## Verified
-- `lean/scripts/check.sh` green; @fw/runner 3291 tests, @fw/contracts 11, ci-paths 56; plan lint: no writesClosure error for this task.
+- `lean/scripts/check.sh` green; @fw/runner 3300 tests, @fw/contracts 11, ci-paths 56; dry land VERDICT dry land-dry-contention; plan lint: no writesClosure error for this task.
 
 ## Open
 - Writes outside the task: `lean/Fw/Obs/Health.lean` (`sysContended_iff_sample` gains `s.dryLand = false`),
