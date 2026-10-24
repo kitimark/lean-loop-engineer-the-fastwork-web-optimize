@@ -66,7 +66,7 @@ The report tables call the arm `crop`.
   The tool's per-window verdict is unresolved:overlap for every rest window too (swap-report.md); the halving is the pooled count over the 7 rest windows of 2 jobs, not a per-window resolved result.
 - Swap windows: no change. The tool's per-window verdict is `unresolved:overlap` for all 8 windows and 4 kinds (`swap-report.md`);
   a swap window's 13 Layout frames are the carousel's own, and the accent draw is not what fills them. The end-of-page swap windows
-  therefore gain nothing from this arm; the gain is in the quiet windows between swaps.
+  gain nothing from this arm; the gain is in the quiet windows between swaps.
 - Hero exit (scroll A): the lane records frame cadence, Paint and Composite time per frame and the layer census, not Layout events.
   Against the baseline run 39983630584 (hero.accent faithful, other flag people.carousel:crop) all ranges overlap (`cost-report.md`).
   NOT DELIVERED: Layout per hero-exit frame (needs a Layout-event lane; packages/measure-webkit was out of bounds here).
@@ -103,8 +103,8 @@ class, so the width changes once. Faithful and draw-nolayout are unchanged (the 
 ## Measurement (MEASURED, run 40010826238, commit 3c1ab9970, webkit-sim swap lane, 430x775, jobs r1 r2 with 2 passes each)
 Push with `[ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]` (a first push without `[ci:webkit-sim]` was skipped by the guard, run 40010696479;
 it is not a dispatch). Job r3 did not finish and the run was cancelled, which skipped the report jobs; the report was built from the r1 and r2
-artifacts with `node src/lag/cli.mjs swap-report --files r1-lag.json,r2-lag.json` (the same command reproduces the committed run-39999057900 numbers).
-The report tables call the arm `crop`.
+artifacts with `node src/lag/cli.mjs swap-report` (the command below; without --arm the same files reproduce the committed run-39999057900 numbers).
+Command: swap-report --arm hero.accent:draw-nolayout-full --files r1-lag.json,r2-lag.json --sources "run 40010826238 commit 3c1ab9970 jobs r1 r2" --summary summary-full.json (that run predates the search field, so the label is given by hand; runs from this task carry it).
 
 | window class | metric | faithful-a | faithful-b (A/A) | draw-nolayout (run 39999057900) | draw-nolayout-full |
 |---|---|---:|---:|---:|---:|
@@ -124,3 +124,74 @@ The report tables call the arm `crop`.
 - The text jump is the look change; the user judges it. draw-nolayout keeps the glide.
 - The pushed commit wrote `[data-fw-draw^='nolayout']`; the later commit writes `:is()` of the two values (same elements; the hero.exit
   cascade test does not parse `^=`).
+
+# Three arms in one run: Layout per hero-exit scroll frame (task accent-nolayout-measure)
+
+## Premise: `transition: none` makes the width one change (cites file:line@sha)
+CONFIRMED in the engine source, pins WebKit@862f17d and Chromium@f842f52 (`.cache/upstream/`):
+- WebKit `Source/WebCore/style/Styleable.cpp`: `updateCSSTransitions` :761 (called from `style/StyleTreeResolver.cpp:856`) walks the new style per property
+  (`updateCSSTransitionsForStyleableAndProperty` :570). `hasMatchingTransitionProperty` is built from `newStyle.transitions()` :586-601 and
+  `transitionMatchesProperty` :499 returns false for `CSS::Keyword::None` :508. A transition starts only if there is a match and the duration is above
+  zero :648; with no match a running transition is cancelled and the function returns (:683-691). So with `transition: none` the style change to the new
+  width is a single computed-value change and no per-frame animated width exists.
+- Chromium `third_party/blink/renderer/core/animation/css/css_animations.cc`: `CalculateTransitionUpdate` :3076 calls
+  `CalculateTransitionUpdateForProperty` :2928-2945, where `kTransitionNone` falls to `default: break` :2942 (no transition is created);
+  a start delay plus duration of at most zero calls `UnstartTransition` and returns :2850-2858. `css/resolver/css_to_style_map.cc:471` maps the
+  keyword `none` to `kTransitionNone`.
+- Site side (INFERRED from our source): `hero.accent/index.tsx` onCursor sets `em.style.width` in the same task as the `drawingIn` class (lines 67-81);
+  `accent.module.css` gives `.drawingIn { transition: width .9s }` (:12-14) and `[data-fw-draw='nolayout-full'].drawingIn { transition: none }` (:76-78).
+  The draw probe below counts `transitionrun` for width per capture to MEASURE this per arm.
+
+## Draw-only freeze (`--freeze hero-accent-draw`)
+`src/lag/freeze.mjs` `FREEZE_DRAW_CSS` removes only the draw: path animations, the svg clip animation of `drawingIn` and `drawingOut`, and the width
+transition, all scoped to `[data-fw="hero-accent"]`. The idle boil keeps running. The mode counts `animationstart` (`stroke|clip` In|Out) and width
+`transitionrun` in `window.__fwDraw`; the unfrozen twin only counts. Lean `busyFrozen` (golden `swapBusyFrozen`) decides each window of unfrozen busy
+samples against frozen samples.
+
+## Lane (`--accent`, token `[swap-accent]`)
+13 units per job (Lean `laneUnits`, golden `swapLaneUnits`): faithful, draw-nolayout and draw-nolayout-full at one build, arm order shifted by the VM
+number, hero-exit zone captures aligned (slot a) and natural (slot b), one draw-frozen faithful pass. Lane budget 24 min (Lean `laneBudgetMin`); a unit
+that no longer fits is listed as skipped, never silently dropped. Layout per scroll frame is `perFrameMilli` (rows over frames, thousandths).
+`accent-report` prints per-window verdicts against the faithful A/A floor, the frozen comparison, the pooled numbers and the zone verdicts per pair.
+
+## Result, run 40030735082 (MEASURED, commit 7e3e5fc96, webkit-sim, 430x775, jobs r1 r2 r3 all success, 13 units each, none failed or skipped)
+Report: `results/accent-draw-nolayout/accent-report-40030735082.md` (and `.json`). Zone = hero-exit scroll region A, 32 frames per capture, 3 aligned + 3 natural captures per state.
+
+| state | Layout rows per scroll frame | Layout median per capture (min..max) | width transitions started |
+|---|---:|---|---:|
+| faithful | 2.385 | 81.5 (56..85) | 28 in 6 captures |
+| draw-nolayout | 1.807 | 58 (51..65) | 11 |
+| draw-nolayout-full | 1.807 | 55.5 (53..71) | 0 |
+| faithful, draw-only freeze | 1.990 | 61 (53..78) | 0 |
+
+- Zone verdicts (Lean `zoneVerdict`, ranges separated): all 6+6 captures overlap for every pair; the aligned group (scroll starts inside a draw, 3+3) separates:
+  faithful against draw-nolayout lower, 32% of the median; against draw-nolayout-full lower, 36%; against the draw-frozen faithful lower, 31%. Natural group: overlap.
+  Paint: overlap for the arms; the draw-frozen faithful is lower than faithful in the aligned group (7%).
+- `transition: none` removes the width transition in every capture (0 of 6 captures start one; faithful 28), the measured side of the premise above.
+- Rest windows (pooled over 3 jobs): busy windows (at least 24 Layout rows) faithful 27 of 42, draw-nolayout 6 of 21, full 0 of 21, draw-frozen 0 of 21;
+  Layout rows per capture 218.5, 109.0, 19.7, 21.0; medians 43, 5, 2, 3. Per-window verdicts against the A/A floor: nolayout Layout wins 3 of 7 rest windows, full 5 of 7; all 8 swap windows unresolved:overlap.
+- Unfrozen busy samples against frozen samples (Lean `busyFrozen`): rest windows 1 and 4 (the busy ones) `removed` by the freeze; swap windows overlap or have no busy sample.
+- Harness defect: the draw-start counter matched animation names exactly (`strokeIn`), the built site hashes keyframe names, so it counted 0 animation starts in every arm (the width transition counter is not affected). Fixed in commit a3bb8cd67 (`DRAW_ANIMS` without the start anchor); run 40035116432 repeats the lane.
+
+## Result, run 40035116432 (MEASURED, commit a3bb8cd67, same lane, jobs r1 r2 r3 all success, 13 units each, none failed or skipped)
+Report: `results/accent-draw-nolayout/accent-report-40035116432.md`. Not pooled with the run above (different commit; the page and arms are the same build, only the draw counter changed).
+
+| state | Layout rows per scroll frame | Layout median per capture (min..max) | draw starts (animations / width transitions), 6 captures |
+|---|---:|---|---|
+| faithful | 2.443 | 79 (72..83) | 66 / 10 |
+| draw-nolayout | 1.771 | 54.5 (51..66) | 19 / 9 |
+| draw-nolayout-full | 1.781 | 56.5 (50..65) | 96 / 0 |
+| faithful, draw-only freeze | 1.911 | 59.5 (54..68) | 0 / 0 |
+
+- Zone verdicts (Lean `zoneVerdict`): all 6+6 captures, faithful against draw-nolayout lower (31% of the median), against draw-nolayout-full lower (28%), against draw-frozen faithful lower (24%);
+  the two arms against each other overlap. The same Layout verdicts hold in the aligned and the natural group (3+3 each, 22% to 31%). Paint: overlap, except the draw-frozen faithful in the aligned group (lower, 29%).
+- Rest windows (pooled over 3 jobs): busy windows faithful 27 of 42, draw-nolayout 7 of 21, full 0 of 21, draw-frozen 0 of 21; rows per capture 223.7, 128.3, 21.7, 22.0; medians 45.5, 5, 3, 3.
+  Per-window verdicts: full wins Layout in 2 of 7 rest windows, nolayout 0; every swap window is unresolved:overlap. Swap windows pooled: 109.0 faithful, 111.7 nolayout, 110.7 full rows per capture, so no swap-window difference is resolved.
+- Both runs agree: per scroll frame Layout falls from about 2.4 to about 1.8 (-25%) for both arms and to about 1.9-2.0 with the draw frozen; the full arm adds nothing over draw-nolayout inside the zone (overlap in both runs);
+  it differs only in the rest windows (0 busy windows against 6 and 7) and in the width transition (0 started).
+- The animation counter now matches hashed names. It counts animationstart per element (faithful: one per path; arms: one per .frame0), so counts compare captures within an arm, not across arms. 52 of the full arm's 96 come from one capture (r1 full-b).
+
+## Limits of this measurement
+- The CI Simulator is not the phone. 3 jobs of one pass each per run, two runs; ranges of 3 captures per group are wide (natural group of run 1 overlaps, of run 2 separates).
+- Rows per scroll frame are Timeline Layout rows over the 32 frames of scroll region A; the pixel sameness and the look review are the user's.
+- Item 2 (the path-pix draw window) is not part of this round.
