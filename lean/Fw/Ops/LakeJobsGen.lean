@@ -23,6 +23,7 @@ def rows : List (String × String × Bool × List String) := [
   ("webkit-sim.yml", "fwcore", false, ["fwcore"]),
   ("webkit-sim.yml", "site", false, ["breakgen"]),
   ("wktr-fixtures.yml", "fwcore", false, ["fwcore"]),
+  ("wktr.yml", "site", false, ["breakgen"]),
   ("wktr.yml", "fwcore", false, ["fwcore"])]
 
 /-- (module, Lake target): a job target that is a module, and a target whose root imports it. -/
