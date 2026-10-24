@@ -110,7 +110,7 @@ describe("GET /api/compose over the real registry and ledger", () => {
     const gpu = r.parts.flatMap((p: any) => p.variants.map((x: any) => [`${p.id}:${x.name}`, x.gpu])) as [string, string | null][];
     expect(gpu.filter(([, g]) => g !== null).map(([k]) => k).sort()).toEqual(
       ["hero.countdown:strip", "hero.exit:threaded", "hero:scene-pause", "morph.columns:idle-none", "morph.countdown:strip", "morph.panel:const-bounds",
-        "morph.panel:threaded", "nav:bar-fixed", "nav:clip-box", "nav:logo-3d", "pain:dark-scroll", "people.o:preview-translate", "platform:fade-threaded"]);
+        "morph.panel:threaded", "nav:bar-fixed", "nav:clip-box", "nav:logo-3d", "pain:dark-scroll", "people.carousel:crop", "people.o:preview-translate", "platform:fade-threaded"]);
     const eng = (k: string) => r.parts.flatMap((p: any) => p.variants.map((x: any) => [`${p.id}:${x.name}`, x.gpuEngines])).find(([a]: string[]) => a === k)[1];
     expect(eng("platform:fade-threaded")).toBe("WebKit only");
     expect(eng("hero.exit:threaded")).toBe("both engines");

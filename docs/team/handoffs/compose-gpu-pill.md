@@ -3,7 +3,7 @@
 Branch: worktree-wf_74c62bb3-3eb-1. Worktree: .claude/worktrees/wf_74c62bb3-3eb-1. No CI run pushed (none needed; accepted limit).
 Revive round 2026-10-24: main merged (no conflicts), list re-decided, goldens regenerated from Lean.
 
-State: lean/Fw/Parts/Gpu.lean lists 13 (part, variant) entries, each with an engine split (`Engines`: both, webkit, chromium),
+State: lean/Fw/Parts/Gpu.lean lists 14 (part, variant) entries, each with an engine split (`Engines`: both, webkit, chromium),
 a mechanism and a ledger row `n` (index into research/findings/ledger.json, 2026-10-24). Fw.Wire.Compose.varJson emits `gpu`
 (mechanism) and `gpuEngines` (label). Compose.tsx shows a GPU pill and "GPU (engines): mechanism" text per variant.
 cmpReal in lean/Fw/Ops/Golden.lean is regenerated from the current registry and ledger (JSON of apps/console-api
