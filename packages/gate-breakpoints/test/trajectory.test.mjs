@@ -8,7 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFamEach, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { main, summaryMd } from '../src/trajectory/cli.mjs';
-import { basisAt, cellOutcome, COARSE_ONLY, mergeRaws, planOf, probeCoarse } from '../src/trajectory/plan.mjs';
+import { basisAt, cellOutcome, COARSE_ONLY, EXTRA_CAP, gapCount, gapsIn, mergeRaws, moreReps, planOf, probeCoarse, settleReps } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS, envFor } from '../src/trajectory/registry.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory.jsonl', import.meta.url)), 'utf8')
@@ -120,7 +120,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit', 'cell', 'cellEnv'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit', 'cell', 'cellEnv', 'retry', 'settle', 'settleConst'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -181,7 +181,7 @@ test('the CSS reader keys a rule by its selector and reads its transitions', () 
 });
 
 for (const g of golden) {
-  test(`golden ${g.op}: ${g.name}`, () => {
+  test(`golden ${g.op}: ${g.name}`, async () => {
     if (g.op === 'els') assert.equal(judgeEls(g.kind, g.win, g.r), g.verdict);
     else if (g.op === 'window') assert.deepEqual(windowOf(g.ms, g.m), g.idx);
     else if (g.op === 'bucket') assert.equal(bucket(g.m), g.bucket);
@@ -217,6 +217,19 @@ for (const g of golden) {
       const s = { engine: g.engine, walk: g.walk, flags: g.flags, widths: g.widths, groups: g.groups };
       assert.deepEqual(WIDTHS.map((w) => basisAt(g.flags, w)), g.basis, g.name);
       assert.equal(cellOutcome(s), g.outcome, g.name);
+    } else if (g.op === 'settleConst') assert.equal(EXTRA_CAP, g.extraCap);
+    else if (g.op === 'retry') {
+      assert.deepEqual(gapsIn(g.b.opening, g.c.opening), g.gapsOpening);
+      assert.deepEqual(gapsIn(g.b.closing, g.c.closing), g.gapsClosing);
+      assert.equal(gapCount(g.b, g.c), g.gaps);
+      assert.equal(moreReps(0, g.b, g.c), g.more);
+      assert.equal(moreReps(EXTRA_CAP, g.b, g.c), g.moreCap);
+    } else if (g.op === 'settle') {
+      const none = { opening: [], closing: [] };
+      const r = await settleReps(g.b, g.c, async (i) => g.passes[i] ?? none);
+      assert.equal(r.extra, g.extra);
+      assert.equal(gapCount(g.b, r.c), g.gaps);
+      assert.deepEqual(r.c, g.pool);
     } else if (g.op === 'byMStart') {
       const d = (cls) => durOf(g.node, g.prop, g.width, cls);
       assert.deepEqual(byMStart(g.phase, g.p, g.kind, d, startFor(g.node, g.prop, g.width), g.oSeg, g.wSeg).map((x) => x[1]), g.verdicts);

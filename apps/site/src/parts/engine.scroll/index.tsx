@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { configureScroll } from '../../engine/scroll';
+import { configureScroll, getScrollEngine } from '../../engine/scroll';
 import type { ScrollVariant } from './logic';
+import { installFollow, windowFollowEnv } from './follow';
 import { installThrottleLift } from './throttle';
 import { installUnthrottle } from './unthrottle';
 
@@ -14,7 +15,14 @@ export function EngineScroll({ variant }: { variant: string; impl?: 'mui' | 'pla
     configureScroll(variant === 'batched' ? ('batched' satisfies ScrollVariant) : 'faithful');
   }, [variant]);
   useEffect(() => (variant === 'throttle-lift' ? installThrottleLift(document) : undefined), [variant]);
-  useEffect(() => (variant === 'unthrottle' ? installUnthrottle(document) : undefined), [variant]);
+  useEffect(
+    () => (variant === 'unthrottle' || variant === 'unthrottle-follow' ? installUnthrottle(document) : undefined),
+    [variant],
+  );
+  useEffect(
+    () => (variant === 'unthrottle-follow' ? installFollow(getScrollEngine(), windowFollowEnv) : undefined),
+    [variant],
+  );
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.fw = 'engine-scroll';

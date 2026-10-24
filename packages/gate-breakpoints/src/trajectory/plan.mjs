@@ -3,7 +3,7 @@
 // TS twin (checked against the golden by test/trajectory.test.mjs). It imports nothing but reduce.mjs, so the workflow's plan step
 // runs it with plain node (no install). `mergeRaws` is glue: it joins the raw readings of the legs of one engine.
 import { pathToFileURL } from 'node:url';
-import { ALLOWED_WIDTHS, pickWidths } from './reduce.mjs';
+import { ALLOWED_WIDTHS, bucket, needsSample, pickWidths } from './reduce.mjs';
 
 /** The engines of a dispatch's `engines` input: macOS WebKit runs with every WebKit. Null when refused. */
 export function enginesOf(input) {
@@ -45,6 +45,25 @@ export const inactiveAt = (flags, w) => flags.length > 0 && flags.every((f) => C
 
 /** What a width of a run rests on: its readings, or the proof that it equals its faithful arm there (Lean `basisAt`). */
 export const basisAt = (flags, w) => (inactiveAt(flags, w) ? 'same-by-proof' : 'measured');
+
+export const EXTRA_CAP = 8;
+
+export const hitIn = (ms, k) => ms.some((m) => bucket(m) === k);
+
+export const gapsIn = (b, c) => Array.from({ length: 11 }, (_, k) => k).filter((k) => needsSample(k) && hitIn(b, k) && !hitIn(c, k));
+
+export const gapCount = (b, c) => gapsIn(b.opening, c.opening).length + gapsIn(b.closing, c.closing).length;
+
+export const moreReps = (extra, b, c) => extra < EXTRA_CAP && gapCount(b, c) !== 0;
+
+export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closing: a.closing.concat(b.closing) });
+
+export async function settleReps(b, c0, walk) {
+  let extra = 0;
+  let c = c0;
+  while (moreReps(extra, b, c)) { c = poolPush(c, await walk(extra)); extra++; }
+  return { extra, c };
+}
 
 /** A group repeats when its new units fall at two or more widths (Lean `repeats`). */
 export const repeats = (ws) => new Set(ws).size >= 2;
