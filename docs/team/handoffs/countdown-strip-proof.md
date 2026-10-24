@@ -1,7 +1,7 @@
 # countdown-strip-proof handoff
 
 - Branch `worktree-wf_193723c6-362-1`, worktree `.claude/worktrees/wf_193723c6-362-1`; main merged at cb27c5e0,
-  gate verdict recorded at 7c7487fa (note, ledger row `proved`, v2-proved preset golden regenerated: stale on main).
+  gate verdict recorded at 7c7487fa (note, ledger row `proved`).
 - CI runs:
   - webkit-sim 40081936555 (bbd203c7f, fw hero.countdown:strip,morph.countdown:strip): pass; 80 face layers become
     8 strip layers in every zone, finish zone 128/124 to 56/56 (note has the table).
