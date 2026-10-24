@@ -177,7 +177,7 @@ describe("Builds routes and the manager", () => {
         mkdirSync(join(e.tree, "apps/site/dist/aot"), { recursive: true });
         mkdirSync(join(e.tree, "snapshot/site"), { recursive: true });
         writeFileSync(join(e.tree, "apps/site/dist/aot/index.html"), `<h1>rewrite ${e.target.sha}</h1>`);
-        writeFileSync(join(e.tree, "apps/site/dist/aot/configs.json"), JSON.stringify({ bySearch: { "": "d", "?preset=original": "d", "?fw=nav:skip,hero:strip": "h" }, byHash: {} }));
+        writeFileSync(join(e.tree, "apps/site/dist/aot/configs.json"), JSON.stringify({ bySearch: { "": "d", "?preset=original": "d", "?fw=hero:strip,nav:skip": "h" }, byHash: {} }));
         writeFileSync(join(e.tree, "snapshot/site/index.html"), "<h1>original</h1>");
       },
       removeTree(e) { rmSync(join(dir, "preview", e.id), { recursive: true, force: true }); },
@@ -216,7 +216,7 @@ describe("Builds routes and the manager", () => {
     expect(e2.phase).toBe("serving");
     // the compare view of the running build lists the build's own searches and opens at the row's
     const html = await (await fetch(`http://127.0.0.1:${e2.brp}/__fw/compare${e2.search}`)).text();
-    expect(html).toContain('<option value="?fw=nav:skip,hero:strip" selected>');
+    expect(html).toContain('<option value="?fw=hero:strip,nav:skip" selected>');
     expect(pickerOf(html).match(/<option value="/g)?.length).toBe(3);
   });
 
