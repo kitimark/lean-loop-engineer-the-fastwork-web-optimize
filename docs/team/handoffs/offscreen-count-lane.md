@@ -1,7 +1,9 @@
 branch: worktree-wf_f26cc506-df2-1 (CI branch ci/offscreen-count-lane)
 worktree: .claude/worktrees/wf_f26cc506-df2-1
 last code commit: 8e240c3f9 (push 1 head is the handoff commit on top of it)
-CI runs: none finished yet (push 1 pending; run id is added after the first poll)
+CI runs: 40114634566 failure (push 1: every counts job died on ERR_MODULE_NOT_FOUND /contracts/src/flag-key.mjs imported from
+/driver/server.mjs; main's host.mjs does not mount packages/contracts/src since gate-flag-order 46582026d; fixed in push 2 by a mount in host.mjs)
+  push 2: pending (run id added after first poll)
 
 Verified locally (Lean and unit tests only, no measurement): lean/scripts/check.sh green, @fw/measure-chromium 90 tests,
 @fw/runner 3437 tests, @fw/contracts 11, scripts/ci-paths.test.mjs 56, lane inputs check (no new dispatch input).
@@ -13,6 +15,6 @@ Read first: docs/team/tools/offscreen-counts.md (lane), lean/Fw/Measure/Offscree
 packages/measure-chromium/src/offscreen.mjs (TS twin and glue), .github/workflows/chromium-counts.yml (plan arms, offscreen job).
 
 Conventions: the arms come from the head commit line `[counts profile=offscreen-v1 runs=3 target=both arms=a:b|c:d]` on a push
-(no dispatch input, because Fw.Store.Lane.inputs equals the workflow inputs). At most 3 pushes for this task; 1 used by the first run.
+(no dispatch input, because Fw.Store.Lane.inputs equals the workflow inputs). At most 3 pushes for this task; 2 used (push 1 failed on the missing mount).
 Trace event names are unverified on Chromium 156: if `seen` totals in offscreen.json are 0 for a name, re-reduce offline from the
 `offscreen-trace-*` artifacts and fix extraTraceCounts.

@@ -161,3 +161,9 @@ test('offscreen: profile offscreen-v1 is a valid counts profile with a rect prob
   assert.deepEqual(profile.segments.map((s) => s.name), ['top', 'near', 'back']);
   assert.ok(profile.segments.every((s) => s.anchor && s.frames > SETTLE));
 });
+
+test('host.mjs mounts packages/contracts/src when a driver file imports it (the container sees only /driver)', () => {
+  const host = readFileSync(new URL('../src/host.mjs', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../src/server.mjs', import.meta.url), 'utf8');
+  if (server.includes('../../contracts/src/')) assert.ok(host.includes(':/contracts/src:ro'));
+});
