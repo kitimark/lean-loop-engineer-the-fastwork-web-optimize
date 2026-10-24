@@ -11,8 +11,6 @@ import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeSta
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt,event,displayTitle";
 const PAGE = 100;
 
-/** The runs-status file as a tick writes it: `interval` is `Fw.Ci.Budget.interval` of the state before the tick's listed/pages events, `retryUntil` the
- *  state's retryUntil when fwcore issued the tick. Absent in files written before they were recorded. */
 export type TickStatus = Status & { interval?: number; retryUntil?: number };
 
 const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
@@ -93,7 +91,10 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
     return { wakeAt: now, ticked: true };
   }
   const since = res.reply.createdSince == null ? null : Number(res.reply.createdSince);
-  const interval = intervalAt(env, now, res.state);
+  const pages = Math.floor(rows.length / PAGE) + 1;
+  const pre = loadState(env.dir);
+  const after = pages !== Number(pre?.pages ?? 1) ? stepEvent(env, { pages }) : pre;
+  const interval = intervalAt(env, now, after ?? res.state);
   const retryUntil = (res.reply.state as { retryUntil?: unknown } | undefined)?.retryUntil;
   const tick: TickStatus = { at: now, tickAt: now, createdSince: since, rows, ...(interval === undefined ? {} : { interval }), ...(nat(retryUntil) ? { retryUntil } : {}) };
   writeStatus(env.dir, tick);
@@ -106,7 +107,5 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
     rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })),
     count: rows.length, pagesRead: Number(res.reply.pages ?? 1), ...(since == null ? {} : { createdSince: since }),
   } });
-  const pages = Math.floor(rows.length / PAGE) + 1;
-  if (pages !== Number(st?.pages ?? 1)) stepEvent(env, { pages });
   return { wakeAt: now, ticked: true };
 }
