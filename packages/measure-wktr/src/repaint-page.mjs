@@ -69,7 +69,8 @@ const RUN_SRC = `(() => {
   // a layer the probe did not name takes the one composited element of its size (bounds in px), when exactly one has that size
   const sizeCand = new Map();
   // still unnamed: the elements of the page with that size (a layer is mostly its element's box) form a guessed group; the layer
-  // takes the first of them, its entry says "1 of N same size", and the guess never sets hidden or clipped flags
+  // takes the group's leaf-most element, its entry says "1 of N same size", the guess never sets hidden or clipped flags, and
+  // its causes come from the group members that hold at most 150 elements (a wrapper would pick up every animation of the page)
   const sizeAll = new Map();
   const guessIdx = new Map();
   const guessList = new Map();
@@ -78,11 +79,12 @@ const RUN_SRC = `(() => {
     if (!l || !l.length) return -1;
     let g = guessIdx.get(key);
     if (g === undefined) {
+      const sorted = l.slice(0, 200).map((x) => [x, x.getElementsByTagName('*').length]).sort((p, q) => p[1] - q[1]);
       g = els.length;
-      els.push({ d: desc(l[0]) + (l.length > 1 ? ' (1 of ' + l.length + ' same size)' : ' (size match)'), p: partOf(l[0]), g: 1 });
-      elRef.push(l[0]);
+      els.push({ d: desc(sorted[0][0]) + (l.length > 1 ? ' (1 of ' + l.length + ' same size)' : ' (size match)'), p: partOf(sorted[0][0]), g: 1 });
+      elRef.push(sorted[0][0]);
       guessIdx.set(key, g);
-      guessList.set(g, l.slice(0, 60));
+      guessList.set(g, sorted.filter((q) => q[1] <= 150).slice(0, 40).map((q) => q[0]));
     }
     return g;
   };
@@ -92,7 +94,7 @@ const RUN_SRC = `(() => {
       let e = keyEl.get(keys[n.i]);
       const sk = n.b ? Math.round(n.b[0]) + 'x' + Math.round(n.b[1]) : null;
       if (e === undefined && sk) { const l = sizeCand.get(sk); if (l && l.length === 1) e = idx(l[0]); }
-      if (e === undefined && n.p >= 0 && r[n.p] >= 0) e = r[n.p];
+      if (e === undefined && n.p >= 0 && r[n.p] >= 0 && !els[r[n.p]].g) e = r[n.p];
       if (e === undefined && sk) { const g = guessOf(sk); if (g >= 0) e = g; }
       r[n.i] = e !== undefined ? e : -1;
     }
