@@ -1,12 +1,9 @@
-// One `job "` or `serial "` call per line of lean/scripts/check.sh (incident inc-polish-line-join): a comment cut that
-// joined two job lines made the second run as arguments of the first, and check.sh stayed green.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(new URL(import.meta.url).pathname), '..');
 const CALL = /(?:^|[\s;&|(])(?:job|serial) "/g;
 
-/** The 1-based line numbers of `text` that hold more than one job/serial call (a trailing ` # comment` is not scanned). */
 export function joinedLines(text) {
   const out = [];
   text.split('\n').forEach((line, i) => {

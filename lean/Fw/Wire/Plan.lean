@@ -333,7 +333,6 @@ def opPolishWalk (req : Json) : Except String Reply := do
   pure [("lines", strsJson (walk head 0 hs))]
 
 open Fw.Plan.Polish in
-/-- `plan.polishLines`: whether a comment cut keeps every code line of the original as a line (`pathVerdict`, `refused_iff`). -/
 def opPolishLines (req : Json) : Except String Reply := do
   let v := pathVerdict (← str req "path") (← str req "old") (← str req "new")
   pure [("verdict", .str v.name), ("refused", .bool v.refused)]
