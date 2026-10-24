@@ -1,0 +1,984 @@
+{
+ "mode": "rest",
+ "runId": "40101702393",
+ "jobs": 1,
+ "series": [
+  {
+   "key": "hero",
+   "part": "hero.exit",
+   "prop": "--exit-opacity",
+   "zone": "hero",
+   "reach": "hit",
+   "source": "main-thread",
+   "shape": "curve",
+   "predicted": {
+    "throttled": {
+     "pattern": "stills",
+     "runFrames": 5
+    },
+    "lifted": {
+     "pattern": "no-stills"
+    }
+   },
+   "arms": {
+    "original": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 2337,
+     "moving": 1055,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 2335,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 59
+    },
+    "rewrite": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 2906,
+     "moving": 1266,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 2904,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 27
+    },
+    "lift": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 2831,
+     "moving": 1140,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 2829,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 30
+    },
+    "unthrottle": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 3185,
+     "moving": 1185,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 3183,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 26
+    }
+   },
+   "verdicts": {
+    "lift": "no-data",
+    "unthrottle": "no-data"
+   },
+   "match": {
+    "original": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    },
+    "rewrite": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    },
+    "lift": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    },
+    "unthrottle": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    }
+   },
+   "jobs": [
+    {
+     "vm": "1",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "key": "people",
+   "part": "people.card",
+   "prop": "--future-shrink",
+   "zone": "rest",
+   "reach": "hit",
+   "source": "main-thread",
+   "shape": "chase",
+   "predicted": {
+    "throttled": {
+     "pattern": "pulses"
+    },
+    "lifted": {
+     "pattern": "no-stills"
+    }
+   },
+   "arms": {
+    "original": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2337,
+     "moving": 1055,
+     "mid": 741,
+     "midMoving": 485,
+     "band": 4,
+     "band56": 0,
+     "short": 4,
+     "stalls": 14,
+     "pairs": 2335,
+     "maxStep": 134,
+     "per1000Moving": 3.8,
+     "stallsPer1000": 6,
+     "per1000Mid": 8.2,
+     "medianGapMs": 59
+    },
+    "rewrite": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2906,
+     "moving": 1266,
+     "mid": 1129,
+     "midMoving": 572,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 13,
+     "pairs": 2904,
+     "maxStep": 70,
+     "per1000Moving": 0,
+     "stallsPer1000": 4.5,
+     "per1000Mid": 0,
+     "medianGapMs": 27
+    },
+    "lift": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2831,
+     "moving": 1140,
+     "mid": 974,
+     "midMoving": 512,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 12,
+     "pairs": 2829,
+     "maxStep": 64,
+     "per1000Moving": 0,
+     "stallsPer1000": 4.2,
+     "per1000Mid": 0,
+     "medianGapMs": 30
+    },
+    "unthrottle": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 3185,
+     "moving": 1185,
+     "mid": 1204,
+     "midMoving": 558,
+     "band": 0,
+     "band56": 0,
+     "short": 1,
+     "stalls": 11,
+     "pairs": 3183,
+     "maxStep": 34,
+     "per1000Moving": 0,
+     "stallsPer1000": 3.5,
+     "per1000Mid": 0,
+     "medianGapMs": 26
+    }
+   },
+   "verdicts": {
+    "lift": "no-data",
+    "unthrottle": "no-data"
+   },
+   "match": {
+    "original": {
+     "match": "agree",
+     "why": "4 band runs, fewer than 10"
+    },
+    "rewrite": {
+     "match": "agree",
+     "why": "0 band runs, fewer than 10"
+    },
+    "lift": {
+     "match": "agree",
+     "why": "0 band runs, fewer than 10"
+    },
+    "unthrottle": {
+     "match": "agree",
+     "why": "0 band runs, fewer than 10"
+    }
+   },
+   "jobs": [
+    {
+     "vm": "1",
+     "arms": {
+      "original": {
+       "band": 4,
+       "midMoving": 485,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 572,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 512,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 558,
+       "usable": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "key": "commissionEnter",
+   "part": "commission",
+   "prop": "--commission-enter-shrink",
+   "zone": "rest",
+   "reach": "hit",
+   "source": "main-thread",
+   "shape": "chase",
+   "predicted": {
+    "throttled": {
+     "pattern": "pulses"
+    },
+    "lifted": {
+     "pattern": "no-stills"
+    }
+   },
+   "arms": {
+    "original": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2337,
+     "moving": 1055,
+     "mid": 766,
+     "midMoving": 324,
+     "band": 6,
+     "band56": 6,
+     "short": 28,
+     "stalls": 138,
+     "pairs": 2335,
+     "maxStep": 169,
+     "per1000Moving": 5.7,
+     "stallsPer1000": 59.1,
+     "per1000Mid": 18.5,
+     "medianGapMs": 59
+    },
+    "rewrite": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2906,
+     "moving": 1266,
+     "mid": 847,
+     "midMoving": 349,
+     "band": 10,
+     "band56": 10,
+     "short": 42,
+     "stalls": 21,
+     "pairs": 2904,
+     "maxStep": 152,
+     "per1000Moving": 7.9,
+     "stallsPer1000": 7.2,
+     "per1000Mid": 28.7,
+     "medianGapMs": 27
+    },
+    "lift": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2831,
+     "moving": 1140,
+     "mid": 894,
+     "midMoving": 342,
+     "band": 0,
+     "band56": 0,
+     "short": 48,
+     "stalls": 46,
+     "pairs": 2829,
+     "maxStep": 44,
+     "per1000Moving": 0,
+     "stallsPer1000": 16.3,
+     "per1000Mid": 0,
+     "medianGapMs": 30
+    },
+    "unthrottle": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 3185,
+     "moving": 1185,
+     "mid": 841,
+     "midMoving": 332,
+     "band": 1,
+     "band56": 1,
+     "short": 46,
+     "stalls": 80,
+     "pairs": 3183,
+     "maxStep": 75,
+     "per1000Moving": 0.8,
+     "stallsPer1000": 25.1,
+     "per1000Mid": 3,
+     "medianGapMs": 26
+    }
+   },
+   "verdicts": {
+    "lift": "lifted",
+    "unthrottle": "lifted"
+   },
+   "match": {
+    "original": {
+     "match": "agree",
+     "why": "6 band runs, fewer than 10"
+    },
+    "rewrite": {
+     "match": "disagree",
+     "why": "10 band runs, at least 10"
+    },
+    "lift": {
+     "match": "agree",
+     "why": "0 band runs, fewer than 10"
+    },
+    "unthrottle": {
+     "match": "agree",
+     "why": "1 band runs, fewer than 10"
+    }
+   },
+   "jobs": [
+    {
+     "vm": "1",
+     "arms": {
+      "original": {
+       "band": 6,
+       "midMoving": 324,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 10,
+       "midMoving": 349,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 342,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 1,
+       "midMoving": 332,
+       "usable": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "key": "commission",
+   "part": "commission",
+   "prop": "--commission-shrink",
+   "zone": "rest",
+   "reach": "hit",
+   "source": "main-thread",
+   "shape": "chase",
+   "predicted": {
+    "throttled": {
+     "pattern": "pulses"
+    },
+    "lifted": {
+     "pattern": "no-stills"
+    }
+   },
+   "arms": {
+    "original": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2337,
+     "moving": 1055,
+     "mid": 766,
+     "midMoving": 324,
+     "band": 6,
+     "band56": 6,
+     "short": 28,
+     "stalls": 138,
+     "pairs": 2335,
+     "maxStep": 169,
+     "per1000Moving": 5.7,
+     "stallsPer1000": 59.1,
+     "per1000Mid": 18.5,
+     "medianGapMs": 59
+    },
+    "rewrite": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2906,
+     "moving": 1266,
+     "mid": 847,
+     "midMoving": 349,
+     "band": 10,
+     "band56": 10,
+     "short": 42,
+     "stalls": 21,
+     "pairs": 2904,
+     "maxStep": 152,
+     "per1000Moving": 7.9,
+     "stallsPer1000": 7.2,
+     "per1000Mid": 28.7,
+     "medianGapMs": 27
+    },
+    "lift": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 2831,
+     "moving": 1140,
+     "mid": 894,
+     "midMoving": 342,
+     "band": 0,
+     "band56": 0,
+     "short": 48,
+     "stalls": 46,
+     "pairs": 2829,
+     "maxStep": 44,
+     "per1000Moving": 0,
+     "stallsPer1000": 16.3,
+     "per1000Mid": 0,
+     "medianGapMs": 30
+    },
+    "unthrottle": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 1,
+     "frames": 3185,
+     "moving": 1185,
+     "mid": 841,
+     "midMoving": 332,
+     "band": 1,
+     "band56": 1,
+     "short": 46,
+     "stalls": 80,
+     "pairs": 3183,
+     "maxStep": 75,
+     "per1000Moving": 0.8,
+     "stallsPer1000": 25.1,
+     "per1000Mid": 3,
+     "medianGapMs": 26
+    }
+   },
+   "verdicts": {
+    "lift": "lifted",
+    "unthrottle": "lifted"
+   },
+   "match": {
+    "original": {
+     "match": "agree",
+     "why": "6 band runs, fewer than 10"
+    },
+    "rewrite": {
+     "match": "disagree",
+     "why": "10 band runs, at least 10"
+    },
+    "lift": {
+     "match": "agree",
+     "why": "0 band runs, fewer than 10"
+    },
+    "unthrottle": {
+     "match": "agree",
+     "why": "1 band runs, fewer than 10"
+    }
+   },
+   "jobs": [
+    {
+     "vm": "1",
+     "arms": {
+      "original": {
+       "band": 6,
+       "midMoving": 324,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 10,
+       "midMoving": 349,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 342,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 1,
+       "midMoving": 332,
+       "usable": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "key": "platform",
+   "part": "platform.shrink",
+   "prop": "--platform-shrink",
+   "zone": "finish",
+   "reach": "hit",
+   "source": "main-thread",
+   "shape": "curve",
+   "predicted": {
+    "throttled": {
+     "pattern": "stills",
+     "runFrames": 5
+    },
+    "lifted": {
+     "pattern": "no-stills"
+    }
+   },
+   "arms": {
+    "original": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 2337,
+     "moving": 1055,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 2335,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 59
+    },
+    "rewrite": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 2906,
+     "moving": 1266,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 2904,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 27
+    },
+    "lift": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 2831,
+     "moving": 1140,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 2829,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 30
+    },
+    "unthrottle": {
+     "passes": 3,
+     "usable": 2,
+     "found": 2,
+     "exercised": 0,
+     "frames": 3185,
+     "moving": 1185,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 3183,
+     "maxStep": 0,
+     "per1000Moving": 0,
+     "stallsPer1000": 0,
+     "per1000Mid": null,
+     "medianGapMs": 26
+    }
+   },
+   "verdicts": {
+    "lift": "no-data",
+    "unthrottle": "no-data"
+   },
+   "match": {
+    "original": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    },
+    "rewrite": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    },
+    "lift": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    },
+    "unthrottle": {
+     "match": "no-data",
+     "why": "value never strictly between 0 and 1000 while the toolbar moved"
+    }
+   },
+   "jobs": [
+    {
+     "vm": "1",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "key": "fade",
+   "part": "morph.panel",
+   "prop": "--morph-fade",
+   "zone": "finish",
+   "reach": "not-hit",
+   "source": "time",
+   "shape": "curve",
+   "predicted": {
+    "throttled": {
+     "pattern": "no-stills"
+    },
+    "lifted": {
+     "pattern": "no-stills"
+    }
+   },
+   "arms": {
+    "original": {
+     "passes": 3,
+     "usable": 2,
+     "found": 0,
+     "exercised": 0,
+     "frames": 0,
+     "moving": 0,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 0,
+     "maxStep": 0,
+     "per1000Moving": null,
+     "stallsPer1000": null,
+     "per1000Mid": null,
+     "medianGapMs": null
+    },
+    "rewrite": {
+     "passes": 3,
+     "usable": 2,
+     "found": 0,
+     "exercised": 0,
+     "frames": 0,
+     "moving": 0,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 0,
+     "maxStep": 0,
+     "per1000Moving": null,
+     "stallsPer1000": null,
+     "per1000Mid": null,
+     "medianGapMs": null
+    },
+    "lift": {
+     "passes": 3,
+     "usable": 2,
+     "found": 0,
+     "exercised": 0,
+     "frames": 0,
+     "moving": 0,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 0,
+     "maxStep": 0,
+     "per1000Moving": null,
+     "stallsPer1000": null,
+     "per1000Mid": null,
+     "medianGapMs": null
+    },
+    "unthrottle": {
+     "passes": 3,
+     "usable": 2,
+     "found": 0,
+     "exercised": 0,
+     "frames": 0,
+     "moving": 0,
+     "mid": 0,
+     "midMoving": 0,
+     "band": 0,
+     "band56": 0,
+     "short": 0,
+     "stalls": 0,
+     "pairs": 0,
+     "maxStep": 0,
+     "per1000Moving": null,
+     "stallsPer1000": null,
+     "per1000Mid": null,
+     "medianGapMs": null
+    }
+   },
+   "verdicts": {
+    "lift": "no-data",
+    "unthrottle": "no-data"
+   },
+   "match": {
+    "original": {
+     "match": "no-data",
+     "why": "series never found"
+    },
+    "rewrite": {
+     "match": "no-data",
+     "why": "series never found"
+    },
+    "lift": {
+     "match": "no-data",
+     "why": "series never found"
+    },
+    "unthrottle": {
+     "match": "no-data",
+     "why": "series never found"
+    }
+   },
+   "jobs": [
+    {
+     "vm": "1",
+     "arms": {
+      "original": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "rewrite": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "lift": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      },
+      "unthrottle": {
+       "band": 0,
+       "midMoving": 0,
+       "usable": 2
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "parts": [
+  {
+   "id": "hero.exit",
+   "verdict": "no-data"
+  },
+  {
+   "id": "people.card",
+   "verdict": "agree"
+  },
+  {
+   "id": "commission",
+   "verdict": "disagree"
+  },
+  {
+   "id": "platform.shrink",
+   "verdict": "no-data"
+  },
+  {
+   "id": "morph.panel",
+   "verdict": "no-data"
+  }
+ ],
+ "captures": {
+  "original": {
+   "passes": 3,
+   "usable": 0,
+   "reversals": 0,
+   "perPass": [],
+   "late": []
+  },
+  "rewrite": {
+   "passes": 3,
+   "usable": 0,
+   "reversals": 0,
+   "perPass": [],
+   "late": []
+  },
+  "lift": {
+   "passes": 3,
+   "usable": 0,
+   "reversals": 0,
+   "perPass": [],
+   "late": []
+  },
+  "unthrottle": {
+   "passes": 3,
+   "usable": 0,
+   "reversals": 0,
+   "perPass": [],
+   "late": []
+  }
+ },
+ "lost": [
+  {
+   "arm": "original",
+   "passes": 3,
+   "usable": 2,
+   "reasons": [
+    "anchor platform not found"
+   ]
+  },
+  {
+   "arm": "rewrite",
+   "passes": 3,
+   "usable": 2,
+   "reasons": [
+    "anchor platform not found"
+   ]
+  },
+  {
+   "arm": "lift",
+   "passes": 3,
+   "usable": 2,
+   "reasons": [
+    "anchor platform not found"
+   ]
+  },
+  {
+   "arm": "unthrottle",
+   "passes": 3,
+   "usable": 2,
+   "reasons": [
+    "anchor platform not found"
+   ]
+  }
+ ],
+ "failed": []
+}
