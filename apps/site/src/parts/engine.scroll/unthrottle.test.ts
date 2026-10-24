@@ -53,6 +53,14 @@ describe('engine.scroll unthrottle', () => {
     expect(made.every((m) => m.removed)).toBe(true);
   });
 
+  it('has the guard cases Lean lists: restyled only with a coarse pointer, the iPhone path unchanged', () => {
+    const g = golden.filter((r) => r.fn === 'guarded') as unknown as { in: { coarse: boolean }; out: { restyled: number; throttledIos: boolean } }[];
+    expect(g.length).toBe(4);
+    for (const r of g) expect(r.out.restyled).toBe(r.in.coarse ? 1 : 0);
+    expect(unthrottleCss()).toContain('@media (pointer: coarse)');
+    expect(g.filter((r) => r.in.coarse).every((r) => r.out.throttledIos === false)).toBe(true);
+  });
+
   it('is an optimized variant; the diagnostic stays an ablation', () => {
     const v = part.variants as Record<string, { kind: string; diagnostic?: boolean }>;
     expect(v.unthrottle.kind).toBe('optimized');
