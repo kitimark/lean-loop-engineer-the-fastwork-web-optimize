@@ -1,4 +1,4 @@
-# Earn button padding curve: proof of `nav:earn-logical` (task earn-logical-proof)
+# Earn button padding curve: proof of `nav:earn-logical`
 
 ## Answer
 

@@ -2,12 +2,6 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-/**
- * Checks recorded per-frame padding traces of the earn pill against the Lean curve (`lean/Fw/Parts/NavEarnCurve.lean`,
- * golden `packages/contracts/golden/parts/nav.earn.curve.jsonl`). Each trace passes when every frame from the flip on
- * lies within the Lean tolerance `tolMicro(delta, jitter, solver, dur)` of the Lean padding at that frame.
- */
-
 export const GOLDEN = resolve(import.meta.dirname, '../../../contracts/golden/parts/nav.earn.curve.jsonl');
 
 export function readGolden(path = GOLDEN) {
@@ -31,7 +25,6 @@ export function ease(g, curve, a, c) {
   return bar(g.M, y1, y2, k);
 }
 
-/** Lean `padAt` times D at `tUs` (a negative time holds the start value); `run === null` is the snap to `toPx`. */
 export function num(g, run, toPx, tUs) {
   if (!run) return BigInt(toPx) * g.D;
   const t = BigInt(Math.max(0, Math.round(tUs)));
@@ -61,7 +54,6 @@ const PROPS = [['pl', 'padding-left'], ['pr', 'padding-right']];
 
 const median = (a) => { const b = [...a].sort((x, y) => x - y); const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
 
-/** Frame clock of one trace: start `S` (ms) = median of `t - currentTime` over running rows, jitter = max deviation + 0.5 ms rounding. */
 export function clock(rows, flip) {
   const live = rows.slice(flip).flatMap((x) => {
     const a = (x.an ?? []).find((e) => e[0] === 'earn' && e[1] === 'padding-left');
@@ -72,7 +64,6 @@ export function clock(rows, flip) {
   return { startMs, jitterUs: Math.ceil(Math.max(...live.map((o) => Math.abs(o - startMs))) * 1000) + 500, live: live.length };
 }
 
-/** Compares one trace (rows of a `hero-entry`/`hero-exit` sequence) with a Lean run; returns the verdict and the worst frame. */
 export function check(g, rows, { width, toPx, run, engine }) {
   const flip = rows.findIndex((x) => x.nav !== rows[0].nav);
   if (flip < 0) return { pass: false, why: 'no flip', frames: 0 };
@@ -99,10 +90,8 @@ export function check(g, rows, { width, toPx, run, engine }) {
 const ENGINE = { chromium: 'chromium', 'playwright-webkit': 'webkit', 'safari-1280': 'webkit' };
 const ARM = { faithful: 'faithful', flag: 'variant' };
 
-/** A trace without a computed-style read (the `light` mode records geometry only) carries no padding to check. */
 export const hasPaddingReads = (rows) => rows.some((x) => x.cs && x.nav !== undefined);
 
-/** Every trace of one raw `transitions-<engine>.json`: checked against its own arm's Lean run and the shared curve. */
 export function checkFile(g, json, browser) {
   const engine = ENGINE[browser];
   const out = [];

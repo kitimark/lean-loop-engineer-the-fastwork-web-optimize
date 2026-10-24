@@ -1,6 +1,6 @@
 # Handoff: earn-logical-proof
 
-- Branch `worktree-wf_3d4c1910-6ce-1`, worktree `.claude/worktrees/wf_3d4c1910-6ce-1`, last code sha 066a27738 (merge of main 17315916d; this handoff is the next commit).
+- Branch `worktree-wf_3d4c1910-6ce-1`, worktree `.claude/worktrees/wf_3d4c1910-6ce-1`, last code sha 066a27738 (merge of main 17315916d).
 - CI: no new dispatch. The reducer read the macOS trajectory-probe runs 40100783726 and 40102193302 (success; artifacts
   transitions-apple-390 and transitions-apple-1280 expire 2026-11-23).
 - Verified:

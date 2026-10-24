@@ -38,11 +38,9 @@ def bisect (p : Nat → Bool) : Nat → Nat → Nat
   | 0, lo => lo
   | n + 1, lo => if p (lo + 2 ^ n) then bisect p n (lo + 2 ^ n) else bisect p n lo
 
-/-- Largest grid point `k ≤ M` with `x(k/M) ≤ a/c`. -/
 def Bez.solve (b : Bez) (a c : Nat) : Nat :=
   if c ≤ a then M else bisect (fun k => b.xBar k * c ≤ a * D) gridBits 0
 
-/-- Eased progress times `D` after `a` of `c` time units. -/
 def Bez.ease (b : Bez) (a c : Nat) : Nat := b.yBar (b.solve a c)
 
 structure Run where
@@ -53,17 +51,14 @@ structure Run where
   bez : Bez
   deriving DecidableEq, Repr
 
-/-- Padding times `D` at `t` µs after the flip; before the delay the run holds `fromPx`. -/
 def Run.num (r : Run) (t : Nat) : Int :=
   r.fromPx * D + ((r.toPx : Int) - r.fromPx) * r.bez.ease (t - r.delayUs) r.durUs
 
-/-- The started padding transition of property `p`, or `none` when the flip snaps it. -/
 def padRun (e : Eng) (d : Dir) (l : List Item) (p : CssProp) (fromPx toPx : Nat) : Option Run :=
   if starts e d (entries l) flipChanged p then
     (timing e d l p).map fun (du, de) => ⟨fromPx, toPx, du * 1000, de * 1000, earnBez⟩
   else none
 
-/-- Padding of `p` times `D` at `t` µs after the flip. -/
 def padAt (e : Eng) (d : Dir) (l : List Item) (p : CssProp) (fromPx toPx t : Nat) : Int :=
   match padRun e d l p fromPx toPx with
   | some r => r.num t
@@ -371,7 +366,6 @@ theorem le_ceilDiv (a b : Nat) (hb : 0 < b) : a ≤ b * ceilDiv a b := by
   have := Nat.mod_lt (a + b - 1) hb
   omega
 
-/-- Bound in µpx on `|pad(t') - pad(t)|` when `t ≤ t' ≤ t + w` µs on a run of `deltaPx` over `durUs`. -/
 def slackMicro (deltaPx w durUs : Nat) : Nat :=
   ceilDiv (deltaPx * 261 * w * 1000000) (100 * durUs) + ceilDiv (deltaPx * 783 * 1000000) (100 * M)
 
@@ -427,7 +421,6 @@ theorem num_slack (r : Run) (hb : r.bez = earnBez) (hc : 0 < r.durUs) (t t' w : 
   rw [hD]
   exact slack_core c x δ w _ _ M g e hl ha (le_ceilDiv _ _ (by omega)) (le_ceilDiv _ _ (by have := M_pos; omega)) hc
 
-/-- Per-frame tolerance in µpx: slack over jitter `jUs` plus solver error `eUs`, the grid gap, and 50 µpx read rounding. -/
 def tolMicro (deltaPx jUs eUs durUs : Nat) : Nat :=
   slackMicro deltaPx (jUs + eUs) durUs + ceilDiv (deltaPx * 150 * 1000000) (100 * M) + 50
 
