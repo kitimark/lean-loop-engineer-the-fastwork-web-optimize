@@ -1,13 +1,7 @@
 import Lean.Data.Json
 import Fw.Parts.MorphMountArmLate
 
-/-!
-# Golden vectors for morph.mount:arm-late
-
-`text ()` is the content of `packages/contracts/golden/parts/morph-mount-arm-late.jsonl`, replayed by
-`apps/site/src/parts/morph.mount/armLate.test.ts`. Rows are built on demand (`Unit` arguments) so the module adds no
-start-up allocation. `runGolden [--check path]` prints the text or compares it with the file.
--/
+/-! Golden rows of `morph.mount:arm-late` for `armLate.test.ts`; `Unit` arguments keep the module free of start-up allocation. -/
 namespace Fw.Parts.MorphMountArmLateGolden
 open Fw.Parts.MorphMountArmLate
 
@@ -49,7 +43,6 @@ def opsRows (_ : Unit) : List String :=
   modes.flatMap fun c => modes.map fun n =>
     line "ops" [("cur", .str c.name), ("next", .str n.name)] (.arr ((ops c n).map fun o => .str (opJ o)).toArray)
 
-/-- Refresh inputs `(near, bottom, active)` of one run; the controller's mode and the registry changes after each. -/
 def runCases : List (String × Rat × List (Bool × Rat × Bool)) :=
   [("approach", 800, [(false, 4000, false), (true, 3000, false), (true, 1900, false), (true, 1800, false), (true, 900, false)]),
    ("leave", 800, [(true, 700, false), (true, 1700, false), (true, 1900, false), (false, 4000, false)]),

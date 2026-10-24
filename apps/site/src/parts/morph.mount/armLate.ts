@@ -1,11 +1,4 @@
-/**
- * Variant `arm-late` of morph.mount (Lean: lean/Fw/Parts/MorphMountArmLate.lean). The wheel and touchmove capture
- * listeners stay registered whenever the original has them, but are non-passive only while the platform bottom is in the
- * band (or the morph is active); outside it they are passive, so WebKit does not hold each scroll for the main thread
- * (ScrollingTree.cpp:118-134@862f17d). The handler is the same in both modes, so only whether `preventDefault` is honored
- * changes; `late_same` proves it is always honored when the original would call it.
- * Golden vectors: packages/contracts/golden/parts/morph-mount-arm-late.jsonl (armLate.test.ts).
- */
+/** Variant `arm-late` (Lean: Fw.Parts.MorphMountArmLate): passive wheel and touchmove listeners outside the band; WebKit holds a scroll only on a non-passive one (ScrollingTree.cpp:118-134@862f17d). */
 import { ARM_BOTTOM_SLACK } from './logic';
 
 export type ArmMode = 'none' | 'passive' | 'blocking';
@@ -85,8 +78,7 @@ export function createArm(env: ArmEnv, handlers: ArmHandlers) {
   return { set, mode: () => cur };
 }
 
-/** Measure hook: scroll frames spent in each mode (a plain counter, no React state). Read from the page as
- * `window.__fwArmLate`. */
+/** Scroll frames spent in each mode, read from the page as `window.__fwArmLate`. */
 export interface ArmStats {
   frames: Record<ArmMode, number>;
 }
