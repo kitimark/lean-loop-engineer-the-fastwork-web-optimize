@@ -1,6 +1,3 @@
-// morph.end bricks A clamp, B flip, C release: replays packages/contracts/golden/parts/morph.end.jsonl (Lean
-// `Fw.Parts.MorphEnd`, lean/scripts/MorphEndGolden.lean): 3 cases under all 8 picks, event by event. Also drives the
-// real createTweenDriver with the same picks and checks that its writes and prevents are the reducer's.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { cfgOf, CLAMP_ID, FLIP_ID, hooksOf, ON, RELEASE_ID, type EndCfg } from './end.hooks';
@@ -98,7 +95,6 @@ describe('morph.end golden', () => {
 });
 
 describe('morph.end driver wiring', () => {
-  /** The driver on the spring-back case: same prevents and scroll writes as the reducer says. */
   function drive(cfg: EndCfg) {
     let now = 0;
     let scrollY = 5200;

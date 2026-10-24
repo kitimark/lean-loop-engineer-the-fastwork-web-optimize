@@ -14,7 +14,6 @@ export interface EndCfg {
   release: boolean;
 }
 
-/** The hooks of one pick of the three bricks (Lean `Cfg.hooks`; the bricks commute, so the order is free). */
 export function hooksOf(c: EndCfg): Hooks {
   let h = BASE;
   if (c.clamp) h = clamp(h);
@@ -23,7 +22,6 @@ export function hooksOf(c: EndCfg): Hooks {
   return h;
 }
 
-/** The picks of a resolved config (Lean `Cfg.ofPicks`): a brick is on only when its variant is `on`. */
 export function cfgOf(variants: Record<string, string>): EndCfg {
   return { clamp: variants[CLAMP_ID] === ON, flip: variants[FLIP_ID] === ON, release: variants[RELEASE_ID] === ON };
 }

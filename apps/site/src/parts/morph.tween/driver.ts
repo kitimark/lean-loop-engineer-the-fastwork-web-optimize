@@ -23,12 +23,9 @@ export interface TweenEnv {
   reduced(): boolean;
   /** `visualViewport.height`, else `innerHeight` (N2:13067). */
   viewportHeight(): number;
-  /** `.start-selling-platform`, looked up each time (N2:12982 `y()`). */
   platform(): PlatformEl | null;
   scrollY(): number;
-  /** The page's real end (`scrollHeight - innerHeight`); read only by a brick that clamps the pin (`morph.end.clamp`). */
   maxScrollY?(): number;
-  /** `scrollTo({ top, behavior: 'instant' })` (N2:13078). */
   scrollToInstant(top: number): void;
   addListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void, passive: boolean): void;
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
@@ -40,7 +37,6 @@ export interface TweenEnv {
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
   panel?: EffectSink;
-  /** The end bricks' hooks (`morph.end.*`); absent = the original. */
   hooks?: Hooks;
 }
 
@@ -120,7 +116,6 @@ export function createTweenDriver(env: TweenEnv) {
     const r = p.getBoundingClientRect();
     return armed({ rectHeight: r.height, rectBottom: r.bottom, viewportHeight: env.viewportHeight() });
   };
-  /** One wheel or touchmove through the end reducer (Lean `MorphEnd.moveStep`); the page reads stay lazy. */
   const move = (e: { preventDefault(): void }, delta: number) => {
     const read: Read = {
       get scrollY() {
@@ -182,9 +177,8 @@ export function createTweenDriver(env: TweenEnv) {
     if (!isActive()) arm();
   };
 
-  /** Take the pushed tween state `next` (N2:13036-13053); a push that changed nothing is dropped. */
   function apply(next: St) {
-    if (next === st) return; // already heading there: nothing happens (N2:13037)
+    if (next === st) return;
     const reduced = env.reduced();
     readOverlay(isActive(), active({ target: next.target, value: next.value }));
     env.onActivate?.();
@@ -213,7 +207,6 @@ export function createTweenDriver(env: TweenEnv) {
       if (near) env.onActivate?.();
       arm();
     },
-    /** Called every scroll frame: while the morph runs, put the page back where the push began (N2:13077-13079). */
     pin() {
       if (!isActive()) return;
       const to = frameOut(hooks, { ...end, tw: st }, env.scrollY(), () => env.maxScrollY?.() ?? Infinity);
