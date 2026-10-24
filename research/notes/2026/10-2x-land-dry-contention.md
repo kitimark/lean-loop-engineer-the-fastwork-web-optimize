@@ -89,6 +89,14 @@ dry`, load floor 6 (6.85). Its locks show only its own land hold (wait 0) and la
 the 1-min average from the dry land and the slot run test that ended 60 s and 44 s before it, and no named co-runner.
 Its lake step built 24 modules (27.7 s).
 
+### Who started the 133 unlocked spans (task slot-held-identity)
+
+MEASURED by time match, since a span carries no caller: 114 of the 133 started within 60 s after a lead Bash call
+`FW_SLOT_HELD=1 sh .../land-rNNN.sh` in the lead session transcript, 122 within 10 min (a script can run several lands).
+So 11 to 19 came from other callers. Scratch counter: `scratchpad/shi/count.mjs` and `tr.mjs` (reproduces 760 / 133).
+INFERRED: the 11 to 19 are runs that inherited `FW_SLOT_HELD` from a held shell. The fix (nested run skips only under a live
+held token of its kind, `lean/Fw/Sup/Nested.lean`) makes both groups take the land slot; the overlap effect is counted on later rows.
+
 ## Decision
 
 Decision: none in Lean in this task. The contended-vs-serialize question goes to slot-held-identity and
