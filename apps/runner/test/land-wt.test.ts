@@ -3,18 +3,25 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { claimLandWt, landWtDist, pickLandWt, type WtSlot } from "../src/land.ts";
+import { claimLandWt, LAND_WT_INPUT_RE, landWtDist, pickLandWt, type WtSlot } from "../src/land.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rows = readFileSync(join(here, "../../../packages/contracts/golden/console/land-wt.jsonl"), "utf8").trim().split("\n")
-  .map((l) => JSON.parse(l) as { name: string; request: { slots: WtSlot[] }; response: { pick: number | null } });
+  .map((l) => JSON.parse(l) as { name: string; request: { slots?: WtSlot[]; path?: string }; response: { pick?: number | null; input?: boolean } });
+const pickRows = rows.filter((r) => r.request.slots !== undefined);
+const inputRows = rows.filter((r) => r.request.path !== undefined);
 
 let dirs: string[] = [];
 afterEach(() => { dirs.forEach((d) => rmSync(d, { recursive: true, force: true })); dirs = []; });
 
 describe("pickLandWt against the Lean golden", () => {
-  it("has the measured rows", () => { expect(rows.length).toBeGreaterThanOrEqual(8); });
-  for (const r of rows) it(r.name, () => { expect(pickLandWt(r.request.slots)).toBe(r.response.pick); });
+  it("has the rows", () => { expect(pickRows.length).toBeGreaterThanOrEqual(8); });
+  for (const r of pickRows) it(r.name, () => { expect(pickLandWt(r.request.slots!)).toBe(r.response.pick); });
+});
+
+describe("LAND_WT_INPUT_RE against the Lean input rule", () => {
+  it("has the rows", () => { expect(inputRows.length).toBeGreaterThanOrEqual(8); });
+  for (const r of inputRows) it(r.name, () => { expect(LAND_WT_INPUT_RE.test(r.request.path!)).toBe(r.response.input); });
 });
 
 describe("claimLandWt", () => {

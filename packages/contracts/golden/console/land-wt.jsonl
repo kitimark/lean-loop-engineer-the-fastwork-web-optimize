@@ -1,6 +1,16 @@
-{"name":"2e54fbe third dry land (start 1792805509801, built 24 in worktree 0): worktree 1 holds the previous 2e54fbe checkout","request":{"slots":[{"dist":4,"idx":0},{"dist":0,"idx":1}]},"response":{"pick":1}}
-{"name":"72f52a1 dry land (start 1792806731169, built 25 in worktree 0): worktree 1 is one input away","request":{"slots":[{"dist":4,"idx":0},{"dist":1,"idx":1}]},"response":{"pick":1}}
-{"name":"2e54fbe second dry land (start 1792805275634): only worktree 1 free","request":{"slots":[{"dist":4,"idx":1}]},"response":{"pick":1}}
+{"name":"input lean/Fw/Console/LandWt.lean","request":{"path":"lean/Fw/Console/LandWt.lean"},"response":{"input":true}}
+{"name":"input lean/lakefile.lean","request":{"path":"lean/lakefile.lean"},"response":{"input":true}}
+{"name":"input lean/lakefile.toml","request":{"path":"lean/lakefile.toml"},"response":{"input":true}}
+{"name":"input lean/lean-toolchain","request":{"path":"lean/lean-toolchain"},"response":{"input":true}}
+{"name":"input lean/lake-manifest.json","request":{"path":"lean/lake-manifest.json"},"response":{"input":true}}
+{"name":"input lean/scripts/check.sh","request":{"path":"lean/scripts/check.sh"},"response":{"input":false}}
+{"name":"input lean/.lake/build/x.olean","request":{"path":"lean/.lake/build/x.olean"},"response":{"input":false}}
+{"name":"input lean/README.md","request":{"path":"lean/README.md"},"response":{"input":false}}
+{"name":"input lean/lean-toolchain.bak","request":{"path":"lean/lean-toolchain.bak"},"response":{"input":false}}
+{"name":"input lean/Fw.leanx","request":{"path":"lean/Fw.leanx"},"response":{"input":false}}
+{"name":"2e54fbe third dry land (start 1792805509801, measured 24 built): worktree 1 holds the previous 2e54fbe checkout","request":{"slots":[{"dist":4,"idx":0},{"dist":0,"idx":1}]},"response":{"pick":1}}
+{"name":"72f52a1 dry land (start 1792806731169, measured 25 built): worktree 1 is one input away","request":{"slots":[{"dist":4,"idx":0},{"dist":1,"idx":1}]},"response":{"pick":1}}
+{"name":"2e54fbe second dry land: worktree 1 had just built 2e54fbe (measured 0 built)","request":{"slots":[{"dist":0,"idx":1}]},"response":{"pick":1}}
 {"name":"tie: the lower number","request":{"slots":[{"dist":3,"idx":2},{"dist":3,"idx":0},{"dist":3,"idx":1}]},"response":{"pick":0}}
 {"name":"a known distance beats a worktree with no checkout","request":{"slots":[{"dist":null,"idx":0},{"dist":40,"idx":1}]},"response":{"pick":1}}
 {"name":"all fresh: the lowest number","request":{"slots":[{"dist":null,"idx":2},{"dist":null,"idx":1}]},"response":{"pick":1}}

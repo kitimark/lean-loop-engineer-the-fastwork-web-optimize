@@ -8,5 +8,5 @@ checked by the new check.sh job "land-wt golden check"). TS stand-in `pickLandWt
 against the golden by apps/runner/test/land-wt.test.ts. `claimLandWt(mainDir, commit)` is used by the dry land only.
 Verified: Lean file compiles; vitest land-wt (12 tests). Open: final check.sh, package test, dry land; read the effect
 on `lake.built` from later `land dry lake` spans against the table in the research note.
-Outside the task's writes: lean/scripts/check.sh (one golden job line).
+Round 2: input-file rule is now Lean `isInput`/`dist` (golden rows path->input, TS regex checked by land-wt.test.ts); note table 105/51/56; golden rows relabelled. Outside the task's writes: lean/scripts/check.sh (lead adds, graph r404). CI runs: none.
 Read first: research/notes/2026/10-2x-land-wt-lake-rebuilds.md.

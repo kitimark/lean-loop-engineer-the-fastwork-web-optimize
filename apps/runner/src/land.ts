@@ -350,6 +350,7 @@ export function pickLandWt(slots: WtSlot[]): number | null {
   for (const s of slots) if (best === undefined || before(s, best)) best = s;
   return best === undefined ? null : best.idx;
 }
+// TS stand-in for Fw.Console.LandWt.isInput, checked against its golden.
 export const LAND_WT_INPUT_RE = /\.lean$|(^|\/)lakefile|(^|\/)lean-toolchain$|(^|\/)lake-manifest/;
 export function landWtDist(dir: string, commit: string): number | null {
   if (!existsSync(join(dir, "lean", ".lake"))) return null;

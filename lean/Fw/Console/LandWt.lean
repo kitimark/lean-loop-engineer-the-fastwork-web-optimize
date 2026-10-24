@@ -166,14 +166,36 @@ theorem pick_le_firstFree (x : Slot) (xs : List Slot) (f : Slot) (hf : firstFree
   subst hf
   exact pick_dist_le x xs _ (foldl_mem xs x) d hd
 
+/-- A path under `lean/` that Lean build output depends on; the distance counts these. -/
+def isInput (path : String) : Bool :=
+  let comps := path.splitOn "/"
+  path.endsWith ".lean" || comps.any (fun c => c.startsWith "lakefile" || c.startsWith "lake-manifest")
+    || comps.getLast? == some "lean-toolchain"
+
+/-- The distance between two checkouts: how many differing paths are build inputs. -/
+def dist (diff : List String) : Nat := (diff.filter isInput).length
+
+theorem dist_nil : dist [] = 0 := rfl
+
+theorem dist_le_length (l : List String) : dist l ≤ l.length := List.length_filter_le _ _
+
+def inputCases : List (String × Bool) :=
+  [("lean/Fw/Console/LandWt.lean", true), ("lean/lakefile.lean", true), ("lean/lakefile.toml", true),
+   ("lean/lean-toolchain", true), ("lean/lake-manifest.json", true), ("lean/scripts/check.sh", false),
+   ("lean/.lake/build/x.olean", false), ("lean/README.md", false), ("lean/lean-toolchain.bak", false),
+   ("lean/Fw.leanx", false)]
+
+#guard inputCases.all fun (p, b) => isInput p == b
+
 def slotJson (s : Slot) : Json := Json.mkObj [("idx", toJson s.idx), ("dist", toJson s.dist)]
 
+/-- Worktree numbers and distances are replay inputs (INFERRED, replay of branch tips); built counts in names are MEASURED. -/
 def cases : List (String × List Slot) :=
-  [("2e54fbe third dry land (start 1792805509801, built 24 in worktree 0): worktree 1 holds the previous 2e54fbe checkout",
+  [("2e54fbe third dry land (start 1792805509801, measured 24 built): worktree 1 holds the previous 2e54fbe checkout",
       [⟨0, some 4⟩, ⟨1, some 0⟩]),
-   ("72f52a1 dry land (start 1792806731169, built 25 in worktree 0): worktree 1 is one input away",
+   ("72f52a1 dry land (start 1792806731169, measured 25 built): worktree 1 is one input away",
       [⟨0, some 4⟩, ⟨1, some 1⟩]),
-   ("2e54fbe second dry land (start 1792805275634): only worktree 1 free", [⟨1, some 4⟩]),
+   ("2e54fbe second dry land: worktree 1 had just built 2e54fbe (measured 0 built)", [⟨1, some 0⟩]),
    ("tie: the lower number", [⟨2, some 3⟩, ⟨0, some 3⟩, ⟨1, some 3⟩]),
    ("a known distance beats a worktree with no checkout", [⟨0, none⟩, ⟨1, some 40⟩]),
    ("all fresh: the lowest number", [⟨2, none⟩, ⟨1, none⟩]),
@@ -181,6 +203,9 @@ def cases : List (String × List Slot) :=
    ("no free worktree", [])]
 
 def goldenText : String :=
+  String.join (inputCases.map fun (p, b) => (Json.mkObj [("name", Json.str s!"input {p}"),
+    ("request", Json.mkObj [("path", Json.str p)]),
+    ("response", Json.mkObj [("input", toJson b)])]).compress ++ "\n") ++
   String.join (cases.map fun (n, ss) => (Json.mkObj [("name", Json.str n),
     ("request", Json.mkObj [("slots", Json.arr (ss.map slotJson).toArray)]),
     ("response", Json.mkObj [("pick", toJson (pick ss))])]).compress ++ "\n")
@@ -197,7 +222,7 @@ def gen (args : List String) : IO Unit := do
     let disk ← IO.FS.readFile path
     if disk != goldenText then
       throw (IO.userError s!"land-wt: {path} is stale; regenerate with Fw.Console.LandWt.gen []")
-    IO.println s!"land-wt: {path} equals the Lean output, {cases.length} lines"
+    IO.println s!"land-wt: {path} equals the Lean output, {inputCases.length + cases.length} lines"
   else
     IO.FS.writeFile path goldenText
 

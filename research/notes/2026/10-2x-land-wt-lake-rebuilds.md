@@ -6,13 +6,14 @@ spans from 1792768665957 to the same cutoff (229 spans, local host).
 
 ## Measured
 
-Dry-land `fw`/`land dry lake` spans that carry `lake.built` (212):
+Dry-land `fw`/`land dry lake` spans that carry `lake.built` (212), each joined to its `dry sh -c cd lean ... lake build`
+step span, which is the duration source:
 
 | modules built | median lake step | n |
 |---|---|---|
-| 0 | 3.0 s | 100 |
-| 1-7 | 10.7 s | 48 |
-| 8 or more | 18.9 s | 56 |
+| 0 | 3.0 s | 105 |
+| 1-7 | 10.6 s | 51 |
+| 8 or more | 19.0 s | 56 |
 
 Commit 2e54fbe built 24, 0 and 24 modules in three dry lands (27.7, 2.4, 23.5 s). Each dry land checks out its merge
 commit in the first free `.claude/land-wt/<n>` (`claimLandWt`), and each worktree keeps its own `.lake`. The second
@@ -24,8 +25,8 @@ Among the free worktrees take the one whose last checkout differs least from the
 `lean-toolchain`, `lake-manifest*` under `lean/` that differ between its HEAD and the commit); a worktree with no `.lake`
 is last; ties go to the lower number. Theorems: `pickAux_best` (no free worktree is preferred), `pick_zero` (a
 worktree already at the commit is taken), `pick_none_only`, `pick_dist_le`, `pick_tie`, `pick_le_firstFree`
-(never farther than today's first free number). Golden: `packages/contracts/golden/console/land-wt.jsonl`, eight rows,
-three replayed from the spans above; TS `pickLandWt` is a stand-in checked against it (`apps/runner/test/land-wt.test.ts`).
+(never farther than today's first free number). Golden: `packages/contracts/golden/console/land-wt.jsonl`, eighteen rows (ten of the input-file rule
+`isInput`, eight of `pick`; worktree numbers and distances are replay inputs, INFERRED; built counts are MEASURED); the distance's input-file rule is `isInput`/`dist` in Lean, and TS `pickLandWt` and `LAND_WT_INPUT_RE` are stand-ins checked against it (`apps/runner/test/land-wt.test.ts`).
 `claimLandWt` asks the rule for each claim and retries on a lost claim race. The dry land passes its merge commit; the
 real land (second `claimLandWt` call) passes none and keeps the first free number.
 
@@ -43,6 +44,9 @@ worktrees are free: with two worktrees busy at most, the rule chooses between tw
 
 - Local-machine timings; c4f662a's 9.0 s at 0 built stays unexplained.
 - The effect is not claimed here; read `lake.built` of `land dry lake` spans after this lands.
+- The effect is UNMEASURED. A rerun of the dry land at main e81870a (span 8101df9, worktree 0) built 6 modules in a
+  17.0 s lake step; d493e2c built 6 in worktree 1 in 10.5 s. The tip-to-tip distance is 0 for d2c1f1c vs 2e54fbe, yet the
+  third 2e54fbe land built 24, so main moving likely dominates the rebuilds (INFERRED).
 - Main moving ahead between dry lands rebuilds in every worktree; no pool choice avoids that.
 
 ## First dry land with the rule
