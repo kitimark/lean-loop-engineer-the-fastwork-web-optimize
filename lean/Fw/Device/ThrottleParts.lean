@@ -539,6 +539,8 @@ theorem judgeCounts_none_boundary (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : 
   | pulses => cases m <;> simp [judgeCounts, hf, this]
   | noStills => cases m <;> simp [judgeCounts, hf, this]
 
+/-- The lowest K a pass is judged at; a one-frame drop hold lands below the band [K, K+1] from K 2 on, and 3 leaves one
+frame of margin (a modelling choice). -/
 def minK : Nat := 3
 
 structure Pass where

@@ -31,8 +31,10 @@ re-reduced into `results/unthrottle-parts/rest-40101702393.{json,md}`. Lean: `Fw
 ## Domain and the converse theorem
 
 - **A pass counts only at K 3 or more (`minK`).** INFERRED as a modelling choice, not an engine fact: one dropped frame
-  of a moving series makes a 1-2 frame hold, which a K-1 band [1, 2] cannot tell from jitter
-  (`drop_in_band_low`); at K 3 or more it cannot (`drop_out_of_band`, `minK_iff`: K at least 3 for gaps up to 33.33 ms).
+  holds a value for one frame and lands in the K-1 band [1, 2] (`drop_in_band_low`); for K >= 2 it falls outside
+  [K, K+1] (`drop_out_of_band`, stated at minK). Choosing 3 over 2 is a margin for two consecutive drops, a modelling
+  choice; no pass in run 40101702393 has K 2, so no verdict depends on it (`minK_iff`: K at least 3 for gaps up to
+  33.33 ms).
 - **The fixed 5-6 band holds only for 14.29 ms to below 20 ms.** CONFIRMED in Lean: `throttleK_band_iff` is the converse
   of `throttleK_mem_band`. Rest mode (20 ms and up) falls outside it: `bandFor_rest` gives [4, 5] at 20 ms and 23 ms,
   `bandFor_5900` gives [1, 2].
@@ -88,8 +90,8 @@ which is off the 10-run line, so the disagree with "pulses" was not an artifact 
 
 - hero.exit, platform.shrink and morph.panel are no-data in rest mode (platform anchor not found on all jobs; hero is
   exited; fade never found). Hero stays as measured in the earlier note.
-- `partVerdict` ignores the original arm as a reference only; people.card's "agree (partial)" comes from the rewrite and
-  both lifted arms. The original's no-data is shown, not hidden.
+- `partVerdict` takes every arm, original included; people.card is agree (partial) because the original arm is no-data
+  (K 1) and the rewrite and both lifted arms agree.
 - The phone is not re-measured; touch-driver losses stay as recorded (6 of 9 passes usable per arm).
 
 ## Follow-ups
