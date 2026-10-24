@@ -6,6 +6,7 @@ import { isBand } from '../morph.mount/listen.logic';
 import { touchHub, type TouchClient, type TouchHub } from '../morph.mount/listen';
 import { THREADED } from '../morph.panel/threaded.logic';
 import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
+import { cfgOf, hooksOf } from './end.hooks';
 import { active } from './logic';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
@@ -35,6 +36,8 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       viewportHeight: () => window.visualViewport?.height ?? window.innerHeight,
       platform,
       scrollY: () => window.scrollY,
+      maxScrollY: () => Math.max(0, root.scrollHeight - window.innerHeight),
+      hooks: hooksOf(cfgOf(window.__fw?.config.variants ?? {})),
       scrollToInstant: (top) => window.scrollTo({ top, behavior: 'instant' }),
       addListener: (type, fn, passive) => window.addEventListener(type, fn as EventListener, { passive, capture: true }),
       removeListener: (type, fn) => window.removeEventListener(type, fn as EventListener, true),
