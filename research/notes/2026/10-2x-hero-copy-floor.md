@@ -268,8 +268,10 @@ class of the 192513-20 raster state needs another run or a majority reference. N
 Branch `ci/pathpix-consensus-followups`, workflow `path-pix`, commit `f69f8cb29`, 3 WebKit exit jobs, 3 WebKit draw jobs, 3 Chromium jobs.
 Every job succeeded at the first attempt except draw job 3: its Safari tab took about 7 minutes to appear and `simctl screenshot`
 failed in `place()` (infrastructure; the job log of attempt 1 has it); it was re-run once with `gh run rerun --failed` (same run id,
-attempt 2) and succeeded. All tables below are printed by `pathpix-exit-report.mjs` (exit lanes) and `pathpix-exit-draw-zones.mjs`
-(draw lanes) from the artifacts of that run.
+attempt 2) and succeeded. The exit-lane counts are printed by `pathpix-exit-report.mjs` and the draw-lane counts by `pathpix-exit-draw-zones.mjs`
+from the artifacts of that run. The item-4 occurrence table is assembled from the notes of the runs it names, and the item-5
+column "F outside the band, above its own baseline" is F outside minus the out-0 F outside value of the same job (hand
+subtraction; the baseline pin is a follow-up).
 
 **1. Look list with the verdict (CONFIRMED, Lean `Verdict.listed`, `varied_not_listed`, `zoned_listed_not_varied`).** The "L cells with a
 strip" table now has a `verdict` column next to the grade and ends with "left out of the list: N varied cells (a change the identical
@@ -292,6 +294,7 @@ at this size). WebKit, same table: w1 12 counted / 0 varied / 12 quiet; w2 16 / 
 | run | job | where it shows | rule reading |
 |---|---|---|---|
 | 39947605395 | webkit-2 | A/A (the identical arms) | floor |
+| 40007968162 | webkit-3 | P only (A/A inside 0-0; no A3 in that run) | counted L |
 | 40026419647 | webkit-1 | A differs from A2 and from A3 by 192513-20, P differs from A by 192513-20 (A the odd arm; P vs A2 not captured in that run) | varied; majority reading: quiet |
 | 40026419647 | webkit-2 | P only (A, A2, A3 agree 0-0) | counted L |
 | 40026419647 | webkit-3 | absent | quiet |
