@@ -1,12 +1,3 @@
-// Commission layout table: the section and card rects of a CI Chromium breakpoint-gate run, one row per probe.
-//
-//   node results/commission-band-mech/layout.mjs --extract <gate chromium.json> <run id>   rewrite layout-rows.json
-//   node results/commission-band-mech/layout.mjs --write                                   layout-rows.json -> lean/Fw/Parts/CommissionOptLayout.lean
-//   node results/commission-band-mech/layout.mjs --check                                   the Lean file equals the generation
-//
-// The gate (packages/gate-breakpoints) loads the rewrite at each probe's viewport with the page at the top, so the first read of
-// the commission section (raw.viewFirst) is in document coordinates; the card and the section share the document top except in
-// the sticky layout (width > 1000), where the card is shorter than the section. Only the rewrite arm is read.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +7,6 @@ const repo = path.resolve(here, '../..');
 const rowsPath = path.join(here, 'layout-rows.json');
 const leanPath = path.join(repo, 'lean/Fw/Parts/CommissionOptLayout.lean');
 
-/** A rect number as the decimal string the run's JSON holds (no exponent, at most 12 decimals). */
 const dec = (v) => {
   const s = String(v);
   if (!/^-?\d+(\.\d{1,12})?$/.test(s)) throw new Error(`rect number not a plain decimal: ${s}`);

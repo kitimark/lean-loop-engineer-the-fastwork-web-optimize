@@ -1,6 +1,5 @@
 import { ENTER_HI, ENTER_LO, EXIT_HI, EXIT_LO } from './logic';
 
-/** Events after which a follower that left a band has settled (Lean `CommissionOptWindow.quiet_run`: 0.78^29 < 8e-4). */
 export const SETTLE_EVENTS = 29;
 
 export interface Bands {
@@ -10,7 +9,6 @@ export interface Bands {
   exitTo: number;
 }
 
-/** The scroll positions where the card top and the section bottom cross the two bands (document px, viewport height `vh`). */
 export const bands = (cardTop: number, bottom: number, vh: number): Bands => ({
   enterFrom: cardTop - ENTER_HI * vh,
   enterTo: cardTop - ENTER_LO * vh,

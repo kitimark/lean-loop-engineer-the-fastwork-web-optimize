@@ -39,7 +39,7 @@ artifact read), MEASURED (CI), INFERRED.
 | `fol_mem`, `frame_mem` | without reduced motion the followers stay in [0, 1] |
 | `quiet_run` | 29 events with one target pair: `more` is false at the last one |
 | `rest_before` | a page that starts above both bands keeps the followers at their first targets |
-| `skip_in_band` | headline: a skipped event has a band event among the last 29 |
+| `skip_in_band` | a skipped event has a band event among the last 29 |
 | `no_skip_reduced`, `no_skip_ungated` | reduced motion and the wide layout (c1000 off) never skip |
 
 Premises of `skip_in_band` (all decidable on the golden): the scroll is non-decreasing, each step is shorter than 0.36 vh (the
@@ -91,7 +91,7 @@ the snapped value, which the base arm sees as a changed property and the model d
 The older runs (flag 39843560957, base 39837044649, commit 2a74101) saw one contiguous run 2700-3590 and no second run. Their
 page was 720 px shorter (maxScroll 4626 against 5346 now); a fit of the same frame model to their 463 frames has zero mismatches
 for card top 3076 and section bottom 3768 (search over card top, bottom and viewport height, scratch only), i.e. a different
-layout of that commit. That is why the earlier window never showed the exit band: it was one layout's enter tail.
+layout of that commit. The earlier window was one layout's enter tail, so it never showed the exit band.
 
 WebKit (iOS Simulator 430x775, 50 px steps, 2 frames per step, 2 passes; base run 39837001915, flag run 39843567401),
 RecalculateStyles per step, base against flag, both passes (same per step in both passes):
@@ -131,12 +131,12 @@ CONFIRMED by reading; the per-frame count of forced flushes is INFERRED (no inst
 
 ## Limits and follow-ups
 
-- Frame times of the scroll-in: Simulator or phone replay, follow-up until sim-touch-timeout lands. Accepted limit.
+- Frame times of the scroll-in: Simulator or phone replay, follow-up until sim-touch-timeout lands.
 - Playwright WebKit and the Simulator stand in for Safari.
 - The rect table is one gate run at probe heights of 900 px (plus the 775, 815, 932 phone probes); a window at another height
   is the same formulas on the same section rect only if the document above the section does not depend on the height (it does:
   the section top moves by 2 px per px of viewport height at 430 wide, 3194 at 932 against 2880 at 775).
-- `window.ts` is used by the test only (the driver needs no window); it is the TS twin of the golden, listed as a stand-in.
+- `window.ts` is used by the test only (the driver needs no window); it is the TS twin of the golden.
 
 ## Runs
 

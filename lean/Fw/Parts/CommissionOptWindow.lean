@@ -8,39 +8,27 @@ namespace Fw.Parts.CommissionOptWindow
 
 open Fw.Site.Breakpoints Fw.Parts.Commission Fw.Parts.CommissionOpt
 
-/-! ## Bands in scroll coordinates -/
-
-/-- Scroll position where the card top reaches `enterHi` of the viewport: the enter value starts to fall. -/
 def enterFrom (cardTop vh : Rat) : Rat := cardTop - enterHi * vh
 
-/-- Scroll position where the card top reaches `enterLo` of the viewport: the enter value is 0. -/
 def enterTo (cardTop vh : Rat) : Rat := cardTop - enterLo * vh
 
-/-- Scroll position where the section bottom reaches `exitHi` of the viewport: the exit value starts to rise. -/
 def exitFrom (bottom vh : Rat) : Rat := bottom - exitHi * vh
 
-/-- Scroll position where the section bottom reaches `exitLo` of the viewport: the exit value is 1. -/
 def exitTo (bottom vh : Rat) : Rat := bottom - exitLo * vh
 
-/-- The scroll position `y` lies strictly inside the enter band. -/
 def inEnter (cardTop vh y : Rat) : Prop := enterFrom cardTop vh < y ∧ y < enterTo cardTop vh
 
-/-- The scroll position `y` lies strictly inside the exit band. -/
 def inExit (bottom vh y : Rat) : Prop := exitFrom bottom vh < y ∧ y < exitTo bottom vh
 
-/-- The scroll position `y` lies inside a band. -/
 def inBand (cardTop bottom vh y : Rat) : Prop := inEnter cardTop vh y ∨ inExit bottom vh y
 
 instance (cardTop bottom vh y : Rat) : Decidable (inBand cardTop bottom vh y) := by
   unfold inBand inEnter inExit; infer_instance
 
-/-- The body's event at scroll `y`: card top and section bottom move one for one with the scroll. -/
 def evAt (cardTop bottom vh y : Rat) : Ev := ⟨true, false, cardTop - y, bottom - y, vh⟩
 
-/-- The enter target at scroll `y`. -/
 def tgtE (cardTop vh y : Rat) : Rat := target false (enterRaw (cardTop - y) vh)
 
-/-- The exit target at scroll `y`. -/
 def tgtX (bottom vh y : Rat) : Rat := target false (exitRaw (bottom - y) vh)
 
 theorem enterRaw_above (cardTop vh y : Rat) (h : y ≤ enterFrom cardTop vh) : enterRaw (cardTop - y) vh = 1 := by
@@ -81,7 +69,6 @@ theorem smooth_zero : smooth 0 = 0 := by decide +kernel
 
 theorem absR_nonneg (x : Rat) : 0 ≤ absR x := by unfold absR; grind
 
-/-- The enter follower closes at least 22 % of its distance to the target each frame. -/
 theorem n_contracts (s : Pair) (top bottom h : Rat) (c : Bool) :
     absR (target false (enterRaw top h) - (frame s top bottom h false c).n)
       ≤ (78 / 100) * absR (target false (enterRaw top h) - s.n) := by
@@ -99,7 +86,6 @@ theorem n_contracts (s : Pair) (top bottom h : Rat) (c : Bool) :
     · grind
   · split <;> grind
 
-/-- The exit follower closes at least 22 % of its distance to the target each frame. -/
 theorem r_contracts (s : Pair) (top bottom h : Rat) (c : Bool) :
     absR (target false (exitRaw bottom h) - (frame s top bottom h false c).r)
       ≤ (78 / 100) * absR (target false (exitRaw bottom h) - s.r) := by
@@ -112,15 +98,10 @@ theorem r_contracts (s : Pair) (top bottom h : Rat) (c : Bool) :
   unfold absR eps at *
   split <;> grind
 
-/-! ## The follower settles -/
-
-/-- The enter target of an event. -/
 def tE (e : Ev) : Rat := target e.rm (enterRaw e.top e.vh)
 
-/-- The exit target of an event. -/
 def tX (e : Ev) : Rat := target e.rm (exitRaw e.bottom e.vh)
 
-/-- Both followers stay in `[0, 1]` after a frame that starts in it. -/
 theorem frame_mem (s : Pair) (top bottom h : Rat) (c : Bool)
     (hn : 0 ≤ s.n ∧ s.n ≤ 1) (hr : 0 ≤ s.r ∧ s.r ≤ 1) :
     (0 ≤ (frame s top bottom h false c).n ∧ (frame s top bottom h false c).n ≤ 1) ∧
@@ -136,7 +117,6 @@ theorem frame_mem (s : Pair) (top bottom h : Rat) (c : Bool)
   · split <;> split <;> grind
   · split <;> grind
 
-/-- Without reduced motion the followers start and stay in `[0, 1]`. -/
 theorem fol_mem (ev : Nat → Ev) (hrm : ∀ j, (ev j).rm = false) (k : Nat) :
     (0 ≤ (stO ev k).fol.n ∧ (stO ev k).fol.n ≤ 1) ∧ (0 ≤ (stO ev k).fol.r ∧ (stO ev k).fol.r ≤ 1) := by
   induction k with
@@ -148,10 +128,8 @@ theorem fol_mem (ev : Nat → Ev) (hrm : ∀ j, (ev j).rm = false) (k : Nat) :
     simp only [stO, stepO, Ev.frame, hrm k]
     exact this
 
-/-- After a frame the distance of the enter follower to the event's target. -/
 def dN (ev : Nat → Ev) (k : Nat) : Rat := absR (tE (ev k) - (stO ev (k + 1)).fol.n)
 
-/-- The `more` flag of a frame is false iff both followers are within `eps` of the targets. -/
 theorem more_false_iff (e : Ev) (st : St) :
     (e.frame st).more = false ↔
       absR (tE e - (e.frame st).n) < eps ∧ absR (tX e - (e.frame st).r) < eps := by
@@ -159,7 +137,6 @@ theorem more_false_iff (e : Ev) (st : St) :
   rw [h]
   simp only [decide_eq_false_iff_not, not_or, Rat.not_le]
 
-/-- One event closes at least 22 % of both distances. -/
 theorem step_contracts (ev : Nat → Ev) (hrm : ∀ j, (ev j).rm = false) (j : Nat) :
     absR (tE (ev j) - (stO ev (j + 1)).fol.n) ≤ (78 / 100) * absR (tE (ev j) - (stO ev j).fol.n) ∧
     absR (tX (ev j) - (stO ev (j + 1)).fol.r) ≤ (78 / 100) * absR (tX (ev j) - (stO ev j).fol.r) := by
@@ -169,7 +146,6 @@ theorem step_contracts (ev : Nat → Ev) (hrm : ∀ j, (ev j).rm = false) (j : N
   simp only [tE, tX, e, stO, stepO, Ev.frame]
   exact ⟨h1, h2⟩
 
-/-- 29 events with one target pair leave the followers at the targets: `more` is false at the last of them. -/
 theorem quiet_run (ev : Nat → Ev) (hrm : ∀ j, (ev j).rm = false) (k : Nat) (m q : Rat)
     (hc : ∀ i, i < 29 → tE (ev (k + i)) = m ∧ tX (ev (k + i)) = q) :
     ((ev (k + 28)).frame (stO ev (k + 28))).more = false := by
@@ -230,8 +206,6 @@ theorem quiet_run (ev : Nat → Ev) (hrm : ∀ j, (ev j).rm = false) (k : Nat) (
   · have := hk.2
     grind
 
-/-! ## Scroll positions and targets -/
-
 theorem tgtE_above (cardTop vh y : Rat) (h : y ≤ enterFrom cardTop vh) : tgtE cardTop vh y = 1 := by
   unfold tgtE
   rw [enterRaw_above cardTop vh y h]
@@ -252,7 +226,6 @@ theorem tgtX_below (bottom vh y : Rat) (hv : 0 < vh) (h : exitTo bottom vh ≤ y
   rw [exitRaw_below bottom vh y hv h]
   exact smooth_one
 
-/-- A scroll step shorter than the enter band, with neither end inside it, keeps the enter target. -/
 theorem tgtE_step (cardTop vh y1 y2 : Rat) (hv : 0 < vh) (h12 : y1 ≤ y2) (hs : y2 - y1 < 36 / 100 * vh)
     (a : ¬ inEnter cardTop vh y1) (b : ¬ inEnter cardTop vh y2) : tgtE cardTop vh y1 = tgtE cardTop vh y2 := by
   unfold inEnter enterFrom enterTo enterHi enterLo at *
@@ -262,7 +235,6 @@ theorem tgtE_step (cardTop vh y1 y2 : Rat) (hv : 0 < vh) (h12 : y1 ≤ y2) (hs :
   · have c1 : cardTop - 6 / 100 * vh ≤ y1 := by grind
     rw [tgtE_below cardTop vh y1 hv (by unfold enterTo enterLo; exact c1), tgtE_below cardTop vh y2 hv (by unfold enterTo enterLo; grind)]
 
-/-- A scroll step shorter than the enter band, with neither end inside the exit band, keeps the exit target. -/
 theorem tgtX_step (bottom vh y1 y2 : Rat) (hv : 0 < vh) (h12 : y1 ≤ y2) (hs : y2 - y1 < 36 / 100 * vh)
     (a : ¬ inExit bottom vh y1) (b : ¬ inExit bottom vh y2) : tgtX bottom vh y1 = tgtX bottom vh y2 := by
   unfold inExit exitFrom exitTo exitHi exitLo at *
@@ -272,10 +244,8 @@ theorem tgtX_step (bottom vh y1 y2 : Rat) (hv : 0 < vh) (h12 : y1 ≤ y2) (hs : 
   · have c1 : bottom - 35 / 100 * vh ≤ y1 := by grind
     rw [tgtX_below bottom vh y1 hv (by unfold exitTo exitLo; exact c1), tgtX_below bottom vh y2 hv (by unfold exitTo exitLo; grind)]
 
-/-- The events of a scroll over a section whose card top and bottom (document px) are fixed. -/
 def scrollEv (cardTop bottom vh : Rat) (ys : Nat → Rat) : Nat → Ev := fun k => evAt cardTop bottom vh (ys k)
 
-/-- Away from both bands, a monotone scroll with short steps keeps both targets. -/
 theorem targets_chain (cardTop bottom vh : Rat) (ys : Nat → Rat) (hv : 0 < vh)
     (hmono : ∀ j, ys j ≤ ys (j + 1)) (hstep : ∀ j, ys (j + 1) - ys j < 36 / 100 * vh) (a n : Nat)
     (hout : ∀ i, i ≤ n → ¬ inBand cardTop bottom vh (ys (a + i))) :
@@ -301,7 +271,6 @@ theorem targets_chain (cardTop bottom vh : Rat) (ys : Nat → Rat) (hv : 0 < vh)
     have t2 := tgtX_step bottom vh _ _ hv m1 s1 x1 x2
     exact ⟨t1.symm.trans ih'.1, t2.symm.trans ih'.2⟩
 
-/-- The page starts above both bands: the followers rest at their first targets while no event is near a band. -/
 theorem rest_before (cardTop bottom vh : Rat) (ys : Nat → Rat) (hv : 0 < vh)
     (hmono : ∀ j, ys j ≤ ys (j + 1)) (hstep : ∀ j, ys (j + 1) - ys j < 36 / 100 * vh)
     (h0 : ys 0 ≤ enterFrom cardTop vh ∧ ys 0 ≤ exitFrom bottom vh) (n : Nat)
@@ -329,7 +298,6 @@ theorem rest_before (cardTop bottom vh : Rat) (ys : Nat → Rat) (hv : 0 < vh)
     rw [Pair.mk.injEq]
     exact ⟨hs.1, hs.2.1⟩
 
-/-- The variant skips the writes of event `k` only if some event of the last 29, `k` included, lay inside a band. -/
 theorem skip_in_band (cardTop bottom vh : Rat) (ys : Nat → Rat) (hv : 0 < vh)
     (hmono : ∀ j, ys j ≤ ys (j + 1)) (hstep : ∀ j, ys (j + 1) - ys j < 36 / 100 * vh)
     (h0 : ys 0 ≤ enterFrom cardTop vh ∧ ys 0 ≤ exitFrom bottom vh) (k : Nat)
@@ -371,20 +339,16 @@ theorem skip_in_band (cardTop bottom vh : Rat) (ys : Nat → Rat) (hv : 0 < vh)
     rw [hs2.2.2] at hmore
     exact Bool.noConfusion hmore
 
-/-- Under reduced motion the follower lands in one frame, so the variant never skips. -/
 theorem no_skip_reduced (e : Ev) (st : St) (h : e.rm = true) : writeNow e.gate (e.frame st).more = true := by
   have := (frame_reduced st.fol e.top e.bottom e.vh e.gate).2.2
   simp only [Ev.frame, h] at *
   simp [writeNow, this]
 
-/-- Outside the c1000 band the variant never skips. -/
 theorem no_skip_ungated (e : Ev) (st : St) (h : e.gate = false) : writeNow e.gate (e.frame st).more = true := by
   simp [writeNow, h]
 
-/-! ## The measured section -/
 
 open Fw.Parts.CommissionOptLayout in
-/-- The bands of a probe row: card top and section bottom as the gate read them, at the probe's viewport height. -/
 def rowBands (r : Row) : Rat × Rat × Rat × Rat :=
   (enterFrom r.cardTop r.height, enterTo r.cardTop r.height,
    exitFrom (r.sectionTop + r.sectionH) r.height, exitTo (r.sectionTop + r.sectionH) r.height)
