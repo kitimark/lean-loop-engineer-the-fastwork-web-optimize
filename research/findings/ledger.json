@@ -3760,6 +3760,43 @@
    "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
    "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
    "userDecision": "pending"
+  },
+  {
+   "id": "platform.sweep.offscreen-pause",
+   "n": 70,
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "status": "partly-proved",
+   "flags": [
+    "platform.sweep:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Lean PlatformSweepPause.shown_same, visible_same, visible_phase: on every frame not reported offscreen, and so every visible frame, the animation time equals the uninterrupted one, so phase and background position are equal). Breakpoint gate run 40091740060 (Chromium and Playwright WebKit, success); trajectory probe run 40091732984 (diagnostic, widths 390 and 1280, both engines, success).",
+   "mechanism": "INFERRED (research/notes/2026/10-2x-webkit-throttles.md row platform.sweep): the sweep is a main-thread CSS background-position animation with no offscreen throttle, so the rendering update and restyle run every frame while the platform section is offscreen. PROVED in Lean: a frame reported offscreen leaves the animation time unchanged and counts no tick (reported_no_tick, reported_run); under the named premise Lag (the observer reports an element after the frame it leaves) an offscreen stretch ticks at most once (offscreen_ticks_le_one). Not measured: no CI lane counts rendering updates or main-thread time of the rewrite while the section is offscreen (wktr runs the original only; the count lanes count class names).",
+   "leanFor": [
+    "Fw.Parts.PlatformSweepPause.shown_same",
+    "Fw.Parts.PlatformSweepPause.visible_same",
+    "Fw.Parts.PlatformSweepPause.visible_phase",
+    "Fw.Parts.PlatformSweepPause.reported_no_tick",
+    "Fw.Parts.PlatformSweepPause.reported_run",
+    "Fw.Parts.PlatformSweepPause.offscreen_ticks_le_one"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and main-thread time while the platform section is offscreen, per engine, faithful against the flag: no lane",
+    "The IntersectionObserver lag (Lag) is a premise, not proved about either engine",
+    "An animation created while offscreen is not tracked by the driver"
+   ],
+   "premises": [
+    "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
+    "An element reported offscreen is offscreen (Ok): INFERRED"
+   ],
+   "v1Evidence": "",
+   "lesson": "A seek-on-resume pause needs only one invariant (a running animation sits on clock plus offset); the saving is the paused frames, which is a count to measure, not a look to prove.",
+   "evidence": "CI runs 40091740060 (breakpoint gate, fw=platform.sweep:offscreen-pause), 40091732984 (trajectory probe, same flag); branch worktree-wf_72c42085-d84-1",
+   "next": "A lane that counts rendering updates and main-thread time of the rewrite while a section is offscreen (WKTR variant for the rewrite, or a Chromium trace profile); then set proved or no-win.",
+   "flag": "platform.sweep:offscreen-pause"
   }
  ],
  "notes": [
