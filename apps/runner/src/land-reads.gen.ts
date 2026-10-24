@@ -8,6 +8,7 @@ export const CHECK_SH_READS: string[] = [
   "packages/gate-breakpoints/src/scope.gen.json",
   ".github/workflows/**",
   "scripts/span.sh",
+  "scripts/lint-check-sh.mjs",
   "scripts/fwcore-build.sh",
   "scripts/fwcore-record-rule.sh",
   "scripts/lake-slot.sh",
