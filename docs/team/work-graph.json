@@ -20420,7 +20420,20 @@
     "apps/site/src/parts/platform.sweep/pause.ts",
     "apps/site/src/parts/platform.sweep/pause.test.ts",
     "apps/site/src/parts/platform.sweep/part.json",
-    "docs/team/handoffs/sweep-offscreen-pause.md"
+    "docs/team/handoffs/sweep-offscreen-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/PlatformSweepPauseGolden.lean"
    ],
    "title": "platform.sweep:offscreen-pause (10-2x-webkit-throttles.md rank 3): an IntersectionObserver pauses the sweep animation offscreen and seeks it to the document timeline on resume (engine.scene pattern). Lean first: phase on resume equals the uninterrupted phase (reuse the engine.scene and morph.columns seek proofs). Lego brick, own flag. Measure on CI: rendering updates and main-thread time while the platform scene is offscreen, both engines; breakpoint gate."
   },
@@ -20439,7 +20452,21 @@
     "apps/site/src/parts/platform.glint/pause.ts",
     "apps/site/src/parts/platform.glint/pause.test.ts",
     "apps/site/src/parts/platform.glint/part.json",
-    "docs/team/handoffs/glint-offscreen-pause.md"
+    "docs/team/handoffs/glint-offscreen-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/PlatformGlintPauseGolden.lean",
+    "apps/site/src/parts/platform/Visuals.tsx"
    ],
    "title": "platform.glint:offscreen-pause (10-2x-webkit-throttles.md rank 4): pauseAnimations() on the SMIL glint while offscreen, setCurrentTime from the document clock on resume; WebKit ticks SMIL every 1/30 s even when nothing visible changes. Lean first: phase on resume equals the uninterrupted phase (SMIL clock). Lego brick, own flag. Measure as sweep-offscreen-pause, both engines; breakpoint gate."
   },
@@ -20460,7 +20487,20 @@
     "apps/site/src/parts/morph.mount/armLate.ts",
     "apps/site/src/parts/morph.mount/armLate.test.ts",
     "apps/site/src/parts/morph.mount/part.json",
-    "docs/team/handoffs/mount-arm-late.md"
+    "docs/team/handoffs/mount-arm-late.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/morph.mount/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/MorphMountArmLateGolden.lean"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
   },
@@ -20545,6 +20585,26 @@
     "docs/team/handoffs/gate-flag-order.md"
    ],
    "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "offscreen-count-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-chromium/src/offscreen.mjs",
+    "packages/measure-chromium/test/offscreen.test.mjs",
+    "lean/Fw/Measure/Offscreen.lean",
+    "lean/Fw/Measure/OffscreenGolden.lean",
+    "packages/contracts/golden/measure/offscreen.jsonl",
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/tools/offscreen-counts.md",
+    "docs/team/handoffs/offscreen-count-lane.md"
+   ],
+   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids)."
   }
  ],
  "deadline": {
