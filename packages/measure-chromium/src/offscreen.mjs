@@ -191,11 +191,11 @@ export function groupRuns(records) {
 }
 
 // base label `rewrite`, `original` is the reference, every other label is a flag arm decided on its own.
-export function summarize(records, { base = 'rewrite', reference = 'original' } = {}) {
+export function summarize(records, { base = 'rewrite', reference = 'original', armmap = {} } = {}) {
   const arms = groupRuns(records);
   const runs = (l) => (arms.get(l) ?? []).map((r) => ({ n: r.vec.n, vals: r.vec.vals }));
   const flags = [...arms.keys()].filter((l) => l !== base && l !== reference).sort();
-  const out = { base, reference, arms: {}, flags: {} };
+  const out = { base, reference, armmap, arms: {}, flags: {} };
   for (const [label, rs] of arms) {
     out.arms[label] = { runs: rs.length, runIds: rs.map((r) => r.run), n: rs.map((r) => r.vec.n), hiddenFrames: rs.map((r) => r.hiddenFrames), info: rs.map((r) => r.info) };
   }
@@ -223,10 +223,11 @@ function perFrame(rs) {
 export function markdown(sum) {
   const L = [];
   L.push(`Window sums over the steady offscreen frames of one run (settle ${SETTLE} frames per offscreen stretch), min..max over the runs of an arm.`);
+  const name = (l) => (sum.armmap?.[l] ? `${l} (${sum.armmap[l]})` : l);
   L.push('', '| arm | runs | window frames | run ids |', '|---|---|---|---|');
-  for (const [l, a] of Object.entries(sum.arms)) L.push(`| ${l} | ${a.runs} | ${[...new Set(a.n)].join(', ')} | ${a.runIds.join(', ')} |`);
+  for (const [l, a] of Object.entries(sum.arms)) L.push(`| ${name(l)} | ${a.runs} | ${[...new Set(a.n)].join(', ')} | ${a.runIds.join(', ')} |`);
   for (const [f, v] of Object.entries(sum.flags)) {
-    L.push('', `### ${f} vs ${sum.base}: ${v.verdict}${v.why ? ` (${v.why})` : ''}`);
+    L.push('', `### ${name(f)} vs ${sum.base}: ${v.verdict}${v.why ? ` (${v.why})` : ''}`);
     if (!v.keys) continue;
     L.push('', `| counter | ${sum.base} | ${f} | cmp | guaranteed reduction |`, '|---|---|---|---|---|');
     for (const [k, c] of Object.entries(v.keys)) L.push(`| ${k} | ${fmt(c.base)} | ${fmt(c.flag)} | ${c.cmp} | ${c.reduction} |`);
@@ -285,7 +286,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(`offscreen: ${rec.label}/${rec.run}: ${rec.frames} frames, ${rec.hiddenFrames} hidden, window ${rec.vec.n}; seen ${JSON.stringify(rec.seen)}`);
   } else if (cmd === 'summarize') {
     const dir = rest[0];
-    const sum = summarize(findRecords(dir));
+    const sum = summarize(findRecords(dir), { armmap: arg(rest, '--armmap') ? JSON.parse(arg(rest, '--armmap')) : {} });
     const md = markdown(sum);
     if (arg(rest, '--json')) writeFileSync(arg(rest, '--json'), JSON.stringify(sum, null, 1) + '\n');
     if (arg(rest, '--md')) writeFileSync(arg(rest, '--md'), md);
@@ -294,7 +295,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const p = parseLine(readFileSync(rest[0] ?? 0, 'utf8'));
     for (const [k, v] of Object.entries(p)) console.log(`${k}=${v}`);
   } else {
-    console.error('usage: offscreen.mjs reduce <counts.json> [--trace trace.json] [--label L] [--run R] [--out f] | summarize <dir> [--json f] [--md f] | line <message file>');
+    console.error('usage: offscreen.mjs reduce <counts.json> [--trace trace.json] [--label L] [--run R] [--out f] | summarize <dir> [--armmap json] [--json f] [--md f] | line <message file>');
     process.exit(2);
   }
 }
