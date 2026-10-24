@@ -9580,7 +9580,8 @@
     "apps/site/src/debug/root-events.test.ts",
     "packages/gate-breakpoints/src/trajectory/debug.mjs",
     "packages/gate-breakpoints/test/debug.test.mjs",
-    ".github/scripts/trajectory-line.mjs"
+    ".github/scripts/trajectory-line.mjs",
+    "research/findings/ledger.json"
    ]
   },
   {
