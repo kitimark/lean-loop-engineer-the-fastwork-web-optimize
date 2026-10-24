@@ -27,8 +27,8 @@ describe("ledger numbers are assigned at the land (Lean Fw.Console.LedgerAlloc g
 describe("the ledger-unique check accepts rows without a number", () => {
   it("skips n-less candidate rows and still refuses a duplicate explicit n", () => {
     const row = (n: number | null | undefined) => ({ id: "x", candidate: "c", ...(n === undefined ? {} : { n }) });
-    expect(badNs(candidateNs({ findings: [row(30), row(null), row(undefined), row(31)] }))).toEqual([]);
-    expect(badNs(candidateNs({ findings: [row(30), row(null), row(30)] }))).toEqual([30]);
+    expect(badNs(candidateNs({ findings: [row(30), row(null), row(undefined), row(31)] as never }))).toEqual([]);
+    expect(badNs(candidateNs({ findings: [row(30), row(null), row(30)] as never }))).toEqual([30]);
   });
 });
 

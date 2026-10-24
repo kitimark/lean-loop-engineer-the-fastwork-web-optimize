@@ -13,9 +13,8 @@ export function badNs(ns: readonly number[]): number[] {
   return out;
 }
 
-/** Lean `Fw.Console.LedgerAlloc.explicit`: a row without a number (the land assigns it) is skipped. */
-export function candidateNs(ledger: { findings: { id?: unknown; candidate?: unknown; n?: number | null }[] }): number[] {
-  return ledger.findings.filter((f) => typeof f.id === "string" && typeof f.candidate === "string").flatMap((f) => (typeof f.n === "number" ? [f.n] : []));
+export function candidateNs(ledger: { findings: { id?: unknown; candidate?: unknown; n: number }[] }): number[] {
+  return ledger.findings.filter((f) => typeof f.id === "string" && typeof f.candidate === "string").map((f) => f.n);
 }
 
 export function badNsOfFile(path: string): number[] {
