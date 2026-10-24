@@ -15,8 +15,12 @@ name: smoothness
 # A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
 # the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
 # `[morph-wheel]` (task morph-real-wheel) runs, in `webkit-mac` only, the end-of-page morph with a trusted wheel and a synthetic one (packages/measure-webkit/src/lag/mac-cli.mjs) and skips `webkit-sim`.
-# `[sim-only]` (with `[earn-bound]`) skips the macOS leg and runs 6 reps per simulator job (36 windows; a job needs 5 kept finish windows per arm to decide, and the Simulator tends to die after about 30 to 40 windows).
-# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3).
+# `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Reps per simulator job come from Lean `Fw.Measure.WalkBudget.planReps` (`--reps auto`): as many whole reps as the walk
+# budget (time to the deadline at 45 s a window) and the Simulator's life (36 windows, it tends to die after about 30 to 40) allow, so 6 reps of 3 arms (36 windows); a job needs 5 kept finish windows per
+# arm to decide (`Fw.Gate.Smooth.minReps`), which holds for up to 3 arms and fails for 4 (`lifeShort`) or a walk that starts late (`budgetShort`); `sim.json` records `repPlan`.
+# `[sim-touch-control]` adds a 4th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 3 take them from SpringBoard. Both skip the Timeline in touch
+# windows, so job 4 against jobs 1 to 3 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
+# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3, or 1 to 4 with [sim-touch-control]; job 4 is the control and is left out of the sim pool).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
 # The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
@@ -390,7 +394,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        job: [1, 2, 3]
+        job: ${{ fromJSON(contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
@@ -492,7 +496,7 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           SITE_DIR: ${{ runner.temp }}/site
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          REPS: ${{ contains(github.event.head_commit.message, '[sim-only]') && '6' || contains(github.event.head_commit.message, '[earn-bound]') && '7' || '5' }}
+          FW_TOUCH_VARIANTS: ${{ matrix.job == 4 && 'safari' || 'springboard' }}
           # The runner boots Safari several times slower than a Mac: every wait in packages/measure-webkit is scaled (counts do not depend on waits).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
@@ -509,15 +513,18 @@ jobs:
               $SIG{ALRM} = sub { print STDERR "walk hard stop: killing the process group\n"; kill "TERM", -$p; sleep 5; kill "KILL", -$p; waitpid($p, 0); exit 124; };
               alarm $s; waitpid($p, 0); alarm 0; exit($? & 127 ? 128 + ($? & 127) : $? >> 8);' -- "$@"
           }
-          hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" --reps "$REPS" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
       # Host state first (under 1 min, every command bounded), then one upload of result/ with one retry; the post steps total 9 min.
       - name: Keep host state
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 1
         continue-on-error: true
+        env:
+          KEEP_HANG: ${{ matrix.job == 3 && contains(github.event.head_commit.message, '[sim-keep-hang]') && '1' || '' }}
         run: |
           mkdir -p "$RUNNER_TEMP/result"
-          bounded() { perl -e 'alarm 15; exec @ARGV' -- "$@"; }
+          if [ -n "$KEEP_HANG" ]; then sleep 90; fi
+          bounded() { perl -e 'alarm 8; exec @ARGV' -- "$@"; }
           { uptime; bounded xcrun simctl list devices booted; bounded ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
       - id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -539,6 +546,8 @@ jobs:
       - name: Shut down and delete the Simulator
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
         timeout-minutes: 2
+        # the runner is deleted after the job; a shutdown that outlasts its 2 min on a starved host (run 40023506144 job 3, 139 s) must not turn a finished walk red
+        continue-on-error: true
         run: |
           xcrun simctl shutdown all || true
           xcrun simctl delete "$FW_SIM_NAME" || true
