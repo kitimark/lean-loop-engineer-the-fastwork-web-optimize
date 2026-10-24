@@ -1,6 +1,3 @@
-// The ref rule of the gate-engine action (Lean Fw.Ops.GateEngineTiming.shouldSave) against the shell `case` the action
-// runs: the case line is cut out of the action file and run in bash on every golden `ref` row. The branch-only writers of
-// the trigger golden (Lean Fw.Ci.Trigger.branchOnlyWriters) are re-derived from its own rows.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
