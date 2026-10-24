@@ -12,7 +12,6 @@ import {
 } from "./watch-collect.ts";
 
 // ---- the facts (wire shape of AgentFacts) ----
-/** What a loop watches: a background task's output file, or an agent's transcript / output file. */
 export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
   pid: number; start?: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
@@ -127,7 +126,6 @@ export interface Raw {
   landQueue?: string[];
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
   reapHeld?: HeldFact[];
-  /** the start (process-table fact) of each pid; pairs a child pid with its identity */
   starts?: Map<number, number>;
 }
 const hasWord = (text: string, w: string) => text.split(/[^A-Za-z0-9._/-]+/).includes(w);
@@ -347,7 +345,6 @@ export function liveLandLockBranch(root: string): string | null {
   } catch { return null; }
 }
 
-/** The held entries of one watch pass (Lean's Reap plan, `wt` from Lean): what `next` turns into `killOrphan`. */
 export function reapHeldFacts(pass: ReapPass | null): HeldFact[] {
   return pass === null ? [] : pass.held.map((h) => ({ pid: h.pid, start: h.start, wt: h.wt }));
 }
@@ -432,7 +429,6 @@ export async function fetchPlan(p: Paths, env: NodeJS.ProcessEnv = process.env):
   try { const r = await fetch(`${base}/api/plan`, { signal: AbortSignal.timeout(3000) }); return r.ok ? await r.json() : null; } catch { return null; }
 }
 
-/** Facts for all agents of a snapshot, ready for the `obs.next` request. */
 export async function collectFacts(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, reap: ReapPass | null = heldPass(main)): Promise<AgentFacts[]> {
   return buildFacts(await collectRaw(p, main, snap, health, await fetchPlan(p), reap));
 }

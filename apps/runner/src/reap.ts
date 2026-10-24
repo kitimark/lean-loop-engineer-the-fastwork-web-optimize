@@ -1,5 +1,3 @@
-// fw reap (tasks orphan-guard, reap-auto-stop): lists (--list) or stops (--stop) the leftover processes Lean selects
-// (ops.lspReap / ops.reapPlan / ops.reapKill / ops.reapVerify / ops.reapIdle, lean/Fw/Ops/Reap.lean, goldens
 import { spawnSync } from "node:child_process";
 import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readlinkSync, readSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -17,11 +15,9 @@ export type ReapRow = {
 export type LoopFact = { pid: number; start: number; awaits: string; callLive: boolean; inode?: string };
 export type Waiter = { pid: number; start: number; wt: string; writes: string; inode?: string };
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
-/** A held entry of `ops.reapHeld`: the selection plus the worktree id of its row (Lean `wtOf`). */
 export type HeldEntry = Selected & { wt: string | null };
 export type Target = { pid: number; start: number; group: boolean };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
-/** A CPU baseline (ops.reapIdle): identity, the second it was set, the CPU time then (centiseconds). */
 export type Base = { pid: number; start: number; since: number; cpu: number };
 /** A worktree lock: the worktree id and the pid its reason names (null: none named). */
 export type Lock = { id: string; holder: number | null };
@@ -394,17 +390,13 @@ const request = (op: string, f: Facts, auto = false, promote: string[] = []) => 
   simAcquired: f.simAcquired ?? null, ownSims: f.ownSims ?? [], simHolders: f.simHolders ?? 0,
 });
 
-/** Orphan loops and booted Simulators the Reap plan holds, from ONE `ops.reapHeld` call. */
 export function heldAll(f: Facts, call: Call): { held: HeldEntry[]; heldSim: HeldEntry[] } {
   const reply = call(request("ops.reapHeld", f)) as { held: HeldEntry[]; heldSim?: HeldEntry[] };
   return { held: reply.held, heldSim: reply.heldSim ?? [] };
 }
 
-/** What one watch pass reads once: the held entries (Lean) and the start of every process of the table (a fact that
- *  `next` pairs with a child pid). */
 export type ReapPass = { held: HeldEntry[]; heldSim: HeldEntry[]; starts: Map<number, number> };
 
-/** Gather and ask Lean once for a watch pass; null when `FW_WATCH_REAP=0`, the facts cannot be read or the call fails. */
 export function heldPass(top: string, env: Record<string, string | undefined> = process.env,
   gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): ReapPass | null {
   if (env.FW_WATCH_REAP === "0") return null;
@@ -501,7 +493,6 @@ export const realIo: Io = {
 
 export type StopResult = {
   selected: Selected[]; termed: Target[]; killed: Target[]; left: Target[]; freedKb: number;
-  /** signals the scope guard refused (a pid outside the scope, pid <= 1, or a group with a member outside the scope) */
   refused: Target[];
   byKind: { kind: string; pids: number[]; targets: { pid: number; start: number }[]; freedKb: number }[];
   targets: Target[];
@@ -587,10 +578,8 @@ export function recordStopped(top: string, r: StopResult, now: number = Date.now
   } catch {}
 }
 
-/** The bytes of `reap.jsonl` a read takes from its end: about 70 days of ticks at 300 s (a row is under 300 bytes). */
 export const LOG_TAIL = 4 << 20;
 
-/** The rows of `reap.jsonl` in the last `LOG_TAIL` bytes (a cut first line and unparsable lines are dropped). [] when unreadable. */
 export function readLog(top: string, env: Record<string, string | undefined> = process.env): Record<string, unknown>[] {
   let fd: number;
   try { fd = openSync(join(consoleDirOf(env, top), "reap.jsonl"), "r"); } catch { return []; }
@@ -604,7 +593,7 @@ export function readLog(top: string, env: Record<string, string | undefined> = p
     const out: Record<string, unknown>[] = [];
     for (const l of lines) {
       if (l === "") continue;
-      try { const j = JSON.parse(l) as unknown; if (typeof j === "object" && j !== null) out.push(j as Record<string, unknown>); } catch { /* a torn row */ }
+      try { const j = JSON.parse(l) as unknown; if (typeof j === "object" && j !== null) out.push(j as Record<string, unknown>); } catch {}
     }
     return out;
   } catch { return []; } finally { closeSync(fd); }
@@ -613,19 +602,14 @@ export function readLog(top: string, env: Record<string, string | undefined> = p
 export type FoldReply = { seen: { kind: string; pid: number; start: number; firstAt: number; outcome: string }[]; ticks: number;
   covered: boolean; promote: string[]; verdict: string; exitSec: number; slotSec: number };
 
-/** Lean's fold of the log (`ops.reapFold`): the E and F identities, the 7-day coverage, the kinds that may join the automatic
- *  plan and the verdict text. */
 export function foldLog(top: string, call: Call, now: number = Date.now(), env: Record<string, string | undefined> = process.env): FoldReply {
   return call({ op: "ops.reapFold", now: secs(now), recs: readLog(top, env) }) as FoldReply;
 }
 
-/** The kinds `ops.reapFold` promotes into the automatic plan; [] when the log cannot be folded. Never throws. */
 export function promotedKinds(top: string, call: Call, now: number = Date.now(), env: Record<string, string | undefined> = process.env): string[] {
   try { return foldLog(top, call, now, env).promote; } catch { return []; }
 }
 
-/** One `reap.tick` row per watch tick whose facts were read, plus one `reap.held` row per E or F identity the log did not
- *  know (Lean `ops.reapLog`: the dedupe and the live list). Best effort; prints nothing. */
 export function recordHeld(top: string, r: StopResult, call: Call, now: number = Date.now(), env: Record<string, string | undefined> = process.env): void {
   try {
     const p = join(consoleDirOf(env, top), "reap.jsonl");

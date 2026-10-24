@@ -4,7 +4,6 @@ export type HeldAlert = { code: string; subject: string; detail: string };
 
 const subjectOf = (h: HeldEntry, sim: boolean): string => sim ? `sim ${h.pid}` : (h.wt ?? `pid-${h.pid}`);
 
-/** The `agent.held` alerts of one watch pass: the entries Lean's Reap plan holds (loops and booted Simulators). */
 export function reapHeldAlerts(pass: ReapPass | null): HeldAlert[] {
   if (pass === null) return [];
   const one = (h: HeldEntry, sim: boolean, what: string): HeldAlert => ({

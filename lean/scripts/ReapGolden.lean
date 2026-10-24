@@ -407,22 +407,18 @@ def exitText : String :=
   String.join (exitCases.map fun (op, name, r) =>
     (Json.mkObj [("name", .str name), ("request", withOp op r), ("response", respond op r)]).compress ++ "\n")
 
-/-- A `reap.held` row (`at` in milliseconds, as the runner writes it). -/
 def heldRow (atMs : Nat) (kind : String) (pid start : Nat) : Json :=
   Json.mkObj [("type", .str "reap.held"), ("at", toJson atMs), ("kind", .str kind), ("pid", toJson pid), ("start", toJson start)]
 
-/-- A `reap.stopped` row; `targets` are (pid, start) pairs, none for an old row with pids only. -/
 def stoppedRow (atMs : Nat) (kind : String) (targets : List (Nat × Nat)) (old : Bool := false) : Json :=
   let base := [("type", Json.str "reap.stopped"), ("at", toJson atMs), ("kind", .str kind),
     ("pids", toJson (targets.map (·.1))), ("freedKb", toJson 0)]
   Json.mkObj (if old then base else base ++ [("targets", .arr (targets.map fun (p, s) => Json.mkObj [("pid", toJson p), ("start", toJson s)]).toArray)])
 
-/-- A `reap.tick` row listing the E and F processes selected then. -/
 def tickRow (atMs : Nat) (live : List (String × Nat × Nat)) : Json :=
   Json.mkObj [("type", .str "reap.tick"), ("at", toJson atMs),
     ("live", .arr (live.map fun (k, p, s) => Json.mkObj [("kind", .str k), ("pid", toJson p), ("start", toJson s)]).toArray)]
 
-/-- Ticks every `step` seconds from `lo` to `hi` (seconds), each listing `live`. -/
 def ticksBetween (step lo hi : Nat) (live : List (String × Nat × Nat)) : List Json :=
   (List.range ((hi - lo) / step + 1)).map fun k => tickRow ((lo + k * step) * 1000) live
 

@@ -187,7 +187,6 @@ function bootedAll(): SimDevice[] {
   return parseBooted(r.stdout);
 }
 
-/** The booted devices of `xcrun simctl list devices booted -j` output; [] when the text is not that JSON. */
 export function parseBooted(text: string): SimDevice[] {
   let j: { devices?: Record<string, { udid: string; name: string; state: string }[]> };
   try { j = JSON.parse(text); } catch { return []; }

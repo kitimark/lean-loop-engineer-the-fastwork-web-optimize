@@ -198,7 +198,6 @@ def heldB (f : AgentFacts) (h : Held) : Bool :=
   | some w => h.wt == some w
   | none => false
 
-/-- A held entry of the agent's worktree names this child: same pid and same start (a child without a known start matches none). -/
 def killChildB (f : AgentFacts) (c : Child) : Bool :=
   f.reapHeld.any fun h => heldB f h && h.pid == c.pid && c.start == some h.start
 
@@ -305,7 +304,6 @@ theorem mem_orNone (l : List Action) (x : Action) (hx : x ≠ .none) : x ∈ orN
   | nil => simp [hx]
   | cons _ _ => simp
 
-/-- A held entry suppresses a child only by pid and start together. -/
 theorem killChild_iff (f : AgentFacts) (c : Child) :
     killChildB f c = true ↔ ∃ h ∈ f.reapHeld, heldB f h = true ∧ h.pid = c.pid ∧ c.start = some h.start := by
   unfold killChildB
@@ -316,7 +314,6 @@ theorem killChild_iff (f : AgentFacts) (c : Child) :
   · rintro ⟨h, hm, hb, hp, hs⟩
     exact ⟨h, hm, ⟨hb, hp⟩, hs⟩
 
-/-- A child whose start is unknown is never suppressed by a held entry. -/
 theorem killChild_unknown (f : AgentFacts) (c : Child) (hs : c.start = none) : killChildB f c = false := by
   cases h : killChildB f c
   · rfl
@@ -1090,7 +1087,6 @@ def ghb (hs : List Held) : AgentFacts :=
 #guard next {} t0 (ghb [⟨555, 1759998680, none⟩]) == [.investigate .heldByChild]
 #guard next {} t0 { ghb [⟨555, 1759998680, some "wt-ghb"⟩] with worktree := some {} } == [.investigate .heldByChild]
 #guard next {} t0 (ghb [⟨777, 1759998000, some "wt-ghb"⟩]) == [.killOrphan 777 1759998000, .investigate .heldByChild]
--- the same pid with another start is another process (pid reuse): the held entry does not suppress the child
 #guard next {} t0 (ghb [⟨555, 1759998681, some "wt-ghb"⟩]) == [.killOrphan 555 1759998681, .investigate .heldByChild]
 #guard next {} t0 { ghb [⟨555, 1759998680, some "wt-ghb"⟩] with
     children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22, watchedAt := some (ago 20) }] }

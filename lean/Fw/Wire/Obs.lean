@@ -714,8 +714,6 @@ def childKindOf (j : Json) : Except String ChildKind := do
   | "stdinWait" => pure .stdinWait
   | s => throw s!"field kind: unknown value {s}"
 
-/-- Decode a child process (`chain` optional, default empty; `watchedAt` optional; `producerExited` default false;
-`watch` optional). -/
 def childOf (j : Json) : Except String Child := do
   pure { pid := ← nat j "pid", start := ← optN j "start", chain := ← (← arrD j "chain").mapM (asNat "chain"), kind := ← childKindOf j,
          startedAt := ← startOf j "startedAt", watchedAt := ← optN j "watchedAt",
@@ -1243,11 +1241,9 @@ both sides of every threshold edge; `gaps` checks that every action and every re
 namespace NextGolden
 open Fw.Obs.Next (t0 ago ex)
 
-/-- A sleep loop under session 100 started at `s`, watching a file last changed at `w`. -/
 def lp (pid s : Nat) (w : Option Nat := none) (x : Bool := false) (st : Option Nat := none) : Child :=
   { pid, start := st, chain := [100, 1], kind := .sleepLoop, startedAt := s, watchedAt := w, producerExited := x }
 
-/-- A child of kind `k` under session 100 started at `s`. -/
 def ch (pid : Nat) (k : ChildKind) (s : Nat) : Child := { pid, chain := [100, 1], kind := k, startedAt := s }
 
 /-- A running CI run of `ci/<t>` with id `r`. -/

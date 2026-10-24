@@ -62,16 +62,15 @@ E and F are advice: `fw reap --list` lists them, the watch raises `agent.held` f
 `{type:"reap.held",at,kind,pid,start}` once per new E/F identity (first sight, `newHeld`: no repeat while the identity stays
 selected) and one `{type:"reap.tick",at,live:[{kind,pid,start}]}` row with the E/F identities selected then. `reap.stopped`
 rows carry `targets [{pid,start}]` (the identities the stop TERMed). The glue reads the last 4 MiB of the log (`readLog`; a cut
-first line and torn rows are dropped). The `REAP advice simBooted` line is gone: the F alert is the watch's `agent.held`.
+first line and torn rows are dropped). The F alert is the watch's `agent.held`.
 Lean's `foldSeen` turns the rows into one `Seen` per identity (first sight, outcome stopped by a `reap.stopped` target /
 ended = a later tick no longer selects it / alive). `fw reap --exit` prints the verdict and signals none.
 Coverage (Lean `covered`, `slotSec` 1800 = 6 ticks of 300 s): the log must reach back 7 days and have no gap of more than 1800 s between
 consecutive ticks (and from the last tick to now); until then the verdict is `not yet 7 days of coverage` and nothing is
-promoted. Today this is a MEASURED verdict: the tick rows only just started. With 7 days covered, E and F are promoted
+promoted. Today this is a MEASURED verdict. With 7 days covered, E and F are promoted
 by `exitRule` into `InputD.promote`, `autoSet = autoKinds ++ promote` (E/F only), and `reapTick` sends the promoted kinds in
 the auto plan (`auto_plan_promoted`); `promote = []` keeps `auto_plan_no_loop_sim`.
-Decision: an explicit `fw reap --stop` of an E or F process counts as a true orphan stop (the operator applies Lean's own
-selection), so it is evidence for promotion; a `kill` outside `fw reap` is not logged and counts for nothing.
+An explicit `fw reap --stop` of an E or F process counts as a true orphan stop, so it is evidence for promotion; a `kill` outside `fw reap` is not logged and counts for nothing.
 
 Exit rule (Lean `exitRule`, `promoted`, op `ops.reapExit`, golden `reap-exit.jsonl`): a kind joins `autoKinds` only when it
 is E or F, its log goes back at least 7 days, it has at least one identity `stopped` by an explicit `fw reap --stop` (a true
@@ -99,8 +98,7 @@ the row stays within `cpuTolCs` of it, else a new one at `now` (`rebase_quiet`, 
 
 ## Triggers
 - `fw reap --stop` (all kinds); `fw land` stops after a worktree is removed and `fw watch` stops on each tick (and after
-  each stream diff), both A to D only. `FW_WATCH_REAP=0` turns the watch trigger off. A Simulator of case F has the
-  `REAP advice simBooted` line (not a stop); the slot's own `simCheck` still shuts it on the next slot command after 600 s idle.
+  each stream diff), both A to D only. `FW_WATCH_REAP=0` turns the watch trigger off. A Simulator of case F is not stopped by them; the slot's own `simCheck` still shuts it on the next slot command after 600 s idle.
 - Each stop appends `{type:"reap.stopped",at,kind,pids,freedKb}` to `.fw-console/reap.jsonl` and prints a `REAP stopped` line.
 
 ## Limits
