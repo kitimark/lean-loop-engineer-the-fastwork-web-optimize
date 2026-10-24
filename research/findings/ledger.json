@@ -2684,14 +2684,14 @@
    "chromium": "n/a",
    "webkit": "win",
    "visual": "n/a (diagnostic ablation; not a shipped variant)",
-   "mechanism": "MEASURED (toolbar-throttle-probe, iOS 27 Simulator on CI, real touches through XCUITest, run 39667548341): still runs of 5-6 frames at the hero exit fall from 163 in 10,104 exit frames (16.1 per 1000) in the default rewrite to 0 in 9,740 with the flag; the original site has 53 in 5,290 (10 per 1000). Lifted in 3 of 3 jobs. Source: WKWebViewIOS.mm:3256-3268@862f17d.",
+   "mechanism": "MEASURED (toolbar-throttle-probe, iOS 27 Simulator on CI, real touches through XCUITest, run 39667548341): still runs of 5-6 frames at the hero exit fall from 163 in 10,104 exit frames (16.1 per 1000) in the default rewrite to 0 in 9,740 with the flag; the original site has 53 in 5,290 (10 per 1000). Lifted in 3 of 3 jobs. Source: WKWebViewIOS.mm:3256-3268@862f17d. PHONE (user, 2026-10-24, felt, one person, preview): \"looks the same and hero-exit is a lot of improve, no laggy on hero exit\".",
    "leanFor": [
     "Fw.Device.StillRuns.throttleK_60hz",
     "Fw.Device.StillRuns.throttleK_mem_band"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Phone pass not done: the Simulator toolbar may differ from the phone (INFERRED)",
+    "Phone: the felt pass (one person, preview) and the recorded session results/phone/2026-10-24-throttle-lift (90 band runs in 1200 exit frames without the flag, 2 in 1318 with it, same viewport, one person, one session) agree; no second person",
     "Runs 39659502492 and 39652336316 failed and are not pooled"
    ],
    "premises": [
@@ -2699,8 +2699,8 @@
    ],
    "v1Evidence": "",
    "lesson": "A felt lag can be a platform throttle, not page work; count still runs before optimizing page cost.",
-   "next": "Phone pass in the user session with and without ?fw=engine.scroll:throttle-lift; then decide whether a shippable variant can avoid the throttle.",
-   "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md"
+   "next": "Shippable form is engine.scroll:unthrottle (row engine.scroll.unthrottle).",
+   "evidence": "CI run 39667548341; research/notes/2026/10-2x-toolbar-throttle.md; user phone pass 2026-10-24 (research/notes/2026/10-2x-toolbar-throttle.md, section Phone pass)"
   },
   {
    "id": "platform.mq",
@@ -3531,6 +3531,46 @@
    "candidate": "hero.accent same-look: keep the accent at its final width from the draw-in start and translate the first and last words by +-(wf - w(t))/2 with the same 0.9 s easing",
    "status": "partly-proved",
    "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "engine.scroll.unthrottle",
+   "n": 59,
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle: ship the throttle-lift element (one fixed 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "status": "partly-proved",
+   "flags": [
+    "engine.scroll:unthrottle"
+   ],
+   "chromium": "no-win",
+   "webkit": "win",
+   "visual": "E (visible_withFlag: the visible scene with the element equals the page's own; same_layout_hit_a11y: no flow box, hit target or accessible content). Breakpoint gate run 40068858697, Chromium and Playwright WebKit, no failing item.",
+   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266 @862f17d; WebKit bugs 307463 and 319523) and PROVED in Lean (reported_iff, lifted_when_supported, no_effect_without_support, chromium_never_throttled). Effect on the Simulator: throttle-lift took 163 band runs to 0 (run 39667548341); the shipped text is not itself measured for still runs. Cost MEASURED: Chromium counts (3 runs x 535 swipe frames, flag run 40068851412 vs push run 40068835905, same sha) +1 element restyled in 95.5 to 99.1 percent of frames, no extra layout, no extra style-recalc event, but +2 compositor layers (1 drawing layer, about 1 px). WebKit Simulator (run 40068853873): no resolvable extra style, layout or composite event, no extra positionFixed layer.",
+   "leanFor": [
+    "Fw.Parts.EngineScrollUnthrottle.reported_iff",
+    "Fw.Parts.EngineScrollUnthrottle.lifted_when_supported",
+    "Fw.Parts.EngineScrollUnthrottle.no_effect_without_support",
+    "Fw.Parts.EngineScrollUnthrottle.chromium_never_throttled",
+    "Fw.Parts.EngineScrollUnthrottle.visible_withFlag",
+    "Fw.Parts.EngineScrollUnthrottle.same_layout_hit_a11y",
+    "Fw.Parts.EngineScrollUnthrottle.restyled_flag",
+    "Fw.Parts.EngineScrollUnthrottle.extraRecalc_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Still runs of the shipped text on the Simulator or phone not measured (the diagnostic text was)",
+    "The 2 extra Chromium layers are outside the Lean bound",
+    "Trajectory cells (Chromium and WebKit, hero and morph) have no run",
+    "Power cost of leaving the 100 ms throttle (WebKit: up to 2 percent) not measured"
+   ],
+   "premises": [
+    "The phone behaves like the Simulator for this throttle: INFERRED, the user's felt pass agrees",
+    "Chromium has no equivalent throttle: INFERRED from the absence of the handshake; the Chromium counts show no change in style or layout events"
+   ],
+   "v1Evidence": "",
+   "lesson": "A platform throttle can be lifted by a page-side condition the platform itself names; prove the condition from the engine source, then prove the lifter invisible and count what it costs: here the one-element restyle matched the bound and the unmodelled cost was a Chromium layer.",
+   "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
+   "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; a phone pass of the shipped text; then set proved and regenerate the v2-proved preset.",
+   "flag": "engine.scroll:unthrottle"
   }
  ],
  "notes": [
