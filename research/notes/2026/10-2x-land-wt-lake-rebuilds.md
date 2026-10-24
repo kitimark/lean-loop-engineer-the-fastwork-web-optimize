@@ -17,7 +17,7 @@ step span, which is the duration source:
 
 Commit 2e54fbe built 24, 0 and 24 modules in three dry lands (27.7, 2.4, 23.5 s). Each dry land checks out its merge
 commit in the first free `.claude/land-wt/<n>` (`claimLandWt`), and each worktree keeps its own `.lake`. The second
-land ran in worktree 1, which the first had just built; the third took worktree 0, which had moved to another commit.
+land ran in worktree 1, which the first had just built; the third took worktree 0, which had moved to another commit (worktree numbers INFERRED from the replay; only 72f52a1 in land-wt/0 is in a land log).
 
 ## Rule (Lean, `lean/Fw/Console/LandWt.lean`)
 
@@ -43,8 +43,7 @@ worktrees are free: with two worktrees busy at most, the rule chooses between tw
 ## Limits
 
 - Local-machine timings; c4f662a's 9.0 s at 0 built stays unexplained.
-- The effect is not claimed here; read `lake.built` of `land dry lake` spans after this lands.
-- The effect is UNMEASURED. A rerun of the dry land at main e81870a (span 8101df9, worktree 0) built 6 modules in a
+- The effect is UNMEASURED; read `lake.built` of `land dry lake` spans after this lands. A rerun of the dry land at main e81870a (span 8101df9, worktree 0) built 6 modules in a
   17.0 s lake step; d493e2c built 6 in worktree 1 in 10.5 s. The tip-to-tip distance is 0 for d2c1f1c vs 2e54fbe, yet the
   third 2e54fbe land built 24, so main moving likely dominates the rebuilds (INFERRED).
 - Main moving ahead between dry lands rebuilds in every worktree; no pool choice avoids that.
