@@ -104,7 +104,8 @@ async function main() {
         return ok && s <= SIM_TOUCH.restartS;
       };
       // One pass of an arm, driven by the Lean machine: probe, touches, and on a failure one Simulator restart and one more try.
-      // A record that is unusable for another reason (the page was lost) gets one more machine run, outside the machine.
+      // A record that is unusable for another reason (the page was lost) gets one more machine run, outside the machine, only when
+      // the first run used no restart, so a pass never restarts the Simulator more than once.
       const runArm = async (arm, round) => {
         const tag = `${arm}-r${round + 1}`;
         let st = initPass(), rec = null, last = null, extra = 0;
@@ -120,16 +121,19 @@ async function main() {
               feed('readyYes'); feed(rec.drag.code === 0 ? 'touchesOk' : 'touchesFail');
             } catch (e) {
               log(`${tag} failed: ${e.message}`);
-              if (lastTouch()?.ready?.ready) { feed('readyYes'); feed('touchesFail'); } else feed('readyNo');
+              const t = lastTouch();
+              if (t?.code === 0) { feed('readyYes'); feed('touchesOk'); } // the touches were clean, a later step failed (the recorder): not a driver fault
+              else if (t?.ready?.ready) { feed('readyYes'); feed('touchesFail'); } else feed('readyNo');
             } finally { setTouchHooks({ page: null }); if (lastTouch()) { last = summary(lastTouch()); persist(lastTouch()); } }
           }
           const bad = st.phase === 'done' ? reasonOf({ arm, round: round + 1, vm: v.vm, ...rec }) : null;
-          if (bad && extra < 1) { extra++; log(`${tag} not usable (${bad}); trying once more`); st = initPass(); continue; }
+          if (bad && extra < 1 && st.restarts === 0) { extra++; log(`${tag} not usable (${bad}); trying once more`); st = initPass(); continue; }
           break;
         }
         machine.push({ tag, phase: st.phase, attempt: st.attempt, restarts: st.restarts, extra, events });
         if (rec) passes.push({ arm, round: round + 1, vm: v.vm, attempt: st.attempt + extra, ...rec, touch: last });
-        else failed.push(`${tag}: ${st.phase}`);
+        if (st.phase !== 'done') failed.push(`${tag}: ${st.phase}`);
+        else if (!rec) failed.push(`${tag}: done without a record`);
         save();
       };
       try {

@@ -68,10 +68,11 @@ def Stall.name : Stall → String
   | .press => "press"
   | .cap => "cap"
 
-/-- The stall rule: after `elapsed` s, with `marks` progress marks seen and the last one `since` s ago, for a run of `n` presses. -/
+/-- The stall rule: after `elapsed` s, with `marks` progress marks seen (`started` plus one per press) and the last one `since` s ago, for a run of `n` presses. Once all `n + 1` marks are in, only the cap applies: the tear-down after the last press takes 61 to 86 s and writes no mark. -/
 def stall (n elapsed marks since : Nat) : Stall :=
   if capS n ≤ elapsed then .cap
   else if marks = 0 then (if startS ≤ elapsed then .startup else .ok)
+  else if n + 1 ≤ marks then .ok
   else if gapS ≤ since then .press else .ok
 
 theorem stall_cap {n elapsed marks since : Nat} (h : capS n ≤ elapsed) : stall n elapsed marks since = .cap := by
@@ -81,10 +82,10 @@ theorem stall_startup {n elapsed since : Nat} (hc : elapsed < capS n) (h : start
     stall n elapsed 0 since = .startup := by
   simp [stall, Nat.not_le.mpr hc, h]
 
-theorem stall_press {n elapsed marks since : Nat} (hc : elapsed < capS n) (hm : 0 < marks) (h : gapS ≤ since) :
-    stall n elapsed marks since = .press := by
+theorem stall_press {n elapsed marks since : Nat} (hc : elapsed < capS n) (hm : 0 < marks) (hn : marks < n + 1)
+    (h : gapS ≤ since) : stall n elapsed marks since = .press := by
   have : marks ≠ 0 := Nat.pos_iff_ne_zero.mp hm
-  simp [stall, Nat.not_le.mpr hc, this, h]
+  simp [stall, Nat.not_le.mpr hc, this, Nat.not_le.mpr hn, h]
 
 theorem stall_ok_early {n elapsed since : Nat} (hs : elapsed < startS) (hc : elapsed < capS n) :
     stall n elapsed 0 since = .ok := by
@@ -93,7 +94,14 @@ theorem stall_ok_early {n elapsed since : Nat} (hs : elapsed < startS) (hc : ela
 theorem stall_ok_moving {n elapsed marks since : Nat} (hc : elapsed < capS n) (hm : 0 < marks) (h : since < gapS) :
     stall n elapsed marks since = .ok := by
   have : marks ≠ 0 := Nat.pos_iff_ne_zero.mp hm
-  simp [stall, Nat.not_le.mpr hc, this, Nat.not_le.mpr h]
+  simp only [stall, Nat.not_le.mpr hc, this, Nat.not_le.mpr h]
+  simp
+
+/-- With the start mark and every press mark in, the run is left to finish until its cap, however long ago the last mark was. -/
+theorem stall_ok_done {n elapsed marks since : Nat} (hc : elapsed < capS n) (hm : n + 1 ≤ marks) :
+    stall n elapsed marks since = .ok := by
+  have : marks ≠ 0 := by omega
+  simp [stall, Nat.not_le.mpr hc, this, hm]
 
 /-- The first progress mark may appear before the cap. -/
 theorem startS_lt_capS {n : Nat} (h : 0 < n) : startS < capS n := by
@@ -358,6 +366,14 @@ def jobWorstS (n k : Nat) : Nat := capS 2 + (k - 1) * typicalPassS + passWorstS 
 theorem job_fits :
     jobWorstS (presses .drags 4) 6 ≤ stepLimitS ∧ jobWorstS (presses .finish 4) 6 ≤ stepLimitS := by decide
 
+/-- Worst seconds of the touch step when the worst pass is one whose clean first run left no usable record and is run once more (only when
+that run used no restart): the first run takes a typical pass, the second is a worst pass. -/
+def jobWorstExtraS (n k : Nat) : Nat := capS 2 + (k - 1) * typicalPassS + typicalPassS + passWorstS n
+
+/-- The same job with the one extra run still fits the touch step, in both modes at four cycles. -/
+theorem job_fits_extra :
+    jobWorstExtraS (presses .drags 4) 6 ≤ stepLimitS ∧ jobWorstExtraS (presses .finish 4) 6 ≤ stepLimitS := by decide
+
 private def evsOf (l : List Ev) : Json := Json.arr (l.map fun e => Json.str e.name).toArray
 
 private def phaseJ : Phase → Json
@@ -388,7 +404,7 @@ private def execCases : List (String × List Ev) :=
 
 private def stallCases : List (Nat × Nat × Nat × Nat) :=
   [(8, 0, 0, 0), (8, 299, 0, 0), (8, 300, 0, 0), (8, 659, 0, 0), (8, 660, 0, 0), (8, 661, 0, 0),
-   (8, 100, 3, 119), (8, 100, 3, 120), (8, 659, 3, 5), (8, 660, 3, 5), (8, 400, 1, 0), (8, 400, 1, 200),
+   (8, 100, 3, 119), (8, 100, 3, 120), (8, 659, 3, 5), (8, 660, 3, 5), (8, 400, 1, 0), (8, 400, 1, 200), (8, 400, 9, 200), (8, 660, 9, 200), (8, 400, 8, 200),
    (12, 659, 0, 0), (12, 839, 5, 0), (12, 840, 5, 0), (2, 389, 0, 0), (2, 390, 0, 0), (2, 350, 0, 0), (0, 299, 0, 0), (0, 300, 0, 0)]
 
 private def goldenLines (_ : Unit) : List String :=

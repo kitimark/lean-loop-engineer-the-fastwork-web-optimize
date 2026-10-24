@@ -88,10 +88,11 @@ export const SIM_TOUCH = Object.freeze({ probeTries: 6, probeGapS: 10, probeBudg
 export const presses = (mode, cycles) => (mode === 'finish' ? 3 : 2) * cycles;
 /** Hard cap in seconds on one touch run of `n` presses. */
 export const capS = (n) => SIM_TOUCH.capBaseS + n * SIM_TOUCH.capPressS;
-/** The stall rule: 'ok' | 'startup' | 'press' | 'cap' after `elapsed` s with `marks` marks seen, the last `since` s ago. */
+/** The stall rule: 'ok' | 'startup' | 'press' | 'cap' after `elapsed` s with `marks` marks seen (started plus one per press), the last `since` s ago. */
 export function stall(n, elapsed, marks, since) {
   if (capS(n) <= elapsed) return 'cap';
   if (marks === 0) return SIM_TOUCH.startS <= elapsed ? 'startup' : 'ok';
+  if (marks >= n + 1) return 'ok'; // started and every press marked: the tear-down writes no mark, only the cap applies
   return SIM_TOUCH.gapS <= since ? 'press' : 'ok';
 }
 /** The Simulator is booted, the Safari page answers and the driver is built. */

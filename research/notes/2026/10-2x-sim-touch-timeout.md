@@ -14,8 +14,11 @@ unthrottle-parts-measure `finish` run `40101695202` (lifted arms lost) and `rest
 
 ## Answer
 
-The touch passes timed out because the 300 s wait was shorter than a loaded pass, and each timeout then poisoned the Simulator and the
-retry. With a readiness probe, a progress-based stall watch and one Simulator restart per pass, no sim job was lost any more:
+Claim (re-scoped by the lead): the touch-driver and simctl timeouts that killed whole jobs came from a 300 s wait that was shorter than a
+loaded pass, a retry that reused the first try's result bundle, and blocking `simctl` calls that starved the stall guard (CONFIRMED from logs and
+source, see Cause). With a readiness probe, a progress-based stall watch and at most one Simulator restart per pass, no job was lost any more:
+every job of both CI runs ended, and every arm completed except the lift arm of the finish mode, whose start-up stall (0 marks at 304 s) has an
+open cause and is an accepted limit, split to task `sim-lift-stall`. Hero drags: 18 of 18 passes. Finish: 15 of 18, sim 2 all 6.
 
 | Run (mode) | Jobs ended | Passes ok | Named failures | Job time |
 |---|---|---|---|---|
@@ -23,9 +26,9 @@ retry. With a readiness probe, a progress-based stall watch and one Simulator re
 | `40121254572` (finish), after | 3 of 3 | 15 of 18 (job 2: 6 of 6) | 3 (lift arm, start-up stall) | 75 min each |
 | `40128742749` (hero drags), after | 3 of 3 | 18 of 18 | 0 | 18, 22, 28 min |
 
-- MEASURED: one finish job (sim 2) and all three hero-drag jobs completed every arm; the Lean-machine restart path ran in CI 6 times (5 finish, 1 drags).
+- MEASURED: one finish job (sim 2) and all three hero-drag jobs completed every arm; the restart path ran in CI 6 times: 5 after touch-driver failures (all finish; 2 of the 5 recovered the pass) and 1 after a recorder failure that followed clean touches (drags, recovered). The code now treats that last case as clean touches (no restart, the pass gets its one extra run).
 - MEASURED: the heavy tail is the XCUITest start-up (45 to 249 s seen, 6 of 30 finish touch runs never started in 300 s, 0 of 23 in drags), and 5 of those 6 were the lift arm. The cause of the lift-arm stalls is open.
-- Restarts took 203 to 709 s each; 3 of 6 recovered the pass.
+- Restarts took 203 to 709 s each; 3 of the 6 recovered the pass (2 of the 5 touch-driver restarts, the recorder one).
 
 ## Cause
 
@@ -61,23 +64,33 @@ retry. With a readiness probe, a progress-based stall watch and one Simulator re
 
 ## Fix
 
-- **Lean (`lean/Fw/Device/SimTouch.lean`, golden `packages/contracts/golden/device/sim-touch.jsonl`, 56 lines, replayed by
+- **Lean (`lean/Fw/Device/SimTouch.lean`, golden `packages/contracts/golden/device/sim-touch.jsonl`, 59 lines, replayed by
   `packages/measure-webkit/test/sim-touch.test.mjs`).** A pass is the machine `probing -> touching -> done` with one Simulator restart.
   Proved: every pass ends in `done` or a named failure within 5 events (`pass_ends`); at most one restart (`restarts_le_one`) and at most
   two touch attempts (`attempt_le_two`); touches start only after a ready probe (`touching_after_ready`); attempt 2 starts only after
   `restartOk` (`retry_after_restart`); an ended pass stays ended (`step_terminal`); an unexpected event ends the pass with `protocol`.
   The stall rule (`stall`, `stall_cap`, `stall_startup`, `stall_press`) and the cap `capS n = 300 + 45 n` s are proved to cover the measured
   passes (`cap_covers_samples`, `cap_twice_covers_passes`) and a job of six passes with one worst pass fits the 90 minute step
-  (`job_fits`: 4530 s for drags, 4890 s for finish at four cycles, against 5400 s).
+  (`job_fits`: 4530 s for drags, 4890 s for finish at four cycles, against 5400 s; `job_fits_extra`: 4950 s and 5310 s when that pass also
+  had a clean first run with no usable record). Once `started` and every press mark are in, only the cap applies (`stall_ok_done`): the
+  tear-down after the last press takes 61 to 86 s and writes no mark, and the first CI run killed a finished run there (fin sim 1, `warm-up-t3`,
+  3 of 3 presses at 160 s, stopped as `press` at 285 s).
 - **Driver (`driver.mjs`, `DragTests.swift`).** The XCUITest writes a mark file per step (`started`, `press-<i>`) into `TEST_RUNNER_FW_DIR`; the Node side polls every 5 s
   and applies the Lean stall rule: no mark 300 s after the start, 120 s without a new mark, or the cap. A stalled run gets SIGTERM and, 20 s later, SIGKILL
-  to its process group. `-destination-timeout` is 30 s times the scale (at most 120 s). The two Swift start-up waits (20 s, 10 s) are multiplied by the scale.
+  to its process group. `-destination-timeout` is 30 s times the scale (at most 120 s). The two Swift start-up waits (20 s, 10 s) are multiplied by
+  the scale (`WAIT_SCALE`, 8 on the runner), so they may take 240 s before the `started` mark. Against `startS` 300 that leaves 60 s for the `xcodebuild`
+  start-up, which was 45 to 249 s in CI: a run that sits in those waits can be called a start-up stall at 300 s while it is still waiting. Whether the
+  lift stalls were in the waits cannot be told, there is no mark before them (INFERRED; the first step of `sim-lift-stall`). The scaling is our choice,
+  not an Apple default. INFERRED: `XCUIElement.waitForExistence(timeout:)` and `XCUIApplication.wait(for:timeout:)` return as soon as the condition holds (the
+  Apple documentation page text could not be read here), so the scale only matters when Safari does not come up.
   Every call has its own `.xcresult` and log (`<tag>`, `<tag>-t2`): no more exit 64.
 - **Readiness probe before touches.** Up to 6 probes 10 s apart: the Simulator is `Booted`, the Safari page answers (`document.readyState`), the driver build exists.
   Not ready after 6 probes: `NotReadyError`, no `xcodebuild` is started.
-- **Watchdog and restart (`cli.mjs`).** A failed probe or touch run shuts the Simulator down (which also ends the stuck XCUITest runner), boots it in a new session,
+- **Watchdog and restart (`cli.mjs`).** A failed probe or touch run shuts the Simulator down (INFERRED that this ends the stuck XCUITest runner: `simctl help shutdown` only says "Shutdown a device"; the
+  runner lives inside the device, and a run after the restart did start clean in 3 of 6 CI restarts, MEASURED), boots it in a new session,
   runs a one-cycle warm-up and retries the pass once; a second failure ends the pass as a named failure (`failed:touchesFailed`, `failed:notReady`,
-  `failed:restartFailed`). A record that is unusable for another reason (page lost) still gets one more machine run, outside the machine.
+  `failed:restartFailed`). A record that is unusable for another reason (page lost, or a recorder failure after clean touches) still gets one more machine run, outside the machine, only
+  when the first run used no restart: a pass restarts the Simulator at most once in total. `failed[]` lists every pass whose phase is not `done`.
 - **Blocking calls (`sim.mjs`).** Each blocking call ends within 200 s whatever the scale asks, so the stall guard sees the retry log lines; `listDevices` has the retry
   policy; `bootstatus` may retry 5 times.
 - **Lane.** Touch step 45 -> 90 min, job 60 -> 110 min (the Lean `stepLimitS`).

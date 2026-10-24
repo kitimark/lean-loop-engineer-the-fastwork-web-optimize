@@ -11,6 +11,9 @@
 {"elapsed":660,"kind":"stall","marks":3,"presses":8,"since":5,"verdict":"cap"}
 {"elapsed":400,"kind":"stall","marks":1,"presses":8,"since":0,"verdict":"ok"}
 {"elapsed":400,"kind":"stall","marks":1,"presses":8,"since":200,"verdict":"press"}
+{"elapsed":400,"kind":"stall","marks":9,"presses":8,"since":200,"verdict":"ok"}
+{"elapsed":660,"kind":"stall","marks":9,"presses":8,"since":200,"verdict":"cap"}
+{"elapsed":400,"kind":"stall","marks":8,"presses":8,"since":200,"verdict":"press"}
 {"elapsed":659,"kind":"stall","marks":0,"presses":12,"since":0,"verdict":"startup"}
 {"elapsed":839,"kind":"stall","marks":5,"presses":12,"since":0,"verdict":"ok"}
 {"elapsed":840,"kind":"stall","marks":5,"presses":12,"since":0,"verdict":"cap"}
