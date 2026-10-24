@@ -725,6 +725,30 @@ CONFIRMED (commits); the round-14 numbers above are the last MEASURED state.
 | Pairs scored only when comparable | `Fw.Faithful.comparable` refuses a pair whose viewport, profile or preset differ, before any cell is scored (`comparable_iff`, `refusal_sound`) | CONFIRMED (proved) [FR:48-58] |
 | WebKit gate, both waves | 0 fail, 291 excused, incomplete only by the phone-rotation cell (2 readings) | MEASURED, runs 39184687325, 39257945326, 39271987926, 39282664077 |
 
+### 4.10 engine.scroll:unthrottle: lifting Mobile Safari's 100 ms scroll throttle (task unthrottle-preset)
+
+Mobile Safari holds visible-rect updates to 100 ms while the toolbar collapses, unless the page reports a main-thread
+scroll-driven animation (`WKWebViewIOS.mm:3256-3268`, `AnimationTimelinesController.cpp:267-279` @862f17d). The flag adds one
+absolute 1 px, transparent element that animates a registered custom property on the root scroll timeline, inside
+`@supports (animation-timeline: scroll())` and `@media (pointer: coarse)`. CONFIRMED by source, PROVED in Lean
+(`Fw.Parts.EngineScrollUnthrottle`: `reported_iff`, `lifted_when_supported`, `visible_withFlag`, `guard_keeps_ios`,
+`guard_fine_noop`, `lift_anim_position_free`).
+
+| Evidence | Value | Status, source |
+|---|---|---|
+| Phone, real iPhone, one person, one session, throttle-lift diagnostic against the faithful rewrite | hero band runs 90 to 2 and 28 to 0-1 per viewport height; hero felt marks 12 to 0; end-of-page slow frames 2.46-6.56 to 0.00-1.17 per 100 and felt marks 12-14 to 3-5 | MEASURED, `results/phone/2026-10-24-throttle-lift/summary.md`; the shipped text is not itself recorded on the phone (INFERRED same mechanism) |
+| Simulator touch lane, shipped text, rewrite against unthrottle | 19 band runs in 1600 exit frames (one usable rewrite pass) against 0 in 6330 (4 passes); verdict `lifted` | MEASURED, run 40078755847 (job 1 failed on its VM) |
+| Chromium counts, 3 x 575 swipe frames, absolute plus guard | +0 compositor layers in 575, 573, 572 frames (position fixed gave +2); +1 element restyled in 532, 514, 531 frames; no extra layout or style recalc | MEASURED, run 40078781031 against push run 40068835905 (older sha) |
+| Trajectory probe, Chromium hero and morph; WebKit hero | pass | MEASURED, runs 40078755889 and 40080296257 |
+| Trajectory probe, WebKit morph | no verdict (Mac WebKit coverage units at the two desktop widths, where the element is inactive) | MEASURED, run 40080296257; cause INFERRED |
+| Breakpoint gate on the shipped text | see the ledger row `engine.scroll.unthrottle`, field `visual` | MEASURED |
+| Power cost of leaving the throttle (WebKit measured up to 2 percent) | not measured | open |
+
+Result: the ledger row is `proved`; `v2-proved` stays empty because its WebKit morph trajectory cell has no verdict for any
+flag. Lesson: a platform throttle named by the platform's own source can be lifted by a page-side condition; the first text paid
+2 compositor layers on Chromium for `position: fixed`, and the move to `absolute` was decided by a count, not by a bound.
+Note `research/notes/2026/10-2x-throttle-lift-ship.md` section 6.
+
 ---
 
 ## 5. Findings and negative results
