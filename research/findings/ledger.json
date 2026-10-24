@@ -3580,7 +3580,7 @@
   },
   {
    "id": "platform.glint.offscreen-pause",
-   "n": 66,
+   "n": 71,
    "part": "platform.glint",
    "candidate": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
    "status": "negative result: mount only while visible, gain = commit window",
