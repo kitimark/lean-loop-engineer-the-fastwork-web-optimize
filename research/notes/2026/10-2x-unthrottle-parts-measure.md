@@ -40,11 +40,17 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
   `--platform-shrink`, fade `--morph-fade`.
 - Still run: consecutive frames with the same shown value, counted while the series is strictly between 0 and 1000 and
   the toolbar was moving. Band: 5-6 frames at 60 Hz. The reducer uses a cadence-aware band [K, K+1], K from the median
-  frame gap (`throttleK`); it reduces to 5-6 at 60 Hz. TS stand-in (the Lean twin is fixed at 60 Hz).
+  frame gap (`throttleK`). Lean `bandFor` states it, with `bandFor_60hz : bandFor 1667 = (5, 6)`; the reducer's `bandFor`
+  replays the golden `bandFor` lines.
 - Verdict per lifted arm: Lean `verdict` against the rewrite (`lifted` needs rewrite runs at least 10 and a rate at
   most a fifth of it).
-- Agreement rule (TS stand-in): predicted stills, throttled arm agrees if band runs are at least 10, lifted arm agrees
-  if the verdict is `lifted`; pulses and no-stills agree if band runs are below 10.
+- Agreement rule, Lean `judge` (`Fw.Device.ThrottleParts`), replayed from the golden (240 judge lines) by `parts.mjs`:
+  a throttled arm of a stills part agrees at 10 or more band runs; a lifted arm of a stills part agrees when
+  `StillRuns.verdict [] base arm = lifted`; pulses and no-stills agree below 10 band runs; an arm without mid-moving
+  frames is no-data. Per part, Lean `partVerdict`: any disagreement decides, else an agreement (partial when an arm has
+  no data), else no-data. **Boundary:** the stills test is `10 <= runs`, the pulses and no-stills test is `runs < 10`, so
+  exactly 10 band runs agrees for a stills part and disagrees for a pulses part (theorems `judge_stills_throttled_agree`,
+  `judge_none_boundary`). Commission is predicted pulses; its rewrite arm at exactly 10 therefore falls on disagree.
 - Modes: `drags` (hero drag mode, the toolbar-throttle lane), `finish` (sim-finish-throttle's finish mode), `rest`
   (my addition: the page is placed 60 px above the first ramp the page finds, anchors people, commissionEnter, platform
   by round, 3 rounds) so that the rest-zone parts are exercised.
@@ -152,5 +158,5 @@ open, finish mode, 1 pass per arm: original 4, rewrite 6. Not a verdict.
   not done (lead decides).
 - The phone is not re-measured. Touch-driver retries (suffix `-a2`) may have lost passes; they are listed in each
   summary table's lost-reasons block.
-- TS stand-ins (no Lean golden): the agreement rule `judge`, the cadence band `bandFor`, the no-data reasons, the
-  capture reversal count.
+- TS stand-ins (no Lean golden, reporting only, no verdict): the no-data reasons (`noDataReason`), the capture reversal
+  count (`captureRow`). `judge`, `partVerdict` and `bandFor` are Lean-defined and replayed from the golden.
