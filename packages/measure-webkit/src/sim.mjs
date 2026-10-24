@@ -35,8 +35,15 @@ export function ports(env = process.env) {
   return p;
 }
 
+/**
+ * One blocking child call ends within this many ms, whatever the scaled timeout asks: a blocked event loop starves the stall guard
+ * (watchdog.mjs, 300 s without output), which killed morph-end-measure sim 4 after one 604 s openurl. A longer wait is several
+ * calls of the retry policy, each telling the log when it asks again.
+ */
+export const SYNC_CAP_MS = 200000;
+
 function run(cmd, args, { timeoutMs = 120000 } = {}) {
-  const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: Math.min(timeoutMs, SYNC_CAP_MS), maxBuffer: 64 * 1024 * 1024 });
   return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', error: r.error };
 }
 export const simctl = (args, opts) => run('xcrun', ['simctl', ...args], opts);
@@ -54,7 +61,7 @@ const tail = (r) => (r.error ? r.error.code || r.error.message : (r.stderr || r.
 
 /** [{udid, name, state, runtime}] for every available simulator device. */
 export function listDevices() {
-  const r = simctl(['list', '-j', 'devices']);
+  const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: 60000 }, { max: 3, log: (l) => process.stderr.write(`${l}\n`) });
   if (r.status !== 0) throw new Error(`simctl list devices failed: ${tail(r)}`);
   return Object.entries(JSON.parse(r.stdout).devices).flatMap(([runtime, ds]) =>
     ds.filter((d) => d.isAvailable !== false).map((d) => ({ udid: d.udid, name: d.name, state: d.state, runtime })));
@@ -89,7 +96,7 @@ export async function bootDevice({ log = () => {} } = {}) {
     const t0 = Date.now();
     const r = simctlRetry(['boot', d.udid], { timeoutMs: T(120000) }, { log });
     if (r.status !== 0 && findDevice().state !== 'Booted') throw new Error(`simctl boot failed: ${tail(r)}`);
-    const b = simctlRetry(['bootstatus', d.udid, '-b'], { timeoutMs: T(300000) }, { log });
+    const b = simctlRetry(['bootstatus', d.udid, '-b'], { timeoutMs: T(300000) }, { log, max: 5 });
     if (b.status !== 0) throw new Error(`simctl bootstatus failed: ${tail(b)}`);
     log(`booted ${d.name} (${d.runtime.split('.').pop()}) in ${Math.round((Date.now() - t0) / 1000)} s`);
   }
