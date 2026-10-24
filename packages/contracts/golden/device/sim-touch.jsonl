@@ -1,0 +1,56 @@
+{"capBaseS":300,"capPressS":45,"gapS":120,"kind":"consts","passEvents":5,"pollS":5,"probeBudgetS":60,"probeGapS":10,"probeTries":6,"restartS":600,"startS":300,"stepLimitS":5400,"typicalPassS":420}
+{"elapsed":0,"kind":"stall","marks":0,"presses":8,"since":0,"verdict":"ok"}
+{"elapsed":299,"kind":"stall","marks":0,"presses":8,"since":0,"verdict":"ok"}
+{"elapsed":300,"kind":"stall","marks":0,"presses":8,"since":0,"verdict":"startup"}
+{"elapsed":659,"kind":"stall","marks":0,"presses":8,"since":0,"verdict":"startup"}
+{"elapsed":660,"kind":"stall","marks":0,"presses":8,"since":0,"verdict":"cap"}
+{"elapsed":661,"kind":"stall","marks":0,"presses":8,"since":0,"verdict":"cap"}
+{"elapsed":100,"kind":"stall","marks":3,"presses":8,"since":119,"verdict":"ok"}
+{"elapsed":100,"kind":"stall","marks":3,"presses":8,"since":120,"verdict":"press"}
+{"elapsed":659,"kind":"stall","marks":3,"presses":8,"since":5,"verdict":"ok"}
+{"elapsed":660,"kind":"stall","marks":3,"presses":8,"since":5,"verdict":"cap"}
+{"elapsed":400,"kind":"stall","marks":1,"presses":8,"since":0,"verdict":"ok"}
+{"elapsed":400,"kind":"stall","marks":1,"presses":8,"since":200,"verdict":"press"}
+{"elapsed":659,"kind":"stall","marks":0,"presses":12,"since":0,"verdict":"startup"}
+{"elapsed":839,"kind":"stall","marks":5,"presses":12,"since":0,"verdict":"ok"}
+{"elapsed":840,"kind":"stall","marks":5,"presses":12,"since":0,"verdict":"cap"}
+{"elapsed":389,"kind":"stall","marks":0,"presses":2,"since":0,"verdict":"startup"}
+{"elapsed":390,"kind":"stall","marks":0,"presses":2,"since":0,"verdict":"cap"}
+{"elapsed":350,"kind":"stall","marks":0,"presses":2,"since":0,"verdict":"startup"}
+{"elapsed":299,"kind":"stall","marks":0,"presses":0,"since":0,"verdict":"ok"}
+{"elapsed":300,"kind":"stall","marks":0,"presses":0,"since":0,"verdict":"cap"}
+{"capS":390,"cycles":1,"jobWorstS":3990,"kind":"cap","mode":"drags","passWorstS":1500,"presses":2}
+{"capS":480,"cycles":2,"jobWorstS":4170,"kind":"cap","mode":"drags","passWorstS":1680,"presses":4}
+{"capS":570,"cycles":3,"jobWorstS":4350,"kind":"cap","mode":"drags","passWorstS":1860,"presses":6}
+{"capS":660,"cycles":4,"jobWorstS":4530,"kind":"cap","mode":"drags","passWorstS":2040,"presses":8}
+{"capS":840,"cycles":6,"jobWorstS":4890,"kind":"cap","mode":"drags","passWorstS":2400,"presses":12}
+{"capS":435,"cycles":1,"jobWorstS":4080,"kind":"cap","mode":"finish","passWorstS":1590,"presses":3}
+{"capS":570,"cycles":2,"jobWorstS":4350,"kind":"cap","mode":"finish","passWorstS":1860,"presses":6}
+{"capS":705,"cycles":3,"jobWorstS":4620,"kind":"cap","mode":"finish","passWorstS":2130,"presses":9}
+{"capS":840,"cycles":4,"jobWorstS":4890,"kind":"cap","mode":"finish","passWorstS":2400,"presses":12}
+{"capS":1110,"cycles":6,"jobWorstS":5430,"kind":"cap","mode":"finish","passWorstS":2940,"presses":18}
+{"driver":true,"kind":"ready","page":true,"ready":true,"sim":true}
+{"driver":false,"kind":"ready","page":true,"ready":false,"sim":true}
+{"driver":true,"kind":"ready","page":false,"ready":false,"sim":true}
+{"driver":false,"kind":"ready","page":false,"ready":false,"sim":true}
+{"driver":true,"kind":"ready","page":true,"ready":false,"sim":false}
+{"driver":false,"kind":"ready","page":true,"ready":false,"sim":false}
+{"driver":true,"kind":"ready","page":false,"ready":false,"sim":false}
+{"driver":false,"kind":"ready","page":false,"ready":false,"sim":false}
+{"attempt":1,"events":["readyYes","touchesOk"],"kind":"exec","name":"clean","phase":"done","restarts":0,"terminal":true,"used":2}
+{"attempt":2,"events":["readyYes","touchesFail","restartOk","readyYes","touchesOk"],"kind":"exec","name":"touches fail then recover","phase":"done","restarts":1,"terminal":true,"used":5}
+{"attempt":2,"events":["readyYes","touchesFail","restartOk","readyYes","touchesFail"],"kind":"exec","name":"touches fail twice","phase":"failed:touchesFailed","restarts":1,"terminal":true,"used":5}
+{"attempt":2,"events":["readyNo","restartOk","readyYes","touchesOk"],"kind":"exec","name":"not ready then recover","phase":"done","restarts":1,"terminal":true,"used":4}
+{"attempt":2,"events":["readyNo","restartOk","readyNo"],"kind":"exec","name":"not ready twice","phase":"failed:notReady","restarts":1,"terminal":true,"used":3}
+{"attempt":1,"events":["readyYes","touchesFail","restartFail"],"kind":"exec","name":"restart fails","phase":"failed:restartFailed","restarts":1,"terminal":true,"used":3}
+{"attempt":1,"events":["readyNo","restartFail"],"kind":"exec","name":"not ready, restart fails","phase":"failed:restartFailed","restarts":1,"terminal":true,"used":2}
+{"attempt":2,"events":["readyNo","restartOk","readyYes","touchesFail"],"kind":"exec","name":"recovered pass loses touches again","phase":"failed:touchesFailed","restarts":1,"terminal":true,"used":4}
+{"attempt":1,"events":["touchesOk"],"kind":"exec","name":"touches before ready","phase":"failed:protocol","restarts":0,"terminal":true,"used":1}
+{"attempt":1,"events":["readyYes","readyYes"],"kind":"exec","name":"ready while touching","phase":"failed:protocol","restarts":0,"terminal":true,"used":2}
+{"attempt":1,"events":["restartOk"],"kind":"exec","name":"restart answer while probing","phase":"failed:protocol","restarts":0,"terminal":true,"used":1}
+{"attempt":1,"events":["readyYes","touchesFail","touchesOk"],"kind":"exec","name":"touch answer while restarting","phase":"failed:protocol","restarts":1,"terminal":true,"used":3}
+{"attempt":1,"events":["readyYes","touchesOk","touchesFail","readyNo"],"kind":"exec","name":"events after done","phase":"done","restarts":0,"terminal":true,"used":2}
+{"attempt":1,"events":["readyNo","restartFail","readyYes"],"kind":"exec","name":"events after failure","phase":"failed:restartFailed","restarts":1,"terminal":true,"used":2}
+{"attempt":1,"events":["readyYes"],"kind":"exec","name":"stops while touching","phase":"touching","restarts":0,"terminal":false,"used":1}
+{"attempt":1,"events":["readyYes","touchesFail"],"kind":"exec","name":"stops while restarting","phase":"restarting","restarts":1,"terminal":false,"used":2}
+{"attempt":1,"events":[],"kind":"exec","name":"no events","phase":"probing","restarts":0,"terminal":false,"used":0}
