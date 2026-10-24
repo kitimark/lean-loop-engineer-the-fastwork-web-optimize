@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
 import { splitUnion } from '../src/pathpix-exit.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON, zoneAgree, zoneSeen, joinSeen, verdictOf, consensusOf, probeHit, probesHit, zoneOdd, mzoneSeen, mzoneEff, zonedOf, zonedCell, listedVerdict, drawTimes, drawOf, drawWorst, DRAW_MS } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON, zoneAgree, zoneSeen, joinSeen, verdictOf, consensusOf, probeHit, probesHit, zoneOdd, mzoneSeen, mzoneEff, zonedOf, zonedCell, zonedPinned, rowsOk, listedVerdict, drawTimes, drawOf, drawWorst, drawBase, aboveBase, DRAW_MS, DRAW_FRAMES } from '../src/pathpix-exit.mjs';
 import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -13,7 +13,7 @@ const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.json
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign', 'yield', 'seen', 'consensus', 'zoned', 'drawTimes', 'draw', 'drawWorst', 'probeHit']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign', 'yield', 'seen', 'consensus', 'zoned', 'zonedPinned', 'drawTimes', 'draw', 'drawWorst', 'drawBase', 'probeHit']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -212,6 +212,30 @@ test('the zoned reading equals the Lean golden: varied zones drop out of mixed c
     assert.equal(v === 'L' ? whyL(zonedCell(z.cell, mo, mi), z.floor, z.live) : null, z.why, z.name);
     assert.ok(!(z.listed && v === 'varied'));
   }
+});
+
+test('the pinned zoned reading equals the Lean golden: zoned when the accent rows are pinned and placed, invalid otherwise', () => {
+  const zs = of('zonedPinned');
+  assert.ok(zs.some((z) => z.ok && z.verdict === 'L') && zs.some((z) => !z.ok && z.zoned === 'L') && zs.some((z) => z.ok && z.verdict === 'varied'));
+  for (const z of zs) {
+    const mo = { z: z.out.zone, p2: z.out.p2, a23: z.out.a23 }, mi = { z: z.inside.zone, p2: z.inside.p2, a23: z.inside.a23 };
+    assert.equal(rowsOk(z.served, z.maxY, checkedRows(z.rows, z.floorRows, z.floor)), z.ok, z.name);
+    assert.equal(zonedPinned(z.served, z.maxY, z.rows, z.floorRows, z.cell, z.floor, z.live, mo, mi), z.verdict, z.name);
+    assert.equal(z.verdict, z.ok ? z.zoned : 'invalid', z.name);
+  }
+});
+
+test('the outside-band baseline of a draw lane equals the Lean golden; the three measured F lanes give one column', () => {
+  const bs = of('drawBase');
+  assert.ok(bs.some((b) => b.base === null) && bs.some((b) => b.base !== null));
+  for (const b of bs) {
+    assert.equal(drawBase(b.lane), b.base, b.name);
+    assert.deepEqual(aboveBase(b.lane), b.above, b.name);
+    if (b.above) assert.equal(b.above.length, DRAW_FRAMES);
+  }
+  const f = bs.filter((b) => b.name.startsWith('run ') && b.name.endsWith(' F')).map((b) => JSON.stringify(b.above));
+  assert.equal(f.length, 3);
+  assert.equal(new Set(f).size, 1);
 });
 
 test('the draw-window rule equals the Lean golden: frame times, same/floor/above per frame, the worst frame', () => {
