@@ -18444,7 +18444,8 @@
     "packages/measure-webkit/src/profile/cli.mjs",
     "apps/runner/test/land-overflow-widths.test.ts"
    ],
-   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands. (7) morph-wheel-momentum review: pass FW_MATRIX_JOB: ${{ matrix.job }} on the smoothness.yml morph step so in-job reports read job N."
+   "title": "sim-touch-reliable follow-ups: (1) CI re-proof of the bounded harness (every inspector call raced against the window deadlines) with >= 3 sim jobs, plus the control arm FW_TOUCH_VARIANTS=safari on the same commit (smoothness.yml passes the variable) to separate no-Timeline from SpringBoard coordinates; (2) report.mjs labels the Timeline column from the row (timeline:false) not the mode; (3) Simulator hero windows starve on the runner and non-touch windows still lose a Timeline.stop now and then: measure how often per job and bound it (Lean) or record CONFIRMED why not. (4) 2026-10-24 sim-touch-reliable review: with the 32-min walk deadline, run 40003317485 cut job 3 at 16 windows and capped job 1 at 20, so the 5 kept finish windows per arm are no longer reached in one job; re-plan reps per job (fewer reps per job or more jobs, Lean) and fix the smoothness.yml header that promises 6 reps = 36 windows. (5) WalkBudget: name in Lean the gaps the 1-min slack covers (elapsed counted from the Job clock step, budget-to-walk drift, Post/Complete steps), restore a docstring for `job` that matches smoothness.yml (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min under 10), and emit hardStopInside only when runs=true. (6) Next CI run: confirm a timed-out continue-on-error Keep host state leaves the job green, and why it took 77 s with 15 s-bounded commands. (7) morph-wheel-momentum review: pass FW_MATRIX_JOB: ${{ matrix.job }} on the smoothness.yml morph step so in-job reports read job N.",
+   "evidence": "26ad444"
   },
   {
    "devices": [
@@ -19579,7 +19580,8 @@
     "research/notes/2026/10-2x-hero-copy-floor.md",
     "docs/team/handoffs/pathpix-zoned-pinned.md"
    ],
-   "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run)."
+   "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run).",
+   "evidence": "617e2f7"
   },
   {
    "devices": [
@@ -19654,7 +19656,7 @@
     "docs/team/tools/reap.md",
     "docs/team/handoffs/reap-exit-fold.md"
    ],
-   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino."
+   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino. Plus reap-ef-auto round-2 review follow-ups: (5) reapHeldAlerts calls ops.reapHeld twice per tick and opReapHeld runs inputOf twice: one call returning {held, heldSim}, inputOf bound once in Lean; (6) recordHeld still prints 'REAP advice simBooted' next to the agent.held alert: drop the say() push, keep the reap.jsonl row; (7) slot.ts bootedAll JSON.parse(r.stdout) inside state.lock: try/catch returning []."
   },
   {
    "devices": [
@@ -19751,6 +19753,24 @@
     "docs/team/handoffs/timing-nest-and-logs.md"
    ],
    "title": "land-dry-contention closing follow-ups: (1) one dry land writes three nested spans within 500 ms of each other (slot run, land dry lake, dry total lake), so one slow run can raise up to three alert keys. Alert on one canonical key per nest. (2) land-logs/<task>-<commit>.log is overwritten by later runs of the same task and commit (bf9aa85's dry log was replaced 5 min later). Keep one log per run, or record the run start in the span, so a span's log can be found by identity."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-drawbase-wire",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "pathpix-zoned-pinned"
+   ],
+   "writes": [
+    "packages/measure-webkit/test/pathpix.test.mjs",
+    "packages/measure-webkit/src/pathpix-exit-draw-zones.mjs",
+    "results/accent-draw-nolayout-pixels/run-40037992429/zones.md",
+    "docs/team/handoffs/pathpix-drawbase-wire.md"
+   ],
+   "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
   }
  ],
  "deadline": {
