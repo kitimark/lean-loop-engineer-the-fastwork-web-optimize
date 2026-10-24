@@ -2,14 +2,10 @@ import Lean.Data.Json
 import Fw.Wire.FlagKey
 /-!
 # Golden of the canonical flag key
-
-`packages/contracts/golden/wire/flag-key.jsonl`, replayed by `apps/site/test/prerender-keys.test.ts`. Kept out of
-`Fw.Wire.FlagKey` so the `fwcore` import cone holds no golden file.
 -/
 namespace Fw.Wire.FlagKey
 open Lean
 
-/-- Typed lists and their keys (`null` = refused). -/
 def cases : List (List String) :=
   [[], ["morph.countdown:strip", "hero.countdown:strip"], ["hero.countdown:strip", "morph.countdown:strip"],
    ["a:x", "a:x"], ["a:x", "a.b:y"], ["a.b:y", "a:x"], ["a:y", "a:x"], ["p:v@mui", "o:w"],

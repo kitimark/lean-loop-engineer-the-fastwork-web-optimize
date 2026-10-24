@@ -214,7 +214,6 @@ describe("Builds routes and the manager", () => {
     expect(e2.search).toBe("?fw=nav:skip,hero:strip");
     expect(e2.target.sha).toBe(j.mainSha);
     expect(e2.phase).toBe("serving");
-    // the compare view of the running build lists the build's own searches and opens at the row's
     const html = await (await fetch(`http://127.0.0.1:${e2.brp}/__fw/compare${e2.search}`)).text();
     expect(html).toContain('<option value="?fw=hero:strip,nav:skip" selected>');
     expect(pickerOf(html).match(/<option value="/g)?.length).toBe(3);

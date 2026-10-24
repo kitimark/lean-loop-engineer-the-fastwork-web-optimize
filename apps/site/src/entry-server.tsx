@@ -22,7 +22,7 @@ export function enumerateSearches(kinds: ('presets' | 'single')[]): string[] {
     for (const p of parts)
       for (const v of Object.keys(p.variants)) {
         const key = `${p.id}:${v}`;
-        out.push(`?fw=${keyOf([key, ...(p.requires[key] ?? [])])}`); // a variant is requested with what it requires, under the canonical key
+        out.push(`?fw=${keyOf([key, ...(p.requires[key] ?? [])])}`);
       }
   return out;
 }
@@ -46,13 +46,10 @@ export interface PrerenderResult {
   stats: { homeBytes: number; censusBytes: number; ruleChunks: number };
 }
 
-/** Runs once at build time, in Node. */
 export function prerender(searches: string[] = ['']): PrerenderResult {
-  // Every page is stored under the canonical key of its flag set (lean/Fw/Wire/FlagKey.lean), whatever order the caller typed.
   const list = [...new Set((searches.includes('') ? searches : ['', ...searches]).map(canonSearch))];
 
   const cache = createServerCache();
-  // Sets `cache.compat = true`: Emotion then collects rules instead of rendering inline `<style>` tags.
   const { extractCriticalToChunks, constructStyleTagsFromChunks } = createEmotionServer(cache);
 
   const pages: PrerenderedPage[] = [];

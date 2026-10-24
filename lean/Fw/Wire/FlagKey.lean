@@ -1,18 +1,10 @@
 /-!
 # The canonical flag-set key
-
-A page is chosen by the set of `part:variant` flags, not by the order the author typed them. The key of
-a set is its distinct flags ordered by part, then variant, joined with commas. The site prerender
-stores each page under `?fw=<key>`, and every lookup (gate smoke, `fw run`, the console preview) turns
-the typed list into the same key before it looks. Golden: `packages/contracts/golden/wire/flag-key.jsonl`,
-replayed by `apps/site/test/prerender-keys.test.ts`.
 -/
 namespace Fw.Wire.FlagKey
 
-/-- A flag as `(part, variant)`. -/
 abbrev Flag := String × String
 
-/-- Part first, then variant. -/
 def leF (a b : Flag) : Bool := decide (a.1 < b.1 ∨ (a.1 = b.1 ∧ a.2 ≤ b.2))
 
 theorem leF_trans (a b c : Flag) (h1 : leF a b = true) (h2 : leF b c = true) : leF a c = true := by
@@ -42,10 +34,8 @@ theorem leF_antisymm (a b : Flag) (h1 : leF a b = true) (h2 : leF b a = true) : 
   · exact absurd (e1 ▸ h2) (String.lt_irrefl _)
   · exact Prod.ext e1 (String.le_antisymm h1 h2)
 
-/-- Order by part (stable); equal flags stay adjacent, so the part check can refuse a repeat. -/
 def sortFlags (fw : List Flag) : List Flag := fw.mergeSort leF
 
-/-- Each element once (the last occurrence stays). -/
 def dd {α : Type} [DecidableEq α] : List α → List α
   | [] => []
   | x :: xs => if x ∈ xs then dd xs else x :: dd xs
@@ -70,12 +60,10 @@ theorem nodup_dd {α : Type} [DecidableEq α] : ∀ (l : List α), (dd l).Nodup
     · simp only [h, ite_false, List.nodup_cons]
       exact ⟨fun hm => h (mem_dd.mp hm), nodup_dd ys⟩
 
-/-- The canonical list of a flag set: distinct flags, ordered. -/
 def canon (fw : List Flag) : List Flag := (dd fw).mergeSort leF
 
 theorem perm_canon (fw : List Flag) : (canon fw).Perm (dd fw) := List.mergeSort_perm _ _
 
-/-- The key keeps exactly the flags of the set (it determines the set). -/
 theorem mem_canon {x : Flag} {fw : List Flag} : x ∈ canon fw ↔ x ∈ fw :=
   (perm_canon fw).mem_iff.trans mem_dd
 
@@ -84,7 +72,6 @@ theorem nodup_canon (fw : List Flag) : (canon fw).Nodup := (perm_canon fw).nodup
 theorem pairwise_canon (fw : List Flag) : (canon fw).Pairwise (fun a b => leF a b = true) :=
   List.pairwise_mergeSort leF_trans leF_total _
 
-/-- Two lists of the same set give the same key. -/
 theorem canon_eq_of_same_set {a b : List Flag} (h : ∀ x, x ∈ a ↔ x ∈ b) : canon a = canon b := by
   have hp : (canon a).Perm (canon b) :=
     (List.perm_ext_iff_of_nodup (nodup_canon a) (nodup_canon b)).mpr fun x => by
@@ -92,33 +79,27 @@ theorem canon_eq_of_same_set {a b : List Flag} (h : ∀ x, x ∈ a ↔ x ∈ b) 
   exact List.Perm.eq_of_pairwise (fun x y _ _ h1 h2 => leF_antisymm x y h1 h2)
     (pairwise_canon a) (pairwise_canon b) hp
 
-/-- Reading the key back as a list gives the same key; the set read off the key is the set. -/
 theorem canon_roundtrip (fw : List Flag) : canon (canon fw) = canon fw ∧ ∀ x, x ∈ canon fw ↔ x ∈ fw :=
   ⟨canon_eq_of_same_set fun _ => mem_canon,
    fun _ => mem_canon⟩
 
 
-/-- A flag `"part:variant"` with exactly one colon. -/
 def parse (s : String) : Option Flag :=
   match s.splitOn ":" with
   | [a, b] => some (a, b)
   | _ => none
 
-/-- A flag as `"part:variant"`. -/
 def render (p : Flag) : String := p.1 ++ ":" ++ p.2
 
 /-- The key of a typed flag list: the canonical flags joined with commas; `none` when a flag is malformed. -/
 def keyOf (fw : List String) : Option String :=
   (fw.mapM parse).map fun ps => ",".intercalate ((canon ps).map render)
 
-/-- A registry: each flag with the flags it requires. -/
 abbrev Reg := List (Flag × List Flag)
 
-/-- Every flag of the composition is in the registry and its required flags are in the composition. -/
 def Valid (reg : Reg) (c : List Flag) : Prop :=
   ∀ f ∈ c, ∃ rs, (f, rs) ∈ reg ∧ ∀ r ∈ rs, r ∈ c
 
-/-- Validity depends on the set, not on the order. -/
 theorem valid_of_same_set {reg : Reg} {a b : List Flag} (h : ∀ x, x ∈ a ↔ x ∈ b) :
     Valid reg a ↔ Valid reg b := by
   constructor
@@ -129,10 +110,8 @@ theorem valid_of_same_set {reg : Reg} {a b : List Flag} (h : ∀ x, x ∈ a ↔ 
     obtain ⟨rs, hr, hs⟩ := v f ((h f).mp hf)
     exact ⟨rs, hr, fun r hr' => (h r).mpr (hs r hr')⟩
 
-/-- The pages a prerender stores for a list of requested compositions: one per distinct key. -/
 def pages (cs : List (List Flag)) : List (List Flag) := dd (cs.map canon)
 
-/-- A requested composition, typed in any order, finds exactly one page under its key. -/
 theorem exactly_one_page {cs : List (List Flag)} {c c' : List Flag} (hc : c ∈ cs)
     (h : ∀ x, x ∈ c' ↔ x ∈ c) : (pages cs).count (canon c') = 1 := by
   unfold pages
@@ -141,14 +120,11 @@ theorem exactly_one_page {cs : List (List Flag)} {c c' : List Flag} (hc : c ∈ 
   rw [(nodup_dd _).count]
   simp [hm]
 
-/-- Each flag with what it requires: the compositions the prerender enumerates. -/
 def enumerated (reg : Reg) : List (List Flag) := reg.map fun e => e.1 :: e.2
 
-/-- The registry names the requirements of every required flag among the composition. -/
 def Closed (reg : Reg) : Prop :=
   ∀ e ∈ reg, ∀ r ∈ e.2, ∃ rs, (r, rs) ∈ reg ∧ ∀ r' ∈ rs, r' = e.1 ∨ r' ∈ e.2
 
-/-- Every enumerated composition of a closed registry is valid. -/
 theorem enumerated_valid {reg : Reg} (hc : Closed reg) : ∀ c ∈ enumerated reg, Valid reg c := by
   intro c hm f hf
   obtain ⟨e, he, rfl⟩ := List.mem_map.mp hm
@@ -160,7 +136,6 @@ theorem enumerated_valid {reg : Reg} (hc : Closed reg) : ∀ c ∈ enumerated re
       · exact List.mem_cons_self
       · exact List.mem_cons_of_mem _ h⟩
 
-/-- A registry-valid composition of an enumerated one, in any order, is valid and has exactly one prerendered page. -/
 theorem enumerated_one_page {reg : Reg} (hc : Closed reg) {c c' : List Flag} (hm : c ∈ enumerated reg)
     (h : ∀ x, x ∈ c' ↔ x ∈ c) :
     Valid reg c' ∧ (pages (enumerated reg)).count (canon c') = 1 :=

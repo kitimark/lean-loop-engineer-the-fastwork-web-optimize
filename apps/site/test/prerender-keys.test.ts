@@ -1,5 +1,3 @@
-// The canonical flag-set key (lean/Fw/Wire/FlagKey.lean): the golden of keys is replayed, the prerender stores every
-// enumerated page under its key, and every order of the same flag set finds that page.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { canonSearch, keyOf } from '../../../packages/contracts/src/flag-key.mjs';

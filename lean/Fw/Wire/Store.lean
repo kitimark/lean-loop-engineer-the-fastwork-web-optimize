@@ -39,10 +39,8 @@ def parseFlag (s : String) : String × String :=
   | [a, b] => (a, b)
   | _ => ("", s)
 
-/-- A flag as `"part:variant"`. -/
 def flagStr (p : String × String) : String := p.1 ++ ":" ++ p.2
 
-/-- Sort flags by part, then variant (the order of the canonical key, `Fw.Wire.FlagKey`); duplicates stay adjacent so `flagsOk` can refuse them. -/
 def sortFlags (fw : List (String × String)) : List (String × String) := Fw.Wire.FlagKey.sortFlags fw
 
 /-- A string-to-string object as pairs. -/

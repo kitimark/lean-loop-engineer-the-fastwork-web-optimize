@@ -116,12 +116,11 @@ export function handler(o: Opts) {
   return (req: IncomingMessage, res: ServerResponse) => {
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, req, 405, "text/plain", "read-only");
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
-    if (u.pathname === "/analytics.js") return send(res, req, 200, "text/javascript", ""); // the GTM loader never reaches the network
+    if (u.pathname === "/analytics.js") return send(res, req, 200, "text/javascript", "");
     if (o.compare && u.pathname === "/__fw/compare") {
       const keys = configs ? Object.keys(configs.bySearch) : [];
       return send(res, req, 200, "text/html; charset=utf-8", comparePage(o.compare.op, o.compare.rp, picker(keys), choose(keys, canonSearch(u.search))));
     }
-    // "/" with a search: the prerendered page of that search (as the gate does), else index.html (the page client-renders)
     let path = u.pathname;
     if (configs && (path === "/" || path === "/index.html")) {
       const hash = configs.bySearch[canonSearch(u.search)];

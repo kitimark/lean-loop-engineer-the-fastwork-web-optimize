@@ -4,7 +4,7 @@
 - Last commit pushed to CI: 329c0e92e (main merged). Later commits only add this file.
 - CI runs:
   - lean push 40103195750: success.
-  - breakpoint-gate dispatch 40103202517 (`--fw morph.countdown:strip,hero.countdown:strip`, both engines): success -> pass (smoke found the page; before the fix the same set failed smoke in runs 40081933958 and 40089874311).
+  - breakpoint-gate dispatch 40103202517 (`--fw morph.countdown:strip,hero.countdown:strip`, both engines): success (smoke found the page; before the fix the same set failed smoke in runs 40081933958 and 40089874311).
     Both typed orders give the same dispatch input `fw=hero.countdown:strip,morph.countdown:strip` (`fw run --gate --dry`).
 
 ## Verified
@@ -21,7 +21,7 @@
 - `entry-server.tsx` stores every page under `canonSearch(search)`; every `configs.json` lookup wraps its search in `canonSearch`.
 
 ## Open
-- None. Main merged again; runner suite (3437), lean check.sh and `VERDICT dry gate-flag-order` green. No new CI run.
+- None. Runner suite (3437), lean check.sh and `VERDICT dry gate-flag-order` green after merging main. No new CI run.
 
 ## Read first
 `lean/Fw/Wire/FlagKey.lean`, then `packages/contracts/src/flag-key.mjs`.

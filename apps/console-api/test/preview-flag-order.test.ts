@@ -1,5 +1,3 @@
-// The preview server finds a prerendered flag page whatever order the typed ?fw= list has
-// (canonical key: lean/Fw/Wire/FlagKey.lean, packages/contracts/src/flag-key.mjs).
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
