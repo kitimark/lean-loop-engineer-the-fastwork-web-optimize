@@ -60,11 +60,6 @@ def skipSel (b : Box) : Bool := !b.insideNav || b.allow
 
 def probeElements (rootHit : Bool) (g : List Box) : Bool := classOf ((elementsFromPoint rootHit g).find? skipSel)
 
-/-- Site premises on the boxes under the probe. Outside the nav the root's value never reaches a box (inheritance runs
-to DOM descendants only, and `nav.contains` is the DOM subtree). Inside the nav, `closest(ALLOW_SELECTOR)` holds on
-exactly the boxes whose own or nav-internal ancestor declaration lets hits through, and never on a box that inherits
-from the root: `apps/site/src/parts/nav/nav.module.css:128-132,177,186-200`, `morph.panel/morph.module.css:12-20`,
-`nav.hitTest/logic.ts:87-88`. -/
 def Premises (g : List Box) : Prop :=
   ∀ b ∈ g, (b.insideNav = false → b.src ≠ .root) ∧
     (b.insideNav = true → (b.allow = true → b.src ≠ .root) ∧ (b.src = .fixed true → b.allow = true))
@@ -98,7 +93,6 @@ theorem sel_eq (r : Bool) (b : Box)
       · simp [usedHit, hsrc]
       · simp [usedHit, skipSel, hi, hsrc, hf hsrc]
 
-/-- The elements stack's first non-skipped box is the faithful hit, for every normal state `r` of the nav root. -/
 theorem elements_find_eq (r : Bool) (g : List Box) (h : Premises g) :
     (hitList r g).find? skipSel = elementFromPoint false g := by
   unfold elementFromPoint hitList
@@ -107,7 +101,6 @@ theorem elements_find_eq (r : Bool) (g : List Box) (h : Premises g) :
 
 theorem classOf_html : classOf (some htmlBox) = false := by decide
 
-/-- Same class: the hit answer of `elements-skip` equals the faithful probe's. -/
 theorem same_class (r : Bool) (g : List Box) (h : Premises g) : probeElements r g = probeFaithful g := by
   unfold probeElements probeFaithful elementsFromPoint
   rw [List.find?_append, elements_find_eq r g h]
@@ -115,20 +108,16 @@ theorem same_class (r : Bool) (g : List Box) (h : Premises g) : probeElements r 
   | some y => rfl
   | none => exact classOf_html
 
-/-- Same `is-on-dark` class on the frame, at every morph. -/
 theorem same_onDark (r : Bool) (g : List Box) (m : Rat) (h : Premises g) :
     isOnDark (probeElements r g) m = isOnDark (probeFaithful g) m := by
   rw [same_class r g h]
 
-/-- Every frame of a run: the class sequence of `elements-skip` equals the faithful one. -/
 theorem same_onDark_run (run : List (Bool × List Box × Rat)) (h : ∀ f ∈ run, Premises f.2.1) :
     run.map (fun f => isOnDark (probeElements f.1 f.2.1) f.2.2) = run.map (fun f => isOnDark (probeFaithful f.2.1) f.2.2) := by
   apply List.map_congr_left
   intro f hf
   exact same_onDark f.1 f.2.1 f.2.2 (h f hf)
 
-/-- The index model `NavHitTest.faithfulHit` uses (first box outside the nav or re-enabled inside it, on the
-`elementsFromPoint` stack) follows from the engine premises with `allow` read as "re-enabled". -/
 theorem faithful_is_first_reEnabled (r : Bool) (g : List Box) (h : Premises g) :
     elementFromPoint false g = (hitList r g).find? (fun b => !b.insideNav || b.allow) :=
   (elements_find_eq r g h).symm
@@ -137,17 +126,14 @@ def actionsBox : Box := ⟨true, .fixed true, true, false, false, false⟩
 def barBox : Box := ⟨true, .root, false, false, false, false⟩
 def painBox : Box := ⟨false, .fixed true, false, false, true, false⟩
 
-/-- The allow-list premise is needed: an allow-listed box that inherits from the root makes the answers differ. -/
 theorem needs_allow_not_root :
     probeElements true [⟨true, .root, true, false, false, false⟩, painBox] ≠
       probeFaithful [⟨true, .root, true, false, false, false⟩, painBox] := by decide
 
-/-- The allow-list premise is needed: a re-enabled box missing from the allow-list makes the answers differ. -/
 theorem needs_allow_reEnabled :
     probeElements true [⟨true, .fixed true, false, false, false, false⟩, painBox] ≠
       probeFaithful [⟨true, .fixed true, false, false, false, false⟩, painBox] := by decide
 
-/-- The outside premise is needed: an outside box that tracked the nav root would make the answers differ. -/
 theorem needs_outside_fixed :
     probeElements true [⟨false, .root, false, false, true, false⟩] ≠
       probeFaithful [⟨false, .root, false, false, true, false⟩] := by decide
@@ -178,20 +164,15 @@ theorem probes_no_layout_dirt :
 theorem dirtying_append (ρ : Access → Role) (as bs : List Access) :
     dirtying ρ (as ++ bs) = dirtying ρ as ++ dirtying ρ bs := List.filter_append ..
 
-/-- In every frame context, `elements-skip` adds no style invalidation: the frame's dirtying accesses are those of the
-callbacks around the probe. -/
 theorem elements_frame_no_style_dirt (pre post : List Access) :
     dirtying styleRole (pre ++ NavHitTestOpt.probeElements ++ post) = dirtying styleRole (pre ++ post) := by
   simp only [dirtying_append, elements_no_style_dirt, List.append_nil]
 
-/-- In every frame context, the faithful probe adds exactly its two `pointer-events` writes. -/
 theorem faithful_frame_style_dirt (pre post : List Access) :
     (dirtying styleRole (pre ++ NavHitTestOpt.probeFaithful ++ post)).length = (dirtying styleRole (pre ++ post)).length + 2 := by
   simp only [dirtying_append, faithful_style_dirt, List.length_append]
   simp
   omega
-
-/-! Golden: `packages/contracts/golden/parts/nav.hitTest.elements.jsonl`. -/
 
 def srcWire : Src → String
   | .root => "root"
@@ -231,7 +212,6 @@ def scenes : List (Bool × List Box × Rat) :=
    (true, [⟨true, .fixed true, false, false, false, false⟩, painBox], 0),
    (true, [⟨false, .root, false, false, true, false⟩], 0)]
 
-/-- The golden lines: named scenes, then every stack of at most two box kinds for both root states and three morphs. -/
 def goldenLines (_ : Unit := ()) : List String :=
   scenes.map (fun (r, g, m) => sceneLine r g m) ++
     stacks.flatMap (fun g => [true, false].flatMap (fun r => morphs.map (fun m => sceneLine r g m)))
@@ -244,7 +224,6 @@ def path : String := "../packages/contracts/golden/parts/nav.hitTest.elements.js
 
 def text (_ : Unit := ()) : String := String.join (goldenLines.map (· ++ "\n"))
 
-/-- Write the golden file, or with `--check` fail when it differs from `goldenLines`. -/
 def gen (args : List String) : IO Unit := do
   if args.contains "--check" then
     let disk ← IO.FS.readFile path

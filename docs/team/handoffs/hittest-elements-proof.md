@@ -1,7 +1,7 @@
 # hittest-elements-proof handoff
 
 - Branch: worktree-wf_19bb37f8-8d7-1; worktree .claude/worktrees/wf_19bb37f8-8d7-1; CI branch ci/hittest-elements-proof.
-- Last commit: see `git log -1` (this file is committed with each checkpoint).
+- Last commit: `git log -1`.
 - CI runs (both complete, success, sha d7b257a, chromium-counts swipe-v1, 3 runs): faithful rewrite 40081984397;
   rewrite `?fw=nav.hitTest:elements-skip` 40081975943. Lean run 40085221652 (merged head a372d1c) failed only at the
   import check; the continue round fixes that. No new CI dispatch in the continue round.

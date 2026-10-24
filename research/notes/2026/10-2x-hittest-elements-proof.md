@@ -17,7 +17,7 @@ inherited from the nav root. The faithful probe sets the root to `none`, takes t
 plus the document element (`elementsFromPoint`), and picks the first box that is outside the nav or matches
 `ALLOW_SELECTOR`.
 
-Engine premises, CONFIRMED from source and kept as named premises in the model, not proved:
+Engine premises, CONFIRMED from source and kept as named premises, not proved:
 
 | premise | Chromium @f842f52 | WebKit @862f17d |
 |---|---|---|
@@ -88,7 +88,7 @@ About 28 fewer elements are restyled per swipe frame: INFERRED to be the nav sub
 
 ## Open
 - WKTR per approach zone: `.github/workflows/wktr.yml:190-191` runs `--site snapshot/site` only, with no target or
-  flag input, and `fw run` has no WKTR lane (`docs/team/tools/fw-run.md`). Needs a rewrite+flag input on that
+  flag input, and `fw run` has no WKTR lane (`docs/team/tools/fw-run.md`). Needs a rewrite and flag input on that
   workflow. A WebKit Simulator pair (`fw run --target rewrite --engines webkit`, with and without the flag) would
   give WebKit counts meanwhile; not run (dispatch budget used).
 - Allow-list generated from the stylesheet (ledger n=4 `missingWhy` 1) would turn the site premise from INFERRED
