@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Ops.Wire
+import Fw.Sup.Adapt
 
 /-!
 # Which leftover processes `fw reap` names and how they are stopped (tasks `orphan-guard`, `reap-auto-stop`)
@@ -27,9 +28,10 @@ inductive Kind where
   | removed
   | descendant
   | mcpIdle
+  | orphanLoop
+  | simBooted
 deriving Repr, DecidableEq
 
-/-- The kind named by the glue's argv classification for branch A. -/
 def kindOf : String → Option Kind
   | "lspServe" => some .lspServe
   | "console" => some .console
@@ -42,6 +44,8 @@ def Kind.name : Kind → String
   | .removed => "removed"
   | .descendant => "descendant"
   | .mcpIdle => "mcpIdle"
+  | .orphanLoop => "orphanLoop"
+  | .simBooted => "simBooted"
 
 /-- The argv kinds that branches B and C may select: a tool process (lean, lake, fwcore, node, vitest, a playwright browser)
 or a `lake serve` (also when its parent is gone). A tool is never selected by its name, only through its cwd (B) or an
@@ -103,15 +107,34 @@ structure Input where
   protect : List Nat := []
 deriving Repr
 
-/-- The inputs of every branch, D included: those of A, B and C, the current second `now`, the CPU time each read row used,
-the CPU baselines of the previous run, the worktree locks and `mcpWt`, the worktree id each lean-lsp-mcp process (by pid)
-was started in (no entry: elsewhere, the main checkout included). -/
+structure LoopFact where
+  pid : Nat
+  start : Nat
+  awaits : String
+  callLive : Bool
+deriving Repr
+
+structure Waiter where
+  pid : Nat
+  start : Nat
+  wt : String
+  writes : String
+deriving Repr
+
 structure InputD extends Input where
   now : Nat := 0
   uses : List Use := []
   bases : List Base := []
   locks : List Lock := []
   mcpWt : List (Nat × String) := []
+  loops : List LoopFact := []
+  waiters : List Waiter := []
+  simIdleSince : Option Nat := none
+  simAcquired : Option Nat := none
+  ownSims : List (Nat × Nat) := []
+  simHolders : Nat := 0
+  legacyHeld : Bool := true
+  auto : Bool := false
 deriving Repr
 
 instance : Coe InputD Input := ⟨InputD.toInput⟩
@@ -588,10 +611,9 @@ def Kind.reason : Kind → String
   | .removed => "tool whose cwd is in a removed worktree"
   | .descendant => "tool below a selected process"
   | .mcpIdle => "lean-lsp-mcp server stack idle (CPU quiet) in a worktree with no live agent"
+  | .orphanLoop => "until-loop shell that outlived its tool call, no live writer of the awaited file"
+  | .simBooted => "Simulator booted by a sim slot run that has released, no sim slot held"
 
-/-! ## The stop plan -/
-
-/-- One process to signal: identity (pid, start second) and whether the whole group is signalled. -/
 structure Target where
   pid : Nat
   start : Nat
@@ -1211,16 +1233,433 @@ private def gIn : InputD :=
 #guard rebase { gIn with bases := [] } == [⟨500, 9, 5000, 10⟩, ⟨501, 9, 5000, 600⟩, ⟨502, 9, 5000, 900⟩]
 #guard sessionLive { gIn with locks := [⟨"w", some 500⟩] } "w" && !sessionLive gIn "w"
 
+
+def orphanMinSec : Nat := 60
+
+def ownSim (i : InputD) (r : Row) : Bool := i.ownSims.any fun p => p.1 == r.pid && p.2 == r.start
+
+def simVerdict (i : InputD) (s : Nat) : Fw.Sup.Adapt.SimAct :=
+  Fw.Sup.Adapt.simAction {} i.now
+    (List.replicate i.simHolders ⟨"", "", Fw.Sup.Adapt.Kind.sim, 0, i.now + 1, 0, 0⟩) true i.legacyHeld (some s)
+
+def waiterLive (i : InputD) (w : Waiter) : Bool := i.rows.any fun r => r.pid == w.pid && r.start == w.start
+
+def loopOf (i : InputD) (r : Row) : Option LoopFact := i.loops.find? fun l => l.pid == r.pid && l.start == r.start
+
+def writerLive (i : InputD) (r : Row) (l : LoopFact) : Bool :=
+  match r.wt with
+  | some a => i.waiters.any fun w => w.wt == a && w.writes == l.awaits && waiterLive i w
+  | none => false
+
+def awaitOk (p : String) : Bool := p.startsWith "/" && !p.contains '$'
+
+def pickE (i : InputD) (r : Row) : Option Kind :=
+  match r.cwd, r.wt, loopOf i r with
+  | some _, some _, some l =>
+    if r.kind == "untilLoop" && r.inRepo && !l.callLive && awaitOk l.awaits && !writerLive i r l &&
+        decide (r.start + orphanMinSec ≤ i.now) &&
+        decide (1 < r.pid) && shielded i r
+    then some .orphanLoop else none
+  | _, _, _ => none
+
+def pickF (i : InputD) (r : Row) : Option Kind :=
+  match i.simAcquired, i.simIdleSince with
+  | some a, some s =>
+    if r.kind == "simDevice" && ownSim i r && decide (a ≤ r.start) && decide (r.start ≤ s) && simVerdict i s == .shutdown &&
+        decide (1 < r.pid) && shielded i r
+    then some .simBooted else none
+  | _, _ => none
+
+def pickW (i : InputD) (r : Row) : Option Kind :=
+  if serenaFree i r then
+    match pickE i r with
+    | some k => some k
+    | none => pickF i r
+  else none
+
+def pickOne (i : InputD) (r : Row) : Option Kind :=
+  match pickAll i r with
+  | some k => some k
+  | none => pickW i r
+
+def reapOne(i : InputD) : List Sel :=
+  i.rows.filterMap fun r => (pickOne i r).map fun k => ⟨r.pid, r.start, k, r.pgid == r.pid⟩
+
+def autoKinds : List Kind := [.lspServe, .console, .removed, .descendant, .mcpIdle]
+
+def planSel (i : InputD) : List Sel := (reapOne i).filter fun s => !i.auto || decide (s.kind ∈ autoKinds)
+
+def planOne (i : InputD) : List Target :=
+  (planSel i).map fun s => ⟨s.pid, s.start, groupSafe i (planSel i) s⟩
+
+def held (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .orphanLoop
+
+private def gE : InputD :=
+  { rows := [⟨2846, 1, 2846, 1000, some 5, "untilLoop", some "w", true⟩, ⟨3100, 1, 3100, 1000, some 5, "simDevice", none, false⟩],
+    live := [1], mcps := [], keep := [], liveIds := ["w"], now := 1800,
+    loops := [⟨2846, 1000, "/tmp/mwm-wait.log", false⟩], simIdleSince := some 1200, simAcquired := some 900,
+    ownSims := [(3100, 1000)], legacyHeld := false }
+
+#guard (reapOne gE).map (·.kind) == [.orphanLoop, .simBooted]
+#guard (planOne gE).map (·.pid) == [2846, 3100]
+#guard (planOne { gE with auto := true }).isEmpty
+#guard (held { gE with auto := true }).map (·.pid) == [2846]
+#guard (reapOne { gE with legacyHeld := true }).map (·.pid) == [2846]
+#guard (reapOne { gE with loops := [⟨2846, 1000, "out.log", false⟩] }).map (·.pid) == [3100]
+#guard (reapOne { gE with loops := [⟨2846, 1000, "$HOME/x", false⟩] }).map (·.pid) == [3100]
+
+theorem pickE_some {i : InputD} {r : Row} {k : Kind} (h : pickE i r = some k) :
+    k = .orphanLoop ∧ (∃ c, r.cwd = some c) ∧ (∃ a, r.wt = some a) ∧
+      (∃ l, loopOf i r = some l ∧ r.kind = "untilLoop" ∧ r.inRepo = true ∧ l.callLive = false ∧ awaitOk l.awaits = true ∧
+        writerLive i r l = false) ∧
+      r.start + orphanMinSec ≤ i.now ∧ 1 < r.pid ∧ shielded i r = true := by
+  unfold pickE at h
+  split at h
+  · rename_i c a l hc ha hp
+    split at h
+    · rename_i hb
+      cases h
+      simp only [Bool.and_eq_true, Bool.not_eq_true', beq_iff_eq, decide_eq_true_eq] at hb
+      obtain ⟨⟨⟨⟨⟨⟨⟨hk, hin⟩, hcl⟩, hok⟩, hw⟩, hn⟩, h1⟩, hs⟩ := hb
+      exact ⟨rfl, ⟨c, hc⟩, ⟨a, ha⟩, ⟨l, hp, hk, hin, hcl, hok, hw⟩, hn, h1, hs⟩
+    · cases h
+  · cases h
+
+theorem pickF_some {i : InputD} {r : Row} {k : Kind} (h : pickF i r = some k) :
+    k = .simBooted ∧ r.kind = "simDevice" ∧ ownSim i r = true ∧
+      (∃ a s, i.simAcquired = some a ∧ i.simIdleSince = some s ∧ a ≤ r.start ∧ r.start ≤ s ∧ simVerdict i s = .shutdown) ∧
+      1 < r.pid ∧ shielded i r = true := by
+  unfold pickF at h
+  split at h
+  · rename_i a s ha hs
+    split at h
+    · rename_i hb
+      cases h
+      simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hb
+      obtain ⟨⟨⟨⟨⟨⟨hk, ho⟩, ha'⟩, hst⟩, hv⟩, h1⟩, hsh⟩ := hb
+      exact ⟨rfl, hk, ho, ⟨a, s, ha, hs, ha', hst, hv⟩, h1, hsh⟩
+    · cases h
+  · cases h
+
+theorem live_writer_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : writerLive i r l = true) :
+    pickE i r = none := by
+  unfold pickE
+  rw [hl]
+  split
+  · rename_i heq
+    cases heq
+    simp [h]
+  · rfl
+
+theorem writer_identity {i : InputD} {r : Row} {l : LoopFact} (h : writerLive i r l = true) :
+    ∃ w ∈ i.waiters, r.wt = some w.wt ∧ l.awaits = w.writes ∧ ∃ x ∈ i.rows, x.pid = w.pid ∧ x.start = w.start := by
+  unfold writerLive at h
+  split at h
+  · rename_i a hw
+    simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq, waiterLive] at h
+    obtain ⟨w, hw', ⟨hwa, hwp⟩, x, hx, hxp⟩ := h
+    exact ⟨w, hw', by rw [hw, hwa], hwp.symm, x, hx, hxp.1, hxp.2⟩
+  · cases h
+
+theorem call_live_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : l.callLive = true) :
+    pickE i r = none := by
+  unfold pickE
+  rw [hl]
+  split
+  · rename_i heq
+    cases heq
+    simp [h]
+  · rfl
+
+theorem young_loop_kept {i : InputD} {r : Row} (h : i.now < r.start + orphanMinSec) : pickE i r = none := by
+  unfold pickE
+  split
+  · simp; omega
+  · rfl
+
+theorem not_loop_kept {i : InputD} {r : Row} (h : r.kind ≠ "untilLoop") : pickE i r = none := by
+  unfold pickE
+  split <;> simp [h]
+
+theorem orphan_selected {i : InputD} {r : Row} {c : Nat} {a : String} {l : LoopFact} (hc : r.cwd = some c) (ha : r.wt = some a)
+    (hl : loopOf i r = some l) (hk : r.kind = "untilLoop") (hin : r.inRepo = true) (hcl : l.callLive = false)
+    (hok : awaitOk l.awaits = true) (hw : writerLive i r l = false) (hn : r.start + orphanMinSec ≤ i.now) (h1 : 1 < r.pid)
+    (hs : shielded i r = true) : pickE i r = some .orphanLoop := by
+  unfold pickE
+  rw [hc, ha, hl]
+  simp [hk, hin, hcl, hok, hw, hn, h1, hs]
+
+theorem await_unsafe_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : awaitOk l.awaits = false) :
+    pickE i r = none := by
+  unfold pickE
+  rw [hl]
+  split
+  · rename_i heq
+    cases heq
+    simp [h]
+  · rfl
+
+theorem relative_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l)
+    (h : l.awaits.startsWith "/" = false) : pickE i r = none :=
+  await_unsafe_kept hl (by simp [awaitOk, h])
+
+theorem dollar_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : l.awaits.contains '$' = true) :
+    pickE i r = none :=
+  await_unsafe_kept hl (by simp [awaitOk, h])
+
+#guard !awaitOk "out.log" && !awaitOk "$HOME/x" && !awaitOk "/tmp/$X/y" && awaitOk "/tmp/mwm-wait.log"
+
+theorem sim_selected {i : InputD} {r : Row} {a s : Nat} (ha : i.simAcquired = some a) (hs : i.simIdleSince = some s)
+    (hk : r.kind = "simDevice") (ho : ownSim i r = true) (hl : a ≤ r.start) (hb : r.start ≤ s) (hv : simVerdict i s = .shutdown)
+    (h1 : 1 < r.pid) (hsh : shielded i r = true) : pickF i r = some .simBooted := by
+  unfold pickF
+  rw [ha, hs]
+  simp [hk, ho, hl, hb, hv, h1, hsh]
+
+theorem simVerdict_held {i : InputD} (s : Nat) (h : i.simHolders ≠ 0) : simVerdict i s = .keep := by
+  apply Fw.Sup.Adapt.sim_keep_under_holder
+  obtain ⟨n, hn⟩ := Nat.exists_eq_succ_of_ne_zero h
+  rw [hn]
+  simp [Fw.Sup.Adapt.simHeld, Fw.Sup.Adapt.prune, Fw.Sup.Adapt.live, List.replicate_succ]
+
+theorem sim_held_kept {i : InputD} {r : Row} (h : i.simHolders ≠ 0) : pickF i r = none := by
+  unfold pickF
+  split
+  · simp [simVerdict_held _ h]
+  · rfl
+
+theorem sim_legacy_kept {i : InputD} {r : Row} (h : i.legacyHeld = true) : pickF i r = none := by
+  unfold pickF
+  split
+  · have (s : Nat) : simVerdict i s = .keep := by
+      unfold simVerdict
+      rw [h]
+      exact Fw.Sup.Adapt.sim_keep_under_legacy _ _ _ _
+    simp [this]
+  · rfl
+
+theorem sim_after_release_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (h : s < r.start) :
+    pickF i r = none := by
+  unfold pickF
+  rw [hs]
+  rcases hA : i.simAcquired with _ | a
+  · rfl
+  · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+    split
+    · rename_i hb; omega
+    · rfl
+
+theorem sim_before_acquire_kept {i : InputD} {r : Row} {a : Nat} (ha : i.simAcquired = some a) (h : r.start < a) :
+    pickF i r = none := by
+  unfold pickF
+  rw [ha]
+  rcases hS : i.simIdleSince with _ | s
+  · rfl
+  · simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+    split
+    · rename_i hb; omega
+    · rfl
+
+theorem sim_not_own_kept {i : InputD} {r : Row} (h : ownSim i r = false) : pickF i r = none := by
+  unfold pickF
+  split <;> simp [h]
+
+theorem sim_no_release_kept {i : InputD} {r : Row} (h : i.simIdleSince = none) : pickF i r = none := by
+  unfold pickF
+  rw [h]
+  rcases i.simAcquired with _ | a <;> rfl
+
+theorem sim_no_acquire_kept {i : InputD} {r : Row} (h : i.simAcquired = none) : pickF i r = none := by
+  unfold pickF
+  rw [h]
+
+theorem sim_idle_kept {i : InputD} {r : Row} {s : Nat} (hs : i.simIdleSince = some s) (h : i.now < s + 600) :
+    pickF i r = none := by
+  unfold pickF
+  rw [hs]
+  have : simVerdict i s = .keep := by
+    unfold simVerdict
+    exact Fw.Sup.Adapt.sim_keep_within_idle _ _ _ _ _ h
+  rcases i.simAcquired with _ | a <;> simp [this]
+
+theorem pickAny_ne_w {i : Input} {r : Row} {k : Kind} (h : pickAny i r = some k) : k ≠ .orphanLoop ∧ k ≠ .simBooted := by
+  unfold pickAny pickAB at h
+  cases hp : pick i r with
+  | some k' =>
+    rw [hp] at h
+    obtain ⟨hk, -⟩ := pick_some hp
+    simp only [Option.some.injEq] at h
+    subst h
+    simp [kindOf] at hk
+    split at hk <;> (cases hk; try exact ⟨by decide, by decide⟩)
+  | none =>
+    rw [hp] at h
+    cases hb : pickB i r with
+    | some k' =>
+      rw [hb] at h
+      obtain ⟨hk, -⟩ := pickB_some hb
+      simp only [Option.some.injEq] at h
+      subst h
+      rw [hk]
+      exact ⟨by decide, by decide⟩
+    | none =>
+      rw [hb] at h
+      obtain ⟨hk, -⟩ := pickC_some h
+      subst hk
+      exact ⟨by decide, by decide⟩
+
+theorem all_ne_w {i : InputD} {r : Row} {k : Kind} (h : pickAll i r = some k) : k ≠ .orphanLoop ∧ k ≠ .simBooted := by
+  rcases all_some h with ⟨-, hp⟩ | ⟨hk, -⟩
+  · exact pickAny_ne_w hp
+  · subst hk
+    exact ⟨by decide, by decide⟩
+
+theorem one_some {i : InputD} {r : Row} {k : Kind} (h : pickOne i r = some k) :
+    pickAll i r = some k ∨ (pickAll i r = none ∧ pickW i r = some k) := by
+  unfold pickOne at h
+  cases hp : pickAll i r with
+  | some k' => rw [hp] at h; cases h; exact Or.inl rfl
+  | none => rw [hp] at h; exact Or.inr ⟨rfl, h⟩
+
+theorem pickW_some {i : InputD} {r : Row} {k : Kind} (h : pickW i r = some k) :
+    serenaFree i r = true ∧ (pickE i r = some k ∨ (pickE i r = none ∧ pickF i r = some k)) := by
+  unfold pickW at h
+  split at h
+  · rename_i hs
+    refine ⟨hs, ?_⟩
+    cases hp : pickE i r with
+    | some k' => rw [hp] at h; cases h; exact Or.inl rfl
+    | none => rw [hp] at h; exact Or.inr ⟨rfl, h⟩
+  · cases h
+
+theorem w_safe {i : InputD} {r : Row} {k : Kind} (h : pickW i r = some k) :
+    1 < r.pid ∧ shielded i r = true ∧ serenaFree i r = true := by
+  obtain ⟨hs, hp | ⟨-, hp⟩⟩ := pickW_some h
+  · obtain ⟨-, -, -, -, -, h1, hsh⟩ := pickE_some hp
+    exact ⟨h1, hsh, hs⟩
+  · obtain ⟨-, -, -, -, h1, hsh⟩ := pickF_some hp
+    exact ⟨h1, hsh, hs⟩
+
+theorem one_safe {i : InputD} {r : Row} {k : Kind} (h : pickOne i r = some k) : 1 < r.pid ∧ shielded i r = true := by
+  rcases one_some h with hp | ⟨-, hp⟩
+  · obtain ⟨-, h1, hs, -⟩ := all_safe hp
+    exact ⟨h1, hs⟩
+  · obtain ⟨h1, hs, -⟩ := w_safe hp
+    exact ⟨h1, hs⟩
+
+theorem reapOne_mem {i : InputD} {s : Sel} (h : s ∈ reapOne i) :
+    ∃ r ∈ i.rows, pickOne i r = some s.kind ∧ r.pid = s.pid ∧ r.start = s.start ∧ s.group = (r.pgid == r.pid) := by
+  unfold reapOne at h
+  rw [List.mem_filterMap] at h
+  obtain ⟨r, hr, hs⟩ := h
+  cases hp : pickOne i r with
+  | none => simp [hp] at hs
+  | some k =>
+    simp [hp] at hs
+    subst hs
+    exact ⟨r, hr, hp, rfl, rfl, rfl⟩
+
+theorem one_not_init {i : InputD} {s : Sel} (h : s ∈ reapOne i) : 1 < s.pid := by
+  obtain ⟨r, -, hp, hpid, -⟩ := reapOne_mem h
+  have := (one_safe hp).1
+  omega
+
+theorem one_shielded {i : InputD} {s : Sel} (h : s ∈ reapOne i) : ∃ r ∈ i.rows, r.pid = s.pid ∧ shielded i r = true := by
+  obtain ⟨r, hr, hp, hpid, -⟩ := reapOne_mem h
+  exact ⟨r, hr, hpid, (one_safe hp).2⟩
+
+theorem orphan_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind = .orphanLoop) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.kind = "untilLoop" ∧ r.inRepo = true ∧
+      ∃ l, loopOf i r = some l ∧ l.callLive = false ∧ awaitOk l.awaits = true ∧ writerLive i r l = false := by
+  obtain ⟨r, hr, hp, hpid, hst, -⟩ := reapOne_mem h
+  rw [hk] at hp
+  rcases one_some hp with hp | ⟨-, hp⟩
+  · exact absurd rfl (all_ne_w hp).1
+  · obtain ⟨-, hp | ⟨-, hp⟩⟩ := pickW_some hp
+    · obtain ⟨-, -, -, ⟨l, hl, hk', hin, hcl, hok, hw⟩, -⟩ := pickE_some hp
+      exact ⟨r, hr, hpid, hst, hk', hin, l, hl, hcl, hok, hw⟩
+    · obtain ⟨hk', -⟩ := pickF_some hp
+      cases hk'
+
+theorem sim_branch {i : InputD} {s : Sel} (h : s ∈ reapOne i) (hk : s.kind = .simBooted) :
+    ∃ r ∈ i.rows, r.pid = s.pid ∧ r.start = s.start ∧ r.kind = "simDevice" ∧ ownSim i r = true ∧
+      ∃ a t, i.simAcquired = some a ∧ i.simIdleSince = some t ∧ a ≤ r.start ∧ r.start ≤ t ∧ simVerdict i t = .shutdown := by
+  obtain ⟨r, hr, hp, hpid, hst, -⟩ := reapOne_mem h
+  rw [hk] at hp
+  rcases one_some hp with hp | ⟨-, hp⟩
+  · exact absurd rfl (all_ne_w hp).2
+  · obtain ⟨-, hp | ⟨-, hp⟩⟩ := pickW_some hp
+    · obtain ⟨hk', -⟩ := pickE_some hp
+      cases hk'
+    · obtain ⟨-, hkind, ho, ht, -⟩ := pickF_some hp
+      exact ⟨r, hr, hpid, hst, hkind, ho, ht⟩
+
+theorem planSel_sub {i : InputD} {s : Sel} (h : s ∈ planSel i) : s ∈ reapOne i := (List.mem_filter.1 h).1
+
+theorem planSel_explicit {i : InputD} (h : i.auto = false) : planSel i = reapOne i := by
+  unfold planSel
+  simp [h]
+
+theorem planSel_auto {i : InputD} {s : Sel} (h : i.auto = true) (hs : s ∈ planSel i) : s.kind ∈ autoKinds := by
+  unfold planSel at hs
+  rw [List.mem_filter] at hs
+  simpa [h] using hs.2
+
+theorem planOne_sel {i : InputD} {t : Target} (h : t ∈ planOne i) :
+    ∃ s ∈ planSel i, s.pid = t.pid ∧ s.start = t.start := by
+  unfold planOne at h
+  rw [List.mem_map] at h
+  obtain ⟨s, hs, rfl⟩ := h
+  exact ⟨s, hs, rfl, rfl⟩
+
+theorem auto_plan_no_loop_sim {i : InputD} {t : Target} (ha : i.auto = true) (h : t ∈ planOne i) :
+    ∃ s ∈ reapOne i, s.pid = t.pid ∧ s.start = t.start ∧ s.kind ≠ .orphanLoop ∧ s.kind ≠ .simBooted := by
+  obtain ⟨s, hs, hp, hst⟩ := planOne_sel h
+  have hk := planSel_auto ha hs
+  refine ⟨s, planSel_sub hs, hp, hst, ?_, ?_⟩ <;> intro he <;> rw [he] at hk <;> simp [autoKinds] at hk
+
+theorem planOne_group_inside {i : InputD} {t : Target} (h : t ∈ planOne i) (hg : t.group = true) :
+    ∀ r ∈ i.rows, r.pgid = t.pid → ∃ s ∈ planSel i, s.pid = r.pid ∧ s.start = r.start := by
+  unfold planOne at h
+  rw [List.mem_map] at h
+  obtain ⟨s, hs, rfl⟩ := h
+  intro r hr hpg
+  simp only [groupSafe, Bool.and_eq_true, List.all_eq_true] at hg
+  have := hg.2 r hr
+  simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, inSel, List.any_eq_true, Bool.and_eq_true, beq_iff_eq] at this
+  rcases this with h1 | ⟨s', hs', h2, h3⟩
+  · exact absurd hpg h1
+  · exact ⟨s', hs', h2, h3⟩
+
+theorem held_in_plan {i : InputD} {s : Sel} (ha : i.auto = false) (h : s ∈ held i) :
+    ∃ t ∈ planOne i, t.pid = s.pid ∧ t.start = s.start := by
+  unfold held at h
+  rw [List.mem_filter] at h
+  unfold planOne
+  rw [planSel_explicit ha]
+  exact ⟨_, List.mem_map.2 ⟨s, h.1, rfl⟩, rfl, rfl⟩
+
+theorem held_kind {i : InputD} {s : Sel} (h : s ∈ held i) : s.kind = .orphanLoop := by
+  unfold held at h
+  rw [List.mem_filter] at h
+  simpa using h.2
+
 end Fw.Ops.Reap
 
 namespace Fw.Wire.Reap
 open Lean Fw.Ops.Reap Fw.Wire.Ops
 
-/-- One row from JSON: `pid`, `ppid`, `pgid`, `start`, `cwd`? (inode or null), `kind`, `wt`? (worktree id or null), `inRepo`? (bool). -/
 def rowOf (j : Json) : Except String Row := do
-  pure ⟨← nat j "pid", ← nat j "ppid", ← nat j "pgid", ← nat j "start", ← optN j "cwd", ← str j "kind", ← optS j "wt", ← boolD j "inRepo" false⟩
+  let pid ← nat j "pid"
+  let ppid ← nat j "ppid"
+  let pgid ← nat j "pgid"
+  let start ← nat j "start"
+  let cwd ← optN j "cwd"
+  let kind ← str j "kind"
+  let wt ← optS j "wt"
+  let inRepo ← boolD j "inRepo" false
+  pure { pid, ppid, pgid, start, cwd, kind, wt, inRepo }
 
-/-- The CPU time of a JSON row (`cpu`?, centiseconds or null), `none` when unread. -/
 def useOf (j : Json) : Except String (Option Use) := do
   match ← optN j "cpu" with
   | some c => pure (some ⟨← nat j "pid", ← nat j "start", c⟩)
@@ -1248,9 +1687,20 @@ def inputOf (req : Json) : Except String InputD := do
   let protect ← (← arrD req "protect").mapM (asNat "protect")
   let bases ← (← arrD req "bases").mapM baseOfJson
   let locks ← (← arrD req "locks").mapM fun j => do pure (Lock.mk (← str j "id") (← optN j "holder"))
-  pure { rows, live, mcps, keep, liveIds, protect, now := ← natD req "now" 0, uses, bases, locks, mcpWt }
+  let waiters ← (← arrD req "waiters").mapM fun j => do pure (Waiter.mk (← nat j "pid") (← nat j "start") (← str j "wt") (← str j "writes"))
+  let loops ← (← arrD req "loops").mapM fun j => do
+    pure (LoopFact.mk (← nat j "pid") (← nat j "start") (← str j "awaits") (← boolD j "callLive" false))
+  let now ← natD req "now" 0
+  let simIdleSince ← optN req "simIdleSince"
+  let simAcquired ← optN req "simAcquired"
+  let ownSims ← (← arrD req "ownSims").mapM fun j => do pure ((← nat j "pid"), (← nat j "start"))
+  let simHolders ← natD req "simHolders" 0
+  let legacyHeld ← boolD req "legacyHeld" true
+  let auto ← boolD req "auto" false
+  let i : InputD :=
+    { rows, live, mcps, keep, liveIds, protect, now, uses, bases, locks, mcpWt, loops, waiters, simIdleSince, simAcquired, ownSims, simHolders }
+  pure { i with legacyHeld, auto }
 
-/-- A selected row as JSON. -/
 def selJson (s : Sel) : Json :=
   Json.mkObj [("pid", toJson s.pid), ("start", toJson s.start), ("kind", .str s.kind.name), ("group", .bool s.group),
     ("reason", .str s.kind.reason)]
@@ -1267,16 +1717,16 @@ def targetOf (j : Json) : Except String Target := do
 [pid], `now`? (second), `bases`? [{pid, start, since, cpu}], `locks`? [{id, holder?}] → `selected` [{pid, start, kind, group,
 reason}] of every branch, `count`. -/
 def opLspReap (req : Json) : Except String Reply := do
-  let sel := reapAll (← inputOf req)
+  let sel := reapOne (← inputOf req)
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson))]
 
 /-- `ops.reapPlan`: the request of `ops.lspReap` → `count`, `selected`, `targets` [{pid, start, group}] (the TERM
 targets), `graceMs`, `killWaitMs`, `script` [stage name]. -/
 def opReapPlan (req : Json) : Except String Reply := do
   let i ← inputOf req
-  let sel := reapAll i
+  let sel := reapOne i
   pure [("count", toJson sel.length), ("selected", .arr (sel.toArray.map selJson)),
-    ("targets", .arr ((planAll i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
+    ("targets", .arr ((planOne i).toArray.map targetJson)), ("graceMs", toJson graceMs), ("killWaitMs", toJson killWaitMs),
     ("script", .arr (script.toArray.map fun s => .str s.name))]
 
 /-- `ops.reapIdle`: the request of `ops.lspReap` → `bases` [{pid, start, since, cpu}] (the baselines to store for the next
@@ -1284,6 +1734,11 @@ run), `idleSec`, `cpuTolCs`. -/
 def opReapIdle (req : Json) : Except String Reply := do
   let i ← inputOf req
   pure [("bases", .arr ((rebase i).toArray.map baseJson)), ("idleSec", toJson idleSec), ("cpuTolCs", toJson cpuTolCs)]
+
+/-- `ops.reapHeld`: the request of `ops.lspReap` → `held` [{pid, start, kind, group, reason}], `count`. -/
+def opReapHeld (req : Json) : Except String Reply := do
+  let sel := held (← inputOf req)
+  pure [("count", toJson sel.length), ("held", .arr (sel.toArray.map selJson))]
 
 /-- `ops.reapKill`: `planned` [{pid, start, group}], `rows` [row] (the fresh read) → `kill` [{pid, start, group}]. -/
 def opReapKill (req : Json) : Except String Reply := do
@@ -1311,11 +1766,9 @@ def opReapGuard (req : Json) : Except String Reply := do
   let t ← targetOf (← field req "target")
   pure [("allowed", .bool (guardOk scope rows t))]
 
-/-- The ops of this module. -/
 def ops : List String :=
-  ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle"]
+  ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle", "ops.reapHeld"]
 
-/-- Dispatch (`none` when the op is not one of this module's). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.lspReap" => some (opLspReap req)
@@ -1325,6 +1778,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.reapTerm" => some (opReapTerm req)
   | "ops.reapGuard" => some (opReapGuard req)
   | "ops.reapIdle" => some (opReapIdle req)
+  | "ops.reapHeld" => some (opReapHeld req)
   | _ => none
 
 #guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[]), ("scope", .arr #[]), ("target", Json.mkObj [("pid", toJson 2), ("start", toJson 0)])])).isSome
