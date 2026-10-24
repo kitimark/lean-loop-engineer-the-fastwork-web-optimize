@@ -8,6 +8,7 @@ yet); (4) slot release/expiry records `simUdids` (slot.ts `bootedUdids`), gather
 Round-3 follow-ups: (a) `awaitOk` char allowlist (letters, digits . _ / -), TS `awaitAllowed`; (b) guard scope = plan
 targets; (c) `reapStopLines` counts targets, advice on its own line; (d) mixed-plan test in reap-one.test.ts.
 Verified: lake build Fw.Ops.Reap, golden regenerated; vitest test/reap (189) green.
+Round 2: Lean `heldSim` (+ `heldSim_kind`, `heldSim_in_reap`) returned as `heldSim` by ops.reapHeld; `reapHeldAlerts` pushes agent.held `sim <pid>`; slot.ts bootedAll has timeout 10 s + error guard. Findings 3-6 go to reap-exit-fold. No CI run.
 Open / limits: no caller folds reap.jsonl into `Seen` (later 7-day task); inode not paired with st_dev; udids recorded at
 release are all devices booted then (Lean's acquire..release window narrows them); gather() not run end to end.
 Convention: goldens via `cd lean && lake env lean --run scripts/ReapGolden.lean` (scripts/ReapGolden.lean is outside the
