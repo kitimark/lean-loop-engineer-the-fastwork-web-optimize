@@ -139,6 +139,8 @@ import Fw.Wire.Sched
 import Fw.Wire.SchedJson
 import Fw.Store.Layout
 import Fw.Store.Reduce
+import Fw.Wire.FlagKey
+import Fw.Wire.FlagKeyGolden
 import Fw.Wire.Store
 import Fw.Gate.Rule
 import Fw.Gate.MarginRule

@@ -18,6 +18,7 @@ import { snapshotRoot, FIXTURES } from './session.mjs';
 import { phoneIds, sleep } from './sim.mjs';
 import { navigateTab, openTab, connect } from './wip.mjs';
 import { T } from './timeouts.mjs';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 export const MEASUREMENT_DEVICE = Object.freeze({ model: 'iPhone 15 Pro Max', os: '27.0.1' });
 export const PHONE_PORTS = Object.freeze({ list: 9460, tabs: 9461 });
@@ -122,7 +123,7 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
   if (serve) { /* a caller's own server (the gaps probe page): serve(host) -> { port, close } */ } else if (site) {
     root = resolve(site.dir);
     const cfg = JSON.parse(readFileSync(join(root, 'configs.json'), 'utf8'));
-    const hash = cfg.bySearch[site.search ?? ''];
+    const hash = cfg.bySearch[canonSearch(site.search ?? '')];
     if (!hash) throw new Error(`search "${site.search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
     const file = cfg.byHash[hash];
     rewrite = (p) => (p === '/' || p === '/index.html' ? '/' + file : null);
