@@ -114,8 +114,6 @@ export function gatherOpens(): string[] | null {
   return r.out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1));
 }
 
-/** Fact: the working directory of every process lsof can see (agents, shells, tools). Limit: a snapshot of now, and
- * processes of other users are invisible; null (kept) when lsof prints nothing, times out or exits other than 0 or 1. Lean decides what the paths block. */
 export function gatherCwds(): string[] | null {
   const r = run("lsof", ["-n", "-w", "-a", "-d", "cwd", "-Fn"], undefined, 60_000);
   if ((r.status !== 0 && r.status !== 1) || !r.out) return null;

@@ -120,7 +120,6 @@ def absOk (r : String) : Bool :=
 
 def wtRoot (r : Roots) : String := r.repo ++ "/.claude/worktrees"
 
-/-- The worktree directory that holds `c`: the worktree root plus the first segment of `c` below it. -/
 def wtOf (r : Roots) (c : String) : String :=
   wtRoot r ++ "/" ++ ((c.drop ((wtRoot r).length + 1)).toString.splitOn "/").headD ""
 
@@ -213,10 +212,6 @@ def queuedB (cfg : Config) (b : String) : Bool :=
   | none => true
   | some q => q.contains b
 
-/-- A live process works in `c`. It blocks `x` when `c` is inside `x`, when `c` is the worktree root and `x` is below
-it, or when `c` is inside one worktree and `x` is anywhere under that worktree (its root `node_modules` and
-`lean/.lake` included). A `c` above the worktree root never blocks by containing `x`. An unread list blocks
-everything. -/
 def cwdHits (cfg : Config) (x : Cand) : Bool :=
   match cfg.cwds with
   | none => true
@@ -247,8 +242,6 @@ def ruleLake (cfg : Config) (x : Cand) : Bool :=
 
 def runOwns (r path : String) : Bool := (lastSeg path).startsWith (r ++ "-")
 
-/-- A remote land writes `land <task> <sha7>`: the task is matched to the run that labelled it, and that run must own
-the worktree directory. -/
 def remoteLand (cfg : Config) (x : Cand) : Bool :=
   match cfg.landSubjects, cfg.taskRuns with
   | some l, some tr =>
@@ -674,8 +667,6 @@ theorem never_cwd (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select c
     · simpa [he] using this.1.2
     · simpa [hin, hne] using this.2
 
-/-- Every worktree-touching class (landed worktrees, idle `node_modules`, `lean/.lake`) is guarded: a candidate under
-a worktree that holds a live process's cwd anywhere inside it is never selected, whichever class it is. -/
 theorem worktree_cwd_kept (cfg : Config) (xs : List Cand) (x : Cand) (cs : List String) (hcs : cfg.cwds = some cs)
     (c : String) (hc : c ∈ cs) (hin : under (wtRoot cfg.roots) c = true) (hne : (c != wtRoot cfg.roots) = true)
     (hx : under (wtOf cfg.roots c) x.path = true) :
@@ -687,7 +678,6 @@ theorem worktree_cwd_kept (cfg : Config) (xs : List Cand) (x : Cand) (cs : List 
   have := (hall c hc).2.2 hin hne
   simp [hx] at this
 
-/-- A cwd equal to the worktree root keeps every candidate under it. -/
 theorem root_cwd_kept (cfg : Config) (xs : List Cand) (x : Cand) (cs : List String) (hcs : cfg.cwds = some cs)
     (c : String) (hc : c ∈ cs) (he : (c == wtRoot cfg.roots) = true) (hx : under c x.path = true) :
     x ∉ select cfg xs := by

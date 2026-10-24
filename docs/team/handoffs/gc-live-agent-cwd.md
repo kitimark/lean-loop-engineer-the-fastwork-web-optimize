@@ -7,9 +7,7 @@ Rule additions in lean/Fw/Ops/DiskGc.lean:
 - remoteLand (inside landCommit): subject `land <task> <sha7>` + taskRuns (task, run) pair + runOwns run path; tip still
   must be on main. Theorems: remote_land_identity, remote_land_selects; landed_by_identity has the third disjunct.
 - Facts: ops.diskGcFacts also returns taskRuns (from wfid-label events). Goldens regenerated (67 cases, 6 new).
-TS (apps/runner/src/disk-gc.ts) gathers facts only: gatherCwds = `lsof -a -d cwd -Fn`. Limit: snapshot of now, same-user
-processes only, null when lsof prints nothing, times out (60 s) or exits other than 0/1 (keeps everything). agent.spawn events carry no cwd, so the process table
-is the source. Test: apps/runner/test/disk-gc.test.ts (cwd + remote land).
+TS (apps/runner/src/disk-gc.ts) gathers facts only: gatherCwds = `lsof -a -d cwd -Fn`. Limit: snapshot of now, same-user processes only, null when lsof prints nothing, times out (60 s) or exits other than 0/1 (keeps everything). agent.spawn events carry no cwd, so the process table is the source. Test: apps/runner/test/disk-gc.test.ts (cwd + remote land).
 (a3f3d112, e07fe309, 56018ca3, ada62af5, 9aacdd20) selected nothing.
 Round 2: wtOf + second disjunct; #guards and golden row for cwd=<wt>/w1/apps (class 3); golden case renamed; lsof status.
 Live replay (glac/replay.mts, main repo, classes 2,3): class 2 selects 0. Class 3 selects only dependency dirs of 4 parked
