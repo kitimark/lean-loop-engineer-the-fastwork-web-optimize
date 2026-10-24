@@ -283,7 +283,6 @@ export function simNew(before: readonly string[], after: readonly string[]): str
   return after.map((u) => u.toUpperCase()).filter((u) => !b.has(u));
 }
 
-// TS twin of Fw.Sup.Adapt.simOurs / simHandover / simSettle / simRecord (lean/Fw/Sup/SimRelease.lean), replayed against adapt.jsonl.
 export const simOurs = (before: readonly string[], booted: readonly string[]): string[] => booted.filter((u) => !before.includes(u));
 
 export const simHandover = (now: number, queue: Entry[]): boolean => queue.some((e) => e.kind === "sim" && now < e.till);

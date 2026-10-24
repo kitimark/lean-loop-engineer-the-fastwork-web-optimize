@@ -1,6 +1,6 @@
 branch: worktree-wf_27491bc9-f1d-1
 worktree: .claude/worktrees/wf_27491bc9-f1d-1
-last commit: see `git log -1` on the branch (main merged)
+last commit: `git log -1` (main merged)
 CI runs: none (accepted limit: local tests only)
 
 State

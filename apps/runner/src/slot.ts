@@ -344,7 +344,6 @@ function bootedUdids(d: Deps): string[] {
 
 const acquiredOf = (gone: Entry[]): number => Math.min(...gone.filter((h) => h.kind === "sim").map((h) => h.since));
 
-/** Once no sim lease is live, shut down the devices the lease booted (Lean `simSettle`) unless a queued sim ticket takes them over (`simHandover`). Devices booted before the lease stay. */
 function simReleaseShutdown(d: Deps, st: State, now: number): void {
   if (st.simBefore === undefined || st.holders.some((h) => h.kind === "sim" && now < h.till)) return;
   const { shut, record } = simSettle(st.simBefore, bootedUdids(d), simHandover(now, st.queue));

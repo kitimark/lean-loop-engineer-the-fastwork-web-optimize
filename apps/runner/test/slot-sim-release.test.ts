@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS, DEFAULT_WPARAMS, type Mem, type Sample } from "../src/slot-core.ts";
 import { type Deps, acquire, releaseToken, slotCli, withState } from "../src/slot.ts";
 
-// A fake simctl: no real Simulator is ever booted or shut down here.
 const mem = (freeMB: number): Mem =>
   ({ freeMB, specMB: 0, purgMB: 0, fileMB: 0, fileMinMB: 0, swapUsedMB: 0, swapTotalMB: 0, press: 1, comprMBPerMin: 0, swapOutMBPerMin: 0 });
 const quiet = (): Sample => ({ time: Math.floor(Date.now() / 1000), loadCenti: 100, mem: mem(12000), ramMB: 16384, compressorMB: 0, cores: 8 });
