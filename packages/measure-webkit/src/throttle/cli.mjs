@@ -5,6 +5,9 @@
 //   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle.
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
+//   morph end arms (task morph-end-measure, finish mode): rewrite (faithful), clamp, flip, release, all (preset morph-end-all),
+//   all-unthrottle (the three bricks + engine.scroll:unthrottle; its search is built into the site with morph-end-search.mjs).
+//   --offset n rotates the first round's arm order by n (the workflow passes the job number - 1, so jobs start on different arms).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
 import { parseArgs } from 'node:util';
@@ -20,6 +23,8 @@ import { loadFresh } from '../page.mjs';
 import { excludeReason, reportMd } from './report.mjs';
 import { finishPass } from './finish-probe.mjs';
 import { excludeReason as finishExclude, reportMd as finishMd } from './finish-report.mjs';
+import { COMPOSITIONS } from './morph-end.mjs';
+import { reportMd as morphEndMd } from './morph-end-report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -27,14 +32,16 @@ const { values: v } = parseArgs({
   args: rest,
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
-    cycles: { type: 'string', default: '4' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
+    cycles: { type: 'string', default: '4' }, offset: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
     target: { type: 'string', default: 'springboard' }, hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
     out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
   allowNegative: true,
 });
 const log = (s) => console.error(s);
-const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle' };
+const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle', ...COMPOSITIONS };
+const KNOWN_ARMS = new Set(['original', ...Object.keys(SEARCH)]);
+const MORPH_END_ARMS = new Set(Object.keys(COMPOSITIONS).filter((a) => a !== 'rewrite'));
 const siteOf = (arm) => {
   if (arm === 'original') return null;
   if (!v.site) throw new Error(`arm ${arm} needs --site (the prerendered build)`);
@@ -46,6 +53,8 @@ async function main() {
   switch (cmd) {
     case 'run': {
       const arms = v.arms.split(',');
+      const unknown = arms.filter((a) => !KNOWN_ARMS.has(a));
+      if (unknown.length) throw new Error(`unknown arm ${unknown.join(', ')}; one of ${[...KNOWN_ARMS].join(', ')}`);
       const udid = findDevice().udid;
       const driver = v.driver ? findDriver(resolve(v.driver)) : await buildDriver({ udid, log });
       log(`load ${loadavg()[0].toFixed(0)} before the first pass`);
@@ -74,10 +83,11 @@ async function main() {
           } catch (e) { log(`warm-up failed: ${e.message}`); }
         }
         for (let round = 0; round < Number(v.rounds); round++) {
-          for (const arm of rotate(arms, round)) {
-            const tag = `${arm}-r${round + 1}`;
+          for (const arm of rotate(arms, round + Number(v.offset))) {
             // one retry with a fresh session: a pass that lost its page or whose touches hung is not a result of the arm
             for (let attempt = 1; attempt <= 2; attempt++) {
+              // the attempt is in the tag: xcodebuild refuses a -resultBundlePath that exists, so a retry under the first tag failed at once
+              const tag = `${arm}-r${round + 1}-a${attempt}`;
               try {
                 const rec = await withSession((ctx) => passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
                   { keep: v.keep, site: siteOf(arm) });
@@ -109,7 +119,8 @@ async function main() {
       if (!v.in) throw new Error('usage: report --in a.json,b.json [--md file]');
       const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
       const vms = jobs.map((j, i) => ({ vm: `job ${j.vm ?? i + 1}`, passes: j.passes }));
-      const md = (jobs.some((j) => j.drag?.mode === 'finish') ? finishMd : reportMd)(vms);
+      const morphEnd = jobs.some((j) => j.passes.some((p) => MORPH_END_ARMS.has(p.arm)));
+      const md = (morphEnd ? morphEndMd : jobs.some((j) => j.drag?.mode === 'finish') ? finishMd : reportMd)(vms);
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }
