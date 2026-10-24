@@ -1,7 +1,7 @@
 # unthrottle-parts-lean
 
-- Branch `worktree-wf_76be6a23-597-1`, worktree `.claude/worktrees/wf_76be6a23-597-1`; last code commit: see `git log -1` on
-  the branch. CI runs: none (no CI in this task).
+- Branch `worktree-wf_76be6a23-597-1`, worktree `.claude/worktrees/wf_76be6a23-597-1`; last code commit `bc51e45e7`, note
+  `0f799d0b4`, main merged at `bfdfa4e03`. CI runs: none (no CI in this task).
 - Verified: `lake build Fw.Device.ThrottleParts` green; axioms standard (propext, Classical.choice, Quot.sound); golden
   `--check` up to date (33 lines).
 - Open: lead wires at land:
