@@ -659,21 +659,16 @@ theorem opHealth_reqJson (p : Params) (o : Obs) :
   simp only [opHealth, reqOf_reqJson, ok_bind]
   rfl
 
-/-! ## The op `obs.next` (`Fw.Obs.Next`) -/
-
 open Fw.Obs.Next (AgentFacts Child ChildKind Branch Worktree Ci TaskRow Reason Action Held)
 
-/-- The `obs.next` thresholds as one flat object: every Health field plus `loopCapMin`. -/
 def nextParamsJson (p : Fw.Obs.Next.Params) : Json :=
   Json.mkObj (paramsFields p.health ++
     [("loopCapMin", toJson p.loopCapMin)])
 
-/-- Decode the `obs.next` thresholds; a missing field takes its default (`loopCapMin` 30). -/
 def nextParamsOf (j : Json) : Except String Fw.Obs.Next.Params := do
   let d : Fw.Obs.Next.Params := {}
   pure { health := ← paramsOf j, loopCapMin := ← natD j "loopCapMin" d.loopCapMin }
 
-/-- A state from its wire name (an unknown name is refused). -/
 def stateOf : String → Except String State
   | "active" => .ok .active | "idle" => .ok .idle | "parked" => .ok .parked | "stalled" => .ok .stalled
   | "gone" => .ok .gone | "done" => .ok .done
@@ -772,22 +767,17 @@ def branchOf (j : Json) : Except String Branch := do
            | none => pure none
            | some v => some <$> asStr "landLock" v }
 
-/-- A worktree as JSON. -/
 def worktreeJson (w : Worktree) : Json :=
   Json.mkObj [("lockPid", onat w.lockPid), ("lockAlive", .bool w.lockAlive), ("id", ostr w.id)]
 
-/-- Decode a worktree (every field optional: not locked, not alive, no id). -/
 def worktreeOf (j : Json) : Except String Worktree := do
   pure { lockPid := ← optN j "lockPid", lockAlive := ← boolD j "lockAlive" false, id := ← optS j "id" }
 
-/-- A held entry as JSON: `{pid, start, wt}` (`wt` is `null` when absent). -/
 def heldJson (h : Held) : Json := Json.mkObj [("pid", toJson h.pid), ("start", toJson h.start), ("wt", ostr h.wt)]
 
-/-- Decode a held entry (`pid` and `start` required, `wt` optional). -/
 def heldOf (j : Json) : Except String Held := do
   pure { pid := ← nat j "pid", start := ← nat j "start", wt := ← optS j "wt" }
 
-/-- An agent's CI run as JSON: its id plus the `CiRun` fields. -/
 def ciNextJson (c : Ci) : Json :=
   Json.mkObj [("id", toJson c.id), ("workflow", .str c.run.workflow), ("branch", .str c.run.branch),
     ("status", .str c.run.status), ("conclusion", ostr c.run.conclusion), ("startedAt", toJson c.run.startedAt),
@@ -900,7 +890,6 @@ def factsOf (j : Json) : Except String AgentFacts := do
          handoff := ← boolD j "handoff" false, signals := ← optObj j "signals" sigFactsOf,
          reapHeld := ← (← arrD j "reapHeld").mapM heldOf }
 
-/-- An `obs.next` request body as JSON: `now`, `params`, `agents`. -/
 def nextReqJson (p : Fw.Obs.Next.Params) (now : Nat) (fs : List AgentFacts) : Json :=
   Json.mkObj [("now", toJson now), ("params", nextParamsJson p), ("agents", .arr (fs.toArray.map factsJson))]
 
@@ -916,7 +905,6 @@ def reasonName : Reason → String
   | .heldByChild => "heldByChild" | .ciWaitOverdue => "ciWaitOverdue" | .foreignLoop => "foreignLoop"
   | .lockDead => "lockDead" | .conflict => "conflict"
 
-/-- An action as JSON: `{action}` plus its arguments (`run`, `branch`, `task`, `pid`, `start`, `reason`). -/
 def actionJson : Action → Json
   | .none => Json.mkObj [("action", .str "none")]
   | .waitCi r => Json.mkObj [("action", .str "waitCi"), ("run", toJson r)]
@@ -1193,7 +1181,6 @@ def run (op : String) (r : String) : String :=
   "error: missing field start"
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":7,\"kind\":\"ciWait\",\"startedAt\":0}]}]}" ==
   "error: missing field run"
--- obs.signals: no agents; an open turn; handed back with `b` pending; the same past the 30-min cap with a stdin proc.
 #guard run "obs.signals" "{\"now\":0}" == "{\"agents\":[]}"
 #guard run "obs.signals" "{\"now\":5,\"agents\":[{\"agent\":\"a\",\"bounds\":[{\"time\":0,\"start\":true}]}]}" ==
   "{\"agents\":[{\"agent\":\"a\",\"handbackAt\":null,\"ids\":[],\"state\":\"working\"}]}"
@@ -1240,8 +1227,6 @@ def run (op : String) (r : String) : String :=
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"w\"}}]}").splitOn "\"land\"").length == 1
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landLock\":\"x\"}}]}").splitOn "\"land\"").length == 2
 #guard ((run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"done\",\"session\":1,\"handbackAt\":5,\"branch\":{\"name\":\"w\",\"ahead\":3,\"landed\":false,\"landQueued\":true}}]}").splitOn "\"land\"").length == 1
--- obs.next with signals: the hung stdin child of an idle, handed-back agent holds it (no kill without a held entry)
--- and the agent is kept; a loop watching task `b`, ended by another agent's signals, gets no kill either.
 #guard run "obs.next" "{\"now\":1800005,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":9,\"chain\":[1],\"kind\":\"stdinWait\",\"startedAt\":1}],\"signals\":{\"agent\":\"a\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"bounds\":[{\"time\":0,\"start\":true},{\"time\":2,\"start\":false}],\"handbacks\":[2],\"procs\":[{\"id\":\"b\",\"pid\":9,\"kind\":\"stdin\"}]}}]}" ==
   "{\"agents\":[{\"actions\":[{\"action\":\"investigate\",\"reason\":\"heldByChild\"}],\"handbackAt\":2,\"id\":\"a\",\"keep\":true,\"signal\":{\"ids\":[\"b\"],\"state\":\"hung\"}}]}"
 #guard run "obs.next" "{\"now\":10,\"agents\":[{\"id\":\"a\",\"task\":\"a\",\"state\":\"idle\",\"session\":1,\"children\":[{\"pid\":7,\"chain\":[1],\"kind\":\"sleepLoop\",\"startedAt\":0,\"watchedAt\":5,\"watch\":{\"kind\":\"task\",\"id\":\"b\"}}]},{\"id\":\"x\",\"task\":\"x\",\"state\":\"active\",\"session\":1,\"signals\":{\"agent\":\"x\",\"launched\":[{\"id\":\"b\",\"time\":1}],\"ends\":[{\"id\":\"b\",\"time\":3,\"how\":\"killed\"}]}}]}" ==
@@ -1268,14 +1253,11 @@ def ch (pid : Nat) (k : ChildKind) (s : Nat) : Child := { pid, chain := [100, 1]
 def ciRun (r : Nat) (t : String) : Ci :=
   ⟨r, { workflow := "ci", branch := s!"ci/{t}", status := "in_progress", startedAt := ago 5 }⟩
 
-/-- Agent ghb-runner: handed back and landed, worktree id `wt-ghb-runner`, a sleep loop (pid 555) under the session on
-a stale log. -/
 def ghb : AgentFacts :=
   { ex "ghb-runner" .done with
     handbackAt := some (ago 25), branch := some { name := "wt-ghb-runner", ahead := 0, landed := true, queued := false },
     worktree := some { id := some "wt-ghb-runner" }, children := [lp 555 (ago 22) (some (ago 20))] }
 
-/-- One typed case: name, params, time, agents. -/
 structure Typed where
   name : String
   p    : Fw.Obs.Next.Params := {}
@@ -1425,7 +1407,6 @@ def respond (req : Json) : Json :=
   | .ok f => Json.mkObj f
   | .error e => Json.mkObj [("error", .str e)]
 
-/-- An action's tag (its constructor, with the reason for `investigate`). -/
 def tag : Action → String
   | .none => "none" | .waitCi _ => "waitCi" | .land .. => "land" | .routeIntegrator _ => "routeIntegrator"
   | .killOrphan .. => "killOrphan" | .cleanupWorktree => "cleanupWorktree"

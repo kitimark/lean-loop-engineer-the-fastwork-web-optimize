@@ -44,11 +44,6 @@ Proved: `next_total`, `next_det`, `kill_held`, `held_kill`, `kill_iff`, `no_kill
 namespace Fw.Obs.Next
 open Fw.Obs.Health (State CiRun ciRunning msPerMin)
 
-/-- The thresholds: the Health thresholds (`ctxWarn` is used here) and the loop cap, the age after which a pending
-background id of the signals is hung (`sigParams`). `loopCapMin` = 30: no poll loop of this repo may wait open-ended
-(CI waits go through `waitrun.sh`, a `ciWait`, with their own timeout), and 30 min is above `ciSlowMin` (20), the
-longest wait the lead treats as normal.
--/
 structure Params where
   health       : Fw.Obs.Health.Params := {}
   loopCapMin   : Nat := 30
@@ -66,9 +61,6 @@ inductive ChildKind where
   | stdinWait
 deriving DecidableEq, Repr
 
-/-- What a loop watches, when known: the output of a background task (by task id) or an agent's transcript (by the
-agent id its signals carry).
--/
 inductive Watch where
   | task (id : String)
   | agent (id : String)
@@ -123,9 +115,6 @@ queue (its single runner will land it).
 -/
 def Branch.locked (b : Branch) : Bool := b.landLock == some b.name || b.inLandQueue
 
-/-- The agent's worktree: the pid in its lock (`none`: not locked), whether that pid is alive, and its id, the
-directory name under this repo's `.claude/worktrees` as `Fw.Ops.Reap` reads it (`none`: not such a worktree).
--/
 structure Worktree where
   lockPid   : Option Nat := none
   lockAlive : Bool := false
@@ -147,21 +136,12 @@ structure TaskRow where
   agent : Option String := none
 deriving DecidableEq, Repr
 
-/-- One entry of the Reap plan's `held` list (`Fw.Ops.Reap.held`, op `ops.reapHeld`): the pid and start (seconds) of
-an until-loop that outlived its tool call, and the worktree id of its cwd (`none`: not read).
--/
 structure Held where
   pid   : Nat
   start : Nat
   wt    : Option String := none
 deriving DecidableEq, Repr
 
-/-- The facts of one agent: id, task id, Health state, time of its handback (`none`: not seen), the session pid its
-processes descend from, its branch, worktree and context tokens (0 when unknown), its live child processes, the
-latest CI run of its `ci/*` branch, the board row of the task named like the agent (`none`: no such task), whether its
-handoff note exists, its transcript signals (`Fw.Obs.Signals.Facts`; `none`: not read), and the Reap plan's `held`
-entries of the same snapshot (all of them; `heldB` picks the agent's).
--/
 structure AgentFacts where
   id         : String
   task       : String
@@ -176,23 +156,14 @@ structure AgentFacts where
   board      : Option TaskRow := none
   /-- the handoff note `docs/team/handoffs/<name>.md` exists -/
   handoff    : Bool := false
-  /-- the transcript signals (`none`: not read; then `resolve` leaves the facts as they are) -/
   signals    : Option Fw.Obs.Signals.Facts := none
   reapHeld   : List Held := []
 deriving DecidableEq, Repr
 
-/-- Why an agent needs a look by the lead: held by a child whose pid no kill names, a CI wait past its own timeout, a sleep
-loop outside the session's process tree (never killed here), a dead lock pid on the worktree of an agent that has
-not ended and has not handed back, or a branch that does not merge into `main` cleanly.
--/
 inductive Reason where
   | heldByChild | ciWaitOverdue | foreignLoop | lockDead | conflict
 deriving DecidableEq, Repr
 
-/-- The next actions: nothing, wait for a CI run, land a branch for a task, route a branch to the integrator, stop a
-process the Reap plan holds (pid and start), remove the worktree, stop and respawn from the handoff note, ask the agent to write its handoff, or
-look at it (with a reason), or bind a task to the agent on the board.
--/
 inductive Action where
   | none
   | waitCi (run : Nat)
@@ -221,16 +192,13 @@ def landedB (f : AgentFacts) : Bool :=
   | some b => b.settled
   | none => false
 
-/-- Whether a held entry lies in the agent's worktree: the agent has a worktree id and the entry names the same id. -/
 def heldB (f : AgentFacts) (h : Held) : Bool :=
   match f.worktree.bind (·.id) with
   | some w => h.wt == some w
   | none => false
 
-/-- Whether a kill names the pid `q`: a held entry in the agent's worktree has that pid. -/
 def killPidB (f : AgentFacts) (q : Nat) : Bool := f.reapHeld.any fun h => heldB f h && h.pid == q
 
-/-- Whether a child is a CI wait past its own timeout (strictly more than its timeout minutes). -/
 def overdueB (now : Nat) (c : Child) : Bool :=
   match c.kind with
   | .ciWait _ m => decide (m * msPerMin < now - c.startedAt)
@@ -265,14 +233,11 @@ def respawnB (f : AgentFacts) : Bool := stuckB f && f.children.isEmpty && openTa
 
 /-! ## The pieces and the decision -/
 
-/-- A one-element list when the test holds, else empty. -/
 def opt (b : Bool) (x : Action) : List Action := if b then [x] else []
 
-/-- One `killOrphan` per held entry in the agent's worktree, in the plan's order. -/
 def kills (f : AgentFacts) : List Action :=
   (f.reapHeld.filter (heldB f)).map fun h => .killOrphan h.pid h.start
 
-/-- `waitCi` for the agent's CI run while it is running. -/
 def waits (f : AgentFacts) : List Action :=
   match f.ci with
   | some c => opt (ciRunning c.run) (.waitCi c.id)
@@ -301,9 +266,6 @@ def lands (f : AgentFacts) : List Action :=
 def cleans (f : AgentFacts) : List Action :=
   opt (f.worktree.isSome && landedB f && f.children.isEmpty && (handedBack f || endedS f.state)) .cleanupWorktree
 
-/-- The `investigate` actions, in reason order: held by a child whose pid no kill names (stuck, or handed back), an
-overdue CI wait, a foreign sleep loop, a dead lock pid.
--/
 def probes (now : Nat) (f : AgentFacts) : List Action :=
   opt ((stuckB f || handedBack f) && f.children.any (fun c => !killPidB f c.pid)) (.investigate .heldByChild) ++
   opt (f.children.any (overdueB now)) (.investigate .ciWaitOverdue) ++
@@ -321,10 +283,6 @@ def claims (f : AgentFacts) : List Action :=
   | some r => opt (!endedS f.state && r.id == f.id && !r.done && r.agent.isNone) (.claimTask r.id f.id)
   | none => []
 
-/-- The next actions of one agent: claims first; then for an active agent kills, waits and a nudge (high context or
-any kill); otherwise kills, waits, land or route, cleanup, respawn, nudge and probes, in this order; `[none]` when
-nothing fires.
--/
 def next (p : Params) (now : Nat) (f : AgentFacts) : List Action :=
   if f.state == .active then
     orNone (claims f ++ kills f ++ waits f ++ opt (nudgeB p f || !(kills f).isEmpty) .nudgeHandoff)
@@ -344,7 +302,6 @@ theorem mem_orNone (l : List Action) (x : Action) (hx : x ≠ .none) : x ∈ orN
   | nil => simp [hx]
   | cons _ _ => simp
 
-/-- Membership in `kills`: a kill of the pid and start of a held entry in the agent's worktree. -/
 theorem mem_kills (f : AgentFacts) (x : Action) :
     x ∈ kills f ↔ ∃ h ∈ f.reapHeld, heldB f h = true ∧ x = .killOrphan h.pid h.start := by
   unfold kills
@@ -373,7 +330,6 @@ theorem lands_kind (f : AgentFacts) (x : Action) (h : x ∈ lands f) :
     | (subst h; exact .inr (.inr (.inl ⟨_, rfl⟩)))
     | (subst h; exact .inr (.inr (.inr rfl)))
 
-/-- `probes` holds only `investigate` actions. -/
 theorem probes_kind (t : Nat) (f : AgentFacts) (x : Action) (h : x ∈ probes t f) :
     ∃ r, x = .investigate r := by
   simp only [probes, List.mem_append, mem_opt] at h
@@ -474,7 +430,6 @@ theorem mem_next (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (hx : x �
   · have h' : (f.state == .active) = false := by simp [h]
     simp [h, h', mem_orNone _ _ hx]
 
-/-- **Totality.** For every input the decision gives a non-empty list, and `none` appears only alone. -/
 theorem next_total (p : Params) (t : Nat) (f : AgentFacts) :
     next p t f ≠ [] ∧ (Action.none ∈ next p t f → next p t f = [Action.none]) := by
   have hk : Action.none ∉ kills f := by
@@ -510,7 +465,6 @@ theorem next_total (p : Params) (t : Nat) (f : AgentFacts) :
 theorem next_det (p : Params) (t : Nat) (f : AgentFacts) (l l' : List Action)
     (h : next p t f = l) (h' : next p t f = l') : l = l' := h ▸ h'
 
-/-- A `killOrphan` in `next` comes only from `kills`. -/
 theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) :
     Action.killOrphan q s ∈ next p t f ↔ Action.killOrphan q s ∈ kills f := by
   rw [mem_next p t f _ (by simp)]
@@ -531,31 +485,21 @@ theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) :
       · obtain ⟨_, h⟩ := probes_kind t f _ h; cases h
   · exact fun h => .inr (.inl h)
 
-/-- The held test unfolded: the agent's worktree has an id and the entry names it. -/
 theorem heldB_iff (f : AgentFacts) (h : Held) :
     heldB f h = true ↔ ∃ w, f.worktree.bind (·.id) = some w ∧ h.wt = some w := by
   unfold heldB
   cases f.worktree.bind (·.id) <;> simp
 
-/-- **Kill only when held.** A `killOrphan q s` in `next` names the pid and start of an entry of the Reap plan's
-`held` list that lies in the agent's worktree.
--/
 theorem kill_held (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) (hk : Action.killOrphan q s ∈ next p t f) :
     ∃ h ∈ f.reapHeld, h.pid = q ∧ h.start = s ∧ ∃ w, f.worktree.bind (·.id) = some w ∧ h.wt = some w := by
   obtain ⟨h, hm, hb, he⟩ := (mem_kills f _).1 ((kill_mem p t f q s).1 hk)
   simp only [Action.killOrphan.injEq] at he
   exact ⟨h, hm, he.1.symm, he.2.symm, (heldB_iff f h).1 hb⟩
 
-/-- **Held gives the kill.** Every entry of the Reap plan's `held` list in the agent's worktree gets
-`killOrphan pid start`, for every Health state.
--/
 theorem held_kill (p : Params) (t : Nat) (f : AgentFacts) (h : Held) (hm : h ∈ f.reapHeld) (w : String)
     (hw : f.worktree.bind (·.id) = some w) (hh : h.wt = some w) : Action.killOrphan h.pid h.start ∈ next p t f :=
   (kill_mem p t f _ _).2 ((mem_kills f _).2 ⟨h, hm, (heldB_iff f h).2 ⟨w, hw, hh⟩, rfl⟩)
 
-/-- **The kill is the held fact.** `killOrphan q s` is in `next` exactly when an entry of the Reap plan's `held` list
-in the agent's worktree has pid `q` and start `s`.
--/
 theorem kill_iff (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) :
     Action.killOrphan q s ∈ next p t f ↔
       ∃ h ∈ f.reapHeld, h.pid = q ∧ h.start = s ∧ ∃ w, f.worktree.bind (·.id) = some w ∧ h.wt = some w := by
@@ -563,9 +507,6 @@ theorem kill_iff (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) :
   rintro ⟨h, hm, rfl, rfl, w, hw, hh⟩
   exact held_kill p t f h hm w hw hh
 
-/-- **No kill otherwise.** When no held entry in the agent's worktree has pid `q` and start `s` (in particular with
-no held entries, or no worktree id), `next` has no `killOrphan q s`.
--/
 theorem no_kill_unheld (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat)
     (hn : ∀ h ∈ f.reapHeld, heldB f h = true → h.pid ≠ q ∨ h.start ≠ s) : Action.killOrphan q s ∉ next p t f := by
   intro hk
@@ -574,14 +515,10 @@ theorem no_kill_unheld (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat)
   · exact h1 hq
   · exact h1 hs
 
-/-- With no held entries `next` has no `killOrphan` at all. -/
 theorem no_kill_empty (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) (he : f.reapHeld = []) :
     Action.killOrphan q s ∉ next p t f :=
   no_kill_unheld p t f q s (by simp [he])
 
-/-- **Active gate.** An active agent gets only `none`, `waitCi`, `nudgeHandoff`, `claimTask`, or `killOrphan` of a
-held entry in its worktree.
--/
 theorem active_quiet (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (ha : f.state = .active)
     (hx : x ∈ next p t f) :
     x = .none ∨ (∃ r, x = .waitCi r) ∨ x = .nudgeHandoff ∨ (∃ k a, x = .claimTask k a) ∨
@@ -596,9 +533,6 @@ theorem active_quiet (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (ha : 
     exact .inr (.inl ⟨_, rfl⟩)
   · exact .inr (.inr (.inl (mem_opt _ _ _ |>.1 h).2))
 
-/-- **Kill and nudge go together for an active agent.** When an active agent gets a `killOrphan`, it also gets
-`nudgeHandoff`, so it learns why its waiting call returned.
--/
 theorem active_kill_nudge (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) (ha : f.state = .active)
     (h : Action.killOrphan q s ∈ next p t f) : Action.nudgeHandoff ∈ next p t f := by
   have hk := (kill_mem p t f q s).1 h
@@ -968,12 +902,9 @@ theorem resolve_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : Lis
     funext c; simp only [resolveChild, overB_withMeta]
   rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g, _⟩ <;> simp only [resolve, withMeta, hc] <;> rfl
 
-/-- `next` never reads `meta.finished`: replacing the signals' `metaFinished` times leaves its actions unchanged. -/
 theorem next_withMeta (p : Params) (t : Nat) (m : List Nat) (f : AgentFacts) :
     next p t (withMeta m f) = next p t f := by
   rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g, _⟩ <;> rfl
-
-/-! ## Retention: which agents stay in the snapshot -/
 
 /-- The branch is ahead of `main` and not landed. -/
 def openBranchB (f : AgentFacts) : Bool :=
@@ -1103,12 +1034,9 @@ theorem keepHealth_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : A
   · have : endedS f.state = false := by simpa using he
     simp [keepHealthB, this]
 
-/-- **No time in the kill.** The kills are the same at every time `t'`: they read the held entries only. -/
 theorem kill_time (p : Params) (t t' : Nat) (f : AgentFacts) (q s : Nat) :
     Action.killOrphan q s ∈ next p t f ↔ Action.killOrphan q s ∈ next p t' f := by
   rw [kill_mem, kill_mem]
-
-/-! ## Examples (the observed cases; the golden vectors in `packages/contracts/golden/obs/next.jsonl` repeat them) -/
 
 /-- Example time: `t_0 = 1760000000000` ms. -/
 def t0 : Nat := 1760000000000
@@ -1128,24 +1056,17 @@ def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s
     { ex "port-nav" .done with
       handbackAt := some (ago 90), branch := some { name := "wt-a", ahead := 3, landed := false, queued := false }, worktree := some {} }
   == [.land "wt-a" "port-nav"]
-/-- Example ghb-runner: handed back, landed, worktree id `wt-ghb`, a sleep loop (pid 555) under the session on a stale
-file, and the held entries `hs`.
--/
 def ghb (hs : List Held) : AgentFacts :=
   { ex "ghb-runner" .done with
     handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false },
     worktree := some { id := some "wt-ghb" }, reapHeld := hs,
     children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22, watchedAt := some (ago 20) }] }
 
--- ghb-runner: the Reap plan holds pid 555 in its worktree → kill only (cleanup next time)
 #guard next {} t0 (ghb [⟨555, 1759998680, some "wt-ghb"⟩]) == [.killOrphan 555 1759998680]
--- no held entry, an entry of another worktree, or one without a worktree id → no kill; the loop holds the agent
 #guard next {} t0 (ghb []) == [.investigate .heldByChild]
 #guard next {} t0 (ghb [⟨555, 1759998680, some "wt-other"⟩]) == [.investigate .heldByChild]
 #guard next {} t0 (ghb [⟨555, 1759998680, none⟩]) == [.investigate .heldByChild]
--- an agent worktree without an id matches no entry
 #guard next {} t0 { ghb [⟨555, 1759998680, some "wt-ghb"⟩] with worktree := some {} } == [.investigate .heldByChild]
--- a held loop that is not one of the agent's children still gets the kill; the child it does not name holds the agent
 #guard next {} t0 (ghb [⟨777, 1759998000, some "wt-ghb"⟩]) == [.killOrphan 777 1759998000, .investigate .heldByChild]
 #guard next {} t0
     { ex "ghb-runner" .done with
@@ -1165,8 +1086,6 @@ def ghb (hs : List Held) : AgentFacts :=
       children := [{ pid := 700, chain := [100, 1], kind := .sleepLoop, startedAt := ago 99,
                      watchedAt := some (ago 1) }] }
   == [.nudgeHandoff]
--- integrate-ports at 03:15: active, a loop on a background task's output whose producer exited: no kill until the
--- Reap plan holds it; then kill and nudge
 #guard next {} t0
     { ex "integrate-ports" .active with
       children := [{ pid := 701, chain := [100, 1], kind := .sleepLoop, startedAt := ago 35,
@@ -1176,7 +1095,6 @@ def ghb (hs : List Held) : AgentFacts :=
     { ex "integrate-ports" .active with
       worktree := some { id := some "wt-ip" }, reapHeld := [⟨701, 1759997900, some "wt-ip"⟩] }
   == [.killOrphan 701 1759997900, .nudgeHandoff]
--- obs-next-lean at 03:05: live, its task reached the board after the spawn-time claim and has no agent → claim
 #guard next {} t0 { ex "obs-next-lean" .active with board := some { id := "obs-next-lean", done := false } }
   == [.claimTask "obs-next-lean" "obs-next-lean"]
 -- task bound already, task done, or agent gone → no claim
@@ -1224,12 +1142,9 @@ def pnAgent (a : Nat) (s : State) : AgentFacts :=
     signals := some (pnSig a),
     children := [{ pid := 10476, chain := [100, 1], kind := .stdinWait, startedAt := ago a }] }
 
--- port-nav: the handback comes from the transcript, so the stdin wait holds a handed-back agent → investigate
 #guard (resolve {} t0 [] (pnAgent 20 .idle)).handbackAt == some (ago 60)
 #guard next {} t0 (resolve {} t0 [] (pnAgent 20 .idle)) == [.investigate .heldByChild]
--- without the signals the handback is unseen → nothing
 #guard next {} t0 { pnAgent 20 .idle with signals := none } == [.none]
--- the signal state: held for 20 minutes, hung after the 30-minute cap
 #guard sigState {} t0 (pnAgent 20 .idle) == some (.handedBackHeld ["bh"])
 #guard sigState {} t0 (pnAgent 31 .idle) == some (.hung "bh")
 -- retention follows the signals, not the Health state: held is kept even when Health says done …
@@ -1245,14 +1160,11 @@ def finSig (a : String) : Signals.Facts :=
 def loopOn (q : Nat) (v : Watch) : Child :=
   { pid := q, chain := [100, 1], kind := .sleepLoop, startedAt := ago 8, watchedAt := some (ago 1), watch := some v }
 
--- … and a finished agent (its 'finished' notice seen) is dropped even when Health says idle
 #guard !keepB {} t0 { ex "x" .idle with signals := some (finSig "x") }
--- a loop watching agent ax's transcript: ax finished → its producer exited; the active watcher still gets no kill
 #guard
   let x : AgentFacts := { ex "x" .done with signals := some (finSig "ax") }
   let w : AgentFacts := { ex "w" .active with children := [loopOn 900 (.agent "ax")] }
   (resolve {} t0 [x, w] w).children.map (·.producerExited) == [true] && next {} t0 (resolve {} t0 [x, w] w) == [.none]
--- the same loop on a task id: its producer exits once some agent's signals hold an end of it
 #guard
   let o : AgentFacts := { ex "o" .idle with
     signals := some { agent := "ao", launched := [⟨"b9", ago 9⟩], ends := [⟨"b9", ago 2, .exited 0⟩] } }

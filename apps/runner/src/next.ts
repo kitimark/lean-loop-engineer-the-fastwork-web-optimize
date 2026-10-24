@@ -1,10 +1,3 @@
-// `fw next` / the NEXT lines of `fw watch`: glue for the fwcore op `obs.next` (lean/Fw/Obs/Next.lean, wire in
-// lean/Fw/Wire/Obs.lean, golden packages/contracts/golden/obs/next.jsonl). This file only OBSERVES facts (git, ps,
-// transcripts, stat, the plan, the `ops.reapHeld` reply) and PRINTS fwcore's answer. No decision is made here: which
-// action an agent needs or whether a branch must be landed is the Lean `next`; which loop is killed is the Reap plan
-// (lean/Fw/Ops/Reap.lean `held`), passed in as `reapHeld`. The only judgement below is how to read a command line into
-// a child kind (what the process is), which is classification of an observation, not a rule.
-// Privacy: command lines are read to classify and to find the watched file; none is kept or printed.
 import { execFile } from "node:child_process";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { homedir } from "node:os";
@@ -24,7 +17,6 @@ export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
   pid: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
 } & ({ kind: "sleepLoop" | "build" | "other" | "stdinWait" } | { kind: "ciWait"; run: number; timeoutMin: number });
-/** One entry of the Reap plan's `held` list: the pid and start (seconds) of the loop, and the worktree id of its row. */
 export interface HeldFact { pid: number; start: number; wt: string | null }
 export interface AgentFacts {
   id: string; task: string; state: string; session: number; handbackAt: number | null;
@@ -37,16 +29,12 @@ export interface AgentFacts {
     /** the branch is a pending entry of the land queue (`fw land --queue`, task land-queue): `locked` in the Lean facts */
     landQueued: boolean;
   } | null;
-  /** docs/team/handoffs/<name>.md exists */
   handoff: boolean;
-  /** `id`: the directory name under `.claude/worktrees`, as the Reap rows name it */
   worktree: { lockPid: number | null; lockAlive: boolean; id: string | null } | null;
   ctxTokens: number; children: ChildFact[];
   ci: { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null } | null;
   board: { id: string; done: boolean; agent: string | null } | null;
-  /** the transcript signals (Fw.Obs.Signals.Facts); fwcore resolves handbackAt and producer exits from them */
   signals?: SigFacts;
-  /** the Reap plan's held loops for this snapshot; fwcore advises killOrphan only for the entries in this worktree */
   reapHeld: HeldFact[];
 }
 export interface NextAction { action: string; [k: string]: unknown }
@@ -123,9 +111,7 @@ export interface RawAgent {
   handoff: boolean;
   /** the agent's branch from its meta (`worktreeBranch`); absent: the worktree list's branch */
   branch?: string | null;
-  /** the agent's signal facts (absent: no transcript) */
   signals?: SigFacts | null;
-  /** the worktree's directory name under this repo's `.claude/worktrees`, by identity (absent: not read) */
   wtId?: string | null;
 }
 export interface RawCi { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null }
@@ -139,9 +125,7 @@ export interface Raw {
   landLock?: string | null;
   /** the branches of the pending entries of the land queue (`.fw-console/land-queue.jsonl`) */
   landQueue?: string[];
-  /** text of the integrator's list (a branch name in it means queued) */
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
-  /** the Reap plan's held loops (absent: not read) */
   reapHeld?: HeldFact[];
 }
 const hasWord = (text: string, w: string) => text.split(/[^A-Za-z0-9._/-]+/).includes(w);
@@ -242,7 +226,6 @@ export function buildFacts(raw: Raw): AgentFacts[] {
         ? {
           name: br, ahead: a.ahead ?? 0, landed: a.landed ?? false, queued: hasWord(raw.queuedText, br),
           mergesClean: a.mergesClean ?? true, onMain: a.onMain === true, landLock: raw.landLock ?? null, landQueued: (raw.landQueue ?? []).includes(br),
-          // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
           deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
         } : null,
       worktree: w ? { lockPid: w.lockPid, lockAlive: w.lockPid !== null && raw.alive(w.lockPid), id: a.wtId ?? null } : null,
@@ -361,8 +344,6 @@ export function liveLandLockBranch(root: string): string | null {
   } catch { return null; }
 }
 
-/** The Reap plan's held loops (`ops.reapHeld` on the facts of `gather(top)`), each with the worktree id of its row;
- *  `[]` when the facts cannot be read, the call fails, or `FW_WATCH_REAP=0`. */
 export function reapHeldFacts(top: string, env: Record<string, string | undefined> = process.env,
   gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): HeldFact[] {
   if (env.FW_WATCH_REAP === "0") return [];
@@ -377,7 +358,6 @@ export function reapHeldFacts(top: string, env: Record<string, string | undefine
   }
 }
 
-/** Collect every observation for the snapshot's agents. `health` = the obs.health reply for the same snapshot. */
 export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown): Promise<Raw> {
   const [wtOut, ps] = await Promise.all([exec("git", ["worktree", "list", "--porcelain"], p.root), psCommands()]);
   const wts = parseWorktrees(wtOut);

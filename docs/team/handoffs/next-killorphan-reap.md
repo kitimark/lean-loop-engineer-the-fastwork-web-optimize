@@ -1,7 +1,7 @@
 # next-killorphan-reap
 
-- Branch `worktree-wf_b3ab2d32-15e-1`, worktree `.claude/worktrees/wf_b3ab2d32-15e-1`; last sha: see `git log -1` on the
-  branch (handoff written before the final commit). CI runs: none (accepted limit).
+- Branch `worktree-wf_b3ab2d32-15e-1`, worktree `.claude/worktrees/wf_b3ab2d32-15e-1`; last sha: `git log -1` on the
+  branch. CI runs: none (accepted limit).
 - State: `NEXT <id> killOrphan pid= start=` is printed only for an entry of the Reap plan's `held` list
   (`Fw.Ops.Reap.held`, op `ops.reapHeld`) whose worktree id is the agent's worktree id. The old inference in
   `Fw.Obs.Next` (orphanB, killB, staleB, deadB, oldB, fileStaleMin) is removed.
@@ -21,7 +21,7 @@
 - Outside the task's writes: `apps/runner/test/signals.test.ts` (expectation now `investigate heldByChild`).
 - Docs still describing the old rule: `docs/team/tools/watch.md:40,43`, `docs/team/tools/watch-rules.md:48`,
   `docs/team/tools/reap.md:33`.
-- Follow-ups: child facts `watchedAt`, `producerExited`, `watch` are now unread by `next`; a watch pass runs `gather`
+- Follow-ups: `next` no longer reads child facts `watchedAt`, `producerExited`, `watch`; a watch pass runs `gather`
   twice (`reapHeldAlerts` and `reapHeldFacts`), share one; the `ops.reapHeld` reply carries no `wt` (TS joins it).
 
 ## Read first
