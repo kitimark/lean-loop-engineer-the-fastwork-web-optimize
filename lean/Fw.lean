@@ -29,6 +29,7 @@ import Fw.Parts.NavEarnOpt
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain
+import Fw.Parts.MorphCountdownStrip
 import Fw.Parts.HeroExit
 import Fw.Parts.MorphTween
 import Fw.Parts.MorphPanel
