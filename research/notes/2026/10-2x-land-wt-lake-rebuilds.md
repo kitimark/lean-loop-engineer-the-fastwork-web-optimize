@@ -45,3 +45,8 @@ worktrees are free: with two worktrees busy at most, the rule chooses between tw
 - Local-machine timings; c4f662a's 9.0 s at 0 built stays unexplained.
 - The effect is read on later dry lands (`lake.built` of `land dry lake` spans after this lands), not claimed here.
 - Main moving ahead between dry lands rebuilds in every worktree; no pool choice avoids that.
+
+## First dry land with the rule
+
+d493e2c (this branch, span `land dry lake`, 39.8 s whole land): lake.built 6. One row is not an effect; the effect is
+the table above recomputed over the dry lands after this lands (0-built share and the medians per bucket).
