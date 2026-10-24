@@ -55,7 +55,6 @@ test('part series pairs a position with the next frame value', () => {
   assert.deepEqual(S.armCounts([{ ys: [0, 0, 0, 0, 0, 0, 100, 100], vs: [0, 400, 400, 400, 400, 400, 400, 400] }]), { runs: 1, frames: 7 });
 });
 
-// ---- the verdict by toolbar class (Lean StillRuns "The verdict by toolbar class")
 
 const cls = (c) => (c === 'm' ? 'moving' : 'still');
 const letters = (cs) => cs.map((c) => c[0]).join('');
@@ -89,7 +88,6 @@ test('verdict by toolbar class: classes, arms, height groups and verdicts agree 
       assert.deepEqual(S.armCounts(ps), g.arms[arm].today);
     }
     assert.deepEqual(S.verdictByClass(g.base, g.lift), { moving: g.moving, groups: g.groups, today: g.today }, JSON.stringify(g.classes));
-    // like for like: no group is confounded, and the groups together hold the still class's runs and frames
     assert.ok(g.groups.every((x) => x.result !== 'confounded'));
     for (const k of ['base', 'lift']) {
       const sum = (f) => g.groups.reduce((a, x) => a + x[k][f], 0);

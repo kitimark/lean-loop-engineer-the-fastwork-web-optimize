@@ -210,27 +210,21 @@ export function compareZones(reports) {
   }));
 }
 
-/** The toolbar-class constants Lean owns (`moveWin` frames, `moveMin` tenth px), read from the generated golden. */
 export const CLASS_CONST = Object.freeze(GOLDEN.find((l) => l.kind === 'class.consts'));
 export const CLASSES = Object.freeze(['moving', 'still']);
 
-/** Lean `jumpAt`: the viewport height (tenth px) changed between frame k-1 and frame k. */
 const jumpAt = (vh, k) => k < vh.length && Math.abs(vh[k] - vh[Math.max(0, k - 1)]) >= CLASS_CONST.moveMin;
 
-/** Lean `movingAt`: a height change lies between frames k-1 and k for some k within `moveWin` frames of frame i. */
 export function movingAt(vh, i) {
   for (let k = Math.max(0, i + 1 - CLASS_CONST.moveWin); k <= i + CLASS_CONST.moveWin; k++) if (jumpAt(vh, k)) return true;
   return false;
 }
 
-/** Lean `classes`: the class ('moving' or 'still') of every frame of a list of viewport heights (tenth px). */
 export const classes = (vh) => vh.map((_, i) => (movingAt(vh, i) ? 'moving' : 'still'));
 
-/** Lean `Record.hasField`: one height per frame. Recordings made before the field existed have none and are still at every frame. */
 export const hasField = (r) => Array.isArray(r.vh) && r.vh.length > 0 && r.vh.length === r.t.length;
 export const classesOf = (r) => (hasField(r) ? classes(r.vh) : r.t.map(() => 'still'));
 
-/** Lean `movingRowsC`: the moving intervals of [t, y, class] frames, each with the class of its later frame. */
 export function movingRowsC(frames) {
   const rows = [];
   for (let i = 1; i < frames.length; i++) {
@@ -239,7 +233,6 @@ export function movingRowsC(frames) {
   return rows;
 }
 
-/** Lean `reduceClass`: the counts of one toolbar class of a pass: the whole class, each zone, and how many frames the class holds. */
 export function reduceClass(r, c) {
   const cs = classesOf(r);
   const n = Math.min(r.t.length, r.y.length, cs.length);
@@ -253,19 +246,12 @@ export function reduceClass(r, c) {
   };
 }
 
-/** Both classes of a pass. */
 export const reduceByClass = (r) => ({ moving: reduceClass(r, 'moving'), still: reduceClass(r, 'still') });
 
-/** Lean `classVals`: the per-pass value (hundredths of a count per 100 intervals over 50 ms) of a zone, for the passes that hold the class. */
 export const classVals = (z, rs) => rs.filter((r) => r.frames !== 0).map((r) => (z === null ? r.total : r.zones[z] ?? { per50: 0 }).per50);
 
-/** Lean `compareClass`: an arm against the original within one class, by the rule of `verdict`. */
 export const compareClass = (z, orig, arm) => verdict(classVals(z, orig), classVals(z, arm));
 
-/**
- * The per-class comparison: `reports` is [{arm, moving, still}] (from `reduceByClass`). For each class and zone (or the whole pass) the
- * per-pass values of the original and of each other arm, and Lean's verdict.
- */
 export function compareClasses(reports) {
   const arms = [...new Set(reports.map((x) => x.arm))];
   return CLASSES.flatMap((c) => ['total', ...ZONES].map((k) => {
@@ -278,7 +264,6 @@ export function compareClasses(reports) {
   }));
 }
 
-/** The page units of a record (ms, px) <-> the integer form (hundredths of a ms, tenth px). */
 export function normalize(rec) {
   const c = (v, k) => Math.round(v * k);
   return {

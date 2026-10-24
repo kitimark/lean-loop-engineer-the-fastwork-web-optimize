@@ -1,7 +1,7 @@
 # device-lag-recorder: the felt-lag session on the real iPhone
 
 The lag the user feels is on the phone (WebKit); Chromium at normal speed is smooth, and shows the lag only at 6x CPU throttling.
-So the phone is the first source of truth. This tool records one person's swipe passes on the phone, finds the moments the person
+This tool records one person's swipe passes on the phone, finds the moments the person
 marked as laggy, reduces them with Lean, and turns the gesture into a profile CI can replay.
 
 Code: `packages/measure-webkit/src/device-record.mjs` (page recorder, banner flow), `device-session.mjs` (TS twin of
@@ -30,8 +30,7 @@ Known effects:
 2. The recorder's own rAF callback and three inline style reads run every frame (inline style reads do not flush layout). The
    `visualViewport` reads do: `scale`, `height` and `offsetTop` each call `updateFrameLayout` (WebKit `VisualViewport.cpp:72-76`,
    `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0 (`LocalDOMWindow.cpp:1476-1480` @ 862f17d). The callback writes no DOM and `scale` and `scrollY`
-   were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work (the idea that
-   these reads were free of layout was wrong; they are free here only because of that order). It runs before
+   were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work. It runs before
    the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
    i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs (the old pairing of a
    value with the position read beside it counted a false stall at every scroll start). All arms and both original passes carry the
@@ -50,7 +49,7 @@ viewport, rest): moving frames over 34 ms and over 50 ms, each per 100 moving fr
 largest step and the stalls (page moved, value held mid-transition); per felt mark the position, zone and the same counts over its
 1.5 s lookback window. The comparison: an arm beats the original in a zone only when its worst pass is below the original's best
 pass by more than the original's pass-to-pass spread (verdicts `beats | worse | same | unresolved`; one original pass or no arm
-pass is `unresolved`). This is why the plan has two original passes.
+pass is `unresolved`).
 
 ### Toolbar class (Lean `Fw.Device.Session` "The toolbar class of a frame", `Fw.Device.StillRuns` "The verdict by toolbar class")
 
@@ -92,7 +91,7 @@ frames of all heights (the still-run verdict above does not). Follow-ups: the zo
 throttle probe report. TS stand-ins: `classes`, `reduceClass`, `compareClasses`, `runsC`, `armOf`, `armAt`, `verdictByHeight`,
 `verdictByClass` run in TS, checked against the Lean goldens; they move into `fwcore` with the other reductions.
 
-## Session steps (the lead relays these one at a time; each is a short instruction to the user)
+## Session steps
 
 Before: check what the arms load (`node src/device-cli.mjs plan --search '?fw=<look flags>'` prints the plan and, on stderr, each
 dropped arm). The v2-proved preset is resolved at record time; when it resolves to no flags (on main it is `{"fw":{}}`) the v2 arm

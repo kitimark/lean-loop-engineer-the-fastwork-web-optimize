@@ -180,35 +180,25 @@ theorem zone_counts_sum (vh10 maxY10 : Int) :
     unfold inZone at ih ⊢
     cases h : zoneOf vh10 maxY10 r.y <;> simp [h] <;> omega
 
-/-! ## The toolbar class of a frame -/
-
-/-- Frames on each side of a height change in which a frame counts as toolbar-moving: 30 frames, half a second at 60 per second, longer than the toolbar's own slide. -/
 def moveWin : Nat := 30
 
-/-- The smallest change of the viewport height (tenth px) between two frames that counts as the toolbar moving: any change at the recorded resolution. -/
 def moveMin : Nat := 1
 
-/-- Whether the toolbar is moving or still at a frame. -/
 inductive Class where
   | moving | still
   deriving DecidableEq, Repr
 
-/-- The letter written in the golden. -/
 def Class.code : Class → String
   | .moving => "m" | .still => "s"
 
-/-- The viewport height changed by `moveMin` or more between frame `k - 1` and frame `k`. -/
 def jumpAt (vh : List Int) (k : Nat) : Bool :=
   decide (k < vh.length) && decide (moveMin ≤ (vh.getD k 0 - vh.getD (k - 1) 0).natAbs)
 
-/-- Whether a height change lies within `moveWin` frames of frame `i`: between frames `k - 1` and `k` for `i + 1 - moveWin ≤ k ≤ i + moveWin`. -/
 def movingAt (vh : List Int) (i : Nat) : Bool :=
   (List.range' (i + 1 - moveWin) (i + moveWin + 1 - (i + 1 - moveWin))).any (jumpAt vh)
 
-/-- The class of frame `i` of a list of viewport heights (tenth px). -/
 def classAt (vh : List Int) (i : Nat) : Class := if movingAt vh i then .moving else .still
 
-/-- The class of every frame. -/
 def classes (vh : List Int) : List Class := (List.range vh.length).map (classAt vh)
 
 theorem classes_length (vh : List Int) : (classes vh).length = vh.length := by simp [classes]
@@ -226,14 +216,12 @@ theorem movingAt_iff (vh : List Int) (i : Nat) :
     rw [List.mem_range'_1]
     omega
 
-/-- A frame is toolbar-moving exactly when a height change lies within the window. -/
 theorem classAt_moving_iff (vh : List Int) (i : Nat) :
     classAt vh i = .moving ↔ ∃ k, i < k + moveWin ∧ k ≤ i + moveWin ∧ jumpAt vh k = true := by
   rw [← movingAt_iff]
   unfold classAt
   cases movingAt vh i <;> simp
 
-/-- A frame is toolbar-still exactly when no height change lies within the window. -/
 theorem classAt_still_iff (vh : List Int) (i : Nat) :
     classAt vh i = .still ↔ ∀ k, i < k + moveWin → k ≤ i + moveWin → jumpAt vh k = false := by
   unfold classAt
@@ -251,17 +239,14 @@ theorem classAt_still_iff (vh : List Int) (i : Nat) :
       · exact absurd ((movingAt_iff vh i).2 ⟨k, h1, h2, hk⟩) h
     · intro _; rfl
 
-/-- Every change of the height makes the frames within the window moving. -/
 theorem classAt_moving_of_jump {vh : List Int} {k i : Nat} (hj : jumpAt vh k = true) (h1 : i < k + moveWin)
     (h2 : k ≤ i + moveWin) : classAt vh i = .moving :=
   (classAt_moving_iff vh i).2 ⟨k, h1, h2, hj⟩
 
-/-- A frame farther than the window from every change is still. -/
 theorem classAt_still_of_far {vh : List Int} {i : Nat}
     (h : ∀ k, i < k + moveWin → k ≤ i + moveWin → jumpAt vh k = false) : classAt vh i = .still :=
   (classAt_still_iff vh i).2 h
 
-/-- The two classes hold every frame once. -/
 theorem classes_count (vh : List Int) :
     (classes vh).count .moving + (classes vh).count .still = vh.length := by
   have key : ∀ cs : List Class, cs.count .moving + cs.count .still = cs.length := by
@@ -271,12 +256,10 @@ theorem classes_count (vh : List Int) :
     | cons c t ih => cases c <;> simp <;> omega
   rw [key, classes_length]
 
-/-- The indices of the moving frames and of the still frames together are the indices of all frames. -/
 theorem index_partition (vh : List Int) :
     ((List.range vh.length).filter (movingAt vh) ++ (List.range vh.length).filter (fun i => !movingAt vh i)).Perm
       (List.range vh.length) := List.filter_append_perm _ _
 
-/-- A height that never changes leaves every frame still. -/
 theorem classes_const (h : Int) (n : Nat) : classes (List.replicate n h) = List.replicate n .still := by
   have hj : ∀ k, jumpAt (List.replicate n h) k = false := by
     intro k
@@ -291,12 +274,10 @@ theorem classes_const (h : Int) (n : Nat) : classes (List.replicate n h) = List.
   · intro i h1 h2
     simp [classes, hs]
 
-/-- The moving frames of (time, position, class) frames, each with the class of its later frame. -/
 def movingRowsC : List (Int × Int × Class) → List (Class × Row)
   | a :: b :: rest => (if b.2.1 ≠ a.2.1 then [(b.2.2, ⟨b.1 - a.1, b.2.1⟩)] else []) ++ movingRowsC (b :: rest)
   | _ => []
 
-/-- Dropping the classes gives the moving frames of today. -/
 theorem movingRowsC_map : ∀ l : List (Int × Int × Class),
     (movingRowsC l).map (·.2) = movingRows (l.map fun f => (f.1, f.2.1))
   | [] => by simp [movingRowsC, movingRows]
@@ -307,7 +288,6 @@ theorem movingRowsC_map : ∀ l : List (Int × Int × Class),
     rw [ih]
     split <;> simp
 
-/-- When every frame is still, so is every interval. -/
 theorem movingRowsC_still : ∀ l : List (Int × Int × Class), (∀ f ∈ l, f.2.2 = .still) →
     ∀ r ∈ movingRowsC l, r.1 = .still
   | [], _, r, hr => by simp [movingRowsC] at hr
@@ -322,10 +302,8 @@ theorem movingRowsC_still : ∀ l : List (Int × Int × Class), (∀ f ∈ l, f.
       · simp at hr
     · exact ih r hr
 
-/-- The intervals of one class, without the class. -/
 def rowsOf (c : Class) (rs : List (Class × Row)) : List Row := (rs.filter fun r => r.1 == c).map (·.2)
 
-/-- The two classes hold every interval once. -/
 theorem rowsOf_split (rs : List (Class × Row)) : (rowsOf .moving rs).length + (rowsOf .still rs).length = rs.length := by
   induction rs with
   | nil => simp [rowsOf]
@@ -334,7 +312,6 @@ theorem rowsOf_split (rs : List (Class × Row)) : (rowsOf .moving rs).length + (
     simp only [rowsOf, List.length_map] at ih ⊢
     cases c <;> simp <;> omega
 
-/-- The two classes hold every interval of a zone once. -/
 theorem inZone_rowsOf_split (vh10 maxY10 : Int) (z : Zone) (rs : List (Class × Row)) :
     (inZone vh10 maxY10 z (rowsOf .moving rs)).length + (inZone vh10 maxY10 z (rowsOf .still rs)).length =
       (inZone vh10 maxY10 z (rs.map (·.2))).length := by
@@ -345,7 +322,6 @@ theorem inZone_rowsOf_split (vh10 maxY10 : Int) (z : Zone) (rs : List (Class × 
     unfold rowsOf inZone at ih ⊢
     cases c <;> by_cases hz : zoneOf vh10 maxY10 w.y == z <;> simp [hz] <;> omega
 
-/-- With every interval still, the still class is all of them and the moving class none. -/
 theorem rowsOf_still (rs : List (Class × Row)) (h : ∀ r ∈ rs, r.1 = .still) :
     rowsOf .still rs = rs.map (·.2) ∧ rowsOf .moving rs = [] := by
   induction rs with
@@ -358,9 +334,6 @@ theorem rowsOf_still (rs : List (Class × Row)) (h : ∀ r ∈ rs, r.1 = .still)
     unfold rowsOf at this ⊢
     simp [this.1, this.2]
 
-/-! ## The arm comparison rule -/
-
-/-- Largest minus smallest of the per-pass values, 0 when there are none. -/
 def spread (l : List Int) : Int :=
   match l.max?, l.min? with
   | some h, some m => h - m
@@ -1019,10 +992,8 @@ structure Record where
   ys : List Int
   parts : List (String × List Int)
   touches : List Touch
-  /-- The viewport height at every frame (tenth px); empty for a recording made before the field existed. -/
   vh : List Int := []
 
-/-- The reduction of one pass. -/
 structure Report where
   total : Stat
   zones : List (Zone × Stat)
@@ -1050,12 +1021,8 @@ theorem reducePass_zones_total (r : Record) :
   simp only [reducePass, stat, List.map_cons, List.map_nil, List.foldl_cons, List.foldl_nil]
   omega
 
-/-! ## One pass by toolbar class -/
-
-/-- Whether the record carries one viewport height per frame (recordings made before the field existed do not). -/
 def Record.hasField (r : Record) : Bool := !r.vh.isEmpty && r.vh.length == r.ts.length
 
-/-- The class of every frame; a record without the field has the toolbar still at every frame, as today's reduction treats it. -/
 def classesOf (r : Record) : List Class :=
   if r.hasField then classes r.vh else List.replicate r.ts.length .still
 
@@ -1067,13 +1034,11 @@ theorem classesOf_length (r : Record) : (classesOf r).length = r.ts.length := by
     simp [classes_length, h.2]
   · simp
 
-/-- A record without the field has every frame still. -/
 theorem classesOf_noField {r : Record} (h : r.hasField = false) : ∀ c ∈ classesOf r, c = .still := by
   intro c hc
   simp [classesOf, h] at hc
   exact hc.2
 
-/-- A record whose height never changes has every frame still. -/
 theorem classesOf_const {r : Record} {h : Int} (hv : r.vh = List.replicate r.ts.length h) :
     ∀ c ∈ classesOf r, c = .still := by
   intro c hc
@@ -1083,7 +1048,6 @@ theorem classesOf_const {r : Record} {h : Int} (hv : r.vh = List.replicate r.ts.
     exact (List.mem_replicate.1 hc).2
   · exact (List.mem_replicate.1 hc).2
 
-/-- The frames of a record: time, position and class. -/
 def classFrames (r : Record) : List (Int × Int × Class) :=
   ((r.ts.zip r.ys).zip (classesOf r)).map fun (f, c) => (f.1, f.2, c)
 
@@ -1093,13 +1057,11 @@ theorem classFrames_map (r : Record) : (classFrames r).map (fun f => (f.1, f.2.1
   have := List.map_fst_zip hl
   simpa [classFrames, List.map_map, Function.comp_def] using this
 
-/-- The counts of one class of a pass: the whole pass, each zone, and how many frames the class holds. -/
 structure ClassReport where
   total : Stat
   zones : List (Zone × Stat)
   frames : Nat
 
-/-- The reduction of the frames of one toolbar class. -/
 def reduceClass (r : Record) (c : Class) : ClassReport :=
   let fs := classFrames r
   let vh10 : Int := (r.h : Int) * 10
@@ -1108,10 +1070,8 @@ def reduceClass (r : Record) (c : Class) : ClassReport :=
     zones := [Zone.hero, .finish, .rest].map fun z => (z, stat (inZone vh10 r.maxY10 z rows))
     frames := (fs.filter fun f => f.2.2 == c).length }
 
-/-- The stat of a zone in a report's zone list. -/
 def zoneStatOf (zs : List (Zone × Stat)) (z : Zone) : Stat := ((zs.find? fun p => p.1 == z).map (·.2)).getD (stat [])
 
-/-- The moving and the still frames together are the frames of today's reduction, in total. -/
 theorem reduceClass_total_split (r : Record) :
     (reduceClass r .moving).total.n + (reduceClass r .still).total.n = (reducePass r).total.n := by
   have h := rowsOf_split (movingRowsC (classFrames r))
@@ -1121,7 +1081,6 @@ theorem reduceClass_total_split (r : Record) :
   rw [← hm] at *
   simpa [movingRows] using h
 
-/-- The moving and the still frames together are the frames of today's reduction, in every zone. -/
 theorem reduceClass_zone_split (r : Record) (z : Zone) :
     (zoneStatOf (reduceClass r .moving).zones z).n + (zoneStatOf (reduceClass r .still).zones z).n =
       (zoneStatOf (reducePass r).zones z).n := by
@@ -1131,7 +1090,6 @@ theorem reduceClass_zone_split (r : Record) (z : Zone) :
   rw [hm] at h
   cases z <;> simpa [zoneStatOf, reduceClass, reducePass, stat, hm] using h
 
-/-- Every frame of one class or the other: the frame counts add up to the frames of the record. -/
 theorem reduceClass_frames_split (r : Record) :
     (reduceClass r .moving).frames + (reduceClass r .still).frames = (r.ts.zip r.ys).length := by
   have key : ∀ l : List (Int × Int × Class), (l.filter fun f => f.2.2 == Class.moving).length +
@@ -1146,7 +1104,6 @@ theorem reduceClass_frames_split (r : Record) :
   simp only [reduceClass]
   omega
 
-/-- With every frame still, the still class is today's reduction, zone by zone, and the moving class is empty. -/
 theorem reduceClass_allStill {r : Record} (h : ∀ c ∈ classesOf r, c = .still) :
     (reduceClass r .still).total = (reducePass r).total ∧ (reduceClass r .still).zones = (reducePass r).zones ∧
       (reduceClass r .moving).total.n = 0 ∧ (reduceClass r .moving).frames = 0 ∧
@@ -1174,49 +1131,38 @@ theorem reduceClass_allStill {r : Record} (h : ∀ c ∈ classesOf r, c = .still
     · exact hlen
     · intro f hf'; simp [hf f hf']
 
-/-- A recording without the field is today's reduction (the still class), and the moving class holds nothing. -/
 theorem reduceClass_noField {r : Record} (h : r.hasField = false) :
     (reduceClass r .still).total = (reducePass r).total ∧ (reduceClass r .still).zones = (reducePass r).zones ∧
       (reduceClass r .moving).total.n = 0 ∧ (reduceClass r .moving).frames = 0 :=
   have := reduceClass_allStill (classesOf_noField h)
   ⟨this.1, this.2.1, this.2.2.1, this.2.2.2.1⟩
 
-/-- A recording whose height never changes is today's reduction too. -/
 theorem reduceClass_const {r : Record} {h : Int} (hv : r.vh = List.replicate r.ts.length h) :
     (reduceClass r .still).total = (reducePass r).total ∧ (reduceClass r .still).zones = (reducePass r).zones ∧
       (reduceClass r .moving).total.n = 0 ∧ (reduceClass r .moving).frames = 0 :=
   have := reduceClass_allStill (classesOf_const hv)
   ⟨this.1, this.2.1, this.2.2.1, this.2.2.2.1⟩
 
-/-! ## The comparison within one class -/
-
-/-- The per-pass value of a class in a zone (`none`: the whole pass), in hundredths of a count per 100 intervals. A pass with no frame of the class has no value:
-a class that was not present in a pass is not a good score. -/
 def classVals (z : Option Zone) (rs : List ClassReport) : List Int :=
   rs.filterMap fun r =>
     if r.frames == 0 then none
     else some (((match z with | none => r.total | some z => zoneStatOf r.zones z).per50 : Nat) : Int)
 
-/-- Today's per-pass value of a zone. -/
 def passVal (z : Option Zone) (r : Record) : Int :=
   (((match z with | none => (reducePass r).total | some z => zoneStatOf (reducePass r).zones z).per50 : Nat) : Int)
 
-/-- An arm against the original within one class: the same rule as today's, over the passes that hold the class. -/
 def compareClass (z : Option Zone) (orig arm : List ClassReport) : Verdict :=
   verdict (classVals z orig) (classVals z arm)
 
-/-- A pass with no frame of the class adds no value. -/
 theorem classVals_empty (z : Option Zone) (r : ClassReport) (rs : List ClassReport) (h : r.frames = 0) :
     classVals z (r :: rs) = classVals z rs := by
   simp [classVals, h]
 
-/-- A pass with frames of the class adds its value first. -/
 theorem classVals_cons (z : Option Zone) (r : ClassReport) (rs : List ClassReport) (h : r.frames ≠ 0) :
     classVals z (r :: rs) =
       (((match z with | none => r.total | some z => zoneStatOf r.zones z).per50 : Nat) : Int) :: classVals z rs := by
   simp [classVals, h]
 
-/-- Recordings without the field give, in the still class, today's per-pass values. -/
 theorem classVals_noField (z : Option Zone) : ∀ rs : List Record,
     (∀ r ∈ rs, r.hasField = false ∧ r.ts ≠ [] ∧ r.ys ≠ []) →
     classVals z (rs.map fun r => reduceClass r .still) = rs.map (passVal z)
@@ -1235,7 +1181,6 @@ theorem classVals_noField (z : Option Zone) : ∀ rs : List Record,
     rw [List.map_cons, classVals_cons z _ _ hpos, ih, List.map_cons]
     cases z <;> simp [passVal, ha.1, ha.2.1]
 
-/-- Recordings without the field keep today's verdict: the still class decides as the whole pass does. -/
 theorem compareClass_noField (z : Option Zone) (orig arm : List Record)
     (ho : ∀ r ∈ orig, r.hasField = false ∧ r.ts ≠ [] ∧ r.ys ≠ [])
     (ha : ∀ r ∈ arm, r.hasField = false ∧ r.ts ≠ [] ∧ r.ys ≠ []) :
@@ -1243,8 +1188,6 @@ theorem compareClass_noField (z : Option Zone) (orig arm : List Record)
       verdict (orig.map (passVal z)) (arm.map (passVal z)) := by
   unfold compareClass
   rw [classVals_noField z orig ho, classVals_noField z arm ha]
-
-/-! ## The golden -/
 
 private def statJ (s : Stat) : Json :=
   Json.mkObj [("n", s.n), ("over34", s.over34), ("over50", s.over50), ("per34", s.per34), ("per50", s.per50),
@@ -1408,11 +1351,8 @@ private def loaderCases : List (Int × Int × Nat × List Stroke) :=
    (4300, 9320, 4, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩])]
 
 
-/-! ### The toolbar-class golden -/
-
 private def classStr (cs : List Class) : String := String.join (cs.map Class.code)
 
-/-- Viewport heights (tenth px): short, constant, one change, two far apart changes, a slide, a change at the end, a wobble. -/
 private def classCases : List (List Int) :=
   [[], [7750], List.replicate 5 7750, List.replicate 100 7750,
    List.replicate 50 7750 ++ List.replicate 50 8150,
@@ -1428,13 +1368,11 @@ private def synthVhList : List Int :=
   List.replicate 100 7750 ++ [7800, 7850, 7900, 7950, 8000, 8050, 8100, 8150] ++ List.replicate 192 8150 ++
     [8100, 8050, 8000, 7950, 7900, 7850, 7800, 7750] ++ List.replicate 172 7750
 
-/-- The synthetic session with a toolbar that slides away at frame 100 and back at frame 300. -/
 private def synthVhRecord (_ : Unit) : Record := { synthRecord () with vh := synthVhList }
 
 private def classReportJ (c : ClassReport) : Json :=
   Json.mkObj [("total", statJ c.total), ("zones", Json.mkObj (c.zones.map fun p => (p.1.name, statJ p.2))), ("frames", c.frames)]
 
-/-- A class report with the given frame count and per-50 values (total, hero, finish, rest). -/
 private def mkCR (n t h f r : Nat) : ClassReport :=
   let s (p : Nat) : Stat := { stat [] with per50 := p }
   ⟨s t, [(Zone.hero, s h), (Zone.finish, s f), (Zone.rest, s r)], n⟩
@@ -1512,7 +1450,6 @@ private def goldenLines (_ : Unit) : List String :=
      ("replay", replayJ r)]).compress]) ++
   classGoldenLines ()
 
-/-- The bytes of `packages/contracts/golden/device/session.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
 /-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/

@@ -25,8 +25,6 @@ test('every golden kind has lines', () => {
   for (const k of ['consts', 'plan', 'dedup', 'series', 'zone', 'stat', 'verdict', 'part', 'marks', 'stream', 'loader', 'session', 'class.consts', 'class', 'class.report', 'class.compare']) assert.ok(of(k).length > 0, k);
 });
 
-// ---- the toolbar class: the viewport height of every frame splits frames into moving and still (Lean Session "The toolbar class of a frame")
-
 const classStr = (cs) => cs.map((c) => c[0]).join('');
 const toReport = ([frames, total, hero, finish, rest]) => ({ frames, total: { per50: total }, zones: { hero: { per50: hero }, finish: { per50: finish }, rest: { per50: rest } } });
 

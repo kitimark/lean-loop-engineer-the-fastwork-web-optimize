@@ -4,18 +4,11 @@
 // a felt-lag mark; Lean (Fw.Device.Session via device-session.mjs) finds the marks and does every reduction afterwards, so nothing
 // is decided in the page.
 // Probe effect: one rAF callback and three inline custom-property reads per frame (inline style reads do not flush layout). The
-// callback runs before the page's own callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from
-// scrollY of frame i, not from the scrollY read next to it. Lean `partSeries` pairs each value with that earlier position; the stall
-// rule compares those pairs.
-// The Safari toolbar changes the visual viewport height (collapsed 815 vs 775 px) while the person swipes, so every frame also stores
-// `vv.height` (`vh`) and `vv.offsetTop` (`vt`) in 0.1 px (innerHeight when there is no visualViewport); Lean (`classes`) splits the frames
-// into toolbar-moving and toolbar-still and the verdicts compare like with like per class. These reads DO flush layout in WebKit
+// The `vv.height` and `vv.offsetTop` reads DO flush layout in WebKit
 // (VisualViewport.cpp:72-76 updateFrameLayout, used by offsetTop 87-94, height 123-130 and scale 132-141 @ WebKit 862f17d), but the
 // callback writes no DOM and already reads `vv.scale` and `scrollY` every frame (`scrollY` flushes layout when it is not 0,
 // LocalDOMWindow.cpp:1476-1480 @ 862f17d), so the layout is already up to date and the two new reads add no layout work.
-// A touch ON a moving page stops its native fling; the person's tap therefore changes the scroll it marks. Say so in the session steps.
-// The felt mark must not change the page: the step text names an empty area; a tap that still hits a link ends the page, which the
-// pagehide listener (and, after the navigation, the missing liveness flag the poll looks for) names as the failure. A pinch or
+// A pinch or
 // double-tap zoom changes what scrollY means; the visual viewport scale is read every frame and the frames at a scale other than 1
 // are counted in the record (`zoom`).
 import { sleep } from './sim.mjs';
