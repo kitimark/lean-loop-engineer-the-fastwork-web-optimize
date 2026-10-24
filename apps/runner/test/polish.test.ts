@@ -145,9 +145,11 @@ const cases: [string, Record<string, unknown>][] = [
   ["lines: code changed (sh)", linesReq("a.sh", "cmd a\n", "cmd b\n")],
   ["lines: a line split in two (sh)", linesReq("a.sh", "cmd a b\n", "cmd a\nb\n")],
   ["lines: a file type with no syntax is unchecked", linesReq("a.md", "x\n", "y\n")],
-  ["lines: join shape of 162a694 (its parent line was already joined; the lint catches that)", linesReq("lean/scripts/check.sh", "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n", "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n")],
-  ["lines: real join 35f3727 mac-safari-measure", linesReq("lean/scripts/check.sh", "job \"sup-measure\" x  # s\njob \"node-budget\" y\n", "job \"sup-measure\" x  job \"node-budget\" y\n")],
-  ["lines: real join 4d0c107 hero-accent-draw-nolayout", linesReq("lean/scripts/check.sh", "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n", "job \"hero-scene-pause\" x  job \"nav-earn\" y\n")],
+  ["lines: a synthetic trailing-comment join (162a694 itself is caught by the check.sh lint, not this rule)", linesReq("lean/scripts/check.sh", "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n", "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n")],
+  ["lines: join shape of 35f3727 mac-safari-measure", linesReq("lean/scripts/check.sh", "job \"sup-measure\" x  # s\njob \"node-budget\" y\n", "job \"sup-measure\" x  job \"node-budget\" y\n")],
+  ["lines: join shape of 4d0c107 hero-accent-draw-nolayout", linesReq("lean/scripts/check.sh", "job \"hero-scene-pause\" x  # h\njob \"nav-earn\" y\n", "job \"hero-scene-pause\" x  job \"nav-earn\" y\n")],
+  ["lines: a single-quoted /* is not a comment (js)", linesReq("a.mjs", "const b = ['ci/**'];\nfoo(); // why\nbar();\n", "const b = ['ci/**'];\nfoo(); bar();\n")],
+  ["lines: an escaped quote then /* is not a comment (ts)", linesReq("a.ts", "const b = \"a\\\"/*\";\nfoo(); // why\nbar();\n", "const b = \"a\\\"/*\";\nfoo(); bar();\n")],
 ];
 
 function fwcore(reqs: Record<string, unknown>[]): Record<string, unknown>[] {

@@ -938,12 +938,17 @@ def scan (sy : Syn) : Nat → List Char → Nat → Option Char → Bool → Lis
         scan sy n (cs.drop (sy.bopen.length - 1)) (d + 1) q true acc
       else scan sy n cs d q true acc
     else match q with
-      | some k => scan sy n cs 0 (if c == k then none else q) false (c :: acc)
+      | some k =>
+        if c == '\\' && !(k == '\'' && sy.needWs) then
+          match cs with
+          | [] => (0, c :: acc)
+          | e :: cs' => scan sy n cs' 0 q false (e :: c :: acc)
+        else scan sy n cs 0 (if c == k then none else q) false (c :: acc)
       | none =>
         if (c :: cs).take sy.lineMark.length == sy.lineMark && (ws || !sy.needWs) then (0, acc)
         else if !sy.bopen.isEmpty && (c :: cs).take sy.bopen.length == sy.bopen then
           scan sy n (cs.drop (sy.bopen.length - 1)) 1 none true (' ' :: acc)
-        else if c == '"' || (c == '\'' && sy.needWs) || (c == '`' && !sy.needWs && !sy.nest) then
+        else if c == '"' || (c == '\'' && !sy.nest) || (c == '`' && !sy.needWs && !sy.nest) then
           scan sy n cs 0 (some c) false (c :: acc)
         else scan sy n cs 0 none (c == ' ' || c == '\t') (c :: acc)
 
@@ -1083,9 +1088,12 @@ private def vd (p o c : String) : String := (pathVerdict p o c).name
 #guard vd "a.md" "x\n" "y\n" = "unchecked"
 -- a `#` in a quote or `$#` is code, not a comment
 #guard codeLines synHash "echo $# \"a # b\" # c" = ["echo $# \"a # b\""]
--- the three real joins (162a694, 35f3727, 4d0c107): a job line with a trailing comment and the next job line
+-- join shapes of 35f3727 (sup-measure/node-budget) and 4d0c107 (hero-scene-pause/nav-earn), shortened; 162a694 cut a comment on a line already joined, which the check.sh lint catches
+#guard vd "lean/scripts/check.sh" "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n" "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n" = "joined"
 #guard vd "lean/scripts/check.sh" "job \"sup-measure\" x  # sup\njob \"node-budget\" y\n" "job \"sup-measure\" x  job \"node-budget\" y\n" = "joined"
 #guard vd "lean/scripts/check.sh" "job \"hero-scene-pause\" x  # a\njob \"nav-earn\" y\n" "job \"hero-scene-pause\" x  job \"nav-earn\" y\n" = "joined"
-#guard vd "lean/scripts/check.sh" "job \"workflow-syntax-gate\" x  # g\njob \"mac-safari-measure\" y\n" "job \"workflow-syntax-gate\" x  job \"mac-safari-measure\" y\n" = "joined"
+-- a `/*` in a single-quoted or escaped-quote string is not a comment (ts/js)
+#guard vd "a.mjs" "const b = ['ci/**'];\nfoo(); // why\nbar();\n" "const b = ['ci/**'];\nfoo(); bar();\n" = "joined"
+#guard vd "a.ts" "const b = \"a\\\"/*\";\nfoo(); // why\nbar();\n" "const b = \"a\\\"/*\";\nfoo(); bar();\n" = "joined"
 
 end Fw.Plan.Polish
