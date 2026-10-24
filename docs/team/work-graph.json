@@ -19468,7 +19468,8 @@
     "lean/Fw/Obs/Health.lean",
     "lean/Fw/Plan/WritesClosure.lean"
    ],
-   "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands."
+   "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands.",
+   "evidence": "cbb03d4"
   },
   {
    "devices": [
@@ -19604,7 +19605,9 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "docs/team/handoffs/classpos-followups.md",
     "lean/Fw/Parts/Bridge.lean",
-    "docs/report/v2-report.md"
+    "docs/report/v2-report.md",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Contract.lean"
    ],
    "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length)."
   },
@@ -19772,6 +19775,31 @@
     "docs/team/handoffs/pathpix-drawbase-wire.md"
    ],
    "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "classpos-followups-2",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "classpos-followups"
+   ],
+   "writes": [
+    "lean/Fw/Parts/ClassPos.lean",
+    "packages/contracts/golden/parts/footprint.classpos.jsonl",
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint.classpos.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/Contract.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "docs/report/v2-report.md",
+    "docs/team/handoffs/classpos-followups-2.md"
+   ],
+   "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report)."
   }
  ],
  "deadline": {
