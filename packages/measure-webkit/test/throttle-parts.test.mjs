@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  CONSTS, PARTS, KEYS, EXAMPLES, ARMS, reach, predicted, rowsOf, medianGap, bandFor, excludeReason, seriesCounts, armSeries, judge, judgeArm,
+  CONSTS, PARTS, KEYS, EXAMPLES, ARMS, reach, predicted, rowsOf, medianGap, bandFor, excludeReason, seriesCounts, armSeries, judge, judgeCounts, judgeArm, poolOf, inDomain, MIN_K,
   seriesModel, reduceMode, partVerdict, partOf, noDataParts, noDataReason, recordedParts, summarize, summaryMd, modeOfArm,
 } from '../src/throttle/parts.mjs';
 import { SERIES, ANCHORS, START_JS, FETCH_JS, discoverJs, scrollToJs, anchorY } from '../src/throttle/parts-recorder.mjs';
@@ -52,7 +52,7 @@ test('the series model takes the golden key when there is one and the twin of Le
   assert.equal(seriesModel(SERIES.find((s) => s.key === 'hero')).throttled.pattern, 'stills');
   assert.equal(seriesModel(SERIES.find((s) => s.key === 'platform')).throttled.pattern, 'stills');
   assert.equal(seriesModel(SERIES.find((s) => s.key === 'people')).throttled.pattern, 'pulses');
-  assert.equal(seriesModel(SERIES.find((s) => s.key === 'commission')).throttled.pattern, 'pulses');
+  assert.equal(seriesModel(SERIES.find((s) => s.key === 'commission')).throttled.pattern, 'stills');
   assert.equal(seriesModel(SERIES.find((s) => s.key === 'fade')).throttled.pattern, 'no-stills');
 });
 
@@ -208,7 +208,7 @@ test('the fade (time source) is predicted no stills in every arm; a throttle-lik
 });
 
 test('judgeArm: pulses and no-stills need fewer than 10 band runs; exactly 10 disagrees', () => {
-  const row = (band, midMoving = 300) => ({ midMoving, band, found: 1 });
+  const row = (band, midMoving = 300, k = 5) => ({ midMoving, band, found: 1, exercised: 1, domain: { passes: 1 }, detail: [{ gapMs: 17 }], passList: [{ k, runs: band, frames: midMoving }] });
   const pulses = { pattern: 'pulses' };
   assert.equal(judgeArm(pulses, 'rewrite', row(3), row(3)).match, 'agree');
   assert.equal(judgeArm(pulses, 'rewrite', row(10), row(10)).match, 'disagree');
@@ -221,9 +221,20 @@ test('judgeArm: pulses and no-stills need fewer than 10 band runs; exactly 10 di
 const goldenOf = (kind) => readFileSync(new URL('../../contracts/golden/device/throttle-parts.jsonl', import.meta.url), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((l) => l.kind === kind);
 
-test('judge returns the golden match on every judge vector (Fw.Device.ThrottleParts.judge)', () => {
-  const vs = goldenOf('judge');
+test('judgeCounts returns the golden match on every judgeCounts vector (Fw.Device.ThrottleParts.judgeCounts)', () => {
+  const vs = goldenOf('judgeCounts');
   assert.equal(vs.length, 240);
+  const seen = new Set();
+  for (const v of vs) {
+    assert.equal(judgeCounts(v.pred, v.mode, v.base, v.arm), v.match, JSON.stringify(v));
+    seen.add(v.match);
+  }
+  assert.deepEqual([...seen].sort(), ['agree', 'disagree', 'no-data']);
+});
+
+test('judge returns the golden match on every pass vector (Fw.Device.ThrottleParts.judge)', () => {
+  const vs = goldenOf('judge');
+  assert.equal(vs.length, 468);
   const seen = new Set();
   for (const v of vs) {
     assert.equal(judge(v.pred, v.mode, v.base, v.arm), v.match, JSON.stringify(v));
@@ -232,8 +243,23 @@ test('judge returns the golden match on every judge vector (Fw.Device.ThrottlePa
   assert.deepEqual([...seen].sort(), ['agree', 'disagree', 'no-data']);
 });
 
+test('judge: a pass at K below the domain counts for nothing, K is per pass', () => {
+  assert.equal(MIN_K, CONSTS.minK);
+  assert.equal(MIN_K, 3);
+  const vs = goldenOf('judge');
+  const only = (arm) => vs.filter((v) => v.arm.length === arm.length && v.arm.every((q, i) => q.k === arm[i].k && q.runs === arm[i].runs && q.frames === arm[i].frames));
+  for (const v of only([{ k: 1, runs: 10, frames: 1000 }, ])) assert.equal(v.match, 'no-data', JSON.stringify(v));
+  assert.ok(only([{ k: 1, runs: 10, frames: 1000 }]).length > 0);
+  const mixed = only([{ k: 5, runs: 9, frames: 500 }, { k: 1, runs: 30, frames: 500 }]);
+  assert.ok(mixed.length > 0);
+  for (const v of mixed) assert.deepEqual(poolOf(v.arm), { runs: 9, frames: 500 });
+  assert.deepEqual(poolOf([{ k: 2, runs: 5, frames: 7 }, { k: 3, runs: 1, frames: 2 }]), { runs: 1, frames: 2 });
+  assert.equal(inDomain(2), false);
+  assert.equal(inDomain(3), true);
+});
+
 test('judge: the golden holds the boundary at exactly 10 band runs', () => {
-  const at = (pattern, mode, runs) => goldenOf('judge').find((v) => v.pred.pattern === pattern && v.mode === mode && v.base.runs === 40 && v.arm.runs === runs && v.arm.frames === 1000);
+  const at = (pattern, mode, runs) => goldenOf('judgeCounts').find((v) => v.pred.pattern === pattern && v.mode === mode && v.base.runs === 40 && v.arm.runs === runs && v.arm.frames === 1000);
   assert.equal(at('stills', 'throttled', 10).match, 'agree');
   assert.equal(at('stills', 'throttled', 9).match, 'disagree');
   assert.equal(at('pulses', 'throttled', 10).match, 'disagree');
@@ -252,7 +278,14 @@ test('partVerdict returns the golden verdict on every list of up to three matche
 test('bandFor returns the golden band on every bandFor vector (Fw.Device.ThrottleParts.bandFor)', () => {
   const vs = goldenOf('bandFor');
   assert.ok(vs.some((v) => v.d === 1667 && v.lo === 5 && v.hi === 6));
-  for (const v of vs) assert.deepEqual(bandFor(v.d), [v.lo, v.hi], String(v.d));
+  for (const v of vs) {
+    assert.deepEqual(bandFor(v.d), [v.lo, v.hi], String(v.d));
+    assert.equal(inDomain(v.lo), v.inDomain, String(v.d));
+    assert.equal(v.lo >= CONSTS.bandLo && v.lo <= CONSTS.bandHi, v.fixed, String(v.d));
+  }
+  const gap = (d) => vs.find((v) => v.d === d);
+  assert.deepEqual([5900, 2300, 2000, 3300, 3333, 3334].map((d) => gap(d).lo), [1, 4, 4, 3, 3, 2]);
+  assert.deepEqual(vs.filter((v) => v.fixed).map((v) => v.d), [1429, 1600, 1667, 1700, 1999]);
 });
 
 test('armSeries sums the usable passes only and keeps the pass counts', () => {
@@ -263,6 +296,42 @@ test('armSeries sums the usable passes only and keeps the pass counts', () => {
   assert.equal(a.per1000Mid, 163.3);
 });
 
+test('armSeries: the gap and K are per exercised pass; a pass outside the domain stays in the table and out of the verdict pool', () => {
+  const a = armSeries([
+    pass('original', partsRecord(300, { hero: stairs(6) }), { vm: '1', round: 2 }),
+    pass('original', partsRecord(300, { hero: stairs(1) }, 60), { vm: '2', round: 1 }),
+    pass('original', partsRecord(300, { hero: () => 0 }, 25), { vm: '3', round: 1 }),
+  ], 'hero');
+  assert.equal(a.found, 3);
+  assert.equal(a.exercised, 2);
+  assert.deepEqual(a.gaps, [1667, 6000]);
+  assert.deepEqual(a.detail.map((d) => [d.vm, d.round, d.gapMs, d.k, d.bandRuns, d.midMoving, d.inDomain]), [['1', 2, 16.67, 5, 49, 300, true], ['2', 1, 60, 1, 0, 180, false]]);
+  assert.deepEqual(a.domain, { passes: 1, band: 49, midMoving: 300, per1000Mid: 163.3 });
+  assert.equal(a.band, 49);
+  assert.equal(a.midMoving, 480);
+  const only = armSeries([pass('original', partsRecord(300, { hero: stairs(1) }, 60))], 'hero');
+  assert.deepEqual(only.domain, { passes: 0, band: 0, midMoving: 0, per1000Mid: null });
+  assert.equal(judgeCounts({ pattern: 'stills' }, 'throttled', { runs: 0, frames: 0 }, { runs: only.domain.band, frames: only.domain.midMoving }), 'no-data');
+});
+
+test('the summary median gap is taken over the exercised passes only, and a K-1 original arm is no-data with its gap named', () => {
+  const mk = (arm, parts, extra) => ({ arm, round: 1, vm: '1', attempt: 1, info: {}, where: {}, drag: { code: 0 }, rec: { parts }, ...extra });
+  const jobs = [{ vm: '1', mode: 'drags', drag: {}, failed: [], passes: [
+    mk('original', partsRecord(300, { hero: stairs(1) }, 60)),
+    mk('original', partsRecord(300, { hero: () => 0 }, 16.67), { round: 2 }),
+    mk('rewrite', partsRecord(300, { hero: stairs(6) })),
+    mk('lift', partsRecord(300, { hero: stairs(1) })),
+    mk('unthrottle', partsRecord(300, { hero: stairs(1) })),
+  ] }];
+  const sm = summarize('drags', jobs, '9');
+  const s = sm.series.find((x) => x.key === 'hero');
+  assert.equal(s.arms.original.medianGapMs, 60);
+  assert.equal(s.arms.original.exercisedPasses.length, 1);
+  assert.equal(s.match.original.match, 'no-data');
+  assert.match(s.match.original.why, /K below 3/);
+  assert.match(s.match.original.why, /60/);
+  assert.equal(s.arms.rewrite.medianGapMs, 16.67);
+});
 
 function heroJobs() {
   const mk = (arm, period) => ({ arm, round: 1, vm: '1', attempt: 1, info: {}, where: {}, drag: { code: 0 }, rec: { parts: partsRecord(300, { hero: stairs(period) }) } });
@@ -277,7 +346,7 @@ test('the summary and its table carry the run id, every arm and the Lean verdict
   assert.equal(sm.lost.find((l) => l.arm === 'lift').usable, 1);
   const md = summaryMd(sm);
   assert.match(md, /### drags \(run 123, 1 jobs\)/);
-  assert.match(md, /\| hero \(hero\.exit\) \| unthrottle \| 1\/1 \| 0 \/ 180 \|/);
+  assert.match(md, /\| hero \(hero\.exit\) \| unthrottle \| 1\/1 \| 1 \(1\) \| 16\.67 \| 0 \/ 180 \| 0 \/ 180 \|/);
   assert.match(md, /\| hero\.exit \| agree/);
   assert.equal(JSON.stringify(sm).includes('"gaps"'), false);
 });
