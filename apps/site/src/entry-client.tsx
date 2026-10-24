@@ -1,8 +1,10 @@
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import { App } from './App';
+import { installRootEventsDebug, rootEventsDebugOn } from './debug/root-events';
 import { createClientCache } from './emotion';
 import { ErrorPage } from './ErrorPage';
 import { installFw } from './fw';
+import { QUIET_VARIANT, quietContainer } from './parts/engine.events/quiet';
 import { resolveSearch } from './registry';
 import { installLayerStyle } from './registry/layer-opts';
 import { parseOnly } from './registry/only';
@@ -36,6 +38,9 @@ if (!resolved.ok || only.kind === 'err') {
   });
   // The stage environment is pinned before the first render, so mount-time reads (layout effects of children) see it.
   const pinned = only.kind === 'ok' ? pinEnv(window, only.stage.env) : null;
+  // Before the root exists: React registers its listeners on the container when it is created.
+  if (rootEventsDebugOn(location.search)) installRootEventsDebug({ proto: EventTarget.prototype, win: window, store: window as unknown as Record<string, unknown> });
+  if (resolved.config.variants['engine.events'] === QUIET_VARIANT) quietContainer(rootEl);
   const cache = createClientCache(__FW_ENGINE__, ids);
   const tree = (
     

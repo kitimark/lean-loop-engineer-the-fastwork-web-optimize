@@ -14,7 +14,7 @@ const KW = '[trajectory';
 const KEYS = ['fw', 'preset', 'widths', 'engines', 'debug'];
 const ENGINES = ['both', 'chromium', 'playwright-webkit'];
 /** Lean `probeDebugs`: the page recorders a push may ask for. */
-const DEBUGS = ['nav-transition'];
+const DEBUGS = ['nav-transition', 'root-events'];
 const isWs = (c) => c === ' ' || c === '\t' || c === '\r';
 const trim = (s) => {
   let a = 0;
@@ -96,7 +96,7 @@ function build(lane, kv) {
   if (!ENGINES.includes(p.engines)) return { error: 'engines must be both, chromium or playwright-webkit' };
   const refused = widthsRefusal(lane, p.diagnostic, p.widths, 'add the word diagnostic to the line for a run read by hand');
   if (refused !== null) return { error: refused };
-  if (p.debug !== '' && !DEBUGS.includes(p.debug)) return { error: 'debug must be nav-transition' };
+  if (p.debug !== '' && !DEBUGS.includes(p.debug)) return { error: 'debug must be nav-transition or root-events' };
   return { ok: p };
 }
 

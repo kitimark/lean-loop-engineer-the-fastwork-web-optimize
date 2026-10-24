@@ -4,7 +4,7 @@
 // other run. The recorder request is a TS/JS stand-in with no Lean spec (a run's identity is still decided by armCheck on the search WITHOUT the debug param).
 
 /** The recorders a page can run: `name` is the `fw-debug` value, `field` the key under `window.__fwDebug`. */
-export const DEBUGS = [{ name: 'nav-transition', field: 'navTransition' }];
+export const DEBUGS = [{ name: 'nav-transition', field: 'navTransition' }, { name: 'root-events', field: 'rootEvents' }];
 
 /**
  * Which recorder a run asks for: the env var `FW_DEBUG`, nothing else. On CI the workflow (trajectory-probe.yml) sets it from the
