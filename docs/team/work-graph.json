@@ -19487,7 +19487,8 @@
     "packages/contracts/golden/obs/*.jsonl",
     "apps/runner/src/next*.ts",
     "apps/runner/test/next*.test.ts",
-    "docs/team/handoffs/next-killorphan-reap.md"
+    "docs/team/handoffs/next-killorphan-reap.md",
+    "apps/runner/test/signals.test.ts"
    ],
    "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens."
   },
@@ -19658,9 +19659,18 @@
     "apps/runner/src/slot*.ts",
     "apps/runner/test/reap*.test.ts",
     "docs/team/tools/reap.md",
-    "docs/team/handoffs/reap-exit-fold.md"
+    "docs/team/handoffs/reap-exit-fold.md",
+    "docs/team/tools/watch.md",
+    "docs/team/tools/watch-rules.md",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/watch*.ts",
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/next.jsonl",
+    "apps/runner/test/next*.test.ts",
+    "apps/runner/test/watch*.test.ts"
    ],
-   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino. Plus reap-ef-auto round-2 review follow-ups: (5) reapHeldAlerts calls ops.reapHeld twice per tick and opReapHeld runs inputOf twice: one call returning {held, heldSim}, inputOf bound once in Lean; (6) recordHeld still prints 'REAP advice simBooted' next to the agent.held alert: drop the say() push, keep the reap.jsonl row; (7) slot.ts bootedAll JSON.parse(r.stdout) inside state.lock: try/catch returning []."
+   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino. Plus reap-ef-auto round-2 review follow-ups: (5) reapHeldAlerts calls ops.reapHeld twice per tick and opReapHeld runs inputOf twice: one call returning {held, heldSim}, inputOf bound once in Lean; (6) recordHeld still prints 'REAP advice simBooted' next to the agent.held alert: drop the say() push, keep the reap.jsonl row; (7) slot.ts bootedAll JSON.parse(r.stdout) inside state.lock: try/catch returning []. Plus next-killorphan-reap review follow-ups: (8) docs still describe the old killOrphan rule: reap.md:33 -> 'The `NEXT <id> killOrphan pid= start=` line of `Fw.Obs.Next` is the same held entry, in the agent's own worktree (`kill_iff`).'; watch.md:40 -> 'NEXT ghb-runner killOrphan pid=555 start=1759998680'; watch.md:43 -> '`killOrphan pid start`'; watch-rules.md:48 -> '`agent.held`: the Reap plan holds the loop (pid+start); `NEXT killOrphan` names the same entry.'; (9) ops.reapHeld held entries carry wt from Lean (drop the TS pid+start lookup in next.ts reapHeldFacts) and one gather per watch pass shared by reapHeldAlerts and reapHeldFacts; (10) heldByChild suppression matches pid+start, not pid only (Child gets a start field)."
   },
   {
    "devices": [
