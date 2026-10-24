@@ -16,9 +16,12 @@ Task `countdown-strip-proof`, candidate 4 of `research/notes/2026/10-2x-end-gpu-
 - **Simulator census, MEASURED** (webkit-sim 40081936555 at bbd203c with both flags, against 39897814980 at 540130e9
   with none; the countdown code did not change between the two shas): every zone has 80 `hero-module_face` layers
   before and 8 `hero-module_strip` layers after; no other layer is added or removed in the finish zone.
-- **Gate: no verdict.** Run 40081933958 stopped in the smoke step: `?fw=hero.countdown:strip,morph.countdown:strip`
-  is not prerendered; the prerendered key is `?fw=morph.countdown:strip,hero.countdown:strip`. Both dispatches of
-  the budget are spent.
+- **Gate: no verdict.** Runs 40081933958 and 40089874311 (sha 085bb458, with the morph.countdown strip variant role)
+  both stopped in the smoke step: `?fw=hero.countdown:strip,morph.countdown:strip` is not prerendered; the
+  prerendered key is `?fw=morph.countdown:strip,hero.countdown:strip`. The cause is the dispatch, not the order
+  typed: `store.gate` sorts the flags (`sortFlags`, lean/Fw/Wire/Store.lean:45, used at :111), and the build
+  prerenders a variant followed by the variants it requires (apps/site/src/entry-server.tsx:23), so `fw run --gate`
+  cannot request a variant whose required flag sorts before it. The dispatch budget is spent.
 
 ## Census per zone (pass 1 / pass 2)
 
@@ -73,10 +76,9 @@ in both variants (tolerance 1e-9 relative) and checks the CSS premises of the la
 
 ## Open
 
-- Gate verdict: one dispatch with the prerendered flag order,
-  `pnpm -s fw run --gate --engines both --fw morph.countdown:strip,hero.countdown:strip --ref ci/countdown-strip-proof`.
-  `packages/gate-breakpoints/src/anchors.json` has a strip variant role for hero.countdown and none for
-  morph.countdown, whose `face` role (`[data-fw="morph-countdown-clock"] [data-face]`) finds no node under strip.
-  The morph.countdown entry needs the same variant role (outside this task's writes) before the gate can pass.
-- `fw run --gate` dispatched a flag string the build had not prerendered; a canonical order check before dispatch
-  would have refused it locally.
+- Gate verdict: one dispatch that keeps the prerendered order, which `fw run --gate` cannot make (it sorts):
+  `gh workflow run breakpoint-gate.yml --ref ci/countdown-strip-proof -f engines=both -f fw=morph.countdown:strip,hero.countdown:strip`.
+  The morph.countdown strip variant role is in `packages/gate-breakpoints/src/anchors.json` since 085bb458.
+- Flag order: either the build also prerenders the sorted key of each variant with `requires`, or the gate smoke
+  and page lookup sort the requested flags before the lookup. Both lie outside this task's writes.
+- Strip backing 3.9 times the faces per digit at y 0; the 12 vs 10 cell model does not explain it.
