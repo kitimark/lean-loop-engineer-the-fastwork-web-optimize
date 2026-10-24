@@ -19579,7 +19579,8 @@
     "research/notes/2026/10-2x-hero-copy-floor.md",
     "docs/team/handoffs/pathpix-zoned-pinned.md"
    ],
-   "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run)."
+   "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run).",
+   "evidence": "617e2f7"
   },
   {
    "devices": [
