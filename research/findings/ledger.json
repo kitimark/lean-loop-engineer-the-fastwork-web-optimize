@@ -3571,6 +3571,46 @@
    "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
    "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; a phone pass of the shipped text; then set proved and regenerate the v2-proved preset.",
    "flag": "engine.scroll:unthrottle"
+  },
+  {
+   "id": "platform.glint.offscreen-pause",
+   "n": 66,
+   "part": "platform.glint",
+   "candidate": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "status": "partly-proved",
+   "flags": [
+    "platform.glint:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Fw.Parts.PlatformGlintPause.visible_same_phase, local_time_same: on every frame where the glint plays, after any sequence of observer reports, the SMIL container reads the uninterrupted clock s - b, so the glint local time equals the faithful arm's). Trajectory probe with the flag, both engines, all four widths: run 40092155958 passed.",
+   "mechanism": "CONFIRMED by source (SMILTimeContainer.cpp:94-100,141-162,164-194,196-208 and SVGSVGElement.cpp:551-593 @862f17d: pause freezes elapsed and stops the timer, startTimer returns while paused, setElapsed rebases the clock) and PROVED in Lean (same_run, visible_same_phase, variant_no_ticks_away). The research-note premise that the faithful arm ticks SMIL offscreen does not hold for the glint: the play flag v implies visible (PlatformGlint.inv_step), and the animate pair is mounted only while v, so with the stage away no animation is scheduled and the SMIL timer is not armed (faithful_no_ticks_away, away_ticks_equal). The pause can only remove the ticks of the commit window between the observer report and the unmount (window_gain, at most one per rendering update, 1/60 s or 1/30 s in Low Power Mode, SMILTimeContainer.cpp:42-43).",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintPause.same_run",
+    "Fw.Parts.PlatformGlintPause.visible_same_phase",
+    "Fw.Parts.PlatformGlintPause.local_time_same",
+    "Fw.Parts.PlatformGlintPause.variant_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.faithful_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.away_ticks_equal",
+    "Fw.Parts.PlatformGlintPause.window_gain"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (needs a lead dispatch)",
+    "Breakpoint gate with the flag not run (needs a dispatch with fw)",
+    "Size of the commit window in frames, not measured"
+   ],
+   "premises": [
+    "The observer callback runs before the first frame that can show the glint: the glint needs ratio >= 0.35 and then a 1 s timer, and the pause driver runs before the glint driver in the same callback. Holds by construction in the code, tested in pause.test.ts (joint cases)",
+    "The dash svg clock began before the first report (inline svg): INFERRED",
+    "Chromium's SMIL container has the same pause and seek semantics: INFERRED, source not read",
+    "getCurrentTime and setCurrentTime go through float32 seconds, an error far below a frame: not modelled"
+   ],
+   "v1Evidence": "",
+   "lesson": "Read what the faithful arm already unmounts before pausing it: the glint's play flag removes the animations whenever the stage is under 35 percent visible, so a pause adds a clock seek (setElapsed resets every scheduled animation) for a saving limited to one commit window. Prove the baseline's offscreen work is zero first (faithful_no_ticks_away) and the candidate is a no-op by construction.",
+   "evidence": "40092155958 (platform.glint:offscreen-pause) trajectory probe, flag, engines both, all widths",
+   "next": "Lead dispatch of the gate and the offscreen count with fw=platform.glint:offscreen-pause; if the commit window shows no ticks, set the row to refuted and drop the flag",
+   "flag": "platform.glint:offscreen-pause"
   }
  ],
  "notes": [
