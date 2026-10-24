@@ -1,0 +1,4640 @@
+[
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 5.89,
+    "median": 7.07,
+    "max": 7.8,
+    "perRun": [
+     7.07,
+     7.8,
+     5.89
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 8,
+    "median": 10,
+    "max": 11,
+    "perRun": [
+     10,
+     8,
+     11
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 583,
+    "median": 600,
+    "max": 600,
+    "perRun": [
+     600,
+     600,
+     583
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 43.2,
+    "median": 43.59,
+    "max": 51.81,
+    "perRun": [
+     51.81,
+     43.59,
+     43.2
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 45.17,
+    "median": 45.58,
+    "max": 54.17,
+    "perRun": [
+     54.17,
+     45.58,
+     45.17
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 10,
+    "median": 12,
+    "max": 12,
+    "perRun": [
+     12,
+     10,
+     12
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 383,
+    "median": 417,
+    "max": 483,
+    "perRun": [
+     417,
+     383,
+     483
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 33.4,
+    "max": 50,
+    "perRun": [
+     50,
+     33.3,
+     33.4
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 5.45,
+    "median": 5.57,
+    "max": 8.24,
+    "perRun": [
+     5.57,
+     8.24,
+     5.45
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 10,
+    "median": 11,
+    "max": 13,
+    "perRun": [
+     11,
+     10,
+     13
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 567,
+    "median": 583,
+    "max": 583,
+    "perRun": [
+     567,
+     583,
+     583
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 33.76,
+    "median": 39.98,
+    "max": 60.44,
+    "perRun": [
+     33.76,
+     60.44,
+     39.98
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 35.32,
+    "median": 41.79,
+    "max": 63.19,
+    "perRun": [
+     35.32,
+     63.19,
+     41.79
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 12,
+    "median": 13,
+    "max": 15,
+    "perRun": [
+     13,
+     12,
+     15
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 167,
+    "median": 183,
+    "max": 183,
+    "perRun": [
+     183,
+     167,
+     183
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 33.4,
+    "max": 33.4,
+    "perRun": [
+     33.4,
+     33.3,
+     33.4
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 5.57,
+    "median": 5.88,
+    "max": 5.94,
+    "perRun": [
+     5.88,
+     5.94,
+     5.57
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 9,
+    "median": 12,
+    "max": 12,
+    "perRun": [
+     12,
+     9,
+     12
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 567,
+    "median": 583,
+    "max": 583,
+    "perRun": [
+     583,
+     567,
+     583
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 40.83,
+    "median": 43.14,
+    "max": 43.53,
+    "perRun": [
+     43.14,
+     43.53,
+     40.83
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 42.68,
+    "median": 45.09,
+    "max": 45.5,
+    "perRun": [
+     45.09,
+     45.5,
+     42.68
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 11,
+    "median": 13,
+    "max": 15,
+    "perRun": [
+     15,
+     11,
+     13
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 417,
+    "median": 417,
+    "max": 433,
+    "perRun": [
+     417,
+     417,
+     433
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3,
+     33.3,
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 4.38,
+    "median": 5.77,
+    "max": 5.88,
+    "perRun": [
+     5.88,
+     5.77,
+     4.38
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 8,
+    "median": 15,
+    "max": 18,
+    "perRun": [
+     15,
+     8,
+     18
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 567,
+    "median": 567,
+    "max": 583,
+    "perRun": [
+     567,
+     567,
+     583
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 27.58,
+    "median": 28.23,
+    "max": 36.99,
+    "perRun": [
+     28.23,
+     36.99,
+     27.58
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 28.83,
+    "median": 30.19,
+    "max": 38.66,
+    "perRun": [
+     30.19,
+     38.66,
+     28.83
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 11,
+    "median": 16,
+    "max": 21,
+    "perRun": [
+     16,
+     11,
+     21
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 167,
+    "median": 183,
+    "max": 200,
+    "perRun": [
+     200,
+     167,
+     183
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3,
+     33.3,
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 48.03,
+    "median": 48.09,
+    "max": 48.27,
+    "perRun": [
+     48.03,
+     48.09,
+     48.27
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 12,
+    "median": 21,
+    "max": 27,
+    "perRun": [
+     27,
+     21,
+     12
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 316,
+    "median": 340,
+    "max": 358,
+    "perRun": [
+     358,
+     340,
+     316
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 48.03,
+    "median": 48.04,
+    "max": 48.04,
+    "perRun": [
+     48.03,
+     48.04,
+     48.04
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 27,
+    "median": 34,
+    "max": 37,
+    "perRun": [
+     37,
+     34,
+     27
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 146,
+    "median": 153,
+    "max": 158,
+    "perRun": [
+     146,
+     153,
+     158
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 48.05,
+    "median": 48.09,
+    "max": 48.16,
+    "perRun": [
+     48.05,
+     48.09,
+     48.16
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 21,
+    "median": 22,
+    "max": 27,
+    "perRun": [
+     27,
+     22,
+     21
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 347,
+    "median": 352,
+    "max": 360,
+    "perRun": [
+     352,
+     347,
+     360
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 48.03,
+    "median": 48.03,
+    "max": 48.06,
+    "perRun": [
+     48.03,
+     48.06,
+     48.03
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 31,
+    "median": 32,
+    "max": 36,
+    "perRun": [
+     36,
+     32,
+     31
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 135,
+    "median": 143,
+    "max": 160,
+    "perRun": [
+     143,
+     135,
+     160
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 6.51,
+    "median": 10.09,
+    "max": 12.71,
+    "perRun": [
+     10.09,
+     12.71,
+     6.51
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 3,
+    "median": 4,
+    "max": 5,
+    "perRun": [
+     5,
+     3,
+     4
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 667,
+    "median": 733,
+    "max": 850,
+    "perRun": [
+     733,
+     850,
+     667
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 55.88,
+    "median": 78.39,
+    "max": 99.39,
+    "perRun": [
+     78.39,
+     99.39,
+     55.88
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 57.34,
+    "median": 81.14,
+    "max": 102.56,
+    "perRun": [
+     81.14,
+     102.56,
+     57.34
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 5,
+    "median": 7,
+    "max": 7,
+    "perRun": [
+     7,
+     5,
+     7
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 400,
+    "median": 417,
+    "max": 483,
+    "perRun": [
+     400,
+     417,
+     483
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 50,
+    "perRun": [
+     33.3,
+     50,
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 2.91,
+    "median": 3.01,
+    "max": 4.02,
+    "perRun": [
+     2.91,
+     4.02,
+     3.01
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 8,
+    "median": 12,
+    "max": 12,
+    "perRun": [
+     12,
+     8,
+     12
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 550,
+    "median": 583,
+    "max": 583,
+    "perRun": [
+     550,
+     583,
+     583
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 22.92,
+    "median": 22.95,
+    "max": 38.15,
+    "perRun": [
+     22.95,
+     38.15,
+     22.92
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 23.56,
+    "median": 23.66,
+    "max": 39.17,
+    "perRun": [
+     23.56,
+     39.17,
+     23.66
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 10,
+    "median": 14,
+    "max": 15,
+    "perRun": [
+     14,
+     10,
+     15
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 183,
+    "median": 183,
+    "max": 183,
+    "perRun": [
+     183,
+     183,
+     183
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.4,
+    "median": 33.4,
+    "max": 66.6,
+    "perRun": [
+     33.4,
+     66.6,
+     33.4
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "orig",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 2.83,
+    "median": 4.84,
+    "max": 4.87,
+    "perRun": [
+     4.84,
+     4.87,
+     2.83
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 7,
+    "median": 10,
+    "max": 13,
+    "perRun": [
+     10,
+     7,
+     13
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 533,
+    "median": 583,
+    "max": 633,
+    "perRun": [
+     633,
+     583,
+     533
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 26.89,
+    "median": 45.95,
+    "max": 46.3,
+    "perRun": [
+     45.95,
+     46.3,
+     26.89
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 27.61,
+    "median": 47.16,
+    "max": 47.51,
+    "perRun": [
+     47.16,
+     47.51,
+     27.61
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 9,
+    "median": 10,
+    "max": 17,
+    "perRun": [
+     10,
+     9,
+     17
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 400,
+    "median": 450,
+    "max": 483,
+    "perRun": [
+     483,
+     450,
+     400
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 49.9,
+    "max": 66.6,
+    "perRun": [
+     49.9,
+     66.6,
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 2.35,
+    "median": 4.61,
+    "max": 5.36,
+    "perRun": [
+     4.61,
+     5.36,
+     2.35
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 7,
+    "median": 10,
+    "max": 16,
+    "perRun": [
+     10,
+     7,
+     16
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 533,
+    "median": 550,
+    "max": 583,
+    "perRun": [
+     583,
+     533,
+     550
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 20.74,
+    "median": 35.59,
+    "max": 39.83,
+    "perRun": [
+     39.83,
+     35.59,
+     20.74
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 21.28,
+    "median": 36.53,
+    "max": 40.89,
+    "perRun": [
+     40.89,
+     36.53,
+     21.28
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 8,
+    "median": 12,
+    "max": 18,
+    "perRun": [
+     12,
+     8,
+     18
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 167,
+    "median": 200,
+    "max": 200,
+    "perRun": [
+     200,
+     167,
+     200
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 33.3,
+    "median": 66.6,
+    "max": 66.6,
+    "perRun": [
+     66.6,
+     66.6,
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 16,
+    "median": 16,
+    "max": 16,
+    "perRun": [
+     16,
+     16,
+     16
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 74.39,
+    "median": 78.41,
+    "max": 78.41,
+    "perRun": [
+     74.39,
+     78.41,
+     78.41
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 77.03,
+    "median": 80.64,
+    "max": 80.79,
+    "perRun": [
+     77.03,
+     80.64,
+     80.79
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 1,
+    "median": 1,
+    "max": 2,
+    "perRun": [
+     1,
+     1,
+     2
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 236,
+    "median": 257,
+    "max": 272,
+    "perRun": [
+     272,
+     236,
+     257
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 40,
+    "median": 44,
+    "max": 44.5,
+    "perRun": [
+     44,
+     40,
+     44.5
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 16,
+    "median": 16,
+    "max": 16,
+    "perRun": [
+     16,
+     16,
+     16
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 46.39,
+    "median": 48.12,
+    "max": 53.49,
+    "perRun": [
+     46.39,
+     53.49,
+     48.12
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 48.72,
+    "median": 49.39,
+    "max": 56.33,
+    "perRun": [
+     48.72,
+     56.33,
+     49.39
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 6,
+    "median": 6,
+    "max": 6,
+    "perRun": [
+     6,
+     6,
+     6
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 248,
+    "perRun": [
+     0,
+     248,
+     0
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 39,
+    "median": 52.5,
+    "max": 55,
+    "perRun": [
+     39,
+     55,
+     52.5
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "orig",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "hero-exit",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 16,
+    "median": 16,
+    "max": 16,
+    "perRun": [
+     16,
+     16,
+     16
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 32,
+    "median": 32,
+    "max": 32,
+    "perRun": [
+     32,
+     32,
+     32
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 32.06,
+    "median": 32.09,
+    "max": 32.33,
+    "perRun": [
+     32.06,
+     32.09,
+     32.33
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 8,
+    "median": 12,
+    "max": 16,
+    "perRun": [
+     16,
+     12,
+     8
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 375,
+    "median": 392,
+    "max": 408,
+    "perRun": [
+     392,
+     408,
+     375
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "hero-entry",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 3,
+    "min": 16,
+    "median": 16,
+    "max": 16,
+    "perRun": [
+     16,
+     16,
+     16
+    ]
+   },
+   "padL.between": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 3,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 3,
+    "min": 32,
+    "median": 32,
+    "max": 32,
+    "perRun": [
+     32,
+     32,
+     32
+    ]
+   },
+   "langX.maxJump": {
+    "n": 3,
+    "min": 32.04,
+    "median": 32.04,
+    "max": 32.04,
+    "perRun": [
+     32.04,
+     32.04,
+     32.04
+    ]
+   },
+   "langX.between": {
+    "n": 3,
+    "min": 28,
+    "median": 31,
+    "max": 35,
+    "perRun": [
+     35,
+     31,
+     28
+    ]
+   },
+   "op.arriveMs": {
+    "n": 3,
+    "min": 139,
+    "median": 156,
+    "max": 157,
+    "perRun": [
+     139,
+     157,
+     156
+    ]
+   },
+   "cadence.ms": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "morph-open",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful",
+  "seq": "morph-close",
+  "runs": [
+   "40082730706",
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "orig",
+  "seq": "hero-exit",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 2,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 2,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 2,
+    "min": 48.16,
+    "median": 48.76,
+    "max": 49.36,
+    "perRun": [
+     48.16,
+     49.36
+    ]
+   },
+   "langX.between": {
+    "n": 2,
+    "min": 7,
+    "median": 12.5,
+    "max": 18,
+    "perRun": [
+     18,
+     7
+    ]
+   },
+   "op.arriveMs": {
+    "n": 2,
+    "min": 255,
+    "median": 294,
+    "max": 333,
+    "perRun": [
+     333,
+     255
+    ]
+   },
+   "cadence.ms": {
+    "n": 2,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "orig",
+  "seq": "hero-entry",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 2,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 2,
+    "min": 48,
+    "median": 50.09,
+    "max": 52.17,
+    "perRun": [
+     48,
+     52.17
+    ]
+   },
+   "langX.maxJump": {
+    "n": 2,
+    "min": 48.06,
+    "median": 51.31,
+    "max": 54.55,
+    "perRun": [
+     48.06,
+     54.55
+    ]
+   },
+   "langX.between": {
+    "n": 2,
+    "min": 20,
+    "median": 25,
+    "max": 30,
+    "perRun": [
+     30,
+     20
+    ]
+   },
+   "op.arriveMs": {
+    "n": 2,
+    "min": 144,
+    "median": 146.5,
+    "max": 149,
+    "perRun": [
+     144,
+     149
+    ]
+   },
+   "cadence.ms": {
+    "n": 2,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "orig",
+  "seq": "morph-open",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "orig",
+  "seq": "morph-close",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful",
+  "seq": "hero-exit",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 2,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 2,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 2,
+    "min": 48.09,
+    "median": 48.27,
+    "max": 48.44,
+    "perRun": [
+     48.09,
+     48.44
+    ]
+   },
+   "langX.between": {
+    "n": 2,
+    "min": 13,
+    "median": 17.5,
+    "max": 22,
+    "perRun": [
+     22,
+     13
+    ]
+   },
+   "op.arriveMs": {
+    "n": 2,
+    "min": 307,
+    "median": 328,
+    "max": 349,
+    "perRun": [
+     349,
+     307
+    ]
+   },
+   "cadence.ms": {
+    "n": 2,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful",
+  "seq": "hero-entry",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 2,
+    "min": 24,
+    "median": 24,
+    "max": 24,
+    "perRun": [
+     24,
+     24
+    ]
+   },
+   "padL.between": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 2,
+    "min": 0,
+    "median": 0,
+    "max": 0,
+    "perRun": [
+     0,
+     0
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 2,
+    "min": 48,
+    "median": 48,
+    "max": 48,
+    "perRun": [
+     48,
+     48
+    ]
+   },
+   "langX.maxJump": {
+    "n": 2,
+    "min": 48.07,
+    "median": 48.1,
+    "max": 48.12,
+    "perRun": [
+     48.07,
+     48.12
+    ]
+   },
+   "langX.between": {
+    "n": 2,
+    "min": 24,
+    "median": 27.5,
+    "max": 31,
+    "perRun": [
+     31,
+     24
+    ]
+   },
+   "op.arriveMs": {
+    "n": 2,
+    "min": 139,
+    "median": 146,
+    "max": 153,
+    "perRun": [
+     139,
+     153
+    ]
+   },
+   "cadence.ms": {
+    "n": 2,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17,
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful",
+  "seq": "morph-open",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful",
+  "seq": "morph-close",
+  "runs": [
+   "40083514606",
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 4.41,
+    "median": 4.41,
+    "max": 4.41,
+    "perRun": [
+     4.41
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 16,
+    "median": 16,
+    "max": 16,
+    "perRun": [
+     16
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 591.5,
+    "median": 591.5,
+    "max": 591.5,
+    "perRun": [
+     591.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 32.34,
+    "median": 32.34,
+    "max": 32.34,
+    "perRun": [
+     32.34
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 33.81,
+    "median": 33.81,
+    "max": 33.81,
+    "perRun": [
+     33.81
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 391.5,
+    "median": 391.5,
+    "max": 391.5,
+    "perRun": [
+     391.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.52,
+    "median": 3.52,
+    "max": 3.52,
+    "perRun": [
+     3.52
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 14.5,
+    "median": 14.5,
+    "max": 14.5,
+    "perRun": [
+     14.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 600,
+    "median": 600,
+    "max": 600,
+    "perRun": [
+     600
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 24.55,
+    "median": 24.55,
+    "max": 24.55,
+    "perRun": [
+     24.55
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 25.66,
+    "median": 25.66,
+    "max": 25.66,
+    "perRun": [
+     25.66
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 16,
+    "median": 16,
+    "max": 16,
+    "perRun": [
+     16
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 167,
+    "median": 167,
+    "max": 167,
+    "perRun": [
+     167
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 5.41,
+    "median": 5.41,
+    "max": 5.41,
+    "perRun": [
+     5.41
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 12,
+    "median": 12,
+    "max": 12,
+    "perRun": [
+     12
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 567,
+    "median": 567,
+    "max": 567,
+    "perRun": [
+     567
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 39.64,
+    "median": 39.64,
+    "max": 39.64,
+    "perRun": [
+     39.64
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 41.44,
+    "median": 41.44,
+    "max": 41.44,
+    "perRun": [
+     41.44
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 15.5,
+    "median": 15.5,
+    "max": 15.5,
+    "perRun": [
+     15.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 408.5,
+    "median": 408.5,
+    "max": 408.5,
+    "perRun": [
+     408.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.35,
+    "median": 33.35,
+    "max": 33.35,
+    "perRun": [
+     33.35
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 5.65,
+    "median": 5.65,
+    "max": 5.65,
+    "perRun": [
+     5.65
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 12.5,
+    "median": 12.5,
+    "max": 12.5,
+    "perRun": [
+     12.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 583.5,
+    "median": 583.5,
+    "max": 583.5,
+    "perRun": [
+     583.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 41.25,
+    "median": 41.25,
+    "max": 41.25,
+    "perRun": [
+     41.25
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 43.14,
+    "median": 43.14,
+    "max": 43.14,
+    "perRun": [
+     43.14
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 14.5,
+    "median": 14.5,
+    "max": 14.5,
+    "perRun": [
+     14.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 167,
+    "median": 167,
+    "max": 167,
+    "perRun": [
+     167
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 4.78,
+    "median": 4.78,
+    "max": 4.78,
+    "perRun": [
+     4.78
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 11.5,
+    "median": 11.5,
+    "max": 11.5,
+    "perRun": [
+     11.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 600,
+    "median": 600,
+    "max": 600,
+    "perRun": [
+     600
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 35,
+    "median": 35,
+    "max": 35,
+    "perRun": [
+     35
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 36.58,
+    "median": 36.58,
+    "max": 36.58,
+    "perRun": [
+     36.58
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 12,
+    "median": 12,
+    "max": 12,
+    "perRun": [
+     12
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 400,
+    "median": 400,
+    "max": 400,
+    "perRun": [
+     400
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.4,
+    "median": 33.4,
+    "max": 33.4,
+    "perRun": [
+     33.4
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 5.17,
+    "median": 5.17,
+    "max": 5.17,
+    "perRun": [
+     5.17
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 14,
+    "median": 14,
+    "max": 14,
+    "perRun": [
+     14
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 600,
+    "median": 600,
+    "max": 600,
+    "perRun": [
+     600
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 30.42,
+    "median": 30.42,
+    "max": 30.42,
+    "perRun": [
+     30.42
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 32.14,
+    "median": 32.14,
+    "max": 32.14,
+    "perRun": [
+     32.14
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 15,
+    "median": 15,
+    "max": 15,
+    "perRun": [
+     15
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 183.5,
+    "median": 183.5,
+    "max": 183.5,
+    "perRun": [
+     183.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.35,
+    "median": 33.35,
+    "max": 33.35,
+    "perRun": [
+     33.35
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.06,
+    "median": 3.06,
+    "max": 3.06,
+    "perRun": [
+     3.06
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 24.5,
+    "median": 24.5,
+    "max": 24.5,
+    "perRun": [
+     24.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 511,
+    "median": 511,
+    "max": 511,
+    "perRun": [
+     511
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 22.41,
+    "median": 22.41,
+    "max": 22.41,
+    "perRun": [
+     22.41
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 23.42,
+    "median": 23.42,
+    "max": 23.42,
+    "perRun": [
+     23.42
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 27.5,
+    "median": 27.5,
+    "max": 27.5,
+    "perRun": [
+     27.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 328.5,
+    "median": 328.5,
+    "max": 328.5,
+    "perRun": [
+     328.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 5.49,
+    "median": 5.49,
+    "max": 5.49,
+    "perRun": [
+     5.49
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 21.5,
+    "median": 21.5,
+    "max": 21.5,
+    "perRun": [
+     21.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 540.5,
+    "median": 540.5,
+    "max": 540.5,
+    "perRun": [
+     540.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 34.08,
+    "median": 34.08,
+    "max": 34.08,
+    "perRun": [
+     34.08
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 35.63,
+    "median": 35.63,
+    "max": 35.63,
+    "perRun": [
+     35.63
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 26.5,
+    "median": 26.5,
+    "max": 26.5,
+    "perRun": [
+     26.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 160.5,
+    "median": 160.5,
+    "max": 160.5,
+    "perRun": [
+     160.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.81,
+    "median": 3.81,
+    "max": 3.81,
+    "perRun": [
+     3.81
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 24.5,
+    "median": 24.5,
+    "max": 24.5,
+    "perRun": [
+     24.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 527.5,
+    "median": 527.5,
+    "max": 527.5,
+    "perRun": [
+     527.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 27.97,
+    "median": 27.97,
+    "max": 27.97,
+    "perRun": [
+     27.97
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 29.23,
+    "median": 29.23,
+    "max": 29.23,
+    "perRun": [
+     29.23
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 27,
+    "median": 27,
+    "max": 27,
+    "perRun": [
+     27
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 349,
+    "median": 349,
+    "max": 349,
+    "perRun": [
+     349
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 6.25,
+    "median": 6.25,
+    "max": 6.25,
+    "perRun": [
+     6.25
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 20,
+    "median": 20,
+    "max": 20,
+    "perRun": [
+     20
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 533.5,
+    "median": 533.5,
+    "max": 533.5,
+    "perRun": [
+     533.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 26.63,
+    "median": 26.63,
+    "max": 26.63,
+    "perRun": [
+     26.63
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 28.65,
+    "median": 28.65,
+    "max": 28.65,
+    "perRun": [
+     28.65
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 25,
+    "median": 25,
+    "max": 25,
+    "perRun": [
+     25
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 154.5,
+    "median": 154.5,
+    "max": 154.5,
+    "perRun": [
+     154.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.82,
+    "median": 3.82,
+    "max": 3.82,
+    "perRun": [
+     3.82
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 22.5,
+    "median": 22.5,
+    "max": 22.5,
+    "perRun": [
+     22.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 519,
+    "median": 519,
+    "max": 519,
+    "perRun": [
+     519
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 28,
+    "median": 28,
+    "max": 28,
+    "perRun": [
+     28
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 29.28,
+    "median": 29.28,
+    "max": 29.28,
+    "perRun": [
+     29.28
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 25.5,
+    "median": 25.5,
+    "max": 25.5,
+    "perRun": [
+     25.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 340,
+    "median": 340,
+    "max": 340,
+    "perRun": [
+     340
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 2.52,
+    "median": 2.52,
+    "max": 2.52,
+    "perRun": [
+     2.52
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 25.5,
+    "median": 25.5,
+    "max": 25.5,
+    "perRun": [
+     25.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 529,
+    "median": 529,
+    "max": 529,
+    "perRun": [
+     529
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 16.54,
+    "median": 16.54,
+    "max": 16.54,
+    "perRun": [
+     16.54
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 17.29,
+    "median": 17.29,
+    "max": 17.29,
+    "perRun": [
+     17.29
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 31,
+    "median": 31,
+    "max": 31,
+    "perRun": [
+     31
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 132.5,
+    "median": 132.5,
+    "max": 132.5,
+    "perRun": [
+     132.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful+logical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 2.81,
+    "median": 2.81,
+    "max": 2.81,
+    "perRun": [
+     2.81
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 26.5,
+    "median": 26.5,
+    "max": 26.5,
+    "perRun": [
+     26.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 517,
+    "median": 517,
+    "max": 517,
+    "perRun": [
+     517
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 20.56,
+    "median": 20.56,
+    "max": 20.56,
+    "perRun": [
+     20.56
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 21.5,
+    "median": 21.5,
+    "max": 21.5,
+    "perRun": [
+     21.5
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 29,
+    "median": 29,
+    "max": 29,
+    "perRun": [
+     29
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 339,
+    "median": 339,
+    "max": 339,
+    "perRun": [
+     339
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful+logical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.8,
+    "median": 3.8,
+    "max": 3.8,
+    "perRun": [
+     3.8
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 27.5,
+    "median": 27.5,
+    "max": 27.5,
+    "perRun": [
+     27.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 537,
+    "median": 537,
+    "max": 537,
+    "perRun": [
+     537
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 27.8,
+    "median": 27.8,
+    "max": 27.8,
+    "perRun": [
+     27.8
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 29.07,
+    "median": 29.07,
+    "max": 29.07,
+    "perRun": [
+     29.07
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 32,
+    "median": 32,
+    "max": 32,
+    "perRun": [
+     32
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 136,
+    "median": 136,
+    "max": 136,
+    "perRun": [
+     136
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful+logical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 1280,
+  "engine": "safari",
+  "role": "faithful+logical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 2.51,
+    "median": 2.51,
+    "max": 2.51,
+    "perRun": [
+     2.51
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 550,
+    "median": 550,
+    "max": 550,
+    "perRun": [
+     550
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 23.84,
+    "median": 23.84,
+    "max": 23.84,
+    "perRun": [
+     23.84
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 24.46,
+    "median": 24.46,
+    "max": 24.46,
+    "perRun": [
+     24.46
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 21,
+    "median": 21,
+    "max": 21,
+    "perRun": [
+     21
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 400,
+    "median": 400,
+    "max": 400,
+    "perRun": [
+     400
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 25,
+    "median": 25,
+    "max": 25,
+    "perRun": [
+     25
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.89,
+    "median": 3.89,
+    "max": 3.89,
+    "perRun": [
+     3.89
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 11,
+    "median": 11,
+    "max": 11,
+    "perRun": [
+     11
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 558,
+    "median": 558,
+    "max": 558,
+    "perRun": [
+     558
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 26.73,
+    "median": 26.73,
+    "max": 26.73,
+    "perRun": [
+     26.73
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 27.42,
+    "median": 27.42,
+    "max": 27.42,
+    "perRun": [
+     27.42
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 13.5,
+    "median": 13.5,
+    "max": 13.5,
+    "perRun": [
+     13.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 192,
+    "median": 192,
+    "max": 192,
+    "perRun": [
+     192
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 41.6,
+    "median": 41.6,
+    "max": 41.6,
+    "perRun": [
+     41.6
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+logical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.97,
+    "median": 3.97,
+    "max": 3.97,
+    "perRun": [
+     3.97
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 14,
+    "median": 14,
+    "max": 14,
+    "perRun": [
+     14
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 558.5,
+    "median": 558.5,
+    "max": 558.5,
+    "perRun": [
+     558.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 36.12,
+    "median": 36.12,
+    "max": 36.12,
+    "perRun": [
+     36.12
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 37.11,
+    "median": 37.11,
+    "max": 37.11,
+    "perRun": [
+     37.11
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 383,
+    "median": 383,
+    "max": 383,
+    "perRun": [
+     383
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.23,
+    "median": 3.23,
+    "max": 3.23,
+    "perRun": [
+     3.23
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 12.5,
+    "median": 12.5,
+    "max": 12.5,
+    "perRun": [
+     12.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 558.5,
+    "median": 558.5,
+    "max": 558.5,
+    "perRun": [
+     558.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 30.69,
+    "median": 30.69,
+    "max": 30.69,
+    "perRun": [
+     30.69
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 31.5,
+    "median": 31.5,
+    "max": 31.5,
+    "perRun": [
+     31.5
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 14,
+    "median": 14,
+    "max": 14,
+    "perRun": [
+     14
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 167,
+    "median": 167,
+    "max": 167,
+    "perRun": [
+     167
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.3,
+    "median": 33.3,
+    "max": 33.3,
+    "perRun": [
+     33.3
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+physical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 2.66,
+    "median": 2.66,
+    "max": 2.66,
+    "perRun": [
+     2.66
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 13.5,
+    "median": 13.5,
+    "max": 13.5,
+    "perRun": [
+     13.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 575,
+    "median": 575,
+    "max": 575,
+    "perRun": [
+     575
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 25.27,
+    "median": 25.27,
+    "max": 25.27,
+    "perRun": [
+     25.27
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 25.93,
+    "median": 25.93,
+    "max": 25.93,
+    "perRun": [
+     25.93
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 15.5,
+    "median": 15.5,
+    "max": 15.5,
+    "perRun": [
+     15.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 417,
+    "median": 417,
+    "max": 417,
+    "perRun": [
+     417
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 25.05,
+    "median": 25.05,
+    "max": 25.05,
+    "perRun": [
+     25.05
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.4,
+    "median": 3.4,
+    "max": 3.4,
+    "perRun": [
+     3.4
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 13,
+    "median": 13,
+    "max": 13,
+    "perRun": [
+     13
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 575,
+    "median": 575,
+    "max": 575,
+    "perRun": [
+     575
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 26.67,
+    "median": 26.67,
+    "max": 26.67,
+    "perRun": [
+     26.67
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 27.38,
+    "median": 27.38,
+    "max": 27.38,
+    "perRun": [
+     27.38
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 15.5,
+    "median": 15.5,
+    "max": 15.5,
+    "perRun": [
+     15.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 225,
+    "median": 225,
+    "max": 225,
+    "perRun": [
+     225
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 33.4,
+    "median": 33.4,
+    "max": 33.4,
+    "perRun": [
+     33.4
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "chromium",
+  "role": "faithful+padding",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.89,
+    "median": 3.89,
+    "max": 3.89,
+    "perRun": [
+     3.89
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 9,
+    "median": 9,
+    "max": 9,
+    "perRun": [
+     9
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 469,
+    "median": 469,
+    "max": 469,
+    "perRun": [
+     469
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 36.97,
+    "median": 36.97,
+    "max": 36.97,
+    "perRun": [
+     36.97
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 37.94,
+    "median": 37.94,
+    "max": 37.94,
+    "perRun": [
+     37.94
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 11,
+    "median": 11,
+    "max": 11,
+    "perRun": [
+     11
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 426.5,
+    "median": 426.5,
+    "max": 426.5,
+    "perRun": [
+     426.5
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 1.8,
+    "median": 1.8,
+    "max": 1.8,
+    "perRun": [
+     1.8
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 20.5,
+    "median": 20.5,
+    "max": 20.5,
+    "perRun": [
+     20.5
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 511.5,
+    "median": 511.5,
+    "max": 511.5,
+    "perRun": [
+     511.5
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 16.51,
+    "median": 16.51,
+    "max": 16.51,
+    "perRun": [
+     16.51
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 16.94,
+    "median": 16.94,
+    "max": 16.94,
+    "perRun": [
+     16.94
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 27,
+    "median": 27,
+    "max": 27,
+    "perRun": [
+     27
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 157,
+    "median": 157,
+    "max": 157,
+    "perRun": [
+     157
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+logical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.33,
+    "median": 3.33,
+    "max": 3.33,
+    "perRun": [
+     3.33
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 11,
+    "median": 11,
+    "max": 11,
+    "perRun": [
+     11
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 477,
+    "median": 477,
+    "max": 477,
+    "perRun": [
+     477
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 31.57,
+    "median": 31.57,
+    "max": 31.57,
+    "perRun": [
+     31.57
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 32.4,
+    "median": 32.4,
+    "max": 32.4,
+    "perRun": [
+     32.4
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 13,
+    "median": 13,
+    "max": 13,
+    "perRun": [
+     13
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 416,
+    "median": 416,
+    "max": 416,
+    "perRun": [
+     416
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 1.89,
+    "median": 1.89,
+    "max": 1.89,
+    "perRun": [
+     1.89
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 23,
+    "median": 23,
+    "max": 23,
+    "perRun": [
+     23
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 509,
+    "median": 509,
+    "max": 509,
+    "perRun": [
+     509
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 12.68,
+    "median": 12.68,
+    "max": 12.68,
+    "perRun": [
+     12.68
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 13.02,
+    "median": 13.02,
+    "max": 13.02,
+    "perRun": [
+     13.02
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 29.5,
+    "median": 29.5,
+    "max": 29.5,
+    "perRun": [
+     29.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 158,
+    "median": 158,
+    "max": 158,
+    "perRun": [
+     158
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+physical",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "hero-exit",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 3.56,
+    "median": 3.56,
+    "max": 3.56,
+    "perRun": [
+     3.56
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 13,
+    "median": 13,
+    "max": 13,
+    "perRun": [
+     13
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 469,
+    "median": 469,
+    "max": 469,
+    "perRun": [
+     469
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 33.75,
+    "median": 33.75,
+    "max": 33.75,
+    "perRun": [
+     33.75
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 34.64,
+    "median": 34.64,
+    "max": 34.64,
+    "perRun": [
+     34.64
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 15.5,
+    "median": 15.5,
+    "max": 15.5,
+    "perRun": [
+     15.5
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 363,
+    "median": 363,
+    "max": 363,
+    "perRun": [
+     363
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "hero-entry",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {
+   "padL.maxJump": {
+    "n": 1,
+    "min": 2.85,
+    "median": 2.85,
+    "max": 2.85,
+    "perRun": [
+     2.85
+    ]
+   },
+   "padL.between": {
+    "n": 1,
+    "min": 22,
+    "median": 22,
+    "max": 22,
+    "perRun": [
+     22
+    ]
+   },
+   "padL.arriveMs": {
+    "n": 1,
+    "min": 507,
+    "median": 507,
+    "max": 507,
+    "perRun": [
+     507
+    ]
+   },
+   "earnW.maxJump": {
+    "n": 1,
+    "min": 15.89,
+    "median": 15.89,
+    "max": 15.89,
+    "perRun": [
+     15.89
+    ]
+   },
+   "langX.maxJump": {
+    "n": 1,
+    "min": 16.38,
+    "median": 16.38,
+    "max": 16.38,
+    "perRun": [
+     16.38
+    ]
+   },
+   "langX.between": {
+    "n": 1,
+    "min": 29,
+    "median": 29,
+    "max": 29,
+    "perRun": [
+     29
+    ]
+   },
+   "op.arriveMs": {
+    "n": 1,
+    "min": 144,
+    "median": 144,
+    "max": 144,
+    "perRun": [
+     144
+    ]
+   },
+   "cadence.ms": {
+    "n": 1,
+    "min": 17,
+    "median": 17,
+    "max": 17,
+    "perRun": [
+     17
+    ]
+   }
+  }
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "morph-open",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ },
+ {
+  "width": 390,
+  "engine": "playwright-webkit",
+  "role": "faithful+padding",
+  "seq": "morph-close",
+  "runs": [
+   "40084115382"
+  ],
+  "metrics": {}
+ }
+]
