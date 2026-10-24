@@ -1,7 +1,7 @@
 branch: worktree-wf_8d277336-310-1 (CI branch ci/webkit-morph-walk-noise)
 worktree: .claude/worktrees/wf_8d277336-310-1
-last commit: dd1b906ed (code); handoff commit follows
-CI runs: trajectory-probe 40122382227 (push 1 of 3, sha a8c25507, fw=engine.scroll:batched engines=playwright-webkit debug=nav-transition) in_progress
+last commit: see git log (code: extra cap 8, yml reverted to the Lean 15 min cap; the pushed run 1 had cap 15 and a 40 min timeout)
+CI runs: trajectory-probe 40122382227 (push 1 of 3, sha a8c25507, fw=engine.scroll:batched engines=playwright-webkit debug=nav-transition) in_progress (apple legs 390_641 running, 640_1280 queued at 25 min; Linux WebKit legs done)
 
 Verified (local, not a result): Lean `lake build Fw.Gate.Trajectory` green; golden regenerated from Lean (383 lines);
 `node --test test/trajectory.test.mjs` 423 pass; one local Playwright WebKit debug run at 390 showed the cand walk adds an extra rep.
