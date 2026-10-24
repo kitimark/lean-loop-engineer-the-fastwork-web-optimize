@@ -9574,7 +9574,13 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "apps/site/src/registry/index.ts",
+    "apps/site/src/debug/root-events.ts",
+    "apps/site/src/debug/root-events.test.ts",
+    "packages/gate-breakpoints/src/trajectory/debug.mjs",
+    "packages/gate-breakpoints/test/debug.test.mjs",
+    ".github/scripts/trajectory-line.mjs"
    ]
   },
   {
@@ -20436,7 +20442,22 @@
     "apps/site/src/parts/engine.scroll/follow.test.ts",
     "apps/site/src/parts/engine.scroll/part.json",
     "research/notes/2026/10-2x-unthrottle-follow.md",
-    "docs/team/handoffs/unthrottle-follow.md"
+    "docs/team/handoffs/unthrottle-follow.md",
+    "apps/site/src/engine/scroll.ts",
+    "apps/site/src/parts/engine.scroll/index.tsx",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/measure-webkit/src/throttle/cli.mjs",
+    "packages/measure-webkit/src/throttle/report.mjs",
+    "packages/measure-webkit/src/throttle/recorder.mjs",
+    "packages/measure-webkit/src/throttle/follow-report.mjs",
+    "packages/measure-webkit/test/throttle-follow-report.test.mjs",
+    "research/findings/ledger.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ],
    "title": "engine.scroll:unthrottle-follow (research/notes/2026/10-2x-webkit-throttles.md rank 1): unthrottle plus a rAF loop that keeps requesting frames while scrollY moves, stopping after k still frames or scrollend, so parts read the newest scrollY per rendering update even under WebKit's eventThrottlingDelay (WebPageIOS.mm:2240-2256), which unthrottle does not lift. Lean first: the stop rule terminates; each frame's y is the latest scrollY at that update, never older than the event-driven y; outputs stay functions of scrollY (same look). Lego brick: composes with engine.scroll:unthrottle. Measure on CI WKTR with eventThrottlingBehaviorOverride = unresponsive: stalled runs per 1000 moving frames, faithful vs unthrottle vs follow."
   },
@@ -20766,7 +20787,81 @@
     "research/notes/2026/10-2x-unthrottle-parts-rest.md",
     "docs/team/handoffs/unthrottle-parts-rest.md"
    ],
-   "title": "Split of unthrottle-parts-measure after its third review refusal (rest cadence claims). Rest mode (run 40101702393, 3 jobs) runs below 60 Hz in every arm (pooled medianGapMs original 59 ms, rewrite and lift 23 ms, unthrottle 20 ms) and the reducer keeps no per-pass gap, so each pass's still-run band (bandFor, throttleK) is INFERRED. (1) The reducer emits the gap and band per pass and medianGapMs over exercised passes only; (2) re-reduce run 40101702393 from its artifacts; (3) Lean judge gets a cadence domain (a pass outside the band's domain counts as noData, with its own lower bound on K and a statement whether K is per pass or pooled), new golden vectors replayed by the TS judge; (4) decide commission (rewrite 23 band runs vs Lean pulses; lift 0, unthrottle 1) and people.card (original 18 at about 17 fps) per arm on their own, and revisit commission's Lean class if the disagree stands; (5) optionally the converse of throttleK_mem_band. Note with per-pass tables and run ids."
+   "title": "Split of unthrottle-parts-measure after its third review refusal (rest cadence claims). Rest mode (run 40101702393, 3 jobs) runs below 60 Hz in every arm (pooled medianGapMs original 59 ms, rewrite and lift 23 ms, unthrottle 20 ms) and the reducer keeps no per-pass gap, so each pass's still-run band (bandFor, throttleK) is INFERRED. (1) The reducer emits the gap and band per pass and medianGapMs over exercised passes only; (2) re-reduce run 40101702393 from its artifacts; (3) Lean judge gets a cadence domain (a pass outside the band's domain counts as noData, with its own lower bound on K and a statement whether K is per pass or pooled), new golden vectors replayed by the TS judge; (4) decide commission (rewrite 23 band runs vs Lean pulses; lift 0, unthrottle 1) and people.card (original 18 at about 17 fps) per arm on their own, and revisit commission's Lean class if the disagree stands; (5) optionally the converse of throttleK_mem_band. Note with per-pass tables and run ids.",
+   "evidence": "244d6d2"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-logical-proof",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "earn-webkit-smooth"
+   ],
+   "writes": [
+    "lean/Fw/Parts/NavEarnWebkit.lean",
+    "lean/Fw/Parts/NavEarnCurve.lean",
+    "lean/scripts/NavEarnCurveGolden.lean",
+    "lean/scripts/NavEarnWebkitGolden.lean",
+    "packages/contracts/golden/parts/nav.earn.curve.jsonl",
+    "packages/contracts/golden/parts/nav.earn.webkit.jsonl",
+    "apps/site/src/parts/nav/earn.curve.test.ts",
+    "packages/gate-breakpoints/src/trajectory/earn-curve.mjs",
+    "packages/gate-breakpoints/test/earn-curve.test.mjs",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "results/earn-logical-proof/**",
+    "research/notes/2026/10-2x-earn-logical-proof.md",
+    "docs/team/handoffs/earn-logical-proof.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "User 2026-10-25 in chat: 'the nav:earn-logical is good, can you prove this ?' (look verdict: keep/accept). Already proved (NavEarnWebkit.lean, TransitionList.lean): WebKit starts the side-padding transition on every hero-pill entry and exit; its started set and timing equal Chromium faithful; Chromium unchanged; reduced motion starts nothing and computes the faithful list; the gate normalization makes faithful and variant lists equal. Not yet proved: (1) curve identity: for every time t the WebKit variant's padding value equals the Chromium faithful padding value (same endpoints, cubic-bezier(0.33,0,0.2,1), 0.68 s, delay 0, per CSS Transitions interpolation), as a theorem over the shared interpolation model, plus a frame-sampled golden of expected padding px; (2) the measured macOS per-frame traces (runs 40100783726, 40102193302; WebKit variant, Safari at 1280, Chromium faithful) match the Lean curve within a stated tolerance per frame (reducer checked against the golden; the tolerance derived from frame timing jitter, not tuned to pass); (3) record the user's verdict in Lean Gen.lookDecisions (nav:earn-logical accepted 2026-10-25) and the ledger row, regenerate the preset goldens from Gen.run, and state whether the flag joins a preset under the existing look rules. iPhone stays INFERRED from shared WebKit source unless a phone session is booked."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "combo-scroll-fight",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/morph.end.clamp/**",
+    "apps/site/src/parts/morph.end.flip/**",
+    "apps/site/src/parts/morph.end.release/**",
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/engine.scroll/**",
+    "apps/site/src/engine/scroll.ts",
+    "apps/site/src/registry/morph-end.test.ts",
+    "apps/site/src/registry/combo-scroll.test.ts",
+    "lean/Fw/Parts/MorphEnd*.lean",
+    "lean/Fw/Parts/MorphMountArmLate.lean",
+    "lean/Fw/Parts/ComboScroll.lean",
+    "lean/scripts/ComboScrollGolden.lean",
+    "packages/contracts/golden/parts/combo-scroll.jsonl",
+    "packages/measure-chromium/profiles/user-bug-1025*.json",
+    "packages/measure-webkit/src/replay/**",
+    ".github/workflows/device-replay*.yml",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-combo-scroll-fight.md",
+    "docs/team/handoffs/combo-scroll-fight.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "User bug 2026-10-25 (reproduced by the user on iPhone Safari, Mac Safari and Chromium): with ?fw=nav:earn-logical,hero.countdown:strip,morph.countdown:strip,morph.end.clamp:on,morph.end.flip:on,morph.end.release:on,morph.mount:arm-late,engine.scroll:unthrottle the scroll position fights the finger: single-frame jumps (+70 then -132 px, +100 then -147 px) and up to 27 direction reversals with no finger down in the 1.5 s before a felt mark; 13 marks in one 90 s phone pass, mostly at 65-85% of maxY (morph zone, y 3400-4500) and three at y ~1859 with the toolbar height changing. Hypothesis (INFERRED): morph.end.clamp writes the pin restore position per frame while morph.mount:arm-late keeps listeners passive outside the band and engine.scroll:unthrottle changes when scroll is read, so a script write fights native scroll. Each morph.end brick was proved and gated alone and as morph-end-all, never with arm-late or unthrottle. Do: replay the recorded finger path (profile from the phone record, device-replay tooling) on CI Chromium (and Playwright WebKit if the lane allows), reproduce the reversals, bisect by dropping one flag at a time on the same replay, find the cause CONFIRMED from the code and the replay, fix it with the flags' composition modeled and proved in Lean (no script scroll write against an active native scroll; the bricks' theorems still hold with arm-late and unthrottle on), golden replayed by a site test, and show the same replay with zero no-finger reversals and no single-frame jumps over a stated bound."
   }
  ],
  "deadline": {
