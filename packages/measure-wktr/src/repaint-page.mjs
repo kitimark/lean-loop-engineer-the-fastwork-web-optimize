@@ -142,6 +142,8 @@ const RUN_SRC = `(() => {
     await raf(() => 0); await raf(() => 0);
     out('probe', { candidates: cands.length, probed, ambiguous, unseen, ms: Math.round(performance.now() - t0), layers: parseLayers(I.layerTreeAsText(document, FL_NOREP)).nodes.length });
 
+    out('sample', { text: I.layerTreeAsText(document, FL_NOREP).slice(0, 6000) });
+    let recordErrors = 0;
     const ys = P.maxFrames ? swipeSchedule(maxY).slice(0, P.maxFrames) : swipeSchedule(maxY);
     startMo();
     let prevShape = null, prevB = null, prevEl = null;
@@ -183,14 +185,21 @@ const RUN_SRC = `(() => {
     };
     for (let k = 0; k <= ys.length; k++) {
       await raf(() => {
-        if (k > 0) record(k - 1, ys[k - 1]);
+        if (k > 0) {
+          try { record(k - 1, ys[k - 1]); } catch (e) {
+            recordErrors++;
+            out('rperr', { f: k - 1, message: String(e && e.message || e) });
+            out('rp', { f: k - 1, y: ys[k - 1], sy: -1, view: [], L: [], rs: [], err: 1 });
+            if (recordErrors > 3) throw e;
+          }
+        }
         I.stopTrackingRepaints(); I.startTrackingRepaints();
         if (k < ys.length) scrollTo({ top: ys[k], behavior: 'instant' });
       });
     }
     mo.disconnect();
     out('meta', {
-      ua: navigator.userAgent, innerWidth, innerHeight, dpr: devicePixelRatio, docH, maxY, endY: Math.round(scrollY), frames: ys.length, ranges,
+      recordErrors, ua: navigator.userAgent, innerWidth, innerHeight, dpr: devicePixelRatio, docH, maxY, endY: Math.round(scrollY), frames: ys.length, ranges,
       fw: window.__fw ? { mode: window.__fw.mode ?? null, configHash: window.__fw.configHash ?? null } : null, bootstrap: window.__wkBootstrap || null,
       landmarks: LANDMARKS.map(([k, sel]) => [k, document.querySelectorAll(sel).length]),
     });

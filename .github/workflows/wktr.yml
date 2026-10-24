@@ -28,6 +28,10 @@ on:
         description: Scroll step in CSS px
         type: string
         default: '50'
+      repaint:
+        description: 'Invisible-paint lane instead of the count lanes: repaint rects per frame of the swipe, original / rewrite / v2-proved, 3 jobs (a push asks for it with [repaint] in the head commit)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -96,7 +100,7 @@ jobs:
         run: exit 1
       - id: m
         env:
-          JOBS: ${{ inputs.jobs || '2' }}
+          JOBS: ${{ inputs.jobs || ((inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) && '3') || '2' }}
           PASSES: ${{ inputs.passes || '3' }}
           VARIANTS: ${{ inputs.variants || 'live,vt' }}
         run: |
@@ -108,15 +112,59 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
 
+  # The rewrite arms of the invisible-paint lane: the prerendered build of apps/site at this commit, the default config and the
+  # v2-proved preset as one more page (as webkit-sim.yml's site job builds it). Only when the lane is asked for.
+  site:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.run == 'true' && (inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
+    concurrency:
+      group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:site:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site...'
+      - uses: ./.github/actions/setup-lean
+      - name: Build the rewrite (the default config and the v2-proved preset)
+        run: pnpm --filter @fw/site build --config "?preset=v2-proved"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+          if-no-files-found: error
+          retention-days: 3
+
   # One macOS job at a time (the five macOS slots are shared by all lanes; research/notes/2026/10-17-macos-queue.md).
   # The first job finds no cached archive, downloads it and saves it when it ends; the next jobs restore it.
+  # With [repaint] (or the repaint input) the measuring step is the invisible-paint run (packages/measure-wktr/src/repaint-cli.mjs)
+  # and the count step is skipped; the steps after the measuring step are the same.
   wktr:
-    needs: [guard, plan]
-    if: ${{ needs.guard.outputs.run == 'true' }}
+    needs: [guard, plan, site]
+    # site is skipped unless the repaint lane is asked for: that must not skip this job
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' && needs.plan.result == 'success' && needs.site.result != 'failure' }}
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:wktr:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 16
+    timeout-minutes: ${{ (inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) && 45 || 16 }}
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -174,12 +222,35 @@ jobs:
             xcrun simctl list devicetypes | grep "iPhone 17"
           } | tee "$RUNNER_TEMP/result/tools.txt"
 
+      - name: The rewrite build (site job)
+        if: ${{ inputs.repaint || contains(github.event.head_commit.message, '[repaint]') }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: ${{ runner.temp }}/site
+
+      # Invisible paint (task invisible-paint): per arm (original, rewrite, rewrite with ?preset=v2-proved) one fresh process
+      # replays the swipe-touch-v1 schedule with scrollTo in native rAF; every frame the page dumps the tracked repaint rects
+      # (internals.layerTreeAsText with repaint rects) of the frame before and restarts the tracking. Counts only, outside any
+      # timed window. counts-<arm>-<zone>-<pass>.json (class policy), table-<arm>-<pass>.json (part x zone x class), raw-*.txt.gz.
+      - name: WKTR repaint rects per frame, fresh process per arm
+        if: ${{ inputs.repaint || contains(github.event.head_commit.message, '[repaint]') }}
+        env:
+          JOB: ${{ matrix.job }}
+        run: |
+          set -euo pipefail
+          node packages/measure-wktr/src/repaint-cli.mjs run --keep \
+            --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
+            --passes 1 --arms orig,rewrite,v2 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+          ls -l "$RUNNER_TEMP/result"
+
       # One device, one fresh WebKitTestRunnerApp process per pass, `passes` passes per harness variant:
       #   live  the page as it is (Date and Math.random pinned, real timers and rAF timestamps)
       #   vt    virtual time: performance.now, rAF timestamps, timers and Date move one frame at a time (src/vtime.mjs)
       #   -warm the page is scrolled through once first (lazy loads done), -still suspends CSS animations (diagnostic), -trace adds event counters (cause attribution)
       # counts-<variant>-<pass>.json per pass.
       - name: WKTR, fresh process per pass, per variant
+        if: ${{ !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
         env:
           PASSES: ${{ inputs.passes || '3' }}
           STEP: ${{ inputs.step || '50' }}
@@ -247,7 +318,7 @@ jobs:
   # Classes per count type over every pass of every job (policy kMax 4, tMax 24), and over the passes of each job alone.
   classes:
     needs: [guard, wktr, fwcore]
-    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' }}
+    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' && !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:classes:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -326,5 +397,66 @@ jobs:
         with:
           name: wktr-classes
           path: ${{ runner.temp }}/classes
+          if-no-files-found: error
+          retention-days: 30
+
+  # Invisible paint: the part x zone x arm table per 100 frames and the class of every count type per arm and zone over the jobs
+  # (policy kMax 4, tMax 24; fwcore decides, the summary script only moves numbers).
+  repaint-summary:
+    needs: [guard, wktr, fwcore]
+    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' && (inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
+    concurrency:
+      group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:repaint-summary:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wktr-fwcore
+          path: ${{ runner.temp }}/fwcore
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: wktr-j*
+          path: ${{ runner.temp }}/runs
+      - name: Summary
+        env:
+          FW_CORE_BIN: ${{ runner.temp }}/fwcore/fwcore
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          chmod +x "$FW_CORE_BIN"
+          out="$RUNNER_TEMP/summary"
+          mkdir -p "$out"
+          cd "$RUNNER_TEMP/runs"
+          ls
+          echo "workflow run $RUN_ID, sha $SHA" > "$out/run.txt"
+          cat wktr-j*/runner.json > "$out/runners.jsonl"
+          node "$GITHUB_WORKSPACE/packages/measure-wktr/src/repaint-summary.mjs" "$RUNNER_TEMP/runs" --out "$out" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: repaint-summary
+          path: ${{ runner.temp }}/summary
           if-no-files-found: error
           retention-days: 30
