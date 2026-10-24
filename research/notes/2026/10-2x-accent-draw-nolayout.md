@@ -66,7 +66,7 @@ The report tables call the arm `crop`.
   The tool's per-window verdict is unresolved:overlap for every rest window too (swap-report.md); the halving is the pooled count over the 7 rest windows of 2 jobs, not a per-window resolved result.
 - Swap windows: no change. The tool's per-window verdict is `unresolved:overlap` for all 8 windows and 4 kinds (`swap-report.md`);
   a swap window's 13 Layout frames are the carousel's own, and the accent draw is not what fills them. The end-of-page swap windows
-  therefore gain nothing from this arm; the gain is in the quiet windows between swaps.
+  gain nothing from this arm; the gain is in the quiet windows between swaps.
 - Hero exit (scroll A): the lane records frame cadence, Paint and Composite time per frame and the layer census, not Layout events.
   Against the baseline run 39983630584 (hero.accent faithful, other flag people.carousel:crop) all ranges overlap (`cost-report.md`).
   NOT DELIVERED: Layout per hero-exit frame (needs a Layout-event lane; packages/measure-webkit was out of bounds here).
@@ -171,7 +171,7 @@ Report: `results/accent-draw-nolayout/accent-report-40030735082.md` (and `.json`
 - Rest windows (pooled over 3 jobs): busy windows (at least 24 Layout rows) faithful 27 of 42, draw-nolayout 6 of 21, full 0 of 21, draw-frozen 0 of 21;
   Layout rows per capture 218.5, 109.0, 19.7, 21.0; medians 43, 5, 2, 3. Per-window verdicts against the A/A floor: nolayout Layout wins 3 of 7 rest windows, full 5 of 7; all 8 swap windows unresolved:overlap.
 - Unfrozen busy samples against frozen samples (Lean `busyFrozen`): rest windows 1 and 4 (the busy ones) `removed` by the freeze; swap windows overlap or have no busy sample.
-- Harness defect found: the draw-start counter matched animation names exactly (`strokeIn`), the built site hashes keyframe names, so it counted 0 animation starts in every arm (the width transition counter is not affected). Fixed in commit a3bb8cd67 (`DRAW_ANIMS` without the start anchor); run 40035116432 repeats the lane.
+- Harness defect: the draw-start counter matched animation names exactly (`strokeIn`), the built site hashes keyframe names, so it counted 0 animation starts in every arm (the width transition counter is not affected). Fixed in commit a3bb8cd67 (`DRAW_ANIMS` without the start anchor); run 40035116432 repeats the lane.
 
 ## Result, run 40035116432 (MEASURED, commit a3bb8cd67, same lane, jobs r1 r2 r3 all success, 13 units each, none failed or skipped)
 Report: `results/accent-draw-nolayout/accent-report-40035116432.md`. Not pooled with the run above (different commit; the page and arms are the same build, only the draw counter changed).
