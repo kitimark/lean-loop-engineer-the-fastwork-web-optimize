@@ -1,7 +1,3 @@
-// Facts and route for the Compose tab: which variant of each part gives which preview. I/O only. The classes of the variants, which
-// ledger rows speak of which variant, whether a combination gets a link and its canonical search are Lean `console.compose`
-// (`Fw.Console.Compose`). This file reads `part.json`, the presets and the findings ledger, asks Lean, and attaches the ledger's own text
-// to the row indices Lean returned. The explanations are the ledger's words; nothing here adds a claim.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Hono } from "hono";
@@ -20,7 +16,6 @@ export type LedgerRow = {
 export type LedgerNote = { entry: string; task: string; field: string; text: string };
 export type ComposePick = { part: string; variant: string };
 
-/** `part.json` of every part and the preset files (I/O only), with each variant's kind and its provenance `limit` text. */
 export function readComposeRegistry(root: string): ComposeRegistry {
   const parts: ComposeRegistry["parts"] = [];
   const pdir = join(root, "apps/site/src/parts");
@@ -50,7 +45,6 @@ export function readComposeRegistry(root: string): ComposeRegistry {
   return { parts, presets };
 }
 
-/** The findings ledger: its rows and its append-only notes (empty when the file is missing). */
 export function readLedger(root: string): { findings: LedgerRow[]; notes: LedgerNote[] } {
   const f = join(root, "research/findings/ledger.json");
   if (!existsSync(f)) return { findings: [], notes: [] };
@@ -58,14 +52,12 @@ export function readLedger(root: string): { findings: LedgerRow[]; notes: Ledger
   return { findings: j.findings ?? [], notes: j.notes ?? [] };
 }
 
-/** Run ids cited in a text: a GitHub Actions run id is 10 to 12 digits. Glue only: it finds numbers, it decides nothing. */
 export function runIdsIn(texts: (string | string[] | undefined)[]): string[] {
   const out = new Set<string>();
   for (const t of texts) for (const m of [t ?? ""].flat().join("\n").matchAll(/\b\d{10,12}\b/g)) out.add(m[0]);
   return [...out];
 }
 
-/** What a variant card shows for one ledger row: the ledger's fields as written, the notes added to this entry, and the run ids cited. */
 export function explainRow(row: LedgerRow, index: number, notes: LedgerNote[]) {
   const mine = notes.filter((n) => n.entry === row.candidate);
   return {
@@ -78,12 +70,10 @@ export function explainRow(row: LedgerRow, index: number, notes: LedgerNote[]) {
 }
 
 export type ComposeReply = Record<string, unknown> & {
-  parts: { variants: { rows: number[] }[]; other: number[] }[];
+  parts: { variants: { rows: number[]; gpu: string | null; gpuEngines: string | null }[]; other: number[] }[];
   decision: { ok: boolean; link: string | null; reasons: string[]; notes: string[] };
 };
 
-/** Ask Lean `console.compose` over the registry, the ledger rows (with `flags`, `id` and `supersededBy` as written) and the picks; attach the
- *  ledger text to the rows it names. */
 export async function composeReply(root: string, core: Pick<Core, "ops">, picks: ComposePick[]): Promise<Record<string, unknown>> {
   const registry = readComposeRegistry(root);
   const ledger = readLedger(root);
@@ -101,7 +91,6 @@ export async function composeReply(root: string, core: Pick<Core, "ops">, picks:
   return { ok: true, ...r, rows };
 }
 
-/** The picks of `?pick=part:variant,...`: syntax only (a name is letters, digits, `.`, `-`, `_`); Lean decides whether they name a variant. */
 export function parsePicks(q: string | undefined): ComposePick[] | null {
   if (q === undefined || q === "") return [];
   const out: ComposePick[] = [];
@@ -113,8 +102,6 @@ export function parsePicks(q: string | undefined): ComposePick[] | null {
   return out;
 }
 
-/** `GET /api/compose[?pick=part:variant,...]`: the table, the presets and the decision for the picks. `GET /api/compose/decision` is the decision alone.
- *  Read-only: opening a link goes through `POST /api/builds/open`, with the search Lean returned. */
 export function mountCompose(app: Hono, core: Pick<Core, "ops">, root: string, session: (authorization: string | undefined) => Record<string, unknown> = () => ({})) {
   app.get("/api/compose", async (c) => {
     c.header("Cache-Control", "no-store");
