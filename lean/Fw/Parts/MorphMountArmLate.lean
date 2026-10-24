@@ -1,50 +1,37 @@
 import Fw.Parts.MorphEnd
 import Fw.Parts.MorphMount
 
-/-! The flag `morph.mount:arm-late`: wheel and touchmove stay registered as in the original but are non-passive only in a band of scroll positions.
-WebKit blocks each scroll on a non-passive listener and not on a passive one (`ScrollingTree.cpp:118-134@862f17d`). -/
+/-! `morph.mount:arm-late`: non-passive wheel and touchmove only in a band; WebKit holds a scroll only on a non-passive listener (`ScrollingTree.cpp:118-134@862f17d`). -/
 namespace Fw.Parts.MorphMountArmLate
 
 open Fw.Parts Fw.Parts.MorphEnd
 open Fw.Parts.MorphTween (St frame push)
 
-/-- The flag `morph.mount:arm-late`. -/
 def partId : String := "morph.mount"
 def variantId : String := "arm-late"
 
-/-! ## The band -/
-
-/-- Px past the arming edge: a viewport of pan (`MorphListen.panOk`) plus a quarter viewport of lag. -/
 def lead (vh : Rat) : Rat := vh + vh / 4
 
-/-- The band edge on the platform bottom. -/
 def edge (vh : Rat) : Rat := vh + MorphTween.bottomSlack + lead vh
 
-/-- The platform bottom is in the band. -/
 def inBand (vh bottom : Rat) : Bool := decide (bottom ≤ edge vh)
 
 #guard edge 800 == 800 + 8 + 1000
 #guard inBand 800 1808 == true && inBand 800 (3615 / 2) == true && inBand 800 1809 == false && inBand 800 (3617 / 2) == false
 
-/-- The band holds every bottom the original arms at, up to `lead` of lag. -/
 theorem armed_in_band {h vh b bEval : Rat} (ha : MorphTween.armed h b vh = true) (hl : bEval ≤ b + lead vh) :
     inBand vh bEval = true := by
   simp only [MorphTween.armed, MorphTween.bottomSlack, Bool.and_eq_true, decide_eq_true_eq] at ha
   simp only [inBand, edge, MorphTween.bottomSlack, lead] at hl ⊢
   grind
 
-/-- `morph.mount` arms by `MorphTween.armed`. -/
 theorem mount_armed_eq (h b vh : Rat) : MorphMount.armed ⟨h, b⟩ vh = MorphTween.armed h b vh := by
   have e : vh * 45 / 100 = vh * MorphTween.fillRatio := by unfold MorphTween.fillRatio; grind
   unfold MorphMount.armed MorphTween.armed MorphTween.bottomSlack
   rw [e]
 
-/-! ## Listener modes -/
-
-/-- The original attaches both listeners while `near` or active. -/
 def attached (near act : Bool) : Bool := near || act
 
-/-- `arm-late` makes them non-passive only in the band, or while active. -/
 def blocking (near band act : Bool) : Bool := (near && band) || act
 
 inductive Mode where
@@ -57,31 +44,23 @@ def mode (near band act : Bool) : Mode :=
 def Mode.name : Mode → String
   | .none => "none" | .passive => "passive" | .blocking => "blocking"
 
-/-- Every non-passive listener is one the original has. -/
 theorem blocking_le (near band act : Bool) : blocking near band act = true → attached near act = true := by
   cases near <;> cases band <;> cases act <;> simp [blocking, attached]
 
-/-- The same listeners exist. -/
 theorem mode_none_iff (near band act : Bool) : mode near band act = .none ↔ attached near act = false := by
   cases near <;> cases band <;> cases act <;> simp [mode, blocking, attached]
 
-/-- Outside the band, idle: no non-passive listener. -/
 theorem no_blocking_out_of_band (near act : Bool) (hact : act = false) : mode near false act ≠ .blocking := by
   cases near <;> simp [mode, blocking, attached, hact]
 
-/-- In the band the mode is the original's. -/
 theorem mode_in_band (near act : Bool) (h : attached near act = true) : mode near true act = .blocking := by
   cases near <;> cases act <;> simp_all [mode, blocking, attached]
 
-/-! ## The lock decision asks for `preventDefault` only where the band holds -/
-
-/-- The read a handler takes its arm test from. -/
 def evRead : Ev → Option Read
   | .touchmove _ r => some r
   | .wheel _ r => some r
   | _ => none
 
-/-- The events the capture listeners see. -/
 def evGated : Ev → Bool
   | .touchstart _ | .touchmove .. | .wheel .. => true
   | _ => false
@@ -98,7 +77,6 @@ theorem moveStep_prevent (h : Hooks) (s : S) (d : Rat) (r : Read) (hp : (moveSte
     · exact Or.inl ht
     · exact Or.inr ht
 
-/-- A handler call changes the tween only through a taken push. -/
 theorem moveStep_tw (h : Hooks) (s : S) (d : Rat) (r : Read) :
     (moveStep h s d r).1.tw = s.tw ∨
       ((s.tw.isActive = true ∨ r.arm = true) ∧ ∃ g, (moveStep h s d r).1.tw = push s.tw g r.reduced r.now) := by
@@ -112,7 +90,6 @@ theorem moveStep_tw (h : Hooks) (s : S) (d : Rat) (r : Read) :
   · left; rw [he]; simp [kept]
   · right; exact ⟨hk ht, g, by rw [he]; simp [applied]⟩
 
-/-- For every `Hooks` (all A/B/C combinations): `preventDefault` needs an active morph or a held arm. -/
 theorem prevent_needs (h : Hooks) (s : S) (e : Ev) (hp : (step h s e).2.prevent = true) :
     s.tw.isActive = true ∨ ∃ r, evRead e = some r ∧ r.arm = true := by
   cases e with
@@ -135,7 +112,6 @@ theorem prevent_needs_cfg (c : Cfg) (s : S) (e : Ev) (hp : (step c.hooks s e).2.
     c ∈ Cfg.all ∧ (s.tw.isActive = true ∨ ∃ r, evRead e = some r ∧ r.arm = true) :=
   ⟨mem_all c, prevent_needs c.hooks s e hp⟩
 
-/-- An idle call that prevents has its band evaluation in the band. -/
 theorem covers (h : Hooks) (hh vh b bEval : Rat) (s : S) (e : Ev) (hidle : s.tw.isActive = false)
     (hp : (step h s e).2.prevent = true)
     (hgeo : ∀ r, evRead e = some r → r.arm = true → MorphTween.armed hh b vh = true) (hl : bEval ≤ b + lead vh) :
@@ -144,9 +120,6 @@ theorem covers (h : Hooks) (hh vh b bEval : Rat) (s : S) (e : Ev) (hidle : s.tw.
   · rw [hidle] at ha; exact absurd ha (by simp)
   · exact armed_in_band (hgeo r hr ha) hl
 
-/-! ## A run: refreshes and events -/
-
-/-- The listener layer: inputs of the last refresh and the last tick. -/
 structure W where
   s : S
   near : Bool
@@ -166,7 +139,6 @@ def evClock (w : W) : Ev → Rat
   | .tick n => n
   | _ => w.clock
 
-/-- One action; events the capture listeners see run only while the original would attach. -/
 def stepW (h : Hooks) (w : W) : Act → W × Option Out
   | .refresh near b => ({ w with near := near, actR := w.s.tw.isActive, bEval := b }, none)
   | .ev e _ =>
@@ -178,17 +150,14 @@ def honorOut (blk : Bool) (o : Out) : Out := { o with prevent := o.prevent && bl
 theorem honorOut_of (blk : Bool) (o : Out) (h : o.prevent = true → blk = true) : honorOut blk o = o := by
   cases o with | mk p g f w => cases p <;> simp_all [honorOut]
 
-/-- Faithful outputs. -/
 def outsW (h : Hooks) : W → List Act → List (Option Out)
   | _, [] => []
   | w, a :: t => (stepW h w a).2 :: outsW h (stepW h w a).1 t
 
-/-- `arm-late` outputs: `preventDefault` counts only on a non-passive listener. -/
 def outsL (h : Hooks) (vh : Rat) : W → List Act → List (Option Out)
   | _, [] => []
   | w, a :: t => (stepW h w a).2.map (honorOut (w.blocks vh)) :: outsL h vh (stepW h w a).1 t
 
-/-- An inactive pending tween stays inactive at every later time. -/
 def Settled (c : Rat) (tw : St) : Prop :=
   tw.isActive = false → tw.pending = true → ∀ now, c ≤ now → (frame tw now).isActive = false
 
@@ -217,7 +186,6 @@ theorem tween_mono (f t e e' : Rat) (ht : t ≤ f) (he : e ≤ e') :
     have := Rat.mul_le_mul_of_nonneg_left hz (show 0 ≤ f - t by grind)
     grind
 
-/-- A frame that leaves the tween inactive and pending keeps it so. -/
 theorem settled_frame (tw : St) (now : Rat) (htt : tw.t = tw.target) : Settled now (frame tw now) := by
   intro hi hp now' hn
   have hfr : ∀ x, (frame (frame tw now) x) = { frame tw x with value := (frame tw x).value } := by
@@ -254,7 +222,6 @@ theorem settled_push (c : Rat) (tw : St) (g : Rat) (red : Bool) (now : Rat) (h0 
       refine ⟨hi.1, ?_⟩
       grind
 
-/-- A tween changes only through a taken push or a pending tick. -/
 theorem step_tw (h : Hooks) (s : S) (e : Ev) :
     (step h s e).1.tw = s.tw ∨
       (∃ r, evRead e = some r ∧ (s.tw.isActive = true ∨ r.arm = true) ∧
@@ -279,7 +246,6 @@ theorem step_tw (h : Hooks) (s : S) (e : Ev) :
     · right; right; exact ⟨n, rfl, hp, by simp [step, hp]⟩
     · left; simp [step, hp]
 
-/-- A held arm with a listener attached puts the evaluation in the band. -/
 theorem arm_blocks (vh : Rat) (w : W) (hl : w.listens = true) {hh b : Rat} (ha : MorphTween.armed hh b vh = true)
     (hlag : w.bEval ≤ b + lead vh) : w.blocks vh = true := by
   have hb := armed_in_band ha hlag
@@ -288,11 +254,9 @@ theorem arm_blocks (vh : Rat) (w : W) (hl : w.listens = true) {hh b : Rat} (ha :
   simp only [hb, Bool.and_true, Bool.or_eq_true] at hl ⊢
   exact hl
 
-/-- The run invariant. -/
 def Inv' (vh : Rat) (w : W) : Prop :=
   MorphEnd.Inv w.s ∧ Settled w.clock w.s.tw ∧ (w.s.tw.isActive = true → w.blocks vh = true)
 
-/-- Premise per action: a held arm brings its geometry and bounded lag; ticks do not run back. -/
 def ActOk (hh vh : Rat) (w : W) : Act → Prop
   | .ev e b => (∀ r, evRead e = some r → r.arm = true → MorphTween.armed hh b vh = true ∧ w.bEval ≤ b + lead vh) ∧
       (∀ n, e = .tick n → w.clock ≤ n)
@@ -385,12 +349,10 @@ theorem stepW_honored (h : Hooks) (hh vh : Rat) (w : W) (a : Act) (hi : Inv' vh 
       · obtain ⟨hA, hlag⟩ := hgeo r hr ha
         exact arm_blocks vh w (hl (read_gated e r hr)) hA hlag
 
-/-- The premises along a run. -/
 def AllOk (h : Hooks) (hh vh : Rat) : W → List Act → Prop
   | _, [] => True
   | w, a :: t => ActOk hh vh w a ∧ AllOk h hh vh (stepW h w a).1 t
 
-/-- Under the premises the `arm-late` outputs equal the faithful outputs. -/
 theorem late_same (h : Hooks) (hh vh : Rat) (t : List Act) :
     ∀ w : W, Inv' vh w → AllOk h hh vh w t → outsL h vh w t = outsW h w t := by
   induction t with
@@ -409,7 +371,6 @@ theorem late_same_cfg (c : Cfg) (hh vh : Rat) (t : List Act) (w : W) (hi : Inv' 
     c ∈ Cfg.all ∧ outsL c.hooks vh w t = outsW c.hooks w t :=
   ⟨mem_all c, late_same c.hooks hh vh t w hi hok⟩
 
-/-- Outside the band with no earlier active refresh the morph is idle. -/
 theorem out_of_band_idle (vh : Rat) (w : W) (hi : Inv' vh w) (hb : inBand vh w.bEval = false) (ha : w.actR = false) :
     w.s.tw.isActive = false := by
   obtain ⟨-, -, i3⟩ := hi
@@ -418,7 +379,6 @@ theorem out_of_band_idle (vh : Rat) (w : W) (hi : Inv' vh w) (hb : inBand vh w.b
   · have := i3 hx
     simp [W.blocks, blocking, hb, ha] at this
 
-/-- A refresh outside the band leaves no non-passive listener. -/
 theorem refresh_out_of_band (h : Hooks) (w : W) (near : Bool) (b vh : Rat) (hb : inBand vh b = false)
     (hidle : w.s.tw.isActive = false) :
     mode (stepW h w (.refresh near b)).1.near (inBand vh (stepW h w (.refresh near b)).1.bEval)
@@ -426,13 +386,10 @@ theorem refresh_out_of_band (h : Hooks) (w : W) (near : Bool) (b vh : Rat) (hb :
   simp only [stepW, hb, hidle]
   exact no_blocking_out_of_band near false rfl
 
-/-! ## Registering the listeners -/
-
 inductive Ty where
   | wheel | touchmove
   deriving DecidableEq, Repr
 
-/-- A listener registry. -/
 structure Reg where
   start : Bool
   wheel : Option Bool
@@ -458,7 +415,6 @@ def Reg.ofMode : Mode → Reg
   | .passive => ⟨true, some true, some true⟩
   | .blocking => ⟨true, some false, some false⟩
 
-/-- The registry changes from `cur` to `nxt`. -/
 def ops (cur nxt : Mode) : List Op :=
   if cur = nxt then []
   else
@@ -468,11 +424,9 @@ def ops (cur nxt : Mode) : List Op :=
 
 theorem ops_idem (m : Mode) : ops m m = [] := by simp [ops]
 
-/-- `ops cur nxt` takes the registry of `cur` to that of `nxt`. -/
 theorem ops_reach (cur nxt : Mode) : (ops cur nxt).foldl Op.apply (Reg.ofMode cur) = Reg.ofMode nxt := by
   cases cur <;> cases nxt <;> decide
 
-/-- `arm-late` registers wheel and touchmove exactly when the original does. -/
 theorem same_listeners (near band act : Bool) :
     (Reg.ofMode (mode near band act)).wheel.isSome = attached near act := by
   cases near <;> cases band <;> cases act <;> decide

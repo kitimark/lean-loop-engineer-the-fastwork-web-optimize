@@ -27,5 +27,4 @@
 
 - CI cannot drive the WebKit touch gate (INFERRED): touch-start to first scroll frame is a phone step.
 - Listener-armed frames per zone in a browser: the flag counts scroll frames per mode in `window.__fwArmLate.frames`; no lane reads it.
-
-- Last commit 47f5c950d. Final round: main merged; ledger row is n 72 (67-71 taken, 73 held); `lean/Fw.lean` imports MorphMountArmLate and MorphMountArmLateGolden; footprint, rows and diff regenerated and `--check` green.
+- Last commit 47f5c950d. Main merged; ledger row is n 72 (67-71 taken, 73 held); `lean/Fw.lean` imports MorphMountArmLate and MorphMountArmLateGolden; footprint, rows and diff regenerated and `--check` green.

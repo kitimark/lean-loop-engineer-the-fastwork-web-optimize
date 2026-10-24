@@ -28,7 +28,6 @@ goldenConformance('morph-mount-arm-late', {
     return (i.steps as Step[]).map((s) => {
       log.length = 0;
       arm.set(s.near, inBand(i.vh, s.bottom), s.active);
-      // touchstart is always passive: the golden names it by its sign only
       return { mode: arm.mode(), ops: log.map((o) => o.replace('touchstart:x', 'touchstart')) };
     });
   },
@@ -51,8 +50,6 @@ describe('arm-late', () => {
         }
   });
 
-  // Listener-armed frames per zone on one scroll sweep (deterministic replay, not a browser measurement): the platform
-  // bottom runs from far below to far above the viewport in 16 px steps; `near` is the 200 % observer.
   it('arms fewer non-passive frames than the original on a full sweep', () => {
     const vh = 800;
     const height = 900;

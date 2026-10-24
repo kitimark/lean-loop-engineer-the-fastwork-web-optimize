@@ -1,7 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.MorphMountArmLate
 
-/-! Golden rows of `morph.mount:arm-late` for `armLate.test.ts`; `Unit` arguments keep the module free of start-up allocation. -/
 namespace Fw.Parts.MorphMountArmLateGolden
 open Fw.Parts.MorphMountArmLate
 
