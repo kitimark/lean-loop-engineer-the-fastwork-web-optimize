@@ -220,7 +220,8 @@ jobs:
           VM: ${{ matrix.vm }}
           # The head commit message picks the drags: [throttle:finish] drags past the page end (task sim-finish-throttle), else the hero exit.
           MODE: ${{ (contains(github.event.head_commit.message, '[throttle:finish]') || contains(github.event.head_commit.message, '[throttle:morph-end]')) && 'finish' || 'drags' }}
-          # [throttle:morph-end]: the six morph end arms, one round per job (a pass takes about 6 min; two rounds would not fit the job), the order rotated by the job number
+          # [throttle:morph-end]: the six morph end arms, one round per job (two rounds would not fit the job), the order rotated by the job number; two drag cycles and a 480 s
+          # touch limit (dispatch 1 with four cycles and 300 s lost 12 of 18 attempts to the limit)
           MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
           # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
           # (counts do not depend on waits), and a load step may retry twice after a reconnect.
@@ -231,10 +232,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          if [ -n "$MORPH_END" ]; then arms=rewrite,clamp,flip,release,all,all-unthrottle; rounds=1; offset=$((VM - 1))
-          elif [ "$MODE" = finish ]; then arms=rewrite,lift,original; rounds=2; offset=0
-          else arms=rewrite,unthrottle,original; rounds=2; offset=0; fi
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --offset "$offset" --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          if [ -n "$MORPH_END" ]; then arms=rewrite,clamp,flip,release,all,all-unthrottle; rounds=1; offset=$((VM - 1)); cycles=2; timeout=480
+          elif [ "$MODE" = finish ]; then arms=rewrite,lift,original; rounds=2; offset=0; cycles=4; timeout=300
+          else arms=rewrite,unthrottle,original; rounds=2; offset=0; cycles=4; timeout=300; fi
+          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --offset "$offset" --cycles "$cycles" --timeout "$timeout" --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded

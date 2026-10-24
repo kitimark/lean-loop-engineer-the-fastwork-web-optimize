@@ -1,7 +1,9 @@
 branch: worktree-wf_c0f9c38f-77f-1 (CI branch ci/morph-end-measure)
 worktree: .claude/worktrees/wf_c0f9c38f-77f-1
 last commit: see git log (CI got f7a520d09 as ci/morph-end-measure; a later local commit bounds the overflow width)
-CI runs (1 of 3 dispatches used): 40105567688 toolbar-throttle, push of f7a520d09 with [ci:toolbar-throttle] [throttle:morph-end]: running (sim 1-5 in progress, sim 6 queued, at about 25 min)
+CI runs (2 of 3 dispatches used):
+- 40105567688 toolbar-throttle (f7a520d09, tokens [ci:toolbar-throttle] [throttle:morph-end]; 4 cycles, 300 s touch limit) complete, conclusion failure: 12 of 18 attempts timed out at 300 s, jobs 3 and 4 stalled after the first retry (Simulator wedged, no passes), job 5 lost (runner, no artifact), job 2 cancelled at 80 min (no artifact), jobs 1 and 6 have partial json. Usable: rewrite 2 (jobs 1, 6), all-unthrottle 1 (job 6). Enough only for a rewrite base.
+- dispatch 2: same lane with two drag cycles and a 480 s touch limit (new --timeout in throttle/cli.mjs); its run id is in the git log.
 
 Verified so far: @fw/measure-webkit tests 645 pass (incl. throttle-morph-end, throttle-finish-page); scripts/ci-paths.test.mjs 56 pass; a local debug run (not a result) of two arms in the Simulator showed the recorder reads (r, d, ca) and the table works; the four-flag page is prerendered with `--config` (site build log checked locally).
 Open: wait for 40105567688; tables into research/notes/2026/10-2x-morph-end-measure.md and results/morph-end-measure/; runner land-inputs test; fw plan lint; dry land; review ready.

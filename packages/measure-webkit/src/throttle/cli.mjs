@@ -32,7 +32,7 @@ const { values: v } = parseArgs({
   args: rest,
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
-    cycles: { type: 'string', default: '4' }, offset: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
+    cycles: { type: 'string', default: '4' }, timeout: { type: 'string', default: '300' }, offset: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
     target: { type: 'string', default: 'springboard' }, hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
     out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
@@ -61,7 +61,7 @@ async function main() {
       if (!['drags', 'finish'].includes(v.mode)) throw new Error(`unknown --mode ${v.mode}; drags or finish`);
       const finish = v.mode === 'finish';
       const drag = { cycles: Number(v.cycles), dragPt: Number(v.drag ?? (finish ? 480 : 360)), velocity: Number(v.velocity ?? (finish ? 150 : 120)),
-        holdMs: Number(v.hold), mode: v.mode, target: v.target };
+        holdMs: Number(v.hold), mode: v.mode, target: v.target, timeoutMs: Number(v.timeout) * 1000 };
       const passOf = finish ? finishPass : armPass;
       const reasonOf = finish ? finishExclude : excludeReason;
       const passes = [], failed = [];
