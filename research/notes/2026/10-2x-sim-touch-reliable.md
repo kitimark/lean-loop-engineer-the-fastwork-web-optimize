@@ -182,7 +182,7 @@ ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
 
 ## Follow-ups (sim-touch-followups)
 
-Task `sim-touch-followups`, items (1) to (6) of the 2026-10-24 review of run `40003317485`. Source data: the `sim.log` and step times of runs `39934951574`, `39995201296` and `40003317485` (`gh run download`, `gh run view --json jobs`).
+Items (1) to (6) of the 2026-10-24 review of run `40003317485`. Source data: the `sim.log` and step times of runs `39934951574`, `39995201296` and `40003317485` (`gh run download`, `gh run view --json jobs`).
 
 ### Rep plan (item 4): Lean `Fw.Measure.WalkBudget.planReps`, golden `walk-budget.jsonl` (27 lines)
 
@@ -244,6 +244,6 @@ Four sim jobs on the same commit: jobs 1 to 3 SpringBoard coordinates, job 4 the
 | 4 (control) | safari | ready 50 s | 36 | 1088 s | 22.0 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 152 s end window |
 
 - The run concluded `success`. The Lean plan (6 reps of 3 arms, `outcome` ok) is met in jobs 2, 3 and 4 inside the bound: walks of 1240, 1462 and 1088 s against a walk budget of 1644 s (job 2: `step_minutes=31`, hard stop 1794 s), job minutes 24.5 to 29.3 against the 45 min timeout. Job 1 is the host-starved tail (item 3): 1 `swipeLate` and 1 `Timeline.stop` timeout in 11 windows, then the inspector would not come back.
-- Dispatch 1 and 2 compared (same code except the shutdown step and main merged in between): the push server was ready in 50 to 66 s in 5 of 5 jobs of dispatch 2 and dispatch 1 job 4, but not within 240 s in dispatch 1 jobs 1 to 3 (load 886 to 1016). That is the host, not the plan (INFERRED).
+- Dispatch 1 against 2 (same code except the shutdown step and merged main): the push server was ready in 50 to 66 s in 5 of 5 jobs of dispatch 2 and dispatch 1 job 4, but not within 240 s in dispatch 1 jobs 1 to 3 (load 886 to 1016). That is the host, not the plan (INFERRED).
 - Control against test (item 1), pushes that passed: SpringBoard 40 of 41 (median begin 2.1 s, swipe 5.8 s, done 9.9 s, max done 59 s) and Safari 22 of 23 across both dispatches (the miss: `pageLost` in dispatch 1 job 4) (median begin 1.5 s, swipe 6.4 s, done 9.8 s, dispatch 2: max done 35.7 s). The one failed SpringBoard push was `swipeLate` (swipe 24 s against a 20 s bound). The two coordinate sources give the same median done time (9.9 against 9.8 s); the sample is too small to rank them (MEASURED, n = 18 per variant in dispatch 2).
 - Steps (item 6): the shutdown step ended in 9, 19, 23 s and the Keep host state step in 11, 15, 23 s in a healthy job; the job stayed green in all four jobs. In dispatch 1 job 3 the injected hang cost 78 s and left `success`.

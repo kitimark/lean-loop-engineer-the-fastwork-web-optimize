@@ -46,11 +46,8 @@ function dynamicMax(): Record<string, () => number> {
     "visual-diff/port-fonts": () => engines2,
     // sim-speed.yml:121 `fromJSON(needs.plan.outputs.matrix)` = arms (any number of words, :105) x reps 1..3 (:104); unbounded, so the 5 macOS slots (runs-on xcode-27) are the bound
     "sim-speed/probe": () => 1e9,
-    // smoothness.yml:155 `fromJSON(needs.site.outputs.legs)` = widths (up to every width the push line allows, trajectory-line.mjs:44) x sets [1, 2, 3] (:39 of the plan step)
     "smoothness/cadence": () => widthsMax() * setsOf(wf("smoothness.yml")),
-    // smoothness.yml:385 webkit-sim `fromJSON` of a literal list: [1,2,3,4] with `[sim-touch-control]` in the head commit, else [1,2,3]; max-parallel 1
     "smoothness/webkit-sim": () => 4,
-    // trajectory-probe.yml:259 linux legs, :498 apple legs (max-parallel 2), :430 merge per engine: .../trajectory/plan.mjs over every input
     "trajectory-probe/probe": () => traj().linux,
     "trajectory-probe/probe-apple": () => traj().apple,
     "trajectory-probe/merge": () => engines2,

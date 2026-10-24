@@ -1,11 +1,7 @@
 import Lean.Data.Json
 import Fw.Gate.Smooth
-/-!
-# Fw.Measure.WalkBudget: the wall budget of one CI Simulator job and the rep plan that fits it
--/
 namespace Fw.Measure.WalkBudget
 
-/-- Budget of one `webkit-sim` job in ms: job timeout, post-step allowance, grace on the walk step, slack for the named gaps. -/
 structure Job where
   timeoutMs : Nat
   postMs : Nat
@@ -13,10 +9,8 @@ structure Job where
   slackMs : Nat
 deriving Repr, BEq
 
-/-- smoothness.yml `webkit-sim`: 45 min; post steps 10 min (host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 under 10); grace 2 min; slack 1 min. -/
 def job : Job := ⟨2700000, 600000, 120000, 60000⟩
 
-/-- The post steps of the job with their `timeout-minutes`, in ms. -/
 def postSteps : List (String × Nat) :=
   [("host state", 60000), ("upload", 120000), ("upload retry", 120000), ("shutdown", 120000), ("telemetry", 120000)]
 
@@ -24,21 +18,18 @@ def postStepsMs : Nat := (postSteps.map (·.2)).foldl (· + ·) 0
 
 theorem postSteps_fit : postStepsMs + 60000 = job.postMs := by decide
 
-/-- Time the deadline does not see, each with the longest value of the three jobs of run 40003317485. -/
 structure Gaps where
   clockMs : Nat
   driftMs : Nat
   completeMs : Nat
 deriving Repr, BEq
 
-/-- `clockMs`: runner job start to the Job clock step (3 to 6 s); `driftMs`: the Walk budget step reads the clock, the walk starts after the step ends (22 to 50 s on a starved host); `completeMs`: the runner's Post and Complete job steps (1 to 4 s). -/
 def gaps : Gaps := ⟨6000, 50000, 4000⟩
 
 def Gaps.total (g : Gaps) : Nat := g.clockMs + g.driftMs + g.completeMs
 
 theorem gaps_total : gaps.total = job.slackMs := by decide
 
-/-- The harness's process group is killed this long after the walk deadline. -/
 def hardStopMs : Nat := 45000
 
 def minuteMs : Nat := 60000
@@ -129,29 +120,22 @@ theorem job_ends_inside_gaps (elapsed : Nat) (hc : elapsed ≤ deadlineAt job + 
   unfold Gaps.total at h2
   omega
 
-/-- Kept end windows per arm that one job needs to decide (`Fw.Gate.Smooth.minReps`). -/
 def minKept : Nat := Fw.Gate.Smooth.minReps
 
 theorem minKept_value : minKept = 5 := by decide
 
-/-- A rep is one hero and one end window of every arm. -/
 def windowsPerRep (arms : Nat) : Nat := 2 * arms
 
-/-- Time allowed per window: the mean over 144 windows of the four complete walks of runs 39934951574 and 39995201296 is 35.6 s, the slowest job 42.9 s. -/
 def windowMs : Nat := 45000
 
-/-- The Simulator tends to die after about 30 to 40 windows; one job plans at most this many. -/
 def lifeWindows : Nat := 36
 
 def repMs (arms : Nat) : Nat := windowsPerRep arms * windowMs
 
-/-- Whole reps that fit between `now` and the deadline `dl`. -/
 def repsFit (dl now arms : Nat) : Nat := (dl - now) / repMs arms
 
-/-- Whole reps that fit in the Simulator's life. -/
 def repsLife (arms : Nat) : Nat := lifeWindows / windowsPerRep arms
 
-/-- Reps one job plans: both bounds. -/
 def planReps (dl now arms : Nat) : Nat := min (repsLife arms) (repsFit dl now arms)
 
 inductive Outcome where
@@ -160,7 +144,6 @@ inductive Outcome where
   | budgetShort
 deriving Repr, BEq, DecidableEq
 
-/-- Whether one job's planned reps give every arm `minKept` end windows (a per-job plan only, never a lane verdict: the across-job verdict needs `Fw.Gate.Smooth.minSamples` decisive jobs, which `outcome` does not count); the life bound is decided first, it does not depend on the clock. -/
 def outcome (dl now arms : Nat) : Outcome :=
   if repsLife arms < minKept then .lifeShort else if repsFit dl now arms < minKept then .budgetShort else .ok
 
@@ -169,7 +152,6 @@ def Outcome.name : Outcome → String
   | .lifeShort => "lifeShort"
   | .budgetShort => "budgetShort"
 
-/-- End windows of the arm at position `pos` of the rep order after `n` windows of the rep-major walk (hero then end per arm). -/
 def endsDone (n arms pos : Nat) : Nat := n / windowsPerRep arms + if 2 * pos + 2 ≤ n % windowsPerRep arms then 1 else 0
 
 theorem planReps_fits (dl now arms : Nat) : planReps dl now arms * repMs arms ≤ dl - now :=
