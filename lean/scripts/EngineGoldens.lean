@@ -1,4 +1,5 @@
 import Fw.Engine.Chromium
+import Fw.Engine.TransitionStart
 import Fw.Engine.WebKit
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroAccentOpt
@@ -25,6 +26,7 @@ def generators : List (String × String) :=
    ("pain-notes.jsonl", Fw.Parts.PainNotesOpt.goldenText),
    ("people-card.jsonl", Fw.Parts.PeopleCardOpt.goldenText),
    ("people-deck.jsonl", Fw.Parts.PeopleDeckOpt.goldenText),
+   ("transition-start.jsonl", Fw.Engine.TransitionStart.goldenJsonl ()),
    ("webkit.jsonl", Fw.Engine.WebKit.goldenJsonl)]
 
 /-- Check (or with `--write`, rewrite) `packages/contracts/golden/engine/*.jsonl` against the Lean generators. Run from

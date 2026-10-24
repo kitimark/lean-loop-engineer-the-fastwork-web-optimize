@@ -393,7 +393,7 @@ jobs:
   # by side (artifact frames-<engine>). The probe and merge jobs skip on such a push. Review material only, no verdict.
   frames:
     needs: [site]
-    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[frames:') }}
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:frames:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -613,7 +613,7 @@ jobs:
       # strips. Review material for a person, no verdict; artifact frames-apple-<leg>.
       - id: fs
         name: The flag of the frames run (from the head commit message)
-        if: ${{ contains(github.event.head_commit.message, '[frames:') }}
+        if: ${{ contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
         env:
           HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
@@ -623,7 +623,7 @@ jobs:
           echo "search=$search" >> "$GITHUB_OUTPUT"
           echo "frames search: $search"
       - name: Capture the nav band through both pushes (screenshots, then the screencast), then compose the strips
-        if: ${{ contains(github.event.head_commit.message, '[frames:') }}
+        if: ${{ contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
         env:
           ENGINE: ${{ matrix.engine }}
           WIDTHS: ${{ matrix.widths }}
@@ -638,10 +638,76 @@ jobs:
           node src/trajectory/frames.mjs capture --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --source screencast --reps 3 --out out/frames/raw-screencast
           node src/trajectory/frames.mjs strips --in out/frames/raw-screenshot,out/frames/raw-screencast --out out/frames/strips --run "$RUN_ID"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[frames:') }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
         with:
           name: frames-apple-${{ matrix.leg }}
           path: packages/gate-breakpoints/out/frames
+          if-no-files-found: error
+          retention-days: 30
+      # A push whose head commit carries `[transitions:earn]` records the earn and language buttons frame by frame (src/trajectory/
+      # transitions.mjs): Chromium and Playwright WebKit on this runner, the original and the faithful rewrite, 3 full repeats and one
+      # light page per arm plus the fix candidates (the faithful rewrite with one rule that swaps `padding-inline` in the transition
+      # list, 2 repeats each), then Safari itself through safaridriver (best effort, window width at least 640). It runs no walk and
+      # no verdict; artifact transitions-apple-<leg> holds the raw recordings and their summaries.
+      - name: Playwright Chromium (macOS build) for the transitions recording
+        if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
+        working-directory: packages/gate-breakpoints
+        run: |
+          set -euo pipefail
+          pnpm exec playwright-core install chromium
+          p=$(node --input-type=module -e "import { chromium } from 'playwright-core'; console.log(chromium.executablePath())")
+          test -x "$p"
+          echo "CHROME_PATH=$p" >> "$GITHUB_ENV"
+      - name: Record the earn and language buttons in Chromium and Playwright WebKit
+        if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
+        env:
+          WIDTHS: ${{ matrix.widths }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 7
+        run: |
+          set -euo pipefail
+          for e in chromium playwright-webkit; do
+            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --morph 0 --variants logical,physical,padding --out out/transitions/raw
+          done
+      - name: Record Safari itself through safaridriver (best effort)
+        id: safari
+        if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
+        continue-on-error: true
+        env:
+          WIDTHS: ${{ matrix.widths }}
+          FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        timeout-minutes: 5
+        run: |
+          set -uo pipefail
+          mkdir -p out/transitions/raw
+          status=out/transitions/safari-status.txt
+          if [ "$WIDTHS" -lt 640 ]; then echo "skipped: a Safari window on macOS is wider than $WIDTHS px" | tee "$status"; exit 0; fi
+          if ! sudo safaridriver --enable 2> out/transitions/safari-enable.txt; then echo "failed: safaridriver --enable refused: $(head -c 300 out/transitions/safari-enable.txt)" | tee "$status"; exit 1; fi
+          # What the runner says about reduced motion (the site switches its motion off under it): read, ask for "off", read again.
+          { defaults read com.apple.universalaccess reduceMotion; defaults write com.apple.universalaccess reduceMotion -bool false; defaults read com.apple.universalaccess reduceMotion; } > out/transitions/safari-defaults.txt 2>&1 || true
+          set -m
+          safaridriver -p 4444 > out/transitions/safaridriver.log 2>&1 &
+          pid=$!
+          trap 'kill -- -"$pid" 2>/dev/null || true' EXIT
+          up=no
+          for _ in $(seq 1 20); do if curl -fsS http://127.0.0.1:4444/status > /dev/null 2>&1; then up=yes; break; fi; sleep 1; done
+          if [ "$up" != yes ]; then echo "failed: safaridriver did not answer on port 4444" | tee "$status"; exit 1; fi
+          if node src/trajectory/transitions-safari.mjs --port 4444 --width "$WIDTHS" --reps 3 --variants logical --out out/transitions/raw; then echo "ok: safaridriver, $WIDTHS px" | tee "$status"; else echo "failed: the Safari recording stopped (see the step log)" | tee "$status"; exit 1; fi
+      - name: Reduce the recordings to their summaries
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[transitions:') }}
+        env:
+          RUN_ID: ${{ github.run_id }}
+        working-directory: packages/gate-breakpoints
+        run: node src/trajectory/transitions.mjs summary --in out/transitions/raw --out out/transitions/summary --run "$RUN_ID"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[transitions:') }}
+        with:
+          name: transitions-apple-${{ matrix.leg }}
+          path: packages/gate-breakpoints/out/transitions
           if-no-files-found: error
           retention-days: 30
 
