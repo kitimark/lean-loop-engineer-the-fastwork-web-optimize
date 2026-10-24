@@ -1,0 +1,17 @@
+{
+ "schema": "fw.ci-runner/1",
+ "workflow": "path-pix",
+ "job": "sim-draw",
+ "runId": "40037992429",
+ "runAttempt": "2",
+ "sha": "f69f8cb29226135a10f13ae81b84f01c498b36e5",
+ "ref": "refs/heads/ci/pathpix-consensus-followups",
+ "runnerOS": "macOS",
+ "runnerArch": "ARM64",
+ "imageOS": "macos27",
+ "imageVersion": "20261022.0305.3",
+ "kernel": "27.0.0",
+ "cpus": 3,
+ "dockerNcpu": null,
+ "node": "v24.22.0"
+}
