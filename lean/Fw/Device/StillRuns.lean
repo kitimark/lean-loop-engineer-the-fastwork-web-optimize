@@ -928,7 +928,8 @@ private def midSlide (rows : List (Int × Int)) : List Int :=
 /-- The toolbar moves all the time: every twenty frames it changes. -/
 private def busy (rows : List (Int × Int)) : List Int := (List.range rows.length).map fun i => if i / 20 % 2 == 0 then 7750 else 7800
 
-private def cverdictCases : List (List Pass × List Pass) :=
+/-- A function of `Unit` so that its lists are built when the golden is printed, not at start-up. -/
+private def cverdictCases (_ : Unit) : List (List Pass × List Pass) :=
   [([mkPass 8150 [] baseRows], [mkPass 8150 [] liftRows]),
    ([mkPass 8150 [] baseRows], [mkPass 7750 [] liftRows]),
    ([mkPass 7750 (constVh 7750 baseRows) baseRows, mkPass 7750 (constVh 7750 baseRows) baseRows], [mkPass 7750 (constVh 7750 liftRows) liftRows]),
@@ -979,7 +980,7 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "cruns"), ("rows", Json.arr (rows.map crowJ).toArray), ("runs", Json.arr ((runsC rows).map crunJ).toArray),
       ("band", by_ fun c => countC c bandLo bandHi rows), ("exitFrames", by_ fun c => exitFramesC c rows),
       ("wholeBand", bandRuns (dropClass rows)), ("wholeExit", exitFrames (dropClass rows))]).compress) ++
-  (cverdictCases.map fun (b, l) =>
+  ((cverdictCases ()).map fun (b, l) =>
     let arms (ps : List Pass) : Json :=
       Json.mkObj [("moving", armJ (armOf .moving ps)), ("still", armJ (armOf .still ps)), ("today", armJ (armToday ps))]
     (Json.mkObj [("kind", "cverdict"), ("base", Json.arr (b.map passJ).toArray), ("lift", Json.arr (l.map passJ).toArray),
