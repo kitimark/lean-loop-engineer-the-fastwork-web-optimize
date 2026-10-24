@@ -263,13 +263,13 @@ next to the verdict. (3) Chromium has no A3 until its arm list gets one entry. (
 "parts the box touches" column) remains a TS stand-in with no Lean twin; `probesHit` has one. (5) One run, 3 jobs per engine: the
 class of the 192513-20 raster state needs another run or a majority reference. No phone; the look review is the user's.
 
-## Follow-ups (task pathpix-consensus-followups, run 40037992429)
+## Follow-ups (run 40037992429)
 
 Branch `ci/pathpix-consensus-followups`, workflow `path-pix`, commit `f69f8cb29`, 3 WebKit exit jobs, 3 WebKit draw jobs, 3 Chromium jobs.
 Every job succeeded at the first attempt except draw job 3: its Safari tab took about 7 minutes to appear and `simctl screenshot`
 failed in `place()` (infrastructure; the job log of attempt 1 has it); it was re-run once with `gh run rerun --failed` (same run id,
 attempt 2) and succeeded. All tables below are printed by `pathpix-exit-report.mjs` (exit lanes) and `pathpix-exit-draw-zones.mjs`
-(draw lanes) from the artifacts of that run; none is typed by hand.
+(draw lanes) from the artifacts of that run.
 
 **1. Look list with the verdict (CONFIRMED, Lean `Verdict.listed`, `varied_not_listed`, `zoned_listed_not_varied`).** The "L cells with a
 strip" table now has a `verdict` column next to the grade and ends with "left out of the list: N varied cells (a change the identical

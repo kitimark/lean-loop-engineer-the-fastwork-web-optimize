@@ -5,7 +5,6 @@ import { drawOf, drawWorst } from './pathpix-exit.mjs';
 const ARMS = ['N', 'F'];
 const px = (r) => (r ? `${r.changed} (max ${r.maxDelta})` : 'n/a');
 
-/** The word band and the rest of the frame read apart, from the cells of several draw jobs (`cells.json` of the draw lane). */
 export function zoneReads(job) {
   const out = {};
   for (const n of ARMS) {

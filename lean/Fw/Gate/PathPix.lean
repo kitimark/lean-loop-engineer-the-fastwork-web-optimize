@@ -1570,21 +1570,17 @@ theorem consensus_agreeing (c : Cell) (f : Option Floor) (live : Bool) (a2 : Aa)
   · exact seen_ne_varied_of_agree _ ao h
   · exact seen_ne_varied_of_agree _ ai h
 
-/-- One zone read against the majority arm: P, A2 and A3 against A, P against A2, and A2 against A3. -/
 structure MZone where
   z : Zone
   p2 : Option Raw
   a23 : Option Raw
 deriving DecidableEq, Repr
 
-/-- A differs from A2 and from A3 while A2 and A3 agree: A is the odd arm out. -/
 def MZone.odd (m : MZone) : Bool :=
   m.z.aa2.changed != 0 && m.z.aa3.any (·.changed != 0) && m.a23.any (·.changed == 0)
 
-/-- P changed against A while A is the odd arm, so P is read against A2. -/
 def MZone.viaRef (m : MZone) : Bool := m.odd && m.z.p.changed != 0
 
-/-- The zone's reading: against A2 when A is odd, else `Zone.seen`. -/
 def MZone.seen (m : MZone) : Seen :=
   if m.viaRef then
     match m.p2 with
@@ -1592,10 +1588,8 @@ def MZone.seen (m : MZone) : Seen :=
     | none => .varied
   else m.z.seen
 
-/-- P against the reference arm: A2 when `viaRef`, else A. -/
 def MZone.ref (m : MZone) : Raw := if m.viaRef then m.p2.getD m.z.p else m.z.p
 
-/-- The counts the zone adds to the grade: none when varied, else P against its reference. -/
 def MZone.eff (m : MZone) : Raw := if m.seen == .varied then ⟨0, 0⟩ else m.ref
 
 theorem MZone.odd_iff (m : MZone) : m.odd = true ↔
@@ -1646,11 +1640,8 @@ theorem MZone.eff_counted (m : MZone) (h : m.seen = .counted) : m.eff.changed �
     rw [MZone.eff_plain m (by rw [MZone.seen_plain m hf, h]; decide) hf]
     exact ((seen_counted_iff m.z).1 h).1
 
-/-- The cell with its two zones replaced by the zones' effective counts. -/
 def effCell (c : Cell) (mo mi : MZone) : Cell := { c with out := mo.eff, inside := mi.eff }
 
-/-- The cell's reading across arms: varied when only varied zones carry its change, else the grade over the
-counted zones. -/
 def zoned (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) : Verdict :=
   if gradeRel c f live == .invalid then .graded .invalid
   else if (mo.seen.join mi.seen) == .varied then .varied
@@ -1704,7 +1695,6 @@ theorem zoned_out_counted_l (c : Cell) (mo mi : MZone)
   unfold grade
   simp [hv, h]
 
-/-- Why a zoned L cell is L, from the counted zones only. -/
 def zonedWhy (c : Cell) (f : Option Floor) (live : Bool) (mo mi : MZone) : Option Why :=
   if zoned c f live mo mi == .graded .l then whyL (effCell c mo mi) f live else none
 
@@ -1724,7 +1714,6 @@ theorem zonedWhy_isSome_iff (c : Cell) (f : Option Floor) (live : Bool) (mo mi :
   · simp [h, whyL_isSome_iff, zoned_l_eff c f live mo mi h]
   · simp [h]
 
-/-- The look list holds only cells graded L; a varied cell is never listed. -/
 def Verdict.listed : Verdict → Bool
   | .graded .l => true
   | _ => false
@@ -1746,10 +1735,8 @@ theorem zoned_listed_not_varied (c : Cell) (f : Option Floor) (live : Bool) (mo 
   · rw [(zoned_varied_iff c f live mo mi).2 ⟨hg, hj⟩] at this
     cases this
 
-/-- The ms between sampled frames of one accent draw. -/
 def drawStepMs : Nat := 150
 
-/-- The length of one accent draw in ms. -/
 def drawMs : Nat := 900
 
 /-- The seek times, in ms into one draw, at which a frame is read. -/
@@ -1763,7 +1750,6 @@ theorem drawTimes_last : drawTimes.getLast? = some drawMs := by decide
 
 theorem drawTimes_sorted : drawTimes.Pairwise (· < ·) := by decide
 
-/-- An arm's frame against faithful: no changed pixel, a change inside the faithful A/A floor, or above it. -/
 inductive Draw where
   | same | floor | above
 deriving DecidableEq, Repr
@@ -1771,7 +1757,6 @@ deriving DecidableEq, Repr
 def Draw.name : Draw → String
   | .same => "same" | .floor => "floor" | .above => "above"
 
-/-- Reads `arm` (arm against faithful) against `aa` (faithful against faithful) at one frame. -/
 def drawOf (aa arm : Raw) : Draw :=
   if arm.changed == 0 then .same else if arm.le aa then .floor else .above
 
@@ -1795,7 +1780,6 @@ theorem drawOf_above_of_quiet_floor (aa arm : Raw) (ha : aa.changed = 0) (h : ar
   · simp [Raw.le, ha] at hg
     exact absurd hg.1 h
 
-/-- The worst frame of a run: above beats floor beats same. -/
 def Draw.worst (xs : List Draw) : Draw :=
   if xs.contains .above then .above else if xs.contains .floor then .floor else .same
 

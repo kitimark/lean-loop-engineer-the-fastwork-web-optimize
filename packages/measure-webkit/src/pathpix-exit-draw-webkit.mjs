@@ -18,11 +18,6 @@ export const drawSearch = (arm) => (DRAW_FLAGS[arm] ? `?fw=${DRAW_FLAGS[arm]}` :
 const ADVANCE_STEP_MS = 50;
 const ADVANCE_CAP_MS = 4000;
 
-/**
- * Path-pix draw window: the accent word is not pinned; its own timer chain runs on the held virtual clock, and each
- * 0.9 s draw (out, then in) is paused and seeked to the same times (Lean `Fw.Gate.PathPix.drawTimes`) per arm.
- * Seeking is allowed in WebKit only.
- */
 export async function runWebkitDrawLane({ siteDir, out, run, settleMs = 0, log: log0 = (s) => console.error(s) }) {
   const t0 = Date.now();
   const log = (m) => { const s = Math.round((Date.now() - t0) / 1000); log0(`[${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}] ${m}`); };

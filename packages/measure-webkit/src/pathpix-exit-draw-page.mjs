@@ -1,6 +1,5 @@
 const EM = `document.querySelector('[data-fw="hero-accent"]')`;
 
-/** State of the accent word: class string, label, box in css px, and its animations (idle ones are infinite). */
 export const DRAW_STATE_EXPR = `(() => {
   const em = ${EM};
   if (!em) return JSON.stringify(null);
@@ -14,7 +13,6 @@ export const DRAW_STATE_EXPR = `(() => {
   });
 })()`;
 
-/** Move the held virtual clock in small steps until the accent's class string differs from `prev`. */
 export const drawAdvanceExpr = (prev, capMs, stepMs) => `(async () => {
   const em = ${EM};
   const prev = ${JSON.stringify(prev)};
@@ -23,7 +21,6 @@ export const drawAdvanceExpr = (prev, capMs, stepMs) => `(async () => {
   return JSON.stringify({ advanced: ms, changed: em.className !== prev, cls: em.className, wk: window.__wk.stats() });
 })()`;
 
-/** Pause every animation inside the accent word and seek it to `t` ms; the rest of the page stays as FREEZE_EXPR left it. */
 export const drawSeekExpr = (t) => `(async () => {
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const em = ${EM};

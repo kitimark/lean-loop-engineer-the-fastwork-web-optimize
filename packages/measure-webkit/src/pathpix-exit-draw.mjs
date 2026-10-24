@@ -8,7 +8,6 @@ export const DRAW_ARMS = ['N', 'F'];
 export const DRAW_PHASES = ['out', 'in'];
 export const drawFile = (arm, phase, k) => `shots/${arm}_${phase}_${k}.png`;
 
-/** Device-pixel band (x0, x1, y0, y1) around the faithful word's boxes of one frame, padded by `pad` css px. */
 export function drawBand(rects, dpr, w, h, pad = 8) {
   const rs = rects.filter(Boolean);
   if (!rs.length) return null;
@@ -25,7 +24,6 @@ const cell = (a, b, band, w) => {
   return { del, raw: { changed: all.changed, maxDelta: all.maxDelta }, bbox: all.bbox, band: s ? s.inside : null, rest: s ? s.out : null };
 };
 
-/** Replays the draw frames of one lane directory: each arm against faithful, read against faithful against faithful (A2). */
 export function analyzeDraw(dir, { strips = 'changed', emit = () => {} } = {}) {
   const man = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   const { frame, dpr } = man;
