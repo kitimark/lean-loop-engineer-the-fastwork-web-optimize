@@ -4538,6 +4538,34 @@
    "leanVerdict": "provable",
    "leanReason": "Whether a slot run may skip acquire is a pure function of the held tokens (kind, owner pid+start) and the request kind.",
    "hardening": "slot-held-identity"
+  },
+  {
+   "id": "inc-polish-line-join",
+   "at": "2026-10-24T11:55+07:00",
+   "title": "fw polish comment cuts joined two lean/scripts/check.sh job lines, so the second job ran only as arguments of the first",
+   "symptom": "check.sh on main had 2 lines holding two `job \"...\"` calls (sup-measure + node-budget, hero-scene-pause + nav-earn); the land-wt-lake-rebuilds branch had a third (land-wt + gate-engine-timing), found by its round-2 review. The second job's golden check never ran on its own; all four checks pass when run separately (lead, 2026-10-24).",
+   "cause": "CONFIRMED (git log -G on lean/scripts/check.sh: polish commits 162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, 65c6ec5 on the land-wt-lake-rebuilds branch): a comment cut removed a trailing `# ...` comment together with the newline after it. fw polish checks no line-preservation rule on comment edits, and check.sh stays green because the joined command still exits 0.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "lean/scripts/check.sh",
+     "note": "lines 155-159 after the split in the land-wt-lake-rebuilds land"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/polish.ts",
+     "note": "comment-cut commit path: no check that code lines survive"
+    }
+   ],
+   "repro": "A comment-sicko edit that deletes `  # note\\n` from `cmd a  # note\\n  cmd b` leaves `cmd a  cmd b`; fw polish commits it.",
+   "fix": {
+    "task": "polish-line-join"
+   },
+   "regression": "polish-line-join: Lean rule that a comment cut keeps every code line of the original as a line, golden rows, fw polish reverts a file that breaks it; plus a one-job-per-line check.sh lint.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a comment cut preserved the code lines is a pure function of the two file texts and the comment syntax.",
+   "hardening": "polish-line-join"
   }
  ]
 }
