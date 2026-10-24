@@ -1,12 +1,12 @@
 # scene-pause-kcopy handoff
 
 - Branch: worktree-wf_6617cda3-14e-1; worktree .claude/worktrees/wf_6617cda3-14e-1
-- Last commit: the handoff commit after ea47bacd2 and the main merge; ci/scene-pause-kcopy = 4e2471228 (push 1),
-  ci/scene-pause-kcopy-2 = the handoff commit (push 2, no lane; a second sha for census run 3)
+- Last commit: this handoff commit (child of merge 845e23150; dry land VERDICT dry); ci/scene-pause-kcopy = 4e2471228 (push 1),
+  ci/scene-pause-kcopy-2 = 08b9d953a (push 2, no lane; a second sha for census run 3)
 - CI runs: trajectory-probe 40139690556 (push, 4e2471228, fw=hero:scene-pause, all widths): success; Chromium
   UNDECIDED (leave-one-out only), playwright-webkit CLEAN; recorded with Gen.record (3 cells pass, webkit morph pending)
-- Verified: `lake build Fw.Parts.HeroScenePause Fw.Preset.Gen` OK; standard axioms only; check.sh green (before the
-  main merge); golden hero-scene-pause.jsonl regenerated, equal to the Lean output; site tests 7376 passed;
+- Verified: `lake build Fw.Parts.HeroScenePause Fw.Preset.Gen` OK; standard axioms only; check.sh green (after the
+  first main merge); golden hero-scene-pause.jsonl regenerated, equal to the Lean output; site tests 7376 passed;
   Gen.run --check up to date (hero:scene-pause linked, verdict not-proved: status partly-proved).
 - Open: y 5267 census to n=3 (2 webkit-sim dispatches, lead); macOS WebKit morph cell (trajectory dispatch, lead);
   after both: Gen.record the apple run, set the ledger status if the census holds, rerun Gen.run.
