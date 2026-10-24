@@ -19712,7 +19712,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/LandWtGolden.lean"
    ],
-   "title": "(S) the dry land's lake step is rebuild work in the land worktree pool: median 3.0 s at 0 modules built (n 100), 10.7 s at 1-7 (n 48), 18.9 s at 8+ (n 56); one commit 2e54fbe built 24, 0, 24 modules in three dry lands (27.7, 2.4, 23.5 s) because each land checks out its commit in the first free .claude/land-wt/<n> (land.ts claimLandWt :345, checkoutLandWt :361): decide in Lean which worktree or which .lake state a dry land starts from so rebuilt modules fall, golden rows, effect on lake.built and the lake step measured on later dry lands Unit of decision: the lake step alone. Accepted limit: c4f662a 9.0 s at 0 built may stay unexplained."
+   "title": "(S) the dry land's lake step is rebuild work in the land worktree pool: median 3.0 s at 0 modules built (n 100), 10.7 s at 1-7 (n 48), 18.9 s at 8+ (n 56); one commit 2e54fbe built 24, 0, 24 modules in three dry lands (27.7, 2.4, 23.5 s) because each land checks out its commit in the first free .claude/land-wt/<n> (land.ts claimLandWt :345, checkoutLandWt :361): decide in Lean which worktree or which .lake state a dry land starts from so rebuilt modules fall, golden rows, effect on lake.built and the lake step measured on later dry lands Unit of decision: the lake step alone. Accepted limit: c4f662a 9.0 s at 0 built may stay unexplained.",
+   "evidence": "39ea984"
   },
   {
    "devices": [

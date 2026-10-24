@@ -342,20 +342,52 @@ export const rerunAlone = (passed: boolean, loadFailure: boolean): boolean =>
   askCore("console.landRetry", { passed, loadFailure })?.rerun === true;
 export const LOAD_FAILURE_RE = /timed out in \d+\s*ms|ETIMEDOUT|Hook timed out|Test timed out/;
 
-export function claimLandWt(mainDir: string): { dir: string; free: () => void } {
+export type WtSlot = { idx: number; dist: number | null };
+export function pickLandWt(slots: WtSlot[]): number | null {
+  const before = (a: WtSlot, b: WtSlot): boolean =>
+    a.dist !== null && b.dist !== null ? a.dist < b.dist || (a.dist === b.dist && a.idx < b.idx) : a.dist !== null ? true : b.dist !== null ? false : a.idx < b.idx;
+  let best: WtSlot | undefined;
+  for (const s of slots) if (best === undefined || before(s, best)) best = s;
+  return best === undefined ? null : best.idx;
+}
+export const LAND_WT_INPUT_RE = /\.lean$|(^|\/)lakefile|(^|\/)lean-toolchain$|(^|\/)lake-manifest/;
+export function landWtDist(dir: string, commit: string): number | null {
+  if (!existsSync(join(dir, "lean", ".lake"))) return null;
+  try {
+    return git(dir, ["diff", "--name-only", "HEAD", commit, "--", "lean"]).split("\n").filter((f) => LAND_WT_INPUT_RE.test(f)).length;
+  } catch { return null; }
+}
+
+export function claimLandWt(mainDir: string, commit?: string): { dir: string; free: () => void } {
   const root = join(mainDir, ".claude", "land-wt");
   mkdirSync(root, { recursive: true });
-  for (let n = 0; ; n++) {
+  const take = (n: number): { dir: string; free: () => void } | null => {
     const claim = join(root, `${n}.claim`);
     for (let again = 0; again < 2; again++) {
       try { writeFileSync(claim, `${process.pid}\n`, { flag: "wx" }); return { dir: join(root, String(n)), free: () => { try { unlinkSync(claim); } catch { } } }; }
       catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
         const pid = Number(readFileSync(claim, "utf8").trim());
-        if (alive(pid)) break;
+        if (alive(pid)) return null;
         try { unlinkSync(claim); } catch { }
       }
     }
+    return null;
+  };
+  const isFree = (n: number): boolean => {
+    try { return !alive(Number(readFileSync(join(root, `${n}.claim`), "utf8").trim())); } catch { return true; }
+  };
+  const tried = new Set<number>();
+  for (;;) {
+    let top = 0;
+    for (const f of readdirSync(root)) { const m = /^(\d+)(\.claim)?$/.exec(f); if (m) top = Math.max(top, Number(m[1]) + 1); }
+    const cands: WtSlot[] = [];
+    for (let n = 0; n <= top; n++) if (!tried.has(n) && isFree(n)) cands.push({ idx: n, dist: commit === undefined ? null : landWtDist(join(root, String(n)), commit) });
+    const n = pickLandWt(cands);
+    if (n === null) { tried.clear(); continue; }
+    const got = take(n);
+    if (got) return got;
+    tried.add(n);
   }
 }
 
@@ -743,9 +775,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   };
   if (dm) {
     const { main0, tree } = dm;
-    const slot = claimLandWt(mainDir);
+    const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
+    const slot = claimLandWt(mainDir, c);
     try {
-      const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
       const instDry = checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt(o.installExec, o.installFs));
       if (instDry) return fail(instDry, "install", outcome({ installs: false }));
       if (writeEvidence(slot.dir, o.task!, sha.slice(0, 7)) === "failed") return fail("could not write the evidence into docs/team/work-graph.json");
