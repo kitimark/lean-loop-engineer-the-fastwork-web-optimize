@@ -1303,7 +1303,6 @@ def planOne (i : InputD) : List Target :=
 
 def held (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .orphanLoop
 
-/-- The booted Simulators of ended sim slots the watch names as advice. -/
 def heldSim (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .simBooted
 
 private def gE : InputD :=
@@ -1374,8 +1373,6 @@ theorem writer_identity {i : InputD} {r : Row} {l : LoopFact} (h : writerLive i 
     exact ⟨w, hw', by rw [hw, hwa], hwp, x, hx, hxp.1, hxp.2⟩
   · cases h
 
-/-- A waiter that holds the awaited file open under another name (a symlinked directory, a hard link) is a writer: the
-inodes decide when both are known. -/
 theorem writer_inode_match {i : InputD} {r : Row} {l : LoopFact} {w : Waiter} (hw : w ∈ i.waiters) (a : String)
     (hwt : r.wt = some a) (hwa : w.wt = a) (hlive : waiterLive i w = true)
     (hi : hasInode w.inode = true) (heq : l.inode = w.inode) : writerLive i r l = true := by
@@ -1384,12 +1381,10 @@ theorem writer_inode_match {i : InputD} {r : Row} {l : LoopFact} {w : Waiter} (h
   simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
   exact ⟨w, hw, ⟨hwa, by simp [sameFile, hi, heq]⟩, hlive⟩
 
-/-- Two known inodes that differ are two files: equal path strings do not make a writer (the file was replaced). -/
 theorem sameFile_inode_differs {l : LoopFact} {w : Waiter} (hl : hasInode l.inode = true) (hi : hasInode w.inode = true)
     (hne : l.inode ≠ w.inode) : sameFile l w = false := by
   simp [sameFile, hl, hi, hne]
 
-/-- With an inode unknown (the awaited file does not exist yet) the path string decides. -/
 theorem sameFile_path_fallback {l : LoopFact} {w : Waiter} (h : hasInode l.inode = false) :
     sameFile l w = (w.writes == l.awaits) := by
   simp [sameFile, h]
@@ -1436,7 +1431,6 @@ theorem relative_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i
     (h : l.awaits.startsWith "/" = false) : pickE i r = none :=
   await_unsafe_kept hl (by simp [awaitOk, h])
 
-/-- Any character outside the allowlist (letters, digits, dot, underscore, slash, hyphen) keeps the loop. -/
 theorem await_char_kept {i : InputD} {r : Row} {l : LoopFact} {c : Char} (hl : loopOf i r = some l)
     (hc : awaitChar c = false) (hm : c ∈ l.awaits.toList) : pickE i r = none :=
   await_unsafe_kept hl (by
@@ -1699,19 +1693,14 @@ theorem heldSim_in_reap {i : InputD} {s : Sel} (h : s ∈ heldSim i) : s ∈ rea
   unfold heldSim at h
   exact (List.mem_filter.1 h).1
 
-/-! ### Exit rule: when E or F may join `autoKinds`
-The watch logs every E/F selection per tick to `reap.jsonl`. A reader folds that log into one `Seen` per identity (pid and
-start) and the process table's later answer. `exitRule` says whether a kind has earned automatic stopping. -/
+/-! ### Exit rule: when E or F may join `autoKinds` -/
 
-/-- What became of a logged selection: still running at the last tick, stopped by an explicit `fw reap --stop` (a true
-orphan), or gone without our stop (the loop or Simulator ended by itself, so the selection was wrong or early). -/
 inductive Outcome where
   | alive
   | stopped
   | ended
 deriving Repr, DecidableEq
 
-/-- One logged identity of kind `kind`, first selected at second `firstAt`. -/
 structure Seen where
   kind : Kind
   pid : Nat
@@ -1720,20 +1709,15 @@ structure Seen where
   outcome : Outcome
 deriving Repr
 
-/-- Seven days in seconds. -/
 def exitSec : Nat := 7 * 86400
 
-/-- The kinds that can earn automatic stopping through the log. -/
 def exitKinds : List Kind := [.orphanLoop, .simBooted]
 
-/-- A kind joins `autoKinds` when it is an E/F kind, its log goes back at least `exitSec`, it has at least one true orphan
-(`stopped`) and none of its identities `ended` by itself. Each identity decides on its own; other kinds do not count. -/
 def exitRule (now : Nat) (seen : List Seen) (k : Kind) : Bool :=
   let ks := seen.filter fun s => s.kind == k
   decide (k ∈ exitKinds) && ks.any (fun s => decide (s.firstAt + exitSec ≤ now)) &&
     ks.any (fun s => s.outcome == .stopped) && ks.all (fun s => s.outcome != .ended)
 
-/-- The kinds that have earned automatic stopping. -/
 def promoted (now : Nat) (seen : List Seen) : List Kind := exitKinds.filter (exitRule now seen)
 
 theorem exit_selected {now : Nat} {seen : List Seen} {k : Kind} (hk : k ∈ exitKinds)
@@ -1777,7 +1761,6 @@ theorem exit_ended_kept {now : Nat} {seen : List Seen} {k : Kind} {s : Seen} (hs
 theorem promoted_sub {now : Nat} {seen : List Seen} {k : Kind} (h : k ∈ promoted now seen) : k ∈ exitKinds :=
   (List.mem_filter.1 h).1
 
-/-- The rows of the exit rule: a quiet log, no orphan, an ended loop, an old log with an orphan. -/
 private def sOld (o : Outcome) : Seen := ⟨.orphanLoop, 10, 100, 1000, o⟩
 
 #guard promoted (1000 + exitSec) [sOld .stopped] == [.orphanLoop]
@@ -1910,7 +1893,6 @@ def opReapGuard (req : Json) : Except String Reply := do
   let t ← targetOf (← field req "target")
   pure [("allowed", .bool (guardOk scope rows t))]
 
-/-- A logged identity from JSON: `kind`, `pid`, `start`, `firstAt`, `outcome` (alive, stopped, ended). -/
 def seenOf (j : Json) : Except String Seen := do
   let kind ← match ← str j "kind" with
     | "orphanLoop" => pure Kind.orphanLoop
@@ -1923,8 +1905,7 @@ def seenOf (j : Json) : Except String Seen := do
     | o => throw s!"outcome: unknown {o}"
   pure ⟨kind, ← nat j "pid", ← nat j "start", ← nat j "firstAt", outcome⟩
 
-/-- `ops.reapExit`: `now`, `seen` [{kind, pid, start, firstAt, outcome}] → `promote` [kind name] (the E/F kinds that earned
-automatic stopping), `exitSec`. -/
+/-- `ops.reapExit`: `now`, `seen` [{kind, pid, start, firstAt, outcome}] → `promote` [kind name], `exitSec`. -/
 def opReapExit (req : Json) : Except String Reply := do
   let now ← nat req "now"
   let seen ← (← arrD req "seen").mapM seenOf

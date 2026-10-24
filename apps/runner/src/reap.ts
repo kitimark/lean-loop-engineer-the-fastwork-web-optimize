@@ -61,8 +61,6 @@ export function simUdidOf(args: string): string | null {
 
 export const isCiWait = (args: string): boolean => /(^|[\s/])fw(\.mjs|\.ts)?\s+ci\s+wait(\s|$)/.test(args) || /\bfw\b.*\bci\s+wait(\s|$)/.test(args);
 
-/** The first regular file each pid has open on fd 1 or 2 (`lsof -Fpfin`): its path and inode number. A file set starts at an
- *  `f` line; `i` and `n` may come in either order. `ino` is "" when lsof printed none. */
 export function parseLsofFiles(out: string): Map<number, { path: string; ino: string }> {
   const m = new Map<number, { path: string; ino: string }>();
   let pid = -1, path: string | null = null, ino = "";
@@ -81,7 +79,6 @@ export function parseLsofOut(out: string): Map<number, string> {
   return new Map([...parseLsofFiles(out)].map(([pid, f]) => [pid, f.path]));
 }
 
-/** The inode number of a path as a string, "" when it does not exist yet (the loop awaits a file its writer will create). */
 export function inodeOf(p: string): string {
   try { return String(statSync(p).ino); } catch { return ""; }
 }
@@ -101,7 +98,6 @@ export function canonPath(p: string): string {
   try { return join(realpathSync(dirname(p)), basename(p)); } catch { return p; }
 }
 
-/** Lean's `awaitOk`: an absolute path of letters, digits, dot, underscore, slash and hyphen only. */
 export const awaitAllowed = (p: string): boolean => /^\/[A-Za-z0-9._/-]*$/.test(p);
 
 export const canonAwait = (p: string): string => (awaitAllowed(p) ? canonPath(p) : p);
@@ -401,7 +397,6 @@ export function heldLoops(f: Facts, call: Call): { pid: number; start: number; s
   return held.map((h) => ({ pid: h.pid, start: h.start, subject: f.rows.find((r) => r.pid === h.pid)?.wt ?? `pid-${h.pid}`, reason: h.reason }));
 }
 
-/** The booted Simulators Lean names as advice (`heldSim` of ops.reapHeld). */
 export function heldSims(f: Facts, call: Call): { pid: number; start: number; reason: string }[] {
   const held = (call({ ...request("ops.reapHeld", f) }) as { heldSim?: Selected[] }).heldSim ?? [];
   return held.map((h) => ({ pid: h.pid, start: h.start, reason: h.reason }));
@@ -493,11 +488,8 @@ export type StopResult = {
   selected: Selected[]; termed: Target[]; killed: Target[]; left: Target[]; freedKb: number;
   /** signals the scope guard refused (a pid outside the scope, pid <= 1, or a group with a member outside the scope) */
   refused: Target[];
-  /** per kind: the pids that are gone and their RSS (KiB) */
   byKind: { kind: string; pids: number[]; freedKb: number }[];
-  /** the TERM targets of Lean's plan: what this run may stop (the count a report uses) */
   targets: Target[];
-  /** selected but not planned (an orphan loop or booted Simulator under `auto`): advice, never signalled */
   held: Selected[];
 };
 
@@ -577,15 +569,11 @@ export function recordStopped(top: string, r: StopResult, now: number = Date.now
     const p = join(consoleDirOf(env, top), "reap.jsonl");
     mkdirSync(dirname(p), { recursive: true });
     for (const k of r.byKind) appendFileSync(p, JSON.stringify({ type: "reap.stopped", at: now, kind: k.kind, pids: k.pids, freedKb: k.freedKb }) + "\n");
-  } catch { /* the log is advisory */ }
+  } catch {}
 }
 
-/** The kinds whose selections the watch logs for the exit rule (`exitKinds` of Lean). */
 const LOGGED_KINDS = ["orphanLoop", "simBooted"];
 
-/** Append one `reap.held` record per E/F selection of this watch tick to `reap.jsonl` (every tick, every selection: the log
- *  the exit rule reads). Returns the advice line for each booted Simulator (kind F) that no earlier record names: an F alert
- *  for the watch, once per identity; a loop (kind E) is already raised as `agent.held`. Best effort, never throws. */
 export function recordHeld(top: string, r: StopResult, now: number = Date.now(), env: Record<string, string | undefined> = process.env): string[] {
   const rows = r.selected.filter((s) => LOGGED_KINDS.includes(s.kind));
   if (rows.length === 0) return [];
@@ -600,18 +588,17 @@ export function recordHeld(top: string, r: StopResult, now: number = Date.now(),
         const j = JSON.parse(l) as { kind?: string; pid?: number; start?: number };
         seen.add(`${j.kind}:${j.pid}:${j.start}`);
       }
-    } catch { /* no log yet */ }
+    } catch {}
     for (const s of rows) {
       appendFileSync(p, JSON.stringify({ type: "reap.held", at: now, kind: s.kind, pid: s.pid, start: s.start }) + "\n");
       if (s.kind === "simBooted" && !seen.has(`${s.kind}:${s.pid}:${s.start}`)) {
         advice.push(`REAP advice simBooted ${s.pid}: a booted Simulator of an ended sim slot; pnpm -s fw reap --stop shuts it down`);
       }
     }
-  } catch { /* the log is advisory */ }
+  } catch {}
   return advice;
 }
 
-/** One printed line per stopped kind, plus the survivors. */
 export function renderStop(r: StopResult): string[] {
   const out = r.byKind.map((k) => `stopped ${k.kind}: ${k.pids.length} process(es) [${k.pids.join(",")}], freed ${(k.freedKb / 1024).toFixed(1)} MiB RSS`);
   if (r.killed.length) out.push(`killed after the grace: ${r.killed.map((t) => t.pid).join(",")}`);

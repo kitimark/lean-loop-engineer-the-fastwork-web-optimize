@@ -333,8 +333,6 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
-/** The udids (upper case) of the Simulators booted right now: recorded when a sim slot ends, so that `fw reap` knows which
- *  device this project booted (kind F) by identity, not by a device-name prefix. Empty when `simctl` fails. */
 function bootedUdids(d: Deps): string[] {
   try { return d.simctl.booted().map((b) => b.udid.toUpperCase()); } catch { return []; }
 }

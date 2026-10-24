@@ -382,7 +382,6 @@ def oneCases : List (String × String × Json) :=
     | .obj kvs => .obj (kvs.insert "protect" (toJson [2846]))
     | j => j)]
 
-/-- The exit rule cases: `ops.reapExit` requests. -/
 def seenJ (kind : String) (pid firstAt : Nat) (outcome : String) : Json :=
   Json.mkObj [("kind", .str kind), ("pid", toJson pid), ("start", toJson 100), ("firstAt", toJson firstAt), ("outcome", .str outcome)]
 

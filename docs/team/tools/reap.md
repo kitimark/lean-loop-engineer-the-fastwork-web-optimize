@@ -68,7 +68,7 @@ orphan) and no identity `ended` by itself (`exit_selected`, `exit_short_kept`, `
 `exit_other_kind_kept`). E and F start OUT of `autoKinds`; this task wired the rule and the log, a later task reads the
 7-day log and moves them (no caller folds the log into `Seen` yet).
 
-The stop scope: the guard scope of `stopSelected` is the plan targets, not the selection, so an orphan loop in the process
+The guard scope of `stopSelected` is the plan targets, not the selection, so an orphan loop in the process
 group of an A-D target gets no signal and the group falls back to per-pid. The land report counts the targets
 (`leftover processes stopped: N of M`) and prints the advice rows on their own line.
 
