@@ -62,10 +62,10 @@ def constLine : String :=
     ("out", Json.mkObj [("flipN", numJ flipN), ("ids", .arr #[.str clampId, .str flipId, .str releaseId]),
       ("off", .str faithfulV), ("on", .str onV)])]).compress
 
-def lines : List String :=
+def lines (_ : Unit) : List String :=
   constLine :: cases.flatMap fun (n, y, t) => Cfg.all.map (caseLine n y t)
 
-#guard lines.length == 1 + 3 * 8
+#guard (lines ()).length == 1 + 3 * 8
 #guard cases.all fun (_, y, t) => Cfg.all.all fun c =>
   (run c.hooks (init y) t).map (fun (e, o, _) => (e, o)) == trace c.hooks (init y) t
 #guard cases.all fun (_, _, t) => t.all fun
@@ -90,18 +90,18 @@ def outs (c : Cfg) (cs : Rat × List Ev) : List Out := (trace c.hooks (init cs.1
 #guard (outs ⟨true, false, true⟩ dragBack).map (·.prevent) ==
   [false, true, false, false, false, false, false, false, false, true, true, false, false, false]
 
-def text : String := String.intercalate "\n" lines ++ "\n"
+def text (_ : Unit) : String := String.intercalate "\n" (lines ()) ++ "\n"
 
 def runGolden (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == text then
+    if (← IO.FS.readFile path) == text () then
       IO.eprintln s!"morph.end golden: {path} is up to date"
       return 0
     IO.eprintln s!"morph.end golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print text
+    IO.print (text ())
     return 0
 
 end Fw.Parts.MorphEndGolden
