@@ -103,15 +103,15 @@ Queueing: the macOS runners are shared; the second Mac leg of run 1 sat queued f
 
 ## Limits
 
-- A page that never visits a bucket runs to the cap and the gap stays; this is a real failure and is kept
+- A page that never visits a bucket runs to the cap and the gap stays; the failure is kept
   (`settleWalk_deterministic_capped`).
 - If the faithful arm's own row in a bucket has no window (nothing of the original brackets it), it fails too and the retry
   spends the cap for nothing; the cap bounds the cost.
 - Only the candidate retries; orig and base are walked once.
 - The content units at 390 and 640 in run 1 (`apart` at close@0, open@9/10) are a second noise, of transitions in flight, not
   of the walk; they did not repeat across widths. Not addressed here.
-- Playwright WebKit on macOS stands in for Safari. The phone is not measured. macOS runners are shared, so a run may queue
-  (run 1: the second Mac leg queued, about 25 min from push to finish).
+- Playwright WebKit on macOS stands in for Safari. The phone is not measured. Run 1 queued the second Mac leg, about 25 min
+  from push to finish.
 - TS stand-in: `run.mjs` `pushReading` and the `against` selection (glue, no unit test; checked by one local wiring run
   that added an extra rep, which is not a result). `plan.mjs` `settleReps` is the TS twin, checked against the golden.
 - `debug=nav-transition` is the only way a `ci/*` push reaches the Mac leg; a clean run needs a lead dispatch:

@@ -49,7 +49,6 @@ export async function heroPath(engine, env, origin, site, search = '') {
   } finally { await s.close().catch(() => {}); }
 }
 
-/** The two pushes of a morph walk as readings: the morph value of every row of the open phase and of the close phase (Lean `Push`). */
 export const pushReading = (phases) => ({ opening: (phases.open ?? []).map((r) => r.m ?? null), closing: (phases.close ?? []).map((r) => r.m ?? null) });
 
 /**
@@ -60,9 +59,6 @@ export const pushReading = (phases) => ({ opening: (phases.open ?? []).map((r) =
  * its `rep`; the approach is the first rep's). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
  * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
  * union of the windows of the original's reps, each aligned on its own.
- * With `against` (`{ base }`, the reading of the faithful arm at this width) the candidate walks extra reps
- * while Lean's `more` holds: an interior bucket of a push that the faithful arm has a row in and this walk has none in. Each is a `new` unit
- * that fails on coverage, noise of the slow frames. At most `EXTRA_CAP` extra reps (plan.mjs, Lean `settleWalk`); `extra` is the count.
  */
 export async function morphPath(engine, env, origin, site, search = '', reads = 'full', reps = 1, debug = '', against = null) {
   let out = null;
