@@ -20259,9 +20259,12 @@
     "packages/gate-breakpoints/src/transition-list.mjs",
     "packages/gate-breakpoints/src/verdict.mjs",
     "packages/gate-breakpoints/test/transition-list.test.mjs",
-    "packages/contracts/golden/parts/footprint-diff.gen.json"
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/parts/footprint.gen.json"
    ],
-   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone.",
+   "evidence": "996ba63"
   },
   {
    "devices": [
@@ -20602,7 +20605,8 @@
     "research/notes/2026/10-2x-land-inputs-speed.md",
     "docs/team/handoffs/land-inputs-speed.md"
    ],
-   "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each)."
+   "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each).",
+   "evidence": "da0fd9b"
   },
   {
    "devices": [
@@ -20658,9 +20662,20 @@
     "packages/contracts/golden/measure/offscreen.jsonl",
     ".github/workflows/chromium-counts.yml",
     "docs/team/tools/offscreen-counts.md",
-    "docs/team/handoffs/offscreen-count-lane.md"
+    "docs/team/handoffs/offscreen-count-lane.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "research/notes/2026/10-2x-offscreen-count-lane.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/OffscreenGolden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-chromium/package.json",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/src/host.mjs",
+    "packages/measure-chromium/profiles/offscreen-v1.json"
    ],
-   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids)."
+   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids).",
+   "evidence": "678625f"
   },
   {
    "devices": [
@@ -20679,7 +20694,8 @@
     "docs/team/tools/land.md",
     "docs/team/handoffs/ledger-n-alloc.md"
    ],
-   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test."
+   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test.",
+   "evidence": "d7e7cdc"
   },
   {
    "devices": [
@@ -20702,6 +20718,32 @@
     "docs/team/handoffs/webkit-morph-walk-noise.md"
    ],
    "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-timeout",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/throttle/cli.mjs",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/driver/**",
+    "packages/measure-webkit/src/sim.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/sim-touch.jsonl",
+    "packages/measure-webkit/test/sim-touch*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Device/SimTouch.lean",
+    "research/notes/2026/10-2x-sim-touch-timeout.md",
+    "docs/team/handoffs/sim-touch-timeout.md"
+   ],
+   "title": "Blocker for every Simulator measurement (morph-end-measure run 40105567688: 6 of 6 sim jobs failed or cancelled; unthrottle-parts-measure finish run 40101695202 lost its lifted arms; rest run 40101702393 two VMs stalled in warm-up): the touch driver times out ('touches failed (code null, timed out) in 300 s', 'not usable (touch driver timed out); trying once more'), simctl openurl times out, and warm-up stalls at load ~560. Find the cause CONFIRMED from the driver source, the job logs and the Simulator/XCTest docs (one debug run on this Mac allowed, <= 5 min, sim-lock), then fix it (driver timeouts sized to the measured pass length, a readiness probe before touches, a per-pass watchdog that restarts the Simulator instead of burning the job), with the retry/readiness decision proved in Lean and a golden replayed by a test. Show on CI that a finish-mode and a hero-drag job each complete all arms (3 jobs, free macOS runners)."
   }
  ],
  "deadline": {
