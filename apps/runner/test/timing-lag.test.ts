@@ -40,9 +40,10 @@ describe("wait span extras", () => {
     expect(Object.keys(e.phases!)).not.toContain("prevTickMs");
   });
   it("the interval and retryUntil are the ones the wait recorded at its deciding tick, copied as they are", () => {
-    expect(waitSpanExtra(ph({ pollS: 10, retryUntilS: 30 }), 1, 2).phases).toMatchObject({ how: "done", pollS: 10, retryUntilS: 30, prevTickMs: 9_000, tickMs: 40_000 });
+    expect(waitSpanExtra(ph({ pollS: 10, retryUntilS: 30, prevPollS: 60 }), 1, 2).phases).toMatchObject({ how: "done", pollS: 10, retryUntilS: 30, prevPollS: 60, prevTickMs: 9_000, tickMs: 40_000 });
     expect(Object.keys(waitSpanExtra(ph(), 1, 2).phases!)).not.toContain("pollS");
     expect(Object.keys(waitSpanExtra(ph(), 1, 2).phases!)).not.toContain("retryUntilS");
+    expect(Object.keys(waitSpanExtra(ph(), 1, 2).phases!)).not.toContain("prevPollS");
   });
 });
 

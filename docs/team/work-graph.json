@@ -19314,7 +19314,8 @@
     "apps/runner/test/timing*.test.ts",
     "docs/team/handoffs/timing-poller-snapshot.md"
    ],
-   "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time. Follow-up after review: a theorem tying capNets (floor/hour/minute own time) to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap)."
+   "title": "timing-wait-state-interval review follow-ups (2026-10-24): (1) budgetAt reads the budget state when noteDecided runs, so a poller failure after the deciding tick can raise retryUntilS and hide a stall: the poller writes interval and retryUntil into its status at each tick (writeStatus, poller.ts:77) and noteDecided copies them; (2) the gap prev->decide was scheduled with the interval at the earlier tick: record it too and cap at the larger of the two, with a Lean theorem and golden rows (interval shrank between ticks); (3) floor-guard and hour/minute share waits are not in the cap: add them or state in Lean why they count as own time.",
+   "evidence": "5633689"
   },
   {
    "devices": [
@@ -19410,6 +19411,25 @@
     "docs/team/handoffs/touch-lock-page-end.md"
    ],
    "title": "End-of-page lag candidate from the morph-wheel-momentum Fable review (2026-10-24; spec in that task's closing round): the morph (avatar deck) opens only at scrollY >= maxY-7; while .start-selling-platform is within a 200% root margin or the morph is open, the site installs non-passive touchmove and wheel listeners and restores scrollY after each scroll event (L, instant scrollTo). Q1 (lock fight, the phone's felt jitter): a touch pan that began before the morph opened, or momentum after release, cannot be cancelled by touchmove (WKContentViewInteraction.mm:4239-4245 @862f17d) and WebKit does not stop a user deceleration on a script scrollTo (WKWebViewIOS.mm:1515-1548, ScrollingTreeScrollingNodeDelegateIOS.mm:494-510 @862f17d); whether UIKit's setContentOffset stops it is UNKNOWN: measure on the CI Simulator with the PushServer touch: a pan from > 2 viewports above the end into the end, released with velocity, arms original and rewrite; per run count restores (scroll events with y != s while open), sign reversals of the per-frame scrollY delta in the open phase, and drawn-offset reversals from simctl io recordVideo. Q2 (touch deferral): only the first touchmove (and touchstart) of a gesture inside the zone defers the native pan until the main thread answers (WebPageProxy.cpp:5253, :5291-5292, :5199-5201 @862f17d): measure touchstart to first scroll event against main-thread long frames. Lean first: unit one gesture run, verdict jitter iff the open phase has a reversal with a restore to s; golden from the reducer. At most 2 dispatches."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-capnets-link",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "timing-poller-snapshot"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "packages/gh-budget/src/poller.ts",
+    "packages/gh-budget/test/*.test.ts",
+    "docs/team/handoffs/timing-capnets-link.md"
+   ],
+   "title": "timing-poller-snapshot review follow-ups (2026-10-24): (1) capNets (floor/hour/minute waits are own time) is used by nothing: prove a theorem tying it to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap, so the excess of a floor or share wait counts as own time), golden row; (2) poller.ts records interval before the tick's listed/pages events, so a pages change is missing: compute it after the pages event, or prove in Lean that the max over the two ticks already covers it."
   }
  ],
  "deadline": {
