@@ -39,12 +39,12 @@ Each site premise is necessary: `needs_allow_not_root`, `needs_allow_reEnabled` 
 stack where dropping it makes the answers differ.
 
 ## Toggle invalidation
-The faithful probe's two inline writes are its only style-dirtying accesses. Chromium:
-`InlineCSSStyleDeclaration::DidMutate` → `Element::InvalidateStyleAttribute` → `SetNeedsStyleRecalc`
-(`css/inline_css_style_declaration.cc:36-53`, `dom/element.cc:13299-13308`), paid at the hit test's
-`UpdateStyleAndLayout(kHitTest)` (`dom/tree_scope.cc:232`) and at the next read or frame. WebKit:
-`InlineCSSStyleProperties::didMutate` → `StyledElement::invalidateStyleAttribute` (`css/CSSStyleProperties.cpp:622-643`,
-`dom/StyledElement.cpp:190-204`), paid at `Document::hitTest` → `updateLayout` (`dom/Document.cpp:11545-11546`).
+The faithful probe's two inline writes are its only style-dirtying accesses. In Chromium,
+`InlineCSSStyleDeclaration::DidMutate` calls `Element::InvalidateStyleAttribute`, which calls `SetNeedsStyleRecalc`
+(`css/inline_css_style_declaration.cc:36-53`, `dom/element.cc:13299-13308`). The hit test's
+`UpdateStyleAndLayout(kHitTest)` (`dom/tree_scope.cc:232`) pays the first, the next read or frame the second. In WebKit,
+`InlineCSSStyleProperties::didMutate` calls `StyledElement::invalidateStyleAttribute` (`css/CSSStyleProperties.cpp:622-643`,
+`dom/StyledElement.cpp:190-204`), and `Document::hitTest` pays it in `updateLayout` (`dom/Document.cpp:11545-11546`).
 `elements-skip` has reads only (`NavHitTestOpt.probeElements`), so the frame's dirtying list equals the frame without
 the probe.
 
@@ -77,7 +77,8 @@ Runs: faithful rewrite 40081984397, rewrite `?fw=nav.hitTest:elements-skip` 4008
 | tail | 30 | 30 → 30 | 599 → 599 | 0 → 0 | 1 → 1 |
 | total | 595 | 2192 → 1122 | 51423 → 34640 | 418 → 418 | 1072 → 1072 |
 
-Per-run totals: UpdateLayoutTree 2192, 2189, 2192 → 1119, 1122, 1122; Layout 418, 417, 418 → 417, 418, 418.
+Per-run totals: UpdateLayoutTree is 2192, 2189 and 2192 faithful, 1119, 1122 and 1122 with the flag; Layout is 418,
+417 and 418 faithful, 417, 418 and 418 with the flag.
 The drop is 2 per swipe frame in every zone (98 for 49 frames, 72 for 36), which is the Lean count
 (`NavHitTestOpt.elements_style_two`, `faithful_frame_style_dirt`); the rest and tail zones are
 unchanged. Layout equal matches `NavHitTestOpt.elements_layout_eq`. HitTest events are equal, so the list
