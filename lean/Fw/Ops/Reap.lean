@@ -112,6 +112,7 @@ structure LoopFact where
   start : Nat
   awaits : String
   callLive : Bool
+  inode : String
 deriving Repr
 
 structure Waiter where
@@ -119,6 +120,7 @@ structure Waiter where
   start : Nat
   wt : String
   writes : String
+  inode : String
 deriving Repr
 
 structure InputD extends Input where
@@ -1246,12 +1248,19 @@ def waiterLive (i : InputD) (w : Waiter) : Bool := i.rows.any fun r => r.pid == 
 
 def loopOf (i : InputD) (r : Row) : Option LoopFact := i.loops.find? fun l => l.pid == r.pid && l.start == r.start
 
+def hasInode (s : String) : Bool := s != ""
+
+def sameFile (l : LoopFact) (w : Waiter) : Bool :=
+  if hasInode l.inode && hasInode w.inode then l.inode == w.inode else w.writes == l.awaits
+
 def writerLive (i : InputD) (r : Row) (l : LoopFact) : Bool :=
   match r.wt with
-  | some a => i.waiters.any fun w => w.wt == a && w.writes == l.awaits && waiterLive i w
+  | some a => i.waiters.any fun w => w.wt == a && sameFile l w && waiterLive i w
   | none => false
 
-def awaitOk (p : String) : Bool := p.startsWith "/" && !p.contains '$'
+def awaitChar (c : Char) : Bool := c.isAlphanum || c == '.' || c == '_' || c == '/' || c == '-'
+
+def awaitOk (p : String) : Bool := p.startsWith "/" && p.toList.all awaitChar
 
 def pickE (i : InputD) (r : Row) : Option Kind :=
   match r.cwd, r.wt, loopOf i r with
@@ -1297,7 +1306,7 @@ def held (i : InputD) : List Sel := (reapOne i).filter fun s => s.kind == .orpha
 private def gE : InputD :=
   { rows := [⟨2846, 1, 2846, 1000, some 5, "untilLoop", some "w", true⟩, ⟨3100, 1, 3100, 1000, some 5, "simDevice", none, false⟩],
     live := [1], mcps := [], keep := [], liveIds := ["w"], now := 1800,
-    loops := [⟨2846, 1000, "/tmp/mwm-wait.log", false⟩], simIdleSince := some 1200, simAcquired := some 900,
+    loops := [⟨2846, 1000, "/tmp/mwm-wait.log", false, ""⟩], simIdleSince := some 1200, simAcquired := some 900,
     ownSims := [(3100, 1000)], legacyHeld := false }
 
 #guard (reapOne gE).map (·.kind) == [.orphanLoop, .simBooted]
@@ -1305,8 +1314,8 @@ private def gE : InputD :=
 #guard (planOne { gE with auto := true }).isEmpty
 #guard (held { gE with auto := true }).map (·.pid) == [2846]
 #guard (reapOne { gE with legacyHeld := true }).map (·.pid) == [2846]
-#guard (reapOne { gE with loops := [⟨2846, 1000, "out.log", false⟩] }).map (·.pid) == [3100]
-#guard (reapOne { gE with loops := [⟨2846, 1000, "$HOME/x", false⟩] }).map (·.pid) == [3100]
+#guard (reapOne { gE with loops := [⟨2846, 1000, "out.log", false, ""⟩] }).map (·.pid) == [3100]
+#guard (reapOne { gE with loops := [⟨2846, 1000, "$HOME/x", false, ""⟩] }).map (·.pid) == [3100]
 
 theorem pickE_some {i : InputD} {r : Row} {k : Kind} (h : pickE i r = some k) :
     k = .orphanLoop ∧ (∃ c, r.cwd = some c) ∧ (∃ a, r.wt = some a) ∧
@@ -1352,14 +1361,34 @@ theorem live_writer_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r 
   · rfl
 
 theorem writer_identity {i : InputD} {r : Row} {l : LoopFact} (h : writerLive i r l = true) :
-    ∃ w ∈ i.waiters, r.wt = some w.wt ∧ l.awaits = w.writes ∧ ∃ x ∈ i.rows, x.pid = w.pid ∧ x.start = w.start := by
+    ∃ w ∈ i.waiters, r.wt = some w.wt ∧ sameFile l w = true ∧ ∃ x ∈ i.rows, x.pid = w.pid ∧ x.start = w.start := by
   unfold writerLive at h
   split at h
   · rename_i a hw
     simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq, waiterLive] at h
     obtain ⟨w, hw', ⟨hwa, hwp⟩, x, hx, hxp⟩ := h
-    exact ⟨w, hw', by rw [hw, hwa], hwp.symm, x, hx, hxp.1, hxp.2⟩
+    exact ⟨w, hw', by rw [hw, hwa], hwp, x, hx, hxp.1, hxp.2⟩
   · cases h
+
+/-- A waiter that holds the awaited file open under another name (a symlinked directory, a hard link) is a writer: the
+inodes decide when both are known. -/
+theorem writer_inode_match {i : InputD} {r : Row} {l : LoopFact} {w : Waiter} (hw : w ∈ i.waiters) (a : String)
+    (hwt : r.wt = some a) (hwa : w.wt = a) (hlive : waiterLive i w = true) (hl : hasInode l.inode = true)
+    (hi : hasInode w.inode = true) (heq : l.inode = w.inode) : writerLive i r l = true := by
+  unfold writerLive
+  rw [hwt]
+  simp only [List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
+  exact ⟨w, hw, ⟨hwa, by simp [sameFile, hl, hi, heq]⟩, hlive⟩
+
+/-- Two known inodes that differ are two files: equal path strings do not make a writer (the file was replaced). -/
+theorem sameFile_inode_differs {l : LoopFact} {w : Waiter} (hl : hasInode l.inode = true) (hi : hasInode w.inode = true)
+    (hne : l.inode ≠ w.inode) : sameFile l w = false := by
+  simp [sameFile, hl, hi, hne]
+
+/-- With an inode unknown (the awaited file does not exist yet) the path string decides. -/
+theorem sameFile_path_fallback {l : LoopFact} {w : Waiter} (h : hasInode l.inode = false) :
+    sameFile l w = (w.writes == l.awaits) := by
+  simp [sameFile, h]
 
 theorem call_live_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : l.callLive = true) :
     pickE i r = none := by
@@ -1403,11 +1432,24 @@ theorem relative_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i
     (h : l.awaits.startsWith "/" = false) : pickE i r = none :=
   await_unsafe_kept hl (by simp [awaitOk, h])
 
-theorem dollar_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l) (h : l.awaits.contains '$' = true) :
-    pickE i r = none :=
-  await_unsafe_kept hl (by simp [awaitOk, h])
+/-- Any character outside the allowlist (letters, digits, dot, underscore, slash, hyphen) keeps the loop. -/
+theorem await_char_kept {i : InputD} {r : Row} {l : LoopFact} {c : Char} (hl : loopOf i r = some l)
+    (hc : awaitChar c = false) (hm : c ∈ l.awaits.toList) : pickE i r = none :=
+  await_unsafe_kept hl (by
+    simp only [awaitOk, Bool.and_eq_false_iff, List.all_eq_false]
+    exact Or.inr ⟨c, hm, by simp [hc]⟩)
+
+theorem dollar_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l)
+    (h : '$' ∈ l.awaits.toList) : pickE i r = none :=
+  await_char_kept hl (by decide) h
+
+theorem backtick_await_kept {i : InputD} {r : Row} {l : LoopFact} (hl : loopOf i r = some l)
+    (h : '`' ∈ l.awaits.toList) : pickE i r = none :=
+  await_char_kept hl (by decide) h
 
 #guard !awaitOk "out.log" && !awaitOk "$HOME/x" && !awaitOk "/tmp/$X/y" && awaitOk "/tmp/mwm-wait.log"
+#guard !awaitOk "/tmp/`x`.log" && !awaitOk "/tmp/*.log" && !awaitOk "/tmp/?.log" && !awaitOk "/tmp/[a].log" &&
+  !awaitOk "~/x" && !awaitOk "/tmp/a b" && awaitOk "/tmp/a-b_c.1/x"
 
 theorem sim_selected {i : InputD} {r : Row} {a s : Nat} (ha : i.simAcquired = some a) (hs : i.simIdleSince = some s)
     (hk : r.kind = "simDevice") (ho : ownSim i r = true) (hl : a ≤ r.start) (hb : r.start ≤ s) (hv : simVerdict i s = .shutdown)
@@ -1644,6 +1686,94 @@ theorem held_kind {i : InputD} {s : Sel} (h : s ∈ held i) : s.kind = .orphanLo
   rw [List.mem_filter] at h
   simpa using h.2
 
+/-! ### Exit rule: when E or F may join `autoKinds`
+The watch logs every E/F selection per tick to `reap.jsonl`. A reader folds that log into one `Seen` per identity (pid and
+start) and the process table's later answer. `exitRule` says whether a kind has earned automatic stopping. -/
+
+/-- What became of a logged selection: still running at the last tick, stopped by an explicit `fw reap --stop` (a true
+orphan), or gone without our stop (the loop or Simulator ended by itself, so the selection was wrong or early). -/
+inductive Outcome where
+  | alive
+  | stopped
+  | ended
+deriving Repr, DecidableEq
+
+/-- One logged identity of kind `kind`, first selected at second `firstAt`. -/
+structure Seen where
+  kind : Kind
+  pid : Nat
+  start : Nat
+  firstAt : Nat
+  outcome : Outcome
+deriving Repr
+
+/-- Seven days in seconds. -/
+def exitSec : Nat := 7 * 86400
+
+/-- The kinds that can earn automatic stopping through the log. -/
+def exitKinds : List Kind := [.orphanLoop, .simBooted]
+
+/-- A kind joins `autoKinds` when it is an E/F kind, its log goes back at least `exitSec`, it has at least one true orphan
+(`stopped`) and none of its identities `ended` by itself. Each identity decides on its own; other kinds do not count. -/
+def exitRule (now : Nat) (seen : List Seen) (k : Kind) : Bool :=
+  let ks := seen.filter fun s => s.kind == k
+  decide (k ∈ exitKinds) && ks.any (fun s => decide (s.firstAt + exitSec ≤ now)) &&
+    ks.any (fun s => s.outcome == .stopped) && ks.all (fun s => s.outcome != .ended)
+
+/-- The kinds that have earned automatic stopping. -/
+def promoted (now : Nat) (seen : List Seen) : List Kind := exitKinds.filter (exitRule now seen)
+
+theorem exit_selected {now : Nat} {seen : List Seen} {k : Kind} (hk : k ∈ exitKinds)
+    (hold : ∃ s ∈ seen, s.kind = k ∧ s.firstAt + exitSec ≤ now) (horph : ∃ s ∈ seen, s.kind = k ∧ s.outcome = .stopped)
+    (hnone : ∀ s ∈ seen, s.kind = k → s.outcome ≠ .ended) : exitRule now seen k = true := by
+  obtain ⟨a, ha, hak, han⟩ := hold
+  obtain ⟨b, hb, hbk, hbs⟩ := horph
+  unfold exitRule
+  simp only [Bool.and_eq_true, decide_eq_true_eq, List.any_eq_true, List.all_eq_true, List.mem_filter, beq_iff_eq,
+    bne_iff_ne, ne_eq]
+  exact ⟨⟨⟨hk, a, ⟨ha, hak⟩, by simpa using han⟩, b, ⟨hb, hbk⟩, by simpa using hbs⟩, fun s hs => hnone s hs.1 hs.2⟩
+
+theorem exit_other_kind_kept {now : Nat} {seen : List Seen} {k : Kind} (hk : k ∉ exitKinds) : exitRule now seen k = false := by
+  unfold exitRule
+  simp [hk]
+
+theorem exit_short_kept {now : Nat} {seen : List Seen} {k : Kind}
+    (h : ∀ s ∈ seen, s.kind = k → now < s.firstAt + exitSec) : exitRule now seen k = false := by
+  unfold exitRule
+  simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not, List.any_eq_false, List.mem_filter, beq_iff_eq]
+  refine Or.inl (Or.inl (Or.inr fun s hs => ?_))
+  have := h s hs.1 hs.2
+  simpa using this
+
+theorem exit_no_orphan_kept {now : Nat} {seen : List Seen} {k : Kind}
+    (h : ∀ s ∈ seen, s.kind = k → s.outcome ≠ .stopped) : exitRule now seen k = false := by
+  unfold exitRule
+  simp only [Bool.and_eq_false_iff, List.any_eq_false, List.mem_filter, beq_iff_eq]
+  refine Or.inl (Or.inr fun s hs => ?_)
+  have := h s hs.1 hs.2
+  simpa using this
+
+theorem exit_ended_kept {now : Nat} {seen : List Seen} {k : Kind} {s : Seen} (hs : s ∈ seen) (hk : s.kind = k)
+    (h : s.outcome = .ended) : exitRule now seen k = false := by
+  unfold exitRule
+  simp only [Bool.and_eq_false_iff]
+  refine Or.inr ?_
+  simp only [List.all_eq_false, List.mem_filter, beq_iff_eq]
+  exact ⟨s, ⟨hs, hk⟩, by simp [h]⟩
+
+theorem promoted_sub {now : Nat} {seen : List Seen} {k : Kind} (h : k ∈ promoted now seen) : k ∈ exitKinds :=
+  (List.mem_filter.1 h).1
+
+/-- The rows of the exit rule: a quiet log, no orphan, an ended loop, an old log with an orphan. -/
+private def sOld (o : Outcome) : Seen := ⟨.orphanLoop, 10, 100, 1000, o⟩
+
+#guard promoted (1000 + exitSec) [sOld .stopped] == [.orphanLoop]
+#guard promoted (1000 + exitSec - 1) [sOld .stopped] == []
+#guard promoted (1000 + exitSec) [sOld .alive] == []
+#guard promoted (1000 + exitSec) [sOld .stopped, ⟨.orphanLoop, 11, 100, 2000, .ended⟩] == []
+#guard promoted (1000 + exitSec) [sOld .stopped, ⟨.simBooted, 12, 100, 2000, .ended⟩] == [.orphanLoop]
+#guard promoted (1000 + exitSec) [⟨.removed, 10, 100, 1000, .stopped⟩] == []
+
 end Fw.Ops.Reap
 
 namespace Fw.Wire.Reap
@@ -1687,9 +1817,9 @@ def inputOf (req : Json) : Except String InputD := do
   let protect ← (← arrD req "protect").mapM (asNat "protect")
   let bases ← (← arrD req "bases").mapM baseOfJson
   let locks ← (← arrD req "locks").mapM fun j => do pure (Lock.mk (← str j "id") (← optN j "holder"))
-  let waiters ← (← arrD req "waiters").mapM fun j => do pure (Waiter.mk (← nat j "pid") (← nat j "start") (← str j "wt") (← str j "writes"))
+  let waiters ← (← arrD req "waiters").mapM fun j => do pure (Waiter.mk (← nat j "pid") (← nat j "start") (← str j "wt") (← str j "writes") (← strD j "inode" ""))
   let loops ← (← arrD req "loops").mapM fun j => do
-    pure (LoopFact.mk (← nat j "pid") (← nat j "start") (← str j "awaits") (← boolD j "callLive" false))
+    pure (LoopFact.mk (← nat j "pid") (← nat j "start") (← str j "awaits") (← boolD j "callLive" false) (← strD j "inode" ""))
   let now ← natD req "now" 0
   let simIdleSince ← optN req "simIdleSince"
   let simAcquired ← optN req "simAcquired"
@@ -1766,8 +1896,28 @@ def opReapGuard (req : Json) : Except String Reply := do
   let t ← targetOf (← field req "target")
   pure [("allowed", .bool (guardOk scope rows t))]
 
+/-- A logged identity from JSON: `kind`, `pid`, `start`, `firstAt`, `outcome` (alive, stopped, ended). -/
+def seenOf (j : Json) : Except String Seen := do
+  let kind ← match ← str j "kind" with
+    | "orphanLoop" => pure Kind.orphanLoop
+    | "simBooted" => pure Kind.simBooted
+    | k => throw s!"kind: unknown {k}"
+  let outcome ← match ← str j "outcome" with
+    | "alive" => pure Outcome.alive
+    | "stopped" => pure Outcome.stopped
+    | "ended" => pure Outcome.ended
+    | o => throw s!"outcome: unknown {o}"
+  pure ⟨kind, ← nat j "pid", ← nat j "start", ← nat j "firstAt", outcome⟩
+
+/-- `ops.reapExit`: `now`, `seen` [{kind, pid, start, firstAt, outcome}] → `promote` [kind name] (the E/F kinds that earned
+automatic stopping), `exitSec`. -/
+def opReapExit (req : Json) : Except String Reply := do
+  let now ← nat req "now"
+  let seen ← (← arrD req "seen").mapM seenOf
+  pure [("promote", .arr ((promoted now seen).toArray.map fun k => .str k.name)), ("exitSec", toJson exitSec)]
+
 def ops : List String :=
-  ["ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle", "ops.reapHeld"]
+  ["ops.reapExit", "ops.lspReap", "ops.reapPlan", "ops.reapKill", "ops.reapVerify", "ops.reapTerm", "ops.reapGuard", "ops.reapIdle", "ops.reapHeld"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
@@ -1779,6 +1929,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.reapGuard" => some (opReapGuard req)
   | "ops.reapIdle" => some (opReapIdle req)
   | "ops.reapHeld" => some (opReapHeld req)
+  | "ops.reapExit" => some (opReapExit req)
   | _ => none
 
 #guard ops.all fun o => (handle o (Json.mkObj [("rows", .arr #[]), ("live", .arr #[]), ("planned", .arr #[]), ("scope", .arr #[]), ("target", Json.mkObj [("pid", toJson 2), ("start", toJson 0)])])).isSome

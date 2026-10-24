@@ -28,7 +28,7 @@ export const EXIT_REFUSED = 75;
 export const EXIT_ERROR = 70;
 
 export type State = {
-  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simAcquired?: number; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
+  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simAcquired?: number; simUdids?: string[]; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
 };
 export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
@@ -333,12 +333,18 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
+/** The udids (upper case) of the Simulators booted right now: recorded when a sim slot ends, so that `fw reap` knows which
+ *  device this project booted (kind F) by identity, not by a device-name prefix. Empty when `simctl` fails. */
+function bootedUdids(d: Deps): string[] {
+  try { return d.simctl.booted().map((b) => b.udid.toUpperCase()); } catch { return []; }
+}
+
 const acquiredOf = (gone: Entry[]): number => Math.min(...gone.filter((h) => h.kind === "sim").map((h) => h.since));
 
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
   const gone = expired(s.time, st.holders);
-  if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = s.time; st.simAcquired = acquiredOf(gone); }
+  if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = s.time; st.simAcquired = acquiredOf(gone); st.simUdids = bootedUdids(d); }
   for (const h of gone) {
     event(d, "expire", h.kind, { owner: h.owner, token: h.token, leaseS: h.leaseS, holdMs: (h.till - h.since) * 1000, lateMs: (s.time - h.till) * 1000 });
   }
@@ -453,7 +459,7 @@ export function renewToken(d: Deps, token: string, leaseS: number | null): boole
 export function releaseToken(d: Deps, token: string): boolean {
   const ok = withState(d, (st) => {
     const gone = st.holders.filter((h) => h.owner === d.owner && h.token === token);
-    if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); }
+    if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); st.simUdids = bootedUdids(d); }
     st.holders = release(d.owner, token, st.holders);
     st.queue = release(d.owner, token, st.queue);
     if (st.window?.token === token && st.window.owner === d.owner) st.window = null;
