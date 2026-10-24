@@ -3580,7 +3580,7 @@
   },
   {
    "id": "platform.sweep.offscreen-pause",
-   "n": 67,
+   "n": 70,
    "part": "platform.sweep",
    "candidate": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
    "status": "partly-proved",
