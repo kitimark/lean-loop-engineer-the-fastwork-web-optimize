@@ -2,7 +2,7 @@
 
 The probe and the gate decide numbers. A look change (class L, for example `nav:earn-no-transition`) needs a person to see the
 frames. This lane captures the nav band of the faithful rewrite and of one flagged rewrite through the same wheel pushes and puts
-the two rows one above the other. It is review material: it decides nothing. Code: `packages/gate-breakpoints/src/trajectory/frames.mjs`
+the two rows one above the other. It decides nothing. Code: `packages/gate-breakpoints/src/trajectory/frames.mjs`
 (capture and strips), `engines.mjs` (`shot`, `screencast`). Workflow: `.github/workflows/trajectory-probe.yml`.
 
 ## Run it (a push, no dispatch)
@@ -73,5 +73,5 @@ morph-close (wheel pushes; the CI step passes `--morph 0`, so the 15 min cap hol
 rule that swaps `padding-inline` in the earn button's `transition-property` for the logical longhands, the physical ones or the `padding`
 shorthand (`variantCss`; durations and curves stay the site's). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
 effort, `safari-status.txt` says ok, skipped or failed and why). `transitions.mjs summary` reduces every recording (`index.json`,
-`*.summary.json`, `*.summary.txt` with the per-frame table). Artifact `transitions-apple-<leg>`. Why the cause is in Lean: `Fw.Engine.TransitionStart`
+`*.summary.json`, `*.summary.txt` with the per-frame table). Artifact `transitions-apple-<leg>`. Cause proof: `Fw.Engine.TransitionStart`
 (golden `packages/contracts/golden/engine/transition-start.jsonl`); the reduction in `transitions.mjs` is a TS stand-in.

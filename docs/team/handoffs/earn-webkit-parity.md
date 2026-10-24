@@ -18,7 +18,7 @@ Lean Fw.Engine.TransitionStart builds, golden transition-start.jsonl (588 rows) 
 gate-breakpoints tests, ci-paths 56 pass, actionlint clean. Final gate results are in the task report.
 
 ## Open / for the lead (not edited by me)
-- Wiring done in the continue round: `import Fw.Engine.TransitionStart` in lean/Fw.lean. No separate check.sh job: the
+- Wiring done: `import Fw.Engine.TransitionStart` in lean/Fw.lean. No separate check.sh job: the
   `engine goldens check` job already compares transition-start.jsonl, and a job that reads
   ../packages/contracts/golden/engine/transition-start.jsonl fails ci-paths --check and adds 5 writesClosure errors to plan lint
   (needs a Trigger.lean lean.yml row entry `packages/contracts/golden/engine/transition-start.jsonl`, lead only).

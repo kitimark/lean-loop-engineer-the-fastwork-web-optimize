@@ -1,17 +1,12 @@
-// The recordings of several CI runs side by side. Each run's summary (`transitions.mjs summary`) already pools its own repeats
-// into a median per metric; here the per-run medians of separate CI jobs are laid next to each other and spread (min, median, max).
-// TS stand-in (the cause is decided in Lean, Fw.Engine.TransitionStart); `combine` is a pure reduction over summary objects.
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-/** The metrics laid out per cell: [series, field]. */
 export const METRICS = [['padL', 'maxJump'], ['padL', 'between'], ['padL', 'arriveMs'], ['earnW', 'maxJump'], ['langX', 'maxJump'], ['langX', 'between'], ['op', 'arriveMs']];
 
 const med = (a) => { const b = [...a].sort((x, y) => x - y); const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
 const r2 = (v) => Math.round(v * 100) / 100;
 
-/** `runs`: [{ run, summaries: { 'width|engine': summary } }]. One row per width, engine, arm and sequence with every metric across the runs. */
 export function combine(runs) {
   const rows = new Map();
   for (const { run, summaries } of runs) {
@@ -39,7 +34,6 @@ export function combine(runs) {
   }));
 }
 
-/** One line per row of the hero sequences. */
 export function combinedText(rows) {
   const L = ['# per-run medians of separate CI jobs: median [min..max] over the runs', ''];
   const f = (m) => (m ? `${m.median} [${m.min}..${m.max}]` : '-');
@@ -50,7 +44,6 @@ export function combinedText(rows) {
   return L.join('\n') + '\n';
 }
 
-/** Reads `<root>/<run>/<width>/summary/transitions-<engine>.summary.json` for every run directory under `root`. */
 export function readRuns(root) {
   const runs = [];
   const dirs = (p) => readdirSync(p, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();

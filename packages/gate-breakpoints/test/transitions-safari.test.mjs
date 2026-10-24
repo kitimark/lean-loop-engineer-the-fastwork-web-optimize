@@ -1,4 +1,3 @@
-// transitions-safari.mjs: the W3C client against a fake driver (no Safari needed).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';

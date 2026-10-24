@@ -1,8 +1,3 @@
-// Safari itself (safaridriver, W3C WebDriver over HTTP) for the earn/lang transition recording; a best-effort witness next to
-// Playwright WebKit. It reuses the in-page recorder and the reduction of transitions.mjs and writes the same file shape
-// (`transitions-safari.json`), so `transitions.mjs summary` reduces it. Hero sequences only: the driver gives no wheel event
-// without the Actions API, and the morph pushes are not needed for the earn/lang question.
-// Run on a macOS runner after `sudo safaridriver --enable`; the caller starts safaridriver (own process group) and passes its port.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -13,7 +8,6 @@ import { REC, RAMP, selectorsFor, SEQUENCES, variantCss, styleInit } from './tra
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** A minimal W3C WebDriver client: one session, `call(method, path, body)` returns the `value` or throws its error message. */
 export function client(base) {
   let sid = null;
   const call = async (method, path, body) => {
@@ -31,7 +25,6 @@ export function client(base) {
     goto: (url) => call('POST', `/session/${sid}/url`, { url }),
     rect: (r) => call('POST', `/session/${sid}/window/rect`, r),
     sync: (script, args = []) => call('POST', `/session/${sid}/execute/sync`, { script, args }),
-    /** The script body gets its arguments, then a callback as the last one. */
     async: (script, args = []) => call('POST', `/session/${sid}/execute/async`, { script, args }),
     async close() { if (sid) { await call('DELETE', `/session/${sid}`).catch(() => {}); sid = null; } },
   };
@@ -75,7 +68,6 @@ async function walkPage(c, arm, mode, width) {
   return { sequences, inner, diag: { start: diagStart, end: await diag() } };
 }
 
-/** What the page sees of the browser: the media that switch the site's motion off, visibility, focus, the nav classes and the earn transition. */
 const DIAG = `const q = (m) => window.matchMedia(m).matches;
 const n = document.querySelector(arguments[0]); const e = document.querySelector(arguments[1]);
 return { reduce: q('(prefers-reduced-motion: reduce)'), hover: q('(hover: hover)'), fine: q('(pointer: fine)'), vis: document.visibilityState,

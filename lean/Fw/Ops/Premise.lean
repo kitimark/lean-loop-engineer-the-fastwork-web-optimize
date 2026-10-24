@@ -645,7 +645,6 @@ def engineFiles : List String :=
    "morph-panel.jsonl", "nav-hittest.jsonl", "pain-notes.jsonl", "people-card.jsonl", "people-deck.jsonl",
    "transition-start.jsonl", "webkit.jsonl"]
 
-/-- The counted Chromium stages, each with the id of its stage rule (a registry lane premise or an untested premise). -/
 def crStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "raster", "commit", "comp", "hits"].map fun s => (s, "cr." ++ s)
 

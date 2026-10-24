@@ -1,4 +1,3 @@
-// transitions-combine.mjs: per-run medians laid side by side (TS stand-in reduction).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { combine, combinedText } from '../src/trajectory/transitions-combine.mjs';

@@ -1,5 +1,3 @@
-// transitions.mjs: the reduction of a per-frame recording (TS stand-in of the measurement summary; the cause is Lean
-// Fw.Engine.TransitionStart). Small synthetic recordings: a padding that snaps to 0 in one frame next to one that eases.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { flipIndex, motion, transitionsSeen, cadence, eventCounts, analyse, frameTable, spread, summarise, summaryText, SERIES, SEQUENCES, selectorsFor, variantCss, styleInit, VARIANTS } from '../src/trajectory/transitions.mjs';
@@ -9,7 +7,6 @@ const row = (t, nav, pad, w, an = []) => ({
   cs: { pl: `${pad}px`, pr: `${pad}px`, mw: '176px', op: '1', ne: '1', eo: '0', el: '1', tr: 'all' }, gap: '8px', an,
 });
 
-// Hero entry: the pill class appears at t=100. WebKit-like: padding 24 -> 0 in the flip frame. Chromium-like: padding eases over frames.
 const snap = [row(0, '000', 24, 148), row(16, '000', 24, 148), row(100, '100', 0, 100), row(116, '100', 0, 100), row(132, '100', 0, 100)];
 const ease = [row(0, '000', 24, 148), row(16, '000', 24, 148), row(100, '100', 24, 148, [['earn', 'padding-left', 7, 0, 'running']]),
   row(116, '100', 18, 136, [['earn', 'padding-left', 7, 16, 'running']]), row(132, '100', 9, 118, [['earn', 'padding-left', 7, 32, 'running']]),

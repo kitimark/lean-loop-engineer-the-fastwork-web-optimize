@@ -15,7 +15,7 @@
 - **Fix, for the next task `earn-webkit-smooth`:** list the two logical longhands instead of the shorthand,
   `padding-inline-start, padding-inline-end`, at the same duration, curve and delay. Chromium is unchanged
   (same transition key set, Lean `fixLogical_chromium_unchanged`); WebKit then equals Chromium
-  (`fixLogical_webkit_eq_chromium`). Measured in one CI job so far: see the limits.
+  (`fixLogical_webkit_eq_chromium`). Candidates were measured in one CI job.
 - **iPhone:** INFERRED only. iPhone Safari runs the same WebCore source; no iPhone was measured.
 
 ## Cause, with source
@@ -115,11 +115,11 @@ Why this order: candidate 1 changes nothing in Chromium and keeps the logical se
 gives the same Chromium key set but hard-codes left and right. Candidate 3 adds top and bottom keys to the Chromium
 transition set (Lean proves the set differs), which can start extra transitions on other state changes, so it is last
 of the three. WebKit's `anims` list showed `padding-left` and `padding-right` in every candidate arm.
-Candidates are faithful "same as Chromium" on WebKit; the visual end states are identical to the original.
+The visual end states equal the original.
 
 ## Limits
 
-- Candidate arms: **one** CI job (2 repeats). The "at least 3 jobs" bar is met only for the unfixed comparison
+- Candidate arms: one CI job (2 repeats). The "at least 3 jobs" bar is met only for the unfixed comparison
   (3 jobs) and for Safari (2 valid jobs). Treat the candidate numbers as a direction; `earn-webkit-smooth` repeats them.
 - The first Safari job had macOS Reduce Motion on (runner default; `defaults read com.apple.universalaccess
   reduceMotion` printed 1), so the site switched its motion off and no transition ran. Its summary was dropped. The

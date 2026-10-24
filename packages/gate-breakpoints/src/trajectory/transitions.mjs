@@ -1,13 +1,3 @@
-// Per-frame transition probe of the earn button and the language button (task earn-webkit-parity). The original and the faithful
-// rewrite are walked through the hero-pill exit, the hero-pill entry and one morph push (wheel open, wheel close) in real time, native
-// rAF, no animation seeking. Every rendering frame records the rects of the earn button, the language wrap and the actions group,
-// and (mode `full`) the computed padding, max-width, opacity and column-gap, the CSS transitions alive per property
-// (document.getAnimations) and the transition events. Mode `light` reads the two rects only: the difference between the two modes
-// bounds what the reading itself does to the page. The reduction below is a TS stand-in of the measurement summary; the cause is
-// decided in Lean (Fw.Engine.TransitionStart). Glue and reduction only.
-//
-//   node src/trajectory/transitions.mjs capture --engine chromium|playwright-webkit --widths 390,1280 --reps 3 --out DIR
-//   node src/trajectory/transitions.mjs summary --in DIR[,DIR2] --out DIR3 [--run ID]
 import { mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -21,14 +11,10 @@ const INIT_KIT = `${PIN_SRC}\n(${installKit.toString()})();`;
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** The scripted scroll of the hero sequences: viewport heights travelled, how long the ramp lasts, how long the page is held after it. */
 export const RAMP = { toVh: 2, ms: 600, preMs: 300, holdMs: 1500 };
-/** The morph pushes: wheel delta and how long each is recorded after its wheel event. */
 export const PUSHES = [{ seq: 'morph-open', dy: 120, ms: 1500, holdMs: 900 }, { seq: 'morph-close', dy: -120, ms: 1500, holdMs: 900 }];
-/** The sequences of a page in the order they run on it. */
 export const SEQUENCES = ['hero-exit', 'hero-entry', 'morph-open', 'morph-close'];
 
-/** The CSS selectors of the nodes read, per arm, from the anchor registry (one source for both arms). */
 export function selectorsFor(site) {
   const nodes = resolveNodes([
     ...MORPH_NODES.filter((n) => ['nav', 'actions', 'earn'].includes(n.id)),
@@ -38,11 +24,6 @@ export function selectorsFor(site) {
   return Object.fromEntries(nodes.map((n) => [n.id, site === 'orig' ? n.orig : n.rewrite]));
 }
 
-/**
- * The in-page recorder; it is serialised into the page, so it uses nothing outside itself. `start(sel, mode)` records one row per
- * rendering frame until `stop()`; `ramp` is a scripted scroll driven by the clock (instant scrolls, one per frame);
- * `mark(label)` tags the next row.
- */
 export function recorder() {
   const st = (window.__tr = { rows: [], events: [], loop: false, gen: 0, t0: 0, els: {}, ids: new WeakMap(), nextId: 1, mode: 'full', label: null });
   const rnd = (v, k = 100) => Math.round(v * k) / k;
@@ -111,26 +92,19 @@ export function recorder() {
 }
 export const REC = `window.__rec = (${recorder.toString()})();`;
 
-/** The transition-property lists of the fix candidates: what replaces `padding-inline` in the earn button's `transition` (Lean fixLogical, fixPhysical, fixPadding). */
 export const VARIANTS = { logical: 'padding-inline-start, padding-inline-end', physical: 'padding-left, padding-right', padding: 'padding' };
 
-/**
- * The rule that makes a candidate: only the property list of the earn button's transition changes (`!important`, so it wins over the
- * hero-pill rule too); durations, delays and curves stay the site's, repeating over the longer list. Null for no variant.
- */
 export function variantCss(variant, earnSel) {
   if (!variant) return null;
   if (!(variant in VARIANTS)) throw new Error(`unknown variant ${variant}`);
   return `${earnSel} { transition-property: max-width, opacity, ${VARIANTS[variant]} !important; }`;
 }
 
-/** The init script that appends a stylesheet as soon as the document has a head. */
 export function styleInit(css) {
   if (!css) return '';
   return `(() => { const add = () => { if (!document.head) return false; const s = document.createElement('style'); s.textContent = ${JSON.stringify(css)}; document.head.appendChild(s); return true; }; if (!add()) document.addEventListener('DOMContentLoaded', add); })();`;
 }
 
-/** One page: the hero sequences (scripted scroll), then the morph pushes (wheel). Returns { ready, self, sequences: {seq: {rows, events}} }. */
 async function walkPage(engine, env, arm, mode, morph) {
   const sel = selectorsFor(arm.site);
   const s = await engine.open(env, { origin: arm.origin, path: '/', init: `${INIT_KIT}\n${REC}\n${styleInit(variantCss(arm.variant, sel.earn))}`, frozen: false });
@@ -173,7 +147,6 @@ async function walkPage(engine, env, arm, mode, morph) {
   } finally { await s.close().catch(() => {}); }
 }
 
-/** Capture one engine over `widths`: the original and the faithful rewrite, `reps` full pages and one light page per arm and width. */
 export async function capture({ engineName, widths, reps, out, morph = true, variants = [], env = process.env }) {
   mkdirSync(out, { recursive: true });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
@@ -183,7 +156,6 @@ export async function capture({ engineName, widths, reps, out, morph = true, var
   const arms = [
     { site: 'orig', role: 'orig', origin: orig.origin, want: null },
     { site: 'rewrite', role: 'faithful', origin: rewrite.origin, want: configs.bySearch[''] },
-    // A candidate arm is the faithful rewrite with one stylesheet rule added; two full repeats, no light page.
     ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, want: configs.bySearch[''], variant: v })),
   ];
   const runs = [];
@@ -210,19 +182,16 @@ export async function capture({ engineName, widths, reps, out, morph = true, var
   }
 }
 
-// ---- reduction (TS stand-in; the cause is decided in Lean) ----
 
 const num = (s) => { const v = parseFloat(s); return Number.isFinite(v) ? v : null; };
 const median = (a) => { if (a.length === 0) return null; const b = [...a].sort((x, y) => x - y); const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
 
-/** The first frame after the first row where the nav's hero-pill flag differs from the first row's; null when it never does. Mode `light` has no flags. */
 export function flipIndex(rows) {
   if (rows.length === 0 || rows[0].nav === undefined) return null;
   const k = rows.findIndex((r) => r.nav !== rows[0].nav);
   return k < 0 ? null : k;
 }
 
-/** A value series of the rows by reader; null entries stay null. */
 export const SERIES = {
   earnW: (r) => (r.earn ? r.earn[2] : null),
   earnX: (r) => (r.earn ? r.earn[0] : null),
@@ -234,11 +203,6 @@ export const SERIES = {
   gap: (r) => (r.gap === undefined ? null : num(r.gap)),
 };
 
-/**
- * How one series moves after the flip frame `k`: its value before and at the end, the largest one-frame change after the flip and when,
- * the first frame offset (ms from the flip row's t) where it left the start value, where it reached the end value, and how many frames
- * lie strictly between the two (a transition shows many, a snap none).
- */
 export function motion(rows, k, f, tol = 0.5) {
   if (k === null || k < 1) return null;
   const v = rows.map(f);
@@ -258,7 +222,6 @@ export function motion(rows, k, f, tol = 0.5) {
   return { start: v0, end: vE, change: Math.round((vE - v0) * 100) / 100, maxJump: Math.round(maxJump * 100) / 100, jumpAtMs: jumpAt, leaveMs: leave, arriveMs: arrive, between };
 }
 
-/** The transitions seen per property of a node: how many distinct animations (a restart makes a new one), the frames each lived, the first frame offset seen. */
 export function transitionsSeen(rows, k) {
   const by = new Map();
   rows.forEach((r, i) => {
@@ -273,20 +236,17 @@ export function transitionsSeen(rows, k) {
   return Object.fromEntries([...by].map(([key, e]) => [key, { animations: e.ids.size, frames: e.frames, firstMs: e.firstMs }]));
 }
 
-/** The frame cadence of a recording: the median gap between rendering frames and the count of gaps above 24 ms. */
 export function cadence(rows) {
   const gaps = rows.slice(1).map((r, i) => r.t - rows[i].t);
   return { frames: rows.length, medianMs: median(gaps) === null ? null : Math.round(median(gaps) * 10) / 10, long: gaps.filter((g) => g > 24).length };
 }
 
-/** The event counts per `type:prop:node` of a recording. */
 export function eventCounts(events) {
   const c = {};
   for (const e of events) { const key = `${e.type}:${e.node}:${e.prop}`; c[key] = (c[key] ?? 0) + 1; }
   return c;
 }
 
-/** Everything one recording (one sequence of one page) reduces to. */
 export function analyse({ rows, events }) {
   const k = flipIndex(rows);
   const kk = k === null ? rows.findIndex((r) => r.lbl === 'ramp' || r.lbl === 'wheel') + 1 : k;
@@ -296,7 +256,6 @@ export function analyse({ rows, events }) {
   return out;
 }
 
-/** The per-frame table of a recording from `before` frames before the flip to `after` frames after it. */
 export function frameTable(rows, k, before = 2, after = 14) {
   if (k === null) return [];
   const f = (v) => (v === null || v === undefined ? '-' : String(Math.round(v * 100) / 100));
@@ -309,13 +268,11 @@ export function frameTable(rows, k, before = 2, after = 14) {
   return lines;
 }
 
-/** Across repeats: min, median and max of a number picked from each repeat's analysis; null when none has it. */
 export function spread(list, pick) {
   const v = list.map(pick).filter((x) => x !== null && x !== undefined);
   return v.length === 0 ? null : { n: v.length, min: Math.min(...v), median: median(v), max: Math.max(...v) };
 }
 
-/** The summary of one capture file: per width, arm and sequence, the full-mode repeats pooled, plus the light mode apart. */
 export function summarise(head) {
   const out = { engine: head.engine, version: head.version, reps: head.reps, cells: [] };
   const keys = [...new Set(head.runs.map((r) => `${r.width}|${r.role}`))];
@@ -340,7 +297,6 @@ export function summarise(head) {
   return out;
 }
 
-/** The text of a summary: one block per cell with the per-frame table of the first full repeat. */
 export function summaryText(head, summary) {
   const L = [`# ${head.engine} (${head.version}), ${head.reps} full repeats + 1 light page per arm and width`];
   for (const c of summary.cells) {
