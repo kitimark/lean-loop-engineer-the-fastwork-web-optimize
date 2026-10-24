@@ -5,8 +5,10 @@ export function unthrottleCss(): string {
     '@property --fw-ut { syntax: "<number>"; inherits: false; initial-value: 0; }',
     '@keyframes fw-ut { from { --fw-ut: 0; } to { --fw-ut: 1; } }',
     '@supports (animation-timeline: scroll()) {',
-    `[${UNTHROTTLE_ATTR}] { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;`,
+    '@media (pointer: coarse) {',
+    `[${UNTHROTTLE_ATTR}] { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;`,
     ' animation: fw-ut 1s linear both; animation-duration: auto; animation-timeline: scroll(root block); }',
+    '}',
     '}',
   ].join('\n');
 }

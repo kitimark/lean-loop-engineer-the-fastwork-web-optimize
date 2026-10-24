@@ -10,6 +10,14 @@
       "kind": "faithful",
       "tier": "T1",
       "provenance": { "original": "assets/2.gBuqKVzi.css:5802-5805, 11081-11103", "lean": "lean/Fw/Parts/PlatformSweep.lean" }
+    },
+    "offscreen-pause": {
+      "kind": "optimized",
+      "tier": "T1",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformSweepPause shown_same, visible_phase, reported_no_tick, offscreen_ticks_le_one",
+        "limit": "IntersectionObserver reports an element after the frame it leaves (named premise Lag, not proved about the engine): the leaving frame still ticks; an animation created while offscreen is not tracked"
+      }
     }
   },
   "requires": {},

@@ -20027,7 +20027,8 @@
     "packages/measure-webkit/src/throttle/report.mjs",
     "packages/measure-webkit/test/throttle-report.test.mjs"
    ],
-   "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only."
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'ship throttle-lift as highest priority'). Ship engine.scroll:unthrottle in the v2-proved preset: (1) the trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch) passes; (2) decide position: absolute vs fixed against the +2 Chromium layers (Lean cost bound, one dispatch if needed); (3) a (pointer: coarse) or WebKit-only guard so desktops do not pay the per-frame restyle, proved not to change the iPhone path; (4) ledger row proved, Fw.Preset.Gen.run regenerates v2-proved with the flag, the breakpoint gate on the v2-proved preset passes on both engines (run id); (5) v2-report.md section with the phone evidence (results/phone/2026-10-24-throttle-lift: hero band runs 90->2 and 28->0-1 per viewport height, hero felt marks 12->0, end-of-page slow frames 2.46-6.56 -> 0.00-1.17 per 100 and felt marks 12-14 -> 3-5) and the CI runs. At most 3 dispatches; free runners only.",
+   "evidence": "9a6cd03"
   },
   {
    "devices": [
@@ -20144,7 +20145,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-end-bricks.md"
    ],
-   "title": "Site side of morph-end-lean: three composer bricks (parts morph.end.clamp, morph.end.flip, morph.end.release, each faithful|on) wired into the morph.tween driver, look-change class (behaviour change, user review), TS checked against the morph-end-lean goldens, all 8 combinations valid in the registry and shown in the console Compose tab with a preview link, breakpoint gate unchanged outside the end zone (run id), ledger rows look-change pending the user's phone review."
+   "title": "Site side of morph-end-lean: three composer bricks (parts morph.end.clamp, morph.end.flip, morph.end.release, each faithful|on) wired into the morph.tween driver, look-change class (behaviour change, user review), TS checked against the morph-end-lean goldens, all 8 combinations valid in the registry and shown in the console Compose tab with a preview link, breakpoint gate unchanged outside the end zone (run id), ledger rows look-change pending the user's phone review.",
+   "evidence": "1e7ee78"
   },
   {
    "devices": [
@@ -20215,7 +20217,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
+   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth).",
+   "evidence": "0cabc1e"
   },
   {
    "devices": [
@@ -20236,7 +20239,20 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "research/notes/2026/10-2x-earn-webkit-smooth.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/earn-webkit-smooth.md"
+    "docs/team/handoffs/earn-webkit-smooth.md",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-frames.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/reduce.mjs",
+    "packages/gate-breakpoints/src/trajectory/transitions.mjs",
+    "packages/gate-breakpoints/src/trajectory/transitions-safari.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/NavEarnWebkitGolden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "packages/contracts/golden/gate/trajectory.jsonl"
    ],
    "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
   },
@@ -20281,7 +20297,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
+   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches).",
+   "evidence": "932edbe"
   },
   {
    "devices": [
@@ -20302,7 +20319,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
+   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches).",
+   "evidence": "b4ff523"
   },
   {
    "devices": [
@@ -20338,7 +20356,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land."
+   "title": "HIGHEST PRIORITY (user 2026-10-24: 'do the prove of ?fw=engine.scroll:unthrottle and throttle-lift as highest priority; we may find the related parts that we can do follow this findings'). Lean first: the per-part consequence of WebKit's 100 ms visible-rect throttle and of its lift, for every main-thread scroll reader in research/notes/2026/10-2x-scroll-throttle-parts.md (hero.exit faithful, people.card, pain.notes, nav, nav.hitTest, platform.shrink, commission, morph.mount, morph.tween; and the not-hit parts hero.exit:threaded, morph.panel, pain dark as controls): a part whose shown value is f(scrollY_webprocess) shows still runs of throttleK frames (5-6 at 60 Hz, Fw.Device.StillRuns.throttleK) while the page moves under the throttle, and 0 such runs when a main-thread scroll-driven animation is active (Fw.Parts.EngineScrollUnthrottle.reported_iff/lifted_when_supported); threaded and time-based parts are unaffected either way (theorem); per-part predicted counts as a golden for the measure task, from the phone recordings' per-part series definitions (packages/measure-webkit/src/device-record.mjs keys). Lead adds the Fw.lean import and check.sh job at land.",
+   "evidence": "d08f4b2"
   },
   {
    "devices": [
@@ -20419,9 +20438,23 @@
     "apps/site/src/parts/platform.sweep/pause.ts",
     "apps/site/src/parts/platform.sweep/pause.test.ts",
     "apps/site/src/parts/platform.sweep/part.json",
-    "docs/team/handoffs/sweep-offscreen-pause.md"
+    "docs/team/handoffs/sweep-offscreen-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/PlatformSweepPauseGolden.lean"
    ],
-   "title": "platform.sweep:offscreen-pause (10-2x-webkit-throttles.md rank 3): an IntersectionObserver pauses the sweep animation offscreen and seeks it to the document timeline on resume (engine.scene pattern). Lean first: phase on resume equals the uninterrupted phase (reuse the engine.scene and morph.columns seek proofs). Lego brick, own flag. Measure on CI: rendering updates and main-thread time while the platform scene is offscreen, both engines; breakpoint gate."
+   "title": "platform.sweep:offscreen-pause (10-2x-webkit-throttles.md rank 3): an IntersectionObserver pauses the sweep animation offscreen and seeks it to the document timeline on resume (engine.scene pattern). Lean first: phase on resume equals the uninterrupted phase (reuse the engine.scene and morph.columns seek proofs). Lego brick, own flag. Measure on CI: rendering updates and main-thread time while the platform scene is offscreen, both engines; breakpoint gate.",
+   "evidence": "ed7d5fe"
   },
   {
    "devices": [
@@ -20438,9 +20471,24 @@
     "apps/site/src/parts/platform.glint/pause.ts",
     "apps/site/src/parts/platform.glint/pause.test.ts",
     "apps/site/src/parts/platform.glint/part.json",
-    "docs/team/handoffs/glint-offscreen-pause.md"
+    "docs/team/handoffs/glint-offscreen-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/PlatformGlintPauseGolden.lean",
+    "apps/site/src/parts/platform/Visuals.tsx"
    ],
-   "title": "platform.glint:offscreen-pause (10-2x-webkit-throttles.md rank 4): pauseAnimations() on the SMIL glint while offscreen, setCurrentTime from the document clock on resume; WebKit ticks SMIL every 1/30 s even when nothing visible changes. Lean first: phase on resume equals the uninterrupted phase (SMIL clock). Lego brick, own flag. Measure as sweep-offscreen-pause, both engines; breakpoint gate."
+   "title": "platform.glint:offscreen-pause (10-2x-webkit-throttles.md rank 4): pauseAnimations() on the SMIL glint while offscreen, setCurrentTime from the document clock on resume; WebKit ticks SMIL every 1/30 s even when nothing visible changes. Lean first: phase on resume equals the uninterrupted phase (SMIL clock). Lego brick, own flag. Measure as sweep-offscreen-pause, both engines; breakpoint gate.",
+   "evidence": "1f10a9b"
   },
   {
    "devices": [
@@ -20459,7 +20507,21 @@
     "apps/site/src/parts/morph.mount/armLate.ts",
     "apps/site/src/parts/morph.mount/armLate.test.ts",
     "apps/site/src/parts/morph.mount/part.json",
-    "docs/team/handoffs/mount-arm-late.md"
+    "docs/team/handoffs/mount-arm-late.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/site/src/parts/morph.mount/index.tsx",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/scripts/MorphMountArmLateGolden.lean",
+    "apps/site/src/parts/morph.mount/armLate.component.test.ts"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
   },
@@ -20541,9 +20603,89 @@
     "lean/Fw/Wire/FlagKey.lean",
     "packages/contracts/golden/wire/flag-key.jsonl",
     "apps/site/test/prerender-keys.test.ts",
-    "docs/team/handoffs/gate-flag-order.md"
+    "docs/team/handoffs/gate-flag-order.md",
+    "apps/console-api/src/preview/serve-child.ts",
+    "apps/console-api/test/builds.test.ts",
+    "apps/console-api/test/preview-flag-order.test.ts",
+    "apps/runner/src/land.ts",
+    "apps/site/scripts/pages.mjs",
+    "apps/site/tsconfig.json",
+    "apps/site/vitest.config.ts",
+    "packages/contracts/src/flag-key.d.mts",
+    "packages/contracts/src/flag-key.mjs",
+    "packages/gate-breakpoints/src/serve.mjs",
+    "packages/measure-chromium/src/server.mjs",
+    "packages/measure-webkit/src/device.mjs",
+    "packages/measure-webkit/src/lag/macmorph.mjs",
+    "packages/measure-webkit/src/safari-local.mjs",
+    "packages/measure-webkit/src/session.mjs",
+    "packages/measure-wktr/src/repaint-serve.mjs",
+    "packages/visual-diff/src/run.mjs",
+    "lean/Fw.lean",
+    "lean/Fw/Wire/FlagKeyGolden.lean"
    ],
    "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "offscreen-count-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-chromium/src/offscreen.mjs",
+    "packages/measure-chromium/test/offscreen.test.mjs",
+    "lean/Fw/Measure/Offscreen.lean",
+    "lean/Fw/Measure/OffscreenGolden.lean",
+    "packages/contracts/golden/measure/offscreen.jsonl",
+    ".github/workflows/chromium-counts.yml",
+    "docs/team/tools/offscreen-counts.md",
+    "docs/team/handoffs/offscreen-count-lane.md"
+   ],
+   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-n-alloc",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Console/LedgerUnique.lean",
+    "lean/Fw/Console/LedgerAlloc.lean",
+    "packages/contracts/golden/console/ledger-alloc.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/ledger-alloc.test.ts",
+    "docs/team/tools/land.md",
+    "docs/team/handoffs/ledger-n-alloc.md"
+   ],
+   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-morph-walk-noise",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "webkit-morph-cell"
+   ],
+   "writes": [
+    "lean/Fw/Gate/Trajectory.lean",
+    "packages/gate-breakpoints/src/trajectory/run.mjs",
+    "packages/gate-breakpoints/src/trajectory/frames.mjs",
+    "packages/gate-breakpoints/src/trajectory/plan.mjs",
+    "packages/gate-breakpoints/test/trajectory.test.mjs",
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "research/notes/2026/10-2x-webkit-morph-walk-noise.md",
+    "docs/team/handoffs/webkit-morph-walk-noise.md"
+   ],
+   "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI."
   }
  ],
  "deadline": {

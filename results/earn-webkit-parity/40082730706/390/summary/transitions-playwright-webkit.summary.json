@@ -1,0 +1,1707 @@
+{
+ "engine": "playwright-webkit",
+ "version": "WebKit 27.2 (playwright-core 1.64.1)",
+ "reps": 3,
+ "cells": [
+  {
+   "width": 390,
+   "role": "orig",
+   "seq": "hero-exit",
+   "identity": "ok",
+   "full": 3,
+   "light": 1,
+   "series": {
+    "earnW": {
+     "change": {
+      "n": 3,
+      "min": 110.41,
+      "median": 110.41,
+      "max": 110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 69.41,
+      "median": 74.39,
+      "max": 93.58
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 179,
+      "median": 272,
+      "max": 307
+     },
+     "between": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     }
+    },
+    "earnX": {
+     "change": {
+      "n": 3,
+      "min": -110.41,
+      "median": -110.41,
+      "max": -110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 69.41,
+      "median": 74.39,
+      "max": 93.58
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 179,
+      "median": 272,
+      "max": 307
+     },
+     "between": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     }
+    },
+    "langX": {
+     "change": {
+      "n": 3,
+      "min": -114.41,
+      "median": -114.41,
+      "max": -114.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 71.47,
+      "median": 77.03,
+      "max": 96.03
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 272,
+      "median": 307,
+      "max": 528
+     },
+     "between": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 2
+     }
+    },
+    "padL": {
+     "change": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "padR": {
+     "change": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "maxW": {
+     "change": {
+      "n": 3,
+      "min": 152,
+      "median": 152,
+      "max": 152
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 78.5,
+      "median": 93.59,
+      "max": 100.03
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 452,
+      "median": 528,
+      "max": 536
+     },
+     "between": {
+      "n": 3,
+      "min": 2,
+      "median": 2,
+      "max": 3
+     }
+    },
+    "op": {
+     "change": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 0.7,
+      "median": 0.94,
+      "max": 0.97
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 179,
+      "median": 272,
+      "max": 307
+     },
+     "between": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     }
+    },
+    "gap": {
+     "change": {
+      "n": 3,
+      "min": 4,
+      "median": 4,
+      "max": 4
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 2.07,
+      "median": 2.46,
+      "max": 2.63
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 272,
+      "median": 307,
+      "max": 528
+     },
+     "between": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 2
+     }
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": {
+      "n": 1,
+      "min": 50.28,
+      "median": 50.28,
+      "max": 50.28
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 639,
+      "median": 639,
+      "max": 639
+     },
+     "between": {
+      "n": 1,
+      "min": 2,
+      "median": 2,
+      "max": 2
+     }
+    },
+    "earnX": {
+     "maxJump": {
+      "n": 1,
+      "min": 50.28,
+      "median": 50.28,
+      "max": 50.28
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 639,
+      "median": 639,
+      "max": 639
+     },
+     "between": {
+      "n": 1,
+      "min": 2,
+      "median": 2,
+      "max": 2
+     }
+    },
+    "langX": {
+     "maxJump": {
+      "n": 1,
+      "min": 51.61,
+      "median": 51.61,
+      "max": 51.61
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 639,
+      "median": 639,
+      "max": 639
+     },
+     "between": {
+      "n": 1,
+      "min": 2,
+      "median": 2,
+      "max": 2
+     }
+    }
+   },
+   "transitions": {
+    "actions:column-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 2,
+      "median": 2,
+      "max": 3
+     }
+    },
+    "actions:row-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 2,
+      "median": 2,
+      "max": 3
+     }
+    },
+    "earn:max-width": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 2,
+      "median": 2,
+      "max": 3
+     }
+    },
+    "earn:opacity": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 1,
+      "median": 2,
+      "max": 2
+     }
+    }
+   },
+   "cadence": {
+    "n": 3,
+    "min": 36,
+    "median": 44,
+    "max": 44
+   }
+  },
+  {
+   "width": 390,
+   "role": "orig",
+   "seq": "hero-entry",
+   "identity": "ok",
+   "full": 3,
+   "light": 1,
+   "series": {
+    "earnW": {
+     "change": {
+      "n": 3,
+      "min": -110.41,
+      "median": -110.41,
+      "max": -110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 42.5,
+      "median": 46.39,
+      "max": 51.14
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 409,
+      "median": 479,
+      "max": 533
+     },
+     "between": {
+      "n": 3,
+      "min": 6,
+      "median": 6,
+      "max": 7
+     }
+    },
+    "earnX": {
+     "change": {
+      "n": 3,
+      "min": 110.41,
+      "median": 110.41,
+      "max": 110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 42.5,
+      "median": 46.39,
+      "max": 51.14
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 409,
+      "median": 479,
+      "max": 533
+     },
+     "between": {
+      "n": 3,
+      "min": 6,
+      "median": 6,
+      "max": 7
+     }
+    },
+    "langX": {
+     "change": {
+      "n": 3,
+      "min": 114.41,
+      "median": 114.41,
+      "max": 114.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 43.96,
+      "median": 48.72,
+      "max": 53.09
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 409,
+      "median": 479,
+      "max": 533
+     },
+     "between": {
+      "n": 3,
+      "min": 6,
+      "median": 6,
+      "max": 7
+     }
+    },
+    "padL": {
+     "change": {
+      "n": 3,
+      "min": -16,
+      "median": -16,
+      "max": -16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "padR": {
+     "change": {
+      "n": 3,
+      "min": -16,
+      "median": -16,
+      "max": -16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "maxW": {
+     "change": {
+      "n": 3,
+      "min": -152,
+      "median": -152,
+      "max": -152
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 60.65,
+      "median": 73.92,
+      "max": 87.97
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 409,
+      "median": 479,
+      "max": 533
+     },
+     "between": {
+      "n": 3,
+      "min": 6,
+      "median": 6,
+      "max": 7
+     }
+    },
+    "op": {
+     "change": {
+      "n": 3,
+      "min": -1,
+      "median": -1,
+      "max": -1
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 0.99,
+      "median": 1,
+      "max": 1
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "gap": {
+     "change": {
+      "n": 3,
+      "min": -4,
+      "median": -4,
+      "max": -4
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 1.6,
+      "median": 1.95,
+      "max": 2.31
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 226,
+      "median": 268,
+      "max": 292
+     },
+     "between": {
+      "n": 3,
+      "min": 2,
+      "median": 2,
+      "max": 3
+     }
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": {
+      "n": 1,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 1132,
+      "median": 1132,
+      "max": 1132
+     },
+     "between": {
+      "n": 1,
+      "min": 10,
+      "median": 10,
+      "max": 10
+     }
+    },
+    "earnX": {
+     "maxJump": {
+      "n": 1,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 1132,
+      "median": 1132,
+      "max": 1132
+     },
+     "between": {
+      "n": 1,
+      "min": 10,
+      "median": 10,
+      "max": 10
+     }
+    },
+    "langX": {
+     "maxJump": {
+      "n": 1,
+      "min": 32.44,
+      "median": 32.44,
+      "max": 32.44
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 1132,
+      "median": 1132,
+      "max": 1132
+     },
+     "between": {
+      "n": 1,
+      "min": 10,
+      "median": 10,
+      "max": 10
+     }
+    }
+   },
+   "transitions": {
+    "actions:column-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 6,
+      "median": 7,
+      "max": 8
+     }
+    },
+    "actions:row-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 6,
+      "median": 7,
+      "max": 8
+     }
+    },
+    "earn:max-width": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 6,
+      "median": 7,
+      "max": 8
+     }
+    },
+    "earn:opacity": {
+     "reps": 2,
+     "animations": {
+      "n": 2,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 2,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     }
+    }
+   },
+   "cadence": {
+    "n": 3,
+    "min": 37,
+    "median": 39,
+    "max": 41
+   }
+  },
+  {
+   "width": 390,
+   "role": "orig",
+   "seq": "morph-open",
+   "identity": "ok",
+   "full": 0,
+   "light": 0,
+   "series": {
+    "earnW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padL": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padR": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "maxW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "op": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "gap": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "transitions": {},
+   "cadence": null
+  },
+  {
+   "width": 390,
+   "role": "orig",
+   "seq": "morph-close",
+   "identity": "ok",
+   "full": 0,
+   "light": 0,
+   "series": {
+    "earnW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padL": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padR": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "maxW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "op": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "gap": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "transitions": {},
+   "cadence": null
+  },
+  {
+   "width": 390,
+   "role": "faithful",
+   "seq": "hero-exit",
+   "identity": "ok",
+   "full": 3,
+   "light": 1,
+   "series": {
+    "earnW": {
+     "change": {
+      "n": 3,
+      "min": 110.41,
+      "median": 110.41,
+      "max": 110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 262,
+      "median": 267,
+      "max": 279
+     },
+     "between": {
+      "n": 3,
+      "min": 11,
+      "median": 13,
+      "max": 13
+     }
+    },
+    "earnX": {
+     "change": {
+      "n": 3,
+      "min": -110.41,
+      "median": -110.41,
+      "max": -110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 262,
+      "median": 267,
+      "max": 279
+     },
+     "between": {
+      "n": 3,
+      "min": 11,
+      "median": 13,
+      "max": 13
+     }
+    },
+    "langX": {
+     "change": {
+      "n": 3,
+      "min": -114.41,
+      "median": -114.41,
+      "max": -114.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 32.05,
+      "median": 32.06,
+      "max": 32.06
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 390,
+      "median": 392,
+      "max": 411
+     },
+     "between": {
+      "n": 3,
+      "min": 13,
+      "median": 16,
+      "max": 17
+     }
+    },
+    "padL": {
+     "change": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "padR": {
+     "change": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "maxW": {
+     "change": {
+      "n": 3,
+      "min": 152,
+      "median": 152,
+      "max": 152
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 11.11,
+      "median": 15.94,
+      "max": 24.44
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 582,
+      "median": 586,
+      "max": 593
+     },
+     "between": {
+      "n": 3,
+      "min": 20,
+      "median": 23,
+      "max": 26
+     }
+    },
+    "op": {
+     "change": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 0.13,
+      "median": 0.16,
+      "max": 0.24
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 390,
+      "median": 392,
+      "max": 411
+     },
+     "between": {
+      "n": 3,
+      "min": 11,
+      "median": 12,
+      "max": 14
+     }
+    },
+    "gap": {
+     "change": {
+      "n": 3,
+      "min": 4,
+      "median": 4,
+      "max": 4
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 0.29,
+      "median": 0.42,
+      "max": 0.64
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 390,
+      "median": 392,
+      "max": 411
+     },
+     "between": {
+      "n": 3,
+      "min": 11,
+      "median": 14,
+      "max": 15
+     }
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": {
+      "n": 1,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 518,
+      "median": 518,
+      "max": 518
+     },
+     "between": {
+      "n": 1,
+      "min": 11,
+      "median": 11,
+      "max": 11
+     }
+    },
+    "earnX": {
+     "maxJump": {
+      "n": 1,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 518,
+      "median": 518,
+      "max": 518
+     },
+     "between": {
+      "n": 1,
+      "min": 11,
+      "median": 11,
+      "max": 11
+     }
+    },
+    "langX": {
+     "maxJump": {
+      "n": 1,
+      "min": 32.08,
+      "median": 32.08,
+      "max": 32.08
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 615,
+      "median": 615,
+      "max": 615
+     },
+     "between": {
+      "n": 1,
+      "min": 14,
+      "median": 14,
+      "max": 14
+     }
+    }
+   },
+   "transitions": {
+    "actions:column-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 23,
+      "median": 26,
+      "max": 29
+     }
+    },
+    "actions:row-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 23,
+      "median": 26,
+      "max": 29
+     }
+    },
+    "earn:max-width": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 23,
+      "median": 26,
+      "max": 29
+     }
+    },
+    "earn:opacity": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 13,
+      "median": 16,
+      "max": 18
+     }
+    }
+   },
+   "cadence": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17
+   }
+  },
+  {
+   "width": 390,
+   "role": "faithful",
+   "seq": "hero-entry",
+   "identity": "ok",
+   "full": 3,
+   "light": 1,
+   "series": {
+    "earnW": {
+     "change": {
+      "n": 3,
+      "min": -110.41,
+      "median": -110.41,
+      "max": -110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 606,
+      "median": 608,
+      "max": 613
+     },
+     "between": {
+      "n": 3,
+      "min": 32,
+      "median": 35,
+      "max": 37
+     }
+    },
+    "earnX": {
+     "change": {
+      "n": 3,
+      "min": 110.41,
+      "median": 110.41,
+      "max": 110.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 606,
+      "median": 608,
+      "max": 613
+     },
+     "between": {
+      "n": 3,
+      "min": 32,
+      "median": 35,
+      "max": 37
+     }
+    },
+    "langX": {
+     "change": {
+      "n": 3,
+      "min": 114.41,
+      "median": 114.41,
+      "max": 114.41
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 32.02,
+      "median": 32.04,
+      "max": 32.04
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 606,
+      "median": 608,
+      "max": 613
+     },
+     "between": {
+      "n": 3,
+      "min": 32,
+      "median": 35,
+      "max": 37
+     }
+    },
+    "padL": {
+     "change": {
+      "n": 3,
+      "min": -16,
+      "median": -16,
+      "max": -16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "padR": {
+     "change": {
+      "n": 3,
+      "min": -16,
+      "median": -16,
+      "max": -16
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 16,
+      "median": 16,
+      "max": 16
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     },
+     "between": {
+      "n": 3,
+      "min": 0,
+      "median": 0,
+      "max": 0
+     }
+    },
+    "maxW": {
+     "change": {
+      "n": 3,
+      "min": -152,
+      "median": -152,
+      "max": -152
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 10.92,
+      "median": 10.97,
+      "max": 15.13
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 606,
+      "median": 608,
+      "max": 613
+     },
+     "between": {
+      "n": 3,
+      "min": 32,
+      "median": 35,
+      "max": 37
+     }
+    },
+    "op": {
+     "change": {
+      "n": 3,
+      "min": -1,
+      "median": -1,
+      "max": -1
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 0.31,
+      "median": 0.4,
+      "max": 0.43
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 138,
+      "median": 139,
+      "max": 153
+     },
+     "between": {
+      "n": 3,
+      "min": 4,
+      "median": 7,
+      "max": 7
+     }
+    },
+    "gap": {
+     "change": {
+      "n": 3,
+      "min": -4,
+      "median": -4,
+      "max": -4
+     },
+     "maxJump": {
+      "n": 3,
+      "min": 0.29,
+      "median": 0.29,
+      "max": 0.4
+     },
+     "arriveMs": {
+      "n": 3,
+      "min": 389,
+      "median": 390,
+      "max": 395
+     },
+     "between": {
+      "n": 3,
+      "min": 16,
+      "median": 18,
+      "max": 20
+     }
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": {
+      "n": 1,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 1000,
+      "median": 1000,
+      "max": 1000
+     },
+     "between": {
+      "n": 1,
+      "min": 35,
+      "median": 35,
+      "max": 35
+     }
+    },
+    "earnX": {
+     "maxJump": {
+      "n": 1,
+      "min": 32,
+      "median": 32,
+      "max": 32
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 1000,
+      "median": 1000,
+      "max": 1000
+     },
+     "between": {
+      "n": 1,
+      "min": 35,
+      "median": 35,
+      "max": 35
+     }
+    },
+    "langX": {
+     "maxJump": {
+      "n": 1,
+      "min": 32.04,
+      "median": 32.04,
+      "max": 32.04
+     },
+     "arriveMs": {
+      "n": 1,
+      "min": 1000,
+      "median": 1000,
+      "max": 1000
+     },
+     "between": {
+      "n": 1,
+      "min": 35,
+      "median": 35,
+      "max": 35
+     }
+    }
+   },
+   "transitions": {
+    "actions:column-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 35,
+      "median": 38,
+      "max": 40
+     }
+    },
+    "actions:row-gap": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 35,
+      "median": 38,
+      "max": 40
+     }
+    },
+    "earn:max-width": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 35,
+      "median": 38,
+      "max": 40
+     }
+    },
+    "earn:opacity": {
+     "reps": 3,
+     "animations": {
+      "n": 3,
+      "min": 1,
+      "median": 1,
+      "max": 1
+     },
+     "frames": {
+      "n": 3,
+      "min": 6,
+      "median": 9,
+      "max": 9
+     }
+    }
+   },
+   "cadence": {
+    "n": 3,
+    "min": 17,
+    "median": 17,
+    "max": 17
+   }
+  },
+  {
+   "width": 390,
+   "role": "faithful",
+   "seq": "morph-open",
+   "identity": "ok",
+   "full": 0,
+   "light": 0,
+   "series": {
+    "earnW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padL": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padR": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "maxW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "op": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "gap": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "transitions": {},
+   "cadence": null
+  },
+  {
+   "width": 390,
+   "role": "faithful",
+   "seq": "morph-close",
+   "identity": "ok",
+   "full": 0,
+   "light": 0,
+   "series": {
+    "earnW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padL": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "padR": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "maxW": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "op": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "gap": {
+     "change": null,
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "lightSeries": {
+    "earnW": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "earnX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    },
+    "langX": {
+     "maxJump": null,
+     "arriveMs": null,
+     "between": null
+    }
+   },
+   "transitions": {},
+   "cadence": null
+  }
+ ]
+}

@@ -3536,15 +3536,15 @@
    "id": "engine.scroll.unthrottle",
    "n": 59,
    "part": "engine.scroll",
-   "candidate": "engine.scroll:unthrottle: ship the throttle-lift element (one fixed 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
-   "status": "partly-proved",
+   "candidate": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "status": "proved",
    "flags": [
     "engine.scroll:unthrottle"
    ],
    "chromium": "no-win",
    "webkit": "win",
-   "visual": "E (visible_withFlag: the visible scene with the element equals the page's own; same_layout_hit_a11y: no flow box, hit target or accessible content). Breakpoint gate run 40068858697, Chromium and Playwright WebKit, no failing item.",
-   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266 @862f17d; WebKit bugs 307463 and 319523) and PROVED in Lean (reported_iff, lifted_when_supported, no_effect_without_support, chromium_never_throttled). Effect on the Simulator: throttle-lift took 163 band runs to 0 (run 39667548341); the shipped text is not itself measured for still runs. Cost MEASURED: Chromium counts (3 runs x 535 swipe frames, flag run 40068851412 vs push run 40068835905, same sha) +1 element restyled in 95.5 to 99.1 percent of frames, no extra layout, no extra style-recalc event, but +2 compositor layers (1 drawing layer, about 1 px). WebKit Simulator (run 40068853873): no resolvable extra style, layout or composite event, no extra positionFixed layer.",
+   "visual": "E (visible_withFlag: the visible scene with the element equals the page's own; same_layout_hit_a11y: no flow box, hit target or accessible content). Breakpoint gate on the shipped text (absolute, pointer-coarse guard) run 40083527306 at c113d5eca, Chromium and Playwright WebKit, empty failing-items table on both (earlier text: run 40068858697).",
+   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:3256-3268, WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279, KeyframeEffect.cpp:1736-1769, StyleInterpolation.cpp:256-266 @862f17d; WebKit bugs 307463 and 319523) and PROVED in Lean (reported_iff, lifted_when_supported, no_effect_without_support, chromium_never_throttled). Effect on the Simulator: the throttle-lift diagnostic took 163 band runs to 0 (run 39667548341). Guard and position PROVED in Lean (guard_keeps_ios, guard_lifts_ios, guard_fine_noop, guard_fine_cost, lift_anim_position_free, same_layout_out_of_flow; iPhone primary pointer is coarse by WebPageIOS.mm:4243-4246). Cost MEASURED: with position fixed (text of the first version, flag run 40068851412 vs push run 40068835905) +2 compositor layers; with position absolute and the guard (flag run 40078781031, 3 x 575 swipe frames vs the same push run 40068835905, older sha) +0 layers in 575, 573, 572 frames, +1 element restyled in 532, 514, 531 frames, no extra layout or style-recalc event. WebKit Simulator touch lane (run 40078755847, rewrite vs unthrottle on the shipped text): 19 band runs in 1600 exit frames (one usable rewrite pass) against 0 in 6330 (4 passes), Lean verdict lifted.",
    "leanFor": [
     "Fw.Parts.EngineScrollUnthrottle.reported_iff",
     "Fw.Parts.EngineScrollUnthrottle.lifted_when_supported",
@@ -3553,28 +3553,34 @@
     "Fw.Parts.EngineScrollUnthrottle.visible_withFlag",
     "Fw.Parts.EngineScrollUnthrottle.same_layout_hit_a11y",
     "Fw.Parts.EngineScrollUnthrottle.restyled_flag",
-    "Fw.Parts.EngineScrollUnthrottle.extraRecalc_le"
+    "Fw.Parts.EngineScrollUnthrottle.extraRecalc_le",
+    "Fw.Parts.EngineScrollUnthrottle.guard_keeps_ios",
+    "Fw.Parts.EngineScrollUnthrottle.guard_keeps_ios_throttle",
+    "Fw.Parts.EngineScrollUnthrottle.guard_lifts_ios",
+    "Fw.Parts.EngineScrollUnthrottle.guard_fine_noop",
+    "Fw.Parts.EngineScrollUnthrottle.guard_fine_cost",
+    "Fw.Parts.EngineScrollUnthrottle.lift_anim_position_free",
+    "Fw.Parts.EngineScrollUnthrottle.same_layout_out_of_flow"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Still runs of the shipped text on the Simulator or phone not measured (the diagnostic text was)",
-    "The 2 extra Chromium layers are outside the Lean bound",
-    "Trajectory cells (Chromium and WebKit, hero and morph) have no run",
+    "Shipped text not yet felt on the phone (the Simulator lane shows the lift; the phone session covered the diagnostic text)",
+    "WebKit morph trajectory cell undecided: Mac WebKit morph coverage new units at 641 and 1280 (widths where the flag is inactive, a fine pointer), runs 40078755889 and 40080296257",
     "Power cost of leaving the 100 ms throttle (WebKit: up to 2 percent) not measured"
    ],
    "premises": [
-    "The phone behaves like the Simulator for this throttle: INFERRED, the user's felt pass agrees",
+    "The phone behaves like the Simulator for this throttle: INFERRED, the user's felt pass of the diagnostic text agrees",
     "Chromium has no equivalent throttle: INFERRED from the absence of the handshake; the Chromium counts show no change in style or layout events"
    ],
    "v1Evidence": "",
    "lesson": "A platform throttle can be lifted by a page-side condition the platform itself names; prove the condition from the engine source, then prove the lifter invisible and count what it costs: here the one-element restyle matched the bound and the unmodelled cost was a Chromium layer.",
-   "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1",
-   "next": "Trajectory probe with fw=engine.scroll:unthrottle (push, not dispatch); decide position:absolute against the 2 Chromium layers; a phone pass of the shipped text; then set proved and regenerate the v2-proved preset.",
+   "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1; 40078781031 (Chromium counts, absolute plus guard), 40078755847 (toolbar-throttle lane), 40078755889 and 40080296257 (trajectory probe), 40083527306 (breakpoint gate, shipped text); branch worktree-wf_582d1cc2-be7-1",
+   "next": "WebKit morph trajectory cell (the probe cannot decide Mac WebKit morph for any flag); a phone pass of the shipped text.",
    "flag": "engine.scroll:unthrottle"
   },
   {
    "id": "mount.arm-late",
-   "n": 67,
+   "n": 72,
    "part": "morph.mount",
    "flags": [
     "morph.mount:arm-late"
@@ -3606,6 +3612,227 @@
    "lesson": "A blocking listener can be demoted to passive wherever the lock decision cannot ask for preventDefault; the proof is a band that covers the arm test plus a state invariant for the active morph.",
    "next": "Dispatch the breakpoint gate with the flag, then a booked phone session for touch-start to first scroll frame; wire lean/Fw.lean.",
    "evidence": "Lean Fw.Parts.MorphMountArmLate.late_same (golden packages/contracts/golden/parts/morph-mount-arm-late.jsonl); trajectory probe 40092331051 (morph.mount:arm-late); breakpoint gate 40093577005 (A/A)"
+  },
+  {
+   "id": "platform.glint.offscreen-pause",
+   "n": 71,
+   "part": "platform.glint",
+   "candidate": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "status": "negative result: mount only while visible, gain = commit window",
+   "flags": [
+    "platform.glint:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Fw.Parts.PlatformGlintPause.visible_same_phase, local_time_same: on every frame where the glint plays, after any sequence of observer reports, the SMIL container reads the uninterrupted clock s - b, so the glint local time equals the faithful arm's). Trajectory probe with the flag, both engines, all four widths: run 40092155958 passed.",
+   "mechanism": "CONFIRMED by source (SMILTimeContainer.cpp:94-100,141-162,164-194,196-208 and SVGSVGElement.cpp:551-593 @862f17d: pause freezes elapsed and stops the timer, startTimer returns while paused, setElapsed rebases the clock) and PROVED in Lean (same_run, visible_same_phase, variant_no_ticks_away). The research-note premise that the faithful arm ticks SMIL offscreen does not hold for the glint: the play flag v implies visible (PlatformGlint.inv_step), and the animate pair is mounted only while v, so with the stage away no animation is scheduled and the SMIL timer is not armed (faithful_no_ticks_away, away_ticks_equal). The pause can only remove the ticks of the commit window between the observer report and the unmount (window_gain, at most one per rendering update, 1/60 s or 1/30 s in Low Power Mode, SMILTimeContainer.cpp:42-43).",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintPause.same_run",
+    "Fw.Parts.PlatformGlintPause.visible_same_phase",
+    "Fw.Parts.PlatformGlintPause.local_time_same",
+    "Fw.Parts.PlatformGlintPause.variant_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.faithful_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.away_ticks_equal",
+    "Fw.Parts.PlatformGlintPause.window_gain"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (moves to task offscreen-count-lane)",
+    "Breakpoint gate with the flag not run (negative result, flag not offered)",
+    "Size of the commit window in frames, not measured"
+   ],
+   "premises": [
+    "The observer callback runs before the first frame that can show the glint: the glint needs ratio >= 0.35 and then a 1 s timer, and the pause driver runs before the glint driver in the same callback. Holds by construction in the code, tested in pause.test.ts (joint cases)",
+    "The dash svg clock began before the first report (inline svg): INFERRED",
+    "Chromium's SMIL container has the same pause and seek semantics: INFERRED, source not read",
+    "getCurrentTime and setCurrentTime go through float32 seconds, an error far below a frame: not modelled"
+   ],
+   "v1Evidence": "",
+   "lesson": "Read what the faithful arm already unmounts before pausing it: the glint's play flag removes the animations whenever the stage is under 35 percent visible, so a pause adds a clock seek (setElapsed resets every scheduled animation) for a saving limited to one commit window. Prove the baseline's offscreen work is zero first (faithful_no_ticks_away) and the candidate is a no-op by construction.",
+   "evidence": "40092155958 (platform.glint:offscreen-pause) trajectory probe, flag, engines both, all widths",
+   "next": "Not offered: no gain beyond the commit window (window_gain), so the gate with the flag is not run. Offscreen counts move to task offscreen-count-lane. Drop the flag if it stays unused.",
+   "flag": "platform.glint:offscreen-pause"
+  },
+  {
+   "id": "morph.countdown.strip",
+   "n": 7,
+   "part": "morph.countdown (+ hero.countdown)",
+   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "status": "proved",
+   "flags": [
+    "morph.countdown:strip",
+    "hero.countdown:strip"
+   ],
+   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
+   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
+   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "leanFor": [
+    "Fw.Parts.MorphCountdownStrip.same_face_px",
+    "Fw.Parts.MorphCountdownStrip.phase_same",
+    "Fw.Parts.MorphCountdownStrip.dom_same",
+    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
+    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
+    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphCountdownStrip.layers_conservative",
+    "Fw.Parts.MorphCountdownStrip.layers_paused",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
+   ],
+   "missingWhy": [
+    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
+    "UIView creation time at morph start on the phone"
+   ],
+   "premises": [
+    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
+    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
+    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
+    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
+   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
+  },
+  {
+   "id": "morph.end.clamp",
+   "n": 67,
+   "part": "morph.end.clamp",
+   "candidate": "morph.end.clamp:on (brick A of morph-end-bricks): the pin is restored to min(pin, real maxY) each frame, so the page stops writing the overscroll position back against the rubber band at the end of the page",
+   "status": "look-change",
+   "flag": "morph.end.clamp:on",
+   "flags": [
+    "morph.end.clamp:on"
+   ],
+   "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
+   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "visual": "look change (L), behaviour change at the end of the page: at the end of the page the pin follows the real end instead of the overscroll position the push began in, so the rubber-band spring-back is no longer fought frame by frame. Lean clamp_le, clamp_le_trace, clamp_rest, faithful_fight, clamp_only_writes, clamp_same_below (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
+   "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
+   "leanFor": [
+    "Fw.Parts.MorphEnd.clamp_le",
+    "Fw.Parts.MorphEnd.clamp_le_trace",
+    "Fw.Parts.MorphEnd.clamp_rest",
+    "Fw.Parts.MorphEnd.faithful_fight",
+    "Fw.Parts.MorphEnd.clamp_only_writes",
+    "Fw.Parts.MorphEnd.clamp_same_below",
+    "Fw.Parts.MorphEnd.order_free",
+    "Fw.Parts.MorphEnd.all_combinations"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
+   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
+   "userDecision": "pending"
+  },
+  {
+   "id": "morph.end.flip",
+   "n": 68,
+   "part": "morph.end.flip",
+   "candidate": "morph.end.flip:on (brick B of morph-end-bricks): an active morph flips (open to close or back) only on a new touch or after 16 px of net travel against the goal",
+   "status": "look-change",
+   "flag": "morph.end.flip:on",
+   "flags": [
+    "morph.end.flip:on"
+   ],
+   "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
+   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "visual": "look change (L), behaviour change at the end of the page: finger jitter inside a 16 px band no longer reverses the running morph; a pull of 16 px or more still does. Lean flip_needs, flip_band, band_after_push, flip_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
+   "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
+   "leanFor": [
+    "Fw.Parts.MorphEnd.flip_needs",
+    "Fw.Parts.MorphEnd.flip_band",
+    "Fw.Parts.MorphEnd.band_after_push",
+    "Fw.Parts.MorphEnd.flip_same",
+    "Fw.Parts.MorphEnd.order_free",
+    "Fw.Parts.MorphEnd.all_combinations"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
+   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
+   "userDecision": "pending"
+  },
+  {
+   "id": "morph.end.release",
+   "n": 69,
+   "part": "morph.end.release",
+   "candidate": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "status": "look-change",
+   "flag": "morph.end.release:on",
+   "flags": [
+    "morph.end.release:on"
+   ],
+   "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
+   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "visual": "look change (L), behaviour change at the end of the page: a drag back while the morph closes moves the page under the finger instead of being held at the pin. Lean release_starts, release_close_free, release_quiet, release_after_close, release_open_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
+   "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
+   "leanFor": [
+    "Fw.Parts.MorphEnd.release_starts",
+    "Fw.Parts.MorphEnd.release_close_free",
+    "Fw.Parts.MorphEnd.release_quiet",
+    "Fw.Parts.MorphEnd.release_after_close",
+    "Fw.Parts.MorphEnd.release_open_same",
+    "Fw.Parts.MorphEnd.order_free",
+    "Fw.Parts.MorphEnd.all_combinations"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
+   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
+   "userDecision": "pending"
+  },
+  {
+   "id": "platform.sweep.offscreen-pause",
+   "n": 70,
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "status": "partly-proved",
+   "flags": [
+    "platform.sweep:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Lean PlatformSweepPause.shown_same, visible_same, visible_phase: on every frame not reported offscreen, and so every visible frame, the animation time equals the uninterrupted one, so phase and background position are equal). Breakpoint gate run 40091740060 (Chromium and Playwright WebKit, success); trajectory probe run 40091732984 (diagnostic, widths 390 and 1280, both engines, success).",
+   "mechanism": "INFERRED (research/notes/2026/10-2x-webkit-throttles.md row platform.sweep): the sweep is a main-thread CSS background-position animation with no offscreen throttle, so the rendering update and restyle run every frame while the platform section is offscreen. PROVED in Lean: a frame reported offscreen leaves the animation time unchanged and counts no tick (reported_no_tick, reported_run); under the named premise Lag (the observer reports an element after the frame it leaves) an offscreen stretch ticks at most once (offscreen_ticks_le_one). Not measured: no CI lane counts rendering updates or main-thread time of the rewrite while the section is offscreen (wktr runs the original only; the count lanes count class names).",
+   "leanFor": [
+    "Fw.Parts.PlatformSweepPause.shown_same",
+    "Fw.Parts.PlatformSweepPause.visible_same",
+    "Fw.Parts.PlatformSweepPause.visible_phase",
+    "Fw.Parts.PlatformSweepPause.reported_no_tick",
+    "Fw.Parts.PlatformSweepPause.reported_run",
+    "Fw.Parts.PlatformSweepPause.offscreen_ticks_le_one"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and main-thread time while the platform section is offscreen, per engine, faithful against the flag: no lane",
+    "The IntersectionObserver lag (Lag) is a premise, not proved about either engine",
+    "An animation created while offscreen is not tracked by the driver"
+   ],
+   "premises": [
+    "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
+    "An element reported offscreen is offscreen (Ok): INFERRED"
+   ],
+   "v1Evidence": "",
+   "lesson": "A seek-on-resume pause needs only one invariant (a running animation sits on clock plus offset); the saving is the paused frames, which is a count to measure, not a look to prove.",
+   "evidence": "CI runs 40091740060 (breakpoint gate, fw=platform.sweep:offscreen-pause), 40091732984 (trajectory probe, same flag); branch worktree-wf_72c42085-d84-1",
+   "next": "A lane that counts rendering updates and main-thread time of the rewrite while a section is offscreen (WKTR variant for the rewrite, or a Chromium trace profile); then set proved or no-win.",
+   "flag": "platform.sweep:offscreen-pause"
   }
  ],
  "notes": [
@@ -3938,6 +4165,12 @@
    "task": "accent-same-look",
    "field": "lesson",
    "text": "Lean Fw.Engine.StyleDiffAccent.jump_differs: while the original glides (w(t) differs from the final width wf), the first and last headline words sit (wf - w)/2 away from the original, so the jump is a different picture on every glide frame before the end. Fw.Engine.StyleDiffAccent.glide_same: holding the accent at wf and translating the neighbours by +-(wf - w)/2 puts them where the original has them, so the in-flow premise of this lesson is not forced; that candidate is accent.same.glide (pixels MEASURED-pending)."
+  },
+  {
+   "entry": "elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
+   "task": "hittest-elements-proof",
+   "field": "chromium",
+   "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
   }
  ]
 }

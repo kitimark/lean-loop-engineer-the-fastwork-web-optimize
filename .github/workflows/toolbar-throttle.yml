@@ -3,7 +3,7 @@ name: toolbar-throttle
 # The toolbar-throttle probe (task toolbar-throttle-probe): does WebKit's 100 ms throttle of visible-rect updates while Safari's toolbar
 # collapses (WKWebViewIOS.mm:3256-3268@862f17d) cause the still runs of the hero exit? Real touches (an XCUITest driver swipes Mobile Safari
 # in the iOS Simulator; no synthetic WheelEvent) while the page records every frame; three arms, rotated per round: the default rewrite,
-# the rewrite with the diagnostic flag ?fw=engine.scroll:throttle-lift (one main-thread scroll-driven animation, which lifts the throttle),
+# the rewrite with the shipped flag ?fw=engine.scroll:unthrottle (one guarded main-thread scroll-driven animation, which lifts the throttle; the diagnostic arm lift is `--arms ...,lift,...`),
 # and the original snapshot as the reference. The counts and the verdict are Lean's (lean/Fw/Device/StillRuns.lean, golden
 # packages/contracts/golden/device/stillruns.jsonl, twin packages/measure-webkit/src/throttle/stillruns.mjs). Counts only: nothing measured
 # here is phone time, and the Simulator's toolbar may behave unlike the phone's.
@@ -218,7 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms rewrite,lift,original --rounds 2 --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$([ "$MODE" = finish ] && echo rewrite,lift,original || echo rewrite,unthrottle,original)" --rounds 2 --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded

@@ -10,8 +10,8 @@ import css from './platform.module.css';
 import sw from './sweep.module.css';
 import st from './stage.module.css';
 import { Ask, Invoice, Profile, Secure, type Subs } from './Visuals';
+import { VARIANT as SWEEP_PAUSE, watchSweepPause } from '../platform.sweep/pause';
 
-/** Variants of the sub-parts; anything but `faithful` switches that effect off (the hook for optimized variants). */
 export interface PlatformSubVariants {
   sweep?: string;
   glint?: string;
@@ -84,8 +84,9 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   const section = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
   const faithful = (v: string | undefined) => (v ?? 'faithful') === 'faithful';
-  const sweep = faithful(sub.sweep) ? sw.sweep : undefined;
-  const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint), marquee: faithful(sub.marquee) };
+  const sweepPause = sub.sweep === SWEEP_PAUSE;
+  const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : undefined;
+  const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
 
   useEffect(() => {
     const sec = section.current;
@@ -114,6 +115,12 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
       off();
     };
   }, []);
+
+  useEffect(() => {
+    const sec = section.current;
+    if (!sweepPause || !sec) return;
+    return watchSweepPause([...sec.querySelectorAll(`.${sw.sweep}`)]);
+  }, [sweepPause]);
 
   return (
     <section ref={section} id="platform" className={css.section} data-fw="platform" data-fw-variant={variant} aria-labelledby="built-heading">

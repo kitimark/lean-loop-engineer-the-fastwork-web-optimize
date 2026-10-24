@@ -643,9 +643,8 @@ private def wktrId : String := "wktr_scroll_timeline_restyle"
 def engineFiles : List String :=
   ["countdown-strip.jsonl", "hero-accent.jsonl", "hero-exit.jsonl", "hidden-pause.jsonl", "morph-mount.jsonl",
    "morph-panel.jsonl", "nav-hittest.jsonl", "pain-notes.jsonl", "people-card.jsonl", "people-deck.jsonl",
-   "webkit.jsonl"]
+   "transition-start.jsonl", "webkit.jsonl"]
 
-/-- The counted Chromium stages, each with the id of its stage rule (a registry lane premise or an untested premise). -/
 def crStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "raster", "commit", "comp", "hits"].map fun s => (s, "cr." ++ s)
 

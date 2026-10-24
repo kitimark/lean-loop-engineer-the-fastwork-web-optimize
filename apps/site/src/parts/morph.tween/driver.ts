@@ -1,5 +1,6 @@
 import { EASING_CSS as PANEL_EASING_CSS, effects as panelEffects } from '../morph.panel/threaded.logic';
-import { active, armed, dir, DURATION_MS, fade, frame, pointerNone, push, REST, taken, type St } from './logic';
+import { active, armed, DURATION_MS, fade, frame, pointerNone, REST, type St } from './logic';
+import { BASE, frameOut, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 
 export interface PlatformEl {
@@ -22,10 +23,9 @@ export interface TweenEnv {
   reduced(): boolean;
   /** `visualViewport.height`, else `innerHeight` (N2:13067). */
   viewportHeight(): number;
-  /** `.start-selling-platform`, looked up each time (N2:12982 `y()`). */
   platform(): PlatformEl | null;
   scrollY(): number;
-  /** `scrollTo({ top, behavior: 'instant' })` (N2:13078). */
+  maxScrollY?(): number;
   scrollToInstant(top: number): void;
   addListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void, passive: boolean): void;
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
@@ -37,6 +37,7 @@ export interface TweenEnv {
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
   panel?: EffectSink;
+  hooks?: Hooks;
 }
 
 export interface EffectSink {
@@ -86,8 +87,8 @@ export function createTweenDriver(env: TweenEnv) {
   let st: St = REST;
   let near = false;
   let attached = false;
-  let touchY = 0;
-  let pinned = env.scrollY();
+  const hooks = env.hooks ?? BASE;
+  let end: EndState = initEnd(env.scrollY(), st);
   let cancelFrame: (() => void) | null = null;
   let locked = false;
   let overlay = false;
@@ -115,25 +116,33 @@ export function createTweenDriver(env: TweenEnv) {
     const r = p.getBoundingClientRect();
     return armed({ rectHeight: r.height, rectBottom: r.bottom, viewportHeight: env.viewportHeight() });
   };
-  const takenFor = (delta: number) => taken({ active: isActive(), delta, armed: delta > 0 && !isActive() ? isArmed() : false });
-
-  const onWheel = (e: WheelLike) => {
-    if (!takenFor(e.deltaY)) return;
-    if (!isActive()) pinned = env.scrollY();
-    e.preventDefault();
-    push_(e.deltaY);
+  const move = (e: { preventDefault(): void }, delta: number) => {
+    const read: Read = {
+      get scrollY() {
+        return env.scrollY();
+      },
+      arm: delta > 0 && !isActive() ? isArmed() : false,
+      get now() {
+        return env.now();
+      },
+      get reduced() {
+        return env.reduced();
+      },
+    };
+    const [next, out] = moveStep(hooks, { ...end, tw: st }, delta, read);
+    end = next;
+    if (out.prevent) e.preventDefault();
+    if (out.goal !== null) apply(next.tw);
   };
+  const onWheel = (e: WheelLike) => move(e, e.deltaY);
   const onTouchStart = (e: TouchLike) => {
-    touchY = e.touches[0]?.clientY ?? 0;
+    end = touchStart(end, e.touches[0]?.clientY ?? null);
   };
   const onTouchMove = (e: TouchLike) => {
-    const y = e.touches[0]?.clientY ?? touchY;
-    const delta = touchY - y;
-    touchY = y;
-    if (!takenFor(delta)) return;
-    if (!isActive()) pinned = env.scrollY();
-    e.preventDefault();
-    push_(delta);
+    const y = e.touches[0]?.clientY ?? end.touchY;
+    const delta = end.touchY - y;
+    end = { ...end, touchY: y };
+    move(e, delta);
   };
 
   const attach = () => {
@@ -168,12 +177,9 @@ export function createTweenDriver(env: TweenEnv) {
     if (!isActive()) arm();
   };
 
-  function push_(delta: number) {
-    const goal = dir({ delta });
-    if (goal === null) return;
+  function apply(next: St) {
+    if (next === st) return;
     const reduced = env.reduced();
-    const next = push({ state: st, goal, reduced, now: env.now() });
-    if (next === st) return; // already heading there: nothing happens (N2:13037)
     readOverlay(isActive(), active({ target: next.target, value: next.value }));
     env.onActivate?.();
     st = next;
@@ -201,9 +207,10 @@ export function createTweenDriver(env: TweenEnv) {
       if (near) env.onActivate?.();
       arm();
     },
-    /** Called every scroll frame: while the morph runs, put the page back where the push began (N2:13077-13079). */
     pin() {
-      if (isActive() && env.scrollY() !== pinned) env.scrollToInstant(pinned);
+      if (!isActive()) return;
+      const to = frameOut(hooks, { ...end, tw: st }, env.scrollY(), () => env.maxScrollY?.() ?? Infinity);
+      if (to !== null) env.scrollToInstant(to);
     },
     state: () => st,
     attached: () => attached,
