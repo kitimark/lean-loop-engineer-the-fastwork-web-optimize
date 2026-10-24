@@ -73,10 +73,19 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   another kind has waited 300 s ahead of it and can run itself, while `n` slots are held, or while a Simulator slot is
   held and it asks for one. A Simulator ticket stuck behind a held Simulator slot never holds back other kinds
   (`verdict_not_older_of_sim_blocked`). It waits as `memLow` while memory is low, and an admitted ticket saw normal
-  pressure, no `swapActive` and no `thrash`, and either the floor or no live holder (`admit_calm`). Otherwise it waits
+  pressure (or warning, see the idle head below), no `swapActive` and no `thrash`, and either the floor or no live
+  holder (`admit_calm`). Otherwise it waits
   until the job's footprint fits above the 1 GB floor, unless it is the idle head (`admit_fits`).
   Footprints: check is 700 MB per Lean worker, test 1600, land 1500, sim 2800, measure 2800, other 1000. Holders admitted in the
   last 60 s are charged, since available memory does not show them yet. After 1800 s the verdict is timeout, and the job never runs (exit 75).
+- **Idle head.** With no live holder the head ticket is admitted even when memory is short, if pressure is 1 (normal)
+  or 2 (warning), the compressor is below its threshold and nothing swaps out (`idleHead_iff`). Pressure 3 or more,
+  compression, swapping, or one live holder always wait (`idleHead_waits_critical`, `idleHead_waits_thrash`,
+  `idleHead_waits_swap`, `idleHead_waits_holder`). Incident 2026-10-24: memory held by programs outside the queue kept
+  pressure at 2 with an empty slot, and 12 tickets waited 29 min; now the head runs (`idle_head_progress`,
+  `idle_head_progress_alone`) and at most one idle head runs at a time (`idle_head_at_most_one`). A Simulator ticket
+  behind it can still make a non-Simulator head yield (`simFirst`). After a level-2 idle admit, the follower waits
+  `memLow` (`sim_not_starved` assumes pressure 1).
 - **Simulator first.** A Simulator ticket never waits as `older` (`verdict_sim_never_older`). It waits as `drain`
   while more than one holder of another kind runs. A ticket of another kind waits as `simFirst` while a Simulator slot
   is held and another kind still runs, and while a Simulator ticket is pending unless a slot and the Simulator's

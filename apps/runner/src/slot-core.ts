@@ -148,7 +148,7 @@ export function yieldsToSim(p: Params, n: number, s: Sample, hs: Entry[], q: Ent
 }
 
 export const idleHead = (p: Params, s: Sample, hs: Entry[]): boolean =>
-  prune(s.time, hs).length === 0 && s.mem.press === 1 && !thrash(p, s.mem) && !swapActive(p, s.mem);
+  prune(s.time, hs).length === 0 && 1 <= s.mem.press && s.mem.press <= 2 && !thrash(p, s.mem) && !swapActive(p, s.mem);
 
 export function verdictWith(idle: boolean, p: Params, n: number, s: Sample, hs: Entry[], q: Entry[], me: Entry, waited: number): Verdict {
   const running = prune(s.time, hs).length;
