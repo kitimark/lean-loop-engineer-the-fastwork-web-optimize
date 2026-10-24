@@ -93,6 +93,7 @@ import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
 import Fw.Device.StillRuns
+import Fw.Device.FinishRuns
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
