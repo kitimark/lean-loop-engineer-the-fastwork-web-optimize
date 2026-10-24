@@ -10,7 +10,8 @@
   branch, `inactive_unthrottle_same`; golden ops `cellEnv` and `cell`; TS twin in `plan.mjs` (`cellOutcome`), replayed by
   `test/trajectory.test.mjs` (722 tests pass); `Gen.run` regenerated: v2-proved = `engine.scroll:unthrottle`.
 - Note: `research/notes/2026/10-2x-webkit-morph-cell.md` (Results section filled after the run).
-- Open: breakpoint gate on preset=v2-proved both engines (lead dispatch: pnpm -s fw run --gate --engines both --preset v2-proved --ref ci/webkit-morph-cell); land dry and review ready.
+- Breakpoint gate on preset=v2-proved, both engines: run 40101370753 (ci/webkit-morph-cell, head 0bd2a50c6) success. Main merged; goldens regenerated, no diff.
+- Open: nothing for the unit; land dry and review ready are the last steps.
 - Follow-up (named): `webkit-morph-walk-noise`, Mac morph coverage noise for flags active at every width.
 - Conventions: regenerate with `cd lean && lake env lean --run scripts/TrajectoryGolden.lean` and
   `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run []\n' | lake env lean --stdin`; never hand-edit the outputs.

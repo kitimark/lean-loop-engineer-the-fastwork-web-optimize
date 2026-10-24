@@ -92,5 +92,6 @@ All runs `?preset=v2-proved` (the preset holds `engine.scroll:unthrottle` only),
 - All four cells of `engine.scroll:unthrottle` pass: `Fw.Preset.Gen.run` writes it as the only member of v2-proved.
 - Two Mac morph runs are stored (`40080296257`, `40099056290`), both pass. This is a verdict cell, not a class count; no count over
   3 separate CI jobs is claimed.
-- The breakpoint gate on `preset=v2-proved` for both engines is dispatched by the lead (not delivered by this task):
+- The breakpoint gate on `preset=v2-proved` for both engines ran as run `40101370753` (workflow breakpoint-gate, head
+  `0bd2a50c6`, `fw ci wait` verdict pass, conclusion success) (MEASURED). Dispatched by the lead with
   `pnpm -s fw run --gate --engines both --preset v2-proved --ref ci/webkit-morph-cell`.
