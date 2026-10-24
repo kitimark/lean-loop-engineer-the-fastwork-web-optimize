@@ -3189,8 +3189,6 @@ def gapsIn (b c : Reading) : List Nat :=
 
 def gaps (b c : Push) : Nat := (gapsIn b.opening c.opening).length + (gapsIn b.closing c.closing).length
 
-/-- 8 extra passes at most per width. A Mac leg has at most two widths, so a leg runs at most 16 extra passes and its worst
-wall (1022 s) stays under the `probe-apple` cap (`leg_wall_under_cap`). -/
 def extraCap : Nat := 8
 
 def more (extra : Nat) (b c : Push) : Bool := decide (extra < extraCap) && decide (gaps b c ≠ 0)
@@ -3411,64 +3409,49 @@ theorem outcome_active_flag_settled :
     outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
   decide
 
-/-- The role of an arm at a width: the original, the faithful rewrite (the base) or the candidate. -/
 inductive ArmRole where
   | orig
   | base
   | cand
   deriving DecidableEq, Repr
 
-/-- The name of a role in the artifacts. -/
 def ArmRole.word : ArmRole → String
   | .orig => "orig"
   | .base => "base"
   | .cand => "cand"
 
-/-- Whether an arm may walk extra passes: only the candidate, and only when the base arm of its width has been walked (the
-retry compares the candidate with the base's buckets). -/
 def retries (r : ArmRole) (peer : Bool) : Bool := r == .cand && peer
 
-/-- The retry of an arm: `settleWalk` when `retries`, else no extra pass and the pool unchanged. -/
 def settleFor (r : ArmRole) (peer : Bool) (b c : Push) (walk : Nat → Push) : Nat × Push :=
   if retries r peer then settleWalk b c walk else (0, c)
 
-/-- An arm retries exactly when it is the candidate and its width has a base run. -/
 theorem retries_iff (r : ArmRole) (peer : Bool) : retries r peer = true ↔ r = .cand ∧ peer = true := by
   cases r <;> simp [retries]
 
-/-- The original is walked once. -/
 theorem retries_orig (peer : Bool) : retries .orig peer = false := by simp [retries]
 
-/-- The base is walked once. -/
 theorem retries_base (peer : Bool) : retries .base peer = false := by simp [retries]
 
-/-- A candidate with no base run at its width is walked once. -/
 theorem retries_cand_no_peer : retries .cand false = false := by simp [retries]
 
-/-- A candidate with a base run at its width retries. -/
 theorem retries_cand_peer : retries .cand true = true := by simp [retries]
 
-/-- An arm that does not retry runs no extra pass and keeps its pool. -/
 theorem settleFor_none (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) (h : retries r peer = false) :
     settleFor r peer b c w = (0, c) := by
   simp [settleFor, h]
 
-/-- An arm that retries is `settleWalk`. -/
 theorem settleFor_some (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) (h : retries r peer = true) :
     settleFor r peer b c w = settleWalk b c w := by
   simp [settleFor, h]
 
-/-- An arm runs at most `extraCap` extra passes, whatever its role. -/
 theorem settleFor_le (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) : (settleFor r peer b c w).1 ≤ extraCap := by
   unfold settleFor
   split
   · exact settleWalk_le b c w
   · simp
 
-/-- Candidate passes in the pool of an arm: the declared reps and its extra passes. -/
 def pooledReps (reps extra : Nat) : Nat := reps + extra
 
-/-- The extra passes of a leg are at most `extraCap` per width of the leg. -/
 theorem leg_extra_le {α : Type} (l : List α) (f : α → Nat) (h : ∀ x ∈ l, f x ≤ extraCap) :
     (l.map f).sum ≤ l.length * extraCap := by
   induction l with
@@ -3480,7 +3463,6 @@ theorem leg_extra_le {α : Type} (l : List α) (f : α → Nat) (h : ∀ x ∈ l
     rw [Nat.succ_mul]
     omega
 
-/-- A macOS leg has at most two widths. -/
 theorem legs_mac_len (ws : List Nat) : ∀ l ∈ legs .macWebkit ws, l.length ≤ 2 := by
   intro l hl
   simp only [legs, legTable, List.mem_filter, List.mem_map] at hl
@@ -3488,11 +3470,8 @@ theorem legs_mac_len (ws : List Nat) : ∀ l ∈ legs .macWebkit ws, l.length �
   have h2 : ∀ u ∈ [[390, 641], [640, 1280]], u.length ≤ 2 := by decide
   exact Nat.le_trans (List.length_filter_le _ _) (h2 t ht)
 
-/-- The wall of a `probe-apple` leg that runs `extra` extra passes, from the measured base and pass time. -/
 def legWallSec (extra : Nat) : Nat := Fw.Ci.Pool.Caps.probeBaseSec + extra * Fw.Ci.Pool.Caps.probePassSec
 
-/-- A macOS leg of any picked widths, whose widths each run at most `extraCap` extra passes, finishes under the `probe-apple`
-cap: 718 s base plus 16 passes of 19 s is 1022 s of the 1080 s the 18 min cap allows. -/
 theorem leg_wall_under_cap (ws : List Nat) (l : List Nat) (hl : l ∈ legs .macWebkit ws) (extra : Nat)
     (he : extra ≤ l.length * extraCap) :
     legWallSec extra ≤ 60 * ((Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple").getD 0) := by
@@ -3507,7 +3486,6 @@ theorem leg_wall_under_cap (ws : List Nat) (l : List Nat) (hl : l ∈ legs .macW
   simp only [Option.getD_some]
   omega
 
-/-- The worst-case wall of a two-width leg is the golden's `legWall` line: 1022 s. -/
 theorem legWall_worst : legWallSec (2 * extraCap) = 1022 := by decide
 
 structure UnitRow where

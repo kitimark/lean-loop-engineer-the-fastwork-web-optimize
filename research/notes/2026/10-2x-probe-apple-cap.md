@@ -1,10 +1,10 @@
 # probe-apple cap: 18 min, re-derived from the retry-era legs
 
-Task `probe-apple-cap` (follow-up of `webkit-morph-walk-noise`). Branch `ci/probe-apple-cap`.
+Branch `ci/probe-apple-cap`.
 
 ## Answer
 
-- **Chosen: re-derive the cap, do not budget the extra passes (decision, reason below).** The `probe-apple` cap is now
+- **Chosen: re-derive the cap, do not budget the extra passes.** The `probe-apple` cap is now
   **18 min** (was 15): the retry-era sample of 6 legs has a linear p90 of 13.2 min (MEASURED), and 1.3 x 13.2 rounds up to 18 (the
   rule of every cap row, `Fw.Ci.Pool.Caps.capMin`).
 - **Worst case is under the cap (Lean, from measured numbers):** a leg of two widths that runs the full 8 extra passes at each
@@ -14,7 +14,7 @@ Task `probe-apple-cap` (follow-up of `webkit-morph-walk-noise`). Branch `ci/prob
   (`reps + extra`, Lean `pooledReps`, golden field `pooled`).
 - **Clean Mac run (MEASURED):** run 40133346582 on `ci/probe-apple-cap` at 54a5c24, dispatched by the lead with
   `fw=engine.scroll:batched`, `engines=playwright-webkit`, no debug recorder (a `ci/*` push alone reaches the Mac leg only with
-  `debug=` or `[frames:`, Lean `Fw.Ci.Trigger.appleRuns`). Conclusion success; both legs inside the 18 min (1080 s) cap, see below.
+  `debug=` or `[frames:`, Lean `Fw.Ci.Trigger.appleRuns`). Conclusion success; both legs under the 18 min (1080 s) cap.
 
 ## The clean Mac run (MEASURED)
 
@@ -28,8 +28,7 @@ Task `probe-apple-cap` (follow-up of `webkit-morph-walk-noise`). Branch `ci/prob
 
 - Both walls are within the sampled range (681 to 833 s) and each is at most base + extra x 19 s: 726 s is 718 + 8 (no extra pass
   needed), 819 s is 718 + 101, about 5 extra passes (INFERRED; the extra count is not read here). Under the 15 min cap (900 s) both would
-  also have passed, so this run shows the new cap is not too short, not that the old one was; the old cap's overrun risk is the
-  Lean worst case (`probe_worst_under_cap`), not a measured timeout.
+  also have passed; the old cap's overrun risk is the Lean worst case (`probe_worst_under_cap`), not a measured timeout.
 - n is now 8 legs; the lane stays thin until 10 successes (Lean `probeWalls` is not extended here: the sample is the pinned 6).
 
 ## The sample (MEASURED)
@@ -94,4 +93,4 @@ at most two widths).
 - TS stand-ins: `run.mjs` role selection and the `out.reps` assignment are glue around the Lean-checked `retriesRole` and
   `pooledReps` (the fake-engine test covers `morphPath`, not `runLane`).
 - Stale prose outside this task's writes (not edited, follow-up): `docs/team/tools/trajectory-probe.md` line 751 and `trajectory-frames.md` line 24 still
-  say cap 15 min (follow-up).
+  say cap 15 min.

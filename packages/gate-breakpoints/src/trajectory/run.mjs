@@ -56,8 +56,7 @@ export const pushReading = (phases) => ({ opening: (phases.open ?? []).map((r) =
  * pushes read only the lean properties of the registry in every frame (the holds and the approach read everything).
  * The tween is driven by time, so one push lands about two frames per tenth of the morph value and sometimes none. With `reps`
  * above 1 the whole path is walked on a fresh page that many times and the rows of each phase are pooled (every row carries
- * its `rep`; the approach is the first rep's). With `against` (the candidate, Lean `retries`) the settle retry adds extra
- * passes and `out.reps` reports every pooled pass (`reps + extra`). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
+ * its `rep`; the approach is the first rep's). Every rep's arm identity is kept (`arm` is the first, `extraArms` the rest).
  * The reducer never pairs neighbours across reps (Lean `windowOf`, `windowOf_pass_iff`): a rewrite sample is compared with the
  * union of the windows of the original's reps, each aligned on its own.
  */

@@ -39,16 +39,12 @@ def Row.thin (r : Row) : Bool := r.n < minSamples
 def source : String :=
   "research/notes/2026/10-20-macos-pool-v2.md: jobs-an.json, 305 jobs 10-17..10-20, successes only, linear p90 rounded up to 0.1 min"
 
-/-- A sorted insert; the p90 below sorts a short list of walls with it. -/
 def insertNat (x : Nat) : List Nat → List Nat
   | [] => [x]
   | y :: ys => if x ≤ y then x :: y :: ys else y :: insertNat x ys
 
-/-- The walls in ascending order. -/
 def sortNat (xs : List Nat) : List Nat := xs.foldr insertNat []
 
-/-- The linear p90 of walls in seconds, in tenths of a minute rounded up: rank `0.9 (n - 1)`, interpolated between its two
-neighbours (the rule the other rows use). -/
 def p90dmOfSec (xs : List Nat) : Nat :=
   let s := sortNat xs
   let i := 9 * (s.length - 1) / 10
@@ -57,24 +53,14 @@ def p90dmOfSec (xs : List Nat) : Nat :=
   let hi := s.getD (i + 1) lo
   (10 * lo + r * (hi - lo) + 59) / 60
 
-/-- The `probe-apple` legs of the retry era (task `probe-apple-cap`): (job wall in seconds, extra candidate passes the leg ran).
-Runs 40122382227 (legs 390_641 and 640_1280: 749 s with 2 extra, 686 s with 0), 40125557073 (681 s with 0, 737 s with 1) and
-40127042262 (833 s with 8, 734 s with 3), all successes, from `gh run view <id> --json jobs` (startedAt to completedAt). -/
 def probeWalls : List (Nat × Nat) := [(749, 2), (686, 0), (681, 0), (737, 1), (833, 8), (734, 3)]
 
-/-- Seconds of one extra candidate pass on the Mac: the eight extra reps of the 8-extra leg of run 40127042262 start 18.1 to 18.5
-s apart (job log), rounded up. -/
 def probePassSec : Nat := 19
 
-/-- The wall of a `probe-apple` leg with no extra pass: the greatest wall of the sample less its extra passes. -/
 def probeBaseSec : Nat := (probeWalls.map fun (w, e) => w - e * probePassSec).foldl max 0
 
-/-- The worst-case wall in seconds of a leg of `widths` widths when every width runs `extraCap` extra passes. -/
 def legWorstSec (widths extraCap : Nat) : Nat := probeBaseSec + widths * extraCap * probePassSec
 
-/-- Where the `trajectory-probe` p90 was measured (task `probe-apple-cap`, replacing the pre-retry sample of task
-`trajectory-probe-speed`): the six `probeWalls` legs, successes only, linear p90 of 681, 686, 734, 737, 749, 833 s is 791 s,
-rounded up to 13.2 min. The pre-retry legs (9.1, 9.2, 10.9, 11.3 min) did not run the per-width settle retry and are not counted. -/
 def probeSource : String :=
   "runs 40122382227, 40125557073 and 40127042262 (task probe-apple-cap): the six probe-apple width legs of the settle-retry era, successes only, linear p90 rounded up to 0.1 min"
 
@@ -114,26 +100,19 @@ theorem caps_eq : rows.map (fun r => (r.lane, r.cap)) =
     [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26),
       ("trajectory-probe", 18), ("smoothness-webkit-mac", 15), ("smoothness-webkit-sim", 45)] := by decide
 
-/-- The retry-era sample has six legs: below `minSamples`, so the lane stays thin. -/
 theorem probe_walls_n : probeWalls.length = 6 := by decide
 
-/-- The linear p90 of the retry-era legs is 13.2 min. -/
 theorem probe_p90 : p90dmOfSec (probeWalls.map (·.1)) = 132 := by decide
 
-/-- The wall of a leg with no extra pass is at most 718 s: the leg of run 40125557073 with one extra pass, less that pass. -/
 theorem probe_base : probeBaseSec = 718 := by decide
 
-/-- The wall model covers every leg of the sample: base plus its extra passes at 19 s. -/
 theorem probe_model_covers : ∀ p ∈ probeWalls, p.1 ≤ probeBaseSec + p.2 * probePassSec := by decide
 
-/-- The cap of `probe-apple` is 18 min. -/
 theorem probe_cap : capOf "trajectory-probe.yml" "probe-apple" = some 18 := by decide
 
-/-- A leg of two widths that runs 8 extra passes at each stays under the `probe-apple` cap (1022 s of 1080 s). -/
 theorem probe_worst_under_cap :
     legWorstSec 2 8 = 1022 ∧ legWorstSec 2 8 ≤ 60 * ((capOf "trajectory-probe.yml" "probe-apple").getD 0) := by decide
 
-/-- The worst-case leg wall grows with the extra passes per width. -/
 theorem legWorstSec_mono {w : Nat} {a b : Nat} (h : a ≤ b) : legWorstSec w a ≤ legWorstSec w b := by
   unfold legWorstSec
   have := Nat.mul_le_mul_right probePassSec (Nat.mul_le_mul_left w h)
