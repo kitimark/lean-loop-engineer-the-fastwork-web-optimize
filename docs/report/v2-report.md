@@ -554,11 +554,11 @@ part-local, model-only claim.
 | Work in units adds over appended frames | `Fw.Engine.frameWork_append_units` (`Compose.lean:217`) | CONFIRMED (proved) |
 | Pass counts are not compositional: two changes can each add no pass and still add one together | `passes_not_compositional` (`Compose.lean:137`), `frame_le_append_passes_fails` (`Compose.lean:194`) | CONFIRMED (proved) |
 | Swapping one part's variant changes only its own work, given an abstract `Indep` | `lego_swap_sound` (`Compose.lean:371`), `lego_swap_units` (`Compose.lean:411`) | CONFIRMED (proved under `Indep`) |
-| The contract's `Independent P Q` does not imply that `Indep`: 299 pairs of parts sit on a dependency chain | `Fw.Parts.Bridge.chainPairs_code_iff` (`Bridge.lean:751`), count 299 by `chainPairs_code_length` (`Bridge.lean:770`) | CONFIRMED (proved) |
-| Adopted rule: `Flow` / `Reach` over the part specs, with premise `FlowSound` (the specs list every channel) | `flow_of_isolated` (`Bridge.lean:161`) | proved; `FlowSound` OPEN |
-| Isolated parts under that rule: 14 (commission.typing, hero.cue, hero.deck, morph.panel, nav.langMenu, overlays.drawer, overlays.signup, people, people.carousel, platform.entries, platform.glint, platform.marquee, platform.stageBg, platform.sweep) | `isolated_code` (`Bridge.lean:631`) | CONFIRMED (proved by `decide`) |
+| The contract's `Independent P Q` does not imply that `Indep`: 287 pairs of parts sit on a dependency chain | `Fw.Parts.Bridge.chainPairs_code_iff` (`Bridge.lean:582`), count 287 by `chainPairs_code_length` (`Bridge.lean:596`) | CONFIRMED (proved) |
+| Adopted rule: `Flow` / `Reach` over the part specs, with premise `FlowSound` (the specs list every channel) | `flow_of_isolated` (`Bridge.lean:125`) | proved; `FlowSound` OPEN |
+| Isolated parts under that rule: 12 (commission.typing, hero.deck, nav.langMenu, overlays.drawer, overlays.signup, people, people.carousel, platform.entries, platform.glint, platform.marquee, platform.stageBg, platform.sweep) | `isolated_code` (`Bridge.lean:495`) | CONFIRMED (proved by `decide`) |
 | No `v2-proved` flag part is in that list | compare the list with §4.2 | CONFIRMED |
-| Pass counts of appended frames are bounded by the sum of the parts | `passes_append_le` (`Bridge.lean:333`) | CONFIRMED (proved) |
+| Pass counts of appended frames are bounded by the sum of the parts | `passes_append_le` (`Bridge.lean:246`) | CONFIRMED (proved) |
 
 **Coupled groups** (from the part contract, [LP:41-45]): G1 hero threshold (hero.exit, people.card, pain, nav,
 nav.hitTest), G2 morph (morph.mount → morph.tween → morph.panel → morph.countdown, morph.columns), G3 the page-offset

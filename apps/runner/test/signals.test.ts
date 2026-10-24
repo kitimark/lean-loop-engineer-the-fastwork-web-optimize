@@ -140,11 +140,11 @@ describe("signals in obs.next", () => {
     expect(watchOf("/tmp/fixture/subagents/agent-aq.jsonl", new Set())).toEqual({ kind: "agent", id: "aq" });
     expect(watchOf("/tmp/fixture/f.out", new Set())).toBeNull();
   });
-  it("fwcore: the hung stdin child of a handed-back agent gets killOrphan; without signals nothing", async () => {
+  it("fwcore: the hung stdin child of a handed-back agent holds it (no kill without a Reap-held entry); without signals nothing", async () => {
     if (!existsSync(fwcore)) return;
     const ask = (r: Raw) => coreCaller([fwcore])({ op: "obs.next", now: r.now, agents: buildFacts(r) } as never) as Promise<NextReply>;
     const a = (await ask(raw(live))).agents![0]!;
-    expect(a.actions).toEqual([{ action: "killOrphan", pid: 200 }]);
+    expect(a.actions).toEqual([{ action: "investigate", reason: "heldByChild" }]);
     expect(a.signal).toEqual({ state: "hung", ids: ["bq1"] });
     expect(a.keep).toBe(true);
     expect((await ask(raw(null))).agents![0]!.actions).toEqual([{ action: "none" }]);
