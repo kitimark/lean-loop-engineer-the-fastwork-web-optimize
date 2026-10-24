@@ -13,6 +13,7 @@ Done
   in apps/runner/test/polish.test.ts (symlinked parent, no ancestor).
 - (2) `nested_checkout_inside` carries `main ≠ main ++ wtSegs name ++ ["sub"]`.
 - (3) fw-main.ts usage line lists `strays`.
+- (4) round 2: resolveFacts returns dotted paths raw (notPlain); realPath uses realpathSync.native; test link/../y.ts.
 
 Open: build-review.js wiring stays the lead's (text in polish-strays-sound.md).
 Read first: Polish.lean ownFact, polish.ts resolveFacts.
