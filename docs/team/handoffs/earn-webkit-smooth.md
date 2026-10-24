@@ -10,6 +10,9 @@ apps/site/src/parts/nav/earn.webkit.golden.test.ts; site tests, gate-breakpoints
 MEASURED on macOS CI (2 valid runs): WebKit and Safari with `nav:earn-logical` ease the padding (largest step 1.5-5.5 px, settles ~520 ms) where the faithful rule snaps 24 px (16 px narrow); Chromium unchanged.
 
 ## Open
+- The dry land prints `VERDICT scope earn-webkit-smooth`: seven files lie outside the task's writes and need `--allow` (or a graph writes edit, lead only):
+  .github/workflows/trajectory-probe.yml, docs/team/tools/trajectory-frames.md, lean/Fw/Ci/Trigger.lean, lean/Fw/Gate/Trajectory.lean,
+  packages/gate-breakpoints/src/trajectory/{reduce,transitions,transitions-safari}.mjs. Everything else passed on the earlier checks; run it with those `--allow` globs.
 - Breakpoint gate with the variant needs a dispatch with `fw` (lead): `gh workflow run breakpoint-gate.yml --ref ci/earn-webkit-smooth -f engines=chromium -f fw=nav:earn-logical`.
   A push cannot carry `fw`; the push run 40100783656 covers the default page only.
 - The user's Safari and iPhone review (ledger row n=67 nav.earn.logicalPadding, look-change, pending). iPhone inferred from shared WebKit source.
