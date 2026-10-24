@@ -122,7 +122,21 @@ function coreOf(cwd: string, deps: Deps, git: NonNullable<Deps["git"]>): CoreCal
   return coreCaller(coreCandidates(root, join(common, "..")));
 }
 
-const realPath = (p: string): string | null => { try { return realpathSync(p); } catch { return null; } };
+const realPath = (p: string): string | null => { try { return realpathSync.native(p); } catch { return null; } };
+
+export function resolveFacts(abs: string, real: (p: string) => string | null): { path: string; resolved: boolean } {
+  if (abs.split("/").some((s) => s === ".." || s === ".")) return { path: abs, resolved: true };
+  let head = abs;
+  let tail = "";
+  for (;;) {
+    const r = real(head);
+    if (r !== null) return { path: r === "/" ? `/${tail}`.replace(/\/$/, "") || "/" : tail ? `${r}/${tail}` : r, resolved: true };
+    const i = head.lastIndexOf("/");
+    if (i <= 0) return { path: abs, resolved: false };
+    tail = tail ? `${head.slice(i + 1)}/${tail}` : head.slice(i + 1);
+    head = head.slice(0, i);
+  }
+}
 
 async function straysCli(flags: Record<string, string | undefined>, cwd: string, deps: Deps, out: (l: string) => void, git: NonNullable<Deps["git"]>): Promise<number> {
   const task = flags.task!;
@@ -143,8 +157,8 @@ async function straysCli(flags: Record<string, string | undefined>, cwd: string,
     out(`worktree-name ${name}`);
     let n = 0;
     for (const p of list as string[]) {
-      const path = real(isAbsolute(p) ? p : `${main}/${p}`) ?? p;
-      const r = (await call({ op: "plan.inWt", main, name, path })) as { verdict?: unknown; own?: unknown };
+      const { path, resolved } = resolveFacts(isAbsolute(p) ? p : `${main}/${p}`, real);
+      const r = (await call({ op: "plan.inWt", main, name, path, resolved })) as { verdict?: unknown; own?: unknown };
       if (typeof r.own !== "boolean") throw new Error(`fwcore: no plan.inWt verdict (${JSON.stringify(r).slice(0, 200)})`);
       if (!r.own) { n++; out(`stray ${p}`); out(`  ${String(r.verdict)} ${path}`); }
     }

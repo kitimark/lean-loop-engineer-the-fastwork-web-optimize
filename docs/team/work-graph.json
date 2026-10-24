@@ -19372,7 +19372,8 @@
     "docs/team/handoffs/polish-strays-followups.md",
     "lean/Fw/Wire/Plan.lean"
    ],
-   "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays."
+   "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays.",
+   "evidence": "2d8ffd2"
   },
   {
    "devices": [
