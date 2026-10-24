@@ -1,7 +1,7 @@
 branch: worktree-wf_e1ce08cb-1bf-1
 worktree: .claude/worktrees/wf_e1ce08cb-1bf-1
-last commit: see git log (this file is committed with the work)
-CI runs: none (accepted limit: no CI run); checks local through fw slot
+last commit: see git log (work 291a55e3b; goldenText computed on call c75c44c8e, for the init-cost lint)
+CI runs: none (accepted limit: no CI run); check.sh, site tests, ci-paths and land-inputs tests green locally
 
 State: one class-position rule in Lean, mirrored by the extractor branch for branch.
 - Rule: lean/Fw/Parts/ClassPos.lean `go` (tokens + string pieces), `wordToks` (glue), `methodToks` (join/filter),
