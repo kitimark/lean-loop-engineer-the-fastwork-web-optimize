@@ -4510,6 +4510,34 @@
    "leanVerdict": "provable",
    "leanReason": "Which worktree is landed is a pure function of main's land subjects, the landed-task runs and the live runs; the identity rule and its exclusions are theorems of Fw.Ops.DiskGc.",
    "hardening": "gc-landed-identity"
+  },
+  {
+   "id": "inc-slot-held-env",
+   "at": "2026-10-24T09:40+07:00",
+   "title": "The lead's land scripts ran with FW_SLOT_HELD=1, so every fw slot run --kind land inside them skipped the land slot",
+   "symptom": "186 of 808 local 'fw slot run land pnpm fw land dry' spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (Fable advice on land-dry-contention, 2026-10-24).",
+   "cause": "CONFIRMED (apps/runner/src/slot.ts:556-561 run(): any FW_SLOT_HELD value skips acquire, whatever kind is held; the lead's scratch land scripts were started as 'FW_SLOT_HELD=1 sh land-rNNN.sh'). The env flag stands in for 'a slot of this kind is held by my parent' (presence inferred from an env var, not a held token's identity). How many of the 186 spans are the lead's is counted in task slot-held-identity.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/slot.ts",
+     "note": "run(): FW_SLOT_HELD set -> exec without acquire"
+    },
+    {
+     "kind": "file",
+     "ref": "docs/team/tools/slot.md",
+     "note": "nested-run rule: run sets FW_SLOT_HELD=1 for its child"
+    }
+   ],
+   "repro": "FW_SLOT_HELD=1 pnpm -s fw slot run --kind land -- pnpm -s fw land <branch> --task <t> --dry while another dry land holds the land slot: both run at once, no lock row for the second.",
+   "fix": {
+    "task": "slot-held-identity"
+   },
+   "regression": "slot-held-identity: Lean rule that a nested slot run skips acquire only under a live held token of the same kind (identity), golden rows, TS reads the verdict. Until it lands the lead starts land scripts without FW_SLOT_HELD (memory no-slot-held-on-lands).",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a slot run may skip acquire is a pure function of the held tokens (kind, owner pid+start) and the request kind.",
+   "hardening": "slot-held-identity"
   }
  ]
 }

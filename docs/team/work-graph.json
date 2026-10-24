@@ -19655,6 +19655,102 @@
     "docs/team/handoffs/reap-exit-fold.md"
    ],
    "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-inputs-growth",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/test/land-inputs.test.ts",
+    "apps/runner/src/land-inputs*.ts",
+    "lean/Fw/Obs/LandInputsCost.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/obs/land-inputs-cost.jsonl",
+    "research/notes/2026/10-2x-land-inputs-growth.md",
+    "docs/team/handoffs/land-inputs-growth.md"
+   ],
+   "title": "(S) land-inputs vitest in the dry land grows with no co-runner: p50 19.8 -> 20.4 -> 23.4 -> 29.1 s by quarter over 675 local dry rows to 2026-10-24 (last 20: 31.3 s) at load p50 3.5-4.7, test file unchanged (c9f2dcd), tracked files +6-7 percent: measure per-test durations and files read per test (walk/escapes apps/runner/test/land-inputs.test.ts:98-110, inputKey over the real root :287-288, fixture keys :269-281), fix the cause, Lean cost model as the why, effect measured on later dry lands (inc: timing.slow bf9aa85, 8f040f0, c4f662a, 2e54fbe) Unit of decision: the land-inputs step alone. Accepted limit: no change to the timing verdict rule."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-wt-lake-rebuilds",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Console/LandWt.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/console/land-wt.jsonl",
+    "research/notes/2026/10-2x-land-wt-lake-rebuilds.md",
+    "docs/team/handoffs/land-wt-lake-rebuilds.md"
+   ],
+   "title": "(S) the dry land's lake step is rebuild work in the land worktree pool: median 3.0 s at 0 modules built (n 100), 10.7 s at 1-7 (n 48), 18.9 s at 8+ (n 56); one commit 2e54fbe built 24, 0, 24 modules in three dry lands (27.7, 2.4, 23.5 s) because each land checks out its commit in the first free .claude/land-wt/<n> (land.ts claimLandWt :345, checkoutLandWt :361): decide in Lean which worktree or which .lake state a dry land starts from so rebuilt modules fall, golden rows, effect on lake.built and the lake step measured on later dry lands Unit of decision: the lake step alone. Accepted limit: c4f662a 9.0 s at 0 built may stay unexplained."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-held-identity",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/slot*.test.ts",
+    "lean/Fw/Sup/*.lean",
+    "packages/contracts/golden/sup/*.jsonl",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-held-identity.md"
+   ],
+   "title": "(S) slot run skips the slot whenever FW_SLOT_HELD is set, whatever kind is held (apps/runner/src/slot.ts:556-561): 186 of 808 local slot run land pnpm fw land dry spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (36acd37 at 1792805763753): decide in Lean when a nested slot run may skip acquire (a live held token of the same kind: identity, not env presence), golden rows, TS reads the verdict, effect counted as overlapping dry lands on later rows Unit of decision: one slot run request. Accepted limit: callers outside fw slot are not covered. Lead note (inc-slot-held-env): the lead's land scripts ran with FW_SLOT_HELD=1 set on the outer call, so their fw slot run --kind land skipped the slot; count how many of the 186 unlocked spans those are."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-contended-identity",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "land-inputs-growth",
+    "land-wt-lake-rebuilds",
+    "slot-held-identity"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-contended-identity.md"
+   ],
+   "title": "(optional: start only if dry-land alerts persist after its deps) (S) contended verdict by identity, not load: allowlist of the exact alert keys (fw/slot run land pnpm fw land dry, fw/land dry lake, fw land/dry total lake, one verdict per nest) and a sample is contended only when a locks.jsonl hold or a sup-samples process group not its own overlaps the span; no load-floor cut; golden rows from the four 10-24 samples (only 8f040f0 contended)"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timing-nest-and-logs",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/timing*.test.ts",
+    "docs/team/handoffs/timing-nest-and-logs.md"
+   ],
+   "title": "land-dry-contention closing follow-ups: (1) one dry land writes three nested spans within 500 ms of each other (slot run, land dry lake, dry total lake), so one slow run can raise up to three alert keys. Alert on one canonical key per nest. (2) land-logs/<task>-<commit>.log is overwritten by later runs of the same task and commit (bf9aa85's dry log was replaced 5 min later). Keep one log per run, or record the run start in the span, so a span's log can be found by identity."
   }
  ],
  "deadline": {
