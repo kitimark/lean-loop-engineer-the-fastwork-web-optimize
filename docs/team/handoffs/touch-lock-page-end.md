@@ -1,9 +1,9 @@
 branch: worktree-wf_9543f835-e44-1 (CI branch ci/touch-lock-page-end)
 worktree: .claude/worktrees/wf_9543f835-e44-1
-last commit: 7863f2fbd (CI head, round 2 dispatch, the 3rd and last)
-CI runs: smoothness 40059669688 failed (nearEndJs); 40060600880 success, 3 windows all noOpen, lane ended at 209 s; round 2 run id: pending (see below)
-verified: Lean TouchLock (repOrder, afterWindow theorems), golden regenerated (31 lines), twin tests 11 pass
-open: round 2 CI result; dry land; review ready
+last commit: see `git log -1` (CI head of the measured run: 7863f2fbd; later commits are local)
+CI runs: smoothness 40059669688 failed (nearEndJs); 40060600880 success, 3 windows all noOpen; 40065281372 success (3rd and last dispatch): base window accepted (8 reversals, 0 fights, 72 displaced), lock window pageLost, restart failed (xcresult name reused), orig never ran; lean run on 7863f2fbd success
+verified: Lean TouchLock (repOrder, afterWindow), golden 31 lines, measure-webkit test 593 pass, ci-paths 56, runner test; restart tag fix (serve-r<n>) not measured
+open: no more dispatches for this task; lock and orig counts need a later task; across-job verdict sim-touch-verdict-jobs; look class change goes to the user review
 
 # touch-lock-page-end
 

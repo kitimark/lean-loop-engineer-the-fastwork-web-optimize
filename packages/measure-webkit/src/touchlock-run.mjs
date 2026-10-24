@@ -59,7 +59,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps = 6, settleMs = 2
       if (next === 'restart') {
         touch.restarts++;
         log(`touch-lock ${id} rep ${rep}: stalled (${got.outcome}); restarting the push server (${touch.restarts} of ${MAX_RESTARTS})`);
-        try { touch.server = await startServer(touch.driver, { udid: device.udid, log, push }); } catch (e) { touch.on = false; touch.why = `restart failed: ${e.message}`; }
+        try { touch.server = await startServer(touch.driver, { udid: device.udid, log, push, tag: `serve-r${touch.restarts}` }); } catch (e) { touch.on = false; touch.why = `restart failed: ${e.message}`; }
       } else { touch.on = false; touch.why = why; }
     }
     const rec = got.result;

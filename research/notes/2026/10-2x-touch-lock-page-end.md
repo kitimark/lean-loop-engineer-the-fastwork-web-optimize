@@ -13,7 +13,32 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
 
 ## Answer
 
-- **No reversal count was delivered (MEASURED).** Run `40060600880` (the 2nd and last allowed dispatch) kept 3 windows, one per
+- **Round 2, run `40065281372` (3rd and last dispatch, MEASURED): one arm counted, the lane ended in the 2nd window.** The slow pan
+  `{500 pt, 500 pt/s, hold 0}` opened the morph on the first try. Windows in the run's order:
+
+| window | arm | outcome | open frames | reversals | fights | displaced | restores |
+|---|---|---|---|---|---|---|---|
+| 1 | base (faithful rewrite) | open, accepted (72 moves, 167 frames) | 73 | 8 | 0 | 72 | 72 |
+| 2 | lock (candidate) | refused: push failed, `pageLost` (page silent 89 s, 0 moves) | none | none | none | none | none |
+| 3 | orig | never started (touch lane ended) | none | none | none | none | none |
+
+  Table in `results/touch-lock-page-end/run-40065281372/touch-lock.md`. Reading the base window: the first open sample is the
+  rubber-band overscroll (scrollY 5346.0), after which scrollY alternates 5236.0 and 5227.0 (the end) four times. So 8 direction
+  reversals while the morph was open, but Lean counts a fight only when a reversal ends at the lock position (`s` = 5346.0, the
+  overscroll value), so `frameFights` is 0 and the run is not jitter by the Lean verdict. The oscillation itself is about 0.9 CSS
+  px, taken from the content process (`scrollY`), not the drawn offset. One window per arm is not a verdict: `lockVsBase` is `overlap`
+  by `cmp` (an empty candidate list).
+- **Why the lane ended (MEASURED, then CONFIRMED in the log).** The order fix worked: base ran before lock and orig, so the
+  faithful window survived the stall. The lock window's page went silent (`pageLost`, done at 89 s), the walk restarted the push
+  server once (`afterWindow`), and the restart failed: `xcodebuild: error: Existing file at -resultBundlePath .../serve.xcresult`
+  (driver exit 64), because the restarted server reused the first server's result bundle name. Fix after the run, not measured:
+  `startServer` takes a `tag`, the restart passes `serve-r<n>` (`touch-push.mjs`, `touchlock-run.mjs`). The page stall itself
+  (second page load after a push) is the same stall as in run `40060600880`; it is not cured here.
+- **Candidate look class (INFERRED, no candidate window delivered): look change**, as decided for the review: the CSS lock removes
+  the rubber band and the native pan. The only displaced-frame evidence is in `base` (72 displaced open frames), so Lean `look`
+  is `change` for any pair that includes it. Goes to the user's visual review.
+- **Earlier rounds.**
+  Run history: no reversal count in round 1 (MEASURED). Run `40060600880` (the 2nd dispatch) kept 3 windows, one per
   arm, and all three were refused `noOpen`: the morph never opened, so the open phase was empty and Lean's `refusal` rejects it
   instead of counting zero fights. Run `40059669688` (1st dispatch) failed before any window: `nearEndJs` was never invoked
   (an extra `)` made the arrow function itself the expression), fixed in `3ec3348ab` and covered by a test that calls it.
@@ -24,7 +49,7 @@ Task `touch-lock-page-end`. WebKit cites `@862f17d`. The CI Simulator is not the
   (`2.DyWL8TcE.js`, handler `k(delta) = C() || (delta > 0 && O())`), and none of the 14 to 17 touchmoves per window saw that.
   A local debug run (not a result, one window per arm, no numbers kept) with `{dragPt 500, velocity 500, holdMs 0}` opened the
   morph in all three arms and showed the site's restore scrolls, so the default pan is now `PAN = {500, 500, 0}`
-  (`packages/measure-webkit/src/touchlock.mjs`, flags `--drag-pt --velocity --hold-ms`). This is not yet measured on CI.
+  (`packages/measure-webkit/src/touchlock.mjs`, flags `--drag-pt --velocity --hold-ms`). Run `40065281372` then opened the morph on CI with this pan (base arm).
 - **Second blocker.** The walk's lane ended after the third window: the lock window's driver finished at 209 s (bound 125 s;
   the inspector probe logged `page missing` in the same window) and `laneAfter` closed the touch lane. That is the load
   stall already studied in `2026-10-2x-sim-touch-reliable`, not a model result.
@@ -78,7 +103,7 @@ replaying the golden in `test/touchlock.test.mjs`.
   follow-up. Q2 (touch deferral) rows are kept raw in `q2` and have no Lean model.
 - The candidate is an injected shim with one frame of latency (`LOCK_CSS`), not a site change.
 - One job only: the across-job verdict belongs to `sim-touch-verdict-jobs`.
-- Dispatches: 2 of 2 used (runs `40059669688`, `40060600880`).
+- Dispatches: 3 of 3 used (runs `40059669688`, `40060600880`, `40065281372`); no more are allowed for this task.
 
 ## TS stand-ins (temporary)
 
@@ -87,5 +112,5 @@ replaying the golden in `test/touchlock.test.mjs`.
 
 ## Next
 
-One more dispatch with the new default pan (`[ci:smoothness] [webkit-cadence] [sim-only] [touch-lock]` in the head commit
-message) would give the counts; results of run `40060600880` are in `results/touch-lock-page-end/run-40060600880/`.
+A later task (not this one) can re-run the lane with the `serve-r<n>` restart fix and the page-stall guard to get the lock and
+orig windows; its across-job verdict belongs to `sim-touch-verdict-jobs`.
