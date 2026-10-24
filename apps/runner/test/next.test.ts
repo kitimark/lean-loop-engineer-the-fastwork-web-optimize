@@ -94,13 +94,13 @@ describe("output", () => {
       { id: "c", actions: [{ action: "land", branch: "wt-c", task: "c" }] },
     ] })).toEqual(["NEXT a killOrphan pid=555", "NEXT a nudgeHandoff", "NEXT c land branch=wt-c task=c"]);
   });
-  it("alerts: killOrphan -> agent.held, land/routeIntegrator -> agent.unlanded, others none", () => {
+  it("alerts: killOrphan raises none (agent.held is the Reap rule), land/routeIntegrator -> agent.unlanded, others none", () => {
     const al = nextAlerts({ agents: [
       { id: "a", actions: [{ action: "killOrphan", pid: 7 }, { action: "waitCi", run: 1 }] },
       { id: "b", actions: [{ action: "land", branch: "x", task: "b" }] },
       { id: "c", actions: [{ action: "routeIntegrator", branch: "y" }, { action: "cleanupWorktree" }] },
     ] });
-    expect(al.map((x) => `${x.code} ${x.subject}`)).toEqual(["agent.held a", "agent.unlanded b", "agent.unlanded c"]);
+    expect(al.map((x) => `${x.code} ${x.subject}`)).toEqual(["agent.unlanded b", "agent.unlanded c"]);
   });
 });
 
@@ -173,7 +173,7 @@ describe("end to end with a real child process", () => {
     if (existsSync(fwcore)) {
       const r = (await coreCaller([fwcore])({ op: "obs.next", now: Date.now(), agents: facts })) as NextReply;
       expect(formatNext(r)).toContain(`NEXT e2e killOrphan pid=${pid}`);
-      expect(nextAlerts(r).map((a) => a.code)).toContain("agent.held");
+      expect(nextAlerts(r).map((a) => a.code)).not.toContain("agent.held");
     }
   });
 });
