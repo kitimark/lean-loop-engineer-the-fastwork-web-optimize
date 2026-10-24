@@ -91,5 +91,5 @@ Its lake step built 24 modules (27.7 s).
 
 ## Decision
 
-Decision: none in Lean in this task. Closed as a finding; contended-vs-serialize goes to slot-held-identity and
+Decision: none in Lean in this task. The contended-vs-serialize question goes to slot-held-identity and
 timing-contended-identity, own growth to land-inputs-growth and land-wt-lake-rebuilds.

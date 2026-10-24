@@ -5,7 +5,7 @@
 
 ## State
 - The task closed as a finding. The round 1-2 code (Timing/Health/Obs/WritesClosure Lean, timing goldens) was reverted
-  to main in one revert commit (bb035aecd); it stays in branch history. `git diff main...HEAD --stat` lists only the
+  to main in one revert commit (bb035aecd). `git diff main...HEAD --stat` lists only the
   note and this handoff.
 - Finding: `research/notes/2026/10-2x-land-dry-contention.md` (cutoff 1792808775650). Three of four alerts had no
   co-runner; the dry land's own land-inputs vitest and lake rebuilds grew; 133 of 760 local dry-land spans (first count
