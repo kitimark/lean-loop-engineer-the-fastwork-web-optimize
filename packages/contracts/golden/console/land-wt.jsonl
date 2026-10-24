@@ -1,0 +1,8 @@
+{"name":"2e54fbe third dry land (start 1792805509801, built 24 in worktree 0): worktree 1 holds the previous 2e54fbe checkout","request":{"slots":[{"dist":4,"idx":0},{"dist":0,"idx":1}]},"response":{"pick":1}}
+{"name":"72f52a1 dry land (start 1792806731169, built 25 in worktree 0): worktree 1 is one input away","request":{"slots":[{"dist":4,"idx":0},{"dist":1,"idx":1}]},"response":{"pick":1}}
+{"name":"2e54fbe second dry land (start 1792805275634): only worktree 1 free","request":{"slots":[{"dist":4,"idx":1}]},"response":{"pick":1}}
+{"name":"tie: the lower number","request":{"slots":[{"dist":3,"idx":2},{"dist":3,"idx":0},{"dist":3,"idx":1}]},"response":{"pick":0}}
+{"name":"a known distance beats a worktree with no checkout","request":{"slots":[{"dist":null,"idx":0},{"dist":40,"idx":1}]},"response":{"pick":1}}
+{"name":"all fresh: the lowest number","request":{"slots":[{"dist":null,"idx":2},{"dist":null,"idx":1}]},"response":{"pick":1}}
+{"name":"distance 0 beats a lower number","request":{"slots":[{"dist":1,"idx":0},{"dist":0,"idx":3},{"dist":5,"idx":2}]},"response":{"pick":3}}
+{"name":"no free worktree","request":{"slots":[]},"response":{"pick":null}}
