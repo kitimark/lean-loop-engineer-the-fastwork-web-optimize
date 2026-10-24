@@ -729,6 +729,64 @@ private def verdictCases : List (List Int × Arm × Arm) :=
    ([7750], ⟨10, 430⟩, ⟨0, 400⟩), ([7750], ⟨83, 0⟩, ⟨0, 400⟩), ([7750], ⟨83, 430⟩, ⟨0, 0⟩), ([], ⟨83, 430⟩, ⟨0, 400⟩),
    ([7750, 7750, 7750], ⟨12, 100⟩, ⟨1, 50⟩)]
 
+private def classStr (cs : List Class) : String := String.join (cs.map Class.code)
+
+private def crowJ (r : Int × Int × Class) : Json := toJson [Json.num r.1, Json.num r.2.1, Json.str r.2.2.code]
+
+private def crunJ (r : CRun) : Json := Json.mkObj [("k", r.run.k), ("jump", r.run.jump), ("mid", r.run.mid), ("cls", r.cls.code)]
+
+/-- Classes for a series: all still, all moving, and moving stretches in the middle or at the start and end. -/
+private def classPattern (n : Nat) : Nat → List Class
+  | 0 => List.replicate n .still
+  | 1 => List.replicate n .moving
+  | 2 => (List.range n).map fun i => if n / 3 ≤ i ∧ i < n / 3 + n / 4 then .moving else .still
+  | _ => (List.range n).map fun i => if i % 50 < 20 then .moving else .still
+
+private def crunCases : List (List (Int × Int × Class)) :=
+  (rowCases.flatMap fun rows => (List.range 4).map fun k => (rows.zip (classPattern rows.length k)).map fun (r, c) => (r.1, r.2, c)) ++
+  ((List.range 4).map fun k => ((noisy 400).zip (classPattern 400 k)).map fun (r, c) => (r.1, r.2, c))
+
+/-- A pass from a series of (position, value) rows. -/
+private def mkPass (h : Int) (vh : List Int) (rows : List (Int × Int)) : Pass := ⟨h, vh, rows.map (·.1), 0 :: rows.map (·.2)⟩
+
+private def passJ (p : Pass) : Json :=
+  Json.mkObj [("h", p.h), ("vh", toJson p.vh), ("ys", toJson p.ys), ("vs", toJson p.vs)]
+
+private def armJ (a : Arm) : Json := Json.mkObj [("runs", a.runs), ("frames", a.frames)]
+
+private def pos20 : List Int := (List.range 20).map fun k => ((k * 100 : Nat) : Int)
+
+/-- Twenty positions, six frames at each, in the band; the lift holds each for two frames. -/
+private def baseRows : List (Int × Int) := stairs pos20 6 400
+private def liftRows : List (Int × Int) := stairs pos20 2 400
+
+private def constVh (h : Int) (rows : List (Int × Int)) : List Int := List.replicate rows.length h
+
+/-- The toolbar starts collapsed (8150) and slides to 7750 at the first frame. -/
+private def startCollapsed (rows : List (Int × Int)) : List Int := 8150 :: List.replicate (rows.length - 1) 7750
+
+/-- The toolbar changes height in the middle of the pass. -/
+private def midSlide (rows : List (Int × Int)) : List Int :=
+  List.replicate (rows.length / 2) 7750 ++ List.replicate (rows.length - rows.length / 2) 8150
+
+/-- The toolbar moves all the time: every twenty frames it changes. -/
+private def busy (rows : List (Int × Int)) : List Int := (List.range rows.length).map fun i => if i / 20 % 2 == 0 then 7750 else 7800
+
+private def cverdictCases : List (List Pass × List Pass) :=
+  [([mkPass 8150 [] baseRows], [mkPass 8150 [] liftRows]),
+   ([mkPass 8150 [] baseRows], [mkPass 7750 [] liftRows]),
+   ([mkPass 7750 (constVh 7750 baseRows) baseRows, mkPass 7750 (constVh 7750 baseRows) baseRows], [mkPass 7750 (constVh 7750 liftRows) liftRows]),
+   ([mkPass 7750 (constVh 7750 baseRows) baseRows], [mkPass 8150 (constVh 8150 liftRows) liftRows]),
+   ([mkPass 8150 (startCollapsed baseRows) baseRows], [mkPass 7750 (constVh 7750 liftRows) liftRows]),
+   ([mkPass 8150 (startCollapsed baseRows) baseRows, mkPass 7750 (constVh 7750 baseRows) baseRows],
+    [mkPass 7750 (constVh 7750 liftRows) liftRows, mkPass 8150 (startCollapsed liftRows) liftRows]),
+   ([mkPass 7750 (midSlide baseRows) baseRows], [mkPass 7750 (constVh 7750 liftRows) liftRows]),
+   ([mkPass 7750 (busy baseRows) baseRows], [mkPass 7750 (busy liftRows) liftRows]),
+   ([mkPass 7750 (busy baseRows) baseRows], [mkPass 7750 (constVh 7750 liftRows) liftRows]),
+   ([], []),
+   ([mkPass 7750 [] []], [mkPass 7750 [] []]),
+   ([mkPass 7750 (constVh 7750 baseRows.tail) baseRows], [mkPass 7750 [] liftRows])]
+
 private def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("bandLo", bandLo), ("bandHi", bandHi), ("minBase", minBase), ("dropDen", dropDen),
     ("throttleMs", (100 : Int))]).compress] ++
@@ -747,7 +805,20 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "verdict"), ("heights", toJson hs), ("sameHeight", sameHeight hs),
       ("base", Json.mkObj [("runs", b.runs), ("frames", b.frames)]),
       ("lift", Json.mkObj [("runs", l.runs), ("frames", l.frames)]),
-      ("verdict", (verdict hs b l).name)]).compress)
+      ("verdict", (verdict hs b l).name)]).compress) ++
+  (crunCases.map fun rows =>
+    let by_ (f : Class → Nat) : Json := Json.mkObj [("moving", f .moving), ("still", f .still)]
+    (Json.mkObj [("kind", "cruns"), ("rows", Json.arr (rows.map crowJ).toArray), ("runs", Json.arr ((runsC rows).map crunJ).toArray),
+      ("band", by_ fun c => countC c bandLo bandHi rows), ("exitFrames", by_ fun c => exitFramesC c rows),
+      ("wholeBand", bandRuns (dropClass rows)), ("wholeExit", exitFrames (dropClass rows))]).compress) ++
+  (cverdictCases.map fun (b, l) =>
+    let arms (ps : List Pass) : Json :=
+      Json.mkObj [("moving", armJ (armOf .moving ps)), ("still", armJ (armOf .still ps)), ("today", armJ (armToday ps))]
+    (Json.mkObj [("kind", "cverdict"), ("base", Json.arr (b.map passJ).toArray), ("lift", Json.arr (l.map passJ).toArray),
+      ("classes", Json.mkObj [("base", toJson ((b.map fun p => classStr p.cs))), ("lift", toJson ((l.map fun p => classStr p.cs)))]),
+      ("stillHeights", toJson ((b ++ l).flatMap (Pass.heights .still))),
+      ("arms", Json.mkObj [("base", arms b), ("lift", arms l)]),
+      ("moving", (verdictClass .moving b l).name), ("still", (verdictClass .still b l).name), ("today", (verdictToday b l).name)]).compress)
 
 /-- The bytes of `packages/contracts/golden/device/stillruns.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
