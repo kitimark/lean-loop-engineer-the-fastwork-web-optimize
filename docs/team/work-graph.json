@@ -20502,7 +20502,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
-    "lean/scripts/MorphMountArmLateGolden.lean"
+    "lean/scripts/MorphMountArmLateGolden.lean",
+    "apps/site/src/parts/morph.mount/armLate.component.test.ts"
    ],
    "title": "morph.mount:arm-late (10-2x-webkit-throttles.md rank 5): arm the non-passive touch/wheel listeners only inside the band where the pin can call preventDefault, so WebKit does not gate every scroll on the main thread. Lean first: the arm band contains every scroll position where the lock decision is true (same behaviour). Lego brick, own flag. Measure: CI cannot drive the touch gate (INFERRED); record listener-armed frames on CI and touch-start to first scroll frame on the phone in a booked session."
   },
