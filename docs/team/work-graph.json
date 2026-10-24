@@ -20604,7 +20604,8 @@
     "research/notes/2026/10-2x-land-inputs-speed.md",
     "docs/team/handoffs/land-inputs-speed.md"
    ],
-   "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each)."
+   "title": "timing.slow on the local dry land keeps recurring (2026-10-24: 41-48 s vs a p50 that itself rose from 19 to 28 s). research/notes/2026/10-2x-land-dry-contention.md: the land-inputs vitest grew 21.4 -> 30 s with the same 56 tests and only 6 percent more files (unexplained), lake rebuilds add 10-19 s when modules rebuild, and duration rises with load (24 s at load 1, 41 s at load 7). Investigate with spans per test (which of the 21 blocks grew, and why), then cut: the cheapest change that keeps the same verdict (e.g. reuse a land-inputs result keyed by the input digest across dry and real land of the same head, or narrow the files each test walks). Lean first for any cache: the key covers every input the verdict reads (theorem: same key implies same verdict), golden replayed by a runner test. Report calm-load before/after medians from .fw-console/timings.jsonl (n >= 10 each).",
+   "evidence": "da0fd9b"
   },
   {
    "devices": [
