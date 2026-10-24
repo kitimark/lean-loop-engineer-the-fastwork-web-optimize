@@ -369,6 +369,46 @@ test('both lanes pin every arm the same way', () => {
   for (const arm of ['A', 'A2', 'P']) { assert.equal(chromiumArmPin(arm), armPin(arm)); for (let i = 0; i < 9; i++) assert.equal(chromiumPinAt(arm, i), pinAt(arm, i)); }
 });
 
+test('exit analysis: a varied zone drops out of a mixed cell, and an odd arm A is read against A2 (Lean zoned rule)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fw-pp-zoned-'));
+  try {
+    const view = (res) => Object.fromEntries(res.cells.filter((c) => c.kind === 'P').map((c) => [c.key, c.consensus]));
+    fakeExitLane(dir, { a2Edit: setPx(80, 80), pEdit: (img) => { setPx(80, 80)(img); setPx(15, 15)(img); }, pLive: liveOk, withA3: true });
+    const mixed = analyzeExit(dir, { strips: 'none' });
+    const m = view(mixed).hero_copy;
+    assert.deepEqual([m.out, m.inside], ['varied', 'counted']);
+    assert.equal(m.verdict, 'L');
+    assert.equal(m.why, 'text', 'the outside change is dropped: the layer is L by its open text premise');
+    assert.equal(mixed.cells.find((c) => c.kind === 'P' && c.key === 'hero_copy').why, 'outside', 'the ungraded-by-zone why still names the outside change');
+    assert.deepEqual(m.eff.out, { changed: 0, maxDelta: 0 });
+    assert.equal(m.vsA.verdict, 'L', 'reading against A alone: the counted zone already decides');
+
+    const E = setPx(15, 15);
+    fakeExitLane(dir, { a2Edit: E, pEdit: E, pLive: liveOk, withA3: true, a3Edit: E });
+    const odd = view(analyzeExit(dir, { strips: 'none' })).hero_copy;
+    assert.deepEqual(odd.odd, [false, true]);
+    assert.equal(odd.vsA.seen, 'varied', 'against A the raster is a varied change');
+    assert.equal(odd.seen, 'quiet', 'P equals the majority arms A2 and A3');
+    assert.notEqual(odd.verdict, 'varied');
+    assert.equal(odd.vsA.verdict, 'varied');
+    assert.equal(odd.verdict, 'L', 'no pixel counts, but the open text premise keeps the layer L');
+    assert.equal(odd.why, 'text');
+
+    fakeExitLane(dir, { a2Edit: E, pEdit: (img) => { E(img); setPx(15, 16)(img); }, pLive: liveOk, withA3: true, a3Edit: E });
+    const differs = view(analyzeExit(dir, { strips: 'none' })).hero_copy;
+    assert.equal(differs.inside, 'counted', 'P differs from the majority');
+    assert.deepEqual(differs.eff.inside, { changed: 1, maxDelta: 5 });
+    assert.deepEqual(differs.p2.inside, { changed: 1, maxDelta: 5 });
+
+    fakeExitLane(dir, { a2Edit: E, pEdit: E, pLive: liveOk, withA3: true, a3Edit: null });
+    const notMajority = view(analyzeExit(dir, { strips: 'none' })).hero_copy;
+    assert.deepEqual(notMajority.odd, [false, false], 'A2 differs from A3: no majority');
+    assert.equal(notMajority.seen, 'varied');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('exit analysis: a P change counts only where A, A2 and A3 agree (Lean consensus rule), per region', () => {
   const dir = mkdtempSync(join(tmpdir(), 'fw-pp-cons-'));
   try {

@@ -54,7 +54,7 @@ The stateless op `plan.incidentLint` (task `incident-lint`, `Fw.Plan.Incident`),
 | `plan.polishHunks` | `diff` [{path, spans [{start, len}]}] (new-side hunks of the branch diff, merge-base to head, `-U0`), `edits` [{path, spans}] (old-side hunks of the uncommitted edits against head), `main` [paths dirty in the main checkout] (`Fw.Plan.Polish.admitted`, `relOk`, `blocked`) | `ranges` [{path, ranges [{lo, hi}]}], `edits` [{path, pathOk, kept [bool per span]}], `blocked` |
 | `plan.polishSettle` | `before` [untracked paths before the polish stage], `dirtyBefore`? [tracked paths dirty at plan time; missing = `[]`], `dirty` [tracked paths differing from HEAD], `untracked` [untracked paths now] (`Fw.Plan.Polish.settle`) | `restore` [dirty paths that were clean at plan time, to restore from HEAD], `remove` [untracked paths created since `before`] |
 | `plan.wtName` | `dir` (a worktree directory) (`Fw.Plan.Polish.wtName`, `wtName_relative`, `wtName_safe`, `wtName_not_dots`) | `name` [the last segment of an absolute `.../.claude/worktrees/<name>`; `null` for a relative, `~`, trailing-slash or odd-named path] |
-| `plan.inWt` | `main` (the main checkout root, absolute), `name` (the worktree name), `path` (an edited path; relative = under `main`) (`Fw.Plan.Polish.ownEdit`, `ownEdit_sound`) | `verdict` (`own`, `badMain`, `badName`, `notPlain`, `outside`), `own` [bool] |
+| `plan.inWt` | `main` (the main checkout root, absolute), `name` (the worktree name), `path` (an edited path; relative = under `main`), optional `resolved` (default true; false = no ancestor of the path has a real path) (`Fw.Plan.Polish.ownFact`, `ownEdit_sound`) | `verdict` (`own`, `badMain`, `badName`, `notPlain`, `outside`, `unresolved`), `own` [bool] |
 | `plan.polishWalk` | `head` [lines of the HEAD file], `hunks` [{target, oldLen, new [lines], keep}] in ascending order (`Fw.Plan.Polish.walk`) | `lines` [the file: HEAD with exactly the kept hunks applied] |
 | `plan.polishCuts` | `gen` [paths], `heads`?, `docs` [{path, text}], `cuts` [{path, old, new}] (`Fw.Plan.Polish.applyAll`) | `cuts` [{path, old, verdict, missing}], `docs` [{path, text, changed}] |
 | `plan.roster` | (none) | `roles` [{name, runsAs, edits}]: `Fw.Ops.SpawnGuard.prodRoles` |
@@ -337,7 +337,7 @@ def opWtName (req : Json) : Except String Reply := do
 
 open Fw.Plan.Polish in
 def opInWt (req : Json) : Except String Reply := do
-  let v := ownEdit (← Fw.Wire.str req "main") (← Fw.Wire.str req "name") (← Fw.Wire.str req "path")
+  let v := ownFact (← Fw.Wire.str req "main") (← Fw.Wire.str req "name") (← Fw.Wire.str req "path") (← boolT req "resolved")
   pure [("verdict", .str v.name), ("own", .bool (v == .own))]
 
 open Fw.Ops.SpawnGuard in
