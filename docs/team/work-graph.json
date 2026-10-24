@@ -19944,6 +19944,49 @@
     "docs/team/handoffs/touch-lock-windows.md"
    ],
    "title": "touch-lock-page-end follow-ups (run 40065281372 gave base only: 8 reversals, 0 fights, 72 displaced; lock window pageLost, orig never ran): (1) measure the serve-r<n> restart fix on CI with a unit test that a restart uses a new result bundle name; (2) lockOf reads the lock position s from the site's stored value through the page hook (not the first open sample, which was the rubber-band overscroll 5346.0 while scrollY oscillated 5236/5227), fights re-proved against it; (3) lock and orig windows delivered with per-arm reversal/fight/displaced counts (run ids); (4) the markdown table carries the push-failure reason column. At most 2 dispatches; the candidate stays look-change for the user's review."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "look-decisions-1024",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "throttle-lift-ship",
+    "accent-same-look"
+   ],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "docs/report/v2-report.md",
+    "docs/team/handoffs/look-decisions-1024.md"
+   ],
+   "title": "Record the user's phone review of 2026-10-24 (results/phone/2026-10-24*, user words: 'both of the ?fw=hero.exit:threaded and ?fw=engine.scroll:throttle-lift looks the same as the original'; accent: 'the animation looks difference from the original'): Lean LookDecision rows in Fw.Preset.Gen (hero.exit:threaded accepted as same look on the iPhone; hero.accent:draw-nolayout and draw-nolayout-full rejected), ledger userDecision fields agreeing (ledgerDisagreements empty), goldens regenerated; then decide in Lean whether hero.exit:threaded may enter v2-proved (its proofs, gate rows and the one-frame-lag question q6 'same scroll offset' from the pixel-proof review) and report the preset delta in v2-report.md with the phone numbers (hero felt marks 12 -> 0 for both flags; throttle-lift band runs 90 -> 2)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "recorder-viewport-per-frame",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/device-record.mjs",
+    "packages/measure-webkit/src/device-session.mjs",
+    "packages/measure-webkit/src/throttle/stillruns.mjs",
+    "packages/measure-webkit/test/device-record.test.mjs",
+    "packages/measure-webkit/test/stillruns*.test.mjs",
+    "lean/Fw/Device/Session.lean",
+    "lean/Fw/Device/StillRuns.lean",
+    "packages/contracts/golden/device/session.jsonl",
+    "packages/contracts/golden/device/stillruns.jsonl",
+    "docs/team/tools/device-lag-recorder.md",
+    "docs/team/handoffs/recorder-viewport-per-frame.md"
+   ],
+   "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict."
   }
  ],
  "deadline": {
