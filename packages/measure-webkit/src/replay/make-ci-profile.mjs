@@ -9,6 +9,8 @@ import { replayStrokes, t0Of } from '../device-session.mjs';
 
 export const HZ = 60;
 
+export const SEGMENTS = [{ name: 'rest', dyPerFrame: 0, frames: 10 }, { name: 'replay', until: 'script' }, { name: 'tail', dyPerFrame: 0, frames: 30 }];
+
 const round1 = (v) => Math.round(v * 10) / 10;
 
 /** One stroke [[t, phase, x, y, n]...] as {f0, path}: positions at t0 + k / HZ, linear between samples, ends at the lift. */
@@ -40,8 +42,11 @@ export function profileOf(rec, { id, about }) {
     pinnedDate: '2026-10-01T00:00:00+07:00',
     timezone: 'Asia/Bangkok',
     locale: 'en-US',
+    seed: 1025,
+    load: { quietFrames: 30, maxFrames: 900, prerollFrames: 60 },
     zoneHeightPx: 500,
     input: { mode: 'replay', unit: 'css-px', maxFrames: last.f0 + last.path.length, maxY: rec.maxY, strokes },
+    segments: SEGMENTS,
   };
 }
 

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 export const HZ = 60;
+const SEGMENTS = [{ name: 'rest', dyPerFrame: 0, frames: 10 }, { name: 'replay', until: 'script' }, { name: 'tail', dyPerFrame: 0, frames: 30 }];
 const X = 215;
 
 const run = (y0, dir, n, step) => Array.from({ length: n }, (_, i) => [X, y0 + dir * step * i]);
@@ -42,8 +43,11 @@ export function profileOf(name) {
     pinnedDate: '2026-10-01T00:00:00+07:00',
     timezone: 'Asia/Bangkok',
     locale: 'en-US',
+    seed: 1025,
+    load: { quietFrames: 30, maxFrames: 900, prerollFrames: 60 },
     zoneHeightPx: 500,
     input: { mode: 'replay', unit: 'css-px', start: 'end', maxFrames: last.f0 + last.path.length + 150, strokes },
+    segments: SEGMENTS,
   };
 }
 
