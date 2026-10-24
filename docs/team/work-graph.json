@@ -20207,6 +20207,78 @@
     "docs/team/handoffs/earn-webkit-smooth.md"
    ],
    "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "columns-final-scale",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "unthrottle-preset"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "lean/Fw/Parts/MorphColumnsScale.lean",
+    "packages/contracts/golden/parts/morph.columns*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-columns-final-scale.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/columns-final-scale.md"
+   ],
+   "title": "End-of-page GPU candidate 1 (research/notes/2026/10-2x-end-gpu-map.md): morph.columns:final-scale, a composer brick (look-change class): lay the 5 column tracks out once at the final panel width and scale each by a per-column transform during the morph, removing the per-frame re-layout of 21 images and the new track surfaces. Lean first: equal column edges per frame, a bound on the look change (gap, radius and drift scale by s, s >= 0.97 at 390 px INFERRED), then Chromium Layout counts and Simulator backing MB/Composite per finish zone (run ids), then the user's look review."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hittest-elements-proof",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/NavHitTestElements.lean",
+    "packages/contracts/golden/parts/nav.hitTest*.jsonl",
+    "research/notes/2026/10-2x-hittest-elements-proof.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hittest-elements-proof.md"
+   ],
+   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-strip-proof",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphCountdownStrip.lean",
+    "packages/contracts/golden/parts/morph.countdown*.jsonl",
+    "research/notes/2026/10-2x-countdown-strip-proof.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/countdown-strip-proof.md"
+   ],
+   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-scoped-webkit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-waapi-scoped-webkit.md",
+    "results/waapi-scoped-webkit/**",
+    "docs/team/handoffs/waapi-scoped-webkit.md"
+   ],
+   "title": "End-of-page GPU candidate 3: morph.tween:waapi-scoped (Lean MorphTweenOpt; Chromium -6.8 % restyled elements) was refuted on real devices because it shares the waapi driver that leaves the nav classes stale. Measure WebKit Simulator RecalculateStyles/Layout per finish zone (run id), and check whether the stale-class failure reproduces in the Simulator frames; verdict: worth a fixed driver or closed as a negative finding."
   }
  ],
  "deadline": {
