@@ -19695,7 +19695,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/LandInputsCostGolden.lean"
    ],
-   "title": "(S) land-inputs vitest in the dry land grows with no co-runner: p50 19.8 -> 20.4 -> 23.4 -> 29.1 s by quarter over 675 local dry rows to 2026-10-24 (last 20: 31.3 s) at load p50 3.5-4.7, test file unchanged (c9f2dcd), tracked files +6-7 percent: measure per-test durations and files read per test (walk/escapes apps/runner/test/land-inputs.test.ts:98-110, inputKey over the real root :287-288, fixture keys :269-281), fix the cause, Lean cost model as the why, effect measured on later dry lands (inc: timing.slow bf9aa85, 8f040f0, c4f662a, 2e54fbe) Unit of decision: the land-inputs step alone. Accepted limit: no change to the timing verdict rule."
+   "title": "(S) land-inputs vitest in the dry land grows with no co-runner: p50 19.8 -> 20.4 -> 23.4 -> 29.1 s by quarter over 675 local dry rows to 2026-10-24 (last 20: 31.3 s) at load p50 3.5-4.7, test file unchanged (c9f2dcd), tracked files +6-7 percent: measure per-test durations and files read per test (walk/escapes apps/runner/test/land-inputs.test.ts:98-110, inputKey over the real root :287-288, fixture keys :269-281), fix the cause, Lean cost model as the why, effect measured on later dry lands (inc: timing.slow bf9aa85, 8f040f0, c4f662a, 2e54fbe) Unit of decision: the land-inputs step alone. Accepted limit: no change to the timing verdict rule.",
+   "evidence": "88a0801"
   },
   {
    "devices": [
