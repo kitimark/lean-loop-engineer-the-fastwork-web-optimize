@@ -53,12 +53,12 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - trajectory-probe 12: `probe` 8 (trajectory-probe.yml:259; `plan.mjs`), `frames` 2 (:356), `probe-apple` 2 (:496)
 - visual-diff 39: `shoot` 32 (visual-diff.yml:274; 2 engines x 16 shards), `port` 1, `port-fonts` 2, `navscroll` 2, `people-layout` 2
 - webkit-sim 3: `merge`, `align`, `lag-report` after `sim` (webkit-sim.yml:446,517,592; `sim` is 2, max-parallel :274)
-- wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 2: `plan` and `fwcore` (wktr.yml)
+- wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 3: `plan`, `fwcore` and `site` (wktr.yml; `site` runs with the repaint lane)
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
   ("breakpoint-gate", 10), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("font-fidelity", 3), ("gate-gaps", 29), ("land", 5),
   ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 9), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
-  ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 2)]
+  ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 3)]
 
 /-- Width of a workflow no row names: four jobs, so an unlisted workflow over-counts rather than under-counts. -/
 def defaultWidth : Nat := 4
