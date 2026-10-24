@@ -112,6 +112,8 @@ export const RULES = [
   { line: 290, node: 'nav', on: [], off: ['is-morphing'], minW: null, reduce: true, spec: 2, set: [['background', 320, 0], ['opacity', 280, 0], ['transform', 320, 0], ['visibility', 0, 320]], delay: null },
   { line: 297, node: 'nav', on: ['is-morphing'], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
   { line: 298, node: 'earn', on: [], off: [], minW: null, reduce: true, spec: 2, set: [], delay: null },
+  { line: 303, node: 'earn', on: ['is-earn-logical'], off: ['is-hero-pill'], minW: null, reduce: false, spec: 5, set: [['max-width', 680, 0], ['opacity', 320, 120], ['padding-inline-start', 680, 0], ['padding-inline-end', 680, 0]], delay: null },
+  { line: 310, node: 'earn', on: ['is-earn-logical', 'is-hero-pill'], off: [], minW: null, reduce: false, spec: 5, set: [['max-width', 680, 0], ['opacity', 200, 0], ['padding-inline-start', 680, 0], ['padding-inline-end', 680, 0]], delay: null },
 ];
 
 /** Lean `cssOf`: the CSS properties whose transitions move a probe property. */
