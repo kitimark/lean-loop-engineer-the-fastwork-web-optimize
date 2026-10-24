@@ -1,18 +1,17 @@
 Branch: worktree-wf_3b6992a9-795-1
 Worktree: .claude/worktrees/wf_3b6992a9-795-1 (under the repo root)
-Last commit: see git log (ea1ece49c was round 2: Lean judge, partVerdict, bandFor + golden replay at 81bd93cc2; lane yml at the commit after it; note denominators at ea1ece49c)
-CI runs (toolbar-throttle lane, ci-only commit bd492dcf3 = yml edit, now also on this branch):
-- 40098348176 on ci/unthrottle-parts-measure-drags (dispatch 1 of 3): success, 6/6 usable passes per arm, hero verdict lifted
-- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): attempt 1 failed (VM 1 original+rewrite only); attempt 2 (gh run rerun --failed by the lead): all three sim jobs in progress (attempt 2)
-- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): attempt 1 failed (VM 1 gave 8 usable passes); attempt 2 (rerun --failed): VM 2 and 3 in progress; VM 1 stays from attempt 1
-Verified: Lean check.sh green at ea1ece49c; @fw/measure-webkit test 665 pass; ci-paths test 56 pass; ci-paths --check ok; throttle-parts golden --check ok (319 lines).
-Open: reruns of finish and rest not finished (data not yet in the tables); apps/runner land-inputs test; fw plan lint; dry land; fw review ready.
+Last commit: 4c42330f6bda726db7c72e05e8b6c117f71648fa (merge of main after the rerun data, note and Lean judge; this handoff is the next commit)
+CI runs (toolbar-throttle lane; the lane yml on this branch now equals the ci-only commit bd492dcf3):
+- 40098348176 on ci/unthrottle-parts-measure-drags (dispatch 1 of 3): success, 6/6 usable passes per arm, hero lifted
+- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): attempt 1 failed, rerun (attempt 2) failed; jobs 2 and 3 gave 1 pass each (original, lift), job 1 stalled at start; no unthrottle pass
+- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): attempt 1 failed, rerun success; 3 jobs, 6 usable passes per arm, platform anchor not found on all jobs
+Verified: Lean check.sh green (before the last main merge; rerun after it, see report); @fw/measure-webkit test 665 pass; ci-paths test 56 pass; ci-paths --check ok; land-inputs test 60 pass; throttle-parts golden --check up to date (319 lines).
+Open: commission Lean class (chase predicted pulses, measured stills) to revisit; platform anchor; partVerdict that ignores the original arm; permanent lane yml is on this branch (lands with it).
 
 ## State
-- Lean: ThrottleParts.lean has Match, judge, PartVerdict, partVerdict, bandFor with one theorem per branch; golden has 240 judge, 40 partVerdict, 6 bandFor lines.
-- src/throttle/parts.mjs: judge/partVerdict/bandFor are twins replayed on the golden; judgeArm/partOf/why texts/noDataReason/captureRow are TS reporting.
-- Lane yml now reproduces the runs (parts-cli, four arms, [throttle:rest], ROUNDS, timeouts 75/58).
-- results/unthrottle-parts/ holds the three summaries from the first attempts; rerun data is added when the runs finish.
+- Lean: ThrottleParts.lean has Match, judge, PartVerdict, partVerdict, bandFor, one theorem per branch; golden has 240 judge, 40 partVerdict, 6 bandFor lines.
+- parts.mjs: judge/partVerdict/bandFor are twins replayed in test/throttle-parts.test.mjs; judgeArm, partOf, why texts, noDataReason, captureRow are TS reporting.
+- results/unthrottle-parts/: drags, finish (attempt 1, job 1), finish-...-rerun (jobs 2, 3), rest (3 jobs).
 
 ## Read first
 research/notes/2026/10-2x-unthrottle-parts-measure.md (answer, tables), then 10-2x-unthrottle-parts.md (Lean predictions).
