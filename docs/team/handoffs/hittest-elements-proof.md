@@ -3,17 +3,14 @@
 - Branch: worktree-wf_19bb37f8-8d7-1; worktree .claude/worktrees/wf_19bb37f8-8d7-1; CI branch ci/hittest-elements-proof.
 - Last commit: see `git log -1` (this file is committed with each checkpoint).
 - CI runs (both complete, success, sha d7b257a, chromium-counts swipe-v1, 3 runs): faithful rewrite 40081984397;
-  rewrite `?fw=nav.hitTest:elements-skip` 40081975943. Dispatch budget (2) used. Push of merged head a372d1c: lean
-  40085221652 failed only at the import check (module not in lean/Fw.lean, lead's line); every other stage passed.
-- Verified: `lean/Fw/Parts/NavHitTestElements.lean` builds clean, axioms standard (same_class, same_onDark_run,
-  elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden `nav.hitTest.elements.jsonl` (555 lines) passes
-  `gen ["--check"]`; site test `apps/site/src/parts/nav.hitTest/elements.golden.test.ts` passes. Chromium:
-  UpdateLayoutTree falls from 2192 to 1122 (2 fewer per swipe frame, every zone), Layout stays 418. After merging
-  main: site tests 7121 passed, site typecheck clean, ci-paths 56 passed, runner land-inputs 60 passed, plan lint 0
-  errors. Dry land: `VERDICT scope hittest-elements-proof` (site test outside writes); a later dry stopped because
-  console-api was not running. Gate: `VERDICT review-ready hittest-elements-proof returnToBuilder` (dry, WKTR).
-- Written: note `research/notes/2026/10-2x-hittest-elements-proof.md`, ledger note row (entry n=4, task
-  hittest-elements-proof, field chromium).
-- Open: WKTR per zone not reachable (wktr.yml:190-191 runs snapshot/site only); site test path is outside the graph
-  writes; lead adds `import Fw.Parts.NavHitTestElements` to lean/Fw.lean and the check.sh golden line.
-- Read first: the note, then the Lean module.
+  rewrite `?fw=nav.hitTest:elements-skip` 40081975943. Lean run 40085221652 (merged head a372d1c) failed only at the
+  import check; the continue round fixes that. No new CI dispatch in the continue round.
+- Continue round (graph r423): merged main; `import Fw.Parts.NavHitTestElements` added to lean/Fw.lean; check.sh job
+  "hittest elements golden check" runs `Fw.Parts.NavHitTestElements.gen ["--check"]`. lint-check-sh clean;
+  ci-paths --check clean (no Trigger.lean row change needed).
+- Verified: module builds, axioms standard (same_class, same_onDark_run, elements_frame_no_style_dirt,
+  faithful_frame_style_dirt). Golden `nav.hitTest.elements.jsonl` (555 lines) equals the Lean output; site test
+  `apps/site/src/parts/nav.hitTest/elements.golden.test.ts` replays it. Chromium: UpdateLayoutTree 2192 to 1122,
+  Layout 418 to 418. Ledger row: research/findings/ledger.json (task hittest-elements-proof).
+- Open (follow-ups): WKTR count per zone (wktr.yml runs the snapshot only, no flag input); iPhone not measured.
+- Read first: research/notes/2026/10-2x-hittest-elements-proof.md, then lean/Fw/Parts/NavHitTestElements.lean.
