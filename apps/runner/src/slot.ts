@@ -9,7 +9,7 @@ import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type PassVerdict, type Row,
   type Sample, type Verdict, type VmMark, type WParams, type Window, KINDS, admitBuild, agentsSeen, avail, beginPass, cacheHit, cacheable, capLease,
-  current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
+  current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, nestedSkips, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
   simDue, simHeld, simIdleNext, simQueued, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict,
 } from "./slot-core.ts";
 
@@ -555,9 +555,14 @@ async function exec(d: Deps, argv: string[], env: Record<string, string | undefi
   return { exit, stdout: Buffer.concat(bufs.stdout).toString(), stderr: Buffer.concat(bufs.stderr).toString(), whole: size <= CAP };
 }
 
+export function nestedHeld(d: Deps, kind: Kind): boolean {
+  const token = d.env.FW_SLOT_TOKEN;
+  return nestedSkips(nowS(), kind, token ? { owner: d.owner, token } : null, readState(d).holders);
+}
+
 export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): Promise<number> {
   const label = runLabel(kind, argv, argv.includes("--dry"));
-  if (d.env.FW_SLOT_HELD) {
+  if (nestedHeld(d, kind)) {
     const end = begin("fw", label);
     let r = EXIT_ERROR;
     try { r = (await exec(d, argv, d.env, false)).exit; } finally { end(r); }

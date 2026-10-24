@@ -19611,7 +19611,8 @@
     "lean/Fw/Parts/FootprintRows.lean",
     "lean/Fw/Parts/Contract.lean"
    ],
-   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length)."
+   "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length).",
+   "evidence": "b529411"
   },
   {
    "devices": [
@@ -19688,7 +19689,10 @@
     "lean/Fw.lean",
     "packages/contracts/golden/obs/land-inputs-cost.jsonl",
     "research/notes/2026/10-2x-land-inputs-growth.md",
-    "docs/team/handoffs/land-inputs-growth.md"
+    "docs/team/handoffs/land-inputs-growth.md",
+    "apps/runner/src/land.ts",
+    "lean/scripts/check.sh",
+    "lean/scripts/LandInputsCostGolden.lean"
    ],
    "title": "(S) land-inputs vitest in the dry land grows with no co-runner: p50 19.8 -> 20.4 -> 23.4 -> 29.1 s by quarter over 675 local dry rows to 2026-10-24 (last 20: 31.3 s) at load p50 3.5-4.7, test file unchanged (c9f2dcd), tracked files +6-7 percent: measure per-test durations and files read per test (walk/escapes apps/runner/test/land-inputs.test.ts:98-110, inputKey over the real root :287-288, fixture keys :269-281), fix the cause, Lean cost model as the why, effect measured on later dry lands (inc: timing.slow bf9aa85, 8f040f0, c4f662a, 2e54fbe) Unit of decision: the land-inputs step alone. Accepted limit: no change to the timing verdict rule."
   },
@@ -19711,7 +19715,8 @@
     "lean/scripts/check.sh",
     "lean/scripts/LandWtGolden.lean"
    ],
-   "title": "(S) the dry land's lake step is rebuild work in the land worktree pool: median 3.0 s at 0 modules built (n 100), 10.7 s at 1-7 (n 48), 18.9 s at 8+ (n 56); one commit 2e54fbe built 24, 0, 24 modules in three dry lands (27.7, 2.4, 23.5 s) because each land checks out its commit in the first free .claude/land-wt/<n> (land.ts claimLandWt :345, checkoutLandWt :361): decide in Lean which worktree or which .lake state a dry land starts from so rebuilt modules fall, golden rows, effect on lake.built and the lake step measured on later dry lands Unit of decision: the lake step alone. Accepted limit: c4f662a 9.0 s at 0 built may stay unexplained."
+   "title": "(S) the dry land's lake step is rebuild work in the land worktree pool: median 3.0 s at 0 modules built (n 100), 10.7 s at 1-7 (n 48), 18.9 s at 8+ (n 56); one commit 2e54fbe built 24, 0, 24 modules in three dry lands (27.7, 2.4, 23.5 s) because each land checks out its commit in the first free .claude/land-wt/<n> (land.ts claimLandWt :345, checkoutLandWt :361): decide in Lean which worktree or which .lake state a dry land starts from so rebuilt modules fall, golden rows, effect on lake.built and the lake step measured on later dry lands Unit of decision: the lake step alone. Accepted limit: c4f662a 9.0 s at 0 built may stay unexplained.",
+   "evidence": "39ea984"
   },
   {
    "devices": [
@@ -19729,7 +19734,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-held-identity.md"
    ],
-   "title": "(S) slot run skips the slot whenever FW_SLOT_HELD is set, whatever kind is held (apps/runner/src/slot.ts:556-561): 186 of 808 local slot run land pnpm fw land dry spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (36acd37 at 1792805763753): decide in Lean when a nested slot run may skip acquire (a live held token of the same kind: identity, not env presence), golden rows, TS reads the verdict, effect counted as overlapping dry lands on later rows Unit of decision: one slot run request. Accepted limit: callers outside fw slot are not covered. Lead note (inc-slot-held-env): the lead's land scripts ran with FW_SLOT_HELD=1 set on the outer call, so their fw slot run --kind land skipped the slot; count how many of the 186 unlocked spans those are."
+   "title": "(S) slot run skips the slot whenever FW_SLOT_HELD is set, whatever kind is held (apps/runner/src/slot.ts:556-561): 186 of 808 local slot run land pnpm fw land dry spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (36acd37 at 1792805763753): decide in Lean when a nested slot run may skip acquire (a live held token of the same kind: identity, not env presence), golden rows, TS reads the verdict, effect counted as overlapping dry lands on later rows Unit of decision: one slot run request. Accepted limit: callers outside fw slot are not covered. Lead note (inc-slot-held-env): the lead's land scripts ran with FW_SLOT_HELD=1 set on the outer call, so their fw slot run --kind land skipped the slot; count how many of the 186 unlocked spans those are.",
+   "evidence": "acee943"
   },
   {
    "devices": [
@@ -19813,6 +19819,50 @@
     "docs/team/handoffs/classpos-followups-2.md"
    ],
    "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report). Plus classpos-followups review follow-ups: (5) split helpers into listHelpers [clsx, classNames, classnames] (list context) and joinHelpers [cx, cls] (the site's own (...c) => c.filter(Boolean).join(' '): arrays and objects there are lost), golden row cx(['a']); (6) a numeric literal (className={0}, cx(n && 1)) gets marker 'number', and the left side of && is reported unless it is cmp/not, golden rows; (7) an element whose class set has any lost token is marked open in collectElements, and selector matches against it are weak."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-nested-kind",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "slot-held-identity",
+    "reap-exit-fold"
+   ],
+   "writes": [
+    "lean/Fw/Sup/Nested.lean",
+    "lean/Fw/Sup/AdaptGolden.lean",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/slot*.test.ts",
+    "scripts/slot-self.mjs",
+    "scripts/slot-self.test.mjs",
+    "packages/contracts/golden/sup/adapt.jsonl",
+    "docs/team/tools/slot.md",
+    "docs/team/handoffs/slot-nested-kind.md"
+   ],
+   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "polish-line-join",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Plan/Polish.lean",
+    "packages/contracts/golden/plan/polish.jsonl",
+    "apps/runner/src/polish.ts",
+    "apps/runner/test/polish*.test.ts",
+    "scripts/lint-check-sh.mjs",
+    "scripts/lint-check-sh.test.mjs",
+    "lean/scripts/check.sh",
+    "docs/team/handoffs/polish-line-join.md"
+   ],
+   "title": "Incident inc-polish-line-join (2026-10-24): fw polish comment cuts deleted a trailing `# ...` comment together with its newline and joined two check.sh job lines in 3 polish commits (162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, plus 65c6ec5 on the land-wt-lake-rebuilds branch), so the second job ran as arguments of the first (node-budget, nav-earn, gate-engine-timing goldens unrun on their own). Lean rule: a comment cut keeps every code line of the original as a line (the cut file's code lines, comments stripped, equal the original's line for line), theorem + golden rows (trailing comment, whole-line comment, block comment, a cut at end of file); fw polish refuses (reverts that file, VERDICT polish-cuts ... refused-join) any edit that breaks it, checked by a TS test over the golden. Plus a cheap lint: one `job \"` per check.sh line (CI and check.sh run it)."
   }
  ],
  "deadline": {
