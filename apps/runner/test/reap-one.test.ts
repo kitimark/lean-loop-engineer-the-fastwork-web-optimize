@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { awaitAllowed, awaitedPath, canonAwait, canonPath, classify, heldLoops, inodeOf, isCiWait, parseLsofFiles, parseLsofOut, reapCli, reapStopLines, reapTick, select, simSlotFacts, simUdidOf, stopSelected, type Facts, type Io, type ReapRow, type Target } from "../src/reap.ts";
+import { awaitAllowed, awaitedPath, canonAwait, canonPath, classify, heldAll, heldPass, inodeOf, isCiWait, parseLsofFiles, parseLsofOut, reapCli, reapStopLines, reapTick, select, simSlotFacts, simUdidOf, stopSelected, type Facts, type Io, type ReapRow, type Target } from "../src/reap.ts";
 import { reapHeldAlerts } from "../src/watch-reap.ts";
 import { fwcoreCall } from "../src/run.ts";
 
@@ -154,8 +154,8 @@ describe("the watch alert and fw reap read one rule", () => {
     expect(out.map((l) => l.split(" ")[0])).toEqual(["2846", "3100"]);
   });
   it("the alert names pid and start of the loop that --stop TERMs, and nothing else", () => {
-    const alerts = heldLoops(facts(), call);
-    expect(alerts.map((a) => [a.pid, a.start, a.subject])).toEqual([[2846, 1000, "w2"]]);
+    const alerts = heldAll(facts(), call).held;
+    expect(alerts.map((a) => [a.pid, a.start, a.wt])).toEqual([[2846, 1000, "w2"]]);
     const sent: [number, string][] = [];
     const sims: number[] = [];
     const io: Io = { signal: (t: Target, sig) => { sent.push([t.pid, sig]); }, sleep: () => {}, table: () => facts().rows, rss: () => new Map(),
@@ -172,26 +172,26 @@ describe("the watch alert and fw reap read one rule", () => {
       simStop: (t: Target) => { sent.push(t.pid); } };
     const con = mkdtempSync(join(tmpdir(), "reap-con-"));
     const env = { FW_CONSOLE_DIR: con };
-    expect(reapTick(root, env, io, facts, () => call, [2846, 3100])).toEqual([expect.stringContaining("REAP advice simBooted 3100")]);
+    expect(reapTick(root, env, io, facts, () => call, [2846, 3100])).toEqual([]);
     expect(reapTick(root, env, io, facts, () => call, [2846, 3100])).toEqual([]);
     const log = readFileSync(join(con, "reap.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { type: string; kind: string; pid: number; start: number });
     expect(log.map((r) => [r.type, r.kind, r.pid, r.start])).toEqual(
-      [["reap.held", "orphanLoop", 2846, 1000], ["reap.held", "simBooted", 3100, 1000], ["reap.held", "orphanLoop", 2846, 1000], ["reap.held", "simBooted", 3100, 1000]]);
+      [["reap.held", "orphanLoop", 2846, 1000], ["reap.held", "simBooted", 3100, 1000], ["reap.tick", undefined, undefined, undefined], ["reap.tick", undefined, undefined, undefined]]);
     rmSync(con, { recursive: true, force: true });
     expect(stopSelected(root, call, io, facts, [2846, 3100])?.termed).toEqual([]);
     expect(sent).toEqual([]);
-    expect(heldLoops(facts(), call).map((a) => [a.pid, a.start])).toEqual([[2846, 1000]]);
+    expect(heldAll(facts(), call).held.map((a) => [a.pid, a.start])).toEqual([[2846, 1000]]);
   });
   it("reapHeldAlerts raises agent.held with the identity and the command that applies it; FW_WATCH_REAP=0 silences it", () => {
-    const a = reapHeldAlerts(root, {}, facts, () => call);
+    const a = reapHeldAlerts(heldPass(root, {}, facts, () => call));
     expect(a).toHaveLength(2);
     expect(a[1]).toMatchObject({ code: "agent.held", subject: "sim 3100" });
     expect(a[1]!.detail).toContain("simBooted pid=3100 start=1000");
     expect(a[0]).toMatchObject({ code: "agent.held", subject: "w2" });
     expect(a[0]!.detail).toContain("killOrphan pid=2846 start=1000");
     expect(a[0]!.detail).toContain("fw reap --stop");
-    expect(reapHeldAlerts(root, { FW_WATCH_REAP: "0" }, facts, () => call)).toEqual([]);
-    expect(reapHeldAlerts(root, {}, () => null, () => call)).toEqual([]);
+    expect(reapHeldAlerts(heldPass(root, { FW_WATCH_REAP: "0" }, facts, () => call))).toEqual([]);
+    expect(reapHeldAlerts(heldPass(root, {}, () => null, () => call))).toEqual([]);
   });
 });
 
