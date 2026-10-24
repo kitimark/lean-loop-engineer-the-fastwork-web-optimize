@@ -81,7 +81,7 @@ The shape of a part decides its class (`reach`, one theorem per branch, `reach_c
 
 ## Per part
 
-Each row is one entry of `parts` (golden lines 2-24), decided on its own.
+Each row is one entry of `parts` (golden lines 2-24).
 
 | Part | Zone | Source | Shape | Class | Premise (file:line) |
 |---|---|---|---|---|---|
