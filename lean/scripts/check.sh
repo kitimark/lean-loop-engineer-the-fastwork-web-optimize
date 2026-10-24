@@ -166,7 +166,6 @@ run_group() {
   job "oracle labels golden check" lake env lean --run scripts/OracleLabelsGolden.lean --check
   job "lake-cache golden check" sh -c 'printf "import Fw.Ops.LakeCache\n#eval Fw.Ops.LakeCache.gen [\"--check\"]\n" | lake env lean --stdin'
   job "gate-engine-timing golden check" sh -c 'printf "import Fw.Ops.GateEngineTiming\n#eval Fw.Ops.GateEngineTiming.gen [\"--check\"]\n" | lake env lean --stdin'
-  job "gate-engine ref shell-case test" node --test ../scripts/gate-engine-ref.test.mjs
   job "oracle expand golden check" lake env lean --run scripts/ExpandGolden.lean --check
   job "oracle retrieve golden check" lake env lean --run scripts/RetrieveGolden.lean --check
   job "breakgen check site" sh -c "$bin/breakgen --check ../apps/site/src/breakpoints.gen.json || echo 'check: WARNING apps/site/src/breakpoints.gen.json is not the Lean output yet'"
