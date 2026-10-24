@@ -392,6 +392,16 @@
           ],
           "why": "count only plus declared styles; transform is written every frame by the digit spring (JS state, not a breakpoint)"
         }
+      ],
+      "variantRoles": [
+        {
+          "variant": "strip",
+          "replaces": "face",
+          "role": "strip",
+          "rewrite": "[data-fw=\"morph-countdown-clock\"] [data-strip]",
+          "countOf": "digit",
+          "why": "strip renders one strip per digit in place of the ten faces (apps/site/src/parts/morph.countdown/index.tsx, hero.countdown's Digits driver); every frame shows the same face pixels (Lean Fw.Parts.MorphCountdownStrip.same_face_px), so the faces are not judged and the strip count must equal the original's digit count (Lean Fw.Gate.partItems_variant_role)"
+        }
       ]
     },
     "hero.exit": {
