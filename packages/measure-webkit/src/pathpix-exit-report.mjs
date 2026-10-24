@@ -171,7 +171,7 @@ export function lookList(lanes) {
   for (const l of lanes) for (const c of l.cells) {
     if (c.kind !== 'P' || !c.strip) continue;
     const v = cellVerdict(c);
-    if (v === 'L') out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.grade} | ${v} | ${c.consensus ? c.consensus.why : c.why} |`);
+    if (v === 'L') out.push(`| ${l.label} | ${l.artifact} | ${c.strip} | ${c.key} | ${c.i} | ${c.grade} | ${v} | ${c.consensus?.why ?? c.why ?? '-'} |`);
     else if (c.grade === 'L') { if (v === 'varied') varied++; else readDown++; }
   }
   out.push('', `left out of the list: ${varied} varied cells (a change the identical arms also show), ${readDown} grade-L cells the majority arm reads as not L`);

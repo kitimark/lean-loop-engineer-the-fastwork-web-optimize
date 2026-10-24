@@ -263,6 +263,88 @@ next to the verdict. (3) Chromium has no A3 until its arm list gets one entry. (
 "parts the box touches" column) remains a TS stand-in with no Lean twin; `probesHit` has one. (5) One run, 3 jobs per engine: the
 class of the 192513-20 raster state needs another run or a majority reference. No phone; the look review is the user's.
 
+## Follow-ups (task pathpix-consensus-followups, run 40037992429)
+
+Branch `ci/pathpix-consensus-followups`, workflow `path-pix`, commit `f69f8cb29`, 3 WebKit exit jobs, 3 WebKit draw jobs, 3 Chromium jobs.
+Every job succeeded at the first attempt except draw job 3: its Safari tab took about 7 minutes to appear and `simctl screenshot`
+failed in `place()` (infrastructure; the job log of attempt 1 has it); it was re-run once with `gh run rerun --failed` (same run id,
+attempt 2) and succeeded. All tables below are printed by `pathpix-exit-report.mjs` (exit lanes) and `pathpix-exit-draw-zones.mjs`
+(draw lanes) from the artifacts of that run; none is typed by hand.
+
+**1. Look list with the verdict (CONFIRMED, Lean `Verdict.listed`, `varied_not_listed`, `zoned_listed_not_varied`).** The "L cells with a
+strip" table now has a `verdict` column next to the grade and ends with "left out of the list: N varied cells (a change the identical
+arms also show), M grade-L cells the majority arm reads as not L". In this run WebKit leaves out 2 varied cells (w2, `hero.cue_cue` and
+`hero_copy`, offset 5: the change of 2 pixels at delta 1, device box 873,118..874,134 in `nav-lang button`, that A vs A2 shows too and
+A vs A3 does not) and 0 read-down cells; Chromium leaves out none. The same box is an A/A change of 2-1 in w3 as well, where A
+differs from A2 and A3 and P equals them (A the odd arm; the majority reading counts nothing there).
+
+**2. Per-zone grade (CONFIRMED, Lean `zoned`).** `zoned` drops the varied zones of a mixed cell and grades the counted ones
+(`zoned_mixed_out`, `zoned_mixed_inside`); a cell whose zones are all varied has the verdict varied (`zoned_varied_iff`). Golden kind
+`zoned`, replayed by `test/pathpix.test.mjs`. No mixed cell occurred in this run (every cell is all counted, all quiet or all varied),
+so the zone drop itself is covered by the golden and unit cases, not by a CI cell.
+
+**3. Chromium A3 (MEASURED).** `packages/measure-chromium/src/pathpix.mjs` now captures A, A2, A3 and P. In all 3 jobs A3 is captured
+(`yes`), 24 P cells, 21 counted, 0 varied, 3 quiet, A the odd arm 0; A vs A2 and A vs A3 are 0-0 in every cell (Chromium has no floor
+at this size). WebKit, same table: w1 12 counted / 0 varied / 12 quiet; w2 16 / 2 / 6; w3 12 / 0 / 12 (A the odd arm: 0, 0, 6).
+
+**4. Class of the hero_copy 192513-20 raster (INFERRED from MEASURED runs).** Occurrences at offset 5, inside hero_copy:
+
+| run | job | where it shows | rule reading |
+|---|---|---|---|
+| 39947605395 | webkit-2 | A/A (the identical arms) | floor |
+| 40026419647 | webkit-1 | A differs from A2 and from A3 by 192513-20, P differs from A by 192513-20 (A the odd arm; P vs A2 not captured in that run) | varied; majority reading: quiet |
+| 40026419647 | webkit-2 | P only (A, A2, A3 agree 0-0) | counted L |
+| 40026419647 | webkit-3 | absent | quiet |
+| 40037992429 | w1, w2, w3 | absent (hero_copy offset 5 inside 0-0 in P and A/A) | quiet |
+
+The same pixel count and delta shows in an A arm, in a P arm and in an A/A pair, so it is not caused by the flag. Class: floor raster
+(Simulator render-server alternate state, the cause stays INFERRED), recognised by second-run evidence; the majority reference reads
+it correctly only when it hits an A arm (webkit-1), and a hit on P alone (webkit-2) stays counted L because four arms cannot tell a
+single P-only change from a P effect. A rule that names the raster signature is not built (follow-up). The A/A 4478-2 nav-earn change
+did not recur in either of the last two runs (0 of 6 WebKit jobs), so it stays open and unclassed.
+
+**5. Draw window, pixel numbers against faithful (MEASURED, run 40037992429; mode `--mode draw`, WebKit only).** Lane: the held
+virtual clock runs the accent chain until the word swaps, then the accent's animations are paused and seeked to 0..900 ms in 150 ms
+steps, out phase and in phase; each frame is the stable one of up to 5 screenshots (0 unstable frames in all 12 arm-captures).
+Arms: A and A2 faithful, N `hero.accent:draw-nolayout`, F `hero.accent:draw-nolayout-full`. The word band is the faithful word boxes
+padded by 8 css px (device 477..724 by 594..782). Frames, changed pixels against faithful (max delta); identical in the 3 jobs and
+for both arms inside the band:
+
+| phase | t ms | N and F inside the band | F outside the band, above its own baseline |
+|---|---|---|---|
+| out | 0 | 26 (35) | 0 |
+| out | 150 | 26 (35) | 0 |
+| out | 300 | 4026 (212) | 0 |
+| out | 450 | 7298 (212) | 0 |
+| out | 600 | 2843 (212) | 0 |
+| out | 750 | 984 (212) | 0 |
+| out | 900 | 0 | 0 |
+| in | 0 | 0 | 17622 |
+| in | 150 | 2926 (212) | 16871 |
+| in | 300 | 4947 (212) | 12709 |
+| in | 450 | 1165 (212) | 8584 |
+| in | 600 | 0 | 2092 |
+| in | 750 | 0 | 0 |
+| in | 900 | 0 | 0 |
+
+The A vs A2 floor inside the band is 0 at every frame in all 3 jobs, so every non-zero band count is above the floor: neither arm
+draws the word with the faithful pixels at the mid frames (up to 7298 changed pixels, delta 212), and N and F differ from faithful
+by exactly the same band pixels. F (no width transition) differs from N only outside the band: its row shifts at the start of the
+draw-in (17622 px at in-0, decaying to 0 by 750 ms; the cause, that the em box jumps to the new word width, is INFERRED from the
+arm's definition). Outside the band the lane has a constant baseline per arm and job that does not move with the frame: N 100, 1965,
+17 and F 35751, 101, 100 changed pixels (jobs 1, 2, 3), delta at most 1 except N in job 2 (6) and F in job 1 (45); the A vs A2 floor outside
+the band is 17, 101 and 151018 (delta 45, y 1607..2325, job 3). The baseline is on out-900 and in-900 too, where the flags are idle, so it
+is page state at capture time (the hold times differ per arm load, 1317..3472 ms; INFERRED), not draw logic, and the whole-frame
+reading of the CI `summary.md` ("above" on every frame, even in-900 for F) over-reads it. The zone reading (band against band floor,
+rest against rest floor, both through the Lean-replayed `drawOf`) is in `zones.md`: band above for both arms in all 3 jobs; rest
+above for F in all 3 jobs (the layout shift) and for N in jobs 1 and 2 (baseline 100 and 1965 against a floor of 17 and 101), floor
+for N in job 3. Files: `results/accent-draw-nolayout-pixels/run-40037992429/` (per job `cells.json`, `summary.md`, `manifest.json`,
+`runner.json`; `zones.md`); the band strips (28 per job) stay in the CI artifacts `path-pix-draw-webkit-N` of the run, because
+the land render guard refuses images in git.
+
+Limits: no phone; the look review of the draw-in is the user's (class look-change); Chromium draws are not seeked, so there is no
+Chromium draw number; the outside-band baseline is not pinned.
+
 ## Follow-up for the user's look review (class look-change)
 
 With `hero.exit:threaded` at rest (offset 0, no scroll), Chromium P differs from A in hero_copy's union mask by 426 changed
@@ -278,5 +360,6 @@ run's artifacts). Chromium A/A is 0-0 everywhere, so these are real P difference
 
 - WebKit deck-card corner pixels vary between identical arms in 2 of 3 jobs of run 40007968162 (webkit-1, webkit-3; round 0: 2 of 3; run 39985824264: 1 of 3). Pinning is closed as a sourced negative (see the y 0 row): no page-side or capture-side input differs, the variation is in the Simulator render server (INFERRED). The deck cells carry it as their floor; hero_copy does not count it. The consensus capture (A, A2, A3) of run 40026419647 now separates these cells per job (section "Consensus capture").
 - Follow-up 3 is closed at box level (the language switch `button.switch`, `nav_bar` layer); the arc and the one-level cause are INFERRED, and the 2-1 did not recur, so the identification rests on the recorded box and the earlier strip.
-- hero_copy P 192513-20 inside at offset 5: in run 40026419647 it is `varied` in webkit-1 (A, A2 and A3 disagree by the same amount), `counted` in webkit-2 (A, A2, A3 agree) and absent in webkit-3. Needs another run or a majority-reference rule to class; the A/A 4478-2 nav-earn change did not recur. Chromium has no A3 (one-entry edit in `packages/measure-chromium/src/pathpix.mjs`, outside the task writes).
+- hero_copy P 192513-20 inside at offset 5: classed as a floor raster in section "Follow-ups (run 40037992429)"; it did not recur there. The A/A 4478-2 nav-earn change has not recurred in runs 40026419647 and 40037992429, so it stays unclassed. Chromium has A3 since run 40037992429.
+- Draw window: Chromium has no draw frames (seeking is not done in Chromium); the outside-band baseline of the WebKit draw lane differs per arm and job (section "Follow-ups"), pinning it is open.
 - Strips are CI artifacts of runs 39985824264 and 40007968162; the look review is the user's. No phone.

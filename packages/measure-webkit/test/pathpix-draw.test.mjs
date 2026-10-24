@@ -7,6 +7,7 @@ import { encodePng } from '../src/pathpix-png.mjs';
 import { drawTimes } from '../src/pathpix-exit.mjs';
 import { analyzeDraw, drawBand, drawTable, drawFile } from '../src/pathpix-exit-draw.mjs';
 import { DRAW_STATE_EXPR, drawAdvanceExpr, drawSeekExpr } from '../src/pathpix-exit-draw-page.mjs';
+import { zoneReads, zoneTable } from '../src/pathpix-exit-draw-zones.mjs';
 import { DRAW_FLAGS, drawSearch } from '../src/pathpix-exit-draw-webkit.mjs';
 
 const W = 40, H = 20;
@@ -91,5 +92,22 @@ test('an arm that was cut leaves its frames missing and out of the worst reading
     assert.equal(res.missing, 14);
     assert.equal(res.worst.F, 'missing');
     assert.equal(res.worst.N, 'same');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the zone reading splits the word band from the rest of the frame', () => {
+  const dir = fakeDraw((arm, phase, k, img) => {
+    if (arm === 'N' && phase === 'out' && k === 2) dot(img, 8, 8, 9);
+    if (arm === 'F' && phase === 'in' && k === 1) dot(img, 38, 18, 9);
+    return img;
+  });
+  try {
+    const res = analyzeDraw(dir, { strips: 'none' });
+    const z = zoneReads({ label: 'x', cells: res });
+    assert.deepEqual(z.N, { band: 'above', rest: 'same' });
+    assert.deepEqual(z.F, { band: 'same', rest: 'above' });
+    const md = zoneTable([{ label: 'x', cells: res }]);
+    assert.match(md, /\| x \| 0 \(max 0\) \| 0 \| above \| same \| same \| above \|/);
+    assert.match(md, /\| out \| 300 \|/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
