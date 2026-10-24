@@ -1,9 +1,9 @@
 branch: worktree-wf_4f5ecc25-48d-1 (CI branch ci/glint-offscreen-pause)
 worktree: .claude/worktrees/wf_4f5ecc25-48d-1 (repo-relative; the absolute path holds a home directory)
 last commit: see the git log (the CI branch tip is the commit pushed last)
-CI runs: trajectory-probe 40092155958 SUCCESS (fw=platform.glint:offscreen-pause, engines both, all widths; inputs read back from step "trajectory inputs"); lean 40092156093 FAILED on footprint-diff.gen.json (regenerated since); lean re-run on the second push: id in the report
+CI runs: trajectory-probe 40092155958 SUCCESS (fw=platform.glint:offscreen-pause, engines both, all widths; inputs read back from step "trajectory inputs"); lean 40092156093 FAILED on footprint-diff.gen.json (regenerated since); lean re-run 40093964388 SUCCESS on a4b71aaae (ledger and preset commit after it is not pushed)
 verified: check.sh green locally (slot), site test and typecheck green (slot), ci-paths 56 pass, runner land-inputs 60 pass, part-footprint --check green, plan lint 0 errors, ledger row 66 added
-open: breakpoint gate and offscreen counts with the flag need a lead dispatch (gate: pnpm -s fw run --gate --engines both --fw platform.glint:offscreen-pause --ref ci/glint-offscreen-pause); no profile idles offscreen, so the count is undelivered
+open: dry land without --allow refuses on scope (Visuals.tsx, index.tsx, FootprintData.lean, ledger.json; with --allow for those four it prints VERDICT dry); breakpoint gate and offscreen counts with the flag need a lead dispatch (pnpm -s fw run --gate --engines both --fw platform.glint:offscreen-pause --ref ci/glint-offscreen-pause)
 
 ## State
 - Lean: lean/Fw/Parts/PlatformGlintPause.lean (WebKit SMIL time container model Cont/P/W; theorems visible_same_phase, local_time_same, same_run, variant_no_ticks_away, faithful_no_ticks_away, away_ticks_equal, window_gain). Golden: PlatformGlintPauseGolden.lean, lean/scripts/PlatformGlintPauseGolden.lean, packages/contracts/golden/parts/platform-glint-pause.jsonl.
