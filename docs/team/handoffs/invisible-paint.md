@@ -1,4 +1,13 @@
 branch: worktree-wf_2035e8c8-453-1 (CI branch ci/invisible-paint)
+worktree: .claude/worktrees/wf_2035e8c8-453-1
+state: data run done and written up. Note research/notes/2026/10-2x-invisible-paint.md, summaries results/invisible-paint/, LakeJobsGen row added (ci-paths --write, tests 56 pass).
+CI runs: 40076565001 (push 1, summary job failed, harness bug fixed), 40078541948 (push 2, green, superseded), 40082809394 (push 3, sha 1d99c57a8, wktr success, final data, cited). No further dispatch.
+Lead adds at land: lean/Fw.lean `import Fw.Engine.PaintVisible`; lean/scripts/check.sh `job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/engine/paint-visible.jsonl`.
+Open: Inspector Paint data.clip lane (needs xcode job in webkit-sim.yml, outside writes); name the unnamed "other" layers (fix candidate 1 depends on it); covered/noop pixel-diff sample.
+Read first: the note.
+
+---- earlier state (rounds 1-2) ----
+branch: worktree-wf_2035e8c8-453-1 (CI branch ci/invisible-paint)
 worktree: .claude/worktrees/wf_2035e8c8-453-1 (run `sh scripts/wt-prep.sh` and `pnpm install --offline --frozen-lockfile` first)
 last commit: see `git log -1` (push 2 of 3 carries [ci:wktr] [repaint] in its head message)
 CI runs: wktr 40076565001 (sha f9f8a3f92, push 1) = j1/j2/j3 success, repaint-summary FAILED (non-integer reRasterArea, fixed in e063d20f4). Run 2: wktr 40078541948 (sha 31c373675, push 2 of 3) = success, j1 j2 j3 + repaint-summary all green (artifacts in scratchpad/ivp/run2). Run 3 (push 3 of 3, last): same lane with fixed guess attribution, wktr 40082809394 (sha 1d99c57a8) queued 09:39Z.
