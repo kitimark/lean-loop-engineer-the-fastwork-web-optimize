@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, probeTable, probeOffsets, consensusSummary, consensusCells, pinTable, lSource, engineTable } from '../src/pathpix-exit-report.mjs';
+import { slimCell, slimLane, heroCopyTable, heroCopySummary, heroCopyWhere, heroCopyShared, probeTable, probeOffsets, consensusSummary, consensusCells, pinTable, lSource, engineTable, lookList, cellVerdict } from '../src/pathpix-exit-report.mjs';
 
 const raw = (changed, maxDelta) => ({ changed, maxDelta });
 const claim = { compA: true, compB: true };
@@ -130,6 +130,28 @@ test('the consensus tables count the readings per job and list the P cells that 
   assert.equal(md.length, 4, 'header, rule and the two cells that changed');
   assert.ok(md[2].includes('| webkit-3 | hero_copy | 5 | 0 | L | L | 192513-20 / 0-0 | 0-0 / 0-0 | 0-0 / 0-0 | counted | counted |'));
   assert.ok(md[3].includes('| varied | varied |'));
+});
+
+test('the look list holds the cells whose verdict is L, shows grade and verdict, and counts what it leaves out', () => {
+  const cons = (verdict, why = null) => ({ a2: null, a3: null, out: 'counted', inside: 'counted', seen: 'counted', verdict, why, odd: [false, false], vsA: { verdict: 'varied', seen: 'varied' } });
+  const l = lane('webkit-1', [
+    full('hero_copy', 0, 'P', { grade: 'L', strip: 'strips/P_a_0.png', consensus: cons('L', 'inside') }),
+    full('hero_copy', 1, 'P', { grade: 'L', strip: 'strips/P_a_1.png', consensus: cons('varied') }),
+    full('hero_copy', 2, 'P', { grade: 'L', strip: 'strips/P_a_2.png', consensus: cons('Q') }),
+    full('hero_copy', 3, 'P', { grade: 'L', why: 'text', strip: 'strips/P_a_3.png' }),
+    full('hero_copy', 4, 'P', { grade: 'L', consensus: cons('L', 'inside') }),
+    full('hero_copy', 5, 'P', { grade: 'Q', strip: 'strips/P_a_5.png' }),
+  ]);
+  const md = lookList([l]).split('\n');
+  assert.equal(md[0], '| replicate | artifact | strip | consumer | offset | grade | verdict | why |');
+  assert.equal(md.length, 6, 'header, rule, two listed cells, a blank line and the count');
+  assert.ok(md[2].includes('| strips/P_a_0.png | hero_copy | 0 | L | L | inside |'));
+  assert.ok(md[3].includes('| strips/P_a_3.png | hero_copy | 3 | L | L | text |'), 'a cell without consensus data keeps its grade');
+  assert.ok(md[5].includes('1 varied cells') && md[5].includes('1 grade-L cells the majority arm reads as not L'));
+  assert.equal(cellVerdict(l.cells[1]), 'varied');
+  assert.equal(cellVerdict(l.cells[5]), 'Q');
+  const sum = heroCopySummary('webkit', [l]).split('\n')[4].split('|').map((x) => x.trim()).filter(Boolean);
+  assert.deepEqual(sum.slice(-3), ['3', '1', '1'], 'verdict L, verdict varied, grade L read down');
 });
 
 test('the pin table reads the page clock, unpinned, misplaced and occluded counts', () => {

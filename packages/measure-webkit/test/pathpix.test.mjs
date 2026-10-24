@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { offsets, mask, rawOf, rawOk, premises, grade, cellS1, accelerated } from '../src/pathpix.mjs';
 import { splitUnion } from '../src/pathpix-exit.mjs';
-import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON, zoneAgree, zoneSeen, joinSeen, verdictOf, consensusOf, probeHit, probesHit } from '../src/pathpix-exit.mjs';
+import { gradeRel, whyL, region, exitOffsets, exitClaim, armPin, pinAt, shownAccent, pinMasks, accentPinned, rowsPinned, rowsPlaced, checkedRows, gradePinned, unpinnedWhy, floorPinned, coverAll, occludedBoth, hookSearch, yieldsShared, foreignMasks, countedIn, FOREIGN_REASON, zoneAgree, zoneSeen, joinSeen, verdictOf, consensusOf, probeHit, probesHit, zoneOdd, mzoneSeen, mzoneEff, zonedOf, zonedCell, listedVerdict, drawTimes, drawOf, drawWorst, DRAW_MS } from '../src/pathpix-exit.mjs';
 import { clockNow, exitClockPinned, secondsLeft, hookSearch as chromiumHookSearch } from '../../measure-chromium/src/pathpix-pure.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -13,7 +13,7 @@ const lines = readFileSync(join(here, '../../contracts/golden/gate/path-pix.json
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('golden file holds every kind the twin replays', () => {
-  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign', 'yield', 'seen', 'consensus', 'probeHit']) assert.ok(of(k).length > 0, k);
+  for (const k of ['grade', 'accelerated', 'premises', 'offsets', 'mask', 'raw', 'rel', 'region', 'exitOffsets', 'exitClaim', 'accentPin', 'pinRegion', 'accentRow', 'accentGrade', 'hook', 'chainStarts', 'clockPin', 'cover', 'foreign', 'yield', 'seen', 'consensus', 'zoned', 'drawTimes', 'draw', 'drawWorst', 'probeHit']) assert.ok(of(k).length > 0, k);
 });
 
 test('grade, S1 and premises per cell equal the Lean golden', () => {
@@ -189,6 +189,37 @@ test('the consensus rule equals the Lean golden: a P change counts only where th
   }
   for (const a of ['quiet', 'varied', 'counted']) for (const b of ['quiet', 'varied', 'counted']) assert.equal(joinSeen(a, b), joinSeen(b, a));
   assert.equal(verdictOf('invalid', { p: { changed: 1, maxDelta: 1 }, aa2: { changed: 1, maxDelta: 1 }, aa3: null }, { p: { changed: 0, maxDelta: 0 }, aa2: { changed: 0, maxDelta: 0 }, aa3: null }), 'invalid');
+});
+
+test('the zoned reading equals the Lean golden: varied zones drop out of mixed cells, an odd arm A is read against A2', () => {
+  const zs = of('zoned');
+  assert.ok(zs.length > 70);
+  const names = new Set(zs.map((z) => z.verdict));
+  assert.ok(names.has('varied') && names.has('L') && names.has('invalid') && names.has('Q'));
+  assert.ok(zs.some((z) => z.seen[0] === 'varied' && z.seen[1] === 'counted' && z.verdict === 'L'), 'mixed: inside counted, outside varied');
+  assert.ok(zs.some((z) => z.seen[0] === 'counted' && z.seen[1] === 'varied' && z.verdict === 'L'), 'mixed: outside counted, inside varied');
+  assert.ok(zs.some((z) => z.odd[0] && z.seen[0] === 'quiet'), 'A odd, P equals the majority');
+  for (const z of zs) {
+    const mo = { z: z.out.zone, p2: z.out.p2, a23: z.out.a23 }, mi = { z: z.inside.zone, p2: z.inside.p2, a23: z.inside.a23 };
+    assert.deepEqual([zoneOdd(mo), zoneOdd(mi)], z.odd, z.name);
+    assert.deepEqual([mzoneSeen(mo), mzoneSeen(mi)], z.seen, z.name);
+    assert.deepEqual([mzoneEff(mo), mzoneEff(mi)], z.eff, z.name);
+    const g = gradeRel(z.cell, z.floor, z.live);
+    assert.equal(g, z.grade, z.name);
+    const v = zonedOf(g, gradeRel(zonedCell(z.cell, mo, mi), z.floor, z.live), mo, mi);
+    assert.equal(v, z.verdict, z.name);
+    assert.equal(listedVerdict(v), z.listed, z.name);
+    assert.equal(v === 'L' ? whyL(zonedCell(z.cell, mo, mi), z.floor, z.live) : null, z.why, z.name);
+    assert.ok(!(z.listed && v === 'varied'));
+  }
+});
+
+test('the draw-window rule equals the Lean golden: frame times, same/floor/above per frame, the worst frame', () => {
+  const [t] = of('drawTimes');
+  assert.equal(t.ms, DRAW_MS);
+  assert.deepEqual(drawTimes(), t.times);
+  for (const d of of('draw')) assert.equal(drawOf(d.aa, d.arm), d.draw, d.name);
+  for (const w of of('drawWorst')) assert.equal(drawWorst(w.draws), w.worst);
 });
 
 test('the probe overlap equals the Lean golden: touching edges do not hit, the recorded order is kept', () => {
