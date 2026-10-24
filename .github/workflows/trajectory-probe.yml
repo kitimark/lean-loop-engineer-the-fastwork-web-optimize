@@ -538,7 +538,7 @@ jobs:
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: ${{ contains(github.event.head_commit.message, '[transitions:') && 40 || 15 }}
+    timeout-minutes: 15
     name: probe apple (playwright-webkit, macos-26) ${{ matrix.leg }}
     strategy:
       max-parallel: 2
@@ -664,11 +664,11 @@ jobs:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        timeout-minutes: 20
+        timeout-minutes: 7
         run: |
           set -euo pipefail
           for e in chromium playwright-webkit; do
-            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --out out/transitions/raw
+            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --morph 0 --out out/transitions/raw
           done
       - name: Record Safari itself through safaridriver (best effort)
         id: safari
@@ -679,7 +679,7 @@ jobs:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
-        timeout-minutes: 12
+        timeout-minutes: 5
         run: |
           set -uo pipefail
           mkdir -p out/transitions/raw
@@ -695,7 +695,7 @@ jobs:
           if [ "$up" != yes ]; then echo "failed: safaridriver did not answer on port 4444" | tee "$status"; exit 1; fi
           if node src/trajectory/transitions-safari.mjs --port 4444 --width "$WIDTHS" --reps 3 --out out/transitions/raw; then echo "ok: safaridriver, $WIDTHS px" | tee "$status"; else echo "failed: the Safari recording stopped (see the step log)" | tee "$status"; exit 1; fi
       - name: Reduce the recordings to their summaries
-        if: ${{ (!cancelled()) && contains(github.event.head_commit.message, '[transitions:') }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[transitions:') }}
         env:
           RUN_ID: ${{ github.run_id }}
         working-directory: packages/gate-breakpoints

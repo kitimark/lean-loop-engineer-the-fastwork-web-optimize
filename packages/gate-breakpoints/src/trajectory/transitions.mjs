@@ -112,7 +112,7 @@ export function recorder() {
 export const REC = `window.__rec = (${recorder.toString()})();`;
 
 /** One page: the hero sequences (scripted scroll), then the morph pushes (wheel). Returns { ready, self, sequences: {seq: {rows, events}} }. */
-async function walkPage(engine, env, arm, mode) {
+async function walkPage(engine, env, arm, mode, morph) {
   const sel = selectorsFor(arm.site);
   const s = await engine.open(env, { origin: arm.origin, path: '/', init: `${INIT_KIT}\n${REC}`, frozen: false });
   try {
@@ -138,6 +138,7 @@ async function walkPage(engine, env, arm, mode) {
       await s.evaluate((a) => window.__rec.ramp(a), { fromVh: RAMP.toVh, toVh: 0, ms: RAMP.ms });
       await sleep(RAMP.holdMs);
     });
+    if (!morph) return { ready, self, sequences };
     const navSel = sel.nav;
     await s.evaluate((q) => window.__traj.watchNav(q), navSel);
     await s.evaluate((a) => window.__traj.approach(a), { arm: arm.site, nodes: [], pageProps: [], navSel, restMs: 600, settleCapMs: 4000 });
@@ -154,7 +155,7 @@ async function walkPage(engine, env, arm, mode) {
 }
 
 /** Capture one engine over `widths`: the original and the faithful rewrite, `reps` full pages and one light page per arm and width. */
-export async function capture({ engineName, widths, reps, out, env = process.env }) {
+export async function capture({ engineName, widths, reps, out, morph = true, env = process.env }) {
   mkdirSync(out, { recursive: true });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const orig = await startServer(snapshotRoot(env));
@@ -172,7 +173,7 @@ export async function capture({ engineName, widths, reps, out, env = process.env
         const mode = modes[k];
         const t0 = Date.now();
         const e = envFor(width);
-        const one = await walkPage(engine, e, arm, mode);
+        const one = await walkPage(engine, e, arm, mode, morph);
         const identity = arm.site === 'orig' ? (one.self.config === null ? 'ok' : 'mismatch')
           : (one.self.config === arm.want && one.self.mode === 'hydrate' ? 'ok' : 'mismatch');
         runs.push({ width, role: arm.role, mode, rep: k, identity, self: one.self, ready: one.ready, sequences: one.sequences });
@@ -357,11 +358,11 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (args[0] === 'capture') {
-    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), reps: Number(opt('reps', '3')), out: opt('out') });
+    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), reps: Number(opt('reps', '3')), out: opt('out'), morph: opt('morph', '1') !== '0' });
   } else if (args[0] === 'summary') {
     await summary({ ins: opt('in').split(','), out: opt('out'), run: opt('run') });
   } else {
-    log('usage: transitions.mjs capture --engine E --widths 390,1280 --reps 3 --out DIR | summary --in DIR[,DIR] --out DIR [--run ID]');
+    log('usage: transitions.mjs capture --engine E --widths 390,1280 --reps 3 [--morph 0] --out DIR | summary --in DIR[,DIR] --out DIR [--run ID]');
     process.exitCode = 2;
   }
 }
