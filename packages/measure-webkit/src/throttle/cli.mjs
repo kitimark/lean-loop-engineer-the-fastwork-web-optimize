@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// node src/throttle/cli.mjs run [--site dir] [--arms original,rewrite,lift] [--rounds 2] [--cycles 4] [--vm n] [--out file]
+// node src/throttle/cli.mjs run [--site dir] [--arms original,rewrite,lift,unthrottle] [--rounds 2] [--cycles 4] [--vm n] [--out file]
 //   Real touches on Mobile Safari in the booted Simulator (XCUITest driver) while the page records frames; one pass per arm and round, the
 //   order rotated each round. original = the read-only snapshot; rewrite = the default prerendered build (--site); lift = the rewrite with
-//   ?fw=engine.scroll:throttle-lift.
+//   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with the shipped flag ?fw=engine.scroll:unthrottle.
 // node src/throttle/cli.mjs build-driver --dir d   build the touch driver once, before the Simulator boots (run --driver d uses it)
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
 import { parseArgs } from 'node:util';
@@ -30,11 +30,11 @@ const { values: v } = parseArgs({
   allowNegative: true,
 });
 const log = (s) => console.error(s);
-const LIFT_SEARCH = '?fw=engine.scroll:throttle-lift';
+const SEARCH = { lift: '?fw=engine.scroll:throttle-lift', unthrottle: '?fw=engine.scroll:unthrottle' };
 const siteOf = (arm) => {
   if (arm === 'original') return null;
   if (!v.site) throw new Error(`arm ${arm} needs --site (the prerendered build)`);
-  return { dir: v.site, search: arm === 'lift' ? LIFT_SEARCH : '' };
+  return { dir: v.site, search: SEARCH[arm] ?? '' };
 };
 /** Round r runs the arms rotated by r places. */
 const rotate = (arms, r) => arms.map((_, i) => arms[(i + r) % arms.length]);

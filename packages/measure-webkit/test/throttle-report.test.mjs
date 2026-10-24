@@ -50,3 +50,13 @@ test('the table has a row per job and arm, the pooled rows and the verdict lines
   assert.match(md, /- job 2: lifted/);
   assert.match(md, /- all jobs: lifted/);
 });
+
+test('the shipped arm gets its own rows and verdict lines, beside the diagnostic arm', () => {
+  const passes = [pass('rewrite', recorderRecord({ period: 6, moves: 40 })), pass('unthrottle', recorderRecord({ period: 1, moves: 240 })),
+    pass('unthrottle', recorderRecord({ period: 6, moves: 40 }))];
+  assert.equal(verdictOf(passes, 'unthrottle').verdict, 'not-lifted');
+  assert.equal(verdictOf(passes.slice(0, 2), 'unthrottle').verdict, 'lifted');
+  const md = reportMd([{ vm: 'job 1', passes: passes.slice(0, 2) }]);
+  assert.match(md, /\| all jobs \| unthrottle \|/);
+  assert.match(md, /- all jobs \(unthrottle\): lifted/);
+});
