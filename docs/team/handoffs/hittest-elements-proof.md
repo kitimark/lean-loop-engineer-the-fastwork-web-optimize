@@ -7,7 +7,9 @@
   import check; the continue round fixes that. No new CI dispatch in the continue round.
 - Continue round (graph r423): merged main; `import Fw.Parts.NavHitTestElements` added to lean/Fw.lean; check.sh job
   "hittest elements golden check" runs `Fw.Parts.NavHitTestElements.gen ["--check"]`. lint-check-sh clean;
-  ci-paths --check clean (no Trigger.lean row change needed).
+  ci-paths --check clean (no Trigger.lean row change needed). The import made fwcore evaluate the golden at start, so
+  `goldenLines` and `text` became `(_ : Unit := ())` functions (init-cost lint). check.sh green at bc4de51; site tests
+  7121 passed, typecheck clean, ci-paths 56, land-inputs 60; dry land `VERDICT dry hittest-elements-proof`.
 - Verified: module builds, axioms standard (same_class, same_onDark_run, elements_frame_no_style_dirt,
   faithful_frame_style_dirt). Golden `nav.hitTest.elements.jsonl` (555 lines) equals the Lean output; site test
   `apps/site/src/parts/nav.hitTest/elements.golden.test.ts` replays it. Chromium: UpdateLayoutTree 2192 to 1122,
