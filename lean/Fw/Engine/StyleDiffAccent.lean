@@ -393,7 +393,7 @@ private def comboRow (st wd : Option Search) : Lean.Json :=
     [("framesPerPhase", 54), ("kind", "combo"), ("stroke", nm st "dashoffset"), ("width", nm wd "width"),
      ("wkLayoutFrames", comboLayoutFrames st wd 54)]
 
-def goldenText : String :=
+def goldenText (_ : Unit) : String :=
   String.join
     ((Cand.all.map candRow ++
       ([false, true].flatMap fun a => [Phase.drawOut, .drawIn].map fun p => frameRow a p) ++
@@ -408,13 +408,13 @@ def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
     let cur ← IO.FS.readFile path
-    if cur == goldenText then
+    if cur == goldenText () then
       IO.eprintln s!"accent nolayout golden: {path} is up to date"
       return 0
     IO.eprintln s!"accent nolayout golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print goldenText
+    IO.print (goldenText ())
     return 0
 
 end Fw.Engine.StyleDiffAccent
