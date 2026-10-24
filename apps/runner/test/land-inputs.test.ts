@@ -289,3 +289,81 @@ describe("premise land.readsOnly: the key over the declared inputs (dynamic)", (
     expect(new Set(a).size).toBe(a.length);
   });
 });
+
+const oldSegs = (s: string) => s.split("/").filter((x) => x !== "" && x !== ".");
+const oldSegMatch = (g: string, s: string): boolean => {
+  if (g === "") return s === "";
+  if (g[0] === "*") return oldSegMatch(g.slice(1), s) || (s !== "" && oldSegMatch(g, s.slice(1)));
+  return s !== "" && g[0] === s[0] && oldSegMatch(g.slice(1), s.slice(1));
+};
+const oldGlobMatch = (g: string[], p: string[]): boolean => {
+  if (g.length === 0) return p.length === 0;
+  if (g[0] === "**") return oldGlobMatch(g.slice(1), p) || (p.length > 0 && oldGlobMatch(g, p.slice(1)));
+  return p.length > 0 && oldSegMatch(g[0]!, p[0]!) && oldGlobMatch(g.slice(1), p.slice(1));
+};
+const oldMatchesPath = (g: string[], p: string[]) => p.some((_, k) => oldGlobMatch(g, p.slice(0, k + 1)));
+const oldInScope = (globs: string[], path: string): boolean => {
+  const p = oldSegs(path);
+  return p.length > 0 && !p.includes("..") && globs.filter((g) => !g.startsWith("!")).map(oldSegs).some((g) => oldMatchesPath(g, p))
+    && !globs.filter((g) => g.startsWith("!")).map((g) => oldSegs(g.slice(1))).some((g) => oldMatchesPath(g, p));
+};
+
+describe("the compiled scope test (land-inputs.ts) equals the original recursive one (cost model: lean/Fw/Obs/LandInputsCost.lean)", () => {
+  it("every fifth tracked path x every check's globs, and the paths with a wildcard dropped in", () => {
+    const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
+    const checks = candidateChecks(root);
+    const paths = [...tracked.filter((_, i) => i % 5 === 0), "", ".", "a/../b", "./apps/runner/src/land.ts", "apps//runner/x", "apps"];
+    let hits = 0;
+    for (const c of checks) for (const f of paths) {
+      const want = oldInScope(c.reads, f);
+      if (want) hits++;
+      if (inScope(c.reads, f) !== want) throw new Error(`${c.id}: ${f}`);
+    }
+    expect(hits).toBeGreaterThan(100);
+  });
+  it("the tracked-file listing is reused while the index is unchanged and re-read when a file is added or removed", () => {
+    const fx = fixture();
+    try {
+      const reads = fx.checks[2]!.reads;
+      const k0 = inputKey(fx.dir, reads);
+      expect(inputKey(fx.dir, reads)).toBe(k0);
+      const f = inside(reads.find((g) => g.endsWith("/**"))!).replace(/f\.txt$/, "g.txt");
+      expect(f.endsWith("g.txt")).toBe(true);
+      fx.write(f, "new");
+      expect(inputKey(fx.dir, reads)).toBe(k0);
+      execFileSync("git", ["add", "-A"], { cwd: fx.dir });
+      const k1 = inputKey(fx.dir, reads);
+      expect(k1).not.toBe(k0);
+      execFileSync("git", ["rm", "-q", "--cached", f], { cwd: fx.dir });
+      expect(inputKey(fx.dir, reads)).toBe(k0);
+    } finally { fx.done(); }
+  });
+  it("the cost model's golden rows (Lean Fw.Obs.LandInputsCost): TS mirror predicts them, each within its band, and later modes are cheaper", () => {
+    type Row = { test: string; mode: "orig" | "globs" | "cached"; calls: number; pairs: number; hashed: number; measMs: number; predMs: number; band: number; inBand: boolean };
+    const rows = readFileSync(join(root, "packages/contracts/golden/obs/land-inputs-cost.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Row);
+    expect(rows.length).toBe(6);
+    const pred = (r: Row) => {
+      const fx = r.test === "fixture";
+      const spawns = r.mode === "cached" ? (r.calls === 0 ? 0 : 1) : r.calls;
+      const us = spawns * 8000 + Math.floor((r.pairs * (r.mode === "orig" ? 335 : 20)) / 1000) + r.hashed * (fx ? 20 : 45) + r.calls * (fx ? 240 : 0);
+      return Math.floor(us / 1000);
+    };
+    for (const r of rows) {
+      expect(pred(r), `${r.test} ${r.mode}`).toBe(r.predMs);
+      expect(r.inBand).toBe(100 * Math.abs(r.predMs - r.measMs) <= r.band * r.measMs);
+      expect(r.inBand).toBe(true);
+    }
+    for (const t of ["fixture", "real"]) {
+      const m = (mode: string) => rows.find((r) => r.test === t && r.mode === mode)!;
+      expect(m("cached").measMs).toBeLessThan(m("globs").measMs);
+      expect(m("globs").measMs).toBeLessThan(m("orig").measMs);
+    }
+  });
+  it("small glob and path alphabets, exhaustively", () => {
+    const toks = ["a", "b", "*", "**", "a*", "*b", "a*b", "!a", "!**", "", "."];
+    const globLists: string[][] = [];
+    for (const x of toks) { globLists.push([x], [`${x}/b`], [`a/${x}`], [`${x}/**`], [`${x}/*/b`]); for (const y of toks) globLists.push([x, y]); }
+    const paths = ["a", "b", "ab", "a/b", "a/a/b", "a/b/b", "b/a", "ab/b", "a/ab", "a/b/c/d", "a/../b", "", "./a", "aab"];
+    for (const gl of globLists) for (const p of paths) if (inScope(gl, p) !== oldInScope(gl, p)) throw new Error(`${JSON.stringify(gl)}: ${p}`);
+  });
+});

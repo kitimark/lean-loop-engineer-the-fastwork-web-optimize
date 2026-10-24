@@ -1,0 +1,6 @@
+{"band":35,"calls":1867,"hashed":51639,"inBand":true,"measMs":25320,"mode":"orig","pairs":4588650,"predMs":17954,"test":"fixture"}
+{"band":35,"calls":1867,"hashed":51639,"inBand":true,"measMs":16214,"mode":"globs","pairs":4588650,"predMs":16508,"test":"fixture"}
+{"band":35,"calls":1867,"hashed":51639,"inBand":true,"measMs":1573,"mode":"cached","pairs":4588650,"predMs":1580,"test":"fixture"}
+{"band":35,"calls":46,"hashed":21298,"inBand":true,"measMs":3907,"mode":"orig","pairs":6225088,"predMs":3411,"test":"real"}
+{"band":35,"calls":46,"hashed":21298,"inBand":true,"measMs":2047,"mode":"globs","pairs":6225088,"predMs":1450,"test":"real"}
+{"band":35,"calls":46,"hashed":21298,"inBand":true,"measMs":1087,"mode":"cached","pairs":6225088,"predMs":1090,"test":"real"}
