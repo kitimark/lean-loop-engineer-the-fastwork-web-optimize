@@ -1,20 +1,20 @@
 branch: worktree-wf_c0f9c38f-77f-1 (CI branch ci/morph-end-measure)
 worktree: .claude/worktrees/wf_c0f9c38f-77f-1
-last commit: see git log (CI got f7a520d09 as ci/morph-end-measure; a later local commit bounds the overflow width)
-CI runs (2 of 3 dispatches used):
-- 40105567688 toolbar-throttle (f7a520d09, tokens [ci:toolbar-throttle] [throttle:morph-end]; 4 cycles, 300 s touch limit) complete, conclusion failure: 12 of 18 attempts timed out at 300 s, jobs 3 and 4 stalled after the first retry (Simulator wedged, no passes), job 5 lost (runner, no artifact), job 2 cancelled at 80 min (no artifact), jobs 1 and 6 have partial json. Usable: rewrite 2 (jobs 1, 6), all-unthrottle 1 (job 6). Enough only for a rewrite base.
-- 40112979355 (fcb8edf2c, dispatch 2: two drag cycles, 480 s touch limit via the new --timeout, max-parallel 5) complete, failure: 0 usable passes. Jobs 1 and 5 ended early (retry stalled; a touch run still going after 916 s), jobs 2, 3, 4, 6 lost their runner (probe step ran 60 to 80 min, no artifact).
-- dispatch 3 (last): rewrite plus three of the five other compositions per job (4 arms), --reset (shut the Simulator down before a retry), stall limit 720 s, max-parallel back to 3; run id in the git log / below once pushed. Fetch artifacts toolbar-throttle-1..6 and the table; report with `node packages/measure-webkit/src/throttle/cli.mjs report --in ...`.
+last commit: see git log (CI got 450596c9a as ci/morph-end-measure; later commits only add the note, results and this handoff)
+CI runs (3 of 3 dispatches used, all complete):
+- 40105567688 (f7a520d09; 4 cycles, 300 s touch limit) failure overall: jobs 1 and 6 gave partial json (rewrite 2, all-unthrottle 1 usable); 12 of 18 attempts timed out; job 5 lost, job 2 cancelled at 80 min.
+- 40112979355 (fcb8edf2c; 2 cycles, 480 s) failure: 0 usable passes; 4 runners frozen 60 to 80 min.
+- 40126807029 (450596c9a; 4 arms per job, --reset before a retry, 720 s stall limit, max-parallel 3) failure overall: jobs 2, 4, 6 gave data (5 usable passes), jobs 1, 3, 5 lost or cancelled.
 
-Verified so far: @fw/measure-webkit tests 645 pass (incl. throttle-morph-end, throttle-finish-page); scripts/ci-paths.test.mjs 56 pass; a local debug run (not a result) of two arms in the Simulator showed the recorder reads (r, d, ca) and the table works; the four-flag page is prerendered with `--config` (site build log checked locally).
-Open: wait for 40105567688; tables into research/notes/2026/10-2x-morph-end-measure.md and results/morph-end-measure/; runner land-inputs test; fw plan lint; dry land; review ready.
+Verified: @fw/measure-webkit tests (incl. throttle-morph-end, throttle-finish-page); scripts/ci-paths.test.mjs; runner overflow-widths test. Results: research/notes/2026/10-2x-morph-end-measure.md, results/morph-end-measure/ (per run tables, pooled table, attempts.md).
+Answer: no brick measurably cut reversals or fights per open start (n 1 to 10 open starts per arm); engine.scroll:unthrottle alone removes the still runs; release has no data; flip's wobble fix not exercised; clamp not a differentiator (pin below max, INFERRED).
+Open: release unmeasured (a fourth dispatch would be a new decision of the lead); phone review step with composer links (lead posts); close/re-open counting is a TS stand-in (no Lean spec).
 
 Design
-- Lane: toolbar-throttle.yml finish mode, commit token [throttle:morph-end] = six jobs (matrix 1-6), one pass per arm, six arms (rewrite = faithful, clamp, flip, release, all = preset morph-end-all, all-unthrottle = three bricks + engine.scroll:unthrottle), arm order rotated by job number (--offset). The site job adds the four-flag page with `build.mjs --config` (throttle/morph-end-search.mjs).
-- Recorder (throttle/finish-page.mjs) now also reads per frame the morph value r, finger direction d, and the instant scrollTo writes (the pin) with the frame index.
-- Counts: throttle/morph-end.mjs. Fights, reversals, displaced frames per open stretch come from touchlock.mjs (twin of Lean Fw.Measure.TouchLock); still runs and the verdict from finish.mjs (twin of Lean Fw.Device.FinishRuns). Closes and re-opens by finger direction are a TS STAND-IN (no Lean spec).
-- cli.mjs: retry tag carries the attempt (`<arm>-r<round>-a<attempt>`), fixing the -resultBundlePath collision.
+- Lane: toolbar-throttle.yml finish mode, commit token [throttle:morph-end]: matrix 1-6, 4 arms per job (rewrite plus three of clamp, flip, release, all, all-unthrottle rotated by job), 1 round, 2 cycles, 480 s touch limit, --reset. The site job adds the four-flag page with `build.mjs --config` (throttle/morph-end-search.mjs).
+- Recorder (throttle/finish-page.mjs) reads per frame the morph value r, finger direction d, and the instant scrollTo writes (the pin).
+- Counts: throttle/morph-end.mjs. Fights, reversals, displaced frames from touchlock.mjs (twin of Lean Fw.Measure.TouchLock); still runs and verdict from finish.mjs (twin of Fw.Device.FinishRuns). Closes and re-opens by finger direction are a TS STAND-IN.
+- cli.mjs: retry tag carries the attempt; --timeout; --reset (shutdown of the Simulator before a retry).
 
-Files outside the task writes: .github/workflows/toolbar-throttle.yml, packages/measure-webkit/src/throttle/{cli,finish-page}.mjs, new morph-end.mjs, morph-end-report.mjs, morph-end-search.mjs, tests test/throttle-morph-end.test.mjs and test/throttle-finish-page.test.mjs.
-Also outside the task writes: lean/Fw/Ci/Overflow.lean (toolbar-throttle width 3 -> 5, doc line) and apps/runner/test/land-overflow-widths.test.ts (dynamicMax toolbar-throttle/sim 6); runner test 3437 pass and lean check green after it.
-Read first: research/notes/2026/10-2x-morph-end-measure.md (when written), then this file.
+Files outside the task writes: .github/workflows/toolbar-throttle.yml, packages/measure-webkit/src/throttle/{cli,finish-page}.mjs, new morph-end.mjs, morph-end-report.mjs, morph-end-search.mjs, tests test/throttle-morph-end.test.mjs and test/throttle-finish-page.test.mjs, apps/runner/test/land-overflow-widths.test.ts (dynamicMax toolbar-throttle/sim 6). lean/Fw/Ci/Overflow.lean is net zero against main.
+Read first: research/notes/2026/10-2x-morph-end-measure.md, then this file.
