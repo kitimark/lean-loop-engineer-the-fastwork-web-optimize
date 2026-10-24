@@ -329,4 +329,291 @@ theorem unthrottle_no_stills (e : Engine) (pg : Page) (hs : pg.timelineSupported
 /-- The step count at 120 Hz (8.33 ms frames): 12 frames per update, outside the 5-to-6 band. -/
 theorem throttleK_120hz : throttleK 833 = 12 := by decide
 
+/-! ## Per-part classification -/
+
+/-- How a part's shown value depends on its source over the part's moving range. -/
+inductive Shape where
+  /-- Strictly monotone in scrollY: `curve_throttled`, `curve_lifted`. -/
+  | curve
+  /-- Eased each frame toward a strictly monotone target: the target is a `curve`. -/
+  | chase
+  /-- Reads scrollY once and later scrolls back to it: `throttled_delay` bounds its age. -/
+  | capture
+  /-- A class or colour that flips at a scroll threshold: `throttled_delay` bounds the lateness. -/
+  | stepLook
+  /-- A threshold that starts or pauses a time-based animation: `throttled_delay`, then `time_same`. -/
+  | stepIdle
+  /-- Constant on the moving range: `constant_harmless`. -/
+  | constant
+  /-- Does not read scroll on moving frames. -/
+  | noRead
+  deriving DecidableEq, Repr
+
+/-- What the throttle does to a part. -/
+inductive Reach where
+  | hit | harmless | notHit
+  deriving DecidableEq, Repr
+
+def Reach.name : Reach → String
+  | .hit => "hit" | .harmless => "harmless" | .notHit => "not-hit"
+
+/-- A part's reach: a main-thread reader whose look moves with scroll is hit, one whose look per frame does not depend on the
+update is harmless, a part that reads no scroll on the main thread is not hit. -/
+def reach : Source → Shape → Reach
+  | .mainThread, .curve | .mainThread, .chase | .mainThread, .capture | .mainThread, .stepLook => .hit
+  | .mainThread, .stepIdle | .mainThread, .constant => .harmless
+  | .mainThread, .noRead => .notHit
+  | .threaded, _ => .notHit
+  | .time, _ => .notHit
+
+theorem reach_curve : reach .mainThread .curve = .hit := rfl
+theorem reach_chase : reach .mainThread .chase = .hit := rfl
+theorem reach_capture : reach .mainThread .capture = .hit := rfl
+theorem reach_stepLook : reach .mainThread .stepLook = .hit := rfl
+theorem reach_stepIdle : reach .mainThread .stepIdle = .harmless := rfl
+theorem reach_constant : reach .mainThread .constant = .harmless := rfl
+theorem reach_noRead : reach .mainThread .noRead = .notHit := rfl
+theorem reach_threaded (sh : Shape) : reach .threaded sh = .notHit := rfl
+theorem reach_time (sh : Shape) : reach .time sh = .notHit := rfl
+
+/-- Only main-thread readers are reached. -/
+theorem reach_ne_notHit {s : Source} {sh : Shape} (h : reach s sh ≠ .notHit) : s = .mainThread := by
+  cases s <;> cases sh <;> simp_all [reach]
+
+/-- What the user sees under the throttle. -/
+def symptom : Source → Shape → String
+  | .mainThread, .curve => "still runs of throttleK frames, one per update"
+  | .mainThread, .chase => "the target steps once per update and the eased value pulses after it"
+  | .mainThread, .capture => "the captured scrollY is up to throttleK frames old and the restore snaps back to it"
+  | .mainThread, .stepLook => "the look flips up to throttleK frames late"
+  | .mainThread, .stepIdle => "a time-based animation starts or pauses up to throttleK frames late"
+  | _, _ => "none"
+
+/-- The theorems a classification rests on. -/
+def basis : Source → Shape → List String
+  | .mainThread, .curve => ["hit_throttled", "curve_lifted", "unthrottle_no_stills"]
+  | .mainThread, .chase => ["hit_throttled", "curve_lifted"]
+  | .mainThread, .capture | .mainThread, .stepLook => ["throttled_delay"]
+  | .mainThread, .stepIdle => ["throttled_delay", "time_same"]
+  | .mainThread, .constant => ["constant_harmless"]
+  | .mainThread, .noRead => []
+  | .threaded, _ => ["threaded_same", "threaded_no_stills"]
+  | .time, _ => ["time_same", "time_no_stills"]
+
+/-- A further fix beyond engine.scroll:unthrottle: a pure function of scroll ports to a threaded scroll timeline with the same
+look; a scroll-back restore can be replaced by a root lock, which changes the look. -/
+def followUp : Source → Shape → Option String
+  | .mainThread, .curve => some "threaded-timeline"
+  | .mainThread, .capture => some "root-lock"
+  | _, _ => none
+
+/-- A part of the page, with the code that decides its source and shape. -/
+structure Part where
+  id : String
+  zone : String
+  source : Source
+  shape : Shape
+  premise : List String
+  deriving Repr
+
+private def pp (s : String) : String := "apps/site/src/parts/" ++ s
+
+/-- Every part of the throttle-parts note, one entry per part. -/
+def parts : List Part :=
+  [⟨"hero.exit", "hero", .mainThread, .curve,
+     [pp "hero.exit/driver.ts:32", pp "hero.exit/logic.ts:21-24", "apps/site/src/engine/scroll.ts:94-101"]⟩,
+   ⟨"hero.exit:threaded", "hero", .threaded, .curve,
+     [pp "hero.exit/threaded.module.css:28", pp "hero.exit/threaded.ts:144"]⟩,
+   ⟨"hero.accent", "hero", .mainThread, .stepIdle, [pp "hero.accent/index.tsx:84"]⟩,
+   ⟨"hero.countdown", "hero", .mainThread, .stepIdle, [pp "hero.countdown/index.tsx:86"]⟩,
+   ⟨"hero.cue", "hero", .mainThread, .noRead, [pp "hero.cue/index.tsx:10"]⟩,
+   ⟨"nav", "all", .mainThread, .stepLook, [pp "nav/index.tsx:41-42", pp "nav/index.tsx:104", pp "nav/driver.ts:76-78"]⟩,
+   ⟨"nav.hitTest", "all", .mainThread, .stepLook, [pp "nav.hitTest/index.tsx:33", pp "nav.hitTest/probe.ts:66"]⟩,
+   ⟨"people.card", "rest", .mainThread, .chase,
+     [pp "people.card/index.tsx:54-58", pp "people.card/index.tsx:74", pp "people.card/logic.ts:48-51",
+      pp "people.card/logic.ts:105-109"]⟩,
+   ⟨"people.deck", "rest", .mainThread, .noRead, [pp "people.deck/driver.ts:82", pp "people.deck/driver.ts:116"]⟩,
+   ⟨"people.o", "rest", .mainThread, .stepIdle, [pp "people.o/index.tsx:45-47"]⟩,
+   ⟨"people.shared", "rest", .mainThread, .stepIdle, [pp "people/shared.ts:31-33"]⟩,
+   ⟨"pain.dark", "rest", .threaded, .curve, [pp "pain/darkScroll.ts:6", pp "pain/darkScroll.ts:47-58"]⟩,
+   ⟨"pain.notes", "rest", .mainThread, .stepLook,
+     [pp "pain.notes/index.tsx:141-143", pp "pain.notes/driver.ts:134-137", pp "pain.notes/driver.ts:214-218"]⟩,
+   ⟨"commission", "rest", .mainThread, .chase, [pp "commission/driver.ts:111-125", pp "commission/logic.ts:46-63"]⟩,
+   ⟨"engine.scene", "rest", .mainThread, .stepIdle, [pp "engine.scene/observe.ts:18-30"]⟩,
+   ⟨"platform.entries", "finish", .mainThread, .stepIdle, [pp "platform.entries/driver.ts:10"]⟩,
+   ⟨"platform.visuals", "finish", .mainThread, .stepIdle, [pp "platform/Visuals.tsx:325-333"]⟩,
+   ⟨"platform.shrink", "finish", .mainThread, .curve,
+     [pp "platform/index.tsx:98", pp "platform/index.tsx:109", pp "platform/driver.ts:24-36", pp "platform/logic.ts:17-21"]⟩,
+   ⟨"morph.mount", "finish", .mainThread, .capture,
+     [pp "morph.mount/index.tsx:46-60", pp "morph.mount/index.tsx:107-110"]⟩,
+   ⟨"morph.tween", "finish", .mainThread, .capture,
+     [pp "morph.tween/driver.ts:113-136", pp "morph.tween/driver.ts:205-207"]⟩,
+   ⟨"morph.panel", "finish", .time, .curve, [pp "morph.panel/driver.ts:19", pp "morph.tween/driver.ts:109"]⟩,
+   ⟨"morph.countdown", "finish", .mainThread, .stepIdle, [pp "morph.countdown/index.tsx:40", pp "morph.countdown/index.tsx:67"]⟩,
+   ⟨"morph.columns", "finish", .mainThread, .stepIdle, [pp "morph.columns/index.tsx:23-25"]⟩]
+
+def Part.reach (p : Part) : Reach := ThrottleParts.reach p.source p.shape
+
+theorem parts_premised : parts.all (fun p => !p.premise.isEmpty) = true := by decide
+
+theorem parts_ids_nodup : (parts.map (·.id)).eraseDups.length = parts.length := by decide
+
+/-- The parts the title of task unthrottle-parts-lean names as hit. -/
+def namedHit : List String :=
+  ["hero.exit", "people.card", "pain.notes", "nav", "nav.hitTest", "platform.shrink", "commission", "morph.mount", "morph.tween"]
+
+/-- The parts the title names as not hit. -/
+def namedNotHit : List String := ["hero.exit:threaded", "morph.panel", "pain.dark"]
+
+/-- The parts classified hit are exactly the named ones. -/
+theorem hit_parts :
+    let hits := (parts.filter (·.reach == .hit)).map (·.id)
+    hits.all namedHit.contains = true ∧ namedHit.all hits.contains = true ∧ hits.length = namedHit.length := by decide
+
+theorem namedNotHit_reach : namedNotHit.all (fun i => parts.any fun p => p.id == i && p.reach == .notHit) = true := by decide
+
+/-! ## Predicted phone outcomes -/
+
+/-- A series key of the phone recorder (`packages/measure-webkit/src/device-record.mjs:16` PART_PROPS): the inline property it
+samples and the output that writes it. -/
+structure Key where
+  key : String
+  prop : String
+  writer : String
+  source : Source
+  shape : Shape
+  premise : String
+  deriving Repr
+
+def keys : List Key :=
+  [⟨"hero", "--exit-opacity", "hero.exit", .mainThread, .curve, pp "hero.exit/driver.ts:36"⟩,
+   ⟨"people", "--future-shrink", "people.card", .mainThread, .chase, pp "people.card/logic.ts:105-109"⟩,
+   ⟨"fade", "--morph-fade", "morph.tween", .time, .curve, pp "morph.tween/driver.ts:109"⟩]
+
+/-- What a key's own value series shows while mid-transition on a moving pass. -/
+inductive Pred where
+  /-- One still run of `k` frames per update. -/
+  | stills (k : Nat)
+  /-- No still run of a fixed length; the per-frame step is largest after each update. -/
+  | pulses
+  /-- No still run. -/
+  | noStills
+  deriving DecidableEq, Repr
+
+def Pred.json : Pred → Json
+  | .stills k => Json.mkObj [("pattern", "stills"), ("runFrames", k)]
+  | .pulses => Json.mkObj [("pattern", "pulses")]
+  | .noStills => Json.mkObj [("pattern", "no-stills")]
+
+/-- The prediction at 60 Hz. -/
+def predicted : Mode → Source → Shape → Pred
+  | .throttled, .mainThread, .curve => .stills (throttleK 1667)
+  | .throttled, .mainThread, .chase => .pulses
+  | _, _, _ => .noStills
+
+theorem predicted_lifted (s : Source) (sh : Shape) : predicted .lifted s sh = .noStills := rfl
+
+theorem predicted_curve : predicted .throttled .mainThread .curve = .stills 5 := by decide
+
+theorem predicted_time (m : Mode) (sh : Shape) : predicted m .time sh = .noStills := by cases m <;> rfl
+
+/-! ## Worked passes -/
+
+/-- A sample pass: 10 px per frame down the page. -/
+def samplePass (t : Nat) : Int := 10 * t
+
+/-- The sample frames: ten updates at 60 Hz. -/
+def sampleFrames : Nat := period 1667 * 10
+
+/-- An eased chase toward `target t` 45 below the target, the lag it keeps behind a target that moves 10 per frame (per mille): 22 per 100 of the gap per frame, snapping within 1. -/
+def chase (target : Nat → Int) : Nat → Int
+  | 0 => target 0 - 45
+  | t + 1 =>
+    let v := chase target t
+    let w := v + (target t - v) * 22 / 100
+    if dist w (target t) < 1 then target t else w
+
+/-- The example output per shape: (name, source, shown values of the pass in a mode). -/
+def exampleSeries (m : Mode) : List (String × Source × List Int) :=
+  let p := period 1667
+  let n := sampleFrames
+  let curve : Int → Int := fun y => 100 + y
+  let step : Int → Int := fun y => if y < 305 then 0 else 1000
+  [("curve", .mainThread, series .mainThread m p samplePass curve n),
+   ("step", .mainThread, series .mainThread m p samplePass step n),
+   ("constant", .mainThread, series .mainThread m p samplePass (fun _ => 1000) n),
+   ("chase", .mainThread, (List.range n).map (chase fun t => curve (seen m p samplePass t))),
+   ("threaded", .threaded, series .threaded m p samplePass curve n),
+   ("time", .time, series .time m p samplePass (fun t => 10 + 15 * t) n)]
+
+/-- The largest move between neighbouring frames. -/
+def maxStep (vs : List Int) : Int := ((vs.zip vs.tail).map fun (a, b) => dist a b).foldl max 0
+
+/-- Frames where the throttled and the lifted series differ. -/
+def diffFrames (a b : List Int) : Nat := ((a.zip b).filter fun (x, y) => x != y).length
+
+#guard reach .mainThread .curve == .hit
+#guard reach .mainThread .stepIdle == .harmless
+#guard reach .threaded .curve == .notHit
+#guard reach .mainThread .noRead == .notHit
+#guard followUp .mainThread .curve == some "threaded-timeline"
+#guard followUp .time .curve == none
+#guard throttleK 1667 == 5 && period 1667 == 6 && sampleFrames == 60
+#guard bandRuns (rowsOf (series .mainThread .throttled 6 samplePass (fun y => 100 + y) 60)) == 9
+#guard runs (rowsOf (series .mainThread .lifted 6 samplePass (fun y => 100 + y) 60)) == []
+#guard diffFrames (series .mainThread .throttled 6 samplePass (fun y => if y < 305 then 0 else 1000) 60)
+  (series .mainThread .lifted 6 samplePass (fun y => if y < 305 then 0 else 1000) 60) == 5
+
+/-! ## Golden -/
+
+def Source.name : Source → String
+  | .mainThread => "main-thread" | .threaded => "threaded" | .time => "time"
+
+def Shape.name : Shape → String
+  | .curve => "curve" | .chase => "chase" | .capture => "capture" | .stepLook => "step-look" | .stepIdle => "step-idle"
+  | .constant => "constant" | .noRead => "no-read"
+
+def Mode.name : Mode → String
+  | .throttled => "throttled" | .lifted => "lifted"
+
+private def strsJ (l : List String) : Json := Json.arr (l.map Json.str).toArray
+
+def goldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "consts"), ("throttleMs", (100 : Int)), ("d60", (1667 : Nat)), ("throttleK60", throttleK 1667),
+    ("period60", period 1667), ("d120", (833 : Nat)), ("throttleK120", throttleK 833), ("bandLo", bandLo),
+    ("bandHi", bandHi)]).compress] ++
+  (parts.map fun p =>
+    (Json.mkObj [("kind", "part"), ("id", p.id), ("zone", p.zone), ("source", p.source.name), ("shape", p.shape.name),
+      ("reach", p.reach.name), ("symptom", symptom p.source p.shape), ("basis", strsJ (basis p.source p.shape)),
+      ("followUp", match followUp p.source p.shape with | some s => Json.str s | none => Json.null),
+      ("premise", strsJ p.premise)]).compress) ++
+  (keys.map fun k =>
+    (Json.mkObj [("kind", "key"), ("key", k.key), ("prop", k.prop), ("writer", k.writer), ("source", k.source.name),
+      ("shape", k.shape.name), ("reach", (reach k.source k.shape).name), ("premise", k.premise),
+      ("rule", "still runs of the key's own per-mille series, rows (v, v), value strictly between 0 and 1000"),
+      ("predicted", Json.mkObj [("throttled", (predicted .throttled k.source k.shape).json),
+        ("lifted", (predicted .lifted k.source k.shape).json)])]).compress) ++
+  ((exampleSeries .throttled).zip (exampleSeries .lifted) |>.map fun ((name, src, a), (_, _, b)) =>
+    let one (vs : List Int) : Json :=
+      Json.mkObj [("values", toJson vs), ("runs", toJson ((runs (rowsOf vs)).map (·.k))), ("band", bandRuns (rowsOf vs)),
+        ("maxStep", maxStep vs)]
+    (Json.mkObj [("kind", "example"), ("shape", name), ("source", src.name), ("frames", sampleFrames),
+      ("pxPerFrame", (10 : Int)), ("throttled", one a), ("lifted", one b), ("diffFrames", diffFrames a b)]).compress)
+
+def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
+
+/-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
+def run (args : List String) : IO UInt32 := do
+  match args with
+  | "--check" :: path :: _ =>
+    let cur ← IO.FS.readBinFile path
+    if cur.data == (goldenText ()).toUTF8.data then
+      IO.eprintln s!"device-throttle-parts golden: {path} is up to date ({(goldenLines ()).length} lines)"
+      return 0
+    IO.eprintln s!"device-throttle-parts golden: {path} differs from the generated bytes"
+    return 1
+  | _ =>
+    IO.print (goldenText ())
+    return 0
+
 end Fw.Device.ThrottleParts
