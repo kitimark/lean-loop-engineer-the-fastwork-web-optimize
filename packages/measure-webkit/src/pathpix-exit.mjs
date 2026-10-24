@@ -71,6 +71,21 @@ export const verdictOf = (g, out, inside) => (g !== 'invalid' && joinSeen(zoneSe
 export const zonesOf = (c, a2, a3) => [{ p: c.out, aa2: a2.out, aa3: a3 ? a3.out : null }, { p: c.inside, aa2: a2.inside, aa3: a3 ? a3.inside : null }];
 export const consensusOf = (c, f, live, a2, a3) => { const [o, i] = zonesOf(c, a2, a3); return verdictOf(gradeRel(c, f, live), o, i); };
 
+const NONE = { changed: 0, maxDelta: 0 };
+export const zoneOdd = (m) => m.z.aa2.changed !== 0 && m.z.aa3 !== null && m.z.aa3.changed !== 0 && m.a23 !== null && m.a23.changed === 0;
+export const zoneViaRef = (m) => zoneOdd(m) && m.z.p.changed !== 0;
+export const mzoneSeen = (m) => (zoneViaRef(m) ? (m.p2 === null ? 'varied' : m.p2.changed === 0 ? 'quiet' : 'counted') : zoneSeen(m.z));
+export const mzoneEff = (m) => (mzoneSeen(m) === 'varied' ? NONE : zoneViaRef(m) ? m.p2 ?? m.z.p : m.z.p);
+export const zonedOf = (g, gEff, mo, mi) => (g === 'invalid' ? 'invalid' : joinSeen(mzoneSeen(mo), mzoneSeen(mi)) === 'varied' ? 'varied' : gEff);
+export const zonedCell = (c, mo, mi) => ({ ...c, out: mzoneEff(mo), inside: mzoneEff(mi) });
+export const listedVerdict = (v) => v === 'L';
+
+export const DRAW_MS = 900;
+export const DRAW_STEP_MS = 150;
+export const drawTimes = () => Array.from({ length: DRAW_MS / DRAW_STEP_MS + 1 }, (_, k) => k * DRAW_STEP_MS);
+export const drawOf = (aa, arm) => (arm.changed === 0 ? 'same' : rawLe(arm, aa) ? 'floor' : 'above');
+export const drawWorst = (xs) => (xs.includes('above') ? 'above' : xs.includes('floor') ? 'floor' : 'same');
+
 export const region = (ms, m, x, y) => (inMask(m, x, y) ? 'inside' : ms.some((k) => inMask(k, x, y)) ? 'other' : 'out');
 
 const bucket = (d) => (d === 1 ? 'b1' : d <= 3 ? 'b2_3' : d <= 15 ? 'b4_15' : 'b16_255');
@@ -182,6 +197,8 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
       const sp = splitUnion(del, frame.w, frame.h, masks, foreign);
       const aaSplit = (r) => (r && kind === 'P' ? splitUnion(deltas(a0, load(r.files[0])), frame.w, frame.h, masks, foreign) : null);
       const sp2 = aaSplit(S.A2[i]), sp3 = aaSplit(S.A3?.[i]);
+      const pairSplit = (r, s) => (r && s && kind === 'P' ? splitUnion(deltas(load(r.files[0]), load(s.files[0])), frame.w, frame.h, masks, foreign) : null);
+      const spP2 = pairSplit(S.A2[i], row), sp23 = pairSplit(S.A2[i], S.A3?.[i]);
       keys.forEach((key, n) => {
         const box = rowA.boxes[key], layer = baseLayer(key), claim0 = exitClaim(layer, le600);
         const why0 = skipWhy(key);
@@ -212,7 +229,16 @@ export function analyzeExit(dir, { strips = 'changed', emit = () => {} } = {}) {
         const a2 = aaOf(sp2), a3 = aaOf(sp3);
         if (a2) {
           const [zo, zi] = zonesOf(cell, a2, a3);
-          rec.consensus = { a2, a3, out: zoneSeen(zo), inside: zoneSeen(zi), seen: joinSeen(zoneSeen(zo), zoneSeen(zi)), verdict: verdictOf(rec.grade, zo, zi) };
+          const mo = { z: zo, p2: spP2 ? spP2.out : null, a23: sp23 ? sp23.out : null };
+          const mi = { z: zi, p2: spP2 ? spP2.inside[n].raw : null, a23: sp23 ? sp23.inside[n].raw : null };
+          const eff = zonedCell(cell, mo, mi);
+          const verdict = zonedOf(rec.grade, gradePinned(served, maxY, accentRows, floorRows, eff, floor, live), mo, mi);
+          rec.consensus = {
+            a2, a3, p2: spP2 ? aaOf(spP2) : null, a23: sp23 ? aaOf(sp23) : null,
+            out: mzoneSeen(mo), inside: mzoneSeen(mi), seen: joinSeen(mzoneSeen(mo), mzoneSeen(mi)), verdict,
+            odd: [zoneOdd(mo), zoneOdd(mi)], eff: { out: mzoneEff(mo), inside: mzoneEff(mi) }, why: verdict === 'L' ? whyL(eff, floor, live) : null,
+            vsA: { out: zoneSeen(zo), inside: zoneSeen(zi), seen: joinSeen(zoneSeen(zo), zoneSeen(zi)), verdict: verdictOf(rec.grade, zo, zi) },
+          };
         }
         const changed = cell.inside.changed + cell.out.changed > 0;
         const sk = `${kind}:${key}`;

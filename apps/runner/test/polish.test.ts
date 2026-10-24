@@ -73,9 +73,15 @@ const IN_WT: [string, string, string, string, string][] = [
   ["a name with a slash", "/m", "wf_a/x", "/m/.claude/worktrees/wf_a/x/y.ts", "badName"],
   ["an empty name", "/m", "", "/m/.claude/worktrees//x.ts", "badName"],
 ];
+const IN_WT_FACT: [string, string, boolean, string][] = [
+  ["resolved, below the worktree", "/m/.claude/worktrees/wf_a/apps/new.ts", true, "own"],
+  ["resolved, below the main checkout", "/m/apps/new.ts", true, "outside"],
+  ["no ancestor resolves", "/m/.claude/worktrees/wf_a/apps/new.ts", false, "unresolved"],
+];
 const cases: [string, Record<string, unknown>][] = [
   ...WT_DIRS.map(([n, dir]) => [`wtName: ${n}`, { op: "plan.wtName", dir }] as [string, Record<string, unknown>]),
   ...IN_WT.map(([n, main, name, path]) => [`inWt: ${n}`, { op: "plan.inWt", main, name, path }] as [string, Record<string, unknown>]),
+  ...IN_WT_FACT.map(([n, path, resolved]) => [`inWtFact: ${n}`, { op: "plan.inWt", main: "/m", name: "wf_a", path, resolved }] as [string, Record<string, unknown>]),
   ["plan: one path of each class, two stages", plan(["apps/x/a.ts", "scripts/x.sh", md, "snapshot/a.css"])],
   ["plan: skip by root, segment, lock name, .gen. name and generator output",
     plan(["packages/contracts/golden/plan/x.jsonl", "apps/x/test/fixtures/a.ts", "pnpm-lock.yaml", "apps/x/src/a.gen.ts", LAKE_GEN, ".github/workflows/w.yml"], { gen: [LAKE_GEN, ".github/workflows/w.yml"] })],
@@ -169,7 +175,10 @@ describe("plan.wtName goldens: fwcore decides the worktree name, TS holds no cop
 
 describe("plan.inWt goldens: fwcore decides root-pinned stray edits (Fw.Plan.Polish.ownEdit)", () => {
   it("one row per case, with the verdict the case names; own exactly when the verdict is own", () => {
-    const rows = stored().filter((l) => l.request.op === "plan.inWt");
+    const all = stored().filter((l) => l.request.op === "plan.inWt");
+    const facts = all.filter((l) => "resolved" in l.request);
+    expect(facts.map((l) => l.response.verdict)).toEqual(IN_WT_FACT.map(([, , , v]) => v));
+    const rows = all.filter((l) => !("resolved" in l.request));
     expect(rows.length).toBe(IN_WT.length);
     expect(rows.map((l) => l.response.verdict)).toEqual(IN_WT.map(([, , , , v]) => v));
     for (const l of rows) expect(l.response.own).toBe(l.response.verdict === "own");
@@ -397,9 +406,10 @@ describe("fw polish CLI", () => {
 
   describe("fw polish strays", () => {
     const wtDir = "/m/.claude/worktrees/wf_a";
-    const strays = async (paths: unknown, o: { links?: Record<string, string>; worktree?: string | null; core?: typeof call; common?: string } = {}) => {
+    const strays = async (paths: unknown, o: { links?: Record<string, string>; worktree?: string | null; core?: typeof call; common?: string; existing?: string[] } = {}) => {
       const lines: string[] = [];
-      const real = (p: string) => (o.links ?? {})[p] ?? (p.includes("missing") ? null : p.replace(/\/\.git\/\.\.$/, ""));
+      const real = (p: string) => (o.links ?? {})[p] ?? (o.existing ? ((q) => (o.existing!.some((e) => q === e || e.startsWith(`${q}/`)) ? q : null))(p.replace(/\/\.git\/\.\.$/, ""))
+        : p.includes("missing") ? null : p.replace(/\/\.git\/\.\.$/, ""));
       const code = await polishCli(["strays", "--branch", "b", "--task", "t", "--paths", "-"], "/m", {
         core: o.core ?? call, log: (l) => lines.push(l), stdin: () => JSON.stringify(paths), realpath: real,
         git: (_c, a) => (a.includes("--git-common-dir") ? `${o.common ?? "/m/.git"}\n` : "/m\n"),
@@ -426,6 +436,26 @@ describe("fw polish CLI", () => {
       const link = `${wtDir}/link/x.ts`;
       const r = await strays([link], { links: { [link]: "/m/apps/x.ts" } });
       expect(r.lines).toContain("  outside /m/apps/x.ts");
+      expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
+    });
+
+    it("a missing file under a symlinked parent is judged where the parent lands, not at the raw path", async () => {
+      const link = `${wtDir}/link`;
+      const r = await strays([`${link}/new.ts`, `${wtDir}/fresh/new.ts`], { links: { [link]: "/m/apps" }, existing: [wtDir] });
+      expect(r.lines.filter((l) => l.startsWith("stray "))).toEqual([`stray ${link}/new.ts`]);
+      expect(r.lines).toContain("  outside /m/apps/new.ts");
+    });
+
+    it("a dotted path through a symlink reaches Lean raw and is a stray (notPlain)", async () => {
+      const p = `${wtDir}/link/../y.ts`;
+      const r = await strays([p], { links: { [`${wtDir}/link`]: "/m/apps" }, existing: [wtDir] });
+      expect(r.lines).toContain(`stray ${p}`);
+      expect(r.lines.some((l) => l.startsWith("  notPlain"))).toBe(true);
+    });
+
+    it("a path with no resolvable ancestor is a stray, verdict unresolved", async () => {
+      const r = await strays(["/nowhere/missing/x.ts"], { existing: ["/m"] });
+      expect(r.lines).toContain("  unresolved /nowhere/missing/x.ts");
       expect(r.lines.at(-1)).toBe("VERDICT polish-strays t strays");
     });
 
