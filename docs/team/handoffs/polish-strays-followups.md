@@ -1,6 +1,6 @@
 branch: worktree-wf_f9a6d967-63c-1
 worktree: .claude/worktrees/wf_f9a6d967-63c-1
-last commit: 33edec3d6 (round 2: dotted paths raw to Lean, realpathSync.native; handoff-only commit may follow)
+last commit: 33edec3d6 (round 2: dotted paths raw to Lean, realpathSync.native)
 CI runs: none (accepted limit: no CI run)
 
 # Polish strays follow-ups

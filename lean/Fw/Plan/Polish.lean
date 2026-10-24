@@ -244,8 +244,6 @@ def ownEdit (main name raw : String) : Own :=
   else if !absPlain (anchor main raw) then .notPlain
   else if inWtB (segs main) name (segs (anchor main raw)) then .own else .outside
 
-/-- The verdict when the caller could or could not resolve the path: `resolved` is false when no ancestor of the
-path has a real path (the caller found nothing to follow), and then the path is never own (fail closed). -/
 def ownFact (main name raw : String) (resolved : Bool) : Own :=
   if resolved then ownEdit main name raw else .unresolved
 
