@@ -76,6 +76,8 @@ import Fw.Parts.Gpu
 import Fw.Parts.MorphPanelThreaded
 import Fw.Parts.MorphPanelThreadedRun
 import Fw.Parts.MorphPanelThreadedGolden
+import Fw.Parts.MorphEnd
+import Fw.Parts.MorphEndGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork
@@ -270,6 +272,7 @@ import Fw.Parts.NavOofRoot
 import Fw.Ci.Pool
 import Fw.Sup.Props
 import Fw.Sup.Adapt
+import Fw.Sup.SimRelease
 import Fw.Sup.AdaptGolden
 import Fw.Sup.MeasureWindow
 import Fw.Wire.Sup

@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Sup.Adapt
 import Fw.Sup.Nested
+import Fw.Sup.SimRelease
 import Fw.Sup.MeasureWindow
 
 /-! Golden vectors of `Fw.Sup.Adapt` (`packages/contracts/golden/sup/adapt.jsonl`), replayed by apps/runner/test/slot.test.ts. -/
@@ -190,7 +191,15 @@ def verdictCases : List (String × Nat × Sample × List Entry × List Entry × 
       [me, tk "s" "5" .sim 995], me, 0),
     ("sim pending, plain memory short, a job runs: memory first", 4, (okSample.withFree 1700), [oldTest],
       [me, tk "s" "5" .sim 995], me, 0),
-    ("pressure level warning: memLow", 2, okSample.withMem { okSample.mem with press := 2 }, [], [me], me, 0),
+    ("pressure level warning, no holder: the head runs", 2, okSample.withMem { okSample.mem with press := 2 }, [], [me], me,
+      0),
+    ("pressure level warning, a job runs: memLow", 2, okSample.withMem { okSample.mem with press := 2 }, [oldTest], [me], me,
+      0),
+    ("pressure level critical, no holder: memLow", 2, okSample.withMem { okSample.mem with press := 4 }, [], [me], me, 0),
+    ("the incident of 2026-10-24: 103 MB available, pressure 2, not compressing, not swapping: the head runs", 2,
+      okSample.withMem { freeMB := 103, press := 2 }, [], [me], me, 0),
+    ("the incident of 2026-10-24: 151 MB available, pressure 2, compressing 2164 MB a minute: memLow", 2,
+      okSample.withMem { freeMB := 151, press := 2, comprMBPerMin := 2164 }, [], [me], me, 0),
     ("swap 75 percent full, nothing swapped out: admit", 2, okSample.withMem { okSample.mem with swapUsedMB := 6144 }, [],
       [me], me, 0),
     ("swapping out 64 MB a minute: memLow", 2, okSample.withMem { okSample.mem with swapOutMBPerMin := 64 }, [], [me], me,
@@ -204,7 +213,7 @@ def verdictCases : List (String × Nat × Sample × List Entry × List Entry × 
     ("the stall, expired holder does not count: the head runs", 2, stallSample, [{ oldTest with till := 1000 }], [me], me, 0),
     ("the stall, swapping out 64 MB a minute: memLow", 2, stallSample.withMem { stallMem with swapOutMBPerMin := 64 }, [],
       [me], me, 0),
-    ("the stall, pressure level warning: memLow", 2, stallSample.withMem { stallMem with press := 2 }, [], [me], me, 0),
+    ("the stall, pressure level warning, no holder: the head runs", 2, stallSample.withMem { stallMem with press := 2 }, [], [me], me, 0),
     ("the stall, compressing 1500 MB a minute: memLow", 2, stallSample.withMem { stallMem with comprMBPerMin := 1500 }, [],
       [me], me, 0),
     ("the stall, a sim ticket behind the check: simFirst", 4, stallSample, [], [me, sim], me, 0),
@@ -547,12 +556,37 @@ def nestedLines : List String :=
       [en "x" "T1" .land 300, en "w" "T2" .check 250, en "y" "T3" .test 300],
     nl "expired twin and live entry of one token: skip" 200 .land (nm "w" "T1") [en "w" "T1" .land 150, en "w" "T1" .land 300]]
 
+def simReleaseLines : List String :=
+  let strs (l : List String) : Json := .arr (l.map Json.str).toArray
+  let rec' : Option (List String) → Json
+    | none => .null
+    | some l => strs l
+  let en (t : String) (k : Kind) (till : Nat) : Entry := { owner := "w", token := t, kind := k, since := 100, till := till }
+  let st (name : String) (before booted : List String) (h : Bool) : String :=
+    line name "adapt.simSettle" [("before", strs before), ("booted", strs booted), ("handover", .bool h)]
+      (Json.mkObj [("shut", strs (simSettle before booted h).1), ("record", rec' (simSettle before booted h).2)])
+  let ho (name : String) (now : Nat) (q : List Entry) : String :=
+    line name "adapt.simHandover" [("now", toJson now), ("queue", entriesJson q)] (Json.mkObj [("handover", .bool (simHandover now q))])
+  let rc (name : String) (inh : Option (List String)) (booted : List String) : String :=
+    line name "adapt.simRecord" [("inherited", rec' inh), ("booted", strs booted)] (Json.mkObj [("record", strs (simRecord inh booted))])
+  [st "release, no handover: the device the lease booted is shut down" ["A"] ["A", "B"] false,
+    st "release: a device booted before the lease is never shut down" ["A", "B"] ["A", "B"] false,
+    st "release, nothing booted: nothing to shut down" ["A"] [] false,
+    st "release, lease booted two devices: both shut down" [] ["B", "C"] false,
+    st "handover: nothing is shut down, the record stays for the next holder" ["A"] ["A", "B"] true,
+    ho "no queued ticket: no handover" 200 [],
+    ho "queued sim ticket, live: handover" 200 [en "T2" .sim 300],
+    ho "queued sim ticket, expired: no handover" 300 [en "T2" .sim 300],
+    ho "queued test ticket only: no handover" 200 [en "T2" .test 300],
+    rc "first holder: records what is booted now" none ["A"],
+    rc "after a handover: the inherited record stays" (some ["A"]) ["A", "B"]]
+
 set_option compiler.extract_closed false in
 def goldenLines (_ : Unit := ()) : List String :=
   [line "default parameters" "adapt.params" [] (paramsJson {}),
     line "reason names (WhyTag.all): the closed parse list of the timing spans" "adapt.whyTags" []
       (Json.mkObj [("names", .arr (WhyTag.all.map (fun t => Json.str t.name)).toArray)])] ++ stepLines ++ verdictLines ++ threadsLines ++ memLines ++
-    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines () ++ nestedLines
+    leaseLines ++ simLines ++ buildLines ++ holdLines ++ stopLines ++ cacheLines ++ windowLines () ++ nestedLines ++ simReleaseLines
 
 def genPath : System.FilePath := "../packages/contracts/golden/sup/adapt.jsonl"
 
