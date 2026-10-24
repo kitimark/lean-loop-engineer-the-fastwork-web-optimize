@@ -60,6 +60,7 @@ Each case runs under all 8 picks; every line lists the events and, per event, `p
 - C stops `preventDefault` mid-drag. WebKit may keep a touch sequence non-scrollable once its first move was prevented
   (INFERRED); the measure task checks it.
 - `flipN` = 16 is a named constant; the measure task tunes it from the recorded passes.
+- B reads the title's |accumulated delta| as net travel against the current goal since the last push or touch, floored at 0 (`ctrAfter`); a plain |sum| would allow a flip after N px toward the goal and 1 px back.
 - Only the `createTweenDriver` path is covered; the `waapi`, `waapi-scoped`, `scroll-lock` and `band` variants of
   `morph.tween` use their own drivers (follow-up).
 - `Fw.lean` imports and the `check.sh` golden job are wired by the lead (shared files).
