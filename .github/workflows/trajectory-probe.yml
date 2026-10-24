@@ -686,6 +686,8 @@ jobs:
           status=out/transitions/safari-status.txt
           if [ "$WIDTHS" -lt 640 ]; then echo "skipped: a Safari window on macOS is wider than $WIDTHS px" | tee "$status"; exit 0; fi
           if ! sudo safaridriver --enable 2> out/transitions/safari-enable.txt; then echo "failed: safaridriver --enable refused: $(head -c 300 out/transitions/safari-enable.txt)" | tee "$status"; exit 1; fi
+          # What the runner says about reduced motion (the site switches its motion off under it): read, ask for "off", read again.
+          { defaults read com.apple.universalaccess reduceMotion; defaults write com.apple.universalaccess reduceMotion -bool false; defaults read com.apple.universalaccess reduceMotion; } > out/transitions/safari-defaults.txt 2>&1 || true
           set -m
           safaridriver -p 4444 > out/transitions/safaridriver.log 2>&1 &
           pid=$!

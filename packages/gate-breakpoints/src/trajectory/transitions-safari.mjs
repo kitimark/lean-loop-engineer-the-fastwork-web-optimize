@@ -46,7 +46,9 @@ async function walkPage(c, arm, mode, width) {
     await sleep(250);
   }
   await sleep(3000);
-  await c.sync(`${REC} return true;`);
+  const diag = async () => c.sync(DIAG, [sel.nav, sel.earn]);
+  const diagStart = await diag();
+  await c.sync(`${REC} window.__sc = 0; window.addEventListener('scroll', () => { window.__sc += 1; }, { passive: true }); return true;`);
   await c.sync('window.scrollTo({ top: 0, left: 0, behavior: "instant" }); return true;');
   await sleep(900);
   const sequences = {};
@@ -69,8 +71,17 @@ async function walkPage(c, arm, mode, width) {
     await sleep(RAMP.holdMs);
   });
   const inner = await c.sync('return [window.innerWidth, window.innerHeight];');
-  return { sequences, inner };
+  return { sequences, inner, diag: { start: diagStart, end: await diag() } };
 }
+
+/** What the page sees of the browser: the media that switch the site's motion off, visibility, focus, the nav classes and the earn transition. */
+const DIAG = `const q = (m) => window.matchMedia(m).matches;
+const n = document.querySelector(arguments[0]); const e = document.querySelector(arguments[1]);
+return { reduce: q('(prefers-reduced-motion: reduce)'), hover: q('(hover: hover)'), fine: q('(pointer: fine)'), vis: document.visibilityState,
+  focus: document.hasFocus(), navClass: n ? n.className : null, earnTr: e ? getComputedStyle(e).transitionProperty : null, y: window.scrollY, ua: navigator.userAgent,
+  fw: window.__fw ? { mode: window.__fw.mode ?? null, config: window.__fw.configHash ?? null } : null, scrollEvents: window.__sc ?? null,
+  scripts: performance.getEntriesByType('resource').filter((r) => /\\.js(\\?|$)/.test(r.name)).map((r) => [r.name.split('/').pop().slice(0, 24), r.responseStatus ?? null, Math.round(r.duration)]).slice(0, 12),
+  body: document.body.innerText.length, svelte: !!document.querySelector('[class*="svelte-"]') };`;
 
 export async function captureSafari({ port, width, reps, out, env = process.env }) {
   mkdirSync(out, { recursive: true });
@@ -89,7 +100,7 @@ export async function captureSafari({ port, width, reps, out, env = process.env 
       for (let k = 0; k < modes.length; k++) {
         const t0 = Date.now();
         const one = await walkPage(c, arm, modes[k], width);
-        runs.push({ width, role: arm.role, mode: modes[k], rep: k, identity: 'ok', inner: one.inner, sequences: one.sequences });
+        runs.push({ width, role: arm.role, mode: modes[k], rep: k, identity: 'ok', inner: one.inner, diag: one.diag, sequences: one.sequences });
         log(`safari ${width} ${arm.role} ${modes[k]} #${k}: ${Date.now() - t0} ms, inner ${one.inner.join('x')}, rows ${SEQUENCES.map((q) => one.sequences[q]?.rows.length ?? 0).join('/')}`);
       }
     }
