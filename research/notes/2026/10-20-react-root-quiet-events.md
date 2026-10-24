@@ -56,7 +56,7 @@ Golden `packages/contracts/golden/parts/react-root-quiet.jsonl` (104 lines), rep
 `registered` rows are compared with what the real `createRoot` registers on a recording container, with and without
 `quietContainer`. `quiet.gen.ts` (the types and the shim) is generated from Lean and checked by the check.sh job "react-root-quiet golden check".
 
-## Measurement (MEASURED, run 40122201939, diagnostic, 5 walks per arm; run 40124553279 repeats it with the same registrations: 14 and 0 in every walk)
+## Measurement (MEASURED, run 40122201939, diagnostic, 5 walks per arm; runs 40124553279 and 40126773924 (the final code, with the Lean-generated shim) repeat it with the same registrations: 14 and 0 in every walk)
 
 Lane: `trajectory-probe` on a `ci/` push, `[trajectory fw=engine.events:quiet widths=390,1280 engines=both debug=root-events
 diagnostic]` (read back from the artifact `trajectory-inputs`). The recorder (`apps/site/src/debug/root-events.ts`) counts
@@ -81,9 +81,12 @@ registered. The event count is the same with and without the flag (the events do
 
 The probe rest-state verdicts are diagnostic and not the gate. The macOS legs report differences between base and cand
 that differ from run to run: run 40122201939 has 88 new units at 390 (84 coverage, 4 content) and 0 at 1280; run 40124553279 has 42 at 390
-(coverage) and 43 at 1280 (42 coverage, 1 content). Chromium 1280 had 1 new content unit in the first run and 0 in the second.
-The flag registers nothing the page reads, so these read as the sampling noise of the macOS witness (docs/team/tools/trajectory-probe.md
-lists its nav reads as noisy). The breakpoint gate decides.
+(coverage) and 43 at 1280 (42 coverage, 1 content). Run 40126773924: 86 at 390 (84 coverage, 2 content), 0 at 1280, 0 on Chromium. The macOS 390 morph path shows new coverage units in
+all three runs (88, 42, 86), the 1280 path in one (0, 43, 0). Two readings fit and the probe cannot tell them apart: witness noise,
+or the flag removing main-thread work so that fewer samples land in a nav step (INFERRED, unchecked). An A/A run (a flag
+that changes nothing) would decide; it is in the report as a dispatch.
+Chromium 1280 had 1 new content unit in the first run and 0 in the second.
+docs/team/tools/trajectory-probe.md lists the macOS witness nav reads as noisy. The breakpoint gate decides.
 
 ## Chromium
 
