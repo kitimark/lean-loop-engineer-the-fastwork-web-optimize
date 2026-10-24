@@ -144,10 +144,9 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   - Cause (incident `inc-slot-held-env`): the old rule skipped on any `FW_SLOT_HELD`. Of the 760 local `slot run land
     pnpm fw land dry` spans to cutoff 1792808775650 (timings.jsonl), 133 have no `slot` land `acquire` in locks.jsonl
     within 3 s of their start. COUNT (MEASURED, by time match: spans carry no caller): 114 of the 133 started within 60 s
-    of a lead Bash call `FW_SLOT_HELD=1 sh .../land-rNNN.sh` in the lead session transcript, 122 within 10 min (a script
-    can run several lands), so 11 to 19 came from other callers (agents' own `fw slot run` inside a held `acquire` shell
+    of a lead Bash call `FW_SLOT_HELD=1 sh .../land-rNNN.sh` in the lead session transcript, 122 within 10 min, so 11 to 19 came from other callers (agents' own `fw slot run` inside a held `acquire` shell
     or an env that inherited `FW_SLOT_HELD`). Not covered: callers outside `fw slot`, `scripts/slot-self.mjs` (it still
-    runs directly on any `FW_SLOT_HELD`). The effect (fewer overlapping dry lands) is counted on later rows.
+    runs directly on any `FW_SLOT_HELD`). 
 - `lean/scripts/check.sh` still takes `scripts/heavy-lock.mjs` inside the slot; both gates apply until
   heavy-lock is retired.
 
@@ -169,13 +168,12 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
 
 ## Self-routing
 
-Heavy entry points queue themselves.
 - `lean/scripts/check.sh`, `lean:build` (root) and every package `test` script run `node scripts/slot-self.mjs <check|test> -- <cmd>`.
   The package scripts keep their old body as `test:run`.
 - Not held: the helper itself runs `slot run --kind <kind> -- <cmd>` (apps/runner/src/slot-main.ts, in its own process) and waits in the queue.
 - Held (`FW_SLOT_HELD` set, the nested rule above), on CI (`CI` set) or with `FW_SLOT_SELF=off`: the command runs
   directly, so a nested call starts at once and CI behaves as before. The helper decides nothing else (no Lean).
-- Tests: `node --test scripts/slot-self.test.mjs` (plan table, nested start, bare call goes through the slot).
+- Tests: `node --test scripts/slot-self.test.mjs`.
 - Not covered: one-off `lake build <target>`,
   `lake env lean --run/--stdin`, `npx vitest`.
 - A `fw slot acquire --kind sim` holder does not get `FW_SLOT_HELD` in its shell: export `FW_SLOT_HELD=1` before running a self-routing script (check.sh, a package `test`), or it queues behind its own slot.

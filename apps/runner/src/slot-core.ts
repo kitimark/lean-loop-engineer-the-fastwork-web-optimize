@@ -272,7 +272,6 @@ export const want = (w: Window, now: number): Window => ({ ...w, next: Math.min(
 export const stopPass = (w: Window, now: number, gapS: number): Window => ({ ...w, passTill: null, next: now + gapS });
 export const capLease = (w: Window, now: number, lease: number): number => Math.min(lease, sub(w.deadline, now));
 
-/** TS twin of Fw.Sup.Adapt.nestedSkips (lean/Fw/Sup/Nested.lean; golden `adapt.nested`): a nested run skips the queue only under a live held entry of its kind that carries the owner and token the parent named. */
 export function nestedSkips(now: number, kind: Kind, named: { owner: string; token: string } | null, held: Entry[]): boolean {
   if (named === null) return false;
   return held.some((e) => now < e.till && e.kind === kind && e.owner === named.owner && e.token === named.token);

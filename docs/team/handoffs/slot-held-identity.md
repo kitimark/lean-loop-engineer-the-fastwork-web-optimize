@@ -1,6 +1,6 @@
 branch: worktree-wf_0ad066e2-254-1
-worktree: .claude/worktrees/wf_0ad066e2-254-1 (under the repo root; absolute path omitted, the scrub refuses home paths)
-last commit: see `git log -1` on the branch (handoff is committed with the work)
+worktree: .claude/worktrees/wf_0ad066e2-254-1
+last commit: see `git log -1` on the branch
 CI runs: none (accepted limit: no CI run; fixtures only)
 
 State
@@ -15,7 +15,7 @@ Count (MEASURED, time match): 133 of 760 unlocked; 114 within 60 s of a lead `FW
 within 10 min, so 11-19 other callers. Spans carry no caller; the match is by the lead transcript's tool-call times.
 
 Open
-- The contention note (research/notes/2026/10-2x-land-dry-contention.md) is outside the task writes (fw land refused an edit): the count is in slot.md only; a paragraph under its Serialization section is a lead follow-up.
+- The contention note (research/notes/2026/10-2x-land-dry-contention.md) is outside the task writes: the count is in slot.md only; a paragraph under its Serialization section is a lead follow-up.
 - `scripts/slot-self.mjs` still runs directly on any `FW_SLOT_HELD` (outside the task writes); follow-up.
 - The lead's land scripts now acquire a land slot per dry land (intended); `acquire` holders' shells have no token.
 

@@ -102,7 +102,6 @@ describe.skipIf(!existsSync(fwcore))("queue waits are not judged by the 30 s bud
   it("a wait over the wait budget (30 min) is slow", () => expect(lastCode([...hist, synthetic("slot wait check", 1800001, "fw wait")])).toBe("slow"));
 });
 
-/** A nested run: the parent's token is exported and the state holds that live `check` entry (Fw.Sup.Adapt.nestedSkips). */
 function heldDeps(dir: string): never {
   const slot = join(dir, "slot");
   mkdirSync(slot, { recursive: true });

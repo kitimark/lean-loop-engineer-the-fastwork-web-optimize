@@ -555,7 +555,6 @@ async function exec(d: Deps, argv: string[], env: Record<string, string | undefi
   return { exit, stdout: Buffer.concat(bufs.stdout).toString(), stderr: Buffer.concat(bufs.stderr).toString(), whole: size <= CAP };
 }
 
-/** Facts for Fw.Sup.Adapt.nestedSkips: the token the parent exported (FW_SLOT_TOKEN, with this run's owner) and the live state; the verdict is the Lean rule's. FW_SLOT_HELD alone names nothing. */
 export function nestedHeld(d: Deps, kind: Kind): boolean {
   const token = d.env.FW_SLOT_TOKEN;
   return nestedSkips(nowS(), kind, token ? { owner: d.owner, token } : null, readState(d).holders);
