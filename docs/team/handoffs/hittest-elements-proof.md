@@ -8,7 +8,10 @@
 - Verified: `lean/Fw/Parts/NavHitTestElements.lean` builds clean, axioms standard (same_class, same_onDark_run,
   elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden `nav.hitTest.elements.jsonl` (555 lines) passes
   `gen ["--check"]`; site test `apps/site/src/parts/nav.hitTest/elements.golden.test.ts` passes. Chromium:
-  UpdateLayoutTree falls from 2192 to 1122 (2 fewer per swipe frame, every zone), Layout stays 418.
+  UpdateLayoutTree falls from 2192 to 1122 (2 fewer per swipe frame, every zone), Layout stays 418. After merging
+  main: site tests 7121 passed, site typecheck clean, ci-paths 56 passed, runner land-inputs 60 passed, plan lint 0
+  errors. Dry land: `VERDICT scope hittest-elements-proof` (site test outside writes); a later dry stopped because
+  console-api was not running. Gate: `VERDICT review-ready hittest-elements-proof returnToBuilder` (dry, WKTR).
 - Written: note `research/notes/2026/10-2x-hittest-elements-proof.md`, ledger note row (entry n=4, task
   hittest-elements-proof, field chromium).
 - Open: WKTR per zone not reachable (wktr.yml:190-191 runs snapshot/site only); site test path is outside the graph
