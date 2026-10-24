@@ -1,16 +1,5 @@
-/**
- * The `unthrottle` variant of engine.scroll: the shippable form of the `throttle-lift` diagnostic. One fixed 1x1 element
- * with opacity 0 runs a scroll-driven animation of a registered custom property, which the compositor cannot run alone.
- * WebKit then reports main-thread scroll-driven animations (WebPageCocoa.mm:2357, AnimationTimelinesController.cpp:267-279
- * @862f17d) and WKWebViewIOS.mm:3256-3268 stops holding visible-rect updates to 100 ms while Mobile Safari's toolbar collapses.
- * The condition, the same-look facts (paints nothing, no layout, no hit target, hidden from assistive technology) and the
- * per-frame cost bound (one element restyled, no layout) are proved in lean/Fw/Parts/EngineScrollUnthrottle.lean; the
- * style text and attributes are checked against its golden (packages/contracts/golden/parts/engine.scroll.unthrottle.jsonl).
- * The rule sits inside `@supports (animation-timeline: scroll())`, so an engine without the property sees no animation.
- */
 export const UNTHROTTLE_ATTR = 'data-fw-unthrottle';
 
-/** The style text (Lean `Fw.Parts.EngineScrollUnthrottle.css`). */
 export function unthrottleCss(): string {
   return [
     '@property --fw-ut { syntax: "<number>"; inherits: false; initial-value: 0; }',
@@ -22,7 +11,6 @@ export function unthrottleCss(): string {
   ].join('\n');
 }
 
-/** Install the style and the element; returns the undo. Client only; no per-frame JavaScript. */
 export function installUnthrottle(doc: Document): () => void {
   const style = doc.createElement('style');
   style.textContent = unthrottleCss();
