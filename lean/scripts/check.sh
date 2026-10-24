@@ -16,12 +16,11 @@
 # Every failing stage is reported (not just the first); exit non-zero if any failed. The verdict is the conjunction of the
 # stage verdicts, independent of order and completion: Lean Fw.Console.LandSpeed.verdict_perm.
 set -u
-# heavy-job lock (Lean Fw.Sched.Heavy; scripts/heavy-lock.mjs): wait for a free slot, then run this script again inside it
 cd "$(dirname "$0")/.."
-[ -z "${FW_SLOT_HELD:-}" ] && [ -z "${CI:-}" ] && [ "${FW_SLOT_SELF:-}" != off ] && exec node ../scripts/slot-self.mjs check -- sh scripts/check.sh "$@"
+[ -z "${FW_SLOT_SELF_IN:-}" ] && [ -z "${CI:-}" ] && [ "${FW_SLOT_SELF:-}" != off ] && exec node ../scripts/slot-self.mjs check -- sh scripts/check.sh "$@"
 [ -z "${FW_HEAVY_HELD:-}" ] && [ "${FW_HEAVY_LOCK:-}" != off ] && exec node ../scripts/heavy-lock.mjs run --kind check -- sh scripts/check.sh "$@"
 . ../scripts/lake-slot-lib.sh
-. ../scripts/span.sh  # span <tool> <step> <cmd...>: one timing line per stage in .fw-console/timings.jsonl (docs/team/tools/timings.md)
+. ../scripts/span.sh
 fails=""
 serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the script goes on
   if ! span lean/check "$@"; then
@@ -115,6 +114,7 @@ run_group() {
   job "path-pix golden check" lake env lean --run scripts/PathPixGolden.lean --check ../packages/contracts/golden/gate/path-pix.jsonl  # the pixel-cell grade, premise and Accelerated vectors (Fw.Gate.PathPix)
   job "device-session golden check" lake env lean --run scripts/DeviceSessionGolden.lean --check ../packages/contracts/golden/device/session.jsonl  # the session reductions, plan texts and replay-export vectors packages/measure-webkit/src/device-session.mjs is checked against (Fw.Device.Session)
   job "device-stillruns golden check" lake env lean --run scripts/StillRunsGolden.lean --check ../packages/contracts/golden/device/stillruns.jsonl  # the still-run counts and the throttle-lift verdict packages/measure-webkit/src/throttle/stillruns.mjs is checked against (Fw.Device.StillRuns)
+  job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"  # the style text, attributes, cost and decision table apps/site/src/parts/engine.scroll/unthrottle.ts is checked against (Fw.Parts.EngineScrollUnthrottle)
   job "webkit-profile golden check" lake env lean --run scripts/WebkitProfileGolden.lean --check ../packages/contracts/golden/measure/webkit-profile.jsonl  # the zone-binned Timeline profile vectors packages/measure-webkit/src/profile/reduce.mjs is checked against (Fw.Measure.WebKitProfile)
   job "chromium profile golden check" lake env lean --run scripts/ProfileGolden.lean --check ../packages/contracts/golden/measure/profile.jsonl
   job "device-replay golden check" lake env lean --run scripts/DeviceReplayGolden.lean --check ../packages/contracts/golden/device/replay.jsonl

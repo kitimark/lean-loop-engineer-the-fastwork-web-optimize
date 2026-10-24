@@ -274,7 +274,8 @@ export const capLease = (w: Window, now: number, lease: number): number => Math.
 
 export function nestedSkips(now: number, kind: Kind, named: { owner: string; token: string } | null, held: Entry[]): boolean {
   if (named === null) return false;
-  return held.some((e) => now < e.till && e.kind === kind && e.owner === named.owner && e.token === named.token);
+  return held.some((e) => now < e.till && e.owner === named.owner && e.token === named.token &&
+    (e.kind === kind || (kind !== "sim" && kind !== "measure")));
 }
 
 export function simNew(before: readonly string[], after: readonly string[]): string[] {

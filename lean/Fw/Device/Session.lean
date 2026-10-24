@@ -180,9 +180,160 @@ theorem zone_counts_sum (vh10 maxY10 : Int) :
     unfold inZone at ih ⊢
     cases h : zoneOf vh10 maxY10 r.y <;> simp [h] <;> omega
 
-/-! ## The arm comparison rule -/
+def moveWin : Nat := 30
 
-/-- Largest minus smallest of the per-pass values, 0 when there are none. -/
+def moveMin : Nat := 1
+
+inductive Class where
+  | moving | still
+  deriving DecidableEq, Repr
+
+def Class.code : Class → String
+  | .moving => "m" | .still => "s"
+
+def jumpAt (vh : List Int) (k : Nat) : Bool :=
+  decide (k < vh.length) && decide (moveMin ≤ (vh.getD k 0 - vh.getD (k - 1) 0).natAbs)
+
+def movingAt (vh : List Int) (i : Nat) : Bool :=
+  (List.range' (i + 1 - moveWin) (i + moveWin + 1 - (i + 1 - moveWin))).any (jumpAt vh)
+
+def classAt (vh : List Int) (i : Nat) : Class := if movingAt vh i then .moving else .still
+
+def classes (vh : List Int) : List Class := (List.range vh.length).map (classAt vh)
+
+theorem classes_length (vh : List Int) : (classes vh).length = vh.length := by simp [classes]
+
+theorem movingAt_iff (vh : List Int) (i : Nat) :
+    movingAt vh i = true ↔ ∃ k, i < k + moveWin ∧ k ≤ i + moveWin ∧ jumpAt vh k = true := by
+  unfold movingAt
+  rw [List.any_eq_true]
+  constructor
+  · rintro ⟨k, hk, hj⟩
+    rw [List.mem_range'_1] at hk
+    exact ⟨k, by omega, by omega, hj⟩
+  · rintro ⟨k, h1, h2, hj⟩
+    refine ⟨k, ?_, hj⟩
+    rw [List.mem_range'_1]
+    omega
+
+theorem classAt_moving_iff (vh : List Int) (i : Nat) :
+    classAt vh i = .moving ↔ ∃ k, i < k + moveWin ∧ k ≤ i + moveWin ∧ jumpAt vh k = true := by
+  rw [← movingAt_iff]
+  unfold classAt
+  cases movingAt vh i <;> simp
+
+theorem classAt_still_iff (vh : List Int) (i : Nat) :
+    classAt vh i = .still ↔ ∀ k, i < k + moveWin → k ≤ i + moveWin → jumpAt vh k = false := by
+  unfold classAt
+  by_cases h : movingAt vh i = true
+  · simp only [h, ↓reduceIte]
+    obtain ⟨k, h1, h2, hj⟩ := (movingAt_iff vh i).1 h
+    constructor
+    · intro hh; cases hh
+    · intro hh; have := hh k h1 h2; simp [hj] at this
+  · simp only [h]
+    constructor
+    · intro _ k h1 h2
+      cases hk : jumpAt vh k
+      · rfl
+      · exact absurd ((movingAt_iff vh i).2 ⟨k, h1, h2, hk⟩) h
+    · intro _; rfl
+
+theorem classAt_moving_of_jump {vh : List Int} {k i : Nat} (hj : jumpAt vh k = true) (h1 : i < k + moveWin)
+    (h2 : k ≤ i + moveWin) : classAt vh i = .moving :=
+  (classAt_moving_iff vh i).2 ⟨k, h1, h2, hj⟩
+
+theorem classAt_still_of_far {vh : List Int} {i : Nat}
+    (h : ∀ k, i < k + moveWin → k ≤ i + moveWin → jumpAt vh k = false) : classAt vh i = .still :=
+  (classAt_still_iff vh i).2 h
+
+theorem classes_count (vh : List Int) :
+    (classes vh).count .moving + (classes vh).count .still = vh.length := by
+  have key : ∀ cs : List Class, cs.count .moving + cs.count .still = cs.length := by
+    intro cs
+    induction cs with
+    | nil => simp
+    | cons c t ih => cases c <;> simp <;> omega
+  rw [key, classes_length]
+
+theorem index_partition (vh : List Int) :
+    ((List.range vh.length).filter (movingAt vh) ++ (List.range vh.length).filter (fun i => !movingAt vh i)).Perm
+      (List.range vh.length) := List.filter_append_perm _ _
+
+theorem classes_const (h : Int) (n : Nat) : classes (List.replicate n h) = List.replicate n .still := by
+  have hj : ∀ k, jumpAt (List.replicate n h) k = false := by
+    intro k
+    by_cases hk : k < n
+    · have hk' : k - 1 < n := by omega
+      simp [jumpAt, moveMin, List.getD_eq_getElem?_getD, hk, hk']
+    · simp [jumpAt, hk]
+  have hs : ∀ i, classAt (List.replicate n h) i = .still := fun i =>
+    classAt_still_of_far (fun k _ _ => hj k)
+  apply List.ext_getElem
+  · simp [classes]
+  · intro i h1 h2
+    simp [classes, hs]
+
+def movingRowsC : List (Int × Int × Class) → List (Class × Row)
+  | a :: b :: rest => (if b.2.1 ≠ a.2.1 then [(b.2.2, ⟨b.1 - a.1, b.2.1⟩)] else []) ++ movingRowsC (b :: rest)
+  | _ => []
+
+theorem movingRowsC_map : ∀ l : List (Int × Int × Class),
+    (movingRowsC l).map (·.2) = movingRows (l.map fun f => (f.1, f.2.1))
+  | [] => by simp [movingRowsC, movingRows]
+  | [_] => by simp [movingRowsC, movingRows]
+  | a :: b :: rest => by
+    have ih := movingRowsC_map (b :: rest)
+    simp only [movingRowsC, movingRows, List.map_cons, List.map_append] at ih ⊢
+    rw [ih]
+    split <;> simp
+
+theorem movingRowsC_still : ∀ l : List (Int × Int × Class), (∀ f ∈ l, f.2.2 = .still) →
+    ∀ r ∈ movingRowsC l, r.1 = .still
+  | [], _, r, hr => by simp [movingRowsC] at hr
+  | [_], _, r, hr => by simp [movingRowsC] at hr
+  | a :: b :: rest, h, r, hr => by
+    have hb : b.2.2 = .still := h b (by simp)
+    have ih := movingRowsC_still (b :: rest) (fun f hf => h f (List.mem_cons_of_mem a hf))
+    simp only [movingRowsC, List.mem_append] at hr
+    rcases hr with hr | hr
+    · split at hr
+      · simp at hr; subst hr; exact hb
+      · simp at hr
+    · exact ih r hr
+
+def rowsOf (c : Class) (rs : List (Class × Row)) : List Row := (rs.filter fun r => r.1 == c).map (·.2)
+
+theorem rowsOf_split (rs : List (Class × Row)) : (rowsOf .moving rs).length + (rowsOf .still rs).length = rs.length := by
+  induction rs with
+  | nil => simp [rowsOf]
+  | cons r t ih =>
+    obtain ⟨c, w⟩ := r
+    simp only [rowsOf, List.length_map] at ih ⊢
+    cases c <;> simp <;> omega
+
+theorem inZone_rowsOf_split (vh10 maxY10 : Int) (z : Zone) (rs : List (Class × Row)) :
+    (inZone vh10 maxY10 z (rowsOf .moving rs)).length + (inZone vh10 maxY10 z (rowsOf .still rs)).length =
+      (inZone vh10 maxY10 z (rs.map (·.2))).length := by
+  induction rs with
+  | nil => simp [rowsOf, inZone]
+  | cons r t ih =>
+    obtain ⟨c, w⟩ := r
+    unfold rowsOf inZone at ih ⊢
+    cases c <;> by_cases hz : zoneOf vh10 maxY10 w.y == z <;> simp [hz] <;> omega
+
+theorem rowsOf_still (rs : List (Class × Row)) (h : ∀ r ∈ rs, r.1 = .still) :
+    rowsOf .still rs = rs.map (·.2) ∧ rowsOf .moving rs = [] := by
+  induction rs with
+  | nil => simp [rowsOf]
+  | cons r t ih =>
+    obtain ⟨c, w⟩ := r
+    have hc : c = .still := h (c, w) (by simp)
+    subst hc
+    have := ih (fun x hx => h x (by simp [hx]))
+    unfold rowsOf at this ⊢
+    simp [this.1, this.2]
+
 def spread (l : List Int) : Int :=
   match l.max?, l.min? with
   | some h, some m => h - m
@@ -841,8 +992,8 @@ structure Record where
   ys : List Int
   parts : List (String × List Int)
   touches : List Touch
+  vh : List Int := []
 
-/-- The reduction of one pass. -/
 structure Report where
   total : Stat
   zones : List (Zone × Stat)
@@ -870,7 +1021,173 @@ theorem reducePass_zones_total (r : Record) :
   simp only [reducePass, stat, List.map_cons, List.map_nil, List.foldl_cons, List.foldl_nil]
   omega
 
-/-! ## The golden -/
+def Record.hasField (r : Record) : Bool := !r.vh.isEmpty && r.vh.length == r.ts.length
+
+def classesOf (r : Record) : List Class :=
+  if r.hasField then classes r.vh else List.replicate r.ts.length .still
+
+theorem classesOf_length (r : Record) : (classesOf r).length = r.ts.length := by
+  unfold classesOf
+  split
+  · rename_i h
+    simp [Record.hasField] at h
+    simp [classes_length, h.2]
+  · simp
+
+theorem classesOf_noField {r : Record} (h : r.hasField = false) : ∀ c ∈ classesOf r, c = .still := by
+  intro c hc
+  simp [classesOf, h] at hc
+  exact hc.2
+
+theorem classesOf_const {r : Record} {h : Int} (hv : r.vh = List.replicate r.ts.length h) :
+    ∀ c ∈ classesOf r, c = .still := by
+  intro c hc
+  unfold classesOf at hc
+  split at hc
+  · rw [hv, classes_const] at hc
+    exact (List.mem_replicate.1 hc).2
+  · exact (List.mem_replicate.1 hc).2
+
+def classFrames (r : Record) : List (Int × Int × Class) :=
+  ((r.ts.zip r.ys).zip (classesOf r)).map fun (f, c) => (f.1, f.2, c)
+
+theorem classFrames_map (r : Record) : (classFrames r).map (fun f => (f.1, f.2.1)) = r.ts.zip r.ys := by
+  have hl : (r.ts.zip r.ys).length ≤ (classesOf r).length := by
+    rw [classesOf_length, List.length_zip]; exact Nat.min_le_left _ _
+  have := List.map_fst_zip hl
+  simpa [classFrames, List.map_map, Function.comp_def] using this
+
+structure ClassReport where
+  total : Stat
+  zones : List (Zone × Stat)
+  frames : Nat
+
+def reduceClass (r : Record) (c : Class) : ClassReport :=
+  let fs := classFrames r
+  let vh10 : Int := (r.h : Int) * 10
+  let rows := rowsOf c (movingRowsC fs)
+  { total := stat rows
+    zones := [Zone.hero, .finish, .rest].map fun z => (z, stat (inZone vh10 r.maxY10 z rows))
+    frames := (fs.filter fun f => f.2.2 == c).length }
+
+def zoneStatOf (zs : List (Zone × Stat)) (z : Zone) : Stat := ((zs.find? fun p => p.1 == z).map (·.2)).getD (stat [])
+
+theorem reduceClass_total_split (r : Record) :
+    (reduceClass r .moving).total.n + (reduceClass r .still).total.n = (reducePass r).total.n := by
+  have h := rowsOf_split (movingRowsC (classFrames r))
+  have hm := congrArg List.length (movingRowsC_map (classFrames r))
+  rw [classFrames_map] at hm
+  simp only [reduceClass, reducePass, stat, List.length_map] at h hm ⊢
+  rw [← hm] at *
+  simpa [movingRows] using h
+
+theorem reduceClass_zone_split (r : Record) (z : Zone) :
+    (zoneStatOf (reduceClass r .moving).zones z).n + (zoneStatOf (reduceClass r .still).zones z).n =
+      (zoneStatOf (reducePass r).zones z).n := by
+  have h := inZone_rowsOf_split ((r.h : Int) * 10) r.maxY10 z (movingRowsC (classFrames r))
+  have hm := movingRowsC_map (classFrames r)
+  rw [classFrames_map] at hm
+  rw [hm] at h
+  cases z <;> simpa [zoneStatOf, reduceClass, reducePass, stat, hm] using h
+
+theorem reduceClass_frames_split (r : Record) :
+    (reduceClass r .moving).frames + (reduceClass r .still).frames = (r.ts.zip r.ys).length := by
+  have key : ∀ l : List (Int × Int × Class), (l.filter fun f => f.2.2 == Class.moving).length +
+      (l.filter fun f => f.2.2 == Class.still).length = l.length := by
+    intro l
+    induction l with
+    | nil => simp
+    | cons f t ih => obtain ⟨_, _, c⟩ := f; cases c <;> simp <;> omega
+  have := key (classFrames r)
+  have hl := congrArg List.length (classFrames_map r)
+  simp only [List.length_map] at hl
+  simp only [reduceClass]
+  omega
+
+theorem reduceClass_allStill {r : Record} (h : ∀ c ∈ classesOf r, c = .still) :
+    (reduceClass r .still).total = (reducePass r).total ∧ (reduceClass r .still).zones = (reducePass r).zones ∧
+      (reduceClass r .moving).total.n = 0 ∧ (reduceClass r .moving).frames = 0 ∧
+      (reduceClass r .still).frames = (r.ts.zip r.ys).length := by
+  have hf : ∀ f ∈ classFrames r, f.2.2 = Class.still := by
+    intro f hf
+    simp only [classFrames, List.mem_map] at hf
+    obtain ⟨⟨g, c⟩, hg, rfl⟩ := hf
+    exact h c (List.of_mem_zip hg).2
+  have hr := rowsOf_still (movingRowsC (classFrames r)) (movingRowsC_still _ hf)
+  have hm := movingRowsC_map (classFrames r)
+  rw [classFrames_map] at hm
+  have hlen := congrArg List.length (classFrames_map r)
+  simp only [List.length_map] at hlen
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · simp [reduceClass, reducePass, hr.1, hm]
+  · simp [reduceClass, reducePass, hr.1, hm]
+  · simp [reduceClass, hr.2, stat]
+  · simp only [reduceClass]
+    rw [List.filter_eq_nil_iff.2]
+    · rfl
+    · intro f hf'; simp [hf f hf']
+  · simp only [reduceClass]
+    rw [List.filter_eq_self.2]
+    · exact hlen
+    · intro f hf'; simp [hf f hf']
+
+theorem reduceClass_noField {r : Record} (h : r.hasField = false) :
+    (reduceClass r .still).total = (reducePass r).total ∧ (reduceClass r .still).zones = (reducePass r).zones ∧
+      (reduceClass r .moving).total.n = 0 ∧ (reduceClass r .moving).frames = 0 :=
+  have := reduceClass_allStill (classesOf_noField h)
+  ⟨this.1, this.2.1, this.2.2.1, this.2.2.2.1⟩
+
+theorem reduceClass_const {r : Record} {h : Int} (hv : r.vh = List.replicate r.ts.length h) :
+    (reduceClass r .still).total = (reducePass r).total ∧ (reduceClass r .still).zones = (reducePass r).zones ∧
+      (reduceClass r .moving).total.n = 0 ∧ (reduceClass r .moving).frames = 0 :=
+  have := reduceClass_allStill (classesOf_const hv)
+  ⟨this.1, this.2.1, this.2.2.1, this.2.2.2.1⟩
+
+def classVals (z : Option Zone) (rs : List ClassReport) : List Int :=
+  rs.filterMap fun r =>
+    if r.frames == 0 then none
+    else some (((match z with | none => r.total | some z => zoneStatOf r.zones z).per50 : Nat) : Int)
+
+def passVal (z : Option Zone) (r : Record) : Int :=
+  (((match z with | none => (reducePass r).total | some z => zoneStatOf (reducePass r).zones z).per50 : Nat) : Int)
+
+def compareClass (z : Option Zone) (orig arm : List ClassReport) : Verdict :=
+  verdict (classVals z orig) (classVals z arm)
+
+theorem classVals_empty (z : Option Zone) (r : ClassReport) (rs : List ClassReport) (h : r.frames = 0) :
+    classVals z (r :: rs) = classVals z rs := by
+  simp [classVals, h]
+
+theorem classVals_cons (z : Option Zone) (r : ClassReport) (rs : List ClassReport) (h : r.frames ≠ 0) :
+    classVals z (r :: rs) =
+      (((match z with | none => r.total | some z => zoneStatOf r.zones z).per50 : Nat) : Int) :: classVals z rs := by
+  simp [classVals, h]
+
+theorem classVals_noField (z : Option Zone) : ∀ rs : List Record,
+    (∀ r ∈ rs, r.hasField = false ∧ r.ts ≠ [] ∧ r.ys ≠ []) →
+    classVals z (rs.map fun r => reduceClass r .still) = rs.map (passVal z)
+  | [], _ => by simp [classVals]
+  | r :: rs, h => by
+    have hr := h r (by simp)
+    have ih := classVals_noField z rs (fun x hx => h x (by simp [hx]))
+    have ha := reduceClass_allStill (classesOf_noField hr.1)
+    have hpos : (reduceClass r .still).frames ≠ 0 := by
+      rw [ha.2.2.2.2]
+      have h1 : r.ts.length ≠ 0 := fun e => hr.2.1 (List.length_eq_zero_iff.1 e)
+      have h2 : r.ys.length ≠ 0 := fun e => hr.2.2 (List.length_eq_zero_iff.1 e)
+      rw [List.length_zip]
+      have := Nat.lt_min.2 ⟨Nat.pos_of_ne_zero h1, Nat.pos_of_ne_zero h2⟩
+      omega
+    rw [List.map_cons, classVals_cons z _ _ hpos, ih, List.map_cons]
+    cases z <;> simp [passVal, ha.1, ha.2.1]
+
+theorem compareClass_noField (z : Option Zone) (orig arm : List Record)
+    (ho : ∀ r ∈ orig, r.hasField = false ∧ r.ts ≠ [] ∧ r.ys ≠ [])
+    (ha : ∀ r ∈ arm, r.hasField = false ∧ r.ts ≠ [] ∧ r.ys ≠ []) :
+    compareClass z (orig.map fun r => reduceClass r .still) (arm.map fun r => reduceClass r .still) =
+      verdict (orig.map (passVal z)) (arm.map (passVal z)) := by
+  unfold compareClass
+  rw [classVals_noField z orig ho, classVals_noField z arm ha]
 
 private def statJ (s : Stat) : Json :=
   Json.mkObj [("n", s.n), ("over34", s.over34), ("over50", s.over50), ("per34", s.per34), ("per50", s.per50),
@@ -891,9 +1208,10 @@ private def reportJ (r : Report) : Json :=
     ("parts", Json.mkObj (r.parts.map fun (n, m, s) => (n, Json.mkObj [("maxStep", m), ("stalls", s)])))]
 
 private def recordJ (r : Record) (arm : Arm) (pass : Nat) : Json :=
-  Json.mkObj [("schema", "fw.phone.record.int/1"), ("arm", arm.code), ("pass", pass), ("w", r.w), ("h", r.h),
+  Json.mkObj (([("schema", "fw.phone.record.int/1"), ("arm", arm.code), ("pass", pass), ("w", r.w), ("h", r.h),
     ("maxY10", r.maxY10), ("t", toJson r.ts), ("y", toJson r.ys),
-    ("p", Json.mkObj (r.parts.map fun (n, vs) => (n, toJson vs))), ("touches", Json.arr (r.touches.map touchJ).toArray)]
+    ("p", Json.mkObj (r.parts.map fun (n, vs) => (n, toJson vs))), ("touches", Json.arr (r.touches.map touchJ).toArray)] : List (String × Json)) ++
+    (if r.vh.isEmpty then [] else [("vh", toJson r.vh)]))
 
 private def lcg (s : Nat) : Nat := (s * 1103515245 + 12345) % 2147483648
 
@@ -1032,6 +1350,60 @@ private def loaderCases : List (Int × Int × Nat × List Stroke) :=
    (4300, 9320, 3, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩]),
    (4300, 9320, 4, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩])]
 
+
+private def classStr (cs : List Class) : String := String.join (cs.map Class.code)
+
+private def classCases : List (List Int) :=
+  [[], [7750], List.replicate 5 7750, List.replicate 100 7750,
+   List.replicate 50 7750 ++ List.replicate 50 8150,
+   List.replicate 20 7750 ++ List.replicate 20 8150,
+   List.replicate 99 7750 ++ [8150],
+   List.replicate 40 7750 ++ [7751] ++ List.replicate 59 7750,
+   List.replicate 30 7750 ++ [7800, 7850, 7900, 7950, 8000, 8050, 8100, 8150] ++ List.replicate 120 8150 ++
+     [8100, 8050, 8000, 7950, 7900, 7850, 7800, 7750] ++ List.replicate 40 7750,
+   List.replicate 70 8150 ++ List.replicate 70 7750,
+   (List.range 80).map fun k => (7750 : Int) + (if k % 17 == 0 then ((k / 17 : Nat) : Int) else 0)]
+
+private def synthVhList : List Int :=
+  List.replicate 100 7750 ++ [7800, 7850, 7900, 7950, 8000, 8050, 8100, 8150] ++ List.replicate 192 8150 ++
+    [8100, 8050, 8000, 7950, 7900, 7850, 7800, 7750] ++ List.replicate 172 7750
+
+private def synthVhRecord (_ : Unit) : Record := { synthRecord () with vh := synthVhList }
+
+private def classReportJ (c : ClassReport) : Json :=
+  Json.mkObj [("total", statJ c.total), ("zones", Json.mkObj (c.zones.map fun p => (p.1.name, statJ p.2))), ("frames", c.frames)]
+
+private def mkCR (n t h f r : Nat) : ClassReport :=
+  let s (p : Nat) : Stat := { stat [] with per50 := p }
+  ⟨s t, [(Zone.hero, s h), (Zone.finish, s f), (Zone.rest, s r)], n⟩
+
+private def crJ (c : ClassReport) : Json :=
+  toJson [c.frames, c.total.per50, (zoneStatOf c.zones .hero).per50, (zoneStatOf c.zones .finish).per50, (zoneStatOf c.zones .rest).per50]
+
+private def compareCases : List (List ClassReport × List ClassReport) :=
+  [([mkCR 900 1000 1000 1000 1000, mkCR 900 1400 1400 1400 1400], [mkCR 900 100 100 100 100]),
+   ([mkCR 900 1000 1000 1000 1000, mkCR 900 1400 1400 1400 1400], [mkCR 0 0 0 0 0, mkCR 900 100 100 100 100]),
+   ([mkCR 900 1000 1000 1000 1000, mkCR 0 0 0 0 0], [mkCR 900 100 100 100 100]),
+   ([mkCR 100 1000 900 800 700, mkCR 120 1400 1500 400 1100, mkCR 90 1200 1000 600 900], [mkCR 100 300 100 500 1000, mkCR 50 600 700 800 200]),
+   ([mkCR 100 3000 0 0 0, mkCR 100 3300 0 0 0], [mkCR 100 100 0 0 0, mkCR 100 2900 0 0 0]),
+   ([], [mkCR 100 100 100 100 100])]
+
+private def classGoldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "class.consts"), ("moveWin", moveWin), ("moveMin", moveMin)]).compress] ++
+  (classCases.map fun vh =>
+    (Json.mkObj [("kind", "class"), ("vh", toJson vh), ("classes", classStr (classes vh))]).compress) ++
+  (let r := synthVhRecord ()
+   let noField := { r with vh := [] }
+   [(Json.mkObj [("kind", "class.report"), ("record", recordJ r .original 1), ("classes", classStr (classesOf r)),
+      ("whole", reportJ (reducePass r)), ("moving", classReportJ (reduceClass r .moving)), ("still", classReportJ (reduceClass r .still)),
+      ("noFieldClasses", classStr (classesOf noField)), ("noFieldMoving", classReportJ (reduceClass noField .moving)),
+      ("noFieldStill", classReportJ (reduceClass noField .still))]).compress]) ++
+  (compareCases.map fun (o, a) =>
+    let zoneJ (z : Option Zone) : Json :=
+      Json.mkObj [("orig", toJson (classVals z o)), ("arm", toJson (classVals z a)), ("verdict", (compareClass z o a).name)]
+    (Json.mkObj [("kind", "class.compare"), ("orig", Json.arr (o.map crJ).toArray), ("arm", Json.arr (a.map crJ).toArray),
+      ("total", zoneJ none), ("hero", zoneJ (some .hero)), ("finish", zoneJ (some .finish)), ("rest", zoneJ (some .rest))]).compress)
+
 private def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("slow", slow), ("bad", bad), ("lookback", lookback), ("tapMs", (30000 : Int)),
     ("tapTravel", (100 : Int)), ("gapMs", (50000 : Int)), ("nearPx", (400 : Int)), ("hz", (60 : Int)),
@@ -1075,9 +1447,9 @@ private def goldenLines (_ : Unit) : List String :=
       ("ok", replayOk w h cap ss)]).compress) ++
   (let r := synthRecord ()
    [(Json.mkObj [("kind", "session"), ("record", recordJ r .original 1), ("report", reportJ (reducePass r)),
-     ("replay", replayJ r)]).compress])
+     ("replay", replayJ r)]).compress]) ++
+  classGoldenLines ()
 
-/-- The bytes of `packages/contracts/golden/device/session.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
 /-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
