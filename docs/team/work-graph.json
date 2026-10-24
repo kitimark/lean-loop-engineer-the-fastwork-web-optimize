@@ -18011,7 +18011,8 @@
     "docs/team/handoffs/classpos-model-align.md",
     "lean/Fw/Parts/Bridge.lean"
    ],
-   "title": "footprint-classname-operands review follow-up: the JS extractor accepts more than the Lean ClassPos model (CLASS_HELPERS has 'classnames'; any .join(sep) / .filter(f) vs Lean .joined = .filter(Boolean).join(' ') only; no member-class setModuleClass golden case; string + concatenation and object-form clsx({a: b}) are non-class positions, so a real class written that way drops silently). Align: one canonical rule in Lean (add concat and member-class cases, keep the separator), JS narrowed or extended to match, golden covers every JS branch; an unmodelled class position fails the extractor loudly instead of dropping. Note the position theorems are rfl restatements (accepted)."
+   "title": "footprint-classname-operands review follow-up: the JS extractor accepts more than the Lean ClassPos model (CLASS_HELPERS has 'classnames'; any .join(sep) / .filter(f) vs Lean .joined = .filter(Boolean).join(' ') only; no member-class setModuleClass golden case; string + concatenation and object-form clsx({a: b}) are non-class positions, so a real class written that way drops silently). Align: one canonical rule in Lean (add concat and member-class cases, keep the separator), JS narrowed or extended to match, golden covers every JS branch; an unmodelled class position fails the extractor loudly instead of dropping. Note the position theorems are rfl restatements (accepted).",
+   "evidence": "77762fb"
   },
   {
    "devices": [
