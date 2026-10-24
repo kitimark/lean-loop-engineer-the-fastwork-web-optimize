@@ -235,7 +235,15 @@ def lookDecisions : List LookDecision :=
        { chromium := { state := .ready, run := some "39473950464", artifact := some "frames-chromium",
                        expires := some "2026-11-19" }
          webkit := { state := .ready, run := some "39530106935", artifact := some "frames-apple-390, frames-apple-1280",
-                     expires := some "2026-11-20" } } }]
+                     expires := some "2026-11-20" } } },
+   { flag := ⟨"nav", "earn-logical"⟩, date := "2026-10-25", decision := .accepted, review := .done,
+     material := some
+       { chromium := { state := .ready, run := some "40100783726, 40102193302",
+                       artifact := some "transitions-apple-390, transitions-apple-1280", expires := some "2026-11-23",
+                       task := some "earn-logical-proof" }
+         webkit := { state := .ready, run := some "40100783726, 40102193302",
+                     artifact := some "transitions-apple-390, transitions-apple-1280", expires := some "2026-11-23",
+                     task := some "earn-logical-proof" } } }]
 
 def EngineMat.json (m : EngineMat) : Json :=
   Json.mkObj ([("state", .str m.state.word)] ++
@@ -558,17 +566,25 @@ def record (args : List String) : IO Unit := do
 private def earnReg : Reg :=
   { flag := ⟨"nav", "earn-no-transition"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l }
 
-#guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩]
-#guard staleDecisions [earnReg] == []
+private def earnLogicalReg : Reg :=
+  { flag := ⟨"nav", "earn-logical"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l }
+
+#guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩, ⟨"nav", "earn-logical"⟩]
+#guard staleDecisions [earnReg] == [⟨"nav", "earn-logical"⟩]
+#guard staleDecisions [earnReg, earnLogicalReg] == []
 #guard lookText [earnReg] [] ==
   "{\"flag\":\"nav:earn-no-transition\",\"kind\":\"proposal\",\"member\":false,\"userDecision\":{\"date\":\"2026-10-21\",\"decision\":\"kept\",\"material\":{\"chromium\":{\"artifact\":\"frames-chromium\",\"expires\":\"2026-11-19\",\"run\":\"39473950464\",\"state\":\"ready\"},\"webkit\":{\"artifact\":\"frames-apple-390, frames-apple-1280\",\"expires\":\"2026-11-20\",\"run\":\"39530106935\",\"state\":\"ready\"}},\"review\":\"pending\"},\"visClass\":\"L\"}\n"
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "kept 2026-10-21; visual review deferred"),
-    ("review", .str "CI run 39473950464 artifact frames-chromium (expires 2026-11-19)")])]])]) lookDecisions).isEmpty
+    ("review", .str "CI run 39473950464 artifact frames-chromium (expires 2026-11-19)")])]])]) (lookDecisions.take 1)).isEmpty
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "accepted"),
-    ("review", .str "x")])]])]) lookDecisions).length == 5
-#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 1
+    ("review", .str "x")])]])]) (lookDecisions.take 1)).length == 5
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 2
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-logical"),
+  ("userDecision", Json.mkObj [("date", .str "2026-10-25"), ("decision", .str "accepted 2026-10-25"),
+    ("review", .str "runs 40100783726, 40102193302 artifacts transitions-apple-390, transitions-apple-1280 (expire 2026-11-23)")])]])])
+    (lookDecisions.drop 1)).isEmpty
 #guard ((lookJson [] [] ⟨"x", "y"⟩).getObjVal? "userDecision").toOption == some .null
 
 private def stEx : Stored :=
