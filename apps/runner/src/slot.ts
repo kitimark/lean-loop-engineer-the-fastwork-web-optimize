@@ -10,7 +10,7 @@ import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type PassVerdict, type Row,
   type Sample, type Verdict, type VmMark, type WParams, type Window, KINDS, admitBuild, agentsSeen, avail, beginPass, cacheHit, cacheable, capLease,
   current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, nestedSkips, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
-  simDue, simHeld, simIdleNext, simQueued, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict,
+  simDue, simHeld, simIdleNext, simQueued, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict, simNew,
 } from "./slot-core.ts";
 
 export class SlotUsage extends Error {}
@@ -28,7 +28,7 @@ export const EXIT_REFUSED = 75;
 export const EXIT_ERROR = 70;
 
 export type State = {
-  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simAcquired?: number; simUdids?: string[]; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
+  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simAcquired?: number; simUdids?: string[]; simBefore?: string[]; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
 };
 export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
@@ -184,8 +184,14 @@ export function simctlShutdown(udid: string): void { spawnSync("xcrun", ["simctl
 function bootedAll(): SimDevice[] {
   const r = spawnSync("xcrun", ["simctl", "list", "devices", "booted", "-j"], { encoding: "utf8", timeout: 10_000 });
   if (r.error || r.status !== 0) return [];
-  const j = JSON.parse(r.stdout) as { devices: Record<string, { udid: string; name: string; state: string }[]> };
-  return Object.values(j.devices).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
+  return parseBooted(r.stdout);
+}
+
+/** The booted devices of `xcrun simctl list devices booted -j` output; [] when the text is not that JSON. */
+export function parseBooted(text: string): SimDevice[] {
+  let j: { devices?: Record<string, { udid: string; name: string; state: string }[]> };
+  try { j = JSON.parse(text); } catch { return []; }
+  return Object.values(j.devices ?? {}).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
 }
 
 export function lastHealth(file: string): Health | null {
@@ -342,7 +348,7 @@ const acquiredOf = (gone: Entry[]): number => Math.min(...gone.filter((h) => h.k
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
   const gone = expired(s.time, st.holders);
-  if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = s.time; st.simAcquired = acquiredOf(gone); st.simUdids = bootedUdids(d); }
+  if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = s.time; st.simAcquired = acquiredOf(gone); st.simUdids = simNew(st.simBefore ?? [], bootedUdids(d)); }
   for (const h of gone) {
     event(d, "expire", h.kind, { owner: h.owner, token: h.token, leaseS: h.leaseS, holdMs: (h.till - h.since) * 1000, lateMs: (s.time - h.till) * 1000 });
   }
@@ -417,6 +423,7 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       const opened = v.verdict === "admit" && kind === "measure" ? openAt(d.wparams, d.owner, token, s.time, gapS) : null;
       const held = grant(d.params, me, s.time, opened === null ? leaseS : capLease(opened, s.time, leaseS), v.verdict === "admit" ? v.footMB : 0);
       if (v.verdict === "admit") st.holders.push(held);
+      if (v.verdict === "admit" && kind === "sim" && !st.holders.some((h) => h !== held && h.kind === "sim")) st.simBefore = bootedUdids(d);
       if (opened !== null) st.window = opened;
       return { token, owner: d.owner, kind, till: held.till, verdict: v };
     });
@@ -457,7 +464,7 @@ export function renewToken(d: Deps, token: string, leaseS: number | null): boole
 export function releaseToken(d: Deps, token: string): boolean {
   const ok = withState(d, (st) => {
     const gone = st.holders.filter((h) => h.owner === d.owner && h.token === token);
-    if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); st.simUdids = bootedUdids(d); }
+    if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); st.simUdids = simNew(st.simBefore ?? [], bootedUdids(d)); }
     st.holders = release(d.owner, token, st.holders);
     st.queue = release(d.owner, token, st.queue);
     if (st.window?.token === token && st.window.owner === d.owner) st.window = null;

@@ -1,14 +1,14 @@
 // fw reap (tasks orphan-guard, reap-auto-stop): lists (--list) or stops (--stop) the leftover processes Lean selects
 // (ops.lspReap / ops.reapPlan / ops.reapKill / ops.reapVerify / ops.reapIdle, lean/Fw/Ops/Reap.lean, goldens
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readlinkSync, readSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { consoleDirOf } from "./lib.ts";
 import { fwcoreCall } from "./run.ts";
 import { legacyLive, simctlShutdown } from "./slot.ts";
 
-export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason, MB of an idle lean-lsp-mcp stack; stores CPU baselines in reap-idle.json; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)";
+export const REAP_USAGE = "usage: fw reap --list   (prints the processes Lean selects: pid, group flag, kind, reason, MB of an idle lean-lsp-mcp stack; stores CPU baselines in reap-idle.json; signals none)\n       fw reap --stop   (TERM the selected, wait the grace, KILL the unchanged survivors, verify; prints what stopped)\n       fw reap --exit   (folds reap.jsonl in Lean: the 7-day coverage and whether E or F may join the automatic plan; signals none)";
 
 export type ReapRow = {
   pid: number; ppid: number; pgid: number; start: number; cwd: number | null; kind: string; wt?: string | null; inRepo?: boolean;
@@ -17,6 +17,8 @@ export type ReapRow = {
 export type LoopFact = { pid: number; start: number; awaits: string; callLive: boolean; inode?: string };
 export type Waiter = { pid: number; start: number; wt: string; writes: string; inode?: string };
 export type Selected = { pid: number; start: number; kind: string; group: boolean; reason: string };
+/** A held entry of `ops.reapHeld`: the selection plus the worktree id of its row (Lean `wtOf`). */
+export type HeldEntry = Selected & { wt: string | null };
 export type Target = { pid: number; start: number; group: boolean };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
 /** A CPU baseline (ops.reapIdle): identity, the second it was set, the CPU time then (centiseconds). */
@@ -80,7 +82,7 @@ export function parseLsofOut(out: string): Map<number, string> {
 }
 
 export function inodeOf(p: string): string {
-  try { return String(statSync(p).ino); } catch { return ""; }
+  try { return String(statSync(p, { bigint: true }).ino); } catch { return ""; }
 }
 
 export function simSlotFacts(dir: string, now: number): { simIdleSince: number | null; simAcquired: number | null; simHolders: number; simUdids: string[] } {
@@ -386,20 +388,33 @@ export function gather(top: string, env: Record<string, string | undefined> = pr
   };
 }
 
-const request = (op: string, f: Facts, auto = false) => ({
-  op, auto, legacyHeld: f.legacyHeld ?? true, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
+const request = (op: string, f: Facts, auto = false, promote: string[] = []) => ({
+  op, auto, promote, legacyHeld: f.legacyHeld ?? true, rows: f.rows, live: f.live, mcps: f.mcps, keep: f.keep, liveIds: f.liveIds ?? [], protect: f.protect ?? [],
   now: f.now ?? 0, bases: f.bases ?? [], locks: f.locks ?? [], loops: f.loops ?? [], waiters: f.waiters ?? [], simIdleSince: f.simIdleSince ?? null,
   simAcquired: f.simAcquired ?? null, ownSims: f.ownSims ?? [], simHolders: f.simHolders ?? 0,
 });
 
-export function heldLoops(f: Facts, call: Call): { pid: number; start: number; subject: string; reason: string }[] {
-  const held = (call({ ...request("ops.reapHeld", f) }) as { held: Selected[] }).held;
-  return held.map((h) => ({ pid: h.pid, start: h.start, subject: f.rows.find((r) => r.pid === h.pid)?.wt ?? `pid-${h.pid}`, reason: h.reason }));
+/** Orphan loops and booted Simulators the Reap plan holds, from ONE `ops.reapHeld` call. */
+export function heldAll(f: Facts, call: Call): { held: HeldEntry[]; heldSim: HeldEntry[] } {
+  const reply = call(request("ops.reapHeld", f)) as { held: HeldEntry[]; heldSim?: HeldEntry[] };
+  return { held: reply.held, heldSim: reply.heldSim ?? [] };
 }
 
-export function heldSims(f: Facts, call: Call): { pid: number; start: number; reason: string }[] {
-  const held = (call({ ...request("ops.reapHeld", f) }) as { heldSim?: Selected[] }).heldSim ?? [];
-  return held.map((h) => ({ pid: h.pid, start: h.start, reason: h.reason }));
+/** What one watch pass reads once: the held entries (Lean) and the start of every process of the table (a fact that
+ *  `next` pairs with a child pid). */
+export type ReapPass = { held: HeldEntry[]; heldSim: HeldEntry[]; starts: Map<number, number> };
+
+/** Gather and ask Lean once for a watch pass; null when `FW_WATCH_REAP=0`, the facts cannot be read or the call fails. */
+export function heldPass(top: string, env: Record<string, string | undefined> = process.env,
+  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): ReapPass | null {
+  if (env.FW_WATCH_REAP === "0") return null;
+  try {
+    const f = gatherFn(top);
+    if (f === null) return null;
+    return { ...heldAll(f, call()), starts: new Map(f.rows.map((r) => [r.pid, r.start])) };
+  } catch {
+    return null;
+  }
 }
 
 export function saveIdle(f: Facts, call: Call): void {
@@ -488,7 +503,7 @@ export type StopResult = {
   selected: Selected[]; termed: Target[]; killed: Target[]; left: Target[]; freedKb: number;
   /** signals the scope guard refused (a pid outside the scope, pid <= 1, or a group with a member outside the scope) */
   refused: Target[];
-  byKind: { kind: string; pids: number[]; freedKb: number }[];
+  byKind: { kind: string; pids: number[]; targets: { pid: number; start: number }[]; freedKb: number }[];
   targets: Target[];
   held: Selected[];
 };
@@ -502,13 +517,13 @@ const EMPTY: StopResult = { selected: [], termed: [], killed: [], left: [], free
  *  signal outside the scope is refused and listed in `refused`. `auto` (the default) asks Lean for the automatic plan, which
  *  leaves out orphan loops and booted Simulators; `fw reap --stop` passes false. `null` when the facts cannot be read. */
 export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn: (top: string) => Facts | null = gather,
-  scope?: number[], auto = true): StopResult | null {
+  scope?: number[], auto = true, promote: string[] = []): StopResult | null {
   const f = gatherFn(top);
   if (f === null) return null;
-  const plan = call(request("ops.reapPlan", f, auto)) as { selected: Selected[]; targets: Target[]; graceMs: number; killWaitMs: number };
+  const plan = call(request("ops.reapPlan", f, auto, promote)) as { selected: Selected[]; targets: Target[]; held: Selected[]; graceMs: number; killWaitMs: number };
   saveIdle(f, call);
   const planned = plan.targets;
-  const held = plan.selected.filter((s) => !planned.some((t) => t.pid === s.pid && t.start === s.start));
+  const held = plan.held;
   if (planned.length === 0) return { ...EMPTY, selected: plan.selected, held };
   const allowed = scope ?? planned.map((t) => t.pid);
   const refused: Target[] = [];
@@ -549,12 +564,12 @@ export function stopSelected(top: string, call: Call, io: Io = realIo, gatherFn:
   }
   const still = left() ?? planned;
   const gone = planned.filter((t) => !still.some((s) => s.pid === t.pid && s.start === t.start));
-  const kindOf = (pid: number) => plan.selected.find((s) => s.pid === pid)?.kind ?? "unknown";
-  const byKind = new Map<string, { pids: number[]; freedKb: number }>();
+  const kindOf = (t: Target) => plan.selected.find((s) => s.pid === t.pid && s.start === t.start)?.kind ?? "unknown";
+  const byKind = new Map<string, { pids: number[]; targets: { pid: number; start: number }[]; freedKb: number }>();
   for (const t of gone) {
-    const k = kindOf(t.pid);
-    const e = byKind.get(k) ?? { pids: [], freedKb: 0 };
-    e.pids.push(t.pid); e.freedKb += rss0.get(t.pid) ?? 0;
+    const k = kindOf(t);
+    const e = byKind.get(k) ?? { pids: [], targets: [], freedKb: 0 };
+    e.pids.push(t.pid); e.targets.push({ pid: t.pid, start: t.start }); e.freedKb += rss0.get(t.pid) ?? 0;
     byKind.set(k, e);
   }
   const freedKb = [...byKind.values()].reduce((a, e) => a + e.freedKb, 0);
@@ -568,35 +583,58 @@ export function recordStopped(top: string, r: StopResult, now: number = Date.now
   try {
     const p = join(consoleDirOf(env, top), "reap.jsonl");
     mkdirSync(dirname(p), { recursive: true });
-    for (const k of r.byKind) appendFileSync(p, JSON.stringify({ type: "reap.stopped", at: now, kind: k.kind, pids: k.pids, freedKb: k.freedKb }) + "\n");
+    for (const k of r.byKind) appendFileSync(p, JSON.stringify({ type: "reap.stopped", at: now, kind: k.kind, pids: k.pids, targets: k.targets, freedKb: k.freedKb }) + "\n");
   } catch {}
 }
 
-const LOGGED_KINDS = ["orphanLoop", "simBooted"];
+/** The bytes of `reap.jsonl` a read takes from its end: about 70 days of ticks at 300 s (a row is under 300 bytes). */
+export const LOG_TAIL = 4 << 20;
 
-export function recordHeld(top: string, r: StopResult, now: number = Date.now(), env: Record<string, string | undefined> = process.env): string[] {
-  const rows = r.selected.filter((s) => LOGGED_KINDS.includes(s.kind));
-  if (rows.length === 0) return [];
-  const advice: string[] = [];
+/** The rows of `reap.jsonl` in the last `LOG_TAIL` bytes (a cut first line and unparsable lines are dropped). [] when unreadable. */
+export function readLog(top: string, env: Record<string, string | undefined> = process.env): Record<string, unknown>[] {
+  let fd: number;
+  try { fd = openSync(join(consoleDirOf(env, top), "reap.jsonl"), "r"); } catch { return []; }
+  try {
+    const size = fstatSync(fd).size;
+    const len = Math.min(size, LOG_TAIL);
+    const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, size - len);
+    const lines = buf.toString("utf8").split("\n");
+    if (size > len) lines.shift();
+    const out: Record<string, unknown>[] = [];
+    for (const l of lines) {
+      if (l === "") continue;
+      try { const j = JSON.parse(l) as unknown; if (typeof j === "object" && j !== null) out.push(j as Record<string, unknown>); } catch { /* a torn row */ }
+    }
+    return out;
+  } catch { return []; } finally { closeSync(fd); }
+}
+
+export type FoldReply = { seen: { kind: string; pid: number; start: number; firstAt: number; outcome: string }[]; ticks: number;
+  covered: boolean; promote: string[]; verdict: string; exitSec: number; slotSec: number };
+
+/** Lean's fold of the log (`ops.reapFold`): the E and F identities, the 7-day coverage, the kinds that may join the automatic
+ *  plan and the verdict text. */
+export function foldLog(top: string, call: Call, now: number = Date.now(), env: Record<string, string | undefined> = process.env): FoldReply {
+  return call({ op: "ops.reapFold", now: secs(now), recs: readLog(top, env) }) as FoldReply;
+}
+
+/** The kinds `ops.reapFold` promotes into the automatic plan; [] when the log cannot be folded. Never throws. */
+export function promotedKinds(top: string, call: Call, now: number = Date.now(), env: Record<string, string | undefined> = process.env): string[] {
+  try { return foldLog(top, call, now, env).promote; } catch { return []; }
+}
+
+/** One `reap.tick` row per watch tick whose facts were read, plus one `reap.held` row per E or F identity the log did not
+ *  know (Lean `ops.reapLog`: the dedupe and the live list). Best effort; prints nothing. */
+export function recordHeld(top: string, r: StopResult, call: Call, now: number = Date.now(), env: Record<string, string | undefined> = process.env): void {
   try {
     const p = join(consoleDirOf(env, top), "reap.jsonl");
     mkdirSync(dirname(p), { recursive: true });
-    const seen = new Set<string>();
-    try {
-      for (const l of readFileSync(p, "utf8").split("\n")) {
-        if (!l.includes('"reap.held"')) continue;
-        const j = JSON.parse(l) as { kind?: string; pid?: number; start?: number };
-        seen.add(`${j.kind}:${j.pid}:${j.start}`);
-      }
-    } catch {}
-    for (const s of rows) {
-      appendFileSync(p, JSON.stringify({ type: "reap.held", at: now, kind: s.kind, pid: s.pid, start: s.start }) + "\n");
-      if (s.kind === "simBooted" && !seen.has(`${s.kind}:${s.pid}:${s.start}`)) {
-        advice.push(`REAP advice simBooted ${s.pid}: a booted Simulator of an ended sim slot; pnpm -s fw reap --stop shuts it down`);
-      }
-    }
+    const log = call({ op: "ops.reapLog", recs: readLog(top, env), selected: r.selected.map((s) => ({ pid: s.pid, start: s.start, kind: s.kind })) }) as
+      { held: { kind: string; pid: number; start: number }[]; live: { kind: string; pid: number; start: number }[] };
+    for (const h of log.held) appendFileSync(p, JSON.stringify({ type: "reap.held", at: now, kind: h.kind, pid: h.pid, start: h.start }) + "\n");
+    appendFileSync(p, JSON.stringify({ type: "reap.tick", at: now, live: log.live }) + "\n");
   } catch {}
-  return advice;
 }
 
 export function renderStop(r: StopResult): string[] {
@@ -625,7 +663,18 @@ export function reapStopLines(top: string, call: Call = fwcoreCall(top), io: Io 
  *  selected process survived KILL). */
 export function reapCli(argv: string[], top: string, call: Call, print: (s: string) => void = console.log,
   gatherFn: (top: string) => Facts | null = gather, io: Io = realIo, scope?: number[]): number {
-  if (argv.length !== 1 || (argv[0] !== "--list" && argv[0] !== "--stop")) throw new ReapUsage(REAP_USAGE);
+  if (argv.length !== 1 || (argv[0] !== "--list" && argv[0] !== "--stop" && argv[0] !== "--exit")) throw new ReapUsage(REAP_USAGE);
+  if (argv[0] === "--exit") {
+    try {
+      const f = foldLog(top, call);
+      print(`reap: ${f.verdict}`);
+      print(`reap: ${f.ticks} tick row(s) in the log tail, ${f.seen.length} E/F process identit${f.seen.length === 1 ? "y" : "ies"}, promote: ${f.promote.length ? f.promote.join(", ") : "none"}`);
+      return 0;
+    } catch {
+      print("reap: could not fold the log");
+      return 1;
+    }
+  }
   if (argv[0] === "--stop") {
     const r = stopSelected(top, call, io, gatherFn, scope, false);
     if (r === null) { print("reap: could not read the process table or the worktree list"); return 1; }
@@ -649,12 +698,13 @@ export function reapTick(top: string, env: Record<string, string | undefined> = 
   gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top), scope?: number[]): string[] {
   if (env.FW_WATCH_REAP === "0") return [];
   try {
-    const r = stopSelected(top, call(), io, gatherFn, scope, true);
+    const c = call();
+    const r = stopSelected(top, c, io, gatherFn, scope, true, promotedKinds(top, c, Date.now(), env));
     if (r === null) return [];
-    const advice = recordHeld(top, r, Date.now(), env);
-    if (r.byKind.length === 0) return advice;
+    recordHeld(top, r, c, Date.now(), env);
+    if (r.byKind.length === 0) return [];
     recordStopped(top, r, Date.now(), env);
-    return [...advice, ...r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`)];
+    return [...r.byKind.map((k) => `REAP stopped ${k.kind} ${k.pids.length} process(es) [${k.pids.join(",")}] freed ${(k.freedKb / 1024).toFixed(1)} MiB${r.left.length ? `; still running: ${r.left.map((t) => t.pid).join(",")}` : ""}`)];
   } catch {
     return [];
   }

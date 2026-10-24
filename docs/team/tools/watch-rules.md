@@ -45,7 +45,7 @@ Every threshold is strict `>` except the load.
 - `team.permissionWait`: a Notification in the lead's spool is newer than the lead's last tool event. Hook Notifications
   carry no agent id, so this is team-level; limits: any lead tool event clears it, and Notifications also fire for idle
   input prompts, not only permission prompts.
-- `agent.held`: `killOrphan` proposed (the agent's own `until ...; do sleep` loop can never finish).
+- `agent.held`: the Reap plan holds the loop (pid+start); `NEXT killOrphan` names the same entry.
 - `agent.unlanded`: `land` or `routeIntegrator` proposed (handed back, branch ahead of `main`, not landed). False once
   main's history has a commit with the task's `Task:` trailer (`onMain`), even if the branch is gone, and while the live
   land lock names the branch (`landLock`). Proofs: `no_unlanded_once_on_main`, `alert_suppressed_iff_locked`.

@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { lockFacts, lockFile } from "../hooks/land-guard.mjs";
 import { queuedBranches } from "./land-queue.ts";
-import { gather, heldLoops, repoIdOf, wtIdOf, type Call, type Facts } from "./reap.ts";
+import { heldPass, repoIdOf, wtIdOf, type ReapPass } from "./reap.ts";
 import { fwcoreCall } from "./run.ts";
 import {
   exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, startFromAge, readMeta, readsStdin, signalsOf, withLeadNotes,
@@ -15,7 +15,7 @@ import {
 /** What a loop watches: a background task's output file, or an agent's transcript / output file. */
 export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
-  pid: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
+  pid: number; start?: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
 } & ({ kind: "sleepLoop" | "build" | "other" | "stdinWait" } | { kind: "ciWait"; run: number; timeoutMin: number });
 export interface HeldFact { pid: number; start: number; wt: string | null }
 export interface AgentFacts {
@@ -127,6 +127,8 @@ export interface Raw {
   landQueue?: string[];
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
   reapHeld?: HeldFact[];
+  /** the start (process-table fact) of each pid; pairs a child pid with its identity */
+  starts?: Map<number, number>;
 }
 const hasWord = (text: string, w: string) => text.split(/[^A-Za-z0-9._/-]+/).includes(w);
 
@@ -163,7 +165,8 @@ export function childrenOf(raw: Raw, agentId: string): ChildFact[] {
     const cl = classifyTree(root.comm, q.pids.map((p) => by.get(p)?.comm ?? ""));
     const f = cl.watchedFile ? raw.file(cl.watchedFile) : null;
     const w = cl.watchedFile ? watchOf(cl.watchedFile, agentIds) : null;
-    const base = { pid: q.pid, chain: chainOf(raw.ps, q.pid), startedAt: startFromAge(raw.now, root.ageMs),
+    const st = raw.starts?.get(q.pid);
+    const base = { pid: q.pid, ...(st === undefined ? {} : { start: st }), chain: chainOf(raw.ps, q.pid), startedAt: startFromAge(raw.now, root.ageMs),
       watchedAt: f ? Math.floor(f.mtimeMs) : null, producerExited: f ? producerExitedLine(f.lastLine) : false, ...(w ? { watch: w } : {}) };
     const kind = cl.kind !== "ciWait" && stdin.has(q.pid) ? "stdinWait" : cl.kind;
     out.push(kind === "ciWait" ? { ...base, kind: "ciWait", run: cl.run!, timeoutMin: cl.timeoutMin! } : { ...base, kind });
@@ -344,21 +347,12 @@ export function liveLandLockBranch(root: string): string | null {
   } catch { return null; }
 }
 
-export function reapHeldFacts(top: string, env: Record<string, string | undefined> = process.env,
-  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): HeldFact[] {
-  if (env.FW_WATCH_REAP === "0") return [];
-  try {
-    const f = gatherFn(top);
-    if (f === null) return [];
-    return heldLoops(f, call()).map((h) => ({
-      pid: h.pid, start: h.start, wt: f.rows.find((r) => r.pid === h.pid && r.start === h.start)?.wt ?? null,
-    }));
-  } catch {
-    return [];
-  }
+/** The held entries of one watch pass (Lean's Reap plan, `wt` from Lean): what `next` turns into `killOrphan`. */
+export function reapHeldFacts(pass: ReapPass | null): HeldFact[] {
+  return pass === null ? [] : pass.held.map((h) => ({ pid: h.pid, start: h.start, wt: h.wt }));
 }
 
-export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown): Promise<Raw> {
+export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown, reap: ReapPass | null = null): Promise<Raw> {
   const [wtOut, ps] = await Promise.all([exec("git", ["worktree", "list", "--porcelain"], p.root), psCommands()]);
   const wts = parseWorktrees(wtOut);
   const states = new Map(health.agents.map((a) => [a.id, a.state]));
@@ -427,7 +421,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     procs: snap.system.procs ?? [], ps, alive: pidAlive, file: statFile, queuedText, ci, board,
     landLock: liveLandLockBranch(p.root),
     landQueue: [...new Set([...queuedBranches(join(main, ".fw-console")), ...queuedBranches(p.consoleDir)])],
-    reapHeld: reapHeldFacts(main),
+    reapHeld: reapHeldFacts(reap), starts: reap?.starts,
   };
 }
 
@@ -439,6 +433,6 @@ export async function fetchPlan(p: Paths, env: NodeJS.ProcessEnv = process.env):
 }
 
 /** Facts for all agents of a snapshot, ready for the `obs.next` request. */
-export async function collectFacts(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }): Promise<AgentFacts[]> {
-  return buildFacts(await collectRaw(p, main, snap, health, await fetchPlan(p)));
+export async function collectFacts(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, reap: ReapPass | null = heldPass(main)): Promise<AgentFacts[]> {
+  return buildFacts(await collectRaw(p, main, snap, health, await fetchPlan(p), reap));
 }

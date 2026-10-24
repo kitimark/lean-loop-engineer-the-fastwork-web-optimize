@@ -38,6 +38,7 @@ function rawOf(now: number, facts: any[]): Raw {
   const files = new Map<string, { mtimeMs: number; lastLine: string }>();
   const alive = new Set<number>();
   const procs: Raw["procs"] = [];
+  const starts = new Map<number, number>();
   const addChain = (pid: number, chain: number[], ageMs: number, comm: string) => {
     ps.set(pid, { pid, ppid: chain[0] ?? 1, ageMs, comm });
     chain.forEach((c, i) => { if (!ps.has(c)) ps.set(c, { pid: c, ppid: chain[i + 1] ?? 1, ageMs: 9e9, comm: c === facts[0].session ? "/usr/local/bin/claude" : "/bin/zsh" }); });
@@ -52,6 +53,7 @@ function rawOf(now: number, facts: any[]): Raw {
         : c.kind === "ciWait" ? `/bin/zsh -c sh waitrun.sh ${c.run} ${c.timeoutMin}`
         : c.kind === "build" ? "/bin/zsh -c lake build" : "/bin/zsh -c sleep 1000";
       addChain(c.pid, c.chain, now - c.startedAt, comm);
+      if (typeof c.start === "number") starts.set(c.pid, c.start);
       procs.push({ pid: c.pid, name: "zsh", startedAt: c.startedAt, pids: [], agent: f.id });
       if (c.watchedAt != null) files.set(file, { mtimeMs: c.watchedAt, lastLine: c.producerExited ? "[exited with code 0]" : "tick" });
     }
@@ -69,7 +71,7 @@ function rawOf(now: number, facts: any[]): Raw {
     if (f.board) board.set(f.id, { id: f.board.id, done: f.board.done, agent: f.board.agent ?? null });
     if (f.ci) ci.push({ ...f.ci, conclusion: f.ci.conclusion ?? null, endedAt: f.ci.endedAt ?? null });
   }
-  return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board,
+  return { now, session: facts[0].session, agents, procs, ps: [...ps.values()], alive: (p) => alive.has(p), file: (p) => files.get(p) ?? null, queuedText: queued, ci, board, starts,
     reapHeld: (facts[0]?.reapHeld ?? []).map((h: any) => ({ pid: h.pid, start: h.start, wt: h.wt ?? null })) };
 }
 
@@ -193,23 +195,16 @@ describe("end to end with a real child process", () => {
 });
 
 describe("reapHeldFacts: the Reap plan's held loops as facts", () => {
-  const facts = { rows: [
-    { pid: 10, ppid: 1, pgid: 10, start: 500, cwd: null, kind: "loop", wt: "wt-a" },
-    { pid: 11, ppid: 1, pgid: 11, start: 600, cwd: null, kind: "loop", wt: null },
-  ], live: [], mcps: [], keep: [] } as any;
-  const reply = (held: unknown[]) => () => ((req: any) => (req.op === "ops.reapHeld" ? { held } : {})) as any;
-  it("each held entry takes the worktree id of the row with its pid and start", () => {
-    const got = reapHeldFacts("/r", {}, () => facts, reply([
-      { pid: 10, start: 500, kind: "orphanLoop", group: true, reason: "r" },
-      { pid: 11, start: 600, kind: "orphanLoop", group: true, reason: "r" },
-      { pid: 10, start: 501, kind: "orphanLoop", group: true, reason: "r" },
+  const pass = (held: unknown[]) => ({ held, heldSim: [], starts: new Map() }) as any;
+  it("each held entry carries the pid, start and worktree id Lean gave it", () => {
+    const got = reapHeldFacts(pass([
+      { pid: 10, start: 500, kind: "orphanLoop", group: true, reason: "r", wt: "wt-a" },
+      { pid: 11, start: 600, kind: "orphanLoop", group: true, reason: "r", wt: null },
     ]));
-    expect(got).toEqual([{ pid: 10, start: 500, wt: "wt-a" }, { pid: 11, start: 600, wt: null }, { pid: 10, start: 501, wt: null }]);
+    expect(got).toEqual([{ pid: 10, start: 500, wt: "wt-a" }, { pid: 11, start: 600, wt: null }]);
   });
-  it("no facts, a failing call, or FW_WATCH_REAP=0 give no entries", () => {
-    expect(reapHeldFacts("/r", {}, () => null, reply([]))).toEqual([]);
-    expect(reapHeldFacts("/r", {}, () => facts, () => (() => { throw new Error("x"); }) as any)).toEqual([]);
-    expect(reapHeldFacts("/r", { FW_WATCH_REAP: "0" }, () => { throw new Error("not read"); }, reply([]))).toEqual([]);
+  it("no pass (no facts, a failing call, FW_WATCH_REAP=0) gives no entries", () => {
+    expect(reapHeldFacts(null)).toEqual([]);
   });
 });
 
