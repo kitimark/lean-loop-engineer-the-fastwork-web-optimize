@@ -1,7 +1,12 @@
 # mount-arm-late handoff
 
 - Branch `worktree-wf_112a77b1-8ca-1`, worktree `.claude/worktrees/wf_112a77b1-8ca-1`, CI branch `ci/mount-arm-late`.
-  Last commit: see `git log -1` (this file is committed with the CI push commit). CI runs: none yet (draft before the first push).
+  Last commit: see `git log -1`. CI runs (branch `ci/mount-arm-late`):
+  - `40092331051` trajectory-probe, success; inputs read back from the step name: `fw=morph.mount:arm-late widths=390,1280
+    engines=both diagnostic` (commit-line, head ec89e3cac). Chromium: 0 new fails (1 both = baseline red, 1 undecided open@1
+    coverage, 2 cleared); playwright-webkit: 2000 pass, 0 fail.
+  - `40092331031` lean, failure by design: `check-imports` wants `lean/Fw.lean` to import the two new modules (lead wires).
+  - gate push: pending (second and last push, head commit asks `[ci:breakpoint-gate]`).
 - Verified: `lake env lean Fw/Parts/MorphMountArmLate.lean` and the golden module build clean; `armLate.test.ts` (62 golden
   rows + sweep counts) and `armLate.component.test.ts` green; `tsc --noEmit` green; `part-footprint.mjs --check` green.
 - Read first: `lean/Fw/Parts/MorphMountArmLate.lean` header, then `prevent_needs`, `covers`, `stepW_inv`, `late_same`.
