@@ -103,8 +103,8 @@ class, so the width changes once. Faithful and draw-nolayout are unchanged (the 
 ## Measurement (MEASURED, run 40010826238, commit 3c1ab9970, webkit-sim swap lane, 430x775, jobs r1 r2 with 2 passes each)
 Push with `[ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]` (a first push without `[ci:webkit-sim]` was skipped by the guard, run 40010696479;
 it is not a dispatch). Job r3 did not finish and the run was cancelled, which skipped the report jobs; the report was built from the r1 and r2
-artifacts with `node src/lag/cli.mjs swap-report --files r1-lag.json,r2-lag.json` (the same command reproduces the committed run-39999057900 numbers).
-The report tables call the arm `crop`. Command: swap-report --arm hero.accent:draw-nolayout-full --files r1-lag.json,r2-lag.json --sources "run 40010826238 commit 3c1ab9970 jobs r1 r2" --summary summary-full.json (that run predates the search field, so the label is given by hand; runs from this task carry it).
+artifacts with `node src/lag/cli.mjs swap-report` (the command below; without --arm the same files reproduce the committed run-39999057900 numbers).
+Command: swap-report --arm hero.accent:draw-nolayout-full --files r1-lag.json,r2-lag.json --sources "run 40010826238 commit 3c1ab9970 jobs r1 r2" --summary summary-full.json (that run predates the search field, so the label is given by hand; runs from this task carry it).
 
 | window class | metric | faithful-a | faithful-b (A/A) | draw-nolayout (run 39999057900) | draw-nolayout-full |
 |---|---|---:|---:|---:|---:|
