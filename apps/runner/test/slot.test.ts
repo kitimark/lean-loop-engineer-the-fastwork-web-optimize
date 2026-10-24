@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type Row, type Sample, type VmMark,
   type WParams, type Window, beginPass, capLease, current, openAt, passStart, predict, stopPass, want, wverdict,
-  admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, prune, release, renew, signal, simAction, simBoot,
+  admitBuild, agentsSeen, availMB, cacheHit, expired, grant, heldOf, keyOf, leanThreads, leaseOr, nestedSkips, prune, release, renew, signal, simAction, simBoot,
   simDue, simIdleNext, simQueued, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
 import { WHY_TAGS, noteQueue, queueExtra } from "../src/slot-queue.ts";
@@ -54,6 +54,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
     case "adapt.agentsSeen": return { agents: agentsSeen(p, r.now as number, r.reading as { time: number; live: number } | null) };
     case "adapt.simQueued": return { queued: simQueued(r.now as number, r.queue as Entry[]) };
     case "adapt.withLegacy": return { holders: withLegacy(r.now as number, r.legacy as boolean, r.holders as Entry[]) };
+    case "adapt.nested": return { skip: nestedSkips(r.now as number, r.kind as Entry["kind"], r.named as { owner: string; token: string } | null, r.held as Entry[]) };
     case "adapt.heldOf": return { held: heldOf(r.now as number, r.holders as Entry[], r.kind as Entry["kind"]) };
     case "adapt.stop": return { action: stopAct(p, r.alive as boolean, r.sameStart as boolean, r.termAt as number | null, r.nowMs as number) };
     case "adapt.cacheKey": return { key: keyOf(r.kind as CacheKey["kind"], r.argv as string[], r.tree as string, r.mainSha as string, r.clean as boolean) };
@@ -78,7 +79,7 @@ function answer(r: Record<string, unknown> & { op: string }): Record<string, unk
 
 describe("slot-core replays the Fw.Sup.Adapt golden vectors", () => {
   it(`${cases.length} cases, every op covered`, () => {
-    expect(new Set(cases.map((c) => c.request.op)).size).toBe(33);
+    expect(new Set(cases.map((c) => c.request.op)).size).toBe(34);
     for (const c of cases) expect(answer(c.request), c.name).toEqual(c.response);
   });
 });
@@ -291,10 +292,43 @@ describe("fw slot run", () => {
     expect(state().holders).toEqual([]);
   });
 
-  it("a nested run inside a held slot runs at once", async () => {
-    const { d, out } = deps({ env: { PATH: process.env.PATH, FW_SLOT_HELD: "1" }, probe: () => { throw new Error("no probe when held"); } });
-    expect(await slotCli(["run", "--kind", "test", "--", node, "-e", "console.log('in')"], d)).toBe(0);
-    expect(out.join("")).toBe("in\n");
+  const nowS = (): number => Math.floor(Date.now() / 1000);
+  const heldFixture = (dir: string, kind: string, token: string, till: number): void => {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "state.json"), JSON.stringify({ ctl: { n: 4, lastChange: 0, prev: null }, queue: [], simIdleSince: 0,
+      holders: [{ owner: "wt-a", token, kind, since: nowS() - 5, till, foot: 0, leaseS: 600 }] }));
+  };
+  const nested = async (kind: string, env: Record<string, string | undefined>, fixture: [string, string, number] | null, probe = true) => {
+    const { d, out, state } = deps({ env: { PATH: process.env.PATH, ...env }, ...(probe ? {} : { probe: () => { throw new Error("no probe when skipped"); } }) });
+    if (fixture) heldFixture(d.dir, fixture[0], fixture[1], fixture[2]);
+    const code = await slotCli(["run", "--kind", kind, "--", node, "-e", "console.log(process.env.FW_SLOT_TOKEN)"], d);
+    return { code, out: out.join(""), holders: state().holders };
+  };
+
+  it("a nested run under a live held token of its kind runs at once (the token is named)", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() + 600], false);
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("T1\n");
+    expect(r.holders).toHaveLength(1);
+  });
+
+  it("FW_SLOT_HELD alone names no token: the run takes its own slot", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1" }, null);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("undefined\n");
+    expect(r.out).toMatch(/^[0-9a-f-]+\n$/i);
+  });
+
+  it("a held test slot does not cover a nested land request: the run takes a land slot", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["test", "T1", nowS() + 600]);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("T1\n");
+  });
+
+  it("an expired named token does not cover the run", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() - 1]);
+    expect(r.code).toBe(0);
+    expect(r.out).not.toBe("T1\n");
   });
 
   it("--cache replays a passing run on the same clean tree and argv, never a failing or dirty one", async () => {

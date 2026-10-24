@@ -15,47 +15,38 @@ Units as in `Fw.Obs.Health`: times are ms since the epoch, the `…Min` threshol
 (`μ = 60000` ms), an age is the truncated difference `t ∸ s`. The facts are a snapshot: the Health
 state is an input here (the reply of `obs.health` for the same snapshot), not recomputed.
 
-A loop child is **own** when its parent chain reaches the session pid and it is neither the session nor one of its
-own ancestors, **sole** when no child of another kind shares its pid, and its watch is **dead** when it watches a file
-whose producer has exited (the file's last line is the exit marker) or that is unchanged for more than
-`fileStaleMin`. Such a loop can never be satisfied.
+A kill comes from one rule, `Fw.Ops.Reap`: the facts carry the Reap plan's `held` entries (`ops.reapHeld`: pid, start
+and the worktree id of the process's cwd), and an agent gets `killOrphan pid start` exactly for the entries in its own
+worktree (`kill_iff`). Next infers no orphan itself.
 
 Rules (a gate on the Health state, then independent pieces in a fixed order; `none` exactly when no piece fires):
 * Every agent, first: `claimTask` when it is live (not done, not gone) and its name is the id of a board task that is
   not done and has no agent (the spawn-time claim ran before the task reached the board and is never retried).
-* An **active** agent gets only: `killOrphan` for an own, sole waiting child (sleep loop or stdin wait) with a dead
-  watch (killing only wakes the owner's waiting call), `waitCi` (its CI run is running), and `nudgeHandoff` (context
-  above `ctxWarn`, or paired with every such kill so the owner learns why its call returned).
-* Otherwise: `killOrphan` for each own, sole waiting child whose owner handed back, or whose watch is dead, or which runs
-  for more than `loopCapMin`; `waitCi`; `land` or `routeIntegrator` (handed back, no live child, branch ahead and not
-  landed; routed when the branch is on the integrator's list); `cleanupWorktree` (worktree present, branch landed, no
-  live child, handed back or ended); `respawnFromHandoff` (no handback, stalled or gone, no live child);
-  `nudgeHandoff`; `investigate` with a reason (held by a child that gets no kill, a CI wait past its own timeout, a
-  sleep loop outside the session's tree, a dead worktree-lock pid of a live agent).
+* An **active** agent gets only: `killOrphan` for each held entry in its worktree, `waitCi` (its CI run is running),
+  and `nudgeHandoff` (context above `ctxWarn`, or paired with every kill so the owner learns why its call returned).
+* Otherwise: `killOrphan` for each held entry in its worktree; `waitCi`; `land` or `routeIntegrator` (handed back, no
+  live child, branch ahead and not landed; routed when the branch is on the integrator's list); `cleanupWorktree`
+  (worktree present, branch landed, no live child, handed back or ended); `respawnFromHandoff` (no handback, stalled or
+  gone, no live child); `nudgeHandoff`; `investigate` with a reason (held by a child whose pid no kill names, a CI wait
+  past its own timeout, a sleep loop outside the session's tree, a dead worktree-lock pid of a live agent).
 
 Signals (`Fw.Obs.Signals`): when an agent carries its transcript signals, `resolve` takes its handback from them and
 marks a child's producer exited when the child watches a task that has ended or an agent that is finished or done;
-`next` then decides on the resolved facts. Retention (`keepB`) keeps an agent while `next` gives it an action other
-than `none` or its signal state is not quiet; `meta.finished` is read nowhere.
+`next` then decides on the resolved facts, and no rule of `next` reads a child's watch. Retention (`keepB`) keeps an
+agent while `next` gives it an action other than `none` or its signal state is not quiet; `meta.finished` is read
+nowhere.
 
-Proved: `next_total`, `next_det`, `kill_sound`, `kill_only_loops`, `active_quiet`, `active_kill_nudge`, `land_sound`,
-`route_sound`, `cleanup_sound`, `respawn_sound`, `claim_sound`, `live_land`, `live_kill`, `live_kill_active`,
-`live_claim`, `kill_mono`, `resolve_handback`, `resolveChild_exit`, `keep_of_open_action`, `keep_of_live`,
+Proved: `next_total`, `next_det`, `kill_held`, `held_kill`, `kill_iff`, `no_kill_unheld`, `kill_time`,
+`active_quiet`, `active_kill_nudge`, `land_sound`, `route_sound`, `cleanup_sound`, `respawn_sound`, `claim_sound`,
+`live_land`, `live_claim`, `resolve_handback`, `resolveChild_exit`, `keep_of_open_action`, `keep_of_live`,
 `keep_withMeta`, `keepHealth_of_open_action`. Wire ops: `obs.next`, `obs.signals` (`Fw.Wire.Obs`).
 -/
 namespace Fw.Obs.Next
 open Fw.Obs.Health (State CiRun ciRunning msPerMin)
 
-/-- The thresholds: the Health thresholds (`ctxWarn` is used here), the loop cap and the file-stale time.
-`loopCapMin` = 30: no poll loop of this repo may wait open-ended (CI waits go through `waitrun.sh`, a `ciWait`, with
-their own timeout), and 30 min is above `ciSlowMin` (20), the longest wait the lead treats as normal.
-`fileStaleMin` = 10: builds, tests and CI logs write at least every few minutes, so a watched file unchanged for
-10 min will not bring the awaited text.
--/
 structure Params where
   health       : Fw.Obs.Health.Params := {}
   loopCapMin   : Nat := 30
-  fileStaleMin : Nat := 10
 deriving DecidableEq, Repr
 
 /-- What a child process of the agent's session does: a shell poll loop (`until …; do sleep …; done`), a CI wait
@@ -70,12 +61,6 @@ inductive ChildKind where
   | stdinWait
 deriving DecidableEq, Repr
 
-/-- The waiting kinds, the only ones that may be killed: a sleep loop or a stdin wait (neither does work). -/
-def waitsK (k : ChildKind) : Bool := k == .sleepLoop || k == .stdinWait
-
-/-- What a loop watches, when known: the output of a background task (by task id) or an agent's transcript (by the
-agent id its signals carry).
--/
 inductive Watch where
   | task (id : String)
   | agent (id : String)
@@ -130,10 +115,10 @@ queue (its single runner will land it).
 -/
 def Branch.locked (b : Branch) : Bool := b.landLock == some b.name || b.inLandQueue
 
-/-- The agent's worktree: the pid in its lock (`none`: not locked) and whether that pid is alive. -/
 structure Worktree where
   lockPid   : Option Nat := none
   lockAlive : Bool := false
+  id        : Option String := none
 deriving DecidableEq, Repr
 
 /-- The latest CI run of the agent's `ci/*` branch: its run id and the run (status, conclusion, times). -/
@@ -151,11 +136,12 @@ structure TaskRow where
   agent : Option String := none
 deriving DecidableEq, Repr
 
-/-- The facts of one agent: id, task id, Health state, time of its handback (`none`: not seen), the session pid its
-processes descend from, its branch, worktree and context tokens (0 when unknown), its live child processes, the
-latest CI run of its `ci/*` branch, the board row of the task named like the agent (`none`: no such task), whether its
-handoff note exists, and its transcript signals (`Fw.Obs.Signals.Facts`; `none`: not read).
--/
+structure Held where
+  pid   : Nat
+  start : Nat
+  wt    : Option String := none
+deriving DecidableEq, Repr
+
 structure AgentFacts where
   id         : String
   task       : String
@@ -170,28 +156,20 @@ structure AgentFacts where
   board      : Option TaskRow := none
   /-- the handoff note `docs/team/handoffs/<name>.md` exists -/
   handoff    : Bool := false
-  /-- the transcript signals (`none`: not read; then `resolve` leaves the facts as they are) -/
   signals    : Option Fw.Obs.Signals.Facts := none
+  reapHeld   : List Held := []
 deriving DecidableEq, Repr
 
-/-- Why an agent needs a look by the lead: held by a child that gets no kill, a CI wait past its own timeout, a sleep
-loop outside the session's process tree (never killed here), a dead lock pid on the worktree of an agent that has
-not ended and has not handed back, or a branch that does not merge into `main` cleanly.
--/
 inductive Reason where
   | heldByChild | ciWaitOverdue | foreignLoop | lockDead | conflict
 deriving DecidableEq, Repr
 
-/-- The next actions: nothing, wait for a CI run, land a branch for a task, route a branch to the integrator, kill an
-orphan process, remove the worktree, stop and respawn from the handoff note, ask the agent to write its handoff, or
-look at it (with a reason), or bind a task to the agent on the board.
--/
 inductive Action where
   | none
   | waitCi (run : Nat)
   | land (branch task : String)
   | routeIntegrator (branch : String)
-  | killOrphan (pid : Nat)
+  | killOrphan (pid start : Nat)
   | cleanupWorktree
   | respawnFromHandoff
   | nudgeHandoff
@@ -214,39 +192,13 @@ def landedB (f : AgentFacts) : Bool :=
   | some b => b.settled
   | none => false
 
-/-- Whether a child's watched file is stale: unchanged for strictly more than `fileStaleMin` (no watched file: no). -/
-def staleB (p : Params) (now : Nat) (c : Child) : Bool :=
-  match c.watchedAt with
-  | some m => decide (p.fileStaleMin * msPerMin < now - m)
+def heldB (f : AgentFacts) (h : Held) : Bool :=
+  match f.worktree.bind (·.id) with
+  | some w => h.wt == some w
   | none => false
 
-/-- Whether a child watches a file whose producer has exited. -/
-def exitedB (c : Child) : Bool := c.watchedAt.isSome && c.producerExited
+def killPidB (f : AgentFacts) (q : Nat) : Bool := f.reapHeld.any fun h => heldB f h && h.pid == q
 
-/-- Whether a child's watch is dead: its file's producer has exited or the file is stale. -/
-def deadB (p : Params) (now : Nat) (c : Child) : Bool := exitedB c || staleB p now c
-
-/-- Whether a child runs for strictly more than the loop cap. -/
-def oldB (p : Params) (now : Nat) (c : Child) : Bool := decide (p.loopCapMin * msPerMin < now - c.startedAt)
-
-/-- Whether a child's pid is unambiguous: every child of the agent with the same pid is of a waiting kind (sleep loop or stdin wait). -/
-def soleB (f : AgentFacts) (c : Child) : Bool := f.children.all fun d => d.pid != c.pid || waitsK d.kind
-
-/-- Whether a child is in the session's tree but is neither the session nor one of its own ancestors. -/
-def ownB (f : AgentFacts) (c : Child) : Bool :=
-  c.chain.contains f.session && c.pid != f.session && !c.chain.contains c.pid
-
-/-- An orphan loop: an own, sole child of a waiting kind whose owner has handed back, or whose watch is dead, or which runs
-past the loop cap.
--/
-def orphanB (p : Params) (now : Nat) (f : AgentFacts) (c : Child) : Bool :=
-  waitsK c.kind && ownB f c && soleB f c && (handedBack f || deadB p now c || oldB p now c)
-
-/-- Whether a child gets `killOrphan`: an orphan loop, and when the agent is active its watch must be dead. -/
-def killB (p : Params) (now : Nat) (f : AgentFacts) (c : Child) : Bool :=
-  orphanB p now f c && (f.state != .active || deadB p now c)
-
-/-- Whether a child is a CI wait past its own timeout (strictly more than its timeout minutes). -/
 def overdueB (now : Nat) (c : Child) : Bool :=
   match c.kind with
   | .ciWait _ m => decide (m * msPerMin < now - c.startedAt)
@@ -281,14 +233,11 @@ def respawnB (f : AgentFacts) : Bool := stuckB f && f.children.isEmpty && openTa
 
 /-! ## The pieces and the decision -/
 
-/-- A one-element list when the test holds, else empty. -/
 def opt (b : Bool) (x : Action) : List Action := if b then [x] else []
 
-/-- One `killOrphan` per child that gets a kill, in child order. -/
-def kills (p : Params) (now : Nat) (f : AgentFacts) : List Action :=
-  (f.children.filter (killB p now f)).map fun c => .killOrphan c.pid
+def kills (f : AgentFacts) : List Action :=
+  (f.reapHeld.filter (heldB f)).map fun h => .killOrphan h.pid h.start
 
-/-- `waitCi` for the agent's CI run while it is running. -/
 def waits (f : AgentFacts) : List Action :=
   match f.ci with
   | some c => opt (ciRunning c.run) (.waitCi c.id)
@@ -317,11 +266,8 @@ def lands (f : AgentFacts) : List Action :=
 def cleans (f : AgentFacts) : List Action :=
   opt (f.worktree.isSome && landedB f && f.children.isEmpty && (handedBack f || endedS f.state)) .cleanupWorktree
 
-/-- The `investigate` actions, in reason order: held by a child that gets no kill (stuck, or handed back), an overdue
-CI wait, a foreign sleep loop, a dead lock pid.
--/
-def probes (p : Params) (now : Nat) (f : AgentFacts) : List Action :=
-  opt ((stuckB f || handedBack f) && f.children.any (fun c => !killB p now f c)) (.investigate .heldByChild) ++
+def probes (now : Nat) (f : AgentFacts) : List Action :=
+  opt ((stuckB f || handedBack f) && f.children.any (fun c => !killPidB f c.pid)) (.investigate .heldByChild) ++
   opt (f.children.any (overdueB now)) (.investigate .ciWaitOverdue) ++
   opt (f.children.any (foreignB f)) (.investigate .foreignLoop) ++
   opt (lockDeadB f) (.investigate .lockDead)
@@ -337,15 +283,11 @@ def claims (f : AgentFacts) : List Action :=
   | some r => opt (!endedS f.state && r.id == f.id && !r.done && r.agent.isNone) (.claimTask r.id f.id)
   | none => []
 
-/-- The next actions of one agent: claims first; then for an active agent kills (dead watches only), waits and a
-nudge (high context or any kill); otherwise kills, waits, land or route, cleanup, respawn, nudge and probes, in this
-order; `[none]` when nothing fires.
--/
 def next (p : Params) (now : Nat) (f : AgentFacts) : List Action :=
   if f.state == .active then
-    orNone (claims f ++ kills p now f ++ waits f ++ opt (nudgeB p f || !(kills p now f).isEmpty) .nudgeHandoff)
-  else orNone (claims f ++ kills p now f ++ waits f ++ lands f ++ cleans f ++
-    opt (respawnB f) .respawnFromHandoff ++ opt (nudgeB p f) .nudgeHandoff ++ probes p now f)
+    orNone (claims f ++ kills f ++ waits f ++ opt (nudgeB p f || !(kills f).isEmpty) .nudgeHandoff)
+  else orNone (claims f ++ kills f ++ waits f ++ lands f ++ cleans f ++
+    opt (respawnB f) .respawnFromHandoff ++ opt (nudgeB p f) .nudgeHandoff ++ probes now f)
 
 /-! ## Proofs -/
 
@@ -360,14 +302,13 @@ theorem mem_orNone (l : List Action) (x : Action) (hx : x ≠ .none) : x ∈ orN
   | nil => simp [hx]
   | cons _ _ => simp
 
-/-- Membership in `kills`: a kill of the pid of a child that gets a kill. -/
-theorem mem_kills (p : Params) (t : Nat) (f : AgentFacts) (x : Action) :
-    x ∈ kills p t f ↔ ∃ c ∈ f.children, killB p t f c = true ∧ x = .killOrphan c.pid := by
+theorem mem_kills (f : AgentFacts) (x : Action) :
+    x ∈ kills f ↔ ∃ h ∈ f.reapHeld, heldB f h = true ∧ x = .killOrphan h.pid h.start := by
   unfold kills
   simp only [List.mem_map, List.mem_filter]
   constructor
-  · rintro ⟨c, ⟨hc, hk⟩, rfl⟩; exact ⟨c, hc, hk, rfl⟩
-  · rintro ⟨c, hc, hk, rfl⟩; exact ⟨c, ⟨hc, hk⟩, rfl⟩
+  · rintro ⟨h, ⟨hm, hk⟩, rfl⟩; exact ⟨h, hm, hk, rfl⟩
+  · rintro ⟨h, hm, hk, rfl⟩; exact ⟨h, ⟨hm, hk⟩, rfl⟩
 
 /-- `waits` holds only the `waitCi` of a running CI run of the agent. -/
 theorem waits_kind (f : AgentFacts) (x : Action) (h : x ∈ waits f) :
@@ -389,8 +330,7 @@ theorem lands_kind (f : AgentFacts) (x : Action) (h : x ∈ lands f) :
     | (subst h; exact .inr (.inr (.inl ⟨_, rfl⟩)))
     | (subst h; exact .inr (.inr (.inr rfl)))
 
-/-- `probes` holds only `investigate` actions. -/
-theorem probes_kind (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (h : x ∈ probes p t f) :
+theorem probes_kind (t : Nat) (f : AgentFacts) (x : Action) (h : x ∈ probes t f) :
     ∃ r, x = .investigate r := by
   simp only [probes, List.mem_append, mem_opt] at h
   rcases h with ((⟨_, rfl⟩ | ⟨_, rfl⟩) | ⟨_, rfl⟩) | ⟨_, rfl⟩ <;> exact ⟨_, rfl⟩
@@ -408,7 +348,7 @@ theorem claim_mem (p : Params) (t : Nat) (f : AgentFacts) (k a : String)
   unfold next at h
   have ho : ∀ b y, (∀ k' a', y ≠ .claimTask k' a') → Action.claimTask k a ∉ opt b y := by
     intro b y hy hm; rw [mem_opt] at hm; exact hy k a hm.2.symm
-  have hk : Action.claimTask k a ∉ kills p t f := by
+  have hk : Action.claimTask k a ∉ kills f := by
     rw [mem_kills]; rintro ⟨_, _, _, h⟩; cases h
   have hw : Action.claimTask k a ∉ waits f := by
     intro h; obtain ⟨_, _, _, h⟩ := waits_kind f _ h; cases h
@@ -416,8 +356,8 @@ theorem claim_mem (p : Params) (t : Nat) (f : AgentFacts) (k a : String)
     intro h; rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, h⟩ | h <;> cases h
   have hc : Action.claimTask k a ∉ cleans f := by
     unfold cleans; exact ho _ _ (by simp)
-  have hpr : Action.claimTask k a ∉ probes p t f := by
-    intro h; obtain ⟨_, h⟩ := probes_kind p t f _ h; cases h
+  have hpr : Action.claimTask k a ∉ probes t f := by
+    intro h; obtain ⟨_, h⟩ := probes_kind t f _ h; cases h
   split at h
   · rw [mem_orNone _ _ (by simp)] at h
     simp only [List.mem_append] at h
@@ -479,21 +419,20 @@ theorem live_claim (p : Params) (t : Nat) (f : AgentFacts) (τ : TaskRow) (hd : 
 allows.
 -/
 theorem mem_next (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (hx : x ≠ .none) :
-    x ∈ next p t f ↔ x ∈ claims f ∨ x ∈ kills p t f ∨
-      if f.state = .active then x ∈ waits f ∨ x ∈ opt (nudgeB p f || !(kills p t f).isEmpty) .nudgeHandoff
+    x ∈ next p t f ↔ x ∈ claims f ∨ x ∈ kills f ∨
+      if f.state = .active then x ∈ waits f ∨ x ∈ opt (nudgeB p f || !(kills f).isEmpty) .nudgeHandoff
       else x ∈ waits f ∨ x ∈ lands f ∨ x ∈ cleans f ∨
         x ∈ opt (respawnB f) .respawnFromHandoff ∨ x ∈ opt (nudgeB p f) .nudgeHandoff ∨
-        x ∈ probes p t f := by
+        x ∈ probes t f := by
   unfold next
   by_cases h : f.state = .active
   · simp [h, mem_orNone _ _ hx]
   · have h' : (f.state == .active) = false := by simp [h]
     simp [h, h', mem_orNone _ _ hx]
 
-/-- **Totality.** For every input the decision gives a non-empty list, and `none` appears only alone. -/
 theorem next_total (p : Params) (t : Nat) (f : AgentFacts) :
     next p t f ≠ [] ∧ (Action.none ∈ next p t f → next p t f = [Action.none]) := by
-  have hk : Action.none ∉ kills p t f := by
+  have hk : Action.none ∉ kills f := by
     rw [mem_kills]; rintro ⟨_, _, _, h⟩; cases h
   have hcl : Action.none ∉ claims f := by
     intro h; obtain ⟨_, _, h⟩ := claims_kind f _ h; cases h
@@ -503,8 +442,8 @@ theorem next_total (p : Params) (t : Nat) (f : AgentFacts) :
     intro h; rcases lands_kind f _ h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, h⟩ | h <;> cases h
   have hc : Action.none ∉ cleans f := by
     unfold cleans; rw [mem_opt]; rintro ⟨_, h⟩; cases h
-  have hpr : Action.none ∉ probes p t f := by
-    intro h; obtain ⟨_, h⟩ := probes_kind p t f _ h; cases h
+  have hpr : Action.none ∉ probes t f := by
+    intro h; obtain ⟨_, h⟩ := probes_kind t f _ h; cases h
   have ho : ∀ b y, y ≠ Action.none → Action.none ∉ opt b y := by
     intro b y hy h; rw [mem_opt] at h; exact hy h.2.symm
   have key : ∀ l : List Action, Action.none ∉ l → orNone l ≠ [] ∧ (Action.none ∈ orNone l → orNone l = [.none]) := by
@@ -526,9 +465,8 @@ theorem next_total (p : Params) (t : Nat) (f : AgentFacts) :
 theorem next_det (p : Params) (t : Nat) (f : AgentFacts) (l l' : List Action)
     (h : next p t f = l) (h' : next p t f = l') : l = l' := h ▸ h'
 
-/-- A `killOrphan` in `next` comes only from `kills`. -/
-theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) :
-    Action.killOrphan q ∈ next p t f ↔ Action.killOrphan q ∈ kills p t f := by
+theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) :
+    Action.killOrphan q s ∈ next p t f ↔ Action.killOrphan q s ∈ kills f := by
   rw [mem_next p t f _ (by simp)]
   constructor
   · rintro (h | h | h)
@@ -544,107 +482,65 @@ theorem kill_mem (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) :
       · unfold cleans at h; rw [mem_opt] at h; cases h.2
       · rw [mem_opt] at h; cases h.2
       · rw [mem_opt] at h; cases h.2
-      · obtain ⟨_, h⟩ := probes_kind p t f _ h; cases h
+      · obtain ⟨_, h⟩ := probes_kind t f _ h; cases h
   · exact fun h => .inr (.inl h)
 
-/-- The kill test unfolded: an own, sole waiting child whose owner handed back, or whose watch is dead, or which runs
-past the cap; for an active agent its watch must be dead.
--/
-theorem killB_iff (p : Params) (t : Nat) (f : AgentFacts) (c : Child) :
-    killB p t f c = true ↔ waitsK c.kind = true ∧ f.session ∈ c.chain ∧ c.pid ≠ f.session ∧ c.pid ∉ c.chain ∧
-      soleB f c = true ∧ (handedBack f = true ∨ deadB p t c = true ∨ oldB p t c = true) ∧
-      (f.state ≠ .active ∨ deadB p t c = true) := by
-  simp only [killB, orphanB, ownB, Bool.and_eq_true, Bool.or_eq_true, List.contains_iff_mem,
-    bne_iff_ne, ne_eq, Bool.not_eq_true', Bool.eq_false_iff]
-  constructor
-  · rintro ⟨⟨⟨⟨hk, ⟨hs, hne⟩, hnc⟩, hso⟩, hw⟩, ha⟩
-    exact ⟨hk, hs, hne, hnc, hso, by simpa [or_assoc] using hw, ha⟩
-  · rintro ⟨hk, hs, hne, hnc, hso, hw, ha⟩
-    exact ⟨⟨⟨⟨hk, ⟨hs, hne⟩, hnc⟩, hso⟩, by simpa [or_assoc] using hw⟩, ha⟩
+theorem heldB_iff (f : AgentFacts) (h : Held) :
+    heldB f h = true ↔ ∃ w, f.worktree.bind (·.id) = some w ∧ h.wt = some w := by
+  unfold heldB
+  cases f.worktree.bind (·.id) <;> simp
 
-/-- The dead-watch test unfolded. -/
-theorem deadB_iff (p : Params) (t : Nat) (c : Child) :
-    deadB p t c = true ↔ (c.watchedAt ≠ none ∧ c.producerExited = true) ∨
-      ∃ m, c.watchedAt = some m ∧ p.fileStaleMin * msPerMin < t - m := by
-  unfold deadB exitedB staleB
-  cases c.watchedAt <;> simp
-
-/-- **Kill safety.** A killed pid is a waiting child (sleep loop or stdin wait) of the agent whose parent chain reaches the session pid, which
-is not the session nor its own ancestor; its owner handed back, or its watch is dead (producer exited or file stale),
-or it runs past the loop cap; and if the agent is active, its watch is dead.
--/
-theorem kill_sound (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) (h : Action.killOrphan q ∈ next p t f) :
-    ∃ c ∈ f.children, c.pid = q ∧ waitsK c.kind = true ∧ f.session ∈ c.chain ∧ q ≠ f.session ∧ q ∉ c.chain ∧
-      (f.handbackAt.isSome ∨
-        ((c.watchedAt ≠ none ∧ c.producerExited = true) ∨
-          ∃ m, c.watchedAt = some m ∧ p.fileStaleMin * msPerMin < t - m) ∨
-        p.loopCapMin * msPerMin < t - c.startedAt) ∧
-      (f.state = .active →
-        (c.watchedAt ≠ none ∧ c.producerExited = true) ∨
-          ∃ m, c.watchedAt = some m ∧ p.fileStaleMin * msPerMin < t - m) := by
-  obtain ⟨c, hc, hk, he⟩ := (mem_kills p t f _).1 ((kill_mem p t f q).1 h)
+theorem kill_held (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) (hk : Action.killOrphan q s ∈ next p t f) :
+    ∃ h ∈ f.reapHeld, h.pid = q ∧ h.start = s ∧ ∃ w, f.worktree.bind (·.id) = some w ∧ h.wt = some w := by
+  obtain ⟨h, hm, hb, he⟩ := (mem_kills f _).1 ((kill_mem p t f q s).1 hk)
   simp only [Action.killOrphan.injEq] at he
-  subst he
-  obtain ⟨hk, hs, hne, hnc, _, hw, ha⟩ := (killB_iff p t f c).1 hk
-  refine ⟨c, hc, rfl, hk, hs, hne, hnc, ?_, ?_⟩
-  · rcases hw with hw | hw | hw
-    · exact .inl hw
-    · exact .inr (.inl ((deadB_iff p t c).1 hw))
-    · right; right; simpa [oldB] using hw
-  · intro hact
-    rcases ha with ha | ha
-    · exact absurd hact ha
-    · exact (deadB_iff p t c).1 ha
+  exact ⟨h, hm, he.1.symm, he.2.symm, (heldB_iff f h).1 hb⟩
 
-/-- **No kill but loops.** A child of another kind (CI wait, build, other) is never killed: its pid gets no
-`killOrphan`.
--/
-theorem kill_only_loops (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (hc : c ∈ f.children)
-    (hk : waitsK c.kind = false) : Action.killOrphan c.pid ∉ next p t f := by
-  intro h
-  obtain ⟨d, _, hd, he⟩ := (mem_kills p t f _).1 ((kill_mem p t f c.pid).1 h)
-  simp only [Action.killOrphan.injEq] at he
-  obtain ⟨_, _, _, _, hso, _⟩ := (killB_iff p t f d).1 hd
-  simp only [soleB, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq] at hso
-  rcases hso c hc with h1 | h1
-  · exact h1 he
-  · simp [hk] at h1
+theorem held_kill (p : Params) (t : Nat) (f : AgentFacts) (h : Held) (hm : h ∈ f.reapHeld) (w : String)
+    (hw : f.worktree.bind (·.id) = some w) (hh : h.wt = some w) : Action.killOrphan h.pid h.start ∈ next p t f :=
+  (kill_mem p t f _ _).2 ((mem_kills f _).2 ⟨h, hm, (heldB_iff f h).2 ⟨w, hw, hh⟩, rfl⟩)
 
-/-- **Active gate.** An active agent gets only `none`, `waitCi`, `nudgeHandoff`, `claimTask`, or `killOrphan` of a
-waiting child in the session's tree whose watch is dead (its file's producer has exited or the file is stale).
--/
+theorem kill_iff (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) :
+    Action.killOrphan q s ∈ next p t f ↔
+      ∃ h ∈ f.reapHeld, h.pid = q ∧ h.start = s ∧ ∃ w, f.worktree.bind (·.id) = some w ∧ h.wt = some w := by
+  refine ⟨kill_held p t f q s, ?_⟩
+  rintro ⟨h, hm, rfl, rfl, w, hw, hh⟩
+  exact held_kill p t f h hm w hw hh
+
+theorem no_kill_unheld (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat)
+    (hn : ∀ h ∈ f.reapHeld, heldB f h = true → h.pid ≠ q ∨ h.start ≠ s) : Action.killOrphan q s ∉ next p t f := by
+  intro hk
+  obtain ⟨h, hm, hq, hs, hb⟩ := kill_held p t f q s hk
+  rcases hn h hm ((heldB_iff f h).2 hb) with h1 | h1
+  · exact h1 hq
+  · exact h1 hs
+
+theorem no_kill_empty (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) (he : f.reapHeld = []) :
+    Action.killOrphan q s ∉ next p t f :=
+  no_kill_unheld p t f q s (by simp [he])
+
 theorem active_quiet (p : Params) (t : Nat) (f : AgentFacts) (x : Action) (ha : f.state = .active)
     (hx : x ∈ next p t f) :
     x = .none ∨ (∃ r, x = .waitCi r) ∨ x = .nudgeHandoff ∨ (∃ k a, x = .claimTask k a) ∨
-      ∃ c ∈ f.children, x = .killOrphan c.pid ∧ waitsK c.kind = true ∧ f.session ∈ c.chain ∧
-        ((c.watchedAt ≠ none ∧ c.producerExited = true) ∨
-          ∃ m, c.watchedAt = some m ∧ p.fileStaleMin * msPerMin < t - m) := by
+      ∃ h ∈ f.reapHeld, heldB f h = true ∧ x = .killOrphan h.pid h.start := by
   by_cases hn : x = .none
   · exact .inl hn
   rw [mem_next p t f x hn, ite_eq_left ha] at hx
   rcases hx with h | h | h | h
   · exact .inr (.inr (.inr (.inl (claims_kind f _ h))))
-  · obtain ⟨c, hc, hk, rfl⟩ := (mem_kills p t f _).1 h
-    obtain ⟨hk, hs, _, _, _, _, hd⟩ := (killB_iff p t f c).1 hk
-    refine .inr (.inr (.inr (.inr ⟨c, hc, rfl, hk, hs, ?_⟩)))
-    rcases hd with hd | hd
-    · exact absurd ha hd
-    · exact (deadB_iff p t c).1 hd
+  · exact .inr (.inr (.inr (.inr ((mem_kills f _).1 h))))
   · obtain ⟨_, _, _, rfl⟩ := waits_kind f _ h
     exact .inr (.inl ⟨_, rfl⟩)
   · exact .inr (.inr (.inl (mem_opt _ _ _ |>.1 h).2))
 
-/-- **Kill and nudge go together for an active agent.** When an active agent gets a `killOrphan`, it also gets
-`nudgeHandoff`, so it learns why its waiting call returned.
--/
-theorem active_kill_nudge (p : Params) (t : Nat) (f : AgentFacts) (q : Nat) (ha : f.state = .active)
-    (h : Action.killOrphan q ∈ next p t f) : Action.nudgeHandoff ∈ next p t f := by
-  have hk := (kill_mem p t f q).1 h
+theorem active_kill_nudge (p : Params) (t : Nat) (f : AgentFacts) (q s : Nat) (ha : f.state = .active)
+    (h : Action.killOrphan q s ∈ next p t f) : Action.nudgeHandoff ∈ next p t f := by
+  have hk := (kill_mem p t f q s).1 h
   rw [mem_next p t f _ (by simp), ite_eq_left ha]
   right; right; right
   rw [mem_opt]
   refine ⟨?_, rfl⟩
-  cases hks : kills p t f with
+  cases hks : kills f with
   | nil => rw [hks] at hk; simp at hk
   | cons _ _ => simp
 
@@ -660,12 +556,12 @@ theorem lands_mem (p : Params) (t : Nat) (f : AgentFacts) (x : Action)
     rcases hx with ⟨_, h⟩ | ⟨_, _, h⟩
     · exact h1 _ h
     · exact h2 _ _ h
-  have hk : x ∉ kills p t f := by
+  have hk : x ∉ kills f := by
     rw [mem_kills]; rintro ⟨_, _, _, rfl⟩; rcases hx with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
   have hc : x ∉ cleans f := by
     unfold cleans; exact ho _ _ (by simp) (by simp)
-  have hpr : x ∉ probes p t f := by
-    intro h; obtain ⟨_, rfl⟩ := probes_kind p t f _ h; rcases hx with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+  have hpr : x ∉ probes t f := by
+    intro h; obtain ⟨_, rfl⟩ := probes_kind t f _ h; rcases hx with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
   have hcl : x ∉ claims f := by
     intro h; obtain ⟨_, _, rfl⟩ := claims_kind f _ h; rcases hx with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
   rw [mem_next p t f x hn]
@@ -740,7 +636,7 @@ theorem waitDeps_sound (p : Params) (t : Nat) (f : AgentFacts) (d : String)
     ∃ br ds, f.branch = some br ∧ br.deps = d :: ds ∧ br.settled = false ∧ br.queued = false := by
   have hn : Action.waitDeps d ≠ .none := by simp
   rw [mem_next p t f _ hn] at h
-  have hk : Action.waitDeps d ∉ kills p t f := by
+  have hk : Action.waitDeps d ∉ kills f := by
     rw [mem_kills]; rintro ⟨_, _, _, h⟩; cases h
   have hw : Action.waitDeps d ∉ waits f := by
     intro h; obtain ⟨_, _, _, h⟩ := waits_kind f _ h; cases h
@@ -749,8 +645,8 @@ theorem waitDeps_sound (p : Params) (t : Nat) (f : AgentFacts) (d : String)
   have ho : ∀ b y, y ≠ Action.waitDeps d → Action.waitDeps d ∉ opt b y := by
     intro b y hy h; rw [mem_opt] at h; exact hy h.2.symm
   have hc : Action.waitDeps d ∉ cleans f := by unfold cleans; exact ho _ _ (by simp)
-  have hpr : Action.waitDeps d ∉ probes p t f := by
-    intro h; obtain ⟨_, h⟩ := probes_kind p t f _ h; cases h
+  have hpr : Action.waitDeps d ∉ probes t f := by
+    intro h; obtain ⟨_, h⟩ := probes_kind t f _ h; cases h
   split at h
   · rcases h with h | h | h | h
     · exact absurd h hcl
@@ -780,7 +676,7 @@ theorem plain_mem (p : Params) (t : Nat) (f : AgentFacts) (y : Action)
     f.state ≠ .active ∧ (y ∈ cleans f ∨ y ∈ opt (respawnB f) .respawnFromHandoff) := by
   have hn : y ≠ .none := by rcases hy with rfl | rfl <;> simp
   rw [mem_next p t f y hn] at h
-  have hk : y ∉ kills p t f := by
+  have hk : y ∉ kills f := by
     rw [mem_kills]; rintro ⟨_, _, _, rfl⟩; rcases hy with h | h <;> cases h
   have hw : y ∉ waits f := by
     intro h; obtain ⟨_, _, _, rfl⟩ := waits_kind f _ h; rcases hy with h | h <;> cases h
@@ -801,7 +697,7 @@ theorem plain_mem (p : Params) (t : Nat) (f : AgentFacts) (y : Action)
     · exact .inl h
     · exact .inr h
     · exact absurd h (hnu _)
-    · obtain ⟨_, h⟩ := probes_kind p t f _ h; rcases hy with hy | hy <;> rw [hy] at h <;> cases h
+    · obtain ⟨_, h⟩ := probes_kind t f _ h; rcases hy with hy | hy <;> rw [hy] at h <;> cases h
 
 /-- **Cleanup safety.** `cleanupWorktree` only when the agent has a worktree, its branch is landed and it has no live
 child.
@@ -995,7 +891,7 @@ def withMeta (m : List Nat) (f : AgentFacts) : AgentFacts :=
 theorem overB_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : List Nat) (v : Watch) :
     overB p t (all.map (withMeta m)) v = overB p t all v := by
   cases v <;> simp only [overB, List.any_map] <;> congr 1 <;> funext f <;>
-    rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> rfl
+    rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g, _⟩ <;> rfl
 
 /-- **`meta.finished` is never read by the resolution**: replacing it, in the agent and in every agent of `A`, gives the
 same resolved facts up to that replacement.
@@ -1004,14 +900,11 @@ theorem resolve_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : Lis
     resolve p t (all.map (withMeta m)) (withMeta m f) = withMeta m (resolve p t all f) := by
   have hc : resolveChild p t (all.map (withMeta m)) = resolveChild p t all := by
     funext c; simp only [resolveChild, overB_withMeta]
-  rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> simp only [resolve, withMeta, hc] <;> rfl
+  rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g, _⟩ <;> simp only [resolve, withMeta, hc] <;> rfl
 
-/-- `next` never reads `meta.finished`: replacing the signals' `metaFinished` times leaves its actions unchanged. -/
 theorem next_withMeta (p : Params) (t : Nat) (m : List Nat) (f : AgentFacts) :
     next p t (withMeta m f) = next p t f := by
-  rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> rfl
-
-/-! ## Retention: which agents stay in the snapshot -/
+  rcases f with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g, _⟩ <;> rfl
 
 /-- The branch is ahead of `main` and not landed. -/
 def openBranchB (f : AgentFacts) : Bool :=
@@ -1076,7 +969,7 @@ theorem keep_withMeta (p : Params) (t : Nat) (all : List AgentFacts) (m : List N
   rw [resolve_withMeta]
   generalize resolve p t all f = g
   refine ⟨next_withMeta p t m g, ?_⟩
-  rcases g with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g⟩ <;> rfl
+  rcases g with ⟨_, _, _, _, _, _, _, _, _, _, _, _, _ | g, _⟩ <;> rfl
 
 /-- **Structural retention is sound.** Every action other than `none` implies the structural test holds: an ended
 agent with an open action has an open branch, a worktree, a live child, a running CI run or a valid respawn.
@@ -1098,11 +991,12 @@ theorem keepHealth_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : A
       · rw [mem_opt] at h; simp [he] at h
       · simp at h
     · rw [mem_kills] at h
-      obtain ⟨c, hc, _⟩ := h
-      right; right; left
-      cases hch : f.children with
-      | nil => rw [hch] at hc; simp at hc
-      | cons _ _ => simp
+      obtain ⟨g, _, hb, _⟩ := h
+      obtain ⟨w, hw, _⟩ := (heldB_iff f g).1 hb
+      right; left
+      cases hwt : f.worktree with
+      | none => rw [hwt] at hw; simp at hw
+      | some _ => simp
     · unfold waits at h
       split at h
       · rename_i c hc
@@ -1140,69 +1034,9 @@ theorem keepHealth_of_open_action (p : Params) (t : Nat) (f : AgentFacts) (x : A
   · have : endedS f.state = false := by simpa using he
     simp [keepHealthB, this]
 
-/-- A child gets `killOrphan` when it gets a kill. -/
-theorem kill_of_killB (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (hc : c ∈ f.children)
-    (hk : killB p t f c = true) : Action.killOrphan c.pid ∈ next p t f :=
-  (kill_mem p t f c.pid).2 ((mem_kills p t f _).2 ⟨c, hc, hk, rfl⟩)
-
-/-- Sole from its proposition. -/
-theorem soleB_of (f : AgentFacts) (c : Child) (h : ∀ d ∈ f.children, d.pid = c.pid → waitsK d.kind = true) :
-    soleB f c = true := by
-  simp only [soleB, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq]
-  intro d hd
-  by_cases e : d.pid = c.pid
-  · exact .inr (h d hd e)
-  · exact .inl e
-
-/-- **Liveness: kill.** A non-active agent's waiting child (sleep loop or stdin wait) in the session's tree (not the session nor its own
-ancestor), whose pid no child of a non-waiting kind shares, and that runs past the loop cap, gets `killOrphan`.
--/
-theorem live_kill (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (ha : f.state ≠ .active)
-    (hc : c ∈ f.children) (hk : waitsK c.kind = true) (hs : f.session ∈ c.chain) (hne : c.pid ≠ f.session)
-    (hnc : c.pid ∉ c.chain) (hsole : ∀ d ∈ f.children, d.pid = c.pid → waitsK d.kind = true)
-    (hold : p.loopCapMin * msPerMin < t - c.startedAt) : Action.killOrphan c.pid ∈ next p t f :=
-  kill_of_killB p t f c hc ((killB_iff p t f c).2
-    ⟨hk, hs, hne, hnc, soleB_of f c hsole, .inr (.inr (by simpa [oldB] using hold)), .inl ha⟩)
-
-/-- **Liveness: kill for an active agent.** An active agent's waiting child in the session's tree (not the session
-nor its own ancestor), whose pid no child of a non-waiting kind shares, and that watches a file whose producer has exited,
-gets `killOrphan`.
--/
-theorem live_kill_active (p : Params) (t : Nat) (f : AgentFacts) (c : Child) (_ha : f.state = .active)
-    (hc : c ∈ f.children) (hk : waitsK c.kind = true) (hs : f.session ∈ c.chain) (hne : c.pid ≠ f.session)
-    (hnc : c.pid ∉ c.chain) (hsole : ∀ d ∈ f.children, d.pid = c.pid → waitsK d.kind = true)
-    (hw : c.watchedAt ≠ none) (hx : c.producerExited = true) : Action.killOrphan c.pid ∈ next p t f := by
-  have hd : deadB p t c = true := (deadB_iff p t c).2 (.inl ⟨hw, hx⟩)
-  exact kill_of_killB p t f c hc ((killB_iff p t f c).2
-    ⟨hk, hs, hne, hnc, soleB_of f c hsole, .inr (.inl hd), .inr hd⟩)
-
-/-- Dead watches stay dead as time passes. -/
-theorem deadB_mono (p : Params) (t t' : Nat) (c : Child) (htt : t ≤ t') (h : deadB p t c = true) :
-    deadB p t' c = true := by
-  rw [deadB_iff] at h ⊢
-  rcases h with h | ⟨m, hm, hs⟩
-  · exact .inl h
-  · exact .inr ⟨m, hm, by omega⟩
-
-/-- **Monotonicity in time.** With the facts unchanged, a pid flagged for `killOrphan` at time `t` stays flagged at
-every later time `t' ≥ t`.
--/
-theorem kill_mono (p : Params) (t t' : Nat) (f : AgentFacts) (q : Nat) (htt : t ≤ t')
-    (h : Action.killOrphan q ∈ next p t f) : Action.killOrphan q ∈ next p t' f := by
-  obtain ⟨c, hc, hk, he⟩ := (mem_kills p t f _).1 ((kill_mem p t f q).1 h)
-  simp only [Action.killOrphan.injEq] at he
-  subst he
-  obtain ⟨hk, hs, hne, hnc, hso, hw, ha⟩ := (killB_iff p t f c).1 hk
-  refine kill_of_killB p t' f c hc ((killB_iff p t' f c).2 ⟨hk, hs, hne, hnc, hso, ?_, ?_⟩)
-  · rcases hw with hw | hw | hw
-    · exact .inl hw
-    · exact .inr (.inl (deadB_mono p t t' c htt hw))
-    · right; right; simp only [oldB, decide_eq_true_eq] at hw ⊢; omega
-  · rcases ha with ha | ha
-    · exact .inl ha
-    · exact .inr (deadB_mono p t t' c htt ha)
-
-/-! ## Examples (the observed cases; the golden vectors in `packages/contracts/golden/obs/next.jsonl` repeat them) -/
+theorem kill_time (p : Params) (t t' : Nat) (f : AgentFacts) (q s : Nat) :
+    Action.killOrphan q s ∈ next p t f ↔ Action.killOrphan q s ∈ next p t' f := by
+  rw [kill_mem, kill_mem]
 
 /-- Example time: `t_0 = 1760000000000` ms. -/
 def t0 : Nat := 1760000000000
@@ -1222,13 +1056,18 @@ def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s
     { ex "port-nav" .done with
       handbackAt := some (ago 90), branch := some { name := "wt-a", ahead := 3, landed := false, queued := false }, worktree := some {} }
   == [.land "wt-a" "port-nav"]
--- ghb-runner: handed back, landed, a sleep loop under the session on a stale file → kill only (cleanup next time)
-#guard next {} t0
-    { ex "ghb-runner" .done with
-      handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false }, worktree := some {},
-      children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22,
-                     watchedAt := some (ago 20) }] }
-  == [.killOrphan 555]
+def ghb (hs : List Held) : AgentFacts :=
+  { ex "ghb-runner" .done with
+    handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false },
+    worktree := some { id := some "wt-ghb" }, reapHeld := hs,
+    children := [{ pid := 555, chain := [100, 1], kind := .sleepLoop, startedAt := ago 22, watchedAt := some (ago 20) }] }
+
+#guard next {} t0 (ghb [⟨555, 1759998680, some "wt-ghb"⟩]) == [.killOrphan 555 1759998680]
+#guard next {} t0 (ghb []) == [.investigate .heldByChild]
+#guard next {} t0 (ghb [⟨555, 1759998680, some "wt-other"⟩]) == [.investigate .heldByChild]
+#guard next {} t0 (ghb [⟨555, 1759998680, none⟩]) == [.investigate .heldByChild]
+#guard next {} t0 { ghb [⟨555, 1759998680, some "wt-ghb"⟩] with worktree := some {} } == [.investigate .heldByChild]
+#guard next {} t0 (ghb [⟨777, 1759998000, some "wt-ghb"⟩]) == [.killOrphan 777 1759998000, .investigate .heldByChild]
 #guard next {} t0
     { ex "ghb-runner" .done with
       handbackAt := some (ago 25), branch := some { name := "b", ahead := 0, landed := true, queued := false }, worktree := some {} }
@@ -1247,13 +1086,15 @@ def ex (k : String) (s : State) : AgentFacts := { id := k, task := k, state := s
       children := [{ pid := 700, chain := [100, 1], kind := .sleepLoop, startedAt := ago 99,
                      watchedAt := some (ago 1) }] }
   == [.nudgeHandoff]
--- integrate-ports at 03:15: active, a loop on a background task's output whose producer exited → kill and nudge
 #guard next {} t0
     { ex "integrate-ports" .active with
       children := [{ pid := 701, chain := [100, 1], kind := .sleepLoop, startedAt := ago 35,
                      watchedAt := some (ago 3), producerExited := true }] }
-  == [.killOrphan 701, .nudgeHandoff]
--- obs-next-lean at 03:05: live, its task reached the board after the spawn-time claim and has no agent → claim
+  == [.none]
+#guard next {} t0
+    { ex "integrate-ports" .active with
+      worktree := some { id := some "wt-ip" }, reapHeld := [⟨701, 1759997900, some "wt-ip"⟩] }
+  == [.killOrphan 701 1759997900, .nudgeHandoff]
 #guard next {} t0 { ex "obs-next-lean" .active with board := some { id := "obs-next-lean", done := false } }
   == [.claimTask "obs-next-lean" "obs-next-lean"]
 -- task bound already, task done, or agent gone → no claim
@@ -1301,12 +1142,9 @@ def pnAgent (a : Nat) (s : State) : AgentFacts :=
     signals := some (pnSig a),
     children := [{ pid := 10476, chain := [100, 1], kind := .stdinWait, startedAt := ago a }] }
 
--- port-nav: the handback comes from the transcript, so the stdin wait under it is an orphan → kill
 #guard (resolve {} t0 [] (pnAgent 20 .idle)).handbackAt == some (ago 60)
-#guard next {} t0 (resolve {} t0 [] (pnAgent 20 .idle)) == [.killOrphan 10476]
--- without the signals the handback is unseen and the 20-minute-old stdin wait is under the cap → no kill
+#guard next {} t0 (resolve {} t0 [] (pnAgent 20 .idle)) == [.investigate .heldByChild]
 #guard next {} t0 { pnAgent 20 .idle with signals := none } == [.none]
--- the signal state: held for 20 minutes, hung after the 30-minute cap
 #guard sigState {} t0 (pnAgent 20 .idle) == some (.handedBackHeld ["bh"])
 #guard sigState {} t0 (pnAgent 31 .idle) == some (.hung "bh")
 -- retention follows the signals, not the Health state: held is kept even when Health says done …
@@ -1322,14 +1160,11 @@ def finSig (a : String) : Signals.Facts :=
 def loopOn (q : Nat) (v : Watch) : Child :=
   { pid := q, chain := [100, 1], kind := .sleepLoop, startedAt := ago 8, watchedAt := some (ago 1), watch := some v }
 
--- … and a finished agent (its 'finished' notice seen) is dropped even when Health says idle
 #guard !keepB {} t0 { ex "x" .idle with signals := some (finSig "x") }
--- a loop watching agent ax's transcript: ax finished → its producer exited → kill (the watcher is active)
 #guard
   let x : AgentFacts := { ex "x" .done with signals := some (finSig "ax") }
   let w : AgentFacts := { ex "w" .active with children := [loopOn 900 (.agent "ax")] }
-  next {} t0 (resolve {} t0 [x, w] w) == [.killOrphan 900, .nudgeHandoff] && next {} t0 w == [.none]
--- the same loop on a task id: its producer exits once some agent's signals hold an end of it
+  (resolve {} t0 [x, w] w).children.map (·.producerExited) == [true] && next {} t0 (resolve {} t0 [x, w] w) == [.none]
 #guard
   let o : AgentFacts := { ex "o" .idle with
     signals := some { agent := "ao", launched := [⟨"b9", ago 9⟩], ends := [⟨"b9", ago 2, .exited 0⟩] } }
