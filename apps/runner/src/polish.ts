@@ -371,6 +371,16 @@ export async function polishCli(argv: string[], cwd: string, deps: Deps = {}): P
         }
         keep.push(path);
       }
+      for (const path of keep.slice()) {
+        if (clsOf.get(path) === "prose") continue;
+        const before = git(dir, ["show", `HEAD:${path}`]);
+        const r = (await call({ op: "plan.polishLines", path, old: before, new: read(join(dir, path)) ?? before })) as { verdict?: string; refused?: boolean };
+        if (r.refused !== true) continue;
+        git(dir, ["checkout", "HEAD", "--", path]);
+        keep.splice(keep.indexOf(path), 1);
+        out(`restored ${path} (the cut ${r.verdict ?? "changed"} code lines)`);
+        out(`VERDICT polish-cuts ${task} refused-join ${path}`);
+      }
       if (!keep.length) { noteSpan("fw", "polish commit", { checks: NO_CHECKS }); await settled(dir); out(`VERDICT polish-commit ${task} nothing`); return 0; }
       git(dir, ["add", "--", ...keep]);
       const fields = await stagedSpan(dir, git, call, deps.run ?? realRun);
