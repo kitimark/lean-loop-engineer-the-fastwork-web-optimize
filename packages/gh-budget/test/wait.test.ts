@@ -360,7 +360,17 @@ test("phases: an interval that shrank between the two ticks is recorded at both,
   assert.ok(p.tickMs! - p.prevTickMs! <= Math.max(p.pollS!, p.prevPollS!) * 1000, "the earlier tick's interval explains it");
 });
 
-// ---- real processes, real clock ----------------------------------------------------------------------------------------
+test("phases: a tick whose full list raised the pages records the interval after its pages event, the gap it scheduled", async () => {
+  const runs = [...Array.from({ length: 100 }, (_, i) => run(300 + i, { completeAt: 1e12 })), run(400, { completeAt: T0 + 5 })];
+  const r = await phased(1, runs, { kind: "run", runId: 400 });
+  const p = r.got[0]!;
+  assert.equal(p.how, "done");
+  assert.deepEqual([p.prevTickMs, p.tickMs, p.prevPollS, p.pollS], [T0 * 1000, (T0 + 12) * 1000, 12, 12], JSON.stringify(p));
+  assert.equal(p.tickMs! - p.prevTickMs!, p.prevPollS! * 1000, "the earlier tick's interval is the gap: 2 pages cost 4, the minute share spaces ticks 12 s apart");
+  const tick1 = r.calls.find((c) => c.args[1] === "list")!;
+  assert.equal(tick1.args[tick1.args.indexOf("--limit") + 1], "100", "the first tick read one page and came back full");
+});
+
 function cli(w: ReturnType<typeof mkWorld>, args: string[]): Promise<{ code: number | null; out: string }> {
   return new Promise((res) => {
     const p = spawn(process.execPath, [join(repoRoot, "packages/gh-budget/src/cli.ts"), ...args], {

@@ -19443,7 +19443,8 @@
     "packages/gh-budget/test/*.test.ts",
     "docs/team/handoffs/timing-capnets-link.md"
    ],
-   "title": "timing-poller-snapshot review follow-ups (2026-10-24): (1) capNets (floor/hour/minute waits are own time) is used by nothing: prove a theorem tying it to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap, so the excess of a floor or share wait counts as own time), golden row; (2) poller.ts records interval before the tick's listed/pages events, so a pages change is missing: compute it after the pages event, or prove in Lean that the max over the two ticks already covers it."
+   "title": "timing-poller-snapshot review follow-ups (2026-10-24): (1) capNets (floor/hour/minute waits are own time) is used by nothing: prove a theorem tying it to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap, so the excess of a floor or share wait counts as own time), golden row; (2) poller.ts records interval before the tick's listed/pages events, so a pages change is missing: compute it after the pages event, or prove in Lean that the max over the two ticks already covers it.",
+   "evidence": "e2f93f7"
   },
   {
    "devices": [
