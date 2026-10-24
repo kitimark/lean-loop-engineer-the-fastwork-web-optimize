@@ -1,5 +1,5 @@
 // Twin of lean/Fw/Engine/PaintVisible.lean (TS stand-in until the rule runs as fwcore); test/paintclip.test.mjs replays every
-// line of golden/engine/paint-visible.jsonl through these functions. Integer pixels. Rects are { x, y, w, h }.
+// line of golden/measure/paint-visible.jsonl through these functions. Integer pixels. Rects are { x, y, w, h }.
 // Page-side code only gathers the facts; the class of a painted rect is decided here, from the facts.
 
 /** The classes, in Lean `classes` order (report order). */

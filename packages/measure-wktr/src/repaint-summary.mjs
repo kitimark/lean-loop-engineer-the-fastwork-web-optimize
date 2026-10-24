@@ -2,10 +2,11 @@
 //   node src/repaint-summary.mjs <dir with wktr-j*/ subdirectories> [--out <dir>]
 // Reads table-<arm>-<pass>.json and counts-<arm>-<zone>-<pass>.json of every job, sums the part x zone tables per arm, writes the
 // per-100-frames numbers (Lean `per100`, twin in measure-webkit paintclip.mjs) as summary.md / summary.json, and decides the
-// determinism class of every count type per arm and zone over the jobs with fwcore (kMax 4, tMax 24). Nothing is decided here.
+// determinism class of every count type per arm and zone over the jobs with the Lean core (kMax 4, tMax 24). Nothing is decided here.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { fwcoreBin } from '../../measure-chromium/src/fwcore.mjs';
 import { per100, CLASSES } from '../../measure-webkit/src/paintclip.mjs';
 import { sumTables, ZONES, PARTS, ARMS } from './repaint.mjs';
 
@@ -97,7 +98,7 @@ async function main() {
   const { tables, counts } = readJobs(dir);
   const arms = groupByArm(tables);
   let classifyFn = null;
-  if (process.env.FW_CORE_BIN || existsSync(join(resolve(import.meta.dirname, '../../../lean/.lake/build/bin/fwcore')))) ({ classify: classifyFn } = await import('../../measure-chromium/src/fwcore.mjs'));
+  try { fwcoreBin(); ({ classify: classifyFn } = await import('../../measure-chromium/src/fwcore.mjs')); } catch { classifyFn = null; }
   const md = ['## Invisible paint, WKTR repaint rects per frame (MEASURED, macOS WebKit in the iOS 26.5 Simulator; counts, not time)', ''];
   const json = {};
   for (const name of Object.keys(ARMS)) {

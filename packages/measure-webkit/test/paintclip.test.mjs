@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CLASSES, classify, seenArea, wasteArea, tally, per100, margin, coverage, rerasterArea, rectOf, classKey, dirty, DIRTY_CAP } from '../src/paintclip.mjs';
 
-const G = readFileSync(new URL('../../contracts/golden/engine/paint-visible.jsonl', import.meta.url), 'utf8')
+const G = readFileSync(new URL('../../contracts/golden/measure/paint-visible.jsonl', import.meta.url), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 const of = (fn) => G.filter((l) => l.fn === fn);
 const factOf = (i) => ({ rect: rectOf(i.rect), visible: rectOf(i.visible), coverage: rectOf(i.coverage), hidden: i.hidden, covered: i.covered, clipped: i.clipped, pix: i.pix });

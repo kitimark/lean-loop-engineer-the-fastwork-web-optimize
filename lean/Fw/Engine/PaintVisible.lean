@@ -364,7 +364,7 @@ private def dirtyCases : List (List Rect) :=
     (List.range 34).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect),
     ((List.range 34).map fun i => (⟨((2 * i : Nat) : Int), 0, 1, 1⟩ : Rect)) ++ [⟨0, 0, 100, 1⟩, ⟨66, 0, 1, 1⟩] ]
 
-/-- The golden lines `packages/contracts/golden/engine/paint-visible.jsonl`. -/
+/-- The golden lines `packages/contracts/golden/measure/paint-visible.jsonl`. -/
 def lines : List String :=
   sampleFacts.map (fun f =>
     line "classify"

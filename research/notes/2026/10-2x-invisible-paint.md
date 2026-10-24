@@ -27,7 +27,7 @@ debugged the harness; their numbers are superseded and cited nowhere.
 
 ## Definition (CONFIRMED, Lean)
 
-lean/Fw/Engine/PaintVisible.lean `classify` asks in order: zero-area, hidden (layer or an ancestor has opacity 0 or contentsVisible 0), clipped-out (layer clips, rect lies outside its clip), covered, beyond-margin (misses viewport and tile coverage), prepaint-margin (misses viewport, hits coverage), noop (pixels equal), visible. One theorem per class: `zeroArea_iff`, `hidden_iff`, `clippedOut_iff`, `covered_iff`, `beyondMargin_iff`, `prepaintMargin_iff`, `noop_iff`, `visible_iff`; `tally_sum` (classes add up to all rects); `seen_add_waste` (seen + waste = rect area); `addDirty_*` for the engine's own dedupe. Goldens: packages/contracts/golden/engine/paint-visible.jsonl (37 lines), replayed by packages/measure-webkit/src/paintclip.mjs (7 tests). The reducer packages/measure-wktr/src/repaint.mjs only feeds facts and sums; it decides no class.
+lean/Fw/Engine/PaintVisible.lean `classify` asks in order: zero-area, hidden (layer or an ancestor has opacity 0 or contentsVisible 0), clipped-out (layer clips, rect lies outside its clip), covered, beyond-margin (misses viewport and tile coverage), prepaint-margin (misses viewport, hits coverage), noop (pixels equal), visible. One theorem per class: `zeroArea_iff`, `hidden_iff`, `clippedOut_iff`, `covered_iff`, `beyondMargin_iff`, `prepaintMargin_iff`, `noop_iff`, `visible_iff`; `tally_sum` (classes add up to all rects); `seen_add_waste` (seen + waste = rect area); `addDirty_*` for the engine's own dedupe. Goldens: packages/contracts/golden/measure/paint-visible.jsonl (37 lines), replayed by packages/measure-webkit/src/paintclip.mjs (7 tests). The reducer packages/measure-wktr/src/repaint.mjs only feeds facts and sums; it decides no class.
 
 The count is of the dirty rects the engine keeps after `GraphicsLayerCA::setNeedsDisplayInRect` drops repeats (Source/WebCore/platform/graphics/ca/GraphicsLayerCA.cpp:1031-1043@862f17d; tracked calls per 100 f were 105481 / 79098 in orig hero / rest against 1935 kept). "waste" = rect area minus the part inside the viewport of a visible paint.
 
@@ -108,6 +108,6 @@ Rank = invisible paints times area in the rewrite arm, hero and rest zones. "Sam
 
 ## Where things are
 
-- Lean: lean/Fw/Engine/PaintVisible.lean, lean/scripts/PaintVisibleGolden.lean, golden packages/contracts/golden/engine/paint-visible.jsonl.
+- Lean: lean/Fw/Engine/PaintVisible.lean, lean/scripts/PaintVisibleGolden.lean, golden packages/contracts/golden/measure/paint-visible.jsonl.
 - Lane: packages/measure-wktr/src/repaint*.mjs, wktr.yml inputs `repaint` / token `[repaint]`.
 - Results: results/invisible-paint/ (summary.json, summary.md, table.md, run.txt).
