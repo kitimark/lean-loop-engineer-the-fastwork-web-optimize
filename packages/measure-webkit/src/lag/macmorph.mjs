@@ -5,6 +5,7 @@ import { bootstrapSource } from '../page.mjs';
 import { flattenRecords, markTimes, markTime, reduceSteps, COUNT_TYPES } from '../reduce.mjs';
 import { classify, acceptScrollIn, morphMilli } from './phase.mjs';
 import { DRIVES, ARMS, acceptPull, splitPush, pushEventY } from './macreport.mjs';
+import { canonSearch } from '../../../contracts/src/flag-key.mjs';
 
 export const MAC_SCHEDULE = Object.freeze({ idle: 10, open: 60, close: 60, dy: 120 });
 export const SCROLL_IN = Object.freeze({ lead: 300, first: 3, gap: 2, settle: 2, maxWheels: 12, near: 8, stableTries: 20 });
@@ -163,7 +164,7 @@ export async function serveArms({ snapshotDir, siteDir, search = '' }) {
   const orig = await serveTree(resolve(snapshotDir));
   const root = resolve(siteDir);
   const cfg = JSON.parse(readFileSync(join(root, 'configs.json'), 'utf8'));
-  const hash = cfg.bySearch[search];
+  const hash = cfg.bySearch[canonSearch(search)];
   if (!hash) throw new Error(`search "${search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
   const file = cfg.byHash[hash];
   const rewrite = await serveTree(root, { rewrite: (p) => (p === '/' || p === '/index.html' ? '/' + file : null) });

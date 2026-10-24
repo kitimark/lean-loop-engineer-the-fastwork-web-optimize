@@ -20252,7 +20252,14 @@
     "lean/scripts/NavEarnWebkitGolden.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
-    "packages/contracts/golden/gate/trajectory.jsonl"
+    "packages/contracts/golden/gate/trajectory.jsonl",
+    "lean/Fw/Gate/TransitionList.lean",
+    "lean/scripts/TransitionListGolden.lean",
+    "packages/contracts/golden/gate/transition-list.jsonl",
+    "packages/gate-breakpoints/src/transition-list.mjs",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/gate-breakpoints/test/transition-list.test.mjs",
+    "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
    "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
   },
@@ -20631,7 +20638,8 @@
     "lean/Fw.lean",
     "lean/Fw/Wire/FlagKeyGolden.lean"
    ],
-   "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain."
+   "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain.",
+   "evidence": "4aab739"
   },
   {
    "devices": [

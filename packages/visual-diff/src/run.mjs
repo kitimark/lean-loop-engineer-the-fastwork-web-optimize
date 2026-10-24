@@ -16,6 +16,7 @@ import { assetsInPage, injectFontsInPage, locateInPage, settleObserveInPage } fr
 import { originalFontFaces, startOverlayServer } from './serve.mjs';
 import { GATE_POLICY, fontsBoth, imagesBoth, presentAny, settledBoth, waitTrace } from './settle-adapter.mjs';
 import { DEFAULT_TOL, verdict, within } from './verdict.mjs';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
@@ -131,7 +132,7 @@ export function rewritePathFor(dist, fw) {
   if (!fw) return { search: '', path: '/' };
   const search = fw.startsWith('?') ? fw : `?fw=${fw}`;
   const cfg = JSON.parse(readFileSync(join(dist, 'configs.json'), 'utf8'));
-  const hash = cfg.bySearch[search];
+  const hash = cfg.bySearch[canonSearch(search)];
   if (!hash) throw new Error(`fw "${search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
   return { search, path: `/${cfg.byHash[hash]}` };
 }

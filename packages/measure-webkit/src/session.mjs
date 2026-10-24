@@ -12,6 +12,7 @@ import { armFault, faultPlan } from './fault.mjs';
 import { openTab } from './wip.mjs';
 import { T, attempts } from './timeouts.mjs';
 import { ensureTab } from './poll.mjs';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FIXTURES = resolve(HERE, '..', 'fixtures');
@@ -42,7 +43,7 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
   if (site) {
     root = resolve(site.dir);
     const cfg = JSON.parse(readFileSync(join(root, 'configs.json'), 'utf8'));
-    const hash = cfg.bySearch[site.search ?? ''];
+    const hash = cfg.bySearch[canonSearch(site.search ?? '')];
     if (!hash) throw new Error(`search "${site.search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
     const file = cfg.byHash[hash];
     rewrite = (p) => (p === '/' || p === '/index.html' ? '/' + file : null);
@@ -57,7 +58,7 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
       if (!a.dir) return [name, { root: snapshotRoot(), rewrite: null, hash: null }];
       const r = resolve(a.dir);
       const cfg = JSON.parse(readFileSync(join(r, 'configs.json'), 'utf8'));
-      const hash = cfg.bySearch[a.search ?? ''];
+      const hash = cfg.bySearch[canonSearch(a.search ?? '')];
       if (!hash) throw new Error(`arm ${name}: search "${a.search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(' | ')}`);
       const file = cfg.byHash[hash];
       return [name, { root: r, rewrite: (p) => (p === '/' || p === '/index.html' ? '/' + file : null), hash }];
