@@ -39,7 +39,7 @@ Rewrite paths are under `apps/site/src/parts/`. Replay runs are on CI Chromium (
 - After the fix, same run, build `after`: every arm that has release (the user's flags, the three bricks, release alone,
   every drop-one arm) had 0 script writes, 0 no-finger reversals and 0 script jumps of at least 20 px in all 15-16 replays.
   The page still reverses with the finger when the finger turns round (in the user's flags, the three bricks and release
-  alone: 57 reversal pairs of at least 20 px, all with a finger down, none without; before: 98, 8 of them with no finger). MEASURED.
+  alone: 57 reversal pairs of at least 20 px, all with a finger down, none without; before: 98, 8 of them with no finger). MEASURED. Raw jumps of 20 px or more remain (largest 146 px), all at the finger turn with the finger down and no script write (MEASURED, run 40130709244); the 20 px bound applies to script jumps.
 
 ## Reproduction
 
@@ -143,7 +143,7 @@ Proved (all in `ComboScroll.lean`, axioms checked by `check.sh`):
 | when every move is prevented and cancelable the wrapper equals the inner reducer (the original page) | `wrap_all_hold` |
 | the bricks keep their theorems with the wrapper: the clamp bound, no write after a close start until a push to open, the close move is not prevented, the close starts the release | `wclamp_le`, `wrelease_quiet`, `wrelease_close_free`, `wrelease_starts`, `wrelease_rel` |
 | arm-late's blocking gate does not change `held` where arm-late's invariants hold | `arm_late_holds` (with `MorphMountArmLate.late_same`) |
-| one write per frame event | `one_write_per_frame` |
+| one write per frame event | `one_write_per_frame` (trivial in the model; the single writer is a site text check on App.tsx, not a Lean fact) |
 
 Witnesses (`#guard`): on the user's trace (open, close, reopen in a non-cancelable move) the inner reducer writes 4900
 twice against the native scroll and the wrapper writes nothing; with a cancelable reopen both write the same.
