@@ -20694,7 +20694,8 @@
     "docs/team/tools/land.md",
     "docs/team/handoffs/ledger-n-alloc.md"
    ],
-   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test."
+   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test.",
+   "evidence": "d7e7cdc"
   },
   {
    "devices": [

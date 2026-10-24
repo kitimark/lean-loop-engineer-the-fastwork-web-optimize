@@ -236,6 +236,7 @@ import Fw.Console.LandWt
 import Fw.Land.RenderGuard
 import Fw.Ops.LedgerMerge
 import Fw.Console.LedgerUnique
+import Fw.Console.LedgerAlloc
 import Fw.Ops.Cache
 import Fw.Ops.LakeCache
 import Fw.Ops.LandCacheGolden
