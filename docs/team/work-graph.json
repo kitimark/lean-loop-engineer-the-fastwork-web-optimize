@@ -20631,7 +20631,8 @@
     "lean/Fw.lean",
     "lean/Fw/Wire/FlagKeyGolden.lean"
    ],
-   "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain."
+   "title": "Finding of countdown-strip-proof (gate runs 40081933958 and 40089874311 failed smoke): fw run --gate sorts the flags (sortFlags, lean/Fw/Wire/Store.lean:45, used at :111) and asks for hero.countdown:strip,morph.countdown:strip, while the build prerenders only morph.countdown:strip,hero.countdown:strip (the variant followed by what it requires, apps/site/src/entry-server.tsx:23). So the gate cannot request any variant whose required flag sorts before it. Lean first: one canonical flag-set key (identity, not author order) used by both the prerender and every page lookup (gate smoke, fw run, the console preview); theorem: two flag lists with the same set give the same key and the same prerendered page; golden of keys replayed by a site test. Then the gate dispatch through fw run works for every requires-chain.",
+   "evidence": "4aab739"
   },
   {
    "devices": [
