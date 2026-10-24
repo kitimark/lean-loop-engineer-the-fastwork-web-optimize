@@ -8,7 +8,9 @@ import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { ALPHA, alphaOk, annotate, armCheck, byM, byMFam, byMFamEach, byMFirst, exitJoin, firstCover, laneExit, laneOf, unitRel, byMRule, byMStart, CUT_M, idCheck, idOn, MIX_FROM, MIX_TO, redOk, byStep, bucket, CLOSE_PH, DARK_CUT, durOf, fullOf, settleCheck, START_JITTER, startCheck, startFor, startOn, startTr, judgeEls, judgeOwn, judgeUnit, pickWidths, quantile, readsDominate, reduceRaw, reduceWidth, rel, RULES, runCheck, START_LAG, verdictLines, window as windowOf, windowAt } from '../src/trajectory/reduce.mjs';
 import { main, summaryMd } from '../src/trajectory/cli.mjs';
-import { basisAt, cellOutcome, COARSE_ONLY, EXTRA_CAP, gapCount, gapsIn, mergeRaws, moreReps, planOf, probeCoarse, settleReps } from '../src/trajectory/plan.mjs';
+import { morphPath } from '../src/trajectory/run.mjs';
+import { waitReady } from '../src/page.mjs';
+import { basisAt, cellOutcome, COARSE_ONLY, EXTRA_CAP, gapCount, gapsIn, mergeRaws, moreReps, planOf, pooledReps, probeCoarse, retriesRole, settleReps } from '../src/trajectory/plan.mjs';
 import { HERO_NODES, MORPH_NODES, PAGE_PROPS, HERO_STEPS, WIDTHS, MOTION_PROPS, envFor } from '../src/trajectory/registry.mjs';
 
 const golden = readFileSync(fileURLToPath(new URL('../../contracts/golden/gate/trajectory.jsonl', import.meta.url)), 'utf8')
@@ -120,7 +122,7 @@ function rulesOfCss(css) {
 }
 
 test('the golden file holds every operation', () => {
-  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit', 'cell', 'cellEnv', 'retry', 'settle', 'settleConst'].sort());
+  assert.deepEqual([...new Set(golden.map((g) => g.op))].sort(), ['els', 'window', 'bucket', 'byM', 'byStep', 'unit', 'rule', 'dur', 'annotate', 'widths', 'rel', 'arm', 'run', 'quantile', 'dominate', 'plan', 'byMStart', 'start', 'startCheck', 'settleCheck', 'curve', 'byMRule', 'byMFirst', 'idCheck', 'identity', 'firstCover', 'lane', 'laneStep', 'stable', 'exit', 'cell', 'cellEnv', 'retry', 'settle', 'settleConst', 'retryRole', 'legWall'].sort());
   assert.ok(golden.length >= 200);
   assert.ok(golden.some((g) => g.op === 'byM' && [...g.oSeg, ...g.wSeg].some((x) => x.rep > 0)), 'golden has rows with rep > 0');
 });
@@ -218,7 +220,14 @@ for (const g of golden) {
       assert.deepEqual(WIDTHS.map((w) => basisAt(g.flags, w)), g.basis, g.name);
       assert.equal(cellOutcome(s), g.outcome, g.name);
     } else if (g.op === 'settleConst') assert.equal(EXTRA_CAP, g.extraCap);
-    else if (g.op === 'retry') {
+    else if (g.op === 'retryRole') {
+      assert.equal(g.rows.length, 6);
+      for (const [role, peer, on] of g.rows) assert.equal(retriesRole(role, peer), on, `${role} ${peer}`);
+    } else if (g.op === 'legWall') {
+      assert.equal(EXTRA_CAP, g.extraCap);
+      assert.equal(g.baseSec + g.widths * g.extraCap * g.passSec, g.worstSec);
+      assert.ok(g.worstSec <= 60 * g.capMin, 'the worst two-width leg stays under the probe-apple cap');
+    } else if (g.op === 'retry') {
       assert.deepEqual(gapsIn(g.b.opening, g.c.opening), g.gapsOpening);
       assert.deepEqual(gapsIn(g.b.closing, g.c.closing), g.gapsClosing);
       assert.equal(gapCount(g.b, g.c), g.gaps);
@@ -228,6 +237,7 @@ for (const g of golden) {
       const none = { opening: [], closing: [] };
       const r = await settleReps(g.b, g.c, async (i) => g.passes[i] ?? none);
       assert.equal(r.extra, g.extra);
+      assert.equal(pooledReps(5, r.extra), g.pooled);
       assert.equal(gapCount(g.b, r.c), g.gaps);
       assert.deepEqual(r.c, g.pool);
     } else if (g.op === 'byMStart') {
@@ -703,3 +713,54 @@ test('registry: the lane widths and the motion properties are the ones the Lean 
   assert.deepEqual(WIDTHS, [390, 640, 641, 1280]);
   assert.ok(MOTION_PROPS.every((p) => ['discrete', 'geometry', 'unit', 'colour'].includes(p.kind)));
 });
+
+/** A fake engine: every page answers the kit calls from globals; the n-th pass samples the morph values `passes[n]` (open, close). */
+function fakeEngine(passes) {
+  let n = -1;
+  let phase = '';
+  const kit = {
+    watchNav: () => null, approach: () => null,
+    startSampler: (a) => { phase = a.phase; },
+    stopSampler: () => {
+      const ms = passes[n] ?? { open: [], close: [] };
+      return (phase === 'open' ? ms.open : phase === 'close' ? ms.close : []).map((m) => ({ m }));
+    },
+  };
+  return {
+    open: async () => {
+      n++;
+      return {
+        evaluate: async (fn, arg) => {
+          if (fn === waitReady) return { ok: true };
+          globalThis.window = { __fw: { configHash: 'h', mode: 'prerender' }, __traj: kit };
+          try { return fn(arg); } finally { delete globalThis.window; }
+        },
+        wheel: async () => {},
+        close: async () => {},
+      };
+    },
+  };
+}
+
+test('morphPath: the candidate with a base peer settles and out.reps reports every pooled pass; an arm without `against` is walked once', async () => {
+  const env = envFor(390);
+  const realTimeout = globalThis.setTimeout; // the pushes hold for real seconds; the fake pages need none
+  globalThis.setTimeout = (fn) => realTimeout(fn, 0);
+  try { await settleCase(env); } finally { globalThis.setTimeout = realTimeout; }
+});
+
+async function settleCase(env) {
+  const base = { opening: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000], closing: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000] };
+  const miss = { open: [1000, 2000, 4000], close: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000] };
+  const fill = { open: [3000, 5000, 6000, 7000, 8000, 9000, 1000, 2000, 4000], close: [] };
+  const passes = [miss, miss, miss, miss, miss, fill];
+  assert.ok(retriesRole('cand', true) && !retriesRole('cand', false) && !retriesRole('base', true) && !retriesRole('orig', true));
+  const cand = await morphPath(fakeEngine(passes), env, 'http://x', 'rewrite', '?fw=a:b', 'full', 5, '', { base });
+  assert.equal(cand.extra, 1);
+  assert.equal(cand.reps, pooledReps(5, 1));
+  assert.equal(cand.reps, 6);
+  assert.equal(cand.extraArms.length, 5);
+  const once = await morphPath(fakeEngine(passes), env, 'http://x', 'rewrite', '', 'full', 5, '', null);
+  assert.equal(once.reps, 5);
+  assert.equal(once.extra, undefined);
+}

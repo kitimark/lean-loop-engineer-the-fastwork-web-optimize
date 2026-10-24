@@ -3,6 +3,7 @@ import Fw.Parts.Bezier
 import Fw.Parts.Nav
 import Fw.Parts.HeroExitCloseStart
 import Fw.Parts.EngineScrollUnthrottle
+import Fw.Ci.Pool.Caps
 /-!
 # Trajectory probe: does the rewrite move like the original along a scroll path?
 
@@ -3188,8 +3189,6 @@ def gapsIn (b c : Reading) : List Nat :=
 
 def gaps (b c : Push) : Nat := (gapsIn b.opening c.opening).length + (gapsIn b.closing c.closing).length
 
-/-- 8: one capped width keeps a two-width Mac leg under its 15 min cap (run 40127042262, 13.9 min); two capped widths in
-one leg (about 16.5 min) go over it, so the probe-apple cap needs re-deriving (lead follow-up). -/
 def extraCap : Nat := 8
 
 def more (extra : Nat) (b c : Push) : Bool := decide (extra < extraCap) && decide (gaps b c ≠ 0)
@@ -3409,6 +3408,85 @@ theorem settle_capped : (settleWalk fullPush gapPush fun _ => pushOf [1000] [100
 theorem outcome_active_flag_settled :
     outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
   decide
+
+inductive ArmRole where
+  | orig
+  | base
+  | cand
+  deriving DecidableEq, Repr
+
+def ArmRole.word : ArmRole → String
+  | .orig => "orig"
+  | .base => "base"
+  | .cand => "cand"
+
+def retries (r : ArmRole) (peer : Bool) : Bool := r == .cand && peer
+
+def settleFor (r : ArmRole) (peer : Bool) (b c : Push) (walk : Nat → Push) : Nat × Push :=
+  if retries r peer then settleWalk b c walk else (0, c)
+
+theorem retries_iff (r : ArmRole) (peer : Bool) : retries r peer = true ↔ r = .cand ∧ peer = true := by
+  cases r <;> simp [retries]
+
+theorem retries_orig (peer : Bool) : retries .orig peer = false := by simp [retries]
+
+theorem retries_base (peer : Bool) : retries .base peer = false := by simp [retries]
+
+theorem retries_cand_no_peer : retries .cand false = false := by simp [retries]
+
+theorem retries_cand_peer : retries .cand true = true := by simp [retries]
+
+theorem settleFor_none (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) (h : retries r peer = false) :
+    settleFor r peer b c w = (0, c) := by
+  simp [settleFor, h]
+
+theorem settleFor_some (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) (h : retries r peer = true) :
+    settleFor r peer b c w = settleWalk b c w := by
+  simp [settleFor, h]
+
+theorem settleFor_le (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) : (settleFor r peer b c w).1 ≤ extraCap := by
+  unfold settleFor
+  split
+  · exact settleWalk_le b c w
+  · simp
+
+def pooledReps (reps extra : Nat) : Nat := reps + extra
+
+theorem leg_extra_le {α : Type} (l : List α) (f : α → Nat) (h : ∀ x ∈ l, f x ≤ extraCap) :
+    (l.map f).sum ≤ l.length * extraCap := by
+  induction l with
+  | nil => simp
+  | cons x xs ih =>
+    have h1 := h x (by simp)
+    have h2 := ih (fun y hy => h y (by simp [hy]))
+    simp only [List.map_cons, List.sum_cons, List.length_cons]
+    rw [Nat.succ_mul]
+    omega
+
+theorem legs_mac_len (ws : List Nat) : ∀ l ∈ legs .macWebkit ws, l.length ≤ 2 := by
+  intro l hl
+  simp only [legs, legTable, List.mem_filter, List.mem_map] at hl
+  obtain ⟨⟨t, ht, rfl⟩, _⟩ := hl
+  have h2 : ∀ u ∈ [[390, 641], [640, 1280]], u.length ≤ 2 := by decide
+  exact Nat.le_trans (List.length_filter_le _ _) (h2 t ht)
+
+def legWallSec (extra : Nat) : Nat := Fw.Ci.Pool.Caps.probeBaseSec + extra * Fw.Ci.Pool.Caps.probePassSec
+
+theorem leg_wall_under_cap (ws : List Nat) (l : List Nat) (hl : l ∈ legs .macWebkit ws) (extra : Nat)
+    (he : extra ≤ l.length * extraCap) :
+    legWallSec extra ≤ 60 * ((Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple").getD 0) := by
+  have h2 := legs_mac_len ws l hl
+  have hb : Fw.Ci.Pool.Caps.probeBaseSec = 718 := Fw.Ci.Pool.Caps.probe_base
+  have hp : Fw.Ci.Pool.Caps.probePassSec = 19 := rfl
+  have hc : Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple" = some 18 := Fw.Ci.Pool.Caps.probe_cap
+  have hx : extraCap = 8 := rfl
+  unfold legWallSec
+  rw [hb, hp, hc]
+  rw [hx] at he
+  simp only [Option.getD_some]
+  omega
+
+theorem legWall_worst : legWallSec (2 * extraCap) = 1022 := by decide
 
 structure UnitRow where
   width : Nat
@@ -5486,6 +5564,8 @@ inductive Case where
   | cell (name : String) (s : Stored)
   | retry (name : String) (b c : Push)
   | settleRun (name : String) (b c : Push) (passes : List Push)
+  | retryRole
+  | legWall
   | settleConst
 
 def casesJudge : List Case := [
@@ -6033,7 +6113,7 @@ def casesCell : List Case :=
 def casesSettle : List Case :=
   let full := fullPush
   let nine := fun (xs : List Int) => pushOf xs xs
-  [.settleConst,
+  [.settleConst, .retryRole, .legWall,
     .retry "no gap: the candidate has every bucket" full full,
     .retry "two gaps (run 40099056290, 390)" full gapPush,
     .retry "the faithful arm lacks the bucket too" gapPush gapPush,
@@ -6245,9 +6325,19 @@ def Case.line : Case → Json
   | .settleRun n b c ps =>
     let r := settleWalk b c fun i => ps.getD i ⟨[], []⟩
     Json.mkObj [("op", "settle"), ("name", n), ("b", b.json), ("c", c.json),
-      ("passes", Json.arr (ps.map Push.json).toArray), ("extra", toJson r.1), ("gaps", toJson (gaps b r.2)),
+      ("passes", Json.arr (ps.map Push.json).toArray), ("extra", toJson r.1), ("pooled", toJson (pooledReps 5 r.1)),
+      ("gaps", toJson (gaps b r.2)),
       ("pool", r.2.json)]
   | .settleConst => Json.mkObj [("op", "settleConst"), ("name", "table"), ("extraCap", toJson extraCap)]
+  | .retryRole =>
+    Json.mkObj [("op", "retryRole"), ("name", "table"),
+      ("rows", Json.arr ([ArmRole.orig, .base, .cand].flatMap fun r => [false, true].map fun peer =>
+        Json.arr #[Json.str r.word, Json.bool peer, Json.bool (retries r peer)]).toArray)]
+  | .legWall =>
+    Json.mkObj [("op", "legWall"), ("name", "table"), ("extraCap", toJson extraCap), ("widths", toJson 2),
+      ("baseSec", toJson Fw.Ci.Pool.Caps.probeBaseSec), ("passSec", toJson Fw.Ci.Pool.Caps.probePassSec),
+      ("worstSec", toJson (legWallSec (2 * extraCap))),
+      ("capMin", toJson ((Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple").getD 0))]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
