@@ -1,20 +1,21 @@
 branch: worktree-wf_f26cc506-df2-1 (CI branch ci/offscreen-count-lane)
 worktree: .claude/worktrees/wf_f26cc506-df2-1
-last code commit: 8e240c3f9 (push 1 head is the handoff commit on top of it)
-CI runs: 40114634566 failure (push 1: every counts job died on ERR_MODULE_NOT_FOUND /contracts/src/flag-key.mjs imported from
-/driver/server.mjs; main's host.mjs does not mount packages/contracts/src since gate-flag-order 46582026d; fixed in push 2 by a mount in host.mjs)
-  push 2: pending (run id added after first poll)
+last code commit: e3ea0ff79 (CI push 2; later commits are note, handoff and merges of main)
+CI runs: 40114634566 failure (push 1: ERR_MODULE_NOT_FOUND /contracts/src/flag-key.mjs, host.mjs did not mount contracts/src)
+         40115582041 success (push 2, sha e3ea0ff79: original, rewrite, f1 sweep, f2 glint x r1..r3, classify, offscreen)
 
-Verified locally (Lean and unit tests only, no measurement): lean/scripts/check.sh green, @fw/measure-chromium 90 tests,
-@fw/runner 3437 tests, @fw/contracts 11, scripts/ci-paths.test.mjs 56, lane inputs check (no new dispatch input).
+Result (MEASURED, run 40115582041): both flags noGain; all 12 counters equal in all 3 runs of every rewrite arm (window 234 frames).
+Class counts and per-flag table: research/notes/2026/10-2x-offscreen-count-lane.md. WebKit: named follow-up (WKTR runs the original).
 
-Open: the three-arm CI run (original, rewrite, f1 sweep, f2 glint; 3 runs each), class counts from the classify job per label,
-the research note research/notes/2026/10-2x-offscreen-count-lane.md, merge of main, dry land, review ready.
+Verified locally: lean/scripts/check.sh green, @fw/measure-chromium 91 tests, @fw/runner 3437, @fw/contracts 11,
+scripts/ci-paths.test.mjs 56, lane inputs check (no new dispatch input).
 
-Read first: docs/team/tools/offscreen-counts.md (lane), lean/Fw/Measure/Offscreen.lean (rule, reduction, verdict),
-packages/measure-chromium/src/offscreen.mjs (TS twin and glue), .github/workflows/chromium-counts.yml (plan arms, offscreen job).
+Open: isolation arm (?only=platform with a flag; workflow refuses arms with only), WebKit rewrite arm, other sections,
+shardOfJob does not know labels f1..f4 (telemetry skips them). 2 of 3 pushes used.
 
-Conventions: the arms come from the head commit line `[counts profile=offscreen-v1 runs=3 target=both arms=a:b|c:d]` on a push
-(no dispatch input, because Fw.Store.Lane.inputs equals the workflow inputs). At most 3 pushes for this task; 2 used (push 1 failed on the missing mount).
-Trace event names are unverified on Chromium 156: if `seen` totals in offscreen.json are 0 for a name, re-reduce offline from the
-`offscreen-trace-*` artifacts and fix extraTraceCounts.
+Read first: docs/team/tools/offscreen-counts.md, lean/Fw/Measure/Offscreen.lean, packages/measure-chromium/src/offscreen.mjs,
+.github/workflows/chromium-counts.yml (plan arms, offscreen job).
+
+Conventions: arms come from the head commit line `[counts profile=offscreen-v1 runs=3 target=both arms=a:b|c:d]` on a ci/* push
+(no dispatch input, because Fw.Store.Lane.inputs equals the workflow inputs). host.mjs mounts packages/contracts/src (outside the
+task graph writes).
