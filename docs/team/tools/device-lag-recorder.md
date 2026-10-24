@@ -1,7 +1,7 @@
 # device-lag-recorder: the felt-lag session on the real iPhone
 
 The lag the user feels is on the phone (WebKit); Chromium at normal speed is smooth, and shows the lag only at 6x CPU throttling.
-So the phone is the first source of truth. This tool records one person's swipe passes on the phone, finds the moments the person
+This tool records one person's swipe passes on the phone, finds the moments the person
 marked as laggy, reduces them with Lean, and turns the gesture into a profile CI can replay.
 
 Code: `packages/measure-webkit/src/device-record.mjs` (page recorder, banner flow), `device-session.mjs` (TS twin of
@@ -12,6 +12,9 @@ Code: `packages/measure-webkit/src/device-record.mjs` (page recorder, banner flo
 
 - Per native `requestAnimationFrame`: timestamp (ms), `scrollY` (px) and three part values (per mille, read from the inline custom
   properties the page writes): hero exit `--exit-opacity`, people card shrink `--future-shrink`, end-of-page morph `--morph-fade`.
+- Per frame also the visual viewport height `vh` and its `offsetTop` `vt` (0.1 px; `innerHeight` and 0 where there is no
+  `visualViewport`). The Safari toolbar collapsing or returning changes the height (815 vs 775 px) while the person swipes; the
+  per-pass `viewport.h` is read once at the start and cannot say when. Only `vh` is used by Lean today; `vt` is kept for later.
 - Every touch event: time, phase (`s` start, `m` move, `e` end, `c` cancel), x, y, fingers down. Listeners are passive and never call
   `preventDefault`, so the page behaves as without them.
 - A triple tap on an empty area is a felt-lag mark. It is not a special event: Lean finds it afterwards (three taps, each at most 300 ms
@@ -24,7 +27,10 @@ Timeline costs time on the page.
 Known effects:
 1. A touch on a moving page stops its native fling, so the person's taps change the scroll they mark; tell the person to tap and
    carry on.
-2. The recorder's own rAF callback and three inline style reads run every frame (inline reads do not flush layout). It runs before
+2. The recorder's own rAF callback and three inline style reads run every frame (inline style reads do not flush layout). The
+   `visualViewport` reads do: `scale`, `height` and `offsetTop` each call `updateFrameLayout` (WebKit `VisualViewport.cpp:72-76`,
+   `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0 (`LocalDOMWindow.cpp:1476-1480` @ 862f17d). The callback writes no DOM and `scale` and `scrollY`
+   were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work. It runs before
    the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
    i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs (the old pairing of a
    value with the position read beside it counted a false stall at every scroll start). All arms and both original passes carry the
@@ -43,9 +49,49 @@ viewport, rest): moving frames over 34 ms and over 50 ms, each per 100 moving fr
 largest step and the stalls (page moved, value held mid-transition); per felt mark the position, zone and the same counts over its
 1.5 s lookback window. The comparison: an arm beats the original in a zone only when its worst pass is below the original's best
 pass by more than the original's pass-to-pass spread (verdicts `beats | worse | same | unresolved`; one original pass or no arm
-pass is `unresolved`). This is why the plan has two original passes.
+pass is `unresolved`).
 
-## Session steps (the lead relays these one at a time; each is a short instruction to the user)
+### Toolbar class (Lean `Fw.Device.Session` "The toolbar class of a frame", `Fw.Device.StillRuns` "The verdict by toolbar class")
+
+A pass that starts with the Safari toolbar collapsed (viewport height 815 vs 775) is a different page layout from one that starts
+expanded; with one height per pass the still-run verdict was `confounded`. Now every frame has a height and a class:
+
+- A frame is `moving` when the viewport height changed (by at least `moveMin` = 1 tenth px) between two frames within `moveWin` = 30
+  frames of it (about half a second at 60 Hz); every other frame is `still`. Both constants are named in Lean and read by the twin from
+  the golden. The split is a partition (theorems `classes_count`, `index_partition`); a constant height is all still (`classes_const`).
+- The reduction by class (`reduceClass`): a frame interval takes the class of its later frame. For each class the same counts as the
+  whole pass (total and per zone) plus how many frames the class holds. The two classes together hold exactly today's intervals
+  (`reduceClass_total_split`, `_zone_split`, `_frames_split`).
+- The comparison within a class (`compareClass`): the verdict rule above over the passes that hold at least one frame of the class (a pass
+  without any is not a score). It is never mixed across classes, so a pass that started collapsed is compared on its still frames.
+- The still-run counts by class (`armOf`): runs and exit frames of each class are counted separately (a run is `moving` when any of its
+  frames, up to the one that ends it, is moving; `countC_split`). The moving class compares counts only (`verdictMoving`; its heights
+  differ by definition).
+- The still-run verdict by height (`verdictByHeight`): the still class is split by the viewport height of its frames (`Pass.csAt`: a frame
+  is in the group of height `g` when it is toolbar-still and at `g`; `Pass.csAt_still_iff`), and each height present in both arms gets its
+  own verdict on only those frames (`verdictAt`, never `confounded`: `verdictAt_ne_confounded`, `verdictByHeight_ne_confounded`). A height
+  that only one arm has is reported `not-comparable`, not judged. So a collapsed start shorter than `moveWin` frames no longer makes
+  the pass `confounded`, and a pass whose toolbar was held collapsed longer than `moveWin` frames (still frames at 815 and at 775) is
+  judged at 775 and at 815 separately instead of being `confounded` as a whole. The golden lines `cverdict` hold a 31-frame and a
+  60-frame collapse against a lift at 775 (815 `not-comparable`, 775 `lifted`, today `confounded`) and both arms toggling 775/815
+  mid-pass (both heights `lifted`).
+- Old recordings (no `vh` per frame, or a list of the wrong length) are still at every frame, in the group of their one height:
+  `classesOf_noField`, `reduceClass_noField` and `compareClass_noField` prove the still class is today's reduction, and
+  `verdictByHeight_noField` and `verdictByHeight_const` prove that when every pass has one height `g` (no field, or a height that never
+  changes) the still class is the single group `g` and its verdict is `verdictToday`, which is unchanged and printed beside the groups.
+  The TS twins (`reduceClass`, `compareClass`, `compareClasses`, `verdictByHeight`) are replayed on the golden lines `class.*`
+  (session) and `cruns`, `cverdict` (stillruns).
+
+Limits (accepted): a height present in only one arm is `not-comparable`, not judged (a base that sat at 815 all pass has no partner in a
+lift at 775); `vt` is recorded but not used by the class; the moving class is reported, not judged against the original; the zone
+boundaries of `reduceClass` still use the pass's starting height, and `compareClass`'s still-class zone verdict still pools the still
+frames of all heights (the still-run verdict above does not). Follow-ups: the zone verdict by height (`reduceClass` and
+`compareClass` by height group, with `zoneOf` from the group's height), a `device-cli` subcommand that prints the per-class table
+(`device-cli.mjs` is not part of this change), a phone pass to see the classes on a real session, and feeding `verdictByClass` into the
+throttle probe report. TS stand-ins: `classes`, `reduceClass`, `compareClasses`, `runsC`, `armOf`, `armAt`, `verdictByHeight`,
+`verdictByClass` run in TS, checked against the Lean goldens; they move into `fwcore` with the other reductions.
+
+## Session steps
 
 Before: check what the arms load (`node src/device-cli.mjs plan --search '?fw=<look flags>'` prints the plan and, on stderr, each
 dropped arm). The v2-proved preset is resolved at record time; when it resolves to no flags (on main it is `{"fw":{}}`) the v2 arm
