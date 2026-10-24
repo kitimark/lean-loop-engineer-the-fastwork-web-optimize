@@ -19852,7 +19852,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-nested-kind.md"
    ],
-   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit)."
+   "title": "slot-held-identity review follow-ups: (1) a nested `fw slot run` of another kind queues behind its own parent and at limit 1 waits until the parent ends (no deadlock today: fw land makes no nested slot calls); decide in Lean: refuse with a verdict line (VERDICT slot nested-kind) or run under the parent's lease, theorem that a nested request never waits on its own ancestor; (2) scripts/slot-self.mjs still goes direct on FW_SLOT_HELD presence; route it through the token rule (nestedSkips) so an inherited FW_SLOT_HELD without a live token queues; (3) optional owner pid+start check on the parent token, so a dead parent's token stops covering children before the lease lapses (slot.md names the current limit).",
+   "evidence": "1eb3c54"
   },
   {
    "devices": [
@@ -20159,6 +20160,125 @@
     "docs/team/handoffs/sim-release-shutdown.md"
    ],
    "title": "Incident 2026-10-24 14:40: a sim lease was released after about 4.5 min but the Simulator device it booted stayed booted (load 72-148, 190 MB free) until the lead shut it down. Lean first: a released sim lease implies the device the lease booted is shut down (or handed to the next queued sim holder); fw slot release of kind sim runs simctl shutdown for the booted UDID it recorded at acquire; theorem + golden; slot.ts follows."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-webkit-parity",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/gate-breakpoints/src/trajectory/frames*.mjs",
+    "packages/gate-breakpoints/test/frames*.test.mjs",
+    "packages/gate-breakpoints/src/trajectory/transitions*.mjs",
+    "packages/gate-breakpoints/test/transitions*.test.mjs",
+    ".github/workflows/trajectory-probe.yml",
+    "docs/team/tools/trajectory-frames.md",
+    "lean/Fw/Engine/TransitionStart.lean",
+    "lean/scripts/TransitionStartGolden.lean",
+    "packages/contracts/golden/engine/transition-start.jsonl",
+    "research/notes/2026/10-2x-earn-webkit-parity.md",
+    "results/earn-webkit-parity/**",
+    "docs/team/handoffs/earn-webkit-parity.md"
+   ],
+   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-webkit-smooth",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "earn-webkit-parity"
+   ],
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "lean/Fw/Parts/NavEarnWebkit.lean",
+    "packages/contracts/golden/parts/nav.earn*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-earn-webkit-smooth.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/earn-webkit-smooth.md"
+   ],
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "columns-final-scale",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "unthrottle-preset"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "lean/Fw/Parts/MorphColumnsScale.lean",
+    "packages/contracts/golden/parts/morph.columns*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-columns-final-scale.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/columns-final-scale.md"
+   ],
+   "title": "End-of-page GPU candidate 1 (research/notes/2026/10-2x-end-gpu-map.md): morph.columns:final-scale, a composer brick (look-change class): lay the 5 column tracks out once at the final panel width and scale each by a per-column transform during the morph, removing the per-frame re-layout of 21 images and the new track surfaces. Lean first: equal column edges per frame, a bound on the look change (gap, radius and drift scale by s, s >= 0.97 at 390 px INFERRED), then Chromium Layout counts and Simulator backing MB/Composite per finish zone (run ids), then the user's look review."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hittest-elements-proof",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/NavHitTestElements.lean",
+    "packages/contracts/golden/parts/nav.hitTest*.jsonl",
+    "research/notes/2026/10-2x-hittest-elements-proof.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hittest-elements-proof.md"
+   ],
+   "title": "End-of-page GPU candidate 2: nav.hitTest:elements-skip is built but only has v1 provenance. Lean first: prove it decides the same is-on-dark class as the faithful probe on every frame (elementsFromPoint without the pointer-events toggle), from WebKit and Chromium hit-test source (pinned, file:line), and that it removes the forced style recalc of the toggle; golden replayed by the site test; Chromium RecalculateStyles/Layout counts and WKTR per approach zone (run ids, at most 2 dispatches)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "countdown-strip-proof",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Parts/MorphCountdownStrip.lean",
+    "packages/contracts/golden/parts/morph.countdown*.jsonl",
+    "research/notes/2026/10-2x-countdown-strip-proof.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/countdown-strip-proof.md"
+   ],
+   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "waapi-scoped-webkit",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "research/notes/2026/10-2x-waapi-scoped-webkit.md",
+    "results/waapi-scoped-webkit/**",
+    "docs/team/handoffs/waapi-scoped-webkit.md"
+   ],
+   "title": "End-of-page GPU candidate 3: morph.tween:waapi-scoped (Lean MorphTweenOpt; Chromium -6.8 % restyled elements) was refuted on real devices because it shares the waapi driver that leaves the nav classes stale. Measure WebKit Simulator RecalculateStyles/Layout per finish zone (run id), and check whether the stale-class failure reproduces in the Simulator frames; verdict: worth a fixed driver or closed as a negative finding."
   }
  ],
  "deadline": {
