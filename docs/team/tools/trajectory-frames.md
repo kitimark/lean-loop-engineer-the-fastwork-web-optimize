@@ -69,7 +69,9 @@ faithful rewrite, each with 3 full repeats and one light page (`src/trajectory/t
 requestAnimationFrame, no seeking): the rects of earn, language wrap, actions and nav flags, and in full mode the computed padding-left/right,
 max-width, opacity, `--nav-expand`, `--earn-out`, `--earn-layout`, `column-gap` and the live CSSTransition list. The light page reads rects only,
 so the cost of style reads is bounded. Sequences: hero-exit and hero-entry (a scripted scroll ramp, 2 viewport heights in 600 ms), morph-open and
-morph-close (wheel pushes; the CI step passes `--morph 0`, so the 15 min cap holds: hero sequences only). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
+morph-close (wheel pushes; the CI step passes `--morph 0`, so the 15 min cap holds: hero sequences only). `--variants logical,physical,padding` adds candidate arms (`faithful+<variant>`, 2 full repeats): the faithful rewrite plus one `!important`
+rule that swaps `padding-inline` in the earn button's `transition-property` for the logical longhands, the physical ones or the `padding`
+shorthand (`variantCss`; durations and curves stay the site's). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
 effort, `safari-status.txt` says ok, skipped or failed and why). `transitions.mjs summary` reduces every recording (`index.json`,
 `*.summary.json`, `*.summary.txt` with the per-frame table). Artifact `transitions-apple-<leg>`. Why the cause is in Lean: `Fw.Engine.TransitionStart`
 (golden `packages/contracts/golden/engine/transition-start.jsonl`); the reduction in `transitions.mjs` is a TS stand-in.

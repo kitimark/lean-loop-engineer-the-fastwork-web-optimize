@@ -111,10 +111,29 @@ export function recorder() {
 }
 export const REC = `window.__rec = (${recorder.toString()})();`;
 
+/** The transition-property lists of the fix candidates: what replaces `padding-inline` in the earn button's `transition` (Lean fixLogical, fixPhysical, fixPadding). */
+export const VARIANTS = { logical: 'padding-inline-start, padding-inline-end', physical: 'padding-left, padding-right', padding: 'padding' };
+
+/**
+ * The rule that makes a candidate: only the property list of the earn button's transition changes (`!important`, so it wins over the
+ * hero-pill rule too); durations, delays and curves stay the site's, repeating over the longer list. Null for no variant.
+ */
+export function variantCss(variant, earnSel) {
+  if (!variant) return null;
+  if (!(variant in VARIANTS)) throw new Error(`unknown variant ${variant}`);
+  return `${earnSel} { transition-property: max-width, opacity, ${VARIANTS[variant]} !important; }`;
+}
+
+/** The init script that appends a stylesheet as soon as the document has a head. */
+export function styleInit(css) {
+  if (!css) return '';
+  return `(() => { const add = () => { if (!document.head) return false; const s = document.createElement('style'); s.textContent = ${JSON.stringify(css)}; document.head.appendChild(s); return true; }; if (!add()) document.addEventListener('DOMContentLoaded', add); })();`;
+}
+
 /** One page: the hero sequences (scripted scroll), then the morph pushes (wheel). Returns { ready, self, sequences: {seq: {rows, events}} }. */
 async function walkPage(engine, env, arm, mode, morph) {
   const sel = selectorsFor(arm.site);
-  const s = await engine.open(env, { origin: arm.origin, path: '/', init: `${INIT_KIT}\n${REC}`, frozen: false });
+  const s = await engine.open(env, { origin: arm.origin, path: '/', init: `${INIT_KIT}\n${REC}\n${styleInit(variantCss(arm.variant, sel.earn))}`, frozen: false });
   try {
     const ready = await s.evaluate(waitReady, { site: arm.site, capMs: 20000 });
     const self = await s.evaluate(() => (window.__fw ? { config: window.__fw.configHash ?? null, mode: window.__fw.mode ?? null } : { config: null, mode: null }));
@@ -155,7 +174,7 @@ async function walkPage(engine, env, arm, mode, morph) {
 }
 
 /** Capture one engine over `widths`: the original and the faithful rewrite, `reps` full pages and one light page per arm and width. */
-export async function capture({ engineName, widths, reps, out, morph = true, env = process.env }) {
+export async function capture({ engineName, widths, reps, out, morph = true, variants = [], env = process.env }) {
   mkdirSync(out, { recursive: true });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const orig = await startServer(snapshotRoot(env));
@@ -164,11 +183,13 @@ export async function capture({ engineName, widths, reps, out, morph = true, env
   const arms = [
     { site: 'orig', role: 'orig', origin: orig.origin, want: null },
     { site: 'rewrite', role: 'faithful', origin: rewrite.origin, want: configs.bySearch[''] },
+    // A candidate arm is the faithful rewrite with one stylesheet rule added; two full repeats, no light page.
+    ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, want: configs.bySearch[''], variant: v })),
   ];
   const runs = [];
   try {
     for (const width of widths) for (const arm of arms) {
-      const modes = [...Array.from({ length: reps }, () => 'full'), 'light'];
+      const modes = arm.variant ? ['full', 'full'] : [...Array.from({ length: reps }, () => 'full'), 'light'];
       for (let k = 0; k < modes.length; k++) {
         const mode = modes[k];
         const t0 = Date.now();
@@ -358,11 +379,11 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (args[0] === 'capture') {
-    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), reps: Number(opt('reps', '3')), out: opt('out'), morph: opt('morph', '1') !== '0' });
+    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), reps: Number(opt('reps', '3')), out: opt('out'), morph: opt('morph', '1') !== '0', variants: opt('variants', '').split(',').filter(Boolean) });
   } else if (args[0] === 'summary') {
     await summary({ ins: opt('in').split(','), out: opt('out'), run: opt('run') });
   } else {
-    log('usage: transitions.mjs capture --engine E --widths 390,1280 --reps 3 [--morph 0] --out DIR | summary --in DIR[,DIR] --out DIR [--run ID]');
+    log('usage: transitions.mjs capture --engine E --widths 390,1280 --reps 3 [--morph 0] [--variants logical,physical,padding] --out DIR | summary --in DIR[,DIR] --out DIR [--run ID]');
     process.exitCode = 2;
   }
 }

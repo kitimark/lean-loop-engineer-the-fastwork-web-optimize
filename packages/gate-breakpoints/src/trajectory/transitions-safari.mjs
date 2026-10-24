@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { startServer, snapshotRoot, siteDist } from '../serve.mjs';
 import { envFor } from './registry.mjs';
-import { REC, RAMP, selectorsFor, SEQUENCES } from './transitions.mjs';
+import { REC, RAMP, selectorsFor, SEQUENCES, variantCss, styleInit } from './transitions.mjs';
 
 const log = (...a) => process.stderr.write(a.join(' ') + '\n');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -46,6 +46,7 @@ async function walkPage(c, arm, mode, width) {
     await sleep(250);
   }
   await sleep(3000);
+  if (arm.variant) await c.sync(`${styleInit(variantCss(arm.variant, sel.earn))} return true;`);
   const diag = async () => c.sync(DIAG, [sel.nav, sel.earn]);
   const diagStart = await diag();
   await c.sync(`${REC} window.__sc = 0; window.addEventListener('scroll', () => { window.__sc += 1; }, { passive: true }); return true;`);
@@ -83,7 +84,7 @@ return { reduce: q('(prefers-reduced-motion: reduce)'), hover: q('(hover: hover)
   scripts: performance.getEntriesByType('resource').filter((r) => /\\.js(\\?|$)/.test(r.name)).map((r) => [r.name.split('/').pop().slice(0, 24), r.responseStatus ?? null, Math.round(r.duration)]).slice(0, 12),
   body: document.body.innerText.length, svelte: !!document.querySelector('[class*="svelte-"]') };`;
 
-export async function captureSafari({ port, width, reps, out, env = process.env }) {
+export async function captureSafari({ port, width, reps, out, variants = [], env = process.env }) {
   mkdirSync(out, { recursive: true });
   const orig = await startServer(snapshotRoot(env));
   const rewrite = await startServer(siteDist(env));
@@ -94,9 +95,10 @@ export async function captureSafari({ port, width, reps, out, env = process.env 
     caps = await c.open();
     const e = envFor(width);
     await c.rect({ x: 0, y: 0, width, height: e.height + 120 });
-    const arms = [{ site: 'orig', role: 'orig', origin: orig.origin }, { site: 'rewrite', role: 'faithful', origin: rewrite.origin }];
+    const arms = [{ site: 'orig', role: 'orig', origin: orig.origin }, { site: 'rewrite', role: 'faithful', origin: rewrite.origin },
+      ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, variant: v }))];
     for (const arm of arms) {
-      const modes = [...Array.from({ length: reps }, () => 'full'), 'light'];
+      const modes = arm.variant ? ['full', 'full'] : [...Array.from({ length: reps }, () => 'full'), 'light'];
       for (let k = 0; k < modes.length; k++) {
         const t0 = Date.now();
         const one = await walkPage(c, arm, modes[k], width);
@@ -117,6 +119,6 @@ export async function captureSafari({ port, width, reps, out, env = process.env 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const f = await captureSafari({ port: Number(opt('port', '4444')), width: Number(opt('width', '1280')), reps: Number(opt('reps', '3')), out: opt('out') });
+  const f = await captureSafari({ port: Number(opt('port', '4444')), width: Number(opt('width', '1280')), reps: Number(opt('reps', '3')), out: opt('out'), variants: opt('variants', '').split(',').filter(Boolean) });
   log(`wrote ${f}`);
 }

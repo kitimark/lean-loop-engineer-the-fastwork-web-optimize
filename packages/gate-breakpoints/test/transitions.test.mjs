@@ -2,7 +2,7 @@
 // Fw.Engine.TransitionStart). Small synthetic recordings: a padding that snaps to 0 in one frame next to one that eases.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { flipIndex, motion, transitionsSeen, cadence, eventCounts, analyse, frameTable, spread, summarise, summaryText, SERIES, SEQUENCES, selectorsFor } from '../src/trajectory/transitions.mjs';
+import { flipIndex, motion, transitionsSeen, cadence, eventCounts, analyse, frameTable, spread, summarise, summaryText, SERIES, SEQUENCES, selectorsFor, variantCss, styleInit, VARIANTS } from '../src/trajectory/transitions.mjs';
 
 const row = (t, nav, pad, w, an = []) => ({
   t, read: t, y: 0, lbl: null, earn: [800, 10, w, 40], lang: [900 - (w - 100), 10, 40, 40], act: [800, 10, 140, 40], nav,
@@ -90,6 +90,24 @@ test('summarise: one cell per width, arm and sequence; the light page apart', ()
   assert.equal(c.series.padL.maxJump.median, 24);
   assert.deepEqual(c.transitions, {});
   assert.match(summaryText(head, s), /padL +change -24/);
+});
+
+test('variantCss: only the property list changes, important, per candidate; no variant adds nothing', () => {
+  const sel = '[data-fw="nav-earn"]';
+  assert.equal(variantCss(null, sel), null);
+  assert.equal(variantCss('logical', sel), '[data-fw="nav-earn"] { transition-property: max-width, opacity, padding-inline-start, padding-inline-end !important; }');
+  assert.match(variantCss('physical', sel), /padding-left, padding-right !important/);
+  assert.match(variantCss('padding', sel), /opacity, padding !important/);
+  assert.throws(() => variantCss('nope', sel), /unknown variant/);
+  assert.deepEqual(Object.keys(VARIANTS), ['logical', 'physical', 'padding']);
+});
+
+test('styleInit: empty for no css; otherwise a script that carries the css as a JSON string', () => {
+  assert.equal(styleInit(null), '');
+  const s = styleInit('a { b: "c"; }');
+  assert.match(s, /createElement\('style'\)/);
+  assert.ok(s.includes(JSON.stringify('a { b: "c"; }')));
+  new Function(s);
 });
 
 test('selectorsFor: both arms resolve earn, lang, actions and nav from the anchor registry', () => {

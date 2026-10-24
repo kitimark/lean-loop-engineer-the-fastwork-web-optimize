@@ -646,7 +646,8 @@ jobs:
           retention-days: 30
       # A push whose head commit carries `[transitions:earn]` records the earn and language buttons frame by frame (src/trajectory/
       # transitions.mjs): Chromium and Playwright WebKit on this runner, the original and the faithful rewrite, 3 full repeats and one
-      # light page per arm, then Safari itself through safaridriver (best effort, window width at least 640). It runs no walk and
+      # light page per arm plus the fix candidates (the faithful rewrite with one rule that swaps `padding-inline` in the transition
+      # list, 2 repeats each), then Safari itself through safaridriver (best effort, window width at least 640). It runs no walk and
       # no verdict; artifact transitions-apple-<leg> holds the raw recordings and their summaries.
       - name: Playwright Chromium (macOS build) for the transitions recording
         if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
@@ -668,7 +669,7 @@ jobs:
         run: |
           set -euo pipefail
           for e in chromium playwright-webkit; do
-            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --morph 0 --out out/transitions/raw
+            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --morph 0 --variants logical,physical,padding --out out/transitions/raw
           done
       - name: Record Safari itself through safaridriver (best effort)
         id: safari
@@ -695,7 +696,7 @@ jobs:
           up=no
           for _ in $(seq 1 20); do if curl -fsS http://127.0.0.1:4444/status > /dev/null 2>&1; then up=yes; break; fi; sleep 1; done
           if [ "$up" != yes ]; then echo "failed: safaridriver did not answer on port 4444" | tee "$status"; exit 1; fi
-          if node src/trajectory/transitions-safari.mjs --port 4444 --width "$WIDTHS" --reps 3 --out out/transitions/raw; then echo "ok: safaridriver, $WIDTHS px" | tee "$status"; else echo "failed: the Safari recording stopped (see the step log)" | tee "$status"; exit 1; fi
+          if node src/trajectory/transitions-safari.mjs --port 4444 --width "$WIDTHS" --reps 3 --variants logical --out out/transitions/raw; then echo "ok: safaridriver, $WIDTHS px" | tee "$status"; else echo "failed: the Safari recording stopped (see the step log)" | tee "$status"; exit 1; fi
       - name: Reduce the recordings to their summaries
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[transitions:') }}
         env:

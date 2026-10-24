@@ -1,7 +1,11 @@
 # earn-webkit-parity handoff
 Branch: worktree-wf_f45ca365-4a6-1 (CI branch ci/earn-webkit-parity). Worktree: .claude/worktrees/wf_f45ca365-4a6-1.
 Last commit before this note: 86dde9fc4 (dispatch-1 trigger commit).
-CI runs: dispatch 1 pushed at 86dde9fc4, run id not yet read, state running. (Max 3 dispatches; update this list.)
+CI runs: dispatch 1 = run 40082730706 at 86dde9fc4, success (artifacts transitions-apple-390/-1280, download with
+`gh run download <id> -n <artifact>`; `pnpm fw ci <id>` only reads chromium-counts runs). Dispatch 2 pushed at 2245a5009, running.
+Dispatch 1 result: Playwright WebKit padding 24/16 -> 0 in the flip frame (0 frames between), Chromium eases ~10-15 frames; Safari 26.6
+ran via safaridriver but its page showed no nav flip and `transition-property: none` (diagnostics added in dispatch 2).
+Chromium on the macOS runner renders at 20-30 fps (headless, no GPU); WebKit at 60. Max 3 dispatches.
 Verified: Lean `Fw.Engine.TransitionStart` builds, golden `transition-start.jsonl` --check passes (588 rows), engine-goldens
 13 files equal; gate-breakpoints tests 718 pass; ci-paths 56 pass; actionlint clean.
 Open: CI numbers for Chromium vs Playwright WebKit vs Safari (not read yet); research note; results summaries; check.sh/Fw.lean lines for lead.
