@@ -12,8 +12,25 @@ Task `probe-apple-cap` (follow-up of `webkit-morph-walk-noise`). Branch `ci/prob
   `Trajectory.leg_wall_under_cap` (any macOS leg of any picked widths, any extra passes up to `legs x extraCap`).
 - **Retry role is in Lean** (`Trajectory.retries`, `settleFor`; golden line `retryRole`), `out.reps` is the pooled passes
   (`reps + extra`, Lean `pooledReps`, golden field `pooled`).
-- **Not delivered here: the clean Mac run.** A `ci/*` push reaches the Mac leg only with `debug=` or `[frames:` (Lean
-  `Fw.Ci.Trigger.appleRuns`), so a run with no recorder is a lead dispatch (command in the report items).
+- **Clean Mac run (MEASURED):** run 40133346582 on `ci/probe-apple-cap` at 54a5c24, dispatched by the lead with
+  `fw=engine.scroll:batched`, `engines=playwright-webkit`, no debug recorder (a `ci/*` push alone reaches the Mac leg only with
+  `debug=` or `[frames:`, Lean `Fw.Ci.Trigger.appleRuns`). Conclusion success; both legs inside the 18 min (1080 s) cap, see below.
+
+## The clean Mac run (MEASURED)
+
+`gh run view 40133346582 --json jobs`, `startedAt` to `completedAt`:
+
+| job | wall (s) | cap (s) | headroom (s) |
+|---|---|---|---|
+| probe apple 640_1280 | 726 | 1080 | 354 |
+| probe apple 390_641 | 819 | 1080 | 261 |
+| merge apple | 28 | | |
+
+- Both walls are within the sampled range (681 to 833 s) and each is at most base + extra x 19 s: 726 s is 718 + 8 (no extra pass
+  needed), 819 s is 718 + 101, about 5 extra passes (INFERRED; the extra count is not read here). Under the 15 min cap (900 s) both would
+  also have passed, so this run shows the new cap is not too short, not that the old one was; the old cap's overrun risk is the
+  Lean worst case (`probe_worst_under_cap`), not a measured timeout.
+- n is now 8 legs; the lane stays thin until 10 successes (Lean `probeWalls` is not extended here: the sample is the pinned 6).
 
 ## The sample (MEASURED)
 
@@ -76,5 +93,5 @@ at most two widths).
 - Playwright WebKit on macOS stands in for Safari. One clean run, not a pass-rate study.
 - TS stand-ins: `run.mjs` role selection and the `out.reps` assignment are glue around the Lean-checked `retriesRole` and
   `pooledReps` (the fake-engine test covers `morphPath`, not `runLane`).
-- Stale prose outside this task's writes: `docs/team/tools/trajectory-probe.md` line 751 and `trajectory-frames.md` line 24 still
+- Stale prose outside this task's writes (not edited, follow-up): `docs/team/tools/trajectory-probe.md` line 751 and `trajectory-frames.md` line 24 still
   say cap 15 min (follow-up).
