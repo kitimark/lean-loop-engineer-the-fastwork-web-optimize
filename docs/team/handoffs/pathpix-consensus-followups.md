@@ -1,6 +1,7 @@
 # pathpix-consensus-followups (measure-engineer)
 
 - Branch `worktree-wf_9aacdd20-f29-1`; CI branch `ci/pathpix-consensus-followups`; worktree `.claude/worktrees/wf_9aacdd20-f29-1`.
+- Last commit before this edit: see `git log -1`; main merged. Overflow.lean path-pix width 9 landed in the branch (golden unchanged, `--check` clean). Writes outside the graph row: `lean/Fw/Ci/Overflow.lean`, `packages/measure-webkit/src/pathpix-cli.mjs`, `results/accent-draw-nolayout-pixels/run-40037992429/**`.
 - Measured commit `f69f8cb29` (code = `0612ef447` + merge of main; empty tip carries `[ci:path-pix]`). Later commits are analysis, note and results only.
 - CI run 40037992429 (path-pix): success. Attempt 1 failed only `sim-draw (3)` (infrastructure: Safari tab took ~7 min, then `simctl screenshot` failed); `gh run rerun --failed` once (attempt 2) succeeded. Jobs: sim x3, sim-draw x3, chromium x3, report.
 
@@ -17,7 +18,7 @@
 
 ## Open
 - Chromium draw frames (native sampling, no seeking); pin the outside-band baseline of the draw lane; a rule that names the 192513-20 signature.
-- Dry land, `fw review ready`, final report (lead).
+- Dry land and `fw review ready` ran in the final session; see the report.
 
 ## Conventions
 - Never hand-edit the golden: `lake build Fw.Gate.PathPix`, then `lake env lean --run scripts/PathPixGolden.lean` from `lean/`.
