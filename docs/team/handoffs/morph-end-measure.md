@@ -1,7 +1,7 @@
 branch: worktree-wf_c0f9c38f-77f-1 (CI branch ci/morph-end-measure)
 worktree: .claude/worktrees/wf_c0f9c38f-77f-1
-last commit: f7a520d09 (pushed as ci/morph-end-measure)
-CI runs (1 of 3 dispatches used): 40105567688 toolbar-throttle, push of f7a520d09 with [ci:toolbar-throttle] [throttle:morph-end]: running
+last commit: see git log (CI got f7a520d09 as ci/morph-end-measure; a later local commit bounds the overflow width)
+CI runs (1 of 3 dispatches used): 40105567688 toolbar-throttle, push of f7a520d09 with [ci:toolbar-throttle] [throttle:morph-end]: running (sim 1-5 in progress, sim 6 queued, at about 25 min)
 
 Verified so far: @fw/measure-webkit tests 645 pass (incl. throttle-morph-end, throttle-finish-page); scripts/ci-paths.test.mjs 56 pass; a local debug run (not a result) of two arms in the Simulator showed the recorder reads (r, d, ca) and the table works; the four-flag page is prerendered with `--config` (site build log checked locally).
 Open: wait for 40105567688; tables into research/notes/2026/10-2x-morph-end-measure.md and results/morph-end-measure/; runner land-inputs test; fw plan lint; dry land; review ready.
@@ -13,4 +13,5 @@ Design
 - cli.mjs: retry tag carries the attempt (`<arm>-r<round>-a<attempt>`), fixing the -resultBundlePath collision.
 
 Files outside the task writes: .github/workflows/toolbar-throttle.yml, packages/measure-webkit/src/throttle/{cli,finish-page}.mjs, new morph-end.mjs, morph-end-report.mjs, morph-end-search.mjs, tests test/throttle-morph-end.test.mjs and test/throttle-finish-page.test.mjs.
+Also outside the task writes: lean/Fw/Ci/Overflow.lean (toolbar-throttle width 3 -> 5, doc line) and apps/runner/test/land-overflow-widths.test.ts (dynamicMax toolbar-throttle/sim 6); runner test 3437 pass and lean check green after it.
 Read first: research/notes/2026/10-2x-morph-end-measure.md (when written), then this file.
