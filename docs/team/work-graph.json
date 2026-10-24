@@ -19468,7 +19468,8 @@
     "lean/Fw/Obs/Health.lean",
     "lean/Fw/Plan/WritesClosure.lean"
    ],
-   "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands."
+   "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands.",
+   "evidence": "cbb03d4"
   },
   {
    "devices": [
@@ -19486,9 +19487,11 @@
     "packages/contracts/golden/obs/*.jsonl",
     "apps/runner/src/next*.ts",
     "apps/runner/test/next*.test.ts",
-    "docs/team/handoffs/next-killorphan-reap.md"
+    "docs/team/handoffs/next-killorphan-reap.md",
+    "apps/runner/test/signals.test.ts"
    ],
-   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens."
+   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens.",
+   "evidence": "e0ca8c8"
   },
   {
    "devices": [
@@ -19515,7 +19518,8 @@
     "lean/scripts/ReapGolden.lean",
     "packages/contracts/golden/ops/reap-exit.jsonl"
    ],
-   "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick. Plus reap-watch-one-rule round-3 review follow-ups: (a) awaitOk and canonAwait become a character allowlist ([A-Za-z0-9._/-] only; backticks, *, ?, [ ], ~ keep the loop), golden row '/tmp/`x`.log' kept; (b) stopSelected guard scope = plan.targets pids, not plan.selected; (c) reapStopLines counts N from the plan targets (or prints advice rows on their own line); (d) a TS test of a mixed auto plan (A-D target in the same process group as an orphan loop: the loop gets no signal, the group falls back to per-pid)."
+   "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick. Plus reap-watch-one-rule round-3 review follow-ups: (a) awaitOk and canonAwait become a character allowlist ([A-Za-z0-9._/-] only; backticks, *, ?, [ ], ~ keep the loop), golden row '/tmp/`x`.log' kept; (b) stopSelected guard scope = plan.targets pids, not plan.selected; (c) reapStopLines counts N from the plan targets (or prints advice rows on their own line); (d) a TS test of a mixed auto plan (A-D target in the same process group as an orphan loop: the loop gets no signal, the group falls back to per-pid).",
+   "evidence": "e97a687"
   },
   {
    "devices": [
@@ -19603,7 +19607,9 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "docs/team/handoffs/classpos-followups.md",
     "lean/Fw/Parts/Bridge.lean",
-    "docs/report/v2-report.md"
+    "docs/report/v2-report.md",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Contract.lean"
    ],
    "title": "classpos-model-align review follow-ups: (1) arrays and objects are class lists only under a helper call or join receiver (React renders className={['a','b']} as 'a,b' and a bare object as '[object Object]'); elsewhere they are lost; (2) literal className attributes split on the Lean ASCII separator set (isSep), not Unicode \\s+; (3) an identifier or a members-only template in className (e.g. hero.accent/index.tsx:115) is reported, not skipped; (4) computed CSS-module keys resolve to #null (platform/Visuals.tsx:446-448) and classList.add/contains go through valueOf: decide in Lean whether they are class positions. (5) docs/report/v2-report.md:557 cites 299 chain pairs at Bridge.lean:751/770; the theorems now say 322 at Bridge.lean:583 (chainPairs_code_iff) and :599 (chainPairs_code_length)."
   },
@@ -19654,9 +19660,18 @@
     "apps/runner/src/slot*.ts",
     "apps/runner/test/reap*.test.ts",
     "docs/team/tools/reap.md",
-    "docs/team/handoffs/reap-exit-fold.md"
+    "docs/team/handoffs/reap-exit-fold.md",
+    "docs/team/tools/watch.md",
+    "docs/team/tools/watch-rules.md",
+    "apps/runner/src/next.ts",
+    "apps/runner/src/watch*.ts",
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/next.jsonl",
+    "apps/runner/test/next*.test.ts",
+    "apps/runner/test/watch*.test.ts"
    ],
-   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino. Plus reap-ef-auto round-2 review follow-ups: (5) reapHeldAlerts calls ops.reapHeld twice per tick and opReapHeld runs inputOf twice: one call returning {held, heldSim}, inputOf bound once in Lean; (6) recordHeld still prints 'REAP advice simBooted' next to the agent.held alert: drop the say() push, keep the reap.jsonl row; (7) slot.ts bootedAll JSON.parse(r.stdout) inside state.lock: try/catch returning []."
+   "title": "reap-ef-auto review follow-ups and the 7-day fold: (1) fold reap.jsonl into Lean Seen records and apply ops.reapExit (E/F move into autoKinds only when it says so); the 7-day leg must show coverage (no tick gaps beyond a bound), not only firstAt + 7 d; decide whether an explicit fw reap --stop counts as a true orphan; (2) reap.stopped records carry targets [{pid,start}]; (3) simUdids = booted at release minus booted at acquire (or the sim run records the udid it boots), replacing 'every booted Simulator at release'; (4) held = selected minus targets and the once-per-identity dedupe come from Lean, recordHeld reads reap.jsonl bounded (tail or index), inodeOf uses statSync(p, { bigint: true }).ino. Plus reap-ef-auto round-2 review follow-ups: (5) reapHeldAlerts calls ops.reapHeld twice per tick and opReapHeld runs inputOf twice: one call returning {held, heldSim}, inputOf bound once in Lean; (6) recordHeld still prints 'REAP advice simBooted' next to the agent.held alert: drop the say() push, keep the reap.jsonl row; (7) slot.ts bootedAll JSON.parse(r.stdout) inside state.lock: try/catch returning []. Plus next-killorphan-reap review follow-ups: (8) docs still describe the old killOrphan rule: reap.md:33 -> 'The `NEXT <id> killOrphan pid= start=` line of `Fw.Obs.Next` is the same held entry, in the agent's own worktree (`kill_iff`).'; watch.md:40 -> 'NEXT ghb-runner killOrphan pid=555 start=1759998680'; watch.md:43 -> '`killOrphan pid start`'; watch-rules.md:48 -> '`agent.held`: the Reap plan holds the loop (pid+start); `NEXT killOrphan` names the same entry.'; (9) ops.reapHeld held entries carry wt from Lean (drop the TS pid+start lookup in next.ts reapHeldFacts) and one gather per watch pass shared by reapHeldAlerts and reapHeldFacts; (10) heldByChild suppression matches pid+start, not pid only (Child gets a start field)."
   },
   {
    "devices": [
@@ -19692,7 +19707,9 @@
     "lean/Fw.lean",
     "packages/contracts/golden/console/land-wt.jsonl",
     "research/notes/2026/10-2x-land-wt-lake-rebuilds.md",
-    "docs/team/handoffs/land-wt-lake-rebuilds.md"
+    "docs/team/handoffs/land-wt-lake-rebuilds.md",
+    "lean/scripts/check.sh",
+    "lean/scripts/LandWtGolden.lean"
    ],
    "title": "(S) the dry land's lake step is rebuild work in the land worktree pool: median 3.0 s at 0 modules built (n 100), 10.7 s at 1-7 (n 48), 18.9 s at 8+ (n 56); one commit 2e54fbe built 24, 0, 24 modules in three dry lands (27.7, 2.4, 23.5 s) because each land checks out its commit in the first free .claude/land-wt/<n> (land.ts claimLandWt :345, checkoutLandWt :361): decide in Lean which worktree or which .lake state a dry land starts from so rebuilt modules fall, golden rows, effect on lake.built and the lake step measured on later dry lands Unit of decision: the lake step alone. Accepted limit: c4f662a 9.0 s at 0 built may stay unexplained."
   },
@@ -19771,6 +19788,31 @@
     "docs/team/handoffs/pathpix-drawbase-wire.md"
    ],
    "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "classpos-followups-2",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "classpos-followups"
+   ],
+   "writes": [
+    "lean/Fw/Parts/ClassPos.lean",
+    "packages/contracts/golden/parts/footprint.classpos.jsonl",
+    "apps/site/scripts/part-footprint.mjs",
+    "apps/site/scripts/part-footprint.classpos.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "lean/Fw/Parts/Contract.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "docs/report/v2-report.md",
+    "docs/team/handoffs/classpos-followups-2.md"
+   ],
+   "title": "classpos-followups builder follow-ups: resolve const identifiers to their initializer or module class; el.className = x still gives setClass *; a boolean in a template is not modelled; valueOf over a union keeps the first of two class values (unsound: keep both or report). Plus classpos-followups review follow-ups: (5) split helpers into listHelpers [clsx, classNames, classnames] (list context) and joinHelpers [cx, cls] (the site's own (...c) => c.filter(Boolean).join(' '): arrays and objects there are lost), golden row cx(['a']); (6) a numeric literal (className={0}, cx(n && 1)) gets marker 'number', and the left side of && is reported unless it is cmp/not, golden rows; (7) an element whose class set has any lost token is marked open in collectElements, and selector matches against it are weak."
   }
  ],
  "deadline": {

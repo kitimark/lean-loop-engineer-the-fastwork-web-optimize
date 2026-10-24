@@ -4515,7 +4515,7 @@
    "id": "inc-slot-held-env",
    "at": "2026-10-24T09:40+07:00",
    "title": "The lead's land scripts ran with FW_SLOT_HELD=1, so every fw slot run --kind land inside them skipped the land slot",
-   "symptom": "186 of 808 local 'fw slot run land pnpm fw land dry' spans have no land-slot acquire in locks.jsonl and 47 started while another dry land ran (Fable advice on land-dry-contention, 2026-10-24).",
+   "symptom": "133 of 760 local 'fw slot run land pnpm fw land dry' spans to cutoff 1792808775650 have no land-slot acquire within 3 s and 40 started while another dry land ran (research/notes/2026/10-2x-land-dry-contention.md; the first count, 186 of 808, also matched the '... dry cached' replay spans, which take no slot).",
    "cause": "CONFIRMED (apps/runner/src/slot.ts:556-561 run(): any FW_SLOT_HELD value skips acquire, whatever kind is held; the lead's scratch land scripts were started as 'FW_SLOT_HELD=1 sh land-rNNN.sh'). The env flag stands in for 'a slot of this kind is held by my parent' (presence inferred from an env var, not a held token's identity). How many of the 186 spans are the lead's is counted in task slot-held-identity.",
    "evidence": [
     {

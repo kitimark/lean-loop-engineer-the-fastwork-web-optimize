@@ -1,15 +1,11 @@
-// `fw next` / the NEXT lines of `fw watch`: glue for the fwcore op `obs.next` (lean/Fw/Obs/Next.lean, wire in
-// lean/Fw/Wire/Obs.lean, golden packages/contracts/golden/obs/next.jsonl). This file only OBSERVES facts (git, ps,
-// transcripts, stat, the plan) and PRINTS fwcore's answer. No decision is made here: which action an agent needs,
-// whether a loop is orphaned or a branch must be landed is the Lean `next`. The only judgement below is how to read
-// a command line into a child kind (what the process is), which is classification of an observation, not a rule.
-// Privacy: command lines are read to classify and to find the watched file; none is kept or printed.
 import { execFile } from "node:child_process";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { lockFacts, lockFile } from "../hooks/land-guard.mjs";
 import { queuedBranches } from "./land-queue.ts";
+import { gather, heldLoops, repoIdOf, wtIdOf, type Call, type Facts } from "./reap.ts";
+import { fwcoreCall } from "./run.ts";
 import {
   exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, startFromAge, readMeta, readsStdin, signalsOf, withLeadNotes,
   type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
@@ -21,6 +17,7 @@ export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
   pid: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
 } & ({ kind: "sleepLoop" | "build" | "other" | "stdinWait" } | { kind: "ciWait"; run: number; timeoutMin: number });
+export interface HeldFact { pid: number; start: number; wt: string | null }
 export interface AgentFacts {
   id: string; task: string; state: string; session: number; handbackAt: number | null;
   branch: {
@@ -32,14 +29,13 @@ export interface AgentFacts {
     /** the branch is a pending entry of the land queue (`fw land --queue`, task land-queue): `locked` in the Lean facts */
     landQueued: boolean;
   } | null;
-  /** docs/team/handoffs/<name>.md exists */
   handoff: boolean;
-  worktree: { lockPid: number | null; lockAlive: boolean } | null;
+  worktree: { lockPid: number | null; lockAlive: boolean; id: string | null } | null;
   ctxTokens: number; children: ChildFact[];
   ci: { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null } | null;
   board: { id: string; done: boolean; agent: string | null } | null;
-  /** the transcript signals (Fw.Obs.Signals.Facts); fwcore resolves handbackAt and producer exits from them */
   signals?: SigFacts;
+  reapHeld: HeldFact[];
 }
 export interface NextAction { action: string; [k: string]: unknown }
 export interface NextReply {
@@ -115,8 +111,8 @@ export interface RawAgent {
   handoff: boolean;
   /** the agent's branch from its meta (`worktreeBranch`); absent: the worktree list's branch */
   branch?: string | null;
-  /** the agent's signal facts (absent: no transcript) */
   signals?: SigFacts | null;
+  wtId?: string | null;
 }
 export interface RawCi { id: number; workflow: string; branch: string; status: string; conclusion: string | null; startedAt: number; endedAt: number | null }
 export interface RawPs { pid: number; ppid: number; ageMs: number; comm: string }
@@ -129,8 +125,8 @@ export interface Raw {
   landLock?: string | null;
   /** the branches of the pending entries of the land queue (`.fw-console/land-queue.jsonl`) */
   landQueue?: string[];
-  /** text of the integrator's list (a branch name in it means queued) */
   queuedText: string; ci: RawCi[]; board: Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>;
+  reapHeld?: HeldFact[];
 }
 const hasWord = (text: string, w: string) => text.split(/[^A-Za-z0-9._/-]+/).includes(w);
 
@@ -230,15 +226,15 @@ export function buildFacts(raw: Raw): AgentFacts[] {
         ? {
           name: br, ahead: a.ahead ?? 0, landed: a.landed ?? false, queued: hasWord(raw.queuedText, br),
           mergesClean: a.mergesClean ?? true, onMain: a.onMain === true, landLock: raw.landLock ?? null, landQueued: (raw.landQueue ?? []).includes(br),
-          // observed dependencies: contained unlanded agent branches, then the task's board dependencies not done
           deps: [...a.branchDeps, ...(raw.board.get(task)?.deps ?? []).filter((d) => raw.board.get(d)?.done === false)],
         } : null,
-      worktree: w ? { lockPid: w.lockPid, lockAlive: w.lockPid !== null && raw.alive(w.lockPid) } : null,
+      worktree: w ? { lockPid: w.lockPid, lockAlive: w.lockPid !== null && raw.alive(w.lockPid), id: a.wtId ?? null } : null,
       ctxTokens: a.ctxTokens ?? 0, children: childrenOf(raw, a.id),
       ci: ci && { ...ci },
       board: a.name ? rowOf(raw.board.get(a.name)) : null,
       handoff: a.handoff,
       ...(a.signals ? { signals: a.signals } : {}),
+      reapHeld: raw.reapHeld ?? [],
     };
   });
 }
@@ -348,7 +344,20 @@ export function liveLandLockBranch(root: string): string | null {
   } catch { return null; }
 }
 
-/** Collect every observation for the snapshot's agents. `health` = the obs.health reply for the same snapshot. */
+export function reapHeldFacts(top: string, env: Record<string, string | undefined> = process.env,
+  gatherFn: (top: string) => Facts | null = gather, call: () => Call = () => fwcoreCall(top)): HeldFact[] {
+  if (env.FW_WATCH_REAP === "0") return [];
+  try {
+    const f = gatherFn(top);
+    if (f === null) return [];
+    return heldLoops(f, call()).map((h) => ({
+      pid: h.pid, start: h.start, wt: f.rows.find((r) => r.pid === h.pid && r.start === h.start)?.wt ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function collectRaw(p: Paths, main: string, snap: Snapshot, health: { agents: { id: string; state: string }[] }, plan: unknown): Promise<Raw> {
   const [wtOut, ps] = await Promise.all([exec("git", ["worktree", "list", "--porcelain"], p.root), psCommands()]);
   const wts = parseWorktrees(wtOut);
@@ -357,6 +366,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
   const agents: RawAgent[] = [];
   const cache = new Map<string, [number | null, boolean | null]>();
   const session = sessionPid(ps, process.pid, wts.flatMap((w) => (w.lockPid ? [w.lockPid] : [])));
+  const repo = repoIdOf(main);
   for (const a of snap.agents) {
     const state = states.get(a.id);
     if (!state) continue;
@@ -394,7 +404,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
       } catch { /* unreadable */ }
     }
     agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, onMain, mergesClean,
-      branchDeps, handoff, branch, signals });
+      branchDeps, handoff, branch, signals, wtId: wt && repo ? wtIdOf(wt.path, repo) : null });
   }
   const board = new Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>();
   const tasks = (plan as { tasks?: unknown } | null)?.tasks;
@@ -417,6 +427,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     procs: snap.system.procs ?? [], ps, alive: pidAlive, file: statFile, queuedText, ci, board,
     landLock: liveLandLockBranch(p.root),
     landQueue: [...new Set([...queuedBranches(join(main, ".fw-console")), ...queuedBranches(p.consoleDir)])],
+    reapHeld: reapHeldFacts(main),
   };
 }
 
