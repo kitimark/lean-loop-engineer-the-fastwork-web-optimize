@@ -1,7 +1,7 @@
 branch: worktree-wf_2035e8c8-453-1 (CI branch ci/invisible-paint)
 worktree: .claude/worktrees/wf_2035e8c8-453-1 (run `sh scripts/wt-prep.sh` and `pnpm install --offline --frozen-lockfile` first)
 last commit: see `git log -1` (push 2 of 3 carries [ci:wktr] [repaint] in its head message)
-CI runs: wktr 40076565001 (sha f9f8a3f92, push 1) = j1/j2/j3 success, repaint-summary FAILED (non-integer reRasterArea, fixed in e063d20f4). Run 2: wktr 40078541948 (sha 31c373675, push 2 of 3) = in_progress at 08:34Z.
+CI runs: wktr 40076565001 (sha f9f8a3f92, push 1) = j1/j2/j3 success, repaint-summary FAILED (non-integer reRasterArea, fixed in e063d20f4). Run 2: wktr 40078541948 (sha 31c373675, push 2 of 3) = success, j1 j2 j3 + repaint-summary all green (artifacts in scratchpad/ivp/run2). Run 3 (push 3 of 3, last): same lane with fixed guess attribution, id below.
 
 What exists
 - lean/Fw/Engine/PaintVisible.lean (class rule + `dirty` rule, one theorem per class, builds), lean/scripts/PaintVisibleGolden.lean, packages/contracts/golden/engine/paint-visible.jsonl (37 lines).
