@@ -124,3 +124,93 @@ jobs:
         with:
           mode: finish
           label: replay
+
+  # Task combo-scroll-fight (note research/notes/2026/10-2x-combo-scroll-fight.md): the rewrite page with the user's flags and their
+  # bisect sets, replayed with scripted close-then-reopen finger paths and the recorded path; the page records scrollY on every frame, the
+  # finger, the morph value and every `scrollTo` call. One leg per profile. Chromium, CPU throttled 6x (the Linux proxy, never the phone).
+  # Legs run one after the other after `replay` (the Lean width table, Fw.Ci.Overflow.widths, holds one job for this workflow).
+  combo:
+    needs: [guard, replay]
+    if: ${{ !cancelled() && needs.guard.outputs.run == 'true' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        leg: [flick-gap8, flick-gap20, flick-gap32, same-touch, same-touch-slow, recorded]
+    concurrency:
+      group: ci-lane:device-replay:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:combo:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      # fetch-depth 0: the `before` build checks out apps/site/src of BEFORE (the last commit without the fix) over the tree.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/site... @fw/gate-breakpoints'
+      - name: Tests of the combo replay metrics
+        run: node --test packages/measure-webkit/test/replay-combo.test.mjs
+      - name: Playwright Chromium with its system libraries
+        working-directory: packages/gate-breakpoints
+        run: pnpm exec playwright-core install --with-deps chromium
+      - name: Build the rewrite twice with the flag sets (after = this commit, before = apps/site/src of BEFORE), one prerendered page per set
+        working-directory: apps/site
+        env:
+          BEFORE: 45efb0d5a43a95227823d6c1304131da8059f9df
+        run: |
+          set -euo pipefail
+          args=()
+          while IFS= read -r l; do [ -n "$l" ] && args+=(--config "$l"); done < <(node ../../packages/measure-webkit/src/replay/combo-arms.mjs configs bisect)
+          node scripts/build.mjs --engine aot --configs none "${args[@]}"
+          mv dist/aot dist/after
+          git checkout "$BEFORE" -- src
+          node scripts/build.mjs --engine aot --configs none "${args[@]}"
+          mv dist/aot dist/before
+          git checkout HEAD -- src
+          git status --short src | head -3
+      - name: Replay (the same arms on the before and after builds, repeated, CPU throttled 6x)
+        timeout-minutes: 30
+        env:
+          LEG: ${{ matrix.leg }}
+          REPS: ${{ inputs.reps || '3' }}
+        run: |
+          set -euo pipefail
+          mkdir -p out/combo
+          prof=packages/measure-chromium/profiles/user-bug-1025-reopen-$LEG.json
+          reps=$REPS
+          set=bisect
+          if [ "$LEG" = recorded ]; then prof=packages/measure-chromium/profiles/user-bug-1025.json; reps=1; set=fix; fi
+          for build in before after; do
+            node packages/measure-webkit/src/replay/combo-cli.mjs run --dist apps/site/dist/$build --profile "$prof" --arms "$(node packages/measure-webkit/src/replay/combo-arms.mjs arms "$set")" --reps "$reps" --throttle 6 --frames --out out/combo/$build 2>&1 | tee out/combo/$build.log.txt
+          done
+      - name: Tables of this leg (the step summary; the artifact is the record)
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        run: |
+          set -euo pipefail
+          for build in before after; do
+            if [ -f out/combo/$build/run.json ]; then { echo "### $build (per arm)"; node packages/measure-webkit/src/replay/combo-cli.mjs summary --in out/combo/$build/run.json; echo "### $build (per pass)"; node packages/measure-webkit/src/replay/combo-cli.mjs table --in out/combo/$build/run.json; } >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: combo-${{ matrix.leg }}
+          path: out/combo
+          if-no-files-found: error
+          retention-days: 30

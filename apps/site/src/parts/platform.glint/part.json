@@ -10,6 +10,16 @@
       "kind": "faithful",
       "tier": "T1",
       "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12150-12212, 12269-12275", "lean": "lean/Fw/Parts/PlatformGlint.lean" }
+    },
+    "offscreen-pause": {
+      "kind": "optimized",
+      "tier": "T0",
+      "visClass": "E",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformGlintPause visible_same_phase, local_time_same, same_run, variant_no_ticks_away, faithful_no_ticks_away, away_ticks_equal, window_gain",
+        "webkit": "Source/WebCore/svg/animation/SMILTimeContainer.cpp:94-100,141-162,164-194,196-208; Source/WebCore/svg/SVGSVGElement.cpp:551-566,585-593 @862f17dcae0a",
+        "limit": "same look: on every frame where the glint plays its container reads the uninterrupted clock (visible_same_phase). No gain expected while away: the faithful arm already unmounts the animate pair whenever the ratio is below 0.35 (faithful_no_ticks_away), so the pause removes at most the ticks of the commit window between the observer report and the unmount (window_gain). Premises: the observer callback runs before the first frame that can show the glint (the glint needs ratio >= 0.35 plus a 1 s timer); the dash svg clock began before the first report (inline svg, INFERRED; setCurrentTime clamps at 0 and the model does not); setCurrentTime and getCurrentTime go through float32 seconds (error far below a frame, not modelled); the dash boxes lie inside the observed stage box"
+      }
     }
   },
   "requires": {},

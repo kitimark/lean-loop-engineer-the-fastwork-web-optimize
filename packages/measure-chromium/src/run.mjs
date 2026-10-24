@@ -464,7 +464,7 @@ if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try
   let prevPng = '', prevCard = null, containing = null;
   for (let n = 0; n < plan.length; n++, vt += dt) {
     const { phase, y, run } = plan[n];
-    const r = await frame(vt, `${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`, null, true);
+    const r = await frame(vt, `${run ? `(function () { ${run} })();` : ''} window.scrollTo({ top: ${y}, left: 0, behavior: 'instant' }); var __fwStepResult = ${POS};`, null, profile.cardProbe.screenshots !== false);
     const v = await ev(read);
     const { cb, ...rest } = v ?? {};
     if (v && containing === null) containing = cb;

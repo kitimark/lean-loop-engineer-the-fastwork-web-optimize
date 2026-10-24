@@ -72,10 +72,11 @@ run_group() {
       if sed -n "s/^init-cost: \([a-z]*\) \([^:]*\):.*/\1 \2/p" "$1/out" | LC_ALL=C sort | diff scripts/init-cost-cases/Adv.expected.txt -
       then echo "init-cost: the findings are exactly scripts/init-cost-cases/Adv.expected.txt"
       else echo "init-cost: findings differ from scripts/init-cost-cases/Adv.expected.txt (< expected, > found); output:"; cat "$1/out"; exit 1; fi; }' _ "$tmp/icc"
-  job "contracts golden check" lake env lean --run scripts/ContractsGolden.lean --check ../packages/contracts/golden/parts/contracts.gen.json ../packages/measure-chromium/scenarios.gen.json  # part contract rows + per-part profiles (Fw.Parts.Contract)
+  job "contracts golden check" lake env lean --run scripts/ContractsGolden.lean --check ../packages/contracts/golden/parts/contracts.gen.json ../packages/measure-chromium/scenarios.gen.json
+  job "transition-list golden check" lake env lean --run scripts/TransitionListGolden.lean --check
   job "axiom check" sh scripts/axiom-check.sh
   job "lake test" $bin/fwcore fwtest
-  job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean  # `lake env` builds nothing and takes no lock
+  job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean
   job "port golden check" lake env lean --run scripts/PortGolden.lean --check  # golden/port/* the port digest is checked against (Fw.Port.*, Fw.Site.Assets)
   job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
   job "diskgc golden check" lake env lean --run scripts/DiskGcGolden.lean --check  # golden/ops/diskgc.jsonl (Fw.Ops.DiskGc)
@@ -104,6 +105,7 @@ run_group() {
   job "workflow-lint golden check" lake env lean --run scripts/WorkflowLintGolden.lean --check
   job "touchpush golden check" lake env lean --run scripts/TouchPushGolden.lean --check ../packages/contracts/golden/measure/touch-push.jsonl
   job "walkbudget golden check" lake env lean --run scripts/WalkBudgetGolden.lean --check ../packages/contracts/golden/measure/walk-budget.jsonl
+  job "offscreen golden check" lake env lean --run scripts/OffscreenGolden.lean --check ../packages/contracts/golden/measure/offscreen.jsonl
   job "touchlock golden check" lake env lean --run scripts/TouchLockGolden.lean --check ../packages/contracts/golden/measure/touch-lock.jsonl
   job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl
@@ -117,6 +119,7 @@ run_group() {
   job "device-finishruns golden check" lake env lean --run scripts/FinishRunsGolden.lean --check ../packages/contracts/golden/device/finishruns.jsonl  # the finish-zone still runs, reversals, open lateness and per-arm verdict packages/measure-webkit/src/throttle/finish.mjs is checked against (Fw.Device.FinishRuns)
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl  # the repaint-rect visibility classes packages/measure-webkit/src/paintclip.mjs is checked against (Fw.Engine.PaintVisible)
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"  # the style text, attributes, cost and decision table apps/site/src/parts/engine.scroll/unthrottle.ts is checked against (Fw.Parts.EngineScrollUnthrottle)
+  job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"
   job "hittest elements golden check" sh -c "printf 'import Fw.Parts.NavHitTestElements\\n#eval Fw.Parts.NavHitTestElements.gen [\"--check\"]\\n' | lake env lean --stdin"  # the hit and is-on-dark class table apps/site/src/parts/nav.hitTest/elements.golden.test.ts replays (Fw.Parts.NavHitTestElements)
   job "webkit-profile golden check" lake env lean --run scripts/WebkitProfileGolden.lean --check ../packages/contracts/golden/measure/webkit-profile.jsonl  # the zone-binned Timeline profile vectors packages/measure-webkit/src/profile/reduce.mjs is checked against (Fw.Measure.WebKitProfile)
   job "path-pix golden check" lake env lean --run scripts/PathPixGolden.lean --check ../packages/contracts/golden/gate/path-pix.jsonl
@@ -145,12 +148,13 @@ run_group() {
   job "engine premise golden check" lake env lean --run scripts/EnginePremiseGolden.lean --check
   job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
   job "exit scoped golden check" lake env lean --run scripts/ExitScopedGolden.lean --check ../packages/contracts/golden/parts/hero.exit.scoped.json  # hero.exit:scoped reader list, inherit chain and units (Fw.Parts.HeroExitOpt)
-  job "exit threaded golden check" lake env lean --run scripts/ExitThreadedGolden.lean --check ../packages/contracts/golden/parts/hero-exit.threaded.jsonl  # hero.exit:threaded keyframes, hand-over rule, sentinel (Fw.Parts.HeroExitOpt)
-  job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check  # golden/obs/timing.jsonl (Fw.Obs.Timing)
+  job "exit threaded golden check" lake env lean --run scripts/ExitThreadedGolden.lean --check ../packages/contracts/golden/parts/hero-exit.threaded.jsonl
+  job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check
   job "state-list golden check" lake env lean --run scripts/StateListGolden.lean --check
+  job "ci-state golden check" lake env lean --run scripts/CiStateGolden.lean --check
   job "slot-key golden check" lake env lean --run scripts/SlotKeyGolden.lean --check
-  job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check  # golden/sched/heavy.jsonl (Fw.Sched.Heavy), replayed by scripts/heavy-lock.test.mjs
-  job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check  # golden/console/land-legs.jsonl + lean/land-legs.txt (Fw.Console.LandLegs)
+  job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check
+  job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check
   job "trajectory golden check" lake env lean --run scripts/TrajectoryGolden.lean --check  # the trajectory-probe verdict vectors reduce.mjs is checked against (Fw.Gate.Trajectory)
   job "trajectory-gpu golden check" lake env lean --run scripts/TrajectoryGpuGolden.lean --check ../packages/contracts/golden/gate/trajectory-gpu.jsonl
   job "trajectory-gpu raw cells" sh -c 'd=$(mktemp -d "${TMPDIR:-/tmp}/gpuraw.XXXXXX") && trap "rm -rf $d" EXIT &&
@@ -169,12 +173,17 @@ run_group() {
   job "tap golden check" lake env lean --run scripts/MorphTapGolden.lean --check ../packages/contracts/golden/parts/morph-mount-tap.jsonl
   job "hero-scene-pause golden check" lake env lean --run scripts/HeroScenePauseGolden.lean --check ../packages/contracts/golden/parts/hero-scene-pause.jsonl
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl
+  job "nav-earn-webkit golden check" lake env lean --run scripts/NavEarnWebkitGolden.lean --check ../packages/contracts/golden/parts/nav.earn.webkit.jsonl
+  job "nav-earn-curve golden check" lake env lean --run scripts/NavEarnCurveGolden.lean --check ../packages/contracts/golden/parts/nav.earn.curve.jsonl
   job "accent draw-one golden check" lake env lean --run scripts/AccentDrawOneGolden.lean --check ../packages/contracts/golden/parts/hero.accent.drawone.jsonl
   job "accent nolayout golden check" lake env lean --run scripts/AccentNoLayoutGolden.lean --check ../packages/contracts/golden/parts/hero.accent.nolayout.jsonl
   job "classpos golden check" lake env lean --run scripts/ClassPosGolden.lean --check ../packages/contracts/golden/parts/footprint.classpos.jsonl
   job "people-o preview golden check" lake env lean --run scripts/PeopleOPreviewGolden.lean --check ../packages/contracts/golden/parts/people-o-preview.jsonl
   job "morph-idle-none golden check" lake env lean --run scripts/MorphIdleNoneGolden.lean --check ../packages/contracts/golden/parts/morph-idle-none.jsonl
-  job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl  # the end-of-page bricks A clamp, B flip, C release per combination (Fw.Parts.MorphEnd), for the morph-end-bricks TS twin
+  job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
+  job "combo-scroll golden check" lake env lean --run scripts/ComboScrollGolden.lean --check ../packages/contracts/golden/parts/combo-scroll.jsonl
+  job "platform-sweep-pause golden check" lake env lean --run scripts/PlatformSweepPauseGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-pause.jsonl
+  job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl
   job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check

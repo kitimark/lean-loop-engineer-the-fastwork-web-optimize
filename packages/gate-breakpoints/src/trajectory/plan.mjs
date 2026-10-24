@@ -3,7 +3,7 @@
 // TS twin (checked against the golden by test/trajectory.test.mjs). It imports nothing but reduce.mjs, so the workflow's plan step
 // runs it with plain node (no install). `mergeRaws` is glue: it joins the raw readings of the legs of one engine.
 import { pathToFileURL } from 'node:url';
-import { ALLOWED_WIDTHS, pickWidths } from './reduce.mjs';
+import { ALLOWED_WIDTHS, bucket, needsSample, pickWidths } from './reduce.mjs';
 
 /** The engines of a dispatch's `engines` input: macOS WebKit runs with every WebKit. Null when refused. */
 export function enginesOf(input) {
@@ -32,6 +32,61 @@ export function planOf(enginesIn, widthsIn) {
   const ws = pickWidths(widthsIn);
   if (es === null || ws === null) return null;
   return es.flatMap((engine) => legsOf(engine, ws).map((widths) => ({ engine, widths, walks: walksOf(engine) })));
+}
+
+/** Whether the probe's emulated primary pointer is coarse at a width: the touch environment up to 640 CSS px (Lean `probeCoarse`). */
+export const probeCoarse = (w) => w <= 640;
+
+/** The flags whose whole style rule sits behind `(pointer: coarse)` (Lean `coarseOnly`). */
+export const COARSE_ONLY = ['engine.scroll:unthrottle'];
+
+/** Whether a run is proved inactive at a width: it names flags, all coarse-only, and the width emulates a fine pointer (Lean `inactiveAt`). */
+export const inactiveAt = (flags, w) => flags.length > 0 && flags.every((f) => COARSE_ONLY.includes(f)) && !probeCoarse(w);
+
+/** What a width of a run rests on: its readings, or the proof that it equals its faithful arm there (Lean `basisAt`). */
+export const basisAt = (flags, w) => (inactiveAt(flags, w) ? 'same-by-proof' : 'measured');
+
+export const EXTRA_CAP = 8;
+
+export const hitIn = (ms, k) => ms.some((m) => bucket(m) === k);
+
+export const gapsIn = (b, c) => Array.from({ length: 11 }, (_, k) => k).filter((k) => needsSample(k) && hitIn(b, k) && !hitIn(c, k));
+
+export const gapCount = (b, c) => gapsIn(b.opening, c.opening).length + gapsIn(b.closing, c.closing).length;
+
+export const moreReps = (extra, b, c) => extra < EXTRA_CAP && gapCount(b, c) !== 0;
+
+export const retriesRole = (role, hasBase) => role === 'cand' && hasBase;
+
+export const pooledReps = (reps, extra) => reps + extra;
+
+export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closing: a.closing.concat(b.closing) });
+
+export async function settleReps(b, c0, walk) {
+  let extra = 0;
+  let c = c0;
+  while (moreReps(extra, b, c)) { c = poolPush(c, await walk(extra)); extra++; }
+  return { extra, c };
+}
+
+/** A group repeats when its new units fall at two or more widths (Lean `repeats`). */
+export const repeats = (ws) => new Set(ws).size >= 2;
+
+/** Whether the engine decides the path: Linux WebKit's morph pushes cannot be decided (Lean `covers`). */
+export const covers = (engine, walk) => !(engine === 'linux-webkit' && walk === 'morph');
+
+/**
+ * The verdict of a stored run (Lean `outcome`): `unjudged:coverage` when the engine cannot decide the path, `unjudged:widths`
+ * when a lane width was not walked, `fail` on a content repeat, `unjudged:coverage` on a coverage repeat, else `pass`. The units at
+ * widths that rest on proof count nothing.
+ */
+export function cellOutcome(s) {
+  if (!covers(s.engine, s.walk)) return 'unjudged:coverage';
+  if (!ALLOWED_WIDTHS.every((w) => s.widths.includes(w))) return 'unjudged:widths';
+  const counted = (ws) => ws.filter((w) => basisAt(s.flags, w) === 'measured');
+  if (s.groups.some((g) => repeats(counted(g.content)))) return 'fail';
+  if (s.groups.some((g) => repeats(counted(g.coverage)))) return 'unjudged:coverage';
+  return 'pass';
 }
 
 /**

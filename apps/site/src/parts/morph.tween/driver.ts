@@ -9,10 +9,12 @@ export interface PlatformEl {
 }
 export interface WheelLike {
   deltaY: number;
+  cancelable?: boolean;
   preventDefault(): void;
 }
 export interface TouchLike {
   touches: ArrayLike<{ clientY: number }>;
+  cancelable?: boolean;
   preventDefault(): void;
 }
 export interface TweenEnv {
@@ -116,8 +118,10 @@ export function createTweenDriver(env: TweenEnv) {
     const r = p.getBoundingClientRect();
     return armed({ rectHeight: r.height, rectBottom: r.bottom, viewportHeight: env.viewportHeight() });
   };
-  const move = (e: { preventDefault(): void }, delta: number) => {
+  const move = (e: { preventDefault(): void; cancelable?: boolean }, delta: number) => {
+    const cancelable = e.cancelable !== false;
     const read: Read = {
+      cancelable,
       get scrollY() {
         return env.scrollY();
       },
@@ -131,7 +135,7 @@ export function createTweenDriver(env: TweenEnv) {
     };
     const [next, out] = moveStep(hooks, { ...end, tw: st }, delta, read);
     end = next;
-    if (out.prevent) e.preventDefault();
+    if (out.prevent && cancelable) e.preventDefault();
     if (out.goal !== null) apply(next.tw);
   };
   const onWheel = (e: WheelLike) => move(e, e.deltaY);

@@ -2,6 +2,8 @@ import Lean.Data.Json
 import Fw.Parts.Bezier
 import Fw.Parts.Nav
 import Fw.Parts.HeroExitCloseStart
+import Fw.Parts.EngineScrollUnthrottle
+import Fw.Ci.Pool.Caps
 /-!
 # Trajectory probe: does the rewrite move like the original along a scroll path?
 
@@ -256,10 +258,6 @@ structure Rule where
   delay : Option Nat
   deriving DecidableEq, Repr
 
-/-- The rules of `apps/site/src/parts/nav/nav.module.css` that set a transition, in source order.
-
-`trajectory.test.mjs` parses the CSS file and requires this list exactly. The rules at lines 297 and 298 are the two
-selectors of one rule, each at its own line. -/
 def rules : List Rule := [
   ⟨6, "nav", [], [], none, false, 1, some [("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
   ⟨41, "nav", [], ["is-morphing"], none, false, 2,
@@ -279,10 +277,14 @@ def rules : List Rule := [
   ⟨189, "earn", ["is-hero-pill"], [], none, false, 4,
     some [("max-width", 680, 0), ("opacity", 200, 0), ("padding-inline", 680, 0)], none⟩,
   ⟨201, "earn", ["is-earn-still"], [], none, false, 4, some [], none⟩,
-  ⟨290, "nav", [], ["is-morphing"], none, true, 2,
+  ⟨235, "earn", ["is-earn-logical"], ["is-hero-pill", "is-earn-still"], none, false, 6,
+    some [("max-width", 680, 0), ("opacity", 320, 120), ("padding-inline-start", 680, 0), ("padding-inline-end", 680, 0)], none⟩,
+  ⟨242, "earn", ["is-earn-logical", "is-hero-pill"], ["is-earn-still"], none, false, 6,
+    some [("max-width", 680, 0), ("opacity", 200, 0), ("padding-inline-start", 680, 0), ("padding-inline-end", 680, 0)], none⟩,
+  ⟨304, "nav", [], ["is-morphing"], none, true, 2,
     some [("background", 320, 0), ("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
-  ⟨297, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
-  ⟨298, "earn", [], [], none, true, 2, some [], none⟩]
+  ⟨311, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
+  ⟨312, "earn", [], [], none, true, 2, some [], none⟩]
 
 /-- The CSS properties whose transitions move a property the probe reads; `[]` when no transition moves it.
 
@@ -2949,12 +2951,39 @@ inductive Outcome where
 /-- A group repeats when its `new` units fall at two or more widths. -/
 def repeats (ws : List Nat) : Bool := decide (2 ≤ ws.eraseDups.length)
 
-/-- **The verdict of a stored run**: none if undecidable or short of a width, fail on a content repeat, none on a coverage one. -/
+/-- Whether the probe's emulated primary pointer is coarse at a width: the touch environment up to 640 CSS px. -/
+def probeCoarse (w : Nat) : Bool := decide (w ≤ 640)
+
+/-- The flags whose whole style rule sits behind `(pointer: coarse)`; each has the theorems `inactive_unthrottle_same` states. -/
+def coarseOnly : List String := ["engine.scroll:unthrottle"]
+
+/-- A run is proved inactive at a width: it names flags, all coarse-only, and the width emulates a fine pointer. -/
+def inactiveAt (flags : List String) (w : Nat) : Bool :=
+  !flags.isEmpty && flags.all coarseOnly.contains && !probeCoarse w
+
+/-- What a width of a run rests on: its readings, or the proof that the run equals its faithful arm there. -/
+inductive Basis where
+  | measured
+  | sameByProof
+  deriving DecidableEq, Repr
+
+/-- The basis of one width, decided on that width alone. -/
+def basisAt (flags : List String) (w : Nat) : Basis := if inactiveAt flags w then .sameByProof else .measured
+
+/-- The group without the widths that rest on proof. -/
+def Group.measured (flags : List String) (g : Group) : Group :=
+  { g with content := g.content.filter (basisAt flags · == .measured), coverage := g.coverage.filter (basisAt flags · == .measured) }
+
+/-- The groups of a run that count: the widths that rest on proof are dropped, the others are kept. -/
+def Stored.measuredGroups (s : Stored) : List Group := s.groups.map (Group.measured s.flags)
+
+/-- **The verdict of a stored run**: none if undecidable or short of a width, fail on a content repeat, none on a coverage one;
+a width proved inactive is same by proof and counts no unit. -/
 def outcome (s : Stored) : Outcome :=
   if !covers s.engine s.walk then .unjudged .coverage
   else if !allowedWidths.all s.widths.contains then .unjudged .widths
-  else if s.groups.any (repeats ·.content) then .fail
-  else if s.groups.any (repeats ·.coverage) then .unjudged .coverage
+  else if s.measuredGroups.any (repeats ·.content) then .fail
+  else if s.measuredGroups.any (repeats ·.coverage) then .unjudged .coverage
   else .pass
 
 /-- An engine that cannot decide the path gives no verdict. -/
@@ -2973,59 +3002,492 @@ theorem outcome_widths (s : Stored) (hc : covers s.engine s.walk = true) (w : Na
 theorem outcome_cases (s : Stored) :
     outcome s = (if covers s.engine s.walk = false then .unjudged .coverage
       else if allowedWidths.all s.widths.contains = false then .unjudged .widths
-      else if s.groups.any (repeats ·.content) = true then .fail
-      else if s.groups.any (repeats ·.coverage) = true then .unjudged .coverage else .pass) := by
+      else if s.measuredGroups.any (repeats ·.content) = true then .fail
+      else if s.measuredGroups.any (repeats ·.coverage) = true then .unjudged .coverage else .pass) := by
   unfold outcome
   generalize covers s.engine s.walk = a
   generalize allowedWidths.all s.widths.contains = b
-  generalize s.groups.any (repeats ·.content) = c
-  generalize s.groups.any (repeats ·.coverage) = d
+  generalize s.measuredGroups.any (repeats ·.content) = c
+  generalize s.measuredGroups.any (repeats ·.coverage) = d
   cases a <;> cases b <;> cases c <;> cases d <;> simp
 
 /-- A covered run of all lane widths fails exactly when some group repeats on content. -/
 theorem outcome_fail_iff (s : Stored) :
     outcome s = .fail ↔ covers s.engine s.walk = true ∧ allowedWidths.all s.widths.contains = true ∧
-      ∃ g ∈ s.groups, repeats g.content = true := by
-  have e : (∃ g ∈ s.groups, repeats g.content = true) ↔ s.groups.any (repeats ·.content) = true := by simp
+      ∃ g ∈ s.measuredGroups, repeats g.content = true := by
+  have e : (∃ g ∈ s.measuredGroups, repeats g.content = true) ↔ s.measuredGroups.any (repeats ·.content) = true := by simp
   rw [e, outcome_cases]
   generalize covers s.engine s.walk = a
   generalize allowedWidths.all s.widths.contains = b
-  generalize s.groups.any (repeats ·.content) = c
-  generalize s.groups.any (repeats ·.coverage) = d
+  generalize s.measuredGroups.any (repeats ·.content) = c
+  generalize s.measuredGroups.any (repeats ·.coverage) = d
   cases a <;> cases b <;> cases c <;> cases d <;> simp
 
 /-- Coverage `new` units repeated across widths, with no content repeat, give no verdict, never a pass. -/
 theorem outcome_coverage_repeat (s : Stored) (hc : covers s.engine s.walk = true)
-    (hw : allowedWidths.all s.widths.contains = true) (hn : ∀ g ∈ s.groups, repeats g.content = false)
-    (g : Group) (hg : g ∈ s.groups) (hr : repeats g.coverage = true) :
+    (hw : allowedWidths.all s.widths.contains = true) (hn : ∀ g ∈ s.measuredGroups, repeats g.content = false)
+    (g : Group) (hg : g ∈ s.measuredGroups) (hr : repeats g.coverage = true) :
     outcome s = .unjudged .coverage := by
-  have h1 : s.groups.any (repeats ·.content) = false := by
+  have h1 : s.measuredGroups.any (repeats ·.content) = false := by
     rw [List.any_eq_false]; intro x hx; simp [hn x hx]
-  have h2 : s.groups.any (repeats ·.coverage) = true := List.any_eq_true.2 ⟨g, hg, hr⟩
+  have h2 : s.measuredGroups.any (repeats ·.coverage) = true := List.any_eq_true.2 ⟨g, hg, hr⟩
   rw [outcome_cases]
   simp [hc, hw, h1, h2]
 
 /-- **A pass, characterised**: a decidable path, every lane width walked, and no group repeating on either side. -/
 theorem outcome_pass_iff (s : Stored) :
     outcome s = .pass ↔ covers s.engine s.walk = true ∧ (∀ w ∈ allowedWidths, w ∈ s.widths) ∧
-      ∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false := by
+      ∀ g ∈ s.measuredGroups, repeats g.content = false ∧ repeats g.coverage = false := by
   have hw : (∀ w ∈ allowedWidths, w ∈ s.widths) ↔ allowedWidths.all s.widths.contains = true := by simp
-  have hg : (∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false) ↔
-      s.groups.any (repeats ·.content) = false ∧ s.groups.any (repeats ·.coverage) = false := by
+  have hg : (∀ g ∈ s.measuredGroups, repeats g.content = false ∧ repeats g.coverage = false) ↔
+      s.measuredGroups.any (repeats ·.content) = false ∧ s.measuredGroups.any (repeats ·.coverage) = false := by
     simp only [List.any_eq_false, Bool.not_eq_true]
     exact ⟨fun h => ⟨fun x hx => (h x hx).1, fun x hx => (h x hx).2⟩, fun h x hx => ⟨h.1 x hx, h.2 x hx⟩⟩
   rw [hw, hg, outcome_cases]
   generalize covers s.engine s.walk = a
   generalize allowedWidths.all s.widths.contains = b
-  generalize s.groups.any (repeats ·.content) = c
-  generalize s.groups.any (repeats ·.coverage) = d
+  generalize s.measuredGroups.any (repeats ·.content) = c
+  generalize s.measuredGroups.any (repeats ·.coverage) = d
   cases a <;> cases b <;> cases c <;> cases d <;> simp
 
 /-- A pass comes only from an engine that decides the path. -/
 theorem outcome_pass_covers (s : Stored) (h : outcome s = .pass) : covers s.engine s.walk = true :=
   ((outcome_pass_iff s).1 h).1
 
-/-- A unit of `units-<engine>.json` as the recorder reads it; `coverage` is verdict `fail:coverage`, `isNew` is rel `new`. -/
+/-- A width is coarse exactly up to 640 CSS px. -/
+theorem probeCoarse_iff (w : Nat) : probeCoarse w = true ↔ w ≤ 640 := by simp [probeCoarse]
+
+/-- A run is inactive at a width exactly when it names flags, all coarse-only, and the width is above 640. -/
+theorem inactiveAt_iff (fl : List String) (w : Nat) :
+    inactiveAt fl w = true ↔ fl ≠ [] ∧ (∀ f ∈ fl, f ∈ coarseOnly) ∧ 640 < w := by
+  simp [inactiveAt, probeCoarse, and_assoc]
+
+/-- Branch a coarse width: measured, whatever the flags. -/
+theorem basis_coarse (fl : List String) (w : Nat) (h : w ≤ 640) : basisAt fl w = .measured := by
+  have : inactiveAt fl w = false := by
+    cases hi : inactiveAt fl w
+    · rfl
+    · have := ((inactiveAt_iff fl w).1 hi).2.2; omega
+  simp [basisAt, this]
+
+/-- Branch a run that names a flag with an active rule: measured at every width. -/
+theorem basis_active_flag (fl : List String) (f : String) (hf : f ∈ fl) (hn : f ∉ coarseOnly) (w : Nat) :
+    basisAt fl w = .measured := by
+  have : inactiveAt fl w = false := by
+    cases hi : inactiveAt fl w
+    · rfl
+    · exact absurd (((inactiveAt_iff fl w).1 hi).2.1 f hf) hn
+  simp [basisAt, this]
+
+/-- Branch the unthrottle flag alone above 640 CSS px: same by proof. -/
+theorem basis_unthrottle_fine (w : Nat) (h : 640 < w) : basisAt ["engine.scroll:unthrottle"] w = .sameByProof := by
+  have : inactiveAt ["engine.scroll:unthrottle"] w = true :=
+    (inactiveAt_iff _ w).2 ⟨by simp, by simp [coarseOnly], h⟩
+  simp [basisAt, this]
+
+/-- The lane widths of the unthrottle flag alone: measured at 390 and 640, same by proof at 641 and 1280. -/
+theorem basis_unthrottle_lane :
+    allowedWidths.map (basisAt ["engine.scroll:unthrottle"]) = [.measured, .measured, .sameByProof, .sameByProof] := by
+  decide
+
+/-- A unit at a width proved inactive is dropped from the content of its group. -/
+theorem measured_add_content (fl : List String) (g : Group) (w : Nat) (h : inactiveAt fl w = true) :
+    ({ g with content := w :: g.content } : Group).measured fl = g.measured fl := by
+  simp [Group.measured, basisAt, h]
+
+/-- A unit at a width proved inactive is dropped from the coverage of its group. -/
+theorem measured_add_coverage (fl : List String) (g : Group) (w : Nat) (h : inactiveAt fl w = true) :
+    ({ g with coverage := w :: g.coverage } : Group).measured fl = g.measured fl := by
+  simp [Group.measured, basisAt, h]
+
+/-- A group whose units all sit at widths proved inactive counts nothing. -/
+theorem measured_empty (fl : List String) (g : Group) (h : ∀ x ∈ g.content ++ g.coverage, inactiveAt fl x = true) :
+    (g.measured fl).content = [] ∧ (g.measured fl).coverage = [] := by
+  simp only [List.mem_append] at h
+  constructor <;> simp only [Group.measured, List.filter_eq_nil_iff] <;> intro x hx <;>
+    simp [basisAt, h x (by simp [hx])]
+
+/-- The run is decided by the groups that count, its path, its walked widths: nothing else reads the units. -/
+theorem outcome_congr_measured (s t : Stored) (he : s.engine = t.engine) (hk : s.walk = t.walk) (hw : s.widths = t.widths)
+    (hm : s.measuredGroups = t.measuredGroups) : outcome s = outcome t := by
+  simp only [outcome, he, hk, hw, hm]
+
+/-- **Branch same by proof**: a covered run of all lane widths whose every new unit sits at a width proved inactive is a pass. -/
+theorem outcome_same_by_proof (s : Stored) (hc : covers s.engine s.walk = true)
+    (hw : allowedWidths.all s.widths.contains = true)
+    (h : ∀ g ∈ s.groups, ∀ x ∈ g.content ++ g.coverage, inactiveAt s.flags x = true) : outcome s = .pass := by
+  have hm : ∀ g ∈ s.measuredGroups, repeats g.content = false ∧ repeats g.coverage = false := by
+    intro g hg
+    obtain ⟨g0, hg0, rfl⟩ := List.mem_map.1 hg
+    have := measured_empty s.flags g0 (h g0 hg0)
+    simp [this.1, this.2, repeats]
+  exact (outcome_pass_iff s).2 ⟨hc, by simpa using hw, hm⟩
+
+/-- **Branch measured width, content**: a unit of the unthrottle flag repeated at the two coarse widths fails the cell. -/
+theorem outcome_unthrottle_coarse_fail :
+    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [390, 640], []⟩]⟩ = .fail := by decide
+
+/-- **Branch measured width, coverage**: a coverage unit repeated at the two coarse widths gives no verdict. -/
+theorem outcome_unthrottle_coarse_coverage :
+    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [], [390, 640]⟩]⟩ = .unjudged .coverage := by decide
+
+/-- **Branch same by proof (the run 40080296257 shape)**: content at 641, coverage at 641 and 1280, of the flag alone, is a pass. -/
+theorem outcome_unthrottle_fine_same :
+    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [641], [641, 1280]⟩]⟩ = .pass := by decide
+
+/-- The same units under a flag whose rule is active at every width stay unjudged: the proof is the flag's, not the probe's. -/
+theorem outcome_other_flag_unproved :
+    outcome ⟨"1", "s", "?fw=hero.exit:scoped", ["hero.exit:scoped"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [641], [641, 1280]⟩]⟩ = .unjudged .coverage := by decide
+
+/-- A run that shares the search with an active flag is measured at every width. -/
+theorem outcome_shared_search_unproved :
+    outcome ⟨"1", "s", "?fw=a:b,engine.scroll:unthrottle", ["a:b", "engine.scroll:unthrottle"], .macWebkit, .morph,
+      allowedWidths, [⟨"nav", "p", [], [641, 1280]⟩]⟩ = .unjudged .coverage := by decide
+
+/-- The fine-pointer flag element: an empty block of no height, because the rule that sizes it is behind the guard. -/
+def idleBox (x y w : Rat) : Fw.Engine.BoxVis :=
+  ⟨⟨x, y, w, 0⟩, ⟨x, y, w, 0⟩, [], ⟨1, 0, 0, 1, 0, 0⟩, 1, none, [], 0⟩
+
+/-- The empty block paints nothing: the viewport drops it. -/
+theorem idleBox_dropped (vp : Fw.Engine.Rect) (x y w : Rat) : (idleBox x y w).drop vp = true := by
+  simp [idleBox, Fw.Engine.BoxVis.drop, Fw.Engine.Affine.bbox, Fw.Engine.Affine.apply, Fw.Engine.Rect.meets, Std.max_self,
+    Std.min_self, Rat.add_zero, Rat.zero_add, Rat.sub_self, Rat.lt_irrefl]
+
+/-- A scene with the empty block shows what the scene shows. -/
+theorem visible_idle (vp : Fw.Engine.Rect) (s : Fw.Engine.Scene) (x y w : Rat) :
+    Fw.Engine.visible vp (s ++ [("fw-unthrottle", idleBox x y w)]) = Fw.Engine.visible vp s := by
+  simp [Fw.Engine.visible, List.filter_append, idleBox_dropped]
+
+/-- **Inactive means identical**: at a width proved inactive for the unthrottle flag the page keeps its animations, the
+element restyles nothing and the visible scene is the faithful arm's. -/
+theorem inactive_unthrottle_same (w : Nat) (h : inactiveAt ["engine.scroll:unthrottle"] w = true) :
+    (∀ (e : Fw.Parts.EngineScrollUnthrottle.Env), e.coarse = probeCoarse w → ∀ p, e.pageOf p = p) ∧
+    (∀ (e : Fw.Parts.EngineScrollUnthrottle.Env), e.coarse = probeCoarse w → ∀ n, e.restyled n = 0) ∧
+    (∀ vp s x y wd, Fw.Engine.visible vp (s ++ [("fw-unthrottle", idleBox x y wd)]) = Fw.Engine.visible vp s) := by
+  have hf : probeCoarse w = false := by
+    have := ((inactiveAt_iff _ w).1 h).2.2
+    simp [probeCoarse]; omega
+  exact ⟨fun e he p => Fw.Parts.EngineScrollUnthrottle.guard_fine_noop e (he.trans hf) p,
+    fun e he n => Fw.Parts.EngineScrollUnthrottle.guard_fine_cost e (he.trans hf) n,
+    fun vp s x y wd => visible_idle vp s x y wd⟩
+
+abbrev Reading := List (Option Int)
+
+structure Push where
+  opening : Reading
+  closing : Reading
+  deriving DecidableEq, Repr
+
+def hit (ms : Reading) (k : Nat) : Bool := ms.any fun m => bucket m == k
+
+def gapsIn (b c : Reading) : List Nat :=
+  (List.range 11).filter fun k => needsSample k && hit b k && !hit c k
+
+def gaps (b c : Push) : Nat := (gapsIn b.opening c.opening).length + (gapsIn b.closing c.closing).length
+
+def extraCap : Nat := 8
+
+def more (extra : Nat) (b c : Push) : Bool := decide (extra < extraCap) && decide (gaps b c ≠ 0)
+
+def Push.pool (a b : Push) : Push := ⟨a.opening ++ b.opening, a.closing ++ b.closing⟩
+
+def settle (b : Push) (walk : Nat → Push) : Nat → Nat → Push → Nat × Push
+  | 0, extra, c => (extra, c)
+  | fuel + 1, extra, c => if more extra b c then settle b walk fuel (extra + 1) (c.pool (walk extra)) else (extra, c)
+
+def settleWalk (b c : Push) (walk : Nat → Push) : Nat × Push := settle b walk extraCap 0 c
+
+theorem hit_append (a b : Reading) (k : Nat) : hit (a ++ b) k = (hit a k || hit b k) := by
+  simp [hit, List.any_append]
+
+theorem hit_self (a : Reading) (k : Nat) : hit (a ++ a) k = hit a k := by
+  simp [hit_append]
+
+theorem hit_of_mem (a : Reading) (m : Option Int) (h : m ∈ a) : hit a (bucket m) = true := by
+  simp only [hit, List.any_eq_true]; exact ⟨m, h, by simp⟩
+
+
+theorem mem_gapsIn (b c : Reading) (k : Nat) :
+    k ∈ gapsIn b c ↔ k < 11 ∧ needsSample k = true ∧ hit b k = true ∧ hit c k = false := by
+  simp only [gapsIn, List.mem_filter, List.mem_range, Bool.and_eq_true, Bool.not_eq_true']
+  constructor
+  · rintro ⟨h1, ⟨h2, h3⟩, h4⟩; exact ⟨h1, h2, h3, h4⟩
+  · rintro ⟨h1, h2, h3, h4⟩; exact ⟨h1, ⟨h2, h3⟩, h4⟩
+
+theorem gapsIn_congr (b c c' : Reading) (h : ∀ k, hit c k = hit c' k) : gapsIn b c = gapsIn b c' := by
+  simp [gapsIn, h]
+
+theorem gapsIn_append_sub (b c d : Reading) : (gapsIn b (c ++ d)).Sublist (gapsIn b c) := by
+  have e : gapsIn b (c ++ d) = (gapsIn b c).filter fun k => !hit d k := by
+    simp only [gapsIn, List.filter_filter]
+    apply List.filter_congr
+    intro k _
+    simp only [hit_append]
+    cases hit b k <;> cases hit c k <;> cases hit d k <;> cases needsSample k <;> simp
+  rw [e]
+  exact List.filter_sublist
+
+def Push.sameHits (p q : Push) : Prop := ∀ k, hit p.opening k = hit q.opening k ∧ hit p.closing k = hit q.closing k
+
+theorem gaps_congr (b c c' : Push) (h : c.sameHits c') : gaps b c = gaps b c' := by
+  simp only [gaps, gapsIn_congr b.opening c.opening c'.opening (fun k => (h k).1),
+    gapsIn_congr b.closing c.closing c'.closing (fun k => (h k).2)]
+
+theorem gaps_pool_le (b c d : Push) : gaps b (c.pool d) ≤ gaps b c := by
+  have h1 := (gapsIn_append_sub b.opening c.opening d.opening).length_le
+  have h2 := (gapsIn_append_sub b.closing c.closing d.closing).length_le
+  simp only [gaps, Push.pool]
+  omega
+
+theorem more_no_gap (extra : Nat) (b c : Push) (h : gaps b c = 0) : more extra b c = false := by
+  simp [more, h]
+
+theorem more_cap (b c : Push) : more extraCap b c = false := by
+  simp [more]
+
+theorem settle_le (b : Push) (w : Nat → Push) :
+    ∀ fuel extra c, (settle b w fuel extra c).1 ≤ extra + fuel := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra c; simp [settle]
+  | succ n ih =>
+    intro extra c
+    unfold settle
+    split
+    · have := ih (extra + 1) (c.pool (w extra)); omega
+    · omega
+
+theorem settleWalk_le (b c : Push) (w : Nat → Push) : (settleWalk b c w).1 ≤ extraCap := by
+  have := settle_le b w extraCap 0 c
+  simpa [settleWalk] using this
+
+theorem settle_stop (b : Push) (w : Nat → Push) :
+    ∀ fuel extra c, extraCap ≤ extra + fuel →
+      more (settle b w fuel extra c).1 b (settle b w fuel extra c).2 = false := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro extra c h
+    simp only [settle]
+    simp [more]; omega
+  | succ n ih =>
+    intro extra c h
+    unfold settle
+    split
+    · exact ih (extra + 1) (c.pool (w extra)) (by omega)
+    · rename_i hm; simpa using hm
+
+theorem settleWalk_stop (b c : Push) (w : Nat → Push) :
+    gaps b (settleWalk b c w).2 = 0 ∨ (settleWalk b c w).1 = extraCap := by
+  have h := settle_stop b w extraCap 0 c (by omega)
+  have hl := settleWalk_le b c w
+  simp only [settleWalk] at h hl ⊢
+  by_cases hg : gaps b (settle b w extraCap 0 c).2 = 0
+  · exact Or.inl hg
+  · right
+    simp [more, hg] at h
+    omega
+
+theorem more_congr (extra : Nat) (b c c' : Push) (h : c.sameHits c') : more extra b c = more extra b c' := by
+  simp [more, gaps_congr b c c' h]
+
+theorem settleWalk_no_gap (b c : Push) (w : Nat → Push) (h : gaps b c = 0) : settleWalk b c w = (0, c) := by
+  simp [settleWalk, extraCap, settle, more_no_gap 0 b c h]
+
+theorem settle_hit_mono (b : Push) (w : Nat → Push) :
+    ∀ fuel extra c k, (hit c.opening k = true → hit (settle b w fuel extra c).2.opening k = true) ∧
+      (hit c.closing k = true → hit (settle b w fuel extra c).2.closing k = true) := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra c k; simp [settle]
+  | succ n ih =>
+    intro extra c k
+    unfold settle
+    split
+    · refine ⟨fun h => (ih (extra + 1) (c.pool (w extra)) k).1 ?_, fun h => (ih (extra + 1) (c.pool (w extra)) k).2 ?_⟩
+      · simp [Push.pool, hit_append, h]
+      · simp [Push.pool, hit_append, h]
+    · exact ⟨id, id⟩
+
+theorem settleWalk_hit_mono (b c : Push) (w : Nat → Push) (k : Nat) :
+    (hit c.opening k = true → hit (settleWalk b c w).2.opening k = true) ∧
+    (hit c.closing k = true → hit (settleWalk b c w).2.closing k = true) :=
+  settle_hit_mono b w extraCap 0 c k
+
+theorem sameHits_pool_self (c : Push) : (c.pool c).sameHits c := by
+  intro k; simp [Push.pool, hit_self]
+
+theorem settle_const (b : Push) (c : Push) :
+    ∀ fuel extra, ∀ p : Push, p.sameHits c →
+      (settle b (fun _ => c) fuel extra p).2.sameHits c ∧
+      (gaps b c ≠ 0 → extra + fuel ≤ extraCap → (settle b (fun _ => c) fuel extra p).1 = extra + fuel) := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra p hp; exact ⟨by simpa [settle] using hp, by simp [settle]⟩
+  | succ n ih =>
+    intro extra p hp
+    have hpp : (p.pool c).sameHits c := by
+      intro k
+      have := hp k
+      simp [Push.pool, hit_append, this.1, this.2]
+    unfold settle
+    by_cases hm : more extra b p = true
+    · simp only [hm, ite_true]
+      obtain ⟨h1, h2⟩ := ih (extra + 1) (p.pool c) hpp
+      exact ⟨h1, fun hg hl => by have := h2 hg (by omega); omega⟩
+    · simp only [hm]
+      refine ⟨hp, fun hg hl => ?_⟩
+      exfalso
+      have hgp : gaps b p ≠ 0 := by rw [gaps_congr b p c hp]; exact hg
+      simp [more, hgp] at hm
+      omega
+
+theorem settleWalk_deterministic (b c : Push) :
+    (settleWalk b c (fun _ => c)).2.sameHits c ∧ gaps b (settleWalk b c (fun _ => c)).2 = gaps b c := by
+  have h := (settle_const b c extraCap 0 c (fun k => ⟨rfl, rfl⟩)).1
+  exact ⟨h, gaps_congr b _ c h⟩
+
+theorem settleWalk_deterministic_capped (b c : Push) (hg : gaps b c ≠ 0) :
+    (settleWalk b c (fun _ => c)).1 = extraCap := by
+  have := (settle_const b c extraCap 0 c (fun k => ⟨rfl, rfl⟩)).2 hg (by omega)
+  simpa [settleWalk] using this
+
+def readingOf (rs : List Samp) : Reading := rs.map (·.m)
+
+theorem hit_readingOf (rs : List Samp) (k : Nat) : hit (readingOf rs) k = true ↔ ∃ r ∈ rs, bucket r.m = k := by
+  simp [hit, readingOf, List.any_eq_true]
+
+theorem gap_is_coverage_fail (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat)
+    (bs : Reading) (h : b ∈ gapsIn bs (readingOf rew)) : bucketVerdict .push k d seg orig rew b = .fail .coverage := by
+  rw [mem_gapsIn] at h
+  obtain ⟨_, hb, _, hc⟩ := h
+  apply bucketVerdict_push_empty k d seg orig rew b hb
+  intro r hr he
+  have : hit (readingOf rew) b = true := (hit_readingOf rew b).2 ⟨r, hr, he⟩
+  simp [this] at hc
+
+theorem no_gap_sampled (bs : Reading) (rew : List Samp) (h : gapsIn bs (readingOf rew) = []) (b : Nat)
+    (hb : needsSample b = true) (hlt : b < 11) (hbs : hit bs b = true) :
+    ∃ r ∈ rew, bucket r.m = b := by
+  refine Classical.byContradiction fun hc => ?_
+  have hn : hit (readingOf rew) b = false := by
+    cases hh : hit (readingOf rew) b
+    · rfl
+    · exact absurd ((hit_readingOf rew b).1 hh) hc
+  have : b ∈ gapsIn bs (readingOf rew) := (mem_gapsIn _ _ _).2 ⟨hlt, hb, hbs, hn⟩
+  simp [h] at this
+
+
+def pushOf (op cl : List Int) : Push := ⟨op.map some, cl.map some⟩
+
+def fullPush : Push := pushOf [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]
+
+def gapPush : Push := pushOf [1000, 2000, 3000, 4000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 9000]
+
+theorem gaps_run_shape : gaps fullPush gapPush = 2 := by decide
+
+theorem more_run_shape : more 0 fullPush gapPush = true := by decide
+
+theorem more_full : more 0 fullPush fullPush = false := by decide
+
+theorem more_base_gap : more 0 gapPush gapPush = false := by decide
+
+theorem gaps_ends : gaps (pushOf [0, 10000] []) (pushOf [] []) = 0 := by decide
+
+theorem settle_fills : (settleWalk fullPush gapPush fun _ => pushOf [5000] [8000]).1 = 1 ∧
+    gaps fullPush (settleWalk fullPush gapPush fun _ => pushOf [5000] [8000]).2 = 0 := by decide
+
+theorem settle_capped : (settleWalk fullPush gapPush fun _ => pushOf [1000] [1000]).1 = extraCap ∧
+    gaps fullPush (settleWalk fullPush gapPush fun _ => pushOf [1000] [1000]).2 = 2 := by decide
+
+/-- A Mac morph cell of a flag active at every width with no node-property group passes (outcome reads only the groups). -/
+theorem outcome_active_flag_settled :
+    outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
+  decide
+
+inductive ArmRole where
+  | orig
+  | base
+  | cand
+  deriving DecidableEq, Repr
+
+def ArmRole.word : ArmRole → String
+  | .orig => "orig"
+  | .base => "base"
+  | .cand => "cand"
+
+def retries (r : ArmRole) (peer : Bool) : Bool := r == .cand && peer
+
+def settleFor (r : ArmRole) (peer : Bool) (b c : Push) (walk : Nat → Push) : Nat × Push :=
+  if retries r peer then settleWalk b c walk else (0, c)
+
+theorem retries_iff (r : ArmRole) (peer : Bool) : retries r peer = true ↔ r = .cand ∧ peer = true := by
+  cases r <;> simp [retries]
+
+theorem retries_orig (peer : Bool) : retries .orig peer = false := by simp [retries]
+
+theorem retries_base (peer : Bool) : retries .base peer = false := by simp [retries]
+
+theorem retries_cand_no_peer : retries .cand false = false := by simp [retries]
+
+theorem retries_cand_peer : retries .cand true = true := by simp [retries]
+
+theorem settleFor_none (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) (h : retries r peer = false) :
+    settleFor r peer b c w = (0, c) := by
+  simp [settleFor, h]
+
+theorem settleFor_some (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) (h : retries r peer = true) :
+    settleFor r peer b c w = settleWalk b c w := by
+  simp [settleFor, h]
+
+theorem settleFor_le (r : ArmRole) (peer : Bool) (b c : Push) (w : Nat → Push) : (settleFor r peer b c w).1 ≤ extraCap := by
+  unfold settleFor
+  split
+  · exact settleWalk_le b c w
+  · simp
+
+def pooledReps (reps extra : Nat) : Nat := reps + extra
+
+theorem leg_extra_le {α : Type} (l : List α) (f : α → Nat) (h : ∀ x ∈ l, f x ≤ extraCap) :
+    (l.map f).sum ≤ l.length * extraCap := by
+  induction l with
+  | nil => simp
+  | cons x xs ih =>
+    have h1 := h x (by simp)
+    have h2 := ih (fun y hy => h y (by simp [hy]))
+    simp only [List.map_cons, List.sum_cons, List.length_cons]
+    rw [Nat.succ_mul]
+    omega
+
+theorem legs_mac_len (ws : List Nat) : ∀ l ∈ legs .macWebkit ws, l.length ≤ 2 := by
+  intro l hl
+  simp only [legs, legTable, List.mem_filter, List.mem_map] at hl
+  obtain ⟨⟨t, ht, rfl⟩, _⟩ := hl
+  have h2 : ∀ u ∈ [[390, 641], [640, 1280]], u.length ≤ 2 := by decide
+  exact Nat.le_trans (List.length_filter_le _ _) (h2 t ht)
+
+def legWallSec (extra : Nat) : Nat := Fw.Ci.Pool.Caps.probeBaseSec + extra * Fw.Ci.Pool.Caps.probePassSec
+
+theorem leg_wall_under_cap (ws : List Nat) (l : List Nat) (hl : l ∈ legs .macWebkit ws) (extra : Nat)
+    (he : extra ≤ l.length * extraCap) :
+    legWallSec extra ≤ 60 * ((Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple").getD 0) := by
+  have h2 := legs_mac_len ws l hl
+  have hb : Fw.Ci.Pool.Caps.probeBaseSec = 718 := Fw.Ci.Pool.Caps.probe_base
+  have hp : Fw.Ci.Pool.Caps.probePassSec = 19 := rfl
+  have hc : Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple" = some 18 := Fw.Ci.Pool.Caps.probe_cap
+  have hx : extraCap = 8 := rfl
+  unfold legWallSec
+  rw [hb, hp, hc]
+  rw [hx] at he
+  simp only [Option.getD_some]
+  omega
+
+theorem legWall_worst : legWallSec (2 * extraCap) = 1022 := by decide
+
 structure UnitRow where
   width : Nat
   walk : String
@@ -5098,6 +5560,13 @@ inductive Case where
   | laneStep (name : String) (o o' cand base : List Samp)
   | stable (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width b : Nat) (o cand base : List Samp)
   | exits
+  | cellEnv
+  | cell (name : String) (s : Stored)
+  | retry (name : String) (b c : Push)
+  | settleRun (name : String) (b c : Push) (passes : List Push)
+  | retryRole
+  | legWall
+  | settleConst
 
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -5613,8 +6082,53 @@ def casesStable : List Case :=
     earn "first frame, original every pass, faithful sampled" 1 (passesWith 5 5) (passesWith 5 0) (passesWith 5 5),
     .exits]
 
+
+/-- A stored run of the flags `fl` whose search names them. -/
+def cellRun (fl : List String) (e : Engine) (w : Walk) (ws : List Nat) (gs : List Group) : Stored :=
+  ⟨"1", "s", "?fw=" ++ ",".intercalate fl, fl, e, w, ws, gs⟩
+
+def casesCell : List Case :=
+  let un := ["engine.scroll:unthrottle"]
+  let g := fun (c k : List Nat) => ({ node := "nav", prop := "p", content := c, coverage := k } : Group)
+  [.cellEnv,
+    .cell "linux webkit does not decide the morph path" (cellRun un .linuxWebkit .morph allowedWidths []),
+    .cell "a lane width not walked" (cellRun un .macWebkit .morph [390, 640, 641] []),
+    .cell "no unit" (cellRun un .macWebkit .morph allowedWidths []),
+    .cell "content repeated at the coarse widths" (cellRun un .macWebkit .morph allowedWidths [g [390, 640] []]),
+    .cell "coverage repeated at the coarse widths" (cellRun un .macWebkit .morph allowedWidths [g [] [390, 640]]),
+    .cell "content at one coarse width and one fine width" (cellRun un .macWebkit .morph allowedWidths [g [640, 641] []]),
+    .cell "coverage at one coarse width and one fine width" (cellRun un .macWebkit .morph allowedWidths [g [] [390, 1280]]),
+    .cell "units at the fine widths only (run 40080296257)" (cellRun un .macWebkit .morph allowedWidths [g [641] [641, 1280]]),
+    .cell "content at every width" (cellRun un .macWebkit .morph allowedWidths [g [390, 640, 641, 1280] []]),
+    .cell "content at the fine widths only" (cellRun un .chromium .morph allowedWidths [g [641, 1280] []]),
+    .cell "the same units, a flag active at every width"
+      (cellRun ["hero.exit:scoped"] .macWebkit .morph allowedWidths [g [641] [641, 1280]]),
+    .cell "the same content units, a flag active at every width"
+      (cellRun ["hero.exit:scoped"] .macWebkit .morph allowedWidths [g [641, 1280] []]),
+    .cell "a search shared with a flag active at every width"
+      (cellRun ["hero.exit:scoped", "engine.scroll:unthrottle"] .macWebkit .morph allowedWidths [g [] [641, 1280]]),
+    .cell "a run that names no flag" (cellRun [] .macWebkit .morph allowedWidths [g [] [641, 1280]]),
+    .cell "the hero path, units at the fine widths" (cellRun un .macWebkit .hero allowedWidths [g [641, 1280] []])]
+
+def casesSettle : List Case :=
+  let full := fullPush
+  let nine := fun (xs : List Int) => pushOf xs xs
+  [.settleConst, .retryRole, .legWall,
+    .retry "no gap: the candidate has every bucket" full full,
+    .retry "two gaps (run 40099056290, 390)" full gapPush,
+    .retry "the faithful arm lacks the bucket too" gapPush gapPush,
+    .retry "end buckets only" (nine [0, 10000]) (pushOf [] []),
+    .retry "one gap in the open push only" full (pushOf [1000, 2000, 3000, 4000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]),
+    .retry "rows without a morph value count in no bucket" full ⟨[none, some 1000], [none]⟩,
+    .settleRun "no gap, no pass" full full [],
+    .settleRun "one pass fills both gaps" full gapPush [pushOf [5000] [8000]],
+    .settleRun "the third pass fills the open gap" full gapPush [pushOf [1000] [1000], pushOf [2000] [8000], pushOf [5000] []],
+    .settleRun "the page never visits the bucket" full gapPush [],
+    .settleRun "a pass that repeats the first passes' rows" full gapPush [gapPush, gapPush],
+    .settleRun "the faithful arm lacks the bucket" gapPush gapPush []]
+
 def cases : List Case :=
-  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable ++ casesCell ++ casesSettle
 
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
@@ -5636,6 +6150,18 @@ def Leg.json (l : Leg) : Json :=
   Json.mkObj [("engine", l.engine.word), ("widths", Json.arr (l.widths.map fun w => toJson w).toArray),
     ("walks", Json.arr (l.walks.map fun w => Json.str w.word).toArray)]
 
+/-- The word of a basis in the cell golden. -/
+def Basis.word : Basis → String
+  | .measured => "measured"
+  | .sameByProof => "same-by-proof"
+
+/-- The word of an outcome in the cell golden. -/
+def Outcome.word : Outcome → String
+  | .pass => "pass"
+  | .fail => "fail"
+  | .unjudged .coverage => "unjudged:coverage"
+  | .unjudged .widths => "unjudged:widths"
+
 /-- An optional count as JSON: null or the number. -/
 def optNat : Option Nat → Json
   | none => Json.null
@@ -5643,6 +6169,11 @@ def optNat : Option Nat → Json
 
 /-- A rational as JSON: its numerator and denominator as decimal strings. -/
 def ratJson (q : Rat) : Json := Json.mkObj [("num", toString q.num), ("den", toString q.den)]
+
+def Reading.json (r : Reading) : Json :=
+  Json.arr (r.map fun m => match m with | none => Json.null | some v => toJson v).toArray
+
+def Push.json (p : Push) : Json := Json.mkObj [("opening", p.opening.json), ("closing", p.closing.json)]
 
 /-- One golden line. -/
 def Case.line : Case → Json
@@ -5774,6 +6305,39 @@ def Case.line : Case → Json
           Json.arr #[Json.bool r, Json.bool st, Json.str l.name, toJson (laneExit r st l)]).toArray),
       ("join", Json.arr ([0, 1, 2, 3].flatMap fun a => [0, 1, 2, 3].map fun b =>
         Json.arr #[toJson a, toJson b, toJson (exitJoin a b)]).toArray)]
+  | .cellEnv =>
+    Json.mkObj [("op", "cellEnv"), ("name", "table"),
+      ("rows", Json.arr (allowedWidths.map fun w => Json.arr #[toJson w, Json.bool (probeCoarse w)]).toArray),
+      ("coarseOnly", Json.arr (coarseOnly.map Json.str).toArray)]
+  | .cell n s =>
+    Json.mkObj [("op", "cell"), ("name", n), ("engine", s.engine.word), ("walk", s.walk.word),
+      ("flags", Json.arr (s.flags.map Json.str).toArray), ("widths", Json.arr (s.widths.map fun w => toJson w).toArray),
+      ("groups", Json.arr (s.groups.map fun g => Json.mkObj [("node", g.node), ("prop", g.prop),
+        ("content", Json.arr (g.content.map fun w => toJson w).toArray),
+        ("coverage", Json.arr (g.coverage.map fun w => toJson w).toArray)]).toArray),
+      ("basis", Json.arr (allowedWidths.map fun w => Json.str (basisAt s.flags w).word).toArray),
+      ("outcome", Json.str (outcome s).word)]
+  | .retry n b c =>
+    Json.mkObj [("op", "retry"), ("name", n), ("b", b.json), ("c", c.json),
+      ("gapsOpening", Json.arr ((gapsIn b.opening c.opening).map fun k => toJson k).toArray),
+      ("gapsClosing", Json.arr ((gapsIn b.closing c.closing).map fun k => toJson k).toArray),
+      ("gaps", toJson (gaps b c)), ("more", Json.bool (more 0 b c)), ("moreCap", Json.bool (more extraCap b c))]
+  | .settleRun n b c ps =>
+    let r := settleWalk b c fun i => ps.getD i ⟨[], []⟩
+    Json.mkObj [("op", "settle"), ("name", n), ("b", b.json), ("c", c.json),
+      ("passes", Json.arr (ps.map Push.json).toArray), ("extra", toJson r.1), ("pooled", toJson (pooledReps 5 r.1)),
+      ("gaps", toJson (gaps b r.2)),
+      ("pool", r.2.json)]
+  | .settleConst => Json.mkObj [("op", "settleConst"), ("name", "table"), ("extraCap", toJson extraCap)]
+  | .retryRole =>
+    Json.mkObj [("op", "retryRole"), ("name", "table"),
+      ("rows", Json.arr ([ArmRole.orig, .base, .cand].flatMap fun r => [false, true].map fun peer =>
+        Json.arr #[Json.str r.word, Json.bool peer, Json.bool (retries r peer)]).toArray)]
+  | .legWall =>
+    Json.mkObj [("op", "legWall"), ("name", "table"), ("extraCap", toJson extraCap), ("widths", toJson 2),
+      ("baseSec", toJson Fw.Ci.Pool.Caps.probeBaseSec), ("passSec", toJson Fw.Ci.Pool.Caps.probePassSec),
+      ("worstSec", toJson (legWallSec (2 * extraCap))),
+      ("capMin", toJson ((Fw.Ci.Pool.Caps.capOf "trajectory-probe.yml" "probe-apple").getD 0))]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 

@@ -9,7 +9,7 @@ def rows : List Row := [
   ⟨"commission", [("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/morph.panel"), ("cssVar", "?/nav"), ("cssVar", "?/people.deck"), ("cssVar", "?/platform"), ("cssVar", "--start-selling-intrinsic-block-size/pain"), ("clock", ""), ("rect", "commission"), ("vw", ""), ("vh", ""), ("rect", "?")], [("className", "data-render/commission"), ("cssVar", "--start-selling-intrinsic-block-size/commission"), ("className", "data-scene/commission")], [], ["commission"], [50]⟩,
   ⟨"commission.typing", [("clock", ""), ("rect", "commission.typing^"), ("rect", "commission.typing"), ("vw", ""), ("vh", ""), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/morph.panel"), ("cssVar", "?/nav"), ("cssVar", "?/people.deck"), ("cssVar", "?/platform")], [], [], ["commission.typing"], []⟩,
   ⟨"engine.scene", [("clock", ""), ("className", "?/hero.accent"), ("className", "data-fw-hidden/morph.columns"), ("className", "?/nav"), ("className", "?/platform"), ("rect", "people.card"), ("rect", "people.deck"), ("rect", "platform"), ("vh", "")], [("cssVar", "?/?"), ("className", "data-fw-hidden/?")], [], [], []⟩,
-  ⟨"engine.scroll", [], [], [], [], []⟩,
+  ⟨"engine.scroll", [("vw", ""), ("scrollY", "")], [], [], [], []⟩,
   ⟨"hero", [("className", "?/hero.accent"), ("className", "?/nav"), ("className", "?/platform"), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/morph.panel"), ("cssVar", "?/nav"), ("cssVar", "?/people.deck"), ("cssVar", "?/platform"), ("cssVar", "--exit-opacity/hero.exit"), ("cssVar", "--exit-opacity/hero"), ("cssVar", "--exit-opacity/hero.cue"), ("cssVar", "--exit-opacity/hero.orbit"), ("cssVar", "--exit-scatter/hero"), ("cssVar", "--exit-scatter/hero.cue"), ("cssVar", "--exit-scatter/hero.exit"), ("cssVar", "--exit-scatter/hero.orbit"), ("className", "data-splash/hero.exit"), ("rect", "hero.exit"), ("vh", "")], [], [], ["hero", "hero.exit"], []⟩,
   ⟨"hero.accent", [("className", "?/nav"), ("className", "?/platform"), ("clock", ""), ("rect", "hero.accent"), ("vw", ""), ("vh", "")], [("cssVar", "?/hero.accent"), ("className", "?/hero.accent")], [], ["hero.accent"], []⟩,
   ⟨"hero.countdown", [("clock", ""), ("cssVar", "?/?"), ("cssVar", "?/hero.accent"), ("cssVar", "?/morph.columns"), ("cssVar", "?/morph.panel"), ("cssVar", "?/nav"), ("cssVar", "?/people.deck"), ("cssVar", "?/platform"), ("rect", "hero.countdown"), ("vw", ""), ("vh", "")], [], [], ["hero.countdown"], []⟩,
@@ -39,7 +39,7 @@ def rows : List Row := [
   ⟨"platform.glint", [("clock", "")], [], [], [], []⟩,
   ⟨"platform.marquee", [], [], [], [], []⟩,
   ⟨"platform.stageBg", [], [], [], [], []⟩,
-  ⟨"platform.sweep", [], [], [], [], []⟩]
+  ⟨"platform.sweep", [], [("cssVar", "?/?")], [], [], []⟩]
 
 /-- Groups (`Fw.Parts.Contract.components`) of the table widened by `rows`; page-level parts are in none. -/
 def groups : List (List String) := [

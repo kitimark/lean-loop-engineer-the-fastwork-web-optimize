@@ -213,15 +213,16 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
 
       - name: Touch probe (three arms, rotated per round)
-        timeout-minutes: 60
+        timeout-minutes: 58
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SITE_DIR: ${{ runner.temp }}/site
           VM: ${{ matrix.vm }}
           # The head commit message picks the drags: [throttle:finish] drags past the page end (task sim-finish-throttle), else the hero exit.
-          MODE: ${{ (contains(github.event.head_commit.message, '[throttle:finish]') || contains(github.event.head_commit.message, '[throttle:morph-end]')) && 'finish' || 'drags' }}
+          MODE: ${{ (contains(github.event.head_commit.message, '[throttle:finish]') || contains(github.event.head_commit.message, '[throttle:morph-end]')) && 'finish' || contains(github.event.head_commit.message, '[throttle:rest]') && 'rest' || 'drags' }}
+          ROUNDS: ${{ contains(github.event.head_commit.message, '[throttle:rest]') && '3' || '2' }}
           # [throttle:morph-end]: the faithful rewrite and three other morph end arms, one round per job (two rounds would not fit the job), the order rotated by the job number; two drag cycles and a 480 s
-          # touch limit (dispatch 1 with four cycles and 300 s lost 12 of 18 attempts to the limit)
+          # touch limit (dispatch 1 with four cycles and 300 s lost 12 of 18 attempts to the limit). It runs cli.mjs; every other mode runs parts-cli.mjs.
           MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
           # The runner (3 vCPU) boots Safari several times slower than a Mac: every wait in packages/measure-webkit is multiplied by this
           # (counts do not depend on waits), and a load step may retry twice after a reconnect.
@@ -236,10 +237,10 @@ jobs:
             # the faithful rewrite and three of the five other compositions in every job (job n takes the others n*3-3 .. n*3-1 round the list), the order rotated by the job number
             others=(clamp flip release all all-unthrottle); arms=rewrite
             for i in 0 1 2; do arms="$arms,${others[$(( ((VM - 1) * 3 + i) % 5 ))]}"; done
-            rounds=1; offset=$((VM - 1)); cycles=2; timeout=480; reset=--reset
-          elif [ "$MODE" = finish ]; then arms=rewrite,lift,original; rounds=2; offset=0; cycles=4; timeout=300; reset=
-          else arms=rewrite,unthrottle,original; rounds=2; offset=0; cycles=4; timeout=300; reset=; fi
-          node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds "$rounds" --offset "$offset" --cycles "$cycles" --timeout "$timeout" $reset --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+            node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds 1 --rotate "$((VM - 1))" --cycles 2 --timeout 480 --reset --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          else
+            node src/throttle/parts-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms original,rewrite,lift,unthrottle --rounds "$ROUNDS" --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          fi
           ls -l out
 
       # Steps after the measurement step are the Lean allowlist (Fw.Ci.Steps, scripts/ci-steps-lint.mjs). The VM is discarded
@@ -315,15 +316,18 @@ jobs:
         working-directory: packages/measure-webkit
         env:
           JOBS: ${{ runner.temp }}/jobs
+          MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
         run: |
           set -euo pipefail
-          node --test test/throttle-stillruns.test.mjs
+          node --test test/throttle-stillruns.test.mjs test/throttle-parts.test.mjs
           files=$(ls "$JOBS"/*/*-throttle.json | paste -sd, -)
-          node src/throttle/cli.mjs report --in "$files" --md "$RUNNER_TEMP/table.md"
-          cat "$RUNNER_TEMP/table.md" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/table"
+          if [ -n "$MORPH_END" ]; then node src/throttle/cli.mjs report --in "$files" --md "$RUNNER_TEMP/table/table.md"; echo '{}' > "$RUNNER_TEMP/table/parts.json"
+          else node src/throttle/parts-cli.mjs report --in "$files" --run "$GITHUB_RUN_ID" --md "$RUNNER_TEMP/table/table.md" --json "$RUNNER_TEMP/table/parts.json"; fi
+          cat "$RUNNER_TEMP/table/table.md" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: toolbar-throttle-table
-          path: ${{ runner.temp }}/table.md
+          path: ${{ runner.temp }}/table
           if-no-files-found: error
           retention-days: 30

@@ -3579,6 +3579,101 @@
    "flag": "engine.scroll:unthrottle"
   },
   {
+   "id": "morph.countdown.strip",
+   "n": 7,
+   "part": "morph.countdown (+ hero.countdown)",
+   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "status": "proved",
+   "flags": [
+    "morph.countdown:strip",
+    "hero.countdown:strip"
+   ],
+   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
+   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
+   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "leanFor": [
+    "Fw.Parts.MorphCountdownStrip.same_face_px",
+    "Fw.Parts.MorphCountdownStrip.phase_same",
+    "Fw.Parts.MorphCountdownStrip.dom_same",
+    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
+    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
+    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphCountdownStrip.layers_conservative",
+    "Fw.Parts.MorphCountdownStrip.layers_paused",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
+   ],
+   "missingWhy": [
+    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
+    "UIView creation time at morph start on the phone"
+   ],
+   "premises": [
+    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
+    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
+    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
+    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
+   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
+  },
+  {
+   "id": "nav.earn.logicalPadding",
+   "n": 73,
+   "part": "nav",
+   "candidate": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
+   "status": "proved",
+   "flags": [
+    "nav:earn-logical"
+   ],
+   "chromium": "unchanged (same started set and timing, Lean variant_chromium_set and variant_chromium_timing; breakpoint gate: see evidence)",
+   "webkit": "padding eases on WebKit along the Chromium faithful curve: Lean curve_identity (the padding at every time t is the Chromium faithful padding), settle_680, variant_monotone; MEASURED on macOS (runs 40100783726 and 40102193302, all 36 variant traces of Playwright WebKit (24) and Safari 1280 (12) within the Lean tolerance of the curve, results/earn-logical-proof/summary.json); iPhone INFERRED from shared WebKit source",
+   "visual": "engine parity look change (L), accepted by the user 2026-10-25: on WebKit the earn side padding eases over 680 ms along the Chromium curve instead of snapping to 0 in the flip frame, and the language button no longer jumps 48 px (32 px narrow) in one frame; Chromium and settled frames are identical to the faithful rule. It stays out of v2-proved as class L (Lean V2Proved.look_not_mem, Gen.lookCandidates_not_mem). macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
+   "mechanism": "CONFIRMED (source, from earn-webkit-parity): WebKit keeps the logical longhands of the padding-inline shorthand in the transition list and they have no animation wrapper (Styleable.cpp:553-566, process-css-properties.py:~5956@862f17d), so no padding transition starts; a listed logical longhand is resolved to physical (Styleable.cpp:563-564) and then has a wrapper, so it starts (Lean wk_inlineLonghands_ltr, variant_webkit_padding). Chromium maps both to physical already (css_animations.cc:2993-3007@f842f52).",
+   "leanFor": [
+    "Fw.Parts.NavEarnWebkit.variant_entry_webkit",
+    "Fw.Parts.NavEarnWebkit.variant_exit_webkit",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_padding",
+    "Fw.Parts.NavEarnWebkit.variant_firstFrame",
+    "Fw.Parts.NavEarnWebkit.variant_chromium_set",
+    "Fw.Parts.NavEarnWebkit.variant_chromium_timing",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_set_eq_chromium_faithful",
+    "Fw.Parts.NavEarnWebkit.variant_webkit_timing_eq_chromium_faithful",
+    "Fw.Parts.NavEarnWebkit.hero_exit_chromium",
+    "Fw.Parts.NavEarnWebkit.hero_exit_webkit",
+    "Fw.Parts.NavEarnCurve.curve_identity",
+    "Fw.Parts.NavEarnCurve.run_identity",
+    "Fw.Parts.NavEarnCurve.chromium_unchanged",
+    "Fw.Parts.NavEarnCurve.variant_runs",
+    "Fw.Parts.NavEarnCurve.settle_680",
+    "Fw.Parts.NavEarnCurve.variant_monotone",
+    "Fw.Parts.NavEarnCurve.variant_between",
+    "Fw.Parts.NavEarnCurve.num_slack"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding (the faithful rule never starts the padding on WebKit; this is the look the variant changes)",
+    "Fw.Parts.NavEarnCurve.faithful_webkit_snaps (the faithful rule holds the end padding from the flip on WebKit; the measured faithful WebKit and Safari traces fail the curve, the negative control)"
+   ],
+   "missingWhy": [
+    "iPhone is inferred from shared WebKit source, not measured",
+    "paint and compositing of the eased padding are outside the proof"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
+   "next": "none: accepted 2026-10-25 and proved; it stays out of v2-proved while it is a look change (class L).",
+   "flag": "nav:earn-logical",
+   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; research/notes/2026/10-2x-earn-logical-proof.md; results/earn-logical-proof/summary.json; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
+   "userDecision": {
+    "date": "2026-10-25",
+    "decision": "accepted 2026-10-25: the user found nav:earn-logical good and asked for its proof (source: chat)",
+    "review": "runs 40100783726, 40102193302 artifacts transitions-apple-390, transitions-apple-1280 (expire 2026-11-23); task earn-logical-proof"
+   }
+  },
+  {
    "id": "morph.end.clamp",
    "n": 67,
    "part": "morph.end.clamp",
@@ -3681,46 +3776,157 @@
    "userDecision": "pending"
   },
   {
-   "id": "morph.countdown.strip",
-   "n": 7,
-   "part": "morph.countdown (+ hero.countdown)",
-   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
-   "status": "proved",
+   "id": "platform.sweep.offscreen-pause",
+   "n": 70,
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "status": "partly-proved",
    "flags": [
-    "morph.countdown:strip",
-    "hero.countdown:strip"
+    "platform.sweep:offscreen-pause"
    ],
-   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
-   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
-   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
-   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Lean PlatformSweepPause.shown_same, visible_same, visible_phase: on every frame not reported offscreen, and so every visible frame, the animation time equals the uninterrupted one, so phase and background position are equal). Breakpoint gate run 40091740060 (Chromium and Playwright WebKit, success); trajectory probe run 40091732984 (diagnostic, widths 390 and 1280, both engines, success).",
+   "mechanism": "INFERRED (research/notes/2026/10-2x-webkit-throttles.md row platform.sweep): the sweep is a main-thread CSS background-position animation with no offscreen throttle, so the rendering update and restyle run every frame while the platform section is offscreen. PROVED in Lean: a frame reported offscreen leaves the animation time unchanged and counts no tick (reported_no_tick, reported_run); under the named premise Lag (the observer reports an element after the frame it leaves) an offscreen stretch ticks at most once (offscreen_ticks_le_one). Not measured: no CI lane counts rendering updates or main-thread time of the rewrite while the section is offscreen (wktr runs the original only; the count lanes count class names).",
    "leanFor": [
-    "Fw.Parts.MorphCountdownStrip.same_face_px",
-    "Fw.Parts.MorphCountdownStrip.phase_same",
-    "Fw.Parts.MorphCountdownStrip.dom_same",
-    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
-    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
-    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+    "Fw.Parts.PlatformSweepPause.shown_same",
+    "Fw.Parts.PlatformSweepPause.visible_same",
+    "Fw.Parts.PlatformSweepPause.visible_phase",
+    "Fw.Parts.PlatformSweepPause.reported_no_tick",
+    "Fw.Parts.PlatformSweepPause.reported_run",
+    "Fw.Parts.PlatformSweepPause.offscreen_ticks_le_one"
    ],
-   "leanAgainst": [
-    "Fw.Parts.MorphCountdownStrip.layers_conservative",
-    "Fw.Parts.MorphCountdownStrip.layers_paused",
-    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
-   ],
+   "leanAgainst": [],
    "missingWhy": [
-    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
-    "UIView creation time at morph start on the phone"
+    "Rendering updates and main-thread time while the platform section is offscreen, per engine, faithful against the flag: no lane",
+    "The IntersectionObserver lag (Lag) is a premise, not proved about either engine",
+    "An animation created while offscreen is not tracked by the driver"
    ],
    "premises": [
-    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
-    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
-    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
-    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+    "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
+    "An element reported offscreen is offscreen (Ok): INFERRED"
    ],
-   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
-   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
-   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
-   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
+   "v1Evidence": "",
+   "lesson": "A seek-on-resume pause needs only one invariant (a running animation sits on clock plus offset); the saving is the paused frames, which is a count to measure, not a look to prove.",
+   "evidence": "CI runs 40091740060 (breakpoint gate, fw=platform.sweep:offscreen-pause), 40091732984 (trajectory probe, same flag); branch worktree-wf_72c42085-d84-1",
+   "next": "A lane that counts rendering updates and main-thread time of the rewrite while a section is offscreen (WKTR variant for the rewrite, or a Chromium trace profile); then set proved or no-win.",
+   "flag": "platform.sweep:offscreen-pause"
+  },
+  {
+   "id": "platform.glint.offscreen-pause",
+   "n": 71,
+   "part": "platform.glint",
+   "candidate": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "status": "negative result: mount only while visible, gain = commit window",
+   "flags": [
+    "platform.glint:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Fw.Parts.PlatformGlintPause.visible_same_phase, local_time_same: on every frame where the glint plays, after any sequence of observer reports, the SMIL container reads the uninterrupted clock s - b, so the glint local time equals the faithful arm's). Trajectory probe with the flag, both engines, all four widths: run 40092155958 passed.",
+   "mechanism": "CONFIRMED by source (SMILTimeContainer.cpp:94-100,141-162,164-194,196-208 and SVGSVGElement.cpp:551-593 @862f17d: pause freezes elapsed and stops the timer, startTimer returns while paused, setElapsed rebases the clock) and PROVED in Lean (same_run, visible_same_phase, variant_no_ticks_away). The research-note premise that the faithful arm ticks SMIL offscreen does not hold for the glint: the play flag v implies visible (PlatformGlint.inv_step), and the animate pair is mounted only while v, so with the stage away no animation is scheduled and the SMIL timer is not armed (faithful_no_ticks_away, away_ticks_equal). The pause can only remove the ticks of the commit window between the observer report and the unmount (window_gain, at most one per rendering update, 1/60 s or 1/30 s in Low Power Mode, SMILTimeContainer.cpp:42-43).",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintPause.same_run",
+    "Fw.Parts.PlatformGlintPause.visible_same_phase",
+    "Fw.Parts.PlatformGlintPause.local_time_same",
+    "Fw.Parts.PlatformGlintPause.variant_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.faithful_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.away_ticks_equal",
+    "Fw.Parts.PlatformGlintPause.window_gain"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (moves to task offscreen-count-lane)",
+    "Breakpoint gate with the flag not run (negative result, flag not offered)",
+    "Size of the commit window in frames, not measured"
+   ],
+   "premises": [
+    "The observer callback runs before the first frame that can show the glint: the glint needs ratio >= 0.35 and then a 1 s timer, and the pause driver runs before the glint driver in the same callback. Holds by construction in the code, tested in pause.test.ts (joint cases)",
+    "The dash svg clock began before the first report (inline svg): INFERRED",
+    "Chromium's SMIL container has the same pause and seek semantics: INFERRED, source not read",
+    "getCurrentTime and setCurrentTime go through float32 seconds, an error far below a frame: not modelled"
+   ],
+   "v1Evidence": "",
+   "lesson": "Read what the faithful arm already unmounts before pausing it: the glint's play flag removes the animations whenever the stage is under 35 percent visible, so a pause adds a clock seek (setElapsed resets every scheduled animation) for a saving limited to one commit window. Prove the baseline's offscreen work is zero first (faithful_no_ticks_away) and the candidate is a no-op by construction.",
+   "evidence": "40092155958 (platform.glint:offscreen-pause) trajectory probe, flag, engines both, all widths",
+   "next": "Not offered: no gain beyond the commit window (window_gain), so the gate with the flag is not run. Offscreen counts move to task offscreen-count-lane. Drop the flag if it stays unused.",
+   "flag": "platform.glint:offscreen-pause"
+  },
+  {
+   "id": "mount.arm-late",
+   "n": 72,
+   "part": "morph.mount",
+   "flags": [
+    "morph.mount:arm-late"
+   ],
+   "candidate": "morph.mount:arm-late: register the wheel and touchmove capture listeners passive until the platform bottom is within one and a quarter viewports of the arming edge (or the morph is active), so WebKit does not hold each scroll on the main thread while the platform is only near",
+   "status": "partly-proved",
+   "chromium": "no effect expected (Chromium does not gate scrolling on a non-passive wheel listener of this kind); trajectory probe shows no new fail",
+   "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail. The touch-start to first scroll frame gain is not measured: CI cannot drive the WebKit touch gate (INFERRED); a phone step is open",
+   "visual": "E (same behaviour): late_same shows every preventDefault the original calls is honored, for every A/B/C brick combination (prevent_needs_cfg). Trajectory probe run 40092331051 (morph.mount:arm-late) fw=morph.mount:arm-late widths 390,1280: Chromium 0 new fails, WebKit 0 fails. Breakpoint gate run 40093577005 (A/A, default config); breakpoint gate with the flag morph.mount:arm-late run 40095661200: success.",
+   "mechanism": "CONFIRMED by source (ScrollingTree.cpp:118-134@862f17d: a non-passive wheel listener region makes SynchronousScrolling and BlockingDOMEventDispatch, a passive one AsyncScrolling and NonBlockingDOMEventDispatch). PROVED in Lean (Fw.Parts.MorphMountArmLate: prevent_needs, covers, late_same, no_blocking_out_of_band, same_listeners, ops_reach). Replay on one sweep (armLate.test.ts, not a browser): non-passive frames 93 approach + 62 band + 151 past in the original, 0 + 62 + 151 with the flag.",
+   "leanFor": [
+    "Fw.Parts.MorphMountArmLate.prevent_needs",
+    "Fw.Parts.MorphMountArmLate.covers",
+    "Fw.Parts.MorphMountArmLate.late_same",
+    "Fw.Parts.MorphMountArmLate.no_blocking_out_of_band",
+    "Fw.Parts.MorphMountArmLate.ops_reach"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "the felt gain: touch-start to first scroll frame near the page end on the phone",
+    "listener-armed frames per zone in a browser (no lane reads window.__fwArmLate)"
+   ],
+   "premises": [
+    "a band evaluation is at most a viewport of pan (MorphListen.panOk, checked on the replay profiles) plus a quarter viewport of lag behind the platform bottom, INFERRED",
+    "tick times do not run back, INFERRED from the clock",
+    "WebKit's touch gate enters as a cited premise (WebPageProxy.cpp:5049-5089,5228-5300@862f17d)"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A blocking listener can be demoted to passive wherever the lock decision cannot ask for preventDefault; the proof is a band that covers the arm test plus a state invariant for the active morph.",
+   "next": "A booked phone session for touch-start to first scroll frame near the page end; a lane that reads window.__fwArmLate.frames.",
+   "evidence": "Lean Fw.Parts.MorphMountArmLate.late_same (golden packages/contracts/golden/parts/morph-mount-arm-late.jsonl); trajectory probe 40092331051 (morph.mount:arm-late); breakpoint gate 40093577005 (A/A); breakpoint gate with the flag 40095661200"
+  },
+  {
+   "n": 74,
+   "id": "engine.scroll.unthrottle-follow",
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle-follow: unthrottle plus a frame loop that keeps requesting engine frames while scrollY moves (stops after 8 still frames or scrollend, 3600 frames at most, only with a coarse pointer), so parts read the newest scrollY at every rendering update even under WebKit's scroll-event delay (WebPageIOS.mm:2240-2256)",
+   "status": "partly-proved",
+   "flags": [
+    "engine.scroll:unthrottle-follow"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E for stateless parts (follow_same_look: a part whose output is f(scrollY) shows f(u t) at every loop frame, as the lifted mode does). Chasing parts (commission, people.card, people.deck) get more frames per second while the finger moves: look-change class, INFERRED, not measured. Breakpoint gate PASSED on both engines, run 40125463870 (head 8cb61aace).",
+   "mechanism": "CONFIRMED by source (WebPageIOS.mm:2240-2256, LocalFrameView.cpp:3784-3790, Page.cpp:2294-2329 @862f17d) and PROVED in Lean (frames_bounded, stops_after_still, idle_zero, fine_never_requests, moving_runs_every_update, gain_iff, follow_part_no_stills, event_part_stills). MEASURED on the CI Simulator (runs 40109924058 and 40116376544, 6 passes per arm): hero value still runs per 1000 mid-moving frames 174.5 (unthrottle) vs 103.0 (follow), lower in 6 of 6 jobs; scroll events reach 424 of 1000 moving frames under unthrottle, so the engine ran about one frame in 2.4 moving updates. The scrollY the page reads shows no steady gain (110.2 vs 96.5 pooled, mixed by run; INFERRED that the loop does not change it).",
+   "leanFor": [
+    "Fw.Parts.EngineScrollFollow.frames_bounded",
+    "Fw.Parts.EngineScrollFollow.stops_after_still",
+    "Fw.Parts.EngineScrollFollow.idle_zero",
+    "Fw.Parts.EngineScrollFollow.fine_never_requests",
+    "Fw.Parts.EngineScrollFollow.moving_runs_every_update",
+    "Fw.Parts.EngineScrollFollow.gain_iff",
+    "Fw.Parts.EngineScrollFollow.follow_part_no_stills",
+    "Fw.Parts.EngineScrollFollow.event_part_stills",
+    "Fw.Parts.EngineScrollFollow.follow_same_look"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Phone feel not measured (the Simulator stands in)",
+    "CPU and power cost of one engine frame per moving update not measured",
+    "Look of chasing parts under the extra frames not checked",
+    "Trajectory cells pending"
+   ],
+   "premises": [
+    "The Simulator's scroll-event delay is the phone's: INFERRED; the delay is the same code (eventThrottlingDelay) but the latency estimate may differ",
+    "The part-output lens (hero value as its own series) is the right one for a loop that changes when the engine runs: INFERRED; chosen after run 1, repeated in run 2"
+   ],
+   "v1Evidence": "",
+   "lesson": "A fix for a delayed event must be judged on what the consumer shows, not on the input it reads: the loop is not expected to change scrollY, so the scrollY series shows no steady gain (110.2 vs 96.5 per 1000 moving frames pooled, mixed by run) while the part output loses a third to a half of its still runs.",
+   "next": "A look check of chasing parts; a phone pass; then the trajectory cells before v2-proved.",
+   "evidence": "CI runs 40109924058, 40116376544 (toolbar-throttle, hero drags); research/notes/2026/10-2x-unthrottle-follow.md; branch worktree-wf_4682f586-db0-1",
+   "flag": "engine.scroll:unthrottle-follow"
   }
  ],
  "notes": [
@@ -4059,6 +4265,12 @@
    "task": "hittest-elements-proof",
    "field": "chromium",
    "text": "hittest-elements-proof: PROVED (Lean Fw.Parts.NavHitTestElements): under named engine premises (pointer-events inherited; a used-none box is skipped and its descendants tested; elementFromPoint is the first box of the walk elementsFromPoint lists, which appends the document element: tree_scope.cc:268-302,396-437@f842f52, TreeScope.cpp:402-490@862f17d, CONFIRMED) and the decidable site premise Premises (INFERRED for the shipped CSS), elements-skip decides the same hit and is-on-dark class as the faithful probe on every frame (same_class, same_onDark_run); each premise is necessary (needs_allow_not_root, needs_allow_reEnabled, needs_outside_fixed). It adds no style-dirtying access to a frame, the faithful probe adds exactly 2 (elements_frame_no_style_dirt, faithful_frame_style_dirt). Golden packages/contracts/golden/parts/nav.hitTest.elements.jsonl (555 lines) replayed through the shipped probes by apps/site/src/parts/nav.hitTest/elements.golden.test.ts. MEASURED: Chromium swipe-v1, 3 runs per arm, sha d7b257a, faithful rewrite run 40081984397 vs ?fw=nav.hitTest:elements-skip run 40081975943: UpdateLayoutTree 2192 -> 1122, 2 fewer on each of the 535 swipe frames in every approach zone; elements restyled 51423 -> 34640 (-32.6 %); Layout 418 -> 418; HitTest 1072 -> 1072. WKTR not run: wktr.yml runs the original snapshot only (no target or flag input). Note research/notes/2026/10-2x-hittest-elements-proof.md."
+  },
+  {
+   "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "task": "combo-scroll-fight",
+   "field": "mechanism",
+   "text": "combo-scroll-fight: CONFIRMED a bug of release alone, not of its composition with arm-late or unthrottle. A close start is not prevented, so the page scrolls natively and every later touchmove of that touch is not cancelable; a reopen in such a move pins the page at the scroll position it reads and the frame writer then writes that pin against the finger and the fling. MEASURED on CI Chromium (run 40130709244, build before the fix): release alone fought in 13 of 16 replays, clamp alone, flip alone and the user's flags minus release in 0 of 15, the user's flags minus arm-late or minus unthrottle in 12 of 15. PROVED in Lean (Fw.Parts.ComboScroll: native_quiet, wrap_all_hold, wstep_off, wtrace_decisions): a hold bit (last move prevented and cancelable) gates the one frame writer; every brick theorem holds with it. After the fix the same replays: 0 script writes, 0 no-finger reversals, 0 script jumps of 20 px or more in 15-16 of 15-16 replays per release arm. Note research/notes/2026/10-2x-combo-scroll-fight.md. Look: look change added to release: a reopen in a move the page cannot cancel opens the morph and leaves the page to the finger; the pin returns at the next prevented, cancelable move, so an open morph can sit over a page that scrolled away from the end until the next touch. The user's phone review decides. Next: phone re-check by the user. Follow-ups: the waapi drivers pin without the bit; the toolbar-resize fight at y about 1859 (held pin written while the viewport height changes, INFERRED, not reproducible without a toolbar); the faithful page keeps the original's pin against a fling at the page end (default arm, recorded path)."
   }
  ]
 }

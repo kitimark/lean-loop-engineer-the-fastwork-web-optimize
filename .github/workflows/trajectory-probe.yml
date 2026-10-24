@@ -538,7 +538,7 @@ jobs:
     concurrency:
       group: ci-lane:trajectory-probe:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:probe-apple:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 18
     name: probe apple (playwright-webkit, macos-26) ${{ matrix.leg }}
     strategy:
       max-parallel: 2
@@ -658,9 +658,21 @@ jobs:
           p=$(node --input-type=module -e "import { chromium } from 'playwright-core'; console.log(chromium.executablePath())")
           test -x "$p"
           echo "CHROME_PATH=$p" >> "$GITHUB_ENV"
+      - id: ts
+        name: The flag of the transitions run (from the head commit message, none when it has no frames token)
+        if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
+        env:
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          fw=$(printf '%s' "$HEAD_MSG" | grep -oE '\[frames:[A-Za-z0-9.:,_@-]+\]' | head -1 | sed -E 's/^\[frames:(.*)\]$/\1/' || true)
+          search=$(node .github/scripts/gate-search.mjs --fw "$fw" --preset '')
+          echo "search=$search" >> "$GITHUB_OUTPUT"
+          echo "transitions search: $search"
       - name: Record the earn and language buttons in Chromium and Playwright WebKit
         if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
         env:
+          SEARCH: ${{ steps.ts.outputs.search }}
           WIDTHS: ${{ matrix.widths }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -669,13 +681,14 @@ jobs:
         run: |
           set -euo pipefail
           for e in chromium playwright-webkit; do
-            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --morph 0 --variants logical,physical,padding --out out/transitions/raw
+            node src/trajectory/transitions.mjs capture --engine "$e" --widths "$WIDTHS" --reps 3 --morph 0 --search "$SEARCH" --out out/transitions/raw
           done
       - name: Record Safari itself through safaridriver (best effort)
         id: safari
         if: ${{ contains(github.event.head_commit.message, '[transitions:') }}
         continue-on-error: true
         env:
+          SEARCH: ${{ steps.ts.outputs.search }}
           WIDTHS: ${{ matrix.widths }}
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -696,7 +709,7 @@ jobs:
           up=no
           for _ in $(seq 1 20); do if curl -fsS http://127.0.0.1:4444/status > /dev/null 2>&1; then up=yes; break; fi; sleep 1; done
           if [ "$up" != yes ]; then echo "failed: safaridriver did not answer on port 4444" | tee "$status"; exit 1; fi
-          if node src/trajectory/transitions-safari.mjs --port 4444 --width "$WIDTHS" --reps 3 --variants logical --out out/transitions/raw; then echo "ok: safaridriver, $WIDTHS px" | tee "$status"; else echo "failed: the Safari recording stopped (see the step log)" | tee "$status"; exit 1; fi
+          if node src/trajectory/transitions-safari.mjs --port 4444 --width "$WIDTHS" --reps 3 --search "$SEARCH" --out out/transitions/raw; then echo "ok: safaridriver, $WIDTHS px" | tee "$status"; else echo "failed: the Safari recording stopped (see the step log)" | tee "$status"; exit 1; fi
       - name: Reduce the recordings to their summaries
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[transitions:') }}
         env:
