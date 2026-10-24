@@ -1,4 +1,3 @@
-// Tests of the combo replay's pure parts (task combo-scroll-fight): metrics on synthetic streams, the profile events, the arm sets.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -74,7 +73,6 @@ test('arm sets: the user set is eight flags, the bisect drops each once, names a
   const drops = BISECT.filter((a) => a.name.startsWith('user-minus-'));
   assert.equal(drops.length, 8);
   assert.deepEqual(drops.map((a) => a.search.split(',').length).sort(), [6, 7, 7, 7, 7, 7, 7, 7]);
-  // morph.countdown:strip needs hero.countdown:strip: no arm holds the first without the second
   for (const a of BISECT) assert.ok(!a.search.includes('morph.countdown:strip') || a.search.includes('hero.countdown:strip'));
   assert.ok(FIX.every((a) => BISECT.includes(a)));
   assert.ok(armsArg('fix').split(';').length === FIX.length);

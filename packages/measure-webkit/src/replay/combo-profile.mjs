@@ -1,6 +1,3 @@
-// Scripted close-then-reopen finger paths (task combo-scroll-fight), in the shape of the committed user-* profiles.
-//   node packages/measure-webkit/src/replay/combo-profile.mjs --write      (rewrites packages/measure-chromium/profiles/user-bug-1025-reopen-*.json)
-// The user's words: closing the end-of-page and opening it again at once makes the page scroll back while the page end has not closed.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -10,11 +7,6 @@ const X = 215;
 
 const run = (y0, dir, n, step) => Array.from({ length: n }, (_, i) => [X, y0 + dir * step * i]);
 
-/**
- * open: the finger moves up (the page end opens, the page itself cannot scroll further); close: the finger moves down fast
- * (a flick: the close starts and the page, now released, scrolls up on its own and keeps flying after the lift);
- * reopen: the finger moves up again while the close tween (680 ms, 41 frames) is still running and the page is still flying.
- */
 export const SCENARIOS = {
   'flick-gap8': { about: 'open at the page end, flick down to close, new touch up to reopen 8 frames after the lift', gap: 8, same: false },
   'flick-gap20': { about: 'as flick-gap8 with 20 frames between the lift and the reopen touch', gap: 20, same: false },

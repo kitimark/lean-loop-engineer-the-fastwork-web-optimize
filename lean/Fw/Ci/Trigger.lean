@@ -175,7 +175,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/measure-webkit/src/device-session.mjs", "packages/measure-webkit/src/linux/serve.mjs", "packages/measure-webkit/src/linux/run.mjs",
     "packages/measure-webkit/test/replay-*.test.mjs", "packages/contracts/golden/device/**", "packages/measure-chromium/profiles/user-fixture.json",
     "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/profiles/user-bug-1025*.json", "packages/gate-breakpoints/package.json",
-    "packages/gate-breakpoints/src/serve.mjs", "packages/contracts/src/flag-key.mjs", "apps/site/**", "snapshot/**", "snapshot.lock.json",
+    "packages/contracts/src/flag-key.mjs", "apps/site/**", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
     ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "device-replay.yml"], []⟩,
   ⟨"difftest.yml", ciAll, [

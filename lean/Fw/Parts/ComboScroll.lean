@@ -1,24 +1,14 @@
 import Fw.Parts.MorphEnd
+import Fw.Parts.MorphMountArmLate
 
-/-! The end-of-page morph with a touch the page cannot hold (task `combo-scroll-fight`).
-
-`Fw.Parts.MorphEnd` decides, for each event, whether the move is prevented and what the per-frame pin writer writes.
-It takes a prevented move for a held page. A move holds the page only when the browser lets the prevention stand
-(`TouchEvent.cancelable`): once a touch has scrolled natively, or while a momentum scroll runs, later `touchmove`s are not
-cancelable, `preventDefault` does nothing, and a pin write per frame then fights the finger. With
-`morph.end.release` a close move is not prevented (the page scrolls with the finger), so a reopen in the same touch is
-such a move.
-
-The wrapper `wstep` keeps the inner `step` and adds one bit, `held`: the last move was prevented and cancelable. The
-frame writer writes only while `held`, and a move that brings `held` back re-pins at the scroll position it reads.
-It acts only when `morph.end.release` is on (`wstep_off`), so the original and the clamp and flip bricks are untouched.
-Plain words: `research/notes/2026/10-2x-combo-scroll-fight.md`. -/
+/-! The end-of-page morph with a touch the page cannot hold: the frame writer writes only while the last move was prevented and cancelable.
+Statements in plain words: `research/notes/2026/10-2x-combo-scroll-fight.md`. -/
 namespace Fw.Parts.ComboScroll
 
 open Fw.Parts.MorphEnd
 open Fw.Parts.MorphTween (taken dir)
 
-/-- The reducer state plus whether the script may hold the page: the last move was prevented and cancelable. -/
+/-- The inner state plus `held`: the last move was prevented and the browser let that stand. -/
 structure W where
   s : S
   held : Bool
@@ -30,22 +20,19 @@ def _root_.Fw.Parts.MorphEnd.Ev.isMove : Ev → Bool
   | .touchmove _ _ | .wheel _ _ => true
   | _ => false
 
-/-- The scroll position a move reads in its handler. -/
 def _root_.Fw.Parts.MorphEnd.Ev.readY : Ev → Option Rat
   | .touchmove _ r => some r.scrollY
   | .wheel _ r => some r.scrollY
   | _ => none
 
-/-- A move holds the page when the step prevents it and the browser lets that stand. -/
 def holds (o : Out) (c : Bool) : Bool := o.prevent && c
 
-/-- Holding again after a spell without a hold re-pins where the page is now; the old pin is a stale anchor. -/
 def rehold (e : Ev) (k held : Bool) (s : S) : S :=
   match e.readY with
   | some y => if k && !held then { s with pin := y } else s
   | none => s
 
-/-- One event, with the cancelable bit of the browser event (true for a frame, a start and a tick: unused). -/
+/-- One event with the cancelable bit of the browser event. -/
 def wstep (h : Hooks) (w : W) (e : Ev) (c : Bool) : W × Out :=
   let r := step h w.s e
   if h.release then
@@ -61,7 +48,6 @@ def wtrace (h : Hooks) : W → List (Ev × Bool) → List (Ev × Out)
   | _, [] => []
   | w, (e, c) :: t => (e, (wstep h w e c).2) :: wtrace h (wstep h w e c).1 t
 
-/-- Same state up to the pin: the part the open and close decisions read. -/
 def _root_.Fw.Parts.MorphEnd.S.sameCore (a b : S) : Prop :=
   a.tw = b.tw ∧ a.touchY = b.touchY ∧ a.ctr = b.ctr ∧ a.fresh = b.fresh ∧ a.rel = b.rel
 
@@ -72,8 +58,6 @@ theorem sameCore_symm {a b : S} (h : a.sameCore b) : b.sameCore a :=
 
 theorem sameCore_trans {a b c : S} (h : a.sameCore b) (h' : b.sameCore c) : a.sameCore c :=
   ⟨h.1.trans h'.1, h.2.1.trans h'.2.1, h.2.2.1.trans h'.2.2.1, h.2.2.2.1.trans h'.2.2.2.1, h.2.2.2.2.trans h'.2.2.2.2⟩
-
-/-! ## The wrapper changes the writer and the pin, nothing else -/
 
 theorem wstep_off (h : Hooks) (hr : h.release = false) (w : W) (e : Ev) (c : Bool) :
     wstep h w e c = (⟨(step h w.s e).1, w.held⟩, (step h w.s e).2) := by
@@ -105,7 +89,6 @@ theorem wstep_flip (h : Hooks) (w : W) (e : Ev) (c : Bool) : (wstep h w e c).2.f
   unfold wstep
   split <;> (try split) <;> (try (by_cases hh : w.held = true <;> simp [hh]))
 
-/-- The wrapper only removes writes. -/
 theorem wstep_write_sub (h : Hooks) (w : W) (e : Ev) (c : Bool) (x : Rat)
     (hw : (wstep h w e c).2.write = some x) : (step h w.s e).2.write = some x := by
   unfold wstep at hw
@@ -115,7 +98,6 @@ theorem wstep_write_sub (h : Hooks) (w : W) (e : Ev) (c : Bool) (x : Rat)
     · split at hw <;> simp_all
   · exact hw
 
-/-- Writes happen on frames only: the held bit gates the one writer. -/
 theorem fix_write_held (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (x : Rat)
     (hw : (wstep h w e c).2.write = some x) : w.held = true ∨ e.isMove = true := by
   unfold wstep at hw
@@ -127,8 +109,6 @@ theorem fix_write_held (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c :
     by_cases hh : w.held = true
     · exact hh
     · simp [hh] at hw
-
-/-! ## The fix: no script write against a native scroll -/
 
 theorem wstep_held_move (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (he : e.isMove = true) :
     (wstep h w e c).1.held = holds (step h w.s e).2 c := by
@@ -145,7 +125,6 @@ theorem wstep_frame_state (h : Hooks) (w : W) (e : Ev) (c : Bool) (he : e.isFram
   unfold wstep
   split <;> (try split) <;> simp_all
 
-/-- A move that is not held (not prevented, or not cancelable) is followed by no write until the next move. -/
 theorem native_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (he : e.isMove = true)
     (hn : holds (step h w.s e).2 c = false) (t : List (Ev × Bool)) (hf : ∀ p ∈ t, p.1.isFrame = true) :
     ∀ q ∈ wtrace h (wstep h w e c).1 t, q.2.write = none := by
@@ -166,7 +145,6 @@ theorem native_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : B
     · rw [hst] at hq
       exact ih (fun p hp => hf p (List.mem_cons_of_mem _ hp)) w' hheld q hq
 
-/-- The move that brings `held` back re-pins at the scroll position it read. -/
 theorem rehold_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (y : Rat)
     (hy : e.readY = some y) (hk : holds (step h w.s e).2 c = true) (hw : w.held = false) :
     (wstep h w e c).1.s.pin = y ∧ (wstep h w e c).1.held = true := by
@@ -174,7 +152,6 @@ theorem rehold_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Boo
   refine ⟨?_, by rw [wstep_held_move h hr w e c he, hk]⟩
   simp [wstep, hr, he, rehold, hy, hk, hw]
 
-/-- A held page keeps its pin through a move that holds again: the writer's target is never re-captured while held. -/
 theorem held_keeps_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool)
     (hk : holds (step h w.s e).2 c = true) (hw : w.held = true) : (wstep h w e c).1.s = (step h w.s e).1 := by
   by_cases he : e.isMove = true
@@ -182,9 +159,6 @@ theorem held_keeps_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c :
     cases e.readY <;> simp
   · simp [wstep, hr, he]
 
-/-! ## Equal to the inner reducer whenever the page can hold every move -/
-
-/-- Every move of the trace is prevented and cancelable (the case of the original page: all moves held). -/
 def AllHold (h : Hooks) : S → List (Ev × Bool) → Prop
   | _, [] => True
   | s, (e, c) :: t => (e.isMove = true → holds (step h s e).2 c = true) ∧ AllHold h (step h s e).1 t
@@ -225,8 +199,6 @@ theorem faithful_w (h : Hooks) (hr : h.release = false) (w : W) (t : List (Ev ×
     simp only [List.map, trace, wtrace, wfinal, final, hstate] at *
     exact ⟨by rw [i1], i2⟩
 
-/-! ## The bricks keep their theorems -/
-
 theorem moveStep_pin (h : Hooks) (ta : MorphTween.St) (ty pa pb ca : Rat) (fa ra : Bool) (d : Rat) (r : Read) :
     (moveStep h ⟨ta, ty, pa, ca, fa, ra⟩ d r).1.sameCore (moveStep h ⟨ta, ty, pb, ca, fa, ra⟩ d r).1 ∧
       (moveStep h ⟨ta, ty, pa, ca, fa, ra⟩ d r).2.prevent = (moveStep h ⟨ta, ty, pb, ca, fa, ra⟩ d r).2.prevent ∧
@@ -262,8 +234,6 @@ theorem step_core_pin (h : Hooks) (a b : S) (hc : a.sameCore b) (e : Ev) :
   | resize y m => simp [step, S.sameCore, frameOut]
   | tick now => cases hp : ta.pending <;> simp [step, S.sameCore, hp]
 
-/-- The decisions of the bricks (prevent, goal, flip) and the state they read are those of the inner reducer, event by event,
-from any inner state that agrees up to the pin. -/
 theorem wtrace_decisions (h : Hooks) (w : W) (s : S) (hs : w.s.sameCore s) (t : List (Ev × Bool)) :
     (wtrace h w t).map (fun p => (p.1, p.2.prevent, p.2.goal, p.2.flip)) =
       (trace h s (t.map (·.1))).map (fun p => (p.1, p.2.prevent, p.2.goal, p.2.flip)) ∧
@@ -278,8 +248,6 @@ theorem wtrace_decisions (h : Hooks) (w : W) (s : S) (hs : w.s.sameCore s) (t : 
     refine ⟨?_, i2⟩
     simp only [List.map, trace, wtrace, wstep_prevent, wstep_goal, wstep_flip, j2, j3, j4]
     rw [i1]
-
-/-! ### Brick A, B and C through the wrapper -/
 
 theorem wclamp_le (c : Cfg) (hc : c.clamp = true) (w : W) (e : Ev) (b : Bool) (x : Rat)
     (hw : (wstep c.hooks w e b).2.write = some x) : ∃ y m, (e = .scroll y m ∨ e = .resize y m) ∧ x ≤ m :=
@@ -303,7 +271,6 @@ theorem wrelease_rel (h : Hooks) (w : W) (e : Ev) (b : Bool) (hr : w.s.rel = tru
   rw [(wstep_core h w e b).2.2.2.2]
   exact release_rel h w.s e hr hg
 
-/-- After a close starts there is no write until a push to open, with the wrapper in place. -/
 theorem wrelease_quiet (c : Cfg) (hc : c.release = true) (w : W) (t : List (Ev × Bool)) (hr : w.s.rel = true)
     (hno : ∀ p ∈ wtrace c.hooks w t, p.2.goal ≠ some 1) : ∀ p ∈ wtrace c.hooks w t, p.2.write = none := by
   induction t generalizing w with
@@ -331,8 +298,6 @@ theorem wrelease_quiet (c : Cfg) (hc : c.release = true) (w : W) (t : List (Ev �
     · exact hw
     · exact ih _ hr' (fun q hq => hno q (by simp only [wtrace, List.mem_cons]; exact Or.inr hq)) p hp
 
-/-! ### Event cadence: `engine.scroll:unthrottle` and any other frame rate -/
-
 theorem cadence_w (h : Hooks) (w : W) (t : List (Ev × Bool)) :
     wfinal h w t = wfinal h w (t.filter (!·.1.isFrame)) := by
   induction t generalizing w with
@@ -343,21 +308,13 @@ theorem cadence_w (h : Hooks) (w : W) (t : List (Ev × Bool)) :
     · simp only [wfinal, List.filter, he, Bool.not_true]; rw [wstep_frame_state h w e c he]; exact ih w
     · simp only [wfinal, List.filter, he, Bool.not_false]; exact ih _
 
-/-! ### One writer per frame
-
-A frame event carries one `Option` write, from the one `frameOut`; the page registers one pin callback per frame in
-`morph.tween`. `morph.mount` has its own re-pin callback, which never writes in the app because it is built without an
-`isActive` (`apps/site/src/App.tsx`), so `morph.tween` is the only writer (CONFIRMED by reading; the site test pins it). -/
+theorem arm_late_holds (blk : Bool) (o : Out) (c : Bool) (h : o.prevent = true → blk = true) :
+    holds (MorphMountArmLate.honorOut blk o) c = holds o c := by
+  rw [MorphMountArmLate.honorOut_of blk o h]
 
 theorem one_write_per_frame (h : Hooks) (w : W) (e : Ev) (c : Bool) (x y : Rat)
     (h1 : (wstep h w e c).2.write = some x) (h2 : (wstep h w e c).2.write = some y) : x = y := by
   rw [h1] at h2; exact Option.some.inj h2
-
-/-! ## The user's trace
-
-Open at the page end (finger up), close in the same touch (finger down, not prevented under `release`), and reopen
-(finger up) in a move the browser will not let the page cancel. The inner reducer then pins the page at the scroll
-position of the reopen and writes it on every frame against the finger; the wrapper writes nothing. -/
 
 def rd (y now : Rat) : Read := ⟨y, true, now, false⟩
 
@@ -379,7 +336,6 @@ def writesOf (l : List (Ev × Out)) : List (Option Rat) := l.map (·.2.write)
 #guard (wtrace userCfg.hooks (W.init 5188) userTrace).map (·.2.prevent) ==
   [false, true, false, false, true, false, false]
 
-/-- The same trace with the reopen in a move the page can cancel is held and pinned where the page was. -/
 def heldTrace : List (Ev × Bool) :=
   [(.touchstart (some 700), true), (.touchmove (some 690) (rd 5188 0), true), (.tick 700, true),
    (.touchmove (some 900) (rd 5188 700), true), (.touchstart (some 500), true), (.touchmove (some 450) (rd 4900 800), true),

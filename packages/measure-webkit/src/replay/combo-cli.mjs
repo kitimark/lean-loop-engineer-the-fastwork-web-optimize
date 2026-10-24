@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-// node packages/measure-webkit/src/replay/combo-cli.mjs run --dist apps/site/dist/aot --profile <ci profile.json> --arms "<search>;<search>;..." [--throttle 6] [--reps 1] [--out dir] [--keep-frames]
-//   node ... table --in out/run.json
 import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { loadPlaywright, playwrightVersion } from '../linux/run.mjs';
-import { startServer } from '../../../gate-breakpoints/src/serve.mjs';
+import { startServer } from './combo-serve.mjs';
 import { canonSearch } from '../../../contracts/src/flag-key.mjs';
 import { comboPass } from './combo-replay.mjs';
 

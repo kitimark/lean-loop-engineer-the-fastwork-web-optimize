@@ -15,7 +15,6 @@ export interface Read {
   readonly arm: boolean;
   readonly now: number;
   readonly reduced: boolean;
-  /** `Event.cancelable` of the move; absent means true (Lean `Fw.Parts.ComboScroll`, the cancelable bit of `wstep`). */
   readonly cancelable?: boolean;
 }
 
@@ -26,7 +25,6 @@ export interface EndState {
   ctr: number;
   fresh: boolean;
   rel: boolean;
-  /** Lean `ComboScroll.W.held`: the last move was prevented and the browser let that stand; only then may the frame writer write. */
   held: boolean;
 }
 
@@ -57,7 +55,6 @@ const pinAfter = (h: Hooks, s: EndState, r: Read): number => (isActive(s.tw) && 
 const blocked = (h: Hooks, s: EndState, d: number, g: number): boolean =>
   (s.tw.target === g && s.tw.to === g) || (isActive(s.tw) && !h.allow(s.fresh, ctrAfter(s, d)));
 
-/** The inner step of a move (Lean `MorphEnd.moveStep`). */
 function innerMove(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
   if (!taken({ active: isActive(s.tw), delta: d, armed: r.arm })) return [{ ...s, ctr: ctrAfter(s, d) }, NONE];
   const g = dir({ delta: d });
@@ -71,10 +68,6 @@ function innerMove(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
   ];
 }
 
-/**
- * A move (Lean `ComboScroll.wstep`, move case). With `release` a move holds the page only when it is prevented and
- * cancelable; a move that brings the hold back re-pins where the page is. Without `release` nothing changes.
- */
 export function moveStep(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
   const [next, out] = innerMove(h, s, d, r);
   if (!h.release) return [next, out];

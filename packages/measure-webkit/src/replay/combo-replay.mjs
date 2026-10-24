@@ -1,12 +1,8 @@
-// Replay of a committed CI profile (strokes at 60 Hz) into the rewrite page with a flag set, on Chromium with CDP touches
-// (task combo-scroll-fight, note research/notes/2026/10-2x-combo-scroll-fight.md). Records scrollY, finger and the morph value on
-// every animation frame and every `scrollTo` call of the page (who wrote the scroll position, from where, while the finger was down or not).
 import { dispatchAt, touchMessage } from './chromium-replay.mjs';
 import { metrics } from './combo-metrics.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Touch events [t ms, phase, x, y] of the strokes: a start, the moves, an end at the last position one frame later. */
 export function eventsOf(profile) {
   const dt = 1000 / profile.hz;
   const out = [];
@@ -23,7 +19,6 @@ export const RECORDER_JS = `(() => {
   const R = (window.__combo = { t: [], y: [], m: [], d: [], writes: [], moves: [], down: false, on: false });
   const st = (e) => { R.down = e.touches.length > 0; };
   for (const k of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) addEventListener(k, st, { capture: true, passive: true });
-  // touchmove as the page left it: [t, cancelable, defaultPrevented, scrollY], read in the bubble phase after the page's capture listeners
   document.addEventListener('touchmove', (e) => { if (R.on) R.moves.push([Math.round(performance.now() * 10) / 10, e.cancelable ? 1 : 0, e.defaultPrevented ? 1 : 0, window.scrollY]); }, { passive: true });
   const orig = window.scrollTo.bind(window);
   window.scrollTo = function (...a) {
@@ -42,7 +37,6 @@ export const RECORDER_JS = `(() => {
   requestAnimationFrame(loop);
 })()`;
 
-/** Where the pass starts: the top, the page end, or the scroll position where the platform is armed (its bottom at the viewport bottom). */
 export const START_JS = (start) => `(() => {
   const se = document.scrollingElement;
   const max = se.scrollHeight - innerHeight;

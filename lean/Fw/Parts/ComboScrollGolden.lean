@@ -1,8 +1,7 @@
 import Lean.Data.Json
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndGolden
-/-! Golden vectors for the hold rule of `Fw.Parts.ComboScroll`: four traces, each under all 8 brick picks, event by event, with the
-cancelable bit of every move (`packages/contracts/golden/parts/combo-scroll.jsonl`). The site test replays them through the TS reducer. -/
+/-! Golden vectors of `Fw.Parts.ComboScroll`: four traces under all 8 brick picks (`packages/contracts/golden/parts/combo-scroll.jsonl`). -/
 namespace Fw.Parts.ComboScrollGolden
 open Lean Fw.Parts.MorphEnd Fw.Parts.ComboScroll Fw.Parts.MorphEndGolden
 
@@ -22,24 +21,20 @@ def run (h : Hooks) : W → List (Ev × Bool) → List (Ev × Out × W)
 
 def mv (finger y now : Rat) : Ev := .touchmove (some finger) (ComboScroll.rd y now)
 
-/-- A reopen in the touch that closed, in a move the browser will not let the page cancel (the Chromium repro). -/
 def sameTouch : Rat × List (Ev × Bool) :=
   (5188, [(.touchstart (some 700), true), (mv 690 5188 0, true), (.tick 700, true), (mv 900 5188 700, true),
     (mv 850 4900 800, false), (.scroll 4950 5188, true), (.tick 900, true), (.scroll 4880 5188, true), (.resize 4880 5188, true),
     (mv 800 4930 820, false), (.scroll 4930 5188, true)])
 
-/-- A reopen with a new touch that starts in a momentum scroll: its first move is not cancelable (the iPhone case); a later touch holds again. -/
 def momentum : Rat × List (Ev × Bool) :=
   (5188, [(.touchstart (some 700), true), (mv 690 5188 0, true), (.tick 700, true), (mv 900 5188 700, true), (.tick 900, true),
     (.scroll 4700 5188, true), (.touchstart (some 500), true), (mv 450 4650 1000, false), (.scroll 4600 5188, true), (.tick 1200, true),
     (.scroll 4550 5188, true), (.touchstart (some 500), true), (mv 495 4550 1300, true), (.scroll 4551 5188, true), (.scroll 4550 5188, true)])
 
-/-- The reopen is a move the page can cancel: held, pinned where the page is, written like the inner reducer. -/
 def heldReopen : Rat × List (Ev × Bool) :=
   (5188, [(.touchstart (some 700), true), (mv 690 5188 0, true), (.tick 700, true), (mv 900 5188 700, true),
     (.touchstart (some 500), true), (mv 450 4900 800, true), (.scroll 4950 5188, true), (.tick 900, true), (.scroll 4900 5188, true)])
 
-/-- No close at all: a plain open with every move cancelable; the wrapper is the identity. -/
 def plainOpen : Rat × List (Ev × Bool) :=
   (5100, [(.touchstart (some 600), true), (mv 560 5188 0, true), (.scroll 5188 5188, true), (.tick 100, true), (.scroll 5150 5188, true),
     (mv 540 5188 120, true), (.scroll 5188 5188, true)])
@@ -67,7 +62,6 @@ def lines (_ : Unit) : List String := cases.flatMap fun (n, y, t) => Cfg.all.map
 def wouts (c : Cfg) (cs : Rat × List (Ev × Bool)) : List Out := (wtrace c.hooks (W.init cs.1) cs.2).map (·.2)
 def iouts (c : Cfg) (cs : Rat × List (Ev × Bool)) : List Out := (trace c.hooks (init cs.1) (cs.2.map (·.1))).map (·.2)
 
--- The user's flags (clamp, flip, release): the inner reducer writes the pin against the native scroll, the wrapper does not.
 #guard (iouts ⟨true, true, true⟩ sameTouch).map (·.write) ==
   [none, none, none, none, none, some 4900, none, some 4900, some 4900, none, some 4900]
 #guard (wouts ⟨true, true, true⟩ sameTouch).map (·.write) ==
@@ -76,7 +70,6 @@ def iouts (c : Cfg) (cs : Rat × List (Ev × Bool)) : List Out := (trace c.hooks
   [none, none, none, none, none, none, none, none, none, none, none, none, none, some 4550, none]
 #guard (iouts ⟨true, true, true⟩ momentum).map (·.write) ==
   [none, none, none, none, none, none, none, none, some 4650, none, some 4650, none, none, some 4650, some 4650]
--- Without release the wrapper is the inner reducer; with release and moves the page can hold it is too.
 #guard cases.all fun cs => Cfg.all.all fun c => !c.release || cs.1 != "plain-open" || wouts c cs.2 == iouts c cs.2
 #guard cases.all fun cs => Cfg.all.all fun c => c.release || wouts c cs.2 == iouts c cs.2
 #guard wouts ⟨true, true, true⟩ heldReopen == iouts ⟨true, true, true⟩ heldReopen
