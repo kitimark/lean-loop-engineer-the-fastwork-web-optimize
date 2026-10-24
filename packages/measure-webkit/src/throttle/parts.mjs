@@ -5,8 +5,9 @@
 // while the toolbar moves, and sets the measured pattern of every arm against the Lean prediction of its mode.
 //
 // TS stand-ins (Lean twin wanted): `reach` and `predicted` repeat Lean's two total functions on the golden's strings and
-// test/throttle-parts.test.mjs checks them against every golden line; `judge` (observed vs predicted, per arm) and `bandFor` (the
-// band [K, K+1] with K = throttleK of the pass's median frame gap) are decisions Lean does not state yet.
+// test/throttle-parts.test.mjs checks them against every golden line; `judge`, `partVerdict` and `bandFor` are twins of Lean definitions in
+// ThrottleParts.lean and are replayed on the golden's judge, partVerdict and bandFor lines. `noDataReason`, `captureRow`, `why` texts
+// and `excludeReason` are TS reporting and decide no verdict.
 import { readFileSync } from 'node:fs';
 import { countC, exitFramesC, throttleK, verdict, MIN_BASE, BAND_LO, BAND_HI } from './stillruns.mjs';
 import { classes, maxStep, stalls, partSeries } from '../device-session.mjs';
@@ -69,7 +70,7 @@ export function medianGap(ts) {
   return d > 0 ? d : DEFAULT_GAP;
 }
 
-/** The band of still runs for a frame gap `d`: [K, K + 1] with K = throttleK d, which is Lean's 5 to 6 at 60 Hz. */
+/** Twin of Lean `bandFor`: the band of still runs for a frame gap `d`, [K, K + 1] with K = throttleK d, which is 5 to 6 at 60 Hz. */
 export function bandFor(d) {
   const k = throttleK(d);
   return [k, k + 1];
@@ -131,29 +132,44 @@ export function armSeries(passes, key) {
     per1000Mid: row.midMoving ? Math.round((row.band * 10000) / row.midMoving) / 10 : null };
 }
 
-/** What an arm shows: no-data (no frames of the series in the moving class), stills (at least MIN_BASE band runs) or none. */
-export function observed(row) {
-  if (row.midMoving === 0) return 'no-data';
-  return row.band >= MIN_BASE ? 'stills' : 'none';
+/**
+ * Twin of Lean `judge`: the throttled-mode prediction `pred` of a part ({pattern, runFrames?}) judged on an arm in `mode` against the
+ * rewrite arm `base`; base and arm are {runs, frames} (band runs, frames strictly between 0 and 1000 while the toolbar moved). Checked
+ * against every golden judge line. A throttled stills arm agrees from MIN_BASE runs; a lifted stills arm agrees when the Lean
+ * verdict against the rewrite is lifted; any other arm agrees below MIN_BASE runs (so exactly MIN_BASE disagrees); no frames is no data.
+ */
+export function judge(pred, mode, base, arm) {
+  if (arm.frames === 0) return 'no-data';
+  if (pred.pattern === 'stills') {
+    if (mode === 'throttled') return arm.runs >= MIN_BASE ? 'agree' : 'disagree';
+    const v = verdict([], base, arm);
+    return v === 'lifted' ? 'agree' : v === 'no-data' ? 'no-data' : 'disagree';
+  }
+  return arm.runs < MIN_BASE ? 'agree' : 'disagree';
 }
 
-/**
- * One arm set against the Lean prediction of its mode: a throttled arm of a part predicted `stills` must show them; a lifted arm must
- * show a rate at most a fifth of the rewrite's (Lean `verdict` = lifted); every other prediction is no stills at all.
- */
-export function judge(pat, arm, row, base) {
-  const pattern = pat[modeOfArm(arm)];
-  const lifts = modeOfArm(arm) === 'lifted' && pat.throttled === 'stills';
-  if (row.midMoving === 0) return { match: 'no-data', why: row.found === 0 ? 'series never found' : 'value never strictly between 0 and 1000 while the toolbar moved' };
-  const shows = observed(row);
-  if (pattern === 'stills') return shows === 'stills' ? { match: 'agree', why: `${row.band} band runs` } : { match: 'disagree', why: `${row.band} band runs, fewer than ${MIN_BASE}` };
-  if (lifts) {
-    const v = verdict([], { runs: base.band, frames: base.midMoving }, { runs: row.band, frames: row.midMoving });
-    if (v === 'lifted') return { match: 'agree', why: 'rate at most a fifth of the rewrite' };
-    if (v === 'no-data') return { match: 'no-data', why: `the rewrite had ${base.band} band runs, fewer than ${MIN_BASE}, or no frames` };
-    return { match: 'disagree', why: `rate above a fifth of the rewrite (${row.band} runs in ${row.midMoving} frames)` };
-  }
-  return shows === 'none' ? { match: 'agree', why: `${row.band} band runs, fewer than ${MIN_BASE}` } : { match: 'disagree', why: `${row.band} band runs, at least ${MIN_BASE}` };
+/** Twin of Lean `partVerdict`: a disagreement decides, else an agreement (partial when some arm has no data), else no-data. */
+export function partVerdict(matches) {
+  if (matches.includes('disagree')) return 'disagree';
+  if (matches.includes('agree')) return matches.includes('no-data') ? 'agree (partial)' : 'agree';
+  return 'no-data';
+}
+
+/** The verdict of one part from its series (reporting wrapper over `partVerdict`). */
+export const partOf = (seriesOfPart) => partVerdict(seriesOfPart.flatMap((s) => Object.values(s.match).map((m) => m.match)));
+
+/** One arm of a series: the Lean `judge` decision with a reporting reason (the reason is TS and decides nothing). */
+export function judgeArm(pred, arm, row, base) {
+  const mode = modeOfArm(arm);
+  const b = { runs: base.band, frames: base.midMoving };
+  const a = { runs: row.band, frames: row.midMoving };
+  const match = judge(pred, mode, b, a);
+  let why;
+  if (match === 'no-data') why = a.frames === 0 ? (row.found === 0 ? 'series never found' : 'value never strictly between 0 and 1000 while the toolbar moved') : `the rewrite had ${base.band} band runs, fewer than ${MIN_BASE}, or no frames`;
+  else if (pred.pattern === 'stills' && mode === 'lifted') why = match === 'agree' ? 'rate at most a fifth of the rewrite' : `rate above a fifth of the rewrite (${row.band} runs in ${row.midMoving} frames)`;
+  else if (pred.pattern === 'stills') why = match === 'agree' ? `${row.band} band runs` : `${row.band} band runs, fewer than ${MIN_BASE}`;
+  else why = match === 'agree' ? `${row.band} band runs, fewer than ${MIN_BASE}` : `${row.band} band runs, at least ${MIN_BASE}`;
+  return { match, why };
 }
 
 // ---- the series of a mode ----------------------------------------------------------------------------------------------------------------
@@ -179,21 +195,13 @@ export function reduceMode(passes) {
     const verdicts = {};
     for (const a of ['lift', 'unthrottle']) verdicts[a] = verdict([], { runs: base.band, frames: base.midMoving }, { runs: rows[a].band, frames: rows[a].midMoving });
     const match = {};
-    for (const a of ARMS) match[a] = judge({ throttled: m.throttled.pattern, lifted: m.lifted.pattern }, a, { ...rows[a], found: rows[a].found }, base);
+    for (const a of ARMS) match[a] = judgeArm(m.throttled, a, rows[a], base);
     const perJob = [...new Set(passes.map((p) => p.vm))].map((vm) => ({
       vm, rows: Object.fromEntries(ARMS.map((a) => [a, armSeries(passes.filter((p) => p.arm === a && p.vm === vm), s.key)])) }));
     out.push({ ...s, part: s.part, zone: m.part.zone, reach: m.part.reach, source: m.source, shape: m.shape, predicted: { throttled: m.throttled, lifted: m.lifted },
       rows, verdicts, match, perJob });
   }
   return out;
-}
-
-/** The verdict of one part from its series: disagree if any series disagrees, else agree if any agrees, else no-data. */
-export function partVerdict(seriesOfPart) {
-  const ms = seriesOfPart.flatMap((s) => Object.values(s.match).map((m) => m.match));
-  if (ms.includes('disagree')) return 'disagree';
-  if (ms.includes('agree')) return ms.includes('no-data') ? 'agree (partial)' : 'agree';
-  return 'no-data';
 }
 
 // ---- parts without a series --------------------------------------------------------------------------------------------------------------
@@ -242,7 +250,7 @@ export function summarize(mode, jobs, runId = null) {
     key: s.key, part: s.part, prop: s.prop, zone: s.zone, reach: s.reach, source: s.source, shape: s.shape, predicted: s.predicted,
     arms: Object.fromEntries(ARMS.map((a) => [a, slim(s.rows[a])])), verdicts: s.verdicts, match: s.match,
     jobs: s.perJob.map((j) => ({ vm: j.vm, arms: Object.fromEntries(ARMS.map((a) => [a, { band: j.rows[a].band, midMoving: j.rows[a].midMoving, usable: j.rows[a].usable }])) })) }));
-  const parts = [...new Set(series.map((s) => s.part))].map((id) => ({ id, verdict: partVerdict(series.filter((s) => s.part === id)) }));
+  const parts = [...new Set(series.map((s) => s.part))].map((id) => ({ id, verdict: partOf(series.filter((s) => s.part === id)) }));
   const captures = Object.fromEntries(ARMS.map((a) => [a, captureRow(passes.filter((p) => p.arm === a))]));
   const lost = ARMS.map((a) => ({ arm: a, passes: passes.filter((p) => p.arm === a).length,
     usable: passes.filter((p) => p.arm === a && excludeReason(p) === null).length,

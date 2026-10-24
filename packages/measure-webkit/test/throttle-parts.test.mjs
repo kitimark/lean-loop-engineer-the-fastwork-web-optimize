@@ -6,8 +6,8 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  CONSTS, PARTS, KEYS, EXAMPLES, ARMS, reach, predicted, rowsOf, medianGap, bandFor, excludeReason, seriesCounts, armSeries, judge,
-  seriesModel, reduceMode, partVerdict, noDataParts, noDataReason, recordedParts, summarize, summaryMd, modeOfArm,
+  CONSTS, PARTS, KEYS, EXAMPLES, ARMS, reach, predicted, rowsOf, medianGap, bandFor, excludeReason, seriesCounts, armSeries, judge, judgeArm,
+  seriesModel, reduceMode, partVerdict, partOf, noDataParts, noDataReason, recordedParts, summarize, summaryMd, modeOfArm,
 } from '../src/throttle/parts.mjs';
 import { SERIES, ANCHORS, START_JS, FETCH_JS, discoverJs, scrollToJs, anchorY } from '../src/throttle/parts-recorder.mjs';
 import { anchorOf, MODES } from '../src/throttle/parts-probe.mjs';
@@ -177,7 +177,7 @@ test('hero: rewrite and original show stills, lift and unthrottle do not: predic
   assert.equal(h.verdicts.unthrottle, 'lifted');
   for (const a of ARMS) assert.equal(h.match[a].match, 'agree', a);
   assert.equal(h.perJob.length, 2);
-  assert.equal(partVerdict(reduceMode(passes).filter((s) => s.part === 'hero.exit')), 'agree');
+  assert.equal(partOf(reduceMode(passes).filter((s) => s.part === 'hero.exit')), 'agree');
 });
 
 test('hero: a lift arm that keeps the stills is not-lifted and disagrees with the prediction', () => {
@@ -186,7 +186,7 @@ test('hero: a lift arm that keeps the stills is not-lifted and disagrees with th
   assert.equal(h.verdicts.lift, 'not-lifted');
   assert.equal(h.match.lift.match, 'disagree');
   assert.equal(h.match.unthrottle.match, 'agree');
-  assert.ok(partVerdict([h]) === 'disagree');
+  assert.equal(partOf([h]), 'disagree');
 });
 
 test('a throttled arm predicted to show stills but showing none disagrees; a base without stills leaves the lifted arms no-data', () => {
@@ -201,7 +201,7 @@ test('an arm without frames of the series in transition is no-data, not agreemen
   const h = hero(reduceMode([pass('rewrite', partsRecord(300, {}))]));
   assert.equal(h.match.rewrite.match, 'no-data');
   assert.equal(h.match.original.match, 'no-data');
-  assert.equal(partVerdict([h]), 'no-data');
+  assert.equal(partOf([h]), 'no-data');
 });
 
 test('the fade (time source) is predicted no stills in every arm; a throttle-like series disagrees', () => {
@@ -213,11 +213,53 @@ test('the fade (time source) is predicted no stills in every arm; a throttle-lik
   assert.equal(bad.match.rewrite.match, 'disagree');
 });
 
-test('judge: pulses and no-stills need fewer than 10 band runs', () => {
+test('judgeArm: pulses and no-stills need fewer than 10 band runs; exactly 10 disagrees', () => {
   const row = (band, midMoving = 300) => ({ midMoving, band, found: 1 });
-  assert.equal(judge({ throttled: 'pulses', lifted: 'no-stills' }, 'rewrite', row(3), row(3)).match, 'agree');
-  assert.equal(judge({ throttled: 'pulses', lifted: 'no-stills' }, 'rewrite', row(12), row(12)).match, 'disagree');
-  assert.equal(judge({ throttled: 'no-stills', lifted: 'no-stills' }, 'lift', row(0), row(40)).match, 'agree');
+  const pulses = { pattern: 'pulses' };
+  assert.equal(judgeArm(pulses, 'rewrite', row(3), row(3)).match, 'agree');
+  assert.equal(judgeArm(pulses, 'rewrite', row(10), row(10)).match, 'disagree');
+  assert.equal(judgeArm(pulses, 'rewrite', row(12), row(12)).match, 'disagree');
+  assert.equal(judgeArm({ pattern: 'no-stills' }, 'lift', row(0), row(40)).match, 'agree');
+  assert.equal(judgeArm({ pattern: 'stills', runFrames: 5 }, 'rewrite', row(10), row(10)).match, 'agree');
+});
+
+// ---- judge, partVerdict and bandFor replay the Lean golden ---------------------------------------------------------------------------------
+
+const goldenOf = (kind) => readFileSync(new URL('../../contracts/golden/device/throttle-parts.jsonl', import.meta.url), 'utf8')
+  .split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((l) => l.kind === kind);
+
+test('judge returns the golden match on every judge vector (Fw.Device.ThrottleParts.judge)', () => {
+  const vs = goldenOf('judge');
+  assert.equal(vs.length, 240);
+  const seen = new Set();
+  for (const v of vs) {
+    assert.equal(judge(v.pred, v.mode, v.base, v.arm), v.match, JSON.stringify(v));
+    seen.add(v.match);
+  }
+  assert.deepEqual([...seen].sort(), ['agree', 'disagree', 'no-data']);
+});
+
+test('judge: the golden holds the boundary at exactly 10 band runs', () => {
+  const at = (pattern, mode, runs) => goldenOf('judge').find((v) => v.pred.pattern === pattern && v.mode === mode && v.base.runs === 40 && v.arm.runs === runs && v.arm.frames === 1000);
+  assert.equal(at('stills', 'throttled', 10).match, 'agree');
+  assert.equal(at('stills', 'throttled', 9).match, 'disagree');
+  assert.equal(at('pulses', 'throttled', 10).match, 'disagree');
+  assert.equal(at('pulses', 'throttled', 9).match, 'agree');
+  assert.equal(at('no-stills', 'lifted', 10).match, 'disagree');
+  assert.equal(at('stills', 'lifted', 8).match, 'agree');
+  assert.equal(at('stills', 'lifted', 9).match, 'disagree');
+});
+
+test('partVerdict returns the golden verdict on every list of up to three matches (Fw.Device.ThrottleParts.partVerdict)', () => {
+  const vs = goldenOf('partVerdict');
+  assert.equal(vs.length, 40);
+  for (const v of vs) assert.equal(partVerdict(v.matches), v.verdict, JSON.stringify(v));
+});
+
+test('bandFor returns the golden band on every bandFor vector (Fw.Device.ThrottleParts.bandFor)', () => {
+  const vs = goldenOf('bandFor');
+  assert.ok(vs.some((v) => v.d === 1667 && v.lo === 5 && v.hi === 6));
+  for (const v of vs) assert.deepEqual(bandFor(v.d), [v.lo, v.hi], String(v.d));
 });
 
 test('armSeries sums the usable passes only and keeps the pass counts', () => {

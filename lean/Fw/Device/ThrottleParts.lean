@@ -435,6 +435,107 @@ theorem predicted_curve : predicted .throttled .mainThread .curve = .stills 5 :=
 
 theorem predicted_time (m : Mode) (sh : Shape) : predicted m .time sh = .noStills := by cases m <;> rfl
 
+/-- How an arm's measured pattern sits against the prediction. -/
+inductive Match where
+  | agree | disagree | noData
+  deriving DecidableEq, Repr
+
+/-- The band of still runs for a frame gap `d`: `throttleK d` to one more, which is 5 to 6 at 60 Hz. -/
+def bandFor (d : Nat) : Nat × Nat := (throttleK d, throttleK d + 1)
+
+theorem bandFor_60hz : bandFor 1667 = (5, 6) := by decide
+
+theorem bandFor_120hz : bandFor 833 = (12, 13) := by decide
+
+/-- The band of a 60 Hz pass is the fixed band `bandLo` to `bandHi`. -/
+theorem bandFor_fixed : bandFor 1667 = (bandLo, bandHi) := by decide
+
+/-- The pattern of the part (`p`, its throttled prediction) judged on an arm in `m`, against the rewrite arm `base`: `arm.frames` counts
+the frames with the value strictly between 0 and 1000 while the toolbar moved. -/
+def judge (p : Pred) (m : Mode) (base arm : Arm) : Match :=
+  if arm.frames = 0 then .noData
+  else match p, m with
+    | .stills _, .throttled => if minBase ≤ arm.runs then .agree else .disagree
+    | .stills _, .lifted =>
+      match verdict [] base arm with
+      | .lifted => .agree
+      | .noData => .noData
+      | _ => .disagree
+    | _, _ => if arm.runs < minBase then .agree else .disagree
+
+/-- No frames of the series in the moving class: no data, whatever the pattern and mode. -/
+theorem judge_noData_frames (p : Pred) (m : Mode) (base arm : Arm) (h : arm.frames = 0) : judge p m base arm = .noData := by
+  simp [judge, h]
+
+/-- A throttled arm of a stills part agrees from `minBase` band runs: exactly `minBase` agrees. -/
+theorem judge_stills_throttled_agree (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : minBase ≤ arm.runs) :
+    judge (.stills k) .throttled base arm = .agree := by
+  simp [judge, hf, h]
+
+theorem judge_stills_throttled_disagree (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : arm.runs < minBase) :
+    judge (.stills k) .throttled base arm = .disagree := by
+  have : ¬ minBase ≤ arm.runs := by omega
+  simp [judge, hf, this]
+
+/-- A lifted arm of a stills part agrees exactly when the probe verdict against the rewrite is `lifted`. -/
+theorem judge_stills_lifted_agree (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : verdict [] base arm = .lifted) :
+    judge (.stills k) .lifted base arm = .agree := by
+  simp [judge, hf, h]
+
+/-- A lifted arm with too thin a baseline (fewer than `minBase` rewrite runs) is no data, not a disagreement. -/
+theorem judge_stills_lifted_noData (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : base.runs < minBase) :
+    judge (.stills k) .lifted base arm = .noData := by
+  have : verdict [] base arm = .noData := verdict_noData_base rfl arm h
+  simp [judge, hf, this]
+
+theorem judge_stills_lifted_disagree (k : Nat) (base arm : Arm) (hf : arm.frames ≠ 0) (h : verdict [] base arm = .notLifted) :
+    judge (.stills k) .lifted base arm = .disagree := by
+  simp [judge, hf, h]
+
+/-- A part predicted no stills or pulses agrees below `minBase` band runs in either mode. -/
+theorem judge_none_agree (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) (base arm : Arm) (hf : arm.frames ≠ 0)
+    (h : arm.runs < minBase) : judge p m base arm = .agree := by
+  cases p with
+  | stills k => exact absurd rfl (hp k)
+  | pulses => cases m <;> simp [judge, hf, h]
+  | noStills => cases m <;> simp [judge, hf, h]
+
+/-- Exactly `minBase` band runs is a disagreement for a part predicted none: the threshold is `<`, so ten runs show stills. -/
+theorem judge_none_boundary (p : Pred) (hp : ∀ k, p ≠ .stills k) (m : Mode) (base arm : Arm) (hf : arm.frames ≠ 0)
+    (h : minBase ≤ arm.runs) : judge p m base arm = .disagree := by
+  have : ¬ arm.runs < minBase := by omega
+  cases p with
+  | stills k => exact absurd rfl (hp k)
+  | pulses => cases m <;> simp [judge, hf, this]
+  | noStills => cases m <;> simp [judge, hf, this]
+
+/-- What a part shows over all its series and arms. -/
+inductive PartVerdict where
+  | agree | agreePartial | disagree | noData
+  deriving DecidableEq, Repr
+
+/-- The part verdict: a disagreement anywhere decides it; else an agreement (partial when some arm has no data); else no data. -/
+def partVerdict (ms : List Match) : PartVerdict :=
+  if ms.contains .disagree then .disagree
+  else if ms.contains .agree then (if ms.contains .noData then .agreePartial else .agree)
+  else .noData
+
+theorem partVerdict_disagree (ms : List Match) (h : .disagree ∈ ms) : partVerdict ms = .disagree := by
+  simp [partVerdict, h]
+
+theorem partVerdict_agree (ms : List Match) (h1 : .disagree ∉ ms) (h2 : .agree ∈ ms) (h3 : .noData ∉ ms) :
+    partVerdict ms = .agree := by
+  simp [partVerdict, h1, h2, h3]
+
+theorem partVerdict_agreePartial (ms : List Match) (h1 : .disagree ∉ ms) (h2 : .agree ∈ ms) (h3 : .noData ∈ ms) :
+    partVerdict ms = .agreePartial := by
+  simp [partVerdict, h1, h2, h3]
+
+theorem partVerdict_noData (ms : List Match) (h1 : .disagree ∉ ms) (h2 : .agree ∉ ms) : partVerdict ms = .noData := by
+  simp [partVerdict, h1, h2]
+
+theorem partVerdict_nil : partVerdict [] = .noData := rfl
+
 def samplePass (t : Nat) : Int := 10 * t
 
 def sampleFrames : Nat := period 1667 * 10
@@ -484,6 +585,35 @@ def Shape.name : Shape → String
 def Mode.name : Mode → String
   | .throttled => "throttled" | .lifted => "lifted"
 
+def Match.name : Match → String
+  | .agree => "agree" | .disagree => "disagree" | .noData => "no-data"
+
+def PartVerdict.name : PartVerdict → String
+  | .agree => "agree" | .agreePartial => "agree (partial)" | .disagree => "disagree" | .noData => "no-data"
+
+/-- The rewrite arms of the judge vectors: too thin (9 runs), no frames, exactly `minBase`, and a typical one. -/
+def judgeBases : List Arm := [⟨0, 0⟩, ⟨9, 1000⟩, ⟨10, 0⟩, ⟨10, 1000⟩, ⟨40, 1000⟩]
+
+/-- The arms of the judge vectors: no frames, no runs, either side of `minBase`, and either side of a fifth of a 40-run rewrite. -/
+def judgeArms : List Arm := [⟨0, 0⟩, ⟨5, 0⟩, ⟨0, 1000⟩, ⟨8, 1000⟩, ⟨9, 1000⟩, ⟨10, 1000⟩, ⟨11, 1000⟩, ⟨40, 1000⟩]
+
+/-- The match lists of the part-verdict vectors: every list of up to three matches. -/
+def matchLists : List (List Match) :=
+  let ms : List Match := [.agree, .disagree, .noData]
+  [[]] ++ ms.map (fun a => [a]) ++ (ms.flatMap fun a => ms.map fun b => [a, b]) ++
+    (ms.flatMap fun a => ms.flatMap fun b => ms.map fun c => [a, b, c])
+
+def armJ (a : Arm) : Json := Json.mkObj [("runs", a.runs), ("frames", a.frames)]
+
+#guard judge (.stills 5) .throttled ⟨0, 0⟩ ⟨10, 1000⟩ == .agree
+#guard judge (.stills 5) .throttled ⟨0, 0⟩ ⟨9, 1000⟩ == .disagree
+#guard judge .pulses .throttled ⟨0, 0⟩ ⟨10, 1000⟩ == .disagree
+#guard judge .noStills .lifted ⟨40, 1000⟩ ⟨9, 1000⟩ == .agree
+#guard judge (.stills 5) .lifted ⟨40, 1000⟩ ⟨8, 1000⟩ == .agree
+#guard judge (.stills 5) .lifted ⟨40, 1000⟩ ⟨9, 1000⟩ == .disagree
+#guard judge (.stills 5) .lifted ⟨9, 1000⟩ ⟨0, 1000⟩ == .noData
+#guard partVerdict [.agree, .noData] == .agreePartial
+
 private def strsJ (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
 def goldenLines (_ : Unit) : List String :=
@@ -501,6 +631,15 @@ def goldenLines (_ : Unit) : List String :=
       ("rule", "still runs of the key's own per-mille series, rows (v, v), value strictly between 0 and 1000"),
       ("predicted", Json.mkObj [("throttled", (predicted .throttled k.source k.shape).json),
         ("lifted", (predicted .lifted k.source k.shape).json)])]).compress) ++
+  ([Pred.stills (throttleK 1667), .pulses, .noStills].flatMap fun pr =>
+    [Mode.throttled, .lifted].flatMap fun m => judgeBases.flatMap fun b => judgeArms.map fun a =>
+      (Json.mkObj [("kind", "judge"), ("pred", pr.json), ("mode", m.name), ("base", armJ b), ("arm", armJ a),
+        ("match", (judge pr m b a).name)]).compress) ++
+  (matchLists.map fun ms =>
+    (Json.mkObj [("kind", "partVerdict"), ("matches", strsJ (ms.map Match.name)),
+      ("verdict", (partVerdict ms).name)]).compress) ++
+  (([1429, 1600, 1667, 1700, 1999, 833] : List Nat).map fun (d : Nat) =>
+    (Json.mkObj [("kind", "bandFor"), ("d", d), ("lo", (bandFor d).1), ("hi", (bandFor d).2)]).compress) ++
   ((exampleSeries .throttled).zip (exampleSeries .lifted) |>.map fun ((name, src, a), (_, _, b)) =>
     let one (vs : List Int) : Json :=
       Json.mkObj [("values", toJson vs), ("runs", toJson ((runs (rowsOf vs)).map (·.k))), ("band", bandRuns (rowsOf vs)),
