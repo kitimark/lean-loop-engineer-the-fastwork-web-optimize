@@ -1,7 +1,5 @@
 import Lean.Data.Json
-/-!
-# Fw.Measure.WalkBudget: the wall budget of one CI Simulator job
--/
+import Fw.Gate.Smooth
 namespace Fw.Measure.WalkBudget
 
 structure Job where
@@ -12,6 +10,25 @@ structure Job where
 deriving Repr, BEq
 
 def job : Job := ⟨2700000, 600000, 120000, 60000⟩
+
+def postSteps : List (String × Nat) :=
+  [("host state", 60000), ("upload", 120000), ("upload retry", 120000), ("shutdown", 120000), ("telemetry", 120000)]
+
+def postStepsMs : Nat := (postSteps.map (·.2)).foldl (· + ·) 0
+
+theorem postSteps_fit : postStepsMs + 60000 = job.postMs := by decide
+
+structure Gaps where
+  clockMs : Nat
+  driftMs : Nat
+  completeMs : Nat
+deriving Repr, BEq
+
+def gaps : Gaps := ⟨6000, 50000, 4000⟩
+
+def Gaps.total (g : Gaps) : Nat := g.clockMs + g.driftMs + g.completeMs
+
+theorem gaps_total : gaps.total = job.slackMs := by decide
 
 def hardStopMs : Nat := 45000
 
@@ -96,6 +113,102 @@ theorem static_sum_exceeds : deadlineAt job < 18 * 145600 := by decide
 
 theorem deadline_value : deadlineAt job = 1920000 := by decide
 
+theorem job_ends_inside_gaps (elapsed : Nat) (hc : elapsed ≤ deadlineAt job + job.graceMs) :
+    elapsed + gaps.clockMs + gaps.driftMs + stepMinutes job elapsed (deadlineAt job) * minuteMs + job.postMs + gaps.completeMs ≤ job.timeoutMs := by
+  have h1 := job_ends_inside_uncapped job job_fits elapsed hc
+  have h2 := gaps_total
+  unfold Gaps.total at h2
+  omega
+
+def minKept : Nat := Fw.Gate.Smooth.minReps
+
+theorem minKept_value : minKept = 5 := by decide
+
+def windowsPerRep (arms : Nat) : Nat := 2 * arms
+
+def windowMs : Nat := 45000
+
+def lifeWindows : Nat := 36
+
+def repMs (arms : Nat) : Nat := windowsPerRep arms * windowMs
+
+def repsFit (dl now arms : Nat) : Nat := (dl - now) / repMs arms
+
+def repsLife (arms : Nat) : Nat := lifeWindows / windowsPerRep arms
+
+def planReps (dl now arms : Nat) : Nat := min (repsLife arms) (repsFit dl now arms)
+
+inductive Outcome where
+  | ok
+  | lifeShort
+  | budgetShort
+deriving Repr, BEq, DecidableEq
+
+def outcome (dl now arms : Nat) : Outcome :=
+  if repsLife arms < minKept then .lifeShort else if repsFit dl now arms < minKept then .budgetShort else .ok
+
+def Outcome.name : Outcome → String
+  | .ok => "ok"
+  | .lifeShort => "lifeShort"
+  | .budgetShort => "budgetShort"
+
+def endsDone (n arms pos : Nat) : Nat := n / windowsPerRep arms + if 2 * pos + 2 ≤ n % windowsPerRep arms then 1 else 0
+
+theorem planReps_fits (dl now arms : Nat) : planReps dl now arms * repMs arms ≤ dl - now :=
+  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.min_le_right _ _)) (Nat.div_mul_le_self _ _)
+
+theorem planReps_life (arms : Nat) (dl now : Nat) : planReps dl now arms * windowsPerRep arms ≤ lifeWindows :=
+  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.min_le_left _ _)) (Nat.div_mul_le_self _ _)
+
+theorem outcome_lifeShort (dl now arms : Nat) (h : repsLife arms < minKept) : outcome dl now arms = .lifeShort := by
+  simp [outcome, h]
+
+theorem outcome_budgetShort (dl now arms : Nat) (hl : minKept ≤ repsLife arms) (h : repsFit dl now arms < minKept) :
+    outcome dl now arms = .budgetShort := by
+  have : ¬ repsLife arms < minKept := by omega
+  simp [outcome, this, h]
+
+theorem outcome_ok (dl now arms : Nat) (hl : minKept ≤ repsLife arms) (h : minKept ≤ repsFit dl now arms) :
+    outcome dl now arms = .ok := by
+  have h1 : ¬ repsLife arms < minKept := by omega
+  have h2 : ¬ repsFit dl now arms < minKept := by omega
+  simp [outcome, h1, h2]
+
+theorem outcome_ok_plan (dl now arms : Nat) (h : outcome dl now arms = .ok) : minKept ≤ planReps dl now arms := by
+  unfold outcome at h
+  unfold planReps
+  split at h
+  · cases h
+  · split at h
+    · cases h
+    · omega
+
+theorem outcome_ok_time (dl now arms : Nat) (h : outcome dl now arms = .ok) :
+    minKept * windowsPerRep arms * windowMs ≤ dl - now := by
+  have := outcome_ok_plan dl now arms h
+  have h2 := planReps_fits dl now arms
+  unfold repMs at h2
+  calc minKept * windowsPerRep arms * windowMs = minKept * (windowsPerRep arms * windowMs) := Nat.mul_assoc _ _ _
+    _ ≤ planReps dl now arms * (windowsPerRep arms * windowMs) := Nat.mul_le_mul_right _ this
+    _ ≤ dl - now := h2
+
+theorem endsDone_ge (n arms pos : Nat) : n / windowsPerRep arms ≤ endsDone n arms pos := by
+  unfold endsDone
+  omega
+
+theorem endsDone_le (n arms pos : Nat) : endsDone n arms pos ≤ n / windowsPerRep arms + 1 := by
+  unfold endsDone
+  split <;> omega
+
+theorem kept_after (n arms pos : Nat) (ha : 0 < arms) (h : minKept * windowsPerRep arms ≤ n) : minKept ≤ endsDone n arms pos := by
+  have hw : 0 < windowsPerRep arms := by unfold windowsPerRep; omega
+  have := (Nat.le_div_iff_mul_le hw).2 h
+  exact Nat.le_trans this (endsDone_ge n arms pos)
+
+theorem planReps_complete (dl now arms : Nat) (ha : 0 < arms) (h : outcome dl now arms = .ok) (pos : Nat) :
+    minKept ≤ endsDone (planReps dl now arms * windowsPerRep arms) arms pos :=
+  kept_after _ arms pos ha (Nat.mul_le_mul_right _ (outcome_ok_plan dl now arms h))
+
 def stepCases : List (String × Nat × Option Nat) := [
   ("walk starts after 4.6 min", 276000, none),
   ("walk starts at the job start", 0, none),
@@ -111,22 +224,43 @@ def startCases : List (String × Nat × Nat × Nat) := [
   ("one ms short", 1920000, 1890001, 30000),
   ("past the deadline", 1920000, 2000000, 30000)]
 
+def planCases : List (String × Nat × Option Nat × Nat) := [
+  ("3 arms, walk starts after 4.6 min", 276000, none, 3),
+  ("3 arms, walk starts after 8 min", 480000, none, 3),
+  ("3 arms, walk starts after 10 min", 600000, none, 3),
+  ("3 arms, cap 10 min", 276000, some 600000, 3),
+  ("2 arms", 276000, none, 2),
+  ("4 arms", 276000, none, 4),
+  ("no arms", 276000, none, 0)]
+
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("timeoutMs", toJson job.timeoutMs), ("postMs", toJson job.postMs),
     ("graceMs", toJson job.graceMs), ("slackMs", toJson job.slackMs), ("deadlineAt", toJson (deadlineAt job)),
-    ("hardStopMs", toJson hardStopMs)]).compress
+    ("hardStopMs", toJson hardStopMs), ("postStepsMs", toJson postStepsMs), ("clockMs", toJson gaps.clockMs),
+    ("driftMs", toJson gaps.driftMs), ("completeMs", toJson gaps.completeMs), ("minKept", toJson minKept),
+    ("windowMs", toJson windowMs), ("lifeWindows", toJson lifeWindows)]).compress
   let ss := stepCases.map fun (name, elapsed, cap) =>
     let dl := cappedDeadline job elapsed cap
-    (Json.mkObj [("op", "step"), ("case", Json.str name), ("elapsedMs", toJson elapsed),
+    let runs := runsWalk job elapsed dl 2
+    let base := [("op", Json.str "step"), ("case", Json.str name), ("elapsedMs", toJson elapsed),
       ("capMs", match cap with | some v => toJson v | none => Json.null), ("deadlineMs", toJson dl),
-      ("stepMinutes", toJson (stepMinutes job elapsed dl)), ("runs", toJson (runsWalk job elapsed dl 2)),
-      ("hardStopInside", toJson (decide (dl + hardStopMs < elapsed + stepMinutes job elapsed dl * minuteMs)))]).compress
+      ("stepMinutes", toJson (stepMinutes job elapsed dl)), ("runs", toJson runs)]
+    (Json.mkObj (if runs then base ++ [("hardStopInside", toJson (decide (dl + hardStopMs < elapsed + stepMinutes job elapsed dl * minuteMs)))] else base)).compress
   let ws := startCases.map fun (name, dl, now, reserve) =>
     (Json.mkObj [("op", "start"), ("case", Json.str name), ("deadlineMs", toJson dl), ("nowMs", toJson now),
       ("reserveMs", toJson reserve), ("starts", toJson (startsWindow dl now reserve)),
       ("remainingMs", toJson (remaining dl now))]).compress
-  [consts] ++ ss ++ ws
+  let ps := planCases.map fun (name, elapsed, cap, arms) =>
+    let dl := cappedDeadline job elapsed cap
+    (Json.mkObj [("op", "plan"), ("case", Json.str name), ("elapsedMs", toJson elapsed),
+      ("capMs", match cap with | some v => toJson v | none => Json.null), ("deadlineMs", toJson dl), ("arms", toJson arms),
+      ("repsFit", toJson (repsFit dl elapsed arms)), ("repsLife", toJson (repsLife arms)),
+      ("reps", toJson (planReps dl elapsed arms)), ("outcome", Json.str (outcome dl elapsed arms).name)]).compress
+  let es := [(3, 0, 0), (3, 7, 0), (3, 7, 1), (3, 8, 1), (3, 30, 2), (3, 29, 2), (3, 36, 0), (2, 17, 1)].map fun (arms, n, pos) =>
+    (Json.mkObj [("op", "ends"), ("arms", toJson arms), ("windows", toJson n), ("pos", toJson pos),
+      ("endsDone", toJson (endsDone n arms pos))]).compress
+  [consts] ++ ss ++ ws ++ ps ++ es
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 

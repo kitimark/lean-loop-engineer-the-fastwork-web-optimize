@@ -179,3 +179,71 @@ ended cancelled at 55 min; jobs 2 and 3 ended in 24 and 39 min.
   have lost its last windows, with the rows kept.
 - TS stand-ins: `walk-budget.mjs` functions replayed against the golden; the `sim-cadence.mjs` loop wiring, `untilDeadline` and the workflow's hard-stop wrapper are glue
   (`untilDeadline` has a unit test; the wrapper was run once locally with `sleep` and exit codes, debug evidence only).
+
+## Follow-ups (sim-touch-followups)
+
+Items (1) to (6) of the 2026-10-24 review of run `40003317485`. Source data: the `sim.log` and step times of runs `39934951574`, `39995201296` and `40003317485` (`gh run download`, `gh run view --json jobs`).
+
+### Rep plan (item 4): Lean `Fw.Measure.WalkBudget.planReps`, golden `walk-budget.jsonl` (27 lines)
+
+- **What failed (CONFIRMED, run `40003317485`).** The rule "a job needs 5 kept end windows per arm" is `Fw.Gate.Smooth.minReps`, per job: `jobCadence` and `zoneVerdict` decide inside one job, `acrossJobs` only counts agreeing verdicts, so windows of different jobs are never pooled. Job 1 was cut by the test cap (20 windows, 3 to 4 reps), job 3 by the 32-min deadline at 16 windows because four windows took 217, 744, 84 and 84 s (host load average 718 in `host.txt`).
+- **Cost of a window (MEASURED, 144 windows of the four complete 36-window walks).** Mean 35.6 s per window (job means 31.5 to 42.9 s), p50 17 to 31 s, p90 31 to 102 s. Cumulative time to the 30th window (5 reps of 3 arms): 703, 1060, 1194 and 1433 s, all under the 1644 s a walk has after a 4.6-min setup. The one starved job (`40003317485` job 3) needed 1477 s for 16 windows.
+- **The plan.** `planReps dl now arms = min (repsLife arms) (repsFit dl now arms)`: `repsFit` = whole reps of `2 x arms x 45 s` that fit between now and the deadline, `repsLife` = whole reps in the Simulator's 36 windows. `outcome` is `ok` iff both give `minKept` (5), else `lifeShort` (4 arms or more: 4 reps of 8 windows) or `budgetShort` (walk started late or capped). One theorem per branch: `outcome_lifeShort`, `outcome_budgetShort`, `outcome_ok`; `outcome_ok_plan` (ok means at least 5 planned reps), `outcome_ok_time` (5 reps at 45 s fit before the deadline), `planReps_fits`, `planReps_life`. The rep-major order (hero then end, per arm, arms rotated per rep) gives arm at position p `endsDone` = `n / (2 arms)` or one more end windows after `n` windows (`endsDone_ge`, `endsDone_le`), so `kept_after` and `planReps_complete`: after the planned reps every arm has at least 5 end windows.
+- **Decision.** Per job, not across jobs: pooling two jobs would need a pooled verdict in `Fw.Gate.Smooth`, and the per-job verdicts are the independent noise samples the design relies on. "Fewer reps per job" does not help (a job below 5 cannot decide); the harness now runs `--reps auto`, which for 3 arms is 6 reps (36 windows, the old `[sim-only]` value; `[earn-bound]` asked 7, which the budget never fit) and logs the outcome; 4 arms are `lifeShort` and need the arms split over jobs (follow-up, not built). The header of `smoothness.yml` no longer promises 6 reps.
+- **Limit (accepted).** `windowMs` = 45 s is a mean with margin, not a bound: a starved job (3 windows over 150 s) misses 5 reps. The deadline still holds; the job ends with its rows and the verdict says insufficient.
+
+- **Clock (INFERRED).** The plan is computed before Simulator boot and the touch driver start (50 to 66 s); 6 reps fit only because the mean window is about 33 s, not the 45 s allowance (INFERRED from run 40039631149 walls 1184/1352/1020 s (`sim.json` wallSeconds of jobs 2, 3, 4; the table's walk includes setup)). `outcome_ok_time` proves 5 reps at 45 s fit between the plan's clock read and the deadline, not that the setup after the read leaves that time.
+- **Item 4 result (CONFIRMED finding, closed): with 3 SpringBoard jobs this lane cannot give an across-job verdict.** `Fw.Measure.WalkBudget.outcome` is a per-job plan; the docstring now says so. Reproduced by `node packages/measure-webkit/src/profile/cli.mjs report` over the sim artifacts of run `40039631149` (control job 4 left out by `isControl`): `sim-cadence-verdict`: `end touch | base, bound | 3 jobs | same 2 | insufficient 1 | insufficient`, and `sim-verdict`: `finish | base, bound | 3 jobs | insufficient 3 | insufficient`. Two causes. (a) `acrossDecisive` needs `minSamples` = 3 decisive jobs (`packages/gate-breakpoints/src/smooth/reduce.mjs:98`, `Fw.Gate.Smooth.minSamples`, `Smooth.lean:666`); there are only 3 SpringBoard jobs, so one starved job (job 1, 11 windows) removes the verdict. (b) Touch end windows run with no Timeline, so the gate's finish zone gets at most 3 reps per arm in any job (headline finish n per job: base 1+0+1, aa 0+0+1, bound 1+0+3); the 5 kept finish windows of `minReps` are never reached and this note counts cadence intervals in their place. The re-plan (across-job verdict, tail-quantile budget, Timeline in touch windows, job count) is graph task `sim-touch-verdict-jobs`, not built here.
+
+### Gaps and docstring (item 5)
+
+`Gaps` in Lean names what the 1-min slack covers, each at the longest value of the three jobs of run `40003317485` (jobs API step times): `clockMs` 6 s (runner job start to the Job clock step, 3 to 6 s), `driftMs` 50 s (the Walk budget step reads the clock; the walk step starts when it ends, step took 22, 36 and 50 s on a starved host), `completeMs` 4 s (Post and Complete job steps, 1 to 4 s). They sum to `slackMs` (`gaps_total`); `job_ends_inside_gaps` states the job end with the three gaps explicit. `postSteps` lists host state 1, upload 2, upload retry 2, shutdown 2, telemetry 2 = 9 min of the 10-min allowance (`postSteps_fit`), and the `job` docstring says so. The golden `step` line carries `hardStopInside` only when `runs` is true.
+
+### Report labels (item 2)
+
+`report.mjs` labels the Timeline column of the cadence tables from the rows (`timeline: false` gives `off`, mixed rows `mixed`), not from `mode`; touch end windows now read `off`. The control job is left out of the sim pool and listed in the new block `sim-touch` (`touchTable`: coordinates, pushes, outcomes, begin, swipe, done, moves per job).
+
+### Starved and lost windows (item 3): CONFIRMED why-not, counts per job
+
+| Run, job | Windows | Over 90 s | Over 150 s | Over 300 s | Slowest | Timeline.stop timeouts | Evaluate timeouts |
+|---|---|---|---|---|---|---|---|
+| 39934951574, 1 | 36 | 2 | 2 | 1 | 398 s | 1 | 0 |
+| 39934951574, 2 | 36 | 5 | 1 | 0 | 151 s | 0 | 0 |
+| 39934951574, 3 | 36 | 3 | 2 | 1 | 329 s | 1 | 1 |
+| 39995201296, 3 | 36 | 1 | 1 | 0 | 280 s | 0 | 0 |
+| 40003317485, 1 (cap) | 20 | 0 | 0 | 0 | 41 s | 0 | 0 |
+| 40003317485, 3 | 16 | 2 | 2 | 1 | 744 s | 0 | 0 |
+| all | 180 | 13 (7.2 %) | 8 (4.4 %) | 3 (1.7 %) | | 2 | 1 |
+
+- Slow windows occur in 5 of 6 jobs, 1 to 5 per job, in hero and end windows alike (4 hero, 9 end). The `Timeline.stop` timeout happened in 2 of 6 jobs, once each, and only in non-touch windows (touch windows start no Timeline).
+- The 744 s hero window has no retry line in the log (no timeout, no attempt, two `inspector probe failed (tick): socket up, proxy down, page missing`): a single `readWindow` waited that long inside our harness, so the wait was, INFERRED, a chain of calls that each stayed under its own timeout (`FW_WK_TIMEOUT_SCALE` 8) on a host with load average 718; the window log has no phase times, so the phase is not read.
+- Why no per-window bound (CONFIRMED by reading `sim-cadence.mjs`): a window shares one inspector socket with the retry. Abandoning a window leaves its pending calls on that socket and the only recovery is `reconnect`, the path that already ran in the 744 s window. A Lean bound on the window would only rename the wait. What is bounded is the sum: the walk deadline (`startsWindow`, `untilDeadline`, hard stop) and, with this task, the rep plan (45 s allowance, the 6 jobs above: 4 of 5 uncapped jobs fit 30 windows).
+
+### CI dispatch 1 (run 40023506144, commit 90e7c09f6): MEASURED, the plan did not reach 5 kept windows
+
+Four sim jobs on the same commit: jobs 1 to 3 SpringBoard coordinates, job 4 the control (`FW_TOUCH_VARIANTS=safari`). The Lean plan said `ok` in every job (5 or 6 reps of 3 arms). The count per arm (`base, aa, bound`) is the end windows with intervals (`ok` rows with `ivs`, what `jobCadence` counts per window group `end` or `end touch`); a touch window carries no Timeline zones, so `zoneReps` finish counts would read 0 for it and are not used.
+
+| job | push server | windows | walk | job | end windows kept (base, aa, bound; touch of them) | why it stopped |
+|---|---|---|---|---|---|---|
+| 1 | not ready in 240 s | 4 | 1288 s | 31.3 min, green | 1, 1, 0 (0) | page target lost 484 s, relaunch found no tab |
+| 2 | not ready in 240 s | 4 | 1110 s | 25.3 min, green | 1, 1, 0 (0) | `Runtime.evaluate` 120 s timeout, inspector dead, relaunch found no tab |
+| 3 | not ready in 241 s | 16 | 1647 s | 37.4 min, red | 3, 2, 3 (0) | walk deadline; windows of 285, 432 and 125 s; red from `Shut down and delete the Simulator` (139 s against its 2 min bound) |
+| 4 (control) | ready in 66 s | 29 | 1639 s | green | 4, 5, 5 (1, 2, 1) | walk deadline before `base end` of rep 4; windows of 196, 85, 75 s and a 400 s tab wait |
+
+- The plan is a bound on time at 45 s a window; it cannot cover a host where the inspector dies after 4 windows (jobs 1, 2) or a rep takes 285 + 432 s (job 3). The mean window in job 4 was 28 s (819 s over 29), so a healthy job fits; the tail decides.
+- Touch: in jobs 1 to 3 the driver started its tests after the 240 s `readyMs` cut (job 3 log: the driver printed `Running tests...` 37 s after xcodebuild started, after the cut), so no end window was a touch window (`touch 0`); in job 4 the driver was ready after 66 s, pushes 0 to 3 passed with the Safari coordinates and push 4 ended `pageLost`, then the driver was given up. Control against test is therefore confounded by driver start time, not by coordinates (INFERRED: nothing in `touch-push.mjs`, `TouchPush.lean` or the driver build changed since the earlier runs, where the push server was ready in 45 to 142 s on hosts with load 480 to 960; here 1000).
+- Keep host state (item 6): in job 3 the injected `sleep 90` hit `timeout-minutes: 1`; the step took 78 s (60 s plus about 18 s to cancel), its conclusion was `success` under `continue-on-error`, and `host.txt` was never written. The job went red only through the Simulator shutdown step. Without the hang the step took 53 s (job 1) and 22 s (job 2) with both 8 s commands. For the 77 s of the earlier run (section Job-level bound, job 1, commands bounded at 15 s then), INFERRED: two commands bounded at 15 s explain at most 30 s; the remaining 47 s was unbounded work (uptime, sort, head, shell start) or runner step overhead under load 728; no per-command times were logged.
+
+### CI dispatch 2 (run 40039631149, commit b81f1410d, same code plus `continue-on-error` on the shutdown step): MEASURED, 3 of 4 jobs reach 6 end windows per arm
+
+| job | variant | push server | windows | walk | job | end touch windows kept (base, aa, bound) | note |
+|---|---|---|---|---|---|---|---|
+| 1 | springboard | ready 64 s | 11 | 1348 s | 27.1 min, green | 1, 2, 1 | `swipeLate` push, then `Timeline.stop` timeout (60 s) and a dead inspector: INCOMPLETE |
+| 2 | springboard | ready 63 s | 36 | 1240 s | 24.5 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 172 s hero window |
+| 3 | springboard | ready 51 s | 36 | 1462 s | 29.3 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 383 s and one 172 s hero window |
+| 4 (control) | safari | ready 50 s | 36 | 1088 s | 22.0 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 152 s end window |
+
+- The run concluded `success`. The Lean plan (6 reps of 3 arms, `outcome` ok) is met in jobs 2, 3 and 4 inside the bound: walks of 1240, 1462 and 1088 s against a walk budget of 1644 s (job 2: `step_minutes=31`, hard stop 1794 s), job minutes 24.5 to 29.3 against the 45 min timeout. Job 1 is the host-starved tail (item 3): 1 `swipeLate` and 1 `Timeline.stop` timeout in 11 windows, then the inspector would not come back.
+- Dispatch 1 against 2 (same code except the shutdown step and merged main): the push server was ready in 50 to 66 s in 5 of 5 jobs of dispatch 2 and dispatch 1 job 4, but not within 240 s in dispatch 1 jobs 1 to 3 (load 886 to 1016). That is the host, not the plan (INFERRED).
+- Control against test (item 1), pushes that passed: SpringBoard 40 of 41 (median begin 2.1 s, swipe 5.8 s, done 9.9 s, max done 59 s) and Safari 22 of 23 across both dispatches (the miss: `pageLost` in dispatch 1 job 4) (median begin 1.5 s, swipe 6.4 s, done 9.8 s, dispatch 2: max done 35.7 s). The one failed SpringBoard push was `swipeLate` (swipe 24 s against a 20 s bound). The two coordinate sources give the same median done time (9.9 against 9.8 s); the sample is too small to rank them (MEASURED, n = 18 per variant in dispatch 2).
+- Steps (item 6): the shutdown step ended in 9, 19, 23 s and the Keep host state step in 11, 15, 23 s in a healthy job; the job stayed green in all four jobs. In dispatch 1 job 3 the injected hang cost 78 s and left `success`.
