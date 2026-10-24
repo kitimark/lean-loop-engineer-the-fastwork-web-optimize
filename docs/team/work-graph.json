@@ -20348,7 +20348,8 @@
     "docs/team/tools/slot.md",
     "docs/team/handoffs/slot-idle-pressure2.md"
    ],
-   "title": "Incident 2026-10-24 ~10:00: the slot queue stalled for 29+ min with 0 holders and 12 tickets (a land among them) at kernel pressure level 2 with 0 swap-outs and 0 compression per minute; memory was held by programs outside the queue (Arc ~2.5 GB, Finder, WindowServer). idleHead admits only at pressure level 1, so the queue could never progress. Lean first: idleHead also admits at level 2 when there is no thrash and no swapActive (no holder live); theorems: progress (with no holder, no thrash and no swap activity, some ticket is admitted on every sample), idle_head_at_most_one still holds, level 2 with thrash or swap activity still waits; goldens incl. this sample (103 MB available, pressure 2, compressing 0, swapping 0); slot-core.ts follows."
+   "title": "Incident 2026-10-24 ~10:00: the slot queue stalled for 29+ min with 0 holders and 12 tickets (a land among them) at kernel pressure level 2 with 0 swap-outs and 0 compression per minute; memory was held by programs outside the queue (Arc ~2.5 GB, Finder, WindowServer). idleHead admits only at pressure level 1, so the queue could never progress. Lean first: idleHead also admits at level 2 when there is no thrash and no swapActive (no holder live); theorems: progress (with no holder, no thrash and no swap activity, some ticket is admitted on every sample), idle_head_at_most_one still holds, level 2 with thrash or swap activity still waits; goldens incl. this sample (103 MB available, pressure 2, compressing 0, swapping 0); slot-core.ts follows.",
+   "evidence": "71b13c1"
   },
   {
    "devices": [
