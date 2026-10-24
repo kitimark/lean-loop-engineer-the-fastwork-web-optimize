@@ -1,3 +1,6 @@
+{"flag":"morph.end.clamp:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
+{"flag":"morph.end.flip:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
+{"flag":"morph.end.release:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.tween:scroll-lock","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"nav:bar-fixed","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"nav:clip-box","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}

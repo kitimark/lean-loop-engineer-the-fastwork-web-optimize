@@ -1,0 +1,29 @@
+{
+  "id": "morph.end.flip",
+  "slot": "morph",
+  "anchors": [
+    "morph-end-flip"
+  ],
+  "experiment": true,
+  "impls": [],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": {
+        "original": "_app/immutable/nodes/2.DyWL8TcE.js:13017-13090"
+      }
+    },
+    "on": {
+      "kind": "proposal",
+      "visClass": "L",
+      "provenance": {
+        "lean": "Fw.Parts.MorphEnd flip_needs, flip_band, band_after_push, flip_same, order_free, all_combinations, bricks_no_rules",
+        "limit": "look change (L), brick B: an active morph flips only on a new touch or after 16 px (flipN) of net travel against the goal; effect: small finger jitter while the morph runs no longer reverses it; a pull of 16 px or more still does; phone review pending; covers the createTweenDriver path only (waapi and waapi-scoped ignore it); flipN = 16 is a placeholder until morph-end-measure"
+      }
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}
