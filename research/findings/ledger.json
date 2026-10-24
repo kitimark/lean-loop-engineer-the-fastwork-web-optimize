@@ -3657,7 +3657,7 @@
    "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
    "next": "User visual review on Safari (macOS) and the iPhone; it stays out of v2-proved while it is a look change (class L).",
    "flag": "nav:earn-logical",
-   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); variant gate is a lead dispatch"
+   "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)"
   },
   {
    "id": "morph.end.clamp",

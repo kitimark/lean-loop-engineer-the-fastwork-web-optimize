@@ -12,7 +12,7 @@
 - Look-change class L, "engine parity": on WebKit the look changes (the faithful rule snaps); Chromium and settled frames do not.
   Ledger row n=73 `nav.earn.logicalPadding`, review pending: the user's Safari (macOS) and iPhone check. The iPhone is INFERRED from
   shared WebKit source.
-- Not delivered here: the breakpoint gate with the variant needs a `fw` input, which only a dispatch carries (see Limits).
+- **Delivered:** the breakpoint gate with the variant on both engines passed (run 40114684690, head 27020e909, every job).
 
 ## The variant
 
@@ -74,9 +74,8 @@ Chromium variant against Chromium faithful differ by run noise only (it ran 30 f
 
 - Two valid macOS runs, not three: the first of the three allowed pushes failed on a harness bug (fixed). Each run still holds 3 full repeats per arm.
 - Playwright WebKit on macOS stands in for Safari at 390 px; Safari itself (safaridriver) agrees at 1280 px. No iPhone was measured.
-- The breakpoint gate: push runs of the unflagged default page passed (run 40100783656, Chromium and Playwright WebKit on Linux), but the gate
-  with the variant needs `fw=nav:earn-logical`, an input only a dispatch has. Lead command:
-  `gh workflow run breakpoint-gate.yml --ref ci/earn-webkit-smooth -f engines=chromium -f fw=nav:earn-logical`.
+- The breakpoint gate: push runs of the unflagged default page passed (run 40100783656, Chromium and Playwright WebKit on Linux); the gate
+  with the variant (`fw=nav:earn-logical`, engines both, dispatched by the lead) passed in run 40114684690.
 - The fix rewrites WebKit's look mid-transition only; a CSS-only registered `@property` alternative (candidate 4) was not needed.
 - Felt smoothness belongs to the user.
 
