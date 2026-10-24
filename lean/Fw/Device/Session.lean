@@ -1265,9 +1265,10 @@ private def reportJ (r : Report) : Json :=
     ("parts", Json.mkObj (r.parts.map fun (n, m, s) => (n, Json.mkObj [("maxStep", m), ("stalls", s)])))]
 
 private def recordJ (r : Record) (arm : Arm) (pass : Nat) : Json :=
-  Json.mkObj [("schema", "fw.phone.record.int/1"), ("arm", arm.code), ("pass", pass), ("w", r.w), ("h", r.h),
+  Json.mkObj (([("schema", "fw.phone.record.int/1"), ("arm", arm.code), ("pass", pass), ("w", r.w), ("h", r.h),
     ("maxY10", r.maxY10), ("t", toJson r.ts), ("y", toJson r.ys),
-    ("p", Json.mkObj (r.parts.map fun (n, vs) => (n, toJson vs))), ("touches", Json.arr (r.touches.map touchJ).toArray)]
+    ("p", Json.mkObj (r.parts.map fun (n, vs) => (n, toJson vs))), ("touches", Json.arr (r.touches.map touchJ).toArray)] : List (String × Json)) ++
+    (if r.vh.isEmpty then [] else [("vh", toJson r.vh)]))
 
 private def lcg (s : Nat) : Nat := (s * 1103515245 + 12345) % 2147483648
 
@@ -1406,6 +1407,65 @@ private def loaderCases : List (Int × Int × Nat × List Stroke) :=
    (4300, 9320, 3, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩]),
    (4300, 9320, 4, [⟨0, [(10, 10), (20, 20)]⟩, ⟨2, [(10, 10), (20, 20)]⟩])]
 
+
+/-! ### The toolbar-class golden -/
+
+private def classStr (cs : List Class) : String := String.join (cs.map Class.code)
+
+/-- Viewport heights (tenth px): short, constant, one change, two far apart changes, a slide, a change at the end, a wobble. -/
+private def classCases : List (List Int) :=
+  [[], [7750], List.replicate 5 7750, List.replicate 100 7750,
+   List.replicate 50 7750 ++ List.replicate 50 8150,
+   List.replicate 20 7750 ++ List.replicate 20 8150,
+   List.replicate 99 7750 ++ [8150],
+   List.replicate 40 7750 ++ [7751] ++ List.replicate 59 7750,
+   List.replicate 30 7750 ++ [7800, 7850, 7900, 7950, 8000, 8050, 8100, 8150] ++ List.replicate 120 8150 ++
+     [8100, 8050, 8000, 7950, 7900, 7850, 7800, 7750] ++ List.replicate 40 7750,
+   List.replicate 70 8150 ++ List.replicate 70 7750,
+   (List.range 80).map fun k => (7750 : Int) + (if k % 17 == 0 then ((k / 17 : Nat) : Int) else 0)]
+
+private def synthVhList : List Int :=
+  List.replicate 100 7750 ++ [7800, 7850, 7900, 7950, 8000, 8050, 8100, 8150] ++ List.replicate 192 8150 ++
+    [8100, 8050, 8000, 7950, 7900, 7850, 7800, 7750] ++ List.replicate 172 7750
+
+/-- The synthetic session with a toolbar that slides away at frame 100 and back at frame 300. -/
+private def synthVhRecord (_ : Unit) : Record := { synthRecord () with vh := synthVhList }
+
+private def classReportJ (c : ClassReport) : Json :=
+  Json.mkObj [("total", statJ c.total), ("zones", Json.mkObj (c.zones.map fun p => (p.1.name, statJ p.2))), ("frames", c.frames)]
+
+/-- A class report with the given frame count and per-50 values (total, hero, finish, rest). -/
+private def mkCR (n t h f r : Nat) : ClassReport :=
+  let s (p : Nat) : Stat := { stat [] with per50 := p }
+  ⟨s t, [(Zone.hero, s h), (Zone.finish, s f), (Zone.rest, s r)], n⟩
+
+private def crJ (c : ClassReport) : Json :=
+  toJson [c.frames, c.total.per50, (zoneStatOf c.zones .hero).per50, (zoneStatOf c.zones .finish).per50, (zoneStatOf c.zones .rest).per50]
+
+private def compareCases : List (List ClassReport × List ClassReport) :=
+  [([mkCR 900 1000 1000 1000 1000, mkCR 900 1400 1400 1400 1400], [mkCR 900 100 100 100 100]),
+   ([mkCR 900 1000 1000 1000 1000, mkCR 900 1400 1400 1400 1400], [mkCR 0 0 0 0 0, mkCR 900 100 100 100 100]),
+   ([mkCR 900 1000 1000 1000 1000, mkCR 0 0 0 0 0], [mkCR 900 100 100 100 100]),
+   ([mkCR 100 1000 900 800 700, mkCR 120 1400 1500 400 1100, mkCR 90 1200 1000 600 900], [mkCR 100 300 100 500 1000, mkCR 50 600 700 800 200]),
+   ([mkCR 100 3000 0 0 0, mkCR 100 3300 0 0 0], [mkCR 100 100 0 0 0, mkCR 100 2900 0 0 0]),
+   ([], [mkCR 100 100 100 100 100])]
+
+private def classGoldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "class.consts"), ("moveWin", moveWin), ("moveMin", moveMin)]).compress] ++
+  (classCases.map fun vh =>
+    (Json.mkObj [("kind", "class"), ("vh", toJson vh), ("classes", classStr (classes vh))]).compress) ++
+  (let r := synthVhRecord ()
+   let noField := { r with vh := [] }
+   [(Json.mkObj [("kind", "class.report"), ("record", recordJ r .original 1), ("classes", classStr (classesOf r)),
+      ("whole", reportJ (reducePass r)), ("moving", classReportJ (reduceClass r .moving)), ("still", classReportJ (reduceClass r .still)),
+      ("noFieldClasses", classStr (classesOf noField)), ("noFieldMoving", classReportJ (reduceClass noField .moving)),
+      ("noFieldStill", classReportJ (reduceClass noField .still))]).compress]) ++
+  (compareCases.map fun (o, a) =>
+    let zoneJ (z : Option Zone) : Json :=
+      Json.mkObj [("orig", toJson (classVals z o)), ("arm", toJson (classVals z a)), ("verdict", (compareClass z o a).name)]
+    (Json.mkObj [("kind", "class.compare"), ("orig", Json.arr (o.map crJ).toArray), ("arm", Json.arr (a.map crJ).toArray),
+      ("total", zoneJ none), ("hero", zoneJ (some .hero)), ("finish", zoneJ (some .finish)), ("rest", zoneJ (some .rest))]).compress)
+
 private def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("slow", slow), ("bad", bad), ("lookback", lookback), ("tapMs", (30000 : Int)),
     ("tapTravel", (100 : Int)), ("gapMs", (50000 : Int)), ("nearPx", (400 : Int)), ("hz", (60 : Int)),
@@ -1449,7 +1509,8 @@ private def goldenLines (_ : Unit) : List String :=
       ("ok", replayOk w h cap ss)]).compress) ++
   (let r := synthRecord ()
    [(Json.mkObj [("kind", "session"), ("record", recordJ r .original 1), ("report", reportJ (reducePass r)),
-     ("replay", replayJ r)]).compress])
+     ("replay", replayJ r)]).compress]) ++
+  classGoldenLines ()
 
 /-- The bytes of `packages/contracts/golden/device/session.jsonl`. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"

@@ -332,6 +332,370 @@ theorem lifted_rate {hs : List Int} {base lift : Arm} (h : verdict hs base lift 
       · simp at h
 
 
+/-! ## Still runs by toolbar class -/
+
+open Fw.Device.Session (Class classes partSeries)
+
+/-- A still run with the toolbar class over it: moving when any frame from the one before the run to the move that ends it is moving. -/
+structure CRun where
+  run : Run
+  cls : Class
+  deriving DecidableEq, Repr
+
+/-- The class of a run from whether any of its frames was moving. -/
+def clsOf (mv : Bool) : Class := if mv then .moving else .still
+
+/-- `scan` over (position, value, class) rows, with `mv` whether a frame of the open run so far was moving. -/
+def scanC (prev : Int) (k : Nat) (m : Bool) (mv : Bool) : List (Int × Int × Class) → List CRun
+  | [] => []
+  | (y, v, c) :: rest =>
+    if y == prev then scanC prev (k + 1) (m && mid v) (mv || c == .moving) rest
+    else if k == 0 then scanC y 0 true (c == .moving) rest
+    else ⟨⟨k, dist prev y, m⟩, clsOf (mv || c == .moving)⟩ :: scanC y 0 true (c == .moving) rest
+
+/-- The still runs of rows with classes. -/
+def runsC : List (Int × Int × Class) → List CRun
+  | [] => []
+  | (y, _, c) :: rest => scanC y 0 true (c == .moving) rest
+
+/-- The rows without their classes. -/
+def dropClass (rows : List (Int × Int × Class)) : List (Int × Int) := rows.map fun r => (r.1, r.2.1)
+
+/-- The classes change nothing about which runs there are. -/
+theorem scanC_run (prev : Int) : ∀ (rows : List (Int × Int × Class)) (k : Nat) (m mv : Bool),
+    (scanC prev k m mv rows).map (·.run) = scan prev k m (dropClass rows)
+  | [], k, m, mv => by simp [scanC, scan, dropClass]
+  | (y, v, c) :: rest, k, m, mv => by
+    have ih1 := scanC_run prev rest (k + 1) (m && mid v) (mv || c == .moving)
+    have ih2 := fun p mv' => scanC_run p rest 0 true mv'
+    simp only [scanC, scan, dropClass, List.map_cons] at ih1 ih2 ⊢
+    split
+    · exact ih1
+    · split
+      · exact ih2 y _
+      · simp only [List.map_cons]
+        rw [ih2 y _]
+
+theorem runsC_run (rows : List (Int × Int × Class)) : (runsC rows).map (·.run) = runs (dropClass rows) := by
+  cases rows with
+  | nil => simp [runsC, runs, dropClass]
+  | cons r rest =>
+    obtain ⟨y, v, c⟩ := r
+    simp only [runsC, runs, dropClass, List.map_cons]
+    exact scanC_run y rest 0 true _
+
+
+/-- The runs of `lo` to `hi` frames in the exit range, in one toolbar class. -/
+def countC (c : Class) (lo hi : Nat) (rows : List (Int × Int × Class)) : Nat :=
+  ((runsC rows).filter fun r => r.cls == c && inBand lo hi r.run).length
+
+/-- The frames with a value in the exit range, in one toolbar class. -/
+def exitFramesC (c : Class) (rows : List (Int × Int × Class)) : Nat :=
+  (rows.filter fun r => r.2.2 == c && mid r.2.1).length
+
+/-- The two classes hold every run of the band once. -/
+theorem countC_split (lo hi : Nat) (rows : List (Int × Int × Class)) :
+    countC .moving lo hi rows + countC .still lo hi rows = count lo hi (dropClass rows) := by
+  have key : ∀ l : List CRun, (l.filter fun r => r.cls == Class.moving && inBand lo hi r.run).length +
+      (l.filter fun r => r.cls == Class.still && inBand lo hi r.run).length =
+        ((l.map (·.run)).filter (inBand lo hi)).length := by
+    intro l
+    induction l with
+    | nil => simp
+    | cons r t ih =>
+      obtain ⟨u, c⟩ := r
+      cases c <;> by_cases hb : inBand lo hi u = true <;> simp [hb] at ih ⊢ <;> omega
+  unfold countC count
+  rw [← runsC_run]
+  exact key _
+
+/-- The two classes hold every frame of the exit range once. -/
+theorem exitFramesC_split (rows : List (Int × Int × Class)) :
+    exitFramesC .moving rows + exitFramesC .still rows = exitFrames (dropClass rows) := by
+  unfold exitFramesC exitFrames dropClass
+  induction rows with
+  | nil => simp
+  | cons r t ih =>
+    obtain ⟨y, v, c⟩ := r
+    cases c <;> by_cases hv : mid v = true <;> simp [hv] at ih ⊢ <;> omega
+
+/-- With no moving frame in the open run's reach, a run's class is still. -/
+theorem scanC_still : ∀ (prev : Int) (rows : List (Int × Int × Class)) (k : Nat) (m : Bool),
+    (∀ r ∈ rows, r.2.2 = Class.still) → ∀ x ∈ scanC prev k m false rows, x.cls = Class.still
+  | prev, [], k, m, _, x, hx => by simp [scanC] at hx
+  | prev, (y, v, c) :: rest, k, m, h, x, hx => by
+    have hc : c = Class.still := h (y, v, c) (by simp)
+    subst hc
+    have hr : ∀ r ∈ rest, r.2.2 = Class.still := fun r hr => h r (List.mem_cons_of_mem _ hr)
+    have e : (Class.still == Class.moving) = false := by decide
+    simp only [scanC, e, Bool.or_self] at hx
+    split at hx
+    · exact scanC_still prev rest _ _ hr x hx
+    · split at hx
+      · exact scanC_still y rest _ _ hr x hx
+      · rcases List.mem_cons.1 hx with rfl | hx
+        · simp [clsOf]
+        · exact scanC_still y rest _ _ hr x hx
+
+/-- With every frame still, the still class holds every run of the band and the moving class none. -/
+theorem countC_allStill (lo hi : Nat) (rows : List (Int × Int × Class)) (h : ∀ r ∈ rows, r.2.2 = Class.still) :
+    countC .still lo hi rows = count lo hi (dropClass rows) ∧ countC .moving lo hi rows = 0 := by
+  have hs : ∀ x ∈ runsC rows, x.cls = Class.still := by
+    cases rows with
+    | nil => simp [runsC]
+    | cons r rest =>
+      obtain ⟨y, v, c⟩ := r
+      have hc : c = Class.still := h (y, v, c) (by simp)
+      subst hc
+      exact scanC_still y rest 0 true (fun r hr => h r (List.mem_cons_of_mem _ hr))
+  have := countC_split lo hi rows
+  have hm : countC .moving lo hi rows = 0 := by
+    unfold countC
+    rw [List.length_eq_zero_iff, List.filter_eq_nil_iff]
+    intro x hx
+    simp [hs x hx]
+  omega
+
+/-- With every frame still, the still class holds every frame of the exit range and the moving class none. -/
+theorem exitFramesC_allStill (rows : List (Int × Int × Class)) (h : ∀ r ∈ rows, r.2.2 = Class.still) :
+    exitFramesC .still rows = exitFrames (dropClass rows) ∧ exitFramesC .moving rows = 0 := by
+  have hm : exitFramesC .moving rows = 0 := by
+    unfold exitFramesC
+    rw [List.length_eq_zero_iff, List.filter_eq_nil_iff]
+    intro x hx
+    simp [h x hx]
+  have := exitFramesC_split rows
+  omega
+
+
+/-! ## The verdict by toolbar class -/
+
+/-- A recorded pass in Lean's integer units (tenth px, per mille): its viewport height, the viewport height at every frame (empty for a recording made
+before the field existed), the positions and the hero values. -/
+structure Pass where
+  h : Int
+  vh : List Int := []
+  ys : List Int
+  vs : List Int
+
+/-- Whether the pass carries one height per frame. -/
+def Pass.hasField (p : Pass) : Bool := !p.vh.isEmpty && p.vh.length == p.ys.length
+
+/-- The class of every frame; a pass without the field is still at every frame, as today's verdict treats it. -/
+def Pass.cs (p : Pass) : List Class := if p.hasField then classes p.vh else List.replicate p.ys.length .still
+
+theorem Pass.cs_length (p : Pass) : p.cs.length = p.ys.length := by
+  unfold Pass.cs
+  split
+  · rename_i h
+    simp [Pass.hasField] at h
+    simp [Fw.Device.Session.classes_length, h.2]
+  · simp
+
+/-- The rows of a pass with the class of their frame. -/
+def Pass.rows (p : Pass) : List (Int × Int × Class) :=
+  ((partSeries p.ys p.vs).zip p.cs).map fun (q, c) => (q.1, q.2, c)
+
+theorem Pass.rows_drop (p : Pass) : dropClass p.rows = partSeries p.ys p.vs := by
+  have hl : (partSeries p.ys p.vs).length ≤ p.cs.length := by
+    rw [Pass.cs_length]
+    simp only [partSeries, List.length_zip, List.length_drop]
+    exact Nat.min_le_left _ _
+  have := List.map_fst_zip hl
+  simpa [Pass.rows, dropClass, List.map_map, Function.comp_def] using this
+
+/-- The viewport heights a pass offers the verdict of a class: the heights of its still frames, or its one height when it has no field; the moving class
+is the toolbar sliding, so its heights differ by definition and are not compared. -/
+def Pass.heights (c : Class) (p : Pass) : List Int :=
+  match c with
+  | .moving => []
+  | .still => if p.hasField then ((p.vh.zip p.cs).filter fun q => q.2 == Class.still).map (·.1) else [p.h]
+
+/-- The counts of one class over the passes of an arm. -/
+def armOf (c : Class) (ps : List Pass) : Arm :=
+  ⟨(ps.map fun p => countC c bandLo bandHi p.rows).sum, (ps.map fun p => exitFramesC c p.rows).sum⟩
+
+/-- Today's counts over the passes of an arm (`stillruns.mjs armCounts`). -/
+def armToday (ps : List Pass) : Arm :=
+  ⟨(ps.map fun p => bandRuns (partSeries p.ys p.vs)).sum, (ps.map fun p => exitFrames (partSeries p.ys p.vs)).sum⟩
+
+/-- Today's verdict: one height per pass, the counts of the whole pass. -/
+def verdictToday (base lift : List Pass) : Verdict :=
+  verdict ((base ++ lift).map (·.h)) (armToday base) (armToday lift)
+
+/-- The verdict of one toolbar class: the like-for-like comparison of the frames of that class. -/
+def verdictClass (c : Class) (base lift : List Pass) : Verdict :=
+  verdict ((base ++ lift).flatMap (Pass.heights c)) (armOf c base) (armOf c lift)
+
+/-- The two classes hold every band run and every exit frame of an arm once. -/
+theorem armOf_split (ps : List Pass) :
+    (armOf .moving ps).runs + (armOf .still ps).runs = (armToday ps).runs ∧
+      (armOf .moving ps).frames + (armOf .still ps).frames = (armToday ps).frames := by
+  have key : ∀ (f g h : Pass → Nat), (∀ p ∈ ps, f p + g p = h p) →
+      (ps.map f).sum + (ps.map g).sum = (ps.map h).sum := by
+    intro f g h hfg
+    induction ps with
+    | nil => simp
+    | cons p t ih =>
+      have := hfg p (by simp)
+      have ih' := ih (fun p hp => hfg p (by simp [hp]))
+      simp only [List.map_cons, List.sum_cons]
+      omega
+  constructor
+  · exact key _ _ _ fun p _ => by rw [countC_split, Pass.rows_drop]; rfl
+  · exact key _ _ _ fun p _ => by rw [exitFramesC_split, Pass.rows_drop]
+
+/-- The rows of a pass without the field are all still. -/
+theorem Pass.rows_noField {p : Pass} (h : p.hasField = false) : ∀ r ∈ p.rows, r.2.2 = Class.still := by
+  intro r hr
+  simp only [Pass.rows, List.mem_map] at hr
+  obtain ⟨⟨q, c⟩, hq, rfl⟩ := hr
+  have := (List.of_mem_zip hq).2
+  simp [Pass.cs, h] at this
+  exact this.2
+
+/-- The rows of a pass whose height never changes are all still. -/
+theorem Pass.rows_const {p : Pass} {h : Int} (hv : p.vh = List.replicate p.ys.length h) : ∀ r ∈ p.rows, r.2.2 = Class.still := by
+  intro r hr
+  simp only [Pass.rows, List.mem_map] at hr
+  obtain ⟨⟨q, c⟩, hq, rfl⟩ := hr
+  have := (List.of_mem_zip hq).2
+  unfold Pass.cs at this
+  split at this
+  · rw [hv, Fw.Device.Session.classes_const] at this
+    exact (List.mem_replicate.1 this).2
+  · exact (List.mem_replicate.1 this).2
+
+/-- With every row still, the arm's still class is today's counts and its moving class is empty. -/
+theorem armOf_allStill {ps : List Pass} (h : ∀ p ∈ ps, ∀ r ∈ p.rows, r.2.2 = Class.still) :
+    armOf .still ps = armToday ps ∧ armOf .moving ps = ⟨0, 0⟩ := by
+  have key : ∀ (f g : Pass → Nat), (∀ p ∈ ps, f p = g p) → (ps.map f).sum = (ps.map g).sum := by
+    intro f g hfg
+    exact congrArg List.sum (List.map_congr_left hfg)
+  have zero : ∀ (f : Pass → Nat), (∀ p ∈ ps, f p = 0) → (ps.map f).sum = 0 := by
+    intro f hf
+    have zsum : ∀ l : List Nat, (∀ x ∈ l, x = 0) → l.sum = 0 := by
+      intro l
+      induction l with
+      | nil => simp
+      | cons a t ih => intro hl; simp [hl a (by simp), ih (fun x hx => hl x (by simp [hx]))]
+    exact zsum _ fun x hx => by
+      obtain ⟨p, hp, rfl⟩ := List.mem_map.1 hx
+      exact hf p hp
+  constructor
+  · unfold armOf armToday
+    congr 1
+    · exact key _ _ fun p hp => by rw [(countC_allStill _ _ _ (h p hp)).1, Pass.rows_drop]; rfl
+    · exact key _ _ fun p hp => by rw [(exitFramesC_allStill _ (h p hp)).1, Pass.rows_drop]
+  · unfold armOf
+    congr 1
+    · exact zero _ fun p hp => (countC_allStill _ _ _ (h p hp)).2
+    · exact zero _ fun p hp => (exitFramesC_allStill _ (h p hp)).2
+
+/-- The verdict depends on the heights only through whether they are all equal. -/
+theorem verdict_congr {hs hs' : List Int} (h : sameHeight hs = sameHeight hs') (base lift : Arm) :
+    verdict hs base lift = verdict hs' base lift := by
+  unfold verdict
+  rw [h]
+
+/-- The still class of recordings without the field decides as today does: same counts, same heights. -/
+theorem verdictClass_noField (base lift : List Pass) (h : ∀ p ∈ base ++ lift, p.hasField = false) :
+    verdictClass .still base lift = verdictToday base lift := by
+  have hr : ∀ p ∈ base, ∀ r ∈ p.rows, r.2.2 = Class.still := fun p hp => Pass.rows_noField (h p (by simp [hp]))
+  have hr' : ∀ p ∈ lift, ∀ r ∈ p.rows, r.2.2 = Class.still := fun p hp => Pass.rows_noField (h p (by simp [hp]))
+  have hb := (armOf_allStill hr).1
+  have hl := (armOf_allStill hr').1
+  have hh : (base ++ lift).flatMap (Pass.heights .still) = (base ++ lift).map (·.h) := by
+    have : ∀ ps : List Pass, (∀ p ∈ ps, p.hasField = false) → ps.flatMap (Pass.heights .still) = ps.map (·.h) := by
+      intro ps hps
+      induction ps with
+      | nil => simp
+      | cons p t ih =>
+        have hp := hps p (by simp)
+        simp [Pass.heights, hp, ih (fun x hx => hps x (by simp [hx]))]
+    exact this _ h
+  unfold verdictClass verdictToday
+  rw [hb, hl, hh]
+
+
+/-- All heights equal exactly when any two are. -/
+theorem sameHeight_iff (l : List Int) : sameHeight l = true ↔ ∀ a ∈ l, ∀ b ∈ l, a = b := by
+  cases l with
+  | nil => simp [sameHeight]
+  | cons h t =>
+    simp only [sameHeight, List.all_eq_true, beq_iff_eq, List.mem_cons]
+    constructor
+    · rintro ht a (rfl | ha) b (rfl | hb)
+      · rfl
+      · exact (ht b hb).symm
+      · exact ht a ha
+      · exact (ht a ha).trans (ht b hb).symm
+    · intro hall x hx
+      exact hall x (Or.inr hx) h (Or.inl rfl)
+
+/-- The still class of passes whose height never changes decides as today does, however many frames each pass has. -/
+theorem verdictClass_const (base lift : List Pass)
+    (h : ∀ p ∈ base ++ lift, p.vh = List.replicate p.ys.length p.h ∧ p.ys ≠ []) :
+    verdictClass .still base lift = verdictToday base lift := by
+  have hr : ∀ p ∈ base, ∀ r ∈ p.rows, r.2.2 = Class.still := fun p hp => Pass.rows_const (h p (by simp [hp])).1
+  have hr' : ∀ p ∈ lift, ∀ r ∈ p.rows, r.2.2 = Class.still := fun p hp => Pass.rows_const (h p (by simp [hp])).1
+  have hb := (armOf_allStill hr).1
+  have hl := (armOf_allStill hr').1
+  have hp : ∀ p ∈ base ++ lift, p.heights .still = List.replicate p.ys.length p.h := by
+    intro p hp
+    obtain ⟨hv, hne⟩ := h p hp
+    have hf : p.hasField = true := by
+      have : p.ys.length ≠ 0 := fun e => hne (List.length_eq_zero_iff.1 e)
+      simp [Pass.hasField, hv, this]
+    have hc : p.cs = List.replicate p.ys.length Class.still := by
+      simp [Pass.cs, hf, hv, Fw.Device.Session.classes_const]
+    simp [Pass.heights, hf, hc, hv]
+  have hs : sameHeight ((base ++ lift).flatMap (Pass.heights .still)) = sameHeight ((base ++ lift).map (·.h)) := by
+    rw [Bool.eq_iff_iff, sameHeight_iff, sameHeight_iff]
+    constructor
+    · intro hh a ha b hb
+      obtain ⟨p, hpm, rfl⟩ := List.mem_map.1 ha
+      obtain ⟨q, hqm, rfl⟩ := List.mem_map.1 hb
+      have hpn : p.ys.length ≠ 0 := fun e => (h p hpm).2 (List.length_eq_zero_iff.1 e)
+      have hqn : q.ys.length ≠ 0 := fun e => (h q hqm).2 (List.length_eq_zero_iff.1 e)
+      apply hh
+      · exact List.mem_flatMap.2 ⟨p, hpm, by rw [hp p hpm]; exact List.mem_replicate.2 ⟨hpn, rfl⟩⟩
+      · exact List.mem_flatMap.2 ⟨q, hqm, by rw [hp q hqm]; exact List.mem_replicate.2 ⟨hqn, rfl⟩⟩
+    · intro hh a ha b hb
+      obtain ⟨p, hpm, hap⟩ := List.mem_flatMap.1 ha
+      obtain ⟨q, hqm, hbq⟩ := List.mem_flatMap.1 hb
+      rw [hp p hpm] at hap
+      rw [hp q hqm] at hbq
+      have := (List.mem_replicate.1 hap).2
+      have := (List.mem_replicate.1 hbq).2
+      subst_vars
+      exact hh _ (List.mem_map_of_mem hpm) _ (List.mem_map_of_mem hqm)
+  unfold verdictClass verdictToday
+  rw [hb, hl, verdict_congr hs]
+
+/-- The moving class is the toolbar sliding: its heights differ by definition, so only its counts decide. -/
+theorem verdictClass_moving (base lift : List Pass) :
+    verdictClass .moving base lift = verdict [] (armOf .moving base) (armOf .moving lift) := by
+  unfold verdictClass
+  have : (base ++ lift).flatMap (Pass.heights .moving) = [] := by
+    simp [Pass.heights]
+  rw [this]
+
+/-- With no toolbar movement in any pass, the moving class has no data. -/
+theorem verdictClass_moving_noData {base lift : List Pass}
+    (h : ∀ p ∈ base ++ lift, ∀ r ∈ p.rows, r.2.2 = Class.still) : verdictClass .moving base lift = .noData := by
+  have hb := (armOf_allStill (ps := base) (fun p hp => h p (by simp [hp]))).2
+  have hl := (armOf_allStill (ps := lift) (fun p hp => h p (by simp [hp]))).2
+  rw [verdictClass_moving, hb, hl]
+  exact verdict_noData_frames (by rfl) (Or.inl rfl)
+
+/-- Still frames at different heights are not the same page: the still class is confounded. -/
+theorem verdictClass_still_confounded {base lift : List Pass}
+    (h : sameHeight ((base ++ lift).flatMap (Pass.heights .still)) = false) :
+    verdictClass .still base lift = .confounded :=
+  verdict_confounded h _ _
+
+
 /-! ## The golden -/
 
 private def pairsJ (l : List (Int × Int)) : Json := Json.arr (l.map fun p => toJson [p.1, p.2]).toArray
