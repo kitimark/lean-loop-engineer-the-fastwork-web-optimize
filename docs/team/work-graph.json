@@ -16348,7 +16348,8 @@
     "apps/console-web/src/**/*.test.tsx",
     "docs/team/handoffs/compose-gpu-pill.md"
    ],
-   "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text."
+   "title": "User 2026-10-22: 'add the gpu pill in compose for mark which ones is optimization by gpu'. One canonical source in Lean (Fw.Parts.Gpu): the list of (part, variant, mechanism, ledger n) whose optimization moves per-frame work to the compositor/GPU (threaded animation of transform/opacity/filter, a layer that stops changing bounds, fewer composited layers); each entry cites its ledger row; theorem/#guard that every entry names a registered variant (registry golden). console.compose carries a gpu field per variant (Wire + golden), console-api passes it, Compose shows a GPU pill beside the class badge with the mechanism as its tooltip/text.",
+   "evidence": "2dfbe5e"
   },
   {
    "devices": [
