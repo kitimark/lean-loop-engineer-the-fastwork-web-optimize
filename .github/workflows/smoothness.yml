@@ -18,6 +18,8 @@ name: smoothness
 # `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Reps per simulator job come from Lean `Fw.Measure.WalkBudget.planReps` (`--reps auto`): as many whole reps as the walk
 # budget (time to the deadline at 45 s a window) and the Simulator's life (36 windows, it tends to die after about 30 to 40) allow, so 6 reps of 3 arms (36 windows); a job needs 5 kept finish windows per
 # arm to decide (`Fw.Gate.Smooth.minReps`), which holds for up to 3 arms and fails for 4 (`lifeShort`) or a walk that starts late (`budgetShort`); `sim.json` records `repPlan`.
+# `[touch-lock]` (task touch-lock-page-end, with `[webkit-cadence] [sim-only]`) runs one simulator job that flicks the page into its end with real touches in the original, the faithful build and a CSS-lock candidate
+# (packages/measure-webkit/src/touchlock-cli.mjs; Lean Fw.Measure.TouchLock) and counts scroll reversals while the morph is open.
 # `[sim-touch-control]` adds a 4th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 3 take them from SpringBoard. Both skip the Timeline in touch
 # windows, so job 4 against jobs 1 to 3 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
 # Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3, or 1 to 4 with [sim-touch-control]; job 4 is the control and is left out of the sim pool).
@@ -394,7 +396,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
+        job: ${{ fromJSON(contains(github.event.head_commit.message, '[touch-lock]') && '[1]' || contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
@@ -504,6 +506,7 @@ jobs:
           ARMS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && 'base,aa,bound' || '' }}
           HOLD_MS: ${{ contains(github.event.head_commit.message, '[earn-bound]') && '1400' || '' }}
           HARD_STOP_S: ${{ steps.budget.outputs.hard_stop_seconds }}
+          TOUCH_LOCK: ${{ contains(github.event.head_commit.message, '[touch-lock]') && '1' || '' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
@@ -513,7 +516,11 @@ jobs:
               $SIG{ALRM} = sub { print STDERR "walk hard stop: killing the process group\n"; kill "TERM", -$p; sleep 5; kill "KILL", -$p; waitpid($p, 0); exit 124; };
               alarm $s; waitpid($p, 0); alarm 0; exit($? & 127 ? 128 + ($? & 127) : $? >> 8);' -- "$@"
           }
-          hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          if [ -n "$TOUCH_LOCK" ]; then
+            hard_stop "$HARD_STOP_S" node src/touchlock-cli.mjs run --site "$SITE_DIR" --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          else
+            hard_stop "$HARD_STOP_S" node src/profile/cli.mjs sim --site "$SITE_DIR" --search "$SEARCH" ${ARMS:+--arms "$ARMS"} ${HOLD_MS:+--hold-ms "$HOLD_MS"} --touch-driver "$RUNNER_TEMP/touch-driver" --deadline-ms "${{ steps.budget.outputs.deadline_ms }}" --out "$RUNNER_TEMP/result" 2> >(tee "$RUNNER_TEMP/result/sim.log" >&2)
+          fi
       # Host state first (under 1 min, every command bounded), then one upload of result/ with one retry; the post steps total 9 min.
       - name: Keep host state
         if: ${{ always() && steps.stale.outcome == 'skipped' }}
