@@ -22,6 +22,8 @@
 #   changes its bytes once (sha256 8a4fd2d6ff6f, then 495249a32f9b), so without this the binary of one tree would depend
 #   on how often the script ran, and `fw land` compares binaries by sha256 (task land-fwcore-key).
 # - `lake build` runs under a machine-wide build slot (scripts/lake-slot-lib.sh, sourced so that no second sh starts).
+#   Its stdout is copied through `tee`; with FW_LAKE_BUILT_FILE set, a build that exited 0 writes the span member
+#   `,"lake":{"built":N}` there (lake_built_member), which the caller puts in span_more (task lake-span-mods).
 # Run it in the checkout whose binary runs: sh scripts/fwcore-build.sh
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -37,7 +39,11 @@ before=$(tree_now)
 clean_before=$(clean_now)
 sha256_of() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 . "$root/scripts/lake-slot-lib.sh"
-(cd lean && lake_slot "$root" lake build)
+lake_out=$(mktemp "${TMPDIR:-/tmp}/fwlake.XXXXXX")
+trap 'rm -f "$lake_out" "$lake_out.rc"' EXIT
+{ (cd lean && lake_slot "$root" lake build) || echo $? > "$lake_out.rc"; } | tee "$lake_out"
+[ ! -s "$lake_out.rc" ] || exit "$(cat "$lake_out.rc")"
+[ -z "${FW_LAKE_BUILT_FILE:-}" ] || lake_built_member "$lake_out" > "$FW_LAKE_BUILT_FILE"
 if [ -f "$bin.stripped" ] && [ "$(cat "$bin.stripped")" = "$(sha256_of "$bin")" ]; then
   :
 elif command -v strip >/dev/null 2>&1 && strip -o "$bin.strip" "$bin" 2>/dev/null; then

@@ -1,17 +1,17 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { builtModules, checksWork, HEAVY_CHECKS, lakeWork, modsLow, slotWork, spanWork } from "../src/timing.ts";
+import { builtModules, checksWork, HEAVY_CHECKS, lakeMember, lakeWork, modsLow, slotWork, spanWork } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing-work.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; work: Record<string, string> });
 const lakeGolden = readFileSync(join(root, "packages/contracts/golden/obs/timing-lake.jsonl"), "utf8").trim().split("\n")
-  .map((l) => JSON.parse(l) as { name: string; out: string; built: number });
+  .map((l) => JSON.parse(l) as { name: string; out: string; built: number; member: number | null });
 const dir = mkdtempSync(join(tmpdir(), "fw-timing-work-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -67,6 +67,66 @@ describe("lake output -> modules built against Fw.Obs.Timing.builtModules (golde
     expect(lakeGolden.map((g) => g.built)).toEqual(expect.arrayContaining([0, 2]));
   });
   for (const g of lakeGolden) it(`builtModules: ${g.name}`, () => expect(builtModules(g.out)).toBe(g.built));
+  it("has the real lake output of this repo, with warnings, a facet object and the exe between its Built lines", () => {
+    const real = lakeGolden.find((g) => g.name.startsWith("real output"))!;
+    expect(real.built).toBe(8);
+    expect(real.out).toContain("Built fwcore:exe");
+  });
+});
+
+const memberOf = (n: number | null): string => (n === null ? "" : `,"lake":{"built":${n}}`);
+const lib = join(root, "scripts/lake-slot-lib.sh");
+
+describe("lake output -> the lake span member against Fw.Obs.Timing.lakeBuilt? (golden/obs/timing-lake.jsonl)", () => {
+  it("has rows with a member of 0 (a no-op build), a member of 8 and no member", () => {
+    expect(new Set(lakeGolden.map((g) => g.member))).toEqual(new Set([0, 2, 3, 8, null]));
+  });
+  for (const g of lakeGolden) {
+    it(`lakeMember: ${g.name}`, () => expect(lakeMember(g.out)).toEqual(g.member === null ? {} : { lake: { built: g.member } }));
+    it(`lake_built_member (scripts/lake-slot-lib.sh, awk): ${g.name}`, () => {
+      const f = join(dir, "lake.out");
+      writeFileSync(f, g.out);
+      expect(execFileSync("sh", ["-c", `. "${lib}"; lake_built_member "${f}"`], { encoding: "utf8" })).toBe(memberOf(g.member));
+    });
+  }
+  it("a lake member makes the sample work carry the mods class, and a no-op build is class 0", () => {
+    const line = (b: number) => JSON.stringify({ tool: "lean/check", step: "lake build", startMs: 1, durMs: 780, exit: 0, commit: "d5babdb", load: 1, host: "local", lake: { built: b } });
+    expect(parseSamples([line(0), line(24)].join("\n")).map((s) => s.work)).toEqual([{ mods: "0" }, { mods: "16" }]);
+  });
+});
+
+describe("scripts/fwcore-build.sh with FW_LAKE_BUILT_FILE", () => {
+  const tree = join(dir, "tree");
+  const setup = (lakeBody: string): { env: NodeJS.ProcessEnv; file: string } => {
+    for (const d of ["scripts", "lean", "bin", "packages/contracts/golden/sched"]) mkdirSync(join(tree, d), { recursive: true });
+    for (const f of ["scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/lake-slot-lib.sh", "packages/contracts/golden/sched/lake-slot.gen.sh"]) copyFileSync(join(root, f), join(tree, f));
+    writeFileSync(join(tree, "bin/lake"), `#!/bin/sh\n${lakeBody}\n`);
+    chmodSync(join(tree, "bin/lake"), 0o755);
+    return { env: { ...process.env, PATH: `${join(tree, "bin")}:${process.env.PATH}`, LAKE_SLOT: "0", FW_LOCK_EVENTS: "off" }, file: join(dir, "member.out") };
+  };
+  const real = lakeGolden.find((g) => g.name.startsWith("real output"))!;
+  const mkBin = "mkdir -p .lake/build/bin; echo x > .lake/build/bin/fwcore";
+  it("passes the lake output through, then writes the member of a build that exited 0", () => {
+    writeFileSync(join(dir, "real.out"), real.out);
+    const { env, file } = setup(`${mkBin}; cat "${join(dir, "real.out")}"`);
+    const r = spawnSync("sh", [join(tree, "scripts/fwcore-build.sh")], { env: { ...env, FW_LAKE_BUILT_FILE: file }, encoding: "utf8" });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("[877/929] Built Fw.Wire.Obs");
+    expect(readFileSync(file, "utf8")).toBe(',"lake":{"built":8}');
+  });
+  it("keeps the exit code of a failing build and writes no member", () => {
+    const { env, file } = setup("echo '✖ [4/9] Building Fw.Obs.Timing (1.2s)'; exit 3");
+    writeFileSync(file, "");
+    const r = spawnSync("sh", [join(tree, "scripts/fwcore-build.sh")], { env: { ...env, FW_LAKE_BUILT_FILE: file }, encoding: "utf8" });
+    expect(r.status).toBe(3);
+    expect(readFileSync(file, "utf8")).toBe("");
+  });
+  it("runs as before without FW_LAKE_BUILT_FILE", () => {
+    const { env } = setup(`${mkBin}; echo 'Build completed successfully (1 jobs).'`);
+    const r = spawnSync("sh", [join(tree, "scripts/fwcore-build.sh")], { env, encoding: "utf8" });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Build completed successfully");
+  });
 });
 
 describe("scripts/span.sh span_more", () => {

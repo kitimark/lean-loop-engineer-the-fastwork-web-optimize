@@ -130,3 +130,24 @@ lake_slot_release() {
   exec 8>&-
   [ -z "${_ls_own:-}" ] || { _ls_ev release group; exec 9>&-; unset LAKE_SLOT; _ls_own=; }
 }
+
+# lake_built_member <file holding the stdout of one `lake build` that exited 0>: prints the span member `,"lake":{"built":N}`
+# (N = modules built) when the output shows a finished build, nothing otherwise. The rule is Lean Fw.Obs.Timing.lakeBuilt?
+# (builtLine: a line with exactly one "] Built ", a "[i/n]" counter right before it and a name without ':' after it;
+# lakeDone: the closing line "Build completed successfully"), checked against golden/obs/timing-lake.jsonl by
+# apps/runner/test/timing-work.test.ts. Lake writes its Built lines to stdout. A span line with the member gets the same
+# mods class as the `fw polish commit` and `fw land dry lake` spans, so a rebuild is not judged against no-op builds.
+lake_built_member() {
+  LC_ALL=C awk '
+    index($0, "Build completed successfully") { done = 1 }
+    {
+      if (split($0, a, "\\] Built ") != 2) next
+      m = split(a[1], b, "[")
+      if (split(b[m], c, "/") != 2 || c[1] !~ /^[0-9]+$/ || c[2] !~ /^[0-9]+$/) next
+      sp = index(a[2], " ")
+      name = sp ? substr(a[2], 1, sp - 1) : a[2]
+      if (name != "" && index(name, ":") == 0) n++
+    }
+    END { if (n > 0 || done) printf ",\"lake\":{\"built\":%d}", n }
+  ' "$1" 2>/dev/null || :
+}

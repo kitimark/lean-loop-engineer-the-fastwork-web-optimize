@@ -32,12 +32,19 @@ serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the
 serial "grep gates" scripts/check-partial.sh
 serial "check.sh one job per line" node ../scripts/lint-check-sh.mjs
 serial "import check" node scripts/check-imports.mjs
-if ! span lean/check "lake build" sh ../scripts/fwcore-build.sh; then
+lake_f=$(mktemp "${TMPDIR:-/tmp}/fwlakebuilt.XXXXXX")
+lake_step() {  # the span line of the build carries lake.built (task lake-span-mods): span.sh reads span_more after the command
+  FW_LAKE_BUILT_FILE=$lake_f sh ../scripts/fwcore-build.sh || return $?
+  span_more=$(cat "$lake_f")
+}
+if ! span lean/check "lake build" lake_step; then
+  rm -f "$lake_f"
   fails="$fails
   - lake build"
   echo "check: FAILED: $fails"
   exit 1
 fi
+rm -f "$lake_f"
 
 bin=.lake/build/bin
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/fwcheck.XXXXXX")
