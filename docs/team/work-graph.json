@@ -20046,6 +20046,33 @@
     "docs/team/handoffs/sim-finish-throttle.md"
    ],
    "title": "User 2026-10-24: 'start the simulator end-of-page task now'. Reproduce the phone's end-of-page (finish zone) finding in the iOS Simulator on CI: real XCUITest touches that scroll to the page end and push into the morph panel, while the toolbar collapses/expands; arms original, rewrite, rewrite + engine.scroll:throttle-lift. Lean first (new Fw.Device.FinishRuns): finish-zone still runs (5-6 frame scrollY stills while moving, y within 600 px of maxY), scrollY reversals during the morph open (restore fights), open lateness in frames from y >= maxY-7 to the panel open; verdict per arm with theorems; golden; TS twin checked against it. Lead adds the Fw.lean import and the check.sh golden job at land (both files are held by other tasks)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "invisible-paint",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/PaintVisible.lean",
+    "lean/scripts/PaintVisibleGolden.lean",
+    "packages/contracts/golden/engine/paint-visible.jsonl",
+    "packages/measure-wktr/src/repaint*.mjs",
+    "packages/measure-wktr/src/harness.mjs",
+    "packages/measure-wktr/src/cli.mjs",
+    "packages/measure-wktr/src/reduce.mjs",
+    "packages/measure-wktr/test/repaint*.test.mjs",
+    ".github/workflows/wktr.yml",
+    "packages/measure-webkit/src/paintclip*.mjs",
+    "packages/measure-webkit/src/timeline.mjs",
+    "packages/measure-webkit/test/paintclip*.test.mjs",
+    "research/notes/2026/10-2x-invisible-paint.md",
+    "results/invisible-paint/**",
+    "docs/team/handoffs/invisible-paint.md"
+   ],
+   "title": "User 2026-10-24: 'i was see the webkit have some of paint flashing on the part that doesn't effect the visual that user can see. do you measure this before?' Not measured before: timed runs keep paint flashing and repaint counters off (they add work) and count Paint records per zone only. Measure WebKit paints that change nothing the user sees, in untimed passes separate from timed counts, on CI: WKTR startTrackingRepaints/repaintRectsAsText + layerTreeAsText repaint rects per frame, and Simulator Inspector Paint records with data.clip, over the swipe profile (hero, rest, finish) for original, rewrite and v2-proved. Lean first (Fw.Engine.PaintVisible): classify each paint rect as visible, offscreen-beyond-tile-margin, prepaint-margin (tile coverage, TileController.mm), opacity-0 or visibility-hidden ancestor, covered by an opaque layer above, clipped out, zero-area, or no-op (pixels identical before and after, from a pixel diff of the layer); theorems per class; golden; TS twin. Report per part and zone: invisible paint count and area per 100 frames, the causing element and style change, and a same-look fix candidate per source with its WebKit file:line. Lead adds the Fw.lean import and the check.sh job at land."
   }
  ],
  "deadline": {
