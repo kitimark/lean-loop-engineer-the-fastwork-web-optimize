@@ -20440,7 +20440,8 @@
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
     "lean/scripts/PlatformSweepPauseGolden.lean"
    ],
-   "title": "platform.sweep:offscreen-pause (10-2x-webkit-throttles.md rank 3): an IntersectionObserver pauses the sweep animation offscreen and seeks it to the document timeline on resume (engine.scene pattern). Lean first: phase on resume equals the uninterrupted phase (reuse the engine.scene and morph.columns seek proofs). Lego brick, own flag. Measure on CI: rendering updates and main-thread time while the platform scene is offscreen, both engines; breakpoint gate."
+   "title": "platform.sweep:offscreen-pause (10-2x-webkit-throttles.md rank 3): an IntersectionObserver pauses the sweep animation offscreen and seeks it to the document timeline on resume (engine.scene pattern). Lean first: phase on resume equals the uninterrupted phase (reuse the engine.scene and morph.columns seek proofs). Lego brick, own flag. Measure on CI: rendering updates and main-thread time while the platform scene is offscreen, both engines; breakpoint gate.",
+   "evidence": "ed7d5fe"
   },
   {
    "devices": [

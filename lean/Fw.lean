@@ -82,6 +82,8 @@ import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
 import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
+import Fw.Parts.PlatformSweepPause
+import Fw.Parts.PlatformSweepPauseGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork
