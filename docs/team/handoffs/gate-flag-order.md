@@ -21,9 +21,7 @@
 - `entry-server.tsx` stores every page under `canonSearch(search)`; every `configs.json` lookup wraps its search in `canonSearch`.
 
 ## Open
-- Dry land prints `VERDICT scope gate-flag-order`: 17 files are outside the graph writes (console-api serve-child.ts and two tests, apps/runner/src/land.ts, apps/site pages.mjs/tsconfig/vitest.config, packages/contracts/src/flag-key.{mjs,d.mts}, one lookup file each in gate-breakpoints, measure-chromium, measure-webkit x4, measure-wktr, visual-diff). The lead adds them to the row's writes, then the dry land runs.
-- TS stand-in: `canonSearch` (URL rewriting) is glue, checked by tests, not Lean. The comma join/split is not proved.
-- Old artifacts keyed by author order stay as they are.
+- None. Main merged again; runner suite (3437), lean check.sh and `VERDICT dry gate-flag-order` green. No new CI run.
 
 ## Read first
 `lean/Fw/Wire/FlagKey.lean`, then `packages/contracts/src/flag-key.mjs`.
