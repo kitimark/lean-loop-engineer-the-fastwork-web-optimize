@@ -20145,7 +20145,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-end-bricks.md"
    ],
-   "title": "Site side of morph-end-lean: three composer bricks (parts morph.end.clamp, morph.end.flip, morph.end.release, each faithful|on) wired into the morph.tween driver, look-change class (behaviour change, user review), TS checked against the morph-end-lean goldens, all 8 combinations valid in the registry and shown in the console Compose tab with a preview link, breakpoint gate unchanged outside the end zone (run id), ledger rows look-change pending the user's phone review."
+   "title": "Site side of morph-end-lean: three composer bricks (parts morph.end.clamp, morph.end.flip, morph.end.release, each faithful|on) wired into the morph.tween driver, look-change class (behaviour change, user review), TS checked against the morph-end-lean goldens, all 8 combinations valid in the registry and shown in the console Compose tab with a preview link, breakpoint gate unchanged outside the end zone (run id), ledger rows look-change pending the user's phone review.",
+   "evidence": "1e7ee78"
   },
   {
    "devices": [
@@ -20216,7 +20217,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth)."
+   "title": "User 2026-10-24: on WebKit (Safari macOS and iPhone) the nav 'Join waitlist' (earn) button and the language button animate worse than on Chromium: when the user scrolls back to the hero, the earn fade-out lags and its x padding/margin snap to 0 at once, while Chromium keeps them animating. Compare frame by frame on macOS CI (free macos-26 runner: Chromium and Playwright WebKit in the same job, and Safari through safaridriver if the runner allows it; else name why): per rAF frame the earn and lang buttons' box (getBoundingClientRect), computed padding-inline-start/end, max-width, opacity, gap of .start-selling-top-nav-actions, and document.getAnimations() (which CSSTransition exists per property, its start time and retargets), plus screenshot strips, through the hero-pill entry and exit and the morph push, for the original snapshot and the rewrite. Original CSS: snapshot/site-pretty/_app/immutable/assets/2.gBuqKVzi.css:11438-11545 (max-width/padding-inline/opacity from --earn-layout, --earn-out, --nav-expand; transitions max-width, opacity, padding-inline 0.68 s; .is-hero-pill sets --nav-expand 0 at :11367). Find the cause in WebKit and Chromium source (pinned clones, file:line@commit): how each engine starts and retargets a transition when a var()-driven computed value changes, logical shorthand padding-inline in transition-property, calc with custom properties; Lean first (Fw.Engine.TransitionStart: per engine the transition-start decision for these properties, theorems for each branch, golden). Research only: no fix flag here (next task earn-webkit-smooth).",
+   "evidence": "0cabc1e"
   },
   {
    "devices": [
@@ -20304,7 +20306,8 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh"
    ],
-   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches)."
+   "title": "End-of-page GPU candidate 4: morph.countdown:strip (1 transform per digit, 16 layers instead of 80, so far fewer UIViews at morph start). Lean first: each digit shows the same face as faithful at every frame (strip offset = face index x face height, spring identical), the layer count 80 -> 16; golden replayed by the site test; Simulator layer census and backing MB per finish zone (run id, at most 2 dispatches).",
+   "evidence": "b4ff523"
   },
   {
    "devices": [

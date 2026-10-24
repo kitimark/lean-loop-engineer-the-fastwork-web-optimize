@@ -1,0 +1,1 @@
+ok: safaridriver, 1280 px

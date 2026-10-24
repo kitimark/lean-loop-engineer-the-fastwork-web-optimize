@@ -3577,6 +3577,150 @@
    "evidence": "CI runs 40068851412, 40068835905 (Chromium counts), 40068853873 (webkit-sim), 40068858697 (breakpoint gate); research/notes/2026/10-2x-throttle-lift-ship.md; branch worktree-wf_1b734b7c-35a-1; 40078781031 (Chromium counts, absolute plus guard), 40078755847 (toolbar-throttle lane), 40078755889 and 40080296257 (trajectory probe), 40083527306 (breakpoint gate, shipped text); branch worktree-wf_582d1cc2-be7-1",
    "next": "WebKit morph trajectory cell (the probe cannot decide Mac WebKit morph for any flag); a phone pass of the shipped text.",
    "flag": "engine.scroll:unthrottle"
+  },
+  {
+   "id": "morph.end.clamp",
+   "n": 67,
+   "part": "morph.end.clamp",
+   "candidate": "morph.end.clamp:on (brick A of morph-end-bricks): the pin is restored to min(pin, real maxY) each frame, so the page stops writing the overscroll position back against the rubber band at the end of the page",
+   "status": "look-change",
+   "flag": "morph.end.clamp:on",
+   "flags": [
+    "morph.end.clamp:on"
+   ],
+   "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
+   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "visual": "look change (L), behaviour change at the end of the page: at the end of the page the pin follows the real end instead of the overscroll position the push began in, so the rubber-band spring-back is no longer fought frame by frame. Lean clamp_le, clamp_le_trace, clamp_rest, faithful_fight, clamp_only_writes, clamp_same_below (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
+   "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
+   "leanFor": [
+    "Fw.Parts.MorphEnd.clamp_le",
+    "Fw.Parts.MorphEnd.clamp_le_trace",
+    "Fw.Parts.MorphEnd.clamp_rest",
+    "Fw.Parts.MorphEnd.faithful_fight",
+    "Fw.Parts.MorphEnd.clamp_only_writes",
+    "Fw.Parts.MorphEnd.clamp_same_below",
+    "Fw.Parts.MorphEnd.order_free",
+    "Fw.Parts.MorphEnd.all_combinations"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
+   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
+   "userDecision": "pending"
+  },
+  {
+   "id": "morph.end.flip",
+   "n": 68,
+   "part": "morph.end.flip",
+   "candidate": "morph.end.flip:on (brick B of morph-end-bricks): an active morph flips (open to close or back) only on a new touch or after 16 px of net travel against the goal",
+   "status": "look-change",
+   "flag": "morph.end.flip:on",
+   "flags": [
+    "morph.end.flip:on"
+   ],
+   "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
+   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "visual": "look change (L), behaviour change at the end of the page: finger jitter inside a 16 px band no longer reverses the running morph; a pull of 16 px or more still does. Lean flip_needs, flip_band, band_after_push, flip_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
+   "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
+   "leanFor": [
+    "Fw.Parts.MorphEnd.flip_needs",
+    "Fw.Parts.MorphEnd.flip_band",
+    "Fw.Parts.MorphEnd.band_after_push",
+    "Fw.Parts.MorphEnd.flip_same",
+    "Fw.Parts.MorphEnd.order_free",
+    "Fw.Parts.MorphEnd.all_combinations"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
+   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
+   "userDecision": "pending"
+  },
+  {
+   "id": "morph.end.release",
+   "n": 69,
+   "part": "morph.end.release",
+   "candidate": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
+   "status": "look-change",
+   "flag": "morph.end.release:on",
+   "flags": [
+    "morph.end.release:on"
+   ],
+   "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
+   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "visual": "look change (L), behaviour change at the end of the page: a drag back while the morph closes moves the page under the finger instead of being held at the pin. Lean release_starts, release_close_free, release_quiet, release_after_close, release_open_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
+   "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
+   "leanFor": [
+    "Fw.Parts.MorphEnd.release_starts",
+    "Fw.Parts.MorphEnd.release_close_free",
+    "Fw.Parts.MorphEnd.release_quiet",
+    "Fw.Parts.MorphEnd.release_after_close",
+    "Fw.Parts.MorphEnd.release_open_same",
+    "Fw.Parts.MorphEnd.order_free",
+    "Fw.Parts.MorphEnd.all_combinations"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
+   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
+   "userDecision": "pending"
+  },
+  {
+   "id": "morph.countdown.strip",
+   "n": 7,
+   "part": "morph.countdown (+ hero.countdown)",
+   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "status": "proved",
+   "flags": [
+    "morph.countdown:strip",
+    "hero.countdown:strip"
+   ],
+   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
+   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
+   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "leanFor": [
+    "Fw.Parts.MorphCountdownStrip.same_face_px",
+    "Fw.Parts.MorphCountdownStrip.phase_same",
+    "Fw.Parts.MorphCountdownStrip.dom_same",
+    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
+    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
+    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphCountdownStrip.layers_conservative",
+    "Fw.Parts.MorphCountdownStrip.layers_paused",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
+   ],
+   "missingWhy": [
+    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
+    "UIView creation time at morph start on the phone"
+   ],
+   "premises": [
+    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
+    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
+    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
+    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
+   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
   }
  ],
  "notes": [
