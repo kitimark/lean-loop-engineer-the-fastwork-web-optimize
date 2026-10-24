@@ -3,7 +3,7 @@
 // TS twin (checked against the golden by test/trajectory.test.mjs). It imports nothing but reduce.mjs, so the workflow's plan step
 // runs it with plain node (no install). `mergeRaws` is glue: it joins the raw readings of the legs of one engine.
 import { pathToFileURL } from 'node:url';
-import { ALLOWED_WIDTHS, pickWidths } from './reduce.mjs';
+import { ALLOWED_WIDTHS, bucket, needsSample, pickWidths } from './reduce.mjs';
 
 /** The engines of a dispatch's `engines` input: macOS WebKit runs with every WebKit. Null when refused. */
 export function enginesOf(input) {
@@ -45,6 +45,35 @@ export const inactiveAt = (flags, w) => flags.length > 0 && flags.every((f) => C
 
 /** What a width of a run rests on: its readings, or the proof that it equals its faithful arm there (Lean `basisAt`). */
 export const basisAt = (flags, w) => (inactiveAt(flags, w) ? 'same-by-proof' : 'measured');
+
+/** The most passes the candidate's morph walk takes beyond its first ones (Lean `extraCap`). */
+export const EXTRA_CAP = 15;
+
+/** Whether a reading (the morph values of the rows of one push, every pass pooled) has a row in bucket `k` (Lean `hit`). */
+export const hitIn = (ms, k) => ms.some((m) => bucket(m) === k);
+
+/** The interior buckets where the original and the faithful arm have a row and the candidate none (Lean `gapsIn`). */
+export const gapsIn = (o, b, c) => Array.from({ length: 11 }, (_, k) => k).filter((k) => needsSample(k) && hitIn(o, k) && hitIn(b, k) && !hitIn(c, k));
+
+/** The gaps of both pushes of a morph walk: `{ opening, closing }` readings (Lean `gaps`). */
+export const gapCount = (o, b, c) => gapsIn(o.opening, b.opening, c.opening).length + gapsIn(o.closing, b.closing, c.closing).length;
+
+/** Whether the candidate walks another pass after `extra` extra ones: below the cap and a gap left (Lean `more`). */
+export const moreReps = (extra, o, b, c) => extra < EXTRA_CAP && gapCount(o, b, c) !== 0;
+
+/** Two pooled readings (Lean `Push.pool`). */
+export const poolPush = (a, b) => ({ opening: a.opening.concat(b.opening), closing: a.closing.concat(b.closing) });
+
+/**
+ * The settle loop of the candidate's morph walk (Lean `settleWalk`): while `moreReps`, `walk(extra)` reads one more pass and its
+ * rows are pooled. Returns the extra passes walked and the pooled reading. Ends within `EXTRA_CAP` passes (Lean `settleWalk_le`).
+ */
+export async function settleReps(o, b, c0, walk) {
+  let extra = 0;
+  let c = c0;
+  while (moreReps(extra, o, b, c)) { c = poolPush(c, await walk(extra)); extra++; }
+  return { extra, c };
+}
 
 /** A group repeats when its new units fall at two or more widths (Lean `repeats`). */
 export const repeats = (ws) => new Set(ws).size >= 2;

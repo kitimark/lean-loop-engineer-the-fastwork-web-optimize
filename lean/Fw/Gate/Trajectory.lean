@@ -3174,6 +3174,287 @@ theorem inactive_unthrottle_same (w : Nat) (h : inactiveAt ["engine.scroll:unthr
     fun e he n => Fw.Parts.EngineScrollUnthrottle.guard_fine_cost e (he.trans hf) n,
     fun vp s x y wd => visible_idle vp s x y wd⟩
 
+/-- The morph values (times 10000) of the rows of one push phase of one arm, every pass pooled. -/
+abbrev Reading := List (Option Int)
+
+/-- The two pushes of a morph walk of one arm: the open phase and the close phase. -/
+structure Push where
+  opening : Reading
+  closing : Reading
+  deriving DecidableEq, Repr
+
+/-- The reading has a row in bucket `k`. -/
+def hit (ms : Reading) (k : Nat) : Bool := ms.any fun m => bucket m == k
+
+/-- The interior buckets where the original and the faithful arm have a row and the candidate has none. -/
+def gapsIn (o b c : Reading) : List Nat :=
+  (List.range 11).filter fun k => needsSample k && hit o k && hit b k && !hit c k
+
+/-- The gaps of both pushes. -/
+def gaps (o b c : Push) : Nat := (gapsIn o.opening b.opening c.opening).length + (gapsIn o.closing b.closing c.closing).length
+
+/-- The most passes the candidate walks beyond its first ones. -/
+def extraCap : Nat := 15
+
+/-- The candidate walks another pass when it has walked fewer than `extraCap` extra ones and has a gap. -/
+def more (extra : Nat) (o b c : Push) : Bool := decide (extra < extraCap) && decide (gaps o b c ≠ 0)
+
+/-- Two readings pooled: the rows of both. -/
+def Push.pool (a b : Push) : Push := ⟨a.opening ++ b.opening, a.closing ++ b.closing⟩
+
+/-- While `more`, walk the next pass `walk extra` and pool its rows; returns the extra passes walked and the pool. -/
+def settle (o b : Push) (walk : Nat → Push) : Nat → Nat → Push → Nat × Push
+  | 0, extra, c => (extra, c)
+  | fuel + 1, extra, c => if more extra o b c then settle o b walk fuel (extra + 1) (c.pool (walk extra)) else (extra, c)
+
+/-- The candidate's passes after its first ones: at most `extraCap` more. -/
+def settleWalk (o b c : Push) (walk : Nat → Push) : Nat × Push := settle o b walk extraCap 0 c
+
+/-- Pooled rows hit a bucket when either side does. -/
+theorem hit_append (a b : Reading) (k : Nat) : hit (a ++ b) k = (hit a k || hit b k) := by
+  simp [hit, List.any_append]
+
+/-- Pooling a reading with itself changes no bucket. -/
+theorem hit_self (a : Reading) (k : Nat) : hit (a ++ a) k = hit a k := by
+  simp [hit_append]
+
+/-- A row's own bucket is hit. -/
+theorem hit_of_mem (a : Reading) (m : Option Int) (h : m ∈ a) : hit a (bucket m) = true := by
+  simp only [hit, List.any_eq_true]; exact ⟨m, h, by simp⟩
+
+
+/-- A gap is an interior bucket the original and the faithful arm sampled and the candidate did not. -/
+theorem mem_gapsIn (o b c : Reading) (k : Nat) :
+    k ∈ gapsIn o b c ↔ k < 11 ∧ needsSample k = true ∧ hit o k = true ∧ hit b k = true ∧ hit c k = false := by
+  simp only [gapsIn, List.mem_filter, List.mem_range, Bool.and_eq_true, Bool.not_eq_true']
+  constructor
+  · rintro ⟨h1, ⟨⟨h2, h3⟩, h4⟩, h5⟩; exact ⟨h1, h2, h3, h4, h5⟩
+  · rintro ⟨h1, h2, h3, h4, h5⟩; exact ⟨h1, ⟨⟨h2, h3⟩, h4⟩, h5⟩
+
+/-- Readings with the same hits have the same gaps. -/
+theorem gapsIn_congr (o b c c' : Reading) (h : ∀ k, hit c k = hit c' k) : gapsIn o b c = gapsIn o b c' := by
+  simp [gapsIn, h]
+
+/-- More rows of the candidate never open a gap. -/
+theorem gapsIn_append_sub (o b c d : Reading) : (gapsIn o b (c ++ d)).Sublist (gapsIn o b c) := by
+  have e : gapsIn o b (c ++ d) = (gapsIn o b c).filter fun k => !hit d k := by
+    simp only [gapsIn, List.filter_filter]
+    apply List.filter_congr
+    intro k _
+    simp only [hit_append]
+    cases hit o k <;> cases hit b k <;> cases hit c k <;> cases hit d k <;> cases needsSample k <;> simp
+  rw [e]
+  exact List.filter_sublist
+
+/-- Two readings have rows in the same buckets. -/
+def Push.sameHits (p q : Push) : Prop := ∀ k, hit p.opening k = hit q.opening k ∧ hit p.closing k = hit q.closing k
+
+/-- Pushes with the same hits have the same gap count. -/
+theorem gaps_congr (o b c c' : Push) (h : c.sameHits c') : gaps o b c = gaps o b c' := by
+  simp only [gaps, gapsIn_congr o.opening b.opening c.opening c'.opening (fun k => (h k).1),
+    gapsIn_congr o.closing b.closing c.closing c'.closing (fun k => (h k).2)]
+
+/-- **Pooling never adds a gap**. -/
+theorem gaps_pool_le (o b c d : Push) : gaps o b (c.pool d) ≤ gaps o b c := by
+  have h1 := (gapsIn_append_sub o.opening b.opening c.opening d.opening).length_le
+  have h2 := (gapsIn_append_sub o.closing b.closing c.closing d.closing).length_le
+  simp only [gaps, Push.pool]
+  omega
+
+/-- No pass is walked once the candidate has no gap. -/
+theorem more_no_gap (extra : Nat) (o b c : Push) (h : gaps o b c = 0) : more extra o b c = false := by
+  simp [more, h]
+
+/-- No pass is walked at the cap. -/
+theorem more_cap (o b c : Push) : more extraCap o b c = false := by
+  simp [more]
+
+/-- The loop walks at most `fuel` more passes. -/
+theorem settle_le (o b : Push) (w : Nat → Push) :
+    ∀ fuel extra c, (settle o b w fuel extra c).1 ≤ extra + fuel := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra c; simp [settle]
+  | succ n ih =>
+    intro extra c
+    unfold settle
+    split
+    · have := ih (extra + 1) (c.pool (w extra)); omega
+    · omega
+
+/-- **Terminates**: a candidate walks at most `extraCap` extra passes. -/
+theorem settleWalk_le (o b c : Push) (w : Nat → Push) : (settleWalk o b c w).1 ≤ extraCap := by
+  have := settle_le o b w extraCap 0 c
+  simpa [settleWalk] using this
+
+/-- With fuel for the cap, the loop ends with `more` false. -/
+theorem settle_stop (o b : Push) (w : Nat → Push) :
+    ∀ fuel extra c, extraCap ≤ extra + fuel →
+      more (settle o b w fuel extra c).1 o b (settle o b w fuel extra c).2 = false := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro extra c h
+    simp only [settle]
+    simp [more]; omega
+  | succ n ih =>
+    intro extra c h
+    unfold settle
+    split
+    · exact ih (extra + 1) (c.pool (w extra)) (by omega)
+    · rename_i hm; simpa using hm
+
+/-- **Stops settled or capped**: the walk ends with no gap or with all `extraCap` extra passes spent. -/
+theorem settleWalk_stop (o b c : Push) (w : Nat → Push) :
+    gaps o b (settleWalk o b c w).2 = 0 ∨ (settleWalk o b c w).1 = extraCap := by
+  have h := settle_stop o b w extraCap 0 c (by omega)
+  have hl := settleWalk_le o b c w
+  simp only [settleWalk] at h hl ⊢
+  by_cases hg : gaps o b (settle o b w extraCap 0 c).2 = 0
+  · exact Or.inl hg
+  · right
+    simp [more, hg] at h
+    omega
+
+/-- **Recorded facts only**: whether another pass is walked depends on the pass count and the buckets the rows fall in. -/
+theorem more_congr (extra : Nat) (o b c c' : Push) (h : c.sameHits c') : more extra o b c = more extra o b c' := by
+  simp [more, gaps_congr o b c c' h]
+
+/-- A walk with no gap at the start walks no extra pass. -/
+theorem settleWalk_no_gap (o b c : Push) (w : Nat → Push) (h : gaps o b c = 0) : settleWalk o b c w = (0, c) := by
+  simp [settleWalk, extraCap, settle, more_no_gap 0 o b c h]
+
+/-- The loop never loses a hit bucket. -/
+theorem settle_hit_mono (o b : Push) (w : Nat → Push) :
+    ∀ fuel extra c k, (hit c.opening k = true → hit (settle o b w fuel extra c).2.opening k = true) ∧
+      (hit c.closing k = true → hit (settle o b w fuel extra c).2.closing k = true) := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra c k; simp [settle]
+  | succ n ih =>
+    intro extra c k
+    unfold settle
+    split
+    · refine ⟨fun h => (ih (extra + 1) (c.pool (w extra)) k).1 ?_, fun h => (ih (extra + 1) (c.pool (w extra)) k).2 ?_⟩
+      · simp [Push.pool, hit_append, h]
+      · simp [Push.pool, hit_append, h]
+    · exact ⟨id, id⟩
+
+/-- **Walking more loses no bucket**. -/
+theorem settleWalk_hit_mono (o b c : Push) (w : Nat → Push) (k : Nat) :
+    (hit c.opening k = true → hit (settleWalk o b c w).2.opening k = true) ∧
+    (hit c.closing k = true → hit (settleWalk o b c w).2.closing k = true) :=
+  settle_hit_mono o b w extraCap 0 c k
+
+/-- A reading pooled with itself has the same hits. -/
+theorem sameHits_pool_self (c : Push) : (c.pool c).sameHits c := by
+  intro k; simp [Push.pool, hit_self]
+
+/-- A page whose every pass reads `c` keeps `c`'s hits and, with a gap, spends every pass the fuel allows. -/
+theorem settle_const (o b : Push) (c : Push) :
+    ∀ fuel extra, ∀ p : Push, p.sameHits c →
+      (settle o b (fun _ => c) fuel extra p).2.sameHits c ∧
+      (gaps o b c ≠ 0 → extra + fuel ≤ extraCap → (settle o b (fun _ => c) fuel extra p).1 = extra + fuel) := by
+  intro fuel
+  induction fuel with
+  | zero => intro extra p hp; exact ⟨by simpa [settle] using hp, by simp [settle]⟩
+  | succ n ih =>
+    intro extra p hp
+    have hpp : (p.pool c).sameHits c := by
+      intro k
+      have := hp k
+      simp [Push.pool, hit_append, this.1, this.2]
+    unfold settle
+    by_cases hm : more extra o b p = true
+    · simp only [hm, ite_true]
+      obtain ⟨h1, h2⟩ := ih (extra + 1) (p.pool c) hpp
+      exact ⟨h1, fun hg hl => by have := h2 hg (by omega); omega⟩
+    · simp only [hm]
+      refine ⟨hp, fun hg hl => ?_⟩
+      exfalso
+      have hgp : gaps o b p ≠ 0 := by rw [gaps_congr o b p c hp]; exact hg
+      simp [more, hgp] at hm
+      omega
+
+/-- **Deterministic page, same coverage on repeat**: passes that read the first passes' rows leave the same buckets hit and the same gaps. -/
+theorem settleWalk_deterministic (o b c : Push) :
+    (settleWalk o b c (fun _ => c)).2.sameHits c ∧ gaps o b (settleWalk o b c (fun _ => c)).2 = gaps o b c := by
+  have h := (settle_const o b c extraCap 0 c (fun k => ⟨rfl, rfl⟩)).1
+  exact ⟨h, gaps_congr o b _ c h⟩
+
+/-- A deterministic page with a gap spends all `extraCap` extra passes and keeps the gap. -/
+theorem settleWalk_deterministic_capped (o b c : Push) (hg : gaps o b c ≠ 0) :
+    (settleWalk o b c (fun _ => c)).1 = extraCap := by
+  have := (settle_const o b c extraCap 0 c (fun k => ⟨rfl, rfl⟩)).2 hg (by omega)
+  simpa [settleWalk] using this
+
+/-- The rows of a candidate walk as readings: the morph value of each row. -/
+def readingOf (rs : List Samp) : Reading := rs.map (·.m)
+
+/-- A row is in bucket `k` exactly when the reading has a row there. -/
+theorem hit_readingOf (rs : List Samp) (k : Nat) : hit (readingOf rs) k = true ↔ ∃ r ∈ rs, bucket r.m = k := by
+  simp [hit, readingOf, List.any_eq_true]
+
+/-- **A gap is a failing unit**: a gap bucket of a push has no candidate row, so its verdict is `fail coverage`. -/
+theorem gap_is_coverage_fail (k : Kind) (d : List String → Option Nat) (seg orig rew : List Samp) (b : Nat)
+    (o bs : Reading) (h : b ∈ gapsIn o bs (readingOf rew)) : bucketVerdict .push k d seg orig rew b = .fail .coverage := by
+  rw [mem_gapsIn] at h
+  obtain ⟨_, hb, _, _, hc⟩ := h
+  apply bucketVerdict_push_empty k d seg orig rew b hb
+  intro r hr he
+  have : hit (readingOf rew) b = true := (hit_readingOf rew b).2 ⟨r, hr, he⟩
+  simp [this] at hc
+
+/-- **No gap, no empty bucket**: an interior bucket both other arms sampled holds a candidate row when there is no gap. -/
+theorem no_gap_sampled (o bs : Reading) (rew : List Samp) (h : gapsIn o bs (readingOf rew) = []) (b : Nat)
+    (hb : needsSample b = true) (hlt : b < 11) (ho : hit o b = true) (hbs : hit bs b = true) :
+    ∃ r ∈ rew, bucket r.m = b := by
+  refine Classical.byContradiction fun hc => ?_
+  have hn : hit (readingOf rew) b = false := by
+    cases hh : hit (readingOf rew) b
+    · rfl
+    · exact absurd ((hit_readingOf rew b).1 hh) hc
+  have : b ∈ gapsIn o bs (readingOf rew) := (mem_gapsIn _ _ _ _).2 ⟨hlt, hb, ho, hbs, hn⟩
+  simp [h] at this
+
+
+/-- A push of the given open and close morph values, all in a pass. -/
+def pushOf (op cl : List Int) : Push := ⟨op.map some, cl.map some⟩
+
+/-- A push with a row in each interior bucket 1 to 9. -/
+def fullPush : Push := pushOf [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]
+
+/-- The run 40099056290 shape at 390: the candidate has no row in open bucket 5 and close bucket 8. -/
+def gapPush : Push := pushOf [1000, 2000, 3000, 4000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 9000]
+
+/-- The run 40099056290 shape has two gaps. -/
+theorem gaps_run_shape : gaps fullPush fullPush gapPush = 2 := by decide
+
+/-- Branch gap: a pass is walked while the extra count is below the cap. -/
+theorem more_run_shape : more 0 fullPush fullPush gapPush = true := by decide
+
+/-- Branch no gap: the same arms with a candidate that has every bucket walk no pass. -/
+theorem more_full : more 0 fullPush fullPush fullPush = false := by decide
+
+/-- Branch the faithful arm has no row there either: that unit fails in both arms, so no pass is walked. -/
+theorem more_base_gap : more 0 fullPush gapPush gapPush = false := by decide
+
+/-- Branch end buckets: rows only in buckets 0 and 10 give no gap. -/
+theorem gaps_ends : gaps (pushOf [0, 10000] []) (pushOf [0, 10000] []) (pushOf [] []) = 0 := by decide
+
+/-- Branch a pass fills the gap: one extra pass with the missing rows ends the walk with no gap. -/
+theorem settle_fills : (settleWalk fullPush fullPush gapPush fun _ => pushOf [5000] [8000]).1 = 1 ∧
+    gaps fullPush fullPush (settleWalk fullPush fullPush gapPush fun _ => pushOf [5000] [8000]).2 = 0 := by decide
+
+/-- Branch the page never visits the bucket: all `extraCap` passes are walked and the gap stays. -/
+theorem settle_capped : (settleWalk fullPush fullPush gapPush fun _ => pushOf [1000] [1000]).1 = extraCap ∧
+    gaps fullPush fullPush (settleWalk fullPush fullPush gapPush fun _ => pushOf [1000] [1000]).2 = 2 := by decide
+
+/-- A flag active at every width whose Mac morph walk settled has no new unit, so its cell passes. -/
+theorem outcome_active_flag_settled :
+    outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
+  decide
+
 /-- A unit of `units-<engine>.json` as the recorder reads it; `coverage` is verdict `fail:coverage`, `isNew` is rel `new`. -/
 structure UnitRow where
   width : Nat
@@ -5249,6 +5530,9 @@ inductive Case where
   | exits
   | cellEnv
   | cell (name : String) (s : Stored)
+  | retry (name : String) (o b c : Push)
+  | settleRun (name : String) (o b c : Push) (passes : List Push)
+  | settleConst
 
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -5792,8 +6076,26 @@ def casesCell : List Case :=
     .cell "a run that names no flag" (cellRun [] .macWebkit .morph allowedWidths [g [] [641, 1280]]),
     .cell "the hero path, units at the fine widths" (cellRun un .macWebkit .hero allowedWidths [g [641, 1280] []])]
 
+def casesSettle : List Case :=
+  let full := fullPush
+  let nine := fun (xs : List Int) => pushOf xs xs
+  [.settleConst,
+    .retry "no gap: the candidate has every bucket" full full full,
+    .retry "two gaps (run 40099056290, 390)" full full gapPush,
+    .retry "the faithful arm lacks the bucket too" full gapPush gapPush,
+    .retry "the original lacks the bucket" gapPush full gapPush,
+    .retry "end buckets only" (nine [0, 10000]) (nine [0, 10000]) (pushOf [] []),
+    .retry "one gap in the open push only" full full (pushOf [1000, 2000, 3000, 4000, 6000, 7000, 8000, 9000] [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]),
+    .retry "rows without a morph value count in no bucket" full full ⟨[none, some 1000], [none]⟩,
+    .settleRun "no gap, no pass" full full full [],
+    .settleRun "one pass fills both gaps" full full gapPush [pushOf [5000] [8000]],
+    .settleRun "the third pass fills the open gap" full full gapPush [pushOf [1000] [1000], pushOf [2000] [8000], pushOf [5000] []],
+    .settleRun "the page never visits the bucket" full full gapPush [],
+    .settleRun "a pass that repeats the first passes' rows" full full gapPush [gapPush, gapPush],
+    .settleRun "the faithful arm lacks the bucket" full gapPush gapPush []]
+
 def cases : List Case :=
-  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable ++ casesCell
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable ++ casesCell ++ casesSettle
 
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
@@ -5834,6 +6136,13 @@ def optNat : Option Nat → Json
 
 /-- A rational as JSON: its numerator and denominator as decimal strings. -/
 def ratJson (q : Rat) : Json := Json.mkObj [("num", toString q.num), ("den", toString q.den)]
+
+/-- A reading as JSON: the morph values, null for a row without one. -/
+def Reading.json (r : Reading) : Json :=
+  Json.arr (r.map fun m => match m with | none => Json.null | some v => toJson v).toArray
+
+/-- A push as JSON. -/
+def Push.json (p : Push) : Json := Json.mkObj [("opening", p.opening.json), ("closing", p.closing.json)]
 
 /-- One golden line. -/
 def Case.line : Case → Json
@@ -5977,6 +6286,17 @@ def Case.line : Case → Json
         ("coverage", Json.arr (g.coverage.map fun w => toJson w).toArray)]).toArray),
       ("basis", Json.arr (allowedWidths.map fun w => Json.str (basisAt s.flags w).word).toArray),
       ("outcome", Json.str (outcome s).word)]
+  | .retry n o b c =>
+    Json.mkObj [("op", "retry"), ("name", n), ("o", o.json), ("b", b.json), ("c", c.json),
+      ("gapsOpening", Json.arr ((gapsIn o.opening b.opening c.opening).map fun k => toJson k).toArray),
+      ("gapsClosing", Json.arr ((gapsIn o.closing b.closing c.closing).map fun k => toJson k).toArray),
+      ("gaps", toJson (gaps o b c)), ("more", Json.bool (more 0 o b c)), ("moreCap", Json.bool (more extraCap o b c))]
+  | .settleRun n o b c ps =>
+    let r := settleWalk o b c fun i => ps.getD i ⟨[], []⟩
+    Json.mkObj [("op", "settle"), ("name", n), ("o", o.json), ("b", b.json), ("c", c.json),
+      ("passes", Json.arr (ps.map Push.json).toArray), ("extra", toJson r.1), ("gaps", toJson (gaps o b r.2)),
+      ("pool", r.2.json)]
+  | .settleConst => Json.mkObj [("op", "settleConst"), ("name", "table"), ("extraCap", toJson extraCap)]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
