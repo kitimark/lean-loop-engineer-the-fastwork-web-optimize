@@ -5,6 +5,7 @@ import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { join, normalize, extname, sep } from 'node:path';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -31,7 +32,7 @@ export async function startServer(root, port = 0) {
       // (dist/configs.json: bySearch -> hash -> byHash). An unknown search gets index.html, as apps/site's own server
       // does; the page then reports mode "client-render" and the driver refuses to measure it.
       if (p === '/' && pages) {
-        const hash = pages.bySearch[url.search];
+        const hash = pages.bySearch[canonSearch(url.search)];
         file = join(root, hash ? pages.byHash[hash] : 'index.html');
       }
       let st = await stat(file).catch(() => null);

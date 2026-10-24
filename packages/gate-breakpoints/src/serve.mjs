@@ -5,6 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PKG = resolve(HERE, '..');
@@ -43,7 +44,7 @@ export function rewriteFor(root, env = process.env) {
   const search = env.FW_SEARCH ?? "";
   if (!search) return { search: "", hash: null, rewrite: null };
   const cfg = JSON.parse(readFileSync(join(root, "configs.json"), "utf8"));
-  const hash = cfg.bySearch[search];
+  const hash = cfg.bySearch[canonSearch(search)];
   if (!hash) throw new Error(`FW_SEARCH "${search}" is not prerendered; known: ${Object.keys(cfg.bySearch).join(" | ")}`);
   const file = "/" + cfg.byHash[hash];
   return { search, hash, rewrite: (p) => (p === "/" || p === "/index.html" ? file : null) };

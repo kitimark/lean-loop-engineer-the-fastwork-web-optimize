@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Parts.Bezier
 import Fw.Parts.Nav
 import Fw.Parts.HeroExitCloseStart
+import Fw.Parts.EngineScrollUnthrottle
 /-!
 # Trajectory probe: does the rewrite move like the original along a scroll path?
 
@@ -2953,12 +2954,39 @@ inductive Outcome where
 /-- A group repeats when its `new` units fall at two or more widths. -/
 def repeats (ws : List Nat) : Bool := decide (2 ≤ ws.eraseDups.length)
 
-/-- **The verdict of a stored run**: none if undecidable or short of a width, fail on a content repeat, none on a coverage one. -/
+/-- Whether the probe's emulated primary pointer is coarse at a width: the touch environment up to 640 CSS px. -/
+def probeCoarse (w : Nat) : Bool := decide (w ≤ 640)
+
+/-- The flags whose whole style rule sits behind `(pointer: coarse)`; each has the theorems `inactive_unthrottle_same` states. -/
+def coarseOnly : List String := ["engine.scroll:unthrottle"]
+
+/-- A run is proved inactive at a width: it names flags, all coarse-only, and the width emulates a fine pointer. -/
+def inactiveAt (flags : List String) (w : Nat) : Bool :=
+  !flags.isEmpty && flags.all coarseOnly.contains && !probeCoarse w
+
+/-- What a width of a run rests on: its readings, or the proof that the run equals its faithful arm there. -/
+inductive Basis where
+  | measured
+  | sameByProof
+  deriving DecidableEq, Repr
+
+/-- The basis of one width, decided on that width alone. -/
+def basisAt (flags : List String) (w : Nat) : Basis := if inactiveAt flags w then .sameByProof else .measured
+
+/-- The group without the widths that rest on proof. -/
+def Group.measured (flags : List String) (g : Group) : Group :=
+  { g with content := g.content.filter (basisAt flags · == .measured), coverage := g.coverage.filter (basisAt flags · == .measured) }
+
+/-- The groups of a run that count: the widths that rest on proof are dropped, the others are kept. -/
+def Stored.measuredGroups (s : Stored) : List Group := s.groups.map (Group.measured s.flags)
+
+/-- **The verdict of a stored run**: none if undecidable or short of a width, fail on a content repeat, none on a coverage one;
+a width proved inactive is same by proof and counts no unit. -/
 def outcome (s : Stored) : Outcome :=
   if !covers s.engine s.walk then .unjudged .coverage
   else if !allowedWidths.all s.widths.contains then .unjudged .widths
-  else if s.groups.any (repeats ·.content) then .fail
-  else if s.groups.any (repeats ·.coverage) then .unjudged .coverage
+  else if s.measuredGroups.any (repeats ·.content) then .fail
+  else if s.measuredGroups.any (repeats ·.coverage) then .unjudged .coverage
   else .pass
 
 /-- An engine that cannot decide the path gives no verdict. -/
@@ -2977,57 +3005,178 @@ theorem outcome_widths (s : Stored) (hc : covers s.engine s.walk = true) (w : Na
 theorem outcome_cases (s : Stored) :
     outcome s = (if covers s.engine s.walk = false then .unjudged .coverage
       else if allowedWidths.all s.widths.contains = false then .unjudged .widths
-      else if s.groups.any (repeats ·.content) = true then .fail
-      else if s.groups.any (repeats ·.coverage) = true then .unjudged .coverage else .pass) := by
+      else if s.measuredGroups.any (repeats ·.content) = true then .fail
+      else if s.measuredGroups.any (repeats ·.coverage) = true then .unjudged .coverage else .pass) := by
   unfold outcome
   generalize covers s.engine s.walk = a
   generalize allowedWidths.all s.widths.contains = b
-  generalize s.groups.any (repeats ·.content) = c
-  generalize s.groups.any (repeats ·.coverage) = d
+  generalize s.measuredGroups.any (repeats ·.content) = c
+  generalize s.measuredGroups.any (repeats ·.coverage) = d
   cases a <;> cases b <;> cases c <;> cases d <;> simp
 
 /-- A covered run of all lane widths fails exactly when some group repeats on content. -/
 theorem outcome_fail_iff (s : Stored) :
     outcome s = .fail ↔ covers s.engine s.walk = true ∧ allowedWidths.all s.widths.contains = true ∧
-      ∃ g ∈ s.groups, repeats g.content = true := by
-  have e : (∃ g ∈ s.groups, repeats g.content = true) ↔ s.groups.any (repeats ·.content) = true := by simp
+      ∃ g ∈ s.measuredGroups, repeats g.content = true := by
+  have e : (∃ g ∈ s.measuredGroups, repeats g.content = true) ↔ s.measuredGroups.any (repeats ·.content) = true := by simp
   rw [e, outcome_cases]
   generalize covers s.engine s.walk = a
   generalize allowedWidths.all s.widths.contains = b
-  generalize s.groups.any (repeats ·.content) = c
-  generalize s.groups.any (repeats ·.coverage) = d
+  generalize s.measuredGroups.any (repeats ·.content) = c
+  generalize s.measuredGroups.any (repeats ·.coverage) = d
   cases a <;> cases b <;> cases c <;> cases d <;> simp
 
 /-- Coverage `new` units repeated across widths, with no content repeat, give no verdict, never a pass. -/
 theorem outcome_coverage_repeat (s : Stored) (hc : covers s.engine s.walk = true)
-    (hw : allowedWidths.all s.widths.contains = true) (hn : ∀ g ∈ s.groups, repeats g.content = false)
-    (g : Group) (hg : g ∈ s.groups) (hr : repeats g.coverage = true) :
+    (hw : allowedWidths.all s.widths.contains = true) (hn : ∀ g ∈ s.measuredGroups, repeats g.content = false)
+    (g : Group) (hg : g ∈ s.measuredGroups) (hr : repeats g.coverage = true) :
     outcome s = .unjudged .coverage := by
-  have h1 : s.groups.any (repeats ·.content) = false := by
+  have h1 : s.measuredGroups.any (repeats ·.content) = false := by
     rw [List.any_eq_false]; intro x hx; simp [hn x hx]
-  have h2 : s.groups.any (repeats ·.coverage) = true := List.any_eq_true.2 ⟨g, hg, hr⟩
+  have h2 : s.measuredGroups.any (repeats ·.coverage) = true := List.any_eq_true.2 ⟨g, hg, hr⟩
   rw [outcome_cases]
   simp [hc, hw, h1, h2]
 
 /-- **A pass, characterised**: a decidable path, every lane width walked, and no group repeating on either side. -/
 theorem outcome_pass_iff (s : Stored) :
     outcome s = .pass ↔ covers s.engine s.walk = true ∧ (∀ w ∈ allowedWidths, w ∈ s.widths) ∧
-      ∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false := by
+      ∀ g ∈ s.measuredGroups, repeats g.content = false ∧ repeats g.coverage = false := by
   have hw : (∀ w ∈ allowedWidths, w ∈ s.widths) ↔ allowedWidths.all s.widths.contains = true := by simp
-  have hg : (∀ g ∈ s.groups, repeats g.content = false ∧ repeats g.coverage = false) ↔
-      s.groups.any (repeats ·.content) = false ∧ s.groups.any (repeats ·.coverage) = false := by
+  have hg : (∀ g ∈ s.measuredGroups, repeats g.content = false ∧ repeats g.coverage = false) ↔
+      s.measuredGroups.any (repeats ·.content) = false ∧ s.measuredGroups.any (repeats ·.coverage) = false := by
     simp only [List.any_eq_false, Bool.not_eq_true]
     exact ⟨fun h => ⟨fun x hx => (h x hx).1, fun x hx => (h x hx).2⟩, fun h x hx => ⟨h.1 x hx, h.2 x hx⟩⟩
   rw [hw, hg, outcome_cases]
   generalize covers s.engine s.walk = a
   generalize allowedWidths.all s.widths.contains = b
-  generalize s.groups.any (repeats ·.content) = c
-  generalize s.groups.any (repeats ·.coverage) = d
+  generalize s.measuredGroups.any (repeats ·.content) = c
+  generalize s.measuredGroups.any (repeats ·.coverage) = d
   cases a <;> cases b <;> cases c <;> cases d <;> simp
 
 /-- A pass comes only from an engine that decides the path. -/
 theorem outcome_pass_covers (s : Stored) (h : outcome s = .pass) : covers s.engine s.walk = true :=
   ((outcome_pass_iff s).1 h).1
+
+/-- A width is coarse exactly up to 640 CSS px. -/
+theorem probeCoarse_iff (w : Nat) : probeCoarse w = true ↔ w ≤ 640 := by simp [probeCoarse]
+
+/-- A run is inactive at a width exactly when it names flags, all coarse-only, and the width is above 640. -/
+theorem inactiveAt_iff (fl : List String) (w : Nat) :
+    inactiveAt fl w = true ↔ fl ≠ [] ∧ (∀ f ∈ fl, f ∈ coarseOnly) ∧ 640 < w := by
+  simp [inactiveAt, probeCoarse, and_assoc]
+
+/-- Branch a coarse width: measured, whatever the flags. -/
+theorem basis_coarse (fl : List String) (w : Nat) (h : w ≤ 640) : basisAt fl w = .measured := by
+  have : inactiveAt fl w = false := by
+    cases hi : inactiveAt fl w
+    · rfl
+    · have := ((inactiveAt_iff fl w).1 hi).2.2; omega
+  simp [basisAt, this]
+
+/-- Branch a run that names a flag with an active rule: measured at every width. -/
+theorem basis_active_flag (fl : List String) (f : String) (hf : f ∈ fl) (hn : f ∉ coarseOnly) (w : Nat) :
+    basisAt fl w = .measured := by
+  have : inactiveAt fl w = false := by
+    cases hi : inactiveAt fl w
+    · rfl
+    · exact absurd (((inactiveAt_iff fl w).1 hi).2.1 f hf) hn
+  simp [basisAt, this]
+
+/-- Branch the unthrottle flag alone above 640 CSS px: same by proof. -/
+theorem basis_unthrottle_fine (w : Nat) (h : 640 < w) : basisAt ["engine.scroll:unthrottle"] w = .sameByProof := by
+  have : inactiveAt ["engine.scroll:unthrottle"] w = true :=
+    (inactiveAt_iff _ w).2 ⟨by simp, by simp [coarseOnly], h⟩
+  simp [basisAt, this]
+
+/-- The lane widths of the unthrottle flag alone: measured at 390 and 640, same by proof at 641 and 1280. -/
+theorem basis_unthrottle_lane :
+    allowedWidths.map (basisAt ["engine.scroll:unthrottle"]) = [.measured, .measured, .sameByProof, .sameByProof] := by
+  decide
+
+/-- A unit at a width proved inactive is dropped from the content of its group. -/
+theorem measured_add_content (fl : List String) (g : Group) (w : Nat) (h : inactiveAt fl w = true) :
+    ({ g with content := w :: g.content } : Group).measured fl = g.measured fl := by
+  simp [Group.measured, basisAt, h]
+
+/-- A unit at a width proved inactive is dropped from the coverage of its group. -/
+theorem measured_add_coverage (fl : List String) (g : Group) (w : Nat) (h : inactiveAt fl w = true) :
+    ({ g with coverage := w :: g.coverage } : Group).measured fl = g.measured fl := by
+  simp [Group.measured, basisAt, h]
+
+/-- A group whose units all sit at widths proved inactive counts nothing. -/
+theorem measured_empty (fl : List String) (g : Group) (h : ∀ x ∈ g.content ++ g.coverage, inactiveAt fl x = true) :
+    (g.measured fl).content = [] ∧ (g.measured fl).coverage = [] := by
+  simp only [List.mem_append] at h
+  constructor <;> simp only [Group.measured, List.filter_eq_nil_iff] <;> intro x hx <;>
+    simp [basisAt, h x (by simp [hx])]
+
+/-- The run is decided by the groups that count, its path, its walked widths: nothing else reads the units. -/
+theorem outcome_congr_measured (s t : Stored) (he : s.engine = t.engine) (hk : s.walk = t.walk) (hw : s.widths = t.widths)
+    (hm : s.measuredGroups = t.measuredGroups) : outcome s = outcome t := by
+  simp only [outcome, he, hk, hw, hm]
+
+/-- **Branch same by proof**: a covered run of all lane widths whose every new unit sits at a width proved inactive is a pass. -/
+theorem outcome_same_by_proof (s : Stored) (hc : covers s.engine s.walk = true)
+    (hw : allowedWidths.all s.widths.contains = true)
+    (h : ∀ g ∈ s.groups, ∀ x ∈ g.content ++ g.coverage, inactiveAt s.flags x = true) : outcome s = .pass := by
+  have hm : ∀ g ∈ s.measuredGroups, repeats g.content = false ∧ repeats g.coverage = false := by
+    intro g hg
+    obtain ⟨g0, hg0, rfl⟩ := List.mem_map.1 hg
+    have := measured_empty s.flags g0 (h g0 hg0)
+    simp [this.1, this.2, repeats]
+  exact (outcome_pass_iff s).2 ⟨hc, by simpa using hw, hm⟩
+
+/-- **Branch measured width, content**: a unit of the unthrottle flag repeated at the two coarse widths fails the cell. -/
+theorem outcome_unthrottle_coarse_fail :
+    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [390, 640], []⟩]⟩ = .fail := by decide
+
+/-- **Branch measured width, coverage**: a coverage unit repeated at the two coarse widths gives no verdict. -/
+theorem outcome_unthrottle_coarse_coverage :
+    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [], [390, 640]⟩]⟩ = .unjudged .coverage := by decide
+
+/-- **Branch same by proof (the run 40080296257 shape)**: content at 641, coverage at 641 and 1280, of the flag alone, is a pass. -/
+theorem outcome_unthrottle_fine_same :
+    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [641], [641, 1280]⟩]⟩ = .pass := by decide
+
+/-- The same units under a flag whose rule is active at every width stay unjudged: the proof is the flag's, not the probe's. -/
+theorem outcome_other_flag_unproved :
+    outcome ⟨"1", "s", "?fw=hero.exit:scoped", ["hero.exit:scoped"], .macWebkit, .morph, allowedWidths,
+      [⟨"nav", "p", [641], [641, 1280]⟩]⟩ = .unjudged .coverage := by decide
+
+/-- A run that shares the search with an active flag is measured at every width. -/
+theorem outcome_shared_search_unproved :
+    outcome ⟨"1", "s", "?fw=a:b,engine.scroll:unthrottle", ["a:b", "engine.scroll:unthrottle"], .macWebkit, .morph,
+      allowedWidths, [⟨"nav", "p", [], [641, 1280]⟩]⟩ = .unjudged .coverage := by decide
+
+/-- The fine-pointer flag element: an empty block of no height, because the rule that sizes it is behind the guard. -/
+def idleBox (x y w : Rat) : Fw.Engine.BoxVis :=
+  ⟨⟨x, y, w, 0⟩, ⟨x, y, w, 0⟩, [], ⟨1, 0, 0, 1, 0, 0⟩, 1, none, [], 0⟩
+
+/-- The empty block paints nothing: the viewport drops it. -/
+theorem idleBox_dropped (vp : Fw.Engine.Rect) (x y w : Rat) : (idleBox x y w).drop vp = true := by
+  simp [idleBox, Fw.Engine.BoxVis.drop, Fw.Engine.Affine.bbox, Fw.Engine.Affine.apply, Fw.Engine.Rect.meets, Std.max_self,
+    Std.min_self, Rat.add_zero, Rat.zero_add, Rat.sub_self, Rat.lt_irrefl]
+
+/-- A scene with the empty block shows what the scene shows. -/
+theorem visible_idle (vp : Fw.Engine.Rect) (s : Fw.Engine.Scene) (x y w : Rat) :
+    Fw.Engine.visible vp (s ++ [("fw-unthrottle", idleBox x y w)]) = Fw.Engine.visible vp s := by
+  simp [Fw.Engine.visible, List.filter_append, idleBox_dropped]
+
+/-- **Inactive means identical**: at a width proved inactive for the unthrottle flag the page keeps its animations, the
+element restyles nothing and the visible scene is the faithful arm's. -/
+theorem inactive_unthrottle_same (w : Nat) (h : inactiveAt ["engine.scroll:unthrottle"] w = true) :
+    (∀ (e : Fw.Parts.EngineScrollUnthrottle.Env), e.coarse = probeCoarse w → ∀ p, e.pageOf p = p) ∧
+    (∀ (e : Fw.Parts.EngineScrollUnthrottle.Env), e.coarse = probeCoarse w → ∀ n, e.restyled n = 0) ∧
+    (∀ vp s x y wd, Fw.Engine.visible vp (s ++ [("fw-unthrottle", idleBox x y wd)]) = Fw.Engine.visible vp s) := by
+  have hf : probeCoarse w = false := by
+    have := ((inactiveAt_iff _ w).1 h).2.2
+    simp [probeCoarse]; omega
+  exact ⟨fun e he p => Fw.Parts.EngineScrollUnthrottle.guard_fine_noop e (he.trans hf) p,
+    fun e he n => Fw.Parts.EngineScrollUnthrottle.guard_fine_cost e (he.trans hf) n,
+    fun vp s x y wd => visible_idle vp s x y wd⟩
 
 /-- A unit of `units-<engine>.json` as the recorder reads it; `coverage` is verdict `fail:coverage`, `isNew` is rel `new`. -/
 structure UnitRow where
@@ -5102,6 +5251,8 @@ inductive Case where
   | laneStep (name : String) (o o' cand base : List Samp)
   | stable (name : String) (ph : Phase) (p : Nat) (k : Kind) (node prop : String) (width b : Nat) (o cand base : List Samp)
   | exits
+  | cellEnv
+  | cell (name : String) (s : Stored)
 
 def casesJudge : List Case := [
   .judge "empty window" .unit [] (s0 [.num [1000]]),
@@ -5617,8 +5768,36 @@ def casesStable : List Case :=
     earn "first frame, original every pass, faithful sampled" 1 (passesWith 5 5) (passesWith 5 0) (passesWith 5 5),
     .exits]
 
+
+/-- A stored run of the flags `fl` whose search names them. -/
+def cellRun (fl : List String) (e : Engine) (w : Walk) (ws : List Nat) (gs : List Group) : Stored :=
+  ⟨"1", "s", "?fw=" ++ ",".intercalate fl, fl, e, w, ws, gs⟩
+
+def casesCell : List Case :=
+  let un := ["engine.scroll:unthrottle"]
+  let g := fun (c k : List Nat) => ({ node := "nav", prop := "p", content := c, coverage := k } : Group)
+  [.cellEnv,
+    .cell "linux webkit does not decide the morph path" (cellRun un .linuxWebkit .morph allowedWidths []),
+    .cell "a lane width not walked" (cellRun un .macWebkit .morph [390, 640, 641] []),
+    .cell "no unit" (cellRun un .macWebkit .morph allowedWidths []),
+    .cell "content repeated at the coarse widths" (cellRun un .macWebkit .morph allowedWidths [g [390, 640] []]),
+    .cell "coverage repeated at the coarse widths" (cellRun un .macWebkit .morph allowedWidths [g [] [390, 640]]),
+    .cell "content at one coarse width and one fine width" (cellRun un .macWebkit .morph allowedWidths [g [640, 641] []]),
+    .cell "coverage at one coarse width and one fine width" (cellRun un .macWebkit .morph allowedWidths [g [] [390, 1280]]),
+    .cell "units at the fine widths only (run 40080296257)" (cellRun un .macWebkit .morph allowedWidths [g [641] [641, 1280]]),
+    .cell "content at every width" (cellRun un .macWebkit .morph allowedWidths [g [390, 640, 641, 1280] []]),
+    .cell "content at the fine widths only" (cellRun un .chromium .morph allowedWidths [g [641, 1280] []]),
+    .cell "the same units, a flag active at every width"
+      (cellRun ["hero.exit:scoped"] .macWebkit .morph allowedWidths [g [641] [641, 1280]]),
+    .cell "the same content units, a flag active at every width"
+      (cellRun ["hero.exit:scoped"] .macWebkit .morph allowedWidths [g [641, 1280] []]),
+    .cell "a search shared with a flag active at every width"
+      (cellRun ["hero.exit:scoped", "engine.scroll:unthrottle"] .macWebkit .morph allowedWidths [g [] [641, 1280]]),
+    .cell "a run that names no flag" (cellRun [] .macWebkit .morph allowedWidths [g [] [641, 1280]]),
+    .cell "the hero path, units at the fine widths" (cellRun un .macWebkit .hero allowedWidths [g [641, 1280] []])]
+
 def cases : List Case :=
-  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable
+  casesJudge ++ casesRest ++ casesPlan ++ casesFlight ++ casesClose ++ casesStart ++ casesId ++ casesFirst ++ casesStable ++ casesCell
 
 def Widths.json : Widths → Json
   | .list ws => Json.mkObj [("ok", Json.bool true), ("widths", Json.arr (ws.map fun w => toJson w).toArray)]
@@ -5639,6 +5818,18 @@ def Walk.word : Walk → String
 def Leg.json (l : Leg) : Json :=
   Json.mkObj [("engine", l.engine.word), ("widths", Json.arr (l.widths.map fun w => toJson w).toArray),
     ("walks", Json.arr (l.walks.map fun w => Json.str w.word).toArray)]
+
+/-- The word of a basis in the cell golden. -/
+def Basis.word : Basis → String
+  | .measured => "measured"
+  | .sameByProof => "same-by-proof"
+
+/-- The word of an outcome in the cell golden. -/
+def Outcome.word : Outcome → String
+  | .pass => "pass"
+  | .fail => "fail"
+  | .unjudged .coverage => "unjudged:coverage"
+  | .unjudged .widths => "unjudged:widths"
 
 /-- An optional count as JSON: null or the number. -/
 def optNat : Option Nat → Json
@@ -5778,6 +5969,18 @@ def Case.line : Case → Json
           Json.arr #[Json.bool r, Json.bool st, Json.str l.name, toJson (laneExit r st l)]).toArray),
       ("join", Json.arr ([0, 1, 2, 3].flatMap fun a => [0, 1, 2, 3].map fun b =>
         Json.arr #[toJson a, toJson b, toJson (exitJoin a b)]).toArray)]
+  | .cellEnv =>
+    Json.mkObj [("op", "cellEnv"), ("name", "table"),
+      ("rows", Json.arr (allowedWidths.map fun w => Json.arr #[toJson w, Json.bool (probeCoarse w)]).toArray),
+      ("coarseOnly", Json.arr (coarseOnly.map Json.str).toArray)]
+  | .cell n s =>
+    Json.mkObj [("op", "cell"), ("name", n), ("engine", s.engine.word), ("walk", s.walk.word),
+      ("flags", Json.arr (s.flags.map Json.str).toArray), ("widths", Json.arr (s.widths.map fun w => toJson w).toArray),
+      ("groups", Json.arr (s.groups.map fun g => Json.mkObj [("node", g.node), ("prop", g.prop),
+        ("content", Json.arr (g.content.map fun w => toJson w).toArray),
+        ("coverage", Json.arr (g.coverage.map fun w => toJson w).toArray)]).toArray),
+      ("basis", Json.arr (allowedWidths.map fun w => Json.str (basisAt s.flags w).word).toArray),
+      ("outcome", Json.str (outcome s).word)]
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/gate/trajectory.jsonl"
 
