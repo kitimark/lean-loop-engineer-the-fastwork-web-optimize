@@ -94,7 +94,9 @@ export function earnTransitionOn({ flag, morphing }: { flag: boolean; morphing: 
   return !(flag && morphing);
 }
 
-/** The state classes the driver owns, as the original's class names. `onDark` is nav.hitTest's. */
+export const EARN_LOGICAL_VARIANT = 'earn-logical';
+export const EARN_LOGICAL_CLASS = 'is-earn-logical';
+
 export const CLASS_OF: Readonly<Record<Exclude<keyof View, 'onDark'>, string[]>> = {
   heroPill: ['is-hero-pill'],
   ready: ['is-hero-chrome-ready'],

@@ -20263,7 +20263,8 @@
     "packages/gate-breakpoints/test/trajectory.test.mjs",
     "packages/contracts/golden/parts/footprint.gen.json"
    ],
-   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone.",
+   "evidence": "996ba63"
   },
   {
    "devices": [
@@ -20715,6 +20716,32 @@
     "docs/team/handoffs/webkit-morph-walk-noise.md"
    ],
    "title": "Split follow-up of webkit-morph-cell: on the Mac WebKit morph path, a flag that is active at every width still shows the same coverage repeat as the control (walk coverage noise), so such flags cannot join v2-proved. Find the cause from the probe source and a run (walk length, per-width timing), then fix it with a probe change (longer morph walk or a per-width retry) decided in Lean; prove the decision, replay its golden, and show one flag active at all widths passing the Mac morph cell on CI."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-timeout",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/throttle/cli.mjs",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/driver/**",
+    "packages/measure-webkit/src/sim.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/sim-touch.jsonl",
+    "packages/measure-webkit/test/sim-touch*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Device/SimTouch.lean",
+    "research/notes/2026/10-2x-sim-touch-timeout.md",
+    "docs/team/handoffs/sim-touch-timeout.md"
+   ],
+   "title": "Blocker for every Simulator measurement (morph-end-measure run 40105567688: 6 of 6 sim jobs failed or cancelled; unthrottle-parts-measure finish run 40101695202 lost its lifted arms; rest run 40101702393 two VMs stalled in warm-up): the touch driver times out ('touches failed (code null, timed out) in 300 s', 'not usable (touch driver timed out); trying once more'), simctl openurl times out, and warm-up stalls at load ~560. Find the cause CONFIRMED from the driver source, the job logs and the Simulator/XCTest docs (one debug run on this Mac allowed, <= 5 min, sim-lock), then fix it (driver timeouts sized to the measured pass length, a readiness probe before touches, a per-pass watchdog that restarts the Simulator instead of burning the job), with the retry/readiness decision proved in Lean and a golden replayed by a test. Show on CI that a finish-mode and a hero-drag job each complete all arms (3 jobs, free macOS runners)."
   }
  ],
  "deadline": {

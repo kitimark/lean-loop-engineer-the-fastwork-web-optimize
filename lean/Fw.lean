@@ -27,6 +27,7 @@ import Fw.Parts.NavHitTest
 import Fw.Parts.NavHitTestOpt
 import Fw.Parts.NavHitTestElements
 import Fw.Parts.NavEarnOpt
+import Fw.Parts.NavEarnWebkit
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroCountdownOneChain
@@ -151,6 +152,7 @@ import Fw.Gate.Coverage
 import Fw.Gate.Settle
 import Fw.Gate.Freeze
 import Fw.Gate.AlignEquiv
+import Fw.Gate.TransitionList
 import Fw.Gate.Pixel
 import Fw.Wire.Gate
 import Fw.Wire.GateDeclared

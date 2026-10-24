@@ -257,10 +257,6 @@ structure Rule where
   delay : Option Nat
   deriving DecidableEq, Repr
 
-/-- The rules of `apps/site/src/parts/nav/nav.module.css` that set a transition, in source order.
-
-`trajectory.test.mjs` parses the CSS file and requires this list exactly. The rules at lines 297 and 298 are the two
-selectors of one rule, each at its own line. -/
 def rules : List Rule := [
   ⟨6, "nav", [], [], none, false, 1, some [("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
   ⟨41, "nav", [], ["is-morphing"], none, false, 2,
@@ -280,10 +276,14 @@ def rules : List Rule := [
   ⟨189, "earn", ["is-hero-pill"], [], none, false, 4,
     some [("max-width", 680, 0), ("opacity", 200, 0), ("padding-inline", 680, 0)], none⟩,
   ⟨201, "earn", ["is-earn-still"], [], none, false, 4, some [], none⟩,
-  ⟨290, "nav", [], ["is-morphing"], none, true, 2,
+  ⟨235, "earn", ["is-earn-logical"], ["is-hero-pill", "is-earn-still"], none, false, 6,
+    some [("max-width", 680, 0), ("opacity", 320, 120), ("padding-inline-start", 680, 0), ("padding-inline-end", 680, 0)], none⟩,
+  ⟨242, "earn", ["is-earn-logical", "is-hero-pill"], ["is-earn-still"], none, false, 6,
+    some [("max-width", 680, 0), ("opacity", 200, 0), ("padding-inline-start", 680, 0), ("padding-inline-end", 680, 0)], none⟩,
+  ⟨304, "nav", [], ["is-morphing"], none, true, 2,
     some [("background", 320, 0), ("opacity", 280, 0), ("transform", 320, 0), ("visibility", 0, 320)], none⟩,
-  ⟨297, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
-  ⟨298, "earn", [], [], none, true, 2, some [], none⟩]
+  ⟨311, "nav", ["is-morphing"], [], none, true, 2, some [], none⟩,
+  ⟨312, "earn", [], [], none, true, 2, some [], none⟩]
 
 /-- The CSS properties whose transitions move a property the probe reads; `[]` when no transition moves it.
 
