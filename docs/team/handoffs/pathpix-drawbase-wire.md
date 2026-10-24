@@ -8,11 +8,11 @@
   the golden `drawBase` rows `run 40037992429 job-N X` (lane, base, above); a second test sends them and the golden negatives
   through fwcore; a third checks the committed `zones.md` equals what the script prints. The fwcore tests skip when the binary is not built.
 - Script (`packages/measure-webkit/src/pathpix-exit-draw-zones.mjs`): `outsideLane`, `withAbove` (fwcore `gate.pathpixDrawBase`),
-  `aboveTable`; `zoneTable` appends the table when every job carries `above`. Formatting only.
+  `aboveTable`; `zoneTable` appends the table when every job carries `above`.
 - `zones.md` regenerated: `node src/pathpix-exit-draw-zones.mjs d1=<job-1/cells.json> d2=... d3=...` from `packages/measure-webkit`.
   The old tables are unchanged; the new one has baselines 100/1965/17 (N) and 35751/101/100 (F), and the F column 0 x7, 17622, 16871, 12709, 8584, 2092, 0, 0.
 
-## Writes outside the task (needed: fwcore had no op for drawBase)
+## Writes outside the task (fwcore had no op for drawBase)
 - `apps/runner/src/land.ts`: one read glob (`results/accent-draw-nolayout-pixels/run-40037992429/**`) for packages/measure-webkit, asked by land-inputs.
 - New `lean/Fw/Gate/PathPixWire.lean` (op `gate.pathpixDrawBase`, theorems `laneJson_pinned`, `laneJson_unpinned`), registered in
   `lean/Fw/Wire.lean` (import, `ops`, dispatch) and `lean/Fw.lean` (import).

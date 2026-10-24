@@ -498,10 +498,10 @@ def ops : List String :=
   ++ Fw.Wire.Lint.ops -- context-slop: lint.context
   ++ Fw.Wire.LakeGc.ops -- lean-bin-slim: ops.lakeGc
   ++ Fw.Wire.DiskGc.ops -- disk-auto-gc: ops.diskGc, ops.diskGcPath
-  ++ Fw.Wire.Reap.ops -- orphan-guard: ops.lspReap
-  ++ Fw.Wire.WatchDiff.ops -- watch-stream: ops.watchDiff, ops.watchKeep
-  ++ Fw.Wire.Faithful.ops -- faithful-checks: faithful.verdict
-  ++ Fw.Wire.PathPix.ops -- pathpix-drawbase-wire: gate.pathpixDrawBase
+  ++ Fw.Wire.Reap.ops
+  ++ Fw.Wire.WatchDiff.ops
+  ++ Fw.Wire.Faithful.ops
+  ++ Fw.Wire.PathPix.ops
   ++ ["console.replay", "console.query", "console.reset"] -- stateful ops: Fw/Serve.lean (fwcore serve)
 
 /-- Dispatch one parsed request object (every op but `samples`). -/
@@ -578,10 +578,10 @@ def handleCore (req : Json) : Except String Reply := do
     match Fw.Wire.WatchDiff.handle other req with  -- watch-stream
     | some r => r
     | none =>
-    match Fw.Wire.Faithful.handle other req with  -- faithful-checks: faithful.verdict
+    match Fw.Wire.Faithful.handle other req with
     | some r => r
     | none =>
-    match Fw.Wire.PathPix.handle other req with  -- pathpix-drawbase-wire
+    match Fw.Wire.PathPix.handle other req with
     | some r => r
     | none => throw s!"unknown op {other}"
 
