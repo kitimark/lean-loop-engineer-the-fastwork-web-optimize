@@ -74,8 +74,8 @@ export function parseArgs(argv: string[]): Args {
   return a;
 }
 
-function run(cmd: string, args: string[], cwd?: string): { status: number | null; out: string } {
-  const r = spawnSync(cmd, args, { cwd, encoding: "utf8", maxBuffer: 1 << 28, env: { ...process.env, LC_ALL: "C" } });
+function run(cmd: string, args: string[], cwd?: string, timeout?: number): { status: number | null; out: string } {
+  const r = spawnSync(cmd, args, { cwd, timeout, encoding: "utf8", maxBuffer: 1 << 28, env: { ...process.env, LC_ALL: "C" } });
   return { status: r.status, out: r.stdout ?? "" };
 }
 
@@ -115,10 +115,10 @@ export function gatherOpens(): string[] | null {
 }
 
 /** Fact: the working directory of every process lsof can see (agents, shells, tools). Limit: a snapshot of now, and
- * processes of other users are invisible; null (kept) when lsof prints nothing. Lean decides what the paths block. */
+ * processes of other users are invisible; null (kept) when lsof prints nothing, times out or exits other than 0 or 1. Lean decides what the paths block. */
 export function gatherCwds(): string[] | null {
-  const r = run("lsof", ["-n", "-w", "-a", "-d", "cwd", "-Fn"]);
-  if (!r.out) return null;
+  const r = run("lsof", ["-n", "-w", "-a", "-d", "cwd", "-Fn"], undefined, 60_000);
+  if ((r.status !== 0 && r.status !== 1) || !r.out) return null;
   return [...new Set(r.out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1)))];
 }
 

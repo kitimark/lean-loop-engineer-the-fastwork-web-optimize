@@ -120,6 +120,10 @@ def absOk (r : String) : Bool :=
 
 def wtRoot (r : Roots) : String := r.repo ++ "/.claude/worktrees"
 
+/-- The worktree directory that holds `c`: the worktree root plus the first segment of `c` below it. -/
+def wtOf (r : Roots) (c : String) : String :=
+  wtRoot r ++ "/" ++ ((c.drop ((wtRoot r).length + 1)).toString.splitOn "/").headD ""
+
 def consoleRoot (r : Roots) : String := r.repo ++ "/.fw-console"
 
 def classRoot (r : Roots) : Cls → String
@@ -209,13 +213,15 @@ def queuedB (cfg : Config) (b : String) : Bool :=
   | none => true
   | some q => q.contains b
 
-/-- A live process works in `c`. It blocks `x` when `c` is inside `x`, or when `c` is a worktree (or inside one)
-that contains `x`, such as an agent in a worktree root and an idle `node_modules` below it. A `c` above the worktree
-root never blocks by containing `x`. An unread list blocks everything. -/
+/-- A live process works in `c`. It blocks `x` when `c` is inside `x`, when `c` is the worktree root and `x` is below
+it, or when `c` is inside one worktree and `x` is anywhere under that worktree (its root `node_modules` and
+`lean/.lake` included). A `c` above the worktree root never blocks by containing `x`. An unread list blocks
+everything. -/
 def cwdHits (cfg : Config) (x : Cand) : Bool :=
   match cfg.cwds with
   | none => true
-  | some cs => cs.any fun c => under x.path c || (under (wtRoot cfg.roots) c && under c x.path)
+  | some cs => cs.any fun c => under x.path c || (c == wtRoot cfg.roots && under c x.path) ||
+    (under (wtRoot cfg.roots) c && c != wtRoot cfg.roots && under (wtOf cfg.roots c) x.path)
 
 def live (cfg : Config) (x : Cand) : Bool :=
   openIn cfg x || cwdHits cfg x || lockLive cfg x.lock || (x.branch != "" && queuedB cfg x.branch)
@@ -373,6 +379,8 @@ def exConsole (rel : String) : Cand :=
 #guard chosen exCfg (exWt .landed "w1" true .free)
 #guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1/apps"] } (exWt .landed "w1" true .free)
 #guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1"] } (exWt .idle "w1/lean/.lake" false .free)
+#guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1/apps"] } (exWt .idle "w1/node_modules" false .free)
+#guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1/apps"] } (exWt .idle "w1/lean/.lake" false .free)
 #guard !chosen { exCfg with cwds := none } (exWt .landed "w1" true .free)
 #guard chosen { exCfg with cwds := some ["/", "/u/r/.claude/worktrees/w2"] } (exWt .landed "w1" true .free)
 #guard chosen exRemote (exWt .landed "wf_1f-dfd-1" true .free)
@@ -648,7 +656,9 @@ theorem reopened_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .
   exact hm (rule_landed cfg xs x h hc).2.2.2.1
 
 theorem never_cwd (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) :
-    ∃ cs, cfg.cwds = some cs ∧ ∀ c ∈ cs, under x.path c = false ∧ (under (wtRoot cfg.roots) c = false ∨ under c x.path = false) := by
+    ∃ cs, cfg.cwds = some cs ∧ ∀ c ∈ cs, under x.path c = false ∧
+      (c == wtRoot cfg.roots → under c x.path = false) ∧
+      (under (wtRoot cfg.roots) c = true → c != wtRoot cfg.roots → under (wtOf cfg.roots c) x.path = false) := by
   have hl := ((guard_iff cfg x).1 (selected_guard cfg xs x h)).2.2.2
   simp only [live, Bool.or_eq_false_iff] at hl
   have h1 := hl.1.1.2
@@ -660,22 +670,33 @@ theorem never_cwd (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select c
     refine ⟨cs, rfl, fun c hc => ?_⟩
     have := List.any_eq_false.1 h1 c hc
     simp only [Bool.not_eq_true, Bool.or_eq_false_iff] at this
-    refine ⟨this.1, ?_⟩
-    cases h2 : under (wtRoot cfg.roots) c
-    · exact Or.inl rfl
-    · exact Or.inr (by simpa [h2] using this.2)
+    refine ⟨this.1.1, fun he => ?_, fun hin hne => ?_⟩
+    · simpa [he] using this.1.2
+    · simpa [hin, hne] using this.2
 
-/-- Every worktree-touching class (landed worktrees, idle `node_modules`) is guarded: a worktree that holds a live
-process's cwd is never selected, whichever class it is. -/
+/-- Every worktree-touching class (landed worktrees, idle `node_modules`, `lean/.lake`) is guarded: a candidate under
+a worktree that holds a live process's cwd anywhere inside it is never selected, whichever class it is. -/
 theorem worktree_cwd_kept (cfg : Config) (xs : List Cand) (x : Cand) (cs : List String) (hcs : cfg.cwds = some cs)
-    (c : String) (hc : c ∈ cs) (hin : under (wtRoot cfg.roots) c = true) (hx : under c x.path = true) :
+    (c : String) (hc : c ∈ cs) (hin : under (wtRoot cfg.roots) c = true) (hne : (c != wtRoot cfg.roots) = true)
+    (hx : under (wtOf cfg.roots c) x.path = true) :
     x ∉ select cfg xs := by
   intro h
   obtain ⟨cs', hcs', hall⟩ := never_cwd cfg xs x h
   rw [hcs] at hcs'
   cases hcs'
-  have := hall c hc
-  simp [hin, hx] at this
+  have := (hall c hc).2.2 hin hne
+  simp [hx] at this
+
+/-- A cwd equal to the worktree root keeps every candidate under it. -/
+theorem root_cwd_kept (cfg : Config) (xs : List Cand) (x : Cand) (cs : List String) (hcs : cfg.cwds = some cs)
+    (c : String) (hc : c ∈ cs) (he : (c == wtRoot cfg.roots) = true) (hx : under c x.path = true) :
+    x ∉ select cfg xs := by
+  intro h
+  obtain ⟨cs', hcs', hall⟩ := never_cwd cfg xs x h
+  rw [hcs] at hcs'
+  cases hcs'
+  have := (hall c hc).2.1 he
+  simp [hx] at this
 
 theorem cwd_unread_kept (cfg : Config) (xs : List Cand) (x : Cand) (h : cfg.cwds = none) : x ∉ select cfg xs := by
   intro hs

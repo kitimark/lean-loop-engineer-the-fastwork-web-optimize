@@ -102,9 +102,12 @@ def gcCases : List (String × String × Json) := [
   ("class 3 (gc-live-agent-cwd): a live agent's cwd in the worktree root keeps its idle node_modules", "ops.diskGc",
     req [("cwds", .arr #[.str "/h/r/.claude/worktrees/w1"])]
       [wt 3 "w1/node_modules" 100 false false, wt 3 "w2/node_modules" 100 false false]),
+  ("class 3 (gc-live-agent-cwd): a live agent's cwd in a worktree subdirectory keeps the worktree's root node_modules and lean/.lake", "ops.diskGc",
+    req [("cwds", .arr #[.str "/h/r/.claude/worktrees/w1/apps"])]
+      [wt 3 "w1/node_modules" 100 false false, wt 3 "w1/lean/.lake" 100 false false, wt 3 "w2/node_modules" 100 false false]),
   ("class 2 (gc-live-agent-cwd): cwds not gathered keep it", "ops.diskGc", req [("cwds", .null)] [wt 2 "w1" 0 true false]),
   ("class 2 (gc-live-agent-cwd): remote land 'land <task> <sha7>' with the task's run owning the worktree selects it, "
-    ++ "another task or an unread task map keeps it", "ops.diskGc",
+    ++ "a worktree of a run the task does not map is kept", "ops.diskGc",
     req [("landSubjects", .arr #[.str "land task-x 1234567"]), ("taskRuns", .arr #[Json.mkObj [("task", .str "task-x"), ("run", .str "wf_1f18354c-dfd")]])]
       [wt 2 "wf_1f18354c-dfd-1" 0 true false, wt 2 "wf_aaaaaaaa-bbb-1" 0 true false]),
   ("class 2 (gc-live-agent-cwd): remote land with the task map unread keeps it", "ops.diskGc",
