@@ -68,12 +68,33 @@ const RUN_SRC = `(() => {
   const keyEl = new Map();
   // a layer the probe did not name takes the one composited element of its size (bounds in px), when exactly one has that size
   const sizeCand = new Map();
+  // still unnamed: the elements of the page with that size (a layer is mostly its element's box) form a guessed group; the layer
+  // takes the first of them, its entry says "1 of N same size", and the guess never sets hidden or clipped flags
+  const sizeAll = new Map();
+  const guessIdx = new Map();
+  const guessList = new Map();
+  const guessOf = (key) => {
+    const l = sizeAll.get(key);
+    if (!l || !l.length) return -1;
+    let g = guessIdx.get(key);
+    if (g === undefined) {
+      g = els.length;
+      els.push({ d: desc(l[0]) + (l.length > 1 ? ' (1 of ' + l.length + ' same size)' : ' (size match)'), p: partOf(l[0]), g: 1 });
+      elRef.push(l[0]);
+      guessIdx.set(key, g);
+      guessList.set(g, l.slice(0, 60));
+    }
+    return g;
+  };
   const elOfNodes = (nodes, keys) => {
     const r = new Array(nodes.length);
     for (const n of nodes) {
       let e = keyEl.get(keys[n.i]);
-      if (e === undefined && n.b) { const l = sizeCand.get(Math.round(n.b[0]) + 'x' + Math.round(n.b[1])); if (l && l.length === 1) e = idx(l[0]); }
-      r[n.i] = e !== undefined ? e : n.p >= 0 ? r[n.p] : -1;
+      const sk = n.b ? Math.round(n.b[0]) + 'x' + Math.round(n.b[1]) : null;
+      if (e === undefined && sk) { const l = sizeCand.get(sk); if (l && l.length === 1) e = idx(l[0]); }
+      if (e === undefined && n.p >= 0 && r[n.p] >= 0) e = r[n.p];
+      if (e === undefined && sk) { const g = guessOf(sk); if (g >= 0) e = g; }
+      r[n.i] = e !== undefined ? e : -1;
     }
     return r;
   };
@@ -108,7 +129,8 @@ const RUN_SRC = `(() => {
   };
   const causeFor = (el, ev) => {
     const toks = new Set();
-    for (const e of ev) if (near(el, e.el)) toks.add(e.tok);
+    const some = Array.isArray(el) ? el : [el];
+    for (const e of ev) if (some.some((x) => near(x, e.el))) toks.add(e.tok);
     return toks.size ? [...toks].slice(0, 4).join(' ') : 'scroll';
   };
 
@@ -136,6 +158,13 @@ const RUN_SRC = `(() => {
     const maxY = Math.max(0, docH - innerHeight);
     measureRanges();
     measureTiny();
+    for (const el of document.querySelectorAll('body *')) {
+      const b = el.getBoundingClientRect();
+      if (b.width < 1 || b.height < 1) continue;
+      const k = Math.round(b.width) + 'x' + Math.round(b.height);
+      const l = sizeAll.get(k);
+      if (!l) sizeAll.set(k, [el]); else l.push(el);
+    }
     // ---- probe: which layer is which element
     const cands = [];
     for (const el of document.querySelectorAll('body, body *')) {
@@ -195,7 +224,8 @@ const RUN_SRC = `(() => {
         if (!n.rep.length) continue;
         const ei = nodeEl[n.i];
         const el = ei >= 0 ? elRef[ei] : null;
-        fr.L.push({ i: n.i, r: n.rep, v: n.vis, c: n.tcov || n.cov, b: n.b, h: n.h || (el ? hiddenDom(el) : 0), cl: el ? clippedDom(el) : 0, t: n.tiled, e: ei, k: el ? causeFor(el, ev) : 'scroll' });
+        const gl = ei >= 0 && els[ei].g ? guessList.get(ei) : null;
+        fr.L.push({ i: n.i, r: n.rep, v: n.vis, c: n.tcov || n.cov, b: n.b, h: n.h || (el && !gl ? hiddenDom(el) : 0), cl: el && !gl ? clippedDom(el) : 0, t: n.tiled, e: ei, k: el ? causeFor(gl || el, ev) : 'scroll' });
       }
       const shape = t.nodes.map((n) => n.p).join(',');
       if (prevShape === shape) {
