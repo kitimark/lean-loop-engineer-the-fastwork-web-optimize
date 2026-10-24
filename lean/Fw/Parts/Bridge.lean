@@ -3,8 +3,7 @@ import Fw.Parts.Contract
 
 /-!
 # Bridge from the contract rows to the Lego swap, and page passes never increase
-`Indep` of `Fw.Engine.Compose` becomes `Flow` (no non-`quiet` path); the 12 isolated `codeParts` rows swap alone; the
-literal `Independent → Indep` fails on the listed pairs; a strict part pass saving never raises page passes (S3).
+`Indep` of `Fw.Engine.Compose` becomes `Flow`; the isolated `codeParts` rows swap alone.
 -/
 
 namespace Fw.Parts.Bridge
@@ -462,7 +461,7 @@ def codeAdj : List (List Nat) :=
    [],
    [],
    [],
-   []]
+   [0, 1, 4, 6, 7, 8, 9, 10, 11, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28]]
 
 /-- `codeAdj` is the adjacency of the code rows.
 
@@ -489,13 +488,10 @@ theorem reach_code_iff {p : Nat} (hp : p < 34) (q : Nat) :
     reach_of_mem_reachList mem_codeAdj p 6 q⟩
   exact List.all_eq_true.mp closed_code p (List.mem_range.mpr hp)
 
-/-- **The isolated code rows.** Exactly 12 positions of `codeParts` are quiet towards every other position.
-
-These are the parts `lego_swap_sound_flow` applies to. -/
 theorem isolated_code :
-    (List.range 34).filter (isolated codeParts) = [1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33] ∧
-      ([1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32, 33].filterMap fun i => codeParts[i]?.map (·.id)) =
-        ["commission.typing", "hero.deck", "nav.langMenu", "overlays.drawer", "overlays.signup", "people", "people.carousel", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"] := by decide
+    (List.range 34).filter (isolated codeParts) = [1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32] ∧
+      ([1, 8, 18, 19, 20, 23, 25, 29, 30, 31, 32].filterMap fun i => codeParts[i]?.map (·.id)) =
+        ["commission.typing", "hero.deck", "nav.langMenu", "overlays.drawer", "overlays.signup", "people", "people.carousel", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg"] := by decide
 
 /-- `Independent` at two positions of `ps`.
 
@@ -593,45 +589,45 @@ theorem chainPairs_code_iff (p q : Nat) :
     have hp : p < 34 := hlen ▸ (List.getElem?_eq_some_iff.mp hP).1
     exact ⟨p, hp, q, ⟨(reach_code_iff hp q).mp hr, fun h => hne h.symm, (indepAt_iff _ _ _).mpr hind⟩, rfl, rfl⟩
 
-theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 298 := by decide +kernel
+theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 294 := by decide +kernel
 
 
 theorem chainTargets_code :
     (List.range 34).map (fun p => ((chainPairs codeParts codeAdj 6).filter (·.1 == p)).map (·.2)) =
-       [[4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 24, 25, 27, 29, 30, 33, 31, 32],
+       [[4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 21, 24, 25, 27, 29, 30, 31, 32],
         [],
         [3, 12, 17, 25],
         [1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
-        [0, 1, 3, 6, 7, 8, 12, 14, 18, 20, 21, 22, 24, 27, 17, 25, 29, 30, 31, 32, 33],
+        [0, 1, 3, 6, 7, 8, 12, 14, 18, 20, 21, 22, 24, 27, 17, 25, 29, 30, 31, 32],
         [3, 17, 25, 29, 30, 31, 32, 33],
         [],
-        [3, 4, 8, 0, 17, 22, 24, 27, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
+        [3, 4, 8, 0, 17, 22, 24, 27, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 31, 32],
         [],
-        [0, 17, 22, 24, 27, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
-        [3, 0, 1, 6, 12, 14, 17, 18, 20, 21, 22, 24, 27, 25, 29, 30, 31, 32, 33],
-        [3, 12, 17, 25, 29, 30, 31, 32, 33],
+        [0, 17, 22, 24, 27, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 31, 32],
+        [3, 0, 1, 6, 12, 14, 17, 18, 20, 21, 22, 24, 27, 25, 29, 30, 31, 32],
+        [3, 12, 17, 25, 29, 30, 31, 32],
         [],
         [8, 14, 18, 31, 32],
-        [0, 1, 3, 4, 6, 7, 8, 9, 10, 12, 13, 17, 18, 20, 21, 22, 24, 25, 26, 27, 29, 30, 33, 31, 32],
+        [0, 1, 3, 4, 6, 7, 8, 9, 10, 12, 13, 17, 18, 20, 21, 22, 24, 25, 26, 27, 29, 30, 31, 32],
         [31, 32],
-        [1, 6, 20, 25, 27, 29, 30, 31, 32, 33],
+        [1, 6, 20, 25, 27, 29, 30, 31, 32],
         [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 20, 21, 22, 25, 27, 29, 30, 33, 31, 32],
         [],
         [],
         [],
-        [0, 3, 17, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 27, 29, 30, 33, 31, 32],
-        [1, 9, 17, 27, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+        [0, 3, 17, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 27, 29, 30, 31, 32],
+        [1, 9, 17, 27, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
         [],
-        [0, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
+        [0, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
         [],
         [8, 14, 18, 31, 32],
-        [0, 9, 16, 17, 21, 22, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 33, 31, 32],
-        [1, 6, 20, 25, 27, 30, 31, 32, 33],
+        [0, 9, 16, 17, 21, 22, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
+        [1, 6, 20, 25, 27, 30, 31, 32],
         [],
         [],
         [],
         [],
-        []] := by
+        [3, 5, 12, 17, 25, 29, 30, 31, 32]] := by
   decide +kernel
 
 #guard match codeParts[19]?, codeParts[0]? with | some P, some Q => quiet P Q | _, _ => false

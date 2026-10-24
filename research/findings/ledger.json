@@ -3579,6 +3579,88 @@
    "flag": "engine.scroll:unthrottle"
   },
   {
+   "id": "platform.glint.offscreen-pause",
+   "n": 71,
+   "part": "platform.glint",
+   "candidate": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "status": "negative result: mount only while visible, gain = commit window",
+   "flags": [
+    "platform.glint:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Fw.Parts.PlatformGlintPause.visible_same_phase, local_time_same: on every frame where the glint plays, after any sequence of observer reports, the SMIL container reads the uninterrupted clock s - b, so the glint local time equals the faithful arm's). Trajectory probe with the flag, both engines, all four widths: run 40092155958 passed.",
+   "mechanism": "CONFIRMED by source (SMILTimeContainer.cpp:94-100,141-162,164-194,196-208 and SVGSVGElement.cpp:551-593 @862f17d: pause freezes elapsed and stops the timer, startTimer returns while paused, setElapsed rebases the clock) and PROVED in Lean (same_run, visible_same_phase, variant_no_ticks_away). The research-note premise that the faithful arm ticks SMIL offscreen does not hold for the glint: the play flag v implies visible (PlatformGlint.inv_step), and the animate pair is mounted only while v, so with the stage away no animation is scheduled and the SMIL timer is not armed (faithful_no_ticks_away, away_ticks_equal). The pause can only remove the ticks of the commit window between the observer report and the unmount (window_gain, at most one per rendering update, 1/60 s or 1/30 s in Low Power Mode, SMILTimeContainer.cpp:42-43).",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintPause.same_run",
+    "Fw.Parts.PlatformGlintPause.visible_same_phase",
+    "Fw.Parts.PlatformGlintPause.local_time_same",
+    "Fw.Parts.PlatformGlintPause.variant_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.faithful_no_ticks_away",
+    "Fw.Parts.PlatformGlintPause.away_ticks_equal",
+    "Fw.Parts.PlatformGlintPause.window_gain"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and main-thread time while the platform scene is offscreen, faithful against the flag, both engines: no profile scrolls past the platform and idles, so not measured (moves to task offscreen-count-lane)",
+    "Breakpoint gate with the flag not run (negative result, flag not offered)",
+    "Size of the commit window in frames, not measured"
+   ],
+   "premises": [
+    "The observer callback runs before the first frame that can show the glint: the glint needs ratio >= 0.35 and then a 1 s timer, and the pause driver runs before the glint driver in the same callback. Holds by construction in the code, tested in pause.test.ts (joint cases)",
+    "The dash svg clock began before the first report (inline svg): INFERRED",
+    "Chromium's SMIL container has the same pause and seek semantics: INFERRED, source not read",
+    "getCurrentTime and setCurrentTime go through float32 seconds, an error far below a frame: not modelled"
+   ],
+   "v1Evidence": "",
+   "lesson": "Read what the faithful arm already unmounts before pausing it: the glint's play flag removes the animations whenever the stage is under 35 percent visible, so a pause adds a clock seek (setElapsed resets every scheduled animation) for a saving limited to one commit window. Prove the baseline's offscreen work is zero first (faithful_no_ticks_away) and the candidate is a no-op by construction.",
+   "evidence": "40092155958 (platform.glint:offscreen-pause) trajectory probe, flag, engines both, all widths",
+   "next": "Not offered: no gain beyond the commit window (window_gain), so the gate with the flag is not run. Offscreen counts move to task offscreen-count-lane. Drop the flag if it stays unused.",
+   "flag": "platform.glint:offscreen-pause"
+  },
+  {
+   "id": "morph.countdown.strip",
+   "n": 7,
+   "part": "morph.countdown (+ hero.countdown)",
+   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "status": "proved",
+   "flags": [
+    "morph.countdown:strip",
+    "hero.countdown:strip"
+   ],
+   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
+   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
+   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
+   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "leanFor": [
+    "Fw.Parts.MorphCountdownStrip.same_face_px",
+    "Fw.Parts.MorphCountdownStrip.phase_same",
+    "Fw.Parts.MorphCountdownStrip.dom_same",
+    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
+    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
+    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphCountdownStrip.layers_conservative",
+    "Fw.Parts.MorphCountdownStrip.layers_paused",
+    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
+   ],
+   "missingWhy": [
+    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
+    "UIView creation time at morph start on the phone"
+   ],
+   "premises": [
+    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
+    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
+    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
+    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+   ],
+   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
+   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
+   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
+   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
+  },
+  {
    "id": "morph.end.clamp",
    "n": 67,
    "part": "morph.end.clamp",
@@ -3681,46 +3763,41 @@
    "userDecision": "pending"
   },
   {
-   "id": "morph.countdown.strip",
-   "n": 7,
-   "part": "morph.countdown (+ hero.countdown)",
-   "candidate": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
-   "status": "proved",
+   "id": "platform.sweep.offscreen-pause",
+   "n": 70,
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "status": "partly-proved",
    "flags": [
-    "morph.countdown:strip",
-    "hero.countdown:strip"
+    "platform.sweep:offscreen-pause"
    ],
-   "chromium": "trade (row n 7: 80 to 8 will-change layers, 12 cells backed per strip; not run in this task)",
-   "webkit": "trade (MEASURED, run 40081936555: 80 to 8 layers in every zone, hero clock backing 0.591 to 2.287 MB at y 0)",
-   "visual": "E per driver call and digit: both variants run one slot trace and, once the cell is known, the visible glyphs of the strip DOM equal those of the ten-face DOM (same_face_px). Subpixel sampling of the moving strip is left to the gate pixel tolerance. Breakpoint gate 40094445810 (?fw=morph.countdown:strip,hero.countdown:strip, the prerendered order): pass in every cell on Chromium and WebKit, no failing item; the WebKit hover-pointer-cross and fractional-gaps cells are UNREACHABLE by the Lean reach rule.",
-   "mechanism": "WebKit composites each will-change RenderBox under the Normal policy (RenderLayerCompositor.cpp:3997-4018@862f17d) and gives each one ancestor clipping layer for the merged overflow clips of .digit, .value and .center (computeAncestorClippingStack :3651-3764, RenderLayerBacking.cpp:2444-2457). Per clock: 80 composited RenderLayers and 160 platform layers become 8 and 16 (layers_80_to_16). MEASURED on the Simulator (webkit-sim 40081936555 vs 39897814980): 80 hero-module_face layers become 8 hero-module_strip layers in every zone, finish zone 128/124 to 56/56 layers with no other layer change; hero clock backing at y 0 0.591 MB to 2.287 MB. The morph clock is paused in every static zone, so its saving is visible only while the menu opens (earlier runs 39775198022, 39776554155: new layers 81-83 to 9-11).",
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Lean PlatformSweepPause.shown_same, visible_same, visible_phase: on every frame not reported offscreen, and so every visible frame, the animation time equals the uninterrupted one, so phase and background position are equal). Breakpoint gate run 40091740060 (Chromium and Playwright WebKit, success); trajectory probe run 40091732984 (diagnostic, widths 390 and 1280, both engines, success).",
+   "mechanism": "INFERRED (research/notes/2026/10-2x-webkit-throttles.md row platform.sweep): the sweep is a main-thread CSS background-position animation with no offscreen throttle, so the rendering update and restyle run every frame while the platform section is offscreen. PROVED in Lean: a frame reported offscreen leaves the animation time unchanged and counts no tick (reported_no_tick, reported_run); under the named premise Lag (the observer reports an element after the frame it leaves) an offscreen stretch ticks at most once (offscreen_ticks_le_one). Not measured: no CI lane counts rendering updates or main-thread time of the rewrite while the section is offscreen (wktr runs the original only; the count lanes count class names).",
    "leanFor": [
-    "Fw.Parts.MorphCountdownStrip.same_face_px",
-    "Fw.Parts.MorphCountdownStrip.phase_same",
-    "Fw.Parts.MorphCountdownStrip.dom_same",
-    "Fw.Parts.MorphCountdownStrip.layers_80_to_16",
-    "Fw.Parts.MorphCountdownStrip.layers_7_digits",
-    "Fw.Parts.MorphCountdownStrip.layers_ratio"
+    "Fw.Parts.PlatformSweepPause.shown_same",
+    "Fw.Parts.PlatformSweepPause.visible_same",
+    "Fw.Parts.PlatformSweepPause.visible_phase",
+    "Fw.Parts.PlatformSweepPause.reported_no_tick",
+    "Fw.Parts.PlatformSweepPause.reported_run",
+    "Fw.Parts.PlatformSweepPause.offscreen_ticks_le_one"
    ],
-   "leanAgainst": [
-    "Fw.Parts.MorphCountdownStrip.layers_conservative",
-    "Fw.Parts.MorphCountdownStrip.layers_paused",
-    "Fw.Parts.HeroCountdownOpt.strip_backing_gt"
-   ],
+   "leanAgainst": [],
    "missingWhy": [
-    "Why the faithful faces back less than 10 cells per digit (measured strip backing 3.9 times per digit, model 1.2)",
-    "UIView creation time at morph start on the phone"
+    "Rendering updates and main-thread time while the platform section is offscreen, per engine, faithful against the flag: no lane",
+    "The IntersectionObserver lag (Lag) is a premise, not proved about either engine",
+    "An animation created while offscreen is not tracked by the driver"
    ],
    "premises": [
-    "will-change composites a RenderBox under Normal, not under Conservative off Mac: CONFIRMED (RenderLayerCompositor.cpp:3997-4018@862f17d)",
-    "Plain overflow clips merge into one ancestor clipping entry, each entry one GraphicsLayer without backing: CONFIRMED (RenderLayerCompositor.cpp:3651-3764, RenderLayerBacking.cpp:2444-2457, 5190-5196@862f17d)",
-    "The inspector census lists composited RenderLayers, not clipping layers: CONFIRMED (InspectorLayerTreeAgent.cpp:156-163@862f17d)",
-    "Faces and strips are absolute will-change boxes under overflow-hidden .digit and .value without radius: CONFIRMED (hero.module.css, strip.test.ts)"
+    "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
+    "An element reported offscreen is offscreen (Ok): INFERRED"
    ],
-   "v1Evidence": "v1 fixes/cd-strip (KD#12): layers 48->16 (see row n 7, strip).",
-   "lesson": "A per-digit strip divides composited layers by the face count and keeps every frame identical; the bill is backing area per strip, and the saving of a paused clone shows only in the state where it runs.",
-   "evidence": "CI runs 40081936555 (webkit-sim, flags), 39897814980 (webkit-sim, base), 40094445810 (breakpoint gate, pass on both engines), 40081933958 and 40089874311 (breakpoint gate, smoke refused the sorted flag string); research/notes/2026/10-2x-countdown-strip-proof.md; golden packages/contracts/golden/parts/morph.countdown.strip.jsonl; branch worktree-wf_193723c6-362-1",
-   "next": "Accept the sorted flag order in the build or the page lookup (task gate-flag-order); explain the strip backing of 3.9 times the faces per digit at y 0."
+   "v1Evidence": "",
+   "lesson": "A seek-on-resume pause needs only one invariant (a running animation sits on clock plus offset); the saving is the paused frames, which is a count to measure, not a look to prove.",
+   "evidence": "CI runs 40091740060 (breakpoint gate, fw=platform.sweep:offscreen-pause), 40091732984 (trajectory probe, same flag); branch worktree-wf_72c42085-d84-1",
+   "next": "A lane that counts rendering updates and main-thread time of the rewrite while a section is offscreen (WKTR variant for the rewrite, or a Chromium trace profile); then set proved or no-win.",
+   "flag": "platform.sweep:offscreen-pause"
   }
  ],
  "notes": [
