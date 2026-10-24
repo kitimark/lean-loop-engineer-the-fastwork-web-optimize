@@ -85,7 +85,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   const card = useRef<HTMLDivElement>(null);
   const faithful = (v: string | undefined) => (v ?? 'faithful') === 'faithful';
   const sweep = faithful(sub.sweep) ? sw.sweep : undefined;
-  const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint), marquee: faithful(sub.marquee) };
+  const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
 
   useEffect(() => {
     const sec = section.current;

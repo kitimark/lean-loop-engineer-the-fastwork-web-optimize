@@ -20473,7 +20473,8 @@
     "lean/scripts/PlatformGlintPauseGolden.lean",
     "apps/site/src/parts/platform/Visuals.tsx"
    ],
-   "title": "platform.glint:offscreen-pause (10-2x-webkit-throttles.md rank 4): pauseAnimations() on the SMIL glint while offscreen, setCurrentTime from the document clock on resume; WebKit ticks SMIL every 1/30 s even when nothing visible changes. Lean first: phase on resume equals the uninterrupted phase (SMIL clock). Lego brick, own flag. Measure as sweep-offscreen-pause, both engines; breakpoint gate."
+   "title": "platform.glint:offscreen-pause (10-2x-webkit-throttles.md rank 4): pauseAnimations() on the SMIL glint while offscreen, setCurrentTime from the document clock on resume; WebKit ticks SMIL every 1/30 s even when nothing visible changes. Lean first: phase on resume equals the uninterrupted phase (SMIL clock). Lego brick, own flag. Measure as sweep-offscreen-pause, both engines; breakpoint gate.",
+   "evidence": "82e8867"
   },
   {
    "devices": [
