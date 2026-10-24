@@ -4,11 +4,10 @@
 - `hero.accent:draw-nolayout` (glide kept) does not render the accent text the same as the faithful page. It is a look
   change, and it needs its own user look decision before it could ship. The user never saw it on its own.
 - The accent text of `draw-nolayout` is drawn by the same CSS rules as the refused `draw-nolayout-full` (CONFIRMED,
-  source below). The reason the user gave, "it changes how the accent text renders", therefore applies to it
-  unchanged (INFERRED). The only difference between the two arms is the headline glide, and `draw-nolayout` keeps the
+  source below). The user's reason, "it changes how the accent text renders", therefore applies to it (INFERRED). The only difference between the two arms is the headline glide, and `draw-nolayout` keeps the
   faithful glide.
-- Recorded: the refusal of `draw-nolayout-full` is in `Gen.lookDecisions`, and ledger row `accent.drawin-width-nolayout`
-  now has status `refuted`, the console's refused class. `Gen.run` now fails when a refused flag is in v2-proved.
+- Recorded in `Gen.lookDecisions`; ledger row `accent.drawin-width-nolayout` has status `refuted`. `Gen.run` fails
+  when a refused flag is in v2-proved.
 
 ## Decision recorded (CONFIRMED: the user, in chat, 2026-10-25)
 - `lean/Fw/Preset/Gen.lean:247-252`: flag `hero.accent:draw-nolayout-full`, date 2026-10-25, decision `rejected`,
