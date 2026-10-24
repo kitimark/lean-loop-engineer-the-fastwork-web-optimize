@@ -106,6 +106,8 @@ Chromium counts (MEASURED), profile `swipe-v1`, 3 runs on separate VMs, same sha
 | `trace.Paint` over the profile, A minus B | 1 | 1 | -1 |
 | frames with +2 `census.layers` (and +1 `census.drawingLayers`) | 530 | 528 | 530 |
 
+The sums exceed 535 in runs 1 and 3: run 1 has 10 frames at +11 against 9 at -9 (other restyles moved by one frame), run 3 one frame at +88. The bound is about the element itself and is matched by the per-frame mode (+1 in 511/525/530 frames); the summed difference is not a check of it.
+
 Reading: the page already recalculates style every frame, so the element adds no recalc event, only one element to each
 one (the Lean bound, MEASURED at 0.99 per frame); layout and paint are unchanged. The surprise is the layers: Chromium
 composites the fixed 1 px element, 2 layers more in every scroll frame. They are 1 px layers (the drawing area difference is
