@@ -18,6 +18,8 @@ import {
   isOpenClass,
   isOpenElement,
   literalClasses,
+  Scope,
+  classListOf,
   pickOwners,
 } from './part-footprint.mjs';
 
@@ -104,6 +106,20 @@ test('the golden has literal rows with non-ASCII whitespace and a classList row 
   assert.ok(rows.some((r) => exprOf(r.src).type === 'Literal' && r.classes.some((c) => /\s/.test(c))));
   for (const m of CLASS_LIST_METHODS) assert.ok(listRows.some((r) => r.method === m), m);
 });
+
+const partsDir = fileURLToPath(new URL('../src/parts/', import.meta.url));
+const cssScope = () => {
+  const scope = new Scope(null, { abs: `${partsDir}demo/Demo.tsx` });
+  scope.vars.set('css', { thunk: () => ({ k: 'cssmod', file: `${partsDir}demo/demo.module.css` }), kind: 'import' });
+  return scope;
+};
+for (const src of ['cond ? css.a : x', 'cond ? x : css.a']) {
+  test(`classList.add(${src}) keeps the unknown side open`, () => {
+    const { writes, findings } = classListOf('add', [exprOf(src)], cssScope());
+    assert.deepEqual(writes, [['setModuleClass', 'demo/demo.module.css#a'], ['setClass', '?']]);
+    assert.deepEqual(findings, [['unmodelled-class', 'unresolved']]);
+  });
+}
 
 test('a class in an unmodelled call is reported and opens the site', () => {
   const { writes, findings } = classReport(tokensOf("getClass('primary', css.m)"));

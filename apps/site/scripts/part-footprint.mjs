@@ -84,9 +84,9 @@ function union(a, b) {
   if (a.k === 'el' && b.k === 'el') return el([...a.owners, ...b.owners], a.sel ?? b.sel);
   if (a.k === 'str' && b.k === 'str') return { k: 'str', vs: [...new Set([...a.vs, ...b.vs])] };
   if (a.k === 'anim' && b.k === 'anim') return { k: 'anim', owners: [...new Set([...a.owners, ...b.owners])].sort() };
+  if (CLASS_KINDS.has(a.k) || CLASS_KINDS.has(b.k)) return { k: 'calt', v: classUnion(classValue(a), classValue(b)) };
   if (a.k === 'unknown') return b;
   if (b.k === 'unknown') return a;
-  if (CLASS_KINDS.has(a.k) || CLASS_KINDS.has(b.k)) return { k: 'calt', v: classUnion(classValue(a), classValue(b)) };
   return a;
 }
 const CLASS_KINDS = new Set(['cls', 'calt']);
@@ -305,7 +305,7 @@ function emitOn(node, op, name, v, ctxTag) {
   }
 }
 
-class Scope {
+export class Scope {
   constructor(parent, file) { this.parent = parent; this.file = file; this.vars = new Map(); }
   lookup(name) {
     for (let s = this; s; s = s.parent) if (s.vars.has(name)) return { scope: s, b: s.vars.get(name) };
@@ -788,6 +788,7 @@ function walk(n, scope, ctxTag, fnVal) {
 function analyzeLater(f, tag, args, scope, elemArg) {
   pending.push(() => analyzeFn(f, tag, args, scope, elemArg));
 }
+export const classListOf = (method, args, scope) => classListReport(method, args.map((a) => classValue(valueOf(a, scope))));
 function classValue(v) {
   if (v.k === 'cls') return v.local == null ? { modKey: rel(v.file) } : { mod: `${rel(v.file)}#${v.local}` };
   if (v.k === 'str') return { str: v.vs };
@@ -847,7 +848,7 @@ function walkCall(n, scope, ctxTag, fnVal) {
     } else if (sub === 'style' && name === 'getPropertyValue') {
       emitOn(n, 'styleRead', '', subOwner, ctxTag);
     } else if (sub === 'classList' && CLASS_LIST_METHODS.includes(name)) {
-      const { writes, findings: found } = classListReport(name, n.arguments.map((a) => classValue(valueOf(a, scope))));
+      const { writes, findings: found } = classListOf(name, n.arguments, scope);
       for (const [kind, d] of found) finding(site(n), kind, d);
       for (const [op, cn] of writes) emitOn(n, op, cn, subOwner, ctxTag);
     } else if (['setAttribute', 'removeAttribute', 'toggleAttribute'].includes(name)) {
@@ -1154,13 +1155,16 @@ export function classMatch(has, sel, open) {
 export function classStrength(spread, literalAttrs, m) {
   if (m === 'none') return null;
   if (spread) return 'spread';
-  return m === 'strong' && literalAttrs ? 'literal' : 'dynamic';
+  if (m === 'weak') return 'weak';
+  return literalAttrs ? 'literal' : 'dynamic';
 }
 export function pickOwners(cands) {
   const lit = cands.filter(([, k]) => k === 'literal');
-  const dyn = cands.filter(([, k]) => k !== 'spread');
+  const dyn = cands.filter(([, k]) => k === 'dynamic');
+  const weak = cands.filter(([, k]) => k === 'weak');
   if (lit.length) return { owners: lit.map(([o]) => o), weak: false };
   if (dyn.length) return { owners: dyn.map(([o]) => o), weak: true };
+  if (weak.length) return { owners: weak.map(([o]) => o), weak: true };
   return { owners: cands.map(([o]) => o), weak: cands.length > 0 };
 }
 function walkJsx(n, scope, ctxTag) {

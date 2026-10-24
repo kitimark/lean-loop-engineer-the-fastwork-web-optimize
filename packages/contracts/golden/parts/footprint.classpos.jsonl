@@ -126,11 +126,13 @@
 {"classMatch":"strong","literalAttrs":true,"spread":false,"strength":"literal"}
 {"classMatch":"strong","literalAttrs":false,"spread":false,"strength":"dynamic"}
 {"classMatch":"strong","literalAttrs":true,"spread":true,"strength":"spread"}
-{"classMatch":"weak","literalAttrs":true,"spread":false,"strength":"dynamic"}
+{"classMatch":"weak","literalAttrs":true,"spread":false,"strength":"weak"}
 {"classMatch":"weak","literalAttrs":true,"spread":true,"strength":"spread"}
 {"classMatch":"none","literalAttrs":true,"spread":false,"strength":null}
 {"candidates":[["a","literal"],["b","dynamic"],["c","spread"]],"owners":["a"],"weak":false}
 {"candidates":[["b","dynamic"],["c","spread"]],"owners":["b"],"weak":true}
+{"candidates":[["b","dynamic"],["w","weak"],["c","spread"]],"owners":["b"],"weak":true}
+{"candidates":[["w","weak"],["c","spread"]],"owners":["w"],"weak":true}
 {"candidates":[["c","spread"]],"owners":["c"],"weak":true}
 {"candidates":[],"owners":[],"weak":false}
 {"candidates":[["a","literal"],["a2","literal"]],"owners":["a","a2"],"weak":false}

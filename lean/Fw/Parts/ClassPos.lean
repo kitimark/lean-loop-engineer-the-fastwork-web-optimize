@@ -294,19 +294,22 @@ def classMatch (has : String → Bool) (sel : List String) (isOpen : Bool) : Mat
 inductive Strength where
   | literal
   | dynamic
+  | weak
   | spread
   deriving DecidableEq, Repr
 
 def strength (spread literalAttrs : Bool) : Match → Option Strength
   | .none => none
-  | .weak => some (if spread then .spread else .dynamic)
+  | .weak => some (if spread then .spread else .weak)
   | .strong => some (if spread then .spread else if literalAttrs then .literal else .dynamic)
 
 def pick (cs : List (String × Strength)) : List String × Bool :=
   let lit := cs.filter (·.2 == .literal)
-  let dyn := cs.filter (·.2 != .spread)
+  let dyn := cs.filter (·.2 == .dynamic)
+  let weak := cs.filter (·.2 == .weak)
   if !lit.isEmpty then (lit.map (·.1), false)
   else if !dyn.isEmpty then (dyn.map (·.1), true)
+  else if !weak.isEmpty then (weak.map (·.1), true)
   else (cs.map (·.1), !cs.isEmpty)
 
 def names (ts : List Tok) : List String := ts.map (·.name)
@@ -642,6 +645,9 @@ theorem value_unknown_open : ("setClass", "?") ∈ writes (valueToks .unknown) :
 theorem union_unknown_open (a : V) : ("setClass", "?") ∈ writes (valueToks (a.union .unknown)) := by
   rw [union_toks, value_unknown]; exact marker_open _ _ _
 
+theorem unknown_union_open (a : V) : ("setClass", "?") ∈ writes (valueToks (V.unknown.union a)) := by
+  rw [union_toks, value_unknown]; exact lost_open _ ⟨_, List.mem_append_left _ (marker_mem _ _), rfl⟩
+
 theorem toggle_first (a : V) (as : List V) : listToks "toggle" (a :: as) = valueToks a := by
   simp [listToks, tokenArgs]
 
@@ -681,6 +687,8 @@ theorem closed_never_weak (has : String → Bool) (sel : List String) : classMat
 theorem weak_not_literal (spread lit : Bool) : strength spread lit .weak ≠ some .literal := by
   cases spread <;> simp [strength]
 
+theorem weak_weak (lit : Bool) : strength false lit .weak = some .weak := rfl
+
 theorem none_no_strength (spread lit : Bool) : strength spread lit .none = none := rfl
 
 theorem strong_literal (lit : Bool) (h : lit = true) : strength false lit .strong = some .literal := by
@@ -702,7 +710,24 @@ theorem pick_weak (cs : List (String × Strength)) (h : ∀ c ∈ cs, c.2 ≠ .l
   simp only [hl, List.isEmpty_nil, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
   split
   · rfl
-  · simpa using hc
+  · split
+    · rfl
+    · simpa using hc
+
+theorem pick_dynamic (cs : List (String × Strength)) (hl : (cs.filter (·.2 == .literal)).isEmpty = true)
+    (hd : (cs.filter (·.2 == .dynamic)).isEmpty = false) :
+    pick cs = ((cs.filter (·.2 == .dynamic)).map (·.1), true) := by
+  simp [pick, hl, hd]
+
+theorem pick_weak_tier (cs : List (String × Strength)) (hl : (cs.filter (·.2 == .literal)).isEmpty = true)
+    (hd : (cs.filter (·.2 == .dynamic)).isEmpty = true) (hw : (cs.filter (·.2 == .weak)).isEmpty = false) :
+    pick cs = ((cs.filter (·.2 == .weak)).map (·.1), true) := by
+  simp [pick, hl, hd, hw]
+
+theorem pick_rest (cs : List (String × Strength)) (hl : (cs.filter (·.2 == .literal)).isEmpty = true)
+    (hd : (cs.filter (·.2 == .dynamic)).isEmpty = true) (hw : (cs.filter (·.2 == .weak)).isEmpty = true) :
+    pick cs = (cs.map (·.1), !cs.isEmpty) := by
+  simp [pick, hl, hd, hw]
 
 theorem pick_open_weak (cs : List (String × Match)) (hw : ∀ c ∈ cs, c.2 = .weak) (spread lit : String → Bool)
     (hc : cs ≠ []) :
@@ -863,6 +888,8 @@ def strengthCases : List (Bool × Bool × Match) :=
 def pickCases : List (List (String × Strength)) :=
   [ [("a", .literal), ("b", .dynamic), ("c", .spread)],
     [("b", .dynamic), ("c", .spread)],
+    [("b", .dynamic), ("w", .weak), ("c", .spread)],
+    [("w", .weak), ("c", .spread)],
     [("c", .spread)],
     [],
     [("a", .literal), ("a2", .literal)]]
@@ -970,6 +997,7 @@ def Match.name : Match → String
 def Strength.name : Strength → String
   | .literal => "literal"
   | .dynamic => "dynamic"
+  | .weak => "weak"
   | .spread => "spread"
 
 def matchRow (c : List String × List String × Bool) : Lean.Json :=
@@ -1082,10 +1110,11 @@ def goldenText (_ : Unit := ()) : String := String.join ((goldenRows ()).map fun
 #guard classMatch ["a", "b"].contains ["a"] false == .strong && classMatch ["a"].contains ["a", "b"] true == .weak &&
   classMatch ["a"].contains ["a", "b"] false == .none && classMatch [].contains [] false == .strong
 #guard strength false true .strong == some .literal && strength false false .strong == some .dynamic &&
-  strength true true .strong == some .spread && strength false true .weak == some .dynamic &&
+  strength true true .strong == some .spread && strength false true .weak == some .weak &&
   strength true false .weak == some .spread && strength false true .none == none
 #guard pick [("a", .literal), ("b", .dynamic)] == (["a"], false) && pick [("b", .dynamic), ("c", .spread)] == (["b"], true)
 #guard pick [("c", .spread)] == (["c"], true) && pick [] == ([], false)
+#guard pick [("b", .dynamic), ("w", .weak)] == (["b"], true) && pick [("w", .weak), ("c", .spread)] == (["w"], true)
 #guard constsOf (.tmpl ["", ""] [.const "k" (.const "j" (.mod "m"))]) == [("k", "j"), ("j", "css.m")]
 
 /-- Print the golden, or with `--check <file>` compare it byte for byte (exit 1 on a difference). -/
