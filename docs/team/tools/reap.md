@@ -24,15 +24,21 @@ nothing of the user's real repo (theorems `in_repo`, `console_in_removed_wt`, `l
 - E (`pickE`, task reap-watch-one-rule), kind `orphanLoop`: a shell whose argv is an `until [ -s <path> ]` loop (`classify`
   gives `untilLoop`), in this repo, whose tool call ended (`callLive` false: glue sets it from `ppid > 1`, unproved), at
   least `orphanMinSec` (60 s) old, and with no live writer: a `fw ci wait` of the same worktree id whose stdout (lsof fd 1,2)
-  is the awaited path and whose (pid, start) is in the table (`writerLive`; `live_writer_kept`, `writer_identity`,
-  `orphan_selected`). Path allowlist: only an absolute awaited path without `$` can select (`awaitOk`;
-  `relative_await_kept`, `dollar_await_kept`): `out.log` or `$HOME/x` keeps the loop. The glue canonicalises only such a
-  path (`canonAwait`: `canonPath`, realpath of the directory + basename, raw if it fails; the lsof path always) so
-  `/private/tmp/x` and `/tmp/x` match. The watch's `agent.held` for a wait
+  is the same file as the awaited path and whose (pid, start) is in the table (`writerLive`; `live_writer_kept`,
+  `writer_identity`, `orphan_selected`). Same file (`sameFile`): by inode number when both are known (`lsof -Fpfin` for the
+  waiter, `stat` of the awaited path for the loop; `writer_inode_match`, `sameFile_inode_differs`), so a hard link or a
+  symlinked directory still counts as the writer and a replaced file does not; when the awaited file does not exist yet the
+  canonical path string decides (`sameFile_path_fallback`). Accepted limit: the inode number is not paired with st_dev, a
+  collision across devices reads as the same file (the loop is kept). Path allowlist: only an absolute awaited path of
+  letters, digits, `.`, `_`, `/`, `-` can select (`awaitOk`, `awaitAllowed` in reap.ts; `relative_await_kept`,
+  `dollar_await_kept`, `backtick_await_kept`, `await_char_kept`): `out.log`, `$HOME/x`, a backtick, `*`, `?`, `[ ]`, `~` or a
+  space keeps the loop. The glue canonicalises only such a path (`canonAwait`: `canonPath`, realpath of the directory +
+  basename, raw if it fails; the lsof path always) so `/private/tmp/x` and `/tmp/x` match. The watch's `agent.held` for a wait
   loop is `ops.reapHeld` (the E selections) and nothing else: a TERM target of the explicit `ops.reapPlan` (`auto` false)
   with the same pid and start (`held_in_plan`). The `NEXT <id> killOrphan` advice line of `Fw.Obs.Next` stays until task next-killorphan-reap.
 - F (`pickF`), kind `simBooted`: a Simulator device process (`launchd_sim`, device id in argv) that this project boots
-  (`ownSims`: the row's (pid, start) is in the glue's list of `simctl` names starting `fw-`), that started between the acquire second of the released sim slot run (`simAcquired`, kept in the slot
+  (`ownSims`: the row's (pid, start) is in the glue's list of devices whose udid the slot recorded at the release of its last
+  sim run, `simUdids` of `state.json`: the Simulators booted at that second; no device-name prefix), that started between the acquire second of the released sim slot run (`simAcquired`, kept in the slot
   `state.json` on release and expiry) and the release (`simIdleSince`), while `Fw.Sup.Adapt.simAction` (the slot's own
   rule, default `simIdleS` 600 s, `simVerdict`) says `shutdown` for the sim slots still held and for `legacyHeld`, whether
   the legacy `scripts/sim-lock.sh` lock `.local/locks/sim` is live (`legacyLive` of slot.ts; a missing fact counts as
@@ -52,8 +58,19 @@ E and F are advice: `fw reap --list` lists them, the watch raises `agent.held` f
 `fw reap --stop` stops them. The request field `auto` picks the plan: the watch tick (`reapTick`) and the land report
 (`reapStopLines`) send `auto: true` and get targets of the kinds in `autoKinds` (A to D) only
 (`auto_plan_no_loop_sim`, `planSel_auto`); `fw reap --stop` sends false and gets every selection (`planSel_explicit`).
-Exit criterion for auto-stopping E or F (task reap-ef-auto): every E/F selection of a watch tick logged for at least 7
-days, with at least one true orphan and no selection of a loop that later ended by itself.
+Every watch tick appends one `{type:"reap.held",at,kind,pid,start}` line per E/F selection to `reap.jsonl`
+(`recordHeld`), and prints `REAP advice simBooted <pid>` once per booted Simulator identity (the F alert; a loop is already
+`agent.held`).
+
+Exit rule (Lean `exitRule`, `promoted`, op `ops.reapExit`, golden `reap-exit.jsonl`): a kind joins `autoKinds` only when it
+is E or F, its log goes back at least 7 days, it has at least one identity `stopped` by an explicit `fw reap --stop` (a true
+orphan) and no identity `ended` by itself (`exit_selected`, `exit_short_kept`, `exit_no_orphan_kept`, `exit_ended_kept`,
+`exit_other_kind_kept`). E and F start OUT of `autoKinds`; this task wired the rule and the log, a later task reads the
+7-day log and moves them (no caller folds the log into `Seen` yet).
+
+The guard scope of `stopSelected` is the plan targets, not the selection, so an orphan loop in the process
+group of an A-D target gets no signal and the group falls back to per-pid. The land report counts the targets
+(`leftover processes stopped: N of M`) and prints the advice rows on their own line.
 
 ## Stop plan (Lean `plan`, `termPlan`, `killPlan`, `guardOk`, `Stage` script)
 read table, read again and let Lean re-check each identity (`term_present`), TERM the group (only if every member of the
@@ -71,8 +88,8 @@ the row stays within `cpuTolCs` of it, else a new one at `now` (`rebase_quiet`, 
 
 ## Triggers
 - `fw reap --stop` (all kinds); `fw land` stops after a worktree is removed and `fw watch` stops on each tick (and after
-  each stream diff), both A to D only. `FW_WATCH_REAP=0` turns the watch trigger off. A Simulator of case F has no watch
-  alert; the slot's own `simCheck` still shuts it on the next slot command after 600 s idle.
+  each stream diff), both A to D only. `FW_WATCH_REAP=0` turns the watch trigger off. A Simulator of case F has the
+  `REAP advice simBooted` line (not a stop); the slot's own `simCheck` still shuts it on the next slot command after 600 s idle.
 - Each stop appends `{type:"reap.stopped",at,kind,pids,freedKb}` to `.fw-console/reap.jsonl` and prints a `REAP stopped` line.
 
 ## Limits

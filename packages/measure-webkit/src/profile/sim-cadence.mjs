@@ -12,7 +12,7 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS } from '../walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, planReps, repsLife, outcome } from '../walk-budget.mjs';
 
 const BLOCK_MS = 15 * 60000;
 
@@ -39,10 +39,13 @@ export function windowVerdict(pw, timelineOn) {
   return timelineOn ? { ok: pw.ok, reason: pw.reason ?? null } : { ok: true, reason: 'timeline-off' };
 }
 
-export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, blockAfterMs = null, log = (s) => console.error(s) }) {
+export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto', settleMs = 2500, only, holdMs, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, blockAfterMs = null, log = (s) => console.error(s) }) {
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
+  const repPlan = deadlineMs == null ? null : { outcome: outcome(deadlineMs, now(), arms.length), reps: planReps(deadlineMs, now(), arms.length) };
+  const reps = repsArg !== 'auto' ? Number(repsArg) : repPlan ? repPlan.reps : repsLife(arms.length);
+  log(`webkit sim: ${reps} reps of ${arms.length} arms (${repsArg === 'auto' ? `rep plan ${repPlan?.outcome ?? 'without a deadline'}` : 'set by hand'})`);
   const device = findDevice();
   const started = Date.now();
   const rows = [];
@@ -54,7 +57,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps = 6, settleMs = 
   const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
 
   const snapshot = (incomplete) => ({
-    leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, cadenceReps: 0,
+    leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, repPlan, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
     hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   });

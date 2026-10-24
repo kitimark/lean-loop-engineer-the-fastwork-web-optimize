@@ -4,6 +4,28 @@ const MINUTE_MS = 60000;
 
 export const JOB = Object.freeze({ timeoutMs: 2700000, postMs: 600000, graceMs: 120000, slackMs: 60000 });
 
+export const GAPS = Object.freeze({ clockMs: 6000, driftMs: 50000, completeMs: 4000 });
+
+export const MIN_KEPT = 5;
+
+export const WINDOW_MS = 45000;
+
+export const LIFE_WINDOWS = 36;
+
+export const windowsPerRep = (arms) => 2 * arms;
+
+export const repMs = (arms) => windowsPerRep(arms) * WINDOW_MS;
+
+export const repsFit = (dl, now, arms) => (repMs(arms) === 0 ? 0 : Math.floor(Math.max(0, dl - now) / repMs(arms)));
+
+export const repsLife = (arms) => (windowsPerRep(arms) === 0 ? 0 : Math.floor(LIFE_WINDOWS / windowsPerRep(arms)));
+
+export const planReps = (dl, now, arms) => Math.min(repsLife(arms), repsFit(dl, now, arms));
+
+export const outcome = (dl, now, arms) => (repsLife(arms) < MIN_KEPT ? 'lifeShort' : repsFit(dl, now, arms) < MIN_KEPT ? 'budgetShort' : 'ok');
+
+export const endsDone = (n, arms, pos) => Math.floor(n / windowsPerRep(arms)) + (2 * pos + 2 <= n % windowsPerRep(arms) ? 1 : 0);
+
 export const deadlineAt = (j) => j.timeoutMs - j.postMs - j.graceMs - j.slackMs;
 
 export const cappedDeadline = (j, elapsed, cap) => (cap == null ? deadlineAt(j) : Math.min(deadlineAt(j), elapsed + cap));

@@ -28,7 +28,7 @@ export const EXIT_REFUSED = 75;
 export const EXIT_ERROR = 70;
 
 export type State = {
-  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simAcquired?: number; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
+  ctl: Ctl; holders: Entry[]; queue: Entry[]; simIdleSince: number; simAcquired?: number; simUdids?: string[]; simIdle?: number | null; simCheckedAt?: number; window?: Window | null;
 };
 export type Health = { time: number; live: number };
 export type GitFacts = { tree: string; clean: boolean; mainSha: string };
@@ -182,8 +182,8 @@ export function gitFacts(cwd: string): GitFacts {
 export function simctlShutdown(udid: string): void { spawnSync("xcrun", ["simctl", "shutdown", udid], { stdio: "ignore" }); }
 
 function bootedAll(): SimDevice[] {
-  const r = spawnSync("xcrun", ["simctl", "list", "devices", "booted", "-j"], { encoding: "utf8" });
-  if (r.status !== 0) return [];
+  const r = spawnSync("xcrun", ["simctl", "list", "devices", "booted", "-j"], { encoding: "utf8", timeout: 10_000 });
+  if (r.error || r.status !== 0) return [];
   const j = JSON.parse(r.stdout) as { devices: Record<string, { udid: string; name: string; state: string }[]> };
   return Object.values(j.devices).flat().filter((d) => d.state === "Booted").map(({ udid, name }) => ({ udid, name }));
 }
@@ -333,12 +333,16 @@ export function withState<T>(d: Deps, f: (st: State) => T): T {
   }
 }
 
+function bootedUdids(d: Deps): string[] {
+  try { return d.simctl.booted().map((b) => b.udid.toUpperCase()); } catch { return []; }
+}
+
 const acquiredOf = (gone: Entry[]): number => Math.min(...gone.filter((h) => h.kind === "sim").map((h) => h.since));
 
 function tick(d: Deps, st: State, s: Sample): void {
   st.ctl = step(d.params, st.ctl, s);
   const gone = expired(s.time, st.holders);
-  if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = s.time; st.simAcquired = acquiredOf(gone); }
+  if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = s.time; st.simAcquired = acquiredOf(gone); st.simUdids = bootedUdids(d); }
   for (const h of gone) {
     event(d, "expire", h.kind, { owner: h.owner, token: h.token, leaseS: h.leaseS, holdMs: (h.till - h.since) * 1000, lateMs: (s.time - h.till) * 1000 });
   }
@@ -453,7 +457,7 @@ export function renewToken(d: Deps, token: string, leaseS: number | null): boole
 export function releaseToken(d: Deps, token: string): boolean {
   const ok = withState(d, (st) => {
     const gone = st.holders.filter((h) => h.owner === d.owner && h.token === token);
-    if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); }
+    if (gone.some((h) => h.kind === "sim")) { st.simIdleSince = nowS(); st.simAcquired = acquiredOf(gone); st.simUdids = bootedUdids(d); }
     st.holders = release(d.owner, token, st.holders);
     st.queue = release(d.owner, token, st.queue);
     if (st.window?.token === token && st.window.owner === d.owner) st.window = null;
