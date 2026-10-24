@@ -71,7 +71,7 @@ max-width, opacity, `--nav-expand`, `--earn-out`, `--earn-layout`, `column-gap` 
 so the cost of style reads is bounded. Sequences: hero-exit and hero-entry (a scripted scroll ramp, 2 viewport heights in 600 ms), morph-open and
 morph-close (wheel pushes; the CI step passes `--morph 0`, so the 15 min cap holds: hero sequences only). `--variants logical,physical,padding` adds candidate arms (`faithful+<variant>`, 2 full repeats): the faithful rewrite plus one `!important`
 rule that swaps `padding-inline` in the earn button's `transition-property` for the logical longhands, the physical ones or the `padding`
-shorthand (`variantCss`; durations and curves stay the site's). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
+shorthand (`variantCss`; durations and curves stay the site's). With a `[frames:<part:variant>]` token the recording adds a `flag` arm: the same page as `?fw=<part:variant>` (`--search`, `rewriteFor`), 3 full repeats and one light page, in Chromium, Playwright WebKit and Safari (task earn-webkit-smooth, flag `nav:earn-logical`). Then Safari itself through `safaridriver` (`transitions-safari.mjs`, hero sequences, widths of 640 and up, best
 effort, `safari-status.txt` says ok, skipped or failed and why). `transitions.mjs summary` reduces every recording (`index.json`,
 `*.summary.json`, `*.summary.txt` with the per-frame table). Artifact `transitions-apple-<leg>`. Cause proof: `Fw.Engine.TransitionStart`
 (golden `packages/contracts/golden/engine/transition-start.jsonl`); the reduction in `transitions.mjs` is a TS stand-in.

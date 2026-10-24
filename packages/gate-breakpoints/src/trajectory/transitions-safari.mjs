@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { startServer, snapshotRoot, siteDist } from '../serve.mjs';
+import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { envFor } from './registry.mjs';
 import { REC, RAMP, selectorsFor, SEQUENCES, variantCss, styleInit } from './transitions.mjs';
 
@@ -76,10 +76,13 @@ return { reduce: q('(prefers-reduced-motion: reduce)'), hover: q('(hover: hover)
   scripts: performance.getEntriesByType('resource').filter((r) => /\\.js(\\?|$)/.test(r.name)).map((r) => [r.name.split('/').pop().slice(0, 24), r.responseStatus ?? null, Math.round(r.duration)]).slice(0, 12),
   body: document.body.innerText.length, svelte: !!document.querySelector('[class*="svelte-"]') };`;
 
-export async function captureSafari({ port, width, reps, out, variants = [], env = process.env }) {
+export async function captureSafari({ port, width, reps, out, variants = [], search = '', env = process.env }) {
   mkdirSync(out, { recursive: true });
   const orig = await startServer(snapshotRoot(env));
   const rewrite = await startServer(siteDist(env));
+  const flag = search ? rewriteFor(siteDist(env), { ...env, FW_SEARCH: search }) : null;
+  if (search && !flag.rewrite) throw new Error(`no flagged config for ${search}`);
+  const flagged = flag ? await startServer(siteDist(env), flag.rewrite) : null;
   const c = client(`http://127.0.0.1:${port}`);
   const runs = [];
   let caps = null;
@@ -88,6 +91,7 @@ export async function captureSafari({ port, width, reps, out, variants = [], env
     const e = envFor(width);
     await c.rect({ x: 0, y: 0, width, height: e.height + 120 });
     const arms = [{ site: 'orig', role: 'orig', origin: orig.origin }, { site: 'rewrite', role: 'faithful', origin: rewrite.origin },
+      ...(flagged ? [{ site: 'rewrite', role: 'flag', origin: flagged.origin }] : []),
       ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, variant: v }))];
     for (const arm of arms) {
       const modes = arm.variant ? ['full', 'full'] : [...Array.from({ length: reps }, () => 'full'), 'light'];
@@ -101,6 +105,7 @@ export async function captureSafari({ port, width, reps, out, variants = [], env
   } finally {
     await c.close();
     await orig.close(); await rewrite.close();
+    if (flagged) await flagged.close();
   }
   const version = caps ? `${caps.browserName} ${caps.browserVersion ?? ''}`.trim() : 'unknown';
   const file = join(out, `transitions-safari-${width}.json`);
@@ -111,6 +116,6 @@ export async function captureSafari({ port, width, reps, out, variants = [], env
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const f = await captureSafari({ port: Number(opt('port', '4444')), width: Number(opt('width', '1280')), reps: Number(opt('reps', '3')), out: opt('out'), variants: opt('variants', '').split(',').filter(Boolean) });
+  const f = await captureSafari({ port: Number(opt('port', '4444')), width: Number(opt('width', '1280')), reps: Number(opt('reps', '3')), out: opt('out'), variants: opt('variants', '').split(',').filter(Boolean), search: opt('search', '') });
   log(`wrote ${f}`);
 }

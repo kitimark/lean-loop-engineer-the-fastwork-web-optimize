@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { LAUNCHERS } from '../engines.mjs';
 import { PIN_SRC, waitReady } from '../page.mjs';
-import { startServer, snapshotRoot, siteDist } from '../serve.mjs';
+import { startServer, snapshotRoot, siteDist, rewriteFor } from '../serve.mjs';
 import { MORPH_NODES, envFor, resolveNodes } from './registry.mjs';
 import { installKit } from './kit.mjs';
 
@@ -147,15 +147,19 @@ async function walkPage(engine, env, arm, mode, morph) {
   } finally { await s.close().catch(() => {}); }
 }
 
-export async function capture({ engineName, widths, reps, out, morph = true, variants = [], env = process.env }) {
+export async function capture({ engineName, widths, reps, out, morph = true, variants = [], search = '', env = process.env }) {
   mkdirSync(out, { recursive: true });
   const configs = JSON.parse(readFileSync(join(siteDist(env), 'configs.json'), 'utf8'));
   const orig = await startServer(snapshotRoot(env));
   const rewrite = await startServer(siteDist(env));
+  const flag = search ? rewriteFor(siteDist(env), { ...env, FW_SEARCH: search }) : null;
+  if (search && !flag.rewrite) throw new Error(`no flagged config for ${search}`);
+  const flagged = flag ? await startServer(siteDist(env), flag.rewrite) : null;
   const engine = await LAUNCHERS[engineName]();
   const arms = [
     { site: 'orig', role: 'orig', origin: orig.origin, want: null },
     { site: 'rewrite', role: 'faithful', origin: rewrite.origin, want: configs.bySearch[''] },
+    ...(flagged ? [{ site: 'rewrite', role: 'flag', origin: flagged.origin, want: flag.hash ?? null }] : []),
     ...variants.map((v) => ({ site: 'rewrite', role: `faithful+${v}`, origin: rewrite.origin, want: configs.bySearch[''], variant: v })),
   ];
   const runs = [];
@@ -179,6 +183,7 @@ export async function capture({ engineName, widths, reps, out, morph = true, var
   } finally {
     await engine.close().catch(() => {});
     await orig.close(); await rewrite.close();
+    if (flagged) await flagged.close();
   }
 }
 
@@ -335,11 +340,11 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (args[0] === 'capture') {
-    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), reps: Number(opt('reps', '3')), out: opt('out'), morph: opt('morph', '1') !== '0', variants: opt('variants', '').split(',').filter(Boolean) });
+    await capture({ engineName: opt('engine'), widths: opt('widths', '390,1280').split(',').map(Number), reps: Number(opt('reps', '3')), out: opt('out'), morph: opt('morph', '1') !== '0', variants: opt('variants', '').split(',').filter(Boolean), search: opt('search', '') });
   } else if (args[0] === 'summary') {
     await summary({ ins: opt('in').split(','), out: opt('out'), run: opt('run') });
   } else {
-    log('usage: transitions.mjs capture --engine E --widths 390,1280 --reps 3 [--morph 0] [--variants logical,physical,padding] --out DIR | summary --in DIR[,DIR] --out DIR [--run ID]');
+    log('usage: transitions.mjs capture --engine E --widths 390,1280 --reps 3 [--morph 0] [--variants logical,physical,padding] [--search ?fw=part:variant] --out DIR | summary --in DIR[,DIR] --out DIR [--run ID]');
     process.exitCode = 2;
   }
 }
