@@ -23,6 +23,10 @@ State: one class-position rule in Lean, mirrored by the extractor branch for bra
 Footprint change (round 2): nav/index.tsx:133 (`${boxClass}is-hero-pill`) now emits `setClass ?`: +1 access row,
 +1 finding `dynamic-name setClass`; findings 76 -> 77; footprint-diff: 15 rows change (className:?/nav becomes a
 missing input of 14 parts; nav outputs.extra drops its 3 className entries, covered by `?`).
+Bridge: lean/Fw/Parts/Bridge.lean codeAdj row 16 (nav) 6 -> 20 edges, chain pairs 341 -> 322, `chainTargets_code`
+retabled; isolated and independent rows unchanged. Bridge.lean is outside the graph writes: dry land prints
+`VERDICT scope classpos-model-align` until the lead adds it. docs/report/v2-report.md:557 already cites 299 (stale).
+Checks at 0ad5a4e9f + main merge: check.sh green, site test + typecheck, ci-paths, runner land-inputs green.
 
 Follow-ups: arrays/objects outside helper args, Unicode whitespace splitting, identifiers in className, computed
 CSS-module keys `v[\`dot${..}\`]` (resolve to `#null`, platform/Visuals.tsx:446-448).
