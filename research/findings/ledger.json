@@ -3264,7 +3264,12 @@
    "v1Evidence": "",
    "lesson": "A per-frame layout can be cut property by property, but only the property that dirties layout moves: here the original also transitions the box width during the draw-in, so half of the layout phases remain, and the phase cut shows in the quiet windows between the carousel swaps, not in the swap windows, which pay their own layout.",
    "next": "User look review of the wipe. If accepted, the next layout cost is the width transition of the draw-in (it moves the headline text), which is the original behaviour and a separate, look-changing candidate.",
-   "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/"
+   "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/",
+   "userDecision": {
+    "date": "2026-10-24",
+    "decision": "rejected 2026-10-24: same clip-path wipe as draw-nolayout-full, which the user saw on the iPhone and rejected as looking different from the original",
+    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full (draw-nolayout not shown on its own)"
+   }
   },
   {
    "id": "accent.drawin-width-nolayout",
@@ -3302,7 +3307,12 @@
    "v1Evidence": "",
    "lesson": "A per-frame layout cannot be moved off the layout path when the thing that changes is in flow: the headline text follows the word box, so a smooth text glide costs a layout per frame in both engines. What can be given up is the glide itself: one layout at the start of the draw-in replaces 54, and the quiet windows between swaps lose the accent layout entirely.",
    "next": "User look review of the text jump. If rejected, draw-nolayout (glide kept, half the layout phases) stays the safer arm. Layout per hero-exit frame and pixel numbers: accent-nolayout-measure.",
-   "evidence": "webkit-sim run 40010826238 (push 3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]; r3 cancelled); research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/full-swap-report.md"
+   "evidence": "webkit-sim run 40010826238 (push 3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]; r3 cancelled); research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/full-swap-report.md",
+   "userDecision": {
+    "date": "2026-10-24",
+    "decision": "rejected 2026-10-24: the draw looks different from the original",
+    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full"
+   }
   },
   {
    "id": "premise.webkit.wheel-momentum",
@@ -3347,6 +3357,180 @@
    "lesson": "A site that restores the position after every scroll event cannot be driven into a moving drawn scroll by a page script; a drive that pulls and restores adds the event work but not the movement.",
    "evidence": "mac run 40032804511; research/notes/2026/10-2x-morph-real-wheel.md follow-up 3",
    "next": "touch-lock-page-end (the iOS touch lock fight at the page end). Note research/notes/2026/10-2x-morph-real-wheel.md."
+  },
+  {
+   "id": "accent.same.dasharray",
+   "n": 66,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "not modelled (no Lean key for stroke-dasharray)",
+   "webkit": "no-win by construction: a stroke-dasharray change takes the SVG layout-data branch of StyleDifference (WC/style/StyleDifference.cpp:160@862f17d, beside stroke-dashoffset at :161), a layout per frame like the original. CONFIRMED (source).",
+   "visual": "same by construction (a dash trace), not built",
+   "mechanism": "Same diff branch as the original stroke-dashoffset: every frame lays out the SVG renderer.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.verdict",
+    "Fw.Engine.StyleDiffAccent.pending_exact"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Swapping one SVG stroke property for another keeps the layout: WebKit treats every stroke dash value as layout data.",
+   "next": "none",
+   "candidate": "hero.accent same-look: trace the stroke by animating stroke-dasharray instead of stroke-dashoffset",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.path-d",
+   "n": 60,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "not modelled (no Lean key for d)",
+   "webkit": "no-win by construction: d lives in SVGLayoutData (WC/style/computed/data/StyleSVGLayoutData.h:64@862f17d) and a layout-data change lays out (WC/style/StyleDifference.cpp:154@862f17d). CONFIRMED (source).",
+   "visual": "same up to the cut-path numerics, not built",
+   "mechanism": "A geometry change of an SVG shape is layout in WebKit, so it trades one layout per frame for another.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.verdict"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Any per-frame SVG geometry change (d, dash values) lays out in WebKit; only paint-level or compositor changes can drop the layout.",
+   "next": "none",
+   "candidate": "hero.accent same-look: rewrite each path d per frame to the drawn part of the stroke",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.sprite",
+   "n": 61,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free (background-position is paint level, Lean Fw.Engine.Chromium.keyLevel); pixels pending, not run",
+   "webkit": "layout-free (background is Repaint, WC/style/StyleDifference.cpp:673@862f17d); pixels pending, not run",
+   "visual": "MEASURED-pending: WebKit samples the draw at 1 ms timeline steps (WebAnimation.cpp:1298-1300, Performance.cpp:73@862f17d), so a finite sprite can hold every sampled progress; frames_miss does not apply. Pixel equality of the bitmap with the vector stroke is unproved.",
+   "mechanism": "Moves the stroke trace off style and layout onto a background repaint. A CSS animation starts at the timeline time (WC/animation/WebAnimation.cpp:1298-1300@862f17d), which is the rAF timestamp reduced to 1 ms (WC/dom/Document.cpp:10950; WC/animation/AnimationTimelinesController.cpp:104,129; WC/page/Performance.cpp:73,174-176@862f17d), so the 0.9 s draw shows at most 901 progress values, all known in advance.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.pending_nolayout"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of a pre-rendered bitmap (DPR scale, fractional page offset) with the SVG stroke at the <=901 timeline-quantised progresses"
+   ],
+   "premises": [
+    "WebKit timeline time is the rAF timestamp at 1 ms resolution, CONFIRMED (source lines in mechanism)",
+    "one sprite frame per 1 ms progress step fits the memory budget, INFERRED (not sized)"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A continuum-of-phases argument (frames_miss) needs a free start phase; WebKit quantises timeline time to 1 ms, so a finite sprite is not refuted by counting and the question becomes pixel equality.",
+   "next": "Run plan: add a sprite arm to DRAW_FLAGS in packages/measure-webkit/src/pathpix-exit-draw-webkit.mjs (sprite rendered at the device DPR), run the path-pix sim-draw lane (.github/workflows/path-pix.yml) paused at fixed progress values against the faithful arm, 1 dispatch; build a flag only if the pixels match.",
+   "candidate": "hero.accent same-look: pre-rendered sprite of the draw, stepped background-position (or mask-position)",
+   "status": "partly-proved",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.paint-api",
+   "n": 62,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "not modelled",
+   "webkit": "unavailable: CSSPaintingAPIEnabled has status testable and default false (WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:1314-1325@862f17d). CONFIRMED (source).",
+   "visual": "n/a (cannot run on the target engine)",
+   "mechanism": "The engine where the lag is felt does not ship the feature.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.verdict"
+   ],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Check the target engine ships a feature by default before modelling it.",
+   "next": "none",
+   "candidate": "hero.accent same-look: draw the stroke in a CSS Paint API worklet driven by a registered custom property",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.clip-final",
+   "n": 63,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free (clip-path is paint level, Lean clip_nolayout); look refuted, not run",
+   "webkit": "layout-free (clip-path on a layer, WC/style/StyleDifference.cpp:779-780@862f17d, Lean clip_nolayout); look refuted, not run",
+   "visual": "not equal at the pixel: Fw.Engine.StyleDiffAccent.clip_coverage_differs. A clip that follows the stroke outline multiplies two partial coverages at the stroke's side edges (c*c is not c for 0 < c < 1); a padded clip covers later parts of the same path that pass within the padding (coverage 1 where the original has 0). As sets, the final stroke cut to the swept region is the drawn part, so the difference is antialiasing and self-overlap.",
+   "mechanism": "A clip and a stroke are rasterised separately and their coverages multiply, which a single stroke raster does not do.",
+   "leanFor": [],
+   "leanAgainst": [
+    "Fw.Engine.StyleDiffAccent.clip_coverage_differs"
+   ],
+   "missingWhy": [],
+   "premises": [
+    "WebKit applies an antialiased clip by multiplying coverage, INFERRED",
+    "the accent paths pass within a padding width of themselves, INFERRED"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A set-level identity (A cut to B equals C) is not a pixel identity once both sides are antialiased.",
+   "next": "none",
+   "candidate": "hero.accent same-look: show the final stroke clipped to the region the pen has swept so far",
+   "status": "refuted",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.canvas",
+   "n": 64,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free by source: a canvas draw only marks paint invalidation (B/core/html/canvas/html_canvas_element.cc:687-711@f842f52). CONFIRMED (source); not run",
+   "webkit": "layout-free by source: a canvas draw repaints the canvas renderer (WC/html/HTMLCanvasElement.cpp:568-579@862f17d); only a size change reaches canvasSizeChanged (:581-604), so the canvas keeps one size. CONFIRMED (source); not run",
+   "visual": "pixels MEASURED-pending: the canvas is rastered apart from the page (C4 double rounding, Fw.Engine.Visual.raster_path_fails_fracAlpha) and its Bezier flattening and dash numerics are not SVG's; equality is not proved.",
+   "mechanism": "Moves the stroke trace off style and layout onto a canvas repaint.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.pending_nolayout",
+    "Fw.Engine.StyleDiffAccent.stroke_pending",
+    "Fw.Engine.StyleDiffAccent.combo_54"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of the canvas stroke with the SVG stroke on WebKit"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "Of the stroke candidates only a canvas leaves the trace layout-free in WebKit; whether it looks the same is a pixel question Lean cannot settle.",
+   "next": "Run plan: build the arm behind a flag only after a pixel check; the check is the path-pix sim-draw lane (.github/workflows/path-pix.yml, packages/measure-webkit/src/pathpix-exit-draw-webkit.mjs) with a canvas arm added to DRAW_FLAGS, paused at fixed progress values against the faithful arm, 1 dispatch.",
+   "candidate": "hero.accent same-look: draw the stroke per frame on a fixed-size canvas 2D (setLineDash, lineDashOffset) in requestAnimationFrame",
+   "status": "partly-proved",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
+  },
+  {
+   "id": "accent.same.glide",
+   "n": 65,
+   "part": "hero.accent",
+   "flags": [],
+   "chromium": "layout-free after the first draw-in frame (transform on an own layer, Lean transformOwn_nolayout); not run",
+   "webkit": "layout-free after the first draw-in frame (transform on a composited box recomposites, WC/rendering/RenderElement.cpp:300-312@862f17d); alone it keeps the stroke-dashoffset layout, so the WebKit layout frames per cycle stay 108 (combo_54); with canvas they drop to 1. Not run",
+   "visual": "geometry proved: Fw.Engine.StyleDiffAccent.glide_same (first and last words and the accent centre sit where the original has them for every width), Fw.Engine.StyleDiffAccent.glide_eased (the shift is (wf - w0)/2 * (1 - e), so the original easing gives it). Pixels MEASURED-pending: a fractional translate is rastered on the compositor and laid-out text is snapped (C5, Fw.Engine.Visual.raster_path_fails_fracXf).",
+   "mechanism": "Replaces an in-flow width transition by a fixed box plus compositor translates of its neighbours.",
+   "leanFor": [
+    "Fw.Engine.StyleDiffAccent.glide_same",
+    "Fw.Engine.StyleDiffAccent.glide_eased",
+    "Fw.Engine.StyleDiffAccent.pending_nolayout",
+    "Fw.Engine.StyleDiffAccent.combo_54"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "pixel equality of translated text against laid-out text at fractional offsets"
+   ],
+   "premises": [
+    "the accent frame does not depend on the host width (it is set to the final width at once and centred), INFERRED from apps/site/src/parts/hero.accent/index.tsx"
+   ],
+   "v1Evidence": "none",
+   "lesson": "An in-flow glide can be rebuilt from a fixed box and compositor translates when the moving neighbours are known; the cost moves from layout to subpixel raster risk.",
+   "next": "Run plan: needs a cross-part write to hero (the neighbour spans) and a variant; pixel check in the path-pix sim-draw lane with a glide arm, 1 dispatch. Ship only together with canvas, since glide alone saves no WebKit layout frame.",
+   "candidate": "hero.accent same-look: keep the accent at its final width from the draw-in start and translate the first and last words by +-(wf - w(t))/2 with the same 0.9 s easing",
+   "status": "partly-proved",
+   "evidence": "Lean Fw.Engine.StyleDiffAccent.srow, Fw.Engine.StyleDiffAccent.verdict (golden packages/contracts/golden/parts/hero.accent.nolayout.jsonl, kind search); note research/notes/2026/10-2x-accent-same-look.md"
   },
   {
    "id": "engine.scroll.unthrottle",
@@ -3707,6 +3891,18 @@
    "task": "earn-bound-arm",
    "field": "mechanism",
    "text": "MEASURED NO-GO for GPU candidate B: the bound arm (all earn transitions off) against base, finish zone, Lean zoneVerdict then across (agreeNeeded 3 = 2): same in 3 of 3 jobs on macOS WebKit (run 39729682403) and on the iOS Simulator (run 39754568950); run 39744983394 insufficient (4 reps). Per-frame repeats overlap in every job (hitchJudge_same), so the earn work sits inside the A/A spread on the main thread. Lesson: measure a candidate's bound before building it. GPU/UI-process time is not measured (no real GPU on the VMs); the phone replay stays open. Note research/notes/2026/10-2x-earn-gpu.md."
+  },
+  {
+   "entry": "hero.accent:draw-nolayout: the draw reveals the visible copy with a clip-path inset() wipe (kept 0.9 s, same easing) and the stroke stays whole, instead of animating stroke-dashoffset on three stacked copies",
+   "task": "accent-same-look",
+   "field": "next",
+   "text": "Not reviewed on its own. Its draw is the same clip-path wipe as draw-nolayout-full, which the user rejected on 2026-10-24 as looking different from the original (n=56 userDecision), so the wipe is not a same-look route. The same-look search (accent.same.* rows, Lean Fw.Engine.StyleDiffAccent.verdict) found no candidate that is both proved same-look and layout-free in WebKit; note research/notes/2026/10-2x-accent-same-look.md."
+  },
+  {
+   "entry": "hero.accent:draw-nolayout-full: draw-nolayout plus no width transition on the host (transition: none on .drawingIn), so the word box takes its new width in one frame at the start of the draw-in and every other draw frame changes only clip-path",
+   "task": "accent-same-look",
+   "field": "lesson",
+   "text": "Lean Fw.Engine.StyleDiffAccent.jump_differs: while the original glides (w(t) differs from the final width wf), the first and last headline words sit (wf - w)/2 away from the original, so the jump is a different picture on every glide frame before the end. Fw.Engine.StyleDiffAccent.glide_same: holding the accent at wf and translating the neighbours by +-(wf - w)/2 puts them where the original has them, so the in-flow premise of this lesson is not forced; that candidate is accent.same.glide (pixels MEASURED-pending)."
   }
  ]
 }

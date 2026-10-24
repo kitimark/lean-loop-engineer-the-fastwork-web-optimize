@@ -319,8 +319,15 @@ describe("fw slot run", () => {
     expect(r.out).toMatch(/^[0-9a-f-]+\n$/i);
   });
 
-  it("a held test slot does not cover a nested land request: the run takes a land slot", async () => {
-    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["test", "T1", nowS() + 600]);
+  it("a held test slot covers a nested land request: it never queues behind its own ancestor", async () => {
+    const r = await nested("land", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["test", "T1", nowS() + 600], false);
+    expect(r.code).toBe(0);
+    expect(r.out).toBe("T1\n");
+    expect(r.holders).toHaveLength(1);
+  });
+
+  it("a nested sim request under a held land slot goes through admission and takes its own sim entry", async () => {
+    const r = await nested("sim", { FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T1" }, ["land", "T1", nowS() + 600]);
     expect(r.code).toBe(0);
     expect(r.out).not.toBe("T1\n");
   });
