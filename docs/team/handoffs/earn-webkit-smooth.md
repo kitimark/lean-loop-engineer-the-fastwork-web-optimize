@@ -5,3 +5,4 @@ Reduced-motion round: Lean NavEarnWebkit.reduced_started_empty / reduced_compute
 Lead dispatch: gh workflow run breakpoint-gate.yml --ref ci/earn-webkit-smooth -f engines=both -f fw=nav:earn-logical
 Open: user Safari/iPhone review (ledger n=73); third macOS job follow-up.
 Read first: research/notes/2026/10-2x-earn-webkit-smooth.md.
+Final state: merged main, checks green, dry VERDICT dry earn-webkit-smooth; head after commit of this line.
