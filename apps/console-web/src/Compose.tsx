@@ -6,7 +6,7 @@ import { previewBase, refusedText } from "./TaskDetail";
 import { copyText } from "./buildsOpen";
 import { answersNow, copyKnown, newestWins, openSearch, pickQuery, type Picks } from "./composeOpen";
 
-export type CVar = { name: string; kind: string; isDefault: boolean; class: string; why: string; rows: number[]; refusal: string | null; gpu?: string | null };
+export type CVar = { name: string; kind: string; isDefault: boolean; class: string; why: string; rows: number[]; refusal: string | null; gpu?: string | null; gpuEngines?: string | null };
 export type CPart = { id: string; slot: string; group: string; pageLevel: boolean; variants: CVar[]; other: number[] };
 export type CRow = {
   index: number; candidate: string; status: string; chromium: string; webkit: string; visual: string; mechanism: string;
@@ -82,12 +82,12 @@ export function PartCard({ part, chosen, rows, rules, onPick, reviewPending = []
             </span>
             <span className="min-w-0 break-words text-muted-foreground">
               {v.refusal ?? v.why}
-              {v.gpu ? <span className="block" data-testid="gpu-mechanism">GPU: {v.gpu}</span> : null}
+              {v.gpu ? <span className="block" data-testid="gpu-mechanism">GPU{v.gpuEngines ? ` (${v.gpuEngines})` : ""}: {v.gpu}</span> : null}
             </span>
           </button>
         ))}
       </div>
-      <p className="break-words text-xs" data-testid="why">{rules[cur.class] ?? cur.why}{cur.gpu ? ` GPU: ${cur.gpu}` : ""}</p>
+      <p className="break-words text-xs" data-testid="why">{rules[cur.class] ?? cur.why}{cur.gpu ? ` GPU${cur.gpuEngines ? ` (${cur.gpuEngines})` : ""}: ${cur.gpu}` : ""}</p>
       {shown.length > 0 ? (
         <div>
           <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide the explanation" : "Show the explanation"}</Button>

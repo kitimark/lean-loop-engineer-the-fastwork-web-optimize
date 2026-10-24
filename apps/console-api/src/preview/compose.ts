@@ -70,7 +70,7 @@ export function explainRow(row: LedgerRow, index: number, notes: LedgerNote[]) {
 }
 
 export type ComposeReply = Record<string, unknown> & {
-  parts: { variants: { rows: number[]; gpu: string | null }[]; other: number[] }[];
+  parts: { variants: { rows: number[]; gpu: string | null; gpuEngines: string | null }[]; other: number[] }[];
   decision: { ok: boolean; link: string | null; reasons: string[]; notes: string[] };
 };
 
