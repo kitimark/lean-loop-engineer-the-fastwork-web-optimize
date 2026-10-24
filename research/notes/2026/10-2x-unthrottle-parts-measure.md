@@ -18,7 +18,8 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 - **Hero (hero.exit) agrees with the Lean prediction in all four arms, over 3 separate CI jobs.** MEASURED. Run
   40098348176, 6 usable passes per arm. Throttled arms show still runs of 5-6 frames; both lifting arms remove them.
 - **`engine.scroll:throttle-lift` and `engine.scroll:unthrottle` give the same hero result.** MEASURED: 6 band runs in
-  3585 and 3596 moving frames (1.7 per 1000), against 37.4 for the rewrite. Verdict `lifted` for both.
+  3585 and 3596 mid-moving frames (hero value strictly between 0 and 1000 while the toolbar moved; 1.7 per 1000), against
+  37.4 for the rewrite; per 1000 moving frames 1.4 against 32.4. Verdict `lifted` for both.
 - **Only hero is claimable.** The other four parts are no-data or a single job. Finish (run 40101695202) and rest (run
   40101702393) each have one VM with data, below the 3-job rule. Three dispatches were used; no rerun.
 - **Commission is the only other part with a visible gain: 10 band runs per 349 frames (rewrite) to 0 and 1 (lift,
@@ -50,7 +51,7 @@ checked against that golden in `test/throttle-parts.test.mjs`. Summaries: `resul
 
 ## Hero, drag mode (run 40098348176, 3 jobs, 6/6 usable passes per arm)
 
-| arm | band runs / mid-moving frames | per 1000 | stalls per 1000 pairs | max step | verdict | predicted | match |
+| arm | band runs / mid-moving frames | per 1000 mid-moving | stalls per 1000 pairs | max step | verdict | predicted | match |
 |---|---|---|---|---|---|---|---|
 | original | 38 / 2818 | 13.5 | 192.3 | 175 | reference | stills | agree |
 | rewrite | 139 / 3714 | 37.4 | 133.4 | 67 | reference | stills | agree |
@@ -80,7 +81,7 @@ mode: run 40101695202; rest mode: run 40101702393, 2 usable passes per arm, all 
 
 Rest-mode detail (run 40101702393, MEASURED, 1 job):
 
-| series | arm | band runs / frames | per 1000 | stalls per 1000 pairs | max step | verdict |
+| series | arm | band runs / mid-moving frames | per 1000 mid-moving | stalls per 1000 pairs | max step | verdict |
 |---|---|---|---|---|---|---|
 | people | original | 4 / 485 | 8.2 | 6.0 | 134 | reference |
 | people | rewrite | 0 / 572 | 0 | 4.5 | 70 | reference |
