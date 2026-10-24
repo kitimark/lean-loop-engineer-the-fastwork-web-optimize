@@ -530,12 +530,12 @@ def nestedLines : List String :=
     | some (o, t) => Json.mkObj [("owner", .str o), ("token", .str t)]
   let nl (name : String) (now : Nat) (k : Kind) (named : Option (String × String)) (held : List Entry) : String :=
     line name "adapt.nested" [("now", toJson now), ("kind", .str k.name), ("named", namedJson named), ("held", entriesJson held)]
-      (Json.mkObj [("skip", .bool (nestedSkips now k named held))])
+      (Json.mkObj [("skip", .bool (nestedSkips now named held))])
   [nl "named live land token, land request: skip" 200 .land (nm "w" "T1") [en "w" "T1" .land 300],
     nl "FW_SLOT_HELD alone, no token named: acquire" 200 .land none [en "w" "T1" .land 300],
     nl "no token named and nothing held: acquire" 200 .land none [],
-    nl "held test slot, nested land request: acquire" 200 .land (nm "w" "T1") [en "w" "T1" .test 300],
-    nl "held land slot, nested test request: acquire" 200 .test (nm "w" "T1") [en "w" "T1" .land 300],
+    nl "held test slot, nested land request: skip, runs under the parent lease" 200 .land (nm "w" "T1") [en "w" "T1" .test 300],
+    nl "held land slot, nested test request: skip, runs under the parent lease" 200 .test (nm "w" "T1") [en "w" "T1" .land 300],
     nl "named token expired (till = now): acquire" 300 .land (nm "w" "T1") [en "w" "T1" .land 300],
     nl "named token released (not in state): acquire" 200 .land (nm "w" "T1") [en "w" "T2" .land 300],
     nl "token of another owner: acquire" 200 .land (nm "w" "T1") [en "x" "T1" .land 300],

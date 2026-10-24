@@ -18,23 +18,43 @@ test("plan: bare call routes through slot run with its kind, in this process", (
   assert.equal(p.argv, undefined);
 });
 
-test("plan: nested (FW_SLOT_HELD), CI and FW_SLOT_SELF=off run the command directly", () => {
-  for (const env of [{ FW_SLOT_HELD: "1" }, { CI: "true" }, { FW_SLOT_SELF: "off" }]) {
+test("plan: a live parent token, CI and FW_SLOT_SELF=off run the command directly", () => {
+  assert.deepEqual(plan({ FW_SLOT_TOKEN: "T" }, ["check", "--", "sh", "x"], true), { argv: ["sh", "x"], routed: false });
+  for (const env of [{ CI: "true" }, { FW_SLOT_SELF: "off" }]) {
     assert.deepEqual(plan(env, ["check", "--", "sh", "x"]), { argv: ["sh", "x"], routed: false });
   }
+});
+
+test("plan: FW_SLOT_HELD without a live token queues", () => {
+  assert.equal(plan({ FW_SLOT_HELD: "1" }, ["check", "--", "sh", "x"]).routed, true);
+  assert.equal(plan({ FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "T" }, ["check", "--", "sh", "x"], false).routed, true);
 });
 
 test("plan: bad usage is an error", () => {
   for (const a of [[], ["test"], ["lint", "--", "x"], ["test", "--"]]) assert.ok(plan({}, a).error);
 });
 
-test("nested call starts at once and runs the command (no deadlock)", () => {
-  const env = { ...process.env, FW_SLOT_HELD: "1" };
-  delete env.CI;
-  const r = spawnSync(process.execPath, [helper, "test", "--", process.execPath, "-e", "console.log('ran', process.env.FW_SLOT_HELD); process.exit(4)"],
-    { env, encoding: "utf8" });
-  assert.equal(r.status, 4);
-  assert.match(r.stdout, /ran 1/);
+test("nested call under a live parent token of another kind starts at once; a dead token queues", () => {
+  const dir = mkdtempSync(join(tmpdir(), "slot-nest-"));
+  const base = { ...process.env, FW_SLOT_DIR: dir, FW_LOCK_EVENTS: "off", FW_SLOT_OWNER: "nest-test" };
+  delete base.CI; delete base.FW_SLOT_SELF; delete base.FW_SLOT_HELD; delete base.FW_SLOT_TOKEN;
+  const fw = join(top, "apps", "runner", "src", "fw.ts");
+  const held = spawnSync(process.execPath, [fw, "slot", "acquire", "--kind", "land", "--lease", "120"], { env: base, encoding: "utf8", cwd: top });
+  assert.equal(held.status, 0, held.stderr);
+  const token = held.stdout.trim();
+  const code = "console.log('ran', process.env.FW_SLOT_TOKEN); process.exit(4)";
+  try {
+    const live = spawnSync(process.execPath, [helper, "check", "--", process.execPath, "-e", code],
+      { env: { ...base, FW_SLOT_HELD: "1", FW_SLOT_TOKEN: token }, encoding: "utf8", cwd: top });
+    assert.equal(live.status, 4, live.stderr);
+    assert.equal(live.stdout.trim(), `ran ${token}`);
+    const dead = spawnSync(process.execPath, [helper, "check", "--", process.execPath, "-e", code],
+      { env: { ...base, FW_SLOT_DIR: mkdtempSync(join(tmpdir(), "slot-dead-")), FW_SLOT_HELD: "1", FW_SLOT_TOKEN: "no-such-token" }, encoding: "utf8", cwd: top });
+    assert.equal(dead.status, 4, dead.stderr);
+    assert.doesNotMatch(dead.stdout, /ran no-such-token/);
+  } finally {
+    spawnSync(process.execPath, [fw, "slot", "release", "--token", token], { env: base, cwd: top });
+  }
 });
 
 test("bare call queues: it goes through the slot (state written, child sees FW_SLOT_HELD)", () => {

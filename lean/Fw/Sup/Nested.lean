@@ -3,41 +3,43 @@ import Fw.Sup.Adapt
 /-! A `fw slot run` started inside another slot's command: when it may skip the queue (docs/team/tools/slot.md). -/
 namespace Fw.Sup.Adapt
 
-/-- A nested run skips the queue iff its parent names a live held entry of the same kind, owner and token. Live means the lease has not expired (`live`, now < till; the parent's run renews it every leaseS/3); the owner's pid and start time are not checked, so a dead parent's token covers a child until its lease lapses. -/
-def nestedSkips (now : Nat) (kind : Kind) (named : Option (String × String)) (held : List Entry) : Bool :=
+/-- A nested run skips the queue iff its parent names a live held entry of the same owner and token, whatever the kinds of the parent and the request (it runs under the parent's lease). Refusing a request of another kind would break `fw land`, which runs check.sh and package tests inside its own land slot. Live means the lease has not expired (`live`, now < till; the parent's run renews it every leaseS/3); the owner's pid and start time are not checked, so a dead parent's token covers a child until its lease lapses (follow-up: Entry has no pid). -/
+def nestedSkips (now : Nat) (named : Option (String × String)) (held : List Entry) : Bool :=
   match named with
   | none => false
-  | some (owner, token) => held.any fun e => live now e && e.kind == kind && e.owner == owner && e.token == token
+  | some (owner, token) => held.any fun e => live now e && e.owner == owner && e.token == token
 
-theorem nestedSkips_iff (now : Nat) (kind : Kind) (owner token : String) (held : List Entry) :
-    nestedSkips now kind (some (owner, token)) held = true ↔
-      ∃ e ∈ held, now < e.till ∧ e.kind = kind ∧ e.owner = owner ∧ e.token = token := by
+theorem nestedSkips_iff (now : Nat) (owner token : String) (held : List Entry) :
+    nestedSkips now (some (owner, token)) held = true ↔
+      ∃ e ∈ held, now < e.till ∧ e.owner = owner ∧ e.token = token := by
   simp only [nestedSkips, List.any_eq_true, live, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq]
   constructor
-  · rintro ⟨e, he, ⟨⟨h1, h2⟩, h3⟩, h4⟩; exact ⟨e, he, h1, h2, h3, h4⟩
-  · rintro ⟨e, he, h1, h2, h3, h4⟩; exact ⟨e, he, ⟨⟨h1, h2⟩, h3⟩, h4⟩
+  · rintro ⟨e, he, ⟨h1, h2⟩, h3⟩; exact ⟨e, he, h1, h2, h3⟩
+  · rintro ⟨e, he, h1, h2, h3⟩; exact ⟨e, he, ⟨h1, h2⟩, h3⟩
 
-theorem nestedSkips_none (now : Nat) (kind : Kind) (held : List Entry) : nestedSkips now kind none held = false := rfl
+theorem nestedSkips_none (now : Nat) (held : List Entry) : nestedSkips now none held = false := rfl
 
-theorem nestedSkips_kind {now : Nat} {kind : Kind} {owner token : String} {held : List Entry}
-    (h : nestedSkips now kind (some (owner, token)) held = true) :
-    ∃ e ∈ held, e.kind = kind ∧ e.token = token := by
-  obtain ⟨e, he, _, hk, _, ht⟩ := (nestedSkips_iff now kind owner token held).1 h
-  exact ⟨e, he, hk, ht⟩
-
-theorem nestedSkips_live {now : Nat} {kind : Kind} {owner token : String} {held : List Entry}
-    (h : nestedSkips now kind (some (owner, token)) held = true) :
+theorem nestedSkips_live {now : Nat} {owner token : String} {held : List Entry}
+    (h : nestedSkips now (some (owner, token)) held = true) :
     ∃ e ∈ held, now < e.till ∧ e.token = token := by
-  obtain ⟨e, he, hl, _, _, ht⟩ := (nestedSkips_iff now kind owner token held).1 h
+  obtain ⟨e, he, hl, _, ht⟩ := (nestedSkips_iff now owner token held).1 h
   exact ⟨e, he, hl, ht⟩
 
-theorem nestedSkips_of_live {now : Nat} {kind : Kind} {held : List Entry} {e : Entry} (he : e ∈ held)
-    (hl : now < e.till) (hk : e.kind = kind) :
-    nestedSkips now kind (some (e.owner, e.token)) held = true :=
-  (nestedSkips_iff now kind e.owner e.token held).2 ⟨e, he, hl, hk, rfl, rfl⟩
+/-- A request inside a live ancestor never queues, whatever its kind: this is the OR-branch "run under the parent's lease". -/
+theorem nestedSkips_of_live {now : Nat} {held : List Entry} {e : Entry} (he : e ∈ held)
+    (hl : now < e.till) :
+    nestedSkips now (some (e.owner, e.token)) held = true :=
+  (nestedSkips_iff now e.owner e.token held).2 ⟨e, he, hl, rfl, rfl⟩
 
-theorem nestedSkips_empty (now : Nat) (kind : Kind) (named : Option (String × String)) :
-    nestedSkips now kind named [] = false := by
+/-- Of any two kinds, a request of the other kind under a live parent skips too (no wait on the own ancestor at limit 1). -/
+theorem nestedSkips_other_kind {now : Nat} {held : List Entry} {e : Entry} {k : Kind} (he : e ∈ held)
+    (hl : now < e.till) (_hk : e.kind ≠ k) :
+    nestedSkips now (some (e.owner, e.token)) held = true :=
+  nestedSkips_of_live he hl
+
+/-- The refuse branch is never taken: a skip needs a live entry, so an expired or unnamed token falls back to the queue. -/
+theorem nestedSkips_empty (now : Nat) (named : Option (String × String)) :
+    nestedSkips now named [] = false := by
   cases named <;> simp [nestedSkips]
 
 end Fw.Sup.Adapt

@@ -7,16 +7,25 @@ const here = dirname(fileURLToPath(import.meta.url));
 const KINDS = new Set(["check", "test"]);
 const SLOT_MAIN = join(here, "..", "apps", "runner", "src", "slot-main.ts");
 
-export function plan(env, args) {
+// `nested` is the token rule's answer (nestedHeld in apps/runner/src/slot.ts, from nestedSkips in lean/Fw/Sup/Nested.lean):
+// true only when FW_SLOT_TOKEN names a live held entry of this owner. FW_SLOT_HELD alone decides nothing.
+export function plan(env, args, nested = false) {
   const [kind, sep, ...cmd] = args;
   if (!KINDS.has(kind) || sep !== "--" || cmd.length === 0) return { error: "usage: slot-self.mjs <check|test> -- <cmd...>" };
-  const direct = Boolean(env.FW_SLOT_HELD) || Boolean(env.CI) || env.FW_SLOT_SELF === "off";
+  const direct = nested || Boolean(env.CI) || env.FW_SLOT_SELF === "off";
   if (direct) return { argv: cmd, routed: false };
   return { slot: ["run", "--kind", kind, "--", ...cmd], routed: true };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const p = plan(process.env, process.argv.slice(2));
+  let nested = false;
+  if (process.env.FW_SLOT_TOKEN) {
+    const { enforceNodePin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "node-guard.ts")).href);
+    enforceNodePin();
+    const { nestedHeld, realDeps } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "slot.ts")).href);
+    nested = nestedHeld(realDeps(process.cwd()));
+  }
+  const p = plan(process.env, process.argv.slice(2), nested);
   if (p.error) { process.stderr.write(`${p.error}\n`); process.exit(2); }
   if (p.routed) {
     const { enforceNodePin } = await import(pathToFileURL(join(here, "..", "apps", "runner", "src", "node-guard.ts")).href);

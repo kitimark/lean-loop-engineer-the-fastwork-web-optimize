@@ -561,14 +561,14 @@ async function exec(d: Deps, argv: string[], env: Record<string, string | undefi
   return { exit, stdout: Buffer.concat(bufs.stdout).toString(), stderr: Buffer.concat(bufs.stderr).toString(), whole: size <= CAP };
 }
 
-export function nestedHeld(d: Deps, kind: Kind): boolean {
+export function nestedHeld(d: Deps): boolean {
   const token = d.env.FW_SLOT_TOKEN;
-  return nestedSkips(nowS(), kind, token ? { owner: d.owner, token } : null, readState(d).holders);
+  return nestedSkips(nowS(), token ? { owner: d.owner, token } : null, readState(d).holders);
 }
 
 export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): Promise<number> {
   const label = runLabel(kind, argv, argv.includes("--dry"));
-  if (nestedHeld(d, kind)) {
+  if (nestedHeld(d)) {
     const end = begin("fw", label);
     let r = EXIT_ERROR;
     try { r = (await exec(d, argv, d.env, false)).exit; } finally { end(r); }
