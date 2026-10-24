@@ -28,8 +28,8 @@ animation that the compositor cannot run alone lifts that throttle. WebKit cites
   `Source/WebCore/animation/AnimationTimelinesController.cpp:267-279@862f17d` makes it true when a progress-based timeline
   has an animation whose keyframe effect is not completely accelerated.
 - **Limit (INFERRED):** the Simulator runs the same WebKit UI-process code but has no phone GPU or power state. That the
-  phone behaves like the Simulator, and that the user feels this stepping as lag, is not shown here. The phone pass is a
-  dispatch item (below). The flag is a diagnostic: never in a preset, never shipped.
+  phone behaves like the Simulator, and that the user feels this stepping as lag, is not shown by the count. The user's felt phone pass
+  (below) agrees with the Simulator. The flag is a diagnostic: never in a preset; its shippable form is `engine.scroll:unthrottle` (note `10-2x-throttle-lift-ship.md`).
 
 ## What was built
 
@@ -101,14 +101,18 @@ The flag removes the 100 ms band, not every short pause. Whether the exit then l
 - The VM load average reads 400-770 during the passes (the Simulator, not the probe); counts do not depend on timing
   waits, only on frame times of about 17 ms.
 
-## Phone pass (dispatch item for the lead)
+## Phone pass (user, 2026-10-24, felt, one person, preview)
 
-The real-device replay driver (`docs/team/tools/device-replay.md`, task `device-replay`) has not landed, so this task
-does not touch the phone. To test the flag on the device: open the production build once with
-`?fw=engine.scroll:throttle-lift` and once without, same viewport (toolbar collapsed or not in both), drag slowly up
-through the hero exit, record `scrollY`, the hero value and frame times, and count with `stillruns.mjs` (it is the
-golden-checked twin of the Lean count). Verdict `confounded` appears when `innerHeight` differs between the arms, as in
-the earlier phone passes (815 vs 775).
+The user opened the production build on the real iPhone with `?fw=engine.scroll:throttle-lift` and scrolled through the
+hero exit. Verbatim: "looks the same and hero-exit is a lot of improve, no laggy on hero exit".
+
+- **What it shows (felt, one person, one preview session):** the page looks the same with the flag, and the hero-exit lag
+  the user felt without it is gone. This matches the Simulator count (163 band runs to 0).
+- **What it does not show:** no recorded `scrollY` series from the phone, so no still-run count on the device; one
+  person; no blind A/B. A recorded phone session is a separate lead step (`docs/team/tools/device-replay.md`).
+- **Consequence:** the shippable form is `engine.scroll:unthrottle` (task `throttle-lift-ship`, note
+  `10-2x-throttle-lift-ship.md`); `throttle-lift` stays the diagnostic. The earlier line "If the flag helps on the phone,
+  the shipped candidate is the threaded scroll-driven exit" is superseded: the flag helped.
 
 ## TS stand-ins (not proved)
 
