@@ -19443,7 +19443,8 @@
     "packages/gh-budget/test/*.test.ts",
     "docs/team/handoffs/timing-capnets-link.md"
    ],
-   "title": "timing-poller-snapshot review follow-ups (2026-10-24): (1) capNets (floor/hour/minute waits are own time) is used by nothing: prove a theorem tying it to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap, so the excess of a floor or share wait counts as own time), golden row; (2) poller.ts records interval before the tick's listed/pages events, so a pages change is missing: compute it after the pages event, or prove in Lean that the max over the two ticks already covers it."
+   "title": "timing-poller-snapshot review follow-ups (2026-10-24): (1) capNets (floor/hour/minute waits are own time) is used by nothing: prove a theorem tying it to gapCapMs (a gap beyond max(q,w)*1000 + backoff nets only the cap, so the excess of a floor or share wait counts as own time), golden row; (2) poller.ts records interval before the tick's listed/pages events, so a pages change is missing: compute it after the pages event, or prove in Lean that the max over the two ticks already covers it.",
+   "evidence": "e2f93f7"
   },
   {
    "devices": [
@@ -19791,7 +19792,11 @@
     "packages/measure-webkit/test/pathpix.test.mjs",
     "packages/measure-webkit/src/pathpix-exit-draw-zones.mjs",
     "results/accent-draw-nolayout-pixels/run-40037992429/zones.md",
-    "docs/team/handoffs/pathpix-drawbase-wire.md"
+    "docs/team/handoffs/pathpix-drawbase-wire.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Gate/PathPixWire.lean",
+    "lean/Fw/Wire.lean",
+    "lean/Fw.lean"
    ],
    "title": "pathpix-zoned-pinned review follow-ups: (1) a test reads results/accent-draw-nolayout-pixels/run-40037992429/job-N/cells.json and checks each lane (frames[].arms.{N,F}.rest.changed) against the drawBase golden rows, so the hand-typed Lean lanes are tied to the artifact; (2) pathpix-exit-draw-zones.mjs prints the aboveBase column into zones.md from fwcore (regenerate the committed zones.md)."
   },
@@ -19860,9 +19865,34 @@
     "scripts/lint-check-sh.mjs",
     "scripts/lint-check-sh.test.mjs",
     "lean/scripts/check.sh",
-    "docs/team/handoffs/polish-line-join.md"
+    "docs/team/handoffs/polish-line-join.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-speed.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Wire/Plan.lean"
    ],
    "title": "Incident inc-polish-line-join (2026-10-24): fw polish comment cuts deleted a trailing `# ...` comment together with its newline and joined two check.sh job lines in 3 polish commits (162a694 workflow-syntax-gate, 35f3727 mac-safari-measure, 4d0c107 hero-accent-draw-nolayout, plus 65c6ec5 on the land-wt-lake-rebuilds branch), so the second job ran as arguments of the first (node-budget, nav-earn, gate-engine-timing goldens unrun on their own). Lean rule: a comment cut keeps every code line of the original as a line (the cut file's code lines, comments stripped, equal the original's line for line), theorem + golden rows (trailing comment, whole-line comment, block comment, a cut at end of file); fw polish refuses (reverts that file, VERDICT polish-cuts ... refused-join) any edit that breaks it, checked by a TS test over the golden. Plus a cheap lint: one `job \"` per check.sh line (CI and check.sh run it)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "accent-same-look",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/StyleDiffAccent.lean",
+    "lean/Fw/Parts/HeroAccentOpt.lean",
+    "apps/site/src/parts/hero.accent/**",
+    "packages/contracts/golden/parts/hero.accent*.jsonl",
+    "research/notes/2026/10-2x-accent-same-look.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/accent-same-look.md"
+   ],
+   "title": "User 2026-10-24 (phone session results/phone/2026-10-24): hero.accent:draw-nolayout-full 'looks different from the original'; draw-nolayout shares the clip-path wipe, so both look-change accent arms are REJECTED by the user (record userDecision rejected in research/findings/ledger.json rows accent-draw-nolayout and accent-drawin-width-nolayout). Find a same-look way to cut the accent's WebKit Layout: keep the pen-trace stroke and the 0.9 s width glide pixel-identical (path-pix draw-window zones, task pathpix-drawbase-wire) while removing per-frame layout, e.g. stroke trace pre-rendered as frames of a composited mask or a canvas/CSS paint, width glide as a transform on a fixed-width box with identical text position; each candidate decided in Lean from WebKit StyleDifference source (cite file:line@commit) and proved same-look or dropped as a negative finding with its why."
   }
  ],
  "deadline": {

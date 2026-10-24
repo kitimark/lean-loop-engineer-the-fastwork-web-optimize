@@ -229,6 +229,69 @@ theorem netMsOf_le_cap (t p q r w : Option Nat) (n c : Nat) (hn : netMsOf t p q 
         simp at hn
         omega
 
+def waitsMs (net : Bool) (ws : List (Fw.Ci.Budget.Reason × Nat)) : Nat :=
+  ((ws.filter fun x => capNets x.1 == net).map (·.2)).sum
+
+theorem netMsOf_capNets (t p q r c : Nat) (w : Option Nat) (ws : List (Fw.Ci.Budget.Reason × Nat)) (h : p < t)
+    (hc : gapCapMs (some p) (some q) (some r) w = some c) (hg : t - p = waitsMs true ws + waitsMs false ws)
+    (hn : waitsMs true ws ≤ c) :
+    ∃ n, netMsOf (some t) (some p) (some q) (some r) w = some n ∧
+      t - p - n = waitsMs false ws - (c - waitsMs true ws) := by
+  refine ⟨min (t - p) c, netMsOf_capped t p q r c w h hc, ?_⟩
+  omega
+
+theorem netMsOf_capNets_full (t p q r c : Nat) (w : Option Nat) (ws : List (Fw.Ci.Budget.Reason × Nat)) (h : p < t)
+    (hc : gapCapMs (some p) (some q) (some r) w = some c) (hg : t - p = waitsMs true ws + waitsMs false ws)
+    (hn : waitsMs true ws = c) :
+    ∃ n, netMsOf (some t) (some p) (some q) (some r) w = some n ∧ t - p - n = waitsMs false ws := by
+  obtain ⟨n, hn', he⟩ := netMsOf_capNets t p q r c w ws h hc hg (Nat.le_of_eq hn)
+  exact ⟨n, hn', by omega⟩
+
+theorem netMsOf_own_wait (t p q r f : Nat) (why : Fw.Ci.Budget.Reason) (hw : capNets why = false) (h : p < t)
+    (hr : r * 1000 ≤ p) (hg : t - p = q * 1000 + f) :
+    ∃ n, netMsOf (some t) (some p) (some q) (some r) none = some n ∧
+      t - p - n = waitsMs false [(.interval, q * 1000), (why, f)] := by
+  have hc : gapCapMs (some p) (some q) (some r) none = some (q * 1000) := by
+    rw [gapCapMs_no_prev_poll, Nat.sub_eq_zero_of_le hr, Nat.add_zero]
+  have h1 : waitsMs true [(.interval, q * 1000), (why, f)] = q * 1000 := by
+    cases why <;> simp_all [waitsMs, capNets]
+  have h2 : waitsMs false [(.interval, q * 1000), (why, f)] = f := by
+    cases why <;> simp_all [waitsMs, capNets]
+  exact netMsOf_capNets_full t p q r _ none _ h hc (by rw [h1, h2]; exact hg) h1
+
+theorem floor_row_own :
+    ∃ n, netMsOf (some 100000) (some 40000) (some 10) (some 30) none = some n ∧
+      100000 - 40000 - n = waitsMs false [(.interval, 10000), (.floor, 50000)] :=
+  netMsOf_own_wait 100000 40000 10 30 50000 .floor rfl (by omega) (by omega) (by omega)
+
+theorem interval_step_unregister (L : Fw.Ci.Budget.Limits) (s : Fw.Ci.Budget.State) (r : Nat) :
+    Fw.Ci.Budget.interval L (Fw.Ci.Budget.step L s (.unregister r)) = Fw.Ci.Budget.interval L s := rfl
+
+theorem interval_step_listed (L : Fw.Ci.Budget.Limits) (s : Fw.Ci.Budget.State) (rows : List (Nat × Nat))
+    (count pagesRead since : Nat) :
+    Fw.Ci.Budget.interval L (Fw.Ci.Budget.step L s (.listed rows count pagesRead since)) =
+      Fw.Ci.Budget.interval L s := rfl
+
+theorem interval_step_register (L : Fw.Ci.Budget.Limits) (s : Fw.Ci.Budget.State) (r c : Nat) :
+    Fw.Ci.Budget.interval L (Fw.Ci.Budget.step L s (.register r c)) = Fw.Ci.Budget.interval L s := by
+  simp only [Fw.Ci.Budget.step]
+  split <;> rfl
+
+theorem next_waits_interval (L : Fw.Ci.Budget.Limits) (s : Fw.Ci.Budget.State) (t0 : Nat) (hf : s.fails < L.maxFails)
+    (hw : s.watched ≠ []) (hl : s.lastTick = some t0) (hn : s.now < t0 + Fw.Ci.Budget.interval L s) :
+    Fw.Ci.Budget.next L s = .wait (t0 + Fw.Ci.Budget.interval L s) .interval := by
+  simp [Fw.Ci.Budget.next, Nat.not_le.2 hf, hw, hl, hn]
+
+def prePagesTick : Fw.Ci.Budget.State :=
+  { Fw.Ci.Budget.init 0 with remaining := some 505, reset := some 100, lastTick := some 0 }
+
+theorem pre_pages_max_misses :
+    let L := Fw.Ci.Budget.defaults
+    let s1 := { prePagesTick with pages := 2 }
+    max (Fw.Ci.Budget.interval L prePagesTick)
+        (Fw.Ci.Budget.interval L (Fw.Ci.Budget.step L s1 (.clock (Fw.Ci.Budget.interval L s1)))) <
+      Fw.Ci.Budget.interval L s1 := by decide
+
 #guard netMsOf (some 1792784016000) (some 1792784004000) (some 10) none none == some 12000
 #guard netMsOf (some 1792784016000) (some 1792784004000) none none none == some 12000
 #guard netMsOf (some 1792784016000) none (some 10) none none == some 10000
@@ -252,6 +315,11 @@ theorem netMsOf_le_cap (t p q r w : Option Nat) (n c : Nat) (hn : netMsOf t p q 
 #guard gapCapMs (some 40000) (some 10) (some 110) (some 60) == some 130000
 #guard gapCapMs (some 40000) (some 10) none (some 60) == none && gapCapMs (some 40000) none (some 30) (some 60) == none
 #guard [Fw.Ci.Budget.Reason.interval, .retryAfter].all capNets
+#guard waitsMs true [(.interval, 10000), (.floor, 50000), (.retryAfter, 3000), (.hour, 7)] == 13000
+#guard waitsMs false [(.interval, 10000), (.floor, 50000), (.retryAfter, 3000), (.hour, 7)] == 50007
+#guard waitsMs true [] == 0 && waitsMs false [(.minute, 4)] == 4
+#guard Fw.Ci.Budget.interval Fw.Ci.Budget.defaults prePagesTick == 50
+#guard Fw.Ci.Budget.interval Fw.Ci.Budget.defaults { prePagesTick with pages := 2 } == 100
 #guard ![Fw.Ci.Budget.Reason.failures, .idle, .tooBig, .floor, .hour, .minute].any capNets
 
 def ownOfNet (startMs durMs : Nat) (how : String) (updMs tickMs netMs : Option Nat) : Option Nat :=
@@ -3198,16 +3266,66 @@ def ownGoldenText (_ : Unit := ()) : String :=
   [.state, .state, .state, .observed, .state, .observed, .observed, .observed, .state, .state, .state, .state, .state,
    .observed, .observed, .observed, .observed, .observed, .observed, .observed]
 
+def capReasonStr : Fw.Ci.Budget.Reason → String
+  | .failures => "failures" | .idle => "idle" | .tooBig => "tooBig" | .retryAfter => "retryAfter"
+  | .floor => "floor" | .hour => "hour" | .minute => "minute" | .interval => "interval"
+
+structure CapNetsCase where
+  c : OwnCase
+  waits : List (Fw.Ci.Budget.Reason × Nat)
+
+def capNetsCases : List CapNetsCase :=
+  [{ c := { name := "a 50 s floor wait after the 10 s interval spaced the ticks 60 s apart: only the 10 s cap nets, the floor wait counts as own time",
+            s := 0, d := 300000, u := some 50000, t := some 100000, p := some 40000, q := some 10, r := some 30 },
+     waits := [(.interval, 10000), (.floor, 50000)] },
+   { c := { name := "a backoff to 110 s and a 40 s hour-share wait after the 10 s interval: the cap adds the 70 s backoff to the 10 s interval it overlaps, so 10 s of the share wait is netted and 30 s counts as own time",
+            s := 0, d := 300000, u := some 50000, t := some 150000, p := some 40000, q := some 10, r := some 110 },
+     waits := [(.interval, 10000), (.retryAfter, 60000), (.hour, 40000)] },
+   { c := { name := "a 20 s minute-share wait inside the earlier tick's 60 s interval: the cap's slack absorbs it, no own time in the gap",
+            s := 0, d := 300000, u := some 50000, t := some 70000, p := some 40000, q := some 10, r := some 30, w := some 60 },
+     waits := [(.interval, 10000), (.minute, 20000)] }]
+
+def CapNetsCase.gapOwn (k : CapNetsCase) : Option Nat :=
+  match k.c.t, k.c.p, netMsOf k.c.t k.c.p k.c.q k.c.r k.c.w with
+  | some t, some p, some n => some (t - p - n)
+  | _, _, _ => none
+
+def CapNetsCase.holds (k : CapNetsCase) : Bool :=
+  match k.c.t, k.c.p, gapCapMs k.c.p k.c.q k.c.r k.c.w with
+  | some t, some p, some c =>
+    decide (p < t) && t - p == waitsMs true k.waits + waitsMs false k.waits && decide (waitsMs true k.waits ≤ c) &&
+      k.gapOwn == some (waitsMs false k.waits - (c - waitsMs true k.waits))
+  | _, _, _ => false
+
+#guard capNetsCases.all CapNetsCase.holds
+#guard capNetsCases.map CapNetsCase.gapOwn == [some 50000, some 30000, some 0]
+#guard capNetsCases.map (·.c.own) == [some 240000, some 170000, some 230000]
+
+theorem floor_row_is_golden : capNetsCases.head?.map (fun k => (k.c.t, k.c.p, k.c.q, k.c.r, k.c.w, k.waits)) =
+    some (some 100000, some 40000, some 10, some 30, none, [(.interval, 10000), (.floor, 50000)]) := rfl
+
+def capNetsGoldenText (_ : Unit := ()) : String :=
+  String.join (capNetsCases.map fun k =>
+    (Json.mkObj [("name", .str k.c.name), ("span", ownSpanJson k.c),
+      ("waits", .arr (k.waits.map fun (why, ms) => Json.mkObj [("why", .str (capReasonStr why)), ("ms", toJson ms),
+        ("nets", toJson (capNets why))]).toArray),
+      ("capMs", ((gapCapMs k.c.p k.c.q k.c.r k.c.w).map toJson).getD .null),
+      ("netMs", ((netMsOf k.c.t k.c.p k.c.q k.c.r k.c.w).map toJson).getD .null),
+      ("gapOwnMs", (k.gapOwn.map toJson).getD .null), ("ownMs", (k.c.own.map toJson).getD .null)]).compress ++ "\n")
+
+def capNetsGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-capnets.jsonl"
+
 def ownGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-own.jsonl"
 
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
   IO.FS.writeFile lakeGoldenPath lakeGoldenText; IO.FS.writeFile ownGoldenPath ownGoldenText
+  IO.FS.writeFile capNetsGoldenPath capNetsGoldenText
 
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
     (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText &&
-    (← IO.FS.readFile ownGoldenPath) == ownGoldenText
+    (← IO.FS.readFile ownGoldenPath) == ownGoldenText && (← IO.FS.readFile capNetsGoldenPath) == capNetsGoldenText
 
 end Fw.Wire.Obs.Timing
 
