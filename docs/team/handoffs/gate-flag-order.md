@@ -4,7 +4,7 @@
 - Last commit pushed to CI: 329c0e92e (main merged). Later commits only add this file.
 - CI runs:
   - lean push 40103195750: success.
-  - breakpoint-gate dispatch 40103202517 (`--fw morph.countdown:strip,hero.countdown:strip`, both engines): running.
+  - breakpoint-gate dispatch 40103202517 (`--fw morph.countdown:strip,hero.countdown:strip`, both engines): success -> pass (smoke found the page; before the fix the same set failed smoke in runs 40081933958 and 40089874311).
     Both typed orders give the same dispatch input `fw=hero.countdown:strip,morph.countdown:strip` (`fw run --gate --dry`).
 
 ## Verified
