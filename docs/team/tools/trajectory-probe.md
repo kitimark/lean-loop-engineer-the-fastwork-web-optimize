@@ -748,7 +748,7 @@ Wall time per cell (CI, one dispatch, start of the first job to the end of its m
 
 The Linux WebKit drop is mostly the removed morph walk (a cell that lane cannot decide), not the width legs; Chromium walks the same paths in both columns and shows the leg gain (reps 3 to 5 also changed).
 
-Cap of `probe-apple` (Lean `Fw.Ci.Pool.Caps`, `capMin`): 4 successes (9.1, 9.2, 10.9, 11.3 min), linear p90 11.2 min, cap 15 min,
+Cap of `probe-apple` (Lean `Fw.Ci.Pool.Caps`, `capMin`): 6 retry-era legs (`probeWalls`, 681 to 833 s; task probe-apple-cap), linear p90 13.2 min, cap 18 min (worst case two capped widths 1022 s, `probe_worst_under_cap`),
 `thin` until 10 successes (the cap is re-derived then).
 
 ## Limits
