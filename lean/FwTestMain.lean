@@ -11,6 +11,7 @@ import Fw.Store.Golden
 import Fw.Obs.Golden
 import Fw.Ops.LedgerMerge
 import Fw.Console.LedgerUnique
+import Fw.Console.LedgerAlloc
 import FwTest.CiBudget
 import Fw.Ci.Trigger
 import Fw.Ci.Intent
@@ -59,6 +60,8 @@ def FwTestMain.main (args : List String) : IO UInt32 := do
   let lmg ← Fw.Wire.LedgerMerge.Golden.run (← FwTest.Golden.root) false
   if args.contains "--write-ledger-unique-golden" then discard <| Fw.Wire.LedgerUnique.Golden.run (← FwTest.Golden.root) true
   let lug ← Fw.Wire.LedgerUnique.Golden.run (← FwTest.Golden.root) false
+  if args.contains "--write-ledger-alloc-golden" then discard <| Fw.Wire.LedgerAlloc.Golden.run (← FwTest.Golden.root) true
+  let lag ← Fw.Wire.LedgerAlloc.Golden.run (← FwTest.Golden.root) false
   -- replay timing (informational): 2,000 events through the reducer
   let evs : List Fw.Console.Event := (List.range 1000).flatMap fun i =>
     [⟨s!"o{i}", i, .owner, .cardOpen s!"c{i}" "o" false⟩, ⟨s!"a{i}", i, .lead, .cardApprove s!"c{i}"⟩]
@@ -67,6 +70,6 @@ def FwTestMain.main (args : List String) : IO UInt32 := do
   let n := (s.cards.filter (·.approved)).length
   let t1 ← IO.monoNanosNow
   IO.println s!"console replay: 2000 events, {n} approved cards, {(t1 - t0) / 1000000} ms"
-  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && aeg == 0 && obg == 0 && nxg == 0 && sgn == 0 && stg == 0 && cbg == 0 && ctg == 0 && lmg == 0 && lug == 0 && n == 1000
+  let ok := leaseOk && a == 0 && w == 0 && r == 0 && sb == 0 && mg == 0 && og == 0 && sg == 0 && pg == 0 && gg == 0 && aeg == 0 && obg == 0 && nxg == 0 && sgn == 0 && stg == 0 && cbg == 0 && ctg == 0 && lmg == 0 && lug == 0 && lag == 0 && n == 1000
   IO.println (if ok then "fwtest: all passed" else "fwtest: FAILED")
   return if ok then 0 else 1

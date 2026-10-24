@@ -6,7 +6,7 @@ import { LangMenu, type LocaleCode } from '../nav.langMenu';
 import { PROFILE_SECTION_SELECTOR, PROFILE_STICKY_SELECTOR } from '../nav.hitTest/probe';
 import { installNavTransitionDebug } from '../../debug/nav-transition';
 import { createNavDriver, type NavEnv } from './driver';
-import { CLASS_OF, EARN_STILL_CLASS, EARN_STILL_VARIANT, earnTransitionOn, type Sticky } from './logic';
+import { CLASS_OF, EARN_LOGICAL_CLASS, EARN_LOGICAL_VARIANT, EARN_STILL_CLASS, EARN_STILL_VARIANT, earnTransitionOn, type Sticky } from './logic';
 import { boxVariant } from './box';
 import { matchList } from './media';
 import boxCss from './box.module.css';
@@ -130,7 +130,7 @@ export function Nav({
   const roleAttr = (role: string) => (box === null ? undefined : role);
 
   return (
-    <header ref={header} className={`${css.nav} ${boxClass}is-hero-pill`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar" data-fw-box={boxAttr}>
+    <header ref={header} className={`${css.nav} ${boxClass}is-hero-pill${variant === EARN_LOGICAL_VARIANT ? ` ${EARN_LOGICAL_CLASS}` : ''}`} aria-label="Primary navigation" data-fw="nav" data-fw-layer="nav_bar" data-fw-box={boxAttr}>
       <div className={css.bar} data-fw-box-role={roleAttr('bar')}>
         <a className={css.logo} href="/" aria-label="Fastwork home" data-fw-box-role={roleAttr('logo')}>
           <GenSvg art={art('nav.wordmark')} />

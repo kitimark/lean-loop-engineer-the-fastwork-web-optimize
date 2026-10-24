@@ -232,6 +232,20 @@
     .nav:not(:global(.is-hero-pill)) .btn.earn::after {
       animation: 0.98s cubic-bezier(0.33, 0, 0.2, 1) 0.52s both earn-sheen;
     }
+    .nav:global(.is-earn-logical):not(:global(.is-hero-pill), :global(.is-earn-still)) .btn.earn {
+      transition:
+        max-width 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+        opacity 0.32s cubic-bezier(0.33, 0, 0.2, 1) 0.12s,
+        padding-inline-start 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+        padding-inline-end 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+    }
+    .nav:global(.is-earn-logical.is-hero-pill):not(:global(.is-earn-still)) .btn.earn {
+      transition:
+        max-width 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+        opacity 0.2s cubic-bezier(0.33, 0, 0.2, 1),
+        padding-inline-start 0.68s cubic-bezier(0.33, 0, 0.2, 1),
+        padding-inline-end 0.68s cubic-bezier(0.33, 0, 0.2, 1);
+    }
   }
   @keyframes earn-unmask {
     0% {

@@ -20263,7 +20263,8 @@
     "packages/gate-breakpoints/test/trajectory.test.mjs",
     "packages/contracts/golden/parts/footprint.gen.json"
    ],
-   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone.",
+   "evidence": "996ba63"
   },
   {
    "devices": [
@@ -20673,7 +20674,8 @@
     "packages/measure-chromium/src/host.mjs",
     "packages/measure-chromium/profiles/offscreen-v1.json"
    ],
-   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids)."
+   "title": "Finding of sweep-offscreen-pause: no CI lane counts rendering work of the rewrite while a section is offscreen (WKTR runs the original only; the count lanes count class names), so offscreen-pause bricks (platform.sweep, platform.glint, and later ones) cannot show their gain. Build a lane: a Chromium trace profile on the rewrite with any ?fw= flag set, scrolled so a named section is offscreen for a fixed window, counting per window BeginMainThreadFrame, animation ticks (cc and Blink), paints and main-thread busy ms attributed to the section's elements; WebKit side via WKTR on the rewrite build if the harness allows a site and flag input, else named. Lean first: the window and the per-section reduction (count vectors, verdict less/same/more per counter with a noise bound from repeats), golden replayed by the TS reducer. Then run it for platform.sweep:offscreen-pause and platform.glint:offscreen-pause vs faithful (run ids).",
+   "evidence": "678625f"
   },
   {
    "devices": [
@@ -20692,7 +20694,8 @@
     "docs/team/tools/land.md",
     "docs/team/handoffs/ledger-n-alloc.md"
    ],
-   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test."
+   "title": "Incident ledger-n-collision, 3rd time 2026-10-24 (accent-same-look took 59 then 66; glint-offscreen-pause took 66 and sweep-offscreen-pause took 67 while both were taken on main; land lane suites-b refused on ledger-unique): branches pick the next candidate n by hand from a stale main. Closed design: identity over author choice. A new ledger row carries no n (or a placeholder) in its branch; fw land assigns the next free n at merge time from main's ledger (one canonical source), rewrites the row and every reference to it (handoff 'row N' mentions, part.json provenance n=), and the ledger-unique check runs after that. Lean first: the allocator (fresh n above every n on main and in the merge; references rewritten; theorem: after allocation the ledger has no new duplicate and every reference points to its row), golden replayed by a runner test.",
+   "evidence": "d7e7cdc"
   },
   {
    "devices": [
