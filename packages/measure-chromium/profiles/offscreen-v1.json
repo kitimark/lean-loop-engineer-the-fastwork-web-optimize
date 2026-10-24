@@ -1,0 +1,18 @@
+{
+  "id": "offscreen-v1",
+  "about": "Phone viewport (430x932, dpr 3). The page rests at the top for 120 frames with the platform section far below the fold, scrolls to the section and rests there for 60 frames (visible), then goes back to the top for 120 frames. Counts per frame of the two offscreen windows are the question (lane offscreen-count-lane, Fw.Measure.Offscreen). After the counted pass the plan is replayed once and the rect of #platform per frame is recorded without screenshots (the probe, not counted); the lane keeps the frames where the rect shows no pixel of the viewport.",
+  "hz": 60,
+  "viewport": { "width": 430, "height": 932, "dpr": 3, "mobile": true, "touch": true },
+  "cardProbe": { "selector": "#platform", "screenshots": false },
+  "pinnedDate": "2026-10-01T00:00:00+07:00",
+  "timezone": "Asia/Bangkok",
+  "locale": "en-US",
+  "seed": 1592661556,
+  "load": { "quietFrames": 30, "maxFrames": 900, "prerollFrames": 60 },
+  "zoneHeightPx": 500,
+  "segments": [
+    { "name": "top", "dyPerFrame": 0, "frames": 120, "anchor": { "selector": "html", "viewportTop": 0 } },
+    { "name": "near", "dyPerFrame": 0, "frames": 60, "anchor": { "selector": "#platform", "viewportTop": 0 } },
+    { "name": "back", "dyPerFrame": 0, "frames": 120, "anchor": { "selector": "html", "viewportTop": 0 } }
+  ]
+}

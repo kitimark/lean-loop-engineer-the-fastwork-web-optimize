@@ -116,6 +116,8 @@ import Fw.Measure.Compose
 import Fw.Measure.ImageArm
 import Fw.Measure.TouchLock
 import Fw.Measure.TouchPush
+import Fw.Measure.Offscreen
+import Fw.Measure.OffscreenGolden
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
