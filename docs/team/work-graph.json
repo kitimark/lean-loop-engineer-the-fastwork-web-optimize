@@ -19348,7 +19348,8 @@
     "lean/Fw/Ops/Slot*.lean",
     "docs/team/tools/reap.md"
    ],
-   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases). Third item 2026-10-24: a builder's local sim-slot debug run (197 s, fw slot kind sim) left the Simulator fw-iphone-27 booted after the slot release (load average 70 over 8 CPUs during boot); fw reap and disk-gc --class sim select nothing: a Lean rule that a sim slot release shuts down the Simulator its run booted (pid + boot time checked), golden row."
+   "title": "2026-10-24: fw watch raised 'agent.held build:morph-wheel-momentum killOrphan pid=2846' for an until-loop shell (until [ -s /tmp/mwm-wait.log ]) that outlived its tool call by 12 min, while fw reap --list printed 'nothing leftover' for the same process; the lead stopped it with kill -TERM. Make the watch's orphan rule and the reap selection one Lean rule (one canonical source), so the mitigation the alert names is what fw reap --stop applies, with golden rows for this case. Second case 2026-10-24: the same builder re-armed the loop (pid 40204, 12 min) while its fw ci wait (pid 23868) for smoothness run 40032804511 was live and writes the awaited file; that loop is a wait, not an orphan: the rule must not flag an until-loop whose awaited path a live fw ci wait of the same agent writes (golden row for both cases). Third item 2026-10-24: a builder's local sim-slot debug run (197 s, fw slot kind sim) left the Simulator fw-iphone-27 booted after the slot release (load average 70 over 8 CPUs during boot); fw reap and disk-gc --class sim select nothing: a Lean rule that a sim slot release shuts down the Simulator its run booted (pid + boot time checked), golden row.",
+   "evidence": "1009d85"
   },
   {
    "devices": [
@@ -19366,7 +19367,8 @@
     "apps/runner/test/polish*.test.ts",
     "lean/Fw/Plan/Polish.lean",
     "packages/contracts/golden/plan/polish*.jsonl",
-    "docs/team/handoffs/polish-strays-followups.md"
+    "docs/team/handoffs/polish-strays-followups.md",
+    "lean/Fw/Wire/Plan.lean"
    ],
    "title": "polish-strays-sound review follow-ups (2026-10-24): (1) straysCli falls back to the raw path when realpath fails, so a symlinked parent is not followed (fail open): realpath the longest existing parent and append the rest, or count the path as a stray with verdict unresolved (Lean decides; golden row); (2) nested_checkout_inside: add the conjunct main ≠ main ++ wtSegs name ++ [\"sub\"] so the statement matches the handoff's claim; (3) fw-main.ts usage line lists polish strays."
   },
@@ -19502,7 +19504,7 @@
     "docs/team/tools/reap.md",
     "docs/team/handoffs/reap-ef-auto.md"
    ],
-   "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick."
+   "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick. Plus reap-watch-one-rule round-3 review follow-ups: (a) awaitOk and canonAwait become a character allowlist ([A-Za-z0-9._/-] only; backticks, *, ?, [ ], ~ keep the loop), golden row '/tmp/`x`.log' kept; (b) stopSelected guard scope = plan.targets pids, not plan.selected; (c) reapStopLines counts N from the plan targets (or prints advice rows on their own line); (d) a TS test of a mixed auto plan (A-D target in the same process group as an orphan loop: the loop gets no signal, the group falls back to per-pid)."
   },
   {
    "devices": [
@@ -19523,9 +19525,50 @@
     ".github/actions/gate-engine/action.yml",
     "scripts/gate-engine-ref*.test.mjs",
     "research/notes/2026/10-2x-ci-gate-engine-webkit-slow.md",
-    "docs/team/handoffs/gate-engine-cache-followups.md"
+    "docs/team/handoffs/gate-engine-cache-followups.md",
+    ".github/workflows/lean.yml"
    ],
-   "title": "Review follow-ups of ci-gate-engine-webkit-slow: (1) after its land, confirm the main premise-tests run seeded gate-apt-debs-969c76e on refs/heads/main and the next land leg shows 'Cache restored' and Post <= 1 s (run ids); (2) a Lean class missingRestore or a seeding rule (main holds no gate-* entry when engine is skipped; nothing re-seeds after a 7-day eviction); (3) check.sh job for the gate-engine-timing golden plus a test that runs the action's shell case on the golden ref rows; (4) Trigger.lean cacheWriters keyed on the ref rule (land.yml no longer saves on ci/land-*); list other ci/<task> workflows that upload entries only their own branch reads (visual-diff, smoothness, preview-e2e, trajectory-probe) with sizes."
+   "title": "Review follow-ups of ci-gate-engine-webkit-slow: (1) after its land, confirm the main premise-tests run seeded gate-apt-debs-969c76e on refs/heads/main and the next land leg shows 'Cache restored' and Post <= 1 s (run ids); (2) a Lean class missingRestore or a seeding rule (main holds no gate-* entry when engine is skipped; nothing re-seeds after a 7-day eviction); (3) check.sh job for the gate-engine-timing golden plus a test that runs the action's shell case on the golden ref rows; (4) Trigger.lean cacheWriters keyed on the ref rule (land.yml no longer saves on ci/land-*); list other ci/<task> workflows that upload entries only their own branch reads (visual-diff, smoothness, preview-e2e, trajectory-probe) with sizes.",
+   "evidence": "e3cd6a7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-engine-restore-observe",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "gate-engine-cache-followups"
+   ],
+   "writes": [
+    "research/notes/2026/10-2x-ci-gate-engine-webkit-slow.md",
+    "packages/contracts/golden/ops/gate-engine-timing.jsonl",
+    "lean/Fw/Ops/GateEngineTiming.lean",
+    "scripts/gate-engine-ref.test.mjs",
+    "docs/team/handoffs/gate-engine-restore-observe.md"
+   ],
+   "title": "gate-engine-cache-followups review follow-ups: (1) read the first land.yml run after the seed (run 40045796969, refs/heads/main) whose jobs include land (chromium) or land (playwright-webkit): 'Cache restored from key gate-apt-debs-969c76e' and Post <= 1 s, add its legs as golden rows (restored) with run ids; (2) scripts/gate-engine-ref.test.mjs:11 uses the literal .github path; (3) the restore-class JS test reads the action output or is dropped (it only checks the golden against itself). No dispatched run: use the next land that has engine legs."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "pathpix-zoned-pinned",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "pathpix-consensus-followups"
+   ],
+   "writes": [
+    "lean/Fw/Gate/PathPix.lean",
+    "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-webkit/src/pathpix-exit.mjs",
+    "packages/measure-webkit/test/pathpix.test.mjs",
+    "research/notes/2026/10-2x-hero-copy-floor.md",
+    "docs/team/handoffs/pathpix-zoned-pinned.md"
+   ],
+   "title": "pathpix-consensus-followups review follow-ups: (1) production passes gradePinned of the effective cell into zonedOf (pathpix-exit.mjs:234-235) but Lean zoned is stated over gradeRel: add zonedPinned with a theorem that it equals zoned when rowsOk holds and is .graded .invalid otherwise, golden rows replayed by pathpix.test.mjs; (2) open measurement items from its handoff: Chromium draw frames (native sampling), pin the outside-band baseline of the draw lane in Lean (replaces the note's hand subtraction), a rule naming the 192513-20 signature; the first mixed cell a later path-pix run sees is reported (no dedicated run)."
   }
  ],
  "deadline": {

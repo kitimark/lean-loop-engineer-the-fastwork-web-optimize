@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Console.LandSpeed
 import Fw.Ops.PathCheck
+import Fw.Ops.GateEngineTiming
 import Fw.Gate.Trajectory
 import Fw.Gate.Trajectory.Dispatch
 /-!
@@ -204,7 +205,7 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/changed-inputs.mjs", ".node-version", own "lean-math.yml"], []⟩,
   ⟨"lean.yml", ciMain, [
     "lean/**", "apps/site/src/breakpoints.gen.json", "apps/site/src/sweeps.gen.json", "apps/site/src/head.gen.json", "scripts/span.sh",
-    "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/slot-self.mjs", "scripts/slot-self.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh",
+    "scripts/fwcore-build.sh", "scripts/fwcore-record-rule.sh", "scripts/fwcore-build.test.mjs", "apps/console-api/src/core/build-base.ts", "scripts/lake-slot.sh", "scripts/lake-slot-lib.sh", "scripts/heavy-lock.mjs", "scripts/heavy-lock.test.mjs", "scripts/slot-self.mjs", "scripts/slot-self.test.mjs", "scripts/lake-slot.test.mjs", "packages/contracts/golden/sched/lake-slot.gen.sh", "scripts/gate-engine-ref.test.mjs", ".github/actions/gate-engine/action.yml",
     "packages/contracts/golden/console/land-dry.jsonl", "packages/contracts/golden/gate/sweeps.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/webkit-screen.jsonl", "packages/contracts/golden/gate/path-pix.jsonl", "packages/contracts/golden/device/session.jsonl", "packages/contracts/golden/device/replay.jsonl", "packages/contracts/golden/measure/webkit-lag.jsonl", "packages/contracts/golden/measure/wkcost.jsonl", "packages/contracts/golden/measure/wkcost-sums.jsonl", "packages/contracts/golden/measure/touch-push.jsonl", "packages/contracts/golden/measure/walk-budget.jsonl", "packages/contracts/golden/measure/census.jsonl","packages/contracts/golden/measure/webkit-profile.jsonl", "packages/contracts/golden/measure/profile.jsonl", "packages/contracts/golden/gate/search.jsonl", "packages/contracts/golden/device/stillruns.jsonl",
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/gate/trajectory-gpu.jsonl", "packages/contracts/fixtures/trajectory-gpu/**", "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs", "packages/gate-breakpoints/src/trajectory/cells-gpu.mjs", "packages/gate-breakpoints/src/trajectory/registry.mjs", "packages/gate-breakpoints/src/spec.mjs", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
@@ -373,7 +374,46 @@ def seededCaches : List String :=
 before this task (`mainBefore`); `wktr-zip` is excluded. -/
 def seeders : List (String × String) := [("lean.yml", "lean"), ("premise-tests.yml", "engine")]
 
-/-- The job `if:` conjunct that skips a job on a `main` push and keeps it on every other event. -/
+def gateCaches : List String := ["gate-apt", "ms-playwright", "hs-zip"]
+
+def savesOn (ref : String) (w : String × String × String) : Bool :=
+  !gateCaches.contains w.2.2 || Fw.Ops.GateEngineTiming.shouldSave ref
+
+def readableFrom (saved reader : String) : Bool := saved == "main" || saved == reader
+
+theorem land_saves_no_gate (rest : String) :
+    ∀ w ∈ cacheWriters, w.1 = "land.yml" → gateCaches.contains w.2.2 = true →
+      savesOn ("ci/land-" ++ rest) w = false := by
+  intro w _ _ hg
+  have hm : w.2.2 ∈ gateCaches := List.contains_iff_mem.mp hg
+  simp [savesOn, hm, Fw.Ops.GateEngineTiming.land_prefix_no_save]
+
+theorem land_writers_gate :
+    (cacheWriters.filter (·.1 == "land.yml")).map (·.2.2) = gateCaches := by decide
+
+theorem gate_saves_main : ∀ w ∈ cacheWriters, savesOn "main" w = true := by decide
+
+theorem branch_entry_unread (saved reader : String) (hm : saved ≠ "main") (hr : reader ≠ saved) :
+    readableFrom saved reader = false := by
+  simp [readableFrom, hm, Ne.symm hr]
+
+def branchOnlyWriters : List (String × String × String) :=
+  cacheWriters.filter fun w => gateCaches.contains w.2.2 && w.1 != "land.yml" && !seeders.contains (w.1, w.2.1)
+
+theorem branchOnly_files : (branchOnlyWriters.map (·.1)).eraseDups =
+    ["breakpoint-gate.yml", "preview-e2e.yml", "smoothness.yml", "snapshot-extract.yml", "trajectory-probe.yml",
+     "visual-diff.yml"] := by decide
+
+theorem branchOnly_unseeded : ∀ w ∈ branchOnlyWriters, (w.1, w.2.1) ∉ seeders := by decide
+
+def entryMB : String → Nat
+  | "gate-apt-webkit" => 108 | "ms-playwright" => 96 | "gate-apt-chromium" => 27 | "hs-zip" => 125 | _ => 0
+
+theorem entry_legs :
+    entryMB "gate-apt-webkit" + entryMB "ms-playwright" = 204 ∧
+    entryMB "gate-apt-chromium" + entryMB "hs-zip" = 152 ∧
+    204 + 152 = 356 := by decide
+
 def notMainPush : String := "github.event_name != 'push' || github.ref != 'refs/heads/main'"
 
 /-- A push to `main` starts a run of the workflow. -/
@@ -893,6 +933,9 @@ def tableLine (_ : Unit := ()) : Json :=
     ("seeders", .arr (seeders.map fun (f, j) => Json.mkObj [("file", .str f), ("job", .str j)]).toArray),
     ("notMainPush", .str notMainPush),
     ("cacheWriters", .arr (cacheWriters.map fun (f, j, c) =>
+      Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray),
+    ("gateCaches", strs gateCaches),
+    ("branchOnly", .arr (branchOnlyWriters.map fun (f, j, c) =>
       Json.mkObj [("file", .str f), ("job", .str j), ("cache", .str c)]).toArray)]
 
 /-- A string or `null`. -/

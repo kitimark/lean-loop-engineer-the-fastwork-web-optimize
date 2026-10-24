@@ -392,6 +392,17 @@ describe("fw slot sim", () => {
     expect(await slotCli(["acquire", "--kind", "test", "--wait", "0"], d)).toBe(0);
     expect(shut).toEqual(["U1", "U2"]);
   });
+
+  it("a sim release records the second its run acquired the slot (simAcquired), which `fw reap` branch F reads", async () => {
+    const { d, out } = deps();
+    expect(await slotCli(["acquire", "--kind", "sim", "--lease", "900"], d)).toBe(0);
+    const token = out.join("").trim();
+    const since = withState(d, (st) => st.holders.find((h) => h.token === token)!.since);
+    expect(await slotCli(["release", "--token", token], d)).toBe(0);
+    const st = withState(d, (x) => ({ acquired: x.simAcquired, idle: x.simIdleSince }));
+    expect(st.acquired).toBe(since);
+    expect(st.idle).toBeGreaterThanOrEqual(since);
+  });
 });
 
 describe("the old sim-lock and the slot", () => {
