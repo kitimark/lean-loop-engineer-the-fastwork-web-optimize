@@ -2,9 +2,11 @@ Branch: worktree-wf_3b6992a9-795-1
 Worktree: .claude/worktrees/wf_3b6992a9-795-1 (under the repo root)
 Last commit: c0c5900cc (reducer, recorder, probe, cli, tests; handoff commit follows)
 CI runs (toolbar-throttle lane, ci-only commit bd492dcf3 = yml edit, not on this branch):
-- 40098348176 on ci/unthrottle-parts-measure-drags (mode drags, dispatch 1 of 3): in_progress
-Verified: test/throttle-parts.test.mjs 26 pass locally (golden consts, reach 9/9/5, predicted vs key lines, example runs/band/maxStep, recorder in a vm sandbox, synthetic passes). Not yet through the slot.
-Open: dispatch 2 (finish) and 3 (rest); the note; results/unthrottle-parts; dry land; review ready.
+- 40098348176 on ci/unthrottle-parts-measure-drags (mode drags, dispatch 1 of 3): success (6/6 usable passes per arm; hero verdict lifted; summary in results/unthrottle-parts/drags-40098348176.*)
+- 40101695202 on ci/unthrottle-parts-measure-finish (dispatch 2 of 3): in_progress
+- 40101702393 on ci/unthrottle-parts-measure-rest (dispatch 3 of 3): queued
+Verified: package tests 660 pass through the slot (incl. test/throttle-parts.test.mjs), scripts/ci-paths.test.mjs 56 pass, apps/runner land-inputs 60 pass.
+Open: finish and rest results; the note; dry land; review ready.
 
 ## State
 - src/throttle/parts.mjs reducer (twins reach/predicted; TS stand-ins: judge, bandFor cadence band, noData reasons, capture reversals).
