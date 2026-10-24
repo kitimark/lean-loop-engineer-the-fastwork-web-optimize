@@ -1985,7 +1985,7 @@
    "at": "2026-10-18T14:43+07:00",
    "title": "Three tasks went through 3-4 refused review rounds each, every round patching the reviewer's newest probe inside an open design",
    "symptom": "lfg-props-shape was refused 3 times, console-stale 4 times and wait-guard-enforce 3 times. Each round fixed the reviewer's latest probe (a deny-list over bash shapes; a build commit inferred from mtimes and the reflog; author-chosen registries). The lead wrote the threat model and moved to allowlist, identity or canonical-source designs only at round 4-5.",
-   "cause": "CONFIRMED (workflow run journals, local-only, verdict ready_to_land false in: lfg-props-shape runs wf_49b2933e-3c9, wf_7237e934-b3b, wf_d4784429-e5d; console-stale runs wf_ebc4ff5b-4b6, wf_ab1bec0a-ed0, wf_56a18937-3ba, wf_78d166a4-1a6; wait-guard-enforce runs wf_59731989-59c, wf_64b49155-762, wf_4586f057-5c7). INFERRED (lead's retro): with no written threat model, each round's spec was the last probe, so the design boundary stayed open. The rule is now in CLAUDE.md (Team, 'Review loops (lead)', f0e5cec).",
+   "cause": "CONFIRMED (workflow run journals, local-only, verdict ready_to_land false in: lfg-props-shape runs wf_49b2933e-3c9, wf_7237e934-b3b, wf_d4784429-e5d; console-stale runs wf_ebc4ff5b-4b6, wf_ab1bec0a-ed0, wf_56a18937-3ba, wf_78d166a4-1a6; wait-guard-enforce runs wf_59731989-59c, wf_64b49155-762, wf_4586f057-5c7). INFERRED (lead's retro): with no written threat model, each round's spec was the last probe, so the design boundary stayed open. The rule is now in CLAUDE.md (Team, 'Review loops (lead)', f0e5cec). Retro (INFERRED, morph-wheel-momentum): round 1: source reading refuted the task's premise (a momentum phase on the Playwright WebKit wheel lane), and the branch built a different drive (pull) inside the same task instead of closing the premise as a finding and re-planning; the lead closed the task as a finding without a round 3. CLAUDE.md 'Review loops (lead)' already says to close a task whose premise is refuted; the check is still prose.",
    "evidence": [
     {
      "kind": "commit",
@@ -2011,6 +2011,11 @@
      "kind": "commit",
      "ref": "80bfed2",
      "note": "work-graph: wait-guard-enforce-2, round 3 under its own id"
+    },
+    {
+     "kind": "file",
+     "ref": "research/notes/2026/10-2x-morph-real-wheel.md",
+     "note": "retro: morph-wheel-momentum closed as a finding (follow-up 3 holds the refuting sources)"
     }
    ],
    "repro": "Send a refused task back twice with only the reviewer's findings as the spec: round 3 is refused on a new probe of the same class.",
@@ -4477,6 +4482,34 @@
    "leanReason": "Which checks a change selects is a pure function of the changed paths and the declared reads (Fw.Console.LandTier.selectLocal over LandSpeed.selectChecks); the selection of every workflow path is a theorem.",
    "empiricalCheck": "fw land --dry runs the selected local test on the merge tree; the test derives the widths from the workflow files.",
    "hardening": "checkmap-workflow-widths-local"
+  },
+  {
+   "id": "inc-gc-landed-ff",
+   "at": "2026-10-24T05:02+07:00",
+   "title": "fw watch disk-gc removed a live builder's worktree after a fast-forward onto a branch that landed",
+   "symptom": "Worktree wf_1f18354c-dfd-1 (builder polish-strays-sound) was removed mid-task right after worktree-wf_efb32ee2-da5-1 landed (b1145f326).",
+   "cause": "CONFIRMED (reflog; apps/runner/src/disk-gc.ts landedOf at 284b4b75c): the branch was created at 17087c97f and fast-forwarded onto the unlanded dependency branch at 05:02:40; when that branch landed, landedOf (tip moved since creation and tip is an ancestor of main) returned true, so the landed class selected a worktree whose own work was not on main. Ancestry alone counted as landing, with no identity check (land commit naming the branch, or owning task done) and no live-agent check.",
+   "evidence": [
+    {
+     "kind": "commit",
+     "ref": "b1145f326",
+     "note": "land of the dependency branch the builder had fast-forwarded onto"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/disk-gc.ts",
+     "note": "landedOf, ancestry only"
+    }
+   ],
+   "repro": "Create a worktree branch, fast-forward it onto a branch that is later landed on main, run fw disk-gc --list --class 2: before the fix the worktree is listed.",
+   "fix": {
+    "task": "gc-landed-identity"
+   },
+   "regression": "Lean theorems fast_forward_kept, landed_never_live, landed_by_identity, land_commit_selects in lean/Fw/Ops/DiskGc.lean; golden rows class 2 (inc-gc-landed-ff) in packages/contracts/golden/ops/diskgc.jsonl; apps/runner/test/disk-gc.test.ts.",
+   "mistakeClass": "c-identity-heuristic",
+   "leanVerdict": "provable",
+   "leanReason": "Which worktree is landed is a pure function of main's land subjects, the landed-task runs and the live runs; the identity rule and its exclusions are theorems of Fw.Ops.DiskGc.",
+   "hardening": "gc-landed-identity"
   }
  ]
 }
