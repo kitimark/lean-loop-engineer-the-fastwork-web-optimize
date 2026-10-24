@@ -32,7 +32,6 @@ def accState (ps : List PropKind) : AccState :=
 
 def completelyAccelerated (ps : List PropKind) : Bool := accState ps == .all
 
-/-- One entry of `timeline->relevantAnimations()` (AnimationTimeline.h:59, `m_animations` filled at AnimationTimeline.cpp:62): any attached animation, whatever its play state. -/
 structure Anim where
   progressBased : Bool
   props : List PropKind
@@ -137,7 +136,6 @@ theorem lift_effect (e : Engine) (p : Page) (hs : p.timelineSupported = true) :
     throttledOn e true p.withLift = false := by
   cases e <;> simp [throttledOn, Engine.throttles, lifted_when_supported p hs]
 
-/-- The `position` of the element. -/
 inductive Position where
   | static
   | fixed
@@ -219,14 +217,11 @@ theorem same_layout_out_of_flow (f : FlagStyle) (ho : f.position.outOfFlow = tru
 
 theorem fixed_same_look : Position.outOfFlow .fixed = Position.outOfFlow .absolute := rfl
 
-/-! ## The `(pointer: coarse)` guard -/
-
 structure Env where
   engine : Engine
   coarse : Bool
 deriving Repr, DecidableEq
 
-/-- An iPhone reports a coarse primary pointer: WebPageIOS.mm:4243-4246, MediaQueryFeatures.cpp:527-538; only the sites of Quirks.cpp:3194-3203 hide it. -/
 def Env.valid (e : Env) : Bool := e.engine != .webkitIos || e.coarse
 
 def Env.iphone : Env := ⟨.webkitIos, true⟩
@@ -266,7 +261,6 @@ def laidOut (f : FlagStyle) (reflowed : Nat) : Nat := if f.readByStyle then refl
 
 theorem restyled_flag (subtree : Nat) : restyled flag subtree = 1 := rfl
 
-/-- Elements restyled per scroll frame: none unless the pointer is coarse. -/
 def Env.restyled (e : Env) (subtree : Nat) : Nat :=
   if e.coarse then _root_.Fw.Parts.EngineScrollUnthrottle.restyled flag subtree else 0
 

@@ -745,7 +745,7 @@ absolute 1 px, transparent element that animates a registered custom property on
 | Power cost of leaving the throttle (WebKit measured up to 2 percent) | not measured | open |
 
 Result: the ledger row is `proved`; `v2-proved` stays empty because its WebKit morph trajectory cell has no verdict for any
-flag. Lesson: a platform throttle named by the platform's own source can be lifted by a page-side condition; the first text paid
+flag. The first text paid
 2 compositor layers on Chromium for `position: fixed`, and the move to `absolute` was decided by a count, not by a bound.
 Note `research/notes/2026/10-2x-throttle-lift-ship.md` section 6.
 

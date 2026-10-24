@@ -3,7 +3,6 @@
 import { runs, bandRuns, shortRuns, exitFrames, partSeries, verdict } from './stillruns.mjs';
 
 export const ARMS = Object.freeze({ base: 'rewrite', lift: 'lift', ref: 'original' });
-/** The shipped flag's arm (engine.scroll:unthrottle); shown only when a run has passes of it. */
 export const SHIPPED_ARM = 'unthrottle';
 const MIN_FRAMES = 30;
 const MIN_TRAVEL_PX = 100;
@@ -38,7 +37,6 @@ export function armRow(passes) {
     per1000: frames ? Math.round((band * 10000) / frames) / 10 : null, heights: usable.map((p) => p.rec.start.vh) };
 }
 
-/** The verdict of a set of passes: base = the rewrite, lift = the rewrite with the flag of arm `flagArm`. */
 export function verdictOf(passes, flagArm = ARMS.lift) {
   const base = armRow(passes.filter((p) => p.arm === ARMS.base));
   const lift = armRow(passes.filter((p) => p.arm === flagArm));

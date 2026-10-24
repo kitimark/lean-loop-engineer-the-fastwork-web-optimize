@@ -233,4 +233,4 @@ has no member (above), so the flag set is passed by `fw`. Chromium 156.0.8078.4 
 the guard is active, and desktop cells alike), the failing-items table empty on both engines. WebKit cells `hover-pointer-cross` and `fractional-gaps` are
 UNREACHABLE 4 as in every run (engine-port limit), `fractional-gaps` env 0/4 also on Chromium.
 
-Not measured: the power cost of leaving the 100 ms throttle (WebKit: up to 2 percent), named as open.
+Not measured: the power cost of leaving the 100 ms throttle (WebKit: up to 2 percent).
