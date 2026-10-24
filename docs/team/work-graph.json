@@ -19995,7 +19995,8 @@
     "docs/team/tools/device-lag-recorder.md",
     "docs/team/handoffs/recorder-viewport-per-frame.md"
    ],
-   "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict."
+   "title": "User 2026-10-24 asked how to keep the Safari toolbar state fixed: the phone recorder stores the viewport height once per pass, so a pass that starts with the toolbar collapsed (h 815 vs 775) makes the Lean still-run verdict 'confounded'. Record visualViewport.height (and offsetTop) per rAF frame; Lean splits frames into toolbar-moving (height changes within a window) and toolbar-still, and the still-run verdict and the per-zone comparison compare like with like per class (theorems: the split is a partition; the verdict over equal-height frames equals today's when the height never changes). Goldens, twin tests, doc; existing recordings without the field keep today's verdict.",
+   "evidence": "14f12e3"
   },
   {
    "devices": [
