@@ -90,7 +90,7 @@ pnpm -s fw slot pass stop --token "$t" --next 600         # gap of 600 s; releas
   while more than one holder of another kind runs. A ticket of another kind waits as `simFirst` while a Simulator slot
   is held and another kind still runs, and while a Simulator ticket is pending unless a slot and the Simulator's
   2800 MB above the floor stay free after it starts. So every admission keeps "Simulator held implies at most one other
-  holder" (`admit_keeps_simInv`). When another kind is admitted while a Simulator ticket is pending, the first
+  holder" (`admit_keeps_simInv`). When another kind is admitted while a Simulator ticket is pending at pressure level 1, the first
   Simulator ticket is still admitted on the same sample (`sim_not_starved`).
 - **Old lock.** A live `.local/locks/sim` directory (no pid yet, or a live pid) counts as one Simulator holder
   (`withLegacy`): a sim ticket waits `simBusy` (`verdict_legacy_blocks_sim`). `sim-lock.sh acquire` takes its
