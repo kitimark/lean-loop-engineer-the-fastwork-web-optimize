@@ -36,6 +36,7 @@ export const RunManifest = z.object({
   profile: z.string(),
   gitSha: GitSha,
   image: ImageRef,
+  runs: z.number().int().positive(), // part of the run key (key version 3): Chromium shards, WebKit VMs
   runId: z.string().regex(/^[0-9]+$/), // the GitHub Actions run id
   entries: z.array(ManifestEntry), // strictly increasing by name
 });

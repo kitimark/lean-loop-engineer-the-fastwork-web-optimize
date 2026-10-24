@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { fwcoreCall, type FwCall } from "../src/run.ts";
 import { GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
 
 // Every golden vector is generated from Lean (lean/Fw/Store/Golden.lean); the zod schemas must accept each one.
@@ -32,4 +33,28 @@ describe("store golden vectors parse with the contracts", () => {
       }
     });
   }
+});
+
+const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch { return false; } })();
+
+describe.skipIf(!hasCore)("store golden vectors replay against fwcore", () => {
+  const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
+  for (const stem of ["plan", "manifest"] as const) {
+    it(`${stem}: fwcore gives every golden response`, () => {
+      for (const c of load(stem)) {
+        const req = c.request as Record<string, unknown>;
+        if (StoreError.safeParse(c.response).success) expect(() => call(req), c.name).toThrow();
+        else expect(call(req), c.name).toEqual(c.response);
+      }
+    });
+  }
+  it("plan: webkit is sent the run count as vms, and the run count separates the keys", () => {
+    const plan = load("plan");
+    const jobsOf = (name: RegExp) => (plan.find((c) => name.test(c.name))!.response as { jobs: { engine: string; inputs: Record<string, string>; key: [string, string][] }[] }).jobs;
+    const three = jobsOf(/^the rewrite in its default configuration/);
+    const two = jobsOf(/^2 runs: webkit is sent vms 2/);
+    expect(three.find((j) => j.engine === "webkit")!.inputs.vms).toBe("3");
+    expect(two.find((j) => j.engine === "webkit")!.inputs.vms).toBe("2");
+    for (const e of ["chromium", "webkit"]) expect(two.find((j) => j.engine === e)!.key).not.toEqual(three.find((j) => j.engine === e)!.key);
+  });
 });

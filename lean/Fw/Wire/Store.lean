@@ -19,9 +19,9 @@ no partial operations. Flags are strings `"part:variant"`; digests are lowercase
 | `store.plan` | `target` (`original` or `rewrite`), `preset`? (default `original`), `fw`? [`part:variant`], `engines` [name], `profile`? (default `swipe-v1`), `runs`? (default 3), `sha`, `images`? {engine: image}, `digests`? {engine: sha256 of the job key}, `present`? [digest] (objects/runs already in the store) | `problems` [string], `fw` (sorted), `jobs` [{engine, workflow, inputs {name: value}, key [[name, value]], image, blocked (string or null), digest?, cache?, manifest?}] |
 | `store.gate` | `engines`? (`both`, `chromium` or `playwright-webkit`; default `both`), `preset`? (default empty = none), `fw`? [`part:variant`] | `problems` [string], `fw` (sorted), `job` (`null` when there are problems) {workflow, inputs {name: value}, blocked (string or null)} |
 | `store.trajectory` | the `store.gate` fields and `widths`? (comma list of 390, 640, 641, 1280 without repeats; default empty = all four) | as `store.gate`, for `trajectory-probe.yml` (a refused widths list is a problem) |
-| `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
+| `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runs, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
 | `store.objectPath` | `digest` (64 hex) | `path` |
-| `store.ciRun` | `run` {runId, workflowName, status, conclusion (null = empty), headSha, jobs [{name, conclusion (null = empty)}]}, `artifacts`? [{name, profile, image, search? (default empty), target?}] (the downloaded shard artifacts with their `counts.json` / `image-id.txt` facts; absent = the check before the download), `classes`? [dir under chromium-classes] (default empty) | `accept`, `refusals` [string], `targets` [{target, classes, shards [{artifact, dir}], meta? {engine, target, preset, fw, profile, gitSha, image, runId}, key? [[name, value]]}] (empty when refused; `meta`, `key` after the download) |
+| `store.ciRun` | `run` {runId, workflowName, status, conclusion (null = empty), headSha, jobs [{name, conclusion (null = empty)}]}, `artifacts`? [{name, profile, image, search? (default empty), target?}] (the downloaded shard artifacts with their `counts.json` / `image-id.txt` facts; absent = the check before the download), `classes`? [dir under chromium-classes] (default empty) | `accept`, `refusals` [string], `targets` [{target, classes, shards [{artifact, dir}], meta? {engine, target, preset, fw, profile, gitSha, image, runs, runId}, key? [[name, value]]}] (empty when refused; `meta`, `key` after the download) |
 | `store.reduce` | `kMax`, `tMax`, `pxRel`? {num, den}, `arms` [{engine, base (≥ 2 runs), var (≥ 1 run)}], each run an array of frames or an object with `frames` | `noMoreWork`, `arms` [{engine, noMoreWork, failing [type], types [{type, class, ok}]}] |
 -/
 namespace Fw.Wire.Store
@@ -141,7 +141,7 @@ def manifestOf (j : Json) : Except String Manifest := do
   let entries ← (← arr j "entries").toList.mapM fun e => do
     pure ({ name := ← str e "name", digest := ← str e "digest", bytes := ← nat e "bytes" } : Fw.Store.Entry)
   pure { engine := ← str j "engine", target := ← str j "target", preset := ← str j "preset", fw := fw, profile := ← str j "profile",
-         gitSha := ← str j "gitSha", image := ← str j "image", runId := ← str j "runId", entries := entries }
+         gitSha := ← str j "gitSha", image := ← str j "image", runs := ← nat j "runs", runId := ← str j "runId", entries := entries }
 
 /-- `store.manifest`. -/
 def opManifest (req : Json) : Except String Reply := do
@@ -217,7 +217,7 @@ def ciTargetJson (r : CiRun) (c : CiTarget) : Json :=
     | some q => [
         ("meta", Json.mkObj [("engine", .str q.engine.name), ("target", .str q.target.name), ("preset", .str q.preset),
           ("fw", .arr (q.fw.toArray.map fun p => .str (flagStr p))), ("profile", .str q.profile), ("gitSha", .str q.sha),
-          ("image", .str q.image), ("runId", .str r.runId)]),
+          ("image", .str q.image), ("runs", toJson q.runs), ("runId", .str r.runId)]),
         ("key", pairsJson (keyPairs q))]
   Json.mkObj (base ++ extra)
 
@@ -235,6 +235,19 @@ def opCiRun (req : Json) : Except String Reply := do
   let res := ciRun r got
   pure [("accept", .bool res.refusals.isEmpty), ("refusals", .arr (res.refusals.toArray.map .str)),
         ("targets", .arr (res.targets.toArray.map (ciTargetJson r)))]
+
+/-- **webkit-sim accepts the VM count it is sent:** for an accepted request with WebKit, the `vms` value of the dispatch
+passes the workflow's own count check (`Fw.Measure.SimPlan.countOf 1 3`) and reads back as the run count.
+-/
+theorem webkit_vms_accepted {q : Request} (h : reqProblems q = []) (hw : Engine.webkit.name ∈ q.engines) :
+    ("vms", toString q.runs) ∈ dispatchInputs .webkit q ∧ Fw.Measure.SimPlan.countOf 1 3 (toString q.runs) = some q.runs := by
+  refine ⟨dispatch_vms q, ?_⟩
+  obtain ⟨h2, h3⟩ := reqProblems_nil_webkit_runs h hw
+  have hs : (toString q.runs).toNat? = some q.runs := Nat.toNat?_repr q.runs
+  simp only [webkitMaxVms] at h3
+  simp only [Fw.Measure.SimPlan.countOf, hs]
+  simp
+  omega
 
 /-- The `store.*` ops. -/
 def ops : List String := ["store.plan", "store.gate", "store.trajectory", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]

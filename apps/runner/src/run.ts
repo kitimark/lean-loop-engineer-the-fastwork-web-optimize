@@ -99,6 +99,13 @@ export const sha256 = (b: Buffer | string) => createHash("sha256").update(b).dig
 
 export const keyDigest = (key: [string, string][]) => sha256(JSON.stringify(key));
 
+/** The run count of a plan job, read from its key's `runs` pair (Lean `keyPairs`), so the manifest files under the planned key. */
+export function keyRuns(key: [string, string][]): number {
+  const v = key.find(([k]) => k === "runs")?.[1];
+  if (v === undefined || !/^[1-9][0-9]*$/.test(v)) throw new Error(`plan key has no runs pair: ${JSON.stringify(key)}`);
+  return Number(v);
+}
+
 export function presentRuns(store: string): string[] {
   const d = join(store, "runs");
   return existsSync(d) ? readdirSync(d).filter((n) => existsSync(join(d, n, "manifest.json"))) : [];
@@ -109,12 +116,12 @@ const walk = (dir: string): string[] =>
 
 export type Ingest = { manifest: RunManifest; path: string; objects: number; reused: number; digest: string; unchanged?: boolean };
 
-export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { target: string; preset: string; fw: string[]; profile: string; gitSha: string; runId: string }, opts: { keepSameRun?: boolean } = {}): Ingest {
+export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, meta: { target: string; preset: string; fw: string[]; profile: string; gitSha: string; runs: number; runId: string }, opts: { keepSameRun?: boolean } = {}): Ingest {
   const files = walk(dir).map((p) => ({ p, name: relative(dir, p).split("\\").join("/") })).sort((x, y) => (x.name < y.name ? -1 : x.name > y.name ? 1 : 0));
   const entries = files.map(({ p, name }) => { const b = readFileSync(p); return { name, digest: sha256(b), bytes: b.length, p }; });
   const manifest: RunManifest = {
     engine: job.engine, target: meta.target as RunManifest["target"], preset: meta.preset, fw: meta.fw, profile: meta.profile, gitSha: meta.gitSha, image: job.image as RunManifest["image"],
-    runId: meta.runId, entries: entries.map(({ name, digest, bytes }) => ({ name, digest, bytes })),
+    runs: meta.runs, runId: meta.runId, entries: entries.map(({ name, digest, bytes }) => ({ name, digest, bytes })),
   };
   const checked = ManifestReply.parse(call({ op: "store.manifest", manifest }));
   if (!checked.valid) throw new UsageError(`manifest refused: ${checked.problems.join("; ")}`);
@@ -254,7 +261,7 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     let r: ReturnType<typeof ingest>;
     try {
       await d.gh(["run", "download", runId, "-D", dir]);
-      r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runId });
+      r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runs: keyRuns(j.key as [string, string][]), runId });
     } finally { rmSync(dir, { recursive: true, force: true }); }
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
   }

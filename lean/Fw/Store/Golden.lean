@@ -68,11 +68,15 @@ def planCases : List (String × String × Json) := [
   ("the original site takes no preset or flags: a problem, no job", "store.plan",
    lit s!"\{\"target\":\"original\",\"preset\":\"strip-demo\",\"fw\":[\"hero.countdown:strip\"],\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
   ("a request without target is refused", "store.plan",
-   lit s!"\{\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}")]
+   lit s!"\{\"engines\":[\"chromium\"],\"sha\":\"{sha}\"}"),
+  ("2 runs: webkit is sent vms 2, chromium runs 2, and both keys carry the runs pair, so they differ from the 3-run keys", "store.plan",
+   lit s!"\{\"target\":\"rewrite\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":2}"),
+  ("webkit-sim takes at most 3 VMs: 4 runs with webkit is a problem, no job", "store.plan",
+   lit s!"\{\"target\":\"rewrite\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":4}")]
 
 /-- A manifest as JSON text (valid for `target = "\"target\":\"original\""`, `extra = ""`). -/
 def manifest (target extra : String) : String :=
-  s!"\{\"engine\":\"chromium\",{target},\"preset\":\"original\",\"fw\":[],\"profile\":\"swipe-v1\",\"gitSha\":\"{sha}\",\"image\":\"runner:ubuntu-24.04-arm\",\"runId\":\"39033771018\"{extra},\"entries\":[\{\"name\":\"counts-run1.json\",\"digest\":\"{"ab".pushn 'c' 62}\",\"bytes\":10},\{\"name\":\"trace/run1.json\",\"digest\":\"{"cd".pushn 'e' 62}\",\"bytes\":20}]}"
+  s!"\{\"engine\":\"chromium\",{target},\"preset\":\"original\",\"fw\":[],\"profile\":\"swipe-v1\",\"gitSha\":\"{sha}\",\"image\":\"runner:ubuntu-24.04-arm\",\"runs\":3,\"runId\":\"39033771018\"{extra},\"entries\":[\{\"name\":\"counts-run1.json\",\"digest\":\"{"ab".pushn 'c' 62}\",\"bytes\":10},\{\"name\":\"trace/run1.json\",\"digest\":\"{"cd".pushn 'e' 62}\",\"bytes\":20}]}"
 
 /-- The target field of a manifest on the original site. -/
 def O : String := "\"target\":\"original\""
@@ -86,12 +90,14 @@ def manifestCases : List (String × String × Json) := [
    lit s!"\{\"manifest\":{manifest O ""}}"),
   ("the same run on the rewrite: a different key (the target pair)", "store.manifest",
    lit s!"\{\"manifest\":{manifest R ""}}"),
+  ("the same run with 2 runs instead of 3: a different key (the runs pair)", "store.manifest",
+   lit s!"\{\"manifest\":{(manifest O "").replace "\"runs\":3" "\"runs\":2"}}"),
   ("an original run with flags is a problem (only the rewrite has flags); the key is still shown", "store.manifest",
    lit s!"\{\"manifest\":{(manifest O "").replace "\"fw\":[]" "\"fw\":[\"hero.countdown:strip\"]"}}"),
   ("unsorted entries and a name that escapes the run directory are problems", "store.manifest",
-   lit "{\"manifest\":{\"engine\":\"webkit\",\"target\":\"rewrite\",\"preset\":\"original\",\"fw\":[\"hero.countdown:strip\"],\"profile\":\"swipe-v1\",\"gitSha\":\"0123456789abcdef0123456789abcdef01234567\",\"image\":\"runner:xcode-27\",\"runId\":\"1\",\"entries\":[{\"name\":\"b.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1},{\"name\":\"../a.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1}]}}"),
-  ("unknown engine, target both, short sha, bad image, bad digest: every problem listed, no key", "store.manifest",
-   lit "{\"manifest\":{\"engine\":\"gecko\",\"target\":\"both\",\"preset\":\"Original\",\"fw\":[\"b:x\",\"a:y\"],\"profile\":\"swipe-v1\",\"gitSha\":\"abc\",\"image\":\"docker\",\"runId\":\"x\",\"entries\":[{\"name\":\"a.json\",\"digest\":\"ABC\",\"bytes\":1}]}}"),
+   lit "{\"manifest\":{\"engine\":\"webkit\",\"target\":\"rewrite\",\"preset\":\"original\",\"fw\":[\"hero.countdown:strip\"],\"profile\":\"swipe-v1\",\"gitSha\":\"0123456789abcdef0123456789abcdef01234567\",\"image\":\"runner:xcode-27\",\"runs\":2,\"runId\":\"1\",\"entries\":[{\"name\":\"b.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1},{\"name\":\"../a.json\",\"digest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"bytes\":1}]}}"),
+  ("unknown engine, target both, short sha, bad image, bad digest, no runs: every problem listed, no key", "store.manifest",
+   lit "{\"manifest\":{\"engine\":\"gecko\",\"target\":\"both\",\"preset\":\"Original\",\"fw\":[\"b:x\",\"a:y\"],\"profile\":\"swipe-v1\",\"gitSha\":\"abc\",\"image\":\"docker\",\"runs\":0,\"runId\":\"x\",\"entries\":[{\"name\":\"a.json\",\"digest\":\"ABC\",\"bytes\":1}]}}"),
   ("missing field is refused", "store.manifest", lit "{\"manifest\":{\"engine\":\"chromium\"}}")]
 
 /-- The `store.objectPath` cases. -/
