@@ -95,3 +95,38 @@ export function frozenCell(frozen, idle) {
 export const sharePct = (u2, f2) => (u2 > 0 ? Math.floor(((u2 - f2) * 100) / u2) : null);
 
 export const zoneVerdict = (off, on) => verdict(asFrac(off), asFrac(on));
+
+const LANE_CONST = readFileSync(new URL('../../../contracts/golden/measure/wkcost.jsonl', import.meta.url), 'utf8')
+  .split('\n').filter(Boolean).map((l) => JSON.parse(l)).find((l) => l.kind === 'swapLaneConst');
+export const LANE_BUDGET_MIN = LANE_CONST.budgetMin;
+
+export function busyFrozen(busy, frozen) {
+  if (busy.length === 0) return 'noBusy';
+  if (frozen.length === 0) return 'noFrozen';
+  const v = zoneVerdict(busy, frozen);
+  return v === 'lower' ? 'removed' : v === 'higher' ? 'raised' : 'overlap';
+}
+
+export const busyWindows = (ns) => ns.filter((n) => BUSY_MIN <= n).length;
+
+export const perCaptureTenths = (rows, captures) => (captures === 0 ? 0 : Math.floor((rows * 20 + captures) / (2 * captures)));
+
+export const perFrameMilli = (rows, frames) => (frames === 0 ? null : Math.floor((rows * 2000 + frames) / (2 * frames)));
+
+export const unitFits = (elapsedMs, estimateMs) => elapsedMs + estimateMs <= LANE_BUDGET_MIN * 60000;
+
+export const armOrder = (shift) => [['faithful', 'nolayout', 'full'], ['nolayout', 'full', 'faithful'], ['full', 'faithful', 'nolayout']][shift % 3];
+
+export const laneUnits = (shift) => {
+  const arms = armOrder(shift);
+  return [
+    ...arms.map((a) => `swap:${a}-a`), ...arms.map((a) => `zone:${a}-a`),
+    'swap:faithful-frozen-a', 'zone:faithful-frozen-a', 'swap:faithful-b', 'zone:faithful-b',
+    ...arms.filter((a) => a !== 'faithful').map((a) => `zone:${a}-b`), 'zone:faithful-frozen-b',
+  ];
+};
+
+export const pooled = (rows, captures) => ({
+  windows: rows.length, captures, busyWindows: busyWindows(rows),
+  tenthsPerCapture: perCaptureTenths(rows.reduce((a, b) => a + b, 0), captures), median2: median2(rows),
+});

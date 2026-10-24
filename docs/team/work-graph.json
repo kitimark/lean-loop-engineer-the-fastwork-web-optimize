@@ -18989,7 +18989,8 @@
     "results/carousel-swap-webkit/**",
     "research/notes/2026/10-2x-carousel-swap-webkit.md"
    ],
-   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates). accent-drawin-width-nolayout review follow-ups (run 40010826238, arm hero.accent:draw-nolayout-full): (9) cite WebKit Styleable updateCSSTransitions and Chromium css_animations.cc CalculateTransitionUpdate (file:line@sha) for the premise that transition: none in the after-change style makes the width one change (slotChanges .full .inRest = [.clipInset]); (10) swap-report prints the pooled numbers (windows with >= 24 Layout rows, rows per capture, medians) so summary-full.json is generated, not derived by hand; (11) a 3-job repeat with the full arm in the same run as faithful and draw-nolayout (r3 of 40010826238 was cancelled, n=4 per faithful slot, every window unresolved:overlap); measure items 1, 2 for both nolayout arms."
+   "title": "hero-accent-draw-nolayout follow-ups (2026-10-24; run 39999057900: rest-window Layout rows per capture 122.3 arm vs 246.5/226.5 faithful, swap windows unchanged at median 14): (1) Layout events per hero-exit scroll frame in the webkit-sim lane (today it records cadence, Paint and Composite only), arm vs faithful, one run; (2) a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) to give pixel numbers arm vs faithful for the user's look review (class look-change); (3) a 3-job repeat (r3 failed at Boot the Simulator). (4) the swap report labels the arm column 'crop' (people.carousel:crop): take the column name from the FW flag; (5) builders copy run state from fw ci state, never infer it (run 39999057900 was reported complete but fw ci state says failed: r3 Boot the Simulator). hero-accent-frozen-confirm review follow-ups (run 40006432997): (6) a draw-only freeze option in freeze.mjs (path animations plus the drawingIn width transition only, idle boil left running) so the expected gain of the draw rewrite is MEASURED, not the whole accent's; (7) a per-window Lean verdict of each window's unfrozen busy samples against its frozen samples (frozenCell today compares against the max of edge-window idle samples, so the faithful arm's atIdle is vacuous); (8) more hero.exit zone captures per state so the 30%/29% Layout/Paint share comes with a separated verdict (today ranges overlap, n=6+6; only the aligned group separates). accent-drawin-width-nolayout review follow-ups (run 40010826238, arm hero.accent:draw-nolayout-full): (9) cite WebKit Styleable updateCSSTransitions and Chromium css_animations.cc CalculateTransitionUpdate (file:line@sha) for the premise that transition: none in the after-change style makes the width one change (slotChanges .full .inRest = [.clipInset]); (10) swap-report prints the pooled numbers (windows with >= 24 Layout rows, rows per capture, medians) so summary-full.json is generated, not derived by hand; (11) a 3-job repeat with the full arm in the same run as faithful and draw-nolayout (r3 of 40010826238 was cancelled, n=4 per faithful slot, every window unresolved:overlap); measure items 1, 2 for both nolayout arms.",
+   "evidence": "1f89050"
   },
   {
    "devices": [
@@ -19290,7 +19291,10 @@
     "packages/measure-chromium/src/pathpix*.mjs",
     ".github/workflows/path-pix.yml",
     "research/notes/2026/10-2x-hero-copy-floor.md",
-    "docs/team/handoffs/pathpix-consensus-followups.md"
+    "docs/team/handoffs/pathpix-consensus-followups.md",
+    "lean/Fw/Ci/Overflow.lean",
+    "results/accent-draw-nolayout-pixels/**",
+    "packages/measure-webkit/src/pathpix-cli.mjs"
    ],
    "title": "pathpix-consensus-capture review follow-ups (2026-10-24, run 40026419647): (1) lookList and heroCopySummary show the consensus verdict next to the grade and leave varied cells out of the 'L cells with a strip' list, so the user's look review does not count render-server variation as an arm change; (2) a per-zone grade in Lean that drops varied zones in mixed cells (one counted, one varied); (3) the Chromium A3 arm (one entry in packages/measure-chromium/src/pathpix.mjs); (4) a majority reference or a second run to class the hero_copy 192513-20 raster (varied in webkit-1, counted in webkit-2) and the nav-earn 4478-2 A/A change; (5) accent-nolayout-measure item 2 moved here: a path-pix draw-window mode (accent not pinned, frames across the 0.9 s draw) giving pixel numbers for hero.accent:draw-nolayout and draw-nolayout-full vs faithful for the user's look review. One path-pix run, >= 3 jobs per engine."
   },
@@ -19384,7 +19388,8 @@
     "apps/runner/test/disk-gc.test.ts",
     "docs/team/handoffs/gc-live-agent-cwd.md"
    ],
-   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects."
+   "title": "gc-landed-identity follow-ups (2026-10-24): (1) live agents without a wfid label (lead-spawned teammates) are not matched to a worktree: gather each live agent's cwd as a fact and guard both the landed and the idle class on it in Lean (theorem: a worktree that is a live agent's cwd is never selected by any class); (2) remote lands write 'land <task> <sha7>', which never matches 'land <branch>' (keeps, safe): match the task id to the worktree's owning run so remote-landed worktrees can be selected, golden rows for both subjects.",
+   "evidence": "acdc644"
   },
   {
    "devices": [
@@ -19451,9 +19456,76 @@
     "lean/Fw/Sup/*.lean",
     "packages/contracts/golden/sup/*.jsonl",
     "research/notes/2026/10-2x-land-dry-contention.md",
-    "docs/team/handoffs/land-dry-contention.md"
+    "docs/team/handoffs/land-dry-contention.md",
+    "lean/Fw/Obs/Health.lean",
+    "lean/Fw/Plan/WritesClosure.lean"
    ],
    "title": "timing.slow alerts 2026-10-24 on the local dry land, 3 times: 66643 ms vs 43056 (bf9aa85), 62485 vs 40604 (8f040f0, during a Simulator boot at load 70), 53534 vs 35047 ms ('fw/land dry lake [mods=0]', c4f662a, load 5.3 over 8 CPUs with 5-6 builders running checks). Find which dry sub-steps grow and with what (other slot holders, builder vitest/lake runs outside the slot, Simulator) from the timing spans and .fw-console/locks.jsonl; decide in Lean whether a dry land sample taken while other heavy work ran counts as contended (no slow verdict) or the slot should serialize dry lands against builder test runs; golden rows for the three samples; the improvement that follows (queue, lighter dry, or a contended verdict) with its measured effect on later dry lands."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "next-killorphan-reap",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "reap-watch-one-rule"
+   ],
+   "writes": [
+    "lean/Fw/Obs/Next.lean",
+    "lean/Fw/Wire/Obs.lean",
+    "packages/contracts/golden/obs/*.jsonl",
+    "apps/runner/src/next*.ts",
+    "apps/runner/test/next*.test.ts",
+    "docs/team/handoffs/next-killorphan-reap.md"
+   ],
+   "title": "Split from reap-watch-one-rule (Fable advice round 3, fix 5): Next.lean orphanB/killB still prints 'NEXT <id> killOrphan' (Next.lean:242-247, 289; watch.ts formatNext) from its own inference. Derive the kill advice from a reapHeld fact (the Fw.Ops.Reap plan's pid+start) passed into AgentFacts, or drop the action; theorems for both directions; goldens."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "reap-ef-auto",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "reap-watch-one-rule"
+   ],
+   "writes": [
+    "lean/Fw/Ops/Reap.lean",
+    "lean/Fw/Wire/Ops.lean",
+    "packages/contracts/golden/ops/reap*.jsonl",
+    "apps/runner/src/reap*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/test/reap*.test.ts",
+    "docs/team/tools/reap.md",
+    "docs/team/handoffs/reap-ef-auto.md"
+   ],
+   "title": "Follow-up of reap-watch-one-rule (Fable fix 6): log every E (orphan until-loop) and F (booted Simulator) selection per watch tick to reap.jsonl; a Lean exit rule moves a kind into autoKinds only after >= 7 days with >= 1 true orphan and 0 selections of a loop that later ended by itself; writer evidence by inode (lsof by path) instead of path string; slot release records the booted udid (replaces the fw- name prefix); an F watch alert or a watch->simCheck tick."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-engine-cache-followups",
+   "owner": "env-ops",
+   "stream": "tooling",
+   "deps": [
+    "ci-gate-engine-webkit-slow"
+   ],
+   "writes": [
+    "lean/Fw/Ops/GateEngineTiming.lean",
+    "packages/contracts/golden/ops/gate-engine-timing.jsonl",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/actions/gate-engine/action.yml",
+    "scripts/gate-engine-ref*.test.mjs",
+    "research/notes/2026/10-2x-ci-gate-engine-webkit-slow.md",
+    "docs/team/handoffs/gate-engine-cache-followups.md"
+   ],
+   "title": "Review follow-ups of ci-gate-engine-webkit-slow: (1) after its land, confirm the main premise-tests run seeded gate-apt-debs-969c76e on refs/heads/main and the next land leg shows 'Cache restored' and Post <= 1 s (run ids); (2) a Lean class missingRestore or a seeding rule (main holds no gate-* entry when engine is skipped; nothing re-seeds after a 7-day eviction); (3) check.sh job for the gate-engine-timing golden plus a test that runs the action's shell case on the golden ref rows; (4) Trigger.lean cacheWriters keyed on the ref rule (land.yml no longer saves on ci/land-*); list other ci/<task> workflows that upload entries only their own branch reads (visual-diff, smoothness, preview-e2e, trajectory-probe) with sizes."
   }
  ],
  "deadline": {
