@@ -1,11 +1,18 @@
-# reap-watch-one-rule handoff (round 2)
-Branch worktree-wf_e07fe309-bfe-1, worktree .claude/worktrees/wf_e07fe309-bfe-1, commit: see `git log -1` (r2 work fa6225adb + merge of main). No CI runs (accepted limit).
-Verified: lean/scripts/check.sh green; apps/runner test (tsc + vitest, 3315) green; ci-paths test green; fwcore rebuilt for the goldens.
-Rule (lean/Fw/Ops/Reap.lean "Branches E and F"): pickE = until-loop, tool call ended, >= 60 s, no live writer (canonical paths).
-pickF = own fw- Simulator (ownSims identity list) with simAcquired <= start <= simIdleSince and Fw.Sup.Adapt.simAction = shutdown (simVerdict).
-Stop of F: stopSelected -> io.simStop -> slot.ts simctlShutdown(udid); never TERM/KILL of launchd_sim.
-Watch: agent.held for loops only from ops.reapHeld (watch-reap.ts); nextAlerts no longer raises agent.held.
-Slot state.json now keeps simAcquired (earliest since of the released sim holders). Goldens: packages/contracts/golden/ops/reap-one.jsonl (23 rows, regenerate: cd lean && lake env lean --run scripts/ReapGolden.lean).
-TS stand-ins: none for decisions. Unproved glue: callLive := ppid > 1; canonPath (realpath of dirname); the fw- name filter via simctl.
-Open: Fw.Obs.Next killOrphan (Next.lean) is kept as lead advice (`NEXT <id> killOrphan`), not an alert; dropping it touches Wire/Obs goldens and ~15 theorems (follow-up).
-Read first: Reap.lean E/F section, docs/team/tools/reap.md E/F.
+# reap-watch-one-rule handoff (round 3, final design round)
+Branch worktree-wf_e07fe309-bfe-1, worktree .claude/worktrees/wf_e07fe309-bfe-1, r3 commit d3b1d32ea + merge of main (see `git log -1`).
+CI runs: none (accepted limit).
+Rule (lean/Fw/Ops/Reap.lean, branches E and F): pickE = until-loop, tool call ended, >= 60 s, absolute $-free awaited
+path (`awaitOk`), no live writer of the same worktree id. pickF = own fw- Simulator (ownSims), simAcquired <= start <=
+simIdleSince, simVerdict = shutdown with the slot holders and `legacyHeld` (.local/locks/sim live; missing fact = held).
+Action class: `planSel` filters `reapOne` by `autoKinds` (A-D) when `auto` is true. reapTick and reapStopLines send
+auto true (E/F never auto-stopped); `fw reap --stop` sends false; --list and the agent.held alert read the full
+selection. Theorems: auto_plan_no_loop_sim, planSel_auto, planSel_explicit, held_in_plan (auto false), sim_legacy_kept,
+await_unsafe_kept, relative_await_kept, dollar_await_kept.
+F stop: stopSelected -> io.simStop -> slot.ts simctlShutdown(udid); never TERM/KILL of launchd_sim.
+Goldens: packages/contracts/golden/ops/reap-one.jsonl (29 rows; regenerate: cd lean && lake env lean --run scripts/ReapGolden.lean).
+Glue (unproved): callLive := ppid > 1; canonAwait (canonPath only for an absolute $-free path); fw- name filter via simctl;
+legacyLive of the main checkout's .local/locks/sim.
+Verified: see the report of this round (check.sh, runner tests, dry land).
+Open follow-ups: next-killorphan-reap (Next.lean `NEXT <id> killOrphan` advice), reap-ef-auto (log E/F per tick,
+exit criterion, inode writer evidence, udid at slot release, F alert).
+Read first: Reap.lean E/F section and planSel, docs/team/tools/reap.md "Action class".
