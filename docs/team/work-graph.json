@@ -20169,9 +20169,12 @@
    "writes": [
     "research/notes/2026/10-2x-morph-end-measure.md",
     "results/morph-end-measure/**",
-    "docs/team/handoffs/morph-end-measure.md"
+    "docs/team/handoffs/morph-end-measure.md",
+    ".github/workflows/toolbar-throttle.yml",
+    "apps/runner/test/land-overflow-widths.test.ts"
    ],
-   "title": "Measure the morph end bricks on CI: Simulator real-touch finish mode (sim-finish-throttle) and touch-push lanes per composition (faithful, each brick alone, all three, all three + engine.scroll:unthrottle): reversals, spring-back fights, re-opens, finish still runs, Lean verdicts per arm; then the lead posts the user's phone review step with the composer links."
+   "title": "Measure the morph end bricks on CI: Simulator real-touch finish mode (sim-finish-throttle) and touch-push lanes per composition (faithful, each brick alone, all three, all three + engine.scroll:unthrottle): reversals, spring-back fights, re-opens, finish still runs, Lean verdicts per arm; then the lead posts the user's phone review step with the composer links.",
+   "evidence": "6c2b357"
   },
   {
    "devices": [
@@ -21034,6 +21037,64 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
    "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "morph-end-remeasure",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-end-measure",
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    ".github/workflows/toolbar-throttle.yml",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    "lean/Fw/Measure/MorphEndCount*.lean",
+    "lean/scripts/MorphEndCount*.lean",
+    "packages/contracts/golden/device/morph-end-count.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-morph-end-remeasure.md",
+    "results/morph-end-remeasure/**",
+    "docs/team/handoffs/morph-end-remeasure.md"
+   ],
+   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids."
+  },
+  {
+   "devices": [
+    "ci"
+   ],
+   "id": "combo-held-identity",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "combo-scroll-fight"
+   ],
+   "writes": [
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/registry/combo-scroll.test.ts",
+    "lean/Fw/Parts/ComboScroll.lean",
+    "lean/Fw/Parts/MorphEndComboGolden.lean",
+    "lean/scripts/ComboScrollGolden.lean",
+    "packages/contracts/golden/parts/combo-scroll.jsonl",
+    "packages/measure-webkit/src/replay/combo-*.mjs",
+    "packages/measure-webkit/test/replay-combo.test.mjs",
+    ".github/workflows/device-replay.yml",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-combo-held-identity.md",
+    "docs/team/handoffs/combo-held-identity.md"
+   ],
+   "title": "Follow-up of combo-scroll-fight (the user's scroll-back bug): the hold bit in morph.tween/driver.ts:121-138 reads e.cancelable, but a passive listener (the band hub's passive mode, morph.mount:arm-late outside the band) keeps cancelable true while preventDefault is ignored, so the frame writer could still pin against a native scroll there. Do: base held on e.defaultPrevented after the handler's call (identity over inference), model it in Lean Fw.Parts.ComboScroll (held iff the move was actually prevented; the fix theorem and brick theorems kept, including with arm-late passive), regenerate the golden from Lean and replay it in combo-scroll.test.ts; apply the same hold rule to the waapi and waapi-scoped pin writers (waapi.driver.ts:234-235) or prove they cannot run with release; re-run the device-replay combo job (its needs/max-parallel shape has never run) on the user-bug-1025 profiles with the user's 8 flags plus an arm-late-passive case: zero script writes against a native scroll, zero no-finger reversals (run ids)."
   }
  ],
  "deadline": {
