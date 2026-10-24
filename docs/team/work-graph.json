@@ -20263,7 +20263,8 @@
     "packages/gate-breakpoints/test/trajectory.test.mjs",
     "packages/contracts/golden/parts/footprint.gen.json"
    ],
-   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone."
+   "title": "From earn-webkit-parity's cause: a composer brick (nav variant, one variant per part, look-change class 'engine parity': WebKit shows Chromium's faithful curve) that makes the earn and language buttons animate on WebKit the way the original does on Chromium, e.g. physical padding properties in the transition list or a registered @property transition, proved in Lean against Fw.Engine.TransitionStart; unchanged on Chromium (theorem + breakpoint gate); measured frame by frame on macOS CI against Chromium faithful; then the lead posts the user's visual review on Safari and the iPhone.",
+   "evidence": "996ba63"
   },
   {
    "devices": [
