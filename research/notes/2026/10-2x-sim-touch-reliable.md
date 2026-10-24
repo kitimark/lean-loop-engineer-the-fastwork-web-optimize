@@ -218,15 +218,29 @@ Task `sim-touch-followups`, items (1) to (6) of the 2026-10-24 review of run `40
 
 ### CI dispatch 1 (run 40023506144, commit 90e7c09f6): MEASURED, the plan did not reach 5 kept windows
 
-Four sim jobs on the same commit: jobs 1 to 3 SpringBoard coordinates, job 4 the control (`FW_TOUCH_VARIANTS=safari`). The Lean plan said `ok` in every job (5 or 6 reps of 3 arms). Kept finish-zone windows per arm are `base, aa, bound` from `report.mjs` `zoneReps`.
+Four sim jobs on the same commit: jobs 1 to 3 SpringBoard coordinates, job 4 the control (`FW_TOUCH_VARIANTS=safari`). The Lean plan said `ok` in every job (5 or 6 reps of 3 arms). The count per arm (`base, aa, bound`) is the end windows with intervals (`ok` rows with `ivs`, what `jobCadence` counts per window group `end` or `end touch`); a touch window carries no Timeline zones, so `zoneReps` finish counts would read 0 for it and are not used.
 
-| job | push server | windows | walk | job | kept finish (base, aa, bound) | why it stopped |
+| job | push server | windows | walk | job | end windows kept (base, aa, bound; touch of them) | why it stopped |
 |---|---|---|---|---|---|---|
-| 1 | not ready in 240 s | 4 | 1288 s | 31.3 min, green | 1, 1, 0 | page target lost 484 s, relaunch found no tab |
-| 2 | not ready in 240 s | 4 | 1110 s | 25.3 min, green | 1, 1, 0 | `Runtime.evaluate` 120 s timeout, inspector dead, relaunch found no tab |
-| 3 | not ready in 241 s | 16 | 1647 s | 37.4 min, red | 3, 2, 4 | walk deadline; windows of 285, 432 and 125 s; red from `Shut down and delete the Simulator` (139 s against its 2 min bound) |
-| 4 (control) | ready in 66 s | 29 | 1639 s | green | 4, 5, 6 | walk deadline before `base end` of rep 4; windows of 196, 85, 75 s and a 400 s tab wait |
+| 1 | not ready in 240 s | 4 | 1288 s | 31.3 min, green | 1, 1, 0 (0) | page target lost 484 s, relaunch found no tab |
+| 2 | not ready in 240 s | 4 | 1110 s | 25.3 min, green | 1, 1, 0 (0) | `Runtime.evaluate` 120 s timeout, inspector dead, relaunch found no tab |
+| 3 | not ready in 241 s | 16 | 1647 s | 37.4 min, red | 3, 2, 3 (0) | walk deadline; windows of 285, 432 and 125 s; red from `Shut down and delete the Simulator` (139 s against its 2 min bound) |
+| 4 (control) | ready in 66 s | 29 | 1639 s | green | 4, 5, 5 (1, 2, 1) | walk deadline before `base end` of rep 4; windows of 196, 85, 75 s and a 400 s tab wait |
 
 - The plan is a bound on time at 45 s a window; it cannot cover a host where the inspector dies after 4 windows (jobs 1, 2) or a rep takes 285 + 432 s (job 3). The mean window in job 4 was 28 s (819 s over 29), so a healthy job fits; the tail decides.
 - Touch: in jobs 1 to 3 the driver started its tests after the 240 s `readyMs` cut (job 3 log: the driver printed `Running tests...` 37 s after xcodebuild started, after the cut), so no end window was a touch window (`touch 0`); in job 4 the driver was ready after 66 s, pushes 0 to 3 passed with the Safari coordinates and push 4 ended `pageLost`, then the driver was given up. Control against test is therefore confounded by driver start time, not by coordinates (INFERRED: nothing in `touch-push.mjs`, `TouchPush.lean` or the driver build changed since the earlier runs, where the push server was ready in 45 to 142 s on hosts with load 480 to 960; here 1000).
 - Keep host state (item 6): in job 3 the injected `sleep 90` hit `timeout-minutes: 1`; the step took 78 s (60 s plus about 18 s to cancel), its conclusion was `success` under `continue-on-error`, and `host.txt` was never written. The job went red only through the Simulator shutdown step. Without the hang the step took 53 s (job 1) and 22 s (job 2) with both 8 s commands, so the 77 s of the first run was command time under load 728 plus runner overhead, not a missing bound.
+
+### CI dispatch 2 (run 40039631149, commit b81f1410d, same code plus `continue-on-error` on the shutdown step): MEASURED, 3 of 4 jobs reach 6 end windows per arm
+
+| job | variant | push server | windows | walk | job | end touch windows kept (base, aa, bound) | note |
+|---|---|---|---|---|---|---|---|
+| 1 | springboard | ready 64 s | 11 | 1348 s | 27.1 min, green | 1, 2, 1 | `swipeLate` push, then `Timeline.stop` timeout (60 s) and a dead inspector: INCOMPLETE |
+| 2 | springboard | ready 63 s | 36 | 1240 s | 24.5 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 172 s hero window |
+| 3 | springboard | ready 51 s | 36 | 1462 s | 29.3 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 383 s and one 172 s hero window |
+| 4 (control) | safari | ready 50 s | 36 | 1088 s | 22.0 min, green | 6, 6, 6 | 18 of 18 pushes ok; one 152 s end window |
+
+- The run concluded `success`. The Lean plan (6 reps of 3 arms, `outcome` ok) is met in jobs 2, 3 and 4 inside the bound: walks of 1240, 1462 and 1088 s against a walk budget of 1644 s (job 2: `step_minutes=31`, hard stop 1794 s), job minutes 24.5 to 29.3 against the 45 min timeout. Job 1 is the host-starved tail (item 3): 1 `swipeLate` and 1 `Timeline.stop` timeout in 11 windows, then the inspector would not come back.
+- Dispatch 1 and 2 compared (same code except the shutdown step and main merged in between): the push server was ready in 50 to 66 s in 5 of 5 jobs of dispatch 2 and dispatch 1 job 4, but not within 240 s in dispatch 1 jobs 1 to 3 (load 886 to 1016). That is the host, not the plan (INFERRED).
+- Control against test (item 1), pushes that passed: SpringBoard 40 of 41 (median begin 2.1 s, swipe 5.8 s, done 9.9 s, max done 59 s) and Safari 22 of 23 across both dispatches (the miss: `pageLost` in dispatch 1 job 4) (median begin 1.5 s, swipe 6.4 s, done 9.8 s, dispatch 2: max done 35.7 s). The one failed SpringBoard push was `swipeLate` (swipe 24 s against a 20 s bound). The two coordinate sources give the same median done time (9.9 against 9.8 s); the sample is too small to rank them (MEASURED, n = 18 per variant in dispatch 2).
+- Steps (item 6): the shutdown step ended in 9, 19, 23 s and the Keep host state step in 11, 15, 23 s in a healthy job; the job stayed green in all four jobs. In dispatch 1 job 3 the injected hang cost 78 s and left `success`.
