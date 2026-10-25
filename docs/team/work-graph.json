@@ -21216,6 +21216,33 @@
     "docs/team/handoffs/init-cost-depth.md"
    ],
    "title": "Found by sim-touch-timeout (2026-10-25): the init-cost lint (lean/scripts/InitCostLint.lean) fails with maximum recursion depth near 1640 start-time constants and main has 1632, so any task adding about 12 constants fails it (sim-touch-timeout worked around it by giving its twelve Nat constants in SimTouch.lean a Unit default argument). Do: find where the lint recurses per constant (cite file:line), make it iterate or raise maxRecDepth with a measured margin (the builder's tested fix: set_option maxRecDepth 100000 in that script; say why that is safe and what it costs in time), add a regression check that the lint runs with at least 4x today's constant count, (the Unit-argument workaround in SimTouch.lean is dropped later by its owner, not here). Urgent: it already blocks columns-final-scale (lean run 40153993443 on ci/columns-final-scale: InitCostLint.lean:6 maximum recursion depth)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-q6",
+   "owner": "lean-prover",
+   "stream": "hero",
+   "deps": [
+    "look-decisions-1024"
+   ],
+   "writes": [
+    "lean/Fw/Parts/HeroExitOpt.lean",
+    "lean/Fw/Parts/HeroExitScrollOffset.lean",
+    "lean/Fw/Engine/Visual.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/parts/hero-exit-offset.jsonl",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-q6.md",
+    "docs/team/handoffs/hero-exit-q6.md"
+   ],
+   "title": "Clear two of the three blockers that keep hero.exit:threaded (accepted by the user on the iPhone 2026-10-24) out of v2-proved, per look-decisions-1024's Lean entry decision (Gen.entry, threaded_not_yet): (1) q6 'same scroll offset': Fw.Engine.Visual.PathPremises.c3o/c3v are hypotheses and Fw.Parts.HeroExitOpt does not model which scroll offset the compositor shows. Read WebKit source (RemoteScrollingTreeIOS.cpp:55-66 updateProgressBasedTimelinesForNode, ScrollTimeline.cpp:417-427, AnimationTimelinesController.cpp:267-279, the UI-process commit of scroll position; pinned clone, cite file:line@commit) and Chromium's scroll-timeline sampling on the compositor; model per frame which offset each arm shows (threaded: the UI-process/compositor offset at that frame; original: the offset the main-thread rAF read); prove the threaded arm's offset is never older than the original's (or name the frame kind where it is), and set Gen.q6Answer from that theorem. (2) proofs: add the Gen.linkTable link for hero.exit:threaded from the existing theorems (Fw.Parts.HeroExitOpt.consumer_eq_s under RG11, cr_real_tradeE, wk_tradeE) or state in Lean which hypothesis still blocks it. Regenerate the preset goldens with Gen.run, never by hand; report whether Gen.entry now says enter (the trajectory gate rows come from the lead's dispatch)."
   }
  ],
  "deadline": {
