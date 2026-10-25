@@ -40,10 +40,8 @@ export interface TweenEnv {
   publish(value: number): void;
   /** The panel may mount: first intersection or first push (N2:13040 and 13076 `z(b, !0)`). */
   onActivate?(): void;
-  /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
-  /** `morph.panel:rest`: mark the platform section while the fade is 1 so its CSS drops the identity blur. */
   rest?: boolean;
   panel?: EffectSink;
   hooks?: Hooks;

@@ -45,7 +45,6 @@ describe('morph.panel:rest golden (Lean MorphPanelRest)', () => {
       const kinds = frames.map((mm) => setRest(f.el, mm / 1000));
       expect(kinds, JSON.stringify(g.in)).toEqual(out.kinds);
       expect(f.on()).toBe(out.kinds[out.kinds.length - 1] === 'none');
-      // The writer starts without the attribute (blur): a first rest frame is one extra write, then one write per toggle.
       expect(f.writes(), JSON.stringify(g.in)).toBe(out.toggles + (out.kinds[0] === 'none' ? 1 : 0));
     }
   });
