@@ -773,8 +773,7 @@ Phone numbers (real iPhone, one person, one session, viewport h 775, faithful re
 | `hero.exit:threaded` | 12 → 0 | no data (the variant clears the inline value the recorder reads) | MEASURED, `results/phone/2026-10-24-hero-exit-threaded/summary.md` |
 | `engine.scroll:throttle-lift` | 12 → 0 | 90 → 2 | MEASURED, `results/phone/2026-10-24-throttle-lift/summary.md` |
 
-Lean also decides whether `hero.exit:threaded` may enter v2-proved (`Gen.entry`, `entryReqs`). The answer is **not
-yet**. Each requirement and its evidence is in the `entry` field of the flag's row in
+Lean decides whether `hero.exit:threaded` may enter v2-proved (`Gen.entry`, `entryReqs`). The answer is not yet. Each requirement and its evidence is in the `entry` field of the flag's row in
 `packages/contracts/golden/preset/v2-proved.decisions.jsonl`:
 
 | Requirement | Met | Evidence |

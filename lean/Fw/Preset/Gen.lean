@@ -524,7 +524,6 @@ theorem threaded_not_yet {ledger : List Row} {st : List Stored} :
   ⟨q6_open.1, q6_open.2, (entry_notYet_of_unmet (by simp [entryReqs]) threaded_proofs_unmet).2,
     fun h => by simp [blockers, threaded_look_met] at h⟩
 
-/-- A failing run of the flag alone on one path of a family leaves that family's gate unmet and a blocker. -/
 theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     {s : Stored} (hw : w ∈ walks) (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key])
     (hf : outcome s = .fail) :
