@@ -214,11 +214,6 @@ export function startFaithful(o: FaithfulOptions): () => void {
   };
 }
 
-/**
- * Variant `one-chain` (Lean `Fw.Parts.HeroCountdownOneChain`): `clock` with every `{ own: true }` chain run inside one
- * shared-loop subscriber, in registration order, that is subscribed only while some chain is. Hand it to
- * `startFaithful`. Golden: packages/contracts/golden/parts/hero.countdown.onechain.jsonl.
- */
 export function oneChainClock(clock: MotionClock): MotionClock {
   const chains = new Set<{ tick: Tick }>();
   let off: (() => void) | null = null;
