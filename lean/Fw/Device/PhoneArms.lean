@@ -273,17 +273,20 @@ theorem coolOk_iff (g : Nat) : coolOk g = true ↔ 300 ≤ g := by
 inductive Fault where
   | usbReset
   | staleTab
+  | foreignProxy
   | other
   deriving DecidableEq
 
 def Fault.name : Fault → String
   | .usbReset => "usbReset"
   | .staleTab => "staleTab"
+  | .foreignProxy => "foreignProxy"
   | .other => "other"
 
 def Fault.harness : Fault → Bool
   | .usbReset => true
   | .staleTab => true
+  | .foreignProxy => true
   | .other => false
 
 def hasText (msg pat : String) : Bool := decide (1 < (msg.splitOn pat).length)
@@ -291,6 +294,7 @@ def hasText (msg pat : String) : Bool := decide (1 < (msg.splitOn pat).length)
 def faultOf (msg : String) : Fault :=
   if ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) then .usbReset
   else if hasText msg "stale own tab" then .staleTab
+  else if hasText msg "another ios_webkit_debug_proxy" then .foreignProxy
   else .other
 
 def mayAttempt (faults : List Fault) : Bool :=
@@ -316,7 +320,7 @@ theorem mayAttempt_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayA
   have h2 : ¬ faults.length < 3 := by omega
   simp [h1, h2]
 
-theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab := by
+theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab ∨ f = .foreignProxy := by
   cases f <;> simp [Fault.harness]
 
 def recordFault (faults : List Fault) (f : Fault) : List Fault := faults ++ [f]
@@ -349,6 +353,277 @@ theorem appendOnly_record (faults : List Fault) (f : Fault) : appendOnly faults 
   (appendOnly_iff _ _).2 (recordFault_prefix faults f)
 
 theorem strip_visit_lost : mayAttempt [.usbReset, .staleTab, .other] = false := by decide
+
+structure VisitRec where
+  index : Nat
+  faults : List Fault
+  deriving DecidableEq
+
+def keepOk (new : List VisitRec) (v : VisitRec) : Bool :=
+  match new.find? (·.index == v.index) with
+  | none => v.faults.isEmpty
+  | some n => appendOnly v.faults n.faults
+
+def writeOk (old new : List VisitRec) : Bool := old.all (keepOk new)
+
+theorem keepOk_removed_clean {new : List VisitRec} {v : VisitRec} (hn : new.find? (·.index == v.index) = none)
+    (hf : v.faults = []) : keepOk new v = true := by
+  simp [keepOk, hn, hf]
+
+theorem keepOk_removed_faulty {new : List VisitRec} {v : VisitRec} (hn : new.find? (·.index == v.index) = none)
+    (hf : v.faults ≠ []) : keepOk new v = false := by
+  simp [keepOk, hn, hf]
+
+theorem keepOk_kept_extends {new : List VisitRec} {v n : VisitRec} (hn : new.find? (·.index == v.index) = some n)
+    (h : v.faults <+: n.faults) : keepOk new v = true := by
+  simp [keepOk, hn, appendOnly_iff, h]
+
+theorem keepOk_kept_shortens {new : List VisitRec} {v n : VisitRec} (hn : new.find? (·.index == v.index) = some n)
+    (h : ¬ v.faults <+: n.faults) : keepOk new v = false := by
+  have h' : appendOnly v.faults n.faults = false := by
+    cases hb : appendOnly v.faults n.faults
+    · rfl
+    · exact absurd ((appendOnly_iff _ _).1 hb) h
+  simp [keepOk, hn, h']
+
+theorem writeOk_nil (new : List VisitRec) : writeOk [] new = true := rfl
+
+theorem writeOk_refuses {old new : List VisitRec} {v : VisitRec} (hv : v ∈ old) (h : keepOk new v = false) :
+    writeOk old new = false := by
+  unfold writeOk
+  exact List.all_eq_false.2 ⟨v, hv, by simp [h]⟩
+
+theorem writeOk_refuses_removal {old new : List VisitRec} {v : VisitRec} (hv : v ∈ old) (hf : v.faults ≠ [])
+    (hn : ∀ n ∈ new, n.index ≠ v.index) : writeOk old new = false := by
+  have h : new.find? (·.index == v.index) = none := by
+    rw [List.find?_eq_none]
+    intro n hm
+    simpa using hn n hm
+  exact writeOk_refuses hv (keepOk_removed_faulty h hf)
+
+theorem writeOk_accepts {old new : List VisitRec} (h : ∀ v ∈ old, keepOk new v = true) : writeOk old new = true := by
+  unfold writeOk
+  exact List.all_eq_true.2 h
+
+def handResetRecs (vs : List VisitRec) (i : Nat) : List VisitRec :=
+  vs.map fun v => if v.index == i then { v with faults := handReset v.faults } else v
+
+theorem handResetRecs_faults (vs : List VisitRec) (i : Nat) :
+    (handResetRecs vs i).map (·.faults) = vs.map (·.faults) := by
+  unfold handResetRecs
+  induction vs with
+  | nil => rfl
+  | cons v rest ih =>
+    by_cases h : (v.index == i) = true <;> simp_all [handReset]
+
+theorem handResetRecs_index (vs : List VisitRec) (i : Nat) :
+    (handResetRecs vs i).map (·.index) = vs.map (·.index) := by
+  unfold handResetRecs
+  induction vs with
+  | nil => rfl
+  | cons v rest ih =>
+    by_cases h : (v.index == i) = true <;> simp_all
+
+inductive ResetPlan where
+  | badIndex
+  | noReason
+  | noVisit
+  | note (index : Nat) (reason : String)
+  deriving DecidableEq, Repr
+
+def blank (s : String) : Bool := s.all Char.isWhitespace
+
+def numeral (s : String) : Bool := !s.isEmpty && s.all fun c => '0' ≤ c && c ≤ '9'
+
+def resetPlan (n : Nat) (vs : List VisitRec) (idx reason : String) : ResetPlan :=
+  if !numeral idx || n ≤ idx.toNat! then .badIndex
+  else if blank reason then .noReason
+  else if vs.any (·.index == idx.toNat!) then .note idx.toNat! reason
+  else .noVisit
+
+theorem resetPlan_badIndex_text {n : Nat} {vs : List VisitRec} {idx : String} (reason : String) (h : numeral idx = false) :
+    resetPlan n vs idx reason = .badIndex := by
+  simp [resetPlan, h]
+
+theorem resetPlan_badIndex_range {n : Nat} {vs : List VisitRec} {idx : String} (reason : String) (h : n ≤ idx.toNat!) :
+    resetPlan n vs idx reason = .badIndex := by
+  simp [resetPlan, h]
+
+theorem resetPlan_noReason {n : Nat} {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < n) (h : blank reason = true) : resetPlan n vs idx reason = .noReason := by
+  have : ¬ n ≤ idx.toNat! := by omega
+  simp [resetPlan, hd, this, h]
+
+theorem resetPlan_noVisit {n : Nat} {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < n) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = false) :
+    resetPlan n vs idx reason = .noVisit := by
+  have : ¬ n ≤ idx.toNat! := by omega
+  simp [resetPlan, hd, this, h, hv]
+
+theorem resetPlan_note {n : Nat} {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < n) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = true) :
+    resetPlan n vs idx reason = .note idx.toNat! reason := by
+  have : ¬ n ≤ idx.toNat! := by omega
+  simp [resetPlan, hd, this, h, hv]
+
+
+theorem faultOf_usb {msg : String} (h : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = true) :
+    faultOf msg = .usbReset := by
+  simp [faultOf, h]
+
+theorem faultOf_stale {msg : String} (h1 : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = false)
+    (h2 : hasText msg "stale own tab" = true) : faultOf msg = .staleTab := by
+  simp [faultOf, h1, h2]
+
+theorem faultOf_foreign {msg : String} (h1 : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = false)
+    (h2 : hasText msg "stale own tab" = false) (h3 : hasText msg "another ios_webkit_debug_proxy" = true) :
+    faultOf msg = .foreignProxy := by
+  simp [faultOf, h1, h2, h3]
+
+theorem faultOf_other {msg : String} (h1 : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = false)
+    (h2 : hasText msg "stale own tab" = false) (h3 : hasText msg "another ios_webkit_debug_proxy" = false) :
+    faultOf msg = .other := by
+  simp [faultOf, h1, h2, h3]
+
+def usbWaitS : Nat := 180
+
+structure UsbReading where
+  listed : Bool
+  onBus : Bool
+  evidence : Bool
+
+inductive UsbVerdict where
+  | ok
+  | reset
+  | absent
+  deriving DecidableEq
+
+def UsbVerdict.name : UsbVerdict → String
+  | .ok => "ok" | .reset => "reset" | .absent => "absent"
+
+def usbVerdict (r : UsbReading) : UsbVerdict :=
+  if r.evidence || (!r.listed && r.onBus) then .reset
+  else if r.listed then .ok
+  else .absent
+
+theorem usbVerdict_evidence {r : UsbReading} (h : r.evidence = true) : usbVerdict r = .reset := by
+  simp [usbVerdict, h]
+
+theorem usbVerdict_unlisted_on_bus {r : UsbReading} (hl : r.listed = false) (hb : r.onBus = true) : usbVerdict r = .reset := by
+  simp [usbVerdict, hl, hb]
+
+theorem usbVerdict_ok {r : UsbReading} (he : r.evidence = false) (hl : r.listed = true) : usbVerdict r = .ok := by
+  simp [usbVerdict, he, hl]
+
+theorem usbVerdict_absent {r : UsbReading} (he : r.evidence = false) (hl : r.listed = false) (hb : r.onBus = false) :
+    usbVerdict r = .absent := by
+  simp [usbVerdict, he, hl, hb]
+
+def usbLine (line : String) : Bool :=
+  hasText line "usbpowerd" && (hasText line "terminated" || hasText line "discovered")
+
+def classify (msg : String) (u : UsbVerdict) : Fault :=
+  match faultOf msg with
+  | .other => if u = .reset then .usbReset else .other
+  | f => f
+
+theorem classify_named {msg : String} {u : UsbVerdict} (h : faultOf msg ≠ .other) : classify msg u = faultOf msg := by
+  unfold classify
+  split <;> simp_all
+
+theorem classify_reset {msg : String} (h : faultOf msg = .other) : classify msg .reset = .usbReset := by
+  simp [classify, h]
+
+theorem classify_unreset {msg : String} {u : UsbVerdict} (h : faultOf msg = .other) (hu : u ≠ .reset) : classify msg u = .other := by
+  simp [classify, h, hu]
+
+inductive UsbWait where
+  | resume
+  | keep
+  | giveUp
+  deriving DecidableEq
+
+def UsbWait.name : UsbWait → String
+  | .resume => "resume" | .keep => "keep" | .giveUp => "giveUp"
+
+def usbWait (listed : Bool) (waitedS : Nat) : UsbWait :=
+  if listed then .resume else if usbWaitS ≤ waitedS then .giveUp else .keep
+
+theorem usbWait_resume {w : Nat} : usbWait true w = .resume := by
+  simp [usbWait]
+
+theorem usbWait_keep {w : Nat} (h : w < usbWaitS) : usbWait false w = .keep := by
+  have : ¬ usbWaitS ≤ w := by omega
+  simp [usbWait, this]
+
+theorem usbWait_giveUp {w : Nat} (h : usbWaitS ≤ w) : usbWait false w = .giveUp := by
+  simp [usbWait, h]
+
+def guardedPorts : List Nat := [9221, 9222]
+
+inductive ProxyVerdict where
+  | clear
+  | holdsPorts
+  | attached
+  deriving DecidableEq
+
+def ProxyVerdict.name : ProxyVerdict → String
+  | .clear => "clear" | .holdsPorts => "holdsPorts" | .attached => "attached"
+
+def regexy (id : String) : Bool := id.any fun c => ".*+?[](){}|^$\\".toList.contains c
+
+def specAttaches (udid spec : String) : Bool :=
+  ((spec.map fun c => if c == '\n' then ',' else c).splitOn ",").any fun e =>
+    match e.splitOn ":" with
+    | [id, port] => id != "null" && port != "-1" && (id.isEmpty || id == udid || regexy id)
+    | _ => false
+
+structure ForeignProxy where
+  ports : List Nat
+  spec : Option String
+  usb : Bool
+
+def proxyVerdict (p : ForeignProxy) (udid : String) : ProxyVerdict :=
+  if p.ports.any guardedPorts.contains then .holdsPorts
+  else if !p.usb then .clear
+  else match p.spec with
+    | none => .attached
+    | some s => if specAttaches udid s then .attached else .clear
+
+theorem proxyVerdict_holds {p : ForeignProxy} (udid : String) (h : p.ports.any guardedPorts.contains = true) :
+    proxyVerdict p udid = .holdsPorts := by
+  simp [proxyVerdict, h]
+
+theorem proxyVerdict_socket {p : ForeignProxy} (udid : String) (h : p.ports.any guardedPorts.contains = false) (hu : p.usb = false) :
+    proxyVerdict p udid = .clear := by
+  simp [proxyVerdict, h, hu]
+
+theorem proxyVerdict_unknown {p : ForeignProxy} (udid : String) (h : p.ports.any guardedPorts.contains = false) (hu : p.usb = true)
+    (hs : p.spec = none) : proxyVerdict p udid = .attached := by
+  simp [proxyVerdict, h, hu, hs]
+
+theorem proxyVerdict_attached {p : ForeignProxy} {s : String} (udid : String) (h : p.ports.any guardedPorts.contains = false)
+    (hu : p.usb = true) (hs : p.spec = some s) (ha : specAttaches udid s = true) : proxyVerdict p udid = .attached := by
+  simp [proxyVerdict, h, hu, hs, ha]
+
+theorem proxyVerdict_clear {p : ForeignProxy} {s : String} (udid : String) (h : p.ports.any guardedPorts.contains = false)
+    (hu : p.usb = true) (hs : p.spec = some s) (ha : specAttaches udid s = false) : proxyVerdict p udid = .clear := by
+  simp [proxyVerdict, h, hu, hs, ha]
+
+def proxiesClear (ps : List ForeignProxy) (udid : String) : Bool :=
+  ps.all fun p => proxyVerdict p udid == .clear
+
+theorem proxiesClear_nil (udid : String) : proxiesClear [] udid = true := rfl
+
+theorem proxiesClear_iff (ps : List ForeignProxy) (udid : String) :
+    proxiesClear ps udid = true ↔ ∀ p ∈ ps, proxyVerdict p udid = .clear := by
+  simp [proxiesClear]
+
+theorem proxiesClear_refuses {ps : List ForeignProxy} {p : ForeignProxy} (udid : String) (hp : p ∈ ps)
+    (h : proxyVerdict p udid ≠ .clear) : proxiesClear ps udid = false := by
+  cases hc : proxiesClear ps udid
+  · rfl
+  · exact absurd ((proxiesClear_iff ps udid).1 hc p hp) h
 
 inductive TabPlan where
   | drive (i : Nat)
@@ -406,7 +681,9 @@ theorem ownTab_any_port (host port : String) : ownTab host (host ++ ":" ++ port)
 
 def sessionBlocks : List (List Arm) := blocks perBlock sessionVisits
 
-def wallMin (n : Nat) : Nat := n * visitMin + (sessionBlocks.length - 1) * coolMin
+def wallMin (n : Nat) : Nat := n * visitMin + ((blocks perBlock (List.range n)).length - 1) * coolMin
+
+theorem wallMin_session : wallMin sessionVisits.length = 147 := by decide
 
 def binZone (vh10 maxY10 y0 : Int) : Zone := zoneOf vh10 maxY10 (y0 * 10 + 2500)
 
@@ -542,7 +819,7 @@ private def tableArms : List (List (List Int)) :=
 private def faultTexts : List String :=
   ["Inspector proxy closed (code 1006)", "the phone is paired but not on USB", "the phone re-enumerated on USB",
    "phone proxy listed no tabs in 30 s", "stale own tab could not be returned to about:blank", "Runtime.evaluate timed out 15 s",
-   "expected exactly one about:blank Safari tab, found 0 of 2 tabs", ""]
+   "expected exactly one about:blank Safari tab, found 0 of 2 tabs", "another ios_webkit_debug_proxy holds port 9221", ""]
 
 private def attemptCases : List (List Fault) :=
   [[], [.other], [.usbReset], [.other, .other], [.usbReset, .staleTab], [.usbReset, .usbReset], [.staleTab, .other],
@@ -564,6 +841,67 @@ private def tabCases : List (List String) :=
    ["http://harness.test:4100/", "about:blank", "about:blank"], ["https://example.test/"],
    ["http://harness.test:3999/"], ["http://harness.test:3999/", "http://harness.test:4100/"],
    ["http://harness.test.evil:4100/"], ["http://harness.test:3999/", "about:blank"], ["https://harness.test:4100/"]]
+
+private def recJ (v : VisitRec) : Json := Json.mkObj [("index", v.index), ("faults", strsJ (v.faults.map Fault.name))]
+
+private def recsJ (vs : List VisitRec) : Json := Json.arr (vs.map recJ).toArray
+
+private def writeCases : List (List VisitRec × List VisitRec) :=
+  let a : VisitRec := ⟨6, [.usbReset, .staleTab]⟩
+  let c : VisitRec := ⟨2, []⟩
+  [([], []), ([a], [a]), ([a], []), ([a], [c]), ([a, c], [c]), ([c], []), ([c], [a]), ([a], [⟨6, [.usbReset, .staleTab, .other]⟩]),
+   ([a], [⟨6, [.other]⟩]), ([a], [⟨6, [.usbReset]⟩]), ([a], [⟨6, []⟩]), ([a, c], [⟨2, [.other]⟩, ⟨6, [.usbReset, .staleTab, .other]⟩]),
+   ([a, c], handResetRecs [a, c] 6), ([a], [⟨7, []⟩, a]), ([⟨3, [.other]⟩], [⟨4, [.other]⟩])]
+
+private def wallCases : List Nat := [0, 1, 2, 3, 4, 5, 15, 16, 17]
+
+private def resetCases : List (List VisitRec × String × String) :=
+  let st : List VisitRec := [⟨6, [.usbReset, .staleTab]⟩, ⟨2, []⟩]
+  [(st, "6", "tab returned to about:blank by hand"), (st, "3", "last visit of a 4-visit session"), (st, "4", "one past a 4-visit session"), (st, "2", "x"), (st, "7", "no record"), (st, "16", "past the plan"),
+   (st, "15", "in the plan, no record"), (st, "", "empty index"), (st, "6a", "digits and a letter"), (st, "-1", "sign"),
+   (st, "6", ""), (st, "6", "   "), (st, "06", "leading zero"), (st, "1.5", "fraction"), ([], "0", "empty state")]
+
+private def usbReadings : List UsbReading :=
+  [false, true].flatMap fun l => [false, true].flatMap fun b => [false, true].map fun e => ⟨l, b, e⟩
+
+private def usbLines : List String :=
+  ["usbpowerd: discovered <private>", "usbpowerd: device terminated", "usbpowerd: assertion taken", "usbmuxd: discovered", "", "usbpowerd"]
+
+private def classifyTexts : List String :=
+  ["Runtime.evaluate timed out 15 s", "the phone is paired but not on USB", "stale own tab could not be returned to about:blank",
+   "another ios_webkit_debug_proxy holds port 9221"]
+
+private def waitCases : List (Bool × Nat) :=
+  [(true, 0), (true, 500), (false, 0), (false, 179), (false, 180), (false, 181)]
+
+private def specCases : List String :=
+  ["", ":9221,:9222-9322", "null:9221,:9222-9322", "AAAA-1111:9300", "BBBB-2222:9300", "BBBB-2222:9300,AAAA-1111:9301",
+   "AAAA-1111:-1", "null:9300", "A.*:9300", "BBBB-2222:9300\nAAAA-1111:9301", "9300", ":"]
+
+private def proxyCases : List ForeignProxy :=
+  [⟨[], some "BBBB-2222:9300", true⟩, ⟨[9221], some "BBBB-2222:9300", true⟩, ⟨[9222, 9300], none, true⟩, ⟨[9300], none, true⟩,
+   ⟨[9300], some ":9301", true⟩, ⟨[9300], some "AAAA-1111:9301", true⟩, ⟨[9300], some "BBBB-2222:9301", true⟩,
+   ⟨[9300, 9301], some "null:9300", true⟩, ⟨[], some "", true⟩, ⟨[9223], some "BBBB-2222:9300", true⟩,
+   ⟨[9341, 9342], some ":9342", false⟩, ⟨[9341], none, false⟩, ⟨[9221], some ":9342", false⟩, ⟨[9300], some ":9301", false⟩]
+
+private def proxySets : List (List ForeignProxy) :=
+  [[], [⟨[9300], some "BBBB-2222:9300", true⟩], [⟨[9300], some "BBBB-2222:9300", true⟩, ⟨[9221], some ":9301", true⟩],
+   [⟨[9300], some "BBBB-2222:9300", true⟩, ⟨[9301], none, true⟩], [⟨[9300], some "null:9300", true⟩, ⟨[9301], some "AAAA-1111:-1", true⟩],
+   [⟨[9341, 9342], some ":9342", false⟩, ⟨[9300], some "BBBB-2222:9300", true⟩], [⟨[9341, 9342], some ":9342", false⟩]]
+
+private def specUdid : String := "AAAA-1111"
+
+private def optJ : Option String → Json
+  | none => Json.null
+  | some s => Json.str s
+
+private def fpJ (p : ForeignProxy) : Json := Json.mkObj [("ports", toJson p.ports), ("spec", optJ p.spec), ("usb", p.usb)]
+
+private def resetJ : ResetPlan → Json
+  | .badIndex => Json.mkObj [("plan", "badIndex")]
+  | .noReason => Json.mkObj [("plan", "noReason")]
+  | .noVisit => Json.mkObj [("plan", "noVisit")]
+  | .note i r => Json.mkObj [("plan", "note"), ("index", i), ("reason", r)]
 
 private def planJ : TabPlan → Json
   | .drive i => Json.mkObj [("plan", "drive"), ("i", i)]
@@ -609,6 +947,24 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "append"), ("old", strsJ (o.map Fault.name)), ("new", strsJ (n.map Fault.name)), ("ok", appendOnly o n)]).compress) ++
   (tabCases.map fun (us : List String) =>
     (Json.mkObj [("kind", "tabs"), ("host", tabHost), ("urls", strsJ us), ("plan", planJ (tabPlan tabHost us))]).compress) ++
+  (writeCases.map fun (o, n) =>
+    (Json.mkObj [("kind", "write"), ("old", recsJ o), ("new", recsJ n), ("ok", writeOk o n)]).compress) ++
+  (([16, 4] : List Nat).flatMap fun (n : Nat) => resetCases.map fun (vs, i, r) =>
+    (Json.mkObj [("kind", "handreset"), ("n", n), ("state", recsJ vs), ("index", i), ("reason", r), ("plan", resetJ (resetPlan n vs i r))]).compress) ++
+  (wallCases.map fun (n : Nat) => (Json.mkObj [("kind", "wallmin"), ("n", n), ("wallMin", wallMin n)]).compress) ++
+  (usbReadings.map fun r =>
+    (Json.mkObj [("kind", "usb"), ("listed", r.listed), ("onBus", r.onBus), ("evidence", r.evidence), ("verdict", (usbVerdict r).name)]).compress) ++
+  (usbLines.map fun (t : String) => (Json.mkObj [("kind", "usbline"), ("text", t), ("is", usbLine t)]).compress) ++
+  (classifyTexts.flatMap fun (t : String) => [UsbVerdict.ok, .reset, .absent].map fun (u : UsbVerdict) =>
+    (Json.mkObj [("kind", "classify"), ("text", t), ("usb", u.name), ("fault", (classify t u).name)]).compress) ++
+  [(Json.mkObj [("kind", "usbwait"), ("waitS", usbWaitS), ("cases", Json.arr ((waitCases.map fun (l, w) =>
+    Json.mkObj [("listed", l), ("waitedS", w), ("wait", (usbWait l w).name)]).toArray))]).compress] ++
+  (specCases.map fun (sp : String) =>
+    (Json.mkObj [("kind", "spec"), ("udid", specUdid), ("spec", sp), ("attaches", specAttaches specUdid sp)]).compress) ++
+  (proxyCases.map fun (p : ForeignProxy) =>
+    (Json.mkObj [("kind", "proxy"), ("proxy", fpJ p), ("udid", specUdid), ("verdict", (proxyVerdict p specUdid).name)]).compress) ++
+  [(Json.mkObj [("kind", "proxies"), ("guarded", toJson guardedPorts), ("udid", specUdid), ("cases", Json.arr ((proxySets.map fun ps =>
+    Json.mkObj [("proxies", Json.arr (ps.map fpJ).toArray), ("clear", proxiesClear ps specUdid)]).toArray))]).compress] ++
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]

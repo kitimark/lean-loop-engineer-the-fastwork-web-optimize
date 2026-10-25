@@ -142,3 +142,24 @@ arm and `--target` disagree, or any command without `--search`, is refused befor
 record -> TS reductions equal Lean's report -> replay strokes -> exported profile equals the committed
 `packages/measure-chromium/profiles/user-fixture.json` and loads in `parseProfile` -> package without timestamps or device. The
 page recorder runs against a stubbed page (passive listeners, no `preventDefault`, one clock for frames and touches).
+
+## Arms session guards (`arms-run`; Lean `Fw.Device.PhoneArms`, `Fw.Device.Thermal`; golden `device/phone-arms.jsonl`, `device/thermal.jsonl`)
+
+- `arms-run [--only <arm ids>] --site <dist/aot> --dir <raw dir> [--blocked file] [--all]`: `--only morph.countdown:strip` plans the
+  base around just that arm (`base, base, arm, base`); the raw dir keeps the plan and refuses a different one. `thermal [--out file]`
+  prints the thermal state, lock state and battery now.
+- Thermal state source (MEASURED, iOS 27.0.1): `xcrun xctrace record --instrument 'Thermal State' --all-processes --time-limit 1s`, then
+  `xctrace export` of `device-thermal-state-intervals`. xctrace exits 13 unless `devicectl device info lockState` ran just
+  before (CoreDevice must list the phone as connected); one read takes about 7 s. ProcessInfo.ThermalState meanings are INFERRED. Battery temperature (`AverageBattVirtualTemp`) is a proxy, not the SoC.
+- Stop rule (Lean `gate`, `resume`, `pauseOver`): a block starts only at Nominal and a battery temperature under 2 C above the
+  session's first readout; the state is read at block start and after every visit. Fair or worse, or the rise, ends the block (a pass is one
+  visit; readings inside a visit are recorded, not gated); the next block resumes only after 300 s since the last reading that was not Nominal, polling every 60 s, and
+  stops with a named reason after 3600 s. An unreadable state pauses. A locked phone (`passcodeRequired`, INFERRED) is a named stop,
+  not a harness fault.
+- Named faults (`device-faults.mjs`, twin of `PhoneArms`): `usbReset` (an `other` failure with `usbpowerd` terminated/discovered log
+  lines since the visit began, or the phone off `idevice_id -l` while on the bus) keeps the log evidence in `state.json`, waits up to
+  180 s for the phone to list, settles 10 s and retries the same visit within `mayAttempt`; `foreignProxy` refuses the start while
+  another ios_webkit_debug_proxy holds 9221/9222 or can attach this phone. The Inspector client follows
+  `Target.didCommitProvisionalTarget` (`wip.mjs` `targetStep`) and fails commands sent to the replaced page at once.
+- Fault drops: `saveState` refuses a state whose visits hold fewer faults than the saved one (Lean `appendOnly`). `arms-run --hand-reset
+  <index> <reason>` writes a lead note and leaves the fault list as it is; it is refused for an unknown index or an empty reason.
