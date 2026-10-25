@@ -27,8 +27,8 @@ Cancelled jobs keep no log, so the last two rows rest on step timings only.
 
 - simctl calls run async (`packages/measure-webkit/src/sim.mjs` `runAsync`). The bound per call is the Lean `Fw.Ci.Telemetry.callBoundMs` (limit capped at 200 s), SIGKILL follows after a 5 s grace, so a call ends at `callSettleMs` at the latest. Theorem `retried_call_before_stall`: two settled calls plus the longest wait stay under the 720 s stall limit.
 - The watchdog says when its tick came a whole period late ("event loop blocked") and lists the host calls running with their age and bound, in the warning and in the stall message. The warning does not count as output (`watchdog.mjs`).
-- Each finished pass is written to `<out>.pass-N.part` (atomic), so a later loss keeps the earlier passes. The suffix is not `.json` on purpose: the workflow merge globs `v*-session-*.json`.
-- The telemetry probe carries swap used, compressor size, stored pages, swapouts, compressions, the kernel pressure level and the free percentage (`scripts/ci-telemetry/lib.mjs`). Memory "used near total" stays MEASURED; pressure is read directly from now on.
+- Each finished pass is written to `<out>.pass-N.part` (atomic), so a later loss keeps the earlier passes. The suffix is not `.json` because the workflow merge globs `v*-session-*.json`.
+- The telemetry probe carries swap used, compressor size, stored pages, swapouts, compressions, the kernel pressure level and the free percentage (`scripts/ci-telemetry/lib.mjs`). Memory "used near total" stays MEASURED; pressure is now read directly.
 
 ## Not changed
 

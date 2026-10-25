@@ -39,10 +39,6 @@ structure Step where
   netBytes : Option Nat := none
 deriving DecidableEq, Repr
 
-/-- One resource probe: time, cpu percent, memory used in MB, 1-min load times 100, free disk in MB. On macOS the memory
-pressure readings follow (`none` where the host gives none): swap in use and the compressor's size and stored data in MB,
-the cumulative swap-out and compression counters in pages, the kernel pressure level (1 normal, 2 warning, 4 critical)
-and the system-wide free percentage. -/
 structure Probe where
   atMs : Nat
   cpuPct : Nat
@@ -58,7 +54,6 @@ structure Probe where
   freePct : Option Nat := none
 deriving DecidableEq, Repr
 
-/-- One cache lookup: key, hit, bytes restored, bytes saved. -/
 structure CacheUse where
   key : String
   hit : Bool
@@ -283,18 +278,12 @@ theorem byStart_perm (rs : List Record) : (byStart rs).Perm rs := List.mergeSort
 
 theorem spansOf_nil : spansOf [] = [] := by simp [spansOf, byStart]
 
-/-! ## Host calls (task `macos-vm-evidence`): the bound of one `simctl` call, the stall rule, the lost event-loop time -/
-
-/-- The longest any one host call may run, in ms. -/
 def callCapMs : Nat := 200000
 
-/-- The time between SIGTERM and SIGKILL of a host call that passed its bound, in ms. -/
 def callGraceMs : Nat := 5000
 
-/-- The bound of a host call with the given limit: the limit, never above `callCapMs`. -/
 def callBoundMs (limit : Nat) : Nat := min limit callCapMs
 
-/-- The time by which a host call has settled: its bound and the kill grace. -/
 def callSettleMs (limit : Nat) : Nat := callBoundMs limit + callGraceMs
 
 theorem callBound_le_limit (l : Nat) : callBoundMs l ≤ l := Nat.min_le_left _ _
@@ -311,12 +300,10 @@ theorem callBound_mono {a b : Nat} (h : a ≤ b) : callBoundMs a ≤ callBoundMs
 theorem callSettle_le (l : Nat) : callSettleMs l ≤ callCapMs + callGraceMs := by
   unfold callSettleMs callBoundMs; omega
 
-/-- Two settled tries of the slowest call and the wait between them end before the stall watchdog fires. -/
 theorem retried_call_before_stall (gapMs : Nat) (h : gapMs ≤ 30000) :
     2 * callSettleMs 200000 + gapMs < Fw.Measure.SimBound.stallMs := by
   unfold callSettleMs callBoundMs callCapMs callGraceMs Fw.Measure.SimBound.stallMs; omega
 
-/-- The stall rule: more than `limit` ms since the last output. -/
 def hostStalled (now last limit : Nat) : Bool := decide (limit < now - last)
 
 theorem hostStalled_iff (now last limit : Nat) : hostStalled now last limit = true ↔ last + limit < now := by
@@ -332,10 +319,8 @@ theorem hostStalled_mono {n m last limit : Nat} (h : n ≤ m) (hs : hostStalled 
     hostStalled m last limit = true := by
   rw [hostStalled_iff] at *; omega
 
-/-- The ms a periodic tick of period `tick` arrived late, given the ms `since` the previous tick. -/
 def lagMs (tick since : Nat) : Nat := since - tick
 
-/-- A tick is blocked when it arrived at least one whole period late. -/
 def tickBlocked (tick since : Nat) : Bool := decide (0 < tick ∧ tick ≤ lagMs tick since)
 
 theorem tickBlocked_iff (tick since : Nat) : tickBlocked tick since = true ↔ 0 < tick ∧ 2 * tick ≤ since := by
@@ -406,14 +391,12 @@ def stepOf (j : Json) : Except String Step := do
   pure { name := ← str j "name", startMs := ← nat j "startMs", endMs := ← nat j "endMs",
          exit := ← optN j "exit", netBytes := ← optN j "netBytes" }
 
-/-- Encode a probe. -/
 def probeJson (p : Probe) : Json :=
   Json.mkObj [("atMs", toJson p.atMs), ("cpuPct", toJson p.cpuPct), ("memUsedMb", toJson p.memUsedMb),
     ("loadCenti", toJson p.loadCenti), ("diskFreeMb", toJson p.diskFreeMb), ("swapUsedMb", onat p.swapUsedMb),
     ("compressorMb", onat p.compressorMb), ("storedMb", onat p.storedMb), ("swapOuts", onat p.swapOuts),
     ("compressions", onat p.compressions), ("pressureLevel", onat p.pressureLevel), ("freePct", onat p.freePct)]
 
-/-- Decode a probe (the memory pressure readings are absent or `null` on a host that gives none). -/
 def probeOf (j : Json) : Except String Probe := do
   pure { atMs := ← nat j "atMs", cpuPct := ← nat j "cpuPct", memUsedMb := ← nat j "memUsedMb",
          loadCenti := ← nat j "loadCenti", diskFreeMb := ← nat j "diskFreeMb",
@@ -421,7 +404,6 @@ def probeOf (j : Json) : Except String Probe := do
          swapOuts := ← optN j "swapOuts", compressions := ← optN j "compressions",
          pressureLevel := ← optN j "pressureLevel", freePct := ← optN j "freePct" }
 
-/-- Encode a cache lookup. -/
 def cacheJson (c : CacheUse) : Json :=
   Json.mkObj [("key", .str c.key), ("hit", .bool c.hit), ("restoredBytes", toJson c.restoredBytes),
     ("savedBytes", toJson c.savedBytes)]
@@ -568,7 +550,6 @@ def opTelemetry (req : Json) : Except String Reply := do
   let ts := spansOf rs
   pure [("spans", Json.arr ((judged p ts).toArray.map spanJson)), ("slow", Json.arr ((slowItems p ts).toArray.map slowJson))]
 
-/-- A `ci.telemetry` request with `what`: it is `bound` (`limitMs`), `stall` (`nowMs`, `lastMs`, `limitMs`) or `lag` (`tickMs`, `sinceMs`). -/
 def opHostCall (req : Json) : Except String Reply := do
   match ← str req "what" with
   | "bound" =>
@@ -582,10 +563,8 @@ def opHostCall (req : Json) : Except String Reply := do
     pure [("lagMs", toJson (lagMs t s)), ("blocked", Json.bool (tickBlocked t s))]
   | w => throw s!"unknown what {w}"
 
-/-- The ops of this module. -/
 def ops : List String := ["ci.telemetry"]
 
-/-- Dispatch `ci.telemetry`: a request with a `what` field asks a host-call question, any other carries records. -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ci.telemetry" => some (match opt req "what" with | some _ => opHostCall req | none => opTelemetry req)
@@ -630,7 +609,6 @@ def hist3 (pv : Provider) (cls : String) : List Record :=
 def fourth (pv : Provider) (cls : String) (last : Nat) : Record :=
   mkRec pv "breakpoint-gate" "gate (chromium, s0)" cls "r4" (t0 + 1800000) (gateSteps last)
 
-/-- A macOS job whose one probe carries every memory pressure reading. -/
 def pressureRec (t : Nat) : Record :=
   let r := mkRec .github "webkit-sim" "sim" "macos-14" "r1" t [("run", 1000)]
   let p : Probe :=
@@ -639,7 +617,6 @@ def pressureRec (t : Nat) : Record :=
       compressions := some 5000000, pressureLevel := some 2, freePct := some 4 }
   { r with probes := [p] }
 
-/-- The cases: name, request, expected reply or error. -/
 def cases (_ : Unit := ()) : List (String × Json) :=
   let rj := recordJson
   let h4 := hist3 .github "ubuntu-24.04" ++ [fourth .github "ubuntu-24.04" 70]
@@ -674,11 +651,9 @@ def cases (_ : Unit := ()) : List (String × Json) :=
    ("a record with schema 2 is refused",
       reqJson [Json.mkObj [("schema", toJson 2)]])]
 
-/-- A host-call request: op `ci.telemetry` with a `what`. -/
 def hostReq (what : String) (fs : List (String × Nat)) : Json :=
   Json.mkObj ([("op", Json.str "ci.telemetry"), ("what", Json.str what)] ++ fs.map fun (k, v) => (k, toJson v))
 
-/-- The host-call cases: the bound at, below and above the cap, the stall rule at its edge, the lost tick time. -/
 def hostCases (_ : Unit := ()) : List (String × Json) :=
   [("bound: a limit below the cap is the bound, the settle adds the grace", hostReq "bound" [("limitMs", 120000)]),
    ("bound: the limit at the cap is the bound", hostReq "bound" [("limitMs", 200000)]),
@@ -695,17 +670,14 @@ def hostCases (_ : Unit := ()) : List (String × Json) :=
    ("lag: no tick period is never blocked", hostReq "lag" [("tickMs", 0), ("sinceMs", 100)]),
    ("an unknown what is refused", Json.mkObj [("op", Json.str "ci.telemetry"), ("what", Json.str "nope")])]
 
-/-- The reply line of a case: the op reply, or its error. -/
 def replyJson (req : Json) : Json :=
   match (match opt req "what" with | some _ => opHostCall req | none => opTelemetry req) with
   | .ok f => Json.mkObj f
   | .error e => Json.mkObj [("error", .str e)]
 
-/-- The golden file text: one `{name, request, response}` line per case. -/
 def goldenText (_ : Unit := ()) : String :=
   String.join ((cases ++ hostCases).map fun (n, rq) => (Json.mkObj [("name", .str n), ("request", rq), ("response", replyJson rq)]).compress ++ "\n")
 
-/-- Where the golden lives, relative to `lean/`. -/
 def goldenPath : System.FilePath := "../packages/contracts/golden/ci/telemetry.jsonl"
 
 /-- Write the golden. -/
