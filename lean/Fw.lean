@@ -64,6 +64,7 @@ import Fw.Parts.MorphMountArmLate
 import Fw.Parts.MorphMountArmLateGolden
 import Fw.Parts.ReactRootOpt
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitCloseStart
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden

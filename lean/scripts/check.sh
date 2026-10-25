@@ -164,6 +164,7 @@ run_group() {
   job "salvage golden check" lake env lean --run scripts/SalvageGolden.lean --check  # golden/ops/salvage.jsonl (Fw.Ops.Salvage)
   job "exit scoped golden check" lake env lean --run scripts/ExitScopedGolden.lean --check ../packages/contracts/golden/parts/hero.exit.scoped.json  # hero.exit:scoped reader list, inherit chain and units (Fw.Parts.HeroExitOpt)
   job "exit threaded golden check" lake env lean --run scripts/ExitThreadedGolden.lean --check ../packages/contracts/golden/parts/hero-exit.threaded.jsonl
+  job "exit offset golden check" sh -c "printf 'import Fw.Parts.HeroExitScrollOffset\\n#eval Fw.Parts.HeroExitScrollOffset.gen [\"--check\"]\\n' | lake env lean --stdin"
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check
   job "state-list golden check" lake env lean --run scripts/StateListGolden.lean --check
   job "ci-state golden check" lake env lean --run scripts/CiStateGolden.lean --check
