@@ -197,6 +197,22 @@ theorem resume_too_soon {now p : Nat} {rs : List (Nat × Verdict)} (h : now - ca
   · have := resume_needs_gap hr
     omega
 
+/-- Seconds between two readings while a block is paused. -/
+def pollS : Nat := 60
+
+/-- A pause that has lasted this long ends the run with the named verdict instead of waiting on. -/
+def pauseMaxS : Nat := 3600
+
+def pauseOver (pausedS nowS : Nat) : Bool := decide (pausedS + pauseMaxS ≤ nowS)
+
+theorem pauseOver_iff (p n : Nat) : pauseOver p n = true ↔ p + 3600 ≤ n := by
+  unfold pauseOver pauseMaxS
+  exact decide_eq_true_iff
+
+theorem pauseOver_not_before {p n : Nat} (h : n < p + 3600) : pauseOver p n = false := by
+  have : ¬ p + pauseMaxS ≤ n := by simp [pauseMaxS]; omega
+  simp [pauseOver, this]
+
 section Golden
 
 private def thJ : Option Thermal → Json
@@ -230,7 +246,7 @@ private def resumeCases : List (Nat × Nat × List (Nat × Verdict)) :=
 private def verdictsJ (vs : List Verdict) : Json := Json.arr (vs.map fun v => Json.str v.name).toArray
 
 def goldenLines (_ : Unit) : List String :=
-  [(Json.mkObj [("kind", "consts"), ("tempMarginC", tempMarginC), ("coolS", (coolMin * 60 : Nat))]).compress] ++
+  [(Json.mkObj [("kind", "consts"), ("tempMarginC", tempMarginC), ("coolS", (coolMin * 60 : Nat)), ("pollS", pollS), ("pauseMaxS", pauseMaxS)]).compress] ++
   ([("Nominal"), "Fair", "Serious", "Critical", "nominal", "", "Unknown", "Nominal "].map fun (s : String) =>
     (Json.mkObj [("kind", "parse"), ("text", s), ("state", thJ (Thermal.ofName s))]).compress) ++
   ([some true, some false, none].map fun (b : Option Bool) =>
@@ -244,6 +260,8 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "block"), ("firstC", natJ (some 33)),
       ("readings", Json.arr (rd.map fun r => Json.mkObj [("state", thJ r.1), ("tempC", natJ r.2)]).toArray),
       ("verdicts", verdictsJ (rd.map fun r => gate r.1 r.2 (some 33))), ("passes", blockPasses rd (some 33))]).compress) ++
+  ([(0, 0), (0, 3599), (0, 3600), (100, 3699), (100, 3700), (500, 100)].map fun (c : Nat × Nat) =>
+    (Json.mkObj [("kind", "pause"), ("pausedS", c.1), ("nowS", c.2), ("over", pauseOver c.1 c.2)]).compress) ++
   (resumeCases.map fun (c : Nat × Nat × List (Nat × Verdict)) =>
     (Json.mkObj [("kind", "resume"), ("nowS", c.1), ("pausedS", c.2.1),
       ("readings", Json.arr (c.2.2.map fun r => Json.mkObj [("atS", r.1), ("verdict", r.2.name)]).toArray),

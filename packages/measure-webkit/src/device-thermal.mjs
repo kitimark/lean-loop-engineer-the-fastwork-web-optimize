@@ -13,6 +13,8 @@ import { join } from 'node:path';
 export const THERMAL_NAMES = Object.freeze(['Nominal', 'Fair', 'Serious', 'Critical']);
 export const TEMP_MARGIN_C = 2;
 export const COOL_S = 300;
+export const POLL_S = 60;
+export const PAUSE_MAX_S = 3600;
 export const THERMAL_SOURCE = 'xctrace Thermal State instrument over USB (system thermal state); battery temperature is the proxy';
 
 export const thermalOfName = (s) => (THERMAL_NAMES.includes(s) ? s : null);
@@ -41,6 +43,8 @@ export function resume(nowS, pausedS, readings) {
   const last = readings[readings.length - 1];
   return last !== undefined && last.verdict === 'go' && COOL_S <= Math.max(0, nowS - calmFrom(pausedS, readings));
 }
+
+export const pauseOver = (pausedS, nowS) => pausedS + PAUSE_MAX_S <= nowS;
 
 /** Why a verdict stops a block, in words for the log and the notes. */
 export const VERDICT_TEXT = Object.freeze({

@@ -1,20 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { COOL_S, TEMP_MARGIN_C, blockPasses, gate, lockOf, parseThermalXml, preflight, readLock, readThermal, resume, thermalOfName } from '../src/device-thermal.mjs';
+import { COOL_S, PAUSE_MAX_S, POLL_S, TEMP_MARGIN_C, blockPasses, gate, lockOf, parseThermalXml, pauseOver, preflight, readLock, readThermal, resume, thermalOfName } from '../src/device-thermal.mjs';
 
 const lines = readFileSync(new URL('../../contracts/golden/device/thermal.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 const num = (x) => (x === null ? undefined : x);
 
 test('the golden has every kind', () => {
-  for (const k of ['consts', 'parse', 'lock', 'gate', 'preflight', 'block', 'resume']) assert.ok(of(k).length > 0, k);
+  for (const k of ['consts', 'parse', 'lock', 'gate', 'preflight', 'block', 'pause', 'resume']) assert.ok(of(k).length > 0, k);
 });
 
 test('constants and the state names match Lean', () => {
   const [c] = of('consts');
   assert.equal(c.tempMarginC, TEMP_MARGIN_C);
   assert.equal(c.coolS, COOL_S);
+  assert.equal(c.pollS, POLL_S);
+  assert.equal(c.pauseMaxS, PAUSE_MAX_S);
+  for (const p of of('pause')) assert.equal(pauseOver(p.pausedS, p.nowS), p.over, JSON.stringify(p));
   for (const p of of('parse')) assert.equal(thermalOfName(p.text), p.state, JSON.stringify(p.text));
 });
 

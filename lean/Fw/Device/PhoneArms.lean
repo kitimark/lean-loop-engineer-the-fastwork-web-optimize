@@ -594,41 +594,53 @@ def specAttaches (udid spec : String) : Bool :=
     | [id, port] => id != "null" && port != "-1" && (id.isEmpty || id == udid || regexy id)
     | _ => false
 
-/-- One foreign proxy: it holds a guarded port, or it can attach the phone (its config unknown counts as able). -/
-def proxyVerdict (ports : List Nat) (spec : Option String) (udid : String) : ProxyVerdict :=
-  if ports.any guardedPorts.contains then .holdsPorts
-  else match spec with
+/-- What `ps` and `lsof` show of one foreign `ios_webkit_debug_proxy`: its listening ports, its device config (`none` when it cannot be
+read), and whether it reads phones from USB (a proxy of the Simulator reads a socket instead, `-s`). -/
+structure ForeignProxy where
+  ports : List Nat
+  spec : Option String
+  usb : Bool
+
+/-- One foreign proxy: it holds a guarded port, or it reads USB and can attach the phone (its config unknown counts as able). -/
+def proxyVerdict (p : ForeignProxy) (udid : String) : ProxyVerdict :=
+  if p.ports.any guardedPorts.contains then .holdsPorts
+  else if !p.usb then .clear
+  else match p.spec with
     | none => .attached
     | some s => if specAttaches udid s then .attached else .clear
 
-theorem proxyVerdict_holds {ports : List Nat} (spec : Option String) (udid : String) (h : ports.any guardedPorts.contains = true) :
-    proxyVerdict ports spec udid = .holdsPorts := by
+theorem proxyVerdict_holds {p : ForeignProxy} (udid : String) (h : p.ports.any guardedPorts.contains = true) :
+    proxyVerdict p udid = .holdsPorts := by
   simp [proxyVerdict, h]
 
-theorem proxyVerdict_unknown {ports : List Nat} (udid : String) (h : ports.any guardedPorts.contains = false) :
-    proxyVerdict ports none udid = .attached := by
-  simp [proxyVerdict, h]
+theorem proxyVerdict_socket {p : ForeignProxy} (udid : String) (h : p.ports.any guardedPorts.contains = false) (hu : p.usb = false) :
+    proxyVerdict p udid = .clear := by
+  simp [proxyVerdict, h, hu]
 
-theorem proxyVerdict_attached {ports : List Nat} {s : String} (udid : String) (h : ports.any guardedPorts.contains = false)
-    (ha : specAttaches udid s = true) : proxyVerdict ports (some s) udid = .attached := by
-  simp [proxyVerdict, h, ha]
+theorem proxyVerdict_unknown {p : ForeignProxy} (udid : String) (h : p.ports.any guardedPorts.contains = false) (hu : p.usb = true)
+    (hs : p.spec = none) : proxyVerdict p udid = .attached := by
+  simp [proxyVerdict, h, hu, hs]
 
-theorem proxyVerdict_clear {ports : List Nat} {s : String} (udid : String) (h : ports.any guardedPorts.contains = false)
-    (ha : specAttaches udid s = false) : proxyVerdict ports (some s) udid = .clear := by
-  simp [proxyVerdict, h, ha]
+theorem proxyVerdict_attached {p : ForeignProxy} {s : String} (udid : String) (h : p.ports.any guardedPorts.contains = false)
+    (hu : p.usb = true) (hs : p.spec = some s) (ha : specAttaches udid s = true) : proxyVerdict p udid = .attached := by
+  simp [proxyVerdict, h, hu, hs, ha]
+
+theorem proxyVerdict_clear {p : ForeignProxy} {s : String} (udid : String) (h : p.ports.any guardedPorts.contains = false)
+    (hu : p.usb = true) (hs : p.spec = some s) (ha : specAttaches udid s = false) : proxyVerdict p udid = .clear := by
+  simp [proxyVerdict, h, hu, hs, ha]
 
 /-- The run starts only when every foreign proxy is clear; each proxy is decided on its own. -/
-def proxiesClear (ps : List (List Nat × Option String)) (udid : String) : Bool :=
-  ps.all fun p => proxyVerdict p.1 p.2 udid == .clear
+def proxiesClear (ps : List ForeignProxy) (udid : String) : Bool :=
+  ps.all fun p => proxyVerdict p udid == .clear
 
 theorem proxiesClear_nil (udid : String) : proxiesClear [] udid = true := rfl
 
-theorem proxiesClear_iff (ps : List (List Nat × Option String)) (udid : String) :
-    proxiesClear ps udid = true ↔ ∀ p ∈ ps, proxyVerdict p.1 p.2 udid = .clear := by
+theorem proxiesClear_iff (ps : List ForeignProxy) (udid : String) :
+    proxiesClear ps udid = true ↔ ∀ p ∈ ps, proxyVerdict p udid = .clear := by
   simp [proxiesClear]
 
-theorem proxiesClear_refuses {ps : List (List Nat × Option String)} {p : List Nat × Option String} (udid : String) (hp : p ∈ ps)
-    (h : proxyVerdict p.1 p.2 udid ≠ .clear) : proxiesClear ps udid = false := by
+theorem proxiesClear_refuses {ps : List ForeignProxy} {p : ForeignProxy} (udid : String) (hp : p ∈ ps)
+    (h : proxyVerdict p udid ≠ .clear) : proxiesClear ps udid = false := by
   cases hc : proxiesClear ps udid
   · rfl
   · exact absurd ((proxiesClear_iff ps udid).1 hc p hp) h
@@ -882,20 +894,24 @@ private def specCases : List String :=
   ["", ":9221,:9222-9322", "null:9221,:9222-9322", "AAAA-1111:9300", "BBBB-2222:9300", "BBBB-2222:9300,AAAA-1111:9301",
    "AAAA-1111:-1", "null:9300", "A.*:9300", "BBBB-2222:9300\nAAAA-1111:9301", "9300", ":"]
 
-private def proxyCases : List (List Nat × Option String) :=
-  [([], some "BBBB-2222:9300"), ([9221], some "BBBB-2222:9300"), ([9222, 9300], none), ([9300], none), ([9300], some ":9301"),
-   ([9300], some "AAAA-1111:9301"), ([9300], some "BBBB-2222:9301"), ([9300, 9301], some "null:9300"), ([], some ""),
-   ([9223], some "BBBB-2222:9300")]
+private def proxyCases : List ForeignProxy :=
+  [⟨[], some "BBBB-2222:9300", true⟩, ⟨[9221], some "BBBB-2222:9300", true⟩, ⟨[9222, 9300], none, true⟩, ⟨[9300], none, true⟩,
+   ⟨[9300], some ":9301", true⟩, ⟨[9300], some "AAAA-1111:9301", true⟩, ⟨[9300], some "BBBB-2222:9301", true⟩,
+   ⟨[9300, 9301], some "null:9300", true⟩, ⟨[], some "", true⟩, ⟨[9223], some "BBBB-2222:9300", true⟩,
+   ⟨[9341, 9342], some ":9342", false⟩, ⟨[9341], none, false⟩, ⟨[9221], some ":9342", false⟩, ⟨[9300], some ":9301", false⟩]
+
+private def proxySets : List (List ForeignProxy) :=
+  [[], [⟨[9300], some "BBBB-2222:9300", true⟩], [⟨[9300], some "BBBB-2222:9300", true⟩, ⟨[9221], some ":9301", true⟩],
+   [⟨[9300], some "BBBB-2222:9300", true⟩, ⟨[9301], none, true⟩], [⟨[9300], some "null:9300", true⟩, ⟨[9301], some "AAAA-1111:-1", true⟩],
+   [⟨[9341, 9342], some ":9342", false⟩, ⟨[9300], some "BBBB-2222:9300", true⟩], [⟨[9341, 9342], some ":9342", false⟩]]
 
 private def specUdid : String := "AAAA-1111"
-
-private def proxySets : List (List (List Nat × Option String)) :=
-  [[], [([9300], some "BBBB-2222:9300")], [([9300], some "BBBB-2222:9300"), ([9221], some ":9301")],
-   [([9300], some "BBBB-2222:9300"), ([9301], none)], [([9300], some "null:9300"), ([9301], some "AAAA-1111:-1")]]
 
 private def optJ : Option String → Json
   | none => Json.null
   | some s => Json.str s
+
+private def fpJ (p : ForeignProxy) : Json := Json.mkObj [("ports", toJson p.ports), ("spec", optJ p.spec), ("usb", p.usb)]
 
 private def resetJ : ResetPlan → Json
   | .badIndex => Json.mkObj [("plan", "badIndex")]
@@ -960,11 +976,10 @@ def goldenLines (_ : Unit) : List String :=
     Json.mkObj [("listed", l), ("waitedS", w), ("wait", (usbWait l w).name)]).toArray))]).compress] ++
   (specCases.map fun (sp : String) =>
     (Json.mkObj [("kind", "spec"), ("udid", specUdid), ("spec", sp), ("attaches", specAttaches specUdid sp)]).compress) ++
-  (proxyCases.map fun (ports, sp) =>
-    (Json.mkObj [("kind", "proxy"), ("ports", toJson ports), ("spec", optJ sp), ("udid", specUdid), ("verdict", (proxyVerdict ports sp specUdid).name)]).compress) ++
+  (proxyCases.map fun (p : ForeignProxy) =>
+    (Json.mkObj [("kind", "proxy"), ("proxy", fpJ p), ("udid", specUdid), ("verdict", (proxyVerdict p specUdid).name)]).compress) ++
   [(Json.mkObj [("kind", "proxies"), ("guarded", toJson guardedPorts), ("udid", specUdid), ("cases", Json.arr ((proxySets.map fun ps =>
-    Json.mkObj [("proxies", Json.arr (ps.map fun (po, sp) => Json.mkObj [("ports", toJson po), ("spec", optJ sp)]).toArray),
-      ("clear", proxiesClear ps specUdid)]).toArray))]).compress] ++
+    Json.mkObj [("proxies", Json.arr (ps.map fpJ).toArray), ("clear", proxiesClear ps specUdid)]).toArray))]).compress] ++
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]

@@ -1,4 +1,4 @@
-{"coolS":300,"kind":"consts","tempMarginC":2}
+{"coolS":300,"kind":"consts","pauseMaxS":3600,"pollS":60,"tempMarginC":2}
 {"kind":"parse","state":"Nominal","text":"Nominal"}
 {"kind":"parse","state":"Fair","text":"Fair"}
 {"kind":"parse","state":"Serious","text":"Serious"}
@@ -83,6 +83,12 @@
 {"firstC":33,"kind":"block","passes":0,"readings":[{"state":"Critical","tempC":33},{"state":"Nominal","tempC":33}],"verdicts":["thermal","go"]}
 {"firstC":33,"kind":"block","passes":0,"readings":[{"state":null,"tempC":33},{"state":"Nominal","tempC":33}],"verdicts":["unreadable","go"]}
 {"firstC":33,"kind":"block","passes":2,"readings":[{"state":"Nominal","tempC":null},{"state":"Nominal","tempC":null}],"verdicts":["go","go"]}
+{"kind":"pause","nowS":0,"over":false,"pausedS":0}
+{"kind":"pause","nowS":3599,"over":false,"pausedS":0}
+{"kind":"pause","nowS":3600,"over":true,"pausedS":0}
+{"kind":"pause","nowS":3699,"over":false,"pausedS":100}
+{"kind":"pause","nowS":3700,"over":true,"pausedS":100}
+{"kind":"pause","nowS":100,"over":false,"pausedS":500}
 {"kind":"resume","nowS":100,"pausedS":0,"readings":[],"resume":false}
 {"kind":"resume","nowS":400,"pausedS":0,"readings":[{"atS":100,"verdict":"thermal"}],"resume":false}
 {"kind":"resume","nowS":399,"pausedS":0,"readings":[{"atS":100,"verdict":"thermal"}],"resume":false}
@@ -91,7 +97,7 @@
 {"kind":"resume","nowS":500,"pausedS":100,"readings":[{"atS":200,"verdict":"thermal"},{"atS":300,"verdict":"battery"}],"resume":false}
 {"kind":"resume","nowS":800,"pausedS":0,"readings":[{"atS":200,"verdict":"thermal"},{"atS":300,"verdict":"go"},{"atS":400,"verdict":"go"}],"resume":true}
 {"kind":"resume","nowS":800,"pausedS":0,"readings":[{"atS":200,"verdict":"thermal"},{"atS":300,"verdict":"go"},{"atS":450,"verdict":"thermal"},{"atS":500,"verdict":"go"}],"resume":true}
-{"kind":"resume","nowS":850,"pausedS":0,"readings":[{"atS":200,"verdict":"thermal"},{"atS":300,"verdict":"go"},{"atS":450,"verdict":"thermal"},{"atS":500,"verdict":"go"}],"resume":true}
+{"kind":"resume","nowS":700,"pausedS":0,"readings":[{"atS":200,"verdict":"thermal"},{"atS":300,"verdict":"go"},{"atS":450,"verdict":"thermal"},{"atS":500,"verdict":"go"}],"resume":false}
 {"kind":"resume","nowS":800,"pausedS":0,"readings":[{"atS":200,"verdict":"thermal"},{"atS":300,"verdict":"unreadable"}],"resume":false}
 {"kind":"resume","nowS":500,"pausedS":0,"readings":[{"atS":0,"verdict":"go"}],"resume":true}
 {"kind":"resume","nowS":300,"pausedS":0,"readings":[{"atS":0,"verdict":"go"}],"resume":true}

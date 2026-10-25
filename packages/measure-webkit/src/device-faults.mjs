@@ -64,10 +64,11 @@ export const specAttaches = (udid, spec) =>
     return p.length === 2 && p[0] !== 'null' && p[1] !== '-1' && (p[0] === '' || p[0] === udid || regexy(p[0]));
   });
 
-export function proxyVerdict(ports, spec, udid) {
-  if (ports.some((p) => GUARDED_PORTS.includes(p))) return 'holdsPorts';
-  if (spec === null) return 'attached';
-  return specAttaches(udid, spec) ? 'attached' : 'clear';
+export function proxyVerdict(p, udid) {
+  if (p.ports.some((q) => GUARDED_PORTS.includes(q))) return 'holdsPorts';
+  if (!p.usb) return 'clear';
+  if (p.spec === null) return 'attached';
+  return specAttaches(udid, p.spec) ? 'attached' : 'clear';
 }
 
-export const proxiesClear = (ps, udid) => ps.every((p) => proxyVerdict(p.ports, p.spec, udid) === 'clear');
+export const proxiesClear = (ps, udid) => ps.every((p) => proxyVerdict(p, udid) === 'clear');

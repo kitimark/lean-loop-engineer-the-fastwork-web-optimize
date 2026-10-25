@@ -126,8 +126,8 @@ test('usb verdict, log lines, classify and the wait match Lean', () => {
 test('proxy verdicts match Lean', () => {
   assert.equal(of('spec').length, 12);
   for (const c of of('spec')) assert.equal(specAttaches(c.udid, c.spec), c.attaches, c.spec);
-  assert.equal(of('proxy').length, 10);
-  for (const c of of('proxy')) assert.equal(proxyVerdict(c.ports, c.spec, c.udid), c.verdict, JSON.stringify(c));
+  assert.equal(of('proxy').length, 14);
+  for (const c of of('proxy')) assert.equal(proxyVerdict(c.proxy, c.udid), c.verdict, JSON.stringify(c));
   const [g] = of('proxies');
   assert.deepEqual(g.guarded, GUARDED_PORTS);
   for (const c of g.cases) assert.equal(proxiesClear(c.proxies, g.udid), c.clear, JSON.stringify(c));
