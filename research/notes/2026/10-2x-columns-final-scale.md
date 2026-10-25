@@ -29,4 +29,42 @@ Look-change class (the user's review decides); the iOS Simulator stands in for t
 
 ## Runs
 
-Push branch `ci/columns-final-scale` (one push, push runs skipped by path filters except `lean`). Measurement runs need the lead; see the report.
+All on `ci/columns-final-scale` at 6d8fbd72f. Raw artifacts were read in a scratch folder; only these summaries are committed.
+
+| run | what | state |
+|---|---|---|
+| 40156382719 | Chromium counts, swipe-touch-v1, base, 3 runs | success |
+| 40156384878 | Chromium counts, same, flag `morph.columns:final-scale`, 3 runs | success |
+| 40156388674 | WebKit Simulator, base, r1 and r3 ok, r2 lost its VM (`simctl list devices failed: ETIMEDOUT`), n=2 | failure (r2) |
+| 40156393010 | WebKit Simulator, flag, r1 and r3 ok, r2 same VM loss, n=2 | failure (r2) |
+| 40156380619 | breakpoint gate, both engines, flag | failure (merge) |
+
+### Chromium (MEASURED, three runs per arm, sums over all zones)
+
+| count | base | flag |
+|---|---|---|
+| trace.Layout | 475, 474, 477 | 475, 474, 474 |
+| trace.UpdateLayoutTree | 2388, 2392, 2388 | 2388, 2392, 2388 |
+| trace.Layout.dirtyObjects | 6486, 6484, 6492 | 6485, 6482, 6480 |
+| metric.RecalcStyleCount | 2371, 2375, 2371 | 2371, 2375, 2371 |
+
+In the morph zone (y00500) Layout totalObjects is 46265 base against 46098 flag (-0.4 %); every other zone is identical. Verdict: no Layout, no UpdateLayoutTree, no style-recalc reduction.
+
+### WebKit Simulator (MEASURED, n=2 per arm, two passes each)
+
+Counts over the scroll zones 0 to 4999 px (records assigned by the step marks), mean of two passes:
+
+| count | base r1, r3 | flag r1, r3 |
+|---|---|---|
+| Layout | 584, 613.5 | 589, 610 |
+| RecalculateStyles | 618.5, 644.5 | 633, 641 |
+
+The spread between the two sessions of one arm (about 30) is larger than the arm difference (at most 15). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Verdict: no change.
+
+### Breakpoint gate (run 40156380619, both engines)
+
+The gate fails the `morph.columns` row on 19 of 30 desk, touch and other conditions, in the sweeps and in the rotation. Its failing-items table has exactly three rows, all computed style of the column: flex-basis `0px` to `auto`, flex-grow `1` to `0`, flex-shrink `1` to `0`. That is the shorthand `flex: none` the variant sets (`morph.module.css`, inside `width<=1000px`). Failures run from desk-319 to desk-1000 and none above 1000 px. Cause: the intended layout change of the look-change variant, compared as computed style; no real break (rects, margins and everything else pass: 0 differing margin cells of 1960). The follow-up is a Lean-first gate rule for visClass L: the variant declares the changed (role, property, range) set; items inside it are excused with a premise, rect equality at rest still counts, anything outside fails.
+
+### Why no count win (INFERRED)
+
+The Lean theorems prove the column box is constant in the morph value. They do not prove that the per-frame layouts re-lay out the column subtree: the morph zone's layouts each touch about 670 objects in both arms, so the panel and its siblings keep laying out. A per-subtree layout attribution is needed before a layout win can be claimed or ruled out.
