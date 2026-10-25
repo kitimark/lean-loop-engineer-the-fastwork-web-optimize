@@ -3969,6 +3969,48 @@
    "lesson": "Count the listeners a framework root installs before counting the events: WebKit charges an EventDispatch record per phase with a listener, so seven unused types on one root cost two records for every CSS animation or transition event of the page, and removing the registration removes the record and its FunctionCall without touching the events.",
    "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a phone review of the felt smoothness). Follow-up: an A/A trajectory run to decide the 390 coverage noise.",
    "evidence": "CI runs 40122201939, 40124553279, 40126773924 (trajectory-probe), 40122202078 (lean), 40128098292 (gate), 40134016822, 40134234199 (webkit-sim); research/notes/2026/10-20-react-root-quiet-events.md; results/react-root-quiet-events/"
+  },
+  {
+   "id": "morph.columns.final-scale",
+   "part": "morph.columns",
+   "candidate": "morph.columns:final-scale: lay the marquee columns out once at the final width and draw each by a horizontal scale and a translate computed in CSS from --morph, so the 21 pictures are not re-laid out each morph frame; applies up to 1000 px",
+   "status": "look-change",
+   "flag": "morph.columns:final-scale",
+   "flags": [
+    "morph.columns:final-scale"
+   ],
+   "chromium": "not measured yet: Layout counts base vs flag on swipe-touch-v1 are a lead dispatch (see the task report)",
+   "webkit": "not measured yet: webkit-sim counts per finish zone base vs flag are a lead dispatch (see the task report)",
+   "visual": "L (look change): the drawn column edges equal the base layout edges at every morph value (PROVED, edges_eq); pictures are squeezed horizontally instead of re-cropped, by at most 3 % from 314 to 1000 px (0.9767 scale at 390 px); the corner radius is 12 px vertically and 12 x scale horizontally; user look review pending",
+   "mechanism": "PROVED (Fw.Parts.MorphColumnsScale): in the base the column width follows the backdrop, so it changes every morph frame (base_width_moves) and the 21 pictures re-lay out; the variant gives the columns a constant layout box (layout_const) and its only --morph-dependent property is transform (variant_no_layout). A uniform scale would break the fixed picture heights (uniform_breaks_height), so the scale is horizontal only. Above 1000 px the bound fails (a_desktop 0.69 at 1440 px) and the variant is the base layout. INFERRED: Chromium keeps the raster scale of the will-change tracks (cc/layers/picture_layer_impl.cc:1339-1346@f842f52); WebKit has the root-relative scale update off (GraphicsLayerCA.cpp:4378-4387@862f17d).",
+   "leanFor": [
+    "Fw.Parts.MorphColumnsScale.edges_eq",
+    "Fw.Parts.MorphColumnsScale.css_eq",
+    "Fw.Parts.MorphColumnsScale.a_range",
+    "Fw.Parts.MorphColumnsScale.sx_range",
+    "Fw.Parts.MorphColumnsScale.radius_bound",
+    "Fw.Parts.MorphColumnsScale.squeeze_bound",
+    "Fw.Parts.MorphColumnsScale.variant_no_layout",
+    "Fw.Parts.MorphColumnsScale.base_width_moves",
+    "Fw.Parts.MorphColumnsScale.layout_const"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphColumnsScale.a_desktop",
+    "Fw.Parts.MorphColumnsScale.a_narrow"
+   ],
+   "missingWhy": [
+    "No Chromium Layout or WebKit Simulator count yet",
+    "Whether the flex container with fixed-width items skips item relayout while its own width changes is INFERRED, not read from Blink and WebKit layout code",
+    "The look is a user review, not a proof"
+   ],
+   "premises": [
+    "CONFIRMED: the nav width rules in Fw.Parts.Nav (phone: 358 to 366 px at 390 px) and the backdrop inset 0 -3 % (morph.panel/morph.module.css)",
+    "INFERRED: the pictures have fixed pixel heights and object-fit cover (morph.columns/data.ts, morph.module.css), so only the horizontal crop changes"
+   ],
+   "v1Evidence": "",
+   "lesson": "A transform stands in for a re-layout only when the layout is separable per axis: the fixed picture heights force a one-axis scale, and the bound on the other axis decides where the variant may apply, here the width range where the final and the starting column width differ by at most 3 %.",
+   "next": "Lead dispatches the breakpoint gate and the Chromium and WebKit count runs, then posts the look-review step; promotion waits for the user review.",
+   "evidence": "research/notes/2026/10-2x-columns-final-scale.md; run ids are in the task report"
   }
  ],
  "notes": [
