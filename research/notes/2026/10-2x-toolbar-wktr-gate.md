@@ -11,6 +11,13 @@
 - **Every report agrees with Lean.** Arm sequence, take sequence and the unthrottle exemption per flag equal the rows of
   `packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl`, which `Fw.Parts.MorphMountToolbarGolden` generates from
   `Fw.Parts.MorphMountToolbar` (section "The WKTR forced-inset gate").
+- **What WKTR observes and what Node derives (CONFIRMED, `toolbar-page.mjs`, `gate.mjs`).** WKTR observes two things per
+  flag: the viewport height and the platform rect after each inset step (so the arm sequence), and the wait from
+  `setObscuredInsets` until `visualViewport.height` changes (so the exemption). It sends no touches and runs no
+  gesture code. The take sequences in the table come from Node: `gate.mjs` feeds the observed arm sequence to the
+  production `gesture.ts` `step`, and compares the result with the Lean golden. So the takes are not an engine
+  observation of the flag's gesture decision; they show that the production machine, on the arms the engine produced,
+  gives the Lean takes.
 
 ## What the gate forces
 
@@ -28,7 +35,7 @@ viewport height to the production `armed`, and the observed arm sequence to the 
 
 Viewport height 810, 800, 790, 780, 790, 800, 810, 820 (vh0 820; `setObscuredInsets` shrinks `visualViewport.height` by the inset).
 
-| flag | arms down / up | takes down (insets 0,10..40) / up (30..0) | median wait after the first set |
+| flag | arms down / up (WKTR) | takes down (insets 0,10..40) / up (30..0) (Node, from the observed arms) | median wait after the first set (WKTR) |
 |---|---|---|---|
 | default | 11100 / 0111 | 11100 / 0111 | 82-83 ms |
 | touch-first | 11100 / 0111 | 11100 / 0000 | 81-83 ms |
