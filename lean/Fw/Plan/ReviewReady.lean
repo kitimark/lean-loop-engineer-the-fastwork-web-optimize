@@ -80,12 +80,12 @@ Its non-empty runs between separators.
 -/
 def tokens (s : String) : List (List Char) := (s.toList.splitOnP isSep).filter (!·.isEmpty)
 
-/-- The run id a token names, if it is `run:` and digits.
+def isHex (c : Char) : Bool := c.isDigit || ('a' ≤ c && c ≤ 'f')
 
-A GitHub run id written `run:<digits>`.
--/
+/-- The run id a token names: `run:<digits>` gives the digits, `cm:<24 hex>` keeps its `cm:` prefix. -/
 def runIdOf : List Char → Option String
   | 'r' :: 'u' :: 'n' :: ':' :: d => if !d.isEmpty && d.all Char.isDigit then some (String.ofList d) else none
+  | 'c' :: 'm' :: ':' :: d => if d.length == 24 && d.all isHex then some (String.ofList ('c' :: 'm' :: ':' :: d)) else none
   | _ => none
 
 /-- Is the token `path:line` or `path:line-line`?
@@ -412,6 +412,12 @@ private def passDry := "VERDICT dry t"
 #guard reviewReady "t" [it "pending" "run:123"] [⟨"123", "complete"⟩] passDry == .review
 #guard reviewReady "t" [it "pending" "run:123"] [⟨"123", "failed"⟩] passDry == .returnToBuilder
 #guard reviewReady "t" [it "pending" "run:9"] [] passDry == .returnToBuilder
+#guard reviewReady "t" [it "pending" "cm:6ade316d0123456789abcdef"] [⟨"cm:6ade316d0123456789abcdef", "running"⟩] passDry == .wait
+#guard reviewReady "t" [it "pending" "cm:6ade316d0123456789abcdef"] [⟨"cm:6ade316d0123456789abcdef", "complete"⟩] passDry == .review
+#guard reviewReady "t" [it "pending" "cm:6ade316d0123456789abcdef"] [⟨"6ade316d0123456789abcdef", "complete"⟩] passDry == .returnToBuilder
+#guard reviewReady "t" [it "done" "cm:6ade316d0123456789abcdef"] [] passDry == .review
+#guard reviewReady "t" [it "done" "cm:6ade316d"] [] passDry == .returnToBuilder
+#guard reviewReady "t" [it "done" "cm:6ADE316D0123456789ABCDEF"] [] passDry == .returnToBuilder
 #guard reviewReady "t" [it "pending" "run:1", it "dispatch" "cmd"] [⟨"1", "running"⟩] passDry == .dispatch
 #guard reviewReady "t" [it "followUp" "", it "undelivered" ""] [] passDry == .returnToBuilder
 #guard reviewReady "t" [it "followUp" ""] [] passDry == .review

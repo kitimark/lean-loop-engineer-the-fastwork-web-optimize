@@ -13,8 +13,8 @@ const lines = readFileSync(join(root, "packages/contracts/golden/ci/pool-tier.js
 const seven = lines.find((l) => l.name.startsWith("seven requests"))!;
 
 describe("the Lean pool-tier golden, replayed through fwcore", () => {
-  it("has rows for all four ops", () => {
-    expect(new Set(lines.map((l) => l.op))).toEqual(new Set(["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged"]));
+  it("has rows for all six ops", () => {
+    expect(new Set(lines.map((l) => l.op))).toEqual(new Set(["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged", "ci.poolRows", "ci.reroute"]));
   });
   for (const l of lines) {
     it(`${l.op}: ${l.name}`, () => {
