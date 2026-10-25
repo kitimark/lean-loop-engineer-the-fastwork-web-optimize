@@ -42,7 +42,6 @@ interface CssRule {
   media: string[];
 }
 
-/** Innermost style rules outside `@keyframes`, each with its enclosing `@media` preludes. */
 const cssRules = (css: string): CssRule[] => {
   const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const rules: CssRule[] = [];
@@ -68,7 +67,6 @@ const decls = (body: string, prop: string): string[] =>
 
 const cardSel = /(\.card|\[data-orbit-id\]|> article)$/;
 
-/** A keyframes rule as the CSS writes it: the selectors naming it, each with its splash-end `animation: none` rule. */
 const animOf = (file: string, name: string) => {
   const rules = cssRules(readFileSync(resolve(partsDir, file), 'utf8'));
   const word = new RegExp(`\\b${name}\\b`);
