@@ -2,8 +2,8 @@
 
 - Branch `worktree-wf_2943a5a2-21f-1`, worktree `.claude/worktrees/wf_2943a5a2-21f-1`.
 - Last work commit: the commit that adds this line (`git log -1 worktree-wf_2943a5a2-21f-1`); before it, 5af11fc8e (merge of main eda627b3d, review round).
-- CI runs: none dispatched. Data run 40156078840 (at fbca417): state complete, conclusion failure (the measured
-  25/40/40 trajectory failure this task explains).
+- CI runs: none dispatched. Data run 40156078840 (at fbca417): lead dispatch on main, state complete, conclusion
+  success; its hero-path verdict is the measured 25/40/40 trajectory failure this task explains.
 - Verified: `sh lean/scripts/check.sh` green through fw slot (exit offset golden, 136 lines; v2-proved up to date);
   gate-breakpoints tests 781/781; contracts 11/11; ci-paths 56/56; runner land-inputs 73/73.
 - Open: the reducer adopts `judgedEqual`; the gate blockers need the hidden-consumer rule or a probe re-run;
