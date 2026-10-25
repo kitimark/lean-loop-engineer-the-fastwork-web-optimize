@@ -205,11 +205,18 @@ export async function fetchBuild(ctx, { buildId, out }) {
 }
 
 
-/** The digest of a built site: sha256 over `path NUL size NUL sha256(file)` lines of every file, paths sorted bytewise, relative to `dir`. */
+/**
+ * The digest of a built site: sha256 over `path NUL size NUL sha256(content)` lines, paths sorted bytewise, relative to `dir`.
+ * It covers what the lane serves and nothing that varies per build machine:
+ *  - hidden paths (any segment starting with a dot, e.g. `.vite/manifest.json`) are skipped: upload-artifact drops them, so the GitHub
+ *    `site-dist` never holds them (measured: build 6ade005d vs run 40196504411, 244 vs 243 files);
+ *  - `build-info.json` is hashed without its `ms` key, the wall times of the build steps (measured: only `ms` differed between the two builds).
+ */
 export function siteDigest(dir) {
   const files = [];
   const walk = (d, rel) => {
     for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.name.startsWith('.')) continue;
       const r = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) walk(join(d, e.name), r);
       else if (e.isFile()) files.push(r);
@@ -217,8 +224,13 @@ export function siteDigest(dir) {
   };
   walk(dir, '');
   files.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const content = (f) => {
+    const buf = readFileSync(join(dir, f));
+    if (f !== 'build-info.json') return buf;
+    try { const j = JSON.parse(buf.toString('utf8')); delete j.ms; return Buffer.from(JSON.stringify(j)); } catch { return buf; }
+  };
   const h = createHash('sha256');
-  for (const f of files) h.update(`${f}\0${statSync(join(dir, f)).size}\0${createHash('sha256').update(readFileSync(join(dir, f))).digest('hex')}\n`);
+  for (const f of files) { const c = content(f); h.update(`${f}\0${c.length}\0${createHash('sha256').update(c).digest('hex')}\n`); }
   return { digest: files.length ? h.digest('hex') : null, files: files.length };
 }
 

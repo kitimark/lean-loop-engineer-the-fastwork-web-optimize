@@ -333,6 +333,14 @@ test('siteDigest: the same files give the same digest whatever the write order, 
   assert.equal(siteDigest(site({})).digest, null);
 });
 
+test('siteDigest ignores hidden files and the build step times of build-info.json, nothing else of it', () => {
+  const info = (ms, extra = {}) => JSON.stringify({ buildId: 'x', ms: { client: ms, total: ms }, gates: [], ...extra });
+  const base = siteDigest(site({ 'index.html': 'x', 'build-info.json': info(1) })).digest;
+  assert.equal(siteDigest(site({ 'index.html': 'x', 'build-info.json': info(999), '.vite/manifest.json': '{}' })).digest, base);
+  assert.notEqual(siteDigest(site({ 'index.html': 'x', 'build-info.json': info(1, { buildId: 'y' }) })).digest, base);
+  assert.notEqual(siteDigest(site({ 'index.html': 'x', 'build-info.json': info(1), 'other.json': info(2) })).digest, base);
+});
+
 test('site-digest verb prints the digest and the file count, digestOfText reads it back', async () => {
   const d = site({ 'index.html': 'x' });
   const out = []; const code = await main(['site-digest', d], { log: (l) => out.push(l) });
