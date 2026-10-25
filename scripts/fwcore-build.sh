@@ -17,6 +17,7 @@
 #   writes a new file and `mv` replaces the hard link, so the Lake cache artifact keeps its bytes and Lake still finds
 #   the target up to date; the record hashes the stripped binary. No `strip` on PATH, or a failed strip, keeps the
 #   unstripped binary (same behaviour, larger file).
+# - `lake build` runs under a machine-wide build slot (scripts/lake-slot-lib.sh, sourced so that no second sh starts).
 # - The binary is stripped once per link: `fwcore.stripped` holds the sha256 of the last strip output, and a binary with
 #   that sha256 (Lake did not relink) is kept as it is. MEASURED 2026-10-19 on macOS: stripping a stripped binary again
 #   changes its bytes once (sha256 8a4fd2d6ff6f, then 495249a32f9b), so without this the binary of one tree would depend
