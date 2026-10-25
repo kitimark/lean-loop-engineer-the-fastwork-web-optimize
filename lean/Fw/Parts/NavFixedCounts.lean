@@ -206,11 +206,12 @@ theorem verdict_swap_win (t : Tol) (b f : Cell) : verdict t f b = .cost ↔ verd
 
 /-! ## From cells to a flag -/
 
-/-- A flag's decision in one zone: win (a win cell and no cost cell), trade (both), no-win (no win cell). -/
+/-- A flag's decision in one zone: win (a win cell and no cost cell), trade (both), no-win (decided cells, none a win), undecided (no cell is usable). -/
 inductive A where
   | win
   | trade
   | noWin
+  | undecided
 deriving DecidableEq, Repr
 
 def V.isWin : V → Bool
@@ -221,8 +222,13 @@ def V.isCost : V → Bool
   | .cost => true
   | _ => false
 
+def V.isUnusable : V → Bool
+  | .unusable _ => true
+  | _ => false
+
 def armOf (vs : List V) : A :=
-  if vs.any V.isWin then (if vs.any V.isCost then .trade else .win) else .noWin
+  if vs.all V.isUnusable then .undecided
+  else if vs.any V.isWin then (if vs.any V.isCost then .trade else .win) else .noWin
 
 theorem any_isWin (vs : List V) : vs.any V.isWin = true ↔ ∃ v ∈ vs, v = .win := by
   simp only [List.any_eq_true]
@@ -236,21 +242,78 @@ theorem any_isCost (vs : List V) : vs.any V.isCost = true ↔ ∃ v ∈ vs, v = 
   · rintro ⟨v, hv, h⟩; exact ⟨v, hv, by cases v <;> simp_all [V.isCost]⟩
   · rintro ⟨v, hv, rfl⟩; exact ⟨_, hv, rfl⟩
 
+theorem all_isUnusable (vs : List V) : vs.all V.isUnusable = true ↔ ∀ v ∈ vs, ∃ w, v = .unusable w := by
+  simp only [List.all_eq_true]
+  constructor
+  · intro h v hv; have := h v hv; cases v <;> simp_all [V.isUnusable]
+  · intro h v hv; obtain ⟨w, rfl⟩ := h v hv; rfl
+
+/-- A win cell is usable, so a list with one is never undecided. -/
+theorem all_isUnusable_false_of_win (vs : List V) (h : vs.any V.isWin = true) : vs.all V.isUnusable = false := by
+  rw [any_isWin] at h
+  obtain ⟨v, hv, rfl⟩ := h
+  cases hu : vs.all V.isUnusable
+  · rfl
+  · have := (all_isUnusable vs).1 hu _ hv
+    obtain ⟨w, hw⟩ := this
+    cases hw
+
+/-- Some cell is usable exactly when not every cell is unusable. -/
+theorem all_isUnusable_false_iff (vs : List V) :
+    vs.all V.isUnusable = false ↔ ∃ v ∈ vs, ∀ w, v ≠ .unusable w := by
+  constructor
+  · intro h
+    refine Classical.byContradiction fun hne => ?_
+    have hall : vs.all V.isUnusable = true := (all_isUnusable vs).2 fun v hv =>
+      Classical.byContradiction fun hv2 => hne ⟨v, hv, fun w hw => hv2 ⟨w, hw⟩⟩
+    rw [hall] at h
+    cases h
+  · rintro ⟨v, hv, hn⟩
+    cases hu : vs.all V.isUnusable
+    · rfl
+    · obtain ⟨w, hw⟩ := (all_isUnusable vs).1 hu v hv
+      exact absurd hw (hn w)
+
 theorem armOf_win_iff (vs : List V) : armOf vs = .win ↔ (∃ v ∈ vs, v = .win) ∧ ¬ ∃ v ∈ vs, v = .cost := by
-  rw [← any_isWin, ← any_isCost]
+  have hW := any_isWin vs
+  have hC := any_isCost vs
+  have hN := all_isUnusable_false_of_win vs
   unfold armOf
-  cases vs.any V.isWin <;> cases vs.any V.isCost <;> simp
+  generalize vs.all V.isUnusable = u at *
+  generalize vs.any V.isWin = w at *
+  generalize vs.any V.isCost = c at *
+  cases u <;> cases w <;> cases c <;> simp_all
 
 theorem armOf_trade_iff (vs : List V) : armOf vs = .trade ↔ (∃ v ∈ vs, v = .win) ∧ ∃ v ∈ vs, v = .cost := by
-  rw [← any_isWin, ← any_isCost]
+  have hW := any_isWin vs
+  have hC := any_isCost vs
+  have hN := all_isUnusable_false_of_win vs
   unfold armOf
-  cases vs.any V.isWin <;> cases vs.any V.isCost <;> simp
+  generalize vs.all V.isUnusable = u at *
+  generalize vs.any V.isWin = w at *
+  generalize vs.any V.isCost = c at *
+  cases u <;> cases w <;> cases c <;> simp_all
 
-theorem armOf_noWin_iff (vs : List V) : armOf vs = .noWin ↔ ¬ ∃ v ∈ vs, v = .win := by
-  rw [← any_isWin]
+/-- No-win: some cell is decided (usable) and none is a win. -/
+theorem armOf_noWin_iff (vs : List V) :
+    armOf vs = .noWin ↔ (¬ ∃ v ∈ vs, v = .win) ∧ ∃ v ∈ vs, ∀ w, v ≠ .unusable w := by
+  have hW := any_isWin vs
+  have hU := all_isUnusable_false_iff vs
+  have hN := all_isUnusable_false_of_win vs
   unfold armOf
-  cases vs.any V.isWin <;> cases vs.any V.isCost <;> simp
+  generalize vs.all V.isUnusable = u at *
+  generalize vs.any V.isWin = w at *
+  generalize vs.any V.isCost = c at *
+  cases u <;> cases w <;> cases c <;> simp_all
 
+/-- Undecided: every cell is unusable (also the empty list), so no verdict, win or not, is claimed. -/
+theorem armOf_undecided_iff (vs : List V) : armOf vs = .undecided ↔ ∀ v ∈ vs, ∃ w, v = .unusable w := by
+  have hU := all_isUnusable vs
+  unfold armOf
+  generalize vs.all V.isUnusable = u at *
+  generalize vs.any V.isWin = w at *
+  generalize vs.any V.isCost = c at *
+  cases u <;> cases w <;> cases c <;> simp_all
 
 /-- A flag is worth a look review only with a count win in every one of its decided cells and no cost: a trade or a no-win posts nothing. -/
 def lookReview : A → Bool
@@ -260,10 +323,14 @@ def lookReview : A → Bool
 theorem lookReview_iff (a : A) : lookReview a = true ↔ a = .win := by
   cases a <;> simp [lookReview]
 
-/-- No count win, no look review. -/
+/-- No count win, no look review (decided or not). -/
 theorem no_win_no_review (vs : List V) (h : ¬ ∃ v ∈ vs, v = .win) : lookReview (armOf vs) = false := by
-  have := (armOf_noWin_iff vs).2 h
-  simp [this, lookReview]
+  cases ha : armOf vs
+  · exact absurd ((armOf_win_iff vs).1 ha).1 h
+  all_goals rfl
+
+/-- Undecided posts no look review. -/
+theorem undecided_no_review : lookReview .undecided = false := rfl
 
 /-! ## The raw passes -/
 
@@ -631,6 +698,7 @@ def aName : A → String
   | .win => "win"
   | .trade => "trade"
   | .noWin => "noWin"
+  | .undecided => "undecided"
 
 private def jint (i : Int) : Json := .num (.fromInt i)
 
@@ -648,13 +716,26 @@ def cellLine (flag : String) (c : CellId) : String :=
       ("why", vWhy (cellVerdict flag c))]).compress
   | _, _ => ""
 
+/-- The smallest of a list, 0 when empty. -/
+def minOf : List Nat → Nat
+  | [] => 0
+  | x :: xs => xs.foldl min x
+
+/-- The fewest VMs in either arm over a zone's cells: the n a zone's verdict stands on. -/
+def zoneVms (flag : String) (z : Zone) : Nat :=
+  match armData "base", armData flag with
+  | some b, some f => minOf (((cells ()).filter (·.zone == z)).map fun c => min (cellOf b c).vms (cellOf f c).vms)
+  | _, _ => 0
+
+def flagVms (flag : String) : Nat := minOf (zones.map (zoneVms flag))
+
 def zoneLine (flag : String) (z : Zone) : String :=
   (Json.mkObj [("fn", jstr "zone"), ("flag", jstr flag), ("zone", jstr z.name), ("verdict", jstr (aName (zoneVerdict flag z))),
-    ("review", .bool (lookReview (zoneVerdict flag z)))]).compress
+    ("vms", .num (.fromNat (zoneVms flag z))), ("review", .bool (lookReview (zoneVerdict flag z)))]).compress
 
 def flagLine (flag : String) : String :=
   (Json.mkObj [("fn", jstr "flag"), ("flag", jstr flag), ("verdict", jstr (aName (flagVerdict flag))),
-    ("review", .bool (lookReview (flagVerdict flag)))]).compress
+    ("vms", .num (.fromNat (flagVms flag))), ("review", .bool (lookReview (flagVerdict flag)))]).compress
 
 def ccellLine (flag : String) (z : Zone) (m : CMetric) : String :=
   match carmData "base", carmData flag with
@@ -666,13 +747,18 @@ def ccellLine (flag : String) (z : Zone) (m : CMetric) : String :=
       ("verdict", jstr (vName (ccellVerdict flag z m))), ("why", vWhy (ccellVerdict flag z m))]).compress
   | _, _ => ""
 
+def czoneVms (flag : String) (z : Zone) : Nat :=
+  match carmData "base", carmData flag with
+  | some b, some f => minOf (cmetrics.map fun m => min (ccellOf b z m).vms (ccellOf f z m).vms)
+  | _, _ => 0
+
 def czoneLine (flag : String) (z : Zone) : String :=
   (Json.mkObj [("fn", jstr "czone"), ("flag", jstr flag), ("zone", jstr z.name), ("verdict", jstr (aName (czoneVerdict flag z))),
-    ("review", .bool (lookReview (czoneVerdict flag z)))]).compress
+    ("vms", .num (.fromNat (czoneVms flag z))), ("review", .bool (lookReview (czoneVerdict flag z)))]).compress
 
 def cflagLine (flag : String) : String :=
   (Json.mkObj [("fn", jstr "cflag"), ("flag", jstr flag), ("verdict", jstr (aName (cflagVerdict flag))),
-    ("review", .bool (lookReview (cflagVerdict flag)))]).compress
+    ("vms", .num (.fromNat (minOf (zones.map (czoneVms flag))))), ("review", .bool (lookReview (cflagVerdict flag)))]).compress
 
 def lines (_ : Unit) : List String :=
   flags.flatMap fun f =>

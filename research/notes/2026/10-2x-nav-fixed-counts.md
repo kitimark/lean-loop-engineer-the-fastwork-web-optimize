@@ -1,6 +1,6 @@
-# nav-fixed-counts: nav:clip-box, nav:bar-fixed and nav:logo-3d move no main-thread count on either engine
+# nav-fixed-counts: nav:bar-fixed and nav:logo-3d move no main-thread count on WebKit, nav:clip-box is undecided there, and no flag wins on Chromium
 
-* Verdict (MEASURED, Lean `Fw.Parts.NavFixedCounts`, golden `packages/contracts/golden/parts/nav-fixed-counts.jsonl`): no-win for each of the three flags, on WebKit and on Chromium, in the hero, rest and finish zones. No cell of any arm is a win. No look-review step is posted, because the rule posts one only for a count win.
+* Verdict (MEASURED, Lean `Fw.Parts.NavFixedCounts`, golden `packages/contracts/golden/parts/nav-fixed-counts.jsonl`): no-win for nav:bar-fixed and nav:logo-3d on WebKit and for all three flags on Chromium, in the hero, rest and finish zones; nav:clip-box on WebKit is not decided (2 of 3 VMs, run 40196217959): Lean reports `undecided` with n = 2 in all three zones. No decided cell is a win. No look-review step is posted, because the rule posts one only for a count win.
 * The three flags are look-change class L and stay out of presets until the user's visual review.
 * WebKit: no cell is certified in either direction. `nav:clip-box` has 2 of 3 VMs, so none of its cells is decided (n < 3). The other two arms have 3 VMs and 22 cells each (work, layer and byte cells): `nav:bar-fixed` has 12 same and 10 quarantined, `nav:logo-3d` 9 same and 13 quarantined. A quarantined cell is beyond the lane's tolerance in the base or the arm, so it cannot decide.
 * Chromium: Layout, UpdateLayoutTree, FunctionCall and cc.Draw equal the base in every zone. The sum of the layer census over the zone's frames is a certified cost in the hero and finish zones (table below). That is a cost cell, not a win, so the Lean rule still reads no-win.
@@ -13,7 +13,7 @@
 ## Rule (CONFIRMED in Lean, `verdict`, `win_sound`, `cost_sound`, `armOf_*_iff`, `workVal_partition`)
 * A cell is the sum of one count over the steps (WebKit) or 500 px bands (Chromium) of one zone, one value per pass. WebKit zones are `Fw.Device.Session.zoneOf` (hero: first 2 viewports, finish: last viewport, rest). Steps above 5200 px are dropped (the passes end at 5231 or 5267, a page-height variant). Chromium bands map by hand: load frames and y 0 to 1500 are the hero, y 5000 and the tail are the finish, the rest between.
 * Census cells are keyed by the requested scroll position; the end state is matched by position, because its y depends on the variant.
-* Decided only with 3 VMs in both arms and neither arm beyond its tolerance (`Fw.Measure.WebKit.cellStatus`, zone sums 2 or 10 %, layer counts 1 or 5 %, bytes 2 %). Win: every arm pass below every base pass. Cost: above. Same: ranges overlap. A flag is win in a zone with a win cell and no cost cell, trade with both, no-win without a win cell.
+* Decided only with 3 VMs in both arms and neither arm beyond its tolerance (`Fw.Measure.WebKit.cellStatus`, zone sums 2 or 10 %, layer counts 1 or 5 %, bytes 2 %). Win: every arm pass below every base pass. Cost: above. Same: ranges overlap. A flag is win in a zone with a win cell and no cost cell, trade with both, no-win with a decided cell and no win cell, undecided when no cell is usable (`armOf_undecided_iff`; the golden carries the zone's fewest VMs).
 
 ## WebKit cells (MEASURED; min..max over passes, n = VMs; "noisy" = beyond tolerance, "n<3" = fewer than 3 VMs)
 | count | zone | base | clip-box | verdict | bar-fixed | verdict | logo-3d | verdict |
@@ -50,12 +50,12 @@
 * The `nav:bar-fixed` rest FunctionCall cost is 4 to 9 calls on 3916 (0.1 to 0.2 %). The rule certifies it because the 3 runs of the arm are all above the 3 of the base. It is not a mechanism claim.
 * The earlier Chromium swipe-v1 runs (research/notes/2026/10-2x-nav-fixed-size.md) found every zone equal; this run agrees on all work counts.
 
-## Mechanism and Lean why (CONFIRMED in the Lean model, not in engine source)
+## Mechanism and Lean why (INFERRED: proved in the Lean model, whose pass rule is assumed, not read from engine source)
 * The flags remove layout units, not layout passes. `units_fall_normal`: under Normal compositing the layout units per morph frame are 3 for `nav:clip-box`, 2 for `nav:bar-fixed` and 1 for `nav:logo-3d` (the bar and logo layout units are the ones `NavBarFixedWork.bar_layout_normal` and `logo3d_layout_normal` remove).
 * The panel stays placed by insets in every arm, so one layout pass is queued in every morph frame of every arm and under both compositing policies (`pass_every_arm`, `units_fall_passes_equal`). A `Layout` record is one per pass, so the record count cannot see the units fall. INFERRED: this is why Layout stays inside the spread. The earlier note research/notes/2026/10-2x-nav-fixed-size.md reached the same reading: no count moves on Chromium swipe-v1.
 * The morph writes the same `--morph` values in every arm (`NavBarFixed` writer theorems), so RecalculateStyles and FunctionCall are predicted equal. MEASURED: equal wherever the cell is decided.
 * The flags add layers while the morph class is on: at most 1, 2 and 3 (`addedLayers_arms`, from `NavBarFixedWork.layer_budget`). WebKit cannot show them: the end-state layer census varies by 4 between passes in the base (`endSpread`, guarded `3 <= endSpread`), and `shift_not_above` proves that a shift of at most the spread is never read as a cost. Chromium shows them (table above).
-* The model is refuted by any certified win or cost cell (`refutes_iff`). Chromium has cost cells in the layer census, which the model allows (added layers). It has no win, which the model forbids.
+* The model is refuted by any certified win or cost cell of the four work counts (`refutes_iff`). Chromium nav:bar-fixed rest FunctionCall is such a cost (3920..3925 vs 3916, 0.1 to 0.2 %), so the prediction FunctionCall-equal is refuted there on Chromium (cause unknown); the layer-census costs are allowed by `addedLayers_arms`. No cell is a win.
 
 ## Limits
 * `nav:clip-box` on WebKit is not decided (2 VMs). A rerun with 3 VMs is the only way to decide it; the task forbids a new dispatch.
