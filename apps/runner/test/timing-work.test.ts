@@ -129,6 +129,19 @@ describe("scripts/fwcore-build.sh with FW_LAKE_BUILT_FILE", () => {
   });
 });
 
+describe("scripts/span.sh span_more_file", () => {
+  it("adds the member another process wrote to the line of the next span only", () => {
+    const file = join(dir, "timings-file.jsonl");
+    const mf = join(dir, "member.txt");
+    const sh = join(root, "scripts/span.sh");
+    writeFileSync(join(dir, "f.sh"), `. "${sh}"\nsh -c 'printf ",\\"lake\\":{\\"built\\":0}" > "${mf}"' \nspan_more_file="${mf}"\nspan lean/check "lake build" true\nspan lean/check "after" true\n`);
+    execFileSync("sh", [join(dir, "f.sh")], { env: { ...process.env, FW_TIMINGS_FILE: file } });
+    const text = readFileSync(file, "utf8");
+    expect(text.split("\n").filter(Boolean).map((x) => (JSON.parse(x) as { lake?: unknown }).lake)).toEqual([{ built: 0 }, undefined]);
+    expect(parseSamples(text).map((s) => s.work)).toEqual([{ mods: "0" }, undefined]);
+  });
+});
+
 describe("scripts/span.sh span_more", () => {
   it("adds the slot member to the line of the command that sets it, and to no later line", () => {
     const file = join(dir, "timings.jsonl");

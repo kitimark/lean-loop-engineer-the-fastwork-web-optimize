@@ -140,9 +140,7 @@ test("sourced, lake-slot-lib.sh defines lake_slot <root> <cmd>, which takes a sl
 
 test("the call sites build through the wrapper: fwcore-build.sh (and with it check.sh) and the land axiom lint", () => {
   assert.match(readFileSync(join(top, "scripts/fwcore-build.sh"), "utf8"), /\(cd lean && lake_slot "\$root" lake build\)/);
-  const checkSh = readFileSync(join(top, "lean/scripts/check.sh"), "utf8");
-  assert.match(checkSh, /span lean\/check "lake build" lake_step/);
-  assert.match(checkSh, /lake_step\(\) \{[^\n]*\n  FW_LAKE_BUILT_FILE=\$lake_f sh \.\.\/scripts\/fwcore-build\.sh/);
+  assert.match(readFileSync(join(top, "lean/scripts/check.sh"), "utf8"), /span lean\/check "lake build" sh \.\.\/scripts\/fwcore-build\.sh/);
   const plans = readFileSync(join(top, "packages/contracts/golden/console/land-dry.jsonl"), "utf8").trim().split("\n")
     .map((l) => JSON.parse(l)).filter((r) => r.request.op === "landDry.lintPlan" && r.request.hasAxioms && r.request.changed.some((p) => p.startsWith("lean/")));
   assert.ok(plans.length > 0);
