@@ -26,7 +26,7 @@ topics: [hero.exit, scroll-driven, trajectory-probe, webkit, chromium, v2-proved
 - **Unequal offsets do not explain the 25/40/40 new units of run 40156078840.** MEASURED: all 105 units are on rest rows
   where the original's `scrollY`, the candidate's `scrollY` and the step target are equal. Every unit is on a node with an
   empty rect in both arms. Lean `measured_judgedEqual` and `measured_hidden` hold over the table `measured`, and the
-  golden `hero-exit-offset.jsonl` replays them. So the answer is a named counterexample, not an offset theorem: the cause
+  golden `hero-exit-offset.jsonl` replays them. The answer is a named counterexample, not an offset theorem. The cause
   is `hidden` (a consumer in a `display: none` subtree), not `offset`.
 - **The probe can compare at unequal offsets, but did not here.** The reducer judges every rest row
   (reduce.mjs:643,656-657) and does not check `y` against `target`. A rest that stays short after the two instant retries
@@ -34,7 +34,7 @@ topics: [hero.exit, scroll-driven, trajectory-probe, webkit, chromium, v2-proved
   `scrollY`) is the probe change. It is a follow-up and not made here.
 - **Gen.entry now says:** `not yet`, blockers `proofs`, `gate chromium`, `gate webkit`. `q6` and `look` are met.
   `proofs`: `hero.exit:threaded` now links to ledger row n 6, which is `partly-proved`. `threaded_proofs_iff` makes the
-  requirement met exactly when that row is proved and not falsified. Promoting the row is the lead's call. CONFIRMED
+  requirement met exactly when that row is proved and not falsified. CONFIRMED
   (packages/contracts/golden/preset/v2-proved.decisions.jsonl, `Gen.run`).
 
 ## Per-frame model (Lean `threadedAge`, `origAge`)

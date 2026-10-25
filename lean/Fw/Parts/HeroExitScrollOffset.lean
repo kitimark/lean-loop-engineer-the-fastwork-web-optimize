@@ -1,7 +1,5 @@
 import Lean.Data.Json
 
-/-! hero.exit:threaded against the original: the scroll offset each arm shows per frame, what the trajectory probe compares,
-and why the 25/40/40 new units of run 40156078840 are not an offset difference (research/notes/2026/10-2x-hero-exit-q6.md). -/
 namespace Fw.Parts.HeroExitScrollOffset
 
 open Lean (Json)
@@ -9,21 +7,15 @@ open Lean (Json)
 inductive Engine | chromium | webkit
 deriving DecidableEq, Repr
 
-/-- Where the threaded arm's view timeline is sampled. -/
 inductive Path | accelerated | mainThread
 deriving DecidableEq, Repr
 
-/-- A frame of the original arm's writer: `first since` is the first frame after a scroll change, whose shown value its
-last rAF body read `since` frames earlier; `steady` runs a body that reads the live offset; `inFrameScroll` is a frame in
-which script scrolls after the animation update. -/
 inductive Kind
   | first (since : Nat)
   | steady
   | inFrameScroll
 deriving DecidableEq, Repr
 
-/-- Frames the threaded arm's shown offset trails the offset drawn in that frame, when the main-thread offset trails it
-by `lag` frames. -/
 def threadedAge : Engine → Path → Nat → Kind → Nat
   -- RemoteProgressBasedTimeline.cpp:61-65@862f17d; cc/animation/scroll_timeline.cc:85-131@f842f52
   | _, .accelerated, _, _ => 0
@@ -34,7 +26,6 @@ def threadedAge : Engine → Path → Nat → Kind → Nat
   | .webkit, .mainThread, lag, .inFrameScroll => lag + 1
   | .webkit, .mainThread, lag, _ => lag
 
-/-- Frames the original arm's shown offset trails the offset drawn in that frame. -/
 def origAge (lag : Nat) : Kind → Nat
   | .first since => lag + since
   | .steady => lag
@@ -55,13 +46,11 @@ theorem accelerated_first_newer {e : Engine} {lag since : Nat} (h : 0 < since) :
     threadedAge e .accelerated lag (.first since) < origAge lag (.first since) := by
   cases e <;> simp [threadedAge, origAge] <;> omega
 
-/-- The offset an arm shows in frame `n` when it is `age` frames old. -/
 def shown (drawn : Nat → Nat) (n age : Nat) : Nat := drawn (n - age)
 
 theorem shown_eq_of_still {drawn : Nat → Nat} {n w a : Nat} (hs : ∀ j ≤ w, drawn (n - j) = drawn n) (ha : a ≤ w) :
     shown drawn n a = drawn n := hs a ha
 
-/-- Frames the probe's `settle` waits with an unchanged `scrollY` before a rest row (kit.mjs:206). -/
 def stillFrames : Nat := 8
 
 theorem arms_equal_at_rest {drawn : Nat → Nat} {n lag since : Nat} {e : Engine} {p : Path} {k : Kind}
@@ -77,7 +66,6 @@ theorem arms_equal_at_rest {drawn : Nat → Nat} {n lag since : Nat} {e : Engine
 inductive Frame | move | rest
 deriving DecidableEq, Repr
 
-/-- One hero-path row pair of the probe: its frame and the `scrollY` each arm read. -/
 structure Sample where
   step : String
   frame : Frame
@@ -85,10 +73,8 @@ structure Sample where
   yCand : Nat
 deriving DecidableEq, Repr
 
-/-- The rows the reducer judges today: every rest row (reduce.mjs:643,656-657). -/
 def judgedNow (s : Sample) : Bool := s.frame == .rest
 
-/-- The equal-offset rule: a rest row is judged only when both arms read the same `scrollY`. -/
 def judgedEqual (s : Sample) : Bool := s.frame == .rest && s.yOrig == s.yCand
 
 theorem judgedEqual_same {s : Sample} (h : judgedEqual s = true) : s.yOrig = s.yCand := by
@@ -115,8 +101,6 @@ def samples : List Sample :=
 inductive Lane | chromium | linuxWebkit | macWebkit
 deriving DecidableEq, Repr
 
-/-- One new-unit cell of run 40156078840: the elements of `node` with a non-empty rect in each arm, and per failing rest
-step the `scrollY` of the original, of the candidate and the step's target. -/
 structure Cell where
   lane : Lane
   width : Nat
@@ -170,7 +154,6 @@ def measured : List Cell := [
     [("s25", 225, 225, 225), ("s50", 450, 450, 450), ("s90", 810, 810, 810), ("s200", 1800, 1800, 1800),
      ("mid", 4135, 4135, 4135), ("hold", 4135, 4135, 4135), ("b50", 450, 450, 450), ("b25", 225, 225, 225)]⟩]
 
-/-- One new unit: a cell at one rest step. -/
 structure NewUnit where
   lane : Lane
   width : Nat
@@ -191,8 +174,6 @@ def units : List NewUnit :=
 inductive Cause | offset | hidden | other
 deriving DecidableEq, Repr
 
-/-- What a unit judged at a settled rest row is explained by: the arms read different offsets, the node paints no box in
-either arm, or neither. -/
 def cause (u : NewUnit) : Cause :=
   if u.yOrig != u.yCand then .offset
   else if u.paintedOrig == 0 && u.paintedCand == 0 then .hidden

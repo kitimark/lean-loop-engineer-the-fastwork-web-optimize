@@ -9,7 +9,6 @@ namespace Fw.Preset.Gen
 open Lean Fw.Preset
 open Fw.Gate.Trajectory (Stored Engine Walk Family Group Outcome Unjudged UnitRow outcome basisAt groupsOf widthsOf)
 
-/-- The ledger row `hero.exit:threaded` links to. -/
 def threadedKey : Key := ("hero.exit",
   "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO \
     sentinel for pointer-events")
