@@ -10,10 +10,18 @@ interface Row {
   frames: { steps: number[]; faithful: number; oneChain: number }[];
 }
 const root = resolve(__dirname, '../../../../..');
-const rows: Row[] = readFileSync(resolve(root, 'packages/contracts/golden/parts/hero.countdown.onechain.jsonl'), 'utf8')
+type Cost = [number, number];
+interface OrderRow {
+  scenario: 'orders';
+  frame499: { faithful: Cost; atSubscriber: Cost; last: Cost };
+  early: { faithful: Cost; atSubscriber: Cost; last: Cost };
+}
+const lines = readFileSync(resolve(root, 'packages/contracts/golden/parts/hero.countdown.onechain.jsonl'), 'utf8')
   .trim()
   .split('\n')
-  .map((l) => JSON.parse(l) as Row);
+  .map((l) => JSON.parse(l) as Row | OrderRow);
+const rows = lines.filter((r): r is Row => r.scenario !== 'orders');
+const order = lines.find((r): r is OrderRow => r.scenario === 'orders')!;
 
 const mkEnv = () => {
   const raf = new Map<number, (t: number) => void>();
@@ -87,6 +95,41 @@ describe('hero.countdown one-chain against the Lean golden', () => {
       expect(got.map((f) => f.oneChain)).toEqual(row.frames.map((f) => f.oneChain));
     });
   }
+  const frameCost = (kind: 'frame499' | 'early', arm: 'faithful' | 'atSubscriber' | 'last'): Cost => {
+    const e = mkEnv();
+    const clock = createRafClock(e.env);
+    const dirt = { faces: false, walk: false, other: kind === 'early' };
+    let flushes = 0;
+    let elems = 0;
+    const read = () => {
+      if (!dirt.faces && !dirt.walk && !dirt.other) return;
+      flushes++;
+      elems += dirt.walk ? 320 : (dirt.faces ? 10 : 0) + (dirt.other ? 134 : 0);
+      dirt.faces = dirt.walk = dirt.other = false;
+    };
+    const faces = () => void (dirt.faces = true);
+    const sub = kind === 'frame499'
+      ? () => {
+          read();
+          dirt.walk = true;
+        }
+      : read;
+    if (kind === 'frame499' && arm === 'faithful') clock.subscribe(() => {});
+    if (arm === 'faithful') clock.subscribe(faces, { own: true });
+    if (arm === 'atSubscriber') oneChainClock(clock).subscribe(faces, { own: true });
+    clock.subscribe(sub);
+    if (arm === 'last') clock.subscribe(faces);
+    e.frame(16);
+    read();
+    return [flushes, elems];
+  };
+  it('frame kinds: faithful, the digits at their subscriber and the digits last match the Lean orders', () => {
+    for (const kind of ['frame499', 'early'] as const) {
+      for (const arm of ['faithful', 'atSubscriber', 'last'] as const) {
+        expect(frameCost(kind, arm)).toEqual(order[kind][arm]);
+      }
+    }
+  });
   it('one-chain passes shared subscribers and intervals through', () => {
     const e = mkEnv();
     const c = oneChainClock(createRafClock(e.env));
