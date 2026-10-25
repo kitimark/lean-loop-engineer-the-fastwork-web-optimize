@@ -5,9 +5,9 @@
 - The edges hold exactly and the look bound holds where the variant applies. Status: PROVED in Lean (`Fw.Parts.MorphColumnsScale`), replayed by `apps/site/src/parts/morph.columns/scale.golden.test.ts` against `packages/contracts/golden/parts/morph.columns.final-scale.jsonl` (110 rows, 11 widths x 9 morph values).
 - The scale is horizontal only (`scale(sx, 1)`), not the uniform `scale(s)` that the candidate note (10-2x-end-gpu-map.md, candidate 1) assumed. The pictures have fixed pixel heights (`data.ts`), so a uniform scale would move every picture's bottom edge: `uniform_breaks_height`. Vertical scale 1 keeps heights, the 12 px gap between pictures and the 56 px drift exact (`vertical_exact`).
 - Bound at 390 px: `sx >= a = 0.9767`, so at most 2.3 % horizontal squeeze (`a_390`: a >= 0.97, the proved statement). It holds for every width from 314 to 1000 px (`a_range`, `sx_range`, `squeeze_bound`: squeeze <= 3 %; `radius_bound`: horizontal corner radius within 0.36 px of 12).
-- The bound fails outside that range, so the variant applies only up to 1000 px (the original's `mq.w-le-1000` edge): a = 0.786 at 1280 px, 0.694 at 1440 px (`a_desktop`), 0.9657 at 280 px (`a_narrow`). Above 1000 px the arm is the base layout. This narrows the candidate: no desktop effect.
+- The bound fails outside that range, so the variant applies only up to 1000 px (the original's `mq.w-le-1000` edge): a = 0.786 at 1280 px, 0.694 at 1440 px (`a_desktop`), 0.9657 at 280 px (`a_narrow`). Above 1000 px the arm is the base layout. Below 314 px the variant still applies and its squeeze bound is not proved (a = 0.9657 at 280 px, `a_narrow`); named, not fixed, since the variant does not ship without a win. This narrows the candidate: no desktop effect.
 - Per-frame layout: the variant's only `--morph`-dependent property in the columns is `transform` (`variant_no_layout`); the base's is the column `width` (`base_width_moves`: strictly increasing in m). The layout box is constant in m (`layout_const`). The backdrop box itself, owned by morph.panel, still changes width each frame; INFERRED that its fixed-width flex items skip relayout.
-- CI counts: not run by this branch. The lead dispatches them (commands in the report items). Nothing here claims same look: class L, the user's look review decides.
+- CI counts (MEASURED, runs below): no Layout or style-recalc win on Chromium (40156382719 vs 40156384878) or the WebKit Simulator (40156388674 vs 40156393010, n=2 per arm). Class L, so the user's look review decides shipping.
 
 ## Geometry (Lean statements)
 
@@ -48,7 +48,7 @@ All on `ci/columns-final-scale` at 6d8fbd72f.
 | trace.Layout.dirtyObjects | 6486, 6484, 6492 | 6485, 6482, 6480 |
 | metric.RecalcStyleCount | 2371, 2375, 2371 | 2371, 2375, 2371 |
 
-In the morph zone (y00500) Layout totalObjects is 46265 base against 46098 flag (-0.4 %); every other zone is identical. Verdict: no Layout, no UpdateLayoutTree, no style-recalc reduction.
+In the morph zone (y00500) Layout totalObjects is 46265 base against 46098 flag (-0.4 %). y00500 is lower in the flag on all 3 runs by about 1 Layout and 0.4 % totalObjects (Layout 68/67/68 vs 69/68/70; dirtyObjects 761/759/761 vs 767/765/769); y01500 varies run to run in both arms (totalObjects 49731/49731/49784 base vs 49841/49784/49731 flag); all other zones are identical. Verdict: no Layout, no UpdateLayoutTree, no style-recalc reduction.
 
 ### WebKit Simulator (MEASURED, n=2 per arm, two passes each)
 
@@ -59,7 +59,24 @@ Counts over the scroll zones 0 to 4999 px (records assigned by the step marks), 
 | Layout | 584, 613.5 | 589, 610 |
 | RecalculateStyles | 618.5, 644.5 | 633, 641 |
 
-The spread between the two sessions of one arm (about 30) is larger than the arm difference (at most 15). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Verdict: no change.
+Each flag session lies inside the base session range (Layout 589, 610 within 584 to 613.5; RecalculateStyles 633, 641 within 618.5 to 644.5).
+
+Layout per 500 px zone, mean of 2 passes (base r1 / base r3 / flag r1 / flag r3):
+
+| zone | base r1 | base r3 | flag r1 | flag r3 |
+|---|---|---|---|---|
+| z0 | 75 | 81.5 | 71.5 | 81.5 |
+| z1 | 58 | 71 | 68.5 | 68.5 |
+| z2 | 48 | 52.5 | 52 | 53.5 |
+| z3 | 69.5 | 76 | 71 | 74 |
+| z4 | 63.5 | 61.5 | 64 | 62.5 |
+| z5 | 57 | 57 | 58 | 58 |
+| z6 | 46.5 | 42.5 | 38 | 43.5 |
+| z7 | 73 | 71 | 67.5 | 68.5 |
+| z8 | 48 | 32.5 | 39 | 35 |
+| z9 | 45.5 | 68 | 59.5 | 65 |
+
+Composite is 20 per zone in all four sessions (199 over z0 to z9). Backing memory at the final state is 105.8 MB base (both sessions) against 97.9 MB (r1) and 105.8 MB (r3) flag; the other states are equal within 5 MB. Verdict: no zone shows a flag win beyond the base spread; Composite identical; backing MB unchanged except flag r1 at the final state (-7.9 MB, one session). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Per-engine verdict: no win on either engine.
 
 ### Breakpoint gate (run 40156380619, both engines)
 
@@ -68,3 +85,9 @@ The gate fails the `morph.columns` row on 19 of 30 desk, touch and other conditi
 ### Why no count win (INFERRED)
 
 The Lean theorems prove the column box is constant in the morph value. They do not prove that the per-frame layouts re-lay out the column subtree: the morph zone's layouts each touch about 670 objects in both arms, so the panel and its siblings keep laying out. A per-subtree layout attribution is needed before a layout win can be claimed or ruled out.
+
+## Follow-ups (lead)
+
+- Check or generate the `--morph`-dependent property set from the CSS module (`morph.module.css`), so `variant_no_layout` and `layout_const` (`MorphColumnsScale.lean`, `variantMorphDeps`) can fail when the CSS changes; today the list `[.transform]` is hand-written and `layout_const` is `rfl` over a box constant by definition.
+- Breakpoint gate rule for visClass L variants (run 40156380619): the only failing items are column flex-basis, flex-grow, flex-shrink (560 Chromium, 545 WebKit), the intended `flex: none` at desk-319 to desk-1000; `pain-1440-600-1440` fails only at 600; rects and margins pass.
+- Per-subtree layout attribution with a Lean why for the missing Layout win.
