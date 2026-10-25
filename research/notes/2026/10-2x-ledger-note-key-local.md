@@ -4,7 +4,7 @@ Answer: `fw land --dry` checks the merge tree's `research/findings/ledger.json` 
 (entry, task) key as `VERDICT lint` with a `REFUSED: ledger-note-key: ...` line naming each repeated key, its note
 count and fields. The rule is Lean `onePerKey` (lean/Fw/Ops/LedgerMerge.lean); a pass gives the distinct-keys premise
 of `distinct_notes_merge`, so passing add-only branches of different tasks merge with no clash (`onePerKey_tasks_merge`).
-Before this task the dry land passed both refused branches. Incident `inc-ledger-note-key-dup`.
+Incident `inc-ledger-note-key-dup`.
 
 ## The two refusals
 
@@ -23,8 +23,7 @@ conflict. That is the second failing test: one appended note on each side gave 1
 `merge` assumes distinct keys; the `#guard` beside `onePerKey_tasks_merge` shows a branch with two notes under one key
 merging to the first note twice and losing the second.
 
-INFERRED: builders read the note shape (one `field` per note) as one note per field; the remote test was the only
-place the rule lived, and it runs only after the full CI land.
+INFERRED: builders read the note shape (one `field` per note) as one note per field.
 
 ## What runs where
 

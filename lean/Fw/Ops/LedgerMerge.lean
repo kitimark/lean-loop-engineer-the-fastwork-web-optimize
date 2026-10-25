@@ -501,26 +501,18 @@ theorem distinct_notes_append (N X Y : Notes V) (hnd : (keys (N ++ X ++ Y)).Nodu
   some [(("hero.exit", "a"), "m"), (("hero.exit", "wktr-p1p4"), "p1p4"), (("hero.exit", "hero-exit-restate"), "restate")]
 -- one task, two entries; two tasks, one entry: all distinct keys
 #guard (merge ([] : Notes String) [(("e1", "t"), "x")] [(("e2", "t"), "y"), (("e1", "u"), "z")]).isSome
--- the same (entry, task) key with different texts on both sides: conflict (excluded by distinct keys)
 #guard merge ([] : Notes String) [(("e", "t"), "x")] [(("e", "t"), "y")] = none
 
-/-! ## One note per (entry, task): the distinct-keys premise of `distinct_notes_merge` as a decision
-`fw land --dry` runs `onePerKey` on the merge tree's notes and names `dupKeys` (inc-ledger-note-key-dup). -/
-
-/-- Whether `k` occurs at least twice in `l` (`twice_iff`). -/
 def twice (k : K) : List K → Bool
   | [] => false
   | x :: r => if x = k then decide (k ∈ r) else twice k r
 
-/-- `l` without the later repeats of each element, in first-occurrence order. -/
 def firsts : List K → List K
   | [] => []
   | x :: r => x :: (firsts r).filter (fun y => decide (y ≠ x))
 
-/-- The keys that occur more than once in `l`, each once, in first-occurrence order. -/
 def dupKeys (l : List (K × V)) : List K := firsts ((keys l).filter (fun k => twice k (keys l)))
 
-/-- **At most one note per key**: no key of `l` repeats (`onePerKey_iff`). -/
 def onePerKey (l : List (K × V)) : Bool := (dupKeys l).isEmpty
 
 theorem twice_iff (k : K) : ∀ (l : List K), twice k l = true ↔ ∃ a b, l = a ++ k :: b ∧ k ∈ b
@@ -592,17 +584,14 @@ theorem nodup_iff_not_twice : ∀ (l : List K), l.Nodup ↔ ∀ k, twice k l = f
         simpa [twice, hk] using this
 
 omit [DecidableEq V] in
-/-- `k` is named iff some note of `l` with key `k` has a later one. -/
 theorem mem_dupKeys (l : List (K × V)) (k : K) : k ∈ dupKeys l ↔ ∃ a b, keys l = a ++ k :: b ∧ k ∈ b := by
   rw [dupKeys, mem_firsts, List.mem_filter, ← twice_iff]
   exact ⟨fun h => h.2, fun h => ⟨mem_of_twice h, h⟩⟩
 
 omit [DecidableEq V] in
-/-- `dupKeys` names each repeated key once. -/
 theorem dupKeys_nodup (l : List (K × V)) : (dupKeys l).Nodup := firsts_nodup _
 
 omit [DecidableEq V] in
-/-- Pass branch: `onePerKey l` iff the keys of `l` are distinct. -/
 theorem onePerKey_iff (l : List (K × V)) : onePerKey l = true ↔ (keys l).Nodup := by
   rw [nodup_iff_not_twice, onePerKey, List.isEmpty_iff, List.eq_nil_iff_forall_not_mem]
   refine forall_congr' fun k => ?_
@@ -610,20 +599,16 @@ theorem onePerKey_iff (l : List (K × V)) : onePerKey l = true ↔ (keys l).Nodu
   exact ⟨fun h ht => h ⟨mem_of_twice ht, ht⟩, fun h ⟨_, ht⟩ => h ht⟩
 
 omit [DecidableEq V] in
-/-- Refusal branch: `onePerKey l` fails iff `dupKeys l` names a key. -/
 theorem onePerKey_false (l : List (K × V)) : onePerKey l = false ↔ ∃ k, k ∈ dupKeys l := by
   rw [onePerKey, Bool.eq_false_iff, ne_eq, List.isEmpty_iff, List.eq_nil_iff_forall_not_mem]
   simp
 
-/-- Two add-only branches that pass `onePerKey`, with no key new on both, merge with no clash and keep every note. -/
 theorem onePerKey_merge (b o t : Notes V) (hpo : onePerKey o = true) (hpt : onePerKey t = true)
     (ho : ∀ k, look k b ≠ none → look k o = look k b) (ht : ∀ k, look k b ≠ none → look k t = look k b)
     (hd : ∀ k, k ∈ keys o → k ∈ keys t → k ∈ keys b) :
     ∃ m, merge b o t = some m ∧ (∀ n ∈ o, n ∈ m) ∧ (∀ n ∈ t, n ∈ m) :=
   distinct_notes_merge b o t ho ht hd ((onePerKey_iff o).mp hpo) ((onePerKey_iff t).mp hpt)
 
-/-- Two add-only branches of tasks `τo ≠ τt` that pass `onePerKey` and add notes only under their own task merge with
-no clash and keep every note. -/
 theorem onePerKey_tasks_merge (τo τt : String) (hτ : τo ≠ τt) (b o t : Notes V) (hpo : onePerKey o = true)
     (hpt : onePerKey t = true) (ho : ∀ k, look k b ≠ none → look k o = look k b)
     (ht : ∀ k, look k b ≠ none → look k t = look k b) (hwo : ∀ k ∈ keys o, k ∉ keys b → k.2 = τo)
@@ -751,7 +736,6 @@ def fileText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, b, o, t) => line idKey n b o t ++ "\n") ++
     String.join (noteCases.map fun (n, b, o, t) => line noteKey n b o t ++ "\n")
 
-/-- The note-key cases: (name, the notes array of a tree as (entry, task) keys with the note's field). -/
 def noteKeyCases : List (String × Notes String) :=
   let hit := (("elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
     "hittest-elements-proof"), "chromium")
@@ -778,20 +762,16 @@ def noteKeyCases : List (String × Notes String) :=
 #guard (noteKeyCases.map fun (_, l) => onePerKey l) = [false, false, true, true, false, true]
 #guard (noteKeyCases.map fun (_, l) => (dupKeys l).length) = [1, 1, 0, 0, 2, 0]
 
-/-- A note key as JSON: `{"entry": e, "task": τ}`. -/
 def noteKeyJson (k : NoteKey) : Json := Json.mkObj [("entry", .str k.1), ("task", .str k.2)]
 
-/-- One note-key golden line: `{"name", "notes": [{"entry", "task", "field"}], "dups": [key], "onePerKey"}`. -/
 def noteKeyLine (name : String) (l : Notes String) : String :=
   (Json.mkObj [("name", .str name),
     ("notes", .arr (l.map fun (k, f) => Json.mkObj [("entry", .str k.1), ("task", .str k.2), ("field", .str f)]).toArray),
     ("dups", .arr ((dupKeys l).map noteKeyJson).toArray), ("onePerKey", .bool (onePerKey l))]).compress
 
-/-- The text of `packages/contracts/golden/ops/ledger-note-key.jsonl`. -/
 def noteKeyText (_ : Unit := ()) : String :=
   String.join (noteKeyCases.map fun (n, l) => noteKeyLine n l ++ "\n")
 
-/-- Compare (or write) one golden file; returns 1 if it is stale, else 0. -/
 def runFile (p : System.FilePath) (label : String) (count : Nat) (text : String) (write : Bool) : IO Nat := do
   if write then
     IO.FS.writeFile p text
@@ -804,8 +784,6 @@ def runFile (p : System.FilePath) (label : String) (count : Nat) (text : String)
   IO.println s!"{label} golden: {count} cases, 0 stale"
   return 0
 
-/-- Compare (or write) `packages/contracts/golden/ops/ledger-merge.jsonl` and `ledger-note-key.jsonl` under `root`
-(the `lean/` directory); returns the number of stale files. -/
 def run (root : System.FilePath) (write : Bool) : IO Nat := do
   let d := root / ".." / "packages" / "contracts" / "golden" / "ops"
   let a ← runFile (d / "ledger-merge.jsonl") "ledger-merge" (cases.length + noteCases.length) fileText write

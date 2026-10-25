@@ -297,7 +297,7 @@ Limits: existing rows are not renumbered; a row with an explicit `n` still works
 ## One ledger note per (entry, task) (task ledger-note-key-local)
 Incident `inc-ledger-note-key-dup`: combo-scroll-fight and commission-band-mech each wrote two or three notes with one (entry, task) key in `research/findings/ledger.json`, one field per note; only the land lane's `ledger-merge.test.ts` refused them (runs 40137318231, 40144233684).
 
-**How a builder notes a finding: one note per (entry, task)**; put every field's text into that one note.
+Put every field's text into one note per (entry, task).
 The dry land, after the fast lints and before the local tests, checks the notes array of the merge tree. A repeated key is `VERDICT lint` (exit 17) with the line `REFUSED: ledger-note-key: research/findings/ledger.json has more than one note per (entry, task) key; ...` and one row per repeated key, `note:["<entry>","<task>"]: <count> notes (fields ...)`. A pass prints `dry: ledger notes ok (...)`.
 
 Lean (`lean/Fw/Ops/LedgerMerge.lean`): `onePerKey`, `dupKeys`; `onePerKey_iff` (pass iff the keys are distinct), `onePerKey_false` and `mem_dupKeys` (a refusal names a key, and only keys that repeat), `onePerKey_merge` and `onePerKey_tasks_merge` (two add-only branches that pass, of different tasks noting only under their own task, merge with no clash and keep every note; from `distinct_notes_merge`).
