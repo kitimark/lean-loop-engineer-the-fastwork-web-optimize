@@ -4,7 +4,7 @@
 //  - never fails or slows the wrapped step: every error is swallowed, no spawn (HEAD is read from .git, not `git rev-parse`);
 //  - no personal data: the line holds a tool name, a step label, numbers and a short sha. Never a path or user name.
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadavg } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -81,6 +81,27 @@ export const builtModules = (out: string): number => out.split("\n").filter(buil
 export function lakeMember(out: string): { lake?: { built: number } } {
   const built = builtModules(out);
   return built > 0 || out.includes("Build completed successfully") ? { lake: { built } } : {};
+}
+
+/** Lean `Fw.Obs.Timing.outerBuilt`: the lake work of an outer dry-land span is the sum of the modules each check built. */
+export const outerBuilt = (builds: number[]): number => builds.reduce((a, b) => a + b, 0);
+
+/** Env var a parent `fw slot run` sets to a file path; the child `fw land --dry` writes its outer `lake` member there. */
+export const LAKE_HANDOFF_ENV = "FW_SLOT_LAKE_FILE";
+
+/** Child side of the handoff: write the member to the parent's file when the parent set one. Never throws. */
+export function writeLakeHandoff(lake: { built: number }, env: NodeJS.ProcessEnv = process.env): void {
+  const f = env[LAKE_HANDOFF_ENV];
+  if (!f) return;
+  try { writeFileSync(f, JSON.stringify(lake)); } catch { /* a timing member never fails a step */ }
+}
+
+/** Parent side: the `lake` member the child wrote, or none (no file, empty, or not a non-negative integer count). */
+export function readLakeHandoff(file: string): { lake?: { built: number } } {
+  try {
+    const b = (JSON.parse(readFileSync(file, "utf8")) as { built?: unknown }).built;
+    return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { lake: { built: b } } : {};
+  } catch { return {}; }
 }
 
 export function spanWork(o: { slot?: unknown; checks?: unknown; lake?: unknown }): { work?: Record<string, string> } {

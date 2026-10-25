@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { builtModules, checksWork, HEAVY_CHECKS, lakeMember, lakeWork, modsLow, slotWork, spanWork } from "../src/timing.ts";
+import { builtModules, checksWork, HEAVY_CHECKS, lakeMember, lakeWork, modsLow, outerBuilt, readLakeHandoff, slotWork, spanWork } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -12,6 +12,8 @@ const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing-wor
   .map((l) => JSON.parse(l) as { name: string; span: Record<string, unknown>; work: Record<string, string> });
 const lakeGolden = readFileSync(join(root, "packages/contracts/golden/obs/timing-lake.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as { name: string; out: string; built: number; member: number | null });
+const outerGolden = readFileSync(join(root, "packages/contracts/golden/obs/timing-outer.jsonl"), "utf8").trim().split("\n")
+  .map((l) => JSON.parse(l) as { name: string; builds: number[]; built: number; work: Record<string, string> });
 const dir = mkdtempSync(join(tmpdir(), "fw-timing-work-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -152,5 +154,24 @@ describe("scripts/span.sh span_more", () => {
     const l = text.split("\n").filter(Boolean).map((x) => JSON.parse(x) as { slot?: unknown });
     expect(l.map((x) => x.slot)).toEqual([{ width: 2, jobs: 30 }, undefined]);
     expect(parseSamples(text).map((s) => s.work)).toEqual([{ width: "2" }, undefined]);
+  });
+});
+
+describe("outer dry-land span: the sum of the checks' built modules against Fw.Obs.Timing.outerBuilt (golden/obs/timing-outer.jsonl)", () => {
+  it("has the golden rows, one with no check and one where the sum crosses a class the parts do not", () => {
+    expect(outerGolden.some((g) => g.builds.length === 0)).toBe(true);
+    expect(outerGolden.some((g) => g.builds.every((b) => modsLow(b) < modsLow(g.built)))).toBe(true);
+  });
+  for (const g of outerGolden) {
+    it(`outerBuilt and its work: ${g.name}`, () => {
+      expect(outerBuilt(g.builds)).toBe(g.built);
+      expect(lakeWork({ built: outerBuilt(g.builds) }).work).toEqual(g.work);
+    });
+  }
+  it("the handoff file read gives the member only for a non-negative integer count", () => {
+    const f = join(dir, "handoff.json");
+    const read = (t: string | null): unknown => { if (t !== null) writeFileSync(f, t); return readLakeHandoff(t === null ? join(dir, "none.json") : f); };
+    expect([read('{"built":41}'), read('{"built":0}'), read('{"built":-1}'), read('{"built":"3"}'), read("not json"), read(null)])
+      .toEqual([{ lake: { built: 41 } }, { lake: { built: 0 } }, {}, {}, {}, {}]);
   });
 });
