@@ -25,3 +25,9 @@ Runs: GitHub twin 40196504411 (rewrite, r1+r2, --no-route, at ec606c602) queued/
 Digest finding: first mismatch was our digest, not the site. upload-artifact drops hidden `.vite/manifest.json`; `build-info.json` holds build `ms` times. siteDigest now skips hidden paths and drops `ms`. With that the GitHub site-dist and the Codemagic build both give ca7745e4f918...d, 243 files.
 Verified: runner 3563 tests, ci-paths 56, codemagic 33, check.sh green.
 Open: count-artifact compare of webkit-sim-r1 once the twin finishes; CI on 2f847f8a3; dry land; review ready.
+
+## Round 2 checkpoint 5 (paired run result)
+CI: lean 40199047016 success at 2f847f8a3. GitHub twin 40196504411: success on attempt 2 (attempt 1 r1 stalled in the Safari inspector; `gh run rerun --failed`).
+Paired rewrite cell r1 (MEASURED): site digests equal, ca7745e4f918...d, 243 files (Lean `ci.poolCell` files the cell). Count classes NOT equal: 18 of 104 rows differ (GitHub stable 26 / deterministic 55 / quarantined 23; Codemagic 13 / 55 / 36), e.g. scroll RecalculateStyles total 1 vs 39. Cause (INFERRED from tools.txt): the images differ, GitHub macOS 27.0.1 + Xcode 27.1, Codemagic macOS 27.0 + Xcode 27.0 and an extra iOS 26.5 runtime. One session each, so one cell proves one pair only.
+Codemagic minutes: 1 (failed yaml) + 9 (digest mismatch build 6ade005d) + 8 (build 6ade07e4) = 18; month used 104 of the 400 line.
+Follow-up: Lean should require a matching toolchain (macOS/Xcode/runtime) before a cell's counts are merged, or pin Codemagic to the GitHub Xcode.
