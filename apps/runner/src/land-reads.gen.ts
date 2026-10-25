@@ -26,4 +26,5 @@ export const CHECK_SH_READS: string[] = [
   "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
   "packages/gh-budget/src/bounds.gen.ts",
   "results/gpu-safari/lane/elapsed.golden.jsonl",
+  "results/dormant-counts/zones.json",
 ];

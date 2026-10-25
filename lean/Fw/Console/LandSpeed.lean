@@ -191,7 +191,8 @@ def checkShReads : List String :=
     "apps/site/src/parts/**", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/layer-opts.gen.ts",
     "packages/measure-chromium/scenarios.gen.json", "apps/runner/src/land-reads.gen.ts",
     "packages/contracts/fixtures/trajectory-gpu/**", "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs",
-    "packages/gh-budget/src/bounds.gen.ts", "results/gpu-safari/lane/elapsed.golden.jsonl"]
+    "packages/gh-budget/src/bounds.gen.ts", "results/gpu-safari/lane/elapsed.golden.jsonl",
+    "results/dormant-counts/zones.json"]
 
 def sampleDecls : List Decl :=
   [⟨"check.sh", checkShReads⟩, ⟨"contracts", ["packages/contracts/**"]⟩]
@@ -223,7 +224,8 @@ theorem parseScope_checkShReads : parseScope checkShReads =
       ["apps", "site", "src", "registry", "presets", "v2-proved.json"], ["apps", "site", "src", "registry", "layer-opts.gen.ts"],
       ["packages", "measure-chromium", "scenarios.gen.json"], ["apps", "runner", "src", "land-reads.gen.ts"],
       ["packages", "contracts", "fixtures", "trajectory-gpu", "**"], ["packages", "gate-breakpoints", "src", "trajectory", "cells-gpu-cli.mjs"],
-      ["packages", "gh-budget", "src", "bounds.gen.ts"], ["results", "gpu-safari", "lane", "elapsed.golden.jsonl"]], []⟩ := by
+      ["packages", "gh-budget", "src", "bounds.gen.ts"], ["results", "gpu-safari", "lane", "elapsed.golden.jsonl"],
+      ["results", "dormant-counts", "zones.json"]], []⟩ := by
   have hi : checkShReads.filter (!·.startsWith "!") = checkShReads := by
     simp (config := {decide := true}) [checkShReads]
   have he : checkShReads.filter (·.startsWith "!") = [] := by
