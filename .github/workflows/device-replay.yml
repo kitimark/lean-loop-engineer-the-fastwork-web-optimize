@@ -125,7 +125,7 @@ jobs:
           mode: finish
           label: replay
 
-  # Task combo-scroll-fight (note research/notes/2026/10-2x-combo-scroll-fight.md), re-run by combo-held-identity (note research/notes/2026/10-2x-combo-held-identity.md: the `+passive` arms run the page with every touchmove and wheel listener passive and one blocking no-op listener, so the event stays cancelable while preventDefault is ignored; `before` replays only the delta arms): the rewrite page with the user's flags and their
+  # Task combo-scroll-fight (note research/notes/2026/10-2x-combo-scroll-fight.md), re-run by combo-held-identity (note research/notes/2026/10-2x-combo-held-identity.md: the `+allpassive` arms (all-passive harness; `+passive` in run 40142598495) run the page with every touchmove and wheel listener passive and one blocking no-op listener, so the event stays cancelable while preventDefault is ignored; `before` replays only the delta arms): the rewrite page with the user's flags and their
   # bisect sets, replayed with scripted close-then-reopen finger paths and the recorded path; the page records scrollY on every frame, the
   # finger, the morph value and every `scrollTo` call. One leg per profile. Chromium, CPU throttled 6x (the Linux proxy, never the phone).
   # Legs run one after the other after `replay` (the Lean width table, Fw.Ci.Overflow.widths, holds one job for this workflow).

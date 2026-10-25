@@ -9,4 +9,4 @@ conventions: held := Event.defaultPrevented after the handler (Lean Dlv/holds, T
 read first: research/notes/2026/10-2x-combo-held-identity.md, lean/Fw/Parts/ComboScroll.lean, apps/site/src/parts/morph.tween/end.logic.ts
 
 round 2: waapi_* theorems removed from ComboScroll.lean; arms renamed +allpassive; check.sh, site 7721, console-api 782, measure-webkit 698, runner 3471, ci-paths 56 green
-writes outside the graph row: lean/Fw/Parts/ComboScroll.lean, lean/Fw.lean (import)
+writes outside the graph row: none

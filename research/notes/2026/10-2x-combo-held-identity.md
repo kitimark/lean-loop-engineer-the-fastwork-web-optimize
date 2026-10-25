@@ -106,7 +106,7 @@ finger. The new part: a passive listener is now treated the same way (it used to
 ## Re-run
 
 - Push to `ci/device-replay` with `[ci:device-replay]` in the message. `combo` builds this commit and `BEFORE` (set in the
-  workflow to `13f319e2a`), replays the `delta` arms (user, release and their `+passive`) on `before` and the bisect set on `after`;
+  workflow to `13f319e2a`), replays the `delta` arms (user, release and their `+allpassive`) on `before` and the bisect set on `after`;
   artifacts `combo-<leg>`. Summaries: `combo-cli.mjs summary --in <leg>/<build>/run.json` (new last column: writes against a native
   scroll).
 - Runs of this task: device-replay 40142598495 (success), lean 40142598556 (success); one push of three used.
