@@ -49,13 +49,15 @@ inductive FRes where
   | modelBug
 deriving DecidableEq, Repr
 
-/-- The fields of a findings-ledger row this module reads; `flag` and `fResult` are optional in the ledger. -/
+/-- The fields of a findings-ledger row this module reads; `flag`, `fResult` and `visClass` are optional in the
+ledger. -/
 structure Row where
   part : String
   candidate : String
   status : String
   flag : Option String
   fResult : Option FRes
+  visClass : Option VisClass := none
 deriving Repr
 
 /-- A ledger row's identity: its `part` and `candidate` text. -/
@@ -545,7 +547,7 @@ private def fb : Flag := ⟨"b", "x"⟩
 private def regEx : List Reg :=
   [⟨⟨"a", "faithful"⟩, .faithful, [], [], none⟩, ⟨fa, .optimized, [], [], none⟩, ⟨fa2, .optimized, [], [], none⟩,
    ⟨fb, .optimized, [fa], [], none⟩]
-private def rowP (c : String) : Row := ⟨"a", c, "proved", none, none⟩
+private def rowP (c : String) : Row := ⟨"a", c, "proved", none, none, none⟩
 private def run (ks : List String) (e : Fw.Gate.Trajectory.Engine) (w : Walk) (gs : List Fw.Gate.Trajectory.Group) :
     Stored := ⟨"1", "s", "?preset=x", ks, e, w, Fw.Gate.Trajectory.allowedWidths, gs⟩
 private def four (ks : List String) : List Stored :=
