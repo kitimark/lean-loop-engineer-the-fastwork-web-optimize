@@ -16,10 +16,6 @@
     display: block;
     background: #131922;
   }
-  /* morph.panel:rest: the writer sets the attribute while --morph-fade is 1, where the blur is blur(0px) (Lean MorphPanelRest) */
-  .section[data-fw-rest] {
-    filter: none;
-  }
   .section.isShrinking {
     background: #fff;
   }
@@ -338,5 +334,9 @@
       font-size: 40px;
       line-height: 1.15;
     }
+  }
+  /* morph.panel:rest: the writer sets the attribute while --morph-fade is 1, where the blur is blur(0px) (Lean MorphPanelRest) */
+  .section[data-fw-rest] {
+    filter: none;
   }
 }

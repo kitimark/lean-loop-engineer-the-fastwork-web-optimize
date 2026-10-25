@@ -22,6 +22,7 @@
     "rest": {
       "kind": "optimized",
       "tier": "T0",
+      "files": ["content.ts", "driver.ts", "index.tsx", "logic.ts", "media.ts", "morph.module.css", "rest.logic.ts"],
       "provenance": {
         "lean": "Fw.Parts.MorphPanelRest kindOf_rest, kindOf_fade, kindOf_off_iff, toggles_cross, toggles_all_rest; Fw.Parts.MorphPanelOpt rest_visSame_E, fade_scene_eq, cr_rest_le, wk_rest_le, wk_toggle_eqv, cr_toggle_not_le",
         "limit": "the platform section drops its filter (blur(0px) to none) while --morph-fade is 1 and keeps the same blur otherwise; equal scenes under RG10 (no fixed or absolute descendant uses the section as its containing block, CONFIRMED on the rewrite DOM) except one pixel row at a fractional section edge (MEASURED, Chromium 721 px); Chromium pays a stacking-context flip and layout on the toggle frames (cr_toggle_not_le), WebKit toggle frames are equal in the model (wk_toggle_eqv, not yet measured); the writer is morph.tween's updateFade, so the flag does not combine with the WAAPI tween or the threaded fade"
