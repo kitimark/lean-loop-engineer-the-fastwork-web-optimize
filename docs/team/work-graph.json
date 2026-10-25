@@ -21817,7 +21817,8 @@
     "apps/runner/src/land.ts",
     "lean/Fw/Parts/MorphMountToolbarGolden.lean",
     "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl"
-   ]
+   ],
+   "evidence": "00ddc54"
   },
   {
    "devices": [
@@ -21868,6 +21869,31 @@
     "scripts/codemagic.test.mjs",
     "docs/team/tools/ci-pool.md",
     "docs/team/handoffs/cross-pool-pooling.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-wktr-control",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "toolbar-wktr-gate"
+   ],
+   "title": "Follow-ups of toolbar-wktr-gate (landed 8dabcba6f; review 2026-10-26). (1) Negative control: add a 'compositable' fixture arm that runs a time-based transform animation (compositor-only), golden exempt=false (Lean gate_page_not_lifted), so the measured 32 ms (unthrottle) vs ~82 ms (other flags) gap is shown to come from the scroll-driven main-thread exemption, not from any extra page content. (2) The note research/notes/2026/10-2x-toolbar-wktr-gate.md says plainly that WKTR observes the arm sequence and the exemption only; the per-flag takes come from Node running the production gesture.ts step on the observed arm sequence (no touches are sent), so they are not an engine observation of the flag's gesture decision. (3) Close the writesClosure warnings: lean/Fw/Ci/Intent.lean and lean/Fw/Ci/Overflow.lean for wktr*.yml if the gate step needs them.",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "lean/Fw/Parts/MorphMountToolbar.lean",
+    "lean/Fw/Parts/MorphMountToolbarGolden.lean",
+    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-toolbar-wktr-gate.md",
+    "docs/team/handoffs/toolbar-wktr-control.md"
    ]
   }
  ],
