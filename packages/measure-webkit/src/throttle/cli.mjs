@@ -11,13 +11,12 @@
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
-import { findDevice, shutdownDevice } from '../sim.mjs';
+import { findDevice } from '../sim.mjs';
 import { loadavg } from 'node:os';
-import { buildDriver, cleanup, dragPass, findDriver, stop } from './driver.mjs';
+import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
+import { makePassRunner } from './pass-run.mjs';
 import { armPass } from './probe.mjs';
-import { loadFresh } from '../page.mjs';
 import { excludeReason, reportMd, ARMS, SHIPPED_ARM, FOLLOW_ARM } from './report.mjs';
 import { movingMd } from './follow-report.mjs';
 import { finishPass } from './finish-probe.mjs';
@@ -60,46 +59,20 @@ async function main() {
       if (!['drags', 'finish'].includes(v.mode)) throw new Error(`unknown --mode ${v.mode}; drags or finish`);
       const finish = v.mode === 'finish';
       const drag = { cycles: Number(v.cycles), dragPt: Number(v.drag ?? (finish ? 480 : 360)), velocity: Number(v.velocity ?? (finish ? 150 : 120)),
-        holdMs: Number(v.hold), mode: v.mode, target: v.target, timeoutMs: Number(v.timeout) * 1000 };
+        holdMs: Number(v.hold), mode: v.mode, target: v.target };
       const passOf = finish ? finishPass : armPass;
       const reasonOf = finish ? finishExclude : excludeReason;
-      const passes = [], failed = [];
+      const passes = [], failed = [], machine = [];
       const file = resolve(v.out ?? 'out/throttle.json');
-      mkdirSync(dirname(file), { recursive: true });
-      // written after every pass: a stalled job still reports the passes it finished
-      const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed }) + '\n');
+      const outDir = dirname(file);
+      mkdirSync(outDir, { recursive: true });
+      const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed, machine }) + '\n');
+      const { warmUp, runArm } = makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
+        firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf, reasonOf, state: { passes, failed, machine }, save });
       try {
-        // The first session on a fresh Simulator drops its openurl and asks again, and the first XCUITest run relaunches Safari: both
-        // reload the page after the recorder started (the first measured pass was lost that way in 4 of 6 CI jobs). One warm-up
-        // session loads the page and runs one touch cycle, unrecorded, before the arms.
-        if (!v['no-warmup']) {
-          try {
-            await withSession(async (ctx) => {
-              await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 });
-              const r = await dragPass(driver, { udid, tag: 'warm-up', log, ...drag, cycles: 1 });
-              log(`warm-up: touches ${r.code === 0 ? 'done' : `failed (code ${r.code})`}`);
-            }, { keep: v.keep, site: siteOf(arms.find((a) => a !== 'original') ?? 'original') });
-          } catch (e) { log(`warm-up failed: ${e.message}`); }
-        }
+        if (!v['no-warmup']) await warmUp('warm-up');
         for (let round = 0; round < Number(v.rounds); round++) {
-          for (const arm of rotate(arms, round + Number(v.rotate))) {
-            for (let attempt = 1; attempt <= 2; attempt++) {
-              if (attempt === 2 && v.reset) { try { shutdownDevice(udid, { log }); } catch (e) { log(`reset: ${e.message}`); } }
-              const tag = `${arm}-r${round + 1}-a${attempt}`;
-              try {
-                const rec = await withSession((ctx) => passOf(ctx, { driver, udid, drag, settleMs: Number(v.settle), tag }),
-                  { keep: v.keep, site: siteOf(arm) });
-                const bad = reasonOf({ arm, round: round + 1, vm: v.vm, ...rec });
-                if (bad && attempt < 2) { log(`${tag} not usable (${bad}); trying once more`); continue; }
-                passes.push({ arm, round: round + 1, vm: v.vm, attempt, ...rec });
-                break;
-              } catch (e) {
-                log(`${tag} failed: ${e.message}`);
-                if (attempt === 2) failed.push(`${tag}: ${e.message}`);
-              }
-            }
-            save();
-          }
+          for (const arm of rotate(arms, round + Number(v.rotate))) await runArm(arm, round);
         }
       } finally { stop(); if (!v.driver) cleanup(driver); }
       save();
