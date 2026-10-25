@@ -8,6 +8,7 @@ import * as P from './device-phone-arms.mjs';
 import { USB_WAIT_S, classify, handReset, keepOk, mayAttempt, recordFault, resetPlan, usbWait, writeOk } from './device-faults.mjs';
 import { PAUSE_MAX_S, POLL_S, VERDICT_TEXT, pauseOver, preflight, readThermal, resume } from './device-thermal.mjs';
 import { assertNoForeignProxy, usbListed, usbReading } from './device-phone-env.mjs';
+import { PIN, PinStop, WHY_TEXT, pinWhy, visitOk, whyPin } from './device-thermal-pin.mjs';
 
 const slug = (id) => id.replace(/[^A-Za-z0-9.-]+/g, '_');
 const pad = (i) => String(i).padStart(2, '0');
@@ -85,12 +86,15 @@ export function planText(distDir, session = P.SESSION) {
   return lines.join('\n');
 }
 
+export const phoneSense = () => realDeps().sense;
+
 const realDeps = () => {
   let udid = null;
   const id = () => (udid ??= listPhone().udid);
   return {
-    visit: ({ a, row, site, settle, clock, log }) => whenTabBlank(() => withPhone(async (ctx) => {
+    visit: ({ a, row, site, settle, clock, log, gate }) => whenTabBlank(() => withPhone(async (ctx) => {
       const frames = await phoneFrames(ctx, { reps: P.PA.reps, speed: P.PA.speedPxPerS, settleMs: settle, clock, loadFresh, log: ctx.log });
+      if (gate) await gate();
       const counts = await phoneCounts(ctx, { passes: P.PA.passes, warmup: P.PA.warmup, step: P.PA.stepPx, framesPerStep: 2, settleMs: settle, clock, loadFresh, log: ctx.log });
       return { frames, counts };
     }, { site: a.target === 'rewrite' ? { dir: site, search: row.search } : null, log }), log),
@@ -106,7 +110,7 @@ const realDeps = () => {
   };
 };
 
-export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null, session = P.SESSION, deps = realDeps() }) {
+export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null, session = P.SESSION, pin = null, deps = realDeps() }) {
   const others = deps.others();
   if (others.length > 0) throw new Error(`another device-cli.mjs is running (pid ${others.join(', ')}); one phone run at a time`);
   mkdirSync(dir, { recursive: true });
@@ -120,7 +124,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
   const todo = session.map((a, index) => ({ a, index })).filter((x) => !doneIdx.has(x.index));
   if (todo.length === 0) return { ran: [], stopped: null, remaining: 0 };
   try { deps.proxies(); } catch (e) { writeBlocked(e.message); throw e; }
-  if (st.lastEndMs) {
+  if (st.lastEndMs && !pin) {
     let gap = (deps.now() - st.lastEndMs) / 1000;
     while (!P.coolOk(gap)) {
       const wait = P.PA.coolMin * 60 - gap;
@@ -139,12 +143,36 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
     last = { s, verdict, phase };
     return last;
   };
+  const readPin = (phase, index, entered, waitedS) => {
+    const s = deps.sense();
+    if (st.firstTemp === undefined && typeof s.tempC === 'number') st.firstTemp = s.tempC;
+    const held = pin.held();
+    const why = pinWhy(pin.target, held, s.lock, s.state, entered, waitedS);
+    const verdict = whyPin(why);
+    st.thermal = [...(st.thermal ?? []), { at: new Date(deps.now()).toISOString(), phase, index, state: s.state, tempC: s.tempC ?? null, lock: s.lock, held, why, verdict, ...(s.error ? { error: s.error } : {}) }];
+    last = { s, verdict, phase };
+    return { s, why, verdict };
+  };
+  const awaitPin = async (phase, index, entered) => {
+    const t0 = deps.now();
+    for (;;) {
+      const r = readPin(phase, index, entered, Math.round((deps.now() - t0) / 1000));
+      if (r.verdict !== 'wait') return r;
+      log(`waiting (${r.why}): ${WHY_TEXT[r.why]}; next reading in ${PIN.pinPollS} s`);
+      await deps.sleep(PIN.pinPollS * 1000);
+    }
+  };
   const ran = [];
   const stop = (msg) => { st.lastEndMs = deps.now(); saveState(dir, st); writeBlocked(msg); return { ran, stopped: msg, remaining: todo.length - ran.length }; };
 
   let pausedS = st.pausedAtS ?? null;
   const readings = [];
-  for (;;) {
+  if (pin) {
+    const r = await awaitPin('block-start', null, false);
+    if (r.verdict !== 'go') return stop(`${WHY_TEXT[r.why]}${r.s.error ? ` (${r.s.error})` : ''}`);
+    pin.onHeld?.();
+  }
+  for (; !pin;) {
     const { s, verdict } = sense('block-start', null);
     if (verdict === 'locked') return stop(`the phone is locked: ${VERDICT_TEXT.locked}`);
     readings.push({ atS: nowS(), verdict });
@@ -168,6 +196,11 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
     for (;;) {
       const elapsed = (deps.now() - t0) / 1000;
       if (!P.mayStart(elapsed, longest)) { log(`block ends after ${ran.length} visits: ${Math.round(elapsed)} s used, a visit may take ${Math.round(longest)} s`); over = true; break; }
+      if (!ready && pin) {
+        const r = await awaitPin('visit-start', index, true);
+        if (r.verdict !== 'go') return stop(`before visit ${index}: ${WHY_TEXT[r.why]}`);
+        ready = true;
+      }
       if (!ready) {
         const { verdict } = sense('visit-start', index);
         if (verdict === 'locked') return stop(`the phone is locked: ${VERDICT_TEXT.locked}`);
@@ -182,7 +215,18 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
       const start = deps.now();
       log(`visit ${index} (${a.id}), attempt ${attempts + 1}`);
       try {
-        const r = await deps.visit({ a, row, site, settle, clock, log });
+        let between = 'go';
+        const gate = pin ? async () => {
+          const g = await awaitPin('between-lanes', index, true);
+          between = g.verdict;
+          if (g.verdict !== 'go') throw new PinStop(g.why, 'between-lanes', g.s);
+        } : undefined;
+        const r = await deps.visit({ a, row, site, settle, clock, log, gate });
+        if (pin) {
+          await deps.sleep(10000);
+          const e = await awaitPin('visit-end', index, true);
+          if (!visitOk(['go', between, e.verdict])) throw new PinStop(e.why, 'visit-end', e.s);
+        }
         putJson(join(dir, rawName(index, a.id, 'counts')), { target: a.target, arm: a.id, ...r.counts });
         putJson(join(dir, rawName(index, a.id, 'frames')), { target: a.target, arm: a.id, ...r.frames });
         const durationS = Math.round((deps.now() - start) / 1000);
@@ -194,14 +238,22 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
         const bat = batteryOf(r.frames, r.counts);
         ran.push({ index, arm: a.id, durationS, vh: vals.vh, maxY: vals.maxY, hash: r.counts.fw?.configHash ?? null, hashOk: a.target === 'original' || r.counts.fw?.configHash === row.hash, battery: bat });
         console.log(JSON.stringify(ran[ran.length - 1]));
-        await deps.sleep(10000);
-        const { verdict } = sense('visit-end', index);
-        saveState(dir, st);
-        if (verdict === 'locked') return stop(`the phone is locked: ${VERDICT_TEXT.locked}`);
-        if (verdict !== 'go') { st.pausedAtS = nowS(); log(`block ends after visit ${index}: ${VERDICT_TEXT[verdict]}`); over = true; }
+        if (!pin) {
+          await deps.sleep(10000);
+          const { verdict } = sense('visit-end', index);
+          saveState(dir, st);
+          if (verdict === 'locked') return stop(`the phone is locked: ${VERDICT_TEXT.locked}`);
+          if (verdict !== 'go') { st.pausedAtS = nowS(); log(`block ends after visit ${index}: ${VERDICT_TEXT[verdict]}`); over = true; }
+        }
         break;
       } catch (e) {
         const msg = String(e.message);
+        if (e.pin) {
+          st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'refused', attempts, faults, error: msg.slice(0, 300), pin: { why: e.why, phase: e.phase } }]);
+          st.lastEndMs = deps.now();
+          saveState(dir, st);
+          return stop(`visit ${index} (${a.id}) refused: ${msg}`);
+        }
         let usb;
         try { usb = deps.usbNow(start - 60000); } catch { usb = { verdict: 'ok', evidence: [] }; }
         const fault = classify(msg, usb.verdict);
@@ -226,7 +278,9 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
       }
     }
   }
-  if (last === null || last.phase !== 'visit-end') {
+  if (pin) {
+    if (last === null || last.phase !== 'visit-end') readPin('block-end', null, true, 0);
+  } else if (last === null || last.phase !== 'visit-end') {
     const { verdict } = sense('block-end', null);
     if (verdict !== 'go' && verdict !== 'locked') st.pausedAtS = nowS();
   }
@@ -269,7 +323,7 @@ export function tablesMarkdown(sum) {
 export function reduceDir({ dir, out }) {
   const st = loadState(dir);
   const done = st.visits.filter((v) => v.status === 'done').sort((a, b) => a.index - b.index);
-  const lost = st.visits.filter((v) => v.status === 'lost' || v.status === 'failed').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts, faults: faultsOfVisit(v), retryable: v.status === 'lost' && mayAttempt(faultsOfVisit(v)) }));
+  const lost = st.visits.filter((v) => v.status === 'lost' || v.status === 'failed' || v.status === 'refused').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts, faults: faultsOfVisit(v), retryable: v.status === 'lost' && mayAttempt(faultsOfVisit(v)) }));
   const visitsDone = [], meta = [];
   let device = null;
   for (const v of done) {
@@ -284,7 +338,7 @@ export function reduceDir({ dir, out }) {
   const summary = {
     schema: 'fw.phone.end-counts/1', device, consts: P.PA, order: st.session ?? P.SESSION.map((a) => a.id), visits: meta, notRun: lost,
     anomalies: P.anomalies(visitsDone), base: sum.base, arms: st.session ? sum.arms.filter((a) => a.visits > 0) : sum.arms,
-    thermal: st.thermal ?? [], firstTempC: st.firstTemp ?? null,
+    thermal: st.thermal ?? [], firstTempC: st.firstTemp ?? null, pin: st.pin ?? null,
   };
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 1) + '\n');
