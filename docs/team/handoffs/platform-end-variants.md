@@ -1,20 +1,21 @@
 branch: worktree-wf_95345f2e-b29-1
 worktree: .claude/worktrees/wf_95345f2e-b29-1 (under the repo root)
-last commit: see git log (handoff written after dispatch)
-task: platform-end-variants, STEP 1 only (measure; no step-2 builds).
+last commit: see git log; step 1 complete (measure only; no step-2 build)
 
-CI runs (all dispatched with `pnpm -s fw run --target rewrite --ref main`, sha 5c8cccc, 2026-10-25; unchanged code, so no ci/ push):
+CI runs (dispatched with `pnpm -s fw run --target rewrite --ref main`, main 5c8cccc, unchanged code, no ci/ push):
 | id | lane | arm | state |
 |---|---|---|---|
-| 40203774734 | webkit-sim vms=3 | base | queued (macOS) |
-| 40203759230 | webkit-sim vms=3 | platform.sweep:offscreen-pause | queued (macOS) |
-| 40203790654 | webkit-sim vms=3 | platform.glint:offscreen-pause | queued (macOS) |
-| 40203753344 | chromium-counts swipe-touch-v1 x3 | base | complete (success) |
-| 40203778407 | chromium-counts swipe-touch-v1 x3 | platform.sweep:offscreen-pause | complete (success) |
-| 40203771621 | chromium-counts swipe-touch-v1 x3 | platform.glint:offscreen-pause | complete (success) |
-| 40203756095 | chromium-counts swipe-touch-v1 x3 | platform:fade-threaded | complete (success) |
-Not dispatched: webkit fade-threaded (already a WebKit no-win, ledger platform:fade-threaded).
+| 40203774734 | webkit-sim vms=3 | base | r2, r3 success, r1 cancelled (runner), run cancelled |
+| 40203759230 | webkit-sim vms=3 | platform.sweep:offscreen-pause | success |
+| 40203790654 | webkit-sim vms=3 | platform.glint:offscreen-pause | success |
+| 40203753344 | chromium-counts swipe-touch-v1 x3 | base | success |
+| 40203778407 | chromium-counts | platform.sweep:offscreen-pause | success |
+| 40203771621 | chromium-counts | platform.glint:offscreen-pause | success |
+| 40203756095 | chromium-counts | platform:fade-threaded | success |
 
-verified: Chromium 4 runs done and read (script scratchpad/pev/ch.mjs, gitignored; recreate: frames of counts.json, phases by first scrollY==5342 frame 574, cmp/judge from packages/measure-chromium/src/offscreen.mjs). Finish zone all three arms noGain (sweep +1 recalc, raster -59 in approach only; glint same; fade-threaded raster area 2.1x). WebKit runs: macOS jobs queued 2 h; base r1 started 16:37Z, the rest still queued at 16:50Z. The three `fw run` waiters for webkit died (poller: nonce matches several runs, same id twice, exit 1) but the GitHub runs live; wait with `pnpm -s fw ci wait <id>` and download with `gh run download <id> -p "webkit-sim-r*"`, no refile needed. open: read counts, Lean verdict rule, write research/notes/2026/10-2x-platform-end-variants.md and ledger notes.
-
-2026-10-26 update: webkit state: base 40203774734 r1 cancelled after 58 min (runner), r2 success, r3 queued; sweep 40203759230 and glint 40203790654 r1,r2 success, r3 queued. Artifacts read with scratchpad/pev/wk.mjs (gitignored; per-step perStep counts of passes[].scroll.reduced, zones y4500 / y5000, cmp+judge twin). Lane has scroll zones only: no morph open/close push on WebKit (that is the lag/cost lane, no fw run input). Base has 2 passes until r3 lands (Lean minRuns 3 -> noData).
+verified: all 7 runs read; note research/notes/2026/10-2x-platform-end-variants.md (answer first); ledger notes appended (3 rows).
+Result: no existing variant wins at the page end on either engine (Lean cmp/judge twin); fade-threaded Chromium no-win (area 2.1x);
+premises for step-2 (a) sweep, (b) glint, (c) entries are NOT measured (pause arms are no-ops while visible); next = attribution arm per part.
+open: attribution arms (follow-up round); WebKit open/close push split needs the lag/cost lane (no fw run input); fw run webkit waiter bug
+(nonce matches the same run id twice, exit 1; runs fine). Scratch scripts scratchpad/pev/{ch,wk}.mjs are not committed (rebuild from run ids; recipe in the note).
+read first: the note.

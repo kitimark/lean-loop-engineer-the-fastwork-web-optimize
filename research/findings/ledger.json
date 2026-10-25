@@ -4549,6 +4549,24 @@
    "task": "phone-end-counts",
    "field": "lesson",
    "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts, area, layers and frames same as the base in every zone; no phone effect in this lane (Simulator: -3 layouts, 39325721909). Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: Chromium no-win. MEASURED (chromium-counts swipe-touch-v1 x3, base run 40203753344, flag run 40203756095, main 5c8cccc): over the finish zone (201 frames) Paint, PrePaint, Layout, Commit and style counts are equal or inside the base range, raster invalidation area 292 M px against 137 M px (2.1x), census layers +0.6 %. The first 20 frames at the page end show 23 Paint and 26 PrePaint fewer (Lean verdict rule: gain) and the next 40 show the same numbers more, so the work moves, it does not leave. Zone verdict noGain. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: no gain at the page end on either engine. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203778407; WebKit Simulator 3 VMs base 40203774734, flag 40203759230): every end push phase equal on Chromium (finish zone +1 RecalcStyle, which the Lean rule reads as more); before the end the pause saves 59 of 236 raster tasks (34 frames). WebKit: ObserverCallback +2 to +4 per zone (its own observer), Paint at y 5000-5231 43-70 against 65-84 overlaps. The pause is a no-op while the section is on screen, so the arm cannot attribute the sweep's cost inside the push. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: re-check at the page end, no difference. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203771621; WebKit Simulator 3 VMs base 40203774734, flag 40203790654): every counter equal in every Chromium push phase and WebKit zone (WebKit whole-run Layout 631-659 against 592-624 is the one more, outside the end). Agrees with the proved faithful_no_ticks_away. Note research/notes/2026/10-2x-platform-end-variants.md."
   }
  ]
 }
