@@ -12,6 +12,7 @@ export const HOOK_SYMBOLS = [
   'WTR::UIScriptControllerIOS::endInteractiveObscuredInsetsChange',
   'WTR::UIScriptControllerCocoa::setObscuredInsets',
 ];
+export const CONTROL_FLAG = 'compositable';
 export const HOOK_NAMES = ['beginInteractiveObscuredInsetsChange', 'setObscuredInsets', 'endInteractiveObscuredInsetsChange'];
 
 export function parseGolden(text) {
@@ -100,6 +101,12 @@ export function judgeReport(golden, prod, report, archive = null) {
   const exempt = golden.exempt.get(flag);
   add('exempt', exempt !== undefined && Number.isFinite(med) && liftedBy(med, golden.walk.liftedBelowMs) === exempt,
     `median wait ${Number.isFinite(med) ? med.toFixed(1) : 'none'} ms of ${waits.length} sets after the first (bound ${golden.walk.liftedBelowMs} ms), golden exempt ${exempt}; page animations ${JSON.stringify(report.lift)}`);
+  if (flag === CONTROL_FLAG) {
+    const l = report.lift ?? {};
+    const tl = l.timelines ?? [];
+    add('control-anim', l.animations === 1 && tl.length === 1 && tl.every((t) => t === 'DocumentTimeline') && (l.states ?? []).every((x) => x === 'running') && (l.states ?? []).length === 1,
+      `page animations ${JSON.stringify(l)} (one running time-based animation, no scroll timeline)`);
+  }
   return { flag, pass: report.meta?.pass ?? null, ok: checks.every((c) => c.ok), medianWaitMs: med, waitsMs: waits, checks };
 }
 

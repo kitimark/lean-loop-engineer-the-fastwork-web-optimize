@@ -1,10 +1,11 @@
+// The 'compositable' arm is the negative control: a time-based transform animation (compositor-only), no scroll timeline.
 // WKTR UI-script hooks, as LayoutTests/resources/ui-helper.js:2018-2050@862f17d:
 //   uiController.beginInteractiveObscuredInsetsChange()      Tools/WebKitTestRunner/ios/UIScriptControllerIOS.mm:1486-1489
 //   uiController.setObscuredInsets(top, right, bottom, left) Tools/WebKitTestRunner/cocoa/UIScriptControllerCocoa.mm:683-692
 //   uiController.endInteractiveObscuredInsetsChange()        Tools/WebKitTestRunner/ios/UIScriptControllerIOS.mm:1491-1494
 import { unthrottleCss } from '../../../apps/site/src/parts/engine.scroll/unthrottle.ts';
 
-export const FLAGS = ['default', 'touch-first', 'open-once', 'unthrottle'];
+export const FLAGS = ['default', 'touch-first', 'open-once', 'unthrottle', 'compositable'];
 export const INSETS_DOWN = [10, 20, 30, 40];
 export const INSETS_UP = [30, 20, 10, 0];
 export const SCROLLS = [120, 240, 360, 480, 360, 240, 120, 0];
@@ -40,6 +41,18 @@ const PAGE_SRC = `(() => {
       document.body.appendChild(el);
       await raf(); await raf(); await sleep(300);
       lift = { animations: document.getAnimations().length, value: getComputedStyle(el).getPropertyValue('--fw-ut') };
+    }
+    if (P.flag === 'compositable') {
+      const st = document.createElement('style');
+      st.textContent = P.controlCss;
+      const el = document.createElement('div');
+      el.id = 'ctl';
+      el.setAttribute('aria-hidden', 'true');
+      document.head.appendChild(st);
+      document.body.appendChild(el);
+      await raf(); await raf(); await sleep(300);
+      const anims = document.getAnimations();
+      lift = { animations: anims.length, timelines: anims.map((a) => a.timeline && a.timeline.constructor.name), states: anims.map((a) => a.playState), transform: getComputedStyle(el).transform };
     }
     const base = view();
     const vh0 = base.vvh;
@@ -84,6 +97,8 @@ const PAGE_SRC = `(() => {
   });
 })();`;
 
+export const CONTROL_CSS = '@keyframes fw-ctl { from { transform: translateX(0); } to { transform: translateX(80px); } } #ctl { position: fixed; left: 200px; top: 0; width: 40px; height: 40px; background: #cc6633; animation: fw-ctl 400ms linear infinite alternate; }';
+
 export const PLATFORM = { heightNum: 3, heightDen: 5, gap: 15 };
 
 const HOOKS = ['beginInteractiveObscuredInsetsChange', 'setObscuredInsets', 'endInteractiveObscuredInsetsChange'];
@@ -94,7 +109,7 @@ export function stepList() {
 
 export function toolbarHtml({ flag, settleMs = 800, timeoutMs = 600 } = {}) {
   if (!FLAGS.includes(flag)) throw new Error(`unknown flag ${flag}; known: ${FLAGS.join(', ')}`);
-  const params = { flag, settleMs, timeoutMs, platform: PLATFORM, hooks: HOOKS, steps: stepList(), unthrottleCss: unthrottleCss(), unthrottleAttr: 'data-fw-unthrottle' };
+  const params = { flag, settleMs, timeoutMs, platform: PLATFORM, hooks: HOOKS, steps: stepList(), unthrottleCss: unthrottleCss(), unthrottleAttr: 'data-fw-unthrottle', controlCss: CONTROL_CSS };
   const script = PAGE_SRC.replace('__PARAMS__', () => JSON.stringify(params));
   return `<!doctype html>
 <html lang="en">
