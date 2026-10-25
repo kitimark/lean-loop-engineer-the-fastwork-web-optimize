@@ -16408,7 +16408,8 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "morph-touch-band"
+    "morph-touch-band",
+    "morph-end-remeasure"
    ],
    "writes": [
     "packages/measure-webkit/src/lag/**",
@@ -16421,9 +16422,16 @@
     "lean/Fw/Ci/Trigger.lean",
     "lean/Fw/Ci/Intent.lean",
     "lean/Fw/Ci/Overflow.lean",
-    "packages/contracts/golden/ci/**"
+    "packages/contracts/golden/ci/**",
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "results/touch-first-scroll-probe/**",
+    "research/findings/ledger.json"
    ],
-   "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first."
+   "title": "Split from morph-touch-band (item webkit-touch-to-first-scroll undelivered: no lane). A WebKit probe of touch-to-first-scroll at the end of page (real touches via XCUITest on the iOS Simulator, as toolbar-throttle-probe did): time from touchstart to the first scrollY change and pan-start delay, per pan crossing the morph band, base vs ?fw=morph.mount:band,morph.tween:band (multi-flag prerender), >= 3 jobs. Also count scrollY still runs (5-6 frames, the toolbar throttle) over the end-of-page range for original, rewrite and ?fw=engine.scroll:throttle-lift, answering the user's 2026-10-22 question whether end-of-page lag is page cost or scroll-event limiting. Lean: the counted predicates and reduction with goldens first. Re-scoped 2026-10-25 (user: start the end-of-page variants not measured yet): add the arm ?fw=morph.mount:arm-late (ledger: WebKit touch-start to first scroll frame never measured, CI could not drive the touch gate) next to base and ?fw=morph.mount:band,morph.tween:band; drive real touches through the fixed Simulator touch lane of sim-touch-timeout (packages/measure-webkit/src/throttle/pass-run.mjs, the Lean SimTouch machine) rather than a new driver; per-arm verdict each decided on its own."
   },
   {
    "devices": [
@@ -20964,7 +20972,8 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "sim-touch-timeout"
+    "sim-touch-timeout",
+    "touch-first-scroll-probe"
    ],
    "writes": [
     "packages/measure-webkit/src/throttle/**",
@@ -21335,6 +21344,96 @@
    ],
    "title": "fw run's artifact download failed five times on 2026-10-25 with 'gh run download <id> failed: gh timed out after 40 s and was killed' although each run succeeded (one-chain 40153927556, 40153920231, 40153925235; columns 40156382719, 40156384878), so the results were not filed in the store and builders downloaded by hand. Do: find where the 40 s bound comes from (packages/gh-budget, apps/runner/src/run.ts or ci.ts; cite), measure artifact sizes and download times for those runs, size the timeout from the artifact size reported by the run's artifact list (or download per artifact with its own bound) and retry once on timeout without a second charge when GitHub already served it; Lean first if the store's decision changes (Fw.Store.Ci); golden replayed by the runner test; show one fw run that files a 3-VM WebKit run end to end.",
    "evidence": "41b263b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "const-bounds-counts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/const-bounds-counts/**",
+    "research/notes/2026/10-2x-const-bounds-counts.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/const-bounds-counts.md",
+    "lean/Fw/Parts/ConstBoundsCounts.lean",
+    "packages/contracts/golden/parts/const-bounds-counts.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.panel:const-bounds (ledger: WebKit and Chromium unknown; E under P1-P4). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. The flag conflicts with the nav flags (part.json conflicts), so it runs alone. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/ConstBoundsCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-fixed-counts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/nav-fixed-counts/**",
+    "research/notes/2026/10-2x-nav-fixed-counts.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/nav-fixed-counts.md",
+    "lean/Fw/Parts/NavFixedCounts.lean",
+    "packages/contracts/golden/parts/nav-fixed-counts.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): nav:clip-box, nav:bar-fixed and nav:logo-3d (cumulative arms; look-change class L, mid-morph look change on the local Simulator lane; WebKit and Chromium cost unknown). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. A count win decides whether a look review is worth posting (no look-review step without a count win). A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/NavFixedCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dormant-counts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/dormant-counts/**",
+    "research/notes/2026/10-2x-dormant-counts.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/dormant-counts.md",
+    "lean/Fw/Parts/DormantCounts.lean",
+    "packages/contracts/golden/parts/dormant-counts.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.mount:shift-dormant (ledger: WebKit unknown, Chromium trade; morph-layers measured -1052/-1136 drawing layers vs shift on Chromium). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. Compare against the rewrite default and say which mount variant the default arm runs. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/DormantCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+  },
+  {
+   "devices": [
+    "phone"
+   ],
+   "id": "phone-end-counts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/phone/2026-10-25-end-counts/**",
+    "research/notes/2026/10-25-phone-end-counts.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/phone-end-counts.md",
+    "lean/Fw/Device/PhoneArms.lean",
+    "packages/contracts/golden/device/phone-arms.jsonl",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "User 2026-10-25: 'you can try to measure on the iphone device. it already connected.' Measure the end-of-page and hero-exit variants on the real measurement iPhone with the automated lanes that need no swiping (packages/measure-webkit/src/device-cli.mjs counts: Timeline on, scripted 50 px steps, pinned clock; frames: scripted scroll at 800 px/s, frame intervals), session rules of docs/team/tools/device-lag-recorder.md and results/phone/2026-10-17-s1/README.md (blocks <= 15 min, cool >= 5 min, battery readouts; ping first). Arms, each 3 counts passes plus 1 warm-up and 5 frames reps, in an A/B/A order with the rewrite base repeated at the start, middle and end: original, rewrite, and rewrite with each flag alone: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, nav.hitTest:hit-skip, engine.events:quiet, morph.panel:const-bounds, nav:clip-box, nav:bar-fixed, nav:logo-3d, morph.mount:shift-dormant (drop an arm that loads the same page as another, with the reason). Reduce per zone (hero, finish, rest; 500 px zones) Layout, RecalculateStyles, Paint, Composite, FireAnimationFrame, FunctionCall, EventDispatch, and frame intervals (moving frames over 34 and 50 ms per 100); per arm verdict against the base, each arm decided on its own beyond the spread of the repeated base passes. Lean first: the arm plan and the per-arm verdict rule (lean/Fw/Device/PhoneArms.lean, golden replayed by a test); reuse Fw.Device.Session and the Classes policy where they fit. Commit only summaries (no timestamps, device ids, addresses); raw passes stay in .local/phone/2026-10-25/. Scripted scrolling does not move the Safari toolbar, so the toolbar throttle and touch-path flags (engine.scroll:unthrottle, morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope here (named). Compare each phone verdict with the CI Simulator verdict where one exists (run ids)."
   }
  ],
  "deadline": {
