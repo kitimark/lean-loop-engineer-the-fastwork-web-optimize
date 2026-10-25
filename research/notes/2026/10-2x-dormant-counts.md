@@ -72,8 +72,8 @@ also `same` in every cell of every zone (hero Layout 390 / 406 / 366 against 373
 - Reducer (glue): `results/dormant-counts/reduce.mjs`; reduced input `results/dormant-counts/zones.json`, which
   `Fw.Parts.DormantCounts.gen ["--from", path]` copies into the first line of the golden. `--check` (the check.sh job)
   decides again from that line, so it reads only the golden. The verdicts come from Lean only.
-- Run 40196227509 had its filing (`fw run --from-run`) still pending when this was written; its three VM artifacts (r1 to
-  r3, all success) were read from `gh run download`, so n is 3. The other arms are read from the filed store. Earlier
+- Run 40196227509: its filing (`fw run --from-run`) took over an hour, so its three VM artifacts (r1 to r3, all success)
+  were read from `gh run download` (n is 3); the filing has since finished. The other arms are read from the filed store. Earlier
   attempts of this run lost Simulator VMs to the Determinism-session stall (owned by macos-vm-evidence); the final
   attempt has all three.
 
