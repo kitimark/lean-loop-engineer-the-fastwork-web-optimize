@@ -21714,9 +21714,11 @@
     "research/notes/2026/10-2x-toolbar-proof-morph.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/toolbar-proof-morph.md",
-    "research/notes/2026/10-25-toolbar-native.md"
+    "research/notes/2026/10-25-toolbar-native.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw.lean"
    ],
-   "title": "User 2026-10-25: 'can we make the animation render smoothly even while the toolbar resizes the viewport on each direction change?' Builds on research/notes/2026/10-2x-scroll-throttle-parts.md (fixes ranked 1-5; facts CONFIRMED there: during the inset change scrollY, getBoundingClientRect, scroll events and visualViewport are stale up to 100 ms and resize/layout are suppressed; threaded scroll-driven animations (opacity, transform, filter) and position: fixed/sticky layers move in the UI process every frame) and on push-cycle-lag's H1-H4 verdicts. Candidates, each its own flag, Lean first, same look unless marked: (a) trace why the morph reopens 8-41 times per pass at the end (fix 5, never a task) and make one push open it once, same look on first open; (b) take the morph arm/close geometry from toolbar-independent values (finger deltas, svh/lvh lengths, layout positions) instead of stale innerHeight/visualViewport/scrollY during an inset change; (c) move the morph's per-frame visuals that can be (panel opacity/scale/blur, platform fade, nav colour layers) to threaded animations so the UI process draws them every frame while the toolbar moves; (d) LOOK/UX CHANGE, user review only: scroll the page inside a container so Safari's toolbar does not collapse at all. Each: breakpoint gate both engines, counts per zone, push-cycle profile (CI Simulator real touches) and the phone replay in pinned Serious; negative results recorded with mechanism. Added 2026-10-25 (r483, from the checked toolbar-native research; inputs .local/research/toolbar-native/research.md and check.md, read the check first: it refutes ranks 2-4 and lane b of the research). First write research/notes/2026/10-25-toolbar-native.md from both files, keeping only claims the check let stand, with the check's corrections (file:line@862f17d). Findings that hold: iOS WebKit has no page-side per-frame toolbar handler; the UI process moves fixed/sticky layers every frame while the page's visible-rect updates (scroll offset included) are throttled to 100 ms, unless a progress-based scroll-driven animation runs on the main thread (our engine.scroll:unthrottle). Candidates added: (e) decide the push on the first touchmove (still preventable: the native pan waits for it) and never start pinning once the native pan has begun; touchstart is refuted (no direction, kills taps); (f) count unthrottle's own per-frame Layout and style cost (viewport-unit invalidation, vh included) so it is a measured trade, not assumed free; (g) overscroll-behavior-y: none while armed goes to the look-change class. Dropped: the lvh/svh probe-element idea and 'dvh vs vh saves layout' (refuted). Reproduction lanes: (a) Simulator XCUITest swipe (toolbar-throttle.yml), count the 10 Hz steps of visualViewport.height; (c1) WKTR forced inset via UIHelper begin/setObscuredInsets/endInteractiveObscuredInsetsChange with interleaved scrollTo, as a deterministic regression gate on CI; (c2) optional host app with the WKScrollViewTests SPI; real-phone safaridriver swipes stay blocked by the replay wedge in 10-2x-device-replay.md; no Playwright-Linux toolbar lane. Lean: the arm decision is proved equal for viewport height h and h+toolbar. r487 (user 2026-10-25: 'start toolbar-proof-morph now, don't wait for push-cycle-lag'): the dependency on push-cycle-lag is dropped; its findings are not inputs of this task."
+   "title": "User 2026-10-25: 'can we make the animation render smoothly even while the toolbar resizes the viewport on each direction change?' Builds on research/notes/2026/10-2x-scroll-throttle-parts.md (fixes ranked 1-5; facts CONFIRMED there: during the inset change scrollY, getBoundingClientRect, scroll events and visualViewport are stale up to 100 ms and resize/layout are suppressed; threaded scroll-driven animations (opacity, transform, filter) and position: fixed/sticky layers move in the UI process every frame) and on push-cycle-lag's H1-H4 verdicts. Candidates, each its own flag, Lean first, same look unless marked: (a) trace why the morph reopens 8-41 times per pass at the end (fix 5, never a task) and make one push open it once, same look on first open; (b) take the morph arm/close geometry from toolbar-independent values (finger deltas, svh/lvh lengths, layout positions) instead of stale innerHeight/visualViewport/scrollY during an inset change; (c) move the morph's per-frame visuals that can be (panel opacity/scale/blur, platform fade, nav colour layers) to threaded animations so the UI process draws them every frame while the toolbar moves; (d) LOOK/UX CHANGE, user review only: scroll the page inside a container so Safari's toolbar does not collapse at all. Each: breakpoint gate both engines, counts per zone, push-cycle profile (CI Simulator real touches) and the phone replay in pinned Serious; negative results recorded with mechanism. Added 2026-10-25 (r483, from the checked toolbar-native research; inputs .local/research/toolbar-native/research.md and check.md, read the check first: it refutes ranks 2-4 and lane b of the research). First write research/notes/2026/10-25-toolbar-native.md from both files, keeping only claims the check let stand, with the check's corrections (file:line@862f17d). Findings that hold: iOS WebKit has no page-side per-frame toolbar handler; the UI process moves fixed/sticky layers every frame while the page's visible-rect updates (scroll offset included) are throttled to 100 ms, unless a progress-based scroll-driven animation runs on the main thread (our engine.scroll:unthrottle). Candidates added: (e) decide the push on the first touchmove (still preventable: the native pan waits for it) and never start pinning once the native pan has begun; touchstart is refuted (no direction, kills taps); (f) count unthrottle's own per-frame Layout and style cost (viewport-unit invalidation, vh included) so it is a measured trade, not assumed free; (g) overscroll-behavior-y: none while armed goes to the look-change class. Dropped: the lvh/svh probe-element idea and 'dvh vs vh saves layout' (refuted). Reproduction lanes: (a) Simulator XCUITest swipe (toolbar-throttle.yml), count the 10 Hz steps of visualViewport.height; (c1) WKTR forced inset via UIHelper begin/setObscuredInsets/endInteractiveObscuredInsetsChange with interleaved scrollTo, as a deterministic regression gate on CI; (c2) optional host app with the WKScrollViewTests SPI; real-phone safaridriver swipes stay blocked by the replay wedge in 10-2x-device-replay.md; no Playwright-Linux toolbar lane. Lean: the arm decision is proved equal for viewport height h and h+toolbar. r487 (user 2026-10-25: 'start toolbar-proof-morph now, don't wait for push-cycle-lag'): the dependency on push-cycle-lag is dropped; its findings are not inputs of this task. r489 (after round-1 review): the Simulator toolbar lane and the WKTR forced-inset gate are split into toolbar-sim-lane and toolbar-wktr-gate; until toolbar-sim-lane shows touch-driven same look, touch-first and open-once are filed as proposals (look-change class L), not optimized. The stated Lean goal 'arm decision equal for h and h+toolbar' is refuted (armed_differs_in_band): a finding, recorded in the ledger."
   },
   {
    "devices": [
@@ -21758,6 +21760,58 @@
     "lean/Fw/Ci/Telemetry.lean",
     "research/notes/2026/10-25-macos-vm-loss.md",
     "docs/team/handoffs/macos-vm-evidence.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-sim-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-end-remeasure",
+    "toolbar-proof-morph"
+   ],
+   "title": "Split from toolbar-proof-morph (review 2026-10-25). Run the Simulator XCUITest toolbar lane (toolbar-throttle.yml, touch swipes that move the real Safari toolbar) with arms default, morph.mount:touch-first, morph.mount:open-once and engine.scroll:unthrottle, at least 3 passes each beside a default pass in the same job. Report per arm: the 10 Hz steps of visualViewport.height, reversals, closes/re-opens per gesture, Layout and RecalcStyle per frame (the measured cost of unthrottle, candidate f, replacing the 6x model), and a touch-driven same-look check flag on vs off (frame hashes or the morph state trace). Verdict per flag win/no-win/trade; touch-first and open-once move from proposal (L) to optimized only if same look is shown. Lean: per-arm reducers in the existing MorphEndCount/MorphMountToolbar modules with golden. Inherit the macos-vm-evidence fixes if landed; lost VMs are named failures.",
+   "writes": [
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Measure/MorphEndCount.lean",
+    "lean/Fw/Parts/MorphMountToolbar.lean",
+    "packages/contracts/golden/device/morph-end-count.jsonl",
+    "packages/contracts/golden/parts/morph-mount-toolbar.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.mount/part.json",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-toolbar-sim-lane.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/toolbar-sim-lane.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-wktr-gate",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "toolbar-proof-morph"
+   ],
+   "title": "Split from toolbar-proof-morph (review 2026-10-25). A deterministic CI gate in WKTR on the Simulator that forces the toolbar inset change: UIHelper.beginInteractiveObscuredInsetsChange, setObscuredInsets stepped 0 -> 40 with interleaved scrollTo (each set waits for a presentation update, so it is step-wise), endInteractiveObscuredInsetsChange (ui-helper.js:2018-2050, UIScriptControllerIOS.mm:1486-1494 @862f17d). First confirm the hooks exist in our WKTR build (archive symbol check: CONFIRMED or not-runnable with the reason). The gate asserts the morph arm decision and the unthrottle exemption per flag (default, touch-first, open-once, unthrottle) against Lean (MorphMountToolbar). lvh/svh are not overridden in WKTR: state that limit.",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr*.yml",
+    "lean/Fw/Parts/MorphMountToolbar.lean",
+    "packages/contracts/golden/parts/morph-mount-toolbar.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-toolbar-wktr-gate.md",
+    "docs/team/handoffs/toolbar-wktr-gate.md"
    ]
   }
  ],
