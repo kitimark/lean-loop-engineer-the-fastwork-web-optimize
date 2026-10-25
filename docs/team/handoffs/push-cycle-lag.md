@@ -1,9 +1,10 @@
 branch: worktree-wf_d4bb5016-cf9-1 (CI branch ci/push-cycle-lag)
 worktree: .claude/worktrees/wf_d4bb5016-cf9-1 (under the main checkout)
 last commit: 2bb2a897b (push 1 of at most 3; request commit, empty)
-CI runs: toolbar-throttle 40206864819 in_progress; chromium-counts 40206864910 in_progress; lean 40206864857 in_progress
-verified: Lean PushCycle model + golden (check passes), WebKit and Chromium twin tests (node --test), ci-paths test
-open: CI results of push 1 (dwell 0.3 s); push 2 (dwell 1 s: marker throttle:push-cycle:1000 and profile=push-cycle-d1000); per-hypothesis verdicts; research note; full check.sh, dry land, review ready
+CI runs: toolbar-throttle 40206864819 running (sim 3 in progress, sims 1 and 2 queued on macOS); chromium-counts 40206864910 success; lean 40206864857 success
+verified: Lean check.sh green; WebKit, Chromium and runner (land-inputs, ci-triggers) package tests pass; ci-paths test passes; plan lint has no push-cycle-lag writesClosure line
+chromium (dwell 300, 3 runs per arm, downloaded to the scratchpad): window k=0 carries the first-time cost (raster invalidation 14.1M px against 2.1-3.1M later); layers stay constant (107 rewrite, 35 user composition), only 4 layers churn at k=2 and k=5; Layout/Paint do not fall in cycles 2 and 4 (Paint 452 and 468 against 408 at k=0); the user composition equals rewrite on Layout/Paint/Raster and differs only in UpdateLayer (about 1900 against 7960) and layer count.
+open: WebKit sim results of push 1 (dwell 0.3 s); push 2 (dwell 1 s: marker throttle:push-cycle:1000 and profile=push-cycle-d1000); per-hypothesis verdicts; research note; full check.sh, dry land, review ready
 
 # State
 - Lean: lean/Fw/Measure/PushCycle.lean (cost model, trend, H1-H4 premises and verdicts, cycle plan, phone profile), golden packages/contracts/golden/measure/push-cycle.jsonl, wired in lean/scripts/check.sh, Fw.lean, Fw/Ci/Trigger.lean.
