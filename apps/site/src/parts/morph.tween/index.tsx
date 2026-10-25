@@ -4,7 +4,7 @@ import { registerScroll } from '../../engine/scroll';
 import { createThreadedFade, type FadeEl } from '../platform/fade.driver';
 import { isBand } from '../morph.mount/listen.logic';
 import { touchHub, type TouchClient, type TouchHub } from '../morph.mount/listen';
-import { setRest } from '../morph.panel/rest.logic';
+import { REST_VARIANT, setRest } from '../morph.panel/rest.logic';
 import { THREADED } from '../morph.panel/threaded.logic';
 import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
 import { cfgOf, hooksOf } from './end.hooks';
@@ -22,12 +22,12 @@ export interface MorphTweenProps {
   platformSelector?: string;
   navSelector?: string;
   platformFade?: boolean;
-  platformRest?: boolean;
 }
 
-export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false, platformRest = false }: MorphTweenProps) {
+export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false }: MorphTweenProps) {
   useEffect(() => {
     const root = document.documentElement;
+    const platformRest = window.__fw?.config.variants['morph.panel'] === REST_VARIANT;
     root.setAttribute('data-fw-morph-tween', '');
     const reduce = matchList('mq.rm-reduce');
     const platform = () => document.querySelector<HTMLElement>(platformSelector);
@@ -76,7 +76,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       unband?.();
       root.removeAttribute('data-fw-morph-tween');
     };
-  }, [variant, platformSelector, navSelector, platformFade, platformRest]);
+  }, [variant, platformSelector, navSelector, platformFade]);
   return null;
 }
 
