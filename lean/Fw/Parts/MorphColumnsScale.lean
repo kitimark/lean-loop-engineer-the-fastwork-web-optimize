@@ -9,12 +9,12 @@ namespace Fw.Parts.MorphColumnsScale
 
 open Fw.Parts.Nav
 
-def gap : Rat := 12
-def bleed : Rat := 53 / 50
+def gap (_ : Unit := ()) : Rat := 12
+def bleed (_ : Unit := ()) : Rat := 53 / 50
 def cols (v : Vp) : Rat := if phone v.w then 3 else 5
 
 /-- The width below which the variant draws nothing different (the original's `mq.w-le-1000`). -/
-def scaleMaxW : Rat := 1000
+def scaleMaxW (_ : Unit := ()) : Rat := 1000
 def applies (v : Vp) : Bool := decide (v.w ≤ scaleMaxW)
 
 def backW (v : Vp) (m : Rat) : Rat := bleed * navWidth v false m
@@ -86,9 +86,9 @@ theorem final_at_one (v : Vp) (hf : finalW v ≠ 0) : sx v 1 = 1 ∧ tx v 1 0 = 
 /-! ## Look-change bound -/
 
 def radiusX (v : Vp) (m : Rat) : Rat := 12 * sx v m
-def radiusY : Rat := 12
-def gapDrawn : Rat := gap * 1
-def driftDrawn : Rat := 56 * 1
+def radiusY (_ : Unit := ()) : Rat := 12
+def gapDrawn (_ : Unit := ()) : Rat := gap * 1
+def driftDrawn (_ : Unit := ()) : Rat := 56 * 1
 
 theorem vertical_exact (h : Rat) : gapDrawn = 12 ∧ driftDrawn = 56 ∧ radiusY = 12 ∧ h * 1 = h := by
   unfold gapDrawn driftDrawn radiusY gap; refine ⟨by grind, by grind, rfl, by grind⟩
@@ -108,7 +108,7 @@ theorem sx_mem (v : Vp) (hf : 0 < finalW v) (h0 : colW v 0 ≤ finalW v) (m : Ra
   have := Rat.mul_le_mul_of_nonneg_left hm1 h1
   grind
 
-def vp390 : Vp := ⟨390, 844⟩
+def vp390 (_ : Unit := ()) : Vp := ⟨390, 844⟩
 
 theorem a_390 : 97 / 100 ≤ a vp390 := by
   decide +kernel
@@ -207,9 +207,9 @@ theorem a_desktop : a ⟨1440, 900⟩ < 7 / 10 := by
 theorem a_narrow : a ⟨280, 600⟩ < 97 / 100 := by
   decide +kernel
 
-def widths : List Int := [320, 360, 390, 414, 640, 641, 768, 834, 1000, 1001, 1280]
+def widths (_ : Unit := ()) : List Int := [320, 360, 390, 414, 640, 641, 768, 834, 1000, 1001, 1280]
 
-def morphs : List Int := [0, 1, 100, 250, 500, 750, 900, 999, 1000]
+def morphs (_ : Unit := ()) : List Int := [0, 1, 100, 250, 500, 750, 900, 999, 1000]
 
 def vpOf (w : Int) : Vp := ⟨w, 800⟩
 
