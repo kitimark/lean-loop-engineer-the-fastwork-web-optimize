@@ -41,12 +41,14 @@ export function stopAct(alive, sent, sinceS) {
 }
 export const MAY_BE_ALIVE = Object.freeze({ idle: false, starting: true, held: true, stopping: true, stopped: false });
 export const closeAct = (phase) => (MAY_BE_ALIVE[phase] ? 'stopOwner' : 'nothing');
-export function endVerdict(target, ownerGone, back) {
+export function endVerdict(target, ownerGone, acked, back) {
   if (!ownerGone) return 'stuck';
+  if (!acked) return 'unconfirmed';
   if (back === null || back === undefined) return 'unread';
   return RANK[back] < RANK[target] ? 'cleared' : 'heatRemains';
 }
-export const conditionSet = (ownerGone) => !ownerGone;
+export const conditionSet = (ownerGone, acked) => !(ownerGone && acked);
+export const recoverAct = (hasRecord, alive, acked) => (!hasRecord ? 'nothing' : alive ? 'stopOwner' : acked ? 'nothing' : 'clearCycle');
 export const clearWait = (target, back, waitedS) => waitedS < PIN.clearWaitMaxS && !(back !== null && back !== undefined && RANK[back] < RANK[target]);
 export const mayKill = (recPid, curPid, recStart, curStart) => recPid === curPid && recStart !== '' && recStart === curStart;
 
@@ -88,11 +90,45 @@ export function profileListed(listJson, profile) {
 const OWNER_FILE = 'pin-owner.json';
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** One process we start holds the induced condition: `pymobiledevice3 developer dvt condition set <profile> --userspace`.
+/** The owner process: set the condition, hold the connection, and on SIGTERM clear it on that same connection, wait for a
+ *  reply after the clear, print the acknowledgement and exit. MEASURED: a clear from another connection does nothing and an
+ *  owner ended without this clear leaves the induced state on the phone. The imports are the pinned pymobiledevice3 11.44.0. */
+export const OWNER_PY = `
+import asyncio, os, signal, sys
+from pymobiledevice3.remote import userspace_tunnel
+from pymobiledevice3.services.dvt.instruments.condition_inducer import ConditionInducer
+from pymobiledevice3.services.dvt.instruments.dvt_provider import DvtProvider
+
+async def main(profile):
+    pid = os.getpid()
+    rsd = await userspace_tunnel.establish_userspace_rsd(serial=None)
+    async with DvtProvider(rsd) as dvt, ConditionInducer(dvt) as ci:
+        await ci.set(profile)
+        print("fw-pin held pid=%d" % pid, flush=True)
+        stop = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, stop.set)
+        await stop.wait()
+        await ci.clear()
+        await ci.list()
+        print("fw-pin cleared pid=%d" % pid, flush=True)
+
+asyncio.run(main(sys.argv[1]))
+`;
+
+const pipxPython = (run) => {
+  const r = run('pipx', ['environment', '--value', 'PIPX_LOCAL_VENVS'], { encoding: 'utf8' });
+  if (r.status !== 0 || !r.stdout.trim()) throw new Error('pipx environment failed; set FW_PYMD3_PYTHON to the pymobiledevice3 venv python');
+  return join(r.stdout.trim(), 'pymobiledevice3', 'bin', 'python');
+};
+
+/** One process we start holds the induced condition (OWNER_PY, run with the pymobiledevice3 venv python).
  *  It is signalled only after its recorded pid and start time match the live process. */
 export class ConditionOwner {
-  constructor({ dir, log = () => {}, cli = process.env.FW_PYMD3 || 'pymobiledevice3', spawn = nodeSpawn, run = spawnSync, ps = psInfo, kill = process.kill.bind(process), now = Date.now, sleep = sleepMs } = {}) {
-    Object.assign(this, { dir, log, cli, spawn, run, ps, kill, now, sleep });
+  constructor({ dir, log = () => {}, cli = process.env.FW_PYMD3 || 'pymobiledevice3', python = process.env.FW_PYMD3_PYTHON || null, spawn = nodeSpawn, run = spawnSync, ps = psInfo, kill = process.kill.bind(process), now = Date.now, sleep = sleepMs, readLog } = {}) {
+    Object.assign(this, { dir, log, cli, python, spawn, run, ps, kill, now, sleep });
+    this.readLog = readLog ?? (() => (existsSync(join(dir, 'pin-owner.log')) ? readFileSync(join(dir, 'pin-owner.log'), 'utf8') : ''));
     this.phase = 'idle';
     this.rec = null;
     this.recFile = join(dir, OWNER_FILE);
@@ -117,6 +153,9 @@ export class ConditionOwner {
     return p !== null && !p.stat.startsWith('Z') && mayKill(this.rec.pid, this.rec.pid, this.rec.start, p.start);
   }
 
+  /** The owner printed its clear acknowledgement (after a reply from the phone). */
+  acked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin cleared pid=${pid}`); }
+
   signal(sig) {
     if (!this.alive()) return false;
     try { this.kill(this.rec.pid, sig); return true; } catch { return false; }
@@ -127,31 +166,45 @@ export class ConditionOwner {
     this.phase = 'starting';
     if (!profileListed(this.list(), profile)) throw new Error(`condition list has no ${profile} in ThermalCondition`);
     mkdirSync(this.dir, { recursive: true });
+    const py = this.python ?? pipxPython(this.run);
     const out = openSync(join(this.dir, 'pin-owner.log'), 'a');
     let child;
     try {
-      child = this.spawn(this.cli, ['developer', 'dvt', 'condition', 'set', profile, '--userspace'], { detached: true, stdio: ['ignore', out, out] });
+      child = this.spawn(py, ['-c', OWNER_PY, profile], { detached: true, stdio: ['ignore', out, out] });
     } finally { closeSync(out); }
     child.unref?.();
     child.on?.('error', () => {});
     const p = this.ps(child.pid);
     if (!p) { try { child.kill?.('SIGTERM'); } catch { /* the handle is ours */ } throw new Error('the condition owner process is not running right after the spawn'); }
     this.rec = null;
-    this.save({ pid: child.pid, start: p.start, profile, target, spawnedAt: new Date(this.now()).toISOString(), stoppedAt: null });
+    this.save({ pid: child.pid, start: p.start, profile, target, spawnedAt: new Date(this.now()).toISOString(), stoppedAt: null, acked: false });
     this.log(`condition owner started: pid ${child.pid}, ${profile}`);
     return this.rec;
   }
 
-  /** Stop an owner a crashed run left behind, if the recorded pid and start time still match. */
+  /** From the record an earlier run left (Lean recoverAct): stop a live owner, or run one set-and-clear cycle for an owner
+   *  that ended without acknowledging its clear. */
   async recover() {
     if (!existsSync(this.recFile)) return false;
     const rec = JSON.parse(readFileSync(this.recFile, 'utf8'));
-    if (rec.stoppedAt) return false;
     this.rec = rec;
-    if (!this.alive()) { this.save({ stoppedAt: new Date(this.now()).toISOString(), stoppedBy: 'recover-gone' }); return false; }
-    this.log(`an owner from an earlier run is alive (pid ${rec.pid}); stopping it`);
-    const r = await this.stop();
-    if (!r.gone) throw new Error(`the owner from an earlier run (pid ${rec.pid}) did not stop`);
+    const alive = this.alive();
+    const acked = rec.acked === true || this.acked(rec.pid);
+    const act = recoverAct(true, alive, acked);
+    if (act === 'nothing') { if (!rec.stoppedAt) this.save({ stoppedAt: new Date(this.now()).toISOString(), stoppedBy: 'recover-gone', acked }); return false; }
+    let done = false;
+    if (act === 'stopOwner') {
+      this.log(`an owner from an earlier run is alive (pid ${rec.pid}); stopping it`);
+      const r = await this.stop();
+      if (!r.gone) throw new Error(`the owner from an earlier run (pid ${rec.pid}) did not stop`);
+      done = r.acked;
+    }
+    if (!done) {
+      this.log(`the owner from an earlier run ended without confirming its clear; one set-and-clear cycle (${rec.profile})`);
+      await this.start({ profile: rec.profile, target: rec.target });
+      const r = await this.stop();
+      if (!r.gone || !r.acked) throw new Error('the clear cycle for the earlier run did not confirm; stop and check the phone by hand');
+    }
     return true;
   }
 
@@ -164,7 +217,7 @@ export class ConditionOwner {
       const sinceS = sentAt === null ? 0 : (this.now() - sentAt) / 1000;
       const act = stopAct(this.alive(), sent, sinceS);
       if (act === 'done') break;
-      if (act === 'stuck') { this.log(`condition owner pid ${this.rec.pid} did not exit after SIGKILL`); return { gone: false, signals }; }
+      if (act === 'stuck') { this.log(`condition owner pid ${this.rec.pid} did not exit after SIGKILL`); return { gone: false, acked: false, signals }; }
       if (act === 'term' || act === 'kill') {
         const sig = act === 'term' ? 'SIGTERM' : 'SIGKILL';
         this.signal(sig);
@@ -174,8 +227,9 @@ export class ConditionOwner {
       } else await this.sleep(250);
     }
     this.phase = 'stopped';
-    if (this.rec) this.save({ stoppedAt: new Date(this.now()).toISOString(), signals });
-    return { gone: true, signals };
+    const acked = this.rec === null || this.acked();
+    if (this.rec) this.save({ stoppedAt: new Date(this.now()).toISOString(), signals, acked });
+    return { gone: true, acked, signals };
   }
 
   /** Last resort when the process exits: one identity-checked SIGTERM, no waiting. */

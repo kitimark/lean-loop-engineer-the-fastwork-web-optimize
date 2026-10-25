@@ -225,7 +225,7 @@ def stopGraceS : Nat := 15
 def killGraceS : Nat := 5
 
 /-- Seconds to wait for the reported state to fall below the target after the owner is gone. -/
-def clearWaitMaxS : Nat := 180
+def clearWaitMaxS : Nat := 300
 
 theorem profile_isSome_iff (t : Thermal) : (Thermal.profile t).isSome = pinTarget t := by
   cases t <;> simp [Thermal.profile, pinTarget]
@@ -511,38 +511,67 @@ theorem closeAct_iff (p : Phase) : closeAct p = .stopOwner ↔ p.mayBeAlive = tr
 
 /-- Result of the session end. -/
 inductive End where
-  | cleared | heatRemains | unread | stuck
+  | cleared | heatRemains | unread | unconfirmed | stuck
   deriving DecidableEq
 
 def End.name : End → String
-  | .cleared => "cleared" | .heatRemains => "heatRemains" | .unread => "unread" | .stuck => "stuck"
+  | .cleared => "cleared" | .heatRemains => "heatRemains" | .unread => "unread" | .unconfirmed => "unconfirmed" | .stuck => "stuck"
 
-/-- The condition lives while its owner's connection lives (CONFIRMED in the on-device service code), so the condition
-is set exactly while the owner is not gone. The read-back after the owner is gone says whether the reported state fell. -/
-def endVerdict (target : Thermal) (ownerGone : Bool) (back : Option Thermal) : End :=
+/-- MEASURED on the test phone: the induced state outlives the owner's connection (an owner ended by SIGTERM without a clear
+left Serious reported for 34 min); a clear sent on the connection that set it ends it, and the reported state falls after
+about 2.5 min. The condition is unset exactly when the owner is gone and acknowledged its own clear. -/
+def endVerdict (target : Thermal) (ownerGone acked : Bool) (back : Option Thermal) : End :=
   if ¬ ownerGone then .stuck
+  else if ¬ acked then .unconfirmed
   else match back with
     | none => .unread
     | some b => if b.rank < target.rank then .cleared else .heatRemains
 
-def conditionSet (ownerGone : Bool) : Bool := !ownerGone
+def conditionSet (ownerGone acked : Bool) : Bool := !(ownerGone && acked)
 
-theorem endVerdict_stuck_iff (t : Thermal) (g : Bool) (b : Option Thermal) : endVerdict t g b = .stuck ↔ g = false := by
-  cases g <;> cases b <;> simp [endVerdict] <;> split <;> simp
+theorem endVerdict_stuck_iff (t : Thermal) (g a : Bool) (b : Option Thermal) : endVerdict t g a b = .stuck ↔ g = false := by
+  cases g <;> cases a <;> cases b <;> simp [endVerdict] <;> split <;> simp
 
-/-- A session ends only with the condition not set. -/
-theorem endVerdict_unset {t : Thermal} {g : Bool} {b : Option Thermal} (h : endVerdict t g b ≠ .stuck) : conditionSet g = false := by
-  cases g
-  · exact absurd ((endVerdict_stuck_iff t false b).2 rfl) h
-  · rfl
+theorem endVerdict_unconfirmed_iff (t : Thermal) (g a : Bool) (b : Option Thermal) : endVerdict t g a b = .unconfirmed ↔ g = true ∧ a = false := by
+  cases g <;> cases a <;> cases b <;> simp [endVerdict] <;> split <;> simp
 
-theorem endVerdict_cleared {t b : Thermal} (h : b.rank < t.rank) : endVerdict t true (some b) = .cleared := by
+/-- A session ends with the condition unset unless it reports stuck or unconfirmed. -/
+theorem endVerdict_unset {t : Thermal} {g a : Bool} {b : Option Thermal} (h1 : endVerdict t g a b ≠ .stuck) (h2 : endVerdict t g a b ≠ .unconfirmed) : conditionSet g a = false := by
+  have e1 : ¬ g = false := fun h => h1 ((endVerdict_stuck_iff t g a b).2 h)
+  have e2 : ¬ (g = true ∧ a = false) := fun h => h2 ((endVerdict_unconfirmed_iff t g a b).2 h)
+  cases g <;> cases a <;> simp_all [conditionSet]
+
+theorem endVerdict_set {t : Thermal} {g a : Bool} {b : Option Thermal} (h : conditionSet g a = true) : endVerdict t g a b = .stuck ∨ endVerdict t g a b = .unconfirmed := by
+  cases g <;> cases a <;> simp_all [conditionSet, endVerdict]
+
+theorem endVerdict_cleared {t b : Thermal} (h : b.rank < t.rank) : endVerdict t true true (some b) = .cleared := by
   simp [endVerdict, h]
 
-theorem endVerdict_heat {t b : Thermal} (h : ¬ b.rank < t.rank) : endVerdict t true (some b) = .heatRemains := by
+theorem endVerdict_heat {t b : Thermal} (h : ¬ b.rank < t.rank) : endVerdict t true true (some b) = .heatRemains := by
   simp [endVerdict, h]
 
-theorem endVerdict_unread (t : Thermal) : endVerdict t true none = .unread := rfl
+theorem endVerdict_unread (t : Thermal) : endVerdict t true true none = .unread := rfl
+
+/-- What a run does first, from the owner record an earlier run left. -/
+inductive Recover where
+  | nothing | stopOwner | clearCycle
+  deriving DecidableEq
+
+def Recover.name : Recover → String
+  | .nothing => "nothing" | .stopOwner => "stopOwner" | .clearCycle => "clearCycle"
+
+/-- A live recorded owner is stopped; an owner that ended without acknowledging its clear needs one set-and-clear cycle;
+no record, or an acknowledged one, needs nothing. -/
+def recoverAct (hasRecord alive acked : Bool) : Recover :=
+  if ¬ hasRecord then .nothing else if alive then .stopOwner else if acked then .nothing else .clearCycle
+
+theorem recoverAct_alive {r a : Bool} (h : r = true) : recoverAct r true a = .stopOwner := by
+  simp [recoverAct, h]
+
+theorem recoverAct_unacked : recoverAct true false false = .clearCycle := rfl
+
+theorem recoverAct_nothing_iff (r l a : Bool) : recoverAct r l a = .nothing ↔ (r = false ∨ (l = false ∧ a = true)) := by
+  cases r <;> cases l <;> cases a <;> simp [recoverAct]
 
 /-- Read again after the owner is gone while the state has not fallen below the target, within the budget. -/
 def clearWait (target : Thermal) (back : Option Thermal) (waitedS : Nat) : Bool :=
@@ -653,8 +682,8 @@ private def blockCases : List (Thermal × List (Option Thermal)) :=
 private def stopCases : List (Bool × Sent × Nat) :=
   [Sent.none, .term, .kill].flatMap fun sn => [true, false].flatMap fun a => [0, 14, 15, 4, 5].map fun s => (a, sn, s)
 
-private def endCases : List (Thermal × Bool × Option Thermal) :=
-  [Thermal.serious, .fair].flatMap fun t => [true, false].flatMap fun g => thCases.map fun b => (t, g, b)
+private def endCases : List (Thermal × Bool × Bool × Option Thermal) :=
+  [Thermal.serious, .fair].flatMap fun t => [true, false].flatMap fun g => [true, false].flatMap fun a => thCases.map fun b => (t, g, a, b)
 
 private def killCases : List (Nat × Nat × String × String) :=
   [(100, 100, "Sat Oct 25 12:00:00 2026", "Sat Oct 25 12:00:00 2026"), (100, 101, "Sat Oct 25 12:00:00 2026", "Sat Oct 25 12:00:00 2026"),
@@ -683,9 +712,11 @@ private def pinLines (_ : Unit) : List String :=
   ([Phase.idle, .starting, .held, .stopping, .stopped].map fun p =>
     (Json.mkObj [("kind", "close"), ("phase", p.name), ("mayBeAlive", boolJ p.mayBeAlive), ("close", (closeAct p).name)]).compress) ++
   (endCases.map fun c =>
-    (Json.mkObj [("kind", "end"), ("target", c.1.name), ("ownerGone", boolJ c.2.1), ("back", thJ c.2.2), ("end", (endVerdict c.1 c.2.1 c.2.2).name),
-      ("conditionSet", boolJ (conditionSet c.2.1))]).compress) ++
-  ([Thermal.serious, .fair].flatMap fun t => thCases.flatMap fun b => ([0, 179, 180] : List Nat).map fun w =>
+    (Json.mkObj [("kind", "end"), ("target", c.1.name), ("ownerGone", boolJ c.2.1), ("acked", boolJ c.2.2.1), ("back", thJ c.2.2.2),
+      ("end", (endVerdict c.1 c.2.1 c.2.2.1 c.2.2.2).name), ("conditionSet", boolJ (conditionSet c.2.1 c.2.2.1))]).compress) ++
+  ([true, false].flatMap fun r => [true, false].flatMap fun l => [true, false].map fun a =>
+    (Json.mkObj [("kind", "recover"), ("hasRecord", boolJ r), ("alive", boolJ l), ("acked", boolJ a), ("act", (recoverAct r l a).name)]).compress) ++
+  ([Thermal.serious, .fair].flatMap fun t => thCases.flatMap fun b => ([0, 299, 300] : List Nat).map fun w =>
     (Json.mkObj [("kind", "clearwait"), ("target", t.name), ("back", thJ b), ("waitedS", toJson w), ("wait", boolJ (clearWait t b w))]).compress) ++
   (killCases.map fun c =>
     (Json.mkObj [("kind", "kill"), ("recPid", c.1), ("curPid", c.2.1), ("recStart", c.2.2.1), ("curStart", c.2.2.2), ("ok", boolJ (mayKill c.1 c.2.1 c.2.2.1 c.2.2.2))]).compress)

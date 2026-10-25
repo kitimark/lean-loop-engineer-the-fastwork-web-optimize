@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  ConditionOwner, PIN, blockValid, clearWait, closeAct, conditionSet, endVerdict, laneGates, lanesRun, mayKill, pinGate, pinTarget, pinWhy,
-  profileListed, profileOf, psInfo, stopAct, visitOk, whyPin,
+  ConditionOwner, OWNER_PY, PIN, blockValid, clearWait, closeAct, conditionSet, endVerdict, laneGates, lanesRun, mayKill, pinGate, pinTarget, pinWhy,
+  profileListed, profileOf, psInfo, recoverAct, stopAct, visitOk, whyPin,
 } from '../src/device-thermal-pin.mjs';
 import { fakeWorld, mkOwner } from './pin-world.mjs';
 
@@ -12,7 +12,7 @@ const lines = readFileSync(new URL('../../contracts/golden/device/thermal.jsonl'
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('the golden has every pinned kind', () => {
-  for (const k of ['pinconsts', 'profile', 'pin', 'lanes', 'visit', 'blockvalid', 'stop', 'close', 'end', 'clearwait', 'kill']) assert.ok(of(k).length > 0, k);
+  for (const k of ['pinconsts', 'profile', 'pin', 'lanes', 'visit', 'blockvalid', 'stop', 'close', 'end', 'recover', 'clearwait', 'kill']) assert.ok(of(k).length > 0, k);
 });
 
 test('constants and profile ids match Lean; Critical and Nominal are never induced', () => {
@@ -67,10 +67,15 @@ test('a session never ends with the condition set: close, end and clear rules ma
     if (c.mayBeAlive) assert.equal(c.close, 'stopOwner');
   }
   for (const e of of('end')) {
-    assert.equal(endVerdict(e.target, e.ownerGone, e.back), e.end, JSON.stringify(e));
-    assert.equal(conditionSet(e.ownerGone), e.conditionSet);
-    if (e.end !== 'stuck') assert.equal(e.conditionSet, false);
+    assert.equal(endVerdict(e.target, e.ownerGone, e.acked, e.back), e.end, JSON.stringify(e));
+    assert.equal(conditionSet(e.ownerGone, e.acked), e.conditionSet);
+    if (e.end !== 'stuck' && e.end !== 'unconfirmed') assert.equal(e.conditionSet, false);
+    if (e.conditionSet) assert.ok(e.end === 'stuck' || e.end === 'unconfirmed', JSON.stringify(e));
+    if (e.ownerGone && !e.acked) assert.equal(e.end, 'unconfirmed');
   }
+  for (const r of of('recover')) assert.equal(recoverAct(r.hasRecord, r.alive, r.acked), r.act, JSON.stringify(r));
+  assert.equal(recoverAct(true, false, false), 'clearCycle');
+  assert.equal(recoverAct(false, false, false), 'nothing');
   for (const w of of('clearwait')) assert.equal(clearWait(w.target, w.back, w.waitedS), w.wait, JSON.stringify(w));
   for (const k of of('kill')) assert.equal(mayKill(k.recPid, k.curPid, k.recStart, k.curStart), k.ok, JSON.stringify(k));
 });
@@ -96,9 +101,12 @@ test('the owner starts one detached userspace process for the listed profile and
     const rec = await owner.start({ profile: 'ThermalSerious', target: 'Serious' });
     assert.deepEqual(w.runs[0], ['developer', 'dvt', 'condition', 'list', '--userspace']);
     assert.equal(w.spawned.length, 1);
-    assert.deepEqual(w.spawned[0].args, ['developer', 'dvt', 'condition', 'set', 'ThermalSerious', '--userspace']);
+    assert.equal(w.spawned[0].cmd, '/fake/python');
+    assert.deepEqual(w.spawned[0].args, ['-c', OWNER_PY, 'ThermalSerious']);
     assert.equal(w.spawned[0].opts.detached, true);
-    assert.ok(!w.spawned[0].args.includes('--native'));
+    assert.ok(!OWNER_PY.includes('native') && !OWNER_PY.includes('SIGKILL'));
+    assert.ok(OWNER_PY.indexOf('ci.clear()') < OWNER_PY.indexOf('ci.list()') && OWNER_PY.indexOf('ci.list()') < OWNER_PY.indexOf('fw-pin cleared'), 'clear, a reply, then the acknowledgement');
+    assert.ok(OWNER_PY.includes('userspace_tunnel.establish_userspace_rsd'));
     assert.equal(rec.pid, 4000);
     assert.equal(rec.start, 'start-4000');
     assert.equal(JSON.parse(readFileSync(join(dir, 'pin-owner.json'), 'utf8')).pid, 4000);
@@ -128,6 +136,7 @@ test('stop sends SIGTERM and nothing else when the owner exits on it', async () 
     const r = await owner.stop();
     assert.deepEqual(w.signals, ['SIGTERM']);
     assert.equal(r.gone, true);
+    assert.equal(r.acked, true);
     assert.equal(owner.phase, 'stopped');
     assert.equal(owner.alive(), false);
     assert.ok(JSON.parse(readFileSync(join(dir, 'pin-owner.json'), 'utf8')).stoppedAt);
@@ -143,6 +152,7 @@ test('stop escalates to SIGKILL after the grace and reports stuck when even that
     const r = await owner.stop();
     assert.deepEqual(w.signals, ['SIGTERM', 'SIGKILL']);
     assert.equal(r.gone, true);
+    assert.equal(r.acked, false, 'a killed owner never confirmed its clear');
     assert.ok((w.t - t0) / 1000 >= PIN.stopGraceS);
     const w2 = fakeWorld({ dieOn: [] });
     const o2 = mkOwner(w2);
@@ -168,7 +178,7 @@ test('a signal goes only to the process with the recorded pid and start time', a
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('an owner a crashed run left behind is stopped by the next run; a stale record is closed without a signal', async () => {
+test('an owner a crashed run left behind is stopped by the next run; an acknowledged record is left alone', async () => {
   const w = fakeWorld();
   const first = mkOwner(w);
   try {
@@ -176,18 +186,39 @@ test('an owner a crashed run left behind is stopped by the next run; a stale rec
     const again = new ConditionOwner({ dir: first.dir, ...w.opts });
     assert.equal(await again.recover(), true);
     assert.deepEqual(w.signals, ['SIGTERM']);
+    assert.equal(w.spawned.length, 1);
     const third = new ConditionOwner({ dir: first.dir, ...w.opts });
     assert.equal(await third.recover(), false);
     assert.equal(w.signals.length, 1);
-    const { dir: d2, owner: o2 } = mkOwner(w);
-    await o2.start({ profile: 'ThermalSerious', target: 'Serious' });
-    w.procs.clear();
-    const o3 = new ConditionOwner({ dir: d2, ...w.opts });
-    assert.equal(await o3.recover(), false);
-    assert.equal(w.signals.length, 1);
-    assert.ok(JSON.parse(readFileSync(join(d2, 'pin-owner.json'), 'utf8')).stoppedAt);
-    rmSync(d2, { recursive: true, force: true });
   } finally { rmSync(first.dir, { recursive: true, force: true }); }
+});
+
+test('an owner that ended without confirming its clear gets one set-and-clear cycle at the next run', async () => {
+  const w = fakeWorld();
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious' });
+    w.procs.clear();
+    const next = new ConditionOwner({ dir, ...w.opts });
+    assert.equal(await next.recover(), true);
+    assert.equal(w.spawned.length, 2);
+    assert.deepEqual(w.spawned[1].args, ['-c', OWNER_PY, 'ThermalSerious']);
+    assert.deepEqual(w.signals, ['SIGTERM']);
+    const rec = JSON.parse(readFileSync(join(dir, 'pin-owner.json'), 'utf8'));
+    assert.equal(rec.acked, true);
+    assert.equal(await new ConditionOwner({ dir, ...w.opts }).recover(), false);
+    assert.equal(w.spawned.length, 2);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a clear cycle whose owner does not confirm is an error, not a pass', async () => {
+  const w = fakeWorld({ ackOnTerm: false });
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious' });
+    w.procs.clear();
+    await assert.rejects(new ConditionOwner({ dir, ...w.opts }).recover(), /did not confirm/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('no signal is ever SIGINT', async () => {

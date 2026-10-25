@@ -184,6 +184,7 @@ test('session: induce, run, stop with SIGTERM, read back below the target: ended
     assert.deepEqual(o.w.signals, ['SIGTERM']);
     assert.equal(o.st.pin.end, 'cleared');
     assert.equal(o.st.pin.conditionSet, false);
+    assert.equal(o.st.pin.acked, true);
     assert.equal(o.st.pin.profile, 'ThermalSerious');
     assert.equal(o.st.pin.owner.pid, 4000);
     assert.deepEqual(o.st.pin.readback.map((r) => r.state), ['Fair']);
@@ -214,7 +215,7 @@ test('session: a start that fails (profile not listed) leaves no process and no 
   } finally { rmSync(e.dir, { recursive: true, force: true }); }
 });
 
-test('session: an owner that dies by itself needs no signal and the block refuses the next lane', async () => {
+test('session: an owner that dies by itself leaves the condition possibly set: the next lane is refused and the end is unconfirmed', async () => {
   const e = setup();
   try {
     const o = await session3(e, {
@@ -222,8 +223,25 @@ test('session: an owner that dies by itself needs no signal and the block refuse
       body: (pin, c, ee, w) => { const dying = phone(w, { senses: [S('Serious')], held: pin.held, onVisit: () => { w.procs.clear(); } }); return block(ee, { ...dying, pin }); },
     });
     assert.deepEqual(o.w.signals, []);
-    assert.equal(o.st.pin.end, 'cleared');
-    assert.match(o.result.stopped ?? '', /owner process is not running/);
+    assert.match(o.err.message, /without confirming its clear/);
+    assert.equal(o.st.pin.end, 'unconfirmed');
+    assert.equal(o.st.pin.conditionSet, true);
+    assert.equal(o.st.pin.acked, false);
+    assert.equal(o.st.visits[0].status, 'refused');
+    assert.deepEqual(o.st.visits[0].pin, { why: 'notHeld', phase: 'between-lanes' });
+    assert.equal(o.w.log, '');
+  } finally { rmSync(e.dir, { recursive: true, force: true }); }
+});
+
+test('session: an owner that needs SIGKILL never confirmed its clear: gone, unconfirmed, condition possibly set', async () => {
+  const e = setup();
+  try {
+    const o = await session3(e, { senses: [S('Serious')], readSenses: [S('Serious')], dieOn: ['SIGKILL'] });
+    assert.deepEqual(o.w.signals, ['SIGTERM', 'SIGKILL']);
+    assert.match(o.err.message, /without confirming its clear/);
+    assert.equal(o.st.pin.end, 'unconfirmed');
+    assert.equal(o.st.pin.conditionSet, true);
+    assert.equal(o.owner.alive(), false);
   } finally { rmSync(e.dir, { recursive: true, force: true }); }
 });
 
