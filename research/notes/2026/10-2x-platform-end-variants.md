@@ -115,7 +115,7 @@ counter is listed in the verdict row. Same Lean rule.
   VM-to-VM spread (4500: base 141-146, sweep 141-146, glint 141-150). At y 5231 some passes carry no census sample
   (blank), so that cell has 4 base, 3 sweep, 2 glint samples. MEASURED.
 - WebKit scroll steps never reach the morph push, so this table covers the platform section on screen during the last
-  steps, not a push. The honest WebKit statement for the unit is: no part effect in the end zones of the scroll lane.
+  steps, not a push. On WebKit no part has an effect in the end zones of the scroll lane.
 
 ## Verdict per existing variant (Lean rule)
 

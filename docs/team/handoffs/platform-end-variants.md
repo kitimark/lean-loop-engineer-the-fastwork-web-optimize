@@ -13,7 +13,7 @@ CI runs (dispatched with `pnpm -s fw run --target rewrite --ref main`, main 5c8c
 | 40203771621 | chromium-counts | platform.glint:offscreen-pause | success |
 | 40203756095 | chromium-counts | platform:fade-threaded | success |
 
-verified: all 7 runs read; note research/notes/2026/10-2x-platform-end-variants.md (answer first); ledger notes appended (3 rows).
+verified: all 7 runs read; note research/notes/2026/10-2x-platform-end-variants.md; ledger notes appended (3 rows).
 Result: no existing variant wins at the page end on either engine (Lean cmp/judge twin); fade-threaded Chromium no-win (area 2.1x);
 premises for step-2 (a) sweep, (b) glint, (c) entries are NOT measured (pause arms are no-ops while visible); next = attribution arm per part.
 open: attribution arms (follow-up round); WebKit open/close push split needs the lag/cost lane (no fw run input); fw run webkit waiter bug
