@@ -305,6 +305,9 @@ def orderLast (k : Kind) : List FEv := place k false
 
 def kind499 : Kind := ⟨[], [[FEv.read, FEv.mutate]], false⟩
 
+/-- Early swipe frames: other style dirty before the callbacks, one shared reader. Fitted to the 531-frame profile; on
+profile 3e038fd6 (771 frames) the subscribe position adds +1 here too, so `early_atSubscriber` does not describe the
+page. -/
 def kindEarly : Kind := ⟨[FEv.other], [[FEv.read]], true⟩
 
 theorem frame499_faithful (f o m : Nat) : frameCost f o m (orderFaithful kind499) = (1, m) := by
@@ -319,6 +322,7 @@ theorem frame499_last (f o m : Nat) : frameCost f o m (orderLast kind499) = (1, 
 theorem early_faithful (f o m : Nat) : frameCost f o m (orderFaithful kindEarly) = (1, f + o) := by
   simp [frameCost, orderFaithful, place, kindEarly, fstep, flushElems]
 
+/-- Model result for `kindEarly` only; falsified on the 771-frame profile (Chromium +1 update in 233-238 frames). -/
 theorem early_atSubscriber (f o m : Nat) : frameCost f o m (orderAtSubscriber kindEarly) = (1, f + o) := by
   simp [frameCost, orderAtSubscriber, place, kindEarly, fstep, flushElems]
 

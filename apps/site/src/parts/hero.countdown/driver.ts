@@ -214,7 +214,11 @@ export function startFaithful(o: FaithfulOptions): () => void {
   };
 }
 
-/** `clock` with every `{ own: true }` chain run in one shared-loop subscriber, in registration order. */
+/**
+ * `clock` with every `{ own: true }` chain run in one shared-loop subscriber, in registration order. At the subscribe
+ * position Chromium shows one extra update in 233-238 of 771 swipe-touch-v1 frames; the Lean kinds explain frame 499
+ * only.
+ */
 export function oneChainClock(clock: MotionClock): MotionClock {
   const chains = new Set<{ tick: Tick }>();
   let off: (() => void) | null = null;

@@ -21,11 +21,12 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
   position reproduces.
 - **Decision (closed design, round 2).** Digits last is reverted to the subscribe position. Measured on Chromium,
   swipe-touch-v1: subscribe position +1 UpdateLayoutTree in 1 of 531 frames (frame 499; old runs, all 3 runs), digits
-  last +1 in 157 of 771 frames. The subscribe position is the smaller extra, FireAnimationFrame -252 in the old runs
-  (1860 vs 2112). Golden row `orders` (regenerated from Lean) is replayed through the real shared loop by
+  last +1 in 157 of 771 frames. The revert is the lead's closed-design choice. On the same 771-frame profile the subscribe position adds +1 in
+  233-238 frames (round 2) and digits last in 157-159 (round 1), so on Chromium the subscribe position is the larger
+  extra. Golden row `orders` (regenerated from Lean) is replayed through the real shared loop by
   `oneChain.test.ts` for the three orders and both kinds; `last` is the model's order, not shipped code.
-- **Verdicts.** Chromium: trade (fewer rAF callbacks, one extra update in the frames where a scroll tick follows the
-  digits). WebKit: see Round 2 runs below.
+- **Verdicts.** Chromium: trade (MEASURED; FireAnimationFrame -314, UpdateLayoutTree +283 in 233-238 of 771 frames, elements
+  equal). WebKit: no-win (MEASURED; see Round 2 runs below). Task closed as a finding.
 
 ## Round-1 runs with digits last (MEASURED, sha 9623493da, ci/one-chain-webkit; the variant they ran is reverted)
 
@@ -55,8 +56,8 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
 - `scrollY` flushes style: Chromium `local_dom_window.cc:1853-1877` (`UpdateStyleAndLayout`) @f842f52; WebKit
   `LocalDOMWindow.cpp:1476-1480` (`updateLayoutIgnorePendingStylesheets`, only for a nonzero scroll) @862f17d. The
   WebKit lane may therefore show the same extra flush in a swipe frame.
-- Why the swipe frames before 499 show no delta: their first layout read already finds dirty style from earlier work,
-  so the faces ride that flush (INFERRED from the equal counts in frames 497-498).
+- Superseded: the claim that the swipe frames before 499 show no delta held for the old 531-frame profile only; on the
+  771-frame profile frames 14-33 show +1 (see Round-2 runs).
 
 ## Limits
 
@@ -99,9 +100,11 @@ Summaries: `results/one-chain-webkit/summary.json`.
 
 ## Verdicts (MEASURED)
 
-- **Chromium: trade, leaning no-win.** FireAnimationFrame -12 %, UpdateLayoutTree +12 % at equal elements: fewer rAF
+- **Chromium: trade (MEASURED).** FireAnimationFrame -12 %, UpdateLayoutTree +12 % at equal elements: fewer rAF
   callbacks, more but smaller style updates. The unit that mattered (a win in recalc) is not met; counts are engine
   work, not felt smoothness.
 - **WebKit: no-win.** Style recalcs and rAF callbacks equal within noise; no measured effect, no regression.
-- Follow-up (outside the unit): the early-frame order needs a Lean model with the shared loop's real registration order
-  per frame.
+- Follow-ups (outside the unit): (1) a Lean model of the shared loop's per-frame registration order (the early-frame
+  kind is a fit, early_atSubscriber is falsified on the 771-frame profile; frame499_atSubscriber holds for the
+  531-frame profile only; no_fixed_order is a model result); (2) the TS stand-in `frameCost` in `oneChain.test.ts`
+  stays until that model exists.
