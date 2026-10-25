@@ -36,7 +36,7 @@ export function updatedMs(r: Row): number {
   return Number.isFinite(t) && t > 0 ? t : 0;
 }
 
-export const iso =(t: number): string => new Date(t * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+export const iso = (t: number): string => new Date(t * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 export type Poll = {
   /** Epoch second at which the poller should ask again. */
