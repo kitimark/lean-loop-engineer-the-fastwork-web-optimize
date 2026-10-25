@@ -2,7 +2,7 @@
 - Branch: worktree-wf_e99eb6af-be6-1; CI branch ci/ci-run-dedup.
 - Worktree: .claude/worktrees/wf_e99eb6af-be6-1
 - Last pushed commit: 84409c951 (merge of main on top of 1edaf2819).
-- CI runs of that push: lean 40210501188 (queued at handoff time); the other workflows of the push are not used as evidence.
+- CI runs of that push: lean 40210501188 complete, success -> pass; the other workflows of the push are not used as evidence.
 
 ## State
 - Lean `lean/Fw/Ci/Dispatch.lean`, section "One row per run": `Listed` (run + `updatedAt` ms), `keepNewest`, `dedupById`
@@ -18,6 +18,7 @@
 
 ## Verified
 - `lake env lean Fw/Ci/Dispatch.lean` clean; `lake test` golden write + "62 cases ok"; dedup + want tests pass (13).
+- CI lean 40210501188 pass; scripts/ci-paths.test.mjs 56 pass; apps/runner land-inputs (vitest) 73 pass.
 
 ## Open
 - Page-shift cause stays INFERRED until incidents.jsonl shows a `duplicateIds` line.
