@@ -332,13 +332,21 @@ export async function proxyCheck(p = ports(), { timeoutMs = T(4000) } = {}) {
   if (ids.length !== 1 || ids[0] !== SIM_ID) throw new Error(`proxy lists ${ids.length} device(s), not exactly the Simulator`);
 }
 
+/** The inspector sockets; an lsof that times out on a starved host is asked again until `budgetMs` has passed, then its error is thrown. */
+export async function socketsWithin(budgetMs, { lsofMs = 30000, find = findSocketsAsync, now = Date.now } = {}) {
+  const deadline = now() + budgetMs;
+  for (;;) {
+    try { return await find({ timeoutMs: lsofMs }); } catch (e) { if (!/ETIMEDOUT/.test(e.message) || now() >= deadline) throw e; }
+  }
+}
+
 /**
  * Start ios_webkit_debug_proxy against the Simulator. Returns { stop, kill, ports, phones, output, alive }.
  * `phones`: the attached iPhones' ids when already known (a restart skips the idevice_id calls).
  */
-export async function startProxy({ log = () => {}, timeoutMs = T(20000), phones = null, lsofMs = 30000 } = {}) {
+export async function startProxy({ log = () => {}, timeoutMs = T(20000), phones = null, lsofMs = 30000, find = findSocketsAsync } = {}) {
   const p = ports();
-  const sockets = await findSocketsAsync({ timeoutMs: lsofMs });
+  const sockets = await socketsWithin(timeoutMs, { lsofMs, find });
   if (sockets.length !== 1) throw new Error(`expected one Simulator inspector socket, found ${sockets.length}`);
   const ids = phones ?? await phoneIdsAsync();
   const dir = mkdtempSync(join(tmpdir(), 'fw-wk-iwdp-'));

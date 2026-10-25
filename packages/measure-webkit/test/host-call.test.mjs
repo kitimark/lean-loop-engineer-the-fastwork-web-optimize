@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CALL_CAP_MS, CALL_GRACE_MS, callBoundMs, callSettleMs, pendingCalls, runAsync, simctlAsync, simctlRetryAsync, retryAsync, phoneIdsAsync, SYNC_CAP_MS } from '../src/sim.mjs';
+import { socketsWithin, CALL_CAP_MS, CALL_GRACE_MS, callBoundMs, callSettleMs, pendingCalls, runAsync, simctlAsync, simctlRetryAsync, retryAsync, phoneIdsAsync, SYNC_CAP_MS } from '../src/sim.mjs';
 import { stalled, lagMs, tickBlocked } from '../src/watchdog.mjs';
 import { withRetry } from '../src/simretry.mjs';
 import { passFile, writePassFile, askOnce } from '../src/session.mjs';
@@ -198,6 +198,20 @@ test('passFile and writePassFile: x.json becomes x.pass-N.part (never *.json), w
   assert.deepEqual(j, { schema: 'fw.webkit.pass/1', pass: 1, of: 2, wroteAt: '2025-10-09T08:53:20.000Z', data: { census: [1, 2], scroll: { total: { Layout: 3 } } } });
   assert.equal(existsSync(`${f}.tmp`), false);
   assert.equal(/-session-.*\.json$/.test(f), false);
+});
+
+test('socketsWithin: a timed-out lsof is asked again inside the budget, then its error is thrown; other errors at once', async () => {
+  let n = 0;
+  const slowTwice = async () => { if (++n < 3) throw new Error('lsof: ETIMEDOUT'); return ['/s']; };
+  assert.deepEqual(await socketsWithin(1000, { find: slowTwice }), ['/s']);
+  assert.equal(n, 3);
+  let clock = 0, m = 0;
+  const never = async () => { m++; clock += 600; throw new Error('lsof: ETIMEDOUT'); };
+  await assert.rejects(socketsWithin(1000, { find: never, now: () => clock }), /ETIMEDOUT/);
+  assert.equal(m, 2);
+  let k = 0;
+  await assert.rejects(socketsWithin(1000, { find: async () => { k++; throw new Error('lsof: ENOENT'); } }), /ENOENT/);
+  assert.equal(k, 1);
 });
 
 const WD = join(HERE, '../src/watchdog.mjs');

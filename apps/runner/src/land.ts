@@ -162,7 +162,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
   "packages/measure-webkit": ["packages/contracts/src/flag-key.mjs", "packages/contracts/golden/engine/resource.jsonl", "results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
-    "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/src/census.mjs", "packages/measure-chromium/profiles/**",
+    "packages/contracts/golden/device/**", "packages/contracts/golden/ci/telemetry.jsonl", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/src/census.mjs", "packages/measure-chromium/profiles/**",
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     "research/notes/2026/10-21-webkit-lag-probe.md",
     "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
