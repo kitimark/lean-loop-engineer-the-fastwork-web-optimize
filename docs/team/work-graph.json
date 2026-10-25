@@ -21209,7 +21209,8 @@
     "docs/team/handoffs/lake-span-total.md",
     "apps/runner/src/slot.ts"
    ],
-   "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed."
+   "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed.",
+   "evidence": "8a8863c"
   },
   {
    "devices": [
@@ -21254,7 +21255,55 @@
     "research/notes/2026/10-2x-hero-exit-q6.md",
     "docs/team/handoffs/hero-exit-q6.md"
    ],
-   "title": "Clear two of the three blockers that keep hero.exit:threaded (accepted by the user on the iPhone 2026-10-24) out of v2-proved, per look-decisions-1024's Lean entry decision (Gen.entry, threaded_not_yet): (1) q6 'same scroll offset': Fw.Engine.Visual.PathPremises.c3o/c3v are hypotheses and Fw.Parts.HeroExitOpt does not model which scroll offset the compositor shows. Read WebKit source (RemoteScrollingTreeIOS.cpp:55-66 updateProgressBasedTimelinesForNode, ScrollTimeline.cpp:417-427, AnimationTimelinesController.cpp:267-279, the UI-process commit of scroll position; pinned clone, cite file:line@commit) and Chromium's scroll-timeline sampling on the compositor; model per frame which offset each arm shows (threaded: the UI-process/compositor offset at that frame; original: the offset the main-thread rAF read); prove the threaded arm's offset is never older than the original's (or name the frame kind where it is), and set Gen.q6Answer from that theorem. (2) proofs: add the Gen.linkTable link for hero.exit:threaded from the existing theorems (Fw.Parts.HeroExitOpt.consumer_eq_s under RG11, cr_real_tradeE, wk_tradeE) or state in Lean which hypothesis still blocks it. Regenerate the preset goldens with Gen.run, never by hand; report whether Gen.entry now says enter (the trajectory gate rows come from the lead's dispatch)."
+   "title": "Clear two of the three blockers that keep hero.exit:threaded (accepted by the user on the iPhone 2026-10-24) out of v2-proved, per look-decisions-1024's Lean entry decision (Gen.entry, threaded_not_yet): (1) q6 'same scroll offset': Fw.Engine.PathPremises.c3o/c3v (lean/Fw/Engine/Visual.lean) are hypotheses and Fw.Parts.HeroExitOpt does not model which scroll offset the compositor shows. Read WebKit source (RemoteScrollingTreeIOS.cpp:55-66 updateProgressBasedTimelinesForNode, ScrollTimeline.cpp:417-427, AnimationTimelinesController.cpp:267-279, the UI-process commit of scroll position; pinned clone, cite file:line@commit) and Chromium's scroll-timeline sampling on the compositor; model per frame which offset each arm shows (threaded: the UI-process/compositor offset at that frame; original: the offset the main-thread rAF read); prove the threaded arm's offset is never older than the original's (or name the frame kind where it is), and set Gen.q6Answer from that theorem. (2) proofs: add the Gen.linkTable link for hero.exit:threaded from the existing theorems (Fw.Parts.HeroExitOpt.consumer_eq_s under RG11, cr_real_tradeE, wk_tradeE) or state in Lean which hypothesis still blocks it. Regenerate the preset goldens with Gen.run, never by hand; report whether Gen.entry now says enter (the trajectory gate rows come from the lead's dispatch). New evidence (look-decisions-1024, trajectory run 40156078840 at fbca417): the probe fails the hero path on Chromium (25), Linux WebKit (40) and macOS WebKit (40) new content units at card opacity and translate, while the user saw the same look on the iPhone; the q6 model must explain probe vs phone (does the probe compare the two arms at different scroll offsets because the original lags one scroll event?), and if so state the probe change in Lean (compare at equal scroll offset) as a follow-up task for the lead."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-sim-relaunch",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "packages/measure-webkit/src/sim.mjs",
+    "packages/measure-webkit/src/guard.mjs",
+    "packages/measure-webkit/test/guard.test.mjs",
+    "packages/measure-webkit/test/sim-*.test.mjs",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Device/SimRelaunch.lean",
+    "lean/scripts/SimRelaunchGolden.lean",
+    "packages/contracts/golden/device/sim-relaunch.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-webkit-sim-relaunch.md",
+    "docs/team/handoffs/webkit-sim-relaunch.md"
+   ],
+   "title": "The WebKit Simulator counts lane (webkit-sim.yml) lost one VM in 4 of the last 5 3-VM runs on 2026-10-25: scene-pause base 40151813906 (r1 cancelled), one-chain flag 40153917806 (r1: the inspector died, then 'simctl launch Safari failed: CoreSimulator.SimError code=405 Unable to lookup in ...', forced exit 4), columns base 40156388674 (r2: 'simctl list devices failed: ETIMEDOUT'). Do, Lean first: read packages/measure-webkit/src/sim.mjs and guard.mjs (the relaunch and the simctl calls) and Apple's simctl/CoreSimulator docs and bug reports for code 405 and list-devices timeouts (cite); find the cause CONFIRMED from the logs; model the recover decision as a state machine in lean/Fw/Device/SimRelaunch.lean (on a dead inspector or a failed relaunch: shut down and reboot the device once, then retry the pass; simctl calls bounded with a timeout and one retry; theorems: every pass ends done or as a named failure within a bound; at most one reboot per pass) with a golden replayed by a test; then the fix; show 2 webkit-sim runs with 3 of 3 VMs each (run ids; push only ci/webkit-sim-relaunch*, at most 3 pushes, free runners only)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-download",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/run.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/run*.test.ts",
+    "packages/gh-budget/src/**",
+    "packages/gh-budget/test/**",
+    "lean/Fw/Store/Ci.lean",
+    "packages/contracts/golden/store/**",
+    "docs/team/tools/fw-run.md",
+    "research/notes/2026/10-2x-fw-run-download.md",
+    "docs/team/handoffs/fw-run-download.md"
+   ],
+   "title": "fw run's artifact download failed five times on 2026-10-25 with 'gh run download <id> failed: gh timed out after 40 s and was killed' although each run succeeded (one-chain 40153927556, 40153920231, 40153925235; columns 40156382719, 40156384878), so the results were not filed in the store and builders downloaded by hand. Do: find where the 40 s bound comes from (packages/gh-budget, apps/runner/src/run.ts or ci.ts; cite), measure artifact sizes and download times for those runs, size the timeout from the artifact size reported by the run's artifact list (or download per artifact with its own bound) and retry once on timeout without a second charge when GitHub already served it; Lean first if the store's decision changes (Fw.Store.Ci); golden replayed by the runner test; show one fw run that files a 3-VM WebKit run end to end."
   }
  ],
  "deadline": {
