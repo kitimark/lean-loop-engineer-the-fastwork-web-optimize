@@ -211,6 +211,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/contracts/golden/gate/smooth.jsonl", "packages/contracts/golden/gate/trajectory-colour.jsonl", "packages/contracts/golden/gate/trajectory-gpu.jsonl", "packages/contracts/fixtures/trajectory-gpu/**", "packages/gate-breakpoints/src/trajectory/cells-gpu-cli.mjs", "packages/gate-breakpoints/src/trajectory/cells-gpu.mjs", "packages/gate-breakpoints/src/trajectory/registry.mjs", "packages/gate-breakpoints/src/spec.mjs", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/scope.gen.json", "packages/contracts/golden/parts/contracts.gen.json",
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
+    "packages/contracts/golden/parts/dormant-counts.jsonl", "results/dormant-counts/zones.json",
     "apps/site/src/registry/layer-opts.gen.ts", "packages/contracts/golden/console/layer-opts.jsonl",
     "apps/site/src/parts/engine.events/quiet.gen.ts", "packages/contracts/golden/parts/react-root-quiet.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/contracts/golden/parts/hero-exit-offset.jsonl",
