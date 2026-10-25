@@ -14,13 +14,13 @@ unthrottle-parts-measure `finish` run `40101695202` (lifted arms lost) and `rest
 
 ## Answer
 
-**Answer (MEASURED, run `40145882715`, finish mode, merged code, the lane the workflow runs).** All 3 jobs ended `success` (74 to 83 min of the 110 min
-limit), 23 of 24 passes completed, no Simulator restart was needed more than once per pass, no job died of a touch-driver or `simctl` timeout, and
-no lift pass was lost (6 of 6 done). One pass was lost: **sim 3 `unthrottle-r1`** (a non-lift arm) stalled at start-up twice (0 marks at 301 s and
-at 303 s, one restart between) and ended `failed:touchesFailed`. So the pinned "every non-lift arm completes" is met in 2 of 3 jobs and missed
-once; the same start-up stall (0 marks at 300 s, cause open) is what hit it, and it is now seen on all arms (5 passes had a stalled first run:
-`rewrite-r2`, `lift-r2`, `unthrottle-r2`, `original-r1`, `unthrottle-r1`; 4 recovered after one restart). That stall is split to task
-`sim-lift-stall` (accepted limit). The 4th push (`b5dd72e1e`, `[ci:toolbar-throttle] [throttle:finish]` on `ci/sim-touch-timeout`) was authorized by the lead.
+**Answer (MEASURED, run `40145882715`, finish mode, merged code, the lane the workflow runs).** 3 of 3 jobs end (`success`, 74 to 83 min of the
+110 min limit), 23 of 24 passes done, 0 job losses to a touch-driver or `simctl` timeout, 1 pass lost to the start-up stall, at most 1 restart per pass.
+The lost pass is sim 3 `unthrottle-r1`: it stalled at start-up twice (0 marks at 301 s and at 303 s, one restart between) and ended as the named
+failure `failed:touchesFailed`, not as a job loss. The start-up stall hits every arm (5 passes had a stalled first run: `rewrite-r2`, `lift-r2`,
+`unthrottle-r2`, `original-r1`, `unthrottle-r1`; 4 recovered after one restart), so the old reading "only lift passes stall" is refuted. Its cause is
+open and owned by task `sim-lift-stall` (accepted limit); a pass lost to it twice is a named failure. The 4th push (`b5dd72e1e`,
+`[ci:toolbar-throttle] [throttle:finish]` on `ci/sim-touch-timeout`) was authorized by the lead.
 
 Claim (re-scoped by the lead): the touch-driver and simctl timeouts that killed whole jobs came from a 300 s wait that was shorter than a
 loaded pass, a retry that reused the first try's result bundle, and blocking `simctl` calls that starved the stall guard (CONFIRMED from logs and
@@ -33,6 +33,8 @@ that never used the machine: sim 2 kept 6 of 8 passes (2 lost to `simctl list de
 ETIMEDOUT in 4 passes in a row, exit 130 `stalled: no output for 312 s`), sim 3 was cancelled at the 110 min job limit. The machine then moved into
 `pass-run.mjs`, shared by both CLIs, and run `40145882715` is the run of that code. One local debug run on a Mac (1 cycle, one arm,
 `FW_TOUCH_FIRST_CAP_S=15`) walked the restart path through `parts-cli.mjs` before it; it is a debug run, not a result.
+
+Per run (MEASURED, artifacts of each run; the last row is the re-scoped claim: 3 of 3 jobs end, 23 of 24 passes, 0 job losses, 1 pass lost to the start-up stall, at most 1 restart per pass):
 
 | Run (mode) | Jobs ended | Passes ok | Named failures | Job time |
 |---|---|---|---|---|
@@ -118,7 +120,7 @@ ETIMEDOUT in 4 passes in a row, exit 130 `stalled: no output for 312 s`), sim 3 
 
 ## Before and after
 
-Per job (MEASURED, artifacts of the runs; "ok" = `xcodebuild` code 0 and the page record kept; a pass is one arm in one round; 6 per job):
+Per job (MEASURED, artifacts of the runs; the finish run on the merged code, `40145882715`, ends 3 of 3 jobs with 23 of 24 passes, 1 pass lost to the start-up stall, at most 1 restart per pass; "ok" = `xcodebuild` code 0 and the page record kept; a pass is one arm in one round; 6 per job):
 
 | Run | Job | Passes ok | Machine ends | Restarts (recovered) | Longest ok pass |
 |---|---|---|---|---|---|
