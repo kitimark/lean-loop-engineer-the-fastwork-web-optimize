@@ -1,5 +1,5 @@
 // Glue (I/O only, no decision): reads the zones.json files of the filed Chromium runs (fw run store) and writes
-// results/nav-fixed-counts/chromium-bands.json, the per-band sums the Lean module Fw.Parts.NavFixedCounts reduces.
+// packages/contracts/golden/parts/nav-fixed-counts.chromium-bands.json, the per-band sums the Lean module Fw.Parts.NavFixedCounts reduces.
 // Usage: node extract-chromium.mjs <store dir> <out.json> <arm>=<runId>:<store run dir prefix> ...
 import fs from 'node:fs';
 

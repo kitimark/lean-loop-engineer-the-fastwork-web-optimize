@@ -64,4 +64,4 @@
 * Chromium bands are a hand map of the 500 px bands onto zones, not `zoneOf`.
 
 ## Reproduce
-`results/nav-fixed-counts/extract.mjs` (WebKit artifacts) and `extract-chromium.mjs` (the filed store) only read and write JSON. Every decision is in `lean/Fw/Parts/NavFixedCounts.lean`; the golden is `jsonl` of that module. Lake does not track `include_str`, so the module guards the runs and pass counts the data files hold.
+`results/nav-fixed-counts/extract.mjs` (WebKit artifacts) and `extract-chromium.mjs` (the filed store) only read and write JSON; the two data files they write sit in `packages/contracts/golden/parts/` (`nav-fixed-counts.webkit-passes.json`, `nav-fixed-counts.chromium-bands.json`), because the lake skip reads only that directory outside `lean/`. Every decision is in `lean/Fw/Parts/NavFixedCounts.lean`; the golden is `jsonl` of that module. Lake does not track `include_str`, so the module guards the runs and pass counts the data files hold.

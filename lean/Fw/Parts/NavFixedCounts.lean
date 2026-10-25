@@ -5,7 +5,7 @@ import Fw.Parts.NavBarFixedWork
 /-!
 # nav:clip-box, nav:bar-fixed, nav:logo-3d on the WebKit Simulator: the verdict per zone
 
-Raw material: `results/nav-fixed-counts/webkit-passes.json`, the per-step counts of the scroll window of each pass (3 VMs, 2 passes each,
+Raw material: `packages/contracts/golden/parts/nav-fixed-counts.webkit-passes.json`, the per-step counts of the scroll window of each pass (3 VMs, 2 passes each,
 per arm), written by `results/nav-fixed-counts/extract.mjs` (I/O only). This module reduces them to per-zone cells, decides each cell of a
 flag against the base, and decides the flag per zone from its own cells. Zones are `Fw.Device.Session.zoneOf` (hero: the first two
 viewports; finish: the last viewport; rest). Steps above 5200 px are left out: the passes end at 5231 or 5267 and the last steps differ by
@@ -310,7 +310,7 @@ def decode (text : String) : Except String (List ArmData) := do
     let passes ← (← listOf a "passes").mapM decPass
     pure ⟨arm, run, passes⟩
 
-def rawText : String := include_str "../../../results/nav-fixed-counts/webkit-passes.json"
+def rawText : String := include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.webkit-passes.json"
 
 def data : List ArmData := (decode rawText).toOption.getD []
 
@@ -441,7 +441,7 @@ def flagVerdict (flag : String) : A := armOf (cells.map (cellVerdict flag))
 /-! ## Chromium bands
 
 The filed Chromium runs (`swipe-touch-v1`, 3 runs per arm) sum the trace counts per 500 px band of the scroll
-(`results/nav-fixed-counts/chromium-bands.json`, written by `extract-chromium.mjs`). The bands are mapped to zones by hand: the first
+(`packages/contracts/golden/parts/nav-fixed-counts.chromium-bands.json`, written by `extract-chromium.mjs`). The bands are mapped to zones by hand: the first
 bands and the load frames are the hero, the last band and the tail are the finish, the bands between are the rest. -/
 
 structure CPass where
@@ -469,7 +469,7 @@ def decodeC (text : String) : Except String (List CArm) := do
     let passes ← (← listOf a "passes").mapM decCPass
     pure ⟨arm, run, passes⟩
 
-def chromiumText : String := include_str "../../../results/nav-fixed-counts/chromium-bands.json"
+def chromiumText : String := include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.chromium-bands.json"
 
 def cdata : List CArm := (decodeC chromiumText).toOption.getD []
 

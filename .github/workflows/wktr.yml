@@ -32,6 +32,10 @@ on:
         description: 'Invisible-paint lane instead of the count lanes: repaint rects per frame of the swipe, original / rewrite / v2-proved, 3 jobs (a push asks for it with [repaint] in the head commit)'
         type: boolean
         default: false
+      toolbar:
+        description: 'Toolbar forced-inset gate instead of the count lanes: WKTR walks the interactive obscured-insets change per morph.mount flag and the verdict is judged against the Lean golden, 3 jobs (a push asks for it with [toolbar] in the head commit)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -100,7 +104,7 @@ jobs:
         run: exit 1
       - id: m
         env:
-          JOBS: ${{ inputs.jobs || ((inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) && '3') || '2' }}
+          JOBS: ${{ inputs.jobs || ((inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]')) && '3') || '2' }}
           PASSES: ${{ inputs.passes || '3' }}
           VARIANTS: ${{ inputs.variants || 'live,vt' }}
         run: |
@@ -157,6 +161,9 @@ jobs:
   # The first job finds no cached archive, downloads it and saves it when it ends; the next jobs restore it.
   # With [repaint] (or the repaint input) the measuring step is the invisible-paint run (packages/measure-wktr/src/repaint-cli.mjs)
   # and the count step is skipped; the steps after the measuring step are the same.
+  # With [toolbar] (or the toolbar input) the measuring step is the toolbar forced-inset gate (task toolbar-wktr-gate): an archive
+  # symbol check of the UI-script hooks, then packages/measure-wktr/src/toolbar-cli.mjs (2 passes per morph.mount flag) and the
+  # verdict of src/gate.mjs against packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl; the job fails when a check fails.
   wktr:
     needs: [guard, plan, site]
     # site is skipped unless the repaint lane is asked for: that must not skip this job
@@ -244,13 +251,31 @@ jobs:
             --passes 1 --arms orig,rewrite,v2 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 
+      # Toolbar gate (task toolbar-wktr-gate). Hook presence first: the symbols the gate calls exist in the pinned binary (hooks.json),
+      # then the fixture pages, one fresh WebKitTestRunnerApp process per flag and pass, then the verdict against the Lean golden.
+      # toolbar-<flag>-<pass>.json, raw-*.txt, hooks.json, gate.json and gate.log are uploaded; the step fails when a check fails.
+      - name: WKTR toolbar gate (hook symbols, forced-inset fixture, verdict)
+        if: ${{ inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]') }}
+        env:
+          JOB: ${{ matrix.job }}
+        run: |
+          set -uo pipefail
+          rc=0
+          sh packages/measure-wktr/scripts/hook-check.sh "$RUNNER_TEMP/wktr-root/Release-iphonesimulator/WebKitTestRunnerApp.app/WebKitTestRunnerApp" "$RUNNER_TEMP/result/hooks.json" || rc=1
+          node packages/measure-wktr/src/toolbar-cli.mjs run --keep \
+            --root "$RUNNER_TEMP/wktr-root" --out "$RUNNER_TEMP/result" --passes 2 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log" || rc=1
+          node packages/measure-wktr/src/gate.mjs "$RUNNER_TEMP/result" --hooks "$RUNNER_TEMP/result/hooks.json" \
+            --out "$RUNNER_TEMP/result/gate.json" --min-passes 2 2>&1 | tee "$RUNNER_TEMP/result/gate.log" || rc=1
+          ls -l "$RUNNER_TEMP/result"
+          exit $rc
+
       # One device, one fresh WebKitTestRunnerApp process per pass, `passes` passes per harness variant:
       #   live  the page as it is (Date and Math.random pinned, real timers and rAF timestamps)
       #   vt    virtual time: performance.now, rAF timestamps, timers and Date move one frame at a time (src/vtime.mjs)
       #   -warm the page is scrolled through once first (lazy loads done), -still suspends CSS animations (diagnostic), -trace adds event counters (cause attribution)
       # counts-<variant>-<pass>.json per pass.
       - name: WKTR, fresh process per pass, per variant
-        if: ${{ !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
+        if: ${{ !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]')) }}
         env:
           PASSES: ${{ inputs.passes || '3' }}
           STEP: ${{ inputs.step || '50' }}
@@ -318,7 +343,7 @@ jobs:
   # Classes per count type over every pass of every job (policy kMax 4, tMax 24), and over the passes of each job alone.
   classes:
     needs: [guard, wktr, fwcore]
-    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' && !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
+    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' && !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]')) }}
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:classes:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
