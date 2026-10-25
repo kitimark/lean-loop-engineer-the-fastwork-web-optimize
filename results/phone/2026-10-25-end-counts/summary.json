@@ -22,11 +22,11 @@
    "over50"
   ],
   "passes": 3,
-  "perBlock": 3,
+  "perBlock": 2,
   "reps": 5,
   "speedPxPerS": 800,
   "stepPx": 50,
-  "visitMin": 5,
+  "visitMin": 7,
   "warmup": 1,
   "zonePx": 500
  },
@@ -400,12 +400,13 @@
    "index": 6,
    "arm": "morph.countdown:strip",
    "status": "lost",
-   "attempts": 2,
+   "attempts": 3,
    "faults": [
     "usbReset",
-    "staleTab"
+    "staleTab",
+    "other"
    ],
-   "retryable": true
+   "retryable": false
   }
  ],
  "anomalies": [],

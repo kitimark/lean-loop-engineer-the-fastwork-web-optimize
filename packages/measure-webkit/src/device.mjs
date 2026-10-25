@@ -148,9 +148,9 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
   process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
     proxy = await startPhoneProxy(phone.udid, { log: say });
-    const origin = server.url.replace(/\/$/, '');
+    const ownHost = `${new URL(server.url).protocol}//${new URL(server.url).hostname}`; // any port: each visit serves on a new one
     let tabs = await tabsOf(proxy.ports);
-    let plan = tabPlan(origin, tabs.map((t) => t.url));
+    let plan = tabPlan(ownHost, tabs.map((t) => t.url));
     if (plan.plan === 'reset') {
       say('a tab of ours was left on the harness page; returning it to about:blank');
       const stale = await connect(tabs[plan.i].webSocketDebuggerUrl);
@@ -159,7 +159,7 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
       for (let i = 0; i < 20; i++) {
         await sleep(500);
         tabs = await tabsOf(proxy.ports);
-        plan = tabPlan(origin, tabs.map((t) => t.url));
+        plan = tabPlan(ownHost, tabs.map((t) => t.url));
         if (plan.plan === 'drive') break;
       }
       if (plan.plan !== 'drive') throw new Error('stale own tab could not be returned to about:blank');

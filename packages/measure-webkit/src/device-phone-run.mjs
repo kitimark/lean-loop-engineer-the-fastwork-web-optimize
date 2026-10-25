@@ -5,17 +5,36 @@ import { withPhone } from './device.mjs';
 import { loadFresh } from './page.mjs';
 import { phoneCounts, phoneFrames } from './device-runs.mjs';
 import * as P from './device-phone-arms.mjs';
-import { faultOf, mayAttempt } from './device-faults.mjs';
+import { appendOnly, faultOf, handReset, mayAttempt, recordFault } from './device-faults.mjs';
 
 const slug = (id) => id.replace(/[^A-Za-z0-9.-]+/g, '_');
 const pad = (i) => String(i).padStart(2, '0');
 const rawName = (i, id, lane) => `${pad(i)}-${slug(id)}.${lane}.json`;
 
-const loadState = (dir) => {
+export const loadState = (dir) => {
   const f = join(dir, 'state.json');
   return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : { visits: [] };
 };
-const saveState = (dir, st) => { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'state.json'), JSON.stringify(st, null, 1) + '\n'); };
+/** Write the state; a visit's named faults only ever grow (Lean appendOnly), so a hand edit that dropped them is refused. */
+export const saveState = (dir, st) => {
+  mkdirSync(dir, { recursive: true });
+  const f = join(dir, 'state.json');
+  if (existsSync(f)) {
+    for (const v of loadState(dir).visits) {
+      const n = st.visits.find((x) => x.index === v.index);
+      if (n && !appendOnly(v.faults ?? [], n.faults ?? [])) throw new Error(`visit ${v.index}: faults [${(n.faults ?? []).join(',')}] do not extend [${(v.faults ?? []).join(',')}]`);
+    }
+  }
+  writeFileSync(f, JSON.stringify(st, null, 1) + '\n');
+};
+/** A hand reset (tab, phone, proxy): noted in the state, the visit's faults stay as they are (Lean handReset). */
+export function markHandReset(dir, index, reason) {
+  const st = loadState(dir);
+  st.leadReset = [...(st.leadReset ?? []), { index, reason }];
+  st.visits = st.visits.map((v) => (v.index === index ? { ...v, faults: handReset(v.faults ?? []) } : v));
+  saveState(dir, st);
+  return st;
+}
 export const faultsOfVisit = (v) => {
   if (!v) return [];
   const named = v.faults ?? [];
@@ -99,7 +118,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
       putJson(join(dir, rawName(index, a.id, 'frames')), { target: a.target, arm: a.id, ...r.frames });
       const durationS = Math.round((Date.now() - start) / 1000);
       longest = Math.max(longest, durationS);
-      st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'done', attempts: attempts + 1, durationS, endedMs: Date.now() }]);
+      st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'done', attempts: attempts + 1, faults: prior[prior.length - 1]?.faults ?? [], durationS, endedMs: Date.now() }]);
       st.lastEndMs = Date.now();
       saveState(dir, st);
       const vals = P.visitValues(r.counts, r.frames);
@@ -108,7 +127,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
       console.log(JSON.stringify(ran[ran.length - 1]));
       await new Promise((r) => setTimeout(r, 10000));
     } catch (e) {
-      st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'failed', attempts: attempts + 1, faults: [...faults, faultOf(String(e.message))], error: String(e.message).slice(0, 300) }]);
+      st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'failed', attempts: attempts + 1, faults: recordFault(faults, faultOf(String(e.message))), error: String(e.message).slice(0, 300) }]);
       st.lastEndMs = Date.now();
       saveState(dir, st);
       const msg = `visit ${index} (${a.id}) attempt ${attempts + 1} failed: ${String(e.message).slice(0, 300)}`;

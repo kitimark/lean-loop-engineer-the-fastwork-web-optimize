@@ -11,12 +11,20 @@ export function faultOf(msg) {
 
 export const mayAttempt = (faults) => faults.length < 2 || (faults.length < 3 && faults.every(isHarness));
 
-export const ownTab = (origin, u) => u === origin || u.startsWith(origin + '/');
+export const recordFault = (faults, f) => [...faults, f];
 
-export function tabPlan(origin, urls) {
+/** A hand reset leaves the faults as they are. */
+export const handReset = (faults) => faults;
+
+export const appendOnly = (old, next) => old.length <= next.length && old.every((f, i) => next[i] === f);
+
+/** A tab on our host at any port: every visit serves on a new port, so the tab a visit leaves sits on that visit's port. */
+export const ownTab = (host, u) => u === host || u.startsWith(host + ':') || u.startsWith(host + '/');
+
+export function tabPlan(host, urls) {
   const blank = urls.filter((u) => u === 'about:blank').length;
-  const own = urls.filter((u) => ownTab(origin, u)).length;
+  const own = urls.filter((u) => ownTab(host, u)).length;
   if (blank === 1) return { plan: 'drive', i: urls.indexOf('about:blank') };
-  if (blank === 0 && own === 1) return { plan: 'reset', i: urls.findIndex((u) => ownTab(origin, u)) };
+  if (blank === 0 && own === 1) return { plan: 'reset', i: urls.findIndex((u) => ownTab(host, u)) };
   return { plan: 'refuse' };
 }

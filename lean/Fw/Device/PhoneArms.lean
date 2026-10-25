@@ -277,8 +277,8 @@ def capMin : Nat := 15
 /-- The shortest rest between blocks, in minutes. -/
 def coolMin : Nat := 5
 
-/-- Minutes one visit takes: the counts passes, the frames reps and the page loads, rounded up. -/
-def visitMin : Nat := 5
+/-- Minutes one visit takes: the counts passes, the frames reps and the page loads, rounded up. The longest measured visit took 368 s. -/
+def visitMin : Nat := 7
 
 /-- Visits in one block. -/
 def perBlock : Nat := capMin / visitMin
@@ -369,6 +369,44 @@ theorem mayAttempt_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayA
 theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab := by
   cases f <;> simp [Fault.harness]
 
+/-- A failed attempt adds its fault at the end of the visit's faults. -/
+def recordFault (faults : List Fault) (f : Fault) : List Fault := faults ++ [f]
+
+/-- A hand reset of a tab, the phone or the proxy leaves the visit's faults as they are. -/
+def handReset (faults : List Fault) : List Fault := faults
+
+/-- A saved fault list is valid only when the earlier one is its prefix. -/
+def appendOnly (old new : List Fault) : Bool := old.isPrefixOf new
+
+theorem recordFault_prefix (faults : List Fault) (f : Fault) : faults <+: recordFault faults f :=
+  List.prefix_append _ _
+
+theorem recordFault_length (faults : List Fault) (f : Fault) : (recordFault faults f).length = faults.length + 1 := by
+  simp [recordFault]
+
+theorem handReset_keeps (faults : List Fault) : handReset faults = faults := rfl
+
+/-- A hand reset does not give the visit new attempts. -/
+theorem handReset_mayAttempt (faults : List Fault) : mayAttempt (handReset faults) = mayAttempt faults := rfl
+
+/-- Faults recorded after a hand reset still extend the faults before it. -/
+theorem handReset_append_only (faults : List Fault) (f : Fault) : faults <+: recordFault (handReset faults) f :=
+  recordFault_prefix faults f
+
+/-- After a hand reset the visit is still never attempted a fourth time. -/
+theorem handReset_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayAttempt (handReset faults) = false :=
+  mayAttempt_fourth h
+
+theorem appendOnly_iff (old new : List Fault) : appendOnly old new = true ↔ old <+: new := by
+  unfold appendOnly
+  exact List.isPrefixOf_iff_prefix
+
+theorem appendOnly_record (faults : List Fault) (f : Fault) : appendOnly faults (recordFault faults f) = true :=
+  (appendOnly_iff _ _).2 (recordFault_prefix faults f)
+
+/-- Session 2026-10-25, visit 6 (the strip arm): a USB reset, a stale tab, then a stall mid-scroll, so the visit is lost. -/
+theorem strip_visit_lost : mayAttempt [.usbReset, .staleTab, .other] = false := by decide
+
 /-! ## The tab the phone run may drive -/
 
 /-- What to do with the phone's Safari tabs. -/
@@ -380,43 +418,44 @@ inductive TabPlan where
 
 def isBlank (u : String) : Bool := u == "about:blank"
 
-/-- A tab on our own harness server; `origin` is `http://host:port`. -/
-def ownTab (origin u : String) : Bool := u == origin || u.startsWith (origin ++ "/")
+/-- A tab on our own harness server at any port; `host` is `http://host` without the port, because every visit serves on a new port
+and the tab a visit leaves sits on the port of that visit. -/
+def ownTab (host u : String) : Bool := u == host || u.startsWith (host ++ ":") || u.startsWith (host ++ "/")
 
-/-- Drive the one blank tab; with none, return the one tab of our own server to blank first; otherwise refuse. -/
-def tabPlan (origin : String) (urls : List String) : TabPlan :=
+/-- Drive the one blank tab; with none, return the one tab of our own host (any port) to blank first; otherwise refuse. -/
+def tabPlan (host : String) (urls : List String) : TabPlan :=
   if urls.countP isBlank = 1 then .drive (urls.findIdx isBlank)
-  else if urls.countP isBlank = 0 ∧ urls.countP (ownTab origin) = 1 then .reset (urls.findIdx (ownTab origin))
+  else if urls.countP isBlank = 0 ∧ urls.countP (ownTab host) = 1 then .reset (urls.findIdx (ownTab host))
   else .refuse
 
 /-- Exactly one blank tab: it is the one driven. -/
-theorem tabPlan_drive {origin : String} {urls : List String} (h : urls.countP isBlank = 1) :
-    tabPlan origin urls = .drive (urls.findIdx isBlank) := by
+theorem tabPlan_drive {host : String} {urls : List String} (h : urls.countP isBlank = 1) :
+    tabPlan host urls = .drive (urls.findIdx isBlank) := by
   unfold tabPlan
   simp [h]
 
 /-- No blank tab and exactly one tab of ours: it is returned to blank. -/
-theorem tabPlan_reset {origin : String} {urls : List String} (h0 : urls.countP isBlank = 0)
-    (h1 : urls.countP (ownTab origin) = 1) : tabPlan origin urls = .reset (urls.findIdx (ownTab origin)) := by
+theorem tabPlan_reset {host : String} {urls : List String} (h0 : urls.countP isBlank = 0)
+    (h1 : urls.countP (ownTab host) = 1) : tabPlan host urls = .reset (urls.findIdx (ownTab host)) := by
   unfold tabPlan
   simp [h0, h1]
 
 /-- Two or more blank tabs: refused, whatever else is open. -/
-theorem tabPlan_refuse_blank {origin : String} {urls : List String} (h : 1 < urls.countP isBlank) :
-    tabPlan origin urls = .refuse := by
+theorem tabPlan_refuse_blank {host : String} {urls : List String} (h : 1 < urls.countP isBlank) :
+    tabPlan host urls = .refuse := by
   unfold tabPlan
   have h1 : ¬ urls.countP isBlank = 1 := by omega
   have h2 : ¬ urls.countP isBlank = 0 := by omega
   simp [h1, h2]
 
 /-- No blank tab and not exactly one of ours: refused. -/
-theorem tabPlan_refuse_none {origin : String} {urls : List String} (h0 : urls.countP isBlank = 0)
-    (h1 : urls.countP (ownTab origin) ≠ 1) : tabPlan origin urls = .refuse := by
+theorem tabPlan_refuse_none {host : String} {urls : List String} (h0 : urls.countP isBlank = 0)
+    (h1 : urls.countP (ownTab host) ≠ 1) : tabPlan host urls = .refuse := by
   unfold tabPlan
   simp [h0, h1]
 
 /-- A reset happens only when no tab is blank (the tab driven is never a second blank one). -/
-theorem tabPlan_reset_no_blank {origin : String} {urls : List String} {i : Nat} (h : tabPlan origin urls = .reset i) :
+theorem tabPlan_reset_no_blank {host : String} {urls : List String} {i : Nat} (h : tabPlan host urls = .reset i) :
     urls.countP isBlank = 0 := by
   unfold tabPlan at h
   split at h
@@ -425,6 +464,14 @@ theorem tabPlan_reset_no_blank {origin : String} {urls : List String} {i : Nat} 
     · rename_i _ h2
       exact h2.1
     · cases h
+
+/-- A tab left by an earlier visit, on any port of our host, is one of ours. -/
+theorem ownTab_any_port (host port : String) : ownTab host (host ++ ":" ++ port) = true := by
+  unfold ownTab
+  have h : (host ++ ":" ++ port).startsWith (host ++ ":") = true := by
+    rw [String.startsWith_string_iff]
+    simp
+  simp [h]
 
 /-- The session in blocks. -/
 def sessionBlocks : List (List Arm) := blocks perBlock sessionVisits
@@ -594,16 +641,24 @@ private def faultTexts : List String :=
 
 private def attemptCases : List (List Fault) :=
   [[], [.other], [.usbReset], [.other, .other], [.usbReset, .staleTab], [.usbReset, .usbReset], [.staleTab, .other],
-   [.other, .usbReset], [.usbReset, .staleTab, .usbReset], [.usbReset, .usbReset, .usbReset, .usbReset]]
+   [.other, .usbReset], [.usbReset, .staleTab, .usbReset], [.usbReset, .usbReset, .usbReset, .usbReset],
+   [.usbReset, .staleTab, .other]]
 
-private def tabOrigin : String := "http://harness.test:4100"
+private def appendCases : List (List Fault × List Fault) :=
+  [([], []), ([], [.other]), ([.usbReset], [.usbReset, .staleTab]), ([.usbReset, .staleTab], [.usbReset, .staleTab, .other]),
+   ([.usbReset, .staleTab], [.usbReset, .staleTab]), ([.usbReset, .staleTab], []), ([.usbReset, .staleTab], [.usbReset]),
+   ([.usbReset, .staleTab], [.staleTab, .usbReset]), ([.usbReset], [.other, .usbReset])]
+
+private def tabHost : String := "http://harness.test"
 
 private def tabCases : List (List String) :=
   [["about:blank"], ["about:blank", "https://example.test/"], ["about:blank", "about:blank"], [],
    ["http://harness.test:4100/"], ["http://harness.test:4100/x?a=b"], ["http://harness.test:4100"],
    ["https://example.test/", "http://harness.test:4100/"], ["http://harness.test:4100/", "http://harness.test:4100/y"],
    ["http://harness.test:41000/"], ["http://other.test:4100/"], ["http://harness.test:4100/", "about:blank"],
-   ["http://harness.test:4100/", "about:blank", "about:blank"], ["https://example.test/"]]
+   ["http://harness.test:4100/", "about:blank", "about:blank"], ["https://example.test/"],
+   ["http://harness.test:3999/"], ["http://harness.test:3999/", "http://harness.test:4100/"],
+   ["http://harness.test.evil:4100/"], ["http://harness.test:3999/", "about:blank"], ["https://harness.test:4100/"]]
 
 private def planJ : TabPlan → Json
   | .drive i => Json.mkObj [("plan", "drive"), ("i", i)]
@@ -643,8 +698,13 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "fault"), ("text", t), ("fault", (faultOf t).name), ("harness", (faultOf t).harness)]).compress) ++
   (attemptCases.map fun (fs : List Fault) =>
     (Json.mkObj [("kind", "attempt"), ("faults", strsJ (fs.map Fault.name)), ("may", mayAttempt fs)]).compress) ++
+  (attemptCases.map fun (fs : List Fault) =>
+    (Json.mkObj [("kind", "reset"), ("faults", strsJ (fs.map Fault.name)), ("after", strsJ ((handReset fs).map Fault.name)),
+      ("may", mayAttempt (handReset fs))]).compress) ++
+  (appendCases.map fun (o, n) =>
+    (Json.mkObj [("kind", "append"), ("old", strsJ (o.map Fault.name)), ("new", strsJ (n.map Fault.name)), ("ok", appendOnly o n)]).compress) ++
   (tabCases.map fun (us : List String) =>
-    (Json.mkObj [("kind", "tabs"), ("origin", tabOrigin), ("urls", strsJ us), ("plan", planJ (tabPlan tabOrigin us))]).compress) ++
+    (Json.mkObj [("kind", "tabs"), ("host", tabHost), ("urls", strsJ us), ("plan", planJ (tabPlan tabHost us))]).compress) ++
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]
