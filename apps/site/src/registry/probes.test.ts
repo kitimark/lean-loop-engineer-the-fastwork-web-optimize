@@ -60,6 +60,8 @@ describe('probe class', () => {
     const count = (h: string, s: string) => h.split(s).length - 1;
     const sw = html('?fw=platform.sweep:probe-off');
     expect(sw).not.toBe(base);
+    expect(sw).toMatch(/_still_/);
+    expect(base).not.toMatch(/_still_/);
     expect(count(sw, 'data-fw-sweep')).toBe(count(base, 'data-fw-sweep'));
     expect(html('?fw=platform.glint:probe-off')).toBeTypeOf('string');
     expect(html('?fw=platform.entries:probe-off')).toBeTypeOf('string');

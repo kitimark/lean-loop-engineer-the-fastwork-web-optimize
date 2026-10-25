@@ -23,7 +23,7 @@
       "kind": "probe",
       "provenance": {
         "lean": "Fw.Preset.V2Proved probe_not_mem, probe_not_isOpt; Fw.Preset.Gen probe_not_mem_lookCandidates",
-        "limit": "measurement only, never in a preset or a look verdict (task platform-attribution): the four title words keep their data attribute but lose the gradient sweep class"
+        "limit": "measurement only, never in a preset or a look verdict (task platform-attribution): the four title words keep the sweep class and its gradient but the animation is none (so the gradient stands still; not the faithful look)"
       }
     }
   },
