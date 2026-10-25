@@ -13,7 +13,8 @@ topics: [platform, sweep, glint, entries, fade-threaded, end-of-page, webkit, ch
 ## Answer first
 
 - None of the three existing un-measured variants wins at the page end, on either engine, by the Lean verdict rule
-  (`noGain` in every finish zone and push phase; table below). MEASURED.
+  (`noGain` in every finish zone; one push phase, fade-threaded end 0-19, reads gain and is offset in end 20-59;
+  table below). MEASURED.
 - The variants cannot answer the step-2 question anyway. `sweep:offscreen-pause` and `glint:offscreen-pause` are no-ops
   by construction while the section is on screen, and at the page end it is on screen until the push fades it. So
   "equal counts" says the pause saves nothing there; it does not say the sweep or glint cost nothing there. INFERRED.
@@ -28,7 +29,8 @@ topics: [platform, sweep, glint, entries, fade-threaded, end-of-page, webkit, ch
   - What would make all three measurable is one attribution arm per part (part off, for measurement only). That is a
     step-2 prerequisite, not built here.
 - `platform:fade-threaded` on Chromium is a no-win: it moves Paint and PrePaint work from frames 0-19 to frames 20-59 at
-  the end, and raises the raster invalidation area 2.1x (292 M px against 137 M px over the zone) and the layer count
+  the end (on zone y05000, 191 swipe frames, Paint 861 vs 838 and PrePaint 350 vs 324 are more), and raises the
+  raster invalidation area 2.1x (292 M px against 137 M px over frames 540-740; 276.6 against 130.0 on zone y05000) and the layer count
   by 0.6 %. MEASURED. Chromium column in the ledger: `unknown` becomes `no-win`.
 - WebKit: sweep and glint show no effect on any counter in the Simulator, except `ObserverCallback` +2 to +4 per zone
   for sweep (its own IntersectionObserver callbacks; the Lean verdict reads this as `more`). MEASURED.
@@ -70,7 +72,7 @@ topics: [platform, sweep, glint, entries, fade-threaded, end-of-page, webkit, ch
   (`judge_more`, `judge_gain`, `judge_same`). The code is the golden-checked twin in
   `packages/measure-chromium/src/offscreen.mjs` (`cmp`, `judge`). TS stand-in: the key subset (the lane has no
   `BeginMainFrame`, `NeedsTick`, `TickAnimations`, so `verdict` itself would say `noData` through `hasKeys`) and the
-  zone sums are scratch scripts (`scratchpad/pev/ch.mjs`, `wk.mjs`, not committed). Chromium keys: RecalcStyleCount,
+  zone sums are scratch scripts (`scratchpad/pev/ch.py`, `wk.py`, not committed). Chromium keys: RecalcStyleCount,
   LayoutCount, UpdateLayoutTree, Layout, PrePaint, Paint, Commit, cc.Draw, FireAnimationFrame. WebKit keys:
   RecalculateStyles, Layout, Paint, Composite, FireAnimationFrame, TimerFire, ObserverCallback, InvalidateLayout,
   ScheduleStyleRecalculation. Raster counters and the invalidation area are shown, not in the verdict.
@@ -160,5 +162,5 @@ first, because the pause arm already shows it rasters. This is a follow-up round
   base are therefore a little narrower, which can only turn a `same` into `more` or `less` for a flag, and no `less`
   appeared.
 - `platform:mq` stays closed.
-- Scratch scripts (`scratchpad/pev/ch.mjs`, `wk.mjs`) are not committed; the numbers can be rebuilt from the run ids
+- Scratch scripts (`scratchpad/pev/ch.py`, `wk.py`) are not committed; the numbers can be rebuilt from the run ids
   above with `gh run download <id> -p 'chromium-counts-rewrite-r*'` or `-p 'webkit-sim-r*'`.

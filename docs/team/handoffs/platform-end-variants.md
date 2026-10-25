@@ -1,6 +1,6 @@
 branch: worktree-wf_95345f2e-b29-1
 worktree: .claude/worktrees/wf_95345f2e-b29-1 (under the repo root)
-last commit: see git log; step 1 complete (measure only; no step-2 build); round 2 = the three fix-before-land items, no new CI run
+last commit: 8d97898e7 (round 2), lead fixes after review r2 on top; step 1 complete (measure only; no step-2 build); round 2 = the three fix-before-land items, no new CI run
 
 CI runs (dispatched with `pnpm -s fw run --target rewrite --ref main`, main 5c8cccc, unchanged code, no ci/ push):
 | id | lane | arm | state |
@@ -17,7 +17,7 @@ verified: all 7 runs read; note research/notes/2026/10-2x-platform-end-variants.
 Result: no existing variant wins at the page end on either engine (Lean cmp/judge twin); fade-threaded Chromium no-win (area 2.1x);
 premises for step-2 (a) sweep, (b) glint, (c) entries are NOT measured (pause arms are no-ops while visible); next = attribution arm per part.
 open: attribution arms (follow-up round); WebKit open/close push split needs the lag/cost lane (no fw run input); fw run webkit waiter bug
-(nonce matches the same run id twice, exit 1; runs fine). Scratch scripts scratchpad/pev/{ch,wk}.mjs are not committed (rebuild from run ids; recipe in the note).
+(nonce matches the same run id twice, exit 1; runs fine). Scratch scripts scratchpad/pev/{ch,wk}.py are not committed (rebuild from run ids; recipe in the note).
 read first: the note.
 
 round 2 (no new dispatch): Chromium zone y05000 row (191 frames, lane sums: base Paint 838 PrePaint 324, fade 861/350) added, claims in note and ledger corrected;
