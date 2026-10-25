@@ -14,13 +14,11 @@ workflows:
         FW_SIM_NAME: fw-iphone-27
         FW_WK_TIMEOUT_SCALE: "8"
         FW_WK_ATTEMPTS: "3"
-        # the cell, as dispatched ("none" = empty: Codemagic refuses an empty variable) (fw ci pool dispatch / fw run pass these through the API; the defaults are the one-cell pilot)
         FW_TARGET: original
         FW_PRESET: original
         FW_FW: none
         FW_VM: v1
         FW_SESSIONS: "1"
-        # the query the rewrite cell is served with (Lean's plan, passed by fw run; empty = the default configuration)
         FW_SEARCH: none
         ELAN_VERSION: v4.2.4
         ELAN_SHA256: 7ad829861392c718dfebde3a83b5c8508df47be02af68894b094b0b3952616e5
@@ -71,7 +69,6 @@ workflows:
           export PATH="$HOME/fw-bin:$PATH"
           pnpm --version
           pnpm install --frozen-lockfile --filter '@fw/site...'
-          # the toolchain named in lean/lean-toolchain (what setup-lean installs on the GitHub job)
           (cd lean && elan toolchain install "$(cat lean-toolchain)" && lake build breakgen)
           if [ -n "$FW_SEARCH" ]; then pnpm --filter @fw/site build --config "$FW_SEARCH"; else pnpm --filter @fw/site build; fi
           node scripts/codemagic.mjs site-digest apps/site/dist/aot | tee "$RUNNER_TEMP/result/site-digest.txt"

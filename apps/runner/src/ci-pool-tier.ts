@@ -96,21 +96,13 @@ export async function tierCli(argv: string[], cwd: string): Promise<number> {
   });
 }
 
-// ---- dispatch time: `fw run` routes the cells of a webkit-sim count job through the Lean pool route (task pool-dispatch-poller) ----
-// The decision is Lean's (`ci.poolTier`, Fw.Ci.PoolTier: GitHub first, Codemagic when GitHub has no slot, stop at 400 of 500
-// minutes; `ci.poolCell`: which targets are routable and when a finished rewrite cell may be filed, only with the site digest of
-// the GitHub site job). Everything below reads facts, maps the reply and moves files. TS stand-in: the local class merge (the
-// `merge` job of webkit-sim.yml).
-
 export type CellFacts = { lane: string | null; routable: boolean; needsDigest: boolean; filed: boolean };
 
-/** Lean's `ci.poolCell`: the pool lane of a count target, whether it is routable, and whether a finished cell with these site digests may be filed. */
 export function poolCell(call: FwCall, target: string, ghDigest?: string | null, cmDigest?: string | null): CellFacts {
   const r = call({ op: "ci.poolCell", target, ...(ghDigest ? { ghDigest } : {}), ...(cmDigest ? { cmDigest } : {}) }) as unknown as CellFacts;
   return { lane: r.lane, routable: r.routable, needsDigest: r.needsDigest, filed: r.filed };
 }
 
-/** The cells of a count job as Lean plans them (`measure.simPlan`): the VM name (v<n> original, r<n> rewrite) and the query each is served with. */
 export function planCells(call: FwCall, a: { target: string; vms: number; sessions: string; preset: string; fw: string; sha: string }): { vm: string; search: string }[] {
   const r = call({ op: "measure.simPlan", id: "sim-plan", target: a.target, vms: String(a.vms), sessions: a.sessions, preset: a.preset, fw: a.fw, experiment: "determinism", sha: a.sha }) as unknown as { matrix: { vm: string; search: string }[]; problems: string[] };
   if (r.problems.length) throw new Error(`plan refused: ${r.problems.join("; ")}`);
@@ -119,7 +111,6 @@ export function planCells(call: FwCall, a: { target: string; vms: number; sessio
 
 export type Busy = { ghMacBusy: number; ghTotalBusy: number };
 
-/** GitHub macOS jobs that hold or wait for a slot: the in-progress runs of the macOS workflows, their jobs `in_progress` or `queued`. */
 export async function readGhBusy(gh: Gh, macOf: (wf: string, names: string[]) => boolean[]): Promise<Busy> {
   const runs = JSON.parse(await gh(["run", "list", "--status", "in_progress", "--limit", "30", "--json", "databaseId,workflowName"])) as { databaseId: number; workflowName: string }[];
   let mac = 0, total = 0;
@@ -135,7 +126,6 @@ export async function readGhBusy(gh: Gh, macOf: (wf: string, names: string[]) =>
 export type CmFacts = { cmUsed: number; cmBusy: number };
 export type CellRoute = { total: number; codemagic: number; github: number; rows: { rep: number; decision: string; via: string | null }[]; counts: Record<string, number>; busy: Busy; facts: CmFacts };
 
-/** Ask Lean where each of `vms` cells of one count job goes. CircleCI is closed (its allow-list is emptied); a cell that is not Codemagic stays on GitHub, whose queue holds it. */
 export function routeCells(call: FwCall, a: { sha: string; key: string; target: string; vms: number; busy: Busy; facts: CmFacts }): CellRoute {
   const lane = poolCell(call, a.target).lane;
   if (!lane) throw new Error(`target ${a.target} has no pool lane`);
@@ -146,7 +136,6 @@ export function routeCells(call: FwCall, a: { sha: string; key: string; target: 
   return { total: a.vms, codemagic, github: a.vms - codemagic, rows, counts: reply.counts as Record<string, number>, busy: a.busy, facts: a.facts };
 }
 
-/** The route events: one append-only line per decision (`<console dir>/ci-route.jsonl`, the runner's own log like timings.jsonl). */
 export type RouteEvent =
   | { kind: "ci.site.digest"; at: number; vm: string; github: string | null; codemagic: string | null; filed: boolean }
   | { kind: "ci.route"; at: number; sha7: string; lane: string; target: string; cells: number; codemagic: number; github: number; rows: CellRoute["rows"]; busy: Busy; facts: CmFacts }
@@ -160,12 +149,9 @@ export function appendRouteEvent(file: string, ev: RouteEvent): void {
   appendFileSync(file, JSON.stringify(ev) + "\n");
 }
 
-/** The toolchain a cell measured under, as read from its `tools.txt`; "" = not read. Lean (`ci.cellMerged`) compares keys; TypeScript only parses and passes them. */
 export type PlatformKey = { macosBuild: string; xcodeBuild: string; runtimeBuild: string };
-/** Hardware facts, recorded and not keyed. */
 export type Hw = { cpus: number | null; memsize: number | null };
 
-/** Parse a `tools.txt` (sw_vers, xcodebuild -version, simctl list runtimes) into the key. The runtime is the one of the pinned iOS version; two lines of it read as unread. */
 export function parsePlatformKey(tools: string | null, iosVersion = "27.0"): PlatformKey {
   const t = tools ?? "";
   const one = (re: RegExp) => { const m = [...t.matchAll(re)]; return m.length === 1 ? m[0]![1]! : ""; };
@@ -177,7 +163,6 @@ export function parsePlatformKey(tools: string | null, iosVersion = "27.0"): Pla
   };
 }
 
-/** Hardware of a cell: `runner.json` cpus (GitHub), else the two `sysctl hw.ncpu hw.memsize` lines of a Codemagic `tools.txt`. */
 export function parseHw(dir: string): Hw {
   const rj = join(dir, "runner.json");
   let cpus: number | null = null;
@@ -189,22 +174,18 @@ export function parseHw(dir: string): Hw {
 
 const readOr = (f: string): string | null => (existsSync(f) ? readFileSync(f, "utf8") : null);
 
-/** Ask Lean whether a Codemagic cell's key may be pooled with the reference key (GitHub cell v1). */
 export function cellMerged(call: FwCall, ref: PlatformKey, cell: PlatformKey): boolean {
   return (call({ op: "ci.cellMerged", ref, cell }) as unknown as { merged: boolean }).merged;
 }
 
 export type CmBuildDoc = { status: string; startedAt: number | null; finishedAt: number | null; createdAt: number | null; minutes: number | null; sha: string | null };
 
-/** The Codemagic side of a cell: trigger one build (exit 5 = the Lean stop rule refused), wait for it and fetch its artifacts, read its record. */
 export type CmDeps = {
   trigger: (branch: string, vars: Record<string, string>) => Promise<{ code: number; build?: string }>;
   wait: (build: string, out: string) => Promise<number>;
   read: (out: string) => CmBuildDoc;
   facts: () => CmFacts;
-  /** The digest of the site build of the GitHub run (its `site-dist` artifact), null when the run has none. */
   githubSiteDigest: (runId: string, tmp: string) => Promise<string | null>;
-  /** The digest the Codemagic cell printed for its own site build (`site-digest.txt` among the fetched artifacts), null when absent. */
   siteDigestOf: (out: string) => string | null;
 };
 
@@ -249,7 +230,6 @@ export function realCmDeps(root: string, log: (l: string) => void, gh?: Gh): CmD
   };
 }
 
-/** Put the artifacts of a fetched Codemagic build where `gh run download --pattern webkit-sim-<vm>` would put them. */
 export function placeCmArtifacts(buildOut: string, dir: string, vm: string): number {
   const from = join(buildOut, "artifacts"), to = join(dir, `webkit-sim-${vm}`);
   mkdirSync(to, { recursive: true });
@@ -260,9 +240,6 @@ export function placeCmArtifacts(buildOut: string, dir: string, vm: string): num
   return n;
 }
 
-/** The `merge` job of webkit-sim.yml, run here for a mixed run: classes over every VM and the within-VM tables (`webkit-classes`).
- *  TS STAND-IN of that job (no decision here: the cells in `dir` are the ones Lean merged). Cells Lean refused sit in `dir/refused/webkit-sim-<vm>`;
- *  each gets its own table and its key in `webkit-classes/refused/`, outside the pooled classes. */
 export function mergeClasses(root: string, dir: string, refused: { vm: string; key: PlatformKey }[] = []): number {
   const cli = join(root, "packages/measure-webkit/src/cli.mjs");
   const files = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && /^webkit-sim-[vr]\d+$/.test(e.name))
@@ -288,8 +265,6 @@ export function mergeClasses(root: string, dir: string, refused: { vm: string; k
   return files.length;
 }
 
-/** The real `RouteDeps` of `fw run`: read the facts, ask Lean, record the decision, start the Codemagic cells. At most `total - 1` cells leave GitHub:
- *  the GitHub run keeps v1.. and the telemetry pieces `store.download` needs (accepted limit; an all-Codemagic count job is not filed). */
 export function realRoute(a: { root: string; consoleDir: string; call: FwCall; gh: Gh; log: (l: string) => void; now: () => number; cm?: CmDeps }): RouteDeps {
   const file = join(a.consoleDir, "ci-route.jsonl");
   const ev = (e: RouteEvent) => appendRouteEvent(file, e);
@@ -336,7 +311,6 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
     place: async (dir, cells, runId) => {
       const rewrite = cells.filter((c) => poolCell(a.call, c.target ?? "original").needsDigest);
       if (rewrite.length) {
-        // The rewrite cell built its own site: it is filed only when that build equals the build of the GitHub site job (Lean ci.poolCell).
         const gh = await cm.githubSiteDigest(runId, join(a.consoleDir, "tmp", `site-${runId}`));
         for (const c of rewrite) {
           const mine = cm.siteDigestOf(c.out);
@@ -345,7 +319,6 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
           if (!v.filed) throw new Error(`Codemagic cell ${c.vm}: site digest ${mine ?? "missing"} is not the GitHub site job digest ${gh ?? "missing"}; the rewrite cell is not routable, rerun with --no-route`);
         }
       }
-      // Toolchain identity: Lean decides per cell whether its key equals the key of the GitHub cell v1 (r1 for the rewrite arm); a refused cell is filed aside.
       const refVm = (cells[0]?.target ?? "original") === "rewrite" ? "r1" : "v1";
       const refDir = join(dir, `webkit-sim-${refVm}`);
       const ref = parsePlatformKey(readOr(join(refDir, "tools.txt")));

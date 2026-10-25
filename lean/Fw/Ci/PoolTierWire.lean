@@ -80,8 +80,7 @@ def opConsts (req : Json) : Except String Reply := do
   pure [("cfg", cfgJson' c), ("macCap", macCap c), ("stopAt", Fw.Ci.Codemagic.stopAt),
     ("sources", .arr (sources.map fun (k, st, src) => Json.mkObj [("constant", k), ("status", st), ("source", src)]).toArray)]
 
-/-- `ci.poolCell`: for a count target (and optionally the two site digests) the pool lane, whether the target is routable and
-whether the finished Codemagic cell may be filed. `{target, ghDigest?, cmDigest?}`. -/
+/-- `ci.poolCell`: `{target, ghDigest?, cmDigest?}` to `{lane, routable, needsDigest, filed}`. -/
 def opCell (req : Json) : Except String Reply := do
   let t ← str req "target"
   let dig (k : String) : Except String (Option String) :=
@@ -95,8 +94,7 @@ def opCell (req : Json) : Except String Reply := do
   pure [("lane", match lane with | some l => Json.str l | none => .null), ("routable", routableTarget pool7 t),
     ("needsDigest", lane == some rewriteLane), ("filed", match lane with | some l => toJson (cellFiled l gh cm) | none => toJson false)]
 
-/-- `ci.cellMerged`: whether a Codemagic cell's toolchain key may be pooled with the key of the GitHub cell v1.
-`{ref:{macosBuild,xcodeBuild,runtimeBuild}, cell:{...}}`; a missing component reads as empty and refuses. -/
+/-- `ci.cellMerged`: `{ref:{macosBuild,xcodeBuild,runtimeBuild}, cell:{...}}` to `{merged}`. -/
 def opMerged (req : Json) : Except String Reply := do
   let key (k : String) : Except String PlatformKey := do
     let o ← field req k

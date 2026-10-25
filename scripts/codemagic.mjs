@@ -4,7 +4,7 @@
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
-//   node scripts/codemagic.mjs site-digest DIR               sha256 over the files of a built site (task pool-dispatch-poller: GitHub's site job and the Codemagic rewrite cell must agree)
+//   node scripts/codemagic.mjs site-digest DIR               sha256 over the files of a built site
 //   node scripts/codemagic.mjs ledger | digest FILE.md | dry-run
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -103,10 +103,8 @@ export function loadConfig(root = ROOT, env = process.env) {
 
 export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^[vr][1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/, FW_SEARCH: /^[A-Za-z0-9._:,=&%?-]{0,300}$/ };
 
-/** Codemagic refuses an empty variable value (build 6addffe5: "ensure this value has at least 1 characters"): an empty `FW_FW` or `FW_SEARCH` travels as this word and codemagic.yaml turns it back. */
 export const EMPTY = 'none';
 
-/** The cell variables of a webkit-sim count job (the dispatch inputs `target`, `preset`, `fw`, the VM index and `sessions`); any other name or a value off its pattern is refused. */
 export function cellVars(vars) {
   const out = {};
   for (const [k, v] of Object.entries(vars ?? {})) {
@@ -186,7 +184,6 @@ export async function fetchBuild(ctx, { buildId, out }) {
     try {
       const file = join(out, 'artifacts', safeName(a.name));
       writeFileSync(file, Buffer.from(await (await request(ctx, 'GET', new URL(a.url, API).href, { accept: '*/*' })).arrayBuffer()));
-      // Codemagic bundles the artifacts of a build into one zip (build 6ade005d: fw-result/ and fw-extra/); the cell files sit flat next to it.
       if (/\.zip$/i.test(a.name)) execFileSync('unzip', ['-o', '-q', '-j', file, '-d', join(out, 'artifacts')]);
     } catch (e) { ctx.log?.(`codemagic: artifact ${a.name}: ${e.message}`); }
   }
@@ -205,13 +202,6 @@ export async function fetchBuild(ctx, { buildId, out }) {
 }
 
 
-/**
- * The digest of a built site: sha256 over `path NUL size NUL sha256(content)` lines, paths sorted bytewise, relative to `dir`.
- * It covers what the lane serves and nothing that varies per build machine:
- *  - hidden paths (any segment starting with a dot, e.g. `.vite/manifest.json`) are skipped: upload-artifact drops them, so the GitHub
- *    `site-dist` never holds them (measured: build 6ade005d vs run 40196504411, 244 vs 243 files);
- *  - `build-info.json` is hashed without its `ms` key, the wall times of the build steps (measured: only `ms` differed between the two builds).
- */
 export function siteDigest(dir) {
   const files = [];
   const walk = (d, rel) => {
@@ -234,7 +224,6 @@ export function siteDigest(dir) {
   return { digest: files.length ? h.digest('hex') : null, files: files.length };
 }
 
-/** The digest in a `site-digest.txt` file (`<hex>  <n> files`), or null when it is not one. */
 export function digestOfText(text) { return /^([0-9a-f]{64})\b/.exec(text.trim())?.[1] ?? null; }
 
 export function classRows(md) {

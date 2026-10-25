@@ -7,7 +7,6 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 const job = { engine: "webkit", workflow: "webkit-sim.yml", inputs: { vms: "3", sessions: "1", target: "original" }, key: [["runs", "3"]], image: "xcode-27", blocked: null, cache: "miss", digest: "d".repeat(64) };
 const plan: FwCall = () => ({ fw: [], jobs: [job], problems: [] });
 
-// A pool-routed `fw run`: the route's github count is what is dispatched; the Codemagic cells are awaited with the GitHub run.
 describe("runMain with the pool route", () => {
   const drive = async (argv: string[], route: RouteDeps | undefined) => {
     const ghCalls: string[][] = [];

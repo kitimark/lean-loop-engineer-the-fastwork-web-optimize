@@ -228,17 +228,14 @@ theorem macCap_pool7 : macCap pool7 = 7 := by decide
 theorem cap_7 (rs : List Req) (s : State) (h : Inv pool7 s) : inflight (step pool7 rs s).2 ≤ 7 :=
   macCap_pool7 ▸ inflight_le pool7 _ (step_inv pool7 rs s h)
 
-/-- True for a Codemagic decision. `fw run` sends exactly these cells to Codemagic; every other decision (GitHub, CircleCI, wait) leaves the cell on GitHub, whose queue holds it. -/
 def Decision.isCm : Decision → Bool
   | .codemagic .. => true
   | .base _ => false
 
-/-- The Codemagic minutes a decision reserves (its cap), 0 for any other decision. -/
 def Decision.cmMin : Decision → Nat
   | .codemagic _ _ m => m
   | .base _ => 0
 
-/-- How many cells of a routed list go to Codemagic. -/
 def cmCount (l : List (Req × Decision)) : Nat := (l.filter fun x => x.2.isCm).length
 
 theorem route_cmMin (c : Cfg) (r : Req) (s : State) :
@@ -255,7 +252,6 @@ theorem after_cmUsed (c : Cfg) (s : State) (d : Decision) : (s.after c d).cmUsed
 theorem after_cmBusy (c : Cfg) (s : State) (d : Decision) : (s.after c d).cmBusy = s.cmBusy + if d.isCm then 1 else 0 := by
   cases d <;> simp [State.after, Decision.isCm]
 
-/-- Cells on Codemagic: each costs its cap in minutes and one concurrent slot. -/
 theorem step_cm_used (c : Cfg) (rs : List Req) (s : State) :
     (step c rs s).2.cmUsed = s.cmUsed + c.cmCapMin * cmCount (step c rs s).1 := by
   induction rs generalizing s with
@@ -274,7 +270,6 @@ theorem step_cm_busy (c : Cfg) (rs : List Req) (s : State) :
     rw [ih, after_cmBusy]
     by_cases h : (route c r s).isCm = true <;> simp [h] <;> omega
 
-/-- The budget line over a whole batch: from a month at or under the stop line, the cells sent to Codemagic never carry it past 400 minutes (of 500 free). -/
 theorem cm_cells_budget (c : Cfg) (rs : List Req) (s : State) (h : s.cmUsed ≤ Codemagic.stopAt) :
     s.cmUsed + c.cmCapMin * cmCount (step c rs s).1 ≤ Codemagic.stopAt := by
   induction rs generalizing s with
@@ -298,50 +293,40 @@ theorem cm_cells_budget (c : Cfg) (rs : List Req) (s : State) (h : s.cmUsed ≤ 
     simp only [step, cmCount, List.filter_cons] at this ⊢
     by_cases hm : (route c r s).isCm = true <;> simp [hm, Nat.mul_add] at this ⊢ <;> omega
 
-/-- A batch from an invariant state fills at most the free Codemagic slots. -/
 theorem cm_cells_slots (c : Cfg) (rs : List Req) (s : State) (h : Inv c s) :
     s.cmBusy + cmCount (step c rs s).1 ≤ c.cmConc := by
   rw [← step_cm_busy]
   exact (step_inv c rs s h).2.1
 
-/-- The pool lane of the rewrite arm of a count job: its Codemagic cell builds the site itself from the same commit. -/
 def rewriteLane : String := "webkit-sim-rewrite"
 
-/-- The pool lane a count target is routed under, `none` for a target the pool never splits (`both` holds two arms in one run). -/
 def laneOfTarget : String → Option String
   | "original" => some "webkit-sim"
   | "rewrite" => some rewriteLane
   | _ => none
 
-/-- A lane the Codemagic tier may take cells of: on, in the allow-list, and not GitHub-only. -/
 def routableLane (c : Cfg) (lane : String) : Bool :=
   c.cmOn && c.cmAllow.contains lane && !c.base.ghOnly.contains lane
 
-/-- A target is routable when it maps to a routable lane. -/
 def routableTarget (c : Cfg) (t : String) : Bool :=
   match laneOfTarget t with
   | some l => routableLane c l
   | none => false
 
-/-- The site digests agree: both builds exist, are non-empty and are equal. -/
 def siteMatch (gh cm : Option String) : Bool :=
   match gh, cm with
   | some a, some b => !a.isEmpty && a == b
   | _, _ => false
 
-/-- A finished Codemagic cell may be filed: the original arm serves the read-only snapshot (checked by `verify-snapshot`), the rewrite arm only when the digest of
-its own site build equals the digest of the site build of the GitHub site job. -/
 def cellFiled (lane : String) (gh cm : Option String) : Bool :=
   lane != rewriteLane || siteMatch gh cm
 
 theorem original_routable : routableTarget pool7 "original" = true := by decide
 
-/-- The rewrite arm is routable: its cell builds the site on the Codemagic machine, so its lane is in the allow-list. -/
 theorem rewrite_routable : routableTarget pool7 "rewrite" = true := by decide
 
 theorem both_not_routable (c : Cfg) : routableTarget c "both" = false := rfl
 
-/-- A rewrite cell is filed only with two equal, non-empty site digests. -/
 theorem rewrite_filed_needs_digest (gh cm : Option String) (h : cellFiled rewriteLane gh cm = true) :
     ∃ d, d ≠ "" ∧ gh = some d ∧ cm = some d := by
   unfold cellFiled at h
@@ -352,79 +337,59 @@ theorem rewrite_filed_needs_digest (gh cm : Option String) (h : cellFiled rewrit
   rename_i a b
   exact ⟨a, by simpa using h.1, by simp [h.2], by simp [h.2]⟩
 
-/-- Differing digests refuse the rewrite cell. -/
 theorem rewrite_mismatch_refused (a b : String) (h : a ≠ b) : cellFiled rewriteLane (some a) (some b) = false := by
   simp [cellFiled, siteMatch, h]
 
-/-- A Codemagic site build that gave no digest refuses the rewrite cell. -/
 theorem rewrite_no_cm_digest_refused (gh : Option String) : cellFiled rewriteLane gh none = false := by
   cases gh <;> simp [cellFiled, siteMatch]
 
-/-- A GitHub site build with no digest refuses the rewrite cell. -/
 theorem rewrite_no_gh_digest_refused (cm : Option String) : cellFiled rewriteLane none cm = false := by
   cases cm <;> simp [cellFiled, siteMatch]
 
-/-- The original arm needs no site digest. -/
 theorem original_filed (gh cm : Option String) : cellFiled "webkit-sim" gh cm = true := by
   simp [cellFiled, rewriteLane]
 
-/-- The toolchain a count cell measured under: the macOS build, the Xcode build and the Simulator runtime build it used. An empty string means
-"not read". Hardware is recorded elsewhere and is not part of the key. -/
 structure PlatformKey where
   macosBuild : String
   xcodeBuild : String
   runtimeBuild : String
 deriving DecidableEq, Repr
 
-/-- All three components are present. -/
 def PlatformKey.complete (k : PlatformKey) : Bool :=
   !k.macosBuild.isEmpty && !k.xcodeBuild.isEmpty && !k.runtimeBuild.isEmpty
 
-/-- A Codemagic cell may be pooled with the GitHub cells when its toolchain key equals the key of the GitHub cell v1 and every component is non-empty
-(allowlist: an unread component never merges). -/
 def cellMerged (ref cell : PlatformKey) : Bool :=
   cell.complete && ref == cell
 
-/-- Merged exactly when the two keys are equal and complete. -/
 theorem cellMerged_iff (ref cell : PlatformKey) : cellMerged ref cell = true ↔ ref = cell ∧ cell.complete = true := by
   unfold cellMerged
   simp [Bool.and_eq_true, and_comm]
 
-/-- Equal keys with non-empty components merge. -/
 theorem cellMerged_of_eq (k : PlatformKey) (h : k.complete = true) : cellMerged k k = true := by
   simp [cellMerged, h]
 
-/-- A different macOS build refuses. -/
 theorem cellMerged_macos_refused (ref cell : PlatformKey) (h : ref.macosBuild ≠ cell.macosBuild) : cellMerged ref cell = false := by
   cases ref; cases cell; simp_all [cellMerged]
 
-/-- A different Xcode build refuses. -/
 theorem cellMerged_xcode_refused (ref cell : PlatformKey) (h : ref.xcodeBuild ≠ cell.xcodeBuild) : cellMerged ref cell = false := by
   cases ref; cases cell; simp_all [cellMerged]
 
-/-- A different runtime build refuses. -/
 theorem cellMerged_runtime_refused (ref cell : PlatformKey) (h : ref.runtimeBuild ≠ cell.runtimeBuild) : cellMerged ref cell = false := by
   cases ref; cases cell; simp_all [cellMerged]
 
-/-- An empty macOS build refuses, even against an equally empty reference. -/
 theorem cellMerged_empty_macos (ref cell : PlatformKey) (h : cell.macosBuild = "") : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-/-- An empty Xcode build refuses. -/
 theorem cellMerged_empty_xcode (ref cell : PlatformKey) (h : cell.xcodeBuild = "") : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-/-- An empty runtime build refuses. -/
 theorem cellMerged_empty_runtime (ref cell : PlatformKey) (h : cell.runtimeBuild = "") : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-/-- The round-2 pair (GitHub 26A434 / 27A9275, Codemagic 26A428 / 27A266a, same runtime 24A434) is refused. -/
 theorem round2_pair_refused : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A428", "27A266a", "24A434"⟩ = false := by decide
 
-/-- The pinned pair (same macOS, Xcode and runtime builds) is merged. -/
 theorem pinned_pair_merged : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A434", "27A9275", "24A434"⟩ = true := by decide
 
-/-- A cell whose runtime was not read is refused. -/
 theorem missing_runtime_refused : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A434", "27A9275", ""⟩ = false := by decide
 
 structure Res where

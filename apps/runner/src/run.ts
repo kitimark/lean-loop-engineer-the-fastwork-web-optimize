@@ -260,9 +260,6 @@ export function renderPlan(p: Planned, dry: boolean): string[] {
   return out;
 }
 
-/** Dispatch-time pool route (task pool-dispatch-poller). `split` asks the Lean route where the cells of one webkit-sim count job go, starts the
- *  Codemagic cells and returns how many cells stay on GitHub; `cm` settles with the fetched Codemagic cells (vm names v<github+1>..); `place` files them
- *  next to the GitHub download and merges the classes over every VM. */
 export type CmCellDone = { vm: string; out: string; target?: string };
 export type RouteDeps = {
   split: (job: PlanJob, ref: string, sha: string) => Promise<{ github: number; cm: Promise<CmCellDone[]> }>;

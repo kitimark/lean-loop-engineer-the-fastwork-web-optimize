@@ -44,7 +44,7 @@ Live run, 2026-10-22, branch `ci/macos-pool-7` (MEASURED: `gh run view` job time
 
 ## Dispatch-time route in `fw run` (task pool-dispatch-poller)
 
-Why the 2026-10-25 webkit-sim count runs queued behind the 5 GitHub macOS slots while the Codemagic slot idled: `fw run` dispatched every macOS job straight to GitHub and `codemagic.yaml` was a one-cell pilot. Now a `webkit-sim` count job of a routable target (Lean `ci.poolCell`: `original`, `rewrite`; not `both`), on a pushed `ci/*` ref with at least 2 VMs, goes through the Lean route first (`apps/runner/src/ci-pool-tier.ts`, `realRoute`):
+On 2026-10-25 `fw run` sent every macOS job to GitHub, so count runs queued behind the 5 slots while the Codemagic slot idled (`codemagic.yaml` was a one-cell pilot). A `webkit-sim` count job of a routable target (Lean `ci.poolCell`: `original`, `rewrite`; not `both`), on a pushed `ci/*` ref with at least 2 VMs, goes through the Lean route first (`apps/runner/src/ci-pool-tier.ts`, `realRoute`):
 
 1. Facts: `gh run list --status in_progress` plus `gh run view --json jobs` for the in-progress macOS workflows (`ghMacBusy` = macOS jobs in progress or queued, `obs.macIs`), and `node scripts/codemagic.mjs facts` (`cmUsed`, `cmBusy`). `ghRemainingS` stays unknown, so a full GitHub never counts as a short wait.
 2. Route: fwcore `ci.poolTier` with CircleCI closed (`circleMacAllow: []`). GitHub first, Codemagic only when GitHub is full, stop at 400 of 500 minutes (Lean: `github_first`, `cm_refuses_over`, `cm_cells_budget`, `rewrite_routable`, `both_not_routable`).
@@ -52,7 +52,7 @@ Why the 2026-10-25 webkit-sim count runs queued behind the 5 GitHub macOS slots 
 3a. The rewrite cell builds the site itself from the same commit: `codemagic.yaml` installs the pinned elan (sha256 checked), `pnpm install --frozen-lockfile --filter '@fw/site...'`, `pnpm --filter @fw/site build [--config <query>]`, verifies the snapshot, prints `node scripts/codemagic.mjs site-digest apps/site/dist/aot` (artifact `site-digest.txt`) and serves that build. After the GitHub run, `place` downloads its `site-dist` artifact, digests it the same way and asks Lean `ci.poolCell` whether the cell is filed: only with two equal, non-empty digests (`rewrite_filed_needs_digest`, `rewrite_mismatch_refused`, `rewrite_no_cm_digest_refused`, `rewrite_no_gh_digest_refused`; the original arm needs none, `original_filed`). A refused cell fails the run (the target is not routable for that commit); rerun with `--no-route`.
 4. Events: `<console dir>/ci-route.jsonl` (runner log, not console `events.jsonl`): `ci.route` (cells, codemagic, github, per-cell rows, busy, facts), `ci.route.skip` (why), `ci.codemagic.build` (build, vm, status, startedAt, finishedAt, createdAt, minutes), `ci.codemagic.refused`, `ci.site.digest` (vm, both digests, filed). No author, email or token fields. The ledger row of `fetch` carries the same times.
 
-`fw run ... --no-route` keeps every cell on GitHub. A refused trigger (exit 5) or a failed Codemagic build fails the run; rerun with `--no-route`.
+`fw run ... --no-route` keeps every cell on GitHub. A refused trigger (exit 5) or a failed Codemagic build fails the run.
 
 ### Toolchain identity of a Codemagic cell (final design round)
 - `codemagic.yaml` pins `xcode: 27.1`, the Xcode of the GitHub `xcode-27` image; `FW_IOS_BUILD` and the `check-simulator` refusal pin the runtime.
