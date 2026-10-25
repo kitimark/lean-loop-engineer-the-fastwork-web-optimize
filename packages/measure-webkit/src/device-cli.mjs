@@ -22,7 +22,9 @@ import { phoneRecord, stepOf } from './device-record.mjs';
 import { CONST, reducePass, compareZones, normalize } from './device-session.mjs';
 import { sessionPlan, armSearch } from './device-arms.mjs';
 import { readRecord, writeProfile, writePackage } from './device-profile.mjs';
-import { planText, runBlock, reduceDir, handResetCommand } from './device-phone-run.mjs';
+import { planText, runBlock, reduceDir, handResetCommand, phoneSense } from './device-phone-run.mjs';
+import { pinnedSession } from './device-phone-pin.mjs';
+import { ConditionOwner, PIN, pinGate } from './device-thermal-pin.mjs';
 import * as PA from './device-phone-arms.mjs';
 import { readThermal } from './device-thermal.mjs';
 import { listPhone, readout } from './device.mjs';
@@ -35,7 +37,7 @@ const { values: v, positionals } = parseArgs({
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, pin: { type: 'string' }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
@@ -94,13 +96,51 @@ async function main() {
         break;
       }
       if (!v.site || !v.dir) throw new Error('arms-run needs --site <dist/aot> and --dir <raw dir>');
-      for (;;) {
-        const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), blocked: v.blocked ? resolve(v.blocked) : null, session: only(), ...(v['max-visits'] ? { maxVisits: Number(v['max-visits']) } : {}) });
-        console.log(JSON.stringify({ ran: r.ran.length, remaining: r.remaining, stopped: r.stopped }));
-        if (r.stopped) { process.exitCode = 3; break; }
-        if (!v.all || r.remaining <= 0 || r.ran.length === 0) break;
-      }
+      const runBlocks = async (pin) => {
+        for (;;) {
+          const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), blocked: v.blocked ? resolve(v.blocked) : null, session: only(), pin, ...(v['max-visits'] ? { maxVisits: Number(v['max-visits']) } : {}) });
+          console.log(JSON.stringify({ ran: r.ran.length, remaining: r.remaining, stopped: r.stopped }));
+          if (r.stopped) { process.exitCode = 3; break; }
+          if (!v.all || r.remaining <= 0 || r.ran.length === 0) break;
+        }
+      };
+      try {
+        if (v.pin) await pinnedSession({ target: v.pin, dir: resolve(v.dir), log, owner: new ConditionOwner({ dir: resolve(v.dir), log }), sense: phoneSense(), body: runBlocks });
+        else await runBlocks(null);
+      } catch (e) { log(`error: ${e.message}`); process.exitCode = 1; }
       process.exit(process.exitCode ?? 0);
+    }
+    case 'pin-probe': {
+      // pin-probe --pin Serious --dir <dir> [--hold s]: induce, read it back until it is the target, hold, clear, read back. No visit runs.
+      if (!v.pin || !v.dir) throw new Error('pin-probe needs --pin Fair|Serious and --dir <dir>');
+      const sense = phoneSense();
+      const readings = [];
+      try {
+        await pinnedSession({ target: v.pin, dir: resolve(v.dir), log, owner: new ConditionOwner({ dir: resolve(v.dir), log }), sense, body: async (pin) => {
+          const t0 = Date.now();
+          for (;;) {
+            const s = sense();
+            const waitedS = Math.round((Date.now() - t0) / 1000);
+            const verdict = pinGate(pin.target, pin.held(), s.lock, s.state, readings.some((r) => r.verdict === 'go'), waitedS);
+            readings.push({ at: new Date().toISOString(), state: s.state, tempC: s.tempC ?? null, lock: s.lock, held: pin.held(), verdict });
+            log(JSON.stringify(readings[readings.length - 1]));
+            if (verdict === 'go') pin.onHeld();
+            if (verdict === 'stop') throw new Error(`pin-probe stopped: ${s.state ?? 'unreadable'}`);
+            if (verdict === 'go' && (Date.now() - t0) / 1000 >= Number(v.hold)) break;
+            await new Promise((r) => setTimeout(r, PIN.pinPollS * 1000));
+          }
+        } });
+      } catch (e) { log(`error: ${e.message}`); process.exitCode = 1; }
+      console.log(JSON.stringify({ readings: readings.length, states: readings.map((r) => r.state) }));
+      process.exit(process.exitCode ?? 0);
+    }
+    case 'pin-stop': {
+      // pin-stop --dir <dir>: stop an owner an earlier run left behind (pid and start time must match the record).
+      if (!v.dir) throw new Error('pin-stop needs --dir <dir>');
+      const owner = new ConditionOwner({ dir: resolve(v.dir), log });
+      const did = await owner.recover();
+      console.log(JSON.stringify({ stopped: did }));
+      break;
     }
     case 'arms-reduce': {
       if (!v.dir || !v.out) throw new Error('arms-reduce needs --dir <raw dir> and --out <dir>');
@@ -167,7 +207,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | arms-run [--only <arm ids>] [--hand-reset <index> <reason>] | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
+      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | arms-run [--only <arm ids>] [--pin Fair|Serious] [--hand-reset <index> <reason>] | pin-probe --pin Serious --dir d [--hold s] | pin-stop --dir d | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
       process.exitCode = 2;
   }
 }
