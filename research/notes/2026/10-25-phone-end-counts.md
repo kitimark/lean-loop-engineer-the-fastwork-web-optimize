@@ -81,7 +81,7 @@ at y 3000 reads "beats" with 103.9 vs 111.0 MB, base spread 0 there; hit-skip an
   together with a USB re-enumeration on the Mac; after the user restarted usbmuxd the run resumed. The name usbReset rests on the lead's account
   of the re-enumeration and the usbmuxd restart (INFERRED); lead-resume.log starts at attempt 2. Try 2: the stalled run could not return our tab to
   about:blank (the cleanup also needs the USB link), so the next start found no blank tab: "found 0 of 1 tabs". Lean `faultOf` names that text
-  `other` (golden phone-arms.jsonl:73); it was named staleTab by hand, because the one tab was ours on the old port (INFERRED). The lead reset the
+  `other` (no harness pattern in PhoneArms.lean:335-338; golden phone-arms.jsonl:73 is the same message with 2 tabs); it was named staleTab by hand, because the one tab was ours on the old port (INFERRED). The lead reset the
   tab by hand. Try 3: Runtime.evaluate timed out after 15 s on frames rep 2 with no USB cycle (other). No WebContent crash or jetsam log on the phone. The
   mid-scroll stall after a clean reset points at the arm, not the harness. The lead marked visit 6 lost at 15:48 (lead-resume.log:31, "strip stall
   twice"). Lean agrees for any three faults (`mayAttempt_fourth`; `strip_visit_lost` is that case): the visit is lost, `retryable` false. Under the
@@ -130,4 +130,3 @@ counts. A match in direction is weak evidence; a difference is a different quant
   3-visit base spread only, so arm-side visit-to-visit drift is untested.
 - Repeat the four arms that trade on the phone (hidden-pause, logo-3d, scene-pause, const-bounds) before any flag decision.
 - ci/phone-end-counts push (ab773fe95): all 20 workflows concluded skipped (e.g. lean-math 40173828875, webkit-sim 40173828789); no CI measurement.
-  
