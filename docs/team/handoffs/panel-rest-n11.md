@@ -1,7 +1,7 @@
 Branch: worktree-wf_8a06f29a-d26-1 (CI branch ci/panel-rest-n11, pushed once at ab3b3248f)
 Worktree: .claude/worktrees/wf_8a06f29a-d26-1 (under the main checkout)
 Last commit: ab3b3248f (handoff commit follows); CI pushes used: 1 of 3.
-CI runs on the push (push-triggered, none dispatched by me): lean 40174060322, trajectory-probe 40174060257, toolbar-throttle 40174060360, wktr 40174060278 (states in the report; updated below when read).
+CI runs on the push: lean 40174060322 success; trajectory-probe 40174060257, wktr 40174060278, toolbar-throttle 40174060360 skipped (guard: the head commit does not ask for the lane). Lane runs are the lead's dispatches.
 
 State: flag `morph.panel:rest` shipped. The platform section gets `data-fw-rest` while the written `--morph-fade` is 1 (CSS `.section[data-fw-rest] { filter: none }`, last rule in platform.module.css); morph.tween driver `updateFade` writes it via `rest.logic.ts setRest`; MorphTween reads the flag from `window.__fw.config.variants['morph.panel']`.
 Lean: `lean/Fw/Parts/MorphPanelRest.lean` (kindOf, kindOf_rest/fade/off_iff, toggles*); golden `packages/contracts/golden/parts/morph.panel.rest.jsonl`, job in check.sh, trigger row regenerated (`lake --dir lean test -- --write-ci-trigger-golden`). Gen.lean curated exclusion (Chromium trade) -> v2-proved unchanged, decisions golden has the row.
