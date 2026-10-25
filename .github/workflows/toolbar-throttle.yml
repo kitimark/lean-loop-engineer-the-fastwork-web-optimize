@@ -127,7 +127,8 @@ jobs:
     timeout-minutes: 110
     strategy:
       fail-fast: false
-      max-parallel: 4
+      # 3 wide: the Lean widths table (Fw.Ci.Overflow.widths, toolbar-throttle 3) is the width the overflow lanes plan for; a 4th morph-end job starts when one ends.
+      max-parallel: 3
       matrix:
         vm: ${{ fromJSON(contains(github.event.head_commit.message, '[throttle:morph-end]') && '[1,2,3,4]' || '[1,2,3]') }}
     env:
