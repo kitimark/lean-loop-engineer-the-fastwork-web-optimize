@@ -3263,7 +3263,7 @@
    ],
    "v1Evidence": "",
    "lesson": "A per-frame layout can be cut property by property, but only the property that dirties layout moves: here the original also transitions the box width during the draw-in, so half of the layout phases remain, and the phase cut shows in the quiet windows between the carousel swaps, not in the swap windows, which pay their own layout.",
-   "next": "User look review of the wipe. If accepted, the next layout cost is the width transition of the draw-in (it moves the headline text), which is the original behaviour and a separate, look-changing candidate.",
+   "next": "The user's own look decision on this flag: it was not shown on its own (the 2026-10-24 userDecision is carried over from draw-nolayout-full). Verdict: a look change of the accent text, with the same wipe the user refused on draw-nolayout-full on 2026-10-25; the headline glide is the faithful one (research/notes/2026/10-2x-accent-look-refused.md). Its part.json entry is still kind optimized without visClass L; with status look-change and no link it stays out of v2-proved.",
    "evidence": "webkit-sim run 39999057900 (push, [swap-lane] [swap-fw:accent-nolayout]); baseline run 39983630584; research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/",
    "userDecision": {
     "date": "2026-10-24",
@@ -3276,14 +3276,14 @@
    "n": 56,
    "part": "hero.accent",
    "candidate": "hero.accent:draw-nolayout-full: draw-nolayout plus no width transition on the host (transition: none on .drawingIn), so the word box takes its new width in one frame at the start of the draw-in and every other draw frame changes only clip-path",
-   "status": "look-change",
+   "status": "refuted",
    "flag": "hero.accent:draw-nolayout-full",
    "flags": [
     "hero.accent:draw-nolayout-full"
    ],
    "chromium": "win by construction, not run: the faithful draw-in lays out in Chromium in every frame through the width transition (width_layout, crLayoutFrames_values: n+1 of n+1 draw-in frames); the full arm lays out once (crLayoutFrames_values, full_inRest_nolayout). No Chromium run.",
    "webkit": "win (MEASURED, webkit-sim swap lane, 430x775, run 40010826238, jobs r1 r2, 2 passes each; r3 did not finish and the run was cancelled, so the merged report jobs were skipped and the report was built from the r1 and r2 artifacts with swap-report): rest windows (800 ms between swaps) with at least 24 Layout rows: 0 of 56 for the arm against 18 of 28 (faithful-a) and 19 of 28 (faithful-b); Layout rows per capture over the 7 rest windows 19.4 against 225.0 and 232.8; median per window 2 against 45 and 45. Swap windows (220 ms): median 13 for the arm and 14 for both faithful slots; per capture 96.5 against 107.8 and 109.8, no per-window verdict resolved (unresolved:overlap for every window). Against the draw-nolayout arm (run 39999057900, other session): rest 17 of 56, 122.3 rows per capture. Hero exit: not measured (the lane records no Layout count per scroll frame).",
-   "visual": "not equal (class look-change): the wipe of draw-nolayout, plus the headline text after the word jumps to the new width at the start of the draw-in instead of gliding over 0.9 s. Endpoints equal (Lean clip_endpoints; the width after 0.9 s is the same). Pixel numbers not measured. For the user look review.",
+   "visual": "REFUSED by the user in chat on 2026-10-25: it changes how the accent text renders. Not equal (class look-change): the wipe of draw-nolayout, plus the headline text after the word jumps to the new width at the start of the draw-in instead of gliding over 0.9 s. Endpoints equal (Lean clip_endpoints; the width after 0.9 s is the same); the frames inside the draw differ (clip_coverage_differs for the wipe, jump_differs for the text). Pixel numbers not measured (no path-pix draw-window artifact exists).",
    "mechanism": "PROVED (Fw.Engine.StyleDiffAccent, same engine lines as accent.draw-nolayout): a cycle is n draw-out frames and n draw-in frames; the width set is one style change in the first draw-in frame (full_inFirst_layout_only_width: among the modelled draw candidates, layout in both engines only through width; the word swap in the same frame lays out in every arm and is not modelled); every other frame of the full arm changes only clip-path and needs no layout in WebKit or Chromium (full_out_nolayout, full_inRest_nolayout). Layout frames per cycle of n+1 frames per phase in WebKit: 2(n+1) faithful, n+1 draw-nolayout, 1 full (wkLayoutFrames_values, for every n); Chromium n+1, n+1, 1 (crLayoutFrames_values); at 54 frames per phase 108, 54, 1 (wkLayoutFrames_54). MEASURED: the busy rest windows vanish. The width cannot be replaced by a transform without a layout per frame: the text after the word is in normal flow, so any smooth glide of the text is itself a layout per frame; the only same-look replacement does not exist, the full arm gives the glide up.",
    "leanFor": [
     "Fw.Engine.StyleDiffAccent.full_inRest_nolayout",
@@ -3306,12 +3306,12 @@
    ],
    "v1Evidence": "",
    "lesson": "A per-frame layout cannot be moved off the layout path when the thing that changes is in flow: the headline text follows the word box, so a smooth text glide costs a layout per frame in both engines. What can be given up is the glide itself: one layout at the start of the draw-in replaces 54, and the quiet windows between swaps lose the accent layout entirely.",
-   "next": "User look review of the text jump. If rejected, draw-nolayout (glide kept, half the layout phases) stays the safer arm. Layout per hero-exit frame and pixel numbers: accent-nolayout-measure.",
+   "next": "none for this flag: refused, so it stays out of v2-proved (ledger status refuted, Gen.lookDecisions rejected). draw-nolayout uses the same wipe and is a look change too (research/notes/2026/10-2x-accent-look-refused.md); a layout-free same-look draw is the open search of accent-same-look (sprite, canvas, glide pending).",
    "evidence": "webkit-sim run 40010826238 (push 3c1ab9970, [ci:webkit-sim] [swap-lane] [swap-fw:accent-nolayout-full]; r3 cancelled); research/notes/2026/10-2x-accent-draw-nolayout.md; results/accent-draw-nolayout/full-swap-report.md",
    "userDecision": {
-    "date": "2026-10-24",
-    "decision": "rejected 2026-10-24: the draw looks different from the original",
-    "review": "real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full"
+    "date": "2026-10-25",
+    "decision": "rejected 2026-10-25: the user refused hero.accent:draw-nolayout-full in chat because it changes how the accent text renders (source: chat); the user first rejected it on the real iPhone on 2026-10-24",
+    "review": "runs 40030735082, 40035116432 (webkit-sim, task accent-nolayout-measure) artifacts webkit-sim-r1, webkit-sim-r2, webkit-sim-r3 (expire 2026-11-22), reports results/accent-draw-nolayout/accent-report-40030735082.md and accent-report-40035116432.md; no Chromium run; real-iPhone session results/phone/2026-10-24/summary.md, look arm = rewrite + ?fw=hero.accent:draw-nolayout-full"
    }
   },
   {
@@ -3927,6 +3927,48 @@
    "next": "A look check of chasing parts; a phone pass; then the trajectory cells before v2-proved.",
    "evidence": "CI runs 40109924058, 40116376544 (toolbar-throttle, hero drags); research/notes/2026/10-2x-unthrottle-follow.md; branch worktree-wf_4682f586-db0-1",
    "flag": "engine.scroll:unthrottle-follow"
+  },
+  {
+   "n": 75,
+   "id": "engine.events.quiet",
+   "part": "engine.events",
+   "candidate": "engine.events:quiet: the React root container registers none of the 7 animation and transition listeners (animationstart, animationiteration, animationend, transitionrun, transitionstart, transitioncancel, transitionend; capture and bubble, 14 registrations), through an own addEventListener on #root that drops them; every other root listener stays",
+   "status": "partly-proved",
+   "flag": "engine.events:quiet",
+   "flags": [
+    "engine.events:quiet"
+   ],
+   "chromium": "no-win: Chromium dispatches the same events (about 790 to 810 per walk) and the recorder shows the same 14 registrations dropped; the task is judged on WebKit, no Chromium count run",
+   "webkit": "win (MEASURED, webkit-sim, iPhone Simulator 430x775, 50 px steps, 1 VM x 2 passes; base run 40134016822, flag run 40134234199): scroll walk EventDispatch 1132/1099 to 529/527 (-53%), FunctionCall 1646/1623 to 1045/1042 (-36%); every 500 px zone lower",
+   "visual": "E (the listeners are never read by the page: no handler of the 7 types exists in the shipped code, scanned by quiet.scan.test.ts; the flag changes no style, layout or paint). Breakpoint gate both engines pass (run 40128098292).",
+   "mechanism": "PROVED (Fw.Parts.ReactRootOpt): the original root registers a capture and a bubble listener for each of the 7 types (orig_registers, records_orig: 2 EventDispatch records per event); the variant registers none of them (quiet_none, quiet_drops, records_quiet) and keeps every other registration (quiet_keeps, records_other) and every type the page handles (handled_stays). CONFIRMED by source: react-dom createRoot registers every native event type on the container (DOMPluginEventSystem.js:432-455@61aa00d) and WebKit records one EventDispatch per phase that has a listener (EventTarget.cpp:313-357@862f17d), while the events are enqueued regardless (StyleOriginatedAnimation.cpp:331-412@862f17d). CONFIRMED on CI (trajectory-probe recorder, runs 40122201939, 40124553279, 40126773924): the 7 types are dispatched in every walk and the variant registers 0 of 14. The FunctionCall drop (about 600) equals the EventDispatch drop (about 600): each removed dispatch took its one listener call.",
+   "leanFor": [
+    "Fw.Parts.ReactRootOpt.quiet_none",
+    "Fw.Parts.ReactRootOpt.quiet_keeps",
+    "Fw.Parts.ReactRootOpt.quiet_sub",
+    "Fw.Parts.ReactRootOpt.handled_stays",
+    "Fw.Parts.ReactRootOpt.orig_registers",
+    "Fw.Parts.ReactRootOpt.quiet_drops",
+    "Fw.Parts.ReactRootOpt.dropped_count",
+    "Fw.Parts.ReactRootOpt.records_orig",
+    "Fw.Parts.ReactRootOpt.records_quiet",
+    "Fw.Parts.ReactRootOpt.records_other"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Counts are engine work, not felt smoothness: no frame-time percentiles; the phone is the user step",
+    "One Simulator VM (2 passes) per arm, not 3 VMs",
+    "A portal into another container registers the 7 types again (none exists in the page)",
+    "The Apple-WebKit trajectory probe reported differing coverage units at 390 between base and flag in all three probe runs; witness noise or less main-thread work per step, undecided (an A/A run decides)"
+   ],
+   "premises": [
+    "CONFIRMED: no code path of the shipped page handles an animation or transition event through React (quiet.scan.test.ts scans the files entry-client reaches)",
+    "CONFIRMED: createRoot calls listenToAllSupportedEvents on the container (ReactDOMRoot.js:258,:357@61aa00d)"
+   ],
+   "v1Evidence": "",
+   "lesson": "Count the listeners a framework root installs before counting the events: WebKit charges an EventDispatch record per phase with a listener, so seven unused types on one root cost two records for every CSS animation or transition event of the page, and removing the registration removes the record and its FunctionCall without touching the events.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a phone review of the felt smoothness). Follow-up: an A/A trajectory run to decide the 390 coverage noise.",
+   "evidence": "CI runs 40122201939, 40124553279, 40126773924 (trajectory-probe), 40122202078 (lean), 40128098292 (gate), 40134016822, 40134234199 (webkit-sim); research/notes/2026/10-20-react-root-quiet-events.md; results/react-root-quiet-events/"
   }
  ],
  "notes": [
@@ -4277,6 +4319,12 @@
    "task": "combo-held-identity",
    "field": "mechanism",
    "text": "combo-held-identity: CONFIRMED the hold bit of combo-scroll-fight read cancelable, which stays true in a passive listener (the band hub's watch mode, morph.mount:arm-late outside its band) while preventDefault is ignored (DOM set-the-canceled-flag; WebKit Event.h:218-224@862f17d; Chromium event.cc:243-260@f842f52). PROVED in Lean (Fw.Parts.ComboScroll: holds_passive, holds_uncancelable, holds_blocking, passive_quiet, arm_passive_quiet, holds_arm, arm_late_holds, old_rule_differs; native_quiet and the brick theorems kept): held iff the move was actually prevented (defaultPrevented after the handler); golden regenerated (48 rows incl. passive-reopen, other-prevented), replayed through the TS reducer and the real driver in registry/combo-scroll.test.ts. waapi and waapi-scoped cannot run with release (their env has no hooks; waapi_pin_eq_base, waapi_trace_eq): their pin is the original's, not a release effect. MEASURED on CI Chromium (run 40142598495, build of this commit): the user's 8 flags and the same flags with all touchmove and wheel listeners passive (arm user+passive): 11 of 11 replays each, 0 script writes against a native scroll, 0 no-finger reversals, 0 script jumps of 20 px or more; the other 17 arms 0 writes. Limit: the replay does not discriminate the rules (the build before also had 0 writes in the passive arms: the reopen touch starts while the close fling scrolls, so its moves are not cancelable); the Lean theorems and the driver test do. Note research/notes/2026/10-2x-combo-held-identity.md. Next: phone re-check by the user. Follow-ups: toolbar-resize fight at y about 1859."
+  },
+  {
+   "entry": "commission:band-gate: in the c1000 band skip the two custom-property writes (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 there; write the current pair on the first frame that reads the band off",
+   "task": "commission-band-mech",
+   "field": "mechanism",
+   "text": "commission-band-mech: the WebKit saving at y 3500-4500 (RecalculateStyles 152/154 -> 106/101, webkit-sim runs 39837001915 / 39843567401; base passes agree within 1 per step, flag passes within 3) is the follower's exit band, the same mechanism as at y 2500-3500; the earlier window 3070 <= scrollY < 3530 was one phone height (932) read off a class-toggle spike and the follower has two bands. PROVED (Fw.Parts.CommissionOptWindow): skip_in_band (the variant skips the writes of event k only if one of the last 29 events lay inside the enter band cardTop - 0.42 vh .. cardTop - 0.06 vh or the exit band bottom - 0.85 vh .. bottom - 0.35 vh, for a non-decreasing scroll with steps under 0.36 vh), quiet_run (29 events at one target pair settle both followers: 0.78^29 < 8e-4), one theorem per branch of the bands (enterRaw_above/below, exitRaw_above/below, tgtE_step, tgtX_step), no_skip_reduced, no_skip_ungated. MEASURED: the section rect from CI Chromium at the 124 probes of breakpoint-gate run 39843552595 (lean/Fw/Parts/CommissionOptLayout.lean, generated by results/commission-band-mech/layout.mjs; 83 probes are in the c1000 band, section heights 744-1212 px, document tops 2880-5876 px) and in-session at 430x932 by chromium-counts run 40139371262 (profile commission-rect-v1: section top 3193.859, height 1202.953 at the probe's 0.001 px rounding in all 575 frames of both runs, equal to the gate read at that precision); on the Chromium rect at 430x775 the exit band is y 3424-3812; on the WebKit page it starts at about 3600 (INFERRED from a model fit to the counts, no WebKit rect read). The model with the measured 430x932 rect puts the moving frames at y 2810-3310 and 3620-4220; the base arm of run 40139371262 starts its restyle spike at 2810 and 3610 (start edges within one frame); end edges fall 90-100 px before the model (3220 vs 3310, 4130 vs 4220), cause open (INFERRED). WebKit source (WebKit-7625.1.29.10.29 @862f17d): a RecalculateStyles record is one Document::resolveStyle (Document.cpp:2865, 2940; PageTimelineAgent.cpp:237-253); updateLayout calls updateStyleIfNeeded (Document.cpp:3025-3051, 3128), so the compact body's layout read (lineBoxes after the writes) adds one record per frame in which the two inherited custom properties changed (StyleComputedStyleBase.cpp:128-133, StyleComputedStyle.cpp:296-297, StyleChange.cpp:42-43, StyleTreeResolver.cpp:307-308); INFERRED: the count of forced flushes per frame (no instrumented run). Note research/notes/2026/10-2x-commission-band-mech.md. missingWhy: Restated (commission-band-mech): the second and third items are closed: the y 3500-4500 WebKit saving is the exit band (PROVED skip_in_band, MEASURED rect), and the window is a Lean-generated constant from the measured section rect with a golden replayed by bandgate.test.ts. Still open: frame-time percentiles (Simulator or phone replay of the scroll-in, follow-up until sim-touch-timeout lands)."
   }
  ]
 }

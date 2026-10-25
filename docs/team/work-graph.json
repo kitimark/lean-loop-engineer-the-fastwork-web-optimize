@@ -9580,8 +9580,10 @@
     "apps/site/src/debug/root-events.test.ts",
     "packages/gate-breakpoints/src/trajectory/debug.mjs",
     "packages/gate-breakpoints/test/debug.test.mjs",
-    ".github/scripts/trajectory-line.mjs"
-   ]
+    ".github/scripts/trajectory-line.mjs",
+    "research/findings/ledger.json"
+   ],
+   "evidence": "5edf302"
   },
   {
    "devices": [
@@ -20962,7 +20964,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
-   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review)."
+   "title": "Record the user's look verdict (chat 2026-10-25): hero.accent:draw-nolayout-full is REFUSED because it changes how the accent text renders. Do: add the refusal to Gen.lookDecisions (date, decision refused, review done, material from accent-nolayout-measure), set the ledger row accent.drawin-width-nolayout to the refused class with the reason, regenerate the preset goldens from Gen.run (never by hand), keep the ledger agreement check green, and state from Lean and the measured material whether hero.accent:draw-nolayout (glide kept) renders the accent text the same as the faithful page or is also a look change (so whether it needs its own user look review).",
+   "evidence": "ab11620"
   },
   {
    "devices": [
@@ -21036,7 +21039,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
-   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands."
+   "title": "Finish the proof of commission:band-gate (ledger commission.band-gate, partly-proved, WebKit win): explain the WebKit RecalculateStyles saving at y 3500-4500 (152/154 -> 106/101) where the Lean model predicts no moving follower (mechanism CONFIRMED from the part source and the WebKit counts, the model extended with a theorem, or the saving shown to be noise over 3 runs); derive the commission window from a measured section rect (CI Chromium layout read at every breakpoint) instead of Chromium class-toggle spikes, as a Lean-generated constant with a golden replayed by bandgate.test.ts; frame-time replay of the scroll-in on the Simulator stays a follow-up until sim-touch-timeout lands.",
+   "evidence": "fe85496"
   },
   {
    "devices": [
@@ -21095,6 +21099,77 @@
     "docs/team/handoffs/combo-held-identity.md"
    ],
    "title": "Follow-up of combo-scroll-fight (the user's scroll-back bug): the hold bit in morph.tween/driver.ts:121-138 reads e.cancelable, but a passive listener (the band hub's passive mode, morph.mount:arm-late outside the band) keeps cancelable true while preventDefault is ignored, so the frame writer could still pin against a native scroll there. Do: base held on e.defaultPrevented after the handler's call (identity over inference), model it in Lean Fw.Parts.ComboScroll (held iff the move was actually prevented; the fix theorem and brick theorems kept, including with arm-late passive), regenerate the golden from Lean and replay it in combo-scroll.test.ts; apply the same hold rule to the waapi and waapi-scoped pin writers (waapi.driver.ts:234-235) or prove they cannot run with release; re-run the device-replay combo job (its needs/max-parallel shape has never run) on the user-bug-1025 profiles with the user's 8 flags plus an arm-late-passive case: zero script writes against a native scroll, zero no-finger reversals (run ids)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-span-mods",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "scripts/span.sh",
+    "scripts/lake-slot-lib.sh",
+    "scripts/fwcore-build.sh",
+    "lean/scripts/check.sh",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/land.ts",
+    "apps/runner/test/timing-slow.test.ts",
+    "apps/runner/test/timing-alert.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "research/notes/2026/10-2x-lake-span-mods.md",
+    "docs/team/handoffs/lake-span-mods.md"
+   ],
+   "title": "timing.slow raises false alarms on real Lean rebuilds: 'lean/check/lake build' took 51 s against a p50 of 0.78 s and the dry land's 'lake_slot .. lake build && axiom-check' 37 s against 3.2 s, both right after a branch merged main (new Lean modules), because these two spans carry no mods work dimension, so a rebuild is judged against cached no-op samples. Lean Fw.Obs.Timing already has modsDim/modsWork (modsLow buckets) and Sample.unkeyed, and apps/runner/src/timing.ts lakeWork reads lake.built, but the emitters never record the built count. Do: make fwcore-build.sh / the check.sh lake span and the land dry lake step record lake.built (the number of modules lake built, from its output), so their samples are keyed by mods; prove in Lean that a sample with a different mods class is never judged against another class's baseline, and that the two recorded incident samples (51053 ms at mods >= 1 vs 780 ms at mods 0) are not slow; golden replayed by the timing tests."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "fw-run-vms",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Store/Layout.lean",
+    "lean/Fw/Store/Golden.lean",
+    "lean/Fw/Wire/Store.lean",
+    "packages/contracts/golden/store/**",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.test.ts",
+    "docs/team/tools/fw-run.md",
+    "research/notes/2026/10-2x-fw-run-vms.md",
+    "docs/team/handoffs/fw-run-vms.md",
+    "lean/Fw/Store/Ci.lean",
+    "apps/runner/src/ci.ts",
+    "packages/contracts/src/artifacts.ts"
+   ],
+   "title": "fw run --runs N never reaches the WebKit Simulator lane: Fw.Store.Layout.dispatchInputs .webkit (lean/Fw/Store/Layout.lean:472) sends only target, preset and fw, so webkit-sim.yml falls back to VMS=1 (webkit-sim.yml:198) and every lead WebKit count dispatch today ran 1 VM instead of 3 (react-root runs 40134016822/40134234199, one-chain 40139526492/40139511311). Do, Lean first: send ('vms', toString q.runs) for webkit (and check every webkitSim input name against Layout's input list :428), a theorem that the webkit dispatch carries the request's run count (like dispatch_target), regenerate the store goldens from Lean and replay them in the runner test; check the cache key still separates 1-VM and 3-VM runs; one dry fw run --target rewrite --engines webkit --runs 3 shows vms=3 in its inputs line."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-note-key-local",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/ledger-merge.test.ts",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/ops/**",
+    "docs/team/tools/land.md",
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-2x-ledger-note-key-local.md",
+    "docs/team/handoffs/ledger-note-key-local.md"
+   ],
+   "title": "Incident (twice on 2026-10-24/25: combo-scroll-fight, commission-band-mech): a builder wrote more than one ledger note per (entry, task) and only the remote land lane's ledger-merge.test.ts refused it, after a full CI land. Do, Lean first: state the one-note-per-(entry, task) rule as a decision in lean/Fw/Ops/LedgerMerge.lean beside distinct_notes_merge (a theorem that a branch passing it never clashes in merge), run it in the local tier of fw land --dry (and so in fw review ready) with a named VERDICT/detail line pointing at the duplicate key, a golden from Lean replayed by a runner test with both refused cases from this incident, and an incident row in docs/team/incidents/ledger.json (no n). If the build-review preamble should name the rule, list that .claude edit in open for the lead."
   }
  ],
  "deadline": {
