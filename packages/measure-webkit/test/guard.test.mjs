@@ -17,7 +17,7 @@ const make = (probe, o = {}) => {
   const g = createGuard({
     probe, log: (s) => lines.push(s), onDead: (e) => dead.push(e), tickMs: 5,
     relaunch: async () => { calls.relaunch++; if (o.relaunchFails) throw new Error('boom'); },
-    repair: async () => { calls.repair++; },
+    repair: async () => { calls.repair++; }, reboot: null, deviceUp: async () => true,
   });
   return { g, lines, dead, calls };
 };
@@ -65,19 +65,19 @@ test('a relaunch that fails gives up without a second one', async () => {
   const { g, lines, calls } = make(script(NO_SOCKET), { relaunchFails: true });
   await assert.rejects(g.check(), (e) => /relaunching Safari failed: boom/.test(e.message) && e.exitCode === 4);
   assert.equal(calls.relaunch, 1);
-  assert.ok(lines.some((l) => /giving up: relaunching Safari failed/.test(l)));
+  assert.ok(lines.some((l) => /giving up: .*relaunching Safari failed/.test(l)));
 });
 
 test('a probe that never answers counts as failed once its bound is over', async () => {
   const lines = [];
-  const g = createGuard({ probe: () => new Promise(() => {}), relaunch: async () => {}, probeMs: 10, log: (s) => lines.push(s) });
+  const g = createGuard({ probe: () => new Promise(() => {}), relaunch: async () => {}, reboot: null, probeMs: 10, log: (s) => lines.push(s) });
   assert.equal((await g.check()).ok, false);
   assert.equal(g.fails, 1);
   assert.equal((await g.check()).relaunched, true, 'the second timeout makes it dead');
 });
 
 test('a relaunch over its bound gives up', async () => {
-  const g = createGuard({ probe: script(NO_SOCKET), relaunch: () => new Promise(() => {}), relaunchMs: 10 });
+  const g = createGuard({ probe: script(NO_SOCKET), relaunch: () => new Promise(() => {}), reboot: null, relaunchMs: 10 });
   await assert.rejects(g.check(), /relaunching Safari failed: the relaunch took longer/);
 });
 
