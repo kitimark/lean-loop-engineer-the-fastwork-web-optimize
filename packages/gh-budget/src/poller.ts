@@ -1,7 +1,7 @@
 // The elected poller's one step: ask `ci.budget.next`; on `issue` make ONE `gh run list` (every run created since
 // `createdSince`, one call covers all waiters) and write the runs-status file. Waiters read that file and call no gh.
 import { appendFileSync } from "node:fs";
-import type { Env, Json } from "./core.ts";
+import type { Env, Json, QueuedRun } from "./core.ts";
 import { GH_BOUNDS } from "./bounds.gen.ts";
 import { chargedCall } from "./charged.ts";
 import { LockBusy } from "./lock.ts";
@@ -116,5 +116,19 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
     rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })),
     count: listed.length, pagesRead: Number(res.reply.pages ?? 1), ...(since == null ? {} : { createdSince: since }),
   } });
+  await rerouteTick(env, rows, now);
   return { wakeAt: now, ticked: true };
+}
+
+/** Hand the still-queued runs of the list to `env.reroute` (the Lean decision `ci.reroute` lives behind it). No hook, no
+ *  queued run, or a failing hook: nothing happens and the tick goes on (a failed move leaves the run on GitHub). */
+export async function rerouteTick(env: Env, rows: Row[], now: number): Promise<number> {
+  if (!env.reroute) return 0;
+  const queued: QueuedRun[] = rows
+    .filter((r) => r.status === "queued")
+    .map((r) => ({ runId: r.databaseId, workflow: r.workflowName ?? "", sha: r.headSha ?? "", branch: r.headBranch ?? "", queuedS: Math.max(0, now - Math.floor(Date.parse(r.createdAt) / 1000)) }))
+    .filter((q) => Number.isFinite(q.queuedS) && q.workflow !== "");
+  if (queued.length === 0) return 0;
+  try { await env.reroute(queued, now); } catch (e) { appendFileSync(paths(env.dir).incidents, JSON.stringify({ rerouteFailed: String(e).slice(0, 200), at: now }) + "\n"); }
+  return queued.length;
 }
