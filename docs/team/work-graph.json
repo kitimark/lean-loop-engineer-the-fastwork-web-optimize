@@ -21178,6 +21178,26 @@
    ],
    "title": "Incident (twice on 2026-10-24/25: combo-scroll-fight, commission-band-mech): a builder wrote more than one ledger note per (entry, task) and only the remote land lane's ledger-merge.test.ts refused it, after a full CI land. Do, Lean first: state the one-note-per-(entry, task) rule as a decision in lean/Fw/Ops/LedgerMerge.lean beside distinct_notes_merge (a theorem that a branch passing it never clashes in merge), run it in the local tier of fw land --dry (and so in fw review ready) with a named VERDICT/detail line pointing at the duplicate key, a golden from Lean replayed by a runner test with both refused cases from this incident, and an incident row in docs/team/incidents/ledger.json (no n). If the build-review preamble should name the rule, list that .claude edit in open for the lead.",
    "evidence": "9482b75"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-span-total",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/test/timing-work.test.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "research/notes/2026/10-2x-lake-span-total.md",
+    "docs/team/handoffs/lake-span-total.md"
+   ],
+   "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed."
   }
  ],
  "deadline": {
