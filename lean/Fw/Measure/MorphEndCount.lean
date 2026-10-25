@@ -812,6 +812,44 @@ theorem plain_win_enters : enters false .win = true := rfl
 
 theorem plain_trade_stays_out : enters false .trade = false := rfl
 
+inductive Win where
+  | wait | record | done
+  deriving DecidableEq, Repr
+
+def Win.name : Win → String
+  | .wait => "wait"
+  | .record => "record"
+  | .done => "done"
+
+def winStart : Nat := 4
+
+def winCapMs : Nat := 10000
+
+def winPhase (g : Nat) : Option Nat → Win
+  | none => if g < winStart then .wait else if g = winStart then .record else .done
+  | some ms => if winStart < g ∨ winCapMs ≤ ms then .done else .record
+
+theorem win_waits_before_start (g : Nat) (h : g < winStart) : winPhase g none = .wait := by
+  simp [winPhase, h]
+
+theorem win_opens_at_start : winPhase winStart none = .record := by
+  simp [winPhase]
+
+theorem win_missed (g : Nat) (h : winStart < g) : winPhase g none = .done := by
+  have : ¬ g < winStart := by omega
+  have : g ≠ winStart := by omega
+  simp [winPhase, *]
+
+theorem win_next_gesture_ends (ms : Nat) (g : Nat) (h : winStart < g) : winPhase g (some ms) = .done := by
+  simp [winPhase, h]
+
+theorem win_cap_ends (g : Nat) : winPhase g (some winCapMs) = .done := by
+  simp [winPhase]
+
+theorem win_record_bounded (g ms : Nat) (h : winPhase g (some ms) = .record) : ms < winCapMs := by
+  simp only [winPhase] at h
+  split at h <;> simp_all
+
 
 private def tbIntsJ (l : List Int) : Json := Json.arr (l.map toJson).toArray
 
@@ -882,6 +920,9 @@ private def tbVerdictCases (_ : Unit) : List (String × List TbPass × List TbPa
 
 private def tbHzCases (_ : Unit) : List Nat := [0, 833, 1667, 1666, 1700, 1000, 3334]
 
+private def tbWinCases (_ : Unit) : List (Nat × Option Nat) :=
+  [(0, none), (3, none), (4, none), (5, none), (9, none), (4, some 0), (4, some 9999), (4, some 10000), (4, some 20000), (5, some 100), (7, some 0)]
+
 def tbGoldenLines (_ : Unit) : List String :=
   ((tbStepCases ()).map fun (name, t, vh) =>
     let fs := stepFrames vh
@@ -903,7 +944,9 @@ def tbGoldenLines (_ : Unit) : List String :=
       ("recalc", (cmpBy (·.recalc) (·.frames) base cand).name), ("lifted", liftedBy base cand), ("look", sameLook base cand),
       ("verdict", (flagVerdict base cand).name), ("entersPlain", enters false (flagVerdict base cand)),
       ("entersLook", enters true (flagVerdict base cand))]).compress) ++
-  ((tbHzCases ()).map fun (gap : Nat) => (Json.mkObj [("kind", "tb-hz"), ("gapCs", gap), ("hz", refreshHz gap), ("fold", foldOf (refreshHz gap))]).compress)
+  ((tbHzCases ()).map fun (gap : Nat) => (Json.mkObj [("kind", "tb-hz"), ("gapCs", gap), ("hz", refreshHz gap), ("fold", foldOf (refreshHz gap))]).compress) ++
+  ((tbWinCases ()).map fun (g, ms) =>
+    (Json.mkObj [("kind", "tb-win"), ("g", g), ("inMs", match ms with | none => Json.null | some m => toJson m), ("phase", (winPhase g ms).name)]).compress)
 
 private def goldenLines (_ : Unit) : List String :=
   ((eventCases ()).map fun (name, r, d) =>

@@ -93,3 +93,14 @@
 {"fold":5,"gapCs":1700,"hz":59,"kind":"tb-hz"}
 {"fold":10,"gapCs":1000,"hz":100,"kind":"tb-hz"}
 {"fold":3,"gapCs":3334,"hz":30,"kind":"tb-hz"}
+{"g":0,"inMs":null,"kind":"tb-win","phase":"wait"}
+{"g":3,"inMs":null,"kind":"tb-win","phase":"wait"}
+{"g":4,"inMs":null,"kind":"tb-win","phase":"record"}
+{"g":5,"inMs":null,"kind":"tb-win","phase":"done"}
+{"g":9,"inMs":null,"kind":"tb-win","phase":"done"}
+{"g":4,"inMs":0,"kind":"tb-win","phase":"record"}
+{"g":4,"inMs":9999,"kind":"tb-win","phase":"record"}
+{"g":4,"inMs":10000,"kind":"tb-win","phase":"done"}
+{"g":4,"inMs":20000,"kind":"tb-win","phase":"done"}
+{"g":5,"inMs":100,"kind":"tb-win","phase":"done"}
+{"g":7,"inMs":0,"kind":"tb-win","phase":"done"}
