@@ -103,12 +103,15 @@ export function loadConfig(root = ROOT, env = process.env) {
 
 export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^[vr][1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/, FW_SEARCH: /^[A-Za-z0-9._:,=&%?-]{0,300}$/ };
 
+/** Codemagic refuses an empty variable value (build 6addffe5: "ensure this value has at least 1 characters"): an empty `FW_FW` or `FW_SEARCH` travels as this word and codemagic.yaml turns it back. */
+export const EMPTY = 'none';
+
 /** The cell variables of a webkit-sim count job (the dispatch inputs `target`, `preset`, `fw`, the VM index and `sessions`); any other name or a value off its pattern is refused. */
 export function cellVars(vars) {
   const out = {};
   for (const [k, v] of Object.entries(vars ?? {})) {
     if (!(k in CELL_VARS) || typeof v !== 'string' || !CELL_VARS[k].test(v)) throw new Usage(`--vars: ${k} is not an allowed cell variable or its value is off the pattern`);
-    out[k] = v;
+    out[k] = v === '' ? EMPTY : v;
   }
   return out;
 }

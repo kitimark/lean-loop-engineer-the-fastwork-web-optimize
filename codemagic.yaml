@@ -14,14 +14,14 @@ workflows:
         FW_SIM_NAME: fw-iphone-27
         FW_WK_TIMEOUT_SCALE: "8"
         FW_WK_ATTEMPTS: "3"
-        # the cell, as dispatched (fw ci pool dispatch / fw run pass these through the API; the defaults are the one-cell pilot)
+        # the cell, as dispatched ("none" = empty: Codemagic refuses an empty variable) (fw ci pool dispatch / fw run pass these through the API; the defaults are the one-cell pilot)
         FW_TARGET: original
         FW_PRESET: original
-        FW_FW: ""
+        FW_FW: none
         FW_VM: v1
         FW_SESSIONS: "1"
         # the query the rewrite cell is served with (Lean's plan, passed by fw run; empty = the default configuration)
-        FW_SEARCH: ""
+        FW_SEARCH: none
         ELAN_VERSION: v4.2.4
         ELAN_SHA256: 7ad829861392c718dfebde3a83b5c8508df47be02af68894b094b0b3952616e5
     scripts:
@@ -59,6 +59,7 @@ workflows:
           set -eu
           export RUNNER_TEMP=/tmp/fw
           if [ "$FW_TARGET" != rewrite ]; then echo "original cell: the read-only snapshot is served, no site build"; exit 0; fi
+          FW_SEARCH=$([ "$FW_SEARCH" = none ] && echo "" || echo "$FW_SEARCH")
           t=$(date +%s)
           dl="$RUNNER_TEMP/elan-dl"; mkdir -p "$dl"
           curl -fsSL --retry 5 --retry-all-errors -o "$dl/elan.tgz" "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-aarch64-apple-darwin.tar.gz"
@@ -114,6 +115,8 @@ workflows:
           set -u
           export RUNNER_TEMP=/tmp/fw
           export FW_SNAPSHOT_SITE="$PWD/snapshot/site"
+          [ "$FW_FW" = none ] && FW_FW=""
+          [ "$FW_SEARCH" = none ] && FW_SEARCH=""
           echo "cell: target=$FW_TARGET preset=$FW_PRESET fw=$FW_FW vm=$FW_VM sessions=$FW_SESSIONS"
           cd packages/measure-webkit
           mkdir -p out

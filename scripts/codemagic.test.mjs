@@ -103,7 +103,7 @@ test('triggerRequest: POST /builds with appId, workflowId, branch; the token is 
 
 test('triggerRequest: the cell variables of a webkit-sim count job go in environment.variables, others are refused', () => {
   const vars = { FW_TARGET: 'original', FW_PRESET: 'original', FW_FW: '', FW_VM: 'v1', FW_SESSIONS: '1' };
-  assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body, { appId: APP, workflowId: 'webkit-sim', branch: 'ci/x', environment: { variables: vars } });
+  assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body, { appId: APP, workflowId: 'webkit-sim', branch: 'ci/x', environment: { variables: { ...vars, FW_FW: 'none' } } });
   for (const bad of [{ FW_TOKEN: 'x' }, { FW_VM: 'r1; rm' }, { FW_TARGET: 'both' }, { FW_SESSIONS: '0' }, { FW_FW: 'a b' }]) assert.throws(() => triggerRequest({ appId: APP, branch: 'ci/x', vars: bad }));
 });
 
@@ -317,7 +317,8 @@ test('codemagic.yaml: the rewrite cell builds the site like the GitHub site job 
   assert.match(y, /node scripts\/codemagic\.mjs site-digest apps\/site\/dist\/aot/);
   assert.match(y, /determinism --runs 2 --keep --site "\$PWD\/\.\.\/\.\.\/apps\/site\/dist\/aot" --search "\$FW_SEARCH"/);
   assert.match(y, /verify-snapshot\.mjs/);
-  assert.match(y, /FW_SEARCH: ""/);
+  assert.match(y, /FW_SEARCH: none/);
+  assert.doesNotMatch(y, /^\s+FW_[A-Z]+: ""$/m);
   assert.ok(!/needs the site-dist build/.test(y));
 });
 
