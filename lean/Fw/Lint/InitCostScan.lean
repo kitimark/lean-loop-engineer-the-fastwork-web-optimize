@@ -60,7 +60,6 @@ def startConsts (env : Environment) (mods : Array (Nat × Name)) (dirs : List Sy
         | none => unmapped := unmapped.push s
   return (names, unmapped, noC, nmods)
 
-/-- `xs` cut in order into lists of `f` elements each, the last one shorter. -/
 def chunks {α : Type} (f : Nat) (xs : List α) : List (List α) :=
   if _h : 0 < f ∧ xs ≠ [] then xs.take f :: chunks f (xs.drop f) else []
 termination_by xs.length
@@ -114,10 +113,8 @@ theorem length_chunks_lt {α : Type} {f : Nat} (hf : 1 < f) {xs : List α} (hx :
 -- The compiler's `simp` pass recurses once per `let` of a definition (src/Lean/Compiler/LCNF/Simp/Main.lean:218,258
 -- @eb6cafb) up to a depth of at least 8192 (src/Lean/Compiler/LCNF/Main.lean:122@eb6cafb), and a list literal of `n`
 -- rows takes `5 * n + 1` lets.
-/-- Most elements one generated list constant holds. -/
 def fanOut : Nat := 256
 
-/-- Adds `base : List ty` holding `xs` in order, built from constants of at most `fanOut` elements each. -/
 def addListTree (base : Name) (ty : Expr) (xs : List Expr) : TermElabM Unit := do
   let listTy := mkApp (mkConst ``List [.zero]) ty
   let add (n : Name) (v : Expr) : TermElabM Expr := do
@@ -132,7 +129,6 @@ def addListTree (base : Name) (ty : Expr) (xs : List Expr) : TermElabM Unit := d
       add (base ++ .mkSimple s!"node{depth}_{k}") (mkApp2 (mkConst ``List.flatten [.zero]) ty (← mkListLit listTy c))
   discard <| add base (level.head?.getD (mkApp (mkConst ``List.nil [.zero]) ty))
 
-/-- Adds `initCostGet{i} := fun n => (c, n)` and returns the probe `allocs initCostGet{i}`, which evaluates `c`. -/
 def addProbe (i : Nat) (c : Name) : TermElabM Expr := do
   let get := Name.mkSimple s!"initCostGet{i}"
   let some ci := (← getEnv).find? c | throwError "init-cost: no constant {c}"
