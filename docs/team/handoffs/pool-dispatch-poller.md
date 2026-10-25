@@ -36,3 +36,9 @@ Follow-up: Lean should require a matching toolchain (macOS/Xcode/runtime) before
 Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882-1`, last commit f438f8623.
 Done: Lean PlatformKey/cellMerged + theorems + wire op ci.cellMerged + golden (PoolTier.lean, PoolTierWire.lean, PoolGolden.lean); codemagic.yaml xcode 27.1; ci-pool-tier.ts parse/ask/event/aside/missing-sha; tests green (runner ci-pool-tier*).
 Open: CI runs on f438f8623, paired rewrite run (Codemagic + GitHub twin), check.sh, dry land, review ready.
+
+## Round 3 checkpoint 2
+Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882-1`, last commit see git log. check.sh green at f438f8623.
+GitHub twin: webkit-sim dispatch run 40211928946 (rewrite, r1+r2, --no-route) queued at checkpoint time. Lean/CI push run on f438f8623: not read yet.
+Codemagic (prose): build 6ade2733 timed out at 41 min (determinism step hung, no artifacts; harness stall like the GitHub attempt-1 stall); retry build 6ade316d finished in 21 min, key macOS 26A434 / Xcode 27A9275 / runtime 24A434, equal to GitHub r1 tools.txt (round 2). Month used 166 of the 400 line.
+Open: twin finish, place/compare (node scripts/codemagic.mjs compare), CI run, dry land, review ready.
