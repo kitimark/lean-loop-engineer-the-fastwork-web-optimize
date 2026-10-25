@@ -214,15 +214,7 @@ export function startFaithful(o: FaithfulOptions): () => void {
   };
 }
 
-/**
- * Variant `one-chain` (Lean `Fw.Parts.HeroCountdownOneChain`): `clock` with every `{ own: true }` chain run inside one
- * shared-loop subscriber, in registration order, that is subscribed only while some chain is. Hand it to
- * `startFaithful`. The subscriber stays at its subscribe position: no fixed place in the frame matches the original's
- * style updates in both frame kinds (Lean `no_fixed_order`; at the subscribe position one extra update in the frames
- * where a scroll tick follows it, `frame499_atSubscriber`; behind every subscriber, one in the frames where another
- * part reads after dirtying, `early_last`).
- * Golden: packages/contracts/golden/parts/hero.countdown.onechain.jsonl.
- */
+/** `clock` with every `{ own: true }` chain run in one shared-loop subscriber, in registration order. */
 export function oneChainClock(clock: MotionClock): MotionClock {
   const chains = new Set<{ tick: Tick }>();
   let off: (() => void) | null = null;

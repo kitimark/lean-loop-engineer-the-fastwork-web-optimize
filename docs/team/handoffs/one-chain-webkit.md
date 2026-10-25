@@ -1,6 +1,6 @@
 branch: worktree-wf_6d63a3b2-2b5-1 (CI branch ci/one-chain-webkit, head f74e3313a)
 worktree: .claude/worktrees/wf_6d63a3b2-2b5-1
-last commit: see `git log -1` (review round: runs reduced, main merged)
+last commit: see `git log -1`
 CI runs (all on f74e3313a, no new push): Chromium swipe-touch-v1 base 40153927556 success, flag 40153920231 success;
 WebKit Simulator base 40153925235 success (3 VMs), flag 40153917806 failure (r1 CoreSimulator 405; r2, r3 ok, n=2);
 gate both engines with the flag 40153922711 success (all pass; webkit 2 unreachable widths per row, none failing).

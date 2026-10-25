@@ -104,4 +104,4 @@ Summaries: `results/one-chain-webkit/summary.json`.
   work, not felt smoothness.
 - **WebKit: no-win.** Style recalcs and rAF callbacks equal within noise; no measured effect, no regression.
 - Follow-up (outside the unit): the early-frame order needs a Lean model with the shared loop's real registration order
-  per frame; a per-frame order chosen at runtime stays out of scope.
+  per frame.
