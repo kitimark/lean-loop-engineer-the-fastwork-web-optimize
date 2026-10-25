@@ -6,6 +6,7 @@ import { GH_BOUNDS } from "./bounds.gen.ts";
 import { chargedCall } from "./charged.ts";
 import { LockBusy } from "./lock.ts";
 import { readMarkers } from "./waiters.ts";
+import { dedupById, dupIds } from "./want.ts";
 import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeStatus, type Row, type Status } from "./state.ts";
 
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt,event,displayTitle";
@@ -27,6 +28,11 @@ function intervalAt(env: Env, now: number, state: Json): number | undefined {
   } catch {
     return undefined;
   }
+}
+
+export function updatedMs(r: Row): number {
+  const t = Date.parse(r.updatedAt ?? "");
+  return Number.isFinite(t) && t > 0 ? t : 0;
 }
 
 export const iso = (t: number): string => new Date(t * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -81,17 +87,20 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
     writeStatus(env.dir, { rows: [], ...(readStatus(env.dir) ?? {}), at: now, stopped: res.reason, stoppedAt: now });
     return { wakeAt: now + 2, ticked: false, stopped: res.reason };
   }
-  if (res.code !== 0) return { wakeAt: now, ticked: true }; // observed by fwcore already; `next` answers with the backoff
-  let rows: Row[];
+  if (res.code !== 0) return { wakeAt: now, ticked: true };
+  let listed: Row[];
   try {
     const j: unknown = JSON.parse(res.stdout);
     if (!Array.isArray(j)) throw new Error("not a list");
-    rows = j as Row[];
+    listed = j as Row[];
   } catch {
     return { wakeAt: now, ticked: true };
   }
+  const dups = dupIds(listed, (r) => r.databaseId);
+  if (dups.length > 0) appendFileSync(paths(env.dir).incidents, JSON.stringify({ duplicateIds: dups, listed: listed.length, pagesRead: Number(res.reply.pages ?? 1), at: now }) + "\n");
+  const rows = dedupById(listed, (r) => r.databaseId, updatedMs);
   const since = res.reply.createdSince == null ? null : Number(res.reply.createdSince);
-  const pages = Math.floor(rows.length / PAGE) + 1;
+  const pages = Math.floor(listed.length / PAGE) + 1;
   const pre = loadState(env.dir);
   const after = pages !== Number(pre?.pages ?? 1) ? stepEvent(env, { pages }) : pre;
   const interval = intervalAt(env, now, after ?? res.state);
@@ -105,7 +114,7 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
   // sends the row count, the pages it asked for and the window start the tick used
   stepEvent(env, { listed: {
     rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })),
-    count: rows.length, pagesRead: Number(res.reply.pages ?? 1), ...(since == null ? {} : { createdSince: since }),
+    count: listed.length, pagesRead: Number(res.reply.pages ?? 1), ...(since == null ? {} : { createdSince: since }),
   } });
   return { wakeAt: now, ticked: true };
 }

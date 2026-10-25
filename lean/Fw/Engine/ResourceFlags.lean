@@ -11,6 +11,7 @@ import Fw.Parts.MorphIdleNone
 import Fw.Parts.HeroScenePause
 import Fw.Parts.NavBarFixedWork
 import Fw.Parts.ReactRootOpt
+import Fw.Preset.Gen
 
 namespace Fw.Engine.Resource.Flags
 
@@ -105,7 +106,7 @@ def scenePauseWk : Footprint :=
   ⟨"hero:scene-pause", .webkit,
     [(.style, ef .same "wk_pause_eq: pausing a compositor animation changes no web-process stage"),
      (.layout, ef .same "wk_pause_eq"), (.script, ef .same "wk_pause_eq"),
-     (.event, ef .down "INFERRED: a paused animation's iteration does not change, so no animationiteration is enqueued (StyleOriginatedAnimation.cpp:340-345@862f17d)")] ++
+     (.event, ef .unknown "OPEN: the source fall (StyleOriginatedAnimation.cpp:340-345@862f17d) is not seen; CI EventDispatch is the same on a non-slow arm (webkit-sim 40151813906 vs 40151792642)")] ++
     sceneCommon (.webkit .normal), some 211786247⟩
 
 end ScenePause
@@ -132,13 +133,13 @@ def idleCommon : List (Res × Effect) :=
 
 def idleNoneCr : Footprint :=
   ⟨"morph.columns:idle-none", .chromium,
-    [(.style, ef .same "cr_realChrome_pause_eq: a compositor animation touches no main-thread stage in real Chrome; CI style 1832 vs 1833"),
+    [(.style, ef .same "INFERRED, removal treated as pause: cr_realChrome_pause_eq covers a paused compositor animation, not animation-name none; CI style 1832 vs 1833"),
      (.event, ef .unknown "INFERRED: iteration events are equal, since the base holds the tracks paused (varStep acts only while scenePaused); animation-name none (morph.module.css:14-16) re-creates the tracks, and each new animation enqueues animationstart (css_animations.cc:3660-3666@f842f52), a count the walk does not fix")] ++
     idleCommon, none⟩
 
 def idleNoneWk : Footprint :=
   ⟨"morph.columns:idle-none", .webkit,
-    [(.style, ef .same "wk_pause_eq: a compositor animation costs the web process no stage"),
+    [(.style, ef .same "INFERRED, removal treated as pause: wk_pause_eq covers a paused compositor animation, not animation-name none"),
      (.event, ef .unknown "INFERRED: iteration events are equal, since the base holds the tracks paused (varStep acts only while scenePaused); animation-name none (morph.module.css:14-16) cancels and re-creates the tracks, which enqueues animationcancel and animationstart (StyleOriginatedAnimation.cpp:333-334,353-354@862f17d), a count the walk does not fix")] ++
     idleCommon, some 173708059⟩
 
@@ -174,6 +175,69 @@ def hiddenWk (_ : Unit) : Footprint :=
 
 end HiddenPause
 
+section Repaint
+open Fw.Engine.WebKit Fw.Parts.NavBarFixedWork Fw.Parts.NavBarFixed
+
+theorem strip_repaint_down (a n : Nat) (ha : 0 < a) (pre mid q : List Bool) (d p : Bool) :
+    signOf (repaintPx 3 (reattachPaint a ((pre ++ false :: (mid ++ true :: q)).map fun x => coverageAttached x true false)) 1)
+      (repaintPx 3 (reattachPaint a (List.replicate n (coverageAttached true d p))) 1) = .down := by
+  have hf := face_reattach a pre mid q
+  rw [strip_no_reattach, repaintPx_dpr3, repaintPx_dpr3]
+  generalize reattachPaint a _ = x at hf ⊢
+  simp only [signOf]
+  split <;> (try split) <;> first | rfl | omega
+
+theorem own_frame_repaint (dpr hostPx a n : Nat) (v : Bool) : repaintPx dpr (changePx true hostPx a v) n = 0 := by
+  simp [changePx, repaintPx]
+
+theorem logo_repaint_down (v : Fw.Parts.Nav.Vp) (ms sizes : List Rat) (bar logo : Nat) (hb : 0 < bar)
+    (hl : logo ≤ bar) (hr : 3 ≤ resizeCount sizes) :
+    signOf (repaintPx 3 (pushResizePaint true false bar sizes) 1)
+      (repaintPx 3 (pushResizePaint true false bar (ms.map (barW v)) + attachPaint false true (addedKpx .logo3d bar logo)) 1)
+      = .down := by
+  rw [bar_resizePaint_zero, (layer_budget bar logo).2.2.2, repaintPx_dpr3, repaintPx_dpr3]
+  have h3 : 3 * bar ≤ resizeCount sizes * bar := Nat.mul_le_mul_right bar hr
+  simp only [pushResizePaint, resizePaint, usesBacking, attachPaint, Bool.true_or, Bool.and_self, ite_true,
+    Bool.not_false]
+  generalize resizeCount sizes * bar = x at h3 ⊢
+  simp only [signOf]
+  split <;> (try split) <;> first | rfl | omega
+
+theorem logo_frame_repaint_down (hostPx a n : Nat) (v : Bool) (ha : 0 < a) (h : a ≤ hostPx) (hn : 0 < n) :
+    signOf (repaintPx 3 (changePx false hostPx a v) n) (repaintPx 3 (changePx true hostPx a v) n) = .down := by
+  have hp := (pushed_repaint hostPx a v h).2.1
+  rw [own_frame_repaint, repaintPx_dpr3]
+  have : 0 < 9 * changePx false hostPx a v * n := Nat.mul_pos (by omega) hn
+  simp only [signOf]
+  split <;> first | rfl | omega
+
+theorem panel_repaint_up (a n : Nat) (ha : 0 < a) (l : List Bool) :
+    signOf (repaintPx 3 (reattachPaint a (List.replicate n true)) 1)
+      (repaintPx 3 (reattachPaint a (false :: true :: l)) 1) = .up := by
+  have ⟨hu, hz⟩ := tween_repaint a n l
+  rw [hz, repaintPx_dpr3, repaintPx_dpr3]
+  generalize reattachPaint a (false :: true :: l) = x at hu ⊢
+  simp only [signOf]
+  split <;> (try split) <;> first | rfl | omega
+
+def stripRepaint : Nat × Nat :=
+  (repaintPx 3 (reattachPaint 1 [true, false, true]) 1, repaintPx 3 (reattachPaint 1 (List.replicate 3 true)) 1)
+
+def logoRepaint : Nat × Nat :=
+  (repaintPx 3 (pushResizePaint true false 1 [0, 1, 2, 3]) 1, repaintPx 3 (attachPaint false true (addedKpx .logo3d 1 1)) 1)
+
+def logoFrameRepaint : Nat × Nat :=
+  (repaintPx 3 (changePx false 8192 1 true) 1, repaintPx 3 (changePx true 8192 1 true) 1)
+
+def panelRepaint : Nat × Nat :=
+  (repaintPx 3 (reattachPaint 1 (List.replicate 3 true)) 1, repaintPx 3 (reattachPaint 1 [false, true, true]) 1)
+
+#guard stripRepaint == (9, 0) && logoRepaint == (27, 18) && logoFrameRepaint == (9, 0) && panelRepaint == (0, 9)
+#guard signOf stripRepaint.1 stripRepaint.2 == .down && signOf logoRepaint.1 logoRepaint.2 == .down
+#guard signOf panelRepaint.1 panelRepaint.2 == .up
+
+end Repaint
+
 section Strip
 open Fw.Parts.HeroCountdownOpt Fw.Parts.MorphCountdownStrip
 
@@ -195,7 +259,7 @@ def stripCr : Footprint :=
   ⟨"morph.countdown:strip", .chromium,
     stageEffects (runSign r.1 r.2) "strip_units: 9 fewer units per digit" ++
     [(.event, ef .same stripDriverSrc),
-     (.repaint, ef .unknown "Chromium tile retention off-screen not modelled"),
+     (.repaint, ef .unknown "own_frame_repaint: faces and strips repaint the same per frame; Chromium tile retention off-screen not modelled"),
      (.layers, efB (signOf (clockLayerPair .chromium).1 (clockLayerPair .chromium).2) 72 "layers per census state"
         "hero_layers: 80 -> 8 clock layers"),
      (.composite, ef .down "hero_layers: fewer layers to composite"),
@@ -207,7 +271,7 @@ def stripWk : Footprint :=
   ⟨"morph.countdown:strip", .webkit,
     stageEffects (runSign r.1 r.2) "strip_units: 9 fewer units per digit" ++
     [(.event, ef .same stripDriverSrc),
-     (.repaint, ef .down "face_reattach vs strip_no_reattach: faces re-attach, strips stay attached"),
+     (.repaint, ef (signOf stripRepaint.1 stripRepaint.2) "strip_repaint_down at DPR 3: a face re-attach repaints 9a device px, a strip none"),
      (.layers, efB (signOf (clockLayerPair (.webkit .normal)).1 (clockLayerPair (.webkit .normal)).2) 72
         "layers per census state" "hero_layers, layers_80_to_16: 80 -> 8 clock layers"),
      (.composite, ef .down "hero_layers: fewer layers to composite"),
@@ -215,6 +279,15 @@ def stripWk : Footprint :=
         "strip_backing_gt: 10na -> 12na; bound the Simulator's 2.287 MB clock backing"),
      (.frames, ef .same stripDriverSrc)],
     some (basePeak + stripBytes)⟩
+
+def stripPeakSrc : String :=
+  "mixed: phone end-counts base peak (basePeak, 2026-10-25) plus the Simulator's hero clock backing (stripBytes, run 40081936555)"
+
+def stripPhonePeak : Nat := 191681597
+
+theorem strip_peaks_fit :
+    stripWk.peak = some (basePeak + stripBytes) ∧ basePeak + stripBytes ≤ budgetB ∧ stripPhonePeak ≤ budgetB ∧
+      stripPhonePeak ≤ basePeak + stripBytes := ⟨rfl, by decide, by decide, by decide⟩
 
 end Strip
 
@@ -235,7 +308,7 @@ def panelWk : Footprint :=
   ⟨"morph.panel:rest", .webkit,
     stageEffects (runSign wkO wkV) "MorphPanelOpt.wkO/wkV" ++
     [(.event, ef .same panelRestSrc),
-     (.repaint, ef .unknown "INFERRED: a none->blur toggle may create the group layer and paint it in full; no theorem links filterToggle to a re-attach paint"),
+     (.repaint, ef (signOf panelRepaint.1 panelRepaint.2) "INFERRED: panel_repaint_up at DPR 3, one full group-layer paint per none to blur toggle; no theorem links filterToggle to the re-attach"),
      (.layers, efB .down 1 "layers per census state" "wk_rest_layers: one layer less at rest"),
      (.composite, ef (runSign wkO wkV .comp) "wkO/wkV comp"),
      (.gpuMem, ef .down "wkResident: the group layer's backing is freed at rest"), (.frames, ef .same panelRestSrc)],
@@ -256,7 +329,6 @@ def logoWkRuns : List Work × List Work :=
 
 def logoCommon : List (Res × Effect) :=
   [(.event, ef .unknown "the logo moves by transform instead of translate and scale (nav/box.module.css:53-57) while the nav keeps the original transition lists (box.module.css:4); transition events not modelled"),
-   (.repaint, ef .down "bar_resizePaint_zero vs bar_orig_resizes: the fixed bar never resizes"),
    (.layers, ef .up "layer_budget: mask, bar and logo while morphing; none at rest (box.module.css .is-morphing)"),
    (.composite, ef .up "layer_budget: three more layers while morphing"),
    (.gpuMem, ef .up "layer_budget: bar and logo backing while morphing; the mask holds none"),
@@ -264,11 +336,14 @@ def logoCommon : List (Res × Effect) :=
 
 def logoCr : Footprint :=
   ⟨"nav:logo-3d", .chromium, stageEffects (runSign logoCrRuns.1 logoCrRuns.2) "Chromium stage rules: left vs transform" ++
-    logoCommon, none⟩
+    (.repaint, ef (signOf logoFrameRepaint.1 logoFrameRepaint.2)
+      "INFERRED: logo_frame_repaint_down at DPR 3 per frame; the promotion raster is not modelled") :: logoCommon, none⟩
 
 def logoWk : Footprint :=
   ⟨"nav:logo-3d", .webkit,
-    stageEffects (runSign logoWkRuns.1 logoWkRuns.2) "logo3d_layout_normal, bar_layout_normal" ++ logoCommon,
+    stageEffects (runSign logoWkRuns.1 logoWkRuns.2) "logo3d_layout_normal, bar_layout_normal" ++
+      (.repaint, ef (signOf logoRepaint.1 logoRepaint.2)
+        "INFERRED: logo_repaint_down at DPR 3 if the bar resizes at least three times per morph") :: logoCommon,
     some (basePeak + navMorphBytes)⟩
 
 end Logo
@@ -335,11 +410,11 @@ def verdicts (B : Nat) : List (String × Eng × Verdict) := (footprints ()).map 
 #guard (footprints ()).all fun f => Res.all.all fun r => (f.effects.filter (·.1 == r)).length == 1
 #guard verdicts budgetB == [
   ("hero.exit:threaded", .chromium, .trade), ("hero.exit:threaded", .webkit, .trade),
-  ("hero:scene-pause", .chromium, .open), ("hero:scene-pause", .webkit, .win),
+  ("hero:scene-pause", .chromium, .open), ("hero:scene-pause", .webkit, .open),
   ("morph.columns:idle-none", .chromium, .open), ("morph.columns:idle-none", .webkit, .open),
   ("morph.countdown:hidden-pause", .chromium, .win), ("morph.countdown:hidden-pause", .webkit, .win),
   ("morph.countdown:strip", .chromium, .open), ("morph.countdown:strip", .webkit, .win),
-  ("morph.panel:rest", .chromium, .trade), ("morph.panel:rest", .webkit, .open),
+  ("morph.panel:rest", .chromium, .trade), ("morph.panel:rest", .webkit, .trade),
   ("nav:logo-3d", .chromium, .open), ("nav:logo-3d", .webkit, .open),
   ("morph.mount:shift-dormant", .chromium, .neutral), ("morph.mount:shift-dormant", .webkit, .neutral),
   ("engine.events:quiet", .chromium, .open), ("engine.events:quiet", .webkit, .win)]
@@ -400,6 +475,26 @@ def phoneObs : List Obs :=
   phoneArm "engine.events:quiet" 3664 [⟨646, 647⟩, ⟨614, 623⟩, ⟨1606, 1622⟩, ⟨993, 999⟩, ⟨460, 462⟩,
     ⟨81084, 82620⟩, ⟨402, 402⟩, ⟨213, 213⟩, ⟨407517, 407517⟩, ⟨694, 695⟩]
 
+def thermalSrc : String :=
+  "phone 2026-10-25 thermal session (phone-thermal-check): 9 base and 3 strip passes, every visit ended at Serious"
+
+def thermalStrip : List Obs :=
+  let rows : List (Res × Range × Range) :=
+    [(.style, ⟨621, 648⟩, ⟨646, 646⟩), (.layout, ⟨580, 620⟩, ⟨609, 616⟩), (.paintRec, ⟨1432, 1618⟩, ⟨1572, 1573⟩),
+     (.script, ⟨1428, 1545⟩, ⟨1442, 1445⟩), (.event, ⟨893, 1012⟩, ⟨910, 914⟩), (.repaint, ⟨69688, 82278⟩, ⟨80110, 81312⟩),
+     (.composite, ⟨213, 213⟩, ⟨213, 213⟩), (.frames, ⟨671, 681⟩, ⟨681, 681⟩)]
+  rows.map fun (r, b, a) => ⟨"morph.countdown:strip", .webkit, thermalSrc, r, phoneUnit r, b, a, 0, slowWalk 3784 3607⟩
+
+def sceneSimSrc : String := "webkit-sim 40151813906 vs 40151792642 (4 base, 6 flag passes)"
+
+def sceneSimSlow : Bool := slowWalk 7262 7378
+
+def panelSimSrc : String := "webkit-sim 40174475566 vs 40174472900 (6 passes each)"
+
+def panelSimSlow : Bool := slowWalk 11316 6757
+
+#guard !sceneSimSlow && !panelSimSlow && !slowWalk 3784 3607
+
 def ciObs : List Obs :=
   [⟨"morph.columns:idle-none", .webkit, "webkit-sim 39897814980 vs 39897807511, y=3000", .layers,
       "layers per census state", ⟨136, 140⟩, ⟨124, 128⟩, 0, false⟩,
@@ -426,9 +521,20 @@ def ciObs : List Obs :=
    ⟨"morph.mount:shift-dormant", .chromium, "chromium 39325709978 vs 39325721909, layouts relative to faithful",
       .layout, "layouts relative to faithful", ⟨3, 3⟩, ⟨0, 0⟩, 0, false⟩,
    ⟨"morph.mount:shift-dormant", .chromium, "chromium 39325709978 vs 39325721909, resolved elements relative",
-      .style, "resolved elements relative to faithful", ⟨0, 0⟩, ⟨200, 200⟩, 0, false⟩]
+      .style, "resolved elements relative to faithful", ⟨0, 0⟩, ⟨200, 200⟩, 0, false⟩,
+   ⟨"hero:scene-pause", .webkit, sceneSimSrc, .event, "records per run", ⟨1053, 1179⟩, ⟨1072, 1674⟩, 0, sceneSimSlow⟩,
+   ⟨"hero:scene-pause", .webkit, sceneSimSrc, .style, "records per run", ⟨647, 651⟩, ⟨657, 688⟩, 0, sceneSimSlow⟩,
+   ⟨"morph.panel:rest", .webkit, panelSimSrc, .paintRec, "records per run", ⟨1352, 1409⟩, ⟨1433, 1678⟩, 0, panelSimSlow⟩,
+   ⟨"morph.panel:rest", .webkit, panelSimSrc, .repaint, "root-view CSS px² summed over a walk",
+      ⟨70220353, 75135657⟩, ⟨63691076, 72290092⟩, 0, panelSimSlow⟩,
+   ⟨"morph.panel:rest", .webkit, panelSimSrc, .event, "records per run", ⟨988, 1420⟩, ⟨1183, 1948⟩, 0, panelSimSlow⟩,
+   ⟨"morph.panel:rest", .webkit, panelSimSrc, .style, "records per run", ⟨648, 677⟩, ⟨648, 693⟩, 0, panelSimSlow⟩,
+   ⟨"morph.panel:rest", .webkit, panelSimSrc, .layout, "records per run", ⟨610, 630⟩, ⟨617, 664⟩, 0, panelSimSlow⟩,
+   ⟨"morph.panel:rest", .webkit, panelSimSrc, .gpuMem, "KiB summed over the census states y >= 3000",
+      ⟨347962, 358260⟩, ⟨304047, 304047⟩, 0, panelSimSlow⟩]
 
-def observations : List Obs := phoneObs ++ ciObs
+def observations : List Obs := phoneObs ++ ciObs ++ thermalStrip
+
 
 def predicted (o : Obs) : Sign := ((footprint? o.flag o.eng).map (·.sign o.res)).getD .unknown
 
@@ -457,7 +563,13 @@ def mechanisms : List (String × Eng × Res × String) :=
    ("morph.columns:idle-none", .webkit, .script,
      "OPEN: the flag's MutationObserver callbacks are not modelled; measured inside the pass spread"),
    ("morph.columns:idle-none", .webkit, .event,
-     "OPEN: the animationcancel and animationstart of the re-created tracks are not counted; measured inside the pass spread")]
+     "OPEN: the animationcancel and animationstart of the re-created tracks are not counted; measured inside the pass spread"),
+   ("hero:scene-pause", .webkit, .style,
+     "MEASURED: 6 to 37 more style records per run on a non-slow arm; INFERRED: the pause attribute write per scene change (hero/scene.ts:23) restyles the hero subtree"),
+   ("hero:scene-pause", .webkit, .event,
+     "OPEN: the INFERRED source fall is not seen; EventDispatch is inside the pass spread on a non-slow arm"),
+   ("morph.panel:rest", .webkit, .paintRec,
+     "raw MEASURED: Paint records rise on rest frames, quarantined and load-confounded (panel-rest-n11); the decided trade is INFERRED, from the group layer's re-attach paint per toggle (panel_repaint_up)")]
 
 def ledgerLabels : List (String × Eng × String) :=
   [("hero.exit:threaded", .chromium, "trade"), ("hero.exit:threaded", .webkit, "trade"),
@@ -470,26 +582,17 @@ def ledgerLabels : List (String × Eng × String) :=
    ("morph.mount:shift-dormant", .chromium, "trade"), ("morph.mount:shift-dormant", .webkit, "unknown"),
    ("engine.events:quiet", .chromium, "no-win"), ("engine.events:quiet", .webkit, "win")]
 
-def becomesWin (B : Nat) : List (String × Eng) :=
-  (ledgerLabels.filter fun (f, e, l) => l == "trade" && ((footprint? f e).map (verdict B ·)) == some .win).map
-    fun (f, e, _) => (f, e)
-
-def leavesWin (B : Nat) : List (String × Eng × Verdict) :=
-  (ledgerLabels.filter fun (f, e, l) => l == "win" && ((footprint? f e).map (verdict B ·)) != some .win).filterMap
-    fun (f, e, _) => (footprint? f e).map fun fp => (f, e, verdict B fp)
-
-#guard becomesWin budgetB == [("morph.countdown:strip", .webkit)]
-#guard leavesWin budgetB == [("morph.columns:idle-none", .chromium, .open), ("morph.columns:idle-none", .webkit, .open),
-  ("morph.panel:rest", .webkit, .open)]
-#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [43, 5, 24, 5, 6]
+#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [52, 9, 24, 7, 7]
 #guard (withCheck .unpredicted).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
   ("hero.exit:threaded", "webkit", "paintRecords"), ("hero.exit:threaded", "webkit", "repaintArea"),
   ("morph.columns:idle-none", "webkit", "paintRecords"), ("morph.columns:idle-none", "webkit", "script"),
-  ("morph.columns:idle-none", "webkit", "eventDispatch"), ("morph.columns:idle-none", "webkit", "repaintArea")]
+  ("morph.columns:idle-none", "webkit", "eventDispatch"), ("morph.columns:idle-none", "webkit", "repaintArea"),
+  ("hero:scene-pause", "webkit", "eventDispatch")]
 #guard (withCheck .disagree).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
   ("morph.mount:shift-dormant", "webkit", "script"),
   ("morph.mount:shift-dormant", "webkit", "eventDispatch"), ("engine.events:quiet", "webkit", "layers"),
-  ("morph.mount:shift-dormant", "chromium", "layout"), ("morph.mount:shift-dormant", "chromium", "style")]
+  ("morph.mount:shift-dormant", "chromium", "layout"), ("morph.mount:shift-dormant", "chromium", "style"),
+  ("hero:scene-pause", "webkit", "style"), ("morph.panel:rest", "webkit", "paintRecords")]
 #guard (withCheck .disagree ++ withCheck .unpredicted).all fun o =>
   mechanisms.any fun (f, e, r, _) => f == o.flag && e == o.eng && r == o.res
 
@@ -516,9 +619,113 @@ def bounded (_ : Unit) : List (String × Eng × Res × Nat × String × Nat) :=
 #guard maxChange ⟨124, 128⟩ ⟨56, 56⟩ == 72 && maxChange ⟨591000, 591000⟩ ⟨2287000, 2287000⟩ == 1696000
 #guard maxChange ⟨124, 128⟩ ⟨39, 47⟩ == 89 && maxChange ⟨136, 140⟩ ⟨124, 128⟩ == 16
 
+structure CensusRow where
+  y : Nat
+  base : Range
+  arm : Range
+deriving Repr
+
+def thermalStripLayers : List CensusRow :=
+  [⟨0, ⟨110, 112⟩, ⟨38, 40⟩⟩, ⟨1500, ⟨116, 118⟩, ⟨40, 42⟩⟩, ⟨3000, ⟨136, 136⟩, ⟨64, 64⟩⟩, ⟨4500, ⟨139, 142⟩, ⟨69, 69⟩⟩,
+   ⟨5267, ⟨124, 124⟩, ⟨52, 52⟩⟩]
+
+def thermalStripBytes : List CensusRow :=
+  [⟨0, ⟨39510317, 39510317⟩, ⟨41630605, 41630605⟩⟩, ⟨1500, ⟨99667292, 99723526⟩, ⟨99667292, 99730800⟩⟩,
+   ⟨3000, ⟨108952364, 108952364⟩, ⟨108952364, 116385244⟩⟩, ⟨4500, ⟨168397197, 168397197⟩, ⟨168397197, 191681597⟩⟩,
+   ⟨5267, ⟨109230592, 109230592⟩, ⟨109230592, 109230592⟩⟩]
+
+def minDrop (b a : Range) : Nat := b.lo - a.hi
+
+#guard thermalStripLayers.map (fun c => (c.y, maxChange c.base c.arm)) == [(0, 74), (1500, 78), (3000, 72), (4500, 73), (5267, 72)]
+#guard thermalStripLayers.map (fun c => (c.y, minDrop c.base c.arm)) == [(0, 70), (1500, 74), (3000, 72), (4500, 70), (5267, 72)]
+#guard thermalStripBytes.map (fun c => (c.y, c.arm.hi - c.base.lo)) ==
+  [(0, 2120288), (1500, 63508), (3000, 7432880), (4500, 23284400), (5267, 0)]
+
+def moved (o : Obs) : Option Sign :=
+  if o.slow && !o.res.census then none
+  else match measuredSign o.base o.arm o.tol with
+    | .same => none
+    | s => some s
+
+def evidenceSign : List Sign → Option Sign
+  | [] => none
+  | s :: ss => some (if ss.all (· == s) then s else .unknown)
+
+def resolvedSign (fp : Footprint) (r : Res) : Sign := (evidenceSign ((obsOf fp r).filterMap moved)).getD (fp.sign r)
+
+def resolved (fp : Footprint) : Footprint :=
+  { fp with effects := fp.effects.map fun (r, e) => (r, { e with sign := resolvedSign fp r }) }
+
+def decided (B : Nat) (fp : Footprint) : Verdict := verdict B (resolved fp)
+
+theorem moved_slow (o : Obs) (hs : o.slow = true) (hc : o.res.census = false) : moved o = none := by
+  simp [moved, hs, hc]
+
+theorem moved_same (o : Obs) (h : measuredSign o.base o.arm o.tol = .same) : moved o = none := by
+  unfold moved; split <;> simp [h]
+
+theorem moved_move (o : Obs) (h : (o.slow && !o.res.census) = false) (hm : measuredSign o.base o.arm o.tol ≠ .same) :
+    moved o = some (measuredSign o.base o.arm o.tol) := by
+  unfold moved
+  simp only [h, Bool.false_eq_true, ite_false]
+
+theorem evidence_none : evidenceSign [] = none := rfl
+
+theorem evidence_agree (s : Sign) (ss : List Sign) (h : ∀ x ∈ ss, x = s) : evidenceSign (s :: ss) = some s := by
+  have : ss.all (· == s) = true := List.all_eq_true.mpr fun x hx => by simp [h x hx]
+  simp [evidenceSign, this]
+
+theorem evidence_conflict (s t : Sign) (ss : List Sign) (ht : t ∈ ss) (hne : t ≠ s) :
+    evidenceSign (s :: ss) = some .unknown := by
+  have : ss.all (· == s) = false := List.all_eq_false.mpr ⟨t, ht, by simpa using hne⟩
+  simp [evidenceSign, this]
+
+theorem resolved_predicted (fp : Footprint) (r : Res) (h : (obsOf fp r).filterMap moved = []) :
+    resolvedSign fp r = fp.sign r := by
+  simp [resolvedSign, h, evidence_none]
+
+theorem resolved_measured (fp : Footprint) (r : Res) (s : Sign) (ss : List Sign)
+    (h : (obsOf fp r).filterMap moved = s :: ss) (hs : ∀ x ∈ ss, x = s) : resolvedSign fp r = s := by
+  simp [resolvedSign, h, evidence_agree s ss hs]
+
+#guard evidenceSign [.up, .up] == some .up && evidenceSign [.up, .down] == some .unknown && evidenceSign [] == none
+#guard moved ⟨"x", .webkit, "", .style, "", ⟨1, 2⟩, ⟨5, 6⟩, 0, true⟩ == none
+#guard moved ⟨"x", .webkit, "", .layers, "", ⟨1, 2⟩, ⟨5, 6⟩, 0, true⟩ == some .up
+#guard moved ⟨"x", .webkit, "", .style, "", ⟨1, 2⟩, ⟨2, 6⟩, 0, false⟩ == none
+
+def decidedVerdicts (B : Nat) : List (String × Eng × Verdict) := (footprints ()).map fun f => (f.flag, f.eng, decided B f)
+
+def decidedOf (flag : String) (e : Eng) : Option Verdict := (footprint? flag e).map (decided budgetB ·)
+
+def becomesWin (B : Nat) : List (String × Eng) :=
+  (ledgerLabels.filter fun (f, e, l) => l == "trade" && ((footprint? f e).map (decided B ·)) == some .win).map
+    fun (f, e, _) => (f, e)
+
+def leavesWin (B : Nat) : List (String × Eng × Verdict) :=
+  (ledgerLabels.filter fun (f, e, l) => l == "win" && ((footprint? f e).map (decided B ·)) != some .win).filterMap
+    fun (f, e, _) => (footprint? f e).map fun fp => (f, e, decided B fp)
+
+#guard decidedVerdicts budgetB == [
+  ("hero.exit:threaded", .chromium, .trade), ("hero.exit:threaded", .webkit, .trade),
+  ("hero:scene-pause", .chromium, .open), ("hero:scene-pause", .webkit, .trade),
+  ("morph.columns:idle-none", .chromium, .open), ("morph.columns:idle-none", .webkit, .open),
+  ("morph.countdown:hidden-pause", .chromium, .win), ("morph.countdown:hidden-pause", .webkit, .win),
+  ("morph.countdown:strip", .chromium, .open), ("morph.countdown:strip", .webkit, .win),
+  ("morph.panel:rest", .chromium, .trade), ("morph.panel:rest", .webkit, .trade),
+  ("nav:logo-3d", .chromium, .open), ("nav:logo-3d", .webkit, .open),
+  ("morph.mount:shift-dormant", .chromium, .trade), ("morph.mount:shift-dormant", .webkit, .trade),
+  ("engine.events:quiet", .chromium, .open), ("engine.events:quiet", .webkit, .win)]
+#guard becomesWin budgetB == [("morph.countdown:strip", .webkit)]
+#guard leavesWin budgetB == [("hero:scene-pause", .webkit, .trade), ("morph.columns:idle-none", .chromium, .open),
+  ("morph.columns:idle-none", .webkit, .open), ("morph.panel:rest", .webkit, .trade)]
+#guard ((decidedVerdicts budgetB).zip (verdicts budgetB)).filterMap (fun ((f, e, v), (_, _, w)) =>
+  if v == w then none else some (f, e)) == [("hero:scene-pause", .webkit), ("morph.mount:shift-dormant", .chromium),
+    ("morph.mount:shift-dormant", .webkit)]
+
 def predictRow (fp : Footprint) (r : Res) (e : Effect) : Json :=
   Json.mkObj ([("bound", match e.bound with | some (b, _) => toJson b | none => Json.null),
-    ("engine", toJson fp.eng.name), ("flag", toJson fp.flag), ("kind", toJson "predict"),
+    ("decided", toJson (decided budgetB fp).name), ("engine", toJson fp.eng.name), ("flag", toJson fp.flag),
+    ("kind", toJson "predict"), ("resolved", toJson (resolvedSign fp r).name),
     ("resource", toJson r.name), ("sign", toJson e.sign.name), ("src", toJson e.src),
     ("stage", toJson (Res.stage fp.eng r)),
     ("unit", toJson (match e.bound with | some (_, u) => u | none => r.unit)), ("verdict", toJson (verdict budgetB fp).name)] ++
@@ -540,6 +747,25 @@ def goldenRows (_ : Unit) : List Json :=
 
 def goldenText (_ : Unit) : String := String.join ((goldenRows ()).map fun j => j.compress ++ "\n")
 
-#guard (goldenRows ()).length == 18 * 10 + 70 + 13
+#guard (goldenRows ()).length == 18 * 10 + 70 + 21 + 8
 
 end Fw.Engine.Resource.Flags
+
+namespace Fw.Engine.Resource.Preset
+open Fw.Engine.Resource Fw.Preset
+
+def resourceOf (f : Flag) : List (Eng × Verdict × Verdict) :=
+  [Eng.chromium, .webkit].filterMap fun e =>
+    (Flags.footprint? f.key e).map fun fp => (e, verdict budgetB fp, Flags.decided budgetB fp)
+
+def resourceTrade (f : Flag) : Bool := let rs := resourceOf f; !rs.isEmpty && rs.all (·.2.2 == .trade)
+
+#guard resourceOf ⟨"morph.panel", "rest"⟩ == [(.chromium, .trade, .trade), (.webkit, .trade, .trade)]
+#guard resourceOf ⟨"morph.countdown", "strip"⟩ == [(.chromium, .open, .open), (.webkit, .win, .win)]
+#guard resourceOf ⟨"morph.columns", "idle-none"⟩ == [(.chromium, .open, .open), (.webkit, .open, .open)]
+#guard resourceTrade ⟨"morph.panel", "rest"⟩ && !resourceTrade ⟨"morph.countdown", "strip"⟩ &&
+  !resourceTrade ⟨"morph.columns", "idle-none"⟩ && !resourceTrade ⟨"hero.accent", "steps"⟩
+
+#guard Gen.curated.all fun (f, x) => match x with | .resourceTrade => resourceTrade f | .hand _ => true
+
+end Fw.Engine.Resource.Preset

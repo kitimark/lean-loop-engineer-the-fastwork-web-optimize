@@ -32,8 +32,7 @@ Known effects:
    `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0 (`LocalDOMWindow.cpp:1476-1480` @ 862f17d). The callback writes no DOM and `scale` and `scrollY`
    were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work. It runs before
    the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
-   i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs (the old pairing of a
-   value with the position read beside it counted a false stall at every scroll start). All arms and both original passes carry the
+   i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs. All arms and both original passes carry the
    same probe effect, so the comparison is unaffected.
 3. The mark must not change the page. The step text says "tap 3 times quickly on an empty area (not on text, a link or a button)". A
    tap on a link navigates away and loses the pass: a passive `pagehide` listener writes `page navigated (a tap hit a link)`, and the
@@ -163,3 +162,26 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
   `Target.didCommitProvisionalTarget` (`wip.mjs` `targetStep`) and fails commands sent to the replaced page at once.
 - Fault drops: `saveState` refuses a state whose visits hold fewer faults than the saved one (Lean `appendOnly`). `arms-run --hand-reset
   <index> <reason>` writes a lead note and leaves the fault list as it is; it is refused for an unknown index or an empty reason.
+
+## Pinned thermal state (`arms-run --pin`, `pin-probe`, `pin-stop`; Lean `Fw.Device.Thermal` section "Pinned thermal state"; golden `device/thermal.jsonl`)
+
+- Setup: `brew install pipx`, then `pipx install pymobiledevice3==11.44.0`. Every call carries `--userspace`; `--native` is never used. The
+  profile ids come from `pymobiledevice3 developer dvt condition list --userspace` (group ThermalCondition: ThermalFair, ThermalSerious,
+  ThermalCritical; CONFIRMED on the test phone). Only Fair and Serious are induced.
+- `arms-run --pin Serious ...`: one owner process (`OWNER_PY`, our program on the pinned library's `ConditionInducer`, run with the
+  pymobiledevice3 venv python from `pipx environment --value PIPX_LOCAL_VENVS` or `FW_PYMD3_PYTHON`) sets the condition and holds the
+  connection. MEASURED: the induced state outlives the owner (a SIGTERM without a clear left Serious reported for 34 min) and a clear
+  from another connection does nothing; only a clear on the setting connection ends it, and the reported state then falls after about 2
+  minutes (Nominal start) or stays while real heat remains. So on SIGTERM the owner clears, waits for a reply, prints
+  `fw-pin cleared pid=N` and exits. A block runs a lane only after a reading `go`: owner alive, phone unlocked, reported state = target. The state is read before
+  the block, between the frames lane and the counts lane, and after the visit; a visit counts only when all three read `go`. A reading
+  of Critical, or below or above the target, refuses the visit (`status: refused`, no raw files) and stops the block. The 5-minute cool
+  between blocks is skipped. The induced state is a floor, not a clamp: real heat can lift the reported state to Critical.
+- The owner is stopped with `kill -TERM` (a backgrounded job ignores SIGINT), KILL after 15 s, and only after its recorded pid and start
+  time match the live process. The finally path stops it on success and failure, then reads the state back for up to 300 s;
+  `state.json` `pin` records target, profile, owner pid and start, the readings (`thermal`), `acked`, the read-backs and the end verdict
+  (`cleared`, `heatRemains` after real load, `unread`, `unconfirmed` for an owner that died or needed KILL, `stuck`). `unconfirmed` and
+  `stuck` fail the session; the next run (or `pin-stop`) runs one set-and-clear cycle for an unconfirmed owner (Lean `recoverAct`).
+- `--pin Fair|Serious` names the target; it has no default.
+- `pin-probe --pin Serious --dir d [--hold s]`: induce, read back until the target, hold, clear, read back; no visit.
+  `pin-stop --dir d`: stop an owner a crashed run left behind.

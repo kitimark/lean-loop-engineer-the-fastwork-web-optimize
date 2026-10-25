@@ -15905,9 +15905,12 @@
     "lean/Fw/Ci/PoolTier.lean",
     "packages/contracts/golden/ci/pool*.jsonl",
     "scripts/codemagic.mjs",
-    "scripts/codemagic.test.mjs"
+    "scripts/codemagic.test.mjs",
+    "lean/Fw/Ci/PoolTierWire.lean",
+    "lean/scripts/PoolGolden.lean"
    ],
-   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event."
+   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event. Added 2026-10-25 (r484, after round 2): the paired rewrite cell had equal site digests but count classes differed in 18 of 104 rows; the GitHub and Codemagic images differ (Xcode 27.1 vs 27.0, extra iOS 26.5 runtime). Lean must refuse to merge or route a cell unless the toolchain identity (macOS, Xcode, Simulator runtime) matches; pin Codemagic to the GitHub Xcode where possible.",
+   "evidence": "5dac62e"
   },
   {
    "devices": [
@@ -21575,7 +21578,7 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User 2026-10-25: measure variant compositions on the real iPhone to learn how flags combine. Same automated lanes and rules as phone-end-counts (counts with Timeline and paintArea and the layer census, frames at 800 px/s; blocks <= 15 min, cool >= 5 min; thermal and USB checks from phone-thermal-check). Lean first (lean/Fw/Device/PhoneCompose.lean, reusing Fw.Engine.Compose frameWork_append_units, passes_not_compositional, lego_swap_units and the coupled groups G1-G5 of report 4.5): (1) the arm plan: the combination of every flag that phone-end-counts judged a win or a memory-only cost, minus registry conflicts (apps/site/src/parts/*/part.json conflicts), then leave-one-out arms (the combination without each member), one coupled pair inside G2 (morph) and one inside G1 (hero threshold), and the base repeated at the start, middle and end; at most 12 visits; (2) the prediction per resource and zone: units add (sum of the single-flag deltas from phone-end-counts, and from resource-footprint when it has landed), pass-type counts and layers are not predicted to add; (3) the interaction verdict per resource: additive within the base spread, sub-additive or super-additive, each pair or leave-one-out decided on its own; a non-additive result is a finding with a mechanism and a Lean why. Commit only summaries; raw passes stay in .local/phone/. Added 2026-10-25 (user, phone feel, cool phone): '?fw=nav:earn-logical,hero.countdown:strip,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle' felt smoother than original. Include this exact composition as an arm (against base and original, in the pinned-thermal mode), report its per-zone verdict and frames, and record the user's feel next to it (one person, felt, not measured)."
+   "title": "User 2026-10-25: measure variant compositions on the real iPhone to learn how flags combine. Same automated lanes and rules as phone-end-counts (counts with Timeline and paintArea and the layer census, frames at 800 px/s; blocks <= 15 min, cool >= 5 min; thermal and USB checks from phone-thermal-check). Lean first (lean/Fw/Device/PhoneCompose.lean, reusing Fw.Engine.Compose frameWork_append_units, passes_not_compositional, lego_swap_units and the coupled groups G1-G5 of report 4.5): (1) the arm plan: the combination of every flag that phone-end-counts judged a win or a memory-only cost, minus registry conflicts (apps/site/src/parts/*/part.json conflicts), then leave-one-out arms (the combination without each member), one coupled pair inside G2 (morph) and one inside G1 (hero threshold), and the base repeated at the start, middle and end; at most 12 visits; (2) the prediction per resource and zone: units add (sum of the single-flag deltas from phone-end-counts, and from resource-footprint when it has landed), pass-type counts and layers are not predicted to add; (3) the interaction verdict per resource: additive within the base spread, sub-additive or super-additive, each pair or leave-one-out decided on its own; a non-additive result is a finding with a mechanism and a Lean why. Commit only summaries; raw passes stay in .local/phone/. Added 2026-10-25 (user, phone feel, cool phone): '?fw=nav:earn-logical,hero.countdown:strip,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle' felt smoother than original. Include this exact composition as an arm (against base and original, in the pinned-thermal mode), report its per-zone verdict and frames, and record the user's feel next to it (one person, felt, not measured). Added 2026-10-25 (user, phone feel, 'not sure if I am biased'): also the composition '?fw=nav:earn-logical,hero.countdown:strip,platform:fade-threaded,platform.glint:offscreen-pause,platform.sweep:offscreen-pause,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle' (felt a little better than the previous one) as its own arm; and a scripted push-cycle pass (6 in/out cycles at the page end) per arm next to the single open, per push-cycle-lag's profile, so the user's 'pull in and out lags more' is measured on the phone. Offer the user a blind A/B of the two compositions (labels hidden) to answer the bias question."
   },
   {
    "devices": [
@@ -21596,7 +21599,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/resource-redecide.md"
    ],
-   "title": "Re-decide preset rows with the landed resource verdict (resource-footprint, user 2026-10-25: a GPU-memory cost is acceptable when main-thread work falls, within budget B). Inputs: becomesWin = [morph.countdown:strip on WebKit], leavesWin = [morph.columns:idle-none both engines (open), morph.panel:rest WebKit (open; panel-rest-n11 measured a raw WebKit Paint rise and a Chromium trade, curated exclusion)]. Wait for phone-thermal-check's strip re-measure (strip stalled twice on the phone 2026-10-25) before moving strip into a preset; look-change flags still go to the look-change class for the user's visual review. Also take the resource-footprint review follow-ups: idle-none style sign marked INFERRED (removal treated as pause) or a removal lemma; the WebKit scene-pause event fall needs a CI eventDispatch measurement on a non-slow arm; name the mixed phone+Simulator source of the strip peak; derive repaint signs from changePx/repaintPx at DPR 3 for logo-3d, strip and panel:rest. Gen changes only through the Lean verdict; regenerate the preset goldens; per-row note with MEASURED/INFERRED tags."
+   "title": "Re-decide preset rows with the landed resource verdict (resource-footprint, user 2026-10-25: a GPU-memory cost is acceptable when main-thread work falls, within budget B). Inputs: becomesWin = [morph.countdown:strip on WebKit], leavesWin = [morph.columns:idle-none both engines (open), morph.panel:rest WebKit (open; panel-rest-n11 measured a raw WebKit Paint rise and a Chromium trade, curated exclusion)]. Wait for phone-thermal-check's strip re-measure (strip stalled twice on the phone 2026-10-25) before moving strip into a preset; look-change flags still go to the look-change class for the user's visual review. Also take the resource-footprint review follow-ups: idle-none style sign marked INFERRED (removal treated as pause) or a removal lemma; the WebKit scene-pause event fall needs a CI eventDispatch measurement on a non-slow arm; name the mixed phone+Simulator source of the strip peak; derive repaint signs from changePx/repaintPx at DPR 3 for logo-3d, strip and panel:rest. Gen changes only through the Lean verdict; regenerate the preset goldens; per-row note with MEASURED/INFERRED tags.",
+   "evidence": "e624e4a"
   },
   {
    "devices": [
@@ -21622,9 +21626,11 @@
     "docs/team/tools/*.md",
     "research/notes/2026/10-25-phone-thermal-pin.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/phone-thermal-pin.md"
+    "docs/team/handoffs/phone-thermal-pin.md",
+    "packages/measure-webkit/test/pin-world.mjs"
    ],
-   "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode."
+   "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode.",
+   "evidence": "67113fb"
   },
   {
    "devices": [
@@ -21653,6 +21659,216 @@
     "docs/team/handoffs/platform-end-variants.md"
    ],
    "title": "User 2026-10-25: add the platform.* variants to the end-of-page work. Step 1 (measure before building): which platform parts do work at the end of the page. The section paint is already skipped once fully faded (opacity 0 for fade(m)=0, m >= 0.55; RenderLayer.cpp:3365-3376@862f17d), so platform parts cost only while the section is visible during the push. Attribute per finish zone and per push phase on CI (WebKit Simulator rewrite counts + census, Chromium swipe-touch-v1), base vs the existing un-measured variants: platform.sweep:offscreen-pause (partly-proved), platform.glint:offscreen-pause (negative result: re-check at the end of the page only), platform:fade-threaded on Chromium (WebKit no-win, Chromium unknown). platform:mq stays closed (negative). Step 2, only for parts step 1 shows doing work, same look, Lean first (premise, theorem, golden), each its own flag: (a) platform.sweep:layer-sweep — the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor transform with the identical pixels (or prove it impossible and record the negative result); (b) platform.glint:transform — SMIL x1/x2 on the 94x3.2 SVG gradient becomes a translate on a pre-rendered gradient, identical pixels; (c) platform.entries:contain — count-up and typing writes isolated with contain/fixed boxes so they do not lay out the section, identical layout. platform.marquee is already a transform keyframe (compositor), measure only. Each variant: breakpoint gate (both engines), counts per engine and zone, look check; a look change goes to the look-change class for the user's visual review. Negative results are findings (mechanism + Lean why)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "push-cycle-lag",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Measure/PushCycle.lean",
+    "lean/scripts/PushCycleGolden.lean",
+    "packages/contracts/golden/measure/push-cycle*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-webkit/src/throttle/push-cycle*.mjs",
+    "packages/measure-webkit/test/push-cycle*.test.mjs",
+    "packages/measure-chromium/src/push-cycle*.ts",
+    "packages/measure-chromium/test/push-cycle*.test.ts",
+    ".github/workflows/toolbar-throttle.yml",
+    ".github/workflows/chromium-counts.yml",
+    "research/notes/2026/10-2x-push-cycle-lag.md",
+    "research/findings/ledger.json",
+    "results/push-cycle-lag/**",
+    "docs/team/handoffs/push-cycle-lag.md"
+   ],
+   "title": "User 2026-10-25 (phone feel): 'when I pull in and pull out the end-of-page, it is quite more lag than when I open the end-of-page at once'. Earlier work covered only the scroll fight on close-then-reopen (10-2x-combo-scroll-fight, release hold rule landed) and reversals/spring-back per open stretch (10-2x-morph-end-measure, thin data; morph-end-remeasure running); no task measured the frame cost per push cycle. Do: Lean first, a push-cycle model (open, close, re-open within a dwell d) predicting which work repeats per cycle and which is paid once per open: layer promotion and re-attach repaint of the tweened parts (Fw.Engine resource tween_repaint/promote_tween), countdown faces (about 80 layers), column re-layout, panel and platform blur, scroll throttle re-entry; theorem shapes: per-cycle work is >= the single-open work when promotion repeats, and the k-th cycle's work does not fall unless layers are kept. Measure: N = 6 back-and-forth cycles (dwell 0.3 s, 1 s) vs one open, on CI (Chromium swipe-touch with a cycle profile, CDP Input touch; WebKit Simulator touch lane with XCUITest real touches), per cycle index: slow frames (>34, >50 ms), Layout, RecalculateStyles, Paint, Composite, layer count and backing per cycle; base, rewrite, and the user's composition ?fw=nav:earn-logical,hero.countdown:strip,platform:fade-threaded,platform.glint:offscreen-pause,platform.sweep:offscreen-pause,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle. Name the part and engine stage that make cycle k cost more than the single open (attribution by toggling each flag of the composition off in turn where the data points there). Then propose same-look fixes (e.g. keep the promoted layers alive across a cycle, will-change held while the finger is near the end) as follow-up variants with their premise. Added 2026-10-25 (user): 'it does not lag on Safari on macOS, it lags only on Safari on the real iPhone'. Same WebKit, so the cause is iOS-specific. Rank and test these iOS-only mechanisms first (Lean premise per hypothesis, cite WebKit/UIKit source at the pinned commit): (H1) a direction reversal shows or hides the Safari toolbar on iOS, which resizes the visual viewport (innerHeight, dvh, resize and visualViewport events) and throttles visible-rect updates to 100 ms while it animates (WKWebViewIOS.mm:3256-3268@862f17d); code that reads innerHeight (e.g. commission vh) or sizes fixed elements (the nav) then re-lays out; macOS Safari has no dynamic toolbar; (H2) iOS async scrolling: the UI process owns the scroll position and the web process sees it late, so the morph's rAF and scroll re-pin fight a scroll the page does not see yet; (H3) DPR 3 (vs 2 on the Mac): every re-raster of a re-promoted layer costs 2.25x the Mac pixels, and iOS layers are UIView-backed (countdown 80-160 UIViews at morph start); (H4) the iPhone GPU and memory limits (tile size, IOSurface pool 64 MB) under repeated promotion. Scripted scrollTo does not move the toolbar, so measure with real touches: the WebKit Simulator touch lane (XCUITest), and on the phone the Lean device replay (Fw.Device.Replay, 10-2x-device-replay: W3C touch actions through WebKit's SimulatedInputDispatcher) in phone-compose-counts. Report per hypothesis: holds / refuted / open, with the measured part and stage."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-proof-morph",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/engine/**",
+    "lean/Fw/Parts/Morph*.lean",
+    "lean/Fw/Parts/Nav*.lean",
+    "lean/Fw/Parts/Platform*.lean",
+    "lean/Fw/Engine/*.lean",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-toolbar-proof-morph.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/toolbar-proof-morph.md",
+    "research/notes/2026/10-25-toolbar-native.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw.lean"
+   ],
+   "title": "User 2026-10-25: 'can we make the animation render smoothly even while the toolbar resizes the viewport on each direction change?' Builds on research/notes/2026/10-2x-scroll-throttle-parts.md (fixes ranked 1-5; facts CONFIRMED there: during the inset change scrollY, getBoundingClientRect, scroll events and visualViewport are stale up to 100 ms and resize/layout are suppressed; threaded scroll-driven animations (opacity, transform, filter) and position: fixed/sticky layers move in the UI process every frame) and on push-cycle-lag's H1-H4 verdicts. Candidates, each its own flag, Lean first, same look unless marked: (a) trace why the morph reopens 8-41 times per pass at the end (fix 5, never a task) and make one push open it once, same look on first open; (b) take the morph arm/close geometry from toolbar-independent values (finger deltas, svh/lvh lengths, layout positions) instead of stale innerHeight/visualViewport/scrollY during an inset change; (c) move the morph's per-frame visuals that can be (panel opacity/scale/blur, platform fade, nav colour layers) to threaded animations so the UI process draws them every frame while the toolbar moves; (d) LOOK/UX CHANGE, user review only: scroll the page inside a container so Safari's toolbar does not collapse at all. Each: breakpoint gate both engines, counts per zone, push-cycle profile (CI Simulator real touches) and the phone replay in pinned Serious; negative results recorded with mechanism. Added 2026-10-25 (r483, from the checked toolbar-native research; inputs .local/research/toolbar-native/research.md and check.md, read the check first: it refutes ranks 2-4 and lane b of the research). First write research/notes/2026/10-25-toolbar-native.md from both files, keeping only claims the check let stand, with the check's corrections (file:line@862f17d). Findings that hold: iOS WebKit has no page-side per-frame toolbar handler; the UI process moves fixed/sticky layers every frame while the page's visible-rect updates (scroll offset included) are throttled to 100 ms, unless a progress-based scroll-driven animation runs on the main thread (our engine.scroll:unthrottle). Candidates added: (e) decide the push on the first touchmove (still preventable: the native pan waits for it) and never start pinning once the native pan has begun; touchstart is refuted (no direction, kills taps); (f) count unthrottle's own per-frame Layout and style cost (viewport-unit invalidation, vh included) so it is a measured trade, not assumed free; (g) overscroll-behavior-y: none while armed goes to the look-change class. Dropped: the lvh/svh probe-element idea and 'dvh vs vh saves layout' (refuted). Reproduction lanes: (a) Simulator XCUITest swipe (toolbar-throttle.yml), count the 10 Hz steps of visualViewport.height; (c1) WKTR forced inset via UIHelper begin/setObscuredInsets/endInteractiveObscuredInsetsChange with interleaved scrollTo, as a deterministic regression gate on CI; (c2) optional host app with the WKScrollViewTests SPI; real-phone safaridriver swipes stay blocked by the replay wedge in 10-2x-device-replay.md; no Playwright-Linux toolbar lane. Lean: the arm decision is proved equal for viewport height h and h+toolbar. r487 (user 2026-10-25: 'start toolbar-proof-morph now, don't wait for push-cycle-lag'): the dependency on push-cycle-lag is dropped; its findings are not inputs of this task. r489 (after round-1 review): the Simulator toolbar lane and the WKTR forced-inset gate are split into toolbar-sim-lane and toolbar-wktr-gate; until toolbar-sim-lane shows touch-driven same look, touch-first and open-once are filed as proposals (look-change class L), not optimized. The stated Lean goal 'arm decision equal for h and h+toolbar' is refuted (armed_differs_in_band): a finding, recorded in the ledger.",
+   "evidence": "e4d4479"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-run-dedup",
+   "owner": "lean-prover",
+   "stream": "infra",
+   "deps": [],
+   "title": "Lead 2026-10-25 (incident: fw run nav:clip-box refused to wait: 'nonce 912416a6895d9222 matches several runs (40196217959, 40196217959)'). Cause CONFIRMED (vm-loss investigation, checked): the gh-budget poller reads `gh run list` in several pages (poller.ts:70-99) and gh 2.86.0 appends pages without an id check, so a run created between page reads appears twice; wait.ts ambiguousIds -> want.ts selectOne (mirrors Lean Fw.Ci.Dispatch selectOne :179,:191) then refuses. Page-shift cause is INFERRED. Do: Lean dedupById (keep newest updatedAt) applied once in the poller before any select; theorems: dedupById has no duplicate ids; selectOne on dedupById rows is found i when every wanted row has id i; the ambiguous case stated on id sets (not list order; a reordering statement is false). Golden case rows [a,a] -> found a.id, TS checked against it. Poller logs each duplicate databaseId per tick as an event so the next case is MEASURED. Then refile nav:clip-box from run 40196217959 if the lead has not.",
+   "writes": [
+    "lean/Fw/Ci/Dispatch.lean",
+    "packages/contracts/golden/ci/dispatch.jsonl",
+    "packages/gh-budget/src/poller.ts",
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/src/want.ts",
+    "packages/gh-budget/test/**",
+    "docs/team/handoffs/ci-run-dedup.md"
+   ],
+   "evidence": "6c9614e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-vm-evidence",
+   "owner": "measure-engineer",
+   "stream": "infra",
+   "deps": [],
+   "title": "Lead 2026-10-25 (incidents: webkit-sim and toolbar-throttle jobs on GitHub xcode-27 runners (3 vCPU M1, 7 GB) lost: 'hosted runner lost communication' at 69, 90, 94, 104 min; runs 40158609202, 40167641467, 40193540518). Checked investigation: 0 of 4 lost jobs left telemetry, so the cause is UNKNOWN; every measured job (12) runs at 100 % CPU, load median 468-717, used memory near 7.1 GB (pressure INFERRED: memUsedMb has no swap/compressor), so saturation is the setting, not a separator; exit 130 in 40193540518 sim(2) is our watchdog, likely blocked by spawnSync simctl (sim.mjs:41 SYNC_CAP_MS 200 s, sleepSync retries). Do in order: (1) upload each pass's results and the telemetry during the run (per pass and periodically), so a lost VM keeps its finished passes and evidence; (2) add swap, compressor and memory_pressure readings to scripts/ci-telemetry; (3) move simctl calls off spawnSync so the watchdog tick runs; turn off Simulator logging/widgets where documented, one long-lived XCUITest runner if the lane allows. (4) A Lean guard Probe -> Continue|Restart|Stop and (5) a job-length bound in the SimPlan come only after lost-VM data exist (follow-up). Each change keeps counts identical (golden or a paired run named in the note). Note research/notes/2026/10-25-macos-vm-loss.md (MEASURED/INFERRED per claim; investigation inputs .local/research/vm-loss/). r494 (lead 2026-10-26): start now in two phases. Phase 1 (now): harness and telemetry code only (packages/measure-webkit/src/sim.mjs, session.mjs, watchdog.mjs, scripts/ci-telemetry/**, lean Telemetry): simctl off spawnSync so the watchdog tick runs, swap/compressor/memory_pressure readings, per-pass result files written so a later upload step can send them. New evidence: the page-end WebKit re-dispatch at cb4bec8 lost 5 of 12 sim jobs to harness stalls, not runner loss: step 'Determinism sessions' timed out at 35 min (40196217959 r3 twice, 40196209240 r2) and the 53 min job cap (40196212618 r1, 40196227509 r1); trace where the session stalls (which simctl or inspector call) from those logs. Phase 2 (after cross-pool-pooling and push-cycle-lag land, which edit webkit-sim.yml and toolbar-throttle.yml): the workflow edits (per-pass upload, telemetry upload during the run); list them in open until then.",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    ".github/workflows/toolbar-throttle.yml",
+    "scripts/ci-telemetry/**",
+    "packages/measure-webkit/src/sim.mjs",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/src/session.mjs",
+    "packages/measure-webkit/test/**",
+    "lean/Fw/Ci/Telemetry.lean",
+    "research/notes/2026/10-25-macos-vm-loss.md",
+    "docs/team/handoffs/macos-vm-evidence.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-sim-lane",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-end-remeasure",
+    "toolbar-proof-morph"
+   ],
+   "title": "Split from toolbar-proof-morph (review 2026-10-25). Run the Simulator XCUITest toolbar lane (toolbar-throttle.yml, touch swipes that move the real Safari toolbar) with arms default, morph.mount:touch-first, morph.mount:open-once and engine.scroll:unthrottle, at least 3 passes each beside a default pass in the same job. Report per arm: the 10 Hz steps of visualViewport.height, reversals, closes/re-opens per gesture, Layout and RecalcStyle per frame (the measured cost of unthrottle, candidate f, replacing the 6x model), and a touch-driven same-look check flag on vs off (frame hashes or the morph state trace). Verdict per flag win/no-win/trade; touch-first and open-once move from proposal (L) to optimized only if same look is shown. Lean: per-arm reducers in the existing MorphEndCount/MorphMountToolbar modules with golden. Inherit the macos-vm-evidence fixes if landed; lost VMs are named failures. r491 (toolbar-proof-morph r3 review follow-ups): also run arms morph.mount:overscroll-lock (look-change class L: measured for the user's visual review, never into a preset) and morph.panel:threaded (candidate c: threaded visuals clamp to the last committed scroll range; decide win/no-win under the toolbar move). Report the open-once fade onsets (closes/re-opens) per gesture as well as the 10 Hz steps. State the refresh rate of the Simulator device (the unthrottle cost model is 6x at 60 Hz, 12x at 120 Hz). Builders that edit research/findings/ledger.json run the apps/runner ledger-merge test (the ledger round-trips byte for byte).",
+   "writes": [
+    "packages/measure-webkit/src/throttle/**",
+    "packages/measure-webkit/test/throttle-*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Measure/MorphEndCount.lean",
+    "lean/Fw/Parts/MorphMountToolbar.lean",
+    "packages/contracts/golden/device/morph-end-count.jsonl",
+    "packages/contracts/golden/parts/morph-mount-toolbar.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/parts/morph.mount/part.json",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-toolbar-sim-lane.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/toolbar-sim-lane.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-wktr-gate",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "toolbar-proof-morph"
+   ],
+   "title": "Split from toolbar-proof-morph (review 2026-10-25). A deterministic CI gate in WKTR on the Simulator that forces the toolbar inset change: UIHelper.beginInteractiveObscuredInsetsChange, setObscuredInsets stepped 0 -> 40 with interleaved scrollTo (each set waits for a presentation update, so it is step-wise), endInteractiveObscuredInsetsChange (ui-helper.js:2018-2050, UIScriptControllerIOS.mm:1486-1494 @862f17d). First confirm the hooks exist in our WKTR build (archive symbol check: CONFIRMED or not-runnable with the reason). The gate asserts the morph arm decision and the unthrottle exemption per flag (default, touch-first, open-once, unthrottle) against Lean (MorphMountToolbar). lvh/svh are not overridden in WKTR: state that limit.",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr*.yml",
+    "lean/Fw/Parts/MorphMountToolbar.lean",
+    "packages/contracts/golden/parts/morph-mount-toolbar.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-toolbar-wktr-gate.md",
+    "docs/team/handoffs/toolbar-wktr-gate.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/MorphMountToolbarGolden.lean",
+    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-class-lint",
+   "owner": "lean-prover",
+   "stream": "infra",
+   "deps": [
+    "toolbar-proof-morph"
+   ],
+   "title": "Incident 2026-10-25 (toolbar-proof-morph refused twice: a flag reclassified to look-change L in part.json kept 'E' prose in the ledger). Closed design (Fable, checked): add a structured `visClass` field (E, E-s, Q, L) to every research/findings/ledger.json row whose `flag` has a part.json visClass; in Fw.Preset.Gen (readRegistry/parsePart read visClass, parseLedger reads rows) fail the preset check when a part.json flag with a visClass has no ledger row, or the row's visClass differs from part.json. Identity on one field against one canonical source, no prose parsing. Backfill today: n 9, 19, 39, 40, 47, 49, 50, 52, 67, 68, 69, 71, 73, 76, 77, 78, 79 plus a missing row for pain:dark-static; rows 39, 49, 50, 52 (prose 'equal'/'E' vs part.json L) need a decision on which source is right, listed for the lead before backfilling. Theorem: the check passes iff every classed flag has exactly one agreeing row; golden cases.",
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/*.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-ledger-class-lint.md",
+    "docs/team/handoffs/ledger-class-lint.md"
+   ],
+   "evidence": "c1b7fdb"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cross-pool-pooling",
+   "owner": "console-builder",
+   "stream": "infra",
+   "deps": [
+    "pool-dispatch-poller"
+   ],
+   "title": "Follow-up of pool-dispatch-poller (landed 4abbb49ed): with equal toolchain keys (macOS 26A434, Xcode 27A9275, runtime 24A434) a Codemagic cell still differed from GitHub in 20 of 104 count classes (MEASURED, n=1; hardware 3 vCPU M1 vs 8 cpu / 12 GiB). Decide in Lean whether cross-pool pooling is ever sound: run k pinned pairs (budget-named Codemagic minutes, stop line 400 of 500/month), add hardware to the key once the GitHub tools step prints memsize (webkit-sim.yml), and decide per row class. Also: fw ci state accepts cm: ids (apps/runner/src/ci.ts), ReviewReady evidence accepts cm: build ids, and the poller re-routes jobs still queued on GitHub when Codemagic is free. Until this lands, Codemagic cells file under their own key and never merge with GitHub classes unless keys match.",
+   "writes": [
+    "lean/Fw/Ci/PoolTier.lean",
+    "lean/Fw/Ci/PoolTierWire.lean",
+    "lean/scripts/PoolGolden.lean",
+    "packages/contracts/golden/ci/pool*.jsonl",
+    "apps/runner/src/ci-pool-tier.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci-pool-tier*.test.ts",
+    "apps/runner/test/ci*.test.ts",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "packages/gh-budget/src/poller.ts",
+    ".github/workflows/webkit-sim.yml",
+    "codemagic.yaml",
+    "scripts/codemagic.mjs",
+    "scripts/codemagic.test.mjs",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/cross-pool-pooling.md"
+   ]
   }
  ],
  "deadline": {
