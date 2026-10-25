@@ -4323,7 +4323,7 @@
    "entry": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
    "task": "scene-pause-kcopy",
    "field": "missingWhy",
-   "text": "scene-pause-kcopy: kCopy proved (hero_paused_hidden_copy, hero_paused_same_after_splash over the CSS-read table heroAnims, replayed against every @keyframes of the hero subtree); open@1 judged against the original's first frame (recorded_clean, run 40139690556); hero:scene-pause linked in Gen.linkTable, Gen.run: not a member (status partly-proved, webkit morph cell pending)."
+   "text": "scene-pause-kcopy: kCopy proved (hero_paused_hidden_copy, hero_paused_same_after_splash over the CSS-read table heroAnims, replayed against every @keyframes of the hero subtree); open@1 judged against the original's first frame (recorded_clean, run 40139690556); hero:scene-pause linked in Gen.linkTable, Gen.run: not a member (status partly-proved, webkit morph cell fail, macOS run 40143377510, nav background-color close@0 at 390 and 641)."
   },
   {
    "entry": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
