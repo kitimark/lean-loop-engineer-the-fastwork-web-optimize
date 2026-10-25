@@ -124,6 +124,7 @@ run_group() {
   job "device-stillruns golden check" lake env lean --run scripts/StillRunsGolden.lean --check ../packages/contracts/golden/device/stillruns.jsonl
   job "device-finishruns golden check" lake env lean --run scripts/FinishRunsGolden.lean --check ../packages/contracts/golden/device/finishruns.jsonl
   job "device-sim-touch golden check" lake env lean --run scripts/SimTouchGolden.lean --check ../packages/contracts/golden/device/sim-touch.jsonl
+  job "morph-end-count golden check" lake env lean --run scripts/MorphEndCountGolden.lean --check ../packages/contracts/golden/device/morph-end-count.jsonl  # the close and re-open events by finger direction, spring-back fights, pooled counts and brick verdict packages/measure-webkit/src/throttle/morph-end.mjs is checked against (Fw.Measure.MorphEndCount)
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"

@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { COMPOSITIONS, EXTRA_SEARCHES, events, byDirection, stretches, lockCounts, passCounts, armRow, verdicts, medianGap } from '../src/throttle/morph-end.mjs';
-import { reportMd, reasonOf } from '../src/throttle/morph-end-report.mjs';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { COMPOSITIONS, EXTRA_SEARCHES, events, byDirection, stretches, lockCounts, passCounts, armRow, verdicts, medianGap, opens, springBack, totalCounts, rates, verdictOf, brickVerdict } from '../src/throttle/morph-end.mjs';
+import { cmp } from '../src/touchlock.mjs';
+import { reportMd, reasonOf, brickRow } from '../src/throttle/morph-end-report.mjs';
 
 test('the compositions: one search per arm, only the four-flag page is built on demand', () => {
   assert.deepEqual(Object.keys(COMPOSITIONS), ['rewrite', 'clamp', 'flip', 'release', 'all', 'all-unthrottle']);
@@ -104,4 +108,61 @@ test('the table has a row per job and arm and pools the jobs', () => {
   assert.match(md, /\| all jobs \| rewrite \| 1 \(1\) \|/);
   assert.match(md, /Excluded passes: touch driver failed/);
   assert.equal(armRow([]).usable, 0);
+});
+
+// The counting against the Lean golden (Fw.Measure.MorphEndCount, packages/contracts/golden/device/morph-end-count.jsonl).
+const here = dirname(fileURLToPath(import.meta.url));
+const gold = readFileSync(join(here, '../../contracts/golden/device/morph-end-count.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+const of = (kind) => gold.filter((l) => l.kind === kind);
+const evJ = (evs) => evs.map((e) => ({ kind: e.kind, frame: e.frame, dir: e.dir }));
+const dirsOf = (b) => ({ up: b.up, down: b.down, none: b.none });
+
+test('golden: every kind has lines', () => {
+  for (const k of ['events', 'stretches', 'fights', 'pass', 'total', 'verdict']) assert.ok(of(k).length > 0, k);
+});
+
+test('golden: events, their count by kind and finger direction, and the opens', () => {
+  for (const g of of('events')) {
+    const evs = events(g.r, g.d);
+    assert.deepEqual(evJ(evs), g.events, g.name);
+    const by = byDirection(evs);
+    assert.deepEqual([dirsOf(by.close), dirsOf(by.reopen)], [g.closes, g.reopens], g.name);
+    assert.equal(opens(g.r), g.opens, g.name);
+    const seen = (b) => b.up + b.down + b.none;
+    assert.equal(seen(by.close) + seen(by.reopen), evs.length, `${g.name}: each event once`);
+  }
+});
+
+test('golden: stretches of open frames', () => {
+  for (const g of of('stretches')) assert.deepEqual(stretches(g.o), g.stretches, JSON.stringify(g.o));
+});
+
+test('golden: spring-back fights are writes against the finger direction', () => {
+  for (const g of of('fights')) assert.deepEqual(dirsOf(springBack(g.y, g.d, g.writes)), g.springBack, g.name);
+});
+
+test('golden: the counts of a pass and the pooled counts, whatever the pass order', () => {
+  for (const g of of('pass')) {
+    const evs = events(g.r, g.d);
+    const by = byDirection(evs);
+    assert.deepEqual({ opens: opens(g.r), closes: dirsOf(by.close), reopens: dirsOf(by.reopen), springBack: dirsOf(springBack(g.y, g.d, g.writes)) }, g.counts, g.name);
+  }
+  for (const g of of('total')) assert.deepEqual(totalCounts(g.passes), g.total);
+});
+
+test('golden: the verdict of a brick', () => {
+  for (const g of of('verdict')) {
+    assert.equal(cmp(rates(g.faithRev), rates(g.candRev)), g.rev, g.name);
+    assert.equal(cmp(rates(g.faithFight), rates(g.candFight)), g.fight, g.name);
+    assert.equal(verdictOf(g.faithRev, g.candRev, g.faithFight, g.candFight, g.stillLifted), g.verdict, g.name);
+    assert.equal(brickVerdict(g.rev, g.fight, g.stillLifted), g.verdict, g.name);
+  }
+});
+
+test('the verdict of a composition is made against the faithful passes of the jobs it ran in', () => {
+  const mk = (arm, job, writes) => ({ arm, job, rec: { ...record(), ca: writes }, drag: { code: 0 } });
+  const pin = [[5223, 1, 95]];
+  const row = brickRow('clamp', [mk('rewrite', 'job 1', pin), mk('rewrite', 'job 2', pin), mk('clamp', 'job 1', pin)]);
+  assert.deepEqual([row.n, row.jobs, row.baseN], [1, 1, 1]);
+  assert.equal(brickRow('release', [mk('rewrite', 'job 1', [])]).verdict, 'no-data');
 });

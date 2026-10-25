@@ -30,7 +30,7 @@ const { values: v } = parseArgs({
   args: rest,
   options: {
     site: { type: 'string' }, arms: { type: 'string', default: 'rewrite,lift,original' }, rounds: { type: 'string', default: '2' },
-    cycles: { type: 'string', default: '4' }, timeout: { type: 'string', default: '300' }, reset: { type: 'boolean', default: false }, rotate: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
+    cycles: { type: 'string', default: '4' }, rotate: { type: 'string', default: '0' }, drag: { type: 'string' }, velocity: { type: 'string' }, mode: { type: 'string', default: 'drags' },
     target: { type: 'string', default: 'springboard' }, hold: { type: 'string', default: '600' }, 'no-warmup': { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' },
     out: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
   },
