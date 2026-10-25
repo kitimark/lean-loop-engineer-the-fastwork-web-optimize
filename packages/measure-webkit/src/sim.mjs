@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { T } from './timeouts.mjs';
 import { retryWhile } from './poll.mjs';
-import { withRetry, classify } from './simretry.mjs';
+import { withRetry, classify, retryReply } from './simretry.mjs';
 
 export const DEVICE_NAME = process.env.FW_SIM_NAME || 'fw-iphone-27';
 export const SAFARI = 'com.apple.mobilesafari';
@@ -35,7 +35,63 @@ export function ports(env = process.env) {
   return p;
 }
 
-export const SYNC_CAP_MS = 200000;
+/** TS stand-ins of Fw.Ci.Telemetry.callCapMs / callGraceMs / callBoundMs / callSettleMs; test/host-call.test.mjs replays the Lean golden (ci.hostCall). */
+export const CALL_CAP_MS = 200000;
+export const CALL_GRACE_MS = 5000;
+export const callBoundMs = (limitMs) => Math.min(limitMs, CALL_CAP_MS);
+export const callSettleMs = (limitMs) => callBoundMs(limitMs) + CALL_GRACE_MS;
+export const SYNC_CAP_MS = CALL_CAP_MS;
+
+const pending = new Map();
+let nextCall = 0;
+/** The host calls running now: what, how long, and the bound each has (the stall watchdog names them). */
+export const pendingCalls = (now = Date.now()) => [...pending.values()].map((c) => ({ what: c.what, ageMs: now - c.startedAt, boundMs: c.boundMs }));
+
+/**
+ * `cmd args` without blocking the event loop. Ends within `callSettleMs(timeoutMs)`: at the bound the child gets SIGTERM, `graceMs`
+ * later SIGKILL, and the result is a timeout either way (a grandchild that keeps the pipes open cannot hold it). Same result shape
+ * as `run`: a timeout has status null and error.code ETIMEDOUT, like spawnSync.
+ */
+export function runAsync(cmd, args, { timeoutMs = 120000, what = `${cmd} ${args[0] ?? ''}`.trim(), graceMs = CALL_GRACE_MS, spawnImpl = spawn, maxBuffer = 64 * 1024 * 1024 } = {}) {
+  const boundMs = callBoundMs(timeoutMs);
+  return new Promise((resolve) => {
+    const id = ++nextCall;
+    pending.set(id, { what, startedAt: Date.now(), boundMs });
+    let out = '', err = '', timedOut = false, over = false, done = false, boundT = null, killT = null, drainT = null;
+    const finish = (r) => {
+      if (done) return;
+      done = true;
+      clearTimeout(boundT); clearTimeout(killT); clearTimeout(drainT);
+      pending.delete(id);
+      resolve({ status: r.status ?? null, stdout: out, stderr: err, error: r.error });
+    };
+    const timeout = () => Object.assign(new Error(`${cmd} timed out after ${boundMs} ms`), { code: 'ETIMEDOUT' });
+    let child;
+    try { child = spawnImpl(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] }); } catch (error) { finish({ error }); return; }
+    const take = (which) => (d) => {
+      if (which === 'out') out += d; else err += d;
+      if (out.length + err.length > maxBuffer && !over) { over = true; child.kill('SIGKILL'); }
+    };
+    child.stdout?.setEncoding('utf8'); child.stderr?.setEncoding('utf8');
+    child.stdout?.on('data', take('out')); child.stderr?.on('data', take('err'));
+    child.on('error', (error) => finish({ error }));
+    child.on('exit', (code) => {
+      if (timedOut) return finish({ status: null, error: timeout() });
+      if (over) return finish({ status: null, error: Object.assign(new Error(`${cmd} output over ${maxBuffer} bytes`), { code: 'ENOBUFS' }) });
+      drainT = setTimeout(() => finish({ status: code }), 500); // the pipes close at once unless a grandchild holds them
+    });
+    child.on('close', (code) => {
+      if (timedOut) return finish({ status: null, error: timeout() });
+      if (over) return finish({ status: null, error: Object.assign(new Error(`${cmd} output over ${maxBuffer} bytes`), { code: 'ENOBUFS' }) });
+      finish({ status: code });
+    });
+    boundT = setTimeout(() => {
+      timedOut = true;
+      try { child.kill('SIGTERM'); } catch { /* gone */ }
+      killT = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } finish({ status: null, error: timeout() }); }, graceMs);
+    }, boundMs);
+  });
+}
 
 function run(cmd, args, { timeoutMs = 120000 } = {}) {
   const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: Math.min(timeoutMs, SYNC_CAP_MS), maxBuffer: 64 * 1024 * 1024 });
@@ -54,6 +110,24 @@ export const simctlRetry = (args, opts, { max = 3, log = () => {} } = {}) => wit
 });
 const tail = (r) => (r.error ? r.error.code || r.error.message : (r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | '));
 
+/** `simctl` without blocking the event loop, bounded by `callBoundMs(opts.timeoutMs)`. */
+export const simctlAsync = (args, opts) => runAsync('xcrun', ['simctl', ...args], { what: `simctl ${args[0]}`, ...opts });
+/** The async twin of `withRetry` (same Lean policy; the wait is a timer, so the event loop runs during it). */
+export async function retryAsync(call, { max = 3, text, pause = sleep, onRetry = () => {} }) {
+  for (let attempt = 1; ; attempt++) {
+    const r = await call();
+    if (r.status === 0) return r;
+    const d = retryReply({ error: text(r), attempt, max });
+    if (!d.retry) return r;
+    onRetry({ attempt, delayMs: d.delayMs, text: text(r) });
+    await pause(d.delayMs);
+  }
+}
+export const simctlRetryAsync = (args, opts, { max = 3, log = () => {}, pause = sleep } = {}) => retryAsync(() => simctlAsync(args, opts), {
+  max, text: tail, pause,
+  onRetry: ({ attempt, delayMs, text }) => log(`simctl ${args[0]} failed (${text}); transient, attempt ${attempt} of ${max}, retry in ${delayMs / 1000} s`),
+});
+
 export const CALL = Object.freeze({ tries: 2, stateMs: 30000, listMs: 90000, shutdownMs: 40000, bootMs: 60000, bootstatusMs: 120000 });
 
 const parseDevices = (r) => Object.entries(JSON.parse(r.stdout).devices).flatMap(([runtime, ds]) =>
@@ -68,11 +142,21 @@ export function listDevices() {
   return parseDevices(r);
 }
 
+export async function listDevicesAsync() {
+  const r = await simctlRetryAsync(['list', '-j', 'devices'], { timeoutMs: CALL.listMs }, { max: CALL.tries, log: (l) => process.stderr.write(`${l}\n`) });
+  if (r.status !== 0) {
+    const stuck = classify(tail(r)) === 'transient' ? ' (CoreSimulatorService does not answer: outside this process)' : '';
+    throw new Error(`simctl list devices failed: ${tail(r)}${stuck}`);
+  }
+  return parseDevices(r);
+}
+
 const known = { udid: null };
 
-export function deviceBooted(udid = known.udid, { log = () => {} } = {}) {
+/** Is the device booted. Async: the guard asks this while the Simulator is struggling, and the event loop must keep running. */
+export async function deviceBooted(udid = known.udid, { log = () => {} } = {}) {
   if (!udid) return true;
-  const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: CALL.stateMs }, { max: CALL.tries, log });
+  const r = await simctlRetryAsync(['list', '-j', 'devices'], { timeoutMs: CALL.stateMs }, { max: CALL.tries, log });
   if (r.status !== 0) return false;
   try { return parseDevices(r).some((d) => d.udid === udid && d.state === 'Booted'); } catch { return false; }
 }
@@ -86,42 +170,50 @@ export async function rebootDevice({ udid = known.udid, log = () => {} } = {}) {
   ];
   for (const [name, args, timeoutMs, already] of calls) {
     const t0 = Date.now();
-    const r = simctlRetry(args, { timeoutMs }, { max: CALL.tries, log });
+    const r = await simctlRetryAsync(args, { timeoutMs }, { max: CALL.tries, log });
     if (r.status !== 0 && !already?.test(`${r.stderr}${r.stdout}`)) throw new Error(`simctl ${name} failed: ${tail(r)}`);
     log(`  reboot: ${name} done in ${Math.round((Date.now() - t0) / 1000)} s (limit ${Math.round(timeoutMs / 1000)} s, ${CALL.tries} tries)`);
   }
 }
 
-export function findDevice(name = DEVICE_NAME) {
-  const m = listDevices().filter((d) => d.name === name);
+const one = (ds, name) => {
+  const m = ds.filter((d) => d.name === name);
   if (m.length !== 1) throw new Error(`expected exactly one Simulator device named "${name}", found ${m.length}`);
   return m[0];
-}
+};
+export const findDevice = (name = DEVICE_NAME) => one(listDevices(), name);
+export const findDeviceAsync = async (name = DEVICE_NAME) => one(await listDevicesAsync(), name);
 
 export const bootedDevices = () => listDevices().filter((d) => d.state === 'Booted');
+export const bootedDevicesAsync = async () => (await listDevicesAsync()).filter((d) => d.state === 'Booted');
 
-/** Webinspectord socket paths of the booted Simulators. */
-export function findSockets({ timeoutMs = 30000 } = {}) {
-  const r = run('lsof', ['-aUc', 'launchd_sim', '-Fn'], { timeoutMs });
+const socketsOf = (r) => {
   if (r.error) throw new Error(`lsof: ${r.error.code || r.error.message}`);
   return [...new Set(r.stdout.split('\n').filter((l) => l.startsWith('n') && l.endsWith('com.apple.webinspectord_sim.socket')).map((l) => l.slice(1)))];
-}
+};
+/** Webinspectord socket paths of the booted Simulators. */
+export const findSockets = ({ timeoutMs = 30000 } = {}) => socketsOf(run('lsof', ['-aUc', 'launchd_sim', '-Fn'], { timeoutMs }));
+export const findSocketsAsync = async ({ timeoutMs = 30000 } = {}) => socketsOf(await runAsync('lsof', ['-aUc', 'launchd_sim', '-Fn'], { timeoutMs }));
 
 /**
  * Boot headless and launch Safari. Throws if another Simulator is booted (the inspector socket would be ambiguous).
  * Returns { udid, name, wasBooted }.
  */
+/**
+ * Boot headless and launch Safari. Throws if another Simulator is booted (the inspector socket would be ambiguous).
+ * Returns { udid, name, wasBooted }.
+ */
 export async function bootDevice({ log = () => {} } = {}) {
-  const d = findDevice();
+  const d = await findDeviceAsync();
   known.udid = d.udid;
-  const others = bootedDevices().filter((x) => x.udid !== d.udid);
+  const others = (await bootedDevicesAsync()).filter((x) => x.udid !== d.udid);
   if (others.length) throw new Error(`another Simulator is booted (${others.map((o) => o.name).join(', ')}); shut it down first`);
   const wasBooted = d.state === 'Booted';
   if (!wasBooted) {
     const t0 = Date.now();
-    const r = simctlRetry(['boot', d.udid], { timeoutMs: T(120000) }, { log });
-    if (r.status !== 0 && findDevice().state !== 'Booted') throw new Error(`simctl boot failed: ${tail(r)}`);
-    const b = simctlRetry(['bootstatus', d.udid, '-b'], { timeoutMs: T(300000) }, { log, max: 5 });
+    const r = await simctlRetryAsync(['boot', d.udid], { timeoutMs: T(120000) }, { log });
+    if (r.status !== 0 && (await findDeviceAsync()).state !== 'Booted') throw new Error(`simctl boot failed: ${tail(r)}`);
+    const b = await simctlRetryAsync(['bootstatus', d.udid, '-b'], { timeoutMs: T(300000) }, { log, max: 5 });
     if (b.status !== 0) throw new Error(`simctl bootstatus failed: ${tail(b)}`);
     log(`booted ${d.name} (${d.runtime.split('.').pop()}) in ${Math.round((Date.now() - t0) / 1000)} s`);
   }
@@ -131,10 +223,15 @@ export async function bootDevice({ log = () => {} } = {}) {
 
 /** Terminate Safari (it restores the last session's tabs, so a run starts from the same state). Never throws. */
 export const terminateSafari = (udid, { timeoutMs = 120000 } = {}) => simctl(['terminate', udid, SAFARI], { timeoutMs });
+export const terminateSafariAsync = (udid, { timeoutMs = 120000 } = {}) => simctlAsync(['terminate', udid, SAFARI], { timeoutMs });
 
 /** Launch Safari. Under heavy host load a launch can time out; the device stays booted, so the default policy asks again. */
 export function startSafari(udid, { log = () => {}, timeoutMs = T(90000), max = 3 } = {}) {
   const l = simctlRetry(['launch', udid, SAFARI], { timeoutMs }, { log, max });
+  if (l.status !== 0) throw new Error(`simctl launch Safari failed: ${tail(l)}`);
+}
+export async function startSafariAsync(udid, { log = () => {}, timeoutMs = T(90000), max = 3 } = {}) {
+  const l = await simctlRetryAsync(['launch', udid, SAFARI], { timeoutMs }, { log, max });
   if (l.status !== 0) throw new Error(`simctl launch Safari failed: ${tail(l)}`);
 }
 
@@ -144,7 +241,7 @@ export async function waitSocket({ timeoutMs = T(30000) } = {}) {
   for (;;) {
     const left = deadline - Date.now();
     let found = [];
-    try { found = findSockets({ timeoutMs: Math.max(1000, left) }); } catch (e) { if (left <= 0) throw e; } // a slow lsof is "no socket yet" until the deadline
+    try { found = await findSocketsAsync({ timeoutMs: Math.max(1000, left) }); } catch (e) { if (left <= 0) throw e; } // a slow lsof is "no socket yet" until the deadline
     if (found.length) return;
     if (left <= 0) throw new Error(`Safari runs, but no web inspector socket appeared in ${Math.round(timeoutMs / 1000)} s`);
     await sleep(500);
@@ -153,13 +250,18 @@ export async function waitSocket({ timeoutMs = T(30000) } = {}) {
 
 /** Terminate Safari, launch it again and wait for the Simulator's web inspector socket. Throws when none appears. */
 export async function launchSafari(udid, { log = () => {} } = {}) {
-  terminateSafari(udid);
-  startSafari(udid, { log });
+  await terminateSafariAsync(udid);
+  await startSafariAsync(udid, { log });
   await waitSocket();
 }
 
-export const openUrl = (udid, url, { timeoutMs = T(120000), max = 4, log = (l) => process.stderr.write(`${l}\n`) } = {}) => {
+const defaultAskLog = (l) => process.stderr.write(`${l}\n`);
+export const openUrl = (udid, url, { timeoutMs = T(120000), max = 4, log = defaultAskLog } = {}) => {
   const r = simctlRetry(['openurl', udid, url], { timeoutMs }, { max, log });
+  if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
+};
+export const openUrlAsync = async (udid, url, { timeoutMs = T(120000), max = 4, log = defaultAskLog } = {}) => {
+  const r = await simctlRetryAsync(['openurl', udid, url], { timeoutMs }, { max, log });
   if (r.status !== 0) throw new Error(`simctl openurl failed: ${tail(r)}`);
 };
 
@@ -171,6 +273,15 @@ export function shutdownDevice(udid, { log = () => {} } = {}) {
   else log('simulator shut down');
   return state === 'Shutdown';
 }
+export async function shutdownDeviceAsync(udid, { log = () => {} } = {}) {
+  await terminateSafariAsync(udid);
+  const r = await simctlRetryAsync(['shutdown', udid], { timeoutMs: 120000 }, { log });
+  const state = (await listDevicesAsync()).find((d) => d.udid === udid)?.state;
+  if (state !== 'Shutdown') log(`warning: shutdown left the device in state ${state} (${tail(r)})`);
+  else log('simulator shut down');
+  return state === 'Shutdown';
+}
+
 
 const IWDP_ID = /^[A-Fa-f0-9-]{25,}$/;
 /** Ids of attached iPhones (USB and network); [] when idevice_id is not installed. Fails closed on odd output. */
@@ -180,14 +291,32 @@ export function phoneIds({ exec = run, tries = 3 } = {}) {
     // idevice_id can take longer than a fixed 15 s on a loaded runner: scaled timeout, and a timeout or a failed spawn is
     // asked again (a non-zero exit is a real failure, and so is the last timeout: the proxy then does not start)
     const r = retryWhile(() => exec('idevice_id', [flag], { timeoutMs: T(15000) }), { tries, retryable: (x) => x.error && x.error.code !== 'ENOENT' });
-    if (r.error?.code === 'ENOENT') return [];
-    if (r.error || r.status !== 0) throw new Error(`idevice_id ${flag} failed; not starting the proxy (it could attach a phone)`);
-    for (const s of r.stdout.split('\n').map((x) => x.trim()).filter(Boolean)) {
-      if (!IWDP_ID.test(s)) throw new Error('idevice_id printed a line the proxy config cannot name; not starting the proxy');
-      ids.add(s);
-    }
+    if (!readIds(r, flag, ids)) return [];
   }
   return [...ids];
+}
+/** `phoneIds` without blocking the event loop (`exec` returns a promise). */
+export async function phoneIdsAsync({ exec = runAsync, tries = 3 } = {}) {
+  const ids = new Set();
+  for (const flag of ['-l', '-n']) {
+    let r;
+    for (let a = 1; ; a++) {
+      r = await exec('idevice_id', [flag], { timeoutMs: T(15000) });
+      if (!(r.error && r.error.code !== 'ENOENT') || a >= tries) break;
+    }
+    if (!readIds(r, flag, ids)) return [];
+  }
+  return [...ids];
+}
+/** Adds the ids of one `idevice_id` reply to `ids`; false when idevice_id is not installed. Fails closed. */
+function readIds(r, flag, ids) {
+  if (r.error?.code === 'ENOENT') return false;
+  if (r.error || r.status !== 0) throw new Error(`idevice_id ${flag} failed; not starting the proxy (it could attach a phone)`);
+  for (const s of r.stdout.split('\n').map((x) => x.trim()).filter(Boolean)) {
+    if (!IWDP_ID.test(s)) throw new Error('idevice_id printed a line the proxy config cannot name; not starting the proxy');
+    ids.add(s);
+  }
+  return true;
 }
 
 /** Text of the proxy config: list port, every phone ignored, then the Simulator on the tabs port. */
@@ -209,11 +338,11 @@ export async function proxyCheck(p = ports(), { timeoutMs = T(4000) } = {}) {
  */
 export async function startProxy({ log = () => {}, timeoutMs = T(20000), phones = null, lsofMs = 30000 } = {}) {
   const p = ports();
-  const sockets = findSockets({ timeoutMs: lsofMs });
+  const sockets = await findSocketsAsync({ timeoutMs: lsofMs });
   if (sockets.length !== 1) throw new Error(`expected one Simulator inspector socket, found ${sockets.length}`);
+  const ids = phones ?? await phoneIdsAsync();
   const dir = mkdtempSync(join(tmpdir(), 'fw-wk-iwdp-'));
   const cfg = join(dir, 'iwdp.cfg');
-  const ids = phones ?? phoneIds();
   writeFileSync(cfg, iwdpConfigText(ids, p), { mode: 0o600 });
   const child = spawn('ios_webkit_debug_proxy', ['-c', cfg, '-s', `unix:${sockets[0]}`, '-F'], { stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
@@ -248,13 +377,13 @@ export const listTabs = (p = ports(), { timeoutMs = T(4000) } = {}) => getJson(p
  * failed, since a proxy that lists the Simulator and its tab has the socket. Never throws.
  * @returns {Promise<{socket:boolean, proxy:boolean, page:boolean}>}
  */
-export async function probeInspector({ urlPrefix, p = ports(), timeoutMs = 25000, sockets = () => findSockets({ timeoutMs: 5000 }) }) {
+export async function probeInspector({ urlPrefix, p = ports(), timeoutMs = 25000, sockets = () => findSocketsAsync({ timeoutMs: 5000 }) }) {
   const [proxy, page] = await Promise.all([
     proxyCheck(p, { timeoutMs }).then(() => true, () => false),
     listTabs(p, { timeoutMs }).then((t) => Array.isArray(t) && t.some((x) => x?.webSocketDebuggerUrl && String(x.url).startsWith(urlPrefix)), () => false),
   ]);
   if (proxy && page) return { socket: true, proxy, page };
   let socket = true; // lsof failed: not evidence of a dead inspector
-  try { socket = sockets().length > 0; } catch { /* keep true */ }
+  try { socket = (await sockets()).length > 0; } catch { /* keep true */ }
   return { socket, proxy, page };
 }
