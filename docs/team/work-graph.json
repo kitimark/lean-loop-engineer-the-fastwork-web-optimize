@@ -5997,7 +5997,8 @@
     "packages/gate-breakpoints/src/scope.gen.json",
     "lean/Fw/Gate/Scope.lean",
     "lean/scripts/MorphPanelRestGolden.lean"
-   ]
+   ],
+   "evidence": "2a262ed"
   },
   {
    "devices": [
