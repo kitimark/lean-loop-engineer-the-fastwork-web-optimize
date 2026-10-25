@@ -142,6 +142,7 @@ run_group() {
   job "device-session golden check" lake env lean --run scripts/DeviceSessionGolden.lean --check ../packages/contracts/golden/device/session.jsonl
   job "device-stillruns golden check" lake env lean --run scripts/StillRunsGolden.lean --check ../packages/contracts/golden/device/stillruns.jsonl
   job "device-throttle-parts golden check" lake env lean --run scripts/ThrottlePartsGolden.lean --check ../packages/contracts/golden/device/throttle-parts.jsonl
+  job "device-phone-arms golden check" lake env lean --run scripts/PhoneArmsGolden.lean --check ../packages/contracts/golden/device/phone-arms.jsonl
   job "device-finishruns golden check" lake env lean --run scripts/FinishRunsGolden.lean --check ../packages/contracts/golden/device/finishruns.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "webkit-profile golden check" lake env lean --run scripts/WebkitProfileGolden.lean --check ../packages/contracts/golden/measure/webkit-profile.jsonl

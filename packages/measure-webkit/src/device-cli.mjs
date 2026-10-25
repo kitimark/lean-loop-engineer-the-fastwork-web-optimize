@@ -9,7 +9,6 @@
 //   node src/device-cli.mjs profile --in rec-k.json --id user-<name> --out ../measure-chromium/profiles/user-<name>.json
 //   node src/device-cli.mjs package --kind session --in rec-1.json,... --date YYYY-MM-DD --out results/phone/<date>
 //   node src/device-cli.mjs frames  --target original|rewrite [--site <dist/aot>] [--reps 5] [--speed 800] [--out file]
-// Nothing is committed from here except via results/phone/*. The LAN address and device id are never printed or stored.
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -23,6 +22,7 @@ import { phoneRecord, stepOf } from './device-record.mjs';
 import { CONST, reducePass, compareZones, normalize } from './device-session.mjs';
 import { sessionPlan, armSearch } from './device-arms.mjs';
 import { readRecord, writeProfile, writePackage } from './device-profile.mjs';
+import { planText, runBlock, reduceDir } from './device-phone-run.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -32,7 +32,7 @@ const { values: v } = parseArgs({
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
@@ -66,6 +66,27 @@ async function main() {
       const r = await withPhone((ctx) => phoneSwipe(ctx, { seconds: Number(v.seconds), timeline: v.timeline, waitLightS: Number(v['wait-light']), instruction: v.instruction, loadFresh, clock: v.clock, settleMs: Number(v.settle), log: ctx.log }), sessionOpts);
       save({ target: v.target, ...r });
       console.log(JSON.stringify({ arm: r.arm, appearance: r.appearance, frames: r.frames, reachedY: r.reachedY, maxY: r.maxY, total: r.summary.total }));
+      break;
+    }
+    case 'arms-plan': {
+      if (!v.site) throw new Error('arms-plan needs --site <dist/aot>');
+      console.log(planText(resolve(v.site)));
+      break;
+    }
+    case 'arms-run': {
+      if (!v.site || !v.dir) throw new Error('arms-run needs --site <dist/aot> and --dir <raw dir>');
+      for (;;) {
+        const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), blocked: v.blocked ? resolve(v.blocked) : null, ...(v['max-visits'] ? { maxVisits: Number(v['max-visits']) } : {}) });
+        console.log(JSON.stringify({ ran: r.ran.length, remaining: r.remaining, stopped: r.stopped }));
+        if (r.stopped) { process.exitCode = 3; break; }
+        if (!v.all || r.remaining <= 0 || r.ran.length === 0) break;
+      }
+      process.exit(process.exitCode ?? 0);
+    }
+    case 'arms-reduce': {
+      if (!v.dir || !v.out) throw new Error('arms-reduce needs --dir <raw dir> and --out <dir>');
+      const s = reduceDir({ dir: resolve(v.dir), out: resolve(v.out) });
+      console.log(JSON.stringify({ visits: s.visits.length, notRun: s.notRun, anomalies: s.anomalies, arms: s.arms.map((a) => `${a.id}: counts ${a.labels.counts.all}, frames ${a.labels.frames.all}`) }));
       break;
     }
     case 'plan': {
@@ -127,7 +148,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
+      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | arms-run | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
       process.exitCode = 2;
   }
 }
