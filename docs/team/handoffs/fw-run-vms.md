@@ -14,6 +14,11 @@
 
 ## Writes outside the task graph
 lean/Fw/Store/Ci.lean, apps/runner/src/ci.ts, packages/contracts/src/artifacts.ts (the run count in the key needs them).
+Dry land without --allow: `VERDICT scope fw-run-vms` (these three files). With `--allow` for the three:
+`VERDICT dry fw-run-vms` (exit 0). The lead adds them to the row's writes; then the plain dry passes.
+
+## Verified (at work commit 6eddfdeed)
+check.sh green (axioms included); @fw/runner 3475 tests and @fw/contracts tests pass; typecheck of both; ci-paths test.
 
 ## Open
 - Live check: the next lead WebKit dispatch should show 3 VM jobs.
