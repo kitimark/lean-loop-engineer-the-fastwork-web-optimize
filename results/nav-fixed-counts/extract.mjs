@@ -1,6 +1,3 @@
-// Glue (I/O only, no decision): reads the webkit-sim artifacts of the four arms (gh run download --pattern 'webkit-sim-r*')
-// and writes packages/contracts/golden/parts/nav-fixed-counts.webkit-passes.json, the raw per-step counts the Lean module Fw.Parts.NavFixedCounts reduces.
-// Usage: node extract.mjs <out.json> <arm>=<runId>:<dir> ...   (dir holds webkit-sim-r1..r3/r<n>-session-1.json)
 import fs from 'node:fs';
 
 const TYPES = ['Layout', 'RecalculateStyles', 'FunctionCall', 'Composite'];

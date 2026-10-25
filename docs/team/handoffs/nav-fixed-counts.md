@@ -1,5 +1,5 @@
 branch: worktree-wf_e8fe503e-b52-1
-worktree: .claude/worktrees/wf_e8fe503e-b52-1 (under the main checkout)
+worktree: .claude/worktrees/wf_e8fe503e-b52-1
 last commit: see git log (round 2 work at 4dc2a5b5e, then the main merge and this file)
 CI runs (WebKit Simulator, main cb4bec8; no ci/nav-fixed-counts push), all filed with fw run --from-run:
 - 40196215217 base: complete, filed
