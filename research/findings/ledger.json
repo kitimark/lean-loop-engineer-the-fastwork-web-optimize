@@ -4745,6 +4745,24 @@
    "task": "dormant-counts",
    "field": "mechanism",
    "text": "dormant-counts (Fw.Parts.DormantCounts, golden parts/dormant-counts.jsonl, note research/notes/2026/10-2x-dormant-counts.md): against the faithful mount the default arm runs, shift-dormant is no-win on WebKit in every zone (MEASURED, webkit-sim swipe-v1 at cb4bec8, base 40196215217, flag 40196227509, 3 VMs x 2 passes: Layout, RecalculateStyles, FunctionCall, Composite, layers and backing MB all inside the base spread) and a small hero-only win on Chromium (FunctionCall -2.0 %, runs 40171939293 and 40171969469 at 1fac415). Why: the base has no early mount, shift-dormant adds one invisible, asleep panel (no layer: layers_dormant_eq), so its best case is equal to the base. Lesson: a variant that only repairs the cost of a sibling variant (shift-dormant repairs shift) has no gain over the original unless the sibling beat it; judge it against the original, not the sibling."
+  },
+  {
+   "entry": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
+   "task": "platform-end-variants",
+   "field": "chromium",
+   "text": "platform-end-variants: Chromium no-win. MEASURED (chromium-counts swipe-touch-v1 x3, base run 40203753344, flag run 40203756095, main 5c8cccc): on zone y05000 (191 swipe frames) Paint 861 vs 838 and PrePaint 350 vs 324 (more, Lean rule noGain); over frames 540-740 incl. settle frames they are equal; Layout and Commit are equal, style counts differ by at most 1. Raster invalidation area 292 M px against 137 M px over frames 540-740 (276.6 against 130.0 on the lane zone, 2.1x), census layers +0.6 %. The first 20 frames at the page end (the drop lies in settle frames outside the lane zone) show 23 Paint and 26 PrePaint fewer (Lean verdict rule: gain) and the next 40 show the same numbers more, so the work moves, it does not leave. Zone verdict noGain. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: no gain at the page end on either engine. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203778407; WebKit Simulator 3 VMs base 40203774734, flag 40203759230): every end push phase equal on Chromium (finish zone +1 RecalcStyle, which the Lean rule reads as more); before the end the pause saves 59 of 236 raster tasks (34 frames). WebKit: ObserverCallback +2 to +4 per zone (its own observer), Paint at y 5000-5200 (common window of the 106- and 107-step passes) 37-55 against 54-64 overlaps. The pause is a no-op while the section is on screen, so the arm cannot attribute the sweep's cost inside the push. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: re-check at the page end, no difference. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203771621; WebKit Simulator 3 VMs base 40203774734, flag 40203790654): every counter equal in every Chromium push phase and WebKit zone (WebKit whole-run Layout (y <= 5200) 624-653 against 588-619 is the one more, outside the end). Agrees with the proved faithful_no_ticks_away. Note research/notes/2026/10-2x-platform-end-variants.md."
   }
  ]
 }
