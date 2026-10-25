@@ -69,8 +69,9 @@ also `same` in every cell of every zone (hero Layout 390 / 406 / 366 against 373
 - One sample is one Simulator VM (its two passes summed) or one Chromium counts run. Bins of 500 px, zones by
   `Fw.Device.Session.zoneOf` on each sample's own viewport and last scroll position (the last position differs by VM: 5231
   or 5267). The census states (scroll 0, 1500, 3000, 4500, last) fall in hero, hero, rest, finish, finish.
-- Reducer (glue): `results/dormant-counts/reduce.mjs`; reduced input `results/dormant-counts/zones.json`; the verdicts
-  come from Lean only.
+- Reducer (glue): `results/dormant-counts/reduce.mjs`; reduced input `results/dormant-counts/zones.json`, which
+  `Fw.Parts.DormantCounts.gen ["--from", path]` copies into the first line of the golden. `--check` (the check.sh job)
+  decides again from that line, so it reads only the golden. The verdicts come from Lean only.
 - Run 40196227509 had its filing (`fw run --from-run`) still pending when this was written; its three VM artifacts (r1 to
   r3, all success) were read from `gh run download`, so n is 3. The other arms are read from the filed store. Earlier
   attempts of this run lost Simulator VMs to the Determinism-session stall (owned by macos-vm-evidence); the final

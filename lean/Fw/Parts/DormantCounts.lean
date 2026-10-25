@@ -4,8 +4,8 @@ import Fw.Device.PhoneArms
 # morph.mount:shift-dormant: the verdict per zone and engine from filed counts
 
 Task dormant-counts; note research/notes/2026/10-2x-dormant-counts.md. The input is
-`results/dormant-counts/zones.json`, written by `results/dormant-counts/reduce.mjs` from the filed runs: per sample, the
-count sums per 500 px bin and (WebKit) the layer census per scroll state. This module decides, per engine, zone (hero,
+`results/dormant-counts/zones.json`, written by `results/dormant-counts/reduce.mjs` from the filed runs and copied into the
+golden as its data line: per sample, the count sums per 500 px bin and (WebKit) the layer census per scroll state. This module decides, per engine, zone (hero,
 finish, rest) and metric, whether an arm beats, loses to or equals the base, and `gen` writes the decisions as the golden
 `packages/contracts/golden/parts/dormant-counts.jsonl`.
 
@@ -398,18 +398,29 @@ def render (arms : List ArmData) : Except String String := do
     rows := rows ++ (mine.filter (·.name != "base")).flatMap (armLines base)
   return String.join ((consts :: cases ++ rows).map (· ++ "\n"))
 
-def dataPath : String := "../results/dormant-counts/zones.json"
 def goldenPath : String := "../packages/contracts/golden/parts/dormant-counts.jsonl"
 
+/-- The golden: the reduced data as its first line, then the decisions made from it. -/
+def golden (j : Json) : Except String String := do
+  let text ← parseArms j >>= render
+  return (line "data" [("zones", j)] ++ "\n") ++ text
+
+/-- `gen ["--from", path]` writes the golden from the reduced file at `path` (the output of
+`results/dormant-counts/reduce.mjs`). `gen ["--check"]` reads the data line of the golden, decides again and compares, so the
+check reads no file outside the golden. -/
 def gen (args : List String) : IO Unit := do
-  let j ← IO.ofExcept (Json.parse (← IO.FS.readFile dataPath))
-  let text ← IO.ofExcept (parseArms j >>= render)
   if args.contains "--check" then
     let disk ← IO.FS.readFile goldenPath
+    let some first := (disk.splitOn "\n").head? | throw (IO.userError "dormant-counts: the golden is empty")
+    let j ← IO.ofExcept (Json.parse first >>= (·.getObjVal? "zones"))
+    let text ← IO.ofExcept (golden j)
     if disk != text then
-      throw (IO.userError s!"dormant-counts: {goldenPath} is stale; regenerate with Fw.Parts.DormantCounts.gen []")
+      throw (IO.userError s!"dormant-counts: {goldenPath} is stale; regenerate with Fw.Parts.DormantCounts.gen [\"--from\", path]")
     IO.println s!"dormant-counts: {goldenPath} equals the Lean output"
-  else
-    IO.FS.writeFile goldenPath text
+  else match args with
+    | ["--from", path] =>
+      let j ← IO.ofExcept (Json.parse (← IO.FS.readFile path))
+      IO.FS.writeFile goldenPath (← IO.ofExcept (golden j))
+    | _ => throw (IO.userError "usage: gen [\"--from\", <reduced file>] | gen [\"--check\"]")
 
 end Fw.Parts.DormantCounts
