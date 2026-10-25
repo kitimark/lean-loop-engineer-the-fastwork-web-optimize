@@ -6,6 +6,7 @@ import '../engine.scene/scene.module.css';
 import { COLUMNS } from './data';
 import { IdleHold, idleRemoved } from './idle';
 import css from './morph.module.css';
+import { scaleApplies, scaleVars } from './scale';
 
 export interface MorphColumnsProps {
   variant: string;
@@ -25,12 +26,17 @@ const SCENE_ATTR = 'data-start-selling-scene';
  * tracks (nothing removed); on the way back the tracks are seeked to `origClock` (the clock of an animation that ran
  * only while the scene was active), in the observer callback, before paint. The scene state is the panel's
  * `data-start-selling-scene` attribute, followed by a MutationObserver (it changes at one value of the morph only).
+ *
+ * Variant `final-scale` (Lean `Fw.Parts.MorphColumnsScale`, look-change class L): at widths up to 1000 px the columns
+ * keep the final-width layout and a transform computed from `--morph` in CSS gives them the base layout's edges; this
+ * effect writes three constants per viewport width (on mount and resize), nothing per frame.
  */
 export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const clockRef = useRef<ReturnType<typeof createSceneClock> | null>(null);
   const hiddenPause = variant === 'hidden-pause';
   const idleNone = variant === 'idle-none';
+  const finalScale = variant === 'final-scale';
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -94,10 +100,36 @@ export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
     };
   }, [idleNone]);
 
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!finalScale || !stage) return;
+    let last = -1;
+    const write = () => {
+      const w = window.innerWidth;
+      if (w === last) return;
+      last = w;
+      if (!scaleApplies(w)) {
+        stage.removeAttribute('data-fw-cs');
+        return;
+      }
+      const v = scaleVars(w);
+      stage.style.setProperty('--cs-cf', String(v.cf));
+      stage.style.setProperty('--cs-a', String(v.a));
+      stage.style.setProperty('--cs-d', String(v.d));
+      stage.setAttribute('data-fw-cs', '');
+    };
+    write();
+    window.addEventListener('resize', write);
+    return () => {
+      window.removeEventListener('resize', write);
+      stage.removeAttribute('data-fw-cs');
+    };
+  }, [finalScale]);
+
   return (
     <div ref={stageRef} className={css.stage} data-fw="morph-columns" data-fw-variant={variant} data-fw-dormant={dormant ? '' : undefined}>
       {COLUMNS.map((c, i) => (
-        <div key={i} className={css.col} style={{ '--col-offset': c.offset } as CSSProperties}>
+        <div key={i} className={css.col} style={{ '--col-offset': c.offset, '--col-i': i } as CSSProperties}>
           <div className={css.track}>
             {c.heights.map((h, j) => (
               <img key={j} src={c.srcs[j]} alt="" loading="eager" decoding="async" style={{ height: `${h}px` }} />
