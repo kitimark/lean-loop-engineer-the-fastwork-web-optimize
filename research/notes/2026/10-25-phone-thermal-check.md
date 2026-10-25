@@ -57,7 +57,6 @@ with `swapped: true` instead of waiting 15 s (WebKit Target.json and TargetManag
 - The thermal state is read as iOS exposes it through the xctrace instrument, at block start and after each visit, not continuously; a state that rises and
   falls inside a visit is only seen through the lane readouts (Nominal, Fair, Serious, Serious).
 - The thermal state is Serious at the end of every visit, so frames cells (over34 base 0 to 176) mix throttled and unthrottled periods; counts and the census are not clock dependent.
-- Nothing here separates the effect of the harness change from the effect of the thermal pauses on the strip stall.
 
 ## Provenance
 

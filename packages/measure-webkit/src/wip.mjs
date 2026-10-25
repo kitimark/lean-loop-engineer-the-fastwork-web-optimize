@@ -43,7 +43,6 @@ export function targetStep(state, m) {
   return done();
 }
 
-/** Connect to a tab's websocket. Resolves once a page target exists. */
 export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
   const ws = new WebSocket(wsUrl);
   const fail = (e) => { try { ws.close(); } catch { /* already closed */ } throw e; };

@@ -9,8 +9,6 @@
 //  - The phone must reach this Mac on the LAN: the page server binds to this Mac's LAN address (or $FW_PHONE_HOST).
 //    The address is used in memory only; `redact()` strips it from every logged line.
 //  - The proxy and server started here are stopped in `finally`; no process is killed by name.
-//  - Another ios_webkit_debug_proxy that holds 9221/9222 or can attach this phone refuses the start (Lean PhoneArms proxyVerdict).
-//  - A readout names the thermal state and lock state (device-thermal.mjs); the battery temperature is only a proxy.
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir, networkInterfaces } from 'node:os';
@@ -34,7 +32,6 @@ const run = (cmd, args, timeoutMs = 20000) => {
   return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', error: r.error };
 };
 
-/** The one physical phone with the measurement model and OS (listed by CoreDevice, USB or not): { udid, model, os, build } (udid private). */
 export function listPhone({ model = MEASUREMENT_DEVICE.model, os = MEASUREMENT_DEVICE.os } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'fw-dev-'));
   try {
@@ -48,7 +45,6 @@ export function listPhone({ model = MEASUREMENT_DEVICE.model, os = MEASUREMENT_D
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
-/** The measurement phone, which must also be on USB (`idevice_id -l`). Returns { udid, model, os, build } (udid private). */
 export function selectPhone(opts = {}) {
   const phone = listPhone(opts);
   const usb = run('idevice_id', ['-l']).stdout.split('\n').map((s) => s.trim()).filter(Boolean);
@@ -56,7 +52,6 @@ export function selectPhone(opts = {}) {
   return phone;
 }
 
-/** Battery readout over lockdown/diagnostics plus the system thermal state (xctrace Thermal State instrument over USB, ~7 s). */
 export function readout(udid, { thermal = readThermal } = {}) {
   const batt = run('ideviceinfo', ['-u', udid, '-q', 'com.apple.mobile.battery']).stdout;
   const num = (re, s) => { const m = re.exec(s); return m ? Number(m[1]) : null; };
@@ -66,7 +61,6 @@ export function readout(udid, { thermal = readThermal } = {}) {
     at: new Date().toISOString(),
     batteryPct: num(/BatteryCurrentCapacity:\s*(\d+)/, batt),
     charging: /BatteryIsCharging:\s*true/.test(batt),
-    // AverageBattVirtualTemp / AverageBattSkinTemp from IORegistry AppleSmartBattery (unit not documented: read as degrees C, INFERRED)
     batteryVirtualTemp: num(/<key>AverageBattVirtualTemp<\/key>\s*<integer>(-?\d+)/, io),
     batterySkinTemp: num(/<key>AverageBattSkinTemp<\/key>\s*<integer>(-?\d+)/, io),
     thermalState: th.state,
@@ -89,7 +83,6 @@ export function lanAddress(env = process.env) {
 export const redact = (s, ...secrets) => secrets.filter(Boolean).reduce((t, x) => t.split(x).join('<redacted>'), String(s))
   .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, (ip) => (ip === '127.0.0.1' ? ip : '<ip>')).replace(/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/g, '<id>');
 
-/** Proxy config text: list port, the phone on the tabs port, every other phone ignored (port -1). */
 export const phoneConfigText = (udid, others, { list, tabs }) => [`null:${list}`, `${udid}:${tabs}`, ...others.filter((x) => x !== udid).map((u) => `${u}:-1`)].join('\n') + '\n';
 
 export async function startPhoneProxy(udid, { log = () => {}, timeoutMs = 20000, foreign = assertNoForeignProxy } = {}) {

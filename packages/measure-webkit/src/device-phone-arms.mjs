@@ -37,7 +37,6 @@ export function blocks(per, l) {
 export const mayStart = (elapsedS, longestS) => elapsedS + longestS <= PA.capMin * 60;
 export const coolOk = (gapS) => PA.coolMin * 60 <= gapS;
 export const SESSION = Object.freeze(visits(BASE, OTHERS));
-/** The session of the base visited around only the named other arms (same order as visits(BASE, OTHERS)). */
 export function sessionOf(onlyIds) {
   const known = OTHERS.map((a) => a.id);
   const bad = onlyIds.filter((id) => !known.includes(id));

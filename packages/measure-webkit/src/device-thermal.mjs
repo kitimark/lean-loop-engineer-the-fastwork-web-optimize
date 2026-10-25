@@ -1,10 +1,3 @@
-// The phone thermal check. The decisions (gate, preflight, stop and resume rules) are the TS twin of lean/Fw/Device/Thermal.lean,
-// checked against packages/contracts/golden/device/thermal.jsonl; the readers below are I/O glue.
-//
-// Source of the state (MEASURED 2026-10-25, iOS 27.0.1): the "Thermal State" instrument of `xcrun xctrace record` over USB. Its table
-// `device-thermal-state-intervals` holds the system thermal state (Nominal, Fair, Serious, Critical). xctrace needs the device
-// "connected" in CoreDevice, which any `devicectl device info` call does, so every read starts with `devicectl ... lockState`
-// (that also gives the lock state). The battery temperature (device.mjs readout) is the proxy that backs it up.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -46,7 +39,6 @@ export function resume(nowS, pausedS, readings) {
 
 export const pauseOver = (pausedS, nowS) => pausedS + PAUSE_MAX_S <= nowS;
 
-/** Why a verdict stops a block, in words for the log and the notes. */
 export const VERDICT_TEXT = Object.freeze({
   go: 'thermal state nominal',
   locked: 'the phone is locked (devicectl lockState reports a passcode is required): unlock it and keep it awake',
@@ -55,7 +47,6 @@ export const VERDICT_TEXT = Object.freeze({
   unreadable: 'the thermal state could not be read',
 });
 
-/** The state from `xctrace export` of the device-thermal-state-intervals table: the thermal-state of the last row. */
 export function parseThermalXml(xml) {
   const names = new Map();
   for (const m of xml.matchAll(/<thermal-state\s+[^>]*?id="(\d+)"[^>]*>([A-Za-z]+)<\/thermal-state>/g)) names.set(m[1], m[2]);
@@ -75,7 +66,6 @@ const sh = (cmd, args, timeoutMs) => {
   return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', error: r.error };
 };
 
-/** `devicectl device info lockState`: 'locked' | 'unlocked' | 'unknown' (an unreadable answer is unknown). */
 export function readLock(udid, { run = sh } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'fw-lock-'));
   try {
@@ -87,10 +77,6 @@ export function readLock(udid, { run = sh } = {}) {
   } catch { return 'unknown'; } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
-/**
- * The system thermal state now: { state, lock, error, ms }. state is null when it cannot be read (the error names why).
- * One 1 s xctrace recording, exported and parsed; two tries.
- */
 export function readThermal(udid, { run = sh, tries = 2 } = {}) {
   const t0 = Date.now();
   let error = null, lock = 'unknown';

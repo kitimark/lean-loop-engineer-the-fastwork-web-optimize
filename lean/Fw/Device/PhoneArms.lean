@@ -270,7 +270,6 @@ theorem coolOk_iff (g : Nat) : coolOk g = true ↔ 300 ≤ g := by
   unfold coolOk coolMin
   rw [decide_eq_true_iff]
 
-/-- Why one attempt of a visit failed; all but `other` are not the arm's doing. -/
 inductive Fault where
   | usbReset
   | staleTab
@@ -355,19 +354,16 @@ theorem appendOnly_record (faults : List Fault) (f : Fault) : appendOnly faults 
 
 theorem strip_visit_lost : mayAttempt [.usbReset, .staleTab, .other] = false := by decide
 
-/-- One visit of the state file: its index in the session and the faults of its failed attempts. -/
 structure VisitRec where
   index : Nat
   faults : List Fault
   deriving DecidableEq
 
-/-- A visit of the old state stays valid in a write: gone only with no faults, else its faults only grow. -/
 def keepOk (new : List VisitRec) (v : VisitRec) : Bool :=
   match new.find? (·.index == v.index) with
   | none => v.faults.isEmpty
   | some n => appendOnly v.faults n.faults
 
-/-- The state write is accepted when every visit of the old state stays valid. -/
 def writeOk (old new : List VisitRec) : Bool := old.all (keepOk new)
 
 theorem keepOk_removed_clean {new : List VisitRec} {v : VisitRec} (hn : new.find? (·.index == v.index) = none)
@@ -409,7 +405,6 @@ theorem writeOk_accepts {old new : List VisitRec} (h : ∀ v ∈ old, keepOk new
   unfold writeOk
   exact List.all_eq_true.2 h
 
-/-- The state after a hand reset of visit `i`: every record keeps its faults, as `handReset` leaves them. -/
 def handResetRecs (vs : List VisitRec) (i : Nat) : List VisitRec :=
   vs.map fun v => if v.index == i then { v with faults := handReset v.faults } else v
 
@@ -429,7 +424,6 @@ theorem handResetRecs_index (vs : List VisitRec) (i : Nat) :
   | cons v rest ih =>
     by_cases h : (v.index == i) = true <;> simp_all
 
-/-- What `arms-run --hand-reset <index> <reason>` does with its arguments and the state. -/
 inductive ResetPlan where
   | badIndex
   | noReason
@@ -491,11 +485,8 @@ theorem faultOf_other {msg : String} (h1 : ["proxy closed", "not on USB", "re-en
     faultOf msg = .other := by
   simp [faultOf, h1, h2, h3]
 
-/-- Seconds a run waits for the phone to list on USB again after a reset before it gives the visit up. -/
 def usbWaitS : Nat := 180
 
-/-- One look at the USB link: `idevice_id -l` lists the phone, the phone is on the USB bus, and the macOS log holds a
-`usbpowerd` terminated or discovered line since the visit began. -/
 structure UsbReading where
   listed : Bool
   onBus : Bool
@@ -510,7 +501,6 @@ inductive UsbVerdict where
 def UsbVerdict.name : UsbVerdict → String
   | .ok => "ok" | .reset => "reset" | .absent => "absent"
 
-/-- A re-enumeration is log evidence, or a phone on the bus that the listing does not show; no listing and no bus is an unplugged phone. -/
 def usbVerdict (r : UsbReading) : UsbVerdict :=
   if r.evidence || (!r.listed && r.onBus) then .reset
   else if r.listed then .ok
@@ -529,11 +519,9 @@ theorem usbVerdict_absent {r : UsbReading} (he : r.evidence = false) (hl : r.lis
     usbVerdict r = .absent := by
   simp [usbVerdict, he, hl, hb]
 
-/-- A macOS log line that tells of a USB re-enumeration. -/
 def usbLine (line : String) : Bool :=
   hasText line "usbpowerd" && (hasText line "terminated" || hasText line "discovered")
 
-/-- The fault of a failed attempt: its own text names it; an unnamed failure with a reset link behind it is the reset. -/
 def classify (msg : String) (u : UsbVerdict) : Fault :=
   match faultOf msg with
   | .other => if u = .reset then .usbReset else .other
@@ -558,7 +546,6 @@ inductive UsbWait where
 def UsbWait.name : UsbWait → String
   | .resume => "resume" | .keep => "keep" | .giveUp => "giveUp"
 
-/-- After a reset: resume as soon as the phone lists again, give up at `usbWaitS` seconds, else keep waiting. -/
 def usbWait (listed : Bool) (waitedS : Nat) : UsbWait :=
   if listed then .resume else if usbWaitS ≤ waitedS then .giveUp else .keep
 
@@ -572,7 +559,6 @@ theorem usbWait_keep {w : Nat} (h : w < usbWaitS) : usbWait false w = .keep := b
 theorem usbWait_giveUp {w : Nat} (h : usbWaitS ≤ w) : usbWait false w = .giveUp := by
   simp [usbWait, h]
 
-/-- The ports no other proxy may hold (the user's own inspector lane). -/
 def guardedPorts : List Nat := [9221, 9222]
 
 inductive ProxyVerdict where
@@ -586,22 +572,17 @@ def ProxyVerdict.name : ProxyVerdict → String
 
 def regexy (id : String) : Bool := id.any fun c => ".*+?[](){}|^$\\".toList.contains c
 
-/-- Whether a proxy config (`id:port` entries split by comma or newline) lets the proxy attach the phone: an entry that is neither
-the list entry `null` nor port `-1` and whose id is empty, the phone's id, or a pattern. -/
 def specAttaches (udid spec : String) : Bool :=
   ((spec.map fun c => if c == '\n' then ',' else c).splitOn ",").any fun e =>
     match e.splitOn ":" with
     | [id, port] => id != "null" && port != "-1" && (id.isEmpty || id == udid || regexy id)
     | _ => false
 
-/-- What `ps` and `lsof` show of one foreign `ios_webkit_debug_proxy`: its listening ports, its device config (`none` when it cannot be
-read), and whether it reads phones from USB (a proxy of the Simulator reads a socket instead, `-s`). -/
 structure ForeignProxy where
   ports : List Nat
   spec : Option String
   usb : Bool
 
-/-- One foreign proxy: it holds a guarded port, or it reads USB and can attach the phone (its config unknown counts as able). -/
 def proxyVerdict (p : ForeignProxy) (udid : String) : ProxyVerdict :=
   if p.ports.any guardedPorts.contains then .holdsPorts
   else if !p.usb then .clear
@@ -629,7 +610,6 @@ theorem proxyVerdict_clear {p : ForeignProxy} {s : String} (udid : String) (h : 
     (hu : p.usb = true) (hs : p.spec = some s) (ha : specAttaches udid s = false) : proxyVerdict p udid = .clear := by
   simp [proxyVerdict, h, hu, hs, ha]
 
-/-- The run starts only when every foreign proxy is clear; each proxy is decided on its own. -/
 def proxiesClear (ps : List ForeignProxy) (udid : String) : Bool :=
   ps.all fun p => proxyVerdict p udid == .clear
 

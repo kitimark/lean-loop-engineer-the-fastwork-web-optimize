@@ -1,11 +1,8 @@
 import Lean.Data.Json
 import Fw.Device.PhoneArms
 /-!
-# The phone thermal check: when a block of visits may start and when it must pause
-
-The state is read as iOS exposes it: the Thermal State instrument of `xctrace` over USB, which reports the system
-thermal state (Nominal, Fair, Serious, Critical). The battery temperature is a proxy that backs it up. A locked phone is a named
-refusal, not a harness fault.
+# The phone thermal check
+Gate, pause and resume rules of `packages/measure-webkit/src/device-thermal.mjs`.
 -/
 namespace Fw.Device.Thermal
 open Lean
@@ -18,7 +15,6 @@ inductive Thermal where
 def Thermal.name : Thermal → String
   | .nominal => "Nominal" | .fair => "Fair" | .serious => "Serious" | .critical => "Critical"
 
-/-- The state named as the instrument prints it; any other text is unreadable. -/
 def Thermal.ofName : String → Option Thermal
   | "Nominal" => some .nominal | "Fair" => some .fair | "Serious" => some .serious | "Critical" => some .critical
   | _ => none
@@ -26,7 +22,6 @@ def Thermal.ofName : String → Option Thermal
 theorem ofName_name (t : Thermal) : Thermal.ofName t.name = some t := by
   cases t <;> rfl
 
-/-- Degrees Celsius above the session's first battery readout at which a block pauses. -/
 def tempMarginC : Nat := 2
 
 inductive Lock where
@@ -36,8 +31,6 @@ inductive Lock where
 def Lock.name : Lock → String
   | .unlocked => "unlocked" | .locked => "locked" | .unknown => "unknown"
 
-/-- `devicectl device info lockState` reports `passcodeRequired`; true is read as a locked phone (INFERRED from the field name),
-a missing field is unknown and does not refuse. -/
 def lockOf : Option Bool → Lock
   | some true => .locked
   | some false => .unlocked
@@ -54,8 +47,6 @@ inductive Verdict where
 def Verdict.name : Verdict → String
   | .go => "go" | .locked => "locked" | .thermal => "thermal" | .battery => "battery" | .unreadable => "unreadable"
 
-/-- Whether a visit may start now: the state is readable and nominal, and the battery is under the first readout plus the margin
-(an unreadable battery or no first readout cannot raise the second trigger). -/
 def gate (th : Option Thermal) (temp first : Option Nat) : Verdict :=
   match th with
   | none => .unreadable
@@ -65,7 +56,6 @@ def gate (th : Option Thermal) (temp first : Option Nat) : Verdict :=
       | some c, some f => if f + tempMarginC ≤ c then .battery else .go
       | _, _ => .go
 
-/-- The check before a block: a locked phone is refused first, then the gate. -/
 def preflight (lock : Lock) (th : Option Thermal) (temp first : Option Nat) : Verdict :=
   if lock = .locked then .locked else gate th temp first
 
@@ -107,7 +97,6 @@ theorem preflight_open {lock : Lock} (h : lock ≠ .locked) (th : Option Thermal
     preflight lock th temp first = gate th temp first := by
   simp [preflight, h]
 
-/-- A pass starts only on a `go` reading, so a block runs as many passes as it has leading `go` readings. -/
 def passesRun : List Verdict → Nat
   | [] => 0
   | .go :: rs => passesRun rs + 1
@@ -123,7 +112,6 @@ theorem passesRun_all_go : ∀ rs : List Verdict, (∀ v ∈ rs, v = .go) → pa
     have := passesRun_all_go rs (fun v hv => h v (by simp [hv]))
     simp [passesRun, this]
 
-/-- A reading that is not `go` at index `k` stops the block before pass `k`: pass `k` and everything after it never start. -/
 theorem passesRun_le_stop : ∀ (rs : List Verdict) (k : Nat) (v : Verdict), rs[k]? = some v → v ≠ .go → passesRun rs ≤ k
   | [], k, v, h, _ => by simp at h
   | r :: rs, 0, v, h, hv => by
@@ -134,7 +122,6 @@ theorem passesRun_le_stop : ∀ (rs : List Verdict) (k : Nat) (v : Verdict), rs[
     have ih := passesRun_le_stop rs k v (by simpa using h) hv
     cases r <;> simp [passesRun] <;> omega
 
-/-- The passes of a block whose readings (state, battery) come before each pass. -/
 def blockPasses (rd : List (Option Thermal × Option Nat)) (first : Option Nat) : Nat :=
   passesRun (rd.map fun r => gate r.1 r.2 first)
 
@@ -146,13 +133,10 @@ theorem blockPasses_le_critical {rd : List (Option Thermal × Option Nat)} {firs
     (h : rd[k]? = some (some .critical, c)) : blockPasses rd first ≤ k := by
   refine passesRun_le_stop _ k .thermal (by simp [h, gate]) (by decide)
 
-/-- The first reading that trips the rule is taken at the end of the pass in progress (index `k`, so pass `k - 1`): at most one
-pass runs after the trigger, because every reading from `k` on is not `go` only needs the first of them. -/
 theorem blockPasses_one_after_trigger {rd : List (Option Thermal × Option Nat)} {first : Option Nat} {k : Nat} {r : Option Thermal × Option Nat}
     (h : rd[k]? = some r) (hv : gate r.1 r.2 first ≠ .go) : blockPasses rd first ≤ k :=
   passesRun_le_stop _ k _ (by simp [h]) hv
 
-/-- The time of the last reading that was not `go` (the pause's own start if none): a cool gap counts from there. -/
 def calmFrom (p : Nat) (rs : List (Nat × Verdict)) : Nat :=
   rs.foldl (fun c r => if r.2 = .go then c else r.1) p
 
@@ -164,7 +148,6 @@ theorem calmFrom_snoc_go (p t : Nat) (rs : List (Nat × Verdict)) :
     calmFrom p (rs ++ [(t, .go)]) = calmFrom p rs := by
   simp [calmFrom, List.foldl_append]
 
-/-- A paused block resumes at `now` when the latest reading is `go` and the cool gap since the last reading that was not `go` is over. -/
 def resume (now p : Nat) (rs : List (Nat × Verdict)) : Bool :=
   match rs.getLast? with
   | some (_, .go) => coolOk (now - calmFrom p rs)
@@ -197,10 +180,8 @@ theorem resume_too_soon {now p : Nat} {rs : List (Nat × Verdict)} (h : now - ca
   · have := resume_needs_gap hr
     omega
 
-/-- Seconds between two readings while a block is paused. -/
 def pollS : Nat := 60
 
-/-- A pause that has lasted this long ends the run with the named verdict instead of waiting on. -/
 def pauseMaxS : Nat := 3600
 
 def pauseOver (pausedS nowS : Nat) : Bool := decide (pausedS + pauseMaxS ≤ nowS)

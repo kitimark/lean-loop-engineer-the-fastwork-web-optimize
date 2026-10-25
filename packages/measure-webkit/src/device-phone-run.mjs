@@ -106,12 +106,6 @@ const realDeps = () => {
   };
 };
 
-/**
- * One block of visits. Before it starts: another device-cli or a foreign Inspector proxy refuses the run, a locked phone is a named
- * stop, and a thermal state that is not Nominal (or a battery 2 C over the session's first readout) pauses it until a cool gap at
- * nominal (Lean Thermal: gate, resume). A reading follows every visit and gates the next one. A failed attempt is named by
- * classify; after a USB reset the run waits for the phone to list again and retries the same visit (mayAttempt bounds the tries).
- */
 export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null, session = P.SESSION, deps = realDeps() }) {
   const others = deps.others();
   if (others.length > 0) throw new Error(`another device-cli.mjs is running (pid ${others.join(', ')}); one phone run at a time`);

@@ -73,7 +73,6 @@ async function main() {
       break;
     }
     case 'thermal': {
-      // thermal [--out file] : the phone's thermal state, lock state and battery temperature now (about 20 s); no device id in the output
       const id = listPhone().udid;
       const t = readThermal(id);
       const b = readout(id, { thermal: () => t });

@@ -1,5 +1,3 @@
-// What the Mac shows of the phone's surroundings: other Inspector proxies and the USB link. I/O glue only; the verdicts
-// (proxyVerdict, usbVerdict, usbLine, usbWait) are the TS twins of lean/Fw/Device/PhoneArms.lean in device-faults.mjs.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { GUARDED_PORTS, proxiesClear, proxyVerdict, usbLine, usbVerdict } from './device-faults.mjs';
@@ -10,10 +8,8 @@ const sh = (cmd, args, timeoutMs = 20000) => {
 };
 
 const IWDP = /(^|\/)ios_webkit_debug_proxy$/;
-/** The proxy's default device list when it is given neither -c nor -u. */
 export const DEFAULT_SPEC = 'null:9221,:9222-9322';
 
-/** `ps -axo pid=,ppid=,command=` lines of the ios_webkit_debug_proxy processes: [{ pid, ppid, args }]. */
 export function parsePs(out) {
   const rows = [];
   for (const l of out.split('\n')) {
@@ -23,7 +19,6 @@ export function parsePs(out) {
   return rows;
 }
 
-/** The device config a proxy runs with: -c (a file, else the inline list), -u, or the default; null when a -c file cannot be read. */
 export function specOf(args, readFile = (f) => readFileSync(f, 'utf8')) {
   const val = (short, long) => {
     const i = args.findIndex((a) => a === short || a === long);
@@ -40,13 +35,10 @@ export function specOf(args, readFile = (f) => readFileSync(f, 'utf8')) {
   return u !== null ? (u.includes(':') ? u : `${u}:9222`) : DEFAULT_SPEC;
 }
 
-/** Whether the proxy reads phones from USB: a proxy of the Simulator reads a socket (-s) instead. */
 export const readsUsb = (args) => !args.some((a) => a === '-s' || a === '--simulator' || a.startsWith('--simulator='));
 
-/** Listening TCP ports of one process from `lsof -nP -a -p <pid> -iTCP -sTCP:LISTEN -Fn`. */
 export const portsOf = (lsofOut) => [...lsofOut.matchAll(/^n.*:(\d+)$/gm)].map((m) => Number(m[1]));
 
-/** Every ios_webkit_debug_proxy that is not a child of this process, as the Lean ForeignProxy record plus its pid. */
 export function foreignProxies({ run = sh, readFile, self = process.pid } = {}) {
   const ps = run('ps', ['-axo', 'pid=,ppid=,command=']);
   if (ps.status !== 0) throw new Error('ps failed: cannot tell whether another ios_webkit_debug_proxy runs');
@@ -56,7 +48,6 @@ export function foreignProxies({ run = sh, readFile, self = process.pid } = {}) 
   });
 }
 
-/** Refuses to start while another proxy holds 9221/9222 or can attach the phone. The message carries "another ios_webkit_debug_proxy". */
 export function assertNoForeignProxy(udid, deps = {}) {
   const ps = foreignProxies(deps);
   if (proxiesClear(ps, udid)) return ps;
@@ -69,7 +60,6 @@ const stamp = (d) => {
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
 };
 
-/** usbpowerd terminated/discovered lines since `sinceMs`, cut to a time and the word: [{ at, what }]. */
 export function usbEvidence(sinceMs, { run = sh } = {}) {
   const r = run('/usr/bin/log', ['show', '--style', 'compact', '--start', stamp(new Date(sinceMs)), '--predicate', 'process == "usbpowerd"'], 60000);
   if (r.status !== 0) return [];
@@ -78,7 +68,6 @@ export function usbEvidence(sinceMs, { run = sh } = {}) {
 
 export const usbListed = (udid, { run = sh } = {}) => run('idevice_id', ['-l']).stdout.split('\n').map((s) => s.trim()).includes(udid);
 
-/** One look at the USB link since `sinceMs`: { listed, onBus, evidence: [...], verdict }. */
 export function usbReading(udid, sinceMs, { run = sh } = {}) {
   const listed = usbListed(udid, { run });
   const onBus = run('ioreg', ['-p', 'IOUSB', '-w0']).stdout.includes('iPhone');

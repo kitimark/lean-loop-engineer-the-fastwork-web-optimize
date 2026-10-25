@@ -48,7 +48,7 @@ test('foreignProxies skips this process and its children, and reports ports, spe
 
 test('assertNoForeignProxy refuses a proxy on the guarded ports and names it; passes when none competes', () => {
   assert.throws(() => assertNoForeignProxy(UDID, { run: fakeRun({ 104: 'n*:9222\n' }), self: 100 }), /another ios_webkit_debug_proxy is running \(pid 101 attached; pid 104 holdsPorts on ports 9222\)/);
-  const other = '  105     1 ios_webkit_debug_proxy -c OTHER-2222:9460'; // another phone on a port that is not guarded
+  const other = '  105     1 ios_webkit_debug_proxy -c OTHER-2222:9460';
   const ok = assertNoForeignProxy(UDID, { run: (c) => (c === 'ps' ? { status: 0, stdout: other, stderr: '' } : { status: 0, stdout: 'n*:9460\n', stderr: '' }), self: 100 });
   assert.equal(ok.length, 1);
 });

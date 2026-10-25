@@ -21,7 +21,6 @@ const fakeResult = (hash) => ({
   frames: { runs: [{ ts: [0, 16.7, 33.4, 50], ys: [0, 10, 20, 30], maxY: 6000 }], readouts: [] },
 });
 
-// A fake world: a clock that only sleeps advance, scripted thermal readings, scripted visit outcomes.
 const world = ({ senses = [], visits = [], usb = [], listed = [true], proxies = () => [] } = {}) => {
   const w = { t: 1_800_000_000_000, sleeps: [], senseAt: [], visitAt: [], visitCalls: 0, senseCalls: 0, listedCalls: 0, usbCalls: 0 };
   const nominal = { state: 'Nominal', lock: 'unlocked', error: null, tempC: 33 };
@@ -90,7 +89,6 @@ test('the raw dir keeps its session: another plan is refused', async () => {
 test('a Fair reading after a visit ends the block: no further pass starts; the next block waits a cool gap at nominal', async () => {
   const fair = { state: 'Fair', lock: 'unlocked', error: null, tempC: 34 };
   const nominal = { state: 'Nominal', lock: 'unlocked', error: null, tempC: 33 };
-  // start go, visit 0 end go, visit 1 end Fair -> the block ends with 2 visits though maxVisits allows 4
   const w = world({ senses: [nominal, nominal, fair] });
   const o = await run(w, { maxVisits: 4 });
   try {
@@ -101,7 +99,6 @@ test('a Fair reading after a visit ends the block: no further pass starts; the n
     assert.equal(st.thermal.at(-1).state, 'Fair');
     assert.equal(st.thermal.at(-1).verdict, 'thermal');
     assert.ok(st.pausedAtS > 0);
-    // next block: Fair, Fair, then Nominal forever
     const w2 = world({ senses: [fair, fair, nominal] });
     w2.t = w.t;
     const o2 = await run(w2, { dir: o.raw, maxVisits: 4 });

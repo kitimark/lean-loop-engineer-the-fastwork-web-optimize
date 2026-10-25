@@ -10,4 +10,4 @@ What changed
 - TS twins and glue (packages/measure-webkit/src): device-faults.mjs, device-thermal.mjs (xctrace reader), device-phone-env.mjs (ps/lsof/log), device-phone-run.mjs (`runBlock` with `deps`), device-cli.mjs (`--only`, `thermal`), wip.mjs (`targetStep`).
 - TS stand-ins (no Lean): wip.mjs target-swap step, parsers (parseThermalXml, parsePs, specOf, portsOf, usbEvidence), runBlock orchestration.
 Conventions: no device ids in any output (pipe through a redaction); phone proxy ports 9460/9461; one phone run at a time (`ps` for device-cli first); the strip re-measure is its own visit in its own session.
-Read first: docs/team/tools/device-lag-recorder.md section "Arms session guards"; research/notes/2026/10-25-phone-thermal-check.md when it exists.
+Read first: docs/team/tools/device-lag-recorder.md section "Arms session guards"; research/notes/2026/10-25-phone-thermal-check.md.

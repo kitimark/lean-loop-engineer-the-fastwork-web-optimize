@@ -149,7 +149,7 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
   base around just that arm (`base, base, arm, base`); the raw dir keeps the plan and refuses a different one. `thermal [--out file]`
   prints the thermal state, lock state and battery now.
 - Thermal state source (MEASURED, iOS 27.0.1): `xcrun xctrace record --instrument 'Thermal State' --all-processes --time-limit 1s`, then
-  `xctrace export` of the table `device-thermal-state-intervals`. xctrace exits 13 unless `devicectl device info lockState` ran just
+  `xctrace export` of `device-thermal-state-intervals`. xctrace exits 13 unless `devicectl device info lockState` ran just
   before (CoreDevice must list the phone as connected); one read takes about 7 s. Apple's ProcessInfo.ThermalState: nominal, fair,
   serious, critical (INFERRED meanings). Battery temperature (`AverageBattVirtualTemp`) is a proxy, not the SoC.
 - Stop rule (Lean `gate`, `resume`, `pauseOver`): a block starts only at Nominal and a battery temperature under 2 C above the

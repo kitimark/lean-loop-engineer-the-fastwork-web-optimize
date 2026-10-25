@@ -53,7 +53,6 @@ test('the export parses to the last row, also through a reference to an earlier 
   assert.equal(parseThermalXml(XML('<row><thermal-state id="1" fmt="Hot">Hot</thermal-state></row>')), null);
 });
 
-// A fake runner: devicectl writes the lock json to --json-output, xctrace record succeeds, export prints the table.
 const fake = ({ pr = false, rec = 0, exportXml = XML(ROW1), exportStatus = 0, counts = {} } = {}) => (cmd, args) => {
   const kind = args[0] === 'devicectl' ? 'lock' : `xctrace-${args[1]}`;
   counts[kind] = (counts[kind] ?? 0) + 1;
