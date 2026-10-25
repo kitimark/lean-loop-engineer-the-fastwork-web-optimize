@@ -21001,7 +21001,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
-   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists."
+   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists.",
+   "evidence": "b7b364a"
   },
   {
    "devices": [
@@ -21208,7 +21209,8 @@
     "docs/team/handoffs/lake-span-total.md",
     "apps/runner/src/slot.ts"
    ],
-   "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed."
+   "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed.",
+   "evidence": "8a8863c"
   },
   {
    "devices": [
@@ -21221,7 +21223,10 @@
    "writes": [
     "lean/scripts/InitCostLint.lean",
     "research/notes/2026/10-2x-init-cost-depth.md",
-    "docs/team/handoffs/init-cost-depth.md"
+    "docs/team/handoffs/init-cost-depth.md",
+    "lean/Fw/Lint/InitCostScan.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/init-cost-cases/**"
    ],
    "title": "Found by sim-touch-timeout (2026-10-25): the init-cost lint (lean/scripts/InitCostLint.lean) fails with maximum recursion depth near 1640 start-time constants and main has 1632, so any task adding about 12 constants fails it (sim-touch-timeout worked around it by giving its twelve Nat constants in SimTouch.lean a Unit default argument). Do: find where the lint recurses per constant (cite file:line), make it iterate or raise maxRecDepth with a measured margin (the builder's tested fix: set_option maxRecDepth 100000 in that script; say why that is safe and what it costs in time), add a regression check that the lint runs with at least 4x today's constant count, (the Unit-argument workaround in SimTouch.lean is dropped later by its owner, not here). Urgent: it already blocks columns-final-scale (lean run 40153993443 on ci/columns-final-scale: InitCostLint.lean:6 maximum recursion depth)."
   },

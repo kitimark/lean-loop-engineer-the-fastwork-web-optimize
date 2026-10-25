@@ -782,7 +782,7 @@ Lean decides whether `hero.exit:threaded` may enter v2-proved (`Gen.entry`, `ent
 | trajectory gate, Chromium | no | run 40156078840: hero fail, morph pass. PathPix runs 39924527942 and 39929556147 grade every valid P cell L |
 | trajectory gate, WebKit | no | run 40156078840: hero fail on Linux WebKit and on macOS WebKit, morph pass on macOS WebKit; the PathPix cells are L |
 | look decision | yes | accepted on the iPhone (`threaded_look_met`) |
-| q6 "same scroll offset" | no | open. `Visual.PathPremises.c3o`/`c3v` are hypotheses, and `HeroExitOpt` does not model which scroll offset the compositor shows (`q6_open`) |
+| q6 "same scroll offset" | no | open. `Fw.Engine.PathPremises.c3o`/`c3v` are hypotheses, and `HeroExitOpt` does not model which scroll offset the compositor shows (`q6_open`) |
 
 Trajectory run 40156078840 walked `?fw=hero.exit:threaded` at main `fbca417` against the faithful arm, at widths 390,
 640, 641 and 1280 (inputs read back from its `trajectory-inputs` artifact). `Fw.Preset.Gen.record` stored its five rows in
@@ -791,15 +791,16 @@ run 40156078840:
 
 | Engine | Hero path | New content units | Morph path |
 |---|---|---|---|
-| Chromium | fail | 25 | pass |
+| Chromium | fail | 25 | pass (0 new; 43 undecided) |
 | Linux WebKit | fail | 40 | not walked (hero only) |
-| macOS WebKit | fail | 40 | pass |
+| macOS WebKit | fail | 40 | pass (0 new; 128 red in both arms, 4 undecided) |
 
 On each engine the new units sit at the same node properties: `hero.orbit.card` opacity and translate at 390 px, and
 `hero.deck.card` opacity at 640, 641 and 1280 px (5 of 10 units each on Chromium, 8 of 10 on WebKit, all `apart`).
 A failing run of the flag alone fails its cell (`tcell_own_fail`), so the trajectory verdict is `falsified: trajectory`
-and both gate requirements block (`gate_blocked_of_own_fail`). The user accepted the look on the iPhone, so the probe
-and the phone disagree here. One possible cause: the original's JS writer shows a value one scroll event late, while
+and both gate requirements block (`gate_blocked_of_own_fail`). On the morph path, pass means only that the gate found
+no new failing unit; the path is not clean. The probe fails the hero path on all three engines, while the user saw the
+same look on the iPhone. One possible cause: the original's JS writer shows a value one scroll event late, while
 the scroll-driven animation follows the current offset. That is the question q6 asks (INFERRED, not tested). Task
 hero-exit-q6 owns q6 and the proofs link.
 

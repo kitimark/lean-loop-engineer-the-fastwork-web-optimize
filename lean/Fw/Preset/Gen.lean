@@ -36,6 +36,9 @@ def linkTable : List (Flag × List Key) :=
   let k6i : Key := ("hero.exit",
     "hero.exit:scoped with inline reader writes (task exit-scoped-inline): the writer sets --exit-opacity and \
       --exit-scatter inline on each of the 16 readers in the frame it writes the stage")
+  let ksp : Key := ("hero",
+    "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused \
+      while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page")
   [(⟨"engine.scroll", "batched"⟩, [k1]),
    (⟨"nav.hitTest", "elements-skip"⟩, [k4]),
    (⟨"nav.hitTest", "hit-skip"⟩, [k3]),
@@ -49,7 +52,8 @@ def linkTable : List (Flag × List Key) :=
    (⟨"pain.notes", "visible"⟩, [k21]),
    (⟨"people.card", "mq"⟩, [k16]),
    (⟨"hero.exit", "scoped"⟩, [k6i]),
-   (⟨"engine.scroll", "unthrottle"⟩, [kut])]
+   (⟨"engine.scroll", "unthrottle"⟩, [kut]),
+   (⟨"hero", "scene-pause"⟩, [ksp])]
 
 def curated : List (Flag × String) :=
   [(⟨"hero.accent", "steps"⟩,
@@ -546,7 +550,7 @@ def threadedEvidence (st : List Stored) : EntryReq → String
     "trajectory " ++ "; ".intercalate (walks.map cell) ++ "; PathPix runs 39924527942 and 39929556147 grade every \
       valid P cell L (research/notes/2026/10-2x-hero-exit-threaded-pix.md)"
   | .look => "accepted 2026-10-24 on the real iPhone (results/phone/2026-10-24-hero-exit-threaded/summary.md)"
-  | .q6 => q6Answer.getD "open: no answer recorded; Fw.Engine.Visual.PathPremises.c3o and c3v (each arm shows its own \
+  | .q6 => q6Answer.getD "open: no answer recorded; Fw.Engine.PathPremises.c3o and c3v (lean/Fw/Engine/Visual.lean) (each arm shows its own \
       value at its own frame time) are hypotheses, and Fw.Parts.HeroExitOpt does not model which scroll offset the \
       compositor shows"
 
@@ -724,7 +728,8 @@ def record (args : List String) : IO Unit := do
 #guard (reasonOf ⟨"hero.countdown", "hidden-pause"⟩).isNone
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
   "hero.countdown:strip", "morph.countdown:strip", "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
-  "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped", "engine.scroll:unthrottle"]
+  "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped", "engine.scroll:unthrottle",
+  "hero:scene-pause"]
 #guard ((verdictJson [] ⟨"hero.accent", "steps"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
