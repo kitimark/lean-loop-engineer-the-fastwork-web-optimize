@@ -1,8 +1,8 @@
 # fw-run-vms handoff
 
 - Branch: worktree-wf_8bb1a100-839-1; worktree: .claude/worktrees/wf_8bb1a100-839-1
-- Last commit: see `git log -1` on the branch (the work commit, then the main merge)
-- CI runs: none (no CI dispatch or push, as the task says)
+- Last commit: `git log -1` on the branch
+- CI runs: none (no dispatch or push)
 
 ## State
 - Lean: `dispatchInputs .webkit` sends `("vms", toString q.runs)`; `dispatch_vms`; `webkit_vms_accepted` (Wire/Store);

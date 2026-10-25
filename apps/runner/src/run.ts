@@ -99,7 +99,6 @@ export const sha256 = (b: Buffer | string) => createHash("sha256").update(b).dig
 
 export const keyDigest = (key: [string, string][]) => sha256(JSON.stringify(key));
 
-/** The run count of a plan job, read from its key's `runs` pair (Lean `keyPairs`), so the manifest files under the planned key. */
 export function keyRuns(key: [string, string][]): number {
   const v = key.find(([k]) => k === "runs")?.[1];
   if (v === undefined || !/^[1-9][0-9]*$/.test(v)) throw new Error(`plan key has no runs pair: ${JSON.stringify(key)}`);

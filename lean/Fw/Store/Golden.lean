@@ -74,11 +74,9 @@ def planCases : List (String × String × Json) := [
   ("webkit-sim takes at most 3 VMs: 4 runs with webkit is a problem, no job", "store.plan",
    lit s!"\{\"target\":\"rewrite\",\"engines\":[\"webkit\",\"chromium\"],\"sha\":\"{sha}\",\"runs\":4}")]
 
-/-- A manifest as JSON text (valid for `target = "\"target\":\"original\""`, `extra = ""`). -/
 def manifest (target extra : String) : String :=
   s!"\{\"engine\":\"chromium\",{target},\"preset\":\"original\",\"fw\":[],\"profile\":\"swipe-v1\",\"gitSha\":\"{sha}\",\"image\":\"runner:ubuntu-24.04-arm\",\"runs\":3,\"runId\":\"39033771018\"{extra},\"entries\":[\{\"name\":\"counts-run1.json\",\"digest\":\"{"ab".pushn 'c' 62}\",\"bytes\":10},\{\"name\":\"trace/run1.json\",\"digest\":\"{"cd".pushn 'e' 62}\",\"bytes\":20}]}"
 
-/-- The target field of a manifest on the original site. -/
 def O : String := "\"target\":\"original\""
 
 /-- The target field of a manifest on the rewrite. -/
@@ -100,7 +98,6 @@ def manifestCases : List (String × String × Json) := [
    lit "{\"manifest\":{\"engine\":\"gecko\",\"target\":\"both\",\"preset\":\"Original\",\"fw\":[\"b:x\",\"a:y\"],\"profile\":\"swipe-v1\",\"gitSha\":\"abc\",\"image\":\"docker\",\"runs\":0,\"runId\":\"x\",\"entries\":[{\"name\":\"a.json\",\"digest\":\"ABC\",\"bytes\":1}]}}"),
   ("missing field is refused", "store.manifest", lit "{\"manifest\":{\"engine\":\"chromium\"}}")]
 
-/-- The `store.objectPath` cases. -/
 def pathCases : List (String × String × Json) := [
   ("fan-out by the first two hex digits", "store.objectPath",
    lit "{\"digest\":\"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789\"}"),

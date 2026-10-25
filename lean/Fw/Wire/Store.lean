@@ -143,7 +143,6 @@ def manifestOf (j : Json) : Except String Manifest := do
   pure { engine := ← str j "engine", target := ← str j "target", preset := ← str j "preset", fw := fw, profile := ← str j "profile",
          gitSha := ← str j "gitSha", image := ← str j "image", runs := ← nat j "runs", runId := ← str j "runId", entries := entries }
 
-/-- `store.manifest`. -/
 def opManifest (req : Json) : Except String Reply := do
   let m ← manifestOf (← field req "manifest")
   let ps := m.problems
@@ -236,9 +235,6 @@ def opCiRun (req : Json) : Except String Reply := do
   pure [("accept", .bool res.refusals.isEmpty), ("refusals", .arr (res.refusals.toArray.map .str)),
         ("targets", .arr (res.targets.toArray.map (ciTargetJson r)))]
 
-/-- **webkit-sim accepts the VM count it is sent:** for an accepted request with WebKit, the `vms` value of the dispatch
-passes the workflow's own count check (`Fw.Measure.SimPlan.countOf 1 3`) and reads back as the run count.
--/
 theorem webkit_vms_accepted {q : Request} (h : reqProblems q = []) (hw : Engine.webkit.name ∈ q.engines) :
     ("vms", toString q.runs) ∈ dispatchInputs .webkit q ∧ Fw.Measure.SimPlan.countOf 1 3 (toString q.runs) = some q.runs := by
   refine ⟨dispatch_vms q, ?_⟩
@@ -249,7 +245,6 @@ theorem webkit_vms_accepted {q : Request} (h : reqProblems q = []) (hw : Engine.
   simp
   omega
 
-/-- The `store.*` ops. -/
 def ops : List String := ["store.plan", "store.gate", "store.trajectory", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
 
 /-- Dispatch a `store.*` op (`none` when the op is not one of them). -/

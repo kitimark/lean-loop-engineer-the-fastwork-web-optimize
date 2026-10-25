@@ -265,7 +265,6 @@ def Manifest.problems (m : Manifest) : List String :=
   (if m.entries.all (fun e => isHex 64 e.digest) then [] else ["entries: digest not 64 hex digits"]) ++
   (if 1 ≤ m.runs then [] else ["runs: not a positive count"])
 
-/-- A manifest is valid when it has no problem. -/
 def Manifest.valid (m : Manifest) : Bool := m.problems.isEmpty
 
 /-- A valid manifest names a known engine. -/
@@ -308,10 +307,6 @@ theorem Manifest.valid_entries {m : Manifest} (h : m.valid = true) :
 
 /-! ## The identity of a run -/
 
-/-- What a run's identity depends on. `target` selects the page (original or rewrite), `preset` and the flags the
-site configuration, `profile` the scroll script, `sha` the code, `image` the browser build and machine, `runs` the
-independent repetitions (Chromium shards, WebKit VMs).
--/
 structure Req where
   engine : Engine
   target : Target
@@ -322,7 +317,6 @@ structure Req where
   image : String
   runs : Nat
 
-/-- Flatten flags to key pairs: each part and each variant is its own pair. -/
 def flagPairs (fw : List (String × String)) : List (String × String) :=
   fw.flatMap fun p => [("fw", p.1), ("fwv", p.2)]
 
@@ -338,16 +332,11 @@ theorem flagPairs_inj : ∀ {a b : List (String × String)}, flagPairs a = flagP
     have := flagPairs_inj (a := a) (b := b) h3
     rw [h1, h2, this]
 
-/-- The pairs whose canonical JSON the caller hashes to get the run key.
-
-Version 2 added the target (version 1 keys had none, so an original and a rewrite run shared one key). Version 3 added
-the run count (version 2 keys had none, so a 1-VM and a 3-VM WebKit run shared one key).
--/
+/-- The pairs whose canonical JSON the caller hashes to get the run key. -/
 def keyPairs (r : Req) : List (String × String) :=
   [("v", "3"), ("engine", r.engine.name), ("target", r.target.name), ("preset", r.preset), ("profile", r.profile),
    ("sha", r.sha), ("image", r.image), ("runs", toString r.runs)] ++ flagPairs r.fw
 
-/-- **Distinct configurations never share the input of the key hash.** -/
 theorem keyPairs_inj {r r' : Req} (h : keyPairs r = keyPairs r') : r = r' := by
   simp only [keyPairs, List.cons_append, List.nil_append, List.cons.injEq, Prod.mk.injEq] at h
   obtain ⟨_, ⟨_, he⟩, ⟨_, ht⟩, ⟨_, hp⟩, ⟨_, hr⟩, ⟨_, hs⟩, ⟨_, hi⟩, ⟨_, hn⟩, hf⟩ := h
@@ -363,26 +352,18 @@ have in common.
 theorem keyPairs_target_ne {r r' : Req} (h : r.target ≠ r'.target) : keyPairs r ≠ keyPairs r' :=
   fun hk => h (congrArg Req.target (keyPairs_inj hk))
 
-/-- **Different run counts give different keys:** a 2-VM and a 3-VM run never share a key, whatever else they have in
-common.
--/
 theorem keyPairs_runs_ne {r r' : Req} (h : r.runs ≠ r'.runs) : keyPairs r ≠ keyPairs r' :=
   fun hk => h (congrArg Req.runs (keyPairs_inj hk))
 
-/-- **No version 3 key is a version 2 key:** a run stored before the run count entered the key (every WebKit run then
-measured 1 VM) is never a cache hit for a request planned now.
--/
 theorem keyPairs_ne_v2 (r : Req) (rest : List (String × String)) : keyPairs r ≠ ("v", "2") :: rest := by
   simp [keyPairs]
 
-/-- The run identity a manifest records, when its engine and target are known names. -/
 def Manifest.req (m : Manifest) : Option Req :=
   match Engine.ofName m.engine, Target.ofName m.target with
   | some e, some t => some { engine := e, target := t, preset := m.preset, fw := m.fw, profile := m.profile,
                              sha := m.gitSha, image := m.image, runs := m.runs }
   | _, _ => none
 
-/-- **A valid manifest has a key**, and its key records the manifest's target name. -/
 theorem Manifest.valid_req {m : Manifest} (h : m.valid = true) :
     ∃ r, m.req = some r ∧ ("target", m.target) ∈ keyPairs r := by
   obtain ⟨e, he⟩ := Manifest.valid_engine h
@@ -478,29 +459,18 @@ def needs (q : Request) : List String :=
   (if q.preset == defaultPreset then [] else ["preset"]) ++
   (if q.fw.isEmpty then [] else ["fw"])
 
-/-- The dispatch inputs: the engine's own, from the request. Chromium takes the profile, the run count (in decimal),
-the target (always sent, so the workflow never falls back to its default `both`), the preset and the flags
-(`image_run` keeps its default); WebKit takes the run count as its VM count `vms` (in decimal), the target, the preset
-and the flags (webkit-sim has no profile input, so a profile other than the default is blocked; `sessions` keeps its
-default of one per VM).
--/
 def dispatchInputs (e : Engine) (q : Request) : List (String × String) :=
   match e with
   | .chromium => [("profile", q.profile), ("runs", toString q.runs), ("target", q.target), ("preset", q.preset),
                   ("fw", fwInput q.fw)]
   | .webkit => [("vms", toString q.runs), ("target", q.target), ("preset", q.preset), ("fw", fwInput q.fw)]
 
-/-- **Chromium is told the target:** its dispatch inputs carry the request's target, never the workflow default. -/
 theorem dispatch_target (q : Request) : ("target", q.target) ∈ dispatchInputs .chromium q := by
   simp [dispatchInputs]
 
-/-- **WebKit is told the run count:** its dispatch inputs carry the request's run count as `vms`, never the workflow
-default of 1.
--/
 theorem dispatch_vms (q : Request) : ("vms", toString q.runs) ∈ dispatchInputs .webkit q := by
   simp [dispatchInputs]
 
-/-- Why a job cannot run: the first needed field its workflow has no input for. -/
 def blocked (e : Engine) (q : Request) : Option String :=
   (needs q).find? (fun x => !(workflowInputs e).contains x)
 
@@ -579,12 +549,8 @@ theorem dispatch_keys_declared (e : Engine) (q : Request) : ∀ p ∈ dispatchIn
   intro p hp
   cases e <;> simp [dispatchInputs, workflowInputs, Lane.ofEngine, Lane.inputs] at hp ⊢ <;> rcases hp with rfl | rfl | rfl | rfl | rfl <;> simp
 
-/-- The most VMs one webkit-sim run takes: its `vms` input is 1 to 3 (`Fw.Measure.SimPlan.problems`), so a WebKit
-request runs 2 or 3 times.
--/
 def webkitMaxVms : Nat := 3
 
-/-- One job of a plan. -/
 structure Job where
   engine : Engine
   workflow : String
@@ -611,7 +577,6 @@ def reqProblems (q : Request) : List String :=
   (if q.images.all (fun p => (Engine.ofName p.1).isSome && imageOk p.2) then [] else ["images: unknown engine or bad image"]) ++
   (if q.engines.contains Engine.webkit.name && webkitMaxVms < q.runs then ["runs: webkit-sim takes at most 3 VMs"] else [])
 
-/-- The jobs of a request for one target: one per distinct requested engine, in canonical order. -/
 def jobsFor (q : Request) (t : Target) : List Job :=
   let es := canonEngines (q.engines.filterMap Engine.ofName)
   es.map fun e =>
@@ -619,7 +584,6 @@ def jobsFor (q : Request) (t : Target) : List Job :=
       key := keyPairs { engine := e, target := t, preset := q.preset, fw := q.fw, profile := q.profile, sha := q.sha,
                         image := imageOf q e, runs := q.runs } }
 
-/-- The jobs of a request: those for its target, none when the target is not a known name. -/
 def jobsOf (q : Request) : List Job :=
   match Target.ofName q.target with
   | some t => jobsFor q t
@@ -713,7 +677,6 @@ theorem plan_key_target_ne {q q' : Request} (h : reqProblems q = []) (h' : reqPr
   rw [← Target.name_ofName hq, ← Target.name_ofName hq']
   exact congrArg Target.name htt
 
-/-- **Every job's key is the key of a run identity with the request's run count.** -/
 theorem plan_key_runs {q : Request} {j : Job} (hj : j ∈ plan q) : ∃ r : Req, r.runs = q.runs ∧ j.key = keyPairs r := by
   unfold plan at hj
   split at hj
@@ -725,9 +688,6 @@ theorem plan_key_runs {q : Request} {j : Job} (hj : j ∈ plan q) : ∃ r : Req,
     · simp at hj
   · simp at hj
 
-/-- **A 2-run and a 3-run request never share a key.** Two requests with different run counts give jobs with different
-keys, whatever else they have in common, so a cached run is a hit only for its own VM or shard count.
--/
 theorem plan_key_runs_ne {q q' : Request} (hr : q.runs ≠ q'.runs) {j j' : Job} (hj : j ∈ plan q)
     (hj' : j' ∈ plan q') : j.key ≠ j'.key := by
   obtain ⟨r, hr1, hk⟩ := plan_key_runs hj
@@ -735,7 +695,6 @@ theorem plan_key_runs_ne {q q' : Request} (hr : q.runs ≠ q'.runs) {j j' : Job}
   rw [hk, hk']
   exact keyPairs_runs_ne (by rw [hr1, hr2]; exact hr)
 
-/-- **An accepted WebKit request fits webkit-sim:** its run count, sent as `vms`, is 2 to `webkitMaxVms`. -/
 theorem reqProblems_nil_webkit_runs {q : Request} (h : reqProblems q = []) (hw : Engine.webkit.name ∈ q.engines) :
     2 ≤ q.runs ∧ q.runs ≤ webkitMaxVms := by
   simp only [reqProblems, List.append_eq_nil_iff] at h

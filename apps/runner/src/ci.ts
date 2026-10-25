@@ -38,7 +38,6 @@ export function parseCiArgs(argv: string[]): CiArgs {
 // ---- fwcore `store.ciRun` -----------------------------------------------------------------------------------------
 export type CiJob = { name: string; conclusion: string | null };
 export type CiRunInfo = { runId: string; workflowName: string; status: string; conclusion: string | null; headSha: string; jobs: CiJob[] };
-/** What `fw ci` read from one downloaded shard artifact (`counts.json`, `image-id.txt`). */
 export type CiFacts = { name: string; profile: string; image: string; search?: string; target?: string };
 export type CiMeta = { engine: string; target: string; preset: string; fw: string[]; profile: string; gitSha: string; image: string; runs: number; runId: string };
 export type CiTarget = { target: "original" | "rewrite"; classes: string; shards: { artifact: string; dir: string }[]; meta?: CiMeta; key?: [string, string][] };

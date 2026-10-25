@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { fwcoreCall, type FwCall } from "../src/run.ts";
 import { GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
 
-// Every golden vector is generated from Lean (lean/Fw/Store/Golden.lean); the zod schemas must accept each one.
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "store");
 const load = (stem: string) =>
   readFileSync(join(dir, `${stem}.jsonl`), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { name: string; request: unknown; response: unknown });
