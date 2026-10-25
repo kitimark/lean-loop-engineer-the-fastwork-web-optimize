@@ -2,10 +2,24 @@ import XCTest
 
 /// Real touches on Mobile Safari: slow upward drags that collapse the toolbar, a hold, then the drags back. The page is
 /// already open and recording (the Node probe reads the frames through the Web Inspector); this test only touches.
-/// Parameters arrive as TEST_RUNNER_FW_* variables: CYCLES, DRAG_PT (points per drag), VELOCITY (points per second), HOLD_MS.
+/// Parameters arrive as TEST_RUNNER_FW_* variables: CYCLES, DRAG_PT (points per drag), VELOCITY (points per second), HOLD_MS,
+/// WAIT_SCALE (multiplies the two start-up waits). With FW_DIR the test writes one progress mark per step into that directory:
+/// `started` once Safari is found, then `press-<i>` after each press; the Node side reads them for its stall rule.
 final class DragTests: XCTestCase {
+    private var pressCount = 0
+
     private func env(_ key: String, _ fallback: Double) -> Double {
         Double(ProcessInfo.processInfo.environment["FW_" + key] ?? "") ?? fallback
+    }
+
+    private func mark(_ name: String) {
+        guard let dir = ProcessInfo.processInfo.environment["FW_DIR"], !dir.isEmpty else { return }
+        try? Data(name.utf8).write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+    }
+
+    private func pressed() {
+        pressCount += 1
+        mark("press-\(pressCount)")
     }
 
     func testDrags() throws {
@@ -16,11 +30,12 @@ final class DragTests: XCTestCase {
 
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         safari.activate()
-        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20), "Safari is not in the foreground")
+        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20 * env("WAIT_SCALE", 1)), "Safari is not in the foreground")
         let window = safari.windows.firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 10), "no Safari window")
+        XCTAssertTrue(window.waitForExistence(timeout: 10 * env("WAIT_SCALE", 1)), "no Safari window")
         let height = window.frame.height
         XCTAssertGreaterThan(height, 0)
+        mark("started")
         let span = min(dragPt, height * 0.6) / height
         let from = CGVector(dx: 0.5, dy: 0.78)
         let to = CGVector(dx: 0.5, dy: 0.78 - span)
@@ -30,10 +45,12 @@ final class DragTests: XCTestCase {
             window.coordinate(withNormalizedOffset: from)
                 .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: to),
                        withVelocity: XCUIGestureVelocity(rawValue: velocity), thenHoldForDuration: hold)
+            pressed()
             // finger moves down: the page scrolls back up and the toolbar returns
             window.coordinate(withNormalizedOffset: to)
                 .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: from),
                        withVelocity: XCUIGestureVelocity(rawValue: velocity), thenHoldForDuration: hold)
+            pressed()
         }
     }
 
@@ -52,11 +69,12 @@ final class DragTests: XCTestCase {
 
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         safari.activate()
-        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20), "Safari is not in the foreground")
+        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20 * env("WAIT_SCALE", 1)), "Safari is not in the foreground")
         let window = safari.windows.firstMatch
-        XCTAssertTrue(window.waitForExistence(timeout: 10), "no Safari window")
+        XCTAssertTrue(window.waitForExistence(timeout: 10 * env("WAIT_SCALE", 1)), "no Safari window")
         let height = window.frame.height
         XCTAssertGreaterThan(height, 0)
+        mark("started")
         let span = min(dragPt, height * 0.6) / height
         let base: XCUIElement = target == "safari" ? window : XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let from = base.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.78))
@@ -66,8 +84,11 @@ final class DragTests: XCTestCase {
 
         for _ in 0..<cycles {
             from.press(forDuration: 0.05, thenDragTo: to, withVelocity: gesture, thenHoldForDuration: hold)
+            pressed()
             to.press(forDuration: 0.05, thenDragTo: from, withVelocity: gesture, thenHoldForDuration: hold)
+            pressed()
             to.press(forDuration: 0.05, thenDragTo: back, withVelocity: gesture, thenHoldForDuration: hold)
+            pressed()
         }
     }
 }
