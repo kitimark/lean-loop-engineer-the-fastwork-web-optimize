@@ -4038,7 +4038,7 @@
    "flag": "morph.mount:touch-first",
    "chromium": "trajectory probe run 40213443051 (fw=morph.mount:touch-first widths 390,1280): 0 new fails, 0 baseline-red, 44 undecided open@1 (same as the other mount flags); the trajectory drives wheel and pointer scroll, not touch gestures, so the touch rule itself is not exercised",
    "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40213443051); felt effect not measured: the Simulator lane arm for the flag is not delivered",
-   "visual": "E for a gesture whose first move is cancelable and armed or active (first_same_first_move, active_taken); L-adjacent edge: a drag that crosses into the armed zone mid-gesture no longer hands over until the next gesture (take_le_orig shows it never takes more than the original)",
+   "visual": "L (look-change proposal): equal on a cancelable first move (first_same_first_move, active_taken); differs when a drag enters the armed zone after its first move (handover moves to the next gesture); same look under touch unproven until toolbar-sim-lane runs",
    "mechanism": "CONFIRMED by source (WKContentViewInteraction.mm:1368, :2562, :4239-4245@862f17d): the first touchmove is cancelable, after the pan began preventDefault no longer stops it, so a pin started then fights the native scroll. PROVED in Lean: native_no_start, take_le_orig, active_taken, first_same_first_move, first_uncancelable",
    "leanFor": [
     "Fw.Parts.MorphMountToolbar.native_no_start",
@@ -4049,8 +4049,8 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "per-arm counts and the 10 Hz step count of visualViewport.height in the Simulator XCUITest lane: its arms are fixed in packages/measure-webkit/src/throttle (outside the task writes)",
-    "WKTR forced-inset gate: packages/measure-wktr fixtures are outside the task writes; hooks in the r324039 archive INFERRED"
+    "per-arm counts and the 10 Hz visualViewport.height step count: follow-up task toolbar-sim-lane",
+    "WKTR forced-inset gate: follow-up task toolbar-wktr-gate; hooks in r324039 INFERRED"
    ],
    "premises": [
     "cancelable is false for touchmoves after the pan began, INFERRED",
@@ -4058,7 +4058,7 @@
    ],
    "v1Evidence": "none",
    "lesson": "Decide a push where the browser still lets the page cancel it; a decision after the native pan began can only fight it.",
-   "next": "Add morph.mount:touch-first as an arm of the morph-end lane in packages/measure-webkit/src/throttle/morph-end.mjs and read the 10 Hz steps.",
+   "next": "toolbar-sim-lane adds the arm and reads the 10 Hz steps.",
    "evidence": "Lean Fw.Parts.MorphMountToolbar.*; golden packages/contracts/golden/parts/morph-mount-toolbar.jsonl; trajectory probe 40213443051"
   },
   {
@@ -4073,7 +4073,7 @@
    "flag": "morph.mount:open-once",
    "chromium": "trajectory probe run 40214808662 (fw=morph.mount:open-once widths 390,1280): 0 new fails, 44 undecided open@1 (as every mount flag); the trajectory drives wheel and pointer scroll, not touch gestures",
    "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40214808662); felt effect not measured",
-   "visual": "E for the first open of every gesture (orig_plain); a reopen inside one finger drag is dropped, so the same gesture cannot reopen the panel after it closed",
+   "visual": "L (look-change proposal): a reopen inside one finger drag is dropped; same look under touch unproven until toolbar-sim-lane runs",
    "mechanism": "The original reopens on every forward move of an idle armed page (orig_reopens: n moves, n opens). PROVED: once_at_most_one, once_no_open. Whether the 8-41 reopens per pass come from one gesture is not traced (INFERRED)",
    "leanFor": [
     "Fw.Parts.MorphMountToolbar.once_at_most_one",
@@ -4083,8 +4083,8 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "per-arm counts and the 10 Hz step count of visualViewport.height in the Simulator XCUITest lane: its arms are fixed in packages/measure-webkit/src/throttle (outside the task writes)",
-    "WKTR forced-inset gate: packages/measure-wktr fixtures are outside the task writes; hooks in the r324039 archive INFERRED",
+    "per-arm counts and the 10 Hz visualViewport.height step count: follow-up task toolbar-sim-lane",
+    "WKTR forced-inset gate: follow-up task toolbar-wktr-gate; hooks in r324039 INFERRED",
     "the trace of arm and close events at the end that names the cause of the 8-41 reopens"
    ],
    "premises": [
@@ -4092,7 +4092,7 @@
    ],
    "v1Evidence": "none",
    "lesson": "A bound proved on the decision says nothing about the cause; trace the events before counting a win.",
-   "next": "Count fade onsets per pass with and without the flag in the Simulator lane.",
+    "next": "toolbar-sim-lane adds the arm and reads the 10 Hz steps.",
    "evidence": "Lean Fw.Parts.MorphMountToolbar.once_at_most_one; golden morph-mount-toolbar.jsonl; trajectory probe 40214808662"
   },
   {
@@ -4116,8 +4116,8 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "per-arm counts and the 10 Hz step count of visualViewport.height in the Simulator XCUITest lane: its arms are fixed in packages/measure-webkit/src/throttle (outside the task writes)",
-    "WKTR forced-inset gate: packages/measure-wktr fixtures are outside the task writes; hooks in the r324039 archive INFERRED"
+    "per-arm counts and the 10 Hz visualViewport.height step count: follow-up task toolbar-sim-lane",
+    "WKTR forced-inset gate: follow-up task toolbar-wktr-gate; hooks in r324039 INFERRED"
    ],
    "premises": [
     "the lock covers every frame in which the pinned scroll would otherwise fight the bounce, INFERRED"

@@ -1,7 +1,7 @@
 ---
 id: 2026-10-2x-toolbar-proof-morph
 kind: note
-title: "Toolbar-proof morph: one decision per touch gesture (touch-first, open-once) proved in Lean and filed as look-change proposals until touch same look is shown; the cost of unthrottle, the lvh read and threaded visuals decided from source; the Simulator lane and WKTR gate split to toolbar-sim-lane and toolbar-wktr-gate"
+title: "Toolbar-proof morph: one decision per touch gesture (touch-first, open-once) proved in Lean and filed as look-change proposals until touch same look is shown; the cost of unthrottle modelled and the lvh read decided from source; threaded visuals undecided; the Simulator lane and WKTR gate split to toolbar-sim-lane and toolbar-wktr-gate"
 status: review
 created: 2026-10-25
 topics: [morph, morph.mount, toolbar, webkit, throttle, unthrottle, touch, look-change]
@@ -48,9 +48,9 @@ Base facts and the checked corrections: `10-25-toolbar-native.md`. WebKit cites 
 
 A layout-viewport height change forces layout and invalidates every viewport-unit element, `vh` included
 (`LocalFrameView.cpp:1956-1957`, `StyleScope.cpp:779-784`). The throttle gives one update per 100 ms, unthrottle one per
-frame: 6 against 36 in a 600 ms toolbar change at 60 Hz (Lean `unthrottle_costs_six_fold`). A measured Layout and
-RecalcStyle count per frame needs the Simulator lane with `engine.scroll:unthrottle` against the default; the lane's arm
-list is outside this task's writes.
+frame: 6 against 36 in a 600 ms toolbar change at 60 Hz (Lean `unthrottle_costs_six_fold`); at 120 Hz the same model gives 72 against 6, 12x (INFERRED arithmetic on the model, no Lean theorem). A measured Layout and
+RecalcStyle count per frame needs the Simulator lane with `engine.scroll:unthrottle` against the default; that arm belongs to
+follow-up task toolbar-sim-lane.
 
 ## (b), (c): decided without a flag
 
@@ -66,7 +66,7 @@ list is outside this task's writes.
 - (a) Simulator XCUITest (`toolbar-throttle.yml`): not built in this task; owned by follow-up task toolbar-sim-lane (arms default,
   `morph.mount:touch-first`, `morph.mount:open-once`, `engine.scroll:unthrottle`, `morph.panel:threaded`; per-arm counts and the 10 Hz
   `visualViewport.height` step count). Until it runs, (e), (a) have no felt count and (f) is a model.
-- (b), (f): decided from source and the Lean model,, as stated in the table.
+- (b), (f): decided from source and the Lean model, as stated in the table.
 - (c1) WKTR forced inset: not built in this task: writes exclude packages/measure-wktr; hook presence
   (beginInteractiveObscuredInsetsChange/setObscuredInsets, `ui-helper.js:2018-2050`, `UIScriptControllerIOS.mm:1486-1494`) in r324039
   INFERRED (no archive symbol check done); follow-up task toolbar-wktr-gate.
