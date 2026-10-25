@@ -21125,7 +21125,8 @@
     "results/morph-end-remeasure/**",
     "docs/team/handoffs/morph-end-remeasure.md"
    ],
-   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids."
+   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids.",
+   "evidence": "89ef437"
   },
   {
    "devices": [
@@ -21817,7 +21818,8 @@
     "apps/runner/src/land.ts",
     "lean/Fw/Parts/MorphMountToolbarGolden.lean",
     "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl"
-   ]
+   ],
+   "evidence": "00ddc54"
   },
   {
    "devices": [
@@ -21868,6 +21870,31 @@
     "scripts/codemagic.test.mjs",
     "docs/team/tools/ci-pool.md",
     "docs/team/handoffs/cross-pool-pooling.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-wktr-control",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "toolbar-wktr-gate"
+   ],
+   "title": "Follow-ups of toolbar-wktr-gate (landed 8dabcba6f; review 2026-10-26). (1) Negative control: add a 'compositable' fixture arm that runs a time-based transform animation (compositor-only), golden exempt=false (Lean gate_page_not_lifted), so the measured 32 ms (unthrottle) vs ~82 ms (other flags) gap is shown to come from the scroll-driven main-thread exemption, not from any extra page content. (2) The note research/notes/2026/10-2x-toolbar-wktr-gate.md says plainly that WKTR observes the arm sequence and the exemption only; the per-flag takes come from Node running the production gesture.ts step on the observed arm sequence (no touches are sent), so they are not an engine observation of the flag's gesture decision. (3) Close the writesClosure warnings: lean/Fw/Ci/Intent.lean and lean/Fw/Ci/Overflow.lean for wktr*.yml if the gate step needs them.",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "lean/Fw/Parts/MorphMountToolbar.lean",
+    "lean/Fw/Parts/MorphMountToolbarGolden.lean",
+    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-toolbar-wktr-gate.md",
+    "docs/team/handoffs/toolbar-wktr-control.md"
    ]
   }
  ],
