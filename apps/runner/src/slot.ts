@@ -575,7 +575,6 @@ export function nestedHeld(d: Deps, kind: Kind): boolean {
   return nestedSkips(nowS(), kind, token ? { owner: d.owner, token } : null, readState(d).holders);
 }
 
-/** A fresh path for the `lake` member a child `fw land --dry` hands up to this run's span (`LAKE_HANDOFF_ENV`). */
 const lakeHandoffFile = (): string => join(os.tmpdir(), `fw-slot-lake-${randomUUID()}.json`);
 const dropFile = (f: string | null): void => { if (f !== null) rmSync(f, { force: true }); };
 

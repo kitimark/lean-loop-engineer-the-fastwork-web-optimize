@@ -15,7 +15,7 @@ the module counts of the 46.3 s and 35.8 s samples INFERRED (not recorded).
   `slow`; it reuses `judgeQ_rebuild_noBaseline`) and `incident_outer_not_slow` (the three durations on both outer steps, any
   build list with a positive entry, so every total b > 0, any class-0 history).
 - Golden: `golden/obs/timing-outer.jsonl` (sum and class rows, replayed by `timing-work.test.ts`) and three rows in
-  `golden/obs/timing.jsonl` (the false alarm without the class is `slow`, with it `noBaseline`).
+  `golden/obs/timing.jsonl` (without the class the false alarm is `slow`, with it `noBaseline`).
 
 ## Sum, not max
 
@@ -35,7 +35,7 @@ Builds add: two checks that each built 3 modules did 6 modules of work, class 4 
 
 ## Accepted limits
 
-- `apps/runner/src/slot.ts` is outside this task's graph writes (listed in open). `fw slot` runs `slot-main` from the main
+- `apps/runner/src/slot.ts` is outside the graph writes. `fw slot` runs `slot-main` from the main
   checkout (`apps/runner/src/fw.ts`, `slotMainPath`), so the slot span member appears only after this branch lands; the
   real line shown above is the total span.
 - Old samples without the member stay unkeyed; `unkeyedLate` withholds a verdict from an unkeyed sample once keyed history

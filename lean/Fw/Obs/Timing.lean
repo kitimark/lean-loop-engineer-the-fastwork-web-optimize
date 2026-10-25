@@ -1566,9 +1566,6 @@ theorem incident_not_slow (hist : List Sample) (i b : Nat) (hb : 0 < b) (hc : �
   exact ⟨judgeQ_rebuild_noBaseline {} hist i _ b rfl hl hc m1 q1 c1 (by decide),
     judgeQ_rebuild_noBaseline {} hist i _ b rfl hl hc m2 q2 c2 (by decide)⟩
 
-/-- The lake work of an outer dry-land span: the sum of the modules each check it ran built. A rebuild is work done
-once per build, and builds add up; the max would call two builds of 30 modules one of 30. `maxBuilt_le_outerBuilt`
-keeps the sum above the max, so the sum's class never undercounts the largest build. -/
 def outerBuilt (xs : List Nat) : Nat := xs.sum
 
 def outerWork (xs : List Nat) : List (String × String) := modsWork (outerBuilt xs)
@@ -1590,8 +1587,6 @@ theorem maxBuilt_le_outerBuilt (xs : List Nat) (x : Nat) (hx : x ∈ xs) : x ≤
     · omega
     · have := ih h; omega
 
-/-- An outer span whose checks rebuilt a module has a mods class above 0, so against a class-0 history it has no
-baseline and is never `slow`. -/
 theorem outer_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (xs : List Nat)
     (hs : s.work = outerWork xs) (hx : ∃ x ∈ xs, 0 < x) (h : ∀ y ∈ hist, y.work = modsWork 0)
     (hm : s.mixed = false) (hq : queuedWithin s = false) (hc : ceilingBreach p s = false) (hn : 0 < p.nMin) :
@@ -1607,12 +1602,9 @@ theorem outer_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s 
     rw [this]; exact Nat.pow_pos (by decide)
   exact judgeQ_rebuild_noBaseline p hist i s _ hs hl h hm hq hc hn
 
-/-- The outer spans of a dry land: `fw land` `dry total lake` and `fw` `slot run land <command key> dry`. -/
 def outerSteps : List (String × String) :=
   [("fw land", "dry total lake"), ("fw", "slot run land pnpm fw land dry")]
 
-/-- The durations of the three `timing.slow` alerts of 2026-10-25 (46323 ms at 29bdbda, 35755 ms at 6df9009, 67391 ms
-at 231d867), each against a history near 23.3 s of dry lands that built nothing. -/
 def incidentOuterDurs : List Nat := [46323, 35755, 67391]
 
 def incidentOuter (ts : String × String) (d : Nat) (xs : List Nat) : Sample :=

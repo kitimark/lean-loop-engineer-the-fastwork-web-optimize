@@ -1,5 +1,3 @@
-// The outer `slot run land` span carries the child's lake member (Fw.Obs.Timing.outerBuilt, golden/obs/timing-outer.jsonl):
-// the child `fw land --dry` writes it to the file named by FW_SLOT_LAKE_FILE and `fw slot run` puts it on its span line.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
