@@ -13,6 +13,36 @@ import { attachFresh } from './poll.mjs';
 import { capped, waitForTarget } from './target.mjs';
 import { remainingMs } from './inspector.mjs';
 
+/**
+ * The Target-domain bookkeeping of one connection, as a pure step (TS stand-in; WebKit Target.json and TargetManager.js@862f17dc).
+ * A navigation that changes process creates a provisional page target (`isProvisional`), and `Target.didCommitProvisionalTarget`
+ * swaps it in for the old one, which is destroyed. Commands go to `targets.page` only once it is committed; a command that
+ * was sent to the old target never gets a reply, so the step names those targets in `swapped` and the caller fails them fast.
+ * state: { targets: { type: id }, provisional: { id: type } }; returns { state, swapped: { from, to } | null }.
+ */
+export function targetStep(state, m) {
+  const targets = { ...state.targets }, provisional = { ...state.provisional };
+  const done = (swapped = null) => ({ state: { targets, provisional }, swapped });
+  const p = m.params ?? {};
+  if (m.method === 'Target.targetCreated') {
+    const { targetId, type, isProvisional } = p.targetInfo;
+    if (isProvisional) provisional[targetId] = type; else targets[type] = targetId;
+    return done();
+  }
+  if (m.method === 'Target.didCommitProvisionalTarget') {
+    const type = provisional[p.newTargetId] ?? 'page';
+    delete provisional[p.newTargetId];
+    targets[type] = p.newTargetId;
+    return done({ from: p.oldTargetId, to: p.newTargetId });
+  }
+  if (m.method === 'Target.targetDestroyed') {
+    delete provisional[p.targetId];
+    for (const k in targets) if (targets[k] === p.targetId) delete targets[k];
+    return done();
+  }
+  return done();
+}
+
 /** Connect to a tab's websocket. Resolves once a page target exists. */
 export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
   const ws = new WebSocket(wsUrl);
@@ -26,7 +56,8 @@ export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
   } catch (e) { fail(e); } finally { clearTimeout(t); }
 
   let outerId = 0, innerId = 0, closed = null, selfClosed = false;
-  const targets = {}, pending = new Map(), listeners = new Set();
+  let tstate = { targets: {}, provisional: {} };
+  const pending = new Map(), listeners = new Set();
   let onClosed;
   const closedP = new Promise((r) => { onClosed = r; });
   const closedError = () => new Error(selfClosed ? 'connection closed by this tool' : `connection closed by the proxy (code ${closed?.code}): another inspector client took the tab?`);
@@ -38,8 +69,14 @@ export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
   });
   ws.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
-    if (m.method === 'Target.targetCreated') { targets[m.params.targetInfo.type] = m.params.targetInfo.targetId; return; }
-    if (m.method === 'Target.targetDestroyed') { for (const k in targets) if (targets[k] === m.params.targetId) delete targets[k]; return; }
+    if (m.method === 'Target.targetCreated' || m.method === 'Target.targetDestroyed' || m.method === 'Target.didCommitProvisionalTarget') {
+      const r = targetStep(tstate, m);
+      tstate = r.state;
+      if (r.swapped) {
+        for (const [iid, p] of pending) if (p.targetId === r.swapped.from) { pending.delete(iid); p.rej(Object.assign(new Error(`the page target was replaced by a navigation commit (${p.method})`), { swapped: true })); }
+      }
+      return;
+    }
     if (m.method !== 'Target.dispatchMessageFromTarget') return;
     const inner = JSON.parse(m.params.message);
     if (inner.id !== undefined && pending.has(inner.id)) {
@@ -47,15 +84,17 @@ export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
       inner.error ? p.rej(Object.assign(new Error(inner.error.message || JSON.stringify(inner.error)), { protocol: inner.error })) : p.res(inner.result);
     } else for (const l of listeners) l(inner, m.params.targetId);
   };
-  for (let i = 0; i < T(40) && !targets.page; i++) await sleep(100);
-  if (!targets.page) fail(new Error('no page target (is another inspector client attached to this tab?)'));
+  for (let i = 0; i < T(40) && !tstate.targets.page; i++) await sleep(100);
+  if (!tstate.targets.page) fail(new Error('no page target (is another inspector client attached to this tab?)'));
 
   const send = (method, params = {}, { timeoutMs: tmo = T(15000) } = {}) => new Promise((res, rej) => {
     if (closed) return rej(closedError());
+    const targetId = tstate.targets.page;
+    if (!targetId) return rej(new Error(`${method}: no committed page target (a navigation is between its old and new page)`));
     const iid = ++innerId;
     const timer = setTimeout(() => { pending.delete(iid); rej(new Error(`${method} timed out after ${tmo} ms`)); }, tmo);
-    pending.set(iid, { res: (v) => { clearTimeout(timer); res(v); }, rej: (e) => { clearTimeout(timer); rej(e); } });
-    ws.send(JSON.stringify({ id: ++outerId, method: 'Target.sendMessageToTarget', params: { targetId: targets.page, message: JSON.stringify({ id: iid, method, params }) } }));
+    pending.set(iid, { method, targetId, res: (v) => { clearTimeout(timer); res(v); }, rej: (e) => { clearTimeout(timer); rej(e); } });
+    ws.send(JSON.stringify({ id: ++outerId, method: 'Target.sendMessageToTarget', params: { targetId, message: JSON.stringify({ id: iid, method, params }) } }));
   });
   const evaluate = async (expression, opts) => {
     const r = await send('Runtime.evaluate', { expression, returnByValue: true }, opts);
