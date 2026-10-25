@@ -7,7 +7,7 @@ Delivered
 - Lean hardware key, k-pair row decision, budget, re-route: lean/Fw/Ci/PoolTier.lean, PoolTierWire.lean (ops ci.poolRows, ci.reroute), golden packages/contracts/golden/ci/pool-tier.jsonl
 - cm: ids in fw ci state and review evidence (lean/Fw/Plan/ReviewReady.lean runIdOf; scripts/codemagic.mjs state --build)
 - TS glue apps/runner/src/ci-pool-tier.ts (hwOf, classRowsOf, recordPair/readPairs, poolRows, rerouteQueued); webkit-sim.yml tools step prints hw
-- Poller call site: packages/gh-budget/src/poller.ts rerouteTick + Env.reroute hook (core.ts); test packages/gh-budget/test/reroute-tick.test.ts
+- Poller call site: packages/gh-budget/src/poller.ts rerouteTick + RerouteEnv.reroute hook (same file); test packages/gh-budget/test/reroute-tick.test.ts
 - Bug fixed: classRowsOf read the five-column merged table as zero rows (apps/runner/src/ci-pool-tier.ts, scripts/codemagic.mjs; test added)
 
 Verified: @fw/gh-budget 93 pass; @fw/runner 3609 pass (tsc + vitest); ci-paths and codemagic node tests pass; plan lint shows no cross-pool-pooling lines.

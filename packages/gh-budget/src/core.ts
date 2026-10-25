@@ -37,8 +37,6 @@ export type GhOut = { status: number | null; stdout: string; stderr: string };
 export type GhExec = (args: string[]) => GhOut;
 
 /** Everything the glue touches outside itself, so tests can run it on a simulated clock with a stub `gh`. */
-export type QueuedRun = { runId: number; workflow: string; sha: string; branch: string; queuedS: number };
-
 export type Env = {
   /** The shared directory (state, locks, runs-status): under the git common dir, so every worktree shares it. */
   dir: string;
@@ -49,9 +47,6 @@ export type Env = {
    *  in-process instead (a fake server; the spawn of a node process costs ~0.1 s and is all a replay of thousands of
    *  calls would spend). Production never sets it. */
   exec?: GhExec;
-  /** The re-route hook (glue, set by the runner): gets the runs the list shows as still queued, each with its age in
-   *  seconds. The decision to move one to Codemagic is Lean's (`ci.reroute`); the poller only hands the facts over. */
-  reroute?: (queued: QueuedRun[], now: number) => Promise<void>;
   mark?: (e: "loadStart" | "loadEnd") => void;
   /** Epoch seconds. */
   now(): number;

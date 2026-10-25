@@ -1,7 +1,7 @@
 // The elected poller's one step: ask `ci.budget.next`; on `issue` make ONE `gh run list` (every run created since
 // `createdSince`, one call covers all waiters) and write the runs-status file. Waiters read that file and call no gh.
 import { appendFileSync } from "node:fs";
-import type { Env, Json, QueuedRun } from "./core.ts";
+import type { Env, Json } from "./core.ts";
 import { GH_BOUNDS } from "./bounds.gen.ts";
 import { chargedCall } from "./charged.ts";
 import { LockBusy } from "./lock.ts";
@@ -11,6 +11,12 @@ import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeSta
 
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt,event,displayTitle";
 const PAGE = 100;
+
+export type QueuedRun = { runId: number; workflow: string; sha: string; branch: string; queuedS: number };
+
+/** The env of a poller that may re-route: `reroute` gets the runs the list shows as still queued, each with its age in
+ *  seconds. The decision to move one to Codemagic is Lean's (`ci.reroute`); the poller only hands the facts over. */
+export type RerouteEnv = Env & { reroute?: (queued: QueuedRun[], now: number) => Promise<void> };
 
 export type TickStatus = Status & { interval?: number; retryUntil?: number };
 
@@ -62,11 +68,11 @@ function drainLocked(env: Env, lockWaitMs?: number): number {
   }, lockWaitMs);
 }
 
-export async function pollOnce(env: Env, lockWaitMs: number = GH_BOUNDS.pollLockWaitMs): Promise<Poll> {
+export async function pollOnce(env: RerouteEnv, lockWaitMs: number = GH_BOUNDS.pollLockWaitMs): Promise<Poll> {
   try { return await pollTick(env, lockWaitMs); } finally { drainIncidents(env, lockWaitMs); }
 }
 
-async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
+async function pollTick(env: RerouteEnv, lockWaitMs: number): Promise<Poll> {
   const res = await chargedCall(
     env,
     // under the state lock: the waiters dir is read here, so fwcore sweeps the watches whose waiter is gone before it
@@ -122,7 +128,7 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
 
 /** Hand the still-queued runs of the list to `env.reroute` (the Lean decision `ci.reroute` lives behind it). No hook, no
  *  queued run, or a failing hook: nothing happens and the tick goes on (a failed move leaves the run on GitHub). */
-export async function rerouteTick(env: Env, rows: Row[], now: number): Promise<number> {
+export async function rerouteTick(env: RerouteEnv, rows: Row[], now: number): Promise<number> {
   if (!env.reroute) return 0;
   const queued: QueuedRun[] = rows
     .filter((r) => r.status === "queued")
