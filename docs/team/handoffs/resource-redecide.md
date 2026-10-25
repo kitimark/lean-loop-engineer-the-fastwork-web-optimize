@@ -21,8 +21,12 @@
 
 ## Open
 
-- Strip WebKit layer bound 72 is refuted on the phone (y 1500 drops at least 74); dropping it needs
-  `resource-check.test.mjs` to accept 3 bounds (outside this task's writes).
+- Round 2 applied the 3 round-1 fixes (note: basis column, panel:rest Paint rise raw MEASURED and decided trade
+  INFERRED, strip bytes per state); `mechanisms` row for panel:rest WebKit says the same.
+- Follow-up: strip WebKit layer bound 72 and bytes bound 2,287,000 B are refuted on the phone; dropping them needs
+  `resource-check.test.mjs` to accept fewer bounds (outside this task's writes).
+- Follow-up: `moved` has no VM load or quarantine input (scene-pause style, panel:rest Paint).
+- Follow-up: `Exclusion.resourceTrade` is a guarded hand list; derive it from the verdict once the cone issue is solved.
 - Range bounds need a spread rule before per-state CI layer rows enter (panel:rest y 3000).
 - Scene-pause WebKit style rise (MEASURED) has no mechanism lemma.
 - Strip enters `v2-proved` only after its trajectory cells pass (CI) and Chromium is decided.

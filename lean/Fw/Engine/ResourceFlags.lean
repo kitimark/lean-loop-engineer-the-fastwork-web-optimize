@@ -569,7 +569,7 @@ def mechanisms : List (String × Eng × Res × String) :=
    ("hero:scene-pause", .webkit, .event,
      "OPEN: the INFERRED source fall is not seen; EventDispatch is inside the pass spread on a non-slow arm"),
    ("morph.panel:rest", .webkit, .paintRec,
-     "MEASURED: Paint records rise on rest frames (panel-rest-n11); INFERRED: the group layer's re-attach paint per toggle (panel_repaint_up)")]
+     "raw MEASURED: Paint records rise on rest frames, quarantined and load-confounded (panel-rest-n11); the decided trade is INFERRED, from the group layer's re-attach paint per toggle (panel_repaint_up)")]
 
 def ledgerLabels : List (String × Eng × String) :=
   [("hero.exit:threaded", .chromium, "trade"), ("hero.exit:threaded", .webkit, "trade"),

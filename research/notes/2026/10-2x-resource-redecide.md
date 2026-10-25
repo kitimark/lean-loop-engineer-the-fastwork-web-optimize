@@ -8,14 +8,14 @@ budget B), which preset rows change? Rows: `morph.countdown:strip` on WebKit (le
 
 ## Answer
 
-| flag | engine | predicted | decided | preset effect |
-|---|---|---|---|---|
-| morph.countdown:strip | WebKit | win | win | none yet: the trajectory cells are pending and Chromium is open |
-| morph.countdown:strip | Chromium | open | open | none |
-| morph.columns:idle-none | Chromium | open | open | none: still no ledger link (`why` no-link) |
-| morph.columns:idle-none | WebKit | open | open | none |
-| morph.panel:rest | WebKit | trade | trade | stays excluded; the reason is now the decided verdict |
-| morph.panel:rest | Chromium | trade | trade | stays excluded |
+| flag | engine | predicted | decided | basis | preset effect |
+|---|---|---|---|---|---|
+| morph.countdown:strip | WebKit | win | win | INFERRED win: gated falls are predictions (strip_units, strip_repaint_down); phone counts inside base spread, 3 strip passes, every visit ended Serious (mixed thermal) | none yet: the trajectory cells are pending and Chromium is open |
+| morph.countdown:strip | Chromium | open | open | INFERRED, no phone row | none |
+| morph.columns:idle-none | Chromium | open | open | INFERRED style; phone rows same, mixed thermal (Serious at visit end) | none: still no ledger link (`why` no-link) |
+| morph.columns:idle-none | WebKit | open | open | INFERRED style; phone rows same, mixed thermal (Serious at visit end) | none |
+| morph.panel:rest | WebKit | trade | trade (INFERRED; CI only, no phone row) | INFERRED (see per-row), CI only | stays excluded; the reason is now the decided verdict |
+| morph.panel:rest | Chromium | trade | trade | MEASURED, CI only | stays excluded |
 
 The `v2-proved` preset is unchanged (`{"engine.scroll":"unthrottle"}`). No row in this task is in the look-change class
 (`part.json` has no `visClass` for strip, idle-none or rest), so none waits on the user's visual review.
@@ -51,7 +51,9 @@ and B stays INFERRED.
 The strip's layer bound of 72 per census state (the clock's own layers) fails on the phone (MEASURED,
 `thermalStripLayers`): drops by range are 74, 78, 72, 73, 72 at y 0, 1500, 3000, 4500, 5267, and at y 1500 every pass
 pair drops at least 74. Those rows stay outside `observations`, since the golden replay test fixes the bound count at 4.
-Backing per state rises by 2,120,288 B at y 0, inside the clock backing (`thermalStripBytes`).
+Backing per state rises by 2,120,288 B at y 0 in all 3 strip passes; at y 3000 and y 4500 one of 3 strip passes is
+7,432,880 B and 23,284,400 B above the base (constant over 9 passes), beyond the 2,287,000 B clock-backing bound; like
+the layer rows they stay outside `observations` (MEASURED, thermalStripBytes). The peak still fits B (strip_peaks_fit).
 
 **morph.countdown:strip, Chromium: open.** Repaint stays unknown: faces and strips both own their layers, so per-frame
 repaint is the same (`own_frame_repaint`), and Chromium's off-screen tile retention is not modelled.
@@ -63,10 +65,12 @@ rows). A measured `same` does not resolve an unknown, so both engines stay open.
 
 **morph.panel:rest, WebKit: trade.** Repaint is now up (`panel_repaint_up`, INFERRED premise: each none to blur toggle
 re-attaches the group layer; no theorem links `filterToggle` to the re-attach). CI webkit-sim 40174475566 (base) vs
-40174472900 (flag), 6 passes each, not slow: Paint records 1352 to 1409 against 1433 to 1678, up (MEASURED, disagrees
-with the predicted `same`); repaint area, style, layout and EventDispatch inside the spread; backing summed over y ≥ 3000
-347,962 to 358,260 KiB against 304,047, down (MEASURED, agrees). Per-state layers (y 3000: 136 to 140 against 135 to
-139) are not added: the range spread exceeds the bound of 1, so the bound check needs a spread rule (follow-up).
+40174472900 (flag), 6 passes each, not slow: Paint records 1352 to 1409 against 1433 to 1678, up (raw MEASURED:
+quarantined by measure.classify and load-confounded, flag VMs 30 to 40 percent higher loadCenti, panel-rest-n11; the
+decided trade is INFERRED, and the predicted trade rests on the INFERRED panel_repaint_up premise); repaint area, style,
+layout and EventDispatch inside the spread; backing summed over y ≥ 3000 347,962 to 358,260 KiB against 304,047, down
+(MEASURED, agrees). Per-state layers (y 3000: 136 to 140 against 135 to 139) are not added: the range spread exceeds the
+bound of 1, so the bound check needs a spread rule (follow-up).
 
 **morph.panel:rest, Chromium: trade** (unchanged, `MorphPanelOpt.crO/crV`; ledger n = 11 MEASURED, runs 40174480097 /
 40174482844). In `Gen.lean` the exclusion is `Exclusion.resourceTrade`; a `#guard` in `Fw.Engine.Resource.Preset`
@@ -97,8 +101,15 @@ with the predicted `same`); repaint area, style, layout and EventDispatch inside
 
 ## Open
 
-- Drop the strip WebKit layer bound (phone refutes it) and add `thermalStripLayers` to `observations`: needs
-  `packages/measure-webkit/test/resource-check.test.mjs` to accept 3 bounds.
+- Drop the strip WebKit layer bound of 72 and bytes bound of 2,287,000 B (the phone refutes both: layer drops 74 and
+  78, one pass +23,284,400 B at y 4500) and add `thermalStripLayers` and `thermalStripBytes` to `observations`: needs
+  `packages/measure-webkit/test/resource-check.test.mjs` to accept fewer bounds (follow-up).
+- `moved` takes no VM load or quarantine input: the scene-pause WebKit style rise (6 to 37 records) and the panel:rest
+  WebKit Paint rise can both be load-confounded. Add a load/quarantine input to `moved`, or re-run on matched VMs
+  (follow-up).
+- `Exclusion.resourceTrade` in `Gen.lean` is a hand list checked by a `#guard`; a flag that becomes a decided trade on
+  every engine is excluded only once someone adds it. Derive the exclusion from the verdict once the `include_str` cone
+  issue is solved (follow-up).
 - Bounds against ranges need a spread rule before per-state CI layer rows can enter (panel:rest y 3000).
 - The scene-pause WebKit style rise needs a mechanism lemma.
 - `Gen.lean` does not import `ResourceFlags.lean`: the parts modules it imports read `golden/parts/*.jsonl` by
