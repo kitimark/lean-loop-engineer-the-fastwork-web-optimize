@@ -57,6 +57,22 @@ export function writeStats(writes) {
   return out;
 }
 
+export function nativeWrites(writes, moves) {
+  const sorted = [...moves].sort((a, b) => a[0] - b[0]);
+  let n = 0;
+  let px = 0;
+  for (const [t, top, before] of writes) {
+    if (Math.abs(top - before) < 0.5) continue;
+    let last = null;
+    for (const m of sorted) {
+      if (m[0] > t) break;
+      last = m;
+    }
+    if (last !== null && last[2] === 0) { n++; px += Math.abs(top - before); }
+  }
+  return { n, px };
+}
+
 export function cycles(ms) {
   let opens = 0;
   let closes = 0;
@@ -69,6 +85,6 @@ export function cycles(ms) {
 
 export const ranScripted = (c) => c.opens >= 2 && c.closes >= 1;
 
-export function metrics({ ts, ys, down, writes, ms = [] }) {
-  return { frames: ys.length, reversalsNoFinger: reversalsNoFinger(ys, down), jumps: jumps(ys), scriptJumps: scriptJumps(ts, ys, writes), writes: writeStats(writes), morph: cycles(ms) };
+export function metrics({ ts, ys, down, writes, ms = [], moves = [] }) {
+  return { frames: ys.length, reversalsNoFinger: reversalsNoFinger(ys, down), jumps: jumps(ys), scriptJumps: scriptJumps(ts, ys, writes), writes: writeStats(writes), native: nativeWrites(writes, moves), morph: cycles(ms) };
 }
