@@ -5995,7 +5995,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/gate-breakpoints/src/scope.gen.json",
-    "lean/Fw/Gate/Scope.lean"
+    "lean/Fw/Gate/Scope.lean",
+    "lean/scripts/MorphPanelRestGolden.lean"
    ]
   },
   {
