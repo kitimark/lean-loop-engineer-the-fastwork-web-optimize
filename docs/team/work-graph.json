@@ -21554,7 +21554,8 @@
    "stream": "measure",
    "deps": [
     "phone-end-counts",
-    "phone-thermal-check"
+    "phone-thermal-check",
+    "phone-thermal-pin"
    ],
    "writes": [
     "results/phone/2026-10-2x-compose/**",
@@ -21593,6 +21594,34 @@
     "docs/team/handoffs/resource-redecide.md"
    ],
    "title": "Re-decide preset rows with the landed resource verdict (resource-footprint, user 2026-10-25: a GPU-memory cost is acceptable when main-thread work falls, within budget B). Inputs: becomesWin = [morph.countdown:strip on WebKit], leavesWin = [morph.columns:idle-none both engines (open), morph.panel:rest WebKit (open; panel-rest-n11 measured a raw WebKit Paint rise and a Chromium trade, curated exclusion)]. Wait for phone-thermal-check's strip re-measure (strip stalled twice on the phone 2026-10-25) before moving strip into a preset; look-change flags still go to the look-change class for the user's visual review. Also take the resource-footprint review follow-ups: idle-none style sign marked INFERRED (removal treated as pause) or a removal lemma; the WebKit scene-pause event fall needs a CI eventDispatch measurement on a non-slow arm; name the mixed phone+Simulator source of the strip peak; derive repaint signs from changePx/repaintPx at DPR 3 for logo-3d, strip and panel:rest. Gen changes only through the Lean verdict; regenerate the preset goldens; per-row note with MEASURED/INFERRED tags."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-thermal-pin",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-thermal-check"
+   ],
+   "writes": [
+    "lean/Fw/Device/Thermal.lean",
+    "packages/contracts/golden/device/thermal.jsonl",
+    "lean/Fw/Device/PhoneArms.lean",
+    "packages/contracts/golden/device/phone-arms.jsonl",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/measure-webkit/src/device-thermal*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/src/device-phone-*.mjs",
+    "packages/measure-webkit/test/device-thermal*.test.mjs",
+    "packages/measure-webkit/test/device-phone-*.test.mjs",
+    "docs/team/tools/*.md",
+    "research/notes/2026/10-25-phone-thermal-pin.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/phone-thermal-pin.md"
+   ],
+   "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode."
   }
  ],
  "deadline": {
