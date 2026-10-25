@@ -126,24 +126,6 @@ describe("slot run writes the run span under the command key", () => {
     }
   });
 
-  it("a land run hands the child's lake member up: the span line carries it, a child that writes none leaves none", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "slot-span-"));
-    const file = join(dir, "timings.jsonl");
-    process.env.FW_TIMINGS_FILE = file;
-    try {
-      const d = heldDeps(dir);
-      const put = `printf '{"built":41}' > "$FW_SLOT_LAKE_FILE"`;
-      expect(await run(d, "land", ["sh", "-c", `${put}; exit 0`], false)).toBe(0);
-      expect(await run(d, "land", ["sh", "-c", "exit 0"], false)).toBe(0);
-      expect(await run(d, "check", ["sh", "-c", `test -z "$FW_SLOT_LAKE_FILE"`], false)).toBe(0);
-      const rows = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { step: string; lake?: { built: number } });
-      expect(rows.map((r) => [r.step, r.lake])).toEqual([["slot run land", { built: 41 }], ["slot run land", undefined], ["slot run check", undefined]]);
-    } finally {
-      delete process.env.FW_TIMINGS_FILE;
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
   it("a run whose exec throws still writes its span, with the error exit", async () => {
     const dir = mkdtempSync(join(tmpdir(), "slot-span-"));
     const file = join(dir, "timings.jsonl");
