@@ -20296,7 +20296,13 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "research/notes/2026/10-2x-columns-final-scale.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/columns-final-scale.md"
+    "docs/team/handoffs/columns-final-scale.md",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/MorphColumnsScaleGolden.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl"
    ],
    "title": "End-of-page GPU candidate 1 (research/notes/2026/10-2x-end-gpu-map.md): morph.columns:final-scale, a composer brick (look-change class): lay the 5 column tracks out once at the final panel width and scale each by a per-column transform during the morph, removing the per-frame re-layout of 21 images and the new track surfaces. Lean first: equal column edges per frame, a bound on the look change (gap, radius and drift scale by s, s >= 0.97 at 390 px INFERRED), then Chromium Layout counts and Simulator backing MB/Composite per finish zone (run ids), then the user's look review."
   },
@@ -20775,7 +20781,8 @@
     "packages/measure-webkit/src/throttle/pass-run.mjs",
     "packages/measure-webkit/src/throttle/parts-cli.mjs"
    ],
-   "title": "Blocker for every Simulator measurement (morph-end-measure run 40105567688: 6 of 6 sim jobs failed or cancelled; unthrottle-parts-measure finish run 40101695202 lost its lifted arms; rest run 40101702393 two VMs stalled in warm-up): the touch driver times out ('touches failed (code null, timed out) in 300 s', 'not usable (touch driver timed out); trying once more'), simctl openurl times out, and warm-up stalls at load ~560. Find the cause CONFIRMED from the driver source, the job logs and the Simulator/XCTest docs (one debug run on this Mac allowed, <= 5 min, sim-lock), then fix it (driver timeouts sized to the measured pass length, a readiness probe before touches, a per-pass watchdog that restarts the Simulator instead of burning the job), with the retry/readiness decision proved in Lean and a golden replayed by a test. Show on CI that a finish-mode and a hero-drag job each complete all arms (3 jobs, free macOS runners)."
+   "title": "Blocker for every Simulator measurement (morph-end-measure run 40105567688: 6 of 6 sim jobs failed or cancelled; unthrottle-parts-measure finish run 40101695202 lost its lifted arms; rest run 40101702393 two VMs stalled in warm-up): the touch driver times out ('touches failed (code null, timed out) in 300 s', 'not usable (touch driver timed out); trying once more'), simctl openurl times out, and warm-up stalls at load ~560. Find the cause CONFIRMED from the driver source, the job logs and the Simulator/XCTest docs (one debug run on this Mac allowed, <= 5 min, sim-lock), then fix it (driver timeouts sized to the measured pass length, a readiness probe before touches, a per-pass watchdog that restarts the Simulator instead of burning the job), with the retry/readiness decision proved in Lean and a golden replayed by a test. Show on CI that a finish-mode and a hero-drag job each complete all arms (3 jobs, free macOS runners).",
+   "evidence": "564a200"
   },
   {
    "devices": [
@@ -21198,7 +21205,8 @@
     "lean/Fw/Obs/Timing.lean",
     "packages/contracts/golden/obs/**",
     "research/notes/2026/10-2x-lake-span-total.md",
-    "docs/team/handoffs/lake-span-total.md"
+    "docs/team/handoffs/lake-span-total.md",
+    "apps/runner/src/slot.ts"
    ],
    "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed."
   },
