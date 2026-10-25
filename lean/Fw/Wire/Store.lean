@@ -22,6 +22,7 @@ no partial operations. Flags are strings `"part:variant"`; digests are lowercase
 | `store.manifest` | `manifest` {engine, target, preset, fw [`part:variant`], profile, gitSha, image, runs, runId, entries [{name, digest, bytes}]} | `valid`, `problems`, `key` [[name, value]] (when the engine and the target are known), `paths` [object path per entry] (when valid) |
 | `store.objectPath` | `digest` (64 hex) | `path` |
 | `store.ciRun` | `run` {runId, workflowName, status, conclusion (null = empty), headSha, jobs [{name, conclusion (null = empty)}]}, `artifacts`? [{name, profile, image, search? (default empty), target?}] (the downloaded shard artifacts with their `counts.json` / `image-id.txt` facts; absent = the check before the download), `classes`? [dir under chromium-classes] (default empty) | `accept`, `refusals` [string], `targets` [{target, classes, shards [{artifact, dir}], meta? {engine, target, preset, fw, profile, gitSha, image, runs, runId}, key? [[name, value]]}] (empty when refused; `meta`, `key` after the download) |
+| `store.download` | `engine` (`chromium` or `webkit`), `target`? (default `rewrite`; an original webkit run names its VMs `v<n>` and adds `webkit-classes`), `runs` (1 to 3 for webkit), `served`? (responses seen before a timeout; default 0) | `pieces` [{pattern, kb, timeoutMs, cost}] (one `gh run download --pattern` each), `retryCost` (charge of the one retry of a piece that timed out), `maxHoldMs` |
 | `store.reduce` | `kMax`, `tMax`, `pxRel`? {num, den}, `arms` [{engine, base (≥ 2 runs), var (≥ 1 run)}], each run an array of frames or an object with `frames` | `noMoreWork`, `arms` [{engine, noMoreWork, failing [type], types [{type, class, ok}]}] |
 -/
 namespace Fw.Wire.Store
@@ -158,7 +159,26 @@ def opObjectPath (req : Json) : Except String Reply := do
   if !isHex 64 d then throw "digest must be 64 lowercase hex digits"
   pure [("path", .str (objectPath d))]
 
-/-- Encode a class. -/
+def opDownload (req : Json) : Except String Reply := do
+  let en ← str req "engine"
+  let e ← match Engine.ofName en with
+    | some e => pure e
+    | none => throw s!"engine: {en} is not chromium or webkit"
+  let t ← match opt req "target" with
+    | none => pure Target.rewrite
+    | some _ =>
+      let tn ← str req "target"
+      match Target.ofName tn with
+      | some t => pure t
+      | none => throw s!"target: {tn} is not original or rewrite"
+  let n ← nat req "runs"
+  if n < 1 then throw "runs: not a positive count"
+  if e == Engine.webkit && webkitMaxVms < n then throw "runs: webkit-sim takes at most 3 VMs"
+  let served ← natD req "served" 0
+  pure [("pieces", .arr ((downloadPieces e t n).toArray.map fun p =>
+          Json.mkObj [("pattern", .str p.pattern), ("kb", toJson p.kb), ("timeoutMs", toJson p.timeoutMs), ("cost", toJson p.cost)])),
+        ("retryCost", toJson (retryCost dlRule.cost served)), ("maxHoldMs", toJson dlRule.maxHoldMs)]
+
 def classJ : Class → Json
   | .deterministic => Json.mkObj [("class", .str "deterministic")]
   | .stable k t => Json.mkObj [("class", .str "stable"), ("k", toJson k), ("t", toJson t)]
@@ -245,9 +265,8 @@ theorem webkit_vms_accepted {q : Request} (h : reqProblems q = []) (hw : Engine.
   simp
   omega
 
-def ops : List String := ["store.plan", "store.gate", "store.trajectory", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun"]
+def ops : List String := ["store.plan", "store.gate", "store.trajectory", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun", "store.download"]
 
-/-- Dispatch a `store.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "store.plan" => some (opPlan req)
@@ -257,6 +276,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "store.objectPath" => some (opObjectPath req)
   | "store.reduce" => some (opReduce req)
   | "store.ciRun" => some (opCiRun req)
+  | "store.download" => some (opDownload req)
   | _ => none
 
 end Fw.Wire.Store

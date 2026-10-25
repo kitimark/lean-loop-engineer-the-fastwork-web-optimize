@@ -1340,14 +1340,17 @@
    "added": []},
   "morph.columns":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
-   "probes": ["desk-640", "desk-641", "desk-rm-319", "desk-rm-641"],
+   "probes": ["desk-640", "desk-641", "desk-1000", "desk-1001", "desk-rm-319", "desk-rm-641", "desk-rm-1001"],
    "owners": ["morph.columns"],
    "knees": [],
-   "key": ["(prefers-reduced-motion: reduce)", "(width<=640px)"],
+   "key": ["(prefers-reduced-motion: reduce)", "(width<=640px)", "(width<=1000px)"],
    "extra": [],
    "dismissed": [],
-   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]},
-   "added": []},
+   "conditions": {"rewrite": ["mq.rm-reduce", "mq.w-le-1000", "mq.w-le-640"], "orig": ["mq.rm-reduce", "mq.w-le-640"]},
+   "added":
+   [{"why":
+     "the final-scale variant lays the columns out at their final width up to 1000 px and scales them by transform",
+     "id": "mq.w-le-1000"}]},
   "hero.orbit":
   {"sweeps": ["desktop-1512-320-1512", "phone-rotation", "pain-1440-600-1440"],
    "probes":

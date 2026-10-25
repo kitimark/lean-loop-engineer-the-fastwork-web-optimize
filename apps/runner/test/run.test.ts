@@ -138,7 +138,7 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(calls.some((c) => c[0] === "workflow")).toBe(true);
     expect(waits.at(-1)).toMatchObject({ kind: "branch", branch: "ci/t", sha: SHA });
     expect(calls.some((c) => c[1] === "watch")).toBe(false);
-    expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["workflow run", "run view", "run download"]);
+    expect(calls.map((c) => c.slice(0, 2).join(" "))).toEqual(["workflow run", "run view", ...Array(5).fill("run download")]); // 3 counts shards, classes, telemetry: no build output
     expect(readdirSync(tmp)).toEqual([]);
     expect(waits.at(-1)).toMatchObject({ want: { kind: "dispatch", workflow: "chromium-counts", nonce: "n0nce1234" } });
     const planned = planRun(call, args, SHA, store);

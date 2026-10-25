@@ -64,6 +64,7 @@ import Fw.Parts.MorphMountArmLate
 import Fw.Parts.MorphMountArmLateGolden
 import Fw.Parts.ReactRootOpt
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitCloseStart
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
@@ -76,6 +77,7 @@ import Fw.Parts.PeopleDeckOpt
 import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PeopleOPreview
 import Fw.Parts.MorphIdleNone
+import Fw.Parts.MorphColumnsScale
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
@@ -212,6 +214,7 @@ import Fw.Ci.State
 import Fw.Obs.MacTelemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Gate.Exit
+import Fw.Gate.FlagDelta
 import Fw.Gate.WebkitScreen
 import Fw.Spec.AxReach
 import Fw.Spec.ConeMiss
