@@ -260,9 +260,90 @@ theorem strip_schedule_still_gt (own : Nat) : pageFaithful false own 0 < pageAlw
 theorem oneChain_le_alwaysOn (sh : Bool) (own n : Nat) : pageOneChain sh own n ≤ pageAlwaysOn sh own n := by
   simp only [pageOneChain, pageAlwaysOn]; split <;> omega
 
-/-! ## Golden rows (`packages/contracts/golden/parts/hero.countdown.onechain.jsonl`) -/
+/-! ## Where in the frame the digits run
+A layout read flushes dirty style (Chromium `local_dom_window.cc:1877`@f842f52; WebKit `LocalDOMWindow.cpp:1476-1480`@862f17d). -/
 
-/-- A golden event: a refresh starting digits with their remaining spring frames, or a frame at a time in ms. -/
+inductive FEv where
+  | read
+  | faces
+  | mutate
+  | other
+
+structure Dirt where
+  faces : Bool
+  walk : Bool
+  other : Bool
+
+def flushElems (f o m : Nat) (d : Dirt) : Nat :=
+  if d.walk then m else (if d.faces then f else 0) + (if d.other then o else 0)
+
+def fstep (f o m : Nat) (x : Dirt × Nat × Nat) : FEv → Dirt × Nat × Nat
+  | .read =>
+    if x.1.faces || x.1.walk || x.1.other then (⟨false, false, false⟩, x.2.1 + 1, x.2.2 + flushElems f o m x.1)
+    else x
+  | .faces => ({ x.1 with faces := true }, x.2)
+  | .mutate => ({ x.1 with walk := true }, x.2)
+  | .other => ({ x.1 with other := true }, x.2)
+
+def frameCost (f o m : Nat) (evs : List FEv) : Nat × Nat :=
+  let r := (evs ++ [FEv.read]).foldl (fstep f o m) (⟨false, false, false⟩, 0, 0)
+  (r.2.1, r.2.2)
+
+structure Kind where
+  pre : List FEv
+  subs : List (List FEv)
+  faithfulFirst : Bool
+
+def place (k : Kind) (first : Bool) : List FEv :=
+  k.pre ++ (if first then FEv.faces :: k.subs.flatten else k.subs.flatten ++ [FEv.faces])
+
+def orderFaithful (k : Kind) : List FEv := place k k.faithfulFirst
+
+def orderAtSubscriber (k : Kind) : List FEv := place k true
+
+def orderLast (k : Kind) : List FEv := place k false
+
+def kind499 : Kind := ⟨[], [[FEv.read, FEv.mutate]], false⟩
+
+def kindEarly : Kind := ⟨[FEv.other], [[FEv.read]], true⟩
+
+theorem frame499_faithful (f o m : Nat) : frameCost f o m (orderFaithful kind499) = (1, m) := by
+  simp [frameCost, orderFaithful, place, kind499, fstep, flushElems]
+
+theorem frame499_atSubscriber (f o m : Nat) : frameCost f o m (orderAtSubscriber kind499) = (2, f + m) := by
+  simp [frameCost, orderAtSubscriber, place, kind499, fstep, flushElems]
+
+theorem frame499_last (f o m : Nat) : frameCost f o m (orderLast kind499) = (1, m) := by
+  simp [frameCost, orderLast, place, kind499, fstep, flushElems]
+
+theorem early_faithful (f o m : Nat) : frameCost f o m (orderFaithful kindEarly) = (1, f + o) := by
+  simp [frameCost, orderFaithful, place, kindEarly, fstep, flushElems]
+
+theorem early_atSubscriber (f o m : Nat) : frameCost f o m (orderAtSubscriber kindEarly) = (1, f + o) := by
+  simp [frameCost, orderAtSubscriber, place, kindEarly, fstep, flushElems]
+
+theorem early_last (f o m : Nat) : frameCost f o m (orderLast kindEarly) = (2, f + o) := by
+  simp [frameCost, orderLast, place, kindEarly, fstep, flushElems, Nat.add_comm]
+
+theorem no_fixed_order (f o m : Nat) (first : Bool) :
+    (frameCost f o m (place kind499 first)).1 > (frameCost f o m (orderFaithful kind499)).1 ∨
+    (frameCost f o m (place kindEarly first)).1 > (frameCost f o m (orderFaithful kindEarly)).1 := by
+  cases first <;> simp [frameCost, orderFaithful, place, kind499, kindEarly, fstep, flushElems]
+
+theorem extra_updates (f o m : Nat) :
+    (frameCost f o m (orderAtSubscriber kind499)).1 = (frameCost f o m (orderFaithful kind499)).1 + 1 ∧
+    (frameCost f o m (orderAtSubscriber kindEarly)).1 = (frameCost f o m (orderFaithful kindEarly)).1 ∧
+    (frameCost f o m (orderLast kind499)).1 = (frameCost f o m (orderFaithful kind499)).1 ∧
+    (frameCost f o m (orderLast kindEarly)).1 = (frameCost f o m (orderFaithful kindEarly)).1 + 1 := by
+  simp [frameCost, orderAtSubscriber, orderLast, orderFaithful, place, kind499, kindEarly, fstep, flushElems]
+
+#guard frameCost 10 134 320 (orderFaithful kind499) == (1, 320)
+#guard frameCost 10 134 320 (orderAtSubscriber kind499) == (2, 330)
+#guard frameCost 10 134 320 (orderLast kind499) == (1, 320)
+#guard frameCost 10 134 320 (orderFaithful kindEarly) == (1, 144)
+#guard frameCost 10 134 320 (orderAtSubscriber kindEarly) == (1, 144)
+#guard frameCost 10 134 320 (orderLast kindEarly) == (2, 144)
+
 inductive GEv where
   | refresh (started : List (Nat × Nat))
   | frame (t : Nat)
@@ -311,9 +392,14 @@ def row (sc : String × List GEv) : Lean.Json :=
      ("frames", Lean.Json.arr ((frames sc.2).map fun x => Lean.Json.mkObj
         [("steps", Lean.toJson x.1), ("faithful", x.2.1), ("oneChain", x.2.2)]).toArray)]
 
-def goldenText : String := String.join (scenarios.map fun sc => (row sc).compress ++ "\n")
+def orderRow : Lean.Json :=
+  let c := fun (o : List FEv) => let r := frameCost 10 134 320 o; Lean.toJson [r.1, r.2]
+  let kj := fun (k : Kind) =>
+    Lean.Json.mkObj [("faithful", c (orderFaithful k)), ("atSubscriber", c (orderAtSubscriber k)), ("last", c (orderLast k))]
+  Lean.Json.mkObj [("scenario", "orders"), ("frame499", kj kind499), ("early", kj kindEarly)]
 
-/-- Print the golden, or with `--check <file>` exit 1 unless the file equals it byte for byte. -/
+def goldenText : String := String.join (scenarios.map fun sc => (row sc).compress ++ "\n") ++ orderRow.compress ++ "\n"
+
 def goldenMain (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
