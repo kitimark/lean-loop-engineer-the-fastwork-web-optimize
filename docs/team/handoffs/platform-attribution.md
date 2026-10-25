@@ -29,3 +29,5 @@ open: read the 5 WebKit runs (`gh run download <id> -p 'webkit-sim-r*'`, then `n
 --arm base=<dirs> --arm name=<dirs>`), write research/notes/2026/10-2x-platform-attribution.md and ledger notes (+ apps/runner ledger-merge
 test), check.sh, tests, merge main, lake build, plan lint, review ready, dry land. If WebKit is still queued: report waiting.
 conventions: waiters die with the session; read runs with gh run view/list. Scratch in scratchpad/pat/.
+
+restart check (22:03 UTC 2026-10-25): sweep head-sha question settled. 40236443781 (old sweep, 063b150) was cancelled; 40236459376 (Chromium old sweep) is superseded by 40237508223 (86b876b); WebKit sweep is 40237513521 (86b876b). No re-push needed (1 push left, unused). All 5 WebKit runs still queued (no runner yet).
