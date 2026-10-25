@@ -575,7 +575,9 @@
    "part": "morph.panel (platform panel)",
    "candidate": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
    "status": "proved",
-   "flags": [],
+   "flags": [
+    "morph.panel:rest"
+   ],
    "chromium": "trade",
    "webkit": "win",
    "visual": "E at rest, under premise RG10: no fixed or absolute descendant uses the panel as its containing block, and the stacking order is unchanged (rest_visSame_E). During the fade the scenes are equal without premises (fade_scene_eq).",
@@ -613,7 +615,7 @@
     }
    ],
    "premises": [
-    "RG10: OPEN (check on the rewrite DOM)",
+    "RG10: CONFIRMED on the rewrite DOM, Chromium, 10 widths 320 to 1440: 54 absolute and 0 fixed descendants, each with a positioned or transformed ancestor below the section (task panel-rest-n11). OPEN: a fractional section edge changes one pixel row (721 px, 720 to 734 px per clip, MEASURED), so the visual class is E only without that premise",
     "the lane panel may already be composited (own): OPEN, unverified",
     "z-index auto in the lane band, so the filter is the only stacking reason: CONFIRMED",
     "WebKit toggle frames equal (wk_toggle_eqv) on the variant page: OPEN, not measured; the rule under it (a filter change with new outsets is Layout) is MEASURED by engine-premises run 39106547260"
@@ -4415,6 +4417,12 @@
    "task": "columns-final-scale",
    "field": "mechanism",
    "text": "columns-final-scale: closed as a negative finding. PROVED in Lean (Fw.Parts.MorphColumnsScale): edges_eq, look bound for 314 to 1000 px, variant_no_layout; golden replayed by scale.golden.test.ts. MEASURED: no Layout or style-recalc win on Chromium (40156382719 vs 40156384878) or the WebKit Simulator (40156388674 vs 40156393010, n=2 per arm); gate run 40156380619 fails only on the intended flex: none at desk-319 to desk-1000. INFERRED mechanism: the per-frame layouts re-lay out more than the column subtree (dirtyObjects about 11 per morph-zone layout in both arms; totalObjects is tree size, not work). Limit: below 314 px the variant still applies and its squeeze bound is not proved (a = 0.9657 at 280 px, a_narrow). Follow-ups: CSS-tied morph dependency set, gate rule for visClass L, per-subtree layout attribution. Note research/notes/2026/10-2x-columns-final-scale.md."
+  },
+  {
+   "entry": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
+   "task": "panel-rest-n11",
+   "field": "mechanism",
+   "text": "panel-rest-n11: the flag morph.panel:rest exists now (variant rest, optimized; Lean Fw.Parts.MorphPanelRest kindOf_rest, kindOf_fade, kindOf_off_iff, toggles_cross, toggles_all_rest; golden morph.panel.rest.jsonl replayed by rest.golden.test.ts and rest.driver.test.ts). RG10 CONFIRMED on the rewrite DOM (Chromium, 10 widths: 54 absolute, 0 fixed descendants, each with a positioned or transformed ancestor below the section). MEASURED: flag vs base screenshots of the section differ beyond the base-vs-base noise (0 to 77 px) only at 721 px, one 721 px row at the fractional bottom edge (INFERRED: the filter group is rastered into a snapped layer). Gen lists the flag as a curated exclusion until the lead's counts (gate both engines, WebKit Simulator 3 VMs per arm, Chromium swipe-touch-v1 3 runs per arm) decide. Note research/notes/2026/10-2x-panel-rest-n11.md."
   }
  ]
 }

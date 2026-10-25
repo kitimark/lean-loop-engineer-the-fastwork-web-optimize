@@ -196,6 +196,7 @@ run_group() {
   job "classpos golden check" lake env lean --run scripts/ClassPosGolden.lean --check ../packages/contracts/golden/parts/footprint.classpos.jsonl
   job "people-o preview golden check" lake env lean --run scripts/PeopleOPreviewGolden.lean --check ../packages/contracts/golden/parts/people-o-preview.jsonl
   job "morph-idle-none golden check" lake env lean --run scripts/MorphIdleNoneGolden.lean --check ../packages/contracts/golden/parts/morph-idle-none.jsonl
+  job "morph-panel-rest golden check" lake env lean --run scripts/MorphPanelRestGolden.lean --check ../packages/contracts/golden/parts/morph.panel.rest.jsonl
   job "morph-columns-scale golden check" lake env lean --run scripts/MorphColumnsScaleGolden.lean --check ../packages/contracts/golden/parts/morph.columns.final-scale.jsonl
   job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
   job "combo-scroll golden check" lake env lean --run scripts/ComboScrollGolden.lean --check ../packages/contracts/golden/parts/combo-scroll.jsonl

@@ -4,6 +4,7 @@ import { registerScroll } from '../../engine/scroll';
 import { createThreadedFade, type FadeEl } from '../platform/fade.driver';
 import { isBand } from '../morph.mount/listen.logic';
 import { touchHub, type TouchClient, type TouchHub } from '../morph.mount/listen';
+import { setRest } from '../morph.panel/rest.logic';
 import { THREADED } from '../morph.panel/threaded.logic';
 import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
 import { cfgOf, hooksOf } from './end.hooks';
@@ -21,9 +22,10 @@ export interface MorphTweenProps {
   platformSelector?: string;
   navSelector?: string;
   platformFade?: boolean;
+  platformRest?: boolean;
 }
 
-export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false }: MorphTweenProps) {
+export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false, platformRest = false }: MorphTweenProps) {
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute('data-fw-morph-tween', '');
@@ -48,6 +50,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
         nav.dataset.fwMorph = String(value);
       },
       lock: scrollLockOf(variant, root),
+      rest: platformRest,
       fade: platformFade ? createThreadedFade(() => platform() as unknown as FadeEl | null) : undefined,
       panel:
         window.__fw?.config.variants['morph.panel'] === THREADED
@@ -60,6 +63,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
     const arm: WaapiArm | null = variant === 'waapi' || variant === 'waapi-scoped' ? variant : null;
     const driver = arm ? createWaapiDriver(waapiEnv(env, platform, navSelector, arm), arm) : (tween = createTweenDriver(env));
     const target = platform();
+    if (platformRest && tween && target) setRest(target, tween.state().value); // the section starts at rest unless the page loaded mid-morph
     const stopBand = hub && target ? hub.observe(target) : undefined;
     const io = target ? new IntersectionObserver(([entry]) => driver.setNear(!!entry?.isIntersecting), { rootMargin: '200% 0px' }) : undefined;
     if (target && io) io.observe(target);
@@ -72,7 +76,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       unband?.();
       root.removeAttribute('data-fw-morph-tween');
     };
-  }, [variant, platformSelector, navSelector, platformFade]);
+  }, [variant, platformSelector, navSelector, platformFade, platformRest]);
   return null;
 }
 

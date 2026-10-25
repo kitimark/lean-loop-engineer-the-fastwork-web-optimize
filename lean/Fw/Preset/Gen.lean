@@ -64,7 +64,10 @@ def linkTable : List (Flag × List Key) :=
 def curated : List (Flag × String) :=
   [(⟨"hero.accent", "steps"⟩,
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
-      engine-win field")]
+      engine-win field"),
+   (⟨"morph.panel", "rest"⟩,
+    "ledger n = 11: a trade on Chromium (cr_toggle_not_le) and a WebKit win on rest frames only (wk_rest_claim); stays out \
+      of the arm until the per-engine counts of task panel-rest-n11 decide (INFERRED)")]
 
 def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
 
@@ -760,6 +763,7 @@ def record (args : List String) : IO Unit := do
 #guard (reasonOf ⟨"hero.countdown", "strip"⟩).isNone
 #guard (reasonOf ⟨"morph.countdown", "strip"⟩).isNone
 #guard (reasonOf ⟨"hero.accent", "steps"⟩).isSome
+#guard (reasonOf ⟨"morph.panel", "rest"⟩).isSome
 #guard (reasonOf ⟨"morph.countdown", "hidden-pause"⟩).isNone
 #guard (reasonOf ⟨"hero.countdown", "hidden-pause"⟩).isNone
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",

@@ -1,0 +1,17 @@
+{"fn":"filter","in":{"mm":0},"out":{"kind":"none","radiusDen":1,"radiusNum":0}}
+{"fn":"filter","in":{"mm":1},"out":{"kind":"blur","radiusDen":275,"radiusNum":6}}
+{"fn":"filter","in":{"mm":2},"out":{"kind":"blur","radiusDen":275,"radiusNum":12}}
+{"fn":"filter","in":{"mm":10},"out":{"kind":"blur","radiusDen":55,"radiusNum":12}}
+{"fn":"filter","in":{"mm":100},"out":{"kind":"blur","radiusDen":11,"radiusNum":24}}
+{"fn":"filter","in":{"mm":200},"out":{"kind":"blur","radiusDen":11,"radiusNum":48}}
+{"fn":"filter","in":{"mm":275},"out":{"kind":"blur","radiusDen":1,"radiusNum":6}}
+{"fn":"filter","in":{"mm":300},"out":{"kind":"blur","radiusDen":11,"radiusNum":72}}
+{"fn":"filter","in":{"mm":549},"out":{"kind":"blur","radiusDen":275,"radiusNum":3294}}
+{"fn":"filter","in":{"mm":550},"out":{"kind":"blur","radiusDen":1,"radiusNum":12}}
+{"fn":"filter","in":{"mm":551},"out":{"kind":"blur","radiusDen":1,"radiusNum":12}}
+{"fn":"filter","in":{"mm":1000},"out":{"kind":"blur","radiusDen":1,"radiusNum":12}}
+{"fn":"run","in":{"frames":[0,0,0]},"out":{"kinds":["none","none","none"],"toggles":0}}
+{"fn":"run","in":{"frames":[0,1,10,100,500,1000,500,10,1,0,0]},"out":{"kinds":["none","blur","blur","blur","blur","blur","blur","blur","blur","none","none"],"toggles":2}}
+{"fn":"run","in":{"frames":[1000,1000]},"out":{"kinds":["blur","blur"],"toggles":0}}
+{"fn":"run","in":{"frames":[0,300,0,300,0]},"out":{"kinds":["none","blur","none","blur","none"],"toggles":4}}
+{"fn":"run","in":{"frames":[5,4,3,2,1,0]},"out":{"kinds":["blur","blur","blur","blur","blur","none"],"toggles":1}}
