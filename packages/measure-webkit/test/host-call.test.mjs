@@ -99,11 +99,11 @@ test('runAsync: stdout, stderr and the exit status come back; a missing binary i
 });
 
 test('runAsync: a grandchild that keeps the pipes open cannot hold the result past the bound and the grace', async () => {
-  const sticky = fake.script('sticky', 'sleep 3 &\nexec sleep 30');
-  const t0 = Date.now();
+  const done = join(fake.dir, 'grandchild-done');
+  const sticky = fake.script('sticky', `(sleep 3; touch '${done}') &\nexec sleep 30`);
   const r = await runAsync(sticky, [], { timeoutMs: 200, graceMs: 100 });
   assert.equal(r.error.code, 'ETIMEDOUT');
-  assert.ok(Date.now() - t0 < 1500);
+  assert.equal(existsSync(done), false);
 });
 
 test('runAsync: output over the buffer is an error, as spawnSync gives', async () => {
