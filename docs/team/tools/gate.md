@@ -32,3 +32,14 @@ Specification: `lean/Fw/Gate/TrajectoryGpu.lean`. Golden: `packages/contracts/go
 - Reference and candidate are compared as residuals against the declared effect (`residual`, `modelGrade`). The
   opacity model has a kink at m = 4/5, so interpolating a sparse reference across it is not a measurement of the
   candidate.
+
+## Flag deltas
+
+- Specification: `lean/Fw/Gate/FlagDelta.lean`. Golden: `packages/contracts/golden/gate/flag-delta.jsonl` (regenerate
+  with `lake env lean --run scripts/GateFlagDeltaGolden.lean`, then its `--check`). JS twin:
+  `packages/gate-breakpoints/src/flag-delta.mjs`, applied by `applyFlagDeltas` in `summary.mjs`.
+- A failing part reading passes only when every failing item is an exact allowlisted tuple (flag, part, role, property,
+  orig, rewrite) whose flag is in `header.flags.search`. The tuples are enumerated in `deltas`, and each names its
+  premise theorem. To add one, add a `deltas` entry with its premise, then regenerate the golden.
+- Excused items are printed in the "Flag deltas" section of `summary.md`. Lean: `excused_only_flag_on`,
+  `unlisted_item_fails`, `deltas_enumerated`, `flags_off_unchanged`.
