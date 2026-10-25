@@ -297,6 +297,8 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr-fixtures.yml"], []⟩,
   ⟨"wktr.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
+    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl", "apps/site/src/parts/morph.mount/logic.ts",
+    "apps/site/src/parts/morph.mount/gesture.ts", "apps/site/src/parts/engine.scroll/unthrottle.ts",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
     ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
 

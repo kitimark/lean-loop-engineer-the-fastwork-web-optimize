@@ -53,13 +53,48 @@ def lockRows (_ : Unit) : List String :=
     line "lockWanted" [("near", .bool n), ("geom", .bool g), ("active", .bool a)] (.bool (lockWanted n g a)))
   ++ (bs.flatMap fun c => bs.map fun w => line "lockOp" [("cur", .bool c), ("want", .bool w)] (.str (lockOp c w).name))
 
+def boolsJ (l : List Bool) : Lean.Json := .arr (l.map Lean.Json.bool).toArray
+
+def ratsJ (l : List Rat) : Lean.Json := .arr (l.map ratJ).toArray
+
+def natJ (n : Nat) : Lean.Json := .num ⟨(n : Int), 0⟩
+
+def allGeoms : Nat → List (List Bool)
+  | 0 => [[]]
+  | n + 1 => (allGeoms n).flatMap fun l => [false :: l, true :: l]
+
+def gatePhases : List (String × List Rat) := [("down", downInsets), ("up", upInsets)]
+
+def gateVhs : List Rat := [400, 667, 844]
+
+def gateLatencies : List Rat := [0, 16, 33, 49, 50, 99, 100]
+
+def gateRows (_ : Unit) : List String :=
+  [line "gateWalk" []
+    (Lean.Json.mkObj [("heightNum", natJ 3), ("heightDen", natJ 5), ("gap", natJ 15), ("down", ratsJ downInsets), ("up", ratsJ upInsets),
+      ("liftedBelowMs", ratJ liftedBelowMs)])]
+  ++ Flag.all.map (fun f => line "gateExempt" [("flag", .str f.id)] (.bool f.exempt))
+  ++ (gateVhs.flatMap fun vh0 => downInsets.map fun t =>
+      line "gateGeom" [("vh0", ratJ vh0), ("inset", ratJ t)] (.bool (gateGeom vh0 t)))
+  ++ (gatePhases.map fun (ph, ts) => line "gateExpect" [("phase", .str ph)]
+      (Lean.Json.mkObj [("insets", ratsJ ts), ("geoms", boolsJ (gateGeoms 844 ts))]))
+  ++ (Flag.all.flatMap fun f => gatePhases.flatMap fun (ph, ts) => (allGeoms ts.length).map fun gs =>
+      line "gateRun" [("flag", .str f.id), ("phase", .str ph), ("geoms", boolsJ gs)] (boolsJ (gateRun f gs)))
+  ++ gateLatencies.map (fun l => line "gateLifted" [("medianMs", ratJ l)] (.bool (liftedBy l)))
+
 def lines (_ : Unit) : List String := stepRows () ++ runRows () ++ armRows () ++ lockRows ()
 
 def text (_ : Unit) : String := String.intercalate "\n" (lines ()) ++ "\n"
 
+def gateText (_ : Unit) : String := String.intercalate "\n" (gateRows ()) ++ "\n"
+
 #guard (lines ()).length == 192 + 12 + 9 + 12
 
+#guard (gateRows ()).length == 1 + 4 + 15 + 2 + 4 * (32 + 16) + 7
+
 #guard text () == include_str "../../../packages/contracts/golden/parts/morph-mount-toolbar.jsonl"
+
+#guard gateText () == include_str "../../../packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl"
 
 def runGolden (args : List String) : IO UInt32 := do
   match args with
@@ -69,6 +104,15 @@ def runGolden (args : List String) : IO UInt32 := do
       return 0
     IO.eprintln s!"morph.mount toolbar golden: {path} differs from the generated text"
     return 1
+  | ["--gate", "--check", path] =>
+    if (← IO.FS.readFile path) == gateText () then
+      IO.eprintln s!"morph.mount toolbar gate golden: {path} is up to date"
+      return 0
+    IO.eprintln s!"morph.mount toolbar gate golden: {path} differs from the generated text"
+    return 1
+  | ["--gate"] =>
+    IO.print (gateText ())
+    return 0
   | _ =>
     IO.print (text ())
     return 0
