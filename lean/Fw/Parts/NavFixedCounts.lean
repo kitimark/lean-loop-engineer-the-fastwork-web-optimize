@@ -388,14 +388,21 @@ def censusMaxY (p : Pass) : Int := (p.census.getLast?.map (·.1)).getD 0
 
 def censusZone (p : Pass) (y : Int) : Zone := zoneOf ((p.vh : Int) * 10) (censusMaxY p * 10) (y * 10)
 
+/-- The census state a cell names: the one requested at `y`, or, for `endState`, the pass's last one (its y differs with the page-height
+variant of the Simulator, 5231 or 5267, so the end state is matched by position, not by y). -/
+def endState : Int := -1
+
+def censusEntry (p : Pass) (y : Int) : Option (Int × Int × Int) :=
+  if y == endState then p.census.getLast? else p.census.find? (·.1 == y)
+
 /-- A pass's value in a cell, if the pass has one: a census state belongs to the cell only when the pass puts it in the cell's zone. -/
 def sample (p : Pass) (c : CellId) : Option Int :=
   match c.y with
   | none => some (workVal p c.zone c.metric.stepIx)
   | some y =>
-    if censusZone p y == c.zone then
-      (p.census.find? (·.1 == y)).map fun e => if c.metric == .layers then e.2.1 else e.2.2
-    else none
+    match censusEntry p y with
+    | some e => if censusZone p e.1 == c.zone then some (if c.metric == .layers then e.2.1 else e.2.2) else none
+    | none => none
 
 def cellOf (a : ArmData) (c : CellId) : Cell :=
   let s := a.passes.filterMap fun p => (sample p c).map (p.vm, ·)
@@ -408,10 +415,10 @@ def Zone.label (z : Zone) : String := z.name
 def workCells : List CellId :=
   zones.flatMap fun z => [Metric.layout, .recalc, .functionCall, .composite].map fun m => ⟨z, m, none⟩
 
-/-- The census states of all arms, as (zone, requested y), lowest y first. -/
+/-- The census states of all arms, as (zone, requested y), lowest y first, the end state last. -/
 def censusStates : List (Zone × Int) :=
-  let all := data.flatMap fun a => a.passes.flatMap fun p => p.census.map fun e => (censusZone p e.1, e.1)
-  all.eraseDups.mergeSort fun a b => a.2 ≤ b.2
+  let all := data.flatMap fun a => a.passes.flatMap fun p => p.census.dropLast.map fun e => (censusZone p e.1, e.1)
+  (all.eraseDups.mergeSort fun a b => a.2 ≤ b.2) ++ [(.finish, endState)]
 
 def censusCells : List CellId :=
   censusStates.flatMap fun s => [Metric.layers, .bytes].map fun m => ⟨s.1, m, some s.2⟩
@@ -563,16 +570,38 @@ def refutes : V → Bool
 theorem refutes_iff (v : V) : refutes v = true ↔ v = .win ∨ v = .cost := by
   cases v <;> simp [refutes]
 
-/-- Predicted layer delta of a flag in a zone (the layers `NavBarFixedWork.added` lists): nothing in the hero zone, where the nav does not
-morph (`NavClipBox.rest_same_morph`); the added layers at the finish, where the class stays on (`used_eq_rest_one`); open in the rest zone. -/
-def predLayers (a : NavBarFixedWork.Arm) : Zone → Option Nat
-  | .hero => some 0
-  | .finish => some (NavBarFixedWork.added a 0 0).length
-  | .rest => none
+/-- The layers a flag adds while the morph class is on (`NavBarFixedWork.added`): at most 1, 2 and 3 for the three arms. The finish zone is
+where the class stays on after the morph (`NavClipBox.used_eq_rest_one`), so this is the most the finish census can gain. -/
+def addedLayers (a : NavBarFixedWork.Arm) : Nat := (NavBarFixedWork.added a 0 0).length
 
-theorem predLayers_finish :
-    predLayers .clipBox .finish = some 1 ∧ predLayers .barFixed .finish = some 2 ∧ predLayers .logo3d .finish = some 3 := by
+theorem addedLayers_arms :
+    addedLayers .clipBox = 1 ∧ addedLayers .barFixed = 2 ∧ addedLayers .logo3d = 3 := by
   decide +kernel
+
+/-- Adding `d ≥ 0` to every value of a cell is never read as a win. -/
+theorem shift_not_below (b : List Int) (d : Int) (hd : 0 ≤ d) (hb : b ≠ []) : rawOf (b.map (· + d)) b ≠ .below := by
+  intro h
+  obtain ⟨y, hy⟩ := List.exists_mem_of_ne_nil b hb
+  have := rawOf_below h (y + d) (List.mem_map.2 ⟨y, hy, rfl⟩) y hy
+  omega
+
+/-- Adding `d` to every value of a cell is read as a cost only when `d` exceeds the cell's own spread `hi - lo`: a layer census that
+varies by 4 between passes cannot show the 3 layers a flag adds. -/
+theorem shift_not_above (b : List Int) (d lo hi : Int) (hlo : lo ∈ b) (hhi : hi ∈ b) (h : d ≤ hi - lo) :
+    rawOf (b.map (· + d)) b ≠ .above := by
+  intro hr
+  have := rawOf_above hr (lo + d) (List.mem_map.2 ⟨lo, hlo, rfl⟩) hi hhi
+  omega
+
+/-- The base's end-state layer census of the finish zone. -/
+def baseEndLayers : List Int :=
+  match armData "base" with
+  | some b => (cellOf b ⟨.finish, .layers, some endState⟩).vals
+  | none => []
+
+/-- The spread of the base's end-state layer census, 4 in the filed passes, is at least the 3 layers the largest arm adds, so no arm's
+end-state layer cell can be certified from the filed passes whatever the arm adds. -/
+def endSpread : Int := (stats baseEndLayers).2.1 - (stats baseEndLayers).1
 
 /-! ## Golden -/
 
@@ -651,5 +680,20 @@ def lines : List String :=
       (zones.flatMap fun z => cmetrics.map (ccellLine f z)) ++ (zones.map (czoneLine f)) ++ [cflagLine f]
 
 def jsonl : String := String.join ((lines.filter (· ≠ "")).map (· ++ "\n"))
+
+/-! ## What the raw files must hold
+
+Lake does not track `include_str`, so a cached build can outlive a changed data file. These guards name the runs and the passes the files
+hold; changing a file means changing them here, and so the module's source. -/
+
+#guard data.map (fun a => (a.arm, a.run, a.passes.length)) ==
+  [("base", 40196215217, 6), ("clip-box", 40196217959, 4), ("bar-fixed", 40196221086, 6), ("logo-3d", 40196212618, 6)]
+#guard cdata.map (fun a => (a.arm, a.run, a.passes.length)) ==
+  [("base", 40171939293, 3), ("clip-box", 40171943772, 3), ("bar-fixed", 40171960215, 3), ("logo-3d", 40171946109, 3)]
+#guard data.all fun a => a.passes.all fun p => p.vh == 775 && p.ys.length == p.steps.length
+#guard 3 ≤ endSpread
+
+/-! The golden is this module's own output (written from `jsonl`, never by hand). -/
+#guard jsonl == include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.jsonl"
 
 end Fw.Parts.NavFixedCounts
