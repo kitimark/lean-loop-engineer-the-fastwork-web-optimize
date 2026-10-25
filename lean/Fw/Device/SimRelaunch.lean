@@ -8,34 +8,34 @@ Twin: `packages/measure-webkit/src/guard.mjs`; golden `packages/contracts/golden
 namespace Fw.Device.SimRelaunch
 open Lean
 
-def callTries : Nat := 2
+def callTries (_ : Unit := ()) : Nat := 2
 
-def callGapS : Nat := Fw.Measure.Retry.wait 1 / 1000
+def callGapS (_ : Unit := ()) : Nat := Fw.Measure.Retry.wait 1 / 1000
 
 def callWorstS (limitS : Nat) : Nat := callTries * limitS + (callTries - 1) * callGapS
 
-def stateCallS : Nat := 30
+def stateCallS (_ : Unit := ()) : Nat := 30
 
-def listCallS : Nat := 90
+def listCallS (_ : Unit := ()) : Nat := 90
 
-def shutdownCallS : Nat := 40
+def shutdownCallS (_ : Unit := ()) : Nat := 40
 
-def bootCallS : Nat := 60
+def bootCallS (_ : Unit := ()) : Nat := 60
 
-def bootstatusCallS : Nat := 120
+def bootstatusCallS (_ : Unit := ()) : Nat := 120
 
-def detectS : Nat := Fw.Measure.SimBound.detectMs / 1000 + callWorstS stateCallS
+def detectS (_ : Unit := ()) : Nat := Fw.Measure.SimBound.detectMs / 1000 + callWorstS stateCallS
 
-def relaunchS : Nat := Fw.Measure.SimBound.relaunchMs / 1000
+def relaunchS (_ : Unit := ()) : Nat := Fw.Measure.SimBound.relaunchMs / 1000
 
-def rebootS : Nat :=
+def rebootS (_ : Unit := ()) : Nat :=
   callWorstS shutdownCallS + callWorstS bootCallS + callWorstS bootstatusCallS + relaunchS
 
-def healthySessionMaxS : Nat := 31 * 60 + 6
+def healthySessionMaxS (_ : Unit := ()) : Nat := 31 * 60 + 6
 
-def sessionLimitS : Nat := Fw.Measure.SimBound.perSessionMin * 60
+def sessionLimitS (_ : Unit := ()) : Nat := Fw.Measure.SimBound.perSessionMin * 60
 
-def recoverMin : Nat := (rebootS + 59) / 60
+def recoverMin (_ : Unit := ()) : Nat := (rebootS + 59) / 60
 
 theorem callGapS_eq : callGapS = 2 := by decide
 
@@ -377,7 +377,7 @@ def rank (s : St) : Nat :=
   | .rebooting => 2 + 2 * (1 - s.relaunches)
   | _ => 0
 
-def passEvents : Nat := 5
+def passEvents (_ : Unit := ()) : Nat := 5
 
 theorem rank_init : rank init = passEvents := rfl
 
@@ -437,7 +437,7 @@ def timeUsed (s : St) : List Ev → Nat
   | [] => 0
   | e :: es => if terminal s then 0 else cost s e + timeUsed (step s e) es
 
-def recoverWorstS : Nat := boundS init
+def recoverWorstS (_ : Unit := ()) : Nat := boundS init
 
 theorem recoverWorstS_eq : recoverWorstS = 1527 := by decide
 
