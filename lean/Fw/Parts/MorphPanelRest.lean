@@ -62,8 +62,6 @@ theorem toggles_all_fade (rs : List Rat) (h : ∀ r ∈ rs, 0 < r) : toggles rs 
 #guard toggles [0, 0, 1/100, 1/2, 1, 1/2, 1/100, 0, 0] == 2
 #guard toggles [0, 0, 0] == 0 && toggles [1/10, 1/2, 1] == 0
 
-/-! ## Golden rows -/
-
 def morphs : List Int := [0, 1, 2, 10, 100, 200, 275, 300, 549, 550, 551, 1000]
 
 def runs : List (List Int) :=

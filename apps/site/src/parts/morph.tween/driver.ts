@@ -36,9 +36,7 @@ export interface TweenEnv {
   scrollToInstant(top: number): void;
   addListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void, passive: boolean): void;
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
-  /** The morph value, once per frame and per jump: the nav publishes it as `--morph`. */
   publish(value: number): void;
-  /** The panel may mount: first intersection or first push (N2:13040 and 13076 `z(b, !0)`). */
   onActivate?(): void;
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
