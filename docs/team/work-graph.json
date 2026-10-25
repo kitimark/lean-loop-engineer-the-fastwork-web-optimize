@@ -20770,7 +20770,10 @@
     ".github/workflows/toolbar-throttle.yml",
     "lean/Fw/Device/SimTouch.lean",
     "research/notes/2026/10-2x-sim-touch-timeout.md",
-    "docs/team/handoffs/sim-touch-timeout.md"
+    "docs/team/handoffs/sim-touch-timeout.md",
+    "lean/scripts/SimTouchGolden.lean",
+    "packages/measure-webkit/src/throttle/pass-run.mjs",
+    "packages/measure-webkit/src/throttle/parts-cli.mjs"
    ],
    "title": "Blocker for every Simulator measurement (morph-end-measure run 40105567688: 6 of 6 sim jobs failed or cancelled; unthrottle-parts-measure finish run 40101695202 lost its lifted arms; rest run 40101702393 two VMs stalled in warm-up): the touch driver times out ('touches failed (code null, timed out) in 300 s', 'not usable (touch driver timed out); trying once more'), simctl openurl times out, and warm-up stalls at load ~560. Find the cause CONFIRMED from the driver source, the job logs and the Simulator/XCTest docs (one debug run on this Mac allowed, <= 5 min, sim-lock), then fix it (driver timeouts sized to the measured pass length, a readiness probe before touches, a per-pass watchdog that restarts the Simulator instead of burning the job), with the retry/readiness decision proved in Lean and a golden replayed by a test. Show on CI that a finish-mode and a hero-drag job each complete all arms (3 jobs, free macOS runners)."
   },
@@ -20942,7 +20945,7 @@
     "research/notes/2026/10-2x-sim-lift-stall.md",
     "docs/team/handoffs/sim-lift-stall.md"
    ],
-   "title": "Finish-mode Simulator passes on the lift arm stall at start-up: 6 of 30 finish touch runs in run 40121254572 had 0 marks at 304 s (5 lift, 1 original), so 3 of 6 lift passes were lost while hero drags complete 18 of 18 (run 40128742749). Split from sim-touch-timeout after review round 1. Do: separate the start-up stall from the xcodebuild launch with a 'launched' mark written in setUp() before safari.activate(); check whether the lift page keeps XCUITest's idle wait open (animations or timers that never quiesce: cite Apple XCTest docs on app idle and the lift arm's page source); find the cause CONFIRMED; fix it (Lean-first if the machine changes: SimTouch.lean, golden); show a [throttle:finish] run where all 3 jobs complete every arm, lift included (run id)."
+   "title": "Finish-mode Simulator passes stall at start-up on every arm, not only lift (forensics of sim-touch-timeout's finish run 40145882715 on the merged code: 6 of 29 touch runs had 0 marks at ~301-304 s across lift, unthrottle, original and rewrite; 5 recovered after the one allowed restart, unthrottle-r1 of sim 3 was lost after stalling twice; earlier run 40121254572: 6 of 30, 5 lift, 1 original; hero drags complete 18 of 18 in run 40128742749). Split from sim-touch-timeout. Do: separate the start-up stall from the xcodebuild launch with a 'launched' mark written in setUp() before safari.activate(); check whether the page keeps XCUITest's idle wait open (animations or timers that never quiesce: cite Apple XCTest docs on app idle and the arms' page source); find the cause CONFIRMED; fix it (Lean-first if the machine changes: SimTouch.lean, golden); show a [throttle:finish] run where all 3 jobs complete every arm (run id)."
   },
   {
    "devices": [
@@ -21178,6 +21181,44 @@
    ],
    "title": "Incident (twice on 2026-10-24/25: combo-scroll-fight, commission-band-mech): a builder wrote more than one ledger note per (entry, task) and only the remote land lane's ledger-merge.test.ts refused it, after a full CI land. Do, Lean first: state the one-note-per-(entry, task) rule as a decision in lean/Fw/Ops/LedgerMerge.lean beside distinct_notes_merge (a theorem that a branch passing it never clashes in merge), run it in the local tier of fw land --dry (and so in fw review ready) with a named VERDICT/detail line pointing at the duplicate key, a golden from Lean replayed by a runner test with both refused cases from this incident, and an incident row in docs/team/incidents/ledger.json (no n). If the build-review preamble should name the rule, list that .claude edit in open for the lead.",
    "evidence": "9482b75"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "lake-span-total",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "apps/runner/src/land.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/test/timing-work.test.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "packages/contracts/golden/obs/**",
+    "research/notes/2026/10-2x-lake-span-total.md",
+    "docs/team/handoffs/lake-span-total.md"
+   ],
+   "title": "Follow-up of lake-span-mods (landed 29bdbda74): the dry land's outer spans 'fw land/dry total lake' (apps/runner/src/land.ts:12 dryTotalStep) and 'fw/slot run land pnpm fw land dry' carry no lake member, so a dry land after a merge that changed Lean is judged against no-op builds; timing.slow fired three times on 2026-10-25 (46323 ms @29bdbda vs 23232, 35755 ms @6df9009 vs 23428, 67391 ms @231d867 vs 23485), each right after a land that changed lean/Fw. Do, Lean first: the outer span's work is the sum of lake.built of the lake checks it ran (or the max class), a theorem that an outer sample with rebuilt modules is never slow against a class-0 history (reuse judgeQ_rebuild_noBaseline), golden replayed by the timing tests; emit the member on both outer spans; show the three samples above are noBaseline once keyed."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "init-cost-depth",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [
+    "sim-touch-timeout"
+   ],
+   "writes": [
+    "lean/scripts/InitCostLint.lean",
+    "lean/Fw/Device/SimTouch.lean",
+    "research/notes/2026/10-2x-init-cost-depth.md",
+    "docs/team/handoffs/init-cost-depth.md"
+   ],
+   "title": "Found by sim-touch-timeout (2026-10-25): the init-cost lint (lean/scripts/InitCostLint.lean) fails with maximum recursion depth near 1640 start-time constants and main has 1632, so any task adding about 12 constants fails it (sim-touch-timeout worked around it by giving its twelve Nat constants in SimTouch.lean a Unit default argument). Do: find where the lint recurses per constant (cite file:line), make it iterate or raise maxRecDepth with a measured margin (the builder's tested fix: set_option maxRecDepth 100000 in that script; say why that is safe and what it costs in time), add a regression check that the lint runs with at least 4x today's constant count, then drop the Unit-argument workaround in SimTouch.lean if the plain constants now pass."
   }
  ],
  "deadline": {
