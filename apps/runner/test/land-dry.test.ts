@@ -11,7 +11,7 @@ import { Store } from "../../console-api/src/store.ts";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
 import { dryBase, dryLintArgv, dryMerge, dryOutcome, land, lastDryStep, LOCAL_TESTS, type DryBase, type Http } from "../src/land.ts";
 import { LINT_ARGV } from "../src/land-verdict.ts";
-import { begin } from "../src/timing.ts";
+import { begin, readLakeHandoff } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 import { lockFile } from "../hooks/land-guard.mjs";
 
@@ -257,6 +257,8 @@ describe("fw land --dry", () => {
     const dir = mkdtempSync(join(tmpdir(), "fw-dry-lake-"));
     const file = join(dir, "timings.jsonl");
     process.env.FW_TIMINGS_FILE = file;
+    const handoff = join(dir, "handoff.json");
+    process.env.FW_SLOT_LAKE_FILE = handoff;
     try {
       const end = begin("fw", "land dry");
       const r = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [LINT_ARGV.axioms], dryLocal: [] });
@@ -268,8 +270,12 @@ describe("fw land --dry", () => {
       const spans = text0.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { tool: string; step: string; lake?: { built: number } });
       expect(spans.find((s) => s.tool === "fw" && s.step === "land dry lake")?.lake).toEqual({ built: 2 });
       expect(parseSamples(text0).find((s) => s.step === "land dry lake")?.work).toEqual({ mods: "1" });
+      expect(spans.find((s) => s.tool === "fw land" && s.step === "dry total lake")?.lake).toEqual({ built: 2 });
+      expect(parseSamples(text0).find((s) => s.step === "dry total lake")?.work).toEqual({ mods: "1" });
+      expect(readLakeHandoff(handoff)).toEqual({ lake: { built: 2 } });
     } finally {
       delete process.env.FW_TIMINGS_FILE;
+      delete process.env.FW_SLOT_LAKE_FILE;
       rmSync(dir, { recursive: true, force: true });
     }
   });

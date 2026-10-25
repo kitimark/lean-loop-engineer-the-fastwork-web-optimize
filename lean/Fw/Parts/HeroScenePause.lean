@@ -5,9 +5,7 @@ import Fw.Parts.HeroCountdownOpt
 import Fw.Parts.HeroDeck
 import Fw.Parts.HeroExit
 import Fw.Site.BreakpointMatrix
-/-!
-# hero scene pause (`hero:scene-pause`): the original's paused-scene rule on the hero track
--/
+import Fw.Gate.Trajectory
 namespace Fw.Parts.HeroScenePause
 open Lean
 open Fw.Engine
@@ -421,7 +419,140 @@ theorem hero_paused_hidden_fresh {A : Type} (p : Probe) (hp : p ∈ matrix) (vw 
   have hk := kMax_pos p hp
   exact hero_paused_hidden p vw top bottom y0 0 f hn (by grind) (by grind) hb
 
-/-! ## 7. Golden `packages/contracts/golden/parts/hero-scene-pause.jsonl` -/
+inductive Fam where
+  | copy
+  | card
+  deriving DecidableEq, Repr
+
+structure Anim where
+  file : String
+  name : String
+  fam : Fam
+  uses : List (String × Option String)
+  deriving DecidableEq, Repr
+
+def Anim.afterSplash (a : Anim) : Bool := a.uses.any (·.2.isNone)
+
+def threadedFile : String := "hero.exit/threaded.module.css"
+
+def heroAnims (_ : Unit := ()) : List Anim :=
+  let copyDone := some "[data-splash='done'] .copy"
+  let cueDone := some "[data-splash='done'] .cue"
+  let cardDone := some "[data-orbit][data-done] .card"
+  let hero := "[data-exit-live] [data-splash='done'] [data-fw='hero']"
+  let cue := "[data-exit-live] [data-splash='done'] [data-fw='hero-cue']"
+  let orbit := "[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id]"
+  let deck := "[data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article"
+  let nl (d : String) := s!".accent:is([data-fw-draw='nolayout'], [data-fw-draw='nolayout-full']).{d} .frame0"
+  [⟨"hero/hero.module.css", "copyFromRing", .copy, [(".copy", copyDone)]⟩,
+   ⟨"hero.accent/accent.module.css", "strokeIn", .copy, [(".drawingIn .path", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "strokeOut", .copy, [(".drawingOut .path", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "clipIn", .copy, [(nl "drawingIn", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "clipOut", .copy, [(nl "drawingOut", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "idle0", .copy, [(".idle .frame0", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "idle1", .copy, [(".idle .frame1", none)]⟩,
+   ⟨"hero.accent/accent.module.css", "idle2", .copy, [(".idle .frame2", none)]⟩,
+   ⟨"hero.cue/cue.module.css", "copyIn", .copy, [(".cue", none)]⟩,
+   ⟨"hero.cue/cue.module.css", "copyFromRing", .copy, [(".cue", cueDone)]⟩,
+   ⟨"hero.cue/cue.module.css", "scrollFloat", .copy, [(".float", none)]⟩,
+   ⟨threadedFile, "exitFade", .copy, [(hero, none), (cue, none)]⟩,
+   ⟨threadedFile, "exitCardFade", .card, [(orbit, none), (deck, none)]⟩,
+   ⟨threadedFile, "exitCopyUp", .copy, [(hero, none)]⟩,
+   ⟨threadedFile, "exitCopyUpNarrow", .copy, [(hero, none)]⟩,
+   ⟨threadedFile, "exitCueUpNarrow", .copy, [(cue, none)]⟩,
+   ⟨threadedFile, "exitBlur", .copy, [(hero, none), (cue, none)]⟩,
+   ⟨threadedFile, "exitCardMove", .card, [(orbit, none), (deck, none)]⟩,
+   ⟨"hero.orbit/card.module.css", "cardFromRing", .card, [(".card", cardDone)]⟩,
+   ⟨"hero.orbit/card.module.css", "ringAppear", .card, [(".card", cardDone)]⟩]
+
+def baseAnims (_ : Unit := ()) : List Anim := (heroAnims ()).filter (·.file != threadedFile)
+
+#guard (baseAnims ()).length == 13
+#guard ((baseAnims ()).filter (·.afterSplash)).map (·.name) ==
+  ["strokeIn", "strokeOut", "clipIn", "clipOut", "idle0", "idle1", "idle2", "copyIn", "scrollFloat"]
+
+theorem after_splash_copy : ∀ a ∈ baseAnims, a.afterSplash = true → a.fam = .copy := by decide +kernel
+
+theorem card_stops : ∀ a ∈ baseAnims, a.fam = .card → a.afterSplash = false := by decide +kernel
+
+theorem threaded_card_after_splash : ∃ a ∈ heroAnims, a.file = threadedFile ∧ a.afterSplash = true ∧ a.fam = .card := by
+  decide +kernel
+
+theorem copy_over (H : Rat) : (copyReach H).over H = copyOutset := by
+  simp only [Reach.over, copyReach, copyOutset]
+  grind
+
+theorem kCopy_eq (p : Probe) : kCopy p = vhOf p - copyOutset := by rw [kCopy, copy_over]
+
+theorem kMax_le_kCopy : ∀ p ∈ matrix, kMax p ≤ kCopy p := by decide +kernel
+
+theorem hero_paused_hidden_copy {A : Type} (p : Probe) (vw top bottom y0 d : Rat) (f : A → BoxVis)
+    (hn : near top bottom (vhOf p) = false) (hst : top + d ≤ y0 ∧ y0 + stageOf p ≤ bottom + d)
+    (hd : -kCopy p ≤ d ∧ d ≤ kCopy p) (hb : ∀ a, Placed [copyReach (stageOf p)] y0 (f a)) :
+    Hidden (viewport vw (vhOf p)) f := by
+  refine stale_hidden vw (vhOf p) top bottom d (kCopy p) ((copyReach (stageOf p)).over (stageOf p)) f hn hd
+    (by unfold kCopy; grind) (fun a => ?_)
+  obtain ⟨r, hr, s, hs, h1, h2⟩ := hb a
+  rw [List.mem_singleton] at hr
+  subst hr
+  have hw := reach_within (stageOf p) s (copyReach (stageOf p)) hs ⟨Std.le_refl _, Std.le_refl _⟩
+  exact ⟨by grind, by grind⟩
+
+theorem hero_paused_same_after_splash {A : Type} (p : Probe) (vw top bottom y0 d : Rat) (tm : Tmpl A)
+    (moves : Anim → (A → BoxVis) → Prop)
+    (hn : near top bottom (vhOf p) = false) (hst : top + d ≤ y0 ∧ y0 + stageOf p ≤ bottom + d)
+    (hd : -kCopy p ≤ d ∧ d ≤ kCopy p)
+    (hs : ∀ e ∈ tm, Fw.Parts.HiddenPause.Still e.2 ∨ ∃ an ∈ baseAnims, an.afterSplash = true ∧ moves an e.2)
+    (hplace : ∀ an ∈ baseAnims, ∀ f, moves an f → an.fam = .copy → ∀ a, Placed [copyReach (stageOf p)] y0 (f a))
+    (a a' : A) :
+    visible (viewport vw (vhOf p)) (inst tm a) = visible (viewport vw (vhOf p)) (inst tm a') := by
+  refine hidden_pause_eq _ tm (fun e he => ?_) a a'
+  rcases hs e he with h | ⟨an, han, haf, hm⟩
+  · exact Or.inl h
+  · exact Or.inr (hero_paused_hidden_copy p vw top bottom y0 d e.2 hn hst hd
+      (hplace an han e.2 hm (after_splash_copy an han haf)))
+
+def copySpeed (p : Probe) (hz : Rat) : Rat := kCopy p * hz
+
+#guard (matrix.filter (·.tag == "no-preference")).map (copySpeed · 60) = [10200]
+#guard (matrix.filter (·.tag == "no-preference")).map (copySpeed · 120) = [20400]
+
+namespace Open
+open Fw.Gate.Trajectory
+
+structure OpenRun where
+  run : String
+  original : Nat
+  faithful : Nat
+  candidate : Nat
+  deriving DecidableEq, Repr
+
+def recorded : List OpenRun :=
+  [⟨"39548822269", 0, 2, 0⟩, ⟨"39553952680", 0, 1, 0⟩, ⟨"39556935431", 0, 0, 0⟩]
+
+def laneNow (r : OpenRun) : Lane :=
+  openLane (passesWith 5 r.original) (passesWith 5 r.candidate) (passesWith 5 r.faithful)
+
+#guard recorded.map laneNow == [.clean, .clean, .clean]
+#guard firstCover 5 0 5 == .late
+
+theorem recorded_open_late : ∀ r ∈ recorded,
+    openAt (passesWith 5 r.original) (passesWith 5 r.candidate) = .skip .firstLate := by decide +kernel
+
+theorem recorded_clean : ∀ r ∈ recorded, laneNow r = .clean := by decide +kernel
+
+theorem red_needs_original : ∀ k, k < 6 → (firstCover 5 k 5 = .missing ↔ 4 ≤ k) := by decide +kernel
+
+def leaveOneOut (k : Nat) : List Verdict :=
+  coverVerdict (firstCover 5 k 5) :: (List.range 5).map fun i => coverVerdict (firstCover 4 (if i < k then k - 1 else k) 5)
+
+#guard leaveOneOut 1 == [.skip .firstLate, .skip .firstLate, .skip .firstOpen, .skip .firstOpen, .skip .firstOpen,
+  .skip .firstOpen]
+
+theorem run_640_family : (leaveOneOut 1).count (.skip .firstLate) = 2 ∧
+    (leaveOneOut 1).count (.skip .firstOpen) = 4 ∧ ∀ v ∈ leaveOneOut 1, isFail v = false := by decide +kernel
+
+end Open
 
 def jn (n : Int) : Json := .num ⟨n, 0⟩
 
@@ -437,7 +568,11 @@ def lines (_ : Unit := ()) : List String :=
     line "scene" [("top", jn t), ("bottom", jn b), ("vh", jn vh)] (.str (heroScene t b vh))) ++
   [line "const" [] (Json.mkObj
     [("attr", .str "data-fw-hero-scene"), ("active", .str (attr true)), ("paused", .str (attr false)),
-     ("rootMargin", .str "100% 0px"), ("playState", .str "paused"), ("willChange", .str "auto")])]
+     ("rootMargin", .str "100% 0px"), ("playState", .str "paused"), ("willChange", .str "auto")])] ++
+  (heroAnims ()).map fun an => line "anim" [("file", .str an.file), ("name", .str an.name)] (Json.mkObj
+    [("fam", .str (match an.fam with | .copy => "copy" | .card => "card")),
+     ("uses", .arr (an.uses.map fun (s, o) => Json.mkObj [("sel", .str s), ("off", (o.map Json.str).getD .null)]).toArray),
+     ("afterSplash", .bool an.afterSplash)])
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 

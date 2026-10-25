@@ -2641,8 +2641,8 @@
    ],
    "chromium": "trade",
    "webkit": "win",
-   "visual": "E against the original (visSame_original; the rule is the original own, snapshot 2.gBuqKVzi.css near byte 227279); differs from the faithful arm, which lacks the rule. No-claim zones: a stale frame beyond kMax during the splash (17.2 px at 932x430, proved within), beyond kCopy after it (170 px at 932x430, INFERRED), svh < vh, hero.countdown:strip.",
-   "mechanism": "An effect that is still affecting a property keeps its layer composited (RenderLayerCompositor.cpp:3842-3867@862f17d); will-change auto plus paused animations off-screen drop about 85 of the hero layers (80 countdown faces, 4 deck cards, the copy), the 2 cue layers stay for their animation reason. MEASURED WebKit census 430x775 run 39548856639: layers 58/51 at y 3000 and 65/56 at y 4500 against 136-145 in the baseline arm 39309416016 (morph.mount:shift), willChange reasons 91 -> 6; original 42-47/30. Breakpoint gate 39549161028 passes both engines. Chromium trajectory: the first open frame at 390 lands in the open@1 bucket in 0 of 15 flag reps, 9 of 25 no-flag reps and 0 of 20 original reps (runs 39548822269, 39553952680, 39556935431, control 39557718020): the timing difference is MEASURED, its attribution to the flag INFERRED, and the probe judges it against the faithful arm, so the flag stays out of v2-proved.",
+   "visual": "E against the original (visSame_original; the rule is the original own, snapshot 2.gBuqKVzi.css near byte 227279); differs from the faithful arm, which lacks the rule. No-claim zones: a stale frame beyond kMax during the splash (17.2 px at 932x430, proved within), beyond kCopy after it (170 px at 932x430, proved within: hero_paused_hidden_copy, since after the splash only the copy column animates, after_splash_copy), hero.exit:threaded after the splash (it runs card animations then, threaded_card_after_splash), svh < vh, hero.countdown:strip.",
+   "mechanism": "An effect that is still affecting a property keeps its layer composited (RenderLayerCompositor.cpp:3842-3867@862f17d); will-change auto plus paused animations off-screen drop about 85 of the hero layers (80 countdown faces, 4 deck cards, the copy), the 2 cue layers stay for their animation reason. MEASURED WebKit census 430x775 run 39548856639: layers 58/51 at y 3000 and 65/56 at y 4500 against 136-145 in the baseline arm 39309416016 (morph.mount:shift), willChange reasons 91 -> 6; original 42-47/30. Breakpoint gate 39549161028 passes both engines. Chromium trajectory: the first open frame at 390 lands in the open@1 bucket in 0 of 15 flag reps, 9 of 25 no-flag reps and 0 of 20 original reps (runs 39548822269, 39553952680, 39556935431, control 39557718020): the timing difference is MEASURED, its attribution to the flag INFERRED. The probe now judges open@1 against the original's first frame (Fw.Gate.Trajectory.byMFirst): the three flag runs replay clean (recorded_clean), and run 40139690556 (4e24712, all four widths) is Chromium UNDECIDED only by leave-one-out (42 open@1 units at 640 morph, skip firstLate in candidate and faithful arm, never new: run_640_family; 1 nav background-color close@0 at 1280) and playwright-webkit CLEAN. Census at the page end (MEASURED, flag run 40151792642 n=3 VMs, base run 40151813906 plain rewrite n=2 VMs, 2 passes each): layers 39-47 against 124-128, will-change 5 against 90 in every pass (drop 85, hero_paused_drop). Gen cells: chromium hero and morph, webkit hero pass; webkit morph fail (macOS run 40143377510: nav background-color close@0 content new at 390 and 641; the same unit fails at 2 or more widths in the macOS A/A arm 39472217441, so the fail is not attributed to the flag, INFERRED).",
    "leanFor": [
     "Fw.Parts.HeroScenePause.heroScene_eq_original",
     "Fw.Parts.HeroScenePause.paused_iff",
@@ -2651,24 +2651,29 @@
     "Fw.Parts.HeroScenePause.hero_paused_hidden_fresh",
     "Fw.Parts.HeroScenePause.hero_wc_paint_same",
     "Fw.Parts.HeroScenePause.layers_le",
-    "Fw.Parts.HeroScenePause.hero_paused_drop"
+    "Fw.Parts.HeroScenePause.hero_paused_drop",
+    "Fw.Parts.HeroScenePause.after_splash_copy",
+    "Fw.Parts.HeroScenePause.card_stops",
+    "Fw.Parts.HeroScenePause.kMax_le_kCopy",
+    "Fw.Parts.HeroScenePause.hero_paused_hidden_copy",
+    "Fw.Parts.HeroScenePause.hero_paused_same_after_splash",
+    "Fw.Parts.HeroScenePause.Open.recorded_clean",
+    "Fw.Parts.HeroScenePause.Open.run_640_family"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroScenePause.cue_phase_differs"
    ],
    "missingWhy": [
-    "kCopy bound after the splash has no theorem (INFERRED)",
     "Safari frame time not measured, no device run (INFERRED)",
-    "census y 5267 measured in one pass only (n=1, 39548856639)",
-    "the trajectory probe judges open@1 coverage against the faithful arm, not the original"
+    "WebKit morph trajectory cell fails on macOS (40143377510, nav background-color close@0 at 390 and 641); the same unit fails in the A/A arm 39472217441, so it needs the in-flight nav background rule or an A/A rate first"
    ],
    "premises": [
     "The original pauses the scene with the same rule: CONFIRMED (snapshot 2.DyWL8TcE.js near byte 90700, 2.gBuqKVzi.css near byte 227279)"
    ],
    "v1Evidence": "",
    "lesson": "A port of the original own optimization is judged against the original; a probe that compares against the faithful arm can count matching the original as a failure.",
-   "next": "Probe follow-up: judge open@1 coverage against the original first frame; then retry v2-proved membership. Follow-ups: hero_paused_hidden_copy (kCopy), deferRendering port, a lag-probe Safari run.",
-   "evidence": "WebKit census 39548856639, breakpoint gate 39549161028, trajectory 39548822269, 39553952680, 39556935431, control 39557718020 (A/A); research/notes/2026/10-20-hero-pause-rule.md; branch worktree-wf_27d7c8bb-7e0-2",
+   "next": "Judge the macOS nav background-color close@0 samples (in-flight rule from bgRed m(q), or an A/A rate for the unit), then rerun the macOS morph cell and set the status; Gen.run decides membership. Follow-ups: deferRendering port, a lag-probe Safari run, hero.exit:threaded after the splash.",
+   "evidence": "WebKit census 39548856639, breakpoint gate 39549161028, trajectory 39548822269, 39553952680, 39556935431, control 39557718020 (A/A); research/notes/2026/10-20-hero-pause-rule.md; branch worktree-wf_27d7c8bb-7e0-2; trajectory 40139690556 (task scene-pause-kcopy), research/notes/2026/10-2x-scene-pause-kcopy.md; census 40151792642 (flag, 3 VMs) and 40151813906 (base, 2 VMs); macOS trajectory 40143377510 (recorded)",
    "userDecision": null
   },
   {
@@ -4367,6 +4372,12 @@
    "task": "commission-band-mech",
    "field": "mechanism",
    "text": "commission-band-mech: the WebKit saving at y 3500-4500 (RecalculateStyles 152/154 -> 106/101, webkit-sim runs 39837001915 / 39843567401; base passes agree within 1 per step, flag passes within 3) is the follower's exit band, the same mechanism as at y 2500-3500; the earlier window 3070 <= scrollY < 3530 was one phone height (932) read off a class-toggle spike and the follower has two bands. PROVED (Fw.Parts.CommissionOptWindow): skip_in_band (the variant skips the writes of event k only if one of the last 29 events lay inside the enter band cardTop - 0.42 vh .. cardTop - 0.06 vh or the exit band bottom - 0.85 vh .. bottom - 0.35 vh, for a non-decreasing scroll with steps under 0.36 vh), quiet_run (29 events at one target pair settle both followers: 0.78^29 < 8e-4), one theorem per branch of the bands (enterRaw_above/below, exitRaw_above/below, tgtE_step, tgtX_step), no_skip_reduced, no_skip_ungated. MEASURED: the section rect from CI Chromium at the 124 probes of breakpoint-gate run 39843552595 (lean/Fw/Parts/CommissionOptLayout.lean, generated by results/commission-band-mech/layout.mjs; 83 probes are in the c1000 band, section heights 744-1212 px, document tops 2880-5876 px) and in-session at 430x932 by chromium-counts run 40139371262 (profile commission-rect-v1: section top 3193.859, height 1202.953 at the probe's 0.001 px rounding in all 575 frames of both runs, equal to the gate read at that precision); on the Chromium rect at 430x775 the exit band is y 3424-3812; on the WebKit page it starts at about 3600 (INFERRED from a model fit to the counts, no WebKit rect read). The model with the measured 430x932 rect puts the moving frames at y 2810-3310 and 3620-4220; the base arm of run 40139371262 starts its restyle spike at 2810 and 3610 (start edges within one frame); end edges fall 90-100 px before the model (3220 vs 3310, 4130 vs 4220), cause open (INFERRED). WebKit source (WebKit-7625.1.29.10.29 @862f17d): a RecalculateStyles record is one Document::resolveStyle (Document.cpp:2865, 2940; PageTimelineAgent.cpp:237-253); updateLayout calls updateStyleIfNeeded (Document.cpp:3025-3051, 3128), so the compact body's layout read (lineBoxes after the writes) adds one record per frame in which the two inherited custom properties changed (StyleComputedStyleBase.cpp:128-133, StyleComputedStyle.cpp:296-297, StyleChange.cpp:42-43, StyleTreeResolver.cpp:307-308); INFERRED: the count of forced flushes per frame (no instrumented run). Note research/notes/2026/10-2x-commission-band-mech.md. missingWhy: Restated (commission-band-mech): the second and third items are closed: the y 3500-4500 WebKit saving is the exit band (PROVED skip_in_band, MEASURED rect), and the window is a Lean-generated constant from the measured section rect with a golden replayed by bandgate.test.ts. Still open: frame-time percentiles (Simulator or phone replay of the scroll-in, follow-up until sim-touch-timeout lands)."
+  },
+  {
+   "entry": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
+   "task": "scene-pause-kcopy",
+   "field": "missingWhy",
+   "text": "scene-pause-kcopy: kCopy proved (hero_paused_hidden_copy, hero_paused_same_after_splash over the CSS-read table heroAnims, replayed against every @keyframes of the hero subtree); open@1 judged against the original's first frame (recorded_clean, run 40139690556); hero:scene-pause linked in Gen.linkTable, Gen.run: not a member (status partly-proved, webkit morph cell fail, macOS run 40143377510, nav background-color close@0 at 390 and 641)."
   }
  ]
 }
