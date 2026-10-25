@@ -18,7 +18,7 @@ workflows:
         FW_TARGET: original
         FW_PRESET: original
         FW_FW: ""
-        FW_VM: r1
+        FW_VM: v1
         FW_SESSIONS: "1"
     scripts:
       - name: Node 24.22.0 first on PATH

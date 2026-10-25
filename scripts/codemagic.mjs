@@ -100,7 +100,7 @@ export function loadConfig(root = ROOT, env = process.env) {
   return { appId: env.FW_CODEMAGIC_APP_ID || f.appId || '' };
 }
 
-export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^r[1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/ };
+export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^[vr][1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/ };
 
 /** The cell variables of a webkit-sim count job (the dispatch inputs `target`, `preset`, `fw`, the VM index and `sessions`); any other name or a value off its pattern is refused. */
 export function cellVars(vars) {

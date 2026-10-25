@@ -102,7 +102,7 @@ test('triggerRequest: POST /builds with appId, workflowId, branch; the token is 
 });
 
 test('triggerRequest: the cell variables of a webkit-sim count job go in environment.variables, others are refused', () => {
-  const vars = { FW_TARGET: 'original', FW_PRESET: 'original', FW_FW: '', FW_VM: 'r1', FW_SESSIONS: '1' };
+  const vars = { FW_TARGET: 'original', FW_PRESET: 'original', FW_FW: '', FW_VM: 'v1', FW_SESSIONS: '1' };
   assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body, { appId: APP, workflowId: 'webkit-sim', branch: 'ci/x', environment: { variables: vars } });
   for (const bad of [{ FW_TOKEN: 'x' }, { FW_VM: 'r1; rm' }, { FW_TARGET: 'both' }, { FW_SESSIONS: '0' }, { FW_FW: 'a b' }]) assert.throws(() => triggerRequest({ appId: APP, branch: 'ci/x', vars: bad }));
 });

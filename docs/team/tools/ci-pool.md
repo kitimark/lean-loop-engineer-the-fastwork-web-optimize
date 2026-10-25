@@ -42,6 +42,17 @@ Each provider's stop rule refuses on its own: GitHub never runs a 6th macOS job 
 
 Live run, 2026-10-22, branch `ci/macos-pool-7` (MEASURED: `gh run view` job times, Codemagic `build.json`). Both dispatches had GitHub at 5 of 5 macOS slots, Codemagic 46 and 66 minutes used, CircleCI 3575 credits and storage 1297 thousandths of a GB-month. Each time the route gave Codemagic one request and made the next wait: the CircleCI storage line is 1000 (`cc_storage_line`), so no CircleCI pipeline was started (that line is gone; the same ledger gives 650, `storage_20261021`). At 07:01:15Z six macOS jobs ran at once: five on GitHub (three of them ours: webkit-sim run 39734101098, wktr 39734101164, wktr-fixtures 39734101121); both of these runs end failure because their later jobs stopped stale at the tip re-check after the second push, while the jobs running at 07:01:15Z (wktr j1, fixtures j2) passed and Codemagic build 6ad9b3b25a4232c65cf47752. Under the 30-day count of that day the seventh slot stayed closed.
 
+## Dispatch-time route in `fw run` (task pool-dispatch-poller)
+
+Why the 2026-10-25 webkit-sim count runs queued behind the 5 GitHub macOS slots while the Codemagic slot idled: `fw run` dispatched every macOS job straight to GitHub and `codemagic.yaml` was a one-cell pilot. Now a `webkit-sim` count job of target original, on a pushed `ci/*` ref with at least 2 VMs, goes through the Lean route first (`apps/runner/src/ci-pool-tier.ts`, `realRoute`):
+
+1. Facts: `gh run list --status in_progress` plus `gh run view --json jobs` for the in-progress macOS workflows (`ghMacBusy` = macOS jobs in progress or queued, `obs.macIs`), and `node scripts/codemagic.mjs facts` (`cmUsed`, `cmBusy`). `ghRemainingS` stays unknown, so a full GitHub never counts as a short wait.
+2. Route: fwcore `ci.poolTier` with CircleCI closed (`circleMacAllow: []`). GitHub first, Codemagic only when GitHub is full, stop at 400 of 500 minutes (Lean: `github_first`, `cm_refuses_over`, `cm_cells_budget`, `rewrite_never_codemagic`).
+3. Cells the route sends to Codemagic run as `codemagic.yaml` variables (`FW_VM=v<k>`, `FW_SESSIONS`, `FW_TARGET=original`, via `trigger --vars`); at most `vms - 1` cells leave GitHub, the GitHub run keeps v1.. and the telemetry pieces. The GitHub run is dispatched with the remaining count, then GitHub and Codemagic are awaited together. The artifacts land in `webkit-sim-v<k>/` as `gh run download` would put them, `webkit-classes` is merged locally over every VM (`mergeClasses`), and the Codemagic build `sha` must equal the target sha.
+4. Events: `<console dir>/ci-route.jsonl` (runner log, not console `events.jsonl`): `ci.route` (cells, codemagic, github, per-cell rows, busy, facts), `ci.route.skip` (why), `ci.codemagic.build` (build, vm, status, startedAt, finishedAt, createdAt, minutes), `ci.codemagic.refused`. No author, email or token fields. The ledger row of `fetch` carries the same times.
+
+`fw run ... --no-route` keeps every cell on GitHub. A refused trigger (exit 5) or a failed Codemagic build fails the run; rerun with `--no-route`.
+
 ## Not wired yet
 
-No workflow or poller calls either route. The poller tick (ci-route), live slot reading (`ghRemainingS` from running jobs), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups.
+Jobs already queued on GitHub are not re-routed (the Lean route has no re-route step: a GitHub dispatch is final); a poller that cancels and re-dispatches them needs its own proof. The rewrite arm on Codemagic needs the site build of the GitHub `site` job. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.

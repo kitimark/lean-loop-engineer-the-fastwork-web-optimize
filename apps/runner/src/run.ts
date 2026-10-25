@@ -16,13 +16,14 @@ export type RunArgs = {
   gate?: boolean; presetGiven?: boolean;
   trajectory?: boolean; widths?: string;
   diagnostic?: boolean;
+  noRoute?: boolean;
 };
 
 export const RUN_USAGE = "usage: fw run --target original|rewrite [--preset <name>] [--fw part:variant,...] --engines chromium,webkit\n" +
   "       fw run --gate [--engines both|chromium|playwright-webkit] [--preset <name> | --fw part:variant,...] [--ref <branch>]\n" +
   "       fw run --trajectory [--engines both|chromium|playwright-webkit] [--preset <name> | --fw part:variant,...] [--widths 390,640,641,1280 [--diagnostic]] [--ref <branch>]\n" +
   "              [--profile <id>] [--runs 2..10]\n" +
-  "              [--ref <pushed branch>] [--sha <git sha>] [--image engine=sha256:...] [--from-run engine=<run id>] [--dry]";
+  "              [--ref <pushed branch>] [--sha <git sha>] [--image engine=sha256:...] [--from-run engine=<run id>] [--dry] [--no-route]";
 
 export function parseRunArgs(argv: string[]): RunArgs {
   const a: RunArgs = { target: "", preset: "original", fw: [], engines: [], dry: false, images: {}, fromRun: {} };
@@ -39,6 +40,7 @@ export function parseRunArgs(argv: string[]): RunArgs {
   for (let i = 0; i < argv.length; i++) {
     const f = argv[i]!;
     if (f === "--dry") a.dry = true;
+    else if (f === "--no-route") a.noRoute = true;
     else if (f === "--target") a.target = val(i++, f);
     else if (f === "--gate") a.gate = true;
     else if (f === "--trajectory") a.trajectory = true;
@@ -199,9 +201,10 @@ export function downloadPlan(call: FwCall, engine: string, target: string, runs:
   return DownloadReply.parse(call({ op: "store.download", engine, target, runs, ...(served ? { served } : {}) }));
 }
 
-export async function downloadPieces(d: Pick<RunDeps, "gh" | "call" | "log">, runId: string, dir: string, engine: string, target: string, runs: number): Promise<number> {
+export async function downloadPieces(d: Pick<RunDeps, "gh" | "call" | "log">, runId: string, dir: string, engine: string, target: string, runs: number, localMerge = false): Promise<number> {
   const plan = downloadPlan(d.call, engine, target, runs);
   for (const p of plan.pieces) {
+    if (localMerge && p.pattern === "webkit-classes") continue;
     const args = ["run", "download", runId, "-D", dir, "--pattern", p.pattern];
     try {
       await d.gh(args, { timeoutMs: p.timeoutMs, cost: p.cost });
@@ -257,7 +260,17 @@ export function renderPlan(p: Planned, dry: boolean): string[] {
   return out;
 }
 
+/** Dispatch-time pool route (task pool-dispatch-poller). `split` asks the Lean route where the cells of one webkit-sim count job go, starts the
+ *  Codemagic cells and returns how many cells stay on GitHub; `cm` settles with the fetched Codemagic cells (vm names v<github+1>..); `place` files them
+ *  next to the GitHub download and merges the classes over every VM. */
+export type CmCellDone = { vm: string; out: string };
+export type RouteDeps = {
+  split: (job: PlanJob, ref: string, sha: string) => Promise<{ github: number; cm: Promise<CmCellDone[]> }>;
+  place: (dir: string, cells: CmCellDone[]) => void;
+};
+
 export type RunDeps = {
+  route?: RouteDeps;
   call: FwCall; gh: Gh; wait: WaitFn; store: string; sha: string; branch: string; tmp: string; log: (l: string) => void;
   now: () => number;
   workflowName?: (file: string) => string | undefined;
@@ -286,9 +299,22 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
   for (const j of planned.reply.jobs) {
     if (j.cache === "hit") { d.log(`${j.engine}: cached at ${j.manifest}`); continue; }
     let runId = args.fromRun[j.engine];
+    let cells: CmCellDone[] = [];
+    let ghRuns = keyRuns(j.key as [string, string][]);
     if (!runId) {
-      runId = decided(j.engine, await dispatchAndWait(d, j, ref, sha, j.engine));
-      d.recordKind?.(Number(runId), j.inputs);
+      let job: PlanJob = j;
+      let cm: Promise<CmCellDone[]> = Promise.resolve([]);
+      if (d.route && !args.noRoute && j.workflow === "webkit-sim.yml") {
+        const s = await d.route.split(j, ref, sha);
+        job = { ...j, inputs: { ...j.inputs, vms: String(s.github) } };
+        ghRuns = s.github;
+        cm = s.cm;
+      }
+      const both = await Promise.all([dispatchAndWait(d, job, ref, sha, j.engine), cm.catch((e: unknown) => e as Error)]);
+      if (both[1] instanceof Error) throw both[1];
+      cells = both[1];
+      runId = decided(j.engine, both[0]);
+      d.recordKind?.(Number(runId), job.inputs);
     } else {
       runId = decided(j.engine, await waitDecided(d.wait, { kind: "run", runId: Number(runId) }, d.now, d.capS));
     }
@@ -298,7 +324,8 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     const dir = mkdtempSync(join(d.tmp, `${j.engine}-${runId}-`));
     let r: ReturnType<typeof ingest>;
     try {
-      await downloadPieces(d, runId, dir, j.engine, args.target, keyRuns(j.key as [string, string][]));
+      await downloadPieces(d, runId, dir, j.engine, args.target, ghRuns, cells.length > 0);
+      if (cells.length) d.route!.place(dir, cells);
       r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runs: keyRuns(j.key as [string, string][]), runId });
     } finally { rmSync(dir, { recursive: true, force: true }); }
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);
@@ -452,8 +479,12 @@ export async function runCli(argv: string[], cwd: string, env: Record<string, st
   const consoleDir = env.FW_CONSOLE_DIR ?? join(dirname(vcs("rev-parse", "--path-format=absolute", "--git-common-dir")), ".fw-console");
   const genv = args.dry ? null : realEnv(cwd);
   const unused = (): never => { throw new Error("no gh call in --dry"); };
+  const call = fwcoreCall(cwd);
+  const gh = genv ? ph.gh(chargedGh(ph.env(genv))) : unused;
+  const route = genv && !args.noRoute ? (await import("./ci-pool-tier.ts")).realRoute({ root: cwd, consoleDir, call, gh, log: (l) => console.log(l), now: () => Date.now() }) : undefined;
   code = await runMain(args, {
-    call: fwcoreCall(cwd), gh: genv ? ph.gh(chargedGh(ph.env(genv))) : unused, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
+    ...(route ? { route } : {}),
+    call, gh, wait: genv ? ph.wait((t, timeoutS) => waitFor(genv, t, { timeoutS })) : unused,
     now: genv ? genv.now : () => Math.floor(Date.now() / 1000),
     recordKind: (id, inputs) => { recordRunKind(id, inputs, cwd); },
     refSha: (r) => vcs("rev-parse", "--verify", "--quiet", `refs/remotes/origin/${r}^{commit}`) || vcs("rev-parse", "--verify", "--quiet", `refs/heads/${r}^{commit}`) || undefined,
