@@ -28,7 +28,7 @@ Follow-up of `10-2x-combo-scroll-fight.md`. Rewrite paths are under `apps/site/s
   (`cancelable`, passive listener, an earlier listener that already prevented). Both equal the Lean writes and
   `defaultPrevented` event by event.
 - waapi and waapi-scoped cannot be picked with morph.end.release:on (registry conflict in `morph.end.release/part.json`; Lean
-  `Fw.Parts.MorphEndReleaseConflict.decided_no_release_waapi`: every link `Fw.Console.Compose.decide` returns resolves through
+  `Fw.Parts.ComboScroll.decided_no_release_waapi`: every link `Fw.Console.Compose.decide` returns resolves through
   `validate`, whose final state never selects both; `accepted_no_release_waapi`, `finish_refuses`). So the waapi pin writers
   never run with the hold rule needed. The conflict changes no runtime path of the 8-flag arms (they pick the default tween), so
   no new CI push. Site test: `part.json` carries exactly the rule the theorem takes as hypothesis (`waapiKeys`). The hypothesis
@@ -73,7 +73,7 @@ and `wstep` takes it where it took the cancelable bit. `MorphEnd.step` is unchan
 | arm-late passive outside the band: unheld, quiet | `arm_passive_unheld`, `arm_passive_quiet` |
 | the old rule was wrong for a passive listener | `old_rule_differs` |
 | bricks keep their theorems with the wrapper | `wclamp_le`, `wrelease_quiet`, `wrelease_close_free`, `wrelease_starts`, `wrelease_rel` |
-| no accepted pick has release:on with waapi or waapi-scoped | `decided_no_release_waapi`, `accepted_no_release_waapi`, `finish_refuses` (`MorphEndReleaseConflict`) |
+| no accepted pick has release:on with waapi or waapi-scoped | `decided_no_release_waapi`, `accepted_no_release_waapi`, `finish_refuses` (`ComboScroll`) |
 
 Witnesses (`#guard`): `passiveTrace` (the user's trace with a cancelable passive reopen) writes nothing in the wrapper and 4900
 twice in the inner reducer; `otherTrace` holds when an earlier listener prevented.

@@ -233,7 +233,7 @@ describe('combo-scroll through the driver', () => {
   }
 });
 
-describe('waapi and waapi-scoped cannot be picked with morph.end.release:on (Lean MorphEndReleaseConflict.decided_no_release_waapi)', () => {
+describe('waapi and waapi-scoped cannot be picked with morph.end.release:on (Lean ComboScroll.decided_no_release_waapi)', () => {
   const part = JSON.parse(readFileSync(new URL('../parts/morph.end.release/part.json', import.meta.url), 'utf8')) as {
     conflicts: Record<string, string[]>;
   };

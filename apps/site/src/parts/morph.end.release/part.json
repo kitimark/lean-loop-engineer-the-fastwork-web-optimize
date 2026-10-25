@@ -20,7 +20,7 @@
       "visClass": "L",
       "provenance": {
         "lean": "Fw.Parts.MorphEnd release_starts, release_close_free, release_quiet, release_after_close, release_open_same, order_free, all_combinations, bricks_no_rules",
-        "limit": "look change (L), brick C: a close start drops the pin and stops preventDefault until the next open; effect: a drag back while the morph closes moves the page under the finger instead of being held at the pin; phone review pending; covers the createTweenDriver path only (waapi and waapi-scoped cannot be picked with it: registry conflict, Lean Fw.Parts.MorphEndReleaseConflict.decided_no_release_waapi); flipN = 16 is a placeholder until morph-end-measure"
+        "limit": "look change (L), brick C: a close start drops the pin and stops preventDefault until the next open; effect: a drag back while the morph closes moves the page under the finger instead of being held at the pin; phone review pending; covers the createTweenDriver path only (waapi and waapi-scoped cannot be picked with it: registry conflict, Lean Fw.Parts.ComboScroll.decided_no_release_waapi); flipN = 16 is a placeholder until morph-end-measure"
       }
     }
   },
