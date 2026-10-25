@@ -233,15 +233,12 @@ describe('combo-scroll through the driver', () => {
   }
 });
 
-describe('waapi and waapi-scoped pin writers (Lean ComboScroll.waapi_pin_eq_base, waapi_trace_eq)', () => {
-  const src = (f: string) => readFileSync(new URL(`../parts/morph.tween/${f}`, import.meta.url), 'utf8');
-  it('the waapi driver and its logic take no hooks: morph.end.release cannot reach them, so the hold bit stays at its initial true', () => {
-    for (const f of ['waapi.driver.ts', 'waapi.logic.ts']) expect(src(f)).not.toMatch(/hooks|release|end\.logic|end\.hooks/i);
-  });
-  it('the waapi env built in index.tsx copies no hooks from the tween env', () => {
-    const idx = src('index.tsx');
-    const body = idx.slice(idx.indexOf('function waapiEnv'), idx.indexOf('function waapiEnv') + 2400);
-    expect(body).not.toMatch(/hooks/);
+describe('waapi and waapi-scoped cannot be picked with morph.end.release:on (Lean MorphEndReleaseConflict.decided_no_release_waapi)', () => {
+  const part = JSON.parse(readFileSync(new URL('../parts/morph.end.release/part.json', import.meta.url), 'utf8')) as {
+    conflicts: Record<string, string[]>;
+  };
+  it('part.json carries the rule the Lean theorem takes as its hypothesis (waapiKeys)', () => {
+    expect(part.conflicts).toEqual({ 'morph.end.release:on': ['morph.tween:waapi', 'morph.tween:waapi-scoped'] });
   });
 });
 

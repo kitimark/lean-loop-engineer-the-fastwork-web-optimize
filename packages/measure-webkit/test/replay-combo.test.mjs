@@ -115,8 +115,8 @@ test('a write is against a native scroll when the latest touchmove before it was
 
 test('passive arms reuse a prerendered search and the delta set holds the user and release arms with and without them', () => {
   const passive = BISECT.filter((a) => isPassive(a.name));
-  assert.deepEqual(passive.map((a) => a.name).sort(), ['release+passive', 'user+passive']);
+  assert.deepEqual(passive.map((a) => a.name).sort(), ['release+allpassive', 'user+allpassive']);
   for (const a of passive) assert.ok(BISECT.some((b) => !isPassive(b.name) && b.search === a.search));
-  assert.deepEqual(DELTA.map((a) => a.name).sort(), ['release', 'release+passive', 'user', 'user+passive']);
-  assert.ok(FIX.some((a) => a.name === 'user+passive'));
+  assert.deepEqual(DELTA.map((a) => a.name).sort(), ['release', 'release+allpassive', 'user', 'user+allpassive']);
+  assert.ok(FIX.some((a) => a.name === 'user+allpassive'));
 });

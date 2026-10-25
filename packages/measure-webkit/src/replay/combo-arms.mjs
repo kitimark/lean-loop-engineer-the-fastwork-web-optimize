@@ -21,14 +21,14 @@ export const BISECT = [
   { name: 'end3+arm-late', search: q([...END3, 'morph.mount:arm-late']) },
   { name: 'end3+unthrottle', search: q([...END3, 'engine.scroll:unthrottle']) },
   { name: 'end3+arm-late+unthrottle', search: q([...END3, 'morph.mount:arm-late', 'engine.scroll:unthrottle']) },
-  { name: 'user+passive', search: q(USER_FLAGS) },
-  { name: 'release+passive', search: q(['morph.end.release:on']) },
+  { name: 'user+allpassive', search: q(USER_FLAGS) },
+  { name: 'release+allpassive', search: q(['morph.end.release:on']) },
 ];
 
-export const isPassive = (name) => name.endsWith('+passive');
+export const isPassive = (name) => name.endsWith('+allpassive');
 
-export const FIX = BISECT.filter((a) => ['default', 'user', 'end3', 'release', 'user+passive', 'release+passive'].includes(a.name));
-export const DELTA = BISECT.filter((a) => ['user', 'release', 'user+passive', 'release+passive'].includes(a.name));
+export const FIX = BISECT.filter((a) => ['default', 'user', 'end3', 'release', 'user+allpassive', 'release+allpassive'].includes(a.name));
+export const DELTA = BISECT.filter((a) => ['user', 'release', 'user+allpassive', 'release+allpassive'].includes(a.name));
 
 export const SETS = { bisect: BISECT, fix: FIX, delta: DELTA };
 

@@ -27,10 +27,12 @@ Follow-up of `10-2x-combo-scroll-fight.md`. Rewrite paths are under `apps/site/s
   `registry/combo-scroll.test.ts` twice: through the pure reducer, and through the real driver on a DOM-faithful fake event
   (`cancelable`, passive listener, an earlier listener that already prevented). Both equal the Lean writes and
   `defaultPrevented` event by event.
-- waapi and waapi-scoped: not given the bit. They cannot run with release: their env has no hooks, so `morph.end.release` never
-  reaches them (`waapi_pin_eq_base`: their pin is exactly the release-off pin; `waapi_trace_eq`: release off makes the wrapper
-  the inner reducer and `held` never leaves true; site text test on `waapi.driver.ts`, `waapi.logic.ts` and `waapiEnv`). Their
-  pin against a native scroll is the original page's, not a release effect (below).
+- waapi and waapi-scoped cannot be picked with morph.end.release:on (registry conflict in `morph.end.release/part.json`; Lean
+  `Fw.Parts.MorphEndReleaseConflict.decided_no_release_waapi`: every link `Fw.Console.Compose.decide` returns resolves through
+  `validate`, whose final state never selects both; `accepted_no_release_waapi`, `finish_refuses`). So the waapi pin writers
+  never run with the hold rule needed. The conflict changes no runtime path of the 8-flag arms (they pick the default tween), so
+  no new CI push. Site test: `part.json` carries exactly the rule the theorem takes as hypothesis (`waapiKeys`). The hypothesis
+  that the registry holds this rule is a test (TS), the resolver theorem is Lean.
 - Replay, MEASURED, run 40142598495 (device-replay, success; Lean run 40142598556 success): on the build of this commit, the
   user's 8 flags (arm `user`) and the same flags with every touchmove and wheel listener passive and one blocking no-op listener
   (arm `user+passive`): 11 of 11 replays each (6 profiles: flick-gap8, 20, 32, same-touch, same-touch-slow, recorded; 2 reps,
@@ -71,7 +73,7 @@ and `wstep` takes it where it took the cancelable bit. `MorphEnd.step` is unchan
 | arm-late passive outside the band: unheld, quiet | `arm_passive_unheld`, `arm_passive_quiet` |
 | the old rule was wrong for a passive listener | `old_rule_differs` |
 | bricks keep their theorems with the wrapper | `wclamp_le`, `wrelease_quiet`, `wrelease_close_free`, `wrelease_starts`, `wrelease_rel` |
-| waapi pin is the release-off pin; release off is inert | `waapi_pin_eq_base`, `waapi_held_inert`, `waapi_trace_eq` |
+| no accepted pick has release:on with waapi or waapi-scoped | `decided_no_release_waapi`, `accepted_no_release_waapi`, `finish_refuses` (`MorphEndReleaseConflict`) |
 
 Witnesses (`#guard`): `passiveTrace` (the user's trace with a cancelable passive reopen) writes nothing in the wrapper and 4900
 twice in the inner reducer; `otherTrace` holds when an earlier listener prevented.
@@ -92,13 +94,11 @@ finger. The new part: a passive listener is now treated the same way (it used to
 ## Accepted limits and follow-ups
 
 - CI Chromium replay stands in for the phone (Playwright WebKit cannot drive a touch drag); the phone re-check is the user's step.
-- The replay does not discriminate old from new (above). A profile whose reopen touch starts after the fling stopped, near the
+- The replay does not discriminate old from new (above). Follow-up: a profile whose reopen touch starts after the fling stopped, near the
   platform, would; the page has scrolled away by then in the scripted paths.
-- The `+passive` arms are a harness model: `combo-replay.mjs` `PASSIVE_JS` forces `passive: true` on every `touchmove` and `wheel`
+- The `+allpassive` arms (named `+passive` in run 40142598495, renamed after) are a harness model: `combo-replay.mjs` `PASSIVE_JS` forces `passive: true` on every `touchmove` and `wheel`
   listener and adds one blocking no-op `touchmove` listener so Chromium keeps the event cancelable. The real cases are the band hub
   and arm-late's mount listener on the phone (INFERRED, not measured there).
-- waapi and waapi-scoped keep the original's pin against a native scroll; it is not caused by release. The site text test is a TS
-  stand-in for "the env has no hooks"; the Lean side proves what the pin is, not the wiring.
 - The toolbar-resize fight near y 1859 is out of scope.
 - `combo-metrics.mjs` verdicts are a TS stand-in (not Lean). New: `nativeWrites` counts a write whose latest preceding touchmove was
   not default-prevented (the recorder reads `defaultPrevented` in a document listener after the page's capture handler).
