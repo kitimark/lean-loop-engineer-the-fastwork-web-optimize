@@ -3927,6 +3927,48 @@
    "next": "A look check of chasing parts; a phone pass; then the trajectory cells before v2-proved.",
    "evidence": "CI runs 40109924058, 40116376544 (toolbar-throttle, hero drags); research/notes/2026/10-2x-unthrottle-follow.md; branch worktree-wf_4682f586-db0-1",
    "flag": "engine.scroll:unthrottle-follow"
+  },
+  {
+   "n": 75,
+   "id": "engine.events.quiet",
+   "part": "engine.events",
+   "candidate": "engine.events:quiet: the React root container registers none of the 7 animation and transition listeners (animationstart, animationiteration, animationend, transitionrun, transitionstart, transitioncancel, transitionend; capture and bubble, 14 registrations), through an own addEventListener on #root that drops them; every other root listener stays",
+   "status": "partly-proved",
+   "flag": "engine.events:quiet",
+   "flags": [
+    "engine.events:quiet"
+   ],
+   "chromium": "no-win: Chromium dispatches the same events (about 790 to 810 per walk) and the recorder shows the same 14 registrations dropped; the task is judged on WebKit, no Chromium count run",
+   "webkit": "win (MEASURED, webkit-sim, iPhone Simulator 430x775, 50 px steps, 1 VM x 2 passes; base run 40134016822, flag run 40134234199): scroll walk EventDispatch 1132/1099 to 529/527 (-53%), FunctionCall 1646/1623 to 1045/1042 (-36%); every 500 px zone lower",
+   "visual": "E (the listeners are never read by the page: no handler of the 7 types exists in the shipped code, scanned by quiet.scan.test.ts; the flag changes no style, layout or paint). Breakpoint gate both engines pass (run 40128098292).",
+   "mechanism": "PROVED (Fw.Parts.ReactRootOpt): the original root registers a capture and a bubble listener for each of the 7 types (orig_registers, records_orig: 2 EventDispatch records per event); the variant registers none of them (quiet_none, quiet_drops, records_quiet) and keeps every other registration (quiet_keeps, records_other) and every type the page handles (handled_stays). CONFIRMED by source: react-dom createRoot registers every native event type on the container (DOMPluginEventSystem.js:432-455@61aa00d) and WebKit records one EventDispatch per phase that has a listener (EventTarget.cpp:313-357@862f17d), while the events are enqueued regardless (StyleOriginatedAnimation.cpp:331-412@862f17d). CONFIRMED on CI (trajectory-probe recorder, runs 40122201939, 40124553279, 40126773924): the 7 types are dispatched in every walk and the variant registers 0 of 14. The FunctionCall drop (about 600) equals the EventDispatch drop (about 600): each removed dispatch took its one listener call.",
+   "leanFor": [
+    "Fw.Parts.ReactRootOpt.quiet_none",
+    "Fw.Parts.ReactRootOpt.quiet_keeps",
+    "Fw.Parts.ReactRootOpt.quiet_sub",
+    "Fw.Parts.ReactRootOpt.handled_stays",
+    "Fw.Parts.ReactRootOpt.orig_registers",
+    "Fw.Parts.ReactRootOpt.quiet_drops",
+    "Fw.Parts.ReactRootOpt.dropped_count",
+    "Fw.Parts.ReactRootOpt.records_orig",
+    "Fw.Parts.ReactRootOpt.records_quiet",
+    "Fw.Parts.ReactRootOpt.records_other"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Counts are engine work, not felt smoothness: no frame-time percentiles; the phone is the user step",
+    "One Simulator VM (2 passes) per arm, not 3 VMs",
+    "A portal into another container registers the 7 types again (none exists in the page)",
+    "The Apple-WebKit trajectory probe reported differing coverage units at 390 between base and flag in all three probe runs; witness noise or less main-thread work per step, undecided (an A/A run decides)"
+   ],
+   "premises": [
+    "CONFIRMED: no code path of the shipped page handles an animation or transition event through React (quiet.scan.test.ts scans the files entry-client reaches)",
+    "CONFIRMED: createRoot calls listenToAllSupportedEvents on the container (ReactDOMRoot.js:258,:357@61aa00d)"
+   ],
+   "v1Evidence": "",
+   "lesson": "Count the listeners a framework root installs before counting the events: WebKit charges an EventDispatch record per phase with a listener, so seven unused types on one root cost two records for every CSS animation or transition event of the page, and removing the registration removes the record and its FunctionCall without touching the events.",
+   "next": "Lead decides promotion to the v2-proved preset (status stays partly-proved until a phone review of the felt smoothness). Follow-up: an A/A trajectory run to decide the 390 coverage noise.",
+   "evidence": "CI runs 40122201939, 40124553279, 40126773924 (trajectory-probe), 40122202078 (lean), 40128098292 (gate), 40134016822, 40134234199 (webkit-sim); research/notes/2026/10-20-react-root-quiet-events.md; results/react-root-quiet-events/"
   }
  ],
  "notes": [
