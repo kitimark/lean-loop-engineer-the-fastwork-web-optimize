@@ -1,6 +1,3 @@
-// Twin of Lean Fw.Measure.MorphEndCount (lean/Fw/Measure/MorphEndCount.lean): the close and re-open events by finger direction, opens,
-// stretches, spring-back fights, pooled counts and the verdict of a brick. test/throttle-morph-end.test.mjs checks it against
-// packages/contracts/golden/device/morph-end-count.jsonl. Still runs come from finish.mjs, pin turns from the twin of Fw.Measure.TouchLock.
 import { reduce as finishReduce, armOf, verdict } from './finish.mjs';
 import { reduce as lockReduce, refusal as lockRefusal, cmp } from '../touchlock.mjs';
 
@@ -54,17 +51,14 @@ export function stretches(o) {
   return out;
 }
 
-/** Opens: values above 0 that follow a 0 (the series starts at 0). Lean `opens`. */
 export function opens(r) {
   let n = 0;
   for (let i = 0; i < r.length; i++) if (r[i] > 0 && (i === 0 || r[i - 1] === 0)) n++;
   return n;
 }
 
-/** A step of `move` is against a finger going `d`. Lean `against`. */
 export const against = (d, move) => (d < 0 && move < 0) || (d > 0 && move > 0);
 
-/** The finger direction of the spring-back fight a write [top, open, frame] makes, or null. Lean `fightDir`. */
 export function fightDir(ys, ds, w) {
   const [top, open, frame] = w;
   if (frame === 0) return null;
@@ -73,7 +67,6 @@ export function fightDir(ys, ds, w) {
   return open && against(d, top - y) ? dirName(d) : null;
 }
 
-/** Spring-back fights by finger direction: every write counts at most once. Lean `springBack`. */
 export function springBack(ys, ds, ws) {
   const out = ZERO();
   for (const w of ws) { const k = fightDir(ys, ds, w); if (k !== null) out[k]++; }
@@ -153,46 +146,31 @@ export function verdicts(base, comp) {
   };
 }
 
-/** The counts of several passes: field-wise sums. Lean `total`. */
 export const totalCounts = (cs) => ({
   opens: sum(cs.map((c) => c.opens)), closes: sumDir(cs.map((c) => c.closes)), reopens: sumDir(cs.map((c) => c.reopens)),
   springBack: sumDir(cs.map((c) => c.springBack)),
 });
 
-/** A pass's count per 1000 open starts, null with no open start. Lean `perThousand`. */
 export const perThousand = (count, opens) => (opens === 0 ? null : Math.floor((count * 1000) / opens));
 
-/** The rates of passes given as [count, open starts]. Lean `rates`. */
 export const rates = (ps) => ps.map(([c, o]) => perThousand(c, o)).filter((x) => x !== null);
 
-/** win, trade or no-win from the comparison of reversals and fights and whether the still runs lifted or got worse. Lean `brickVerdict`. */
 export function brickVerdict(rev, fight, stillLifted, stillWorse) {
   const better = (rev === 'lower' ? 1 : 0) + (fight === 'lower' ? 1 : 0) + (stillLifted ? 1 : 0);
   const worse = (rev === 'higher' ? 1 : 0) + (fight === 'higher' ? 1 : 0) + (stillWorse ? 1 : 0);
   return better === 0 ? 'no-win' : worse === 0 ? 'win' : 'trade';
 }
 
-/** One stretch per pass, as [count, open starts] pairs with one open start each. Lean `perStretch`. */
 export const perStretch = (counts) => counts.map((c) => [c, 1]);
 
-/**
- * The still runs are worse when, in every job with a rate on both sides, every brick pass is above every faithful pass of that job, and
- * at least one job can be compared. Jobs are [faithful passes, brick passes], each pass [still runs, finish-zone frames]. Lean `stillWorseOf`.
- */
 export function stillWorseOf(jobs) {
   const ok = jobs.filter(([f, c]) => rates(f).length > 0 && rates(c).length > 0);
   return ok.length > 0 && ok.every(([f, c]) => cmp(rates(f), rates(c)) === 'higher');
 }
 
-/** Lean `verdictOf`: reversals and fights as [count, open starts] per pass, still runs as jobs of [runs, frames] passes, faithful against brick. */
 export const verdictOf = (faithRev, candRev, faithFight, candFight, stillJobs, stillLifted) =>
   brickVerdict(cmp(rates(faithRev), rates(candRev)), cmp(rates(faithFight), rates(candFight)), stillLifted, stillWorseOf(stillJobs));
 
-/**
- * The reversals and spring-back fights of the first open stretch of a pass, or null when the pass has none or the pin-turn reducer
- * refuses it. TS glue over the Lean-checked reducers: the stretch comes from `stretches`, its reversals from the TouchLock twin, its
- * fights from `springBack` over the writes that fall in the stretch.
- */
 export function firstStretch(rec) {
   const st = stretches(rec.o)[0];
   if (!st || !hasMorphReads(rec)) return null;

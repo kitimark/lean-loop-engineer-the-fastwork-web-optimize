@@ -14,7 +14,6 @@ const mean = (l) => (l.length ? l.reduce((a, b) => a + b, 0) / l.length : null);
 const perOpen = (n, opens) => (opens ? (n / opens).toFixed(2) : '-');
 const table = (head, rows) => [head, '|' + head.split('|').slice(1, -1).map(() => '---').join('|') + '|', ...rows].join('\n');
 
-/** The brick verdict of one composition against the faithful passes of the jobs in which it has a usable pass (Lean Fw.Measure.MorphEndCount.verdictOf). */
 export function brickRow(arm, passes) {
   const mine = usable(passes.filter((p) => p.arm === arm));
   const jobs = new Set(mine.map((p) => p.job));
