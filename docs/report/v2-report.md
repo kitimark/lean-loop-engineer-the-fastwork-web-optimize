@@ -749,6 +749,47 @@ flag. The first text paid
 2 compositor layers on Chromium for `position: fixed`, and the move to `absolute` was decided by a count, not by a bound.
 Note `research/notes/2026/10-2x-throttle-lift-ship.md` section 6.
 
+### 4.11 Phone review of 2026-10-24 and the preset delta (task look-decisions-1024)
+
+On the real iPhone the user said that `?fw=hero.exit:threaded` and `?fw=engine.scroll:throttle-lift` both look the same
+as the original, and that the accent animation looks different from the original. CONFIRMED (user words, task
+look-decisions-1024). Lean records this in `Fw.Preset.Gen.lookDecisions`:
+
+| Flag | Decision | Basis |
+|---|---|---|
+| `hero.exit:threaded` | accepted 2026-10-24 (same look on the iPhone) | the user's words |
+| `hero.accent:draw-nolayout-full` | rejected 2026-10-25 (row of task accent-look-refused, reused) | the user's words |
+| `hero.accent:draw-nolayout` | rejected 2026-10-24 | same clip-path wipe as `draw-nolayout-full` (INFERRED; never shown alone) |
+
+`Gen.run --check` throws unless every decision agrees with the ledger row's `userDecision`, so `ledgerDisagreements` is
+empty at this commit. The same run throws on a stale decision or on a refused flag inside the preset.
+`decisionKept_of_accepted` keeps an acceptance of a registered flag that is not class L.
+`engine.scroll:throttle-lift` gets no decision row, because it is a diagnostic flag and never enters a preset.
+
+Phone numbers (real iPhone, one person, one session, viewport h 775, faithful rewrite against the flag):
+
+| Flag | Hero felt marks | Hero-exit band runs | Status, source |
+|---|---|---|---|
+| `hero.exit:threaded` | 12 → 0 | no data (the variant clears the inline value the recorder reads) | MEASURED, `results/phone/2026-10-24-hero-exit-threaded/summary.md` |
+| `engine.scroll:throttle-lift` | 12 → 0 | 90 → 2 | MEASURED, `results/phone/2026-10-24-throttle-lift/summary.md` |
+
+Lean also decides whether `hero.exit:threaded` may enter v2-proved (`Gen.entry`, `entryReqs`). The answer is **not
+yet**. Each requirement and its evidence is in the `entry` field of the flag's row in
+`packages/contracts/golden/preset/v2-proved.decisions.jsonl`:
+
+| Requirement | Met | Evidence |
+|---|---|---|
+| proofs | no | `HeroExitOpt.consumer_eq_s` (E-s under RG11) and the trade pair `cr_real_tradeE`, `wk_tradeE`. The ledger row is partly-proved and `Gen.linkTable` has no link (`threaded_proofs_unmet`) |
+| trajectory gate, Chromium | no | no stored run on either path. PathPix runs 39924527942 and 39929556147 grade every valid P cell L |
+| trajectory gate, WebKit | no | the same: no stored run, and the PathPix cells are L |
+| look decision | yes | accepted on the iPhone (`threaded_look_met`) |
+| q6 "same scroll offset" | no | open. `Visual.PathPremises.c3o`/`c3v` are hypotheses, and `HeroExitOpt` does not model which scroll offset the compositor shows (`q6_open`) |
+
+Theorems: `threaded_not_yet` (q6 and proofs block, the look requirement does not), `entry_enter_iff`,
+`entry_notYet_of_unmet`, and `ok_of_enter` (a flag that enters, is registered as optimized and is not class L
+satisfies the preset's `ok`). Preset delta: none. v2-proved stays `{engine.scroll:unthrottle}` (CONFIRMED,
+`packages/contracts/golden/preset/v2-proved.json`), with 0 flags added and 0 removed.
+
 ---
 
 ## 5. Findings and negative results
