@@ -13,11 +13,11 @@ Verified:
   no-win, finish cost (Layout.dirtyObjects 758 to 920, Layout records equal, Paint +1).
 - Ledger row morph.panel-const-bounds has its webkit and chromium cells and one note; no visClass added (part.json has none).
 Open:
+- Writes outside the task (dry land needs `--allow lean/Fw/Console/LandSpeed.lean`): lean/Fw/Console/LandSpeed.lean, apps/runner/src/land-reads.gen.ts, packages/contracts/golden/console/land-speed.jsonl
+  (check.sh reads declared for the land-inputs test).
 - The WebKit no-win is "not observed": the Simulator step walk ends before the page-end morph frames (INFERRED). Follow-up: a WebKit
   end-dwell lane.
 - Filing the flag run (`pnpm -s fw run --target rewrite --engines webkit --fw morph.panel:const-bounds --from-run webkit=40196209240
   --sha cb4bec8e4019024c2b73abb702443af3ab482aab`) twice sat idle for over 20 min with no child process (INFERRED: the shared gh-budget
   gate of apps/runner/src/run.ts blocks); the run is complete (success, attempt 2). File it when the budget allows; no verdict depends on it.
-- Writes outside the task (dry land needs `--allow lean/Fw/Console/LandSpeed.lean`): lean/Fw/Console/LandSpeed.lean, apps/runner/src/land-reads.gen.ts, packages/contracts/golden/console/land-speed.jsonl
-  (check.sh reads declared for the land-inputs test).
 Read first: research/notes/2026/10-2x-const-bounds-counts.md, then the header doc of lean/Fw/Parts/ConstBoundsCounts.lean.

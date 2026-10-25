@@ -41,7 +41,7 @@ Verdicts are decided in Lean (`lean/Fw/Parts/ConstBoundsCounts.lean`) from the f
 | rest | 0 | 0 | 9 | 0 | 0 | no-win |
 
 - Composite is exactly 61 / 30 / 118 (hero / finish / rest) in all 12 passes (MEASURED), and layer counts and backing MB
-  are equal between arms at every state at the same requested y.
+  are within the base spread (verdict same) at every state at the same requested y.
 - Finish thin and unresolved cells are a confound in the state asked for, not a flag effect: the base passes split
   between y = 5231 (105.79 MB, 2 VMs) and y = 5267 (97.87 MB, 1 VM), while all 6 flag passes were asked 5267. Those cells
   have fewer than 3 VMs on a side and are reported with n.
@@ -60,7 +60,7 @@ Verdicts are decided in Lean (`lean/Fw/Parts/ConstBoundsCounts.lean`) from the f
 | rest | 0 | 0 | 14 | no-win | |
 
 - The morph runs on frames 575 to 615 at y 5342, the page-end dwell (MEASURED, per-frame counts). Frame by frame
-  `dirtyObjects` is 7 per morph frame on the base and 11 on the flag: +4 per frame; the zone total is +162
+  `dirtyObjects` is 7 per morph frame on the base and 11 on the flag: +4 on 40 of the 41 morph frames and +2 on the first (frame 575); the zone total is +162
   (758 to 920) over the morph frames.
 - `trace.Paint` +1 is a one-frame shift: the base spread is 0, so the strict rule calls it worse (MEASURED); it carries
   no cost on its own (INFERRED).
