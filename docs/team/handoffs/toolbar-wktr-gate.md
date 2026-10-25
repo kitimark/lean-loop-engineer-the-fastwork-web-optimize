@@ -1,7 +1,7 @@
 branch: worktree-wf_8a0bfbaa-969-1 (CI branch ci/toolbar-wktr-gate)
 worktree: .claude/worktrees/wf_8a0bfbaa-969-1 (inside the repo checkout)
-last commit: d844b58ce
-CI runs: push 1 of 3 (d844b58ce) -> wktr run 40223882394 queued/running; lean run 40223882417 running
+last commit: 5896907d1 (CI branch tip d844b58ce); main merged locally, not pushed
+CI runs: push 1 of 3 (d844b58ce) -> wktr run 40223882394 still queued after 30 min (j1 waiting for a macos-26 runner; max-parallel 1); lean run 40223882417 running
 verified: Lean module builds, check.sh green, ci-paths test 56/56, land-inputs 73/73, measure-wktr toolbar tests 13/13 (local, not a result)
 open: CI hook-presence verdict with run id, per-flag gate verdict over 3 jobs x 2 passes, research note, main merge, plan lint, dry land, review ready
 
