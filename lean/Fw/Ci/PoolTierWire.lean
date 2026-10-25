@@ -94,16 +94,69 @@ def opCell (req : Json) : Except String Reply := do
   pure [("lane", match lane with | some l => Json.str l | none => .null), ("routable", routableTarget pool7 t),
     ("needsDigest", lane == some rewriteLane), ("filed", match lane with | some l => toJson (cellFiled l gh cm) | none => toJson false)]
 
-/-- `ci.cellMerged`: `{ref:{macosBuild,xcodeBuild,runtimeBuild}, cell:{...}}` to `{merged}`. -/
+/-- A platform key from JSON: the three builds and `cpus`, `memsize` (absent or 0: not read). -/
+def keyOf (o : Json) : Except String PlatformKey := do
+  pure ⟨← strD o "macosBuild" "", ← strD o "xcodeBuild" "", ← strD o "runtimeBuild" "", ⟨← natD o "cpus" 0, ← natD o "memsize" 0⟩⟩
+
+/-- `ci.cellMerged`: `{ref:{macosBuild,xcodeBuild,runtimeBuild,cpus,memsize}, cell:{...}}` to `{merged}`. -/
 def opMerged (req : Json) : Except String Reply := do
-  let key (k : String) : Except String PlatformKey := do
-    let o ← field req k
-    pure ⟨← strD o "macosBuild" "", ← strD o "xcodeBuild" "", ← strD o "runtimeBuild" ""⟩
-  let r ← key "ref"
-  let c ← key "cell"
+  let r ← keyOf (← field req "ref")
+  let c ← keyOf (← field req "cell")
   pure [("merged", cellMerged r c)]
 
-def ops : List String := ["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged"]
+def classOf (o : Json) (k : String) : Except String RowClass := do
+  let w ← str o k
+  match RowClass.ofString w with
+  | some c => pure c
+  | none => throw s!"{k}: unknown class {w}"
+
+def className : RowClass → String
+  | .deterministic => "deterministic"
+  | .stable => "stable"
+  | .quarantined => "quarantined"
+
+def useName : Use → String
+  | .direct => "direct"
+  | .paired => "paired"
+  | .refused => "refused"
+
+def obsOf (o : Json) : Except String Obs := do
+  pure ⟨← classOf o "gh", ← classOf o "cm", ← keyOf (← field o "ghKey"), ← keyOf (← field o "cmKey")⟩
+
+/-- `ci.poolRows`: `{ref, cell, rows:[{row, obs:[{gh, cm, ghKey, cmKey}]}], used?}` to the use of each row
+(`direct`, `paired` with its class, `refused`), the counts, `kReq` and `reachable` pairs under the Codemagic line. -/
+def opRows (req : Json) : Except String Reply := do
+  let r ← keyOf (← field req "ref")
+  let c ← keyOf (← field req "cell")
+  let used ← natD req "used" 0
+  let rows ← (← arr req "rows").toList.mapM fun j => do
+    let obs ← (← arr j "obs").toList.mapM obsOf
+    pure (← str j "row", obs)
+  let out := rows.map fun (n, obs) =>
+    let u := rowUse r c obs
+    Json.mkObj ([("row", Json.str n), ("use", Json.str (useName u))] ++
+      (if u == .paired then [("class", Json.str (className (pairedClass obs)))] else []))
+  let cnt (u : Use) : Json := toJson (rows.filter fun x => rowUse r c x.2 == u).length
+  pure [("kReq", kReq), ("reachable", pairsReachable used), ("merged", cellMerged r c), ("rows", .arr out.toArray),
+    ("counts", Json.mkObj [("direct", cnt .direct), ("paired", cnt .paired), ("refused", cnt .refused)])]
+
+def queuedOf (j : Json) : Except String Queued := do
+  pure ⟨← reqOf j, ← natD j "queuedS" 0⟩
+
+/-- `ci.reroute`: the tier request with `queued` (each a request plus `queuedS`) instead of `reqs`; a queued job moves to
+Codemagic when it is aged and the route sends it there. Reply `log` rows have `reroute`. -/
+def opReroute (req : Json) : Except String Reply := do
+  let c ← cfgOf req
+  let s ← stateOf (← field req "state")
+  let qs ← (← arr req "queued").toList.mapM queuedOf
+  let o := reroutePlan c qs s
+  let aged := qs.filter Queued.aged
+  let rows := (aged.zip o.1).map fun (q, p) =>
+    Json.mkObj [("sha", q.req.key.sha), ("lane", q.req.key.lane), ("cfg", q.req.key.cfg), ("rep", q.req.key.rep),
+      ("queuedS", q.queuedS), ("reroute", p.2.isCm)]
+  pure [("log", .arr rows.toArray), ("moved", cmCount o.1), ("skippedYoung", qs.length - aged.length), ("state", stateJson' o.2)]
+
+def ops : List String := ["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged", "ci.poolRows", "ci.reroute"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
@@ -111,6 +164,8 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ci.poolTierConsts" => some (opConsts req)
   | "ci.poolCell" => some (opCell req)
   | "ci.cellMerged" => some (opMerged req)
+  | "ci.poolRows" => some (opRows req)
+  | "ci.reroute" => some (opReroute req)
   | _ => none
 
 #guard (cfgOf (Json.mkObj [])).toOption == some pool7
@@ -147,8 +202,10 @@ private def seven : String := "[" ++ ",".intercalate ((List.range 8).map rq) ++ 
   "{\"filed\":true,\"lane\":\"webkit-sim-rewrite\",\"needsDigest\":true,\"routable\":true}"
 #guard runField "ci.poolCell" "{\"target\":\"rewrite\",\"ghDigest\":\"ab\",\"cmDigest\":\"cd\"}" "filed" == "false"
 #guard runField "ci.poolCell" "{\"target\":\"both\"}" "routable" == "false"
-#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"}}" == "{\"merged\":true}"
-#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\"}}" == "{\"merged\":false}"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\",\"cpus\":3,\"memsize\":7},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\",\"cpus\":3,\"memsize\":7}}" == "{\"merged\":true}"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\",\"cpus\":3,\"memsize\":7},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"cpus\":3,\"memsize\":7}}" == "{\"merged\":false}"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\",\"cpus\":3,\"memsize\":7},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\",\"cpus\":8,\"memsize\":7}}" == "{\"merged\":false}"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"}}" == "{\"merged\":false}"
 #guard run "ci.poolTier" "{\"over\":{\"cmConc\":\"x\"},\"state\":{\"ghMacBusy\":0,\"ghTotalBusy\":0},\"reqs\":[]}" |>.startsWith "error: "
 
 end Fw.Wire.CiPoolTier

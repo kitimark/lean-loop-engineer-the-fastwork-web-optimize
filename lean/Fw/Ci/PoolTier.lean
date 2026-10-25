@@ -349,15 +349,38 @@ theorem rewrite_no_gh_digest_refused (cm : Option String) : cellFiled rewriteLan
 theorem original_filed (gh cm : Option String) : cellFiled "webkit-sim" gh cm = true := by
   simp [cellFiled, rewriteLane]
 
+/-- The hardware of one machine: logical CPUs and memory in bytes; 0 means not read.
+
+What `sysctl -n hw.ncpu hw.memsize` prints in the tools step of each side.
+-/
+structure Hw where
+  cpus : Nat
+  memsize : Nat
+deriving DecidableEq, Repr
+
+/-- The identity of a measurement platform: toolchain builds and hardware.
+
+Read from the `tools.txt` of a cell. Two cells share counts only when every component is equal and present.
+-/
 structure PlatformKey where
   macosBuild : String
   xcodeBuild : String
   runtimeBuild : String
+  hw : Hw
 deriving DecidableEq, Repr
 
-def PlatformKey.complete (k : PlatformKey) : Bool :=
-  !k.macosBuild.isEmpty && !k.xcodeBuild.isEmpty && !k.runtimeBuild.isEmpty
+/-- Is every component of the key present?
 
+An unread build or hardware value (empty string, 0) makes the key incomplete.
+-/
+def PlatformKey.complete (k : PlatformKey) : Bool :=
+  !k.macosBuild.isEmpty && !k.xcodeBuild.isEmpty && !k.runtimeBuild.isEmpty && decide (0 < k.hw.cpus) &&
+    decide (0 < k.hw.memsize)
+
+/-- May the cell's counts merge with the reference cell's directly?
+
+Only when the keys are equal and the cell's key is complete.
+-/
 def cellMerged (ref cell : PlatformKey) : Bool :=
   cell.complete && ref == cell
 
@@ -377,6 +400,15 @@ theorem cellMerged_xcode_refused (ref cell : PlatformKey) (h : ref.xcodeBuild �
 theorem cellMerged_runtime_refused (ref cell : PlatformKey) (h : ref.runtimeBuild ≠ cell.runtimeBuild) : cellMerged ref cell = false := by
   cases ref; cases cell; simp_all [cellMerged]
 
+theorem cellMerged_hw_refused (ref cell : PlatformKey) (h : ref.hw ≠ cell.hw) : cellMerged ref cell = false := by
+  cases ref; cases cell; simp_all [cellMerged]
+
+theorem cellMerged_cpus_refused (ref cell : PlatformKey) (h : ref.hw.cpus ≠ cell.hw.cpus) : cellMerged ref cell = false :=
+  cellMerged_hw_refused ref cell fun e => h (e ▸ rfl)
+
+theorem cellMerged_memsize_refused (ref cell : PlatformKey) (h : ref.hw.memsize ≠ cell.hw.memsize) : cellMerged ref cell = false :=
+  cellMerged_hw_refused ref cell fun e => h (e ▸ rfl)
+
 theorem cellMerged_empty_macos (ref cell : PlatformKey) (h : cell.macosBuild = "") : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
@@ -386,11 +418,331 @@ theorem cellMerged_empty_xcode (ref cell : PlatformKey) (h : cell.xcodeBuild = "
 theorem cellMerged_empty_runtime (ref cell : PlatformKey) (h : cell.runtimeBuild = "") : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-theorem round2_pair_refused : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A428", "27A266a", "24A434"⟩ = false := by decide
+theorem cellMerged_no_cpus (ref cell : PlatformKey) (h : cell.hw.cpus = 0) : cellMerged ref cell = false := by
+  cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-theorem pinned_pair_merged : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A434", "27A9275", "24A434"⟩ = true := by decide
+theorem cellMerged_no_memsize (ref cell : PlatformKey) (h : cell.hw.memsize = 0) : cellMerged ref cell = false := by
+  cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-theorem missing_runtime_refused : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A434", "27A9275", ""⟩ = false := by decide
+/-- A GitHub `xcode-27` macOS runner as measured: 3 CPUs; the memory figure is a stand-in for the golden. -/
+def ghHw : Hw := ⟨3, 7516192768⟩
+
+/-- A Codemagic `mac_mini_m2` as measured: 8 CPUs, 12 GiB. -/
+def cmHw : Hw := ⟨8, 12884901888⟩
+
+theorem round2_pair_refused :
+    cellMerged ⟨"26A434", "27A9275", "24A434", ghHw⟩ ⟨"26A428", "27A266a", "24A434", ghHw⟩ = false := by decide
+
+theorem pinned_pair_merged :
+    cellMerged ⟨"26A434", "27A9275", "24A434", ghHw⟩ ⟨"26A434", "27A9275", "24A434", ghHw⟩ = true := by decide
+
+theorem missing_runtime_refused :
+    cellMerged ⟨"26A434", "27A9275", "24A434", ghHw⟩ ⟨"26A434", "27A9275", "", ghHw⟩ = false := by decide
+
+theorem measured_pair_not_merged :
+    cellMerged ⟨"26A434", "27A9275", "24A434", ghHw⟩ ⟨"26A434", "27A9275", "24A434", cmHw⟩ = false := by decide
+
+/-! ## Cross-pool pooling: which rows may count across hardware (task cross-pool-pooling)
+
+Equal toolchain keys still gave different row classes between GitHub and Codemagic (20 of 104 rows, n=1 per side). With
+the hardware in the key those cells never merge directly. A row of a cell on other hardware is *paired* only when
+`kReq` pairs, each a GitHub cell and a Codemagic cell of one commit, measured exactly these two keys and agree on the
+row's class in every pair. Each row is decided on its own.
+-/
+
+/-- The class of one row in one cell: `deterministic` (exact counts), `stable` (within a margin) or `quarantined`. -/
+inductive RowClass where
+  | deterministic
+  | stable
+  | quarantined
+deriving DecidableEq, Repr
+
+/-- The rank of a class: higher is weaker. -/
+def RowClass.rank : RowClass → Nat
+  | .deterministic => 0
+  | .stable => 1
+  | .quarantined => 2
+
+/-- The class a class word names, if any. -/
+def RowClass.ofString : String → Option RowClass
+  | "deterministic" => some .deterministic
+  | "stable" => some .stable
+  | "quarantined" => some .quarantined
+  | _ => none
+
+/-- The weaker of two classes (worst wins). -/
+def RowClass.worse (a b : RowClass) : RowClass := if a.rank ≤ b.rank then b else a
+
+theorem worse_ge_left (a b : RowClass) : a.rank ≤ (a.worse b).rank := by
+  unfold RowClass.worse; split <;> omega
+
+theorem worse_ge_right (a b : RowClass) : b.rank ≤ (a.worse b).rank := by
+  unfold RowClass.worse; split <;> omega
+
+/-- One row seen in one pair: the class on each side and the platform key of each side. -/
+structure Obs where
+  gh : RowClass
+  cm : RowClass
+  ghKey : PlatformKey
+  cmKey : PlatformKey
+deriving DecidableEq, Repr
+
+/-- The number of pinned pairs a row needs before it may pool.
+
+3: the most pairs three CI pushes give, and 166 + 3 * 40 minutes stays under the Codemagic line (`k3_fits_166`).
+-/
+def kReq : Nat := 3
+
+/-- Does one observation support pooling for the pair of keys now compared?
+
+Both sides in the same class, and the sides measured exactly `ref` and `cell`.
+-/
+def Obs.holds (ref cell : PlatformKey) (o : Obs) : Bool := o.gh == o.cm && o.ghKey == ref && o.cmKey == cell
+
+/-- May a row pool across the two platforms?
+
+At least `kReq` observations, each one supporting.
+-/
+def rowPooled (ref cell : PlatformKey) (obs : List Obs) : Bool := decide (kReq ≤ obs.length) && obs.all (·.holds ref cell)
+
+theorem rowPooled_iff (ref cell : PlatformKey) (obs : List Obs) :
+    rowPooled ref cell obs = true ↔ kReq ≤ obs.length ∧ ∀ o ∈ obs, o.holds ref cell = true := by
+  simp [rowPooled]
+
+theorem pooled_too_few (ref cell : PlatformKey) (obs : List Obs) (h : obs.length < kReq) : rowPooled ref cell obs = false := by
+  have : ¬ kReq ≤ obs.length := by omega
+  simp [rowPooled, this]
+
+theorem pooled_disagree (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs) (h : o.gh ≠ o.cm) :
+    rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · have := ((rowPooled_iff ref cell obs).1 hp).2 o ho
+    simp [Obs.holds, h] at this
+
+theorem pooled_ghKey_mismatch (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs) (h : o.ghKey ≠ ref) :
+    rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · have := ((rowPooled_iff ref cell obs).1 hp).2 o ho
+    simp [Obs.holds, h] at this
+
+theorem pooled_cmKey_mismatch (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs) (h : o.cmKey ≠ cell) :
+    rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · have := ((rowPooled_iff ref cell obs).1 hp).2 o ho
+    simp [Obs.holds, h] at this
+
+theorem pooled_append_disagree (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (h : o.gh ≠ o.cm) :
+    rowPooled ref cell (obs ++ [o]) = false :=
+  pooled_disagree ref cell _ o (by simp) h
+
+/-- How the counts of a row of the cell under test are used. -/
+inductive Use where
+  | direct
+  | paired
+  | refused
+deriving DecidableEq, Repr
+
+/-- The use of one row of the cell.
+
+`direct` when the keys merge (hardware included); `paired` when they differ but `kReq` pinned pairs of exactly these
+keys agree on the row; else `refused`.
+-/
+def rowUse (ref cell : PlatformKey) (obs : List Obs) : Use :=
+  if cellMerged ref cell then .direct
+  else if ref.complete && cell.complete && rowPooled ref cell obs then .paired
+  else .refused
+
+theorem rowUse_direct_iff (ref cell : PlatformKey) (obs : List Obs) :
+    rowUse ref cell obs = .direct ↔ cellMerged ref cell = true := by
+  unfold rowUse
+  by_cases h : cellMerged ref cell = true
+  · simp [h]
+  · simp only [h, ↓reduceIte, Bool.false_eq_true, iff_false]
+    by_cases p : (ref.complete && cell.complete && rowPooled ref cell obs) = true <;> simp [p]
+
+theorem rowUse_paired_iff (ref cell : PlatformKey) (obs : List Obs) :
+    rowUse ref cell obs = .paired ↔
+      cellMerged ref cell = false ∧ ref.complete = true ∧ cell.complete = true ∧ rowPooled ref cell obs = true := by
+  unfold rowUse
+  by_cases h : cellMerged ref cell = true
+  · simp [h]
+  · have h' : cellMerged ref cell = false := by simpa using h
+    by_cases p : (ref.complete && cell.complete && rowPooled ref cell obs) = true
+    · simp only [h', p]; simp at p; simp [p]
+    · simp only [h', p]; simp at p ⊢; intro a b; exact p a b
+
+theorem hw_differs_not_direct (ref cell : PlatformKey) (obs : List Obs) (h : ref.hw ≠ cell.hw) :
+    rowUse ref cell obs ≠ .direct := by
+  intro e
+  have := (rowUse_direct_iff ref cell obs).1 e
+  rw [cellMerged_hw_refused ref cell h] at this
+  cases this
+
+theorem rowUse_unpaired_refused (ref cell : PlatformKey) (obs : List Obs) (h : cellMerged ref cell = false)
+    (hp : rowPooled ref cell obs = false) : rowUse ref cell obs = .refused := by
+  simp [rowUse, h, hp]
+
+theorem rowUse_incomplete_ref_refused (ref cell : PlatformKey) (obs : List Obs) (h : cellMerged ref cell = false)
+    (hc : ref.complete = false) : rowUse ref cell obs = .refused := by
+  simp [rowUse, h, hc]
+
+theorem rowUse_few_pairs_refused (ref cell : PlatformKey) (obs : List Obs) (h : cellMerged ref cell = false)
+    (hn : obs.length < kReq) : rowUse ref cell obs = .refused :=
+  rowUse_unpaired_refused ref cell obs h (pooled_too_few ref cell obs hn)
+
+theorem rowUse_disagree_refused (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (h : cellMerged ref cell = false)
+    (ho : o ∈ obs) (hd : o.gh ≠ o.cm) : rowUse ref cell obs = .refused :=
+  rowUse_unpaired_refused ref cell obs h (pooled_disagree ref cell obs o ho hd)
+
+/-- The class a paired row counts under: the weakest class either side showed in any pair. -/
+def pairedClass : List Obs → RowClass
+  | [] => .deterministic
+  | o :: os => (pairedClass os).worse (o.gh.worse o.cm)
+
+theorem pairedClass_ge (obs : List Obs) (o : Obs) (ho : o ∈ obs) :
+    o.gh.rank ≤ (pairedClass obs).rank ∧ o.cm.rank ≤ (pairedClass obs).rank := by
+  induction obs with
+  | nil => cases ho
+  | cons x xs ih =>
+    have hx := worse_ge_right (pairedClass xs) (x.gh.worse x.cm)
+    have h1 := worse_ge_left x.gh x.cm
+    have h2 := worse_ge_right x.gh x.cm
+    simp only [pairedClass]
+    rcases List.mem_cons.1 ho with rfl | h
+    · omega
+    · have := ih h
+      have h3 := worse_ge_left (pairedClass xs) (x.gh.worse x.cm)
+      omega
+
+/-- Each row of a table with the use of its counts.
+
+Rows are named by their `family|metric|level` text; every row is decided from its own observations only.
+-/
+def rowsUse (ref cell : PlatformKey) (rows : List (String × List Obs)) : List (String × Use) :=
+  rows.map fun r => (r.1, rowUse ref cell r.2)
+
+theorem rowsUse_mem (ref cell : PlatformKey) (rows : List (String × List Obs)) (n : String) (u : Use) :
+    (n, u) ∈ rowsUse ref cell rows ↔ ∃ obs, (n, obs) ∈ rows ∧ u = rowUse ref cell obs := by
+  simp only [rowsUse, List.mem_map, Prod.mk.injEq]
+  constructor
+  · rintro ⟨⟨a, b⟩, h, rfl, rfl⟩; exact ⟨b, h, rfl⟩
+  · rintro ⟨obs, h, rfl⟩; exact ⟨(n, obs), h, rfl, rfl⟩
+
+theorem rowsUse_length (ref cell : PlatformKey) (rows : List (String × List Obs)) :
+    (rowsUse ref cell rows).length = rows.length := by simp [rowsUse]
+
+/-- Can `k` more pairs be paid for under the Codemagic line, each at the cap? -/
+def pairsAffordable (used k : Nat) : Bool := decide (used + k * Codemagic.maxCapMin ≤ Codemagic.stopAt)
+
+/-- The most pairs the month still pays for, at most `kReq`: the `k` reached when the budget is short. -/
+def pairsReachable (used : Nat) : Nat := min kReq ((Codemagic.stopAt - used) / Codemagic.maxCapMin)
+
+theorem k3_fits_166 : pairsAffordable 166 kReq = true := by decide
+
+theorem k5_fits_166 : pairsAffordable 166 5 = true := by decide
+
+theorem k6_over_166 : pairsAffordable 166 6 = false := by decide
+
+theorem pairsAffordable_mono (u v k : Nat) (h : u ≤ v) (hv : pairsAffordable v k = true) : pairsAffordable u k = true := by
+  simp only [pairsAffordable, decide_eq_true_eq] at hv ⊢; omega
+
+theorem pairsAffordable_pred (u k : Nat) (h : pairsAffordable u (k + 1) = true) : pairsAffordable u k = true := by
+  simp only [pairsAffordable, decide_eq_true_eq, Nat.add_mul] at h ⊢; omega
+
+theorem pairsReachable_le (used : Nat) : pairsReachable used ≤ kReq := Nat.min_le_left _ _
+
+theorem pairsReachable_affordable (used : Nat) (hu : used ≤ Codemagic.stopAt) : pairsAffordable used (pairsReachable used) = true := by
+  simp only [pairsAffordable, pairsReachable, Codemagic.maxCapMin, Codemagic.stopAt, kReq] at hu ⊢
+  apply decide_eq_true
+  have h3 : (400 - used) / 40 * 40 ≤ 400 - used := Nat.div_mul_le_self (400 - used) 40
+  generalize (400 - used) / 40 = q at h3 ⊢
+  rcases Nat.le_total 3 q with h | h
+  · rw [Nat.min_eq_left h]; omega
+  · rw [Nat.min_eq_right h]; omega
+
+theorem pairsReachable_full (used : Nat) (h : pairsAffordable used kReq = true) : pairsReachable used = kReq := by
+  simp [pairsAffordable, pairsReachable, Codemagic.maxCapMin, Codemagic.stopAt, kReq] at h ⊢
+  have : 3 ≤ (400 - used) / 40 := (Nat.le_div_iff_mul_le (show 0 < 40 by omega)).2 (by omega)
+  exact Nat.min_eq_left this
+
+/-! ## Re-route of a job still queued on GitHub -/
+
+/-- How long a GitHub macOS job waits in the queue before the poller offers it to Codemagic. -/
+def rerouteAfterS : Nat := 300
+
+/-- A request whose GitHub job is still queued, with the seconds it has waited. -/
+structure Queued where
+  req : Req
+  queuedS : Nat
+deriving DecidableEq, Repr
+
+/-- Has the job waited long enough to be offered elsewhere? -/
+def Queued.aged (q : Queued) : Bool := decide (rerouteAfterS ≤ q.queuedS)
+
+/-- The requests the re-route considers, in order: the aged queued ones. -/
+def rerouteReqs (qs : List Queued) : List Req := (qs.filter Queued.aged).map (·.req)
+
+/-- The re-route plan: the ordinary route over the aged queued requests.
+
+A job goes to Codemagic exactly when the route sends its request there; every other answer leaves the job on GitHub.
+-/
+def reroutePlan (c : Cfg) (qs : List Queued) (s : State) : List (Req × Decision) × State := step c (rerouteReqs qs) s
+
+/-- The decisions of the plan that move a job to Codemagic. -/
+def rerouteMoved (c : Cfg) (qs : List Queued) (s : State) : List (Req × Decision) :=
+  (reroutePlan c qs s).1.filter fun x => x.2.isCm
+
+theorem reroute_only_aged (qs : List Queued) (r : Req) (h : r ∈ rerouteReqs qs) : ∃ q ∈ qs, q.aged = true ∧ q.req = r := by
+  simp only [rerouteReqs, List.mem_map, List.mem_filter] at h
+  obtain ⟨q, ⟨hq, ha⟩, he⟩ := h
+  exact ⟨q, hq, ha, he⟩
+
+theorem reroute_none_young (qs : List Queued) (h : ∀ q ∈ qs, q.queuedS < rerouteAfterS) : rerouteReqs qs = [] := by
+  simp only [rerouteReqs]
+  have : qs.filter Queued.aged = [] := by
+    apply List.filter_eq_nil_iff.2
+    intro q hq
+    have h1 : ¬ rerouteAfterS ≤ q.queuedS := Nat.not_le.2 (h q hq)
+    simpa [Queued.aged] using h1
+  simp [this]
+
+theorem reroute_budget (c : Cfg) (qs : List Queued) (s : State) (h : s.cmUsed ≤ Codemagic.stopAt) :
+    s.cmUsed + c.cmCapMin * cmCount (reroutePlan c qs s).1 ≤ Codemagic.stopAt :=
+  cm_cells_budget c (rerouteReqs qs) s h
+
+theorem reroute_slots (c : Cfg) (qs : List Queued) (s : State) (h : Inv c s) :
+    s.cmBusy + cmCount (reroutePlan c qs s).1 ≤ c.cmConc :=
+  cm_cells_slots c (rerouteReqs qs) s h
+
+theorem reroute_inv (c : Cfg) (qs : List Queued) (s : State) (h : Inv c s) : Inv c (reroutePlan c qs s).2 :=
+  step_inv c (rerouteReqs qs) s h
+
+theorem reroute_cap_7 (qs : List Queued) (s : State) (h : Inv pool7 s) : inflight (reroutePlan pool7 qs s).2 ≤ 7 :=
+  cap_7 (rerouteReqs qs) s h
+
+theorem reroute_gh_free_stays (c : Cfg) (r : Req) (s : State) (hg : Fallback.ghOk c.base (s.fb c) = true) (cls : String)
+    (e : Engine) (m : Nat) : route c r s ≠ .codemagic cls e m := by
+  intro h
+  have := ((route_cm_iff c r s cls e m).1 h).2.1
+  rw [hg] at this
+  cases this
+
+theorem reroute_stale_stays (c : Cfg) (r : Req) (s : State) (hc : r.current = false) (cls : String) (e : Engine) (m : Nat) :
+    route c r s ≠ .codemagic cls e m := by
+  intro h
+  have := ((route_cm_iff c r s cls e m).1 h).1
+  rw [hc] at this
+  cases this
+
+theorem reroute_ghOnly_stays (c : Cfg) (r : Req) (s : State) (hg : c.base.ghOnly.contains r.lane = true) (cls : String)
+    (e : Engine) (m : Nat) : route c r s ≠ .codemagic cls e m := by
+  intro h
+  have := ((route_cm_iff c r s cls e m).1 h).2.2.1
+  simp [cmOk] at this
+  exact this.1.1.1.2 (by simpa using hg)
 
 structure Res where
   key : Key
@@ -451,5 +803,25 @@ private def seven : List Req := (List.range 7).map fun i => rq "webkit-sim" i
   .base (.run ⟨.github, .macos, "xcode-27", .iosSimSafari, 40, 0⟩)
 #guard counted [⟨(rq "w").key, 0, .github, "xcode-27", .result⟩, ⟨(rq "w").key, 0, .codemagic, "mac_mini_m2", .result⟩,
   ⟨(rq "w").key, 0, .circleci, "m4pro.medium", .failed⟩] (rq "w").key == 2
+
+private def refK : PlatformKey := ⟨"26A434", "27A9275", "24A434", ghHw⟩
+private def cmK : PlatformKey := ⟨"26A434", "27A9275", "24A434", cmHw⟩
+private def ob (g c : RowClass) : Obs := ⟨g, c, refK, cmK⟩
+
+#guard rowUse refK cmK [] == .refused
+#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable] == .refused
+#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable, ob .deterministic .deterministic] == .paired
+#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable, ob .stable .deterministic] == .refused
+#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable, { ob .stable .stable with cmKey.hw := ghHw }] == .refused
+#guard rowUse refK refK [] == .direct
+#guard pairedClass [ob .stable .stable, ob .deterministic .deterministic, ob .stable .stable] == .stable
+#guard pairedClass [ob .quarantined .quarantined, ob .deterministic .deterministic] == .quarantined
+#guard pairsReachable 166 == 3
+#guard pairsReachable 280 == 3
+#guard pairsReachable 281 == 2
+#guard pairsReachable 361 == 0
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 300⟩, ⟨rq "webkit-sim" 1, 299⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == [true]
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 300⟩, ⟨rq "webkit-sim" 1, 400⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == [true, false]
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 900⟩] idle).1.map (·.2.isCm) == [false]
 
 end Fw.Ci.PoolTier
