@@ -185,6 +185,9 @@ import Fw.Engine.WebKitSimple
 import Fw.Engine.StyleDiffAccent
 import Fw.Engine.TransitionStart
 import Fw.Engine.PaintVisible
+import Fw.Engine.Resource
+import Fw.Engine.ResourceVerdict
+import Fw.Engine.ResourceFlags
 import Fw.Ci.Wire
 import Fw.Oracle
 import Fw.Plan.Lint
