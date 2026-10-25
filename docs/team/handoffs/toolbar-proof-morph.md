@@ -6,6 +6,6 @@
 - Verified: Lean `MorphMountToolbar` (proofs, no sorry), golden `morph-mount-toolbar.jsonl` (225 rows) replayed by `gesture.test.ts`;
   footprint, footprint-diff, preset outputs regenerated; `lean/Fw.lean` imports the two modules (a write outside the task graph writes).
 - Read first: `research/notes/2026/10-2x-toolbar-proof-morph.md`, then `lean/Fw/Parts/MorphMountToolbar.lean`.
-- Flags: `morph.mount:touch-first`, `open-once`, `overscroll-lock` (look-change class L, never in a preset).
+- Round 2: all three flags are proposals (L) in look-change.candidates.jsonl; same look under touch unproven until toolbar-sim-lane. Lanes (a),(c1) split to toolbar-sim-lane, toolbar-wktr-gate. Refuted premise in ledger.
 - Open: Simulator count lane (needs arms in `packages/measure-webkit/src/throttle/morph-end.mjs` + workflow), WKTR forced-inset
   fixture (`packages/measure-wktr`), candidate (d) container scroll, measured cost of unthrottle (f), cause of the 8-41 reopens.
