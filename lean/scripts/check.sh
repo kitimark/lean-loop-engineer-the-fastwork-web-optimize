@@ -137,6 +137,7 @@ run_group() {
   job "census golden check" lake env lean --run scripts/CensusGolden.lean --check ../packages/contracts/golden/measure/census.jsonl
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl
   job "layer-opts golden check" lake env lean --run scripts/LayerOptsGolden.lean --check ../apps/site/src/registry/layer-opts.gen.ts ../packages/contracts/golden/console/layer-opts.jsonl
+  job "react-root-quiet golden check" lake env lean --run scripts/ReactRootQuietGolden.lean --check ../apps/site/src/parts/engine.events/quiet.gen.ts ../packages/contracts/golden/parts/react-root-quiet.jsonl
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
   job "dormant golden check" lake env lean --run scripts/MorphDormantGolden.lean --check ../packages/contracts/golden/parts/morph.mount.dormant.jsonl
   job "headgen check" lake env lean --run HeadgenMain.lean --check ../apps/site/src/head.gen.json  # the document head table (Fw.Site.Head)
