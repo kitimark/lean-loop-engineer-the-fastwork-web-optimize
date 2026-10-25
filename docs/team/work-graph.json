@@ -21410,6 +21410,30 @@
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.mount:shift-dormant (ledger: WebKit unknown, Chromium trade; morph-layers measured -1052/-1136 drawing layers vs shift on Chromium). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. Compare against the rewrite default and say which mount variant the default arm runs. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/DormantCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+  },
+  {
+   "devices": [
+    "phone"
+   ],
+   "id": "phone-end-counts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "writes": [
+    "results/phone/2026-10-25-end-counts/**",
+    "research/notes/2026/10-25-phone-end-counts.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/phone-end-counts.md",
+    "lean/Fw/Device/PhoneArms.lean",
+    "packages/contracts/golden/device/phone-arms.jsonl",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "User 2026-10-25: 'you can try to measure on the iphone device. it already connected.' Measure the end-of-page and hero-exit variants on the real measurement iPhone with the automated lanes that need no swiping (packages/measure-webkit/src/device-cli.mjs counts: Timeline on, scripted 50 px steps, pinned clock; frames: scripted scroll at 800 px/s, frame intervals), session rules of docs/team/tools/device-lag-recorder.md and results/phone/2026-10-17-s1/README.md (blocks <= 15 min, cool >= 5 min, battery readouts; ping first). Arms, each 3 counts passes plus 1 warm-up and 5 frames reps, in an A/B/A order with the rewrite base repeated at the start, middle and end: original, rewrite, and rewrite with each flag alone: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, nav.hitTest:hit-skip, engine.events:quiet, morph.panel:const-bounds, nav:clip-box, nav:bar-fixed, nav:logo-3d, morph.mount:shift-dormant (drop an arm that loads the same page as another, with the reason). Reduce per zone (hero, finish, rest; 500 px zones) Layout, RecalculateStyles, Paint, Composite, FireAnimationFrame, FunctionCall, EventDispatch, and frame intervals (moving frames over 34 and 50 ms per 100); per arm verdict against the base, each arm decided on its own beyond the spread of the repeated base passes. Lean first: the arm plan and the per-arm verdict rule (lean/Fw/Device/PhoneArms.lean, golden replayed by a test); reuse Fw.Device.Session and the Classes policy where they fit. Commit only summaries (no timestamps, device ids, addresses); raw passes stay in .local/phone/2026-10-25/. Scripted scrolling does not move the Safari toolbar, so the toolbar throttle and touch-path flags (engine.scroll:unthrottle, morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope here (named). Compare each phone verdict with the CI Simulator verdict where one exists (run ids)."
   }
  ],
  "deadline": {
