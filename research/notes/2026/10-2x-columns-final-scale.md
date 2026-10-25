@@ -2,7 +2,7 @@
 
 ## Answer
 
-- The edges hold exactly and the look bound holds where the variant applies. Status: PROVED in Lean (`Fw.Parts.MorphColumnsScale`), replayed by `apps/site/src/parts/morph.columns/scale.golden.test.ts` against `packages/contracts/golden/parts/morph.columns.final-scale.jsonl` (110 rows, 11 widths x 9 morph values).
+- The edges hold exactly; the look bound holds from 314 to 1000 px (below 314 px the variant still applies unproved, see below). Status: PROVED in Lean (`Fw.Parts.MorphColumnsScale`), replayed by `apps/site/src/parts/morph.columns/scale.golden.test.ts` against `packages/contracts/golden/parts/morph.columns.final-scale.jsonl` (11 vars rows plus 99 frame rows).
 - The scale is horizontal only (`scale(sx, 1)`), not the uniform `scale(s)` that the candidate note (10-2x-end-gpu-map.md, candidate 1) assumed. The pictures have fixed pixel heights (`data.ts`), so a uniform scale would move every picture's bottom edge: `uniform_breaks_height`. Vertical scale 1 keeps heights, the 12 px gap between pictures and the 56 px drift exact (`vertical_exact`).
 - Bound at 390 px: `sx >= a = 0.9767`, so at most 2.3 % horizontal squeeze (`a_390`: a >= 0.97, the proved statement). It holds for every width from 314 to 1000 px (`a_range`, `sx_range`, `squeeze_bound`: squeeze <= 3 %; `radius_bound`: horizontal corner radius within 0.36 px of 12).
 - The bound fails outside that range, so the variant applies only up to 1000 px (the original's `mq.w-le-1000` edge): a = 0.786 at 1280 px, 0.694 at 1440 px (`a_desktop`), 0.9657 at 280 px (`a_narrow`). Above 1000 px the arm is the base layout. Below 314 px the variant still applies and its squeeze bound is not proved (a = 0.9657 at 280 px, `a_narrow`); named, not fixed, since the variant does not ship without a win. This narrows the candidate: no desktop effect.
@@ -48,7 +48,7 @@ All on `ci/columns-final-scale` at 6d8fbd72f.
 | trace.Layout.dirtyObjects | 6486, 6484, 6492 | 6485, 6482, 6480 |
 | metric.RecalcStyleCount | 2371, 2375, 2371 | 2371, 2375, 2371 |
 
-In the morph zone (y00500) Layout totalObjects is 46265 base against 46098 flag (-0.4 %). y00500 is lower in the flag on all 3 runs by about 1 Layout and 0.4 % totalObjects (Layout 68/67/68 vs 69/68/70; dirtyObjects 761/759/761 vs 767/765/769); y01500 varies run to run in both arms (totalObjects 49731/49731/49784 base vs 49841/49784/49731 flag); all other zones are identical. Verdict: no Layout, no UpdateLayoutTree, no style-recalc reduction.
+In the morph zone (y00500) Layout totalObjects is 46265 base against 46098 flag (-0.4 %). y00500 is lower in the flag on all 3 runs by about 1 Layout and 0.4 % totalObjects (Layout flag 68/67/68 vs base 69/68/70; dirtyObjects flag 761/759/761 vs base 767/765/769); y01500 varies run to run in both arms (totalObjects 49731/49731/49784 base vs 49841/49784/49731 flag); all other zones have identical Layout, UpdateLayoutTree and RecalcStyle counts (elementCount differs by under 0.5 %). Verdict: no Layout, no UpdateLayoutTree, no style-recalc reduction.
 
 ### WebKit Simulator (MEASURED, n=2 per arm, two passes each)
 
@@ -76,7 +76,7 @@ Layout per 500 px zone, mean of 2 passes (base r1 / base r3 / flag r1 / flag r3)
 | z8 | 48 | 32.5 | 39 | 35 |
 | z9 | 45.5 | 68 | 59.5 | 65 |
 
-Composite is 20 per zone in all four sessions (199 over z0 to z9). Backing memory at the final state is 105.8 MB base (both sessions) against 97.9 MB (r1) and 105.8 MB (r3) flag; the other states are equal within 5 MB. Verdict: no zone shows a flag win beyond the base spread; Composite identical; backing MB unchanged except flag r1 at the final state (-7.9 MB, one session). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Per-engine verdict: no win on either engine.
+Composite is 19 in z0 and 20 in each of z1 to z9 in every pass of all four sessions (199). Backing memory at the final state is 105.8 MB base (both sessions) against 97.9 MB (r1) and 105.8 MB (r3) flag; the other states are equal within 5 MB. Verdict: z7 is lower in both flag sessions (67.5, 68.5 vs 71, 73) and z0, z6 in flag r1 only; with n=2, zones far from the morph, and the 0-4999 px sums inside the base range, no zone win is established; Composite identical; backing MB unchanged except flag r1 at its final state (-7.9 MB, one session, different final scroll y) (flag r1's final census is at scroll y 5267, the others at 5231, so this is not the same state). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Per-engine verdict: no win on either engine.
 
 ### Breakpoint gate (run 40156380619, both engines)
 
@@ -84,7 +84,7 @@ The gate fails the `morph.columns` row on 19 of 30 desk, touch and other conditi
 
 ### Why no count win (INFERRED)
 
-The Lean theorems prove the column box is constant in the morph value. They do not prove that the per-frame layouts re-lay out the column subtree: the morph zone's layouts each touch about 670 objects in both arms, so the panel and its siblings keep laying out. A per-subtree layout attribution is needed before a layout win can be claimed or ruled out.
+The Lean theorems prove the column box is constant in the morph value. They do not prove that the per-frame layouts re-lay out the column subtree. Chromium's Layout totalObjects is the size of the traversed tree, not the objects laid out (layout_subtree_root_list.cc:17-33@f842f52); dirtyObjects is about 11 per morph-zone layout in both arms (767/69 base, 761/68 flag), so the counts do not show which subtree re-lays out. A per-subtree layout attribution is needed before a layout win can be claimed or ruled out.
 
 ## Follow-ups (lead)
 
