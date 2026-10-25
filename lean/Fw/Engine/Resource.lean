@@ -31,9 +31,9 @@ def Res.name : Res → String
   | .event => "eventDispatch" | .repaint => "repaintArea" | .layers => "layers" | .composite => "composite"
   | .gpuMem => "gpuMemory" | .frames => "framesRequested"
 
-/-- The unit of a resource's bound. -/
+/-- The unit a resource is counted in. -/
 def Res.unit : Res → String
-  | .repaint => "device px per frame" | .gpuMem => "bytes" | .layers => "layers"
+  | .repaint => "CSS px² x DPR² summed over a run" | .gpuMem => "bytes" | .layers => "layers"
   | .frames => "frames per run" | _ => "records per run"
 
 /-- Main-thread work and repaint: the resources a win may not raise. -/

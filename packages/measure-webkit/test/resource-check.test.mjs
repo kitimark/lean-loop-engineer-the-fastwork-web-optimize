@@ -36,6 +36,17 @@ test('every check row cites a footprint sign', () => {
   }
 });
 
+test('every bound: its check rows share its unit and change by at most it', () => {
+  const bounded = rows.filter((r) => r.kind === 'predict' && r.bound !== null);
+  assert.equal(bounded.length, 4);
+  for (const b of bounded) {
+    for (const c of rows.filter((x) => x.kind === 'check' && x.flag === b.flag && x.engine === b.engine && x.resource === b.resource)) {
+      assert.equal(c.unit, b.unit, `${b.flag} ${b.engine} ${b.resource}`);
+      assert.ok(Math.max(c.arm.hi - c.base.lo, c.base.hi - c.arm.lo) <= b.bound, `${b.flag} ${b.engine} ${b.resource}`);
+    }
+  }
+});
+
 test('decision examples', () => {
   assert.equal(slowWalk(4077, 6791), true);
   assert.equal(slowWalk(4077, 3646), false);

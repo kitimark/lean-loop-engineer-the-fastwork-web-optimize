@@ -4,18 +4,20 @@ import Fw.Engine.Resource
 
 namespace Fw.Engine.Resource
 
-/-- A predicted effect on one resource: its sign, a bound on the change in the resource's unit, and its source. -/
+/-- A predicted effect on one resource: its sign, a bound on the change with the bound's unit, and its source. -/
 structure Effect where
   sign : Sign
-  bound : Option Nat
+  bound : Option (Nat × String)
   src : String
 deriving Repr, Inhabited
 
-/-- One flag's predicted resource vector on one engine, with the predicted peak GPU memory in bytes. -/
+/-- One flag's predicted resource vector on one engine, with a peak GPU memory in bytes. -/
 structure Footprint where
   flag : String
   eng : Eng
   effects : List (Res × Effect)
+  /-- The peak GPU memory in bytes: a MEASURED phone maximum of the arm, or the MEASURED base peak plus a modelled
+  rise. -/
   peak : Option Nat
 deriving Repr, Inhabited
 

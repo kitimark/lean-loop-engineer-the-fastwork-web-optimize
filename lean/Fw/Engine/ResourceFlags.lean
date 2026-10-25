@@ -44,15 +44,15 @@ theorem combine_same (s : Sign) : combine .same s = s ∧ combine s .same = s :=
 /-- An effect with no bound. -/
 def ef (s : Sign) (src : String) : Effect := ⟨s, none, src⟩
 
-/-- An effect with a bound. -/
-def efB (s : Sign) (b : Nat) (src : String) : Effect := ⟨s, some b, src⟩
+/-- An effect with a bound `b` on the change, in unit `u`. -/
+def efB (s : Sign) (b : Nat) (u src : String) : Effect := ⟨s, some (b, u), src⟩
 
 /-- Style, layout, paint records and script from a stage-sign function, with one source. -/
 def stageEffects (f : Stage → Sign) (src : String) : List (Res × Effect) :=
   [(.style, ef (f .style) src), (.layout, ef (f .layout) src), (.paintRec, ef (f .paint) src),
    (.script, ef (f .script) src)]
 
-/-- The largest GPU peak over the phone base passes, in bytes. -/
+/-- The largest GPU peak over the phone base passes, in bytes (MEASURED). -/
 def basePeak : Nat := 197145405
 
 /-- Backing bytes the nav bar and the logo add while morphing: two layers of at most the 440 × 120 CSS-px nav box. -/
@@ -106,25 +106,27 @@ theorem heroLayers_drop : heroLayers .chromium = (85, 0) ∧ heroLayers (.webkit
 
 /-- The effects shared by both engines. -/
 def sceneCommon (h : Host) : List (Res × Effect) :=
-  [(.layout, ef .same "pausing changes no geometry"),
-   (.paintRec, ef .same "hero_wc_paint_same"), (.script, ef .same "the countdown driver keeps its callbacks"),
-   (.event, ef .down "INFERRED: a paused animation enqueues no iteration events (StyleOriginatedAnimation.cpp:331-412@862f17d)"),
-   (.repaint, ef .same "hero_wc_paint_same"),
-   (.layers, efB (signOf (heroLayers h).1 (heroLayers h).2) 85 "hero_paused_drop: 85 -> 0"),
+  [(.paintRec, ef .same "hero_wc_paint_same"), (.repaint, ef .same "hero_wc_paint_same"),
+   (.layers, ef (signOf (heroLayers h).1 (heroLayers h).2) "hero_paused_drop: 85 -> 0 hero layers"),
    (.composite, ef .same "no composite pass added or removed"),
    (.gpuMem, ef .same "detached_zero: the dropped hero layers are outside coverage at the page end"),
-   (.frames, ef .same "no rAF or timer added or removed")]
+   (.frames, ef .same "heroScene_eq_original: the rule sets an attribute from an IntersectionObserver (hero/scene.ts:23), no rAF")]
 
 /-- `hero:scene-pause` on Chromium. -/
 def scenePauseCr : Footprint :=
   ⟨"hero:scene-pause", .chromium,
-    (.style, ef .down "cr_pause_style_units: one style unit less per paused compositor animation") :: sceneCommon .chromium,
-    none⟩
+    [(.style, ef .same "cr_realChrome_pause_eq: pausing changes no main-thread stage in real Chrome (cr_pause_style_units drops one style unit per paused animation in the CI lane only)"),
+     (.layout, ef .same "cr_realChrome_pause_eq"), (.script, ef .same "cr_realChrome_pause_eq"),
+     (.event, ef .unknown "no Chromium source line read for the iteration events of a paused animation")] ++
+    sceneCommon .chromium, none⟩
 
-/-- `hero:scene-pause` on WebKit. -/
+/-- `hero:scene-pause` on WebKit; the peak is the arm's MEASURED phone maximum. -/
 def scenePauseWk : Footprint :=
   ⟨"hero:scene-pause", .webkit,
-    (.style, ef .same "accelerated time animations ride along no style") :: sceneCommon (.webkit .normal), some 211786247⟩
+    [(.style, ef .same "wk_pause_eq: pausing a compositor animation changes no web-process stage"),
+     (.layout, ef .same "wk_pause_eq"), (.script, ef .same "wk_pause_eq"),
+     (.event, ef .down "INFERRED: a paused animation's iteration does not change, so no animationiteration is enqueued (StyleOriginatedAnimation.cpp:340-345@862f17d)")] ++
+    sceneCommon (.webkit .normal), some 211786247⟩
 
 end ScenePause
 
@@ -139,48 +141,66 @@ def idleLayers : Nat × Nat :=
 theorem idleLayers_eq : idleLayers = (5, 1) := by
   simp only [idleLayers, tracks_layers_drop.1, tracks_layers_drop.2]
 
-/-- The effects shared by both engines. -/
+/-- The effects shared by both engines besides style and events. -/
 def idleCommon : List (Res × Effect) :=
-  [(.layout, ef .same "no geometry change"), (.paintRec, ef .same "no paint change"),
-   (.script, ef .same "no script change"),
-   (.event, ef .down "INFERRED: a stopped infinite animation enqueues no animationiteration events"),
-   (.repaint, ef .same "no paint change"),
-   (.layers, efB (signOf idleLayers.1 idleLayers.2) 4 "tracks_layers_drop: 5 -> 1"),
+  [(.layout, ef .same "the tracks animate transform only (2.gBuqKVzi.css .track keyframes up/down, HiddenPause module doc)"),
+   (.paintRec, ef .unknown "INFERRED: the dropped track layers paint into their host (tracks_layers_drop); the host's paint at panel opacity 0 is not modelled"),
+   (.script, ef .unknown "the flag's MutationObserver callback per scene change (morph.columns/index.tsx:72-97) is not modelled"),
+   (.repaint, ef .unknown "INFERRED: the dropped track layers paint into their host (tracks_layers_drop); the host's paint at panel opacity 0 is not modelled"),
+   (.layers, ef (signOf idleLayers.1 idleLayers.2) "tracks_layers_drop: 5 -> 1 marquee chunk layers"),
    (.composite, ef .down "tracks_layers_drop: fewer layers to composite"),
    (.gpuMem, ef .down "tracks_layers_drop: the dropped track layers held backing"),
-   (.frames, ef .same "no rAF or timer change")]
+   (.frames, ef .same "the flag requests no frame: a MutationObserver only (morph.columns/index.tsx:72-97)")]
 
 /-- `morph.columns:idle-none` on Chromium. -/
 def idleNoneCr : Footprint :=
   ⟨"morph.columns:idle-none", .chromium,
-    (.style, ef .down "cr_pause_style_units: one style unit less per removed compositor animation") :: idleCommon, none⟩
+    [(.style, ef .same "cr_realChrome_pause_eq: a compositor animation touches no main-thread stage in real Chrome; CI style 1832 vs 1833"),
+     (.event, ef .unknown "INFERRED: iteration events are equal, since the base holds the tracks paused (varStep acts only while scenePaused); animation-name none (morph.module.css:14-16) re-creates the tracks, and each new animation enqueues animationstart (css_animations.cc:3660-3666@f842f52), a count the walk does not fix")] ++
+    idleCommon, none⟩
 
-/-- `morph.columns:idle-none` on WebKit. -/
+/-- `morph.columns:idle-none` on WebKit; the peak is the arm's MEASURED phone maximum. -/
 def idleNoneWk : Footprint :=
   ⟨"morph.columns:idle-none", .webkit,
-    (.style, ef .same "accelerated time animations ride along no style") :: idleCommon, some 173708059⟩
+    [(.style, ef .same "wk_pause_eq: a compositor animation costs the web process no stage"),
+     (.event, ef .unknown "INFERRED: iteration events are equal, since the base holds the tracks paused (varStep acts only while scenePaused); animation-name none (morph.module.css:14-16) cancels and re-creates the tracks, which enqueues animationcancel and animationstart (StyleOriginatedAnimation.cpp:333-334,353-354@862f17d), a count the walk does not fix")] ++
+    idleCommon, some 173708059⟩
 
 end IdleNone
 
 section HiddenPause
 open Fw.Parts.HiddenPause
 
-/-- The effects shared by both engines besides the stage signs. -/
+open Fw.Engine.Chromium in
+/-- The countdown pairs of `crPairs` (gated, original): 1 and 6 springing digits in every layer state. The flag gates
+only the face writes (`installFaceGate`, morph.countdown/index.tsx:59-64), so the marquee pairs do not apply. -/
+def hiddenCrPairs : List (Work × Work) :=
+  [1, 6].flatMap fun d => [LayerState.none, .layer, .own].map fun l =>
+    let f := cdFrame (CrProp.css .transform) d l; (frameWork chromium (skipWrites f), frameWork chromium f)
+
+open Fw.Engine.WebKit in
+/-- The countdown pairs of `wkPairs`, as `hiddenCrPairs` with the WebKit table. -/
+def hiddenWkPairs : List (Work × Work) :=
+  [1, 6].flatMap fun d => [LayerState.none, .layer, .own].map fun l =>
+    let f := cdFrame WkProp.transform d l; (frameWork webkit (skipWrites f), frameWork webkit f)
+
+/-- The effects shared by both engines besides the stage and repaint signs. -/
 def hiddenCommon : List (Res × Effect) :=
-  [(.event, ef .down "INFERRED: the paused marquee enqueues no animationiteration events"),
-   (.repaint, ef .same "the skipped face writes are compositor-only"),
-   (.layers, ef .same "no layer reason changes"), (.composite, ef .same "no composite pass change"),
-   (.gpuMem, ef .same "no layer change"), (.frames, ef .same "skipWrites keeps the callbacks")]
+  [(.event, ef .same "the flag gates JS face writes only (morph.countdown/index.tsx:59-64); the clock runs no CSS animation"),
+   (.layers, ef .same "the gate changes no layer reason"), (.composite, ef .same "the gate changes no layer"),
+   (.gpuMem, ef .same "the gate changes no layer"), (.frames, ef .same "skipWrites keeps the callbacks")]
 
 /-- `morph.countdown:hidden-pause` on Chromium. -/
 def hiddenCr (_ : Unit) : Footprint :=
   ⟨"morph.countdown:hidden-pause", .chromium,
-    stageEffects (pairsSign crPairs) "HiddenPause.crPairs, cr_countdown_style" ++ hiddenCommon, none⟩
+    stageEffects (pairsSign hiddenCrPairs) "hiddenCrPairs, cr_countdown_style" ++
+    (.repaint, ef (pairsSign hiddenCrPairs .raster) "hiddenCrPairs raster stage") :: hiddenCommon, none⟩
 
-/-- `morph.countdown:hidden-pause` on WebKit. -/
+/-- `morph.countdown:hidden-pause` on WebKit; the peak is the arm's MEASURED phone maximum. -/
 def hiddenWk (_ : Unit) : Footprint :=
   ⟨"morph.countdown:hidden-pause", .webkit,
-    stageEffects (pairsSign wkPairs) "HiddenPause.wkPairs, wk_countdown_style" ++ hiddenCommon, some 168397197⟩
+    stageEffects (pairsSign hiddenWkPairs) "hiddenWkPairs, wk_countdown_style" ++
+    (.repaint, ef (pairsSign hiddenWkPairs .paint) "hiddenWkPairs paint stage") :: hiddenCommon, some 168397197⟩
 
 end HiddenPause
 
@@ -200,30 +220,35 @@ theorem clockLayerPair_eq : clockLayerPair .chromium = (80, 8) ∧ clockLayerPai
   have w := hero_layers (.webkit .normal) true 1 Fw.Parts.HeroScenePause.wk_normal_owns
   simp [clockLayerPair, c.1, c.2.1, w.1, w.2.1]
 
+/-- The strip writes one inline transform per digit from the same spring driver: no CSS animation, no new frame. -/
+def stripDriverSrc : String := "the same spring driver writes one inline transform per digit (hero.countdown/driver.ts:61-70)"
+
 /-- `morph.countdown:strip` on Chromium. -/
 def stripCr : Footprint :=
   let r := stripRuns Chromium.chromium (Chromium.CrProp.css .transform)
   ⟨"morph.countdown:strip", .chromium,
     stageEffects (runSign r.1 r.2) "strip_units: 9 fewer units per digit" ++
-    [(.event, ef .same "no event change"),
+    [(.event, ef .same stripDriverSrc),
      (.repaint, ef .unknown "Chromium tile retention off-screen not modelled"),
-     (.layers, efB (signOf (clockLayerPair .chromium).1 (clockLayerPair .chromium).2) 72 "hero_layers: 80 -> 8"),
-     (.composite, ef .down "fewer layers to composite"),
-     (.gpuMem, ef .up "strip_backing_gt: 10na -> 12na"), (.frames, ef .same "same spring driver")],
+     (.layers, efB (signOf (clockLayerPair .chromium).1 (clockLayerPair .chromium).2) 72 "layers per census state"
+        "hero_layers: 80 -> 8 clock layers"),
+     (.composite, ef .down "hero_layers: fewer layers to composite"),
+     (.gpuMem, ef .up "strip_backing_gt: 10na -> 12na"), (.frames, ef .same stripDriverSrc)],
     none⟩
 
-/-- `morph.countdown:strip` on WebKit. -/
+/-- `morph.countdown:strip` on WebKit; the peak is the MEASURED base peak plus the bound on the strip's backing. -/
 def stripWk : Footprint :=
   let r := stripRuns WebKit.webkit WebKit.WkProp.transform
   ⟨"morph.countdown:strip", .webkit,
     stageEffects (runSign r.1 r.2) "strip_units: 9 fewer units per digit" ++
-    [(.event, ef .same "no event change"),
+    [(.event, ef .same stripDriverSrc),
      (.repaint, ef .down "face_reattach vs strip_no_reattach: faces re-attach, strips stay attached"),
      (.layers, efB (signOf (clockLayerPair (.webkit .normal)).1 (clockLayerPair (.webkit .normal)).2) 72
-        "hero_layers, layers_80_to_16: 80 -> 8"),
-     (.composite, ef .down "fewer layers to composite"),
-     (.gpuMem, efB .up stripBytes "strip_backing_gt: 10na -> 12na; bound the Simulator's 2.287 MB clock backing"),
-     (.frames, ef .same "same spring driver")],
+        "layers per census state" "hero_layers, layers_80_to_16: 80 -> 8 clock layers"),
+     (.composite, ef .down "hero_layers: fewer layers to composite"),
+     (.gpuMem, efB .up stripBytes "bytes of hero clock backing"
+        "strip_backing_gt: 10na -> 12na; bound the Simulator's 2.287 MB clock backing"),
+     (.frames, ef .same stripDriverSrc)],
     some (basePeak + stripBytes)⟩
 
 end Strip
@@ -231,24 +256,27 @@ end Strip
 section PanelRest
 open Fw.Parts.MorphPanelOpt
 
+/-- The flag changes only the filter value the per-frame fade writes at rest: no event, no new frame. -/
+def panelRestSrc : String := "filterO_rest, filterV_rest: only the rest filter value changes"
+
 /-- `morph.panel:rest` on Chromium. -/
 def panelCr : Footprint :=
   ⟨"morph.panel:rest", .chromium,
     stageEffects (runSign crO crV) "MorphPanelOpt.crO/crV, cr_toggle_not_le" ++
-    [(.event, ef .same "no event change"), (.repaint, ef (runSign crO crV .raster) "MorphPanelOpt.crO/crV raster"),
+    [(.event, ef .same panelRestSrc), (.repaint, ef (runSign crO crV .raster) "MorphPanelOpt.crO/crV raster"),
      (.layers, ef .same "Chromium keeps no layer for blur(0)"), (.composite, ef (runSign crO crV .comp) "crO/crV comp"),
-     (.gpuMem, ef .same "no layer change"), (.frames, ef .same "no rAF change")],
+     (.gpuMem, ef .same "Chromium keeps no layer for blur(0)"), (.frames, ef .same panelRestSrc)],
     none⟩
 
 /-- `morph.panel:rest` on WebKit. -/
 def panelWk : Footprint :=
   ⟨"morph.panel:rest", .webkit,
     stageEffects (runSign wkO wkV) "MorphPanelOpt.wkO/wkV" ++
-    [(.event, ef .same "no event change"),
-     (.repaint, ef .up "tween_repaint: the group layer is re-created per fade and repaints in full; pushed_rise at rest"),
-     (.layers, efB .down 1 "wk_rest_layers: one layer less at rest"),
+    [(.event, ef .same panelRestSrc),
+     (.repaint, ef .unknown "INFERRED: a none->blur toggle may create the group layer and paint it in full; no theorem links filterToggle to a re-attach paint"),
+     (.layers, efB .down 1 "layers per census state" "wk_rest_layers: one layer less at rest"),
      (.composite, ef (runSign wkO wkV .comp) "wkO/wkV comp"),
-     (.gpuMem, ef .down "wkResident: the group layer's backing is freed at rest"), (.frames, ef .same "no rAF change")],
+     (.gpuMem, ef .down "wkResident: the group layer's backing is freed at rest"), (.frames, ef .same panelRestSrc)],
     none⟩
 
 end PanelRest
@@ -268,19 +296,19 @@ def logoWkRuns : List Work × List Work :=
 
 /-- The effects shared by both engines besides the stage signs. -/
 def logoCommon : List (Res × Effect) :=
-  [(.event, ef .same "no event change"),
+  [(.event, ef .unknown "the logo moves by transform instead of translate and scale (nav/box.module.css:53-57) while the nav keeps the original transition lists (box.module.css:4); transition events not modelled"),
    (.repaint, ef .down "bar_resizePaint_zero vs bar_orig_resizes: the fixed bar never resizes"),
-   (.layers, efB .up 3 "layer_budget: mask, bar and logo while morphing; none at rest (box.module.css .is-morphing)"),
-   (.composite, ef .up "three more layers while morphing"),
-   (.gpuMem, efB .up navMorphBytes "layer_budget: bar and logo backing while morphing; the mask holds none"),
-   (.frames, ef .same "no rAF change")]
+   (.layers, ef .up "layer_budget: mask, bar and logo while morphing; none at rest (box.module.css .is-morphing)"),
+   (.composite, ef .up "layer_budget: three more layers while morphing"),
+   (.gpuMem, ef .up "layer_budget: bar and logo backing while morphing; the mask holds none"),
+   (.frames, ef .same "a CSS-only change (nav/box.module.css:53-57): no rAF")]
 
 /-- `nav:logo-3d` on Chromium. -/
 def logoCr : Footprint :=
   ⟨"nav:logo-3d", .chromium, stageEffects (runSign logoCrRuns.1 logoCrRuns.2) "Chromium stage rules: left vs transform" ++
     logoCommon, none⟩
 
-/-- `nav:logo-3d` on WebKit. -/
+/-- `nav:logo-3d` on WebKit; the peak is the MEASURED base peak plus the modelled nav backing. -/
 def logoWk : Footprint :=
   ⟨"nav:logo-3d", .webkit,
     stageEffects (runSign logoWkRuns.1 logoWkRuns.2) "logo3d_layout_normal, bar_layout_normal" ++ logoCommon,
@@ -303,7 +331,7 @@ def dormantCr : Footprint :=
   ⟨"morph.mount:shift-dormant", .chromium,
     stageEffects (runSign crO crV) "MorphMountOpt.crO/crV: the mount shifts, totals equal" ++ dormantCommon, none⟩
 
-/-- `morph.mount:shift-dormant` on WebKit. -/
+/-- `morph.mount:shift-dormant` on WebKit; the peak is the arm's MEASURED phone maximum. -/
 def dormantWk : Footprint :=
   ⟨"morph.mount:shift-dormant", .webkit,
     stageEffects (runSign wkO wkV) "MorphMountOpt.wkO/wkV: the mount shifts, totals equal" ++ dormantCommon,
@@ -322,23 +350,25 @@ theorem quietRecords_eq : quietRecords = (2, 0) := by
   have q := records_quiet "animationend" (by decide)
   simp [quietRecords, o, q]
 
+/-- The flag drops root listener registrations only. -/
+def quietSrc : String := "quietRegs: the flag only drops root listener registrations"
+
 /-- The effects shared by both engines besides events and script. -/
 def quietCommon : List (Res × Effect) :=
-  [(.style, ef .same "no style change"), (.layout, ef .same "no layout change"),
-   (.paintRec, ef .same "no paint change"), (.repaint, ef .same "no paint change"),
-   (.layers, ef .same "no layer change"), (.composite, ef .same "no composite change"),
-   (.gpuMem, ef .same "no layer change"), (.frames, ef .same "no rAF change")]
+  [(.style, ef .same quietSrc), (.layout, ef .same quietSrc), (.paintRec, ef .same quietSrc),
+   (.repaint, ef .same quietSrc), (.layers, ef .same quietSrc), (.composite, ef .same quietSrc),
+   (.gpuMem, ef .same quietSrc), (.frames, ef .same quietSrc)]
 
 /-- `engine.events:quiet` on Chromium. -/
 def quietCr : Footprint :=
   ⟨"engine.events:quiet", .chromium,
-    [(.event, ef .same "ledger n=75: Chromium dispatches the same events"),
+    [(.event, ef .unknown "css_animations.cc:3610@f842f52 creates an animation event only while the document has a listener of its type; the page's other listeners are not enumerated"),
      (.script, ef .unknown "Chromium listener call records not read from source")] ++ quietCommon, none⟩
 
-/-- `engine.events:quiet` on WebKit. -/
+/-- `engine.events:quiet` on WebKit; the peak is the arm's MEASURED phone maximum. -/
 def quietWk : Footprint :=
   ⟨"engine.events:quiet", .webkit,
-    [(.event, efB (signOf quietRecords.1 quietRecords.2) 2 "records_orig, records_quiet: 2 -> 0 per quiet event"),
+    [(.event, ef (signOf quietRecords.1 quietRecords.2) "records_orig, records_quiet: 2 -> 0 records per quiet event"),
      (.script, ef .down "records_quiet: no root listener call (EventTarget.cpp:313-357@862f17d)")] ++ quietCommon,
     some 191681597⟩
 
@@ -359,12 +389,12 @@ def verdicts (B : Nat) : List (String × Eng × Verdict) := (footprints ()).map 
 #guard (footprints ()).all fun f => Res.all.all fun r => (f.effects.filter (·.1 == r)).length == 1
 #guard verdicts budgetB == [
   ("hero.exit:threaded", .chromium, .trade), ("hero.exit:threaded", .webkit, .trade),
-  ("hero:scene-pause", .chromium, .win), ("hero:scene-pause", .webkit, .win),
-  ("morph.columns:idle-none", .chromium, .win), ("morph.columns:idle-none", .webkit, .win),
+  ("hero:scene-pause", .chromium, .open), ("hero:scene-pause", .webkit, .win),
+  ("morph.columns:idle-none", .chromium, .open), ("morph.columns:idle-none", .webkit, .open),
   ("morph.countdown:hidden-pause", .chromium, .win), ("morph.countdown:hidden-pause", .webkit, .win),
   ("morph.countdown:strip", .chromium, .open), ("morph.countdown:strip", .webkit, .win),
-  ("morph.panel:rest", .chromium, .trade), ("morph.panel:rest", .webkit, .trade),
-  ("nav:logo-3d", .chromium, .open), ("nav:logo-3d", .webkit, .win),
+  ("morph.panel:rest", .chromium, .trade), ("morph.panel:rest", .webkit, .open),
+  ("nav:logo-3d", .chromium, .open), ("nav:logo-3d", .webkit, .open),
   ("morph.mount:shift-dormant", .chromium, .neutral), ("morph.mount:shift-dormant", .webkit, .neutral),
   ("engine.events:quiet", .chromium, .open), ("engine.events:quiet", .webkit, .win)]
 
@@ -382,19 +412,28 @@ theorem navMorphBytes_eq : navMorphBytes = 3801600 := by decide
 /-- A phone-data source: the end-of-session counts, n = 3 passes per arm. -/
 def phoneSrc : String := "phone 2026-10-25 (results/phone/2026-10-25-end-counts)"
 
-/-- One measured resource: base and arm ranges over passes, the tolerance, and whether the arm's walk was slow. -/
+/-- One measured resource: its unit, base and arm ranges over passes, the tolerance, and whether the arm's walk was
+slow. -/
 structure Obs where
   flag : String
   eng : Eng
   src : String
   res : Res
+  unit : String
   base : Range
   arm : Range
   tol : Nat
   slow : Bool
 deriving Repr
 
-/-- Phone base ranges over the two base arms (memory in KiB at scroll states y ≥ 3000, repaint in kpx CSS px²). -/
+/-- The unit of a phone resource: census resources are summed over the three census states y >= 3000 (3000, 4500, max). -/
+def phoneUnit : Res → String
+  | .gpuMem => "KiB summed over the three census states y >= 3000"
+  | .layers => "layers summed over the three census states y >= 3000"
+  | .repaint => "thousand root-view CSS px² summed over a walk" | .frames => "frames per run"
+  | _ => "records per run"
+
+/-- Phone base ranges over the two base arms, in `phoneUnit`. -/
 def phoneBase : Res → Range
   | .style => ⟨646, 651⟩ | .layout => ⟨609, 632⟩ | .paintRec => ⟨1569, 1608⟩ | .script => ⟨1436, 1558⟩
   | .event => ⟨902, 1024⟩ | .repaint => ⟨77464, 82927⟩ | .layers => ⟨401, 401⟩ | .composite => ⟨213, 213⟩
@@ -405,7 +444,8 @@ def phoneBaseWallHi : Nat := 4077
 
 /-- One phone arm: flag, fastest walk in ms, and its ranges in `Res.all` order. -/
 def phoneArm (flag : String) (wallLo : Nat) (rs : List Range) : List Obs :=
-  (Res.all.zip rs).map fun (r, a) => ⟨flag, .webkit, phoneSrc, r, phoneBase r, a, 0, slowWalk phoneBaseWallHi wallLo⟩
+  (Res.all.zip rs).map fun (r, a) =>
+    ⟨flag, .webkit, phoneSrc, r, phoneUnit r, phoneBase r, a, 0, slowWalk phoneBaseWallHi wallLo⟩
 
 /-- The phone observations of the seven arms that finished. -/
 def phoneObs : List Obs :=
@@ -426,32 +466,32 @@ def phoneObs : List Obs :=
 
 /-- The CI observations cited in the ledger rows (run ids in `src`). -/
 def ciObs : List Obs :=
-  [⟨"morph.columns:idle-none", .webkit, "webkit-sim 39897814980 vs 39897807511, y=3000", .layers, ⟨136, 140⟩,
-      ⟨124, 128⟩, 0, false⟩,
-   ⟨"morph.columns:idle-none", .webkit, "webkit-sim 39897814980 vs 39897807511, backing MB", .gpuMem, ⟨101, 101⟩,
-      ⟨85, 85⟩, 0, false⟩,
-   ⟨"morph.columns:idle-none", .chromium, "chromium 39897804079 vs 39897818039, layer-frames", .layers, ⟨28107, 28107⟩,
-      ⟨24667, 24667⟩, 0, false⟩,
-   ⟨"morph.columns:idle-none", .chromium, "chromium 39897804079 vs 39897818039", .style, ⟨1832, 1832⟩,
-      ⟨1833, 1833⟩, 1, false⟩,
-   ⟨"morph.columns:idle-none", .chromium, "chromium 39897804079 vs 39897818039", .layout, ⟨318, 318⟩,
-      ⟨319, 319⟩, 1, false⟩,
-   ⟨"hero:scene-pause", .webkit, "webkit-sim 40151813906 vs 40151792642, y=3000", .layers, ⟨124, 128⟩, ⟨39, 47⟩, 0,
-      false⟩,
-   ⟨"morph.countdown:strip", .webkit, "webkit-sim 39897814980 vs 40081936555, finish zone", .layers, ⟨124, 128⟩,
-      ⟨56, 56⟩, 0, false⟩,
-   ⟨"morph.countdown:strip", .webkit, "webkit-sim 39897814980 vs 40081936555, hero clock backing kB", .gpuMem,
-      ⟨591, 591⟩, ⟨2287, 2287⟩, 0, false⟩,
-   ⟨"engine.events:quiet", .webkit, "webkit-sim 40134016822 vs 40134234199", .event, ⟨1099, 1132⟩, ⟨527, 529⟩, 0,
-      false⟩,
-   ⟨"engine.events:quiet", .webkit, "webkit-sim 40134016822 vs 40134234199", .script, ⟨1623, 1646⟩, ⟨1042, 1045⟩, 0,
-      false⟩,
-   ⟨"morph.mount:shift-dormant", .chromium, "chromium 39325709978 vs 39325721909, layer census", .layers, ⟨0, 0⟩,
-      ⟨0, 0⟩, 0, false⟩,
+  [⟨"morph.columns:idle-none", .webkit, "webkit-sim 39897814980 vs 39897807511, y=3000", .layers,
+      "layers per census state", ⟨136, 140⟩, ⟨124, 128⟩, 0, false⟩,
+   ⟨"morph.columns:idle-none", .webkit, "webkit-sim 39897814980 vs 39897807511, backing MB", .gpuMem,
+      "MB of layer backing per census state", ⟨101, 101⟩, ⟨85, 85⟩, 0, false⟩,
+   ⟨"morph.columns:idle-none", .chromium, "chromium 39897804079 vs 39897818039, layer-frames", .layers,
+      "layer-frames per run", ⟨28107, 28107⟩, ⟨24667, 24667⟩, 0, false⟩,
+   ⟨"morph.columns:idle-none", .chromium, "chromium 39897804079 vs 39897818039", .style, "records per run",
+      ⟨1832, 1832⟩, ⟨1833, 1833⟩, 1, false⟩,
+   ⟨"morph.columns:idle-none", .chromium, "chromium 39897804079 vs 39897818039", .layout, "records per run",
+      ⟨318, 318⟩, ⟨319, 319⟩, 1, false⟩,
+   ⟨"hero:scene-pause", .webkit, "webkit-sim 40151813906 vs 40151792642, y=3000", .layers, "layers per census state",
+      ⟨124, 128⟩, ⟨39, 47⟩, 0, false⟩,
+   ⟨"morph.countdown:strip", .webkit, "webkit-sim 39897814980 vs 40081936555, finish zone", .layers,
+      "layers per census state", ⟨124, 128⟩, ⟨56, 56⟩, 0, false⟩,
+   ⟨"morph.countdown:strip", .webkit, "webkit-sim 39897814980 vs 40081936555, hero clock backing", .gpuMem,
+      "bytes of hero clock backing", ⟨591000, 591000⟩, ⟨2287000, 2287000⟩, 0, false⟩,
+   ⟨"engine.events:quiet", .webkit, "webkit-sim 40134016822 vs 40134234199", .event, "records per run",
+      ⟨1099, 1132⟩, ⟨527, 529⟩, 0, false⟩,
+   ⟨"engine.events:quiet", .webkit, "webkit-sim 40134016822 vs 40134234199", .script, "records per run",
+      ⟨1623, 1646⟩, ⟨1042, 1045⟩, 0, false⟩,
+   ⟨"morph.mount:shift-dormant", .chromium, "chromium 39325709978 vs 39325721909, layer census", .layers,
+      "layers per census state", ⟨0, 0⟩, ⟨0, 0⟩, 0, false⟩,
    ⟨"morph.mount:shift-dormant", .chromium, "chromium 39325709978 vs 39325721909, layouts relative to faithful",
-      .layout, ⟨3, 3⟩, ⟨0, 0⟩, 0, false⟩,
+      .layout, "layouts relative to faithful", ⟨3, 3⟩, ⟨0, 0⟩, 0, false⟩,
    ⟨"morph.mount:shift-dormant", .chromium, "chromium 39325709978 vs 39325721909, resolved elements relative",
-      .style, ⟨0, 0⟩, ⟨200, 200⟩, 0, false⟩]
+      .style, "resolved elements relative to faithful", ⟨0, 0⟩, ⟨200, 200⟩, 0, false⟩]
 
 /-- Every observation. -/
 def observations : List Obs := phoneObs ++ ciObs
@@ -479,7 +519,15 @@ def mechanisms : List (String × Eng × Res × String) :=
      "MEASURED: the early mount merges into a frame that already lays out; the shift model keeps totals equal"),
    ("morph.mount:shift-dormant", .chromium, .style,
      "MEASURED: about 200 more resolved elements while the dormant panel is mounted; the model has no dormant restyle"),
-   ("engine.events:quiet", .webkit, .layers, "OPEN: one more layer at y=4500 in all three passes")]
+   ("engine.events:quiet", .webkit, .layers, "OPEN: one more layer at y=4500 in all three passes"),
+   ("morph.columns:idle-none", .webkit, .paintRec,
+     "OPEN: the host's paint of the dropped track layers is not modelled; measured inside the pass spread"),
+   ("morph.columns:idle-none", .webkit, .repaint,
+     "OPEN: the host's paint of the dropped track layers is not modelled; measured inside the pass spread"),
+   ("morph.columns:idle-none", .webkit, .script,
+     "OPEN: the flag's MutationObserver callbacks are not modelled; measured inside the pass spread"),
+   ("morph.columns:idle-none", .webkit, .event,
+     "OPEN: the animationcancel and animationstart of the re-created tracks are not counted; measured inside the pass spread")]
 
 /-- The ledger labels (chromium, webkit) before this model. -/
 def ledgerLabels : List (String × Eng × String) :=
@@ -503,10 +551,14 @@ def leavesWin (B : Nat) : List (String × Eng × Verdict) :=
   (ledgerLabels.filter fun (f, e, l) => l == "win" && ((footprint? f e).map (verdict B ·)) != some .win).filterMap
     fun (f, e, _) => (footprint? f e).map fun fp => (f, e, verdict B fp)
 
-#guard becomesWin budgetB == [("hero:scene-pause", .chromium), ("morph.countdown:strip", .webkit)]
-#guard leavesWin budgetB == [("morph.panel:rest", .webkit, .trade)]
+#guard becomesWin budgetB == [("morph.countdown:strip", .webkit)]
+#guard leavesWin budgetB == [("morph.columns:idle-none", .chromium, .open), ("morph.columns:idle-none", .webkit, .open),
+  ("morph.panel:rest", .webkit, .open)]
+#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [43, 5, 24, 5, 6]
 #guard (withCheck .unpredicted).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
-  ("hero.exit:threaded", "webkit", "paintRecords"), ("hero.exit:threaded", "webkit", "repaintArea")]
+  ("hero.exit:threaded", "webkit", "paintRecords"), ("hero.exit:threaded", "webkit", "repaintArea"),
+  ("morph.columns:idle-none", "webkit", "paintRecords"), ("morph.columns:idle-none", "webkit", "script"),
+  ("morph.columns:idle-none", "webkit", "eventDispatch"), ("morph.columns:idle-none", "webkit", "repaintArea")]
 #guard (withCheck .disagree).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
   ("morph.mount:shift-dormant", "webkit", "script"),
   ("morph.mount:shift-dormant", "webkit", "eventDispatch"), ("engine.events:quiet", "webkit", "layers"),
@@ -514,12 +566,40 @@ def leavesWin (B : Nat) : List (String × Eng × Verdict) :=
 #guard (withCheck .disagree ++ withCheck .unpredicted).all fun o =>
   mechanisms.any fun (f, e, r, _) => f == o.flag && e == o.eng && r == o.res
 
+/-- The largest change the base and arm ranges allow. -/
+def maxChange (b a : Range) : Nat := max (a.hi - b.lo) (b.hi - a.lo)
+
+/-- The observations of resource `r` of footprint `fp`. -/
+def obsOf (fp : Footprint) (r : Res) : List Obs :=
+  observations.filter fun o => o.flag == fp.flag && o.eng == fp.eng && o.res == r
+
+/-- Does every observation of a bounded effect share the bound's unit and change by at most the bound? -/
+def boundHolds (fp : Footprint) (r : Res) (e : Effect) : Bool :=
+  match e.bound with
+  | none => true
+  | some (b, u) => (obsOf fp r).all fun o => o.unit == u && decide (maxChange o.base o.arm ≤ b)
+
+/-- The bounded effects as (flag, engine, resource, bound, unit, observations of it). -/
+def bounded (_ : Unit) : List (String × Eng × Res × Nat × String × Nat) :=
+  (footprints ()).flatMap fun fp => fp.effects.filterMap fun (r, e) =>
+    e.bound.map fun (b, u) => (fp.flag, fp.eng, r, b, u, (obsOf fp r).length)
+
+#guard (footprints ()).all fun fp => fp.effects.all fun (r, e) => boundHolds fp r e
+#guard bounded () == [
+  ("morph.countdown:strip", .chromium, .layers, 72, "layers per census state", 0),
+  ("morph.countdown:strip", .webkit, .layers, 72, "layers per census state", 1),
+  ("morph.countdown:strip", .webkit, .gpuMem, 2287000, "bytes of hero clock backing", 1),
+  ("morph.panel:rest", .webkit, .layers, 1, "layers per census state", 0)]
+#guard maxChange ⟨124, 128⟩ ⟨56, 56⟩ == 72 && maxChange ⟨591000, 591000⟩ ⟨2287000, 2287000⟩ == 1696000
+#guard maxChange ⟨124, 128⟩ ⟨39, 47⟩ == 89 && maxChange ⟨136, 140⟩ ⟨124, 128⟩ == 16
+
 /-- One golden row of a predicted effect, with the footprint's verdict at `budgetB`. -/
 def predictRow (fp : Footprint) (r : Res) (e : Effect) : Json :=
-  Json.mkObj ([("bound", match e.bound with | some b => toJson b | none => Json.null),
+  Json.mkObj ([("bound", match e.bound with | some (b, _) => toJson b | none => Json.null),
     ("engine", toJson fp.eng.name), ("flag", toJson fp.flag), ("kind", toJson "predict"),
     ("resource", toJson r.name), ("sign", toJson e.sign.name), ("src", toJson e.src),
-    ("stage", toJson (Res.stage fp.eng r)), ("unit", toJson r.unit), ("verdict", toJson (verdict budgetB fp).name)] ++
+    ("stage", toJson (Res.stage fp.eng r)),
+    ("unit", toJson (match e.bound with | some (_, u) => u | none => r.unit)), ("verdict", toJson (verdict budgetB fp).name)] ++
     (if r = .gpuMem then [("budget", toJson budgetB), ("peak", match fp.peak with | some p => toJson p | none => Json.null)]
       else []))
 
@@ -530,7 +610,8 @@ def checkRow (o : Obs) : Json :=
     ("check", toJson (obsCheck o).name), ("engine", toJson o.eng.name), ("flag", toJson o.flag),
     ("kind", toJson "check"), ("measured", toJson (measuredSign o.base o.arm o.tol).name),
     ("predicted", toJson (predicted o).name), ("resource", toJson o.res.name), ("slow", toJson o.slow),
-    ("source", toJson o.src), ("stage", toJson (Res.stage o.eng o.res)), ("tol", toJson o.tol)]
+    ("source", toJson o.src), ("stage", toJson (Res.stage o.eng o.res)), ("tol", toJson o.tol),
+    ("unit", toJson o.unit)]
 
 /-- The golden rows: every predicted effect, then every check. -/
 def goldenRows (_ : Unit) : List Json :=
