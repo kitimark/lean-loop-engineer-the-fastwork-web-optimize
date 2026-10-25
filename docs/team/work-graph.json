@@ -21125,7 +21125,8 @@
     "results/morph-end-remeasure/**",
     "docs/team/handoffs/morph-end-remeasure.md"
    ],
-   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids."
+   "title": "Re-measure the end-of-page morph bricks on the fixed Simulator lane (sim-touch-timeout landed): morph-end-measure gave 10 usable passes, no release data (3 attempts timed out), at most 2 passes per brick, the touch-push lane never ran, and the merged [throttle:morph-end] path has not run on CI. Do: first run of the merged path; per composition (faithful, clamp, flip, release, all three, all three + engine.scroll:unthrottle, and release with the combo-scroll-fight hold rule now on main) at least 3 passes in the same job as a faithful pass, plus the touch-push lane; reversals, spring-back fights, closes and re-opens by finger direction, finish still runs; move the close/re-open counting (TS stand-in throttle/morph-end.mjs) into Lean with a golden replayed by the test; explain why the pin sits at 5220-5223 px here but 5227-5330 in 10-2x-morph-reopen. Verdict per brick: win, no-win or trade, with run ids.",
+   "evidence": "89ef437"
   },
   {
    "devices": [
@@ -21658,7 +21659,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/platform-end-variants.md"
    ],
-   "title": "User 2026-10-25: add the platform.* variants to the end-of-page work. Step 1 (measure before building): which platform parts do work at the end of the page. The section paint is already skipped once fully faded (opacity 0 for fade(m)=0, m >= 0.55; RenderLayer.cpp:3365-3376@862f17d), so platform parts cost only while the section is visible during the push. Attribute per finish zone and per push phase on CI (WebKit Simulator rewrite counts + census, Chromium swipe-touch-v1), base vs the existing un-measured variants: platform.sweep:offscreen-pause (partly-proved), platform.glint:offscreen-pause (negative result: re-check at the end of the page only), platform:fade-threaded on Chromium (WebKit no-win, Chromium unknown). platform:mq stays closed (negative). Step 2, only for parts step 1 shows doing work, same look, Lean first (premise, theorem, golden), each its own flag: (a) platform.sweep:layer-sweep — the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor transform with the identical pixels (or prove it impossible and record the negative result); (b) platform.glint:transform — SMIL x1/x2 on the 94x3.2 SVG gradient becomes a translate on a pre-rendered gradient, identical pixels; (c) platform.entries:contain — count-up and typing writes isolated with contain/fixed boxes so they do not lay out the section, identical layout. platform.marquee is already a transform keyframe (compositor), measure only. Each variant: breakpoint gate (both engines), counts per engine and zone, look check; a look change goes to the look-change class for the user's visual review. Negative results are findings (mechanism + Lean why)."
+   "title": "User 2026-10-25: add the platform.* variants to the end-of-page work. Step 1 (measure before building): which platform parts do work at the end of the page. The section paint is already skipped once fully faded (opacity 0 for fade(m)=0, m >= 0.55; RenderLayer.cpp:3365-3376@862f17d), so platform parts cost only while the section is visible during the push. Attribute per finish zone and per push phase on CI (WebKit Simulator rewrite counts + census, Chromium swipe-touch-v1), base vs the existing un-measured variants: platform.sweep:offscreen-pause (partly-proved), platform.glint:offscreen-pause (negative result: re-check at the end of the page only), platform:fade-threaded on Chromium (WebKit no-win, Chromium unknown). platform:mq stays closed (negative). Step 2, only for parts step 1 shows doing work, same look, Lean first (premise, theorem, golden), each its own flag: (a) platform.sweep:layer-sweep — the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor transform with the identical pixels (or prove it impossible and record the negative result); (b) platform.glint:transform — SMIL x1/x2 on the 94x3.2 SVG gradient becomes a translate on a pre-rendered gradient, identical pixels; (c) platform.entries:contain — count-up and typing writes isolated with contain/fixed boxes so they do not lay out the section, identical layout. platform.marquee is already a transform keyframe (compositor), measure only. Each variant: breakpoint gate (both engines), counts per engine and zone, look check; a look change goes to the look-change class for the user's visual review. Negative results are findings (mechanism + Lean why).",
+   "evidence": "1d5d929"
   },
   {
    "devices": [
@@ -21894,6 +21896,45 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-toolbar-wktr-gate.md",
     "docs/team/handoffs/toolbar-wktr-control.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-attribution",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "platform-end-variants"
+   ],
+   "title": "Follow-ups of platform-end-variants (landed d7a95f3cb; review 2026-10-26): step-2 premises are not measured because the pause arms are no-ops while the section is on screen. (1) Probe class: a Lean rule for measurement-only part-off flags (platform.sweep:probe-off, platform.glint:probe-off, platform.entries:probe-off, platform.marquee:probe-off) that are never eligible for a preset or a look verdict (theorem: a probe flag is never in any preset decision; golden), wired in the flag registry. (2) Measure on CI from a pushed ci/platform-attribution branch: WebKit Simulator rewrite counts + census (3 VMs) and Chromium swipe-touch-v1 counts (3 runs), base vs each probe-off arm, per finish zone and per push phase (Chromium end 0-19 / 20-59 / 60+), on one common window per engine (WebKit passes end at 5231 or 5267: compare on y <= 5200). Also rerun the base WebKit VM r1 lost in run 40203774734. (3) Lean WebKit zone verdict: Offscreen-style cmp/judge over the WebKit census keys with sameWindow over equal step sets, golden, replacing the TS stand-in of platform-end-variants. (4) Per part: the measured work it does at the page end (premise of step-2 (a) sweep layer, (b) glint transform, (c) entries contain: holds / refuted, with run ids); recommend which step-2 variants to build. Negative results are findings (mechanism + Lean why). Builders that edit research/findings/ledger.json run the apps/runner ledger-merge test; builders that merge main run lake build before any golden check.",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.marquee/**",
+    "lean/Fw/Parts/Platform*.lean",
+    "lean/Fw/Parts/Platform*/**",
+    "lean/Fw/Measure/OffscreenWebKit.lean",
+    "lean/Fw/Measure/OffscreenWebKitGolden.lean",
+    "packages/contracts/golden/measure/offscreen-webkit.jsonl",
+    "packages/contracts/golden/parts/platform*.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "packages/measure-webkit/src/offscreen*.mjs",
+    "packages/measure-webkit/test/offscreen*",
+    "research/notes/2026/10-2x-platform-attribution.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/platform-attribution.md",
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/**"
    ]
   }
  ],

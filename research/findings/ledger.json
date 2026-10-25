@@ -4745,6 +4745,24 @@
    "task": "toolbar-proof-morph",
    "field": "mechanism",
    "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
+  },
+  {
+   "entry": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
+   "task": "platform-end-variants",
+   "field": "chromium",
+   "text": "platform-end-variants: Chromium no-win. MEASURED (chromium-counts swipe-touch-v1 x3, base run 40203753344, flag run 40203756095, main 5c8cccc): on zone y05000 (191 swipe frames) Paint 861 vs 838 and PrePaint 350 vs 324 (more, Lean rule noGain); over frames 540-740 incl. settle frames they are equal; Layout and Commit are equal, style counts differ by at most 1. Raster invalidation area 292 M px against 137 M px over frames 540-740 (276.6 against 130.0 on the lane zone, 2.1x), census layers +0.6 %. The first 20 frames at the page end (the drop lies in settle frames outside the lane zone) show 23 Paint and 26 PrePaint fewer (Lean verdict rule: gain) and the next 40 show the same numbers more, so the work moves, it does not leave. Zone verdict noGain. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: no gain at the page end on either engine. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203778407; WebKit Simulator 3 VMs base 40203774734, flag 40203759230): every end push phase equal on Chromium (finish zone +1 RecalcStyle, which the Lean rule reads as more); before the end the pause saves 59 of 236 raster tasks (34 frames). WebKit: ObserverCallback +2 to +4 per zone (its own observer), Paint at y 5000-5200 (common window of the 106- and 107-step passes) 37-55 against 54-64 overlaps. The pause is a no-op while the section is on screen, so the arm cannot attribute the sweep's cost inside the push. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: re-check at the page end, no difference. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203771621; WebKit Simulator 3 VMs base 40203774734, flag 40203790654): every counter equal in every Chromium push phase and WebKit zone (WebKit whole-run Layout (y <= 5200) 624-653 against 588-619 is the one more, outside the end). Agrees with the proved faithful_no_ticks_away. Note research/notes/2026/10-2x-platform-end-variants.md."
   }
  ]
 }
