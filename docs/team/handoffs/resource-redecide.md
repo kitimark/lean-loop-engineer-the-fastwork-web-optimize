@@ -1,6 +1,6 @@
 # resource-redecide handoff
 
-- Branch `worktree-wf_6702813d-087-1`; last sha in `git log -1`. No CI runs and no phone use (accepted limit).
+- Branch `worktree-wf_6702813d-087-1`; last sha in `git log -1`. No CI runs, no phone use.
 
 ## State
 

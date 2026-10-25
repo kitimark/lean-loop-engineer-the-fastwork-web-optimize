@@ -14,7 +14,7 @@ budget B), which preset rows change? Rows: `morph.countdown:strip` on WebKit (le
 | morph.countdown:strip | Chromium | open | open | INFERRED, no phone row | none |
 | morph.columns:idle-none | Chromium | open | open | INFERRED style; phone rows same, mixed thermal (Serious at visit end) | none: still no ledger link (`why` no-link) |
 | morph.columns:idle-none | WebKit | open | open | INFERRED style; phone rows same, mixed thermal (Serious at visit end) | none |
-| morph.panel:rest | WebKit | trade | trade (INFERRED; CI only, no phone row) | INFERRED (see per-row), CI only | stays excluded; the reason is now the decided verdict |
+| morph.panel:rest | WebKit | trade | trade (INFERRED; CI only, no phone row) | INFERRED (see per-row), CI only | stays excluded; the reason is the decided verdict |
 | morph.panel:rest | Chromium | trade | trade | MEASURED, CI only | stays excluded |
 
 The `v2-proved` preset is unchanged (`{"engine.scroll":"unthrottle"}`). No row in this task is in the look-change class
@@ -32,7 +32,7 @@ its measured sign is up or down; a measured `same` never counts. One move sign r
 together give `unknown`. Proved: `moved_slow`, `moved_same`, `moved_move`, `evidence_none`, `evidence_agree`,
 `evidence_conflict`, `resolved_predicted`, `resolved_measured`. `becomesWin` and `leavesWin` use the decided verdict.
 
-Side effects of the rule outside the three rows (MEASURED rows that were already in the golden):
+Side effects outside the three rows (MEASURED, already in the golden):
 `morph.mount:shift-dormant` goes from neutral to trade on both engines (WebKit script and EventDispatch rise on the
 phone; Chromium resolves about 200 more elements). `hero:scene-pause` on WebKit goes to trade (below).
 
@@ -58,12 +58,12 @@ the layer rows they stay outside `observations` (MEASURED, thermalStripBytes). T
 **morph.countdown:strip, Chromium: open.** Repaint stays unknown: faces and strips both own their layers, so per-frame
 repaint is the same (`own_frame_repaint`), and Chromium's off-screen tile retention is not modelled.
 
-**morph.columns:idle-none, both: open.** Style `same` is now marked INFERRED: `cr_realChrome_pause_eq` and `wk_pause_eq`
+**morph.columns:idle-none, both: open.** Style `same` is INFERRED: `cr_realChrome_pause_eq` and `wk_pause_eq`
 cover a paused compositor animation; the flag removes the animation (animation-name none), which the lemmas treat as a pause.
 Paint records, script, EventDispatch and repaint stay unknown; the phone measures them inside the spread (4 unpredicted
 rows). A measured `same` does not resolve an unknown, so both engines stay open.
 
-**morph.panel:rest, WebKit: trade.** Repaint is now up (`panel_repaint_up`, INFERRED premise: each none to blur toggle
+**morph.panel:rest, WebKit: trade.** Repaint is up (`panel_repaint_up`, INFERRED premise: each none to blur toggle
 re-attaches the group layer; no theorem links `filterToggle` to the re-attach). CI webkit-sim 40174475566 (base) vs
 40174472900 (flag), 6 passes each, not slow: Paint records 1352 to 1409 against 1433 to 1678, up (raw MEASURED:
 quarantined by measure.classify and load-confounded, flag VMs 30 to 40 percent higher loadCenti, panel-rest-n11; the
@@ -80,7 +80,7 @@ bound of 1, so the bound check needs a spread rule (follow-up).
 
 - **hero:scene-pause, WebKit EventDispatch:** the INFERRED fall (StyleOriginatedAnimation.cpp:340-345@862f17d) is not seen.
   CI webkit-sim 40151813906 (base, 4 passes) vs 40151792642 (flag, 6 passes), not slow (3 × 7262 ≥ 2 × 7378): EventDispatch
-  1053 to 1179 against 1072 to 1674, same (MEASURED). The sign is now unknown. The same runs measure style 647 to 651 against
+  1053 to 1179 against 1072 to 1674, same (MEASURED). The sign is unknown. The same runs measure style 647 to 651 against
   657 to 688, up (MEASURED; cause INFERRED: the pause attribute write per scene change restyles the hero subtree). Predicted
   open, decided trade.
 - **Repaint at DPR 3** (`repaintPx_dpr3`: 9 device px per CSS px):
