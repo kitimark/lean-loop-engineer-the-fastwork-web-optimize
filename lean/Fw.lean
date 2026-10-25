@@ -117,6 +117,7 @@ import Fw.Device.StillRuns
 import Fw.Device.ThrottleParts
 import Fw.Device.FinishRuns
 import Fw.Device.SimTouch
+import Fw.Device.SimRelaunch
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles

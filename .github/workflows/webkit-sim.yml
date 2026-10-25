@@ -471,16 +471,21 @@ jobs:
           mkdir -p out "$RUNNER_TEMP/result"
           cp out/"$VM"-* "$RUNNER_TEMP/result/" 2>/dev/null || true
 
-      # Host state, only after a failure: where a slow start stalled. Each Simulator command is bounded by an alarm.
+      # Host state, only after a failure: where a slow start stalled. The whole block runs in the background and is abandoned after 45 s, so a wedged Simulator cannot hold the upload (run 40162538610 r1 lost its logs to a 16 min hang here).
       - name: Host state on failure
         if: ${{ failure() && steps.stale.outcome == 'skipped' }}
         continue-on-error: true
         env:
           VM: ${{ matrix.vm }}
         run: |
+          out="$RUNNER_TEMP/result/$VM-host.txt"
           bounded() { perl -e 'alarm 20; exec @ARGV' -- "$@"; }
           # shellcheck disable=SC2009
-          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > "$RUNNER_TEMP/result/$VM-host.txt" 2>&1 || true
+          { uptime; bounded xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; ps -axo pid,ppid,etime,stat,command | grep -E "cli.mjs|ios_webkit|tee " | grep -v grep; } > "$out" 2>&1 < /dev/null &
+          pid=$!
+          for _ in $(seq 1 45); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          if kill -0 "$pid" 2>/dev/null; then echo "host state: abandoned after 45 s" >> "$out"; kill -9 "$pid" 2>/dev/null || true; fi
+          exit 0
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' }}

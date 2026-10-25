@@ -1,0 +1,39 @@
+{"bootCallS":60,"bootstatusCallS":120,"callGapS":2,"callTries":2,"detectS":147,"healthySessionMaxS":1866,"kind":"consts","listCallS":90,"passEvents":5,"rebootS":766,"recoverMin":13,"recoverWorstS":1527,"relaunchS":320,"sessionLimitS":2100,"shutdownCallS":40,"stateCallS":30}
+{"kind":"callWorst","limitS":30,"worstS":62}
+{"kind":"callWorst","limitS":90,"worstS":182}
+{"kind":"callWorst","limitS":40,"worstS":82}
+{"kind":"callWorst","limitS":60,"worstS":122}
+{"kind":"callWorst","limitS":120,"worstS":242}
+{"events":["answers"],"kind":"call","name":"answers at once","phase":"done","terminal":true,"used":1}
+{"events":["transient","answers"],"kind":"call","name":"one transient then answers","phase":"done","terminal":true,"used":2}
+{"events":["transient","transient"],"kind":"call","name":"transient twice","phase":"failed:exhausted","terminal":true,"used":2}
+{"events":["permanent"],"kind":"call","name":"permanent","phase":"failed:refused","terminal":true,"used":1}
+{"events":["transient","permanent"],"kind":"call","name":"transient then permanent","phase":"failed:refused","terminal":true,"used":2}
+{"events":["answers","transient"],"kind":"call","name":"events after done","phase":"done","terminal":true,"used":1}
+{"events":["permanent","answers"],"kind":"call","name":"events after failure","phase":"failed:refused","terminal":true,"used":1}
+{"events":["transient"],"kind":"call","name":"transient then stops","phase":"trying:2","terminal":false,"used":1}
+{"events":[],"kind":"call","name":"no events","phase":"trying:1","terminal":false,"used":0}
+{"attempt":1,"events":["passOk"],"kind":"exec","name":"clean","phase":"done","reboots":0,"relaunches":0,"terminal":true,"timeS":0,"used":1}
+{"attempt":2,"events":["deadUp","relaunchOk","passOk"],"kind":"exec","name":"safari relaunch recovers","phase":"done","reboots":0,"relaunches":1,"terminal":true,"timeS":467,"used":3}
+{"attempt":2,"events":["deadDown","rebootOk","passOk"],"kind":"exec","name":"device down: reboot recovers","phase":"done","reboots":1,"relaunches":0,"terminal":true,"timeS":913,"used":3}
+{"attempt":2,"events":["deadUp","relaunchFail","rebootOk","passOk"],"kind":"exec","name":"relaunch fails, reboot recovers","phase":"done","reboots":1,"relaunches":1,"terminal":true,"timeS":1233,"used":4}
+{"attempt":3,"events":["deadUp","relaunchOk","deadUp","rebootOk","passOk"],"kind":"exec","name":"relaunch ok, dead again, reboot recovers","phase":"done","reboots":1,"relaunches":1,"terminal":true,"timeS":1380,"used":5}
+{"attempt":3,"events":["deadUp","relaunchOk","deadDown","rebootOk","passOk"],"kind":"exec","name":"relaunch ok, device down, reboot recovers","phase":"done","reboots":1,"relaunches":1,"terminal":true,"timeS":1380,"used":5}
+{"attempt":3,"events":["deadDown","rebootOk","deadUp","relaunchOk","passOk"],"kind":"exec","name":"reboot first, then dead with device up","phase":"done","reboots":1,"relaunches":1,"terminal":true,"timeS":1380,"used":5}
+{"attempt":3,"events":["deadUp","relaunchOk","deadUp","rebootOk","deadUp"],"kind":"exec","name":"dead after relaunch and reboot","phase":"failed:deadAgain","reboots":1,"relaunches":1,"terminal":true,"timeS":1527,"used":5}
+{"attempt":3,"events":["deadDown","rebootOk","deadUp","relaunchOk","deadUp"],"kind":"exec","name":"dead after reboot and relaunch","phase":"failed:deadAgain","reboots":1,"relaunches":1,"terminal":true,"timeS":1527,"used":5}
+{"attempt":2,"events":["deadDown","rebootOk","deadDown"],"kind":"exec","name":"device down after reboot","phase":"failed:deadAgain","reboots":1,"relaunches":0,"terminal":true,"timeS":1060,"used":3}
+{"attempt":1,"events":["deadDown","rebootFail"],"kind":"exec","name":"reboot fails","phase":"failed:rebootFailed","reboots":1,"relaunches":0,"terminal":true,"timeS":913,"used":2}
+{"attempt":1,"events":["deadUp","relaunchFail","rebootFail"],"kind":"exec","name":"relaunch fails, reboot fails","phase":"failed:rebootFailed","reboots":1,"relaunches":1,"terminal":true,"timeS":1233,"used":3}
+{"attempt":2,"events":["deadUp","relaunchOk","deadUp","rebootFail"],"kind":"exec","name":"relaunch ok, relaunch-path reboot fails","phase":"failed:rebootFailed","reboots":1,"relaunches":1,"terminal":true,"timeS":1380,"used":4}
+{"attempt":2,"events":["deadDown","rebootOk","deadUp","relaunchFail"],"kind":"exec","name":"relaunch fails after reboot","phase":"failed:relaunchFailed","reboots":1,"relaunches":1,"terminal":true,"timeS":1380,"used":4}
+{"attempt":2,"events":["deadUp","relaunchOk","passOk","deadUp"],"kind":"exec","name":"pass ends after a relaunch","phase":"done","reboots":0,"relaunches":1,"terminal":true,"timeS":467,"used":3}
+{"attempt":1,"events":["relaunchOk"],"kind":"exec","name":"relaunch answer while running","phase":"failed:protocol","reboots":0,"relaunches":0,"terminal":true,"timeS":0,"used":1}
+{"attempt":1,"events":["deadUp","passOk"],"kind":"exec","name":"pass ok while relaunching","phase":"failed:protocol","reboots":0,"relaunches":1,"terminal":true,"timeS":147,"used":2}
+{"attempt":1,"events":["deadUp","rebootOk"],"kind":"exec","name":"reboot answer while relaunching","phase":"failed:protocol","reboots":0,"relaunches":1,"terminal":true,"timeS":147,"used":2}
+{"attempt":1,"events":["deadDown","deadUp"],"kind":"exec","name":"dead while rebooting","phase":"failed:protocol","reboots":1,"relaunches":0,"terminal":true,"timeS":147,"used":2}
+{"attempt":1,"events":["passOk","deadUp","deadDown"],"kind":"exec","name":"events after done","phase":"done","reboots":0,"relaunches":0,"terminal":true,"timeS":0,"used":1}
+{"attempt":1,"events":["deadDown","rebootFail","rebootOk"],"kind":"exec","name":"events after failure","phase":"failed:rebootFailed","reboots":1,"relaunches":0,"terminal":true,"timeS":913,"used":2}
+{"attempt":1,"events":["deadUp"],"kind":"exec","name":"stops while relaunching","phase":"relaunching","reboots":0,"relaunches":1,"terminal":false,"timeS":147,"used":1}
+{"attempt":1,"events":["deadDown"],"kind":"exec","name":"stops while rebooting","phase":"rebooting","reboots":1,"relaunches":0,"terminal":false,"timeS":147,"used":1}
+{"attempt":1,"events":[],"kind":"exec","name":"no events","phase":"running","reboots":0,"relaunches":0,"terminal":false,"timeS":0,"used":0}
