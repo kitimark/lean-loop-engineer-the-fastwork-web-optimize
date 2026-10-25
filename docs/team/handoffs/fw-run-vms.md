@@ -13,12 +13,12 @@
 - Dry `fw run --target rewrite --engines webkit --runs 3 --ref main --dry` prints `vms=3` (note has the line).
 
 ## Writes outside the task graph
-lean/Fw/Store/Ci.lean, apps/runner/src/ci.ts, packages/contracts/src/artifacts.ts (the run count in the key needs them).
-Dry land without --allow: `VERDICT scope fw-run-vms` (these three files). With `--allow` for the three:
-`VERDICT dry fw-run-vms` (exit 0). The lead adds them to the row's writes; then the plain dry passes.
+None now: work graph r449 added lean/Fw/Store/Ci.lean, apps/runner/src/ci.ts and packages/contracts/src/artifacts.ts to
+the row. After merging main 09cbacfa4 the dry land without --allow prints `VERDICT dry fw-run-vms`.
 
-## Verified (at work commit 6eddfdeed)
-check.sh green (axioms included); @fw/runner 3475 tests and @fw/contracts tests pass; typecheck of both; ci-paths test.
+## Verified (after the main merge 9b1fb7d43)
+check.sh green through fw slot (axioms included); @fw/runner 3475 tests and @fw/contracts 11 tests pass; typecheck of
+both; ci-paths test 56 pass; plan lint 0 errors; dry `fw run` prints `vms=3`.
 
 ## Open
 - Live check: the next lead WebKit dispatch should show 3 VM jobs.
