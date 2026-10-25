@@ -1,7 +1,6 @@
 import Lean.Data.Json
 import Fw.Preset.V2Proved
 import Fw.Parts.HeroExitScrollOffset
-import Fw.Engine.ResourceFlags
 /-!
 Generates the `v2-proved` preset and decision rows from the findings ledger and `part.json` files.
 Run from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--check"]\n' | lake env lean --stdin` (drop `--check` to write).
@@ -62,43 +61,20 @@ def linkTable : List (Flag × List Key) :=
    (⟨"hero", "scene-pause"⟩, [ksp]),
    (⟨"hero.exit", "threaded"⟩, [threadedKey])]
 
-section Resource
-open Fw.Engine.Resource
-
-/-- Predicted and decided resource verdicts of a flag per engine. -/
-def resourceOf (f : Flag) : List (Eng × Verdict × Verdict) :=
-  [Eng.chromium, .webkit].filterMap fun e =>
-    (Flags.footprint? f.key e).map fun fp => (e, verdict budgetB fp, Flags.decided budgetB fp)
-
-def resourceTrade (f : Flag) : Bool := let rs := resourceOf f; !rs.isEmpty && rs.all (·.2.2 == .trade)
-
-def resourceJson (f : Flag) : Json :=
-  .arr ((resourceOf f).map fun (e, p, d) => Json.mkObj [("engine", .str e.name), ("predicted", .str p.name),
-    ("decided", .str d.name)]).toArray
-
-#guard resourceOf ⟨"morph.panel", "rest"⟩ == [(.chromium, .trade, .trade), (.webkit, .trade, .trade)]
-#guard resourceOf ⟨"morph.countdown", "strip"⟩ == [(.chromium, .open, .open), (.webkit, .win, .win)]
-#guard resourceOf ⟨"morph.columns", "idle-none"⟩ == [(.chromium, .open, .open), (.webkit, .open, .open)]
-#guard resourceTrade ⟨"morph.panel", "rest"⟩ && !resourceTrade ⟨"morph.countdown", "strip"⟩ &&
-  !resourceTrade ⟨"morph.columns", "idle-none"⟩ && !resourceTrade ⟨"hero.accent", "steps"⟩
-
-end Resource
-
 inductive Exclusion where
   | hand (reason : String)
   | resourceTrade
 
 def Exclusion.text : Exclusion → String
   | .hand s => s
-  | .resourceTrade => "the decided resource verdict (Fw.Engine.Resource.Flags.decided) is a trade on every engine"
+  | .resourceTrade => "the decided resource verdict (Fw.Engine.Resource.Flags.decided) is a trade on every engine \
+      (#guard in Fw.Engine.Resource.Preset)"
 
 def curated : List (Flag × Exclusion) :=
   [(⟨"hero.accent", "steps"⟩, .hand
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
       engine-win field"),
    (⟨"morph.panel", "rest"⟩, .resourceTrade)]
-
-#guard curated.all fun (f, x) => match x with | .resourceTrade => resourceTrade f | .hand _ => true
 
 def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2.text)
 
@@ -652,7 +628,7 @@ def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) 
   Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", verdictJson ledger f),
     ("trajectory", trajJson st f), ("member", .bool (p.contains f)), ("shadowedBy", shadow),
     ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray),
-    ("userDecision", decisionOf f), ("entry", entryJson ledger st f), ("resource", resourceJson f)]
+    ("userDecision", decisionOf f), ("entry", entryJson ledger st f)]
 
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")

@@ -3,8 +3,8 @@
 Question: with the landed resource verdict (a GPU memory cost is acceptable when main-thread work falls and the peak fits
 budget B), which preset rows change? Rows: `morph.countdown:strip` on WebKit (ledger trade, verdict win),
 `morph.columns:idle-none` on both engines and `morph.panel:rest` on WebKit (ledger win, verdict not win). Model:
-`lean/Fw/Engine/ResourceFlags.lean`. Goldens: `packages/contracts/golden/engine/resource.jsonl`,
-`packages/contracts/golden/preset/v2-proved.decisions.jsonl` (field `resource` per row). Tags: CONFIRMED, INFERRED, MEASURED.
+`lean/Fw/Engine/ResourceFlags.lean`. Goldens: `packages/contracts/golden/engine/resource.jsonl` (fields `verdict` and
+`decided` per row), `packages/contracts/golden/preset/v2-proved.decisions.jsonl`. Tags: CONFIRMED, INFERRED, MEASURED.
 
 ## Answer
 
@@ -69,8 +69,8 @@ with the predicted `same`); repaint area, style, layout and EventDispatch inside
 139) are not added: the range spread exceeds the bound of 1, so the bound check needs a spread rule (follow-up).
 
 **morph.panel:rest, Chromium: trade** (unchanged, `MorphPanelOpt.crO/crV`; ledger n = 11 MEASURED, runs 40174480097 /
-40174482844). In `Gen.lean` the exclusion is `Exclusion.resourceTrade`, and a `#guard` requires every such entry to
-have a decided trade on every engine; `panel_rest_not_mem` keeps it out of the preset.
+40174482844). In `Gen.lean` the exclusion is `Exclusion.resourceTrade`; a `#guard` in `Fw.Engine.Resource.Preset`
+(`ResourceFlags.lean`) requires every such entry to have a decided trade on every engine; `panel_rest_not_mem` keeps it out of the preset.
 
 ## Review follow-ups
 
@@ -102,3 +102,6 @@ have a decided trade on every engine; `panel_rest_not_mem` keeps it out of the p
   `packages/measure-webkit/test/resource-check.test.mjs` to accept 3 bounds.
 - Bounds against ranges need a spread rule before per-state CI layer rows can enter (panel:rest y 3000).
 - The scene-pause WebKit style rise needs a mechanism lemma.
+- `Gen.lean` does not import `ResourceFlags.lean`: the parts modules it imports read `golden/parts/*.jsonl` by
+  `include_str`, which would put those files in the `Main` cone outside `coneGlobs` (`scripts/ci-paths.test.mjs`). So the
+  check runs the other way: `ResourceFlags.lean` imports `Gen.lean`.

@@ -11,6 +11,7 @@ import Fw.Parts.MorphIdleNone
 import Fw.Parts.HeroScenePause
 import Fw.Parts.NavBarFixedWork
 import Fw.Parts.ReactRootOpt
+import Fw.Preset.Gen
 
 namespace Fw.Engine.Resource.Flags
 
@@ -750,3 +751,23 @@ def goldenText (_ : Unit) : String := String.join ((goldenRows ()).map fun j => 
 #guard (goldenRows ()).length == 18 * 10 + 70 + 21 + 8
 
 end Fw.Engine.Resource.Flags
+
+namespace Fw.Engine.Resource.Preset
+open Fw.Engine.Resource Fw.Preset
+
+/-- Predicted and decided resource verdicts of a preset flag per engine. -/
+def resourceOf (f : Flag) : List (Eng × Verdict × Verdict) :=
+  [Eng.chromium, .webkit].filterMap fun e =>
+    (Flags.footprint? f.key e).map fun fp => (e, verdict budgetB fp, Flags.decided budgetB fp)
+
+def resourceTrade (f : Flag) : Bool := let rs := resourceOf f; !rs.isEmpty && rs.all (·.2.2 == .trade)
+
+#guard resourceOf ⟨"morph.panel", "rest"⟩ == [(.chromium, .trade, .trade), (.webkit, .trade, .trade)]
+#guard resourceOf ⟨"morph.countdown", "strip"⟩ == [(.chromium, .open, .open), (.webkit, .win, .win)]
+#guard resourceOf ⟨"morph.columns", "idle-none"⟩ == [(.chromium, .open, .open), (.webkit, .open, .open)]
+#guard resourceTrade ⟨"morph.panel", "rest"⟩ && !resourceTrade ⟨"morph.countdown", "strip"⟩ &&
+  !resourceTrade ⟨"morph.columns", "idle-none"⟩ && !resourceTrade ⟨"hero.accent", "steps"⟩
+
+#guard Gen.curated.all fun (f, x) => match x with | .resourceTrade => resourceTrade f | .hand _ => true
+
+end Fw.Engine.Resource.Preset
