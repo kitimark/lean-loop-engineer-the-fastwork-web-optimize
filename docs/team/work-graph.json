@@ -21834,7 +21834,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-ledger-class-lint.md",
     "docs/team/handoffs/ledger-class-lint.md"
-   ]
+   ],
+   "evidence": "c1b7fdb"
   },
   {
    "devices": [
