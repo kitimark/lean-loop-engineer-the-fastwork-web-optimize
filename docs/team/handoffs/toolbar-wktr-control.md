@@ -1,8 +1,8 @@
 branch: worktree-wf_6c371da2-432-1 (CI branch ci/toolbar-wktr-control, pushed tip ca231bbba)
 worktree: .claude/worktrees/wf_6c371da2-432-1
 last commit: ca231bbba (see `git log -1` for later local commits)
-CI runs: wktr 40231779387 queued (push 1 of 2, head message [ci:wktr] [toolbar]); lean 40231779472 queued.
-verified locally: lean build of Fw.Parts.MorphMountToolbar and MorphMountToolbarGolden green; @fw/measure-wktr test 73 pass.
+CI runs: wktr 40231779387 in_progress (j1 running; push 1 of 2, head message [ci:wktr] [toolbar]); lean 40231779472 success.
+verified locally: lean build green, check.sh green at ca231bbba+handoff commits (main merge: already up to date), @fw/measure-wktr test 73 pass, ci-paths test 56 pass.
 open: wait for the wktr run (3 jobs serial, about 40 min incl. macos queue); fold run id, waits and the control paragraph into the note; merge main; check.sh; ci-paths test; runner land-inputs test; dry land; review ready.
 
 State
