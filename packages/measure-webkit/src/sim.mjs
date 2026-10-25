@@ -199,10 +199,6 @@ export const findSocketsAsync = async ({ timeoutMs = 30000 } = {}) => socketsOf(
  * Boot headless and launch Safari. Throws if another Simulator is booted (the inspector socket would be ambiguous).
  * Returns { udid, name, wasBooted }.
  */
-/**
- * Boot headless and launch Safari. Throws if another Simulator is booted (the inspector socket would be ambiguous).
- * Returns { udid, name, wasBooted }.
- */
 export async function bootDevice({ log = () => {} } = {}) {
   const d = await findDeviceAsync();
   known.udid = d.udid;
@@ -281,7 +277,6 @@ export async function shutdownDeviceAsync(udid, { log = () => {} } = {}) {
   else log('simulator shut down');
   return state === 'Shutdown';
 }
-
 
 const IWDP_ID = /^[A-Fa-f0-9-]{25,}$/;
 /** Ids of attached iPhones (USB and network); [] when idevice_id is not installed. Fails closed on odd output. */
