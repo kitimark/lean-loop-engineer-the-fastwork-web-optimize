@@ -21813,7 +21813,10 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-toolbar-wktr-gate.md",
-    "docs/team/handoffs/toolbar-wktr-gate.md"
+    "docs/team/handoffs/toolbar-wktr-gate.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/MorphMountToolbarGolden.lean",
+    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl"
    ]
   },
   {
