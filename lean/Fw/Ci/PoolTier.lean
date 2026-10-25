@@ -228,6 +228,89 @@ theorem macCap_pool7 : macCap pool7 = 7 := by decide
 theorem cap_7 (rs : List Req) (s : State) (h : Inv pool7 s) : inflight (step pool7 rs s).2 ≤ 7 :=
   macCap_pool7 ▸ inflight_le pool7 _ (step_inv pool7 rs s h)
 
+/-- True for a Codemagic decision. `fw run` sends exactly these cells to Codemagic; every other decision (GitHub, CircleCI, wait) leaves the cell on GitHub, whose queue holds it. -/
+def Decision.isCm : Decision → Bool
+  | .codemagic .. => true
+  | .base _ => false
+
+/-- The Codemagic minutes a decision reserves (its cap), 0 for any other decision. -/
+def Decision.cmMin : Decision → Nat
+  | .codemagic _ _ m => m
+  | .base _ => 0
+
+/-- How many cells of a routed list go to Codemagic. -/
+def cmCount (l : List (Req × Decision)) : Nat := (l.filter fun x => x.2.isCm).length
+
+theorem route_cmMin (c : Cfg) (r : Req) (s : State) :
+    (route c r s).cmMin = if (route c r s).isCm then c.cmCapMin else 0 := by
+  cases hd : route c r s with
+  | codemagic cls e m =>
+    obtain ⟨_, _, _, _, _, rfl⟩ := (route_cm_iff c r s cls e m).1 hd
+    simp [Decision.cmMin, Decision.isCm]
+  | base d => simp [Decision.cmMin, Decision.isCm]
+
+theorem after_cmUsed (c : Cfg) (s : State) (d : Decision) : (s.after c d).cmUsed = s.cmUsed + d.cmMin := by
+  cases d <;> simp [State.after, Decision.cmMin]
+
+theorem after_cmBusy (c : Cfg) (s : State) (d : Decision) : (s.after c d).cmBusy = s.cmBusy + if d.isCm then 1 else 0 := by
+  cases d <;> simp [State.after, Decision.isCm]
+
+/-- Cells on Codemagic: each costs its cap in minutes and one concurrent slot. -/
+theorem step_cm_used (c : Cfg) (rs : List Req) (s : State) :
+    (step c rs s).2.cmUsed = s.cmUsed + c.cmCapMin * cmCount (step c rs s).1 := by
+  induction rs generalizing s with
+  | nil => simp [step, cmCount]
+  | cons r rs ih =>
+    simp only [step, cmCount, List.filter_cons] at ih ⊢
+    rw [ih, after_cmUsed, route_cmMin]
+    by_cases h : (route c r s).isCm = true <;> simp [h, Nat.mul_add] <;> omega
+
+theorem step_cm_busy (c : Cfg) (rs : List Req) (s : State) :
+    (step c rs s).2.cmBusy = s.cmBusy + cmCount (step c rs s).1 := by
+  induction rs generalizing s with
+  | nil => simp [step, cmCount]
+  | cons r rs ih =>
+    simp only [step, cmCount, List.filter_cons] at ih ⊢
+    rw [ih, after_cmBusy]
+    by_cases h : (route c r s).isCm = true <;> simp [h] <;> omega
+
+/-- The budget line over a whole batch: from a month at or under the stop line, the cells sent to Codemagic never carry it past 400 minutes (of 500 free). -/
+theorem cm_cells_budget (c : Cfg) (rs : List Req) (s : State) (h : s.cmUsed ≤ Codemagic.stopAt) :
+    s.cmUsed + c.cmCapMin * cmCount (step c rs s).1 ≤ Codemagic.stopAt := by
+  induction rs generalizing s with
+  | nil => simpa [step, cmCount] using h
+  | cons r rs ih =>
+    have hc : (route c r s).isCm = true → s.cmUsed + c.cmCapMin ≤ Codemagic.stopAt := by
+      intro hm
+      cases hd : route c r s with
+      | codemagic cls e m =>
+        have := (cm_line c r s cls e m hd).1
+        obtain ⟨_, _, _, _, _, rfl⟩ := (route_cm_iff c r s cls e m).1 hd
+        exact this
+      | base d => rw [hd] at hm; cases hm
+    have h' : (s.after c (route c r s)).cmUsed ≤ Codemagic.stopAt := by
+      rw [after_cmUsed, route_cmMin]
+      by_cases hm : (route c r s).isCm = true
+      · simp only [hm, ite_true]; exact hc hm
+      · simpa [hm] using h
+    have := ih _ h'
+    rw [after_cmUsed, route_cmMin] at this
+    simp only [step, cmCount, List.filter_cons] at this ⊢
+    by_cases hm : (route c r s).isCm = true <;> simp [hm, Nat.mul_add] at this ⊢ <;> omega
+
+/-- A batch from an invariant state fills at most the free Codemagic slots. -/
+theorem cm_cells_slots (c : Cfg) (rs : List Req) (s : State) (h : Inv c s) :
+    s.cmBusy + cmCount (step c rs s).1 ≤ c.cmConc := by
+  rw [← step_cm_busy]
+  exact (step_inv c rs s h).2.1
+
+/-- The rewrite arm is never sent to Codemagic: its lane is not in the Codemagic allow-list of the pool (the site build is not on that machine). -/
+theorem rewrite_never_codemagic (r : Req) (s : State) (h : r.lane = "webkit-sim-rewrite") (cls : String) (e : Engine) (m : Nat) :
+    route pool7 r s ≠ .codemagic cls e m := by
+  intro hr
+  obtain ⟨_, _, hm, _⟩ := (route_cm_iff pool7 r s cls e m).1 hr
+  simp [cmOk, pool7, h] at hm
+
 structure Res where
   key : Key
   leg : Nat

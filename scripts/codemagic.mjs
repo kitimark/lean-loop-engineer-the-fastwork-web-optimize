@@ -100,8 +100,24 @@ export function loadConfig(root = ROOT, env = process.env) {
   return { appId: env.FW_CODEMAGIC_APP_ID || f.appId || '' };
 }
 
-export const triggerRequest = ({ appId, workflowId = WORKFLOW, branch }) => ({ method: 'POST', url: `${API}/builds`,
-  headers: { 'x-auth-token': '<redacted>', Accept: 'application/json', 'Content-Type': 'application/json' }, body: { appId, workflowId, branch } });
+export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^r[1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/ };
+
+/** The cell variables of a webkit-sim count job (the dispatch inputs `target`, `preset`, `fw`, the VM index and `sessions`); any other name or a value off its pattern is refused. */
+export function cellVars(vars) {
+  const out = {};
+  for (const [k, v] of Object.entries(vars ?? {})) {
+    if (!(k in CELL_VARS) || typeof v !== 'string' || !CELL_VARS[k].test(v)) throw new Usage(`--vars: ${k} is not an allowed cell variable or its value is off the pattern`);
+    out[k] = v;
+  }
+  return out;
+}
+
+export const triggerRequest = ({ appId, workflowId = WORKFLOW, branch, vars }) => {
+  const v = cellVars(vars);
+  return { method: 'POST', url: `${API}/builds`,
+    headers: { 'x-auth-token': '<redacted>', Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: { appId, workflowId, branch, ...(Object.keys(v).length ? { environment: { variables: v } } : {}) } };
+};
 
 export const urls = { build: (id) => `${API}/builds/${encodeURIComponent(id)}`, apps: `${API}/apps` };
 
@@ -126,6 +142,7 @@ export function normBuild(res) {
   const arts = pick(b, 'artefacts', 'artifacts') ?? [];
   return { id: String(pick(b, '_id', 'id') ?? ''), status: String(b.status ?? ''), index: pick(b, 'index'), instanceType: pick(b, 'instanceType', 'instance_type'),
     createdAt: ms(pick(b, 'createdAt', 'created_at')), startedAt: ms(pick(b, 'startedAt', 'started_at')), finishedAt: ms(pick(b, 'finishedAt', 'finished_at')),
+    sha: /^[0-9a-f]{40}$/.test(String(pick(pick(b, 'commit') ?? {}, 'hash') ?? '')) ? String(pick(b, 'commit').hash) : null,
     reportedMinutes: pick(b, 'buildMinutes', 'build_minutes'),
     steps: actions.map((a) => { const s = ms(pick(a, 'startedAt', 'started_at')), e = ms(pick(a, 'finishedAt', 'finished_at')); return { name: String(a.name ?? ''), status: a.status ?? null, durMs: s != null && e != null ? Math.max(0, e - s) : null, logUrl: pick(a, 'logUrl', 'log_url') ?? null }; }),
     artifacts: arts.map((a) => ({ name: String(a.name ?? ''), url: pick(a, 'url', 'short_lived_download_url') ?? null, bytes: pick(a, 'size', 'size_in_bytes') ?? null })) };
@@ -158,7 +175,7 @@ export async function fetchBuild(ctx, { buildId, out }) {
   mkdirSync(join(out, 'artifacts'), { recursive: true });
   const minutes = buildMinutes(b);
   const doc = { schema: 'fw.codemagic-build/1', buildId, status: b.status, index: b.index ?? null, instanceType: b.instanceType ?? null,
-    startedAt: b.startedAt, finishedAt: b.finishedAt, createdAt: b.createdAt, minutes, steps: b.steps.map(({ name, status, durMs }) => ({ name, status, durMs })), artifacts: b.artifacts.map(({ name, bytes }) => ({ name, bytes })) };
+    startedAt: b.startedAt, finishedAt: b.finishedAt, createdAt: b.createdAt, sha: b.sha, minutes, steps: b.steps.map(({ name, status, durMs }) => ({ name, status, durMs })), artifacts: b.artifacts.map(({ name, bytes }) => ({ name, bytes })) };
   writeFileSync(join(out, 'build.json'), `${JSON.stringify(doc, null, 2)}\n`);
   for (const a of b.artifacts) {
     if (!a.url) continue;
@@ -172,7 +189,7 @@ export async function fetchBuild(ctx, { buildId, out }) {
   if (ctx.ledgerPath && minutes != null && exitOf(b.status) !== null) {
     const ledger = readLedger(ctx.ledgerPath);
     const at = b.startedAt ?? b.createdAt ?? ctx.now();
-    ledger.builds[buildId] = { month: monthOf(at), minutes, pending: false, status: b.status, at };
+    ledger.builds[buildId] = { month: monthOf(at), minutes, pending: false, status: b.status, at, startedAt: b.startedAt, finishedAt: b.finishedAt, createdAt: b.createdAt };
     writeLedger(ctx.ledgerPath, ledger);
   }
   return doc;
@@ -219,7 +236,7 @@ function flags(argv, spec) {
 const USAGE = [
   'usage: node scripts/codemagic.mjs <sub> ...',
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
-  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--dry]   (cap = codemagic.yaml max_build_duration; --pool: no build count)',
+  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--vars JSON] [--dry]   (--vars: FW_TARGET FW_PRESET FW_FW FW_VM FW_SESSIONS; cap = codemagic.yaml max_build_duration; --pool: no build count)',
   '  facts                                            {month, used, busy} for the macOS pool (fw ci pool dispatch)',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
   '  compare --github DIR --codemagic DIR [--json]    ledger    digest FILE.md    dry-run',
@@ -286,12 +303,12 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return ok ? 0 : 1;
     }
     if (sub === 'trigger') {
-      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool', pool: 'bool' });
+      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool', pool: 'bool', vars: 'v' });
       if (!/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
       const cap = yamlCap(root), workflowId = onlyWorkflow(o.workflow);
       const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now(), !!o.pool);
       if (d.refusals.length) { log(`STOP (Lean Fw.Ci.Codemagic.${d.rule}): ${d.refusals.join(', ')}; ${d.used} of ${g.constants.freeMinutes} minutes used in ${d.month} (line ${g.constants.stopAt}), ${d.builds} build(s) in the ledger${o.pool ? '' : ` (max ${g.constants.maxBuilds})`}, cap ${cap}`); return 5; }
-      const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch });
+      const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch, vars: o.vars ? JSON.parse(o.vars) : {} });
       const ledger = readLedger(ctx.ledgerPath), tmpId = `pending-${ctx.now()}`;
       ledger.builds[tmpId] = { month: d.month, minutes: cap, pending: true, at: ctx.now() };
       writeLedger(ctx.ledgerPath, ledger);

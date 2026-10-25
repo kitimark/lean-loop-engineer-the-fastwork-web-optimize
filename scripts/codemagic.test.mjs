@@ -101,6 +101,24 @@ test('triggerRequest: POST /builds with appId, workflowId, branch; the token is 
   assert.equal(r.headers['x-auth-token'], '<redacted>');
 });
 
+test('triggerRequest: the cell variables of a webkit-sim count job go in environment.variables, others are refused', () => {
+  const vars = { FW_TARGET: 'original', FW_PRESET: 'original', FW_FW: '', FW_VM: 'r1', FW_SESSIONS: '1' };
+  assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body, { appId: APP, workflowId: 'webkit-sim', branch: 'ci/x', environment: { variables: vars } });
+  for (const bad of [{ FW_TOKEN: 'x' }, { FW_VM: 'r1; rm' }, { FW_TARGET: 'both' }, { FW_SESSIONS: '0' }, { FW_FW: 'a b' }]) assert.throws(() => triggerRequest({ appId: APP, branch: 'ci/x', vars: bad }));
+});
+
+test('fetch writes the start, finish and create times of the build to the ledger row, and the commit hash only as sha', async () => {
+  const root = tmp(); const ledgerPath = join(root, 'ledger.json');
+  const hash = 'a'.repeat(40);
+  const res = { build: { _id: 'b2', status: 'finished', createdAt: '2026-10-21T10:00:00Z', startedAt: '2026-10-21T10:01:00Z', finishedAt: '2026-10-21T10:11:30Z', commit: { hash, authorEmail: 'someone@example.invalid' } } };
+  const ctx = { fetchFn: async () => ({ status: 200, ok: true, headers: new Headers(), text: async () => JSON.stringify(res), arrayBuffer: async () => new ArrayBuffer(0) }), getToken: () => TOKEN, ledgerPath, now: () => 0, log: () => {}, sleep: async () => {} };
+  const doc = await fetchBuild(ctx, { buildId: 'b2', out: join(root, 'o') });
+  const row = JSON.parse(readFileSync(ledgerPath, 'utf8')).builds.b2;
+  assert.deepEqual([row.startedAt, row.finishedAt, row.createdAt, row.minutes], [Date.parse('2026-10-21T10:01:00Z'), Date.parse('2026-10-21T10:11:30Z'), Date.parse('2026-10-21T10:00:00Z'), 11]);
+  assert.equal(doc.sha, hash);
+  assert.ok(!JSON.stringify(doc).includes('example.invalid') && !readFileSync(ledgerPath, 'utf8').includes('example.invalid'));
+});
+
 const finished = { build: { _id: 'b1', status: 'finished', index: 7, instanceType: 'mac_mini_m2', createdAt: '2026-10-21T10:00:00Z', startedAt: '2026-10-21T10:01:00Z', finishedAt: '2026-10-21T10:31:30Z',
   buildActions: [{ name: 'tool and runner facts', status: 'success', startedAt: '2026-10-21T10:01:10Z', finishedAt: '2026-10-21T10:01:20Z' }, { name: 'boot', status: 'success', startedAt: '2026-10-21T10:02:00Z', finishedAt: '2026-10-21T10:05:00Z', logUrl: 'https://api.codemagic.io/logs/1' }],
   artefacts: [{ name: 'v1-session-1.md', url: 'https://api.codemagic.io/artifacts/a/b/v1-session-1.md', size: 12 }] } };
@@ -283,6 +301,6 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
     const pick = (s) => new RegExp(`${v}: ['"]?([^'"\\s]+)['"]?`).exec(s)?.[1];
     assert.equal(pick(y), pick(gh), v);
   }
-  assert.match(y, /node src\/cli\.mjs determinism --runs 2 --keep --out out\/v1-session-1\.json/);
+  assert.match(y, /node src\/cli\.mjs determinism --runs 2 --keep --out "out\/\$FW_VM-session-\$s\.json"/);
   assert.ok(!/x-auth-token|fw-codemagic-token/.test(y));
 });
