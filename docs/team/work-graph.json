@@ -21817,7 +21817,8 @@
     "apps/runner/src/land.ts",
     "lean/Fw/Parts/MorphMountToolbarGolden.lean",
     "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl"
-   ]
+   ],
+   "evidence": "00ddc54"
   },
   {
    "devices": [
