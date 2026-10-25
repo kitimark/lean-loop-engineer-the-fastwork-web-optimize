@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FLAGS, PLATFORM, INSETS_DOWN, INSETS_UP, stepList, toolbarHtml } from '../src/toolbar-page.mjs';
+import { CONTROL_CSS, FLAGS, PLATFORM, INSETS_DOWN, INSETS_UP, stepList, toolbarHtml } from '../src/toolbar-page.mjs';
 import { parseToolbar, serveFlags } from '../src/toolbar-cli.mjs';
-import { GOLDEN_PATH, HOOK_NAMES, HOOK_SYMBOLS, judgeAll, judgeReport, liftedBy, loadProduction, observedGeom, parseGolden, replay, runKey } from '../src/gate.mjs';
+import { CONTROL_FLAG, GOLDEN_PATH, HOOK_NAMES, HOOK_SYMBOLS, judgeAll, judgeReport, liftedBy, loadProduction, observedGeom, parseGolden, replay, runKey } from '../src/gate.mjs';
 
 const golden = parseGolden(readFileSync(GOLDEN_PATH, 'utf8'));
 const prod = await loadProduction();
@@ -21,7 +21,8 @@ function fakeReport(flag, { vh0 = 820, wait, hooks, tweak } = {}) {
   };
   const r = {
     flag, params: { platform: PLATFORM, timeoutMs: 600 }, meta: { pass: 1 },
-    hooks: hooks ?? Object.fromEntries(HOOK_NAMES.map((n) => [n, 'function'])), lift: null,
+    hooks: hooks ?? Object.fromEntries(HOOK_NAMES.map((n) => [n, 'function'])),
+    lift: flag === CONTROL_FLAG ? { animations: 1, timelines: ['DocumentTimeline'], states: ['running'], transform: 'matrix(1, 0, 0, 1, 40, 0)' } : null,
     facts: { base: { vvh: vh0, ih: vh0 }, rect0: { height: (vh0 * PLATFORM.heightNum) / PLATFORM.heightDen, bottom: vh0 - PLATFORM.gap } },
     steps: walk.map(mk),
   };
@@ -77,7 +78,7 @@ test('production armed agrees with the golden arm per inset', () => {
 });
 
 test('production gesture machine agrees with every golden gate run', () => {
-  assert.equal(golden.run.size, 4 * (32 + 16));
+  assert.equal(golden.run.size, 5 * (32 + 16));
   for (const [key, takes] of golden.run) {
     const [flag, phase, bits] = key.split('|');
     const geoms = [...bits].map((c) => c === '1');
@@ -136,4 +137,19 @@ test('the gate holds only when every flag has enough passing reports', () => {
   assert.equal(judgeAll(golden, prod, [...all, fakeReport('default', { wait: 10 })]).ok, false);
   assert.equal(observedGeom(prod, { height: 492, bottom: 805 }, { vvh: 790, ih: 790 }), false);
   assert.equal(observedGeom(prod, { height: 492, bottom: 805 }, { vvh: 800, ih: 800 }), true);
+});
+
+test('the compositable control: golden exempt false, one time-based page animation, short wait fails, scroll timeline fails', () => {
+  assert.equal(CONTROL_FLAG, 'compositable');
+  assert.equal(golden.exempt.get(CONTROL_FLAG), false);
+  const html = toolbarHtml({ flag: CONTROL_FLAG });
+  assert.ok(html.includes('translateX') && CONTROL_CSS.includes('animation: fw-ctl') && !CONTROL_CSS.includes('animation-timeline'));
+  assert.equal(toolbarHtml({ flag: 'unthrottle' }).includes('"flag":"compositable"'), false);
+  assert.equal(judgeReport(golden, prod, fakeReport(CONTROL_FLAG)).ok, true);
+  const fast = judgeReport(golden, prod, fakeReport(CONTROL_FLAG, { wait: 32 }));
+  assert.equal(fast.checks.find((c) => c.id === 'exempt').ok, false);
+  const scroll = judgeReport(golden, prod, fakeReport(CONTROL_FLAG, { tweak: (r) => { r.lift.timelines = ['ScrollTimeline']; } }));
+  assert.equal(scroll.checks.find((c) => c.id === 'control-anim').ok, false);
+  const none = judgeReport(golden, prod, fakeReport(CONTROL_FLAG, { tweak: (r) => { r.lift = null; } }));
+  assert.equal(none.checks.find((c) => c.id === 'control-anim').ok, false);
 });
