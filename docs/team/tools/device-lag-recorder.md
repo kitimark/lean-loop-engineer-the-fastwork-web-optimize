@@ -163,3 +163,21 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
   `Target.didCommitProvisionalTarget` (`wip.mjs` `targetStep`) and fails commands sent to the replaced page at once.
 - Fault drops: `saveState` refuses a state whose visits hold fewer faults than the saved one (Lean `appendOnly`). `arms-run --hand-reset
   <index> <reason>` writes a lead note and leaves the fault list as it is; it is refused for an unknown index or an empty reason.
+
+## Pinned thermal state (`arms-run --pin`, `pin-probe`, `pin-stop`; Lean `Fw.Device.Thermal` section "Pinned thermal state"; golden `device/thermal.jsonl`)
+
+- Setup: `brew install pipx`, then `pipx install pymobiledevice3==11.44.0`. Every call carries `--userspace`; `--native` is never used. The
+  profile ids come from `pymobiledevice3 developer dvt condition list --userspace` (group ThermalCondition: ThermalFair, ThermalSerious,
+  ThermalCritical; CONFIRMED on the test phone). Only Fair and Serious are induced.
+- `arms-run --pin Serious ...`: one owner process runs `condition set ThermalSerious --userspace` and holds the DTX connection (the
+  condition lives only as long as that connection, CONFIRMED in pymobiledevice3 source; `condition clear` from another connection is a
+  no-op). The block runs a lane only after a reading `go`: owner alive, phone unlocked, reported state = target. The state is read before
+  the block, between the frames lane and the counts lane, and after the visit; a visit counts only when all three read `go`. A reading
+  of Critical, or below or above the target, refuses the visit (`status: refused`, no raw files) and stops the block. The 5-minute cool
+  between blocks is skipped. The induced state is a floor, not a clamp: real heat can lift the reported state to Critical.
+- The owner is stopped with `kill -TERM` (a backgrounded job ignores SIGINT), KILL after 15 s, and only after its recorded pid and start
+  time match the live process. The finally path stops it after success and after every failure, then reads the state back; `state.json`
+  `pin` records target, profile, owner pid and start, the readings (`thermal`), the read-backs and the end verdict (`cleared`,
+  `heatRemains`, `unread`, `stuck`). `stuck` fails the session.
+- `pin-probe --pin Serious --dir d [--hold s]`: induce, read back until the target, hold, clear, read back; no visit.
+  `pin-stop --dir d`: stop an owner a crashed run left behind.
