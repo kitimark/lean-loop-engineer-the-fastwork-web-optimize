@@ -1,6 +1,6 @@
 branch worktree-wf_d91e3108-16e-1; worktree .claude/worktrees/wf_d91e3108-16e-1; ci branches ci/cross-pool-pooling, -b, -c (pushed at 3ead519e1)
-CI runs: lean 40224630846 (older commit, see gh); pair 1: GitHub webkit-sim 40225058193 (queued 19:14Z) + Codemagic cm:6ade550f28f7ff171ac1a5a9 (triggered, 40 min reserved)
-Codemagic minutes: 166 before; pair 1 reserves 40 (stop line 400). Pairs 2, 3 not started yet (one Codemagic slot: serial).
+CI runs: pair 1 GitHub webkit-sim 40225058193 success + cm:6ade550f28f7ff171ac1a5a9 finished; pair 2 GitHub 40226715252 success + cm:6ade59e62261fc70401bb883 finished; pair 3 GitHub 40229095163 (running) + cm:6ade60fa118a2ae26ddd9238 (running)
+Codemagic minutes: 166 before; 3 builds reserve 40 each (<= 286 of stop line 400); actual minutes in the ledger (scripts/codemagic.mjs facts). Pair records: scratchpad/cpp/tool/pair.ts (not committed). Fixed classRowsOf (5-column merged table was read as zero rows).
 Poller call site done: packages/gh-budget/src/poller.ts rerouteTick + env.reroute hook, test packages/gh-budget/test/reroute-tick.test.ts (runner does not set the hook in production: follow-up).
 Pair procedure: dispatch `gh workflow run webkit-sim.yml --ref B -f vms=1 -f target=original`, `node scripts/codemagic.mjs trigger --pool --branch B --vars '{"FW_TARGET":"original","FW_VM":"v1"}'`; then record with recordPair (apps/runner/src/ci-pool-tier.ts) and run poolRows.
 Rule: if GitHub keeps a twin queued > 3 h, report the k reached; decision stays 'not pooled'.

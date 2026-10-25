@@ -193,6 +193,9 @@ describe("row pooling by pinned pairs (Lean ci.poolRows)", () => {
   const ghK = parsePlatformKey(TOOLS("a", "b", "c").replace("12\n17179869184", "3\n7516192768"));
   const cmK = parsePlatformKey(TOOLS("a", "b", "c").replace("12\n17179869184", "8\n12884901888"));
   const pair = (n: number, cm: string): PairRecord => ({ sha: "1".repeat(40), target: "original", vm: "v3", ghRun: String(n), cmBuild: `cm:${String(n).padStart(24, "0")}`, ghKey: ghK, cmKey: cmK, gh: { "a|m|l": "stable", "b|m|l": "stable" }, cm: { "a|m|l": "stable", "b|m|l": cm } });
+  it("classRowsOf reads the merged table of several sessions (five columns)", () => {
+    expect(classRowsOf("| family | count type | level | class (worst of sessions) | sessions agree |\n|---|---|---|---|---|\n| census | layerCount | y=0 | **quarantined** | yes |\n")).toEqual({ "census|layerCount|y=0": "quarantined" });
+  });
   it("classRowsOf reads the class table", () => {
     expect(classRowsOf("| family | metric | level | class | a | b | c | d |\n|---|\n| x | y | z | **stable** | 1 | 2 | 3 | 4 |\n")).toEqual({ "x|y|z": "stable" });
   });

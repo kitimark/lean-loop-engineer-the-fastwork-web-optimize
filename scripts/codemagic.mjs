@@ -236,7 +236,7 @@ export function classRows(md) {
   const rows = {};
   for (const line of md.split('\n')) {
     const c = line.split('|').map((x) => x.trim());
-    if (c.length < 8 || c[1] === 'family' || /^-+$/.test(c[1])) continue;
+    if (c.length < 7 || c[1] === 'family' || /^-+$/.test(c[1])) continue;
     rows[`${c[1]}|${c[2]}|${c[3]}`] = c[4].replaceAll('*', '');
   }
   return rows;
