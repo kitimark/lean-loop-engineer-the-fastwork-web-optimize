@@ -21813,6 +21813,26 @@
     "research/notes/2026/10-2x-toolbar-wktr-gate.md",
     "docs/team/handoffs/toolbar-wktr-gate.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-class-lint",
+   "owner": "lean-prover",
+   "stream": "infra",
+   "deps": [
+    "toolbar-proof-morph"
+   ],
+   "title": "Incident 2026-10-25 (toolbar-proof-morph refused twice: a flag reclassified to look-change L in part.json kept 'E' prose in the ledger). Closed design (Fable, checked): add a structured `visClass` field (E, E-s, Q, L) to every research/findings/ledger.json row whose `flag` has a part.json visClass; in Fw.Preset.Gen (readRegistry/parsePart read visClass, parseLedger reads rows) fail the preset check when a part.json flag with a visClass has no ledger row, or the row's visClass differs from part.json. Identity on one field against one canonical source, no prose parsing. Backfill today: n 9, 19, 39, 40, 47, 49, 50, 52, 67, 68, 69, 71, 73, 76, 77, 78, 79 plus a missing row for pain:dark-static; rows 39, 49, 50, 52 (prose 'equal'/'E' vs part.json L) need a decision on which source is right, listed for the lead before backfilling. Theorem: the check passes iff every classed flag has exactly one agreeing row; golden cases.",
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/*.lean",
+    "packages/contracts/golden/preset/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-ledger-class-lint.md",
+    "docs/team/handoffs/ledger-class-lint.md"
+   ]
   }
  ],
  "deadline": {
