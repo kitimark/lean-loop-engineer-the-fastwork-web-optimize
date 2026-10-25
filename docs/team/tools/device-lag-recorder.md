@@ -182,5 +182,6 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
   `state.json` `pin` records target, profile, owner pid and start, the readings (`thermal`), `acked`, the read-backs and the end verdict
   (`cleared`, `heatRemains` after real load, `unread`, `unconfirmed` for an owner that died or needed KILL, `stuck`). `unconfirmed` and
   `stuck` fail the session; the next run (or `pin-stop`) runs one set-and-clear cycle for an unconfirmed owner (Lean `recoverAct`).
+- The target is always named (`--pin Fair|Serious`); `--pin` has no default value, and the usual target is Serious.
 - `pin-probe --pin Serious --dir d [--hold s]`: induce, read back until the target, hold, clear, read back; no visit.
   `pin-stop --dir d`: stop an owner a crashed run left behind.

@@ -14,9 +14,9 @@
   program of ours (`OWNER_PY` in `src/device-thermal-pin.mjs`, the pinned library's own `ConditionInducer`): set, hold, on SIGTERM clear, `list` (a reply after the
   clear), print `fw-pin cleared pid=N`, exit. Reported state after such a clear: Serious fell to Fair after about 2 minutes and to Nominal about 11 minutes after
   the clear (first probe, 15:34 to 15:46), and fell to Nominal about 2 minutes after the clear when nothing had heated the phone (second probe, 15:48 to 15:50).
-  After the 10 minute block with real load the reported state stayed Serious for the whole 5 minute read-back: real heat, not the condition (end `heatRemains`).
+  After the 10 minute block with real load the reported state stayed Serious for the whole 5 minute read-back: INFERRED real heat, not the condition: the owner acknowledged its clear (`fw-pin cleared`, pin-owner.log), but no reading after 16:13:53 UTC shows the fall; the clear-to-Nominal read-back is MEASURED only in the probes (15:34-15:46, 15:48-15:50) (end `heatRemains`).
 - **Induced Serious and real Serious look the same to the engine on this page (MEASURED), and neither differs from the mixed-state base.** Frames lane, 5 reps of
-  about 390 frames each; counts lane totals over 5 passes (table below). The real-Serious base visits are the three base visits of phone-thermal-check (frames lane
+  about 390 frames each; counts lane totals over 3 passes (table below). The real-Serious base visits are the three base visits of phone-thermal-check (frames lane
   started Nominal and ended Serious, counts lane Serious); the pinned visits are Serious at every reading. Intervals and counts agree to run-to-run spread. The one
   difference is the longest single frame (76 and 68 ms pinned against 58, 58 and 60 ms real; n = 2 against 3, one frame per visit, not claimed as a difference).
   So for this page induced Serious is as good as real Serious as a measurement state and **we cannot show that Serious, induced or real, changes frame cadence or counts
@@ -65,6 +65,13 @@ The lane gate sits in `realDeps.visit` between the frames lane and the counts la
   set-and-clear cycle. Coexistence of the condition tunnel with the xctrace recordings held in all runs here (INFERRED for other readers); the
   ios_webkit_debug_proxy ran on 9461 beside the owner with no conflict seen.
 - Battery temperature is recorded, not gated, in pinned mode.
+
+## Open (follow-ups, not blockers)
+
+- Session-trace theorem: `endVerdict_unset` holds by the definition of `conditionSet`; add a theorem over a session trace (phase, failure) -> end that never yields `conditionSet = true` without a stuck or unconfirmed failure.
+- `held` in `src/device-phone-pin.mjs` is `owner.alive()` only; make it `alive() && readLog().includes('fw-pin held pid=N')` so the gap between spawn and the first set cannot count as held.
+- `onSig` stops the owner and exits 130 with no read-back and no `pin.end` in `state.json`; write the stop and `conditionSet` note there.
+- The target is named with `--pin Fair|Serious`; there is no default (see the tool doc).
 
 ## Provenance
 
