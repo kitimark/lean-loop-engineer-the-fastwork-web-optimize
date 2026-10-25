@@ -21142,9 +21142,34 @@
     "apps/runner/test/run*.test.ts",
     "docs/team/tools/fw-run.md",
     "research/notes/2026/10-2x-fw-run-vms.md",
-    "docs/team/handoffs/fw-run-vms.md"
+    "docs/team/handoffs/fw-run-vms.md",
+    "lean/Fw/Store/Ci.lean",
+    "apps/runner/src/ci.ts",
+    "packages/contracts/src/artifacts.ts"
    ],
    "title": "fw run --runs N never reaches the WebKit Simulator lane: Fw.Store.Layout.dispatchInputs .webkit (lean/Fw/Store/Layout.lean:472) sends only target, preset and fw, so webkit-sim.yml falls back to VMS=1 (webkit-sim.yml:198) and every lead WebKit count dispatch today ran 1 VM instead of 3 (react-root runs 40134016822/40134234199, one-chain 40139526492/40139511311). Do, Lean first: send ('vms', toString q.runs) for webkit (and check every webkitSim input name against Layout's input list :428), a theorem that the webkit dispatch carries the request's run count (like dispatch_target), regenerate the store goldens from Lean and replay them in the runner test; check the cache key still separates 1-VM and 3-VM runs; one dry fw run --target rewrite --engines webkit --runs 3 shows vms=3 in its inputs line."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-note-key-local",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Ops/LedgerMerge.lean",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-verdict.ts",
+    "apps/runner/test/ledger-merge.test.ts",
+    "apps/runner/test/land*.test.ts",
+    "packages/contracts/golden/ops/**",
+    "docs/team/tools/land.md",
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-2x-ledger-note-key-local.md",
+    "docs/team/handoffs/ledger-note-key-local.md"
+   ],
+   "title": "Incident (twice on 2026-10-24/25: combo-scroll-fight, commission-band-mech): a builder wrote more than one ledger note per (entry, task) and only the remote land lane's ledger-merge.test.ts refused it, after a full CI land. Do, Lean first: state the one-note-per-(entry, task) rule as a decision in lean/Fw/Ops/LedgerMerge.lean beside distinct_notes_merge (a theorem that a branch passing it never clashes in merge), run it in the local tier of fw land --dry (and so in fw review ready) with a named VERDICT/detail line pointing at the duplicate key, a golden from Lean replayed by a runner test with both refused cases from this incident, and an incident row in docs/team/incidents/ledger.json (no n). If the build-review preamble should name the rule, list that .claude edit in open for the lead."
   }
  ],
  "deadline": {
