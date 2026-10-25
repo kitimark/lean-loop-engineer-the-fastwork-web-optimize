@@ -179,7 +179,7 @@ A gate, not a count lane. `[toolbar]` in the head commit (or the `toolbar` dispa
 
 1. `scripts/hook-check.sh`: do `beginInteractiveObscuredInsetsChange`, `endInteractiveObscuredInsetsChange` (`UIScriptControllerIOS.mm:1486-1494`) and
    `setObscuredInsets` (`UIScriptControllerCocoa.mm:683-692`, @862f17d) exist in the pinned binary (`hooks.json`).
-2. `src/toolbar-cli.mjs`: per flag (`default`, `touch-first`, `open-once`, `unthrottle`) and pass one fresh WebKitTestRunnerApp process loads
+2. `src/toolbar-cli.mjs`: per flag (`default`, `touch-first`, `open-once`, `unthrottle`, and the negative control `compositable`, a time-based transform animation with golden exempt false) and pass one fresh WebKitTestRunnerApp process loads
    `src/toolbar-page.mjs`'s page, which calls `begin`, then `setObscuredInsets(inset,0,0,0)` for inset 10, 20, 30, 40, 30, 20, 10, 0 with a
    `scrollTo` before each, then `end`. It reports `typeof uiController.<hook>` (the hook is bound in the running WKTR), the viewport height,
    a fixed platform stand-in's rect and the time from each set's return to the first frame that sees the new height.
