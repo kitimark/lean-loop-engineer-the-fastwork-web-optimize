@@ -21625,9 +21625,11 @@
     "docs/team/tools/*.md",
     "research/notes/2026/10-25-phone-thermal-pin.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/phone-thermal-pin.md"
+    "docs/team/handoffs/phone-thermal-pin.md",
+    "packages/measure-webkit/test/pin-world.mjs"
    ],
-   "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode."
+   "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode.",
+   "evidence": "67113fb"
   },
   {
    "devices": [
@@ -21733,7 +21735,8 @@
     "packages/gh-budget/src/want.ts",
     "packages/gh-budget/test/**",
     "docs/team/handoffs/ci-run-dedup.md"
-   ]
+   ],
+   "evidence": "6c9614e"
   },
   {
    "devices": [
