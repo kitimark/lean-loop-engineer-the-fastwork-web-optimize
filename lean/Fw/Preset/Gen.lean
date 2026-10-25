@@ -61,15 +61,22 @@ def linkTable : List (Flag × List Key) :=
    (⟨"hero", "scene-pause"⟩, [ksp]),
    (⟨"hero.exit", "threaded"⟩, [threadedKey])]
 
-def curated : List (Flag × String) :=
-  [(⟨"hero.accent", "steps"⟩,
+inductive Exclusion where
+  | hand (reason : String)
+  | resourceTrade
+
+def Exclusion.text : Exclusion → String
+  | .hand s => s
+  | .resourceTrade => "the decided resource verdict (Fw.Engine.Resource.Flags.decided) is a trade on every engine \
+      (#guard in Fw.Engine.Resource.Preset)"
+
+def curated : List (Flag × Exclusion) :=
+  [(⟨"hero.accent", "steps"⟩, .hand
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
       engine-win field"),
-   (⟨"morph.panel", "rest"⟩,
-    "ledger n = 11: a trade on Chromium (MEASURED, runs 40174480097 / 40174482844: PrePaint, invalidation and RasterTask \
-      cost); WebKit saves memory but Paint rises on rest frames (raw, runs 40174475566 / 40174472900); curated exclusion")]
+   (⟨"morph.panel", "rest"⟩, .resourceTrade)]
 
-def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
+def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2.text)
 
 def links : List (Flag × List Key) := linkTable.filter fun l => (reasonOf l.1).isNone
 
@@ -97,6 +104,10 @@ theorem linkOf_links_of_none {f : Flag} (h : reasonOf f = none) : linkOf links f
 theorem curated_not_mem {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} (h : reasonOf f ≠ none) :
     f ∉ preset reg links ledger st :=
   unlinked_not_mem (by simp [linkOf_links, h])
+
+theorem panel_rest_not_mem {reg : List Reg} {ledger : List Row} {st : List Stored} :
+    (⟨"morph.panel", "rest"⟩ : Flag) ∉ preset reg links ledger st :=
+  curated_not_mem (by simp [reasonOf, curated])
 
 def parseFlag (s : String) : Except String Flag :=
   match s.splitOn ":" with
