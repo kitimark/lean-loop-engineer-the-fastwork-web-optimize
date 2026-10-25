@@ -31,3 +31,8 @@ CI: lean 40199047016 success at 2f847f8a3. GitHub twin 40196504411: success on a
 Paired rewrite cell r1 (MEASURED): site digests equal, ca7745e4f918...d, 243 files (Lean `ci.poolCell` files the cell). Count classes NOT equal: 18 of 104 rows differ (GitHub stable 26 / deterministic 55 / quarantined 23; Codemagic 13 / 55 / 36), e.g. scroll RecalculateStyles total 1 vs 39. Cause (INFERRED from tools.txt): the images differ, GitHub macOS 27.0.1 + Xcode 27.1, Codemagic macOS 27.0 + Xcode 27.0 and an extra iOS 26.5 runtime. One session each, so one cell proves one pair only.
 Codemagic minutes: 1 (failed yaml) + 9 (digest mismatch build 6ade005d) + 8 (build 6ade07e4) = 18; month used 104 of the 400 line.
 Follow-up: Lean should require a matching toolchain (macOS/Xcode/runtime) before a cell's counts are merged, or pin Codemagic to the GitHub Xcode.
+
+## Round 3 checkpoint 1 (commit f438f8623, pushed to ci/pool-dispatch-poller)
+Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882-1`, last commit f438f8623.
+Done: Lean PlatformKey/cellMerged + theorems + wire op ci.cellMerged + golden (PoolTier.lean, PoolTierWire.lean, PoolGolden.lean); codemagic.yaml xcode 27.1; ci-pool-tier.ts parse/ask/event/aside/missing-sha; tests green (runner ci-pool-tier*).
+Open: CI runs on f438f8623, paired rewrite run (Codemagic + GitHub twin), check.sh, dry land, review ready.
