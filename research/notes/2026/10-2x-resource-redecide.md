@@ -21,7 +21,7 @@ The `v2-proved` preset is unchanged (`{"engine.scroll":"unthrottle"}`). No row i
 (`part.json` has no `visClass` for strip, idle-none or rest), so none waits on the user's visual review.
 
 Every phone number below comes from sessions in which each visit ended at Serious thermal state (MEASURED,
-`10-25-phone-thermal-check.md`), so every phone verdict is at mixed thermal states. Counts and the census do not depend on the
+`10-25-phone-thermal-check.md`). Counts and the census do not depend on the
 clock; frames do.
 
 ## Decided verdict (`decided`, `resolvedSign`, `moved`, `evidenceSign`)
@@ -79,7 +79,6 @@ with the predicted `same`); repaint area, style, layout and EventDispatch inside
   1053 to 1179 against 1072 to 1674, same (MEASURED). The sign is now unknown. The same runs measure style 647 to 651 against
   657 to 688, up (MEASURED; cause INFERRED: the pause attribute write per scene change restyles the hero subtree). Predicted
   open, decided trade.
-- **Strip peak:** the mixed phone plus Simulator source is named in `stripPeakSrc` (above).
 - **Repaint at DPR 3** (`repaintPx_dpr3`: 9 device px per CSS px):
 
 | flag | engine | sign | theorem | premise |
@@ -92,7 +91,7 @@ with the predicted `same`); repaint area, style, layout and EventDispatch inside
 
 ## Accepted limits
 
-- No CI dispatch and no phone use in this task; phone verdicts mix thermal states (pinned sessions: phone-thermal-pin).
+- No CI dispatch and no phone use in this task (pinned sessions: phone-thermal-pin).
 - B stays INFERRED. A look-change flag enters a preset only after the user's visual review.
 - Strip enters `v2-proved` only after its trajectory cells pass on both engines, which needs CI runs.
 

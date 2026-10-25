@@ -656,7 +656,6 @@ def resolvedSign (fp : Footprint) (r : Res) : Sign := (evidenceSign ((obsOf fp r
 def resolved (fp : Footprint) : Footprint :=
   { fp with effects := fp.effects.map fun (r, e) => (r, { e with sign := resolvedSign fp r }) }
 
-/-- The resource verdict of a footprint whose signs are replaced by its own non-slow measured moves. -/
 def decided (B : Nat) (fp : Footprint) : Verdict := verdict B (resolved fp)
 
 theorem moved_slow (o : Obs) (hs : o.slow = true) (hc : o.res.census = false) : moved o = none := by
@@ -755,7 +754,6 @@ end Fw.Engine.Resource.Flags
 namespace Fw.Engine.Resource.Preset
 open Fw.Engine.Resource Fw.Preset
 
-/-- Predicted and decided resource verdicts of a preset flag per engine. -/
 def resourceOf (f : Flag) : List (Eng × Verdict × Verdict) :=
   [Eng.chromium, .webkit].filterMap fun e =>
     (Flags.footprint? f.key e).map fun fp => (e, verdict budgetB fp, Flags.decided budgetB fp)
