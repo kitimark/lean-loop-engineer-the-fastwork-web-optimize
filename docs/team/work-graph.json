@@ -21152,7 +21152,8 @@
     "apps/runner/src/ci.ts",
     "packages/contracts/src/artifacts.ts"
    ],
-   "title": "fw run --runs N never reaches the WebKit Simulator lane: Fw.Store.Layout.dispatchInputs .webkit (lean/Fw/Store/Layout.lean:472) sends only target, preset and fw, so webkit-sim.yml falls back to VMS=1 (webkit-sim.yml:198) and every lead WebKit count dispatch today ran 1 VM instead of 3 (react-root runs 40134016822/40134234199, one-chain 40139526492/40139511311). Do, Lean first: send ('vms', toString q.runs) for webkit (and check every webkitSim input name against Layout's input list :428), a theorem that the webkit dispatch carries the request's run count (like dispatch_target), regenerate the store goldens from Lean and replay them in the runner test; check the cache key still separates 1-VM and 3-VM runs; one dry fw run --target rewrite --engines webkit --runs 3 shows vms=3 in its inputs line."
+   "title": "fw run --runs N never reaches the WebKit Simulator lane: Fw.Store.Layout.dispatchInputs .webkit (lean/Fw/Store/Layout.lean:472) sends only target, preset and fw, so webkit-sim.yml falls back to VMS=1 (webkit-sim.yml:198) and every lead WebKit count dispatch today ran 1 VM instead of 3 (react-root runs 40134016822/40134234199, one-chain 40139526492/40139511311). Do, Lean first: send ('vms', toString q.runs) for webkit (and check every webkitSim input name against Layout's input list :428), a theorem that the webkit dispatch carries the request's run count (like dispatch_target), regenerate the store goldens from Lean and replay them in the runner test; check the cache key still separates 1-VM and 3-VM runs; one dry fw run --target rewrite --engines webkit --runs 3 shows vms=3 in its inputs line.",
+   "evidence": "a1ad015"
   },
   {
    "devices": [

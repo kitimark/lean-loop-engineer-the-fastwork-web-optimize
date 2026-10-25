@@ -36,8 +36,9 @@ export const RunManifest = z.object({
   profile: z.string(),
   gitSha: GitSha,
   image: ImageRef,
-  runId: z.string().regex(/^[0-9]+$/), // the GitHub Actions run id
-  entries: z.array(ManifestEntry), // strictly increasing by name
+  runs: z.number().int().positive(),
+  runId: z.string().regex(/^[0-9]+$/),
+  entries: z.array(ManifestEntry),
 });
 export type RunManifest = z.infer<typeof RunManifest>;
 

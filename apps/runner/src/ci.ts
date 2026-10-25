@@ -38,9 +38,8 @@ export function parseCiArgs(argv: string[]): CiArgs {
 // ---- fwcore `store.ciRun` -----------------------------------------------------------------------------------------
 export type CiJob = { name: string; conclusion: string | null };
 export type CiRunInfo = { runId: string; workflowName: string; status: string; conclusion: string | null; headSha: string; jobs: CiJob[] };
-/** What `fw ci` read from one downloaded shard artifact (`counts.json`, `image-id.txt`). */
 export type CiFacts = { name: string; profile: string; image: string; search?: string; target?: string };
-export type CiMeta = { engine: string; target: string; preset: string; fw: string[]; profile: string; gitSha: string; image: string; runId: string };
+export type CiMeta = { engine: string; target: string; preset: string; fw: string[]; profile: string; gitSha: string; image: string; runs: number; runId: string };
 export type CiTarget = { target: "original" | "rewrite"; classes: string; shards: { artifact: string; dir: string }[]; meta?: CiMeta; key?: [string, string][] };
 export type CiReply = { accept: boolean; refusals: string[]; targets: CiTarget[] };
 
@@ -131,7 +130,7 @@ export async function ciMain(args: CiArgs, d: CiDeps): Promise<number> {
       copyTree(join(cdir, t.classes), stage, "classes/");
       writeFileSync(join(stage, "ci.json"), JSON.stringify({ schema: "fw.ci-run/1", workflow: run.workflowName, runId, headSha: run.headSha, conclusion: run.conclusion }, null, 2) + "\n");
       const r = ingest(d.call, d.store, stage, { engine: m.engine, image: m.image } as never,
-        { target: m.target, preset: m.preset, fw: m.fw, profile: m.profile, gitSha: m.gitSha, runId: m.runId }, { keepSameRun: true });
+        { target: m.target, preset: m.preset, fw: m.fw, profile: m.profile, gitSha: m.gitSha, runs: m.runs, runId: m.runId }, { keepSameRun: true });
       d.log(`${t.target}: run ${runId} ${run.conclusion} @ ${run.headSha.slice(0, 7)} key ${r.digest} ${r.unchanged ? "unchanged" : `stored, ${r.objects} new objects, ${r.reused} already stored`} (${r.manifest.entries.length} artifacts)`);
     }
     return 0;
