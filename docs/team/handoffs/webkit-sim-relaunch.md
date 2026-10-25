@@ -1,7 +1,8 @@
 branch: worktree-wf_5e997045-0e6-1 (CI branch ci/webkit-sim-relaunch)
 worktree: .claude/worktrees/wf_5e997045-0e6-1
-last commit: d9c04c714 (Lean machine, golden, guard reboot path); later commits on the branch
-CI runs: none pushed yet (0 of 3 pushes used)
+last commit: see `git log -1` on the branch (Lean machine d9c04c714; Unit-default fix after it)
+pushes used: 1 of 3 (ci/webkit-sim-relaunch at the Unit-default commit)
+CI runs: push run 40162207231 webkit-sim skipped (guard: needs "[ci:webkit-sim]" in the head commit message on a push); 3-VM dispatch 40162251194 (webkit-sim, target rewrite, vms 3) running
 
 ## State
 - Lean: `lean/Fw/Device/SimRelaunch.lean` (call machine, pass machine, rank, seconds bound, golden `run`); golden `packages/contracts/golden/device/sim-relaunch.jsonl`; wired in `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/Fw/Ci/Trigger.lean` (lean.yml row), `triggers.jsonl` regenerated.
