@@ -260,68 +260,120 @@ theorem strip_schedule_still_gt (own : Nat) : pageFaithful false own 0 < pageAlw
 theorem oneChain_le_alwaysOn (sh : Bool) (own n : Nat) : pageOneChain sh own n ≤ pageAlwaysOn sh own n := by
   simp only [pageOneChain, pageAlwaysOn]; split <;> omega
 
-/-! ## Where in the frame the digits run (swipe-touch-v1 frame 499)
+/-! ## Where in the frame the digits run (swipe-touch-v1 frame 499 and frames 13-34)
 
 A layout read (`window.scrollY`) flushes the dirty style at once (Chromium `local_dom_window.cc:1877`@f842f52;
 WebKit `LocalDOMWindow.cpp:1476-1480`@862f17d, for a nonzero scroll). A flush recalculates the elements dirty at that
-moment; a subtree restyle (`walk`) visits all `m` elements below it, the `f` digit faces included. -/
+moment; a subtree restyle (`walk`) visits all `m` elements below it, the `f` digit faces included; other dirt is `o`
+elements apart from the faces. -/
 
-/-- What a shared-loop frame does to style: a layout read, a write of the digit faces, a subtree restyle. -/
+/-- What happens to style: a layout read, a write of the digit faces, a subtree restyle, a write elsewhere. -/
 inductive FEv where
   | read
   | faces
   | mutate
+  | other
 
-/-- The dirty style: whether the faces are dirty, whether a subtree restyle is. -/
+/-- The dirty style: whether the faces are dirty, whether a subtree restyle is, whether other elements are. -/
 structure Dirt where
   faces : Bool
   walk : Bool
+  other : Bool
 
-/-- Elements one flush recalculates: the whole subtree (`m`) if it is dirty, else the faces (`f`) if they are. -/
-def flushElems (f m : Nat) (d : Dirt) : Nat := if d.walk then m else if d.faces then f else 0
+/-- Elements one flush recalculates: the whole subtree (`m`) if it is dirty, else the faces (`f`) and the others
+(`o`) as far as they are dirty. -/
+def flushElems (f o m : Nat) (d : Dirt) : Nat :=
+  if d.walk then m else (if d.faces then f else 0) + (if d.other then o else 0)
 
 /-- One event on (dirt, flushes, elements): a read flushes only when something is dirty. -/
-def fstep (f m : Nat) (x : Dirt × Nat × Nat) : FEv → Dirt × Nat × Nat
-  | .read => if x.1.faces || x.1.walk then (⟨false, false⟩, x.2.1 + 1, x.2.2 + flushElems f m x.1) else x
+def fstep (f o m : Nat) (x : Dirt × Nat × Nat) : FEv → Dirt × Nat × Nat
+  | .read =>
+    if x.1.faces || x.1.walk || x.1.other then (⟨false, false, false⟩, x.2.1 + 1, x.2.2 + flushElems f o m x.1)
+    else x
   | .faces => ({ x.1 with faces := true }, x.2)
   | .mutate => ({ x.1 with walk := true }, x.2)
+  | .other => ({ x.1 with other := true }, x.2)
 
 /-- (flushes, elements) of a frame's events, then the frame's own style update (one more read). -/
-def frameCost (f m : Nat) (evs : List FEv) : Nat × Nat :=
-  let r := (evs ++ [FEv.read]).foldl (fstep f m) (⟨false, false⟩, 0, 0)
+def frameCost (f o m : Nat) (evs : List FEv) : Nat × Nat :=
+  let r := (evs ++ [FEv.read]).foldl (fstep f o m) (⟨false, false, false⟩, 0, 0)
   (r.2.1, r.2.2)
 
-/-- `faithful`: the shared subscribers run, then the digits' own callbacks. -/
-def orderFaithful (shared : List FEv) : List FEv := shared ++ [FEv.faces]
+/-- A frame kind: events before the animation-frame callbacks, the shared subscribers (each runs whole), and whether
+the original's digit callbacks run before them (`faithfulFirst`) or after. The order is the rAF registration order,
+which the shared loop's restart changes (`createRafClock`: a loop that stopped re-registers behind the chains). -/
+structure Kind where
+  pre : List FEv
+  subs : List (List FEv)
+  faithfulFirst : Bool
 
-/-- `one-chain` as first built: the digits run at the place of their shared subscriber, `pre` before and `post` after. -/
-def orderAtSubscriber (pre post : List FEv) : List FEv := pre ++ FEv.faces :: post
+/-- The frame's events with the digits before every shared subscriber (`true`) or after every one (`false`). -/
+def place (k : Kind) (first : Bool) : List FEv :=
+  k.pre ++ (if first then FEv.faces :: k.subs.flatten else k.subs.flatten ++ [FEv.faces])
 
-/-- `one-chain` fixed: the digits run after every shared subscriber of the frame. -/
-def orderLast (shared : List FEv) : List FEv := shared ++ [FEv.faces]
+/-- `faithful`: the order of the original in this kind of frame. -/
+def orderFaithful (k : Kind) : List FEv := place k k.faithfulFirst
 
-/-- **Running the digits last is the faithful order, so it has the faithful cost.** -/
-theorem orderLast_eq_faithful (shared : List FEv) : orderLast shared = orderFaithful shared := rfl
+/-- `one-chain` as first built, at its subscribe position: before the scroll tick, which a scroll event adds after it. -/
+def orderAtSubscriber (k : Kind) : List FEv := place k true
 
-/-- The scroll engine's tick after a scroll event: a layout read, then a write that dirties a subtree of `m`. -/
-def scrollTick : List FEv := [FEv.read, FEv.mutate]
+/-- `one-chain` with the digits behind every other shared subscriber. -/
+def orderLast (k : Kind) : List FEv := place k false
 
-/-- **Faithful frame 499: one flush of `m` elements.** The read finds nothing dirty. -/
-theorem frame499_faithful (f m : Nat) : frameCost f m (orderFaithful scrollTick) = (1, m) := by
-  simp [frameCost, orderFaithful, scrollTick, fstep, flushElems]
+/-- Frame 499: the scroll engine's tick reads layout, then dirties a subtree; the original's digits come after it. -/
+def kind499 : Kind := ⟨[], [[FEv.read, FEv.mutate]], false⟩
 
-/-- **The first `one-chain` at frame 499: one more flush and `f` more elements.** The read after the face write
+/-- Frames 13-34: other style is dirty before the callbacks (INFERRED: input handlers), one shared subscriber reads,
+and the original's digits come before it. -/
+def kindEarly : Kind := ⟨[FEv.other], [[FEv.read]], true⟩
+
+/-- **Frame 499, faithful: one flush of `m` elements.** The tick's read finds nothing dirty. -/
+theorem frame499_faithful (f o m : Nat) : frameCost f o m (orderFaithful kind499) = (1, m) := by
+  simp [frameCost, orderFaithful, place, kind499, fstep, flushElems]
+
+/-- **Frame 499, digits at their subscriber: one more flush and `f` more elements.** The read after the face write
 flushes the `f` faces; the later restyle visits them again. -/
-theorem frame499_atSubscriber (f m : Nat) : frameCost f m (orderAtSubscriber [] scrollTick) = (2, f + m) := by
-  simp [frameCost, orderAtSubscriber, scrollTick, fstep, flushElems]
+theorem frame499_atSubscriber (f o m : Nat) : frameCost f o m (orderAtSubscriber kind499) = (2, f + m) := by
+  simp [frameCost, orderAtSubscriber, place, kind499, fstep, flushElems]
 
-/-- **Fixed `one-chain` at frame 499: the faithful cost.** -/
-theorem frame499_last (f m : Nat) : frameCost f m (orderLast scrollTick) = (1, m) :=
-  frame499_faithful f m
+/-- **Frame 499, digits last: the faithful cost.** -/
+theorem frame499_last (f o m : Nat) : frameCost f o m (orderLast kind499) = (1, m) := by
+  simp [frameCost, orderLast, place, kind499, fstep, flushElems]
 
-#guard frameCost 10 320 (orderFaithful scrollTick) == (1, 320)
-#guard frameCost 10 320 (orderAtSubscriber [] scrollTick) == (2, 330)
-#guard frameCost 10 320 (orderLast scrollTick) == (1, 320)
+/-- **Early frames, faithful: one flush of the others and the faces.** The shared read flushes both. -/
+theorem early_faithful (f o m : Nat) : frameCost f o m (orderFaithful kindEarly) = (1, f + o) := by
+  simp [frameCost, orderFaithful, place, kindEarly, fstep, flushElems]
+
+/-- **Early frames, digits at their subscriber: the faithful cost.** -/
+theorem early_atSubscriber (f o m : Nat) : frameCost f o m (orderAtSubscriber kindEarly) = (1, f + o) := by
+  simp [frameCost, orderAtSubscriber, place, kindEarly, fstep, flushElems]
+
+/-- **Early frames, digits last: one more flush and the same elements.** The read flushes the others, the frame's
+own update then flushes the faces alone: `+1` update, `+0` elements, the Chromium delta of frames 13-34. -/
+theorem early_last (f o m : Nat) : frameCost f o m (orderLast kindEarly) = (2, f + o) := by
+  simp [frameCost, orderLast, place, kindEarly, fstep, flushElems, Nat.add_comm]
+
+/-- **No fixed order wins both kinds.** Each of the two fixed orders adds a style update on one kind: the digits
+at their subscriber on frame 499, the digits last on the early frames. -/
+theorem no_fixed_order (f o m : Nat) (first : Bool) :
+    (frameCost f o m (place kind499 first)).1 > (frameCost f o m (orderFaithful kind499)).1 ∨
+    (frameCost f o m (place kindEarly first)).1 > (frameCost f o m (orderFaithful kindEarly)).1 := by
+  cases first <;> simp [frameCost, orderFaithful, place, kind499, kindEarly, fstep, flushElems]
+
+/-- The digits at their subscriber add no update on the early frames and one on frame 499; last the reverse. -/
+theorem extra_updates (f o m : Nat) :
+    (frameCost f o m (orderAtSubscriber kind499)).1 = (frameCost f o m (orderFaithful kind499)).1 + 1 ∧
+    (frameCost f o m (orderAtSubscriber kindEarly)).1 = (frameCost f o m (orderFaithful kindEarly)).1 ∧
+    (frameCost f o m (orderLast kind499)).1 = (frameCost f o m (orderFaithful kind499)).1 ∧
+    (frameCost f o m (orderLast kindEarly)).1 = (frameCost f o m (orderFaithful kindEarly)).1 + 1 := by
+  simp [frameCost, orderAtSubscriber, orderLast, orderFaithful, place, kind499, kindEarly, fstep, flushElems]
+
+#guard frameCost 10 134 320 (orderFaithful kind499) == (1, 320)
+#guard frameCost 10 134 320 (orderAtSubscriber kind499) == (2, 330)
+#guard frameCost 10 134 320 (orderLast kind499) == (1, 320)
+#guard frameCost 10 134 320 (orderFaithful kindEarly) == (1, 144)
+#guard frameCost 10 134 320 (orderAtSubscriber kindEarly) == (1, 144)
+#guard frameCost 10 134 320 (orderLast kindEarly) == (2, 144)
 
 /-! ## Golden rows (`packages/contracts/golden/parts/hero.countdown.onechain.jsonl`) -/
 
@@ -374,13 +426,14 @@ def row (sc : String × List GEv) : Lean.Json :=
      ("frames", Lean.Json.arr ((frames sc.2).map fun x => Lean.Json.mkObj
         [("steps", Lean.toJson x.1), ("faithful", x.2.1), ("oneChain", x.2.2)]).toArray)]
 
-/-- The frame-499 row: (flushes, elements) of the faithful order, the first `one-chain` and the fixed one, for `f = 10`
-faces under a subtree restyle of `m = 320` elements (the Chromium counts of frame 499). -/
+/-- The order row: (flushes, elements) per frame kind of the faithful order, the digits at their subscriber and the
+digits last, for `f = 10` faces, `o = 134` other elements and a `m = 320` element subtree (the Chromium counts of
+frame 499 and frames 13-34). -/
 def orderRow : Lean.Json :=
-  let c := fun (o : List FEv) => let r := frameCost 10 320 o; Lean.toJson [r.1, r.2]
-  Lean.Json.mkObj
-    [("scenario", "order499"), ("faithful", c (orderFaithful scrollTick)),
-     ("atSubscriber", c (orderAtSubscriber [] scrollTick)), ("last", c (orderLast scrollTick))]
+  let c := fun (o : List FEv) => let r := frameCost 10 134 320 o; Lean.toJson [r.1, r.2]
+  let kj := fun (k : Kind) =>
+    Lean.Json.mkObj [("faithful", c (orderFaithful k)), ("atSubscriber", c (orderAtSubscriber k)), ("last", c (orderLast k))]
+  Lean.Json.mkObj [("scenario", "orders"), ("frame499", kj kind499), ("early", kj kindEarly)]
 
 def goldenText : String := String.join (scenarios.map fun sc => (row sc).compress ++ "\n") ++ orderRow.compress ++ "\n"
 

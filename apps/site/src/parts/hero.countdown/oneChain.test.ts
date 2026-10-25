@@ -10,18 +10,18 @@ interface Row {
   frames: { steps: number[]; faithful: number; oneChain: number }[];
 }
 const root = resolve(__dirname, '../../../../..');
+type Cost = [number, number];
 interface OrderRow {
-  scenario: 'order499';
-  faithful: [number, number];
-  atSubscriber: [number, number];
-  last: [number, number];
+  scenario: 'orders';
+  frame499: { faithful: Cost; atSubscriber: Cost; last: Cost };
+  early: { faithful: Cost; atSubscriber: Cost; last: Cost };
 }
 const lines = readFileSync(resolve(root, 'packages/contracts/golden/parts/hero.countdown.onechain.jsonl'), 'utf8')
   .trim()
   .split('\n')
   .map((l) => JSON.parse(l) as Row | OrderRow);
-const rows = lines.filter((r): r is Row => r.scenario !== 'order499');
-const order = lines.find((r): r is OrderRow => r.scenario === 'order499')!;
+const rows = lines.filter((r): r is Row => r.scenario !== 'orders');
+const order = lines.find((r): r is OrderRow => r.scenario === 'orders')!;
 
 const mkEnv = () => {
   const raf = new Map<number, (t: number) => void>();
@@ -96,38 +96,46 @@ describe('hero.countdown one-chain against the Lean golden', () => {
     });
   }
   /**
-   * Frame 499 of swipe-touch-v1 through the real shared loop: the scroll tick (a shared subscriber added by the scroll
-   * event, after the digits' subscriber) reads layout, then dirties a subtree of 320 elements; the digits write 10
-   * faces. TS stand-in of Lean `fstep`/`frameCost`: a read flushes only dirty style; the frame ends with one more.
+   * The two frame kinds of Lean `kind499` and `kindEarly` through the real shared loop, TS stand-in of `fstep` and
+   * `frameCost` (a read flushes only dirty style; the frame ends with one more). Frame 499: the scroll tick reads
+   * layout, then dirties a 320-element subtree, and the original's digits (own rAF) run after the shared loop. Early
+   * frames: 134 other elements are dirty before the callbacks, one shared subscriber reads, and the original's digits
+   * run before the shared loop. `last` is the model's order, not shipped code.
    */
-  const frame499 = (wrap: (c: MotionClock) => MotionClock, chainShared: boolean): [number, number] => {
+  const frameCost = (kind: 'frame499' | 'early', arm: 'faithful' | 'atSubscriber' | 'last'): Cost => {
     const e = mkEnv();
     const clock = createRafClock(e.env);
-    const dirt = { faces: false, walk: false };
+    const dirt = { faces: false, walk: false, other: kind === 'early' };
     let flushes = 0;
     let elems = 0;
     const read = () => {
-      if (!dirt.faces && !dirt.walk) return;
+      if (!dirt.faces && !dirt.walk && !dirt.other) return;
       flushes++;
-      elems += dirt.walk ? 320 : 10;
-      dirt.faces = dirt.walk = false;
+      elems += dirt.walk ? 320 : (dirt.faces ? 10 : 0) + (dirt.other ? 134 : 0);
+      dirt.faces = dirt.walk = dirt.other = false;
     };
     const faces = () => void (dirt.faces = true);
-    clock.subscribe(() => {}); // another part keeps the shared loop running, so its rAF comes first in the frame
-    if (chainShared) clock.subscribe(faces);
-    else wrap(clock).subscribe(faces, { own: true });
-    clock.subscribe(() => {
-      read();
-      dirt.walk = true;
-    });
+    const sub = kind === 'frame499'
+      ? () => {
+          read();
+          dirt.walk = true;
+        }
+      : read;
+    if (kind === 'frame499' && arm === 'faithful') clock.subscribe(() => {}); // the loop was live first
+    if (arm === 'faithful') clock.subscribe(faces, { own: true });
+    if (arm === 'atSubscriber') oneChainClock(clock).subscribe(faces, { own: true });
+    clock.subscribe(sub);
+    if (arm === 'last') clock.subscribe(faces);
     e.frame(16);
     read();
     return [flushes, elems];
   };
-  it('frame 499: faithful, the first one-chain (digits at their subscriber) and the fixed one-chain', () => {
-    expect(frame499((c) => c, false)).toEqual(order.faithful);
-    expect(frame499((c) => c, true)).toEqual(order.atSubscriber);
-    expect(frame499(oneChainClock, false)).toEqual(order.last);
+  it('frame kinds: faithful, the digits at their subscriber and the digits last match the Lean orders', () => {
+    for (const kind of ['frame499', 'early'] as const) {
+      for (const arm of ['faithful', 'atSubscriber', 'last'] as const) {
+        expect(frameCost(kind, arm)).toEqual(order[kind][arm]);
+      }
+    }
   });
   it('one-chain passes shared subscribers and intervals through', () => {
     const e = mkEnv();

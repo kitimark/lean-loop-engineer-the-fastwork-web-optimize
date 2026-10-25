@@ -4,29 +4,30 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
 
 ## Answer
 
-- **Cause of the +1 recalc and +10 elements in swipe-touch-v1 frame 499: the digits' position in the frame.** The
-  mechanism is CONFIRMED (source plus exact counts); that the reader is the scroll engine's tick is INFERRED.
-  The first build ran the digits at their shared subscriber, which sits before the scroll tick (a scroll event adds
-  the tick to the shared set after it). The tick's first read, `window.scrollY`, flushes dirty style, so the 10 face
-  writes got their own style update. The tick then dirties a subtree of 320 elements, faces included, and the frame's
-  own update visits the faces again. Result: 2 updates and 10 + 320 = 330 elements, against 1 update and 320 in
-  `faithful`.
-- **Lean why.** `frameCost` (Fw.Parts.HeroCountdownOneChain) gives `(1, m)` for the faithful order
-  (`frame499_faithful`) and `(2, f + m)` for the digits at their subscriber (`frame499_atSubscriber`). With f = 10 and
-  m = 320 these are 1/320 and 2/330, the exact counts of runs 39313910496 (base) and 39313842964 (one-chain) in frame
-  499, all 3 shards (MEASURED). In the same frame ScheduleStyleRecalculation is 2 against 1, and Layout, LayoutCount
-  and FireAnimationFrame (4 and 4) are equal.
-- **Fix, theorems kept.** `oneChainClock` now runs its chains after every other shared subscriber of the frame: on its
-  first visit in a frame it removes and re-adds itself (a `Set` walk visits the re-added entry again, which
-  `createRafClock` relies on) and runs the chains on the second visit. That is the faithful order
-  (`orderLast_eq_faithful`, `frame499_last`). Steps, writes and rAF callback counts are untouched, so every earlier
-  theorem stands. The golden got the row `order499` (regenerated from Lean), and `oneChain.test.ts` replays it through
-  the real shared loop for the three orders.
-- **Verdicts (after the runs, below).** Chromium: trade. The fix does not hold: it removes the frame-499 anomaly's
-  cause by construction but adds one empty style update in 157 of 771 frames (MEASURED, 3 of 3 runs). WebKit: not
-  decided, the base arm has no usable VM.
+- **Cause of the +1 recalc and +10 elements in swipe-touch-v1 frame 499: the digits' position in the frame.** Mechanism
+  CONFIRMED (source plus exact counts); that the reader is the scroll engine's tick is INFERRED. The first build ran
+  the digits at their shared subscriber, before the scroll tick. The tick's first read, `window.scrollY`, flushes dirty
+  style, so the 10 face writes got their own update, and the tick's later 320-element restyle visited them again:
+  2 updates and 330 elements against 1 and 320 in `faithful`.
+- **Lean why, both frame kinds** (`Fw.Parts.HeroCountdownOneChain`, `frameCost` with `f` faces, `o` other elements,
+  `m` subtree). Frame 499 (`kind499`, the original's digits after the shared loop): faithful (1, m)
+  (`frame499_faithful`), digits at their subscriber (2, f + m) (`frame499_atSubscriber`), digits last (1, m)
+  (`frame499_last`). Early frames 13-34 (`kindEarly`, other style dirty before the callbacks, one shared reader, the
+  original's digits before the shared loop, INFERRED from the counts): faithful (1, f + o) (`early_faithful`), digits
+  at their subscriber (1, f + o) (`early_atSubscriber`), digits last (2, f + o) (`early_last`): +1 update, equal
+  elements, which is the Chromium delta of the last build. **`no_fixed_order`: each fixed position adds an update on
+  one kind** (`extra_updates`). The two kinds differ in the original's rAF registration order (a shared loop that
+  stopped re-registers behind the own chains, `engine/clock.ts` `createRafClock`), a per-frame fact no fixed
+  position reproduces.
+- **Decision (closed design, round 2).** Digits last is reverted to the subscribe position. Measured on Chromium,
+  swipe-touch-v1: subscribe position +1 UpdateLayoutTree in 1 of 531 frames (frame 499; old runs, all 3 runs), digits
+  last +1 in 157 of 771 frames. The subscribe position is the smaller extra, FireAnimationFrame -252 in the old runs
+  (1860 vs 2112). Golden row `orders` (regenerated from Lean) is replayed through the real shared loop by
+  `oneChain.test.ts` for the three orders and both kinds; `last` is the model's order, not shipped code.
+- **Verdicts.** Chromium: trade (fewer rAF callbacks, one extra update in the frames where a scroll tick follows the
+  digits). WebKit: see Round 2 runs below.
 
-## Post-fix runs (MEASURED, sha 9623493da, ci/one-chain-webkit)
+## Round-1 runs with digits last (MEASURED, sha 9623493da, ci/one-chain-webkit; the variant they ran is reverted)
 
 - Chromium counts, swipe-touch-v1, 3 runs per arm: base run 40139538524, flag run 40139529440. The profile file
   changed since the old runs (sha 3e038fd6 against 616ca6ab; 771 frames against 531), so "frame 499" is a different
@@ -45,8 +46,7 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
   layout 663 from a degraded session. That is not a comparison. Re-dispatch the base:
   `pnpm -s fw run --target rewrite --engines webkit --runs 3 --ref ci/one-chain-webkit`.
 - Breakpoint gate, both engines, flag on: run 40139523821 success (chromium j0-j2, playwright-webkit j0-j3, merge).
-- Next step (follow-up): an order that is right in both frame kinds needs the original's callback order, read from a
-  trace, or the variant goes back to the subscribe position (net recalc +1, not +157).
+- Round 2 took the second branch: back to the subscribe position (net recalc +1, not +157).
 
 ## Source (CONFIRMED)
 
@@ -60,11 +60,13 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
 
 ## Limits
 
-- The counts lane has no stacks, so the scroll tick is named from the code and the counts, not from a trace. The
-  post-fix Chromium run decides it: frame 499 back at 1 update and 320 elements confirms the cause causally.
-- Moving the digits last matches the faithful position against shared subscribers. Against other own chains the order
-  is by registration, as before.
-- The model has one dirty bit per kind. It matches frame 499 exactly; it is not a model of every frame.
+- The counts lane has no stacks, so the scroll tick and the early-frame reader are named from the code and the counts,
+  not from a trace (INFERRED). Frame 499 is not comparable across profile versions (531 vs 771 frames); the claim rests
+  on source and Lean (`frame499_faithful`, `frame499_atSubscriber`).
+- The model places the digits before or after every shared subscriber; both kinds have one, so any fixed rule collapses
+  to these two. A per-frame order chosen at runtime is out of scope.
+- The early-frame kind (other dirt before the callbacks, digits before the shared loop in the original) is fitted to
+  the counts (+1 update, equal elements), not observed.
 
 ## Dispatches (the lead runs them)
 
