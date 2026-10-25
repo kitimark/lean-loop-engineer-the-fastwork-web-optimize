@@ -3,7 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { goldenConformance } from '../../engine/golden.testutil';
 import { mountCommission, type Clock, type Env } from './driver';
-import { cardLook, catchupPair, planCatchup, planWrite } from './logic';
+import { cardLook, catchupPair, compact, planCatchup, planWrite } from './logic';
+import { bands, inBand, SETTLE_EVENTS } from './window';
 
 interface Ev {
   gate: boolean;
@@ -122,6 +123,25 @@ goldenConformance('commission-gate', {
       origWrites: o.map((s) => s.writes),
     };
   },
+  settleEvents: () => SETTLE_EVENTS,
+  layoutRow: (i) => ({
+    compact: compact(i.width as number, i.deviceWidth as number, i.touch as boolean),
+    ...bands(i.cardTop as number, i.bottom as number, i.vh as number),
+  }),
+  inBand: (i) => inBand(bands(i.cardTop as number, i.bottom as number, i.vh as number), i.y as number),
+  scrollTrace: (i) => {
+    const ys = i.ys as number[];
+    const events: Ev[] = ys.map((y) => ({ gate: true, rm: false, top: (i.cardTop as number) - y, bottom: (i.bottom as number) - y, vh: i.vh as number }));
+    const v = run(events, true);
+    const o = run(events, false);
+    const b = bands(i.cardTop as number, i.bottom as number, i.vh as number);
+    return {
+      variantWrites: v.map((s) => s.writes),
+      origWrites: o.map((s) => s.writes),
+      skipped: v.map((s, k) => s.writes === (k === 0 ? 0 : v[k - 1]!.writes)),
+      band: ys.map((y) => inBand(b, y)),
+    };
+  },
   mergedTrace: (i) => {
     const ticks = i.ticks as Tick[];
     const v = runTicks(ticks, true);
@@ -210,5 +230,30 @@ describe('commission.module.css premise of the variant', () => {
     for (const f of ['index.tsx', 'data.ts']) {
       expect(readFileSync(resolve(__dirname, f), 'utf8')).not.toMatch(/--commission-(enter-)?shrink/);
     }
+  });
+});
+
+describe('commission band-gate window (Lean CommissionOptWindow.skip_in_band)', () => {
+  const lines = readFileSync(resolve(__dirname, '../../../../../packages/contracts/golden/parts/commission-gate.jsonl'), 'utf8')
+    .split('\n')
+    .filter((l) => l.trim())
+    .map((l) => JSON.parse(l) as { fn: string; in: Record<string, unknown>; out: Record<string, boolean[]> });
+  const traces = lines.filter((l) => l.fn === 'scrollTrace');
+  it('the golden holds a scroll over each measured phone rect', () => {
+    expect(traces.length).toBeGreaterThanOrEqual(2);
+  });
+  it.each(traces.map((t, n) => [n, t] as const))('trace %i: a skipped event has a band event among the last SETTLE_EVENTS', (_n, t) => {
+    const { skipped, band } = t.out as { skipped: boolean[]; band: boolean[] };
+    expect(skipped.some(Boolean)).toBe(true);
+    skipped.forEach((s, k) => {
+      if (!s) return;
+      const from = Math.max(0, k - (SETTLE_EVENTS - 1));
+      expect(band.slice(from, k + 1).some(Boolean)).toBe(true);
+    });
+  });
+  it('the compact rows of the layout table are the c1000 band of the gate probes', () => {
+    const rows = lines.filter((l) => l.fn === 'layoutRow');
+    expect(rows.length).toBe(124);
+    expect(rows.filter((r) => (r.out as unknown as { compact: boolean }).compact).length).toBe(83);
   });
 });
