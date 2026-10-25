@@ -9,7 +9,7 @@
 #            | checkmap golden check (golden/ops/checkmap.jsonl equals the Lean output; Fw.Ops.CheckMap)
 #            | headgen check (the document head table equals the Lean output; Fw.Site.Head)
 #            | preset v2-proved check (golden/preset/* and the site preset equal Fw.Preset.Gen.run on the findings ledger)
-#            | init cost lint + its cases (no constant fwcore evaluates at start allocates more than Fw.Lint.InitCost.bound)
+#            | init cost lint + its cases + its scale case (no constant fwcore evaluates at start allocates more than Fw.Lint.InitCost.bound)
 # The parallel jobs run in one Lake build slot, at most its width capped at the online cores at once (Lean
 # Fw.Sched.LakeSlot.stage2Width, capped_stage2_with_build).
 # The parallel jobs call the built binaries directly (.lake/build/bin/...), not `lake exe`, so none of them takes Lake's lock (the `lake env lean --run` jobs build nothing and take no lock).
@@ -78,6 +78,15 @@ run_group() {
       if sed -n "s/^init-cost: \([a-z]*\) \([^:]*\):.*/\1 \2/p" "$1/out" | LC_ALL=C sort | diff scripts/init-cost-cases/Adv.expected.txt -
       then echo "init-cost: the findings are exactly scripts/init-cost-cases/Adv.expected.txt"
       else echo "init-cost: findings differ from scripts/init-cost-cases/Adv.expected.txt (< expected, > found); output:"; cat "$1/out"; exit 1; fi; }' _ "$tmp/icc"
+  # the lint passes over scripts/init-cost-cases/Many.lean, 8192 start-time constants (5x fwcore's 1636 on 2026-10-25)
+  job "init cost lint scale" sh -c 'mkdir -p "$1" && cp scripts/init-cost-cases/Many.lean "$1/" &&
+    lake env lean -R "$1" -o "$1/Many.olean" -c "$1/Many.c" "$1/Many.lean" &&
+    { printf "import Fw.Lint.InitCostScan\nimport Many\nset_option maxHeartbeats 0 in\nrun_cmd Fw.Lint.InitCostScan.scan [\`Many] [\".\"]\n" > "$1/ManyLint.lean"
+      s=$(date +%s)
+      if ! lake env sh -c "cd \"\$1\" && LEAN_PATH=\"\$1:\$LEAN_PATH\" lean ManyLint.lean" _ "$1" > "$1/out" 2>&1 ||
+        ! grep -q "^init-cost: 8192 start-time constants" "$1/out"
+      then echo "init-cost: the lint failed over 8192 constants; output:"; cat "$1/out"; exit 1; fi
+      echo "init-cost: 8192 constants linted in $(($(date +%s) - s)) s"; }' _ "$tmp/ics"
   job "contracts golden check" lake env lean --run scripts/ContractsGolden.lean --check ../packages/contracts/golden/parts/contracts.gen.json ../packages/measure-chromium/scenarios.gen.json
   job "transition-list golden check" lake env lean --run scripts/TransitionListGolden.lean --check
   job "axiom check" sh scripts/axiom-check.sh
