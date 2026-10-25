@@ -15898,9 +15898,14 @@
     "apps/runner/test/ci-pool-tier*.test.ts",
     "apps/runner/test/watch*.test.ts",
     "docs/team/tools/ci-pool.md",
-    "docs/team/handoffs/pool-dispatch-poller.md"
+    "docs/team/handoffs/pool-dispatch-poller.md",
+    "codemagic.yaml",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.test.ts",
+    "lean/Fw/Ci/PoolTier.lean",
+    "packages/contracts/golden/ci/pool*.jsonl"
    ],
-   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands."
+   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event."
   },
   {
    "devices": [
