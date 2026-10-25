@@ -4566,6 +4566,44 @@
    "leanVerdict": "provable",
    "leanReason": "Whether a comment cut preserved the code lines is a pure function of the two file texts and the comment syntax.",
    "hardening": "polish-line-join"
+  },
+  {
+   "id": "inc-ledger-note-key-dup",
+   "at": "2026-10-25T07:08+07:00",
+   "title": "Two builders wrote more than one research/findings/ledger.json note per (entry, task), and only the remote land lane refused it, after a full CI land",
+   "symptom": "combo-scroll-fight wrote three notes under one (entry, task) key (fields mechanism, visual, next; land run 40137318231 failed) and commission-band-mech two (fields mechanism, missingWhy; land run 40144233684 failed). Both failed apps/runner/test/ledger-merge.test.ts in the suites-a leg: 'the keys are distinct' (expected 57 / 58 to be 59) and 'two tasks each append a note to hero.exit' (1 conflict, expected 0). fw land --dry passed both branches; fixes 9f59cf85a and fe854965f joined the texts into one note.",
+   "cause": "CONFIRMED (scripts/merge-ledger.mjs idKeyed: a notes array with a repeated key is not id-keyed, so the driver falls back to a whole-member merge and any concurrent note change conflicts; Lean distinct_notes_merge assumes distinct keys on each side). The one-note-per-(entry, task) rule lived only in the remote ledger-merge.test.ts; no local tier and no dry stage ran it, and builders read the note shape (one field per note) as one note per field.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "40137318231",
+     "note": "land lane, combo-scroll-fight: ledger-merge.test.ts 2 failed (keys distinct 57 vs 59; hero.exit append 1 conflict)"
+    },
+    {
+     "kind": "ci",
+     "ref": "40144233684",
+     "note": "land lane, commission-band-mech: ledger-merge.test.ts 2 failed (keys distinct 58 vs 59; hero.exit append 1 conflict)"
+    },
+    {
+     "kind": "commit",
+     "ref": "9f59cf85a",
+     "note": "combo-scroll-fight: one ledger note per (entry, task)"
+    },
+    {
+     "kind": "commit",
+     "ref": "fe854965f",
+     "note": "commission-band-mech: one ledger note per (entry, task)"
+    }
+   ],
+   "repro": "On a branch add two notes with the same entry and task to research/findings/ledger.json; fw land --dry passed before this fix, the land lane's ledger-merge.test.ts refused.",
+   "fix": {
+    "task": "ledger-note-key-local"
+   },
+   "regression": "ledger-note-key-local: Lean onePerKey / dupKeys (onePerKey_iff, onePerKey_false, mem_dupKeys, onePerKey_merge, onePerKey_tasks_merge in lean/Fw/Ops/LedgerMerge.lean), golden packages/contracts/golden/ops/ledger-note-key.jsonl with both refused trees, replayed by apps/runner/test/ledger-merge.test.ts; fw land --dry refuses VERDICT lint with 'REFUSED: ledger-note-key: ...' naming each repeated key (apps/runner/test/land-dry.test.ts). The remote ledger-merge.test.ts stays as the second line.",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a notes array holds at most one note per (entry, task) is a pure function of the array; that passing branches merge with no clash is distinct_notes_merge.",
+   "hardening": "ledger-note-key-local"
   }
  ]
 }

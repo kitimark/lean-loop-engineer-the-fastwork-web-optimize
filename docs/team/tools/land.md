@@ -293,3 +293,13 @@ Incident: three `n` collisions on 2026-10-24, because builders picked the next `
 Lean `Fw.Console.LedgerAlloc`: `assign`, `assign_keeps`, `assign_unique`, `new_above`, `start_eq_of_top`.
 Golden `packages/contracts/golden/console/ledger-alloc.jsonl` (regenerate: `cd lean && lake test -- --write-ledger-alloc-golden`), replayed by `apps/runner/test/ledger-alloc.test.ts` against `allocN` in `apps/runner/src/land.ts`.
 Limits: existing rows are not renumbered; a row with an explicit `n` still works, and the check still refuses a duplicate explicit `n`; notes written before the land that cite a new row's number are not rewritten.
+
+## One ledger note per (entry, task) (task ledger-note-key-local)
+Incident `inc-ledger-note-key-dup`: combo-scroll-fight and commission-band-mech each wrote two or three notes with one (entry, task) key in `research/findings/ledger.json`, one field per note; only the land lane's `ledger-merge.test.ts` refused them (runs 40137318231, 40144233684).
+
+**How a builder notes a finding: one note per (entry, task)**; put every field's text into that one note.
+The dry land, after the fast lints and before the local tests, checks the notes array of the merge tree. A repeated key is `VERDICT lint` (exit 17) with the line `REFUSED: ledger-note-key: research/findings/ledger.json has more than one note per (entry, task) key; ...` and one row per repeated key, `note:["<entry>","<task>"]: <count> notes (fields ...)`. A pass prints `dry: ledger notes ok (...)`.
+
+Lean (`lean/Fw/Ops/LedgerMerge.lean`): `onePerKey`, `dupKeys`; `onePerKey_iff` (pass iff the keys are distinct), `onePerKey_false` and `mem_dupKeys` (a refusal names a key, and only keys that repeat), `onePerKey_merge` and `onePerKey_tasks_merge` (two add-only branches that pass, of different tasks noting only under their own task, merge with no clash and keep every note; from `distinct_notes_merge`).
+Golden `packages/contracts/golden/ops/ledger-note-key.jsonl` (both refused trees, from history, and passing cases; regenerate: `cd lean && lake test -- --write-ledger-merge-golden`), replayed by `apps/runner/test/ledger-merge.test.ts` against `noteKeyDups` / `noteKeyRefusal` in `apps/runner/src/land-verdict.ts`; the dry stage is `ledgerNoteKeyCheck` in `land.ts` (glue: read, parse, call).
+Limits: the real land does not run this stage; the remote `ledger-merge.test.ts` stays as its second line. Notes whose `entry` or `task` is not a string are skipped (the driver does not key them either).
