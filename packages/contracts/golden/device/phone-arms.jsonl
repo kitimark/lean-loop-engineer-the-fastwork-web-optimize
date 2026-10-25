@@ -1,4 +1,4 @@
-{"capMin":15,"coolMin":5,"kind":"consts","metrics":["Layout","RecalculateStyles","Paint","Composite","FireAnimationFrame","FunctionCall","EventDispatch","over34","over50"],"passes":3,"perBlock":3,"reps":5,"speedPxPerS":800,"stepPx":50,"visitMin":5,"warmup":1,"zonePx":500}
+{"capMin":15,"coolMin":5,"kind":"consts","metrics":["Layout","RecalculateStyles","Paint","Composite","FireAnimationFrame","FunctionCall","EventDispatch","paintArea","over34","over50"],"passes":3,"perBlock":3,"reps":5,"speedPxPerS":800,"stepPx":50,"visitMin":5,"warmup":1,"zonePx":500}
 {"arm":{"flags":[],"id":"base","target":"rewrite"},"kind":"arm"}
 {"arm":{"flags":[],"id":"original","target":"original"},"kind":"arm"}
 {"arm":{"flags":["hero.exit:threaded"],"id":"hero.exit:threaded","target":"rewrite"},"kind":"arm"}
@@ -64,4 +64,36 @@
 {"cells":["same","unresolved"],"kind":"label","label":"same"}
 {"cells":["unresolved","unresolved"],"kind":"label","label":"unresolved"}
 {"cells":["beats","beats","same","unresolved"],"kind":"label","label":"better"}
+{"fault":"usbReset","harness":true,"kind":"fault","text":"Inspector proxy closed (code 1006)"}
+{"fault":"usbReset","harness":true,"kind":"fault","text":"the phone is paired but not on USB"}
+{"fault":"usbReset","harness":true,"kind":"fault","text":"the phone re-enumerated on USB"}
+{"fault":"usbReset","harness":true,"kind":"fault","text":"phone proxy listed no tabs in 30 s"}
+{"fault":"staleTab","harness":true,"kind":"fault","text":"stale own tab could not be returned to about:blank"}
+{"fault":"other","harness":false,"kind":"fault","text":"Runtime.evaluate timed out 15 s"}
+{"fault":"other","harness":false,"kind":"fault","text":"expected exactly one about:blank Safari tab, found 0 of 2 tabs"}
+{"fault":"other","harness":false,"kind":"fault","text":""}
+{"faults":[],"kind":"attempt","may":true}
+{"faults":["other"],"kind":"attempt","may":true}
+{"faults":["usbReset"],"kind":"attempt","may":true}
+{"faults":["other","other"],"kind":"attempt","may":false}
+{"faults":["usbReset","staleTab"],"kind":"attempt","may":true}
+{"faults":["usbReset","usbReset"],"kind":"attempt","may":true}
+{"faults":["staleTab","other"],"kind":"attempt","may":false}
+{"faults":["other","usbReset"],"kind":"attempt","may":false}
+{"faults":["usbReset","staleTab","usbReset"],"kind":"attempt","may":false}
+{"faults":["usbReset","usbReset","usbReset","usbReset"],"kind":"attempt","may":false}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":0,"plan":"drive"},"urls":["about:blank"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":0,"plan":"drive"},"urls":["about:blank","https://example.test/"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":["about:blank","about:blank"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":[]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":0,"plan":"reset"},"urls":["http://harness.test:4100/"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":0,"plan":"reset"},"urls":["http://harness.test:4100/x?a=b"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":0,"plan":"reset"},"urls":["http://harness.test:4100"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":1,"plan":"reset"},"urls":["https://example.test/","http://harness.test:4100/"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":["http://harness.test:4100/","http://harness.test:4100/y"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":["http://harness.test:41000/"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":["http://other.test:4100/"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"i":1,"plan":"drive"},"urls":["http://harness.test:4100/","about:blank"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":["http://harness.test:4100/","about:blank","about:blank"]}
+{"kind":"tabs","origin":"http://harness.test:4100","plan":{"plan":"refuse"},"urls":["https://example.test/"]}
 {"arms":[[[4,4,4],[20,21,22],[7,7,7]],[[10,10,10],[40,41,42],[7,7,7]],[[4,4,4],[40,41,42],[7,7,7]],[[10,10,10],[20,21,22],[7,7,7]],[[9,9,9],[1],[]]],"base":[[10,10,10,11],[20,22,24,21],[7,7,7,7]],"cells":[["beats","same","same"],["same","worse","same"],["beats","worse","same"],["same","same","same"],["same","beats","unresolved"]],"kind":"table","labels":["better","worse","mixed","same","better"]}

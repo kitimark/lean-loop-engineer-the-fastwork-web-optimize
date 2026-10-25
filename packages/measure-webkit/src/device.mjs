@@ -19,6 +19,7 @@ import { phoneIds, sleep } from './sim.mjs';
 import { navigateTab, openTab, connect } from './wip.mjs';
 import { T } from './timeouts.mjs';
 import { canonSearch } from '../../contracts/src/flag-key.mjs';
+import { tabPlan } from './device-faults.mjs';
 
 export const MEASUREMENT_DEVICE = Object.freeze({ model: 'iPhone 15 Pro Max', os: '27.0.1' });
 export const PHONE_PORTS = Object.freeze({ list: 9460, tabs: 9461 });
@@ -147,9 +148,24 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
   process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
     proxy = await startPhoneProxy(phone.udid, { log: say });
-    const tabs = await tabsOf(proxy.ports);
-    const mine = tabs.filter((t) => t.url === 'about:blank');
-    if (mine.length !== 1) throw new Error(`expected exactly one about:blank Safari tab (the tab this tool may drive), found ${mine.length} of ${tabs.length} tabs; open one blank tab on the phone`);
+    const origin = server.url.replace(/\/$/, '');
+    let tabs = await tabsOf(proxy.ports);
+    let plan = tabPlan(origin, tabs.map((t) => t.url));
+    if (plan.plan === 'reset') {
+      say('a tab of ours was left on the harness page; returning it to about:blank');
+      const stale = await connect(tabs[plan.i].webSocketDebuggerUrl);
+      await stale.evaluate("setTimeout(() => { location.href = 'about:blank'; }, 30); 1").catch(() => {});
+      await stale.close();
+      for (let i = 0; i < 20; i++) {
+        await sleep(500);
+        tabs = await tabsOf(proxy.ports);
+        plan = tabPlan(origin, tabs.map((t) => t.url));
+        if (plan.plan === 'drive') break;
+      }
+      if (plan.plan !== 'drive') throw new Error('stale own tab could not be returned to about:blank');
+    }
+    if (plan.plan !== 'drive') throw new Error(`expected exactly one about:blank Safari tab (the tab this tool may drive), found ${tabs.filter((t) => t.url === 'about:blank').length} of ${tabs.length} tabs; open one blank tab on the phone`);
+    const mine = [tabs[plan.i]];
     const first = await connect(mine[0].webSocketDebuggerUrl);
     const url = server.url + startPath.slice(1);
     client = await navigateTab(first, url, { p: { ...proxy.ports }, log: say });

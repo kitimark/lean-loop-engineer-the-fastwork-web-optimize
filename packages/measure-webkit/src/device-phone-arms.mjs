@@ -101,8 +101,8 @@ export function countValues(counts) {
       out[z] = {};
       for (const m of COUNT_METRICS) {
         const k = COUNT_TYPES.indexOf(m);
-        if (k < 0) throw new Error(`count type ${m} is not recorded`);
-        out[z][m] = zoneSum(g.vh10, g.maxY10, z, p.zones.map((b) => [b.y0, b.counts[k]]));
+        if (k < 0 && m !== 'paintArea') throw new Error(`count type ${m} is not recorded`);
+        out[z][m] = zoneSum(g.vh10, g.maxY10, z, p.zones.map((b) => [b.y0, m === 'paintArea' ? b.paintArea : b.counts[k]]));
       }
     }
     return out;
@@ -120,13 +120,36 @@ export function frameValues(frames, vh10) {
   });
 }
 
-/** One visit's values: counts per pass and frames per rep. */
+/** Per pass of a counts file: the layer census at each scroll state, [{y, layers, bytes}] (the compositor's layer count and backing store bytes). */
+export function censusValues(counts) {
+  return counts.reduced.map((p) => (p.census ?? []).map((c) => ({ y: c.requestedY, layers: c.layerCount, bytes: c.memoryBytes })));
+}
+
+/** One visit's values: counts per pass, the census per pass and frames per rep. */
 export function visitValues(counts, frames) {
   const g = geometry(counts);
-  return { ...g, counts: countValues(counts), frames: frameValues(frames, g.vh10) };
+  return { ...g, counts: countValues(counts), census: censusValues(counts), frames: frameValues(frames, g.vh10) };
 }
 
 const seriesOf = (vals, z, m) => vals.map((v) => v[z][m]);
+
+const censusSeries = (vv, k, field) => vv.flatMap((v) => v.census.map((pass) => pass[k]?.[field]).filter((x) => x !== undefined));
+const censusStates = (vv) => Math.max(0, ...vv.flatMap((v) => v.census.map((pass) => pass.length)));
+/** The census of the base visits pooled: per scroll state the layer and backing byte values with the base spread. */
+export function censusBase(baseVisits) {
+  return Array.from({ length: censusStates(baseVisits) }, (_, k) => {
+    const L = censusSeries(baseVisits, k, 'layers'), B = censusSeries(baseVisits, k, 'bytes');
+    const y = baseVisits.flatMap((v) => v.census.map((pass) => pass[k]?.y)).find((q) => q !== undefined);
+    return { state: k, y, layers: { median: med(L), min: Math.min(...L), max: Math.max(...L), spread: spread(L) }, bytes: { median: med(B), min: Math.min(...B), max: Math.max(...B), spread: spread(B) } };
+  });
+}
+/** The census of an arm per scroll state: its values, and Lean's cell verdict against the pooled base values. */
+export function censusCells(baseVisits, armVisits) {
+  return Array.from({ length: censusStates(baseVisits) }, (_, k) => {
+    const row = (field) => { const bs = censusSeries(baseVisits, k, field), as = censusSeries(armVisits, k, field); return { arm: as, base: bs, verdict: cells([bs], [as])[0] ?? 'unresolved' }; };
+    return { state: k, layers: row('layers'), bytes: row('bytes') };
+  });
+}
 
 /**
  * The tables: for each arm, every (zone, metric) cell with the base series (all base visits pooled), the arm series, Lean's cell
@@ -156,14 +179,14 @@ export function reduceSession(visitsDone) {
       labels[f] = { all: labelFor((r) => fam(r.metric) === f) };
       for (const z of ZONES) labels[f][z] = labelFor((r) => fam(r.metric) === f && r.zone === z);
     }
-    arms.push({ id: a.id, target: a.target, flags: a.flags, visits: pool(a.id).length, cells: rows, labels });
+    arms.push({ id: a.id, target: a.target, flags: a.flags, visits: pool(a.id).length, cells: rows, labels, census: censusCells(pool(baseId), pool(a.id)) });
   }
   const baseRows = [];
   for (const z of ZONES) for (const m of METRICS) {
     const bs = series(baseId, z, m);
     baseRows.push({ zone: z, metric: m, n: bs.length, median: med(bs), min: bs.length ? Math.min(...bs) : null, max: bs.length ? Math.max(...bs) : null, spread: spread(bs) });
   }
-  return { base: { id: baseId, visits: pool(baseId).length, cells: baseRows }, arms };
+  return { base: { id: baseId, visits: pool(baseId).length, cells: baseRows, census: censusBase(pool(baseId)) }, arms };
 }
 
 /** Anomalies of a set of visits: a viewport that differs from the first base visit's, or a visit without passes. */

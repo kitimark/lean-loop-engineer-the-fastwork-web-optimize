@@ -308,6 +308,124 @@ theorem coolOk_iff (g : Nat) : coolOk g = true ↔ 300 ≤ g := by
   unfold coolOk coolMin
   rw [decide_eq_true_iff]
 
+/-! ## A failed visit: harness faults and the retry -/
+
+/-- Why an attempt at a visit failed. `usbReset` and `staleTab` are faults of the harness, not of the arm. -/
+inductive Fault where
+  | usbReset
+  | staleTab
+  | other
+  deriving DecidableEq
+
+def Fault.name : Fault → String
+  | .usbReset => "usbReset"
+  | .staleTab => "staleTab"
+  | .other => "other"
+
+/-- A harness fault says nothing about the arm: the phone left USB, or our own tab was left on the harness page. -/
+def Fault.harness : Fault → Bool
+  | .usbReset => true
+  | .staleTab => true
+  | .other => false
+
+/-- Whether `pat` occurs in `msg`. -/
+def hasText (msg pat : String) : Bool := decide (1 < (msg.splitOn pat).length)
+
+/-- The fault named by an attempt's error text. -/
+def faultOf (msg : String) : Fault :=
+  if ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) then .usbReset
+  else if hasText msg "stale own tab" then .staleTab
+  else .other
+
+/-- A visit gets two attempts; a third only when every failed attempt was a harness fault. -/
+def mayAttempt (faults : List Fault) : Bool :=
+  decide (faults.length < 2) || (decide (faults.length < 3) && faults.all Fault.harness)
+
+/-- The first two attempts are always allowed. -/
+theorem mayAttempt_first_two {faults : List Fault} (h : faults.length < 2) : mayAttempt faults = true := by
+  unfold mayAttempt
+  simp [h]
+
+/-- After two failures that were all harness faults, one more attempt. -/
+theorem mayAttempt_third_harness {faults : List Fault} (hl : faults.length = 2) (hh : faults.all Fault.harness = true) :
+    mayAttempt faults = true := by
+  unfold mayAttempt
+  simp [hl, hh]
+
+/-- After two failures with one that is not a harness fault, the visit is lost. -/
+theorem mayAttempt_third_other {faults : List Fault} (hl : faults.length = 2) (hh : faults.all Fault.harness = false) :
+    mayAttempt faults = false := by
+  unfold mayAttempt
+  simp [hl, hh]
+
+/-- Never a fourth attempt. -/
+theorem mayAttempt_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayAttempt faults = false := by
+  unfold mayAttempt
+  have h1 : ¬ faults.length < 2 := by omega
+  have h2 : ¬ faults.length < 3 := by omega
+  simp [h1, h2]
+
+/-- The harness faults are exactly the two named ones. -/
+theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab := by
+  cases f <;> simp [Fault.harness]
+
+/-! ## The tab the phone run may drive -/
+
+/-- What to do with the phone's Safari tabs. -/
+inductive TabPlan where
+  | drive (i : Nat)
+  | reset (i : Nat)
+  | refuse
+  deriving DecidableEq
+
+def isBlank (u : String) : Bool := u == "about:blank"
+
+/-- A tab on our own harness server; `origin` is `http://host:port`. -/
+def ownTab (origin u : String) : Bool := u == origin || u.startsWith (origin ++ "/")
+
+/-- Drive the one blank tab; with none, return the one tab of our own server to blank first; otherwise refuse. -/
+def tabPlan (origin : String) (urls : List String) : TabPlan :=
+  if urls.countP isBlank = 1 then .drive (urls.findIdx isBlank)
+  else if urls.countP isBlank = 0 ∧ urls.countP (ownTab origin) = 1 then .reset (urls.findIdx (ownTab origin))
+  else .refuse
+
+/-- Exactly one blank tab: it is the one driven. -/
+theorem tabPlan_drive {origin : String} {urls : List String} (h : urls.countP isBlank = 1) :
+    tabPlan origin urls = .drive (urls.findIdx isBlank) := by
+  unfold tabPlan
+  simp [h]
+
+/-- No blank tab and exactly one tab of ours: it is returned to blank. -/
+theorem tabPlan_reset {origin : String} {urls : List String} (h0 : urls.countP isBlank = 0)
+    (h1 : urls.countP (ownTab origin) = 1) : tabPlan origin urls = .reset (urls.findIdx (ownTab origin)) := by
+  unfold tabPlan
+  simp [h0, h1]
+
+/-- Two or more blank tabs: refused, whatever else is open. -/
+theorem tabPlan_refuse_blank {origin : String} {urls : List String} (h : 1 < urls.countP isBlank) :
+    tabPlan origin urls = .refuse := by
+  unfold tabPlan
+  have h1 : ¬ urls.countP isBlank = 1 := by omega
+  have h2 : ¬ urls.countP isBlank = 0 := by omega
+  simp [h1, h2]
+
+/-- No blank tab and not exactly one of ours: refused. -/
+theorem tabPlan_refuse_none {origin : String} {urls : List String} (h0 : urls.countP isBlank = 0)
+    (h1 : urls.countP (ownTab origin) ≠ 1) : tabPlan origin urls = .refuse := by
+  unfold tabPlan
+  simp [h0, h1]
+
+/-- A reset happens only when no tab is blank (the tab driven is never a second blank one). -/
+theorem tabPlan_reset_no_blank {origin : String} {urls : List String} {i : Nat} (h : tabPlan origin urls = .reset i) :
+    urls.countP isBlank = 0 := by
+  unfold tabPlan at h
+  split at h
+  · cases h
+  · split at h
+    · rename_i _ h2
+      exact h2.1
+    · cases h
+
 /-- The session in blocks. -/
 def sessionBlocks : List (List Arm) := blocks perBlock sessionVisits
 
@@ -430,10 +548,11 @@ private def armJ (a : Arm) : Json := Json.mkObj [("id", a.id), ("target", a.targ
 
 private def idsJ (l : List Arm) : Json := strsJ (l.map (·.id))
 
-/-- The metrics of a cell: the Timeline counts, then the share of moving frames over 34 and 50 ms. -/
+/-- The metrics of a cell: the Timeline counts, the painted area (sum of the Paint clip areas of a zone), then the share of
+moving frames over 34 and 50 ms. -/
 def metrics : List String :=
   ["Layout", "RecalculateStyles", "Paint", "Composite", "FireAnimationFrame", "FunctionCall", "EventDispatch",
-   "over34", "over50"]
+   "paintArea", "over34", "over50"]
 
 private def dedupCases : List (String × List Arm) :=
   [("session", candidates),
@@ -468,6 +587,29 @@ private def tableArms : List (List (List Int)) :=
   [[[4, 4, 4], [20, 21, 22], [7, 7, 7]], [[10, 10, 10], [40, 41, 42], [7, 7, 7]],
    [[4, 4, 4], [40, 41, 42], [7, 7, 7]], [[10, 10, 10], [20, 21, 22], [7, 7, 7]], [[9, 9, 9], [1], []]]
 
+private def faultTexts : List String :=
+  ["Inspector proxy closed (code 1006)", "the phone is paired but not on USB", "the phone re-enumerated on USB",
+   "phone proxy listed no tabs in 30 s", "stale own tab could not be returned to about:blank", "Runtime.evaluate timed out 15 s",
+   "expected exactly one about:blank Safari tab, found 0 of 2 tabs", ""]
+
+private def attemptCases : List (List Fault) :=
+  [[], [.other], [.usbReset], [.other, .other], [.usbReset, .staleTab], [.usbReset, .usbReset], [.staleTab, .other],
+   [.other, .usbReset], [.usbReset, .staleTab, .usbReset], [.usbReset, .usbReset, .usbReset, .usbReset]]
+
+private def tabOrigin : String := "http://harness.test:4100"
+
+private def tabCases : List (List String) :=
+  [["about:blank"], ["about:blank", "https://example.test/"], ["about:blank", "about:blank"], [],
+   ["http://harness.test:4100/"], ["http://harness.test:4100/x?a=b"], ["http://harness.test:4100"],
+   ["https://example.test/", "http://harness.test:4100/"], ["http://harness.test:4100/", "http://harness.test:4100/y"],
+   ["http://harness.test:41000/"], ["http://other.test:4100/"], ["http://harness.test:4100/", "about:blank"],
+   ["http://harness.test:4100/", "about:blank", "about:blank"], ["https://example.test/"]]
+
+private def planJ : TabPlan → Json
+  | .drive i => Json.mkObj [("plan", "drive"), ("i", i)]
+  | .reset i => Json.mkObj [("plan", "reset"), ("i", i)]
+  | .refuse => Json.mkObj [("plan", "refuse")]
+
 private def vJ (v : Verdict) : Json := Json.str v.name
 
 /-- The golden lines. -/
@@ -497,6 +639,12 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "cell"), ("base", toJson b), ("arm", toJson a), ("spread", spread b), ("verdict", verdict b a |> vJ)]).compress) ++
   (labelCases.map fun vs =>
     (Json.mkObj [("kind", "label"), ("cells", strsJ (vs.map (·.name))), ("label", (labelOf vs).name)]).compress) ++
+  (faultTexts.map fun (t : String) =>
+    (Json.mkObj [("kind", "fault"), ("text", t), ("fault", (faultOf t).name), ("harness", (faultOf t).harness)]).compress) ++
+  (attemptCases.map fun (fs : List Fault) =>
+    (Json.mkObj [("kind", "attempt"), ("faults", strsJ (fs.map Fault.name)), ("may", mayAttempt fs)]).compress) ++
+  (tabCases.map fun (us : List String) =>
+    (Json.mkObj [("kind", "tabs"), ("origin", tabOrigin), ("urls", strsJ us), ("plan", planJ (tabPlan tabOrigin us))]).compress) ++
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]

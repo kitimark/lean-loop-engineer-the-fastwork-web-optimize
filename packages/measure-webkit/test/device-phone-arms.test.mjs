@@ -82,7 +82,8 @@ test('the constants are the ones the CLI runs', () => {
   const [c] = of('consts');
   assert.deepEqual(P.PA, c);
   assert.equal(c.perBlock, Math.floor(c.capMin / c.visitMin));
-  for (const m of P.METRICS.filter((x) => !['over34', 'over50'].includes(x))) assert.ok(COUNT_TYPES.includes(m), m);
+  for (const m of P.METRICS.filter((x) => !['over34', 'over50', 'paintArea'].includes(x))) assert.ok(COUNT_TYPES.includes(m), m);
+  assert.ok(P.METRICS.includes('paintArea'));
 });
 
 test('each flag arm loads exactly its flags, and the arm ids are the flags it adds', () => {
@@ -111,10 +112,11 @@ test('pagesOf names the prerendered page of each arm and the arm that would dupl
 });
 
 // A synthetic visit: bins of 500 px with a constant Layout count per bin, frames at 60 Hz with one slow frame in the finish zone.
-const countsFile = (layout, vh = 775, maxY = 5267) => ({
+const countsFile = (layout, vh = 775, maxY = 5267, area = 0, layers = 100) => ({
   reduced: Array.from({ length: 3 }, () => ({
     info: { vh, maxY },
-    zones: Array.from({ length: 11 }, (_, i) => ({ zone: i, y0: i * 500, steps: 10, counts: COUNT_TYPES.map((t) => (t === 'Layout' ? layout : 1)), paintArea: 0 })),
+    zones: Array.from({ length: 11 }, (_, i) => ({ zone: i, y0: i * 500, steps: 10, counts: COUNT_TYPES.map((t) => (t === 'Layout' ? layout : 1)), paintArea: area })),
+    census: [0, 1500, 'max'].map((y) => ({ requestedY: y, layerCount: layers, memoryBytes: layers * 1048576 })),
   })),
 });
 const framesFile = (slow, maxY = 5267) => ({
@@ -155,4 +157,22 @@ test('the session table: a lower Layout beyond the base spread is better, equal 
   assert.equal(none.labels.counts.all, 'unresolved');
   assert.deepEqual(P.anomalies(done), []);
   assert.ok(P.anomalies([{ arm: 'base', values: P.visitValues(countsFile(4), framesFile(true)) }, { arm: 'x', values: P.visitValues(countsFile(4, 700), framesFile(true)) }])[0].includes('viewport'));
+});
+
+test('paintArea sums per zone and the census layers and bytes reduce against the base', () => {
+  const v = P.visitValues(countsFile(2, 775, 5267, 10, 100), framesFile(false));
+  assert.equal(v.counts[0].hero.paintArea + v.counts[0].finish.paintArea + v.counts[0].rest.paintArea, 110);
+  assert.equal(v.census[0].length, 3);
+  const mk = (arm, area, layers) => ({ arm, values: P.visitValues(countsFile(2, 775, 5267, area, layers), framesFile(false)) });
+  const a = P.OTHERS[0].id, b = P.OTHERS[1].id;
+  const t = P.reduceSession([mk('base', 10, 100), mk('base', 10, 100), mk('base', 10, 100), mk(a, 5, 60), mk(b, 10, 100)]);
+  const ra = t.arms.find((x) => x.id === a), rb = t.arms.find((x) => x.id === b);
+  assert.equal(ra.cells.find((c) => c.zone === 'hero' && c.metric === 'paintArea').verdict, 'beats');
+  assert.equal(rb.cells.find((c) => c.zone === 'hero' && c.metric === 'paintArea').verdict, 'same');
+  assert.equal(ra.census[0].layers.verdict, 'beats');
+  assert.equal(ra.census[0].bytes.verdict, 'beats');
+  assert.equal(rb.census[2].layers.verdict, 'same');
+  assert.equal(t.base.census.length, 3);
+  assert.equal(t.base.census[2].y, 'max');
+  assert.equal(t.arms.find((x) => x.id === P.OTHERS[2].id).census[0].layers.verdict, 'unresolved');
 });

@@ -8,6 +8,7 @@ import { withPhone } from './device.mjs';
 import { loadFresh } from './page.mjs';
 import { phoneCounts, phoneFrames } from './device-runs.mjs';
 import * as P from './device-phone-arms.mjs';
+import { faultOf, mayAttempt } from './device-faults.mjs';
 
 const slug = (id) => id.replace(/[^A-Za-z0-9.-]+/g, '_');
 const pad = (i) => String(i).padStart(2, '0');
@@ -18,6 +19,12 @@ const loadState = (dir) => {
   return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : { visits: [] };
 };
 const saveState = (dir, st) => { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'state.json'), JSON.stringify(st, null, 1) + '\n'); };
+/** One fault name per failed attempt of a state entry (Lean `Fault`); an older entry without names counts each attempt as `other`. */
+export const faultsOfVisit = (v) => {
+  if (!v) return [];
+  const named = v.faults ?? [];
+  return named.concat(Array(Math.max(0, (v.attempts ?? 0) - named.length)).fill('other'));
+};
 const putJson = (file, data) => writeFileSync(file, JSON.stringify(data) + '\n');
 
 /** Other device-cli processes on this Mac (a second one would compete for the phone and the proxy ports). */
@@ -67,7 +74,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
   mkdirSync(dir, { recursive: true });
   const pages = P.pagesOf(site);
   const st = loadState(dir);
-  const doneIdx = new Set(st.visits.filter((v) => v.status === 'done' || v.status === 'lost').map((v) => v.index));
+  const doneIdx = new Set(st.visits.filter((v) => v.status === 'done' || (v.status === 'lost' && !mayAttempt(faultsOfVisit(v)))).map((v) => v.index));
   const todo = P.SESSION.map((a, index) => ({ a, index })).filter((x) => !doneIdx.has(x.index));
   if (todo.length === 0) return { ran: [], stopped: null, remaining: 0 };
   if (st.lastEndMs) {
@@ -88,7 +95,8 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
     if (!P.mayStart(elapsed, longest)) { log(`block ends after ${ran.length} visits: ${Math.round(elapsed)} s used, a visit may take ${Math.round(longest)} s`); break; }
     const prior = st.visits.filter((v) => v.index === index);
     const attempts = prior.length > 0 ? prior[prior.length - 1].attempts : 0;
-    if (attempts >= 2) { st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'lost', attempts }]); saveState(dir, st); continue; }
+    const faults = faultsOfVisit(prior[prior.length - 1]);
+    if (!mayAttempt(faults)) { st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'lost', attempts, faults, error: prior[prior.length - 1]?.error }]); saveState(dir, st); continue; }
     const row = pages.rows.find((r) => r.id === a.id);
     const start = Date.now();
     log(`visit ${index} (${a.id}), attempt ${attempts + 1}`);
@@ -111,7 +119,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
       console.log(JSON.stringify(ran[ran.length - 1]));
       await new Promise((r) => setTimeout(r, 10000));
     } catch (e) {
-      st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'failed', attempts: attempts + 1, error: String(e.message).slice(0, 300) }]);
+      st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'failed', attempts: attempts + 1, faults: [...faults, faultOf(String(e.message))], error: String(e.message).slice(0, 300) }]);
       st.lastEndMs = Date.now();
       saveState(dir, st);
       const msg = `visit ${index} (${a.id}) attempt ${attempts + 1} failed: ${String(e.message).slice(0, 300)}`;
@@ -125,7 +133,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
 }
 
 const LETTER = { beats: 'B', worse: 'W', same: '=', unresolved: '?' };
-const fmt = (m, v) => (v === null || v === undefined ? '-' : P.familyOf(m) === 'frames' ? (v / 100).toFixed(2) : String(v));
+const fmt = (m, v) => (v === null || v === undefined ? '-' : P.familyOf(m) === 'frames' ? (v / 100).toFixed(2) : m === 'paintArea' ? (v / 1e6).toFixed(2) : String(v));
 const med = (l) => { const s = [...l].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 /** Markdown tables of a reduced session: per zone, arms x metrics, each cell "arm median (base median) verdict". */
@@ -144,6 +152,13 @@ export function tablesMarkdown(sum) {
       out.push(`| ${a.id} | ${cs.join(' | ')} | ${a.labels.counts[z]} | ${a.labels.frames[z]} |`);
     }
   }
+  out.push('', '### Layer census (layers, backing store MB) per scroll state', '', 'Cells: arm median (base median) verdict, as above; the base row shows median [min-max] over all base passes. States are the scripted stops (0, 1500, 3000, 4500 px and the end).');
+  for (const [field, unit, f] of [['layers', 'layers', (v) => (v === null || v === undefined ? '-' : String(v))], ['bytes', 'backing MB', (v) => (v === null || v === undefined ? '-' : (v / 1048576).toFixed(1))]]) {
+    const states = sum.base.census.map((c) => (typeof c.y === 'number' ? `y=${c.y}` : 'end'));
+    out.push('', `#### ${unit}`, '', `| arm | ${states.join(' | ')} |`, `|---|${states.map(() => '---').join('|')}|`);
+    out.push(`| base (n=${sum.base.visits} visits) | ${sum.base.census.map((c) => `${f(c[field].median)} [${f(c[field].min)}-${f(c[field].max)}]`).join(' | ')} |`);
+    for (const a of sum.arms) out.push(`| ${a.id} | ${a.census.map((c, k) => `${f(med(c[field].arm))} (${f(sum.base.census[k][field].median)}) ${LETTER[c[field].verdict]}`).join(' | ')} |`);
+  }
   out.push('', '### Per arm (all zones)', '', '| arm | visits | counts | frames |', '|---|---|---|---|');
   for (const a of sum.arms) out.push(`| ${a.id} | ${a.visits} | ${a.labels.counts.all} | ${a.labels.frames.all} |`);
   return out.join('\n') + '\n';
@@ -153,7 +168,7 @@ export function tablesMarkdown(sum) {
 export function reduceDir({ dir, out }) {
   const st = loadState(dir);
   const done = st.visits.filter((v) => v.status === 'done').sort((a, b) => a.index - b.index);
-  const lost = st.visits.filter((v) => v.status === 'lost' || v.status === 'failed').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts }));
+  const lost = st.visits.filter((v) => v.status === 'lost' || v.status === 'failed').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts, faults: faultsOfVisit(v), retryable: v.status === 'lost' && mayAttempt(faultsOfVisit(v)) }));
   const visitsDone = [], meta = [];
   let device = null;
   for (const v of done) {
