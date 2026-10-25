@@ -11,6 +11,7 @@ import Fw.Parts.NavHitTestOpt
 import Fw.Parts.PainNotesOpt
 import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PeopleDeckOpt
+import Fw.Engine.ResourceFlags
 
 /-- The Lean generator of each file in `packages/contracts/golden/engine/`, by file name.
 One row per committed engine golden; a file without a row, or a row without a file, fails the check. -/
@@ -26,6 +27,7 @@ def generators : List (String × String) :=
    ("pain-notes.jsonl", Fw.Parts.PainNotesOpt.goldenText),
    ("people-card.jsonl", Fw.Parts.PeopleCardOpt.goldenText),
    ("people-deck.jsonl", Fw.Parts.PeopleDeckOpt.goldenText),
+   ("resource.jsonl", Fw.Engine.Resource.Flags.goldenText),
    ("transition-start.jsonl", Fw.Engine.TransitionStart.goldenJsonl ()),
    ("webkit.jsonl", Fw.Engine.WebKit.goldenJsonl)]
 
