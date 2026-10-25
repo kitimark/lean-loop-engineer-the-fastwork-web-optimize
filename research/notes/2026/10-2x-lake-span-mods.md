@@ -24,7 +24,7 @@ spans record `lake.built`.
 
 ## How the count is parsed
 
-Lake writes `✔ [i/n] Built <Module> (<time>)` lines to stdout, and `Build completed successfully (N jobs).` last. A
+CONFIRMED: `lake build` logs to stdout (Lake/CLI/Main.lean:984 `out := .stdout`, lean4 v4.35.0, eb6cafb) and prints every built job only when stdout is not a terminal (Lake/Build/Run.lean:127, :225); on a TTY it prints only jobs with output. The tee in `fwcore-build.sh` and the land pipes make stdout a pipe, so every built module is printed. The lines are `✔ [i/n] Built <Module> (<time>)`, and `Build completed successfully (N jobs).` last. A
 module counts when its line has exactly one `] Built `, a `[i/n]` counter right before it and a name without `:` after it
 (`Fw.Obs.Timing:c.o` and `fwcore:exe` are facets, not modules; `Replayed` lines are cache hits). The rule is
 `Fw.Obs.Timing.builtLine`/`lakeBuilt?`; the member is written when the output has a Built line or the closing line, so a
@@ -40,4 +40,7 @@ excerpt of it with 8 modules, warnings, a facet object and the exe. Three implem
 - A land check that is not a lake build but prints lake output (for example `sh lean/scripts/check.sh`, which runs
   `fwcore-build.sh`) gets a `lake` member; its steps are judged per class.
 - The CI lake spans (`host ci`) follow because CI runs the same `check.sh`; no CI dispatch was run for this task.
+- The retry-alone check span (`land.ts:802`, "retry alone: timed out under load") ends without a member and stays unkeyed; its step name is separate, so it does not mix with keyed samples.
+- A build with zero jobs prints `Nothing to build.` (Lake/Build/Run.lean:312), no Built line and no closing line: no member, unkeyed.
+- The 51053 ms and 37430 ms samples have no recorded module count; the golden assumes 24 and `incident_not_slow` holds for every count b > 0.
 - `lake build -q` prints no closing line: no member, the span stays unkeyed.

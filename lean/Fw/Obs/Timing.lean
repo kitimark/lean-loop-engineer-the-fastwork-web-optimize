@@ -1535,9 +1535,11 @@ theorem judgeQ_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s
 def noopHist (tool step : String) (n d : Nat) : List Sample :=
   List.replicate n { tool, step, durMs := d, host := .«local», work := modsWork 0 }
 
+/-- The 51053 ms sample of d5babdb; its module count was not recorded, 24 is an assumed value and the theorem covers every count. -/
 def incidentCheck : Sample :=
   { tool := "lean/check", step := "lake build", durMs := 51053, host := .«local», load := 6, work := modsWork 24 }
 
+/-- The 37430 ms sample of 8517344; the count 24 is assumed as for `incidentCheck`. -/
 def incidentLand : Sample :=
   { tool := "fw land", step := "dry sh -c cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh",
     durMs := 37430, host := .«local», load := 5, work := modsWork 24 }
@@ -1552,10 +1554,20 @@ def noopRun (s : Sample) (d : Nat) (w : List (String × String)) : List SampleVe
 #guard ((noopRun incidentCheck 780 (modsWork 0)).getLast?.map (·.code)) == some .noBaseline
 #guard ((noopRun incidentLand 3182 (modsWork 0)).getLast?.map (·.code)) == some .noBaseline
 
-theorem incident_not_slow (hist : List Sample) (i : Nat) (hc : ∀ x ∈ hist, x.work = modsWork 0) :
-    (judgeQ {} hist i incidentCheck).code = .noBaseline ∧ (judgeQ {} hist i incidentLand).code = .noBaseline := by
-  constructor <;>
-  exact judgeQ_rebuild_noBaseline {} hist i _ 24 rfl (by decide) hc (by decide) (by decide) (by decide) (by decide)
+theorem incident_not_slow (hist : List Sample) (i b : Nat) (hb : 0 < b) (hc : ∀ x ∈ hist, x.work = modsWork 0) :
+    (judgeQ {} hist i { incidentCheck with work := modsWork b }).code = .noBaseline ∧
+    (judgeQ {} hist i { incidentLand with work := modsWork b }).code = .noBaseline := by
+  have hl : 0 < modsLow b := by
+    have : modsLow b = 4 ^ (b.log2 / 2) := by simp [modsLow, Nat.pos_iff_ne_zero.mp hb]
+    rw [this]; exact Nat.pow_pos (by decide)
+  have q1 : queuedWithin incidentCheck = false := by decide
+  have q2 : queuedWithin incidentLand = false := by decide
+  have c1 : ceilingBreach {} incidentCheck = false := by decide
+  have c2 : ceilingBreach {} incidentLand = false := by decide
+  have m1 : incidentCheck.mixed = false := by decide
+  have m2 : incidentLand.mixed = false := by decide
+  exact ⟨judgeQ_rebuild_noBaseline {} hist i _ b rfl hl hc m1 q1 c1 (by decide),
+    judgeQ_rebuild_noBaseline {} hist i _ b rfl hl hc m2 q2 c2 (by decide)⟩
 
 def runSteps : List String :=
   ["run plan", "run dispatch lock", "run dispatch reserve", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
@@ -3093,11 +3105,11 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, landKeyedRun 14),
    ("land dry lake: the built-0 spans of 19dd16e (26.4, 25.3, 26.5 s) and d08e461 (30.0 s) are judged on the built-0 history alone (p50 28.6 s over seven): ok",
       {}, landKeyedRun 24),
-   ("lean/check lake build, incident of d5babdb: 51.1 s after a main merge (24 modules, class 16) against eight cached no-op builds (p50 0.78 s, class 0): noBaseline",
+   ("lean/check lake build, incident of d5babdb: 51.1 s after a main merge (an assumed 24 modules, the count was not recorded; class 16) against eight cached no-op builds (p50 0.78 s, class 0): noBaseline",
       {}, incidentCheckRun true),
    ("lean/check lake build, the same samples recorded without a mods class: 51.1 s against the 0.78 s p50 is slow (the false alarm)",
       {}, incidentCheckRun false),
-   ("fw land dry lake build and axiom-check, incident of 8517344: 37.4 s (24 modules, class 16) against eight no-op steps (p50 3.2 s, class 0): noBaseline",
+   ("fw land dry lake build and axiom-check, incident of 8517344: 37.4 s (an assumed 24 modules, the count was not recorded; class 16) against eight no-op steps (p50 3.2 s, class 0): noBaseline",
       {}, incidentLandRun true),
    ("fw land dry lake build and axiom-check, the same samples recorded without a mods class: 37.4 s against the 3.2 s p50 is slow",
       {}, incidentLandRun false),

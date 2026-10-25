@@ -131,6 +131,8 @@ lake_slot_release() {
   [ -z "${_ls_own:-}" ] || { _ls_ev release group; exec 9>&-; unset LAKE_SLOT; _ls_own=; }
 }
 
+# Reads lake build output on stdin. CONFIRMED: lake logs to stdout (Lake/CLI/Main.lean:984, lean4 v4.35.0) and prints every
+# built job only when stdout is not a terminal (Lake/Build/Run.lean:127, :225); the callers pipe it, so the count is complete.
 lake_built_member() {
   LC_ALL=C awk '
     index($0, "Build completed successfully") { done = 1 }
