@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FLAGS, PLATFORM, INSETS_DOWN, INSETS_UP, stepList, toolbarHtml } from '../src/toolbar-page.mjs';
+import { CONTROL_CSS, FLAGS, PLATFORM, INSETS_DOWN, INSETS_UP, stepList, toolbarHtml } from '../src/toolbar-page.mjs';
 import { parseToolbar, serveFlags } from '../src/toolbar-cli.mjs';
 import { CONTROL_FLAG, GOLDEN_PATH, HOOK_NAMES, HOOK_SYMBOLS, judgeAll, judgeReport, liftedBy, loadProduction, observedGeom, parseGolden, replay, runKey } from '../src/gate.mjs';
 
@@ -143,7 +143,7 @@ test('the compositable control: golden exempt false, one time-based page animati
   assert.equal(CONTROL_FLAG, 'compositable');
   assert.equal(golden.exempt.get(CONTROL_FLAG), false);
   const html = toolbarHtml({ flag: CONTROL_FLAG });
-  assert.ok(html.includes('translateX') && !html.includes('animation-timeline: scroll'));
+  assert.ok(html.includes('translateX') && CONTROL_CSS.includes('animation: fw-ctl') && !CONTROL_CSS.includes('animation-timeline'));
   assert.equal(toolbarHtml({ flag: 'unthrottle' }).includes('"flag":"compositable"'), false);
   assert.equal(judgeReport(golden, prod, fakeReport(CONTROL_FLAG)).ok, true);
   const fast = judgeReport(golden, prod, fakeReport(CONTROL_FLAG, { wait: 32 }));
