@@ -100,6 +100,7 @@ jobs:
         env:
           MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
+          PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
         run: |
           set -euo pipefail
           extra=()
@@ -107,7 +108,7 @@ jobs:
             while IFS= read -r s; do extra+=(--config "$s"); done < <(node packages/measure-webkit/src/throttle/morph-end-search.mjs)
           fi
           if [ -n "$PUSH_CYCLE" ]; then
-            while IFS= read -r s; do extra+=(--config "$s"); done < <(node packages/measure-webkit/src/throttle/push-cycle-search.mjs)
+            while IFS= read -r s; do extra+=(--config "$s"); done < <(node packages/measure-webkit/src/throttle/push-cycle-search.mjs "$PC_ARMS")
           fi
           pnpm --filter @fw/site run build "${extra[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -237,15 +238,17 @@ jobs:
           FW_WK_ATTEMPTS: '3'
           # [throttle:push-cycle] (task push-cycle-lag): six drag-past-the-end cycles per pass on original, rewrite and the user's composition, one round per job, the order rotated
           # by the job number; the dwell after each press is 300 ms, or 1000 ms with [throttle:push-cycle:1000]. It runs push-cycle-cli.mjs.
+          # With [throttle:push-cycle-off] the arms are the user's composition and three single-flag-off pages of it (flag-off attribution).
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
           DWELL_MS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle:1000]') && '1000' || '300' }}
+          PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
           FW_WK_STALL_MS: ${{ (contains(github.event.head_commit.message, '[throttle:morph-end]') || contains(github.event.head_commit.message, '[throttle:push-cycle')) && '720000' || '300000' }}
         working-directory: packages/measure-webkit
         run: |
           set -euo pipefail
           mkdir -p out
           if [ -n "$PUSH_CYCLE" ]; then
-            node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms original,rewrite,user --rounds 1 --rotate "$((VM - 1))" --cycles 6 --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+            node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$PC_ARMS" --rounds 1 --rotate "$((VM - 1))" --cycles 6 --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           elif [ -n "$MORPH_END" ]; then
             # the faithful rewrite and three of the five other compositions in every job (job n takes the others n*3-3 .. n*3-1 round the list), the order rotated by the job number
             others=(clamp flip release all all-unthrottle); arms=rewrite
