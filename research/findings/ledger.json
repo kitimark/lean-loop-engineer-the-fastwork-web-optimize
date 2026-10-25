@@ -4549,6 +4549,36 @@
    "task": "phone-end-counts",
    "field": "lesson",
    "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts, area, layers and frames same as the base in every zone; no phone effect in this lane (Simulator: -3 layouts, 39325721909). Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "task": "resource-redecide",
+   "field": "mechanism",
+   "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): decided WebKit win, Chromium open. WebKit: style and repaint fall by the model (strip_units, strip_repaint_down at DPR 3), GPU memory rises by the clock backing (Simulator 2.287 MB, MEASURED); peak 199,432,405 B from a mixed phone plus Simulator source, phone strip peak 191,681,597 B, both within B (INFERRED). Phone thermal session (every visit ended at Serious): 5 rows agree, 3 unresolved, layers per stop drop 72 to 78 (MEASURED), above the 72-layer bound at y 1500. Not in v2-proved: trajectory cells pending, Chromium open."
+  },
+  {
+   "entry": "morph.columns:idle-none: remove the marquee track animations (animation-name none) while the scene rule pauses the panel, and seek them back to their kept time on return",
+   "task": "resource-redecide",
+   "field": "mechanism",
+   "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): decided open on both engines. Style same is INFERRED (removal treated as pause); paint records, script, EventDispatch and repaint stay unknown, measured inside the spread on the phone (mixed thermal states)."
+  },
+  {
+   "entry": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
+   "task": "resource-redecide",
+   "field": "mechanism",
+   "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): decided trade on both engines. WebKit: Paint records rise on a non-slow arm (webkit-sim 40174475566 vs 40174472900, MEASURED), repaint up by panel_repaint_up at DPR 3 (INFERRED premise: a toggle re-attaches the group layer), backing down (MEASURED). The preset exclusion is now Exclusion.resourceTrade in Gen.lean."
+  },
+  {
+   "entry": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
+   "task": "resource-redecide",
+   "field": "mechanism",
+   "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): WebKit EventDispatch fall not seen on a non-slow arm (webkit-sim 40151813906 vs 40151792642, MEASURED same), so the sign is unknown and the predicted verdict open; the same runs show style up (657 to 688 vs 647 to 651, MEASURED), so the decided verdict is trade."
+  },
+  {
+   "entry": "morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger",
+   "task": "resource-redecide",
+   "field": "mechanism",
+   "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): decided trade on both engines from rows already measured (WebKit script and EventDispatch up on the phone; Chromium about 200 more resolved elements), predicted neutral."
   }
  ]
 }
