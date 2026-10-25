@@ -1,0 +1,1028 @@
+{
+ "run": "40122201939",
+ "lane": "trajectory-probe",
+ "recorder": "root-events",
+ "fw": "engine.events:quiet",
+ "rows": [
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "base",
+   "rep": 0,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 106,
+    "animationend": 56,
+    "animationiteration": 163,
+    "transitionrun": 122,
+    "transitionstart": 115,
+    "transitionend": 66,
+    "animationcancel": 17,
+    "transitioncancel": 56
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "base",
+   "rep": 1,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 96,
+    "animationend": 61,
+    "animationiteration": 93,
+    "transitionrun": 119,
+    "transitionstart": 111,
+    "transitionend": 65,
+    "animationcancel": 9,
+    "transitioncancel": 54
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "base",
+   "rep": 2,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 106,
+    "animationend": 52,
+    "animationiteration": 160,
+    "transitionrun": 120,
+    "transitionstart": 112,
+    "transitionend": 66,
+    "animationcancel": 19,
+    "transitioncancel": 54
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "base",
+   "rep": 3,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 104,
+    "animationend": 56,
+    "animationiteration": 155,
+    "transitionrun": 120,
+    "transitionstart": 112,
+    "animationcancel": 15,
+    "transitionend": 64,
+    "transitioncancel": 56
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "base",
+   "rep": 4,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 89,
+    "animationend": 54,
+    "animationiteration": 161,
+    "transitionrun": 114,
+    "transitionstart": 106,
+    "animationcancel": 23,
+    "transitionend": 64,
+    "transitioncancel": 50
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "cand",
+   "rep": 0,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 104,
+    "animationend": 54,
+    "animationiteration": 150,
+    "transitionrun": 132,
+    "transitionstart": 119,
+    "transitionend": 64,
+    "animationcancel": 17,
+    "transitioncancel": 68
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "cand",
+   "rep": 1,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 106,
+    "animationend": 56,
+    "animationiteration": 155,
+    "transitionrun": 120,
+    "transitionstart": 112,
+    "transitionend": 66,
+    "animationcancel": 17,
+    "transitioncancel": 54
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "cand",
+   "rep": 2,
+   "registered": {},
+   "dispatched": {
+    "animationend": 52,
+    "animationstart": 90,
+    "animationiteration": 160,
+    "transitionrun": 120,
+    "transitionstart": 111,
+    "animationcancel": 19,
+    "transitionend": 64,
+    "transitioncancel": 56
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "cand",
+   "rep": 3,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 104,
+    "animationend": 59,
+    "animationiteration": 160,
+    "transitionrun": 114,
+    "transitionstart": 107,
+    "transitionend": 64,
+    "animationcancel": 12,
+    "transitioncancel": 50
+   }
+  },
+  {
+   "leg": "apple-1280",
+   "engine": "playwright-webkit",
+   "width": 1280,
+   "role": "cand",
+   "rep": 4,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 104,
+    "animationend": 56,
+    "animationiteration": 151,
+    "transitionrun": 114,
+    "transitionstart": 107,
+    "animationcancel": 15,
+    "transitionend": 64,
+    "transitioncancel": 50
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "base",
+   "rep": 0,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 66,
+    "transitionrun": 81,
+    "transitionstart": 75,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 148,
+    "transitioncancel": 21,
+    "animationcancel": 2
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "base",
+   "rep": 1,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 66,
+    "transitionrun": 76,
+    "transitionstart": 71,
+    "animationend": 41,
+    "transitionend": 60,
+    "animationiteration": 151,
+    "animationcancel": 2,
+    "transitioncancel": 16
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "base",
+   "rep": 2,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 66,
+    "transitionrun": 78,
+    "transitionstart": 71,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 157,
+    "animationcancel": 2,
+    "transitioncancel": 18
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "base",
+   "rep": 3,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 66,
+    "transitionrun": 79,
+    "animationend": 39,
+    "transitionstart": 71,
+    "transitionend": 60,
+    "animationiteration": 158,
+    "animationcancel": 2,
+    "transitioncancel": 19
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "base",
+   "rep": 4,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 86,
+    "transitionstart": 77,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 149,
+    "transitioncancel": 26,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "cand",
+   "rep": 0,
+   "registered": {},
+   "dispatched": {
+    "transitionrun": 98,
+    "animationstart": 52,
+    "transitionstart": 85,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 154,
+    "transitioncancel": 38,
+    "animationcancel": 2
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "cand",
+   "rep": 1,
+   "registered": {},
+   "dispatched": {
+    "transitionrun": 81,
+    "animationstart": 52,
+    "transitionstart": 73,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 148,
+    "transitioncancel": 21,
+    "animationcancel": 2
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "cand",
+   "rep": 2,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 66,
+    "transitionrun": 80,
+    "transitionstart": 72,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 148,
+    "animationcancel": 2,
+    "transitioncancel": 20
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "cand",
+   "rep": 3,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 66,
+    "transitionrun": 94,
+    "transitionstart": 81,
+    "animationend": 39,
+    "transitionend": 60,
+    "animationiteration": 148,
+    "animationcancel": 2,
+    "transitioncancel": 34
+   }
+  },
+  {
+   "leg": "apple-390",
+   "engine": "playwright-webkit",
+   "width": 390,
+   "role": "cand",
+   "rep": 4,
+   "registered": {},
+   "dispatched": {
+    "transitionrun": 64,
+    "animationstart": 52,
+    "transitionstart": 63,
+    "animationend": 39,
+    "transitionend": 61,
+    "animationiteration": 148,
+    "animationcancel": 2,
+    "transitioncancel": 3
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "base",
+   "rep": 0,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 108,
+    "animationend": 59,
+    "animationiteration": 164,
+    "transitionrun": 169,
+    "transitionstart": 156,
+    "animationcancel": 14,
+    "transitionend": 70,
+    "transitioncancel": 99
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "base",
+   "rep": 1,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 107,
+    "animationend": 59,
+    "animationiteration": 164,
+    "transitionrun": 172,
+    "transitionstart": 158,
+    "animationcancel": 14,
+    "transitionend": 70,
+    "transitioncancel": 102
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "base",
+   "rep": 2,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 107,
+    "animationend": 54,
+    "animationiteration": 164,
+    "transitionrun": 165,
+    "transitionstart": 153,
+    "animationcancel": 19,
+    "transitionend": 70,
+    "transitioncancel": 95
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "base",
+   "rep": 3,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 108,
+    "animationend": 55,
+    "animationiteration": 164,
+    "transitionrun": 150,
+    "transitionstart": 140,
+    "animationcancel": 18,
+    "transitionend": 70,
+    "transitioncancel": 80
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "base",
+   "rep": 4,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 108,
+    "animationend": 54,
+    "animationiteration": 164,
+    "transitionrun": 161,
+    "transitionstart": 150,
+    "animationcancel": 19,
+    "transitionend": 70,
+    "transitioncancel": 91
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "cand",
+   "rep": 0,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 108,
+    "animationend": 57,
+    "animationiteration": 164,
+    "transitionrun": 153,
+    "transitionstart": 143,
+    "animationcancel": 16,
+    "transitionend": 70,
+    "transitioncancel": 83
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "cand",
+   "rep": 1,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 107,
+    "animationend": 57,
+    "animationiteration": 164,
+    "transitionrun": 170,
+    "transitionstart": 157,
+    "animationcancel": 16,
+    "transitionend": 70,
+    "transitioncancel": 100
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "cand",
+   "rep": 2,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 107,
+    "animationend": 56,
+    "animationiteration": 164,
+    "transitionrun": 165,
+    "transitionstart": 153,
+    "animationcancel": 17,
+    "transitionend": 70,
+    "transitioncancel": 95
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "cand",
+   "rep": 3,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 107,
+    "animationend": 56,
+    "animationiteration": 164,
+    "transitionrun": 173,
+    "transitionstart": 159,
+    "animationcancel": 17,
+    "transitionend": 70,
+    "transitioncancel": 103
+   }
+  },
+  {
+   "leg": "chromium-1280",
+   "engine": "chromium",
+   "width": 1280,
+   "role": "cand",
+   "rep": 4,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 108,
+    "animationend": 57,
+    "animationiteration": 164,
+    "transitionrun": 170,
+    "transitionstart": 157,
+    "animationcancel": 16,
+    "transitionend": 70,
+    "transitioncancel": 100
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "base",
+   "rep": 0,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 179,
+    "transitionstart": 155,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 120,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "base",
+   "rep": 1,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 179,
+    "transitionstart": 155,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 120,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "base",
+   "rep": 2,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 179,
+    "transitionstart": 155,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 120,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "base",
+   "rep": 3,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 183,
+    "transitionstart": 158,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 124,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "base",
+   "rep": 4,
+   "registered": {
+    "root:animationend:b": 1,
+    "root:animationend:c": 1,
+    "root:animationiteration:b": 1,
+    "root:animationiteration:c": 1,
+    "root:animationstart:b": 1,
+    "root:animationstart:c": 1,
+    "root:transitionrun:b": 1,
+    "root:transitionrun:c": 1,
+    "root:transitionstart:b": 1,
+    "root:transitionstart:c": 1,
+    "root:transitioncancel:b": 1,
+    "root:transitioncancel:c": 1,
+    "root:transitionend:b": 1,
+    "root:transitionend:c": 1
+   },
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 183,
+    "transitionstart": 158,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 124,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "cand",
+   "rep": 0,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 187,
+    "transitionstart": 161,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 128,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "cand",
+   "rep": 1,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 187,
+    "transitionstart": 161,
+    "transitionend": 59,
+    "animationend": 39,
+    "animationiteration": 164,
+    "transitioncancel": 128,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "cand",
+   "rep": 2,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 183,
+    "transitionstart": 158,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 124,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "cand",
+   "rep": 3,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 183,
+    "transitionstart": 158,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 124,
+    "animationcancel": 4
+   }
+  },
+  {
+   "leg": "chromium-390",
+   "engine": "chromium",
+   "width": 390,
+   "role": "cand",
+   "rep": 4,
+   "registered": {},
+   "dispatched": {
+    "animationstart": 67,
+    "transitionrun": 183,
+    "transitionstart": 158,
+    "animationend": 39,
+    "transitionend": 59,
+    "animationiteration": 164,
+    "transitioncancel": 124,
+    "animationcancel": 4
+   }
+  }
+ ]
+}
