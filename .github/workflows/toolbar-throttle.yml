@@ -237,11 +237,12 @@ jobs:
           set -euo pipefail
           mkdir -p out
           if [ -n "$MORPH_END" ]; then
-            # the faithful rewrite first, then two compositions taken in turn from the five (job v: numbers 2(v-1) and 2(v-1)+1 mod 5), so each composition is in 4 of 10 jobs;
+            # the faithful rewrite first, then two compositions taken in turn from the four with the fewest usable passes so far
+            # (clamp has them: 6 passes beside 4 faithful), so each is in 5 of 10 jobs (job v: numbers 2(v-1) and 2(v-1)+1 mod 4);
             # jobs 6 to 10 repeat jobs 1 to 5 with the two swapped
-            comps=(clamp flip release all all-unthrottle)
-            a=${comps[$(( (2 * (VM - 1)) % 5 ))]}
-            b=${comps[$(( (2 * (VM - 1) + 1) % 5 ))]}
+            comps=(flip release all all-unthrottle)
+            a=${comps[$(( (2 * (VM - 1)) % 4 ))]}
+            b=${comps[$(( (2 * (VM - 1) + 1) % 4 ))]}
             if [ "$VM" -gt 5 ]; then arms=rewrite,$b,$a; else arms=rewrite,$a,$b; fi
             node src/throttle/cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$arms" --rounds 1 --rotate 0 --cycles 4 --mode "$MODE" --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           else
