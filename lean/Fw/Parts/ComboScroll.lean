@@ -1,5 +1,7 @@
 import Fw.Parts.MorphEnd
 import Fw.Parts.MorphMountArmLate
+import Fw.Console.BuildsOpen
+import Fw.Console.Compose
 
 namespace Fw.Parts.ComboScroll
 
@@ -22,25 +24,56 @@ def _root_.Fw.Parts.MorphEnd.Ev.readY : Ev → Option Rat
   | .wheel _ r => some r.scrollY
   | _ => none
 
-def holds (o : Out) (c : Bool) : Bool := o.prevent && c
+structure Dlv where
+  cancelable : Bool
+  passive : Bool
+  other : Bool
+deriving Repr, BEq, DecidableEq
+
+def Dlv.prevented (d : Dlv) (o : Out) : Bool := d.other || (o.prevent && d.cancelable && !d.passive)
+
+def Dlv.std : Dlv := ⟨true, false, false⟩
+
+def Dlv.ofArm (blk cancelable : Bool) : Dlv := ⟨cancelable, !blk, false⟩
+
+def holds (o : Out) (c : Dlv) : Bool := c.prevented o
+
+theorem holds_std (o : Out) : holds o Dlv.std = o.prevent := by
+  simp [holds, Dlv.prevented, Dlv.std]
+
+theorem holds_passive (o : Out) (c : Dlv) (hp : c.passive = true) (ho : c.other = false) : holds o c = false := by
+  simp [holds, Dlv.prevented, hp, ho]
+
+theorem holds_uncancelable (o : Out) (c : Dlv) (hc : c.cancelable = false) (ho : c.other = false) : holds o c = false := by
+  simp [holds, Dlv.prevented, hc, ho]
+
+theorem holds_blocking (o : Out) (c : Dlv) (hc : c.cancelable = true) (hp : c.passive = false) (ho : c.other = false) :
+    holds o c = o.prevent := by
+  simp [holds, Dlv.prevented, hc, hp, ho]
+
+theorem holds_other (o : Out) (c : Dlv) (ho : c.other = true) : holds o c = true := by
+  simp [holds, Dlv.prevented, ho]
+
+theorem old_rule_differs : ∃ (o : Out) (c : Dlv), (o.prevent && c.cancelable) = true ∧ holds o c = false :=
+  ⟨⟨true, none, false, none⟩, ⟨true, true, false⟩, by decide⟩
 
 def rehold (e : Ev) (k held : Bool) (s : S) : S :=
   match e.readY with
   | some y => if k && !held then { s with pin := y } else s
   | none => s
 
-def wstep (h : Hooks) (w : W) (e : Ev) (c : Bool) : W × Out :=
+def wstep (h : Hooks) (w : W) (e : Ev) (c : Dlv) : W × Out :=
   let r := step h w.s e
   if h.release then
     if e.isMove then (⟨rehold e (holds r.2 c) w.held r.1, holds r.2 c⟩, r.2)
     else (⟨r.1, w.held⟩, if w.held then r.2 else { r.2 with write := none })
   else (⟨r.1, w.held⟩, r.2)
 
-def wfinal (h : Hooks) : W → List (Ev × Bool) → W
+def wfinal (h : Hooks) : W → List (Ev × Dlv) → W
   | w, [] => w
   | w, (e, c) :: t => wfinal h (wstep h w e c).1 t
 
-def wtrace (h : Hooks) : W → List (Ev × Bool) → List (Ev × Out)
+def wtrace (h : Hooks) : W → List (Ev × Dlv) → List (Ev × Out)
   | _, [] => []
   | w, (e, c) :: t => (e, (wstep h w e c).2) :: wtrace h (wstep h w e c).1 t
 
@@ -55,7 +88,7 @@ theorem sameCore_symm {a b : S} (h : a.sameCore b) : b.sameCore a :=
 theorem sameCore_trans {a b c : S} (h : a.sameCore b) (h' : b.sameCore c) : a.sameCore c :=
   ⟨h.1.trans h'.1, h.2.1.trans h'.2.1, h.2.2.1.trans h'.2.2.1, h.2.2.2.1.trans h'.2.2.2.1, h.2.2.2.2.trans h'.2.2.2.2⟩
 
-theorem wstep_off (h : Hooks) (hr : h.release = false) (w : W) (e : Ev) (c : Bool) :
+theorem wstep_off (h : Hooks) (hr : h.release = false) (w : W) (e : Ev) (c : Dlv) :
     wstep h w e c = (⟨(step h w.s e).1, w.held⟩, (step h w.s e).2) := by
   simp [wstep, hr]
 
@@ -65,7 +98,7 @@ theorem rehold_core (e : Ev) (k held : Bool) (s : S) : (rehold e k held s).sameC
   · split <;> exact sameCore_refl _
   · exact sameCore_refl _
 
-theorem wstep_core (h : Hooks) (w : W) (e : Ev) (c : Bool) : (wstep h w e c).1.s.sameCore (step h w.s e).1 := by
+theorem wstep_core (h : Hooks) (w : W) (e : Ev) (c : Dlv) : (wstep h w e c).1.s.sameCore (step h w.s e).1 := by
   unfold wstep
   split
   · split
@@ -73,19 +106,19 @@ theorem wstep_core (h : Hooks) (w : W) (e : Ev) (c : Bool) : (wstep h w e c).1.s
     · exact sameCore_refl _
   · exact sameCore_refl _
 
-theorem wstep_prevent (h : Hooks) (w : W) (e : Ev) (c : Bool) : (wstep h w e c).2.prevent = (step h w.s e).2.prevent := by
+theorem wstep_prevent (h : Hooks) (w : W) (e : Ev) (c : Dlv) : (wstep h w e c).2.prevent = (step h w.s e).2.prevent := by
   unfold wstep
   split <;> (try split) <;> (try (by_cases hh : w.held = true <;> simp [hh]))
 
-theorem wstep_goal (h : Hooks) (w : W) (e : Ev) (c : Bool) : (wstep h w e c).2.goal = (step h w.s e).2.goal := by
+theorem wstep_goal (h : Hooks) (w : W) (e : Ev) (c : Dlv) : (wstep h w e c).2.goal = (step h w.s e).2.goal := by
   unfold wstep
   split <;> (try split) <;> (try (by_cases hh : w.held = true <;> simp [hh]))
 
-theorem wstep_flip (h : Hooks) (w : W) (e : Ev) (c : Bool) : (wstep h w e c).2.flip = (step h w.s e).2.flip := by
+theorem wstep_flip (h : Hooks) (w : W) (e : Ev) (c : Dlv) : (wstep h w e c).2.flip = (step h w.s e).2.flip := by
   unfold wstep
   split <;> (try split) <;> (try (by_cases hh : w.held = true <;> simp [hh]))
 
-theorem wstep_write_sub (h : Hooks) (w : W) (e : Ev) (c : Bool) (x : Rat)
+theorem wstep_write_sub (h : Hooks) (w : W) (e : Ev) (c : Dlv) (x : Rat)
     (hw : (wstep h w e c).2.write = some x) : (step h w.s e).2.write = some x := by
   unfold wstep at hw
   split at hw
@@ -94,7 +127,7 @@ theorem wstep_write_sub (h : Hooks) (w : W) (e : Ev) (c : Bool) (x : Rat)
     · split at hw <;> simp_all
   · exact hw
 
-theorem fix_write_held (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (x : Rat)
+theorem fix_write_held (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Dlv) (x : Rat)
     (hw : (wstep h w e c).2.write = some x) : w.held = true ∨ e.isMove = true := by
   unfold wstep at hw
   simp only [hr, ite_true] at hw
@@ -106,23 +139,23 @@ theorem fix_write_held (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c :
     · exact hh
     · simp [hh] at hw
 
-theorem wstep_held_move (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (he : e.isMove = true) :
+theorem wstep_held_move (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Dlv) (he : e.isMove = true) :
     (wstep h w e c).1.held = holds (step h w.s e).2 c := by
   simp [wstep, hr, he]
 
-theorem wstep_held_frame (h : Hooks) (w : W) (e : Ev) (c : Bool) (he : e.isMove = false) :
+theorem wstep_held_frame (h : Hooks) (w : W) (e : Ev) (c : Dlv) (he : e.isMove = false) :
     (wstep h w e c).1.held = w.held := by
   unfold wstep; split <;> (try split) <;> simp_all
 
-theorem wstep_frame_state (h : Hooks) (w : W) (e : Ev) (c : Bool) (he : e.isFrame = true) :
+theorem wstep_frame_state (h : Hooks) (w : W) (e : Ev) (c : Dlv) (he : e.isFrame = true) :
     (wstep h w e c).1 = w := by
   have hm : e.isMove = false := by cases e <;> simp_all [Ev.isFrame, Ev.isMove]
   have hs := step_frame h w.s e he
   unfold wstep
   split <;> (try split) <;> simp_all
 
-theorem native_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (he : e.isMove = true)
-    (hn : holds (step h w.s e).2 c = false) (t : List (Ev × Bool)) (hf : ∀ p ∈ t, p.1.isFrame = true) :
+theorem native_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Dlv) (he : e.isMove = true)
+    (hn : holds (step h w.s e).2 c = false) (t : List (Ev × Dlv)) (hf : ∀ p ∈ t, p.1.isFrame = true) :
     ∀ q ∈ wtrace h (wstep h w e c).1 t, q.2.write = none := by
   have hheld : (wstep h w e c).1.held = false := by rw [wstep_held_move h hr w e c he, hn]
   generalize (wstep h w e c).1 = w' at hheld
@@ -141,25 +174,25 @@ theorem native_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : B
     · rw [hst] at hq
       exact ih (fun p hp => hf p (List.mem_cons_of_mem _ hp)) w' hheld q hq
 
-theorem rehold_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool) (y : Rat)
+theorem rehold_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Dlv) (y : Rat)
     (hy : e.readY = some y) (hk : holds (step h w.s e).2 c = true) (hw : w.held = false) :
     (wstep h w e c).1.s.pin = y ∧ (wstep h w e c).1.held = true := by
   have he : e.isMove = true := by cases e <;> simp_all [Ev.readY, Ev.isMove]
   refine ⟨?_, by rw [wstep_held_move h hr w e c he, hk]⟩
   simp [wstep, hr, he, rehold, hy, hk, hw]
 
-theorem held_keeps_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Bool)
+theorem held_keeps_pin (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Dlv)
     (hk : holds (step h w.s e).2 c = true) (hw : w.held = true) : (wstep h w e c).1.s = (step h w.s e).1 := by
   by_cases he : e.isMove = true
   · simp [wstep, hr, he, rehold, hk, hw]
     cases e.readY <;> simp
   · simp [wstep, hr, he]
 
-def AllHold (h : Hooks) : S → List (Ev × Bool) → Prop
+def AllHold (h : Hooks) : S → List (Ev × Dlv) → Prop
   | _, [] => True
   | s, (e, c) :: t => (e.isMove = true → holds (step h s e).2 c = true) ∧ AllHold h (step h s e).1 t
 
-theorem wrap_all_hold (h : Hooks) (w : W) (t : List (Ev × Bool)) (hw : w.held = true) (ha : AllHold h w.s t) :
+theorem wrap_all_hold (h : Hooks) (w : W) (t : List (Ev × Dlv)) (hw : w.held = true) (ha : AllHold h w.s t) :
     wtrace h w t = trace h w.s (t.map (·.1)) ∧ (wfinal h w t).s = final h w.s (t.map (·.1)) ∧ (wfinal h w t).held = true := by
   induction t generalizing w with
   | nil => exact ⟨rfl, rfl, hw⟩
@@ -184,7 +217,7 @@ theorem wrap_all_hold (h : Hooks) (w : W) (t : List (Ev × Bool)) (hw : w.held =
       simp only [List.map, trace, wtrace, wfinal, final, hstate] at *
       exact ⟨by rw [i1], i2, i3⟩
 
-theorem faithful_w (h : Hooks) (hr : h.release = false) (w : W) (t : List (Ev × Bool)) (hw : w.held = true) :
+theorem faithful_w (h : Hooks) (hr : h.release = false) (w : W) (t : List (Ev × Dlv)) (hw : w.held = true) :
     wtrace h w t = trace h w.s (t.map (·.1)) ∧ (wfinal h w t).s = final h w.s (t.map (·.1)) := by
   induction t generalizing w with
   | nil => exact ⟨rfl, rfl⟩
@@ -230,7 +263,7 @@ theorem step_core_pin (h : Hooks) (a b : S) (hc : a.sameCore b) (e : Ev) :
   | resize y m => simp [step, S.sameCore, frameOut]
   | tick now => cases hp : ta.pending <;> simp [step, S.sameCore, hp]
 
-theorem wtrace_decisions (h : Hooks) (w : W) (s : S) (hs : w.s.sameCore s) (t : List (Ev × Bool)) :
+theorem wtrace_decisions (h : Hooks) (w : W) (s : S) (hs : w.s.sameCore s) (t : List (Ev × Dlv)) :
     (wtrace h w t).map (fun p => (p.1, p.2.prevent, p.2.goal, p.2.flip)) =
       (trace h s (t.map (·.1))).map (fun p => (p.1, p.2.prevent, p.2.goal, p.2.flip)) ∧
     (wfinal h w t).s.sameCore (final h s (t.map (·.1))) := by
@@ -245,29 +278,29 @@ theorem wtrace_decisions (h : Hooks) (w : W) (s : S) (hs : w.s.sameCore s) (t : 
     simp only [List.map, trace, wtrace, wstep_prevent, wstep_goal, wstep_flip, j2, j3, j4]
     rw [i1]
 
-theorem wclamp_le (c : Cfg) (hc : c.clamp = true) (w : W) (e : Ev) (b : Bool) (x : Rat)
+theorem wclamp_le (c : Cfg) (hc : c.clamp = true) (w : W) (e : Ev) (b : Dlv) (x : Rat)
     (hw : (wstep c.hooks w e b).2.write = some x) : ∃ y m, (e = .scroll y m ∨ e = .resize y m) ∧ x ≤ m :=
   clamp_le c hc w.s e x (wstep_write_sub _ _ _ _ _ hw)
 
-theorem wrelease_close_free (c : Cfg) (hc : c.release = true) (w : W) (e : Ev) (b : Bool)
+theorem wrelease_close_free (c : Cfg) (hc : c.release = true) (w : W) (e : Ev) (b : Dlv)
     (hg : (wstep c.hooks w e b).2.goal = some 0) : (wstep c.hooks w e b).2.prevent = false := by
   rw [wstep_goal] at hg
   rw [wstep_prevent]
   exact release_close_free c hc w.s e hg
 
-theorem wrelease_starts (h : Hooks) (w : W) (e : Ev) (b : Bool) (hg : (wstep h w e b).2.goal = some 0) :
+theorem wrelease_starts (h : Hooks) (w : W) (e : Ev) (b : Dlv) (hg : (wstep h w e b).2.goal = some 0) :
     (wstep h w e b).1.s.rel = true := by
   rw [wstep_goal] at hg
   rw [(wstep_core h w e b).2.2.2.2]
   exact release_starts h w.s e hg
 
-theorem wrelease_rel (h : Hooks) (w : W) (e : Ev) (b : Bool) (hr : w.s.rel = true) (hg : (wstep h w e b).2.goal ≠ some 1) :
+theorem wrelease_rel (h : Hooks) (w : W) (e : Ev) (b : Dlv) (hr : w.s.rel = true) (hg : (wstep h w e b).2.goal ≠ some 1) :
     (wstep h w e b).1.s.rel = true := by
   rw [wstep_goal] at hg
   rw [(wstep_core h w e b).2.2.2.2]
   exact release_rel h w.s e hr hg
 
-theorem wrelease_quiet (c : Cfg) (hc : c.release = true) (w : W) (t : List (Ev × Bool)) (hr : w.s.rel = true)
+theorem wrelease_quiet (c : Cfg) (hc : c.release = true) (w : W) (t : List (Ev × Dlv)) (hr : w.s.rel = true)
     (hno : ∀ p ∈ wtrace c.hooks w t, p.2.goal ≠ some 1) : ∀ p ∈ wtrace c.hooks w t, p.2.write = none := by
   induction t generalizing w with
   | nil => simp [wtrace]
@@ -294,7 +327,7 @@ theorem wrelease_quiet (c : Cfg) (hc : c.release = true) (w : W) (t : List (Ev �
     · exact hw
     · exact ih _ hr' (fun q hq => hno q (by simp only [wtrace, List.mem_cons]; exact Or.inr hq)) p hp
 
-theorem cadence_w (h : Hooks) (w : W) (t : List (Ev × Bool)) :
+theorem cadence_w (h : Hooks) (w : W) (t : List (Ev × Dlv)) :
     wfinal h w t = wfinal h w (t.filter (!·.1.isFrame)) := by
   induction t generalizing w with
   | nil => rfl
@@ -304,20 +337,43 @@ theorem cadence_w (h : Hooks) (w : W) (t : List (Ev × Bool)) :
     · simp only [wfinal, List.filter, he, Bool.not_true]; rw [wstep_frame_state h w e c he]; exact ih w
     · simp only [wfinal, List.filter, he, Bool.not_false]; exact ih _
 
-theorem arm_late_holds (blk : Bool) (o : Out) (c : Bool) (h : o.prevent = true → blk = true) :
-    holds (MorphMountArmLate.honorOut blk o) c = holds o c := by
-  rw [MorphMountArmLate.honorOut_of blk o h]
+theorem holds_arm (blk cancelable : Bool) (o : Out) :
+    holds o (Dlv.ofArm blk cancelable) = holds (MorphMountArmLate.honorOut blk o) ⟨cancelable, false, false⟩ := by
+  cases blk <;> cases cancelable <;> simp [holds, Dlv.prevented, Dlv.ofArm, MorphMountArmLate.honorOut]
 
-theorem one_write_per_frame (h : Hooks) (w : W) (e : Ev) (c : Bool) (x y : Rat)
+theorem arm_late_holds (blk cancelable : Bool) (o : Out) (h : o.prevent = true → blk = true) :
+    holds o (Dlv.ofArm blk cancelable) = holds o ⟨cancelable, false, false⟩ := by
+  rw [holds_arm, MorphMountArmLate.honorOut_of blk o h]
+
+theorem arm_passive_unheld (cancelable : Bool) (o : Out) : holds o (Dlv.ofArm false cancelable) = false :=
+  holds_passive o _ rfl rfl
+
+theorem arm_passive_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (cancelable : Bool) (he : e.isMove = true)
+    (t : List (Ev × Dlv)) (hf : ∀ p ∈ t, p.1.isFrame = true) :
+    ∀ q ∈ wtrace h (wstep h w e (Dlv.ofArm false cancelable)).1 t, q.2.write = none :=
+  native_quiet h hr w e _ he (arm_passive_unheld cancelable _) t hf
+
+theorem passive_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : Dlv) (he : e.isMove = true)
+    (hp : c.passive = true) (ho : c.other = false) (t : List (Ev × Dlv)) (hf : ∀ p ∈ t, p.1.isFrame = true) :
+    ∀ q ∈ wtrace h (wstep h w e c).1 t, q.2.write = none :=
+  native_quiet h hr w e c he (holds_passive _ c hp ho) t hf
+
+theorem one_write_per_frame (h : Hooks) (w : W) (e : Ev) (c : Dlv) (x y : Rat)
     (h1 : (wstep h w e c).2.write = some x) (h2 : (wstep h w e c).2.write = some y) : x = y := by
   rw [h1] at h2; exact Option.some.inj h2
 
 def rd (y now : Rat) : Read := ⟨y, true, now, false⟩
 
-def userTrace : List (Ev × Bool) :=
-  [(.touchstart (some 700), true), (.touchmove (some 690) (rd 5188 0), true), (.tick 700, true),
-   (.touchmove (some 900) (rd 5188 700), true), (.touchmove (some 850) (rd 4900 800), false),
-   (.scroll 4950 5188, true), (.scroll 4880 5188, true)]
+def ok : Dlv := Dlv.std
+
+def nc : Dlv := ⟨false, false, false⟩
+
+def ps : Dlv := ⟨true, true, false⟩
+
+def userTrace : List (Ev × Dlv) :=
+  [(.touchstart (some 700), ok), (.touchmove (some 690) (rd 5188 0), ok), (.tick 700, ok),
+   (.touchmove (some 900) (rd 5188 700), ok), (.touchmove (some 850) (rd 4900 800), nc),
+   (.scroll 4950 5188, ok), (.scroll 4880 5188, ok)]
 
 def userCfg : Cfg := ⟨true, true, true⟩
 
@@ -332,12 +388,103 @@ def writesOf (l : List (Ev × Out)) : List (Option Rat) := l.map (·.2.write)
 #guard (wtrace userCfg.hooks (W.init 5188) userTrace).map (·.2.prevent) ==
   [false, true, false, false, true, false, false]
 
-def heldTrace : List (Ev × Bool) :=
-  [(.touchstart (some 700), true), (.touchmove (some 690) (rd 5188 0), true), (.tick 700, true),
-   (.touchmove (some 900) (rd 5188 700), true), (.touchstart (some 500), true), (.touchmove (some 450) (rd 4900 800), true),
-   (.scroll 4950 5188, true)]
+def heldTrace : List (Ev × Dlv) :=
+  [(.touchstart (some 700), ok), (.touchmove (some 690) (rd 5188 0), ok), (.tick 700, ok),
+   (.touchmove (some 900) (rd 5188 700), ok), (.touchstart (some 500), ok), (.touchmove (some 450) (rd 4900 800), ok),
+   (.scroll 4950 5188, ok)]
 
 #guard writesOf (wtrace userCfg.hooks (W.init 5188) heldTrace) == [none, none, none, none, none, none, some 4900]
 #guard writesOf (wtrace userCfg.hooks (W.init 5188) heldTrace) == writesOf (trace userCfg.hooks (init 5188) (heldTrace.map (·.1)))
+
+def passiveTrace : List (Ev × Dlv) :=
+  [(.touchstart (some 700), ok), (.touchmove (some 690) (rd 5188 0), ok), (.tick 700, ok),
+   (.touchmove (some 900) (rd 5188 700), ok), (.touchmove (some 850) (rd 4900 800), ps),
+   (.scroll 4950 5188, ok), (.scroll 4880 5188, ok)]
+
+#guard writesOf (wtrace userCfg.hooks (W.init 5188) passiveTrace) == [none, none, none, none, none, none, none]
+#guard writesOf (trace userCfg.hooks (init 5188) (passiveTrace.map (·.1))) == [none, none, none, none, none, some 4900, some 4900]
+#guard (wfinal userCfg.hooks (W.init 5188) passiveTrace).held == false
+#guard (wtrace userCfg.hooks (W.init 5188) passiveTrace).map (·.2.prevent) == [false, true, false, false, true, false, false]
+
+def otherTrace : List (Ev × Dlv) :=
+  [(.touchstart (some 700), ok), (.touchmove (some 690) (rd 5188 0), ok), (.tick 700, ok),
+   (.touchmove (some 900) (rd 5188 700), ok), (.touchmove (some 850) (rd 4900 800), ⟨true, true, true⟩),
+   (.scroll 4950 5188, ok)]
+
+#guard (wfinal userCfg.hooks (W.init 5188) otherTrace).held == true
+
+section ReleaseConflict
+open Fw.Console.BuildsOpen
+
+def waapiKeys : List String := ["morph.tween:waapi", "morph.tween:waapi-scoped"]
+
+def releaseRule : List (String × List String) := [("morph.end.release:on", waapiKeys)]
+
+theorem mem_of_lookup_some {α : Type} [BEq α] [LawfulBEq α] {β : Type} (l : List (α × β)) (k : α) (v : β)
+    (h : l.lookup k = some v) : (k, v) ∈ l := by
+  induction l with
+  | nil => simp [List.lookup] at h
+  | cons a t ih =>
+    obtain ⟨x, y⟩ := a
+    simp only [List.lookup] at h
+    by_cases hk : k == x
+    · simp [hk] at h
+      have := beq_iff_eq.1 hk
+      subst this; subst h; simp
+    · simp [hk] at h
+      exact List.mem_cons_of_mem _ (ih h)
+
+theorem finish_refuses (parts : List PartFact) (p : PartFact) (hp : p ∈ parts) (hid : p.id = "morph.end.release")
+    (hc : p.conflicts.lookup "morph.end.release:on" = some waapiKeys) (st : St)
+    (hr : st.sel.lookup "morph.end.release" = some "on") (b : String) (hb : b ∈ waapiKeys)
+    (hw : (selected st.sel).contains b = true) : finish parts st ≠ [] := by
+  by_cases he : st.errs = []
+  · rw [finish_clean parts st he]
+    refine ruleErrors_conflicts parts st.sel p hp b ?_ hw
+    rw [hid, hr]
+    simp [hc, hb]
+  · exact finish_pos parts st (List.length_pos_iff.2 he)
+
+theorem validate_ok_clean (parts presets) (s c : String) (h : validate parts presets s = .ok c) :
+    searchErrors parts presets (params (body s)) = [] := by
+  unfold validate at h
+  split at h
+  · cases h
+  · split at h
+    · cases h
+    · dsimp only at h
+      generalize hE : searchErrors parts presets (params (body s)) = es at h
+      cases es with
+      | nil => rfl
+      | cons a t =>
+        rw [verdictOf_refused _ _ _ _ (List.cons_ne_nil a t)] at h
+        cases h
+
+theorem accepted_no_release_waapi (parts presets) (s c : String) (h : validate parts presets s = .ok c)
+    (p : PartFact) (hp : p ∈ parts) (hid : p.id = "morph.end.release")
+    (hc : p.conflicts.lookup "morph.end.release:on" = some waapiKeys) (b : String) (hb : b ∈ waapiKeys) :
+    ¬ ((((fwEntries (params (body s))).foldl (applyFwEntry parts)
+          (stage1 parts presets (valuesOf "preset" (params (body s))))).sel.lookup "morph.end.release" = some "on") ∧
+      (selected ((fwEntries (params (body s))).foldl (applyFwEntry parts)
+          (stage1 parts presets (valuesOf "preset" (params (body s))))).sel).contains b = true) := by
+  intro ⟨hr, hw⟩
+  have h0 := validate_ok_clean parts presets s c h
+  unfold searchErrors at h0
+  have h1 := (List.append_eq_nil_iff.1 h0).1
+  exact finish_refuses parts p hp hid hc _ hr b hb hw h1
+
+theorem decided_no_release_waapi (parts : List Fw.Console.Compose.PartInfo) rows presets picks (c : String)
+    (h : (Fw.Console.Compose.decide parts rows presets picks).link = some c)
+    (p : PartFact) (hp : p ∈ parts.map (·.fact)) (hid : p.id = "morph.end.release")
+    (hc : p.conflicts.lookup "morph.end.release:on" = some waapiKeys) (b : String) (hb : b ∈ waapiKeys) :
+    ∃ c', validate (parts.map (·.fact)) [] c = .ok c' ∧
+    ¬ ((((fwEntries (params (body c))).foldl (applyFwEntry (parts.map (·.fact)))
+          (stage1 (parts.map (·.fact)) [] (valuesOf "preset" (params (body c))))).sel.lookup "morph.end.release" = some "on") ∧
+      (selected ((fwEntries (params (body c))).foldl (applyFwEntry (parts.map (·.fact)))
+          (stage1 (parts.map (·.fact)) [] (valuesOf "preset" (params (body c))))).sel).contains b = true) := by
+  obtain ⟨c', hv⟩ := Fw.Console.Compose.link_resolves parts rows presets picks c h
+  exact ⟨c', hv, accepted_no_release_waapi _ _ c c' hv p hp hid hc b hb⟩
+
+end ReleaseConflict
 
 end Fw.Parts.ComboScroll

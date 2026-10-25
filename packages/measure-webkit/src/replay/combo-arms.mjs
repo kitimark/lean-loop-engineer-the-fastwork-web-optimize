@@ -21,18 +21,23 @@ export const BISECT = [
   { name: 'end3+arm-late', search: q([...END3, 'morph.mount:arm-late']) },
   { name: 'end3+unthrottle', search: q([...END3, 'engine.scroll:unthrottle']) },
   { name: 'end3+arm-late+unthrottle', search: q([...END3, 'morph.mount:arm-late', 'engine.scroll:unthrottle']) },
+  { name: 'user+allpassive', search: q(USER_FLAGS) },
+  { name: 'release+allpassive', search: q(['morph.end.release:on']) },
 ];
 
-export const FIX = BISECT.filter((a) => ['default', 'user', 'end3', 'release'].includes(a.name));
+export const isPassive = (name) => name.endsWith('+allpassive');
 
-export const SETS = { bisect: BISECT, fix: FIX };
+export const FIX = BISECT.filter((a) => ['default', 'user', 'end3', 'release', 'user+allpassive', 'release+allpassive'].includes(a.name));
+export const DELTA = BISECT.filter((a) => ['user', 'release', 'user+allpassive', 'release+allpassive'].includes(a.name));
+
+export const SETS = { bisect: BISECT, fix: FIX, delta: DELTA };
 
 export const armsArg = (set) => SETS[set].map((a) => `${a.name}=${a.search}`).join(';');
 
 if (process.argv[1] && process.argv[1].endsWith('combo-arms.mjs')) {
   const [cmd, set] = process.argv.slice(2);
-  if (!SETS[set]) { console.error('usage: combo-arms.mjs configs|arms bisect|fix'); process.exit(2); }
-  if (cmd === 'configs') process.stdout.write(`${SETS[set].filter((a) => a.search !== '').map((a) => a.search).join('\n')}\n`);
+  if (!SETS[set]) { console.error('usage: combo-arms.mjs configs|arms bisect|fix|delta'); process.exit(2); }
+  if (cmd === 'configs') process.stdout.write(`${[...new Set(SETS[set].filter((a) => a.search !== '').map((a) => a.search))].join('\n')}\n`);
   else if (cmd === 'arms') process.stdout.write(`${armsArg(set)}\n`);
-  else { console.error('usage: combo-arms.mjs configs|arms bisect|fix'); process.exit(2); }
+  else { console.error('usage: combo-arms.mjs configs|arms bisect|fix|delta'); process.exit(2); }
 }

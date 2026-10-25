@@ -1,6 +1,6 @@
 import { EASING_CSS as PANEL_EASING_CSS, effects as panelEffects } from '../morph.panel/threaded.logic';
 import { active, armed, DURATION_MS, fade, frame, pointerNone, REST, type St } from './logic';
-import { BASE, frameOut, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
+import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 
 export interface PlatformEl {
@@ -10,11 +10,13 @@ export interface PlatformEl {
 export interface WheelLike {
   deltaY: number;
   cancelable?: boolean;
+  readonly defaultPrevented: boolean;
   preventDefault(): void;
 }
 export interface TouchLike {
   touches: ArrayLike<{ clientY: number }>;
   cancelable?: boolean;
+  readonly defaultPrevented: boolean;
   preventDefault(): void;
 }
 export interface TweenEnv {
@@ -118,7 +120,7 @@ export function createTweenDriver(env: TweenEnv) {
     const r = p.getBoundingClientRect();
     return armed({ rectHeight: r.height, rectBottom: r.bottom, viewportHeight: env.viewportHeight() });
   };
-  const move = (e: { preventDefault(): void; cancelable?: boolean }, delta: number) => {
+  const move = (e: { preventDefault(): void; cancelable?: boolean; readonly defaultPrevented: boolean }, delta: number) => {
     const cancelable = e.cancelable !== false;
     const read: Read = {
       cancelable,
@@ -134,8 +136,8 @@ export function createTweenDriver(env: TweenEnv) {
       },
     };
     const [next, out] = moveStep(hooks, { ...end, tw: st }, delta, read);
-    end = next;
     if (out.prevent && cancelable) e.preventDefault();
+    end = hold(hooks, next, e.defaultPrevented, () => read.scrollY);
     if (out.goal !== null) apply(next.tw);
   };
   const onWheel = (e: WheelLike) => move(e, e.deltaY);

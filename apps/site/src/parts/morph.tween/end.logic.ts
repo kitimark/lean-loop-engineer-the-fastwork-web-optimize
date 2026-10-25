@@ -16,6 +16,14 @@ export interface Read {
   readonly now: number;
   readonly reduced: boolean;
   readonly cancelable?: boolean;
+  readonly passive?: boolean;
+  readonly other?: boolean;
+}
+
+export interface Delivery {
+  cancelable: boolean;
+  passive: boolean;
+  other: boolean;
 }
 
 export interface EndState {
@@ -55,7 +63,7 @@ const pinAfter = (h: Hooks, s: EndState, r: Read): number => (isActive(s.tw) && 
 const blocked = (h: Hooks, s: EndState, d: number, g: number): boolean =>
   (s.tw.target === g && s.tw.to === g) || (isActive(s.tw) && !h.allow(s.fresh, ctrAfter(s, d)));
 
-function innerMove(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
+export function moveStep(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
   if (!taken({ active: isActive(s.tw), delta: d, armed: r.arm })) return [{ ...s, ctr: ctrAfter(s, d) }, NONE];
   const g = dir({ delta: d });
   if (g === null || blocked(h, s, d, g)) {
@@ -68,11 +76,17 @@ function innerMove(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
   ];
 }
 
-export function moveStep(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
-  const [next, out] = innerMove(h, s, d, r);
-  if (!h.release) return [next, out];
-  const holds = out.prevent && r.cancelable !== false;
-  return [{ ...next, held: holds, pin: holds && !s.held ? r.scrollY : next.pin }, out];
+export const prevented = (o: Out, d: Delivery): boolean => d.other || (o.prevent && d.cancelable && !d.passive);
+
+export function hold(h: Hooks, next: EndState, dp: boolean, scrollY: () => number): EndState {
+  if (!h.release) return next;
+  return { ...next, held: dp, pin: dp && !next.held ? scrollY() : next.pin };
+}
+
+function moved(h: Hooks, s: EndState, d: number, r: Read): [EndState, Out] {
+  const [next, out] = moveStep(h, s, d, r);
+  const dlv = { cancelable: r.cancelable !== false, passive: r.passive === true, other: r.other === true };
+  return [hold(h, next, prevented(out, dlv), () => r.scrollY), out];
 }
 
 export function frameOut(h: Hooks, s: EndState, y: number, maxY: () => number): number | null {
@@ -91,10 +105,10 @@ export function step(h: Hooks, s: EndState, e: EndEv): [EndState, Out] {
       return [touchStart(s, e.y), NONE];
     case 'touchmove': {
       const y = e.y ?? s.touchY;
-      return moveStep(h, { ...s, touchY: y }, s.touchY - y, e);
+      return moved(h, { ...s, touchY: y }, s.touchY - y, e);
     }
     case 'wheel':
-      return moveStep(h, s, e.delta, e);
+      return moved(h, s, e.delta, e);
     case 'scroll':
     case 'resize':
       return [s, { ...NONE, write: frameOut(h, s, e.y, () => e.maxY) }];
