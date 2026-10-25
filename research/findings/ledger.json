@@ -4092,7 +4092,7 @@
    ],
    "v1Evidence": "none",
    "lesson": "A bound proved on the decision says nothing about the cause; trace the events before counting a win.",
-    "next": "toolbar-sim-lane adds the arm and reads the 10 Hz steps.",
+   "next": "toolbar-sim-lane adds the arm and reads the 10 Hz steps.",
    "evidence": "Lean Fw.Parts.MorphMountToolbar.once_at_most_one; golden morph-mount-toolbar.jsonl; trajectory probe 40214808662"
   },
   {
@@ -4682,10 +4682,10 @@
    "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): decided trade on both engines from rows already measured (WebKit script and EventDispatch up on the phone; Chromium about 200 more resolved elements), predicted neutral."
   },
   {
-     "entry": "morph.mount:touch-first: take the push decision on the first touchmove of a gesture (the native pan waits for it) and never start pinning once the native pan began; a gesture that starts unarmed hands over to the morph at the next gesture, not mid-gesture",
-     "task": "toolbar-proof-morph",
-     "field": "mechanism",
-     "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
+   "entry": "morph.mount:touch-first: take the push decision on the first touchmove of a gesture (the native pan waits for it) and never start pinning once the native pan began; a gesture that starts unarmed hands over to the morph at the next gesture, not mid-gesture",
+   "task": "toolbar-proof-morph",
+   "field": "mechanism",
+   "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
   }
  ]
 }
