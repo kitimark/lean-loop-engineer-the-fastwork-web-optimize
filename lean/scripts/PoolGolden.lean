@@ -104,8 +104,8 @@ def rowsCases : List (String × Json) := [
   ("budget gone: 361 minutes used, 0 pairs reachable", rowsReq ghK cmK [] 361),
   ("unknown class word: error", rowsReq ghK cmK [rw "x" [ob "flaky" "stable"]])]
 
-def qd (rep : Nat) (age : Nat) (over : List (String × Json) := []) : Json :=
-  (rq rep over).mergeObj (Json.mkObj [("queuedS", toJson age)])
+def qd (rep : Nat) (age : Nat) (over : List (String × Json) := []) (cells : Nat := 1) : Json :=
+  (rq rep over).mergeObj (Json.mkObj [("queuedS", toJson age), ("runCells", toJson cells)])
 
 def rerouteCases : List (String × Json) := [
   ("GitHub full, one job queued 300 s: Codemagic takes it", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 300])]),
@@ -115,6 +115,7 @@ def rerouteCases : List (String × Json) := [
   ("Codemagic at 361 used: stays", Json.mkObj [("state", st 5 361 3575), ("queued", .arr #[qd 0 400])]),
   ("Codemagic busy: stays", Json.mkObj [("state", st 5 166 3575 [("cmBusy", (1 : Nat))]), ("queued", .arr #[qd 0 400])]),
   ("gate-gaps never leaves GitHub", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 900 [("lane", "gate-gaps")]])]),
+  ("the run has another unfinished cell: stays, cancelling would lose it", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 900 [] 2])]),
   ("a newer push is the tip: stays", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 900 [("current", false)]])])]
 
 def line (op name : String) (request response : Json) : String :=

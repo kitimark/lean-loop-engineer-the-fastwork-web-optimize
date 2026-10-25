@@ -56,10 +56,10 @@ On 2026-10-25 `fw run` sent every macOS job to GitHub, so count runs queued behi
 
 ### Toolchain identity of a Codemagic cell (final design round)
 - `codemagic.yaml` pins `xcode: 27.1`, the Xcode of the GitHub `xcode-27` image; `FW_IOS_BUILD` and the `check-simulator` refusal pin the runtime.
-- Key = `{macosBuild, xcodeBuild, runtimeBuild}` read from each cell's `tools.txt`. Lean `ci.cellMerged` (PoolTier.lean `cellMerged`) merges a cell only when its key equals the key of the GitHub cell v1 (r1 for the rewrite arm) and every component is non-empty. TypeScript parses and passes keys, never compares them.
+- Key = `{macosBuild, xcodeBuild, runtimeBuild, cpus, memsize}` read from each cell's `tools.txt` (the three builds, then the two bare numbers of `sysctl -n hw.ncpu hw.memsize`; webkit-sim.yml and codemagic.yaml both print them). Lean `ci.cellMerged` (PoolTier.lean `cellMerged`) merges a cell only when its key equals the key of the GitHub cell v1 (r1 for the rewrite arm) and every component is non-empty. TypeScript parses and passes keys, never compares them.
 - A refused cell is filed aside: `refused/webkit-sim-<vm>/` and, in `webkit-classes/refused/`, `<vm>-classes.md` and `<vm>-key.json`. Event `ci.cell.platform {vm, ref, key, merged, hw}` in `ci-route.jsonl`.
 - A Codemagic build whose record carries no commit sha is refused.
-- Limits: hardware (cpus, memsize) is recorded, not keyed; merged cells can only demote rows (worst wins); no claim of equal counts across pools; GitHub VMs' keys are not cross-checked; no auto-pin when the GitHub image moves. TS stand-in: `mergeClasses` (the webkit-sim.yml merge job), the site-digest walk, the `tools.txt`/facts readers.
+- Limits: hardware is in the key since task cross-pool-pooling (the 3 cpu GitHub cell and the 8 cpu Codemagic cell never merge directly); merged cells can only demote rows (worst wins); no claim of equal counts across pools; GitHub VMs' keys are not cross-checked; no auto-pin when the GitHub image moves. TS stand-in: `mergeClasses` (the webkit-sim.yml merge job), the site-digest walk, the `tools.txt`/facts readers.
 
 #### Paired rewrite run, outcome (a) (MEASURED, n=1 per side, commit f438f8623)
 GitHub webkit-sim run 40211928946 cell r1 against the Codemagic cell r1 (Codemagic build 6ade316d, pinned image xcode 27.1). Keys equal and complete (macOS 26A434, Xcode 27A9275, runtime 24A434), so Lean `ci.cellMerged` merges the cell; site digests equal (GitHub run 40211928946 site-dist against the Codemagic site-digest.txt; ca7745e4f918...). Hardware (recorded, not keyed): GitHub 3 cpus, Codemagic 8 cpus / 12 GiB (mac_mini_m2).
@@ -85,6 +85,17 @@ Class diff, row by row (GitHub class -> Codemagic class): 20 of 104 rows differ,
 - scroll|RenderingFrame|per step: quarantined -> deterministic
 - scroll|ObserverCallback|per step: quarantined -> deterministic
 
+## Cross-pool pooling (task cross-pool-pooling)
+Why: equal toolchain keys still gave 20 of 104 class differences (MEASURED, n=1, above), and the hardware differed (3 vCPU M1 against 8 cpu / 12 GiB). Lean `Fw.Ci.PoolTier`:
+- Hardware is in the key (`Hw {cpus, memsize}`); `complete` needs both above 0. Theorems `cellMerged_hw_refused`, `cellMerged_cpus_refused`, `cellMerged_memsize_refused`, `measured_pair_not_merged` (the measured pair is not merged).
+- Row decision (`rowUse`, op `ci.poolRows`): direct when the cells merge; paired when at least `kReq` = 3 pinned pairs (one GitHub cell and one Codemagic cell of one commit) agree in class on that row and carry exactly the current ref and cell keys; else refused. Each row is decided alone; the paired class is the worst seen (`pairedClass_ge`). Theorems: `pooled_too_few`, `pooled_disagree`, `pooled_ghKey_mismatch`, `pooled_cmKey_mismatch`, `rowUse_few_pairs_refused`, `rowUse_disagree_refused`.
+- Budget: `pairsAffordable used k` is `used + 40 k <= 400`; `pairsReachable used = min 3 ((400 - used) / 40)`. At 166 used, k = 5 fits (`k5_fits_166`), k = 6 does not. If the budget cannot cover k, the reply's `reachable` is the k reached and the decision stays "not pooled".
+- Re-route (`reroutePlan`, op `ci.reroute`): a queued GitHub job moves when it has waited 300 s and is the only unfinished cell of its run; the plan is `step` over the movable requests, so `reroute_budget`, `reroute_slots`, `reroute_cap_7` hold. Glue `rerouteQueued` (ci-pool-tier.ts): trigger Codemagic first, cancel the GitHub run only after the trigger succeeded.
+- Pair records: `place` writes `<console dir>/ci-pairs/<sha7>-<target>-<vm>-<build>.json` for each refused cell and `webkit-classes/refused/<vm>-pooled-rows.json` (the `ci.poolRows` reply) when the three builds agree.
+- `fw ci state cm:<24 hex>` prints `running`, `complete` or `failed` (scripts/codemagic.mjs `state --build`); `fw review ready` accepts `cm:<24 hex>` as run evidence (Lean `runIdOf`).
+- TS stand-ins: `classRowsOf` (codemagic.mjs `classRows`), the pair files, the poller-side choice of which queued jobs to offer (no poller edit: the runner glue takes the queued list), `hwOf`.
+- Accepted limits: one Codemagic slot; Codemagic hardware varies within an instance_type (recorded per build); CircleCI is closed for macOS; no paid runners; k pairs are bounded by the minute budget.
+
 ## Not wired yet
 
-Jobs already queued on GitHub are not re-routed (the Lean route has no re-route step: a GitHub dispatch is final); a poller that cancels and re-dispatches them needs its own proof. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.
+The poller does not yet call `rerouteQueued` on its own (the decision and glue exist; the call site is a follow-up). Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.

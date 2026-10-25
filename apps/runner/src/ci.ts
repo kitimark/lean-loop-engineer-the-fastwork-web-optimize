@@ -86,8 +86,26 @@ export function stateStep(narrowed: boolean, limit: number, id: number, ids: num
   return next === undefined ? { step: "exhausted" } : { step: "grow", next };
 }
 
-export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void; branch?: string; workflow?: string }): Promise<number> {
-  if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id> [--branch <b>] [--workflow <w>]");
+/** A Codemagic build id as `fw review ready` evidence names it: `cm:` and 24 lowercase hex digits (Lean `Fw.Plan.ReviewReady.runIdOf`). */
+export const CM_RUN = /^cm:[0-9a-f]{24}$/;
+
+/** Reads the state word of one Codemagic build (`node scripts/codemagic.mjs state --build <id>`); I/O glue, no decision. */
+export type CmState = (buildId: string) => Promise<"running" | "complete" | "failed" | null>;
+
+export function realCmState(root: string): CmState {
+  return async (buildId) => {
+    const r = spawnSync(process.execPath, [join(root, "scripts/codemagic.mjs"), "state", "--build", buildId], { cwd: root, encoding: "utf8" });
+    return r.status === 0 ? ((/ (running|complete|failed)\s*$/.exec(r.stdout)?.[1] as "running" | "complete" | "failed" | undefined) ?? null) : null;
+  };
+}
+
+export async function ciState(runId: string, d: { gh: Gh; log: (l: string) => void; branch?: string; workflow?: string; cm?: CmState }): Promise<number> {
+  if (CM_RUN.test(runId)) {
+    const w = d.cm ? await d.cm(runId.slice(3)) : null;
+    d.log(w ? `${runId} ${w}` : `${runId} unknown`);
+    return w ? 0 : 2;
+  }
+  if (!/^[0-9]+$/.test(runId)) throw new UsageError("usage: fw ci state <run id | cm:<build id>> [--branch <b>] [--workflow <w>]");
   const narrow = [...(d.branch ? ["--branch", d.branch] : []), ...(d.workflow ? ["--workflow", d.workflow] : [])];
   const id = Number(runId);
   let limit: number = STATE_LIMITS[0];
@@ -172,7 +190,7 @@ export function recordStateParts(parts: { step: string; durMs: number }[], start
 }
 
 export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
-  const usage = "usage: fw ci state <run id> [--branch <b>] [--workflow <w>]";
+  const usage = "usage: fw ci state <run id | cm:<build id>> [--branch <b>] [--workflow <w>]";
   const [id, ...rest] = argv;
   if (!id) throw new UsageError(usage);
   const o: { branch?: string; workflow?: string } = {};
@@ -188,7 +206,7 @@ export async function ciStateCli(argv: string[], cwd: string): Promise<number> {
   const timed: Gh = async (a, op) => { clock.start(); try { return await gh(a, op); } finally { clock.end(); } };
   let exit = 1;
   try {
-    exit = await ciState(id, { gh: timed, log: (l) => console.log(l), ...o });
+    exit = await ciState(id, { gh: timed, log: (l) => console.log(l), cm: realCmState(cwd), ...o });
     return exit;
   } finally {
     recordStateParts(withLoadPart(ciStateParts(clock, performance.now() - t0), load.ms), startMs, exit, (sp) => record(sp, cwd));

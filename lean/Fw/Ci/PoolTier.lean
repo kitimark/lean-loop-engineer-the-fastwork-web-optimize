@@ -673,19 +673,26 @@ theorem pairsReachable_full (used : Nat) (h : pairsAffordable used kReq = true) 
 /-- How long a GitHub macOS job waits in the queue before the poller offers it to Codemagic. -/
 def rerouteAfterS : Nat := 300
 
-/-- A request whose GitHub job is still queued, with the seconds it has waited. -/
+/-- A request whose GitHub job is still queued: the seconds it has waited and the unfinished cells of its run.
+
+The run is cancelled once its cell is on Codemagic, so a run with other unfinished cells (`runCells` ≠ 1) stays.
+-/
 structure Queued where
   req : Req
   queuedS : Nat
+  runCells : Nat
 deriving DecidableEq, Repr
 
-/-- Has the job waited long enough to be offered elsewhere? -/
-def Queued.aged (q : Queued) : Bool := decide (rerouteAfterS ≤ q.queuedS)
+/-- May the job be offered to Codemagic?
 
-/-- The requests the re-route considers, in order: the aged queued ones. -/
-def rerouteReqs (qs : List Queued) : List Req := (qs.filter Queued.aged).map (·.req)
+It has waited `rerouteAfterS` seconds and is the only unfinished cell of its run.
+-/
+def Queued.movable (q : Queued) : Bool := decide (rerouteAfterS ≤ q.queuedS) && q.runCells == 1
 
-/-- The re-route plan: the ordinary route over the aged queued requests.
+/-- The requests the re-route considers, in order: the movable queued ones. -/
+def rerouteReqs (qs : List Queued) : List Req := (qs.filter Queued.movable).map (·.req)
+
+/-- The re-route plan: the ordinary route over the movable queued requests.
 
 A job goes to Codemagic exactly when the route sends its request there; every other answer leaves the job on GitHub.
 -/
@@ -695,19 +702,31 @@ def reroutePlan (c : Cfg) (qs : List Queued) (s : State) : List (Req × Decision
 def rerouteMoved (c : Cfg) (qs : List Queued) (s : State) : List (Req × Decision) :=
   (reroutePlan c qs s).1.filter fun x => x.2.isCm
 
-theorem reroute_only_aged (qs : List Queued) (r : Req) (h : r ∈ rerouteReqs qs) : ∃ q ∈ qs, q.aged = true ∧ q.req = r := by
+theorem reroute_only_movable (qs : List Queued) (r : Req) (h : r ∈ rerouteReqs qs) : ∃ q ∈ qs, q.movable = true ∧ q.req = r := by
   simp only [rerouteReqs, List.mem_map, List.mem_filter] at h
   obtain ⟨q, ⟨hq, ha⟩, he⟩ := h
   exact ⟨q, hq, ha, he⟩
 
 theorem reroute_none_young (qs : List Queued) (h : ∀ q ∈ qs, q.queuedS < rerouteAfterS) : rerouteReqs qs = [] := by
   simp only [rerouteReqs]
-  have : qs.filter Queued.aged = [] := by
+  have : qs.filter Queued.movable = [] := by
     apply List.filter_eq_nil_iff.2
     intro q hq
     have h1 : ¬ rerouteAfterS ≤ q.queuedS := Nat.not_le.2 (h q hq)
-    simpa [Queued.aged] using h1
+    simp [Queued.movable, h1]
   simp [this]
+
+theorem reroute_none_shared (qs : List Queued) (h : ∀ q ∈ qs, q.runCells ≠ 1) : rerouteReqs qs = [] := by
+  simp only [rerouteReqs]
+  have : qs.filter Queued.movable = [] := by
+    apply List.filter_eq_nil_iff.2
+    intro q hq
+    have h1 := h q hq
+    simp [Queued.movable, h1]
+  simp [this]
+
+theorem movable_iff (q : Queued) : q.movable = true ↔ rerouteAfterS ≤ q.queuedS ∧ q.runCells = 1 := by
+  simp [Queued.movable]
 
 theorem reroute_budget (c : Cfg) (qs : List Queued) (s : State) (h : s.cmUsed ≤ Codemagic.stopAt) :
     s.cmUsed + c.cmCapMin * cmCount (reroutePlan c qs s).1 ≤ Codemagic.stopAt :=
@@ -820,8 +839,9 @@ private def ob (g c : RowClass) : Obs := ⟨g, c, refK, cmK⟩
 #guard pairsReachable 280 == 3
 #guard pairsReachable 281 == 2
 #guard pairsReachable 361 == 0
-#guard (reroutePlan pool7 [⟨rq "webkit-sim", 300⟩, ⟨rq "webkit-sim" 1, 299⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == [true]
-#guard (reroutePlan pool7 [⟨rq "webkit-sim", 300⟩, ⟨rq "webkit-sim" 1, 400⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == [true, false]
-#guard (reroutePlan pool7 [⟨rq "webkit-sim", 900⟩] idle).1.map (·.2.isCm) == [false]
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 300, 1⟩, ⟨rq "webkit-sim" 1, 299, 1⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == [true]
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 300, 1⟩, ⟨rq "webkit-sim" 1, 400, 1⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == [true, false]
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 900, 2⟩] { idle with base.ghMacBusy := 5, base.ghTotalBusy := 5 }).1.map (·.2.isCm) == []
+#guard (reroutePlan pool7 [⟨rq "webkit-sim", 900, 1⟩] idle).1.map (·.2.isCm) == [false]
 
 end Fw.Ci.PoolTier

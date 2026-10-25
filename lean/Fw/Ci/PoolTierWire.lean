@@ -141,20 +141,20 @@ def opRows (req : Json) : Except String Reply := do
     ("counts", Json.mkObj [("direct", cnt .direct), ("paired", cnt .paired), ("refused", cnt .refused)])]
 
 def queuedOf (j : Json) : Except String Queued := do
-  pure ⟨← reqOf j, ← natD j "queuedS" 0⟩
+  pure ⟨← reqOf j, ← natD j "queuedS" 0, ← natD j "runCells" 0⟩
 
 /-- `ci.reroute`: the tier request with `queued` (each a request plus `queuedS`) instead of `reqs`; a queued job moves to
-Codemagic when it is aged and the route sends it there. Reply `log` rows have `reroute`. -/
+Codemagic when it has waited 300 s, is the only unfinished cell of its run (`runCells` 1; absent = 0) and the route sends it there. Reply `log` rows have `reroute`. -/
 def opReroute (req : Json) : Except String Reply := do
   let c ← cfgOf req
   let s ← stateOf (← field req "state")
   let qs ← (← arr req "queued").toList.mapM queuedOf
   let o := reroutePlan c qs s
-  let aged := qs.filter Queued.aged
+  let aged := qs.filter Queued.movable
   let rows := (aged.zip o.1).map fun (q, p) =>
     Json.mkObj [("sha", q.req.key.sha), ("lane", q.req.key.lane), ("cfg", q.req.key.cfg), ("rep", q.req.key.rep),
-      ("queuedS", q.queuedS), ("reroute", p.2.isCm)]
-  pure [("log", .arr rows.toArray), ("moved", cmCount o.1), ("skippedYoung", qs.length - aged.length), ("state", stateJson' o.2)]
+      ("queuedS", q.queuedS), ("runCells", q.runCells), ("reroute", p.2.isCm)]
+  pure [("log", .arr rows.toArray), ("moved", cmCount o.1), ("skipped", qs.length - aged.length), ("state", stateJson' o.2)]
 
 def ops : List String := ["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged", "ci.poolRows", "ci.reroute"]
 

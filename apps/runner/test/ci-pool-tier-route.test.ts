@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { cellMerged, parseHw, parsePlatformKey, placeCmArtifacts, poolCell, planCells, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
+import { classRowsOf, poolRows, readPairs, recordPair, rerouteQueued, type PairRecord, cellMerged, parseHw, parsePlatformKey, placeCmArtifacts, poolCell, planCells, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
 import type { PlanJob } from "@fw/contracts";
 import { fwcoreCall } from "../src/run.ts";
 
@@ -165,14 +165,20 @@ const TOOLS = (mac: string, xc: string, rt: string, extra = "") =>
 describe("toolchain identity of a Codemagic cell (Lean ci.cellMerged)", () => {
   const gh = parsePlatformKey(TOOLS("26A434", "27A9275", "24A434"));
   it("parses the three builds; an extra other-version runtime does not matter", () => {
-    expect(gh).toEqual({ macosBuild: "26A434", xcodeBuild: "27A9275", runtimeBuild: "24A434" });
+    expect(gh).toEqual({ macosBuild: "26A434", xcodeBuild: "27A9275", runtimeBuild: "24A434", cpus: 12, memsize: 17179869184 });
     expect(parsePlatformKey(TOOLS("26A434", "27A9275", "24A434", "iOS 26.5 (26.5 - 23F77) - x\n"))).toEqual(gh);
-    expect(parsePlatformKey(null)).toEqual({ macosBuild: "", xcodeBuild: "", runtimeBuild: "" });
+    expect(parsePlatformKey(null)).toEqual({ macosBuild: "", xcodeBuild: "", runtimeBuild: "", cpus: 0, memsize: 0 });
   });
   it("round-2 pair refused, pinned pair merged, missing runtime refused", () => {
     expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A428", "27A266a", "24A434")))).toBe(false);
     expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A434", "27A9275", "24A434")))).toBe(true);
     expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A434", "27A9275", "24A434").replace(/^iOS 27.*\n/m, "")))).toBe(false);
+  });
+  it("equal toolchain, other hardware: not merged (the 3 cpu GitHub cell against the 8 cpu Codemagic cell)", () => {
+    const other = parsePlatformKey(TOOLS("26A434", "27A9275", "24A434").replace("12\n17179869184", "8\n12884901888"));
+    expect(other.cpus).toBe(8);
+    expect(cellMerged(call, gh, other)).toBe(false);
+    expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A434", "27A9275", "24A434").replace("12\n17179869184\n", "")))).toBe(false);
   });
   it("hardware: sysctl lines of tools.txt, runner.json cpus", () => {
     const d = mkdtempSync(join(tmpdir(), "hw-"));
@@ -180,6 +186,48 @@ describe("toolchain identity of a Codemagic cell (Lean ci.cellMerged)", () => {
     expect(parseHw(d)).toEqual({ cpus: 12, memsize: 17179869184 });
     writeFileSync(join(d, "runner.json"), JSON.stringify({ cpus: 3 }));
     expect(parseHw(d)).toEqual({ cpus: 3, memsize: 17179869184 });
+  });
+});
+
+describe("row pooling by pinned pairs (Lean ci.poolRows)", () => {
+  const ghK = parsePlatformKey(TOOLS("a", "b", "c").replace("12\n17179869184", "3\n7516192768"));
+  const cmK = parsePlatformKey(TOOLS("a", "b", "c").replace("12\n17179869184", "8\n12884901888"));
+  const pair = (n: number, cm: string): PairRecord => ({ sha: "1".repeat(40), target: "original", vm: "v3", ghRun: String(n), cmBuild: `cm:${String(n).padStart(24, "0")}`, ghKey: ghK, cmKey: cmK, gh: { "a|m|l": "stable", "b|m|l": "stable" }, cm: { "a|m|l": "stable", "b|m|l": cm } });
+  it("classRowsOf reads the class table", () => {
+    expect(classRowsOf("| family | metric | level | class | a | b | c | d |\n|---|\n| x | y | z | **stable** | 1 | 2 | 3 | 4 |\n")).toEqual({ "x|y|z": "stable" });
+  });
+  it("three agreeing pairs pool a row, one disagreement refuses only that row, two pairs pool nothing", () => {
+    const three = poolRows(call, ghK, cmK, [pair(1, "stable"), pair(2, "stable"), pair(3, "quarantined")]);
+    expect(three.rows).toEqual([{ row: "a|m|l", use: "paired", class: "stable" }, { row: "b|m|l", use: "refused" }]);
+    expect(three.counts).toEqual({ direct: 0, paired: 1, refused: 1 });
+    expect(poolRows(call, ghK, cmK, [pair(1, "stable"), pair(2, "stable")]).counts.paired).toBe(0);
+    expect(poolRows(call, ghK, cmK, [pair(1, "stable"), pair(2, "stable"), pair(3, "stable")], 166).reachable).toBe(3);
+  });
+  it("recordPair and readPairs round-trip", () => {
+    const d = mkdtempSync(join(tmpdir(), "pairs-"));
+    recordPair(d, pair(1, "stable"));
+    expect(readPairs(d)).toEqual([pair(1, "stable")]);
+    expect(readPairs(join(d, "none"))).toEqual([]);
+  });
+});
+
+describe("queued re-route glue (Lean ci.reroute)", () => {
+  const req = { capMin: 40, cfg: "00".repeat(32), engine: "iosSimSafari", image: "xcode-27", lane: "webkit-sim", rep: 0, sha: "0123456789abcdef0123456789abcdef01234567" };
+  const state = { ccSpent: 3575, ccStorage: 30, cmUsed: 166, ghMacBusy: 5, ghRemainingS: null, ghTotalBusy: 5 };
+  const run = async (queuedS: number, runCells: number, code = 0) => {
+    const calls: string[] = [];
+    const out = await rerouteQueued(call, state, [{ req, queuedS, runCells, runId: "42" }], {
+      trigger: async () => { calls.push("trigger"); return { build: code ? null : "a".repeat(24), code }; },
+      cancel: async (id) => { calls.push(`cancel ${id}`); }, log: () => {} });
+    return { out, calls };
+  };
+  it("aged lone job: Codemagic first, then the GitHub run is cancelled", async () => {
+    expect(await run(300, 1)).toEqual({ out: ["a".repeat(24)], calls: ["trigger", "cancel 42"] });
+  });
+  it("young, shared, or refused: the GitHub run is untouched", async () => {
+    expect((await run(299, 1)).calls).toEqual([]);
+    expect((await run(900, 2)).calls).toEqual([]);
+    expect((await run(300, 1, 5)).calls).toEqual(["trigger"]);
   });
 });
 
