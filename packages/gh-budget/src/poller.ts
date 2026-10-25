@@ -12,6 +12,10 @@ import { loadState, locked, paths, readStatus, stepEvent, stepUnlocked, writeSta
 export const LIST_FIELDS = "status,conclusion,databaseId,headBranch,workflowName,headSha,createdAt,updatedAt,attempt,event,displayTitle";
 const PAGE = 100;
 
+export type QueuedRun = { runId: number; workflow: string; sha: string; branch: string; queuedS: number };
+
+export type RerouteEnv = Env & { reroute?: (queued: QueuedRun[], now: number) => Promise<void> };
+
 export type TickStatus = Status & { interval?: number; retryUntil?: number };
 
 const nat = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
@@ -62,11 +66,11 @@ function drainLocked(env: Env, lockWaitMs?: number): number {
   }, lockWaitMs);
 }
 
-export async function pollOnce(env: Env, lockWaitMs: number = GH_BOUNDS.pollLockWaitMs): Promise<Poll> {
+export async function pollOnce(env: RerouteEnv, lockWaitMs: number = GH_BOUNDS.pollLockWaitMs): Promise<Poll> {
   try { return await pollTick(env, lockWaitMs); } finally { drainIncidents(env, lockWaitMs); }
 }
 
-async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
+async function pollTick(env: RerouteEnv, lockWaitMs: number): Promise<Poll> {
   const res = await chargedCall(
     env,
     // under the state lock: the waiters dir is read here, so fwcore sweeps the watches whose waiter is gone before it
@@ -116,5 +120,17 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
     rows: rows.map((r) => ({ runId: r.databaseId, createdAt: Math.floor(Date.parse(r.createdAt) / 1000) })),
     count: listed.length, pagesRead: Number(res.reply.pages ?? 1), ...(since == null ? {} : { createdSince: since }),
   } });
+  await rerouteTick(env, rows, now);
   return { wakeAt: now, ticked: true };
+}
+
+export async function rerouteTick(env: RerouteEnv, rows: Row[], now: number): Promise<number> {
+  if (!env.reroute) return 0;
+  const queued: QueuedRun[] = rows
+    .filter((r) => r.status === "queued")
+    .map((r) => ({ runId: r.databaseId, workflow: r.workflowName ?? "", sha: r.headSha ?? "", branch: r.headBranch ?? "", queuedS: Math.max(0, now - Math.floor(Date.parse(r.createdAt) / 1000)) }))
+    .filter((q) => Number.isFinite(q.queuedS) && q.workflow !== "");
+  if (queued.length === 0) return 0;
+  try { await env.reroute(queued, now); } catch (e) { appendFileSync(paths(env.dir).incidents, JSON.stringify({ rerouteFailed: String(e).slice(0, 200), at: now }) + "\n"); }
+  return queued.length;
 }
